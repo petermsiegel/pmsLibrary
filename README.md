@@ -1,9 +1,9 @@
-# require
+### require
 Verifies that required APL objects are available to the calling environment; loads from workspaces or 
-files as necessary.<br>
+files as necessary.
 
-* See require.help for details.<br>
-* See function source require.dyalog.<br><br>
+* See require.help for details.
+* See function source require.dyalog.
 
 Usage:
 
