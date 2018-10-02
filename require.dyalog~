@@ -2,7 +2,7 @@
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info in:
-   ⍝     /Users/<USER>/MyDyalogLibrary/require/documentation.txt
+   ⍝     /Users/petermsiegel/MyDyalogLibrary/require/documentation.txt
    ⍝ Grab filedir from SALT comment line at end of this function.
      ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'documentation.txt',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
 
