@@ -1,13 +1,10 @@
 # require
-Verifies that required APL objects are available to the calling environment; loads from workspaces or files as necessary.
-<br>
-* See requireHelp.txt for details.
-<br>
-* See function source require.dyalog.
-<br>
-Usage:<br>
+Verifies that required APL objects are available to the calling environment; loads from workspaces or files as necessary.<br>
+* See requireHelp.txt for details.<br>
+* See function source require.dyalog.<br><br>
+Usage:<br><br>
        ⍝ Load require.dyalog from the active directory.<br>
-         ]load require <br>
+         ]load require <br><br>
          ∇ myFunction<br>
           ...<br>
        ⍝ Load cmpx from dfns workspace and ∆HERE.dyalog from a file (unless already in caller namespace or ⎕PATH) <br>
