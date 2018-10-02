@@ -20,15 +20,15 @@ ________________________________________________________________________________
    ∘ package formats:
            [wsN:][dir.]name |  [wsN:]
    ∘ stdLib is a namespace reference or name (existing or to be created).
-     '' implies <top>, the top-level in which require's caller operates, either # or ⎕SE.
+     '' implies a reference to <top>, the top-level in which require's caller operates, either # or ⎕SE.
    ∘ If missing, stdLib is <top>.⍙⍙.require (top as above).
    ∘ ⎕LIB as a prefix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
      e.g. '⎕LIB.math' is  '#.⍙⍙.require.math' if require's caller is in # or subdirectory.
    ∘ Updates caller's ⎕PATH to provide access to the packages, dropping any
      path namespaces that don't exist. ⎕PATH only ensures functions and operators
      are found. See Syntax 2 for how to specify a library, e.g. to access a class etc.
-   ∘ CODE is optional and may be 1 or 0.
-     If 0 (default), returns as below (Ia) or (IIa).
+   ∘ CODE is optional and may be 1 (or 0), 2, or 4 or (DEBUG info provided) -1 -2 or -4. 
+     If 1 or -1, returns as below (Ia) or (IIa). See below for CODE, DEBUG.
    ∘ For the disk path, <require> searches as follows:
        a. Use ⎕SE.∆WSPATH, if present. If not,
        b. Use (OS X) environment variable WSPATH. Else
