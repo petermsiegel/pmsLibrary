@@ -1,4 +1,4 @@
- require←{
+﻿ require←{
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info in:
@@ -307,5 +307,5 @@
      succ∧CODE∊1 0:_←{⍵}TRACE statusList       ⍝ CODE 1|0: SUCC: shy     (non-shy if DEBUG)
      ⋄ CODE∊1 0:statusList                     ⍝           FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid CODE: ',⍕CODE)11   ⍝ ~CODE∊0 1 2 3
-⍝    §require/require.dyalog§  Minimum needed for if require.help is in ./require
+
  }
