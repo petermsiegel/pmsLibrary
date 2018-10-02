@@ -2,21 +2,21 @@
 ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ∆MY:  myStat ← ∆MY
       myStat: a namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
-              namespace for objects associated with the function immediately calling ∆MY.
+              namespace for objects associated with the function or operator immediately calling ∆MY.
 ∆MY:
-  "A function returning a local namespace for static variables for the function calling ∆MY,
+  "A function returning a local namespace for static variables for the function/op calling ∆MY,
    creating it if required. Initializes special "pseudo-system" variables as well.
   ∘ In this approach, the namespace containing the calling function will have a special
-    namespace <static> added, defined as '⍙⍙' below, which will contain static info for all such functions.
+    namespace <static> added, defined as '⍙⍙.∆MY' below, which will contain static info for all such functions in that namespace.
     Thus if a variable 'MATH.BASIC.COS' is copied from workspace BIGINTEGER,
     and requires its static data, this is what's needed:
-      'MATH.BASIC.COS' 'MATH.BASIC.⍙⍙.COS' ⎕CY 'BIGINTEGER',
-    since MATH.BASIC.⍙⍙.COS is the name of the namespace containing static data
+      'MATH.BASIC.COS' 'MATH.BASIC.⍙⍙.∆MY.COS' ⎕CY 'BIGINTEGER',
+    since MATH.BASIC.⍙⍙.∆MY.COS is the name of the namespace containing static data
     associated with MATH.BASIC.COS."
 Method used:
  1. If it does not exist, creates a namespace <static> in the namespace, <my>, in which
     ∆MY's caller <me> lives, i.e. <my>.<static>.
-    For <static> a special string is defined below: ⍙⍙
+    For <static> a special string is defined below: ⍙⍙.∆MY
  2. If it does not exist, creates a namespace <me> within <static>, where
     <me> is the unqualified (simple) name of the caller.
    a. Iff that space is new, sets "pseudo-system" variables:
