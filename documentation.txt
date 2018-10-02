@@ -1,4 +1,4 @@
- require Documentation
+﻿ require Documentation
  ------- -------------
  require: "Ensure APL objects are in the current namespace or ⎕PATH; else loads them
            from a workspace (*.dws) or *.dyalog files."
@@ -6,6 +6,7 @@
                namespaceRef    ←  [stdLib] CODE:2 ¯2    ∇  ...
       namespaceRef list1 list2 ←  [stdLib] CODE:4 ¯4    ∇  ...
    Syntax 2:   namespaceRef    ←  [stdLib]              ∇  [⍬ | '']
+   Syntax 3:   ⍬               ←                        ∇  '-HELP'
 ________________________________________________________________________________________
 
  Syntax 1:
@@ -52,6 +53,7 @@ ________________________________________________________________________________
        Scan for and load all packages as above; then
        return on success OR failure
             <library ns ref> list1 list2
+
  Syntax 2: Right arg has length 0 (⍬ or '')
  ------------------------------------------
    ∘ Returns a reference to the specified or default standard library (stdLib).
@@ -63,6 +65,10 @@ ________________________________________________________________________________
   -------------------------------------------
   ∘  Returns: namespaceRef
      The namespace reference for the specified or default library.
+
+ Syntax 3: Right argument is '-HELP'
+ -----------------------------------
+   ∘ Displays help information (from require/documentation.txt).
 ____________________________________________________________________________________________
 
  Search: What is searched to find each package?
