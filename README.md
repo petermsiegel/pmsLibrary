@@ -1,4 +1,4 @@
-__pmsLib__: A library of useful APL functions and operators, specified as prototypes, best implemented within the language. 
+__pmsLibrary__: A library of useful APL functions and operators, specified as prototypes, best implemented within the language. 
 
 This is a work in progress, as I move a handful of such functions out of workspaces into github.
 
