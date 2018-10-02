@@ -72,18 +72,11 @@ ________________________________________________________________________________
 ____________________________________________________________________________________________
 
  Search: What is searched to find each package?
-
-  package          searched for what...  where (>> means "and then")
-  ¯¯¯¯¯¯¯¯¯¯     ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  name             name                  in CALLER >> PATH >> WSPATH (but no workspaces)   
-  dir.name         dir.name, name        (SAME)
-  WSNAME:name      name                  CALLER >> PATH >> WSNAME (via ⎕CY)             
-  WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME (via ⎕CY)
-  WSNAME:          WSNAME                WSNAME itself in WSPATH (via ⎕CY)
-
-  CALLER: the caller's namespace (*)
-  PATH:   the namespaces in ⎕PATH
-  WSPATH: the directories in WSPATH
-  WSNAME: the named workspace
-  * For speed, CALLER is searched first, then PATH, before checking directories or workspaces!
-_______________________________________________________________________________________________
+          package      what's searched
+          ¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+          name         caller NS, ⎕PATH ns, in $WSPATH, but not workspaces.
+          dir.name     same as 'name', but search for dir.name of any complexity (a.b.c.d).
+          wsN:name      caller ns, ⎕PATH ns, workspace wsN: for name, in $WSPATH.
+          wsN:dir.name  caller ns, ⎕PATH ns, workspace wsN:, in $WSPATH for dir.name of any complexity.
+          wsN:          workspace <wsN>, copying everything.
+_____________________________________________________________________________________________
