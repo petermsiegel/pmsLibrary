@@ -5,7 +5,7 @@ Verifies that required APL objects are available to the calling environment; loa
 <br>
 * See function source require.dyalog.
 <br>
-Usage:
+Usage:<br>
        ⍝ Load require.dyalog from the active directory.<br>
          ]load require <br>
          ∇ myFunction<br>
