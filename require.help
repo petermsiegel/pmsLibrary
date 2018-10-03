@@ -20,7 +20,7 @@ ________________________________________________________________________________
      "Given names of packages:
          APL objects, namespaces/directories and objects, or
          workspaces (optionally with namespaces and objects),
-     look in the current directory, the ⎕PATH, and on disk in directories set in ⎕SE.∆WSPATH,
+     look in the current directory, the ⎕PATH, and on disk in directories set in ⎕SE.∆FSPATH,
      for those packages and, if not in the active workspace, copy them from the disk
      or workspace  into the library specified as the stdLib."
    ∘ package formats:
@@ -36,17 +36,18 @@ ________________________________________________________________________________
    ∘ CODE is optional and may be 1 (or 0), 2, or 4 or (DEBUG info provided) -1 -2 or -4. 
      If 1 or -1, returns as below (Ia) or (IIa). See below for CODE, DEBUG.
    ∘ For the disk path, <require> searches as follows:
-       a. Use ⎕SE.∆WSPATH, if present. If not,
-       b. Use (OS X) environment variable WSPATH. Else
+       a. Use ⎕SE.∆FSPATH, if present. If not,
+       b. Use (OS X) environment variable FSPATH. Else, if null,
+       c. Use (OS X) environment variable WSPATH, managed by Dyalog to find workspaces; else
        c. Use string '.' (current directory based on ]CD)
      Each item must be a string indicating absolute or relative file directories
      (if absent, they are ignored) separated by colons (:).
-   ∘ If  ⎕SE.∆WSPATH includes a lone comma as any path, i.e. an initial ',:', a final ':,' or an intermediate ':,:',
-     it is replaced by the current value of the environment variable WSPATH. 
-     For example, if WSPATH is:
-           '.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws'    ⍝ An abbreviated version of the OS X path is shown
+   ∘ If  ⎕SE.∆FSPATH includes a lone comma as any path, i.e. an initial ',:', a final ':,' or an intermediate ':,:',
+     it is replaced by the current value of the environment variable FSPATH or, if null, WSPATH. 
+     For example, if env var FSPATH (or, if null, WSPATH) is:
+           '.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws'    ⍝ An abbreviated version of the OS X WSPATH is shown
      and you specify:
-         ⎕SE.∆WSPATH ← 'myPrivateLibrary:,:lastResortLib'
+         ⎕SE.∆FSPATH ← 'myPrivateLibrary:,:lastResortLib'
      then require will search (with respect to the current disk directory a la ]CD):
          'myPrivateLibrary:.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws:lastResortLib'
    ∘ An empty package generates an error.
@@ -92,15 +93,15 @@ ________________________________________________________________________________
 
   package          searched for what...  where (>> means "and then")
   ¯¯¯¯¯¯¯¯¯¯     ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  name             name                  in CALLER >> PATH >> WSPATH (but no workspaces)   
+  name             name                  in CALLER >> PATH >> FSPATH (but no workspaces)   
   dir.name         dir.name, name        (SAME)
-  WSNAME:name      name                  CALLER >> PATH >> WSNAME (via ⎕CY)             
-  WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME (via ⎕CY)
-  WSNAME:          WSNAME                WSNAME itself in WSPATH (via ⎕CY)
+  WSNAME:name      name                  CALLER >> PATH >> WSNAME               
+  WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME  
+  WSNAME:          WSNAME++              WSNAME: if found, it is copied with all its contents
 
   CALLER: the caller's namespace (*)
-  PATH:   the namespaces in ⎕PATH
-  WSPATH: the directories in WSPATH
-  WSNAME: the named workspace
+  PATH:   the namespaces in ⎕PATH (in the caller's namespace)
+  FSPATH: the directories in ∆FSPATH var, FSPATH env var, or WSPATH env var, else current file directory.
+  WSNAME: the named workspace via Dyalog APL ⎕CY (which searches WSPATH per documentation)
   * For speed, CALLER is searched first, then PATH, before checking directories or workspaces!
 _______________________________________________________________________________________________
