@@ -25,4 +25,4 @@ Mary Smith
 Employee name: John Jones, address: 1212 Malden, salary:  £12398.33
                Mary Smith           45 Highland           £12399.22
 ```
-     interpolating arrays __name__, __address__, and __salary__.
+  interpolating arrays __name__, __address__, and __salary__.
