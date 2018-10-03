@@ -1,5 +1,14 @@
-﻿:Namespace ∆MYgrp
-
+:Namespace ∆MYgrp
+  ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC objects within
+  ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
+  ⍝ ∘ For an overview, see ∆MYgrp.help
+  ⍝ ∘ We create files in namespaces within various user namespaces. 
+  ⍝   This class uses a "private" namespace, ⍙⍙.∆MY, inside a namespace ⍙⍙, which supports a "family" of services.
+  ⍝ ∘ While many ⍙⍙ services are only in the top-level spaces # or ⎕SE, ∆MYgrp places its namespace(s) in the
+  ⍝   same namespace that the calling function uses.
+  ⍝ ∘ The namespace should not otherwise be used, or at least select a service name that is associated
+  ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
+  
     STATIC←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
   ⍝ Special function names:
   ⍝    __anon__  When the function is an anonymous dfn
