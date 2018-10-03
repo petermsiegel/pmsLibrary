@@ -830,7 +830,7 @@
 
     :section 4. Executive Function: ∆format
 ⍝↓ -----------------------------------------------------------------------------------------
-⍝↓ Executive: Generate ∆format, ##.∆format, and ##.∆f
+⍝↓ Executive: Generate ∆format and ∆f
 ⍝↓ -----------------------------------------------------------------------------------------
 
     :section 4a. Executive Function: Kludges
@@ -844,37 +844,28 @@
 
     :section 4b. User-callable functions: ∆format, ∆f
       ∆format←{
+          ⎕PATH←(⍕⎕THIS),' ',⎕PATH    ⍝ Local ⎕PATH...
           0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
           ⍺←1
           ⍺{
-              ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({enQX ⍵}(⊃⍵))(1↓⍵)}⍵
-              ⍺=0:0 nullMagicIn(⊃1↓⍵)compile(⍕⊃⍵)
-              nullMagicOut(⊃⌽⍵)((⎕RSI⊃⍨1+⎕IO){ ⍝ [1] Set ⎕PATH to include the format library (1 lvl up).
-                  ⍝ ⎕PATH←⎕PATH,' ',⍕⊃⎕RSI     ⍝     To ensure ⎕PATH remains local, set via ←, not ,←
+              ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
+              ⍺=0:0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+              ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
                   ⍺⍺.⍎⍺                        ⍝ [2] ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
-              })⍨nullMagicIn(⊃1↓⍵)compile(⍕⊃⍵) ⍝     requiring ⎕PATH to find formatPath per [1].
+              })⍨⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
           }{
               1≥|≡⍵:⍵ ⍬ ⋄ (⊃⍵)(1↓⍵)
           }⍵
       }
     ∆f←∆format                                 ⍝ ∆f is an alias for ∆format.
 
+    ##.⎕FX '⎕THIS'⎕R(⍕⎕THIS)⊣⎕NR '∆format'     ⍝ Make sure ∆format/∆f is in ⎕PATH automagically.
+    ##.(∆f←∆format)
+
+
     :endSection 4b. User-callable functions: ∆format ∆f
     :endSection 4. Executive Functions: ∆format ∆f
 
-   ⍝ Namespace ∆STD -- useful?
-    :Namespace ∆STD
-        ##.msg (⍕⎕THIS),': Namespace is undocumented'
-      ⍝ NOT YET DOCUMENTED...
-        Months←'January' 'February' 'March' 'April' 'May' 'June' 'July' 'August' 'September' 'October' 'November' 'December'
-        Mo←3↑¨Months
-        MO←  1 (819⌶) Mo
-        mo←  0 (819⌶) Mo
-        DayOfWeek←'Sunday' 'Monday' 'Tuesday' 'Wednesday' 'Thursday' 'Friday' 'Saturday'
-        Dow←3↑¨DayOfWeek
-        DOW←1 (819⌶) Dow
-        dow←0 (819⌶)  Dow
-    :EndNamespace
 
     :Section Exporting ∆f, ∆format, formatPath
    ⍝ Only export functions and operators here!
