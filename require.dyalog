@@ -117,9 +117,10 @@
 
    ⍝ ∆FSPATH:
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
-   ⍝      You can merge new paths with the existing WSPATH from the env.  (see 2 below).
+   ⍝      You can merge new paths with the existing environment variable 
+   ⍝      FSPATH (or, if FSPATH is null, then WSPATH) from the env.  (see 2 below).
    ⍝      If it contains /:,:/ or /^,:/ or /:,$/, then  WSPATH is interpolated in its place!
-   ⍝        e.g. if WSPATH has '.:stdLib1:stdLib2'
+   ⍝        e.g. if FSPATH/WSPATH has '.:stdLib1:stdLib2'
    ⍝        e.g. 'mydir1:mydir1/mydir1a:,'
    ⍝         →   'mydir1:mydir2/mydir1a:.:stdLib1:stdLib':
    ⍝   2. If GetEnvironment FSPATH is not null, use it.
