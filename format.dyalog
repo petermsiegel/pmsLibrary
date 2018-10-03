@@ -844,14 +844,15 @@
 
     :section 4b. User-callable functions: ∆format, ∆f
       ∆format←{
-          ⎕PATH←(⍕⎕THIS),' ',⎕PATH    ⍝ Local ⎕PATH...
           0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
           ⍺←1
           ⍺{
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
               ⍺=0:0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
               ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
-                  ⍺⍺.⍎⍺                        ⍝ [2] ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
+                ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
+                ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)
+                  (⍺⍺.⎕PATH←∆ps)⊢⍺⍺.⍎⍺⊣⍺⍺.⎕PATH←(⍕⎕THIS),' ',∆ps←⍺⍺.⎕PATH
               })⍨⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
           }{
               1≥|≡⍵:⍵ ⍬ ⋄ (⊃⍵)(1↓⍵)
