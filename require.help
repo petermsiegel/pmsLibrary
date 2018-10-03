@@ -41,7 +41,16 @@ ________________________________________________________________________________
        c. Use string '.' (current directory based on ]CD)
      Each item must be a string indicating absolute or relative file directories
      (if absent, they are ignored) separated by colons (:).
+   ∘ If  ⎕SE.∆WSPATH includes a lone comma as any path, i.e. an initial ',:', a final ':,' or an intermediate ':,:',
+     it is replaced by the current value of the environment variable WSPATH. 
+     For example, if WSPATH is:
+           '.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws'    ⍝ An abbreviated version of the OS X path is shown
+     and you specify:
+         ⎕SE.∆WSPATH ← 'myPrivateLibrary:,:lastResortLib'
+     then require will search (with respect to the current disk directory a la ]CD):
+         'myPrivateLibrary:.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws:lastResortLib'
    ∘ An empty package generates an error.
+   ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
    ---------------------------------------
    ∘ Returns elements from:  stdLibR list1  list2
      ∘ If CODE<0, DEBUG is set to 1 and CODE←|CODE. CODE of 0 is treated as if 1.
