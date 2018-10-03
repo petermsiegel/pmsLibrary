@@ -1,0 +1,121 @@
+⍝ gen: Emulates a python-like generator (iterator function) using Dyalog tokens and threads.
+⍝ ∘ Efforts to attach a class to the caller so that its destructor can clean up the generator (e.g. if
+⍝   stuck waiting or looping) lead to interpreter problems.
+⍝ ∘ The original approach was to use classes entirely, with comparable problems. Instead we use a namespace
+⍝   structure to emulate class instances without any destructor. It works.
+⍝
+⍝
+⍝ Overview:
+⍝
+⍝ A.  Call generator <myGen> with right argument <myArg>:
+⍝     mg←myGen gen.erator myArg
+⍝     ∘ Note: the right arg is passed to myGen as ⍵.
+⍝       ⍺ will always contain the generator namespace.
+⍝       Any left arg is stored as ⍺.alpha (and ⍺.hasAlpha=1 if a left argument was passed).
+⍝       If no left arg, ⍺.alpha is undefined (and ⍺.hasAlpha is 0).
+⍝     ∘ Returns: the value returned from the generator is in
+⍝       gen.value (undefined until the function terminates).
+⍝       The return value is otherwise UNUSED.
+⍝
+⍝ B. Key Elements
+⍝   0. Setup            gen.TRAP 'gen1 gen2 ...'     ⍝ Setup the trap gen1 etc to cleanup generator (threadids and tokens) on failure.
+⍝   1. Initialization:  mg ← [⍺] <generator> gen.erator ⍵
+⍝   2. Return value:    mg.value
+⍝   3. In caller:
+⍝        Receiving/sending values to/from generator
+⍝                       <val>←mg.next               ⍝ Waits for value from generator's yield. Sends a dummy ⎕NULL.
+⍝                       val←mg.send <newArg>        ⍝ Waits as above, sending arbitrary data (even a ⎕NULL).
+⍝                       [errno] mg.signal <message> ⍝ Waits as above, sending a msg which the generator interprets as
+⍝                                                     default: exit now: yield immediately returns <message> as "last" value, closing stream.
+⍝                                                     errno>0: yield generates  <message> ⎕SIGNAL errno
+⍝                                                     other errno (≤0) not allowed.
+⍝        Is a msg from generator waiting?
+⍝                       mg.more
+⍝                       mg.done
+⍝        Special Handling via Signals in caller
+⍝                       mg.STOPITERATION
+⍝                       set:    ⎕TRAP (mg.STOPITERATION)'C' '→done'
+⍝                       tradfn: TRAP mg.STOPITERATION ⋄ ...
+⍝                       dfn:    mg.STOPITERATION::⍺ ∇ transform* ⍵
+⍝                       mg.close
+⍝
+⍝                                                     * transform is whatever code you want
+⍝   4. In generator:
+⍝       Did the caller provide a left arg ⍺ to the generator on the gen.erator call?
+⍝                       ⍺.hasAlpha, ⍺.alpha
+⍝       Sending values to caller (⍺ is always the generator namespace, ⍺.alpha is the caller's left arg):
+⍝                       _←⍺.yield valueOut                     ⍝ Always returns shy ⎕NULL. If there is a new valueIn, signals YIELDVALUE
+⍝       Special handling via Signals in generator
+⍝                       dfn: ⍺.YIELDVALUE:: ⍺ ∇ transform* ⍺.yieldValue  ⍝ When there's a real value from caller.
+⍝       Sending values to and receiving values from caller:
+⍝                       valueIn←⍺.yieldValue valueOut          ⍝ Won't distinguish caller-sent ⎕NULL and ⎕NULL qua no value...
+⍝       Sending values to and receiving values from caller, distinguishing caller-sent ⎕NULL and ⎕NULL qua no value...
+⍝       yieldS (yield with status)
+⍝                       isData valueIn←⍺.yieldS valueOut       ⍝ isData is 1 if real data; else valueIn=⎕NULL, isData=0.
+⍝
+⍝                                                     * transform is whatever code you want
+⍝ IN CALLER
+⍝ ¯¯ ¯¯¯¯¯¯
+⍝ ∘ Request next yield-ed (quasi-returned) datum:
+⍝     data←mg.next
+⍝ ∘ Request next yielded datum, possibly ignored, while sending new value <new> to generator;
+⍝   this signals a mg.YIELDVALUE signal to the generator, retrieved as ⍺.yieldValue
+⍝     data←mg.send <new>
+⍝ ∘ See if there's more data from the generator:
+⍝     :IF mg.more
+⍝         ...
+⍝     :Until mg.done
+⍝ ∘ Tell the generator we're done, even if there's more data:
+⍝     mg.close
+⍝ ∘ Send a signal to the generator with signal <en> and text message <message>:
+⍝     en mg.signal message
+⍝ ∘ Send a signal to the generator to exit NOW, but quietly, with arbitrary datum <myStuff>
+⍝   the value returned by the yield will be <myStuff>.
+⍝     mg.signal message
+⍝ ∘ Terminate a loop if the generator has no more data:
+⍝     :Trap mg.STOPITERATION ⋄ :While 1
+⍝         ... stuff in the loop
+⍝     :EndWhile ⋄ :EndTrap
+⍝     ... stuff after the loop ...
+⍝
+⍝ IN GENERATOR
+⍝ ¯¯ ¯¯¯¯¯¯¯¯¯
+⍝  ∘ Send next datum <myStuff> to "yield" (quasi-return) back to the caller.
+⍝     ⍺.yield myStuff
+⍝  ∘ Normally, yield is sent ⎕NULL data from <next>. When the caller sends data (via <send data>),
+⍝    a ⍺.YIELDVALUE is signalled in the generator and ⍺.yieldValue contains the data sent. That is
+⍝    ⍺.yield normally returns the value ⎕NULL and ⎕SIGNALs on any value sent via <send>.
+⍝      nextIntGen←{
+⍝         ⍺.YIELDVALUE:: ⍺ ∇ ⍺.yieldValue
+⍝         ⍺ ∇ ⍵+1
+⍝      }
+⍝      ...OR...
+⍝      ∇b←mg nextIntGen first;next
+⍝       next←first
+⍝       :Repeat ⋄ :Trap mg.YIELDVALUE
+⍝           :WHILE 1
+⍝               mg.yield next ⋄ next +← 1
+⍝           :EndWhile
+⍝         :ELSE
+⍝             next←mg.yieldValue
+⍝         :EndTrap ⋄ :EndRepeat
+⍝      ∇
+⍝  ∘ yieldValue is like yield, except it simply returns data sent from the caller via <send data>.
+⍝    Since a <next> is really a special kind of send, the yield receives a ⎕NULL marked as no data.
+⍝    if ⎕NULL is a possible value. (In this case, use the ⍺.YIELDVALUE signal.)
+⍝  ∘ yieldValue: hen the generator is called initially with right arg ⍵, ⍺.yieldValue is initially set to ⍵.
+⍝    Whenever the caller issues a <send data>, ⍺.yieldValue←data (see ⍺.YIELDVALUE signal above).
+⍝  ∘ Returning: Complete the work of the generator and let the caller know we're done;
+⍝    simply exit:
+⍝      myGen←{...
+⍝        _←⍺.yield myYIELDVALUE
+⍝       if_true: myreturnvalue
+⍝      }
+⍝  ∘ Returning a value in the yield with complete control: yieldS, which returns 1|0 depending on whether a value was received.
+⍝         ⊃ok newVal←⍺.yieldS val: process newVal
+⍝    If a <next> was used in the caller, yieldS will receive (0 ⎕NULL) which can be processed in the usual way.
+⍝  ∘ Abnormally terminate the generator itself, signalling the caller with the identical signal;
+⍝    here, we terminate the generator with signal 911 and message 'The generator is exhausted'
+⍝    and send the same signal to the caller.
+⍝      ⎕SIGNAL/'The generator is exhausted' 911
+⍝
