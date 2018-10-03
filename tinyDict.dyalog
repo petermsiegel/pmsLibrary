@@ -4,7 +4,7 @@
   ⍝ dict ← tinyDict.New
   ⍝     Creates a dictionary with no values and no default
   ⍝
-  ⍝ dict ← {def} ∆DICT pairs
+  ⍝ dict ← {def} tinyDict.∆DICT pairs
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
   ⍝
   ⍝ r←dict.Get  key1 keys
