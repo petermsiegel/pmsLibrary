@@ -1,0 +1,38 @@
+ ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
+  ⍝
+  ⍝ dict ← tinyDict.New
+  ⍝     Creates a dictionary with no values and no default
+  ⍝
+  ⍝ dict ← {def} ∆DICT pairs
+  ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
+  ⍝
+  ⍝ r←dict.Get  key1 keys
+  ⍝     Like dict.Get1, but for multiple keys.
+  ⍝
+  ⍝ r←dict.Get1 key
+  ⍝     Returns the value for key <key>, if defined.
+  ⍝     If not, but a default exists, returns that default.
+  ⍝     Otherwise, signals a Key undefined error.
+  ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
+  ⍝
+  ⍝ r←key1 key2 ... dict.Put val1 val2 ...
+  ⍝     Like dict.Put1, but for multiple keys and values.
+  ⍝
+  ⍝ r←key dict.Put1 value
+  ⍝     Sets the key specified to the corresponding value.
+  ⍝     To set multiple keys, do    k1 k2 ... dict.Put¨ v1 v2 ...
+  ⍝
+  ⍝ r←dict.Del key
+  ⍝     Deletes the specified key. If it exists, returns 1; else 0.
+  ⍝
+  ⍝ r←dict.Show
+  ⍝     Returns Key, Value pairs.
+  ⍝
+  ⍝ dict.Default←def
+  ⍝     Sets the default for the tinyDict.
+  ⍝
+  ⍝ dict.Keys
+  ⍝     A list of Keys in order
+  ⍝
+  ⍝ dict.Vals
+  ⍝     A corresponding list of values in order
