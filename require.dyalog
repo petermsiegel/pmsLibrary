@@ -115,26 +115,31 @@
      }¨pkgs
      ∆PATH←resolvePath stdLibN,' ',CALLN,' ',resolvePathUpArrow ⎕PATH
 
-   ⍝ ∆WSPATH:
-   ⍝   1. If ⎕SE.∆WSPATH exists and is not null, use it.
+   ⍝ ∆FSPATH:
+   ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
    ⍝      You can merge new paths with the existing WSPATH from the env.  (see 2 below).
    ⍝      If it contains /:,:/ or /^,:/ or /:,$/, then  WSPATH is interpolated in its place!
    ⍝        e.g. if WSPATH has '.:stdLib1:stdLib2'
    ⍝        e.g. 'mydir1:mydir1/mydir1a:,'
    ⍝         →   'mydir1:mydir2/mydir1a:.:stdLib1:stdLib':
-   ⍝   2. If GetEnvironment WSPATH is not null, use it.
+   ⍝   2. If GetEnvironment FSPATH is not null, use it.
+   ⍝   3. If GetEnvironment WSPATH is not null, use it.
+   ⍝      APL maintains this mostly for finding workspaces.
    ⍝   3. Use '.' (current active directory, via ]CD etc.)
    ⍝   Each item a string of the form here (if onle dir, no colon is used):
    ⍝       'dir1:dir2:...:dirN'
-     ∆WSPATH←∪':'split{
+     ∆FSPATH←∪':'split{
          2=⎕NC ⍵:{
-             '^,(?>=:)|(?<=:),(?>=:)|(?<=:),$'⎕R{2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'}⊣⍵
+             '^,(?>=:)|(?<=:),(?>=:)|(?<=:),$'⎕R{
+                 ×≢fs←2 ⎕NQ'.' 'GetEnvironment' 'FSPATH':fs
+                 2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'}⊣⍵
          }⎕OR ⍵
+         0≠≢fs←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH':fs
          0≠≢env←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH':env
          '.'
-     }'⎕SE.∆WSPATH'
+     }'⎕SE.∆FSPATH'
 
-     _←{'∆WSPATH=',⍵}TRACE ∆WSPATH
+     _←{'∆FSPATH='⍵}TRACE ∆FSPATH
 
 
      0=≢⍵:stdLibR   ⍝ If no main right argument, return the library reference (default or user-specified)
@@ -168,7 +173,7 @@
                  pkg map'dir.name∊CALLER'                    ⍝ ...         success
              }⍵
 
-             _←{'Caller ns ',CALLN,' package '(pkg)'status: 'status}TRACE 0
+             _←{'Caller ns 'CALLN' package 'pkg' status: 'status}TRACE 0
 
              0=≢stat:pkg
              ''⊣(⊃status),←⊂stat
@@ -186,7 +191,7 @@
                  0=≢⍵:''                              ⍝ none found. path exhausted: failure
                  path←⊃⍵
 
-                 _←{'>>> Path: ',path}TRACE 0
+                 _←{'>>> path dir: ',path}TRACE 0
 
                  {0≠≢dir}and{path inNs⍨dunder dir name}1:'[file] dir.name∊PATH'
                  {0=≢dir}and{path inNs⍨dunder name}1:'[file] name∊PATH'
@@ -237,7 +242,6 @@
              0∧.=≢¨dir name:⍵
              dirFS←'/'@('.'∘=)dir  ⍝  dirFS: dir with internal dots → slashes
 
-           ⍝ If dir starts with a slash, then use it as the search path, rathern than ∆WSPATH
              _←{'1. Searching file sys path for package:',⍵}TRACE pkg
 
              recurse←{                                   ⍝ find pgk components in <path>.
@@ -285,7 +289,7 @@
                  }
                  ⎕NEXISTS searchfi:(dir name)loadfi searchfi
                  ∇ 1↓⍵
-             }∆WSPATH
+             }∆FSPATH
 
              _←{s←'  b. Status: ' ⋄ 0=≢⍵:s,'NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
 
