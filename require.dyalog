@@ -1,4 +1,4 @@
- require←{
+﻿ require←{
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info in:
@@ -117,12 +117,19 @@
 
    ⍝ ∆WSPATH:
    ⍝   1. If ⎕SE.∆WSPATH exists and is not null, use it.
+   ⍝      You can merge new paths with the existing WSPATH from the env.  (see 2 below).
+   ⍝      If it contains /:,:/ or /^,:/ or /:,$/, then  WSPATH is interpolated in its place!
+   ⍝        e.g. if WSPATH has '.:stdLib1:stdLib2'
+   ⍝        e.g. 'mydir1:mydir1/mydir1a:,'
+   ⍝         →   'mydir1:mydir2/mydir1a:.:stdLib1:stdLib':
    ⍝   2. If GetEnvironment WSPATH is not null, use it.
    ⍝   3. Use '.' (current active directory, via ]CD etc.)
    ⍝   Each item a string of the form here (if onle dir, no colon is used):
    ⍝       'dir1:dir2:...:dirN'
      ∆WSPATH←∪':'split{
-         2=⎕NC ⍵:⎕OR ⍵
+         2=⎕NC ⍵:{
+             '^,(?>=:)|(?<=:),(?>=:)|(?<=:),$'⎕R{2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'}⊣⍵
+         }⎕OR ⍵
          0≠≢env←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH':env
          '.'
      }'⎕SE.∆WSPATH'
