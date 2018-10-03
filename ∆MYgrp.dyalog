@@ -1,4 +1,4 @@
-:Namespace ∆MYgrp
+﻿:Namespace ∆MYgrp
   ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC objects within
   ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
   ⍝ ∘ For an overview, see ∆MYgrp.help
@@ -42,11 +42,11 @@
     ∇ myStat←∆MY
       myStat←⎕THIS.∆MYX 1
     ∇
-  ⍝ Copy ∆MY into the top-level ns (# or ⎕SE), hardwiring in this directory name.
-    _topNs←{'#'=1↑⍕⍵:# ⋄ ⎕SE}⎕THIS
-    _←_topNs.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
-    ⎕EX '_' '_topNs'
-
+  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
+   ⍝  _topNs←{'#'=1↑⍕⍵:# ⋄ ⎕SE}⎕THIS
+   ⍝ _←_topNs.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+   ⍝  ⎕EX '_'  '_topNs'
+   _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
