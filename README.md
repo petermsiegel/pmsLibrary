@@ -24,5 +24,5 @@ Mary Smith
           ∆f'Employee name: {name}, address: {address}, salary: {P<£>F10.2$⍪salary}'
 Employee name: John Jones, address: 1212 Malden, salary:  £12398.33
                Mary Smith           45 Highland           £12399.22
-```
+ 
      interpolating arrays __name__, __address__, and __salary__.
