@@ -61,27 +61,35 @@
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ '__',⍵}       ⍝ Prefix double underscore before each ⍵' in ⍵ and flatten
+     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ '__',⍵}      ⍝ dunder s1 s2  → '__s1__s2'
+     ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
+     ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
- ⍝ resolvePath: Determines actual ordered path to search, based on ∆CALR and ⎕PATH.
- ⍝   Repeated and missing namespaces are quietly omitted from <resolvePath>.
+
+ ⍝ resolveNs: Return a reference for a namespace string.
+ ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
      resolveNs←CALLR∘{
          6::⎕NULL
-         ⍕⍺⍎⍵        ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
+         9.1≠⍺.⎕NC⊂,⍵:⎕NULL
+         ⍕⍺⍎⍵            ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
      }
      resolvePathUpArrow←CALLN∘{
   ⍝ In ⎕PATH, replace ↑ with the requisite # of levels to the top...
-         ~'↑'∊⍵:⍵
+  ⍝ Returns:  if found:  (revised_path 1); else:  (⍵ 0)
+         ~'↑'∊⍵:⍵ 0
          dist←¯1++/⍺='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
-         ∊w⊣w[p]←⊂{⍺←'##' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
+         (∊w)1⊣w[p]←⊂{⍺←'##' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
      }
-  ⍝ resolvePath: ensure all names are valid namespaces...
+
+  ⍝ resolvePath: Determines actual ordered path to search, based on ∆CALR and ⎕PATH.
+  ⍝ resolvePath:  allow non-existent namespaces to stay (since user may have other uses)
      resolvePath←{
          ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵
      }
 
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
-   ⍝    ⍺: name or dir.name (etc.).  If 0=≢⍺: inNs fails.
+   ⍝    ⍺: name or group.name (etc.).  If 0=≢⍺: inNs fails.
    ⍝    ⍵: an namespace name (interpreted wrt CALLR if not absolute) or reference.
      inNs←{0::0⊣⎕←'inNs error:'⍺'inNs'⍵⊣⎕←⎕DMX.(EM EN)
          0=≢⍺:0
@@ -89,10 +97,6 @@
          ns←callr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
          0<ns.⎕NC ⍺          ⍝ test name
      }
-   ⍝ with:   dir with name  →  dir.name
-   ⍝         dir with ''    →  ''
-   ⍝         ''  with name  →  name
-     with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
      inFile←{~⎕NEXISTS ⍵:0 ⋄ 0≠1 ⎕NINFO ⍵}
      map←{0=≢⍵:'' ⋄ w d n←⍺ ⋄ pkg←w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n ⋄ pkg ⍵}
@@ -103,21 +107,22 @@
 
    ⍝ From each item in packages of the (regexp with spaces) form:
    ⍝         (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
-   ⍝         wsN      dir               name
+   ⍝         wsN      group               name
    ⍝ wsN may be a full string ('abc.def:'), null string (':'), or ⎕NULL (omitted).
-   ⍝ dir may be a full string or null string (if omitted)
+   ⍝ group may be a full string or null string (if omitted)
    ⍝ name must be present
      pkgs←{
          0=≢⍵~' :.':''
          wsN pkg←':'splitFirst ⍵
-         dir name←'.'splitLast pkg
-         wsN dir name
+         group name←'.'splitLast pkg
+         wsN group name
      }¨pkgs
-     ∆PATH←resolvePath stdLibN,' ',CALLN,' ',resolvePathUpArrow ⎕PATH
+
+     ∆PATH←resolvePath stdLibN,' ',CALLN,' ',⊃_ userPathHasUpArrow←resolvePathUpArrow ⎕PATH
 
    ⍝ ∆FSPATH:
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
-   ⍝      You can merge new paths with the existing environment variable 
+   ⍝      You can merge new paths with the existing environment variable
    ⍝      FSPATH (or, if FSPATH is null, then WSPATH) from the env.  (see 2 below).
    ⍝      If it contains /:,:/ or /^,:/ or /:,$/, then  WSPATH is interpolated in its place!
    ⍝        e.g. if FSPATH/WSPATH has '.:stdLib1:stdLib2'
@@ -127,7 +132,7 @@
    ⍝   3. If GetEnvironment WSPATH is not null, use it.
    ⍝      APL maintains this mostly for finding workspaces.
    ⍝   3. Use '.' (current active directory, via ]CD etc.)
-   ⍝   Each item a string of the form here (if onle dir, no colon is used):
+   ⍝   Each item a string of the form here (if onle group, no colon is used):
    ⍝       'dir1:dir2:...:dirN'
      ∆FSPATH←∪':'split{
          2=⎕NC ⍵:{
@@ -148,11 +153,11 @@
 
    ⍝ statusList:
    ⍝   [0] list of packages successfully found
-   ⍝           wsN:dir.name status
+   ⍝           wsN:group.name status
    ⍝   [1] list of packages not found or whose copy failed (e.g. ⎕FIX failed, etc.)
-   ⍝           wsN:dir.name status
-   ⍝   If wsN not present, wsN and dir may be null strings.
-   ⍝   If wsN is present,  dir and/or name  may each be null.
+   ⍝           wsN:group.name status
+   ⍝   If wsN not present, wsN and group may be null strings.
+   ⍝   If wsN is present,  group and/or name  may each be null.
    ⍝   The status field is always present.
 
      statusList←⍬ ⍬{
@@ -161,17 +166,17 @@
          pkg←⊃⍵
 
    ⍝ Is the package in the caller's namespace?
-   ⍝ Check for <name>, <dir.name>, and <wsN>.
+   ⍝ Check for <name>, <group.name>, and <wsN>.
          pkg←{
              0=≢⍵:⍵
-             wsN dir name←pkg←⍵
+             wsN group name←pkg←⍵
              stat←{
                  ('__',wsN)inNs CALLR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
                  name inNs CALLR:pkg map'name∊CALLER'        ⍝ name found? success
-                 dir≡'':''
-                 ~(dir with name)inNs CALLR:''                   ⍝ none found? failure
-                 ∆PATH,⍨←⊂resolveNs dir                    ⍝ dir.name found
-                 pkg map'dir.name∊CALLER'                    ⍝ ...         success
+                 group≡'':''
+                 ~(group with name)inNs CALLR:''                   ⍝ none found? failure
+                 ∆PATH,⍨←⊂resolveNs group                    ⍝ group.name found
+                 pkg map'group.name∊CALLER'                    ⍝ ...         success
              }⍵
 
              _←{'Caller ns 'CALLN' package 'pkg' status: 'status}TRACE 0
@@ -185,26 +190,26 @@
    ⍝ Is the package in the ⎕PATH?
          pkg←{
              0=≢⍵:⍵
-             wsN dir name←pkg←⍵
+             wsN group name←pkg←⍵
              _←{'Is package 'pkg' in ⎕PATH?'}TRACE 0
 
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                              ⍝ none found. path exhausted: failure
                  path←⊃⍵
 
-                 _←{'>>> path dir: ',path}TRACE 0
+                 _←{'>>> path group: ',path}TRACE 0
 
-                 {0≠≢dir}and{path inNs⍨dunder dir name}1:'[file] dir.name∊PATH'
-                 {0=≢dir}and{path inNs⍨dunder name}1:'[file] name∊PATH'
+                 {0≠≢group}and{path inNs⍨dunder group name}1:'[file] group.name∊PATH'
+                 {0=≢group}and{path inNs⍨dunder name}1:'[file] name∊PATH'
                  {0=≢name}and{path inNs⍨dunder wsN}0:'ws∊PATH'
-                 {wsN inNs path}and{0=≢⍵:1            ⍝ wsN found and dir/name empty: success
-                     ⍵ inNs path,'.',wsN              ⍝ wsN found and dir/name found in path.wsN: success
-                 }dir with name:'ws∊PATH'
+                 {wsN inNs path}and{0=≢⍵:1            ⍝ wsN found and group/name empty: success
+                     ⍵ inNs path,'.',wsN              ⍝ wsN found and group/name found in path.wsN: success
+                 }group with name:'ws∊PATH'
                  name inNs path:'name∊PATH'           ⍝ name found: success
-                 dir≡'':∇ 1↓⍵                         ⍝ none found: try another path element
-                 ~{(dir with name)inNs path}and{9=stdLibR.⎕NC dir}0:∇ 1↓⍵      ⍝ none found: try another path element
-                 ∆PATH,⍨←⊂resolveNs path with dir     ⍝ dir.name found: ...
-                 'dir→PATH'                           ⍝ ...         success
+                 group≡'':∇ 1↓⍵                         ⍝ none found: try another path element
+                 ~{(group with name)inNs path}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵      ⍝ none found: try another path element
+                 ∆PATH,⍨←⊂resolveNs path with group     ⍝ group.name found: ...
+                 'group→PATH'                           ⍝ ...         success
              }∪∆PATH
 
              _←{'>>> Status 'status}TRACE 0
@@ -218,7 +223,7 @@
    ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
          pkg←{
              0=≢⍵:⍵
-             wsN dir name←pkg←⍵
+             wsN group name←pkg←⍵
              0=≢wsN:⍵
              stat←wsN{
                  0::''
@@ -228,7 +233,7 @@
                      stdLibR.⍎(dunder ⍺),'←⍵'               ⍝ Copy in entire wsN <wsN>.
                  }'Workspace ',⍺,' copied on ',⍕⎕TS               ⍝ Deposit in <stdLib> var  __wsN←'Workspace...'
                  'ws→stdLib'
-             }dir with name
+             }group with name
 
              0=≢stat:pkg
              ''⊣(⊃status),←⊂pkg map stat
@@ -239,9 +244,9 @@
        ⍝ See FSSearchPath
          pkg←{
              0=≢⍵:⍵
-             wsN dir name←pkg←⍵
-             0∧.=≢¨dir name:⍵
-             dirFS←'/'@('.'∘=)dir  ⍝  dirFS: dir with internal dots → slashes
+             wsN group name←pkg←⍵
+             0∧.=≢¨group name:⍵
+             dirFS←'/'@('.'∘=)group  ⍝  dirFS: group with internal dots → slashes
 
              _←{'1. Searching file sys path for package:',⍵}TRACE pkg
 
@@ -255,40 +260,42 @@
                  _←{'  a. Search path: ',⍵,'[.dyalog]'}TRACE searchDir
 
                  ⋄ loaddir←{
-                     dir name←⍺
-                     aplDir←dir with name ⋄ fsDir←⍵
+                     group name←⍺
+                     aplDir←group with name ⋄ fsDir←⍵
                      1≠⊃1 ⎕NINFO fsDir:'NOT A DIRECTORY: Ignored: ',fsDir
                      names←⊃(⎕NINFO⍠1)fsDir,'/*.dyalog'    ⍝ Will ignore subsidiary directories...
                      0=≢names:aplDir{
-                         stamp←'First dir ',⍺,'found was empty on ',(⍕⎕TS),': ',⍵
-                         'empty dir→stdLib: ',⍵⊣(dunder ⍺)stdLibR.{⍎⍺,'←⍵'}stamp
+                         stamp←'First group ',⍺,'found was empty on ',(⍕⎕TS),': ',⍵
+                         'empty group→stdLib: ',⍵⊣(dunder ⍺)stdLibR.{⍎⍺,'←⍵'}stamp
                      }fsDir
                      cont←⍬
+                     fixed←''
                      load←{
-                       ⍝ import: dir name
+                       ⍝ import: group name
                          0::¯1   ⍝ Failure
                          subName←1⊃⎕NPARTS ⍵
                          cont,←' ',,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
+                         fixed,←⎕TC[2],'   ',⍵
                          1     ⍝ Success
                      }¨names
-                     stamp←(dir with name),' copied from disk with contents',cont,' on ',⍕⎕TS
-                     _←(dunder dir name)stdLibR.{⍎⍺,'←⍵'}stamp
-                     res←'[dir] ',(dir with name),'→stdLib '
-                     res,←'[',{⍵=0:'' ⋄ (⍕⍵),' objects ⎕FIXed'}+/load=1
+                     stamp←(group with name),' copied from disk with contents',cont,' on ',⍕⎕TS
+                     _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
+                     res←'[group] ',(group with name),'→stdLib '
+                     res,←⎕TC[2],'   [',{⍵=0:'' ⋄ (⍕⍵),' objects ⎕FIXed:',fixed,⎕TC[2]}+/load=1
                      res,←{⍵=0:'' ⋄ '; ',(⍕⍵),' failed to load'}+/load=¯1
-                     res,←']'
+                     res,←'   ]',⎕TC[2]
                      res
                  }
-                 ⎕NEXISTS searchDir:(dir name)loaddir searchDir
+                 ⎕NEXISTS searchDir:(group name)loaddir searchDir
                  ⋄ loadfi←{
-                     dir name←⍺
-                     id←dunder dir name
+                     group name←⍺
+                     id←dunder group name
                      cont←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
-                     stamp←(dir with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
+                     stamp←(group with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
                      'file→stdLib: ',⍵
                  }
-                 ⎕NEXISTS searchfi:(dir name)loadfi searchfi
+                 ⎕NEXISTS searchfi:(group name)loadfi searchfi
                  ∇ 1↓⍵
              }∆FSPATH
 
@@ -307,7 +314,7 @@
      }pkgs
 
 ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
-     CALLR.⎕PATH←,⎕FMT resolvePath(⊂stdLibN),∆PATH
+     CALLR.⎕PATH←(∊⍕¨resolvePath(⊂stdLibN),∆PATH),' ↑'/⍨userPathHasUpArrow
 
      succ←0=≢⊃⌽statusList
      eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
