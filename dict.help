@@ -12,6 +12,8 @@
 ⍝H     ⍵.Default will be returned as the value when missing keys are requested.
 ⍝H     Initially, ⍵.Default←'' but ⍵.HasDefault←0, so missing keys trigger a VALUE ERROR.
 ⍝H     If ⍵.HasDefault←1, then the current ⍵.Default is used.
+⍝H Note: Yes, there are too many choices in dict for how to set defaults; these are so we 
+⍝H       can try out alternatives before culling the herd!
 ⍝H
 ⍝H Syntax:    ⍺ ← ⎕NEW dict specs
 ⍝H            specs: [[ Format I | Format II | Format III | Format IV ]]
@@ -42,7 +44,7 @@
 ⍝H
 ⍝H  ┌────────────────────────────────────────────┐─────────────────────────────────────────────┐
 ⍝H  |a ← ⎕NEW dict                               │ Create empty dict, no default               │
-⍝H  │a ← ⎕NEW dict (1  | 0)                      │ Create empty dict, default: 1               │
+⍝H  │a ← ⎕NEW dict (1)                           │ Create empty dict, default: 1               │
 ⍝H  |a ← ⎕NEW dict ('' | ⍬)                      │ Create empty dict, default '' or ⍬          │
 ⍝H  │a ← ⎕NEW dict (⊂default)                    │ Create empty dict, default (default)        │
 ⍝H  │a ← ⎕NEW dict ((k,v)(k,v))                  │ Create dict with k v pairs, no def          │
