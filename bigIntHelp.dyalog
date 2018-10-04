@@ -1,7 +1,110 @@
 ﻿:namespace bigIntHelp
-⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯  D O C U M E N T A T I O N  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
-⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
-⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
+  ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯  D O C U M E N T A T I O N  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
+  ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
+  ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
+  ⍝ ∘ NOTE: See bigIntHelp for details...
+  ⍝
+  ⍝ ∘ BigInt is a signed Big-Integer utility built around the unsigned big integer utility, dfns:nats.
+  ⍝   <nats> seems to have the fastest general-purpose multiply and divide in dfns.
+  ⍝ ∘ BIi: We've created an efficient BigInt Internal Data "structure" BIi (BI Internal) of this form:
+  ⍝        BIi ← sign  data
+  ⍝        where sign@I∊¯1 0 1, data@UV<10E6
+  ⍝              The sign is an integer;
+  ⍝              The data is an unsigned APL integer vector, whose elements are <RX (10E6).
+  ⍝        In functions manipulating signed numbers, zero is ALWAYS (sign:0 data:(,0)) making tests for 0 FAST.
+  ⍝        in unsigned functions, zero passed in and out is (,0).
+  ⍝        NOTE: Nats functions are modified to always return valid sign and <data>.
+  ⍝ ∘ BIx: The external format of BigIntegers, BIx, contains:
+  ⍝        on input:   "[¯-]?\d[\d_]*"  (a sign ¯ or - followed by at least 1 digit, and ≥0 underscores as spacers)
+  ⍝        on output:  "¯?[\d+]"
+  ⍝        Note: BigInt fns returning BIx only return output-format strings, never (say) '-25' or '25_123'.
+  ⍝ ∘ BIc: On occasion we'll mention BIc, a "character" string format string used as INPUT, as opposed to
+  ⍝        BIi (internal-format sign/data structure) or Int (APL Integer).
+  ⍝
+  ⍝ ∘ Operators BI (returns BIi) and BIX (returns BIx).
+  ⍝   We've added a range of monadic functions and extended the dyadic functions as well, all signed.
+  ⍝   The key easy-use utilities are BI and BIX, used (with '#.BigInt' in ⎕PATH) in this form:
+  ⍝       dyadic:    r:BIi← ⍺ +BI ⍵       r:BIx← ⍺ +BIX ⍵     with some exceptions (see below).
+  ⍝       monadic:   r:BIi←   ×BI ⍵       r:BIx←   ×BIX ⍵     ditto.
+  ⍝   For character string operands of BI/X, e.g. 'SQRT' or 'MOD',
+  ⍝   parentheses are usually required (case is ignored):
+  ⍝       dyadic: ⍺ ('MOD'BI)  ⍵      ←→   ⍺ mod ⍵     ⍝ Case matters for explicit function syntax!
+  ⍝       monadic:  ('SQRT'BI) ⍵      ←⍀     sqrt ⍵
+  ⍝   And some allow commutation directly, like |⍨ (a synonym for modulo):
+  ⍝               ⍺ |⍨BI ⍵     ←→  ⍺ |BI⍨ ⍵    ←→  ⍵ |BI ⍺
+  ⍝   BI works fine with APL standard commutation, reduction, and scan:
+  ⍝               +BI/⍵1 ⍵2 ⍵3...
+  ⍝               ⍺ ÷BI⍨ ⍵    ←→ ⍵ ÷BI ⍺
+  ⍝               +BI\⍵1 ⍵2 ⍵2...
+  ⍝
+  ⍝   BI doesn't return external BigInt strings, but ONLY internal format objects, for efficiency.
+  ⍝        (To convert to external, use ⍕BI or simply use BIX for the last computation in a series.)
+  ⍝   BIX is a variant of BI that returns BigInt strings wherever BI would return a BigInt-internal object.
+  ⍝         c +BIX x ×BI b +BI x ×BI a    ←→  ⍕BI c +BI x ×BI b +BI x ×BI a    ⍝ (a×x*2)+(b×x)+c
+  ⍝
+  ⍝   Given BIX, why use BI at all?
+  ⍝   ¯¯¯¯¯ ¯¯¯¯ ¯¯¯ ¯¯¯ ¯¯ ¯¯ ¯¯¯¯
+  ⍝   ∘ It is a bit more efficient for algorithms built around BigIntegers, esp. those with a lot of math.
+  ⍝     And... why not mix and match?
+  ⍝   For "desk calculator" uses, BIX is always a perfect choice.
+  ⍝
+  ⍝   Left operands (⍺⍺) to BI/X include:
+  ⍝       dyadic:  + - x ÷ *     | ⌈ ⌊ ≠ < ≤ = ≥ > ≠ ⌽  ∨ ∧
+  ⍝       monadic: + - x ÷   ! ? | ⌈ ⌊   <       >      ⊥ ⊤ ⍎ ⍕ ←
+  ⍝   (All return integer results).
+  ⍝
+  ⍝   Those with special meaning include:
+  ⍝       dyadic:  ⌽ (mul10), ∨ (gcd), ∧ (lcm)
+  ⍝       monadic: ? (roll on ⍵>0), ⊥ ⊤ (bit manipulation), ⍎ (convert to APL int), ⍕ (convert to BI string)
+  ⍝                ← (return BI-internal format)
+  ⍝ ∘ Arguments to most functions are BigIntegers of any BIx form:
+  ⍝       a single BigInteger string in quotes    '-2343_243422'
+  ⍝       a single APL signed integer (whether stored as an integer or float)   ¯2343243422
+  ⍝       a BI internal-format vector, consisting of a scalar sign followed by a data vector of unsigned numbers;
+  ⍝          See the internal format (above).     ¯1 (2343 243422)
+  ⍝ ∘ Instead of using operand with BI (+BI), a set of BigInteger functions can be called directly:
+  ⍝       dyadic:   ⍺ plus ⍵ ⋄  ⍺ gcd ⍵ ⋄⋄⋄
+  ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
+  ⍝   These all return a BIi (BigInteger internal format), with a few exceptions (exp/ort returns a BIx).
+  ⍝   Many local functions have abbreviated synonyms. Local functions include:
+  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) mul10 times10 div(ide)10
+  ⍝       neg(ate) sig(num) magnitude (abs) roll
+  ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
+  ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).
+  ⍝
+  ⍝ ∘ Bit strings are passed to the user as two's-complement boolean vectors,
+  ⍝   with the lowest-order bit first (so ⍵[0] is the LOB),
+  ⍝   and the sign-bit last, i.e. as the highest-order bit (i.e. ⊃⌽⍵ is 1, if the # if negative).
+  ⍝
+  ⍝ Notable enhancements compared to dfns:nats:
+  ⍝ ∘ Input BI strings may have ¯ or - prefixed for negative numbers and may include _ as spacers,
+  ⍝   which are ignored:   e.g.  '-553_555_555'    '¯99999_12345_12345'    '00000_00000_00000'
+  ⍝ ∘ ⌽BI is used to shift (not rotate) decimal digits left and right,
+  ⍝   i.e. to multiply and divide by 10**⍵ very quickly and efficiently.
+  ⍝      ∘ Example: A million-digit string ⍵ can be multiplied by 10*10000 in 0.012 seconds via
+  ⍝        10000 ⌽BI ⍵
+  ⍝ ∘ We include ⊤BI and ⊥BI to convert BI's to and from APL bits, so that APL ⌽ ∧ ∨ = ≠ can be used for
+  ⍝   various bit manipulations on BIx; a utility BIB (Big Integer Bits) has been provided as well.
+  ⍝ ∘ We support an efficient (Newton's method) integer sqrt:
+  ⍝        ('SQRT' BI)⍵ or ('√' BI)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
+  ⍝ ∘ We include ?BI to allow for a random number of any number of digits and !BI to allow for
+  ⍝   factorials on large integers.  (!BI does not use memoization, but the user could extend it.)
+  ⍝
+  ⍝ TABLE OF CONTENTS
+  ⍝    Preamble for Namespace and Table of Contents
+  ⍝    BigInt Namespace and Utility BI
+  ⍝        BigInt and BI - Initializations
+  ⍝        BI Utility - Monadic operands
+  ⍝           Helpers
+  ⍝        BI Utility - Dyadic operands
+  ⍝           Helpers
+  ⍝        BI Utility - Service Routines
+  ⍝        BI Utility - Executive
+  ⍝    Utilities BIB, BIC, BI∆HERE
+  ⍝    Postamble for Namespace
+  ⍝    Documentation   All HELP Documentation is in bigIntHelp
+  ⍝
+  
     ⍝ See HELP, BI_HELP, BIC_HELP, BIB_HELP below…
     ∇ HELP
       __HELP__
