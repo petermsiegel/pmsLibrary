@@ -107,7 +107,7 @@
 
    ⍝ From each item in packages of the (regexp with spaces) form:
    ⍝      (\w+::)?    (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
-   ⍝     (path) ext    wsN     group             name
+   ⍝   (FSPATH) ext    wsN    group             name
    ⍝ wsN may be a full string ('abc.def:'), null string (':'), or ⎕NULL (omitted).
    ⍝ group may be a full string or null string (if omitted)
    ⍝ name must be present
