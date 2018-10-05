@@ -18,6 +18,7 @@ and for *initialization*, e.g.
       ``first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
       ``∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.``<br>
 ``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
+* Source: __format__. Help info: __formatHelp.pdf__.
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
