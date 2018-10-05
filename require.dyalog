@@ -113,8 +113,8 @@
    ⍝ name must be present
      pkgs←{
          0=≢⍵~' :.':''
-         ext pkg←⍵{                     ⍝ ext: path extension comes before ::
-             0=⍺:''⍵ ⋄ (⍵↑⍨⍺)(⍵↓⍨⍺+1)
+         ext pkg←⍵{                     ⍝ ext: <FSPATH extension> comes before ::
+             0=⍺:''⍵ ⋄ (⍵↑⍨⍺)(⍵↓⍨⍺+1)   ⍝ ext:: and wsN: are mutually exclusive in fact.
          }⍨⊃⍸'::'⍷⍵
          wsN pkg←':'splitFirst pkg      ⍝ wsN: ws name comes before simple :
          group name←'.'splitLast pkg
