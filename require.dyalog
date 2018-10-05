@@ -71,9 +71,11 @@
  ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
      resolveNs←CALLR∘{
          6::⎕NULL
-         9.1≠⍺.⎕NC⊂,⍵:⎕NULL
+         '⎕SE'≡⍵:⍵
+         (,'#')≡⍵:⍵
+         9.1≠⍺.⎕NC⊂⍵:⎕NULL
          ⍕⍺⍎⍵            ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
-     }
+     }∘,
      resolvePathUpArrow←CALLN∘{
   ⍝ In ⎕PATH, replace ↑ with the requisite # of levels to the top...
   ⍝ Returns:  if found:  (revised_path 1); else:  (⍵ 0)
@@ -111,14 +113,22 @@
    ⍝ wsN may be a full string ('abc.def:'), null string (':'), or ⎕NULL (omitted).
    ⍝ group may be a full string or null string (if omitted)
    ⍝ name must be present
+     lastExt←''      ⍝ If a :: appears with nothing before it, the prior lastExt is used
+     lastWs←''       ⍝ If a : appears ..., the prior lastWs is used!
      pkgs←{
          0=≢⍵~' :.':''
+         pkg←,⍵
          ext pkg←⍵{                     ⍝ ext: <FSPATH extension> comes before ::
-             0=⍺:''⍵ ⋄ (⍵↑⍨⍺)(⍵↓⍨⍺+1)   ⍝ ext:: and wsN: are mutually exclusive in fact.
-         }⍨⊃⍸'::'⍷⍵
-         wsN pkg←':'splitFirst pkg      ⍝ wsN: ws name comes before simple :
+             0=≢⍺:''⍵                   ⍝ '::group name' → <lastExt> '' <group> <name>
+             0=⍺:lastExt(⍵↓⍨⍺+1)
+             (lastExt∘←⍵↑⍨⍺)(⍵↓⍨⍺+1)    ⍝ ext:: and wsN: are mutually exclusive in fact.
+         }⍨⍸'::'⍷pkg
+         wsN pkg←{                      ⍝ wsN::[group.]name
+             ':'=1↑pkg:lastWs(1↓pkg)    ⍝ ':group name'  → '' <lastWs> <group> <name>
+             lastWs∘←w⊣w p←':'splitFirst pkg          ⍝ wsN: ws name comes before simple :
+             w p
+         }pkg
          group name←'.'splitLast pkg
-         ⎕←'<',ext,'> <',wsN,'> <',group,'> <',name,'>'
          ext wsN group name
      }¨pkgs
 
@@ -318,7 +328,7 @@
      }pkgs
 
 ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
-     CALLR.⎕PATH←(∊⍕¨resolvePath(⊂stdLibN),∆PATH),' ↑'/⍨userPathHasUpArrow
+     CALLR.⎕PATH←(1↓∊' ',¨⍕¨resolvePath(⊂stdLibN),∆PATH),' ↑'/⍨userPathHasUpArrow
 
      succ←0=≢⊃⌽statusList
      eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
