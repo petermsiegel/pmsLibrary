@@ -2,7 +2,7 @@
 ⍝H +--------------------+
 ⍝H |  Dict HELP         |
 ⍝H +---------------------
-⍝H  A fast, streamlined Ordered Dictionary (Hash Table)
+⍝H  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table)
 ⍝H     Items are stored in the order created; the dictionary order is maintained, even when a value is changed.
 ⍝H     (Items may be moved by sorting or by deleting and re-entering.)
 ⍝H  KEYS and VALUES
