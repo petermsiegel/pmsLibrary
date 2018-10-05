@@ -99,23 +99,27 @@
      }
 
      inFile←{~⎕NEXISTS ⍵:0 ⋄ 0≠1 ⎕NINFO ⍵}
-     map←{0=≢⍵:'' ⋄ w d n←⍺ ⋄ pkg←w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n ⋄ pkg ⍵}
+     map←{0=≢⍵:'' ⋄ e w d n←⍺ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n ⋄ pkg ⍵}
 
    ⍝------------------------------------------------------------------------------------
    ⍝  E N D      U T I L I T I E S
    ⍝------------------------------------------------------------------------------------
 
    ⍝ From each item in packages of the (regexp with spaces) form:
-   ⍝         (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
-   ⍝         wsN      group               name
+   ⍝      (\w+::)?    (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
+   ⍝     (path) ext    wsN     group             name
    ⍝ wsN may be a full string ('abc.def:'), null string (':'), or ⎕NULL (omitted).
    ⍝ group may be a full string or null string (if omitted)
    ⍝ name must be present
      pkgs←{
          0=≢⍵~' :.':''
-         wsN pkg←':'splitFirst ⍵
+         ext pkg←⍵{                     ⍝ ext: path extension comes before ::
+             0=⍺:''⍵ ⋄ (⍵↑⍨⍺)(⍵↓⍨⍺+1)
+         }⍨⊃⍸'::'⍷⍵
+         wsN pkg←':'splitFirst pkg      ⍝ wsN: ws name comes before simple :
          group name←'.'splitLast pkg
-         wsN group name
+         ⎕←'<',ext,'> <',wsN,'> <',group,'> <',name,'>'
+         ext wsN group name
      }¨pkgs
 
      ∆PATH←resolvePath stdLibN,' ',CALLN,' ',⊃_ userPathHasUpArrow←resolvePathUpArrow ⎕PATH
@@ -169,7 +173,7 @@
    ⍝ Check for <name>, <group.name>, and <wsN>.
          pkg←{
              0=≢⍵:⍵
-             wsN group name←pkg←⍵
+             ext wsN group name←pkg←⍵
              stat←{
                  ('__',wsN)inNs CALLR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
                  name inNs CALLR:pkg map'name∊CALLER'        ⍝ name found? success
@@ -190,7 +194,7 @@
    ⍝ Is the package in the ⎕PATH?
          pkg←{
              0=≢⍵:⍵
-             wsN group name←pkg←⍵
+             ext wsN group name←pkg←⍵
              _←{'Is package 'pkg' in ⎕PATH?'}TRACE 0
 
              recurse←{                                   ⍝ find pgk components in <path>.
@@ -223,7 +227,7 @@
    ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
          pkg←{
              0=≢⍵:⍵
-             wsN group name←pkg←⍵
+             ext wsN group name←pkg←⍵
              0=≢wsN:⍵
              stat←wsN{
                  0::''
@@ -244,7 +248,7 @@
        ⍝ See FSSearchPath
          pkg←{
              0=≢⍵:⍵
-             wsN group name←pkg←⍵
+             ext wsN group name←pkg←⍵
              0∧.=≢¨group name:⍵
              dirFS←'/'@('.'∘=)group  ⍝  dirFS: group with internal dots → slashes
 
@@ -254,7 +258,7 @@
                  0=≢⍵:''                                 ⍝ none found. path exhausted: failure
                  path←⊃⍵
                  0=≢path:∇ 1↓⍵                            ⍝ null directory. Skip...
-                 searchDir←path,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
+                 searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
                  searchfi←searchDir,'.dyalog'
 
                  _←{'  a. Search path: ',⍵,'[.dyalog]'}TRACE searchDir

@@ -93,15 +93,18 @@ ________________________________________________________________________________
 
   package          searched for what...  where (>> means "and then")
   ¯¯¯¯¯¯¯¯¯¯     ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  name             name                  in CALLER >> PATH >> FSPATH (but no workspaces)   
+  name             name                  CALLER >> PATH >> FSPATH (but no workspaces)   
   dir.name         dir.name, name        (SAME)
+  FSEXT::          dir.name, name        CALLER >> PATH >> FSPATH.EXT
   WSNAME:name      name                  CALLER >> PATH >> WSNAME               
   WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME  
   WSNAME:          WSNAME++              WSNAME: if found, it is copied with all its contents
 
-  CALLER: the caller's namespace (*)
-  PATH:   the namespaces in ⎕PATH (in the caller's namespace)
-  FSPATH: the directories in ∆FSPATH var, FSPATH env var, or WSPATH env var, else current file directory.
-  WSNAME: the named workspace via Dyalog APL ⎕CY (which searches WSPATH per documentation)
+
+  CALLER     the caller's namespace (*)
+  PATH       the namespaces in ⎕PATH (in the caller's namespace)
+  FSPATH     the directories in ∆FSPATH var, FSPATH env var, or WSPATH env var, else current file directory.
+  FSEXT::    (file system extension:) a subdirectory(/ies) of FSPATH to be searched. 
+  WSNAME:    the named workspace via Dyalog APL ⎕CY (which searches WSPATH per documentation)
   * For speed, CALLER is searched first, then PATH, before checking directories or workspaces!
 _______________________________________________________________________________________________
