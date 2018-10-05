@@ -1,2 +1,4 @@
+# Ignore OS X Unix-generated temp / backup files like these: 
+#         myFile~ | #UpdatedFile.data  | myFile.data~
 *~
 \#*
