@@ -16,7 +16,6 @@ and for *initialization*, e.g.
       ``∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.``<br>
 ``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
-generates and returns (as its value) a "here document," i.e. a collection of the contiguous (see options) comment lines that  
-follow as a single string or as a vector of vectors, with the comment prefix removed. 
-Has options for string style, whether blank (non-comment) lines end the
-here document or not, and other options.  
+generates and returns (as its value) a "__here__ document," i.e. a collection of the contiguous (see options) comment lines that  
+follow combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
+Has options for string style, whether blank (non-comment) lines end the __here__ document or not, and other options.  
