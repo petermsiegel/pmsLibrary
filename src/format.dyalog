@@ -904,10 +904,10 @@
         ∇
         ∇ r←formatHelp;head;body
           :Trap 0
-              ⎕SH'open ./pmsLibrary/doc/formatHelp.pdf'
+              ⎕SH'open ./pmsLibrary/docs/formatHelp.pdf'
               r←⎕←'formatHelp: complete'
           :Else
-              r←⎕←'formatHelp: Unable to find/display ./pmsLibrary/doc/formatHelp.pdf info.'
+              r←⎕←'formatHelp: Unable to find/display ./pmsLibrary/docs/formatHelp.pdf info.'
               head←'<head><title>Format </title><head>'
               body←'<iframe src="//goo.gl/QaNsWq" width="1400" height="1400"></iframe>'
               'hr'⎕WC'HTMLRenderer'(head,body)('Size'(500 500))
