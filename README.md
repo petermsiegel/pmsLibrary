@@ -12,8 +12,8 @@ and for *initialization*, e.g.
 1. __tinyDict__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
 1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).
 1. __∆format__ / __∆f__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br> 
-`` first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
-`` ∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.``<br>
+``      first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
+``      ∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.``<br>
 `` His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a "here document," i.e. a collection of the contiguous (see options) comment lines that  
