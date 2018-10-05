@@ -1,8 +1,8 @@
-﻿ hd←∆HERE
- ;kw;here;opt;optString;lineEnd;oDebug;oMulti;oBlanks;⎕IO;⎕ML
+﻿ hd←∆HERE;opt
+ ;kw;here;optString;lineEnd;oDebug;oMulti;oSpaces;⎕IO;⎕ML
 ⍝ ∆HERE-- see documentation below
  ⎕IO ⎕ML←0 1
- oMulti oBlanks oDebug←1 0 0
+ oMulti oSpaces oDebug←1 0 0
  lineEnd←⎕UCS 13    ⍝  CR character. If used in Dyalog, behaves like CR + LF.
 
  here←1⊃2↑⎕LC
@@ -17,25 +17,24 @@
  optString←1(819⌶)⊣∊'⍝[^⍠]*⍠(.*)$'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
-          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks
-          ⋄ :Case 'SP' ⋄ oBlanks←1                  ⍝ SPacesObsolete synonym for BLanks. Remove Dec 2018.
-          ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ SIngle (string)
-          ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ MUltiple (strings)
-          ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in strings; implies SIngle
-          ⋄ :Case 'CR' ⋄ lineEnd oMulti←(⎕UCS 13)0  ⍝ Use CR in strings; implies SIngle
-          ⋄ :CaseList 'DE' 'DB' ⋄ oDebug←1          ⍝ Use DEBUG mode
+          ⋄ :Case 'SP' ⋄ oSpaces←1
+          ⋄ :Case 'SI' ⋄ oMulti←0
+          ⋄ :Case 'MU' ⋄ oMulti←1
+          ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0
+          ⋄ :Case 'CR' ⋄ lineEnd oMulti←(⎕UCS 13)0
+          ⋄ :CaseList 'DE' 'DB' ⋄ oDebug←1
      :EndSelect
  :EndFor
 
  :If oDebug
      ⎕←('DEBUG: here line:[',(⍕here),']: "'),(here⊃hd),'"'
      ⎕←'DEBUG: option str: "',optString,'"'
-     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',(⎕UCS lineEnd)
+     ⎕←'DEBUG: oSpaces=',oSpaces,',oMulti=',oMulti,',lineEnd=',(⎕UCS lineEnd)
  :EndIf
 
 ⍝ Get the ∆HERE document as follows:
 ⍝   A: Gather all lines in caller following ∆HERE call in ⎕NR format.
-⍝      A1. If oBlanks=1, convert empty lines to the form '⍝ '.
+⍝      A1. If oSpaces=1, convert empty lines to the form '⍝ '.
 ⍝   B: Drop leading blanks from each.
 ⍝   C: Gather contig. lines beginning (now) with '⍝'.
 ⍝      C1. Keeping in mind A1 above, stop when a line not beginning with '⍝' is reached.
@@ -43,7 +42,7 @@
 ⍝      Other selected lines are treated as comments and ignored. (e.g. '⍝⍝ Comment').
 
  hd←⊆hd↓⍨1+here
- :If oBlanks
+ :If oSpaces
      hd←'^\h*$'⎕R'⍝ '⊣hd   ⍝ Convert blank lines to comment lines with single blank...
  :EndIf
  hd←1↓¨hd/⍨' '=⊃¨hd←1↓¨hd/⍨∧\'⍝'=⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨hd
@@ -54,15 +53,13 @@
 ⍝ --------------------------------------------------------------------------------------------------
 ⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
 ⍝       keywords:
-⍝           BLank  | NOBLank    Do uncommented blank lines end the ∆HERE doc?
 ⍝           SPaces | NOSPaces   Do uncommented blank lines end the ∆HERE doc?
-⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)n?
-⍝           LF | CR             Sets SIngle (above) and...
-⍝                               ... uses the specified char (LF or CR) as the line separator
-⍝           DEbug, DBG          Shows debug info.
+⍝           MUltiple | SIngle   Do we return a vector of vectors or a single char vector?
+⍝           LF | CR             Sets SIngle
+⍝           DEbug, DBG          Show debug info.
 ⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
 ⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
-⍝              NoBlanks: including a blank line;
+⍝              NoSpaces: including a blank line;
 ⍝              SPACES: excluding blank lines '^\h*$', which are treated as '⍝ '.
 ⍝       ∘ Comment lines of the form '^\h*⍝ ' are kept;
 ⍝       ∘ Comment lines of the form '^\h*⍝[^⍝] are ignored, but don't end the ∆HERE document.
@@ -83,9 +80,9 @@
 ⍝
 ⍝∘ Keyword Options, Associated Variables, and Actions
 ⍝  Keyword    Abbrev Def  Options←val  Description
-⍝  SPACES     SP          oBlanks←1    Treat empty lines as comment lines '⍝ ',
+⍝  SPACES     SP          oSpaces←1    Treat empty lines as comment lines '⍝ ',
 ⍝                                      so only text lines end a ∆HERE doc
-⍝  NOSPACES   NOSP   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
+⍝  NOSPACES   NOSP   Y    oSpace←0     Treat empty lines as if APL code, ending a ∆HERE sequence.
 ⍝  MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
 ⍝  SINGLE     SI          oMulti←0     If multiple lines, return as single vector with CR as line separator
 ⍝  LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
@@ -98,7 +95,7 @@
 ⍝ A common alternative is:   ⍝ ⍠ CR SP             -- Create a char string with lines separated by CR carriage return.
 ⍝
 ⍝ If SINGLE is specified, CR is the default line separator.
-⍝ The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
+⍝ The default options are:       oMulti←1 ⋄ oSpaces←0 ⋄ lineEnd←⎕UCS 13
 ⍝
 ⍝  Here document example
 ⍝      myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ SP
