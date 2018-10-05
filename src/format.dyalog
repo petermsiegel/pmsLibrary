@@ -5,7 +5,7 @@
         ⍝⍝⍝ Overview Documentation, see...
         ⍝⍝⍝      format.Documentation.README
         ⍝⍝⍝ Detailed Documentation:
-        ⍝⍝⍝     './formatHelp.pdf'
+        ⍝⍝⍝     './pmsLibrary/docs/formatHelp.pdf'
         ⍝⍝⍝ Source Documentation:
         ⍝⍝⍝      [Google Docs] https://goo.gl/QaNsWq
     :EndSection 1A.
@@ -904,10 +904,10 @@
         ∇
         ∇ r←formatHelp;head;body
           :Trap 0
-              ⎕SH'open formatHelp.pdf'
+              ⎕SH'open ./pmsLibrary/doc/formatHelp.pdf'
               r←⎕←'formatHelp: complete'
           :Else
-              r←⎕←'formatHelp: Unable to find/display formatHelp.pdf info in default directory.'
+              r←⎕←'formatHelp: Unable to find/display ./pmsLibrary/doc/formatHelp.pdf info.'
               head←'<head><title>Format </title><head>'
               body←'<iframe src="//goo.gl/QaNsWq" width="1400" height="1400"></iframe>'
               'hr'⎕WC'HTMLRenderer'(head,body)('Size'(500 500))
