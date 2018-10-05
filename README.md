@@ -11,7 +11,7 @@ This is a work in progress, as I move a handful of such functions out of workspa
 and for *initialization*, e.g. 
 ``:IF ∆MY.∆FIRST ⋄ ∆MY.count←0 ⋄ :ENDIF``
    * See __∆MYgrp.dyalog__ and __∆MYgrp.help__.
-1. __∆DICT__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for defaults (vis-a-vis missing keys), sorting, and more.
+1. __∆DICT__ in namespace __dict__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for defaults (vis-a-vis missing keys), sorting, and more.
 1. __tinyDict__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
 1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).
 1. __∆format__ / __∆f__ in namespace __format__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br> 
