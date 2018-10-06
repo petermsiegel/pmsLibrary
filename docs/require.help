@@ -1,11 +1,13 @@
 ﻿ require Documentation
  ------- -------------
  require:  Ensure specified APL objects are in the calling function's or operator's namespace or ⎕PATH; 
-           else loads them from a workspace (*.dws) or from  dyalog files. The objects are specified
-           by name alone, namespace and name, or workspace, namespace, and name, e.g.
-               [ws:]ns1.[ns2.ns3.]name, 
+           else loads them from a workspace (*.dws), if wsN: is prefixed, and/or from  dyalog files. The objects are specified
+           by name alone, namespace/directory hierarchy, and name; or workspace, namespace/directory hierarchy, and name, e.g.
+               'fsExt::ns1.[ns2.ns3.]name'
            which, during a disk search is treated as a search for:
-               ns1/[ns2/ns3/]name/*.dyalog  AND  ns1/[ns2/ns3/]name.dyalog 
+               fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog 
+           While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
+           ns1[.ns2.ns3] are treated as the full specification of the package.
 
    Syntax 1:   list1 list2     ← [[stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
                namespaceRef    ←  [stdLib] CODE:2 ¯2    ∇  ...
@@ -24,7 +26,12 @@ ________________________________________________________________________________
      for those packages and, if not in the active workspace, copy them from the disk
      or workspace  into the library specified as the stdLib."
    ∘ package formats:
-           [wsN:][dir.]name |  [wsN:]
+           [wsN: | fsExt::][dir.]name |  [wsN:]
+           wsN:    workspace name
+           fsExt:  filesystem extension (directory extension to add to the filesystem path)
+           dir:    the directory (in fs) and/or namespace (in Dyalog) with the object.
+                   Can be of the form name1[.name2[.name3[...]]]
+           name:   The name of the object (valid as an APL name)
    ∘ stdLib is a namespace reference or name (existing or to be created).
      '' implies a reference to <top>, the top-level in which require's caller operates, either # or ⎕SE.
    ∘ If missing, stdLib is <top>.⍙⍙.require (top as above).
