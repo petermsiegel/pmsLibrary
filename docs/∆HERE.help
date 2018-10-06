@@ -1,7 +1,7 @@
 ⍝ --------------------------------------------------------------------------------------------------
 ⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
 ⍝       keywords:
-⍝           BLank  | NOBLank    Do uncommented blank lines end the ∆HERE doc?
+⍝           BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
 ⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)n?
 ⍝           LF | CR             Sets SIngle (above) and...
 ⍝                               ... uses the specified char (LF or CR) as the line separator
