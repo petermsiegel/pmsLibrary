@@ -2,9 +2,10 @@
 ⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
 ⍝       keywords:
 ⍝           BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
-⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)n?
-⍝           LF | CR             Sets SIngle (above) and...
-⍝                               ... uses the specified char (LF or CR) as the line separator
+⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)?
+⍝                               If SIngle, use CR option by default (q.v.).
+⍝           CR | LF             Sets SIngle (above) and...
+⍝                               ... uses the specified char (CR or LF) as the line separator (CR by default).
 ⍝           DEbug, DBG          Shows debug info.
 ⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
 ⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
