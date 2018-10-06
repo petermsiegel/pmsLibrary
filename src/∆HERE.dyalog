@@ -62,7 +62,7 @@
 ⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
 ⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
 ⍝              NoBlanks: including a blank line;
-⍝              SPACES: excluding blank lines '^\h*$', which are treated as '⍝ '.
+⍝              BLANKS: excluding blank lines '^\h*$', which are treated as '⍝ '.
 ⍝       ∘ Comment lines of the form '^\h*⍝ ' are kept;
 ⍝       ∘ Comment lines of the form '^\h*⍝[^⍝] are ignored, but don't end the ∆HERE document.
 ⍝
@@ -78,23 +78,24 @@
 ⍝           ⍝[^⍠]*⍠ keywords
 ⍝      e.g. this example treats empty lines after the ∆HERE as blank comment lines,
 ⍝           and returns multiple lines using the carriage return.
-⍝           h←∆HERE    ⍝ SP CR
+⍝           h←∆HERE    ⍝ ⍠ BL CR
 ⍝
 ⍝∘ Keyword Options, Associated Variables, and Actions
 ⍝  Keyword    Abbrev Def  Options←val  Description
 ⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ',
-⍝                                      so only text lines end a ∆HERE doc
-⍝  NOSPACES   NOSP   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
+⍝                                      so only code lines end a ∆HERE doc
+⍝  NOBLANKS   NOBL   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
 ⍝  MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
 ⍝  SINGLE     SI          oMulti←0     If multiple lines, return as single vector with CR as line separator
 ⍝  LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
 ⍝  CR         CR     Y    lineEnd←⎕UCS 13   (carriage return).  Sets SINGLE, i.e. oMulti←0.
 ⍝  DEBUG      DEB    N    oDebug←1     Start debug (verbose) mode
-⍝            DBG         oDebug←1      Alternative to DEB/UG
+⍝             DBG         oDebug←1      Alternative to DEB/UG
 ⍝  anything else          **ignore**
 ⍝
 ⍝ The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
 ⍝ A common alternative is:   ⍝ ⍠ CR BL             -- Create a char string with lines separated by CR carriage return.
+⍝                                                     End ∆HERE doc at first code line (non-comment, non-blank line).
 ⍝
 ⍝ If SINGLE is specified, CR is the default line separator.
 ⍝ The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
