@@ -26,7 +26,7 @@ ________________________________________________________________________________
      for those packages and, if not in the active workspace, copy them from the disk
      or workspace  into the library specified as the stdLib."
    ∘ package formats:
-           [wsN: | fsExt::][dir.]name |  [wsN:]
+           [[wsN]: | [fsExt]::] [dir.] name  |  [wsN:]  
            wsN:    workspace name
            fsExt:  filesystem extension (directory extension to add to the filesystem path)
            dir:    the directory (in fs) and/or namespace (in Dyalog) with the object.
