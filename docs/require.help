@@ -58,6 +58,9 @@ ________________________________________________________________________________
      then require will search (with respect to the current disk directory a la ]CD):
          'myPrivateLibrary:.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws:lastResortLib'
    ∘ An empty package generates an error.
+   ∘ If '::' is specified, but there are no characters preceding the two colons, the last (non-null) filesystem extension
+     is used (if none, it's ignored).
+   ∘ If ':' is specified, but there are no characters preceding the one colon, the last (non-null) wsPath is used (if none, ignored).
    ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
    ---------------------------------------
    ∘ Returns elements from:  stdLibR list1  list2
