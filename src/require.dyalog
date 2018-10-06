@@ -74,7 +74,7 @@
      ⍝ noEmpty, symbols, getEnv
      ⍝ noEmpty: remove empty dirs from colon spec.
      ⍝ symbols: replace [HOME], [FSPATH] etc in colon spec
-     ⍝ getenv:  retrieve an env. variable valuable in OS X
+     ⍝ getenv:  retrieve an env. variable value in OS X
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
