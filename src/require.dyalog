@@ -12,8 +12,9 @@
      (999×~DEBUG)::⎕SIGNAL/⎕DMX.(EM EN)
 
      TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
-         0::⍵⊣⎕←'TRACE: ERROR ',(⍕⎕DMX.EN),' ',⎕DMX.EM
-         DEBUG:⍵⊣⎕←⍺⍺ ⍵
+         0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
+         ⍺←⊢
+         DEBUG:⍵⊣⎕←⍺ ⍺⍺ ⍵
          ⍵
      }
 
