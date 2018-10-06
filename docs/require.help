@@ -14,11 +14,15 @@
       namespaceRef list1 list2 ←  [stdLib] CODE:4 ¯4    ∇  ...
    Syntax 2:   namespaceRef    ←  [stdLib]              ∇  [⍬ | '']
    Syntax 3:   ⍬               ←                        ∇  '-HELP'
+   
+Note: <require> has been developed in OS X. Use of environment variables has not been
+generalized for other operating systems. See file system path and library symbolic names.
+<require> "should" otherwise be compatible with other operating systems.
 ________________________________________________________________________________________
 
  Syntax 1: Verify or load packages, update ⎕PATH
            Right arg is a list of packages (each a string)
-----------------------------------------------------------
+__________________________________________________________
      "Given names of packages:
          APL objects, namespaces/directories and objects, or
          workspaces (optionally with namespaces and objects),
@@ -66,7 +70,7 @@ ________________________________________________________________________________
      ∘ If ':' is specified, but there are no characters preceding the one colon, 
        the last (non-null) wsPath is used (if none, ignored).
    ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
-   ---------------------------------------
+___________________________________________________
    ∘ Returns elements from:  stdLibR list1  list2
      ∘ If CODE<0, DEBUG is set to 1 and CODE←|CODE. CODE of 0 is treated as if 1.
      Ia. CODE=1   Returns  list1 list2   (success: shy; some failures: non-shy)
@@ -86,20 +90,20 @@ ________________________________________________________________________________
 
  Syntax 2: Return reference to the standard library
            Right argument is ⍬
----------------------------------------------------
+__________________________________________________
    ∘ Returns a reference to the specified or default standard library (stdLib).
      IIa. CODE∊0 1 2 is ignored.  No searching or loading is expected or done.
        E.g. if mathPack is a class, one might "require" it this way:
           require 'mathPack'
        then access it this way:
           myMath ← ⎕NEW (require '').mathPack
-  -------------------------------------------
+ _________________________________________________
   ∘  Returns: namespaceRef
      The namespace reference for the specified or default library.
 
  Syntax 3: Help information. 
            Right argument is '-HELP'
- -----------------------------------
+_____________________________________
    ∘ Displays help information (from require/documentation.txt).
 ____________________________________________________________________________________________
 
@@ -117,8 +121,9 @@ ________________________________________________________________________________
 
   CALLER     the caller's namespace (*)
   PATH       the namespaces in ⎕PATH (in the caller's namespace)
-  FSPATH     the directories in ∆FSPATH var, FSPATH env var, or WSPATH env var, else current file directory.
+  FSPATH     the directories in ∆FSPATH var, FSPATH env var**, or WSPATH env var**, else current and home directories.
   FSEXT::    (file system extension:) a subdirectory(/ies) of FSPATH to be searched. 
   WSNAME:    the named workspace via Dyalog APL ⎕CY (which searches WSPATH per documentation)
-  * For speed, CALLER is searched first, then PATH, before checking directories or workspaces!
-_______________________________________________________________________________________________
+ _____________________
+  *  For speed, CALLER is searched first, then PATH, before checking directories or workspaces!
+  ** OS X specific.
