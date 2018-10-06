@@ -22,4 +22,8 @@ Source: __format__. Help info: __formatHelp.pdf__.
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
-Has options for string style, whether blank (non-comment) lines end the __here__ document or not, and other options.  
+Has options for string style, whether blank (non-comment) lines end the __here__ document or not, and other options. 
+* The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
+* A common alternative is:   ⍝ ⍠ CR BLANKS         -- Create a char string with lines separated by CR carriage return.<BR>
+                                                   -- End the Here doc before the first code line (not first non-comment).
+
