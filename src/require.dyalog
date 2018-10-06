@@ -11,7 +11,11 @@
      CALLR CALLN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CALL_ ("caller"): Where was <require> called from?
      (999×~DEBUG)::⎕SIGNAL/⎕DMX.(EM EN)
 
-     TRACE←{DEBUG:⍵⊣⎕←⍺⍺ ⍵ ⋄ ⍵}        ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
+     TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
+         0::⍵⊣⎕←'TRACE: ERROR ',(⍕⎕DMX.EN),' ',⎕DMX.EM
+         DEBUG:⍵⊣⎕←⍺⍺ ⍵
+         ⍵
+     }
 
   ⍝ Decode ⍺ → [stdLibStr CODE]
      ⍺←⎕NULL
@@ -61,8 +65,8 @@
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ '__',⍵}      ⍝ dunder s1 s2  → '__s1__s2'
+     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly.
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ '/'∊⍵:∊∇¨'/'split ⍵ ⋄ '__',⍵}
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
@@ -101,7 +105,8 @@
      }
 
      inFile←{~⎕NEXISTS ⍵:0 ⋄ 0≠1 ⎕NINFO ⍵}
-     map←{0=≢⍵:'' ⋄ e w d n←⍺ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n ⋄ pkg ⍵}
+     repkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
+     map←{0=≢⍵:'' ⋄ pkg←repkg ⍺ ⋄ pkg ⍵}
 
    ⍝------------------------------------------------------------------------------------
    ⍝  E N D      U T I L I T I E S
@@ -118,16 +123,20 @@
      pkgs←{
          0=≢⍵~' :.':''
          pkg←,⍵
+
          ext pkg←⍵{                     ⍝ ext: <FSPATH extension> comes before ::
              0=≢⍺:''⍵                   ⍝ '::group name' → <lastExt> '' <group> <name>
-             0=⍺:lastExt(⍵↓⍨⍺+1)
-             (lastExt∘←⍵↑⍨⍺)(⍵↓⍨⍺+1)    ⍝ ext:: and wsN: are mutually exclusive in fact.
+             0=⍺:lastExt(⍵↓⍨⍺+2)
+             (lastExt∘←⍵↑⍨⍺)(⍵↓⍨⍺+2)    ⍝ ext:: and wsN: are mutually exclusive in fact.
          }⍨⍸'::'⍷pkg
+
          wsN pkg←{                      ⍝ wsN::[group.]name
-             ':'=1↑pkg:lastWs(1↓pkg)    ⍝ ':group name'  → '' <lastWs> <group> <name>
+             wsDef←(':'=1↑pkg)∧(':'≠1↑1↓pkg)
+             wsDef:lastWs(1↓pkg)    ⍝ ':group name'  → '' <lastWs> <group> <name>
              lastWs∘←w⊣w p←':'splitFirst pkg          ⍝ wsN: ws name comes before simple :
              w p
          }pkg
+
          group name←'.'splitLast pkg
          ext wsN group name
      }¨pkgs
@@ -179,11 +188,14 @@
          status←⍺
          pkg←⊃⍵
 
+         _←{⎕TC[2],'> Package: ',repkg ⍵}TRACE pkg
+
    ⍝ Is the package in the caller's namespace?
    ⍝ Check for <name>, <group.name>, and <wsN>.
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
+
              stat←{
                  ('__',wsN)inNs CALLR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
                  name inNs CALLR:pkg map'name∊CALLER'        ⍝ name found? success
@@ -193,9 +205,10 @@
                  pkg map'group.name∊CALLER'                    ⍝ ...         success
              }⍵
 
-             _←{'Caller ns 'CALLN' package 'pkg' status: 'status}TRACE 0
-
              0=≢stat:pkg
+
+             _←{'>>> Found in caller ns: ',⍵}TRACE stat
+
              ''⊣(⊃status),←⊂stat
          }pkg
 
@@ -205,13 +218,13 @@
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
-             _←{'Is package 'pkg' in ⎕PATH?'}TRACE 0
+
 
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                              ⍝ none found. path exhausted: failure
                  path←⊃⍵
 
-                 _←{'>>> path group: ',path}TRACE 0
+                 _←{'>>> Checking ⎕PATH ns: ',⍵}TRACE path
 
                  {0≠≢group}and{path inNs⍨dunder group name}1:'[file] group.name∊PATH'
                  {0=≢group}and{path inNs⍨dunder name}1:'[file] name∊PATH'
@@ -226,9 +239,10 @@
                  'group→PATH'                           ⍝ ...         success
              }∪∆PATH
 
-             _←{'>>> Status 'status}TRACE 0
-
              0=≢recurse:pkg
+
+             _←{'>>> Found in ⎕PATH ns: ',⍵}TRACE recurse
+
              ''⊣(⊃status),←⊂pkg map recurse
          }pkg
 
@@ -239,6 +253,9 @@
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
              0=≢wsN:⍵
+
+             _←{'>>> Checking workspace: ',⍵}TRACE wsN
+
              stat←wsN{
                  0::''
                  0≠≢⍵:'wsN:name→stdLib'⊣⍵ stdLibR.⎕CY ⍺     ⍝ Copy in object from wsN
@@ -250,7 +267,7 @@
              }group with name
 
              0=≢stat:pkg
-             ''⊣(⊃status),←⊂pkg map stat
+             ''⊣(⊃status),←⊂pkg map stat⊣{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
          }pkg
 
        ⍝ Is the package in the file system path?
@@ -262,58 +279,62 @@
              0∧.=≢¨group name:⍵
              dirFS←'/'@('.'∘=)group  ⍝  dirFS: group with internal dots → slashes
 
-             _←{'1. Searching file sys path for package:',⍵}TRACE pkg
-
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                                 ⍝ none found. path exhausted: failure
                  path←⊃⍵
                  0=≢path:∇ 1↓⍵                            ⍝ null directory. Skip...
                  searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
-                 searchfi←searchDir,'.dyalog'
+                 searchFi←searchDir,'.dyalog'
 
-                 _←{'  a. Search path: ',⍵,'[.dyalog]'}TRACE searchDir
+                 _←{'>>> Searching filesystem: ',⍵}TRACE searchDir
 
                  ⋄ loaddir←{
                      group name←⍺
                      aplDir←group with name ⋄ fsDir←⍵
-                     1≠⊃1 ⎕NINFO fsDir:'NOT A DIRECTORY: Ignored: ',fsDir
+                     1≠⊃1 ⎕NINFO fsDir:'NOT A DIRECTORY: ',fsDir
                      names←⊃(⎕NINFO⍠1)fsDir,'/*.dyalog'    ⍝ Will ignore subsidiary directories...
                      0=≢names:aplDir{
                          stamp←'First group ',⍺,'found was empty on ',(⍕⎕TS),': ',⍵
                          'empty group→stdLib: ',⍵⊣(dunder ⍺)stdLibR.{⍎⍺,'←⍵'}stamp
                      }fsDir
-                     cont←⍬
-                     fixed←''
+
+                     _←{'>>>>> Found non-empty dir: ',⍵}TRACE fsDir
+
+                     cont←''
                      load←{
                        ⍝ import: group name
-                         0::¯1   ⍝ Failure
+                         0::¯1⊣{'Failed to load file for name ',⍵}TRACE ⍵
+
                          subName←1⊃⎕NPARTS ⍵
                          cont,←' ',,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
-                         fixed,←⎕TC[2],'   ',⍵
+
+                         _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
+
                          1     ⍝ Success
                      }¨names
-                     stamp←(group with name),' copied from disk with contents',cont,' on ',⍕⎕TS
+                     gwn←group with name
+                     stamp←gwn,' copied from disk with contents',cont,' on ',⍕⎕TS
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
-                     res←'[group] ',(group with name),'→stdLib '
-                     res,←⎕TC[2],'   [',{⍵=0:'' ⋄ (⍕⍵),' objects ⎕FIXed:',fixed,⎕TC[2]}+/load=1
-                     res,←{⍵=0:'' ⋄ '; ',(⍕⍵),' failed to load'}+/load=¯1
-                     res,←'   ]',⎕TC[2]
+                     res←'[group] ',gwn,'→stdLib '
+                     res,←⎕TC[2],'   [Fixed: ',(⍕+/load=1),' Failed: ',(⍕+/load=¯1),']'
                      res
                  }
                  ⎕NEXISTS searchDir:(group name)loaddir searchDir
                  ⋄ loadfi←{
                      group name←⍺
+
                      id←dunder group name
-                     cont←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
+                     cont∘←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
+                     _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                      stamp←(group with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
                      'file→stdLib: ',⍵
                  }
-                 ⎕NEXISTS searchfi:(group name)loadfi searchfi
+                 ⎕NEXISTS searchFi:(group name)loadfi searchFi
                  ∇ 1↓⍵
              }∆FSPATH
 
-             _←{s←'  b. Status: ' ⋄ 0=≢⍵:s,'NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
+             _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
 
              0=≢recurse:pkg
              ''⊣(⊃status),←⊂pkg map recurse
