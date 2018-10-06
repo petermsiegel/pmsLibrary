@@ -18,7 +18,7 @@
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
           ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks
-          ⋄ :Case 'SP' ⋄ oBlanks←1                  ⍝ SPacesObsolete synonym for BLanks. Remove Dec 2018.
+          ⋄ :Case 'SP' ⋄ oBlanks←1                  ⍝ SPaces: Obsolete synonym for BLanks. Remove Dec 2018.
           ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ SIngle (string)
           ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ MUltiple (strings)
           ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in strings; implies SIngle
@@ -55,7 +55,6 @@
 ⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
 ⍝       keywords:
 ⍝           BLank  | NOBLank    Do uncommented blank lines end the ∆HERE doc?
-⍝           SPaces | NOSPaces   Do uncommented blank lines end the ∆HERE doc?
 ⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)n?
 ⍝           LF | CR             Sets SIngle (above) and...
 ⍝                               ... uses the specified char (LF or CR) as the line separator
@@ -83,7 +82,7 @@
 ⍝
 ⍝∘ Keyword Options, Associated Variables, and Actions
 ⍝  Keyword    Abbrev Def  Options←val  Description
-⍝  SPACES     SP          oBlanks←1    Treat empty lines as comment lines '⍝ ',
+⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ',
 ⍝                                      so only text lines end a ∆HERE doc
 ⍝  NOSPACES   NOSP   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
 ⍝  MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
@@ -94,14 +93,14 @@
 ⍝            DBG         oDebug←1      Alternative to DEB/UG
 ⍝  anything else          **ignore**
 ⍝
-⍝ The default keywords are:  ⍝ ⍠ MULTI  NOSPACES   -- Create vector of vector and end the ∆HERE doc at first non-comment
-⍝ A common alternative is:   ⍝ ⍠ CR SP             -- Create a char string with lines separated by CR carriage return.
+⍝ The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
+⍝ A common alternative is:   ⍝ ⍠ CR BL             -- Create a char string with lines separated by CR carriage return.
 ⍝
 ⍝ If SINGLE is specified, CR is the default line separator.
 ⍝ The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
 ⍝
 ⍝  Here document example
-⍝      myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ SP
+⍝      myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ BL
 ⍝      ⍝ <!DOCTYPE HTML>
 ⍝      ⍝ <html>
 ⍝      ⍝⍝ Next line is blank.    <-- This line is ignored because of '⍝⍝'.
