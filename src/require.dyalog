@@ -37,7 +37,7 @@
          defdef←top,'.',defaultLibName       ⍝ the default if there's no default library
          ⍵≡⎕NULL:returning defdef
 
-         ∆LIB←'⎕LIB'                         ⍝ Possible special prefix to ⍵...
+         ∆LIB←'[LIB]'                         ⍝ Possible special prefix to ⍵...
          0::⎕SIGNAL/('require DOMAIN ERROR: Default library name invalid: ',{0::⍕⍵ ⋄ ⍕⍎⍵}⍵)11
          returning{
              val←(⍕⍵)~' '                    ⍝ Set val. If ⍵ is ⎕SE or #, val is '⎕SE' or '#'
@@ -45,10 +45,10 @@
              9.1 9.2∊⍨nc←CALLR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
              2.1≠nc:○○○                      ⍝ If we reached here, ⍵ must be a string.
              0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
-             name←{                          ⍝ See if  ⎕LIB a prefix of val?
+             name←{                          ⍝ See if  [LIB] a prefix of val?
                  fnd←1=⊃∆LIB⍷⍵ ⋄ len←≢∆LIB
-                 fnd∧len=≢⍵:defdef           ⍝ ⎕LIB alone is prefix
-                 fnd∧'.'=1↑len↓⍵:defdef,len↓⍵⍝ ⎕LIB. prefix
+                 fnd∧len=≢⍵:defdef           ⍝ [LIB] alone is prefix
+                 fnd∧'.'=1↑len↓⍵:defdef,len↓⍵⍝ [LIB]. prefix
                  ⍵
              }val
              nc←CALLR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
@@ -71,6 +71,13 @@
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
+     ⍝ noEmpty, symbols, getEnv
+     ⍝ noEmpty: remove empty dirs from colon spec.
+     ⍝ symbols: replace [HOME], [FSPATH] etc in colon spec
+     ⍝ getenv:  retrieve an env. variable valuable in OS X
+     ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
+     ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
+     ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
 
  ⍝ resolveNs: Return a reference for a namespace string.
  ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
@@ -146,27 +153,29 @@
 
    ⍝ ∆FSPATH:
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
-   ⍝      You can merge new paths with the existing environment variable
-   ⍝      FSPATH (or, if FSPATH is null, then WSPATH) from the env.  (see 2 below).
-   ⍝      If it contains /:,:/ or /^,:/ or /:,$/, then  WSPATH is interpolated in its place!
-   ⍝        e.g. if FSPATH/WSPATH has '.:stdLib1:stdLib2'
-   ⍝        e.g. 'mydir1:mydir1/mydir1a:,'
-   ⍝         →   'mydir1:mydir2/mydir1a:.:stdLib1:stdLib':
+   ⍝      You can merge new paths with the values of the existing OS X environment variables:
+   ⍝        - FSPATH (require-specific for File System Path. See WSPATH for format)
+   ⍝        - WSPATH (Dyalog's search path for workspaces; libraries are colon-separated)
+   ⍝        - HOME   (the HOME directory)
+   ⍝        - PWD    (the current working directory)
+   ⍝        - .      (the current working directory)
+   ⍝        - ..     (the parent directory)
+   ⍝        e.g. if FSPATH is has
+   ⍝                   '.:stdLib1:stdLib2'
+   ⍝        then       'mydir1:mydir1/mydir1a:[FSPATH]'
+   ⍝               →   'mydir1:mydir2/mydir1a:.:stdLib1:stdLib':
    ⍝   2. If GetEnvironment FSPATH is not null, use it.
    ⍝   3. If GetEnvironment WSPATH is not null, use it.
    ⍝      APL maintains this mostly for finding workspaces.
-   ⍝   3. Use '.' (current active directory, via ]CD etc.)
+   ⍝   3. Use '.:[HOME]'   (see HOME above).
    ⍝   Each item a string of the form here (if onle group, no colon is used):
    ⍝       'dir1:dir2:...:dirN'
-     ∆FSPATH←∪':'split{
-         2=⎕NC ⍵:{
-             '^,(?>=:)|(?<=:),(?>=:)|(?<=:),$'⎕R{
-                 ×≢fs←2 ⎕NQ'.' 'GetEnvironment' 'FSPATH':fs
-                 2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'}⊣⍵
-         }⎕OR ⍵
-         0≠≢fs←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH':fs
-         0≠≢env←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH':env
-         '.'
+
+     ∆FSPATH←∪':'split noEmpty{
+         2=⎕NC ⍵:symbols ⎕OR ⍵
+         0≠≢fs←getenv'FSPATH':fs
+         0≠≢env←getenv'WSPATH':env
+         symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
      }'⎕SE.∆FSPATH'
 
      _←{'∆FSPATH='⍵}TRACE ∆FSPATH

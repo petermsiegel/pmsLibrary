@@ -23,7 +23,7 @@ ________________________________________________________________________________
          APL objects, namespaces/directories and objects, or
          workspaces (optionally with namespaces and objects),
      look in the current directory, the ⎕PATH, and on disk in directories set in ⎕SE.∆FSPATH,
-     for those packages and, if not in the active workspace, copy them from the disk
+     for those packages and, if not in the active workspace, copy them from the file system
      or workspace  into the library specified as the stdLib."
    ∘ package formats:
            [[wsN]: | [fsExt]::] [dir.] name  |  [wsN:]  
@@ -34,33 +34,37 @@ ________________________________________________________________________________
            name:   The name of the object (valid as an APL name)
    ∘ stdLib is a namespace reference or name (existing or to be created).
      '' implies a reference to <top>, the top-level in which require's caller operates, either # or ⎕SE.
-   ∘ If missing, stdLib is <top>.⍙⍙.require (top as above).
-   ∘ ⎕LIB as a prefix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
-     e.g. '⎕LIB.math' is  '#.⍙⍙.require.math' if require's caller is in # or subdirectory.
+   ∘ If missing, stdLib is <top>.⍙⍙.require (<top> defined as above).
+   ∘ [LIB] as a prefix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
+     e.g. '[LIB].math' is  '#.⍙⍙.require.math' if require's caller is in # or subdirectory.
    ∘ Updates caller's ⎕PATH to provide access to the packages, dropping any
      path namespaces that don't exist. ⎕PATH only ensures functions and operators
      are found. See Syntax 2 for how to specify a library, e.g. to access a class etc.
    ∘ CODE is optional and may be 1 (or 0), 2, or 4 or (DEBUG info provided) -1 -2 or -4. 
      If 1 or -1, returns as below (Ia) or (IIa). See below for CODE, DEBUG.
-   ∘ For the disk path, <require> searches as follows:
+   ∘ File System Path: ⎕SE.∆FSPATH, env var FSPATH, env var WSPATH, and file system path defaults
+     When searching for packages in the file system, <require> searches as follows:
        a. Use ⎕SE.∆FSPATH, if present. If not,
        b. Use (OS X) environment variable FSPATH. Else, if null,
        c. Use (OS X) environment variable WSPATH, managed by Dyalog to find workspaces; else
-       c. Use string '.' (current directory based on ]CD)
-     Each item must be a string indicating absolute or relative file directories
-     (if absent, they are ignored) separated by colons (:).
-   ∘ If  ⎕SE.∆FSPATH includes a lone comma as any path, i.e. an initial ',:', a final ':,' or an intermediate ':,:',
-     it is replaced by the current value of the environment variable FSPATH or, if null, WSPATH. 
-     For example, if env var FSPATH (or, if null, WSPATH) is:
+       d. Use '.:[HOME]'
+     The value of ⎕SE.∆FSPATH or of (the environment variable) FSPATH or WSPATH must be a colon string indicating 
+     absolute or relative file directories.  While Dyalog's WSPATH must follow Dyalog specs,
+     ⎕SE.∆FSPATH and FSPATH may also have these strings as part of directory names:
+         [HOME] the HOME directory     .        the current directory    ..       the parent directory
+         [PWD] the current directory   [FSPATH] (OSX) env var FSPATH     [WSPATH] the (Dyalog) env var WSPATH.
+   ∘ For example, if env var FSPATH is:
            '.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws'    ⍝ An abbreviated version of the OS X WSPATH is shown
      and you specify:
-         ⎕SE.∆FSPATH ← 'myPrivateLibrary:,:lastResortLib'
-     then require will search (with respect to the current disk directory a la ]CD):
-         'myPrivateLibrary:.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws:lastResortLib'
-   ∘ An empty package generates an error.
-   ∘ If '::' is specified, but there are no characters preceding the two colons, the last (non-null) filesystem extension
-     is used (if none, it's ignored).
-   ∘ If ':' is specified, but there are no characters preceding the one colon, the last (non-null) wsPath is used (if none, ignored).
+         ⎕SE.∆FSPATH ← 'myPrivateLibrary:[FSPATH]:lastResortLib'
+     then require will search in order (>> means 'before') 
+         myPrivateLibrary >> . >> /Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws >> lastResortLib
+   ∘ Requiring an empty package will generate an error.
+   ∘ USE PREVIOUS FS EXTENSION (sub-library) or WORKSPACE
+     ∘ If '::' is specified, but there are no characters preceding the two colons, 
+       the last (non-null) filesystem extension is used (if none, it's ignored).
+     ∘ If ':' is specified, but there are no characters preceding the one colon, 
+       the last (non-null) wsPath is used (if none, ignored).
    ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
    ---------------------------------------
    ∘ Returns elements from:  stdLibR list1  list2
