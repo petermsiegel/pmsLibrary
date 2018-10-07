@@ -66,8 +66,11 @@
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly. Remove args '##' and '#'.
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ ⍵∧.='#':'' ⋄ '__',⍵}
+     ⍝ dunder: Convert a possibly complex name (possibly in filesystem or APL format) to a unique-ish simple name.
+     ⍝   Used to record loading a specific name or directory into a standard library under certain circumstances.
+     ⍝   a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred', ⎕SE.test → '__⍙SE__test', #.test → 'test'.
+     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has / or ., split it on the fly. Ignore args '##[.]' and '#[.]'.
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵ ~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵  ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
