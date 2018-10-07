@@ -66,11 +66,8 @@
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly. Remove ##.
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵
-         '#'∊⍵:''
-         '__',⍵
-     }
+     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly. Remove args '##' and '#'.
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ ⍵∧.='#':'' ⋄ '__',⍵}
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
