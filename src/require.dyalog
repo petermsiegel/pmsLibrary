@@ -79,21 +79,19 @@
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
 
- ⍝ resolveNs: Return a reference for a namespace string.
+ ⍝ resolveNs Ns@str: Return a reference for a namespace string.
  ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
      resolveNs←CALLR∘{
-         6::⎕NULL
-         '⎕SE'≡⍵:⍵
-         (,'#')≡⍵:⍵
-         9.1≠⍺.⎕NC⊂⍵:⎕NULL
-         ⍕⍺⍎⍵            ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
+         nc←⍺.⎕NC⊂⍵
+         nc∊9 ¯1:⍕⍺⍎⍵      ⍝ nc=¯1: ##.## etc.
+         ⎕NULL             ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
      }∘,
-     resolvePathUpArrow←CALLN∘{
   ⍝ In ⎕PATH, replace ↑ with the requisite # of levels to the top...
   ⍝ Returns:  if found:  (revised_path 1); else:  (⍵ 0)
-         ~'↑'∊⍵:⍵ 0
-         dist←¯1++/⍺='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
-         (∊w)1⊣w[p]←⊂{⍺←'##' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
+     resolvePathUpArrow←{
+         ~⍺:⍵
+         dist←¯1++/CALLN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
+         (∊w)⊣w[p]←⊂{⍺←'' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
      }
 
   ⍝ resolvePath: Determines actual ordered path to search, based on ∆CALR and ⎕PATH.
@@ -149,7 +147,15 @@
          ext wsN group name
      }¨pkgs
 
-     ∆PATH←resolvePath stdLibN,' ',CALLN,' ',⊃_ userPathHasUpArrow←resolvePathUpArrow ⎕PATH
+   ⍝ userPathHasCALLR: 1 if CALLR is explicitly in the caller's ⎕PATH
+   ⍝ If # is implicit in ↑ in ⎕PATH, value is 0, and ↑ is added when ⎕PATH is updated.
+   ⍝ Note that fns/ops in CALLR are always found, since CALLR is always checked before ⎕PATH.
+     userPathHasUpArrow←'↑'∊⎕PATH
+     ∆PATH←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
+
+     _←{'CALLN: ',⍵}TRACE CALLN
+     _←{'userPathHasUpArrow: ',⍵}TRACE userPathHasUpArrow
+     _←{'∆PATH: <'⍵'>'}TRACE ∆PATH
 
    ⍝ ∆FSPATH:
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
@@ -359,7 +365,8 @@
      }pkgs
 
 ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
-     CALLR.⎕PATH←(1↓∊' ',¨⍕¨resolvePath(⊂stdLibN),∆PATH),' ↑'/⍨userPathHasUpArrow
+⍝ userPathHasUpArrow: If 1, we restore '↑'' at the end of ⎕PATH
+     CALLR.⎕PATH←(1↓∊' ',¨⍕¨∆PATH),' ↑'/⍨userPathHasUpArrow
 
      succ←0=≢⊃⌽statusList
      eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
