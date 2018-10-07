@@ -66,8 +66,11 @@
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly.
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__',⍵}
+     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has /, split it on the fly. Remove ##.
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵:'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵
+         '#'∊⍵:''
+         '__',⍵
+     }
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
@@ -75,15 +78,18 @@
      ⍝ noEmpty: remove empty dirs from colon spec.
      ⍝ symbols: replace [HOME], [FSPATH] etc in colon spec
      ⍝ getenv:  retrieve an env. variable value in OS X
+     ⍝ apl2FS:  convert APL style namespace hierarchy to a filesystem hierarchy:
+     ⍝          a.b.c → a/b/c     ##.a → ../a    #.a → /a
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+     ⋄ apl2FS←{'.'@('#'∘=)⊣'/'@('.'∘=)⊣⍵↓⍨'#.'≡2↑⍵}
 
  ⍝ resolveNs Ns@str: Return a reference for a namespace string.
  ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
      resolveNs←CALLR∘{
          nc←⍺.⎕NC⊂⍵
-         nc∊9 ¯1:⍕⍺⍎⍵      ⍝ nc=¯1: ##.## etc.
+         nc∊9.1 ¯1:⍕⍺⍎⍵      ⍝ nc=¯1: ##.## etc.
          ⎕NULL             ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
      }∘,
   ⍝ In ⎕PATH, replace ↑ with the requisite # of levels to the top...
@@ -99,6 +105,7 @@
      resolvePath←{
          ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵
      }
+
 
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
    ⍝    ⍺: name or group.name (etc.).  If 0=≢⍺: inNs fails.
@@ -153,9 +160,9 @@
      userPathHasUpArrow←'↑'∊⎕PATH
      ∆PATH←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
 
-     _←{'CALLN: ',⍵}TRACE CALLN
-     _←{'userPathHasUpArrow: ',⍵}TRACE userPathHasUpArrow
-     _←{'∆PATH: <'⍵'>'}TRACE ∆PATH
+⍝      _←{'CALLN: ',(0⊃⍵),' stdLibN: ',(1⊃⍵)}TRACE CALLN stdLibN
+⍝      _←{'userPathHasUpArrow: ',⍵}TRACE userPathHasUpArrow
+⍝      _←{'∆PATH: <'⍵'>'}TRACE ∆PATH
 
    ⍝ ∆FSPATH:
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
@@ -179,8 +186,8 @@
 
      ∆FSPATH←∪':'split noEmpty{
          2=⎕NC ⍵:symbols ⎕OR ⍵
-         0≠≢fs←getenv'FSPATH':fs
-         0≠≢env←getenv'WSPATH':env
+         0≠≢fs←symbols getenv'FSPATH':fs
+         0≠≢env←symbols getenv'WSPATH':env
          symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
      }'⎕SE.∆FSPATH'
 
@@ -293,12 +300,13 @@
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
              0∧.=≢¨group name:⍵
-             dirFS←'/'@('.'∘=)group  ⍝  dirFS: group with internal dots → slashes
+             dirFS←apl2FS group                          ⍝ Convert a.b→a/b, ##.a→../a
+
 
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                                 ⍝ none found. path exhausted: failure
                  path←⊃⍵
-                 0=≢path:∇ 1↓⍵                            ⍝ null directory. Skip...
+                 0=≢path:∇ 1↓⍵                           ⍝ null directory. Skip...
                  searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
                  searchFi←searchDir,'.dyalog'
 
