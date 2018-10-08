@@ -9,12 +9,12 @@
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      defaultLibName←'⍙⍙.require'
      CALLR CALLN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CALL_ ("caller"): Where was <require> called from?
-     (999×~DEBUG)::⎕SIGNAL/⎕DMX.(EM EN)
+     999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
      TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
          0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
          ⍺←⊢
-         DEBUG:⍵⊣⎕←⍺ ⍺⍺ ⍵
+         DEBUG:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
          ⍵
      }
 
@@ -111,7 +111,7 @@
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
    ⍝    ⍺: name or group.name (etc.).  If 0=≢⍺: inNs fails.
    ⍝    ⍵: an namespace name (interpreted wrt CALLR if not absolute) or reference.
-     inNs←{0::0⊣⎕←'inNs error:'⍺'inNs'⍵⊣⎕←⎕DMX.(EM EN)
+     inNs←{0::'require/inNs: DOMAIN ERROR: Namespace, library, or package is invalid'⎕SIGNAL ⎕DMX.EN
          0=≢⍺:0
          callr←CALLR ⍝ Workaround: external CALLR, used directly like this (CALLR.⍎) won't be found.
          ns←callr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
@@ -161,7 +161,7 @@
    ⍝
    ⍝ Note that fns/ops in CALLR are always found, since CALLR is always checked before ⎕PATH.
      userPathHasUpArrow←'↑'∊⎕PATH
-     ∆PATHin←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
+     ∆PATHin←resolvePath userPathHasUpArrow resolvePathUpArrow ⎕PATH
      ∆PATHadd←⍬
 
 ⍝      _←{'CALLN: ',(0⊃⍵),' stdLibN: ',(1⊃⍵)}TRACE CALLN stdLibN
@@ -247,24 +247,45 @@
              ext wsN group name←pkg←⍵
 
 
-             recurse←{                                   ⍝ find pgk components in <path>.
-                 0=≢⍵:''                              ⍝ none found. path exhausted: failure
+             scanPath←{                                 ⍝ find pgk components in <path> or stdLib
+                 ⍺←'PATH'
+                 0=≢⍵:''                                ⍝ none found. path exhausted: failure
                  path←⊃⍵
 
                  _←{'>>> Checking ⎕PATH ns: ',⍵}TRACE path
 
-                 {0≠≢group}and{path inNs⍨dunder group name}1:'[file] group.name∊PATH'
-                 {0=≢group}and{path inNs⍨dunder name}1:'[file] name∊PATH'
-                 {0=≢name}and{path inNs⍨dunder wsN}0:'ws∊PATH'
-                 {wsN inNs path}and{0=≢⍵:1            ⍝ wsN found and group/name empty: success
-                     ⍵ inNs path,'.',wsN              ⍝ wsN found and group/name found in path.wsN: success
-                 }group with name:'ws∊PATH'
-                 name inNs path:'name∊PATH'           ⍝ name found: success
-                 group≡'':∇ 1↓⍵                         ⍝ none found: try another path element
-                 ~{(group with name)inNs path}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵      ⍝ none found: try another path element
-                 ∆PATHadd,⍨←⊂resolveNs path with group     ⍝ group.name found: ...
-                 'group→PATH'                           ⍝ ...         success
-             }∪∆PATHadd
+             ⍝⍝ --------------------------------------------------------------------------------------
+             ⍝⍝ If name is found in path, do we explicitly add to path? CHOICE (A)=YES, (B)=NO.
+             ⍝⍝   PROS: path may have ↑ and the item may work for this caller ns, but not another
+             ⍝⍝         that inherits its ⎕PATH.
+             ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in path
+             ⍝⍝ Decision: For now, we leave out the update, choice (B).
+             ⍝⍝   For (A), replace (B) below with (A):
+             ⍝⍝       (A) name inNs path:'name∊',⍺⊣∆PATHadd,⍨←path
+             ⍝⍝ --------------------------------------------------------------------------------------
+
+                 {0≠≢group}and{path inNs⍨dunder group name}1:'group.name[.dyalog]∊',⍺
+                 {0=≢group}and{path inNs⍨dunder name}1:'name[.dyalog]∊',⍺
+                 {0=≢name}and{path inNs⍨dunder wsN}0:'ws∊',⍺
+                 {wsN inNs path}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
+                     ⍵ inNs path,'.',wsN                ⍝ wsN found and group/name found in path.wsN: success
+                 }group with name:'ws∊',⍺
+
+                 name inNs path:'name∊',⍺               ⍝ Name found: Success.
+                 group≡'':∇ 1↓⍵                         ⍝ Not found: try another path element
+                 ~{(group with name)inNs path}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another path element
+                 ∆PATHadd,⍨←⊂resolveNs path with group  ⍝ group.name found: ...
+                 'group→',⍺                             ⍝ ...         success
+             }
+
+          ⍝ Go through path. If found, return success.
+          ⍝ Otherwise, try stdLibR (unless in path). If found, add stdLibR to path (∆PATHadd).
+             recurse←{
+                 ×≢r←scanPath∪∆PATHin:r                ⍝ Found in path?
+                 stdLibR∊∆PATHin:''                    ⍝ No, so if stdLibR not in path, check there.
+                 0=≢r←'STDLIB'scanPath stdLibR:''      ⍝ Found in stdLibR?
+                 r⊣∆PATHadd,⍨←stdLibR                  ⍝ Yes, so add stdLibR to path
+             }⍬
 
              0=≢recurse:pkg
 
@@ -294,6 +315,7 @@
              }group with name
 
              0=≢stat:pkg
+             ∆PATHadd,⍨←stdLibR                             ⍝ Succeeded: Add stdLibR to path
              ''⊣(⊃status),←⊂pkg map stat⊣{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
          }pkg
 
@@ -345,18 +367,21 @@
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
                      res←'[group] ',gwn,'→stdLib '
                      res,←⎕TC[2],'   [Fixed: ',(⍕+/load=1),' Failed: ',(⍕+/load=¯1),']'
+                     1∊load:res⊣∆PATHadd,⍨←stdLibR        ⍝ At least one <load> succeeded.
                      res
                  }
                  ⎕NEXISTS searchDir:(group name)loaddir searchDir
                  ⋄ loadfi←{
+                     0::'file→stdLib FAILED: "',⍵,'"'
                      group name←⍺
 
                      id←dunder group name
-                     cont∘←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
+                     cont←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
                      _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                      stamp←(group with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
-                     'file→stdLib: ',⍵
+                     ∆PATHadd,⍨←stdLibR                      ⍝ Succeeded: Note stdLibR (if not already)
+                     'file→stdLib: "',⍵,'"'
                  }
                  ⎕NEXISTS searchFi:(group name)loadfi searchFi
                  ∇ 1↓⍵
@@ -378,7 +403,11 @@
 
 ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
 ⍝ userPathHasUpArrow: If 1, we restore '↑'' at the end of ⎕PATH
-     CALLR.⎕PATH←(1↓∊' ',¨⍕¨∆PATHin∪∆PATHadd),' ↑'/⍨userPathHasUpArrow
+     _←{'⎕PATH was "',⎕PATH,'", ∆PATHin=',∆PATHin,', ∆PATHadd=',∆PATHadd}TRACE 0
+   ⍝ Prepend new items and merge with ⎕PATH keeping relative ⎕PATH elements...
+     CALLR.⎕PATH←1↓∊' ',¨∪(⍕¨∆PATHadd),(split ⎕PATH)     ⍝ ,' ↑'/⍨userPathHasUpArrow
+
+     _←{'⎕PATH now "',⎕PATH,'"'}TRACE 0
 
      succ←0=≢⊃⌽statusList
      eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
