@@ -157,6 +157,8 @@
 
    ⍝ userPathHasCALLR: 1 if CALLR is explicitly in the caller's ⎕PATH
    ⍝ If # is implicit in ↑ in ⎕PATH, value is 0, and ↑ is added when ⎕PATH is updated.
+   ⍝ We add components of ↑ to ⎕PATH iff they are namespaces in which a package is found.
+   ⍝
    ⍝ Note that fns/ops in CALLR are always found, since CALLR is always checked before ⎕PATH.
      userPathHasUpArrow←'↑'∊⎕PATH
      ∆PATHin←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
