@@ -4,7 +4,7 @@
    ⍝ Help info in:
    ⍝     /Users/<USER>/MyDyalogLibrary/require/require.help
    ⍝ Grab filedir from SALT comment line at end of this function.
-     ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
+     ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      defaultLibName←'⍙⍙.require'
@@ -61,30 +61,36 @@
  ⍝------------------------------------------------------------------------------------
  ⍝  U T I L I T I E S
  ⍝------------------------------------------------------------------------------------
+     ⍝ Set I: and etc
+     ⍝
      ⋄ and←{⍺⍺ ⍵:⍵⍵ ⍵ ⋄ 0}
      ⋄ or←{⍺⍺ ⍵:1 ⋄ ⍵⍵ ⍵}
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
+
+     ⍝ Set II
      ⍝ dunder: Convert a possibly complex name (possibly in filesystem or APL format) to a unique-ish simple name.
      ⍝   Used to record loading a specific name or directory into a standard library under certain circumstances.
-     ⍝   dunder refers to the use of a  "double underscore" for special names.
+     ⍝   dunder refers to the use of a  "double underscore" for special names (a la Python).
      ⍝   a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred', ⎕SE.test → '__⍙SE__test', #.test → 'test'.
-     ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has / or ., split it on the fly. Ignore args '##[.]' and '#[.]'.
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
+     ⍝   dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has / or ., split it on the fly. Ignore args '##[.]' and '#[.]'.
+     ⍝ apl2FS:  convert APL style namespace hierarchy to a filesystem hierarchy:
+     ⍝          a.b.c → a/b/c     ##.a → ../a    #.a → /a
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
+     ⍝
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
+     ⋄ apl2FS←{'.'@('#'∘=)⊣'/'@('.'∘=)⊣⍵↓⍨'#.'≡2↑⍵}
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
-     ⍝ noEmpty, symbols, getEnv
+     ⍝ set III
      ⍝ noEmpty: remove empty dirs from colon spec.
      ⍝ symbols: replace [HOME], [FSPATH] etc in colon spec
      ⍝ getenv:  retrieve an env. variable value in OS X
-     ⍝ apl2FS:  convert APL style namespace hierarchy to a filesystem hierarchy:
-     ⍝          a.b.c → a/b/c     ##.a → ../a    #.a → /a
+     ⍝
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-     ⋄ apl2FS←{'.'@('#'∘=)⊣'/'@('.'∘=)⊣⍵↓⍨'#.'≡2↑⍵}
 
  ⍝ resolveNs Ns@str: Return a reference for a namespace string.
  ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
