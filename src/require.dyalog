@@ -71,7 +71,7 @@
      ⍝   dunder refers to the use of a  "double underscore" for special names.
      ⍝   a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred', ⎕SE.test → '__⍙SE__test', #.test → 'test'.
      ⍝ dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has / or ., split it on the fly. Ignore args '##[.]' and '#[.]'.
-     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵ ~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵  ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
+     ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
      ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
 
@@ -159,7 +159,8 @@
    ⍝ If # is implicit in ↑ in ⎕PATH, value is 0, and ↑ is added when ⎕PATH is updated.
    ⍝ Note that fns/ops in CALLR are always found, since CALLR is always checked before ⎕PATH.
      userPathHasUpArrow←'↑'∊⎕PATH
-     ∆PATH←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
+     ∆PATHin←resolvePath stdLibN,' ',userPathHasUpArrow resolvePathUpArrow ⎕PATH
+     ∆PATHadd←⍬
 
 ⍝      _←{'CALLN: ',(0⊃⍵),' stdLibN: ',(1⊃⍵)}TRACE CALLN stdLibN
 ⍝      _←{'userPathHasUpArrow: ',⍵}TRACE userPathHasUpArrow
@@ -225,7 +226,7 @@
                  name inNs CALLR:pkg map'name∊CALLER'        ⍝ name found? success
                  group≡'':''
                  ~(group with name)inNs CALLR:''                   ⍝ none found? failure
-                 ∆PATH,⍨←⊂resolveNs group                    ⍝ group.name found
+                 ∆PATHadd,⍨←⊂resolveNs group                    ⍝ group.name found
                  pkg map'group.name∊CALLER'                    ⍝ ...         success
              }⍵
 
@@ -259,9 +260,9 @@
                  name inNs path:'name∊PATH'           ⍝ name found: success
                  group≡'':∇ 1↓⍵                         ⍝ none found: try another path element
                  ~{(group with name)inNs path}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵      ⍝ none found: try another path element
-                 ∆PATH,⍨←⊂resolveNs path with group     ⍝ group.name found: ...
+                 ∆PATHadd,⍨←⊂resolveNs path with group     ⍝ group.name found: ...
                  'group→PATH'                           ⍝ ...         success
-             }∪∆PATH
+             }∪∆PATHadd
 
              0=≢recurse:pkg
 
@@ -375,7 +376,7 @@
 
 ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
 ⍝ userPathHasUpArrow: If 1, we restore '↑'' at the end of ⎕PATH
-     CALLR.⎕PATH←(1↓∊' ',¨⍕¨∆PATH),' ↑'/⍨userPathHasUpArrow
+     CALLR.⎕PATH←(1↓∊' ',¨⍕¨∆PATHin∪∆PATHadd),' ↑'/⍨userPathHasUpArrow
 
      succ←0=≢⊃⌽statusList
      eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
