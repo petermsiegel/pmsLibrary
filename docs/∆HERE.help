@@ -22,8 +22,9 @@
 ⍝       * MULTIPLE is the default.
 ⍝ Options:
 ⍝      ∆HERE is a niladic function. Options are within a comment on the same function line as the ∆HERE.
-⍝      Option keywords on the ∆HERE function line are of this Regex form:
-⍝           ⍝[^⍠]*⍠ keywords
+⍝      Option keywords on the ∆HERE function line are between the ⍠ and the first ⍝ or end of line of the ∆HERE comment,
+⍝      e.g. the first field in this regex:
+⍝           ⍝[^⍠]*⍠  ([^⍝]*) (?:⍝|^)
 ⍝      e.g. this example treats empty lines after the ∆HERE as blank comment lines,
 ⍝           and returns multiple lines using the carriage return.
 ⍝           h←∆HERE    ⍝ ⍠ BL CR
