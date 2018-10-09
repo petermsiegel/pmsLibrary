@@ -13,7 +13,7 @@ ___Table of Contents___
 * __gen__         Create Python-like generators that allow for functions to iteratively "yield" values without returning.
 * __future__      Create simple future objects, whose values may be scalars within APL arrays, built on isolate-related I-beams.
 * __∆format, ∆f__ Support Python-like f-strings extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
-* __bigInteger__  Provides support for arbitrary-precision integers in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
+* __bigInt__  Provides support for arbitrary-precision integers in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆here__       Robust support for "Here" documents within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various web-based or other services.
 
 ___Descriptions of Packages___
@@ -36,7 +36,9 @@ and for *initialization*, e.g.
       ``∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.'``<br>
 ``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
 Source: __format__. Help info: __formatHelp.pdf__.
-1. __bigInt__ 
+1. __bigInt__: Provides basic arithmetic functions on big integers stored externally as strings
+and internally as a series of (signed) integers. Built around dfns:nat as its numerical core,  extended to handle signed numbers,
+reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style ``'2434324' *BI '3443'`` that takes care of importing and exporting APL numbers and (string-format) big integers, as well as a higher-performance function style ``bigInt.sqrt '449432342'`` suitable for user-designed algorithms. Easily extended to work with arbitrary APL arrays.
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
