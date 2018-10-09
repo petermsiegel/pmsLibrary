@@ -13,8 +13,8 @@
      11 ⎕SIGNAL⍨'∆HERE: locked or invalid fn/op: ',1⊃⎕XSI
  :EndIf
 
-⍝ Get the options from the ∆HERE statement line.
- optString←1(819⌶)⊣∊'⍝[^⍠]*⍠(.*)$'⎕S'\1'⊣here⊃hd
+⍝ Get the options from the ∆HERE statement line- after ⍠ and up to ⍝ or end of line
+ optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)(?:⍝|^)'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
           ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks
@@ -76,7 +76,7 @@
 ⍝ Options:
 ⍝      ∆HERE is a niladic function. Options are within a comment on the same function line as the ∆HERE.
 ⍝      Option keywords on the ∆HERE function line are of this Regex form:
-⍝           ⍝[^⍠]*⍠ keywords
+⍝           ⍝[^⍠]*⍠ ([^⍝]*) (⍝|^)
 ⍝      e.g. this example treats empty lines after the ∆HERE as blank comment lines,
 ⍝           and returns multiple lines using the carriage return.
 ⍝           h←∆HERE    ⍝ ⍠ BL CR
