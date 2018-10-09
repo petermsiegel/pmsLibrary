@@ -48,7 +48,7 @@ Has options for string style, whether blank (non-comment) lines end the __here__
 Options are included within comments on the same line as the __∆HERE__ call, e.g.
 
 ``` 
-myHtml←∆HERE ⍝  ⍠ CR BLANKS  
+myHtml←∆HERE ⍝  ⍠ CR BLANKS   ⍝ CR: create a single string with carriage returns to end line; BLANKS: consider blanks part of HERE doc.
  ⍝ <!DOCTYPE html>
  ⍝ <html>
  ⍝ <body>
