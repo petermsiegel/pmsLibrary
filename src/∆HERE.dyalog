@@ -14,7 +14,7 @@
  :EndIf
 
 ⍝ Get the options from the ∆HERE statement line- after ⍠ and up to ⍝ or end of line
- optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)(?:⍝|^)'⎕S'\1'⊣here⊃hd
+ optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
           ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks
