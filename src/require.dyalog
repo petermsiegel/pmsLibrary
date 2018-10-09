@@ -34,8 +34,8 @@
      stdLibR stdLibN←{
          returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CALLR.⎕NS'')⍵}
          top←'⎕SE' '#'⊃⍨'#'=1↑CALLN          ⍝ what's our top level?
-         defdef←top,'.',defaultLibName       ⍝ the default if there's no default library
-         ⍵≡⎕NULL:returning defdef
+         topDef←top,'.',defaultLibName       ⍝ the default if there's no default library
+         ⍵≡⎕NULL:returning topDef
 
          ∆LIB←'[LIB]'                         ⍝ Possible special prefix to ⍵...
          0::⎕SIGNAL/('require DOMAIN ERROR: Default library name invalid: ',{0::⍕⍵ ⋄ ⍕⍎⍵}⍵)11
@@ -45,12 +45,8 @@
              9.1 9.2∊⍨nc←CALLR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
              2.1≠nc:○○○                      ⍝ If we reached here, ⍵ must be a string.
              0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
-             name←{                          ⍝ See if  [LIB] a prefix of val?
-                 fnd←1=⊃∆LIB⍷⍵ ⋄ len←≢∆LIB
-                 fnd∧len=≢⍵:defdef           ⍝ [LIB] alone is prefix
-                 fnd∧'.'=1↑len↓⍵:defdef,len↓⍵⍝ [LIB]. prefix
-                 ⍵
-             }val
+             pat2←'^' '',¨⊂'\Q',∆LIB,'\E'    ⍝ Handle... ⎕SE.[LIB], #.[LIB], and [LIB].mysub
+             name←pat2 ⎕R topDef defaultLibName⊣val
              nc←CALLR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
              9.1=nc:{⍵(⍕⍵)}(CALLR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
              0=nc:CALLN,'.',name             ⍝ Assume name refers to potential namespace...
