@@ -7,7 +7,7 @@ This is a work in progress, as I move a handful of such functions out of workspa
 
 ___Table of Contents___  
 
-* __require__     Ensure APL objects are in the active workspace, loading from other workspaces or directories.
+* __require__     Ensure APL objects are in the active workspace visible via ⎕PATH, loading as needed from other workspaces or directories.
 * __∆MY__         Support static objects specific to a function/op, created once and maintained over calls.
 * __dict__        Create ordered dictionaries with an array of creation, sorting, and searching services.
 * __tinyDict__    Create low-overheaded ordered dictinaries with simple access to keys and values.
