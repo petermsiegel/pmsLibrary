@@ -15,7 +15,7 @@ ___Table of Contents___
 * __future__      Create simple future objects, whose values may be scalars within APL arrays, built on isolate-related I-beams.
 * __∆format, ∆f__ Support Python-like f-strings extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
 * __bigInt__  Provides support for arbitrary-precision integers in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
-* __∆here__       Robust support for "Here" documents within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various web-based or other services.
+* __∆HERE__       Robust support for "here" documents or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
 * __∆SH__  Provides a thin cover to ⎕SH, translating UTF-8 format encoded output into Unicode. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
 
 ___Descriptions of Packages___
