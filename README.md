@@ -45,7 +45,20 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
 Has options for string style, whether blank (non-comment) lines end the __here__ document or not, and other options. 
-* The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
-* A common alternative is:   ⍝ ⍠ CR BLANKS         -- Create a char string with lines separated by CR carriage return.<BR>
-                                                   -- End the Here doc before the first code line (not first non-comment).
+Options are included within comments on the same line as the __∆HERE__ call, e.g.
+
+``` 
+myHtml←∆HERE ⍝  ⍠ CR BLANKS  
+ ⍝ <!DOCTYPE html>
+ ⍝ <html>
+ ⍝ <body>
+
+ ⍝ <p>Browsers usually insert quotation marks around the q element.</p>
+
+ ⍝ <p>WWF's goal is to: <q>Build a future where people live in harmony with nature.</q></p>
+
+ ⍝ </body>
+ ⍝ </html>
+ ```
+                                                  
 
