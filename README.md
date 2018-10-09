@@ -15,6 +15,7 @@ ___Table of Contents___
 * __∆format, ∆f__ Support Python-like f-strings extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
 * __bigInt__  Provides support for arbitrary-precision integers in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆here__       Robust support for "Here" documents within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various web-based or other services.
+* __∆SH__  Provides a thin cover to ⎕SH, translating UTF-8 format encoded output into Unicode. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
 
 ___Descriptions of Packages___
 1. __require__: Reminiscent of __import__ in Python and __require__ or __use__ in Perl, __require__ ensures that the "packages" in the right argument are either in the caller's namespace or the ⎕PATH (e.g. were "required" by another function/op or otherwise), in the filesystem search path (Unix environment (extension) __FSPATH__ or (Dyalog) __WSPATH__ or using "extension" ⎕SE.∆FSPATH), or in the workspace indicated (e.g. 'dfns:cmpx'). If in the caller's namespace or ⎕PATH, nothing more is done. Also allows easy importing of an entire workspace ('dfns:') or all the __\*.dyalog__ files filesystem directory ('myfns.mymath').
