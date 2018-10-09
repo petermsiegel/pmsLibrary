@@ -59,6 +59,8 @@ myHtml←∆HERE ⍝  ⍠ CR BLANKS
 
  ⍝ </body>
  ⍝ </html>
+ processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
  ```
+ 
                                                   
 
