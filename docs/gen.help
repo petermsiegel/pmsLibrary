@@ -1,9 +1,12 @@
-⍝ gen: Emulates a python-like generator (iterator function) using Dyalog tokens and threads.
+⍝ gen (namespace generator): 
+⍝   Emulates a python-like generator (iterator function) using Dyalog tokens and threads.
+⍝   gen is a cover (niladic) function exported to the namespace containing generator.
+⍝   gen points to (returns a reference to) namespace generator.
 ⍝ ∘ Efforts to attach a class to the caller so that its destructor can clean up the generator (e.g. if
-⍝   stuck waiting or looping) lead to interpreter problems.
+⍝   stuck waiting or looping) lead to interpreter problems. So if an error occurs, the generator
+⍝   may leave tokens and threads around. Nothing a )reset won't handle.
 ⍝ ∘ The original approach was to use classes entirely, with comparable problems. Instead we use a namespace
 ⍝   structure to emulate class instances without any destructor. It works.
-⍝
 ⍝
 ⍝ Overview:
 ⍝

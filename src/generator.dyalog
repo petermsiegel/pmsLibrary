@@ -1,6 +1,11 @@
-﻿:namespace gen
+﻿:namespace generator
 
-    ∇ help;h
+⍝   Namespace is <generator>, but we export <gen> as a niladic function that
+⍝   points to this namespace...
+    _←##.⎕FX 'ns←gen' ('ns←',⍕⎕THIS)   ⍝ gen.erator or gen.generator visible
+    _←⎕FX 'ns←gen' ('ns←',⍕⎕THIS)      
+
+    ∇ help;h 
       ⎕ED'h'⊣h←↑2↓'^\h*⍝(\h*$|\h)'⎕R''⊣⎕NR'help'
 ⍝ gen: Emulates a python-like generator (iterator function) using Dyalog tokens and threads.
 ⍝ ∘ Efforts to attach a class to the caller so that its destructor can clean up the generator (e.g. if
@@ -251,7 +256,7 @@
     yieldS←¯1∘yield   ⍝ verify with status
 
 ⍝ Caller routines:
-⍝   genLib.generator
+⍝   ⍺← ⍺⍺ generator ⍵
 ⍝   ⍺.next
 ⍝   ⍺.ok
 ⍝   ⍺.done
@@ -381,7 +386,7 @@
           terminate←1
       :EndIf
       _SEENBEFORE_+←1
-      _NOTE_ 'genId now <',genId,'> genIn now<',genIn,'>'
+      _NOTE_'genId now <',genId,'> genIn now<',genIn,'>'
       :If genIn≢⎕NULL ⋄ :AndIf ×genIn
           _NOTE_'Cleaning up token pool and state variables for',genId
           ⎕DL 0
