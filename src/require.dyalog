@@ -7,28 +7,22 @@
      ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
-     defaultLibName←'⍙⍙.require'
-     CALLR CALLN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CALL_ ("caller"): Where was <require> called from?
-     999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
+     defaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CALLN (next)
+     CALLR CALLN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CALLR/N ("caller"): Where was <require> called from?
 
-     TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
-         0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
-         ⍺←⊢
-         DEBUG:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
-         ⍵
-     }
+     999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
   ⍝ Decode ⍺ → [stdLibStr CODE]
      ⍺←⎕NULL
-     stdLibStr CODE←2⍴{                ⍝  Sample outer ⍺⊃
-         9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:  #  [2]
+     stdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
+         9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:   #  [2]
          0=1↑0⍴⊃⍵:⎕NULL ⍵              ⍝  ⍺:   2
          1=≢⊆⍵:⍵ 0                     ⍝  ⍺:  'test'    OR  ⎕NULL (⍺ omitted)
          ⍵                             ⍝  ⍺:  'test' 5
      }⍺
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)  ⍝ Do not override DEBUG if set to 1.
 
-  ⍝ DeCODE ⍵ → list of packages (possible of 0-length)
+  ⍝ DECODE ⍵ → list of packages (possibly 0-length), each package a string (format below)
      pkgs←⊆⍵
 
      stdLibR stdLibN←{
@@ -57,46 +51,66 @@
  ⍝------------------------------------------------------------------------------------
  ⍝  U T I L I T I E S
  ⍝------------------------------------------------------------------------------------
-     ⍝ Set I: and etc
-     ⍝
+     ⍝ Set 0: Debugging
+      TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
+         0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
+         ⍺←⊢
+         DEBUG:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
+         ⍵
+     }
+     ⍝ Set I: miscellaneous utilities
+     ⍝ and:         A and B 0  < dfns 'and', where A, B are code
+     ⍝ or:          A or  B 0  < dfns 'or'...
+     ⍝ split:       Split ⍵ on char in set ⍺ (' '), removing ⍺, returning vector of strings.
+     ⍝ splitFirst:  Split ⍵ on FIRST single char ⍺ (' ') found, returning 2 vectors (each possibly null string).
+     ⍝ splitLast:   Split ⍵ on LAST single char ⍺ (' ') found, returning two vectors (...).
      ⋄ and←{⍺⍺ ⍵:⍵⍵ ⍵ ⋄ 0}
      ⋄ or←{⍺⍺ ⍵:1 ⋄ ⍵⍵ ⍵}
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-
-     ⍝ Set II
-     ⍝ dunder: Convert a possibly complex name (possibly in filesystem or APL format) to a unique-ish simple name.
-     ⍝   Used to record loading a specific name or directory into a standard library under certain circumstances.
-     ⍝   dunder refers to the use of a  "double underscore" for special names (a la Python).
-     ⍝   a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred', ⎕SE.test → '__⍙SE__test', #.test → 'test'.
-     ⍝   dunder [prefix]: ∇ s1 s2 → '__s1__s2'. If ⍵ has / or ., split it on the fly. Ignore args '##[.]' and '#[.]'.
-     ⍝ apl2FS:  convert APL style namespace hierarchy to a filesystem hierarchy:
-     ⍝          a.b.c → a/b/c     ##.a → ../a    #.a → /a
-     ⍝ with [infix]:    s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
+ 
+     ⍝ Set II: Converting names in form ⍵1 ⍵2 ... to APL or filesystem formats.
+     ⍝ dunder:       fs or APL name → unique APL name (using double underscores, dunders).
+     ⍝    Syntax:    ∇ ⍵1@str ⍵2@str ... → '__s1__s2'
+     ⍝    Usage:     Used to record loading a specific name or directory into a standard library 
+     ⍝               under certain circumstances.
+     ⍝    Ex:        a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred', 
+     ⍝               ⎕SE.test → '__⍙SE__test', #.test → 'test'.  
+     ⍝    If ⍵ has any of '/.', split on it on the fly. Wholly ignore args '##[.]' and '#[.]'.
+     ⍝ apl2FS:      convert APL style namespace hierarchy to a filesystem hierarchy:
+     ⍝    Syntax:   s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
+     ⍝    Ex:       a.b.c → a/b/c     ##.a → ../a    #.a → /a
+     ⍝ with:        Concatenate strings ⍺ with ⍵.  
+     ⍝              If ⍺≡'', returns ⍵.   If ⍵≡'', returns ''.  Else returns ⍺,'.',⍵
      ⍝
      ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
      ⋄ apl2FS←{'.'@('#'∘=)⊣'/'@('.'∘=)⊣⍵↓⍨'#.'≡2↑⍵}
      ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ⍺,'.',⍵}
-
-     ⍝ set III
-     ⍝ noEmpty: remove empty dirs from colon spec.
-     ⍝ symbols: replace [HOME], [FSPATH] etc in colon spec
-     ⍝ getenv:  retrieve an env. variable value in OS X
-     ⍝
+ 
+     ⍝ set III: Manage file specs in colon format like Dyalog's WSPATH: 'file1:file2:file3' etc.
+     ⍝ noEmpty:     remove empty file specs from colon-format string, string-initial, -medial, and -final.
+     ⍝ symbols:     replace [HOME], [FSPATH] etc in colon spec. with their environment variable value (getenv).
+     ⍝ getenv:      Retrieve an env. variable value ⍵ in OS X
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+ 
 
- ⍝ resolveNs Ns@str: Return a reference for a namespace string.
- ⍝   Repeated, non-existent, or invalid namespaces are quietly omitted from <resolvePath>.
+   ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to CALLR.
+   ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
      resolveNs←CALLR∘{
          nc←⍺.⎕NC⊂⍵
-         nc∊9.1 ¯1:⍕⍺⍎⍵      ⍝ nc=¯1: ##.## etc.
-         ⎕NULL             ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
+         nc∊9.1 ¯1:⍕⍺⍎⍵      ⍝ nc=¯1: ##.## etc.  nc=9.1: namespace
+         ⎕NULL               ⍝ Return the actual name of the relative ns. If not valid, return ⎕NULL
      }∘,
-  ⍝ In ⎕PATH, replace ↑ with the requisite # of levels to the top...
-  ⍝ Returns:  if found:  (revised_path 1); else:  (⍵ 0)
+
+   ⍝ resolvePathUpArrow: Where a ↑ is seen in ⎕PATH, replace the ↑ with the actual higher-level namespaces,
+   ⍝    so that those namespaces can be searched for packages.
+   ⍝    Approach: If we are in #.a.b.c.d and ⎕PATH has ↑, it is replaced by:
+   ⍝         ##       ##.##  ##.##.## and ##.##.##.##, which is resolved to the absolute namespaces:
+   ⍝         #.a.b.c  #.a.b  #.a      and #
+   ⍝ If no ↑, returns ⍵; otherwise returns ⍵ with any '↑' replaced as above.
      resolvePathUpArrow←{
          ~⍺:⍵
          dist←¯1++/CALLN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
@@ -112,17 +126,20 @@
 
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
    ⍝    ⍺: name or group.name (etc.).  If 0=≢⍺: inNs fails.
-   ⍝    ⍵: an namespace name (interpreted wrt CALLR if not absolute) or reference.
-     inNs←{0::'require/inNs: DOMAIN ERROR: Namespace, library, or package is invalid'⎕SIGNAL ⎕DMX.EN
+   ⍝    ⍵: an namespace reference or name (interpreted wrt CALLR).
+     inNs←{
+         0::'require/inNs: DOMAIN ERROR: Invalid namespace, library, or package'⎕SIGNAL ⎕DMX.EN
          0=≢⍺:0
-         callr←CALLR ⍝ Workaround: external CALLR, used directly like this (CALLR.⍎) won't be found.
+         callr←CALLR     ⍝ Dyalog bug Workaround: external CALLR, used directly like this (CALLR.⍎), won't be found.
          ns←callr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
-         0<ns.⎕NC ⍺          ⍝ test name
+         0<ns.⎕NC ⍺      ⍝ ⍺ defined in ns?
      }
 
-     inFile←{~⎕NEXISTS ⍵:0 ⋄ 0≠1 ⎕NINFO ⍵}
+   ⍝ repkg: Convert a split-up package (in e w d n format) to a string
      repkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
-     map←{0=≢⍵:'' ⋄ pkg←repkg ⍺ ⋄ pkg ⍵}
+
+   ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (repkg ⍺)⍵
+     map←{0=≢⍵:'' ⋄ (repkg ⍺)⍵ }
 
    ⍝------------------------------------------------------------------------------------
    ⍝  E N D      U T I L I T I E S
@@ -130,47 +147,40 @@
 
    ⍝ From each item in packages of the (regexp with spaces) form:
    ⍝      (\w+::)?    (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
-   ⍝   (FSPATH) ext    wsN    group             name
-   ⍝ wsN may be a full string ('abc.def:'), null string (':'), or ⎕NULL (omitted).
+   ⍝      ext         wsN     group             name
+   ⍝ ext:  a filesystem extension (suffix) to add to path before testing whether group/name is found
+   ⍝ wsN:  a full string ('abc.def:') | null string (':') | ⎕NULL (no wsN).
    ⍝ group may be a full string or null string (if omitted)
    ⍝ name must be present
      lastExt←''      ⍝ If a :: appears with nothing before it, the prior lastExt is used
      lastWs←''       ⍝ If a : appears ..., the prior lastWs is used!
      pkgs←{
-         0=≢⍵~' :.':''
+         0=≢⍵~' :.':''                  ⍝ All blanks or null? Bye!
          pkg←,⍵
 
-         ext pkg←⍵{                     ⍝ ext: <FSPATH extension> comes before ::
+         ext pkg←⍵{                     ⍝ ext::[group.]name
              0=≢⍺:''⍵                   ⍝ '::group name' → <lastExt> '' <group> <name>
              0=⍺:lastExt(⍵↓⍨⍺+2)
              (lastExt∘←⍵↑⍨⍺)(⍵↓⍨⍺+2)    ⍝ ext:: and wsN: are mutually exclusive in fact.
          }⍨⍸'::'⍷pkg
 
-         wsN pkg←{                      ⍝ wsN::[group.]name
+         wsN pkg←{                      ⍝ wsN:[group.]name
              wsDef←(':'=1↑pkg)∧(':'≠1↑1↓pkg)
              wsDef:lastWs(1↓pkg)    ⍝ ':group name'  → '' <lastWs> <group> <name>
              lastWs∘←w⊣w p←':'splitFirst pkg          ⍝ wsN: ws name comes before simple :
              w p
          }pkg
 
-         group name←'.'splitLast pkg
-         ext wsN group name
+         group name←'.'splitLast pkg     ⍝ grp1.grp2.grp3.name → 'grp1.grp2.grp3' 'name'
+         ext wsN group name              ⍝ Return 4-string internal package format...
      }¨pkgs
 
-   ⍝ userPathHasCALLR: 1 if CALLR is explicitly in the caller's ⎕PATH
-   ⍝ If # is implicit in ↑ in ⎕PATH, value is 0, and ↑ is added when ⎕PATH is updated.
-   ⍝ We add components of ↑ to ⎕PATH iff they are namespaces in which a package is found.
-   ⍝
-   ⍝ Note that fns/ops in CALLR are always found, since CALLR is always checked before ⎕PATH.
-     userPathHasUpArrow←'↑'∊⎕PATH
-     ∆PATHin←resolvePath userPathHasUpArrow resolvePathUpArrow ⎕PATH
+
+   ⍝ Process caller ⎕PATH → ∆PATHin:  handling ↑, resolving namespaces (ignoring those that don't exist).
+     ∆PATHin←resolvePath ('↑'∊CALLR.⎕PATH)  resolvePathUpArrow CALLR.⎕PATH  
      ∆PATHadd←⍬
 
-⍝      _←{'CALLN: ',(0⊃⍵),' stdLibN: ',(1⊃⍵)}TRACE CALLN stdLibN
-⍝      _←{'userPathHasUpArrow: ',⍵}TRACE userPathHasUpArrow
-⍝      _←{'∆PATH: <'⍵'>'}TRACE ∆PATH
-
-   ⍝ ∆FSPATH:
+   ⍝ ∆FSPATH: Find File System Path to search
    ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
    ⍝      You can merge new paths with the values of the existing OS X environment variables:
    ⍝        - FSPATH (require-specific for File System Path. See WSPATH for format)
@@ -403,23 +413,25 @@
          status ∇ 1↓⍵    ⍝ Get next package!
      }pkgs
 
-⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
-⍝ userPathHasUpArrow: If 1, we restore '↑'' at the end of ⎕PATH
-     _←{'⎕PATH was "',⎕PATH,'", ∆PATHin=',∆PATHin,', ∆PATHadd=',∆PATHadd}TRACE 0
-   ⍝ Prepend new items and merge with ⎕PATH keeping relative ⎕PATH elements...
-     CALLR.⎕PATH←1↓∊' ',¨∪(⍕¨∆PATHadd),(split ⎕PATH)     ⍝ ,' ↑'/⍨userPathHasUpArrow
+     _←{'Caller''s ⎕PATH was "',CALLR.⎕PATH,'", ∆PATHin=',∆PATHin,', ∆PATHadd=',∆PATHadd}TRACE 0
 
-     _←{'⎕PATH now "',⎕PATH,'"'}TRACE 0
+   ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
+   ⍝ Prepend new items and merge with caller's ⎕PATH keeping relative ⎕PATH elements...
+   ⍝ Here, we don't make sure CALLR.⎕PATH entries are valid. Also ↑ is maintained.
+     CALLR.⎕PATH←1↓∊' ',¨∪(⍕¨∆PATHadd),(split CALLR.⎕PATH)    
+
+     _←{'Caller''s ⎕PATH now "',CALLR.⎕PATH,'"'}TRACE 0
 
      succ←0=≢⊃⌽statusList
-     eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-
      succ∧CODE∊3:_←{⍵}TRACE(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
-     ⋄ CODE∊3:(⊂stdLibR),statusList            ⍝           FAIL: non-shy
-     succ∧CODE∊2:stdLibR                       ⍝ CODE 2:   SUCC: non_shy
-     ⋄ CODE∊2:⎕SIGNAL/eCode1                   ⍝           FAIL: ⎕SIGNAL
-     succ∧CODE∊1 0:_←{⍵}TRACE statusList       ⍝ CODE 1|0: SUCC: shy     (non-shy if DEBUG)
-     ⋄ CODE∊1 0:statusList                     ⍝           FAIL: non-shy
+
+     ⋄ CODE∊3:(⊂stdLibR),statusList               ⍝           FAIL: non-shy
+     succ∧CODE∊2:stdLibR                          ⍝ CODE 2:   SUCC: non_shy
+
+     ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
+     ⋄ CODE∊2:⎕SIGNAL/eCode1                      ⍝           FAIL: ⎕SIGNAL
+     succ∧CODE∊1 0:_←{⍵}TRACE statusList          ⍝ CODE 1|0: SUCC: shy     (non-shy if DEBUG)
+
+     ⋄ CODE∊1 0:statusList                        ⍝           FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid CODE: ',⍕CODE)11   ⍝ ~CODE∊0 1 2 3
-⍝    §require/require.dyalog§  Minimum needed for if require.help is in ./require
  }
