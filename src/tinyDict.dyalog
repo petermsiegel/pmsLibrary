@@ -1,45 +1,10 @@
 ﻿:Namespace tinyDict
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
-  ⍝
-  ⍝ dict ← tinyDict.New
-  ⍝     Creates a dictionary with no values and no default
-  ⍝
-  ⍝ dict ← {def} tinyDict.∆DICT pairs
-  ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
-  ⍝
-  ⍝ r←dict.Get  key1 keys
-  ⍝     Like dict.Get1, but for multiple keys.
-  ⍝
-  ⍝ r←dict.Get1 key
-  ⍝     Returns the value for key <key>, if defined.
-  ⍝     If not, but a default exists, returns that default.
-  ⍝     Otherwise, signals a Key undefined error.
-  ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
-  ⍝
-  ⍝ r←key1 key2 ... dict.Put val1 val2 ...
-  ⍝     Like dict.Put1, but for multiple keys and values.
-  ⍝
-  ⍝ r←key dict.Put1 value
-  ⍝     Sets the key specified to the corresponding value.
-  ⍝     To set multiple keys, do    k1 k2 ... dict.Put¨ v1 v2 ...
-  ⍝
-  ⍝ r←dict.Del key
-  ⍝     Deletes the specified key. If it exists, returns 1; else 0.
-  ⍝
-  ⍝ r←dict.Show
-  ⍝     Returns Key, Value pairs.
-  ⍝
-  ⍝ dict.Default←def
-  ⍝     Sets the default for the tinyDict.
-  ⍝
-  ⍝ dict.Keys
-  ⍝     A list of Keys in order
-  ⍝
-  ⍝ dict.Vals
-  ⍝     A corresponding list of values in order
+  ⍝ See docs/tinyDict.help
 
     ∇ ns←New
       ns←⎕NS ⎕THIS
+      Default←⍬
     ∇
     ∇ ns←{def}∆DICT pairs
       ns←New
@@ -52,12 +17,13 @@
     ∇
 
     ⎕IO ⎕ML←0 1
-    Default  Keys Vals←⎕NULL ⍬ ⍬
+    Keys Vals←⍬ ⍬
+  ⍝ Default is defined in New or, optionally, in ∆DICT.
 
     ∇ r←Get keys;e;ie;ine;p
-      keys←,keys    ⍝ (Or ravel ⍸,e)
+      keys←,keys
       p←Keys⍳keys
-      r←keys      ⍝ r will have the shape, but not content, of keys.
+      r←keys        ⍝ r will have the shape, but not content, of keys.
       :If 0≠≢ie←⍸e←p<≢Keys
           r[ie]←Vals[e/p]
       :EndIf
@@ -65,10 +31,11 @@
           :If 0≠⎕NC'Default'
               r[ine]←⊂Default
           :Else
-              ⎕SIGNAL/('tinyDict: Some keys undefined: ',keys[ine])11
+              ⎕SIGNAL/('tinyDict: One or more keys undefined: ',keys[ine])11
           :EndIf
       :EndIf
     ∇
+
     ∇ r←Get1 key;p
       p←Keys⍳⊂key
       :If p≥≢Keys
@@ -81,6 +48,21 @@
           r←p⊃Vals
       :EndIf
     ∇
+
+    ∇ {vals}←keys Put vals;e;ePut;ie;n;p
+      ePut←'tinyDict/Put: number of keys and values must match' 11
+      :If (≢keys)≠(≢vals) ⋄ ⎕SIGNAL/ePut ⋄ :EndIf
+      e←(≢Keys)>p←Keys⍳keys
+      :If 0≠≢ie←⍸e    ⍝ Any existing keys?
+          Vals[e/p]←e/vals
+      :EndIf
+      :If 1∊n←~e      ⍝ Any new keys?
+        ⍝ If a key appears >1ce, use the LAST value for that key.
+          p←(≢keys)-1+(⌽keys)⍳∪n/keys
+          (Keys Vals),←(keys[p])(vals[p])
+      :EndIf
+    ∇
+
     ∇ {val}←key Put1 val;p
       p←Keys⍳⊂key
       :If p≥≢Keys
@@ -89,20 +71,15 @@
           (p⊃Vals)←val
       :EndIf
     ∇
-  ⍝ Put: Not implemented efficiently...
-    ∇ {vals}←keys Put vals;e;ie;n;p
-      e←(≢Keys)>p←Keys⍳keys
-      :If 0≠≢ie←⍸e    ⍝ Any existing keys?
-          Vals[e/p]←e/vals
-      :EndIf
-      :If 1∊n←~e      ⍝ Any new keys?
-        ⍝ If a key appears >1ce, use the LAST value for that key.
-          p←(≢keys)-1+(⌽keys)⍳∪n/keys  
-          (Keys Vals),←(keys[p])(vals[p])
-      :EndIf
-    ∇
 
-    ∇ b←Del key;p;q
+    ∇ {vals}←PutPairs kv;ePutPairs
+      ePutPairs←'tinyDict/PutPairs: key-value pairs must each have 2 items' 11 
+      :If (0∊2=≢¨kv) ⋄ ⎕SIGNAL/ePutPairs ⋄ :ENDIF
+      vals←(⊃¨kv)Put(⊃∘⌽¨kv)
+    ∇
+  
+
+    ∇ {b}←Del1 key;p;q
       p←Keys⍳⊂key
       :If p≥≢Keys
           b←0   ⍝ Not deleted
@@ -112,11 +89,18 @@
           Keys Vals←(q/Keys)(q/Vals)
       :EndIf
     ∇
-    ∇ b←HasValue
-      b←0≠⎕NC'Value'
+
+  ⍝ Del: Inefficient (just haven't gotten around to it)
+    ∇ {b}←Del keys
+      b←Del1¨keys
     ∇
+
+    ∇ b←HasDefault
+      b←0≠⎕NC'Default'
+    ∇
+
     ∇ r←Show
-      Keys,[0.5]Vals
+      r←Keys,[0.5]Vals
     ∇
 
 :EndNamespace

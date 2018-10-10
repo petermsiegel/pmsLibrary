@@ -1,10 +1,14 @@
- ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
+  ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
+  ⍝ A tinyDict is an ordered dictionary, with items stored in the order entered;
+  ⍝ an item whose value is replaced maintains its original order. 
+  ⍝ (Order can be changed only by deleting and re-entering an item via Del and Put/1).
   ⍝
   ⍝ dict ← tinyDict.New
-  ⍝     Creates a dictionary with no values and no default
+  ⍝     Creates a dictionary with no values and Default←⍬
   ⍝
-  ⍝ dict ← {def} tinyDict.∆DICT pairs
+  ⍝ dict ← {default} tinyDict.∆DICT pairs
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
+  ⍝     If no default is specified, Default is undefined.
   ⍝
   ⍝ r←dict.Get  key1 keys
   ⍝     Like dict.Get1, but for multiple keys.
@@ -15,24 +19,39 @@
   ⍝     Otherwise, signals a Key undefined error.
   ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
   ⍝
-  ⍝ r←key1 key2 ... dict.Put val1 val2 ...
+  ⍝ {values}←key1 key2 ... dict.Put val1 val2 ...
   ⍝     Like dict.Put1, but for multiple keys and values.
   ⍝
-  ⍝ r←key dict.Put1 value
-  ⍝     Sets the key specified to the corresponding value.
-  ⍝     To set multiple keys, do    k1 k2 ... dict.Put¨ v1 v2 ...
+  ⍝ {values}←dict.PutPairs (key1 val1)(key2 val2)
+  ⍝     Enter one or more key-value pairs into the tinyDict.
+  ⍝     Remember to enclose the argument if there is only one key-value pair:
+  ⍝        r←dict.PutPairs ⊂'key1' 'val1'
+  ⍝        r←dict.PutPairs ('key1' 'val1')('key2' 'val2')
   ⍝
-  ⍝ r←dict.Del key
+  ⍝ {value}←key dict.Put1 value
+  ⍝     Sets the key specified to the corresponding value, returning the value.
+  ⍝     To set multiple keys, see Put or PutPairs
+  ⍝
+  ⍝ {r}←dict.Del1 key
   ⍝     Deletes the specified key. If it exists, returns 1; else 0.
   ⍝
-  ⍝ r←dict.Show
-  ⍝     Returns Key, Value pairs.
+  ⍝ {r}←dict.Del key1 key2 ...
+  ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
   ⍝
-  ⍝ dict.Default←def
-  ⍝     Sets the default for the tinyDict.
+  ⍝ r←dict.Show
+  ⍝     Returns Key, Value pairs as a table.
+  ⍝
+  ⍝ dict.Default←def   (initial value: ⍬, numeric null)
+  ⍝     Sets the default to be returned for the value when a key is not found.
+  ⍝     dict.Default may be undefined.
+  ⍝     To make undefined, do: dict.⎕EX 'Default'
+  ⍝ 
+  ⍝ dict.HasDefault (function)
+  ⍝     Returns 1 if a default has been defined.
+  ⍝     Returns 0 if no default has been defined.
   ⍝
   ⍝ dict.Keys
-  ⍝     A list of Keys in order
+  ⍝     A list of Keys in order (see Order above)
   ⍝
   ⍝ dict.Vals
   ⍝     A corresponding list of values in order
