@@ -38,7 +38,7 @@
   ⍝ {r}←dict.Del key1 key2 ...
   ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
   ⍝
-  ⍝ r←dict.Show
+  ⍝ r←dict.Table
   ⍝     Returns Key, Value pairs as a table.
   ⍝
   ⍝ dict.Default←def   (initial value: ⍬, numeric null)

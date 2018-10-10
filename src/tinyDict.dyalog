@@ -99,7 +99,7 @@
       b←0≠⎕NC'Default'
     ∇
 
-    ∇ r←Show
+    ∇ r←Table
       r←Keys,[0.5]Vals
     ∇
 

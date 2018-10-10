@@ -175,24 +175,25 @@
 ⍝H      Equiv. to a.Keys ⍳ key1 key2   ⍝ But much faster!
 ⍝H
 ⍝H  ┌────────────────────────────────────────┐
-⍝H  | uk1 uk2←a.Del k1 k2                    │
-⍝H  │ uk1 uk2←(ignore←1) a.Del k1 k2         │
-⍝H  │ uk1 uk2←a.DelByIndex i1 i2             │
-⍝H  │ uk1 uk2←(ignore←1) a.DelByIndex i1 i2  │
-⍝H  │ uk1 uk2←a.DI i1 i2                     │
+⍝H  | {b1 b2}←a.Del k1 k2                    │
+⍝H  │ {b1 b2}←(ignore←0) a.Del k1 k2         │
+⍝H  │ {b1 b2}←a.DelByIndex i1 i2             │
+⍝H  │ {b1 b2}←(ignore←0) a.DelByIndex i1 i2  │
+⍝H  │ {b1 b2}←a.DI i1 i2                     │
 ⍝H  │ a←a.Clear          ⍝ Returns a         │
 ⍝H  └────────────────────────────────────────┘
 ⍝H  Delete key-value pairs by key (returns the unique keys deleted)
-⍝H  By default, all keys must exist. If left arg is 1, non-existent keys are quietly ignored.
-⍝H  Returns unique keys deleted.
-⍝H      uk1 uk2...← [[1|0]] ⍺.Del k1 k2...
+⍝H  If left arg is 1 (default 1), missing keys are ignored and 0 is returned for each.
+⍝H  If 0, missing keys generate an ERROR signal.
+⍝H  Returns 1 for each key deleted; 0 otherwise.
+⍝H      {b1 b2}...← [[1|0]] ⍺.Del k1 k2...
 ⍝H  Delete key-value pairs by index (returns the unique keys deleted)
 ⍝H  ∘ All indices must be valid.
-⍝H      uk1 uk2...← ⍺.DelByIndex i1 i2...
-⍝H      uk1 uk2...← ⍺.DI i1 i2
+⍝H      {b1 b2}...← ⍺.DelByIndex i1 i2...
+⍝H      {b1 b2}...← ⍺.DI i1 i2
 ⍝H  ∘ Invalid indices to be ignored.
-⍝H      uk1 uk2...← 1 ⍺.DelByIndex i1 i2...
-⍝H      uk1 uk2...← 1 ⍺.DI i1 i2
+⍝H      {b1 b2}...← 1 ⍺.DelByIndex i1 i2...
+⍝H      b1 b2...← 1 ⍺.DI i1 i2
 ⍝H
 ⍝H  ┌───────────────────────────────────────────┐
 ⍝H  | b1 b2←a.HasKeys k1 k2                     │

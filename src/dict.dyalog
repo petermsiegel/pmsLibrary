@@ -50,7 +50,7 @@
     ∇ New0
       :Implements Constructor
       :Access Public
-      ⎕DF ClassNameStr,'[]'
+     ⎕DF ClassNameStr,'[]'
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -342,47 +342,47 @@
     ∇
 
     ⍝ Del:  "Deletes key-value pairs from the dictionary by key, but only if all the keys exist"
-    ⍝        If left arg is specified and 1, missing keys are ignored."
-    ⍝ count ← {ignore←0} ⍵.Del key1 key2...
-    ⍝ Returns the unique keys deleted.
-    ∇ {keys}←{ignore}Del keys;nf;old;∆;⎕TRAP
+    ⍝        If left arg is specified and 0, missing keys cause an error. Otherwise, they are ignored."
+    ⍝ b ← {ignore←1} ⍵.Del key1 key2...
+    ⍝ Retursn bN=1 for each key kN deleted; else 0.
+    ∇ {b}←{ignore}Del keys;nf;old;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       keys←∪keys
-      o←(≢KEYS)>p←KEYS⍳keys
-      nf←0∊o
+      b←(≢KEYS)>p←KEYS⍳keys
+      nf←0∊b
       :If nf
-      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)0
+      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1
           eDeleteKeyMissing ⎕SIGNAL 11   ⍝ SIGNAL error if not all k-v pairs exist
       :EndIf
-      :If 0≠≢o←o/p
-          ∆←1⍴⍨≢KEYS ⋄ ∆[o]←0
+      :If 0≠≢b←b/p
+          ∆←1⍴⍨≢KEYS ⋄ ∆[b]←0
           _hashK KEYS←∆/KEYS ⋄ VALUES←∆/VALUES
       :EndIf
     ∇
 
     ⍝ DelByIndex | DI:    "Deletes key-value pairs from the dict. by index. Like Del"
     ⍝
-    ⍝ ukeys ← {ignore←0} ⍵.DelByIndex ix1 ix2...
-    ⍝ ukeys ← (ignore←0} ⍵.DI ix1 ix2...
+    ⍝ b ← {ignore←1} ⍵.DelByIndex ix1 ix2...
+    ⍝ b ← (ignore←1} ⍵.DI ix1 ix2...
     ⍝
-    ∇ {keys}←{ignore}DI ix;⎕TRAP
+    ∇ {b}←{ignore}DI ix;keys;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      ignore←{⍵:0 ⋄ ignore}(900⌶)0
+      ignore←{⍵:0 ⋄ ignore}(900⌶)1
       keys←ignore DelByIndex ix
     ∇
-    ∇ {keys}←{ignore}DelByIndex ix;inRange;∆;⎕TRAP
+    ∇ {b}←{ignore}DelByIndex ix;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       ix←∪ix
-      inRange←{⍵:0=0(≢KEYS)⍸ix ⋄ 0  ⍝ (0(≢KEYS)⍸ix) → 0 [in range 0..≢KEYS-1], ¯1 or 1 [out of range]
-      }×≢KEYS
-      :If 0∊inRange             ⍝ At least 1 missing key?
-      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)0  ⍝ And ignore=0
+   ⍝ (0(≢KEYS)⍸ix) → 0 [in range 0..≢KEYS-1], ¯1 or 1 [out of range]
+      b←{⍵:0=0(≢KEYS)⍸ix ⋄ 0}×≢KEYS
+      :If 0∊b             ⍝ At least 1 missing key?
+      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1  ⍝ And ignore=0
           eIndexRange ⎕SIGNAL 7
       :EndIf
-      ix←inRange/ix             ⍝ Keep those in range
+      ix←b/ix             ⍝ Keep those in range
       keys←KEYS[ix]             ⍝ Remember keys being deleted
       :If 0<≢ix                 ⍝ At least one...
           ∆←(≢KEYS)⍴1 ⋄ ∆[ix]←0 ⍝ Note their position in KEYS
