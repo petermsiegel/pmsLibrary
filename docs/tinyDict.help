@@ -7,6 +7,7 @@
   ⍝     Creates a dictionary with no values and Default←⍬
   ⍝
   ⍝ dict ← {default} tinyDict.∆DICT pairs
+  ⍝ dict ← {default} ∆TINYDICT pairs   ⍝ promoted to directory containing tinyDict
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
   ⍝     If no default is specified, Default is undefined.
   ⍝
