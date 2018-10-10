@@ -38,13 +38,11 @@
   ⍝ {r}←dict.Del key1 key2 ...
   ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
   ⍝
-<<<<<<< HEAD
   ⍝ r←dict.Table
   ⍝     Returns Key, Value pairs as a table.
-=======
+  ⍝
   ⍝ r←dict.Show
   ⍝     Returns (key value) pairs as a table, one per row.
->>>>>>> b052e77867e4ba701d61cf3d5e7f536dff3680b0
   ⍝
   ⍝ dict.Default←def   (See New and ∆DICT for initial value).
   ⍝     Sets the default to be returned for the value returned when a key is not found.
