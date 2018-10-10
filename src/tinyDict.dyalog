@@ -15,6 +15,8 @@
           Keys Vals←↓⍉↑pairs
       :EndIf
     ∇
+    ∆TINYDICT←∆DICT
+    ##.∆TINYDICT←∆DICT
 
     ⎕IO ⎕ML←0 1
     Keys Vals←⍬ ⍬
