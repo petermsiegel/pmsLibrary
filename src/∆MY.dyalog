@@ -1,4 +1,5 @@
 ﻿:Namespace ∆MYgrp
+  ⍝ >>> ∆MY.dyalog → creates namespce ∆MYgrp and objects ##.∆MY and ##.∆THEIR
   ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC objects within
   ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
   ⍝ ∘ For an overview, see ∆MYgrp.help
