@@ -26,7 +26,7 @@ ___Descriptions of Packages___
      ``require 'dfns:cmpx'  ':kt' 'src::tinyDict' '::future' ``                                                
    * See __require.dyalog__ and __require.help__.
 1. __∆MY__: Creates and manages a private namespace for the current calling function (determined from its actual APL name and the namespace in which it resides). It allows for *static* variables, i.e. ones that persist between executions, e.g. ``∆MY.count+←1`` 
-and for *initialization*, e.g. 
+and for *initialization*, e.g.<br> 
 ``:IF ∆MY.∆FIRST ⋄ ∆MY.count←0 ⋄ :ENDIF``
    * See __∆MY.dyalog__ and __∆MY.help__. If associated functions __∆MYX__ and __∆THEIR__ are used, add __∆MYgrp__ to the path:
    ``require '∆MYgrp.∆THEIR'`` will make all associated functions visible.
