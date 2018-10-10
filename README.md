@@ -31,12 +31,14 @@ and for *initialization*, e.g.
    * See __∆MYgrp.dyalog__ and __∆MYgrp.help__.
 1. __∆DICT__ in namespace __dict__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for string, numeric or arbitrary defaults (vis-a-vis missing keys), sorting, and more.
 1. __tinyDict__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
-1. __gen__: A namespace library for executing __generators__ of the sort used in Python. Including __yield__ and other tools.
-1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).
-1. __∆format__ / __∆f__ in namespace __format__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br> 
-      ``first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
-      ``∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.'``<br>
-``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
+1. __gen__: Function ``gen.erator`` creates generators, a type of iterator used in Python that "yields" multiple values in turn from an active function (passed by the user), rather than returning one at a time. Including __yield__ and other tools. 
+Example: ``a←{'done'⊣⍺.yield¨⍳10} gen.erator 0`` passes values to ``a.next``, signalling a STOPITERATION interrupt after the 10th value. ``a.value`` contains the return string ``done``.
+1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).<br>
+``a←{⎕DL ?⍵}future¨10 10⍴10 10 10 ⋄ ⍴a ⋄ b←100⍴a ⋄ ⊢a``
+1. __∆format__ / __∆f__ in namespace __format__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br>
+      ``   first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
+      ``   ∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.'``<br>
+      ``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
 Source: __format__. Help info: __formatHelp.pdf__.
 1. __bigInt__: Provides basic arithmetic functions on big integers stored externally as strings
 and internally as a series of (signed) integers. Built around dfns:nat as its numerical core,  extended to handle signed numbers,
@@ -45,21 +47,20 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
 Has options for string style, whether blank (non-comment) lines end the __here__ document or not, and other options. 
-Options are included within comments on the same line as the __∆HERE__ call, e.g.
-
+Options are included within comments on the same line as the __∆HERE__ call, e.g.<br>
 ``` 
-myHtml←∆HERE ⍝  ⍠ CR BLANKS   ⍝ CR: create a single string with carriage returns to end line; BLANKS: consider blanks part of HERE doc.
- ⍝ <!DOCTYPE html>
- ⍝ <html>
- ⍝ <body>
+   myHtml←∆HERE ⍝  ⍠ CR BLANKS   ⍝ CR: create a single string with carriage returns to end line; BLANKS: consider blanks part of HERE doc.
+      ⍝ <!DOCTYPE html>
+      ⍝ <html>
+      ⍝ <body>
 
- ⍝ <p>Browsers usually insert quotation marks around the q element.</p>
+      ⍝ <p>Browsers usually insert quotation marks around the q element.</p>
 
- ⍝ <p>WWF's goal is to: <q>Build a future where people live in harmony with nature.</q></p>
+      ⍝ <p>WWF's goal is to: <q>Build a future where people live in harmony with nature.</q></p>
 
- ⍝ </body>
- ⍝ </html>
- processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
+     ⍝ </body>
+     ⍝ </html>
+  processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
  ```
  
                                                   
