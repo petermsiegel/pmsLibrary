@@ -1,6 +1,6 @@
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ A tinyDict is an ordered dictionary, with items stored in the order entered;
-  ⍝ an item whose value is replaced maintains its original order. 
+  ⍝ an item whose value is replaced maintains its original ordered position. 
   ⍝ (Order can be changed only by deleting and re-entering an item via Del and Put/1).
   ⍝
   ⍝ dict ← tinyDict.New
@@ -10,7 +10,7 @@
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
   ⍝     If no default is specified, Default is undefined.
   ⍝
-  ⍝ r←dict.Get  key1 keys
+  ⍝ r←dict.Get  key1 key2 ...
   ⍝     Like dict.Get1, but for multiple keys.
   ⍝
   ⍝ r←dict.Get1 key
@@ -28,21 +28,21 @@
   ⍝        r←dict.PutPairs ⊂'key1' 'val1'
   ⍝        r←dict.PutPairs ('key1' 'val1')('key2' 'val2')
   ⍝
-  ⍝ {value}←key dict.Put1 value
+  ⍝ {value}←key1 dict.Put1 val1
   ⍝     Sets the key specified to the corresponding value, returning the value.
   ⍝     To set multiple keys, see Put or PutPairs
   ⍝
   ⍝ {r}←dict.Del1 key
-  ⍝     Deletes the specified key. If it exists, returns 1; else 0.
+  ⍝     Deletes the specified key. If it existed (and was deleted), returns 1; else 0.
   ⍝
   ⍝ {r}←dict.Del key1 key2 ...
   ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
   ⍝
   ⍝ r←dict.Show
-  ⍝     Returns Key, Value pairs as a table.
+  ⍝     Returns (key value) pairs as a table, one per row.
   ⍝
-  ⍝ dict.Default←def   (initial value: ⍬, numeric null)
-  ⍝     Sets the default to be returned for the value when a key is not found.
+  ⍝ dict.Default←def   (See New and ∆DICT for initial value).
+  ⍝     Sets the default to be returned for the value returned when a key is not found.
   ⍝     dict.Default may be undefined.
   ⍝     To make undefined, do: dict.⎕EX 'Default'
   ⍝ 
@@ -51,7 +51,7 @@
   ⍝     Returns 0 if no default has been defined.
   ⍝
   ⍝ dict.Keys
-  ⍝     A list of Keys in order (see Order above)
+  ⍝     A list of Keys in order
   ⍝
   ⍝ dict.Vals
   ⍝     A corresponding list of values in order
