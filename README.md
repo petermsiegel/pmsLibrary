@@ -26,10 +26,10 @@ ___Descriptions of Packages___
      ``require 'dfns:cmpx'  ':kt' 'src::tinyDict' '::future' ``                                                
    * See __require.dyalog__ and __require.help__.
 1. __∆MY__: Creates and manages a private namespace for the current calling function (determined from its actual APL name and the namespace in which it resides). It allows for *static* variables, i.e. ones that persist between executions, e.g. ``∆MY.count+←1`` 
-and for *initialization*, e.g.<br> 
+and for *initialization*, e.g. 
 ``:IF ∆MY.∆FIRST ⋄ ∆MY.count←0 ⋄ :ENDIF``
-   * See __∆MY.dyalog__ and __∆MY.help__. If associated functions __∆MYX__ and __∆THEIR__ are used, add __∆MYgrp__ to the path:
-   ``require '∆MYgrp.∆THEIR'`` will make all associated functions visible.
+   * See __∆MY.dyalog__ and __∆MY.help__. If associated functions __∆MYX__ and __∆THEIR__ are used, add __∆MYgrp__ to the path:<br>
+   ``require '∆MYgrp.∆THEIR'``<br>will make all associated functions visible.
 1. __∆DICT__ in namespace __dict__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for string, numeric or arbitrary defaults (vis-a-vis missing keys), sorting, and more.
 1. __tinyDict__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
 1. __gen__: Function ``gen.erator`` creates generators, a type of iterator used in Python that "yields" multiple values in turn from an active function (passed by the user), rather than returning one at a time. Including __yield__ and other tools. 
