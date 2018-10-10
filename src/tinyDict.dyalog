@@ -4,19 +4,19 @@
 
     ∇ ns←New
       ns←⎕NS ⎕THIS
-      Default←⍬
+      ns.Default←⍬
     ∇
     ∇ ns←{def}∆DICT pairs
-      ns←New
+      ns←⎕THIS.New
       :If 0≠⎕NC'def'
           ns.Default←def
       :EndIf
       :If 0≠≢pairs
-          Keys Vals←↓⍉↑pairs
+          ns.(Keys Vals)←↓⍉↑pairs
       :EndIf
     ∇
     ∆TINYDICT←∆DICT
-    ##.∆TINYDICT←∆DICT
+    _←##.⎕FX '⎕THIS' '∆DICT' ⎕R (⍕⎕THIS)'∆TINYDICT' ⊣⎕NR '∆DICT'
 
     ⎕IO ⎕ML←0 1
     Keys Vals←⍬ ⍬
@@ -75,11 +75,11 @@
     ∇
 
     ∇ {vals}←PutPairs kv;ePutPairs
-      ePutPairs←'tinyDict/PutPairs: key-value pairs must each have 2 items' 11 
-      :If (0∊2=≢¨kv) ⋄ ⎕SIGNAL/ePutPairs ⋄ :ENDIF
+      ePutPairs←'tinyDict/PutPairs: key-value pairs must each have 2 items' 11
+      :If (0∊2=≢¨kv) ⋄ ⎕SIGNAL/ePutPairs ⋄ :EndIf
       vals←(⊃¨kv)Put(⊃∘⌽¨kv)
     ∇
-  
+
 
     ∇ {b}←Del1 key;p;q
       p←Keys⍳⊂key
