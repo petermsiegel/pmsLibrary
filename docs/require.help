@@ -8,6 +8,24 @@
                fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog 
            While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
            ns1[.ns2.ns3] are treated as the full specification of the package.
+   
+   ____________________________________________________________________________________________________________
+   Simple Examples:
+       require 'dfns:cmpx'             -- Searches for <cmpx> in the calling namespace and ⎕PATH. 
+                                          If not found, load cmpx from workspace dfns into the "standard" library (ns) in the calling namespace.
+                                          Updates ⎕PATH as required.
+       require 'tinyDict'              -- Searches for <tinyDict> in the calling namespace and ⎕PATH.
+                                          If not found, searches the filesystem (as specified in env. variables FSPATH and WSPATH)
+                                          for (a) the directory tinyDict/*.dyalog or (b) the file tinyDict.dyalog.
+                                          If found, loads and ⎕FIXes any dyalog files and adjusts ⎕PATH.
+   ¯1 require 'src::∆MYgrp' '::∆HERE'  -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
+                                          for files src/∆MYgrp/*.dyalog or src/∆MYgrp.dyalog and loads what is found, adjusting path.
+                                          Then, looks for src/∆HERE/*.dyalog and src/∆HERE.dyalog.
+                                          Shows each step of the search verbosely (¯1).
+      require 'dfns::'                 -- Searches for namespace dfns in the calling namespace and ⎕PATH.
+                                          If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
+                                          Adds <dfns> to the ⎕PATH as required.
+________________________________________________________________________________________________________________                                   
 
    Syntax 1:   list1 list2     ← [[stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
                namespaceRef    ←  [stdLib] CODE:2 ¯2    ∇  ...
@@ -18,11 +36,11 @@
 Note: <require> has been developed in OS X. Use of environment variables has not been
 generalized for other operating systems. See file system path and library symbolic names.
 <require> "should" otherwise be compatible with other operating systems.
-________________________________________________________________________________________
+__________________________________________________________________________________________________________________
 
  Syntax 1: Verify or load packages, update ⎕PATH
            Right arg is a list of packages (each a string)
-__________________________________________________________
+__________________________________________________________________________________________________________________
      "Given names of packages:
          APL objects, namespaces/directories and objects, or
          workspaces (optionally with namespaces and objects),
@@ -70,7 +88,7 @@ __________________________________________________________
      ∘ If ':' is specified, but there are no characters preceding the one colon, 
        the last (non-null) wsPath is used (if none, ignored).
    ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
-___________________________________________________
+_______________________________________________________________________________________________________________
    ∘ Returns elements from:  stdLibR list1  list2
      ∘ If CODE<0, DEBUG is set to 1 and CODE←|CODE. CODE of 0 is treated as if 1.
      Ia. CODE=1   Returns  list1 list2   (success: shy; some failures: non-shy)
@@ -90,22 +108,22 @@ ___________________________________________________
 
  Syntax 2: Return reference to the standard library
            Right argument is ⍬
-__________________________________________________
+______________________________________________________________________________________________________________
    ∘ Returns a reference to the specified or default standard library (stdLib).
      IIa. CODE∊0 1 2 is ignored.  No searching or loading is expected or done.
        E.g. if mathPack is a class, one might "require" it this way:
           require 'mathPack'
        then access it this way:
           myMath ← ⎕NEW (require '').mathPack
- _________________________________________________
+ _____________________________________________________________________________________________________________
   ∘  Returns: namespaceRef
      The namespace reference for the specified or default library.
 
  Syntax 3: Help information. 
            Right argument is '-HELP'
-_____________________________________
+_____________________________________________________________________________________________________________
    ∘ Displays help information (from require/documentation.txt).
-____________________________________________________________________________________________
+_____________________________________________________________________________________________________________
 
  Search: What is searched to find each package?
 
