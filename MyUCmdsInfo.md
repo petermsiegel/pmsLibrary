@@ -1,9 +1,9 @@
 ### To have APL start up with `require` available.
-0. Find directory `MyUcmdsInfo` supplied by dyalog. It's often in your home directory.
+1. Find directory `MyUcmdsInfo` supplied by dyalog. It's often in your home directory.
 1. Add material below to `MyUCmdsInfo/Setup.dyalog`.
 This makes sure that `require` is loaded into `⎕SE` so it's available for the entire session.
 (This can't apparently be used to set `⎕PATH`, hence step #2).
-2. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog`.
+1. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog`.
 We'll set this up to create a command called `]require`. When called, `]require` does two things:
    - Ensures `require` is copied in as required.
    - Ensures that `⎕PATH` in the current namespace has `⎕SE` in the search order. It won't add `⎕SE` if it's already there.
