@@ -333,6 +333,8 @@
        ⍝ Is the package in the file system path?
        ⍝ We even check those with a wsN: prefix (which is checked first)
        ⍝ See FSSearchPath
+         ADDFIXEDNAMESPACES←1     ⍝ If a namespace is loaded from a .dyalog file, add
+                                  ⍝ its name to ⎕PATH
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -365,7 +367,9 @@
                          0::¯1⊣{'Failed to load file for name ',⍵}TRACE ⍵
                          subName←1⊃⎕NPARTS ⍵
                          cont,←' ',,⎕FMT fixed←2 stdLibR.⎕FIX'file://',⍵
-                         fixed←1↓∊',',¨fixed
+
+                         _←{~ADDFIXEDNAMESPACES:'' ⋄ 9.1≠stdLibR.⎕NC⊂,⍵:'' ⋄ ⍵⊣PathNewR,⍨←stdLibR⍎⍵}¨fixed
+
                          _←{('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
                          1     ⍝ Success
                      }¨names
