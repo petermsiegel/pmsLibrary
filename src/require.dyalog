@@ -10,6 +10,14 @@
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
      CallerR CallerN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CallerR/N ("caller"): Where was <require> called from?
 
+
+   ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
+   ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
+   ⍝   If an item is a namespace (now in stdLibR), should it be added to ⎕PATH?
+   ⍝   If ADDFIXEDNAMESPACES←1, then it will be added to ⎕PATH.
+   ⍝   Otherwise, not.
+     ADDFIXEDNAMESPACES←1
+
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
   ⍝ Decode ⍺ → [StdLibStr CODE]
@@ -54,7 +62,7 @@
      ⍝ Set 0: Debugging
      TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
          0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
-         ⎕PW←999
+         ⎕PW←9999
          ⍺←⊢
          DEBUG:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
          ⍵
@@ -141,6 +149,13 @@
 
    ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (repkg ⍺)⍵
      map←{0=≢⍵:'' ⋄ (repkg ⍺)⍵}
+
+   ⍝ See ADDFIXEDNAMESPACES above for more info.
+   ⍝ ⍵ must be a name of an existing object in stdLibR in string form.
+   ⍝ If ADDFIXEDNAMESPACES=1, and if ⍵ refers to a namespace (⎕NC 9.1),
+   ⍝ ⍵'s reference is added to PathNewR,
+   ⍝ and ultimately to CallerR.⎕PATH.
+     add2PathIfNs←{~ADDFIXEDNAMESPACES:'' ⋄ 9.1≠stdLibR.⎕NC⊂,⍵:'' ⋄ ⍵⊣PathNewR,⍨←stdLibR⍎⍵}
 
    ⍝------------------------------------------------------------------------------------
    ⍝  E N D      U T I L I T I E S
@@ -333,8 +348,7 @@
        ⍝ Is the package in the file system path?
        ⍝ We even check those with a wsN: prefix (which is checked first)
        ⍝ See FSSearchPath
-         ADDFIXEDNAMESPACES←1     ⍝ If a namespace is loaded from a .dyalog file, add
-                                  ⍝ its name to ⎕PATH
+
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -350,50 +364,66 @@
 
                  _←{'>>> Searching filesystem: ',⍵}TRACE searchDir
 
-                 ⋄ loaddir←{
+                 loadDir←{
                      group name←⍺
                      aplNs←group with name ⋄ fsDir←⍵
                      1≠⊃1 ⎕NINFO fsDir:'NOT A DIRECTORY: ',fsDir
                      names←⊃(⎕NINFO⍠1)fsDir,'/*.dyalog'    ⍝ Will ignore subsidiary directories...
                      0=≢names:aplNs{
+                       ⍝ Put a 'loaded' flag in the stdLibR ns for the empty dir.
                          stamp←'First group ',⍺,'found was empty on ',(⍕⎕TS),': ',⍵
-                         'empty group→stdLib: ',⍵⊣(dunder ⍺)stdLibR.{⍎⍺,'←⍵'}stamp
+                         _←(dunder ⍺)stdLibR.{⍎⍺,'←⍵'}stamp
+                         'empty group→stdLib: ',⍵
                      }fsDir
 
                      _←{'>>>>> Found non-empty dir: ',⍵}TRACE fsDir
 
                      cont←''
-                     tried←{ ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
-                         0::¯1⊣{'Failed to load file for name ',⍵}TRACE ⍵
-                         subName←1⊃⎕NPARTS ⍵
-                         cont,←' ',,⎕FMT fixed←2 stdLibR.⎕FIX'file://',⍵
+                     ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
+                     ⍝ Like loadFi below...
+                     load1Fi←{
+                         0::¯1⊣{'dir.file→stdLIB failed: "',⍵,'"'}TRACE ⍵
 
-                         _←{~ADDFIXEDNAMESPACES:'' ⋄ 9.1≠stdLibR.⎕NC⊂,⍵:'' ⋄ ⍵⊣PathNewR,⍨←stdLibR⍎⍵}¨fixed
+                         fixed←2 stdLibR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
+                         cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
-                         _←{('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
-                         1     ⍝ Success
-                     }¨names
+                         1⊣{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
+
+                     }
+                     tried←load1Fi¨names
                      gwn←group with name
+
+                   ⍝ Put a 'loaded' flag in the stdLibR ns for the non-empty dir
                      stamp←gwn,' copied from disk with contents',cont,' on ',⍕⎕TS
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
-                     res←'[group] ',gwn,'→stdLib '
+
+                     res←'[group] ',gwn,'→stdLib: "',⍵,'"'
                      res,←⎕TC[2],'   [Fixed: ',(⍕+/tried=1),' Failed: ',(⍕+/tried=¯1),']'
-                     1∊tried:res⊣PathNewR,⍨←stdLibR        ⍝ At least one load attempt succeeded.
+
+                   ⍝ Add stdLibR to PathNewR if at least one object was loaded and  ⎕FIXED.
+                     1∊tried:res⊣PathNewR,⍨←stdLibR
                      res
                  }
-                 ⎕NEXISTS searchDir:(group name)loaddir searchDir
-                 ⋄ loadfi←{
-                     0::'file→stdLib FAILED: "',⍵,'"'
+               ⍝ See also load1Fi, which has the same basic logic.
+                 loadFi←{
+                     0::'file→stdLib failed: "',⍵,'"'
                      group name←⍺
+                     gwn←group with name
                      id←dunder group name
-                     cont←,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
+
+                     fixed←2 stdLibR.⎕FIX'file://',⍵
+                     cont←,⎕FMT fixed ⋄ _←add2PathIfNs fixed
+
                      _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
-                     stamp←(group with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
+                   ⍝ Put a 'loaded' flag in stdLibR for the loaded object.
+                     stamp←gwn,' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
-                     PathNewR,⍨←stdLibR                      ⍝ Succeeded: Note stdLibR (if not already)
-                     'file→stdLib: "',⍵,'"'
+                     PathNewR,⍨←stdLibR                ⍝ Succeeded: Note stdLibR (if not already)
+                     '[file] ',gwn,'→stdLib: "',⍵,'"'
                  }
-                 ⎕NEXISTS searchFi:(group name)loadfi searchFi
+
+                 ⎕NEXISTS searchDir:(group name)loadDir searchDir
+                 ⎕NEXISTS searchFi:(group name)loadFi searchFi
                  ∇ 1↓⍵                                     ⍝ NEXT!
              }FSPATH
 
@@ -412,7 +442,9 @@
      }pkgs
 
      _←{
-         ↑''('>>Caller''s ⎕PATH was ',⍕CallerR.⎕PATH)('  PathOrigR: ',⍕PathOrigR)('>>PathNewR: ',⍕PathNewR)
+         _←''('>>Caller''s ⎕PATH was ',⍕CallerR.⎕PATH)
+         _,←('  PathOrigR: ',⍕PathOrigR)('>>PathNewR: ',⍕∪PathNewR)
+         ↑_
      }TRACE 0
 
    ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
