@@ -9,7 +9,7 @@ We'll set this up to create a command called `]require`. When called, `]require`
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
 
 ### Material to enable easy use of `require` during a Dyalog APL session.
-#### add this to `MyUCmdsInfo/Setup.dyalog`
+#### Add this fragment to `MyUCmdsInfo/Setup.dyalog`
 
 ```
 ⍝ BEGIN:   PMS 20181011
@@ -20,7 +20,7 @@ We'll set this up to create a command called `]require`. When called, `]require`
 ```
 
 #### Create a new user command in MyUCmdsInfo directory. 
-- We call ours MyUCmdsInfo/PMSCmds.dyalog
+- We call ours `MyUCmdsInfo/PMSCmds.dyalog`. Its _complete_ contents are below.
 
 ```
 :Namespace PMSCmds
@@ -32,7 +32,7 @@ We'll set this up to create a command called `]require`. When called, `]require`
       r←⎕NS¨1⍴⊂⍬
     ⍝ Name, group, short description and parsing rules
       r.Name←⊂'require'
-      r.Group←⊂'PMS'
+      r.Group←⊂'PMSCmds'
       r[0].Desc←'Help text to appear for ] -?? and ]MYCMDS -?'
       r.Parse←⊂'' ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
@@ -41,7 +41,8 @@ We'll set this up to create a command called `]require`. When called, `]require`
       :Select cmd
       :Case 'require'
           r←⍬
-          CALLER←⊃(4↓⎕RSI),#      ⍝ There are 4 levels of calls before Run!
+        ⍝ There are 4 levels of calls before function Run! We want the ns that called ]require
+          CALLER←⊃(4↓⎕RSI),#     
           :IF 0=⎕SE.⎕NC 'require'
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
               r←⊂'Loaded "require" into ⎕SE'
@@ -50,9 +51,9 @@ We'll set this up to create a command called `]require`. When called, `]require`
               CALLER.⎕PATH,⍨←'⎕SE '
               r←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
           :ENDIF
-          :IF 0=≢r
+          :IF 0=≢ r
               r←⊂']require was already active'
-                      :ENDIF
+          :ENDIF
           :IF  0=≢'(^| )⎕SE( |$)'⎕S 0⊣CALLER.⎕PATH
               CALLER.⎕PATH,⍨←'⎕SE '
               r←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
@@ -74,7 +75,7 @@ We'll set this up to create a command called `]require`. When called, `]require`
           r←⊂'     If not, loads from requested workspace, directory, or file.'
           r←⊂'     See require.help'
           r,←⊂']require executes:'
-          r,←⊂' ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
+          r,←⊂'   ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
           r←↑r
       :EndSelect
     ∇
