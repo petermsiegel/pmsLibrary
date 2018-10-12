@@ -9,6 +9,7 @@ ___Table of Contents___
 
 * __require__     Ensure that APL objects __required__ within a specific function or package are in the active workspace visible via ⎕PATH, loading as needed from other workspaces or directories. 
    - See also `requireUserCmd.md`, to learn how to make it easy to have __require__ available throughout a Dyalog session.
+   
 * __∆MY__         Support __static objects__ tied to a function/op, created once and maintained over calls.
 * __dict__        Create _ordered_ __dictionaries__ with an array of creation, sorting, and searching services.
 * __tinyDict__    Create _low-overhead_, _ordered_ __dictionaries__ with simple access to keys and values.
