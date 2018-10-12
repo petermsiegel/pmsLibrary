@@ -1,4 +1,4 @@
-### To have APL start up with `require` available.
+### To have `require` available at startup of a Dyalog APL session.
 1. Find directory `MyUcmdsInfo` supplied by dyalog. It's often in your home directory.
 1. Add material below to `MyUCmdsInfo/Setup.dyalog`.
 This makes sure that `require` is loaded into `⎕SE` so it's available for the entire session.
