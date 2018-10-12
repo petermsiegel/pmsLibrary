@@ -69,11 +69,12 @@ We'll set this up to create a command called `]require`. When called, `]require`
       :Select cmd
       :Case 'require'
           r←⊂']require loads ⎕SE.require (as needed) and adds to ⎕PATH in current namespace (if needed).'
-          r←⊂' Useful to ensuring that current namespace can find function require.'
-          r←⊂' Function require:'
-          r←⊂'     Used to verify that objects are in the current namespace or the ⎕PATH.'
-          r←⊂'     If not, loads from requested workspace, directory, or file.'
-          r←⊂'     See require.help'
+          r,←⊂' Useful to ensuring that current namespace can find function require.'
+          r,←⊂' Function require:'
+          r,←⊂'    Used to verify that objects are in the current namespace or the ⎕PATH.'
+          r,←⊂'    If not, loads from requested workspace, directory, or file.'
+          r,←⊂'    See documentation in require.help or type:'
+          r,←⊂'      require ''-HELP'' '
           r,←⊂']require executes:'
           r,←⊂'   ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
           r←↑r
