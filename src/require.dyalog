@@ -7,14 +7,14 @@
      ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
-     defaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CALLN (next)
-     CALLR CALLN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CALLR/N ("caller"): Where was <require> called from?
+     DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
+     CallerR CallerN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CallerR/N ("caller"): Where was <require> called from?
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
-  ⍝ Decode ⍺ → [stdLibStr CODE]
+  ⍝ Decode ⍺ → [StdLibStr CODE]
      ⍺←⎕NULL
-     stdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
+     StdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
          9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:   #  [2]
          0=1↑0⍴⊃⍵:⎕NULL ⍵              ⍝  ⍺:   2
          1=≢⊆⍵:⍵ 0                     ⍝  ⍺:  'test'    OR  ⎕NULL (⍺ omitted)
@@ -26,9 +26,9 @@
      pkgs←⊆⍵
 
      stdLibR stdLibN←{
-         returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CALLR.⎕NS'')⍵}
-         top←'⎕SE' '#'⊃⍨'#'=1↑CALLN          ⍝ what's our top level?
-         topDef←top,'.',defaultLibName       ⍝ the default if there's no default library
+         returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CallerR.⎕NS'')⍵}
+         top←'⎕SE' '#'⊃⍨'#'=1↑CallerN          ⍝ what's our top level?
+         topDef←top,'.',DefaultLibName       ⍝ the default if there's no default library
          ⍵≡⎕NULL:returning topDef
 
          ∆LIB←'[LIB]'                         ⍝ Possible special prefix to ⍵...
@@ -36,17 +36,17 @@
          returning{
              val←(⍕⍵)~' '                    ⍝ Set val. If ⍵ is ⎕SE or #, val is '⎕SE' or '#'
              (⊂,val)∊'⎕SE'(,'#'):(⍎val)val   ⍝ Matches:  ⎕SE, '⎕SE', #, '#'
-             9.1 9.2∊⍨nc←CALLR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
+             9.1 9.2∊⍨nc←CallerR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
              2.1≠nc:○○○                      ⍝ If we reached here, ⍵ must be a string.
              0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
              pat2←'^' '',¨⊂'\Q',∆LIB,'\E'    ⍝ Handle... ⎕SE.[LIB], #.[LIB], and [LIB].mysub
-             name←pat2 ⎕R topDef defaultLibName⊣val
-             nc←CALLR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
-             9.1=nc:{⍵(⍕⍵)}(CALLR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
-             0=nc:CALLN,'.',name             ⍝ Assume name refers to potential namespace...
+             name←pat2 ⎕R topDef DefaultLibName⊣val
+             nc←CallerR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
+             9.1=nc:{⍵(⍕⍵)}(CallerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
+             0=nc:CallerN,'.',name             ⍝ Assume name refers to potential namespace...
              ∘∘∘                             ⍝ error!
          }⍵
-     }stdLibStr
+     }StdLibStr
 
  ⍝------------------------------------------------------------------------------------
  ⍝  U T I L I T I E S
@@ -98,9 +98,9 @@
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
 
 
-   ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to CALLR.
+   ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to CallerR.
    ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
-     resolveNs←CALLR∘{
+     resolveNs←CallerR∘{
          nc←⍺.⎕NC⊂⍵
          nc∊9.1 ¯1:⍺⍎⍵      ⍝ nc=¯1: ##.## etc.  nc=9.1: namespace
          ⎕NULL              ⍝ If not valid, return ⎕NULL
@@ -114,7 +114,7 @@
    ⍝ If no ↑, returns ⍵; otherwise returns ⍵ with any '↑' replaced as above.
      resolvePathUpArrow←{
          ~⍺:⍵
-         dist←¯1++/CALLN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
+         dist←¯1++/CallerN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
          (∊w)⊣w[p]←⊂{⍺←'' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
      }
 
@@ -127,12 +127,12 @@
 
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
    ⍝    ⍺: String of form: a, b.a, c.b.a etc.  If 0=≢⍺: inNs fails.
-   ⍝    ⍵: an namespace reference or name (interpreted wrt CALLR).
+   ⍝    ⍵: an namespace reference or name (interpreted wrt CallerR).
      inNs←{
          0::'require/inNs: DOMAIN ERROR: Invalid namespace, library, or package'⎕SIGNAL ⎕DMX.EN
          0=≢⍺:0
-         callr←CALLR     ⍝ Dyalog bug Workaround: external CALLR, used directly like this (CALLR.⍎), won't be found.
-         ns←callr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
+         clr←CallerR     ⍝ Dyalog bug Workaround: external CallerR, used directly like this (CallerR.⍎), won't be found.
+         ns←clr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
          0<ns.⎕NC ⍺      ⍝ ⍺ defined in ns?
      }
 
@@ -177,12 +177,12 @@
      }¨pkgs
 
 
-   ⍝ Process caller ⎕PATH → PATHR:  handling ↑, resolving namespaces (ignoring those that don't exist).
-     PATHR←resolvePath('↑'∊CALLR.⎕PATH)resolvePathUpArrow CALLR.⎕PATH
-     ∆PATHR←⍬
+   ⍝ Process caller ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
+     PathOrigR←resolvePath('↑'∊CallerR.⎕PATH)resolvePathUpArrow CallerR.⎕PATH
+     PathNewR←PathOrigR
 
-   ⍝ ∆FSPATH: Find File System Path to search
-   ⍝   1. If ⎕SE.∆FSPATH exists and is not null, use it.
+   ⍝ FSPATH: Find File System Path to search
+   ⍝   1. If ⎕SE.FSPATH exists and is not null, use it.
    ⍝      You can merge new paths with the values of the existing OS X environment variables:
    ⍝        - FSPATH (require-specific for File System Path. See WSPATH for format)
    ⍝        - WSPATH (Dyalog's search path for workspaces; libraries are colon-separated)
@@ -201,14 +201,14 @@
    ⍝   Each item a string of the form here (if onle group, no colon is used):
    ⍝       'dir1:dir2:...:dirN'
 
-     ∆FSPATH←∪':'split noEmpty{
+     FSPATH←∪':'split noEmpty{
          2=⎕NC ⍵:symbols ⎕OR ⍵
          0≠≢fs←symbols getenv'FSPATH':fs
          0≠≢env←symbols getenv'WSPATH':env
          symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
-     }'⎕SE.∆FSPATH'
+     }'⎕SE.FSPATH'
 
-     _←{'∆FSPATH='⍵}TRACE ∆FSPATH
+     _←{'FSPATH='⍵}TRACE FSPATH
 
 
      0=≢⍵:stdLibR   ⍝ If no main right argument, return the library reference (default or user-specified)
@@ -237,11 +237,11 @@
              ext wsN group name←pkg←⍵
 
              stat←{
-                 ('__',wsN)inNs CALLR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
-                 name inNs CALLR:pkg map'name∊CALLER'        ⍝ name found? success
+                 ('__',wsN)inNs CallerR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
+                 name inNs CallerR:pkg map'name∊CALLER'        ⍝ name found? success
                  group≡'':''
-                 ~(group with name)inNs CALLR:''                   ⍝ none found? failure
-                 ∆PATHR,⍨←⊂resolveNs group                    ⍝ group.name found
+                 ~(group with name)inNs CallerR:''                   ⍝ none found? failure
+                 PathNewR,⍨←⊂resolveNs group                    ⍝ group.name found
                  pkg map'group.name∊CALLER'                    ⍝ ...         success
              }⍵
 
@@ -262,42 +262,42 @@
 
              scanPath←{                                 ⍝ find pgk components in <path> or stdLib
                  ⍺←'PATH'
-                 0=≢⍵:''                                ⍝ none found. pathR exhausted: failure
-                 pathR←⊃⍵
+                 0=≢⍵:''                                ⍝ none found. pathEntry exhausted: failure
+                 pathEntry←⊃⍵
 
-                 _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathR
+                 _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathEntry
 
-             ⍝⍝ --------------------------------------------------------------------------------------
-             ⍝⍝ If name is found in pathR, do we explicitly add to pathR? CHOICE (A)=YES, (B)=NO.
-             ⍝⍝   PROS: pathR may have ↑ and the item may work for this caller ns, but not another
-             ⍝⍝         that inherits its ⎕PATH.
-             ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in pathR
-             ⍝⍝ Decision: For now, we leave out the update, choice (B).
-             ⍝⍝   For (A), replace (B) below with (A):
-             ⍝⍝       (A) name inNs pathR:'name∊',⍺⊣∆PATHR,⍨←pathR
-             ⍝⍝ --------------------------------------------------------------------------------------
+               ⍝⍝ --------------------------------------------------------------------------------------
+               ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NO.
+               ⍝⍝   PROS: pathEntry may have ↑ and the item may work for this caller ns, but not another
+               ⍝⍝         that inherits its ⎕PATH.
+               ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in pathEntry
+               ⍝⍝ Decision: For now, we leave out the update, choice (B).
+               ⍝⍝   For (A), replace (B) below with (A):
+               ⍝⍝       (A) name inNs pathEntry:'name∊',⍺⊣PathNewR,⍨←pathEntry
+               ⍝⍝ --------------------------------------------------------------------------------------
 
-                 {0≠≢group}and{pathR inNs⍨dunder group name}1:'group.name[.dyalog]∊',⍺
-                 {0=≢group}and{pathR inNs⍨dunder name}1:'name[.dyalog]∊',⍺
-                 {0=≢name}and{pathR inNs⍨dunder wsN}0:'ws∊',⍺
-                 {wsN inNs pathR}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
-                     ⍵ inNs pathR,'.',wsN                ⍝ wsN found and group/name found in pathR.wsN: success
+                 {0≠≢group}and{pathEntry inNs⍨dunder group name}1:'group.name[.dyalog]∊',⍺
+                 {0=≢group}and{pathEntry inNs⍨dunder name}1:'name[.dyalog]∊',⍺
+                 {0=≢name}and{pathEntry inNs⍨dunder wsN}0:'ws∊',⍺
+                 {wsN inNs pathEntry}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
+                     ⍵ inNs pathEntry,'.',wsN                ⍝ wsN found and group/name found in pathEntry.wsN: success
                  }group with name:'ws∊',⍺
 
-                 name inNs pathR:'name∊',⍺               ⍝ Name found: Success.
-                 group≡'':∇ 1↓⍵                         ⍝ Not found: try another pathR element
-                 ~{(group with name)inNs pathR}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathR element
-                 ∆PATHR,⍨←⊂resolveNs(⍕pathR)with group  ⍝ group.name found: ...
+                 name inNs pathEntry:'name∊',⍺               ⍝ Name found: Success.
+                 group≡'':∇ 1↓⍵                         ⍝ Not found: try another pathEntry element
+                 ~{(group with name)inNs pathEntry}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathEntry element
+                 PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group  ⍝ group.name found: ...
                  'group→',⍺                             ⍝ ...         success
              }
 
-          ⍝ Go through pathR. If found, return success.
-          ⍝ Otherwise, try stdLibR (unless in pathR). If found, add stdLibR to pathR (∆PATHR).
+          ⍝ Go through pathEntry, next item in PathNewR. If found, return success.
+          ⍝ Otherwise, try stdLibR (unless in PathNewR). If found, add stdLibR to PathNewR.
              recurse←{
-                 ×≢r←scanPath∪PATHR:r                ⍝ Check pathR. Found? Yes: Return status.
-                 stdLibR∊PATHR:''                    ⍝ No. If stdLibR in PATHR, return ''.
+                 ×≢r←scanPath∪PathNewR:r                ⍝ Check pathEntry. Found? Yes: Return status.
+                 stdLibR∊PathNewR:''                    ⍝ No. If stdLibR in PATHR, return ''.
                  0=≢r←'STDLIB'scanPath stdLibR:''    ⍝ Check stdLibR?   Not found: ''
-                 r⊣∆PATHR,⍨←stdLibR                  ⍝ Found: Add stdLibR to pathR and return status.
+                 r⊣PathNewR,⍨←stdLibR                  ⍝ Found: Add stdLibR to pathEntry and return status.
              }⍬
              0=≢recurse:pkg
 
@@ -326,7 +326,7 @@
                  'ws→stdLib'
              }group with name
              0=≢stat:pkg
-             ∆PATHR,⍨←stdLibR                             ⍝ Succeeded: Add stdLibR to path
+             PathNewR,⍨←stdLibR                             ⍝ Succeeded: Add stdLibR to path
              ''⊣(⊃status),←⊂pkg map stat⊣{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
          }pkg
 
@@ -364,8 +364,9 @@
                      tried←{ ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                          0::¯1⊣{'Failed to load file for name ',⍵}TRACE ⍵
                          subName←1⊃⎕NPARTS ⍵
-                         cont,←' ',,⎕FMT 2 stdLibR.⎕FIX'file://',⍵
-                         _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
+                         cont,←' ',,⎕FMT fixed←2 stdLibR.⎕FIX'file://',⍵
+                         fixed←1↓∊',',¨fixed
+                         _←{('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
                          1     ⍝ Success
                      }¨names
                      gwn←group with name
@@ -373,7 +374,7 @@
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
                      res←'[group] ',gwn,'→stdLib '
                      res,←⎕TC[2],'   [Fixed: ',(⍕+/tried=1),' Failed: ',(⍕+/tried=¯1),']'
-                     1∊tried:res⊣∆PATHR,⍨←stdLibR        ⍝ At least one load attempt succeeded.
+                     1∊tried:res⊣PathNewR,⍨←stdLibR        ⍝ At least one load attempt succeeded.
                      res
                  }
                  ⎕NEXISTS searchDir:(group name)loaddir searchDir
@@ -385,12 +386,12 @@
                      _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                      stamp←(group with name),' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
-                     ∆PATHR,⍨←stdLibR                      ⍝ Succeeded: Note stdLibR (if not already)
+                     PathNewR,⍨←stdLibR                      ⍝ Succeeded: Note stdLibR (if not already)
                      'file→stdLib: "',⍵,'"'
                  }
                  ⎕NEXISTS searchFi:(group name)loadfi searchFi
                  ∇ 1↓⍵                                     ⍝ NEXT!
-             }∆FSPATH
+             }FSPATH
 
              _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
 
@@ -407,15 +408,15 @@
      }pkgs
 
      _←{
-         ↑''('>>Caller''s ⎕PATH was ',⍕CALLR.⎕PATH)('  PATHR: ',⍕PATHR)('>>∆PATHR: ',⍕∆PATHR)
+         ↑''('>>Caller''s ⎕PATH was ',⍕CallerR.⎕PATH)('  PathOrigR: ',⍕PathOrigR)('>>PathNewR: ',⍕PathNewR)
      }TRACE 0
 
    ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
    ⍝ Prepend new items and merge with caller's ⎕PATH keeping relative ⎕PATH elements...
-   ⍝ Here, we don't make sure CALLR.⎕PATH entries are valid. Also ↑ is maintained.
-     CALLR.⎕PATH←1↓∊' ',¨∪(⍕¨∆PATHR),(split CALLR.⎕PATH)
+   ⍝ Here, we don't make sure CallerR.⎕PATH entries are valid. Also ↑ is maintained.
+     CallerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split CallerR.⎕PATH)
 
-     _←{'>>Caller''s ⎕PATH now ',⍕CALLR.⎕PATH}TRACE 0
+     _←{'>>Caller''s ⎕PATH now ',⍕CallerR.⎕PATH}TRACE 0
 
      succ←0=≢⊃⌽statusList
      succ∧CODE∊3:_←{⍵}TRACE(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
