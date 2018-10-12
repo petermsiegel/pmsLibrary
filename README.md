@@ -7,17 +7,17 @@ This is a work in progress, as I move a handful of such functions out of workspa
 
 ___Table of Contents___  
 
-* __require__     Ensure APL objects are in the active workspace visible via ⎕PATH, loading as needed from other workspaces or directories. 
-   - See also `requireUserCmd.md`, to learn how to make it easy to make __require__ available throughout a Dyalog session.
-* __∆MY__         Support static objects specific to a function/op, created once and maintained over calls.
-* __dict__        Create ordered dictionaries with an array of creation, sorting, and searching services.
-* __tinyDict__    Create low-overheaded ordered dictinaries with simple access to keys and values.
-* __gen__         Create Python-like generators that allow for functions to iteratively "yield" values without returning.
-* __future__      Create simple future objects, whose values may be scalars within APL arrays, built on isolate-related I-beams.
-* __∆format, ∆f__ Support Python-like f-strings extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
-* __bigInt__  Provides support for arbitrary-precision integers in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
-* __∆HERE__       Robust support for "here" documents or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
-* __∆SH__  Provides a thin cover to ⎕SH, translating UTF-8 format encoded output into Unicode. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
+* __require__     Ensure that APL objects __required__ within a specific function or package are in the active workspace visible via ⎕PATH, loading as needed from other workspaces or directories. 
+   - See also `requireUserCmd.md`, to learn how to make it easy to have __require__ available throughout a Dyalog session.
+* __∆MY__         Support __static objects__ tied to a function/op, created once and maintained over calls.
+* __dict__        Create _ordered_ __dictionaries__ with an array of creation, sorting, and searching services.
+* __tinyDict__    Create _low-overhead_, _ordered_ __dictionaries__ with simple access to keys and values.
+* __gen__         Create Python-like __generators__ that allow for functions to iteratively "yield" values without returning.
+* __future__      Create simple __future objects__, whose values may be scalars within APL arrays, built on isolate-related I-beams.
+* __∆format, ∆f__ Support _Python_-like __f-strings__ extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
+* __bigInt__  Provides support for __arbitrary-precision integers__ in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
+* __∆HERE__       Robust support for "__here__" __documents__ or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
+* __∆SH__  Provides a thin cover to __⎕SH__, translating _UTF-8_ format encoded output into _Unicode_. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
 
 ___Descriptions of Packages___
 1. __require__: Reminiscent of __import__ in Python and __require__ or __use__ in Perl, __require__ ensures that the "packages" in the right argument are either in the caller's namespace or the ⎕PATH (e.g. were "required" by another function/op or otherwise), in the filesystem search path (Unix environment (extension) __FSPATH__ or (Dyalog) __WSPATH__ or using "extension" ⎕SE.∆FSPATH), or in the workspace indicated (e.g. 'dfns:cmpx'). If in the caller's namespace or ⎕PATH, nothing more is done. Also allows easy importing of an entire workspace ('dfns:') or all the __\*.dyalog__ files filesystem directory ('myfns.mymath').
