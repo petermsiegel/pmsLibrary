@@ -887,9 +887,9 @@
 
     eBIHFAILED←'BI∆HERE failed: unable to run compiled BI code'
     eBIHBADCALL←'BI∆HERE not called from active traditional fn'
-    ∇ callback←BI∆HERE;callerCode;callerNm;cloneNm;opt;pat;RE∆GET
+    ∇ callback←BI∆HERE;callerCode;callerNm;cloneNm;opt;pat;RE∆GET;⎕TRAP 
       ⍝ See BI∆HERE_HELP
-     
+      ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
       (2>≢⎕SI)err eBIHBADCALL
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
           ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
@@ -915,6 +915,12 @@
     :Section Documentation
     ⍝ See bigIntHelp
     ∇ HELP
+      ##.bigIntHelp.HELP
+    ∇
+    ∇ help
+      ##.bigIntHelp.HELP
+    ∇
+    ∇ Help
       ##.bigIntHelp.HELP
     ∇
     ∇ BI_HELP
