@@ -36,7 +36,7 @@ We'll set this up to create a command called `]require`. When called with no arg
     ⍝ Name, group, short description and parsing rules
       r.Name←⊂'require'
       r.Group←⊂'PMS'
-      r[0].Desc←'Help text to appear for ] -?? and ]MYCMDS -?'
+      r[0].Desc←'Help text to appear for ] -?? and ]require -?'
       r.Parse←⊂'' ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
 
