@@ -8,7 +8,7 @@
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
-     CallerR CallerN←(⊃⎕RSI)(⊃⎕NSI)        ⍝ CallerR/N ("caller"): Where was <require> called from?
+     CallerR CallerN←(⊃⎕RSI)(⊃⎕NSI)    ⍝ CallerR/N ("caller"): Where was <require> called from?
 
 
    ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
@@ -61,7 +61,7 @@
  ⍝------------------------------------------------------------------------------------
      ⍝ Set 0: Debugging
      TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if DEBUG. Always returns ⍵!
-         0::⍵⊣⎕←'TRACE: APL TRAPPED ERROR ',⎕DMX.((⍕EN),': ',⎕EM)
+         0::⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
          ⎕PW←9999
          ⍺←⊢
          DEBUG:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
@@ -144,7 +144,7 @@
          0<ns.⎕NC ⍺      ⍝ ⍺ defined in ns?
      }
 
-   ⍝ repkg: Convert a split-up package (in e w d n format) to a string
+   ⍝ repkg: Convert a split-up package (in <e w d n> format) to a string
      repkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
 
    ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (repkg ⍺)⍵
@@ -192,7 +192,7 @@
      }¨pkgs
 
 
-   ⍝ Process caller ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
+   ⍝ Process caller APL ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
      PathOrigR←resolvePath('↑'∊CallerR.⎕PATH)resolvePathUpArrow CallerR.⎕PATH
      PathNewR←PathOrigR
 
@@ -225,10 +225,10 @@
 
      _←{'FSPATH='⍵}TRACE FSPATH
 
-
      0=≢⍵:stdLibR   ⍝ If no main right argument, return the library reference (default or user-specified)
      0∊≢¨pkgs~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
 
+   ⍝------------------------------------------------------------------------------------
    ⍝ statusList:
    ⍝   [0] list of packages successfully found
    ⍝           wsN:group.name status
@@ -237,7 +237,7 @@
    ⍝   If wsN not present, wsN and group may be null strings.
    ⍝   If wsN is present,  group and/or name  may each be null.
    ⍝   The status field is always present.
-
+   ⍝------------------------------------------------------------------------------------
      statusList←⍬ ⍬{
          0=≢⍵:⍺
          status←⍺
@@ -245,8 +245,10 @@
 
          _←{⎕TC[2],'> Package: ',repkg ⍵}TRACE pkg
 
-   ⍝ Is the package in the caller's namespace?
-   ⍝ Check for <name>, <group.name>, and <wsN>.
+       ⍝------------------------------------------------------------------------------------
+       ⍝ Is the package in the caller's namespace?
+       ⍝ Check for <name>, <group.name>, and <wsN>.
+       ⍝------------------------------------------------------------------------------------
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -269,7 +271,9 @@
 
          0=≢pkg:status ∇ 1↓⍵                        ⍝ Fast path out. Otherwise, we short-circuit one by one
 
-   ⍝ Is the package in the ⎕PATH?
+       ⍝------------------------------------------------------------------------------------
+       ⍝ Is the package in the ⎕PATH?
+       ⍝------------------------------------------------------------------------------------
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -321,9 +325,11 @@
              ''⊣(⊃status),←⊂pkg map recurse
          }pkg
 
-   ⍝ Is the object in the named workspace?
-   ⍝ If there is no object named, copy the <entire> workspace into the default library (stdLib).
-   ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
+       ⍝------------------------------------------------------------------------------------
+       ⍝ Is the object in the named workspace?
+       ⍝ If there is no object named, copy the <entire> workspace into the default library (stdLib).
+       ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
+       ⍝------------------------------------------------------------------------------------
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -345,10 +351,11 @@
              ''⊣(⊃status),←⊂pkg map stat⊣{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
          }pkg
 
+       ⍝------------------------------------------------------------------------------------
        ⍝ Is the package in the file system path?
-       ⍝ We even check those with a wsN: prefix (which is checked first)
+       ⍝ We even check those with a wsN: prefix (whenever the workstation is not found)
        ⍝ See FSSearchPath
-
+       ⍝------------------------------------------------------------------------------------
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -382,7 +389,7 @@
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
                      load1Fi←{
-                         0::¯1⊣{'dir.file→stdLIB failed: "',⍵,'"'}TRACE ⍵
+                         0::¯1⊣{'❌dir.file→stdLIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
 
                          fixed←2 stdLibR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
                          cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
@@ -406,13 +413,13 @@
                  }
                ⍝ See also load1Fi, which has the same basic logic.
                  loadFi←{
-                     0::'file→stdLib failed: "',⍵,'"'
+                     0::'❌file→stdLib found, but ⎕FIX failed: "',⍵,'"'
                      group name←⍺
                      gwn←group with name
                      id←dunder group name
 
                      fixed←2 stdLibR.⎕FIX'file://',⍵
-                     cont←,⎕FMT fixed ⋄ _←add2PathIfNs fixed
+                     cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
                      _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in stdLibR for the loaded object.
@@ -427,7 +434,7 @@
                  ∇ 1↓⍵                                     ⍝ NEXT!
              }FSPATH
 
-             _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
+             _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'❌NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
 
              0=≢recurse:pkg
              ''⊣(⊃status),←⊂pkg map recurse
@@ -435,7 +442,7 @@
 
          pkg←{ ⍝ Any package <pkg> left must not have been found!
              0=≢⍵:''
-             ''⊣(⊃⌽status),←⊂pkg map'NOT FOUND'
+             ''⊣(⊃⌽status),←⊂pkg map'❌NOT FOUND'
          }pkg
 
          status ∇ 1↓⍵    ⍝ Get next package!
@@ -447,9 +454,12 @@
          ↑_
      }TRACE 0
 
+   ⍝------------------------------------------------------------------------------------
+   ⍝ DONE-- process CODE options...
    ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
    ⍝ Prepend new items and merge with caller's ⎕PATH keeping relative ⎕PATH elements...
    ⍝ Here, we don't make sure CallerR.⎕PATH entries are valid. Also ↑ is maintained.
+   ⍝-------------------------------------------------------------------------------------
      CallerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split CallerR.⎕PATH)
 
      _←{'>>Caller''s ⎕PATH now ',⍕CallerR.⎕PATH}TRACE 0
