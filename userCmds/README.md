@@ -1,9 +1,9 @@
 ### To have `require` available at startup of a Dyalog APL session.
 1. Find directory `MyUcmdsInfo` supplied by dyalog. It's often in your home directory.
-1. Add material below to `MyUCmdsInfo/Setup.dyalog`.
+1. Add material below to `MyUCmdsInfo/Setup.dyalog` or see ___Setup.dyalog___.
 This makes sure that `require` is loaded into `⎕SE` so it's available for the entire session.
 (This can't apparently be used to set `⎕PATH`, hence step #2).
-1. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog`.
+1. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog` or copy the file ___PMScmds.dyalog___ into MyUcmdsInfo.
 We'll set this up to create a command called `]require`. When called with no args, `]require` does two things:
    - Ensures that function `require` is copied into the `⎕SE` namespace, if _not_ already there.
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
