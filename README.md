@@ -1,7 +1,7 @@
 __pmsLibrary__: A library of useful APL functions and operators, specified as prototypes, best implemented within the language. 
 
 * For source files, see _pmsLibrary/src_, all _.dyalog_ files.
-* For help information, see _pmsLibrary/docs_, mostly _.help_ text files, but see _formatHelp.pdf_.
+* For help information, see _pmsLibrary/docs_, mostly _.help_ text files, but see ___formatHelp.pdf___.
 * For user command `]require`, see ___README___ in directory _pmsLibrary/userCmds_.
 
 This is a work in progress, as I move a handful of such functions out of workspaces into github.
