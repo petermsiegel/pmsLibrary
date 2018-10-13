@@ -26,7 +26,7 @@ We'll set this up to create a command called `]require`. When called with no arg
 - We call ours `MyUCmdsInfo/PMSCmds.dyalog`. Its _complete_ contents are below.
 
 ```
-:Namespace PMS
+:Namespace PMScmds
 ⍝ Custom user command
 
     ⎕IO←0 ⋄ ⎕ML←1
