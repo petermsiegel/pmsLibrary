@@ -406,7 +406,7 @@
                      gwn←group with name
 
                    ⍝ Put a 'loaded' flag in the stdLibR ns for the non-empty dir
-                     stamp←gwn,' copied from disk with contents',cont,' on ',⍕⎕TS
+                     stamp←gwn,' copied from dir: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
 
                      res←'[group] ',gwn,'→stdLib: "',⍵,'"'
@@ -428,7 +428,7 @@
 
 ⍝:DBG                _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in stdLibR for the loaded object.
-                     stamp←gwn,' copied from disk with contents ',cont,' on ',⍕⎕TS
+                     stamp←gwn,' copied from file: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
                      PathNewR,⍨←stdLibR                ⍝ Succeeded: Note stdLibR (if not already)
                      '[file] ',gwn,'→stdLib: "',⍵,'"'

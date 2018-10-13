@@ -4,7 +4,7 @@
 
     ∇ {_}←loadHelp
       :Trap 0
-          _←⎕SE.SALT.Load'-target=# pmsLibrary/src/bigIntHelp'
+          _←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
       :Else
           _←⎕←'Unable to load bigIntHelp'
       :EndTrap
@@ -915,45 +915,43 @@
     :Section Documentation
     ⍝ See bigIntHelp
     ∇ HELP
-      #.bigIntHelp.HELP
+      ##.bigIntHelp.HELP
     ∇
     ∇ BI_HELP
-      #.bigIntHelp.BI_HELP
+      ##.bigIntHelp.BI_HELP
     ∇
     ∇ BIB_HELP
-      #.bigIntHelp.BIB_HELP
+      ##.bigIntHelp.BIB_HELP
     ∇
     ∇ BIC_HELP
-      #.bigIntHelp.BIC_HELP
+      ##.bigIntHelp.BIC_HELP
     ∇
     ∇ BI∆HERE_HELP
-      #.bigIntHelp.BI∆HERE_HELP
+      ##.bigIntHelp.BI∆HERE_HELP
     ∇
 
     :EndSection Documentation   -------------------------------------------------------------------------
 
     :Section Bigint Namespace - Postamble
-        ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}
+        ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
     _←0 ⎕EXPORT ⎕NL 3 4
     _←1 ⎕EXPORT ssplit 'bi BI BIB BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
 
-    ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Set to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
-    ⎕←'For help, type bi.HELP (or #.bigInt.HELP)'
-    ⎕←'¯¯¯ ¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
-    ⎕←'To access bigInt functions directly, use bi (lower-case)  as shortcut to bigInt namespace:'
-    ⎕←'    10 bi.plus 3 bi.times 9'
-    ⎕←'    bi.dc    - big integer desk calculator'
+    ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
+
+    note 'For help, type bi.HELP'
+    note '¯¯¯ ¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯¯'
+    note 'To access bigInt functions directly, use bi (lower-case)  as shortcut to bigInt namespace:'
+    note '    10 bi.plus 3 bi.times 9'
+    note '    bi.dc    - big integer desk calculator'
 
     fns1←ssplit 'bitsIn bitsOut direction signum sig export exp factorial fact negate neg reciprocal roll'
     fns2←'divide div divide2 div2 gcd lcm magnitude abs minus subtract sub plus'
     fns2←ssplit fns2,' add times mul power pow residue modulo mod times10 mul10 divide10 div10'
+
     note 50⍴'-'⋄ note'  MONADIC FUNCTIONS' ⋄ note 50⍴'¯' ⋄ note ↑fns1
     note 50⍴'-'⋄ note'  DYADIC FUNCTIONS ' ⋄ note 50⍴'¯' ⋄ note ↑fns2
     note 50⍴'-'
-
-⍝    _←1 ⎕EXPORT fns1
-⍝    _←1 ⎕EXPORT fns2
-
     note'Exporting…'⊣⎕EX '_' 'ssplit'
     note{(⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
     note'*** ',(⍕⎕THIS),' initialized. See ',(⍕⎕THIS),'.HELP'
