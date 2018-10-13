@@ -1,4 +1,4 @@
-:Namespace PMS
+:Namespace PMSCmds
 ⍝ Custom user command
 
     ⎕IO←0 ⋄ ⎕ML←1
@@ -8,7 +8,7 @@
     ⍝ Name, group, short description and parsing rules
       r.Name←⊂'require'
       r.Group←⊂'PMS'
-      r[0].Desc←'Help text to appear for ] -?? and ]MYCMDS -?'
+      r[0].Desc←'Help text to appear for ] -?? and ]require -?'
       r.Parse←⊂'' ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
 
@@ -48,7 +48,7 @@
           r,←⊂'     Is used to verify that objects are in the current namespace or the ⎕PATH.'
           r,←⊂'     If not, loads them from requested workspace, directory, or file.'
           r,←⊂'     For HELP, type:'
-          r,←⊂'         ]??require'
+          r,←⊂'         ]??require    OR  ]require -HELP'
           r,←⊂'     OR'
           r,←⊂'         require ''-HELP'' '
           r,←⊂']require (with no arguments)'
