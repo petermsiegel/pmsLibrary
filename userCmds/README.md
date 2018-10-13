@@ -9,6 +9,7 @@ We'll set this up to create a command called `]require`. When called with no arg
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
 1. ]require may also be used with args. This simply runs ⎕SE.require _monadically_, splitting the right argument into 1 or more strings, and returning explicitly the (normally shy) output:<br>
    `]require pkg1 pkg2 ... pkgN`
+   Note: __]require__ creates the default library `⍙⍙.require` in the current namespace, _i.e._ from wherever it is called, (by default `#`) and sets its local `⎕PATH`.  _If you are in namespace `#.mynamespace`, then `#.mynamespace.⍙⍙.require` will receive any newly loaded packages, and  `#.mynamespace.⎕PATH` is updated. However, if `⎕PATH` already points to other libraries containing the requested packages, no additional work is done.
 
 ### Material to enable easy use of `require` during a Dyalog APL session.
 #### Add this fragment to `MyUCmdsInfo/Setup.dyalog`
