@@ -4,7 +4,7 @@
 
     ∇ {_}←loadHelp
       :Trap 0
-          _←⎕SE.SALT.Load'-target=# src/bigIntHelp'
+          _←⎕SE.SALT.Load'-target=# pmsLibrary/src/bigIntHelp'
       :Else
           _←⎕←'Unable to load bigIntHelp'
       :EndTrap
