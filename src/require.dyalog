@@ -225,7 +225,7 @@
          symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
      }'⎕SE.FSPATH'
 
-     _←{'FSPATH='⍵}TRACE FSPATH
+⍝:DBG   _←{'FSPATH='⍵}TRACE FSPATH
 
      0=≢⍵:stdLibR   ⍝ If no main right argument, return the library reference (default or user-specified)
      0∊≢¨pkgs~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
@@ -350,7 +350,8 @@
              }group with name
              0=≢stat:pkg
              PathNewR,⍨←stdLibR                             ⍝ Succeeded: Add stdLibR to path
-             ''⊣(⊃status),←⊂pkg map stat⊣{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
+             _←{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
+             ''⊣(⊃status),←⊂pkg map stat
          }pkg
 
        ⍝------------------------------------------------------------------------------------
@@ -391,14 +392,14 @@
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
                      load1Fi←{
-                        0:¯1
+                         0:¯1
 ⍝:DBG                   0::¯1⊣{'❌dir.file→stdLIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
 
                          fixed←2 stdLibR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
                          cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
 ⍝:DBG                _←{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
-                      1
+                         1
 
                      }
                      tried←load1Fi¨names
@@ -425,7 +426,7 @@
                      fixed←2 stdLibR.⎕FIX'file://',⍵
                      cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
-                     _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
+⍝:DBG                _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in stdLibR for the loaded object.
                      stamp←gwn,' copied from disk with contents ',cont,' on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
@@ -466,7 +467,7 @@
    ⍝-------------------------------------------------------------------------------------
      CallerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split CallerR.⎕PATH)
 
-     _←{'>>Caller''s ⎕PATH now ',⍕CallerR.⎕PATH}TRACE 0
+⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕CallerR.⎕PATH}TRACE 0
 
      succ←0=≢⊃⌽statusList
      succ∧CODE∊3:_←{⍵}TRACE(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
