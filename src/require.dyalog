@@ -1,4 +1,6 @@
 ﻿ require←{
+⍝  TRACING (see TRACE) lines are prefixed with ⍝:DBG when inactive...
+
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info in:
@@ -243,7 +245,7 @@
          status←⍺
          pkg←⊃⍵
 
-         _←{⎕TC[2],'> Package: ',repkg ⍵}TRACE pkg
+⍝:DBG    _←{⎕TC[2],'> Package: ',repkg ⍵}TRACE pkg
 
        ⍝------------------------------------------------------------------------------------
        ⍝ Is the package in the caller's namespace?
@@ -264,7 +266,7 @@
 
              0=≢stat:pkg
 
-             _←{'>>> Found in caller ns: ',⍵}TRACE stat
+⍝:DBG        _←{'>>> Found in caller ns: ',⍵}TRACE stat
 
              ''⊣(⊃status),←⊂stat
          }pkg
@@ -284,7 +286,7 @@
                  0=≢⍵:''                                ⍝ none found. pathEntry exhausted: failure
                  pathEntry←⊃⍵
 
-                 _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathEntry
+⍝:DBG           _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathEntry
 
                ⍝⍝ --------------------------------------------------------------------------------------
                ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NO.
@@ -320,7 +322,7 @@
              }⍬
              0=≢recurse:pkg
 
-             _←{'>>> Found in ⎕PATH ns: ',⍵}TRACE recurse
+⍝:DBG        _←{'>>> Found in ⎕PATH ns: ',⍵}TRACE recurse
 
              ''⊣(⊃status),←⊂pkg map recurse
          }pkg
@@ -335,7 +337,7 @@
              ext wsN group name←pkg←⍵
              0=≢wsN:⍵
 
-             _←{'>>> Checking workspace: ',⍵}TRACE wsN
+⍝:DBG       _←{'>>> Checking workspace: ',⍵}TRACE wsN
 
              stat←wsN{
                  0::''
@@ -369,7 +371,7 @@
                  searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
                  searchFi←searchDir,'.dyalog'
 
-                 _←{'>>> Searching filesystem: ',⍵}TRACE searchDir
+⍝:DBG            _←{'>>> Searching filesystem: ',⍵}TRACE searchDir
 
                  loadDir←{
                      group name←⍺
@@ -383,18 +385,20 @@
                          'empty group→stdLib: ',⍵
                      }fsDir
 
-                     _←{'>>>>> Found non-empty dir: ',⍵}TRACE fsDir
+⍝:DBG                _←{'>>>>> Found non-empty dir: ',⍵}TRACE fsDir
 
                      cont←''
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
                      load1Fi←{
-                         0::¯1⊣{'❌dir.file→stdLIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
+                        0:¯1
+⍝:DBG                   0::¯1⊣{'❌dir.file→stdLIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
 
                          fixed←2 stdLibR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
                          cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
-                         1⊣{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
+⍝:DBG                _←{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
+                      1
 
                      }
                      tried←load1Fi¨names
@@ -434,7 +438,7 @@
                  ∇ 1↓⍵                                     ⍝ NEXT!
              }FSPATH
 
-             _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'❌NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
+⍝:DBG        _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'❌NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
 
              0=≢recurse:pkg
              ''⊣(⊃status),←⊂pkg map recurse
