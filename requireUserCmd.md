@@ -23,8 +23,8 @@ We'll set this up to create a command called `]require`. When called, `]require`
 - We call ours `MyUCmdsInfo/PMSCmds.dyalog`. Its _complete_ contents are below.
 
 ```
-:Namespace PMSCmds
-⍝ Custom user command ](PMSCmds.)require
+:Namespace PMS
+⍝ Custom user command
 
     ⎕IO←0 ⋄ ⎕ML←1
 
@@ -32,7 +32,7 @@ We'll set this up to create a command called `]require`. When called, `]require`
       r←⎕NS¨1⍴⊂⍬
     ⍝ Name, group, short description and parsing rules
       r.Name←⊂'require'
-      r.Group←⊂'PMSCmds'
+      r.Group←⊂'PMS'
       r[0].Desc←'Help text to appear for ] -?? and ]MYCMDS -?'
       r.Parse←⊂'' ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
@@ -41,23 +41,22 @@ We'll set this up to create a command called `]require`. When called, `]require`
       :Select cmd
       :Case 'require'
           r←⍬
-        ⍝ There are 4 levels of calls before function Run! We want the ns that called ]require
-          CALLER←⊃(4↓⎕RSI),#     
+          CALLER←⊃(4↓⎕RSI),#      ⍝ There are 4 levels of calls before Run!
+
           :IF 0=⎕SE.⎕NC 'require'
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
               r←⊂'Loaded "require" into ⎕SE'
           :ENDIF
-          :IF  0=≢'(^| )⎕SE( |$)'⎕S 0⊣CALLER.⎕PATH
+          :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣CALLER.⎕PATH
               CALLER.⎕PATH,⍨←'⎕SE '
               r←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
           :ENDIF
-          :IF 0=≢ r
-              r←⊂']require was already active'
+
+          :IF 0≠≢input~' '
+              r←((⍕CALLER),'.[LIB]') ⎕SE.require  (≠∘' '⊆⊢)input
+              →0
           :ENDIF
-          :IF  0=≢'(^| )⎕SE( |$)'⎕S 0⊣CALLER.⎕PATH
-              CALLER.⎕PATH,⍨←'⎕SE '
-              r←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
-          :ENDIF
+
           :IF 0=≢r
               r←⊂']require was already active'
           :ENDIF
@@ -71,15 +70,23 @@ We'll set this up to create a command called `]require`. When called, `]require`
           r←⊂']require loads ⎕SE.require (as needed) and adds to ⎕PATH in current namespace (if needed).'
           r,←⊂' Useful to ensuring that current namespace can find function require.'
           r,←⊂' Function require:'
-          r,←⊂'    Used to verify that objects are in the current namespace or the ⎕PATH.'
-          r,←⊂'    If not, loads from requested workspace, directory, or file.'
-          r,←⊂'    See documentation in require.help or type:'
-          r,←⊂'      require ''-HELP'' '
-          r,←⊂']require executes:'
-          r,←⊂'   ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
+          r,←⊂'     Is used to verify that objects are in the current namespace or the ⎕PATH.'
+          r,←⊂'     If not, loads them from requested workspace, directory, or file.'
+          r,←⊂'     For HELP, type:'
+          r,←⊂'         ]??require'
+          r,←⊂'     OR'
+          r,←⊂'         require ''-HELP'' '
+          r,←⊂']require (with no arguments)'
+          r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
+          r,←⊂']require  pkg1  pkg ...'
+          r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
           r←↑r
       :EndSelect
-    ∇
+       ⎕←level
+      :IF level≥1
+           ⎕SE.require '-HELP'
+       :ENDIF
+      ∇
 
 :EndNamespace
 ```
