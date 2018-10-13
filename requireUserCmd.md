@@ -4,9 +4,11 @@
 This makes sure that `require` is loaded into `⎕SE` so it's available for the entire session.
 (This can't apparently be used to set `⎕PATH`, hence step #2).
 1. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog`.
-We'll set this up to create a command called `]require`. When called, `]require` does two things:
+We'll set this up to create a command called `]require`. When called with no args, `]require` does two things:
    - Ensures that function `require` is copied into the `⎕SE` namespace, if _not_ already there.
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
+1. ]require may also be used with args. This simply runs ⎕SE.require _monadically_, splitting the right argument into 1 or more strings, and returning explicitly the (normally shy) output:<br>
+   `]require pkg1 pkg2 ... pkgN`
 
 ### Material to enable easy use of `require` during a Dyalog APL session.
 #### Add this fragment to `MyUCmdsInfo/Setup.dyalog`
