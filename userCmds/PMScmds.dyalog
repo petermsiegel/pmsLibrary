@@ -6,7 +6,7 @@
     ∇ r←List
       r←⎕NS¨2⍴⊂⍬
     ⍝ Name, group, short description and parsing rules
-      r.Name←'require' 'dc' 
+      r.Name←'require' 'dc'
       r.Group←⊂'PMScmds'
       r[0].Desc←']require: manage packages, loading from workspaces or dyalog files as required.'
       r[1].Desc←']dc:      run a big integer desk calculator.'
@@ -14,7 +14,7 @@
     ∇
 
     ∇ r←Run(cmd input);CALLER
-      CALLER←##.THIS 
+      CALLER←##.THIS
 
       :Select cmd
       :Case 'require'
@@ -23,7 +23,7 @@
           :IF checkRequire
               r,←⊂'Loaded fn "require" into ⎕SE'
           :ENDIF
-          
+
           :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣CALLER.⎕PATH
               CALLER.⎕PATH,⍨←'⎕SE '
               r,←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
@@ -39,7 +39,7 @@
           :ENDIF
           r←↑r
       :Case 'dc'
-          {}⎕SE.require 'bigInteger'
+            {}'⎕SE.[LIB]'⎕SE.require 'bigInteger'    ⍝ We'll execute from session
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''
@@ -94,4 +94,3 @@
         :ENDIF
       ∇
 :EndNamespace
-
