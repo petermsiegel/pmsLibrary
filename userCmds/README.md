@@ -23,5 +23,5 @@ We'll set this up to create a command called `]require`. When called with no arg
 ```
 
 #### Create a new user command in MyUCmdsInfo directory. 
-- We call ours `MyUCmdsInfo/PMScmds.dyalog`. See __pmsLibrary/PMScmds.dyalog__.
+- We call ours `MyUCmdsInfo/PMScmds.dyalog`. See __pmsLibrary/userCmds/PMScmds.dyalog__.
 
