@@ -1,4 +1,4 @@
-:Namespace PMSCmds
+:Namespace PMScmds
 ⍝ Custom user command
 
     ⎕IO←0 ⋄ ⎕ML←1
@@ -42,13 +42,17 @@
     ∇ r←level Help cmd
       :Select cmd
       :Case 'require'
+          :IF 0=⎕SE.⎕NC 'require'
+              ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
+          :ENDIF
+
           r←⊂']require loads ⎕SE.require (as needed) and adds to ⎕PATH in current namespace (if needed).'
           r,←⊂' Useful to ensuring that current namespace can find function require.'
           r,←⊂' Function require:'
           r,←⊂'     Is used to verify that objects are in the current namespace or the ⎕PATH.'
           r,←⊂'     If not, loads them from requested workspace, directory, or file.'
           r,←⊂'     For HELP, type:'
-          r,←⊂'         ]??require    OR  ]require -HELP'
+          r,←⊂'         ]??require'
           r,←⊂'     OR'
           r,←⊂'         require ''-HELP'' '
           r,←⊂']require (with no arguments)'
