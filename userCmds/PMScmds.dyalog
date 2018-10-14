@@ -7,7 +7,7 @@
       r←⎕NS¨1⍴⊂⍬
     ⍝ Name, group, short description and parsing rules
       r.Name←⊂'require'
-      r.Group←⊂'PMS'
+      r.Group←⊂'PMScmds'
       r[0].Desc←'Help text to appear for ] -?? and ]require -?'
       r.Parse←⊂'' ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
@@ -16,12 +16,13 @@
       :Select cmd
       :Case 'require'
           r←⍬
-          CALLER←⊃(4↓⎕RSI),#      ⍝ There are 4 levels of calls before Run!
+          CALLER←⊃(4↓⎕RSI),#      ⍝ There are 4 levels of calls before Run! Aka ##.this?
 
           :IF 0=⎕SE.⎕NC 'require'
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
               r←⊂'Loaded fn "require" into ⎕SE'
           :ENDIF
+          
           :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣CALLER.⎕PATH
               CALLER.⎕PATH,⍨←'⎕SE '
               r←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
@@ -41,8 +42,8 @@
 
     ∇ r←level Help cmd
       :Select cmd
-      :Case 'require'
-          :IF 0=⎕SE.⎕NC 'require'
+      :Case 'require'         ⍝ Be sure require is loaded.
+          :IF 0=⎕SE.⎕NC 'require'  
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
           :ENDIF
 
