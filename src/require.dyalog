@@ -6,7 +6,7 @@
    ⍝ Help info in:
    ⍝     /Users/<USER>/MyDyalogLibrary/require/require.help
    ⍝ Grab filedir from SALT comment line at end of this function.
-     ⍵≡'-HELP':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
+     ((819⌶)∊⍵)≡'-help':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
