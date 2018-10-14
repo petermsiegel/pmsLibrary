@@ -498,8 +498,8 @@
 
       plus←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          sa=0:a                           ⍝ optim: ⍺+0 → ⍺
-          sw=0:w                           ⍝ optim: 0+⍵ → ⍵
+          sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
+          sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
           sa=sw:sa(ndnZ 0,+⌿a mix w)       ⍝ 5 + 10 or ¯5 + ¯10
           sa<0:sw w minus 1 a              ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
           sa a minus 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
@@ -887,7 +887,7 @@
 
     eBIHFAILED←'BI∆HERE failed: unable to run compiled BI code'
     eBIHBADCALL←'BI∆HERE not called from active traditional fn'
-    ∇ callback←BI∆HERE;callerCode;callerNm;cloneNm;opt;pat;RE∆GET;⎕TRAP 
+    ∇ callback←BI∆HERE;callerCode;callerNm;cloneNm;opt;pat;RE∆GET;⎕TRAP
       ⍝ See BI∆HERE_HELP
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
       (2>≢⎕SI)err eBIHBADCALL
