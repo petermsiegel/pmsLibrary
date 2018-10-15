@@ -39,7 +39,8 @@
           :ENDIF
           r←↑r
       :Case 'dc'
-            {}'⎕SE.[LIB]'⎕SE.require 'bigInteger'    ⍝ We'll execute from session
+          ⍝ We'll execute from # because <dc> in bigInt has a renderer-- ⎕SE is not allowed to "own" a renderer
+            {}'#.[LIB]'⎕SE.require 'bigInt'   
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''

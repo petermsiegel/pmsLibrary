@@ -1,0 +1,18 @@
+# 
+UCMDS=$HOME/MyUcmds
+LIB=$HOME/MyDyalogLibrary/pmsLibrary/userCmds
+
+echo "Copying files: PMScmds and Setup"
+echo "        from:  $LIB" 
+echo "        to:    $UCMDS"
+
+
+chmod +w $UCMDS/PMScmds.dyalog $UCMDS/Setup.dyalog
+
+   cp $LIB/PMScmds.dyalog $UCMDS/PMScmds.dyalog
+   cp $LIB/Setup.dyalog   $UCMDS/Setup.dyalog
+
+chmod -w $UCMDS/PMScmds.dyalog $UCMDS/Setup.dyalog
+
+echo 'PMScmds and Setup are now read only in directory' $UCMDS
+
