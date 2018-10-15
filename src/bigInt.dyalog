@@ -875,7 +875,8 @@
      
       html←'⍞ALERT⍞'⎕R(fmt FMTjs msg)⊣html
                                                   ⍝ Run in own thread so alert window stays open after fn exit.
-      {'ignored'⎕WC'HTMLRenderer'⍵('Size'(0 0))}&html  ⍝ Size (0 0): makes extra renderer window invisible
+      ns←#.⎕NS ''                                 ⍝ Run renderer in anonymous namespace in user space-- don't clutter user space...
+      ns.{'ignored'⎕WC'HTMLRenderer'⍵('Size'(0 0))}&html  ⍝ Size (0 0): makes extra renderer window invisible
     ∇
 
       BIB←{

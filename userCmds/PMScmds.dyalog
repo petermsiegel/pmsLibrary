@@ -39,8 +39,9 @@
           :ENDIF
           r←↑r
       :Case 'dc'
-          ⍝ We'll execute from # because <dc> in bigInt has a renderer-- ⎕SE is not allowed to "own" a renderer
-            {}'#.[LIB]'⎕SE.require 'bigInt'   
+          ⍝ Execute in ⎕SE to avoid cluttering user space (but leave it there for efficiency)
+          ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
+            {}'⎕SE.[LIB]'⎕SE.require 'bigInt'   
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''
