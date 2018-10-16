@@ -1,4 +1,5 @@
-∇r←{a} (∆IO iotaIO) n
+∇r←{a} (∆IO iotaIO) n;⎕IO
+  ⎕IO←0
  ⍝  r ← {∆IO} (∆IO iotaIO) n
    :IF 0=⎕NC 'a' 
      a←⊢
