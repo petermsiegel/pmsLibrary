@@ -170,11 +170,6 @@
     BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12
         OFL←{⌊(2*⍵)÷RX*2}(⎕FR=1287)⊃53 93
 
-   ⍝ For ∆ ∆Num ∆BigNum. If 1, we'll use ∆BigNum with ⎕FR←1287 on integer constants like 2E300,
-   ⍝ converting them accurately to 2 followed by 300 zeroes. Otherwise, binary errors creep in!
-
-    USE_FLOATREP_1287←1
-
   ⍝ Data field (unsigned) constants
     ZEROd←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
     ONEd←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
@@ -297,9 +292,6 @@
       ⍝
       ⍝ ∆: Convert any external-format BI (BIx) to a BIi, internal-format BI, sign data pair.
 
-      ⍝⍝⍝ See:   USE_FLOATREP_1287←0 for handling exponential APL vars like 2E100.
-      ⍝  USE_FLOATREP_1287← [ 1 | 0]
-
       ∆←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
@@ -312,19 +304,29 @@
           ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
           err eBADBI
       }
-    ⍝ ∆Num: Convert an APL integer into a BIi
-      ∆Num←{
-          USE_FLOATREP_1287:∆BigNum ⍵
-          (⍵≠⌊⍵):err eBADBI
-          (×⍵)(zro RX⊥⍣¯1⊣|⍵)
-      }
-      ⍝ ∆BigNum: Allow user to import a very large number requiring a decimal float (⎕FR=1287)
-      ⍝  Used only if USE_FLOATREP_1287← 1:  almost doubles to execution time...
+      ⍝ ∆Num: Convert an APL integer into a BIi
+      ⍝ ∆Num and ∆BigNum merged-- ∆Num was inaccurate.
+      ⍝
+      ⍝ Converts APL numbers of form:
+      ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
+      ⍝
+      ⍝ ALGORITHM B:
+      ⍝ Slower than ALGORITHM A (below)
       ⍝ Usage:   ?BIX ∆BigNum 1E100   ←→   ?BIX '1',99⍴'0'
-      ∆BigNum←{⎕FR←1287
-          (⍵≠⌊⍵):err eBADBI
-          (×⍵)(zro RX⊥⍣¯1⊣|⍵)
-      }
+        ∆Num←{⎕FR←1287
+            (⍵≠⌊⍵):err eBADBI
+            (×⍵)(zro RX⊥⍣¯1⊣|⍵)
+        }
+      ⍝ ALGORITHM A:  NOT COMPLETE
+    ⍝   ∆Num←{
+    ⍝       (⍵≠⌊⍵):err eBADBI
+    ⍝       s w←(×⍵)(⍕|⍵)
+    ⍝       ~1∊'Ee'∊w:⍵
+    ⍝       l r←(≠∘' '⊆⊢)⊃'^([\d.]+)[eE](¯?\d+)$'⎕S'\1 \2'⊣w
+    ⍝       p←(l⍳'.')-≢l
+    ⍝       ('¯'⍴⍨s=¯1),(l~'.'),(0⌈p+⍎r)⍴'0'
+    ⍝   }
+
 
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
       ∆str←{
