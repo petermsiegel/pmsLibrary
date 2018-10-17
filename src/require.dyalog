@@ -10,7 +10,6 @@
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
-     CallerR CallerN←(⊃⎕RSI)(⊃⎕NSI)    ⍝ CallerR/N ("caller"): Where was <require> called from?
 
 
    ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
@@ -24,12 +23,21 @@
 
   ⍝ Decode ⍺ → [StdLibStr CODE]
      ⍺←⎕NULL
+  ⍝ CallerR/N ("caller"): Where was <require> called from?
+  ⍝   If the first option in ⍺ is 'CALLER', then we get the Caller (NS) as 2nd item.
+  ⍝   Otherwise from the stack.
+     options CallerR CallerN←{
+         0=≢⍵:⍵(1⊃⎕RSI)(1⊃⎕NSI)
+         'CALLER'≢⊃⍵:⍵(1⊃⎕RSI)(1⊃⎕NSI)
+         (2↓⍵)(C)(⍕C←1⊃⍵)
+     }⍺
      StdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
+         0=≢⍵:⎕NULL 0
          9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:   #  [2]
          0=1↑0⍴⊃⍵:⎕NULL ⍵              ⍝  ⍺:   2
          1=≢⊆⍵:⍵ 0                     ⍝  ⍺:  'test'    OR  ⎕NULL (⍺ omitted)
          ⍵                             ⍝  ⍺:  'test' 5
-     }⍺
+     }options
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)  ⍝ Do not override DEBUG if set to 1.
 
   ⍝ DECODE ⍵ → list of packages (possibly 0-length), each package a string (format below)
@@ -49,8 +57,11 @@
              9.1 9.2∊⍨nc←CallerR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
              2.1≠nc:○○○                      ⍝ If we reached here, ⍵ must be a string.
              0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
-             pat2←'^' '',¨⊂'\Q',∆LIB,'\E'    ⍝ Handle... ⎕SE.[LIB], #.[LIB], and [LIB].mysub
-             name←pat2 ⎕R topDef DefaultLibName⊣val
+
+           ⍝ Handle (⎕SE or #).[LIB], [LIB].mysub and [CALLER], calling env.
+             pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),⊂'\Q[CALLER]\E'   
+        
+             name←pat2 ⎕R topDef DefaultLibName CallerN⊣val
              nc←CallerR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
              9.1=nc:{⍵(⍕⍵)}(CallerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
              0=nc:CallerN,'.',name             ⍝ Assume name refers to potential namespace...
@@ -285,6 +296,7 @@
                  ⍺←'PATH'
                  0=≢⍵:''                                ⍝ none found. pathEntry exhausted: failure
                  pathEntry←⊃⍵
+                 pathInfo←⍺,' ',⍕pathEntry
 
 ⍝:DBG           _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathEntry
 
@@ -298,18 +310,18 @@
                ⍝⍝       (A) name inNs pathEntry:'name∊',⍺⊣PathNewR,⍨←pathEntry
                ⍝⍝ --------------------------------------------------------------------------------------
 
-                 {0≠≢group}and{pathEntry inNs⍨dunder group name}1:'group.name[.dyalog]∊',⍺
-                 {0=≢group}and{pathEntry inNs⍨dunder name}1:'name[.dyalog]∊',⍺
-                 {0=≢name}and{pathEntry inNs⍨dunder wsN}0:'ws∊',⍺
+                 {0≠≢group}and{pathEntry inNs⍨dunder group name}1:'group.name[.dyalog]∊',pathInfo
+                 {0=≢group}and{pathEntry inNs⍨dunder name}1:'name[.dyalog]∊',pathInfo
+                 {0=≢name}and{pathEntry inNs⍨dunder wsN}0:'ws∊',pathInfo
                  {wsN inNs pathEntry}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
                      ⍵ inNs pathEntry,'.',wsN                ⍝ wsN found and group/name found in pathEntry.wsN: success
-                 }group with name:'ws∊',⍺
+                 }group with name:'ws∊',pathInfo
 
-                 name inNs pathEntry:'name∊',⍺               ⍝ Name found: Success.
-                 group≡'':∇ 1↓⍵                         ⍝ Not found: try another pathEntry element
+                 name inNs pathEntry:'name∊',pathInfo        ⍝ Name found: Success.
+                 group≡'':∇ 1↓⍵                              ⍝ Not found: try another pathEntry element
                  ~{(group with name)inNs pathEntry}and{9=stdLibR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathEntry element
-                 PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group  ⍝ group.name found: ...
-                 'group→',⍺                             ⍝ ...         success
+                 PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group ⍝ group.name found: ...
+                 'group→',pathInfo                           ⍝ ...         success
              }
 
           ⍝ Go through pathEntry, next item in PathNewR. If found, return success.

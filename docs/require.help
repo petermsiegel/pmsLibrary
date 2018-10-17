@@ -27,10 +27,10 @@
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________                                   
 
-   Syntax 1:   list1 list2     ← [[stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
-               namespaceRef    ←  [stdLib] CODE:2 ¯2    ∇  ...
-      namespaceRef list1 list2 ←  [stdLib] CODE:4 ¯4    ∇  ...
-   Syntax 2:   namespaceRef    ←  [stdLib]              ∇  [⍬ | '']
+   Syntax 1:   list1 list2     ← [['CALLER' ns] [stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
+               namespaceRef    ←  ['CALLER' ns] [stdLib] CODE:2 ¯2    ∇  ...
+      namespaceRef list1 list2 ←  ['CALLER' ns] [stdLib] CODE:4 ¯4    ∇  ...
+   Syntax 2:   namespaceRef    ←  ['CALLER' ns] [stdLib]              ∇  [⍬ | '']
    Syntax 3:   ⍬               ←                        ∇  '-HELP'
    
 Note: <require> has been developed in OS X. Use of environment variables has not been
@@ -57,8 +57,10 @@ ________________________________________________________________________________
    ∘ stdLib is a namespace reference or name (existing or to be created).
      '' implies a reference to <top>, the top-level in which require's caller operates, either # or ⎕SE.
    ∘ If missing, stdLib is <top>.⍙⍙.require (<top> defined as above).
-   ∘ [LIB] as a prefix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
+   ∘ [LIB] as a prefix or infix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
      e.g. '[LIB].math' is  '#.⍙⍙.require.math' if require's caller is in # or subdirectory.
+   ∘ [CALLER] as a prefix or infix to stdLib is the name of the namespace that <require> was called from--
+     whether specified as an option ('CALLER' callerNs) or implicitly.
    ∘ Updates caller's ⎕PATH to provide access to the packages, dropping any
      path namespaces that don't exist. ⎕PATH only ensures functions and operators
      are found. See Syntax 2 for how to specify a library, e.g. to access a class etc.
@@ -121,6 +123,14 @@ ________________________________________________________________________________
 
  Syntax 3: Help information. 
            Right argument is '-HELP'
+_____________________________________________________________________________________________________________
+
+>>> FOR ALL SYNTAX FORMS, if the first two arguments in ⍺ are:
+      ['CALLER' ns]
+    then the calling namespace is set from <ns> (which must be a namespace reference, not string),
+    rather than from the calling environment. Use in the user command ]require.
+    Example: (Considers namespace <myCaller> as where pkg1 and pkg2 are run...
+       'CALLER' myCaller '[CALLER].[LIB]' require pkg1 pkg2
 _____________________________________________________________________________________________________________
    ∘ Displays help information (from require/documentation.txt).
 _____________________________________________________________________________________________________________

@@ -1,4 +1,4 @@
-:Namespace PMScmds
+﻿:Namespace PMScmds
 
  ⍝  Custom user commands
     ⎕IO←0 ⋄ ⎕ML←1
@@ -30,7 +30,7 @@
           :ENDIF
 
           :IF 0≠≢input~' '
-              r←((⍕CALLER),'.[LIB]') ⎕SE.require  (≠∘' '⊆⊢)input
+              r←'CALLER' CALLER ((⍕CALLER),'.[LIB]') ⎕SE.require  (≠∘' '⊆⊢)input
               →0
           :ENDIF
 
