@@ -172,7 +172,7 @@
 
    ⍝ For ∆ ∆Num ∆BigNum. If 1, we'll use ∆BigNum with ⎕FR←1287 on integer constants like 2E300,
    ⍝ converting them accurately to 2 followed by 300 zeroes. Otherwise, binary errors creep in!
-   
+
     USE_FLOATREP_1287←1
 
   ⍝ Data field (unsigned) constants
@@ -520,8 +520,8 @@
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
      
-          sa≠sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5-¯3 → 3+3 ; ¯5-3 → -(5+3)
-          a ltU w:sw(nupZ-⌿dck w mix a)        ⍝ 3-5 →  -(5-3)
+          sa≠sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
+          a ltU w:(-sw)(nupZ-⌿dck w mix a)      ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
     subtract←minus
