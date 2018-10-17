@@ -307,26 +307,14 @@
       ⍝ ∆Num: Convert an APL integer into a BIi
       ⍝ ∆Num and ∆BigNum merged-- ∆Num was inaccurate.
       ⍝
-      ⍝ Converts APL numbers of form:
+      ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
-      ⍝
-      ⍝ ALGORITHM B:
-      ⍝ Slower than ALGORITHM A (below)
-      ⍝ Usage:   ?BIX ∆BigNum 1E100   ←→   ?BIX '1',99⍴'0'
-        ∆Num←{⎕FR←1287
-            (⍵≠⌊⍵):err eBADBI
-            (×⍵)(zro RX⊥⍣¯1⊣|⍵)
-        }
-      ⍝ ALGORITHM A:  NOT COMPLETE
-    ⍝   ∆Num←{
-    ⍝       (⍵≠⌊⍵):err eBADBI
-    ⍝       s w←(×⍵)(⍕|⍵)
-    ⍝       ~1∊'Ee'∊w:⍵
-    ⍝       l r←(≠∘' '⊆⊢)⊃'^([\d.]+)[eE](¯?\d+)$'⎕S'\1 \2'⊣w
-    ⍝       p←(l⍳'.')-≢l
-    ⍝       ('¯'⍴⍨s=¯1),(l~'.'),(0⌈p+⍎r)⍴'0'
-    ⍝   }
-
+      ⍝ These must be in the range of decimal integers (up to +/- 1E6145)
+      ⍝ Usage:   ?BIX ∆Num 1E100   ←→   ?BIX '1',100⍴'0'
+      ∆Num←{⎕FR←1287
+          ⍵≠⌊⍵:err eBADBI
+          (×⍵)(zro RX⊥⍣¯1⊣|⍵)
+      }
 
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
       ∆str←{
