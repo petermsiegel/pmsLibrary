@@ -1,5 +1,5 @@
 ﻿:namespace bigInt
-    VERBOSE←1
+    VERBOSE←0
     ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
 
     ∇ {_}←loadHelp
@@ -170,6 +170,11 @@
     BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12
         OFL←{⌊(2*⍵)÷RX*2}(⎕FR=1287)⊃53 93
 
+   ⍝ For ∆ ∆Num ∆BigNum. If 1, we'll use ∆BigNum with ⎕FR←1287 on integer constants like 2E300,
+   ⍝ converting them accurately to 2 followed by 300 zeroes. Otherwise, binary errors creep in!
+   
+    USE_FLOATREP_1287←1
+
   ⍝ Data field (unsigned) constants
     ZEROd←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
     ONEd←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
@@ -291,25 +296,30 @@
       ⍝      Dyadic:  Returns for ⍺ ⍵, (sign data)(sign data).
       ⍝
       ⍝ ∆: Convert any external-format BI (BIx) to a BIi, internal-format BI, sign data pair.
+
+      ⍝⍝⍝ See:   USE_FLOATREP_1287←0 for handling exponential APL vars like 2E100.
+      ⍝  USE_FLOATREP_1287← [ 1 | 0]
+
       ∆←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
      
           ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
-          1=≢⍵:∆num ⍵                  ⍝ ⍵ is a single APL signed integer
+          1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
      
           ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
           ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
           ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
           err eBADBI
       }
-      ⍝ ∆num: Convert an APL integer into a BIi
-      ∆num←{
+    ⍝ ∆Num: Convert an APL integer into a BIi
+      ∆Num←{
+          USE_FLOATREP_1287:∆BigNum ⍵
           (⍵≠⌊⍵):err eBADBI
           (×⍵)(zro RX⊥⍣¯1⊣|⍵)
       }
       ⍝ ∆BigNum: Allow user to import a very large number requiring a decimal float (⎕FR=1287)
-      ⍝ Not used by ∆-- almost doubles to execution time...
+      ⍝  Used only if USE_FLOATREP_1287← 1:  almost doubles to execution time...
       ⍝ Usage:   ?BIX ∆BigNum 1E100   ←→   ?BIX '1',99⍴'0'
       ∆BigNum←{⎕FR←1287
           (⍵≠⌊⍵):err eBADBI
