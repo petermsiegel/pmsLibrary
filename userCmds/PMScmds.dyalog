@@ -30,7 +30,7 @@
           :ENDIF
 
           :IF 0≠≢input~' '
-              r←'CALLER' CALLER ((⍕CALLER),'.[LIB]') ⎕SE.require  (≠∘' '⊆⊢)input
+              r←'CALLER' CALLER '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
               →0
           :ENDIF
 
