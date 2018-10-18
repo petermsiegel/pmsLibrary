@@ -7,7 +7,7 @@
    ⍝     /Users/<USER>/MyDyalogLibrary/require/require.help
      ((819⌶)∊⍵)≡'-help':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help'
 
-     DEBUG←1                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
+     DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
 
 

@@ -39,9 +39,10 @@
           :ENDIF
           r←↑r
       :Case 'dc'
-          ⍝ Execute in ⎕SE to avoid cluttering user space (but leave it there for efficiency)
+          checkRequire
+          ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}('CALLER' CALLER)'⎕SE.[LIB]'⎕SE.require 'bigInt'   
+            {}('CALLER' CALLER)'#.[LIB]'⎕SE.require 'bigInt'   
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''
