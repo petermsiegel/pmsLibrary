@@ -30,7 +30,8 @@
           :ENDIF
 
           :IF 0≠≢input~' '
-              r←('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
+            ⍝ Force the output into tabular (row) format (from simple vector of vectors)
+              r←⍪('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
               →0
           :ENDIF
 
