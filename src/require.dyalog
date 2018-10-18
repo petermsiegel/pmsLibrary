@@ -5,10 +5,9 @@
 
    ⍝ Help info in:
    ⍝     /Users/<USER>/MyDyalogLibrary/require/require.help
-   ⍝ Grab filedir from SALT comment line at end of this function.
-     ((819⌶)∊⍵)≡'-help':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help',⍨0⊃⎕NPARTS⊃'§(.*?)§'⎕S'\1'⊣1↑¯2↑⎕NR 0⊃⎕XSI
+     ((819⌶)∊⍵)≡'-help':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help'
 
-     DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
+     DEBUG←1                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
 
 
@@ -21,15 +20,23 @@
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
-  ⍝ Decode ⍺ → [StdLibStr CODE]
      ⍺←⍬
 
-  ⍝ options:   [('CALLER' namespace)][stdlibNS|stdlibNSRef][code]
-  ⍝
-  ⍝ CallerR/N ("caller"): Where was <require> called from?
-  ⍝   If the first option in ⍺ is 'CALLER', then we get the Caller (NS) as 2nd item.
-  ⍝   Otherwise from the stack.
-     options CallerR CallerN←{
+   ⍝ Decode ⍺ → opt1 opt2 opt3  in any order
+   ⍝        opt1:  ('CALLER' ns)
+   ⍝               ns: a namespace ref
+   ⍝               "Pass the caller namespace; if omitted, from the stack via ⎕RSI/⎕NSI."
+   ⍝        opt2:   StdLib
+   ⍝               stdLib: the name or reference for the std library namespace
+   ⍝               "Pass the standard library to use, by name or reference, else #.⍙⍙.require or ⎕SE.⍙⍙.require.
+   ⍝        opt3:   code
+   ⍝               code: 0 1 2 3 ¯1 ¯2 ¯3, where 1 2 3 are options (0→1), ¯1 signifies DEBUG mode.
+   ⍝               "code indicates what to return at the end. 1 (or 0) shyly provides basic status info on where
+   ⍝                each package was found. ¯1 provides additional debugging info, explicitly:
+   ⍝                   1: returns (status info)
+   ⍝                   2: returns (the current std library namespace).
+   ⍝                   3: returns (current std library namespace) (status info)
+     scan1←{
          (2=|≡⍵)∧'CALLER'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
          pairs←⍵/⍨k←(2=|≡¨⍵)∧(2=≢¨⍵)
          keep←⍵/⍨~k
@@ -38,16 +45,17 @@
          1<≢pairs:⎕SIGNAL/'require: only one CALLER option allowed' 11
          c←(⊃⌽⊃pairs)
          keep c(⍕c←⊃⌽⊃pairs)
-     }⍺
-
-     StdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
+     }
+     scan2←{
          0=≢⍵:⎕NULL 0
-         9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:   #  [2]
-         0=1↑0⍴⊃⍵:⎕NULL ⍵              ⍝  ⍺:   2
-         1=≢⊆⍵:⍵ 0                     ⍝  ⍺:  'test'    OR  ⎕NULL (⍺ omitted)
-         ⍵                             ⍝  ⍺:  'test' 5
-     }options
-     DEBUG CODE←(DEBUG∨CODE<0)(|CODE)  ⍝ Do not override DEBUG if set to 1.
+         9=⎕NC'_'⊣_←⊃⍵:⍵ 0
+         0=1↑0⍴∊⍵:⎕NULL 1⍴∊⍵
+         1=≢⊆⍵:⍵ 0
+         ⍵
+     }
+     options CallerR CallerN←scan1 ⍺
+     StdLibStr CODE←2⍴scan2 options
+     DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
 
   ⍝ DECODE ⍵ → list of packages (possibly 0-length), each package a string (format below)
      pkgs←⊆⍵
@@ -55,17 +63,17 @@
      stdLibR stdLibN←{
          returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CallerR.⎕NS'')⍵}
          top←'⎕SE' '#'⊃⍨'#'=1↑CallerN          ⍝ what's our top level?
-         topDef←top,'.',DefaultLibName       ⍝ the default if there's no default library
+         topDef←top,'.',DefaultLibName         ⍝ the default if there's no default library
          ⍵≡⎕NULL:returning topDef
 
-         ∆LIB←'[LIB]'                         ⍝ Possible special prefix to ⍵...
+         ∆LIB←'[LIB]'                          ⍝ Possible special prefix to ⍵...
          0::⎕SIGNAL/('require DOMAIN ERROR: Default library name invalid: ',{0::⍕⍵ ⋄ ⍕⍎⍵}⍵)11
          returning{
-             val←(⍕⍵)~' '                    ⍝ Set val. If ⍵ is ⎕SE or #, val is '⎕SE' or '#'
-             (⊂,val)∊'⎕SE'(,'#'):(⍎val)val   ⍝ Matches:  ⎕SE, '⎕SE', #, '#'
+             val←(⍕⍵)~' '                      ⍝ Set val. If ⍵ is ⎕SE or #, val is '⎕SE' or '#'
+             (⊂,val)∊'⎕SE'(,'#'):(⍎val)val     ⍝ Matches:  ⎕SE, '⎕SE', #, '#'
              9.1 9.2∊⍨nc←CallerR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
-             2.1≠nc:○○○                      ⍝ If we reached here, ⍵ must be a string.
-             0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
+             2.1≠nc:○○○                        ⍝ If we reached here, ⍵ must be a string.
+             0=≢val:(⍎top)top                  ⍝ Null (or blank) string? Use <top>
 
            ⍝ Handle (⎕SE or #).[LIB], [LIB].mysub and [CALLER], calling env.
              pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),⊂'\Q[CALLER]\E'
@@ -492,7 +500,6 @@
 
      succ←0=≢⊃⌽statusList
      succ∧CODE∊3:_←{⍵}TRACE(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
-
      ⋄ CODE∊3:(⊂stdLibR),statusList               ⍝           FAIL: non-shy
      succ∧CODE∊2:stdLibR                          ⍝ CODE 2:   SUCC: non_shy
 
