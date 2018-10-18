@@ -6,7 +6,7 @@
       ns←⎕NS ⎕THIS
       ns.Default←⍬
     ∇
-    ∇ ns←{def}∆DICT pairs
+    ∇ ns←{def}∆TINYDICT pairs
       ns←⎕THIS.New
       :If 0≠⎕NC'def'
           ns.Default←def
@@ -15,8 +15,7 @@
           ns.(Keys Vals)←↓⍉↑pairs
       :EndIf
     ∇
-    ∆TINYDICT←∆DICT
-    _←##.⎕FX '⎕THIS' '∆DICT' ⎕R (⍕⎕THIS)'∆TINYDICT' ⊣⎕NR '∆DICT'
+    _←##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS) ⊣⎕NR '∆TINYDICT'
 
     ⎕IO ⎕ML←0 1
     Keys Vals←⍬ ⍬

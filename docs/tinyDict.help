@@ -2,12 +2,16 @@
   ⍝ A tinyDict is an ordered dictionary, with items stored in the order entered;
   ⍝ an item whose value is replaced maintains its original ordered position. 
   ⍝ (Order can be changed only by deleting and re-entering an item via Del and Put/1).
+  ⍝  NB: ∆TINYDICT is promoted to the same namespace as <tinyDict>, when it's ⎕FIXED.
+  ⍝      a←∆TINYDICT pairs 
+  ⍝  is comparable to (regular) dict function ∆DICT, which is similarly promoted.
+  ⍝  See also:  (namespace) dict
   ⍝
   ⍝ dict ← tinyDict.New
   ⍝     Creates a dictionary with no values and Default←⍬
   ⍝
-  ⍝ dict ← {default} tinyDict.∆DICT pairs
-  ⍝ dict ← {default} ∆TINYDICT pairs   ⍝ promoted to directory containing tinyDict
+  ⍝ dict ← {default} ∆TINYDICT pairs   
+  ⍝ promoted to directory containing tinyDict
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
   ⍝     If no default is specified, Default is undefined.
   ⍝
