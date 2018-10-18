@@ -4,7 +4,7 @@
 
     ∇ ns←New
       ns←⎕NS ⎕THIS
-      ns.⎕DF 'tinyDict dictionary'
+      ns.⎕DF 'tinyDict[]'
       ns.Default←⍬
     ∇
     ∇ ns←{def}∆TINYDICT pairs
