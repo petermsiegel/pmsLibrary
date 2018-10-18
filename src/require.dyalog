@@ -3,9 +3,8 @@
 
      ⎕IO ⎕ML←0 1
 
-   ⍝ Help info in:
-   ⍝     /Users/<USER>/MyDyalogLibrary/require/require.help
-     ((819⌶)∊⍵)≡'-help':⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'../docs/require.help'
+   ⍝ Help info hard wired with respect to cur directory...
+     ((819⌶)∊⍵)≡'-help':_←⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'./pmsLibrary/docs/require.help'
 
      DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)

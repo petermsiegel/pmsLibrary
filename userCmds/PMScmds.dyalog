@@ -31,7 +31,8 @@
 
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
-              r←⍪⍪¨('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
+              r←('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
+              r←⍪⍪¨r
               →0
           :ENDIF
 
@@ -50,10 +51,8 @@
       :EndSelect
     ∇
 
-    ∇ r←level Help cmd
-
+    ∇ {r}←level Help cmd
       checkRequire
-
       :Select cmd
       :Case 'require'         ⍝ Be sure require is loaded.
          :IF level<1
@@ -70,10 +69,9 @@
             r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
             r,←⊂']require  pkg1  pkg ...'
             r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
-            r←↑r
          :Else
-            r←']require -HELP launched in full screen.'
-            ⎕SE.require '-HELP'
+            {}⎕SE.require '-HELP'
+            r←⊂']require -HELP launched in full screen.'
          :ENDIF
       :Case 'dc'
             r←⊂']dc interactively executes APL mathematical'
@@ -88,13 +86,16 @@
             :IF level≥1
                 r,←⊂'For more information, see the <bigInteger> package and bi.HELP.'
             :ENDIF
-            r←↑r
       :EndSelect
+      r←↑r
       ∇
 
       ∇{checked}←checkRequire
         :IF checked←0=⎕SE.⎕NC 'require'
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
+        :ENDIF
+        :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣#.⎕PATH
+              #.⎕PATH,⍨←'⎕SE '
         :ENDIF
       ∇
 :EndNamespace
