@@ -41,7 +41,7 @@
       :Case 'dc'
           ⍝ Execute in ⎕SE to avoid cluttering user space (but leave it there for efficiency)
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}'⎕SE.[LIB]'⎕SE.require 'bigInt'   
+            {}('CALLER' CALLER)'⎕SE.[LIB]'⎕SE.require 'bigInt'   
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''
