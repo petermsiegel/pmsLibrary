@@ -1,7 +1,7 @@
 ﻿:Namespace PMScmds
 
  ⍝  Custom user commands
-    ⎕IO←0 ⋄ ⎕ML←1
+    ⎕IO←0 ⋄ ⎕ML←1 
 
     ∇ r←List
       r←⎕NS¨2⍴⊂⍬
@@ -32,7 +32,6 @@
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
               r←⍪⍪¨('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
-             ⍝ ⎕←↑⊃⌽r   ⊣   ⎕←↑⊃r 
               →0
           :ENDIF
 
