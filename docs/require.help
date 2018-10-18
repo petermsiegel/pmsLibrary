@@ -27,10 +27,10 @@
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________                                   
 
-   Syntax 1:   list1 list2     ← [['CALLER' ns] [stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
-               namespaceRef    ←  ['CALLER' ns] [stdLib] CODE:2 ¯2    ∇  ...
-      namespaceRef list1 list2 ←  ['CALLER' ns] [stdLib] CODE:4 ¯4    ∇  ...
-   Syntax 2:   namespaceRef    ←  ['CALLER' ns] [stdLib]              ∇  [⍬ | '']
+   Syntax 1:   list1 list2     ← [[('CALLER' ns)] [stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
+               namespaceRef    ←  [('CALLER' ns)] [stdLib] CODE:2 ¯2    ∇  ...
+      namespaceRef list1 list2 ←  [('CALLER' ns)] [stdLib] CODE:4 ¯4    ∇  ...
+   Syntax 2:   namespaceRef    ←  [('CALLER' ns)] [stdLib]              ∇  [⍬ | '']
    Syntax 3:   ⍬               ←                        ∇  '-HELP'
    
 Note: <require> has been developed in OS X. Use of environment variables has not been

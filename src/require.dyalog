@@ -22,15 +22,24 @@
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
   ⍝ Decode ⍺ → [StdLibStr CODE]
-     ⍺←⎕NULL
+     ⍺←⍬
+
+  ⍝ options:   [('CALLER' namespace)][stdlibNS|stdlibNSRef][code]
+  ⍝
   ⍝ CallerR/N ("caller"): Where was <require> called from?
   ⍝   If the first option in ⍺ is 'CALLER', then we get the Caller (NS) as 2nd item.
   ⍝   Otherwise from the stack.
      options CallerR CallerN←{
-         0=≢⍵:⍵(1⊃⎕RSI)(1⊃⎕NSI)
-         'CALLER'≢⊃⍵:⍵(1⊃⎕RSI)(1⊃⎕NSI)
-         (2↓⍵)(C)(⍕C←1⊃⍵)
+         (2=|≡⍵)∧'CALLER'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
+         pairs←⍵/⍨k←(2=|≡¨⍵)∧(2=≢¨⍵)
+         keep←⍵/⍨~k
+         0=≢pairs:keep(1⊃⎕RSI)(1⊃⎕NSI)
+         1∊(⊂'CALLER')≢∘⊃¨pairs:⎕SIGNAL/'require: Unknown option pair' 11
+         1<≢pairs:⎕SIGNAL/'require: only one CALLER option allowed' 11
+         c←(⊃⌽⊃pairs)
+         keep c(⍕c←⊃⌽⊃pairs)
      }⍺
+
      StdLibStr CODE←2⍴{                ⍝  ⍺:  [[standard_library@string|nsRef] [code@number]], default=⎕NULL
          0=≢⍵:⎕NULL 0
          9=⎕NC'_'⊣_←⊃⍵:⍵ 0             ⍝  ⍺:   #  [2]
@@ -59,8 +68,8 @@
              0=≢val:(⍎top)top                ⍝ Null (or blank) string? Use <top>
 
            ⍝ Handle (⎕SE or #).[LIB], [LIB].mysub and [CALLER], calling env.
-             pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),⊂'\Q[CALLER]\E'   
-        
+             pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),⊂'\Q[CALLER]\E'
+
              name←pat2 ⎕R topDef DefaultLibName CallerN⊣val
              nc←CallerR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
              9.1=nc:{⍵(⍕⍵)}(CallerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
