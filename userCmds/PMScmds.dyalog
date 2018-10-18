@@ -31,9 +31,9 @@
 
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
-              r←('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
-              ⎕←↑⊃⌽r⊣⎕←↑⊃r 
-              →0,r←''
+              r←⍪⍪¨('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
+             ⍝ ⎕←↑⊃⌽r   ⊣   ⎕←↑⊃r 
+              →0
           :ENDIF
 
           :IF 0=≢r
