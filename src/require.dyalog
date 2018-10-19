@@ -6,7 +6,7 @@
    ⍝ Help info hard wired with respect to cur directory...
      ((819⌶)∊⍵)≡'-help':_←⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'./pmsLibrary/docs/require.help'
 
-     DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
+     DEBUG←0                         ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
 
 
@@ -152,7 +152,8 @@
      resolvePathUpArrow←{
          ~⍺:⍵
          dist←¯1++/CallerN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
-         (∊w)⊣w[p]←⊂{⍺←'' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
+       ⍝ Remove any extra up arrows
+         '↑'~⍨(∊w)⊣w[p]←⊂{⍺←'' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
      }
 
   ⍝ resolvePath: Determines actual ordered path to search, based on ∆CALR and ⎕PATH.
