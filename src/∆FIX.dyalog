@@ -1,4 +1,9 @@
-﻿ (err objects)←∆FIX file;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII;UTILS;_MATCHED_GENERICp;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval;infile;keys;letS;longNameP;macro;nameP;names;obj;opts;parenP;pfx;register;setBrace;sfx;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO;⎕ML;⎕TRAP
+﻿ (err objects)←∆FIX file;SAVE_STACK
+ ;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII
+ ;UTILS;_MATCHED_GENERICp
+ ;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval
+ ;infile;keys;letS;longNameP;macro;nameP;names;obj;opts;parenP;pfx;register;setBrace
+ ;sfx;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
  ⍝ A dyalog APL preprocessor
  ⍝ Takes an input file <file> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
  ⍝ returns the objects found or ⎕FIX error messages.
@@ -7,7 +12,7 @@
 
  ⎕IO ⎕ML←0 1
 
- ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+ ⍝ ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
 
@@ -42,30 +47,30 @@
      ∆DICT←{
          dict←⎕NS''
          dict.ns←⎕NS''
+       ⍝ ([0] map str) and inverse (1 map str)
+         dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'ÕÔÖ' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
          dict.set←{⍺←ns
              d(k v)←⍺ ⍵
-             k←'⍙'@('⎕'∘=)⊣'Ø'@('#'∘=)⊣'Î'@('.'∘=)⊣k
-
-
+             k←map k
              1:{d⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
              d k←⍺ ⍵
-             k←'⍙'@('⎕'∘=)⊣'Ø'@('#'∘=)⊣'Î'@('.'∘=)⊣k
-             0=d.⎕NC k:''
-             d.⎕OR k
+             k←map k
+             0≥d.⎕NC k:''
+             ⍕d.⎕OR k
          }
          dict.del←{⍺←ns
              d k←⍺ ⍵
-             k←'⍙'@('⎕'∘=)⊣'Ø'@('#'∘=)⊣'Î'@('.'∘=)⊣k
+             k←map k
              1:d.⎕EX k
          }
          dict.defined←{⍺←ns
              d k←⍺ ⍵
-             k←'⍙'@('⎕'∘=)⊣'Ø'@('#'∘=)⊣'Î'@('.'∘=)⊣k
+             k←map k
              2=d.⎕NC k
          }
-         _←dict.⎕FX'k←keys' 'k←↓ns.⎕NL 2'
+         _←dict.⎕FX'k←keys' 'k←1 map¨↓ns.⎕NL 2'
          _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
          dict
      }
@@ -153,17 +158,19 @@
 
 
  dict←∆DICT''
+ ⍝ Set at bottom:
+ ⍝   IF_STACK←⊂1 ⍬ ⋄ SKIP←0
 
  :Section Process File
 
    ⍝ Valid 1st chars of names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
-     ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'
+     ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
      ALPH,←'_∆⍙'
    ⍝ Valid APL simple names
-     nameP←eval'(?:   [⎕⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
+     nameP←eval'(?xx)(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
-     longNameP←eval' (?: ⍎nameP (?: \. ⍎nameP )* )  '
+     longNameP←eval'(?xx) (?: ⍎nameP (?: \. ⍎nameP )* )  '
 
      parenP←'('setBrace')'
      brackP←'['setBrace']'
@@ -196,30 +203,36 @@
                  ##.SKIP←~⊃⊃⌽##.IF_STACK
 
                  (~##.SKIP)∆COM f0
-             }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎nameP).*?$'
+             }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
             ⍝ IF stmts
              'IF'{
-                 defMatch←{
-                     macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
-                     nm un←⍵ ∆FIELD¨1 2
-                     nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                     vs←(1∊'uU'∊un)⊃'≠='
-                     '(0',vs,'⎕NC ''',nm,''')'
-                 }
+                ⍝  nameMatch←{
+                ⍝      macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
+                ⍝      nm un←⍵ ∆FIELD¨1 2
+                ⍝      ⎕←'nm in:  ',nm
+                ⍝      nm←∊macros⊂nm       ⍝ Try the entire name, e.g. a.b.c.d
+                ⍝      ⎕←'nm ut1: ',nm
+                ⍝      nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                ⍝      ⎕←'nm ut2: ',nm
+                ⍝      vs←(1∊'uU'∊un)⊃'≠='
+                ⍝      '(0',vs,'⎕NC ''',nm,''')'
+                ⍝  }
 
-                 f0 code←⍵ ∆FIELD¨0 1
-                 0::{
+                 f0 code0←⍵ ∆FIELD¨0 1
+                 999::{
+                     ##.IF_STACK,←⊂1 0
+                     ##.SKIP∘←~⊃⊃⌽##.IF_STACK
                      ⎕←'❌ Unable to evaluate ::IF ',⍵
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR',##.NL,0 ∆COM'::IF ',⍵
-                 }code
+                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
+                 }code0
 
-                 code←##.defP ⎕R defMatch⍠##.opts⊣code
-                 _←##.dict.ns{⍺⍎⍵}code
+                 code1←##.ScanII ##.doScan code0
+                 code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.IF_STACK,←⊂((,0)≢,_)(_)
+                 ##.IF_STACK,←⊂((,0)≢,code2)(code2)   ⍝ (is code2 non-zero?)(code2 value)
                  ##.SKIP←~⊃⊃⌽##.IF_STACK
 
-                 (~##.SKIP)∆COM'::IF ',code
+                 (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
@@ -262,9 +275,9 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM f0
                  }⍬
 
-                 _←##.dict.ns{⍺⍎⍵}k,'←',v
+                 _←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',v
                  ∆COM f0
-             }register eval'^\h* :: \h* LET \b \h* (⍎nameP) \h* ← \h* (.*?) $'
+             }register eval'^\h* :: \h* LET \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
              'UNDEF'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -272,7 +285,7 @@
                  f0 k←⍵ ∆FIELD¨0 1
                  _←##.dict.del k
                  ∆COM f0
-             }register eval'^\h* :: \h* UNDEF \b\h* (⍎nameP) .*? $'
+             }register eval'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
            ⍝ ERROR stmt
              'ERROR'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -287,8 +300,14 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
-                 l←≢m←'***** MSG ',msg,' *****'
-                 ⎕←(l⍴'*'),##.CR,m,##.CR,(l⍴'*')
+                 box←{
+                     l←≢m←'│  ',⍵,'  │'
+                     t←'┌','┐',⍨,'─'⍴⍨l-2
+                     b←'└','┘',⍨,'─'⍴⍨l-2
+                     t,##.CR,m,##.CR,b
+                 }
+
+                 ⎕←box msg
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
            ⍝ Start of every NON-MACRO line.
@@ -311,7 +330,7 @@
                  vs←(1∊'uU'∊un)⊃'≠='
                  '(0',vs,'⎕NC ''',nm,''')'
              }register defP
-           ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
+            ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
 
@@ -320,7 +339,7 @@
                  0=≢v:k
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
-             }register eval'(⍎nameP)'
+             }register eval'(⍎longNameP)'
              ScanII←MEnd
          :EndSection
      :EndSection
@@ -328,14 +347,21 @@
      :Section Perform Scans
      ⍝ To scan simple expressions:
      ⍝   code←ScanII doScan code
-         IF_STACK←⊂1 ⍬ ⋄ SKIP←0
+         IF_STACK∘←⊂1 ⍬ ⋄ SKIP∘←0 ⋄ SAVE_STACK←⍬
          doScan←{
-             0=≢⍺:⍵
-             scan←⊃⍺
-             _code←scan.pats ⎕R(scan MActions)⍠opts⊣⍵
-             (1↓⍺)∇ _code
+             SAVE_STACK,⍨←⊂IF_STACK SKIP
+             IF_STACK∘←⊂1 ⍬ ⋄ SKIP∘←0
+             res←ScanI ScanII{
+                 0=≢⍺:⍵
+                 scan←⊃⍺
+                 _code←scan.pats ⎕R(scan MActions)⍠opts⊣⍵
+                 (1↓⍺)∇ _code
+             }⍵
+             (IF_STACK SKIP)SAVE_STACK∘←(⊃SAVE_STACK)(1↓SAVE_STACK)
+             res
          }
-         code←ScanI ScanII doScan code
+
+         code←ScanI ScanI doScan code
      :EndSection
  :EndSection
 
