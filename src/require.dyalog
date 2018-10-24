@@ -18,6 +18,8 @@
    ⍝   If ADDFIXEDNAMESPACES←1, then it will be added to ⎕PATH.
    ⍝   Otherwise, not.
      ADDFIXEDNAMESPACES←1
+   ⍝ USEHOMEDIR: If 1, use [HOME] to represent env. var HOME.  See shortDirName
+     USEHOMEDIR←1
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
@@ -393,6 +395,11 @@
              0∧.=≢¨group name:⍵
              dirFS←apl2FS group                          ⍝ Convert a.b→a/b, ##.a→../a
 
+             shortDirName←USEHOMEDIR∘{
+                 ⍺:('\Q','\E',⍨getenv'HOME')⎕R'[HOME]'⊣⍵
+                 ⍵
+             }
+
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                                 ⍝ none found. path exhausted: failure
                  path←⊃⍵
@@ -437,7 +444,7 @@
                      stamp←gwn,' copied from dir: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←(dunder group name)stdLibR.{⍎⍺,'←⍵'}stamp
 
-                     res←'[group] ',gwn,'→stdLib: "',⍵,'"'
+                     res←'[group] ',gwn,'→stdLib: "',(shortDirName ⍵),'"'
                      res,←⎕TC[2],'   [Fixed: ',(⍕+/tried=1),' Failed: ',(⍕+/tried=¯1),']'
 
                    ⍝ Add stdLibR to PathNewR if at least one object was loaded and  ⎕FIXED.
@@ -459,7 +466,7 @@
                      stamp←gwn,' copied from file: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp
                      PathNewR,⍨←stdLibR                ⍝ Succeeded: Note stdLibR (if not already)
-                     '[file] ',gwn,'→stdLib: "',⍵,'"'
+                     '[file] ',gwn,'→stdLib: "',(shortDirName ⍵),'"'
                  }
 
                  ⎕NEXISTS searchDir:(group name)loadDir searchDir
