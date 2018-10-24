@@ -9,8 +9,8 @@ We'll set this up to create a command called `]require`. When called with no arg
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
 1. ]require may also be used with args. This simply runs ⎕SE.require _monadically_, splitting the right argument into 1 or more strings, and returning explicitly the (normally shy) output:<br>
    `]require pkg1 pkg2 ... pkgN`<br>
-   If you would like to override the standard library, `-lib ns` allows you to specify another named namespace, such as #, ⎕SE, etc.<br>
-   `]require -lib # pkg1 pkg2 ... pkgN`          (Put pgks right in the top-level namespace)<br>
+   If you would like to __override the standard library__, `-lib=ns` allows you to specify another named namespace, such as #, ⎕SE, etc.<br>
+   `]require -lib=# pkg1 pkg2 ... pkgN`          (Put pkg1...pkgN right in the top-level root (namespace), #).<br>
    Note: __]require__ creates the default library `⍙⍙.require` in the current namespace, _i.e._ from wherever it is called (by default `#`), and sets its local `⎕PATH`.  If you are in namespace `#.mynamespace`, then `#.mynamespace.⍙⍙.require` receives any newly loaded packages, and  `#.mynamespace.⎕PATH` is updated. However, if `⎕PATH` already points to other libraries containing the requested packages, no additional work is done.
 
 ### Material to enable easy use of `require` during a Dyalog APL session.
