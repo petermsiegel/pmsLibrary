@@ -52,7 +52,7 @@
          1=≢⊆⍵:⍵ 0
          ⍵
      }
-     options CallerR CallerN←scan1 alpha
+     options CallerR CallerN←scan1 options
      StdLibStr CODE←2⍴scan2 options
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
 

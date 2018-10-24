@@ -131,6 +131,12 @@ ________________________________________________________________________________
     rather than from the calling environment. Use in the user command ]require.
     Example: (Considers namespace <myCaller> as where pkg1 and pkg2 are run...
        'CALLER' myCaller '[CALLER].[LIB]' require pkg1 pkg2
+
+    Note: ]require allows the user to override the default library '[CALLER].[LIB]' via the option -lib:
+     Example 1: Put packages in namespace ⎕SE (unless already loaded)
+       ]require -lib ⎕SE  pkg1 pkg2 pkg2
+     Example 2: Put packages in namespace #.utils
+       ]require -lib #.utils pkg1 pkg2 pkg2
 _____________________________________________________________________________________________________________
    ∘ Displays help information (from require/documentation.txt).
 _____________________________________________________________________________________________________________

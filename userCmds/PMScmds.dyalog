@@ -13,7 +13,7 @@
       r.Parse←⊂''         ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
 
-    ∇ r←Run(cmd input);CALLER
+    ∇ r←Run(cmd input);CALLER;LIB;pat;defaultLib
       CALLER←##.THIS
 
       :Select cmd
@@ -31,7 +31,11 @@
 
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
-              r←('CALLER' CALLER) '[CALLER].[LIB]' ⎕SE.require  (≠∘' '⊆⊢)input
+            ⍝ Allow option: -lib library
+              defaultLib←'-lib [CALLER].[LIB]'
+              pat←'-lib +([^ ]+)'
+              LIB←,⊃pat ⎕S '\1'⊣input,' ',defaultLib
+              r←('CALLER' CALLER) LIB ⎕SE.require  (≠∘' '⊆⊢)pat ⎕R ' '⊣input
               r←⍪⍪¨r
               →0
           :ENDIF
