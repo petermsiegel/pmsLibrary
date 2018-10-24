@@ -1,7 +1,7 @@
 ﻿:Namespace PMScmds
 
  ⍝  Custom user commands
-    ⎕IO←0 ⋄ ⎕ML←1 
+    ⎕IO←0 ⋄ ⎕ML←1
 
     ∇ r←List
       r←⎕NS¨2⍴⊂⍬
@@ -31,9 +31,9 @@
 
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
-            ⍝ Allow option: -lib library
-              defaultLib←'-lib [CALLER].[LIB]'
-              pat←'-lib +([^ ]+)'
+            ⍝ Allow option: -lib=library
+              defaultLib←'-lib=[CALLER].[LIB]'
+              pat←'-lib=([^ ]+)'
               LIB←,⊃pat ⎕S '\1'⊣input,' ',defaultLib
               r←('CALLER' CALLER) LIB ⎕SE.require  (≠∘' '⊆⊢)pat ⎕R ' '⊣input
               r←⍪⍪¨r
@@ -48,7 +48,7 @@
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}('CALLER' CALLER)'#.[LIB]'⎕SE.require 'bigInt'   
+            {}('CALLER' CALLER)'#.[LIB]'⎕SE.require 'bigInt'
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''
@@ -73,6 +73,9 @@
             r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
             r,←⊂']require  pkg1  pkg ...'
             r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
+            r,←⊂']require -lib=ns pkg1 pkg ...'
+            r,←⊂'     executes:  ns require ''pkg1'' ''pkg2'' ...'
+            r,←⊂' i.e. loads (new) packages into library ns, a namespace or root (# or ⎕SE)'
          :Else
             {}⎕SE.require '-HELP'
             r←⊂']require -HELP launched in full screen.'
