@@ -372,6 +372,7 @@
          objects←2 ⎕FIX'file://',tmpfile
          err←0
      :Else
+         ⎕←'∆FIX: #._CODE_ contains preprocessed function code.'
          err objects←⎕DMX.(EN EM)
          objects,⍨←'None: '
      :EndTrap
