@@ -1,12 +1,12 @@
 ﻿ require←{
 ⍝  TRACING (see TRACE) lines are prefixed with ⍝:DBG when inactive...
 
-⍝ Add: -lib <lib> -caller <ns> as right args...
-
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info hard wired with respect to cur directory...
      ((819⌶)∊⍵)≡'-help':_←⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'./pmsLibrary/docs/require.help'
+
+     ⍺←⍬ ⋄ options pkgs←⍺(⊆⍵)
 
      DEBUG←0                         ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
@@ -21,16 +21,14 @@
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
-     ⍺←⍬
-
    ⍝ Decode ⍺ → opt1 opt2 opt3  in any order
    ⍝        opt1:  ('CALLER' ns)
    ⍝               ns: a namespace ref
    ⍝               "Pass the caller namespace; if omitted, from the stack via ⎕RSI/⎕NSI."
-   ⍝        opt2:   StdLib
+   ⍝        opt2:  StdLib
    ⍝               stdLib: the name or reference for the std library namespace
    ⍝               "Pass the standard library to use, by name or reference, else #.⍙⍙.require or ⎕SE.⍙⍙.require.
-   ⍝        opt3:   code
+   ⍝        opt3:  code
    ⍝               code: 0 1 2 3 ¯1 ¯2 ¯3, where 1 2 3 are options (0→1), ¯1 signifies DEBUG mode.
    ⍝               "code indicates what to return at the end. 1 (or 0) shyly provides basic status info on where
    ⍝                each package was found. ¯1 provides additional debugging info, explicitly:
@@ -54,12 +52,9 @@
          1=≢⊆⍵:⍵ 0
          ⍵
      }
-     options CallerR CallerN←scan1 ⍺
+     options CallerR CallerN←scan1 alpha
      StdLibStr CODE←2⍴scan2 options
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
-
-  ⍝ DECODE ⍵ → list of packages (possibly 0-length), each package a string (format below)
-     pkgs←⊆⍵
 
      stdLibR stdLibN←{
          returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CallerR.⎕NS'')⍵}
@@ -193,6 +188,8 @@
    ⍝  E N D      U T I L I T I E S
    ⍝------------------------------------------------------------------------------------
 
+   ⍝ Decode ⍵ → list of packages (possibly 0-length), each package a string (format below)
+   ⍝ --------
    ⍝ From each item in packages of the (regexp with spaces) form:
    ⍝      (\w+::)?    (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
    ⍝      ext         wsN     group             name
