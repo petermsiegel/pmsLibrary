@@ -47,8 +47,9 @@
      ∆DICT←{
          dict←⎕NS''
          dict.ns←⎕NS''
+       ⍝ map: Convert #.a.b or ⎕SE.a.b into flat object Ø⍙a⍙b  ∆SE⍙a⍙b
        ⍝ ([0] map str) and inverse (1 map str)
-         dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'ÕÔÖ' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
+         dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
          dict.set←{⍺←ns
              d(k v)←⍺ ⍵
              k←map k
@@ -322,13 +323,14 @@
            ⍝     myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
              defP←eval'(?xx)(⍎longNameP)\.{2,2}(UN)?DEF\b'
              'DEF/UNDEF'{
+                 dictMap←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
                  macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  nm un←⍵ ∆FIELD¨1 2
                  nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
                  vs←(1∊'uU'∊un)⊃'≠='
-                 '(0',vs,'⎕NC ''',nm,''')'
+                 '(0',vs,'⎕NC ''',(dictMap nm),''')'
              }register defP
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
