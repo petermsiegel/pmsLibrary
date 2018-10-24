@@ -74,9 +74,9 @@
              0=≢val:(⍎top)top                  ⍝ Null (or blank) string? Use <top>
 
            ⍝ Handle (⎕SE or #).[LIB], [LIB].mysub and [CALLER], calling env.
-             pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),⊂'\Q[CALLER]\E'
-
+             pat2←('^' '',¨⊂'\Q',∆LIB,'\E'),(⊂'\Q[CALLER]\E')
              name←pat2 ⎕R topDef DefaultLibName CallerN⊣val
+
              nc←CallerR.⎕NC⊂,name              ⍝ nc of name stored in stdLib w.r.t. caller.
              9.1=nc:{⍵(⍕⍵)}(CallerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
              0=nc:CallerN,'.',name             ⍝ Assume name refers to potential namespace...
@@ -223,6 +223,8 @@
      }¨pkgs
 
 
+   ⍝ HOMEDIR-- see [HOME]
+     HOMEDIR←getenv'HOME'
    ⍝ Process caller APL ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
      PathOrigR←resolvePath('↑'∊CallerR.⎕PATH)resolvePathUpArrow CallerR.⎕PATH
      PathNewR←PathOrigR
@@ -396,7 +398,7 @@
              dirFS←apl2FS group                          ⍝ Convert a.b→a/b, ##.a→../a
 
              shortDirName←USEHOMEDIR∘{
-                 ⍺:('\Q','\E',⍨getenv'HOME')⎕R'[HOME]'⊣⍵
+                 ⍺:('\Q',HOMEDIR,'\E')⎕R'[HOME]'⊣⍵
                  ⍵
              }
 
