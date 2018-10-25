@@ -1,4 +1,4 @@
-﻿ (err objects)←∆FIX file;SAVE_STACK
+﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;skipCom
  ;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII
  ;UTILS;_MATCHED_GENERICp
  ;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval
@@ -10,7 +10,14 @@
  ⍝ Like, ⎕FIX, accepts either a mix of namespace-like objects (namespaces, classes, interfaces) and functions (marked with ∇)
  ⍝ or a single function (whose first line must be its header, with a ∇-prefix optional).
 
+ ⍝ commentLvl∊0 (default), 1, 2
+ ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
+ ⍝            1: Omit (⍝❌) paths not taken
+ ⍝            2: Omit also (⍝🅿️) paths taken (leave other user comments)
+
  ⎕IO ⎕ML←0 1
+ commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+
 
  ⍝ ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
@@ -342,7 +349,7 @@
                  ⎕←box msg
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
-           ⍝ Start of every NON-MACRO line.
+           ⍝ Start of every NON-MACRO line → comment, if skip.
              'SIMPLE_NON_MACRO'{
                  ##.SKIP/'⍝❌ ',⍵ ∆FIELD 0
              }register'^'
@@ -395,6 +402,13 @@
          }
 
          code←ScanI ScanI doScan code
+
+         :Select commentLvl
+              ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
+              ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
+              ⋄ ⋄ :Else
+         :EndSelect
+
      :EndSection
  :EndSection
 
