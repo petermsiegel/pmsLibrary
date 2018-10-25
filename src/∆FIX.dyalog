@@ -1,4 +1,4 @@
-﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;skipCom
+﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;readFile;skipCom
  ;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII
  ;UTILS;_MATCHED_GENERICp
  ;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval
@@ -19,7 +19,7 @@
  commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
 
 
- ⍝ ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+  ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
 
@@ -149,18 +149,21 @@
 
  :Section Read in file
 
-     pfx obj sfx←{
-         p o s←⎕NPARTS ⍵      ⍝
-         s≡'.dyalog':p o s    ⍝  a/b/c.d.dyalog   →   a/b/   c.d  .dyalog
-         s≡'':p o'.dyalog'    ⍝  a/b/c            →   a/b/   c    .dyalog
-         p(o,s)'.dyalog'      ⍝  a/b/c.d          →   a/b/   c.d  .dyalog
-     }file
-     infile←pfx,obj,sfx
-     tmpfile←(739⌶0),'/',obj,sfx
+     readFile←{
+         pfx obj sfx←{
+             p o s←⎕NPARTS ⍵      ⍝
+             s≡'.dyalog':p o s    ⍝  a/b/c.d.dyalog   →   a/b/   c.d  .dyalog
+             s≡'':p o'.dyalog'    ⍝  a/b/c            →   a/b/   c    .dyalog
+             p(o,s)'.dyalog'      ⍝  a/b/c.d          →   a/b/   c.d  .dyalog
+         }⍵
+         infile←pfx,obj,sfx
 
-     code←{0::⎕NULL ⋄ ⊃⎕NGET ⍵ 1}infile
+         code←{0::⎕NULL ⋄ ⊃⎕NGET ⍵ 1}infile
+         code≡⎕NULL:⎕SIGNAL/'File not found' 11 ⋄
+         code
+     }
 
-     :If code≡⎕NULL ⋄ ⎕SIGNAL/'File not found' 11 ⋄ :EndIf
+     code←readFile file
 
  :EndSection
 
@@ -290,9 +293,12 @@
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
            ⍝ INCLUDE
              'INCLUDE'{
-                 ⍝ ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
-                 (~##.SKIP) ∆COM'::INCLUDE "',fName,'" NOT YET IMPLEMENTED'
+                 rd←readFile fName
+                 ⎕←↑rd
+                 ⊢⎕←∆V2S ##.ScanI ##.ScanII doScan rd
+                 ⍝ (~##.SKIP)∆COM'::INCLUDE "',fName,'" NOT YET IMPLEMENTED'
              }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎nameP) '
@@ -419,6 +425,8 @@
  :EndSection
 
  :Section Write out so we can then do a 2∘⎕FIX
+     tmpfile←(739⌶0),'/','TMP~.dyalog'
+
      1 ⎕NDELETE tmpfile
      :Trap 0
          (⊂code)⎕NPUT tmpfile
