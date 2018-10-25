@@ -160,7 +160,7 @@
 
  dict←∆DICT''
  ⍝ Set at bottom:
- ⍝   IF_STACK←⊂1 ⍬ ⋄ SKIP←0
+ ⍝   IF_STACK←1 ⋄ SKIP←0
 
  :Section Process File
 
@@ -200,8 +200,8 @@
             ⍝ IFDEF stmts
              'IFDEF/IFNDEF'{
                  f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
-                 ##.IF_STACK,←⊂(~⍣not⊣##.dict.defined k)(##.dict.get k)
-                 ##.SKIP←~⊃⊃⌽##.IF_STACK
+                 ##.IF_STACK,←~⍣not⊣##.dict.defined k
+                 ##.SKIP←~⊃⌽##.IF_STACK
 
                  (~##.SKIP)∆COM f0
              }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
@@ -223,8 +223,7 @@
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  999::{
-                     ##.IF_STACK,←⊂1 0
-                     ##.SKIP∘←~⊃⊃⌽##.IF_STACK
+                     ##.SKIP∘←0 ⋄ ##.IF_STACK,←1
                      ⎕←'❌ Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
@@ -232,8 +231,7 @@
                  code1←##.ScanII ##.doScan code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.IF_STACK,←⊂((,0)≢,code2)(code2)   ⍝ (is code2 non-zero?)(code2 value)
-                 ##.SKIP←~⊃⊃⌽##.IF_STACK
+                 ##.SKIP←~##.IF_STACK,←(,0)≢,code2  ⍝ (is code2 non-zero?)
 
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
@@ -251,13 +249,13 @@
                 ⍝      '(0',vs,'⎕NC ''',nm,''')'
                 ⍝  }
 
-                 ##.SKIP←⊃⊃⌽##.IF_STACK
+                 ##.SKIP←⊃⌽##.IF_STACK
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  999::{
-                     (⊃⌽##.IF_STACK)←1 0    ⍝ Elseif: unlike IF, replace last stack entry, don't push
-                     ##.SKIP∘←~⊃⊃⌽##.IF_STACK
+                     ##.SKIP∘←0 ⋄ (⊃⌽##.IF_STACK)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
+
                      ⎕←'❌ Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
@@ -265,14 +263,13 @@
                  code1←##.ScanII ##.doScan code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 (⊃⌽##.IF_STACK)←((,0)≢,code2)(code2)   ⍝ Elseif: Replace, don't push. [See ::IF logic]
-                 ##.SKIP←~⊃⊃⌽##.IF_STACK
+                 ##.SKIP←~(⊃⌽##.IF_STACK)←(,0)≢,code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
                  (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
-                 ##.SKIP←~(⊃⊃⌽##.IF_STACK)←~⊃⊃⌽##.IF_STACK    ⍝ Flip the condition of most recent item.
+                 ##.SKIP←~(⊃⌽##.IF_STACK)←~⊃⌽##.IF_STACK    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
                  (~##.SKIP)∆COM f0
              }register eval'^\h* :: \h* ELSE \b .*?$'
@@ -280,7 +277,7 @@
              'ENDIF/DEF'{
                  f0←⍵ ∆FIELD 0
                  oldSKIP←##.SKIP
-                 ##.SKIP←~⊃⊃⌽##.IF_STACK⊣##.IF_STACK↓⍨←¯1
+                 ##.SKIP←~⊃⌽##.IF_STACK⊣##.IF_STACK↓⍨←¯1
 
                  (~oldSKIP)∆COM f0
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
@@ -383,17 +380,17 @@
      :Section Perform Scans
      ⍝ To scan simple expressions:
      ⍝   code←ScanII doScan code
-         IF_STACK∘←⊂1 ⍬ ⋄ SKIP∘←0 ⋄ SAVE_STACK←⍬
+         IF_STACK SKIP∘←1 0 ⋄ SAVE_STACK←⍬
          doScan←{
-             SAVE_STACK,⍨←⊂IF_STACK SKIP
-             IF_STACK∘←⊂1 ⍬ ⋄ SKIP∘←0
+             SAVE_STACK,←⊂IF_STACK SKIP
+             IF_STACK SKIP∘←1 0
              res←ScanI ScanII{
                  0=≢⍺:⍵
                  scan←⊃⍺
                  _code←scan.pats ⎕R(scan MActions)⍠opts⊣⍵
                  (1↓⍺)∇ _code
              }⍵
-             (IF_STACK SKIP)SAVE_STACK∘←(⊃SAVE_STACK)(1↓SAVE_STACK)
+             (IF_STACK SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK)
              res
          }
 
