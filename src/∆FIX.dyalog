@@ -219,6 +219,8 @@
                 ⍝      '(0',vs,'⎕NC ''',nm,''')'
                 ⍝  }
 
+                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+
                  f0 code0←⍵ ∆FIELD¨0 1
                  999::{
                      ##.IF_STACK,←⊂1 0
@@ -235,11 +237,43 @@
 
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
+            ⍝ ELSEIF/ELIF stmts
+             'ELSEIF'{
+                ⍝  nameMatch←{
+                ⍝      macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
+                ⍝      nm un←⍵ ∆FIELD¨1 2
+                ⍝      ⎕←'nm in:  ',nm
+                ⍝      nm←∊macros⊂nm       ⍝ Try the entire name, e.g. a.b.c.d
+                ⍝      ⎕←'nm ut1: ',nm
+                ⍝      nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                ⍝      ⎕←'nm ut2: ',nm
+                ⍝      vs←(1∊'uU'∊un)⊃'≠='
+                ⍝      '(0',vs,'⎕NC ''',nm,''')'
+                ⍝  }
+
+                 ##.SKIP←⊃⊃⌽##.IF_STACK
+                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+
+                 f0 code0←⍵ ∆FIELD¨0 1
+                 999::{
+                     (⊃⌽##.IF_STACK)←1 0    ⍝ Elseif: unlike IF, replace last stack entry, don't push
+                     ##.SKIP∘←~⊃⊃⌽##.IF_STACK
+                     ⎕←'❌ Unable to evaluate ::ELSEIF ',⍵
+                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
+                 }code0
+
+                 code1←##.ScanII ##.doScan code0
+                 code2←##.dict.ns{⍺⍎⍵}code1
+
+                 (⊃⌽##.IF_STACK)←((,0)≢,code2)(code2)   ⍝ Elseif: Replace, don't push. [See ::IF logic]
+                 ##.SKIP←~⊃⊃⌽##.IF_STACK
+
+                 (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',⍕code2)
+             }register eval'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
-                 f0←⍵ ∆FIELD 0
                  ##.SKIP←~(⊃⊃⌽##.IF_STACK)←~⊃⊃⌽##.IF_STACK    ⍝ Flip the condition of most recent item.
-
+                 f0←⍵ ∆FIELD 0
                  (~##.SKIP)∆COM f0
              }register eval'^\h* :: \h* ELSE \b .*?$'
             ⍝ END, ENDIF, ENDIFDEF
