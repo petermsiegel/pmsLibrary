@@ -19,7 +19,7 @@
  commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
 
 
-  ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+ ⍝⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
 
@@ -238,7 +238,7 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 code1←##.ScanII ##.doScan code0
+                 code1←##.ScanII(1 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
                  ##.SKIP←~##.IF_STACK,←(,0)≢,code2  ⍝ (is code2 non-zero?)
@@ -270,7 +270,7 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 code1←##.ScanII ##.doScan code0
+                 code1←##.ScanII(1 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
                  ##.SKIP←~(⊃⌽##.IF_STACK)←(,0)≢,code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
@@ -296,9 +296,8 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  rd←readFile fName
-                 ⎕←↑rd
-                 ⊢⎕←∆V2S ##.ScanI ##.ScanII doScan rd
-                 ⍝ (~##.SKIP)∆COM'::INCLUDE "',fName,'" NOT YET IMPLEMENTED'
+                 (##.CR,⍨∆COM f0),∆V2S ##.ScanI ##.ScanII(0 doScan)rd
+
              }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎nameP) '
@@ -398,22 +397,27 @@
 
      :Section Perform Scans
      ⍝ To scan simple expressions:
-     ⍝   code←ScanII doScan code
+     ⍝   code←ScanII (1 doScan)⊣ code     1: Save and restore the IF and SKIP stacks
+     ⍝                                    0: Use existing stacks
          IF_STACK SKIP∘←1 0 ⋄ SAVE_STACK←⍬
          doScan←{
-             SAVE_STACK,←⊂IF_STACK SKIP
-             IF_STACK SKIP∘←1 0
+             saveStacks←⍺⍺
+             _←{
+                 ⍵:SAVE_STACK,←⊂IF_STACK SKIP ⋄ IF_STACK SKIP∘←1 0 ⋄ ''
+             }saveStacks
              res←ScanI ScanII{
                  0=≢⍺:⍵
                  scan←⊃⍺
                  _code←scan.pats ⎕R(scan MActions)⍠opts⊣⍵
                  (1↓⍺)∇ _code
              }⍵
-             (IF_STACK SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK)
+             _←{
+                 ⍵:(IF_STACK SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK) ⋄ ''
+             }saveStacks
              res
          }
 
-         code←ScanI ScanI doScan code
+         code←ScanI ScanI(1 doScan)code
 
          :Select commentLvl
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
