@@ -288,6 +288,12 @@
 
                  (~oldSKIP)∆COM f0
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
+           ⍝ INCLUDE
+             'INCLUDE'{
+                 ⍝ ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                 (~##.SKIP) ∆COM'::INCLUDE "',fName,'" NOT YET IMPLEMENTED'
+             }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎nameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
