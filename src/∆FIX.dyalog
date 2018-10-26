@@ -99,7 +99,7 @@
      }
 
      MActions←{
-         match←,⍺⍺        Ensure vector...
+         match←,⍺⍺    ⍝ Ensure vector...
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          m←pn⊃match
@@ -122,6 +122,7 @@
          braceCount+←1
          LEFT∘←∊(⊂'\'),¨∊⍺ ⋄ RIGHT∘←∊(⊂'\'),¨∊⍵ ⋄ ALL∘←LEFT,RIGHT
          NAME∘←'BR',⍕braceCount
+         ⍝ Matches one field (in addition to any outside)
          pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*?\R | (?: "[^"]*")+ '
          pat,←'                          | (?:''[^''\r\n]*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
          eval pat~' '
@@ -183,6 +184,7 @@
    ⍝ Valid APL complex names
      longNameP←eval'(?xx) (?: ⍎nameP (?: \. ⍎nameP )* )  '
 
+   ⍝ Matches one field in addition to any additional surrounding
      parenP←'('setBrace')'
      brackP←'['setBrace']'
      braceP←'{'setBrace'}'
@@ -208,7 +210,7 @@
          :Section ScanII
              MBegin
             ⍝ IFDEF stmts
-             'IFDEF/IFNDEF'{
+             'IFDEF+IFNDEF'{
                  f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
                  ##.IF_STACK,←~⍣not⊣##.dict.defined k
                  ##.SKIP←~⊃⌽##.IF_STACK
@@ -246,7 +248,7 @@
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
-             'ELSEIF'{
+             'ELSEIF/ELIF'{
                 ⍝  nameMatch←{
                 ⍝      macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
                 ⍝      nm un←⍵ ∆FIELD¨1 2
@@ -263,7 +265,7 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 999::{
+                 0::{
                      ##.SKIP∘←0 ⋄ (⊃⌽##.IF_STACK)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
                      ⎕←'❌ Unable to evaluate ::ELSEIF ',⍵
@@ -284,7 +286,7 @@
                  (~##.SKIP)∆COM f0
              }register eval'^\h* :: \h* ELSE \b .*?$'
             ⍝ END, ENDIF, ENDIFDEF
-             'ENDIF/DEF'{
+             'END(IF(DEF))'{
                  f0←⍵ ∆FIELD 0
                  oldSKIP←##.SKIP
                  ##.SKIP←~⊃⌽##.IF_STACK⊣##.IF_STACK↓⍨←¯1
@@ -299,10 +301,32 @@
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
 
              }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+           ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
+           ⍝ COND single_word stmt
+           ⍝ Does not affect the IF_STACK or SKIP...
+             'COND'{
+                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) counts as two fields
+                 ##.SKIP:0 ∆COM f0
+
+                 0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
+                 0::{
+                     ⎕←'❌ Unable to evaluate ',⍵
+                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.CR,0 ∆COM ⍵
+                 }f0
+
+                 cond1←##.ScanII(0 ##.doScan)cond0
+                 cond2←##.dict.ns{⍺⍎⍵}cond1
+                 bool←(,0)≢,cond2
+
+                 stmt←⍕##.ScanII(0 ##.doScan)stmt
+                 out1←bool ∆COM f0('➤  ',⍕cond1)('➤  ',⍕cond2)('➤  ',⍕bool)
+                 out2←##.CR,('⍝❌ '/⍨~bool),stmt
+                 out1,out2
+             }register eval'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎nameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
-             'DEFINE'{
+             'DEF(INE)'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
@@ -313,21 +337,23 @@
                  _←##.dict.set k v
                  ∆COM f0
              }register eval defS
-            ⍝ LET name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
-             'LET'{
+            ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
+            ⍝ EVAL name ← value   ⍝ (synonym)
+             'LET~EVAL'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
-                 f0 k v←⍵ ∆FIELD¨0 1 2
+                 f0 k vIn←⍵ ∆FIELD¨0 1 2
                  0::{
-                     ⎕←'>>> Unable to evaluate ',f0
-                     ⎕←'>>> Setting ',k,'← ⎕NULL'
-                     _←##.dict.set k ⎕NULL
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM f0
+                     ⎕←'>>> VALUE ERROR: ',f0
+                     _←##.dict.del k
+                     msg←(f0)('➤ UNDEF ',k)
+                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM msg
                  }⍬
 
-                 _←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',v
-                 ∆COM f0
-             }register eval'^\h* :: \h* LET \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+                 vOut←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',vIn
+                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'???' ⋄ ⎕FMT ⍵}vOut
+                 ∆COM f0 msg
+             }register eval'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
              'UNDEF'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -337,6 +363,7 @@
                  ∆COM f0
              }register eval'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
            ⍝ ERROR stmt
+           ⍝ Generates a preprocessor error...
              'ERROR'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
@@ -346,7 +373,8 @@
                  ⎕SIGNAL/('∆FIX ERROR: ',msg)num
              }register'^\h* :: \h* ERR(?:OR)? (?| \h+(\d+)\h(.*?) | ()\h*(.*?))$'
             ⍝ MESSAGE / MSG stmt
-             'ERROR'{
+            ⍝ Puts out a msg while preprocessing...
+             'MESSAGE~MSG'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
@@ -360,7 +388,7 @@
                  ⎕←box msg
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
-           ⍝ Start of every NON-MACRO line → comment, if skip.
+           ⍝ Start of every NON-MACRO line → comment, if SKIP is set. Else NOP.
              'SIMPLE_NON_MACRO'{
                  ##.SKIP/'⍝❌ ',⍵ ∆FIELD 0
              }register'^'
