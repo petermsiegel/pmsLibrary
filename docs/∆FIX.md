@@ -1,19 +1,23 @@
-Description
-`∆FIX` is a preprocessor for Dyalog APL files supported by the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more namespace-like objects (namespaces, classes, and interfaces), traditional functions (marked with ∇...∇, unless the sole object in the file), and direct fns (dfns).
+# ∆FIX command
+__Description__
 
-Syntax
-    opts ∇  [objName | objName exp]
-    opts:
-       0  - Preprocess and ⎕FIX in workspace
-            Including all preprocessor cmds as comments.
-       1  - As above, but include preprocessor cmds only
-            for the paths taken (via ::IF, etc.)
-       2  - As above, but omit all preprocessor cmds,
-            keeping other comments.
-    objName:
-The name of the file containing the objects, plus preprocessor directives. The names in the workspace will be derived from the names of objects defined within the file. If the objName has no type, it is assumed to be .dyalog.
-    exp:
-If specified, may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
+__∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more 
+* namespace-like objects (namespaces, classes, and interfaces), 
+* traditional functions (marked with `∇...∇`, unless the sole object in the file), and 
+* direct fns (_dfns_).
+
+__Syntax__
+   - _opts_ ∇  [_objName_ | _objName exp_]
+   
+   - _opts_: 0 (default), 1, or 2.  <BR>
+         `0` Preprocess and `⎕FIX` in workspace. Include all preprocessor cmds as comments. <BR>
+         `1` As above, but include preprocessor  cmds only for the paths taken (via ::IF, etc.) <BR>
+         `2`  As above, but omit all preprocessor cmds, keeping other comments. <BR>
+	
+   - __objName__:  The name of the file containing the objects, plus preprocessor directives. The names in the workspace will be derived from the names of objects defined within the file. If the objName has no type, it is assumed to be .dyalog.
+	
+    __exp__: 
+If specified, _may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
     Returns: 
 exp=0: Returns the names of the objects 2∘⎕FIXED in the workspace. Default.
        exp=1: Returns a 2-element array
