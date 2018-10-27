@@ -30,7 +30,7 @@ If specified, may be 0, 1, or 2 (default: 0). Determines whether the object is f
 Directives are of the form ``::DIRECTIVE name ← value`` or ``::DIRECTIVE (cond) action``
 Directives are always the first item on any line of input (leading spaces are ignored).
 
-
+```APL
 Special commands are of the form:
       #COMMAND{argument}
 Or
@@ -104,5 +104,5 @@ Continuation lines in APL code
 
 Bugs
    In this version, trailing (right-hand) comments are omitted from the preprocessor output. Lines containing nothing but comments (possibly with leading blanks) are maintained as is. This may cause problems for those using comments as “here text” or otherwise manipulating the comments in the (preprocessed) source file. Since most such uses depend on full comment lines, this should in most cases not be a problem.
-
+```
 
