@@ -1,4 +1,4 @@
-﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;readFile;skipCom
+﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;getenv;notZero;readFile;skipCom
  ;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII
  ;UTILS;_MATCHED_GENERICp
  ;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval
@@ -22,9 +22,21 @@
  ⍝⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
+ YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
 
  :Section Utilities
 ⍝-------------------------------------------------------------------------------------------
+
+   ⍝ getenv: Returns value of environment var. See #ENV{name}
+     getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+
+   ⍝ notZero: If ⍵ is not numeric 0 singleton or null-string or ⎕NULL, return 1
+   ⍝   See ::IF etc.
+     notZero←{
+         0=≢⍵:0
+         (,⎕NULL)≡,⍵:0
+         (,0)≢,⍵
+     }
 
 ⍝⍝⍝⍝ regexp internal routines...
 ⍝-------------------------------------------------------------------------------------------
@@ -40,7 +52,7 @@
      ∆V2S←{1↓∊CR,¨⊆⍵}
 
 ⍝ ∆COM: Convert a v of vs to a set of comments
-     ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃'⍝❌ ' '⍝🅿️ ')∆PFX ⍵}
+     ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
 
  ⍝ PCRE routines
      ∆FIELD←{
@@ -236,30 +248,19 @@
                  f0 code0←⍵ ∆FIELD¨0 1
                  999::{
                      ##.SKIP∘←0 ⋄ ##.IF_STACK,←1
-                     ⎕←'❌ Unable to evaluate ::IF ',⍵
+                     ⎕←##.NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
                  code1←##.ScanII(0 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.SKIP←~##.IF_STACK,←(,0)≢,code2  ⍝ (is code2 non-zero?)
+                 ##.SKIP←~##.IF_STACK,←## notZero code2  ⍝ (is code2 non-zero?)
 
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF'{
-                ⍝  nameMatch←{
-                ⍝      macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
-                ⍝      nm un←⍵ ∆FIELD¨1 2
-                ⍝      ⎕←'nm in:  ',nm
-                ⍝      nm←∊macros⊂nm       ⍝ Try the entire name, e.g. a.b.c.d
-                ⍝      ⎕←'nm ut1: ',nm
-                ⍝      nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                ⍝      ⎕←'nm ut2: ',nm
-                ⍝      vs←(1∊'uU'∊un)⊃'≠='
-                ⍝      '(0',vs,'⎕NC ''',nm,''')'
-                ⍝  }
 
                  ##.SKIP←⊃⌽##.IF_STACK
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -268,14 +269,14 @@
                  0::{
                      ##.SKIP∘←0 ⋄ (⊃⌽##.IF_STACK)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
-                     ⎕←'❌ Unable to evaluate ::ELSEIF ',⍵
+                     ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
                  code1←##.ScanII(0 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.SKIP←~(⊃⌽##.IF_STACK)←(,0)≢,code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
+                 ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
                  (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
@@ -310,17 +311,17 @@
 
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
                  0::{
-                     ⎕←'❌ Unable to evaluate ',⍵
+                     ⎕←##.NO,'Unable to evaluate ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.CR,0 ∆COM ⍵
                  }f0
 
                  cond1←##.ScanII(0 ##.doScan)cond0
                  cond2←##.dict.ns{⍺⍎⍵}cond1
-                 bool←(,0)≢,cond2
+                 bool←notZero cond2
 
                  stmt←⍕##.ScanII(0 ##.doScan)stmt
                  out1←bool ∆COM f0('➤  ',⍕cond1)('➤  ',⍕cond2)('➤  ',⍕bool)
-                 out2←##.CR,('⍝❌ '/⍨~bool),stmt
+                 out2←##.CR,(##.NOc/⍨~bool),stmt
                  out1,out2
              }register eval'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
@@ -334,6 +335,7 @@
                      '('=1↑⍵:'\h*\R\h*'⎕R' '⍠##.opts⊣⍵
                      ⍵
                  }v
+                 v←⍕##.ScanII(0 ##.doScan)v
                  _←##.dict.set k v
                  ∆COM f0
              }register eval defS
@@ -363,13 +365,13 @@
                  ∆COM f0
              }register eval'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
            ⍝ ERROR stmt
-           ⍝ Generates a preprocessor error...
+           ⍝ Generates a preprocessor error signal...
              'ERROR'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  line num msg←⍵ ∆FIELD¨0 1 2
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
-                 ⎕←(⎕UCS 13)@((⎕UCS 10)∘=)⊣('\Q',line,'\E')⎕R'❌ \0'⍠##.opts⊣⍵.Block
+                 ⎕←##.CR@(##.NL∘=)⊣('\Q',line,'\E')⎕R(##.NO,'\0')⍠##.opts⊣⍵.Block
                  ⎕SIGNAL/('∆FIX ERROR: ',msg)num
              }register'^\h* :: \h* ERR(?:OR)? (?| \h+(\d+)\h(.*?) | ()\h*(.*?))$'
             ⍝ MESSAGE / MSG stmt
@@ -390,7 +392,7 @@
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
            ⍝ Start of every NON-MACRO line → comment, if SKIP is set. Else NOP.
              'SIMPLE_NON_MACRO'{
-                 ##.SKIP/'⍝❌ ',⍵ ∆FIELD 0
+                 ##.SKIP/##.NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
              'STRINGS*'(0 register)sqStringP
@@ -409,6 +411,17 @@
                  vs←(1∊'uU'∊un)⊃'≠='
                  '(0',vs,'⎕NC ''',(dictMap nm),''')'
              }register defP
+            ⍝ #ENV: Get an environment variable's value as a string...
+             '#ENV{name}'{
+                 ##.SKIP:⍵ ∆FIELD 0
+                 val←getenv ⍵ ∆FIELD 1
+                 ' ''',val,''' '
+             }register' \#ENV \{ \h* ( \w+ ) \h* \}'
+            ⍝ #SH{string}: Return value of ⎕SH string
+             '#ENV{name}'{
+                 ##.SKIP:⍵ ∆FIELD 0
+                 ∆V2S{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
+             }register eval' \#SH (⍎braceP) .*? $'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
@@ -464,9 +477,8 @@
  :Section Write out so we can then do a 2∘⎕FIX
      tmpfile←(739⌶0),'/','TMP~.dyalog'
 
-     1 ⎕NDELETE tmpfile
      :Trap 0
-         (⊂code)⎕NPUT tmpfile
+         (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
          objects←2 ⎕FIX'file://',tmpfile
          err←0
      :Else
