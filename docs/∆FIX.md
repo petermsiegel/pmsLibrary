@@ -7,7 +7,7 @@ __∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifi
 * direct fns (_dfns_).
 
 __Syntax__
-   - _opts_ ∇  [_objName_ | _objName exp_]
+   - _opts_ ∇  _objname_  [_exp_]
    
    - _opts_: 0 (default), 1, or 2.  <BR>
          `0` Preprocess and `⎕FIX` in workspace. Include all preprocessor cmds as comments. <BR>
