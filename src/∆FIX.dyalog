@@ -1,25 +1,42 @@
-﻿ (err objects)←{commentLvl}∆FIX file
+﻿ result←{specs}∆FIX fileName;err;objects;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;ScanI;ScanII
- ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP
+ ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defP;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
- ;register;setBrace;sfx;skipCom;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
+ ;register;setBrace;sfx;skipCom;outSpec;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
  ;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
- ⍝ A dyalog APL preprocessor
- ⍝ Takes an input file <file> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
- ⍝ returns the objects found or ⎕FIX error messages.
- ⍝ Like, ⎕FIX, accepts either a mix of namespace-like objects (namespaces, classes, interfaces) and functions (marked with ∇)
- ⍝ or a single function (whose first line must be its header, with a ∇-prefix optional).
+ ⍝ A Dyalog APL preprocessor
+ ⍝
+ ⍝ result ←  [outSpec [comSpec [DEBUG]]] ∆FIX fileName
+ ⍝
+ ⍝ Description:
+ ⍝   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
+ ⍝   returns the objects found or ⎕FIX error messages.
+ ⍝   Like, ⎕FIX, accepts either a mix of namespace-like objects (namespaces, classes, interfaces) and functions (marked with ∇)
+ ⍝   or a single function (whose first line must be its header, with a ∇-prefix optional).
 
- ⍝ commentLvl∊0 (default), 1, 2
+ ⍝ fileName: the full file identifier; if no type is indicated, .dyalog is appended.
+ ⍝ outSpec:  ∊0 (default), 1, 2. Indicates the format of the return value*.
+ ⍝           On success, rc (return code) is 0.
+ ⍝            0 - returns*: rc names             -- names: the list of objects created by a ⎕FIX.
+ ⍝            1 - returns*: rc names code        -- code:  output (vec of strings) from the preprocessor.
+ ⍝            2 - returns*: rc code              -- rc:    0 on success
+ ⍝            * If an error occurs, returns:
+ ⍝                signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
+ ⍝
+ ⍝ comSpec:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.
  ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
  ⍝            1: Omit (⍝❌) paths not taken
  ⍝            2: Omit also (⍝🅿️) paths taken (leave other user comments)
+ ⍝
+ ⍝ DEBUG:     0: not debug mode (default).
+ ⍝            1: debug mode. ⎕SIGNALs will not be trapped.
 
  ⎕IO ⎕ML←0 1
- commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
- DEBUG←1
 
- ⎕TRAP←(DEBUG/999)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+ outSpec comSpec DEBUG←'specs'{0≠⎕NC ⍺:3↑⎕OR ⍺ ⋄ ⍵}0 0 0
+ '∆FIX: Invalid specification(s)'⎕SIGNAL 11/⍨~(outSpec∊⍳3)∧(comSpec∊⍳3)∧(DEBUG∊⍳2)
+
+ ⎕TRAP←(DEBUG×999)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
@@ -112,6 +129,7 @@
          1:Match,←ns
      }
      MActions←{
+         ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
          match←,⍺⍺    ⍝ Ensure vector...
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
@@ -170,10 +188,10 @@
          infile←pfx,obj,sfx
 
          code←{0::⎕NULL ⋄ ⊃⎕NGET ⍵ 1}infile
-         code≡⎕NULL:⎕SIGNAL/'File not found' 11 ⋄
+         code≡⎕NULL:22 ⎕SIGNAL⍨('∆FIX: File not found: ',infile)
          code
      }
-     code←readFile file
+     code←readFile fileName
  :EndSection
 
 
@@ -285,7 +303,7 @@
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
                  ##.filesIncluded,←⊂fName
 
-                 rd←readFile fName
+                 rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
              }register eval'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
             ⍝ INCLUDE
@@ -293,7 +311,8 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
-                 rd←readFile fName
+
+                 rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
              }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
@@ -430,12 +449,13 @@
          :EndSection
      :EndSection
 
-     :Section Perform Scans
+     :Section Define Scans
      ⍝ To scan simple expressions:
      ⍝   code← [ScanI] ScanII (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and SKIP stacks during use.
      ⍝                                            ⍺⍺=0: Maintain existing stacks
          IF_STACK SKIP∘←1 0 ⋄ SAVE_STACK←⍬
          doScan←{
+             ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
              ⍺←ScanI ScanII       ⍝ Default is ALL scans...
 
              stackFlag←⍺⍺
@@ -456,14 +476,21 @@
              _←restoreStacks stackFlag
              res
          }
+     :EndSection Define Scans
 
+
+     :Section Do Scans
+       ⍝ =================================================================
+       ⍝ Executive
+       ⍝ =================================================================
          code←(0 doScan)code
-         :Select commentLvl
+
+         :Select comSpec
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
-              ⋄ ⋄ :Else
+             ⍝ Otherwise: do nothing
          :EndSelect
-     :EndSection
+     :EndSection Do Scans
  :EndSection
 
  :Section Write out so we can then do a 2∘⎕FIX
@@ -471,11 +498,13 @@
      :Trap 0
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
          objects←2 ⎕FIX'file://',tmpfile
-         err←0
-     :Else
-         ⎕←'∆FIX: #._CODE_ contains preprocessed function code.'
-         err objects←⎕DMX.(EN EM)
-         objects,⍨←'None: '
+         :Select outSpec
+              ⋄ :Case 0 ⋄ result←0 objects
+              ⋄ :Case 1 ⋄ result←0 objects code
+              ⋄ :Case 2 ⋄ result←0 code
+         :EndSelect
+     :Else ⍝ Error: return  trapCode trapMsg
+         result←⎕DMX.EN ⎕DMX.EM
      :EndTrap
      1 ⎕NDELETE tmpfile
  :EndSection
@@ -492,4 +521,3 @@
      ⎕←'err'err' objects'objects
      ⎕←'done'
  :EndIf
- #._CODE_←↑code

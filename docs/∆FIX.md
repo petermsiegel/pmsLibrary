@@ -1,29 +1,29 @@
 # ∆FIX command
 __Description__
 
-__∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more 
-* namespace-like objects (namespaces, classes, and interfaces), 
-* traditional functions (marked with `∇...∇`, unless the sole object in the file), and 
+__∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more
+* namespace-like objects (namespaces, classes, and interfaces),
+* traditional functions (marked with `∇...∇`, unless the sole object in the file), and
 * direct fns (_dfns_).
 
 __Syntax__
    - _opts_ ∇  _objname_  [_exp_]
-   
-   - _opts_: 0 (default), 1, or 2.  <BR>
-         `0` Preprocess and `⎕FIX` in workspace. Include all preprocessor cmds as comments. <BR>
-         `1` As above, but include preprocessor  cmds only for the paths taken (via ::IF, etc.) <BR>
-         `2`  As above, but omit all preprocessor cmds, keeping other comments. <BR>
-	
+
+   - _opts_: 0 (default), 1, or 2.  
+         `0` Preprocess and `⎕FIX` in workspace. Include all preprocessor cmds as comments. \
+         `1` As above, but include preprocessor  cmds only for the paths taken (via ::IF, etc.) \
+         `2`  As above, but omit all preprocessor cmds, keeping other comments. \
+
    - __objName__:  The name of the file containing the objects, plus preprocessor directives. The names in the workspace will be derived from the names of objects defined within the file. If the objName has no type, it is assumed to be .dyalog.
-	
-   -  __exp__: 
+
+   -  __exp__:
 If specified, may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
-    __Returns__: 
+    __Returns__:
       exp=0: Returns the names of the objects 2∘⎕FIXED in the workspace. Default.
       exp=1: Returns a 2-element array
               [0] names of objects fixed in the workspace.
               [1] the contents of the preprocessor output text
-      exp=2: Nothing is fixed. Returns only the contents of the preprocessor output. 
+      exp=2: Nothing is fixed. Returns only the contents of the preprocessor output.
 
 ## Preprocessor Directives
 
@@ -43,7 +43,7 @@ Command Descriptions
 ::UNDEF name
 
 ::LET name ← value
-::EVAL name ← value 
+::EVAL name ← value
 
 ::IFDEF name
     …
@@ -76,12 +76,12 @@ returns the value of the environment variable “name”.
 	Returns the value of the APL command ⍎‘apl_cmd’.
 ```
 
-name.._CMD_<BR>  
+name.._CMD_\  
 Items of this form first undergo macro substitution (if applicable), before being quoted.
 Thus, these commands are a handy way to check whether an object is defined or not, even if
-expected to be altered via macro substitution.<BR>
+expected to be altered via macro substitution.\
        Note: Ordinary quoted strings are ignored during macro substitution.
-	
+
 ```      
 name..DEF                becomes (0≠⎕NC ‘name’)
 name1.name2.name3..DEF   becomes (0≠⎕NC ‘name1.name2.name3’)
@@ -119,5 +119,3 @@ AFTER:
 
 ### Bugs
    In this version, trailing (right-hand) comments are omitted from the preprocessor output. Lines containing nothing but comments (possibly with leading blanks) are maintained as is. This may cause problems for those using comments as “here text” or otherwise manipulating the comments in the (preprocessed) source file. Since most such uses depend on full comment lines, this should in most cases not be a problem.
-
-
