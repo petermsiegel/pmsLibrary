@@ -38,35 +38,35 @@ Or
 
 Command Descriptions
 
-:DEF[INE] name ← string
+::DEF[INE] name ← string
 
-:UNDEF name
+::UNDEF name
 
-:LET name ← value
-:EVAL name ← value 
+::LET name ← value
+::EVAL name ← value 
 
-:IFDEF name
+::IFDEF name
     …
-:ELSE    
+::ELSE    
     …
-:ENDIF[DEF]
+::ENDIF[DEF]
 
-:IF cond
-:ELSEIF cond
-:ELSE
-:ENDIF
+::IF cond
+::ELSEIF cond
+::ELSE
+::ENDIF
 
 ::INCLUDE  fileID
 Include file right here, replacing the include statement, and preprocess it. fileID: (currently) a file identifier; if no filetype is indicated, .dyalog is assumed.
 ::CINCLUDE fileID
 Include the file right here, as for ::INCLUDE, but only if not already included via ::INCLUDE or ::CINCLUDE. fileID: see ::INCLUDE.
 
-:COND cond statement
+::COND cond statement
 
-:MESSAGE any text
-:MSG any text
+::MESSAGE any text
+::MSG any text
 
-:ERROR [errcode] any text
+::ERROR [errcode] any text
 
 #ENV{name}		
 returns the value of the environment variable “name”.
@@ -89,11 +89,12 @@ Processing doubled internal double quotes.
 Converting newlines to ⎕UCS 10, in this way ( ⏎ used to show newline):
 “String1 ⏎string2” → (‘String’,(⎕UCS 10),’string2’)
 Blanks at the beginning of each continuation line are removed (the symbol · shows where the leading blanks are).
+
 BEFORE:
 	“This is line 1. ⏎       
-······This is line 2.”  
-	AFTER:
-     (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
+·········This is line 2.”  
+AFTER:
+         (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
 
 Simple Macros
   All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
