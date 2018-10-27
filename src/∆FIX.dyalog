@@ -277,13 +277,24 @@
 
                  (~oldSKIP)∆COM f0
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
-           ⍝ INCLUDE
+           ⍝ CONDITIONAL INCLUDE - include only if not already included
+             filesIncluded←⍬
+             'CINCLUDE'{
+                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                 (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
+                 ##.filesIncluded,←⊂fName
+
+                 rd←readFile fName
+                 (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
+             }register eval'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+            ⍝ INCLUDE
              'INCLUDE'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                 ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
                  rd←readFile fName
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
-
              }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
