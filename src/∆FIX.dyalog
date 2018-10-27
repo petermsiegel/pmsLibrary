@@ -1,9 +1,9 @@
-﻿ (err objects)←{commentLvl}∆FIX file;SAVE_STACK;getenv;notZero;readFile;skipCom
- ;ALPH;CR;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SKIP;ScanI;ScanII
- ;UTILS;_MATCHED_GENERICp
- ;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP;eval
- ;infile;keys;letS;longNameP;macro;nameP;names;obj;opts;parenP;pfx;register;setBrace
- ;sfx;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
+﻿ (err objects)←{commentLvl}∆FIX file
+ ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;ScanI;ScanII
+ ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;defMatch;defP;defS;dict;doScan;dqStringP
+ ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
+ ;register;setBrace;sfx;skipCom;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
+ ;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
  ⍝ A dyalog APL preprocessor
  ⍝ Takes an input file <file> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
  ⍝ returns the objects found or ⎕FIX error messages.
@@ -17,9 +17,9 @@
 
  ⎕IO ⎕ML←0 1
  commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+ DEBUG←0
 
-
- ⍝⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+ ⎕TRAP←(DEBUG/999)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
@@ -29,7 +29,6 @@
 
    ⍝ getenv: Returns value of environment var. See #ENV{name}
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-
    ⍝ notZero: If ⍵ is not numeric 0 singleton or null-string or ⎕NULL, return 1
    ⍝   See ::IF etc.
      notZero←{
@@ -37,32 +36,37 @@
          (,⎕NULL)≡,⍵:0
          (,0)≢,⍵
      }
-
+     box←{
+         l←≢m←'│  ',⍵,'  │'
+         t←'┌','┐',⍨,'─'⍴⍨l-2
+         b←'└','┘',⍨,'─'⍴⍨l-2
+         t,##.CR,m,##.CR,b
+     }
 ⍝⍝⍝⍝ regexp internal routines...
-⍝-------------------------------------------------------------------------------------------
-⍝ ∆PFX:   pfx ∇ lines
-⍝    lines: a single string possibly containing newlines as line separators, OR
-⍝           a vector of vectors
-⍝    pfx:   a string prefix. Default '⍝ '
-⍝
-⍝ Returns lines prefixed with pfx in vector of vectors format.
-⍝
+   ⍝-------------------------------------------------------------------------------------------
+   ⍝ ∆PFX:   pfx ∇ lines
+   ⍝    lines: a single string possibly containing newlines as line separators, OR
+   ⍝           a vector of vectors
+   ⍝    pfx:   a string prefix. Default '⍝ '
+   ⍝
+   ⍝ Returns lines prefixed with pfx in vector of vectors format.
+   ⍝
      ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
-⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
+   ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
      ∆V2S←{1↓∊CR,¨⊆⍵}
+   ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
+     ∆V2Q←{q←'''' ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
 
-⍝ ∆COM: Convert a v of vs to a set of comments
+   ⍝ ∆COM: Convert a v of vs to a set of comments
      ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
-
- ⍝ PCRE routines
+   ⍝ PCRE routines
      ∆FIELD←{
          0=≢⍵:''
          0=⍵:⍺.Match ⋄ ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
      ∆CASE←{⍺.PatternNum∊⍵}
-
- ⍝ dictionary routines
- ⍝ Use a local namespace so we can use with ::IF etc.
+   ⍝ dictionary routines
+   ⍝ Use a local namespace so we can use with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
          dict.ns←⎕NS''
@@ -94,8 +98,6 @@
          _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
          dict
      }
-
-
 ⍝-------------------------------------------------------------------------------------------
 ⍝ Pattern Building Routines...
 
@@ -109,7 +111,6 @@
          ns.action←⍺⍺     ⍝ a function OR a number (number → field[number]).
          1:Match,←ns
      }
-
      MActions←{
          match←,⍺⍺    ⍝ Ensure vector...
          pn←⍵.PatternNum
@@ -120,14 +121,12 @@
          ' '=1↑0⍴m.action:∊m.action            ⍝ text? Return as is...
          ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
      }
-
      eval←{
          '⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
          }⍠('UCP' 1)⊣⍵
      }
-
      ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
      braceCount←¯1
      setBrace←{
@@ -161,7 +160,6 @@
 
 
  :Section Read in file
-
      readFile←{
          pfx obj sfx←{
              p o s←⎕NPARTS ⍵      ⍝
@@ -175,9 +173,7 @@
          code≡⎕NULL:⎕SIGNAL/'File not found' 11 ⋄
          code
      }
-
      code←readFile file
-
  :EndSection
 
 
@@ -207,7 +203,6 @@
 
      :Section Setup Scans
          opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
-       ⍝ SEMI-GLOBALS: IF_STACK, SKIP
          :Section ScanI
              MBegin
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
@@ -231,22 +226,10 @@
              }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
             ⍝ IF stmts
              'IF'{
-                ⍝  nameMatch←{
-                ⍝      macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
-                ⍝      nm un←⍵ ∆FIELD¨1 2
-                ⍝      ⎕←'nm in:  ',nm
-                ⍝      nm←∊macros⊂nm       ⍝ Try the entire name, e.g. a.b.c.d
-                ⍝      ⎕←'nm ut1: ',nm
-                ⍝      nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                ⍝      ⎕←'nm ut2: ',nm
-                ⍝      vs←(1∊'uU'∊un)⊃'≠='
-                ⍝      '(0',vs,'⎕NC ''',nm,''')'
-                ⍝  }
-
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 999::{
+                 0::{
                      ##.SKIP∘←0 ⋄ ##.IF_STACK,←1
                      ⎕←##.NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
@@ -380,13 +363,6 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
-                 box←{
-                     l←≢m←'│  ',⍵,'  │'
-                     t←'┌','┐',⍨,'─'⍴⍨l-2
-                     b←'└','┘',⍨,'─'⍴⍨l-2
-                     t,##.CR,m,##.CR,b
-                 }
-
                  ⎕←box msg
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
@@ -420,7 +396,7 @@
             ⍝ #SH{string}: Return value of ⎕SH string
              '#ENV{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
-                 ∆V2S{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
+                 ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
              }register eval' \#SH (⍎braceP) .*? $'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
@@ -464,19 +440,16 @@
          }
 
          code←(0 doScan)code
-
          :Select commentLvl
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
               ⋄ ⋄ :Else
          :EndSelect
-
      :EndSection
  :EndSection
 
  :Section Write out so we can then do a 2∘⎕FIX
      tmpfile←(739⌶0),'/','TMP~.dyalog'
-
      :Trap 0
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
          objects←2 ⎕FIX'file://',tmpfile
@@ -489,14 +462,16 @@
      1 ⎕NDELETE tmpfile
  :EndSection
 
- ⎕←'ScanI  Pats:'ScanI.info
- ⎕←'ScanII Pats:'ScanII.info
- ⎕←'      *=passthrough'
+ :If DEBUG
+     ⎕←'ScanI  Pats:'ScanI.info
+     ⎕←'ScanII Pats:'ScanII.info
+     ⎕←'      *=passthrough'
 
- :If 0≠≢keys←dict.keys
-     'Defined names and values'
-     ⍉↑keys dict.values
+     :If 0≠≢keys←dict.keys
+         'Defined names and values'
+         ⍉↑keys dict.values
+     :EndIf
+     ⎕←'err'err' objects'objects
+     ⎕←'done'
  :EndIf
- ⎕←'err'err' objects'objects
  #._CODE_←↑code
- ⎕←'done'
