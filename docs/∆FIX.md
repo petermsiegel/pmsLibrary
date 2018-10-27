@@ -16,22 +16,18 @@ __Syntax__
 	
    - __objName__:  The name of the file containing the objects, plus preprocessor directives. The names in the workspace will be derived from the names of objects defined within the file. If the objName has no type, it is assumed to be .dyalog.
 	
-    __exp__: 
-If specified, _may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
-    Returns: 
-exp=0: Returns the names of the objects 2∘⎕FIXED in the workspace. Default.
-       exp=1: Returns a 2-element array
-              [0] names of objects fixed in 
-                  the workspace.
-              [1] the contents of the preprocessor output 
-                  text
-exp=2: Nothing is fixed. Returns only the contents of the preprocessor output. 
+   -  __exp__: 
+If specified, may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
+    __Returns__: 
+      exp=0: Returns the names of the objects 2∘⎕FIXED in the workspace. Default.
+      exp=1: Returns a 2-element array
+              [0] names of objects fixed in the workspace.
+              [1] the contents of the preprocessor output text
+      exp=2: Nothing is fixed. Returns only the contents of the preprocessor output. 
 
-Preprocessor Directives
+## Preprocessor Directives
 
-Directives are of the form:
-         ::DIRECTIVE name ← value
-         ::DIRECTIVE (cond) action
+Directives are of the form ``::DIRECTIVE name ← value`` or ``::DIRECTIVE (cond) action``
 Directives are always the first item on any line of input (leading spaces are ignored).
 
 
