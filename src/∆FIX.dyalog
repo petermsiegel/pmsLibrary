@@ -17,7 +17,7 @@
 
  ⎕IO ⎕ML←0 1
  commentLvl←'commentLvl'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
- DEBUG←0
+ DEBUG←1
 
  ⎕TRAP←(DEBUG/999)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
@@ -394,17 +394,24 @@
                  ' ''',val,''' '
              }register' \#ENV \{ \h* ( \w+ ) \h* \}'
             ⍝ #SH{string}: Return value of ⎕SH string
-             '#ENV{name}'{
+             '#SHell{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
              }register eval' \#SH (⍎braceP) .*? $'
+            ⍝ #EXEC{string}: Return value of ⍎string
+             '#EXECute{name}'{
+                 ##.SKIP:⍵ ∆FIELD 0
+                 ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ↓⎕FMT⍎⍵}1↓¯1↓⍵ ∆FIELD 1
+             }register eval' \#EXEC (⍎braceP) .*? $'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
 
+                 0::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
-                 v←##.dict.get k
+                 v←⍕##.dict.get k
                  0=≢v:k
+
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
              }register eval'(⍎longNameP)'
