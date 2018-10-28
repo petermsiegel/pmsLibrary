@@ -1,6 +1,6 @@
 ## ∆FIX command
-### __Description__
 
+### ∆FIX
 __∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more
 * namespace-like objects (namespaces, classes, and interfaces),
 * traditional functions (marked with `∇...∇`, unless the sole object in the file), and
@@ -9,7 +9,7 @@ __∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifi
 
 result ←  [outSpec [comSpec [DEBUG]]] ∆FIX fileName
 
-Description:
+### Description
   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
   returns the objects found or ⎕FIX error messages.
   Like, ⎕FIX, accepts either a mix of namespace-like objects (namespaces, classes, interfaces)
@@ -41,7 +41,6 @@ DEBUG: 0: not debug mode (default).\
 
 Directives are of the form `::DIRECTIVE name ← value` or `::DIRECTIVE (cond) action`.
 Directives are always the first item on any line of input (leading spaces are ignored).
-
 
 Special commands are of the form:
       #COMMAND{argument}\
@@ -103,7 +102,6 @@ name1.name2.name3..DEF   becomes (0≠⎕NC ‘name1.name2.name3’)\
 name..UNDEF              becomes (0=⎕NC ‘name’)\
 name1.name2.name3..UNDEF becomes (0=⎕NC ‘name1.name2.name3’)
 
-
 ### APL STRINGS
 
 APL strings in single quotes are handled as in APL. Strings may appear in double quotes (“...”), may contain unduplicated single quotes, and may extend over multiple lines.  Double quoted strings are converted to single-quoted strings, after:
@@ -120,7 +118,6 @@ BEFORE:\
 
 AFTER:\
          (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
-
 
 ### Simple Macros
   All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
