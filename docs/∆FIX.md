@@ -1,6 +1,4 @@
-## ∆FIX command
-
-### ∆FIX
+### ∆FIX command
 __∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more
 * namespace-like objects (namespaces, classes, and interfaces),
 * traditional functions (marked with `∇...∇`, unless the sole object in the file), and
