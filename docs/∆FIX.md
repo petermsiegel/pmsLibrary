@@ -18,7 +18,7 @@ fileName: the full file identifier; if no type is indicated, .dyalog is appended
 
 outSpec:  ∊0 (default), 1, 2. Indicates the format of the return value*.
 
-   On success, rc (return code) is 0.
+   On success, rc (return code) is 0.\
    0 - returns*: rc names             -- names: the list of objects created by a ⎕FIX.\
    1 - returns*: rc names code        -- code:  output (vec of strings) from the preprocessor.\
    2 - returns*: rc code              -- rc:    0 on success\
