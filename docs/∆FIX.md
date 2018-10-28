@@ -1,36 +1,44 @@
 # ∆FIX command
-__Description__
+## __Description__
 
 __∆FIX__ is a preprocessor for _Dyalog APL_ files following the formal specifications of the `2∘⎕FIX` command. Normally identified as dot-Dyalog (__.dyalog__) files, these files contain one or more
 * namespace-like objects (namespaces, classes, and interfaces),
 * traditional functions (marked with `∇...∇`, unless the sole object in the file), and
 * direct fns (_dfns_).
 
-__Syntax__
-   - _opts_ ∇  _objname_  [_exp_]
+``
+result ←  [outSpec [comSpec [DEBUG]]] ∆FIX fileName
 
-   - _opts_: 0 (default), 1, or 2.  
-         `0` Preprocess and `⎕FIX` in workspace. Include all preprocessor cmds as comments. \
-         `1` As above, but include preprocessor  cmds only for the paths taken (via ::IF, etc.) \
-         `2`  As above, but omit all preprocessor cmds, keeping other comments. \
+Description:
+  Takes an input file <fileName> in `2 ⎕FIX format`, preprocesses the file, then 2 ⎕FIX's it, and
+  returns the objects found or ⎕FIX error messages.
+  Like, ⎕FIX, accepts either a mix of namespace-like objects (namespaces, classes, interfaces) and functions (marked with ∇)
+  or a single function (whose first line must be its header, with a ∇-prefix optional).
 
-   - __objName__:  The name of the file containing the objects, plus preprocessor directives. The names in the workspace will be derived from the names of objects defined within the file. If the objName has no type, it is assumed to be .dyalog.
+fileName: the full file identifier; if no type is indicated, .dyalog is appended.
+outSpec:  ∊0 (default), 1, 2. Indicates the format of the return value*.
+          On success, rc (return code) is 0.
+           0 - returns*: rc names             -- names: the list of objects created by a ⎕FIX.
+           1 - returns*: rc names code        -- code:  output (vec of strings) from the preprocessor.
+           2 - returns*: rc code              -- rc:    0 on success
+           * If an error occurs, returns:
+               signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
 
-   -  __exp__:
-If specified, may be 0, 1, or 2 (default: 0). Determines whether the object is fixed in the workspace (exp=0,1), and what is returned (below).
-    __Returns__:
-      exp=0: Returns the names of the objects 2∘⎕FIXED in the workspace. Default.
-      exp=1: Returns a 2-element array
-              [0] names of objects fixed in the workspace.
-              [1] the contents of the preprocessor output text
-      exp=2: Nothing is fixed. Returns only the contents of the preprocessor output.
+comSpec:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.
+           0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
+           1: Omit (⍝❌) paths not taken
+           2: Omit also (⍝🅿️) paths taken (leave other user comments)
 
-## Preprocessor Directives
+DEBUG:     0: not debug mode (default).
+           1: debug mode. ⎕SIGNALs will not be trapped.
+``
 
-Directives are of the form ``::DIRECTIVE name ← value`` or ``::DIRECTIVE (cond) action``
+## __Preprocessor Directives__
+
+Directives are of the form `::DIRECTIVE name ← value` or `::DIRECTIVE (cond) action`
 Directives are always the first item on any line of input (leading spaces are ignored).
 
-```APL
+```
 Special commands are of the form:
       #COMMAND{argument}
 Or
@@ -91,7 +99,7 @@ name1.name2.name3..UNDEF becomes (0=⎕NC ‘name1.name2.name3’)
 
 ```
 
-### APL STRINGS
+## APL STRINGS
 
 APL strings in single quotes are handled as in APL. Strings may appear in double quotes (“...”), may contain unduplicated single quotes, and may extend over multiple lines.  Double quoted strings are converted to single-quoted strings, after:
 * Doubling internal single quotes
@@ -109,7 +117,7 @@ AFTER:
          (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
 ```
 
-### Simple Macros
+## Simple Macros
   All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
 
 ## Continuation lines in APL code
@@ -117,5 +125,5 @@ AFTER:
    You may continue any APL line by placing two or more dots .. before any comments on that line.
    In some cases, where the preprocessor handles arguments in parentheses or braces, those arguments may span multiple lines as left-hand parentheses or braces are matched by their right-hand counterparts. These will be documented in a later edition of this document.
 
-### Bugs
+## Bugs
    In this version, trailing (right-hand) comments are omitted from the preprocessor output. Lines containing nothing but comments (possibly with leading blanks) are maintained as is. This may cause problems for those using comments as “here text” or otherwise manipulating the comments in the (preprocessed) source file. Since most such uses depend on full comment lines, this should in most cases not be a problem.
