@@ -25,15 +25,14 @@ outSpec:  ∊0 (default), 1, 2. Indicates the format of the return value*.
    * If an error occurs, returns:\
                signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
 
-comSpec:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.
-
+comSpec:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.\
    0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)\
    1: Omit (⍝❌) paths not taken\
    2: Omit also (⍝🅿️) paths taken (leave other user comments)\
 
-DEBUG: 0: not debug mode (default).\
-       1: debug mode. ⎕SIGNALs will not be trapped.
-
+DEBUG:\
+    0: not debug mode (default).\
+    1: debug mode. ⎕SIGNALs will not be trapped.
 
 ### __Preprocessor Directives__
 
