@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;err;objects;∆V2Q
+﻿ result←{specs}∆FIX fileName;dictMap;err;macros;objects;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;ScanI;ScanII
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defP;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
@@ -407,16 +407,24 @@
            ⍝ name..DEF or name..UNDEF syntax
            ⍝     myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
              defP←eval'(?xx)(⍎longNameP)\.{2,2}(UN)?DEF\b'
-             'DEF/UNDEF'{
-                 dictMap←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
-                 macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
+             dictMap←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
+             macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
+             'name..DEF/UNDEF'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  nm un←⍵ ∆FIELD¨1 2
-                 nm←1↓∊'.',¨macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                 nm←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
                  vs←(1∊'uU'∊un)⊃'≠='
-                 '(0',vs,'⎕NC ''',(dictMap nm),''')'
+                 '(0',vs,'⎕NC ''',(##.dictMap nm),''')'
              }register defP
+           ⍝ name..Q  →  'name' (after any macro substitution)
+             'name..Q'{
+                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
+
+                 nm←⍵ ∆FIELD 1
+                 nm←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                 ' ''',(##.dictMap nm),''' '
+             }register eval'(?xx)(⍎longNameP)\.{2,2}Q\b'
             ⍝ #ENV: Get an environment variable's value as a string...
              '#ENV{name}'{
                  ##.SKIP:⍵ ∆FIELD 0

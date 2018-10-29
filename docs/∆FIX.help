@@ -1,0 +1,169 @@
+∆FIX command: ∆FIX is a preprocessor for Dyalog APL files following the formal
+specifications of the `2∘⎕FIX` command. Normally specified as .dyalog files,
+these files contain one or more:
+∘ namespace-like objects (namespaces, classes, and interfaces),
+∘ traditional functions (marked with `∇...∇`, unless the sole object in the file), and
+∘ direct fns (dfns).
+
+Call Format
+     result ←  [outSpec [comSpec [DEBUG]]] ∆FIX fileName
+
+ Description
+Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then
+2∘⎕FIX's it, and returns the objects found or ⎕FIX error messages.
+Like Dyalog's ⎕FIX, accepts either a mix of namespace-like objects (namespaces,
+classes, interfaces)and functions (marked with ∇) or a single function (whose
+first line must be its header, with a ∇-prefix and suffix optional).
+
+fileName: the full file identifier; if no type is indicated, .dyalog is appended.
+
+outSpec:  ∊0 1 2 (0=default). Indicates the format of the return value∘.
+
+   On success, rc (return code) is 0.
+   0 - returns∘: rc names             -- names: the list of objects created by a ⎕FIX.
+   1 - returns∘: rc names code        -- code:  output (vec of strings) from the preprocessor.
+   2 - returns∘: rc code              -- rc:    0 on success
+   ∘ If an error occurs, returns:
+               signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
+
+comSpec:  ∊0 1 2 (0=default). Indicates how to handle preprocessor statements in output.
+   0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
+   1: Omit (⍝❌) paths not taken
+   2: Omit also (⍝🅿️) paths taken (leave other user comments)
+
+DEBUG:    ∊0 1 (0=default).
+   0: not debug mode (default).
+   1: debug mode. ⎕SIGNALs will not be trapped.
+
+-----------------------
+Preprocessor Directives
+
+Directives are of the form
+  ::DIRECTIVE name ← value
+or
+  ::DIRECTIVE (cond) action.
+
+Directives are always the first item on any line of input (leading spaces are ignored).
+
+Special commands are of the form:
+      #COMMAND{argument}
+or
+      name..COMMAND
+
+Command Descriptions
+
+  ::DEF[INE] name ← string
+  Set APL-style name <name> to the string in the right argument. The <string>
+  is not evaluated, but it will replace <name> verbatim, wherever it appears,
+  except that a simple value outside parentheses or braces will be placed in parentheses.
+    ::DEF next ← {⍵+1}
+
+  ::UNDEF name
+  Remove the definition of <name>, whether defined via DEF, DEFINE, LET or EVAL.
+
+  ::LET name ← value
+  ::EVAL name ← value
+  Set APL-style name <name> to the value of the right argument. The item is
+  evaluated just once.  Wherever <name> appears in the user code, this value
+  replaces it verbatim (as for ::DEFINE, adds parentheses to values outside parentheses
+  or braces).
+    E.g.   ::LET now ← ⎕TS
+
+  ::IFDEF name / ::IFNDEF name
+    …
+  ::ELSE
+    …
+  ::ENDIF[DEF]
+  When an IFDEF or IFNDEF is seen, the name (which may be defined via DEF/INE, LET/EVAL)
+  is replaced by its value. If that value is defined, the IF path is taken, else the
+  ELSE path is taken. An ELSEIF path is also valid, but no ELSEIFDEF is not.
+  Use ::ELSEIF name..DEF instead.
+
+  ::IF cond
+  ::ELSEIF cond
+  ::ELSE
+  ::ENDIF
+  When an IF (or ELSEIF) is seen, the argument <cond> is evaluated. The first "true"
+  path is taken. True is defined as (a) not (,0) and not null. Thus, these are TRUE:
+         1      0 1 2      'abc'   '0'
+  These are FALSE:
+         0      ''   ⍬   0⍴1 2 3
+
+  ::INCLUDE  fileID
+  Insert file specified in current file location, replacing the include statement,
+  and preprocess it.
+      fileID: (currently) a file identifier; if no filetype is indicated, .dyalog is assumed.
+
+  ::CINCLUDE fileID
+  Include the file right here, as for ::INCLUDE, but only if not already included
+  via ::INCLUDE or ::CINCLUDE.
+     fileID: see ::INCLUDE.
+
+  ::COND cond statement
+  Like ::IF, but used for debugging statements. If <cond> is TRUE, executes <statement>.
+  Else, does nothing.
+
+  ::MSG any text
+  Places the message on the screen during preprocessing. Execution continues.
+
+  ::ERROR [errcode] any text
+  Signals the associated errcode (if any) and error text when executed. Execution is halted.
+
+  #ENV{name}
+  returns the value of the environment variable “name” as a string .
+
+  #SH[ELL]{shellcmd}
+	Returns the value of the shell command ⎕SH ‘shellcmd’. The value returned will be
+  a vector of string vectors, one per line.
+
+  #EXEC{aplcmd}
+	Returns the value of the APL command ⍎‘aplcmd’.
+
+  name..CMD
+  Items of this form first undergo macro substitution (if applicable), then
+  are quoted and transformed depending on the CMD.
+       Note: Ordinary quoted strings are ignored during macro substitution.
+  name..DEF                 → (0≠⎕NC ‘name’)
+  name1.name2.name3..DEF    → (0≠⎕NC ‘name1.name2.name3’)
+
+  name..UNDEF               → (0=⎕NC ‘name’)
+  name1.name2.name3..UNDEF  → (0=⎕NC ‘name1.name2.name3’)
+
+  name..Q                   → 'name'
+  name1.name2.name3..Q      → 'name1.name2.name3'
+  Used to pass the name of an object AFTER macro substitution (where applicable)
+  to any user or system variable.
+
+APL STRINGS
+APL strings in single quotes are handled as in APL. Strings may appear in double
+quotes (“...”), may contain unduplicated single quotes, and may extend over multiple
+lines.  Double quoted strings are converted to single-quoted strings, after:
+∘ Doubling internal single quotes
+∘ Processing doubled internal double quotes.
+∘ Converting newlines to ⎕UCS 10, in this way ( ⏎ used to show newline):
+
+    “String1⏎string2”     →   (‘String’,(⎕UCS 10),’string2’)
+
+ Blanks at the beginning of each continuation line are removed (the symbol · shows where the leading blanks are).
+ BEFORE:
+       	“This is line 1. ⏎
+·········This is line 2.”
+AFTER:
+         (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
+
+Simple Macros
+  All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
+
+Continuation lines in APL code
+   You may continue any APL line by placing two or more dots .. as the last errcode
+   before any comments on that line. In some cases, where the preprocessor handles
+   arguments in parentheses or braces, those arguments may span multiple lines as
+   left-hand parentheses or braces are matched by their right-hand counterparts.
+   These will be documented in a later edition of this document.
+
+ Bugs
+   In this version, trailing (right-hand) comments are omitted from the preprocessor
+   output. Lines containing nothing but comments (possibly with leading blanks)
+   are maintained as is. This may cause problems for those using comments as “here text”
+   or otherwise manipulating the comments in the (preprocessed) source file.
+   Since most such uses depend on full comment lines, this should in most cases not be a problem.
