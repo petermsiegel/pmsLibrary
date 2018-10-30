@@ -53,7 +53,7 @@ or
 Command Descriptions
 
   ::DEF[INE] name ← string
-  Set APL-style name <name> to the string in the right argument. The <string>
+  Set APL-style name <name> to the (unevaluated) string in the right argument. The <string>
   is not evaluated, but it will replace <name> verbatim, wherever it appears,
   except that a simple value outside parentheses or braces will be placed in parentheses.
     ::DEF next ← {⍵+1}
@@ -63,11 +63,22 @@ Command Descriptions
 
   ::LET name ← value
   ::EVAL name ← value
-  Set APL-style name <name> to the value of the right argument. The item is
+  Set APL-style name <name> to the (APL-evaluated) value of the right argument. The item is
   evaluated just once.  Wherever <name> appears in the user code, this value
   replaces it verbatim (as for ::DEFINE, adds parentheses to values outside parentheses
   or braces).
     E.g.   ::LET now ← ⎕TS
+  Note: names (e.g. <now>) are evaluated within a private namespace established during each ∆FIX call, so
+  setting names will not impact the external environment unless they contain ⎕SE, # or ##. We recommend
+  NOT using ∆FIX Macros to set external variables during preprocessing. 
+  Names relative to this private namespace are safe (e.g. ::LET a.b.c←⎕TS) and intermediate
+  namespaces will be generated (here, a.b), unless the names refer to non-namespace objects.
+  This is an error, because variable <a> first denotes a simple value, not a namespace.
+       ::LET a←⎕TS
+       ::LET a.ai←⎕AI
+  This is valid, as long as a.b and a are either undefined or denote namespaces:
+       ::LET a.b.ts←⎕TS
+       ::LET a.b.ai←⎕AI
 
   ::IFDEF name / ::IFNDEF name
     …
@@ -78,6 +89,8 @@ Command Descriptions
   is replaced by its value. If that value is defined, the IF path is taken, else the
   ELSE path is taken. An ELSEIF path is also valid, but no ELSEIFDEF is not.
   Use ::ELSEIF name..DEF instead.
+  Note: names are evaluated within a private namespace. Absolute names, using ⎕SE, # or ##
+  (e.g. #.myItem or ##.##.myItem), should be avoided or used with care. See ::LET above.
 
   ::IF cond
   ::ELSEIF cond
@@ -88,11 +101,13 @@ Command Descriptions
          1      0 1 2      'abc'   '0'
   These are FALSE:
          0      ''   ⍬   0⍴1 2 3
+  See ::IF and ::LET for details on names used in ::IF and ::ELSEIF expressions.
 
   ::INCLUDE  fileID
   Insert file specified in current file location, replacing the include statement,
   and preprocess it.
       fileID: (currently) a file identifier; if no filetype is indicated, .dyalog is assumed.
+  NOTE: A quoted string should be allowed to deal with fileIDs with spaces.
 
   ::CINCLUDE fileID
   Include the file right here, as for ::INCLUDE, but only if not already included
@@ -102,6 +117,7 @@ Command Descriptions
   ::COND cond statement
   Like ::IF, but used for debugging statements. If <cond> is TRUE, executes <statement>.
   Else, does nothing.
+  See ::IF and ::LET for details on APL variable names used in ::COND expressions.
 
   ::MSG any text
   Places the message on the screen during preprocessing. Execution continues.
