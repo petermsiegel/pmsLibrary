@@ -517,7 +517,7 @@
      tmpfile←(739⌶0),'/','TMP~.dyalog'
      :Trap 0
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
-         objects←2 ⎕FIX'file://',tmpfile
+         objects←2 (0⊃⎕RSI).⎕FIX'file://',tmpfile
          :Select outSpec
               ⋄ :Case 0 ⋄ result←0 objects
               ⋄ :Case 1 ⋄ result←0 objects code
