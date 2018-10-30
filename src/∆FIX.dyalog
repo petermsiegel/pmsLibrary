@@ -1,6 +1,6 @@
-﻿ result←{specs}∆FIX fileName;dictMap;err;macros;objects;∆V2Q
+﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;objects;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;ScanI;ScanII
- ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defP;defS;dict;doScan;dqStringP
+ ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
  ;register;setBrace;sfx;skipCom;outSpec;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
  ;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
@@ -57,7 +57,7 @@
          l←≢m←'│  ',⍵,'  │'
          t←'┌','┐',⍨,'─'⍴⍨l-2
          b←'└','┘',⍨,'─'⍴⍨l-2
-         t,##.CR,m,##.CR,b
+         t,CR,m,CR,b
      }
 ⍝⍝⍝⍝ regexp internal routines...
    ⍝-------------------------------------------------------------------------------------------
@@ -79,6 +79,7 @@
    ⍝ PCRE routines
      ∆FIELD←{
          0=≢⍵:''
+         1<≢⍵:⍺ ∇¨⍵
          0=⍵:⍺.Match ⋄ ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
      ∆CASE←{⍺.PatternNum∊⍵}
@@ -86,30 +87,40 @@
    ⍝ Use a local namespace so we can use with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
-         dict.ns←⎕NS''
+         dict.ns←dict.⎕NS''
        ⍝ map: Convert #.a.b or ⎕SE.a.b into flat object Ø⍙a⍙b  ∆SE⍙a⍙b
        ⍝ ([0] map str) and inverse (1 map str)
-         dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
+       ⍝ dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
+       ⍝ If user refers to a.b.c, be sure namespace
+       ⍝        dict.ns.a.b exists...
+       ⍝ For safety when dealing with absolute items, we verify that a.b is either
+       ⍝ undefined or a namespace...
+         dict.map←{⍺←ns
+             0::⎕SIGNAL/⎕DMX.(EM EN)
+             ⋄ verify←{pfx←1⊃⎕NPARTS ⍵ ⋄ ~'.'∊pfx:1 ⋄ ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
+             ~'.'∊⍵:⍵             ⍝ simple name
+             ns2←1⊃⎕NPARTS ⍵      ⍝ ns2: prefix a.b.c for name a.b.c.d
+             ⍺ verify ⍵:⍵⊣ns2 ⍺.⎕NS''
+             err←'∆FIX: Object ',⍵,' invalid: prefix ',ns2,' in use as non-namespace object.'
+             err ⎕SIGNAL 911
+         }
          dict.set←{⍺←ns
-             d(k v)←⍺ ⍵
-             k←map k
-             1:{d⍎k,'←⍵'}v
+             n(k v)←⍺ ⍵
+             k←n map k
+             1:n{⍺⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
-             d k←⍺ ⍵
-             k←map k
-             0≥d.⎕NC k:''
-             ⍕d.⎕OR k
+             n k←⍺ ⍵
+             0≥n.⎕NC k:''
+             ⍕n.⎕OR k
          }
          dict.del←{⍺←ns
-             d k←⍺ ⍵
-             k←map k
-             1:d.⎕EX k
+             n k←⍺ ⍵
+             1:n.⎕EX k
          }
          dict.defined←{⍺←ns
-             d k←⍺ ⍵
-             k←map k
-             2=d.⎕NC k
+             n k←⍺ ⍵
+             2=n.⎕NC k
          }
          _←dict.⎕FX'k←keys' 'k←1 map¨↓ns.⎕NL 2'
          _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
@@ -243,6 +254,8 @@
                  (~##.SKIP)∆COM f0
              }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
             ⍝ IF stmts
+           ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
+           ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
              'IF'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
@@ -256,7 +269,7 @@
                  code1←##.ScanII(0 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.SKIP←~##.IF_STACK,←## notZero code2  ⍝ (is code2 non-zero?)
+                 ##.SKIP←~##.IF_STACK,←##.notZero code2  ⍝ (is code2 non-zero?)
 
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
              }register eval'^\h* :: \h* IF\b \h*(.*?)$'
@@ -274,7 +287,7 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 code1←##.ScanII(0 ##.doScan)code0
+                 ⎕←code1←##.ScanII(0 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
                  ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
@@ -330,7 +343,7 @@
 
                  cond1←##.ScanII(0 ##.doScan)cond0
                  cond2←##.dict.ns{⍺⍎⍵}cond1
-                 bool←notZero cond2
+                 bool←##.notZero cond2
 
                  stmt←⍕##.ScanII(0 ##.doScan)stmt
                  out1←bool ∆COM f0('➤  ',⍕cond1)('➤  ',⍕cond2)('➤  ',⍕bool)
@@ -338,7 +351,7 @@
                  out1,out2
              }register eval'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
-             defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎nameP) '
+             defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎longNameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
              'DEF(INE)'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -366,7 +379,7 @@
                  }⍬
 
                  vOut←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',vIn
-                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'???' ⋄ ⎕FMT ⍵}vOut
+                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
              }register eval'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
@@ -404,28 +417,27 @@
              'STRINGS*'(0 register)sqStringP
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
-           ⍝ name..DEF or name..UNDEF syntax
-           ⍝     myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
-             defP←eval'(?xx)(⍎longNameP)\.{2,2}(UN)?DEF\b'
-             dictMap←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
-             macros←{v←##.dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
-             'name..DEF/UNDEF'{
+           ⍝
+             macros←{v←dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
+            ⍝ name..DEF     is name defined?
+            ⍝ name..UNDEF   is name undefined?
+            ⍝ name..Q       'name'
+            ⍝ name..ENV     getenv('name')
+            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
+            ⍝ name..Q  →  'name' (after any macro substitution)
+             'name..cmd'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
-                 nm un←⍵ ∆FIELD¨1 2
+                 nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd
                  nm←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                 vs←(1∊'uU'∊un)⊃'≠='
-                 '(0',vs,'⎕NC ''',(##.dictMap nm),''')'
-             }register defP
-           ⍝ name..Q  →  'name' (after any macro substitution)
-             'name..Q'{
-                 ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
-
-                 nm←⍵ ∆FIELD 1
-                 nm←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                 ' ''',(##.dictMap nm),''' '
-             }register eval'(?xx)(⍎longNameP)\.{2,2}Q\b'
-            ⍝ #ENV: Get an environment variable's value as a string...
+                 q←''''
+                 cmd≡'ENV':' ',q,(getenv nm),q,' '
+                 cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
+                 cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
+                 cmd≡,'Q':' ',q,nm,q,' '
+                 ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)11
+             }register eval'(?xx)(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
+            ⍝ #ENV: Get an environment variable's value as a string...  ** DEPRECATED **
              '#ENV{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
                  val←getenv ⍵ ∆FIELD 1
@@ -526,6 +538,4 @@
          'Defined names and values'
          ⍉↑keys dict.values
      :EndIf
-     ⎕←'err'err' objects'objects
-     ⎕←'done'
  :EndIf
