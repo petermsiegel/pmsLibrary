@@ -287,7 +287,7 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 ⎕←code1←##.ScanII(0 ##.doScan)code0
+                 code1←##.ScanII(0 ##.doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
                  ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
@@ -436,7 +436,7 @@
                  cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
                  cmd≡,'Q':' ',q,nm,q,' '
                  ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)11
-             }register eval'(?xx)(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
+             }register eval'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
             ⍝ #ENV: Get an environment variable's value as a string...  ** DEPRECATED **
              '#ENV{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
@@ -517,7 +517,7 @@
      tmpfile←(739⌶0),'/','TMP~.dyalog'
      :Trap 0
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
-         objects←2 (0⊃⎕RSI).⎕FIX'file://',tmpfile
+         objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
          :Select outSpec
               ⋄ :Case 0 ⋄ result←0 objects
               ⋄ :Case 1 ⋄ result←0 objects code
