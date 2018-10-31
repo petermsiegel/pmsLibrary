@@ -80,7 +80,10 @@
      ∆FIELD←{
          0=≢⍵:''
          1<≢⍵:⍺ ∇¨⍵
-         0=⍵:⍺.Match ⋄ ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
+         0=⍵:⍺.Match
+         ⍵≥≢⍺.Lengths:''
+         ¯1=⍺.Lengths[⍵]:''
+         ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
      ∆CASE←{⍺.PatternNum∊⍵}
    ⍝ dictionary routines
@@ -135,7 +138,7 @@
          ns←⎕NS''
          ns.⎕PATH←'##'
          ns.info←⍺
-         ns.pats←'(?xx)',⍵         ⍝ xx-- allow spaces in [...] pats.
+         ns.pats←'(?xx)',eval ⍵         ⍝ xx-- allow spaces in [...] pats.
          ns.action←⍺⍺     ⍝ a function OR a number (number → field[number]).
          1:Match,←ns
      }
@@ -146,11 +149,15 @@
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          m←pn⊃match
 
-         3=m.⎕NC'action':m m.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴m.action:∊m.action            ⍝ text? Return as is...
-         ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
+
+         ∆←{⎕←'maction ',pn,' out=',⍵ ⋄ ⍵}
+
+         3=m.⎕NC'action':∆ m m.action ⍵          ⍝ m.action is a fn. Else a var.
+         ' '=1↑0⍴m.action:∆∊m.action            ⍝ text? Return as is...
+         ∆ ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
      }
      eval←{
+         ~'⍎'∊⍵:⍵
          '⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
@@ -252,7 +259,7 @@
                  ##.SKIP←~⊃⌽##.IF_STACK
 
                  (~##.SKIP)∆COM f0
-             }register eval'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
+             }register'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
             ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
@@ -266,13 +273,16 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
+                 ⎕←'if code0 ',code0
                  code1←##.ScanII(0 ##.doScan)code0
+                 ⎕←'if code1 ',code1
                  code2←##.dict.ns{⍺⍎⍵}code1
+                 ⎕←'if code2 ',code2
 
                  ##.SKIP←~##.IF_STACK,←##.notZero code2  ⍝ (is code2 non-zero?)
 
                  (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
-             }register eval'^\h* :: \h* IF\b \h*(.*?)$'
+             }register'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF'{
 
@@ -293,13 +303,13 @@
                  ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
                  (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',⍕code2)
-             }register eval'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
+             }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
                  ##.SKIP←~(⊃⌽##.IF_STACK)←~⊃⌽##.IF_STACK    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
                  (~##.SKIP)∆COM f0
-             }register eval'^\h* :: \h* ELSE \b .*?$'
+             }register'^\h* :: \h* ELSE \b .*?$'
             ⍝ END, ENDIF, ENDIFDEF
              'END(IF(DEF))'{
                  f0←⍵ ∆FIELD 0
@@ -318,7 +328,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register eval'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+             }register'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
             ⍝ INCLUDE
              'INCLUDE'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -327,7 +337,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (##.CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register eval'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+             }register'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
            ⍝ Does not affect the IF_STACK or SKIP...
@@ -349,7 +359,7 @@
                  out1←bool ∆COM f0('➤  ',⍕cond1)('➤  ',⍕cond2)('➤  ',⍕bool)
                  out2←##.CR,(##.NOc/⍨~bool),stmt
                  out1,out2
-             }register eval'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
+             }register'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎longNameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
@@ -364,7 +374,7 @@
                  v←⍕##.ScanII(0 ##.doScan)v
                  _←##.dict.set k v
                  ∆COM f0
-             }register eval defS
+             }register defS
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
              'LET~EVAL'{
@@ -381,7 +391,7 @@
                  vOut←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
-             }register eval'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+             }register'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
              'UNDEF'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
@@ -389,7 +399,7 @@
                  f0 k←⍵ ∆FIELD¨0 1
                  _←##.dict.del k
                  ∆COM f0
-             }register eval'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
+             }register'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
              'ERROR'{
@@ -414,7 +424,7 @@
                  ##.SKIP/##.NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
-             'STRINGS*'(0 register)sqStringP
+             'STRINGS*'(0 register)'⍎sqStringP'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
            ⍝
@@ -428,31 +438,38 @@
              'name..cmd'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
+                 _←⍵ ∆FIELD 0 ⍝ DEBUG ONLY
+
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd
-                 nm←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                 ⎕←'nm ='nm
+                 nm2←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
+                 ⎕←'nm2='nm2
+                 nm←nm{¯1≠⎕NC ⍵:⍵ ⋄ ⍺}nm2
+                 ⎕←'nm∆=',nm
+
                  q←''''
-                 cmd≡'ENV':' ',q,(getenv nm),q,' '
-                 cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
+                 cmd≡'ENV':' ',q,(##.getenv nm),q,' '
+                 cmd≡'DEF':⊢⎕←'(0≠⎕NC',q,nm,q,')'
                  cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
                  cmd≡,'Q':' ',q,nm,q,' '
                  ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)11
-             }register eval'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
+             }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
             ⍝ #ENV: Get an environment variable's value as a string...  ** DEPRECATED **
              '#ENV{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
-                 val←getenv ⍵ ∆FIELD 1
+                 val←##.getenv ⍵ ∆FIELD 1
                  ' ''',val,''' '
              }register' \#ENV \{ \h* ( \w+ ) \h* \}'
             ⍝ #SH{string}: Return value of ⎕SH string
              '#SHell{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
-             }register eval' \#SH (⍎braceP) .*? $'
+             }register' \#SH (⍎braceP) .*? $'
             ⍝ #EXEC{string}: Return value of ⍎string
              '#EXECute{name}'{
                  ##.SKIP:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ↓⎕FMT⍎⍵}1↓¯1↓⍵ ∆FIELD 1
-             }register eval' \#EXEC (⍎braceP) .*? $'
+             }register' \#EXEC (⍎braceP) .*? $'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
@@ -464,7 +481,7 @@
 
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
-             }register eval'(⍎longNameP)'
+             }register'(⍎longNameP)'
              ScanII←MEnd
          :EndSection
      :EndSection
