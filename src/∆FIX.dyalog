@@ -150,7 +150,9 @@
          m←pn⊃match
 
 
-         ∆←{⎕←'maction ',pn,' out=',⍵ ⋄ ⍵}
+         pat←⍵.Pattern
+         ∆←{⎕←'maction ',pn,'⎕LC=',(1↓⎕LC),' out=',⍵
+             ⎕←'maction pattern ',pat ⋄ ⍵}
 
          3=m.⎕NC'action':∆ m m.action ⍵          ⍝ m.action is a fn. Else a var.
          ' '=1↑0⍴m.action:∆∊m.action            ⍝ text? Return as is...
@@ -224,9 +226,9 @@
      ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
      ALPH,←'_∆⍙'
    ⍝ Valid APL simple names
-     nameP←eval'(?xx)(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
+     nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
-     longNameP←eval'(?xx) (?: ⍎nameP (?: \. ⍎nameP )* )  '
+     longNameP←eval '(?: ⍎nameP (?: \. ⍎nameP )* )  '
 
    ⍝ Matches one field in addition to any additional surrounding
      parenP←'('setBrace')'
@@ -424,7 +426,9 @@
                  ##.SKIP/##.NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
-             'STRINGS*'(0 register)'⍎sqStringP'
+             'STRINGS*'({
+                 ⊢⎕←⍵ ∆FIELD 0
+             }register)'⍎sqStringP'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
            ⍝
@@ -477,11 +481,12 @@
                  0::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕##.dict.get k
+          ⍝ DEBUG:  ⎕←'MACRO k ',k,' v',v,' in "',(⍵ ∆FIELD 0),'"'
                  0=≢v:k
 
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
-             }register'(⍎longNameP)'
+             }register'(⍎longNameP)(?!\.\.)'
              ScanII←MEnd
          :EndSection
      :EndSection
