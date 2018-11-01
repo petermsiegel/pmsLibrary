@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;∆V2Q
+﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;showc;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;PreScan1;MainScan1
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
@@ -60,11 +60,18 @@
          t,CR,m,CR,b
      }
    ⍝ Display just a bit of an obj of unknown size. (Used for display info)
+   ⍝ show: assumes values. Puts strings in quotes.
      show←{⍺←⎕PW-20 ⋄ maxW←⍺
          f←⎕FMT ⍵
          q←''''/⍨0=80|⎕DR ⍵
          clip←1 maxW<⍴f
          (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
+     }
+   ⍝ showc: assumes names or code
+     showc←{⍺←⎕PW-20 ⋄ maxW←⍺
+         f←⎕FMT ⍵
+         clip←1 maxW<⍴f
+         ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
      }
 
 ⍝⍝⍝⍝ regexp internal routines...
@@ -304,7 +311,7 @@
 
                  ##.SKIP←~##.IF_STACK,←##.notZero code2  ⍝ (is code2 non-zero?)
 
-                 (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',show code2)
+                 (~##.SKIP)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF'{
@@ -325,7 +332,7 @@
 
                  ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
-                 (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',show code2)
+                 (~##.SKIP)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
@@ -379,7 +386,7 @@
                  bool←##.notZero cond2
 
                  stmt←⍕(0 doScan)stmt
-                 out1←bool ∆COM f0('➤  ',cond1)('➤  ',show cond2)('➤  ',show bool)
+                 out1←bool ∆COM f0('➤  ',showc cond1)('➤  ',show cond2)('➤  ',show bool)
                  out2←##.CR,(##.NOc/⍨~bool),stmt
                  out1,out2
              }register'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
