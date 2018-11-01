@@ -1,5 +1,5 @@
-﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;objects;∆V2Q
- ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;ScanI;ScanII
+﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;∆V2Q
+ ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;PreScan1;MainScan1
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
  ;register;setBrace;sfx;skipCom;outSpec;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
@@ -59,6 +59,14 @@
          b←'└','┘',⍨,'─'⍴⍨l-2
          t,CR,m,CR,b
      }
+   ⍝ Display just a bit of an obj of unknown size. (Used for display info)
+     show←{⍺←⎕PW-20 ⋄ maxW←⍺
+         f←⎕FMT ⍵
+         q←''''/⍨0=80|⎕DR ⍵
+         clip←1 maxW<⍴f
+         (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
+     }
+
 ⍝⍝⍝⍝ regexp internal routines...
    ⍝-------------------------------------------------------------------------------------------
    ⍝ ∆PFX:   pfx ∇ lines
@@ -138,10 +146,14 @@
          ns←⎕NS''
          ns.⎕PATH←'##'
          ns.info←⍺
-         ns.pats←'(?xx)',eval ⍵         ⍝ xx-- allow spaces in [...] pats.
-         ns.action←⍺⍺     ⍝ a function OR a number (number → field[number]).
+         ns.pRaw←⍵                    ⍝ For debugging
+         ns.pats←'(?xx)',eval ⍵       ⍝ xx-- allow spaces in [...] pats.
+         ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
          1:Match,←ns
      }
+
+     mcP←⍬ ⋄ mcT←0  ⍝ DEBUG
+    ⍝ ⎕FX'r←∆∆' 'r←(⍕≢mcP),''D '',(⍕⊃⌽mcP),'':'''
      MActions←{
          ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
          match←,⍺⍺    ⍝ Ensure vector...
@@ -150,9 +162,18 @@
          m←pn⊃match
 
 
-         pat←⍵.Pattern
-         ∆←{⎕←'maction ',pn,'⎕LC=',(1↓⎕LC),' out=',⍵
-             ⎕←'maction pattern ',pat ⋄ ⍵}
+         pRaw←m.pRaw ⍝ DEBUG
+
+         mcP,←(mcT∘←mcT+1)
+        ⍝ ⎕←∆∆,'maction matches: "',⍵.Match,'"'
+         ∆←⊢
+        ⍝  ∆←{
+        ⍝      ⎕←'>>> maction ⎕LC=',(1↓⎕LC)
+        ⍝      ⎕←'>>> maction pattern #',pn,'info: ',m.info
+        ⍝      ⎕←'>>> pat: ',pRaw
+        ⍝      ⎕←∆∆,'replaces it with: "',⍵,'"'
+        ⍝      mcP↓⍨←¯1
+        ⍝      ⍵}
 
          3=m.⎕NC'action':∆ m m.action ⍵          ⍝ m.action is a fn. Else a var.
          ' '=1↑0⍴m.action:∆∊m.action            ⍝ text? Return as is...
@@ -228,7 +249,7 @@
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
-     longNameP←eval '(?: ⍎nameP (?: \. ⍎nameP )* )  '
+     longNameP←eval'(?: ⍎nameP (?: \. ⍎nameP )* )  '
 
    ⍝ Matches one field in addition to any additional surrounding
      parenP←'('setBrace')'
@@ -241,7 +262,7 @@
 
      :Section Setup Scans
          opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
-         :Section ScanI
+         :Section PreScan1
              MBegin
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
@@ -249,10 +270,10 @@
              'CONT'(' 'register)'\h*\.{2,}\h*(⍝.*?)?$(\s*)'      ⍝ Continuation lines [+ comments] → single space
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'           ⍝ Comments on their own line are kept.
              'COMMENTS_RHS'(''register)'\h*⍝.*?$'              ⍝ RHS Comments are ignored...
-             ScanI←MEnd
+             PreScan1←MEnd
          :EndSection
 
-         :Section ScanII
+         :Section MainScan1
              MBegin
             ⍝ IFDEF stmts
              'IFDEF+IFNDEF'{
@@ -275,15 +296,15 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 ⎕←'if code0 ',code0
-                 code1←##.ScanII(0 ##.doScan)code0
-                 ⎕←'if code1 ',code1
+                    ⍝ ⎕←'::IF code0 ',code0
+                 code1←(0 doScan)code0
+                    ⍝ ⎕←'::IF code1 ',code1
                  code2←##.dict.ns{⍺⍎⍵}code1
-                 ⎕←'if code2 ',code2
+                    ⍝ ⎕←'::IF code2 ',code2
 
                  ##.SKIP←~##.IF_STACK,←##.notZero code2  ⍝ (is code2 non-zero?)
 
-                 (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',⍕code2)
+                 (~##.SKIP)∆COM('::IF ',code0)('➤    ',code1)('➤    ',show code2)
              }register'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF'{
@@ -299,12 +320,12 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
 
-                 code1←##.ScanII(0 ##.doScan)code0
+                 code1←(0 doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
                  ##.SKIP←~(⊃⌽##.IF_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
-                 (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',⍕code2)
+                 (~##.SKIP)∆COM('::ELSEIF ',code0)('➤    ',code1)('➤    ',show code2)
              }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
@@ -353,12 +374,12 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.CR,0 ∆COM ⍵
                  }f0
 
-                 cond1←##.ScanII(0 ##.doScan)cond0
+                 cond1←(0 doScan)cond0
                  cond2←##.dict.ns{⍺⍎⍵}cond1
                  bool←##.notZero cond2
 
-                 stmt←⍕##.ScanII(0 ##.doScan)stmt
-                 out1←bool ∆COM f0('➤  ',⍕cond1)('➤  ',⍕cond2)('➤  ',⍕bool)
+                 stmt←⍕(0 doScan)stmt
+                 out1←bool ∆COM f0('➤  ',cond1)('➤  ',show cond2)('➤  ',show bool)
                  out2←##.CR,(##.NOc/⍨~bool),stmt
                  out1,out2
              }register'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
@@ -369,11 +390,9 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
-                 v←{
-                     '('=1↑⍵:'\h*\R\h*'⎕R' '⍠##.opts⊣⍵
-                     ⍵
-                 }v
-                 v←⍕##.ScanII(0 ##.doScan)v
+               ⍝ Replace leading and training blanks with single space
+                 v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠##.opts⊣⍵ ⋄ ⍵}v
+                 v←⍕(0 doScan)v
                  _←##.dict.set k v
                  ∆COM f0
              }register defS
@@ -427,33 +446,45 @@
              }register'^'
            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
              'STRINGS*'({
-                 ⊢⎕←⍵ ∆FIELD 0
+                 ⎕←'Matching string: <',(⍵ ∆FIELD 0),'>'
+                 ⍵ ∆FIELD 0
              }register)'⍎sqStringP'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
-           ⍝
-             macros←{v←dict.get ⍵ ⋄ 0=≢v:⍵ ⋄ v}¨
-            ⍝ name..DEF     is name defined?
-            ⍝ name..UNDEF   is name undefined?
-            ⍝ name..Q       'name'
-            ⍝ name..ENV     getenv('name')
-            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
-            ⍝ name..Q  →  'name' (after any macro substitution)
+           ⍝ name..DEF     is name defined?
+           ⍝ name..UNDEF   is name undefined?
+           ⍝ name..Q       'name'
+           ⍝ name..ENV     getenv('name')
+           ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
+           ⍝ name..Q  →  'name' (after any macro substitution)
              'name..cmd'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  _←⍵ ∆FIELD 0 ⍝ DEBUG ONLY
 
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd
-                 ⎕←'nm ='nm
-                 nm2←1↓∊'.',¨##.macros('.'∘≠⊆⊢)nm   ⍝ See if any names are replacements ("macros")
-                 ⎕←'nm2='nm2
-                 nm←nm{¯1≠⎕NC ⍵:⍵ ⋄ ⍺}nm2
-                 ⎕←'nm∆=',nm
+
+                 ⍝ ⎕←'macro in:   nm =',nm
+               ⍝ For nm a of form a1.a2.a3.a4,
+               ⍝ see if any of a1 .. a4 are macros,
+               ⍝ but accept value vN for aN only if name.
+                 nm←{
+                     ~'.'∊⍵:⍵              ⍝ a is simple...
+                     1↓∊'.',¨{
+                         vN←##.dict.get ⍵  ⍝ Check value vN of aN
+                         0=≢vN:⍵           ⍝ aN not macro. Use aN.
+                         ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
+                         vN                ⍝ Use value vN of aN
+                     }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
+                 }nm
+                  ⍝ ⎕←'macro scan: nm =',nm
+
+                 ∆←⊢
+                 ⍝ ∆←{⎕←nm,'..',cmd,' returning "',⍵,'"' ⋄ ⍵}
 
                  q←''''
                  cmd≡'ENV':' ',q,(##.getenv nm),q,' '
-                 cmd≡'DEF':⊢⎕←'(0≠⎕NC',q,nm,q,')'
+                 cmd≡'DEF':∆'(0≠⎕NC',q,nm,q,')'
                  cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
                  cmd≡,'Q':' ',q,nm,q,' '
                  ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)11
@@ -487,18 +518,18 @@
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
              }register'(⍎longNameP)(?!\.\.)'
-             ScanII←MEnd
+             MainScan1←MEnd
          :EndSection
      :EndSection
 
      :Section Define Scans
      ⍝ To scan simple expressions:
-     ⍝   code← [ScanI] ScanII (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and SKIP stacks during use.
+     ⍝   code← [PreScan1] MainScan1 (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and SKIP stacks during use.
      ⍝                                            ⍺⍺=0: Maintain existing stacks
          IF_STACK SKIP∘←1 0 ⋄ SAVE_STACK←⍬
          doScan←{
              ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
-             ⍺←ScanI ScanII       ⍝ Default is ALL scans...
+             ⍺←MainScan1       ⍝ Default is to omit the prescan
 
              stackFlag←⍺⍺
              saveStacks←{
@@ -525,7 +556,7 @@
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
-         code←(0 doScan)code
+         code←PreScan1 MainScan1(0 doScan)code
 
          :Select comSpec
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
@@ -552,8 +583,8 @@
  :EndSection
 
  :If DEBUG
-     ⎕←'ScanI  Pats:'ScanI.info
-     ⎕←'ScanII Pats:'ScanII.info
+     ⎕←'PreScan1  Pats:'PreScan1.info
+     ⎕←'MainScan1 Pats:'MainScan1.info
      ⎕←'      *=passthrough'
 
      :If 0≠≢keys←dict.keys
