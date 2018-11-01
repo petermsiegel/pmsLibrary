@@ -50,7 +50,8 @@ Special commands are of the form:
 or
       name..COMMAND
 
-Command Descriptions
+Directive Descriptions
+--------- ------------
 
   ::DEF[INE] name ← string
   Set APL-style name <name> to the (unevaluated) string in the right argument. The <string>
@@ -149,6 +150,9 @@ Command Descriptions
   name1.name2.name3..Q      → 'name1.name2.name3'
   Used to pass the name of an object AFTER macro substitution (where applicable)
   to any user or system variable.
+  
+  name..ENV                  → value of environment variable 'name'
+  Shortcut to getting value of named environment variable (null, if not defined).
 
 APL STRINGS
 APL strings in single quotes are handled as in APL. Strings may appear in double
