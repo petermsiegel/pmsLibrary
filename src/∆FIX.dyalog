@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;NO;NOc;TRAP;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;showc;subMacro;∆V2Q
+﻿ result←{specs}∆FIX fileName;NO;NOc;TRAP;YES;YESc;dictNameP;err;filesIncluded;macros;objects;show;showc;subMacro;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;PreScan1;MainScan1
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
@@ -520,13 +520,11 @@
          }
      :EndSection Define Scans
 
-
      :Section Do Scans
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
          code←PreScan1 MainScan1(0 doScan)code
-
          :Select comSpec
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠opts⊣code
@@ -549,7 +547,7 @@
               ⋄ :Case 2 ⋄ result←0 code
          :EndSelect
      :Else ⍝ Error: return  trapCode trapMsg
-         result←⎕DMX.EN ⎕DMX.EM
+         result←⎕DMX.(EN EM)
      :EndTrap
      1 ⎕NDELETE tmpfile
  :EndSection
