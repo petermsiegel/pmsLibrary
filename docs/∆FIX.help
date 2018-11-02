@@ -126,14 +126,14 @@ Directive Descriptions
   ::ERROR [errcode] any text
   Signals the associated errcode (if any) and error text when executed. Execution is halted.
 
-  #ENV{name}
+  #ENV{name}   ⍝⍝⍝ CONSIDER DEPRECATING in favor of name..ENV
   returns the value of the environment variable “name” as a string .
 
   #SH[ELL]{shellcmd}
 	Returns the value of the shell command ⎕SH ‘shellcmd’. The value returned will be
   a vector of string vectors, one per line.
 
-  #EXEC{aplcmd}
+  #EXEC{aplcmd}     ⍝⍝⍝ DEPRECATED. REMOVE!
 	Returns the value of the APL command ⍎‘aplcmd’.
 
   name..CMD
