@@ -191,7 +191,9 @@ A. AtomsI  Expressions of the form
   Here's an example of passing parameters to a function <FUN>:
    
        res ← FUN (x → ⍳10)(y → ○⍳10)(plot xy → 1)
- 
+       
+  The dyadic right arrow → is called the PARAMETER pseudo-operator (it is formally "punctuation,"
+  rather than an operator or function).
 B. Atoms II  Expressions of the form
          ` atom1 [atom2 [atom3...]]
    where atomN is defined as above are treated as if the LEFT-side of
@@ -214,6 +216,8 @@ B. Atoms II  Expressions of the form
    [0]   FUN
    [1]   (⊂'names' 'ages' 'serial' 'one' 'two' 'three' 'four' 'five' 'six' 'seven')
       
+   The monadic back-tick `... is called the ATOM pseudo-operator (it is formally "punctuation,"
+   rather than an operator or function).
  
 Continuation lines in APL code
    You may continue any APL line by placing two or more dots .. as the last errcode
