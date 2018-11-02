@@ -174,6 +174,47 @@ AFTER:
 Simple Macros
   All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
 
+Atoms
+  Atoms are used to define parameters or arguments; while quoted strings are allowed, unquoted strings
+are placed in quotes automatically.
+
+A. AtomsI  Expressions of the form
+         atom1 [atom2 [atom3...]] → values
+  where atomN is
+         an APL name
+         a string (no CR or LF allowed)
+         an APL number
+  are converted to a list of quoted strings followed by an enclosed set of values,
+  such that 
+        a b ← atom1 ... → values
+  will put the list of atoms in a and the values in b. 
+  Here's an example of passing parameters to a function <FUN>:
+   
+       res ← FUN (x → ⍳10)(y → ○⍳10)(plot xy → 1)
+ 
+B. Atoms II  Expressions of the form
+         ` atom1 [atom2 [atom3...]]
+   where atomN is defined as above are treated as if the LEFT-side of
+   an A. AtomsI expression. This can be useful for passing specifications to a function <FUN>:
+
+       res ← FUN (copies → 3)(`black_and_white high-res hold_job)(notify → 'John Jones')
+
+   or even:
+    
+       res ← FUN (options → `b_and_w hi_res hold_job)(notify → 'John Jones')
+
+      ⍝ File FUN.dyalog
+       ∇FUN
+        ` names ages serial one ...     ⍝ Continuation lines...
+          two three four five ...    
+          six seven                  
+       ∇
+       ∆FIX 'FUN'
+       ⎕VR 'FUN'       
+   [0]   FUN
+   [1]   (⊂'names' 'ages' 'serial' 'one' 'two' 'three' 'four' 'five' 'six' 'seven')
+      
+ 
 Continuation lines in APL code
    You may continue any APL line by placing two or more dots .. as the last errcode
    before any comments on that line. In some cases, where the preprocessor handles
