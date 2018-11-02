@@ -47,12 +47,12 @@ Source: __format__. Help info: __formatHelp.pdf__.
 1. __bigInt__: Provides basic arithmetic functions on big integers stored externally as strings
 and internally as a series of (signed) integers. Built around dfns:nat as its numerical core,  extended to handle signed numbers,
 reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style ``'2434324' *BI '3443'`` that takes care of importing and exporting APL numbers and (string-format) big integers, as well as a higher-performance function style ``bigInt.sqrt '449432342'`` suitable for user-designed algorithms. Easily extended to work with arbitrary APL arrays.<br>
-   Try the big integer desk calculator `bi.dc` to see how it works (for help: issue `?` from the command line).<br>
+   Try the big integer desk calculator `bi.dc` to see how it works (for help: issue `?` from the command line).  
 1.__∆FIX__:     A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with 
    * preprocessor statements __::IF__ / __::THEN__ / __::ELSEIF__, __::IFDEF__, __::DEF__, __::LET__, and more, 
    * macro-like name substitution, 
    * "atoms" (pseudo-parameter names) with the __atom__ pseudo-operator `<back-tick> one two three` and __parameter__ pseudo-operator `name → 'John Jones'` 
-   * continuation lines, 
+   * continuation lines,\
    etc.
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
