@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;NO;NOc;TRAP;YES;YESc;dictNameP;err;filesIncluded;macros;objects;show;showc;subMacro;∆V2Q
+﻿ result←{specs}∆FIX fileName;NO;NOc;TRAP;YES;YESc;dictNameP;err;filesIncluded;macros;namesP;objects;show;showc;subMacro;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;PreScan1;MainScan1
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
@@ -168,7 +168,7 @@
      }
      eval←{
          ~'⍎'∊⍵:⍵
-         '⍎(\w+)'⎕R{
+         ∇'⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
          }⍠('UCP' 1)⊣⍵
@@ -481,6 +481,23 @@
                  ##.SKIP:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ↓⎕FMT⍎⍵}1↓¯1↓⍵ ∆FIELD 1
              }register' \#EXEC (⍎braceP) .*? $'
+           ⍝ ATOMS:   n1 n2 n3 → anything,   `n1 n2 n3
+           ⍝     abc def ghi → xxx     →   ('abc' 'def' 'ghi'),⊆
+             namesP←'(?:⍎longNameP|¯?\d[\d¯EJ\.]*)(?:\h+⍎longNameP|\h+¯?\d[\d¯EJ\.]*)*'
+             'ATOMS'{
+                 ##.SKIP:⍵ ∆FIELD 0
+
+                 qt←''''
+                 atoms dyad←⍵ ∆FIELD 1 2
+                 atoms←(' '∘≠⊆⊢)atoms
+                 mixed←1∊1=≢¨atoms
+                 single←1=≢atoms
+                 atoms←1↓∊' ',¨qt,¨qt,⍨¨atoms
+                 atoms←(single/'⊂'),(mixed/',¨'),atoms
+
+                 1=≢dyad:'(⊂',atoms,'),⊂'     ⍝ 2=≢dyad: Is there a right arrow?
+                 '(⊂',atoms,')'
+             }register'\h* (?| (⍎namesP) \h* (→) | ` \h* (⍎namesP) ) \h* (→)?'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
