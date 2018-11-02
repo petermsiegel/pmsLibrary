@@ -74,10 +74,10 @@ Directive Descriptions
   NOT using ∆FIX Macros to set external variables during preprocessing. 
   Names relative to this private namespace are safe (e.g. ::LET a.b.c←⎕TS) and intermediate
   namespaces will be generated (here, a.b), unless the names refer to non-namespace objects.
-  This is an error, because variable <a> first denotes a simple value, not a namespace.
+  The following sequence is an error, because variable <a> first denotes a simple value, not a namespace.
        ::LET a←⎕TS
        ::LET a.ai←⎕AI
-  This is valid, as long as a.b and a are either undefined or denote namespaces:
+  This however is valid, as long as a.b and a are either undefined or denote namespaces:
        ::LET a.b.ts←⎕TS
        ::LET a.b.ai←⎕AI
 
