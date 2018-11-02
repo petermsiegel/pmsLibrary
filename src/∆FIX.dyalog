@@ -1,8 +1,8 @@
-﻿ result←{specs}∆FIX fileName;NO;NOc;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;showc;∆V2Q
+﻿ result←{specs}∆FIX fileName;NO;NOc;TRAP;YES;YESc;dictNameP;err;filesIncluded;macros;mc;mcP;mcT;objects;show;showc;subMacro;∆V2Q
  ;ALPH;CR;DEBUG;IF_STACK;MActions;MBegin;MEnd;MPats;MRegister;Match;NL;SAVE_STACK;SKIP;PreScan1;MainScan1
  ;UTILS;_MATCHED_GENERICp;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;doScan;dqStringP
  ;eval;getenv;infile;keys;letS;longNameP;macro;nameP;names;notZero;obj;opts;parenP;pfx;readFile
- ;register;setBrace;sfx;skipCom;outSpec;sqStringP;stringAction;stringP;tmpfile;ø;∆CASE;∆COM;∆DICT;∆FIELD
+ ;register;setBrace;sfx;skipCom;outSpec;sqStringP;stringAction;stringP;tmpfile;ø;∆COM;∆DICT;∆FIELD
  ;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
  ⍝ A Dyalog APL preprocessor
  ⍝
@@ -36,7 +36,7 @@
  outSpec comSpec DEBUG←'specs'{0≠⎕NC ⍺:3↑⎕OR ⍺ ⋄ ⍵}0 0 0
  '∆FIX: Invalid specification(s)'⎕SIGNAL 11/⍨~(outSpec∊⍳3)∧(comSpec∊⍳3)∧(DEBUG∊⍳2)
 
- ⎕TRAP←(DEBUG×999)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+ TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
 
  CR NL←⎕UCS 13 10
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
@@ -48,16 +48,9 @@
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
    ⍝ notZero: If ⍵ is not numeric 0 singleton or null-string or ⎕NULL, return 1
    ⍝   See ::IF etc.
-     notZero←{
-         0=≢⍵:0
-         (,⎕NULL)≡,⍵:0
-         (,0)≢,⍵
-     }
+     notZero←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
      box←{
-         l←≢m←'│  ',⍵,'  │'
-         t←'┌','┐',⍨,'─'⍴⍨l-2
-         b←'└','┘',⍨,'─'⍴⍨l-2
-         t,CR,m,CR,b
+         l←≢m←'│  ',⍵,'  │' ⋄ t←'┌','┐',⍨,'─'⍴⍨l-2 ⋄ b←'└','┘',⍨,'─'⍴⍨l-2 ⋄ t,CR,m,CR,b
      }
    ⍝ Display just a bit of an obj of unknown size. (Used for display info)
    ⍝ show: assumes values. Puts strings in quotes.
@@ -88,7 +81,6 @@
      ∆V2S←{1↓∊CR,¨⊆⍵}
    ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
      ∆V2Q←{q←'''' ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
-
    ⍝ ∆COM: Convert a v of vs to a set of comments
      ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
    ⍝ PCRE routines
@@ -100,21 +92,26 @@
          ¯1=⍺.Lengths[⍵]:''
          ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
-     ∆CASE←{⍺.PatternNum∊⍵}
    ⍝ dictionary routines
    ⍝ Use a local namespace so we can use with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
          dict.ns←dict.⎕NS''
-       ⍝ map: Convert #.a.b or ⎕SE.a.b into flat object Ø⍙a⍙b  ∆SE⍙a⍙b
-       ⍝ ([0] map str) and inverse (1 map str)
-       ⍝ dict.map←{⍺←0 ⋄ o i←⌽⍣⍺⊣'⍙Ø∆' '.#⎕' ⋄ {o[i⍳⍵]}@(∊∘i)⊣⍵}
-       ⍝ If user refers to a.b.c, be sure namespace
-       ⍝        dict.ns.a.b exists...
-       ⍝ For safety when dealing with absolute items, we verify that a.b is either
-       ⍝ undefined or a namespace...
+       ⍝ map: Ensure that name ⍵ of form a.b.c is valid by ensuring
+       ⍝      that a and a.b are undefined or  namespaces and that c can be defined.
+       ⍝ Call:
+       ⍝    dict.amp 'name'
+       ⍝ Returns:
+       ⍝    'name'
+       ⍝ On error, ⎕SIGNALs an error 911
+       ⍝
+       ⍝ Relative names are created in a private namespace.
+       ⍝ Absolute namespaces, or those above the private namespace should
+       ⍝ be used with care, as they can affect the workspace or the preprocessor.
+       ⍝ Safe:   a.b.c      Use with care:  #.test ⎕SE.test    Dangerous: ##.test
+       ⍝
          dict.map←{⍺←ns
-             0::⎕SIGNAL/⎕DMX.(EM EN)
+             ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              ⋄ verify←{pfx←1⊃⎕NPARTS ⍵ ⋄ ~'.'∊pfx:1 ⋄ ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
              ~'.'∊⍵:⍵             ⍝ simple name
              ns2←1⊃⎕NPARTS ⍵      ⍝ ns2: prefix a.b.c for name a.b.c.d
@@ -140,7 +137,7 @@
              n k←⍺ ⍵
              2=n.⎕NC k
          }
-         _←dict.⎕FX'k←keys' 'k←1 map¨↓ns.⎕NL 2'
+         _←dict.⎕FX'k←keys' 'k←↓ns.⎕NL 2'
          _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
          dict
      }
@@ -159,32 +156,15 @@
          1:Match,←ns
      }
 
-     mcP←⍬ ⋄ mcT←0  ⍝ DEBUG
-    ⍝ ⎕FX'r←∆∆' 'r←(⍕≢mcP),''D '',(⍕⊃⌽mcP),'':'''
      MActions←{
-         ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
+         TRAP::⎕SIGNAL/⎕DMX.(EM EN)
          match←,⍺⍺    ⍝ Ensure vector...
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          m←pn⊃match
-
-
-         pRaw←m.pRaw ⍝ DEBUG
-
-         mcP,←(mcT∘←mcT+1)
-        ⍝ ⎕←∆∆,'maction matches: "',⍵.Match,'"'
-         ∆←⊢
-        ⍝  ∆←{
-        ⍝      ⎕←'>>> maction ⎕LC=',(1↓⎕LC)
-        ⍝      ⎕←'>>> maction pattern #',pn,'info: ',m.info
-        ⍝      ⎕←'>>> pat: ',pRaw
-        ⍝      ⎕←∆∆,'replaces it with: "',⍵,'"'
-        ⍝      mcP↓⍨←¯1
-        ⍝      ⍵}
-
-         3=m.⎕NC'action':∆ m m.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴m.action:∆∊m.action            ⍝ text? Return as is...
-         ∆ ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
+         3=m.⎕NC'action':m m.action ⍵          ⍝ m.action is a fn. Else a var.
+         ' '=1↑0⍴m.action:∊m.action            ⍝ text? Return as is...
+         ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
      }
      eval←{
          ~'⍎'∊⍵:⍵
@@ -209,7 +189,6 @@
 
  ⍝-------------------------------------------------------------------------------------------
  :Section Reused Pattern Actions
-
      stringAction←{NL←⎕UCS 10
          SQ DQ←'''' '"'
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
@@ -223,7 +202,6 @@
      }
  :EndSection
  ⍝-------------------------------------------------------------------------------------------
-
 
  :Section Read in file
      readFile←{
@@ -269,8 +247,9 @@
 
      :Section Setup Scans
          opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
+
+         MBegin
          :Section PreScan1
-             MBegin
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
@@ -297,7 +276,7 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 0::{
+                 ##.TRAP::{
                      ##.SKIP∘←0 ⋄ ##.IF_STACK,←1
                      ⎕←##.NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
@@ -320,7 +299,7 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 0::{
+                 ##.TRAP::{
                      ##.SKIP∘←0 ⋄ (⊃⌽##.IF_STACK)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
@@ -376,7 +355,7 @@
                  ##.SKIP:0 ∆COM f0
 
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
-                 0::{
+                 ##.TRAP::{
                      ⎕←##.NO,'Unable to evaluate ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.CR,0 ∆COM ⍵
                  }f0
@@ -409,13 +388,12 @@
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
-                 0::{
+                 ##.TRAP::{
                      ⎕←'>>> VALUE ERROR: ',f0
                      _←##.dict.del k
                      msg←(f0)('➤ UNDEF ',k)
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM msg
                  }⍬
-
                  vOut←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
@@ -452,12 +430,22 @@
                  ##.SKIP/##.NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
-             'STRINGS*'({
-                 ⎕←'Matching string: <',(⍵ ∆FIELD 0),'>'
-                 ⍵ ∆FIELD 0
-             }register)'⍎sqStringP'
+             'STRINGS*'({⍵ ∆FIELD 0}register)'⍎sqStringP'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
+           ⍝
+           ⍝ For nm a of form a1.a2.a3.a4,
+           ⍝ see if any of a1 .. a4 are macros,
+           ⍝ but accept value vN for aN only if name.
+             subMacro←{
+                 ~'.'∊⍵:⍵              ⍝ a is simple...
+                 1↓∊'.',¨{
+                     vN←dict.get ⍵  ⍝ Check value vN of aN
+                     0=≢vN:⍵           ⍝ aN not macro. Use aN.
+                     ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
+                     vN                ⍝ Use value vN of aN
+                 }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
+             }
            ⍝ name..DEF     is name defined?
            ⍝ name..UNDEF   is name undefined?
            ⍝ name..Q       'name'
@@ -467,34 +455,15 @@
              'name..cmd'{
                  ##.SKIP:0 ∆COM ⍵ ∆FIELD 0
 
-                 _←⍵ ∆FIELD 0 ⍝ DEBUG ONLY
+                 nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
+               ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
+                 nm←subMacro nm
 
-                 nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd
-
-                 ⍝ ⎕←'macro in:   nm =',nm
-               ⍝ For nm a of form a1.a2.a3.a4,
-               ⍝ see if any of a1 .. a4 are macros,
-               ⍝ but accept value vN for aN only if name.
-                 nm←{
-                     ~'.'∊⍵:⍵              ⍝ a is simple...
-                     1↓∊'.',¨{
-                         vN←##.dict.get ⍵  ⍝ Check value vN of aN
-                         0=≢vN:⍵           ⍝ aN not macro. Use aN.
-                         ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
-                         vN                ⍝ Use value vN of aN
-                     }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
-                 }nm
-                  ⍝ ⎕←'macro scan: nm =',nm
-
-                 ∆←⊢
-                 ⍝ ∆←{⎕←nm,'..',cmd,' returning "',⍵,'"' ⋄ ⍵}
-
-                 q←''''
                  cmd≡'ENV':' ',q,(##.getenv nm),q,' '
-                 cmd≡'DEF':∆'(0≠⎕NC',q,nm,q,')'
+                 cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
                  cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
                  cmd≡,'Q':' ',q,nm,q,' '
-                 ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)11
+                 ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
              }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
             ⍝ #ENV: Get an environment variable's value as a string...  ** DEPRECATED **
              '#ENV{name}'{
@@ -516,17 +485,16 @@
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
 
-                 0::k⊣⎕←'Unable to get value of k. Returning k: ',k
+                 ##.TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕##.dict.get k
-          ⍝ DEBUG:  ⎕←'MACRO k ',k,' v',v,' in "',(⍵ ∆FIELD 0),'"'
                  0=≢v:k
-
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
              }register'(⍎longNameP)(?!\.\.)'
-             MainScan1←MEnd
          :EndSection
+         MainScan1←MEnd
+
      :EndSection
 
      :Section Define Scans
@@ -535,16 +503,11 @@
      ⍝                                            ⍺⍺=0: Maintain existing stacks
          IF_STACK SKIP∘←1 0 ⋄ SAVE_STACK←⍬
          doScan←{
-             ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
+             TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              ⍺←MainScan1       ⍝ Default is to omit the prescan
-
              stackFlag←⍺⍺
-             saveStacks←{
-                 ⍵:SAVE_STACK,←⊂IF_STACK SKIP ⋄ IF_STACK SKIP∘←1 0 ⋄ ''
-             }
-             restoreStacks←{
-                 ⍵:(IF_STACK SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK) ⋄ ''
-             }
+             saveStacks←{⍵:SAVE_STACK,←⊂IF_STACK SKIP ⋄ IF_STACK SKIP∘←1 0 ⋄ ''}
+             restoreStacks←{⍵:(IF_STACK SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK) ⋄ ''}
 
              _←saveStacks stackFlag
              res←⍺{
@@ -553,8 +516,7 @@
                  _code←scan.pats ⎕R(scan MActions)⍠opts⊣⍵
                  (1↓⍺)∇ _code
              }⍵
-             _←restoreStacks stackFlag
-             res
+             res⊣restoreStacks stackFlag
          }
      :EndSection Define Scans
 
@@ -578,6 +540,9 @@
      :Trap 0
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
          objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
+       ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
+         :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
+             ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
          :Select outSpec
               ⋄ :Case 0 ⋄ result←0 objects
               ⋄ :Case 1 ⋄ result←0 objects code
