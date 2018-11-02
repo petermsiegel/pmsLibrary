@@ -168,10 +168,11 @@
      }
      eval←{
          ~'⍎'∊⍵:⍵
-         ∇'⍎(\w+)'⎕R{
+         ⍵≢res←'(?<!\\)⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
-         }⍠('UCP' 1)⊣⍵
+         }⍠('UCP' 1)⊣⍵:∇ res
+         ⍵
      }
      ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
      braceCount←¯1
@@ -429,8 +430,6 @@
              'SIMPLE_NON_MACRO'{
                  ##.SKIP/##.NOc,⍵ ∆FIELD 0
              }register'^'
-           ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
-             'STRINGS*'({⍵ ∆FIELD 0}register)'⍎sqStringP'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
            ⍝
@@ -482,22 +481,33 @@
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ↓⎕FMT⍎⍵}1↓¯1↓⍵ ∆FIELD 1
              }register' \#EXEC (⍎braceP) .*? $'
            ⍝ ATOMS:   n1 n2 n3 → anything,   `n1 n2 n3
-           ⍝     abc def ghi → xxx     →   ('abc' 'def' 'ghi'),⊆
-             namesP←'(?:⍎longNameP|¯?\d[\d¯EJ\.]*)(?:\h+⍎longNameP|\h+¯?\d[\d¯EJ\.]*)*'
+           ⍝     abc def ghi → xxx     →   ('abc' 'def' 'ghi')
+           ⍝ To do: Allow char constants-- just don't add quotes...
+           ⍝ To do: Treat num constants as unquoted scalars
+             namesP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)'
+             namesP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP))*'
              'ATOMS'{
                  ##.SKIP:⍵ ∆FIELD 0
 
                  qt←''''
-                 atoms dyad←⍵ ∆FIELD 1 2
+                 atoms arrow←⍵ ∆FIELD 1 2
                  atoms←(' '∘≠⊆⊢)atoms
-                 mixed←1∊1=≢¨atoms
-                 single←1=≢atoms
-                 atoms←1↓∊' ',¨qt,¨qt,⍨¨atoms
-                 atoms←(single/'⊂'),(mixed/',¨'),atoms
 
-                 1=≢dyad:'(⊂',atoms,'),⊂'     ⍝ 2=≢dyad: Is there a right arrow?
+                 o←1=≢atoms ⋄ m←1∊≢¨atoms
+                 mO←m∧~o
+
+                 atoms←(∊o m mO/'⊂,¨'),1↓∊' ',¨{
+                     isNQ←'¯.',⎕D,''''
+                     isNQ∊⍨1↑⍵:⍵    ⍝ Pass through 123.45 or 'abc' w/o quoting
+                     qt,qt,⍨⍵
+                 }¨atoms
+
+                 1=≢arrow:'(⊂',atoms,'),⊂'     ⍝ 1=≢arrow: Is there a right arrow?
                  '(⊂',atoms,')'
              }register'\h* (?| (⍎namesP) \h* (→) | ` \h* (⍎namesP) ) \h* (→)?'
+            ⍝ STRINGS: passthrough (only single-quoted strings happen here on in)
+            ⍝ Must follow ATOMs
+              'STRINGS*'({⍵ ∆FIELD 0}register)'⍎sqStringP'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
                  ##.SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under SKIP
