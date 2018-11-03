@@ -90,8 +90,8 @@
      ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
    ⍝ PCRE routines
      ∆FIELD←{
-         0=≢⍵:'' ⋄   1<≢⍵:⍺ ∇¨⍵⋄   0=⍵:⍺.Match
-         ⍵≥≢⍺.Lengths:''⋄   ¯1=⍺.Lengths[⍵]:''
+         0=≢⍵:'' ⋄ 1<≢⍵:⍺ ∇¨⍵ ⋄ 0=⍵:⍺.Match
+         ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:''
          ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
    ⍝ dictionary routines
@@ -112,19 +112,19 @@
        ⍝ be used with care, as they can affect the workspace or the preprocessor.
        ⍝ Safe:   a.b.c      Use with care:  #.test ⎕SE.test    Dangerous: ##.test
        ⍝
-         dict.validate←{⍺←ns ⋄ n k←⍺ ⍵
-             pfxCheck←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄  ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
-             ~'.'∊k:              ⍝ simple name
-             n2←1⊃⎕NPARTS k      ⍝ ns2: prefix a.b.c for name a.b.c.d
-             n pfxCheck k:⍵⊣ns2 n.⎕NS''
+
+         dict.validate←{⍺←ns ⋄ n(k v)←⍺ ⍵   ⍝ v not used...
+             pfxCheck←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄ ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
+             ~'.'∊k:1                   ⍝ simple name
+             n2←1⊃⎕NPARTS k             ⍝ n2: prefix a.b.c for name a.b.c.d
+             n pfxCheck k:1⊣n2 n.⎕NS''
              err←'∆FIX: Object ',k,' invalid: prefix ',n2,' in use as non-namespace object.'
              err ⎕SIGNAL 911
          }
          dict.set←{⍺←ns
-             n(k v)←⍺ ⍵
              ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             k←n validate k
-             1:n{⍺⍎k,'←⍵'}v
+             n(k v)←⍺ ⍵
+             n validate k v:n{⍺⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
              n k←⍺ ⍵
@@ -394,7 +394,8 @@
                      msg←(f0)('➤ UNDEF ',k)
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM msg
                  }⍬
-                 vOut←##.dict.ns{⍺⍎⍵}(##.dict.map k),'←',vIn
+                 _←##.dict.validate k vIn
+                 vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
              }register'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
