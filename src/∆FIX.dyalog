@@ -1,9 +1,11 @@
 ﻿ result←{specs}∆FIX fileName
- ;ALPH;CR;DEBUG;DQ;CTL_STACK;MActions;MainScan1;MBegin;MEnd;MPats;MRegister;Match;NO;NOc;NL;PreScan1
- ;SAVE_STACK;CTL_SKIP;SQ;TRAP;YES;UTILS;YESc;_MATCHED_GENERICp
- ;atomsP;box;braceCount;braceP;brackP;code;comment;comSpec;defMatch;defS;dict;dictNameP;doScan;dqStringP
- ;err;eval;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP;names;notZero;obj;oldCTL_SKIP;opts;objects
- ;show;showc;subMacroparenP;pfx;readFile;register;setBrace;sfx;CTL_SKIP;outSpec;sqStringP;stringAction
+ ;ALPH;CR;DEBUG;DQ;CTL_STACK;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
+ ;Match;NO;NOc;NL;PreScan1;SAVE_STACK;CTL_SKIP;SQ;TRAP;YES;UTILS;YESc
+ ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;code;comment
+ ;comSpec;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
+ ;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP
+ ;names;notZero;obj;oldCTL_SKIP;opts;objects;show;showc;subMacroparenP;pfx
+ ;readFile;register;setBrace;sfx;CTL_SKIP;outSpec;sqStringP;stringAction
  ;stringP;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;∆V2Q;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
  ⍝ A Dyalog APL preprocessor
