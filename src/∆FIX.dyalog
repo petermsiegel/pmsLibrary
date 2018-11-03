@@ -112,18 +112,18 @@
        ⍝ be used with care, as they can affect the workspace or the preprocessor.
        ⍝ Safe:   a.b.c      Use with care:  #.test ⎕SE.test    Dangerous: ##.test
        ⍝
-         dict.map←{⍺←ns
-             ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             ⋄ verify←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄  ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
-             ~'.'∊⍵:⍵             ⍝ simple name
-             ns2←1⊃⎕NPARTS ⍵      ⍝ ns2: prefix a.b.c for name a.b.c.d
-             ⍺ verify ⍵:⍵⊣ns2 ⍺.⎕NS''
-             err←'∆FIX: Object ',⍵,' invalid: prefix ',ns2,' in use as non-namespace object.'
+         dict.validate←{⍺←ns ⋄ n k←⍺ ⍵
+             pfxCheck←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄  ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
+             ~'.'∊k:              ⍝ simple name
+             n2←1⊃⎕NPARTS k      ⍝ ns2: prefix a.b.c for name a.b.c.d
+             n pfxCheck k:⍵⊣ns2 n.⎕NS''
+             err←'∆FIX: Object ',k,' invalid: prefix ',n2,' in use as non-namespace object.'
              err ⎕SIGNAL 911
          }
          dict.set←{⍺←ns
              n(k v)←⍺ ⍵
-             k←n map k
+             ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
+             k←n validate k
              1:n{⍺⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
