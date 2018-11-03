@@ -52,8 +52,8 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
    * preprocessor statements __::IF__ / __::THEN__ / __::ELSEIF__, __::IFDEF__, __::DEF__, __::LET__, and more, 
    * macro-like name substitution, 
    * "atoms" (pseudo-parameter names / set members) with the __atom__ pseudo-operator  
-       ```red←`red ⋄ colors←`red orange yellow ⋄ red∊colors``` 
-       and the __parameter__ pseudo-operator 
+       ```red←`red ⋄ colors←`red orange yellow ⋄ red∊colors```    
+       and the __parameter__ pseudo-operator    
        ```(name → 'John Jones')(address → '3432 Maiden Ln')(salaries monthly→ ?3⍴1000)``` 
    * continuation lines,   
    etc.
