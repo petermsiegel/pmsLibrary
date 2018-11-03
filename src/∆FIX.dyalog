@@ -57,7 +57,7 @@
      box←{
          l←≢m←'│  ',⍵,'  │' ⋄ t←'┌','┐',⍨,'─'⍴⍨l-2 ⋄ b←'└','┘',⍨,'─'⍴⍨l-2 ⋄ t,CR,m,CR,b
      }
-   ⍝ Display just a bit of an obj of unknown size. (Used for display info)
+   ⍝ Show just a bit of an obj of unknown size. (Used for display info)
    ⍝ show: assumes values. Puts strings in quotes.
      show←{⍺←⎕PW-20 ⋄ maxW←⍺
          f←⎕FMT ⍵
@@ -90,11 +90,8 @@
      ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
    ⍝ PCRE routines
      ∆FIELD←{
-         0=≢⍵:''
-         1<≢⍵:⍺ ∇¨⍵
-         0=⍵:⍺.Match
-         ⍵≥≢⍺.Lengths:''
-         ¯1=⍺.Lengths[⍵]:''
+         0=≢⍵:'' ⋄   1<≢⍵:⍺ ∇¨⍵⋄   0=⍵:⍺.Match
+         ⍵≥≢⍺.Lengths:''⋄   ¯1=⍺.Lengths[⍵]:''
          ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
    ⍝ dictionary routines
