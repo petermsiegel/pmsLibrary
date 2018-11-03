@@ -114,7 +114,7 @@
        ⍝
          dict.map←{⍺←ns
              ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             ⋄ verify←{pfx←1⊃⎕NPARTS ⍵ ⋄ ~'.'∊pfx:1 ⋄ ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
+             ⋄ verify←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄  ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
              ~'.'∊⍵:⍵             ⍝ simple name
              ns2←1⊃⎕NPARTS ⍵      ⍝ ns2: prefix a.b.c for name a.b.c.d
              ⍺ verify ⍵:⍵⊣ns2 ⍺.⎕NS''
