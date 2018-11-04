@@ -71,7 +71,7 @@ Directive Descriptions
     E.g.   ::LET now ← ⎕TS
   Note: names (e.g. <now>) are evaluated within a private namespace established during each ∆FIX call, so
   setting names will not impact the external environment unless they contain ⎕SE, # or ##. We recommend
-  NOT using ∆FIX Macros to set external variables during preprocessing. 
+  NOT using ∆FIX Macros to set external variables during preprocessing.
   Names relative to this private namespace are safe (e.g. ::LET a.b.c←⎕TS) and intermediate
   namespaces will be generated (here, a.b), unless the names refer to non-namespace objects.
   The following sequence is an error, because variable <a> first denotes a simple value, not a namespace.
@@ -126,16 +126,6 @@ Directive Descriptions
   ::ERROR [errcode] any text
   Signals the associated errcode (if any) and error text when executed. Execution is halted.
 
-  #ENV{name}   ⍝⍝⍝ CONSIDER DEPRECATING in favor of name..ENV
-  returns the value of the environment variable “name” as a string .
-
-  #SH[ELL]{shellcmd}
-	Returns the value of the shell command ⎕SH ‘shellcmd’. The value returned will be
-  a vector of string vectors, one per line.
-
-  #EXEC{aplcmd}     ⍝⍝⍝ DEPRECATED. REMOVE!
-	Returns the value of the APL command ⍎‘aplcmd’.
-
   name..CMD
   Items of this form first undergo macro substitution (if applicable), then
   are quoted and transformed depending on the CMD.
@@ -150,7 +140,7 @@ Directive Descriptions
   name1.name2.name3..Q      → 'name1.name2.name3'
   Used to pass the name of an object AFTER macro substitution (where applicable)
   to any user or system variable.
-  
+
   name..ENV                  → value of environment variable 'name'
   Shortcut to getting value of named environment variable (null, if not defined).
 
@@ -185,13 +175,13 @@ A. AtomsI  Expressions of the form
          a string (no CR or LF allowed)
          an APL number
   are converted to a list of quoted strings followed by an enclosed set of values,
-  such that 
+  such that
         a b ← atom1 ... → values
-  will put the list of atoms in a and the values in b. 
+  will put the list of atoms in a and the values in b.
   Here's an example of passing parameters to a function <FUN>:
-   
+
        res ← FUN (x → ⍳10)(y → ○⍳10)(plot xy → 1)
-       
+
   The dyadic right arrow → is called the PARAMETER pseudo-operator (it is formally "punctuation,"
   rather than an operator or function).
 B. Atoms II  Expressions of the form
@@ -202,23 +192,23 @@ B. Atoms II  Expressions of the form
        res ← FUN (copies → 3)(`black_and_white high-res hold_job)(notify → 'John Jones')
 
    or even:
-    
+
        res ← FUN (options → `b_and_w hi_res hold_job)(notify → 'John Jones')
 
       ⍝ File FUN.dyalog
        ∇FUN
         ` names ages serial one ...     ⍝ Continuation lines...
-          two three four five ...    
-          six seven                  
+          two three four five ...
+          six seven
        ∇
        ∆FIX 'FUN'
-       ⎕VR 'FUN'       
+       ⎕VR 'FUN'
    [0]   FUN
    [1]   (⊂'names' 'ages' 'serial' 'one' 'two' 'three' 'four' 'five' 'six' 'seven')
-      
+
    The monadic back-tick `... is called the ATOM pseudo-operator (it is formally "punctuation,"
    rather than an operator or function).
- 
+
 Continuation lines in APL code
    You may continue any APL line by placing two or more dots .. as the last errcode
    before any comments on that line. In some cases, where the preprocessor handles
