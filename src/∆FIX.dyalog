@@ -1,11 +1,11 @@
 ﻿ result←{specs}∆FIX fileName
- ;ALPH;CR;DEBUG;DQ;CTL_STACK;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
- ;Match;NO;NOc;NL;PreScan1;SAVE_STACK;CTL_SKIP;SQ;TRAP;YES;UTILS;YESc
- ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;code;comment
+ ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
+ ;Match;NO;NOc;NL;PreScan1;SQ;TRAP;YES;UTILS;YESc
+ ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;ctl;code;comment
  ;comSpec;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
  ;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP
- ;names;notZero;obj;oldCTL_SKIP;opts;objects;show;showc;subMacroparenP;pfx
- ;readFile;register;setBrace;sfx;CTL_SKIP;outSpec;sqStringP;stringAction
+ ;names;notZero;obj;opts;objects;show;showc;subMacro;parenP;pfx
+ ;readFile;register;setBrace;sfx;outSpec;sqStringP;stringAction
  ;stringP;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;∆V2Q;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
  ⍝ A Dyalog APL preprocessor
@@ -112,9 +112,14 @@
        ⍝ be used with care, as they can affect the workspace or the preprocessor.
        ⍝ Safe:   a.b.c      Use with care:  #.test ⎕SE.test    Dangerous: ##.test
        ⍝
-
-         dict.validate←{⍺←ns ⋄ n(k v)←⍺ ⍵   ⍝ v not used...
-             pfxCheck←{~'.'∊⍵:1 ⋄ pfx←1⊃⎕NPARTS ⍵ ⋄ ~9 0∊⍨⍺.⎕NC pfx:0 ⋄ ⍺ ∇ pfx}
+         dict.validate←{
+             ⍺←ns ⋄ n k←⍺ ⍵
+             pfxCheck←{
+                 ~'.'∊⍵:1
+                 pfx←1⊃⎕NPARTS ⍵ ⋄ nc←⍺.⎕NC pfx
+                 nc∊9 0:1 ⋄ nc=¯1:(⊂,pfx)∊'⎕SE'(,'#')
+                 ⍺ ∇ pfx
+             }
              ~'.'∊k:1                   ⍝ simple name
              n2←1⊃⎕NPARTS k             ⍝ n2: prefix a.b.c for name a.b.c.d
              n pfxCheck k:1⊣n2 n.⎕NS''
@@ -124,7 +129,7 @@
          dict.set←{⍺←ns
              ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              n(k v)←⍺ ⍵
-             n validate k v:n{⍺⍎k,'←⍵'}v
+             n validate k:n{⍺⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
              n k←⍺ ⍵
@@ -224,8 +229,9 @@
 
 
  dict←∆DICT''
+ ctl←⎕NS''
  ⍝ Set at bottom:
- ⍝   CTL_STACK←1 ⋄ CTL_SKIP←0
+ ⍝   ctl.stack←1 ⋄ ctl.skip←0
 
  :Section Process File
    ⍝ Valid 1st chars of names...
@@ -265,20 +271,20 @@
             ⍝ IFDEF stmts
              'IFDEF+IFNDEF'{
                  f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
-                 ##.CTL_STACK,←~⍣not⊣##.dict.defined k
-                 ##.CTL_SKIP←~⊃⌽##.CTL_STACK
+                 ##.ctl.stack,←~⍣not⊣##.dict.defined k
+                 ##.ctl.skip←~⊃⌽##.ctl.stack
 
-                 (~##.CTL_SKIP)∆COM f0
+                 (~##.ctl.skip)∆COM f0
              }register'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
             ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
              'IF'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  ##.TRAP::{
-                     ##.CTL_SKIP∘←0 ⋄ ##.CTL_STACK,←1
+                     ##.ctl.skip∘←0 ⋄ ##.ctl.stack,←1
                      ⎕←##.NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
                  }code0
@@ -289,19 +295,19 @@
                  code2←##.dict.ns{⍺⍎⍵}code1
                     ⍝ ⎕←'::IF code2 ',code2
 
-                 ##.CTL_SKIP←~##.CTL_STACK,←##.notZero code2  ⍝ (is code2 non-zero?)
+                 ##.ctl.skip←~##.ctl.stack,←##.notZero code2  ⍝ (is code2 non-zero?)
 
-                 (~##.CTL_SKIP)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
+                 (~##.ctl.skip)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF'{
 
-                 ##.CTL_SKIP←⊃⌽##.CTL_STACK
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip←⊃⌽##.ctl.stack
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  ##.TRAP::{
-                     ##.CTL_SKIP∘←0 ⋄ (⊃⌽##.CTL_STACK)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
+                     ##.ctl.skip∘←0 ⋄ (⊃⌽##.ctl.stack)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',##.NL,0 ∆COM'::IF ',⍵
@@ -310,28 +316,28 @@
                  code1←(0 doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
 
-                 ##.CTL_SKIP←~(⊃⌽##.CTL_STACK)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
+                 ##.ctl.skip←~(⊃⌽##.ctl.stack)←##.notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
-                 (~##.CTL_SKIP)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
+                 (~##.ctl.skip)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
              'ELSE'{
-                 ##.CTL_SKIP←~(⊃⌽##.CTL_STACK)←~⊃⌽##.CTL_STACK    ⍝ Flip the condition of most recent item.
+                 ##.ctl.skip←~(⊃⌽##.ctl.stack)←~⊃⌽##.ctl.stack    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
-                 (~##.CTL_SKIP)∆COM f0
+                 (~##.ctl.skip)∆COM f0
              }register'^\h* :: \h* ELSE \b .*?$'
             ⍝ END, ENDIF, ENDIFDEF
              'END(IF(DEF))'{
                  f0←⍵ ∆FIELD 0
-                 oldCTL_SKIP←##.CTL_SKIP
-                 ##.CTL_SKIP←~⊃⌽##.CTL_STACK⊣##.CTL_STACK↓⍨←¯1
+                 oldskip←##.ctl.skip
+                 ##.ctl.skip←~⊃⌽##.ctl.stack⊣##.ctl.stack↓⍨←¯1
 
-                 (~oldCTL_SKIP)∆COM f0
+                 (~oldskip)∆COM f0
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
              'CINCLUDE'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
                  ##.filesIncluded,←⊂fName
@@ -341,7 +347,7 @@
              }register'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
             ⍝ INCLUDE
              'INCLUDE'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
 
@@ -350,10 +356,10 @@
              }register'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
-           ⍝ Does not affect the CTL_STACK or CTL_SKIP...
+           ⍝ Does not affect the ctl.stack or ctl.skip...
              'COND'{
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) counts as two fields
-                 ##.CTL_SKIP:0 ∆COM f0
+                 ##.ctl.skip:0 ∆COM f0
 
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
                  ##.TRAP::{
@@ -373,7 +379,7 @@
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎longNameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
              'DEF(INE)'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
                ⍝ Replace leading and training blanks with single space
@@ -385,7 +391,7 @@
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
              'LET~EVAL'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
                  ##.TRAP::{
@@ -394,14 +400,14 @@
                      msg←(f0)('➤ UNDEF ',k)
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',##.CR,0 ∆COM msg
                  }⍬
-                 _←##.dict.validate k vIn
+                 _←##.dict.validate k
                  vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
              }register'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
              'UNDEF'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k←⍵ ∆FIELD¨0 1
                  _←##.dict.del k
@@ -410,7 +416,7 @@
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
              'ERROR'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line num msg←⍵ ∆FIELD¨0 1 2
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
@@ -420,15 +426,15 @@
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
                  ⎕←box msg
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
-           ⍝ Start of every NON-MACRO line → comment, if CTL_SKIP is set. Else NOP.
+           ⍝ Start of every NON-MACRO line → comment, if ctl.skip is set. Else NOP.
              'SIMPLE_NON_MACRO'{
-                 ##.CTL_SKIP/##.NOc,⍵ ∆FIELD 0
+                 ##.ctl.skip/##.NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ COMMENTS: passthrough
              'COMMENTS*'(0 register)'⍝.*?$'
@@ -452,7 +458,7 @@
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
              'name..cmd'{
-                 ##.CTL_SKIP:0 ∆COM ⍵ ∆FIELD 0
+                 ##.ctl.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
@@ -467,18 +473,18 @@
 
             ⍝ #ENV: Get an environment variable's value as a string...  ** DEPRECATED **
              '#ENV{name}'{
-                 ##.CTL_SKIP:⍵ ∆FIELD 0
+                 ##.ctl.skip:⍵ ∆FIELD 0
                  val←##.getenv ⍵ ∆FIELD 1
                  ' ''',val,''' '
              }register' \#ENV \{ \h* ( \w+ ) \h* \}'
             ⍝ #SH{string}: Return value of ⎕SH string
              '#SHell{name}'{
-                 ##.CTL_SKIP:⍵ ∆FIELD 0
+                 ##.ctl.skip:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ⎕SH ⍵}1↓¯1↓⍵ ∆FIELD 1
              }register' \#SH (⍎braceP) .*? $'
             ⍝ #EXEC{string}: Return value of ⍎string
              '#EXECute{name}'{
-                 ##.CTL_SKIP:⍵ ∆FIELD 0
+                 ##.ctl.skip:⍵ ∆FIELD 0
                  ∆V2Q{0::⎕FMT ⎕DMX.(EN EM) ⋄ ↓⎕FMT⍎⍵}1↓¯1↓⍵ ∆FIELD 1
              }register' \#EXEC (⍎braceP) .*? $'
            ⍝ ATOMS:   n1 n2 n3 → anything,   `n1 n2 n3
@@ -488,7 +494,7 @@
              atomsP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)'
              atomsP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP))*'
              'ATOMS'{
-                 ##.CTL_SKIP:⍵ ∆FIELD 0
+                 ##.ctl.skip:⍵ ∆FIELD 0
 
                  atoms arrow←⍵ ∆FIELD 1 2
                  atoms←(' '∘≠⊆⊢)atoms
@@ -512,7 +518,7 @@
              'STRINGS*'({⍵ ∆FIELD 0}register)'⍎sqStringP'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO'{
-                 ##.CTL_SKIP:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL_SKIP
+                 ##.ctl.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under ctl.skip
 
                  ##.TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
@@ -528,15 +534,15 @@
 
      :Section Define Scans
      ⍝ To scan simple expressions:
-     ⍝   code← [PreScan1] MainScan1 (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and CTL_SKIP stacks during use.
+     ⍝   code← [PreScan1] MainScan1 (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and ctl.skip stacks during use.
      ⍝                                            ⍺⍺=0: Maintain existing stacks
-         CTL_STACK CTL_SKIP∘←1 0 ⋄ SAVE_STACK←⍬
+         ctl.(stack skip save)←1 0 ⍬
          doScan←{
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              ⍺←MainScan1       ⍝ Default is to omit the prescan
              stackFlag←⍺⍺
-             saveStacks←{⍵:SAVE_STACK,←⊂CTL_STACK CTL_SKIP ⋄ CTL_STACK CTL_SKIP∘←1 0 ⋄ ''}
-             restoreStacks←{⍵:(CTL_STACK CTL_SKIP)SAVE_STACK∘←(⊃⌽SAVE_STACK)(¯1↓SAVE_STACK) ⋄ ''}
+             saveStacks←{⍵:ctl.save,←⊂ctl.(stack skip) ⋄ ctl.(stack skip)←1 0 ⋄ ''}
+             restoreStacks←{⍵:ctl.(save←¯1↓save⊣stack skip←⊃⌽save ⋄ ''}
 
              _←saveStacks stackFlag
              res←⍺{
