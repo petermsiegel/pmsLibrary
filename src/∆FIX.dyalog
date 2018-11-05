@@ -1,4 +1,4 @@
-result←{specs}  ∆FIX fileName
+﻿ result←{specs}∆FIX fileName;Par
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;PreScan1;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
@@ -8,7 +8,7 @@ result←{specs}  ∆FIX fileName
  ;readFile;register;setBrace;sfx;OUTSPEC;sqStringP;stringAction
  ;stringP;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;∆V2Q;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
- ⍝ A Dyalog APL preprocessor
+ ⍝ A Dyalog APL preprocessor (rev. Nov 4)
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG]]] ∆FIX fileName
  ⍝
@@ -506,14 +506,46 @@ result←{specs}  ∆FIX fileName
      :Section List Scan Patterns
      :EndSection
      :Section List Scan (experimental)
-      MBegin
+         MBegin
+
+         Par←⎕NS'' ⋄ Par.enStack←0
+         'Null List/List Elem'{   ⍝ (),  (;) (;...;)
+             sym←⍵ ∆FIELD 0
+             nSemi←+/sym=';'
+             '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
+         }register'\((?:\s*;)*\)'
          'Parens/Semicolon'{
-              sym←⍵ ∆FIELD 0
-              '<>;'['();'⍳sym]
-          }register '[();]'
-        'STRINGS'(0 register)'⍎sqStringP'
-        'Everything else' (0 register)'[^();]+'
-      ListScan←MEnd
+             Par←##.Par
+             sym endPar←⍵ ∆FIELD 0 1
+            ⍝  ⎕←'---------------'
+            ⍝  ⎕←'sym "',sym,'"'
+
+             inP←⊃⌽Par.enStack
+             ';'=⊃sym:{
+                ⍝ ⎕←'par "',endPar,'"'
+                 e←×≢endPar         ⍝ Did we match a right paren (after semicolons)?
+                 Par.enStack↓⍨←-e   ⍝ Yes:  note the match in the BracketStack...
+                 ~inP:⍵
+                 n←¯1++/';'=⍵
+                 ⍝ ⎕←'n <',n,'>'
+                 n=0:∊e⊃')(' ')'
+                 ∊((0⌈n-1)⍴⊂'⍬'),e⊃')(⍬)(' ')(⍬)'
+             }sym
+             '('=⊃sym:{
+                 Par.enStack,←1
+                 n←+/';'=⍵
+                ⍝ ⎕←'n <',n,'>'
+                 ∊(n⍴⊂'(⍬)'),'('
+             }sym
+           ⍝  ⎕←'sym= ',sym
+             '['=sym:sym⊣Par.enStack,←0
+             ']'=sym:sym⊣Par.enStack↓⍨←¯1
+             '('=sym:sym⊣Par.enStack,←1
+             ')'=sym:sym⊣Par.enStack↓⍨←¯1
+         }register'\( \h* ; (?: \h*;)* | ; (?: \h* ; )* \h* (\)?) |  [();\[\]]  '
+         'STRINGS'(0 register)'⍎sqStringP'
+         'Everything else'(0 register)'[^();]+'
+         ListScan←MEnd
      :EndSection
 
      :Section Define Scans
@@ -543,7 +575,9 @@ result←{specs}  ∆FIX fileName
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
-         code←PreScan1 MainScan1(0 doScan)code
+         code←PreScan1 MainScan1 ListScan(0 doScan)code
+
+
          :Select COMSPEC
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
@@ -551,10 +585,6 @@ result←{specs}  ∆FIX fileName
          :EndSelect
      :EndSection Do Scans
  :EndSection
-
-   :Section ListScan (experimental)
-     #.Code←ListScan (0 doScan) code
-   :EndSection
 
  :Section Write out so we can then do a 2∘⎕FIX
      tmpfile←(739⌶0),'/','TMP~.dyalog'
