@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX2 fileName
+result←{specs}  ∆FIX fileName
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;PreScan1;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
