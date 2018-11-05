@@ -503,9 +503,11 @@
 
      :EndSection
 
-     :Section List Scan Patterns
-     :EndSection
      :Section List Scan (experimental)
+     ⍝ Handle lists of the form:
+     ⍝        (name1; name2; ;)   (;;;) ()  ( name→val; name→val;) (one_item;) (`an atom of sorts;)
+     ⍝ Lists must be of the form  \( ... \) with at least one semicolon or be exactly  \( \s* \), e.g. () or (  ).
+     ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
 
          Par←⎕NS'' ⋄ Par.enStack←0
