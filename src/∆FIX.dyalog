@@ -1,6 +1,6 @@
-﻿ result←{specs}∆FIX fileName;Par
+﻿ result←{specs}∆FIX fileName
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
- ;Match;NO;NOc;NL;PreScan1;SQ;TRAP;YES;UTILS;YESc
+ ;Match;NO;NOc;NL;Par;PreScan1;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
  ;COMSPEC;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
  ;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP
