@@ -209,6 +209,46 @@ B. Atoms II  Expressions of the form
    The monadic back-tick `... is called the ATOM pseudo-operator (it is formally "punctuation,"
    rather than an operator or function).
 
+Lists
+* ∆FIX supports an extension to APL vectors, called lists. Lists consist of one or more
+  APL code sequence in parentheses, each terminated by a semicolon:
+        (⍳5; 'item 2'; 0 1 2;)
+* Here, we have a list of three items (⍳5) ('item2') and (0 1 2).
+  Sublists are allowed:
+        (⍳5; ('item2a'; 'item2b';); ⍳3;)
+  As long as there is at least one semicolon, the last semicolon may be omitted:
+        (⍳5;); ('item2a'; 'item2b'); ⍳3)
+* Lists may also be combined with atoms and parameters:
+        (x → ⍳5; legend→`item2a item2b; options → ⍳3)
+  This is equivalent to:
+        ((⊂⊂,'x'),⊂⍳5)((⊂⊂'legend'),⊂('item2a' 'item2b'))((⊂⊂'options'),⊂⍳3)
+  or in "boxed" format:
+        ┌───────────────┬──────────────────────────┬─────────────────┐
+        │┌───┬─────────┐│┌────────┬───────────────┐│┌─────────┬─────┐│
+        ││┌─┐│0 1 2 3 4│││┌──────┐│┌──────┬──────┐│││┌───────┐│0 1 2││
+        │││x││         ││││legend│││item2a│item2b│││││options││     ││
+        ││└─┘│         │││└──────┘│└──────┴──────┘│││└───────┘│     ││
+        │└───┴─────────┘│└────────┴───────────────┘│└─────────┴─────┘│
+        └───────────────┴──────────────────────────┴─────────────────┘
+* If a semicolon appears, but is not preceded by APL code, a zilde ⍬ is assumed.
+  Thus, missing positional parameters may be encoded:
+        (name → ⍳5;; phone number→'313 000-1234';)
+  This is equivalent to:
+        (name → ⍳5; ⍬; phone number→'313 000-1234';)
+  Notice that one or more trailing parameters may be indicated via semicolons with no
+  code preceding. This statement
+        (⍳5;;;)
+  is the same as  (⍳5; ⍬; ⍬; ). This could equally have been written:
+        (⍳5;;⍬) or (⍳5;;⍬;).
+* An empty list, equivalent to ⍬ consists of a pair of balanced parentheses with
+  only whitespace in between: () or (  ).
+Note: Why have semicolons end list elements, rather than separate them? Because,
+otherwise, lists would be confused with standard APL code sequences.
+        Standard:  ((⍳5)(1 2 3))     (⍳5)        ((⍳5) ⍬)
+        List:      (⍳5; 1 2 3)       (⍳5;)    (⍳5;;) or (⍳5;⍬)
+Use lists, atoms (`xxx), and parameters (a→b) for complex function calls,
+e.g. with named unordered arguments, etc.
+
 Continuation lines in APL code
    You may continue any APL line by placing two or more dots .. as the last errcode
    before any comments on that line. In some cases, where the preprocessor handles

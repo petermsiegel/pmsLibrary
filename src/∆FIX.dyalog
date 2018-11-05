@@ -241,9 +241,9 @@
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
-             'CONT'(' 'register)'\h*\.{2,}\h*(⍝.*?)?$(\s*)'      ⍝ Continuation lines [+ comments] → single space
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'           ⍝ Comments on their own line are kept.
-             'COMMENTS_RHS'(''register)'\h*⍝.*?$'              ⍝ RHS Comments are ignored...
+             'CONT'(' 'register)'\h*\.{2,}\h*(⍝.*?)?$(\s*)'  ⍝ Continuation lines [+ comments] → single space
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'         ⍝ Comments on their own line are kept.
+             'COMMENTS_RHS'(''register)'\h*⍝.*?$'            ⍝ RHS Comments are ignored...
              PreScan1←MEnd
          :EndSection
 
@@ -500,53 +500,43 @@
              }register'(⍎longNameP)(?!\.\.)'
          :EndSection
          MainScan1←MEnd
-
      :EndSection
 
      :Section List Scan (experimental)
      ⍝ Handle lists of the form:
      ⍝        (name1; name2; ;)   (;;;) ()  ( name→val; name→val;) (one_item;) (`an atom of sorts;)
-     ⍝ Lists must be of the form  \( ... \) with at least one semicolon or be exactly  \( \s* \), e.g. () or (  ).
+     ⍝ Lists must be of the form  \( ... \) with
+     ⍝       - at least one semicolon or
+     ⍝       - be exactly  \( \s* \), e.g. () or (  ).
      ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
-
          Par←⎕NS'' ⋄ Par.enStack←0
          'Null List/List Elem'{   ⍝ (),  (;) (;...;)
-             sym←⍵ ∆FIELD 0
-             nSemi←+/sym=';'
+             sym←⍵ ∆FIELD 0 ⋄  nSemi←+/sym=';'
              '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
          }register'\((?:\s*;)*\)'
          'Parens/Semicolon'{
-             Par←##.Par
-             sym endPar←⍵ ∆FIELD 0 1
-            ⍝  ⎕←'---------------'
-            ⍝  ⎕←'sym "',sym,'"'
-
+             Par←##.Par ⋄ sym endPar←⍵ ∆FIELD 0 1 ⋄ sym0←⊃sym
              inP←⊃⌽Par.enStack
-             ';'=⊃sym:{
-                ⍝ ⎕←'par "',endPar,'"'
-                 e←×≢endPar         ⍝ Did we match a right paren (after semicolons)?
-                 Par.enStack↓⍨←-e   ⍝ Yes:  note the match in the BracketStack...
+             ';'=sym0:{
+                 Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
                  ~inP:⍵
                  n←¯1++/';'=⍵
-                 ⍝ ⎕←'n <',n,'>'
                  n=0:∊e⊃')(' ')'
                  ∊((0⌈n-1)⍴⊂'⍬'),e⊃')(⍬)(' ')(⍬)'
              }sym
-             '('=⊃sym:{
+             '('=sym0:{
                  Par.enStack,←1
                  n←+/';'=⍵
-                ⍝ ⎕←'n <',n,'>'
                  ∊(n⍴⊂'(⍬)'),'('
              }sym
-           ⍝  ⎕←'sym= ',sym
-             '['=sym:sym⊣Par.enStack,←0
+             '['=sym:sym⊣Par.enStack,←0     ⍝ Semicolons governed by [] are not special.
              ']'=sym:sym⊣Par.enStack↓⍨←¯1
-             '('=sym:sym⊣Par.enStack,←1
+             '('=sym:sym⊣Par.enStack,←1     ⍝ Semicolons governed by () are special.
              ')'=sym:sym⊣Par.enStack↓⍨←¯1
          }register'\( \h* ; (?: \h*;)* | ; (?: \h* ; )* \h* (\)?) |  [();\[\]]  '
          'STRINGS'(0 register)'⍎sqStringP'
-         'Everything else'(0 register)'[^();]+'
+         'Non-list sequences'(0 register)'[^();\[\]'']+'
          ListScan←MEnd
      :EndSection
 
@@ -579,7 +569,7 @@
        ⍝ =================================================================
          code←PreScan1 MainScan1 ListScan(0 doScan)code
 
-
+       ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
