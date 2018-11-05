@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX2 fileName
+﻿ result←{specs}∆FIX2 fileName;Br
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;PreScan1;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
@@ -506,14 +506,25 @@
      :Section List Scan Patterns
      :EndSection
      :Section List Scan (experimental)
-      MBegin
+         MBegin
+
+         Br←⎕NS'' ⋄ Br.ackStack←0
          'Parens/Semicolon'{
-              sym←⍵ ∆FIELD 0
-              '<>;'['();'⍳sym]
-          }register '[();]'
-        'STRINGS'(0 register)'⍎sqStringP'
-        'Everything else' (0 register)'[^();]+'
-      ListScan←MEnd
+             Br←##.Br
+             sym←⍵ ∆FIELD 0
+             last←¯1↑sym
+             inP←⊃⌽Br.ackStack
+             (1<≢sym)∧(';'=last)∧inP:(¯1++/sym=';')⍴'⍬'
+             (1<≢sym)∧')'=last:'⍬)'⊣Br.ackStack↓⍨←¯1
+             '['=sym:sym⊣Br.ackStack,←0
+             ']'=sym:sym⊣Br.ackStack↓⍨←¯1
+             '('=sym:sym⊣Br.ackStack,←1
+             ')'=sym:sym⊣Br.ackStack↓⍨←¯1
+             ';'=sym:∊inP⊃sym'::'
+         }register' ; \s* \) | ;{2,} |  [();\[\]]  '
+         'STRINGS'(0 register)'⍎sqStringP'
+         'Everything else'(0 register)'[^();]+'
+         ListScan←MEnd
      :EndSection
 
      :Section Define Scans
@@ -552,9 +563,9 @@
      :EndSection Do Scans
  :EndSection
 
-   :Section ListScan (experimental)
-     #.Code←ListScan (0 doScan) code
-   :EndSection
+ :Section ListScan (experimental)
+     #.Code←ListScan(0 doScan)code
+ :EndSection
 
  :Section Write out so we can then do a 2∘⎕FIX
      tmpfile←(739⌶0),'/','TMP~.dyalog'

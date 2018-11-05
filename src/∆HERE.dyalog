@@ -5,7 +5,7 @@
  oMulti oBlanks oDebug←1 0 0
  lineEnd←⎕UCS 13    ⍝  CR character. If used in Dyalog, behaves like CR + LF.
 
- here←1⊃2↑⎕LC
+ here←1⊃2↑(50100⌶)2    ⍝ 2↑⎕LC = 2↑(50100⌶)2
  :If 0=here ⋄ '∆HERE: Not called from within a fn/op'⎕SIGNAL 11 ⋄ :EndIf
 
  :If 0=≢hd←⎕NR⊃1 0⌷⎕STACK                     ⍝ ~5% faster than equiv. (0⊃⎕RSI).⎕NR 1⊃⎕SI
@@ -17,8 +17,7 @@
  optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
-          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks
-          ⋄ :Case 'SP' ⋄ oBlanks←1                  ⍝ SPaces: Obsolete synonym for BLanks. Remove Dec 2018.
+          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks (SPaces removed as variant @20181004)
           ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ SIngle (string)
           ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ MUltiple (strings)
           ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in strings; implies SIngle
@@ -106,7 +105,7 @@
 ⍝      ⍝ <!DOCTYPE HTML>
 ⍝      ⍝ <html>
 ⍝      ⍝⍝ Next line is blank.    <-- This line is ignored because of '⍝⍝'.
-⍝                                <-- Blank line would end the HERE doc without 'SPACES' option.
+⍝                                <-- Blank line would end the HERE doc without 'BLanks' option.
 ⍝      ⍝ <head>
 ⍝      ⍝ <meta name="viewport" content="width=device-width, initial-scale=1">
 ⍝                                <-- Ditto
