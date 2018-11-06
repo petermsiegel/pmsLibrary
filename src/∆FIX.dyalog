@@ -1,6 +1,6 @@
 ﻿ result←{specs}∆FIX fileName
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
- ;Match;NO;NOc;NL;Par;PreScan1;SQ;TRAP;YES;UTILS;YESc
+ ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
  ;COMSPEC;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
  ;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP
@@ -45,6 +45,7 @@
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
  OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
  CTL←⎕NS''
+ PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
 
  :Section Utilities
 ⍝-------------------------------------------------------------------------------------------
@@ -388,6 +389,24 @@
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
              }register'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+            ⍝ :PRAGMA name ← value
+            ⍝  (Names are case insensitive)
+            ⍝ Current:
+            ⍝    name: FENCE.  Sets the temp. name for "fence" constructions (←⍳5) etc.
+             'PRAGMA'{
+                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+
+                 f0 k vIn←⍵ ∆FIELD¨0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
+                 TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
+                 _←##.dict.validate k
+                 vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
+                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
+                 ∆COM f0 msg⊣{
+                     'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
+                     911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
+                 }⍬
+             }register'^\h* :: \h* PRAGMA \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+           ⍝ UNDEF stmt
            ⍝ UNDEF stmt
              'UNDEF'{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
@@ -499,10 +518,10 @@
                  '(',v,')'
              }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
-            ⍝   ⍙S⍙: a "sink"
+            ⍝   ⍙S⍙: a "fence"
              'ASSIGN'{
-                '⍙S⍙←'
-             }register '^ \h* ← | (?<=[()\[\]{};:⋄])\h*←  '
+                 ##.PRAGMA_FENCE,'←'
+             }register'^ \h* ← | (?<=[()\[\]{};:⋄]) \h* ←  '
          :EndSection
          MainScan1←MEnd
      :EndSection
@@ -517,7 +536,7 @@
          MBegin
          Par←⎕NS'' ⋄ Par.enStack←0
          'Null List/List Elem'{   ⍝ (),  (;) (;...;)
-             sym←⍵ ∆FIELD 0 ⋄  nSemi←+/sym=';'
+             sym←⍵ ∆FIELD 0 ⋄ nSemi←+/sym=';'
              '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
          }register'\((?:\s*;)*\)'
          'Parens/Semicolon'{
