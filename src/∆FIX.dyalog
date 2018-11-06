@@ -138,11 +138,15 @@
 ⍝ Pattern Building Routines...
      ⎕FX'MBegin' 'Match←⍬'
      ⎕FX'm←MEnd' 'm←Match'
-     register←{⍺←'[',(⍕1+≢Match),']'
+     register←{⍺←'[',(⍕1+≢Match),']' 1
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
          ns.CTL←CTL
-         ns.info←⍺
+         ⍝ Right now we don't do anything with ns.skip
+         ⍝    0 - <action> handles skips; call it, whether skip active or not.
+         ⍝    1 - If skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
+         ⍝    2 - If skip: don't call <action>; return: ⍵ ∆FIELD 0
+         ns.(info skip)←2⍴(⊆⍺),0      ⍝ Default skip: 0
          ns.pRaw←⍵                    ⍝ For debugging
          ns.pats←'(?xx)',eval ⍵       ⍝ xx-- allow spaces in [...] pats.
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
@@ -153,10 +157,10 @@
          match←,⍺⍺    ⍝ Ensure vector...
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
-         m←pn⊃match
-         3=m.⎕NC'action':m m.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴m.action:∊m.action            ⍝ text? Return as is...
-         ⍵ ∆FIELD m.action                     ⍝ Else m.action is a field number...
+         ns←pn⊃match
+         3=ns.⎕NC'action':ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
+         ' '=1↑0⍴ns.action:∊ns.action            ⍝ text? Return as is...
+         ⍵ ∆FIELD ns.action                     ⍝ Else m.action is a field number...
      }
      eval←{
          ~'⍎'∊⍵:⍵
@@ -251,7 +255,7 @@
          :Section MainScan1
              MBegin
             ⍝ IFDEF stmts
-             'IFDEF+IFNDEF'{
+             'IFDEF+IFNDEF' 0{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
@@ -263,7 +267,7 @@
             ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
-             'IF'{
+             'IF' 0{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
@@ -284,8 +288,7 @@
                  (~CTL.skip)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* IF\b \h*(.*?)$'
             ⍝ ELSEIF/ELIF stmts
-             'ELSEIF/ELIF'{
-
+             'ELSEIF/ELIF' 0{
                  CTL.skip←⊃⌽##.CTL.stack
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
@@ -305,13 +308,13 @@
                  (~CTL.skip)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
              }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
             ⍝ ELSE
-             'ELSE'{
+             'ELSE' 0{
                  CTL.skip←~(⊃⌽##.CTL.stack)←~⊃⌽##.CTL.stack    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
                  (~CTL.skip)∆COM f0
              }register'^\h* :: \h* ELSE \b .*?$'
             ⍝ END, ENDIF, ENDIFDEF
-             'END(IF(DEF))'{
+             'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
                  oldskip←CTL.skip
                  CTL.skip←~⊃⌽##.CTL.stack⊣##.CTL.stack↓⍨←¯1
@@ -320,7 +323,7 @@
              }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
-             'CINCLUDE'{
+             'CINCLUDE' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
@@ -330,8 +333,9 @@
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
              }register'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
             ⍝ INCLUDE
-             'INCLUDE'{
+             'INCLUDE' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
 
@@ -341,10 +345,10 @@
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
-             'COND'{
-                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) counts as two fields
-                 CTL.skip:0 ∆COM f0
+             'COND' 1{
+                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
+                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) counts as two fields
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
                  TRAP::{
                      ⎕←NO,'Unable to evaluate ',⍵
@@ -362,7 +366,7 @@
            ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
              defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎longNameP) '
              defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
-             'DEF(INE)'{
+             'DEF(INE)' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
@@ -374,7 +378,7 @@
              }register defS
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
-             'LET~EVAL'{
+             'LET~EVAL' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
@@ -393,7 +397,7 @@
             ⍝  (Names are case insensitive)
             ⍝ Current:
             ⍝    name: FENCE.  Sets the temp. name for "fence" constructions (←⍳5) etc.
-             'PRAGMA'{
+             'PRAGMA' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
@@ -408,7 +412,7 @@
              }register'^\h* :: \h* PRAGMA \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
            ⍝ UNDEF stmt
            ⍝ UNDEF stmt
-             'UNDEF'{
+             'UNDEF' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k←⍵ ∆FIELD¨0 1
@@ -417,7 +421,7 @@
              }register'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
-             'ERROR'{
+             'ERROR' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line num msg←⍵ ∆FIELD¨0 1 2
@@ -427,7 +431,7 @@
              }register'^\h* :: \h* ERR(?:OR)? (?| \h+(\d+)\h(.*?) | ()\h*(.*?))$'
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
-             'MESSAGE~MSG'{
+             'MESSAGE~MSG' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
@@ -435,7 +439,7 @@
                  ∆COM line
              }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
-             'SIMPLE_NON_MACRO'{
+             'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ COMMENTS: passthrough
@@ -459,7 +463,7 @@
            ⍝ name..ENV     getenv('name')
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
-             'name..cmd'{
+             'name..cmd' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
@@ -478,7 +482,7 @@
            ⍝ To do: Treat num constants as unquoted scalars
              atomsP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)'
              atomsP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP))*'
-             'ATOMS'{
+             'ATOMS' 2{
                  CTL.skip:⍵ ∆FIELD 0
 
                  atoms arrow←⍵ ∆FIELD 1 2
@@ -498,16 +502,31 @@
              }register'\h* (?| (⍎atomsP) \h* (→) | ` (⍎atomsP) ) \h* (→)?'
             ⍝ STRINGS: passthrough (only single-quoted strings appear.
             ⍝ Must follow ATOMs
-             'STRINGS*'(0 register)'⍎sqStringP'
-            ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
-             'UNICODE'{
+             'STRINGS*' 0(0 register)'⍎sqStringP'
+            ⍝ Hexadecimal integers...
+            ⍝ See ⎕UdhhX for hexadecimal Unicode constants
+             h2d←{ ⍝ Convert hex to decimal.
+                 ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
+                 0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number out of range: ',⍵
+                 (s⊃1 ¯1)×16⊥∆D⍳(¯1↓⍵)↓⍨s←'¯'=1↑⍵
+             }
+             'HEX INTs' 2{
                  CTL.skip:⍵ ∆FIELD 0
-                 int←1⊃⎕VFI intS←⍵ ∆FIELD 1
-                 (int≤32)∨int=132:'(⎕UCS ',intS,')'
-                 ' ',SQ,(⍕⎕UCS int),SQ,' '
-             }register'(?: ⎕U(\d+) \b )'
+
+                 ⍕##.h2d ⍵ ∆FIELD 0
+             }register'(?<![⍎ALPH])¯?\d[\dA-F]*X\b'
+            ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
+            ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
+            ⍝ ⎕U021X →  (⎕UCS 33) → '!'
+             'UNICODE' 2{
+                 CTL.skip:⍵ ∆FIELD 0
+                 i←{'xX'∊⍨⊃⌽⍵:##.h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
+                 (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
+                 ' ',SQ,(⎕UCS i),SQ,' '
+             }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
+
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
-             'MACRO'{
+             'MACRO' 2{
                  CTL.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL.skip
 
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
@@ -519,7 +538,9 @@
              }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
-             'ASSIGN'{
+             'ASSIGN' 2{
+                 CTL.skip:⍵ ∆FIELD 0
+
                  ##.PRAGMA_FENCE,'←'
              }register'^ \h* ← | (?<=[()\[\]{};:⋄]) \h* ←  '
          :EndSection
@@ -535,11 +556,11 @@
      ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
          Par←⎕NS'' ⋄ Par.enStack←0
-         'Null List/List Elem'{   ⍝ (),  (;) (;...;)
+         'Null List/List Elem' 0{   ⍝ (),  (;) (;...;)
              sym←⍵ ∆FIELD 0 ⋄ nSemi←+/sym=';'
              '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
          }register'\((?:\s*;)*\)'
-         'Parens/Semicolon'{
+         'Parens/Semicolon' 0{
              Par←##.Par ⋄ sym endPar←⍵ ∆FIELD 0 1 ⋄ sym0←⊃sym
              inP←⊃⌽Par.enStack
              ';'=sym0:{
