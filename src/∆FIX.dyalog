@@ -498,6 +498,11 @@
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
              }register'(⍎longNameP)(?!\.\.)'
+            ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
+            ⍝   ⍙S⍙: a "sink"
+             'ASSIGN'{
+                '⍙S⍙←'
+             }register '^ \h* ← | (?<=[()\[\]{};:⋄])\h*←  '
          :EndSection
          MainScan1←MEnd
      :EndSection
