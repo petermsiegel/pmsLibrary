@@ -3,8 +3,15 @@
 
 * Punctuation
   * Continuation Lines ...
+    a←1 + 2 + ...
+      3 + 4 + 5
   * Continuing Parenthetical Expressions Across lines (line1⏎line2⏎line3)
+    a←(1 + 2 +
+       3 + 4 + 5)
   * Continuing Strings Across Lines "..."
+    s←"This is a 
+       multi-line
+       string"
 * Unicode Chars
   * Decimal                   ⎕Unnn
   * Hexadecimal               ⎕Unddx
