@@ -226,14 +226,14 @@
        ⍝ Tradfn header with leading ∇. (To be a header, it must have one alpha after ∇)
        ⍝ Could occur ANYWHERE...
          code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
-             o←##.SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+             o←SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
             ⍝  ⎕←'Line(s) in:  ',i
             ⍝  ⎕←'Line(s) out: ',o
              o
          }⍠OPTS⊣code
      :Else         ⍝ Here, 1st line is tradfn header without leading ∇: Process the header ONLY
          code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
-             o←##.SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+             o←SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
             ⍝  ⎕←'Line(s) in:  ',i
             ⍝  ⎕←'Line(s) out: ',o
              o
