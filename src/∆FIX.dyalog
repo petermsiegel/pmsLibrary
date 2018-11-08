@@ -257,7 +257,7 @@
          :Section PreScan2
              MBegin
            ⍝ A lot of processing to handle multi-line parens or brackets ...
-             'STRINGS'  (0 register) stringP
+             'STRINGS'(0 register)stringP
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
              'Multiline () or []' 0{
                  ##.stringP ##.braceP'\n'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
@@ -489,21 +489,22 @@
                  cmd≡,'Q':' ',q,nm,q,' '
                  ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
              }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
-           ⍝ ATOMS:   n1 n2 n3 → anything,   `n1 n2 n3
+           ⍝ ATOMS and PARAMETERS (PARMS):   n1 n2 n3 → anything,   `n1 n2 n3
            ⍝     abc def ghi → xxx     →   ('abc' 'def' 'ghi')
+           ⍝     ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
            ⍝ To do: Allow char constants-- just don't add quotes...
            ⍝ To do: Treat num constants as unquoted scalars
-             atomsP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)'
-             atomsP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP))*'
-             'ATOMS' 2{
+             atomsP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
+             atomsP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|⍬)*'
+             'ATOMS/PARMS' 2{
                  CTL.skip:⍵ ∆FIELD 0
 
                  atoms arrow←⍵ ∆FIELD 1 2
-                 atoms←(' '∘≠⊆⊢)atoms
+                 atoms←(' '∘≠⊆⊢),atoms←(0=≢atoms)⊃atoms'⍬'
                  qt←''''
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                  atoms←{
-                     isN isQ←('¯.',⎕D)'''' ⋄ f←1↑⍵
+                     isN isQ←('¯.',⎕D,'⍬')'''' ⋄ f←1↑⍵
                      f∊isN:⍵⊣s∘←1       ⍝ Pass through 123.45 w/o adding quotes (not needed)
                      f∊isQ:⍵⊣s∨←3=≢⍵    ⍝ Pass through 'abcd' w/o adding quotes (already there)
                      qt,qt,⍨⍵⊣s∨←1=≢⍵
@@ -512,7 +513,7 @@
                  atoms←(∊o s sxo/'⊂,¨'),1↓∊' ',¨atoms
                  1=≢arrow:'(⊂',atoms,'),⊂'     ⍝ 1=≢arrow: Is there a right arrow?
                  '(',atoms,')'
-             }register'\h* (?| (⍎atomsP) \h* (→) | ` (⍎atomsP) ) \h* (→)?'
+             }register'\h* (?| (⍎atomsP) \h* (→) | (?<=[(;])() \h*  (→) | ` (⍎atomsP) ) \h* (→)?'
             ⍝ STRINGS: passthrough (only single-quoted strings appear.
             ⍝ Must follow ATOMs
              'STRINGS*' 0(0 register)'⍎sqStringP'
