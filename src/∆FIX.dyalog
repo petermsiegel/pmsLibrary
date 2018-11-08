@@ -222,19 +222,23 @@
      }
      code←readFile fileName
 
-     :Select _←⍬⍴' '~⍨⊃code
-     :CaseList ':⍝'           ⍝ Comment or directives-- ignore...
-     :Case '∇'                ⍝ Tradfn header with leading ∇. Could occur ANYWHERE...
-         code←'(?x)^ \h* ∇ .*? \n  (?:  \h* ; .* $ )*'⎕R{
-             ⎕←'Line is ',⍵ ∆FIELD 0
-             ⎕←'Now it''s',##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
-             ##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+     :If ':⍝∇'∊⍨1↑' '~⍨⊃code
+       ⍝ Tradfn header with leading ∇. (To be a header, it must have one alpha after ∇)
+       ⍝ Could occur ANYWHERE...
+         code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
+             o←##.SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+            ⍝  ⎕←'Line(s) in:  ',i
+            ⍝  ⎕←'Line(s) out: ',o
+             o
          }⍠OPTS⊣code
-     :Else                    ⍝ Tradfn header without leading ∇: Process the header ONLY
-         code←'(?x)\A .*? \n  (?: \h* ; .* $ )*'⎕R{
-             ##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+     :Else         ⍝ Here, 1st line is tradfn header without leading ∇: Process the header ONLY
+         code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
+             o←##.SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+            ⍝  ⎕←'Line(s) in:  ',i
+            ⍝  ⎕←'Line(s) out: ',o
+             o
          }⍠OPTS⊣code
-     :EndSelect
+     :EndIf
 
  :EndSection
 
@@ -428,6 +432,7 @@
             ⍝  (Names are case insensitive)
             ⍝ Current:
             ⍝    name: FENCE.  Sets the temp. name for "fence" constructions (←⍳5) etc.
+            ⍝    ::PRAGMA FENCE←'⍙F⍙'
              'PRAGMA' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
@@ -622,8 +627,9 @@
 
      :Section Define Scans
      ⍝ To scan simple expressions:
-     ⍝   code← [PreScan1] MainScan1 (⍺⍺ doScan)⊣ code   ⍺⍺=1: Save and restore the IF and CTL.skip stacks during use.
-     ⍝                                            ⍺⍺=0: Maintain existing stacks
+     ⍝   code← [PreScan1 PreScan2] MainScan1 (⍺⍺ doScan)⊣ code
+     ⍝          ⍺⍺=1: Save and restore the IF and CTL.skip stacks during use.
+     ⍝          ⍺⍺=0: Maintain existing stacks
          CTL.(stack skip save)←1 0 ⍬
          doScan←{
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
@@ -655,7 +661,7 @@
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
          :EndSelect
-       ⍝ Other cleanup: Handle semicolons in headers...
+       ⍝ Other cleanup: Handle (faux) semicolons in headers...
          code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
      :EndSection Do Scans
  :EndSection
@@ -681,6 +687,7 @@
 
  :If DEBUG
      ⎕←'PreScan1  Pats:'PreScan1.info
+     ⎕←'PreScan2  Pats:'PreScan2.info
      ⎕←'MainScan1 Pats:'MainScan1.info
      ⎕←'      *=passthrough'
 
