@@ -1,6 +1,6 @@
 ﻿ result←{specs}∆FIX fileName
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
- ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;SQ;TRAP;YES;UTILS;YESc
+ ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;PreScan2;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
  ;COMSPEC;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
  ;filesIncluded;getenv;infile;keys;letS;longNameP;macros;macro;nameP
@@ -188,13 +188,15 @@
 
  ⍝-------------------------------------------------------------------------------------------
  :Section Reused Pattern Actions
-     stringAction←{
+     stringAction←{  ⍝ Manage single-quoted strings and single/multiline double-quoted strings
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          str←⍵ ∆FIELD 0 ⋄ q←⊃str
          q≡SQ:str
          str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ Double SQs and de-double DQs
          ~NL∊str:str                      ⍝ Remove leading blanks on trailing lines
+       ⍝ Multiline strings are treated differently: "abc\n def" → ('abc',(⎕UCS 10),'def')
+       ⍝ Right now, things like atoms must be one line only...
          str←'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣str
          '(',')',⍨∊str
      }
@@ -246,10 +248,21 @@
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
-             'CONT'(' 'register)'\h*\.{2,}\h*(⍝.*?)?$(\s*)'  ⍝ Continuation lines [+ comments] → single space
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'         ⍝ Comments on their own line are kept.
-             'COMMENTS_RHS'(''register)'\h*⍝.*?$'            ⍝ RHS Comments are ignored...
+             'CONT'(' 'register)'\h*(…|\.{2,})\h*(⍝.*?)?$(\s*)'  ⍝ Ellipses or 2 or more dots signal continuation (→' ')
+             'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'         ⍝ Semicolon at end of line signals continuation (→';')
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'             ⍝ Comments on their own line are kept.
+             'COMMENTS_RHS'(''register)'\h*⍝.*?$'                ⍝ RHS Comments are ignored...
              PreScan1←MEnd
+         :EndSection
+         :Section PreScan2
+             MBegin
+           ⍝ A lot of processing to handle multi-line parens or brackets ...
+             'STRINGS'  (0 register) stringP
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
+             'Multiline () or []' 0{
+                 ##.stringP ##.braceP'\n'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
+             }register'(⍎brackP|⍎parenP)'
+             PreScan2←MEnd
          :EndSection
 
          :Section MainScan1
@@ -348,7 +361,7 @@
              'COND' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
-                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) counts as two fields
+                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
                  TRAP::{
                      ⎕←NO,'Unable to evaluate ',⍵
@@ -491,8 +504,8 @@
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                  atoms←{
                      isN isQ←('¯.',⎕D)'''' ⋄ f←1↑⍵
-                     f∊isN:⍵⊣s∘←1       ⍝ Pass through 123.45 w/o quoting
-                     f∊isQ:⍵⊣s∨←3=≢⍵    ⍝ Pass through 'abcd' w/o quoting
+                     f∊isN:⍵⊣s∘←1       ⍝ Pass through 123.45 w/o adding quotes (not needed)
+                     f∊isQ:⍵⊣s∨←3=≢⍵    ⍝ Pass through 'abcd' w/o adding quotes (already there)
                      qt,qt,⍨⍵⊣s∨←1=≢⍵
                  }¨atoms
                  sxo←s∧~o
@@ -565,6 +578,7 @@
              inP←⊃⌽Par.enStack
              ';'=sym0:{
                  Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
+                 1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'
@@ -612,7 +626,7 @@
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
-         code←PreScan1 MainScan1 ListScan(0 doScan)code
+         code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
 
        ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
