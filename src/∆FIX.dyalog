@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName
+﻿ result←{specs}∆FIX fileName;SEMICOLON_FAUX;_;first
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;PreScan2;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
@@ -46,6 +46,9 @@
  OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
  CTL←⎕NS''
  PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
+ ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
+ ⍝ By default, private use Unicode E000If DEBUG, it's a smiley face.
+ SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
 
  :Section Utilities
 ⍝-------------------------------------------------------------------------------------------
@@ -218,6 +221,21 @@
          code
      }
      code←readFile fileName
+
+     :Select _←⍬⍴' '~⍨⊃code
+     :CaseList ':⍝'           ⍝ Comment or directives-- ignore...
+     :Case '∇'                ⍝ Tradfn header with leading ∇. Could occur ANYWHERE...
+         code←'(?x)^ \h* ∇ .*? \n  (?:  \h* ; .* $ )*'⎕R{
+             ⎕←'Line is ',⍵ ∆FIELD 0
+             ⎕←'Now it''s',##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+             ##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+         }⍠OPTS⊣code
+     :Else                    ⍝ Tradfn header without leading ∇: Process the header ONLY
+         code←'(?x)\A .*? \n  (?: \h* ; .* $ )*'⎕R{
+             ##.SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+         }⍠OPTS⊣code
+     :EndSelect
+
  :EndSection
 
 
@@ -284,7 +302,7 @@
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 TRAP::{
+                 0::{
                      CTL.skip←0 ⋄ ##.CTL.stack,←1
                      ⎕←NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
@@ -306,7 +324,7 @@
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
-                 TRAP::{
+                 0::{
                      CTL.skip←←0 ⋄ (⊃⌽##.CTL.stack)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
@@ -363,7 +381,7 @@
 
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
-                 TRAP::{
+                 0::{
                      ⎕←NO,'Unable to evaluate ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
                  }f0
@@ -395,7 +413,7 @@
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
-                 TRAP::{
+                 0::{
                      ⎕←'>>> VALUE ERROR: ',f0
                      _←##.dict.del k
                      msg←(f0)('➤ UNDEF ',k)
@@ -580,7 +598,8 @@
              ';'=sym0:{
                  Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
                ⍝ This is invalid whenever semicolon is on header line!
-                 ⍝ SKIPPED:  1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
+               ⍝ We'll handle...
+                 1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'
@@ -636,6 +655,8 @@
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
          :EndSelect
+       ⍝ Other cleanup: Handle semicolons in headers...
+         code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
      :EndSection Do Scans
  :EndSection
 
