@@ -579,7 +579,8 @@
              inP←⊃⌽Par.enStack
              ';'=sym0:{
                  Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
-                 1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
+               ⍝ This is invalid whenever semicolon is on header line!
+                 ⍝ SKIPPED:  1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'
