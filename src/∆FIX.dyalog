@@ -275,6 +275,7 @@
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
+             'NUMS'{(⍵ ##.∆FIELD 0)~'_'}register'¯?\d[\dA-FJ.E¯_]+X?'
              'CONT'(' 'register)'\h*(…|\.{2,})\h*(⍝.*?)?$(\s*)'  ⍝ Ellipses or 2 or more dots signal continuation (→' ')
              'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'         ⍝ Semicolon at end of line signals continuation (→';')
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'             ⍝ Comments on their own line are kept.
