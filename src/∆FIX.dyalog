@@ -8,9 +8,9 @@
  ;readFile;register;setBrace;sfx;OUTSPEC;sqStringP;stringAction
  ;stringP;tmpfile;ø;_;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;∆V2Q;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
- ⍝ A Dyalog APL preprocessor (rev. Nov 9)
+ ⍝ A Dyalog APL preprocessor (rev. Nov 9 )
  ⍝
- ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG]]] ∆FIX  [fileName | ⍬ ]
+ ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
  ⍝ Description:
  ⍝   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
@@ -25,7 +25,8 @@
  ⍝ OUTSPEC:  ∊0 (default), 1, 2. Indicates the format of the return value*.
  ⍝           On success, rc (return code) is 0.
  ⍝            0 - returns*: rc names             -- names: the list of objects created by a ⎕FIX.
- ⍝            1 - returns*: rc names code        -- code:  output (vec of strings) from the preprocessor.
+ ⍝            1 - returns*: rc names code        -- code:  output (vec of strings) from the
+ ⍝                                                         preprocessor.
  ⍝            2 - returns*: rc code              -- rc:    0 on success
  ⍝            * If an error occurs, returns:
  ⍝                signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
@@ -37,10 +38,14 @@
  ⍝
  ⍝ DEBUG:     0: not debug mode (default).
  ⍝            1: debug mode. ⎕SIGNALs will not be trapped.
-
+ ⍝ SHOWCOMPILED:
+ ⍝            0: Don't view the preprocessed code when done. (It may be returned via OUTSPEC=1).
+ ⍝               Default if standard fileName was specified.
+ ⍝            1: View the preprocessed code just before returning, via ⎕ED.
+ ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
  ⎕IO ⎕ML←0 1
  OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
- '∆FIX: Invalid specification(s)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 3 2 2
+ '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 3 2 2
 
  TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
  CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
@@ -209,7 +214,9 @@
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          str←⍵ ∆FIELD 0 ⋄ q←⊃str
-         q≡SQ:'\h*\n\h*'⎕R''⍠OPTS⊣str     ⍝ SQ strings: remove newlines and lead/trailing blanks
+       ⍝ Ellipses in strings: Respect trailing blanks (but ignore nls and leading blanks)
+         str←'(?:\…|\.{2,})\h*$\s*'⎕R''⍠OPTS⊣str
+         q≡SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣str     ⍝ SQ strings: (newlines and lead/trailing blanks)→' '
          str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ DQ strings: 1) Double SQs and remove double DQs
          ~NL∊str:str                      ⍝ DQ 2) Remove leading blanks on trailing lines
        ⍝ DQ 3) Strings -- replace newlines by newline-generating ⎕UCS calls...
@@ -231,7 +238,7 @@
          }⍵
          infile←pfx,obj,sfx
          code←{0::⎕NULL ⋄ ⊃⎕NGET ⍵ 1}infile
-         code≡⎕NULL:22 ⎕SIGNAL⍨('∆FIX: File not found: ',infile)
+         code≡⎕NULL:22 ⎕SIGNAL⍨('∆FIX: File not found (⍵): ',infile)
          code
      }
      :If ⍬≡fileName
@@ -304,13 +311,13 @@
      :Section Setup Scans
          :Section PreScan1
              MBegin
+             'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'  ⍝ (Removed) ellipses or .. (etc) signal comments (when last code on line)
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
            ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
            ⍝ Obviously this patterns doesn't find only valid numbers-- APL catches that.
              'NUMS UNDERSCOR'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
-             'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'  ⍝ (Removed) ellipses or .. (etc) signal comments (when last code on line)
              'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'            ⍝ (Kept) Semicolon signal continuation (ditto)
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'                ⍝ Comments on their own line are kept.
              'COMMENTS_RHS'(''register)'\h*⍝.*?$'                   ⍝ RHS Comments are ignored...
@@ -678,65 +685,65 @@
              saveStacks←{⍵:CTL.save,←⊂CTL.(stack skip) ⋄ CTL.(stack skip)←1 0 ⋄ ''}
              restoreStacks←{⍵:CTL.(save←¯1↓save⊣stack skip←⊃⌽save ⋄ ''}
 
-                     _←saveStacks stackFlag
-                     res←⍺{
-                         0=≢⍺:⍵
-                         scan←⊃⍺
-                         _code←scan.pats ⎕R(scan MActions)⍠OPTS⊣⍵
-                         (1↓⍺)∇ _code
-                     }⍵
-                     res⊣restoreStacks stackFlag
-                 }
-                     :EndSection Define Scans
+             _←saveStacks stackFlag
+             res←⍺{
+                 0=≢⍺:⍵
+                 scan←⊃⍺
+                 _code←scan.pats ⎕R(scan MActions)⍠OPTS⊣⍵
+                 (1↓⍺)∇ _code
+             }⍵
+             res⊣restoreStacks stackFlag
+         }
+     :EndSection Define Scans
 
-                     :Section Do Scans
+     :Section Do Scans
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
-                     code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
+         code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
 
        ⍝ Clean up based on comment specifications (COMSPEC)
-                     :Select COMSPEC
-                     ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-                     ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+         :Select COMSPEC
+              ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+              ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
-                     :EndSelect
+         :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
-                     code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
-                     :EndSection Do Scans
-                     :EndSection
+         code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
+     :EndSection Do Scans
+ :EndSection
 
-                     :If SHOWCOMPILED
-                     ⎕ED'code'
-                     :EndIf
+ :If SHOWCOMPILED
+     ⎕ED'code'
+ :EndIf
 
-                     :Section Write out so we can then do a 2∘⎕FIX
-                     tmpfile←(739⌶0),'/','TMP~.dyalog'
-                     :Trap 0
-                     (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
-                     objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
+ :Section Write out so we can then do a 2∘⎕FIX
+     tmpfile←(739⌶0),'/','TMP~.dyalog'
+     :Trap 0
+         (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
+         objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
        ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
-                     :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
-                     ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
-                     :Select OUTSPEC
-                     ⋄ :Case 0 ⋄ result←0 objects
-                     ⋄ :Case 1 ⋄ result←0 objects code
-                     ⋄ :Case 2 ⋄ result←0 code
-                     :EndSelect
-                     :Else ⍝ Error: return  trapCode trapMsg
-                     result←⎕DMX.(EN EM)
-                     :EndTrap
-                     1 ⎕NDELETE tmpfile
-                     :EndSection
+         :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
+             ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
+         :Select OUTSPEC
+              ⋄ :Case 0 ⋄ result←0 objects
+              ⋄ :Case 1 ⋄ result←0 objects code
+              ⋄ :Case 2 ⋄ result←0 code
+         :EndSelect
+     :Else ⍝ Error: return  trapCode trapMsg
+         result←⎕DMX.(EN EM)
+     :EndTrap
+     1 ⎕NDELETE tmpfile
+ :EndSection
 
-                     :If DEBUG
-                     ⎕←'PreScan1  Pats:'PreScan1.info
-                     ⎕←'PreScan2  Pats:'PreScan2.info
-                     ⎕←'MainScan1 Pats:'MainScan1.info
-                     ⎕←'      *=passthrough'
+ :If DEBUG
+     ⎕←'PreScan1  Pats:'PreScan1.info
+     ⎕←'PreScan2  Pats:'PreScan2.info
+     ⎕←'MainScan1 Pats:'MainScan1.info
+     ⎕←'      *=passthrough'
 
-                     :If 0≠≢keys←dict.keys
-                     'Defined names and values'
-                     ⍉↑keys dict.values
-                     :EndIf
-                     :EndIf
+     :If 0≠≢keys←dict.keys
+         'Defined names and values'
+         ⍉↑keys dict.values
+     :EndIf
+ :EndIf
