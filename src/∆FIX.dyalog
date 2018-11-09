@@ -151,7 +151,7 @@
          ⍝    2 - If skip: don't call <action>; return: ⍵ ∆FIELD 0
          ns.(info skip)←2⍴(⊆⍺),0      ⍝ Default skip: 0
          ns.pRaw←⍵                    ⍝ For debugging
-         ns.pats←'(?xx)',eval ⍵       ⍝ xx-- allow spaces in [...] pats.
+         ns.pats←eval ⍵       ⍝ xx-- allow spaces in [...] pats.
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
          1:Match,←ns
      }
@@ -166,11 +166,13 @@
          ⍵ ∆FIELD ns.action                     ⍝ Else m.action is a field number...
      }
      eval←{
-         ~'⍎'∊⍵:⍵
-         ⍵≢res←'(?<!\\)⍎(\w+)'⎕R{
+         pfx←'(?xx)'
+         str,⍨←pfx/⍨~1↑pfx⍷str←⍵   ⍝ Add prefix if not already there...
+         ~'⍎'∊str:str
+         str≢res←'(?<!\\)⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
-         }⍠('UCP' 1)⊣⍵:∇ res
+         }⍠('UCP' 1)⊣str:∇ res
        ⍝ DEBUG: '⍎'∊⍵:⍵⊣⎕←'Warning: eval unable to resolve string var: ',⍵
          ⍵
      }
@@ -191,15 +193,18 @@
 
  ⍝-------------------------------------------------------------------------------------------
  :Section Reused Pattern Actions
-     stringAction←{  ⍝ Manage single-quoted strings and single/multiline double-quoted strings
+     stringAction←{
+         ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
+         ⍝ In SQ strings, newlines and extra blanks are just ignored at EOL, Start of line.
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          str←⍵ ∆FIELD 0 ⋄ q←⊃str
-         q≡SQ:str
+         q≡SQ:'\h*\n\h*'⎕R''⍠OPTS⊣str     ⍝ SQ strings-- remove newlines and lead/trailing blanks
          str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ Double SQs and de-double DQs
          ~NL∊str:str                      ⍝ Remove leading blanks on trailing lines
-       ⍝ Multiline strings are treated differently: "abc\n def" → ('abc',(⎕UCS 10),'def')
-       ⍝ Right now, things like atoms must be one line only...
+       ⍝ Multiline Strings
+       ⍝ >>> "abc\n def" → ('abc',(⎕UCS 10),'def')
+       ⍝ >>> Right now, atoms require single-line strings only...
          str←'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣str
          '(',')',⍨∊str
      }
@@ -261,7 +266,7 @@
      braceP←'{'setBrace'}'
 
      dqStringP←'(?:  "[^"]*"     )+'
-     sqStringP←'(?: ''[^''\n]*'' )+'
+     sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
 
      :Section Setup Scans
@@ -517,20 +522,20 @@
            ⍝     ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
            ⍝ To do: Allow char constants-- just don't add quotes...
            ⍝ To do: Treat num constants as unquoted scalars
-             atomsP←' (?:      ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
-             atomsP,←'(?:\h+(?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|⍬)*'
+             atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ_\.]*|⍎sqStringP|⍬)'
+             atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ_\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
                  CTL.skip:⍵ ∆FIELD 0
 
                  atoms arrow←⍵ ∆FIELD 1 2
-                 atoms←(' '∘≠⊆⊢),atoms←(0=≢atoms)⊃atoms'⍬'
-                 qt←''''
+               ⍝ Split match into individual atoms...
+                 atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠##.OPTS⊣,(0=≢atoms)⊃atoms'⍬'
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                  atoms←{
-                     isN isQ←('¯.',⎕D,'⍬')'''' ⋄ f←1↑⍵
-                     f∊isN:⍵⊣s∘←1       ⍝ Pass through 123.45 w/o adding quotes (not needed)
-                     f∊isQ:⍵⊣s∨←3=≢⍵    ⍝ Pass through 'abcd' w/o adding quotes (already there)
-                     qt,qt,⍨⍵⊣s∨←1=≢⍵
+                     NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
+                     a∊NUM:⍵~'_'⊣s∘←1         ⍝ Pass through 123.45, remove _, w/o adding quotes (not needed)
+                     a∊##.SQ:⍵⊣s∨←3=≢⍵        ⍝ Pass through 'abcd' w/o adding quotes (already there)
+                     ##.SQ,##.SQ,⍨⍵⊣s∨←1=≢⍵
                  }¨atoms
                  sxo←s∧~o
                  atoms←(∊o s sxo/'⊂,¨'),1↓∊' ',¨atoms
