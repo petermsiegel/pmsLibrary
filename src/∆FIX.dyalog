@@ -155,6 +155,9 @@
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
          1:Match,←ns
      }
+     ⍝ MActions: Actions A may be char: replace match with A
+     ⍝             or numeric: replace match  with ⍵ ∆FIELD A
+     ⍝                or a fn: replace match with value from call:  ns A ⍵
      MActions←{
          TRAP::⎕SIGNAL/⎕DMX.(EM EN)
          match←,⍺⍺    ⍝ Ensure vector...
@@ -162,18 +165,17 @@
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
          3=ns.⎕NC'action':ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴ns.action:∊ns.action            ⍝ text? Return as is...
-         ⍵ ∆FIELD ns.action                     ⍝ Else m.action is a field number...
+         ' '=1↑0⍴ns.action:∊ns.action             ⍝ text? Return as is...
+         ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
      }
      eval←{
-         pfx←'(?xx)'
+         pfx←'(?xx)'               ⍝ PCRE prefix -- required default!
          str,⍨←pfx/⍨~1↑pfx⍷str←⍵   ⍝ Add prefix if not already there...
          ~'⍎'∊str:str
          str≢res←'(?<!\\)⍎(\w+)'⎕R{
              0::f1
              ⍎f1←⍵ ∆FIELD 1
          }⍠('UCP' 1)⊣str:∇ res
-       ⍝ DEBUG: '⍎'∊⍵:⍵⊣⎕←'Warning: eval unable to resolve string var: ',⍵
          ⍵
      }
      ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
@@ -196,15 +198,21 @@
      stringAction←{
          ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
          ⍝ In SQ strings, newlines and extra blanks are just ignored at EOL, Start of line.
+         ⍝ In DQ strings, newlines are kept, but such extra blanks are also ignored.
+         ⍝ Note difference:
+         ⍝    'one two                     "one two
+         ⍝     three four                   three four
+         ⍝     five'                        five"
+         ⍝  one two three four five        ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          str←⍵ ∆FIELD 0 ⋄ q←⊃str
-         q≡SQ:'\h*\n\h*'⎕R''⍠OPTS⊣str     ⍝ SQ strings-- remove newlines and lead/trailing blanks
-         str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ Double SQs and de-double DQs
-         ~NL∊str:str                      ⍝ Remove leading blanks on trailing lines
-       ⍝ Multiline Strings
-       ⍝ >>> "abc\n def" → ('abc',(⎕UCS 10),'def')
-       ⍝ >>> Right now, atoms require single-line strings only...
+         q≡SQ:'\h*\n\h*'⎕R''⍠OPTS⊣str     ⍝ SQ strings: remove newlines and lead/trailing blanks
+         str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ DQ strings: 1) Double SQs and remove double DQs
+         ~NL∊str:str                      ⍝ DQ 2) Remove leading blanks on trailing lines
+       ⍝ DQ 3) Strings -- replace newlines by newline-generating ⎕UCS calls...
+       ⍝ >>> "abc  \n def" → ('abc',(⎕UCS 10),'def')
+       ⍝ >>> Right now, atoms (q.v.) require single-line strings only...
          str←'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣str
          '(',')',⍨∊str
      }
@@ -220,36 +228,14 @@
              p(o,s)'.dyalog'      ⍝  a/b/c.d          →   a/b/   c.d  .dyalog
          }⍵
          infile←pfx,obj,sfx
-
          code←{0::⎕NULL ⋄ ⊃⎕NGET ⍵ 1}infile
          code≡⎕NULL:22 ⎕SIGNAL⍨('∆FIX: File not found: ',infile)
          code
      }
      code←readFile fileName
-
-     :If ':⍝∇'∊⍨1↑' '~⍨⊃code
-       ⍝ Tradfn header with leading ∇. (To be a header, it must have one alpha after ∇)
-       ⍝ Could occur ANYWHERE...
-         code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
-             o←SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
-            ⍝  ⎕←'Line(s) in:  ',i
-            ⍝  ⎕←'Line(s) out: ',o
-             o
-         }⍠OPTS⊣code
-     :Else         ⍝ Here, 1st line is tradfn header without leading ∇: Process the header ONLY
-         code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
-             o←SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
-            ⍝  ⎕←'Line(s) in:  ',i
-            ⍝  ⎕←'Line(s) out: ',o
-             o
-         }⍠OPTS⊣code
-     :EndIf
-
- :EndSection
-
+ :EndSection Read In File
 
  dict←∆DICT''
-
  :Section Process File
    ⍝ Valid 1st chars of names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
@@ -269,15 +255,33 @@
      sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
 
+     :Section Preprocess Tradfn Headers...
+      :If ':⍝∇'∊⍨1↑' '~⍨⊃code
+        ⍝ Tradfn header with leading ∇.
+        ⍝ (To be treated as a header, it must have one alpha char after ∇.)
+        ⍝ Could occur on any line...
+          code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
+              SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+          }⍠OPTS⊣code
+      :Else
+        ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
+          code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
+              SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+          }⍠OPTS⊣code
+      :EndIf
+      :EndSection Preprocess Tradfn Headers
+
      :Section Setup Scans
          :Section PreScan1
              MBegin
            ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
            ⍝   → parenthesized single-quote strings...
              'STRINGS'stringAction register stringP
-             'NUMS'{(⍵ ##.∆FIELD 0)~'_'}register'¯?\d[\dA-FJ.E¯_]+X?'
-             'CONT'(' 'register)'\h*(…|\.{2,})\h*(⍝.*?)?$(\s*)'  ⍝ Ellipses or 2 or more dots signal continuation (→' ')
-             'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'         ⍝ Semicolon at end of line signals continuation (→';')
+           ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
+           ⍝ Obviously this patterns doesn't find only valid numbers-- APL catches that.
+             'NUMS UNDERSCOR'{'_'~⍨⍵ ##.∆FIELD 0}register'¯?\d[\dA-FJ.E¯_]+[XI]?'
+             'CONT'(' 'register)'\h*(…|\.{2,})\h*(⍝.*?)?$(\s*)'  ⍝ (Removed) ellipses or .. (etc) signal comments (when last code on line)
+             'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'         ⍝ (Kept) Semicolon signal continuation (ditto)
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'             ⍝ Comments on their own line are kept.
              'COMMENTS_RHS'(''register)'\h*⍝.*?$'                ⍝ RHS Comments are ignored...
              PreScan1←MEnd
@@ -523,8 +527,8 @@
            ⍝     ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
            ⍝ To do: Allow char constants-- just don't add quotes...
            ⍝ To do: Treat num constants as unquoted scalars
-             atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ_\.]*|⍎sqStringP|⍬)'
-             atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ_\.]*|⍎sqStringP)|\h*⍬+)*'
+             atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
+             atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
                  CTL.skip:⍵ ∆FIELD 0
 
@@ -534,7 +538,7 @@
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                  atoms←{
                      NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
-                     a∊NUM:⍵~'_'⊣s∘←1         ⍝ Pass through 123.45, remove _, w/o adding quotes (not needed)
+                     a∊NUM:⍵⊣s∘←1         ⍝ Pass through 123.45, w/o adding quotes (not needed)
                      a∊##.SQ:⍵⊣s∨←3=≢⍵        ⍝ Pass through 'abcd' w/o adding quotes (already there)
                      ##.SQ,##.SQ,⍨⍵⊣s∨←1=≢⍵
                  }¨atoms
