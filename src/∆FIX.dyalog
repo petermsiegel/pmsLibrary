@@ -203,20 +203,27 @@
  ⍝-------------------------------------------------------------------------------------------
  :Section Reused Pattern Actions
      stringAction←{
-         ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
-         ⍝ In SQ strings, newlines and extra blanks are just ignored at EOL, Start of line.
-         ⍝ In DQ strings, newlines are kept, but such extra blanks are also ignored.
-         ⍝ Note difference:
-         ⍝    'one two                     "one two
-         ⍝     three four                   three four
-         ⍝     five'                        five"
-         ⍝  one two three four five        ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
+       ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
+       ⍝ In SQ strings, newlines and extra blanks are just ignored at EOL, Start of line.
+       ⍝ In DQ strings, newlines are kept*, but such extra blanks are also ignored.
+       ⍝ * Except with ellipses-- SQ and DQ strings treated the same.
+       ⍝   See ellipses in strings below.
+       ⍝ Note difference:
+       ⍝     [1]                    [2]                [3]            [4]
+       ⍝    'one two              "one two            'one cat..     "one cat..
+       ⍝     three four            three four            alog cat      alog cat
+       ⍝     five'                 five"                   alog'        alog"
+       ⍝  [1] 'one two three four five'
+       ⍝  [2] ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
+       ⍝  [3] 'one catalog cat alog'
+       ⍝  [4] ('one catalog cat',(⎕UCS 10),'alog')
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          str←⍵ ∆FIELD 0 ⋄ q←⊃str
-       ⍝ Ellipses in strings: Respect trailing blanks (but ignore nls and leading blanks)
+      ⍝ Ellipses in strings: Respect trailing blanks BEFORE Ellipses (they are visible)
+      ⍝ (but ignore newlines and leading blanks on the next line)
          str←'(?:\…|\.{2,})\h*$\s*'⎕R''⍠OPTS⊣str
-         q≡SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣str     ⍝ SQ strings: (newlines and lead/trailing blanks)→' '
+         q≡SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣str    ⍝ SQ strings: (newlines and lead/trailing blanks)→' '
          str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ DQ strings: 1) Double SQs and remove double DQs
          ~NL∊str:str                      ⍝ DQ 2) Remove leading blanks on trailing lines
        ⍝ DQ 3) Strings -- replace newlines by newline-generating ⎕UCS calls...
@@ -281,7 +288,8 @@
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
      longNameP←eval'(?: ⍎nameP (?: \. ⍎nameP )* )  '
-     anyNumP←'¯?\d([\dA-FJE¯_]+|\.(?!\.))+[XI]?'   ⍝ If you see '3..', 3 is the number, .. treated elsewhere
+   ⍝ anyNumP: If you see '3..', 3 is the number, .. treated elsewhere
+     anyNumP←'¯?\d([\dA-FJE¯_]+|\.(?!\.))+[XI]?'
 
    ⍝ Matches two fields: one field in addition to any additional surrounding field...
      parenP←'('setBrace')'
@@ -311,24 +319,37 @@
      :Section Setup Scans
          :Section PreScan1
              MBegin
-             'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'  ⍝ (Removed) ellipses or .. (etc) signal comments (when last code on line)
-           ⍝ Double-quote "..." strings (multiline and with internal double-quotes doubled "")
-           ⍝   → parenthesized single-quote strings...
+           ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
+           ⍝ 1) Within multiline strings, newlines are treated specially (q.v.);
+           ⍝ 2) Ellipses-- Unicode … or .., ..., etc.-- in code or strings,
+           ⍝    are replaced by a single blank; any trailing comments or newlines or
+           ⍝    leading blanks on the next line are ignored;
+           ⍝ 3) When a semicolon appears at the end of a line (before opt'l comments),
+           ⍝    the next line is appended after the semicolon.
+
+           ⍝ Multi-line strings:
+           ⍝ Handles DQ strings (linends → newlines, ignoring trailing blanks)
+           ⍝         SQ strings (linends → ' '
+           ⍝ Handles .. (etc.) in either-- trailing blanks respected, not leading.
+           ⍝ See stringAction above.
              'STRINGS'stringAction register stringP
-           ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
-           ⍝ Obviously this patterns doesn't find only valid numbers-- APL catches that.
+           ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
+           ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
+             'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'
+           ⍝ NUMS UNDERSCOR: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
              'NUMS UNDERSCOR'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
-             'SEMI'(';'register)'\h*(;)\h*(⍝.*?)?$(\s*)'            ⍝ (Kept) Semicolon signal continuation (ditto)
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'                ⍝ Comments on their own line are kept.
-             'COMMENTS_RHS'(''register)'\h*⍝.*?$'                   ⍝ RHS Comments are ignored...
+             'SEMI'(';'register)'\h* ; \h* (?: ⍝.*? )? $\ s*'  ⍝ Semicolons signal continuation.
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'     ⍝ Comments on their own line are kept.
+             'COMMENTS_RHS'(''register)'\h*⍝.*?$'        ⍝ RHS Comments are ignored...
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
              MBegin
            ⍝ A lot of processing to handle multi-line parens or brackets ...
-             'STRINGS'(0 register)stringP
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
-             'Multiline () or []' 0{
+           ⍝ We need to recursively handle braces-- NOT DONE YET!!!
+             'STRINGS'(0 register)stringP                ⍝ Skip
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'     ⍝ Skip
+             'Multiline () or []' 0{                     ⍝ Skip strings, braces; newlines → ' '
                  ##.stringP ##.braceP'\n'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
              PreScan2←MEnd
