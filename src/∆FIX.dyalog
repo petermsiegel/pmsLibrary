@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;anyNumP
+﻿ result←{specs}∆FIX fileName;anyNumP;optComP
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
@@ -299,6 +299,8 @@
      dqStringP←'(?:  "[^"]*"     )+'
      sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
+   ⍝ Optional comment pat
+     optComP←' (?: ⍝.*? )?'
 
      :Section Preprocess Tradfn Headers...
          :If ':⍝∇'∊⍨1↑' '~⍨⊃code
@@ -341,8 +343,7 @@
             ⍝ RHS semicolons signal continuation.
             ⍝ Experimentally, we replace ; with ⊣ at end or start of line
             ⍝ ... as "Where" a la (John) Scholes.
-             'SEMI1'('⊣'register)'\h* ; \h* (?: ⍝.*? )? $ \s*'
-             'SEMI2'('⊣'register)'\h* (⍝.*?)?$\h* ;'
+             'SEMI1'('⊣'register)'\h* (?: ; \h*  ⍎optComP  $ \s* | ⍎optComP $ \s* ;) '
             ⍝ Comments on their own line are kept.
              'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
             ⍝ RHS Comments are ignored...
