@@ -338,9 +338,15 @@
              'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'
            ⍝ NUMS UNDERSCOR: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
              'NUMS UNDERSCOR'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
-             'SEMI'(';'register)'\h* ; \h* (?: ⍝.*? )? $\ s*'  ⍝ Semicolons signal continuation.
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'     ⍝ Comments on their own line are kept.
-             'COMMENTS_RHS'(''register)'\h*⍝.*?$'        ⍝ RHS Comments are ignored...
+            ⍝ RHS semicolons signal continuation.
+            ⍝ Experimentally, we replace ; with ⊣ at end or start of line
+            ⍝ ... as "Where" a la (John) Scholes.
+             'SEMI1'('⊣'register)'\h* ; \h* (?: ⍝.*? )? $ \s*'
+             'SEMI2'('⊣'register)'\h* (⍝.*?)?$\h* ;'
+            ⍝ Comments on their own line are kept.
+             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
+            ⍝ RHS Comments are ignored...
+             'COMMENTS_RHS'(''register)'\h*⍝.*?$'
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
@@ -580,9 +586,10 @@
                  cmd≡,'Q':' ',q,nm,q,' '
                  ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
              }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
-           ⍝ ATOMS and PARAMETERS (PARMS):   n1 n2 n3 → anything,   `n1 n2 n3
-           ⍝     abc def ghi → xxx     →   ('abc' 'def' 'ghi')
-           ⍝     ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
+           ⍝ ATOMS, PARAMETERS (PARMS)
+           ⍝ atoms: n1 n2 n3 → anything,   `n1 n2 n3
+           ⍝  parms: bc def ghi → xxx     →   ('abc' 'def' 'ghi')
+           ⍝       ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
            ⍝ To do: Allow char constants-- just don't add quotes...
            ⍝ To do: Treat num constants as unquoted scalars
              atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
@@ -671,8 +678,8 @@
              ';'=sym0:{
                  Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
                ⍝ This is invalid whenever semicolon is on header line!
-               ⍝ We'll handle...
-                 1=≢Par.enStack:'⋄'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⋄
+               ⍝ We handle function headers (q.v.) above.
+                 1=≢Par.enStack:'⊣'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⊣
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'
