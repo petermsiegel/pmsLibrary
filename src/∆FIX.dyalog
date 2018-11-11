@@ -1,12 +1,13 @@
-﻿ result←{specs}∆FIX fileName;ListScan;anyNumP;commentP;directiveP;ellipsesP;multiLineP
- ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
- ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;YES;UTILS;YESc
- ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
- ;COMSPEC;defMatch;defS;dict;dictNameP;doScan;dqStringP;err;eval
- ;filesIncluded;first;getenv;infile;keys;letS;longNameP;macros;macro;nameP
- ;names;notZero;obj;OPTS;objects;show;showc;subMacro;parenP;pfx
- ;readFile;register;setBrace;sfx;OUTSPEC;sqStringP;stringAction
- ;stringP;tmpfile;ø;_;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;∆V2Q;⎕IO;⎕ML;⎕PATH;⎕TRAP
+﻿ result←{specs}∆FIX fileName
+;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
+;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
+;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
+;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;dict
+;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
+;getenv;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
+;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;show;showc;sqStringP
+;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
+;⎕ML;⎕PATH;⎕TRAP
 
  ⍝ A Dyalog APL preprocessor (rev. Nov 9 )
  ⍝
