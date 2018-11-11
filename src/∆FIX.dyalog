@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;anyNumP;optComP
+﻿ result←{specs}∆FIX fileName;ListScan;anyNumP;commentP;directiveP;ellipsesP;multiLineP
  ;ALPH;CR;DEBUG;DQ;MActions;MainScan1;MBegin;MEnd;MPats;MRegister
  ;Match;NO;NOc;NL;Par;PRAGMA_FENCE;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;YES;UTILS;YESc
  ;_MATCHED_GENERICp;atomsP;box;braceCount;braceP;brackP;CTL;code;comment
@@ -50,7 +50,7 @@
  TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
  CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
- OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)('IC' 1)
+ OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
  CTL←⎕NS''
  PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
  ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
@@ -193,8 +193,8 @@
          NAME∘←'BR',⍕braceCount
          ⍝ Matches one field (in addition to any outside)
          ⍝ Note (?J) and use of unique names (via braceCount).
-         pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*?\R | (?: "[^"]*")+ '
-         pat,←'                          | (?:''[^''\r\n]*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
+         pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
+         pat,←'                          | (?:''[^'']*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
          eval pat~' '
      }
  ⍝-------------------------------------------------------------------------------------------
@@ -299,8 +299,15 @@
      dqStringP←'(?:  "[^"]*"     )+'
      sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
-   ⍝ Optional comment pat
-     optComP←' (?: ⍝.*? )?'
+   ⍝ Comment pat
+     commentP←'(?: ⍝.* )'
+     ellipsesP←'(?:  \… | \.{2,} )'
+   ⍝ A directive prefix
+     directiveP←'^ \h* :: \h*'
+   ⍝ Directives with code that spans lines.
+   ⍝ ... Succeed only if {} () '' "" strings are balanced.
+   ⍝ (Note: requires that RHS comments have already been removed.)
+     multiLineP←'(?: (?: ⍎braceP | ⍎parenP | ⍎stringP  | [^{(''"\n]+ )* )'
 
      :Section Preprocess Tradfn Headers...
          :If ':⍝∇'∊⍨1↑' '~⍨⊃code
@@ -337,17 +344,17 @@
              'STRINGS'stringAction register stringP
            ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
            ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
-             'CONT'(' 'register)'\h*(?:\…|\.{2,})\h*(?:⍝.*?)?$\s*'
-           ⍝ NUMS UNDERSCOR: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
-             'NUMS UNDERSCOR'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
+             'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
+           ⍝ NUMS 123_456: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
+             'NUMS 123_456'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
             ⍝ RHS semicolons signal continuation.
             ⍝ Experimentally, we replace ; with ⊣ at end or start of line
             ⍝ ... as "Where" a la (John) Scholes.
-             'SEMI1'('⊣'register)'\h* (?: ; \h*  ⍎optComP  $ \s* | ⍎optComP $ \s* ;) '
+             'SEMI1'(' ⊣'register)'\h* (?: ; \h*  ⍎commentP?  $ \s* | ⍎commentP? $ \s* ; \h*) '
             ⍝ Comments on their own line are kept.
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'
+             'COMMENTS_LINE*'(0 register)'^ \h* ⍎commentP $'
             ⍝ RHS Comments are ignored...
-             'COMMENTS_RHS'(''register)'\h*⍝.*?$'
+             'COMMENTS_RHS'(''register)'    \h* ⍎commentP $'
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
@@ -355,7 +362,7 @@
            ⍝ A lot of processing to handle multi-line parens or brackets ...
            ⍝ We need to recursively handle braces-- NOT DONE YET!!!
              'STRINGS'(0 register)stringP                ⍝ Skip
-             'COMMENTS_LINE*'(0 register)'^\h*⍝.*?$'     ⍝ Skip
+             'COMMENTS_LINE*'(0 register)'^\h* ⍎commentP $'     ⍝ Skip
              'Multiline () or []' 0{                     ⍝ Skip strings, braces; newlines → ' '
                  ##.stringP ##.braceP'\n'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
@@ -373,7 +380,8 @@
                  CTL.skip←~⊃⌽##.CTL.stack
 
                  (~CTL.skip)∆COM f0
-             }register'^\h* :: \h* IF(N?)DEF\b \h*(⍎longNameP).*?$'
+             }register'⍎directiveP  IF(N?)DEF\b \h*(⍎longNameP) .* $'
+
             ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
@@ -396,7 +404,7 @@
                  CTL.skip←~##.CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
 
                  (~CTL.skip)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
-             }register'^\h* :: \h* IF\b \h*(.*?)$'
+             }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF' 0{
                  CTL.skip←⊃⌽##.CTL.stack
@@ -416,13 +424,13 @@
                  CTL.skip←~(⊃⌽##.CTL.stack)←notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
 
                  (~CTL.skip)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
-             }register'^\h* :: \h* EL(?:SE)IF\b \h*(.*?)$'
+             }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
                  CTL.skip←~(⊃⌽##.CTL.stack)←~⊃⌽##.CTL.stack    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
                  (~CTL.skip)∆COM f0
-             }register'^\h* :: \h* ELSE \b .*?$'
+             }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
@@ -430,7 +438,7 @@
                  CTL.skip←~⊃⌽##.CTL.stack⊣##.CTL.stack↓⍨←¯1
 
                  (~oldskip)∆COM f0
-             }register'^\h* :: \h* END  (?: IF  (?:DEF)? )? \b .*?$'
+             }register'⍎directiveP  END  (?: IF  (?:DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
              'CINCLUDE' 1{
@@ -441,7 +449,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'^\h* :: \h* CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+             }register'⍎directiveP  CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .* $'
             ⍝ INCLUDE
              'INCLUDE' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
@@ -451,7 +459,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'^\h* :: \h* INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .*?$'
+             }register'⍎directiveP  INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .* $'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
@@ -472,15 +480,17 @@
                  out1←bool ∆COM f0('➤  ',showc cond1)('➤  ',show cond2)('➤  ',show bool)
                  out2←CR,(NOc/⍨~bool),stmt
                  out1,out2
-             }register'^\h* :: \h* COND\h+(⍎parenP|[^\s]+)\h(.*?) $'
-           ⍝ DEFINE name [ ← value]  ⍝ value is left unevaluated in ∆FIX
-             defS←'^\h* :: \h* DEF(?:INE)? \b \h* (⍎longNameP) '
-             defS,←'(?|    \h* ← \h*  ( (?: ⍎braceP|⍎parenP|⍎sqStringP| ) .*? ) | .*?   )$'
+             }register'⍎directiveP  COND \h+ ( ⍎parenP | [^\s]+ ) \h (⍎multiLineP) $'
+           ⍝ DEFINE name [ ← value]
+           ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
+           ⍝     ::DEFINE name       field1=name, field2 is null string.
+           ⍝     ::DEFINE name ← ... field1=name, field2 is rest of line after arrow/spaces
+             defS←'⍎directiveP  DEF(?:INE)? \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
              'DEF(INE)' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
-               ⍝ Replace leading and training blanks with single space
+               ⍝ Replace leading and trailing blanks with single space
                  v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵ ⋄ ⍵}v
                  v←⍕(0 doScan)v
                  _←##.dict.set k v
@@ -502,7 +512,7 @@
                  vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
-             }register'^\h* :: \h* (?:LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+             }register'⍎directiveP  (?: LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (⍎multiLineP) $'
             ⍝ :PRAGMA name ← value
             ⍝  (Names are case insensitive)
             ⍝ Current:
@@ -520,7 +530,7 @@
                      'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
                      911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
                  }⍬
-             }register'^\h* :: \h* PRAGMA \b \h* (⍎longNameP) \h* ← \h* (.*?) $'
+             }register'⍎directiveP  PRAGMA \b \h* (⍎longNameP) \h* ← \h* (.*) $'
            ⍝ UNDEF stmt
            ⍝ UNDEF stmt
              'UNDEF' 1{
@@ -529,7 +539,7 @@
                  f0 k←⍵ ∆FIELD¨0 1
                  _←##.dict.del k
                  ∆COM f0
-             }register'^\h* :: \h* UNDEF \b\h* (⍎longNameP) .*? $'
+             }register'⍎directiveP  UNDEF \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
              'ERROR' 1{
@@ -539,7 +549,7 @@
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
                  ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
                  ⎕SIGNAL/('∆FIX ERROR: ',msg)num
-             }register'^\h* :: \h* ERR(?:OR)? (?| \h+(\d+)\h(.*?) | ()\h*(.*?))$'
+             }register'⍎directiveP ERR(?:OR)? (?| \h+(\d+)\h(.*) | ()\h*(.*))$'
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG' 1{
@@ -548,13 +558,13 @@
                  line msg←⍵ ∆FIELD¨0 1
                  ⎕←box msg
                  ∆COM line
-             }register'^\h* :: \h* (?: MSG | MESSAGE)\h(.*?)$'
+             }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
              'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ COMMENTS: passthrough
-             'COMMENTS*'(0 register)'⍝.*?$'
+             'COMMENTS*'(0 register)'⍝.*$'
            ⍝
            ⍝ For nm a of form a1.a2.a3.a4,
            ⍝ see if any of a1 .. a4 are macros,
@@ -712,7 +722,7 @@
              ⍺←MainScan1       ⍝ Default is to omit the prescan
              stackFlag←⍺⍺
              saveStacks←{⍵:CTL.save,←⊂CTL.(stack skip) ⋄ CTL.(stack skip)←1 0 ⋄ ''}
-             restoreStacks←{⍵:CTL.(save←¯1↓save⊣stack skip←⊃⌽save ⋄ ''}
+             restoreStacks←{⍵:CTL.(save←¯1↓save⊣stack skip←⊃⌽save) ⋄ ''}
 
              _←saveStacks stackFlag
              res←⍺{
@@ -733,8 +743,8 @@
 
        ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
-              ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-              ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*?\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+              ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+              ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
          :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
