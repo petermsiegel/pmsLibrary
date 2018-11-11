@@ -161,6 +161,9 @@
          ns.pRaw←⍵                    ⍝ For debugging
          ns.pats←eval ⍵       ⍝ xx-- allow spaces in [...] pats.
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
+
+        ⍝  ⎕←'>>>' ⋄ ⎕←ns.info ⋄ ⎕←ns.pats
+
          1:Match,←ns
      }
      ⍝ MActions: Actions A may be char: replace match with A
@@ -172,6 +175,9 @@
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
+
+      ⍝   ⎕←'Matched: ',ns.info,' <',(⍵ ∆FIELD 0),'>'
+
          3=ns.⎕NC'action':ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
          ' '=1↑0⍴ns.action:∊ns.action             ⍝ text? Return as is...
          ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
@@ -357,6 +363,9 @@
            ⍝ 3) When a semicolon appears at the end of a line (before opt'l comments),
            ⍝    the next line is appended after the semicolon.
 
+           ⍝ Comments on their own line are kept.
+             'COMMENTS_LINE*'(0 register)'^ \h* ⍝ .* $'
+
            ⍝ Multi-line strings:
            ⍝ Handles DQ strings (linends → newlines, ignoring trailing blanks)
            ⍝         SQ strings (linends → ' '
@@ -372,10 +381,9 @@
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
              'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
-            ⍝ Comments on their own line are kept.
-             'COMMENTS_LINE*'(0 register)'^ \h* ⍎commentP $'
+
             ⍝ RHS Comments are ignored...
-             'COMMENTS_RHS'(''register)'    \h* ⍎commentP $'
+             'COMMENTS_RHS'(''register)'⍎commentP $'
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
@@ -586,7 +594,7 @@
                  CTL.skip/NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ COMMENTS: passthrough
-             'COMMENTS*'(0 register)'⍝.*$'
+             'COMMENTS*'(0 register)'^\h*⍝.*$'
            ⍝
            ⍝ For nm a of form a1.a2.a3.a4,
            ⍝ see if any of a1 .. a4 are macros,
@@ -701,6 +709,8 @@
      ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
          Par←⎕NS'' ⋄ Par.enStack←0
+         'Comments'(0 register)'^ \h* ⍝ .* $'
+         'STRINGS'(0 register)'⍎sqStringP'
          'Null List/List Elem' 0{   ⍝ (),  (;) (;...;)
              sym←⍵ ∆FIELD 0 ⋄ nSemi←+/sym=';'
              '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
@@ -729,8 +739,7 @@
              '('=sym:sym⊣Par.enStack,←1     ⍝ Semicolons governed by () are special.
              ')'=sym:sym⊣Par.enStack↓⍨←¯1
          }register'\( \h* ; (?: \h*;)* | ; (?: \h* ; )* \h* (\)?) |  [();\[\]]  '
-         'STRINGS'(0 register)'⍎sqStringP'
-         'Non-list sequences'(0 register)'[^();\[\]'']+'
+         'Non-list sequences'(0 register)'[^();\[\]''⍝]+'
          ListScan←MEnd
      :EndSection
 
