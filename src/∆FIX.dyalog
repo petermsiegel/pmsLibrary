@@ -1,15 +1,15 @@
-﻿ result←{specs}∆FIX fileName
-;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
-;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
-;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
-;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;dict
-;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
-;getenv;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
-;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;show;showc;sqStringP
-;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
-;⎕ML;⎕PATH;⎕TRAP
+﻿ result←{specs}∆FIX fileName;dqStringXP
+ ;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
+ ;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
+ ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
+ ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;dict
+ ;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
+ ;getenv;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
+ ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;sqStringP
+ ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
+ ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝ A Dyalog APL preprocessor (rev. Nov 9 )
+ ⍝ A Dyalog APL preprocessor (rev. Nov 10 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
@@ -69,15 +69,15 @@
          l←≢m←'│  ',⍵,'  │' ⋄ t←'┌','┐',⍨,'─'⍴⍨l-2 ⋄ b←'└','┘',⍨,'─'⍴⍨l-2 ⋄ t,CR,m,CR,b
      }
    ⍝ Show just a bit of an obj of unknown size. (Used for display info)
-   ⍝ show: assumes values. Puts strings in quotes.
-     show←{⍺←⎕PW-20 ⋄ maxW←⍺
+   ⍝ showObj: assumes values. Puts strings in quotes.
+     showObj←{⍺←⎕PW-20 ⋄ maxW←⍺
          f←⎕FMT ⍵
          q←''''/⍨0=80|⎕DR ⍵
          clip←1 maxW<⍴f
          (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
      }
-   ⍝ showc: assumes names or code
-     showc←{⍺←⎕PW-20 ⋄ maxW←⍺
+   ⍝ showCode: assumes names or code
+     showCode←{⍺←⎕PW-20 ⋄ maxW←⍺
          f←⎕FMT ⍵
          clip←1 maxW<⍴f
          ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
@@ -220,18 +220,29 @@
        ⍝  [4] ('one catalog cat',(⎕UCS 10),'alog')
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
-         str←⍵ ∆FIELD 0 ⋄ q←⊃str
+         dq2sq←{'(',')',⍨∊SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
+
+       ⍝ Do we have  A"...", where A is in [A-Z]. Ignored (not matched) for SQ strings.
+         str special q←{
+             VALIDPFX←'L'                  ⍝ So far, this is our only prefix.
+             bad←~(1↑⍵)∊VALIDPFX,SQ,DQ   ⍝ If we don't have a known prefix, ignore it (don't process)
+             ~⎕A∊⍨1↑⍵:⍵(1↑⍵)(1↑⍵) ⋄ (1↓⍵)(1↑bad↓⍵)(1↑1↓⍵)
+         }⍵ ∆FIELD 0
+
       ⍝ Ellipses in strings: Respect trailing blanks BEFORE Ellipses (they are visible)
+      ⍝ ERROR: This logic needs to be folded into ⍺=SQ/DQ below--
+      ⍝        by using Look-behind for … and .{2,}
+         ellipsesP←'(?:\…|\.{2,})\h*$\s*'
       ⍝ (but ignore newlines and leading blanks on the next line)
-         str←'(?:\…|\.{2,})\h*$\s*'⎕R''⍠OPTS⊣str
-         q≡SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣str    ⍝ SQ strings: (newlines and lead/trailing blanks)→' '
-         str←SQ,SQ,⍨enQ DQ deQ 1↓¯1↓str   ⍝ DQ strings: 1) Double SQs and remove double DQs
-         ~NL∊str:str                      ⍝ DQ 2) Remove leading blanks on trailing lines
-       ⍝ DQ 3) Strings -- replace newlines by newline-generating ⎕UCS calls...
-       ⍝ >>> "abc  \n def" → ('abc',(⎕UCS 10),'def')
-       ⍝ >>> Right now, atoms (q.v.) require single-line strings only...
-         str←'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣str
-         '(',')',⍨∊str
+                                          ⍝ Pat          Action (LB=leading, TB=trailing, LTB=both)
+         str←ellipsesP ⎕R''⍠OPTS⊣str      ⍝ ['"]xxx\..xx' Preserve LB. Continue processing
+         ~NL∊str:dq2sq⍣(⍬⍴q=DQ)⊣str
+         special{
+             ⍺='L':'\n'⎕R''⍠OPTS⊣⍵        ⍝ L"..."      (nl)        → ''
+             ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵  ⍝ '...'       (nl + LTBs) → ' '
+             ⍺=DQ:'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣dq2sq ⍵
+             ∘ ⍝ LOGIC ERROR!
+         }str
      }
  :EndSection
  ⍝-------------------------------------------------------------------------------------------
@@ -298,6 +309,8 @@
      braceP←'{'setBrace'}'
 
      dqStringP←'(?:  "[^"]*"     )+'
+   ⍝ extended dq string: L"..." leaves leading and trailing blnks
+     dqStringXP←dqStringP  ⍝ FOR NOW, THIS IS DISABLED!
      sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
    ⍝ Comment pat
@@ -316,7 +329,7 @@
         ⍝ (To be treated as a header, it must have one alpha char after ∇.)
         ⍝ Could occur on any line...
              code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
-                 SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
+                 SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
              }⍠OPTS⊣code
          :Else
         ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
@@ -342,7 +355,7 @@
            ⍝         SQ strings (linends → ' '
            ⍝ Handles .. (etc.) in either-- trailing blanks respected, not leading.
            ⍝ See stringAction above.
-             'STRINGS'stringAction register stringP
+             'STRINGS'stringAction register'(⍎dqStringXP|⍎sqStringP)'
            ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
            ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
@@ -361,11 +374,14 @@
          :Section PreScan2
              MBegin
            ⍝ A lot of processing to handle multi-line parens or brackets ...
-           ⍝ We need to recursively handle braces-- NOT DONE YET!!!
              'STRINGS'(0 register)stringP                ⍝ Skip
              'COMMENTS_LINE*'(0 register)'^\h* ⍎commentP $'     ⍝ Skip
-             'Multiline () or []' 0{                     ⍝ Skip strings, braces; newlines → ' '
-                 ##.stringP ##.braceP'\n'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
+             'Multiline () or []' 0{
+               ⍝ Remove newlines and associated spaces in (...) and [...]
+               ⍝ UNLESS inside quotes or braces!
+               ⍝ But newlines inside quotes and braces have already been eaten above.
+               ⍝ >>> RETHINK the logic here.
+                 ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
              PreScan2←MEnd
          :EndSection
@@ -383,7 +399,7 @@
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP  IF(N?)DEF\b \h*(⍎longNameP) .* $'
 
-            ⍝ IF stmts
+           ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
              'IF' 0{
@@ -404,7 +420,7 @@
 
                  CTL.skip←~##.CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
 
-                 (~CTL.skip)∆COM('::IF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
+                 (~CTL.skip)∆COM('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
              }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF' 0{
@@ -418,13 +434,11 @@
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
                  }code0
-
                  code1←(0 doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
-
                  CTL.skip←~(⊃⌽##.CTL.stack)←notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
-
-                 (~CTL.skip)∆COM('::ELSEIF ',showc code0)('➤    ',showc code1)('➤    ',show code2)
+                 _←(~CTL.skip)∆COM('::ELSEIF ',showCode code0)('➤    ',showCode code1)
+                 _,('➤    ',showObj code2)
              }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
@@ -450,7 +464,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'⍎directiveP  CINCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .* $'
+             }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
             ⍝ INCLUDE
              'INCLUDE' 1{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
@@ -460,7 +474,7 @@
 
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'⍎directiveP  INCLUDE \h+ (⍎sqStringP|⍎dqStringP|[^\s]+) .* $'
+             }register'⍎directiveP  INCLUDE \h+ (⍎stringP | [^\s]+) .* $'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
@@ -478,7 +492,7 @@
                  bool←notZero cond2
 
                  stmt←⍕(0 doScan)stmt
-                 out1←bool ∆COM f0('➤  ',showc cond1)('➤  ',show cond2)('➤  ',show bool)
+                 out1←bool ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
                  out2←CR,(NOc/⍨~bool),stmt
                  out1,out2
              }register'⍎directiveP  COND \h+ ( ⍎parenP | [^\s]+ ) \h (⍎multiLineP) $'
@@ -550,7 +564,7 @@
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
                  ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
                  ⎕SIGNAL/('∆FIX ERROR: ',msg)num
-             }register'⍎directiveP ERR(?:OR)? (?| \h+(\d+)\h(.*) | ()\h*(.*))$'
+             }register'⍎directiveP ERR(?:OR)? (?| \h+ (\d+) \h (.*) | () \h* (.*) ) $'
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG' 1{
