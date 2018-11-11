@@ -1,4 +1,4 @@
-﻿ result←{specs}∆FIX fileName;dqStringXP
+﻿ result←{specs}∆FIX fileName;specialStringP
  ;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
  ;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
  ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
@@ -9,7 +9,7 @@
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝ A Dyalog APL preprocessor (rev. Nov 10 )
+ ⍝ A Dyalog APL preprocessor (rev. Nov 11 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
@@ -218,30 +218,35 @@
        ⍝  [2] ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
        ⍝  [3] 'one catalog cat alog'
        ⍝  [4] ('one catalog cat',(⎕UCS 10),'alog')
+
+         str sfx←⍵ ∆FIELD 1 2
+         sfx←1↑sfx,q←⍬⍴1↑str   ⍝ Suffix is, by default, the quote itself. q is a scalar.
+         ~sfx∊'L''"':11 ⎕SIGNAL⍨'∆FIX: Invalid string suffix: <',sfx,'> on ',⍵ ∆FIELD 0
+
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
-         dq2sq←{'(',')',⍨∊SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
+         dq2sq←{SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
 
-       ⍝ Do we have  A"...", where A is in [A-Z]. Ignored (not matched) for SQ strings.
-         str special q←{
-             VALIDPFX←'L'                  ⍝ So far, this is our only prefix.
-             bad←~(1↑⍵)∊VALIDPFX,SQ,DQ   ⍝ If we don't have a known prefix, ignore it (don't process)
-             ~⎕A∊⍨1↑⍵:⍵(1↑⍵)(1↑⍵) ⋄ (1↓⍵)(1↑bad↓⍵)(1↑1↓⍵)
-         }⍵ ∆FIELD 0
+       ⍝ Here, we handle ellipses at linend within SQ or DQ quotes as special:
+       ⍝ Any spaces BEFORE them are preserved. If none, the next line is juxtaposed w/o spaces.
+       ⍝ Not clear this (identical) behavior is what we want for SQ and DQ quotes.
+       ⍝ WARNING: Right now, the ellipses must be the rightmost characters--
+       ⍝   trailing blanks will force the ellipses to be treated as ordinary characters.
+         ellipsesP←'(?:\…|\.{2,})$\s*'
+         str←ellipsesP ⎕R''⍠OPTS⊣str
 
-      ⍝ Ellipses in strings: Respect trailing blanks BEFORE Ellipses (they are visible)
-      ⍝ ERROR: This logic needs to be folded into ⍺=SQ/DQ below--
-      ⍝        by using Look-behind for … and .{2,}
-         ellipsesP←'(?:\…|\.{2,})\h*$\s*'
-      ⍝ (but ignore newlines and leading blanks on the next line)
-                                          ⍝ Pat          Action (LB=leading, TB=trailing, LTB=both)
-         str←ellipsesP ⎕R''⍠OPTS⊣str      ⍝ ['"]xxx\..xx' Preserve LB. Continue processing
-         ~NL∊str:dq2sq⍣(⍬⍴q=DQ)⊣str
-         special{
-             ⍺='L':'\n'⎕R''⍠OPTS⊣⍵        ⍝ L"..."      (nl)        → ''
-             ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵  ⍝ '...'       (nl + LTBs) → ' '
-             ⍺=DQ:'\h*\n\h*'⎕R''',(⎕UCS 10),'''⍠OPTS⊣dq2sq ⍵
-             ∘ ⍝ LOGIC ERROR!
+         str←dq2sq⍣(q=DQ)⊣str
+         ~NL∊str:str
+         sfx{
+             addP←{'(',⍵,')'}
+             nlCode←''',(⎕UCS 10),'''
+             ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵
+             ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTS⊣⍵
+             (⍺='L'):{
+                 q=SQ:'\n'⎕R' '⍠OPTS⊣⍵
+                 addP'\n'⎕R nlCode⍠OPTS⊣⍵
+             }⍵
+             ○LOGIC ERROR.UNREACHABLE
          }str
      }
  :EndSection
@@ -307,12 +312,14 @@
      parenP←'('setBrace')'
      brackP←'['setBrace']'
      braceP←'{'setBrace'}'
-
+   ⍝ Simple strings:
      dqStringP←'(?:  "[^"]*"     )+'
-   ⍝ extended dq string: L"..." leaves leading and trailing blnks
-     dqStringXP←dqStringP  ⍝ FOR NOW, THIS IS DISABLED!
      sqStringP←'(?: ''[^'']*'' )+'
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
+   ⍝ Special Strings:     'text'..L   OR   "text"..L
+   ⍝ Currently, only L (upper case) is defined as a suffix. See stringAction (above).
+   ⍝  field1 will be the string, including quotes. f2 may be null or a single alphabetic char.
+     specialStringP←eval' (⍎stringP)  (?: \.{2,2} ([A-Z]) )? '
    ⍝ Comment pat
      commentP←'(?: ⍝.* )'
      ellipsesP←'(?:  \… | \.{2,} )'
@@ -355,16 +362,16 @@
            ⍝         SQ strings (linends → ' '
            ⍝ Handles .. (etc.) in either-- trailing blanks respected, not leading.
            ⍝ See stringAction above.
-             'STRINGS'stringAction register'(⍎dqStringXP|⍎sqStringP)'
+             'STRINGS'stringAction register specialStringP
            ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
            ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
            ⍝ NUMS 123_456: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
              'NUMS 123_456'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
-            ⍝ RHS semicolons signal continuation.
-            ⍝ Experimentally, we replace ; with ⊣ at end or start of line
-            ⍝ ... as "Where" a la (John) Scholes.
-             'SEMI1'(' ⊣'register)'\h* (?: ; \h*  ⍎commentP?  $ \s* | ⍎commentP? $ \s* ; \h*) '
+           ⍝ Leading and trailing semicolons are forced onto the same line...
+           ⍝ They may be converted to other forms (see ATOM processing).
+           ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
+             'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
             ⍝ Comments on their own line are kept.
              'COMMENTS_LINE*'(0 register)'^ \h* ⍎commentP $'
             ⍝ RHS Comments are ignored...
@@ -702,10 +709,11 @@
              Par←##.Par ⋄ sym endPar←⍵ ∆FIELD 0 1 ⋄ sym0←⊃sym
              inP←⊃⌽Par.enStack
              ';'=sym0:{
-                 Par.enStack↓⍨←-e←×≢endPar  ⍝ Did we match a right paren (after semicolons)?
+                 Par.enStack↓⍨←-e←×≢endPar
+               ⍝ Did we match a right paren (after semicolons)?
                ⍝ This is invalid whenever semicolon is on header line!
                ⍝ We handle function headers (q.v.) above.
-                 1=≢Par.enStack:'⊣'@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⊣
+                 1=≢Par.enStack:∊(⊂' ⊣')@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⊣
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'

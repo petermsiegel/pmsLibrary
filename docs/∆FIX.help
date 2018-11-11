@@ -164,6 +164,43 @@ AFTER:
 Simple Macros
   All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
 
+Special Case for Semicolons 
+  1. A semicolon is treated specially when outside parentheses and brackets [ ], but possibly within a dfn { }.
+     See Where Expressions below.
+  2. A semicolon is treated specially when within parentheses. 
+     See Lists below.
+  3. A semicolon at the end of a line (ignoring blanks and comments) tells the preprocessor to join
+     that line to the next, keeping the semicolon (for later processing).
+     This affects ANY semicolon, even those in brackets (which otherwise follow standard APL).
+     Thus, a trailing semicolon can be used to continue a line within an index expression, keeping
+     its standard definition:
+         A[ ⍳5;      
+            ⌽⍳3]
+     is equivalent to:
+         A[ ⍳5; ⌽⍳3]
+  4. A semicolon at the beginning of a line (ignoring blanks) tells the preprocessor to join
+     that line to the PREVIOUS, keeping the semicolon (for later processing).
+     This affects ANY semicolon, even those in brackets (which otherwise follow standard APL).
+     Thus, a leading semicolon can be used to continue a line within an index expression, keeping
+     its standard definition:
+         A[ ⍳5      
+            ;⌽⍳3]
+     is equivalent to:
+         A[ ⍳5; ⌽⍳3]
+
+Where Expressions
+  Semicolons outside of parentheses (see Lists below) or Brackets (APL standard) are treated as dyadic ⊣, 
+functioning as a "where" expression (a la John Scholes from Dyalog). This is assisted by the Special Case
+for Semicolons rule above.
+  Example: 
+    S← (A×x*2)+(B×x)+C
+       ; A←10        
+       ; B←¯5        
+       ; C←○1        
+       ; x←⍳100      
+  is translated to
+    S← (A×x*2)+(B×x)+C ⊣ A←10 ⊣  B←¯5 ⊣ C←○1 ⊣ x←⍳100      
+
 Atoms
   Atoms are used to define parameters or arguments; while quoted strings are allowed, unquoted strings
 are placed in quotes automatically.
@@ -250,11 +287,48 @@ Use lists, atoms (`xxx), and parameters (a→b) for complex function calls,
 e.g. with named unordered arguments, etc.
 
 Continuation lines in APL code
-   You may continue any APL line by placing two or more dots .. as the last errcode
-   before any comments on that line. In some cases, where the preprocessor handles
-   arguments in parentheses or braces, those arguments may span multiple lines as
-   left-hand parentheses or braces are matched by their right-hand counterparts.
-   These will be documented in a later edition of this document.
+   You may continue any APL line by placing two or more dots .. or the "ellipses" unicode symbol
+   as the last symbol on that line before any optional comments.  Such continuation lines
+   are unnecessary when another continuation method is active, but acceptable.
+   Here are all the ways a line may be continued; in all cases, trailing comments and blanks are ignored.
+   1. Placing two or more dots or the ellipses as the last item on a line.
+      a←1 + 2 + ..         <==>    a←1 + 2 + 3 + 4
+        3..
+        + 4
+   2. Having an open parenthesis begun somewhere before the end of the line (possibly on a previous line):
+      a←(1 2 3 4 5 ⍳       <==> a←(1 2 3 4 5 ⍳ 2 3)
+         2
+         3)
+      See Lists (above).
+   3. Having a semicolon at the end of a line or at the beginning of a line (the next line).
+      A×B;                 <==> A×B ⊣ A←1 2 3 ⊣ B←4 5 6
+        A←1 2 3
+       ;B←4 5 6
+      The interpretation of the semicolon depends on whether it is within brackets, parentheses, or otherwise.
+      See Special Cases for Semicolons, Where Expressions, and Lists (all above).
+   4. With quoted expressions, there are three options:
+      a. A Single-quoted expression across multiple lines is converted to a single quoted string,
+         where leading and trailing blanks AND the newline are treated as a single blank.
+         'abc     <==> 'abc def'
+          def'
+      b. A double-quoted expression  across multiple lines is converted to a single-quoted string,
+         where leading and trailing blanks AND the newline are treated as a single CARRIAGE RETURN 
+         (so they appear properly in APL). Internal double and single quotes are converted automatically.
+           "This is line1           <==>  'This is line1             <==>  This is line1
+            and this 'is' line2            and this ''is'' line2           and this 'is' line2
+              and this ""is"" line3!"      and this "is" line3!'           and this "is" line3!
+         This is actually encoded as the following APL sequence:
+           ('This is line1',(⎕UCS 10),'and this ''is'' line2',(⎕UCS 10),'and this "is" line3!')
+         which appears as shown on the right.       
+      c. Diereses or multiple dots (..) at the right-hand side of an unterminated string are handled differently.
+         All spaces BEFORE the dots are preserved, but those spaces between the dots and the first non-space
+         on the next line are ignored.
+           'Name,   ..            <==>  'Name,  Addressing Scheme,  and more.'
+            Address..                       
+            ing Scheme,  ..
+            and more.'
+         or with relevant blanks shown as underscores:
+            ==> 'Name,__Addressing Scheme,__and more.'
 
  Bugs
    In this version, trailing (right-hand) comments are omitted from the preprocessor
