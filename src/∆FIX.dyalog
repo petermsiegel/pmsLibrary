@@ -185,9 +185,15 @@
         ⍝  }
          ∆←⊢  ⍝ For debugging/testing only...
 
+         CTL.skip∧×ns.skip:ns.skip{
+             ⍺=1:0 ∆COM ⍵ ∆FIELD 0
+             ⍺=2:⍵ ∆FIELD 0
+             ∘LOGIC ERROR:UNREACHABLE
+         }⍵
+
          3=ns.⎕NC'action':'F'∆ ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
          ' '=1↑0⍴ns.action:'T'∆∊ns.action              ⍝ text? Return as is...
-         0=ns.action:'P'∆ ⍵ ∆FIELD ns.action  ⍝ Show passthru
+         0=ns.action:'P'∆ ⍵ ∆FIELD ns.action           ⍝ Show passthru
          'F'∆ ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
      }
      eval←{
@@ -413,8 +419,8 @@
             ⍝ Comments
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF stmts
-             'IFDEF+IFNDEF' 0{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+             'IFDEF+IFNDEF' 1{
+                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0⊣⎕←CTL.skip,'at IFDEF'
 
                  f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
                  ##.CTL.stack,←~⍣not⊣##.dict.defined k
@@ -426,8 +432,8 @@
            ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
-             'IF' 0{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+             'IF' 1{
+                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  0::{
@@ -443,7 +449,6 @@
                     ⍝ ⎕←'::IF code2 ',code2
 
                  CTL.skip←~##.CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
-
                  (~CTL.skip)∆COM('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
              }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
@@ -453,16 +458,15 @@
 
                  f0 code0←⍵ ∆FIELD¨0 1
                  0::{
-                     CTL.skip←←0 ⋄ (⊃⌽##.CTL.stack)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
+                     CTL.skip←0 ⋄ (⊃⌽##.CTL.stack)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
 
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
+                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
                  }code0
                  code1←(0 doScan)code0
                  code2←##.dict.ns{⍺⍎⍵}code1
                  CTL.skip←~(⊃⌽##.CTL.stack)←notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
-                 _←(~CTL.skip)∆COM('::ELSEIF ',showCode code0)('➤    ',showCode code1)
-                 _,('➤    ',showObj code2)
+                 (~CTL.skip)∆COM('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
              }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
@@ -481,7 +485,7 @@
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
              'CINCLUDE' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
                  ##.filesIncluded,←⊂fName
@@ -491,7 +495,7 @@
              }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
             ⍝ INCLUDE
              'INCLUDE' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
@@ -503,7 +507,7 @@
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
              'COND' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
@@ -526,7 +530,7 @@
            ⍝     ::DEFINE name ← ... field1=name, field2 is rest of line after arrow/spaces
              defS←'⍎directiveP  DEF(?:INE)? \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
              'DEF(INE)' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k v←⍵ ∆FIELD¨0 1 2
                ⍝ Replace leading and trailing blanks with single space
@@ -538,7 +542,7 @@
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
              'LET~EVAL' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
                  0::{
@@ -558,7 +562,7 @@
             ⍝    name: FENCE.  Sets the temp. name for "fence" constructions (←⍳5) etc.
             ⍝    ::PRAGMA FENCE←'⍙F⍙'
              'PRAGMA' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
                  TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
@@ -573,7 +577,7 @@
            ⍝ UNDEF stmt
            ⍝ UNDEF stmt
              'UNDEF' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k←⍵ ∆FIELD¨0 1
                  _←##.dict.del k
@@ -582,7 +586,7 @@
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
              'ERROR' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line num msg←⍵ ∆FIELD¨0 1 2
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
@@ -592,7 +596,7 @@
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  line msg←⍵ ∆FIELD¨0 1
                  ⎕←box msg
@@ -621,7 +625,7 @@
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
              'name..cmd' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
@@ -642,7 +646,7 @@
              atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
              atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
-                 CTL.skip:⍵ ∆FIELD 0
+               ⍝  CTL.skip:⍵ ∆FIELD 0
 
                  atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
@@ -661,7 +665,7 @@
              }register'\h* (?| (⍎atomsP) \h* (→) | (?<=[(;])() \h*  (→) | ` (⍎atomsP) ) \h* (→)?'
             ⍝ STRINGS: passthrough (only single-quoted strings appear.
             ⍝ Must follow ATOMs
-             'STRINGS*' 0(0 register)'⍎sqStringP'
+             'STRINGS*' 2(0 register)'⍎sqStringP'
             ⍝ Hexadecimal integers...
             ⍝ See ⎕UdhhX for hexadecimal Unicode constants
              h2d←{ ⍝ Convert hex to decimal.
@@ -670,7 +674,7 @@
                  (s⊃1 ¯1)×16⊥∆D⍳(¯1↓⍵)↓⍨s←'¯'=1↑⍵
              }
              'HEX INTs' 2{
-                 CTL.skip:⍵ ∆FIELD 0
+                ⍝ CTL.skip:⍵ ∆FIELD 0
 
                  ⍕##.h2d ⍵ ∆FIELD 0
              }register'(?<![⍎ALPH])¯?\d[\dA-F]*X\b'
@@ -678,7 +682,7 @@
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
              'UNICODE' 2{
-                 CTL.skip:⍵ ∆FIELD 0
+                ⍝ CTL.skip:⍵ ∆FIELD 0
                  i←{'xX'∊⍨⊃⌽⍵:##.h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
                  (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
                  ' ',SQ,(⎕UCS i),SQ,' '
@@ -686,7 +690,7 @@
 
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO' 2{
-                 CTL.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL.skip
+                ⍝ CTL.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL.skip
 
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
@@ -698,7 +702,7 @@
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
-                 CTL.skip:⍵ ∆FIELD 0
+                ⍝ CTL.skip:⍵ ∆FIELD 0
 
                  ##.PRAGMA_FENCE,'←'
              }register'^ \h* ← | (?<=[()\[\]{};:⋄]) \h* ←  '
@@ -715,8 +719,8 @@
      ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
          Par←⎕NS'' ⋄ Par.enStack←0
-         'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
-         'STRINGS'(0 register)'⍎sqStringP'
+         'COMMENTS FULL' 0(0 register)'^ \h* ⍝ .* $'
+         'STRINGS' 0(0 register)'⍎sqStringP'
          'Null List/List Elem' 0{   ⍝ (),  (;) (;...;)
              sym←⍵ ∆FIELD 0 ⋄ nSemi←+/sym=';'
              '(',')',⍨(','⍴⍨nSemi=1),'⍬'⍴⍨1⌈nSemi
@@ -795,9 +799,10 @@
      ⎕ED'code'
  :EndIf
 
+
  :Section Write out so we can then do a 2∘⎕FIX
      tmpfile←(739⌶0),'/','TMP~.dyalog'
-     :Trap 0
+     :Trap DEBUG×999
          (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
          objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
        ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
@@ -809,7 +814,7 @@
               ⋄ :Case 2 ⋄ result←0 code
          :EndSelect
      :Else ⍝ Error: return  trapCode trapMsg
-         result←⎕DMX.(EN EM)
+         result←⎕DMX.(EN EM Message )
      :EndTrap
      1 ⎕NDELETE tmpfile
  :EndSection
@@ -819,7 +824,6 @@
      ⎕←'PreScan2  Pats:'PreScan2.info
      ⎕←'MainScan1 Pats:'MainScan1.info
      ⎕←'      *=passthrough'
-
      :If 0≠≢keys←dict.keys
          'Defined names and values'
          ⍉↑keys dict.values
