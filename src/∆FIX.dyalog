@@ -340,8 +340,8 @@
    ⍝ Valid APL complex names
      longNameP←eval'(?: ⍎nameP (?: \. ⍎nameP )* )  '
    ⍝ anyNumP: If you see '3..', 3 is the number, .. treated elsewhere
-     anyNumP←'¯?\d([\dA-FJE¯_]+|\.(?!\.))+[XI]?'
-   ⍝ Matches two fields: one field in addition to any additional surrounding field...
+     anyNumP←'¯?\d (?: [\dA-FJE¯_]+|\.(?!\.) )+ [XI]?'
+    ⍝ Matches two fields: one field in addition to any additional surrounding field...
      parenP←'('setBrace')'
      brackP←'['setBrace']'
      braceP←'{'setBrace'}'
@@ -394,9 +394,11 @@
            ⍝ Comments on their own line are kept.
              'COMMENT FULL'(0 register)'^ \h* ⍝ .* $'
            ⍝ Multi-line strings:
-           ⍝ Handles DQ strings (linends → newlines, ignoring trailing blanks)
-           ⍝         SQ strings (linends → ' '
-           ⍝ Handles .. (etc.) in either-- trailing blanks respected, not leading.
+           ⍝ Handles:
+           ⍝  1. DQ strings (linends → newlines, ignoring trailing blanks)
+           ⍝  2. SQ strings (linends → ' '
+           ⍝  3. .. continuation symbols within strings.
+           ⍝  4. ..L (and future) suffixes on strings:  "example"..L or 'test'..L
            ⍝ See stringAction above.
              'STRINGS'stringAction register specialStringP
            ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
@@ -404,15 +406,17 @@
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
            ⍝ Skip names, including those that may contain numbers...
            ⍝ See 'NUM CONSTANTS'
-             'NAMES'(0 register)'⍎nameP'
+             'NAMES'(0 register)nameP
            ⍝ NUM CONSTANTS: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
-             'NUM CONSTANTS'{'_'~⍨⍵ ∆FIELD 0}register anyNumP
+           ⍝    From here on in, numbers won't have underscores.
+           ⍝    They may still have suffixes X (handled here) or I (for big integers-- future).
+             'NUM CONSTANTS'{(⍵ ∆FIELD 0)~'_'}register anyNumP
            ⍝ Leading and trailing semicolons are forced onto the same line...
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
              'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
-
-            ⍝ RHS Comments are ignored...
+           ⍝ RHS Comments are ignored (removed)...
+           ⍝  Not ideal, but makes further regexps simpler.
              'COMMENT RHS'(''register)'\h* ⍝ .* $'
              PreScan1←MEnd
          :EndSection
@@ -692,9 +696,8 @@
              }
              'HEX INTs' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
-
                  ⍕h2d ⍵ ∆FIELD 0
-             }register'(?<![⍎ALPH])¯?\d[\dA-F]*X\b'
+             }register'¯?\d[\dA-F]*X\b'   ⍝  Was: (?<![⍎ALPH])...
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
