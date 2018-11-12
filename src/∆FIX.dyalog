@@ -4,7 +4,7 @@
  ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
  ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;DICT
  ;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
- ;getenv;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
+ ;getenv;h2d;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
  ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;specialStringP
  ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
  ;⎕IO;⎕ML;⎕PATH;⎕TRAP
@@ -83,6 +83,14 @@
          f←⎕FMT ⍵
          clip←1 maxW<⍴f
          ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
+     }
+   ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
+   ⍝      ⍵: A string of the form ¯?\d[\da-fA-F]?[xX]. Case is ignored.
+   ⍝ h2d assumes pattern matching ensures valid nums. We simply ignore invalid chars here.
+     h2d←{ ⍝ Convert hex to decimal.
+         ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
+         0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
+         (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
      }
 
 ⍝-------------------------------------------------------------------------------------------
@@ -341,6 +349,8 @@
      longNameP←eval'(?: ⍎nameP (?: \. ⍎nameP )* )  '
    ⍝ anyNumP: If you see '3..', 3 is the number, .. treated elsewhere
      anyNumP←'¯?\d (?: [\dA-FJE¯_]+|\.(?!\.) )+ [XI]?'
+   ⍝ Modified not to match numbers in names:  NAME001_23 etc.
+     anyNumP←'(?![⍎ALPH\d¯_])¯?\d (?: [\dA-FJE¯_]+|\.(?!\.) )+ [XI]?'
     ⍝ Matches two fields: one field in addition to any additional surrounding field...
      parenP←'('setBrace')'
      brackP←'['setBrace']'
@@ -406,7 +416,7 @@
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
            ⍝ Skip names, including those that may contain numbers...
            ⍝ See 'NUM CONSTANTS'
-             'NAMES'(0 register)nameP
+           ⍝ Not needed? 'NAMES'(0 register)nameP
            ⍝ NUM CONSTANTS: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
            ⍝    From here on in, numbers won't have underscores.
            ⍝    They may still have suffixes X (handled here) or I (for big integers-- future).
@@ -689,15 +699,10 @@
              'STRINGS*' 2(0 register)'⍎sqStringP'
             ⍝ Hexadecimal integers...
             ⍝ See ⎕UdhhX for hexadecimal Unicode constants
-             h2d←{ ⍝ Convert hex to decimal.
-                 ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
-                 0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number out of range: ',⍵
-                 (s⊃1 ¯1)×16⊥∆D⍳(¯1↓⍵)↓⍨s←'¯'=1↑⍵
-             }
              'HEX INTs' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
                  ⍕h2d ⍵ ∆FIELD 0
-             }register'¯?\d[\dA-F]*X\b'   ⍝  Was: (?<![⍎ALPH])...
+             }register'(?<![⍎ALPH\d])  ¯? \d [\dA-F]* X \b'
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
