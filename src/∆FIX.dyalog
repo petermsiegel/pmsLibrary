@@ -725,11 +725,12 @@
              Par←##.Par ⋄ sym endPar←⍵ ∆FIELD 0 1 ⋄ sym0←⊃sym
              inP←⊃⌽Par.enStack
              ';'=sym0:{
+                 notP←1≥≢Par.enStack
                  Par.enStack↓⍨←-e←×≢endPar
                ⍝ Did we match a right paren (after semicolons)?
                ⍝ This is invalid whenever semicolon is on header line!
                ⍝ We handle function headers (q.v.) above.
-                 1=≢Par.enStack:∊(⊂' ⊣')@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⊣
+                 notP:∊(⊂' ⊣')@(';'∘=)⊣⍵     ⍝   ';' outside [] or () treated as ⊣
                  ~inP:⍵
                  n←¯1++/';'=⍵
                  n=0:∊e⊃')(' ')'
@@ -744,7 +745,7 @@
              ']'=sym:sym⊣Par.enStack↓⍨←¯1
              '('=sym:sym⊣Par.enStack,←1     ⍝ Semicolons governed by () are special.
              ')'=sym:sym⊣Par.enStack↓⍨←¯1
-         }register'\( \h* ; (?: \h*;)* | ; (?: \h* ; )* \h* (\)?) |  [();\[\]]  '
+         }register'\( \h* ; (?: \h* ; )* | ; (?: \h* ; )* \h* ( \)? ) |  [();\[\]]  '
 
          ListScan←MEnd
      :EndSection
