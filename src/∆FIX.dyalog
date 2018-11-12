@@ -176,11 +176,19 @@
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
 
-      ⍝   ⎕←'Matched: ',ns.info,' <',(⍵ ∆FIELD 0),'>'
+        ⍝  ⎕←'> Matched: "',ns.info,'"'
+        ⍝  ⎕←'  String:  "',(⍵ ∆FIELD 0),'"'
+        ⍝  ∆←{⍺←' '
+        ⍝      w←∊(⊂'\n')@(NL∘=)⊣⍵
+        ⍝      ⎕←⍺,' With:    "',w,'"'
+        ⍝      ⍵
+        ⍝  }
+         ∆←⊢  ⍝ For debugging/testing only...
 
-         3=ns.⎕NC'action':ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴ns.action:∊ns.action             ⍝ text? Return as is...
-         ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
+         3=ns.⎕NC'action':'F'∆ ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
+         ' '=1↑0⍴ns.action:'T'∆∊ns.action              ⍝ text? Return as is...
+         0=ns.action:'P'∆ ⍵ ∆FIELD ns.action  ⍝ Show passthru
+         'F'∆ ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
      }
      eval←{
          pfx←'(?xx)'               ⍝ PCRE prefix -- required default!
@@ -364,8 +372,7 @@
            ⍝    the next line is appended after the semicolon.
 
            ⍝ Comments on their own line are kept.
-             'COMMENTS_LINE*'(0 register)'^ \h* ⍝ .* $'
-
+             'COMMENT FULL'(0 register)'^ \h* ⍝ .* $'
            ⍝ Multi-line strings:
            ⍝ Handles DQ strings (linends → newlines, ignoring trailing blanks)
            ⍝         SQ strings (linends → ' '
@@ -383,14 +390,14 @@
              'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
 
             ⍝ RHS Comments are ignored...
-             'COMMENTS_RHS'(''register)'⍎commentP $'
+             'COMMENT RHS'(''register)'\h* ⍝ .* $'
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
              MBegin
            ⍝ A lot of processing to handle multi-line parens or brackets ...
              'STRINGS'(0 register)stringP                ⍝ Skip
-             'COMMENTS_LINE*'(0 register)'^\h* ⍎commentP $'     ⍝ Skip
+             'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
              'Multiline () or []' 0{
                ⍝ Remove newlines and associated spaces in (...) and [...]
                ⍝ UNLESS inside quotes or braces!
@@ -403,6 +410,8 @@
 
          :Section MainScan1
              MBegin
+            ⍝ Comments
+             'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF stmts
              'IFDEF+IFNDEF' 0{
                  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
@@ -593,9 +602,6 @@
              'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
              }register'^'
-           ⍝ COMMENTS: passthrough
-             'COMMENTS*'(0 register)'^\h*⍝.*$'
-           ⍝
            ⍝ For nm a of form a1.a2.a3.a4,
            ⍝ see if any of a1 .. a4 are macros,
            ⍝ but accept value vN for aN only if name.
@@ -709,7 +715,7 @@
      ⍝ Parenthetical expressions without semicolons are standard APL.
          MBegin
          Par←⎕NS'' ⋄ Par.enStack←0
-         'Comments'(0 register)'^ \h* ⍝ .* $'
+         'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
          'STRINGS'(0 register)'⍎sqStringP'
          'Null List/List Elem' 0{   ⍝ (),  (;) (;...;)
              sym←⍵ ∆FIELD 0 ⋄ nSemi←+/sym=';'
@@ -739,7 +745,7 @@
              '('=sym:sym⊣Par.enStack,←1     ⍝ Semicolons governed by () are special.
              ')'=sym:sym⊣Par.enStack↓⍨←¯1
          }register'\( \h* ; (?: \h*;)* | ; (?: \h* ; )* \h* (\)?) |  [();\[\]]  '
-         'Non-list sequences'(0 register)'[^();\[\]''⍝]+'
+
          ListScan←MEnd
      :EndSection
 
