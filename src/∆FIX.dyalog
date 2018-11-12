@@ -176,9 +176,10 @@
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
 
-        ⍝  ⎕←'> Matched: "',ns.info,'"'
-        ⍝  ⎕←'  String:  "',(⍵ ∆FIELD 0),'"'
+        ⍝
         ⍝  ∆←{⍺←' '
+        ⍝      ⎕←'> Matched: "',ns.info,'"'
+        ⍝      ⎕←'  String:  "',(⍵ ∆FIELD 0),'"'
         ⍝      w←∊(⊂'\n')@(NL∘=)⊣⍵
         ⍝      ⎕←⍺,' With:    "',w,'"'
         ⍝      ⍵
@@ -225,6 +226,14 @@
  :Section Reused Pattern Actions
      stringAction←{
        ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
+       ⍝                SQ Strings                     DQ STRINGS
+       ⍝    Forms       'abc \n def \n  ghi'          "abc \n def  \n  ghi"
+       ⍝    Result      'abc def  ghi'                'abd\ndef\nghi'
+       ⍝    Forms       'abc ...\n   def   ...\n'     "abc ...\n   def   ...\n"
+       ⍝    Result      'abc ... def   ...'           'abc ...\ndef    ...'
+       ⍝    Forms       'abc  \n   def'..L            "abc   \n   def"..L
+       ⍝    Result      'abc       def'               'abc   \n   def'
+       ⍝
        ⍝ In SQ strings, newlines and extra blanks are just ignored at EOL, Start of line.
        ⍝ In DQ strings, newlines are kept*, but such extra blanks are also ignored.
        ⍝ * Except with ellipses-- SQ and DQ strings treated the same.
@@ -262,7 +271,7 @@
              nlCode←''',(⎕UCS 10),'''
              ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵
              ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTS⊣⍵
-             (⍺='L'):{
+             ⍺='L':{
                  q=SQ:'\n'⎕R' '⍠OPTS⊣⍵
                  addP'\n'⎕R nlCode⍠OPTS⊣⍵
              }⍵
@@ -327,7 +336,6 @@
      longNameP←eval'(?: ⍎nameP (?: \. ⍎nameP )* )  '
    ⍝ anyNumP: If you see '3..', 3 is the number, .. treated elsewhere
      anyNumP←'¯?\d([\dA-FJE¯_]+|\.(?!\.))+[XI]?'
-
    ⍝ Matches two fields: one field in addition to any additional surrounding field...
      parenP←'('setBrace')'
      brackP←'['setBrace']'
@@ -338,10 +346,11 @@
      stringP←eval'(?: ⍎dqStringP | ⍎sqStringP )'
    ⍝ Special Strings:     'text'..L   OR   "text"..L
    ⍝ Currently, only L (upper case) is defined as a suffix. See stringAction (above).
-   ⍝  field1 will be the string, including quotes. f2 may be null or a single alphabetic char.
+   ⍝  field1 will be the quoted string, including quotes. f2 may be null or a single alphabetic char.
      specialStringP←eval' (⍎stringP)  (?: \.{2,2} ([A-Z]) )? '
    ⍝ Comment pat
      commentP←'(?: ⍝.* )'
+   ⍝ Ellipses: either two or more dots (..) or the Unicode ellipses single character: '…'
      ellipsesP←'(?:  \… | \.{2,} )'
    ⍝ A directive prefix
      directiveP←'^ \h* :: \h*'
@@ -352,14 +361,14 @@
 
      :Section Preprocess Tradfn Headers...
          :If ':⍝∇'∊⍨1↑' '~⍨⊃code
-        ⍝ Tradfn header with leading ∇.
-        ⍝ (To be treated as a header, it must have one alpha char after ∇.)
-        ⍝ Could occur on any line...
+           ⍝ Tradfn header with leading ∇.
+           ⍝ (To be treated as a header, it must have one alpha char after ∇.)
+           ⍝ Could occur on any line...
              code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
                  SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
              }⍠OPTS⊣code
          :Else
-        ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
+           ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
              code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
                  SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
              }⍠OPTS⊣code
@@ -371,7 +380,7 @@
              MBegin
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
            ⍝ 1) Within multiline strings, newlines are treated specially (q.v.);
-           ⍝ 2) Ellipses-- Unicode … or .., ..., etc.-- in code or strings,
+           ⍝ 2) Ellipses-- Unicode … or .{2,}-- in code or strings,
            ⍝    are replaced by a single blank; any trailing comments or newlines or
            ⍝    leading blanks on the next line are ignored;
            ⍝ 3) When a semicolon appears at the end of a line (before opt'l comments),
