@@ -402,8 +402,11 @@
            ⍝ Ellipses and .. (... etc) → space, with trailing and leading spaces ignored.
            ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
-           ⍝ NUMS 123_456: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
-             'NUMS 123_456'{'_'~⍨⍵ ∆FIELD 0}register anyNumP
+           ⍝ Skip names, including those that may contain numbers...
+           ⍝ See 'NUM CONSTANTS'
+             'NAMES'(0 register)'⍎nameP'
+           ⍝ NUM CONSTANTS: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
+             'NUM CONSTANTS'{'_'~⍨⍵ ∆FIELD 0}register anyNumP
            ⍝ Leading and trailing semicolons are forced onto the same line...
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
@@ -457,7 +460,7 @@
                  code2←DICT.ns{⍺⍎⍵}code1
                     ⍝ ⎕←'::IF code2 ',code2
                  CTL.skip←~CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
-                 _← ('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 _←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  (~CTL.skip)∆COM _
              }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
@@ -475,18 +478,18 @@
                ⍝ Elseif: unlike IF, replace last stack entry, don't push
                  CTL.skip←~(⊃⌽CTL.stack)←notZero code2
                  _←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
-                  (~CTL.skip)∆COM _
+                 (~CTL.skip)∆COM _
              }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
              ⍝ EL(SE)IF(N)DEF stmts
-              'EL(SE)IF(N)DEF' 0{
-                  CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
-                  f0 not name←⍵ ∆FIELD¨0 1 2
-                  not←⍬⍴not∊'nN'
+             'EL(SE)IF(N)DEF' 0{
+                 CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
+                 f0 not name←⍵ ∆FIELD¨0 1 2
+                 not←⍬⍴not∊'nN'
                 ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
-                  (⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
-                  CTL.skip←~⊃⌽CTL.stack
-                  (~CTL.skip)∆COM f0
-              }register'⍎directiveP  EL(?:SE)IF(N?)DEF\b \h* (.*) $'
+                 (⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
+                 CTL.skip←~⊃⌽CTL.stack
+                 (~CTL.skip)∆COM f0
+             }register'⍎directiveP  EL(?:SE)IF(N?)DEF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
                  CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
@@ -828,7 +831,7 @@
               ⋄ :Case 2 ⋄ result←0 code
          :EndSelect
      :Else ⍝ Error: return  trapCode trapMsg
-         result←⎕DMX.(EN EM Message )
+         result←⎕DMX.(EN EM Message)
      :EndTrap
      1 ⎕NDELETE tmpfile
  :EndSection
