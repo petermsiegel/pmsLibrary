@@ -1,13 +1,13 @@
-﻿ result←{specs}∆FIX fileName;specialStringP
+﻿ result←{specs}∆FIX fileName
  ;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
  ;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
  ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
- ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;dict
+ ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;DICT
  ;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
  ;getenv;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
- ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;sqStringP
- ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
- ;⎕ML;⎕PATH;⎕TRAP
+ ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;specialStringP
+ ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
+ ;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
  ⍝ A Dyalog APL preprocessor (rev. Nov 11 )
  ⍝
@@ -62,14 +62,16 @@
 ⍝-------------------------------------------------------------------------------------------
    ⍝ getenv: Returns value of environment var.
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-   ⍝ notZero: If ⍵ is not numeric 0 singleton or null-string or ⎕NULL, return 1
-   ⍝   See ::IF etc.
+   ⍝ notZero: Used in ::IFDEF/IFNDEF
+   ⍝ notZer0 ⍵: Returns 1 if ⍵ has 0 items (≢⍵) or if (,⍵) is neither (,0) nor (,⎕NULL).
      notZero←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
      box←{
          l←≢m←'│  ',⍵,'  │' ⋄ t←'┌','┐',⍨,'─'⍴⍨l-2 ⋄ b←'└','┘',⍨,'─'⍴⍨l-2 ⋄ t,CR,m,CR,b
      }
+   ⍝ showObj, showCode-- used informationally to show part of a potentially large object.
    ⍝ Show just a bit of an obj of unknown size. (Used for display info)
-   ⍝ showObj: assumes values. Puts strings in quotes.
+   ⍝ showObj: assumes data values. Puts strings in quotes.
+   ⍝ showCode: Assumes APL code or names in string format.
      showObj←{⍺←⎕PW-20 ⋄ maxW←⍺
          f←⎕FMT ⍵
          q←''''/⍨0=80|⎕DR ⍵
@@ -84,19 +86,19 @@
      }
 
 ⍝-------------------------------------------------------------------------------------------
-⍝⍝⍝⍝ regexp internal routines...
+   ⍝⍝⍝⍝ regexp related routines...
    ⍝ ∆PFX:   pfx ∇ lines
    ⍝    lines: a single string possibly containing newlines as line separators, OR
    ⍝           a vector of vectors
    ⍝    pfx:   a string prefix. Default '⍝ '
-   ⍝
+   ⍝ See also NO, YES, NOc, YESc.
    ⍝ Returns lines prefixed with pfx in vector of vectors format.
      ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
    ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
      ∆V2S←{1↓∊CR,¨⊆⍵}
    ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
      ∆V2Q←{q←'''' ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
-   ⍝ ∆COM: Convert a v of vs to a set of comments
+   ⍝ ∆COM: Convert a vector of vector strings to a set of comments, one per "line" generated.
      ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
    ⍝ PCRE routines
      ∆FIELD←{
@@ -105,7 +107,7 @@
          ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
      }
    ⍝ dictionary routines
-   ⍝ Use a local namespace so we can use with ::IF etc.
+   ⍝ Use a private namespace so we can access recursively with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
          dict.ns←dict.⎕NS''
@@ -153,6 +155,7 @@
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
          ns.CTL←CTL
+         ns.DICT←DICT
          ⍝ Right now we don't do anything with ns.skip
          ⍝    0 - <action> handles skips; call it, whether skip active or not.
          ⍝    1 - If skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
@@ -259,8 +262,10 @@
        ⍝ Here, we handle ellipses at linend within SQ or DQ quotes as special:
        ⍝ Any spaces BEFORE them are preserved. If none, the next line is juxtaposed w/o spaces.
        ⍝ Not clear this (identical) behavior is what we want for SQ and DQ quotes.
-       ⍝ WARNING: Right now, the ellipses must be the rightmost characters--
+       ⍝ WARNING: Right now, by intention, the ellipses must be the rightmost characters--
        ⍝   trailing blanks will force the ellipses to be treated as ordinary characters.
+       ⍝   I.e.   'anything ... $ has "ordinary" dots as characters ($=EOL).
+       ⍝          'anything ...$  marks a continuation line.
          ellipsesP←'(?:\…|\.{2,})$\s*'
          str←ellipsesP ⎕R''⍠OPTS⊣str
 
@@ -324,7 +329,7 @@
      code←readFile fileName
  :EndSection Read In file or stdin
 
- dict←∆DICT''
+ DICT←∆DICT''
  :Section Process File
    ⍝ Valid 1st chars of names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
@@ -398,7 +403,7 @@
            ⍝ Warning: Ellipses in strings handled above via 'STRINGS' and stringAction.
              'CONT'(' 'register)'\h*  ⍎ellipsesP \h*  ⍎commentP?  $  \s*'
            ⍝ NUMS 123_456: ⍝ Remove _ from (extended) numbers-- APL and hexadecimal.
-             'NUMS 123_456'{'_'~⍨⍵ ##.∆FIELD 0}register anyNumP
+             'NUMS 123_456'{'_'~⍨⍵ ∆FIELD 0}register anyNumP
            ⍝ Leading and trailing semicolons are forced onto the same line...
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
@@ -418,7 +423,7 @@
                ⍝ UNLESS inside quotes or braces!
                ⍝ But newlines inside quotes and braces have already been eaten above.
                ⍝ >>> RETHINK the logic here.
-                 ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠##.OPTS⊣⍵ ∆FIELD 0
+                 ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠OPTS⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
              PreScan2←MEnd
          :EndSection
@@ -429,57 +434,62 @@
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF stmts
              'IFDEF+IFNDEF' 1{
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0⊣⎕←CTL.skip,'at IFDEF'
-
-                 f0 n k←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴n∊'nN'
-                 ##.CTL.stack,←~⍣not⊣##.dict.defined k
-                 CTL.skip←~⊃⌽##.CTL.stack
-
+                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+                 f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
+                 CTL.stack,←~⍣not⊣DICT.defined name
+                 CTL.skip←~⊃⌽CTL.stack
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP  IF(N?)DEF\b \h*(⍎longNameP) .* $'
-
            ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
              'IF' 1{
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 code0←⍵ ∆FIELD¨0 1
                  0::{
-                     CTL.skip←0 ⋄ ##.CTL.stack,←1
+                     CTL.skip←0 ⋄ CTL.stack,←1
                      ⎕←NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
                  }code0
-
                     ⍝ ⎕←'::IF code0 ',code0
                  code1←(0 doScan)code0
                     ⍝ ⎕←'::IF code1 ',code1
-                 code2←##.dict.ns{⍺⍎⍵}code1
+                 code2←DICT.ns{⍺⍎⍵}code1
                     ⍝ ⎕←'::IF code2 ',code2
-
-                 CTL.skip←~##.CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
-                 (~CTL.skip)∆COM('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 CTL.skip←~CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
+                 _← ('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 (~CTL.skip)∆COM _
              }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF' 0{
-                 CTL.skip←⊃⌽##.CTL.stack
-                 CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
+                 CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
                  f0 code0←⍵ ∆FIELD¨0 1
                  0::{
-                     CTL.skip←0 ⋄ (⊃⌽##.CTL.stack)←1      ⍝ Elseif: unlike IF, replace last stack entry, don't push
-
+                   ⍝ Elseif: unlike IF, replace last stack entry, don't push
+                     CTL.skip←0 ⋄ (⊃⌽CTL.stack)←1
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
                  }code0
                  code1←(0 doScan)code0
-                 code2←##.dict.ns{⍺⍎⍵}code1
-                 CTL.skip←~(⊃⌽##.CTL.stack)←notZero code2            ⍝ Elseif: Replace, don't push. [See ::IF logic]
-                 (~CTL.skip)∆COM('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 code2←DICT.ns{⍺⍎⍵}code1
+               ⍝ Elseif: unlike IF, replace last stack entry, don't push
+                 CTL.skip←~(⊃⌽CTL.stack)←notZero code2
+                 _←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                  (~CTL.skip)∆COM _
              }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
+             ⍝ EL(SE)IF(N)DEF stmts
+              'EL(SE)IF(N)DEF' 0{
+                  CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
+                  f0 not name←⍵ ∆FIELD¨0 1 2
+                  not←⍬⍴not∊'nN'
+                ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
+                  (⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
+                  CTL.skip←~⊃⌽CTL.stack
+                  (~CTL.skip)∆COM f0
+              }register'⍎directiveP  EL(?:SE)IF(N?)DEF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
-                 CTL.skip←~(⊃⌽##.CTL.stack)←~⊃⌽##.CTL.stack    ⍝ Flip the condition of most recent item.
+                 CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP ELSE \b .* $'
@@ -487,7 +497,7 @@
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
                  oldskip←CTL.skip
-                 CTL.skip←~⊃⌽##.CTL.stack⊣##.CTL.stack↓⍨←¯1
+                 CTL.skip←~⊃⌽CTL.stack⊣CTL.stack↓⍨←¯1
 
                  (~oldskip)∆COM f0
              }register'⍎directiveP  END  (?: IF  (?:DEF)? )? \b .* $'
@@ -498,17 +508,14 @@
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
                  ##.filesIncluded,←⊂fName
-
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
              }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
             ⍝ INCLUDE
              'INCLUDE' 1{
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
-
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
              }register'⍎directiveP  INCLUDE \h+ (⍎stringP | [^\s]+) .* $'
@@ -517,7 +524,6 @@
            ⍝ Does not affect the CTL.stack or CTL.skip...
              'COND' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
                  0::{
@@ -525,9 +531,8 @@
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
                  }f0
                  cond1←(0 doScan)cond0
-                 cond2←##.dict.ns{⍺⍎⍵}cond1
+                 cond2←DICT.ns{⍺⍎⍵}cond1
                  bool←notZero cond2
-
                  stmt←⍕(0 doScan)stmt
                  out1←bool ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
                  out2←CR,(NOc/⍨~bool),stmt
@@ -545,7 +550,7 @@
                ⍝ Replace leading and trailing blanks with single space
                  v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵ ⋄ ⍵}v
                  v←⍕(0 doScan)v
-                 _←##.dict.set k v
+                 _←DICT.set k v
                  ∆COM f0
              }register defS
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
@@ -556,12 +561,12 @@
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
                  0::{
                      ⎕←'>>> VALUE ERROR: ',f0
-                     _←##.dict.del k
+                     _←DICT.del k
                      msg←(f0)('➤ UNDEF ',k)
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',CR,0 ∆COM msg
                  }⍬
-                 _←##.dict.validate k
-                 vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
+                 _←DICT.validate k
+                 vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg
              }register'⍎directiveP  (?: LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (⍎multiLineP) $'
@@ -575,8 +580,8 @@
 
                  f0 k vIn←⍵ ∆FIELD¨0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
                  TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
-                 _←##.dict.validate k
-                 vOut←##.dict.ns{⍺⍎⍵}k,'←',vIn
+                 _←DICT.validate k
+                 vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                  ∆COM f0 msg⊣{
                      'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
@@ -589,7 +594,7 @@
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
 
                  f0 k←⍵ ∆FIELD¨0 1
-                 _←##.dict.del k
+                 _←DICT.del k
                  ∆COM f0
              }register'⍎directiveP  UNDEF \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
@@ -621,7 +626,7 @@
              subMacro←{
                  ~'.'∊⍵:⍵              ⍝ a is simple...
                  1↓∊'.',¨{
-                     vN←dict.get ⍵  ⍝ Check value vN of aN
+                     vN←DICT.get ⍵  ⍝ Check value vN of aN
                      0=≢vN:⍵           ⍝ aN not macro. Use aN.
                      ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
                      vN                ⍝ Use value vN of aN
@@ -659,7 +664,7 @@
 
                  atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
-                 atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠##.OPTS⊣,(0=≢atoms)⊃atoms'⍬'
+                 atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                  atoms←{
                      NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
@@ -685,14 +690,14 @@
              'HEX INTs' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
 
-                 ⍕##.h2d ⍵ ∆FIELD 0
+                 ⍕h2d ⍵ ∆FIELD 0
              }register'(?<![⍎ALPH])¯?\d[\dA-F]*X\b'
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
              'UNICODE' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
-                 i←{'xX'∊⍨⊃⌽⍵:##.h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
+                 i←{'xX'∊⍨⊃⌽⍵:h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
                  (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
@@ -703,7 +708,7 @@
 
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
-                 v←⍕##.dict.get k
+                 v←⍕DICT.get k
                  0=≢v:k
                  '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
@@ -833,8 +838,8 @@
      ⎕←'PreScan2  Pats:'PreScan2.info
      ⎕←'MainScan1 Pats:'MainScan1.info
      ⎕←'      *=passthrough'
-     :If 0≠≢keys←dict.keys
+     :If 0≠≢keys←DICT.keys
          'Defined names and values'
-         ⍉↑keys dict.values
+         ⍉↑keys DICT.values
      :EndIf
  :EndIf
