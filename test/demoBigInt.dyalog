@@ -1,7 +1,13 @@
-﻿:namespace bigInt
-    VERBOSE←0
-    ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
+﻿:namespace demoBigInt
+::DEFINE VERBOSE←1
 
+⍝ ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
+::IF VERBOSE
+     ::define note←___←1#⊣⎕←
+::Else
+     ::define note←___←
+::ENDIF
+⍝
     ∇ {_}←loadHelp
       :Trap 0
           _←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
@@ -122,10 +128,11 @@
   ⍝-------------------------------------------------------------------------------+⍝
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
-    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
+::DEFINE  DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
 
-    ⎕TRAP←(911+DEBUG) 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
-
+::IF ~DEBUG  
+    ⎕TRAP←911 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
+::ENDIF
 
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
   ⍝ err: If dfns, use form "cond: err msg".
@@ -219,7 +226,7 @@
         ⍝     If       a 1-char string ('√' or ,'√')   fn is a simple scalar char, uppercase.
         ⍝     If       a sequence of chars ('MUL10'),  fn is an enclosed string (⊂'MUL10'), uppercase.
         ⍝     In short, whatever ⍺⍺ input,             fn is a char scalar, simple if length 1 or an enclosed vector.
-     
+
           fn←⊂⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':atom⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
           CASE←1∘∊fn∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
           ⍝ Monadic...
@@ -261,7 +268,7 @@
           CASE'≠':⍺ ne ⍵
           CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵
           CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵
-     
+
           err eCANTDO2,,⎕FMT fn
       }
     ⍝ Build BIX/BI.
@@ -295,10 +302,10 @@
       ∆←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
-     
+
           ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
           1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
-     
+
           ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
           ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
           ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
@@ -377,7 +384,7 @@
           (sw w)←∆ ⍵                    ⍝ If ⍵<0, decrement is away from 0.
           sw=0:¯1 ONEd
           sw=¯1:∆z sw(⊃⌽increment 1 w) ⍝ dec ¯5: Do -(inc 5)
-     
+
           0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ If won't underflow, decrement and we're done!
           sw w minus 1 ONEd             ⍝ Underflow? Do long way.
       }
@@ -419,7 +426,7 @@
           aw≠1:err eBADRAND
           ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0
           inL←≢exp aw w                          ⍝ ⍵: in exp form. in: ⍵ with leading 0's removed.
-     
+
           out←∆T←inL⍴{                           ⍝ out: BIi
               ⍺←''                               ⍝ ?0 of form 0.nnn...nnn with 34 digits after dec pt.
               ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕#.?0)∇ ⍵-⎕PP        ⍝ Generate 16-digit numbers at a time. Generate in # to avoid ? quirk.
@@ -462,21 +469,21 @@
       N←∆ N
       :If 0=⊃N ⋄ x←N ⋄ :EndIf
       :If ¯1=⊃N ⋄ err eSQRT ⋄ :EndIf
-     
+
     ⍝ If the # N is small, calculate via APL
       ndig←≢⊃⌽N
       :If 1=ndig ⋄ x←1(⌊0.5*⍨⊃⌽N) ⋄ :Return ⋄ :EndIf
-     
+
     ⍝ Initial estimate for N*0.5 must be ≥ the actual solution, else this will terminate prematurely.
     ⍝ Initial x: ¯1+10*⌈(# dec digits in N)÷2 <== DECIMAL.     2*⌈(numbits(N)÷2) <=== BINARY.
-     
+
       x←{
           0::1((⌈0.5*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1)   ⍝ Alt: Estimate from # of Base-RX digits in <data>.
           ⎕FR←1287
         ⍝ Alternative: ∆ '9'⍴⍨ ⌈0.5÷⍨≢exp ⍵        ⍝ Est from decimal:  works for all ⍵
           ∆ 1+⌈0.5*⍨⍎exp ⍵                         ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
       }N
-     
+
       :While 1
           y←(x plus N divide x)divide 2       ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷2)
           :If y ge x ⋄ :Leave             ⍝ Is y not smaller than x? Done
@@ -509,7 +516,7 @@
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
-     
+
           sa≠sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
           a ltU w:(-sw)(nupZ-⌿dck w mix a)      ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
@@ -751,7 +758,7 @@
        ⋄ t2←¯1↓∊(tDM,tMM),¨'|'
       p2Funs1←'(?:⍺⍺|⍵⍵)'                      ⍝ See pFunsSmall.
       p2Funs2←'(?:[',t1,']|\b(?:',t2,')\b)'    ⍝ See pFunsBig. Case is respected for MUL10, SQRT…
-     
+
       ⍝ …P:  Patterns. Most have a field#1
       pCom←'(⍝.*?)$'                           ⍝ Keep comments as is
       pVar←'([',p2Vars,'][',p2Vars,'\d]*)'     ⍝ Keep variable names as is, except MUL10 and SQRT
@@ -760,7 +767,7 @@
       pFunsQ←'(',p2Funs2,'(?!\h*BI))'          ⍝ All fns: APL or named are quoted. Simpler/faster.
                                                ⍝ SQRT → ('SQRT'BI), + → ('+' BI), ditto √ → '√'
       pNonBiCode←'\(:(.*?):\)'                 ⍝ Anything in (: … :) treated as APL
-     
+
       pIntExp←'([\-¯]?[\d.]+[eE]¯?\d+)'        ⍝ [-¯]4.4E55 will be padded out. Underscores invalid.
       pIntOnly←'([\-¯]?[\d_.]+)'               ⍝ Put other valid BI-format integers in quotes
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
@@ -790,7 +797,7 @@
           0=1↑0⍴∊⍵:err eBIC
         ⍝ ⍺ a string, treat as: ⍺,1 BIC ⍵
           0≠1↑0⍴⍺:⍺,matchBiCalls ⍵           ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
-     
+
           ⍺=2:matchFnRep ⎕NR ⍵       ⍝ Compile function named ⍵
           ⍺=¯2:matchFnRep ⍵          ⍝ Compile function whose ⎕NR is ⍵
           ⍺=0:matchBiCalls ⍵         ⍝ Compile string ⍵ and return compiled string
@@ -833,7 +840,7 @@
                       ↑dm0 dm1(' ',dm2)
                   }⎕DMX
               :EndTrap
-     
+
           :Else
      interrupt:
               l←≢⍞←'Interrupted. Exit? Y/N [Yes] '
@@ -843,7 +850,7 @@
     ∇
 
     ∇ {html}←{fmt}alert msg;FMTjs
-     
+
       html←'<!DOCTYPE HTML><html><body><p></p><script>'
       html,←'alert(''⍞ALERT⍞'');</script><p></p></body></html>'   ⍝ ⍞ALERT⍞ replaced by string modified from <msg>
       FMTjs←{⍺←⊢ ⋄ ⎕IO←0
@@ -857,15 +864,15 @@
           }∘{hexD[16⊥⍣¯1⊣⎕UCS ⍵]}¨                     ⍝ returns minimal hex digits for each char passed.
                                                   ⍝ ⍵: an APL object in the domain of ⎕FMT.
           msg←¯1↓,(⍺ ⎕FMT ⍵),⎕UCS 13                   ⍝ msg: map ⍵ to a flat char. vector with line separators.
-     
+
           unsafe←~msg∊safe                             ⍝ unsafe: 0 or more chars to be encoded.
           av←msg∊avoid
           (unsafe/msg)←c2hjs unsafe/msg                ⍝ msg: map unsafe char scalars to enclosed strings.
           ∊msg                                         ⍝ msg: flattened down again
       }
-     
+
       :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf
-     
+
       html←'⍞ALERT⍞'⎕R(fmt FMTjs msg)⊣html
                                                   ⍝ Run in own thread so alert window stays open after fn exit.
       ns←#.⎕NS''                                 ⍝ Run renderer in anonymous namespace in user space-- don't clutter user space...
@@ -888,11 +895,11 @@
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
           ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
       }
-     
+
       opt←('Mode' 'M')('EOL' 'LF')('IC' 1)('UCP' 1)('DotAll' 1)
       pat←'^ (?: \h* ⍝?:BI \b \N*$) (.*?) (?: \R ⍝?:ENDBI \b \N*$)'~' '
       callerCode←(1+⎕LC⊃⍨1+⎕IO)↓⎕NR callerNm←⎕SI⊃⍨1+⎕IO
-     
+
       cloneNm←callerNm,'__BigInteger_TEMP'
       callback←cloneNm,' ⋄ →0'
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
