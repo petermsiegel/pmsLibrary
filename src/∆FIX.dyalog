@@ -9,7 +9,7 @@
  ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
  ;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog APL preprocessor (rev. Nov 11 )
+ ⍝  A Dyalog APL preprocessor  (rev. Nov 11 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
