@@ -164,13 +164,12 @@
          ns.⎕PATH←'##'
          ns.CTL←CTL
          ns.DICT←DICT
-         ⍝ Right now we don't do anything with ns.skip
          ⍝    0 - <action> handles skips; call it, whether skip active or not.
          ⍝    1 - If skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
          ⍝    2 - If skip: don't call <action>; return: ⍵ ∆FIELD 0
          ns.(info skip)←2⍴(⊆⍺),0      ⍝ Default skip: 0
          ns.pRaw←⍵                    ⍝ For debugging
-         ns.pats←eval ⍵       ⍝ xx-- allow spaces in [...] pats.
+         ns.pats←eval ⍵
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
 
         ⍝  ⎕←'>>>' ⋄ ⎕←ns.info ⋄ ⎕←ns.pats
@@ -186,31 +185,19 @@
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
-
-        ⍝
-        ⍝  ∆←{⍺←' '
-        ⍝      ⎕←'> Matched: "',ns.info,'"'
-        ⍝      ⎕←'  String:  "',(⍵ ∆FIELD 0),'"'
-        ⍝      w←∊(⊂'\n')@(NL∘=)⊣⍵
-        ⍝      ⎕←⍺,' With:    "',w,'"'
-        ⍝      ⍵
-        ⍝  }
-         ∆←⊢  ⍝ For debugging/testing only...
-
          CTL.skip∧×ns.skip:ns.skip{
              ⍺=1:0 ∆COM ⍵ ∆FIELD 0
              ⍺=2:⍵ ∆FIELD 0
              ∘LOGIC ERROR:UNREACHABLE
          }⍵
-
-         3=ns.⎕NC'action':'F'∆ ns ns.action ⍵          ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴ns.action:'T'∆∊ns.action              ⍝ text? Return as is...
-         0=ns.action:'P'∆ ⍵ ∆FIELD ns.action           ⍝ Show passthru
-         'F'∆ ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
+         3=ns.⎕NC'action':ns ns.action ⍵           ⍝ m.action is a fn. Else a var.
+         ' '=1↑0⍴ns.action:∊ns.action              ⍝ text? Return as is...
+         0=ns.action: ⍵ ∆FIELD ns.action           ⍝ Show passthru
+          ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
      }
      eval←{
-         pfx←'(?xx)'               ⍝ PCRE prefix -- required default!
-         str,⍨←pfx/⍨~1↑pfx⍷str←⍵   ⍝ Add prefix if not already there...
+         pfx←'(?xx)'                               ⍝ PCRE prefix -- required default!
+         str,⍨←pfx/⍨~1↑pfx⍷str←⍵                   ⍝ Add prefix if not already there...
          ~'⍎'∊str:str
          str≢res←'(?<!\\)⍎(\w+)'⎕R{
              0::f1
@@ -258,15 +245,12 @@
        ⍝  [2] ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
        ⍝  [3] 'one catalog cat alog'
        ⍝  [4] ('one catalog cat',(⎕UCS 10),'alog')
-
          str sfx←⍵ ∆FIELD 1 2
          sfx←1↑sfx,q←⍬⍴1↑str   ⍝ Suffix is, by default, the quote itself. q is a scalar.
          ~sfx∊'L''"':11 ⎕SIGNAL⍨'∆FIX: Invalid string suffix: <',sfx,'> on ',⍵ ∆FIELD 0
-
          deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
          enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
          dq2sq←{SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
-
        ⍝ Here, we handle ellipses at linend within SQ or DQ quotes as special:
        ⍝ Any spaces BEFORE them are preserved. If none, the next line is juxtaposed w/o spaces.
        ⍝ Not clear this (identical) behavior is what we want for SQ and DQ quotes.
@@ -276,7 +260,6 @@
        ⍝          'anything ...$  marks a continuation line.
          ellipsesP←'(?:\…|\.{2,})$\s*'
          str←ellipsesP ⎕R''⍠OPTS⊣str
-
          str←dq2sq⍣(q=DQ)⊣str
          ~NL∊str:str
          sfx{
@@ -400,14 +383,14 @@
            ⍝    leading blanks on the next line are ignored;
            ⍝ 3) When a semicolon appears at the end of a line (before opt'l comments),
            ⍝    the next line is appended after the semicolon.
-
+           ⍝ ------------------------------------
            ⍝ Comments on their own line are kept.
              'COMMENT FULL'(0 register)'^ \h* ⍝ .* $'
            ⍝ Multi-line strings:
            ⍝ Handles:
            ⍝  1. DQ strings (linends → newlines, ignoring trailing blanks)
            ⍝  2. SQ strings (linends → ' '
-           ⍝  3. .. continuation symbols within strings.
+           ⍝  3. .. continuation symbols (at the end of the line) within strings.
            ⍝  4. ..L (and future) suffixes on strings:  "example"..L or 'test'..L
            ⍝ See stringAction above.
              'STRINGS'stringAction register specialStringP
@@ -562,7 +545,6 @@
              defS←'⍎directiveP  DEF(?:INE)? \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
              'DEF(INE)' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 k v←⍵ ∆FIELD¨0 1 2
                ⍝ Replace leading and trailing blanks with single space
                  v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵ ⋄ ⍵}v
@@ -574,7 +556,6 @@
             ⍝ EVAL name ← value   ⍝ (synonym)
              'LET~EVAL' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 k vIn←⍵ ∆FIELD¨0 1 2
                  0::{
                      ⎕←'>>> VALUE ERROR: ',f0
@@ -594,7 +575,6 @@
             ⍝    ::PRAGMA FENCE←'⍙F⍙'
              'PRAGMA' 1{
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 k vIn←⍵ ∆FIELD¨0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
                  TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
                  _←DICT.validate k
@@ -609,7 +589,6 @@
            ⍝ UNDEF stmt
              'UNDEF' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  f0 k←⍵ ∆FIELD¨0 1
                  _←DICT.del k
                  ∆COM f0
@@ -618,7 +597,6 @@
            ⍝ Generates a preprocessor error signal...
              'ERROR' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  line num msg←⍵ ∆FIELD¨0 1 2
                  num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
                  ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
@@ -628,7 +606,6 @@
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  line msg←⍵ ∆FIELD¨0 1
                  ⎕←box msg
                  ∆COM line
@@ -657,11 +634,9 @@
            ⍝ name..Q  →  'name' (after any macro substitution)
              'name..cmd' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-
                  nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
                  nm←subMacro nm
-
                  cmd≡'ENV':' ',q,(getenv nm),q,' '
                  cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
                  cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
@@ -678,7 +653,6 @@
              atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
                ⍝  CTL.skip:⍵ ∆FIELD 0
-
                  atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
                  atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
@@ -712,11 +686,9 @@
                  (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
-
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL.skip
-
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕DICT.get k
@@ -728,7 +700,6 @@
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
-
                  ##.PRAGMA_FENCE,'←'
              }register'^ \h* ← | (?<=[()\[\]{};:⋄]) \h* ←  '
          :EndSection
@@ -791,7 +762,6 @@
              stackFlag←⍺⍺
              saveStacks←{⍵:CTL.save,←⊂CTL.(stack skip) ⋄ CTL.(stack skip)←1 0 ⋄ ''}
              restoreStacks←{⍵:CTL.(save←¯1↓save⊣stack skip←⊃⌽save) ⋄ ''}
-
              _←saveStacks stackFlag
              res←⍺{
                  0=≢⍺:⍵
