@@ -2,10 +2,12 @@
 ::DEFINE VERBOSE←1
 
 ::IFDEF VERBOSE
-     ::DEFINE note←___←1⊣⎕
+     ::DEFINEL note←___←1⊣⎕←
 ::ELSE
-     ::DEFINE note←___
+     ::DEFINEL note←___
 ::END 
+ 
+ note 'abc'
  
  1 2 3
  ::MSG OK
