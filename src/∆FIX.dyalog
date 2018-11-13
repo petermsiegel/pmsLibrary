@@ -9,7 +9,7 @@
  ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
  ;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
- ⍝ A Dyalog APL preprocessor (rev. Nov 11 )
+ ⍝  A Dyalog APL preprocessor (rev. Nov 11 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
@@ -157,11 +157,13 @@
      }
 ⍝-------------------------------------------------------------------------------------------
 ⍝ Pattern Building Routines...
-     ⎕FX'MBegin' 'Match←⍬'
+     ⎕SHADOW'MScanName'
+     ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
      ⎕FX'm←MEnd' 'm←Match'
      register←{⍺←'[',(⍕1+≢Match),']' 1
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
+         ns.MScanName←MScanName  ⍝ Global → local
          ns.CTL←CTL
          ns.DICT←DICT
          ⍝    0 - <action> handles skips; call it, whether skip active or not.
@@ -192,8 +194,8 @@
          }⍵
          3=ns.⎕NC'action':ns ns.action ⍵           ⍝ m.action is a fn. Else a var.
          ' '=1↑0⍴ns.action:∊ns.action              ⍝ text? Return as is...
-         0=ns.action: ⍵ ∆FIELD ns.action           ⍝ Show passthru
-          ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
+         0=ns.action:⍵ ∆FIELD ns.action           ⍝ Show passthru
+         ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
      }
      eval←{
          pfx←'(?xx)'                               ⍝ PCRE prefix -- required default!
@@ -375,7 +377,7 @@
 
      :Section Setup Scans
          :Section PreScan1
-             MBegin
+             MBegin'PreScan1'
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
            ⍝ 1) Within multiline strings, newlines are treated specially (q.v.);
            ⍝ 2) Ellipses-- Unicode … or .{2,}-- in code or strings,
@@ -414,7 +416,7 @@
              PreScan1←MEnd
          :EndSection
          :Section PreScan2
-             MBegin
+             MBegin'PreScan2'
            ⍝ A lot of processing to handle multi-line parens or brackets ...
              'STRINGS'(0 register)stringP                ⍝ Skip
              'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
@@ -429,15 +431,16 @@
          :EndSection
 
          :Section MainScan1
-             MBegin
+             MBegin'MainScan1'
             ⍝ Comments
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF stmts
-             'IFDEF+IFNDEF' 1{
+             'IF(N)DEF' 1{
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
                  CTL.stack,←~⍣not⊣DICT.defined name
                  CTL.skip←~⊃⌽CTL.stack
+                 ⎕←'IFDEF skip: ',CTL.skip
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP  IF(N?)DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
@@ -457,6 +460,7 @@
                  code2←DICT.ns{⍺⍎⍵}code1
                     ⍝ ⎕←'::IF code2 ',code2
                  CTL.skip←~CTL.stack,←notZero code2  ⍝ (is code2 non-zero?)
+                 ⎕←'IF skip: ',CTL.skip
                  _←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  (~CTL.skip)∆COM _
              }register'⍎directiveP IF \b \h* (.*) $'
@@ -474,6 +478,7 @@
                  code2←DICT.ns{⍺⍎⍵}code1
                ⍝ Elseif: unlike IF, replace last stack entry, don't push
                  CTL.skip←~(⊃⌽CTL.stack)←notZero code2
+                 ⎕←'ELSEIF skip: ',CTL.skip
                  _←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  (~CTL.skip)∆COM _
              }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
@@ -483,23 +488,24 @@
                  f0 not name←⍵ ∆FIELD¨0 1 2
                  not←⍬⍴not∊'nN'
                 ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
-                 (⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
-                 CTL.skip←~⊃⌽CTL.stack
+                 CTL.skip←~(⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
+                 ⎕←'ELSEIFDEF skip: ',CTL.skip
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP  EL(?:SE)IF(N?)DEF\b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
-                 CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
                  f0←⍵ ∆FIELD 0
+                 CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
+                 ⎕←'ELSEIFDEF skip: ',CTL.skip
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
-                 oldskip←CTL.skip
+                 oldSkip←CTL.skip
                  CTL.skip←~⊃⌽CTL.stack⊣CTL.stack↓⍨←¯1
-
-                 (~oldskip)∆COM f0
+                 ⎕←'END skip: ',CTL.skip,' oldSkip:',oldSkip
+                 (~oldSkip)∆COM f0
              }register'⍎directiveP  END  (?: IF  (?:DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
@@ -542,14 +548,16 @@
            ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
            ⍝     ::DEFINE name       field1=name, field2 is null string.
            ⍝     ::DEFINE name ← ... field1=name, field2 is rest of line after arrow/spaces
-             defS←'⍎directiveP  DEF(?:INE)? \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
+           ⍝ DEFINEL (L for literal or DEFINER for raw):
+           ⍝     Don't add parens around code sequences outside parens...
+             defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
              'DEF(INE)' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 k v←⍵ ∆FIELD¨0 1 2
+                 f0 l k v←⍵ ∆FIELD¨0 1 2 3 ⋄ litFlag←(l∊'lL')/⎕UCS 0 ⍝ Prefix a null if literal!
                ⍝ Replace leading and trailing blanks with single space
                  v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵ ⋄ ⍵}v
-                 v←⍕(0 doScan)v
-                 _←DICT.set k v
+                 v←⍕(1 doScan)v
+                 _←DICT.set k(litFlag,v)
                  ∆COM f0
              }register defS
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
@@ -693,7 +701,9 @@
                  k←⍵ ∆FIELD 1
                  v←⍕DICT.get k
                  0=≢v:k
-                 '{(['∊⍨1↑v:v      ⍝ Don't wrap (...) around already wrapped strings.
+                 v1←1↑v ⋄ isLit←⎕UCS 0
+                 v1∊isLit:1↓v   ⍝ Literal!
+                 v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
              }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
@@ -701,7 +711,7 @@
              'ASSIGN' 2{
                 ⍝ CTL.skip:⍵ ∆FIELD 0
                  ##.PRAGMA_FENCE,'←'
-             }register'^ \h* ← | (?<=[()\[\]{};:⋄]) \h* ←  '
+             }register'^ \h* ← | (?<=[(\[{;:⋄]) \h* ←  '
          :EndSection
          MainScan1←MEnd
      :EndSection
@@ -713,7 +723,7 @@
      ⍝       - at least one semicolon or
      ⍝       - be exactly  \( \s* \), e.g. () or (  ).
      ⍝ Parenthetical expressions without semicolons are standard APL.
-         MBegin
+         MBegin'List Scan'
          Par←⎕NS'' ⋄ Par.enStack←0
          'COMMENTS FULL' 0(0 register)'^ \h* ⍝ .* $'
          'STRINGS' 0(0 register)'⍎sqStringP'
@@ -753,6 +763,7 @@
      :Section Define Scans
      ⍝ To scan simple expressions:
      ⍝   code← [PreScan1 PreScan2] MainScan1 (⍺⍺ doScan)⊣ code
+     ⍝          ⍺:    MainScan1 (default) or list of scans in order
      ⍝          ⍺⍺=1: Save and restore the IF and CTL.skip stacks during use.
      ⍝          ⍺⍺=0: Maintain existing stacks
          CTL.(stack skip save)←1 0 ⍬
@@ -760,13 +771,15 @@
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              ⍺←MainScan1       ⍝ Default is to omit the prescan
              stackFlag←⍺⍺
-             saveStacks←{⍵:CTL.save,←⊂CTL.(stack skip) ⋄ CTL.(stack skip)←1 0 ⋄ ''}
-             restoreStacks←{⍵:CTL.(save←¯1↓save⊣stack skip←⊃⌽save) ⋄ ''}
+             ⋄ saveStacks←{⍵:1⊣CTL.save,←⊂CTL.(stack skip) ⋄ CTL.(stack skip)←1 0 ⋄ 0}
+             ⋄ restoreStacks←{⍵:1⊣CTL.(save←¯1↓save⊣stack skip←⊃⌽save) ⋄ 0}
              _←saveStacks stackFlag
              res←⍺{
                  0=≢⍺:⍵
                  scan←⊃⍺
+                ⍝  ⎕←'> Starting Scan: ',(⊃scan).MScanName
                  _code←scan.pats ⎕R(scan MActions)⍠OPTS⊣⍵
+                ⍝  ⎕←'< Ending Scan: ',(⊃scan).MScanName
                  (1↓⍺)∇ _code
              }⍵
              res⊣restoreStacks stackFlag

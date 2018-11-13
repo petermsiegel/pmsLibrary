@@ -1,11 +1,12 @@
 ﻿:namespace demoBigInt
+⍝
 ::DEFINE VERBOSE←1
 
 ⍝ ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
 ::IF VERBOSE
-     ::define note←___←1#⊣⎕←
+     ::definel note←___←1#⊣⎕←
 ::Else
-     ::define note←___←
+     ::definel note←___←
 ::ENDIF
 ⍝
     ∇ {_}←loadHelp
@@ -130,7 +131,7 @@
   ⍝-------------------------------------------------------------------------------+⍝
 ::DEFINE  DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
 
-::IF ~DEBUG  
+::IF ~DEBUG
     ⎕TRAP←911 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
 ::ENDIF
 
