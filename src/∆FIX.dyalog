@@ -36,6 +36,7 @@
  ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
  ⍝            1: Omit (⍝❌) paths not taken
  ⍝            2: Omit also (⍝🅿️) paths taken (leave other user comments)
+ ⍝            3: Remove all comments of any type
  ⍝
  ⍝ DEBUG:     0: not debug mode (default).
  ⍝            1: debug mode. ⎕SIGNALs will not be trapped.
@@ -46,7 +47,7 @@
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
  ⎕IO ⎕ML←0 1
  OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
- '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 3 2 2
+ '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
 
  TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
  CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
@@ -364,8 +365,9 @@
            ⍝ Tradfn header with leading ∇.
            ⍝ (To be treated as a header, it must have one alpha char after ∇.)
            ⍝ Could occur on any line...
-             code←'(?x)^ \h* ∇ \h* \w [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
-                 SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+           ⍝                 ∇     lets|{lets}|(lets) - minimal check for fn hdr
+             code←'(?x)^ \h* ∇ \h* [\w\{\(] [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
+                 '⍝⍝⍝FN⍝⍝⍝',CR,SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
              }⍠OPTS⊣code
          :Else
            ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
@@ -386,8 +388,12 @@
            ⍝ 3) When a semicolon appears at the end of a line (before opt'l comments),
            ⍝    the next line is appended after the semicolon.
            ⍝ ------------------------------------
-           ⍝ Comments on their own line are kept.
-             'COMMENT FULL'(0 register)'^ \h* ⍝ .* $'
+           ⍝ Comments on their own line are kept, unless COM is 3
+             :If COMSPEC≠3
+                 'COMMENT FULL (KEEP)'(0 register)'^ \h* ⍝ .* $'
+             :Else
+                 'COMMENT FULL (OMIT)'(''register)'^ \h* ⍝ .* $'
+             :EndIf
            ⍝ Multi-line strings:
            ⍝ Handles:
            ⍝  1. DQ strings (linends → newlines, ignoring trailing blanks)
@@ -794,6 +800,8 @@
 
        ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
+              ⍝ Even if COMPSPEC=3, we have generated new Case 2 comments ⍝[❌🅿️]
+                :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
