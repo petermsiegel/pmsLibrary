@@ -183,16 +183,17 @@
      ⎕SHADOW'MScanName'
      ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
      ⎕FX'm←MEnd' 'm←Match'
-     register←{⍺←'[',(⍕1+≢Match),']' 1
+     register←{
+         ⍺←'[',(⍕1+≢Match),']' 1
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
          ns.MScanName←MScanName  ⍝ Global → local
          ns.CTL←CTL
          ns.DICT←DICT
-         ⍝    0 - <action> handles skips; call it, whether skip active or not.
-         ⍝    1 - If skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
-         ⍝    2 - If skip: don't call <action>; return: ⍵ ∆FIELD 0
-         ns.(info skip)←2⍴(⊆⍺),0      ⍝ Default skip: 0
+         ⍝    0 - <action> handles skips; call <action>, whether CTL.skip active or not.
+         ⍝    1 - If CTL.skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
+         ⍝    2 - If CTL.skip: don't call <action>; return: ⍵ ∆FIELD 0
+         ns.(info skipFlag)←2⍴(⊆⍺),0  ⍝ Default skipFlag: 0
          ns.pRaw←⍵                    ⍝ For debugging
          ns.pats←eval ⍵
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
@@ -210,24 +211,28 @@
          pn←⍵.PatternNum
          pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
          ns←pn⊃match
-         CTL.skip∧×ns.skip:ns.skip{
+       ⍝ If CTL.skip, i.e. we have code in an :IF / :THEN path not taken,
+       ⍝ we can immediately take required action if skipFlag>0.
+         CTL.skip∧×ns.skipFlag:ns.skipFlag{
              ⍺=1:0 ∆COM ⍵ ∆FIELD 0
              ⍺=2:⍵ ∆FIELD 0
              ∘LOGIC ERROR:UNREACHABLE
-         }⍵
-         3=ns.⎕NC'action':ns ns.action ⍵           ⍝ m.action is a fn. Else a var.
-         ' '=1↑0⍴ns.action:∊ns.action              ⍝ text? Return as is...
-         0=ns.action:⍵ ∆FIELD ns.action           ⍝ Show passthru
-         ⍵ ∆FIELD ns.action                       ⍝ Else m.action is a field number...
+         }⍵                                       ⍝ ↓ What is ns.action?
+         3=ns.⎕NC'action':ns ns.action ⍵          ⍝ ... a fn, call it.
+         ' '=1↑0⍴ns.action:∊ns.action             ⍝ ... text? Return as is...
+         0=ns.action:⍵ ∆FIELD ns.action           ⍝ ... number 0: Just passthru, i.e. return as is.
+         ⍵ ∆FIELD ns.action                       ⍝ Else... m.action is a PCRE field number to return.
      }
-     eval←{
-         pfx←'(?xx)'                               ⍝ PCRE prefix -- required default!
-         str,⍨←pfx/⍨~1↑pfx⍷str←⍵                   ⍝ Add prefix if not already there...
+   ⍝ A recursive loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A'. Don't do that.
+     eval←{⍺←MAXEVAL←10
+         ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥MAXEVAL times' 911
+         pfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
+         str,⍨←pfx/⍨~1↑pfx⍷str←⍵                 ⍝ Add prefix if not already there...
          ~'⍎'∊str:str
-         str≢res←'(?<!\\)⍎(\w+)'⎕R{
+         str≢res←'(?<!\\)⍎(\w+)'⎕R{              ⍝ Keep substituting until no more ⍎name
              0::f1
              ⍎f1←⍵ ∆FIELD 1
-         }⍠('UCP' 1)⊣str:∇ res
+         }⍠('UCP' 1)⊣str:(⍺-1)∇ res
          ⍵
      }
      ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
@@ -442,12 +447,27 @@
            ⍝ A lot of processing to handle multi-line parens or brackets ...
              'STRINGS'(0 register)stringP                ⍝ Skip
              'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
-            ⍝ ::DOC [pat]... \n...\n ::END(DOC) pat
-            ⍝    The terminating pattern must match, except leading and trailing blanks are ignored.
-            ⍝    Text in between may be ANYthing-- ignored.
-             _←' ⍎directiveP DOC         \h+? ( .*? ) \h* $ \n (.*?\n)*'
-             _,←'⍎directiveP END(?:DOC)? \h+?  \1     \h* $ \n '
-             'COMMENTS DIRECTIVE'(''register)_
+            ⍝ ::DOC  [pat]... \n...\n ::END(DOC) pat
+            ⍝ ::SKIP [pat]... \n..\n ::END(SKIP) pat
+            ⍝ DOC: Skips everything between directives* ::DOC pat and ::ENDDOC pat,
+            ⍝      where DOC in both directives and pat must match exactly, including case,
+            ⍝      (leading/trailing blanks ignored); it may be blank.
+            ⍝      A simple ::END pat will also match, but not ::ENDSKIP pat.
+            ⍝ SKIP: Similarly, between directives* ::SKIP pat and ::ENDSKIP pat,
+            ⍝      allowing a simple ::END pat as well, but not ::ENDDOC pat.
+            ⍝ All statements in between are simply ignored.
+            ⍝ If you don't include any ENDDOC or ENDSKIP stmts, no <pat> is necessary.
+            ⍝ Useful for having test or optional code.
+            ⍝ * A directive must be first item on line after optl leading blanks.
+            ⍝     ::DOC mylist             ←|
+            ⍝      any code                ←|  ALL CONTENT SKIPPED.
+            ⍝     ::ENDDOC not mylist      ←|
+            ⍝     ::ENDDOC                 ←|
+             _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
+             'DOC/SKIP DIRECTIVE 1'(''register)_
+             _←' ⍎directiveP     (DOC|SKIP)  \h+ ( .*? ) \h* $ \n (?: .*?\n )*'
+             _,←'⍎directiveP END   \1?       \h+   \2    \h* $ \n '   ⍝ ?1-- match exact word and case.
+             'DOC/SKIP DIRECTIVE 2'(''register)_
              'Multiline () or []' 0{
                ⍝ Remove newlines and associated spaces in (...) and [...]
                ⍝ UNLESS inside quotes or braces!
@@ -467,10 +487,9 @@
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
                ⍝ PUSH stack
-                 CTL.stack,←~⍣not⊣DICT.defined name
-                 CTL.skip←~⊃⌽CTL.stack
+                 CTL.skip←~CTL.stack,←~⍣not⊣DICT.defined name
                  (~CTL.skip)∆COM f0
-             }register'⍎directiveP  IF(N?)DEF\b \h*(⍎longNameP) .* $'
+             }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
            ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
@@ -478,7 +497,7 @@
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
-                     CTL.skip←0 ⋄ CTL.stack,←1
+                     CTL.skip←~⊃⌽CTL.stack,←0
                      ⎕←NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
                  }code0
@@ -496,7 +515,7 @@
                  0::{
                    ⍝ Elseif: unlike IF, replace last stack entry, don't push
                    ⍝ Peek/poke stack
-                     CTL.skip←0 ⋄ (⊃⌽CTL.stack)←1
+                     CTL.skip←~(⊃⌽CTL.stack)←1
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
                  }code0
@@ -505,10 +524,9 @@
                ⍝ Elseif: unlike IF, replace last stack entry, don't push
                ⍝ Peek/poke stack
                  CTL.skip←~(⊃⌽CTL.stack)←notZero code2
-                 ⎕←'ELSEIF  stack poked:'CTL.stack
                  _←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  (~CTL.skip)∆COM _
-             }register'⍎directiveP  EL(?:SE)IF\b \h* (.*) $'
+             }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
              ⍝ EL(SE)IF(N)DEF stmts
              'EL(SE)IF(N)DEF' 0{
                  CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
@@ -516,16 +534,14 @@
                  not←⍬⍴not∊'nN'
                 ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
                 ⍝ Peek/poke Stack
-                 CTL.skip←~(⊃⌽CTL.stack)←~⍣not⊣DICT.defined name
-                 ⎕←'ELSEIFDEF  stack poked:'CTL.stack
+                 (⊃⌽CTL.stack)←~CTL.skip←⍣not⊣DICT.defined name
                  (~CTL.skip)∆COM f0
-             }register'⍎directiveP  EL(?:SE)IF(N?)DEF\b \h* (.*) $'
+             }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
                  f0←⍵ ∆FIELD 0
                ⍝ Peek/poke Stack
                  CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
-                 ⎕←'ELSEIFDEF skip: ',CTL.skip
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF, ENDIFNDEF
@@ -535,8 +551,9 @@
                      ⎕←box'Stmt invalid: ',⍵
                      '911 ⎕SIGNAL⍨ ''∆FIX ::END SYNTAX ERROR''',CR,0 ∆COM ⍵
                  }f0
+               ⍝ Save current skip for this ::END
                  oldSkip←CTL.skip
-               ⍝ Pop stack
+               ⍝ Pop stack and update skip
                  CTL.stack↓⍨←¯1
                  CTL.skip←~⊃⌽CTL.stack
                  (~oldSkip)∆COM f0
