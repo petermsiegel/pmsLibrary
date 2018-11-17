@@ -295,30 +295,24 @@
      }
      :If ⍬≡fileName
          SHOWCOMPILED←1
-         ⎕SHADOW'counter' 'line' 'lines' 'more'
-         lines←⍬ ⋄ counter←0
+         ⎕SHADOW'counter' 'line' 'lines' 'more' 'tFun'
+         lines counter tFun←⍬ 0 '_STDIN_'
          '> Enter input lines. Null line when done.'
-         ⎕←'    ∇ temp               ⍝ FIX temporary function'
+         ⎕←'    ∇ ',tFun,'            ⍝ ∆FIX temporary function'
          :While 1
              _←≢⍞←'[',(⍕counter←counter+1),'] '
-             :If 0≠≢line←_↓⍞
-                 lines,←⊂line
-             :Else
-                 :Leave
-             :EndIf
+             :If 0≠≢line←_↓⍞ ⋄ lines,←⊂line ⋄ :Else ⋄ :Leave ⋄ :EndIf
          :EndWhile
          ⎕←'    ∇'
-         fileName←(739⌶0),'/∆FIX_STDIN','.dyalog'
-         :If ×≢lines
-             1 ⎕NDELETE fileName
-             lines←(⊂'∇temp'),lines,(⊂,'∇')
-             (⊂lines)⎕NPUT fileName
+         fileName←(739⌶0),'/','#FIXstdin.dyalog'
+         :Trap 0
+             :If ×≢lines
+                 1 ⎕NDELETE fileName ⋄ lines←(⊂'∇',tFun),lines,(⊂,'∇') ⋄ (⊂lines)⎕NPUT fileName
+             :EndIf
              ⎕←↑⊃⎕NGET fileName 1
          :Else
-             :If ⎕NEXISTS fileName
-                 ⎕←↑⊃⎕NGET fileName 1
-             :EndIf
-         :EndIf
+             ⎕SIGNAL/('∆FIX: Error creating temporary file: ',fileName)11
+         :EndTrap
      :EndIf
      code←readFile fileName
  :EndSection Read In file or stdin
@@ -367,7 +361,7 @@
            ⍝ Could occur on any line...
            ⍝                 ∇     lets|{lets}|(lets) - minimal check for fn hdr
              code←'(?x)^ \h* ∇ \h* [\w\{\(] [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
-                 '⍝⍝⍝FN⍝⍝⍝',CR,SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
+                 SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
              }⍠OPTS⊣code
          :Else
            ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
@@ -426,6 +420,12 @@
            ⍝ A lot of processing to handle multi-line parens or brackets ...
              'STRINGS'(0 register)stringP                ⍝ Skip
              'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
+            ⍝ ::DOC [pat]... \n...\n ::END(DOC) pat
+            ⍝    The terminating pattern must match, except leading and trailing blanks are ignored.
+            ⍝    Text in between may be ANYthing-- ignored.
+             _←' ⍎directiveP DOC         \h+? ( .*? ) \h* $ \n (.*?\n)*'
+             _,←'⍎directiveP END(?:DOC)? \h+?  \1     \h* $ \n '
+             'COMMENTS DIRECTIVE'(''register)_
              'Multiline () or []' 0{
                ⍝ Remove newlines and associated spaces in (...) and [...]
                ⍝ UNLESS inside quotes or braces!
@@ -505,14 +505,17 @@
                  ⎕←'ELSEIFDEF skip: ',CTL.skip
                  (~CTL.skip)∆COM f0
              }register'⍎directiveP ELSE \b .* $'
-            ⍝ END, ENDIF, ENDIFDEF
+            ⍝ END, ENDIF, ENDIFDEF, ENDIFNDEF
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
                  oldSkip←CTL.skip
+                 1=≢CTL.stack:{
+                     ⎕←box'Stmt invalid: ',⍵
+                     '911 ⎕SIGNAL⍨NO,''∆FIX ::END SYNTAX ERROR'' ',CR,0 ∆COM ⍵
+                 }f0
                  CTL.skip←~⊃⌽CTL.stack⊣CTL.stack↓⍨←¯1
-                 ⎕←'END skip: ',CTL.skip,' oldSkip:',oldSkip
                  (~oldSkip)∆COM f0
-             }register'⍎directiveP  END  (?: IF  (?:DEF)? )? \b .* $'
+             }register'⍎directiveP  END  (?: IF  (?: N? DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
              'CINCLUDE' 1{
@@ -537,10 +540,10 @@
              'COND' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
-                 0=≢stmt~' ':0 ∆COM('[Statement field is null: ]')f0
+                 0=≢stmt~' ':0 ∆COM'No stmt to execute: 'f0
                  0::{
-                     ⎕←NO,'Unable to evaluate ',⍵
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
+                     ⎕←box'Unable to evaluate: ',⍵
+                     '911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
                  }f0
                  cond1←(0 doScan)cond0
                  cond2←DICT.ns{⍺⍎⍵}cond1
@@ -549,19 +552,24 @@
                  out1←bool ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
                  out2←CR,(NOc/⍨~bool),stmt
                  out1,out2
-             }register'⍎directiveP  COND \h+ ( ⍎parenP | [^\s]+ ) \h (⍎multiLineP) $'
+             }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
            ⍝ DEFINE name [ ← value]
            ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
-           ⍝     ::DEFINE name       field1=name, field2 is null string.
-           ⍝     ::DEFINE name ← ... field1=name, field2 is rest of line after arrow/spaces
+           ⍝     ::DEFINE name       field1=name, field3 is null string.
+           ⍝     ::DEFINE name ← ... field1=name, field3 is rest of line after arrow/spaces
            ⍝ DEFINEL (L for literal or DEFINER for raw):
            ⍝     Don't add parens around code sequences outside parens...
-             defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  \h* ← \h*  ( ⍎multiLineP ) )* $'
+             defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  (?: \h* ←)? \h*  ( ⍎multiLineP ) )? $'
              'DEF(INE)' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 l k v←⍵ ∆FIELD¨0 1 2 3 ⋄ litFlag←(l∊'lL')/⎕UCS 0 ⍝ Prefix a null if literal!
+                 f0 l k v←⍵ ∆FIELD¨0 1 2 3
+                 litFlag←(l∊'lLrR')/⎕UCS 0 ⍝ Prefix a null if literal!
                ⍝ Replace leading and trailing blanks with single space
-                 v←{'('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵ ⋄ ⍵}v
+                 v←{
+                     0=≢v:,'1'
+                     '('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵
+                     ⍵
+                 }v
                  v←⍕(1 doScan)v
                  _←DICT.set k(litFlag,v)
                  ∆COM f0
@@ -599,14 +607,13 @@
                      911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
                  }⍬
              }register'⍎directiveP  PRAGMA \b \h* (⍎longNameP) \h* ← \h* (.*) $'
-           ⍝ UNDEF stmt
-           ⍝ UNDEF stmt
+           ⍝ UNDEF(ine) stmt
              'UNDEF' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 k←⍵ ∆FIELD¨0 1
-                 _←DICT.del k
+                 _←DICT.del k⊣{⍵:⍬ ⋄⎕←box 'WARNING: obj to UNDEF was not defined: ',k}DICT.defined k
                  ∆COM f0
-             }register'⍎directiveP  UNDEF \b\h* (⍎longNameP) .* $'
+             }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
              'ERROR' 1{
@@ -801,7 +808,7 @@
        ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
               ⍝ Even if COMPSPEC=3, we have generated new Case 2 comments ⍝[❌🅿️]
-                :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+         :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
               ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
