@@ -4,7 +4,7 @@
  ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
  ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;DICT
  ;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
- ;getenv;h2d;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;notZero
+ ;getenv;h2d;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;ifTrue
  ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;specialStringP
  ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
  ;⎕IO;⎕ML;⎕PATH;⎕TRAP
@@ -53,7 +53,7 @@
  CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
  YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
  OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
- CTL←⎕NS''
+ CTL←⎕NS''  ⍝ See CTL services below
  PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
  ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
  ⍝ By default, private use Unicode E000If DEBUG, it's a smiley face.
@@ -63,11 +63,11 @@
 ⍝-------------------------------------------------------------------------------------------
    ⍝ getenv: Returns value of environment var.
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-   ⍝ notZero: Used in ::IFDEF/IFNDEF
+   ⍝ ifTrue: Used in ::IFDEF/IFNDEF
    ⍝ notZer0 ⍵: Returns 1 if ⍵ has 0 items (≢⍵) or if (,⍵) is neither (,0) nor (,⎕NULL).
-     notZero←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-     box←{                           ⍝ Box the simple text array ⍵.
-         2=|≡⍵:∇↑⍵
+     ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
+     box←{          ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
+         2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
          (⎕IO ⎕ML)←1 3 ⋄ ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
          ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
@@ -116,7 +116,27 @@
          (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
      }
 
-⍝-------------------------------------------------------------------------------------------
+⍝--------------------------------------------------------------------------
+⍝ CTL services
+⍝   stack and skip services. Most  return the last item on the stack.
+⍝   stacked item only 1 or 0
+     :With CTL                               ⍝ Returns...
+         ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
+         ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
+         ⎕FX's←peek' 's←⊃⌽stack'             ⍝ ... cur last
+         ⎕FX's←flip' 's←(⊃⌽stack)←~⊃⌽stack'  ⍝ ... last, after flipping bit
+         push←{stack,←⍵}                     ⍝ ... ⍵ as new last
+         poke←{(⊃⌽stack)←⍵}                  ⍝ ... ⍵ as newly replaced last
+         ⎕FX's←skip' 's←~⊃⌽stack'            ⍝ ... ~last
+       ⍝ Saving/restoring the stack
+         säve←⍬
+         saveIf←{~⍵:0 ⋄ säve,←⊂stack ⋄ stack←1 ⋄ 1}
+         restoreIf←{~⍵:0 ⋄ stack←⊃⌽säve ⋄ säve↓⍨←¯1 ⋄ 1}
+         :If DEBUG
+             ⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
+         :EndIf
+     :EndWith
+⍝--------------------------------------------------------------------------
    ⍝⍝⍝⍝ regexp related routines...
    ⍝ ∆PFX:   pfx ∇ lines
    ⍝    lines: a single string possibly containing newlines as line separators, OR
@@ -486,9 +506,11 @@
              'IF(N)DEF' 1{
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
-               ⍝ PUSH stack
-                 CTL.skip←~CTL.stack,←~⍣not⊣DICT.defined name
-                 (~CTL.skip)∆COM f0
+                 ifTrue←~⍣(≢not)⊣DICT.defined name
+                ⍝ PUSH stack
+                ⍝  CTL.skip←~CTL.stack,←~⍣not⊣DICT.defined name
+                ⍝  (~CTL.skip)∆COM f0
+                 f0 ∆COM⍨CTL.push ifTrue
              }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
            ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
@@ -497,25 +519,38 @@
                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
-                     CTL.skip←~⊃⌽CTL.stack,←0
+                     _←CTL.push 0            ⍝ Error-- option fails.
+                     ⍝ CTL.skip←~CTL.stack,←0
                      ⎕←NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
                  }code0
-                 code1←(0 doScan)code0
-                 code2←DICT.ns{⍺⍎⍵}code1
+                 code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
                ⍝ PUSH stack
-                 CTL.skip←~CTL.stack,←notZero code2        ⍝ is code2 non-zero?)
-                 _←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
-                 (~CTL.skip)∆COM _
+               ⍝ CTL.skip←~CTL.stack,←ifTrue code2        ⍝ is code2 non-zero?)
+               ⍝ (~CTL.skip)∆COM say
+                 show←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 show ∆COM⍨CTL.push ifTrue code2
              }register'⍎directiveP IF \b \h* (.*) $'
+            ⍝ EL(SE)IF(N)DEF stmts
+             'EL(SE)IF(N)DEF' 1{
+                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+                 f0 not name←⍵ ∆FIELD¨0 1 2
+                 ifTrue←~⍣(≢not)⊣DICT.defined name
+                ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
+                ⍝ Peek/poke Stack
+                ⍝(⊃⌽CTL.stack)←~CTL.skip←~⍣not⊣DICT.defined name
+                ⍝(~CTL.skip)∆COM f0
+                 f0 ∆COM⍨CTL.poke ifTrue
+             }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
-             'ELSEIF/ELIF' 0{
-                 CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
+             'ELSEIF/ELIF' 1{
+                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 code0←⍵ ∆FIELD¨0 1
                  0::{
                    ⍝ Elseif: unlike IF, replace last stack entry, don't push
                    ⍝ Peek/poke stack
-                     CTL.skip←~(⊃⌽CTL.stack)←1
+                     ⍝ CTL.skip←~(⊃⌽CTL.stack)←1
+                     _←CTL.poke 1
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
                  }code0
@@ -523,40 +558,32 @@
                  code2←DICT.ns{⍺⍎⍵}code1
                ⍝ Elseif: unlike IF, replace last stack entry, don't push
                ⍝ Peek/poke stack
-                 CTL.skip←~(⊃⌽CTL.stack)←notZero code2
-                 _←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
-                 (~CTL.skip)∆COM _
+                ⍝  CTL.skip←~(⊃⌽CTL.stack)←ifTrue code2
+                 show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 ⍝ (~CTL.skip)∆COM say
+                 show ∆COM⍨CTL.poke ifTrue code2
              }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
-             ⍝ EL(SE)IF(N)DEF stmts
-             'EL(SE)IF(N)DEF' 0{
-                 CTL.skip←⊃⌽CTL.stack:0 ∆COM ⍵ ∆FIELD 0
-                 f0 not name←⍵ ∆FIELD¨0 1 2
-                 not←⍬⍴not∊'nN'
-                ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
-                ⍝ Peek/poke Stack
-                 (⊃⌽CTL.stack)←~CTL.skip←⍣not⊣DICT.defined name
-                 (~CTL.skip)∆COM f0
-             }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
             ⍝ ELSE
              'ELSE' 0{
                  f0←⍵ ∆FIELD 0
                ⍝ Peek/poke Stack
-                 CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
-                 (~CTL.skip)∆COM f0
+               ⍝ CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
+               ⍝  (~CTL.skip)∆COM f0
+                 CTL.flip ∆COM f0    ⍝ Flip the bool value of most recent stack item
              }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF, ENDIFNDEF
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
-                 1=≢CTL.stack:{
+                ⍝ 1≥≢CTL.stack:
+                 CTL.stackEmpty:{
                      ⎕←box'Stmt invalid: ',⍵
-                     '911 ⎕SIGNAL⍨ ''∆FIX ::END SYNTAX ERROR''',CR,0 ∆COM ⍵
+                     '911 ⎕SIGNAL⍨ ''∆FIX ::END DOMAIN ERROR: out of scope.''',CR,0 ∆COM ⍵
                  }f0
-               ⍝ Save current skip for this ::END
-                 oldSkip←CTL.skip
-               ⍝ Pop stack and update skip
-                 CTL.stack↓⍨←¯1
-                 CTL.skip←~⊃⌽CTL.stack
-                 (~oldSkip)∆COM f0
+              ⍝   oldSkip←CTL.skip           ⍝ Save current skip for this ::END
+              ⍝   CTL.stack↓⍨←¯1             ⍝ Pop stack and update skip
+              ⍝   CTL.skip←~⊃⌽CTL.stack
+              ⍝   (~oldSkip)∆COM f0
+                 CTL.pop ∆COM f0
              }register'⍎directiveP  END  (?: IF  (?: N? DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
@@ -582,18 +609,15 @@
              'COND' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
-                 0=≢stmt~' ':0 ∆COM'No stmt to execute: 'f0
+                 0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
                  0::{
                      ⎕←box'Unable to evaluate: ',⍵
                      '911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
                  }f0
-                 cond1←(0 doScan)cond0
-                 cond2←DICT.ns{⍺⍎⍵}cond1
-                 bool←notZero cond2
+                 t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
                  stmt←⍕(0 doScan)stmt
-                 out1←bool ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
-                 out2←CR,(NOc/⍨~bool),stmt
-                 out1,out2
+                 show1←t ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
+                 show1,CR,(NOc/⍨~t),stmt
              }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
            ⍝ DEFINE name [ ← value]
            ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
@@ -826,14 +850,12 @@
      ⍝          ⍺:    MainScan1 (default) or list of scans in order
      ⍝          ⍺⍺=1: Save and restore the IF and CTL.skip stacks during use.
      ⍝          ⍺⍺=0: Maintain existing stacks
-         CTL.(stack skip save)←1 0 ⍬
+         CTL.stack←1
          doScan←{
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              ⍺←MainScan1       ⍝ Default is to omit the prescan
              stackFlag←⍺⍺
-             ⋄ saveStacks←{⍵:1⊣CTL.(stack skip←1 0⊣save,←⊂stack skip) ⋄ 0}
-             ⋄ restoreStacks←{⍵:1⊣CTL.(save←¯1↓save⊣stack skip←⊃⌽save) ⋄ 0}
-             _←saveStacks stackFlag
+             _←CTL.saveIf stackFlag
              res←⍺{
                  0=≢⍺:⍵
                  scan←⊃⍺
@@ -842,7 +864,7 @@
                 ⍝  ⎕←'< Ending Scan: ',(⊃scan).MScanName
                  (1↓⍺)∇ _code
              }⍵
-             res⊣restoreStacks stackFlag
+             res⊣CTL.restoreIf stackFlag
          }
      :EndSection Define Scans
 
