@@ -1,5 +1,5 @@
 ﻿ result←{specs}∆FIX fileName
- ;ALPH;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
+ ;ALPH;CalledFrom;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
  ;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
  ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
  ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;DICT
@@ -46,6 +46,8 @@
  ⍝            1: View the preprocessed code just before returning, via ⎕ED.
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
  ⎕IO ⎕ML←0 1
+ CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
+ ⎕←'The caller''s namespace is ',CalledFrom
  OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
  '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
 
@@ -458,6 +460,16 @@
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
              'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
+            ⍝ ::DOC  [pat]... \n...\n ::END(DOC) pat
+            ⍝ ::SKIP [pat]... \n..\n ::END(SKIP) pat
+            ⍝  Description: Preprocessor ignores all lines between matching directives:
+            ⍝  Match means: DOC..ENDDOC, DOC..END, SKIP..ENDSKIP, SKIP..ENDSKIP
+            ⍝  If [pat] is specified, it must match. Leading and trailing blanks are ignored.
+             _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
+             'DOC/SKIP DIRECTIVE 1'(''register)_
+             _←' ⍎directiveP     (DOC|SKIP)  \h+ ( .*? ) \h* $ \n (?: .*?\n )*'
+             _,←'⍎directiveP END   \1?       \h+   \2    \h* $  '   ⍝ ?1-- match exact word and case.
+             'DOC/SKIP DIRECTIVE 2'(''register)_
            ⍝ RHS Comments are ignored (removed)...
            ⍝  Not ideal, but makes further regexps simpler.
              'COMMENT RHS'(''register)'\h* ⍝ .* $'
@@ -468,16 +480,6 @@
            ⍝ A lot of processing to handle multi-line parens or brackets ...
              'STRINGS'(0 register)stringP                ⍝ Skip
              'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
-            ⍝ ::DOC  [pat]... \n...\n ::END(DOC) pat
-            ⍝ ::SKIP [pat]... \n..\n ::END(SKIP) pat
-            ⍝  Description: Preprocessor ignores all lines between matching directives:
-            ⍝  Match means: DOC..ENDDOC, DOC..END, SKIP..ENDSKIP, SKIP..ENDSKIP
-            ⍝  If [pat] is specified, it must match. Leading and trailing blanks are ignored.
-             _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
-             'DOC/SKIP DIRECTIVE 1'(''register)_
-             _←' ⍎directiveP     (DOC|SKIP)  \h+ ( .*? ) \h* $ \n (?: .*?\n )*'
-             _,←'⍎directiveP END   \1?       \h+   \2    \h* $ \n '   ⍝ ?1-- match exact word and case.
-             'DOC/SKIP DIRECTIVE 2'(''register)_
              'Multiline () or []' 0{
                ⍝ Remove newlines and associated spaces in (...) and [...]
                ⍝ UNLESS inside quotes or braces!
@@ -485,6 +487,41 @@
                ⍝ >>> RETHINK the logic here.
                  ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠OPTS⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
+           ⍝ ::CALL item
+           ⍝ SYNTAX: Take all lines between ::CALL\d* and ::END(CALL)\d* (see Note) and
+           ⍝    execute in the calling environment:
+           ⍝       ⍎'item lines'
+           ⍝       item:  Whataver was specified on the ::CALL line.
+           ⍝       lines: All lines in between are passed as a vector of char vectors, one per line.
+           ⍝       Your function MUST return a vector of vectors, a char matrix, or a string with NLs.
+           ⍝    Whatever you return will be inserted into the code stream AS IS.
+           ⍝    ---------------
+           ⍝    Note:
+           ⍝      ::CALL\d* If digits dd are specified on the CALL, ∆FIX will search for
+           ⍝      ::ENDdd or ::ENDCALLdd to balance-- all lines in between become variable line.
+           ⍝ EXAMPLE:
+           ⍝   This illustrative (if impractical) sequence:
+           ⍝    |  ::CALL2 {⌽↑⍵}
+           ⍝    |    line1
+           ⍝    |    this is the 2nd
+           ⍝    |    12345
+           ⍝    | ::ENDCALL2    ⍝ or ::END2
+           ⍝   yields this code in the ∆FIXed file:
+           ⍝    | '          1enil'
+           ⍝    | 'dn2 eht si siht'
+           ⍝    | '          54321'
+           ⍝   If the dfn above is named 'backwards" and is accessible from the calling environment,
+           ⍝   e.g. via ⎕PATH, the ::CALL line may appear as:
+           ⍝    |  ::CALL2 backwards
+             'CALL/nn' 0{
+                 f0 cmd lines←⍵ ∆FIELD 0 2 3
+                 cmd{0::0 ∆COM msg,CR,f0⊣⎕←box msg←'::CALL: Compile time error:'
+                     res←##.CalledFrom⍎⍺,' ⍵'          ⍝ CalledFrom-- calling namespace.
+                     2=|≡res:1↓∊NL,¨res
+                     2=⍴⍴res:1↓∊NL,res
+                     res
+                 }NL(≠⊆⊢)lines   ⍝ Convert to vector of char vectors
+             }register'⍎directiveP CALL(\d*)\h* (.*) $ \n ((?:  .*? \n)*) ^ ⍎directiveP END(?:CALL)?\1.*$'
              PreScan2←MEnd
          :EndSection
 
@@ -494,7 +531,7 @@
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF/IFNDEF stmts
              'IF(N)DEF' 1{
-                 f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
+                 f0 not name←⍵ ∆FIELD 0 1 2 ⋄ not←⍬⍴not∊'nN'
                  ifTrue←~⍣(≢not)⊣DICT.defined name
                  f0 ∆COM⍨CTL.push ifTrue
              }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
