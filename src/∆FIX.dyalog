@@ -515,7 +515,7 @@
            ⍝    |  ::CALL2 backwards
              'CALL/nn' 0{
                  f0 cmd lines←⍵ ∆FIELD 0 2 3
-                 cmd{0::∊(0 ∆COM msg),CR,∆V2S NOc ∆PFX f0⊣⎕←box msg⊣msg←'⍝ CALL Compile Time Execution Error'
+                 cmd{0::0 ∆COM msg,NL,f0⊣⎕←box msg⊣msg←'⍝ CALL Compile Time Execution Error'
                      res←##.CalledFrom⍎⍺,' ⍵'          ⍝ CalledFrom-- calling namespace.
                      2=|≡res:1↓∊NL,¨res
                      2=⍴⍴res:1↓∊NL,res
