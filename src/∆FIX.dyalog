@@ -70,9 +70,9 @@
    ⍝ (See IF(N)DEF.)
      ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
      box←{  ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
-          (⎕IO ⎕ML)←1 3
-          2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
-          ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
+         (⎕IO ⎕ML)←1 3
+         2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
+         ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
          ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
          z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
@@ -499,7 +499,7 @@
                  f0 ∆COM⍨CTL.push ifTrue
              }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
-            'IF' 1{
+             'IF' 1{
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
                      _←CTL.push 0            ⍝ Error-- option fails.
@@ -632,7 +632,7 @@
              'UNDEF' 1{
                  f0 k←⍵ ∆FIELD 0 1
                  _←DICT.del k⊣{
-                   ⍵:⍬ ⋄ ⎕←box'WARNING: obj to UNDEF was not defined: ',k
+                     ⍵:⍬ ⋄ ⎕←box'WARNING: obj to UNDEF was not defined: ',k
                  }DICT.defined k
                  ∆COM f0
              }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
@@ -693,7 +693,7 @@
              atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
              atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
-                   atoms arrow←⍵ ∆FIELD 1 2
+                 atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
                  atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
@@ -714,9 +714,13 @@
             ⍝ Hexadecimal integers...
             ⍝ See ⎕UdhhX for hexadecimal Unicode constants
              'HEX INTs' 2{
-                ⍝ CTL.skip:⍵ ∆FIELD 0
                  ⍕h2d ⍵ ∆FIELD 0
              }register'(?<![⍎ALPH\d])  ¯? \d [\dA-F]* X \b'
+            ⍝ Big integers...
+            ⍝ ¯?dddddddddI  →  ('¯?ddddddd')
+             'BigInts' 2{
+                 '''','''',⍨⍵ ∆FIELD 1
+             }register'(?<![⍎ALPH\d])  (¯? \d+) I \b'
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
