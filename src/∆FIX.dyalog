@@ -63,12 +63,16 @@
 ⍝-------------------------------------------------------------------------------------------
    ⍝ getenv: Returns value of environment var.
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-   ⍝ ifTrue: Used in ::IFDEF/IFNDEF
-   ⍝ notZer0 ⍵: Returns 1 if ⍵ has 0 items (≢⍵) or if (,⍵) is neither (,0) nor (,⎕NULL).
+   ⍝ ifTrue ⍵: Returns 1
+   ⍝          iff ⍵ has length 0 (≢⍵) OR if (,⍵) is neither (,0) nor (,⎕NULL).
+   ⍝       1: (1 2) ('0') (' ') ('XXX')
+   ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
+   ⍝ (See IF(N)DEF.)
      ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-     box←{          ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
-         2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
-         (⎕IO ⎕ML)←1 3 ⋄ ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
+     box←{  ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
+          (⎕IO ⎕ML)←1 3
+          2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
+          ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
          ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
          z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
@@ -217,9 +221,6 @@
          ns.pRaw←⍵                    ⍝ For debugging
          ns.pats←eval ⍵
          ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
-
-        ⍝  ⎕←'>>>' ⋄ ⎕←ns.info ⋄ ⎕←ns.pats
-
          1:Match,←ns
      }
      ⍝ MActions: Actions A may be char: replace match with A
@@ -469,20 +470,9 @@
              'COMMENTS FULL'(0 register)'^\h* ⍝ .* $'     ⍝ Skip
             ⍝ ::DOC  [pat]... \n...\n ::END(DOC) pat
             ⍝ ::SKIP [pat]... \n..\n ::END(SKIP) pat
-            ⍝ DOC: Skips everything between directives* ::DOC pat and ::ENDDOC pat,
-            ⍝      where DOC in both directives and pat must match exactly, including case,
-            ⍝      (leading/trailing blanks ignored); it may be blank.
-            ⍝      A simple ::END pat will also match, but not ::ENDSKIP pat.
-            ⍝ SKIP: Similarly, between directives* ::SKIP pat and ::ENDSKIP pat,
-            ⍝      allowing a simple ::END pat as well, but not ::ENDDOC pat.
-            ⍝ All statements in between are simply ignored.
-            ⍝ If you don't include any ENDDOC or ENDSKIP stmts, no <pat> is necessary.
-            ⍝ Useful for having test or optional code.
-            ⍝ * A directive must be first item on line after optl leading blanks.
-            ⍝     ::DOC mylist             ←|
-            ⍝      any code                ←|  ALL CONTENT SKIPPED.
-            ⍝     ::ENDDOC not mylist      ←|
-            ⍝     ::ENDDOC                 ←|
+            ⍝  Description: Preprocessor ignores all lines between matching directives:
+            ⍝  Match means: DOC..ENDDOC, DOC..END, SKIP..ENDSKIP, SKIP..ENDSKIP
+            ⍝  If [pat] is specified, it must match. Leading and trailing blanks are ignored.
              _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
              'DOC/SKIP DIRECTIVE 1'(''register)_
              _←' ⍎directiveP     (DOC|SKIP)  \h+ ( .*? ) \h* $ \n (?: .*?\n )*'
@@ -502,94 +492,59 @@
              MBegin'MainScan1'
             ⍝ Comments
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
-            ⍝ IFDEF stmts
+            ⍝ IFDEF/IFNDEF stmts
              'IF(N)DEF' 1{
-                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 not name←⍵ ∆FIELD¨0 1 2 ⋄ not←⍬⍴not∊'nN'
                  ifTrue←~⍣(≢not)⊣DICT.defined name
-                ⍝ PUSH stack
-                ⍝  CTL.skip←~CTL.stack,←~⍣not⊣DICT.defined name
-                ⍝  (~CTL.skip)∆COM f0
                  f0 ∆COM⍨CTL.push ifTrue
              }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
-           ⍝  doMap←{nm←⍵ ∆FIELD 1 ⋄ o i←'⍙Ø∆' '.#⎕' ⋄ {o[i⍳nm]}@(∊∘i)⊣nm}
-           ⍝  dictNameP←eval'(?xx)(⍎longNameP)(?>\.\.\w)'
-             'IF' 1{
-                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
+            'IF' 1{
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
                      _←CTL.push 0            ⍝ Error-- option fails.
-                     ⍝ CTL.skip←~CTL.stack,←0
                      ⎕←NO,'Unable to evaluate ::IF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
                  }code0
                  code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-               ⍝ PUSH stack
-               ⍝ CTL.skip←~CTL.stack,←ifTrue code2        ⍝ is code2 non-zero?)
-               ⍝ (~CTL.skip)∆COM say
                  show←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  show ∆COM⍨CTL.push ifTrue code2
              }register'⍎directiveP IF \b \h* (.*) $'
-            ⍝ EL(SE)IF(N)DEF stmts
+            ⍝ ELSEIFDEF/ELSEIFNDEF/ELIFDEF/ELIFNDEF  stmts
              'EL(SE)IF(N)DEF' 1{
-                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 not name←⍵ ∆FIELD¨0 1 2
                  ifTrue←~⍣(≢not)⊣DICT.defined name
-                ⍝ ELSEIFDEF: unlike IFDEF, replace last stack entry, don't push
-                ⍝ Peek/poke Stack
-                ⍝(⊃⌽CTL.stack)←~CTL.skip←~⍣not⊣DICT.defined name
-                ⍝(~CTL.skip)∆COM f0
                  f0 ∆COM⍨CTL.poke ifTrue
              }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
              'ELSEIF/ELIF' 1{
-                 ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 code0←⍵ ∆FIELD¨0 1
-                 0::{
-                   ⍝ Elseif: unlike IF, replace last stack entry, don't push
-                   ⍝ Peek/poke stack
-                     ⍝ CTL.skip←~(⊃⌽CTL.stack)←1
+                 f0 code0←⍵ ∆FIELD 0 1
+                 0::{ ⍝ Elseif: poke, don't push
                      _←CTL.poke 1
                      ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
                      '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
                  }code0
-                 code1←(0 doScan)code0
-                 code2←DICT.ns{⍺⍎⍵}code1
-               ⍝ Elseif: unlike IF, replace last stack entry, don't push
-               ⍝ Peek/poke stack
-                ⍝  CTL.skip←~(⊃⌽CTL.stack)←ifTrue code2
+                 code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
                  show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
-                 ⍝ (~CTL.skip)∆COM say
                  show ∆COM⍨CTL.poke ifTrue code2
              }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
             ⍝ ELSE
-             'ELSE' 0{
-                 f0←⍵ ∆FIELD 0
-               ⍝ Peek/poke Stack
-               ⍝ CTL.skip←~(⊃⌽CTL.stack)←~⊃⌽CTL.stack    ⍝ Flip the condition of most recent item.
-               ⍝  (~CTL.skip)∆COM f0
-                 CTL.flip ∆COM f0    ⍝ Flip the bool value of most recent stack item
+             'ELSE' 0{ ⍝ flip <-> peek, flip bit, poke
+                 CTL.flip ∆COM ⍵ ∆FIELD 0
              }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF, ENDIFNDEF
              'END(IF(DEF))' 0{
                  f0←⍵ ∆FIELD 0
-                ⍝ 1≥≢CTL.stack:
                  CTL.stackEmpty:{
                      ⎕←box'Stmt invalid: ',⍵
                      '911 ⎕SIGNAL⍨ ''∆FIX ::END DOMAIN ERROR: out of scope.''',CR,0 ∆COM ⍵
                  }f0
-              ⍝   oldSkip←CTL.skip           ⍝ Save current skip for this ::END
-              ⍝   CTL.stack↓⍨←¯1             ⍝ Pop stack and update skip
-              ⍝   CTL.skip←~⊃⌽CTL.stack
-              ⍝   (~oldSkip)∆COM f0
                  CTL.pop ∆COM f0
              }register'⍎directiveP  END  (?: IF  (?: N? DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
              filesIncluded←⍬
              'CINCLUDE' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                 f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
                  ##.filesIncluded,←⊂fName
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
@@ -597,8 +552,7 @@
              }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
             ⍝ INCLUDE
              'INCLUDE' 1{
-                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 fName←⍵ ∆FIELD¨0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                 f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
                  ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
                  rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
                  (CR,⍨∆COM f0),∆V2S(0 doScan)rd
@@ -607,8 +561,7 @@
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
              'COND' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 cond0 stmt←⍵ ∆FIELD¨0 1 3   ⍝ (parenP) uses up two fields
+                 f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
                  0::{
                      ⎕←box'Unable to evaluate: ',⍵
@@ -627,8 +580,7 @@
            ⍝     Don't add parens around code sequences outside parens...
              defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  (?: \h* ←)? \h*  ( ⍎multiLineP ) )? $'
              'DEF(INE)' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 l k v←⍵ ∆FIELD¨0 1 2 3
+                 f0 l k v←⍵ ∆FIELD 0 1 2 3
                  litFlag←(l∊'lLrR')/⎕UCS 0 ⍝ Prefix a null if literal!
                ⍝ Replace leading and trailing blanks with single space
                  v←{
@@ -643,8 +595,7 @@
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
              'LET~EVAL' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 k vIn←⍵ ∆FIELD¨0 1 2
+                 f0 k vIn←⍵ ∆FIELD 0 1 2
                  0::{
                      ⎕←'>>> VALUE ERROR: ',f0
                      _←DICT.del k
@@ -663,7 +614,6 @@
             ⍝    Syntax:   ::PRAGMA FENCE ← 'var_name'
             ⍝    Default:  ::PRAGMA FENCE ← '⍙F⍙'
              'PRAGMA' 1{
-                ⍝ CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                  f0 k vIn←⍵ ∆FIELD 0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
                  0=≢k:∆COM f0⊣{
                      ''⊣⎕←box(' FENCE: ''',⍕##.PRAGMA_FENCE,'''')(' DEBUG: ',⍕##.DEBUG)
@@ -680,9 +630,10 @@
              }register'⍎directiveP  PRAGMA \b (?:  \h+ (⍎longNameP)  \h* ← \h* (.*) | .*) $'
            ⍝ UNDEF(ine) stmt
              'UNDEF' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 f0 k←⍵ ∆FIELD¨0 1
-                 _←DICT.del k⊣{⍵:⍬ ⋄ ⎕←box'WARNING: obj to UNDEF was not defined: ',k}DICT.defined k
+                 f0 k←⍵ ∆FIELD 0 1
+                 _←DICT.del k⊣{
+                   ⍵:⍬ ⋄ ⎕←box'WARNING: obj to UNDEF was not defined: ',k
+                 }DICT.defined k
                  ∆COM f0
              }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
@@ -697,8 +648,7 @@
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
              'MESSAGE~MSG' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 line msg←⍵ ∆FIELD¨0 1
+                 line msg←⍵ ∆FIELD 0 1
                  ⎕←box msg
                  ∆COM line
              }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
@@ -725,8 +675,7 @@
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
              'name..cmd' 1{
-               ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 nm cmd←⍵ ∆FIELD¨1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
+                 nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
                  nm←subMacro nm
                  cmd≡'ENV':' ',q,(getenv nm),q,' '
@@ -744,8 +693,7 @@
              atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
              atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
              'ATOMS/PARMS' 2{
-               ⍝  CTL.skip:⍵ ∆FIELD 0
-                 atoms arrow←⍵ ∆FIELD 1 2
+                   atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
                  atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
                  o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
@@ -773,14 +721,12 @@
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
              'UNICODE' 2{
-                ⍝ CTL.skip:⍵ ∆FIELD 0
                  i←{'xX'∊⍨⊃⌽⍵:h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
                  (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
              'MACRO' 2{
-                ⍝ CTL.skip:⍵ ∆FIELD 0          ⍝ Don't substitute under CTL.skip
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕DICT.get k
@@ -793,7 +739,6 @@
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
-                ⍝ CTL.skip:⍵ ∆FIELD 0
                  ##.PRAGMA_FENCE,'←'
              }register'^ \h* ← | (?<=[(\[{;:⋄]) \h* ←  '
          :EndSection
