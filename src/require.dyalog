@@ -23,7 +23,8 @@
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
-   ⍝ Decode ⍺ → opt1 opt2 opt3  in any order
+   ⍝ Decode ⍺ → opt1 opt2 opt3 opt4  in any order
+   ⍝
    ⍝        opt1:  ('CALLER' ns)
    ⍝               ns: a namespace ref
    ⍝               "Pass the caller namespace; if omitted, from the stack via ⎕RSI/⎕NSI."
@@ -37,6 +38,12 @@
    ⍝                   1: returns (status info)
    ⍝                   2: returns (the current std library namespace).
    ⍝                   3: returns (current std library namespace) (status info)
+   ⍝       opt4:  '-f' (or '-force')
+   ⍝               If absent (default),
+   ⍝                    searches caller NS, path, workspaces and files.
+   ⍝               If present (-f),
+   ⍝                    ignoring callerNS and path, starts searching ws/files as specified.
+     force options←{'-f'≡2↑⍵:1 ⍬ ⋄ b←(⊂'-f')∊2↑¨⍵ ⋄ (1∊b)(⍵/⍨~b)}options
      scan1←{
          (2=|≡⍵)∧'CALLER'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
          pairs←⍵/⍨k←(2=|≡¨⍵)∧(2=≢¨⍵)
@@ -55,6 +62,7 @@
          ⍵
      }
      options CallerR CallerN←scan1 options
+
      StdLibStr CODE←2⍴scan2 options
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
 
@@ -283,16 +291,17 @@
        ⍝ Check for <name>, <group.name>, and <wsN>.
        ⍝------------------------------------------------------------------------------------
          pkg←{
+             force:⍵                                         ⍝ force? Don't even check caller
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
 
              stat←{
-                 ('__',wsN)inNs CallerR:pkg map'ws∊CALLER'      ⍝ wsN found?   success
-                 name inNs CallerR:pkg map'name∊CALLER'        ⍝ name found? success
+                 ('__',wsN)inNs CallerR:pkg map'ws∊CALLER'   ⍝ wsN found?   success
+                 name inNs CallerR:pkg map'name∊CALLER'      ⍝ name found? success
                  group≡'':''
-                 ~(group with name)inNs CallerR:''                   ⍝ none found? failure
-                 PathNewR,⍨←⊂resolveNs group                    ⍝ group.name found
-                 pkg map'group.name∊CALLER'                    ⍝ ...         success
+                 ~(group with name)inNs CallerR:''           ⍝ none found? failure
+                 PathNewR,⍨←⊂resolveNs group                 ⍝ group.name found
+                 pkg map'group.name∊CALLER'                  ⍝ ...         success
              }⍵
 
              0=≢stat:pkg
@@ -308,6 +317,7 @@
        ⍝ Is the package in the ⎕PATH?
        ⍝------------------------------------------------------------------------------------
          pkg←{
+             force:⍵                                   ⍝ force? Ignore path.
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
 

@@ -31,11 +31,16 @@
 
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
-            ⍝ Allow option: -lib=library
+            ⍝ Allow options: [-f|-force]   -lib=library   (-f or -force must be first)
               defaultLib←'-lib=[CALLER].[LIB]'
               pat←'-lib=([^ ]+)'
               LIB←,⊃pat ⎕S '\1'⊣input,' ',defaultLib
-              r←('CALLER' CALLER) LIB ⎕SE.require  (≠∘' '⊆⊢)pat ⎕R ' '⊣input
+              opts←('CALLER' CALLER) LIB
+              :IF force←1∊'-f'⍷input
+                 input←'^\h*-f(orce)?' ⎕R ''⊣input
+                 opts,⍨←⊂'-f'
+              :ENDIF
+              r←opts ⎕SE.require (≠∘' '⊆⊢)pat ⎕R ' '⊣input
               r←⍪⍪¨r
               →0
           :ENDIF
@@ -73,9 +78,12 @@
             r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
             r,←⊂']require  pkg1  pkg ...'
             r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
-            r,←⊂']require -lib=ns pkg1 pkg ...'
+            r,←⊂']require [-f] -lib=ns pkg1 pkg ...'
             r,←⊂'     executes:  ns require ''pkg1'' ''pkg2'' ...'
             r,←⊂' i.e. loads (new) packages into library ns, a namespace or root (# or ⎕SE)'
+            r,←⊂'     -f: forces packages to be loaded, even if present in caller NS or ⎕PATH.'
+            r,←⊂'         For ]require, -f (variant: -force) must be first, to avoid conflict with files.'
+            r,←⊂'     -lib=ns: searches and loads packages into specified namespace.'
          :Else
             {}⎕SE.require '-HELP'
             r←⊂']require -HELP launched in full screen.'

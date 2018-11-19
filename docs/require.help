@@ -27,10 +27,10 @@
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________                                   
 
-   Syntax 1:   list1 list2     ← [[('CALLER' ns)] [stdLib] CODE∊1 0 ¯1] ∇  package1 [package2 [... packageN]]
-               namespaceRef    ←  [('CALLER' ns)] [stdLib] CODE:2 ¯2    ∇  ...
-      namespaceRef list1 list2 ←  [('CALLER' ns)] [stdLib] CODE:4 ¯4    ∇  ...
-   Syntax 2:   namespaceRef    ←  [('CALLER' ns)] [stdLib]              ∇  [⍬ | '']
+   Syntax 1:   list1 list2     ← ['-f'] [('CALLER' ns)] [stdLib] (CODE∊1 0 ¯1) ∇  package1 [package2 [... packageN]]
+               namespaceRef    ← ['-f'] [('CALLER' ns)] [stdLib] (CODE:2 ¯2)   ∇  ...
+      namespaceRef list1 list2 ← ['-f'] [('CALLER' ns)] [stdLib] (CODE:4 ¯4)   ∇  ...
+   Syntax 2:   namespaceRef    ← ['-f'] [('CALLER' ns)] [stdLib]               ∇  [⍬ | '']
    Syntax 3:   ⍬               ←                        ∇  '-HELP'
    
 Note: <require> has been developed in OS X. Use of environment variables has not been
@@ -54,6 +54,12 @@ ________________________________________________________________________________
            dir:    the directory (in fs) and/or namespace (in Dyalog) with the object.
                    Can be of the form name1[.name2[.name3[...]]]
            name:   The name of the object (valid as an APL name)
+   ∘ Normally, require searches for objects in:
+               the current caller's namespace, ⎕PATH, a workspace (if specified), files in FSPATH/WSPATH.
+     If -f (-force) is specified, the objects are searched for only in the latter two domains:
+              a workspace (if specified), files in FSPATH/WSPATH as specified.
+     That is, -f tells require to reload objects into the library specified or defaulted, even if
+     present in the caller's namespace, ⎕PATH, another library or the current/default library.
    ∘ stdLib is a namespace reference or name (existing or to be created).
      '' implies a reference to <top>, the top-level in which require's caller operates, either # or ⎕SE.
    ∘ If missing, stdLib is <top>.⍙⍙.require (<top> defined as above).
