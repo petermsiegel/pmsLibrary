@@ -1,13 +1,14 @@
 ﻿ result←{specs}∆FIX fileName
- ;ALPH;CalledFrom;COMSPEC;CR;CTL;DEBUG;DQ;ListScan;MActions;MBegin;MEnd;MPats;MRegister
- ;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE;Par;PreScan1;PreScan2
- ;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_;_MATCHED_GENERICp;anyNumP
- ;atomsP;box;braceCount;braceP;brackP;code;comment;commentP;defMatch;defS;DICT
- ;dictNameP;directiveP;doScan;dqStringP;ellipsesP;err;eval;filesIncluded;first
- ;getenv;h2d;infile;keys;letS;longNameP;macro;macros;multiLineP;nameP;names;ifTrue
- ;obj;objects;parenP;pfx;readFile;register;setBrace;sfx;showObj;showCode;specialStringP
- ;sqStringP;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S
- ;⎕IO;⎕ML;⎕PATH;⎕TRAP
+ ;ALPH;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
+ ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
+ ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
+ ;_MATCHED_GENERICp;__BEGIN__;anyNumP;atomsP;beginBuffer;beginP;box;braceCount
+ ;braceP;brackP;code;comment;commentP;defMatch;defS;dictNameP;directiveP;doScan
+ ;dqStringP;ellipsesP;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
+ ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
+ ;pfx;readFile;register;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
+ ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
+ ;⎕ML;⎕PATH;⎕TRAP
 
  ⍝  A Dyalog APL preprocessor  (rev. Nov 11 )
  ⍝
@@ -531,7 +532,7 @@
              'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF/IFNDEF stmts
              'IF(N)DEF' 1{
-                 f0 not name←⍵ ∆FIELD 0 1 2 ⋄ not←⍬⍴not∊'nN'
+                 f0 not name←⍵ ∆FIELD 0 1 2
                  ifTrue←~⍣(≢not)⊣DICT.defined name
                  f0 ∆COM⍨CTL.push ifTrue
              }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
@@ -540,9 +541,10 @@
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
                      _←CTL.push 0            ⍝ Error-- option fails.
-                     ⎕←NO,'Unable to evaluate ::IF ',⍵
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::IF ',⍵
-                 }code0
+                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     q←⍵/⍨1+SQ=⍵
+                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                 }f0
                  code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
                  show←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
                  show ∆COM⍨CTL.push ifTrue code2
@@ -558,11 +560,13 @@
                  f0 code0←⍵ ∆FIELD 0 1
                  0::{ ⍝ Elseif: poke, don't push
                      _←CTL.poke 1
-                     ⎕←##.NO,'Unable to evaluate ::ELSEIF ',⍵
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR''',NL,0 ∆COM'::ELSEIF ',⍵
-                 }code0
+                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     q←⍵/⍨1+⍵=SQ
+                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                 }f0
                  code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-                 show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                 show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)
+                 show,←⊂('➤    ',showObj code2)
                  show ∆COM⍨CTL.poke ifTrue code2
              }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
             ⍝ ELSE
@@ -601,8 +605,9 @@
                  f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
                  0::{
-                     ⎕←box'Unable to evaluate: ',⍵
-                     '911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR''',CR,0 ∆COM ⍵
+                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     q←⍵/⍨1+⍵=SQ
+                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR: ',q,'''',NL
                  }f0
                  t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
                  stmt←⍕(0 doScan)stmt
@@ -634,11 +639,12 @@
              'LET~EVAL' 1{
                  f0 k vIn←⍵ ∆FIELD 0 1 2
                  0::{
-                     ⎕←'>>> VALUE ERROR: ',f0
+                     ⎕←box '∆FIX VALUE ERROR: ',⍵
                      _←DICT.del k
                      msg←(f0)('➤ UNDEF ',k)
-                     '911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',f0,'''',CR,0 ∆COM msg
-                 }⍬
+                     q←⍵/⍨1+⍵=SQ
+                     (0 ∆COM msg),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                 }f0
                  _←DICT.validate k
                  vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
                  msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
@@ -665,13 +671,11 @@
                      911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
                  }⍬
              }register'⍎directiveP  PRAGMA \b (?:  \h+ (⍎longNameP)  \h* ← \h* (.*) | .*) $'
-           ⍝ UNDEF(ine) stmt
-             'UNDEF' 1{
+           ⍝ UNDEF(ine) name
+             'UNDEF' 1{ ⍝ As eyecandy, we mark failure if name to undef not defined.
                  f0 k←⍵ ∆FIELD 0 1
-                 _←DICT.del k⊣{
-                     ⍵:⍬ ⋄ ⎕←box'WARNING: obj to UNDEF was not defined: ',k
-                 }DICT.defined k
-                 ∆COM f0
+                 _←DICT.del k⊣bool←DICT.defined k
+                 bool ∆COM f0
              }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
@@ -689,6 +693,15 @@
                  ⎕←box msg
                  ∆COM line
              }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
+           ⍝ BEGIN[nn] ... END(BEGIN)[nn]
+             beginP←'⍎directiveP BEGIN(\d*) \h* (?: .* ) $ \n'
+             beginP,←'((?: .*? $ \n)*) ^ ⍎directiveP END(?: BEGIN)?\1 .*$'
+             beginBuffer←⍬
+             'BEGIN' 1{
+                 ##.beginBuffer,←##.MacroScan1(0 doScan)⍵ ∆FIELD 2
+                 1 ∆COM ⍵ ∆FIELD 0
+             }register beginP
+
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
              'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
@@ -767,7 +780,7 @@
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
-             'MACRO' 2{
+             macroFn←{
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕DICT.get k
@@ -776,7 +789,8 @@
                  v1∊isLit:1↓v   ⍝ Literal!
                  v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
                  '(',v,')'
-             }register'(⍎longNameP)(?!\.\.)'
+             }
+             'MACRO' 2 macroFn register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
@@ -785,6 +799,10 @@
          :EndSection
          MainScan1←MEnd
      :EndSection
+
+     MBegin'MACRO Only'
+      ⋄ 'MACRO Only' 2(macroFn register)'(⍎longNameP)(?!\.\.)'
+     MacroScan1←MEnd
 
      :Section List Scan (experimental)
      ⍝ Handle lists of the form:
@@ -859,6 +877,25 @@
        ⍝ Executive
        ⍝ =================================================================
          code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
+
+         :Section Begin Phase II- process beginBuffer
+             :If 0≠≢beginBuffer
+             :AndIf 0≠≢beginBuffer~' ',NL
+                 beginBuffer←'__BEGIN__',NL,beginBuffer
+                 :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)beginBuffer
+                     ⎕←⎕VR'__BEGIN__'
+                     :Trap 0
+                         __BEGIN__
+                     :Else
+                         ⎕←box↑⎕DMX.DM
+                         ⎕SIGNAL/'∆FIX ERROR: ::BEGIN sequence not completed due to invalid code.' 11
+                     :EndTrap
+                 :Else
+                     ⎕SIGNAL/'∆FIX ERROR: Unable to create ::BEGIN code.' 11
+                 :EndIf
+             :EndIf
+         :EndSection
+
 
        ⍝ Clean up based on comment specifications (COMSPEC)
          :Select COMSPEC
