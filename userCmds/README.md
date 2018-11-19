@@ -6,6 +6,7 @@ This makes sure that `require` is loaded into `⎕SE` so it's available for the 
 1. Create a new user command in MyUcmdsInfo, e.g. `MyUcmdsInfo/MyCmds.dyalog` or copy the file ___PMScmds.dyalog___ into MyUcmdsInfo.
 We'll set this up to create a command called `]require`. <br>
 
+#### Arguments: Specifying objects to load
 1. `]require`, when called with no args, does two things:
    - Ensures that function `require` is copied into the `⎕SE` namespace, if _not_ already there.
    - Ensures that `⎕PATH` in whatever is the __current__ namespace has `⎕SE` within the search order. It _won't_ add `⎕SE` if it's already there.
@@ -13,7 +14,10 @@ We'll set this up to create a command called `]require`. <br>
 1. ]require may be used with args:
    `]require pkg1 pkg2 ... pkgN`<br>
    This calls `require 'pkg1'  'pkg2'` ... `'pkgN'` <br>
-   If you would like to __override the standard library__, `-lib=ns` allows you to specify another named namespace, such as #, ⎕SE, etc. Here, we put packages `pkg1`...`pkgN` into the root namespace `#`.<br>
+  
+#### Options: Specifing library namespace; forcing objects to be reloaded.
+
+1. If you would like to __override the standard library__, `-lib=ns` allows you to specify another named namespace, such as #, ⎕SE, etc. Here, we put packages `pkg1`...`pkgN` into the root namespace `#`.<br>
    `]require -lib=# pkg1 pkg2 ... pkgN`          <br>
    Note: __]require__ creates the default library `⍙⍙.require` in the current namespace, _i.e._ from wherever it is called (by default `#`), and sets its local `⎕PATH`.  If you are in namespace `#.mynamespace`, then `#.mynamespace.⍙⍙.require` receives any newly loaded packages, and  `#.mynamespace.⎕PATH` is updated. However, if `⎕PATH` already points to other libraries containing the requested packages, no additional work is done.
    `]require -force [-lib=...] pkg1 pgk2 ... pkgN` <br>
