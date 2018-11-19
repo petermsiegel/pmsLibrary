@@ -210,16 +210,27 @@
      ⎕SHADOW'MScanName'
      ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
      ⎕FX'm←MEnd' 'm←Match'
+  ⍝  register-- adds a function and patterns to the current Match "database".
+  ⍝    Returns the associated namespace.
+  ⍝    Useful for excluding a namespace from a match sequence or re-using in
+  ⍝    different sequences.
+  ⍝     matchNs ← infoStr [skipFlag=0] (matchFn ∇) pattern
+  ⍝     infoStr: useful comment for humans
+  ⍝     skipFlag:
+  ⍝       0 - <action> handles skips; call <action>, whether CTL.skip active or not.
+  ⍝       1 - If CTL.skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
+  ⍝       2 - If CTL.skip: don't call <action>; return: ⍵ ∆FIELD 0
+  ⍝     matchFn: the fn to call when <pattern> matches.
+  ⍝        See Local Defs for objects copied into the namespace at registration
+  ⍝     pattern: The Regex pattern to match. patterns are matched IN ORDER.
      register←{
-         ⍺←'[',(⍕1+≢Match),']' 1
+         ⍺←('[',(⍕1+≢Match),']')
+      ⍝  Local Defs
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
          ns.MScanName←MScanName  ⍝ Global → local
          ns.CTL←CTL
          ns.DICT←DICT
-         ⍝    0 - <action> handles skips; call <action>, whether CTL.skip active or not.
-         ⍝    1 - If CTL.skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
-         ⍝    2 - If CTL.skip: don't call <action>; return: ⍵ ∆FIELD 0
          ns.(info skipFlag)←2⍴(⊆⍺),0  ⍝ Default skipFlag: 0
          ns.pRaw←⍵                    ⍝ For debugging
          ns.pats←eval ⍵
@@ -695,13 +706,12 @@
              }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
            ⍝ BEGIN[nn] ... END(BEGIN)[nn]
              beginP←'⍎directiveP BEGIN(\d*) \h* (?: .* ) $ \n'
-             beginP,←'((?: .*? $ \n)*) ^ ⍎directiveP END(?: BEGIN)?\1 .*$'
+             beginP,←'((?: .*? $ \n)*) ^ ⍎directiveP END (?: BEGIN )? \1 .*$'
              beginBuffer←⍬
              'BEGIN' 1{
                  ##.beginBuffer,←##.MacroScan1(0 doScan)⍵ ∆FIELD 2
                  1 ∆COM ⍵ ∆FIELD 0
              }register beginP
-
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
              'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
@@ -780,17 +790,17 @@
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
-             macroFn←{
-                 TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
-                 k←⍵ ∆FIELD 1
-                 v←⍕DICT.get k
-                 0=≢v:k
-                 v1←1↑v ⋄ isLit←⎕UCS 0
-                 v1∊isLit:1↓v   ⍝ Literal!
-                 v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
-                 '(',v,')'
-             }
-             'MACRO' 2 macroFn register'(⍎longNameP)(?!\.\.)'
+            ⍝ Captured as macroReg for re-use
+             MacroScan1←,'MACRO' 2 {
+                              TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
+                              k←⍵ ∆FIELD 1
+                              v←⍕DICT.get k
+                              0=≢v:k
+                              v1←1↑v ⋄ isLit←⎕UCS 0
+                              v1∊isLit:1↓v   ⍝ Literal!
+                              v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
+                              '(',v,')'
+             } register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
@@ -800,9 +810,11 @@
          MainScan1←MEnd
      :EndSection
 
-     MBegin'MACRO Only'
-      ⋄ 'MACRO Only' 2(macroFn register)'(⍎longNameP)(?!\.\.)'
-     MacroScan1←MEnd
+    ⍝ MacroScan1 - defined above.
+    ⍝ MBegin'MACRO Only'
+    ⍝ 'MACRO Only' 2(macroFn register)'(⍎longNameP)(?!\.\.)'
+    ⍝    MacroScan1←,...
+    ⍝ MacroScan1←MEnd
 
      :Section List Scan (experimental)
      ⍝ Handle lists of the form:
@@ -888,7 +900,9 @@
                          __BEGIN__
                      :Else
                          ⎕←box↑⎕DMX.DM
+                         :IF 0=DEBUG
                          ⎕SIGNAL/'∆FIX ERROR: ::BEGIN sequence not completed due to invalid code.' 11
+                         :ENDIF
                      :EndTrap
                  :Else
                      ⎕SIGNAL/'∆FIX ERROR: Unable to create ::BEGIN code.' 11
