@@ -1,8 +1,8 @@
-﻿ result←{specs}∆FIX fileName
+﻿ result←{specs}∆FIX fileName;Bêgin
  ;ALPH;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
  ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
- ;_MATCHED_GENERICp;__BEGIN__;anyNumP;atomsP;beginBuffer;beginP;box;braceCount
+ ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;beginBuffer;beginP;box;braceCount
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
@@ -552,7 +552,7 @@
                  f0 code0←⍵ ∆FIELD¨0 1
                  TRAP::{
                      _←CTL.push 0            ⍝ Error-- option fails.
-                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     ⎕←box'∆FIX VALUE ERROR: ',⍵
                      q←⍵/⍨1+SQ=⍵
                      (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
                  }f0
@@ -571,7 +571,7 @@
                  f0 code0←⍵ ∆FIELD 0 1
                  0::{ ⍝ Elseif: poke, don't push
                      _←CTL.poke 1
-                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     ⎕←box'∆FIX VALUE ERROR: ',⍵
                      q←⍵/⍨1+⍵=SQ
                      (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
                  }f0
@@ -616,7 +616,7 @@
                  f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
                  0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
                  0::{
-                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     ⎕←box'∆FIX VALUE ERROR: ',⍵
                      q←⍵/⍨1+⍵=SQ
                      (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR: ',q,'''',NL
                  }f0
@@ -650,7 +650,7 @@
              'LET~EVAL' 1{
                  f0 k vIn←⍵ ∆FIELD 0 1 2
                  0::{
-                     ⎕←box '∆FIX VALUE ERROR: ',⍵
+                     ⎕←box'∆FIX VALUE ERROR: ',⍵
                      _←DICT.del k
                      msg←(f0)('➤ UNDEF ',k)
                      q←⍵/⍨1+⍵=SQ
@@ -705,8 +705,8 @@
                  ∆COM line
              }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
            ⍝ BEGIN[nn] ... END(BEGIN)[nn]
-             beginP←'⍎directiveP BEGIN(\d*) \h* (?: .* ) $ \n'
-             beginP,←'((?: .*? $ \n)*) ^ ⍎directiveP END (?: BEGIN )? \1 .*$'
+             beginP←'⍎directiveP BEGIN( \d*+ ) \h* (?: .* ) $ \n'
+             beginP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: BEGIN )?+ (?>\1) .* $'
              beginBuffer←⍬
              'BEGIN' 1{
                  ##.beginBuffer,←##.MacroScan1(0 doScan)⍵ ∆FIELD 2
@@ -791,16 +791,16 @@
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
             ⍝ Captured as macroReg for re-use
-             MacroScan1←,'MACRO' 2 {
-                              TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
-                              k←⍵ ∆FIELD 1
-                              v←⍕DICT.get k
-                              0=≢v:k
-                              v1←1↑v ⋄ isLit←⎕UCS 0
-                              v1∊isLit:1↓v   ⍝ Literal!
-                              v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
-                              '(',v,')'
-             } register'(⍎longNameP)(?!\.\.)'
+             MacroScan1←,'MACRO' 2{
+                 TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
+                 k←⍵ ∆FIELD 1
+                 v←⍕DICT.get k
+                 0=≢v:k
+                 v1←1↑v ⋄ isLit←⎕UCS 0
+                 v1∊isLit:1↓v   ⍝ Literal!
+                 v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
+                 '(',v,')'
+             }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
              'ASSIGN' 2{
@@ -889,23 +889,21 @@
        ⍝ Executive
        ⍝ =================================================================
          code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
-
          :Section Begin Phase II- process beginBuffer
              :If 0≠≢beginBuffer
              :AndIf 0≠≢beginBuffer~' ',NL
-                 beginBuffer←'__BEGIN__',NL,beginBuffer
+                 beginBuffer←'Bêgin',NL,beginBuffer
                  :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)beginBuffer
-                     ⎕←⎕VR'__BEGIN__'
-                     :Trap 0
-                         __BEGIN__
-                     :Else
-                         ⎕←box↑⎕DMX.DM
-                         :IF 0=DEBUG
-                         ⎕SIGNAL/'∆FIX ERROR: ::BEGIN sequence not completed due to invalid code.' 11
-                         :ENDIF
+                     :Trap 0 ⋄ Bêgin
+                     :Else ⋄ ⎕←box↑⎕DMX.DM
+                         :If 0=DEBUG
+                             _←'∆FIX ERROR: ::BEGIN sequence ran incompletely, due to invalid code.'
+                             _ ⎕SIGNAL 11
+                         :EndIf
                      :EndTrap
                  :Else
-                     ⎕SIGNAL/'∆FIX ERROR: Unable to create ::BEGIN code.' 11
+                     _←'∆FIX ERROR: ::BEGIN sequence could not be run at all.'
+                     _ ⎕SIGNAL 11
                  :EndIf
              :EndIf
          :EndSection
