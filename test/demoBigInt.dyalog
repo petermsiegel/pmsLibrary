@@ -20,7 +20,7 @@
 
     :Section PREAMBLE and Table of Contents
 
-::IFDEF _KEEP_
+::SKIP1
   _←'?'
   ⍝ ∘ NOTE: See bigIntHelp for details...
   ⍝
@@ -109,7 +109,7 @@
   ⍝        ('SQRT' BI)⍵ or ('√' BI)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
   ⍝ ∘ We include ?BI to allow for a random number of any number of digits and !BI to allow for
   ⍝   factorials on large integers.  (!BI does not use memoization, but the user could extend it.)
-  ::ENDIFDEF
+  ::ENDSKIP1
 
   ⍝ TABLE OF CONTENTS
   ⍝    Preamble for Namespace and Table of Contents
@@ -147,7 +147,7 @@
     err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
 
 
-::IFDEF __SKIP__
+::SKIP 2
   ⍝   INTERNAL-FORMAT BIs
   ⍝    BIi  -internal-format signed Big Integer numeric vector.
   ⍝          A BIV is a vector of radix <RX> numbers. The first (left-most) non-zero number carries the sign.
@@ -173,7 +173,7 @@
   ⍝    Int  -an APL-format single integer, often in range ⍵<RX.
   ⍝
   ⍝
-::ENDIFDEF
+::ENDSKIP 2
   ⍝ RX:  Radix for internal BI integers. Ensure ⍵×⍵ doesn't overflow in 32-bit integer.
   ⍝ DRX: # Decimal digits that RX must hold.
   ⍝ BRX: # Binary  digits required to hold DRX digits. (See encode2Bits, decodeFromBits).

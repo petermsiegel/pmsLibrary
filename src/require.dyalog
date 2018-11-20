@@ -23,7 +23,7 @@
 
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
-   ⍝ Decode ⍺ → opt1 opt2 opt3 opt4  in any order
+   ⍝ Decode ⍺ → opt1 opt2 opt3 opt4  in any order (-f must be first in ]require).
    ⍝
    ⍝        opt1:  ('CALLER' ns)
    ⍝               ns: a namespace ref
@@ -38,12 +38,12 @@
    ⍝                   1: returns (status info)
    ⍝                   2: returns (the current std library namespace).
    ⍝                   3: returns (current std library namespace) (status info)
-   ⍝       opt4:  '-f' (or '-force')
+   ⍝        opt4:  '-f' (or '-force')
    ⍝               If absent (default),
    ⍝                    searches caller NS, path, workspaces and files.
    ⍝               If present (-f),
    ⍝                    ignoring callerNS and path, starts searching ws/files as specified.
-     force options←{'-f'≡2↑⍵:1 ⍬ ⋄ b←(⊂'-f')∊2↑¨⍵ ⋄ (1∊b)(⍵/⍨~b)}options
+     force options←{'-f'≡2↑⍵:1 ⍬ ⋄ b←(⊂'-f')≡¨2↑¨⍵ ⋄ (1∊b)(⍵/⍨~b) }options
      scan1←{
          (2=|≡⍵)∧'CALLER'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
          pairs←⍵/⍨k←(2=|≡¨⍵)∧(2=≢¨⍵)
@@ -67,7 +67,7 @@
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
 
      stdLibR stdLibN←{
-         returning←{2=≢⍵:⍵ ⋄ (⍎⍵ CallerR.⎕NS'')⍵}
+         returning←{2=≢⍵:⍵ ⋄ (CallerR⍎⍵ CallerR.⎕NS'')⍵}   ⍝ Added CallerR left of ⍎
          top←'⎕SE' '#'⊃⍨'#'=1↑CallerN          ⍝ what's our top level?
          topDef←top,'.',DefaultLibName         ⍝ the default if there's no default library
          ⍵≡⎕NULL:returning topDef
@@ -398,7 +398,7 @@
 
        ⍝------------------------------------------------------------------------------------
        ⍝ Is the package in the file system path?
-       ⍝ We even check those with a wsN: prefix (whenever the workstation is not found)
+       ⍝ We even check those with a wsN: prefix (whenever the workspace is not found)
        ⍝ See FSSearchPath
        ⍝------------------------------------------------------------------------------------
          pkg←{
@@ -473,7 +473,7 @@
                      fixed←2 stdLibR.⎕FIX'file://',⍵
                      cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 
-⍝:DBG                _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
+⍝:DBG              _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in stdLibR for the loaded object.
                      stamp←gwn,' copied from file: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←id stdLibR.{⍎⍺,'←⍵'}stamp

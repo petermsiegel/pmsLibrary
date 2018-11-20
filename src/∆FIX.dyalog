@@ -479,8 +479,8 @@
             ⍝  If [pat] is specified, it must match. Leading and trailing blanks are ignored.
              _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
              'DOC/SKIP DIRECTIVE 1'(''register)_
-             _←' ⍎directiveP     (DOC|SKIP)  \h+ ( .*? ) \h* $ \n (?: .*?\n )*'
-             _,←'⍎directiveP END   \1?       \h+   \2    \h* $  '   ⍝ ?1-- match exact word and case.
+             _←' ⍎directiveP     (DOC|SKIP)  \h* ( .*? ) \h* $ \n (?: .*?\n )*'
+             _,←'⍎directiveP      END \1?    \h*   \2    \h* $  '
              'DOC/SKIP DIRECTIVE 2'(''register)_
            ⍝ RHS Comments are ignored (removed)...
            ⍝  Not ideal, but makes further regexps simpler.
