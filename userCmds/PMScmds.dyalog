@@ -35,7 +35,7 @@
               defaultLib←'-lib=[CALLER].[LIB]'
               pat←'-lib=([^ ]+)'
               LIB←,⊃pat ⎕S '\1'⊣input,' ',defaultLib
-              opts←('CALLER' CALLER) LIB
+              opts←('-caller' CALLER) LIB
               :IF force←1∊'-f'⍷input
                  input←'^\h*-f(orce)?' ⎕R ''⊣input
                  opts,⍨←⊂'-f'
@@ -53,7 +53,7 @@
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}('CALLER' CALLER)'#.[LIB]'⎕SE.require 'bigInt'
+            {}('-caller' CALLER)'#.[LIB]'⎕SE.require 'bigInt'
           ⎕←'For help, type ''?'' at any prompt.'
           bi.dc
           r←''

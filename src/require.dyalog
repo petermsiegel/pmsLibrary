@@ -1,4 +1,6 @@
 ﻿ require←{
+⍝  See help documentation for syntax and overview.
+⍝
 ⍝  TRACING (see TRACE) lines are prefixed with ⍝:DBG when inactive...
 
      ⎕IO ⎕ML←0 1
@@ -24,8 +26,9 @@
      999×DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
    ⍝ Decode ⍺ → opt1 opt2 opt3 opt4  in any order (-f must be first in ]require).
-   ⍝
-   ⍝        opt1:  ('CALLER' ns)
+   ⍝ E.g.   ('-caller' #.mylib) '-f'  '#'    ¯1
+   ⍝ i.e.      caller           force stdlib code/debug
+   ⍝        opt1:  ('-caller' ns)
    ⍝               ns: a namespace ref
    ⍝               "Pass the caller namespace; if omitted, from the stack via ⎕RSI/⎕NSI."
    ⍝        opt2:  StdLib
@@ -43,17 +46,24 @@
    ⍝                    searches caller NS, path, workspaces and files.
    ⍝               If present (-f),
    ⍝                    ignoring callerNS and path, starts searching ws/files as specified.
-     force options←{'-f'≡2↑⍵:1 ⍬ ⋄ b←(⊂'-f')≡¨2↑¨⍵ ⋄ (1∊b)(⍵/⍨~b) }options
+
+   ⍝ Handle -force/-f: it can be the only arg in ⍺ ('-f') or one of the args.
+     scan0←{'-f'≡2↑⍵:⍬ 1 ⋄ b←(⊂'-f')≡¨2↑¨⍵ ⋄ (⍵/⍨~b)(1∊b)}
+   ⍝ -caller: Arg used in ]require, since there are several calls from ]require to require.
+   ⍝ Handle ('-caller' callerNs). It can be the only arg or one of the args.
+   ⍝ The callerNs is a namespace reference, not a string.
      scan1←{
-         (2=|≡⍵)∧'CALLER'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
+         (2=|≡⍵)∧'-caller'≡⊃⍵:(2↓⍵)c(⍕c←1⊃⍵)
          pairs←⍵/⍨k←(2=|≡¨⍵)∧(2=≢¨⍵)
          keep←⍵/⍨~k
          0=≢pairs:keep(1⊃⎕RSI)(1⊃⎕NSI)
-         1∊(⊂'CALLER')≢∘⊃¨pairs:⎕SIGNAL/'require: Unknown option pair' 11
-         1<≢pairs:⎕SIGNAL/'require: only one CALLER option allowed' 11
+         1∊(⊂'-caller')≢∘⊃¨pairs:⎕SIGNAL/'require: Unknown option pair' 11
+         1<≢pairs:⎕SIGNAL/'require: only one -caller option allowed' 11
          c←(⊃⌽⊃pairs)
          keep c(⍕c←⊃⌽⊃pairs)
      }
+   ⍝ Handle the specification of
+   ⍝    [1] the StdLib nsRef or nsStr and [2] the debugging/code flags.
      scan2←{
          0=≢⍵:⎕NULL 0
          9=⎕NC'_'⊣_←⊃⍵:⍵ 0
@@ -61,8 +71,8 @@
          1=≢⊆⍵:⍵ 0
          ⍵
      }
+     options force←scan0 options
      options CallerR CallerN←scan1 options
-
      StdLibStr CODE←2⍴scan2 options
      DEBUG CODE←(DEBUG∨CODE<0)(|CODE)          ⍝ Only override DEBUG if set to 0.
 

@@ -27,10 +27,10 @@
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________                                   
 
-   Syntax 1:   list1 list2     ← ['-f'] [('CALLER' ns)] [stdLib] (CODE∊1 0 ¯1) ∇  package1 [package2 [... packageN]]
-               namespaceRef    ← ['-f'] [('CALLER' ns)] [stdLib] (CODE:2 ¯2)   ∇  ...
-      namespaceRef list1 list2 ← ['-f'] [('CALLER' ns)] [stdLib] (CODE:4 ¯4)   ∇  ...
-   Syntax 2:   namespaceRef    ← ['-f'] [('CALLER' ns)] [stdLib]               ∇  [⍬ | '']
+   Syntax 1:   list1 list2     ← ['-f'] [('-caller' ns)] [stdLib] (CODE∊1 0 ¯1) ∇  package1 [package2 [... packageN]]
+               namespaceRef    ← ['-f'] [('-caller' ns)] [stdLib] (CODE:2 ¯2)   ∇  ...
+      namespaceRef list1 list2 ← ['-f'] [('-caller' ns)] [stdLib] (CODE:4 ¯4)   ∇  ...
+   Syntax 2:   namespaceRef    ← ['-f'] [('-caller' ns)] [stdLib]               ∇  [⍬ | '']
    Syntax 3:   ⍬               ←                        ∇  '-HELP'
    
 Note: <require> has been developed in OS X. Use of environment variables has not been
@@ -65,8 +65,8 @@ ________________________________________________________________________________
    ∘ If missing, stdLib is <top>.⍙⍙.require (<top> defined as above).
    ∘ [LIB] as a prefix or infix to stdLib is <top>.⍙⍙.require, useful with setting subdirectories,
      e.g. '[LIB].math' is  '#.⍙⍙.require.math' if require's caller is in # or subdirectory.
-   ∘ [CALLER] as a prefix or infix to stdLib is the name of the namespace that <require> was called from--
-     whether specified as an option ('CALLER' callerNs) or implicitly.
+   ∘ [CALLER] as a prefix or infix to stdLib is the name of the namespace that <require> was called from,
+     or (if  ('-caller' callerNS) was specified), was reported to have been called from.
    ∘ Updates caller's ⎕PATH to provide access to the packages, dropping any
      path namespaces that don't exist. ⎕PATH only ensures functions and operators
      are found. See Syntax 2 for how to specify a library, e.g. to access a class etc.
