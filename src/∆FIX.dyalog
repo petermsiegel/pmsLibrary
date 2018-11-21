@@ -224,7 +224,7 @@
   ⍝        See Local Defs for objects copied into the namespace at registration
   ⍝     pattern: The Regex pattern to match. patterns are matched IN ORDER.
      register←{
-         ⍺←('[',(⍕1+≢Match),']')
+         ⍺←('[',(⍕1+≢Match),']')0
       ⍝  Local Defs
          ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
          ns.⎕PATH←'##'
@@ -371,7 +371,7 @@
              :If ×≢lines
                  1 ⎕NDELETE fileName ⋄ lines←(⊂'∇',tFun),lines,(⊂,'∇') ⋄ (⊂lines)⎕NPUT fileName
              :EndIf
-            :IF DEBUG ⋄ ⎕←↑⊃⎕NGET fileName 1 ⋄ :ENDIF
+             :If DEBUG ⋄ ⎕←↑⊃⎕NGET fileName 1 ⋄ :EndIf
          :Else
              ⎕SIGNAL/('∆FIX: Error creating temporary file: ',fileName)11
          :EndTrap
@@ -434,10 +434,6 @@
      :EndSection Preprocess Tradfn Headers
 
      :Section Setup Scans
-         :Section Macro Scan (no ::directives): Part I
-           ⍝ MacroScan1: Used in ::BEGIN (q.v.), these exclude any ::directives.
-             MacroScan1←⍬    ⍝ Augmented below...
-         :EndSection Macro Scan (no ::directives): Part I
          :Section PreScan1
              MBegin'PreScan1'
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
@@ -543,276 +539,286 @@
 
          :Section MainScan1
              MBegin'MainScan1'
+             :Section  Register Directives
             ⍝ Comments
-             MacroScan1,←'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
+                 MacroScan1,←'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF/IFNDEF stmts
-             'IF(N)DEF' 1{
-                 f0 not name←⍵ ∆FIELD 0 1 2
-                 ifTrue←~⍣(≢not)⊣DICT.defined name
-                 f0 ∆COM⍨CTL.push ifTrue
-             }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
+                 'IF(N)DEF' 1{
+                     f0 not name←⍵ ∆FIELD 0 1 2
+                     ifTrue←~⍣(≢not)⊣DICT.defined name
+                     f0 ∆COM⍨CTL.push ifTrue
+                 }register'⍎directiveP  IF (N?) DEF\b \h*(⍎longNameP) .* $'
            ⍝ IF stmts
-             'IF' 1{
-                 f0 code0←⍵ ∆FIELD¨0 1
-                 TRAP::{
-                     _←CTL.push 0            ⍝ Error-- option fails.
-                     ⎕←box'∆FIX VALUE ERROR: ',⍵
-                     q←⍵/⍨1+SQ=⍵
-                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
-                 }f0
-                 code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-                 show←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
-                 show ∆COM⍨CTL.push ifTrue code2
-             }register'⍎directiveP IF \b \h* (.*) $'
+                 'IF' 1{
+                     f0 code0←⍵ ∆FIELD¨0 1
+                     TRAP::{
+                         _←CTL.push 0            ⍝ Error-- option fails.
+                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         q←⍵/⍨1+SQ=⍵
+                         (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                     }f0
+                     code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
+                     show←('::IF ',showCode code0)('➤    ',showCode code1)('➤    ',showObj code2)
+                     show ∆COM⍨CTL.push ifTrue code2
+                 }register'⍎directiveP IF \b \h* (.*) $'
             ⍝ ELSEIFDEF/ELSEIFNDEF/ELIFDEF/ELIFNDEF  stmts
-             'EL(SE)IF(N)DEF' 1{
-                 f0 not name←⍵ ∆FIELD¨0 1 2
-                 ifTrue←~⍣(≢not)⊣DICT.defined name
-                 f0 ∆COM⍨CTL.poke ifTrue
-             }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
+                 'EL(SE)IF(N)DEF' 1{
+                     f0 not name←⍵ ∆FIELD¨0 1 2
+                     ifTrue←~⍣(≢not)⊣DICT.defined name
+                     f0 ∆COM⍨CTL.poke ifTrue
+                 }register'⍎directiveP  EL (?:SE)? IF (N?) DEF \b \h* (.*) $'
             ⍝ ELSEIF/ELIF stmts
-             'ELSEIF/ELIF' 1{
-                 f0 code0←⍵ ∆FIELD 0 1
-                 0::{ ⍝ Elseif: poke, don't push
-                     _←CTL.poke 1
-                     ⎕←box'∆FIX VALUE ERROR: ',⍵
-                     q←⍵/⍨1+⍵=SQ
-                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
-                 }f0
-                 code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-                 show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)
-                 show,←⊂('➤    ',showObj code2)
-                 show ∆COM⍨CTL.poke ifTrue code2
-             }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
+                 'ELSEIF/ELIF' 1{
+                     f0 code0←⍵ ∆FIELD 0 1
+                     0::{ ⍝ Elseif: poke, don't push
+                         _←CTL.poke 1
+                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         q←⍵/⍨1+⍵=SQ
+                         (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                     }f0
+                     code2←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
+                     show←('::ELSEIF ',showCode code0)('➤    ',showCode code1)
+                     show,←⊂('➤    ',showObj code2)
+                     show ∆COM⍨CTL.poke ifTrue code2
+                 }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
             ⍝ ELSE
-             'ELSE' 0{ ⍝ flip <-> peek, flip bit, poke
-                 CTL.flip ∆COM ⍵ ∆FIELD 0
-             }register'⍎directiveP ELSE \b .* $'
+                 'ELSE' 0{ ⍝ flip <-> peek, flip bit, poke
+                     CTL.flip ∆COM ⍵ ∆FIELD 0
+                 }register'⍎directiveP ELSE \b .* $'
             ⍝ END, ENDIF, ENDIFDEF, ENDIFNDEF
-             'END(IF(DEF))' 0{
-                 f0←⍵ ∆FIELD 0
-                 CTL.stackEmpty:{
-                     ⎕←box'Stmt invalid: ',⍵
-                     '911 ⎕SIGNAL⍨ ''∆FIX ::END DOMAIN ERROR: out of scope.''',CR,0 ∆COM ⍵
-                 }f0
-                 CTL.pop ∆COM f0
-             }register'⍎directiveP  END  (?: IF  (?: N? DEF)? )? \b .* $'
+                 'END(IF(DEF))' 0{
+                     f0←⍵ ∆FIELD 0
+                     CTL.stackEmpty:{
+                         ⎕←box'Stmt invalid: ',⍵
+                         '911 ⎕SIGNAL⍨ ''∆FIX ::END DOMAIN ERROR: out of scope.''',CR,0 ∆COM ⍵
+                     }f0
+                     CTL.pop ∆COM f0
+                 }register'⍎directiveP  END  (?: IF  (?: N? DEF)? )? \b .* $'
            ⍝ CONDITIONAL INCLUDE - include only if not already included
-             filesIncluded←⍬
-             'CINCLUDE' 1{
-                 f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
-                 (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
-                 ##.filesIncluded,←⊂fName
-                 rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
-                 (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
+                 filesIncluded←⍬
+                 'CINCLUDE' 1{
+                     f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                     (⊂fName)∊##.filesIncluded:0 ∆COM f0⊣⎕←box f0,': File already included. Ignored.'
+                     ##.filesIncluded,←⊂fName
+                     rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to CINCLUDE file: ',⍵ ⋄ readFile ⍵}fName
+                     (CR,⍨∆COM f0),∆V2S(0 doScan)rd
+                 }register'⍎directiveP  CINCLUDE \h+ (⍎stringP | [^\s]+) .* $'
             ⍝ INCLUDE
-             'INCLUDE' 1{
-                 f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
-                 ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
-                 rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
-                 (CR,⍨∆COM f0),∆V2S(0 doScan)rd
-             }register'⍎directiveP  INCLUDE \h+ (⍎stringP | [^\s]+) .* $'
+                 'INCLUDE' 1{
+                     f0 fName←⍵ ∆FIELD 0 1 ⋄ fName←{k←'"'''∊⍨1↑⍵ ⋄ k↓(-k)↓⍵}fName
+                     ##.filesIncluded,←⊂fName   ⍝ See CINCLUDE
+                     rd←{22::22 ⎕SIGNAL⍨'∆FIX: Unable to INCLUDE file: ',⍵ ⋄ readFile ⍵}fName
+                     (CR,⍨∆COM f0),∆V2S(0 doScan)rd
+                 }register'⍎directiveP  INCLUDE \h+ (⍎stringP | [^\s]+) .* $'
            ⍝ COND (cond) stmt   -- If cond is non-zero, a single stmt is made avail for execution.
            ⍝ COND single_word stmt
            ⍝ Does not affect the CTL.stack or CTL.skip...
-             'COND' 1{
-                 f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
-                 0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
-                 0::{
-                     ⎕←box'∆FIX VALUE ERROR: ',⍵
-                     q←⍵/⍨1+⍵=SQ
-                     (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR: ',q,'''',NL
-                 }f0
-                 t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
-                 stmt←⍕(0 doScan)stmt
-                 show1←t ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
-                 show1,CR,(NOc/⍨~t),stmt
-             }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
+                 'COND' 1{
+                     f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
+                     0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
+                     0::{
+                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         q←⍵/⍨1+⍵=SQ
+                         (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR: ',q,'''',NL
+                     }f0
+                     t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
+                     stmt←⍕(0 doScan)stmt
+                     show1←t ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
+                     show1,CR,(NOc/⍨~t),stmt
+                 }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
            ⍝ DEFINE name [ ← value]
            ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
            ⍝     ::DEFINE name       field1=name, field3 is null string.
            ⍝     ::DEFINE name ← ... field1=name, field3 is rest of line after arrow/spaces
            ⍝ DEFINEL (L for literal or DEFINER for raw):
            ⍝     Don't add parens around code sequences outside parens...
-             defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  (?: \h* ←)? \h*  ( ⍎multiLineP ) )? $'
-             'DEF(INE)' 1{
-                 f0 l k v←⍵ ∆FIELD 0 1 2 3
-                 litFlag←(l∊'lLrR')/⎕UCS 0 ⍝ Prefix a null if literal!
+                 defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  (?: \h* ←)? \h*  ( ⍎multiLineP ) )? $'
+                 'DEF(INE)' 1{
+                     f0 l k v←⍵ ∆FIELD 0 1 2 3
+                     litFlag←(l∊'lLrR')/⎕UCS 0 ⍝ Prefix a null if literal!
                ⍝ Replace leading and trailing blanks with single space
-                 v←{
-                     0=≢v:,'1'
-                     '('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵
-                     ⍵
-                 }v
-                 v←⍕(1 doScan)v
-                 _←DICT.set k(litFlag,v)
-                 ∆COM f0
-             }register defS
+                     v←{
+                         0=≢v:,'1'
+                         '('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵
+                         ⍵
+                     }v
+                     v←⍕(1 doScan)v
+                     _←DICT.set k(litFlag,v)
+                     ∆COM f0
+                 }register defS
             ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
             ⍝ EVAL name ← value   ⍝ (synonym)
-             'LET~EVAL' 1{
-                 f0 k vIn←⍵ ∆FIELD 0 1 2
-                 0::{
-                     ⎕←box'∆FIX VALUE ERROR: ',⍵
-                     _←DICT.del k
-                     msg←(f0)('➤ UNDEF ',k)
-                     q←⍵/⍨1+⍵=SQ
-                     (0 ∆COM msg),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
-                 }f0
-                 _←DICT.validate k
-                 vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
-                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
-                 ∆COM f0 msg
-             }register'⍎directiveP  (?: LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (⍎multiLineP) $'
+                 'LET~EVAL' 1{
+                     f0 k vIn←⍵ ∆FIELD 0 1 2
+                     0::{
+                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         _←DICT.del k
+                         msg←(f0)('➤ UNDEF ',k)
+                         q←⍵/⍨1+⍵=SQ
+                         (0 ∆COM msg),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',q,'''',NL
+                     }f0
+                     _←DICT.validate k
+                     vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
+                     msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
+                     ∆COM f0 msg
+                 }register'⍎directiveP  (?: LET | EVAL) \b \h* (⍎longNameP) \h* ← \h* (⍎multiLineP) $'
             ⍝ :PRAGMA name ← value
             ⍝  (Names are case insensitive)
             ⍝ Current Pragmas
             ⍝    FENCE.    Sets the name of the temp variable for "fence" constructions (←⍳5) etc.
             ⍝    Syntax:   ::PRAGMA FENCE ← 'var_name'
             ⍝    Default:  ::PRAGMA FENCE ← '⍙F⍙'
-             'PRAGMA' 1{
-                 f0 k vIn←⍵ ∆FIELD 0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
-                 0=≢k:∆COM f0⊣{
-                     ''⊣⎕←box(' FENCE: ''',⍕##.PRAGMA_FENCE,'''')(' DEBUG: ',⍕##.DEBUG)
-                 }⍬
-                 TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
-                 _←DICT.validate k
-                 vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
-                 msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
-                 ∆COM f0 msg⊣{
-                     'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
-                     'DEBUG'≡k:⊢##.DEBUG∘←vOut
-                     911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
-                 }⍬
-             }register'⍎directiveP  PRAGMA \b (?:  \h+ (⍎longNameP)  \h* ← \h* (.*) | .*) $'
+                 'PRAGMA' 1{
+                     f0 k vIn←⍵ ∆FIELD 0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
+                     0=≢k:∆COM f0⊣{
+                         ''⊣⎕←box(' FENCE: ''',⍕##.PRAGMA_FENCE,'''')(' DEBUG: ',⍕##.DEBUG)
+                     }⍬
+                     TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
+                     _←DICT.validate k
+                     vOut←DICT.ns{⍺⍎⍵}k,'←',vIn
+                     msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
+                     ∆COM f0 msg⊣{
+                         'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
+                         'DEBUG'≡k:⊢##.DEBUG∘←vOut
+                         911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
+                     }⍬
+                 }register'⍎directiveP  PRAGMA \b (?:  \h+ (⍎longNameP)  \h* ← \h* (.*) | .*) $'
            ⍝ UNDEF(ine) name
-             'UNDEF' 1{ ⍝ As eyecandy, we mark failure if name to undef not defined.
-                 f0 k←⍵ ∆FIELD 0 1
-                 _←DICT.del k⊣bool←DICT.defined k
-                 bool ∆COM f0
-             }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
+                 'UNDEF' 1{ ⍝ As eyecandy, we mark failure if name to undef not defined.
+                     f0 k←⍵ ∆FIELD 0 1
+                     _←DICT.del k⊣bool←DICT.defined k
+                     bool ∆COM f0
+                 }register'⍎directiveP  UNDEF (?:INE)? \b\h* (⍎longNameP) .* $'
            ⍝ ERROR stmt
            ⍝ Generates a preprocessor error signal...
-             'ERROR' 1{
+                 'ERROR' 1{
                ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
-                 line num msg←⍵ ∆FIELD¨0 1 2
-                 num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
-                 ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
-                 ⎕SIGNAL/('∆FIX ERROR: ',msg)num
-             }register'⍎directiveP ERR(?:OR)? (?| \h+ (\d+) \h (.*) | () \h* (.*) ) $'
+                     line num msg←⍵ ∆FIELD¨0 1 2
+                     num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
+                     ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
+                     ⎕SIGNAL/('∆FIX ERROR: ',msg)num
+                 }register'⍎directiveP ERR(?:OR)? (?| \h+ (\d+) \h (.*) | () \h* (.*) ) $'
             ⍝ MESSAGE / MSG stmt
             ⍝ Puts out a msg while preprocessing...
-             'MESSAGE~MSG' 1{
-                 line msg←⍵ ∆FIELD 0 1
-                 ⎕←box msg
-                 ∆COM line
-             }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
+                 'MESSAGE~MSG' 1{
+                     line msg←⍵ ∆FIELD 0 1
+                     ⎕←box msg
+                     ∆COM line
+                 }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
            ⍝ BEGIN[nn] ... END(BEGIN)[nn]
-             beginP←'⍎directiveP BEGIN( \d*+ ) \h* (?: .* ) $ \n'
-             beginP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: BEGIN )?+ (?>\1) .* $'
-             beginBuffer←⍬
-             'BEGIN' 1{
-                 ##.beginBuffer,←##.MacroScan1(0 doScan)⍵ ∆FIELD 2
-                 1 ∆COM ⍵ ∆FIELD 0
-             }register beginP
+                 beginP←'⍎directiveP BEGIN( \d*+ ) \h* (?: .* ) $ \n'
+                 beginP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: BEGIN )?+ (?>\1) .* $'
+                 beginBuffer←⍬
+                 'BEGIN' 1{
+                     ##.beginBuffer,←##.MacroScan1(0 doScan)⍵ ∆FIELD 2
+                     1 ∆COM ⍵ ∆FIELD 0
+                 }register beginP
+             :EndSection Register Directives
+
+             :Section Macro Scan (no ::directives): Part I
+               ⍝ MacroScan1: Used in ::BEGIN (q.v.), these exclude any ::directives.
+                 MacroScan1←⍬    ⍝ Augmented below...
+             :EndSection Macro Scan (no ::directives): Part I
+
+             :Section Register Macros and Related
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
-             MacroScan1,←'SIMPLE_NON_MACRO' 0{
-                 CTL.skip/NOc,⍵ ∆FIELD 0
-             }register'^'
+                 MacroScan1,←'SIMPLE_NON_MACRO' 0{
+                     CTL.skip/NOc,⍵ ∆FIELD 0
+                 }register'^'
            ⍝ For nm a of form a1.a2.a3.a4,
            ⍝ see if any of a1 .. a4 are macros,
            ⍝ but accept value vN for aN only if name.
-             subMacro←{
-                 ~'.'∊⍵:⍵              ⍝ a is simple...
-                 1↓∊'.',¨{
-                     vN←DICT.get ⍵  ⍝ Check value vN of aN
-                     0=≢vN:⍵           ⍝ aN not macro. Use aN.
-                     ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
-                     vN                ⍝ Use value vN of aN
-                 }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
-             }
+                 subMacro←{
+                     ~'.'∊⍵:⍵              ⍝ a is simple...
+                     1↓∊'.',¨{
+                         vN←DICT.get ⍵  ⍝ Check value vN of aN
+                         0=≢vN:⍵           ⍝ aN not macro. Use aN.
+                         ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
+                         vN                ⍝ Use value vN of aN
+                     }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
+                 }
            ⍝ name..DEF     is name defined?
            ⍝ name..UNDEF   is name undefined?
            ⍝ name..Q       'name'
            ⍝ name..ENV     getenv('name')
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
-             MacroScan1,←'name..cmd' 1{
-                 nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
+                 MacroScan1,←'name..cmd' 1{
+                     nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
-                 nm←subMacro nm
-                 cmd≡'ENV':' ',q,(getenv nm),q,' '
-                 cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
-                 cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
-                 cmd≡,'Q':' ',q,nm,q,' '
-                 ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
-             }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
+                     nm←subMacro nm
+                     cmd≡'ENV':' ',q,(getenv nm),q,' '
+                     cmd≡'DEF':'(0≠⎕NC',q,nm,q,')'
+                     cmd≡'UNDEF':'(0=⎕NC',q,nm,q,')'
+                     cmd≡,'Q':' ',q,nm,q,' '
+                     ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
+                 }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
            ⍝ ATOMS, PARAMETERS (PARMS)
            ⍝ atoms: n1 n2 n3 → anything,   `n1 n2 n3
            ⍝  parms: bc def ghi → xxx     →   ('abc' 'def' 'ghi')
            ⍝       ( → code;...) ( ...; → code; ...) are also allowed. The atom is then ⍬.
            ⍝ To do: Allow char constants-- just don't add quotes...
            ⍝ To do: Treat num constants as unquoted scalars
-             atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
-             atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
-             MacroScan1,←'ATOMS/PARMS' 2{
-                 atoms arrow←⍵ ∆FIELD 1 2
+                 atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
+                 atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
+                 MacroScan1,←'ATOMS/PARMS' 2{
+                     atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
-                 atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
-                 o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
-                 atoms←{
-                     NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
-                     a∊NUM:⍵⊣s∘←1         ⍝ Pass through 123.45, w/o adding quotes (not needed)
-                     a∊##.SQ:⍵⊣s∨←3=≢⍵        ⍝ Pass through 'abcd' w/o adding quotes (already there)
-                     ##.SQ,##.SQ,⍨⍵⊣s∨←1=≢⍵
-                 }¨atoms
-                 sxo←s∧~o
-                 atoms←(∊o s sxo/'⊂,¨'),1↓∊' ',¨atoms
-                 1=≢arrow:'(⊂',atoms,'),⊂'     ⍝ 1=≢arrow: Is there a right arrow?
-                 '(',atoms,')'
-             }register'\h* (?| (⍎atomsP) \h* (→) | (?<=[(;])() \h*  (→) | ` (⍎atomsP) ) \h* (→)?'
+                     atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
+                     o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
+                     atoms←{
+                         NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
+                         a∊NUM:⍵⊣s∘←1         ⍝ Pass through 123.45, w/o adding quotes (not needed)
+                         a∊##.SQ:⍵⊣s∨←3=≢⍵        ⍝ Pass through 'abcd' w/o adding quotes (already there)
+                         ##.SQ,##.SQ,⍨⍵⊣s∨←1=≢⍵
+                     }¨atoms
+                     sxo←s∧~o
+                     atoms←(∊o s sxo/'⊂,¨'),1↓∊' ',¨atoms
+                     1=≢arrow:'(⊂',atoms,'),⊂'     ⍝ 1=≢arrow: Is there a right arrow?
+                     '(',atoms,')'
+                 }register'\h* (?| (⍎atomsP) \h* (→) | (?<=[(;])() \h*  (→) | ` (⍎atomsP) ) \h* (→)?'
             ⍝ STRINGS: passthrough (only single-quoted strings appear.
             ⍝ Must follow ATOMs
-             MacroScan1,←'STRINGS*' 2(0 register)'⍎sqStringP'
+                 MacroScan1,←'STRINGS*' 2(0 register)'⍎sqStringP'
             ⍝ Hexadecimal integers...
             ⍝ See ⎕UdhhX for hexadecimal Unicode constants
-             MacroScan1,←'HEX INTs' 2{
-                 ⍕h2d ⍵ ∆FIELD 0
-             }register'(?<![⍎ALPH\d])  ¯? \d [\dA-F]* X \b'
+                 MacroScan1,←'HEX INTs' 2{
+                     ⍕h2d ⍵ ∆FIELD 0
+                 }register'(?<![⍎ALPH\d])  ¯? \d [\dA-F]* X \b'
             ⍝ Big integers...
             ⍝ ¯?dddddddddI  →  ('¯?ddddddd')
-             MacroScan1,←'BigInts' 2{
-                 '''','''',⍨⍵ ∆FIELD 1
-             }register'(?<![⍎ALPH\d])  (¯? \d+) I \b'
+                 MacroScan1,←'BigInts' 2{
+                     '''','''',⍨⍵ ∆FIELD 1
+                 }register'(?<![⍎ALPH\d])  (¯? \d+) I \b'
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
-             MacroScan1,←'UNICODE' 2{
-                 i←{'xX'∊⍨⊃⌽⍵:h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
-                 (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
-                 ' ',SQ,(⎕UCS i),SQ,' '
-             }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
+                 MacroScan1,←'UNICODE' 2{
+                     i←{'xX'∊⍨⊃⌽⍵:h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
+                     (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
+                     ' ',SQ,(⎕UCS i),SQ,' '
+                 }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
             ⍝ Captured as macroReg for re-use
-             MacroScan1,←'MACRO' 2{
-                 TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
-                 k←⍵ ∆FIELD 1
-                 v←⍕DICT.get k
-                 0=≢v:k
-                 v1←1↑v ⋄ isLit←⎕UCS 0
-                 v1∊isLit:1↓v   ⍝ Literal!
-                 v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
-                 '(',v,')'
-             }register'(⍎longNameP)(?!\.\.)'
+                 MacroScan1,←'MACRO' 2{
+                     TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
+                     k←⍵ ∆FIELD 1
+                     v←⍕DICT.get k
+                     0=≢v:k
+                     v1←1↑v ⋄ isLit←⎕UCS 0
+                     v1∊isLit:1↓v   ⍝ Literal!
+                     v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
+                     '(',v,')'
+                 }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
-             MacroScan1,←'ASSIGN' 2{
-                 ##.PRAGMA_FENCE,'←'
-             }register'^ \h* ← | (?<=[(\[{;:⋄]) \h* ←  '
-         :EndSection
+                 MacroScan1,←'ASSIGN' 2{
+                     ##.PRAGMA_FENCE,'←'
+                 }register'^ \h* ← | (?<=[(\[{;:⋄]) \h* ←  '
+             :EndSection Register Macros and Related
+         :EndSection MainScan1
          MainScan1←MEnd
-     :EndSection
+     :EndSection Setup Scans
 
       ⍝ MacroScan1 - See description above.
      :Section Macro Scan (no ::directives): Part II
