@@ -1,9 +1,9 @@
-﻿ result←{specs}∆FIX fileName;Bêgin
- ;ALPH;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
+ result←{specs}∆FIX fileName
+ ;ALPH;Bêgin;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
  ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
- ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;beginBuffer;beginP;box;braceCount
- ;braceP;brackP;code;comment;commentP;defMatch;defS;dictNameP;directiveP;doScan
+ ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;firstBuffer;firstP;box;braceCount
+ ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
  ;pfx;readFile;register;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
@@ -538,7 +538,7 @@
          :EndSection
 
          :Section Macro Scan (no ::directives): Part I
-           ⍝ MacroScan1: Used in ::BEGIN (q.v.), these exclude any ::directives.
+           ⍝ MacroScan1: Used in ::FIRST (q.v.), these exclude any ::directives.
              MacroScan1←⍬    ⍝ Augmented below...
          :EndSection Macro Scan (no ::directives): Part I
 
@@ -710,18 +710,18 @@
                      ⎕←box msg
                      ∆COM line
                  }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
-               ⍝ BEGIN[nn] ... END(BEGIN)[nn]
-                  ⋄ beginP←'⍎directiveP BEGIN( \d*+ ) \h* (?: .* ) $ \n'
-                  ⋄ beginP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: BEGIN )?+ (?>\1) .* $'
-                  ⋄ beginBuffer←⍬
-                 'BEGIN' 1{
+               ⍝ FIRST[nn] ... END(FIRST)[nn]
+                  ⋄ firstP←'⍎directiveP FIRST( \d*+ ) \h* (?: .* ) $ \n'
+                  ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+ (?>\1) .* $'
+                  ⋄ firstBuffer←⍬
+                 'FIRST' 1{
                      f1←⍵ ∆FIELD 1
                      code1←##.MacroScan1(0 doScan)f2←⍵ ∆FIELD 2
                      leaf1←(NL∘≠⊆⊢)f2 ⋄ leaf2←(NL∘≠⊆⊢)code1
                      join←∊leaf1,¨(⊂NL,' ➤ '),¨leaf2,¨NL
-                     ##.beginBuffer,←code1
-                     1 ∆COM'::BEGIN',f1,NL,join,'::END',f1,NL
-                 }register beginP
+                     ##.firstBuffer,←code1
+                     1 ∆COM'::FIRST',f1,NL,join,'::END',f1,NL
+                 }register firstP
              :EndSection Register Directives
 
              :Section Register Macros and Related
@@ -813,7 +813,7 @@
                      v1∊isLit:1↓v   ⍝ Literal!
                      v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
                      '(',v,')'
-                 }register'(⍎longNameP)(?!\.\.)'
+                 }register'(⍎nameP)(?!\.\.)'
                 ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
                 ⍝   ⍙S⍙: a "fence"
                  MacroScan1,←'ASSIGN' 2{
@@ -902,20 +902,20 @@
        ⍝ Executive
        ⍝ =================================================================
          code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
-         :Section Begin Phase II- process beginBuffer
-             :If 0≠≢beginBuffer
-             :AndIf 0≠≢beginBuffer~' ',NL
-                 beginBuffer←'Bêgin',NL,beginBuffer
-                 :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)beginBuffer
+         :Section Begin Phase II- process firstBuffer
+             :If 0≠≢firstBuffer
+             :AndIf 0≠≢firstBuffer~' ',NL
+                 firstBuffer←'Bêgin',NL,firstBuffer
+                 :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
                      :Trap 0 ⋄ Bêgin
                      :Else ⋄ ⎕←box↑⎕DMX.DM
                          :If 0=DEBUG
-                             _←'∆FIX ERROR: ::BEGIN sequence ran incompletely, due to invalid code.'
+                             _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
                              _ ⎕SIGNAL 11
                          :EndIf
                      :EndTrap
                  :Else
-                     _←'∆FIX ERROR: ::BEGIN sequence could not be run at all.'
+                     _←'∆FIX ERROR: ::FIRST sequence could not be run at all.'
                      _ ⎕SIGNAL 11
                  :EndIf
              :EndIf
