@@ -10,9 +10,9 @@
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog APL preprocessor  (rev. Nov 11 )
+ ⍝  A Dyalog APL preprocessor  (rev. Nov 20 )
  ⍝
- ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG] [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
+ ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
  ⍝ Description:
  ⍝   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
@@ -48,7 +48,7 @@
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
  ⎕IO ⎕ML←0 1
  CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
- ⎕←'The caller''s namespace is ',CalledFrom
+
  OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
  '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
 
@@ -371,7 +371,7 @@
              :If ×≢lines
                  1 ⎕NDELETE fileName ⋄ lines←(⊂'∇',tFun),lines,(⊂,'∇') ⋄ (⊂lines)⎕NPUT fileName
              :EndIf
-             ⎕←↑⊃⎕NGET fileName 1
+            :IF DEBUG ⋄ ⎕←↑⊃⎕NGET fileName 1 ⋄ :ENDIF
          :Else
              ⎕SIGNAL/('∆FIX: Error creating temporary file: ',fileName)11
          :EndTrap
@@ -434,6 +434,10 @@
      :EndSection Preprocess Tradfn Headers
 
      :Section Setup Scans
+         :Section Macro Scan (no ::directives): Part I
+           ⍝ MacroScan1: Used in ::BEGIN (q.v.), these exclude any ::directives.
+             MacroScan1←⍬    ⍝ Augmented below...
+         :EndSection Macro Scan (no ::directives): Part I
          :Section PreScan1
              MBegin'PreScan1'
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
@@ -540,7 +544,7 @@
          :Section MainScan1
              MBegin'MainScan1'
             ⍝ Comments
-             'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
+             MacroScan1,←'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
             ⍝ IFDEF/IFNDEF stmts
              'IF(N)DEF' 1{
                  f0 not name←⍵ ∆FIELD 0 1 2
@@ -713,7 +717,7 @@
                  1 ∆COM ⍵ ∆FIELD 0
              }register beginP
            ⍝ Start of every NON-MACRO line → comment, if CTL.skip is set. Else NOP.
-             'SIMPLE_NON_MACRO' 0{
+             MacroScan1,←'SIMPLE_NON_MACRO' 0{
                  CTL.skip/NOc,⍵ ∆FIELD 0
              }register'^'
            ⍝ For nm a of form a1.a2.a3.a4,
@@ -734,7 +738,7 @@
            ⍝ name..ENV     getenv('name')
            ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
            ⍝ name..Q  →  'name' (after any macro substitution)
-             'name..cmd' 1{
+             MacroScan1,←'name..cmd' 1{
                  nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd ⋄ q←''''
                ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
                  nm←subMacro nm
@@ -752,7 +756,7 @@
            ⍝ To do: Treat num constants as unquoted scalars
              atomsP←' (?:         ⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP|⍬)'
              atomsP,←'(?:\h+   (?:⍎longNameP|¯?\d[\d¯EJ\.]*|⍎sqStringP)|\h*⍬+)*'
-             'ATOMS/PARMS' 2{
+             MacroScan1,←'ATOMS/PARMS' 2{
                  atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
                  atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
@@ -770,28 +774,28 @@
              }register'\h* (?| (⍎atomsP) \h* (→) | (?<=[(;])() \h*  (→) | ` (⍎atomsP) ) \h* (→)?'
             ⍝ STRINGS: passthrough (only single-quoted strings appear.
             ⍝ Must follow ATOMs
-             'STRINGS*' 2(0 register)'⍎sqStringP'
+             MacroScan1,←'STRINGS*' 2(0 register)'⍎sqStringP'
             ⍝ Hexadecimal integers...
             ⍝ See ⎕UdhhX for hexadecimal Unicode constants
-             'HEX INTs' 2{
+             MacroScan1,←'HEX INTs' 2{
                  ⍕h2d ⍵ ∆FIELD 0
              }register'(?<![⍎ALPH\d])  ¯? \d [\dA-F]* X \b'
             ⍝ Big integers...
             ⍝ ¯?dddddddddI  →  ('¯?ddddddd')
-             'BigInts' 2{
+             MacroScan1,←'BigInts' 2{
                  '''','''',⍨⍵ ∆FIELD 1
              }register'(?<![⍎ALPH\d])  (¯? \d+) I \b'
             ⍝ UNICODE, decimal (⎕UdddX) and hexadecimal (⎕UdhhX)
             ⍝ ⎕U123 →  '⍵', where ⍵ is ⎕UCS 123
             ⍝ ⎕U021X →  (⎕UCS 33) → '!'
-             'UNICODE' 2{
+             MacroScan1,←'UNICODE' 2{
                  i←{'xX'∊⍨⊃⌽⍵:h2d ⍵ ⋄ 1⊃⎕VFI ⍵}⍵ ∆FIELD 1
                  (i≤32)∨i=132:'(⎕UCS ',(⍕i),')'
                  ' ',SQ,(⎕UCS i),SQ,' '
              }register'⎕U ( \d+ | \d [\dA-F]* X ) \b'
             ⍝ MACRO: Match APL-style simple names that are defined via ::DEFINE above.
             ⍝ Captured as macroReg for re-use
-             MacroScan1←,'MACRO' 2{
+             MacroScan1,←'MACRO' 2{
                  TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
                  k←⍵ ∆FIELD 1
                  v←⍕DICT.get k
@@ -803,18 +807,17 @@
              }register'(⍎longNameP)(?!\.\.)'
             ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
             ⍝   ⍙S⍙: a "fence"
-             'ASSIGN' 2{
+             MacroScan1,←'ASSIGN' 2{
                  ##.PRAGMA_FENCE,'←'
              }register'^ \h* ← | (?<=[(\[{;:⋄]) \h* ←  '
          :EndSection
          MainScan1←MEnd
      :EndSection
 
-    ⍝ MacroScan1 - defined above.
-    ⍝ MBegin'MACRO Only'
-    ⍝ 'MACRO Only' 2(macroFn register)'(⍎longNameP)(?!\.\.)'
-    ⍝    MacroScan1←,...
-    ⍝ MacroScan1←MEnd
+      ⍝ MacroScan1 - See description above.
+     :Section Macro Scan (no ::directives): Part II
+         MacroScan1.MScanName←⊂'Macro Scan (no ::directives)'
+     :EndSection Macro Scan(no ::directives): Part II
 
      :Section List Scan (experimental)
      ⍝ Handle lists of the form:
@@ -860,7 +863,7 @@
          ListScan←MEnd
      :EndSection
 
-     :Section Define Scans
+     :Section Setup Scan Procedure
      ⍝ To scan simple expressions:
      ⍝   code← [PreScan1 PreScan2] MainScan1 (⍺⍺ doScan)⊣ code
      ⍝          ⍺:    MainScan1 (default) or list of scans in order
@@ -882,9 +885,9 @@
              }⍵
              res⊣CTL.restoreIf stackFlag
          }
-     :EndSection Define Scans
+     :EndSection Setup Scan Procedure
 
-     :Section Do Scans
+     :Section Perform Scans
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
@@ -919,7 +922,7 @@
          :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
          code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
-     :EndSection Do Scans
+     :EndSection Perform Scans
  :EndSection
 
  :If SHOWCOMPILED
