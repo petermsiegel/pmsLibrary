@@ -168,13 +168,13 @@
    ⍝ Use a private namespace so we can access recursively with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
-         dict.tweak←{
-           ⍝ '⎕SE'≡3↑⍵:'ÐSE',3↓⍵               ⍝Handle at [A]:    
-             ('#.')≡2↑⍵:'ð.','Ð'@('⎕'∘=)⊣2↓⍵   ⍝ We don't address or support ##.
-             'Ð'@('⎕'∘=)⊣⍵                     ⍝ [A] Handle ⎕SE and faux system names ⎕MY etc. set by user.
+         dict.tweak←{map←'Ð'@('⎕'∘=)
+           ⍝ '⎕SE'≡3↑⍵:'ÐSE',3↓⍵               ⍝Handle at [A]:
+             ('#.')≡2↑⍵:'ð.',map 2↓⍵   ⍝ We don't address or support ##.
+             map ⍵                     ⍝ [A] Handle ⎕SE and faux system names ⎕MY etc. set by user.
          }
          dict.untweak←{
-             w⊣((w∊in)/w)←'⎕#'[in⍳(w∊in←'Ðð')/w←⍵]
+             '⎕'@('Ð'∘=)'#'@('ð'∘=)⍵
          }
          dict.ns←dict.⎕NS''
          dict.validate←{
