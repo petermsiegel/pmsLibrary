@@ -169,8 +169,8 @@
      ∆DICT←{
          dict←⎕NS''
          dict.tweak←{map←'Ð'@('⎕'∘=)
-           ⍝ '⎕SE'≡3↑⍵:'ÐSE',3↓⍵               ⍝Handle at [A]:
-             ('#.')≡2↑⍵:'ð.',map 2↓⍵   ⍝ We don't address or support ##.
+           ⍝ '⎕SE.'≡4↑⍵:'ÐSE.',map 4↓⍵               ⍝Handle at [A]:
+             '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ We don't address or support ##.
              map ⍵                     ⍝ [A] Handle ⎕SE and faux system names ⎕MY etc. set by user.
          }
          dict.untweak←{
