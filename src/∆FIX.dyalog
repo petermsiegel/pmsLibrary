@@ -169,13 +169,12 @@
      ∆DICT←{
          dict←⎕NS''
          dict.tweak←{map←'Ð'@('⎕'∘=)
-           ⍝ '⎕SE.'≡4↑⍵:'ÐSE.',map 4↓⍵               ⍝Handle at [A]:
-             '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ We don't address or support ##.
-             map ⍵                     ⍝ [A] Handle ⎕SE and faux system names ⎕MY etc. set by user.
+             '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ Handle #., but not ##. (leading or embedded)
+             map ⍵                   ⍝ Handle ⎕SE and faux system names ⎕MY etc. set by user.
          }
-         dict.untweak←{
-             '⎕'@('Ð'∘=)'#'@('ð'∘=)⍵
-         }
+         dict.(twIn twOut)←'Ðð' '⎕#'
+         dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
+
          dict.ns←dict.⎕NS''
          dict.validate←{
              ⍺←ns ⋄ n k←⍺(tweak ⍵)
