@@ -46,103 +46,105 @@
  ⍝               Default if standard fileName was specified.
  ⍝            1: View the preprocessed code just before returning, via ⎕ED.
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
- ⎕IO ⎕ML←0 1
- CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
 
- OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
- '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
+ :Section Initialization
+     ⎕IO ⎕ML←0 1
+     CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
 
- TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
- CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
- YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
- OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
- CTL←⎕NS''  ⍝ See CTL services below
- PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
+     OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
+     '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
+
+     TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+     CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
+     YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
+     OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
+     CTL←⎕NS''  ⍝ See CTL services below
+     PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
  ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
  ⍝ By default, private use Unicode E000If DEBUG, it's a smiley face.
- SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
+     SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
 
- :Section Utilities
+     :Section Utilities
 ⍝-------------------------------------------------------------------------------------------
    ⍝ getenv: Returns value of environment var.
-     getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+         getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
    ⍝ ifTrue ⍵: Returns 1
    ⍝          iff ⍵ has length 0 (≢⍵) OR if (,⍵) is neither (,0) nor (,⎕NULL).
    ⍝       1: (1 2) ('0') (' ') ('XXX')
    ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
    ⍝ (See IF(N)DEF.)
-     ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-     box←{  ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
-         (⎕IO ⎕ML)←1 3
-         2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
-         ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
+         ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
+         box←{  ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
+             (⎕IO ⎕ML)←1 3
+             2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
+             ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
-         ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
-         z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
+             ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
+             z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
                                                            ⍝ simple boxing? ↓
-         0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
+             0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
 
-         (r c)←rh{∪⍺{(⍵∊0,⍳⍺)/⍵}⍵,(~¯1∊⍵)/0,⍺}¨2↑ar             ⍝ rows and columns
-         (rw cl)←rh{{⍵[⍋⍵]}⍵∪0,⍺}¨r c
+             (r c)←rh{∪⍺{(⍵∊0,⍳⍺)/⍵}⍵,(~¯1∊⍵)/0,⍺}¨2↑ar             ⍝ rows and columns
+             (rw cl)←rh{{⍵[⍋⍵]}⍵∪0,⍺}¨r c
 
-         (~(0,2⊃rh)∊c){                                         ⍝ draw left/right?
-             (↑⍺)↓[2](-2⊃⍺)↓[2]⍵[;⍋(⍳2⊃rh),cl]                  ⍝ rearrange columns
-         }(~(0,1⊃rh)∊r){                                        ⍝ draw top/bottom?
-             (↑⍺)↓[1](-2⊃⍺)↓[1]⍵[⍋(⍳1⊃rh),rw;]                  ⍝ rearrange rows
-         }{
-             (h w)←(⍴rw),⍴cl ⋄ q←h w⍴11⊃ch                      ⍝ size; special,
-             hz←(h,2⊃rh)⍴9⊃ch                                   ⍝  horizontal and
-             vr←(rh[1],w)⍴10⊃ch                                 ⍝  vertical lines
-             ∨/0∊¨⍴¨rw cl:(⍵⍪hz),vr⍪q                           ⍝ one direction only?
-             q[1;]←5⊃ch ⋄ q[;w]←6⊃ch ⋄ q[;1]←7⊃ch ⋄ q[h;]←8⊃ch  ⍝ end marks
-             q[1,h;1,w]←2 2⍴ch ⋄ (⍵⍪hz),vr⍪q                    ⍝ corners, add parts
-         }z
-     }
+             (~(0,2⊃rh)∊c){                                         ⍝ draw left/right?
+                 (↑⍺)↓[2](-2⊃⍺)↓[2]⍵[;⍋(⍳2⊃rh),cl]                  ⍝ rearrange columns
+             }(~(0,1⊃rh)∊r){                                        ⍝ draw top/bottom?
+                 (↑⍺)↓[1](-2⊃⍺)↓[1]⍵[⍋(⍳1⊃rh),rw;]                  ⍝ rearrange rows
+             }{
+                 (h w)←(⍴rw),⍴cl ⋄ q←h w⍴11⊃ch                      ⍝ size; special,
+                 hz←(h,2⊃rh)⍴9⊃ch                                   ⍝  horizontal and
+                 vr←(rh[1],w)⍴10⊃ch                                 ⍝  vertical lines
+                 ∨/0∊¨⍴¨rw cl:(⍵⍪hz),vr⍪q                           ⍝ one direction only?
+                 q[1;]←5⊃ch ⋄ q[;w]←6⊃ch ⋄ q[;1]←7⊃ch ⋄ q[h;]←8⊃ch  ⍝ end marks
+                 q[1,h;1,w]←2 2⍴ch ⋄ (⍵⍪hz),vr⍪q                    ⍝ corners, add parts
+             }z
+         }
    ⍝ showObj, showCode-- used informationally to show part of a potentially large object.
    ⍝ Show just a bit of an obj of unknown size. (Used for display info)
    ⍝ showObj: assumes data values. Puts strings in quotes.
    ⍝ showCode: Assumes APL code or names in string format.
-     showObj←{⍺←⎕PW-20 ⋄ maxW←⍺
-         f←⎕FMT ⍵
-         q←SQ/⍨0=80|⎕DR ⍵
-         clip←1 maxW<⍴f
-         (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
-     }
+         showObj←{⍺←⎕PW-20 ⋄ maxW←⍺
+             f←⎕FMT ⍵
+             q←SQ/⍨0=80|⎕DR ⍵
+             clip←1 maxW<⍴f
+             (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
+         }
    ⍝ showCode: assumes names or code
-     showCode←{⍺←⎕PW-20 ⋄ maxW←⍺
-         f←⎕FMT ⍵
-         clip←1 maxW<⍴f
-         ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
-     }
+         showCode←{⍺←⎕PW-20 ⋄ maxW←⍺
+             f←⎕FMT ⍵
+             clip←1 maxW<⍴f
+             ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
+         }
    ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
    ⍝      ⍵: A string of the form ¯?\d[\da-fA-F]?[xX]. Case is ignored.
    ⍝ h2d assumes pattern matching ensures valid nums. We simply ignore invalid chars here.
-     h2d←{ ⍝ Convert hex to decimal.
-         ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
-         0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
-         (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
-     }
+         h2d←{ ⍝ Convert hex to decimal.
+             ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
+             0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
+             (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
+         }
 
 ⍝--------------------------------------------------------------------------
 ⍝ CTL services
 ⍝   stack and skip services. Most  return the last item on the stack.
 ⍝   stacked item only 1 or 0
-     :With CTL                               ⍝ Returns...
-         ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
-         ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
-         ⎕FX's←peek' 's←⊃⌽stack'             ⍝ ... cur last
-         ⎕FX's←flip' 's←(⊃⌽stack)←~⊃⌽stack'  ⍝ ... last, after flipping bit
-         push←{stack,←⍵}                     ⍝ ... ⍵ as new last
-         poke←{(⊃⌽stack)←⍵}                  ⍝ ... ⍵ as newly replaced last
-         ⎕FX's←skip' 's←~⊃⌽stack'            ⍝ ... ~last
+         :With CTL                               ⍝ Returns...
+             ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
+             ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
+             ⎕FX's←peek' 's←⊃⌽stack'             ⍝ ... cur last
+             ⎕FX's←flip' 's←(⊃⌽stack)←~⊃⌽stack'  ⍝ ... last, after flipping bit
+             push←{stack,←⍵}                     ⍝ ... ⍵ as new last
+             poke←{(⊃⌽stack)←⍵}                  ⍝ ... ⍵ as newly replaced last
+             ⎕FX's←skip' 's←~⊃⌽stack'            ⍝ ... ~last
        ⍝ Saving/restoring the stack
-         säve←⍬
-         saveIf←{~⍵:0 ⋄ säve,←⊂stack ⋄ stack←1 ⋄ 1}
-         restoreIf←{~⍵:0 ⋄ stack←⊃⌽säve ⋄ säve↓⍨←¯1 ⋄ 1}
-         :If DEBUG
-             ⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
-         :EndIf
-     :EndWith
+             säve←⍬
+             saveIf←{~⍵:0 ⋄ säve,←⊂stack ⋄ stack←1 ⋄ 1}
+             restoreIf←{~⍵:0 ⋄ stack←⊃⌽säve ⋄ säve↓⍨←¯1 ⋄ 1}
+             :If DEBUG
+                 ⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
+             :EndIf
+         :EndWith
 ⍝--------------------------------------------------------------------------
    ⍝⍝⍝⍝ regexp related routines...
    ⍝ ∆PFX:   pfx ∇ lines
@@ -151,73 +153,76 @@
    ⍝    pfx:   a string prefix. Default '⍝ '
    ⍝ See also NO, YES, NOc, YESc.
    ⍝ Returns lines prefixed with pfx in vector of vectors format.
-     ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
+         ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
    ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
-     ∆V2S←{1↓∊CR,¨⊆⍵}
+         ∆V2S←{1↓∊CR,¨⊆⍵}
    ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
-     ∆V2Q←{q←SQ ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
+         ∆V2Q←{q←SQ ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
    ⍝ ∆COM: Convert a vector of vector strings to a set of comments, one per "line" generated.
-     ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
+         ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
    ⍝ PCRE routines
-     ∆FIELD←{
-         0=≢⍵:'' ⋄ 1<≢⍵:⍺ ∇¨⍵ ⋄ 0=⍵:⍺.Match
-         ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:''
-         ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
-     }
+         ∆FIELD←{
+             0=≢⍵:'' ⋄ 1<≢⍵:⍺ ∇¨⍵ ⋄ 0=⍵:⍺.Match
+             ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:''
+             ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
+         }
    ⍝ dictionary routines
    ⍝ Use a private namespace so we can access recursively with ::IF etc.
-     ∆DICT←{
-         dict←⎕NS''
-         dict.tweak←{map←'Ð'@('⎕'∘=)
-             '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ Handle #., but not ##. (leading or embedded)
-             map ⍵                   ⍝ Handle ⎕SE and faux system names ⎕MY etc. set by user.
-         }
-         dict.(twIn twOut)←'Ðð' '⎕#'
-         dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
-
-         dict.ns←dict.⎕NS''
-         dict.validate←{
-             ⍺←ns ⋄ n k←⍺(tweak ⍵)
-             pfxCheck←{
-                 ~'.'∊⍵:1
-                 pfx←1⊃⎕NPARTS ⍵ ⋄ nc←⍺.⎕NC pfx
-                 nc∊9 0:1 ⋄ nc=¯1:(⊂,pfx)∊'⎕SE'(,'#')
-                 ⍺ ∇ pfx
+         ∆DICT←{
+             dict←⎕NS''
+             dict.tweak←{map←'Ð'@('⎕'∘=)
+                 '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ Handle #., but not ##. (leading or embedded)
+                 map ⍵                   ⍝ Handle ⎕SE and faux system names ⎕MY etc. set by user.
              }
-             ~'.'∊k:1                   ⍝ simple name? Done
-             n2←1⊃⎕NPARTS k             ⍝ n2: prefix a.b.c in name a.b.c.d
-             n pfxCheck k:1⊣n2 n.⎕NS''
-             err←'∆FIX: Object ',k,' invalid: prefix ',n2,' in use as non-namespace object.'
-             err ⎕SIGNAL 911
+             dict.(twIn twOut)←'Ðð' '⎕#'
+      ⍝  Slower:
+      ⍝  dict.(untweak←(((((⌷∘twOut)∘⊂))twIn∘⍳)@(∊∘twIn))
+      ⍝  Faster, clearer:
+             dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
+
+             dict.ns←dict.⎕NS''
+             dict.validate←{
+                 ⍺←ns ⋄ n k←⍺(tweak ⍵)
+                 pfxCheck←{
+                     ~'.'∊⍵:1
+                     pfx←1⊃⎕NPARTS ⍵ ⋄ nc←⍺.⎕NC pfx
+                     nc∊9 0:1 ⋄ nc=¯1:(⊂,pfx)∊'⎕SE'(,'#')
+                     ⍺ ∇ pfx
+                 }
+                 ~'.'∊k:1                   ⍝ simple name? Done
+                 n2←1⊃⎕NPARTS k             ⍝ n2: prefix a.b.c in name a.b.c.d
+                 n pfxCheck k:1⊣n2 n.⎕NS''
+                 err←'∆FIX: Object ',k,' invalid: prefix ',n2,' in use as non-namespace object.'
+                 err ⎕SIGNAL 911
+             }
+             dict.set←{⍺←ns
+                 ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
+                 n(k v)←⍺ ⍵ ⋄ k←tweak k
+                 n validate k:n{⍺⍎k,'←⍵'}v
+             }
+             dict.get←{⍺←ns
+                 6 11::''⊣⎕←'dict.get logic error on name: ',k
+                 n k←⍺(tweak ⍵)
+                 0≥n.⎕NC k:''
+                 ⍕n.⎕OR k
+             }
+             dict.del←{⍺←ns
+                 n k←⍺(tweak ⍵)
+                 1:n.⎕EX k
+             }
+             dict.defined←{⍺←ns
+                 n k←⍺(tweak ⍵)
+                 2=n.⎕NC k
+             }
+             _←dict.⎕FX'k←keys' 'k←untweak¨↓ns.⎕NL 2'
+             _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
+             dict
          }
-         dict.set←{⍺←ns
-             ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             n(k v)←⍺ ⍵ ⋄ k←tweak k
-             n validate k:n{⍺⍎k,'←⍵'}v
-         }
-         dict.get←{⍺←ns
-             6 11::''⊣⎕←'dict.get logic error on name: ',k
-             n k←⍺(tweak ⍵)
-             0≥n.⎕NC k:''
-             ⍕n.⎕OR k
-         }
-         dict.del←{⍺←ns
-             n k←⍺(tweak ⍵)
-             1:n.⎕EX k
-         }
-         dict.defined←{⍺←ns
-             n k←⍺(tweak ⍵)
-             2=n.⎕NC k
-         }
-         _←dict.⎕FX'k←keys' 'k←untweak¨↓ns.⎕NL 2'
-         _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
-         dict
-     }
 ⍝-------------------------------------------------------------------------------------------
 ⍝ Pattern Building Routines...
-     ⎕SHADOW'MScanName'
-     ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
-     ⎕FX'm←MEnd' 'm←Match'
+         ⎕SHADOW'MScanName'
+         ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
+         ⎕FX'm←MEnd' 'm←Match'
   ⍝  register-- adds a function and patterns to the current Match "database".
   ⍝    Returns the associated namespace.
   ⍝    Useful for excluding a namespace from a match sequence or re-using in
@@ -231,71 +236,71 @@
   ⍝     matchFn: the fn to call when <pattern> matches.
   ⍝        See Local Defs for objects copied into the namespace at registration
   ⍝     pattern: The Regex pattern to match. patterns are matched IN ORDER.
-     register←{
-         ⍺←('[',(⍕1+≢Match),']')0
+         register←{
+             ⍺←('[',(⍕1+≢Match),']')0
       ⍝  Local Defs
-         ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
-         ns.⎕PATH←'##'
-         ns.MScanName←MScanName  ⍝ Global → local
-         ns.CTL←CTL
-         ns.DICT←DICT
-         ns.(info skipFlag)←2⍴(⊆⍺),0  ⍝ Default skipFlag: 0
-         ns.pRaw←⍵                    ⍝ For debugging
-         ns.pats←eval ⍵
-         ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
-         1:Match,←ns
-     }
+             ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
+             ns.⎕PATH←'##'
+             ns.MScanName←MScanName  ⍝ Global → local
+             ns.CTL←CTL
+             ns.DICT←DICT
+             ns.(info skipFlag)←2⍴(⊆⍺),0  ⍝ Default skipFlag: 0
+             ns.pRaw←⍵                    ⍝ For debugging
+             ns.pats←eval ⍵
+             ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
+             1:Match,←ns
+         }
      ⍝ MActions: Actions A may be char: replace match with A
      ⍝             or numeric: replace match  with ⍵ ∆FIELD A
      ⍝                or a fn: replace match with value from call:  ns A ⍵
-     MActions←{
-         TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-         match←,⍺⍺    ⍝ Ensure vector...
-         pn←⍵.PatternNum
-         pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
-         ns←pn⊃match
+         MActions←{
+             TRAP::⎕SIGNAL/⎕DMX.(EM EN)
+             match←,⍺⍺    ⍝ Ensure vector...
+             pn←⍵.PatternNum
+             pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
+             ns←pn⊃match
        ⍝ If CTL.skip, i.e. we have code in an :IF / :THEN path not taken,
        ⍝ we can immediately take required action if skipFlag>0.
-         CTL.skip∧×ns.skipFlag:ns.skipFlag{
-             ⍺=1:0 ∆COM ⍵ ∆FIELD 0
-             ⍺=2:⍵ ∆FIELD 0
-             ∘LOGIC ERROR:UNREACHABLE
-         }⍵                                       ⍝ ↓ What is ns.action?
-         3=ns.⎕NC'action':ns ns.action ⍵          ⍝ ... a fn, call it.
-         ' '=1↑0⍴ns.action:∊ns.action             ⍝ ... text? Return as is...
-         0=ns.action:⍵ ∆FIELD ns.action           ⍝ ... number 0: Just passthru, i.e. return as is.
-         ⍵ ∆FIELD ns.action                       ⍝ Else... m.action is a PCRE field number to return.
-     }
+             CTL.skip∧×ns.skipFlag:ns.skipFlag{
+                 ⍺=1:0 ∆COM ⍵ ∆FIELD 0
+                 ⍺=2:⍵ ∆FIELD 0
+                 ∘LOGIC ERROR:UNREACHABLE
+             }⍵                                       ⍝ ↓ What is ns.action?
+             3=ns.⎕NC'action':ns ns.action ⍵          ⍝ ... a fn, call it.
+             ' '=1↑0⍴ns.action:∊ns.action             ⍝ ... text? Return as is...
+             0=ns.action:⍵ ∆FIELD ns.action           ⍝ ... number 0: Just passthru, i.e. return as is.
+             ⍵ ∆FIELD ns.action                       ⍝ Else... m.action is a PCRE field number to return.
+         }
    ⍝ A recursive loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A'. Don't do that.
-     eval←{⍺←MAXEVAL←10
-         ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥MAXEVAL times' 911
-         pfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
-         str,⍨←pfx/⍨~1↑pfx⍷str←⍵                 ⍝ Add prefix if not already there...
-         ~'⍎'∊str:str
-         str≢res←'(?<!\\)⍎(\w+)'⎕R{              ⍝ Keep substituting until no more ⍎name
-             0::f1
-             ⍎f1←⍵ ∆FIELD 1
-         }⍠('UCP' 1)⊣str:(⍺-1)∇ res
-         ⍵
-     }
-     ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
-     braceCount←¯1
-     setBrace←{
-         braceCount+←1
-         LEFT∘←∊(⊂'\'),¨∊⍺ ⋄ RIGHT∘←∊(⊂'\'),¨∊⍵ ⋄ ALL∘←LEFT,RIGHT
-         NAME∘←'BR',⍕braceCount
+         eval←{⍺←MAXEVAL←10
+             ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥MAXEVAL times' 911
+             pfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
+             str,⍨←pfx/⍨~1↑pfx⍷str←⍵                 ⍝ Add prefix if not already there...
+             ~'⍎'∊str:str
+             str≢res←'(?<!\\)⍎(\w+)'⎕R{              ⍝ Keep substituting until no more ⍎name
+                 0::f1
+                 ⍎f1←⍵ ∆FIELD 1
+             }⍠('UCP' 1)⊣str:(⍺-1)∇ res
+             ⍵
+         }
+         ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
+         braceCount←¯1
+         setBrace←{
+             braceCount+←1
+             LEFT∘←∊(⊂'\'),¨∊⍺ ⋄ RIGHT∘←∊(⊂'\'),¨∊⍵ ⋄ ALL∘←LEFT,RIGHT
+             NAME∘←'BR',⍕braceCount
          ⍝ Matches one field (in addition to any outside)
          ⍝ Note (?J) and use of unique names (via braceCount).
-         pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
-         pat,←'                          | (?:''[^'']*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
-         eval pat~' '
-     }
+             pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
+             pat,←'                          | (?:''[^'']*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
+             eval pat~' '
+         }
  ⍝-------------------------------------------------------------------------------------------
- :EndSection
+     :EndSection Utilities
 
  ⍝-------------------------------------------------------------------------------------------
- :Section Reused Pattern Actions
-     stringAction←{
+     :Section Reused Pattern Actions
+         stringAction←{
        ⍝ Manage single/multiline single-quoted strings and single/multiline double-quoted strings
        ⍝                SQ Strings                     DQ STRINGS
        ⍝    Forms       'abc \n def \n  ghi'          "abc \n def  \n  ghi"
@@ -318,12 +323,12 @@
        ⍝  [2] ('one two',(⎕UCS 10),'three four',(⎕UCS 10),'five')
        ⍝  [3] 'one catalog cat alog'
        ⍝  [4] ('one catalog cat',(⎕UCS 10),'alog')
-         str sfx←⍵ ∆FIELD 1 2
-         sfx←1↑sfx,q←⍬⍴1↑str   ⍝ Suffix is, by default, the quote itself. q is a scalar.
-         ~sfx∊'L''"':11 ⎕SIGNAL⍨'∆FIX: Invalid string suffix: <',sfx,'> on ',⍵ ∆FIELD 0
-         deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
-         enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
-         dq2sq←{SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
+             str sfx←⍵ ∆FIELD 1 2
+             sfx←1↑sfx,q←⍬⍴1↑str   ⍝ Suffix is, by default, the quote itself. q is a scalar.
+             ~sfx∊'L''"':11 ⎕SIGNAL⍨'∆FIX: Invalid string suffix: <',sfx,'> on ',⍵ ∆FIELD 0
+             deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
+             enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
+             dq2sq←{SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
        ⍝ Here, we handle ellipses at linend within SQ or DQ quotes as special:
        ⍝ Any spaces BEFORE them are preserved. If none, the next line is juxtaposed w/o spaces.
        ⍝ Not clear this (identical) behavior is what we want for SQ and DQ quotes.
@@ -331,22 +336,22 @@
        ⍝   trailing blanks will force the ellipses to be treated as ordinary characters.
        ⍝   I.e.   'anything ... $ has "ordinary" dots as characters ($=EOL).
        ⍝          'anything ...$  marks a continuation line.
-         ellipsesP←'(?:\…|\.{2,})$\s*'
-         str←ellipsesP ⎕R''⍠OPTS⊣str
-         str←dq2sq⍣(q=DQ)⊣str
-         ~NL∊str:str
-         sfx{
-             addP←{'(',⍵,')'}
-             nlCode←''',(⎕UCS 10),'''
-             ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵
-             ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTS⊣⍵
-             ⍺='L':{
-                 q=SQ:'\n'⎕R' '⍠OPTS⊣⍵
-                 addP'\n'⎕R nlCode⍠OPTS⊣⍵
-             }⍵
-             ○LOGIC ERROR.UNREACHABLE
-         }str
-     }
+             ellipsesP←'(?:\…|\.{2,})$\s*'
+             str←ellipsesP ⎕R''⍠OPTS⊣str
+             str←dq2sq⍣(q=DQ)⊣str
+             ~NL∊str:str
+             sfx{
+                 addP←{'(',⍵,')'}
+                 nlCode←''',(⎕UCS 10),'''
+                 ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵
+                 ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTS⊣⍵
+                 ⍺='L':{
+                     q=SQ:'\n'⎕R' '⍠OPTS⊣⍵
+                     addP'\n'⎕R nlCode⍠OPTS⊣⍵
+                 }⍵
+                 ○LOGIC ERROR.UNREACHABLE
+             }str
+         }
 
     ⍝ resolveMacro: For nm a of form n1 n2 n3 n4,
     ⍝ see if any of these are macros (have a value vN):
@@ -354,25 +359,25 @@
     ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
     ⍝ If no macro was resolved, returns ⍬.
     ⍝ (If a distinction is needed, can be distinguished from '')
-     resolveMacro←{
-         0::,⎕←'∆FIX [resolveMacro]: LOGIC error on ',⍵⊣⎕←⎕DMX.(EM(⍕EN))
-         resolve←{
-             ⍺←⍬
-             0=≢⍵:⍬
-             cN←1↓∊'.',¨⍵
-             vN←DICT.get cN               ⍝ Check vN, value for compound key cN
-             0=≢vN:(⍺,⊃⌽⍵)∇ ¯1↓⍵          ⍝ ... aN not macro:  Try another...
-             0=≢⍺:vN                      ⍝ If cn1 has a value, return as is.
+         resolveMacro←{
+             0::,⎕←'∆FIX [resolveMacro]: LOGIC error on ',⍵⊣⎕←⎕DMX.(EM(⍕EN))
+             resolve←{
+                 ⍺←⍬
+                 0=≢⍵:⍬
+                 cN←1↓∊'.',¨⍵
+                 vN←DICT.get cN               ⍝ Check vN, value for compound key cN
+                 0=≢vN:(⍺,⊃⌽⍵)∇ ¯1↓⍵          ⍝ ... aN not macro:  Try another...
+                 0=≢⍺:vN                      ⍝ If cn1 has a value, return as is.
                                           ⍝ We need to catenate vNn with nN...
-             ∊(⊂vN),'.',⍺                 ⍝ Return vN....n(N-2).n(N-1).n(N)
+                 ∊(⊂vN),'.',⍺                 ⍝ Return vN....n(N-2).n(N-1).n(N)
+             }
+             ~'.'∊⍵:DICT.get ⍵                ⍝ Simple name? Return it as is.
+             0≠≢v←resolve('.'∘≠⊆⊢)⍵:v         ⍝ resolve (n1 n2 n3 n4) ← n1.n2.n3.n4
+             ⍵
          }
-         ~'.'∊⍵:DICT.get ⍵                ⍝ Simple name? Return it as is.
-         0≠≢v←resolve('.'∘≠⊆⊢)⍵:v         ⍝ resolve (n1 n2 n3 n4) ← n1.n2.n3.n4
-         ⍵
-     }
- :EndSection
+     :EndSection Reused Pattern Actions
+ :EndSection Initialization
  ⍝-------------------------------------------------------------------------------------------
-
  :Section Read in file or stdin
      readFile←{
          pfx obj sfx←{
@@ -410,8 +415,8 @@
      code←readFile fileName
  :EndSection Read In file or stdin
 
- DICT←∆DICT''
- :Section Process File
+ :Section  Setup: Scan Patterns and Actions
+     DICT←∆DICT ''
    ⍝ Valid 1st chars of names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
      ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
@@ -464,7 +469,7 @@
          :EndIf
      :EndSection Preprocess Tradfn Headers
 
-     :Section Setup Scans
+     :Section Setup: Scans
          :Section PreScan1
              MBegin'PreScan1'
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
@@ -503,11 +508,18 @@
            ⍝ They may be converted to other forms (see ATOM processing).
            ⍝          ;   <==   2nd-line leading ;           1st-line trailing ;
              'SEMI1'(';'register)'\h* ⍎commentP? $ \s* ; \h* | \h* ; ⍎commentP? $ \s*'
-            ⍝ ::DOC  [pat]... \n...\n ::END(DOC) pat
-            ⍝ ::SKIP [pat]... \n..\n ::END(SKIP) pat
-            ⍝  Description: Preprocessor ignores all lines between matching directives:
-            ⍝  Match means: DOC..ENDDOC, DOC..END, SKIP..ENDSKIP, SKIP..ENDSKIP
-            ⍝  If [pat] is specified, it must match. Leading and trailing blanks are ignored.
+            ⍝ ::DOC/::SKIP directive
+            ⍝ ::DOC  \h* [pat]\n   ... lines ...  ::END(DOC)  \h* pat\n
+            ⍝ ::SKIP \h* [pat]\n   ... lines ...  ::END(SKIP) \h* pat\n
+            ⍝  Descr:
+            ⍝    Lines between DOC or SKIP and END(DOC/SKIP) are ignored.
+            ⍝    Typically such lines are documentation or comments and
+            ⍝    may have HTML or other directives.
+            ⍝    Using a unique pattern, e.g.
+            ⍝          ::DOC <DOC>
+            ⍝    allows another processor to convert self-documented code into
+            ⍝    formal documentation.
+            ⍝  Note: <pat> excludes leading/trailing blanks, but includes internal blanks.
              _←' ⍎directiveP (DOC|SKIP)\h* $\n (?: .*? \n)* ⍎directiveP END \1? \h*$\n'
              'DOC/SKIP DIRECTIVE 1'(''register)_
              _←' ⍎directiveP     (DOC|SKIP)  \h* ( .*? ) \h* $ \n (?: .*?\n )*'
@@ -541,7 +553,7 @@
            ⍝    ---------------
            ⍝    Note:
            ⍝      ::CALL\d* If digits dd are specified on the CALL, ∆FIX will search for
-           ⍝      ::ENDdd or ::ENDCALLdd to balance-- all lines in between become variable line.
+           ⍝      ::ENDdd or ::ENDCALLdd to balance-- all lines in between are assigned to var 'line'.
            ⍝ EXAMPLE:
            ⍝   This illustrative (if impractical) sequence:
            ⍝    |  ::CALL2 {⌽↑⍵}
@@ -566,7 +578,7 @@
                  }NL(≠⊆⊢)lines   ⍝ Convert to vector of char vectors
              }register'⍎directiveP CALL(\d*)\h* (.*) $ \n ((?:  .*? \n)*) ^ ⍎directiveP END(?:CALL)?\1.*$'
              PreScan2←MEnd
-         :EndSection
+         :EndSection PreScan2
 
          :Section Macro Scan (no ::directives): Part I
            ⍝ MacroScan1: Used in ::FIRST (q.v.), these exclude any ::directives.
@@ -740,10 +752,13 @@
                      line msg←⍵ ∆FIELD 0 1
                      ⎕←box msg
                      ∆COM line
-                 }register'⍎directiveP  (?: MSG | MESSAGE)\h(.*)$'
-               ⍝ FIRST[nn] ... END(FIRST)[nn]
-                  ⋄ firstP←'⍎directiveP FIRST( \d*+ ) \h* (?: .* ) $ \n'
-                  ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+ (?>\1) .* $'
+                 }register'⍎directiveP  (?: MSG | MESSAGE)\h*+(.*)\h*?$'
+               ⍝ ::FIRST\h*[text] ...lines... END(FIRST)\h*[text]
+               ⍝   text:   must match (ignoring leading/trailing blanks).
+               ⍝   lines:  are executed as the object is ⎕FIXed,
+               ⍝           in the namespace of the caller. Any errors are noted then.
+                  ⋄ firstP←'⍎directiveP FIRST\h* ( .* ) $ \n'
+                  ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+  \h*+ (?>\1) \h*? $'
                   ⋄ firstBuffer←⍬
                  'FIRST' 1{
                      f1 f2←⍵ ∆FIELD 1 2
@@ -751,7 +766,7 @@
                      leaf1←(NL∘≠⊆⊢)f2 ⋄ leaf2←(NL∘≠⊆⊢)code1
                      join←∊leaf1,¨(⊂NL,' ➤ '),¨leaf2,¨NL
                      ##.firstBuffer,←code1
-                     1 ∆COM'::FIRST',f1,NL,join,'::END',f1,NL
+                     1 ∆COM'::FIRST ',f1,NL,join,'::ENDFIRST ',f1,NL
                  }register firstP
              :EndSection Register Directives
 
@@ -854,7 +869,7 @@
          MacroScan1.MScanName←⊂'Macro Scan (no ::directives)'
      :EndSection Macro Scan(no ::directives): Part II
 
-     :Section List Scan (experimental)
+     :Section List Scan
      ⍝ Handle lists of the form:
      ⍝        (name1; name2; ;)   (;;;) ()  ( name→val; name→val;) (one_item;) (`an atom of sorts;)
      ⍝ Lists must be of the form  \( ... \) with
@@ -896,9 +911,9 @@
          }register'\( \h* ; (?: \h* ; )* | ; (?: \h* ; )* \h* ( \)? ) |  [();\[\]]  '
 
          ListScan←MEnd
-     :EndSection
+     :EndSection List Scan
 
-     :Section Setup Scan Procedure
+     :Section Setup: Scan Procedure
      ⍝ To scan simple expressions:
      ⍝   code← [PreScan1 PreScan2] MainScan1 (⍺⍺ doScan)⊣ code
      ⍝          ⍺:    MainScan1 (default) or list of scans in order
@@ -920,78 +935,79 @@
              }⍵
              res⊣CTL.restoreIf stackFlag
          }
-     :EndSection Setup Scan Procedure
-
-     :Section Perform Scans
+     :EndSection Setup: Scan Procedure
+ :EndSection  Setup: Scan Patterns and Actions
+ :Section Executive: Perform Scans
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
-         code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
-         :Section Begin Phase II- process firstBuffer
-             :If 0≠≢firstBuffer
-             :AndIf 0≠≢firstBuffer~' ',NL
-                 firstBuffer←'Bêgin',NL,firstBuffer
-                 :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
-                     :Trap 0 ⋄ Bêgin
-                     :Else ⋄ ⎕←box↑⎕DMX.DM
-                         ⎕←⎕VR'Bêgin'
-                         :If 0=DEBUG
-                             _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
-                             _ ⎕SIGNAL 11
-                         :EndIf
-                     :EndTrap
-                 :Else
-                     _←'∆FIX ERROR: ::FIRST sequence could not be run at all.'
-                     _ ⎕SIGNAL 11
-                 :EndIf
-             :EndIf
-         :EndSection
-
+     code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
 
        ⍝ Clean up based on comment specifications (COMSPEC)
-         :Select COMSPEC
+     :Select COMSPEC
               ⍝ Even if COMPSPEC=3, we have generated new Case 2 comments ⍝[❌🅿️]
-         :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-              ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-              ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+     :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+          ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+          ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
-         :EndSelect
+     :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
-         code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
-     :EndSection Perform Scans
- :EndSection
+     code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
+ :EndSection Executive: Perform Scans
 
- :If SHOWCOMPILED
-     ⎕ED'code'
- :EndIf
+ :Section Complete Preprocessing
+     :Section "::FIRST" Directive Phase II:  Process firstBuffer
+         :If 0≠≢firstBuffer
+         :AndIf 0≠≢firstBuffer~' ',NL
+             firstBuffer←'Bêgin',NL,firstBuffer
+             :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
+                 :Trap 0 ⋄ Bêgin
+                 :Else ⋄ ⎕←box↑⎕DMX.DM
+                     ⎕←⎕VR'Bêgin'
+                     :If 0=DEBUG
+                         _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
+                         _ ⎕SIGNAL 11
+                     :EndIf
+                 :EndTrap
+             :Else
+                 _←'∆FIX ERROR: ::FIRST sequence could not be run at all.'
+                 _ ⎕SIGNAL 11
+             :EndIf
+         :EndIf
+     :EndSection "::FIRST" Directive Phase II: Process firstBuffer
 
-
- :Section Write out so we can then do a 2∘⎕FIX
-     tmpfile←(739⌶0),'/','TMP~.dyalog'
-     :Trap TRAP
-         (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
-         objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
-       ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
-         :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
-             ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
-         :Select OUTSPEC
-              ⋄ :Case 0 ⋄ result←0 objects
-              ⋄ :Case 1 ⋄ result←0 objects code
-              ⋄ :Case 2 ⋄ result←0 code
-         :EndSelect
-     :Else ⍝ Error: return  trapCode trapMsg
-         result←⎕DMX.(EN EM Message)
-     :EndTrap
-     1 ⎕NDELETE tmpfile
- :EndSection
-
- :If DEBUG
-     ⎕←'PreScan1  Pats:'PreScan1.info
-     ⎕←'PreScan2  Pats:'PreScan2.info
-     ⎕←'MainScan1 Pats:'MainScan1.info
-     ⎕←'      *=passthrough'
-     :If 0≠≢keys←DICT.keys
-         'Defined names and values'
-         ⍉↑keys DICT.values
+     :If SHOWCOMPILED
+         ⎕ED'code'
      :EndIf
- :EndIf
+
+
+     :Section Write object so we can do a 2∘⎕FIX import
+         tmpfile←(739⌶0),'/','TMP~.dyalog'
+         :Trap TRAP
+             (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
+             objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
+       ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
+             :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
+                 ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
+             :Select OUTSPEC
+                  ⋄ :Case 0 ⋄ result←0 objects
+                  ⋄ :Case 1 ⋄ result←0 objects code
+                  ⋄ :Case 2 ⋄ result←0 code
+             :EndSelect
+         :Else ⍝ Error: return  trapCode trapMsg
+             result←⎕DMX.(EN EM Message)
+         :EndTrap
+         1 ⎕NDELETE tmpfile
+     :EndSection Write object so we can do a 2∘⎕FIX import
+
+     :If DEBUG
+         ⎕←'PreScan1  Pats:'PreScan1.info
+         ⎕←'PreScan2  Pats:'PreScan2.info
+         ⎕←'MainScan1 Pats:'MainScan1.info
+         ⎕←'      *=passthrough'
+         :If 0≠≢keys←DICT.keys
+             'Defined names and values'
+             ⍉↑keys DICT.values
+         :EndIf
+     :EndIf
+ :EndSection    Complete Preprocessing
