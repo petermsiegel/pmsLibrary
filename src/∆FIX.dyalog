@@ -6,7 +6,7 @@
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
- ;pfx;readFile;register;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
+ ;pfx;readFile;register;resolveMacro;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
@@ -338,6 +338,28 @@
              }⍵
              ○LOGIC ERROR.UNREACHABLE
          }str
+     }
+
+    ⍝ resolveMacro: For nm a of form n1 n2 n3 n4,
+    ⍝ see if any of these are macros (have a value vN):
+    ⍝    n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
+    ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
+    ⍝ If no macro was resolved. Return ''
+     resolveMacro←{
+         0::,⎕←'∆FIX [resolveMacro]: LOGIC error'
+         resolve←{
+             ⍺←⍬
+             0=≢⍵:''
+             cN←1↓∊'.',¨⍵
+             vN←DICT.get cN               ⍝ Check vN, value for compound key cN
+             0=≢vN:(⍺,⊃⌽⍵)∇ ¯1↓⍵          ⍝ ... aN not macro:  Try another...
+             0=≢⍺:vN                      ⍝ If cn1 has a value, return as is.
+                                          ⍝ We need to catenate vNn with nN...
+             ∊(⊂vN),'.',⍺                 ⍝ Return vN....n(N-2).n(N-1).n(N)
+         }
+         ~'.'∊⍵:DICT.get ⍵                ⍝ Simple name? Return it as is.
+         0≠≢v←resolve('.'∘≠⊆⊢)⍵:v         ⍝ resolve (n1 n2 n3 n4) ← n1.n2.n3.n4
+         ⍵
      }
  :EndSection
  ⍝-------------------------------------------------------------------------------------------
@@ -715,8 +737,8 @@
                   ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+ (?>\1) .* $'
                   ⋄ firstBuffer←⍬
                  'FIRST' 1{
-                     f1←⍵ ∆FIELD 1
-                     code1←##.MacroScan1(0 doScan)f2←⍵ ∆FIELD 2
+                     f1 f2←⍵ ∆FIELD 1 2
+                     code1←(0 doScan)f2
                      leaf1←(NL∘≠⊆⊢)f2 ⋄ leaf2←(NL∘≠⊆⊢)code1
                      join←∊leaf1,¨(⊂NL,' ➤ '),¨leaf2,¨NL
                      ##.firstBuffer,←code1
@@ -729,18 +751,6 @@
                  MacroScan1,←'SIMPLE_NON_MACRO' 0{
                      CTL.skip/NOc,⍵ ∆FIELD 0
                  }register'^'
-               ⍝ For nm a of form a1.a2.a3.a4,
-               ⍝ see if any of a1 .. a4 are macros,
-               ⍝ but accept value vN for aN only if name.
-                 subMacro←{
-                     ~'.'∊⍵:⍵              ⍝ a is simple...
-                     1↓∊'.',¨{
-                         vN←DICT.get ⍵  ⍝ Check value vN of aN
-                         0=≢vN:⍵           ⍝ aN not macro. Use aN.
-                         ¯1=⎕NC vN:⍵       ⍝ vN not a name? Use aN.
-                         vN                ⍝ Use value vN of aN
-                     }¨('.'∘≠⊆⊢)⍵          ⍝ Send each through
-                 }
                ⍝ name..DEF     is name defined?
                ⍝ name..UNDEF   is name undefined?
                ⍝ name..Q       'name'
@@ -748,9 +758,16 @@
                ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
                ⍝ name..Q  →  'name' (after any macro substitution)
                  MacroScan1,←'name..cmd' 1{
+                     resolveMacroAsName←{¯1=⎕NC nm2←resolveMacro ⍵:⍵ ⋄ nm2}
                      nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd
-               ⍝ Check nm of form a.b.c.d for macros in a, b, c, d
-                     nm←subMacro nm
+               ⍝ For name of the form n1.n2.n3.n4,
+               ⍝ check, in order, if any of these is a macro, i.e. has a value:
+               ⍝        n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
+               ⍝ Using the first macro value found, cN, say n1.n2,
+               ⍝ replace n1.n2.n3.n4 with cN.n3.n4.
+               ⍝ If that is a name, use that here.
+               ⍝ Otherwise keep the input n1.n2.n3.n4.
+                     nm←resolveMacroAsName nm
                      cmd≡'ENV':' ',SQ,(getenv nm),SQ,' '
                      cmd≡'DEF':'(0≠⎕NC',SQ,nm,SQ,')'
                      cmd≡'UNDEF':'(0=⎕NC',SQ,nm,SQ,')'
@@ -806,14 +823,13 @@
                 ⍝ Captured as macroReg for re-use
                  MacroScan1,←'MACRO' 2{
                      TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
-                     k←⍵ ∆FIELD 1
-                     v←⍕DICT.get k
+                     v←⍕resolveMacro(k←⍵ ∆FIELD 1)
                      0=≢v:k
                      v1←1↑v ⋄ isLit←⎕UCS 0
-                     v1∊isLit:1↓v   ⍝ Literal!
+                     v1∊isLit:1↓v    ⍝ Literal!
                      v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
                      '(',v,')'
-                 }register'(⍎nameP)(?!\.\.)'
+                 }register'(⍎longNameP)(?!\.\.)'
                 ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
                 ⍝   ⍙S⍙: a "fence"
                  MacroScan1,←'ASSIGN' 2{
@@ -882,7 +898,7 @@
          CTL.stack←1
          doScan←{
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             ⍺←MainScan1       ⍝ Default is to omit the prescan
+             ⍺←MacroScan1       ⍝ Default is MacroScan1 (Macros only from MainScan1)
              stackFlag←⍺⍺
              _←CTL.saveIf stackFlag
              res←⍺{
@@ -909,6 +925,7 @@
                  :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
                      :Trap 0 ⋄ Bêgin
                      :Else ⋄ ⎕←box↑⎕DMX.DM
+                         ⎕←⎕VR'Bêgin'
                          :If 0=DEBUG
                              _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
                              _ ⎕SIGNAL 11
