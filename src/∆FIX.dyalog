@@ -168,9 +168,17 @@
    ⍝ Use a private namespace so we can access recursively with ::IF etc.
      ∆DICT←{
          dict←⎕NS''
+         dict.tweak←{
+             '⎕SE'≡3↑⍵:'ÖSE',3↓⍵
+             ('#.')≡2↑⍵:'ö',1↓⍵    ⍝ We aren't addressing ##.
+             'Ö'@('⎕'∘=)⊣⍵
+         }
+         dict.untweak←{
+             w⊣((w∊in)/w)←'⎕#'[in⍳(w∊in←'Öö')/w←⍵]
+         }
          dict.ns←dict.⎕NS''
          dict.validate←{
-             ⍺←ns ⋄ n k←⍺ ⍵
+             ⍺←ns ⋄ n k←⍺(tweak ⍵)
              pfxCheck←{
                  ~'.'∊⍵:1
                  pfx←1⊃⎕NPARTS ⍵ ⋄ nc←⍺.⎕NC pfx
@@ -185,23 +193,24 @@
          }
          dict.set←{⍺←ns
              ##.TRAP::⎕SIGNAL/⎕DMX.(EM EN)
-             n(k v)←⍺ ⍵
+             n(k v)←⍺ ⍵ ⋄ k←tweak k
              n validate k:n{⍺⍎k,'←⍵'}v
          }
          dict.get←{⍺←ns
-             n k←⍺ ⍵
+             6 11::''⊣⎕←'dict.get logic error on name: ',k
+             n k←⍺(tweak ⍵)
              0≥n.⎕NC k:''
              ⍕n.⎕OR k
          }
          dict.del←{⍺←ns
-             n k←⍺ ⍵
+             n k←⍺(tweak ⍵)
              1:n.⎕EX k
          }
          dict.defined←{⍺←ns
-             n k←⍺ ⍵
+             n k←⍺(tweak ⍵)
              2=n.⎕NC k
          }
-         _←dict.⎕FX'k←keys' 'k←↓ns.⎕NL 2'
+         _←dict.⎕FX'k←keys' 'k←untweak¨↓ns.⎕NL 2'
          _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
          dict
      }
@@ -344,12 +353,13 @@
     ⍝ see if any of these are macros (have a value vN):
     ⍝    n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
     ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
-    ⍝ If no macro was resolved. Return ''
+    ⍝ If no macro was resolved, returns ⍬.
+    ⍝ (If a distinction is needed, can be distinguished from '')
      resolveMacro←{
-         0::,⎕←'∆FIX [resolveMacro]: LOGIC error'
+         0::,⎕←'∆FIX [resolveMacro]: LOGIC error on ',⍵⊣⎕←⎕DMX.(EM(⍕EN))
          resolve←{
              ⍺←⍬
-             0=≢⍵:''
+             0=≢⍵:⍬
              cN←1↓∊'.',¨⍵
              vN←DICT.get cN               ⍝ Check vN, value for compound key cN
              0=≢vN:(⍺,⊃⌽⍵)∇ ¯1↓⍵          ⍝ ... aN not macro:  Try another...
