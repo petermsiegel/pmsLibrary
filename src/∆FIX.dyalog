@@ -4,7 +4,7 @@
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
  ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;firstBuffer;firstP;box;braceCount
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
- ;dqStringP;ellipsesP;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
+ ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
  ;pfx;readFile;register;resolveMacro;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
@@ -46,14 +46,12 @@
  ⍝               Default if standard fileName was specified.
  ⍝            1: View the preprocessed code just before returning, via ⎕ED.
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
-
+ ⍝-------------------------------------------------------------------------------------------
  :Section Initialization
      ⎕IO ⎕ML←0 1
      CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
-
      OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
      '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
-
      TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
      CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
      YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
@@ -61,11 +59,12 @@
      CTL←⎕NS''  ⍝ See CTL services below
      PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
  ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
- ⍝ By default, private use Unicode E000If DEBUG, it's a smiley face.
+ ⍝ By default, use private use Unicode E000.
+ ⍝ >> If DEBUG, it's a smiley face.
      SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
-
      :Section Utilities
-⍝-------------------------------------------------------------------------------------------
+   ⍝ enQ: Add quotes around a string and adjust internal single quotes (if any)...
+         enQ←{SQ,SQ,⍨⍵/⍨1+⍵=SQ}
    ⍝ getenv: Returns value of environment var.
          getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
    ⍝ ifTrue ⍵: Returns 1
@@ -116,19 +115,17 @@
              clip←1 maxW<⍴f
              ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
          }
-   ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
-   ⍝      ⍵: A string of the form ¯?\d[\da-fA-F]?[xX]. Case is ignored.
-   ⍝ h2d assumes pattern matching ensures valid nums. We simply ignore invalid chars here.
+       ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
+       ⍝      ⍵: A string of the form ¯?\d[\da-fA-F]?[xX]. Case is ignored.
+       ⍝ h2d assumes pattern matching ensures valid nums. We simply ignore invalid chars here.
          h2d←{ ⍝ Convert hex to decimal.
              ∆D←⎕D,'ABCDEF',⎕D,'abcdef'
              0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
              (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
          }
-
-⍝--------------------------------------------------------------------------
-⍝ CTL services
-⍝   stack and skip services. Most  return the last item on the stack.
-⍝   stacked item only 1 or 0
+     ⍝   CTL services
+     ⍝   stack and skip services. Most  return the last item on the stack.
+     ⍝   stacked item only 1 or 0
          :With CTL                               ⍝ Returns...
              ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
              ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
@@ -137,7 +134,7 @@
              push←{stack,←⍵}                     ⍝ ... ⍵ as new last
              poke←{(⊃⌽stack)←⍵}                  ⍝ ... ⍵ as newly replaced last
              ⎕FX's←skip' 's←~⊃⌽stack'            ⍝ ... ~last
-       ⍝ Saving/restoring the stack
+           ⍝ Saving/restoring the stack
              säve←⍬
              saveIf←{~⍵:0 ⋄ säve,←⊂stack ⋄ stack←1 ⋄ 1}
              restoreIf←{~⍵:0 ⋄ stack←⊃⌽säve ⋄ säve↓⍨←¯1 ⋄ 1}
@@ -145,29 +142,28 @@
                  ⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
              :EndIf
          :EndWith
-⍝--------------------------------------------------------------------------
-   ⍝⍝⍝⍝ regexp related routines...
-   ⍝ ∆PFX:   pfx ∇ lines
-   ⍝    lines: a single string possibly containing newlines as line separators, OR
-   ⍝           a vector of vectors
-   ⍝    pfx:   a string prefix. Default '⍝ '
-   ⍝ See also NO, YES, NOc, YESc.
-   ⍝ Returns lines prefixed with pfx in vector of vectors format.
+       ⍝⍝⍝⍝ regexp related routines...
+       ⍝ ∆PFX:   pfx ∇ lines
+       ⍝    lines: a single string possibly containing newlines as line separators, OR
+       ⍝           a vector of vectors
+       ⍝    pfx:   a string prefix. Default '⍝ '
+       ⍝ See also NO, YES, NOc, YESc.
+       ⍝ Returns lines prefixed with pfx in vector of vectors format.
          ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
-   ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
+       ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
          ∆V2S←{1↓∊CR,¨⊆⍵}
-   ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
+       ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
          ∆V2Q←{q←SQ ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
-   ⍝ ∆COM: Convert a vector of vector strings to a set of comments, one per "line" generated.
+       ⍝ ∆COM: Convert a vector of vector strings to a set of comments, one per "line" generated.
          ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
-   ⍝ PCRE routines
+       ⍝ PCRE routines
          ∆FIELD←{
              0=≢⍵:'' ⋄ 1<≢⍵:⍺ ∇¨⍵ ⋄ 0=⍵:⍺.Match
              ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:''
              ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
          }
-   ⍝ dictionary routines
-   ⍝ Use a private namespace so we can access recursively with ::IF etc.
+       ⍝ dictionary routines
+       ⍝ Use a private namespace so we can access recursively with ::IF etc.
          ∆DICT←{
              dict←⎕NS''
              dict.tweak←{map←'Ð'@('⎕'∘=)
@@ -175,9 +171,9 @@
                  map ⍵                   ⍝ Handle ⎕SE and faux system names ⎕MY etc. set by user.
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
-      ⍝  Slower:
-      ⍝  dict.(untweak←(((((⌷∘twOut)∘⊂))twIn∘⍳)@(∊∘twIn))
-      ⍝  Faster, clearer:
+          ⍝  Slower:
+          ⍝  dict.(untweak←(((((⌷∘twOut)∘⊂))twIn∘⍳)@(∊∘twIn))
+          ⍝  Faster, clearer:
              dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
 
              dict.ns←dict.⎕NS''
@@ -218,27 +214,26 @@
              _←dict.⎕FX'v←values' 'v←ns.⎕OR¨↓ns.⎕NL 2'
              dict
          }
-⍝-------------------------------------------------------------------------------------------
-⍝ Pattern Building Routines...
+       ⍝ Pattern Building Routines...
          ⎕SHADOW'MScanName'
          ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
          ⎕FX'm←MEnd' 'm←Match'
-  ⍝  register-- adds a function and patterns to the current Match "database".
-  ⍝    Returns the associated namespace.
-  ⍝    Useful for excluding a namespace from a match sequence or re-using in
-  ⍝    different sequences.
-  ⍝     matchNs ← infoStr [skipFlag=0] (matchFn ∇) pattern
-  ⍝     infoStr: useful comment for humans
-  ⍝     skipFlag:
-  ⍝       0 - <action> handles skips; call <action>, whether CTL.skip active or not.
-  ⍝       1 - If CTL.skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
-  ⍝       2 - If CTL.skip: don't call <action>; return: ⍵ ∆FIELD 0
-  ⍝     matchFn: the fn to call when <pattern> matches.
-  ⍝        See Local Defs for objects copied into the namespace at registration
-  ⍝     pattern: The Regex pattern to match. patterns are matched IN ORDER.
+         ⍝  register-- adds a function and patterns to the current Match "database".
+         ⍝    Returns the associated namespace.
+         ⍝    Useful for excluding a namespace from a match sequence or re-using in
+         ⍝    different sequences.
+         ⍝     matchNs ← infoStr [skipFlag=0] (matchFn ∇) pattern
+         ⍝     infoStr: useful comment for humans
+         ⍝     skipFlag:
+         ⍝       0 - <action> handles skips; call <action>, whether CTL.skip active or not.
+         ⍝       1 - If CTL.skip: don't call <action>; return: 0 ∆COM  ⍵ ∆FIELD 0
+         ⍝       2 - If CTL.skip: don't call <action>; return: ⍵ ∆FIELD 0
+         ⍝     matchFn: the fn to call when <pattern> matches.
+         ⍝        See Local Defs for objects copied into the namespace at registration
+         ⍝     pattern: The Regex pattern to match. patterns are matched IN ORDER.
          register←{
              ⍺←('[',(⍕1+≢Match),']')0
-      ⍝  Local Defs
+         ⍝  Local Defs
              ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
              ns.⎕PATH←'##'
              ns.MScanName←MScanName  ⍝ Global → local
@@ -250,17 +245,17 @@
              ns.action←⍺⍺                 ⍝ a function OR a number (number → field[number]).
              1:Match,←ns
          }
-     ⍝ MActions: Actions A may be char: replace match with A
-     ⍝             or numeric: replace match  with ⍵ ∆FIELD A
-     ⍝                or a fn: replace match with value from call:  ns A ⍵
+       ⍝ MActions: Actions A may be char: replace match with A
+       ⍝             or numeric: replace match  with ⍵ ∆FIELD A
+       ⍝                or a fn: replace match with value from call:  ns A ⍵
          MActions←{
              TRAP::⎕SIGNAL/⎕DMX.(EM EN)
              match←,⍺⍺    ⍝ Ensure vector...
              pn←⍵.PatternNum
              pn≥≢match:⎕SIGNAL/'The matched pattern was not registered' 911
              ns←pn⊃match
-       ⍝ If CTL.skip, i.e. we have code in an :IF / :THEN path not taken,
-       ⍝ we can immediately take required action if skipFlag>0.
+           ⍝ If CTL.skip, i.e. we have code in an :IF / :THEN path not taken,
+           ⍝ we can immediately take required action if skipFlag>0.
              CTL.skip∧×ns.skipFlag:ns.skipFlag{
                  ⍺=1:0 ∆COM ⍵ ∆FIELD 0
                  ⍺=2:⍵ ∆FIELD 0
@@ -271,7 +266,7 @@
              0=ns.action:⍵ ∆FIELD ns.action           ⍝ ... number 0: Just passthru, i.e. return as is.
              ⍵ ∆FIELD ns.action                       ⍝ Else... m.action is a PCRE field number to return.
          }
-   ⍝ A recursive loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A'. Don't do that.
+       ⍝ A recursive loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A'. Don't do that.
          eval←{⍺←MAXEVAL←10
              ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥MAXEVAL times' 911
              pfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
@@ -289,8 +284,8 @@
              braceCount+←1
              LEFT∘←∊(⊂'\'),¨∊⍺ ⋄ RIGHT∘←∊(⊂'\'),¨∊⍵ ⋄ ALL∘←LEFT,RIGHT
              NAME∘←'BR',⍕braceCount
-         ⍝ Matches one field (in addition to any outside)
-         ⍝ Note (?J) and use of unique names (via braceCount).
+           ⍝ Matches one field (in addition to any outside)
+           ⍝ Note (?J) and use of unique names (via braceCount).
              pat←'(?: (?J) (?<⍎NAME> ⍎LEFT (?> [^⍎ALL"''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
              pat,←'                          | (?:''[^'']*'')+ | (?&⍎NAME)*     )+ ⍎RIGHT) )'
              eval pat~' '
@@ -327,8 +322,7 @@
              sfx←1↑sfx,q←⍬⍴1↑str   ⍝ Suffix is, by default, the quote itself. q is a scalar.
              ~sfx∊'L''"':11 ⎕SIGNAL⍨'∆FIX: Invalid string suffix: <',sfx,'> on ',⍵ ∆FIELD 0
              deQ←{⍺←SQ ⋄ ⍵/⍨~(⍺,⍺)⍷⍵}
-             enQ←{⍺←SQ ⋄ ⍵/⍨1+⍵=⍺}
-             dq2sq←{SQ,SQ,⍨enQ DQ deQ 1↓¯1↓⍵}
+             dq2sq←{enQ DQ deQ 1↓¯1↓⍵}
        ⍝ Here, we handle ellipses at linend within SQ or DQ quotes as special:
        ⍝ Any spaces BEFORE them are preserved. If none, the next line is juxtaposed w/o spaces.
        ⍝ Not clear this (identical) behavior is what we want for SQ and DQ quotes.
@@ -353,12 +347,12 @@
              }str
          }
 
-    ⍝ resolveMacro: For nm a of form n1 n2 n3 n4,
-    ⍝ see if any of these are macros (have a value vN):
-    ⍝    n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
-    ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
-    ⍝ If no macro was resolved, returns ⍬.
-    ⍝ (If a distinction is needed, can be distinguished from '')
+        ⍝ resolveMacro: For nm a of form n1 n2 n3 n4,
+        ⍝ see if any of these are macros (have a value vN):
+        ⍝    n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
+        ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
+        ⍝ If no macro was resolved, returns ⍬.
+        ⍝ (If a distinction is needed, can be distinguished from '')
          resolveMacro←{
              0::,⎕←'∆FIX [resolveMacro]: LOGIC error on ',⍵⊣⎕←⎕DMX.(EM(⍕EN))
              resolve←{
@@ -416,11 +410,15 @@
  :EndSection Read In file or stdin
 
  :Section  Setup: Scan Patterns and Actions
-     DICT←∆DICT ''
+     DICT←∆DICT''
    ⍝ Valid 1st chars of names...
-     ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
-     ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
+   ⍝ Also, sets ⎕LET.UC, ⎕LET.LC, ⎕LET.ALPH (UC,LC,'_∆⍙')
+     ALPH←_←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
+     ⋄ DICT.set'⎕LET.LC' (enQ _)
+     ALPH,←_←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
+     ⋄ DICT.set'⎕LET.UC'(enQ _)
      ALPH,←'_∆⍙'
+     DICT.set'⎕LET.ALPH' (enQ ALPH)
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
@@ -757,9 +755,9 @@
                ⍝   text:   must match (ignoring leading/trailing blanks).
                ⍝   lines:  are executed as the object is ⎕FIXed,
                ⍝           in the namespace of the caller. Any errors are noted then.
-                  ⋄ firstP←'⍎directiveP FIRST\h* ( .* ) $ \n'
-                  ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+  \h*+ (?>\1) \h*? $'
-                  ⋄ firstBuffer←⍬
+                 ⋄ firstP←'⍎directiveP FIRST\h* ( .* ) $ \n'
+                 ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+  \h*+ (?>\1) \h*? $'
+                 ⋄ firstBuffer←⍬
                  'FIRST' 1{
                      f1 f2←⍵ ∆FIELD 1 2
                      code1←(0 doScan)f2
@@ -947,8 +945,8 @@
      :Select COMSPEC
               ⍝ Even if COMPSPEC=3, we have generated new Case 2 comments ⍝[❌🅿️]
      :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-          ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-          ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+         ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+         ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
              ⍝ Otherwise: do nothing
      :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
@@ -990,9 +988,9 @@
              :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
                  ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
              :Select OUTSPEC
-                  ⋄ :Case 0 ⋄ result←0 objects
-                  ⋄ :Case 1 ⋄ result←0 objects code
-                  ⋄ :Case 2 ⋄ result←0 code
+                 ⋄ :Case 0 ⋄ result←0 objects
+                 ⋄ :Case 1 ⋄ result←0 objects code
+                 ⋄ :Case 2 ⋄ result←0 code
              :EndSelect
          :Else ⍝ Error: return  trapCode trapMsg
              result←⎕DMX.(EN EM Message)
