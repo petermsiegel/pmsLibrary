@@ -202,23 +202,14 @@
                  n(k v)←⍺ ⍵ ⋄ k←tweak k
                  n validate k:n{⍺⍎k,'←⍵'}v
              }
+           ⍝ Get the value of simple or complex name -- or ⍬ if none.
+           ⍝ Assumes that ⍵ is a valid name (will report logic error otherwise).
+           ⍝ Returns the value, not forced to a string.
+           ⍝ See resolve for evaluating names with parts with (existing) values.
              dict.get←dict.{⍺←ns ⋄ n k←⍺(tweak ⍵)
                  0::⍬⊣⎕←'dict.get logic error on name: ',⍵⊣⎕←↑⎕DMX.DM
-                 0≥{0::¯1 ⋄ n.⎕NC ⍵}k:⍬
+                 0≥n.⎕NC k:⍬
                  v←n.⎕OR k
-             }
-           ⍝ v ← getx k
-           ⍝ Returns v, value of k, if present.
-           ⍝   If v is a name, returns as is. Else returns (⎕FMT v), if it can.
-           ⍝ If not present, returns ⍬.
-             dict.getx←dict.{⍺←ns ⋄ n k←⍺(tweak ⍵)
-                 0::⍬⊣⎕←'dict.getx logic error on name: ',⍵⊣⎕←↑⎕DMX.DM
-                 0≥{0::¯1 ⋄ n.⎕NC ⍵}k:⍬
-                 v←n.⎕OR k
-                 0=80|⎕DR v:v
-                 disp←⎕FMT v
-                 1=≢disp:'(',')',⍨,disp
-                 ('∆FMT: Unable to represent complex value of name: ',k)⎕SIGNAL 911
              }
              dict.del←dict.{⍺←ns
                  n k←⍺(tweak ⍵)
@@ -235,8 +226,9 @@
                  n.⎕OR ⍵
              }
            ⍝ Resolve a possibly complex name like a.b.c.d
+           ⍝ Leaves ⎕SE and #. as is, but tweaks invented names like ⎕name
              dict.resolve←dict.{⍺←ns
-                 ⍝n k←⍺(tweak ⍵)
+                 ⍝ n k←⍺(tweak ⍵)
                  n k←⍺ ⍵
                  ifNot←{0≠≢⍵:⍵ ⋄ ⍺}
                  genList←{
@@ -246,11 +238,13 @@
                      ↓⍉↑p s                     ⍝ Merge             a.b.c ⍬ | a.b c  | a b.c
                  }
                  namePtr←{⍺←0 ⋄ 0::'' ⋄ 2≠n.⎕NC ⍵:''
-                     v←n.⎕OR ⍵ ⋄ ⍺:,⎕FMT v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
+                     v←n.⎕OR ⍵ ⋄ ⍝⎕←('v'v' nc'(n.⎕NC'v'))
+                     ⍺:,⎕FMT v ⋄ 0=n.⎕NC 'v': v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
                  }
                  procList←{
                      0=≢⍵:⍺                 ⍝ Not found: Return original string...
                      prefix rest←⊃⍵
+                    ⍝ ⎕←'Testing'(prefix('⎕NC'(n.⎕NC prefix)))rest
                      2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
                      ⍺ ∇ 1↓⍵
                  }
