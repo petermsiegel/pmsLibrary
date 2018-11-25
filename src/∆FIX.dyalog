@@ -6,11 +6,11 @@
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
- ;pfx;readFile;register;resolveMacro;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
+ ;pfx;readFile;register;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog APL preprocessor  (rev. Nov 20 )
+ ⍝  A Dyalog APL preprocessor  (rev. Nov 24 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝
@@ -58,10 +58,14 @@
      OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
      CTL←⎕NS''  ⍝ See CTL services below
      PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
- ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
- ⍝ By default, use private use Unicode E000.
- ⍝ >> If DEBUG, it's a smiley face.
+   ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
+   ⍝ By default, use private use Unicode E000.
+   ⍝ >> If DEBUG, it's a smiley face.
      SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
+   ⍝ ALPH: First letters of valid APL names...
+     ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
+     ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
+     ALPH,←'_∆⍙'
      :Section Utilities
    ⍝ enQ: Add quotes around a string and adjust internal single quotes (if any)...
          enQ←{SQ,SQ,⍨⍵/⍨1+⍵=SQ}
@@ -166,9 +170,12 @@
        ⍝ Use a private namespace so we can access recursively with ::IF etc.
          ∆DICT←{
              dict←⎕NS''
-             dict.tweak←{map←'Ð'@('⎕'∘=)
-                 '#.'≡2↑⍵:'ð.',map 2↓⍵   ⍝ Handle #., but not ##. (leading or embedded)
-                 map ⍵                   ⍝ Handle ⎕SE and faux system names ⎕MY etc. set by user.
+             dict.ns←dict.⎕NS''
+             dict.tweak←dict.{
+                 map←'Ð'@('⎕'∘=)
+                 '⎕SE.'≡4↓⍵:(4↑⍵),map 4↓⍵ ⍝ Keep ⎕SE
+                 '#.'≡2↑⍵:(2↑⍵),map 2↓⍵   ⍝ Keep #.
+                 map ⍵                    ⍝ Map ⎕ → Ð
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
           ⍝  Slower:
@@ -176,7 +183,6 @@
           ⍝  Faster, clearer:
              dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
 
-             dict.ns←dict.⎕NS''
              dict.validate←{
                  ⍺←ns ⋄ n k←⍺(tweak ⍵)
                  pfxCheck←{
@@ -196,25 +202,62 @@
                  n(k v)←⍺ ⍵ ⋄ k←tweak k
                  n validate k:n{⍺⍎k,'←⍵'}v
              }
-             dict.get←{⍺←ns
-                 6 11::''⊣⎕←'dict.get logic error on name: ',k
-                 n k←⍺(tweak ⍵)
-                 0≥n.⎕NC k:''
-                 ⍕n.⎕OR k
+             dict.get←dict.{⍺←ns ⋄ n k←⍺(tweak ⍵)
+                 0::⍬⊣⎕←'dict.get logic error on name: ',⍵⊣⎕←↑⎕DMX.DM
+                 0≥{0::¯1 ⋄ n.⎕NC ⍵}k:⍬
+                 v←n.⎕OR k
              }
-             dict.getx←{⍺←ns
-                 6 11::''⊣⎕←'dict.get logic error on name: ',k
-                 n k←⍺(tweak ⍵)
-                 0≥n.⎕NC k:''
-                 (⍕n.⎕OR k)~⎕UCS 0
+           ⍝ v ← getx k
+           ⍝ Returns v, value of k, if present.
+           ⍝   If v is a name, returns as is. Else returns (⎕FMT v), if it can.
+           ⍝ If not present, returns ⍬.
+             dict.getx←dict.{⍺←ns ⋄ n k←⍺(tweak ⍵)
+                 0::⍬⊣⎕←'dict.getx logic error on name: ',⍵⊣⎕←↑⎕DMX.DM
+                 0≥{0::¯1 ⋄ n.⎕NC ⍵}k:⍬
+                 v←n.⎕OR k
+                 0=80|⎕DR v:v
+                 disp←⎕FMT v
+                 1=≢disp:'(',')',⍨,disp
+                 ('∆FMT: Unable to represent complex value of name: ',k)⎕SIGNAL 911
              }
-             dict.del←{⍺←ns
+             dict.del←dict.{⍺←ns
                  n k←⍺(tweak ⍵)
                  1:n.⎕EX k
              }
-             dict.defined←{⍺←ns
+             dict.defined←dict.{⍺←ns
                  n k←⍺(tweak ⍵)
                  2=n.⎕NC k
+             }
+             ALPH_PLUS←##.ALPH,'#.⎕'
+             dict.hasValue←dict.{
+                 0::0
+                 ¯1≠⎕NC ⍵:0
+                 n.⎕OR ⍵
+             }
+           ⍝ Resolve a possibly complex name like a.b.c.d
+             dict.resolve←dict.{⍺←ns
+                 ⍝n k←⍺(tweak ⍵)
+                 n k←⍺ ⍵
+                 ifNot←{0≠≢⍵:⍵ ⋄ ⍺}
+                 genList←{
+                     F←'.'(≠⊆⊢)⍵                ⍝ Split a.b.c into atoms: a |   b    |   c
+                     p←⌽{⍺,'.',⍵}\F             ⍝ Compress prefix:   a.b.c  |  a.b   |   a
+                     s←(⊂⍬),¯1↓{⍵,'.',⍺}\⌽F     ⍝ Expand suffix:       ⍬    |   c    |  b.c
+                     ↓⍉↑p s                     ⍝ Merge             a.b.c ⍬ | a.b c  | a b.c
+                 }
+                 namePtr←{⍺←0 ⋄ 0::'' ⋄ 2≠n.⎕NC ⍵:''
+                     v←n.⎕OR ⍵ ⋄ ⍺:,⎕FMT v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
+                 }
+                 procList←{
+                     0=≢⍵:⍺                 ⍝ Not found: Return original string...
+                     prefix rest←⊃⍵
+                     2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
+                     ⍺ ∇ 1↓⍵
+                 }
+                 0≠≢v←1 namePtr k:v  ⍝   Check fully-specified (or simple) name
+                 ~'.'∊k:k            ⍝   Simple name, k, w/o namePtr value? Return k.
+                 list←genList k      ⍝   Not found-- generate subitems
+                 k procList 1↓list   ⍝   Already checked first item.
              }
              _←dict.⎕FX'k←keys' ':TRAP 0' 'k←untweak¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
              _←dict.⎕FX'v←values' ':TRAP 0' 'v←ns.⎕OR¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
@@ -352,31 +395,6 @@
                  ○LOGIC ERROR.UNREACHABLE
              }str
          }
-
-        ⍝ resolveMacro: For nm a of form n1 n2 n3 n4,
-        ⍝ see if any of these are macros (have a value vN):
-        ⍝    n1.n2.n3.n4, n1.n2.n3, n1.n2, n1
-        ⍝ but, for any compound name cn1 thru cn4, accept value vN for cnN only if name.
-        ⍝ If no macro was resolved, returns ⍬.
-        ⍝ (If a distinction is needed, can be distinguished from '')
-         resolveMacro←{
-             0::,⎕←'∆FIX [resolveMacro]: LOGIC error on ',⍵⊣⎕←⎕DMX.(EM(⍕EN))
-             resolve←{
-                 ⍺←⍬
-                 0=≢⍵:⍬
-                 cN←1↓∊'.',¨⍵
-                 vN←DICT.getx cN               ⍝ Check vN, value for compound key cN
-                 0=≢vN:(⍺,⊃⌽⍵)∇ ¯1↓⍵          ⍝ ... aN not macro:  Try another...
-                 0=≢⍺:vN                      ⍝ If cn1 has a value, return as is.
-                                          ⍝ We need to catenate vNn with nN...
-                 ∊(⊂vN),'.',⍺                 ⍝ Return vN....n(N-2).n(N-1).n(N)
-             }
-             ~'.'∊⍵:DICT.get ⍵              ⍝ Simple name? Return it as is.
-             v←resolve('.'∘≠⊆⊢)⍵           ⍝ resolve (n1 n2 n3 n4) ← n1.n2.n3.n4
-             v≡⍵:⍬                         ⍝ Kludge: resolve should return ''
-             0≠≢v:v
-             ⍵
-         }
      :EndSection Reused Pattern Actions
  :EndSection Initialization
  ⍝-------------------------------------------------------------------------------------------
@@ -419,15 +437,11 @@
 
  :Section  Setup: Scan Patterns and Actions
      DICT←∆DICT''
-   ⍝ Valid 1st chars of names...
    ⍝ Also, sets ⎕LET.UC, ⎕LET.LC, ⎕LET.ALPH (UC,LC,'_∆⍙')
       ⋄ DICT.set'⎕LET'(⍎'LETTER_NS'⎕NS'')
-     ALPH←_←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
-      ⋄ DICT.set'⎕LET.LC'(enQ _)
-     ALPH,←_←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
-      ⋄ DICT.set'⎕LET.UC'(enQ _)
-     ALPH,←'_∆⍙'
-     DICT.set'⎕LET.ALPH'(enQ ALPH)
+      ⋄ DICT.set'⎕LET.LC'(enQ 56↑ALPH)
+      ⋄ DICT.set'⎕LET.UC'(enQ 55↑56↓ALPH)
+      ⋄ DICT.set'⎕LET.ALPH'(enQ ALPH)
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
@@ -692,7 +706,6 @@
                  defS←'⍎directiveP  DEF(?:INE)?([LR]?) \b \h* (⍎longNameP) (?:  (?: \h* ←)? \h*  ( ⍎multiLineP ) )? $'
                  '::DEF~::DEFINE' 1{
                      f0 l k vIn←⍵ ∆FIELD 0 1 2 3
-                     litFlag←(l∊'lLrR')/⎕UCS 0 ⍝ Prefix a null if literal!
                    ⍝ Replace leading and trailing blanks with single space
                      vIn←{
                          0=≢⍵:,'1'
@@ -700,8 +713,7 @@
                          ⍵
                      }vIn
                      vOut←(0 doScan)vIn
-                  ⍝   ⎕←'DEF vIn="',vIn,'", vOut="',vOut,'"'
-                     _←DICT.set k(litFlag,vOut)
+                     _←DICT.set k(vOut)
                      ∆COM f0('➤  ',vOut)
                  }register defS
                 ⍝ LET  name ← value   ⍝ value (which must fit on one line) is evaluated at compile time
@@ -795,7 +807,6 @@
                ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
                ⍝ name..Q  →  'name' (after any macro substitution)
                  MacroScan1,←'name..cmd' 1{
-                     resolveMacroAsName←{nul←⎕UCS 0 ⋄ nm←nul~⍨resolveMacro ⍵ ⋄ ¯1=⎕NC nm:⍵ ⋄ nm}
                      nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd
                ⍝ For name of the form n1.n2.n3.n4,
                ⍝ check, in order, if any of these is a macro, i.e. has a value:
@@ -804,7 +815,7 @@
                ⍝ replace n1.n2.n3.n4 with cN.n3.n4.
                ⍝ If that is a name, use that here.
                ⍝ Otherwise keep the input n1.n2.n3.n4.
-                     nm←resolveMacroAsName nm
+                     nm←DICT.resolve nm
                      cmd≡'ENV':' ',SQ,(getenv nm),SQ,' '
                      cmd≡'DEF':'(0≠⎕NC',SQ,nm,SQ,')'
                      cmd≡'UNDEF':'(0=⎕NC',SQ,nm,SQ,')'
@@ -860,14 +871,9 @@
                 ⍝ Captured as macroReg for re-use
                  MacroScan1,←'MACRO' 2{
                      TRAP::k⊣⎕←'Unable to get value of k. Returning k: ',k
-                     v←⍕resolveMacro(k←⍵ ∆FIELD 1)
-                   ⍝  ⎕←'MACRO k="',k,'" → resolveMacro → v="',v,'"'
+                     v←DICT.resolve(k←⍵ ∆FIELD 1)
                      0=≢v:k
-                     v≡k:k      ⍝ KLUDGE--- resolveMacro should deal with this.
-                     v1←1↑v ⋄ isLit←⎕UCS 0
-                     v1∊isLit:1↓v    ⍝ Literal!
-                     v1∊'{([':v      ⍝ Don't wrap (...) around already wrapped strings.
-                     '(',v,')'
+                     v
                  }register'(?<!'')((?>⍎longNameP))(?!\.\.)(?!'')'
                 ⍝   ← becomes ⍙S⍙← after any of '()[]{}:;⋄'
                 ⍝   ⍙S⍙: a "fence"
