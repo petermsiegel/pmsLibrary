@@ -171,18 +171,27 @@
          ∆DICT←{
              dict←⎕NS''
              dict.ns←dict.⎕NS''
+           ⍝ _foo__ (function/trigger)...
+           ⍝ Crazy function to ensure that Ðname names are shadowed to ⎕name system vars,
+           ⍝ when valid; and ignored otherwise.   E.g. setting ÐIO←1 will set ⎕IO←1 as well.
+           ⍝ See Macro handling...
+             _←⊂'__foo__ __args__'
+             _,←⊂':Implements Trigger * '
+             _,←⊂'→0/⍨ ''Ð''≠1↑__args__.Name'
+             _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
+             _←dict.ns.⎕FX _
+           ⍝ tweak: Map external names for :DEF/::LET into internal ones.
+           ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
+           ⍝ redefined as macros.
              dict.tweak←dict.{
-                 map←'Ð'@('⎕'∘=)
+                 map←'Ð'@('⎕'∘=)          ⍝ Map ⎕ → Ð (right now, we are passing ## through).
                  '⎕SE.'≡4↓⍵:(4↑⍵),map 4↓⍵ ⍝ Keep ⎕SE
                  '#.'≡2↑⍵:(2↑⍵),map 2↓⍵   ⍝ Keep #.
-                 map ⍵                    ⍝ Map ⎕ → Ð
+                 map ⍵                    ⍝
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
-          ⍝  Slower:
-          ⍝  dict.(untweak←(((((⌷∘twOut)∘⊂))twIn∘⍳)@(∊∘twIn))
-          ⍝  Faster, clearer:
+          ⍝  untweak: See tweak.
              dict.(untweak←{twOut[twIn⍳⍵]}@(∊∘twIn))
-
              dict.validate←{
                  ⍺←ns ⋄ n k←⍺(tweak ⍵)
                  pfxCheck←{
@@ -219,7 +228,6 @@
                  n k←⍺(tweak ⍵)
                  2=n.⎕NC k
              }
-             ALPH_PLUS←##.ALPH,'#.⎕'
              dict.hasValue←dict.{
                  0::0
                  ¯1≠⎕NC ⍵:0
@@ -229,7 +237,7 @@
            ⍝ Leaves ⎕SE and #. as is, but tweaks invented names like ⎕name
              dict.resolve←dict.{⍺←ns
                  ⍝ n k←⍺(tweak ⍵)
-                 n k←⍺ ⍵
+                  n k←⍺ ⍵
                  ifNot←{0≠≢⍵:⍵ ⋄ ⍺}
                  genList←{
                      F←'.'(≠⊆⊢)⍵                ⍝ Split a.b.c into atoms: a |   b    |   c
@@ -238,13 +246,12 @@
                      ↓⍉↑p s                     ⍝ Merge             a.b.c ⍬ | a.b c  | a b.c
                  }
                  namePtr←{⍺←0 ⋄ 0::'' ⋄ 2≠n.⎕NC ⍵:''
-                     v←n.⎕OR ⍵ ⋄ ⍝⎕←('v'v' nc'(n.⎕NC'v'))
-                     ⍺:,⎕FMT v ⋄ 0=n.⎕NC 'v': v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
+                     v←n.⎕OR ⍵
+                     ⍺:,⎕FMT v ⋄ 0=n.⎕NC'v':v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
                  }
                  procList←{
                      0=≢⍵:⍺                 ⍝ Not found: Return original string...
                      prefix rest←⊃⍵
-                    ⍝ ⎕←'Testing'(prefix('⎕NC'(n.⎕NC prefix)))rest
                      2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
                      ⍺ ∇ 1↓⍵
                  }
