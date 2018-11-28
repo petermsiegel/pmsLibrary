@@ -180,15 +180,16 @@
              _,←⊂':Implements Trigger * '
              _,←⊂'→0/⍨ ''Ð''≠1↑__args__.Name'
              _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
-             _←dict.ns.⎕FX _
+             _←dict.ns.⎕FX _,⊂DEBUG/'⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
            ⍝ tweak: Map external names for :DEF/::LET into internal ones.
            ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
            ⍝ redefined as macros.
              dict.tweak←dict.{
                  map←'Ð'@('⎕'∘=)          ⍝ Map ⎕ → Ð (right now, we are passing ## through).
-                 '⎕SE.'≡4↓⍵:(4↑⍵),map 4↓⍵ ⍝ Keep ⎕SE
-                 '#.'≡2↑⍵:(2↑⍵),map 2↓⍵   ⍝ Keep #.
-                 map ⍵                    ⍝
+                 s←'⎕(\w+)'⎕R'⎕\u1'⍠##.OPTS⊣⍵   ⍝ ⎕abc ≡ ⎕ABC
+                 '⎕SE.'≡4↓s:(4↑s),map 4↓s ⍝ Keep ⎕SE
+                 '#.'≡2↑s:(2↑s),map 2↓s   ⍝ Keep #.
+                 map s                    ⍝
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
           ⍝  untweak: See tweak.
@@ -254,8 +255,8 @@
                      0=≢⍵:⍺                 ⍝ Not found: Return original string...
                      prefix rest←⊃⍵
                      2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
-                   ⍝   :DEF ⎕MY←a.b.c.d
-                   ⍝    i.j.⎕MY → i.j.a.b.c.d
+                   ⍝    :DEF ⎕MY←a.b.c.d
+                   ⍝      i.j.⎕MY → i.j.a.b.c.d
                      2=n.⎕NC rest:prefix,'.',rest ifNot get rest
                      ⍺ ∇ 1↓⍵
                  }
@@ -442,11 +443,17 @@
 
  :Section  Setup: Scan Patterns and Actions
      DICT←∆DICT''
-   ⍝ Also, sets ⎕LET.UC, ⎕LET.LC, ⎕LET.ALPH (UC,LC,'_∆⍙')
+   ⍝ ⎕LET.(UC, LC, ALPH): Define upper-case, lower-case and all valid initials letters
+   ⍝ of APL names. (Add ⎕D for non-initials).
+   ⍝     ⎕LET.UC/uc, ⎕LET.LC/lc, ⎕LET.ALPH/alph (UC,LC,'_∆⍙')
+   ⍝
       ⋄ DICT.set'⎕LET'(⍎'LETTER_NS'⎕NS'')
-      ⋄ DICT.set'⎕LET.LC'(enQ 56↑ALPH)
-      ⋄ DICT.set'⎕LET.UC'(enQ 55↑56↓ALPH)
-      ⋄ DICT.set'⎕LET.ALPH'(enQ ALPH)
+      ⋄ DICT.set'⎕LET.LC'(_←enQ 56↑ALPH)
+      ⋄ DICT.set'⎕LET.lc'_
+      ⋄ DICT.set'⎕LET.UC'(_←enQ 55↑56↓ALPH)
+      ⋄ DICT.set'⎕LET.uc'_
+      ⋄ DICT.set'⎕LET.ALPH'(_←enQ ALPH)
+      ⋄ DICT.set'⎕LET.alph'_
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
