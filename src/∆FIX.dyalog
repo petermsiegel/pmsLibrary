@@ -171,6 +171,7 @@
          ∆DICT←{
              dict←⎕NS''
              dict.ns←dict.⎕NS''
+           ⍝  dict.(KEYS VALS LITERAL←⍬)
            ⍝ _foo__ (function/trigger)...
            ⍝ Crazy function to ensure that Ðname names are shadowed to ⎕name system vars,
            ⍝ when valid; and ignored otherwise.   E.g. setting ÐIO←1 will set ⎕IO←1 as well.
@@ -218,7 +219,7 @@
              dict.get←dict.{⍺←ns ⋄ n k←⍺(tweak ⍵)
                  0::⍬⊣⎕←'dict.get logic error on name: ',⍵⊣⎕←↑⎕DMX.DM
                  0≥n.⎕NC k:⍬
-                 v←n.⎕OR k
+                 n.⎕OR k
              }
              dict.del←dict.{⍺←ns
                  n k←⍺(tweak ⍵)
@@ -236,8 +237,8 @@
            ⍝ Resolve a possibly complex name like a.b.c.d
            ⍝ Leaves ⎕SE and #. as is, but tweaks invented names like ⎕name
              dict.resolve←dict.{⍺←ns
-                 ⍝ n k←⍺(tweak ⍵)
-                  n k←⍺ ⍵
+                 n k←⍺(tweak ⍵)
+                 ⍝ n k←⍺ ⍵
                  ifNot←{0≠≢⍵:⍵ ⋄ ⍺}
                  genList←{
                      F←'.'(≠⊆⊢)⍵                ⍝ Split a.b.c into atoms: a |   b    |   c
@@ -253,12 +254,15 @@
                      0=≢⍵:⍺                 ⍝ Not found: Return original string...
                      prefix rest←⊃⍵
                      2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
+                   ⍝   :DEF ⎕MY←a.b.c.d
+                   ⍝    i.j.⎕MY → i.j.a.b.c.d
+                     2=n.⎕NC rest:prefix,'.',rest ifNot get rest
                      ⍺ ∇ 1↓⍵
                  }
                  0≠≢v←1 namePtr k:v  ⍝   Check fully-specified (or simple) name
-                 ~'.'∊k:k            ⍝   Simple name, k, w/o namePtr value? Return k.
+                 ~'.'∊k:⍕⍵            ⍝   Simple name, k, w/o namePtr value? Return orig ⍵
                  list←genList k      ⍝   Not found-- generate subitems
-                 k procList 1↓list   ⍝   Already checked first item.
+                 untweak k procList 1↓list   ⍝   Already checked first item.
              }
              _←dict.⎕FX'k←keys' ':TRAP 0' 'k←untweak¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
              _←dict.⎕FX'v←values' ':TRAP 0' 'v←ns.⎕OR¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
@@ -630,7 +634,6 @@
                      vOut←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
                      show←⊂('::IF ',showCode code0)
                      show,←('➤    ',showCode code1)('➤    ',showObj vOut)
-                     ⎕←'Showing:'show
                      show ∆COM⍨CTL.push ifTrue vOut
                  }register'⍎directiveP IF \b \h* (.*) $'
                 ⍝ ELSEIFDEF/ELSEIFNDEF/ELIFDEF/ELIFNDEF  stmts
