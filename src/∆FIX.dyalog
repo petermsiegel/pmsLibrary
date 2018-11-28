@@ -180,7 +180,9 @@
              _,←⊂':Implements Trigger * '
              _,←⊂'→0/⍨ ''Ð''≠1↑__args__.Name'
              _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
-             _←dict.ns.⎕FX _,⊂DEBUG/'⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
+             _,←⊂DEBUG↓'⍝ ⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
+             _←dict.ns.⎕FX _
+             ⍝ ⎕←dict.ns.⎕VR  _ 
            ⍝ tweak: Map external names for :DEF/::LET into internal ones.
            ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
            ⍝ redefined as macros.
