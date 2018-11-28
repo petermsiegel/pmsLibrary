@@ -6,8 +6,8 @@
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
- ;pfx;readFile;register;setBrace;sfx;showCode;showObj;specialStringP;sqStringP
- ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2Q;∆V2S;⎕IO
+ ;pfx;readFile;register;setBrace;sfx;showCodeSnip;showObjSnip;specialStringP;sqStringP
+ ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
  ⍝  A Dyalog APL preprocessor  (rev. Nov 24 )
@@ -62,7 +62,7 @@
    ⍝ By default, use private use Unicode E000.
    ⍝ >> If DEBUG, it's a smiley face.
      SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
-   ⍝ ALPH: First letters of valid APL names...
+   ⍝ ALPH: First letter of valid APL names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
      ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
      ALPH,←'_∆⍙'
@@ -77,14 +77,16 @@
    ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
    ⍝ (See IF(N)DEF.)
          ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-         box←{  ⍝ From dfns with addition of [A]. Box the simple text array ⍵.
+       ⍝ dfns:box Standard boxing utility with addition:
+       ⍝   [A] Treat 'str1' 'str1' as if ↑'str1' 'str2'
+         box←{
              (⎕IO ⎕ML)←1 3
              2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
              ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
              ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
              z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
-                                                           ⍝ simple boxing? ↓
+           ⍝ simple boxing? ↓
              0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
 
              (r c)←rh{∪⍺{(⍵∊0,⍳⍺)/⍵}⍵,(~¯1∊⍵)/0,⍺}¨2↑ar             ⍝ rows and columns
@@ -103,18 +105,17 @@
                  q[1,h;1,w]←2 2⍴ch ⋄ (⍵⍪hz),vr⍪q                    ⍝ corners, add parts
              }z
          }
-   ⍝ showObj, showCode-- used informationally to show part of a potentially large object.
-   ⍝ Show just a bit of an obj of unknown size. (Used for display info)
-   ⍝ showObj: assumes data values. Puts strings in quotes.
-   ⍝ showCode: Assumes APL code or names in string format.
-         showObj←{⍺←⎕PW-20 ⋄ maxW←⍺
+       ⍝ showObjSnip, showCodeSnip-- used informationally to show part of a potentially large object.
+       ⍝ Show just a bit of an obj of unknown size. (Used for display info)
+       ⍝ [A] showObjSnip: assumes data values. Puts strings in quotes.
+       ⍝ [B] showCodeSnip: Assumes APL code or names in string format.
+         showObjSnip←{⍺←⎕PW-20 ⋄ maxW←⍺
              f←⎕FMT ⍵
              q←SQ/⍨0=80|⎕DR ⍵
              clip←1 maxW<⍴f
              (q,q,⍨(,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
          }
-   ⍝ showCode: assumes names or code
-         showCode←{⍺←⎕PW-20 ⋄ maxW←⍺
+         showCodeSnip←{⍺←⎕PW-20 ⋄ maxW←⍺
              f←⎕FMT ⍵
              clip←1 maxW<⍴f
              ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
@@ -127,9 +128,10 @@
              0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
              (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
          }
-     ⍝   CTL services
-     ⍝   stack and skip services. Most  return the last item on the stack.
-     ⍝   stacked item only 1 or 0
+     ⍝   CTL services: Handles recursive use of ::IF/ELSE and related control structures.
+     ⍝   Includes: push ⍵, poke ⍵; ⍵←pop, ⍵←peek; flip; ⍵←skip
+     ⍝             saveIf/restoreIf b⍮
+     ⍝             global "stack": CTL.säve.
          :With CTL                               ⍝ Returns...
              ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
              ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
@@ -147,32 +149,50 @@
              :EndIf
          :EndWith
        ⍝⍝⍝⍝ regexp related routines...
-       ⍝ ∆PFX:   pfx ∇ lines
-       ⍝    lines: a single string possibly containing newlines as line separators, OR
-       ⍝           a vector of vectors
-       ⍝    pfx:   a string prefix. Default '⍝ '
+       ⍝ ∆PFX:  Returns set of lines ⍵, each prefixed with ⍺←'⍝ ' in a consistent VVS format.
+       ⍝ ∆PFX:  ret@VVS ← pfx@S?'⍝ ' ∇ lines@VS|Snl
+       ⍝    lines:   a single string w/ (≥0) newlines as line separators, OR
+       ⍝             a vector of strings.
+       ⍝    pfx:     a string prefix. Default '⍝ '
+       ⍝    Returns: a prefixed vector of vectors, regardless of input form of ⍵.
        ⍝ See also NO, YES, NOc, YESc.
-       ⍝ Returns lines prefixed with pfx in vector of vectors format.
          ∆PFX←{⍺←'⍝ ' ⋄ 1=|≡⍵:⍺ ∇(NL∘≠⊆⊢)⍵ ⋄ (⊂⍺),¨⍵}
-       ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns (APL prints nicely)
+       ⍝ ∆V2S: Convert a vector of vectors to a string, using carriage returns
+       ⍝       APL prints CRs nicely (starts next line in col 1).
+       ⍝       We use this ONLY for pretty-printing comments.
          ∆V2S←{1↓∊CR,¨⊆⍵}
-       ⍝ ∆V2Q: Convert V of V to a quoted string equiv.
-         ∆V2Q←{q←SQ ⋄ 1↓∊(⊂' ',q),¨q,⍨¨⊆⍵}
        ⍝ ∆COM: Convert a vector of vector strings to a set of comments, one per "line" generated.
+       ⍝       If ⍺=1, use the "YESc" comment style; if ⍺=0, use to "NOc" style.
          ∆COM←{⍺←1 ⋄ ∆V2S(⍺⊃NOc YESc)∆PFX ⍵}
-       ⍝ PCRE routines
+       ⍝ ∆FIELD: Return PCRE fields by numbers ⍵ or '' where missing.
          ∆FIELD←{
              0=≢⍵:'' ⋄ 1<≢⍵:⍺ ∇¨⍵ ⋄ 0=⍵:⍺.Match
              ⍵≥≢⍺.Lengths:'' ⋄ ¯1=⍺.Lengths[⍵]:''
              ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
          }
        ⍝ dictionary routines
-       ⍝ Use a private namespace so we can access recursively with ::IF etc.
+       ⍝ ∘ Use a private namespace so we can access recursively with ::IF etc.
+       ⍝ ∘ Dictionaries put names created by ::DEF and ::LET/EVAL into the namespace,
+       ⍝   but traps system names of the form ⎕ABC as ÐABC. When a system name is
+       ⍝   set via ÐABC, we also assign ⎕ABC via a trigger, but only if it is writeable.
+       ⍝   Otherwise, the trigger does nothing. This allows a user to create new system
+       ⍝   variable macros (for new names or existing ones), while allowing APL to see
+       ⍝   the side effects of those not reset. This is complicated, but allows arbitrarily
+       ⍝   expressions in conditional expressions, e.g. in ::IF, ::ELSEIF, and ::COND statements.
+       ⍝ ∘ Names used in DEF/LET etc may be complex, e.g. A.B.C.D. We'll automatically create
+       ⍝   intermediate namespaces (A.B.C), but the user must take care not to use those
+       ⍝   names ALSO for other purposes; e.g. this sequence won't work out, because
+       ⍝   it treats mydir.util as both a namespace (1st) and a variable (2nd):
+       ⍝         ::DEF mydir.util.file1←'SOMEDIR/SOMEFILE'
+       ⍝         ::DEF mydir.util←'SOMEDIR'
+       ⍝   This relates to proper usage of namespaces and is not special to ∆FIX.
+       ⍝ ∘ Bugs: Unrelated names starting with or containing Ð will be messed with.
          ∆DICT←{
              dict←⎕NS''
              dict.ns←dict.⎕NS''
            ⍝  dict.(KEYS VALS LITERAL←⍬)
-           ⍝ _foo__ (function/trigger)...
+           ⍝ __foo__ (function/trigger)... Shadows internal names for re/defined system
+           ⍝ names ÐABC and actual APL names ⎕ABC.
            ⍝ Crazy function to ensure that Ðname names are shadowed to ⎕name system vars,
            ⍝ when valid; and ignored otherwise.   E.g. setting ÐIO←1 will set ⎕IO←1 as well.
            ⍝ See Macro handling...
@@ -274,6 +294,9 @@
              dict
          }
        ⍝ Pattern Building Routines...
+       ⍝ User Fns:  MBegin, MEnd, register, eval
+       ⍝ Utilities: MActions
+       ⍝ See: Global Match.
          ⎕SHADOW'MScanName'
          ⎕FX'MBegin name' 'Match←⍬' 'MScanName←name'
          ⎕FX'm←MEnd' 'm←Match'
@@ -325,16 +348,19 @@
              0=ns.action:⍵ ∆FIELD ns.action           ⍝ ... number 0: Just passthru, i.e. return as is.
              ⍵ ∆FIELD ns.action                       ⍝ Else... m.action is a PCRE field number to return.
          }
-       ⍝ A recursive loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A'. Don't do that.
-         eval←{⍺←MAXEVAL←10
-             ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥MAXEVAL times' 911
-             pfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
-             str,⍨←pfx/⍨~1↑pfx⍷str←⍵                 ⍝ Add prefix if not already there...
-             ~'⍎'∊str:str
-             str≢res←'(?<!\\)⍎(\w+)'⎕R{              ⍝ Keep substituting until no more ⍎name
-                 0::f1
-                 ⍎f1←⍵ ∆FIELD 1
-             }⍠('UCP' 1)⊣str:(⍺-1)∇ res
+       ⍝ eval: Used in register-- replaces sequences of the form ⍎NAME  by the value of NAME in the local calling context.
+       ⍝ If a NAME contains further ⍎NAMEX sequences, eval calls itself recursively.
+       ⍝ Bugs: An infinite loop on (eval '⍎A') is poss if  A B←'⍎B' '⍎A' or A←'⍎A'. Don't do that.
+       ⍝       eval will stop evaluating at 10 iterations, just to be nice, but will signal an error.
+         eval←{⍺←öMAXEVAL←10                          ⍝ ö prefix to prevent name conflicts with user names.
+             ⍺≤0:⎕SIGNAL'∆FIX Logic error: eval called recursively ≥10 times' 911
+             öpfx←'(?xx)'                             ⍝ PCRE prefix -- required default!
+             östr,⍨←öpfx/⍨~1↑öpfx⍷östr←⍵              ⍝ Add prefix if not already there...
+             ~'⍎'∊östr:östr
+             östr≢öres←'(?<!\\)⍎(\w+)'⎕R{             ⍝ Keep substituting until no more ⍎name
+                 0::öf1
+                 ⍎öf1←⍵ ∆FIELD 1
+             }⍠('UCP' 1)⊣östr:(⍺-1)∇ öres
              ⍵
          }
          ⎕SHADOW'LEFT' 'RIGHT' 'ALL' 'NAME'
@@ -640,8 +666,8 @@
                          (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',qw,SQ,NL
                      }f0
                      vOut←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-                     show←⊂('::IF ',showCode code0)
-                     show,←('➤    ',showCode code1)('➤    ',showObj vOut)
+                     show←⊂('::IF ',showCodeSnip code0)
+                     show,←('➤    ',showCodeSnip code1)('➤    ',showObjSnip vOut)
                      show ∆COM⍨CTL.push ifTrue vOut
                  }register'⍎directiveP IF \b \h* (.*) $'
                 ⍝ ELSEIFDEF/ELSEIFNDEF/ELIFDEF/ELIFNDEF  stmts
@@ -660,8 +686,8 @@
                          (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',qw,SQ,NL
                      }f0
                      vOut←DICT.ns{⍺⍎⍵}code1←(0 doScan)code0
-                     show←⊂('::ELSEIF ',showCode code0)
-                     show,←('➤    ',showCode code1)('➤    ',showObj vOut)
+                     show←⊂('::ELSEIF ',showCodeSnip code0)
+                     show,←('➤    ',showCodeSnip code1)('➤    ',showObjSnip vOut)
                      show ∆COM⍨CTL.poke ifTrue vOut
                  }register'⍎directiveP  EL (?:SE)? IF\b \h* (.*) $'
                 ⍝ ELSE
@@ -706,7 +732,7 @@
                      }f0
                      t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
                      stmt←⍕(0 doScan)stmt
-                     show1←t ∆COM f0('➤  ',showCode cond1)('➤  ',showObj cond2)('➤  ',showObj bool)
+                     show1←t ∆COM f0('➤  ',showCodeSnip cond1)('➤  ',showObjSnip cond2)('➤  ',showObjSnip bool)
                      show1,CR,(NOc/⍨~t),stmt
                  }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
                ⍝ DEFINE name [ ← value]
