@@ -182,13 +182,15 @@
              _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
              _,←⊂DEBUG↓'⍝ ⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
              _←dict.ns.⎕FX _
-             ⍝ ⎕←dict.ns.⎕VR  _ 
+             ⍝ ⎕←dict.ns.⎕VR  _
            ⍝ tweak: Map external names for :DEF/::LET into internal ones.
            ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
            ⍝ redefined as macros.
              dict.tweak←dict.{
                  map←'Ð'@('⎕'∘=)          ⍝ Map ⎕ → Ð (right now, we are passing ## through).
-                 s←'⎕(\w+)'⎕R'⎕\u1'⍠##.OPTS⊣⍵   ⍝ ⎕abc ≡ ⎕ABC
+               ⍝ Map ⎕abc → ⎕ABC.
+               ⍝ Also, map ⎕ABC.def or ⎕ABC.def.ghi → ⎕ABC.DEF or ⎕ABC.DEF.GHI
+                 s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣⍵
                  '⎕SE.'≡4↓s:(4↑s),map 4↓s ⍝ Keep ⎕SE
                  '#.'≡2↑s:(2↑s),map 2↓s   ⍝ Keep #.
                  map s                    ⍝
@@ -447,15 +449,12 @@
      DICT←∆DICT''
    ⍝ ⎕LET.(UC, LC, ALPH): Define upper-case, lower-case and all valid initials letters
    ⍝ of APL names. (Add ⎕D for non-initials).
-   ⍝     ⎕LET.UC/uc, ⎕LET.LC/lc, ⎕LET.ALPH/alph (UC,LC,'_∆⍙')
+   ⍝ (Dict macros treat ⎕LET.UC, ⎕LET.uc, ⎕LET.Uc, ⎕LET.uC as synonyms, i.e. case is ignored for system extensions.)
    ⍝
       ⋄ DICT.set'⎕LET'(⍎'LETTER_NS'⎕NS'')
       ⋄ DICT.set'⎕LET.LC'(_←enQ 56↑ALPH)
-      ⋄ DICT.set'⎕LET.lc'_
       ⋄ DICT.set'⎕LET.UC'(_←enQ 55↑56↓ALPH)
-      ⋄ DICT.set'⎕LET.uc'_
       ⋄ DICT.set'⎕LET.ALPH'(_←enQ ALPH)
-      ⋄ DICT.set'⎕LET.alph'_
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
