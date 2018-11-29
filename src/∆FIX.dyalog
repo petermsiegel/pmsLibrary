@@ -10,9 +10,11 @@
  ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog APL preprocessor  (rev. Nov 24 )
+ ⍝  A Dyalog APL preprocessor  (rev. Nov 29 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
+ ⍝ result ←   OUTSPEC@I?0 COMSPEC@I?0 DEBUG@I?0 SHOWCOMPILED?0 ∇ fileName@S|⍬
+ ⍝ result@I.(S|S.I|I)
  ⍝
  ⍝ Description:
  ⍝   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
@@ -32,13 +34,11 @@
  ⍝            2 - returns*: rc code              -- rc:    0 on success
  ⍝            * If an error occurs, returns:
  ⍝                signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
- ⍝
  ⍝ COMSPEC:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.
  ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
  ⍝            1: Omit (⍝❌) paths not taken
  ⍝            2: Omit also (⍝🅿️) paths taken (leave other user comments)
  ⍝            3: Remove all comments of any type
- ⍝
  ⍝ DEBUG:     0: not debug mode (default).
  ⍝            1: debug mode. ⎕SIGNALs will not be trapped.
  ⍝ SHOWCOMPILED:
@@ -71,39 +71,26 @@
          enQ←{SQ,SQ,⍨⍵/⍨1+⍵=SQ}
    ⍝ getenv: Returns value of environment var.
          getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-   ⍝ ifTrue ⍵: Returns 1
-   ⍝          iff ⍵ has length 0 (≢⍵) OR if (,⍵) is neither (,0) nor (,⎕NULL).
-   ⍝       1: (1 2) ('0') (' ') ('XXX')
-   ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
-   ⍝ (See IF(N)DEF.)
+       ⍝ ifTrue ⍵: Returns 1
+       ⍝          iff ⍵ has length 0 (≢⍵) OR if (,⍵) is neither (,0) nor (,⎕NULL).
+       ⍝       1: (1 2) ('0') (' ') ('XXX')
+       ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
+       ⍝ (See IF(N)DEF.)
          ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-       ⍝ dfns:box Standard boxing utility with addition:
-       ⍝   [A] Treat 'str1' 'str1' as if ↑'str1' 'str2'
-         box←{
-             (⎕IO ⎕ML)←1 3
-             2=|≡⍵:∇↑⍵  ⍝ [A] Minor addition by PMS.
-             ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
-
-             ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
-             z←,[⍳⍴⍴⍵],[0.1]⍵ ⋄ rh←⍴z                               ⍝ matricise
-           ⍝ simple boxing? ↓
-             0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
-
-             (r c)←rh{∪⍺{(⍵∊0,⍳⍺)/⍵}⍵,(~¯1∊⍵)/0,⍺}¨2↑ar             ⍝ rows and columns
-             (rw cl)←rh{{⍵[⍋⍵]}⍵∪0,⍺}¨r c
-
-             (~(0,2⊃rh)∊c){                                         ⍝ draw left/right?
-                 (↑⍺)↓[2](-2⊃⍺)↓[2]⍵[;⍋(⍳2⊃rh),cl]                  ⍝ rearrange columns
-             }(~(0,1⊃rh)∊r){                                        ⍝ draw top/bottom?
-                 (↑⍺)↓[1](-2⊃⍺)↓[1]⍵[⍋(⍳1⊃rh),rw;]                  ⍝ rearrange rows
-             }{
-                 (h w)←(⍴rw),⍴cl ⋄ q←h w⍴11⊃ch                      ⍝ size; special,
-                 hz←(h,2⊃rh)⍴9⊃ch                                   ⍝  horizontal and
-                 vr←(rh[1],w)⍴10⊃ch                                 ⍝  vertical lines
-                 ∨/0∊¨⍴¨rw cl:(⍵⍪hz),vr⍪q                           ⍝ one direction only?
-                 q[1;]←5⊃ch ⋄ q[;w]←6⊃ch ⋄ q[;1]←7⊃ch ⋄ q[h;]←8⊃ch  ⍝ end marks
-                 q[1,h;1,w]←2 2⍴ch ⋄ (⍵⍪hz),vr⍪q                    ⍝ corners, add parts
-             }z
+       ⍝ A simplified boxing for simple display purposes.
+         box←{⎕IO←0 ⋄ ⍺←'∆FIX ERROR'
+             (2=|≡⍵)∧1=⍴⍴⍵:⍺ ∇↑⍵          ⍝ ⍵@S[] → ↑⍵
+             topL topR botL botR topM RM LM botM bot side sideM←'┌┐└┘┬┤├┴─│┼'
+             fmt←⍺{(≢⍺)≤¯1↑⍴⍵:⍵ ⋄ (≢⍺)↑[1]⍵}⎕FMT ⍵
+             fmt←side,side,⍨bot,[0]bot,[0]⍨fmt
+             (⊃fmt)←topL ⋄ (⊃⌽fmt)←topR ⋄ (⊃⊖fmt)←botL ⋄ (⊃⌽⊖fmt)←botR
+             ⍬≡⍺:fmt
+             fmt←{⍵\[0]fmt}H⊣H[1 2]←0⊣H←1⍴⍨2+1↑⍴fmt
+             ⋄ ctr←{l←(⍺-≢⍵)÷2 ⋄ (' '⍴⍨⌊l),⍵,' '⍴⍨⌈l}
+             ⋄ W←¯2+¯1↑⍴fmt
+             fmt[1;]←side,(W ctr ⍺),side
+             fmt[2;]←LM,(W⍴bot),RM
+             fmt
          }
        ⍝ showObjSnip, showCodeSnip-- used informationally to show part of a potentially large object.
        ⍝ Show just a bit of an obj of unknown size. (Used for display info)
@@ -471,7 +458,7 @@
      code←readFile fileName
  :EndSection Read In file or stdin
 
- :Section  Setup: Scan Patterns and Actions
+ :Section Setup:Scan Patterns and Actions
      DICT←∆DICT''
    ⍝ ⎕LET.(UC, LC, ALPH): Define upper-case, lower-case and all valid initials letters
    ⍝ of APL names. (Add ⎕D for non-initials).
@@ -529,7 +516,7 @@
          :EndIf
      :EndSection Preprocess Tradfn Headers
 
-     :Section Setup: Scans
+     :Section Setup:Scans
          :Section PreScan1
              MBegin'PreScan1'
            ⍝ CONTINUATION LINES ARE HANDLED IN SEVERAL WAYS
@@ -630,7 +617,7 @@
            ⍝    |  ::CALL2 backwards
              'CALL/nn' 0{
                  f0 cmd lines←⍵ ∆FIELD 0 2 3
-                 cmd{0::0 ∆COM msg,NL,f0⊣⎕←box msg⊣msg←'⍝ CALL Compile Time Execution Error'
+                 cmd{0::0 ∆COM msg,NL,f0⊣⎕←'Exec Err'box msg⊣msg←'⍝ CALL Compile Time Execution Error'
                      res←##.CalledFrom⍎⍺,' ⍵'          ⍝ CalledFrom-- calling namespace.
                      2=|≡res:1↓∊NL,¨res
                      2=⍴⍴res:1↓∊NL,res
@@ -640,14 +627,14 @@
              PreScan2←MEnd
          :EndSection PreScan2
 
-         :Section Macro Scan (no ::directives): Part I
+         :Section Macro Scan(no::directives):Part I
            ⍝ MacroScan1: Used in ::FIRST (q.v.), these exclude any ::directives.
              MacroScan1←⍬    ⍝ Augmented below...
-         :EndSection Macro Scan (no ::directives): Part I
+         :EndSection Macro Scan(no::directives):Part I
 
          :Section MainScan1
              MBegin'MainScan1'
-             :Section  Register Directives
+             :Section Register Directives
                 ⍝ Comments
                  MacroScan1,←'COMMENTS FULL'(0 register)'^ \h* ⍝ .* $'
                 ⍝ IFDEF/IFNDEF stmts
@@ -661,7 +648,7 @@
                      f0 code0←⍵ ∆FIELD¨0 1
                      TRAP::{
                          _←CTL.push 0            ⍝ Error-- option fails.
-                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         ⎕←'∆FIX ERROR'box'∆FIX VALUE ERROR: ',⍵
                          qw←⍵/⍨1+SQ=⍵
                          (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',qw,SQ,NL
                      }f0
@@ -681,7 +668,7 @@
                      f0 code0←⍵ ∆FIELD 0 1
                      0::{ ⍝ Elseif: poke, don't push
                          _←CTL.poke 1
-                         ⎕←box'∆FIX VALUE ERROR: ',⍵
+                         ⎕←'∆FIX ERROR'box'∆FIX VALUE ERROR: ',⍵
                          qw←⍵/⍨1+⍵=SQ
                          (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨''∆FIX VALUE ERROR: ',qw,SQ,NL
                      }f0
@@ -924,9 +911,9 @@
      :EndSection Setup Scans
 
       ⍝ MacroScan1 - See description above.
-     :Section Macro Scan (no ::directives): Part II
+     :Section Macro Scan(no::directives):Part II
          MacroScan1.MScanName←⊂'Macro Scan (no ::directives)'
-     :EndSection Macro Scan(no ::directives): Part II
+     :EndSection Macro Scan(no::directives):Part II
 
      :Section List Scan
      ⍝ Handle lists of the form:
@@ -972,7 +959,7 @@
          ListScan←MEnd
      :EndSection List Scan
 
-     :Section Setup: Scan Procedure
+     :Section Setup:Scan Procedure
      ⍝ To scan simple expressions:
      ⍝   code← [PreScan1 PreScan2] MainScan1 (⍺⍺ doScan)⊣ code
      ⍝          ⍺:    MainScan1 (default) or list of scans in order
@@ -994,9 +981,9 @@
              }⍵
              res⊣CTL.restoreIf stackFlag
          }
-     :EndSection Setup: Scan Procedure
- :EndSection  Setup: Scan Patterns and Actions
- :Section Executive: Perform Scans
+     :EndSection Setup:Scan Procedure
+ :EndSection Setup:Scan Patterns and Actions
+ :Section Executive:Perform Scans
        ⍝ =================================================================
        ⍝ Executive
        ⍝ =================================================================
@@ -1012,10 +999,10 @@
      :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
      code←{';'@(SEMICOLON_FAUX∘=)⊣⍵}¨code
- :EndSection Executive: Perform Scans
+ :EndSection Executive:Perform Scans
 
  :Section Complete Preprocessing
-     :Section "::FIRST" Directive Phase II:  Process firstBuffer
+     :Section "::FIRST "Directive Phase II:Process firstBuffer
          :If 0≠≢firstBuffer
          :AndIf 0≠≢firstBuffer~' ',NL
              firstBuffer←'Bêgin',NL,firstBuffer
@@ -1033,7 +1020,7 @@
                  _ ⎕SIGNAL 11
              :EndIf
          :EndIf
-     :EndSection "::FIRST" Directive Phase II: Process firstBuffer
+     :EndSection "::FIRST "Directive Phase II:Process firstBuffer
 
      :If SHOWCOMPILED
          ⎕ED'code'
@@ -1042,7 +1029,7 @@
 
      :Section Write object so we can do a 2∘⎕FIX import
          tmpfile←(739⌶0),'/','TMP~.dyalog'
-         :Trap TRAP
+         :Trap 11 ⍝ TRAP
              (⊂code)⎕NPUT tmpfile 1         ⍝ 1: overwrite file if it exists.
              objects←2(0⊃⎕RSI).⎕FIX'file://',tmpfile
        ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
@@ -1072,4 +1059,4 @@
              'No names and values were set.'
          :EndIf
      :EndIf
- :EndSection    Complete Preprocessing
+ :EndSection Complete Preprocessing
