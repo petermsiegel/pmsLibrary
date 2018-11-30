@@ -10,9 +10,9 @@
 
      ⍺←⍬ ⋄ options pkgs←⍺(⊆⍵)
 
-     DEBUG←0                         ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
+     DEBUG←0                           ⍝ If CODE<0, DEBUG CODE←(CODE<0)(|CODE)
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on CallerN (next)
-
+     _←⎕SIGNAL 0                       ⍝ Reset...
 
    ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
@@ -67,7 +67,7 @@
      scan2←{
          0=≢⍵:⎕NULL 0
          9=⎕NC'_'⊣_←⊃⍵:⍵ 0
-         0=1↑0⍴∊⍵:⎕NULL 1⍴∊⍵
+         0=1↑0⍴∊⍵:⎕NULL(1⍴∊⍵)
          1=≢⊆⍵:⍵ 0
          ⍵
      }
@@ -527,8 +527,10 @@
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕CallerR.⎕PATH}TRACE 0
 
      succ←0=≢⊃⌽statusList
-     succ∧CODE∊3:_←{⍵}TRACE(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
-     ⋄ CODE∊3:(⊂stdLibR),statusList               ⍝           FAIL: non-shy
+
+   ⍝ CODE=3? Now returns 1 on success, 0 otherwise..
+     succ∧CODE∊3:_←{⍵}TRACE 1(⊂stdLibR),statusList  ⍝ CODE 3:   SUCC: shy     (non-shy if DEBUG)
+     ⋄ CODE∊3:0(⊂stdLibR),statusList               ⍝           FAIL: non-shy
      succ∧CODE∊2:stdLibR                          ⍝ CODE 2:   SUCC: non_shy
 
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11

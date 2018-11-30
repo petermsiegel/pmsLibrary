@@ -1,4 +1,4 @@
- result←{specs}∆FIX fileName
+ result←{specs}∆FIX fileName;LETTER_NS
  ;ALPH;Bêgin;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
  ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
@@ -49,6 +49,7 @@
  ⍝-------------------------------------------------------------------------------------------
  :Section Initialization
      ⎕IO ⎕ML←0 1
+     ⎕PATH←(⍕⎕THIS),' ',⎕PATH
      CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
      OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
      '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
@@ -197,10 +198,11 @@
                  map←'Ð'@('⎕'∘=)          ⍝ Map ⎕ → Ð (right now, we are passing ## through).
                ⍝ Map ⎕abc → ⎕ABC.
                ⍝ Also, map ⎕ABC.def or ⎕ABC.def.ghi → ⎕ABC.DEF or ⎕ABC.DEF.GHI
-                 s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣⍵
+                 s←⍵
                  '⎕SE.'≡4↓s:(4↑s),map 4↓s ⍝ Keep ⎕SE
                  '#.'≡2↑s:(2↑s),map 2↓s   ⍝ Keep #.
-                 map s                    ⍝
+                 s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣s
+                 map s
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
           ⍝  untweak: See tweak.
@@ -249,8 +251,7 @@
            ⍝ Resolve a possibly complex name like a.b.c.d
            ⍝ Leaves ⎕SE and #. as is, but tweaks invented names like ⎕name
              dict.resolve←dict.{⍺←ns
-                 n k←⍺(tweak ⍵)
-                 ⍝ n k←⍺ ⍵
+                 n k←⍺(tweak ⍵) ⋄ raw←⍵
                  ifNot←{0≠≢⍵:⍵ ⋄ ⍺}
                  genList←{
                      F←'.'(≠⊆⊢)⍵                ⍝ Split a.b.c into atoms: a |   b    |   c
@@ -263,7 +264,7 @@
                      ⍺:,⎕FMT v ⋄ 0=n.⎕NC'v':v ⋄ 2≠n.⎕NC'v':'' ⋄ ¯1=n.⎕NC v:'' ⋄ v
                  }
                  procList←{
-                     0=≢⍵:⍺                 ⍝ Not found: Return original string...
+                     0=≢⍵:⍺                 ⍝ Not found: Return original string (use ⍵, not k)
                      prefix rest←⊃⍵
                      2=n.⎕NC prefix:(prefix ifNot namePtr prefix),'.',rest
                    ⍝    :DEF ⎕MY←a.b.c.d
@@ -272,9 +273,9 @@
                      ⍺ ∇ 1↓⍵
                  }
                  0≠≢v←1 namePtr k:v  ⍝   Check fully-specified (or simple) name
-                 ~'.'∊k:⍕⍵            ⍝   Simple name, k, w/o namePtr value? Return orig ⍵
+                 ~'.'∊k:⍕raw            ⍝   Simple name, k, w/o namePtr value? Return orig ⍵
                  list←genList k      ⍝   Not found-- generate subitems
-                 untweak k procList 1↓list   ⍝   Already checked first item.
+                 untweak raw procList 1↓list   ⍝   Already checked first item.
              }
              _←dict.⎕FX'k←keys' ':TRAP 0' 'k←untweak¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
              _←dict.⎕FX'v←values' ':TRAP 0' 'v←ns.⎕OR¨↓ns.⎕NL 2' '⋄:ELSE⋄''Whoops''⋄:ENDTrap'
@@ -304,7 +305,7 @@
              ⍺←('[',(⍕1+≢Match),']')0
          ⍝  Local Defs
              ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
-             ns.⎕PATH←'##'
+             ns.⎕PATH←⎕PATH
              ns.MScanName←MScanName  ⍝ Global → local
              ns.CTL←CTL
              ns.DICT←DICT
@@ -685,7 +686,7 @@
                  '::ENDIFDEF~::ENDIF~::END' 0{
                      f0←⍵ ∆FIELD 0
                      CTL.stackEmpty:{
-                         ⎕←box'Stmt invalid: ',⍵
+                         ⎕←box'Stmt invalid (out of context): ',⍵
                          '911 ⎕SIGNAL⍨ ''∆FIX ::END DOMAIN ERROR: out of scope.''',CR,0 ∆COM ⍵
                      }f0
                      CTL.pop ∆COM f0
