@@ -501,6 +501,11 @@
      multiLineP←'(?: (?: ⍎braceP | ⍎parenP | ⍎stringP  | [^{(''"\n]+ )* )'
 
      :Section Preprocess Tradfn Headers...
+      ⍝  1st line of 2∘⎕FIX-compatible file must start with
+      ⍝      :Namespace, :Class, or :Interface directive OR
+      ⍝      a function header (with or without explicit ∇ fn prefix). 
+      ⍝   [A] :directives above OR explicit ∇function header. (See [B]).
+      ⍝       There may be one or more of the objects listed above.
          :If ':⍝∇'∊⍨1↑' '~⍨⊃code
            ⍝ Tradfn header with leading ∇.
            ⍝ (To be treated as a header, it must have one alpha char after ∇.)
@@ -509,7 +514,8 @@
              code←'(?x)^ \h* ∇ \h* [\w\{\(] [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
                  SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
              }⍠OPTS⊣code
-         :Else
+         :Else ⍝ [B] File starts with function headers sans ∇ prefix.
+         ⍝ This means there is one object (the function) in the file.
            ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
              code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
                  SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
