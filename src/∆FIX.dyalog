@@ -1,4 +1,4 @@
- result←{specs}∆FIX fileName;LETTER_NS
+ result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;processFnHdr
  ;ALPH;Bêgin;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
  ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
@@ -59,6 +59,7 @@
      OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
      CTL←⎕NS''  ⍝ See CTL services below
      PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
+     firstBuffer←⍬       ⍝ See ::FIRST
    ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
    ⍝ By default, use private use Unicode E000.
    ⍝ >> If DEBUG, it's a smiley face.
@@ -78,7 +79,11 @@
        ⍝       0:  (0 1 2⍴0) (,⎕NULL) (0)  (,0) ⍬  ('')
        ⍝ (See IF(N)DEF.)
          ifTrue←{0=≢⍵:0 ⋄ (,⎕NULL)≡,⍵:0 ⋄ (,0)≢,⍵}
-       ⍝ A simplified boxing for simple display purposes.
+       ⍝ box:   A simplified boxing for simple display purposes.
+       ⍝ box:   hdr ← title ∇ lines
+       ⍝        title: a single line (or omit)
+       ⍝        lines: one or more lines as a vector of strings or str matrix
+       ⍝ Result is shy...
          box←{⎕IO←0 ⋄ ⍺←'∆FIX ERROR'
              (2=|≡⍵)∧1=⍴⍴⍵:⍺ ∇↑⍵          ⍝ ⍵@S[] → ↑⍵
              topL topR botL botR topM RM LM botM bot side sideM←'┌┐└┘┬┤├┴─│┼'
@@ -91,7 +96,7 @@
              ⋄ W←¯2+¯1↑⍴fmt
              fmt[1;]←side,(W ctr ⍺),side
              fmt[2;]←LM,(W⍴bot),RM
-             fmt
+             1:_←fmt
          }
        ⍝ showObjSnip, showCodeSnip-- used informationally to show part of a potentially large object.
        ⍝ Show just a bit of an obj of unknown size. (Used for display info)
@@ -108,6 +113,38 @@
              clip←1 maxW<⍴f
              ((,f↑⍨1 maxW⌊⍴f)),∊clip/'⋮…'
          }
+       ⍝ funName:
+       ⍝ Takes the first line of a dfn or tradfn and returns its name or ⍬ (if invalid).
+       ⍝ Requires header line* of tradfn or 'name←{' prefix* of a dfn.
+       ⍝ The header line may have a ∇ prefix (blanks are tolerated).
+       ⍝ tradfn fred:    'abc←{xxx} fred b'
+       ⍝ dfn    abc:     'abc←{xxx}'
+       ⍝        -----------------------
+       ⍝        * Must be in ⎕CR/⎕NR/⎕VR format; only the first line is checked.
+       ⍝ Returns name of dfn/tradfn OR ⍬.
+         funName←{
+             2=⍴⍴⍵:∇↓⍵                                ⍝ Allow ⎕CR format or ⎕NR.
+             f←⊃⊆⍵                                    ⍝ Consider only first line
+             f←f↓⍨'∇'=⊃f←f↓⍨+/∧\' '=f                 ⍝ Remove leading spaces and optl ∇ prefix.
+             nm←(⎕NS'').⎕FX f''             ⍝ Tradfn? ⍝ If can fix ok, is a tradfn or a complete dfn.
+             0≠⊃nm:nm                                 ⍝ ... Yes. Return name.
+                                    ⍝ Dfn?    ⍝ Do 2nd since res←{name1} is also a tradfn pfx.
+             dP op←'^\h*([\w∆⍙]+)\h*←\h*\{'('UCP' 1)  ⍝ Matches dfn prefix?
+             (¯1≠⎕NC nm)/nm←⊃dP ⎕S'\1'⍠op⊣f           ⍝ ... If yes, with valid name, return name. Else ⍬.
+         }
+       ⍝ processFnHdr:  r← ⍺ ∇ ⍵
+       ⍝   ⍺: Line with fn header (if not ⍵), used for error msgs.
+       ⍝   ⍵: Fn header itself (possible ⍵ altered)
+       ⍝   r: Returns ⍺
+         processFnHdr←{⍺←⍵
+             me←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Treat faux semicolons as real ones.
+             msg←'Expected fn/op def not found'
+             0=≢me:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
+             me←'⍙⍙.∆MY.',me
+             _←DICT.set'⎕MY'me
+             firstBuffer,←'(⍎',SQ,me,SQ,' ⎕NS ',SQ,SQ,').∆FIRST←1',NL
+             1:_←⍺
+         }
        ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
        ⍝      ⍵: A string of the form ¯?\d[\da-fA-F]?[xX]. Case is ignored.
        ⍝ h2d assumes pattern matching ensures valid nums. We simply ignore invalid chars here.
@@ -116,10 +153,10 @@
              0::⍵⊣⎕←'∆FIX WARNING: Hexadecimal number invalid or  out of range: ',⍵
              (1 ¯1⊃⍨'¯'=1↑⍵)×16⊥∆D⍳⍵∩∆D
          }
-     ⍝   CTL services: Handles recursive use of ::IF/ELSE and related control structures.
-     ⍝   Includes: push ⍵, poke ⍵; ⍵←pop, ⍵←peek; flip; ⍵←skip
-     ⍝             saveIf/restoreIf b⍮
-     ⍝             global "stack": CTL.säve.
+       ⍝ CTL services: Handles recursive use of ::IF/ELSE and related control structures.
+       ⍝ Includes: push ⍵, poke ⍵; ⍵←pop, ⍵←peek; flip; ⍵←skip
+       ⍝           saveIf/restoreIf b;
+       ⍝           global "stack": CTL.säve.
          :With CTL                               ⍝ Returns...
              ⎕FX's←pop' 's←⊃⌽stack' 'stack↓⍨←¯1' ⍝ ...  old last item, now deleted
              ⎕FX'b←stackEmpty' 'b←1≥≢stack'      ⍝ ...  1 if stack is "empty", has ≤1 item left
@@ -197,11 +234,11 @@
              dict.tweak←dict.{
                  map←'Ð'@('⎕'∘=)          ⍝ Map ⎕ → Ð (right now, we are passing ## through).
                ⍝ Map ⎕abc → ⎕ABC.
-               ⍝ Also, map ⎕ABC.def or ⎕ABC.def.ghi → ⎕ABC.DEF or ⎕ABC.DEF.GHI
+               ⍝ Bad idea: Also, map ⎕ABC.def or ⎕ABC.def.ghi → ⎕ABC.DEF or ⎕ABC.DEF.GHI
                  s←⍵
                  '⎕SE.'≡4↓s:(4↑s),map 4↓s ⍝ Keep ⎕SE
                  '#.'≡2↑s:(2↑s),map 2↓s   ⍝ Keep #.
-                 s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣s
+                 ⍝ Bad idea! s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣s
                  map s
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
@@ -463,12 +500,12 @@
      DICT←∆DICT''
    ⍝ ⎕LET.(UC, LC, ALPH): Define upper-case, lower-case and all valid initials letters
    ⍝ of APL names. (Add ⎕D for non-initials).
-   ⍝ (Dict macros treat ⎕LET.UC, ⎕LET.uc, ⎕LET.Uc, ⎕LET.uC as synonyms, i.e. case is ignored for system extensions.)
-   ⍝
+   ⍝ Bad idea: (Dict macros treat ⎕LET.UC, ⎕LET.uc, ⎕LET.Uc, ⎕LET.uC as synonyms, i.e. case is ignored for system extensions.)
+   ⍝ Do by hand.
       ⋄ DICT.set'⎕LET'(⍎'LETTER_NS'⎕NS'')
-      ⋄ DICT.set'⎕LET.LC'(_←enQ 56↑ALPH)
-      ⋄ DICT.set'⎕LET.UC'(_←enQ 55↑56↓ALPH)
-      ⋄ DICT.set'⎕LET.ALPH'(_←enQ ALPH)
+      ⋄ DICT.set'⎕LET.LC'(_←enQ 56↑ALPH) ⋄ DICT.set'⎕LET.lc'_
+      ⋄ DICT.set'⎕LET.UC'(_←enQ 55↑56↓ALPH) ⋄ DICT.set'⎕LET.uc'_
+      ⋄ DICT.set'⎕LET.ALPH'(_←enQ ALPH) ⋄ DICT.set'⎕LET.alph'_
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
@@ -503,7 +540,7 @@
      :Section Preprocess Tradfn Headers...
       ⍝  1st line of 2∘⎕FIX-compatible file must start with
       ⍝      :Namespace, :Class, or :Interface directive OR
-      ⍝      a function header (with or without explicit ∇ fn prefix). 
+      ⍝      a function header (with or without explicit ∇ fn prefix).
       ⍝   [A] :directives above OR explicit ∇function header. (See [B]).
       ⍝       There may be one or more of the objects listed above.
          :If ':⍝∇'∊⍨1↑' '~⍨⊃code
@@ -517,9 +554,12 @@
          :Else ⍝ [B] File starts with function headers sans ∇ prefix.
          ⍝ This means there is one object (the function) in the file.
            ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
-             code←'(?x)\A [^\n]* $   (?: \n \h* ; [^\n]* $ )*'⎕R{
+             hdr←''
+             code←'(?x)\A ([^\n]*) $   (?: \n \h* ; [^\n]* $ )*'⎕R{
+                 hdr∘←⍵ ∆FIELD 1
                  SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
              }⍠OPTS⊣code
+             {}processFnHdr hdr
          :EndIf
      :EndSection Preprocess Tradfn Headers
 
@@ -816,7 +856,7 @@
                ⍝           in the namespace of the caller. Any errors are noted then.
                   ⋄ firstP←'⍎directiveP FIRST\h* ( .* ) $ \n'
                   ⋄ firstP,←'((?: ^ .* $ \n)*?) ^ ⍎directiveP END (?: FIRST )?+  \h*+ (?>\1) \h*? $'
-                  ⋄ firstBuffer←⍬
+                  ⍝ firstBuffer: initialized at top
                  '::FIRST' 1{
                      f1 f2←⍵ ∆FIELD 1 2
                      code1←(0 doScan)f2
@@ -832,6 +872,12 @@
                  'SIMPLE_NON_MACRO' 0{
                      CTL.skip/NOc,⍵ ∆FIELD 0
                  }register'^'
+               ⍝ ∇ function header...
+                 '∇ FUNCTION DEF' 0{
+                     f0 f1←⍵ ∆FIELD 0 1
+                     0=≢f1:f0          ⍝ ∇ by itself-- not a header.
+                     f0⊣processFnHdr(0 doScan)f1
+                 }register'^\h* ∇ (?: \h* | (.*) ) $'
                ⍝ name..DEF     is name defined?
                ⍝ name..UNDEF   is name undefined?
                ⍝ name..Q       'name'
@@ -1014,10 +1060,16 @@
          :AndIf 0≠≢firstBuffer~' ',NL
              firstBuffer←'Bêgin',NL,firstBuffer
              :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
-                 :Trap 0 ⋄ Bêgin
+                 :Trap 0
+                     :If DEBUG
+                         '***** Begin processing...'
+                         ⎕VR'Bêgin'
+                         '***** End Begin processing'
+                     :EndIf
+                     Bêgin
                  :Else ⋄ ⎕←box↑⎕DMX.DM
-                     ⎕←⎕VR'Bêgin'
                      :If 0=DEBUG
+                         ⎕VR'Bêgin'
                          _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
                          _ ⎕SIGNAL 11
                      :EndIf
