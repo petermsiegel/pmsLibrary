@@ -141,7 +141,7 @@
        ⍝   ⍵: Fn header itself (possible ⍵ altered)
        ⍝   r: Returns ⍺
          processFnHdr←{⍺←⍵
-             me←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Treat faux semicolons as real ones.
+             me←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Temp'ily treat faux semicolons as real ones.
              msg←'Expected fn/op def not found'
              0=≢me:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
              me←'⍙⍙.∆MY.',me
