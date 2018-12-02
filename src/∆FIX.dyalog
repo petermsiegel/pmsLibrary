@@ -1,4 +1,4 @@
- result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;processFnHdr
+﻿ result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;processFnHdr
  ;ALPH;Bêgin;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
  ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
@@ -7,10 +7,10 @@
  ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
  ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
  ;pfx;readFile;register;setBrace;sfx;showCodeSnip;showObjSnip;specialStringP;sqStringP
- ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆PFX;∆V2S;⎕IO
+ ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆MYdefs;∆PFX;∆V2S;⎕IO
  ;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog APL preprocessor  (rev. Nov 29 )
+ ⍝  A Dyalog  APL preprocessor   (rev. Nov 29 )
  ⍝
  ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
  ⍝ result ←   OUTSPEC@I?0 COMSPEC@I?0 DEBUG@I?0 SHOWCOMPILED?0 ∇ fileName@S|⍬
@@ -60,6 +60,10 @@
      CTL←⎕NS''  ⍝ See CTL services below
      PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
      firstBuffer←⍬       ⍝ See ::FIRST
+     '∆MYdefs'⎕NS''
+     ∆MYdefs.⎕FX'b←∆FIRST' '(b _FIRST_)←(_FIRST_ 0)'
+     ∆MYdefs.⎕FX'b←∆RESET' 'b←_FIRST_←1'
+     ∆MYdefs._FIRST_←1
    ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
    ⍝ By default, use private use Unicode E000.
    ⍝ >> If DEBUG, it's a smiley face.
@@ -142,7 +146,8 @@
              0=≢me:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
              me←'⍙⍙.∆MY.',me
              _←DICT.set'⎕MY'me
-             firstBuffer,←'(⍎',SQ,me,SQ,' ⎕NS ',SQ,SQ,').∆FIRST←1',NL
+             _←DICT.set'⎕FIRST'(me,'.∆FIRST')⊣DICT.set'⎕RESET'(me,'.∆RESET')
+             firstBuffer,←'⍎',SQ,me,SQ,' ⎕NS ∆MYdefs',NL
              1:_←⍺
          }
        ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
@@ -1084,7 +1089,6 @@
      :If SHOWCOMPILED
          ⎕ED'code'
      :EndIf
-
 
      :Section Write object so we can do a 2∘⎕FIX import
          tmpfile←(739⌶0),'/','TMP~.dyalog'

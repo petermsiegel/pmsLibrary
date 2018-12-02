@@ -162,19 +162,30 @@ AFTER:
          (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
 
 Simple Macros
-  All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
+  1. All names defined by ::DEF or ::LET (or synonym, ::EVAL) are replaced anywhere in APL text outside of quoted strings. If those objects contain non-text, they are converted to text; if they appear on multiple lines, it must make sense in the APL context.
+  2. Automatic (predefined) macros:
+      a.  ⎕LET.__
+       1. ⎕LET.UC (all upper-case letters valid as 1st letter of Dyalog vars); also ⎕LET.uc.
+       2. ⎕LET.LC (all lower-case letters...); also ⎕LET.lc.
+       3. ⎕LET.ALPH (all letters...); also ⎕LET.alph.
+      b.  ⎕MY
+          For each APL function <fun> tagged via ∇...∇ (or the only one, if no ∇...∇ is used),
+          specifies a namespace ⍙⍙.∆MY.fun for containing local variables.
+          Includes ⎕FIRST (i.e. ⍙⍙.∆MY.fun.∆FIRST), which is 1 the first time it is
+          called, and 0 afterwards, and ∆RESET, which resets ∆FIRST to return 1
+          on its next call.
 
-Special Case for Semicolons 
+Special Case for Semicolons
   1. A semicolon is treated specially when outside parentheses and brackets [ ], but possibly within a dfn { }.
      See Where Expressions below.
-  2. A semicolon is treated specially when within parentheses. 
+  2. A semicolon is treated specially when within parentheses.
      See Lists below.
   3. A semicolon at the end of a line (ignoring blanks and comments) tells the preprocessor to join
      that line to the next, keeping the semicolon (for later processing).
      This affects ANY semicolon, even those in brackets (which otherwise follow standard APL).
      Thus, a trailing semicolon can be used to continue a line within an index expression, keeping
      its standard definition:
-         A[ ⍳5;      
+         A[ ⍳5;
             ⌽⍳3]
      is equivalent to:
          A[ ⍳5; ⌽⍳3]
@@ -183,23 +194,23 @@ Special Case for Semicolons
      This affects ANY semicolon, even those in brackets (which otherwise follow standard APL).
      Thus, a leading semicolon can be used to continue a line within an index expression, keeping
      its standard definition:
-         A[ ⍳5      
+         A[ ⍳5
             ;⌽⍳3]
      is equivalent to:
          A[ ⍳5; ⌽⍳3]
 
 Where Expressions
-  Semicolons outside of parentheses (see Lists below) or Brackets (APL standard) are treated as dyadic ⊣, 
+  Semicolons outside of parentheses (see Lists below) or Brackets (APL standard) are treated as dyadic ⊣,
 functioning as a "where" expression (a la John Scholes from Dyalog). This is assisted by the Special Case
 for Semicolons rule above.
-  Example: 
+  Example:
     S← (A×x*2)+(B×x)+C
-       ; A←10        
-       ; B←¯5        
-       ; C←○1        
-       ; x←⍳100      
+       ; A←10
+       ; B←¯5
+       ; C←○1
+       ; x←⍳100
   is translated to
-    S← (A×x*2)+(B×x)+C ⊣ A←10 ⊣  B←¯5 ⊣ C←○1 ⊣ x←⍳100      
+    S← (A×x*2)+(B×x)+C ⊣ A←10 ⊣  B←¯5 ⊣ C←○1 ⊣ x←⍳100
 
 Atoms
   Atoms are used to define parameters or arguments; while quoted strings are allowed, unquoted strings
@@ -312,19 +323,19 @@ Continuation lines in APL code
          'abc     <==> 'abc def'
           def'
       b. A double-quoted expression  across multiple lines is converted to a single-quoted string,
-         where leading and trailing blanks AND the newline are treated as a single CARRIAGE RETURN 
+         where leading and trailing blanks AND the newline are treated as a single CARRIAGE RETURN
          (so they appear properly in APL). Internal double and single quotes are converted automatically.
            "This is line1           <==>  'This is line1             <==>  This is line1
             and this 'is' line2            and this ''is'' line2           and this 'is' line2
               and this ""is"" line3!"      and this "is" line3!'           and this "is" line3!
          This is actually encoded as the following APL sequence:
            ('This is line1',(⎕UCS 10),'and this ''is'' line2',(⎕UCS 10),'and this "is" line3!')
-         which appears as shown on the right.       
+         which appears as shown on the right.
       c. Diereses or multiple dots (..) at the right-hand side of an unterminated string are handled differently.
          All spaces BEFORE the dots are preserved, but those spaces between the dots and the first non-space
          on the next line are ignored.
            'Name,   ..            <==>  'Name,  Addressing Scheme,  and more.'
-            Address..                       
+            Address..
             ing Scheme,  ..
             and more.'
          or with relevant blanks shown as underscores:
