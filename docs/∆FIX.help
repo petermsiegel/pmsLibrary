@@ -158,7 +158,7 @@ lines.  Double quoted strings are converted to single-quoted strings, after:
  BEFORE:
        	“This is line 1. ⏎
 ·········This is line 2.”
-AFTER:
+ AFTER:
          (‘This is line 1.’,(⎕UCS 10),’This is line 2.’)
 
 Simple Macros
@@ -171,8 +171,8 @@ Simple Macros
       b.  ⎕MY
           For each APL function <fun> tagged via ∇...∇ (or the only one, if no ∇...∇ is used),
           specifies a namespace ⍙⍙.∆MY.fun for containing local variables.
-          Includes ⎕FIRST (i.e. ⍙⍙.∆MY.fun.∆FIRST), which is 1 the first time it is
-          called, and 0 afterwards, and ∆RESET, which resets ∆FIRST to return 1
+          Includes ⎕FIRST (i.e. ⍙⍙.∆MY.fun.∆FIRST) or ⎕MY.∆FIRST, which is 1 the first time it is
+          called, and 0 afterwards, and ⎕RESET or ⎕MY.∆RESET, which resets ∆FIRST to return 1
           on its next call.
 
 Special Case for Semicolons

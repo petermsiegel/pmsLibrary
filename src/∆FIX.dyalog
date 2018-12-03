@@ -64,6 +64,7 @@
      ∆MYdefs.⎕FX'b←∆FIRST' '(b _FIRST_)←(_FIRST_ 0)'
      ∆MYdefs.⎕FX'b←∆RESET' 'b←_FIRST_←1'
      ∆MYdefs._FIRST_←1
+
    ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
    ⍝ By default, use private use Unicode E000.
    ⍝ >> If DEBUG, it's a smiley face.
@@ -144,7 +145,7 @@
              me←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Temp'ily treat faux semicolons as real ones.
              msg←'Expected fn/op def not found'
              0=≢me:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
-             me←'⍙⍙.∆MY.',me
+             me←(⍕CalledFrom),'.⍙⍙.∆MY.',me
              _←DICT.set'⎕MY'me
              _←DICT.set'⎕FIRST'(me,'.∆FIRST')⊣DICT.set'⎕RESET'(me,'.∆RESET')
              firstBuffer,←'⍎',SQ,me,SQ,' ⎕NS ∆MYdefs',NL
@@ -1067,11 +1068,9 @@
              :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
                  :Trap 0
                      :If DEBUG
-                         '***** Begin processing...'
-                         ⎕VR'Bêgin'
-                         '***** End Begin processing'
-                     :EndIf
+                         '***** Begin processing...' ⋄ ⎕VR'Bêgin' ⋄ :EndIf
                      Bêgin
+                     :If DEBUG ⋄ '***** End Begin processing' ⋄ :EndIf
                  :Else ⋄ ⎕←box↑⎕DMX.DM
                      :If 0=DEBUG
                          ⎕VR'Bêgin'
