@@ -766,15 +766,17 @@
                      f0 cond0 stmt←⍵ ∆FIELD 0 1 3   ⍝ (parenP) uses up two fields
                      0=≢stmt~' ':0 ∆COM'No stmt to evaluate: ',f0
                      0::{
+                         ⎕←↑⎕DMX.DM
                          ⎕←box'∆FIX VALUE ERROR: ',⍵
                          qw←⍵/⍨1+⍵=SQ
                          (0 ∆COM ⍵),NL,'911 ⎕SIGNAL⍨NO,''∆FIX VALUE ERROR: ',qw,SQ,NL
                      }f0
-                     t←ifTrue cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
+                     cond2←DICT.ns{⍺⍎⍵}cond1←(0 doScan)cond0
+                     t←ifTrue cond2
                      stmt←⍕(0 doScan)stmt
-                     show1←t ∆COM f0('➤  ',showCodeSnip cond1)('➤  ',showObjSnip cond2)('➤  ',showObjSnip bool)
-                     show1,CR,(NOc/⍨~t),stmt
-                 }register'⍎directiveP COND \h+ ( ⍎parenP | [^\s]+ ) \h  ( ⍎multiLineP ) $'
+                     show1←t ∆COM f0('➤  ',showCodeSnip cond1)('➤  ',showObjSnip cond2)('➤  ',showObjSnip t)
+                     show1,CR,(NOc/⍨~t),stmt  ⍝ F1   F2               F2         F3
+                 }register'⍎directiveP COND \h+ ((?| ⍎parenP | [^\s]+ () )) \h*  ( ⍎multiLineP ) $'
                ⍝ DEFINE name [ ← value]
                ⍝ Note: value is left unevaluated (as a string) in ∆FIX (see LET for alternative)
                ⍝     ::DEFINE name       field1=name, field3 is null string.
