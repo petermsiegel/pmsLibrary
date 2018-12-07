@@ -25,6 +25,8 @@
      ⍝ *  The defaultLib is by default within (prefixed with) the callerNs.
      ⍝ ** A simple nsRef by itself (# but not '#') is treated as -l nsRef.
      ⍺←⎕NULL
+     901:: ''⊣⎕← 'HELP INFORMATION COMPLETE'
+
      oForce oDebug oOut callerR callerN oLib thePkgs←⍺{
          force debug out caller lib←0 0 0 ⍬ ⍬
          monad opts args←⍺{
@@ -35,13 +37,13 @@
          }⍵
 
          is←{⍵≡(819⌶)⍺↑⍨≢⍵}
-         { ⍝ Returns 1 only for -help. Otherwise 0, 'continue execution'.
+         _←{ ⍝ Result ignored...
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
 
              9=⎕NC'o':∇ next⊣lib∘←o
-             o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
+             o is'-h':⎕SIGNAL 901⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
              o is'-f':∇ next⊣force∘←1
              o is'-d':∇ next⊣debug∘←1
              o is'-c':∇ skip⊣caller∘←next⊃opts
@@ -50,7 +52,7 @@
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
-         }0:''
+         }0
 
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
