@@ -30,6 +30,7 @@
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
             ⍝ Allow options: [-f|-force]   -lib=library   (-f or -force must be first)
               r←⎕SE.require '-lib [CALLER].[LIB] -caller ',(⍕CALLER),' ',input
+              →0/⍨0=≢r
               r←⍪⍪¨r
               →0
           :ENDIF

@@ -4,7 +4,7 @@
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info hard wired with respect to cur directory...
-     ((819⌶)∊⍵)≡'-help':_←⍬⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂'./pmsLibrary/docs/require.help'
+     HELP_INFO←'./pmsLibrary/docs/require.help'
 
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (next)
 
@@ -34,22 +34,24 @@
              1 _ _
          }⍵
 
-         is←{⍵≡⍺↑⍨≢⍵}
-         _←{
-             ⍵≥≢opts:1
+         is←{⍵≡(819⌶)⍺↑⍨≢⍵}
+         { ⍝ Returns 1 only for -help. Otherwise 0, 'continue execution'.
+             ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
 
              9=⎕NC'o':∇ next⊣lib∘←o
+             o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
              o is'-f':∇ next⊣force∘←1
              o is'-d':∇ next⊣debug∘←1
              o is'-c':∇ skip⊣caller∘←next⊃opts
              o is'-l':∇ skip⊣lib∘←next⊃opts
              o is'-o':∇ skip⊣out∘←{(2×'s'∊⍵)+('l'∊⍵)}next⊃opts
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
-             o is'--':1⊣args∘←next↓opts
-             1⊣args∘←⍵↓opts
-         }0
+             o is'--':0⊣args∘←next↓opts
+             0⊣args∘←⍵↓opts
+         }0:''
+
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
@@ -73,7 +75,7 @@
    ⍝ USEHOMEDIR: If 1, use [HOME] to represent env. var HOME.  See shortDirName
      USEHOMEDIR←1
 
-     ⍝ 999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
+      999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
 
      libR libN←DefaultLibName{
          deflib←⍺
