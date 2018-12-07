@@ -25,9 +25,8 @@
      ⍝ *  The defaultLib is by default within (prefixed with) the callerNs.
      ⍝ ** A simple nsRef by itself (# but not '#') is treated as -l nsRef.
      ⍺←⎕NULL
-     901:: ''⊣⎕← 'HELP INFORMATION COMPLETE'
 
-     oForce oDebug oOut callerR callerN oLib thePkgs←⍺{
+     options←⍺{
          force debug out caller lib←0 0 0 ⍬ ⍬
          monad opts args←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
@@ -37,13 +36,13 @@
          }⍵
 
          is←{⍵≡(819⌶)⍺↑⍨≢⍵}
-         _←{ ⍝ Result ignored...
+         { ⍝ Result 1: Exit(HELP INFO GIVEN).
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
 
              9=⎕NC'o':∇ next⊣lib∘←o
-             o is'-h':⎕SIGNAL 901⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
+             o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
              o is'-f':∇ next⊣force∘←1
              o is'-d':∇ next⊣debug∘←1
              o is'-c':∇ skip⊣caller∘←next⊃opts
@@ -52,7 +51,7 @@
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
-         }0
+         }0:⍬
 
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
@@ -60,14 +59,16 @@
              ⍵≡⍬:r n
              (r⍎⍵)⍵
          }caller
-         result←force debug out callerR callerN lib args
-         ~debug:result
+         options←force debug out callerR callerN lib args
+         ~debug:options
          ⎕←'force  'force ⋄ ⎕←'debug  'debug
          ⎕←'out    'out ⋄ ⋄ ⎕←'caller 'caller
          ⎕←'lib    'lib ⋄ ⋄ ⎕←'args  'args
-         result
+         options
      }⍵
 
+     0=≢options:''
+     oForce oDebug oOut callerR callerN oLib thePkgs←options
    ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
    ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
@@ -77,7 +78,7 @@
    ⍝ USEHOMEDIR: If 1, use [HOME] to represent env. var HOME.  See shortDirName
      USEHOMEDIR←1
 
-      999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
+     999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
 
      libR libN←DefaultLibName{
          deflib←⍺
