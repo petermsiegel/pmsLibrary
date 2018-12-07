@@ -18,21 +18,29 @@
                                           If not found, searches the filesystem (as specified in env. variables FSPATH and WSPATH)
                                           for (a) the directory tinyDict/*.dyalog or (b) the file tinyDict.dyalog.
                                           If found, loads and ⎕FIXes any dyalog files and adjusts ⎕PATH.
-   ¯1 require 'src::∆MYgrp' '::∆HERE'  -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
+   '-d' require 'src::∆MYgrp' '::∆HERE'  -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
                                           for files src/∆MYgrp/*.dyalog or src/∆MYgrp.dyalog and loads what is found, adjusting path.
                                           Then, looks for src/∆HERE/*.dyalog and src/∆HERE.dyalog.
                                           Shows each step of the search verbosely (¯1).
       require 'dfns::'                 -- Searches for namespace dfns in the calling namespace and ⎕PATH.
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
-________________________________________________________________________________________________________________                                   
+________________________________________________________________________________________________________________  
+   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's' 
+                                                                  ∇ package1 [package2 [... packageN]]
+             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'l'  
+                                                                  ∇ ⍬
+             rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' ∇ ...
+                                                                  ∇ package1 [package2 [... packageN]]
+   Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}' 
+   Syntax 3: show help info        ←                              ∇ '-HELP'
 
-   Syntax 1:   list1 list2     ← ['-f'] [('-caller' ns)] [stdLib] (CODE∊1 0 ¯1) ∇  package1 [package2 [... packageN]]
-               namespaceRef    ← ['-f'] [('-caller' ns)] [stdLib] (CODE:2 ¯2)   ∇  ...
-      namespaceRef list1 list2 ← ['-f'] [('-caller' ns)] [stdLib] (CODE:4 ¯4)   ∇  ...
-   Syntax 2:   namespaceRef    ← ['-f'] [('-caller' ns)] [stdLib]               ∇  [⍬ | '']
-   Syntax 3:   ⍬               ←                        ∇  '-HELP'
-   
+In Syntax 1, each package must be specified as a separate string vector. In this syntax,
+   a package name may include spaces.
+In Syntax 2, each option and package are separated by spaces only. Separate string vectors are not allowed.
+   In this syntax, package names may not contain spaces (which separate options and packages).
+Note: If stdlib is indicated as a namespace reference (ns), '-lib' may be omitted:   
+        #.myLib require 'pkg1' 'pkg2' 
 Note: <require> has been developed in OS X. Use of environment variables has not been
 generalized for other operating systems. See file system path and library symbolic names.
 <require> "should" otherwise be compatible with other operating systems.

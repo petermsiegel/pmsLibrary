@@ -19,32 +19,20 @@
       :Select cmd
       :Case 'require'
           r←⍬
-
           :IF checkRequire
               r,←⊂'Loaded fn "require" into ⎕SE'
           :ENDIF
-
           :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣CALLER.⎕PATH
               CALLER.⎕PATH,⍨←'⎕SE '
               r,←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
           :ENDIF
-
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
             ⍝ Allow options: [-f|-force]   -lib=library   (-f or -force must be first)
-              defaultLib←'-lib=[CALLER].[LIB]'
-              pat←'-lib=([^ ]+)'
-              LIB←,⊃pat ⎕S '\1'⊣input,' ',defaultLib
-              opts←('-caller' CALLER) LIB
-              :IF force←1∊'-f'⍷input
-                 input←'^\h*-f(orce)?' ⎕R ''⊣input
-                 opts,⍨←⊂'-f'
-              :ENDIF
-              r←opts ⎕SE.require (≠∘' '⊆⊢)pat ⎕R ' '⊣input
+              r←⎕SE.require '-lib [CALLER].[LIB] -caller ',(⍕CALLER),' ',input
               r←⍪⍪¨r
               →0
           :ENDIF
-
           :IF 0=≢r
               r←⊂']require is active.'
           :ENDIF
@@ -53,10 +41,10 @@
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}('-caller' CALLER)'#.[LIB]'⎕SE.require 'bigInt'
-          ⎕←'For help, type ''?'' at any prompt.'
-          bi.dc
-          r←''
+            {}'-caller' CALLER '-lib' '#.[LIB]'⎕SE.require 'bigInt'
+            ⎕←'For help, type ''?'' at any prompt.'
+            bi.dc
+            r←''
       :EndSelect
     ∇
 
@@ -78,12 +66,12 @@
             r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
             r,←⊂']require  pkg1  pkg ...'
             r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
-            r,←⊂']require [-f] -lib=ns pkg1 pkg ...'
+            r,←⊂']require [-f] -lib ns  pkg1 pkg ...'
             r,←⊂'     executes:  ns require ''pkg1'' ''pkg2'' ...'
             r,←⊂' i.e. loads (new) packages into library ns, a namespace or root (# or ⎕SE)'
-            r,←⊂'     -f: forces packages to be loaded, even if present in caller NS or ⎕PATH.'
-            r,←⊂'         For ]require, -f (variant: -force) must be first, to avoid conflict with files.'
-            r,←⊂'     -lib=ns: searches and loads packages into specified namespace.'
+            r,←⊂'     -f:        forces packages to be loaded, even if present in caller NS or ⎕PATH.'
+            r,←⊂'     -lib ns:   searches and loads packages into specified namespace.'
+            r,←⊂'     -out [sl]: Outputs:  ''s'': package status, ''l'': name of library used, ''sl'': both.'
          :Else
             {}⎕SE.require '-HELP'
             r←⊂']require -HELP launched in full screen.'
