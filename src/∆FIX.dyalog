@@ -1,7 +1,7 @@
-﻿ result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;processFnHdr
- ;ALPH;Bêgin;COMSPEC;CR;CTL;CalledFrom;DEBUG;DICT;DQ;ListScan;MActions;MBegin;MEnd
- ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTS;OUTSPEC;PRAGMA_FENCE
- ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SHOWCOMPILED;SQ;TRAP;UTILS;YES;YESc;_
+﻿ result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;opts;processFnHdr
+ ;ALPH;Bêgin;CR;CTL;CalledFrom;DICT;DQ;ListScan;MActions;MBegin;MEnd
+ ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTSre;PRAGMA_FENCE
+ ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SQ;TRAP;UTILS;YES;YESc;_
  ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;firstBuffer;firstP;box;braceCount
  ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
  ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
@@ -12,9 +12,9 @@
 
  ⍝  A Dyalog  APL preprocessor   (rev. Nov 29 )
  ⍝
- ⍝ result ←  [OUTSPEC [COMSPEC [DEBUG [SHOWCOMPILED]]]] ∆FIX  [fileName | ⍬ ]
- ⍝ result ←   OUTSPEC@I?0 COMSPEC@I?0 DEBUG@I?0 SHOWCOMPILED?0 ∇ fileName@S|⍬
- ⍝ result@I.(S|S.I|I)
+ ⍝ result ← options    ∆FIX  [fileName | ⍬ ]
+ ⍝          options:   ' [-out=OUTSPECS] [-com=0|1|2|3] [-debug]  [-showcompiled]'
+ ⍝          defaults:  ' -out=name -com=3 -debug=0 -showcompiled=0'
  ⍝
  ⍝ Description:
  ⍝   Takes an input file <fileName> in 2 ⎕FIX format, preprocesses the file, then 2 ⎕FIX's it, and
@@ -26,23 +26,33 @@
 
  ⍝ fileName: the full file identifier; if no type is indicated, .dyalog is appended.
  ⍝
- ⍝ OUTSPEC:  ∊0 (default), 1, 2. Indicates the format of the return value*.
- ⍝           On success, rc (return code) is 0.
- ⍝            0 - returns*: rc names             -- names: the list of objects created by a ⎕FIX.
- ⍝            1 - returns*: rc names code        -- code:  output (vec of strings) from the
- ⍝                                                         preprocessor.
- ⍝            2 - returns*: rc code              -- rc:    0 on success
- ⍝            * If an error occurs, returns:
- ⍝                signalNum signalMsg            -- signal...: APL ⎕SIGNAL number and message string
- ⍝ COMSPEC:  ∊0 (default), 1, 2. Indicates how to handle preprocessor statements in output.
+ ⍝ -out=n[ames]* | c[ode] | "n[ames] c[ode]" | ""
+ ⍝  ∘ Indicates the return values* (rc cannot be suppressed):
+ ⍝       1. names       - returns*: rc names
+ ⍝       2. names code  - returns*: rc names code
+ ⍝       3. code        - returns*: rc code
+ ⍝       4. ""          - returns*: rc
+ ⍝    where rc:    1 on success, 0 on failure
+ ⍝       a. names: the list of objects created by a ⎕FIX.
+ ⍝       b. code:  output (v of v) from the preprocessor.
+ ⍝  ∘ If an error occurs, returns instead:
+ ⍝      5. signalNum signalMsg (APL signal number and message string).
+ ⍝  ∘ Default and special cases
+ ⍝    -out omitted (default) is the same as   -out="names"
+ ⍝    -out                                    -out="names code"
+ ⍝    -out=                                   -out=""
+ ⍝
+ ⍝ -com=0*|1|2|3
+ ⍝ -com denotes -com=3
+ ⍝      Indicates how to handle preprocessor statements in output.
  ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
  ⍝            1: Omit (⍝❌) paths not taken
  ⍝            2: Omit also (⍝🅿️) paths taken (leave other user comments)
  ⍝            3: Remove all comments of any type
- ⍝ DEBUG:     0: not debug mode (default).
- ⍝            1: debug mode. ⎕SIGNALs will not be trapped.
- ⍝ SHOWCOMPILED:
- ⍝            0: Don't view the preprocessed code when done. (It may be returned via OUTSPEC=1).
+ ⍝ -debug
+ ⍝      If specified, signals won't be trapped; errors will cause execution to be suspended.
+ ⍝ -showcompiled=0*|1
+ ⍝            0: Don't view the preprocessed code when done. (It may be returned via -out=[n]c
  ⍝               Default if standard fileName was specified.
  ⍝            1: View the preprocessed code just before returning, via ⎕ED.
  ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
@@ -51,12 +61,24 @@
      ⎕IO ⎕ML←0 1
      ⎕PATH←(⍕⎕THIS),' ',⎕PATH
      CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
-     OUTSPEC COMSPEC DEBUG SHOWCOMPILED←'specs'{0≠⎕NC ⍺:4↑⎕OR ⍺ ⋄ ⍵}0 0 0 0
-     '∆FIX: Invalid specification(s) (⍺)'⎕SIGNAL 11/⍨0∊OUTSPEC COMSPEC DEBUG SHOWCOMPILED∊¨⍳¨3 4 2 2
-     TRAP←DEBUG×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+
+   ⍝ opts: See description above.
+     opts←{
+         parms←'-out[=] -com[=]0 1 2 3 -debug[=] -showcompiled[=]'
+         opts←(⎕NEW ⎕SE.Parser parms).Parse ⍵
+       ⍝ out: 2 bit flags:  [1] output names, [0] output code;
+       ⍝      rc (return code) is ALWAYS output as if hidden flag [0] is 1.
+         opts.(out←{⍵≡1:1 1 ⋄ ⍵≡0:1 0 ⋄ 'nc'∊⊃¨' '(≠⊆⊢)⍵}out)
+         opts.(com←{⍵=1:3 ⋄ ⍵=0:0 ⋄ '012'⍳⍵}com)  ⍝ com ∊ 0 1 2 3
+         opts.(debug←{⍵∊'1' 1}debug)
+         opts.(showcompiled←{⍵∊'1' 1}showcompiled)
+         opts
+     }{2=⎕NC ⍵:⎕OR ⍵ ⋄ ''}'specs'
+
+     TRAP←opts.debug×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
      CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
      YES NO←'🅿️ ' '❌ ' ⋄ YESc NOc←'⍝',¨YES NO
-     OPTS←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
+     OPTSre←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 0)('IC' 1)
      CTL←⎕NS''  ⍝ See CTL services below
      PRAGMA_FENCE←'⍙F⍙'  ⍝ See ::PRAGMA
      firstBuffer←⍬       ⍝ See ::FIRST
@@ -67,8 +89,8 @@
 
    ⍝ Faux Semicolon used to distinguish tradfn header semicolons from others...
    ⍝ By default, use private use Unicode E000.
-   ⍝ >> If DEBUG, it's a smiley face.
-     SEMICOLON_FAUX←⎕UCS DEBUG⊃57344 128512
+   ⍝ >> If opts.debug, it's a smiley face.
+     SEMICOLON_FAUX←⎕UCS opts.debug⊃57344 128512
    ⍝ ALPH: First letter of valid APL names...
      ALPH←'abcdefghijklmnopqrstuvwxyzàáâãäåæçèéêëìíîïðñòóôõöøùúûüþß'
      ALPH,←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÕÔÖØÙÚÛÜÝ'
@@ -148,7 +170,7 @@
              me←(⍕CalledFrom),'.⍙⍙.∆MY.',me
              _←DICT.set'⎕MY'me
              _←DICT.set'⎕FIRST'(me,'.∆FIRST')⊣DICT.set'⎕RESET'(me,'.∆RESET')
-             firstBuffer,←'⍎',SQ,me,SQ,' ⎕NS ∆MYdefs',NL
+             firstBuffer,←'{}⍎',SQ,me,SQ,' ⎕NS ∆MYdefs',NL
              1:_←⍺
          }
        ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
@@ -175,10 +197,10 @@
              säve←⍬
              saveIf←{~⍵:0 ⋄ säve,←⊂stack ⋄ stack←1 ⋄ 1}
              restoreIf←{~⍵:0 ⋄ stack←⊃⌽säve ⋄ säve↓⍨←¯1 ⋄ 1}
-             :If DEBUG
-                 ⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
-             :EndIf
          :EndWith
+         :If opts.debug
+             CTL.⎕FX'report args' ' :Implements Trigger *' 'args.Name,'': '',{0::⍎⍵.Name ⋄⍵.NewValue}args'
+         :EndIf
        ⍝⍝⍝⍝ regexp related routines...
        ⍝ ∆PFX:  Returns set of lines ⍵, each prefixed with ⍺←'⍝ ' in a consistent VVS format.
        ⍝ ∆PFX:  ret@VVS ← pfx@S?'⍝ ' ∇ lines@VS|Snl
@@ -231,9 +253,8 @@
              _,←⊂':Implements Trigger * '
              _,←⊂'→0/⍨ ''Ð''≠1↑__args__.Name'
              _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
-             _,←⊂DEBUG↓'⍝ ⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
+             _,←⊂opts.debug↓'⍝ ⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
              _←dict.ns.⎕FX _
-             ⍝ ⎕←dict.ns.⎕VR  _
            ⍝ tweak: Map external names for :DEF/::LET into internal ones.
            ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
            ⍝ redefined as macros.
@@ -244,7 +265,7 @@
                  s←⍵
                  '⎕SE.'≡4↓s:(4↑s),map 4↓s ⍝ Keep ⎕SE
                  '#.'≡2↑s:(2↑s),map 2↓s   ⍝ Keep #.
-                 ⍝ Bad idea! s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTS⊣s
+                 ⍝ Bad idea! s←'⎕(\w+(?:\.\w+)*)'⎕R'⎕\u1'⍠##.OPTSre⊣s
                  map s
              }
              dict.(twIn twOut)←'Ðð' '⎕#'
@@ -347,7 +368,7 @@
          register←{
              ⍺←('[',(⍕1+≢Match),']')0
          ⍝  Local Defs
-             ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTS'
+             ns←⎕NS'SQ' 'DQ' 'TRAP' 'CR' 'NL' 'YES' 'YESc' 'NO' 'NOc' 'OPTSre'
              ns.⎕PATH←⎕PATH
              ns.MScanName←MScanName  ⍝ Global → local
              ns.CTL←CTL
@@ -447,17 +468,17 @@
        ⍝   I.e.   'anything ... $ has "ordinary" dots as characters ($=EOL).
        ⍝          'anything ...$  marks a continuation line.
              ellipsesP←'(?:\…|\.{2,})$\s*'
-             str←ellipsesP ⎕R''⍠OPTS⊣str
+             str←ellipsesP ⎕R''⍠OPTSre⊣str
              str←dq2sq⍣(q=DQ)⊣str
              ~NL∊str:str
              sfx{
                  addP←{'(',⍵,')'}
                  nlCode←''',(⎕UCS 10),'''
-                 ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTS⊣⍵
-                 ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTS⊣⍵
+                 ⍺=SQ:'\h*\n\h*'⎕R' '⍠OPTSre⊣⍵
+                 ⍺=DQ:addP'\h*\n\h*'⎕R nlCode⍠OPTSre⊣⍵
                  ⍺='L':{
-                     q=SQ:'\n'⎕R' '⍠OPTS⊣⍵
-                     addP'\n'⎕R nlCode⍠OPTS⊣⍵
+                     q=SQ:'\n'⎕R' '⍠OPTSre⊣⍵
+                     addP'\n'⎕R nlCode⍠OPTSre⊣⍵
                  }⍵
                  ○LOGIC ERROR.UNREACHABLE
              }str
@@ -479,7 +500,7 @@
          code
      }
      :If ⍬≡fileName
-         SHOWCOMPILED←1
+         opts.showcompiled←1
          ⎕SHADOW'counter' 'line' 'lines' 'more' 'tFun'
          lines counter tFun←⍬ 0 '_STDIN_'
          '> Enter input lines. Null line when done.'
@@ -494,7 +515,7 @@
              :If ×≢lines
                  1 ⎕NDELETE fileName ⋄ lines←(⊂'∇',tFun),lines,(⊂,'∇') ⋄ (⊂lines)⎕NPUT fileName
              :EndIf
-             :If DEBUG ⋄ ⎕←↑⊃⎕NGET fileName 1 ⋄ :EndIf
+             :If opts.debug ⋄ ⎕←↑⊃⎕NGET fileName 1 ⋄ :EndIf
          :Else
              ⎕SIGNAL/('∆FIX: Error creating temporary file: ',fileName)11
          :EndTrap
@@ -556,7 +577,7 @@
            ⍝                 ∇     lets|{lets}|(lets) - minimal check for fn hdr
              code←'(?x)^ \h* ∇ \h* [\w\{\(] [^\n]* $   (?: \n  \h* ; [^\n]* $ )*'⎕R{
                  SEMICOLON_FAUX@(';'∘=)⊣⍵ ∆FIELD 0
-             }⍠OPTS⊣code
+             }⍠OPTSre⊣code
          :Else ⍝ [B] File starts with function headers sans ∇ prefix.
          ⍝ This means there is one object (the function) in the file.
            ⍝ Here, 1st line is assumed to be tradfn header without leading ∇: Process the header ONLY
@@ -564,7 +585,7 @@
              code←'(?x)\A ([^\n]*) $   (?: \n \h* ; [^\n]* $ )*'⎕R{
                  hdr∘←⍵ ∆FIELD 1
                  SEMICOLON_FAUX@(';'∘=)⊣i←⍵ ∆FIELD 0
-             }⍠OPTS⊣code
+             }⍠OPTSre⊣code
              {}processFnHdr hdr
          :EndIf
      :EndSection Preprocess Tradfn Headers
@@ -581,7 +602,7 @@
            ⍝    the next line is appended after the semicolon.
            ⍝ ------------------------------------
            ⍝ Comments on their own line are kept, unless COM is 3
-             :If COMSPEC≠3
+             :If opts.com≠3
                  'COMMENT FULL (KEEP)'(0 register)'^ \h* ⍝ .* $'
              :Else
                  'COMMENT FULL (OMIT)'(''register)'^ \h* ⍝ .* $'
@@ -640,7 +661,7 @@
                ⍝ UNLESS inside quotes or braces!
                ⍝ But newlines inside quotes and braces have already been eaten above.
                ⍝ >>> RETHINK the logic here.
-                 ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠OPTS⊣⍵ ∆FIELD 0
+                 ##.stringP ##.braceP'\h*\n\h*'⎕R'\0' '\0' ' '⍠OPTSre⊣⍵ ∆FIELD 0
              }register'(⍎brackP|⍎parenP)'
            ⍝ ::CALL item
            ⍝ SYNTAX: Take all lines between ::CALL\d* and ::END(CALL)\d* (see Note) and
@@ -789,7 +810,7 @@
                    ⍝ Replace leading and trailing blanks with single space
                      vIn←{
                          0=≢⍵:,'1'
-                         '('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTS⊣⍵
+                         '('=1↑⍵:'\h*\R\h*'⎕R' '⍠OPTSre⊣⍵
                          ⍵
                      }vIn
                      vOut←(0 doScan)vIn
@@ -824,7 +845,7 @@
                  '::PRAGMA' 1{
                      f0 k vIn←⍵ ∆FIELD 0 1 2 ⋄ k←1(819⌶)k  ⍝ k: ignore case
                      0=≢k:∆COM f0⊣{
-                         ''⊣⎕←box(' FENCE: ',SQ,(⍕##.PRAGMA_FENCE),SQ)(' DEBUG: ',⍕##.DEBUG)
+                         ''⊣⎕←box(' FENCE: ',SQ,(⍕##.PRAGMA_FENCE),SQ)(' DEBUG: ',⍕##.opts.debug)
                      }⍬
                      TRAP::{911 ⎕SIGNAL⍨'∆FIX ::PRAGMA VALUE ERROR: ',f0}⍬
                      _←DICT.validate k
@@ -832,7 +853,7 @@
                      msg←'➤ DEF ',k,' ← ',∆V2S{0::'∆FIX LOGIC ERROR!' ⋄ ⎕FMT ⍵}vOut
                      ∆COM f0 msg⊣{
                          'FENCE'≡k:⊢##.PRAGMA_FENCE∘←vOut
-                         'DEBUG'≡k:⊢##.DEBUG∘←vOut
+                         'DEBUG'≡k:⊢##.opts.debug∘←vOut
                          911 ⎕SIGNAL⍨'∆FIX ::PRAGMA KEYWORD UNKNOWN: "',k,'"'
                      }⍬
                  }register'⍎directiveP  PRAGMA \b (?:  \h+ (⍎longNameP)  \h* ← \h* (.*) | .*) $'
@@ -848,7 +869,7 @@
                 ⍝  CTL.skip:0 ∆COM ⍵ ∆FIELD 0
                      line num msg←⍵ ∆FIELD¨0 1 2
                      num←⊃⊃⌽⎕VFI num,' 0' ⋄ num←(num≤0)⊃num 911
-                     ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTS⊣⍵.Block
+                     ⎕←CR@(NL∘=)⊣('\Q',line,'\E')⎕R(NO,'\0')⍠OPTSre⊣⍵.Block
                      ⎕SIGNAL/('∆FIX ERROR: ',msg)num
                  }register'⍎directiveP ERR(?:OR)? (?| \h+ (\d+) \h (.*) | () \h* (.*) ) $'
                 ⍝ MESSAGE / MSG stmt
@@ -919,7 +940,7 @@
                  MacroScan1,←'ATOMS/PARMS' 2{
                      atoms arrow←⍵ ∆FIELD 1 2
                ⍝ Split match into individual atoms...
-                     atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTS⊣,(0=≢atoms)⊃atoms'⍬'
+                     atoms←(##.stringP,'|[^\h''"]+')⎕S'\0'⍠OPTSre⊣,(0=≢atoms)⊃atoms'⍬'
                      o←1=≢atoms ⋄ s←0   ⍝ o: one atom; s: at least 1 scalar atom
                      atoms←{
                          NUM←('¯.',⎕D,'⍬') ⋄ a←1↑⍵
@@ -1035,9 +1056,9 @@
              res←⍺{
                  0=≢⍺:⍵
                  scan←⊃⍺
-                ⍝  ⎕←'> Starting Scan: ',(⊃scan).MScanName
-                 _code←scan.pats ⎕R(scan MActions)⍠OPTS⊣⍵
-                ⍝  ⎕←'< Ending Scan: ',(⊃scan).MScanName
+
+                 _code←scan.pats ⎕R(scan MActions)⍠OPTSre⊣⍵
+
                  (1↓⍺)∇ _code
              }⍵
              res⊣CTL.restoreIf stackFlag
@@ -1050,12 +1071,12 @@
        ⍝ =================================================================
      code←PreScan1 PreScan2 MainScan1 ListScan(0 doScan)code
 
-       ⍝ Clean up based on comment specifications (COMSPEC)
-     :Select COMSPEC
+       ⍝ Clean up based on comment specifications (opts.com)
+     :Select opts.com
               ⍝ Even if COMPSPEC=3, we have generated new Case 2 comments ⍝[❌🅿️]
-     :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-          ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
-          ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTS⊣code
+     :Case 3 ⋄ code←'(?x)^\h* ⍝ .*\n    (\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTSre⊣code
+          ⋄ :Case 2 ⋄ code←'(?x)^\h* ⍝[❌🅿️].*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTSre⊣code
+          ⋄ :Case 1 ⋄ code←'(?x)^\h* ⍝❌    .*\n(\h*\n)*' '^(\h*\n)+'⎕R'' '\n'⍠OPTSre⊣code
              ⍝ Otherwise: do nothing
      :EndSelect
        ⍝ Other cleanup: Handle (faux) semicolons in headers...
@@ -1069,12 +1090,12 @@
              firstBuffer←'Bêgin',NL,firstBuffer
              :If ' '=1↑0⍴⎕FX NL(≠⊆⊢)firstBuffer
                  :Trap 0
-                     :If DEBUG
+                     :If opts.debug
                          '***** Begin processing...' ⋄ ⎕VR'Bêgin' ⋄ :EndIf
                      Bêgin
-                     :If DEBUG ⋄ '***** End Begin processing' ⋄ :EndIf
+                     :If opts.debug ⋄ '***** End Begin processing' ⋄ :EndIf
                  :Else ⋄ ⎕←box↑⎕DMX.DM
-                     :If 0=DEBUG
+                     :If 0=opts.debug
                          ⎕VR'Bêgin'
                          _←'∆FIX ERROR: ::FIRST sequence ran incompletely, due to invalid code.'
                          _ ⎕SIGNAL 11
@@ -1087,7 +1108,7 @@
          :EndIf
      :EndSection "::FIRST "Directive Phase II:Process firstBuffer
 
-     :If SHOWCOMPILED
+     :If opts.showcompiled
          ⎕ED'code'
      :EndIf
 
@@ -1099,18 +1120,19 @@
        ⍝ Break association betw. <objects> and file TMP~ that ⎕FIX creates.
              :If 0∊(0⊃⎕RSI).(5178⌶)¨objects
                  ⎕←'∆FIX: Logic error dissociating objects: ',,⎕FMT objects ⋄ :EndIf
-             :Select OUTSPEC
-                  ⋄ :Case 0 ⋄ result←0 objects
-                  ⋄ :Case 1 ⋄ result←0 objects code
-                  ⋄ :Case 2 ⋄ result←0 code
+             :Select opts.out          ⍝ n|c|nc
+                  ⋄ :Case 1 0 ⋄ result←1 objects
+                  ⋄ :Case 1 1 ⋄ result←1 objects code
+                  ⋄ :Case 0 1 ⋄ result←1 code
+                  ⋄ :Case 0 0 ⋄ result←,1
              :EndSelect
-         :Else ⍝ Error: return  trapCode trapMsg
-             result←⎕DMX.(EN EM Message)
+         :Else ⍝ Error: returns    0 trap.( errno errmsg errordisplay)
+             result←0 ⎕DMX.(EN EM DM)
          :EndTrap
          1 ⎕NDELETE tmpfile
      :EndSection Write object so we can do a 2∘⎕FIX import
 
-     :If DEBUG
+     :If opts.debug
          ⎕←'PreScan1  Pats: 'PreScan1.info
          ⎕←'PreScan2  Pats: 'PreScan2.info
          ⎕←'MainScan1 Pats: 'MainScan1.info
