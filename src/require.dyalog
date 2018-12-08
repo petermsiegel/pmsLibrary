@@ -10,23 +10,28 @@
 
      ⍝ ⍺: opts (by default)-- each a string or namespace
      ⍝ ⍵: parms
-     ⍝ If ⍺ omitted, ⍵ must be a string
-     ⍝ opts: Each token is a separate APL string or namespace
-     ⍝  force:          -f                          0
-     ⍝  debug:          -d                          0
-     ⍝  callerNs:       -c nsRef|nsStr              (the actual caller)
-     ⍝  defaultLib:     -l nsRef|nsStr              ⍙⍙.require *
+     ⍝ If ⍺ omitted, ⍵ must be a string. In this case,
+     ⍝ opts: Each token may either be (a) a separate APL string or namespace
+     ⍝       or (b) tokens in a single string separated by one or more blanks.
+     ⍝  force:          -f[orce]                          0
+     ⍝  debug:          -d[ebug]                          0
+     ⍝  callerNs:       -c[aller] nsRef|=nsStr              (the actual caller)
+     ⍝  defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *
      ⍝                  nsRef                       **
-     ⍝  outputParms:    -o   's'|'l'|'sl'
-     ⍝                        s: package status
+     ⍝  outputParms:    -o[utput]  =['s'|'l'|'sl']
+     ⍝                        s: status of each package specified
      ⍝                        l: the library used
-     ⍝  ends opt list:  --
+     ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
+     ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
+     ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
      ⍝ ----------------------
      ⍝ *  The defaultLib is by default within (prefixed with) the callerNs.
      ⍝ ** A simple nsRef by itself (# but not '#') is treated as -l nsRef.
-     ⍺←⎕NULL
 
+   ⍝ Scan for options
+     ⍺←⎕NULL       ⍝ options in right arg before packages?
      options←⍺{
+       ⍝ defaults set here... (caller → callerR callerN below)
          force debug out caller lib←0 0 0 ⍬ ⍬
          monad opts args←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
@@ -34,15 +39,16 @@
              _←' '(≠⊆⊢)⍵
              1 _ _
          }⍵
-
-         is←{⍵≡(819⌶)⍺↑⍨≢⍵}
-         { ⍝ Result 1: Exit(HELP INFO GIVEN).
+         scanOpts←{
+           ⍝ Returns 1 only for -help; else 0.
+             ⋄ is←{⍵≡(819⌶)⍺↑⍨≢⍵}
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
            ⍝ parse:
-           ⍝  Allow options -c, -l, -o to have ⎕SE.Parser format -c=str
-           ⍝  OR -c refstrstr, a format for also passing actual namespaces(*).
-           ⍝           * To deal with cases where (⍎⍕ns) is an error.
+           ⍝  Allow options -c, -l, -o to support ⎕SE.Parser format -c=str
+           ⍝  OR -c refNs, a format for passing actual namespaces or strings (*).
+           ⍝     * To deal with cases where a ns does not have a name string, i.e.
+           ⍝       i.e.(⍎⍕ns) is an error.
              parse←{
                  e←'='∊⍵ ⋄ ø←{⍵:(1+o⍳'=')↓o ⋄ next⊃opts}e
                  _←⍎⍺,'ø'
@@ -59,9 +65,9 @@
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
-         }0:⍬
+         }
+         scanOpts 0:⍬
          out←(2×'s'∊out)+('l'∊out)
-
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
@@ -70,25 +76,26 @@
          }caller
          options←force debug out callerR callerN lib args
          ~debug:options
-         ⎕←'force  'force ⋄ ⎕←'debug  'debug
-         ⎕←'out    'out ⋄ ⋄ ⎕←'caller 'caller
-         ⎕←'lib    'lib ⋄ ⋄ ⎕←'args  'args
+         ⎕←'force  'force ⋄  ⎕←'debug  'debug ⋄ ⎕←'out    'out
+         ⎕←'caller 'caller ⋄ ⎕←'lib    'lib ⋄  ⎕←'args  'args
          options
      }⍵
-
+   ⍝ If -help, done now...
      0=≢options:''
+   ⍝ ... Otherwise, hand out options by name
      oForce oDebug oOut callerR callerN oLib thePkgs←options
-   ⍝ ADDFIXEDNAMESPACES: See add2PathIfNs
+   ⍝ Internal option ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
    ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
-   ⍝   If ADDFIXEDNAMESPACES←1, then it will be added to ⎕PATH.
-   ⍝   Otherwise, not.
+   ⍝   >>> If ADDFIXEDNAMESPACES←1, then it will be added to ⎕PATH.
+   ⍝   >>> Otherwise, not.
      ADDFIXEDNAMESPACES←1
-   ⍝ USEHOMEDIR: If 1, use [HOME] to represent env. var HOME.  See shortDirName
+   ⍝ Internal option USEHOMEDIR:
+   ⍝ If 1, use [HOME] to represent env. var HOME.  See shortDirName
      USEHOMEDIR←1
 
      999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
-
+   ⍝ Determine library ref and name from option oLib (via -lib or default)...
      libR libN←DefaultLibName{
          deflib←⍺
          returning←{2=≢⍵:⍵ ⋄ (callerR⍎⍵ callerR.⎕NS'')⍵}   ⍝ Added callerR left of ⍎
@@ -112,15 +119,14 @@
              nc←callerR.⎕NC⊂,name              ⍝ nc of name stored in lib w.r.t. caller.
              9.1=nc:{⍵(⍕⍵)}(callerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
              0=nc:callerN,'.',name             ⍝ Assume name refers to potential namespace...
-             ∘∘∘                             ⍝ error!
+             ∘∘∘                               ⍝ error!
          }⍵
      }oLib
 
  ⍝------------------------------------------------------------------------------------
  ⍝  U T I L I T I E S
  ⍝------------------------------------------------------------------------------------
-     ⍝ Set 0: Debugging
-     TRACE←{                           ⍝ Prints ⍺⍺ ⍵ if oDebug. Always returns ⍵!
+     TRACE←{                                  ⍝ Prints ⍺⍺ ⍵ if oDebug. Always returns ⍵!
          0::⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
          ⎕PW←9999
          ⍺←⊢
@@ -164,17 +170,14 @@
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
      ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-
-
-   ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to callerR.
-   ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
+     ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to callerR.
+     ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
      resolveNs←callerR∘{
          ''≡⍵~' ':⎕NULL
          nc←⍺.⎕NC⊂⍵
          nc∊9.1 ¯1:⍺⍎⍵      ⍝ nc=¯1: ##.## etc.  nc=9.1: namespace
          ⎕NULL              ⍝ If not valid, return ⎕NULL
      }∘,
-
    ⍝ resolvePathUpArrow: Where a ↑ is seen in ⎕PATH, replace the ↑ with the actual higher-level namespaces,
    ⍝    so that those namespaces can be searched for packages.
    ⍝    Approach: If we are in #.a.b.c.d and ⎕PATH has ↑, it is replaced by:
@@ -193,7 +196,6 @@
      resolvePath←{
          ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵
      }
-
 
    ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
    ⍝    ⍺: String of form: a, b.a, c.b.a etc.  If 0=≢⍺: inNs fails.
@@ -255,13 +257,11 @@
          ext wsN group name              ⍝ Return 4-string internal package format...
      }¨thePkgs
 
-
    ⍝ HOMEDIR-- see [HOME]
      HOMEDIR←getenv'HOME'
    ⍝ Process caller APL ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
      PathOrigR←resolvePath('↑'∊callerR.⎕PATH)resolvePathUpArrow callerR.⎕PATH
      PathNewR←PathOrigR
-
    ⍝ FSPATH: Find File System Path to search
    ⍝   1. If ⎕SE.FSPATH exists and is not null, use it.
    ⍝      You can merge new paths with the values of the existing OS X environment variables:
@@ -288,12 +288,9 @@
          0≠≢env←symbols getenv'WSPATH':env
          symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
      }'⎕SE.FSPATH'
-
 ⍝:DBG   _←{'FSPATH='⍵}TRACE FSPATH
-
      0=≢⍵:libR   ⍝ If no main right argument, return the library reference (default or user-specified)
      0∊≢¨thePkgs~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
-
    ⍝------------------------------------------------------------------------------------
    ⍝ statusList:
    ⍝   [0] list of packages successfully found
@@ -308,9 +305,7 @@
          0=≢⍵:⍺
          status←⍺
          pkg←⊃⍵
-
 ⍝:DBG    _←{⎕TC[2],'> Package: ',repkg ⍵}TRACE pkg
-
        ⍝------------------------------------------------------------------------------------
        ⍝ Is the package in the caller's namespace?
        ⍝ Check for <name>, <group.name>, and <wsN>.
@@ -319,7 +314,6 @@
              oForce:⍵                                         ⍝ oForce? Don't even check caller
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
-
              stat←{
                  ('__',wsN)inNs callerR:pkg map'ws∊CALLER'   ⍝ wsN found?   success
                  name inNs callerR:pkg map'name∊CALLER'      ⍝ name found? success
@@ -328,14 +322,10 @@
                  PathNewR,⍨←⊂resolveNs group                 ⍝ group.name found
                  pkg map'group.name∊CALLER'                  ⍝ ...         success
              }⍵
-
              0=≢stat:pkg
-
 ⍝:DBG        _←{'>>> Found in caller ns: ',⍵}TRACE stat
-
              ''⊣(⊃status),←⊂stat
          }pkg
-
          0=≢pkg:status ∇ 1↓⍵                        ⍝ Fast path out. Otherwise, we short-circuit one by one
 
        ⍝------------------------------------------------------------------------------------
@@ -345,16 +335,12 @@
              oForce:⍵                                   ⍝ oForce? Ignore path.
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
-
-
              scanPath←{                                 ⍝ find pgk components in <path> or lib
                  ⍺←'PATH'
                  0=≢⍵:''                                ⍝ none found. pathEntry exhausted: failure
                  pathEntry←⊃⍵
                  pathInfo←⍺,' ',⍕pathEntry
-
 ⍝:DBG           _←{'>>> Checking ⎕PATH ns: <',(⍕⍵),'>'}TRACE pathEntry
-
                ⍝⍝ --------------------------------------------------------------------------------------
                ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NO.
                ⍝⍝   PROS: pathEntry may have ↑ and the item may work for this caller ns, but not another
@@ -378,7 +364,6 @@
                  PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group ⍝ group.name found: ...
                  'group→',pathInfo                           ⍝ ...         success
              }
-
           ⍝ Go through pathEntry, next item in PathNewR. If found, return success.
           ⍝ Otherwise, try libR (unless in PathNewR). If found, add libR to PathNewR.
              recurse←{
@@ -388,9 +373,7 @@
                  r⊣PathNewR,⍨←libR                  ⍝ Found: Add libR to pathEntry and return status.
              }⍬
              0=≢recurse:pkg
-
 ⍝:DBG        _←{'>>> Found in ⎕PATH ns: ',⍵}TRACE recurse
-
              ''⊣(⊃status),←⊂pkg map recurse
          }pkg
 
@@ -403,9 +386,7 @@
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
              0=≢wsN:⍵
-
 ⍝:DBG       _←{'>>> Checking workspace: ',⍵}TRACE wsN
-
              stat←wsN{
                  0::''
                  0≠≢⍵:'wsN:name→lib'⊣⍵ libR.⎕CY ⍺     ⍝ Copy in object from wsN
@@ -436,16 +417,13 @@
                  ⍺:('\Q',HOMEDIR,'\E')⎕R'[HOME]'⊣⍵
                  ⍵
              }
-
              recurse←{                                   ⍝ find pgk components in <path>.
                  0=≢⍵:''                                 ⍝ none found. path exhausted: failure
                  path←⊃⍵
                  0=≢path:∇ 1↓⍵                           ⍝ NEXT!
                  searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
                  searchFi←searchDir,'.dyalog'
-
 ⍝:DBG            _←{'>>> Searching filesystem: ',⍵}TRACE searchDir
-
                  loadDir←{
                      group name←⍺
                      aplNs←group with name ⋄ fsDir←⍵
@@ -457,9 +435,7 @@
                          _←(dunder ⍺)libR.{⍎⍺,'←⍵'}stamp
                          'empty group→lib: ',⍵
                      }fsDir
-
 ⍝:DBG                _←{'>>>>> Found non-empty dir: ',⍵}TRACE fsDir
-
                      cont←''
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
@@ -469,21 +445,16 @@
 
                          fixed←2 libR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
                          cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
-
 ⍝:DBG                _←{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
                          1
-
                      }
                      tried←load1Fi¨names
                      gwn←group with name
-
                    ⍝ Put a 'loaded' flag in the libR ns for the non-empty dir
                      stamp←gwn,' copied from dir: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
                      _←(dunder group name)libR.{⍎⍺,'←⍵'}stamp
-
                      res←'[group] ',gwn,'→lib: "',(shortDirName ⍵),'"'
                      res,←⎕TC[2],'   [Fixed: ',(⍕+/tried=1),' Failed: ',(⍕+/tried=¯1),']'
-
                    ⍝ Add libR to PathNewR if at least one object was loaded and  ⎕FIXED.
                      1∊tried:res⊣PathNewR,⍨←libR
                      res
@@ -494,10 +465,8 @@
                      group name←⍺
                      gwn←group with name
                      id←dunder group name
-
                      fixed←2 libR.⎕FIX'file://',⍵
                      cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
-
 ⍝:DBG              _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in libR for the loaded object.
                      stamp←gwn,' copied from file: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
@@ -505,32 +474,25 @@
                      PathNewR,⍨←libR                ⍝ Succeeded: Note libR (if not already)
                      '[file] ',gwn,'→lib: "',(shortDirName ⍵),'"'
                  }
-
                  ⎕NEXISTS searchDir:(group name)loadDir searchDir
                  ⎕NEXISTS searchFi:(group name)loadFi searchFi
                  ∇ 1↓⍵                                     ⍝ NEXT!
              }FSPATH
-
 ⍝:DBG        _←{s←'>>> Status: ' ⋄ 0=≢⍵:s,'❌NOT FOUND' ⋄ s,,⎕FMT ⍵}TRACE recurse
-
              0=≢recurse:pkg
              ''⊣(⊃status),←⊂pkg map recurse
          }pkg
-
          pkg←{ ⍝ Any package <pkg> left must not have been found!
              0=≢⍵:''
              ''⊣(⊃⌽status),←⊂pkg map'❌NOT FOUND'
          }pkg
-
          status ∇ 1↓⍵    ⍝ Get next package!
      }thePkgs
-
      _←{
          _←''('>>Caller''s ⎕PATH was ',⍕callerR.⎕PATH)
          _,←('  PathOrigR: ',⍕PathOrigR)('>>PathNewR: ',⍕∪PathNewR)
          ↑_
      }TRACE 0
-
    ⍝------------------------------------------------------------------------------------
    ⍝ DONE-- process oOut options...
    ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
@@ -538,20 +500,15 @@
    ⍝ Here, we don't make sure callerR.⎕PATH entries are valid. Also ↑ is maintained.
    ⍝-------------------------------------------------------------------------------------
      callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
-
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
-
      succ←0=≢⊃⌽statusList
-
    ⍝ oOut=3? Now returns 1 on success, 0 otherwise..
-     succ∧oOut∊3:_←{⍵}TRACE 1(⊂libR),statusList  ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
-     ⋄ oOut∊3:0(⊂libR),statusList               ⍝           FAIL: non-shy
-     succ∧oOut∊2:libR                          ⍝ oOut 2:   SUCC: non_shy
-
+     succ∧oOut∊3:_←{⍵}TRACE 1(⊂libR),statusList     ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
+     ⋄ oOut∊3:0(⊂libR),statusList                   ⍝           FAIL: non-shy
+     succ∧oOut∊2:libR                               ⍝ oOut 2:   SUCC: non_shy
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-     ⋄ oOut∊2:⎕SIGNAL/eCode1                      ⍝           FAIL: ⎕SIGNAL
-     succ∧oOut∊1 0:_←{⍵}TRACE statusList          ⍝ oOut 1|0: SUCC: shy     (non-shy if oDebug)
-
-     ⋄ oOut∊1 0:statusList                        ⍝           FAIL: non-shy
+     ⋄ oOut∊2:⎕SIGNAL/eCode1                       ⍝           FAIL: ⎕SIGNAL
+     succ∧oOut∊1 0:_←{⍵}TRACE statusList           ⍝ oOut 1|0: SUCC: shy     (non-shy if oDebug)
+     ⋄ oOut∊1 0:statusList                         ⍝           FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid oOut: ',⍕oOut)11   ⍝ ~oOut∊0 1 2 3
  }
