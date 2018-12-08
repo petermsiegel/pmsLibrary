@@ -28,21 +28,20 @@
  ⍝
  ⍝ -out=n[ames]* | c[ode] | "n[ames] c[ode]" | ""
  ⍝  ∘ Indicates the return values* (rc cannot be suppressed):
- ⍝       1. names       - returns*: rc names
- ⍝       2. names code  - returns*: rc names code
- ⍝       3. code        - returns*: rc code
- ⍝       4. ""          - returns*: rc
+ ⍝       1. -out=names         - returns*: rc names
+ ⍝           default (omitted)
+ ⍝       2. -out="names code"  - returns*: rc names code
+ ⍝          -out
+ ⍝       3. -out=code          - returns*: rc code
+ ⍝       4. -out=""            - returns*: rc
+ ⍝          -out=
  ⍝    where rc:    1 on success, 0 on failure
  ⍝       a. names: the list of objects created by a ⎕FIX.
  ⍝       b. code:  output (v of v) from the preprocessor.
  ⍝  ∘ If an error occurs, returns instead:
  ⍝      5. signalNum signalMsg (APL signal number and message string).
- ⍝  ∘ Default and special cases
- ⍝    -out omitted (default) is the same as   -out="names"
- ⍝    -out                                    -out="names code"
- ⍝    -out=                                   -out=""
- ⍝
  ⍝ -com=0*|1|2|3
+ ⍝ -com=0 (default)
  ⍝ -com denotes -com=3
  ⍝      Indicates how to handle preprocessor statements in output.
  ⍝            0: Keep all preprocessor statements, identified as comments with ⍝🅿️ (path taken), ⍝❌ (not taken)
