@@ -1,16 +1,16 @@
-﻿ result←{specs}∆FIX fileName;LETTER_NS;funName;hdr;opts;processFnHdr
- ;ALPH;Bêgin;CR;CTL;CalledFrom;DICT;DQ;ListScan;MActions;MBegin;MEnd
- ;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTSre;PRAGMA_FENCE
+﻿ result←{argL}∆FIX argR
+ ;ALPH;Bêgin;Bêgin;CR;CTL;CalledFrom;DICT;DQ;LETTER_NS;ListScan;MActions;MBegin
+ ;MEnd;MPats;MRegister;MacroScan1;MainScan1;Match;NL;NO;NOc;OPTSre;PRAGMA_FENCE
  ;Par;PreScan1;PreScan2;SEMICOLON_FAUX;SQ;TRAP;UTILS;YES;YESc;_
- ;_MATCHED_GENERICp;Bêgin;anyNumP;atomsP;firstBuffer;firstP;box;braceCount
- ;braceP;brackP;code;comment;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan
- ;dqStringP;ellipsesP;enQ;err;eval;filesIncluded;first;getenv;h2d;ifTrue;infile;keys
- ;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names;obj;objects;parenP
- ;pfx;readFile;register;setBrace;sfx;showCodeSnip;showObjSnip;specialStringP;sqStringP
- ;stringAction;stringP;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆MYdefs;∆PFX;∆V2S;⎕IO
- ;⎕ML;⎕PATH;⎕TRAP
+ ;_MATCHED_GENERICp;anyNumP;atomsP;box;braceCount;braceP;brackP;code;comment
+ ;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan;dqStringP;ellipsesP
+ ;enQ;err;eval;filesIncluded;first;firstBuffer;firstP;fileName;funName;getenv;h2d;hdr
+ ;ifTrue;infile;keys;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names
+ ;obj;objects;opts;parenP;pfx;processFnHdr;readFile;register;setBrace;sfx
+ ;showCodeSnip;showObjSnip;specialStringP;sqStringP;stringAction;stringP
+ ;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆MYdefs;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
 
- ⍝  A Dyalog  APL preprocessor   (rev. Nov 29 )
+ ⍝  A Dyalog  APL preprocessor   (rev. Dec 8)
  ⍝
  ⍝ result ← options    ∆FIX  [fileName | ⍬ ]
  ⍝          options:   ' [-out=OUTSPECS] [-com=0|1|2|3] [-debug]  [-showcompiled]'
@@ -54,7 +54,7 @@
  ⍝            0: Don't view the preprocessed code when done. (It may be returned via -out=[n]c
  ⍝               Default if standard fileName was specified.
  ⍝            1: View the preprocessed code just before returning, via ⎕ED.
- ⍝               Default if fileName≡⍬, i.e. when prompting input from user.
+ ⍝               Default only if fileName≡⍬, i.e. when prompting input from user.
  ⍝-------------------------------------------------------------------------------------------
  :Section Initialization
      ⎕IO ⎕ML←0 1
@@ -62,17 +62,23 @@
      CalledFrom←⊃⎕RSI  ⍝ Get the caller's namespace
 
    ⍝ opts: See description above.
-     opts←{
+     ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+     opts fileName←{
+         0::⎕DMX.EN ⎕SIGNAL⍨'∆FIX: ',⎕DMX.EM
+         dyad opts args←⍵
          parms←'-out[=] -com[=]0 1 2 3 -debug[=] -showcompiled[=]'
-         opts←(⎕NEW ⎕SE.Parser parms).Parse ⍵
+         opts←(⎕NEW ⎕SE.Parser parms).Parse opts
        ⍝ out: 2 bit flags:  [1] output names, [0] output code;
        ⍝      rc (return code) is ALWAYS output as if hidden flag [0] is 1.
          opts.(out←{⍵≡1:1 1 ⋄ ⍵≡0:1 0 ⋄ 'nc'∊⊃¨' '(≠⊆⊢)⍵}out)
          opts.(com←{⍵=1:3 ⋄ ⍵=0:0 ⋄ '012'⍳⍵}com)  ⍝ com ∊ 0 1 2 3
          opts.(debug←{⍵∊'1' 1}debug)
          opts.(showcompiled←{⍵∊'1' 1}showcompiled)
-         opts
-     }{2=⎕NC ⍵:⎕OR ⍵ ⋄ ''}'specs'
+         dyad:opts args
+         args←opts.Arguments ⋄ em1 em2←'Exactly one filename must be specified:' ' [none]'
+         0=≢args:11 ⎕SIGNAL⍨em1,em2 ⋄ 1≠≢args:11 ⎕SIGNAL⍨em1,∊' ',¨args
+         opts(⊃args)
+     }'argL'{2=⎕NC ⍺:1(⎕OR ⍺)⍵ ⋄ 0 ⍵ ⍵}argR
 
      TRAP←opts.debug×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
      CR NL←⎕UCS 13 10 ⋄ SQ DQ←'''' '"'
