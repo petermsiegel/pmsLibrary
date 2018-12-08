@@ -1,17 +1,17 @@
 ﻿ require Documentation
  ------- -------------
- require:  Ensure specified APL objects are in the calling function's or operator's namespace or ⎕PATH; 
+ require:  Ensure specified APL objects are in the calling function's or operator's namespace or ⎕PATH;
            else loads them from a workspace (*.dws), if wsN: is prefixed, and/or from  dyalog files. The objects are specified
            by name alone, namespace/directory hierarchy, and name; or workspace, namespace/directory hierarchy, and name, e.g.
                'fsExt::ns1.[ns2.ns3.]name'
            which, during a disk search is treated as a search for:
-               fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog 
+               fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog
            While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
            ns1[.ns2.ns3] are treated as the full specification of the package.
-   
+
    ____________________________________________________________________________________________________________
    Simple Examples:
-       require 'dfns:cmpx'             -- Searches for <cmpx> in the calling namespace and ⎕PATH. 
+       require 'dfns:cmpx'             -- Searches for <cmpx> in the calling namespace and ⎕PATH.
                                           If not found, load cmpx from workspace dfns into the "standard" library (ns) in the calling namespace.
                                           Updates ⎕PATH as required.
        require 'tinyDict'              -- Searches for <tinyDict> in the calling namespace and ⎕PATH.
@@ -25,22 +25,27 @@
       require 'dfns::'                 -- Searches for namespace dfns in the calling namespace and ⎕PATH.
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
-________________________________________________________________________________________________________________  
-   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's' 
+________________________________________________________________________________________________________________
+   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's'
                                                                   ∇ package1 [package2 [... packageN]]
-             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'l'  
+             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'l'
                                                                   ∇ ⍬
              rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' ∇ ...
                                                                   ∇ package1 [package2 [... packageN]]
-   Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}' 
+   Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}'
+          2a:                        ∇ '[-f] [-caller=nsN] [-lib=nsL] [-debug] [-out=[s|l|sl] {packages...}'
    Syntax 3: show help info        ←                              ∇ '-HELP'
 
 In Syntax 1, each package must be specified as a separate string vector. In this syntax,
-   a package name may include spaces.
+   a package name may include spaces. -caller and -lib may be specified in one of two ways:
+  '-caller=nsN' (one token) or '-caller' 'nsN' or '-caller' nsR, where nsN is a namespace name and nsR, a reference.
+  -out may also use either format, but with strings only: e.g. '-out=s' OR '-out' 's'
 In Syntax 2, each option and package are separated by spaces only. Separate string vectors are not allowed.
+   Namespaces as names only are valid and the syntax -lib=nsN is equiv. to -lib nsN.
    In this syntax, package names may not contain spaces (which separate options and packages).
-Note: If stdlib is indicated as a namespace reference (ns), '-lib' may be omitted:   
-        #.myLib require 'pkg1' 'pkg2' 
+   Syntax 2 is used for the user command:  ]require ...
+Note: If stdlib is indicated as a namespace reference (nsR), '-lib' may be omitted:
+        #.myLib require 'pkg1' 'pkg2'
 Note: <require> has been developed in OS X. Use of environment variables has not been
 generalized for other operating systems. See file system path and library symbolic names.
 <require> "should" otherwise be compatible with other operating systems.
@@ -56,7 +61,7 @@ ________________________________________________________________________________
      for those packages and, if not in the active workspace, copy them from the file system
      or workspace  into the library specified as the stdLib."
    ∘ package formats:
-           [[wsN]: | [fsExt]::] [dir.] name  |  [wsN:]  
+           [[wsN]: | [fsExt]::] [dir.] name  |  [wsN:]
            wsN:    workspace name
            fsExt:  filesystem extension (directory extension to add to the filesystem path)
            dir:    the directory (in fs) and/or namespace (in Dyalog) with the object.
@@ -78,7 +83,7 @@ ________________________________________________________________________________
    ∘ Updates caller's ⎕PATH to provide access to the packages, dropping any
      path namespaces that don't exist. ⎕PATH only ensures functions and operators
      are found. See Syntax 2 for how to specify a library, e.g. to access a class etc.
-   ∘ CODE is optional and may be 1 (or 0), 2, or 4 or (DEBUG info provided) -1 -2 or -4. 
+   ∘ CODE is optional and may be 1 (or 0), 2, or 4 or (DEBUG info provided) -1 -2 or -4.
      If 1 or -1, returns as below (Ia) or (IIa). See below for CODE, DEBUG.
    ∘ File System Path: ⎕SE.∆FSPATH, env var FSPATH, env var WSPATH, and file system path defaults
      When searching for packages in the file system, <require> searches as follows:
@@ -86,7 +91,7 @@ ________________________________________________________________________________
        b. Use (OS X) environment variable FSPATH. Else, if null,
        c. Use (OS X) environment variable WSPATH, managed by Dyalog to find workspaces; else
        d. Use '.:[HOME]'
-     The value of ⎕SE.∆FSPATH or of (the environment variable) FSPATH or WSPATH must be a colon string indicating 
+     The value of ⎕SE.∆FSPATH or of (the environment variable) FSPATH or WSPATH must be a colon string indicating
      absolute or relative file directories.  While Dyalog's WSPATH must follow Dyalog specs,
      ⎕SE.∆FSPATH and FSPATH may also have these strings as part of directory names:
          [HOME] the HOME directory     .        the current directory    ..       the parent directory
@@ -95,13 +100,13 @@ ________________________________________________________________________________
            '.:/Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws'    ⍝ An abbreviated version of the OS X WSPATH is shown
      and you specify:
          ⎕SE.∆FSPATH ← 'myPrivateLibrary:[FSPATH]:lastResortLib'
-     then require will search in order (>> means 'before') 
+     then require will search in order (>> means 'before')
          myPrivateLibrary >> . >> /Applications/Dyalog-17.0.app/Contents/Resources/Dyalog/ws >> lastResortLib
    ∘ Requiring an empty package will generate an error.
    ∘ USE PREVIOUS FS EXTENSION (sub-library) or WORKSPACE
-     ∘ If '::' is specified, but there are no characters preceding the two colons, 
+     ∘ If '::' is specified, but there are no characters preceding the two colons,
        the last (non-null) filesystem extension is used (if none, it's ignored).
-     ∘ If ':' is specified, but there are no characters preceding the one colon, 
+     ∘ If ':' is specified, but there are no characters preceding the one colon,
        the last (non-null) wsPath is used (if none, ignored).
    ∘ Beware of extra blanks you don't intend as parts of directory names; don't add them.
 _______________________________________________________________________________________________________________
@@ -135,7 +140,7 @@ ________________________________________________________________________________
   ∘  Returns: namespaceRef
      The namespace reference for the specified or default library.
 
- Syntax 3: Help information. 
+ Syntax 3: Help information.
            Right argument is '-HELP'
 _____________________________________________________________________________________________________________
 
@@ -159,18 +164,18 @@ ________________________________________________________________________________
 
   package          searched for what...  where (>> means "and then")
   ¯¯¯¯¯¯¯¯¯¯     ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  name             name                  CALLER >> PATH >> FSPATH (but no workspaces)   
+  name             name                  CALLER >> PATH >> FSPATH (but no workspaces)
   dir.name         dir.name, name        (SAME)
   FSEXT::          dir.name, name        CALLER >> PATH >> FSPATH.EXT
-  WSNAME:name      name                  CALLER >> PATH >> WSNAME               
-  WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME  
+  WSNAME:name      name                  CALLER >> PATH >> WSNAME
+  WSNAME:dir.name  dir.name              CALLER >> PATH >> WSNAME
   WSNAME:          WSNAME++              WSNAME: if found, it is copied with all its contents
 
 
   CALLER     the caller's namespace (*)
   PATH       the namespaces in ⎕PATH (in the caller's namespace)
   FSPATH     the directories in ∆FSPATH var, FSPATH env var**, or WSPATH env var**, else current and home directories.
-  FSEXT::    (file system extension:) a subdirectory(/ies) of FSPATH to be searched. 
+  FSEXT::    (file system extension:) a subdirectory(/ies) of FSPATH to be searched.
   WSNAME:    the named workspace via Dyalog APL ⎕CY (which searches WSPATH per documentation)
  _____________________
   *  For speed, CALLER is searched first, then PATH, before checking directories or workspaces!

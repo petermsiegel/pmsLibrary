@@ -39,19 +39,28 @@
          { ⍝ Result 1: Exit(HELP INFO GIVEN).
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
+           ⍝ parse:
+           ⍝  Allow options -c, -l, -o to have ⎕SE.Parser format -c=str
+           ⍝  OR -c refstrstr, a format for also passing actual namespaces(*).
+           ⍝           * To deal with cases where (⍎⍕ns) is an error.
+             parse←{
+                 e←'='∊⍵ ⋄ ø←{⍵:(1+o⍳'=')↓o ⋄ next⊃opts}e
+                 _←⍎⍺,'ø'
+                 e⊃skip next
+             }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
-
              9=⎕NC'o':∇ next⊣lib∘←o
              o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
              o is'-f':∇ next⊣force∘←1
              o is'-d':∇ next⊣debug∘←1
-             o is'-c':∇ skip⊣caller∘←next⊃opts
-             o is'-l':∇ skip⊣lib∘←next⊃opts
-             o is'-o':∇ skip⊣out∘←{(2×'s'∊⍵)+('l'∊⍵)}next⊃opts
+             o is'-c':∇'caller∘←'parse o
+             o is'-l':∇'lib∘←'parse o
+             o is'-o':∇'out∘←'parse o
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
          }0:⍬
+         out←(2×'s'∊out)+('l'∊out)
 
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
