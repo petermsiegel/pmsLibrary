@@ -20,6 +20,8 @@ ___Table of Contents___
 * __bigInt__  Provides support for __arbitrary-precision integers__ in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆HERE__       Robust support for "__here__" __documents__ or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
 * __∆SH__  Provides a thin cover to __⎕SH__, translating _UTF-8_ format encoded output into _Unicode_. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
+* __∆OPTS__ Provide a simple package for handing options of the form -opt, -opt=value,-opt= value, etc. including the ability
+to handle non-string values, e.g. namespaces or object representations (⎕OR).  See documentation for more info.
 
 ___Descriptions of Packages___
 1. __require__: Reminiscent of __import__ in Python and __require__ or __use__ in Perl, __require__ ensures that the "packages" in the right argument are either in the caller's namespace or the ⎕PATH (e.g. were "required" by another function/op or otherwise), in the filesystem search path (Unix environment (extension) __FSPATH__ or (Dyalog) __WSPATH__ or using "extension" ⎕SE.∆FSPATH), or in the workspace indicated (e.g. 'dfns:cmpx'). If in the caller's namespace or ⎕PATH, nothing more is done. Also allows easy importing of an entire workspace ('dfns:') or all the __\*.dyalog__ files filesystem directory ('myfns.mymath').
@@ -76,6 +78,7 @@ Options are included within comments on the same line as the __∆HERE__ call, e
      ⍝ </html>
   processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
  ```
+11. __opts__: See __Documentation__ _opts.help_ for details.
  
                                                   
 
