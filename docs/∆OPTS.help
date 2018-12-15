@@ -1,11 +1,14 @@
 Function:  ∆OPTS
 ns ← declaration_specs ∇ call_specs
 Description:
-   "Based on a set of options in declarations (decl),
-    decode a set of 0 or more function call arguments, each a separate scalar.
-    Allow <-option arg> pairs where arg can be a scalar of any type."
+   "Based on a set of options in declarations (declaration_specs),
+    decode a set of 0 or more function call arguments and options(call_specs), 
+    each a separate scalar (with an option of splitting a string right argument
+    into tokens on blanks).
+    Allow <-option arg> pairs where arg can be a scalar of any type, as well as
+    flags (value 1 if present, else 0) and arbitrary default values."
 Returns namespace ns with
-    <opt>:    value of each named option specified in decl format (below).
+    <opt>:    value of each named option ns.opt specified in declaration format (below).
     ARGS:     ordered list of those arguments not associated with options.
 
 DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and variants)
@@ -22,7 +25,7 @@ DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and varian
     ⍠A[LL] (default)  |  ⍠L[EFT]
       ⍠ALL    Options may appear before and after arguments.
       ⍠LEFT   Call options appear only to the left of arguments, ending at the
-              first item not associated with an option.
+              first item not associated with an option. Options to the right are treated as simple arguments.
               See also Call Option '--'.
     ⍠S[TRING] Right arg (⍵) must be a simple string. It will be split into args and options on blanks.
               If ⍠STRING is specified and ⍵ is not a simple string, an error will be signalled.
