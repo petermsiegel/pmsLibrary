@@ -77,7 +77,8 @@ Options are included within comments on the same line as the __∆HERE__ call, e
      ⍝ </body>
      ⍝ </html>
   processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
- ```1. __opts__: See __Documentation__ _opts.help_ for details.
+ ```
+11. __opts__: See __Documentation__ _opts.help_ for details.
  
                                                   
 
