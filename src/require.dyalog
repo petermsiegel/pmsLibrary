@@ -76,8 +76,8 @@
          }caller
          options←force debug out callerR callerN lib args
          ~debug:options
-         ⎕←'force  'force ⋄  ⎕←'debug  'debug ⋄ ⎕←'out    'out
-         ⎕←'caller 'caller ⋄ ⎕←'lib    'lib ⋄  ⎕←'args  'args
+         ⎕←'force  'force ⋄ ⎕←'debug  'debug ⋄ ⎕←'out    'out
+         ⎕←'caller 'caller ⋄ ⎕←'lib    'lib ⋄ ⎕←'args  'args
          options
      }⍵
    ⍝ If -help, done now...
@@ -99,6 +99,7 @@
      libR libN←DefaultLibName{
          deflib←⍺
          returning←{2=≢⍵:⍵ ⋄ (callerR⍎⍵ callerR.⎕NS'')⍵}   ⍝ Added callerR left of ⍎
+      ⍝  Same as ⍕{⍵.##}⍣≡callerR
          top←'⎕SE' '#'⊃⍨'#'=1↑callerN          ⍝ what's our top level?
          topDef←top,'.',deflib                 ⍝ the default if there's no default library
          ⍵≡⍬:returning topDef

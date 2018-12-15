@@ -1,0 +1,47 @@
+opts:
+ns ← decl ∇ call
+Description:
+   "Based on a set of options in declarations (decl),
+    decode a set of 0 or more function call arguments, each a separate scalar.
+    Allow <-option arg> pairs where arg can be a scalar of any type."
+Returns namespace ns with
+    <opt>:    value of each named option specified in decl format (below).
+    ARGS:     ordered list of those arguments not associated with options.
+
+decl: Declaration format
+  DECLARATIONS (may begin with optional single hyphen, ignored)
+    name      Option is num 1 if present, else 0.
+    name=val  Option is <newval> if present, else char. <val>
+              newval comes from -name=newval OR -name= <newval>.
+              In the latter case, <newval> can have any type.
+    name==    Option default is in next word. (or name::)
+    name=     Option is newval (with no default specified;
+              -name must be specified in the call  or an error occurs.
+              newval specified as above.
+  OPTIONS
+    ⎕L[EFT]   Call options appear only to the left of arguments, ending at the
+              first item not associated with an option.
+              See also call option '--'.
+    ⎕A[LL] (default)
+              Options may appear before and after arguments.
+  NOTE: Wherever = may be used, : may be used instead.
+     name=val <==>  name:value
+     name=    <==>  name:
+  
+
+call: Argument call format:
+   STANDARD OPTIONS:
+    -name          If decl is 'name', sets name←1, else 0.
+                   If decl is 'name=', sets name to next item in list (required).
+                   If decl is 'name=newval', sets name to next item.
+    -name=newval   Sets name=newval
+    -name=         If decl is 'name', name←1.
+                   If decl is 'name=val', sets name←val.
+                   If decl is 'name=', sets name to next item in list (required).
+   SPECIAL OPTION
+    --             Done with options...
+  NOTE: If the declaration value is a number (whether explicit or by default),
+        the call value will be converted to a number if possible.
+            n←'test=5' opts '-test=10' ==>   n.test≡10
+  NOTE: Wherever = is specified above, a colon (:) may be used instead.
+     '-name=newval' <==> '-name:newval'
