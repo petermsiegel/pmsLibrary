@@ -1,37 +1,42 @@
-﻿ opts←{⍺←''
+﻿ ∆OPTS←{⍺←''
      ⎕IO←0
      err←⎕SIGNAL∘11
    ⍝ ns ← declSpecs ∇ callSpecs
-   ⍝   declSpecs: declaration parameters (options and flags)
-   ⍝   callSpecs: calling parameters (options and arguments)
+   ⍝   declSpecs: declaration specifications (options and flags)
+   ⍝   callSpecs: calling options and arguments
    ⍝ Description:
    ⍝    "Based on a set of options in declScan,
    ⍝     decode a set of 0 or more function call arguments, each a separate scalar.
    ⍝     Allow <-option arg> pairs where arg can be a scalar of any type."
-   ⍝ See opts.help for information.
+   ⍝ See ∆OPTS.help for information.
 
-   ⍝ try2Num: Optionally, return parts of ⍵ that look like numbers as numeric vector.
-   ⍝ If ⍺ is 1: If ⍵ is a string of 1 or more numbers, return (numbers 1).
-   ⍝            Else return (⍵ 0).
-   ⍝ Else:      Return (⍵ 0).
-     try2Num←{⍺←1 ⋄ ~⍺:⍵ 0 ⋄ 2≠⎕NC'⍵':⍵ 0
-         v2←⎕VFI ⍵ ⋄ ~1∊⊃v2:⍵ 0
-         1=≢n←//v2:(⍬⍴n)1 ⋄ (∊n)1
+   ⍝ try2Num: Optionally, return parts of ⍵ that look like numbers as numeric vector..
+     try2Num←{⍺←1
+         ~⍺:⍵ 0
+         2≠⎕NC'⍵':⍵ 0
+         0≠80|⎕DR ⍵:⍵ 0
+         ~1∊⊃v2←⎕VFI ⍵:⍵ 0
+         1=≢n←//v2:(⍬⍴n)1
+         (∊n)1
      }
-   ⍝ simplest: Treat 1-elem vectors or scalars as scalars. Enclose everything else.
-     simplest←{(1=≢⍵)∧2≥|≡⍵:⍬⍴⍵ ⋄ ⊂⍵}
+   ⍝ simple: ⍵ → scalar (1-elem vectors converted to simple scalars).
+     simple←{(1=≢⍵)∧2≥|≡⍵:⍬⍴⍵ ⋄ ⊂⍵}
 
    ⍝ I. declScan - scan declarations (⍺) for option names and values
-     declScan←{∆←declScan
+     declScan←{∆←∇
        ⍝ Here, req (required) is 1 for required options.
          ⍺←{⍵⊣⍵.(names←vals←mins←req←isNum←⍬)}⎕NS''
          0=≢⍵:⍺
          name←⊃⍵
-         '⎕'=1↑name:⍺{
-            ⍝ ⎕L: LEFT options. Once first non-option seen, treat rest as regular args.
-             '⎕L'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←1
-            ⍝ ⎕A: ALL options. In calls, allow options to left and right of args.
-             '⎕A'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←0
+         '⍠'=1↑name:⍺{
+            ⍝ ⍠L/EFT vs ⎕A/LL (default)
+            ⍝ ⍠LEFT: For calls (⍵), options (-likeThis) after first std arg treated as args.
+            ⍝ ⍠ALL:  Accept all options anywhere in call list.
+             '⍠L'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←1 ⋄ '⍠A'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←0
+            ⍝ ⎕S/TRING=1 (default 0):
+            ⍝   If call vector (⍵) is a single string, split on blanks
+            ⍝   Otherwise. signal an error.
+             '⍠S'≡2↑name:⍺ ∆ 1↓⍵⊣stringOK∘←1
             ⍝ Unknown flag.
              err'opts: Unknown option flag: ',name
          }⍵
@@ -48,11 +53,16 @@
          val skip←{(⊂val)∊,¨':=':(1↑1↓⍵)2 ⋄ val 1}⍵   ⍝ name== declaration
          (⊂name)∊⍺.names:err'opts: Option appears more than once: ',name
          val isNum←try2Num val
-         ⍺.(names vals mins req isNum),←(⊂name)(simplest val)min req isNum
+         ⍺.(names vals mins req isNum),←(⊂name)(simple val)min req isNum
          ⍺ ∆ skip↓⍵
      }
    ⍝ II. callScan - scan call words for run-time options and arguments
-     callScan←{⍺←declNs⊣declNs.ARGS←⍬ ⋄ ∆←callScan
+     callScan←{
+         ~stringOK:callScan2⊆⍵
+         (0=80|⎕DR ⍵)∧1≥⍴⍴⍵:callScan2' '(≠⊆⊢)⍵
+         err'opts: Call argument (⍵) must be simple string (⍠STRING specified).'
+     }
+     callScan2←{⍺←declNs⊣declNs.ARGS←⍬ ⋄ ∆←∇
          0=≢⍵:⍺
          nonOpt←{(1<|≡⍵)∨(1<⍴⍴⍵)∨(0≠80|⎕DR ⍵):1 ⋄ '-'≠1↑⍵}
          nonOpt⊃⍵:⍺{
@@ -79,7 +89,7 @@
              ⍺ ∆ 2↓⍵⊣⍺.vals[ptr]←1↑1↓⍵             ⍝  */1           Set to next item.
          }⍵
        ⍝ Has a value...
-         ⍺.vals[ptr]←simplest⊃⍺.isNum[ptr]try2Num val ⋄ ⍺.req[ptr]←0
+         ⍺.vals[ptr]←simple⊃⍺.isNum[ptr]try2Num val ⋄ ⍺.req[ptr]←0
          ⍺ ∆ 1↓⍵
      }
    ⍝ III. setNamesFrom: Set option namespace, option values, and ARGS.
@@ -88,14 +98,13 @@
          ⍺⍺⍎⍵⍵.⍺,'←⍵'
      }
 
-     leftOnly←0
-     declNs←declScan⊆⍺                                        ⍝   I
-     declNs←callScan⊆⍵                                        ⍝  II
+     leftOnly←stringOK←0
+     declNs←declScan⊆⍺                                         ⍝   I
+     declNs←callScan ⍵                                         ⍝  II
+   ⍝ Error if any required names weren't set.
+     1∊declNs.req:err'opts: Required options not set:',∊' ',¨declNs.(req/names)
 
-     1∊declNs.req:err{ ⍝ Error if any required names weren't set.
-         'opts: Required options not set:',∊' ',¨⍵
-     }declNs.(req/names)
-     opts←⎕NS'' ⋄ opts.(ARGS DECL)←declNs.ARGS declNs
-     _←declNs.names(opts setNamesFrom declNs)¨declNs.vals     ⍝ III
-     opts
+     optsNs←⎕NS'' ⋄ optsNs.(ARGS DECL)←declNs.ARGS declNs
+     _←declNs.names(optsNs setNamesFrom declNs)¨declNs.vals    ⍝ III
+     optsNs
  }

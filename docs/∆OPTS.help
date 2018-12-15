@@ -1,0 +1,58 @@
+Function:  ∆OPTS
+ns ← declaration_specs ∇ call_specs
+Description:
+   "Based on a set of options in declarations (decl),
+    decode a set of 0 or more function call arguments, each a separate scalar.
+    Allow <-option arg> pairs where arg can be a scalar of any type."
+Returns namespace ns with
+    <opt>:    value of each named option specified in decl format (below).
+    ARGS:     ordered list of those arguments not associated with options.
+
+DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and variants)
+  DECLARATIONS (may begin with optional single hyphen, ignored)
+    name      Option is num 1 if present, else 0.
+    name=val  Option is <newval> if present, else char. <val>
+              newval comes from -name=newval OR -name= <newval>.
+              In the latter case, <newval> can have any type.
+    name==    Option default is in next word. (or name::)
+    name=     Option is newval (with no default specified;
+              -name must be specified in the call  or an error occurs.
+              E.g. call format:   '-name=0'  OR   '-name' ⎕IO
+  VARIANT OPTIONS (All begin with ⍠, followed by 1 or more capital letters)
+    ⍠A[LL] (default)  |  ⍠L[EFT]
+      ⍠ALL    Options may appear before and after arguments.
+      ⍠LEFT   Call options appear only to the left of arguments, ending at the
+              first item not associated with an option.
+              See also Call Option '--'.
+    ⍠S[TRING] Right arg (⍵) must be a simple string. It will be split into args and options on blanks.
+              If ⍠STRING is specified and ⍵ is not a simple string, an error will be signalled.
+    (default) By default, ⍵ is a list, i.e. a vector of objects, with char vectors starting with
+              -ccc for options (where ccc is 1 or more characters), as defined in Call Specifications Below.
+
+  NOTE: Wherever = is specified above, : may be used instead.
+     name=val <==>  name:value       Define option and default
+     name=    <==>  name:            Define option requiring call (run-time) value
+     name==   <==>  name::           
+  
+
+CALL SPECIFICATIONS:  call_specs  (Call format of arguments and options)
+   STANDARD OPTIONS:
+    -name          If decl is 'name', sets name←1, else 0.
+                   If decl is 'name=', sets name to next item in list (required).
+                   If decl is 'name=newval', sets name to next item.
+    -name=newval   Sets name=newval
+    -name=         If decl is 'name', name←1.
+                   If decl is 'name=val', sets name←val.
+                   If decl is 'name=', sets name to next item in list (required).
+   SPECIAL OPTION:
+    --             Signifies with options...
+                   E.g. ⍵ might be:   '-name' 'John Smith' '-addr' '45 Maple Ln' -- '-tel' '555-1212'
+                   ∆OPTS, seeing '--', treats '-tel' and '555-1212' as arguments, not options.
+  NOTE: If the declaration value is a number (whether explicit or by default),
+        the call value will be converted to a number if possible.
+            n←'test=5' ∆OPTS '-test=10' ==>   n.test≡10
+        This uses ⎕VFI rules, so odd results can apply if not anticipated:
+            n←'test=5' ∆OPTS '-test=10 5x 22'  ==>  n.test ≡ 10 22
+            Compare:  (⎕VFI '10 5x 22') ≡  (1 0 1) (10 0 22)
+  NOTE: Wherever = is specified above, a colon (:) may be used instead.
+       '-name=newval' <==> '-name:newval'
