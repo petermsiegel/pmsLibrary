@@ -32,7 +32,7 @@
             ⍝ ⎕S/TRING=1 (default 0):
             ⍝   If call vector (⍵) is a single string, split on blanks.
             ⍝   Otherwise. signal an error.
-             '⍠S'≡2↑name:⍺ ∆ 1↓⍵⊣stringOK∘←1
+             '⍠S'≡2↑name:⍺ ∆ 1↓⍵⊣stringArgs∘←1
             ⍝ Unknown flag.
              err'opts: Unknown option flag: ',name
          }⍵
@@ -54,7 +54,7 @@
      }
    ⍝ II. callScan - scan call words for run-time options and arguments
      callScan←{
-         ~stringOK:callScan2⊆⍵
+         ~stringArgs:callScan2⊆⍵
          (0=80|⎕DR ⍵)∧1≥⍴⍴⍵:callScan2' '(≠⊆⊢)⍵
          err'opts: Call argument (⍵) must be simple string (⍠STRING specified).'
      }
@@ -94,7 +94,7 @@
          ⍺⍺⍎⍵⍵.⍺,'←⍵'
      }
 
-     leftOnly←stringOK←0
+     leftOnly←stringArgs←0
      declNs←declScan⊆⍺                                         ⍝   I
      declNs←callScan ⍵                                         ⍝  II
    ⍝ Error if any required names weren't set.
