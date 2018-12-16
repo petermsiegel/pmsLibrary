@@ -3,7 +3,7 @@
      err←⎕SIGNAL∘11
    ⍝ ns ← declSpecs ∇ callSpecs
    ⍝   declSpecs: declaration specifications (options and flags)
-   ⍝   callSpecs: calling options and arguments
+   ⍝   callSpecs: "user" calling options and arguments
    ⍝ Description:
    ⍝    "Based on a set of options in declScan,
    ⍝     decode a set of 0 or more function call arguments, each a separate scalar.
@@ -12,12 +12,8 @@
 
    ⍝ try2Num: Optionally, return parts of ⍵ that look like numbers as numeric vector..
      try2Num←{⍺←1
-         ~⍺:⍵ 0
-         2≠⎕NC'⍵':⍵ 0
-         0≠80|⎕DR ⍵:⍵ 0
-         ~1∊⊃v2←⎕VFI ⍵:⍵ 0
-         1=≢n←//v2:(⍬⍴n)1
-         (∊n)1
+         ~⍺:⍵ 0 ⋄ 2≠⎕NC'⍵':⍵ 0 ⋄ 0≠80|⎕DR ⍵:⍵ 0 ⋄ ~1∊⊃v2←⎕VFI ⍵:⍵ 0
+         1=≢n←//v2:(⍬⍴n)1 ⋄ (∊n)1
      }
    ⍝ simple: ⍵ → scalar (1-elem vectors converted to simple scalars).
      simple←{(1=≢⍵)∧2≥|≡⍵:⍬⍴⍵ ⋄ ⊂⍵}
@@ -34,7 +30,7 @@
             ⍝ ⍠ALL:  Accept all options anywhere in call list.
              '⍠L'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←1 ⋄ '⍠A'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←0
             ⍝ ⎕S/TRING=1 (default 0):
-            ⍝   If call vector (⍵) is a single string, split on blanks
+            ⍝   If call vector (⍵) is a single string, split on blanks.
             ⍝   Otherwise. signal an error.
              '⍠S'≡2↑name:⍺ ∆ 1↓⍵⊣stringOK∘←1
             ⍝ Unknown flag.
