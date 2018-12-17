@@ -22,6 +22,7 @@ ___Table of Contents___
 * __∆SH__  Provides a thin cover to __⎕SH__, translating _UTF-8_ format encoded output into _Unicode_. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
 * __∆OPTS__ Provide a simple package for handing options of the form -opt, -opt=value,-opt= value, etc. including the ability
 to handle non-string values, e.g. namespaces or object representations (⎕OR).  See documentation for more info.
+__∆OPTS__ is not meant as a replacement for the ⎕SE.Parser, which is more flexible, but is useful when a user might be passing namespaces, class instances, or arrays.  It expects each argument to be passed separately (unless in ⎕TEXT) mode and parses each argument in turn, so that it can distinguish flags (options without values), options with string values, and options with arbitrary values.
 
 ___Descriptions of Packages___
 1. __require__: Reminiscent of __import__ in Python and __require__ or __use__ in Perl, __require__ ensures that the "packages" in the right argument are either in the caller's namespace or the ⎕PATH (e.g. were "required" by another function/op or otherwise), in the filesystem search path (Unix environment (extension) __FSPATH__ or (Dyalog) __WSPATH__ or using "extension" ⎕SE.∆FSPATH), or in the workspace indicated (e.g. 'dfns:cmpx'). If in the caller's namespace or ⎕PATH, nothing more is done. Also allows easy importing of an entire workspace ('dfns:') or all the __\*.dyalog__ files filesystem directory ('myfns.mymath').
