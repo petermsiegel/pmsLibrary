@@ -32,10 +32,10 @@
             ⍝ ⍠LEFT: For calls (⍵), options (-likeThis) after first std arg treated as args.
             ⍝ ⍠ALL:  Accept all options anywhere in call list.
              '⍠L'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←1 ⋄ '⍠A'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←0
-            ⍝ ⍠S/TRING=1 (default 0):
+            ⍝ ⍠T/EXT=1 (default 0):
             ⍝   If call vector (⍵) is a single string, split on blanks.
             ⍝   Otherwise. signal an error.
-             '⍠S'≡2↑name:⍺ ∆ 1↓⍵⊣stringArgs∘←1
+             '⍠T'≡2↑name:⍺ ∆ 1↓⍵⊣stringArgs∘←1
             ⍝ ⍠STRICT=1 (default 0). No abbrev
              '⍠STRICT'≡7↑name:⍺ ∆1↓⍵⊣strict∘←1
             ⍝ Unknown metaflag, i.e. ∆OPTS-internal flag.
