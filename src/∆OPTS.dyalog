@@ -11,6 +11,8 @@
    ⍝ See ∆OPTS.help for information.
 
    ⍝ try2Num: Optionally, return parts of ⍵ that look like numbers as numeric vector..
+   ⍝   1 ∇ ⍵:string: Per above; 0 ∇ ⍵: returns ⍵ 0.
+   ⍝   Returns:  nums 1,  if ⍵ had any numeric fields;  ⍵ 0, otherwise.
      try2Num←{⍺←1
          ~⍺:⍵ 0 ⋄ 2≠⎕NC'⍵':⍵ 0 ⋄ 0≠80|⎕DR ⍵:⍵ 0 ⋄ ~1∊⊃v2←⎕VFI ⍵:⍵ 0
          1=≢n←//v2:(⍬⍴n)1 ⋄ (∊n)1
