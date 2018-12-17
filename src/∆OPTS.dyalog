@@ -43,8 +43,12 @@
          ptr←name(⌊/⍳)'=:' ⋄ min←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
        ⍝ name, i.e. a user flag.
        ⍝ We distinguish flags from other options in callScan2.
+       ⍝ If a flag has a ! prefix or suffix (!name or name!), make its default 1, not 0.
+       ⍝ Else it's 0.
+       ⍝ In callScan below, a '-no' prefix will reverse a flag's value, if flag exists.
          ptr≥≢name:⍺{
-             name←name~'()' ⋄ val isReq isNum isFlag←0 0 1 1
+             val isReq isNum isFlag←('!'∊name)0 1 1
+             name←name~'()!'
              ⍺.(names vals mins isReq isNum isFlag),←(⊂name)(val)min isReq isNum isFlag
              ⍺ ∆ 1↓⍵
          }⍵
@@ -76,20 +80,31 @@
        ⍝ eq: 1 if there is = or :
          p←name(⌊/⍳)'=:'
          name eq val←(1↓p↑name)(p<≢name)(name↓⍨p+1)
-         len←≢name
-         shortList←⍺.names/⍨(len↑¨⍺.names)∊⊂name
-         0=≢shortList:err'opts: Unknown option: ',name
-         match←len≥⍺.mins[ptr←⍸⍺.names∊shortList]
-         0∊match:err'opts: Option not declared: ',name
-         1≠+/match:err'opts: Option ambiguous: ',name
+         findName←{
+             len←≢⍵
+             shortList←⍺.names/⍨(len↑¨⍺.names)∊⊂⍵
+             0=≢shortList:0('opts: Unknown option: ',⍵)
+             match←len≥⍺.mins[ptr←⍸⍺.names∊shortList]
+             0∊match:0('opts: Option not declared: ',⍵)
+             1≠+/match:0('opts: Option ambiguous: ',⍵)
+             1 ptr
+         }
+       ⍝ Search for the option name.
+       ⍝ For flags, we search for -name or -noname/-NOname.
+       ⍝ If -noname not found, but -name is, -noname sets name's value to 0 via flagVal.
+         ptr name flagVal←⍺{lc←819⌶                      ⍝ Action \    Set flagVal to ...
+             ⊃ok p←⍺ findName ⍵:p ⍵ 1                    ⍝ Find name ⍵.                1
+             'no'≢lc 2↑⍵:err'opts: unknown option: ',⍵   ⍝ Do we have no prefix?      err
+             ⊃ok p←⍺ findName 2↓⍵:p(2↓⍵)0                ⍝ Find ⍵ sans 'no'.           0
+             err p                                       ⍝ Not found...               err
+         }name
          0=≢val:⍺{
            ⍝ If a non-required option is present, but not a flag, treat here as required.
-             isReq←⍺.isReq[ptr]∨~⍺.isFlag[ptr]       ⍝ -opt=/required?
+             isReq←⍺.isReq[ptr]∨~⍺.isFlag[ptr]           ⍝ -opt=/required?
              ⍺.isReq[ptr]←0
-             ⍝ eq⍱⍺.isFlag[ptr]:err'opts: user option requires explicit value: ',name
-             eq⍱isReq:⍺ ∆ 1↓⍵⊣⍺.vals[ptr]←1          ⍝  */0           Set to 1.
+             eq⍱isReq:⍺ ∆ 1↓⍵⊣⍺.vals[ptr]←flagVal        ⍝ See flagVal setting above.
              2>≢⍵:err'opts: explicit value require for option: ',name
-             ⍺ ∆ 2↓⍵⊣⍺.vals[ptr]←1↑1↓⍵               ⍝  */1           Set to next item.
+             ⍺ ∆ 2↓⍵⊣⍺.vals[ptr]←1↑1↓⍵
          }⍵
        ⍝ Has a value... Allowed even for flags, unless strict is set.
          strict∧⍺.isFlag[ptr]:err'opts: with strict ⍠S set, explicit value not allowed for flag: ',name
