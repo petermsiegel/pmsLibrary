@@ -39,7 +39,7 @@
             ⍝ Unknown metaflag, i.e. ∆OPTS-internal flag.
              err'opts: Unknown metaflag: ',name
          }⍵
-         name←name↓⍨'-'=⊃name
+         name↓⍨←+/∧\'-'=name
          ptr←name(⌊/⍳)'=:' ⋄ min←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
        ⍝ name, i.e. a user flag.
        ⍝ We distinguish flags from other options in callScan2.
@@ -65,21 +65,21 @@
      callScan←{
          ~stringArgs:callScan2⊆⍵
          (0=80|⎕DR ⍵)∧1≥⍴⍴⍵:callScan2' '(≠⊆⊢)⍵
-         err'opts: Call argument (⍵) must be simple string (⍠STRING specified).'
+         err'opts: Call argument (⍵) must be a simple string (⍠STRING specified).'
      }
      callScan2←{⍺←declNs⊣declNs.ARGS←⍬ ⋄ ∆←∇
          0=≢⍵:⍺
          nonOpt←{(1<|≡⍵)∨(1<⍴⍴⍵)∨(0≠80|⎕DR ⍵):1 ⋄ '-'≠1↑⍵}
          nonOpt⊃⍵:⍺{
              leftOnly:⍺⊣⍺.ARGS,←⍵    ⍝ ⎕LEFT flag set and we see a non-option: Done!
-             ⍺ ∆ 1↓⍵⊣⍺.ARGS,←1↑⍵  ⍝ 1↑⍵ is an arg. Continue scan...
+             ⍺ ∆ 1↓⍵⊣⍺.ARGS,←1↑⍵     ⍝ 1↑⍵ is an arg. Continue scan...
          }⍵
          name←⊃⍵
-         '-'≠1↑name:⍺ skip ⍵
-         '--'≡name:⍺⊣⍺.ARGS,←1↓⍵     ⍝ Done. Rest are args...
-       ⍝ eq: 1 if there is = or :
+         '-'≠1↑name:⍺ skip ⍵                          ⍝ No hyphen, skip as user arg.
+         '--'≡name:⍺⊣⍺.ARGS,←1↓⍵                      ⍝ '--'? Rest are user args.
+         name↓⍨←+/∧\'-'=name                      ⍝ Ignore extra hyphens.
          p←name(⌊/⍳)'=:'
-         name eq val←(1↓p↑name)(p<≢name)(name↓⍨p+1)
+         name eq val←(p↑name)(p<≢name)(name↓⍨p+1)   ⍝ eq: 1 if there is = or :
          findName←{
              len←≢⍵
              shortList←⍺.names/⍨(len↑¨⍺.names)∊⊂⍵
