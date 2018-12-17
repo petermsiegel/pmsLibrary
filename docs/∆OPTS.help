@@ -28,8 +28,8 @@ DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and varian
       ⍠LEFT   Call options appear only to the left of arguments, ending at the
               first item not associated with an option. Options to the right are treated as simple arguments.
               See also Call Option '--'.
-    ⍠S[TRING] Right arg (⍵) must be a simple string. It will be split into args and options on blanks.
-              If ⍠STRING is specified and ⍵ is not a simple string, an error will be signalled.
+    ⍠T[EXT]  Right arg (⍵) must be a simple string. It will be split into args and options on blanks.
+              If ⍠TEXT is specified and ⍵ is not a simple string, an error will be signalled.
     (default) By default, ⍵ is a list, i.e. a vector of objects, with char vectors starting with
               -ccc for options (where ccc is 1 or more characters), as defined in Call Specifications Below.
     ⍠STRICT   (No abbrev). If specified, will not be flexible on the use of flags vs regular options.
