@@ -10,13 +10,11 @@
    ⍝     Allow <-option arg> pairs where arg can be a scalar of any type."
    ⍝ See ∆OPTS.help for information.
 
-   ⍝ try2Num: Optionally, return parts of ⍵ that look like numbers as numeric vector..
+   ⍝ try2Num: Optionally, return as numeric vector segments of ⍵ that look like numbers per ⎕VFI 
    ⍝   1 ∇ ⍵:string: Per above; 0 ∇ ⍵: returns ⍵ 0.
    ⍝   Returns:  nums 1,  if ⍵ had any numeric fields;  ⍵ 0, otherwise.
-     try2Num←{⍺←1
-         ~⍺:⍵ 0 ⋄ 2≠⎕NC'⍵':⍵ 0 ⋄ 0≠80|⎕DR ⍵:⍵ 0 ⋄ ~1∊⊃v2←⎕VFI ⍵:⍵ 0
-         1=≢n←//v2:(⍬⍴n)1 ⋄ (∊n)1
-     }
+     try2Num←{⍺←1 ⋄ ~⍺:⍵ 0 ⋄ 0::⍵ 0  ⋄ (//⎕VFI ⍵),1}
+
    ⍝ simple: ⍵ → scalar (1-elem vectors converted to simple scalars).
      simple←{(1=≢⍵)∧2≥|≡⍵:⍬⍴⍵ ⋄ ⊂⍵}
 
