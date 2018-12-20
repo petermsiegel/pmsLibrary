@@ -8,15 +8,12 @@
    ⍝    "Based on a set of options in declScan,
    ⍝     decode a set of 0 or more function call arguments, each a separate scalar.
    ⍝     Allow <-option arg> pairs where arg can be a scalar of any type."
-   ⍝ See ∆OPTS.help for information.
+   ⍝ See ∆OPTS.help for specific syntax and related information.
 
-   ⍝ try2Num: Optionally, return as numeric vector segments of ⍵ that look like numbers per ⎕VFI 
-   ⍝   1 ∇ ⍵:string: Per above; 0 ∇ ⍵: returns ⍵ 0.
-   ⍝   Returns:  nums 1,  if ⍵ had any numeric fields;  ⍵ 0, otherwise.
-     try2Num←{⍺←1 ⋄ ~⍺:⍵ 0 ⋄ 0::⍵ 0  ⋄ (//⎕VFI ⍵),1}
-
-   ⍝ simple: ⍵ → scalar (1-elem vectors converted to simple scalars).
-     simple←{(1=≢⍵)∧2≥|≡⍵:⍬⍴⍵ ⋄ ⊂⍵}
+   ⍝ try2Num: If ⍵ is solely numbers, return a numeric vector; else return char string.
+     try2Num←{⍺←1 ⋄ ~⍺:⍵ 0 ⋄ 0::⍵ 0 ⋄ s n←⎕VFI ⍵ ⋄ (0=≢s)∨0∊s:⍵ 0 ⋄ n 1}
+   ⍝ scalify: Treat 1-element vector or scalar as scalar; otherwise enclose.
+     scalify←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}
 
    ⍝ I. declScan - scan declarations (⍺) for option names and values
      declScan←{∆←∇
@@ -25,40 +22,48 @@
          0=≢⍵:⍺
          name←⊃⍵
          0≠80|⎕DR name:err'At least one declared option (⍺) not a string.'
-         '⍠'=1↑name:⍺{
+         '⍠'=1↑name:⍺{case←{⍵≡name↑⍨≢⍵}
             ⍝ ⍠L/EFT vs ⎕A/LL (default)
             ⍝ ⍠LEFT: For calls (⍵), options (-likeThis) after first std arg treated as args.
             ⍝ ⍠ALL:  Accept all options anywhere in call list.
-             '⍠L'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←1 ⋄ '⍠A'≡2↑name:⍺ ∆ 1↓⍵⊣leftOnly∘←0
+             case'⍠L':⍺ ∆ 1↓⍵⊣leftOnly∘←1
+             case'⍠A':⍺ ∆ 1↓⍵⊣leftOnly∘←0
             ⍝ ⍠T/EXT=1 (default 0):
             ⍝   If call vector (⍵) is a single string, split on blanks.
             ⍝   Otherwise. signal an error.
-             '⍠T'≡2↑name:⍺ ∆ 1↓⍵⊣stringArgs∘←1
+             case'⍠T':⍺ ∆ 1↓⍵⊣stringArgs∘←1
             ⍝ ⍠STRICT=1 (default 0). No abbrev
-             '⍠STRICT'≡7↑name:⍺ ∆1↓⍵⊣strict∘←1
+             case'⍠STRICT':⍺ ∆1↓⍵⊣strict∘←1
             ⍝ Unknown metaflag, i.e. ∆OPTS-internal flag.
              err'opts: Unknown metaflag: ',name
          }⍵
          name↓⍨←+/∧\'-'=name
-         ptr←name(⌊/⍳)'=:' ⋄ min←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
+       ⍝ By default, any option's isMin abbrev is 1 char, unless declared otherwise.
+       ⍝   'test' 1    |    'te(st)' 2    |   'test()' 4 [no abbrev]
+         ptr←name(⌊/⍳)'=:' ⋄ isMin←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
        ⍝ name, i.e. a user flag.
        ⍝ We distinguish flags from other options in callScan2.
        ⍝ If a flag has a ! prefix or suffix (!name or name!), make its default 1, not 0.
-       ⍝ Else it's 0.
-       ⍝ In callScan below, a '-no' prefix will reverse a flag's value, if flag exists.
+       ⍝ In callScan below, a '-no' prefix will set the flag's value to 0.
          ptr≥≢name:⍺{
              val isReq isNum isFlag←('!'∊name)0 1 1
              name←name~'()!'
-             ⍺.(names vals mins isReq isNum isFlag),←(⊂name)(val)min isReq isNum isFlag
+             ⍺.(names vals mins isReq isNum isFlag),←(⊂name)(val)isMin isReq isNum isFlag
              ⍺ ∆ 1↓⍵
          }⍵
-       ⍝ name= or name: or name== or name::. Std option, not a flag.
+       ⍝ Option declarations...
+       ⍝ Format                Default declared?          User MUST set option in call?
+       ⍝ name=    | name:      NO                             YES
+       ⍝ name=val | name:val   YES (char)                     NO
+       ⍝      val must be 1 or more characters (even blanks)
+       ⍝ name==   | name::     YES (arb type, next arg)       NO
+       ⍝     e.g. 'xVals::' (⍳10)
          name val←((ptr↑name)~'()')(name↓⍨ptr+1)
          val skip←{(⊂val)∊,¨'=:':(1↑1↓⍵)2 ⋄ val 1}⍵   ⍝ name== declaration
          isReq←0=≢val ⋄ isFlag←0
          (⊂name)∊⍺.names:err'opts: Option appears more than once: ',name
          val isNum←try2Num val
-         ⍺.(names vals mins isReq isNum isFlag),←(⊂name)(simple val)min isReq isNum isFlag
+         ⍺.(names vals mins isReq isNum isFlag),←(⊂name)(scalify val)isMin isReq isNum isFlag
          ⍺ ∆ skip↓⍵
      }
    ⍝ II. callScan - scan call words for run-time options and arguments
@@ -89,9 +94,13 @@
              1≠+/match:0('opts: Option ambiguous: ',⍵)
              1 ptr
          }
-       ⍝ Search for the option name.
-       ⍝ For flags, we search for -name or -noname/-NOname.
-       ⍝ If -noname not found, but -name is, -noname sets name's value to 0 via flagVal.
+       ⍝ Search for option <name>.
+       ⍝   ∘ respecting case
+       ⍝   ∘ ignoring hyphens beyond the first
+       ⍝   ∘ allowing abbreviations down to one character; or more if declared.
+       ⍝   ∘ for flags only, we will respect -noname as equiv. to -name=0,
+       ⍝     unless -noname is already defined as an option/flag.
+       ⍝     (E.g. '-notes' will be viewed as option 'notes', rather than 'no'+'tes'.
          ptr name flagVal←⍺{lc←819⌶                      ⍝ Action \    Set flagVal to ...
              ⊃ok p←⍺ findName ⍵:p ⍵ 1                    ⍝ Find name ⍵.                1
              'no'≢lc 2↑⍵:err'opts: unknown option: ',⍵   ⍝ Do we have no prefix?      err
@@ -108,7 +117,7 @@
          }⍵
        ⍝ Has a value... Allowed even for flags, unless strict is set.
          strict∧⍺.isFlag[ptr]:err'opts: with strict ⍠S set, explicit value not allowed for flag: ',name
-         ⍺.vals[ptr]←simple⊃⍺.isNum[ptr]try2Num val ⋄ ⍺.isReq[ptr]←0
+         ⍺.vals[ptr]←scalify⊃⍺.isNum[ptr]try2Num val ⋄ ⍺.isReq[ptr]←0
          ⍺ ∆ 1↓⍵
      }
    ⍝ III. setNamesFrom: Set option namespace, option values, and ARGS.
@@ -123,6 +132,10 @@
    ⍝ Error if any required names weren't set.
      1∊declNs.isReq:err'opts: Required options not set:',∊' ',¨declNs.(isReq/names)
 
+   ⍝ optsNs contains:
+   ⍝    ∘ each declared option name in full,
+   ⍝    ∘ the list of remaining args (ARGS) and
+   ⍝    ∘ a copy of original declarations (DECL).
      optsNs←⎕NS'' ⋄ optsNs.(ARGS DECL)←declNs.ARGS declNs
      _←declNs.names(optsNs setNamesFrom declNs)¨declNs.vals    ⍝ III
      optsNs
