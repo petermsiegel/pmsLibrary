@@ -38,8 +38,9 @@
              err'opts: Unknown metaflag: ',name
          }⍵
          name↓⍨←+/∧\'-'=name
-       ⍝ By default, any option's isMin abbrev is 1 char, unless declared otherwise.
+       ⍝ By default, any option's isMin abbrev is 1 char, unless of form opt(ion or opt(ion).
        ⍝   'test' 1    |    'te(st)' 2    |   'test()' 4 [no abbrev]
+       ⍝ If options clash, this will be flagged at when decoding ⍵ at callScan.
          ptr←name(⌊/⍳)'=:' ⋄ isMin←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
        ⍝ name, i.e. a user flag.
        ⍝ We distinguish flags from other options in callScan2.
@@ -53,11 +54,11 @@
          }⍵
        ⍝ Option declarations...
        ⍝ Format                Default declared?          User MUST set option in call?
-       ⍝ name=    | name:      NO                             YES
-       ⍝ name=val | name:val   YES (char)                     NO
-       ⍝      val must be 1 or more characters (even blanks)
-       ⍝ name==   | name::     YES (arb type, next arg)       NO
-       ⍝     e.g. 'xVals::' (⍳10)
+       ⍝ A. name=    | name:      NO                             YES
+       ⍝ B. name=val | name:val   YES (char)                     NO
+       ⍝    val must be 1 or more characters (even blanks)
+       ⍝ C. name==   | name::     YES (arb type, next arg)       NO
+       ⍝    e.g. 'xVals::' (⍳10)
          name val←((ptr↑name)~'()')(name↓⍨ptr+1)
          val skip←{(⊂val)∊,¨'=:':(1↑1↓⍵)2 ⋄ val 1}⍵   ⍝ name== declaration
          isReq←0=≢val ⋄ isFlag←0
@@ -80,9 +81,9 @@
              ⍺ ∆ 1↓⍵⊣⍺.ARGS,←1↑⍵     ⍝ 1↑⍵ is an arg. Continue scan...
          }⍵
          name←⊃⍵
-         '-'≠1↑name:⍺ skip ⍵                          ⍝ No hyphen, skip as user arg.
-         '--'≡name:⍺⊣⍺.ARGS,←1↓⍵                      ⍝ '--'? Rest are user args.
-         name↓⍨←+/∧\'-'=name                      ⍝ Ignore extra hyphens.
+         '-'≠1↑name:⍺ skip ⍵                        ⍝ No hyphen, skip as user arg.
+         '--'≡name:⍺⊣⍺.ARGS,←1↓⍵                    ⍝ '--'? Rest are user args.
+         name↓⍨←+/∧\'-'=name                        ⍝ Ignore extra hyphens.
          p←name(⌊/⍳)'=:'
          name eq val←(p↑name)(p<≢name)(name↓⍨p+1)   ⍝ eq: 1 if there is = or :
          findName←{
@@ -115,25 +116,28 @@
              2>≢⍵:err'opts: explicit value require for option: ',name
              ⍺ ∆ 2↓⍵⊣⍺.vals[ptr]←1↑1↓⍵
          }⍵
-       ⍝ Has a value... Allowed even for flags, unless strict is set.
-         strict∧⍺.isFlag[ptr]:err'opts: with strict ⍠S set, explicit value not allowed for flag: ',name
+       ⍝ Has a value... Allow even for flags; disallow, if strict is set.
+         ⋄ _←'opts: with strict ⍠S set, explicit value not allowed for flag: '
+         strict∧⍺.isFlag[ptr]:err _,name
          ⍺.vals[ptr]←scalify⊃⍺.isNum[ptr]try2Num val ⋄ ⍺.isReq[ptr]←0
          ⍺ ∆ 1↓⍵
      }
-   ⍝ III. setNamesFrom: Set option namespace, option values, and ARGS.
+   ⍝ III. setNamesFrom: In optsNs, set  names ←  values.
      setNamesFrom←{
          2::err'opts: Invalid option name: ',⍺
          ⍺⍺⍎⍵⍵.⍺,'←⍵'
      }
 
+   ⍝ ----------------------------------------
+   ⍝ EXECUTIVE  - I, II, III
+   ⍝ ----------------------------------------
      leftOnly←stringArgs←strict←0
      declNs←declScan⊆⍺                                         ⍝   I
      declNs←callScan ⍵                                         ⍝  II
    ⍝ Error if any required names weren't set.
      1∊declNs.isReq:err'opts: Required options not set:',∊' ',¨declNs.(isReq/names)
-
    ⍝ optsNs contains:
-   ⍝    ∘ each declared option name in full,
+   ⍝    ∘ each declared option name in full with default or user-set values
    ⍝    ∘ the list of remaining args (ARGS) and
    ⍝    ∘ a copy of original declarations (DECL).
      optsNs←⎕NS'' ⋄ optsNs.(ARGS DECL)←declNs.ARGS declNs
