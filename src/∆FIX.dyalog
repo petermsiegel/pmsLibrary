@@ -75,9 +75,13 @@
          opts.(debug←{⍵∊'1' 1}debug)
          opts.(showcompiled←{⍵∊'1' 1}showcompiled)
          dyad:opts args
-         args←opts.Arguments ⋄ em1 em2←'Exactly one filename must be specified:' ' [none]'
-         0=≢args:11 ⎕SIGNAL⍨em1,em2 ⋄ 1≠≢args:11 ⎕SIGNAL⍨em1,∊' ',¨args
-         opts(⊃args)
+         em1←'One or zero filenames must be specified:'
+         fn←{                               ⍝ Cmdline has ...
+             1<≢⍵:11 ⎕SIGNAL⍨em1,∊' ',¨⍵    ⍝ ... >1.      Error.
+             0=≢⍵:⍬                         ⍝ ...  0.      Return ⍬ as filename.
+             ⊃⍵                             ⍝ ...  1.      Return arg as filename.
+         }opts.Arguments
+         opts fn
      }'argL'{2=⎕NC ⍺:1(⎕OR ⍺)⍵ ⋄ 0 ⍵ ⍵}argR
 
      TRAP←opts.debug×999 ⋄ ⎕TRAP←TRAP'C' '⎕SIGNAL/⎕DMX.(EM EN)'
@@ -116,7 +120,7 @@
        ⍝        title: a single line (or omit)
        ⍝        lines: one or more lines as a vector of strings or str matrix
        ⍝ Result is shy...
-         box←{⎕IO←0 ⋄ ⍺←'∆FIX ERROR'
+         box←{⎕IO←0 ⋄ ⍺←'∆FIX ERROR MESSAGE!'
              (2=|≡⍵)∧1=⍴⍴⍵:⍺ ∇↑⍵          ⍝ ⍵@S[] → ↑⍵
              topL topR botL botR topM RM LM botM bot side sideM←'┌┐└┘┬┤├┴─│┼'
              fmt←⍺{(≢⍺)≤¯1↑⍴⍵:⍵ ⋄ (≢⍺)↑[1]⍵}⎕FMT ⍵
@@ -167,15 +171,18 @@
        ⍝ processFnHdr:  r← ⍺ ∇ ⍵
        ⍝   ⍺: Line with fn header (if not ⍵), used for error msgs.
        ⍝   ⍵: Fn header itself (possible ⍵ altered)
-       ⍝   r: Returns ⍺
+       ⍝   r: Returns ⍺  GLARG
          processFnHdr←{⍺←⍵
-             me←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Temp'ily treat faux semicolons as real ones.
+             myName←funName';'@(SEMICOLON_FAUX∘=)⊣⍵   ⍝ Temp'ily treat faux semicolons as real ones.
              msg←'Expected fn/op def not found'
-             0=≢me:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
-             me←(⍕CalledFrom),'.⍙⍙.∆MY.',me
-             _←DICT.set'⎕MY'me
-             _←DICT.set'⎕FIRST'(me,'.∆FIRST')⊣DICT.set'⎕RESET'(me,'.∆RESET')
-             firstBuffer,←'{}⍎',SQ,me,SQ,' ⎕NS ∆MYdefs',NL
+             0=≢myName:_←∆COM ⍺,NL,(enQ msg),'⎕SIGNAL 11',NL⊣⎕←msg box ⍺
+
+             myNs←(⍕CalledFrom),'.⍙⍙.∆MY.',myName
+             _←'⎕MY    'ALIAS myNs             ⍝ ⎕MY - namespace this fn is in
+             _←'⎕FIRST 'ALIAS myNs,'.∆FIRST'
+             _←'⎕RESET 'ALIAS myNs,'.∆RESET'
+
+             firstBuffer,←'{}⍎',SQ,myNs,SQ,' ⎕NS ∆MYdefs',NL
              1:_←⍺
          }
        ⍝ h2d: Convert hexadecimal to decimal. Sign handled arbitrarily by carrying to dec. number.
@@ -258,7 +265,7 @@
              _,←⊂':Implements Trigger * '
              _,←⊂'→0/⍨ ''Ð''≠1↑__args__.Name'
              _,←⊂'(''⎕'',1↓__args__.Name){0::⋄⍎⍺,''←⍵''}⎕OR __args__.Name'
-             _,←⊂opts.debug↓'⍝ ⎕←''foo: Updating "⎕'',(1↓__args__.Name),''"'''
+             _,←⊂opts.debug↓'⍝ ⎕←''debug: Updating name "⎕'',(1↓__args__.Name),''"'''
              _←dict.ns.⎕FX _
            ⍝ tweak: Map external names for :DEF/::LET into internal ones.
            ⍝ Treat names of the form ⎕XXX as if ÐXXX, so they can be defined or even
@@ -529,15 +536,22 @@
  :EndSection Read In file or stdin
 
  :Section Setup:Scan Patterns and Actions
-     DICT←∆DICT''
+     DICT←∆DICT''                                                    ⍝ Define DICT
+     _←⎕FX'{_}←name ALIAS value' '_←DICT.set (name~'' '') (⍕value)'  ⍝ Define ALIAS to DICT.set
+
+     _←'⎕HERE    'ALIAS CalledFrom
+
    ⍝ ⎕LET.(UC, LC, ALPH): Define upper-case, lower-case and all valid initials letters
    ⍝ of APL names. (Add ⎕D for non-initials).
    ⍝ Bad idea: (Dict macros treat ⎕LET.UC, ⎕LET.uc, ⎕LET.Uc, ⎕LET.uC as synonyms, i.e. case is ignored for system extensions.)
    ⍝ Do by hand.
-      ⋄ DICT.set'⎕LET'(⍎'LETTER_NS'⎕NS'')
-      ⋄ DICT.set'⎕LET.LC'(_←enQ 56↑ALPH) ⋄ DICT.set'⎕LET.lc'_
-      ⋄ DICT.set'⎕LET.UC'(_←enQ 55↑56↓ALPH) ⋄ DICT.set'⎕LET.uc'_
-      ⋄ DICT.set'⎕LET.ALPH'(_←enQ ALPH) ⋄ DICT.set'⎕LET.alph'_
+     '⎕LET      'ALIAS'LETTER_NS'⎕NS''
+     '⎕LET.LC   'ALIAS _←enQ 56↑ALPH
+     '⎕LET.lc   'ALIAS _
+     '⎕LET.UC   'ALIAS _←enQ 55↑56↓ALPH
+     '⎕LET.uc   'ALIAS _
+     '⎕LET.ALPH 'ALIAS _←enQ ALPH
+     '⎕LET.alph 'ALIAS _
    ⍝ Valid APL simple names
      nameP←eval'(?:   ⎕? [⍎ALPH] [⍎ALPH\d]* | \#{1,2} )'
    ⍝ Valid APL complex names
@@ -1134,7 +1148,9 @@
          :Else ⍝ Error: returns    0 trap.( errno errmsg errordisplay)
              result←0 ⎕DMX.(EN EM DM)
          :EndTrap
-         1 ⎕NDELETE tmpfile
+         :If opts.debug ⋄ ⎕←'Debug: temporary file (normally deleted) is: ',tmpfile
+         :Else ⋄ 1 ⎕NDELETE tmpfile
+         :EndIf
      :EndSection Write object so we can do a 2∘⎕FIX import
 
      :If opts.debug
