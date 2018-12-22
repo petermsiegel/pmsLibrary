@@ -81,10 +81,15 @@ Options are included within comments on the same line as the __∆HERE__ call, e
 11. __opts__: __∆OPTS__ is not meant as a replacement for the ⎕SE.Parser, which is more flexible, but is useful when a user might be passing namespaces, class instances, or arrays.  It expects each argument to be passed separately (unless in ⎕TEXT) mode and parses each argument in turn, so that it can distinguish flags (options without values), options with string values, and options with arbitrary values.  See __Documentation__ _opts.help_ for details.     
 ``` ⍝ Example
     )cs VERS1   
-    so si←'SOURCE' 'SINK' ⎕NS¨'' ''                              ⍝ In advance set up DEFAULT -source and -sink namespaces
-    ns ← 'source::'  so  'sink::'  si  ∆OPTS '-so' #.MyLib       ⍝ We'll use our own source #.MyLib instead of VERS1.SOURCE
+  ⍝ In advance, we set up #.VERS1.SOURCE and #.VERS1.SINK.
+  ⍝ We'll use our own source #.MyLib instead of VERS1.SOURCE
+  ⍝ ∘ Left of ∆OPTS are "program" specs; right of ∆OPTS are "user" run-time "calls"
+  ⍝ ∘ -funOut is a required option (as shown by the option sep ':' not followed by any value)
+    ns ←  'funOut:'  'source::'  SOURCE  'sink::'  SINK  ∆OPTS  'john' '-so' #.MyLib '-funOut' 'Schmidt' 'jacob' 'jingleheimer' 
     (ns.source)(⎕NC 'ns.source')'→→→'(ns.sink)(⎕NC 'ns.sink')    
-#.MyLib  9  →→→  #.VERS1.SINK  2                                 ⍝ Default -sink was picked up! Note namespaces are refs, not strings.
+#.MyLib  9  →→→  #.VERS1.SINK  2                                  ⍝ Default -sink was picked up! Note namespaces are refs, not strings.
+    ns.(ARGS funOut) ns.(≢¨ARGS funOut)          
+john  jacob  jingleheimer   Schmidt   3 1
 ```
  
                                                   
