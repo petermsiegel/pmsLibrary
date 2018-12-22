@@ -79,7 +79,10 @@ Options are included within comments on the same line as the __∆HERE__ call, e
   processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
  ```
 11. __opts__: __∆OPTS__ is not meant as a replacement for the ⎕SE.Parser, which is more flexible, but is useful when a user might be passing namespaces, class instances, or arrays.  It expects each argument to be passed separately (unless in ⎕TEXT) mode and parses each argument in turn, so that it can distinguish flags (options without values), options with string values, and options with arbitrary values.  See __Documentation__ _opts.help_ for details.     
-Example: ``` ns ← 'sourceNs::' 'sinkNs::' ∆OPTS '-so' #.MyNs '-si' #.SinkNs ```
+Example: ```)cs VERS1   
+         ns ← 'source::' ('SOURCE' ⎕NS '') 'sink::' ('SINK' ⎕NS '') ∆OPTS '-so' #.MyLib  ⍝ Leave -sinkNs as default 'VERS1.SINK   
+         (ns.source)(⎕NC 'ns.source')'→→→'(ns.sink)(⎕NC 'ns.sink')   
+   #.MyLib  9  →→→  #.SINK  2   ```
  
                                                   
 
