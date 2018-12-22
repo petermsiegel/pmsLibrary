@@ -82,8 +82,8 @@ Options are included within comments on the same line as the __∆HERE__ call, e
 ``` ⍝ Example
     )cs VERS1   
     so si←'SOURCE' 'SINK' ⎕NS¨'' ''                              ⍝ In advance set up DEFAULT -source and -sink namespaces
-    ns ← 'source::'  so  'sink::'  si  ∆OPTS '-so' #.MyLib <br>  ⍝ We'll use our own source #.MyLib instead of VERS1.SOURCE
-    (ns.source)(⎕NC 'ns.source')'→→→'(ns.sink)(⎕NC 'ns.sink')   <br>
+    ns ← 'source::'  so  'sink::'  si  ∆OPTS '-so' #.MyLib       ⍝ We'll use our own source #.MyLib instead of VERS1.SOURCE
+    (ns.source)(⎕NC 'ns.source')'→→→'(ns.sink)(⎕NC 'ns.sink')    
 #.MyLib  9  →→→  #.VERS1.SINK  2                                 ⍝ Default -sink was picked up! Note namespaces are refs, not strings.
 ```
  
