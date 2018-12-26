@@ -13,112 +13,13 @@
 
     :Section PREAMBLE and Table of Contents
   ⍝ ∘ NOTE: See bigIntHelp for details...
-  ⍝
-  ⍝ ∘ BigInt is a signed Big-Integer utility built around the unsigned big integer utility, dfns:nats.
-  ⍝   <nats> seems to have the fastest general-purpose multiply and divide in dfns.
-  ⍝ ∘ BIi: We've created an efficient BigInt Internal Data "structure" BIi (BI Internal) of this form:
-  ⍝        BIi ← sign  data
-  ⍝        where sign@I∊¯1 0 1, data@UV<10E6
-  ⍝              The sign is an integer;
-  ⍝              The data is an unsigned APL integer vector, whose elements are <RX (10E6).
-  ⍝        In functions manipulating signed numbers, zero is ALWAYS (sign:0 data:(,0)) making tests for 0 FAST.
-  ⍝        in unsigned functions, zero passed in and out is (,0).
-  ⍝        NOTE: Nats functions are modified to always return valid sign and <data>.
-  ⍝ ∘ BIx: The external format of BigIntegers, BIx, contains:
-  ⍝        on input:   "[¯-]?\d[\d_]*"  (a sign ¯ or - followed by at least 1 digit, and ≥0 underscores as spacers)
-  ⍝        on output:  "¯?[\d+]"
-  ⍝        Note: BigInt fns returning BIx only return output-format strings, never (say) '-25' or '25_123'.
-  ⍝ ∘ BIc: On occasion we'll mention BIc, a "character" string format string used as INPUT, as opposed to
-  ⍝        BIi (internal-format sign/data structure) or Int (APL Integer).
-  ⍝
-  ⍝ ∘ Operators BI (returns BIi) and BIX (returns BIx).
-  ⍝   We've added a range of monadic functions and extended the dyadic functions as well, all signed.
-  ⍝   The key easy-use utilities are BI and BIX, used (with '#.BigInt' in ⎕PATH) in this form:
-  ⍝       dyadic:    r:BIi← ⍺ +BI ⍵       r:BIx← ⍺ +BIX ⍵     with some exceptions (see below).
-  ⍝       monadic:   r:BIi←   ×BI ⍵       r:BIx←   ×BIX ⍵     ditto.
-  ⍝   For character string operands of BI/X, e.g. 'SQRT' or 'MOD',
-  ⍝   parentheses are usually required (case is ignored):
-  ⍝       dyadic: ⍺ ('MOD'BI)  ⍵      ←→   ⍺ mod ⍵     ⍝ Case matters for explicit function syntax!
-  ⍝       monadic:  ('SQRT'BI) ⍵      ←⍀     sqrt ⍵
-  ⍝   And some allow commutation directly, like |⍨ (a synonym for modulo):
-  ⍝               ⍺ |⍨BI ⍵     ←→  ⍺ |BI⍨ ⍵    ←→  ⍵ |BI ⍺
-  ⍝   BI works fine with APL standard commutation, reduction, and scan:
-  ⍝               +BI/⍵1 ⍵2 ⍵3...
-  ⍝               ⍺ ÷BI⍨ ⍵    ←→ ⍵ ÷BI ⍺
-  ⍝               +BI\⍵1 ⍵2 ⍵2...
-  ⍝
-  ⍝   BI doesn't return external BigInt strings, but ONLY internal format objects, for efficiency.
-  ⍝        (To convert to external, use ⍕BI or simply use BIX for the last computation in a series.)
-  ⍝   BIX is a variant of BI that returns BigInt strings wherever BI would return a BigInt-internal object.
-  ⍝         c +BIX x ×BI b +BI x ×BI a    ←→  ⍕BI c +BI x ×BI b +BI x ×BI a    ⍝ (a×x*2)+(b×x)+c
-  ⍝
-  ⍝   Given BIX, why use BI at all?
-  ⍝   ¯¯¯¯¯ ¯¯¯¯ ¯¯¯ ¯¯¯ ¯¯ ¯¯ ¯¯¯¯
-  ⍝   ∘ It is a bit more efficient for algorithms built around BigIntegers, esp. those with a lot of math.
-  ⍝     And... why not mix and match?
-  ⍝   For "desk calculator" uses, BIX is always a perfect choice.
-  ⍝
-  ⍝   Left operands (⍺⍺) to BI/X include:
-  ⍝       dyadic:  + - x ÷ *     | ⌈ ⌊ ≠ < ≤ = ≥ > ≠ ⌽  ∨ ∧
-  ⍝       monadic: + - x ÷   ! ? | ⌈ ⌊   <       >      ⊥ ⊤ ⍎ ⍕ ←
-  ⍝   (All return integer results).
-  ⍝
-  ⍝   Those with special meaning include:
-  ⍝       dyadic:  ⌽ (mul10), ∨ (gcd), ∧ (lcm)
-  ⍝       monadic: ? (roll on ⍵>0), ⊥ ⊤ (bit manipulation), ⍎ (convert to APL int), ⍕ (convert to BI string)
-  ⍝                ← (return BI-internal format)
-  ⍝ ∘ Arguments to most functions are BigIntegers of any BIx form:
-  ⍝       a single BigInteger string in quotes    '-2343_243422'
-  ⍝       a single APL signed integer (whether stored as an integer or float)   ¯2343243422
-  ⍝       a BI internal-format vector, consisting of a scalar sign followed by a data vector of unsigned numbers;
-  ⍝          See the internal format (above).     ¯1 (2343 243422)
-  ⍝ ∘ Instead of using operand with BI (+BI), a set of BigInteger functions can be called directly:
-  ⍝       dyadic:   ⍺ plus ⍵ ⋄  ⍺ gcd ⍵ ⋄⋄⋄
-  ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
-  ⍝   These all return a BIi (BigInteger internal format), with a few exceptions (exp/ort returns a BIx).
-  ⍝   Many local functions have abbreviated synonyms. Local functions include:
-  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) mul10 times10 div(ide)10
-  ⍝       neg(ate) sig(num) magnitude (abs) roll
-  ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
-  ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).
-  ⍝
-  ⍝ ∘ Bit strings are passed to the user as two's-complement boolean vectors,
-  ⍝   with the lowest-order bit first (so ⍵[0] is the LOB),
-  ⍝   and the sign-bit last, i.e. as the highest-order bit (i.e. ⊃⌽⍵ is 1, if the # if negative).
-  ⍝
-  ⍝ Notable enhancements compared to dfns:nats:
-  ⍝ ∘ Input BI strings may have ¯ or - prefixed for negative numbers and may include _ as spacers,
-  ⍝   which are ignored:   e.g.  '-553_555_555'    '¯99999_12345_12345'    '00000_00000_00000'
-  ⍝ ∘ ⌽BI is used to shift (not rotate) decimal digits left and right,
-  ⍝   i.e. to multiply and divide by 10**⍵ very quickly and efficiently.
-  ⍝      ∘ Example: A million-digit string ⍵ can be multiplied by 10*10000 in 0.012 seconds via
-  ⍝        10000 ⌽BI ⍵
-  ⍝ ∘ We include ⊤BI and ⊥BI to convert BI's to and from APL bits, so that APL ⌽ ∧ ∨ = ≠ can be used for
-  ⍝   various bit manipulations on BIx; a utility BIB (Big Integer Bits) has been provided as well.
-  ⍝ ∘ We support an efficient (Newton's method) integer sqrt:
-  ⍝        ('SQRT' BI)⍵ or ('√' BI)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
-  ⍝ ∘ We include ?BI to allow for a random number of any number of digits and !BI to allow for
-  ⍝   factorials on large integers.  (!BI does not use memoization, but the user could extend it.)
+  ⍝   Call bigInt.help or ⎕EDIT 'bigIntHelp'
 
-
-  ⍝ TABLE OF CONTENTS
-  ⍝    Preamble for Namespace and Table of Contents
-  ⍝    BigInt Namespace and Utility BI
-  ⍝        BigInt and BI - Initializations
-  ⍝        BI Utility - Monadic operands
-  ⍝           Helpers
-  ⍝        BI Utility - Dyadic operands
-  ⍝           Helpers
-  ⍝        BI Utility - Service Routines
-  ⍝        BI Utility - Executive
-  ⍝    Utilities BIB, BIC, BI∆HERE
-  ⍝    Postamble for Namespace
-  ⍝    Documentation   All HELP Documentation is in bigIntHelp
     :EndSection PREAMBLE and Table of Contents
 
     :Section BigInt Namespace and Utility BI - Initializations
   ⍝+------------------------------------------------------------------------------+⍝
-  ⍝+-- BI INITIALIZATIONS                           BI INITIALIZATIONS          --+⍝
+  ⍝+-- BI INITIALIZATIONS                            BI INITIALIZATIONS          --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
@@ -158,17 +59,69 @@
   ⍝
   ⍝
 
-  ⍝ RX:  Radix for internal BI integers. Ensure ⍵×⍵ doesn't overflow in 32-bit integer.
-  ⍝ DRX: # Decimal digits that RX must hold.
-  ⍝ BRX: # Binary  digits required to hold DRX digits. (See encode2Bits, decodeFromBits).
+  ⍝ =====================================================================================
+  ⍝   BigInt key constants...
+  ⍝   SetHandSizeInBits determines the key "constants" below.
+  ⍝     Call:   SetHandSizeInBits(BRX)
+  ⍝   Acceptable Values for BRX (radix, i.e. hand size, in bits)
+  ⍝     20     Fastest for all functions, except multiplication, where 40 is faster..
+  ⍝     40     Faster for multiplication, but slower than 20 for other operations.
+  ⍝
+  ⍝     BRX   Stored    Overflow   Overflow
+  ⍝     Bits  Type      Bits (×)   Type         (Types are Signed in APL)
+  ⍝     20    32-bit    40         Float 64
+  ⍝     26    32-bit    52         Float 64
+  ⍝     30    32-bit    60         Dec Flt 128
+  ⍝     45    32-bit    90         Dec Flt 128
+  ⍝
+  ⍝ =====================================================================================
+  ⍝ RX:  Radix* for internal BI integers.
+  ⍝ DRX: # Decimal digits* that RX must hold.
+  ⍝ BRX: # Binary  digits* required to hold DRX digits. (See encode2Bits, decodeFromBits).
   ⍝ OFL: integer size in timesU beyond which digits must be split to prevent overflow.
   ⍝      OFL is a function of the # of guaranteed mantissa bits in the largest (float) number used
-  ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX*2, since it's the bits of ⍺×⍵.
+  ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX×2, since it's the bits of ⍺×⍵.
   ⍝ ⎕FR: Whether floating rep is 64-bit float (53 mantissa bits, and fast)
   ⍝      or 128-bit decimal (93 mantissa bits and much slower).
-    ⎕FR←645 ⍝ Choice determines DRX, RX, BRX, and OFL.
-    BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12
-        OFL←{⌊(2*⍵)÷RX*2}(⎕FR=1287)⊃53 93
+  ⍝ --------------------------------
+  ⍝ * RX etc. are a function of bigInt.
+    ⍝ ⎕FR←645                                ⍝ Choice determines DRX, RX, BRX, and OFL.
+    ⍝ BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12       ⍝ Bits* for radix (root)
+    ⍝ OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93      ⍝ Bits* for overflow in multiplication
+
+    ∇ {ok}←{verbose}SetHandSizeInBits brx;brxMax;brxMid
+      verbose←1=0{0=⎕NC ⍵:⍺ ⋄ ⎕OR ⍵}'verbose'
+      brxMid brxMax←⌊53 93÷2        ⍝ Max bits to fit in Binary(645) and Dec Float (1287) resp.
+     
+      :If 0≠1↑0⍴brx ⋄ :AndIf 1=⊃⎕VFI brx ⋄ :AndIf (⊂brx)∊'645' '1287'
+          brx←⊃⌽⎕VFI brx
+      :EndIf
+      'bigInt: invalid max bits for big integer base'⎕SIGNAL 11/⍨0≠1↑0⍴brx
+      :If brx=1287 ⋄ brx←brxMax
+      :ElseIf brx=645 ⋄ brx←brxMid ⋄ :EndIf
+     
+      BRX←brx
+      :If BRX>brxMax ⋄ :OrIf brx<2
+          11 ⎕SIGNAL⍨'bigInt: bits for internal base ("hand" size) must be integer in range 2..',⍕brxMax
+      :ElseIf BRX>brxMid
+          ⎕FR←1287
+      :Else
+          ⎕FR←645
+      :EndIf
+      DRX←⌊10⍟2*BRX
+      RX←10*DRX
+      OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
+      :If verbose
+          ⎕←'# bits in base     BRX   ',BRX,'    (base repr. size of bigInteger "hand")'
+          ⎕←'Floating rep       ⎕FR   ',⎕FR
+          ⎕←'⌊10⍟2*BRX          DRX   ',DRX
+          ⎕←'10*DRX  (dec)      RX    ',RX
+          ⎕←'mult. overflow     OFL   ',OFL
+      :EndIf
+      ok←1
+    ∇
+    SetHandSizeInBits 645
+
 
   ⍝ Data field (unsigned) constants
     ZEROd←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
@@ -197,9 +150,9 @@
 
     ⍝ listMonadFns }  [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns  }  ditto
-    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√' (⊂'SQRT') ⍝ Remove ←
+    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT') ⍝ Remove ←
     ⍝            reg. fns       boolean
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽', '<≤=≥>≠') ('MUL10'  'TIMES10' 'DIV10'   'DIVREM' 'MOD')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVREM' 'MOD')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -267,13 +220,13 @@
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
-    note'Created operator BI'⊣⎕FX 'BIX' '∆exp∆¨?'⎕R 'BI' ''⊣⎕NR 'BIX'
-    note'Created operator BIX'⊣⎕FX '∆exp∆'⎕R 'exp'⊣⎕NR 'BIX'
+    note'Created operator BI'⊣⎕FX'BIX' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'BIX'
+    note'Created operator BIX'⊣⎕FX'∆exp∆'⎕R'exp'⊣⎕NR'BIX'
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
 
-    :Endsection BI Executive   --------------------------------------------------------------------
+    :EndSection BI Executive   --------------------------------------------------------------------
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BigInt internal structure
@@ -336,7 +289,7 @@
 
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
     ⍝      If ⍵:BIi has data≡ZEROD, then return (0 ZEROd). Else return ⍵ w/ leading zero deleted.
-    ∆z←{ (⊃⍵)(zro dlz ⊃⌽⍵)}
+    ∆z←{(⊃⍵)(zro dlz⊃⌽⍵)}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
