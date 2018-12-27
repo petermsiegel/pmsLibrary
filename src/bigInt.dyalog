@@ -102,7 +102,7 @@
      
       BRX←brx
       :If BRX>brxMax ⋄ :OrIf brx<2
-          11 ⎕SIGNAL⍨'bigInt: bits for internal base ("hand" size) must be integer in range 2..',⍕brxMax
+          11 ⎕SIGNAL⍨'bigInt: bits for internal base must be integer in range 2..',⍕brxMax
       :ElseIf BRX>brxMid
           ⎕FR←1287
       :Else
@@ -112,15 +112,19 @@
       RX←10*DRX
       OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
       :If verbose
-          ⎕←'# bits in base     BRX   ',BRX,'    (base repr. size of bigInteger "hand")'
+          ⎕←'nbits in radix(*)  BRX   ',BRX
           ⎕←'Floating rep       ⎕FR   ',⎕FR
-          ⎕←'⌊10⍟2*BRX          DRX   ',DRX
-          ⎕←'10*DRX  (dec)      RX    ',RX
-          ⎕←'mult. overflow     OFL   ',OFL
+          ⎕←'ndigits in radix   DRX   ',DRX
+          ⎕←'Radix (10*DRX)     RX    ',¯3⍕RX
+          ⎕←'max ⍵ for ⍵×⍵ (**) OFL   ',OFL
+          ⎕←'*  Radix: Each bigInt is composed of 0 or more integers,'
+          ⎕←'   each between 0 and RX-1, and a sign'
+          ⎕←'** OFL: maximum size of a number before splitting'
+          ⎕←'   into smaller numbers to avoid multiplication overflow.'
       :EndIf
       ok←1
     ∇
-    SetHandSizeInBits 645
+    1 SetHandSizeInBits 20
 
 
   ⍝ Data field (unsigned) constants
