@@ -17,7 +17,9 @@
      ⍝  debug:          -d[ebug]                          0
      ⍝  callerNs:       -c[aller] nsRef|=nsStr              (the actual caller)
      ⍝  defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *
-     ⍝                  nsRef                       **
+     ⍝                  nsRef                                **
+     ⍝                  -s[ession] Alias for -lib=⎕SE
+     ⍝                  -r[oot]    Alias for -lib=#
      ⍝  outputParms:    -o[utput]  =['s'|'l'|'sl']
      ⍝                        s: status of each package specified
      ⍝                        l: the library used
@@ -45,7 +47,7 @@
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
            ⍝ parse:
-           ⍝  Allow options -c, -l, -o to support ⎕SE.Parser format -c=str
+           ⍝  Allow options -c, -l, -o, -s to support ⎕SE.Parser format -c=str
            ⍝  OR -c refNs, a format for passing actual namespaces or strings (*).
            ⍝     * To deal with cases where a ns does not have a name string, i.e.
            ⍝       i.e.(⍎⍕ns) is an error.
@@ -57,11 +59,13 @@
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
              9=⎕NC'o':∇ next⊣lib∘←o
              o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
-             o is'-f':∇ next⊣force∘←1
-             o is'-d':∇ next⊣debug∘←1
-             o is'-c':∇'caller∘←'parse o
-             o is'-l':∇'lib∘←'parse o
-             o is'-o':∇'out∘←'parse o
+             o is'-f':∇ next⊣force∘←1     ⍝ -f[orce]
+             o is'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
+             o is'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
+             o is'-r':∇ next⊣lib∘←#       ⍝ -r[oot]
+             o is'-c':∇'caller∘←'parse o  ⍝ -c[aller]=nsName | -c[aller] nsRef
+             o is'-l':∇'lib∘←'parse o     ⍝ -l[ib]=nsName    | -l[ib]    nsRef
+             o is'-o':∇'out∘←'parse o     ⍝ -o[utput]=[s|l|sl]    Output: s[tatus] l[ibrary]
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
