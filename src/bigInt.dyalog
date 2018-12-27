@@ -78,9 +78,11 @@
   ⍝ RX:  Radix* for internal BI integers.
   ⍝ DRX: # Decimal digits* that RX must hold.
   ⍝ BRX: # Binary  digits* required to hold DRX digits. (See encode2Bits, decodeFromBits).
-  ⍝ OFL: integer size in timesU beyond which digits must be split to prevent overflow.
+  ⍝ OFL: For multiplies (mulU) of unsigned big integers ⍺ × ⍵,
+  ⍝      the length (in # of hands, i.e. base RX digits) of the larger of ⍺ and ⍵,
+  ⍝      beyond which digits must be split to prevent overflow.
   ⍝      OFL is a function of the # of guaranteed mantissa bits in the largest (float) number used
-  ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX×2, since it's the bits of ⍺×⍵.
+  ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX×2, since it's the potential accumulated bits of ⍺×⍵.
   ⍝ ⎕FR: Whether floating rep is 64-bit float (53 mantissa bits, and fast)
   ⍝      or 128-bit decimal (93 mantissa bits and much slower).
   ⍝ --------------------------------
@@ -117,14 +119,15 @@
           ⎕←'ndigits in radix   DRX   ',DRX
           ⎕←'Radix (10*DRX)     RX    ',¯3⍕RX
           ⎕←'max ⍵ for ⍵×⍵ (**) OFL   ',OFL
-          ⎕←'*  Radix: Each bigInt is composed of 0 or more integers,'
-          ⎕←'   each between 0 and RX-1, and a sign'
-          ⎕←'** OFL: maximum size of a number before splitting'
-          ⎕←'   into smaller numbers to avoid multiplication overflow.'
+          ⎕←'*   Radix: Each bigInt is composed of 0 or more integers (hands),'
+          ⎕←'    each between 0 and RX-1, and a sign'
+          ⎕←'**  OFL: maximum # of "hands" in bigInt ⍵ allowed before splitting ⍵'
+          ⎕←'    into smaller numbers to avoid multiplication overflow.'
+          ⎕←'*** ⎕FR 645: 53 bits avail;  1287: 93 bits available'
       :EndIf
       ok←1
     ∇
-    1 SetHandSizeInBits 20
+    0 SetHandSizeInBits 20
 
 
   ⍝ Data field (unsigned) constants
