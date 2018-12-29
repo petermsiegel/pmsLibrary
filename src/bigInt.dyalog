@@ -1,5 +1,7 @@
 ﻿:namespace bigInt
+    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
     VERBOSE←0
+    VERBOSE←VERBOSE∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
     ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
 
     ∇ {_}←loadHelp
@@ -23,7 +25,6 @@
   ⍝-------------------------------------------------------------------------------+⍝
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
-    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
 
     ⎕TRAP←(911+DEBUG) 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
 
@@ -41,6 +42,7 @@
   ⍝          ∘ Some routines use (zro BIi) to make sure every BIi has at least one digit. See BIz.
   ⍝    BIu  -unsigned internal-format BIi (vector of integers):  (|BIi)
   ⍝    BIz  -signed internal-format BIi, but of form (zro ⍵), so that zero is return with exactly 1 digit 0.
+  ⍝
   ⍝   EXTERNAL-FORMAT BIs
   ⍝    BIx  -an external-format Big Integer, i.e. a character string. When entered by the user,
   ⍝          several variants are accepted:
@@ -56,19 +58,35 @@
   ⍝          ∘ 0 is represented by (,'0'), unsigned with no extra '0' digits.
   ⍝   OTHER TYPES
   ⍝    Int  -an APL-format single integer, often in range ⍵<RX.
-  ⍝
-  ⍝
 
   ⍝ =====================================================================================
-  ⍝   BigInt key constants...
-  ⍝   SetHandSizeInBits determines the key "constants" below.
-  ⍝     Call:   SetHandSizeInBits(BRX)
-  ⍝   Acceptable Values for BRX (radix, i.e. hand size, in bits)
+  ⍝ {ok=1}←setHandSizeInBits [nn | frType | 0]
+  ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
+  ⍝      frType:  either 645 or 1287, corresponding to the largest # of bits
+  ⍝               for either ⎕FR=645 or 1287. ⍵ must be 645 or 1287
+  ⍝      0:       choose best value, currently 20.  See brxBest below...
+  ⍝
+  ⍝   This function is available to test performance with different
+  ⍝   "hand" sizes in bits (see below). The hand is the radix for each integer
+  ⍝   stored in the data part of a bigInteger. Hands are set so that the data
+  ⍝   field consists solely of integers (managed by APL but maximally 32-bit signed integers);
+  ⍝   they are sized and ⎕FR is adjusted so that any overflow still fits in the mantissa
+  ⍝   of the largest storage format, either a 64-bit binary float (mantissa 53 bits) or
+  ⍝   as 128-bit decimal float (93-bits). While floats won't be seen unless there is
+  ⍝   overflow, there is a balance between handling large numbers of hands (vectors)
+  ⍝   and integer vs floatmath (notably decimal floats, which are very slow).
+  ⍝
+  ⍝   >>> From initial tests, 20-bits works well everywhere.
+  ⍝
+  ⍝   setHandSizeInBits: sets all the key constants:
+  ⍝       RX, DRX, BRX, OFL, and ⎕FR.
+  ⍝
+  ⍝   Good Values for BRX (radix, i.e. hand size, in bits)
   ⍝     20     Fastest for all functions, except multiplication, where 40 is faster..
   ⍝     40     Faster for multiplication, but slower than 20 for other operations.
   ⍝
   ⍝     BRX   Stored    Overflow   Overflow
-  ⍝     Bits  Type      Bits (×)   Type         (Types are Signed in APL)
+  ⍝     Bits  Type      Bits (×)   Type         (Types are always Signed in APL)
   ⍝     20    32-bit    40         Float 64
   ⍝     26    32-bit    52         Float 64
   ⍝     30    32-bit    60         Dec Flt 128
@@ -89,30 +107,28 @@
   ⍝ * RX etc. are a function of bigInt.
     ⍝ ⎕FR←645                                ⍝ Choice determines DRX, RX, BRX, and OFL.
     ⍝ BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12       ⍝ Bits* for radix (root)
-    ⍝ OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93      ⍝ Bits* for overflow in multiplication
+    ⍝ OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93     ⍝ Bits* for overflow in multiplication
 
-    ∇ {ok}←{verbose}SetHandSizeInBits brx;brxMax;brxMid
-      verbose←1=0{0=⎕NC ⍵:⍺ ⋄ ⎕OR ⍵}'verbose'
+    ∇ {ok}←{verbose}setHandSizeInBits brx;brxBest;brxMax;brxMid;eBAD
+    ⍝ Set key constants/initial values...
+      verbose←1='verbose'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+      brxBest←20                    ⍝ "Ideal" default for BRX
       brxMid brxMax←⌊53 93÷2        ⍝ Max bits to fit in Binary(645) and Dec Float (1287) resp.
-     
-      :If 0≠1↑0⍴brx ⋄ :AndIf 1=⊃⎕VFI brx ⋄ :AndIf (⊂brx)∊'645' '1287'
-          brx←⊃⌽⎕VFI brx
+    ⍝ Handle frType and 0; ensure brx in proper range...
+       ⋄ eBAD←'bigInt: invalid max bits for big integer base'
+      eBAD ⎕SIGNAL 11/⍨(0≠1↑0⍴brx)∨(1≠≢brx)
+      brx←(∊brxMax brxMid brxBest brx)[1287 645 0⍳brx]  ⍝ frType or 0 → BRX equivalents
+      :If brx>brxMax ⋄ :OrIf brx<2
+           ⋄ eBAD←'bigInt: bits for internal base must be integer in range 2..',⍕brxMax
+          11 ⎕SIGNAL⍨eBAD
       :EndIf
-      'bigInt: invalid max bits for big integer base'⎕SIGNAL 11/⍨0≠1↑0⍴brx
-      :If brx=1287 ⋄ brx←brxMax
-      :ElseIf brx=645 ⋄ brx←brxMid ⋄ :EndIf
-     
+    ⍝ Set key bigInt constants...
+      ⎕FR←645 1287⊃⍨brx>brxMid
       BRX←brx
-      :If BRX>brxMax ⋄ :OrIf brx<2
-          11 ⎕SIGNAL⍨'bigInt: bits for internal base must be integer in range 2..',⍕brxMax
-      :ElseIf BRX>brxMid
-          ⎕FR←1287
-      :Else
-          ⎕FR←645
-      :EndIf
       DRX←⌊10⍟2*BRX
       RX←10*DRX
       OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
+    ⍝ Report...
       :If verbose
           ⎕←'nbits in radix(*)  BRX   ',BRX
           ⎕←'Floating rep       ⎕FR   ',⎕FR
@@ -127,15 +143,16 @@
       :EndIf
       ok←1
     ∇
-    0 SetHandSizeInBits 20
+    0 setHandSizeInBits 0
 
 
   ⍝ Data field (unsigned) constants
-    ZEROd←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
-    ONEd←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
+    zeroUD←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
+    oneUD←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI←'Invalid BigInteger'
+    eNONINT←'Invalid BigInteger: APL number not an integer: '
     eCANTDO1←'Monadic function not implemented as BI operand: '
     eCANTDO2←'Dyadic function not implemented as BI operand: '
     eINVALID←'Format of big integer is not valid: '
@@ -245,13 +262,14 @@
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
 
-      ⍝ ∆:   [BIi] BIi ← ⍺@BIx ∇ ⍵@BIx
-      ⍝ ∆:   Returns an internal-format BI (BIi), given a BIi, an external string (BIstr) or APL signed integer.
-      ⍝      Monadic: Returns for ⍵, (sign data) in the format above.
-      ⍝      Dyadic:  Returns for ⍺ ⍵, (sign data)(sign data).
-      ⍝
-      ⍝ ∆: Convert any external-format BI (BIx) to a BIi, internal-format BI, sign data pair.
-
+      ⍝ ∆: Convert 
+      ⍝    ... from external-format (BIc) (⍺ and) ⍵-- 
+      ⍝             each either a BigInteger string or an APL integer-- 
+      ⍝    ... to internal format (BIi) BigIntegers (⍺' and) ⍵',
+      ⍝             each of the form sign (data), where data is an integer vector.
+      ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
+      ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
+      ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
       ∆←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
@@ -265,14 +283,15 @@
           err eBADBI
       }
       ⍝ ∆Num: Convert an APL integer into a BIi
-      ⍝ ∆Num and ∆BigNum merged-- ∆Num was inaccurate.
-      ⍝
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
-      ⍝ These must be in the range of decimal integers (up to +/- 1E6145)
-      ⍝ Usage:   ?BIX ∆Num 1E100   ←→   ?BIX '1',100⍴'0'
+      ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
+      ⍝ (If not, use big integer strings of any length, without exponents).
+      ⍝ Normally, ∆Num is not called by the user, since BI and BIX call it automatically.
+      ⍝ Usage:   
+      ⍝    ?BIX 1E100 calls (bigInt.∆Num 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆Num←{⎕FR←1287
-          ⍵≠⌊⍵:err eBADBI
+          ⍵≠⌊⍵:err eNONINT,⍕⍵
           (×⍵)(zro RX⊥⍣¯1⊣|⍵)
       }
 
@@ -295,7 +314,7 @@
     exp←export
 
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
-    ⍝      If ⍵:BIi has data≡ZEROD, then return (0 ZEROd). Else return ⍵ w/ leading zero deleted.
+    ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD). Else return ⍵ w/ leading zero deleted.
     ∆z←{(⊃⍵)(zro dlz⊃⌽⍵)}
 
     :EndSection BigInt internal structure
@@ -305,41 +324,41 @@
     ⍝ The first name will be the APL std name (exceptions noted), followed by
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
 
-      negate←{
+      negate←{                          ⍝ -
           (sw w)←∆ ⍵
           (-sw)w
       }
     neg←negate
-      direction←{
+      direction←{                       ⍝ ×
           (sw w)←∆ ⍵
           sw(|sw)
       }
     signum←direction
     sig←direction
-      magnitude←{
+      magnitude←{                        ⍝ |
           (sw w)←∆ ⍵
           (|sw)w
       }
     abs←magnitude
 
-    ⍝ increment: BIi ← ∇ BI.  r← ⍵ + 1. ⍵ signed.
+    ⍝ increment:                          ⍵+1
       increment←{
           (sw w)←∆ ⍵                    ⍝  If ⍵<0, increment is towards 0.
-          sw=0:1 ONEd
+          sw=0:1 oneUD
           sw=¯1:∆z sw(⊃⌽decrement 1 w)  ⍝ inc ¯5: Do -(dec 5)
           î←1+⊃⌽w
           RX>î:sw w⊣(⊃⌽w)←î             ⍝ If î won't overflow, increment and we're done!
-          sw w plus 1 ONEd              ⍝ Overflow? Do long way
+          sw w plus 1 oneUD              ⍝ Overflow? Do long way
       }
     inc←increment
-    ⍝ decrement: BIi ← ∇ BI.  r← ⍵ - 1. ⍵ signed.
+    ⍝ decrement:                         ⍵-1
       decrement←{
-          (sw w)←∆ ⍵                    ⍝ If ⍵<0, decrement is away from 0.
-          sw=0:¯1 ONEd
-          sw=¯1:∆z sw(⊃⌽increment 1 w) ⍝ dec ¯5: Do -(inc 5)
-     
-          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ If won't underflow, decrement and we're done!
-          sw w minus 1 ONEd             ⍝ Underflow? Do long way.
+          (sw w)←∆ ⍵
+          sw=0:¯1 oneUD                  ⍝ ⍵ is zero? Return ¯1
+          sw=¯1:∆z sw(⊃⌽increment 1 w)  ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0
+                                        ⍝ ⍵>0...
+          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1        ⍝ Last digit >0? ⍵-1 won't underflow, so fast decrement in place
+          sw w minus 1 oneUD             ⍝ Underflow will happen... Do long way.
       }
     dec←decrement
 
@@ -350,12 +369,12 @@
     ⍝    ⍵ ≤ 31:    We let APL calculate, with ⎕PP←34.   Fast.
     ⍝    ⍵ ≤ DRX:   We calculate r as a BigInt, while counting down ⍵ as an APL integer. Moderately fast.
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
-      factorial←{
+      factorial←{                           ⍝ !⍵
           aw w←∆ ⍵
-          aw=0:0 ZEROd
-          aw=¯1:err eFACTOR
+          aw=0:0 zeroUD                      ⍝ !0
+          aw=¯1:err eFACTOR                 ⍝ ⍵<0
           factBig←{
-              1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ⍵ is small enough...
+              1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ≢⍵ is 1 hand.
               (⍺ mulU ⍵)∇⊃⌽decrement 1 ⍵
           }
           factSmall←{
@@ -367,25 +386,21 @@
     fact←factorial
 
     ⍝ rand ⍵: Compute a random number between 0 and ⍵-1, given ⍵>0.
-    ⍝    r:BIc ← ∇ ⍵:BIc   ⍵>0.
-    ⍝ First computes a random # r with between 0 and ⍵', where ⍵' is a decimal number
-    ⍝ with the same # of digits as ⍵ canonicalized (remove sign, leading zeros, etc.).
-    ⍝ Uses ⎕PP←34 and ?0 to collect 34 random digits per call, up to number needed.
-    ⍝ Then,
-    ⍝     [fast] If r canonicalized has fewer decimal digits than ⍵', return r.
-    ⍝     [slow] If the same number of decimal digits, compute r'←(⍵ | r) to return r' in range.
+    ⍝    r:BIi ← ∇ ⍵:BIi   ⍵>0.
+    ⍝ With inL the # of dec digits in ⍵, excluding any leading '0' digits...
+    ⍝ Proceed as shown here, where (exp ⍵) is "exported" BI format; (∆ ⍵) is internal BI format.
       roll←{
           aw w←∆ ⍵
           aw≠1:err eBADRAND
-          ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0
+          ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0 is optimal
           inL←≢exp aw w                          ⍝ ⍵: in exp form. in: ⍵ with leading 0's removed.
      
-          out←∆T←inL⍴{                           ⍝ out: BIi
-              ⍺←''                               ⍝ ?0 of form 0.nnn...nnn with 34 digits after dec pt.
-              ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕#.?0)∇ ⍵-⎕PP        ⍝ Generate 16-digit numbers at a time. Generate in # to avoid ? quirk.
-          }inL                                   ⍝ Get the length of the BI string!
-          inL>≢out:out                           ⍝ exp? Yes. ← If out already has fewer digits than ⍵, we're done.
-          ⍵ residue out                          ⍝ exp? Yes. ← Compute out' ← in | out.
+          res←inL⍴{                              ⍝ res is built up to ≥inL random digits...
+              ⍺←''                               ⍝ ...
+              ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕?0)∇ ⍵-⎕PP          ⍝ ... ⎕PP digits at a time.
+          }inL                                   ⍝ res is then truncated to exactly inL digits
+          '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
+          ⍵ residue ∆ res                        ⍝ Otherwise, compute residue r: 0 ≤ r < ⍵.
       }
 
 
@@ -470,18 +485,17 @@
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
      
-          sa≠sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
-          a ltU w:(-sw)(nupZ-⌿dck w mix a)      ⍝ 3-5 →  -(5-3)
+          sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
+          a ltU w:(-sw)(nupZ-⌿dck w mix a)     ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
     subtract←minus
     sub←minus
-
       times←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          0∊sa,sw:0 ZEROd
-          ONEd≡a:(sa×sw)w
-          ONEd≡w:(sa×sw)a
+          0∊sa,sw:0 zeroUD
+          oneUD≡a:(sa×sw)w
+          oneUD≡w:(sa×sw)a
           (sa×sw)(a mulU w)
       }
     mul←times
@@ -498,7 +512,7 @@
     divRem←divideRem
       power←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          sw=¯1:0 ZEROd            ⍝ ⍺*¯⍵ is <1, so truncates to 0.
+          sw=¯1:0 zeroUD            ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a powU w
           sa≠¯1:1 p                ⍝ sa= 1 (can't be 0).
           0=2|⊃⌽w:1 p              ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
@@ -507,7 +521,7 @@
     pow←power
       residue←{                    ⍝ residue. THIS FOLLOWS APL'S DEFINITION…
           (sa a)(sw w)←⍺ ∆ ⍵
-          sw=0:ZEROd
+          sw=0:zeroUD
           sa=0:sw w
           r←a remU w               ⍝ r: remainder
           sa=sw:sa r               ⍝ sa=sw: return r       (r: signed)
@@ -526,7 +540,7 @@
       times10←{
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                        ⍝ ⍵ must be small integer.
-          sa=0:0 ZEROd                             ⍝ ⍺ is zero: return 0.
+          sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
           sw=0:sa a                                ⍝ ⍵ is zero: ⍺ stays as is.
           ustr←export 1 a                          ⍝ ⍺ as unsigned string
           ss←'¯'/⍨sa=¯1                            ⍝ sign as string
@@ -577,17 +591,17 @@
     ⍝ We call ndnZ to remove extra zeros, esp. so zero is exactly ,0 and 1 is ,1.
       mulU←{
           ⍺{                                      ⍝ product.
-              ndnZ 0,↑⍵{                       ⍝ canonicalised vector.
+              ndnZ 0,↑⍵{                          ⍝ canonicalised vector.
                   digit take←⍺                    ⍝ next digit and shift.
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
               }/(⍺,¨(≢⍵)+⌽⍳≢⍺),⊂,0                ⍝ digit-shift pairs.
           }{                                      ⍝ guard against overflow:
               m n←,↑≢¨⍺ ⍵                         ⍝ numbers of RX-digits in each arg.
               m>n:⍺ ∇⍨⍵                           ⍝ quicker if larger number on right.
-              n<OFL:⍺ ⍺⍺ ⍵                       ⍝ ⍵ won't overflow: proceed.
+              n<OFL:⍺ ⍺⍺ ⍵                        ⍝ ⍵ won't overflow: proceed.
               s←⌊n÷2                              ⍝ digit-split for large ⍵.
               p q←⍺∘∇¨(s↑⍵)(s↓⍵)                  ⍝ sub-products (see notes).
-              ndnZ 0,+⌿(p,s↓n⍴0)mix q          ⍝ sum of sub-products.
+              ndnZ 0,+⌿(p,s↓n⍴0)mix q             ⍝ sum of sub-products.
           }⍵
       }
    ⍝ powU: compute ⍺*⍵ for unsigned ⍺ and ⍵. (⍺ may not be omitted).
@@ -595,8 +609,8 @@
    ⍝       For ⍺*1, returns 0 ⍺, which indicates to caller to use sign sa of left operand ⍺'.
    ⍝
       powU←{                                  ⍝ exponent.
-          ⍵≡ZEROd:ONEd                        ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          ⍵≡ONEd:,⍺                           ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          ⍵≡zeroUD:oneUD                      ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
+          ⍵≡oneUD:,⍺                          ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
           hlf←{,ndn(⌊⍵÷2)+0,¯1↓(RX÷2)×2|⍵}    ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
@@ -606,8 +620,8 @@
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIi[2] ← ⍺:BIi ∇ ⍵:BIi
       divU←{
-          ZEROd≡⍵:⍺{                          ⍝ ⍺÷0
-              ZEROd≡⍺:ONEd                    ⍝ 0÷0 → 1 remainder 0
+          zeroUD≡⍵:⍺{                         ⍝ ⍺÷0
+              zeroUD≡⍺:oneUD                  ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
           }⍵
           svec←(≢⍵)+⍳0⌈1+(≢⍺)-≢⍵              ⍝ shift vector.
@@ -621,7 +635,7 @@
                       (≥cmp ⍺ mix ⍵)⊃lo hi    ⍝ low or high.
                   }dlz ndn 0,hi×q             ⍝ multiple.
                   mid←⌊0.5×lo+hi              ⍝ mid-point.
-                  nxt←dlz ndn 0,q×mid             ⍝ next multiplier.
+                  nxt←dlz ndn 0,q×mid         ⍝ next multiplier.
                   gt←>cmp p mix nxt           ⍝ greater than:
                   ⍺ ∇ gt⊃2,/lo mid hi         ⍝ choose upper or lower interval.
               }⌊0 1+↑÷/ppqq+(0 1)(1 0)        ⍝ lower and upper bounds of ratio.
@@ -645,13 +659,13 @@
 
     atom←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
 
-  ⍝ …    routines operate on unsigned BIi data unless documented…
+  ⍝ These routines operate on unsigned BIi data unless documented…
     dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
     zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Converts BIi to BIz, so even 0 has one digit (,0).
     dlzs←{zro(∨\⍵≠0)/⍵}                     ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
-        ndn←{ +⌿1 0⌽0 RX⊤⍵}⍣≡                   ⍝ normalise down: 3 21 → 5 1 (RH).
+        ndn←{ +⌿1 0⌽0 RX⊤⍵}⍣≡               ⍝ normalise down: 3 21 → 5 1 (RH).
     ndnZ←dlz ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
-        nup←{⍵++⌿0 1⌽RX ¯1∘.×⍵<0}⍣≡             ⍝ normalise up:   3 ¯1 → 2 9
+        nup←{⍵++⌿0 1⌽RX ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dlz nup                            ⍝ PMS
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
     ltU←{<cmp ⍺ mix ⍵}                      ⍝ unsigned ⍺ < ⍵                 [pms]
@@ -851,14 +865,14 @@
      
       opt←('Mode' 'M')('EOL' 'LF')('IC' 1)('UCP' 1)('DotAll' 1)
       pat←'^ (?: \h* ⍝?:BI \b \N*$) (.*?) (?: \R ⍝?:ENDBI \b \N*$)'~' '
-      callerCode←(1+⎕LC⊃⍨1+⎕IO)↓⎕NR callerNm←⎕SI⊃⍨1+⎕IO
+      ⎕←callerCode←(1+⎕LC⊃⍨1+⎕IO)↓⎕NR callerNm←⎕SI⊃⍨1+⎕IO
      
       cloneNm←callerNm,'__BigInteger_TEMP'
       callback←cloneNm,' ⋄ →0'
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
     ⍝ starting with a statement to erase the clone
       :Trap 0
-          :If 0=1↑0⍴⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(¯1 BIC callerCode)
+          :If 0=1↑0⍴⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(0 BIC callerCode)
               err eBIHFAILED
           :EndIf
       :Else

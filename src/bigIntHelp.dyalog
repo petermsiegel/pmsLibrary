@@ -104,7 +104,7 @@
   ⍝    Postamble for Namespace
   ⍝    Documentation   All HELP Documentation is in bigIntHelp
   ⍝
-  
+
     ⍝ See HELP, BI_HELP, BIC_HELP, BIB_HELP below…
     ∇ HELP
       __HELP__
@@ -387,11 +387,11 @@
    ⍝     Some are valid (e.g. 123E0 → 123; 12.3E1 → 123; 12.3E1J0 → 123)
    ⍝     If not, an error occurs!
    ⍝   ∘ Easily allows creating dfns, with ⍺⍺ ⍵⍵ assumed to be BI operands:
-   ⍝         ⍎'op3←'BIC'{⍺  ⍺⍺ ⍵ MUL10 3}
+   ⍝         ⍎'opX←'BIC'{⍺  ⍺⍺ ⍵ MUL10 3}
    ⍝     This creates dfn op in the caller's namespace:
-   ⍝         op←{⍺ (⍺⍺BI) ⍵ ('MUL10'BI) '3'}
+   ⍝         opX←{⍺ (⍺⍺BI) ⍵ ('MUL10'BI) '3'}
    ⍝     So that:
-   ⍝         2 +op 5
+   ⍝         2 +opXX 5
    ⍝     via steps:
    ⍝         2 +op 5 →  2 (+BI) 5 ('MUL10'BI) 3 → 2 + 5000 →  5002
    ⍝     … equals:
@@ -465,19 +465,20 @@
    ⍝ early in the function fn, outside of any control structures (otherwise,
    ⍝ a syntax error may be signalled).
    ⍝ ----------------------------------
-   ⍝ ∘ Execution begins in the line of the cloned / compiled
-   ⍝   version of the caller function right after the BINOW.
-   ⍝ ∘ If a control structure is required, it must be wholly contained on
-   ⍝   the line containing the BI∆HERE.
+   ⍝ ∘ In the cloned / compiled version of the caller function,
+   ⍝   execution begins on the line right after the BI∆HERE.
+   ⍝ ∘ If a control structure is required to determine whether to execute the function
+   ⍝   as a bigInt function or not, it must be wholly contained on
+   ⍝   the line containing the BI∆HERE:
    ⍝      OK:     :IF true ⋄ BI∆HERE ⋄ :ELSE ⋄ set a flag or something ⋄ :ENDIF
-   ⍝              Execution continues here whether prior IF is true or not!
-   ⍝     BAD:     :IF true ⋄ BI∆HERE
-   ⍝              :ELSE ⋄ do something else      ⍝ Clone execution starts here! Ugh!
+   ⍝       -->    Execution continues here whether prior IF is true or not!
+   ⍝      BAD:    :IF true ⋄ BI∆HERE
+   ⍝       -->    :ELSE ⋄ do something else      ⍝ Clone execution starts here! Ugh!
    ⍝              :ENDIF
-   ⍝ ∘ If more than one BI∆HERE appears, only one is executed, since the caller
+   ⍝ ∘ If more than one BI∆HERE appears in a fn, only one is executed, since the caller
    ⍝   is terminated immediately (on the ⍎BI∆HERE) after the clone is complete.
    ⍝ ∘ For syntax, see BIC
-   ⍝ ∘ The caller must not be locked, since ⎕NR is used.
+   ⍝ ∘ The caller must not be locked, since ⎕NR is used to scan the function.
    ⍝ ∘ The clone is deleted as it begins execution. Name format: _TEMP_callerNm_,
    ⍝   where callerNm is the name of the caller.
     ∇
