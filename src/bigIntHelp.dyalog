@@ -220,6 +220,9 @@
    ⍝
    ⍝  ------------
    ⍝  (*) First name is usually the APL standard name.
+   ⍝      Calling:    bigInt.negate or bi.negate (etc.):
+   ⍝                  bi.exp   bi.negate 3
+   ⍝              ¯3
    ⍝  (**) ⌽BI, mul10 are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
    ⍝  (↓) Function is same as above.
    ⍝

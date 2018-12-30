@@ -1,13 +1,47 @@
 ﻿ require Documentation
  ------- -------------
  require:  Ensure specified APL objects are in the calling function's or operator's namespace or ⎕PATH;
-           else loads them from a workspace (*.dws), if wsN: is prefixed, and/or from  dyalog files. The objects are specified
-           by name alone, namespace/directory hierarchy, and name; or workspace, namespace/directory hierarchy, and name, e.g.
-               'fsExt::ns1.[ns2.ns3.]name'
-           which, during a disk search is treated as a search for:
-               fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog
-           While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
-           ns1[.ns2.ns3] are treated as the full specification of the package.
+    else loads them from a workspace (*.dws), if wsN: is prefixed, and/or from  dyalog files. The objects are specified
+    by name alone, namespace/directory hierarchy, and name; or workspace, namespace/directory hierarchy, and name, e.g.
+          'fsExt::ns1.[ns2.ns3.]name'
+    which, during a disk search is treated as a search for:
+          fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog
+    While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
+          ns1[.ns2.ns3] are treated as the full specification of the package.
+
+          ⍺: opts (by default)-- each a string or namespace
+          ⍵: parms
+
+    If ⍺ omitted, ⍵ must be a string. In this case,
+         opts: Each token may either be
+              (a) a separate APL string or namespace,  or
+              (b) tokens in a single string separated by one or more blanks.
+   Options:
+   force:          -f[orce]                          0
+   debug:          -d[ebug]                          0
+   callerNs:       -c[aller] nsRef|=nsStr              (the actual caller)
+   defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *
+                   nsRef                                (i.e. nsRef of ⎕NC 9)
+                   -s[ession] Alias for -lib=⎕SE
+                   -r[oot]    Alias for -lib=#
+   outputParms:    -o[utput]=[s|l|sl]
+                     s: status of each package specified
+                     l: the library used
+   ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
+   E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
+                 opt  opt             opt     opt  pkgs -->     ...       -->
+
+ Note: require searches disk directories specified in environment variables FSPATH and WSPATH.
+       FSPATH (unique to "require") is of the form:
+          "[HOME]/myLibrary/src:.:./src", searching
+       ∘ "myLibrary/src" in the home directory for this user;
+       ∘ the currently active directory in APL;
+       ∘ directory "src" in the currently active directory in APL.
+       WSPATH has a more limited syntax, documented in Dyalog APL documentation.
+ 
+  ----------------------
+  *  The defaultLib is by default within (prefixed with) the callerNs.
+  ** A simple nsRef by itself (# but not '#') is treated as -l nsRef.
 
    ____________________________________________________________________________________________________________
    Simple Examples:
@@ -15,7 +49,8 @@
                                           If not found, load cmpx from workspace dfns into the "standard" library (ns) in the calling namespace.
                                           Updates ⎕PATH as required.
        require 'tinyDict'              -- Searches for <tinyDict> in the calling namespace and ⎕PATH.
-                                          If not found, searches the filesystem (as specified in env. variables FSPATH and WSPATH)
+                                          If not found, searches the filesystem (as specified in env. variables FSPATH
+ and WSPATH)
                                           for (a) the directory tinyDict/*.dyalog or (b) the file tinyDict.dyalog.
                                           If found, loads and ⎕FIXes any dyalog files and adjusts ⎕PATH.
    '-d' require 'src::∆MYgrp' '::∆HERE'  -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
@@ -26,7 +61,7 @@
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________
-   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's'
+   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-out' 's'
                                                                   ∇ package1 [package2 [... packageN]]
              rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'l'
                                                                   ∇ ⍬

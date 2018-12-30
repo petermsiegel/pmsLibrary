@@ -26,7 +26,7 @@
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
 
-    ⎕TRAP←(911+DEBUG) 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
+    ⎕TRAP←(911×DEBUG) 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
 
 
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
@@ -34,7 +34,7 @@
   ⍝      If trad, use form "cond  err msg".
     err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
 
-  ⍝   INTERNAL-FORMAT BIs
+  ⍝   INTERNAL-FORMAT BIs (BigInts)
   ⍝    BIi  -internal-format signed Big Integer numeric vector.
   ⍝          A BIV is a vector of radix <RX> numbers. The first (left-most) non-zero number carries the sign.
   ⍝          Other numbers may be signed, but it's ignored.
@@ -43,7 +43,7 @@
   ⍝    BIu  -unsigned internal-format BIi (vector of integers):  (|BIi)
   ⍝    BIz  -signed internal-format BIi, but of form (zro ⍵), so that zero is return with exactly 1 digit 0.
   ⍝
-  ⍝   EXTERNAL-FORMAT BIs
+  ⍝   EXTERNAL-FORMAT BIs (BigInts)
   ⍝    BIx  -an external-format Big Integer, i.e. a character string. When entered by the user,
   ⍝          several variants are accepted:
   ⍝          a BI has these characteristics:
@@ -57,7 +57,7 @@
   ⍝          ∘ leading 0's are removed.
   ⍝          ∘ 0 is represented by (,'0'), unsigned with no extra '0' digits.
   ⍝   OTHER TYPES
-  ⍝    Int  -an APL-format single integer, often in range ⍵<RX.
+  ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX.
 
   ⍝ =====================================================================================
   ⍝ {ok=1}←setHandSizeInBits [nn | frType | 0]
@@ -67,23 +67,23 @@
   ⍝      0:       choose best value, currently 20.  See brxBest below...
   ⍝
   ⍝   This function is available to test performance with different
-  ⍝   "hand" sizes in bits (see below). The hand is the radix for each integer
-  ⍝   stored in the data part of a bigInteger. Hands are set so that the data
-  ⍝   field consists solely of integers (managed by APL but maximally 32-bit signed integers);
-  ⍝   they are sized and ⎕FR is adjusted so that any overflow still fits in the mantissa
-  ⍝   of the largest storage format, either a 64-bit binary float (mantissa 53 bits) or
-  ⍝   as 128-bit decimal float (93-bits). While floats won't be seen unless there is
+  ⍝   "hand" sizes in bits (see below). The data field of each big integer consists
+  ⍝   of zero or more APL integers, each a non-negative number of <nn> or fewer bits.
+  ⍝   Each integer-- as stored-- is 32 or fewer bits; they are sized and ⎕FR is 
+  ⍝   adjusted so that any intermediate which overflows still fits in the mantissa 
+  ⍝   of the largest storage format, either a 64-bit binary real (mantissa: 53 bits) or
+  ⍝   as 128-bit decimal float (mantissa: 93-bits). While floats won't be seen unless there is
   ⍝   overflow, there is a balance between handling large numbers of hands (vectors)
-  ⍝   and integer vs floatmath (notably decimal floats, which are very slow).
+  ⍝   and integer vs float math (notably with decimal floats, which are very slow).
   ⍝
-  ⍝   >>> From initial tests, 20-bits works well everywhere.
+  ⍝   >>> From initial tests, 20-bits (the default) works well everywhere.
   ⍝
   ⍝   setHandSizeInBits: sets all the key constants:
   ⍝       RX, DRX, BRX, OFL, and ⎕FR.
   ⍝
   ⍝   Good Values for BRX (radix, i.e. hand size, in bits)
   ⍝     20     Fastest for all functions, except multiplication, where 40 is faster..
-  ⍝     40     Faster for multiplication, but slower than 20 for other operations.
+  ⍝     40     Slightly faster for multiplication, but slower than 20 for other operations.
   ⍝
   ⍝     BRX   Stored    Overflow   Overflow
   ⍝     Bits  Type      Bits (×)   Type         (Types are always Signed in APL)
@@ -172,10 +172,10 @@
     ⍝+------------------------------------------------------------------------------+⍝
     ⍝+------------------------------------------------------------------------------+⍝
 
-    ⍝ listMonadFns }  [0] single-char symbols [1] multi-char names
-    ⍝ listDyadFns  }  ditto
-    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT') ⍝ Remove ←
-    ⍝            reg. fns       boolean
+    ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
+    ⍝ listDyadFns    ditto
+    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT') 
+    ⍝            reg. fns       boolean  names
     listDyadFns←('+-×*÷⌊⌈|∨∧⌽','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVREM' 'MOD')
 
 
@@ -262,9 +262,9 @@
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
 
-      ⍝ ∆: Convert 
-      ⍝    ... from external-format (BIc) (⍺ and) ⍵-- 
-      ⍝             each either a BigInteger string or an APL integer-- 
+      ⍝ ∆: Convert
+      ⍝    ... from external-format (BIc) (⍺ and) ⍵--
+      ⍝             each either a BigInteger string or an APL integer--
       ⍝    ... to internal format (BIi) BigIntegers (⍺' and) ⍵',
       ⍝             each of the form sign (data), where data is an integer vector.
       ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
@@ -288,13 +288,12 @@
       ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
       ⍝ (If not, use big integer strings of any length, without exponents).
       ⍝ Normally, ∆Num is not called by the user, since BI and BIX call it automatically.
-      ⍝ Usage:   
+      ⍝ Usage:
       ⍝    ?BIX 1E100 calls (bigInt.∆Num 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆Num←{⎕FR←1287
           ⍵≠⌊⍵:err eNONINT,⍕⍵
           (×⍵)(zro RX⊥⍣¯1⊣|⍵)
       }
-
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
       ∆str←{
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵     ⍝ Get sign, if any
@@ -303,7 +302,6 @@
           d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
-
     ⍝ exp: EXPORT a SCALAR BI
     ⍝    r:BIc ← ∇ ⍵:BIi
       export←{ ⍝ exp: internal to external (output string) format'
@@ -312,7 +310,6 @@
           sgn,⎕D[dlzs,⍉(DRX⍴10)⊤|w]
       }
     exp←export
-
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
     ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD). Else return ⍵ w/ leading zero deleted.
     ∆z←{(⊃⍵)(zro dlz⊃⌽⍵)}
@@ -335,30 +332,30 @@
       }
     signum←direction
     sig←direction
-      magnitude←{                        ⍝ |
+      magnitude←{                       ⍝ |
           (sw w)←∆ ⍵
           (|sw)w
       }
     abs←magnitude
 
-    ⍝ increment:                          ⍵+1
+    ⍝ increment:                        ⍝ ⍵+1
       increment←{
-          (sw w)←∆ ⍵                    ⍝  If ⍵<0, increment is towards 0.
+          (sw w)←∆ ⍵                       ⍝  If ⍵<0, increment is towards 0.
           sw=0:1 oneUD
-          sw=¯1:∆z sw(⊃⌽decrement 1 w)  ⍝ inc ¯5: Do -(dec 5)
+          sw=¯1:∆z sw(⊃⌽decrement 1 w)     ⍝ inc ¯5: Do -(dec 5)
           î←1+⊃⌽w
-          RX>î:sw w⊣(⊃⌽w)←î             ⍝ If î won't overflow, increment and we're done!
-          sw w plus 1 oneUD              ⍝ Overflow? Do long way
+          RX>î:sw w⊣(⊃⌽w)←î                ⍝ If î won't overflow, increment and we're done!
+          sw w plus 1 oneUD                ⍝ Overflow? Do long way
       }
     inc←increment
-    ⍝ decrement:                         ⍵-1
+    ⍝ decrement:                        ⍝ ⍵-1
       decrement←{
           (sw w)←∆ ⍵
-          sw=0:¯1 oneUD                  ⍝ ⍵ is zero? Return ¯1
-          sw=¯1:∆z sw(⊃⌽increment 1 w)  ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0
-                                        ⍝ ⍵>0...
-          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1        ⍝ Last digit >0? ⍵-1 won't underflow, so fast decrement in place
-          sw w minus 1 oneUD             ⍝ Underflow will happen... Do long way.
+          sw=0:¯1 oneUD                    ⍝ ⍵ is zero? Return ¯1
+          sw=¯1:∆z sw(⊃⌽increment 1 w)     ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0
+                                           ⍝ ⍵>0...
+          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ Last digit >0? ⍵-1 won't underflow, so fast decrement in place
+          sw w minus 1 oneUD               ⍝ Underflow will happen... Do long way.
       }
     dec←decrement
 
@@ -371,7 +368,7 @@
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
       factorial←{                           ⍝ !⍵
           aw w←∆ ⍵
-          aw=0:0 zeroUD                      ⍝ !0
+          aw=0:0 zeroUD                     ⍝ !0
           aw=¯1:err eFACTOR                 ⍝ ⍵<0
           factBig←{
               1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ≢⍵ is 1 hand.
@@ -527,7 +524,7 @@
           sa=sw:sa r               ⍝ sa=sw: return r       (r: signed)
           sa a minus sa r          ⍝ sa≠sw: return (a - r) (r: signed)
       }
-    modulo←{⍵ residue ⍺}
+    modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
 
     ⍝ times10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
@@ -582,6 +579,7 @@
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BI Unsigned Utility Math Routines
+    ⍝ These are the workhorses of bigInt; most are from dfns:nats (handling unsigned bigInts).
 
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIi ⍺ and ⍵
     ⍝ r:BIi ← ⍺:BIi ∇ ⍵:BIi
@@ -645,10 +643,9 @@
           }/svec,⊂⍬ ⍺                         ⍝ fold-accumulated reslt.
       }
 
-    gcdU←{⍵=,0:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}            ⍝ greatest common divisor.
-    lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}               ⍝ least common multiple.
-
-    remU←{⊃⌽⍵ divU ⍺}                      ⍝ BIu remainder
+    gcdU←{⍵=,0:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}             ⍝ greatest common divisor.
+    lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
+    remU←{⊃⌽⍵ divU ⍺}                         ⍝ BIu remainder
 
 
 
@@ -681,8 +678,9 @@
 
     :Section Utilities: bi BIB, BIC, BI∆HERE
    ⍝ bi      - simple niladic fn, returns this bigint namespace #.BigInt
-   ⍝ bi.dc   - desk calculator
-   ⍝ BIB     - Utility to manipulate BIs as arbitrary signed binary numbers
+   ⍝           If ⎕PATH points to bigInt namespace, bi will be found without typing explicit path.
+   ⍝ bi.dc   - desk calculator (self-documenting)
+   ⍝ BIB     - Utility (add on) to manipulate BIs as arbitrary signed binary numbers
    ⍝ BIC     - Utility to compile code strings or functions with BI arithmetic
    ⍝ BI∆HERE - Utility to compile and run embedded code (stored as comments) on the fly
 
@@ -763,12 +761,11 @@
           DEBUG×99::⎕SIGNAL/⎕DMX.(('BIC: ',EM)EN)
           0=1↑0⍴∊⍵:err eBIC
         ⍝ ⍺ a string, treat as: ⍺,1 BIC ⍵
-          0≠1↑0⍴⍺:⍺,matchBiCalls ⍵           ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
-     
-          ⍺=2:matchFnRep ⎕NR ⍵       ⍝ Compile function named ⍵
-          ⍺=¯2:matchFnRep ⍵          ⍝ Compile function whose ⎕NR is ⍵
-          ⍺=0:matchBiCalls ⍵         ⍝ Compile string ⍵ and return compiled string
-          ⍺=1:((1+⎕IO)⊃⎕RSI,#)⍎matchBiCalls ⍵       ⍝ Compile and execute string ⍵ in CALLER space, returning value of execution
+          0≠1↑0⍴⍺:⍺,matchBiCalls ⍵              ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
+          ⍺=2:matchFnRep ⎕NR ⍵                  ⍝ Compile function named ⍵
+          ⍺=¯2:matchFnRep ⍵                     ⍝ Compile function whose ⎕NR is ⍵
+          ⍺=0:matchBiCalls ⍵                    ⍝ Compile string ⍵ and return compiled string
+          ⍺=1:((1+⎕IO)⊃⎕RSI,#)⍎matchBiCalls ⍵   ⍝ Compile and execute string ⍵ in CALLER space, returning value of execution
       }
 
     ∇ dc;caller;code;dc_LAST;dc_in;exec;msg;shy
@@ -781,7 +778,7 @@
       msg,←⊂'     empty line              Do nothing  '
       msg,←⊂'     ?           note 1      Get help (nothing else on line)'
       msg,←⊂' --------------------------'
-      msg,←⊂' note 1: only thing on line (adjacent spaces are ignored).'
+      msg,←⊂' note 1: only thing on line, besides leading or trailing spaces.'
       msg,←⊂''
       alert↑msg
       dc_LAST←'0'
@@ -816,33 +813,31 @@
       :EndWhile
     ∇
 
-    ∇ {html}←{fmt}alert msg;FMTjs
-     
+    ∇ {html}←{fmt}alert msg;FMTjs    
       html←'<!DOCTYPE HTML><html><body><p></p><script>'
       html,←'alert(''⍞ALERT⍞'');</script><p></p></body></html>'   ⍝ ⍞ALERT⍞ replaced by string modified from <msg>
       FMTjs←{⍺←⊢ ⋄ ⎕IO←0
           hexD←⎕D,'ABCDEF'
-          avoid←'%''"&\'                               ⍝ We encode via \x, noting in theory % can be encoded as \%, etc.
-          safe←(⎕UCS 32+⍳256-32)~avoid                 ⍝ safe: (⎕UCS 32-255) avoiding % ' " & and \
-          c2hjs←{                                      ⍝ encode hex in js format as compactly as possible
+          avoid←'%''"&\'                        ⍝ We encode via \x, noting in theory % can be encoded as \%, etc.
+          safe←(⎕UCS 32+⍳256-32)~avoid          ⍝ safe: (⎕UCS 32-255) avoiding % ' " & and \
+          c2hjs←{                               ⍝ encode hex in js format as compactly as possible
               2≥≢⍵:'\\x',¯2↑'00',⍵
               4≥≢⍵:'\\u',¯4↑'0000',⍵
-              '\\u{',⍵,'}'                             ⍝ 6 digits max, e.g. 5 for '💩' poo(p)
-          }∘{hexD[16⊥⍣¯1⊣⎕UCS ⍵]}¨                     ⍝ returns minimal hex digits for each char passed.
-                                                  ⍝ ⍵: an APL object in the domain of ⎕FMT.
-          msg←¯1↓,(⍺ ⎕FMT ⍵),⎕UCS 13                   ⍝ msg: map ⍵ to a flat char. vector with line separators.
+              '\\u{',⍵,'}'                      ⍝ 6 digits max, e.g. 5 for '💩' poo(p)
+          }∘{hexD[16⊥⍣¯1⊣⎕UCS ⍵]}¨              ⍝ returns minimal hex digits for each char passed.
+                                                ⍝ ⍵: an APL object in the domain of ⎕FMT.
+          msg←¯1↓,(⍺ ⎕FMT ⍵),⎕UCS 13            ⍝ msg: map ⍵ to a flat char. vector with line separators.
      
-          unsafe←~msg∊safe                             ⍝ unsafe: 0 or more chars to be encoded.
+          unsafe←~msg∊safe                      ⍝ unsafe: 0 or more chars to be encoded.
           av←msg∊avoid
-          (unsafe/msg)←c2hjs unsafe/msg                ⍝ msg: map unsafe char scalars to enclosed strings.
-          ∊msg                                         ⍝ msg: flattened down again
+          (unsafe/msg)←c2hjs unsafe/msg         ⍝ msg: map unsafe char scalars to enclosed strings.
+          ∊msg                                  ⍝ msg: flattened down again
       }
      
-      :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf
-     
+      :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf    
       html←'⍞ALERT⍞'⎕R(fmt FMTjs msg)⊣html
-                                                  ⍝ Run in own thread so alert window stays open after fn exit.
-      ns←#.⎕NS''                                 ⍝ Run renderer in anonymous namespace in user space-- don't clutter user space...
+                                               ⍝ Run in own thread so alert window stays open after fn exit.
+      ns←#.⎕NS''                               ⍝ Run renderer in anonymous namespace in user space-- don't clutter user space...
       ns.{'ignored'⎕WC'HTMLRenderer'⍵('Size'(0 0))}&html  ⍝ Size (0 0): makes extra renderer window invisible
     ∇
 
@@ -880,6 +875,7 @@
       :EndTrap
     ∇
     :Endsection BIC, BIB, and BI∆HERE  Routines  -----------------------------------------------------------
+   
     :Section Documentation
     ⍝ See bigIntHelp
     ∇ HELP
