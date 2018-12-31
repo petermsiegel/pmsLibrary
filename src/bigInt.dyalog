@@ -69,8 +69,8 @@
   ⍝   This function is available to test performance with different
   ⍝   "hand" sizes in bits (see below). The data field of each big integer consists
   ⍝   of zero or more APL integers, each a non-negative number of <nn> or fewer bits.
-  ⍝   Each integer-- as stored-- is 32 or fewer bits; they are sized and ⎕FR is 
-  ⍝   adjusted so that any intermediate which overflows still fits in the mantissa 
+  ⍝   Each integer-- as stored-- is 32 or fewer bits; they are sized and ⎕FR is
+  ⍝   adjusted so that any intermediate which overflows still fits in the mantissa
   ⍝   of the largest storage format, either a 64-bit binary real (mantissa: 53 bits) or
   ⍝   as 128-bit decimal float (mantissa: 93-bits). While floats won't be seen unless there is
   ⍝   overflow, there is a balance between handling large numbers of hands (vectors)
@@ -174,7 +174,7 @@
 
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
-    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT') 
+    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT')
     ⍝            reg. fns       boolean  names
     listDyadFns←('+-×*÷⌊⌈|∨∧⌽','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVREM' 'MOD')
 
@@ -224,9 +224,11 @@
           CASE'×':∆exp∆ ⍺ times ⍵
           CASE'⌽':∆exp∆ ⍵ times10 ⍺                 ⍝  ⍵×10*⍺:    Equiv. to a shift by powers of 10, but faster.
           CASE'MUL10' 'TIMES10':∆exp∆ ⍺ times10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed.
-          CASE'DIV10':∆exp∆ ⍺ times10 negate ⍵    ⍝  ⍺×10*-⍵:   ⍵ signed.
+          CASE'DIV10':∆exp∆ ⍺ times10 negate ⍵      ⍝  ⍺×10*-⍵:   ⍵ signed.
           CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
           CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵    ⍝  (⌊⍺÷⍵)(⍵|⍺)
+          CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍵1 | ⍺ × ⍵0
+          CASE'MMUL':∆exp∆ ⍺ modMul ⍵               ⍝ ...
           CASE'*':∆exp∆ ⍺ power ⍵
           CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ |           APL residue
           CASE'|⍨' 'MOD':∆exp∆ ⍵ residue ⍺          ⍝ ⍺ ('MOD' BI)⍵ ←→ ⍵|BI ⍺
@@ -398,6 +400,13 @@
           }inL                                   ⍝ res is then truncated to exactly inL digits
           '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
           ⍵ residue ∆ res                        ⍝ Otherwise, compute residue r: 0 ≤ r < ⍵.
+      }
+
+
+      ⍝ ⍺ modMul ⍵1 ⍵2:   Experimental:   1000 modMul 30 7 <==>  1  5
+      modMul←{
+          w m←⍵
+          m residue ⍺ times w
       }
 
 
@@ -813,7 +822,7 @@
       :EndWhile
     ∇
 
-    ∇ {html}←{fmt}alert msg;FMTjs    
+    ∇ {html}←{fmt}alert msg;FMTjs
       html←'<!DOCTYPE HTML><html><body><p></p><script>'
       html,←'alert(''⍞ALERT⍞'');</script><p></p></body></html>'   ⍝ ⍞ALERT⍞ replaced by string modified from <msg>
       FMTjs←{⍺←⊢ ⋄ ⎕IO←0
@@ -834,7 +843,7 @@
           ∊msg                                  ⍝ msg: flattened down again
       }
      
-      :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf    
+      :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf
       html←'⍞ALERT⍞'⎕R(fmt FMTjs msg)⊣html
                                                ⍝ Run in own thread so alert window stays open after fn exit.
       ns←#.⎕NS''                               ⍝ Run renderer in anonymous namespace in user space-- don't clutter user space...
@@ -875,7 +884,7 @@
       :EndTrap
     ∇
     :Endsection BIC, BIB, and BI∆HERE  Routines  -----------------------------------------------------------
-   
+
     :Section Documentation
     ⍝ See bigIntHelp
     ∇ HELP
