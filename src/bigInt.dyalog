@@ -26,7 +26,7 @@
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
 
-    ⎕TRAP←(911×DEBUG) 'E' '(''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
+    ⎕TRAP←(911×DEBUG) 'C' '(∊''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
 
 
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
@@ -275,10 +275,8 @@
       ∆←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
-     
           ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
           1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
-     
           ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
           ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
           ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
@@ -293,7 +291,9 @@
       ⍝ Usage:
       ⍝    ?BIX 1E100 calls (bigInt.∆Num 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆Num←{⎕FR←1287
-          ⍵≠⌊⍵:err eNONINT,⍕⍵
+          0::911 ⎕SIGNAL⍨eNONINT,⍕⍵
+          0≠1↑0⍴⍵:∘
+          ⍵≠⌊⍵:∘
           (×⍵)(zro RX⊥⍣¯1⊣|⍵)
       }
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
@@ -342,22 +342,22 @@
 
     ⍝ increment:                        ⍝ ⍵+1
       increment←{
-          (sw w)←∆ ⍵                       ⍝  If ⍵<0, increment is towards 0.
-          sw=0:1 oneUD
-          sw=¯1:∆z sw(⊃⌽decrement 1 w)     ⍝ inc ¯5: Do -(dec 5)
-          î←1+⊃⌽w
-          RX>î:sw w⊣(⊃⌽w)←î                ⍝ If î won't overflow, increment and we're done!
-          sw w plus 1 oneUD                ⍝ Overflow? Do long way
+          (sw w)←∆ ⍵
+          sw=0:1 oneUD                     ⍝ ⍵=0? Return 1.
+          sw=¯1:∆z sw(⊃⌽decrement 1 w)     ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
+          î←1+⊃⌽w                          ⍝ trial increment (most likely path)
+          RX>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
+          sw w plus 1 oneUD                ⍝ Otherwise, do long way.
       }
     inc←increment
     ⍝ decrement:                        ⍝ ⍵-1
       decrement←{
           (sw w)←∆ ⍵
           sw=0:¯1 oneUD                    ⍝ ⍵ is zero? Return ¯1
-          sw=¯1:∆z sw(⊃⌽increment 1 w)     ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0
-                                           ⍝ ⍵>0...
-          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ Last digit >0? ⍵-1 won't underflow, so fast decrement in place
-          sw w minus 1 oneUD               ⍝ Underflow will happen... Do long way.
+          sw=¯1:∆z sw(⊃⌽increment 1 w)     ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
+                                           ⍝ If the last digit of w>0, w-1 can't underflow.
+          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
+          sw w minus 1 oneUD               ⍝ Otherwise, do long way.
       }
     dec←decrement
 
@@ -402,14 +402,6 @@
           ⍵ residue ∆ res                        ⍝ Otherwise, compute residue r: 0 ≤ r < ⍵.
       }
 
-
-      ⍝ ⍺ modMul ⍵1 ⍵2:   Experimental:   1000 modMul 30 7 <==>  1  5
-      modMul←{
-          w m←⍵
-          m residue ⍺ times w
-      }
-
-
   ⍝ bitsOut, bitsIn: Manage one or more BRX-bit integers (e.g. 20 etc.) stored in APL 32-bit integers.
   ⍝     bitsOut:   r:boolean array ←  ∇ ⍵:BIi
   ⍝     bitsIn:    r:BIc           ←  ∇ ⍵:BIi
@@ -443,21 +435,17 @@
       N←∆ N
       :If 0=⊃N ⋄ x←N ⋄ :EndIf
       :If ¯1=⊃N ⋄ err eSQRT ⋄ :EndIf
-     
     ⍝ If the # N is small, calculate via APL
       ndig←≢⊃⌽N
       :If 1=ndig ⋄ x←1(⌊0.5*⍨⊃⌽N) ⋄ :Return ⋄ :EndIf
-     
     ⍝ Initial estimate for N*0.5 must be ≥ the actual solution, else this will terminate prematurely.
     ⍝ Initial x: ¯1+10*⌈(# dec digits in N)÷2 <== DECIMAL.     2*⌈(numbits(N)÷2) <=== BINARY.
-     
       x←{
           0::1((⌈0.5*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1)   ⍝ Alt: Estimate from # of Base-RX digits in <data>.
           ⎕FR←1287
         ⍝ Alternative: ∆ '9'⍴⍨ ⌈0.5÷⍨≢exp ⍵        ⍝ Est from decimal:  works for all ⍵
           ∆ 1+⌈0.5*⍨⍎exp ⍵                         ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
       }N
-     
       :While 1
           y←(x plus N divide x)divide 2       ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷2)
           :If y ge x ⋄ :Leave             ⍝ Is y not smaller than x? Done
@@ -476,7 +464,6 @@
   ⍝ The first name will be the APL std name (exceptions noted), followed by
   ⍝ abbreviations and common alternatives.
   ⍝ E.g. dyadic | is called  residue, but we also define mod/ulo as residue⍨.
-
       plus←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
@@ -518,7 +505,7 @@
     divRem←divideRem
       power←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          sw=¯1:0 zeroUD            ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
+          sa sw∨.=0 ¯1:0 zeroUD    ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a powU w
           sa≠¯1:1 p                ⍝ sa= 1 (can't be 0).
           0=2|⊃⌽w:1 p              ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
@@ -538,7 +525,7 @@
 
     ⍝ times10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
-    ⍝  r:BIx ← ⍺:BIi   ∇  ⍵:Int
+    ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
     ⍝     Note: ⍵ must be an APL integer (<RX).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
@@ -550,10 +537,12 @@
           sw=0:sa a                                ⍝ ⍵ is zero: ⍺ stays as is.
           ustr←export 1 a                          ⍝ ⍺ as unsigned string
           ss←'¯'/⍨sa=¯1                            ⍝ sign as string
-          sw=1:∆ ss,ustr,w⍴'0'
-          ∆{0=≢⍵:,'0' ⋄ ⍵}(w×sw)↓ustr
+          sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw =1
+          {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
       }
     mul10←times10
+  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10 ¯2)
+    div10←{⍺ times10 negate ⍵}
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
@@ -585,6 +574,15 @@
     ⎕EX 'fxBool'
 
     :EndSection BI Dyadic Operands/Functions
+
+    :Section BI Special Functions/Operations (More than 2 Args)
+    ⍝ r ← ⍺ modMul ⍵ m    →→→    r ← m | ⍺ × w
+    ⍝ BIi ← ⍺:BIi ∇ ⍵:BIi m:BIi
+      modMul←{
+          w m←⍵
+          m residue ⍺ times w
+      }
+    :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BI Unsigned Utility Math Routines
@@ -652,7 +650,7 @@
           }/svec,⊂⍬ ⍺                         ⍝ fold-accumulated reslt.
       }
 
-    gcdU←{⍵=,0:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}             ⍝ greatest common divisor.
+    gcdU←{⍵≡zeroUD:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}         ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
     remU←{⊃⌽⍵ divU ⍺}                         ⍝ BIu remainder
 
