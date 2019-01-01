@@ -1,34 +1,37 @@
 ﻿:namespace bigInt
-    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
-    VERBOSE←0
-    VERBOSE←VERBOSE∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
-    ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
+  ⍝ ∘ NOTE: See bigIntHelp for details...
+  ⍝ ∘ Call bigInt.help or ⎕EDIT 'bigIntHelp'
 
-    ∇ {_}←loadHelp
-      :Trap 0 ⋄ _←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
-      :Else ⋄ _←⎕←'Unable to load bigIntHelp'
+    :Section PREAMBLE
+    :Section PREAMBLE -  Utilities
+    ∇ trigger_DEBUG args
+      :Implements Trigger DEBUG
+    ⍝ Sets VERBOSE, ⎕TRAP, and ∇note∇ dynamically when DEBUG is set or reset.
+      args.Name'has changed to',args.NewValue
+      VERBOSE←VERBOSE_INITIAL∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
+      ⎕TRAP←(DEBUG⊃(0 1000)911)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+      ⎕FX'{ok}←note str'(VERBOSE↓'⍝⎕←str')'ok←1'
+    ∇
+    ∇ {r}←loadHelp
+      :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
+      :Else ⋄ r←⎕←'Unable to load bigIntHelp'
       :EndTrap
     ∇
+    err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
+    :EndSection PREAMBLE - Utilities
+
+    :Section PREAMBLE - Variables
+    VERBOSE_INITIAL←0
+    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
     loadHelp
-
-    :Section PREAMBLE and Table of Contents
-  ⍝ ∘ NOTE: See bigIntHelp for details...
-  ⍝   Call bigInt.help or ⎕EDIT 'bigIntHelp'
-
-    :EndSection PREAMBLE and Table of Contents
+    ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
+    :EndSection PREAMBLE - Preliminaries
+    :EndSection PREAMBLE - Variables
 
     :Section BigInt Namespace and Utility BI - Initializations
   ⍝+------------------------------------------------------------------------------+⍝
-  ⍝+-- BI INITIALIZATIONS                            BI INITIALIZATIONS          --+⍝
+  ⍝+-- BI INITIALIZATIONS                            BI INITIALIZATIONS         --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
-  ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
-  ⍝-------------------------------------------------------------------------------+⍝
-    ⎕TRAP←(DEBUG⊃(0 1000)911) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
-    ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
-  ⍝ err: If dfns, use form "cond: err msg".
-  ⍝      If trad, use form "cond  err msg".
-    err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
-
   ⍝   ----------------------------------
   ⍝   INTERNAL-FORMAT BIs (BigInts)
   ⍝   ----------------------------------
@@ -56,7 +59,9 @@
   ⍝   OTHER TYPES
   ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX.
 
-  ⍝ =====================================================================================
+  ⍝ ==================
+  ⍝ setHandSizeInBits  
+  ⍝ ================== 
   ⍝ {ok=1}←setHandSizeInBits ⍵:[nn | frType | 0]
   ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
   ⍝      frType:  either 645 or 1287, corresponding to the largest # of bits
@@ -103,7 +108,6 @@
   ⍝ --------------------------------
   ⍝ * RX etc. are a function of bigInt.
     ⍝ ⎕FR←645                                ⍝ Choice determines DRX, RX, BRX, and OFL.
-    ⍝ BRX←⌈2⍟RX←10*DRX←(⎕FR=1287)⊃6 12       ⍝ Bits* for radix (root)
     ⍝ OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93     ⍝ Bits* for overflow in multiplication
 
     ∇ {ok}←{verbose}setHandSizeInBits brx;brxBest;brxMax;brxMid;eBAD
@@ -121,7 +125,7 @@
       :EndIf
     ⍝ Set key bigInt constants...
       ⎕FR←645 1287⊃⍨brx>brxMid
-      BRX←brx
+      BRX←brx            
       DRX←⌊10⍟2*BRX
       RX←10*DRX
       OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
@@ -141,7 +145,6 @@
       ok←1
     ∇
     0 setHandSizeInBits 0
-
 
   ⍝ Data field (unsigned) constants
     zeroUD←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
@@ -163,12 +166,8 @@
     :EndSection BigInt Namespace and BI Utility - Initializations
 
     :Section BI - Executive
-    ⍝+------------------------------------------------------------------------------+⍝
-    ⍝+------------------------------------------------------------------------------+⍝
-    ⍝+      EXECUTIVE                 BI                     EXECUTIVE              +⍝
-    ⍝+------------------------------------------------------------------------------+⍝
-    ⍝+------------------------------------------------------------------------------+⍝
-
+    ⍝ --------------------------------------------------------------------------------------------------
+   
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT')
@@ -193,7 +192,7 @@
         ⍝     If       a 1-char string ('√' or ,'√')   fn is a simple scalar char, uppercase.
         ⍝     If       a sequence of chars ('MUL10'),  fn is an enclosed string (⊂'MUL10'), uppercase.
         ⍝     In short, whatever ⍺⍺ input,             fn is a char scalar, simple if length 1 or an enclosed vector.
-
+     
           fn←⊂⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':atom⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
           CASE←1∘∊fn∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
           ⍝ Monadic...
@@ -237,7 +236,7 @@
           CASE'≠':⍺ ne ⍵
           CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵
           CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵
-
+     
           err eCANTDO2,,⎕FMT fn
       }
     ⍝ Build BIX/BI.
@@ -249,8 +248,8 @@
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
 
-    :EndSection BI Executive   --------------------------------------------------------------------
-⍝ --------------------------------------------------------------------------------------------------
+    :EndSection BI Executive  
+    ⍝ ----------------------------------------------------------------------------------------
 
     :Section BigInt internal structure
     ⍝ An internal BI, BIi, is of this form:
@@ -260,10 +259,10 @@
     ⍝    Together sign and data define a big integer.
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
-      ⍝ ---------------------------------------------------------------------
+      ⍝ ============================================
       ⍝ import / imp - Import to internal bigInteger
-      ⍝ ---------------------------------------------------------------------
-      ⍝ ∆  - shorthand used internally
+      ⍝ ============================================
+      ⍝ ∆  - internal alias for import
       ⍝    from: external-format (BIc) (⍺ and) ⍵--
       ⍝          each either a BigInteger string or an APL integer--
       ⍝    to:   internal format (BIi) BigIntegers (⍺' and) ⍵',
@@ -395,7 +394,7 @@
           aw≠1:err eBADRAND
           ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0 is optimal
           inL←≢exp aw w                          ⍝ ⍵: in exp form. in: ⍵ with leading 0's removed.
-
+     
           res←inL⍴{                              ⍝ res is built up to ≥inL random digits...
               ⍺←''                               ⍝ ...
               ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕?0)∇ ⍵-⎕PP          ⍝ ... ⎕PP digits at a time.
@@ -479,7 +478,7 @@
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
-
+     
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
           <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
@@ -741,7 +740,7 @@
        ⋄ t2←¯1↓∊(tDM,tMM),¨'|'
       p2Funs1←'(?:⍺⍺|⍵⍵)'                      ⍝ See pFunsSmall.
       p2Funs2←'(?:[',t1,']|\b(?:',t2,')\b)'    ⍝ See pFunsBig. Case is respected for MUL10, SQRT…
-
+     
       ⍝ …P:  Patterns. Most have a field#1
       pCom←'(⍝.*?)$'                           ⍝ Keep comments as is
       pVar←'([',p2Vars,'][',p2Vars,'\d]*)'     ⍝ Keep variable names as is, except MUL10 and SQRT
@@ -750,7 +749,7 @@
       pFunsQ←'(',p2Funs2,'(?!\h*BI))'          ⍝ All fns: APL or named are quoted. Simpler/faster.
                                                ⍝ SQRT → ('SQRT'BI), + → ('+' BI), ditto √ → '√'
       pNonBiCode←'\(:(.*?):\)'                 ⍝ Anything in (: … :) treated as APL
-
+     
       pIntExp←'([\-¯]?[\d.]+[eE]¯?\d+)'        ⍝ [-¯]4.4E55 will be padded out. Underscores invalid.
       pIntOnly←'([\-¯]?[\d_.]+)'               ⍝ Put other valid BI-format integers in quotes
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
@@ -822,7 +821,7 @@
                       ↑dm0 dm1(' ',dm2)
                   }⎕DMX
               :EndTrap
-
+     
           :Else
      interrupt:
               l←≢⍞←'Interrupted. Exit? Y/N [Yes] '
@@ -845,13 +844,13 @@
           }∘{hexD[16⊥⍣¯1⊣⎕UCS ⍵]}¨              ⍝ returns minimal hex digits for each char passed.
                                                 ⍝ ⍵: an APL object in the domain of ⎕FMT.
           msg←¯1↓,(⍺ ⎕FMT ⍵),⎕UCS 13            ⍝ msg: map ⍵ to a flat char. vector with line separators.
-
+     
           unsafe←~msg∊safe                      ⍝ unsafe: 0 or more chars to be encoded.
           av←msg∊avoid
           (unsafe/msg)←c2hjs unsafe/msg         ⍝ msg: map unsafe char scalars to enclosed strings.
           ∊msg                                  ⍝ msg: flattened down again
       }
-
+     
       :If 0=⎕NC'fmt' ⋄ fmt←⊢ ⋄ :EndIf
       html←'⍞ALERT⍞'⎕R(fmt FMTjs msg)⊣html
                                                ⍝ Run in own thread so alert window stays open after fn exit.
@@ -875,11 +874,11 @@
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
           ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
       }
-
+     
       opt←('Mode' 'M')('EOL' 'LF')('IC' 1)('UCP' 1)('DotAll' 1)
       pat←'^ (?: \h* ⍝?:BI \b \N*$) (.*?) (?: \R ⍝?:ENDBI \b \N*$)'~' '
       ⎕←callerCode←(1+⎕LC⊃⍨1+⎕IO)↓⎕NR callerNm←⎕SI⊃⍨1+⎕IO
-
+     
       cloneNm←callerNm,'__BigInteger_TEMP'
       callback←cloneNm,' ⋄ →0'
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
