@@ -1,5 +1,5 @@
 ﻿:namespace bigInt
-    DEBUG←1                                     ⍝ Change to 1 to turn off signal trapping…
+    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
     VERBOSE←0
     VERBOSE←VERBOSE∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
     ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
@@ -29,7 +29,9 @@
   ⍝      If trad, use form "cond  err msg".
     err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
 
+  ⍝   ----------------------------------
   ⍝   INTERNAL-FORMAT BIs (BigInts)
+  ⍝   ----------------------------------
   ⍝    BIi  -internal-format signed Big Integer numeric vector.
   ⍝          A BIV is a vector of radix <RX> numbers. The first (left-most) non-zero number carries the sign.
   ⍝          Other numbers may be signed, but it's ignored.
@@ -479,7 +481,7 @@
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
      
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
-          a<cmpU w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
+          <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
     subtract←minus
@@ -662,7 +664,7 @@
     gcdU←{⍵≡zeroUD:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}         ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
-          ⍵<cmpU ⍺:⍵                          ⍝ ⍵ < ⍺? remainder is ⍵
+          <cmp ⍵ mix ⍺:⍵                          ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
       }
 
@@ -684,12 +686,9 @@
         nup←{⍵++⌿0 1⌽RX ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dlz nup                            ⍝ PMS
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
-    cmpU←{⍺⍺ cmp ⍺ mix ⍵}                   ⍝ unsigned ⍺ cmp ⍵ , e.g. ⍺ <cmpU ⍵       [pms]
     dck←{(2 1+(≥cmp ⍵)⌽0 ¯1)⌿⍵}             ⍝ difference check.
     rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷DRX),DRX}  ⍝ radix RX rep of number.
-
-  ⍝ exp: See BI internal structure
-    cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                       ⍝ compare first different digit.
+    cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                     ⍝ compare first different digit of ⍺ and ⍵.
 
     :Endsection BI Service Routines
 ⍝ --------------------------------------------------------------------------------------------------

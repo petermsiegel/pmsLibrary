@@ -46,14 +46,21 @@
              ⋄ is←{⍵≡(819⌶)⍺↑⍨≢⍵}
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
-           ⍝ parse:
-           ⍝  Allow options -c, -l, -o, -s to support ⎕SE.Parser format -c=str
-           ⍝  OR -c refNs, a format for passing actual namespaces or strings (*).
-           ⍝     * To deal with cases where a ns does not have a name string, i.e.
-           ⍝       i.e.(⍎⍕ns) is an error.
-             parse←{
+           ⍝ set2:
+           ⍝  Format:  'var' set2 option
+           ⍝  Given option '-opt' in token sequence of form:
+           ⍝        '-opt=val1' and '-opt' val2, where val2 of any type
+           ⍝  Sets var∘←'val1' if specified or var∘←val2 otherwise.
+           ⍝  Allow
+           ⍝    (a) options -c, -l, -o, -s to support ⎕SE.Parser format -c=str
+           ⍝    (b) -l refNS or -c refNs,
+           ⍝  a format for passing actual namespaces or strings (*).
+           ⍝  --------------
+           ⍝  * To deal with cases where a ns does not have a name string, i.e.
+           ⍝    i.e.(⍎⍕ns) is an error.
+             set2←{
                  e←'='∊⍵ ⋄ ø←{⍵:(1+o⍳'=')↓o ⋄ next⊃opts}e
-                 _←⍎⍺,'ø'
+                 _←⍎⍺,'∘←ø'
                  e⊃skip next
              }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
@@ -63,9 +70,9 @@
              o is'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
              o is'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
              o is'-r':∇ next⊣lib∘←#       ⍝ -r[oot]
-             o is'-c':∇'caller∘←'parse o  ⍝ -c[aller]=nsName | -c[aller] nsRef
-             o is'-l':∇'lib∘←'parse o     ⍝ -l[ib]=nsName    | -l[ib]    nsRef
-             o is'-o':∇'out∘←'parse o     ⍝ -o[utput]=[s|l|sl]    Output: s[tatus] l[ibrary]
+             o is'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
+             o is'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
+             o is'-o':∇'out'set2 o        ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
