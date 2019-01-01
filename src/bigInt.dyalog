@@ -1,14 +1,12 @@
 ﻿:namespace bigInt
-    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
+    DEBUG←1                                     ⍝ Change to 1 to turn off signal trapping…
     VERBOSE←0
     VERBOSE←VERBOSE∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
     ⎕FX '{ok}←note str'  (VERBOSE↓'⍝⎕←str') 'ok←1'
 
     ∇ {_}←loadHelp
-      :Trap 0
-          _←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
-      :Else
-          _←⎕←'Unable to load bigIntHelp'
+      :Trap 0 ⋄ _←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
+      :Else ⋄ _←⎕←'Unable to load bigIntHelp'
       :EndTrap
     ∇
     loadHelp
@@ -25,10 +23,7 @@
   ⍝-------------------------------------------------------------------------------+⍝
   ⍝+-- BI: BI Operator for calling a big integer function as the left operand.  --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
-
-    ⎕TRAP←(911×DEBUG) 'C' '(∊''BigInt: '',⎕DMX.EM)⎕SIGNAL 11'
-
-
+    ⎕TRAP←(DEBUG⊃(0 1000)911) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
   ⍝ err: If dfns, use form "cond: err msg".
   ⍝      If trad, use form "cond  err msg".
@@ -60,7 +55,7 @@
   ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX.
 
   ⍝ =====================================================================================
-  ⍝ {ok=1}←setHandSizeInBits [nn | frType | 0]
+  ⍝ {ok=1}←setHandSizeInBits ⍵:[nn | frType | 0]
   ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
   ⍝      frType:  either 645 or 1287, corresponding to the largest # of bits
   ⍝               for either ⎕FR=645 or 1287. ⍵ must be 645 or 1287
@@ -76,7 +71,7 @@
   ⍝   overflow, there is a balance between handling large numbers of hands (vectors)
   ⍝   and integer vs float math (notably with decimal floats, which are very slow).
   ⍝
-  ⍝   >>> From initial tests, 20-bits (the default) works well everywhere.
+  ⍝   >>> From initial tests, 20-bits (⍵=0 → the default) works well everywhere.
   ⍝
   ⍝   setHandSizeInBits: sets all the key constants:
   ⍝       RX, DRX, BRX, OFL, and ⎕FR.
@@ -131,7 +126,7 @@
     ⍝ Report...
       :If verbose
           ⎕←'nbits in radix(*)  BRX   ',BRX
-          ⎕←'Floating rep       ⎕FR   ',⎕FR
+          ⎕←'Floating rep       ⎕FR   ',⎕FR,' in namespace ',⍕⎕THIS
           ⎕←'ndigits in radix   DRX   ',DRX
           ⎕←'Radix (10*DRX)     RX    ',¯3⍕RX
           ⎕←'max ⍵ for ⍵×⍵ (**) OFL   ',OFL
@@ -263,16 +258,18 @@
     ⍝    Together sign and data define a big integer.
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
-
-      ⍝ ∆: Convert
-      ⍝    ... from external-format (BIc) (⍺ and) ⍵--
-      ⍝             each either a BigInteger string or an APL integer--
-      ⍝    ... to internal format (BIi) BigIntegers (⍺' and) ⍵',
-      ⍝             each of the form sign (data), where data is an integer vector.
+      ⍝ ---------------------------------------------------------------------
+      ⍝ import / imp - Import to internal bigInteger
+      ⍝ ---------------------------------------------------------------------
+      ⍝ ∆  - shorthand used internally
+      ⍝    from: external-format (BIc) (⍺ and) ⍵--
+      ⍝          each either a BigInteger string or an APL integer--
+      ⍝    to:   internal format (BIi) BigIntegers (⍺' and) ⍵',
+      ⍝          each of the form sign (data), where data is an integer vector.
       ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
       ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
-      ∆←{⍺←⊢
+      import←{⍺←⊢
           0::⎕SIGNAL/⎕DMX.(EM EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
           ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
@@ -282,6 +279,7 @@
           ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
           err eBADBI
       }
+    ∆←import ⋄ imp←import
       ⍝ ∆Num: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
@@ -304,9 +302,11 @@
           d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
-    ⍝ exp: EXPORT a SCALAR BI
+    ⍝ ---------------------------------------------------------------------
+    ⍝ export / exp: EXPORT a SCALAR BI to external "standard" bigInteger
+    ⍝ ---------------------------------------------------------------------
     ⍝    r:BIc ← ∇ ⍵:BIi
-      export←{ ⍝ exp: internal to external (output string) format'
+      export←{
           sw w←⍵
           sgn←(sw=¯1)/'¯'
           sgn,⎕D[dlzs,⍉(DRX⍴10)⊤|w]
@@ -479,7 +479,7 @@
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
      
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
-          a ltU w:(-sw)(nupZ-⌿dck w mix a)     ⍝ 3-5 →  -(5-3)
+          a<cmpU w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
     subtract←minus
@@ -516,9 +516,9 @@
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:zeroUD
           sa=0:sw w
-          r←a remU w               ⍝ r: remainder
-          sa=sw:sa r               ⍝ sa=sw: return r       (r: signed)
-          sa a minus sa r          ⍝ sa≠sw: return (a - r) (r: signed)
+          r←a remU w               ⍝ remU is fast if a>w
+          sa=sw:sa r               ⍝ sa=sw: return (R)       R←sa r
+          sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
@@ -576,11 +576,20 @@
     :EndSection BI Dyadic Operands/Functions
 
     :Section BI Special Functions/Operations (More than 2 Args)
-    ⍝ r ← ⍺ modMul ⍵ m    →→→    r ← m | ⍺ × w
+    ⍝ modMul:  modulo m of product a×b
+    ⍝ A faster method than (m|a×b), when a, b are large and m is substantially smaller.
+    ⍝ r ← a modMul b m    →→→    r ← m | a × b
     ⍝ BIi ← ⍺:BIi ∇ ⍵:BIi m:BIi
+    ⍝ Naive method: (m|a×b)
+    ⍝      If a,b have 1000 digits each and m is smaller, the m| operates on 2000 digits.
+    ⍝ Better method: (m | (m|a)×(m|b)).
+    ⍝      Here, the multiply is on len(m) digits, and the final m operates on 2×len(m).
+    ⍝ For large a b of length 5000 dec digits or more, this alg can be 2ce the speed (13 sec vs 26).
+    ⍝ It is nominally faster at lengths around 75 digits.
+    ⍝ Only for smaller (and faster) a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
-          w m←⍵
-          m residue ⍺ times w
+          a(b m)←(∆ ⍺)(⊃∆/⍵)
+          m residue(m residue a)times(m residue b)
       }
     :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
@@ -652,7 +661,10 @@
 
     gcdU←{⍵≡zeroUD:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}         ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
-    remU←{⊃⌽⍵ divU ⍺}                         ⍝ BIu remainder
+      remU←{                                  ⍝ BIu remainder
+          ⍵<cmpU ⍺:⍵                          ⍝ ⍵ < ⍺? remainder is ⍵
+          ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
+      }
 
 
 
@@ -672,7 +684,7 @@
         nup←{⍵++⌿0 1⌽RX ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dlz nup                            ⍝ PMS
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
-    ltU←{<cmp ⍺ mix ⍵}                      ⍝ unsigned ⍺ < ⍵                 [pms]
+    cmpU←{⍺⍺ cmp ⍺ mix ⍵}                   ⍝ unsigned ⍺ cmp ⍵ , e.g. ⍺ <cmpU ⍵       [pms]
     dck←{(2 1+(≥cmp ⍵)⌽0 ¯1)⌿⍵}             ⍝ difference check.
     rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷DRX),DRX}  ⍝ radix RX rep of number.
 
