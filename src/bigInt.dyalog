@@ -7,22 +7,26 @@
     ∇ trigger_DEBUG args
       :Implements Trigger DEBUG
     ⍝ Sets VERBOSE, ⎕TRAP, and ∇note∇ dynamically when DEBUG is set or reset.
-      args.Name'has changed to',args.NewValue
+      :If 1≡args.NewValue ⋄ args.Name,' set to',args.NewValue ⋄ :EndIf
       VERBOSE←VERBOSE_INITIAL∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
-      ⎕TRAP←(DEBUG⊃(0 1000)911)'C' '⎕SIGNAL/⎕DMX.(EM EN)'
-      ⎕FX'{ok}←note str'(VERBOSE↓'⍝⎕←str')'ok←1'
+      :If DEBUG
+          ∆ERR←⍬
+      :Else
+          ∆ERR←0 1000
+      :EndIf
+      err←{⍺←1 ⋄ ⍺=0:_←⍵ ⋄ m←⍵ ⎕DMX.EM⊃⍨0=≢⍵ ⋄ ⎕SIGNAL/('bigInt: ',m)⎕DMX.EN}
+      ⎕FX'{ok}←note str'('ok←1',VERBOSE/'⊣⎕←str')
     ∇
     ∇ {r}←loadHelp
       :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
       :Else ⋄ r←⎕←'Unable to load bigIntHelp'
       :EndTrap
     ∇
-    err←{⍺←1 ⋄ ⍺=1: ⍵ ⎕SIGNAL 911 ⋄ 1: _←⍵ }
     :EndSection PREAMBLE - Utilities
 
     :Section PREAMBLE - Variables
     VERBOSE_INITIAL←0
-    DEBUG←0                                     ⍝ Change to 1 to turn off signal trapping…
+    DEBUG←0
     loadHelp
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
     :EndSection PREAMBLE - Preliminaries
@@ -60,8 +64,8 @@
   ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX.
 
   ⍝ ==================
-  ⍝ setHandSizeInBits  
-  ⍝ ================== 
+  ⍝ setHandSizeInBits
+  ⍝ ==================
   ⍝ {ok=1}←setHandSizeInBits ⍵:[nn | frType | 0]
   ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
   ⍝      frType:  either 645 or 1287, corresponding to the largest # of bits
@@ -125,7 +129,7 @@
       :EndIf
     ⍝ Set key bigInt constants...
       ⎕FR←645 1287⊃⍨brx>brxMid
-      BRX←brx            
+      BRX←brx
       DRX←⌊10⍟2*BRX
       RX←10*DRX
       OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
@@ -167,7 +171,7 @@
 
     :Section BI - Executive
     ⍝ --------------------------------------------------------------------------------------------------
-   
+
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT')
@@ -186,7 +190,7 @@
 
 ⍝ --------------------------------------------------------------------------------------------------
       BIX←{⍺←⊢
-          911::⎕SIGNAL/⎕DMX.(EM 11)
+          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
         ⍝ fn: If ⍺⍺ is a simple APL fn (+),            fn is a simple char scalar.
         ⍝     If       a sequence of APL symbols(|⍨),  fn is an enclosed char vector (⊂'|⍨').
         ⍝     If       a 1-char string ('√' or ,'√')   fn is a simple scalar char, uppercase.
@@ -236,7 +240,6 @@
           CASE'≠':⍺ ne ⍵
           CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵
           CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵
-     
           err eCANTDO2,,⎕FMT fn
       }
     ⍝ Build BIX/BI.
@@ -248,7 +251,7 @@
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
 
-    :EndSection BI Executive  
+    :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
 
     :Section BigInt internal structure
@@ -271,7 +274,7 @@
       ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
       import←{⍺←⊢
-          0::⎕SIGNAL/⎕DMX.(EM EN)
+          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
           ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
           1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
@@ -290,7 +293,7 @@
       ⍝ Usage:
       ⍝    ?BIX 1E100 calls (bigInt.∆Num 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆Num←{⎕FR←1287
-          0::911 ⎕SIGNAL⍨eNONINT,⍕⍵
+          0::11 ⎕SIGNAL⍨eNONINT,⍕⍵
           0≠1↑0⍴⍵:∘
           ⍵≠⌊⍵:∘
           (×⍵)(zro RX⊥⍣¯1⊣|⍵)
@@ -775,7 +778,7 @@
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
       BIC←{
           ⍺←1
-          DEBUG×99::⎕SIGNAL/⎕DMX.(('BIC: ',EM)EN)
+            ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM) EN)
           0=1↑0⍴∊⍵:err eBIC
         ⍝ ⍺ a string, treat as: ⍺,1 BIC ⍵
           0≠1↑0⍴⍺:⍺,matchBiCalls ⍵              ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
@@ -859,7 +862,7 @@
     ∇
 
       BIB←{
-          DEBUG×99::⎕SIGNAL/⎕DMX.(EM EN)
+            ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM) EN)
           ⍺←⊢
           1≡⍺ 1:⊥BI ⍺⍺⊤BI ⍵
           ⊥BI ⍺⍺⌿↑⊤BI¨⍺ ⍵   ⍝ Padding on right (High order bits)
