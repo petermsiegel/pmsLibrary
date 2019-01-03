@@ -29,6 +29,8 @@
     :Section BI
 
     :Section PREAMBLE
+    DEBUG←0    ⍝ Set DEBUG here only.
+
     :Section PREAMBLE -  Utilities
     ∇ trigger_DEBUG args
       :Implements Trigger DEBUG
@@ -51,7 +53,7 @@
     :EndSection PREAMBLE - Utilities
     :Section PREAMBLE - Variables
     VERBOSE_INITIAL←0          ⍝ Set VERBOSE initial value; reset if DEBUG changed...
-    DEBUG←0                    ⍝ Set DEBUG here or on the fly
+    DEBUG←DEBUG                ⍝ Set DEBUG here or on the fly
     loadHelp                   ⍝ Load help at ⎕FIX (compile) time.
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
     :EndSection PREAMBLE - Variables
@@ -201,7 +203,7 @@
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT')
     ⍝            reg. fns       boolean  names
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -214,7 +216,7 @@
 
 
 ⍝ --------------------------------------------------------------------------------------------------
-      BIX←{⍺←⊢
+      _BI_←{⍺←⊢
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
         ⍝ fn: If ⍺⍺ is a simple APL fn (+),            fn is a simple char scalar.
         ⍝     If       a sequence of APL symbols(|⍨),  fn is an enclosed char vector (⊂'|⍨').
@@ -255,6 +257,7 @@
           CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍵1 | ⍺ × ⍵0
           CASE'MMUL':∆exp∆ ⍺ modMul ⍵               ⍝ ...
           CASE'*':∆exp∆ ⍺ power ⍵
+          CASE'√':∆exp∆ ⍺ root ⍵                    ⍝ See root.
           CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ |           APL residue
           CASE'|⍨' 'MOD':∆exp∆ ⍵ residue ⍺          ⍝ ⍺ ('MOD' BI)⍵ ←→ ⍵|BI ⍺
           CASE'<':⍺ lt ⍵                            ⍝ All logical fns <≤=≥>≠ return r∊1 0. ∨∧ are excluded.
@@ -270,8 +273,8 @@
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
-    note'Created operator BI'⊣⎕FX'BIX' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'BIX'
-    note'Created operator BIX'⊣⎕FX'∆exp∆'⎕R'exp'⊣⎕NR'BIX'
+    note'Created operator BI' ⊣⎕FX'_BI_' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'_BI_'
+    note'Created operator BIX'⊣⎕FX'_BI_' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'_BI_'
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
@@ -457,30 +460,50 @@
           (×sg)(|2⊥⍉b)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
       }
 
-    ∇ x←sqrt N;ndig;sign;y
-    ⍝ intSqrt: A fast integer square root: Fredrick Johanssen's algorithm with optimization for APL integers.
-    ⍝ x:BIi ← ∇ N:(BIi|BIx)>0
+
+    ∇ x←{nth}root N;invNth;ndig;sign;y;s
+    ⍝ (int)root: A fast integer nth root.
+    ⍝   nth: a small, positive integer (<RX); default 2 (for sqrt).
+    ⍝   N:   any BIx
+    ⍝   x:   the nth root as an internal big integer.
+    ⍝   ∘ Uses Fredrick Johanssen's algorithm with optimization for APL integers.
+    ⍝   ∘ Estimator based on guesstimate for sqrt N, no matter what root.
+    ⍝     (Better than using N).
+    ⍝   ∘ As fast for sqrt as a "custom" version.
+    ⍝   ∘ If N is small, calculate directly via APL.
+    ⍝ x:BIi ← nth:small_(BIi|BIx) ∇ N:(BIi|BIx)>0
+      :If 0=⎕NC'nth'
+          invNth nth←0.5 2
+      :Else
+          s nth←∆ nth
+          :If ¯1=s ⋄ :OrIf 1≠≢nth
+              11 ⎕SIGNAL⍨'nth root N: Only able to find small integral roots (⍺ not small integer)'
+          :End
+          invNth←÷nth←⊃nth
+      :EndIf
       N←∆ N
       :If 0=⊃N ⋄ x←N ⋄ :EndIf
       :If ¯1=⊃N ⋄ err eSQRT ⋄ :EndIf
     ⍝ If the # N is small, calculate via APL
       ndig←≢⊃⌽N
-      :If 1=ndig ⋄ x←1(⌊0.5*⍨⊃⌽N) ⋄ :Return ⋄ :EndIf
-    ⍝ Initial estimate for N*0.5 must be ≥ the actual solution, else this will terminate prematurely.
+      :If 1=ndig ⋄ x←1(⌊invNth*⍨⊃⌽N) ⋄ :Return ⋄ :EndIf
+    ⍝ Initial estimate for N*÷nth must be ≥ the actual solution, else this will terminate prematurely.
     ⍝ Initial x: ¯1+10*⌈(# dec digits in N)÷2 <== DECIMAL.     2*⌈(numbits(N)÷2) <=== BINARY.
-      x←{
-          0::1((⌈0.5*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1)   ⍝ Alt: Estimate from # of Base-RX digits in <data>.
+      x←{ ⍝ We use sqrt N as initial estimate for ANY root. Not ideal, but safe.
+          0::1((⌈invNth*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1)   ⍝ Alt: Estimate from # of Base-RX digits in <data>.
           ⎕FR←1287
-        ⍝ Alternative: ∆ '9'⍴⍨ ⌈0.5÷⍨≢exp ⍵        ⍝ Est from decimal:  works for all ⍵
-          ∆ 1+⌈0.5*⍨⍎exp ⍵                         ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
+        ⍝ Alternative: ∆ '9'⍴⍨ ⌈0.5÷⍨≢exp ⍵  ⍝ Est from decimal:  works for all ⍵
+          ∆ 1+⌈invNth*⍨⍎exp ⍵                  ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
       }N
       :While 1
-          y←(x plus N divide x)divide 2       ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷2)
-          :If y ge x ⋄ :Leave             ⍝ Is y not smaller than x? Done
+          y←(x plus N divide x)divide nth    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+          :If y ge x ⋄ :Leave                ⍝ Is y not smaller than x? Done
           :EndIf
-          x←y                            ⍝ y is smaller than x. Make x ← y and try another.
+          x←y                                ⍝ y is smaller than x. Make x ← y and try another.
       :EndWhile
     ∇
+    sqrt←root
+
   ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     oneDiv←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
 
@@ -532,6 +555,7 @@
       }
     divRem←divideRem
       power←{
+          (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ power 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
           sa sw∨.=0 ¯1:0 zeroUD    ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a powU w
@@ -910,7 +934,7 @@
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
     ⍝ starting with a statement to erase the clone
       :Trap 0
-          :If 0=1↑0⍴callerNs.⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(0 BIC callerCode)
+          :If 0=1↑0⍴callerNs.⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(⊆0 BIC callerCode)
               err eBIHFAILED
           :EndIf
           ⍝ Success!

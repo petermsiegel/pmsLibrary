@@ -87,6 +87,13 @@
   ⍝   various bit manipulations on BIx; a utility BIB (Big Integer Bits) has been provided as well.
   ⍝ ∘ We support an efficient (Newton's method) integer sqrt:
   ⍝        ('SQRT' BI)⍵ or ('√' BI)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
+  ⍝   and general root:
+  ⍝           9 ('√'BIX) 1000        ⍝ 9th root of 1000
+  ⍝        2
+  ⍝           bi.exp 9 bi.root 1000  ⍝ ditto
+  ⍝        2
+  ⍝           (9 ('√'BIX) (1000⍴⎕d))≡bi.exp 9 bi.root 1000⍴⎕d
+  ⍝        1
   ⍝ ∘ We include ?BI to allow for a random number of any number of digits and !BI to allow for
   ⍝   factorials on large integers.  (!BI does not use memoization, but the user could extend it.)
   ⍝
@@ -185,7 +192,7 @@
    ⍝    ⍎BI ⍵             ⍎export ⍵              Converts ⍵ to APL integer (or error)
    ⍝    ←BI ⍵             ⍵                      Returns ⍵ in BigInt internal form. More relevant with BIX.
    ⍝    ⍕BI ⍵             export ⍵               Returns an BigInt in external (string) form.
-   ⍝    ('SQRT'BI) ⍵      sqrt ⍵           ⌊⍵*0.5
+   ⍝    ('SQRT'BI) ⍵      sqrt ⍵           ⌊⍵*0.5  See dyadic root
    ⍝    ('√'BI)⍵          ↓
    ⍝    (*∘0.5 BI)⍵       ↓
    ⍝
@@ -210,6 +217,7 @@
    ⍝    ⍺ |BI ⍵           ⍺ residue ⍵      ⍺|⍵
    ⍝    ⍺ |⍨BI ⍵          ⍺ modulo ⍵       ⍵|⍺
    ⍝                      ⍺ mod ⍵          ⍵|⍺
+   ⍝                      ⍺ root ⍵         ⍺*÷⍵   ⍵ small pos. integers (default ⍺←2).
    ⍝    ⍺ ∨BI ⍵           ⍺ gcd ⍵          ⍺∨⍵    Returns a BigInteger. Not viewed as boolean.
    ⍝    ⍺ ∧BI ⍵           ⍺ lcm ⍵          ⍺∧⍵    Returns a BigInteger. Not viewed as boolean
    ⍝  LOGICAL FUNCTIONS (DYADIC)
@@ -465,13 +473,13 @@
    ⍝ I. To dynamically (on the fly) take a user function myFn, and have it "compiled"
    ⍝ with BIC "on the fly, place the following code early in the function myFn, outside
    ⍝ of any control structures (see below for workarounds):
-   ⍝   A. If the user function myFn returns no result 
+   ⍝   A. If the user function myFn returns no result
    ⍝      ∇ myFn; local1; local2; ...
-   ⍝        ⍎BI∆HERE  
+   ⍝        ⍎BI∆HERE
    ⍝        ⍝ Rest of lines will be interpreted as bigInt math per BIC rules.
    ⍝        ...
-   ⍝      ∇              
-   ⍝   B. If the user function myFn returns a result, e.g. myResult 
+   ⍝      ∇
+   ⍝   B. If the user function myFn returns a result, e.g. myResult
    ⍝      ∇ myResult←myFn; local1; local2; ...
    ⍝        ⍎BI∆HERE
    ⍝        ⍝ Rest of lines will be interpreted as bigInt math per BIC rules.
@@ -479,17 +487,17 @@
    ⍝        ...
    ⍝        myResult←!50
    ⍝        ...
-   ⍝      ∇       
+   ⍝      ∇
    ⍝ Notes: ----------------------------
    ⍝ ∘ In the cloned / compiled version of the caller function,
    ⍝   execution begins on the line right after the BI∆HERE.
    ⍝ ∘ If a control structure is required to determine whether to execute the function
    ⍝   as a bigInt function or not, it must be wholly contained on
    ⍝   the line containing the BI∆HERE, since BI∆HERE, if executed, starts at the next line:
-   ⍝      OK:     
+   ⍝      OK:
    ⍝              :IF true ⋄ BI∆HERE ⋄ :ELSE ⋄ set a flag or something ⋄ :ENDIF
    ⍝       -->    Execution continues here whether prior IF is true or not!
-   ⍝      BAD:    
+   ⍝      BAD:
    ⍝              :IF true ⋄ BI∆HERE
    ⍝       -->    :ELSE ⋄ do something else      ⍝ Clone execution starts here! Ugh!
    ⍝              :ENDIF
