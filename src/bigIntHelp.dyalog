@@ -462,28 +462,43 @@
    ⍝-------------------------------------------------------------------------------------------------------
    ⍝ BI∆HERE: BI dynamic (on the fly) compiler…
    ⍝-------------------------------------------------------------------------------------------------------
-   ⍝ To dynamically (on the fly) take a function fn, compile
-   ⍝ it with BIC, and execute it, place
-   ⍝    ⍎BI∆HERE           ⍝ no arguments
-   ⍝ early in the function fn, outside of any control structures (otherwise,
-   ⍝ a syntax error may be signalled).
-   ⍝ ----------------------------------
+   ⍝ I. To dynamically (on the fly) take a user function myFn, and have it "compiled"
+   ⍝ with BIC "on the fly, place the following code early in the function myFn, outside
+   ⍝ of any control structures (see below for workarounds):
+   ⍝   A. If the user function myFn returns no result 
+   ⍝      ∇ myFn; local1; local2; ...
+   ⍝        ⍎BI∆HERE  
+   ⍝        ⍝ Rest of lines will be interpreted as bigInt math per BIC rules.
+   ⍝        ...
+   ⍝      ∇              
+   ⍝   B. If the user function myFn returns a result, e.g. myResult 
+   ⍝      ∇ myResult←myFn; local1; local2; ...
+   ⍝        ⍎BI∆HERE
+   ⍝        ⍝ Rest of lines will be interpreted as bigInt math per BIC rules.
+   ⍝        ⍝ Be sure that at least one sets myResult, as usual, before returning
+   ⍝        ...
+   ⍝        myResult←!50
+   ⍝        ...
+   ⍝      ∇       
+   ⍝ Notes: ----------------------------
    ⍝ ∘ In the cloned / compiled version of the caller function,
    ⍝   execution begins on the line right after the BI∆HERE.
    ⍝ ∘ If a control structure is required to determine whether to execute the function
    ⍝   as a bigInt function or not, it must be wholly contained on
-   ⍝   the line containing the BI∆HERE:
-   ⍝      OK:     :IF true ⋄ BI∆HERE ⋄ :ELSE ⋄ set a flag or something ⋄ :ENDIF
+   ⍝   the line containing the BI∆HERE, since BI∆HERE, if executed, starts at the next line:
+   ⍝      OK:     
+   ⍝              :IF true ⋄ BI∆HERE ⋄ :ELSE ⋄ set a flag or something ⋄ :ENDIF
    ⍝       -->    Execution continues here whether prior IF is true or not!
-   ⍝      BAD:    :IF true ⋄ BI∆HERE
+   ⍝      BAD:    
+   ⍝              :IF true ⋄ BI∆HERE
    ⍝       -->    :ELSE ⋄ do something else      ⍝ Clone execution starts here! Ugh!
    ⍝              :ENDIF
    ⍝ ∘ If more than one BI∆HERE appears in a fn, only one is executed, since the caller
-   ⍝   is terminated immediately (on the ⍎BI∆HERE) after the clone is complete.
+   ⍝   is terminated immediately (within the ⍎BI∆HERE) after the clone is complete.
    ⍝ ∘ For syntax, see BIC
    ⍝ ∘ The caller must not be locked, since ⎕NR is used to scan the function.
-   ⍝ ∘ The clone is deleted as it begins execution. Name format: _TEMP_callerNm_,
-   ⍝   where callerNm is the name of the caller.
+   ⍝ ∘ The clone is deleted as it begins execution. Name format: <myFn>__BigInteger_TEMP,
+   ⍝   where myFn is the name of the user function..
     ∇
 
 

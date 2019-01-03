@@ -2,6 +2,32 @@
   ⍝ ∘ NOTE: See bigIntHelp for details...
   ⍝ ∘ Call bigInt.help or ⎕EDIT 'bigIntHelp'
 
+  ⍝ Table of Contents
+  ⍝   Preamble
+  ⍝      Preamble Utilities
+  ⍝      Preamble Variables
+  ⍝   BI
+  ⍝      BigInt Namespace and Utility Initializations
+  ⍝      Executive
+  ⍝      BigInt internal structure
+  ⍝      Monadic Operands/Functions
+  ⍝      Dyadic Operands/Functions
+  ⍝      BI Special Functions/Operations (More than 2 Args)
+  ⍝      Unsigned Utility Math Routines
+  ⍝      Service Routines
+  ⍝  Utilities
+  ⍝      bi
+  ⍝      dc (desk calculator)
+  ⍝      BIB (bit manipulation)
+  ⍝      BIC (BI math "compiler")
+  ⍝      BI∆HERE (self-declared BI math function)
+  ⍝  Postamble
+  ⍝      Exported and non-exported Utilities
+
+
+⍝ --------------------------------------------------------------------------------------------------
+    :Section BI
+
     :Section PREAMBLE
     :Section PREAMBLE -  Utilities
     ∇ trigger_DEBUG args
@@ -23,16 +49,15 @@
       :EndTrap
     ∇
     :EndSection PREAMBLE - Utilities
-
     :Section PREAMBLE - Variables
-    VERBOSE_INITIAL←0
-    DEBUG←0
-    loadHelp
+    VERBOSE_INITIAL←0          ⍝ Set VERBOSE initial value; reset if DEBUG changed...
+    DEBUG←0                    ⍝ Set DEBUG here or on the fly
+    loadHelp                   ⍝ Load help at ⎕FIX (compile) time.
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
-    :EndSection PREAMBLE - Preliminaries
     :EndSection PREAMBLE - Variables
+    :EndSection PREAMBLE
 
-    :Section BigInt Namespace and Utility BI - Initializations
+    :Section Namespace and Utility Initializations
   ⍝+------------------------------------------------------------------------------+⍝
   ⍝+-- BI INITIALIZATIONS                            BI INITIALIZATIONS         --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
@@ -167,9 +192,9 @@
     eBIC←'BIC argument must be a fn name or one or more code strings.'
     eBITSIN←'BigInt: Importing bits requires arg to contain only boolean integers'
 
-    :EndSection BigInt Namespace and BI Utility - Initializations
+    :EndSection Namespace and Utility Initializations
 
-    :Section BI - Executive
+    :Section Executive
     ⍝ --------------------------------------------------------------------------------------------------
 
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
@@ -250,7 +275,6 @@
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
-
     :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
 
@@ -675,7 +699,7 @@
     :Endsection BI Unsigned Utility Math Routines
 ⍝ --------------------------------------------------------------------------------------------------
 
-    :Section BI - Service Routines
+    :Section Service Routines
 
     atom←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
 
@@ -692,11 +716,11 @@
     rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷DRX),DRX}  ⍝ radix RX rep of number.
     cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                     ⍝ compare first different digit of ⍺ and ⍵.
 
-    :Endsection BI Service Routines
+    :Endsection Service Routines
 ⍝ --------------------------------------------------------------------------------------------------
+    :Endsection Big Integers
 
-
-    :Section Utilities: bi BIB, BIC, BI∆HERE
+    :Section Utilities: bi, dc (desk calc), BIB, BIC, BI∆HERE
    ⍝ bi      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, bi will be found without typing explicit path.
    ⍝ bi.dc   - desk calculator (self-documenting)
@@ -778,7 +802,7 @@
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
       BIC←{
           ⍺←1
-            ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM) EN)
+          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           0=1↑0⍴∊⍵:err eBIC
         ⍝ ⍺ a string, treat as: ⍺,1 BIC ⍵
           0≠1↑0⍴⍺:⍺,matchBiCalls ⍵              ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
@@ -862,7 +886,7 @@
     ∇
 
       BIB←{
-            ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM) EN)
+          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           ⍺←⊢
           1≡⍺ 1:⊥BI ⍺⍺⊤BI ⍵
           ⊥BI ⍺⍺⌿↑⊤BI¨⍺ ⍵   ⍝ Padding on right (High order bits)
@@ -870,31 +894,35 @@
 
     eBIHFAILED←'BI∆HERE failed: unable to run compiled BI code'
     eBIHBADCALL←'BI∆HERE not called from active traditional fn'
-    ∇ callback←BI∆HERE;callerCode;callerNm;cloneNm;opt;pat;RE∆GET;⎕TRAP
+    ∇ {callback}←BI∆HERE;callerCode;callerNm;cloneNm;callerNs;opt;pat;RE∆GET;⎕TRAP
       ⍝ See BI∆HERE_HELP
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
       (2>≢⎕SI)err eBIHBADCALL
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
           ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
       }
-     
       opt←('Mode' 'M')('EOL' 'LF')('IC' 1)('UCP' 1)('DotAll' 1)
       pat←'^ (?: \h* ⍝?:BI \b \N*$) (.*?) (?: \R ⍝?:ENDBI \b \N*$)'~' '
-      ⎕←callerCode←(1+⎕LC⊃⍨1+⎕IO)↓⎕NR callerNm←⎕SI⊃⍨1+⎕IO
-     
+      callerNs←(⊃⎕RSI)
+      callerCode←(1+⎕LC⊃⍨1+⎕IO)↓callerNs.⎕NR callerNm←⎕SI⊃⍨1+⎕IO
       cloneNm←callerNm,'__BigInteger_TEMP'
       callback←cloneNm,' ⋄ →0'
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
     ⍝ starting with a statement to erase the clone
       :Trap 0
-          :If 0=1↑0⍴⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(0 BIC callerCode)
+          :If 0=1↑0⍴callerNs.⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(0 BIC callerCode)
               err eBIHFAILED
           :EndIf
+          ⍝ Success!
       :Else
           err eBIHFAILED
       :EndTrap
+      :If DEBUG
+          ⎕←'Executing...'
+          ⎕←callerNs.⎕VR cloneNm
+      :EndIf
     ∇
-    :Endsection BIC, BIB, and BI∆HERE  Routines  -----------------------------------------------------------
+    :Endsection Utilities: bi, dc (desk calc), BIB, BIC, BI∆HERE
 
     :Section Documentation
     ⍝ See bigIntHelp
@@ -946,7 +974,6 @@
     note{(⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
     note'*** ',(⍕⎕THIS),' initialized. See ',(⍕⎕THIS),'.HELP'
     note 50⍴'-'
-
     :EndSection Bigint Namespace - Postamble
 
 :EndNamespace
