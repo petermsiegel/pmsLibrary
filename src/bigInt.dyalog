@@ -345,7 +345,7 @@
     exp←export
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
     ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD). Else return ⍵ w/ leading zero deleted.
-    ∆z←{(⊃⍵)(zro dlz⊃⌽⍵)}
+    ∆z←{ zeroUD≡zro dlz⊃⌽⍵: 0 zeroUD ⋄ ⍵}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
@@ -460,9 +460,8 @@
           (×sg)(|2⊥⍉b)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
       }
 
-
-    ∇ x←{nth}root N;invNth;ndig;sign;y;s
     ⍝ (int)root: A fast integer nth root.
+    ⍝ x ← nth root N  ==>  x ← N *÷nth
     ⍝   nth: a small, positive integer (<RX); default 2 (for sqrt).
     ⍝   N:   any BIx
     ⍝   x:   the nth root as an internal big integer.
@@ -472,36 +471,40 @@
     ⍝   ∘ As fast for sqrt as a "custom" version.
     ⍝   ∘ If N is small, calculate directly via APL.
     ⍝ x:BIi ← nth:small_(BIi|BIx) ∇ N:(BIi|BIx)>0
-      :If 0=⎕NC'nth'
-          invNth nth←0.5 2
-      :Else
-          s nth←∆ nth
-          :If ¯1=s ⋄ :OrIf 1≠≢nth
-              11 ⎕SIGNAL⍨'nth root N: Only able to find small integral roots (⍺ not small integer)'
-          :End
-          invNth←÷nth←⊃nth
-      :EndIf
-      N←∆ N
-      :If 0=⊃N ⋄ x←N ⋄ :EndIf
-      :If ¯1=⊃N ⋄ err eSQRT ⋄ :EndIf
-    ⍝ If the # N is small, calculate via APL
-      ndig←≢⊃⌽N
-      :If 1=ndig ⋄ x←1(⌊invNth*⍨⊃⌽N) ⋄ :Return ⋄ :EndIf
-    ⍝ Initial estimate for N*÷nth must be ≥ the actual solution, else this will terminate prematurely.
-    ⍝ Initial x: ¯1+10*⌈(# dec digits in N)÷2 <== DECIMAL.     2*⌈(numbits(N)÷2) <=== BINARY.
-      x←{ ⍝ We use sqrt N as initial estimate for ANY root. Not ideal, but safe.
-          0::1((⌈invNth*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1)   ⍝ Alt: Estimate from # of Base-RX digits in <data>.
-          ⎕FR←1287
-        ⍝ Alternative: ∆ '9'⍴⍨ ⌈0.5÷⍨≢exp ⍵  ⍝ Est from decimal:  works for all ⍵
-          ∆ 1+⌈invNth*⍨⍎exp ⍵                  ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
-      }N
-      :While 1
-          y←(x plus N divide x)divide nth    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
-          :If y ge x ⋄ :Leave                ⍝ Is y not smaller than x? Done
-          :EndIf
-          x←y                                ⍝ y is smaller than x. Make x ← y and try another.
-      :EndWhile
-    ∇
+      root←{
+        ⍝ Check nth in  N*÷nth
+          ⍺←2
+          sgn invNth nth←⍺{
+              ⍵:1 0.5 2
+              sgn nth←bi.imp ⍺
+              sgn=0:eROOT ⎕SIGNAL 11
+              1<≢nth:eROOT ⎕SIGNAL 11
+              nth←⊃nth
+              sgn(÷nth)nth
+          }900⌶⍬
+          sgn<0:0    ⍝  ⌊N*÷nth ≡ 0, if nth<0 (nth a small int)
+        ⍝ Check N
+          N←imp ⍵
+          0=⊃N:N                        ⍝  0=×N?   0
+          ¯1=⊃N:eROOT ⎕SIGNAL 11        ⍝ ¯1=×N?   error
+          1=ndig←≢⊃⌽N:1(⌊invNth*⍨⊃⌽N)   ⍝ N small? Let APL calc value
+        ⍝ Initial estimate for N*÷nth must be ≥ the actual solution, else this will terminate prematurely.
+        ⍝ Initial estimate (x):
+        ⍝   DECIMAL est: ¯1+10*⌈(# dec digits in N)÷2
+        ⍝   BINARY  est:  2*⌈(numbits(N)÷2)
+          x←{ ⍝ We use est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
+              0::1((⌈invNth*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. ↑
+              ⎕FR←1287
+              imp 1+⌈invNth*⍨⍎exp ⍵               ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
+          }N
+        ⍝ Refine x, i.e. ⍵, until y > x
+          {
+              y←(⍵ plus N divide ⍵)divide nth  ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+              y ge ⍵:⍵
+              ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
+          }x
+      }
+    eROOT←'bigInt.root: root (⍺) must be small non-zero integer ((|⍺)<',(⍕RX),')'
     sqrt←root
 
   ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
