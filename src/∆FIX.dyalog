@@ -5,7 +5,7 @@
  ;_MATCHED_GENERICp;anyNumP;atomsP;box;braceCount;braceP;brackP;code;comment
  ;commentP;defMatch;defS;dict;dictNameP;directiveP;doScan;dqStringP;ellipsesP
  ;enQ;err;eval;filesIncluded;first;firstBuffer;firstP;fileName;funName;getenv;h2d;hdr
- ;ifTrue;infile;keys;letS;longNameP;macro;macroFn;macros;multiLineP;nameP;names
+ ;ifTrue;infile;keys;letS;longNameP;macro;macroFn;macros;multiLineP;nameAttributeP;nameP;names
  ;obj;objects;opts;parenP;pfx;processFnHdr;readFile;register;setBrace;sfx
  ;showCodeSnip;showObjSnip;specialStringP;sqStringP;stringAction;stringP
  ;subMacro;tmpfile;ø;∆COM;∆DICT;∆FIELD;∆MYdefs;∆PFX;∆V2S;⎕IO;⎕ML;⎕PATH;⎕TRAP
@@ -575,7 +575,12 @@
    ⍝ Comment pat
      commentP←'(?: ⍝.* )'
    ⍝ Ellipses: either two or more dots (..) or the Unicode ellipses single character: '…'
-     ellipsesP←'(?:  \… | \.{2,} )'
+     ellipsesP←'(?:  […•∙] | \.{2,} )'
+   ⍝ name Attributes: .. or • separator between names:  name..DEF or name•DEF, etc.
+   ⍝ In this version, we treat as  same def as ellipsesP, since they overlap.
+   ⍝ (The attribute was originally two-dots as "like a dot", but bullet was added based on
+   ⍝  a similarity to John Daintree's TOE (Theory of Everything) ideas).
+     nameAttributeP←ellipsesP
    ⍝ A directive prefix
      directiveP←'^ \h* :: \h*'
    ⍝ Directives with code that spans lines.
@@ -926,13 +931,15 @@
                      0=≢f1:f0          ⍝ ∇ by itself-- not a header.
                      f0⊣processFnHdr(0 doScan)f1
                  }register'^\h* ∇ (?: \h* | (.*) ) $'
-               ⍝ name..DEF     is name defined?
-               ⍝ name..UNDEF   is name undefined?
-               ⍝ name..Q       'name'
-               ⍝ name..ENV     getenv('name')
-               ⍝ myNs.myName..DEF  → (0≠⎕NC 'myNs.myName')
-               ⍝ name..Q  →  'name' (after any macro substitution)
-                 MacroScan1,←'name..cmd' 1{
+               ⍝ name Attributes: .. or •
+               ⍝ name..DEF    OR name•DEF   → 1/0 if name is/notdefined
+               ⍝                            → (0≠⎕NC 'myNs.myName')
+               ⍝ name..UNDEF  OR name•UNDEF → 1/0 if name is not/is defined
+               ⍝ name..Q      OR name•Q     → quotes name as   'name'
+               ⍝ name..Q      etc           → returns ⎕NC⊂'name' (⎕NC⊂,'n' for 1-char name 'n')
+               ⍝ name..ENV    OR name•ENV   → returns value of getenv('name') or null
+               ⍝ myNs.myName..DEF OR myNs.myName•DEF etc:
+                 MacroScan1,←'name..cmd or name•cmd' 1{
                      nm cmd←⍵ ∆FIELD 1 2 ⋄ cmd←1(819⌶)cmd
                ⍝ For name of the form n1.n2.n3.n4,
                ⍝ check, in order, if any of these is a macro, i.e. has a value:
@@ -945,9 +952,10 @@
                      cmd≡'ENV':' ',SQ,(getenv nm),SQ,' '
                      cmd≡'DEF':'(0≠⎕NC',SQ,nm,SQ,')'
                      cmd≡'UNDEF':'(0=⎕NC',SQ,nm,SQ,')'
+                     cmd≡'NC':'(⎕NC⊂',(','/⍨1=≢nm),SQ,nm,SQ,')'
                      cmd≡,'Q':' ',SQ,nm,SQ,' '
                      ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
-                 }register'(⍎longNameP)\.{2,2}(DEF|UNDEF|Q|ENV)\b'
+                 }register'(⍎longNameP)⍎nameAttributeP(DEF|UNDEF|NC|Q|ENV)\b'
                ⍝ ATOMS, PARAMETERS (PARMS)
                ⍝ atoms: n1 n2 n3 → anything,   `n1 n2 n3
                ⍝  parms: bc def ghi → xxx     →   ('abc' 'def' 'ghi')
