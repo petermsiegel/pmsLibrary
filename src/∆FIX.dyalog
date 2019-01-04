@@ -936,7 +936,11 @@
                ⍝                            → (0≠⎕NC 'myNs.myName')
                ⍝ name..UNDEF  OR name•UNDEF → 1/0 if name is not/is defined
                ⍝ name..Q      OR name•Q     → quotes name as   'name'
-               ⍝ name..Q      etc           → returns ⎕NC⊂'name' (⎕NC⊂,'n' for 1-char name 'n')
+               ⍝ name..NC     etc           → returns ⎕NC ⊂,'name'
+               ⍝ name..SIZE                           ⎕SIZE 'name'
+               ⍝ name..DR                     returns 0 if name not defined
+               ⍝                                     ¯1 if not a var or class 9
+               ⍝                                      ⎕DR name otherwise
                ⍝ name..ENV    OR name•ENV   → returns value of getenv('name') or null
                ⍝ myNs.myName..DEF OR myNs.myName•DEF etc:
                  MacroScan1,←'name..cmd or name•cmd' 1{
@@ -950,12 +954,15 @@
                ⍝ Otherwise keep the input n1.n2.n3.n4.
                      nm←DICT.resolve nm
                      cmd≡'ENV':' ',SQ,(getenv nm),SQ,' '
-                     cmd≡'DEF':'(0≠⎕NC',SQ,nm,SQ,')'
-                     cmd≡'UNDEF':'(0=⎕NC',SQ,nm,SQ,')'
-                     cmd≡'NC':'(⎕NC⊂',(','/⍨1=≢nm),SQ,nm,SQ,')'
+                     nmq←SQ,nm,SQ
+                     cmd≡'DEF':'(0≠⎕NC',')',⍨nmq
+                     cmd≡'UNDEF':'(0=⎕NC',')',⍨nmq
+                     cmd≡'NC':'(⎕NC⊂',(','/⍨1=≢nm),')',⍨nmq
+                     cmd≡'SIZE':'(⎕SIZE',')',⍨nmq
+                     cmd≡'DR':'({⍺←⎕NC',nmq,'⋄ ⍺∊2 9: ⎕DR ',nm,'⋄ ⍺≠0:¯1 ⋄ 0}0)'
                      cmd≡,'Q':' ',SQ,nm,SQ,' '
                      ⎕SIGNAL/('Unknown cmd ',⍵ ∆FIELD 0)911
-                 }register'(⍎longNameP)⍎nameAttributeP(DEF|UNDEF|NC|Q|ENV)\b'
+                 }register'(⍎longNameP)⍎nameAttributeP(ENV|DEF|UNDEF|NC|SIZE|DR|Q)\b'
                ⍝ ATOMS, PARAMETERS (PARMS)
                ⍝ atoms: n1 n2 n3 → anything,   `n1 n2 n3
                ⍝  parms: bc def ghi → xxx     →   ('abc' 'def' 'ghi')

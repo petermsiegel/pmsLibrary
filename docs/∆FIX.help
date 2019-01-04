@@ -126,6 +126,7 @@ Directive Descriptions
   ::ERROR [errcode] any text
   Signals the associated errcode (if any) and error text when executed. Execution is halted.
 
+  NAME ATTRIBUTES
   name..CMD
   Items of this form first undergo macro substitution (if applicable), then
   are quoted and transformed depending on the CMD.
@@ -143,6 +144,13 @@ Directive Descriptions
 
   name..ENV                  → value of environment variable 'name'
   Shortcut to getting value of named environment variable (null, if not defined).
+
+  Other Attributes
+  name..DR                     returns ⎕DR name if name is in ⎕NC 2,9;
+                               0 if undefined; ¯1 if defined in another class.
+  name..NC                     returns the full nameclass of 'name', as if
+                               ⎕NC⊂'name' (for single-letter names: ⎕NC⊂,'n')
+  name..SIZE                   ⎕SIZE 'name'
 
 APL STRINGS
 APL strings in single quotes are handled as in APL. Strings may appear in double
