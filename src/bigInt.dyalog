@@ -618,6 +618,9 @@
       divPow2←{
           ⍺ timesPow2 negate ⍵
       }
+    shiftBinary←timesPow2
+    shiftB←timesPow2
+
     ⍝ timesPow10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
@@ -636,8 +639,12 @@
           {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
       }
     mulPow10←timesPow10
+    shiftDecimal←timesPow10                        ⍝ positive/left
+    shiftD←timesPow10
+
   ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mulPow10 ¯2)
     divPow10←{⍺ timesPow10 negate ⍵}
+
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
