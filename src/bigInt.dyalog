@@ -110,7 +110,10 @@
   ⍝   and integer vs float math (notably with decimal floats, which are very slow).
   ⍝
   ⍝   >>> From initial tests, 20-bits (⍵=0 → the default) works well everywhere.
-  ⍝
+  ⍝   >>> Why not 26, which still fits in Float 64 during overflow?
+  ⍝   >>> Possibly because OFL (overflow threshold for mult.) becomes
+  ⍝       smaller than optimal with 26 bits than with 20.
+  ⍝---------------------
   ⍝   setHandSizeInBits: sets all the key constants:
   ⍝       RX, DRX, BRX, OFL, and ⎕FR.
   ⍝
@@ -118,29 +121,24 @@
   ⍝     20     Fastest for all functions, except multiplication, where 40 is faster..
   ⍝     40     Slightly faster for multiplication, but slower than 20 for other operations.
   ⍝
-  ⍝     BRX   Stored    Overflow   Overflow
-  ⍝     Bits  Type      Bits (×)   Type         (Types are always Signed in APL)
-  ⍝     20    32-bit    40         Float 64
-  ⍝     26    32-bit    52         Float 64
-  ⍝     30    32-bit    60         Dec Flt 128
-  ⍝     45    32-bit    90         Dec Flt 128
+  ⍝     BRX   Stored    Overflow   Overflow    Max Poss
+  ⍝     Bits  Type      Bits (×)   Type          Bits (Types are always Signed in APL)
+  ⍝     20    32-bit    40         Float 64       53
+  ⍝     26    32-bit    52         Float 64       53
+  ⍝     30    32-bit    60         Dec Flt 128    93
+  ⍝     45    32-bit    90         Dec Flt 128    93
   ⍝
   ⍝ =====================================================================================
-  ⍝ RX:  Radix* for internal BI integers.
-  ⍝ DRX: # Decimal digits* that RX must hold.
-  ⍝ BRX: # Binary  digits* required to hold DRX digits. (See encode2Bits, decodeFromBits).
+  ⍝ RX:  Radix for internal BI integers.
+  ⍝ DRX: # Decimal digits that RX must hold.
+  ⍝ BRX: # Binary  digits required to hold DRX digits. (See encode2Bits, decodeFromBits).
   ⍝ OFL: For multiplies (mulU) of unsigned big integers ⍺ × ⍵,
   ⍝      the length (in # of hands, i.e. base RX digits) of the larger of ⍺ and ⍵,
   ⍝      beyond which digits must be split to prevent overflow.
   ⍝      OFL is a function of the # of guaranteed mantissa bits in the largest (float) number used
   ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX×2, since it's the potential accumulated bits of ⍺×⍵.
   ⍝ ⎕FR: Whether floating rep is 64-bit float (53 mantissa bits, and fast)
-  ⍝      or 128-bit decimal (93 mantissa bits and much slower).
-  ⍝ --------------------------------
-  ⍝ * RX etc. are a function of bigInt.
-    ⍝ ⎕FR←645                                ⍝ Choice determines DRX, RX, BRX, and OFL.
-    ⍝ OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93     ⍝ Bits* for overflow in multiplication
-
+  ⍝      or 128-bit decimal (93 mantissa bits and much slower)..
     ∇ {ok}←{verbose}setHandSizeInBits brx;brxBest;brxMax;brxMid;eBAD
     ⍝ Set key constants/initial values...
       verbose←1='verbose'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
@@ -180,19 +178,21 @@
   ⍝ Data field (unsigned) constants
     zeroUD←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
     oneUD←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
+    twoUD←,2          ⍝ data field TWO
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
-    eBADBI←'Invalid BigInteger'
-    eNONINT←'Invalid BigInteger: APL number not an integer: '
-    eCANTDO1←'Monadic function not implemented as BI operand: '
-    eCANTDO2←'Dyadic function not implemented as BI operand: '
-    eINVALID←'Format of big integer is not valid: '
-    eFACTOR←'Factorial (!) argument must be ≥ 0'
-    eBADRAND←'Roll (?) argument must be >0'
-    eSQRT←'sqrt: arg must be non-negative'
-    eTIMES10←'times10/⌽: right arg (⍵) must be a small APL integer ⍵<',⍕RX
-    eBIC←'BIC argument must be a fn name or one or more code strings.'
-    eBITSIN←'BigInt: Importing bits requires arg to contain only boolean integers'
+    eBADBI   ←'Invalid BigInteger'
+    eNONINT  ←'Invalid BigInteger: APL number not an integer: '
+    eCANTDO1 ←'Monadic function not implemented as BI operand: '
+    eCANTDO2 ←'Dyadic function not implemented as BI operand: '
+    eINVALID ←'Format of big integer is not valid: '
+    eFACTOR  ←'Factorial (!) argument must be ≥ 0'
+    eBADRAND ←'Roll (?) argument must be >0'
+    eSQRT    ←'sqrt: arg must be non-negative'
+    eTIMES2  ←'times2/⌽: right arg (⍵) must be a small APL integer ⍵<',⍕RX
+    eTIMES10 ←'times10: right arg (⍵) must be a small APL integer ⍵<',⍕RX
+    eBIC     ←'BIC argument must be a fn name or one or more code strings.'
+    eBITSIN  ←'BigInt: Importing bits requires arg to contain only boolean integers'
 
     :EndSection Namespace and Utility Initializations
 
@@ -249,9 +249,11 @@
           CASE'-':∆exp∆ ⍺ minus ⍵
           CASE'+':∆exp∆ ⍺ plus ⍵
           CASE'×':∆exp∆ ⍺ times ⍵
-          CASE'⌽':∆exp∆ ⍵ times10 ⍺                 ⍝  ⍵×10*⍺:    Equiv. to a shift by powers of 10, but faster.
-          CASE'MUL10' 'TIMES10':∆exp∆ ⍺ times10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed.
-          CASE'DIV10':∆exp∆ ⍺ times10 negate ⍵      ⍝  ⍺×10*-⍵:   ⍵ signed.
+          CASE'⌽':∆exp∆ ⍵ timesPow2 ⍺                  ⍝  ⍵×2*⍺: using faster bit rotates
+          CASE'MUL2' 'TIMES2':∆exp∆ ⍺ timesPow2 ⍵      ⍝  ⍺×2*⍵:  using faster bit rotates
+          CASE'DIV2':∆exp∆ ⍺ timesPow2 negate ⍵        ⍝  ⍺×2*-⍵, using faster bit rotates
+          CASE'MUL10' 'TIMES10':∆exp∆ ⍺ timesPow10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed. Shifts by powers of 10
+          CASE'DIV10':∆exp∆ ⍺ timesPow10 negate ⍵      ⍝  ⍺×10*-⍵:   ⍵ signed.
           CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
           CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵    ⍝  (⌊⍺÷⍵)(⍵|⍺)
           CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍵1 | ⍺ × ⍵0
@@ -275,6 +277,7 @@
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
     note'Created operator BI' ⊣⎕FX'_BI_' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'_BI_'
     note'Created operator BIX'⊣⎕FX'_BI_' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'_BI_'
+    _←⎕EX '_BI_'
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
@@ -301,14 +304,18 @@
       ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
       import←{⍺←⊢
+          ⍙←{
+              ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
+              1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
+              ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
+            ⍝ DEBUG path
+              ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
+              ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
+              err eBADBI
+          }
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
-          1≢⍺ 1:(∆ ⍺)(∆ ⍵)             ⍝ ⍺ ∆ ⍵
-          ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
-          1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
-          ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
-          ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
-          ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
-          err eBADBI
+          1≢⍺ 1:(⍙ ⍺)(⍙ ⍵)                 ⍝ ⍺ ∆ ⍵ → (∆ ⍺)(∆ ⍵)
+          ⍙ ⍵
       }
     ∆←import ⋄ imp←import
       ⍝ ∆Num: Convert an APL integer into a BIi
@@ -453,11 +460,26 @@
       }
       bitsIn←{
           b←,⍵
-          0∊b∊0 1:err eBITSIN
+          0∊b∊0 1:err eBITSIN        ⍝ Validate
           sg←0 ¯1⊃⍨⊃⌽b               ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
           n←⌈BRX÷⍨¯1+≢b
-          b←sg,n BRX⍴(n×BRX)↑¯1↓b    ⍝ Allows non-std bits-- we pad to next BRX, but treating
-          (×sg)(|2⊥⍉b)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
+          i←sg,n BRX⍴(n×BRX)↑¯1↓b    ⍝ Allows non-std bits-- we pad to next BRX, but treating
+          (×sg)(|2⊥⍉i)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
+      }
+
+    ⍝ bitsOutU: Take an unsigned bigInt, return bits
+      bitsOutU←{
+          ,⍉1↓[0](0,BRX⍴2)⊤⍵
+      }
+    ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
+    ⍝ Unsigned bitsInUS (bits no sign bit → |BIi) and bitsOutU (BIu → bits)
+    ⍝ ⍺: Take sign bit from external routine...
+    ⍝    Used internally, so no validation that ⍵ is only bits
+      bitsInUS←{⍺←1
+          b←,⍵
+          n←⌈BRX÷⍨¯1+≢b
+          i←|2⊥⍉n BRX⍴(n×BRX)↑b
+          (⍺×1∊b)i                  ⍝ sign is 0 if b has only 0 bits
       }
 
     ⍝ (int)root: A fast integer nth root.
@@ -567,25 +589,43 @@
           ¯1 p
       }
     pow←power
-      residue←{                    ⍝ residue. THIS FOLLOWS APL'S DEFINITION…
+      residue←{                    ⍝ residue. THIS FOLLOWS APL'S DEFINITION (base on left)
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:zeroUD
           sa=0:sw w
           r←a remU w               ⍝ remU is fast if a>w
-          sa=sw:sa r               ⍝ sa=sw: return (R)       R←sa r
+          sa=sw:sa r               ⍝ sa=sw: return (R)        R←sa r
           sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
 
-    ⍝ times10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
+    ⍝ timesPow2:  Shift ⍺:BIx left or right by ⍵:Int binary digits
+    ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:aplInt
+    ⍝     Note: ⍵ must be an APL integer (<RX).
+    ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
+    ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
+    ⍝  -  If ⍵=0: then ⍺ will be unchanged
+      timesPow2←{
+          shift←{(|⍵)≥≢a←⍺:0⍴⍨≢⍺ ⋄ ⍵⌽a⊣(⍵↑a)←0}   ⍝ <bits> shift <degree> (left=pos.)
+          (sa a)(sw w)←⍺ ∆ ⍵
+          1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
+          sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
+          sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
+          sa bitsInUS(bitsOutU a)shift sw×w
+      }
+    mulPow2←timesPow2
+      divPow2←{
+          ⍺ timesPow2 negate ⍵
+      }
+    ⍝ timesPow10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
     ⍝     Note: ⍵ must be an APL integer (<RX).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-      times10←{
+      timesPow10←{
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                        ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
@@ -595,9 +635,9 @@
           sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw =1
           {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
       }
-    mul10←times10
-  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10 ¯2)
-    div10←{⍺ times10 negate ⍵}
+    mulPow10←timesPow10
+  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mulPow10 ¯2)
+    divPow10←{⍺ timesPow10 negate ⍵}
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
@@ -651,7 +691,9 @@
 
     :Section BI Unsigned Utility Math Routines
     ⍝ These are the workhorses of bigInt; most are from dfns:nats (handling unsigned bigInts).
-
+    ⍝ Note: ⍺ and ⍵ are guaranteed by BI and BIX to be vectors, but not
+    ⍝       by internal functions or if called directly.
+    ⍝       So tests for 2, 1, 0 (twoUD etc) use ravel:  (twoUD≡,⍺)
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIi ⍺ and ⍵
     ⍝ r:BIi ← ⍺:BIi ∇ ⍵:BIi
     ⍝ This is dfns:nats mul.
@@ -678,8 +720,8 @@
    ⍝       For ⍺*1, returns 0 ⍺, which indicates to caller to use sign sa of left operand ⍺'.
    ⍝
       powU←{                                  ⍝ exponent.
-          ⍵≡zeroUD:oneUD                      ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          ⍵≡oneUD:,⍺                          ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          zeroUD≡,⍵:oneUD                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
+          oneUD≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
           hlf←{,ndn(⌊⍵÷2)+0,¯1↓(RX÷2)×2|⍵}    ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
@@ -689,8 +731,8 @@
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIi[2] ← ⍺:BIi ∇ ⍵:BIi
       divU←{
-          zeroUD≡⍵:⍺{                         ⍝ ⍺÷0
-              zeroUD≡⍺:oneUD                  ⍝ 0÷0 → 1 remainder 0
+          zeroUD≡,⍵:⍺{                        ⍝ ⍺÷0
+              zeroUD≡,⍺:oneUD                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
           }⍵
           svec←(≢⍵)+⍳0⌈1+(≢⍺)-≢⍵              ⍝ shift vector.
@@ -714,10 +756,11 @@
           }/svec,⊂⍬ ⍺                         ⍝ fold-accumulated reslt.
       }
 
-    gcdU←{⍵≡zeroUD:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}         ⍝ greatest common divisor.
+    gcdU←{zeroUD≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
-          <cmp ⍵ mix ⍺:⍵                          ⍝ ⍵ < ⍺? remainder is ⍵
+          twoUD≡,⍺:2|⊃⌽⍵                      ⍝ fast path for modulo 2
+          <cmp ⍵ mix ⍺:⍵                      ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
       }
 
@@ -992,7 +1035,7 @@
 
     fns1←ssplit 'bitsIn bitsOut direction signum sig export exp factorial fact negate neg reciprocal roll'
     fns2←'divide div divide2 div2 gcd lcm magnitude abs minus subtract sub plus'
-    fns2←ssplit fns2,' add times mul power pow residue modulo mod times10 mul10 divide10 div10'
+    fns2←ssplit fns2,' add times mul power pow residue modulo mod timesPow10 mulPow10 divide10 div10'
 
     note 50⍴'-'⋄ note'  MONADIC FUNCTIONS' ⋄ note 50⍴'¯' ⋄ note ↑fns1
     note 50⍴'-'⋄ note'  DYADIC FUNCTIONS ' ⋄ note 50⍴'¯' ⋄ note ↑fns2
