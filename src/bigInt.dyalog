@@ -183,14 +183,15 @@
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
     eNONINT  ←'Invalid BigInteger: APL number not an integer: '
+    eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
     eINVALID ←'Format of big integer is not valid: '
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eBADRAND ←'Roll (?) argument must be >0'
     eSQRT    ←'sqrt: arg must be non-negative'
-    eTIMES2  ←'times2/⌽: right arg (⍵) must be a small APL integer ⍵<',⍕RX
-    eTIMES10 ←'times10: right arg (⍵) must be a small APL integer ⍵<',⍕RX
+    eTIMES2  ← eSMALLRT
+    eTIMES10 ← eSMALLRT
     eBIC     ←'BIC argument must be a fn name or one or more code strings.'
     eBITSIN  ←'BigInt: Importing bits requires arg to contain only boolean integers'
 
@@ -224,6 +225,7 @@
         ⍝     If       a sequence of chars ('MUL10'),  fn is an enclosed string (⊂'MUL10'), uppercase.
         ⍝     In short, whatever ⍺⍺ input,             fn is a char scalar, simple if length 1 or an enclosed vector.
      
+          fnRaw←⍺⍺
           fn←⊂⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':atom⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
           CASE←1∘∊fn∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
           ⍝ Monadic...
@@ -243,7 +245,8 @@
               CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: BRX-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
               CASE'SQRT' '√' '*∘ 0.5':exp sqrt ⍵   ⍝     ⌊⍵*0.5
-              err eCANTDO1,,⎕FMT #.FN∘←fn
+              CASE'⍳':⍳∆2Small ⍵               ⍝     ⍳: Special case: Allow only small integers... Returns an APL # only.
+              0::err eCANTDO1,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
           }⍵
           ⍝ Dyadic...
           CASE'-':∆exp∆ ⍺ minus ⍵
@@ -270,7 +273,7 @@
           CASE'≠':⍺ ne ⍵
           CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵
           CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵
-          err eCANTDO2,,⎕FMT fn
+          0::err eCANTDO2,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
       }
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
@@ -306,7 +309,7 @@
       import←{⍺←⊢
           ⍙←{
               ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
-              1=≢⍵:∆Num ⍵                  ⍝ ⍵ is a single APL signed integer
+              1=≢⍵:∆Num ⍬⍴⍵                  ⍝ ⍵ is a single APL signed integer
               ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
             ⍝ DEBUG path
               ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
@@ -340,6 +343,11 @@
           d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
+      ⍝ ∆2Small: Import ⍵ only if it is a small integer. Returns an integer!
+      ∆2Small←{
+          s w←∆ ⍵ ⋄ 1≠≢w:err eSMALLRT
+          s×,w
+      }
     ⍝ ---------------------------------------------------------------------
     ⍝ export / exp: EXPORT a SCALAR BI to external "standard" bigInteger
     ⍝ ---------------------------------------------------------------------
@@ -360,6 +368,15 @@
     :Section BI Monadic Operands/Functions
     ⍝ The first name will be the APL std name (exceptions noted), followed by
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
+    ⍝ Each name (negate, etc.) has a version (_negate) that assumes data already imported...
+
+    ∇ {__name}←∆load __name;__in;__out
+      __in←__name'←∆ ⍵' '←⍺ ∆ ⍵'
+      __out←('_',__name)'←⍵' '←⍺ ⍵'
+      :If ' '≠1↑0⍴⎕FX(__in ⎕R __out⊣⎕NR __name)
+          'Unable to create function _',__name
+      :EndIf
+    ∇
 
       negate←{                          ⍝ -
           (sw w)←∆ ⍵
@@ -532,6 +549,9 @@
   ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     oneDiv←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
 
+    ∆load¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
+    ∆load¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsIn' 'bitsOut'
+
     :Endsection BI Monadic Functions/Operands
 ⍝ --------------------------------------------------------------------------------------------------
 
@@ -540,7 +560,8 @@
   ⍝ The first name will be the APL std name (exceptions noted), followed by
   ⍝ abbreviations and common alternatives.
   ⍝ E.g. dyadic | is called  residue, but we also define mod/ulo as residue⍨.
-      plus←{
+
+       plus←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
@@ -594,8 +615,8 @@
           sw=0:zeroUD
           sa=0:sw w
           r←a remU w               ⍝ remU is fast if a>w
-          sa=sw:sa r               ⍝ sa=sw: return (R)        R←sa r
-          sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          sa=sw:∆z sa r               ⍝ sa=sw: return (R)        R←sa r
+          ∆z sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
@@ -658,7 +679,7 @@
       }
 
     ⍝ fxBool-- generate Boolean functions lt <, le ≤, eq =, ge ≥, gt >, ne ≠
-    ∇ {r}←fxBool(NAME SYM);model;∆NAME
+    ∇ {r}←fxBool(NAME SYM);model;∆NAME;in;out
       ∆NAME←{
         ⍝ ⍺ ∆NAME ⍵: emulates (⍺ ∆SYM ⍵)
         ⍝ ⍺, ⍵: Both are external-format BigIntegers (BIx)
@@ -668,12 +689,21 @@
           sa=¯1:∆SYM cmp w mix a    ⍝ ⍺, ⍵ both neg
           ∆SYM cmp a mix w          ⍝ ⍺, ⍵ both pos
       }
-      :If 0=1↑0⍴r←⎕THIS.⎕FX'∆NAME' '∆SYM'⎕R NAME SYM⊣⎕NR'∆NAME'
+       ⋄ in←'∆NAME' '∆SYM' ⋄ out←NAME SYM
+      :If ' '=1↑0⍴r←⎕THIS.⎕FX in ⎕R out⊣⎕NR'∆NAME'
+          in,←⊂'←⍺ ∆ ⍵' ⋄ out←('_',NAME)SYM'←⍺ ⍵'
+      :AndIf ' '=1↑0⍴r←⎕THIS.⎕FX in ⎕R out⊣⎕NR'∆NAME'
+      :Else
           ⎕←'LOGIC ERROR: unable to create boolean function: ',NAME,' (',SYM,')'
       :EndIf
     ∇
     fxBool¨ ('lt' '<')('le' '≤')('eq' '=')('ge' '≥')('gt' '>')('ne' '≠')
     ⎕EX 'fxBool'
+
+    ∆load¨'plus' 'add' 'minus' 'subtract' 'sub' 'times' 'mul' 'divide'
+    ∆load¨'divideRem' 'divRem' 'power' 'pow' 'residue' 'modulo' 'mod'
+    ∆load¨'timesPow2' 'mulPow2' 'divPow2' 'shiftBinary' 'shiftB'
+    ∆load¨'timesPow10' 'mulPow10' 'shiftDecimal' 'shiftD' 'gcd' 'lcm'
 
     :EndSection BI Dyadic Operands/Functions
 
