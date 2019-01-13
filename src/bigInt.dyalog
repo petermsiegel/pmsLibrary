@@ -560,6 +560,7 @@
   ⍝ The first name will be the APL std name (exceptions noted), followed by
   ⍝ abbreviations and common alternatives.
   ⍝ E.g. dyadic | is called  residue, but we also define mod/ulo as residue⍨.
+  ⍝ Each name (minus, etc.) has a version (_minus) that assumes data already imported...
 
        plus←{
           (sa a)(sw w)←⍺ ∆ ⍵
