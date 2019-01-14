@@ -295,8 +295,9 @@
     ⍝    Together sign and data define a big integer.
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
+
       ⍝ ============================================
-      ⍝ import / imp - Import to internal bigInteger
+      ⍝ import / imp / ∆ - Import to internal bigInteger
       ⍝ ============================================
       ⍝ ∆  - internal alias for import
       ⍝    from: external-format (BIc) (⍺ and) ⍵--
@@ -306,19 +307,17 @@
       ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
       ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
-      import←{⍺←⊢
+      import←{⍺←⊢ ⋄ mon←1≡⍺ 1
+          ¯3=≡⍺ ⍵:⍺ ⍵                      ⍝ FAST TRACK dyadic
+          mon∧¯2=≡⍵:⍵                      ⍝ FAST TRACK monadic
+          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           ⍙←{
               ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
-              1=≢⍵:∆Num ⍬⍴⍵                  ⍝ ⍵ is a single APL signed integer
-              ~DEBUG:⍵                     ⍝ If not DEBUGging, don't verify BIi.
-            ⍝ DEBUG path
-              ⋄ ∆sane←{(1 0 ¯1∊⍨⊃⍵)∧(¯2=≡⍵)∧2=≢⍵}     ⍝ Minimal check for sane  BIi.
-              ∆sane ⍵:⍵                    ⍝ ∆sane: for debugging
+              1=≢⍵:∆Num ⍬⍴⍵                ⍝ ⍵ is a single APL signed integer
               err eBADBI
           }
-          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
-          1≢⍺ 1:(⍙ ⍺)(⍙ ⍵)                 ⍝ ⍺ ∆ ⍵ → (∆ ⍺)(∆ ⍵)
-          ⍙ ⍵
+          mon:⍙ ⍵
+          (⍙ ⍺)(⍙ ⍵)                 ⍝ ⍺ ∆ ⍵ → (∆ ⍺)(∆ ⍵)
       }
     ∆←import ⋄ imp←import
       ⍝ ∆Num: Convert an APL integer into a BIi
@@ -366,6 +365,11 @@
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BI Monadic Operands/Functions
+    ⍝ function / _function -- a family of related math functions.
+    ⍝ function:  Takes its args and imports them (fast if already an internal bigInt).
+    ⍝ _function: Requires its arguments already to be internal bigInts (or error).
+    ⍝
+    ⍝ function + alias1 + ...
     ⍝ The first name will be the APL std name (exceptions noted), followed by
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
     ⍝ Each name (negate, etc.) has a version (_negate) that assumes data already imported...
@@ -378,11 +382,13 @@
       :EndIf
     ∇
 
+    ⍝ negate / _negate
       negate←{                          ⍝ -
           (sw w)←∆ ⍵
           (-sw)w
       }
     neg←negate
+    ⍝ direction / _direction
       direction←{                       ⍝ ×
           (sw w)←∆ ⍵
           sw(|sw)
@@ -549,6 +555,9 @@
   ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     oneDiv←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
 
+  ⍝ ∆load: For negate, create related _negate, such that
+  ⍝        _negate import ⍵   <==> negate ⍵
+  ⍝ etc.
     ∆load¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
     ∆load¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsIn' 'bitsOut'
 
@@ -562,7 +571,7 @@
   ⍝ E.g. dyadic | is called  residue, but we also define mod/ulo as residue⍨.
   ⍝ Each name (minus, etc.) has a version (_minus) that assumes data already imported...
 
-       plus←{
+      plus←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
@@ -701,6 +710,8 @@
     fxBool¨ ('lt' '<')('le' '≤')('eq' '=')('ge' '≥')('gt' '>')('ne' '≠')
     ⎕EX 'fxBool'
 
+  ⍝ ∆load: For negate, create related _negate, such that
+  ⍝        (import ⍺) _plus import ⍵   <==> ⍺ plus ⍵
     ∆load¨'plus' 'add' 'minus' 'subtract' 'sub' 'times' 'mul' 'divide'
     ∆load¨'divideRem' 'divRem' 'power' 'pow' 'residue' 'modulo' 'mod'
     ∆load¨'timesPow2' 'mulPow2' 'divPow2' 'shiftBinary' 'shiftB'
