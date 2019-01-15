@@ -202,9 +202,9 @@
 
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
-    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√'(⊂'SQRT')
+    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳'(⊂'SQRT')
     ⍝            reg. fns       boolean  names
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('MUL10' 'TIMES10' 'DIV10' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -217,7 +217,7 @@
 
 
 ⍝ --------------------------------------------------------------------------------------------------
-      _BI_←{⍺←⊢
+      __BI__←{⍺←⊢
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
         ⍝ fn: If ⍺⍺ is a simple APL fn (+),            fn is a simple char scalar.
         ⍝     If       a sequence of APL symbols(|⍨),  fn is an enclosed char vector (⊂'|⍨').
@@ -253,10 +253,9 @@
           CASE'+':∆exp∆ ⍺ plus ⍵
           CASE'×':∆exp∆ ⍺ times ⍵
           CASE'⌽':∆exp∆ ⍵ timesPow2 ⍺                  ⍝  ⍵×2*⍺: using faster bit rotates
-          CASE'MUL2' 'TIMES2':∆exp∆ ⍺ timesPow2 ⍵      ⍝  ⍺×2*⍵:  using faster bit rotates
+          CASE'SHIFTB':∆exp∆ ⍺ timesPow2 ⍵      ⍝  ⍺×2*⍵:  using faster bit rotates
           CASE'DIV2':∆exp∆ ⍺ timesPow2 negate ⍵        ⍝  ⍺×2*-⍵, using faster bit rotates
-          CASE'MUL10' 'TIMES10':∆exp∆ ⍺ timesPow10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed. Shifts by powers of 10
-          CASE'DIV10':∆exp∆ ⍺ timesPow10 negate ⍵      ⍝  ⍺×10*-⍵:   ⍵ signed.
+          CASE'SHIFTD':∆exp∆ ⍺ timesPow10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed. Shifts by powers of 10
           CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
           CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵    ⍝  (⌊⍺÷⍵)(⍵|⍺)
           CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍵1 | ⍺ × ⍵0
@@ -278,9 +277,9 @@
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
-    note'Created operator BI' ⊣⎕FX'_BI_' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'_BI_'
-    note'Created operator BIX'⊣⎕FX'_BI_' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'_BI_'
-    _←⎕EX '_BI_'
+    note'Created operator BI' ⊣⎕FX'__BI__' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'__BI__'
+    note'Created operator BIX'⊣⎕FX'__BI__' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'__BI__'
+    _←⎕EX '__BI__'
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
@@ -476,12 +475,12 @@
   ⍝ bitsIn will accommodate an external bit-string of any length. It will import as a series
   ⍝ of signed BRX-bit integers, padding on the right with 0s, followed by a single sign-bit.
   ⍝
-      bitsOut←{
+      bitsOut←{ ⍝ ⍵:bigInt
           aw w←∆ ⍵                   ⍝ sg: ¯1 for neg, or 0.
           b←,⍉1↓[0](0,BRX⍴2)⊤aw×|w   ⍝ make sure all ints are signed, so all fit 2s complement bit string.
           b,¯1=aw
       }
-      bitsIn←{
+      bitsIn←{ ⍝ ⍵:bits
           b←,⍵
           0∊b∊0 1:err eBITSIN        ⍝ Validate
           sg←0 ¯1⊃⍨⊃⌽b               ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
@@ -518,7 +517,7 @@
     ⍝ x:BIi ← nth:small_(BIi|BIx) ∇ N:(BIi|BIx)>0
       root←{
         ⍝ Check nth in  N*÷nth
-          ⍺←2
+          ⍺←2 ⍝ sqrt...
           sgn invNth nth←⍺{
               ⍵:1 0.5 2
               sgn nth←bi.imp ⍺
@@ -544,8 +543,8 @@
           }N
         ⍝ Refine x, i.e. ⍵, until y > x
           {
-              y←(⍵ plus N divide ⍵)divide nth  ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
-              y ge ⍵:⍵
+              y←(⍵ _plus N _divide ⍵)_divide nth  ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+              y _ge ⍵:⍵
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
           }x
       }
@@ -559,7 +558,7 @@
   ⍝        _negate import ⍵   <==> negate ⍵
   ⍝ etc.
     ∆load¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
-    ∆load¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsIn' 'bitsOut'
+    ∆load¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsOut'
 
     :Endsection BI Monadic Functions/Operands
 ⍝ --------------------------------------------------------------------------------------------------

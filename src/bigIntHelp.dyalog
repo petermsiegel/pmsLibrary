@@ -54,7 +54,7 @@
   ⍝   (All return integer results).
   ⍝
   ⍝   Those with special meaning include:
-  ⍝       dyadic:  ⌽ (mul10), ∨ (gcd), ∧ (lcm)
+  ⍝       dyadic:  ⌽ (shiftD), ∨ (gcd), ∧ (lcm)
   ⍝       monadic: ? (roll on ⍵>0), ⊥ ⊤ (bit manipulation), ⍎ (convert to APL int), ⍕ (convert to BI string)
   ⍝                ← (return BI-internal format)
   ⍝ ∘ Arguments to most functions are BigIntegers of any BIx form:
@@ -67,7 +67,7 @@
   ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
   ⍝   These all return a BIi (BigInteger internal format), with a few exceptions (exp/ort returns a BIx).
   ⍝   Many local functions have abbreviated synonyms. Local functions include:
-  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) mul10 times10 div(ide)10
+  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) shiftD times10 div(ide)10
   ⍝       neg(ate) sig(num) magnitude (abs) roll
   ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
   ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).
@@ -196,7 +196,7 @@
    ⍝    ('√'BI)⍵          ↓
    ⍝    (*∘0.5 BI)⍵       ↓
    ⍝
-   ⍝  DYADIC     -+x⌽ MUL10 TIMES10 DIV10 ÷ DIV2 * | |⍨ < etc ∨ ∧
+   ⍝  DYADIC     -+x⌽ SHIFTD SHIFTB ÷ DIV2 * | |⍨ < etc ∨ ∧
    ⍝    ⍺ -BI ⍵           ⍺ minus ⍵        ⍺-⍵
    ⍝                      ⍺ subtract ⍵
    ⍝                      ⍺ sub ⍵
@@ -204,10 +204,9 @@
    ⍝                      ⍺ add ⍵
    ⍝    ⍺ ×BI ⍵           ⍺ times ⍵        ⍺×⍵
    ⍝                      ⍺ mul ⍵
-   ⍝    ⍺ ⌽BI ⍵           ⍺ mul10 ⍵        ⍺×10*⍵ Performs an efficient(**) shift by orders of 10.
-   ⍝    ⍺ ('MUL10'BI)⍵    ↓                If ⍵>0, shifts left; if ⍵<0, shifts right.
-   ⍝    ⍺ ('TIMES10'BI)⍵  ↓
-   ⍝    ⍺ ('DIV10'BI)⍵    ⍺ div10 ⍵        ⍺×10*-⍵ Shifts right by ⍵ digits for positive ⍵.
+   ⍝    ⍺ ⌽BI ⍵           ⍺ shiftD ⍵        ⍺×10*⍵ Performs an efficient(**) shift by orders of 10.
+   ⍝    ⍺ ('SHIFTD'BI)⍵   ↓                If ⍵>0, decimal shifts left; if ⍵<0, shifts right.
+   ⍝    ⍺ ('SHIFTB'BI)⍵   ↓                If ⍵>0, binary shifts left; if ⍵<0, right.
    ⍝    ⍺ ÷BI ⍵           a divide ⍵       ⍺÷⍵
    ⍝                      ⍺ div ⍵
    ⍝    ⍺ ('DIVIDEREM'BI)⍵  ⍺ divideRem ⍵  (⍺÷⍵)(⍵|⍺) Returns a pair of BigIntegers.
@@ -231,7 +230,7 @@
    ⍝      Calling:    bigInt.negate or bi.negate (etc.):
    ⍝                  bi.exp   bi.negate 3
    ⍝              ¯3
-   ⍝  (**) ⌽BI, mul10 are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
+   ⍝  (**) ⌽BI, shiftD are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
    ⍝  (↓) Function is same as above.
    ⍝
    ⍝ ------------------------------------------------------------------------------------
@@ -239,7 +238,7 @@
    ⍝ Functions Available:
    ⍝   Dyadic functions:
    ⍝      Standard Meaning: +-×*÷<≤=≥>≠⌊⌈|∨∧
-   ⍝      Special Meaning:  ⌽  'MUL10'
+   ⍝      Special Meaning:  ⌽  'SHIFTD' 'SHIFTB'
    ⍝      Returns special value: <≤=≥>≠
    ⍝
    ⍝      Dyadic <≤=≥>≠
@@ -258,10 +257,15 @@
    ⍝         OK:                             BAD:(Invalid modified assignment)
    ⍝             a←'123321' ⋄ a(⌽BI⍨)←¯3         a←'123321' ⋄ a⌽BI⍨←¯3
    ⍝         123
-   ⍝      Dyadic 'MUL10'
+   ⍝      Dyadic 'SHIFTD' (⍺, decimal shifted ⍵ places)
    ⍝         Reverse-arg synonym of ⌽:
-   ⍝              ⍺ ('MUL10' BI) ⍵
+   ⍝              ⍺ ('SHIFTD' BI) ⍵
    ⍝         multiplies ⍺ by 10*⍵, if ⍵>0, or divides by 10*⍵,
+   ⍝         i.e. adds 0's on the right or truncates from the right.
+   ⍝         If all digits are truncated, returns (,'0'), canonical 'zero.'
+   ⍝      Dyadic 'SHIFTB' (⍺, binary shift ⍵ places)
+   ⍝              ⍺ ('SHIFTB' BI) ⍵
+   ⍝         multiplies ⍺ by 2*⍵, if ⍵>0, or divides by 2*⍵,
    ⍝         i.e. adds 0's on the right or truncates from the right.
    ⍝         If all digits are truncated, returns (,'0'), canonical 'zero.'
    ⍝
@@ -363,15 +367,15 @@
    ⍝   ¯1 + 2*31 →   '¯1' (+BI) '2' (*BI)'31'
    ⍝ ∘ Supported functions (all names are in upper case):
    ⍝        monadic: - + | × ÷ < > ! ? ⊥ ⊤ ⍎ ← → √   SQRT
-   ⍝        dyadic:  - + × * ÷ ⌊ ⌈ | ∨ ∧ ⌽ < ≤ = ≥ > ≠  MUL10 DIVREM MOD
+   ⍝        dyadic:  - + × * ÷ ⌊ ⌈ | ∨ ∧ ⌽ < ≤ = ≥ > ≠  SHIFTD DIVREM MOD
    ⍝   All functions return a BigInt string, except as defined for BIX, e.g. boolean ops < ≤ = ≥ > ≠ return 1 or 0.
    ⍝
-   ⍝ ∘ Handles special BI operands (functions) MUL10, SQRT, and √
+   ⍝ ∘ Handles special BI operands (functions) SHIFTD, SQRT, and √
    ⍝   In BIC, these items are entered directly, not in (extra) quotes,
    ⍝   as if APL function names or symbols:
-   ⍝      BIC '(SQRT 324932) MUL10 3'
+   ⍝      BIC '(SQRT 324932) SHIFTD 3'
    ⍝   These are converted in the appropriate BI quoted operands:
-   ⍝      (('SQRT'#.BigInt.BI) '324932') ('MUL10'#.BigInt.BI) (,'3')
+   ⍝      (('SQRT'#.BigInt.BI) '324932') ('SHIFTD'#.BigInt.BI) (,'3')
    ⍝      570000
    ⍝   Or…
    ⍝      BIC ' √√100000'         ⍝ Equivalent to  BIC 'SQRT SQRT 100000'
@@ -398,13 +402,13 @@
    ⍝     Some are valid (e.g. 123E0 → 123; 12.3E1 → 123; 12.3E1J0 → 123)
    ⍝     If not, an error occurs!
    ⍝   ∘ Easily allows creating dfns, with ⍺⍺ ⍵⍵ assumed to be BI operands:
-   ⍝         ⍎'opX←'BIC'{⍺  ⍺⍺ ⍵ MUL10 3}
+   ⍝         ⍎'opX←'BIC'{⍺  ⍺⍺ ⍵ SHIFTD 3}
    ⍝     This creates dfn op in the caller's namespace:
-   ⍝         opX←{⍺ (⍺⍺BI) ⍵ ('MUL10'BI) '3'}
+   ⍝         opX←{⍺ (⍺⍺BI) ⍵ ('SHIFTD'BI) '3'}
    ⍝     So that:
    ⍝         2 +opXX 5
    ⍝     via steps:
-   ⍝         2 +op 5 →  2 (+BI) 5 ('MUL10'BI) 3 → 2 + 5000 →  5002
+   ⍝         2 +op 5 →  2 (+BI) 5 ('SHIFTD'BI) 3 → 2 + 5000 →  5002
    ⍝     … equals:
    ⍝         5002
    ⍝   __________
