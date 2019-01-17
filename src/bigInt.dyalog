@@ -156,7 +156,7 @@
       ⎕FR←645 1287⊃⍨brx>brxMid
       BRX←brx
       DRX←⌊10⍟2*BRX
-      RX←10*DRX
+      RX←10*DRX ⋄ RXdiv2←RX÷2  ⍝ RXdiv2: see ∇powU∇
       OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
     ⍝ Report...
       :If verbose
@@ -498,12 +498,14 @@
     ⍝ ⍺: Take sign bit from external routine...
     ⍝    Used internally, so no validation that ⍵ is only bits
       bitsInUS←{⍺←1
-          b←,⍵
-          n←⌈BRX÷⍨¯1+≢b
+          n←⌈BRX÷⍨¯1+≢b←,⍵
           i←|2⊥⍉n BRX⍴(n×BRX)↑b
-          (⍺×1∊b)i                  ⍝ sign is 0 if b has only 0 bits
+          (⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
       }
-
+      bitsInUU←{⍺←1                ⍝ bitsInUU: Not currently used...
+          n←⌈BRX÷⍨¯1+≢b←,⍵
+          |2⊥⍉n BRX⍴(n×BRX)↑b      ⍝ sign is 0 if b has only 0 bits
+      }
     ⍝ (int)root: A fast integer nth root.
     ⍝ x ← nth root N  ==>  x ← N *÷nth
     ⍝   nth: a small, positive integer (<RX); default 2 (for sqrt).
@@ -766,11 +768,13 @@
    ⍝ powU: compute ⍺*⍵ for unsigned ⍺ and ⍵. (⍺ may not be omitted).
    ⍝       Returns 1 (a*⍵) if even power, else 0(⍺*⍵).
    ⍝       For ⍺*1, returns 0 ⍺, which indicates to caller to use sign sa of left operand ⍺'.
-   ⍝
+   ⍝ RXdiv2: (Defined above.)
       powU←{                                  ⍝ exponent.
           zeroUD≡,⍵:oneUD                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
           oneUD≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
-          hlf←{,ndn(⌊⍵÷2)+0,¯1↓(RX÷2)×2|⍵}    ⍝ quick ⌊⍵÷2.
+          ⍝ Slightly slower version based on a bit-shift
+          ⍝ hlf←{a←bitsOutU ⍵ ⋄ bitsInUU 0,¯1↓a}     ⍝ quick ⌊⍵÷2.
+          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RXdiv2×2|⍵}    ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
       }
