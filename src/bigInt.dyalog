@@ -306,28 +306,40 @@
       ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
       ⍝    Monadic: Returns for ⍵, (sign data)_of_⍵ in the format above.
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
-      import←{⍺←⊢ ⋄ mon←1≡⍺ 1
-          ¯3=≡⍺ ⍵:⍺ ⍵                      ⍝ FAST TRACK dyadic
-          mon∧¯2=≡⍵:⍵                      ⍝ FAST TRACK monadic
-          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
-          ⍙←{
-              ' '=1↑0⍴⍵:∆str ⍵             ⍝ ⍵ is a string
-              1=≢⍵:∆Num ⍬⍴⍵                ⍝ ⍵ is a single APL signed integer
-              err eBADBI
-          }
-          mon:⍙ ⍵
-          (⍙ ⍺)(⍙ ⍵)                 ⍝ ⍺ ∆ ⍵ → (∆ ⍺)(∆ ⍵)
+      ⍝
+      ⍝ To be fast, we have these tests and assumed types...
+      ⍝ If   80|⎕DR ⍵       assume...                    ⎕DR
+      ⍝ ---------------+--------------------------------------
+      ⍝       0             ∆str                         80, 160, 320
+      ⍝       3             ∆num (integer)               83...
+      ⍝       5, 7          ∆num (integer repr as float) 645, 1287
+      ⍝       6             BIi (internal)               326
+      ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX
+      ⍝
+      import←{⍺←⊢
+          0::⎕SIGNAL/⎕DMX.(EM EN)
+          1≢⍺ 1:(import ⍺)(import ⍵)
+          ⋄ type←80|⎕DR ⍵
+          6=type:⍵                         ⍝ BIi
+          3=type:∆int ⍵                    ⍝ int (small or otherwise)
+          0=type:∆str ⍵                    ⍝ String
+          5 7∊⍨type:∆num ⍵                 ⍝ Float-format integer (e.g. 3E45)
+          err'bigInt: Invalid import type: ',⍕⍵
       }
     ∆←import ⋄ imp←import
-      ⍝ ∆Num: Convert an APL integer into a BIi
+      ⍝ ∆num: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
       ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
       ⍝ (If not, use big integer strings of any length, without exponents).
-      ⍝ Normally, ∆Num is not called by the user, since BI and BIX call it automatically.
+      ⍝ Normally, ∆num is not called by the user, since BI and BIX call it automatically.
       ⍝ Usage:
-      ⍝    ?BIX 1E100 calls (bigInt.∆Num 1E100), equivalent to   ?BIX '1',100⍴'0'
-      ∆Num←{⎕FR←1287
+      ⍝    ?BIX 1E100 calls (bigInt.∆num 1E100), equivalent to   ?BIX '1',100⍴'0'
+      ∆int←{
+          RX>|⍵:(×⍵)(,⍵)                ⍝ Small integer
+          (×⍵)(zro RX⊥⍣¯1⊣|,⍵)          ⍝ Integer
+      }
+      ∆num←{⎕FR←1287
           0::11 ⎕SIGNAL⍨eNONINT,⍕⍵
           0≠1↑0⍴⍵:∘
           ⍵≠⌊⍵:∘
