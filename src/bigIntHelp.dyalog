@@ -67,7 +67,7 @@
   ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
   ⍝   These all return a BIi (BigInteger internal format), with a few exceptions (exp/ort returns a BIx).
   ⍝   Many local functions have abbreviated synonyms. Local functions include:
-  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) shiftD times10 div(ide)10
+  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) shiftD times10Exp div(ide)10Exp
   ⍝       neg(ate) sig(num) magnitude (abs) roll
   ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
   ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).

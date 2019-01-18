@@ -37,10 +37,8 @@
     ⍝ Sets VERBOSE, ⎕TRAP, and ∇note∇ dynamically when DEBUG is set or reset.
       :If 1≡args.NewValue ⋄ args.Name,' set to',args.NewValue ⋄ :EndIf
       VERBOSE←VERBOSE_INITIAL∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
-      :If DEBUG
-          ∆ERR←⍬
-      :Else
-          ∆ERR←0 1000
+      :If DEBUG ⋄ ∆ERR←⍬
+      :Else ⋄ ∆ERR←0 1000
       :EndIf
       err←{⍺←1 ⋄ ⍺=0:_←⍵ ⋄ m←⍵ ⎕DMX.EM⊃⍨0=≢⍵ ⋄ ⎕SIGNAL/('bigInt: ',m)⎕DMX.EN}
       ⎕FX'{ok}←note str'('ok←1',VERBOSE/'⊣⎕←str')
@@ -182,7 +180,7 @@
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
-    eNONINT  ←'Invalid BigInteger: APL number not an integer: '
+    eNONINT  ←'Invalid BigInteger: APL number not a single integer: '
     eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
@@ -217,7 +215,7 @@
 
 
 ⍝ --------------------------------------------------------------------------------------------------
-      __BI__←{⍺←⊢
+      _BI_src←{⍺←⊢
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
         ⍝ fn: If ⍺⍺ is a simple APL fn (+),            fn is a simple char scalar.
         ⍝     If       a sequence of APL symbols(|⍨),  fn is an enclosed char vector (⊂'|⍨').
@@ -237,7 +235,7 @@
               CASE'÷':∆exp∆ reciprocal ⍵       ⍝     ÷⍵:         Why bother?
               CASE'<':∆exp∆ decrement ⍵        ⍝     ⍵-1:        Optimized for constant in ⍵-1.
               CASE'>':∆exp∆ increment ⍵        ⍝     ⍵+1:        Optimized for constant in ⍵+1.
-              CASE'!':∆exp∆ factorial ⍵        ⍝     !⍵          For integers ⍵≥0
+              CASE'!':∆exp∆ factorial ⍵        ⍝     !⍵          For smallish integers ⍵≥0
               CASE'?':∆exp∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
               CASE'⊥':∆exp∆ bitsIn ⍵           ⍝     bits→BI:    Converts from bit vector (BIB) to BI internal
               CASE'⊤':bitsOut ∆ ⍵              ⍝     BI→bits:    Converts a BI ⍵ to its bit form, a BIB bit vector
@@ -252,34 +250,36 @@
           CASE'-':∆exp∆ ⍺ minus ⍵
           CASE'+':∆exp∆ ⍺ plus ⍵
           CASE'×':∆exp∆ ⍺ times ⍵
-          CASE'⌽':∆exp∆ ⍵ timesPow2 ⍺                  ⍝  ⍵×2*⍺: using faster bit rotates
-          CASE'SHIFTB':∆exp∆ ⍺ timesPow2 ⍵      ⍝  ⍺×2*⍵:  using faster bit rotates
-          CASE'DIV2':∆exp∆ ⍺ timesPow2 negate ⍵        ⍝  ⍺×2*-⍵, using faster bit rotates
-          CASE'SHIFTD':∆exp∆ ⍺ timesPow10 ⍵   ⍝  ⍺×10*⍵:    ⍵ signed. Shifts by powers of 10
+          CASE'⌽':∆exp∆ ⍵ times2Exp ⍺               ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
+          CASE'SHIFTB':∆exp∆ ⍺ times2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+          CASE'SHIFTD':∆exp∆ ⍺ times10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
           CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
-          CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵    ⍝  (⌊⍺÷⍵)(⍵|⍺)
-          CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍵1 | ⍺ × ⍵0
-          CASE'MMUL':∆exp∆ ⍺ modMul ⍵               ⍝ ...
+          CASE'DIVIDEREM':∆exp∆¨⍺ divideRem ⍵       ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+          CASE'DIVREM':∆exp∆¨⍺ divideRem ⍵          ⍝ alias
+          CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
+          CASE'MMUL':∆exp∆ ⍺ modMul ⍵               ⍝ alias
           CASE'*':∆exp∆ ⍺ power ⍵
-          CASE'√':∆exp∆ ⍺ root ⍵                    ⍝ See root.
-          CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ |           APL residue
-          CASE'|⍨' 'MOD':∆exp∆ ⍵ residue ⍺          ⍝ ⍺ ('MOD' BI)⍵ ←→ ⍵|BI ⍺
-          CASE'<':⍺ lt ⍵                            ⍝ All logical fns <≤=≥>≠ return r∊1 0. ∨∧ are excluded.
-          CASE'≤':⍺ le ⍵                            ⍝ ⍺≤⍵ etc.
+          CASE'√':∆exp∆ ⍺ root ⍵                    ⍝ See ∇root.
+          CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ residue: |   (⍺ | ⍵) <==> (⍵ modulo a)
+          CASE'|⍨' 'MOD':∆exp∆ ⍵ residue ⍺          ⍝ modulo:  Same as |⍨
+                                                    ⍝ Logical functions as in APL, return 1 or 0.
+          CASE'<':⍺ lt ⍵
+          CASE'≤':⍺ le ⍵
           CASE'=':⍺ eq ⍵
           CASE'≥':⍺ ge ⍵
           CASE'>':⍺ gt ⍵
           CASE'≠':⍺ ne ⍵
-          CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵
-          CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵
-          0::err eCANTDO2,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
+                                                    ⍝ ∨, ∧ return bigInt.
+          CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
+          CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵ as lcm.
+          err eCANTDO2,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
       }
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
-    note'Created operator BI' ⊣⎕FX'__BI__' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'__BI__'
-    note'Created operator BIX'⊣⎕FX'__BI__' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'__BI__'
-    _←⎕EX '__BI__'
+    note'Created operator BI' ⊣⎕FX'_BI_src' '∆exp∆¨?'⎕R'BI' ''⊣⎕NR'_BI_src'
+    note'Created operator BIX'⊣⎕FX'_BI_src' '∆exp∆'  ⎕R 'BIX' 'exp'⊣⎕NR'_BI_src'
+    _←⎕EX '_BI_src'
     note'BI/BIX Operands:'
     note ⎕FMT(' Monadic:'listMonadFns),[¯0.1]' Dyadic: 'listDyadFns
     note 55⍴'¯'
@@ -311,45 +311,45 @@
       ⍝ If   80|⎕DR ⍵       assume...                    ⎕DR
       ⍝ ---------------+--------------------------------------
       ⍝       0             ∆str                         80, 160, 320
-      ⍝       3             ∆num (integer)               83...
-      ⍝       5, 7          ∆num (integer repr as float) 645, 1287
+      ⍝       3             ∆int (integer)               83...
+      ⍝       5, 7          ∆aplNum (integer @ float)    645, 1287
       ⍝       6             BIi (internal)               326
       ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX
       ⍝
-      import←{⍺←⊢
-          0::⎕SIGNAL/⎕DMX.(EM EN)
+      import←{⍺←⊢ ⋄ em←'bigInt: Importing invalid object: '
+          0::11 ⎕SIGNAL⍨em,⍕⍵
           1≢⍺ 1:(import ⍺)(import ⍵)
-          ⋄ type←80|⎕DR ⍵
-          6=type:⍵                         ⍝ BIi
-          3=type:∆int ⍵                    ⍝ int (small or otherwise)
-          0=type:∆str ⍵                    ⍝ String
-          5 7∊⍨type:∆num ⍵                 ⍝ Float-format integer (e.g. 3E45)
-          err'bigInt: Invalid import type: ',⍕⍵
+          ⋄ type←80|⎕DR ⍵ ⋄ dep←≡⍵
+          (dep=¯2)∧6=type:⍵                 ⍝ BIi
+          1<|dep:∘                          ⍝ Not 1-elem.
+          3=type:∆int ⍵                     ⍝ int (small or otherwise)
+          0=type:∆str ⍵                     ⍝ String
+          5 7∊⍨type:∆aplNum ⍵                  ⍝ Float-format integer (e.g. 3E45)
+          ∘
       }
     ∆←import ⋄ imp←import
-      ⍝ ∆num: Convert an APL integer into a BIi
+      ⍝ ∆aplNum: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
       ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
       ⍝ (If not, use big integer strings of any length, without exponents).
-      ⍝ Normally, ∆num is not called by the user, since BI and BIX call it automatically.
+      ⍝ Normally, ∆aplNum is not called by the user, since BI and BIX call it automatically.
       ⍝ Usage:
-      ⍝    ?BIX 1E100 calls (bigInt.∆num 1E100), equivalent to   ?BIX '1',100⍴'0'
+      ⍝    ?BIX 1E100 calls (bigInt.∆aplNum 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆int←{
-          RX>|⍵:(×⍵)(,⍵)                ⍝ Small integer
-          (×⍵)(zro RX⊥⍣¯1⊣|,⍵)          ⍝ Integer
+          1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
+          RX>|⍵:(×⍵)(|,⍵)                ⍝ Small integer
+          (×⍵)(zro RX⊥⍣¯1⊣|,⍵)           ⍝ Integer
       }
-      ∆num←{⎕FR←1287
-          0::11 ⎕SIGNAL⍨eNONINT,⍕⍵
-          0≠1↑0⍴⍵:∘
-          ⍵≠⌊⍵:∘
-          (×⍵)(zro RX⊥⍣¯1⊣|⍵)
+      ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
+          (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX⊥⍣¯1⊣|⍵)
+          err eNONINT,⍕⍵
       }
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
       ∆str←{
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵     ⍝ Get sign, if any
           w←'_'~⍨⍵↓⍨s=¯1        ⍝ Remove initial sign and embedded _ (spacer).
-          (0=≢w)∨0∊w∊⎕D:err eBADBI     ⍝ w must include only ⎕D and at least one.
+          (0=≢w)∨0∊w∊⎕D:err eBADBI  ⍝ w must include only ⎕D and at least one.
           d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
@@ -369,7 +369,8 @@
       }
     exp←export
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
-    ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD). Else return ⍵ w/ leading zero deleted.
+    ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD).
+    ⍝      Else return ⍵ w/ leading zero deleted.
     ∆z←{ zeroUD≡zro dlz⊃⌽⍵: 0 zeroUD ⋄ ⍵}
 
     :EndSection BigInt internal structure
@@ -384,9 +385,8 @@
     ⍝ The first name will be the APL std name (exceptions noted), followed by
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
     ⍝ Each name (negate, etc.) has a version (_negate) that assumes data already imported...
-
-    ∇ {__name}←∆load __name;__in;__out
-      __in←__name'←∆ ⍵' '←⍺ ∆ ⍵'
+    ∇ {__name}←genVariants __name;__in;__out
+      __in←__name'←∆ +⍵' '←⍺ +∆ +⍵'
       __out←('_',__name)'←⍵' '←⍺ ⍵'
       :If ' '≠1↑0⍴⎕FX(__in ⎕R __out⊣⎕NR __name)
           'Unable to create function _',__name
@@ -478,8 +478,9 @@
   ⍝     bitsOut:   r:boolean array ←  ∇ ⍵:BIi
   ⍝     bitsIn:    r:BIc           ←  ∇ ⍵:BIi
   ⍝
-  ⍝ The resulting bitstring will always have the lowest-order bit as bit [0]. The highest is
-  ⍝ the sign-bit on the right hand side: 1=negative, 0=positive. Bitstrings are bit representations
+  ⍝ The resulting bitstring will always have the lowest-order bit
+  ⍝ as bit [0] (on the left). The highest is the sign-bit on the
+  ⍝ right hand side: 1=negative, 0=positive. Bitstrings are bit representations
   ⍝ of standard signed numbers, twos complement, with a single sign bit as above.
   ⍝
   ⍝ bitsOut will always put out a vector of bits of length l, where 1=BRX|l, i.e. 21, 42, etc.
@@ -492,6 +493,11 @@
           b←,⍉1↓[0](0,BRX⍴2)⊤aw×|w   ⍝ make sure all ints are signed, so all fit 2s complement bit string.
           b,¯1=aw
       }
+  ⍝ bitsOutU: Convert unsigned BIu to bits
+    ⍝ bitsOutU: Take an unsigned bigInt, return bits
+      bitsOutU←{
+          ,⍉1↓[0](0,BRX⍴2)⊤⍵
+      }
       bitsIn←{ ⍝ ⍵:bits
           b←,⍵
           0∊b∊0 1:err eBITSIN        ⍝ Validate
@@ -501,10 +507,6 @@
           (×sg)(|2⊥⍉i)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
       }
 
-    ⍝ bitsOutU: Take an unsigned bigInt, return bits
-      bitsOutU←{
-          ,⍉1↓[0](0,BRX⍴2)⊤⍵
-      }
     ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
     ⍝ Unsigned bitsInUS (bits no sign bit → |BIi) and bitsOutU (BIu → bits)
     ⍝ ⍺: Take sign bit from external routine...
@@ -513,10 +515,6 @@
           n←⌈BRX÷⍨¯1+≢b←,⍵
           i←|2⊥⍉n BRX⍴(n×BRX)↑b
           (⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
-      }
-      bitsInUU←{⍺←1                ⍝ bitsInUU: Not currently used...
-          n←⌈BRX÷⍨¯1+≢b←,⍵
-          |2⊥⍉n BRX⍴(n×BRX)↑b      ⍝ sign is 0 if b has only 0 bits
       }
     ⍝ (int)root: A fast integer nth root.
     ⍝ x ← nth root N  ==>  x ← N *÷nth
@@ -568,11 +566,11 @@
   ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     oneDiv←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
 
-  ⍝ ∆load: For negate, create related _negate, such that
+  ⍝ genVariants: For negate, create related _negate, such that
   ⍝        _negate import ⍵   <==> negate ⍵
   ⍝ etc.
-    ∆load¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
-    ∆load¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsOut'
+    genVariants¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
+    genVariants¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsOut'
 
     :Endsection BI Monadic Functions/Operands
 ⍝ --------------------------------------------------------------------------------------------------
@@ -635,22 +633,23 @@
     pow←power
       residue←{                    ⍝ residue. THIS FOLLOWS APL'S DEFINITION (base on left)
           (sa a)(sw w)←⍺ ∆ ⍵
-          sw=0:zeroUD
+          sw=0:0 zeroUD
           sa=0:sw w
-          r←a remU w               ⍝ remU is fast if a>w
+          r←,a remU w                 ⍝ remU is fast if a>w
           sa=sw:∆z sa r               ⍝ sa=sw: return (R)        R←sa r
           ∆z sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
 
-    ⍝ timesPow2:  Shift ⍺:BIx left or right by ⍵:Int binary digits
+    ⍝ times2Exp:  Shift ⍺:BIx left or right by ⍵:Int binary digits
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:aplInt
     ⍝     Note: ⍵ must be an APL integer (<RX).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-      timesPow2←{
+    ⍝ GMP: mul_2exp
+      times2Exp←{
           shift←{(|⍵)≥≢a←⍺:0⍴⍨≢⍺ ⋄ ⍵⌽a⊣(⍵↑a)←0}   ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
@@ -658,21 +657,21 @@
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
           sa bitsInUS(bitsOutU a)shift sw×w
       }
-    mulPow2←timesPow2
-      divPow2←{
-          ⍺ timesPow2 negate ⍵
+    mul2Exp←times2Exp
+      div2Exp←{
+          ⍺ times2Exp negate ⍵
       }
-    shiftBinary←timesPow2
-    shiftB←timesPow2
+    shiftBinary←times2Exp
+    shiftB←times2Exp
 
-    ⍝ timesPow10: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
+    ⍝ times10Exp: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
     ⍝     Note: ⍵ must be an APL integer (<RX).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-      timesPow10←{
+      times10Exp←{
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                        ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
@@ -682,12 +681,12 @@
           sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw =1
           {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
       }
-    mulPow10←timesPow10
-    shiftDecimal←timesPow10                        ⍝ positive/left
-    shiftD←timesPow10
+    mul10Exp←times10Exp
+    shiftDecimal←times10Exp                        ⍝ positive/left
+    shiftD←times10Exp
 
-  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mulPow10 ¯2)
-    divPow10←{⍺ timesPow10 negate ⍵}
+  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
+    div10Exp←{⍺ times10Exp negate ⍵}
 
 
     ⍝ ∨ Greatest Common Divisor
@@ -723,12 +722,12 @@
     fxBool¨ ('lt' '<')('le' '≤')('eq' '=')('ge' '≥')('gt' '>')('ne' '≠')
     ⎕EX 'fxBool'
 
-  ⍝ ∆load: For negate, create related _negate, such that
+  ⍝ genVariants: For negate, create related _negate, such that
   ⍝        (import ⍺) _plus import ⍵   <==> ⍺ plus ⍵
-    ∆load¨'plus' 'add' 'minus' 'subtract' 'sub' 'times' 'mul' 'divide'
-    ∆load¨'divideRem' 'divRem' 'power' 'pow' 'residue' 'modulo' 'mod'
-    ∆load¨'timesPow2' 'mulPow2' 'divPow2' 'shiftBinary' 'shiftB'
-    ∆load¨'timesPow10' 'mulPow10' 'shiftDecimal' 'shiftD' 'gcd' 'lcm'
+    genVariants¨'plus' 'add' 'minus' 'subtract' 'sub' 'times' 'mul' 'divide'
+    genVariants¨'divideRem' 'divRem' 'power' 'pow' 'residue' 'modulo' 'mod'
+    genVariants¨'times2Exp' 'mul2Exp' 'div2Exp' 'shiftBinary' 'shiftB'
+    genVariants¨'times10Exp' 'mul10Exp' 'shiftDecimal' 'shiftD' 'gcd' 'lcm'
 
     :EndSection BI Dyadic Operands/Functions
 
@@ -784,8 +783,6 @@
       powU←{                                  ⍝ exponent.
           zeroUD≡,⍵:oneUD                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
           oneUD≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
-          ⍝ Slightly slower version based on a bit-shift
-          ⍝ hlf←{a←bitsOutU ⍵ ⋄ bitsInUU 0,¯1↓a}     ⍝ quick ⌊⍵÷2.
           hlf←{,ndn(⌊⍵÷2)+0,¯1↓RXdiv2×2|⍵}    ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
@@ -823,9 +820,9 @@
     gcdU←{zeroUD≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
-          twoUD≡,⍺:2|⊃⌽⍵                      ⍝ fast path for modulo 2
-          <cmp ⍵ mix ⍺:⍵                      ⍝ ⍵ < ⍺? remainder is ⍵
-          ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
+          twoUD≡,⍺:2|⊃⌽⍵                     ⍝ fast path for modulo 2
+          <cmp ⍵ mix ⍺:⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
+          ⊃⌽⍵ divU ⍺                         ⍝ Otherwise, do full divide
       }
 
 
@@ -1099,7 +1096,7 @@
 
     fns1←ssplit 'bitsIn bitsOut direction signum sig export exp factorial fact negate neg reciprocal roll'
     fns2←'divide div divide2 div2 gcd lcm magnitude abs minus subtract sub plus'
-    fns2←ssplit fns2,' add times mul power pow residue modulo mod timesPow10 mulPow10 divide10 div10'
+    fns2←ssplit fns2,' add times mul power pow residue modulo mod times10Exp mul10Exp divide10 div10'
 
     note 50⍴'-'⋄ note'  MONADIC FUNCTIONS' ⋄ note 50⍴'¯' ⋄ note ↑fns1
     note 50⍴'-'⋄ note'  DYADIC FUNCTIONS ' ⋄ note 50⍴'¯' ⋄ note ↑fns2
