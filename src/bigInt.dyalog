@@ -328,6 +328,10 @@
           ∘
       }
     ∆←import ⋄ imp←import
+  ⍝ importU, impU:
+  ⍝     import ⍵ as unsigned bigInt (data portion only)
+    importU←{⊃⌽imp ⍵} ⋄ impU←importU
+
       ⍝ ∆aplNum: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
@@ -338,8 +342,8 @@
       ⍝    ?BIX 1E100 calls (bigInt.∆aplNum 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆int←{
           1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
-          RX>|⍵:(×⍵)(|,⍵)                ⍝ Small integer
-          (×⍵)(zro RX⊥⍣¯1⊣|,⍵)           ⍝ Integer
+          RX>u←,|⍵:(×⍵)(u)               ⍝ Small integer
+          (×⍵)(zro RX⊥⍣¯1⊣u)             ⍝ Integer
       }
       ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX⊥⍣¯1⊣|⍵)
@@ -615,10 +619,10 @@
           (sa×sw)(⊃a divU w)
       }
     div←divide
-      divideRem←{
+      divideRem←{∆∆z←{zeroUD≡⍵:zeroUD ⍵ ⋄ ⍺ ⍵}
           (sa a)(sw w)←⍺ ∆ ⍵
           div rem←a divU w
-          ((sa×sw)(div))(1 rem)
+          ((sa×sw)∆∆z div)(sw ∆∆z rem)
       }
     divRem←divideRem
       power←{
