@@ -2,7 +2,7 @@
   ⍝ ∘ NOTE: See bigIntHelp for details...
   ⍝ ∘ Call bigInt.help or ⎕EDIT 'bigIntHelp'
 
-  ⍝ Table of Contents
+  ⍝ Table of Contents 
   ⍝   Preamble
   ⍝      Preamble Utilities
   ⍝      Preamble Variables
@@ -376,6 +376,9 @@
     ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD).
     ⍝      Else return ⍵ w/ leading zero deleted.
     ∆z←{ zeroUD≡zro dlz⊃⌽⍵: 0 zeroUD ⋄ ⍵}
+    ⍝
+    ⍝ ∆zU2I: If ⍵:BIu IS zeroUD, then return (zeroUD ⍵); else ⍺ ⍵
+    ∆zU2I←{zeroUD≡⍵:zeroUD ⍵ ⋄ ⍺ ⍵}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
@@ -595,6 +598,7 @@
           sa a minus 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
     add←plus
+
       minus←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
@@ -619,10 +623,10 @@
           (sa×sw)(⊃a divU w)
       }
     div←divide
-      divideRem←{∆∆z←{zeroUD≡⍵:zeroUD ⍵ ⋄ ⍺ ⍵}
+      divideRem←{
           (sa a)(sw w)←⍺ ∆ ⍵
           div rem←a divU w
-          ((sa×sw)∆∆z div)(sw ∆∆z rem)
+          ((sa×sw)∆zU2I div)(sw ∆zU2I rem)
       }
     divRem←divideRem
       power←{
@@ -639,9 +643,10 @@
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:0 zeroUD
           sa=0:sw w
-          r←,a remU w                 ⍝ remU is fast if a>w
-          sa=sw:∆z sa r               ⍝ sa=sw: return (R)        R←sa r
-          ∆z sa a minus sa r          ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          r←,a remU w              ⍝ remU is fast if a>w
+          sa=sw:∆z sa r            ⍝ sa=sw: return (R)        R←sa r
+          zeroUD≡r:0 zeroUD        ⍝ sa≠sw ∧ R≡0, return 0
+          ∆z sa a minus sa r       ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
     mod←modulo
@@ -838,7 +843,7 @@
 
     atom←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
 
-  ⍝ These routines operate on unsigned BIi data unless documented…
+  ⍝ These routines operate on unsigned BIu data unless documented…
     dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
     zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Converts BIi to BIz, so even 0 has one digit (,0).
     dlzs←{zro(∨\⍵≠0)/⍵}                     ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
