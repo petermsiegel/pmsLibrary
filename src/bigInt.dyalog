@@ -200,9 +200,9 @@
 
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
-    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳'(⊂'SQRT')
+    listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -241,6 +241,7 @@
               CASE'?':∆exp∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
               CASE'⊥':∆exp∆ bitsIn ⍵           ⍝     bits→BI:    Converts from bit vector (BIB) to BI internal
               CASE'⊤':bitsOut ∆ ⍵              ⍝     BI→bits:    Converts a BI ⍵ to its bit form, a BIB bit vector
+              CASE'~' 'NOT':not ⍵    ⍝
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
               CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: BRX-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
@@ -266,6 +267,10 @@
               CASE'≥':⍺ ge ⍵
               CASE'>':⍺ gt ⍵
               CASE'≠':⍺ ne ⍵
+          ⍝ bits
+              CASE'AND':∆exp∆ ⍺ and ⍵
+              CASE'OR':∆exp∆ ⍺ or ⍵
+              CASE'XOR':∆exp∆ ⍺ xor ⍵
           ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
               CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
               CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵ as lcm.
@@ -445,6 +450,11 @@
       }
     dec←decrement
 
+      not←{
+          sw bw←bitsView ⍵
+          sw bitsInUS~bw
+      }
+
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIx
     ⍝ We allow ⍵ to be of any size, but numbers larger than DRX are impractical.
@@ -491,7 +501,7 @@
   ⍝     bitsIn:    r:BIc           ←  ∇ ⍵:BIi
   ⍝'
   ⍝ The resulting bitstring will always have the lowest-order bit
-  ⍝ as the rightmost bit (as in APL). 
+  ⍝ as the rightmost bit (as in APL).
   ⍝ Bitstrings are bit representations
   ⍝ of standard signed numbers, twos complement
   ⍝
@@ -504,6 +514,18 @@
           aw w←∆ ⍵                   ⍝ sg: ¯1 for neg, or 0.
           ,⍉1↓[0](0,BRX⍴2)⊤aw×|w     ⍝ make sure all ints are signed, so all fit 2s complement bit string.
       }
+      bitsView←{
+          ⍝ From bigInt, returns (sign)(bitInt-as-bits)
+          aw w←∆ ⍵
+          aw(,⍉1↓[0](0,BRX⍴2)⊤aw×|w)
+      }
+      bitsView2←{
+          sa ba←bitsView ⍺ ⋄ sw bw←bitsView ⍵
+          m←(≢ba)⌈≢bw
+          pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
+          (sa pad ba)(sw pad bw)
+      }
+
   ⍝ bitsOutU: Convert unsigned BIu to bits
     ⍝ bitsOutU: Take an unsigned bigInt, return bits
       bitsOutU←{
@@ -515,8 +537,8 @@
         ⍝ sign comes from the first, leftmost bit...
           sg←0 ¯1⊃⍨⊃b                ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
           n←⌈BRX÷⍨¯1+≢b
-          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑b  ⍝ 
-          (×sg)i                     
+          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑b  ⍝
+          (×sg)i
       }
 
     ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
@@ -703,6 +725,18 @@
   ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
     div10Exp←{⍺ times10Exp negate ⍵}
 
+      and←{⍺ ∧logical ⍵}
+
+      or←{⍺ ∨logical ⍵}
+ 
+      xor←{⍺ ≠logical ⍵}
+
+    ⍝ a (logop logical) w
+      logical←{
+          (sa ba)(sw bw)←⍺ bitsView2 ⍵
+          (sa=¯1)⍺⍺(sw=¯1):¯1 bitsInUS(ba ⍺⍺ bw)
+          1 bitsInUS(ba ⍺⍺ bw)
+      }
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
