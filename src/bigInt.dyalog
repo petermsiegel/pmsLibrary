@@ -489,21 +489,20 @@
   ⍝ bitsOut, bitsIn: Manage one or more BRX-bit integers (e.g. 20 etc.) stored in APL 32-bit integers.
   ⍝     bitsOut:   r:boolean array ←  ∇ ⍵:BIi
   ⍝     bitsIn:    r:BIc           ←  ∇ ⍵:BIi
-  ⍝
+  ⍝'
   ⍝ The resulting bitstring will always have the lowest-order bit
-  ⍝ as bit [0] (on the left). The highest is the sign-bit on the
-  ⍝ right hand side: 1=negative, 0=positive. Bitstrings are bit representations
-  ⍝ of standard signed numbers, twos complement, with a single sign bit as above.
+  ⍝ as the rightmost bit (as in APL). 
+  ⍝ Bitstrings are bit representations
+  ⍝ of standard signed numbers, twos complement
   ⍝
   ⍝ bitsOut will always put out a vector of bits of length l, where 1=BRX|l, i.e. 21, 42, etc.
   ⍝
   ⍝ bitsIn will accommodate an external bit-string of any length. It will import as a series
-  ⍝ of signed BRX-bit integers, padding on the right with 0s, followed by a single sign-bit.
+  ⍝ of signed BRX-bit integers, padding on the right with 0s.
   ⍝
       bitsOut←{ ⍝ ⍵:bigInt
           aw w←∆ ⍵                   ⍝ sg: ¯1 for neg, or 0.
-          b←,⍉1↓[0](0,BRX⍴2)⊤aw×|w   ⍝ make sure all ints are signed, so all fit 2s complement bit string.
-          b,¯1=aw
+          ,⍉1↓[0](0,BRX⍴2)⊤aw×|w     ⍝ make sure all ints are signed, so all fit 2s complement bit string.
       }
   ⍝ bitsOutU: Convert unsigned BIu to bits
     ⍝ bitsOutU: Take an unsigned bigInt, return bits
@@ -513,10 +512,11 @@
       bitsIn←{ ⍝ ⍵:bits
           b←,⍵
           0∊b∊0 1:err eBITSIN        ⍝ Validate
-          sg←0 ¯1⊃⍨⊃⌽b               ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
+        ⍝ sign comes from the first, leftmost bit...
+          sg←0 ¯1⊃⍨⊃b                ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
           n←⌈BRX÷⍨¯1+≢b
-          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑¯1↓b ⍝ Allows non-std bits-- we pad to next BRX, but treating
-          (×sg)i                     ⍝ high-order bit (right-most) as the sign bit (1=negative).
+          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑b  ⍝ 
+          (×sg)i                     
       }
 
     ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.

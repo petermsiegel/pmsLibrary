@@ -73,27 +73,30 @@
   ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).
   ⍝
   ⍝ ∘ Bit strings are passed to the user as two's-complement boolean vectors,
-  ⍝   with the lowest-order bit first (so ⍵[0] is the LOB),
-  ⍝   and the sign-bit last, i.e. as the highest-order bit (i.e. ⊃⌽⍵ is 1, if the # if negative).
+  ⍝   with the lowest-order bit last (so ⍵[¯1+≢⍵] is the LOB),
+  ⍝   and the sign-bit first, i.e. as the leftmost- bit (i.e. ⊃⍵ is 1, if the # if negative).
   ⍝
   ⍝ Notable enhancements compared to dfns:nats:
   ⍝ ∘ Input BI strings may have ¯ or - prefixed for negative numbers and may include _ as spacers,
   ⍝   which are ignored:   e.g.  '-553_555_555'    '¯99999_12345_12345'    '00000_00000_00000'
-  ⍝ ∘ ⌽BI is used to shift (not rotate) decimal digits left and right,
-  ⍝   i.e. to multiply and divide by 10**⍵ very quickly and efficiently.
-  ⍝      ∘ Example: A million-digit string ⍵ can be multiplied by 10*10000 in 0.012 seconds via
+  ⍝ ∘ ⌽BI is used to shift (not rotate) binary digits left and right,
+  ⍝   i.e. to multiply and divide by 2**⍵ very quickly and efficiently.
+  ⍝      ∘ Example: A million-digit string ⍵ can be multiplied by 10*10000 quickly via
   ⍝        10000 ⌽BI ⍵
   ⍝ ∘ We include ⊤BI and ⊥BI to convert BI's to and from APL bits, so that APL ⌽ ∧ ∨ = ≠ can be used for
   ⍝   various bit manipulations on BIx; a utility BIB (Big Integer Bits) has been provided as well.
   ⍝ ∘ We support an efficient (Newton's method) integer sqrt:
   ⍝        ('SQRT' BI)⍵ or ('√' BI)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
-  ⍝   and general root:
+  ⍝        Or use the special case of (⍺*BI 0.5) or (⍺*BI '0.5').:
+  ⍝   We provide a mechanism to find any  integral root:
   ⍝           9 ('√'BIX) 1000        ⍝ 9th root of 1000
   ⍝        2
   ⍝           bi.exp 9 bi.root 1000  ⍝ ditto
   ⍝        2
   ⍝           (9 ('√'BIX) (1000⍴⎕d))≡bi.exp 9 bi.root 1000⍴⎕d
   ⍝        1
+  ⍝   To find a root besides the square root, you must use root.
+  ⍝
   ⍝ ∘ We include ?BI to allow for a random number of any number of digits and !BI to allow for
   ⍝   factorials on large integers.  (!BI does not use memoization, but the user could extend it.)
   ⍝
