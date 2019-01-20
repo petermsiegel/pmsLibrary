@@ -2,7 +2,7 @@
   ⍝ ∘ NOTE: See bigIntHelp for details...
   ⍝ ∘ Call bigInt.help or ⎕EDIT 'bigIntHelp'
 
-  ⍝ Table of Contents 
+  ⍝ Table of Contents
   ⍝   Preamble
   ⍝      Preamble Utilities
   ⍝      Preamble Variables
@@ -217,17 +217,19 @@
 ⍝ --------------------------------------------------------------------------------------------------
       _BI_src←{⍺←⊢
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
-        ⍝ fn: If ⍺⍺ is a simple APL fn (+),            fn is a simple char scalar.
-        ⍝     If       a sequence of APL symbols(|⍨),  fn is an enclosed char vector (⊂'|⍨').
-        ⍝     If       a 1-char string ('√' or ,'√')   fn is a simple scalar char, uppercase.
-        ⍝     If       a sequence of chars ('MUL10'),  fn is an enclosed string (⊂'MUL10'), uppercase.
-        ⍝     In short, whatever ⍺⍺ input,             fn is a char scalar, simple if length 1 or an enclosed vector.
+        ⍝ _BI_src is a template for ops BI and BIX.
+        ⍝ ⍺⍺ → fn
+        ⍝ fn is always a scalar (either simple or otherwise);
+        ⍝ If ⍺⍺ has a ⍨ suffix (⍺⍺ may be an APL primitive/s or a string),
+        ⍝ then fn←¯1↓fn and inv (inverse) is set:
+        ⍝      to 1, if BI/X was called 2-adically;
+        ⍝      to 2, if called 1-adically (   ×⍨BI 3 ==> 3 ×BI 3).
+          fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0
+          }⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
+          CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
      
-          fnRaw←⍺⍺
-          fn←⊂⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':atom⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
-          CASE←1∘∊fn∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
           ⍝ Monadic...
-          1≡⍺ 1:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
+          monad:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
               CASE'-':∆exp∆ negate ⍵           ⍝     -⍵
               CASE'+':∆exp∆ ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIi form.
               CASE'|':∆exp∆ magnitude ⍵        ⍝     |⍵
@@ -242,37 +244,40 @@
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
               CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: BRX-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
-              CASE'SQRT' '√' '*∘ 0.5':exp sqrt ⍵   ⍝     ⌊⍵*0.5
+              CASE'SQRT' '√':exp sqrt ⍵        ⍝     ⌊⍵*0.5:     See dyadic *
               CASE'⍳':⍳∆2Small ⍵               ⍝     ⍳: Special case: Allow only small integers... Returns an APL # only.
               0::err eCANTDO1,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
           }⍵
-          ⍝ Dyadic...
-          CASE'-':∆exp∆ ⍺ minus ⍵
-          CASE'+':∆exp∆ ⍺ plus ⍵
-          CASE'×':∆exp∆ ⍺ times ⍵
-          CASE'⌽':∆exp∆ ⍵ times2Exp ⍺               ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
-          CASE'SHIFTB':∆exp∆ ⍺ times2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
-          CASE'SHIFTD':∆exp∆ ⍺ times10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
-          CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
-          CASE'DIVIDEREM':∆exp∆¨⍺ divideRem ⍵       ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
-          CASE'DIVREM':∆exp∆¨⍺ divideRem ⍵          ⍝ alias
-          CASE'MODMUL':∆exp∆ ⍺ modMul ⍵             ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
-          CASE'MMUL':∆exp∆ ⍺ modMul ⍵               ⍝ alias
-          CASE'*':∆exp∆ ⍺ power ⍵
-          CASE'√':∆exp∆ ⍺ root ⍵                    ⍝ See ∇root.
-          CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ residue: |   (⍺ | ⍵) <==> (⍵ modulo a)
-          CASE'|⍨' 'MOD':∆exp∆ ⍵ residue ⍺          ⍝ modulo:  Same as |⍨
-                                                    ⍝ Logical functions as in APL, return 1 or 0.
-          CASE'<':⍺ lt ⍵
-          CASE'≤':⍺ le ⍵
-          CASE'=':⍺ eq ⍵
-          CASE'≥':⍺ ge ⍵
-          CASE'>':⍺ gt ⍵
-          CASE'≠':⍺ ne ⍵
-                                                    ⍝ ∨, ∧ return bigInt.
-          CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
-          CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵ as lcm.
-          err eCANTDO2,,⎕FMT #.FN∘←fn  ⍝ Didn't recognize it. Assume it's an APL-only fn
+        ⍝ Dyadic...
+          ⍝ See discussion of ⍨ above...
+          ⍺{
+              ⍝ High Use: [Return BigInt]
+              CASE'+':∆exp∆ ⍺ plus ⍵
+              CASE'-':∆exp∆ ⍺ minus ⍵
+              CASE'×':∆exp∆ ⍺ times ⍵
+              CASE'⌽':∆exp∆ ⍵ times2Exp ⍺               ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
+              CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
+              CASE'*':∆exp∆ ⍺ power ⍵                   ⍝ Handles ⍺*BI 0.5 and ⍺*BI '0.5' as special cases.
+              CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ residue: |   (⍺ | ⍵) <==> (⍵ modulo a)
+          ⍝ Logical: [Return single binary]
+              CASE'<':⍺ lt ⍵
+              CASE'≤':⍺ le ⍵
+              CASE'=':⍺ eq ⍵
+              CASE'≥':⍺ ge ⍵
+              CASE'>':⍺ gt ⍵
+              CASE'≠':⍺ ne ⍵
+          ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
+              CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
+              CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵ as lcm.
+          ⍝
+              CASE'√' 'ROOT':∆exp∆ ⍺ root ⍵             ⍝ See ∇root.
+              CASE'MOD':∆exp∆ ⍵ residue ⍺               ⍝ modulo:  Same as |⍨
+              CASE'SHIFTB':∆exp∆ ⍺ times2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+              CASE'SHIFTD':∆exp∆ ⍺ times10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
+              CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵ ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+              CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
+              err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
+          }{0=inv:⍺ ⍺⍺ ⍵ ⋄ 1=inv:⍵ ⍺⍺ ⍺ ⋄ ⍵ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨
       }
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
@@ -510,8 +515,8 @@
           0∊b∊0 1:err eBITSIN        ⍝ Validate
           sg←0 ¯1⊃⍨⊃⌽b               ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
           n←⌈BRX÷⍨¯1+≢b
-          i←sg,n BRX⍴(n×BRX)↑¯1↓b    ⍝ Allows non-std bits-- we pad to next BRX, but treating
-          (×sg)(|2⊥⍉i)               ⍝ high-order bit (right-most) as the sign bit (1=negative).
+          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑¯1↓b ⍝ Allows non-std bits-- we pad to next BRX, but treating
+          (×sg)i                     ⍝ high-order bit (right-most) as the sign bit (1=negative).
       }
 
     ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
@@ -520,7 +525,7 @@
     ⍝    Used internally, so no validation that ⍵ is only bits
       bitsInUS←{⍺←1
           n←⌈BRX÷⍨¯1+≢b←,⍵
-          i←|2⊥⍉n BRX⍴(n×BRX)↑b
+          i←|2⊥⍉n BRX⍴(-n×BRX)↑b
           (⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
       }
     ⍝ (int)root: A fast integer nth root.
@@ -629,6 +634,7 @@
           ((sa×sw)∆zU2I div)(sw ∆zU2I rem)
       }
     divRem←divideRem
+    ⍝ ⍺ power ⍵: Handles ⍵≡0.5 or '0.5'. The string must match EXACTLY ('00.5' will fail)
       power←{
           (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ power 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
@@ -659,12 +665,12 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
     ⍝ GMP: mul_2exp
       times2Exp←{
-          shift←{(|⍵)≥≢a←⍺:0⍴⍨≢⍺ ⋄ ⍵⌽a⊣(⍵↑a)←0}   ⍝ <bits> shift <degree> (left=pos.)
+          shiftU←{⍵<0:0,⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
-          sa bitsInUS(bitsOutU a)shift sw×w
+          sa bitsInUS(bitsOutU a)shiftU sw×w
       }
     mul2Exp←times2Exp
       div2Exp←{
@@ -841,7 +847,7 @@
 
     :Section Service Routines
 
-    atom←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
+    atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
 
   ⍝ These routines operate on unsigned BIu data unless documented…
     dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
