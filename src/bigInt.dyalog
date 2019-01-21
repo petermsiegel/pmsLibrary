@@ -202,7 +202,7 @@
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -242,6 +242,7 @@
               CASE'⊥':∆exp∆ bitsIn ⍵           ⍝     bits→BI:    Converts from bit vector (BIB) to BI internal
               CASE'⊤':bitsOut ∆ ⍵              ⍝     BI→bits:    Converts a BI ⍵ to its bit form, a BIB bit vector
               CASE'~' 'NOT':not ⍵    ⍝
+              CASE'≢':∆exp∆ popCount ⍵
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
               CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: BRX-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
@@ -454,6 +455,19 @@
           sw bw←bitsView ⍵
           sw bitsInUS~bw
       }
+    ⍝ popCount: # of 1 bits in 2's-complement
+      popCount←{wordSize←64
+          sw bw←bitsView ∆ ⍵
+          sw≥0:∆+/bw
+        ⍝ Option A: For negative popCount,
+        ⍝ assume each negative bigInt fits in the smallest number
+        ⍝ of <wordSize>-bit words. Count the 1-bits (including propagated
+        ⍝ signs) and negate the result (to indicate it's a neg. number).
+          _negate ∆(wordSize|wordSize-wordSize|≢bw)++/bw
+        ⍝ Option B: Treat as error, since a negative big integer
+        ⍝   effectively has an infinite number of 1 (sign) bits.
+          'Negative big integers have an infinite # of bits'⎕SIGNAL 911
+      }
 
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIx
@@ -542,6 +556,8 @@
       }
 
     ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
+    ⍝    If ⍵ is not 0, ⍺ is used to set sign to ¯1 or 1.
+    ⍝    Otherwise, returns bigInt 0.
     ⍝ Unsigned bitsInUS (bits no sign bit → |BIi) and bitsOutU (BIu → bits)
     ⍝ ⍺: Take sign bit from external routine...
     ⍝    Used internally, so no validation that ⍵ is only bits
@@ -725,16 +741,16 @@
   ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
     div10Exp←{⍺ times10Exp negate ⍵}
 
-      and←{⍺ ∧logical ⍵}
+    and←{⍺ ∧bits ⍵}
 
-      or←{⍺ ∨logical ⍵}
- 
-      xor←{⍺ ≠logical ⍵}
+    or←{⍺ ∨bits ⍵}
 
-    ⍝ a (logop logical) w
-      logical←{
+    xor←{⍺ ≠bits ⍵}
+
+    ⍝ a (logop bits) w
+      bits←{
           (sa ba)(sw bw)←⍺ bitsView2 ⍵
-          (sa=¯1)⍺⍺(sw=¯1):¯1 bitsInUS(ba ⍺⍺ bw)
+          (sw=¯1)⍺⍺(sa=¯1):¯1 bitsInUS(ba ⍺⍺ bw)  ⍝ Order ⍺⍺ in case relational fns used.
           1 bitsInUS(ba ⍺⍺ bw)
       }
 
