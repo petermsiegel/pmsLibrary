@@ -455,18 +455,13 @@
           sw bw←bitsView ⍵
           sw bitsInUS~bw
       }
-    ⍝ popCount: # of 1 bits in 2's-complement
+    ⍝ popCount: # of bits in a bigInteger (2's-complement)
+    ⍝   that DIFFER from the twos-complement sign-bit,
+    ⍝   i.e. that are 1s for pos #s and 0s for negative...
       popCount←{wordSize←64
           sw bw←bitsView ∆ ⍵
-          sw≥0:∆+/bw
-        ⍝ Option A: For negative popCount,
-        ⍝ assume each negative bigInt fits in the smallest number
-        ⍝ of <wordSize>-bit words. Count the 1-bits (including propagated
-        ⍝ signs) and negate the result (to indicate it's a neg. number).
-          _negate ∆(wordSize|wordSize-wordSize|≢bw)++/bw
-        ⍝ Option B: Treat as error, since a negative big integer
-        ⍝   effectively has an infinite number of 1 (sign) bits.
-          'Negative big integers have an infinite # of bits'⎕SIGNAL 911
+          sw≥0:∆+/bw    ⍝ non-neg: # of 1s
+          ∆ (≢bw)-+/bw  ⍝ neg:     # of 0s
       }
 
     ⍝ fact: compute BI factorials.
