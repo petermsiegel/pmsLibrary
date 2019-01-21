@@ -201,8 +201,8 @@
     ⍝ listMonadFns   [0] single-char symbols [1] multi-char names
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
-    ⍝            reg. fns       boolean  names
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢','<≤=≥>≠')('SHIFTD' 'SHIFTB' 'DIVIDEREM' 'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
+    ⍝            reg. fns       boolean  names   [use Upper case here]
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢','<≤=≥>≠')('SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -230,14 +230,14 @@
      
           ⍝ Monadic...
           monad:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
-              CASE'-':∆exp∆ negate ⍵           ⍝     -⍵
+              CASE'-':∆exp∆ neg ⍵              ⍝     -⍵
               CASE'+':∆exp∆ ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIi form.
-              CASE'|':∆exp∆ magnitude ⍵        ⍝     |⍵
+              CASE'|':∆exp∆ abs ⍵              ⍝     |⍵
               CASE'×':∆exp∆⊃∆ ⍵                ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BI.
-              CASE'÷':∆exp∆ reciprocal ⍵       ⍝     ÷⍵:         Why bother?
-              CASE'<':∆exp∆ decrement ⍵        ⍝     ⍵-1:        Optimized for constant in ⍵-1.
-              CASE'>':∆exp∆ increment ⍵        ⍝     ⍵+1:        Optimized for constant in ⍵+1.
-              CASE'!':∆exp∆ factorial ⍵        ⍝     !⍵          For smallish integers ⍵≥0
+              CASE'÷':∆exp∆ recip ⍵            ⍝     ÷⍵:         Why bother?
+              CASE'<':∆exp∆ dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1.
+              CASE'>':∆exp∆ inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
+              CASE'!':∆exp∆ fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
               CASE'?':∆exp∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
               CASE'⊥':∆exp∆ bitsIn ⍵           ⍝     bits→BI:    Converts from bit vector (BIB) to BI internal
               CASE'⊤':bitsOut ∆ ⍵              ⍝     BI→bits:    Converts a BI ⍵ to its bit form, a BIB bit vector
@@ -254,13 +254,13 @@
           ⍝ See discussion of ⍨ above...
           ⍺{
               ⍝ High Use: [Return BigInt]
-              CASE'+':∆exp∆ ⍺ plus ⍵
-              CASE'-':∆exp∆ ⍺ minus ⍵
-              CASE'×':∆exp∆ ⍺ times ⍵
-              CASE'⌽':∆exp∆ ⍵ times2Exp ⍺               ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
-              CASE'÷':∆exp∆ ⍺ divide ⍵                  ⍝  ⌊⍺÷⍵
-              CASE'*':∆exp∆ ⍺ power ⍵                   ⍝ Handles ⍺*BI 0.5 and ⍺*BI '0.5' as special cases.
-              CASE'|':∆exp∆ ⍺ residue ⍵                 ⍝ residue: |   (⍺ | ⍵) <==> (⍵ modulo a)
+              CASE'+':∆exp∆ ⍺ add ⍵
+              CASE'-':∆exp∆ ⍺ sub ⍵
+              CASE'×':∆exp∆ ⍺ mul ⍵
+              CASE'⌽':∆exp∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
+              CASE'÷':∆exp∆ ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
+              CASE'*':∆exp∆ ⍺ pow ⍵                     ⍝ Handles ⍺*BI 0.5 and ⍺*BI '0.5' as special cases.
+              CASE'|':∆exp∆ ⍺ rem ⍵                    ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
           ⍝ Logical: [Return single binary]
               CASE'<':⍺ lt ⍵
               CASE'≤':⍺ le ⍵
@@ -272,15 +272,16 @@
               CASE'AND':∆exp∆ ⍺ and ⍵
               CASE'OR':∆exp∆ ⍺ or ⍵
               CASE'XOR':∆exp∆ ⍺ xor ⍵
+     
           ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
               CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
               CASE'∧':∆exp∆ ⍺ lcm ⍵                     ⍝ ⍺∧⍵ as lcm.
           ⍝
               CASE'√' 'ROOT':∆exp∆ ⍺ root ⍵             ⍝ See ∇root.
-              CASE'MOD':∆exp∆ ⍵ residue ⍺               ⍝ modulo:  Same as |⍨
+              CASE'MOD':∆exp∆ ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
               CASE'SHIFTB':∆exp∆ ⍺ times2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
               CASE'SHIFTD':∆exp∆ ⍺ times10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
-              CASE'DIVIDEREM' 'DIVREM':∆exp∆¨⍺ divideRem ⍵ ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+              CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
           }{0=inv:⍺ ⍺⍺ ⍵ ⋄ 1=inv:⍵ ⍺⍺ ⍺ ⋄ ⍵ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨
@@ -411,46 +412,39 @@
       :EndIf
     ∇
 
-    ⍝ negate / _negate
-      negate←{                          ⍝ -
+    ⍝ neg[ate] / _neg[ate]
+      neg←{                          ⍝ -
           (sw w)←∆ ⍵
           (-sw)w
       }
-    neg←negate
-    ⍝ direction / _direction
-      direction←{                       ⍝ ×
+    ⍝ sig[num], _signum
+      sig←{                       ⍝ ×
           (sw w)←∆ ⍵
           sw(|sw)
       }
-    signum←direction
-    sig←direction
-      magnitude←{                       ⍝ |
+      abs←{                       ⍝ |
           (sw w)←∆ ⍵
           (|sw)w
       }
-    abs←magnitude
 
-    ⍝ increment:                        ⍝ ⍵+1
-      increment←{
+    ⍝ inc[rement]:                        ⍝ ⍵+1
+      inc←{
           (sw w)←∆ ⍵
           sw=0:1 oneUD                     ⍝ ⍵=0? Return 1.
-          sw=¯1:∆z sw(⊃⌽decrement 1 w)     ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
+          sw=¯1:∆z sw(⊃⌽dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
           RX>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
-          sw w plus 1 oneUD                ⍝ Otherwise, do long way.
+          sw w add 1 oneUD                 ⍝ Otherwise, do long way.
       }
-    inc←increment
-    ⍝ decrement:                        ⍝ ⍵-1
-      decrement←{
+    ⍝ dec[rement]:                        ⍝ ⍵-1
+      dec←{
           (sw w)←∆ ⍵
           sw=0:¯1 oneUD                    ⍝ ⍵ is zero? Return ¯1
-          sw=¯1:∆z sw(⊃⌽increment 1 w)     ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
+          sw=¯1:∆z sw(⊃⌽inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
           0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
-          sw w minus 1 oneUD               ⍝ Otherwise, do long way.
+          sw w sub 1 oneUD                 ⍝ Otherwise, do long way.
       }
-    dec←decrement
-
       not←{
           sw bw←bitsView ⍵
           sw bitsInUS~bw
@@ -461,9 +455,8 @@
       popCount←{wordSize←64
           sw bw←bitsView ∆ ⍵
           sw≥0:∆+/bw    ⍝ non-neg: # of 1s
-          ∆ (≢bw)-+/bw  ⍝ neg:     # of 0s
+          ∆-(≢bw)-+/bw  ⍝ neg:     -(# of 0s)
       }
-
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIx
     ⍝ We allow ⍵ to be of any size, but numbers larger than DRX are impractical.
@@ -471,7 +464,7 @@
     ⍝    ⍵ ≤ 31:    We let APL calculate, with ⎕PP←34.   Fast.
     ⍝    ⍵ ≤ DRX:   We calculate r as a BigInt, while counting down ⍵ as an APL integer. Moderately fast.
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
-      factorial←{                           ⍝ !⍵
+      fact←{                                ⍝ !⍵
           aw w←∆ ⍵
           aw=0:0 zeroUD                     ⍝ !0
           aw=¯1:err eFACTOR                 ⍝ ⍵<0
@@ -485,9 +478,7 @@
           }
           1 factBig w
       }
-    fact←factorial
-
-    ⍝ rand ⍵: Compute a random number between 0 and ⍵-1, given ⍵>0.
+    ⍝ roll ⍵: Compute a random number between 0 and ⍵-1, given ⍵>0.
     ⍝    r:BIi ← ∇ ⍵:BIi   ⍵>0.
     ⍝ With inL the # of dec digits in ⍵, excluding any leading '0' digits...
     ⍝ Proceed as shown here, where (exp ⍵) is "exported" BI format; (∆ ⍵) is internal BI format.
@@ -502,7 +493,7 @@
               ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕?0)∇ ⍵-⎕PP          ⍝ ... ⎕PP digits at a time.
           }inL                                   ⍝ res is then truncated to exactly inL digits
           '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
-          ⍵ residue ∆ res                        ⍝ Otherwise, compute residue r: 0 ≤ r < ⍵.
+          ⍵ rem ∆ res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
       }
 
   ⍝ bitsOut, bitsIn: Manage one or more BRX-bit integers (e.g. 20 etc.) stored in APL 32-bit integers.
@@ -577,7 +568,7 @@
           ⍺←2 ⍝ sqrt...
           sgn invNth nth←⍺{
               ⍵:1 0.5 2
-              sgn nth←bi.imp ⍺
+              sgn nth←import ⍺
               sgn=0:eROOT ⎕SIGNAL 11
               1<≢nth:eROOT ⎕SIGNAL 11
               nth←⊃nth
@@ -585,7 +576,7 @@
           }900⌶⍬
           sgn<0:0    ⍝  ⌊N*÷nth ≡ 0, if nth<0 (nth a small int)
         ⍝ Check N
-          N←imp ⍵
+          N←import ⍵
           0=⊃N:N                        ⍝  0=×N?   0
           ¯1=⊃N:eROOT ⎕SIGNAL 11        ⍝ ¯1=×N?   error
           1=ndig←≢⊃⌽N:1(⌊invNth*⍨⊃⌽N)   ⍝ N small? Let APL calc value
@@ -600,7 +591,7 @@
           }N
         ⍝ Refine x, i.e. ⍵, until y > x
           {
-              y←(⍵ _plus N _divide ⍵)_divide nth  ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+              y←(⍵ _add N _div ⍵)_div nth     ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
               y _ge ⍵:⍵
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
           }x
@@ -608,14 +599,14 @@
     eROOT←'bigInt.root: root (⍺) must be small non-zero integer ((|⍺)<',(⍕RX),')'
     sqrt←root
 
-  ⍝ oneDiv:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
-    oneDiv←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
+  ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
+    recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
 
   ⍝ genVariants: For negate, create related _negate, such that
   ⍝        _negate import ⍵   <==> negate ⍵
   ⍝ etc.
-    genVariants¨ 'negate' 'neg' 'direction' 'signum' 'sig' 'abs' 'increment' 'inc'
-    genVariants¨ 'decrement' 'dec' 'factorial' 'fact' 'roll' 'bitsOut'
+    genVariants¨ 'neg'  'sig'   'abs'  'inc'
+    genVariants¨ 'dec'  'fact'  'roll' 'bitsOut'
 
     :Endsection BI Monadic Functions/Operands
 ⍝ --------------------------------------------------------------------------------------------------
@@ -624,20 +615,19 @@
   ⍝ dyad:    compute all supported dyadic functions
   ⍝ The first name will be the APL std name (exceptions noted), followed by
   ⍝ abbreviations and common alternatives.
-  ⍝ E.g. dyadic | is called  residue, but we also define mod/ulo as residue⍨.
-  ⍝ Each name (minus, etc.) has a version (_minus) that assumes data already imported...
+  ⍝ E.g. dyadic | is called  residue; we define res[idue] and mod[ulo], i.e.  res⍨.
+  ⍝ Each name (sub, etc.) has a version (_sub) that assumes data already imported...
 
-      plus←{
+      add←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
           sa=sw:sa(ndnZ 0,+⌿a mix w)       ⍝ 5 + 10 or ¯5 + ¯10
-          sa<0:sw w minus 1 a              ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
-          sa a minus 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
+          sa<0:sw w sub 1 a              ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
+          sa a sub 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
-    add←plus
 
-      minus←{
+      sub←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
@@ -646,29 +636,24 @@
           <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
-    subtract←minus
-    sub←minus
-      times←{
+      mul←{
           (sa a)(sw w)←⍺ ∆ ⍵
           0∊sa,sw:0 zeroUD
           oneUD≡a:(sa×sw)w
           oneUD≡w:(sa×sw)a
           (sa×sw)(a mulU w)
       }
-    mul←times
-      divide←{
+      div←{
           (sa a)(sw w)←⍺ ∆ ⍵
           (sa×sw)(⊃a divU w)
       }
-    div←divide
-      divideRem←{
+      divRem←{
           (sa a)(sw w)←⍺ ∆ ⍵
           div rem←a divU w
           ((sa×sw)∆zU2I div)(sw ∆zU2I rem)
       }
-    divRem←divideRem
     ⍝ ⍺ power ⍵: Handles ⍵≡0.5 or '0.5'. The string must match EXACTLY ('00.5' will fail)
-      power←{
+      pow←{
           (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ power 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
           sa sw∨.=0 ¯1:0 zeroUD    ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
@@ -677,18 +662,17 @@
           0=2|⊃⌽w:1 p              ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
           ¯1 p
       }
-    pow←power
-      residue←{                    ⍝ residue. THIS FOLLOWS APL'S DEFINITION (base on left)
+      rem←{                        ⍝ remainder/residue. APL'S DEF: ⍺=base.
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:0 zeroUD
           sa=0:sw w
           r←,a remU w              ⍝ remU is fast if a>w
           sa=sw:∆z sa r            ⍝ sa=sw: return (R)        R←sa r
           zeroUD≡r:0 zeroUD        ⍝ sa≠sw ∧ R≡0, return 0
-          ∆z sa a minus sa r       ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          ∆z sa a sub sa r       ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
-    modulo←{⍵ residue ⍺}           ⍝ modulo←residue⍨
-    mod←modulo
+    res←rem                        ⍝ residue (APL name)
+    mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
 
     ⍝ times2Exp:  Shift ⍺:BIx left or right by ⍵:Int binary digits
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:aplInt
@@ -697,7 +681,7 @@
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
     ⍝ GMP: mul_2exp
-      times2Exp←{
+      mul2Exp←{
           shiftU←{⍵<0:0,⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
@@ -705,21 +689,20 @@
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
           sa bitsInUS(bitsOutU a)shiftU sw×w
       }
-    mul2Exp←times2Exp
       div2Exp←{
           ⍺ times2Exp negate ⍵
       }
-    shiftBinary←times2Exp
-    shiftB←times2Exp
+    shiftBinary←mul2Exp
+    shiftB←mul2Exp
 
-    ⍝ times10Exp: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
+    ⍝ mul10Exp: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
     ⍝     Note: ⍵ must be an APL integer (<RX).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-      times10Exp←{
+      mul10Exp←{
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eTIMES10                        ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
@@ -729,19 +712,15 @@
           sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw =1
           {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
       }
-    mul10Exp←times10Exp
-    shiftDecimal←times10Exp                        ⍝ positive/left
-    shiftD←times10Exp
+    shiftDecimal←mul10Exp                        ⍝ positive/left
+    shiftD←mul10Exp
 
   ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
-    div10Exp←{⍺ times10Exp negate ⍵}
+    div10Exp←{⍺ _mul10Exp neg ⍵}
 
     and←{⍺ ∧bits ⍵}
-
     or←{⍺ ∨bits ⍵}
-
     xor←{⍺ ≠bits ⍵}
-
     ⍝ a (logop bits) w
       bits←{
           (sa ba)(sw bw)←⍺ bitsView2 ⍵
@@ -783,11 +762,11 @@
     ⎕EX 'fxBool'
 
   ⍝ genVariants: For negate, create related _negate, such that
-  ⍝        (import ⍺) _plus import ⍵   <==> ⍺ plus ⍵
-    genVariants¨'plus' 'add' 'minus' 'subtract' 'sub' 'times' 'mul' 'divide'
-    genVariants¨'divideRem' 'divRem' 'power' 'pow' 'residue' 'modulo' 'mod'
-    genVariants¨'times2Exp' 'mul2Exp' 'div2Exp' 'shiftBinary' 'shiftB'
-    genVariants¨'times10Exp' 'mul10Exp' 'shiftDecimal' 'shiftD' 'gcd' 'lcm'
+  ⍝        (import ⍺) _add import ⍵   <==> ⍺ add ⍵
+    genVariants¨ 'add'    'sub' 'mul' 'div'
+    genVariants¨ 'divRem' 'pow' 'rem' 'res'  'mod'
+    genVariants¨ 'mul2Exp'  'div2Exp'      'shiftBinary' 'shiftB'
+    genVariants¨ 'mul10Exp' 'shiftDecimal' 'shiftD'      'gcd' 'lcm'
 
     :EndSection BI Dyadic Operands/Functions
 
@@ -805,7 +784,7 @@
     ⍝ Only for smaller (and faster) a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
           a(b m)←(∆ ⍺)(⊃∆/⍵)
-          m residue(m residue a)times(m residue b)
+          m _rem(m _rem a)_mul(m _rem b)
       }
     :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
@@ -1151,12 +1130,12 @@
     note 'For help, type bi.HELP'
     note '¯¯¯ ¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯¯'
     note 'To access bigInt functions directly, use bi (lower-case)  as shortcut to bigInt namespace:'
-    note '    10 bi.plus 3 bi.times 9'
+    note '    10 bi.add 3 bi.mul 9'
     note '    bi.dc    - big integer desk calculator'
 
-    fns1←ssplit 'bitsIn bitsOut direction signum sig export exp factorial fact negate neg reciprocal roll'
-    fns2←'divide div divide2 div2 gcd lcm magnitude abs minus subtract sub plus'
-    fns2←ssplit fns2,' add times mul power pow residue modulo mod times10Exp mul10Exp divide10 div10'
+    fns1←ssplit 'bitsIn bitsOut  sig export exp fact neg recip roll'
+    fns2←'div divRem gcd lcm  abs sub'
+    fns2←ssplit fns2,' add mul pow rem res mod mul10Exp div10Exp'
 
     note 50⍴'-'⋄ note'  MONADIC FUNCTIONS' ⋄ note 50⍴'¯' ⋄ note ↑fns1
     note 50⍴'-'⋄ note'  DYADIC FUNCTIONS ' ⋄ note 50⍴'¯' ⋄ note ↑fns2

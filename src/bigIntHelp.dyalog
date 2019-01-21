@@ -55,20 +55,23 @@
   ⍝
   ⍝   Those with special meaning include:
   ⍝       dyadic:  ⌽ (shiftD), ∨ (gcd), ∧ (lcm)
-  ⍝       monadic: ? (roll on ⍵>0), ⊥ ⊤ (bit manipulation), ⍎ (convert to APL int), ⍕ (convert to BI string)
+  ⍝       monadic: ? (roll on ⍵>0),  ⍎ (convert to APL int), ⍕ (convert to BI string)
   ⍝                ← (return BI-internal format)
+  ⍝                ⊥ (bits to bigint), ⊤ (bigInt to bits), 
+  ⍝                ≢ (sign×count of bits different from sign-bit in twos-complement)
   ⍝ ∘ Arguments to most functions are BigIntegers of any BIx form:
   ⍝       a single BigInteger string in quotes    '-2343_243422'
   ⍝       a single APL signed integer (whether stored as an integer or float)   ¯2343243422
   ⍝       a BI internal-format vector, consisting of a scalar sign followed by a data vector of unsigned numbers;
   ⍝          See the internal format (above).     ¯1 (2343 243422)
   ⍝ ∘ Instead of using operand with BI (+BI), a set of BigInteger functions can be called directly:
-  ⍝       dyadic:   ⍺ plus ⍵ ⋄  ⍺ gcd ⍵ ⋄⋄⋄
+  ⍝       dyadic:   ⍺ add ⍵ ⋄  ⍺ gcd ⍵ ⋄⋄⋄
   ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
   ⍝   These all return a BIi (BigInteger internal format), with a few exceptions (exp/ort returns a BIx).
   ⍝   Many local functions have abbreviated synonyms. Local functions include:
-  ⍝       plus minus times (mul) div(ide) divrem power residue mod(ulo) shiftD times10Exp div(ide)10Exp
-  ⍝       neg(ate) sig(num) magnitude (abs) roll
+  ⍝       add sub mul div  divrem pow res(idue)/rem(ainder) mod (res⍨) 
+  ⍝       shiftD times10Exp div10Exp shiftB times2Exp div2Exp
+  ⍝       neg sig(num)  abs roll
   ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
   ⍝   in program control. (gcd ∨ and lcm ∧ always return BI internals, since their logical use is a subset).
   ⍝
@@ -177,18 +180,14 @@
    ⍝  BI/X op (⍺⍺)       function*         description
    ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
    ⍝ MONADIC
-   ⍝    -BI ⍵             negate ⍵         -⍵
+   ⍝    -BI ⍵             neg ⍵            -⍵
    ⍝    +BI ⍵             [none]           ⍵     Simply validates BIx passed
-   ⍝    |BI ⍵             magnitude ⍵      |⍵    Absolute value
-   ⍝                      abs ⍵
-   ⍝    ×BI ⍵             direction ⍵      ×⍵
-   ⍝                      signum
-   ⍝                      sig ⍵
+   ⍝    |BI ⍵             abs ⍵            |⍵    Absolute value
+   ⍝    ×BI ⍵             sig ⍵             ×⍵
    ⍝    ÷BI ⍵             reciprocal ⍵     ÷⍵    Very limited use
-   ⍝    <BI ⍵             decrement ⍵      ⍵-1   Extension
-   ⍝    >BI ⍵             increment ⍵      ⍵+1   Extension
-   ⍝    !BI ⍵             factorial ⍵      !⍵
-   ⍝                      fact ⍵
+   ⍝    <BI ⍵             dec ⍵            ⍵-1   Extension
+   ⍝    >BI ⍵             inc ⍵            ⍵+1   Extension
+   ⍝    !BI ⍵             fact ⍵           !⍵
    ⍝    ?BI ⍵             roll ⍵           ?⍵    ⍵>0
    ⍝    ⊥BI ⍵             bitsIn ⍵               Converts bits to BigInt
    ⍝    ⊤BI ⍵             bitsOut ⍵              Converts BigInt to bits, 2s' complement, sign on right
@@ -200,25 +199,18 @@
    ⍝    (*∘0.5 BI)⍵       ↓
    ⍝
    ⍝  DYADIC     -+x⌽ SHIFTD SHIFTB ÷ DIV2 * | |⍨ < etc ∨ ∧
-   ⍝    ⍺ -BI ⍵           ⍺ minus ⍵        ⍺-⍵
-   ⍝                      ⍺ subtract ⍵
-   ⍝                      ⍺ sub ⍵
-   ⍝    ⍺ +BI ⍵           ⍺ plus ⍵         ⍺+⍵
-   ⍝                      ⍺ add ⍵
-   ⍝    ⍺ ×BI ⍵           ⍺ times ⍵        ⍺×⍵
-   ⍝                      ⍺ mul ⍵
+   ⍝    ⍺ -BI ⍵           ⍺ sub ⍵           ⍺-⍵
+   ⍝    ⍺ +BI ⍵           ⍺ add ⍵          ⍺+⍵
+   ⍝    ⍺ ×BI ⍵           ⍺ mul ⍵          ⍺×⍵
    ⍝    ⍺ ⌽BI ⍵           ⍺ shiftD ⍵        ⍺×10*⍵ Performs an efficient(**) shift by orders of 10.
    ⍝    ⍺ ('SHIFTD'BI)⍵   ↓                If ⍵>0, decimal shifts left; if ⍵<0, shifts right.
    ⍝    ⍺ ('SHIFTB'BI)⍵   ↓                If ⍵>0, binary shifts left; if ⍵<0, right.
-   ⍝    ⍺ ÷BI ⍵           a divide ⍵       ⍺÷⍵
-   ⍝                      ⍺ div ⍵
-   ⍝    ⍺ ('DIVIDEREM'BI)⍵  ⍺ divideRem ⍵  (⍺÷⍵)(⍵|⍺) Returns a pair of BigIntegers.
-   ⍝    ⍺ ('DIVREM'BI) ⍵  ⍺ divRem ⍵
-   ⍝    ⍺ *BI ⍵           ⍺ power ⍵        ⍺*⍵
-   ⍝                      ⍺ pow ⍵
-   ⍝    ⍺ |BI ⍵           ⍺ residue ⍵      ⍺|⍵
-   ⍝    ⍺ |⍨BI ⍵          ⍺ modulo ⍵       ⍵|⍺
-   ⍝                      ⍺ mod ⍵          ⍵|⍺
+   ⍝    ⍺ ÷BI ⍵           a div ⍵          ⍺÷⍵
+   ⍝    ⍺ ('DIVIDEREM'BI)⍵  ⍺ divRem ⍵     (⍺÷⍵)(⍵|⍺) Returns a pair of BigIntegers.
+   ⍝    ⍺ *BI ⍵           ⍺ pow ⍵          ⍺*⍵
+   ⍝    ⍺ |BI ⍵           ⍺ res ⍵          ⍺|⍵
+   ⍝                      ⍺ rem ⍵          ⍺|⍵ 
+   ⍝    ⍺ |⍨BI ⍵          ⍺ mod ⍵          ⍵|⍺
    ⍝                      ⍺ root ⍵         ⍺*÷⍵   ⍵ small pos. integers (default ⍺←2).
    ⍝    ⍺ ∨BI ⍵           ⍺ gcd ⍵          ⍺∨⍵    Returns a BigInteger. Not viewed as boolean.
    ⍝    ⍺ ∧BI ⍵           ⍺ lcm ⍵          ⍺∧⍵    Returns a BigInteger. Not viewed as boolean
@@ -277,8 +269,8 @@
    ⍝      Returns special:   ×  (returns integer ¯1 0 1)
    ⍝      Special Meaning:   + < > ? ⊥ ⊤ !  'SQRT'   ⍎   ←
    ⍝         + (canonical):   Returns ⍵ in canonical format (no complex #s)
-   ⍝         < (decrement):   <BI '10'  is 9.
-   ⍝         > (increment):   >BI '10'  is 11.
+   ⍝         < (dec):   <BI '10'  is 9.
+   ⍝         > (inc):   >BI '10'  is 11.
    ⍝         ? (roll):
    ⍝           Calculates a random # < ⍵  [like APL ?⍵, where ⍵>0]
    ⍝           The result is between 0 and (≢ +BI |BI ⍵)⍴'9', i.e. as many digits as in canonical ⍵.
@@ -298,7 +290,7 @@
    ⍝              ⍵' ← {((BRX×⌈BRX÷⍨≢⍵)⍴¯1↓⍵),⊃⌽⍵},⍵
    ⍝           -----------------
    ⍝           * ⍵ is treated as (,⍵), its ravel.
-   ⍝         ! factorial
+   ⍝         ! fact(orial)
    ⍝           ⍵ typically is a non-neg APL integer. Anything larger will take
    ⍝           too long to compute.
    ⍝    'SQRT' integer square root
