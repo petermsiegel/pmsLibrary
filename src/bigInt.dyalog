@@ -10,15 +10,16 @@
   ⍝      BigInt Namespace and Utility Initializations
   ⍝      Executive
   ⍝      BigInt internal structure
-  ⍝      Monadic Operands/Functions
-  ⍝      Dyadic Operands/Functions
+  ⍝      Monadic Operands/Functions for BI, BIX
+  ⍝      Dyadic Operands/Functions for BI, BIX
+  ⍝      Directly-callable Functions ⍵⍵ via bi.⍵⍵.
   ⍝      BI Special Functions/Operations (More than 2 Args)
   ⍝      Unsigned Utility Math Routines
   ⍝      Service Routines
   ⍝  Utilities
   ⍝      bi
   ⍝      dc (desk calculator)
-  ⍝      BIB (bit manipulation)
+  ⍝      BIB (bit manipulation). OBSOLETE. See bi.bits.
   ⍝      BIC (BI math "compiler")
   ⍝      BI∆HERE (self-declared BI math function)
   ⍝  Postamble
@@ -65,7 +66,7 @@
   ⍝   INTERNAL-FORMAT BIs (BigInts)
   ⍝   ----------------------------------
   ⍝    BIi  -internal-format signed Big Integer numeric vector.
-  ⍝          A BIV is a vector of radix <RX> numbers. The first (left-most) non-zero number carries the sign.
+  ⍝          A BIV is a vector of radix <RX10> numbers. The first (left-most) non-zero number carries the sign.
   ⍝          Other numbers may be signed, but it's ignored.
   ⍝          ∘ Leading zeros are removed in the canonical form. After imp/ort, zero is (0=≢⍵)
   ⍝          ∘ Some routines use (zro BIi) to make sure every BIi has at least one digit. See BIz.
@@ -86,7 +87,7 @@
   ⍝          ∘ leading 0's are removed.
   ⍝          ∘ 0 is represented by (,'0'), unsigned with no extra '0' digits.
   ⍝   OTHER TYPES
-  ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX.
+  ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX10.
 
   ⍝ ==================
   ⍝ setHandSizeInBits
@@ -95,7 +96,7 @@
   ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
   ⍝      frType:  either 645 or 1287, corresponding to the largest # of bits
   ⍝               for either ⎕FR=645 or 1287. ⍵ must be 645 or 1287
-  ⍝      0:       choose best value, currently 20.  See brxBest below...
+  ⍝      0:       choose best value, currently 20.  See nbitsBest below...
   ⍝
   ⍝   This function is available to test performance with different
   ⍝   "hand" sizes in bits (see below). The data field of each big integer consists
@@ -113,13 +114,13 @@
   ⍝       smaller than optimal with 26 bits than with 20.
   ⍝---------------------
   ⍝   setHandSizeInBits: sets all the key constants:
-  ⍝       RX, DRX, BRX, OFL, and ⎕FR.
+  ⍝       RX10, NRX10, NRX2, OFL, and ⎕FR.
   ⍝
-  ⍝   Good Values for BRX (radix, i.e. hand size, in bits)
+  ⍝   Good Values for NRX2 (radix, i.e. hand size, in bits)
   ⍝     20     Fastest for all functions, except multiplication, where 40 is faster..
   ⍝     40     Slightly faster for multiplication, but slower than 20 for other operations.
   ⍝
-  ⍝     BRX   Stored    Overflow   Overflow    Max Poss
+  ⍝     NRX2   Stored    Overflow   Overflow    Max Poss
   ⍝     Bits  Type      Bits (×)   Type          Bits (Types are always Signed in APL)
   ⍝     20    32-bit    40         Float 64       53
   ⍝     26    32-bit    52         Float 64       53
@@ -127,44 +128,45 @@
   ⍝     45    32-bit    90         Dec Flt 128    93
   ⍝
   ⍝ =====================================================================================
-  ⍝ RX:  Radix for internal BI integers.
-  ⍝ DRX: # Decimal digits that RX must hold.
-  ⍝ BRX: # Binary  digits required to hold DRX digits. (See encode2Bits, decodeFromBits).
+  ⍝ RX10:  Radix for internal BI integers.
+  ⍝ NRX10: # Decimal digits that RX10 must hold.
+  ⍝ NRX2:  # Binary  digits required to hold NRX10 digits. (See encode2Bits, decodeFromBits).
   ⍝ OFL: For multiplies (mulU) of unsigned big integers ⍺ × ⍵,
-  ⍝      the length (in # of hands, i.e. base RX digits) of the larger of ⍺ and ⍵,
+  ⍝      the length (in # of hands, i.e. base RX10 digits) of the larger of ⍺ and ⍵,
   ⍝      beyond which digits must be split to prevent overflow.
   ⍝      OFL is a function of the # of guaranteed mantissa bits in the largest (float) number used
-  ⍝      AND the radix RX, viz.   ⌊mantissa_bits ÷ RX×2, since it's the potential accumulated bits of ⍺×⍵.
+  ⍝      AND the radix RX10, viz.   ⌊mantissa_bits ÷ RX10×2, since it's the potential accumulated bits of ⍺×⍵.
   ⍝ ⎕FR: Whether floating rep is 64-bit float (53 mantissa bits, and fast)
   ⍝      or 128-bit decimal (93 mantissa bits and much slower)..
-    ∇ {ok}←{verbose}setHandSizeInBits brx;brxBest;brxMax;brxMid;eBAD
+    ∇ {ok}←{verbose}setHandSizeInBits nbits;nbitsBest;nbitsMax;nbitsMid;eBAD
     ⍝ Set key constants/initial values...
       verbose←1='verbose'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
-      brxBest←20                    ⍝ "Ideal" default for BRX
-      brxMid brxMax←⌊53 93÷2        ⍝ Max bits to fit in Binary(645) and Dec Float (1287) resp.
-    ⍝ Handle frType and 0; ensure brx in proper range...
+      nbitsBest←20                    ⍝ "Ideal" default for NRX2
+      nbitsMid nbitsMax←⌊53 93÷2        ⍝ Max bits to fit in Binary(645) and Dec Float (1287) resp.
+    ⍝ Handle frType and 0; ensure nbits in proper range...
        ⋄ eBAD←'bigInt: invalid max bits for big integer base'
-      eBAD ⎕SIGNAL 11/⍨(0≠1↑0⍴brx)∨(1≠≢brx)
-      brx←(∊brxMax brxMid brxBest brx)[1287 645 0⍳brx]  ⍝ frType or 0 → BRX equivalents
-      :If brx>brxMax ⋄ :OrIf brx<2
-           ⋄ eBAD←'bigInt: bits for internal base must be integer in range 2..',⍕brxMax
+      eBAD ⎕SIGNAL 11/⍨(0≠1↑0⍴nbits)∨(1≠≢nbits)
+      nbits←(∊nbitsMax nbitsMid nbitsBest nbits)[1287 645 0⍳nbits]  ⍝ frType or 0 → NRX2 equivalents
+      :If nbits>nbitsMax ⋄ :OrIf nbits<2
+           ⋄ eBAD←'bigInt: bits for internal base must be integer in range 2..',⍕nbitsMax
           11 ⎕SIGNAL⍨eBAD
       :EndIf
     ⍝ Set key bigInt constants...
-      ⎕FR←645 1287⊃⍨brx>brxMid
-      BRX←brx
-      DRX←⌊10⍟2*BRX
-      RX←10*DRX ⋄ RXdiv2←RX÷2  ⍝ RXdiv2: see ∇powU∇
-      OFL←{⌊(2*⍵)÷RX×RX}(⎕FR=1287)⊃53 93
+      ⎕FR←645 1287⊃⍨nbits>nbitsMid
+      NRX2←nbits
+      NRX10←⌊10⍟RX2←2*NRX2
+      RXBASE←NRX2⍴2
+      RX10←10*NRX10 ⋄ RXdiv2←RX10÷2  ⍝ RXdiv2: see ∇powU∇
+      OFL←{⌊(2*⍵)÷RX10×RX10}(⎕FR=1287)⊃53 93
     ⍝ Report...
       :If verbose
-          ⎕←'nbits in radix(*)  BRX   ',BRX
+          ⎕←'nbits in radix(*)  NRX2   ',NRX2
           ⎕←'Floating rep       ⎕FR   ',⎕FR,' in namespace ',⍕⎕THIS
-          ⎕←'ndigits in radix   DRX   ',DRX
-          ⎕←'Radix (10*DRX)     RX    ',¯3⍕RX
+          ⎕←'ndigits in radix   NRX10   ',NRX10
+          ⎕←'Radix (10*NRX10)     RX10    ',¯3⍕RX10
           ⎕←'max ⍵ for ⍵×⍵ (**) OFL   ',OFL
           ⎕←'*   Radix: Each bigInt is composed of 0 or more integers (hands),'
-          ⎕←'    each between 0 and RX-1, and a sign'
+          ⎕←'    each between 0 and RX10-1, and a sign'
           ⎕←'**  OFL: maximum # of "hands" in bigInt ⍵ allowed before splitting ⍵'
           ⎕←'    into smaller numbers to avoid multiplication overflow.'
           ⎕←'*** ⎕FR 645: 53 bits avail;  1287: 93 bits available'
@@ -181,7 +183,7 @@
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
     eNONINT  ←'Invalid BigInteger: APL number not a single integer: '
-    eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX
+    eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX10
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
     eINVALID ←'Format of big integer is not valid: '
@@ -239,12 +241,12 @@
               CASE'>':∆exp∆ inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
               CASE'!':∆exp∆ fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
               CASE'?':∆exp∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
-              CASE'⊥':∆exp∆ bitsIn ⍵           ⍝     bits→BI:    Converts from bit vector (BIB) to BI internal
-              CASE'⊤':bitsOut ∆ ⍵              ⍝     BI→bits:    Converts a BI ⍵ to its bit form, a BIB bit vector
+              CASE'⊥':∆exp∆ 1 bits2BI ⍵        ⍝     bits→BI:    Converts from bit vector to internal
+              CASE'⊤':BI2Bits ⍵                ⍝     BI→bits:    Converts a BI ⍵ to its bit form
               CASE'~' 'NOT':not ⍵    ⍝
               CASE'≢':∆exp∆ popCount ⍵
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
-              CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: BRX-bit signed integers
+              CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: NRX2-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
               CASE'SQRT' '√':exp sqrt ⍵        ⍝     ⌊⍵*0.5:     See dyadic *
               CASE'⍳':⍳∆2Small ⍵               ⍝     ⍳: Special case: Allow only small integers... Returns an APL # only.
@@ -302,7 +304,7 @@
     ⍝ An internal BI, BIi, is of this form:
     ⍝    sign data,
     ⍝       sign: a scalar integer in ¯1 0 1                     sign:IS∊¯1 0 1
-    ⍝       data: an unsigned integer vector ⍵, where ⍵∧.<RX.    data:UV
+    ⍝       data: an unsigned integer vector ⍵, where ⍵∧.<RX10.    data:UV
     ⍝    Together sign and data define a big integer.
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
     ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
@@ -326,7 +328,7 @@
       ⍝       3             ∆int (integer)               83...
       ⍝       5, 7          ∆aplNum (integer @ float)    645, 1287
       ⍝       6             BIi (internal)               326
-      ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX
+      ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX10
       ⍝
       import←{⍺←⊢ ⋄ em←'bigInt: Importing invalid object: '
           0::11 ⎕SIGNAL⍨em,⍕⍵
@@ -342,7 +344,7 @@
     ∆←import ⋄ imp←import
   ⍝ importU, impU:
   ⍝     import ⍵ as unsigned bigInt (data portion only)
-    importU←{⊃⌽imp ⍵} ⋄ impU←importU
+            importU←{⊃⌽imp ⍵} ⋄ impU←importU
 
       ⍝ ∆aplNum: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
@@ -354,11 +356,11 @@
       ⍝    ?BIX 1E100 calls (bigInt.∆aplNum 1E100), equivalent to   ?BIX '1',100⍴'0'
       ∆int←{
           1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
-          RX>u←,|⍵:(×⍵)(u)               ⍝ Small integer
-          (×⍵)(zro RX⊥⍣¯1⊣u)             ⍝ Integer
+          RX10>u←,|⍵:(×⍵)(u)               ⍝ Small integer
+          (×⍵)(zro RX10⊥⍣¯1⊣u)             ⍝ Integer
       }
       ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
-          (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX⊥⍣¯1⊣|⍵)
+          (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX10⊥⍣¯1⊣|⍵)
           err eNONINT,⍕⍵
       }
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi
@@ -381,7 +383,7 @@
       export←{
           sw w←⍵
           sgn←(sw=¯1)/'¯'
-          sgn,⎕D[dlzs,⍉(DRX⍴10)⊤|w]
+          sgn,⎕D[dlzs,⍉(NRX10⍴10)⊤|w]
       }
     exp←export
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
@@ -433,7 +435,7 @@
           sw=0:1 oneUD                     ⍝ ⍵=0? Return 1.
           sw=¯1:∆z sw(⊃⌽dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
-          RX>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
+          RX10>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
           sw w add 1 oneUD                 ⍝ Otherwise, do long way.
       }
     ⍝ dec[rement]:                        ⍝ ⍵-1
@@ -447,27 +449,27 @@
       }
       not←{
           sw bw←bitsView ⍵
-          sw bitsInUS~bw
+          sw ubits2BI~bw
       }
     ⍝ popCount: # of bits in a bigInteger (2's-complement)
     ⍝   that DIFFER from the twos-complement sign-bit,
     ⍝   i.e. that are 1s for pos #s and 0s for negative...
-      popCount←{wordSize←64
-          sw bw←bitsView ∆ ⍵
-          sw≥0:∆+/bw    ⍝ non-neg: # of 1s
-          ∆-(≢bw)-+/bw  ⍝ neg:     -(# of 0s)
+      popCount←{
+          sw bw←bitsView ⍵
+          sw≥0:∆+/bw    ⍝ non-neg:  (# of 1s)
+          ∆(+/bw)-≢bw   ⍝ neg:     -(# of 0s)
       }
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIx
-    ⍝ We allow ⍵ to be of any size, but numbers larger than DRX are impractical.
+    ⍝ We allow ⍵ to be of any size, but numbers larger than NRX10 are impractical.
     ⍝ We deal with 3 cases:
     ⍝    ⍵ ≤ 31:    We let APL calculate, with ⎕PP←34.   Fast.
-    ⍝    ⍵ ≤ DRX:   We calculate r as a BigInt, while counting down ⍵ as an APL integer. Moderately fast.
+    ⍝    ⍵ ≤ NRX10:   We calculate r as a BigInt, while counting down ⍵ as an APL integer. Moderately fast.
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
       fact←{                                ⍝ !⍵
-          aw w←∆ ⍵
-          aw=0:0 zeroUD                     ⍝ !0
-          aw=¯1:err eFACTOR                 ⍝ ⍵<0
+          sw w←∆ ⍵
+          sw=0:0 zeroUD                     ⍝ !0
+          sw=¯1:err eFACTOR                 ⍝ ⍵<0
           factBig←{
               1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ≢⍵ is 1 hand.
               (⍺ mulU ⍵)∇⊃⌽decrement 1 ⍵
@@ -483,10 +485,10 @@
     ⍝ With inL the # of dec digits in ⍵, excluding any leading '0' digits...
     ⍝ Proceed as shown here, where (exp ⍵) is "exported" BI format; (∆ ⍵) is internal BI format.
       roll←{
-          aw w←∆ ⍵
-          aw≠1:err eBADRAND
+          sw w←∆ ⍵
+          sw≠1:err eBADRAND
           ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0 is optimal
-          inL←≢exp aw w                          ⍝ ⍵: in exp form. in: ⍵ with leading 0's removed.
+          inL←≢exp sw w                          ⍝ ⍵: in exp form. in: ⍵ with leading 0's removed.
      
           res←inL⍴{                              ⍝ res is built up to ≥inL random digits...
               ⍺←''                               ⍝ ...
@@ -496,65 +498,65 @@
           ⍵ rem ∆ res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
       }
 
-  ⍝ bitsOut, bitsIn: Manage one or more BRX-bit integers (e.g. 20 etc.) stored in APL 32-bit integers.
-  ⍝     bitsOut:   r:boolean array ←  ∇ ⍵:BIi
-  ⍝     bitsIn:    r:BIc           ←  ∇ ⍵:BIi
-  ⍝'
-  ⍝ The resulting bitstring will always have the lowest-order bit
-  ⍝ as the rightmost bit (as in APL).
-  ⍝ Bitstrings are bit representations
-  ⍝ of standard signed numbers, twos complement
-  ⍝
-  ⍝ bitsOut will always put out a vector of bits of length l, where 1=BRX|l, i.e. 21, 42, etc.
-  ⍝
-  ⍝ bitsIn will accommodate an external bit-string of any length. It will import as a series
-  ⍝ of signed BRX-bit integers, padding on the right with 0s.
-  ⍝
-      bitsOut←{ ⍝ ⍵:bigInt
-          aw w←∆ ⍵                   ⍝ sg: ¯1 for neg, or 0.
-          ,⍉1↓[0](0,BRX⍴2)⊤aw×|w     ⍝ make sure all ints are signed, so all fit 2s complement bit string.
+  ⍝⍝  Bit Management Utilities
+      ⍝ bits2BI:  r@BI ← sign∊(¯1 0 1) ∇  bits@B[]
+      ⍝ If object is not multiple of nbe bits, propagate the sign bit
+      ⍝ (1=neg, 0=pos, 0) on the left (padding what will be the leftmost,
+      ⍝ high order, int in the resulting bigInt vector).
+      ⍝ If sign is neg, add ¯1 prefix to each row
+      ⍝ to decode as twos-complement neg numbers.
+      bits2BI←{
+          sg←⍺                    ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
+          nbea←NRX2
+          nints←⌈nbea÷⍨nbtot←≢,⍵   ⍝ How many integers of nbe bits?
+          bits←nints nbea⍴⍵,⍨(nbtot|nbtot-nbea|nbtot)⍴1 0 0⊃⍨1+sg
+          ∆z sg(dlzs,|2⊥⍉(¯1×sg=¯1),bits)
       }
+      ⍝ BI2Bits:   r@B[]  ← ∇ BI
+      ⍝ ⍵ must be a properly formed bigInt.
+      ⍝ Returns: a twos-complement bit representation of ⍵.
+      ⍝ While the sign-bit is included, bits2bi will include
+      ⍝ the original sign-bit, meaning the sign bit can not be
+      ⍝ altered by bit manipulation.
+      BI2Bits←{
+          sw w←∆ ⍵
+          ,⍉RXBASE⊤sw×w
+      }
+      ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
       bitsView←{
-          ⍝ From bigInt, returns (sign)(bitInt-as-bits)
-          aw w←∆ ⍵
-          aw(,⍉1↓[0](0,BRX⍴2)⊤aw×|w)
+          sw w←∆ ⍵
+          sw(BI2Bits ⍵)
       }
+      ⍝ Given two bigInts ⍺, ⍵
+      ⍝ Returns each converted to bits and
+      ⍝ padded on the left to the length of the longest.
+      ⍝ If the int is neg, pad with 1; else with 0.
       bitsView2←{
-          sa ba←bitsView ⍺ ⋄ sw bw←bitsView ⍵
-          m←(≢ba)⌈≢bw
-          pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
-          (sa pad ba)(sw pad bw)
+          (sa a)(sw w)←⍺ ∆ ⍵
+          ⋄ m←(≢ba)⌈≢bw
+          ⋄ pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
+          (sa pad BI2Bits ⍺)(sw pad BI2Bits ⍵)
       }
 
-  ⍝ bitsOutU: Convert unsigned BIu to bits
-    ⍝ bitsOutU: Take an unsigned bigInt, return bits
-      bitsOutU←{
-          ,⍉1↓[0](0,BRX⍴2)⊤⍵
+    ⍝ uint2Bits: Convert unsigned BIu to bits
+      uint2Bits←{
+          ,⍉RXBASE⊤⍵
       }
-      bitsIn←{ ⍝ ⍵:bits
-          b←,⍵
-          0∊b∊0 1:err eBITSIN        ⍝ Validate
-        ⍝ sign comes from the first, leftmost bit...
-          sg←0 ¯1⊃⍨⊃b                ⍝ sg: either ¯1 for neg, or 0. For use in ⊥
-          n←⌈BRX÷⍨¯1+≢b
-          i←|2⊥⍉sg,n BRX⍴(-n×BRX)↑b  ⍝
-          (×sg)i
-      }
-
-    ⍝ bitsInUS: Takes a set of bits (no sign bit) and return a signed integer.
+    ⍝ ubits2BI: Takes a set of unsigned bits ⍵ and return a signed integer
+    ⍝    based on the sign ⍺.
     ⍝    If ⍵ is not 0, ⍺ is used to set sign to ¯1 or 1.
     ⍝    Otherwise, returns bigInt 0.
-    ⍝ Unsigned bitsInUS (bits no sign bit → |BIi) and bitsOutU (BIu → bits)
+    ⍝ Unsigned ubits2BI (bits no sign bit → |BIi) and uint2Bits (BIu → bits)
     ⍝ ⍺: Take sign bit from external routine...
     ⍝    Used internally, so no validation that ⍵ is only bits
-      bitsInUS←{⍺←1
-          n←⌈BRX÷⍨¯1+≢b←,⍵
-          i←|2⊥⍉n BRX⍴(-n×BRX)↑b
+      ubits2BI←{⍺←1
+          n←⌈NRX2÷⍨¯1+≢b←,⍵
+          i←|2⊥⍉n NRX2⍴(-n×NRX2)↑b
           (⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
       }
     ⍝ (int)root: A fast integer nth root.
     ⍝ x ← nth root N  ==>  x ← N *÷nth
-    ⍝   nth: a small, positive integer (<RX); default 2 (for sqrt).
+    ⍝   nth: a small, positive integer (<RX10); default 2 (for sqrt).
     ⍝   N:   any BIx
     ⍝   x:   the nth root as an internal big integer.
     ⍝   ∘ Uses Fredrick Johanssen's algorithm with optimization for APL integers.
@@ -585,7 +587,7 @@
         ⍝   DECIMAL est: ¯1+10*⌈(# dec digits in N)÷2
         ⍝   BINARY  est:  2*⌈(numbits(N)÷2)
           x←{ ⍝ We use est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
-              0::1((⌈invNth*⍨⊃⊃⌽N),(RX-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. ↑
+              0::1((⌈invNth*⍨⊃⊃⌽N),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. ↑
               ⎕FR←1287
               imp 1+⌈invNth*⍨⍎exp ⍵               ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
           }N
@@ -596,7 +598,7 @@
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
           }x
       }
-    eROOT←'bigInt.root: root (⍺) must be small non-zero integer ((|⍺)<',(⍕RX),')'
+    eROOT←'bigInt.root: root (⍺) must be small non-zero integer ((|⍺)<',(⍕RX10),')'
     sqrt←root
 
   ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
@@ -606,7 +608,7 @@
   ⍝        _negate import ⍵   <==> negate ⍵
   ⍝ etc.
     genVariants¨ 'neg'  'sig'   'abs'  'inc'
-    genVariants¨ 'dec'  'fact'  'roll' 'bitsOut'
+    genVariants¨ 'dec'  'fact'  'roll'
 
     :Endsection BI Monadic Functions/Operands
 ⍝ --------------------------------------------------------------------------------------------------
@@ -676,7 +678,7 @@
 
     ⍝ times2Exp:  Shift ⍺:BIx left or right by ⍵:Int binary digits
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:aplInt
-    ⍝     Note: ⍵ must be an APL integer (<RX).
+    ⍝     Note: ⍵ must be an APL integer (<RX10).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
@@ -687,7 +689,7 @@
           1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
-          sa bitsInUS(bitsOutU a)shiftU sw×w
+          sa ubits2BI(uint2Bits a)shiftU sw×w
       }
       div2Exp←{
           ⍺ times2Exp negate ⍵
@@ -698,7 +700,7 @@
     ⍝ mul10Exp: Shift ⍺:BIx left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:Int
-    ⍝     Note: ⍵ must be an APL integer (<RX).
+    ⍝     Note: ⍵ must be an APL integer (<RX10).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
@@ -724,8 +726,8 @@
     ⍝ a (logop bits) w
       bits←{
           (sa ba)(sw bw)←⍺ bitsView2 ⍵
-          (sw=¯1)⍺⍺(sa=¯1):¯1 bitsInUS(ba ⍺⍺ bw)  ⍝ Order ⍺⍺ in case relational fns used.
-          1 bitsInUS(ba ⍺⍺ bw)
+          (sw=¯1)⍺⍺(sa=¯1):¯1 ubits2BI(ba ⍺⍺ bw)  ⍝ Order ⍺⍺ in case relational fns used.
+          1 ubits2BI(ba ⍺⍺ bw)
       }
 
     ⍝ ∨ Greatest Common Divisor
@@ -807,7 +809,7 @@
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
               }/(⍺,¨(≢⍵)+⌽⍳≢⍺),⊂,0                ⍝ digit-shift pairs.
           }{                                      ⍝ guard against overflow:
-              m n←,↑≢¨⍺ ⍵                         ⍝ numbers of RX-digits in each arg.
+              m n←,↑≢¨⍺ ⍵                         ⍝ numbers of RX10-digits in each arg.
               m>n:⍺ ∇⍨⍵                           ⍝ quicker if larger number on right.
               n<OFL:⍺ ⍺⍺ ⍵                        ⍝ ⍵ won't overflow: proceed.
               s←⌊n÷2                              ⍝ digit-split for large ⍵.
@@ -839,8 +841,8 @@
           zro∘dlz¨↑⍵{                         ⍝ fold along dividend.
               r p←⍵                           ⍝ result & dividend.
               q←⍺↑⍺⍺                          ⍝ shifted divisor.
-              ppqq←RX⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
-              r∆←p q{                         ⍝ next RX-digit of result.
+              ppqq←RX10⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
+              r∆←p q{                         ⍝ next RX10-digit of result.
                   (p q)(lo hi)←⍺ ⍵            ⍝ div and high-low test.
                   lo=hi-1:p{                  ⍝ convergence:
                       (≥cmp ⍺ mix ⍵)⊃lo hi    ⍝ low or high.
@@ -877,13 +879,13 @@
     dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
     zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Converts BIi to BIz, so even 0 has one digit (,0).
     dlzs←{zro(∨\⍵≠0)/⍵}                     ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
-        ndn←{ +⌿1 0⌽0 RX⊤⍵}⍣≡               ⍝ normalise down: 3 21 → 5 1 (RH).
+            ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡               ⍝ normalise down: 3 21 → 5 1 (RH).
     ndnZ←dlz ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
-        nup←{⍵++⌿0 1⌽RX ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
+            nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dlz nup                            ⍝ PMS
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
     dck←{(2 1+(≥cmp ⍵)⌽0 ¯1)⌿⍵}             ⍝ difference check.
-    rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷DRX),DRX}  ⍝ radix RX rep of number.
+    rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷NRX10),NRX10}  ⍝ radix RX10 rep of number.
     cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                     ⍝ compare first different digit of ⍺ and ⍵.
 
     :Endsection Service Routines
@@ -1056,6 +1058,7 @@
     ∇
 
       BIB←{
+          ⎕←'BIB is obsolete. Use bi.bits, ⊤BI, ⊥BI, etc.'
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           ⍺←⊢
           1≡⍺ 1:⊥BI ⍺⍺⊤BI ⍵
@@ -1133,7 +1136,7 @@
     note '    10 bi.add 3 bi.mul 9'
     note '    bi.dc    - big integer desk calculator'
 
-    fns1←ssplit 'bitsIn bitsOut  sig export exp fact neg recip roll'
+    fns1←ssplit 'sig export exp fact neg recip roll'
     fns2←'div divRem gcd lcm  abs sub'
     fns2←ssplit fns2,' add mul pow rem res mod mul10Exp div10Exp'
 

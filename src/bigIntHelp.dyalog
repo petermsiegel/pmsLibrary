@@ -145,20 +145,22 @@
 
     ∇ BI_HELP
       __HELP__
-   ⍝ BI-- a big integer utility
+   ⍝ bigInt:  a big integer utility
+   ⍝ 
+   ⍝ Key operators:  BI, BIX    (BI returns internal bigInt object; BIX returns external bigInt string).
+   ⍝ Key prefix:     bi         (actually a function visible in ⎕PATH returning bigInt namespace).
    ⍝
    ⍝ The BI operator provides basic arithmetic functions on big integers stored externally as strings
-   ⍝ and internally as a series of (signed) integers.
+   ⍝ and internally as a sign flag and a vector of (unsigned) integers.
    ⍝ Built around dfns:nat as its numerical core, but extended to handle signed numbers,
-   ⍝ reduce and scan, factorial, roll(?).
+   ⍝ reduce and scan, factorial, roll(?), and logical and bit-manipulation functions.
    ⍝ To handle multiple objects in ⍺ or ⍵, do:   ⍺  ⍺⍺ BI¨ ⍵.
-   ⍝ This is as fast as providing internally, avoiding extra checks for multi-item single args for ⊥.
    ⍝
-   ⍝ Syntax: [Let × represent dyadic and monadic ×, standing in for all dyadic and monadic functions.]
-   ⍝      ⍺ ×    BI ⍵           Multiplies ⍺×⍵ for BIs ⍺ and ⍵.
-   ⍝        ×    BI ⍵           Determines the signum of BIs ⍵.
-   ⍝        ×BI\    ⍵           Performs ×-scan of ⍵, i.e. ⍵0 (⍵0×⍵1) … (⍵0×⍵1×…×⍵N)
-   ⍝      ⍺ ×BI/    ⍵           Performs N-wise reduction (see above)
+   ⍝ Syntax: Let × represent dyadic and monadic ×, standing in for all dyadic and monadic functions.
+   ⍝      ⍺ ×    BI ⍵1 ⍵2 ...           Multiplies ⍺×⍵ for BIs ⍺ and ⍵.
+   ⍝        ×    BI ⍵1 ⍵2 ...           Determines the signum of BIs ⍵.
+   ⍝        ×BI\    ⍵1 ⍵2 ...           Performs ×-scan of ⍵, i.e. ⍵0 (⍵0×⍵1) … (⍵0×⍵1×…×⍵N)
+   ⍝      ⍺ ×BI/    ⍵1 ⍵2 ...           Performs N-wise reduction (see above)
    ⍝ where
    ⍝      ⍺,⍵ are BIs (big integer strings or APL integers), each element of which is either
    ⍝      a) a character string of this form:   [¯|-]? [\d_]+
@@ -188,27 +190,36 @@
    ⍝   BIi (internal-format BigInteger with integer sign and data vector)
    ⍝   except where specified.
    ⍝  --------------------------------------------------------------------
-   ⍝                     directly-called
-   ⍝  BI/X op (⍺⍺)       function*         description
+   ⍝                 Directly-called function
+   ⍝  BI/X op (⍺⍺)        bi.___              APL Equiv    Notes
    ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
    ⍝ MONADIC
-   ⍝    -BI ⍵             neg ⍵            -⍵
-   ⍝    +BI ⍵             [none]           ⍵     Simply validates BIx passed
-   ⍝    |BI ⍵             abs ⍵            |⍵    Absolute value
-   ⍝    ×BI ⍵             sig ⍵            ×⍵
-   ⍝    ÷BI ⍵             recip ⍵          ÷⍵    Very limited use
-   ⍝    <BI ⍵             dec ⍵            ⍵-1   Extension
-   ⍝    >BI ⍵             inc ⍵            ⍵+1   Extension
-   ⍝    !BI ⍵             fact ⍵           !⍵
-   ⍝    ?BI ⍵             roll ⍵           ?⍵    ⍵>0
-   ⍝    ⊥BI ⍵             bitsIn ⍵               Converts bits to BigInt
-   ⍝    ⊤BI ⍵             bitsOut ⍵              Converts BigInt to bits, 2s' complement, sign on right
-   ⍝    ⍎BI ⍵             ⍎export ⍵              Converts ⍵ to APL integer (or error)
-   ⍝    ←BI ⍵             ⍵                      Returns ⍵ in BigInt internal form. More relevant with BIX.
-   ⍝    ⍕BI ⍵             export ⍵               Returns an BigInt in external (string) form.
-   ⍝    ('SQRT'BI) ⍵      sqrt ⍵           ⌊⍵*0.5  See dyadic root
-   ⍝    ('√'BI)⍵          ↓
-   ⍝    (*∘0.5 BI)⍵       ↓
+   ⍝    -BI ⍵             neg ⍵               -⍵
+   ⍝    +BI ⍵             [none]              ⍵ f        Simply validates BIx passed
+   ⍝    |BI ⍵             abs ⍵               |⍵         Absolute value
+   ⍝    ×BI ⍵             sig ⍵               ×
+   ⍝    ÷BI ⍵             recip ⍵             ÷⍵         Very limited use
+   ⍝    <BI ⍵             dec ⍵               ⍵-1        Extension
+   ⍝    >BI ⍵             inc ⍵               ⍵+1        Extension
+   ⍝    !BI ⍵             fact ⍵              !⍵         Useful for small ⍵ only (due to time taken)
+   ⍝    ?BI ⍵             roll ⍵              ?⍵         ⍵≥1. 
+   ⍝    ⊥BI ⍵             bitsIn ⍵                       Converts bits to BigInt
+   ⍝    ⊤BI ⍵             bitsOut ⍵                      Converts BigInt to bits, 2s' complement, sign-bit on left.
+   ⍝    ⍎BI ⍵             ⍎export ⍵                      Converts ⍵ to APL integer (or error)
+   ⍝    ←BI ⍵             ⍵                              Returns ⍵ in BigInt internal form, even from BIX.
+   ⍝    ⍕BI ⍵             export ⍵                       Returns an BigInt in external (string) form.
+   ⍝    ('SQRT'BI) ⍵      sqrt ⍵              ⌊⍵*0.5     Also ⍵ *BI 0.5
+   ⍝    ('√'BI)⍵          sqrt ⍵              ⌊⍵*0.5     ...
+   ⍝  BIT-MANIPULATIONS (MONADIC)
+   ⍝    ~BI ⍵             not ⍵                          Reverse each bit of ⍵, as if twos-complement integer
+   ⍝    ≢BI ⍵             popCount ⍵                     Returns the number of bits of ⍵ that are different
+   ⍝                                                     from the sign-bit (1s for pos nums, 0s for negatives),
+   ⍝                                                     then signed (-res for negatives) (*)
+   ⍝  ------------------------------
+   ⍝  (*) popCount: If a pos. number has only 0 bits or a neg number has only 1 bits, result is 0.
+   ⍝      Cf. Java's equivalent returns "MAXINT" (the largest integer) for negative numbers, since
+   ⍝          it counts the number of 1-bits, assuming the sign-bit propagates forever. 
+   ⍝      The num. of bits in a number:   ≢⊤BI ⍵
    ⍝
    ⍝  DYADIC     -+x⌽ SHIFTD SHIFTB ÷ DIV2 * | |⍨ < etc ∨ ∧
    ⍝    ⍺ -BI ⍵           ⍺ sub ⍵          ⍺-⍵
@@ -226,6 +237,11 @@
    ⍝                      ⍺ root ⍵         ⍺*÷⍵   ⍵ small pos. integers (default ⍺←2).
    ⍝    ⍺ ∨BI ⍵           ⍺ gcd ⍵          ⍺∨⍵    Returns a BigInteger. Not viewed as boolean.
    ⍝    ⍺ ∧BI ⍵           ⍺ lcm ⍵          ⍺∧⍵    Returns a BigInteger. Not viewed as boolean
+   ⍝  BIT-MANIPULATIONS (DYADIC)
+   ⍝    ⍺ ('AND'BI) ⍵     ⍺ ∧bi.bits ⍵            Apply ∧ to each bit of ⍺ and ⍵, and the sign (***).
+   ⍝    ⍺ ('OR' BI) ⍵     ⍺ ∨bi.bits ⍵            Apply ∨ ...
+   ⍝    ⍺ ('XOR'BI) ⍵     ⍺ ≠bi.bit ⍵             Apply ≠ ...
+   ⍝                      ⍺ ⍱bi.bit ⍵             Apply ⍱, ⍲, or logical functions to each bit...
    ⍝  LOGICAL FUNCTIONS (DYADIC)
    ⍝    ⍺ <BI ⍵           ⍺ lt ⍵           ⍺<⍵    Returns 1 or 0, not a BigInteger
    ⍝    Also ≤ (le)  = (eq)
@@ -233,12 +249,18 @@
    ⍝         ≠ (ne)
    ⍝
    ⍝  ------------
-   ⍝  (*) First name is usually the APL standard name.
-   ⍝      Calling:    bigInt.negate or bi.negate (etc.):
-   ⍝                  bi.exp   bi.negate 3
-   ⍝              ¯3
+   ⍝  (*) First name is usually the APL standard name, except when that implies complex numbers:
+   ⍝      e.g. we use sig(num) rather than direction for monadic ×; res and rem(ainder) for residue, dyadic |,
+   ⍝      as well as mod(ulo) for |⍨, with the base on the right.
+   ⍝      Calling:
+   ⍝                  bi.exp   bi.neg 3             -BIX 3
+   ⍝              ¯3                            ¯3
    ⍝  (**) ⌽BI, shiftD are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
-   ⍝  (↓) Function is same as above.
+   ⍝  (***) For dyadic bit-manipulations, operations are padded on the left with sign bits, simulating
+   ⍝      two-complement binary numbers (i.e. pad with 0 for pos and 1s for negative bigInts).
+   ⍝      For bit-function ⍺⍺, the resulting sign will be negative, iff  sign_bit(⍺) ⍺⍺ sign_bit(⍵).
+   ⍝      I.e. for ∧, both ⍺ and ⍵ are neg; for ∨, at least one is; for ≠, only one is.
+   ⍝      Always returns a bigInteger (BI: in internal form; BIX: in external form).
    ⍝
    ⍝ ------------------------------------------------------------------------------------
    ⍝
@@ -465,6 +487,8 @@
 
     ∇ BIB_HELP
       __HELP__
+   ⍝ OBSOLETE:  Use bi.bits (above).
+   ⍝ 
    ⍝-------------------------------------------------------------------------------------------------------
    ⍝ BIB: BI Binary helper function (treats BIs as APL bit vectors, with high-order and sign bit on RHS)
    ⍝-------------------------------------------------------------------------------------------------------
