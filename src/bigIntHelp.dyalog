@@ -21,7 +21,13 @@
   ⍝ ∘ BIc: On occasion we'll mention BIc, a "character" string format string used as INPUT, as opposed to
   ⍝        BIi (internal-format sign/data structure) or Int (APL Integer).
   ⍝
-  ⍝ ∘ Operators BI (returns BIi) and BIX (returns BIx).
+  ⍝ ∘ Operators BI, BIX:   For  [⍺] op BI* ⍵
+  ⍝       Performs   ⍺ op ⍵ or op ⍵, where ⍺, ⍵ are bigIntegers (in external or internal form.)
+  ⍝       BI  (returns BIi, internal form bigInt) and BIX (returns BIx, external form).
+  ⍝   Operator BIM:        For [⍺] op BIM ⍵⍵ ⊣ modulo
+  ⍝       Performs  ⍺ op ⍵⍵ (MODULO ⍵)    or   op ⍵⍵ (MODULO ⍵)
+  ⍝       Returns BIi (like BIX)
+  ⍝
   ⍝   We've added a range of monadic functions and extended the dyadic functions as well, all signed.
   ⍝   The key easy-use utilities are BI and BIX, used (with '#.BigInt' in ⎕PATH) in this form:
   ⍝       dyadic:    r:BIi← ⍺ +BI ⍵       r:BIx← ⍺ +BIX ⍵     with some exceptions (see below).
@@ -136,7 +142,10 @@
      ⍝  For HELP information, call  BI_HELP, BIC_HELP, BIB_HELP
      ⍝  Help        Fn/Op     Description
      ⍝  ¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-     ⍝  BI_HELP       BI       ∘ big integer utility         a *BI '2343243'
+     ⍝  BI_HELP       BI/X/M   ∘ big integer utility                            APL EQUIV
+     ⍝                BI           a *BI '2343243'   Returns internal bigInt    ⍺ × ⍵, -⍺
+     ⍝                BIX          a *BIX '234342'   Returns external bigInt    ⍺ × ⍵, -⍺
+     ⍝                BIM          a *BIM '2345'⊣123 Returns external bigInt    ⍵ | ⍺ × ⍵⍵  (MODULO ⍵)
      ⍝  BIC_HELP      BIC      ∘ big integer code translator ( 2999999…99999992 + 33  →   '2999999…99999992' (+BI) '33)
      ⍝  BIB_HELP      BIB      ∘ big integer binary data op   a ≠BIB b     (exclusive or of bits of a and b)
      ⍝                           where a←'3244234324343423432423432342342' ⋄ b← ⌽a
@@ -147,8 +156,11 @@
       __HELP__
    ⍝ bigInt:  a big integer utility
    ⍝
-   ⍝ Key operators:  BI, BIX    (BI returns internal bigInt object; BIX returns external bigInt string).
-   ⍝ Key prefix:     bi         (actually a function visible in ⎕PATH returning bigInt namespace).
+   ⍝ Key operators:  BI, BIX   ⍺ ×BI ⍵   or   ⍺ ×BIX ⍵
+   ⍝                           BI: returns internal bigInt object; BIX: returns external bigInt string.
+   ⍝                 BIM       ⍺ ×BIM ⍵⍵⊣⍵   calculates ⍺ × ⍵⍵ (MODULO ⍵))
+   ⍝                           BIM: returns external bigInt string (like BIX).
+   ⍝ Key prefix:     bi        actually a function visible in ⎕PATH returning bigInt namespace).
    ⍝
    ⍝ The BI operator provides basic arithmetic functions on big integers stored externally as strings
    ⍝ and internally as a sign flag and a vector of (unsigned) integers.
@@ -183,7 +195,7 @@
    ⍝         *APL sees  299E5 as valid 29900000
    ⍝
    ⍝ ----------------------------------------------------
-   ⍝ BI/BIX OPERAND SUMMARY with BigInt FUNCTION SUMMARY
+   ⍝ BI/BIX/BIM OPERAND SUMMARY with BigInt FUNCTION SUMMARY
    ⍝ ----------------------------------------------------
    ⍝ ∘ For formats: ⍺ op BI ⍵, and equivalent: ⍺ fun ⍵.
    ⍝ ∘ All directly called functions return a
@@ -225,6 +237,8 @@
    ⍝    ⍺ -BI ⍵           ⍺ sub ⍵          ⍺-⍵
    ⍝    ⍺ +BI ⍵           ⍺ add ⍵          ⍺+⍵
    ⍝    ⍺ ×BI ⍵           ⍺ mul ⍵          ⍺×⍵
+   ⍝    ⍺ ('MODMUL'BI)⍵1 ⍵2
+   ⍝                      ⍺ modMul ⍵1 ⍵2   ⍵2|⍺ modMul ⍵1 (MODULO ⍵2). See also (⍺ ×BIM ⍵⍵⊣⍵)
    ⍝    ⍺ ⌽BI ⍵           ⍺ shiftD ⍵       ⍺×10*⍵ Performs an efficient(**) shift by orders of 10.
    ⍝    ⍺ ('SHIFTD'BI)⍵   ↓                If ⍵>0, decimal shifts left; if ⍵<0, shifts right.
    ⍝    ⍺ ('SHIFTB'BI)⍵   ↓                If ⍵>0, binary shifts left; if ⍵<0, right.
@@ -267,7 +281,7 @@
    ⍝ Functions Available:
    ⍝   Dyadic functions:
    ⍝      Standard Meaning: +-×*÷<≤=≥>≠⌊⌈|∨∧
-   ⍝      Special Meaning:  ⌽  'SHIFTD' 'SHIFTB'
+   ⍝      Special Meaning:  ⌽  'SHIFTD' 'SHIFTB' 'MODMUL'
    ⍝      Returns special value: <≤=≥>≠
    ⍝
    ⍝      Dyadic <≤=≥>≠
@@ -297,6 +311,9 @@
    ⍝         multiplies ⍺ by 2*⍵, if ⍵>0, or divides by 2*⍵,
    ⍝         i.e. adds 0's on the right or truncates from the right.
    ⍝         If all digits are truncated, returns (,'0'), canonical 'zero.'
+   ⍝      Dyadic 'MODMUL'
+   ⍝          ⍺ ('MODMUL' BI) ⍵1 ⍵2     performs    ⍺ × ⍵1 (MODULO ⍵2)
+   ⍝          ⍺ bi.modMul ⍵1 ⍵2         performs    ⍺ × ⍵1 (MODULO ⍵2)
    ⍝
    ⍝   Monadic functions:
    ⍝      Standard Meaning:  - | !
@@ -498,24 +515,24 @@
    ⍝       1. View ⍺, ⍵ as bits
    ⍝       2. Pad the shorter of ⍺, ⍵ to the length of the longer:
    ⍝          Pad by replicating the sign-bit (1=neg, 0=otherwise)
-   ⍝          of the shorter operand's bit view on the left. 
+   ⍝          of the shorter operand's bit view on the left.
    ⍝          If ⍵ is
    ⍝             ¯1 → ¯1 (1) → ¯1 (20⍴1)
    ⍝          and ⍺ has 40 bits, then pad ⍵ with 1 (neg sign-bit):
    ⍝             ¯1 ((20⍴1),20⍴1)
    ⍝       3. Perform ⍺⍺ pairwise on each element of ⍺, ⍵: ⍺ ⍺⍺ ⍵
    ⍝       4. Perform ⍺⍺ on the signs, this way:
-   ⍝             If   (sign_⍵=¯1)⍺⍺(sign_⍺=¯1) 
+   ⍝             If   (sign_⍵=¯1)⍺⍺(sign_⍺=¯1)
    ⍝             then sign_result ← ¯1 else 1 (or 0)
    ⍝          That way, relationals like < or > will work properly,
    ⍝          (or user relationals), within the domain of 0 1,
    ⍝          per the definition of twos-complement numbers.
-   ⍝          Example: 
+   ⍝          Example:
    ⍝             Let sign_⍺←¯1, but sign_⍵←1:
    ⍝             so  (sign_⍵=¯1)<(sign_⍺=¯1)
    ⍝             so           0 < 1
-   ⍝             so the resulting sign is ¯1.  
-   ⍝       5. View the result as a signed bigInt. 
+   ⍝             so the resulting sign is ¯1.
+   ⍝       5. View the result as a signed bigInt.
    ⍝ While ⍺⍺ can be any APL function, useful ones include:
    ⍝    ∧ (and), ∨ (or), ≠ (xor); ~ (not)
    ⍝

@@ -190,8 +190,8 @@
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eBADRAND ←'Roll (?) argument must be >0'
     eSQRT    ←'sqrt: arg must be non-negative'
-    eTIMES2  ← eSMALLRT
-    eTIMES10 ← eSMALLRT
+    eMUL2  ← eSMALLRT
+    eMUL10 ← eSMALLRT
     eBIC     ←'BIC argument must be a fn name or one or more code strings.'
     eBITSIN  ←'BigInt: Importing bits requires arg to contain only boolean integers'
 
@@ -217,6 +217,7 @@
 
 
 ⍝ --------------------------------------------------------------------------------------------------
+    getOpName←{aa←⍺⍺ ⋄ 3=⎕NC'aa':⍕⎕CR'aa' ⋄ 1(819⌶)aa}
       _BI_src←{⍺←⊢
           ∆ERR::⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
         ⍝ _BI_src is a template for ops BI and BIX.
@@ -227,7 +228,7 @@
         ⍝      to 1, if BI/X was called 2-adically;
         ⍝      to 2, if called 1-adically (   ×⍨BI 3 ==> 3 ×BI 3).
           fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0
-          }⍺⍺{aa←⍺⍺ ⋄ 3=⎕NC'aa':⍕⎕CR'aa' ⋄ 1(819⌶)aa}⍵
+          }⍺⍺ getOpName ⍵
           CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
      
           ⍝ Monadic...
@@ -259,7 +260,7 @@
               CASE'+':∆exp∆ ⍺ add ⍵
               CASE'-':∆exp∆ ⍺ sub ⍵
               CASE'×':∆exp∆ ⍺ mul ⍵
-              CASE'⌽':∆exp∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Binary shift.
+              CASE'⌽':∆exp∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
               CASE'÷':∆exp∆ ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
               CASE'*':∆exp∆ ⍺ pow ⍵                     ⍝ Handles ⍺*BI 0.5 and ⍺*BI '0.5' as special cases.
               CASE'|':∆exp∆ ⍺ rem ⍵                    ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
@@ -282,8 +283,8 @@
           ⍝
               CASE'√' 'ROOT':∆exp∆ ⍺ root ⍵             ⍝ See ∇root.
               CASE'MOD':∆exp∆ ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
-              CASE'SHIFTB':∆exp∆ ⍺ times2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
-              CASE'SHIFTD':∆exp∆ ⍺ times10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
+              CASE'SHIFTB':∆exp∆ ⍺ mul2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+              CASE'SHIFTD':∆exp∆ ⍺ mul10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
               CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
@@ -293,7 +294,10 @@
     ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BIX [LA:⍺] OP:⍺⍺ BI RA:⍵⍵
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BIX ⍵ (Modulo ⍵⍵)
     ⍝
-    BIM←{ ⍺←⊢ ⋄ ⍵ |BIX ⍺ ⍺⍺ BI ⍵⍵  }
+    ∇ r←a(AA BIM WW)W
+      r←a(AA _BIM WW)W
+    ∇
+    _BIM←{⍺←⊢ ⋄ fn←⍺⍺ getOpName⊣⍬ ⋄ fn≡,'×':export ⍺ modMul (⍵⍵ ⍵) ⋄ ⍵|BIX ⍺ (⍺⍺ BI) ⍵⍵}
 
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
@@ -688,7 +692,7 @@
     res←rem                        ⍝ residue (APL name)
     mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
 
-    ⍝ times2Exp:  Shift ⍺:BIx left or right by ⍵:Int binary digits
+    ⍝ mul2Exp:  Shift ⍺:BIx left or right by ⍵:Int binary digits
     ⍝  r:BIi ← ⍺:BIi   ∇  ⍵:aplInt
     ⍝     Note: ⍵ must be an APL integer (<RX10).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
@@ -698,13 +702,13 @@
       mul2Exp←{
           shiftU←{⍵<0:0,⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
-          1≠≢w:err eTIMES10                       ⍝ ⍵ must be small integer.
+          1≠≢w:err eMUL10                       ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
           sa ubits2BI(uint2Bits a)shiftU sw×w
       }
       div2Exp←{
-          ⍺ times2Exp negate ⍵
+          ⍺ mul2Exp negate ⍵
       }
     shiftBinary←mul2Exp
     shiftB←mul2Exp
@@ -718,7 +722,7 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
       mul10Exp←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          1≠≢w:err eTIMES10                        ⍝ ⍵ must be small integer.
+          1≠≢w:err eMUL10                        ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
           sw=0:sa a                                ⍝ ⍵ is zero: ⍺ stays as is.
           ustr←export 1 a                          ⍝ ⍺ as unsigned string
