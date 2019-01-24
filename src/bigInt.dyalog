@@ -19,7 +19,7 @@
   ⍝  Utilities
   ⍝      bi
   ⍝      dc (desk calculator)
-  ⍝      BIB (bit manipulation). OBSOLETE. See bi.bits.
+  ⍝      BIB (bit manipulation).
   ⍝      BIC (BI math "compiler")
   ⍝      BI∆HERE (self-declared BI math function)
   ⍝  Postamble
@@ -90,7 +90,7 @@
   ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX10.
 
   ⍝ ==================
-  ⍝ setHandSizeInBits
+  ⍝ setHandSizeIn[Bits]
   ⍝ ==================
   ⍝ {ok=1}←setHandSizeInBits ⍵:[nn | frType | 0]
   ⍝      nn:      number of bits per hand, ⍵ is between 2 and 45
@@ -204,7 +204,7 @@
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢','<≤=≥>≠')('SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢⌷','<≤=≥>≠')('SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -218,7 +218,7 @@
 
 ⍝ --------------------------------------------------------------------------------------------------
       _BI_src←{⍺←⊢
-          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
+          ∆ERR::⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
         ⍝ _BI_src is a template for ops BI and BIX.
         ⍝ ⍺⍺ → fn
         ⍝ fn is always a scalar (either simple or otherwise);
@@ -274,6 +274,7 @@
               CASE'AND':∆exp∆ ⍺ and ⍵
               CASE'OR':∆exp∆ ⍺ or ⍵
               CASE'XOR':∆exp∆ ⍺ xor ⍵
+              CASE'⌷':∆exp∆ ⍺ flipBits ⍵
      
           ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
               CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
@@ -288,6 +289,12 @@
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
           }{0=inv:⍺ ⍺⍺ ⍵ ⋄ 1=inv:⍵ ⍺⍺ ⍺ ⋄ ⍵ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨
       }
+
+    ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BIX [LA:⍺] OP:⍺⍺ BI RA:⍵⍵
+    ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BIX ⍵ (Modulo ⍵⍵)
+    ⍝
+    BIM←{ ⍺←⊢ ⋄ ⍵ |BIX ⍺ ⍺⍺ BI ⍵⍵  }
+
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
     ⍝ BI:  Change ∆exp∆ to null string. Use name BI in place of BIX.
@@ -407,7 +414,7 @@
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
     ⍝ Each name (negate, etc.) has a version (_negate) that assumes data already imported...
     ∇ {__name}←genVariants __name;__in;__out
-      __in←__name'←∆ +⍵' '←⍺ +∆ +⍵'
+      __in←('\b',__name,'\b')'←∆ +⍵' '←⍺ +∆ +⍵'
       __out←('_',__name)'←⍵' '←⍺ ⍵'
       :If ' '≠1↑0⍴⎕FX(__in ⎕R __out⊣⎕NR __name)
           'Unable to create function _',__name
@@ -507,10 +514,13 @@
       ⍝ to decode as twos-complement neg numbers.
       bits2BI←{
           sg←⍺                    ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
+          0∊⍵∊0 1:err'Argument is not a vector of bits (1s and 0s)'
           nbea←NRX2
-          nints←⌈nbea÷⍨nbtot←≢,⍵   ⍝ How many integers of nbe bits?
+          nints←⌈nbea÷⍨nbtot←≢,⍵   ⍝ How many integers of nbe bits (nbits each)?
           bits←nints nbea⍴⍵,⍨(nbtot|nbtot-nbea|nbtot)⍴1 0 0⊃⍨1+sg
-          ∆z sg(dlzs,|2⊥⍉(¯1×sg=¯1),bits)
+        ⍝ ndnZ is here to handle bit changes that make a 20 bit # greater than 10*6 (but still 20 bits)
+          ∆z sg(ndnZ,|2⊥⍉(¯1×sg=¯1),bits)
+          ⍝ sz 11 323 ⎕DR bits
       }
       ⍝ BI2Bits:   r@B[]  ← ∇ BI
       ⍝ ⍵ must be a properly formed bigInt.
@@ -521,6 +531,7 @@
       BI2Bits←{
           sw w←∆ ⍵
           ,⍉RXBASE⊤sw×w
+          ⍝ 323 11 ⎕DR sw×w
       }
       ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
       bitsView←{
@@ -532,10 +543,10 @@
       ⍝ padded on the left to the length of the longest.
       ⍝ If the int is neg, pad with 1; else with 0.
       bitsView2←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa ba)(sw bw)←bitsView¨⍺ ⍵
           ⋄ m←(≢ba)⌈≢bw
           ⋄ pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
-          (sa pad BI2Bits ⍺)(sw pad BI2Bits ⍵)
+          (sa pad ba)(sw pad bw)
       }
 
     ⍝ uint2Bits: Convert unsigned BIu to bits
@@ -550,9 +561,10 @@
     ⍝ ⍺: Take sign bit from external routine...
     ⍝    Used internally, so no validation that ⍵ is only bits
       ubits2BI←{⍺←1
-          n←⌈NRX2÷⍨¯1+≢b←,⍵
-          i←|2⊥⍉n NRX2⍴(-n×NRX2)↑b
-          (⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
+          nbea←NRX2
+          n←⌈nbea÷⍨≢b←,⍵
+          i←ndnZ|2⊥⍉n nbea⍴(-n×nbea)↑b
+          ∆z(⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
       }
     ⍝ (int)root: A fast integer nth root.
     ⍝ x ← nth root N  ==>  x ← N *÷nth
@@ -724,10 +736,48 @@
     or←{⍺ ∨bits ⍵}
     xor←{⍺ ≠bits ⍵}
     ⍝ a (logop bits) w
-      bits←{
+    ⍝ DYADIC...
+    ⍝ bits: Perform bitwise  and signwise comparisons of bigInts ⍺, ⍵
+    ⍝       1. View ⍺, ⍵ as bits
+    ⍝       2. Pad the shorter of ⍺, ⍵ to the length of the longer:
+    ⍝          Pad by replicating the sign-bit (1=neg, 0=otherwise)
+    ⍝          on the left.
+    ⍝          If ⍵ is
+    ⍝             ¯1 → ¯1 (1) → ¯1 (20⍴1)
+    ⍝          and ⍺ has 40 bits, then pad ⍵ with 1 (neg sign-bit):
+    ⍝             ¯1 ((20⍴1),20⍴1)
+    ⍝       3. Perform ⍺⍺ pairwise on each element of ⍺, ⍵
+    ⍝       4. Perform ⍺⍺ on the signs, this way:
+    ⍝             If   (sign_⍵=¯1)⍺⍺(sign_⍺=¯1)
+    ⍝             then sign_result ← ¯1 else 0.
+    ⍝          That way, relationals like < or > will work properly,
+    ⍝          (or user relationals), within the domain of 0 1.
+    ⍝          Let sign_⍺←¯1, but sign_⍵←1:
+    ⍝          so  (sign_⍵=¯1)<(sign_⍺=¯1)
+    ⍝          so           0 < 1
+    ⍝          so the resulting sign is ¯1.
+    ⍝       5. View the result as a signed bigInt.
+    ⍝ MONADIC...
+    ⍝  bits: Perform bitwise ⍺⍺ on bigInt ⍵ as sequence of bits and sign bit.
+    ⍝ See BIB←{bi.export ⍺ bi.bits ⍵}
+      bits←{⍺←⊢
+          0≡⍺ 0:⍺ ⍺⍺{
+              sw bw←bitsView ⍵
+              ⍺⍺(sw=¯1):¯1 ubits2BI ⍺⍺ bw
+              1 ubits2BI ⍺⍺ bw
+          }⍵
           (sa ba)(sw bw)←⍺ bitsView2 ⍵
-          (sw=¯1)⍺⍺(sa=¯1):¯1 ubits2BI(ba ⍺⍺ bw)  ⍝ Order ⍺⍺ in case relational fns used.
+          (sw=¯1)⍺⍺(sa=¯1):¯1 ubits2BI(ba ⍺⍺ bw)
           1 ubits2BI(ba ⍺⍺ bw)
+      }
+    ⍝ flipBits:  r:BI ← ⍺:I[] ∇ ⍵:BI
+    ⍝ Flips bits ⍺ of bigInteger ⍵ and returns it.
+    ⍝ Bit 0 is the rightmost bit in ⍵...
+      flipBits←{sw w←∆ ⍵
+          b←BI2Bits ⍵
+          i←(≢b)-⍺+1
+          (i⌷b)←~i⌷b
+          sw bits2BI b
       }
 
     ⍝ ∨ Greatest Common Divisor
@@ -896,7 +946,7 @@
    ⍝ bi      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, bi will be found without typing explicit path.
    ⍝ bi.dc   - desk calculator (self-documenting)
-   ⍝ BIB     - Utility (add on) to manipulate BIs as arbitrary signed binary numbers
+   ⍝ BIB     - Shortcut to manipulate BIs as arbitrary signed binary numbers
    ⍝ BIC     - Utility to compile code strings or functions with BI arithmetic
    ⍝ BI∆HERE - Utility to compile and run embedded code (stored as comments) on the fly
 
@@ -1058,11 +1108,9 @@
     ∇
 
       BIB←{
-          ⎕←'BIB is obsolete. Use bi.bits, ⊤BI, ⊥BI, etc.'
-          ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
+          0::'bigInt BIB error'⎕SIGNAL ⎕EN
           ⍺←⊢
-          1≡⍺ 1:⊥BI ⍺⍺⊤BI ⍵
-          ⊥BI ⍺⍺⌿↑⊤BI¨⍺ ⍵   ⍝ Padding on right (High order bits)
+          bi.exp ⍺ ⍺⍺ bits ⍵
       }
 
     eBIHFAILED←'BI∆HERE failed: unable to run compiled BI code'
@@ -1126,7 +1174,7 @@
     :Section Bigint Namespace - Postamble
         ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ssplit 'bi BI BIB BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
+    _←1 ⎕EXPORT ssplit 'bi BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
 
     ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
 

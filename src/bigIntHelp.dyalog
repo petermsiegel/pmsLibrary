@@ -146,7 +146,7 @@
     ∇ BI_HELP
       __HELP__
    ⍝ bigInt:  a big integer utility
-   ⍝ 
+   ⍝
    ⍝ Key operators:  BI, BIX    (BI returns internal bigInt object; BIX returns external bigInt string).
    ⍝ Key prefix:     bi         (actually a function visible in ⎕PATH returning bigInt namespace).
    ⍝
@@ -202,7 +202,7 @@
    ⍝    <BI ⍵             dec ⍵               ⍵-1        Extension
    ⍝    >BI ⍵             inc ⍵               ⍵+1        Extension
    ⍝    !BI ⍵             fact ⍵              !⍵         Useful for small ⍵ only (due to time taken)
-   ⍝    ?BI ⍵             roll ⍵              ?⍵         ⍵≥1. 
+   ⍝    ?BI ⍵             roll ⍵              ?⍵         ⍵≥1.
    ⍝    ⊥BI ⍵             bitsIn ⍵                       Converts bits to BigInt
    ⍝    ⊤BI ⍵             bitsOut ⍵                      Converts BigInt to bits, 2s' complement, sign-bit on left.
    ⍝    ⍎BI ⍵             ⍎export ⍵                      Converts ⍵ to APL integer (or error)
@@ -218,7 +218,7 @@
    ⍝  ------------------------------
    ⍝  (*) popCount: If a pos. number has only 0 bits or a neg number has only 1 bits, result is 0.
    ⍝      Cf. Java's equivalent returns "MAXINT" (the largest integer) for negative numbers, since
-   ⍝          it counts the number of 1-bits, assuming the sign-bit propagates forever. 
+   ⍝          it counts the number of 1-bits, assuming the sign-bit propagates forever.
    ⍝      The num. of bits in a number:   ≢⊤BI ⍵
    ⍝
    ⍝  DYADIC     -+x⌽ SHIFTD SHIFTB ÷ DIV2 * | |⍨ < etc ∨ ∧
@@ -487,17 +487,38 @@
 
     ∇ BIB_HELP
       __HELP__
-   ⍝ OBSOLETE:  Use bi.bits (above).
-   ⍝ 
-   ⍝-------------------------------------------------------------------------------------------------------
+    ⍝-------------------------------------------------------------------------------------------------------
    ⍝ BIB: BI Binary helper function (treats BIs as APL bit vectors, with high-order and sign bit on RHS)
    ⍝-------------------------------------------------------------------------------------------------------
-   ⍝ BIB: BigInteger Binary helper function
-   ⍝ BIB is a helper function that applies ⍺⍺ to boolean casts of ⍺ [if present] and ⍵.
-   ⍝ Syntax: c:bi ← a:bi ⍺⍺ BIB b:bi  OR   c:bi ← ⍺⍺ BIB b:bi
-   ⍝    ⍺, ⍵ must each be a single BI. (Use BIB¨ for multiple BIs)
+   ⍝ Given ⍺, ⍵ - bigInteger external or internal format numbers
+   ⍝ And ⍺⍺ an APL dyadic scalar function that operates on bits:
+   ⍝     ⍺ ⍺⍺ BIB ⍵    is the same as     bi.export ⍺ ⍺⍺ bi.bits ⍵
+   ⍝ Strategy:
+   ⍝    Perform bitwise  and sign comparisons of bigInts ⍺, ⍵ according to ⍺⍺
+   ⍝       1. View ⍺, ⍵ as bits
+   ⍝       2. Pad the shorter of ⍺, ⍵ to the length of the longer:
+   ⍝          Pad by replicating the sign-bit (1=neg, 0=otherwise)
+   ⍝          of the shorter operand's bit view on the left. 
+   ⍝          If ⍵ is
+   ⍝             ¯1 → ¯1 (1) → ¯1 (20⍴1)
+   ⍝          and ⍺ has 40 bits, then pad ⍵ with 1 (neg sign-bit):
+   ⍝             ¯1 ((20⍴1),20⍴1)
+   ⍝       3. Perform ⍺⍺ pairwise on each element of ⍺, ⍵: ⍺ ⍺⍺ ⍵
+   ⍝       4. Perform ⍺⍺ on the signs, this way:
+   ⍝             If   (sign_⍵=¯1)⍺⍺(sign_⍺=¯1) 
+   ⍝             then sign_result ← ¯1 else 1 (or 0)
+   ⍝          That way, relationals like < or > will work properly,
+   ⍝          (or user relationals), within the domain of 0 1,
+   ⍝          per the definition of twos-complement numbers.
+   ⍝          Example: 
+   ⍝             Let sign_⍺←¯1, but sign_⍵←1:
+   ⍝             so  (sign_⍵=¯1)<(sign_⍺=¯1)
+   ⍝             so           0 < 1
+   ⍝             so the resulting sign is ¯1.  
+   ⍝       5. View the result as a signed bigInt. 
    ⍝ While ⍺⍺ can be any APL function, useful ones include:
-   ⍝    ∧ (and), ∨ (or), ≠ (xor); ~
+   ⍝    ∧ (and), ∨ (or), ≠ (xor); ~ (not)
+   ⍝
     ∇
 
     ∇ BI∆HERE_HELP
