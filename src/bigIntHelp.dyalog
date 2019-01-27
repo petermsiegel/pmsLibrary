@@ -27,6 +27,7 @@
   ⍝   Operator BIM:        For [⍺] op BIM ⍵⍵ ⊣ modulo
   ⍝       Performs  ⍺ op ⍵⍵ (MODULO ⍵)    or   op ⍵⍵ (MODULO ⍵)
   ⍝       Returns BIi (like BIX)
+  ⍝       Currently, only ×BIM is optimized for modular arithmetic (modMul)
   ⍝
   ⍝   We've added a range of monadic functions and extended the dyadic functions as well, all signed.
   ⍝   The key easy-use utilities are BI and BIX, used (with '#.BigInt' in ⎕PATH) in this form:

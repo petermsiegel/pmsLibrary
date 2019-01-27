@@ -8,17 +8,17 @@
   ⍝      Preamble Variables
   ⍝   BI
   ⍝      BigInt Namespace and Utility Initializations
-  ⍝      Executive
+  ⍝      Executive: BI, BIX, BIM, bi
   ⍝      BigInt internal structure
-  ⍝      Monadic Operands/Functions for BI, BIX
-  ⍝      Dyadic Operands/Functions for BI, BIX
+  ⍝      Monadic Operands/Functions for BI, BIX, BIM
+  ⍝      Dyadic Operands/Functions for BI, BIX, BIM
   ⍝      Directly-callable Functions ⍵⍵ via bi.⍵⍵.
   ⍝      BI Special Functions/Operations (More than 2 Args)
   ⍝      Unsigned Utility Math Routines
   ⍝      Service Routines
   ⍝  Utilities
   ⍝      bi
-  ⍝      dc (desk calculator)
+  ⍝      bi.dc (desk calculator)
   ⍝      BIB (bit manipulation).
   ⍝      BIC (BI math "compiler")
   ⍝      BI∆HERE (self-declared BI math function)
@@ -65,13 +65,16 @@
   ⍝   ----------------------------------
   ⍝   INTERNAL-FORMAT BIs (BigInts)
   ⍝   ----------------------------------
-  ⍝    BIi  -internal-format signed Big Integer numeric vector.
-  ⍝          A BIV is a vector of radix <RX10> numbers. The first (left-most) non-zero number carries the sign.
-  ⍝          Other numbers may be signed, but it's ignored.
-  ⍝          ∘ Leading zeros are removed in the canonical form. After imp/ort, zero is (0=≢⍵)
-  ⍝          ∘ Some routines use (zro BIi) to make sure every BIi has at least one digit. See BIz.
-  ⍝    BIu  -unsigned internal-format BIi (vector of integers):  (|BIi)
-  ⍝    BIz  -signed internal-format BIi, but of form (zro ⍵), so that zero is return with exactly 1 digit 0.
+  ⍝    BIi  -internal-format signed Big Integer numeric vector:
+  ⍝              sign (data)
+  ⍝                sign (¯1 0 1)   data (a vector of integers)
+  ⍝          ∘ sign: If data is zero, sign is 0 by definition.
+  ⍝          ∘ data: Always 1 or more integers (if 0, it must be data is ,0).
+  ⍝                  Each element is a positive number <RX10 (10E6)
+  ⍝    Given the canonical requirement, a BIi of 0 is (0 (,0)), 1 is (1 (,1)) and ¯1 is (¯1 (,1)).
+  ⍝
+  ⍝    BIu  -unsigned internal-format BIi (vector of integers):
+  ⍝          ∘ Consists solely of a data vector as defined for BIi.
   ⍝
   ⍝   EXTERNAL-FORMAT BIs (BigInts)
   ⍝    BIx  -an external-format Big Integer, i.e. a character string. When entered by the user,
@@ -87,7 +90,7 @@
   ⍝          ∘ leading 0's are removed.
   ⍝          ∘ 0 is represented by (,'0'), unsigned with no extra '0' digits.
   ⍝   OTHER TYPES
-  ⍝    Int  -an APL-format single integer ⍵, often specified to be in range ⍵<RX10.
+  ⍝    Int   -an APL-format single small integer ⍵, often specified to be in range ⍵<RX10.
 
   ⍝ ==================
   ⍝ setHandSizeIn[Bits]
@@ -180,12 +183,20 @@
     oneUD←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
     twoUD←,2          ⍝ data field TWO
 
+  ⍝ bi CONSTANTS for users: zero, one, two, neg_one (¯1), 10
+    zero←0 zeroUD
+    one←1 oneUD
+    two←1 twoUD
+    neg_one←¯1 oneUD    ⍝ ¯1
+    ten←1 (,10)
+
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
     eNONINT  ←'Invalid BigInteger: APL number not a single integer: '
     eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX10
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
+    eIMPORT←'bigInt: Importing invalid object: '
     eINVALID ←'Format of big integer is not valid: '
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eBADRAND ←'Roll (?) argument must be >0'
@@ -294,10 +305,10 @@
     ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BIX [LA:⍺] OP:⍺⍺ BI RA:⍵⍵
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BIX ⍵ (Modulo ⍵⍵)
     ⍝
-    ∇ r←a(AA BIM WW)W
-      r←a(AA _BIM WW)W
-    ∇
-    _BIM←{⍺←⊢ ⋄ fn←⍺⍺ getOpName⊣⍬ ⋄ fn≡,'×':export ⍺ modMul (⍵⍵ ⍵) ⋄ ⍵|BIX ⍺ (⍺⍺ BI) ⍵⍵}
+    ⍝ ∇ r←a(AA BIM WW)W
+    ⍝   r←a(AA _BIM WW)W
+    ⍝ ∇
+    BIM←{⍺←⊢ ⋄ fn←atom ⍺⍺ getOpName ⍬⋄ fn≡'×':export ⍺ modMul (⍵⍵ ⍵)⋄ ⍵|BIX ⍺ (⍺⍺ BI) ⍵⍵}
 
     ⍝ Build BIX/BI.
     ⍝ BIX: Change ∆exp∆ to string imp.
@@ -324,8 +335,9 @@
       ⍝ import / imp / ∆ - Import to internal bigInteger
       ⍝ ============================================
       ⍝ ∆  - internal alias for import
-      ⍝    from: external-format (BIc) (⍺ and) ⍵--
+      ⍝    from: external-format* (BIc) (⍺ and) ⍵--
       ⍝          each either a BigInteger string or an APL integer--
+      ⍝          * Or an internal-format (BIi) BigInteger, passed through unchanged.
       ⍝    to:   internal format (BIi) BigIntegers (⍺' and) ⍵',
       ⍝          each of the form sign (data), where data is an integer vector.
       ⍝ ∆: [BIi] BIi ← [⍺@BIx] ∇ ⍵@BIx
@@ -341,48 +353,58 @@
       ⍝       6             BIi (internal)               326
       ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX10
       ⍝
-      import←{⍺←⊢ ⋄ em←'bigInt: Importing invalid object: '
-          0::11 ⎕SIGNAL⍨em,⍕⍵
-          1≢⍺ 1:(import ⍺)(import ⍵)
-          ⋄ type←80|⎕DR ⍵ ⋄ dep←≡⍵
-          (dep=¯2)∧6=type:⍵                 ⍝ BIi
-          1<|dep:∘                          ⍝ Not 1-elem.
-          3=type:∆int ⍵                     ⍝ int (small or otherwise)
-          0=type:∆str ⍵                     ⍝ String
-          5 7∊⍨type:∆aplNum ⍵                  ⍝ Float-format integer (e.g. 3E45)
+      import←{⍺←⊢
+          0::11 ⎕SIGNAL⍨eIMPORT,⍕⍵
+          1≢⍺ 1:(∇ ⍺)(∇ ⍵)
+          ⋄ type←80|⎕DR ⍵ ⋄ dep←≡⍵          ⍝ Returned by likelihood [1]=highest.
+          (dep=¯2)∧6=type:⍵                 ⍝ [1] BIi
+          1<|dep:∘                          ⍝ Basic sanity check
+          3=type:∆int ⍵                     ⍝ [2] int ([2a] small or [2b] otherwise)
+          0=type:∆str ⍵                     ⍝ [3] String
+          5 7∊⍨type:∆aplNum ⍵               ⍝ [4] Float-format integer (e.g. 3E45)
           ∘
       }
-    ∆←import ⋄ imp←import
-  ⍝ importU, impU:
-  ⍝     import ⍵ as unsigned bigInt (data portion only)
-            importU←{⊃⌽imp ⍵} ⋄ impU←importU
-
-      ⍝ ∆aplNum: Convert an APL integer into a BIi
-      ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
-      ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
-      ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
-      ⍝ (If not, use big integer strings of any length, without exponents).
-      ⍝ Normally, ∆aplNum is not called by the user, since BI and BIX call it automatically.
-      ⍝ Usage:
-      ⍝    ?BIX 1E100 calls (bigInt.∆aplNum 1E100), equivalent to   ?BIX '1',100⍴'0'
+    ∆←import    ⍝ ∆ used internally
+    imp←import
+      ⍝ importU, impU:
+      ⍝     import ⍵ as unsigned bigInt (data portion only)
+      importU←{
+          ⊃⌽import ⍵
+      }
+      ⍝ ∆int:    ∇ ⍵:I[1]
+      ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
       ∆int←{
           1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
           RX10>u←,|⍵:(×⍵)(u)               ⍝ Small integer
           (×⍵)(zro RX10⊥⍣¯1⊣u)             ⍝ Integer
       }
+      ⍝ ∆aplNum: Convert an APL integer into a BIi
+      ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
+      ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
+      ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
+      ⍝ If not, you must use big integer strings of any length. Exponents are disallowed.
+      ⍝ Normally, ∆aplNum is not called by the user, since BI and BIX call it automatically.
+      ⍝ Usage:
+      ⍝    (bigInt.∆  1E100)  ≡  bigInt.∆ '1',100⍴'0'   <==>  1
+      ⍝            *- calls ∆aplNum     *- calls ∆str
+
       ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX10⊥⍣¯1⊣|⍵)
           err eNONINT,⍕⍵
       }
-      ⍝ ∆str: Convert a BIstr (BI string) into a BIi
+      ⍝ ∆str: Convert a BIstr (BI string) into a BIi.
+      ⍝       ∆str ⍵:S[≥1]   (⍵ must have at least one digit, possibly a 0)
       ∆str←{
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵     ⍝ Get sign, if any
-          w←'_'~⍨⍵↓⍨s=¯1        ⍝ Remove initial sign and embedded _ (spacer).
+          w←'_'~⍨⍵↓⍨s=¯1        ⍝ Remove initial sign and embedded _ (spacer: ignored).
           (0=≢w)∨0∊w∊⎕D:err eBADBI  ⍝ w must include only ⎕D and at least one.
           d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
-      ⍝ ∆2Small: Import ⍵ only if it is a small integer. Returns an integer!
+      ⍝ ∆2Small: Import ⍵ only if (when imported) it is a single-hand integer
+      ⍝          i.e. equivalent to a number (|⍵) < RX10.
+      ⍝ Returns a small integer!
+      ⍝ Usage: so far, we only use it in BI/X where we are passing data to an APL fn (⍳).
       ∆2Small←{
           s w←∆ ⍵ ⋄ 1≠≢w:err eSMALLRT
           s×,w
@@ -571,7 +593,7 @@
           ∆z(⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
       }
     ⍝ (int)root: A fast integer nth root.
-    ⍝ x ← nth root N  ==>  x ← N *÷nth
+    ⍝ Syntax:    x@BIi ← nth@BIx<RX10 ∇ N@BIx     ==>  x ← N *÷nth
     ⍝   nth: a small, positive integer (<RX10); default 2 (for sqrt).
     ⍝   N:   any BIx
     ⍝   x:   the nth root as an internal big integer.
@@ -583,34 +605,40 @@
     ⍝ x:BIi ← nth:small_(BIi|BIx) ∇ N:(BIi|BIx)>0
       root←{
         ⍝ Check nth in  N*÷nth
+        ⍝ We work with bigInts here for convenience. Could be done unsigned...
           ⍺←2 ⍝ sqrt...
-          sgn invNth nth←⍺{
+          sgn invNthU nthU←⍺{   ⍝ Get the sign, nth÷2, nth based on ⍺.
               ⍵:1 0.5 2
-              sgn nth←import ⍺
+              sgn nthU←import ⍺
               sgn=0:eROOT ⎕SIGNAL 11
-              1<≢nth:eROOT ⎕SIGNAL 11
-              nth←⊃nth
-              sgn(÷nth)nth
+              1<≢nthU:eROOT ⎕SIGNAL 11
+              sgn(÷⊃nthU)(⊃nthU)
           }900⌶⍬
           sgn<0:0    ⍝  ⌊N*÷nth ≡ 0, if nth<0 (nth a small int)
         ⍝ Check N
-          N←import ⍵
-          0=⊃N:N                        ⍝  0=×N?   0
-          ¯1=⊃N:eROOT ⎕SIGNAL 11        ⍝ ¯1=×N?   error
-          1=ndig←≢⊃⌽N:1(⌊invNth*⍨⊃⌽N)   ⍝ N small? Let APL calc value
+          sN dN←import ⍵
+          0=sN:sN dN                    ⍝  0=×N?   0
+          ¯1=sN:eROOT ⎕SIGNAL 11        ⍝ ¯1=×N?   error
+          1=ndig←≢dN:1(,⌊dN*invNthU)    ⍝ N small? Let APL calc value
         ⍝ Initial estimate for N*÷nth must be ≥ the actual solution, else this will terminate prematurely.
         ⍝ Initial estimate (x):
-        ⍝   DECIMAL est: ¯1+10*⌈(# dec digits in N)÷2
-        ⍝   BINARY  est:  2*⌈(numbits(N)÷2)
+        ⍝   DECIMAL est: ¯1+10*⌈num_dec_digits(N)÷2   ←-- We use this one.
+        ⍝   BINARY  est:  2*⌈numbits(N)÷2
           x←{ ⍝ We use est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
-              0::1((⌈invNth*⍨⊃⊃⌽N),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. ↑
+              0::1((⌈invNthU*⍨⊃⍵),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. above.
               ⎕FR←1287
-              imp 1+⌈invNth*⍨⍎exp ⍵               ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬
-          }N
-        ⍝ Refine x, i.e. ⍵, until y > x
+              ⊃⌽import 1+⌈invNthU*⍨⍎export 1 ⍵     ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬ 1E6145
+          }dN
+        ⍝ Refine x, aka ⍵, until y > x
+        ⍝   {
+        ⍝       y←(⍵ _add N _div ⍵)_div nth     ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+        ⍝       y _ge ⍵:⍵
+        ⍝       ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
+        ⍝   }x
+         ⍝ All unsigned here
           {
-              y←(⍵ _add N _div ⍵)_div nth     ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
-              y _ge ⍵:⍵
+              y←⊃(⍵ addU⊃dN divU ⍵)divU nthU    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+              ≥cmp y mix ⍵:1(,⍵)
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
           }x
       }
@@ -644,7 +672,6 @@
           sa<0:sw w sub 1 a              ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
           sa a sub 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
-
       sub←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
@@ -670,9 +697,12 @@
           div rem←a divU w
           ((sa×sw)∆zU2I div)(sw ∆zU2I rem)
       }
-    ⍝ ⍺ power ⍵: Handles ⍵≡0.5 or '0.5'. The string must match EXACTLY ('00.5' will fail)
+    ⍝ ⍺ pow ⍵:
+    ⍝   General case:  ⍺*⍵ where both are BIi
+    ⍝   Special case:  ⍵≡0.5 or '0.5':    sqrt ⍵
+    ⍝                  The string must match EXACTLY ('00.5' will fail)
       pow←{
-          (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ power 0.5 → sqrt ⍺
+          (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ pow 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
           sa sw∨.=0 ¯1:0 zeroUD    ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a powU w
@@ -839,9 +869,13 @@
     ⍝ It is nominally faster at lengths around 75 digits.
     ⍝ Only for smaller (and faster) a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
+          2≠≢⍵:eModMul ⎕SIGNAL 11
           a(b m)←(∆ ⍺)(⊃∆/⍵)
           m _rem(m _rem a)_mul(m _rem b)
       }
+    eModMul←'modMul syntax: ⍺ ∇ ⍵1 ⍵2',⎕UCS 10
+    eModMul,←'               ⍺: multiplicand, ⍵1: multiplier, ⍵2: base for modulo'
+
     :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
 
@@ -850,6 +884,11 @@
     ⍝ Note: ⍺ and ⍵ are guaranteed by BI and BIX to be vectors, but not
     ⍝       by internal functions or if called directly.
     ⍝       So tests for 2, 1, 0 (twoUD etc) use ravel:  (twoUD≡,⍺)
+
+    ⍝ addU:   ⍺ + ⍵
+      addU←{
+          ndnZ 0,+⌿⍺ mix ⍵
+      }
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIi ⍺ and ⍵
     ⍝ r:BIi ← ⍺:BIi ∇ ⍵:BIi
     ⍝ This is dfns:nats mul.
@@ -931,7 +970,7 @@
 
   ⍝ These routines operate on unsigned BIu data unless documented…
     dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
-    zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Converts BIi to BIz, so even 0 has one digit (,0).
+    zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
     dlzs←{zro(∨\⍵≠0)/⍵}                     ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
             ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡               ⍝ normalise down: 3 21 → 5 1 (RH).
     ndnZ←dlz ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
