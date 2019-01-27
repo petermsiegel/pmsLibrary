@@ -604,41 +604,38 @@
     ⍝   ∘ If N is small, calculate directly via APL.
     ⍝ x:BIi ← nth:small_(BIi|BIx) ∇ N:(BIi|BIx)>0
       root←{
-        ⍝ Check nth in  N*÷nth
+        ⍝ Check radix in  N*÷radix
         ⍝ We work with bigInts here for convenience. Could be done unsigned...
           ⍺←2 ⍝ sqrt...
-          sgn invNthU nthU←⍺{   ⍝ Get the sign, nth÷2, nth based on ⍺.
-              ⍵:1 0.5 2
-              sgn nthU←import ⍺
+          sgn rdx←⍺{   ⍝ Get the sign, (÷radix), radix based on ⍺.
+              ⍵:1 2
+              sgn rdx←import ⍺
               sgn=0:eROOT ⎕SIGNAL 11
-              1<≢nthU:eROOT ⎕SIGNAL 11
-              sgn(÷⊃nthU)(⊃nthU)
+              1<≢rdx:eROOT ⎕SIGNAL 11
+              sgn rdx
           }900⌶⍬
           sgn<0:0    ⍝  ⌊N*÷nth ≡ 0, if nth<0 (nth a small int)
         ⍝ Check N
-          sN dN←import ⍵
-          0=sN:sN dN                    ⍝  0=×N?   0
+          sN N←import ⍵
+          0=sN:sN N                    ⍝  0=×N?   0
           ¯1=sN:eROOT ⎕SIGNAL 11        ⍝ ¯1=×N?   error
-          1=ndig←≢dN:1(,⌊dN*invNthU)    ⍝ N small? Let APL calc value
+          rootU←*∘(÷rdx)
+     
+          1=ndig←≢N:1(,⌊rootU N)    ⍝ N small? Let APL calc value
         ⍝ Initial estimate for N*÷nth must be ≥ the actual solution, else this will terminate prematurely.
         ⍝ Initial estimate (x):
         ⍝   DECIMAL est: ¯1+10*⌈num_dec_digits(N)÷2   ←-- We use this one.
         ⍝   BINARY  est:  2*⌈numbits(N)÷2
           x←{ ⍝ We use est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
-              0::1((⌈invNthU*⍨⊃⍵),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. above.
+              0::1((⌈rootU⊃⍵),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. above.
               ⎕FR←1287
-              ⊃⌽import 1+⌈invNthU*⍨⍎export 1 ⍵     ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬ 1E6145
-          }dN
+              ⊃⌽import 1+⌈rootU⍎export 1 ⍵     ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬ 1E6145
+          }N
         ⍝ Refine x, aka ⍵, until y > x
-        ⍝   {
-        ⍝       y←(⍵ _add N _div ⍵)_div nth     ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
-        ⍝       y _ge ⍵:⍵
-        ⍝       ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
-        ⍝   }x
          ⍝ All unsigned here
-          {
-              y←⊃(⍵ addU⊃dN divU ⍵)divU nthU    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
-              ≥cmp y mix ⍵:1(,⍵)
+          { ⋄ x←⍵
+              y←(x addU N quotientU x)quotientU rdx    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
+              ≥cmp y mix x:1(,x)
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
           }x
       }
@@ -887,8 +884,16 @@
 
     ⍝ addU:   ⍺ + ⍵
       addU←{
-          ndnZ 0,+⌿⍺ mix ⍵
+          dlzs ndn 0,+⌿⍺ mix ⍵    ⍝ We use dlzs in case ⍺ or ⍵ have multiple leading 0s. If not, use ndnZ
       }
+    ⍝ subU:  ⍺ - ⍵   Since unsigned, if ⍵>⍺, there are two options:
+    ⍝        [1] Render as 0
+    ⍝        [2] signal an error...
+      subU←{
+          <cmp ⍺ mix ⍵:eSUB ⎕SIGNAL 11          ⍝ [opt 2] 3-5 →  -(5-3)
+          dlzs nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
+      }
+    eSUB←'bigInt subU: unsigned subtraction may not become negative'
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIi ⍺ and ⍵
     ⍝ r:BIi ← ⍺:BIi ∇ ⍵:BIi
     ⍝ This is dfns:nats mul.
@@ -896,7 +901,7 @@
     ⍝ even for larger numbers (up to xtimes smallish design limit)
     ⍝ We call ndnZ to remove extra zeros, esp. so zero is exactly ,0 and 1 is ,1.
       mulU←{
-          ⍺{                                      ⍝ product.
+          dlzs ⍺{                                 ⍝ product.
               ndnZ 0,↑⍵{                          ⍝ canonicalised vector.
                   digit take←⍺                    ⍝ next digit and shift.
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
@@ -950,11 +955,12 @@
               (r,r∆)p∆                        ⍝ result & remainder.
           }/svec,⊂⍬ ⍺                         ⍝ fold-accumulated reslt.
       }
+    quotientU←⊃divU
 
     gcdU←{zeroUD≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
-          twoUD≡,⍺:2|⊃⌽⍵                     ⍝ fast path for modulo 2
+          twoUD≡,⍺:2|⊃⌽⍵                     ⍝ fast (short-circuit) path for modulo 2
           <cmp ⍵ mix ⍺:⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                         ⍝ Otherwise, do full divide
       }
@@ -1217,7 +1223,7 @@
     :Section Bigint Namespace - Postamble
         ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ssplit 'bi BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
+    _←1 ⎕EXPORT ssplit 'bi bix BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
 
     ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
 
