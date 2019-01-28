@@ -277,6 +277,23 @@
    ⍝      I.e. for ∧, both ⍺ and ⍵ are neg; for ∨, at least one is; for ≠, only one is.
    ⍝      Always returns a bigInteger (BI: in internal form; BIX: in external form).
    ⍝
+   ⍝ DIRECTLY CALLED FUNCTION FAMILY.
+   ⍝ For many functions directly called via bi, there are three options:
+   ⍝     name        ret@BIi ←  [⍺:BIx] name ⍵:BIx    Imports args,             returns internal-format result
+   ⍝     _name       ret@BIi ←  [⍺:BIi] name ⍵:BIi    Accepts internal bigInts, returns internal-format result
+   ⍝     nameX       ret@BIx ←  [⍺:BIx] name ⍵:BIx    Imports args,             returns external-format bigInt
+   ⍝  e.g.
+   ⍝     neg, _neg, negX
+   ⍝  ⍝ example
+   ⍝     a←'100' ⋄ ai←bi.import a 
+   ⍝       bi.neg a
+   ⍝ ¯1  100 
+   ⍝       bi._neg ai
+   ⍝ ¯1  100 
+   ⍝       bi.negX a
+   ⍝ ¯100
+   ⍝       bi.negX ai
+   ⍝ ¯100
    ⍝ ------------------------------------------------------------------------------------
    ⍝
    ⍝ Functions Available:

@@ -440,29 +440,37 @@
     ⍝ abbreviations and common alternatives.  E.g. monadic | is called  magnitude, but we also call it abs.
     ⍝ Each name (negate, etc.) has a version (_negate) that assumes data already imported...
     ∇ {__name}←genVariants __name;__in;__out
+    ⍝ name → _name  (no import )
       __in←('\b',__name,'\b')'←∆ +⍵' '←⍺ +∆ +⍵'
       __out←('_',__name)'←⍵' '←⍺ ⍵'
       :If ' '≠1↑0⍴⎕FX(__in ⎕R __out⊣⎕NR __name)
-          'Unable to create function _',__name
+          ⎕←'Unable to create function _',__name
       :EndIf
+      ⍝ name → nameX  (export ⍺ name ⍵)
+      ⍝ From e.g. root, create rootX, which is {export ⍺ root ⍵}
+      :Trap 0
+          ⍎__name,'X←{⍺←⊢ ⋄ export ⍺ ',__name,' ⍵}'
+      :Else
+          ⎕←'Unable to create function ',__name,'X'
+      :EndTrap
     ∇
 
     ⍝ neg[ate] / _neg[ate]
-      neg←{                          ⍝ -
+      neg←{                               ⍝ -
           (sw w)←∆ ⍵
           (-sw)w
       }
     ⍝ sig[num], _signum
-      sig←{                       ⍝ ×
+      sig←{                                ⍝ ×
           (sw w)←∆ ⍵
           sw(|sw)
       }
-      abs←{                       ⍝ |
+      abs←{                                ⍝ |
           (sw w)←∆ ⍵
           (|sw)w
       }
 
-    ⍝ inc[rement]:                        ⍝ ⍵+1
+    ⍝ inc[rement]:                         ⍝ ⍵+1
       inc←{
           (sw w)←∆ ⍵
           sw=0:1 oneUD                     ⍝ ⍵=0? Return 1.
@@ -471,7 +479,7 @@
           RX10>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
           sw w add 1 oneUD                 ⍝ Otherwise, do long way.
       }
-    ⍝ dec[rement]:                        ⍝ ⍵-1
+    ⍝ dec[rement]:                         ⍝ ⍵-1
       dec←{
           (sw w)←∆ ⍵
           sw=0:¯1 oneUD                    ⍝ ⍵ is zero? Return ¯1
@@ -530,7 +538,6 @@
           '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
           ⍵ rem ∆ res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
       }
-
   ⍝⍝  Bit Management Utilities
       ⍝ bits2BI:  r@BI ← sign∊(¯1 0 1) ∇  bits@B[]
       ⍝ If object is not multiple of nbe bits, propagate the sign bit
@@ -574,7 +581,6 @@
           ⋄ pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
           (sa pad ba)(sw pad bw)
       }
-
     ⍝ uint2Bits: Convert unsigned BIu to bits
       uint2Bits←{
           ,⍉RXBASE⊤⍵
@@ -641,6 +647,7 @@
       }
     eROOT←'bigInt.root: root (⍺) must be small non-zero integer ((|⍺)<',(⍕RX10),')'
     sqrt←root
+    rootX←{⍺←⊢ ⋄ export ⍺ root ⍵}
 
   ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
@@ -870,6 +877,8 @@
           a(b m)←(∆ ⍺)(⊃∆/⍵)
           m _rem(m _rem a)_mul(m _rem b)
       }
+    modMulX←{export ⍺ modMul ⍵}
+
     eModMul←'modMul syntax: ⍺ ∇ ⍵1 ⍵2',⎕UCS 10
     eModMul,←'               ⍺: multiplicand, ⍵1: multiplier, ⍵2: base for modulo'
 
@@ -926,17 +935,19 @@
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
       }
-   ⍝ divU: unsigned division:
+   ⍝ divU/: unsigned division
+   ⍝  divU:   Removes leading 0s from ⍺, ⍵ then calls _divU
    ⍝ Returns:  (int. quotient) (remainder)
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIi[2] ← ⍺:BIi ∇ ⍵:BIi
       divU←{
-          zeroUD≡,⍵:⍺{                        ⍝ ⍺÷0
+          a w←dlzs¨⍺ ⍵
+          zeroUD≡,⍵:a{                        ⍝ ⍺÷0
               zeroUD≡,⍺:oneUD                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
-          }⍵
-          svec←(≢⍵)+⍳0⌈1+(≢⍺)-≢⍵              ⍝ shift vector.
-          zro∘dlz¨↑⍵{                         ⍝ fold along dividend.
+          }w
+          svec←(≢w)+⍳0⌈1+(≢a)-≢w              ⍝ shift vector.
+          dlzs¨↑w{                            ⍝ fold along dividend.
               r p←⍵                           ⍝ result & dividend.
               q←⍺↑⍺⍺                          ⍝ shifted divisor.
               ppqq←RX10⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
@@ -953,10 +964,9 @@
               mpl←dlz ndn 0,q×r∆              ⍝ multiple.
               p∆←dlz nup-⌿p mix mpl           ⍝ remainder.
               (r,r∆)p∆                        ⍝ result & remainder.
-          }/svec,⊂⍬ ⍺                         ⍝ fold-accumulated reslt.
+          }/svec,⊂⍬ a                         ⍝ fold-accumulated reslt.
       }
     quotientU←⊃divU
-
     gcdU←{zeroUD≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
@@ -964,9 +974,6 @@
           <cmp ⍵ mix ⍺:⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                         ⍝ Otherwise, do full divide
       }
-
-
-
     :Endsection BI Unsigned Utility Math Routines
 ⍝ --------------------------------------------------------------------------------------------------
 
