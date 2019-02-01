@@ -238,8 +238,7 @@
         ⍝ then fn←¯1↓fn and inv (inverse) is set:
         ⍝      to 1, if BI/X was called 2-adically;
         ⍝      to 2, if called 1-adically (   ×⍨BI 3 ==> 3 ×BI 3).
-          fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0
-          }⍺⍺ getOpName ⍵
+          fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0}⍺⍺ getOpName ⍵
           CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
      
           ⍝ Monadic...
@@ -376,7 +375,7 @@
       ∆int←{
           1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
           RX10>u←,|⍵:(×⍵)(u)               ⍝ Small integer
-          (×⍵)(zro RX10⊥⍣¯1⊣u)             ⍝ Integer
+          (×⍵)(chkZ RX10⊥⍣¯1⊣u)             ⍝ Integer
       }
       ⍝ ∆aplNum: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
@@ -389,7 +388,7 @@
       ⍝            *- calls ∆aplNum     *- calls ∆str
 
       ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
-          (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(zro RX10⊥⍣¯1⊣|⍵)
+          (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(chkZ RX10⊥⍣¯1⊣|⍵)
           err eNONINT,⍕⍵
       }
       ⍝ ∆str: Convert a BIstr (BI string) into a BIi.
@@ -398,7 +397,7 @@
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵     ⍝ Get sign, if any
           w←'_'~⍨⍵↓⍨s=¯1        ⍝ Remove initial sign and embedded _ (spacer: ignored).
           (0=≢w)∨0∊w∊⎕D:err eBADBI  ⍝ w must include only ⎕D and at least one.
-          d←dlzs rep ⎕D⍳w       ⍝ d: data portion of BIi
+          d←dLZs rep ⎕D⍳w       ⍝ d: data portion of BIi
           ∆z s d                ⍝ If d is zero, return zero. Else (s d)
       }
       ⍝ ∆2Small: Import ⍵ only if (when imported) it is a single-hand integer
@@ -416,13 +415,13 @@
       export←{
           sw w←⍵
           sgn←(sw=¯1)/'¯'
-          sgn,⎕D[dlzs,⍉(NRX10⍴10)⊤|w]
+          sgn,⎕D[dLZs,⍉(NRX10⍴10)⊤|w]
       }
     exp←export
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
     ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD).
     ⍝      Else return ⍵ w/ leading zero deleted.
-    ∆z←{ zeroUD≡zro dlz⊃⌽⍵: 0 zeroUD ⋄ ⍵}
+    ∆z←{w←dLZs⊃⌽⍵ ⋄ zeroUD≡chkZ w : 0 zeroUD ⋄ (⊃⍵) w}
     ⍝
     ⍝ ∆zU2I: If ⍵:BIu IS zeroUD, then return (zeroUD ⍵); else ⍺ ⍵
     ∆zU2I←{zeroUD≡⍵:zeroUD ⍵ ⋄ ⍺ ⍵}
@@ -538,22 +537,23 @@
           '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
           ⍵ rem ∆ res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
       }
+  ⍝⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝⍝  Bit Management Utilities
-      ⍝ bits2BI:  r@BI ← sign∊(¯1 0 1) ∇  bits@B[]
-      ⍝ If object is not multiple of nbe bits, propagate the sign bit
-      ⍝ (1=neg, 0=pos, 0) on the left (padding what will be the leftmost,
+      ⍝ bits2BI:     r@BI ← sign∊(¯1 0 1) ∇  bits@B[]
+      ⍝ If object is not multiple of nbe bits, propagate the sign bit ⍺
+      ⍝ (1=neg, 0=non-neg) on the left (padding what will be the leftmost,
       ⍝ high order, int in the resulting bigInt vector).
-      ⍝ If sign is neg, add ¯1 prefix to each row
-      ⍝ to decode as twos-complement neg numbers.
+      ⍝ If sign is neg, add ¯1 prefix to each row to decode as twos-complement neg numbers.
       bits2BI←{
-          sg←⍺                    ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
+          sg←⍺                                  ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
           0∊⍵∊0 1:err'Argument is not a vector of bits (1s and 0s)'
-          nbea←NRX2
-          nints←⌈nbea÷⍨nbtot←≢,⍵   ⍝ How many integers of nbe bits (nbits each)?
-          bits←nints nbea⍴⍵,⍨(nbtot|nbtot-nbea|nbtot)⍴1 0 0⊃⍨1+sg
-        ⍝ ndnZ is here to handle bit changes that make a 20 bit # greater than 10*6 (but still 20 bits)
-          ∆z sg(ndnZ,|2⊥⍉(¯1×sg=¯1),bits)
-          ⍝ sz 11 323 ⎕DR bits
+        ⍝ Break ⍵ into NRX2-bit chunk, propagating the sign bit specified...
+          ⋄ chunkSigned←sg{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ cNeg←~⍣(⍺⍺<0) ⋄ c⍴cNeg(-×/c)↑cNeg ⍵}
+          bits←NRX2 chunkSigned ⍵
+        ⍝ ndnZ is here to handle bit changes that make a 20 bit # greater than 10*6 -- overflowed-- (but still 20 bits)
+          ∆z sg,⊂,|2⊥⍉sg{⍺=¯1:⍺,⍵ ⋄ ⍵}bits
+        ⍝ Ignore...
+          ∆z sg,⊂ndnZ,|2⊥⍉sg{⍺=¯1:⍺,⍵ ⋄ ⍵}bits      ⍝ Related to, but different from, sz 11 323 ⎕DR bits
       }
       ⍝ BI2Bits:   r@B[]  ← ∇ BI
       ⍝ ⍵ must be a properly formed bigInt.
@@ -563,13 +563,15 @@
       ⍝ altered by bit manipulation.
       BI2Bits←{
           sw w←∆ ⍵
-          ,⍉RXBASE⊤sw×w
-          ⍝ 323 11 ⎕DR sw×w
+          BIu2Bits sw×w                         ⍝ Related to, but different from, 323 11 ⎕DR sw×w
       }
+      BIu2Bits←{,⍉RXBASE⊤⍵
+      }
+
       ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
       bitsView←{
           sw w←∆ ⍵
-          sw(BI2Bits ⍵)
+          sw(BI2Bits sw w)
       }
       ⍝ Given two bigInts ⍺, ⍵
       ⍝ Returns each converted to bits and
@@ -578,26 +580,21 @@
       bitsView2←{
           (sa ba)(sw bw)←bitsView¨⍺ ⍵
           ⋄ m←(≢ba)⌈≢bw
-          ⋄ pad←{⍺≥0:⍺(⍵↑⍨-m) ⋄ ⍺(⍵,⍨1⍴⍨m-≢⍵)}
-          (sa pad ba)(sw pad bw)
+          ⋄ chunkS←{cNeg←~⍣(⍺⍺<0) ⋄ ⍺⍺,⊂cNeg ⍺↑cNeg ⍵} ⍝ Pad as signed
+          (m(sa chunkS)ba)(m(sw chunkS)bw)
       }
-    ⍝ uint2Bits: Convert unsigned BIu to bits
-      uint2Bits←{
-          ,⍉RXBASE⊤⍵
-      }
+
     ⍝ ubits2BI: Takes a set of unsigned bits ⍵ and return a signed integer
     ⍝    based on the sign ⍺.
     ⍝    If ⍵ is not 0, ⍺ is used to set sign to ¯1 or 1.
     ⍝    Otherwise, returns bigInt 0.
-    ⍝ Unsigned ubits2BI (bits no sign bit → |BIi) and uint2Bits (BIu → bits)
+    ⍝ Unsigned ubits2BI (bits no sign bit → |BIi) and BIu2Bits (BIu → bits)
     ⍝ ⍺: Take sign bit from external routine...
     ⍝    Used internally, so no validation that ⍵ is only bits
       ubits2BI←{⍺←1
-          nbea←NRX2
-          n←⌈nbea÷⍨≢b←,⍵
-          i←ndnZ|2⊥⍉n nbea⍴(-n×nbea)↑b
-          ∆z(⍺×1∊b)i                 ⍝ sign is 0 if b has only 0 bits
+          ⍺ bits2BI ⍵
       }
+    ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
     ⍝ (int)root: A fast integer nth root.
     ⍝ Syntax:    x@BIi ← nth@BIx<RX10 ∇ N@BIx     ==>  x ← N *÷nth
     ⍝   nth: a small, positive integer (<RX10); default 2 (for sqrt).
@@ -650,7 +647,7 @@
     rootX←{⍺←⊢ ⋄ export ⍺ root ⍵}
 
   ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
-    recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzs ⍵}
+    recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dLZs ⍵}
 
   ⍝ genVariants: For negate, create related _negate, such that
   ⍝        _negate import ⍵   <==> negate ⍵
@@ -734,12 +731,13 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
     ⍝ GMP: mul_2exp
       mul2Exp←{
-          shiftU←{⍵<0:0,⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
+          shiftU←{⍵<0:chkZ ⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eMUL10                       ⍝ ⍵ must be small integer.
           sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
-          sa ubits2BI(uint2Bits a)shiftU sw×w
+        ⍝ Kludge- use unsigned ints... otherwise odd results with neg #s
+          ∆z sa(⊃⌽1 ubits2BI(BI2Bits 1 a)shiftU sw×w)
       }
       div2Exp←{
           ⍺ mul2Exp negate ⍵
@@ -893,14 +891,14 @@
 
     ⍝ addU:   ⍺ + ⍵
       addU←{
-          dlzs ndn 0,+⌿⍺ mix ⍵    ⍝ We use dlzs in case ⍺ or ⍵ have multiple leading 0s. If not, use ndnZ
+          dLZs ndn 0,+⌿⍺ mix ⍵    ⍝ We use dLZs in case ⍺ or ⍵ have multiple leading 0s. If not, use ndnZ
       }
     ⍝ subU:  ⍺ - ⍵   Since unsigned, if ⍵>⍺, there are two options:
     ⍝        [1] Render as 0
     ⍝        [2] signal an error...
       subU←{
           <cmp ⍺ mix ⍵:eSUB ⎕SIGNAL 11          ⍝ [opt 2] 3-5 →  -(5-3)
-          dlzs nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
+          dLZs nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
       }
     eSUB←'bigInt subU: unsigned subtraction may not become negative'
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIi ⍺ and ⍵
@@ -910,7 +908,7 @@
     ⍝ even for larger numbers (up to xtimes smallish design limit)
     ⍝ We call ndnZ to remove extra zeros, esp. so zero is exactly ,0 and 1 is ,1.
       mulU←{
-          dlzs ⍺{                                 ⍝ product.
+          dLZs ⍺{                                 ⍝ product.
               ndnZ 0,↑⍵{                          ⍝ canonicalised vector.
                   digit take←⍺                    ⍝ next digit and shift.
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
@@ -941,13 +939,13 @@
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIi[2] ← ⍺:BIi ∇ ⍵:BIi
       divU←{
-          a w←dlzs¨⍺ ⍵
+          a w←dLZs¨⍺ ⍵
           zeroUD≡,⍵:a{                        ⍝ ⍺÷0
               zeroUD≡,⍺:oneUD                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
           }w
           svec←(≢w)+⍳0⌈1+(≢a)-≢w              ⍝ shift vector.
-          dlzs¨↑w{                            ⍝ fold along dividend.
+          dLZs¨↑w{                            ⍝ fold along dividend.
               r p←⍵                           ⍝ result & dividend.
               q←⍺↑⍺⍺                          ⍝ shifted divisor.
               ppqq←RX10⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
@@ -955,14 +953,14 @@
                   (p q)(lo hi)←⍺ ⍵            ⍝ div and high-low test.
                   lo=hi-1:p{                  ⍝ convergence:
                       (≥cmp ⍺ mix ⍵)⊃lo hi    ⍝ low or high.
-                  }dlz ndn 0,hi×q             ⍝ multiple.
+                  }dLZ ndn 0,hi×q             ⍝ multiple.
                   mid←⌊0.5×lo+hi              ⍝ mid-point.
-                  nxt←dlz ndn 0,q×mid         ⍝ next multiplier.
+                  nxt←dLZ ndn 0,q×mid         ⍝ next multiplier.
                   gt←>cmp p mix nxt           ⍝ greater than:
                   ⍺ ∇ gt⊃2,/lo mid hi         ⍝ choose upper or lower interval.
               }⌊0 1+↑÷/ppqq+(0 1)(1 0)        ⍝ lower and upper bounds of ratio.
-              mpl←dlz ndn 0,q×r∆              ⍝ multiple.
-              p∆←dlz nup-⌿p mix mpl           ⍝ remainder.
+              mpl←dLZ ndn 0,q×r∆              ⍝ multiple.
+              p∆←dLZ nup-⌿p mix mpl           ⍝ remainder.
               (r,r∆)p∆                        ⍝ result & remainder.
           }/svec,⊂⍬ a                         ⍝ fold-accumulated reslt.
       }
@@ -982,13 +980,15 @@
     atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
 
   ⍝ These routines operate on unsigned BIu data unless documented…
-    dlz←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
-    zro←{0≠≢⍵:,⍵ ⋄ ,0}                      ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
-    dlzs←{zro(∨\⍵≠0)/⍵}                     ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
-            ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡               ⍝ normalise down: 3 21 → 5 1 (RH).
-    ndnZ←dlz ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
-            nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡         ⍝ normalise up:   3 ¯1 → 2 9
-    nupZ←dlz nup                            ⍝ PMS
+    dLZ←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
+    dLZs←{chkZ(∨\⍵≠0)/⍵}                    ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
+    chkZ←{0≠≢⍵:,⍵ ⋄ ,0}                     ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
+
+    ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
+    ndnZ←dLZ ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
+    nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡           ⍝ normalise up:   3 ¯1 → 2 9
+    nupZ←dLZ nup                            ⍝ PMS
+
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
     dck←{(2 1+(≥cmp ⍵)⌽0 ¯1)⌿⍵}             ⍝ difference check.
     rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷NRX10),NRX10}  ⍝ radix RX10 rep of number.
