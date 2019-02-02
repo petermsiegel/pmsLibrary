@@ -539,6 +539,7 @@
       }
   ⍝⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝⍝  Bit Management Utilities
+      ⍝ bits2BI <<<BEGIN>>>
       ⍝ bits2BI:     r@BI ← sign∊(¯1 0 1) ∇  bits@B[]
       ⍝ If object is not multiple of nbe bits, propagate the sign bit ⍺
       ⍝ (1=neg, 0=non-neg) on the left (padding what will be the leftmost,
@@ -547,14 +548,22 @@
       bits2BI←{
           sg←⍺                                  ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
           0∊⍵∊0 1:err'Argument is not a vector of bits (1s and 0s)'
-        ⍝ Break ⍵ into NRX2-bit chunk, propagating the sign bit specified...
-          ⋄ chunkSigned←sg{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ cNeg←~⍣(⍺⍺<0) ⋄ c⍴cNeg(-×/c)↑cNeg ⍵}
-          bits←NRX2 chunkSigned ⍵
+        ⍝ Break ⍵ into NRX2-bit chunk, propagating the sign bit specified if enabled...
+          bits←NRX2(sg chunkBits)⍵
         ⍝ ndnZ is here to handle bit changes that make a 20 bit # greater than 10*6 -- overflowed-- (but still 20 bits)
-          ∆z sg,⊂,|2⊥⍉sg{⍺=¯1:⍺,⍵ ⋄ ⍵}bits
-        ⍝ Ignore...
-          ∆z sg,⊂ndnZ,|2⊥⍉sg{⍺=¯1:⍺,⍵ ⋄ ⍵}bits      ⍝ Related to, but different from, sz 11 323 ⎕DR bits
+          ∆z sg,⊂,|2⊥⍉sg preDecode bits
       }
+    ⍝ chunk---, decode...: see bits2BI
+    ⍝ These determine whether bit routines encode twos-complement or keep bit strings positive...
+    _chunkS←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ flipCond←~⍣(⍺⍺<0) ⋄ c⍴flipCond(-×/c)↑flipCond ⍵}  ⍝ Propagate sign  (1 if neg, 0 if pos)
+    _chunkU←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄  c⍴(-×/c)↑⍵ ⋄ ⍺⍺'ignored'}       ⍝ Treat bits as if positive #
+    _preDecodeS←{⍺=¯1:⍺,⍵ ⋄ ⍵}
+    _preDecodeU←⊢
+    chunkBits←_chunkU
+    preDecode←_preDecodeU
+    twosComplement←0
+    ⍝ bits2BI <<<END>>>
+
       ⍝ BI2Bits:   r@B[]  ← ∇ BI
       ⍝ ⍵ must be a properly formed bigInt.
       ⍝ Returns: a twos-complement bit representation of ⍵.
@@ -563,15 +572,18 @@
       ⍝ altered by bit manipulation.
       BI2Bits←{
           sw w←∆ ⍵
-          BIu2Bits sw×w                         ⍝ Related to, but different from, 323 11 ⎕DR sw×w
+          twosComplement:BIu2Bits w×sw    ⍝ Uses twos-complement if sw<0
+          BIu2Bits w
       }
-      BIu2Bits←{,⍉RXBASE⊤⍵
+      BIu2Bits←{
+          ,⍉RXBASE⊤⍵                      ⍝ Uses twos-complement if ⍵<0
       }
 
       ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
+      ⍝ Kludge: Gets bits unsigned (see bits2BI)
       bitsView←{
           sw w←∆ ⍵
-          sw(BI2Bits sw w)
+          sw(BI2Bits ⍵)
       }
       ⍝ Given two bigInts ⍺, ⍵
       ⍝ Returns each converted to bits and
@@ -580,8 +592,10 @@
       bitsView2←{
           (sa ba)(sw bw)←bitsView¨⍺ ⍵
           ⋄ m←(≢ba)⌈≢bw
-          ⋄ chunkS←{cNeg←~⍣(⍺⍺<0) ⋄ ⍺⍺,⊂cNeg ⍺↑cNeg ⍵} ⍝ Pad as signed
-          (m(sa chunkS)ba)(m(sw chunkS)bw)
+          ⋄ chunkS←{flipCond←~⍣(⍺⍺<0) ⋄ ⍺⍺,⊂flipCond ⍺↑flipCond ⍵} ⍝ Pad as signed
+          ⋄ chunkU←{⍺⍺,⊂⍺↑⍵}                          ⍝ Pad as signed
+          twosComplement:(m(sa chunkS)ba)(m(sw chunkS)bw)
+          (m(sa chunkU)ba)(m(sw chunkU)bw)
       }
 
     ⍝ ubits2BI: Takes a set of unsigned bits ⍵ and return a signed integer
@@ -595,6 +609,7 @@
           ⍺ bits2BI ⍵
       }
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
     ⍝ (int)root: A fast integer nth root.
     ⍝ Syntax:    x@BIi ← nth@BIx<RX10 ∇ N@BIx     ==>  x ← N *÷nth
     ⍝   nth: a small, positive integer (<RX10); default 2 (for sqrt).
