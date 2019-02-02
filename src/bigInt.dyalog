@@ -134,6 +134,13 @@
   ⍝ RX10:  Radix for internal BI integers.
   ⍝ NRX10: # Decimal digits that RX10 must hold.
   ⍝ NRX2:  # Binary  digits required to hold NRX10 digits. (See encode2Bits, decodeFromBits).
+  ⍝ NRX2∆: NRX2-1. We use 1 fewer bits than our integers can hold when converting to bits,
+  ⍝        so that even after arbitrary user bit manipulations, we can't generate hands in decimal format
+  ⍝        that are NRX2 bits, but ≥ RX10. 
+  ⍝        (E.g. if RX10 is 10*6 so NRX2 is 20 bits, it's easy with logical anding, oring, etc.
+  ⍝        to have a number like 1000123, which is still 20 bits: 1 1 1 1 0 1 0 0 0 0 1 0 1 0 1 1 1 0 1 1
+  ⍝        In this case, the largest 19-bit number still is < RX10.
+  ⍝ RXBASE∆: NRX2∆⍴2 for use with decode
   ⍝ OFL: For multiplies (mulU) of unsigned big integers ⍺ × ⍵,
   ⍝      the length (in # of hands, i.e. base RX10 digits) of the larger of ⍺ and ⍵,
   ⍝      beyond which digits must be split to prevent overflow.
@@ -157,8 +164,9 @@
     ⍝ Set key bigInt constants...
       ⎕FR←645 1287⊃⍨nbits>nbitsMid
       NRX2←nbits
+      NRX2∆←nbits-1      ⍝ NRX2∆:   Experimental (see RXBASE∆). See comments above on NRX2∆.
       NRX10←⌊10⍟RX2←2*NRX2
-      RXBASE←NRX2⍴2
+      RXBASE∆←NRX2∆⍴2    ⍝ RXBASE∆: Experimental (see comments above on NRX2∆).
       RX10←10*NRX10 ⋄ RXdiv2←RX10÷2  ⍝ RXdiv2: see ∇powU∇
       OFL←{⌊(2*⍵)÷RX10×RX10}(⎕FR=1287)⊃53 93
     ⍝ Report...
@@ -255,9 +263,9 @@
               CASE'⊥':∆exp∆ 1 bits2BI ⍵        ⍝     bits→BI:    Converts from bit vector to internal
               CASE'⊤':BI2Bits ⍵                ⍝     BI→bits:    Converts a BI ⍵ to its bit form
               CASE'~' 'NOT':not ⍵    ⍝
-              CASE'≢':∆exp∆ popCount ⍵
+              CASE'≢':∆exp∆ 1,⊂NRX2∆×≢⊃⌽∆ ⍵     ⍝     # actual bits in bigInt internal form...
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
-              CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: NRX2-bit signed integers
+              CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: NRX2∆-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
               CASE'SQRT' '√':exp sqrt ⍵        ⍝     ⌊⍵*0.5:     See dyadic *
               CASE'⍳':⍳∆2Small ⍵               ⍝     ⍳: Special case: Allow only small integers... Returns an APL # only.
@@ -496,8 +504,8 @@
     ⍝   i.e. that are 1s for pos #s and 0s for negative...
       popCount←{
           sw bw←bitsView ⍵
-          sw≥0:∆+/bw    ⍝ non-neg:  (# of 1s)
-          ∆(+/bw)-≢bw   ⍝ neg:     -(# of 0s)
+          sw≥0:1,⊂+/bw    ⍝ non-neg:  (# of 1s)
+          ¯1,⊂+/~bw     ⍝ neg:     -(# of 0s)
       }
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIx
@@ -548,10 +556,12 @@
       bits2BI←{
           sg←⍺                                  ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
           0∊⍵∊0 1:err'Argument is not a vector of bits (1s and 0s)'
-        ⍝ Break ⍵ into NRX2-bit chunk, propagating the sign bit specified if enabled...
-          bits←NRX2(sg chunkBits)⍵
-        ⍝ ndnZ is here to handle bit changes that make a 20 bit # greater than 10*6 -- overflowed-- (but still 20 bits)
-          ∆z sg,⊂,|2⊥⍉sg preDecode bits
+        ⍝ Break ⍵ into NRX2∆-bit chunk, propagating the sign bit specified if enabled...
+          bits←NRX2∆(sg chunkBits)⍵
+          dig←,|2⊥⍉sg preDecode bits
+        ⍝ Experimental code...
+        ⍝ 1∊RX10≤dig:sg,⊂ndnZ 0,dig⊣⎕←'bits2BI: normalizing down'
+          ∆z sg,⊂dig
       }
     ⍝ chunk---, decode...: see bits2BI
     ⍝ These determine whether bit routines encode twos-complement or keep bit strings positive...
@@ -576,7 +586,7 @@
           BIu2Bits w
       }
       BIu2Bits←{
-          ,⍉RXBASE⊤⍵                      ⍝ Uses twos-complement if ⍵<0
+          ,⍉RXBASE∆⊤⍵                      ⍝ Uses twos-complement if ⍵<0
       }
 
       ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
