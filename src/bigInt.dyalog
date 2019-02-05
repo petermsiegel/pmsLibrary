@@ -136,7 +136,7 @@
   ⍝ NRX2:  # Binary  digits required to hold NRX10 digits. (See encode2Bits, decodeFromBits).
   ⍝ NRX2∆: NRX2-1. We use 1 fewer bits than our integers can hold when converting to bits,
   ⍝        so that even after arbitrary user bit manipulations, we can't generate hands in decimal format
-  ⍝        that are NRX2 bits, but ≥ RX10. 
+  ⍝        that are NRX2 bits, but ≥ RX10.
   ⍝        (E.g. if RX10 is 10*6 so NRX2 is 20 bits, it's easy with logical anding, oring, etc.
   ⍝        to have a number like 1000123, which is still 20 bits: 1 1 1 1 0 1 0 0 0 0 1 0 1 0 1 1 1 0 1 1
   ⍝        In this case, the largest 19-bit number still is < RX10.
@@ -563,15 +563,25 @@
         ⍝ 1∊RX10≤dig:sg,⊂ndnZ 0,dig⊣⎕←'bits2BI: normalizing down'
           ∆z sg,⊂dig
       }
+
+    ∇ {yes}←UseTwosComplements yes;_chunkS;_chunkU;_preDecodeS;_preDecodeU
     ⍝ chunk---, decode...: see bits2BI
     ⍝ These determine whether bit routines encode twos-complement or keep bit strings positive...
-    _chunkS←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ flipCond←~⍣(⍺⍺<0) ⋄ c⍴flipCond(-×/c)↑flipCond ⍵}  ⍝ Propagate sign  (1 if neg, 0 if pos)
-    _chunkU←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄  c⍴(-×/c)↑⍵ ⋄ ⍺⍺'ignored'}       ⍝ Treat bits as if positive #
-    _preDecodeS←{⍺=¯1:⍺,⍵ ⋄ ⍵}
-    _preDecodeU←⊢
-    chunkBits←_chunkU
-    preDecode←_preDecodeU
-    twosComplement←0
+      _chunkS←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ flipCond←~⍣(⍺⍺<0) ⋄ c⍴flipCond(-×/c)↑flipCond ⍵}  ⍝ Propagate sign  (1 if neg, 0 if pos)
+      _chunkU←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ c⍴(-×/c)↑⍵ ⋄ ⍺⍺'ignored'}       ⍝ Treat bits as if positive #
+      _preDecodeS←{⍺=¯1:⍺,⍵ ⋄ ⍵}
+      _preDecodeU←⊢
+      :If yes
+          twosComplement←1
+          chunkBits←_chunkS
+          preDecode←_preDecodeS
+      :Else
+          twosComplement←0
+          chunkBits←_chunkU
+          preDecode←_preDecodeU
+      :EndIf
+    ∇
+    UseTwosComplements 0
     ⍝ bits2BI <<<END>>>
 
       ⍝ BI2Bits:   r@B[]  ← ∇ BI
@@ -1009,9 +1019,9 @@
     dLZs←{chkZ(∨\⍵≠0)/⍵}                    ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
     chkZ←{0≠≢⍵:,⍵ ⋄ ,0}                     ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
 
-    ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
+            ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
     ndnZ←dLZ ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
-    nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡           ⍝ normalise up:   3 ¯1 → 2 9
+            nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡           ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dLZ nup                            ⍝ PMS
 
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
