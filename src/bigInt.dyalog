@@ -223,7 +223,7 @@
     ⍝ listDyadFns    ditto
     listMonadFns←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
-    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢⌷','<≤=≥>≠')('SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
+    listDyadFns←('+-×*÷⌊⌈|∨∧⌽√≢⌷','<≤=≥>≠⍴')('SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
 
     ⍝ BI: Basic utility operator for using APL functions in special BigInt meanings.
@@ -301,10 +301,12 @@
           ⍝
               CASE'√' 'ROOT':∆exp∆ ⍺ root ⍵             ⍝ See ∇root.
               CASE'MOD':∆exp∆ ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
-              CASE'SHIFTB':∆exp∆ ⍺ mul2Exp ⍵          ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
-              CASE'SHIFTD':∆exp∆ ⍺ mul10Exp ⍵         ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
+              CASE'SHIFTB':∆exp∆ ⍺ mul2Exp ⍵            ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+              CASE'SHIFTD':∆exp∆ ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
               CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
+     
+              CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Treat ⍺ in ⍺ ⍴ ⍵ as regular number
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
           }{0=inv:⍺ ⍺⍺ ⍵ ⋄ 1=inv:⍵ ⍺⍺ ⍺ ⋄ ⍵ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨
       }
@@ -1137,7 +1139,12 @@
       msg,←⊂' --------------------------'
       msg,←⊂' note 1: only thing on line, besides leading or trailing spaces.'
       msg,←⊂''
-      msg←↑msg ⋄ ⎕ED&'msg'  ⍝ Replaces:  alert msg
+      msg←↑msg 
+      ⍝ This
+      ⍝   ⎕ED&'msg'  
+      ⍝ Replaces:  
+      alert msg
+      
       dc_LAST←'0'
       :While 1
           :Trap 1000
