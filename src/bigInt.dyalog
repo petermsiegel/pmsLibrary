@@ -1137,7 +1137,7 @@
       msg,←⊂' --------------------------'
       msg,←⊂' note 1: only thing on line, besides leading or trailing spaces.'
       msg,←⊂''
-      alert↑msg
+      msg←↑msg ⋄ ⎕ED&'msg'  ⍝ Replaces:  alert msg
       dc_LAST←'0'
       :While 1
           :Trap 1000
