@@ -13,7 +13,7 @@
           ns.Default←def
       :EndIf
       :If 0≠≢pairs
-          ns.(Keys Vals)←(⍴⍴⍵){
+          ns.(Keys Vals)←{⍺←⍴⍴pairs
               2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
               1=⊃⍺:,⍵     ⍝  ⍪ ('one' 'two' 'three') (1 2 3)
               ↓⍵          ⍝  ↑('one' 'two')(1 2)
