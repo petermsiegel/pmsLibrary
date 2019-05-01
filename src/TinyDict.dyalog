@@ -1,8 +1,8 @@
-﻿:Namespace tinyDict
+﻿:Namespace TinyDict
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
-  ⍝ See docs/tinyDict.help
+  ⍝ See docs/TinyDict.help
 
-    ∇ ns←New
+    ∇ ns←new
       ns←⎕NS ⎕THIS
       ns.⎕DF 'tinyDict[]'
       ns.Default←⍬
@@ -69,7 +69,7 @@
       :EndIf
     ∇
 
-    ∇ {val}←key Put1 val;p
+    ∇ {val}←key put1 val;p
       p←Keys⍳⊂key
       :If p≥≢Keys
           Keys,←⊂key ⋄ Vals,←⊂val
@@ -78,14 +78,14 @@
       :EndIf
     ∇
 
-    ∇ {vals}←PutPairs kv;ePutPairs
-      ePutPairs←'tinyDict/PutPairs: key-value pairs must each have 2 items' 11
+    ∇ {vals}←put_pairs kv;ePutPairs
+      ePutPairs←'tinyDict/put_pairs: key-value pairs must each have 2 items' 11
       :If (0∊2=≢¨kv) ⋄ ⎕SIGNAL/ePutPairs ⋄ :EndIf
       vals←(⊃¨kv)Put(⊃∘⌽¨kv)
     ∇
 
 
-    ∇ {b}←Del1 key;p;q
+    ∇ {b}←del1 key;p;q
       p←Keys⍳⊂key
       :If p≥≢Keys
           b←0   ⍝ Not deleted
@@ -97,15 +97,15 @@
     ∇
 
   ⍝ Del: Inefficient (just haven't gotten around to it)
-    ∇ {b}←Del keys
-      b←Del1¨keys
+    ∇ {b}←del keys
+      b←del1¨keys
     ∇
 
-    ∇ b←HasDefault
+    ∇ b←has_default
       b←0≠⎕NC'Default'
     ∇
 
-    ∇ r←Table
+    ∇ r←table
       r←Keys,[0.5]Vals
     ∇
 
