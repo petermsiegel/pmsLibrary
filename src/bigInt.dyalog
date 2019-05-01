@@ -1048,6 +1048,7 @@
 
   ⍝ bi:  Returns ⎕THIS
     ⎕FX 'ns←bi' 'ns←⎕THIS'
+    ⎕FX 'ns←_bigInt_' 'ns←⎕THIS'    ⍝ A more unique name for use by utilities...
 
     ⍝ RE∆GET-- ⎕R/⎕S Regex utility-- returns field #n or ''
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
@@ -1139,12 +1140,12 @@
       msg,←⊂' --------------------------'
       msg,←⊂' note 1: only thing on line, besides leading or trailing spaces.'
       msg,←⊂''
-      msg←↑msg 
+      msg←↑msg
       ⍝ This
-      ⍝   ⎕ED&'msg'  
-      ⍝ Replaces:  
+      ⍝   ⎕ED&'msg'
+      ⍝ Replaces:
       alert msg
-      
+     
       dc_LAST←'0'
       :While 1
           :Trap 1000
@@ -1272,7 +1273,7 @@
     :Section Bigint Namespace - Postamble
         ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ssplit 'bi bix BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
+        _←1 ⎕EXPORT ssplit '_bigInt_ bi bix BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
 
     ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
 
