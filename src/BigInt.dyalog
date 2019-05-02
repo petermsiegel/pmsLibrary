@@ -1,5 +1,5 @@
 ﻿:namespace BigInt
-  ⍝ ∘ NOTE: See bigIntHelp for details...
+  ⍝ ∘ NOTE: See BigIntHelp for details...
   ⍝ ∘ Call BigInt.help or ⎕EDIT 'BigIntHelp'
 
   ⍝ Table of Contents
@@ -1245,27 +1245,27 @@
     :Endsection Utilities: bi, dc (desk calc), BIB, BIC, BI∆HERE
 
     :Section Documentation
-    ⍝ See bigIntHelp
+    ⍝ See BigIntHelp
     ∇ HELP
-      ##.bigIntHelp.HELP
+      ##.BigIntHelp.HELP
     ∇
     ∇ help
-      ##.bigIntHelp.HELP
+      ##.BigIntHelp.HELP
     ∇
     ∇ Help
-      ##.bigIntHelp.HELP
+      ##.BigIntHelp.HELP
     ∇
     ∇ BI_HELP
-      ##.bigIntHelp.BI_HELP
+      ##.BigIntHelp.BI_HELP
     ∇
     ∇ BIB_HELP
-      ##.bigIntHelp.BIB_HELP
+      ##.BigIntHelp.BIB_HELP
     ∇
     ∇ BIC_HELP
-      ##.bigIntHelp.BIC_HELP
+      ##.BigIntHelp.BIC_HELP
     ∇
     ∇ BI∆HERE_HELP
-      ##.bigIntHelp.BI∆HERE_HELP
+      ##.BigIntHelp.BI∆HERE_HELP
     ∇
 
     :EndSection Documentation   -------------------------------------------------------------------------
