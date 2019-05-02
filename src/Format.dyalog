@@ -1,4 +1,4 @@
-﻿:namespace format
+﻿:namespace Format
 
     :Section 1A. Documentation
         ⍝⍝⍝ See formatLib.Documentation> below.
