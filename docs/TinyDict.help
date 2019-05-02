@@ -24,14 +24,13 @@
   ⍝     Otherwise, signals a key-undefined error.
   ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
   ⍝
-  ⍝ {values}←key1 key2 ... dict.put val1 val2 ...
+  ⍝ {values}←key1 key2 ... dict.put val1 val2 ...    [DYADIC: keys put values]
   ⍝     Like dict.put1, but for multiple keys and values.
-  ⍝
-  ⍝ {values}←dict.put_pairs (key1 val1)(key2 val2)
+  ⍝ {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
   ⍝     Enter one or more key-value pairs into the tinyDict.
   ⍝     Remember to enclose the argument if there is only one key-value pair:
-  ⍝        r←dict.put_pairs ⊂'key1' 'val1'
-  ⍝        r←dict.put_pairs ('key1' 'val1')('key2' 'val2')
+  ⍝        r←dict.put ⊂'key1' 'val1'
+  ⍝        r←dict.put ('key1' 'val1')('key2' 'val2')
   ⍝
   ⍝ {value}←key1 dict.put1 val1
   ⍝     Sets the key specified to the corresponding value, returning the value.
@@ -59,7 +58,7 @@
   ⍝     Returns 0 if no default has been defined.
   ⍝
   ⍝ dict.keys
-  ⍝     A list of Keys in order
+  ⍝     A list of keys in order
   ⍝
   ⍝ dict.vals
-  ⍝     A corresponding list of values in order
+  ⍝     A (corresponding) list of values in order
