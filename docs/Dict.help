@@ -1,6 +1,6 @@
 
 ⍝H +--------------------+
-⍝H |  Dict HELP         |
+⍝H |  dict HELP         |
 ⍝H +---------------------
 ⍝H  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table)
 ⍝H     Items are stored in the order created; the dictionary order is maintained, even when a value is changed.
@@ -43,14 +43,14 @@
 ⍝H           '' or ⍬   Initialize empty dictionary with Default←'' or Default←⍬
 ⍝H
 ⍝H  ┌────────────────────────────────────────────┐─────────────────────────────────────────────┐
-⍝H  |a ← ⎕NEW dict                               │ Create empty dict, no default               │
-⍝H  │a ← ⎕NEW dict (1)                           │ Create empty dict, default: 1               │
-⍝H  |a ← ⎕NEW dict ('' | ⍬)                      │ Create empty dict, default '' or ⍬          │
-⍝H  │a ← ⎕NEW dict (⊂default)                    │ Create empty dict, default (default)        │
-⍝H  │a ← ⎕NEW dict ((k,v)(k,v))                  │ Create dict with k v pairs, no def          │
-⍝H  │a ← ⎕NEW dict ⍪(k1 k2..)(v1 v2..) [default] │ Create dict with keys vals and def          │
-⍝H  │a ← ⎕NEW dict (d1,d2)                       │ Create dict from dicts d1 d2                │
-⍝H  │a ← ⎕NEW dict ((k,v)d1(k,v)d2)              │ Create dict from mix of k v pairs and dicts │
+⍝H  |a ← ⎕NEW Dict                               │ Create empty dict, no default               │
+⍝H  │a ← ⎕NEW Dict (1)                           │ Create empty dict, default: 1               │
+⍝H  |a ← ⎕NEW Dict ('' | ⍬)                      │ Create empty dict, default '' or ⍬          │
+⍝H  │a ← ⎕NEW Dict (⊂default)                    │ Create empty dict, default (default)        │
+⍝H  │a ← ⎕NEW Dict ((k,v)(k,v))                  │ Create dict with k v pairs, no def          │
+⍝H  │a ← ⎕NEW Dict ⍪(k1 k2..)(v1 v2..) [default] │ Create dict with keys vals and def          │
+⍝H  │a ← ⎕NEW Dict (d1,d2)                       │ Create dict from dicts d1 d2                │
+⍝H  │a ← ⎕NEW Dict ((k,v)d1(k,v)d2)              │ Create dict from mix of k v pairs and dicts │
 ⍝H  └────────────────────────────────────────────┘─────────────────────────────────────────────│
 ⍝H
 ⍝H  ∆DICT -- Ordered Dictionary Helper Function
@@ -71,18 +71,18 @@
 
 ⍝H  Ordered Dictionary Creation
 ⍝H   ∘ Create empty
-⍝H     a ← ⎕NEW dict                              ⍝ Empty dictionary
+⍝H     a ← ⎕NEW Dict                              ⍝ Empty dictionary
 ⍝H   ∘ Create and Insert key-value pairs
-⍝H     a ← ⎕NEW dict ((key1 val1)(key2 val2)...)  ⍝ With items, i.e. key-value pairs
+⍝H     a ← ⎕NEW Dict ((key1 val1)(key2 val2)...)  ⍝ With items, i.e. key-value pairs
 ⍝H   ∘ Create empty with default value
-⍝H     a ← ⎕NEW dict (⊂default)                   ⍝ Argument passed must be scalar, which will be disclosed.
+⍝H     a ← ⎕NEW Dict (⊂default)                   ⍝ Argument passed must be scalar, which will be disclosed.
 ⍝H   ∘ If b is an existing dict, then:
-⍝H       a ← ⎕NEW dict (b)
+⍝H       a ← ⎕NEW Dict (b)
 ⍝H     copies b's values into a.
 ⍝H     - Attributes are NOT copied via ⎕NEW.
 ⍝H     - To copy all keys, values, and default: Use a←b.Copy
 ⍝H   ∘ Pairs and dictionaries may be assigned to a new dictionary on creation:
-⍝H       c←  ⎕NEW dict (a (key1 val1) (key2 val2) b)
+⍝H       c←  ⎕NEW Dict (a (key1 val1) (key2 val2) b)
 ⍝H     Elements are assigned IN ORDER, left to right, with the last value "sticking."
 ⍝H     Here, c is made up of the contents of dictionary a, two key-value pairs, and b.
 ⍝H   ∘ To make a copy, called a, of a dictionary b, including its Defaults, use Copy:
@@ -100,36 +100,36 @@
 ⍝H       a ← (∆DICT ⎕NULL).Import K V
 ⍝H
 ⍝H  ┌─────────────────────────────┐
-⍝H  | a.Default←val   [*]         │
-⍝H  │ w←a.Default                 │
-⍝H  │ w←a.HasDefault              │
-⍝H  │ a.HasDefault←b              │
-⍝H  │ hasdef def←a.QueryDefault   │
+⍝H  | a.default←val   [*]         │
+⍝H  │ w←a.default                 │
+⍝H  │ w←a.has_default             │
+⍝H  │ a.has_default←b             │
+⍝H  │ hasdef def←a.query_default  │
 ⍝H  │ ————————————————            │
-⍝H  │ * See ⎕NEW dict             │
+⍝H  │ * See ⎕NEW Dict             │
 ⍝H  └─────────────────────────────┘
 ⍝H  Manage Default Values
 ⍝H   ∘ At initialization, unless a (dictionary-wide) default has been set,
 ⍝H     a VALUE ERROR results from trying to retrieve a value for a missing key.
-⍝H       a←⎕NEW dict
+⍝H       a←⎕NEW Dict
 ⍝H       a[10]
 ⍝H     VALUE ERROR
 ⍝H     This even occurs when retrieving values from a mix of present and missing keys.
 ⍝H   ∘ The default may be set to any scalar or vector value. When you set it, HasDefault←1 for you.
 ⍝H     (If you then set HasDefault←0, the Default value is "hidden" until HasDefault←1 again).
-⍝H     ⍺.Default←⍵
+⍝H     ⍺.default←⍵
 ⍝H     Example:
-⍝H       a←⎕NEW dict ⋄ a.Default←1 3
+⍝H       a←⎕NEW Dict ⋄ a.default←1 3
 ⍝H       a[10]
 ⍝H     1 3
 ⍝H   ∘ Check defaults
-⍝H     def←⍺.Default
+⍝H     def←⍺.default
 ⍝H   ∘ Check whether a default exists
-⍝H     bool←⍺.HasDefault
+⍝H     bool←⍺.has_default
 ⍝H   ∘ Turn on the default (If turned on and Default hasn't been set, it's set to Default←'').
-⍝H      ⍺.HasDefault←bool
-⍝H   ∘ Query current HasDefault flag and default (⎕NULL if not set):
-⍝H     hasdef def←⍺.QueryDefault
+⍝H      ⍺.has_default←bool
+⍝H   ∘ Query current has_default flag and default (⎕NULL if not set):
+⍝H     hasdef def←⍺.query_default
 ⍝H  The default may also be set in the ⎕NEW call if there is an argument of this form:
 ⍝H   ∘ scalar
 ⍝H   ∘ non-dictionary (not of nameclass 9.2, or if 9.2 doesn't have method isDict or if it does, isDict returns 0).
@@ -140,8 +140,8 @@
 ⍝H  │ a.Vals[i1 i2]←v1 v2                    │
 ⍝H  │ a.Values[i1 i2]←v1 v2                  │
 ⍝H  │ k1 k2←a.Keys[i1 i2]                    │
-⍝H  │ a.Import keys vals                     │
-⍝H  │ keys vals←a.Export                     │
+⍝H  │ a.import keys vals                     │
+⍝H  │ keys vals←a.export                     │
 ⍝H  │ i1 i2←a.Iota k1 k2   ⍝ a.Keys ⍳ k1 k2  │
 ⍝H  └────────────────────────────────────────┘
 ⍝H  Setting keys and values
@@ -164,7 +164,7 @@
 ⍝H  Retrieving all Keys (in index order, by default the order entered)
 ⍝H      k1 k2...←⍺.Keys
 ⍝H  Importing keys and values en masse from vectors keys vals
-⍝H      ⍺.Import keys vals
+⍝H      ⍺.import keys vals
 ⍝H      Equivalent to: ⍺[keys]←vals   ⍝ But faster!
 ⍝H      Note: if a key exists, its value is updated in its original order.
 ⍝H  Exporting keys and values en masse as vectors keys vals
@@ -174,59 +174,59 @@
 ⍝H      i1 i2... ← a.Iota k1 k2
 ⍝H      Equiv. to a.Keys ⍳ key1 key2   ⍝ But much faster!
 ⍝H
-⍝H  ┌────────────────────────────────────────┐
-⍝H  | {b1 b2}←a.Del k1 k2                    │
-⍝H  │ {b1 b2}←(ignore←0) a.Del k1 k2         │
-⍝H  │ {b1 b2}←a.DelByIndex i1 i2             │
-⍝H  │ {b1 b2}←(ignore←0) a.DelByIndex i1 i2  │
-⍝H  │ {b1 b2}←a.DI i1 i2                     │
-⍝H  │ a←a.Clear          ⍝ Returns a         │
-⍝H  └────────────────────────────────────────┘
+⍝H  ┌──────────────────────────────────────────────┐
+⍝H  | {b1 b2}←a.del k1 k2                          │
+⍝H  │ {b1 b2}←(ignore←0) a.del k1 k2               │
+⍝H  │ {b1 b2}←a.del_by_index i1 i2                 │
+⍝H  │ {b1 b2}←(ignore←0) a.del_by_index i1 i2      │
+⍝H  │ {b1 b2}←a.di i1 i2                           │
+⍝H  │ a←a.clear          ⍝ Returns a               │
+⍝H  └──────────────────────────────────────────────┘
 ⍝H  Delete key-value pairs by key (returns the unique keys deleted)
 ⍝H  If left arg is 1 (default 1), missing keys are ignored and 0 is returned for each.
 ⍝H  If 0, missing keys generate an ERROR signal.
 ⍝H  Returns 1 for each key deleted; 0 otherwise.
-⍝H      {b1 b2}...← [[1|0]] ⍺.Del k1 k2...
+⍝H      {b1 b2}...← [[1|0]] ⍺.del k1 k2...
 ⍝H  Delete key-value pairs by index (returns the unique keys deleted)
 ⍝H  ∘ All indices must be valid.
-⍝H      {b1 b2}...← ⍺.DelByIndex i1 i2...
-⍝H      {b1 b2}...← ⍺.DI i1 i2
+⍝H      {b1 b2}...← ⍺.del_by_index i1 i2...
+⍝H      {b1 b2}...← ⍺.di i1 i2
 ⍝H  ∘ Invalid indices to be ignored.
-⍝H      {b1 b2}...← 1 ⍺.DelByIndex i1 i2...
+⍝H      {b1 b2}...← 1 ⍺.del_by_index i1 i2...
 ⍝H      b1 b2...← 1 ⍺.DI i1 i2
 ⍝H
 ⍝H  ┌───────────────────────────────────────────┐
-⍝H  | b1 b2←a.HasKeys k1 k2                     │
-⍝H  │ k1v1 k2v2←a.Items                         │
-⍝H  │ k1v1 k2v2←a.Pairs                         │
-⍝H  │ kv_Mx←a.Table                             │
-⍝H  │ nitems←a.Len(gth)                         │
+⍝H  | b1 b2←a.has_keys k1 k2                    │
+⍝H  │ k1v1 k2v2←a.items                         │
+⍝H  │ k1v1 k2v2←a.pairs                         │
+⍝H  │ kv_Mx←a.table                             │
+⍝H  │ nitems←a.len(gth)                         │
 ⍝H  └───────────────────────────────────────────┘
 ⍝H  Query if a key-value pair exists, by key. Returns 1 for each pair that exists...
-⍝H      b1 b2...← ⍺.HasKeys k1 k2...
+⍝H      b1 b2...← ⍺.has_keys k1 k2...
 ⍝H  Get all key value pairs
-⍝H       k1v1 k2v2...←⍺.Items
-⍝H       k1v1 k2v2...←⍺.Pairs
+⍝H       k1v1 k2v2...←⍺.items
+⍝H       k1v1 k2v2...←⍺.pairs
 ⍝H  Get all key value pairs as a matrix
-⍝H      key_value_matrix←⍺.Table
+⍝H      key_value_matrix←⍺.table
 ⍝H  Get # of items in a dictionary
-⍝H      ⍺.Len
-⍝H      ⍺.Length
+⍝H      ⍺.len
+⍝H      ⍺.length
 ⍝H
 ⍝H  ┌────────────────────────────────────────┐
 ⍝H  | k1v1 k2v2←a.Pop 2                      │
 ⍝H  │ a['penult' 'ult']←v1 v2   ⍝ Push       │
-⍝H  │ {}a.Sort/A      ⍝ Sort up in place     │
-⍝H  │ {}a.SortD       ⍝ Sort dn in place     │
-⍝H  │ ix←a.GradeUp    ⍝ Return indices       │
-⍝H  │ ix←a.GradeDown/GradeDn                 │
+⍝H  │ {}a.sort/A      ⍝ Sort up in place     │
+⍝H  │ {}a.sortD       ⍝ Sort dn in place     │
+⍝H  │ ix←a.gradeup    ⍝ Return indices       │
+⍝H  │ ix←a.gradedown/gradedn                 │
 ⍝H  └────────────────────────────────────────┘
 ⍝H  Popping the first <n> items from the Ordered Dictionary
-⍝H       k1v1...knvn ← ⍺.Pop count
+⍝H       k1v1...knvn ← ⍺.pop count
 ⍝H  Removes and returns the LAST <count> entries from the dictionary (in order of creation, not update).
 ⍝H  Note 0: The value is returned shyly.
 ⍝H  Note 1: This uses the efficient idiom for removing items from hashed vectors: item↓⍨←-count
-⍝H  Note 2: to "Push" items onto the end of the dictionary, simply add them, ONLY if the key is new.
+⍝H  Note 2: to "push" items onto the end of the dictionary, simply add them, ONLY if the key is new.
 ⍝H      a['2nd to last' 'last'] ← 'val1' 'val2'
 ⍝H      a.Pop 2
 ⍝H  ┌───────────┬────┐
@@ -236,16 +236,16 @@
 ⍝H  └───────────┴────┘
 ⍝H  If keys aren't new, you can delete them first and readd, so they are added at the end.
 ⍝H  This guarantees that a possibly new <key> is the most recent (first Pop'd) item in dictionary.
-⍝H     1 a.Del ⊂'test' ⋄ a[⊂'test']←⊂'THIS IS A TEST!'
-⍝H     ⎕←a.Pop 1
+⍝H     1 a.del ⊂'test' ⋄ a[⊂'test']←⊂'THIS IS A TEST!'
+⍝H     ⎕←a.pop 1
 ⍝H  test   THIS IS A TEST!
 ⍝H
 ⍝H  Sorts items in ascending (Sort/SortA) or descending (SortD) order IN PLACE.
 ⍝H  Uses Dyalog total array ordering.
 ⍝H  Returns the dictionary itself (not a copy!). Use {} to suppress returned dictionary.
-⍝H     {}⍺.Sort  or  {}⍺.SortA
-⍝H     {}⍺.SortD
+⍝H     {}⍺.sort  or  {}⍺.sortA
+⍝H     {}⍺.sortD
 ⍝H  Return the indices for the dictionary's keys in sorted order
-⍝H     ix←a.GradeUp   (ascending)
-⍝H     ix←a.GradeDown (descending)
-⍝H     ix←a.GradeDn   (descending)
+⍝H     ix←a.gradeup   (ascending)
+⍝H     ix←a.gradedown (descending)
+⍝H     ix←a.gradedn   (descending)
