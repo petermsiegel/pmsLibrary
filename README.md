@@ -42,11 +42,11 @@ and for *initialization*, e.g.
 Example: ``a←{'done'⊣⍺.yield¨⍳10} gen.erator 0`` passes values to ``a.next``, signalling a STOPITERATION interrupt after the 10th value. ``a.value`` contains the return string ``done``.
 1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).<br>
 ``a←{⎕DL ?⍵}future¨10 10⍴10 10 10 ⋄ ⍴a ⋄ b←100⍴a ⋄ ⊢a``
-1. __∆format__ / __∆f__ in namespace __format__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br>
+1. __∆format__ / __∆f__ in namespace __Format__: An APL-specific implementation of format-strings, reminiscent of Python's __f-strings__, but supporting APL multidimensional objects directly and formatting based on __⎕FMT__. Supports nice constructions like<br>
       ``   first←'John'  ⋄ middle←'Jacob' 'Jingleheimer' ⋄ last←'Schmidt'  ``<br>
       ``   ∆f'His name is {first} {middle} last. This name has {+/⍴∊first middle last} letters.'``<br>
       ``His name is John Jacob Jingleheimer Schmidt. This name has 28 letters.``<br>
-Source: __format__. Help info: __formatHelp.pdf__.
+Source: __format__. Help info: __format_help.pdf__.
 1. __bigInt__: Provides basic arithmetic functions on big integers stored externally as strings
 and internally as a series of (signed) integers. Built around dfns:nat as its numerical core,  extended to handle signed numbers,
 reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style ``'2434324' *BI '3443'`` that takes care of importing and exporting APL numbers and (string-format) big integers, as well as a higher-performance function style ``bigInt.sqrt '449432342'`` suitable for user-designed algorithms. Easily extended to work with arbitrary APL arrays.<br>
