@@ -8,7 +8,7 @@
       ns.default←⍬
     ∇
     ∇ ns←{def}∆TINYDICT pairs
-      ns←⎕THIS.New
+      ns←⎕THIS.new
       :If 0≠⎕NC'def'
           ns.default←def
       :EndIf
