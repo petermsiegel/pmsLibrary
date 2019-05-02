@@ -1,4 +1,4 @@
-﻿:Class dict
+﻿:Class Dict
 ⍝ dict: A fast, ordered, and simple dictionary for general use.
 ⍝ Hashes vector KEYS for efficiency on large dictionaries.
 ⍝ For HELP information, call 'dict.HELP'.
@@ -201,13 +201,13 @@
       (KEYS VALUES HASDEFAULT DEFAULT)←keys vals hasdefault default
     ∇
 
-    ⍝ Export: "Returns a list of Keys and Values for the object in an efficient way."
+    ⍝ export: "Returns a list of Keys and Values for the object in an efficient way."
     ∇ (k v)←export
       :Access Public
       k v←KEYS VALUES
     ∇
 
-    ⍝ Table: "Returns all the key-value pairs as a matrix, one pair per row.
+    ⍝ table: "Returns all the key-value pairs as a matrix, one pair per row.
     ⍝         Equivalent to ↑⍵.Items."
     ∇ r←table
       :Access Public
