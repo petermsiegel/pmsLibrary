@@ -4,15 +4,15 @@
 
     ∇ ns←new
       ns←⎕NS ⎕THIS
-      ns.⎕DF 'tinyDict[]'
-      ns.Default←⍬
+      ns.⎕DF 'TinyDict[]'
+      ns.default←⍬
     ∇
     ∇ ns←{def}∆TINYDICT pairs
       ns←⎕THIS.New
       :If 0≠⎕NC'def'
-          ns.Default←def
+          ns.default←def
       :EndIf
-      :If 0≠≢pairs
+      :If 0<≢pairs
           ns.(Keys Vals)←{⍺←⍴⍴pairs
               2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
               1=⊃⍺:,⍵     ⍝  ⍪ ('one' 'two' 'three') (1 2 3)
@@ -24,16 +24,16 @@
 
     ⎕IO ⎕ML←0 1
     Keys Vals←⍬ ⍬
-  ⍝ Default is defined in New or, optionally, in ∆DICT.
+  ⍝ default is defined in New or, optionally, in ∆DICT.
 
-  ⍝ Set "methods"  Keys, Vals, Values for vars keys vals 
-    ∇ k←Keys
+  ⍝ Set "methods"  keys, vals, values for vars Keys Vals 
+    ∇ k←keys
       k←Keys
     ∇ 
-    ∇ v←Vals
+    ∇ v←vals
        v←Vals
     ∇ 
-    ∇ v←Values
+    ∇ v←values
        v←Vals
     ∇ 
     
@@ -45,10 +45,10 @@
           r[ie]←Vals[e/p]
       :EndIf
       :If 0≠≢ine←⍸~e
-          :If 0≠⎕NC'Default'
-              r[ine]←⊂Default
+          :If 0≠⎕NC'default'
+              r[ine]←⊂default
           :Else
-              ⎕SIGNAL/('tinyDict: One or more keys undefined: ',keys[ine])11
+              ⎕SIGNAL/('TinyDict: One or more keys undefined: ',keys[ine])11
           :EndIf
       :EndIf
     ∇
@@ -56,19 +56,26 @@
     ∇ r←get1 key;p
       p←Keys⍳⊂key
       :If p≥≢Keys
-          :If 0≠⎕NC'Default'
-              r←Default
+          :If 0≠⎕NC'default'
+              r←default
           :Else
-              ⎕SIGNAL/('tinyDict: Key undefined: ',key)11
+              ⎕SIGNAL/('TinyDict: Key undefined: ',key)11
           :EndIf
       :Else
           r←p⊃Vals
       :EndIf
     ∇
 
-    ∇ {vals}←keys Put vals;e;ePut;ie;n;p
-      ePut←'tinyDict/Put: number of keys and values must match' 11
-      :If (≢keys)≠(≢vals) ⋄ ⎕SIGNAL/ePut ⋄ :EndIf
+    ∇ {vals}←{keys} put vals;e;ePut1;ePut2;ie;kv;n;p
+      ePUT1←'TinyDict/put (1adic): one or more key-value pairs required'
+      ePUT2←'TinyDict/put (2adic): number of keys and values must match' 11
+      :IF 0=⎕NC 'keys'    ⍝ monadic put:   put (k1 v1)(k2 v2)...
+          kv←↓⍉↑vals
+          :IF 2≠≢kv  ⋄ ⎕SIGNAL/ePUT1 ⋄ :EndIf
+          keys vals←kv
+      :ElseIf (≢keys)≠(≢vals) 
+          ⎕SIGNAL/ePUT2 
+      :EndIf
       e←(≢Keys)>p←Keys⍳keys
       :If 0≠≢ie←⍸e    ⍝ Any existing keys?
           Vals[e/p]←e/vals
@@ -89,13 +96,6 @@
       :EndIf
     ∇
 
-    ∇ {vals}←put_pairs kv;ePutPairs
-      ePutPairs←'tinyDict/put_pairs: key-value pairs must each have 2 items' 11
-      :If (0∊2=≢¨kv) ⋄ ⎕SIGNAL/ePutPairs ⋄ :EndIf
-      vals←(⊃¨kv)Put(⊃∘⌽¨kv)
-    ∇
-
-
     ∇ {b}←del1 key;p;q
       p←Keys⍳⊂key
       :If p≥≢Keys
@@ -107,13 +107,13 @@
       :EndIf
     ∇
 
-  ⍝ Del: Inefficient (just haven't gotten around to it)
+  ⍝ del: Inefficient (just haven't gotten around to it)
     ∇ {b}←del keys
       b←del1¨keys
     ∇
 
     ∇ b←has_default
-      b←0≠⎕NC'Default'
+      b←0≠⎕NC'default'
     ∇
 
     ∇ r←table
