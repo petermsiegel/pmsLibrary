@@ -7,59 +7,58 @@
   ⍝  is comparable to (regular) dict function ∆DICT, which is similarly promoted.
   ⍝  See also:  (namespace) dict
   ⍝
-  ⍝ dict ← tinyDict.New
+  ⍝ dict ← TinyDict.new
   ⍝     Creates a dictionary with no values and Default←⍬
   ⍝
   ⍝ dict ← {default} ∆TINYDICT pairs   
-  ⍝ promoted to directory containing tinyDict
+  ⍝ promoted to directory containing TinyDict
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
-  ⍝     If no default is specified, Default is undefined.
+  ⍝     If no default is specified, default is undefined.
   ⍝
-  ⍝ r←dict.Get  key1 key2 ...
-  ⍝     Like dict.Get1, but for multiple keys.
+  ⍝ r←dict.get  key1 key2 ...
+  ⍝     Like dict.get1, but for multiple keys.
   ⍝
-  ⍝ r←dict.Get1 key
+  ⍝ r←dict.get1 key
   ⍝     Returns the value for key <key>, if defined.
   ⍝     If not, but a default exists, returns that default.
-  ⍝     Otherwise, signals a Key undefined error.
+  ⍝     Otherwise, signals a key-undefined error.
   ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
   ⍝
-  ⍝ {values}←key1 key2 ... dict.Put val1 val2 ...
-  ⍝     Like dict.Put1, but for multiple keys and values.
-  ⍝
-  ⍝ {values}←dict.PutPairs (key1 val1)(key2 val2)
+  ⍝ {values}←key1 key2 ... dict.put val1 val2 ...    [DYADIC: keys put values]
+  ⍝     Like dict.put1, but for multiple keys and values.
+  ⍝ {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
   ⍝     Enter one or more key-value pairs into the tinyDict.
   ⍝     Remember to enclose the argument if there is only one key-value pair:
-  ⍝        r←dict.PutPairs ⊂'key1' 'val1'
-  ⍝        r←dict.PutPairs ('key1' 'val1')('key2' 'val2')
+  ⍝        r←dict.put ⊂'key1' 'val1'
+  ⍝        r←dict.put ('key1' 'val1')('key2' 'val2')
   ⍝
-  ⍝ {value}←key1 dict.Put1 val1
+  ⍝ {value}←key1 dict.put1 val1
   ⍝     Sets the key specified to the corresponding value, returning the value.
-  ⍝     To set multiple keys, see Put or PutPairs
+  ⍝     To set multiple keys, see put or put_pairs
   ⍝
-  ⍝ {r}←dict.Del1 key
+  ⍝ {r}←dict.del1 key
   ⍝     Deletes the specified key. If it existed (and was deleted), returns 1; else 0.
   ⍝
-  ⍝ {r}←dict.Del key1 key2 ...
+  ⍝ {r}←dict.del key1 key2 ...
   ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
   ⍝
-  ⍝ r←dict.Table
-  ⍝     Returns Key, Value pairs as a table.
+  ⍝ r←dict.table
+  ⍝     Returns key-value pairs as a table.
   ⍝
-  ⍝ r←dict.Show
-  ⍝     Returns (key value) pairs as a table, one per row.
+  ⍝ r←dict.show
+  ⍝     Returns key-value pairs as a table, one per row.
   ⍝
-  ⍝ dict.Default←def   (See New and ∆DICT for initial value).
+  ⍝ dict.default←def   (See New and ∆DICT for initial value).
   ⍝     Sets the default to be returned for the value returned when a key is not found.
-  ⍝     dict.Default may be undefined.
-  ⍝     To make undefined, do: dict.⎕EX 'Default'
+  ⍝     dict.default may be undefined.
+  ⍝     To make undefined, do: dict.⎕EX 'default'
   ⍝ 
-  ⍝ dict.HasDefault (function)
+  ⍝ dict.has_default (function)
   ⍝     Returns 1 if a default has been defined.
   ⍝     Returns 0 if no default has been defined.
   ⍝
-  ⍝ dict.Keys
-  ⍝     A list of Keys in order
+  ⍝ dict.keys
+  ⍝     A list of keys in order
   ⍝
-  ⍝ dict.Vals
-  ⍝     A corresponding list of values in order
+  ⍝ dict.vals
+  ⍝     A (corresponding) list of values in order
