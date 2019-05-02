@@ -41,12 +41,12 @@
       :If DEBUG ⋄ ∆ERR←⍬
       :Else ⋄ ∆ERR←0 1000
       :EndIf
-      err←{⍺←1 ⋄ ⍺=0:_←⍵ ⋄ m←⍵ ⎕DMX.EM⊃⍨0=≢⍵ ⋄ ⎕SIGNAL/('bigInt: ',m)⎕DMX.EN}
+      err←{⍺←1 ⋄ ⍺=0:_←⍵ ⋄ m←⍵ ⎕DMX.EM⊃⍨0=≢⍵ ⋄ ⎕SIGNAL/('BigInt: ',m)⎕DMX.EN}
       ⎕FX'{ok}←note str'('ok←1',VERBOSE/'⊣⎕←str')
     ∇
     ∇ {r}←loadHelp
-      :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/bigIntHelp'
-      :Else ⋄ r←⎕←'Unable to load bigIntHelp'
+      :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/BigIntHelp'
+      :Else ⋄ r←⎕←'Unable to load BigIntHelp'
       :EndTrap
     ∇
     :EndSection PREAMBLE - Utilities
