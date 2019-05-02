@@ -1,4 +1,5 @@
-__pmsLibrary__: A library of useful APL functions and operators, specified as prototypes, best implemented within the language.  
+__pmsLibrary__: A library of useful APL functions and operators, specified as prototypes, best implemented within the language. 
+NOTE: Slowly moving to a standard style (Classes in CamelCase, methods in lower_case).
 
 * For source files, see _pmsLibrary/src_, all _.dyalog_ files.
 * For help information, see _pmsLibrary/docs_, mostly _.help_ text files, but see ___formatHelp.pdf___.
@@ -11,8 +12,8 @@ ___Table of Contents___
 * __require__     Ensure that APL objects __required__ within a specific function or package are in the active workspace visible via ⎕PATH, loading as needed from other workspaces or directories. 
    - See also `pmsLibrary/userCmds/README.md`, to learn how to make it easy to have __require__ available throughout a Dyalog session. 
 * __∆MY__         Support __static objects__ tied to a function/op, created once and maintained over calls.
-* __dict__        Create _ordered_ __dictionaries__ with an array of creation, sorting, and searching services.
-* __tinyDict__    Create _low-overhead_, _ordered_ __dictionaries__ with simple access to keys and values.
+* __Dict__        Create _ordered_ __dictionaries__ with an array of creation, sorting, and searching services.
+* __TinyDict__    Create _low-overhead_, _ordered_ __dictionaries__ with simple access to keys and values.
 * __gen__         Create Python-like __generators__ that allow for functions to iteratively "yield" values without returning.
 * __future__      Create simple __future objects__, whose values may be scalars within APL arrays, built on isolate-related I-beams.
 * __∆format, ∆f__ Support _Python_-like __f-strings__ extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
@@ -35,8 +36,8 @@ and for *initialization*, e.g.
 ``:IF ∆MY.∆FIRST ⋄ ∆MY.count←0 ⋄ :ENDIF``
    * See __∆MY.dyalog__ and __∆MY.help__. If associated functions __∆MYX__ and __∆THEIR__ are used, add __∆MYgrp__ to the path:<br>
    ``require '∆MYgrp.∆THEIR'``<br>will make all associated functions visible.
-1. __∆DICT__ in namespace __dict__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for string, numeric or arbitrary defaults (vis-a-vis missing keys), sorting, and more.
-1. __tinyDict__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
+1. __∆DICT__ in namespace __Dict__: Create a robust dictionary using __⎕NEW__ or __∆DICT__, with options for string, numeric or arbitrary defaults (vis-a-vis missing keys), sorting, and more.
+1. __TinyDict__ / __∆TINYDICT__: Similar to __∆DICT__, but designed for higher-performance, simpler environments. Uses a namespace, rather than a class; meant for memoization and similar simple, workhorse, situations.
 1. __gen__: Function ``gen.erator`` creates generators, a type of iterator used in Python that "yields" multiple values in turn from an active function (passed by the user), rather than returning one at a time. Including __yield__ and other tools. 
 Example: ``a←{'done'⊣⍺.yield¨⍳10} gen.erator 0`` passes values to ``a.next``, signalling a STOPITERATION interrupt after the 10th value. ``a.value`` contains the return string ``done``.
 1. __future__: Uses some of the undocumented _magic_ from __isolates__ to create simple, in-workspace, futures, i.e. array elements that will block until their (asynchronous) values are in place. User beware-- none of the features are documented and may work differently than expected. (Based solely on the OS X implementation).<br>
