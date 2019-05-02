@@ -26,7 +26,18 @@
     Keys Vals←⍬ ⍬
   ⍝ Default is defined in New or, optionally, in ∆DICT.
 
-    ∇ r←Get keys;e;ie;ine;p
+  ⍝ Set "methods"  Keys, Vals, Values for vars keys vals 
+    ∇ k←Keys
+      k←Keys
+    ∇ 
+    ∇ v←Vals
+       v←Vals
+    ∇ 
+    ∇ v←Values
+       v←Vals
+    ∇ 
+    
+    ∇ r←get keys;e;ie;ine;p
       keys←,keys
       p←Keys⍳keys
       r←keys        ⍝ r will have the shape, but not content, of keys.
@@ -42,7 +53,7 @@
       :EndIf
     ∇
 
-    ∇ r←Get1 key;p
+    ∇ r←get1 key;p
       p←Keys⍳⊂key
       :If p≥≢Keys
           :If 0≠⎕NC'Default'
@@ -108,5 +119,6 @@
     ∇ r←table
       r←Keys,[0.5]Vals
     ∇
+     
 
 :EndNamespace
