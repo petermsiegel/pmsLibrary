@@ -1,6 +1,6 @@
-﻿:namespace bigInt
+﻿:namespace BigInt
   ⍝ ∘ NOTE: See bigIntHelp for details...
-  ⍝ ∘ Call bigInt.help or ⎕EDIT 'bigIntHelp'
+  ⍝ ∘ Call BigInt.help or ⎕EDIT 'BigIntHelp'
 
   ⍝ Table of Contents
   ⍝   Preamble
