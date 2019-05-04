@@ -6,7 +6,7 @@
     ⎕IO ⎕ML←0 1   
 
   ⍝ Shared Fields
-    :Field Public Shared DEBUG←1                  ⍝ See DEBUGset.
+    :Field Public Shared DEBUG←0                  ⍝ See DEBUGset.
     :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto: Dependent on DEBUG
     :Field Public Shared ∆TRAP←TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
 
