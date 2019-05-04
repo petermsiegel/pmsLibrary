@@ -29,7 +29,6 @@
   ⍝ General Local Names
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
 
-
     ∇ ns←Dict
       :Access Public Shared
       ns←⎕THIS
@@ -509,6 +508,6 @@
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-     
+
     ∇
 :EndClass
