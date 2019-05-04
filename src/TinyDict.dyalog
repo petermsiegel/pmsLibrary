@@ -87,7 +87,11 @@
       :EndIf
     ∇
 
-    ∇ {val}←key put1 val;p
+    ∇ {val}←{key} put1 val;p
+    ⍝  put1 key val   OR    key put1 val
+      :IF 0=⎕NC 'key'
+          key val←val
+      :ENDIF
       p←Keys⍳⊂key
       :If p≥≢Keys
           Keys,←⊂key ⋄ Vals,←⊂val
