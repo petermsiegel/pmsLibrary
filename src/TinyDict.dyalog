@@ -2,9 +2,11 @@
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ See docs/TinyDict.help
 
+    TinyDict←⎕THIS
+
     ∇ ns←new
       ns←⎕NS ⎕THIS
-      ns.⎕DF 'TinyDict[]'
+      ns.⎕DF'TinyDict[]'
       ns.default←⍬
     ∇
     ∇ ns←{def}∆TINYDICT pairs
@@ -26,17 +28,17 @@
     keysF valsF←⍬ ⍬
   ⍝ default is defined in New or, optionally, in ∆TINYDICT.
 
-  ⍝ Set "methods"  keys, vals, values for vars keysF valsF 
+  ⍝ Set "methods"  keys, vals, values for vars keysF valsF
     ∇ k←keys
       k←keysF
-    ∇ 
+    ∇
     ∇ v←vals
-       v←valsF
-    ∇ 
+      v←valsF
+    ∇
     ∇ v←values
-       v←valsF
-    ∇ 
-    
+      v←valsF
+    ∇
+
     ∇ r←get keys;e;ie;ine;p
       keys←,keys
       p←keysF⍳keys
@@ -66,16 +68,17 @@
       :EndIf
     ∇
 
-    ∇ {vals}←{keys} put vals;e;ePut1;ePut2;ie;kv;n;p
+    ∇ {vals}←{keys}put vals;e;ePut1;ePut2;ie;kv;n;p
       ePUT1←'TinyDict/put (1adic): one or more key-value pairs required'
       ePUT2←'TinyDict/put (2adic): number of keys and values must match' 11
-      :IF 0=⎕NC 'keys'    ⍝ monadic put:   put (k1 v1)(k2 v2)...
+      :If 0=⎕NC'keys'    ⍝ monadic put:   put (k1 v1)(k2 v2)...
           kv←↓⍉↑vals
-          :IF 2≠≢kv  ⋄ ⎕SIGNAL/ePUT1 ⋄ :EndIf
+          :If 2≠≢kv ⋄ ⎕SIGNAL/ePUT1 ⋄ :EndIf
           keys vals←kv
-      :ElseIf (≢keys)≠(≢vals) 
-          ⎕SIGNAL/ePUT2 
+      :ElseIf (≢keys)≠(≢vals)
+          ⎕SIGNAL/ePUT2
       :EndIf
+      keys vals←(,keys)(,vals)
       e←(≢keysF)>p←keysF⍳keys
       :If 0≠≢ie←⍸e    ⍝ Any existing keys?
           valsF[e/p]←e/vals
@@ -87,11 +90,11 @@
       :EndIf
     ∇
 
-    ∇ {val}←{key} put1 val;p
+    ∇ {val}←{key}put1 val;p
     ⍝  put1 key val   OR    key put1 val
-      :IF 0=⎕NC 'key'
+      :If 0=⎕NC'key'
           key val←val
-      :ENDIF
+      :EndIf
       p←keysF⍳⊂key
       :If p≥≢keysF
           keysF,←⊂key ⋄ valsF,←⊂val
@@ -123,6 +126,6 @@
     ∇ r←table
       r←keysF,[0.5]valsF
     ∇
-     
+
 
 :EndNamespace

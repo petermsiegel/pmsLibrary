@@ -3,7 +3,7 @@
 ⍝ Hashes vector KEYS for efficiency on large dictionaries.
 ⍝ For HELP information, call 'dict.HELP'.
     ⍝ ⎕←'For dictionary HELP, call "dict.HELP".'
-    ⎕IO ⎕ML←0 1   
+    ⎕IO ⎕ML←0 1
 
   ⍝ Shared Fields
     :Field Public Shared DEBUG←0                  ⍝ See DEBUGset.
@@ -29,6 +29,12 @@
   ⍝ General Local Names
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
 
+
+    ∇ ns←DictClass
+      :Access Public Shared
+      ns←⎕THIS
+    ∇
+    ⎕THIS.##.⎕FX ⎕NR 'DictClass'
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
