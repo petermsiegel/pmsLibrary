@@ -23,26 +23,26 @@
     _←##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS) ⊣⎕NR '∆TINYDICT'
 
     ⎕IO ⎕ML←0 1
-    Keys Vals←⍬ ⍬
-  ⍝ default is defined in New or, optionally, in ∆DICT.
+    keysF valsF←⍬ ⍬
+  ⍝ default is defined in New or, optionally, in ∆TINYDICT.
 
-  ⍝ Set "methods"  keys, vals, values for vars Keys Vals 
+  ⍝ Set "methods"  keys, vals, values for vars keysF valsF 
     ∇ k←keys
-      k←Keys
+      k←keysF
     ∇ 
     ∇ v←vals
-       v←Vals
+       v←valsF
     ∇ 
     ∇ v←values
-       v←Vals
+       v←valsF
     ∇ 
     
     ∇ r←get keys;e;ie;ine;p
       keys←,keys
-      p←Keys⍳keys
+      p←keysF⍳keys
       r←keys        ⍝ r will have the shape, but not content, of keys.
-      :If 0≠≢ie←⍸e←p<≢Keys
-          r[ie]←Vals[e/p]
+      :If 0≠≢ie←⍸e←p<≢keysF
+          r[ie]←valsF[e/p]
       :EndIf
       :If 0≠≢ine←⍸~e
           :If 0≠⎕NC'default'
@@ -54,15 +54,15 @@
     ∇
 
     ∇ r←get1 key;p
-      p←Keys⍳⊂key
-      :If p≥≢Keys
+      p←keysF⍳⊂key
+      :If p≥≢keysF
           :If 0≠⎕NC'default'
               r←default
           :Else
               ⎕SIGNAL/('TinyDict: Key undefined: ',key)11
           :EndIf
       :Else
-          r←p⊃Vals
+          r←p⊃valsF
       :EndIf
     ∇
 
@@ -76,14 +76,14 @@
       :ElseIf (≢keys)≠(≢vals) 
           ⎕SIGNAL/ePUT2 
       :EndIf
-      e←(≢Keys)>p←Keys⍳keys
+      e←(≢keysF)>p←keysF⍳keys
       :If 0≠≢ie←⍸e    ⍝ Any existing keys?
-          Vals[e/p]←e/vals
+          valsF[e/p]←e/vals
       :EndIf
       :If 1∊n←~e      ⍝ Any new keys?
         ⍝ If a key appears >1ce, use the LAST value for that key.
           p←(≢keys)-1+(⌽keys)⍳∪n/keys
-          (Keys Vals),←(keys[p])(vals[p])
+          (keysF valsF),←(keys[p])(vals[p])
       :EndIf
     ∇
 
@@ -92,22 +92,22 @@
       :IF 0=⎕NC 'key'
           key val←val
       :ENDIF
-      p←Keys⍳⊂key
-      :If p≥≢Keys
-          Keys,←⊂key ⋄ Vals,←⊂val
+      p←keysF⍳⊂key
+      :If p≥≢keysF
+          keysF,←⊂key ⋄ valsF,←⊂val
       :Else
-          (p⊃Vals)←val
+          (p⊃valsF)←val
       :EndIf
     ∇
 
     ∇ {b}←del1 key;p;q
-      p←Keys⍳⊂key
-      :If p≥≢Keys
+      p←keysF⍳⊂key
+      :If p≥≢keysF
           b←0   ⍝ Not deleted
       :Else
           b←1   ⍝ Deleted...
-          q←1⍴⍨≢Keys ⋄ q[p]←0
-          Keys Vals←(q/Keys)(q/Vals)
+          q←1⍴⍨≢keysF ⋄ q[p]←0
+          keysF valsF←(q/keysF)(q/valsF)
       :EndIf
     ∇
 
@@ -121,7 +121,7 @@
     ∇
 
     ∇ r←table
-      r←Keys,[0.5]Vals
+      r←keysF,[0.5]valsF
     ∇
      
 
