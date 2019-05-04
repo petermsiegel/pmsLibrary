@@ -6,7 +6,7 @@
     ⎕IO ⎕ML←0 1  ⍝
 
   ⍝ Shared Fields
-    :Field Public Shared DEBUG←0                  ⍝ See DEBUGset.
+    :Field Public Shared DEBUG←1                  ⍝ See DEBUGset.
     :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto: Dependent on DEBUG
     :Field Public Shared ∆TRAP←TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
 
@@ -85,7 +85,7 @@
     ⍝
     ⍝ As always, if there is only one pair to set or get, use ⊂, as in:
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
-    :Property Default Keyed get_val
+    :Property default keyed get_val
     :Access Public
         ∇ vals←get args;err;_ix;found;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
@@ -244,7 +244,7 @@
         ∇
     :EndProperty
 
-    ⍝ Keys|Key:  "Get Keys by Index."
+    ⍝ keys|key:  "Get Keys by Index."
     ⍝     "For efficiency, returns the KEYS vector, rather than one index element
     ⍝      at a time. Keys may be retrieved, but not set.
     ⍝      In contrast, Values/Vals works element by element to allow direct updates (q.v.)."
@@ -271,7 +271,7 @@
     ⍝   "Get or Set values by key index, in creation order or, if sorted, sort order.
     ⍝    Indicates are in ⎕IO=0 ONLY"
     ⍝
-    :Property Numbered values,value,vals,val  ⍝ Vi = keys by index
+    :Property numbered values,value,vals,val  ⍝ Vi = keys by index
     :Access Public
         ⍝ get: retrieves values, not KEYS
         ∇ vals←get args;ix;vals
@@ -289,15 +289,15 @@
         ∇
     :EndProperty
 
-    ⍝ HasDefault, Default, QueryDefault
+    ⍝ has_default,query_default,default
     ⍝    "Sets or queries a default value for missing keys. Th
     ⍝     By default, HasDefault=0, so the initial Default ('') or previously set Default is ignored,
     ⍝     i.e. a VALUE ERROR is signalled. Setting HasDefault←1 will make the current Default available.
     ⍝     Setting Default to a new value always turns on HasDefault as well."
     ⍝                SETTING    GETTING
-    ⍝ HasDefault        Y          Y
-    ⍝ Default           Y          Y
-    ⍝ QueryDefault      N          Y
+    ⍝ has_default        Y          Y
+    ⍝ default            Y          Y
+    ⍝ query_default      N          Y
     ⍝
     ⍝ has_default:    "Sets the dictionary property ON (1) or OFF (0). If ON, activates current Default value.
     ⍝                  Alternatively, retrieves the current status (1 or 0)."
