@@ -2,8 +2,11 @@
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ See docs/TinyDict.help
 
-    TinyDict←⎕THIS
-
+  ⍝ TinyDict: Make namespace visible as <TinyDict> if TinyDict is in ⎕PATH
+    ∇ ns←TinyDict
+      ns←⎕THIS
+    ∇
+  
     ∇ ns←new
       ns←⎕NS ⎕THIS
       ns.⎕DF'TinyDict[]'

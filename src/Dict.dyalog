@@ -1,4 +1,4 @@
-﻿:Class Dict
+﻿:Class DictClass
 ⍝ dict: A fast, ordered, and simple dictionary for general use.
 ⍝ Hashes vector KEYS for efficiency on large dictionaries.
 ⍝ For HELP information, call 'dict.HELP'.
@@ -30,11 +30,11 @@
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
 
 
-    ∇ ns←DictClass
+    ∇ ns←Dict
       :Access Public Shared
       ns←⎕THIS
     ∇
-    ⎕THIS.##.⎕FX ⎕NR 'DictClass'
+    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
