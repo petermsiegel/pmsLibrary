@@ -104,7 +104,7 @@
         ∇ set args;keys;vals;⎕TRAP
           keys←⊃args.Indexers ⋄ vals←args.NewValue
           ⎕TRAP←∆TRAP
-          _Import keys vals
+          _import keys vals
         ∇
     :EndProperty
 
