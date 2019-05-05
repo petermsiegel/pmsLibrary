@@ -94,6 +94,11 @@
     :Access Public
         ∇ vals←get args;err;_ix;found;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
+          :If ⎕NULL≡⊃args.Indexers
+              vals←valuesF
+              :Return
+          :EndIf
+         
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
@@ -256,7 +261,7 @@
         ∇
     :EndProperty
 
-    ⍝ iota ⍵: "Returns the indices (⎕IO=0) of each key specified in ⍵ (returns (Len) for missing values).
+    ⍝ iota ⍵: "Returns the indices (⎕IO=0) of each key specified in ⍵ (returns (len) for missing values).
     ⍝          The order is the same as used in ⍺.Keys and ⍺.Vals
     ⍝          Same as (⍵.Keys⍳keys) but much faster."
     ∇ ix←iota keys
@@ -315,7 +320,7 @@
           valuesF[ix]←newvals
         ∇
         ∇ r←shape
-          r←Len
+          r←len
         ∇
     :EndProperty
 
@@ -508,6 +513,6 @@
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-
+     
     ∇
 :EndClass
