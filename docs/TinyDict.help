@@ -1,3 +1,5 @@
+  ⍝      TinyDict (namespace TinyDictNs)
+  ⍝
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ A tinyDict is an ordered dictionary, with items stored in the order entered;
   ⍝ an item whose value is replaced maintains its original ordered position. 
@@ -10,8 +12,8 @@
   ⍝ dict ← TinyDict.new
   ⍝     Creates a dictionary with no values and Default←⍬
   ⍝
-  ⍝ dict ← {default} ∆TINYDICT pairs   
-  ⍝ promoted to directory containing TinyDict
+  ⍝ dict ← {default} ∆TINYDICT pairs   (promoted to directory containing TinyDict)
+  ⍝     pairs: key-value pairs of the form (k1 v1)(k2 v2)...(kN vN)
   ⍝     Creates a dictionary with key-value pairs specified and (optional) default.
   ⍝     If no default is specified, default is undefined.
   ⍝
@@ -26,6 +28,7 @@
   ⍝
   ⍝ {values}←key1 key2 ... dict.put val1 val2 ...    [DYADIC: keys put values]
   ⍝     Like dict.put1, but for multiple keys and values.
+  ⍝
   ⍝ {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
   ⍝     Enter one or more key-value pairs into the tinyDict.
   ⍝     Remember to enclose the argument if there is only one key-value pair:
@@ -45,10 +48,7 @@
   ⍝ r←dict.table
   ⍝     Returns key-value pairs as a table.
   ⍝
-  ⍝ r←dict.show
-  ⍝     Returns key-value pairs as a table, one per row.
-  ⍝
-  ⍝ dict.default←def   (See New and ∆DICT for initial value).
+  ⍝ dict.default←def   (See new and ∆TINYDICT for initial value).
   ⍝     Sets the default to be returned for the value returned when a key is not found.
   ⍝     dict.default may be undefined.
   ⍝     To make undefined, do: dict.⎕EX 'default'
@@ -61,4 +61,8 @@
   ⍝     A list of keys in order
   ⍝
   ⍝ dict.vals
+  ⍝ dict.values
   ⍝     A (corresponding) list of values in order
+
+  ⍝ TinyDict.help
+  ⍝     Report this HELP information (as an edit [⎕ED] window).

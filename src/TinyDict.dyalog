@@ -1,4 +1,4 @@
-﻿:Namespace TinyDict
+﻿:Namespace TinyDictNs
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ See docs/TinyDict.help
 
@@ -6,12 +6,14 @@
     ∇ ns←TinyDict
       ns←⎕THIS
     ∇
+    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'TinyDict'
   
     ∇ ns←new
       ns←⎕NS ⎕THIS
       ns.⎕DF'TinyDict[]'
       ns.default←⍬
     ∇
+
     ∇ ns←{def}∆TINYDICT pairs
       ns←⎕THIS.new
       :If 0≠⎕NC'def'
@@ -130,5 +132,10 @@
       r←keysF,[0.5]valsF
     ∇
 
+    
+   ∇ help;HELP
+     HELP←↑3↓¨⊃⎕NGET'pmsLibrary/docs/TinyDict.help' 1
+     ⎕ED'HELP'
+   ∇
 
 :EndNamespace
