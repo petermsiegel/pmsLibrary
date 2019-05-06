@@ -68,7 +68,7 @@
 ⍝                 /^\h*⍝ /   are kept as part of the ∆HERE document;
 ⍝                         ⍝ ¯1 + 2*31   ⍝ Code line
 ⍝       ∘ Those of the form
-⍝                 /^\h*⍝[^⍝/ are ignored, and won't appear as part of the resulting ∆HERE document.
+⍝                 /^\h*⍝[^⍝]/ are ignored, and won't appear as part of the resulting ∆HERE document.
 ⍝                         ⍝* This is ignored...
 ⍝                         ⍝⍝ So is this. Neither begins '⍝ '...
 ⍝
