@@ -6,7 +6,7 @@
  lineEnd←⎕UCS 13    ⍝  CR character. If used in Dyalog, behaves like CR + LF.
 
  here←1⊃2↑(50100⌶)2    ⍝ 2↑⎕LC = 2↑(50100⌶)2
- :If 0=here ⋄ '∆HERE: Not called from within a fn/op'⎕SIGNAL 11 ⋄ :EndIf
+ :If 0=here ⋄ '∆HERE: Not called from within a trad''l fn/op'⎕SIGNAL 11 ⋄ :EndIf
 
  :If 0=≢hd←⎕NR⊃1 0⌷⎕STACK                     ⍝ ~5% faster than equiv. (0⊃⎕RSI).⎕NR 1⊃⎕SI
  :AndIf 0=≢hd←↓(0⊃⎕RSI).(180⌶)1⊃⎕SI           ⍝ A Class member? 180⌶ returns its ⎕CR.
@@ -61,10 +61,16 @@
 ⍝           DEbug, DBG          Shows debug info.
 ⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
 ⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
-⍝              NoBlanks: including a blank line;
-⍝              BLANKS: excluding blank lines '^\h*$', which are treated as '⍝ '.
-⍝       ∘ Comment lines of the form '^\h*⍝ ' are kept;
-⍝       ∘ Comment lines of the form '^\h*⍝[^⍝] are ignored, but don't end the ∆HERE document.
+⍝              NoBlanks: treat blank lines as non-comment lines (default);
+⍝              BLANKS:   treat blank lines /^\h*$/ as if prefixed by '⍝ ';
+⍝                        only accept non-blank APL code lines as non-comment lines.
+⍝       ∘ Comment lines with a /⍝ / prefix, i.e. of the form
+⍝                 /^\h*⍝ /   are kept as part of the ∆HERE document;
+⍝                         ⍝ ¯1 + 2*31   ⍝ Code line
+⍝       ∘ Those of the form
+⍝                 /^\h*⍝[^⍝/ are ignored, and won't appear as part of the resulting ∆HERE document.
+⍝                         ⍝* This is ignored...
+⍝                         ⍝⍝ So is this. Neither begins '⍝ '...
 ⍝
 ⍝ Returns:
 ⍝       [MULTIPLE* option] a vector of character vectors of ∆HERE-doc lines following the ∆HERE call.
