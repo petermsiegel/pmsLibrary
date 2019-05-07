@@ -17,19 +17,19 @@
  optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
-          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLanks (SPaces removed as variant @20181004)
-          ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ SIngle (string)
-          ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ MUltiple (strings)
-          ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in strings; implies SIngle
-          ⋄ :Case 'CR' ⋄ lineEnd oMulti←(⎕UCS 13)0  ⍝ Use CR in strings; implies SIngle
-          ⋄ :CaseList 'DE' 'DB' ⋄ oDebug←1          ⍝ Use DEBUG mode
+          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLank lines treated as comments (blank HERE lines in output)  
+          ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ output a SIngle (string)
+          ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ output MUltiple (strings)
+          ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in output strings; implies SIngle
+          ⋄ :Case 'CR' ⋄ lineEnd oMulti←(⎕UCS 13)0  ⍝ Use CR in output strings; implies SIngle
+          ⋄ :CaseList 'DE' 'DB' ⋄ oDebug←1          ⍝ Use DEBUG mode: which is verbose....
      :EndSelect
  :EndFor
 
  :If oDebug
      ⎕←('DEBUG: here line:[',(⍕here),']: "'),(here⊃hd),'"'
      ⎕←'DEBUG: option str: "',optString,'"'
-     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',(⎕UCS lineEnd)
+     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',∊(10 13⍳lineEnd)⌷'LF' 'CR' ('⎕U',⍕⎕UCS lineEnd)
  :EndIf
 
 ⍝ Get the ∆HERE document as follows:
