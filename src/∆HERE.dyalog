@@ -29,7 +29,7 @@
  :If oDebug
      ⎕←('DEBUG: here line:[',(⍕here),']: "'),(here⊃hd),'"'
      ⎕←'DEBUG: option str: "',optString,'"'
-     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',∊(10 13⍳lineEnd)⌷'LF' 'CR' ('⎕U',⍕⎕UCS lineEnd)
+     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',∊(10 13⍳⎕UCS lineEnd)⌷'LF' 'CR' ('⎕U',⍕⎕UCS lineEnd)
  :EndIf
 
 ⍝ Get the ∆HERE document as follows:
