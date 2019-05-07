@@ -3,13 +3,13 @@
   ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC objects within
   ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
   ⍝ ∘ For an overview, see ∆MYgrp.help
-  ⍝ ∘ We create files in namespaces within various user namespaces. 
+  ⍝ ∘ We create files in namespaces within various user namespaces.
   ⍝   This class uses a "private" namespace, ⍙⍙.∆MY, inside a namespace ⍙⍙, which supports a "family" of services.
   ⍝ ∘ While many ⍙⍙ services are only in the top-level spaces # or ⎕SE, ∆MYgrp places its namespace(s) in the
   ⍝   same namespace that the calling function uses.
   ⍝ ∘ The namespace should not otherwise be used, or at least select a service name that is associated
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
-  
+
     STATIC←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
   ⍝ Special function names:
   ⍝    __anon__  When the function is an anonymous dfn
@@ -19,16 +19,23 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝     ∆MYX, ∆MY
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+    ∇ myStat←∆MY
+      myStat←⎕THIS.∆MYX 1
+    ∇
+⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
+   _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+
     ∇ myStat←∆MYX callLvl
       ;me;my;myPfx;myStatNm;⎕IO
     ⍝ For function documentation, see below.
       ⎕IO←0
-     
+
     ⍝ Use ⎕THIS for items set in surrounding namespace. See ** below.
     ⍝  ≢⍵ ≥3  ≢⍵ > 2
       me←⎕THIS{(≢⍵)>cl1←1+callLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       my←callLvl⊃⎕NSI          ⍝ where caller lives (fully qualified)...
-     
+
       :If ~9.1 0∊⍨⎕NC⊂myPfx←my,'.',⎕THIS.STATIC
           11 ⎕SIGNAL⍨'∆MY static namespace name in use: ',myPfx
       :EndIf
@@ -40,14 +47,7 @@
           myStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 me my
       :EndIf
     ∇
-    ∇ myStat←∆MY
-      myStat←⎕THIS.∆MYX 1
-    ∇
-  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
-   ⍝  _topNs←{'#'=1↑⍕⍵:# ⋄ ⎕SE}⎕THIS
-   ⍝ _←_topNs.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
-   ⍝  ⎕EX '_'  '_topNs'
-   _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
@@ -56,7 +56,7 @@
       ;∆HERE;monadic;nc;theirStatNm;theirNm;⎕IO
       ⎕IO←0
       monadic ∆HERE←((900⌶)⍬)(0⊃⎕RSI)        ⍝ ∆HERE-- ns (ref) where I was called.
-     
+
       :Select ≢⊆them
            ⋄ :Case 1 ⋄ setGet←0
            ⋄ :Case 2 ⋄ setGet←1 ⋄ them obj←them
@@ -64,18 +64,18 @@
            ⋄ :Else
           ⎕SIGNAL 11
       :EndSelect
-     
+
       their←monadic{⍺:⍕⍵ ⋄ ⍕their}∆HERE      ⍝ their: defaults to ∆HERE
-     
+
       theirNm←their,'.',them
       :If ~3 4∊⍨∆HERE.⎕NC theirNm            ⍝ valid (or special) function?
           :If ~(⊂them)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',theirNm)⎕SIGNAL 11
           :EndIf
       :EndIf
-     
+
       theirStatNm←their,'.',⎕THIS.STATIC,'.',them
-     
+
     ⍝ *** Note carefully the items that must referenced w.r.t ∆HERE.
       :If 9.1=nc←∆HERE.⎕NC⊂theirStatNm       ⍝ ***
           theirStat←∆HERE⍎theirStatNm        ⍝ ***
@@ -85,7 +85,7 @@
           theirStat←⍎theirStatNm ∆HERE.⎕NS'' ⍝ ***
           theirStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 them their
       :EndIf
-     
+
       :Select setGet
            ⋄ :Case 1 ⋄ theirStat←theirStat obj(theirStat{0::'VALUE ERROR' ⋄ ⍺⍎⍵}obj)
            ⋄ :Case 2 ⋄ theirStat←theirStat obj(theirStat{0::'VALUE ERROR' ⋄ ⍺⍎obj,'∘←⍵'}val)
