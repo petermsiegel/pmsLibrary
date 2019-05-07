@@ -67,10 +67,11 @@
 ⍝       ∘ Comment lines with a /⍝ / prefix, i.e. of the form
 ⍝                 /^\h*⍝ /   are kept as part of the ∆HERE document;
 ⍝                         ⍝ ¯1 + 2*31   ⍝ Code line
-⍝       ∘ Those of the form
-⍝                 /^\h*⍝[^⍝]/ are ignored, and won't appear as part of the resulting ∆HERE document.
-⍝                         ⍝* This is ignored...
+⍝       ∘ Those of the form*
+⍝                 /^\h*⍝[^ ]/ are ignored, and won't appear as part of the resulting ∆HERE document.
+⍝                         ⍝* This is ignored, i.e. not included in the ∆HERE text....
 ⍝                         ⍝⍝ So is this. Neither begins '⍝ '...
+⍝                 * I.e. a comment symbol immed followed by any char besides a blank is ignored.
 ⍝
 ⍝ Returns:
 ⍝       [MULTIPLE* option] a vector of character vectors of ∆HERE-doc lines following the ∆HERE call.
@@ -88,11 +89,11 @@
 ⍝
 ⍝∘ Keyword Options, Associated Variables, and Actions
 ⍝  Keyword    Abbrev Def  Options←val  Description
-⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ',
-⍝                                      so only code lines end a ∆HERE doc
+⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ', part of the ∆HERE doc,
+⍝                                      so only actual APL code lines end a ∆HERE doc
 ⍝  NOBLANKS   NOBL   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
-⍝  MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
-⍝  SINGLE     SI          oMulti←0     If multiple lines, return as single vector with CR as line separator
+⍝  MULTIPLE   MU     Y    oMulti←1     If result has multiple lines, return as vec of vec strings w/o explicit line separators
+⍝  SINGLE     SI          oMulti←0     If result has multiple lines, return as a single string vector with CR as line separator
 ⍝  LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
 ⍝  CR         CR     Y    lineEnd←⎕UCS 13   (carriage return).  Sets SINGLE, i.e. oMulti←0.
 ⍝  DEBUG      DEB    N    oDebug←1     Start debug (verbose) mode
