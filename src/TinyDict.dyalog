@@ -1,5 +1,6 @@
-﻿:Namespace TinyDictNs
+﻿:Namespace DictMapped
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
+  ⍝ Uses Triggers to map local vars onto dictionary namespace and vice versa
   ⍝ See docs/TinyDict.help
 
   ⍝ TinyDict: Make namespace visible as <TinyDict> if TinyDict is in ⎕PATH
@@ -7,7 +8,7 @@
       ns←⎕THIS
     ∇
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'TinyDict'
-  
+
     ∇ ns←new
       ns←⎕NS ⎕THIS
       ns.⎕DF'TinyDict[]'
@@ -132,10 +133,10 @@
       r←keysF,[0.5]valsF
     ∇
 
-    
-   ∇ help;HELP
-     HELP←↑3↓¨⊃⎕NGET'pmsLibrary/docs/TinyDict.help' 1
-     ⎕ED'HELP'
-   ∇
+
+    ∇ help;HELP
+      HELP←↑3↓¨⊃⎕NGET'pmsLibrary/docs/TinyDict.help' 1
+      ⎕ED'HELP'
+    ∇
 
 :EndNamespace
