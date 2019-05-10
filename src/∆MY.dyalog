@@ -31,18 +31,19 @@
     ⍝ For function documentation, see below.
       ⎕IO←0
 
-    ⍝ Use ⎕THIS for items set in surrounding namespace. See ** below.
-    ⍝  ≢⍵ ≥3  ≢⍵ > 2
+    ⍝ Name <me> based on my name (as a fn/op)
+    ⍝ Name <my> based on caller namespace
       me←⎕THIS{(≢⍵)>cl1←1+callLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       my←callLvl⊃⎕NSI          ⍝ where caller lives (fully qualified)...
-
+    ⍝ Ensure parent namespace <myPfx> (...STATIC) is valid.
       :If ~9.1 0∊⍨⎕NC⊂myPfx←my,'.',⎕THIS.STATIC
           11 ⎕SIGNAL⍨'∆MY static namespace name in use: ',myPfx
       :EndIf
-      :If 9.1=⎕NC⊂myStatNm←myPfx,'.',me
+    ⍝ Is sub-namespace <myStat/Nm> (...me) is defined?
+      :If 9.1=⎕NC⊂myStatNm←myPfx,'.',me     ⍝ YES. Set ∆FIRST if ∆RESET=1
           myStat←⍎myStatNm
           myStat.((∆RESET ∆FIRST)←0 ∆RESET)
-      :Else            ⍝ If sub-ns not new, overwrite it!
+      :Else                                 ⍝  NO. It's new. Set state.
           myStat←⍎myStatNm ⎕NS''
           myStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 me my
       :EndIf
