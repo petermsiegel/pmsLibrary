@@ -78,7 +78,7 @@
              0⊣args∘←⍵↓opts
          }
          scanOpts 0:⍬
-         out←(2×'s'∊out)+('l'∊out)
+         out←(2×'l'∊out)+('s'∊out)
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
@@ -517,10 +517,10 @@
    ⍝ oOut=3? Now returns 1 on success, 0 otherwise..
      succ∧oOut∊3:_←{⍵}TRACE 1(⊂libR),statusList     ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
      ⋄ oOut∊3:0(⊂libR),statusList                   ⍝           FAIL: non-shy
-     succ∧oOut∊2:libR                               ⍝ oOut 2:   SUCC: non_shy
+     succ∧oOut∊2 0:libR                             ⍝ oOut 2:   SUCC: non_shy
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-     ⋄ oOut∊2:⎕SIGNAL/eCode1                       ⍝           FAIL: ⎕SIGNAL
-     succ∧oOut∊1 0:_←{⍵}TRACE statusList           ⍝ oOut 1|0: SUCC: shy     (non-shy if oDebug)
-     ⋄ oOut∊1 0:statusList                         ⍝           FAIL: non-shy
+     ⋄ oOut∊2:⎕SIGNAL/eCode1                        ⍝           FAIL: ⎕SIGNAL
+     succ∧oOut∊1:_←{⍵}TRACE statusList              ⍝ oOut 1|0: SUCC: shy     (non-shy if oDebug)
+     ⋄ oOut∊1:statusList                            ⍝           FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid oOut: ',⍕oOut)11   ⍝ ~oOut∊0 1 2 3
  }
