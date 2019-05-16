@@ -25,8 +25,10 @@
                    -s[ession] Alias for -lib=⎕SE
                    -r[oot]    Alias for -lib=#
    outputParms:    -o[utput]=[s|l|sl]
-                     s: status of each package specified
-                     l: the library used
+                    Specifies return values, one item for each package listed:
+                       s:  status of each package specified
+                       l:  the library used (default)
+                       sl: the library AND the status of each package...
    ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
    E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
                  opt  opt             opt     opt  pkgs -->     ...       -->
@@ -61,9 +63,9 @@
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________
-   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-out' 's'
+   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-out' 'l'
                                                                   ∇ package1 [package2 [... packageN]]
-             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'l'
+             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's'
                                                                   ∇ ⍬
              rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' ∇ ...
                                                                   ∇ package1 [package2 [... packageN]]
