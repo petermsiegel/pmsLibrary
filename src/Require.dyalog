@@ -19,12 +19,12 @@
      ⍝  defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *
      ⍝                  nsRef                                **
      ⍝                  -s[ession] Alias for -lib=⎕SE
-     ⍝                  -r[oot]    Alias for -lib=#
-     ⍝  outputParms:    -o[utput]  =['s'|'l'|'sl']
+     ⍝                  -root    Alias for -lib=#
+     ⍝  returnParms:    -r[eturn] =['l'|'s'|'ls]
      ⍝                        s: status of each package specified
-     ⍝                        l: the library used
+     ⍝                        l: the library used, as a reference
      ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
-     ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
+     ⍝  E.g.  require '-f  -call=⎕SE.mylib -ret=sl --   pkg1 -pkg_with_hyphen pkg3'
      ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
      ⍝ ----------------------
      ⍝ *  The defaultLib is by default within (prefixed with) the callerNs.
@@ -34,7 +34,7 @@
      ⍺←⎕NULL       ⍝ options in right arg before packages?
      options←⍺{
        ⍝ defaults set here... (caller → callerR callerN below)
-         force debug out caller lib←0 0 0 ⍬ ⍬
+         force debug ret caller lib←0 0 0 ⍬ ⍬
          monad opts args←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
              1<|≡⍵:1(,⍵)(,⊆⍵)
@@ -69,25 +69,25 @@
              o is'-f':∇ next⊣force∘←1     ⍝ -f[orce]
              o is'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
              o is'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
-             o is'-r':∇ next⊣lib∘←#       ⍝ -r[oot]
+             o is'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
+             o is'-ro':∇ next⊣lib∘←#      ⍝ -ro[ot]
              o is'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
              o is'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
-             o is'-o':∇'out'set2 o        ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o is'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
          }
          scanOpts 0:⍬
-         out←(2×'l'∊out)+('s'∊out)
+         ret←(2×'l'∊ret)+('s'∊ret)
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
              ⍵≡⍬:r n
              (r⍎⍵)⍵
          }caller
-         options←force debug out callerR callerN lib args
+         options←force debug ret callerR callerN lib args
          ~debug:options
-         ⎕←'force  'force ⋄ ⎕←'debug  'debug ⋄ ⎕←'out    'out
+         ⎕←'force  'force ⋄ ⎕←'debug  'debug ⋄ ⎕←'ret    'ret
          ⎕←'caller 'caller ⋄ ⎕←'lib    'lib ⋄ ⎕←'args  'args
          options
      }⍵
@@ -521,6 +521,6 @@
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
      ⋄ oOut∊2:⎕SIGNAL/eCode1                        ⍝           FAIL: ⎕SIGNAL
      succ∧oOut∊1:_←{⍵}TRACE statusList              ⍝ oOut 1|0: SUCC: shy     (non-shy if oDebug)
-     ⋄ oOut∊1:statusList                            ⍝           FAIL: non-shy
+     ⋄ oOut∊2 0:statusList                          ⍝           FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid oOut: ',⍕oOut)11   ⍝ ~oOut∊0 1 2 3
  }
