@@ -69,8 +69,8 @@
              o is'-f':∇ next⊣force∘←1     ⍝ -f[orce]
              o is'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
              o is'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
-             o is'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
              o is'-ro':∇ next⊣lib∘←#      ⍝ -ro[ot]
+             o is'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
              o is'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
              o is'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
@@ -515,7 +515,7 @@
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
      succ←0=≢⊃⌽statusList
    ⍝ oOut=3? Now returns 1 on success, 0 otherwise..
-     succ∧oOut∊3:_←{⍵}TRACE 1(⊂libR),statusList     ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
+     succ∧oOut∊3:_←{⍵}TRACE (⊂libR),statusList      ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
      ⋄ oOut∊3:0(⊂libR),statusList                   ⍝           FAIL: non-shy
      succ∧oOut∊2 0:libR                             ⍝ oOut 2:   SUCC: non_shy
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
