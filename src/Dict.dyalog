@@ -43,16 +43,13 @@
     ⍝        or by name from existing dictionaries. Alternatively, sets the default value."
     ⍝ Uses Load/Import, which will handle duplicate keys (the last value quietly wins), and so on.
     ⍝ *** See Load for conventions for <initial>.
-    ∇ new1 initial 
+    ∇ new1 initial
       :Implements Constructor
       :Access Public
-      ⎕←'<new1: start'
       ⎕DF ClassNameStr,'[]'
-      ⎕←' new1: Starting _load'
       :Trap DEBUG×99
           _load initial
       :EndTrap
-      ⎕←'>new1: end'
     ∇
 
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
@@ -176,14 +173,11 @@
     ∇
     ⍝ _load: used only by classes, but visible
     ∇ _load items;keys;vals;item         ⍝ Syntax                          Action
-      ⎕←'Start _load. Items='items
       :If 0=≢items                       ⍝ ∇ '' or ∇ ⍬                     SD (Set Default)
           defaultF has_defaultF←items 1
       :ElseIf 1=≢items                   ⍝ ∇ 1 or ∇ (⊂'') or ∇ ⎕NULL etc.  SD
       :AndIf 9.2≠⎕NC⊂'item'⊣item←⍬⍴items ⍝ ∇ dict1
-          'here'
-          defaultF has_defaultF←item 1
-          'done here'
+          defaultF has_defaultF←(⊃⊆item)1
       :ElseIf 2=⍴⍴items                  ⍝ ∇ ⍪keyVec valVec [Default]      (2=⍴) Import
           :If 3=⍴items←,items            ⍝                                 (3=⍴) Import + SD
               defaultF has_defaultF←(2⊃items)1
@@ -202,7 +196,6 @@
           }¨⊆items
           _import keys vals
       :EndIf
-      ⎕←'End _load'
     ∇
 
     ⍝ import: "Enters keys and values separately into a dictionary.
