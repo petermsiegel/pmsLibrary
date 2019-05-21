@@ -618,7 +618,7 @@
           :If 0≠⎕NC'default'
               r[ine]←⊂default
           :Else
-              ⎕SIGNAL/('TinyDict: One or more keys undefined: ',keys[ine])11
+              ⎕SIGNAL/('TinyDict: One or more keys is undefined')11
           :EndIf
       :EndIf
     ∇
@@ -629,7 +629,7 @@
           :If 0≠⎕NC'default'
               r←default
           :Else
-              ⎕SIGNAL/('TinyDict: Key undefined: ',key)11
+              ⎕SIGNAL/('TinyDict: Key is undefined')11
           :EndIf
       :Else
           r←p⊃valsF
