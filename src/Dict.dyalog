@@ -540,6 +540,13 @@
 :EndClass
 :Class DefaultDictClass  : DictClass
     ⍝ require 'DictClass'
+    
+  ⍝ DefaultDict: Function to make class ref visible as <DefaultDict> if DefaultDict is in ⎕PATH
+    ∇ ns←DefaultDict
+      ns←⎕THIS
+    ∇
+    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'DefaultDict'
+    
  ⍝ General Local Names
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
 
@@ -559,43 +566,42 @@
       load⊂arg
     ∇
 :EndClass
-:Namespace DictMapped
+:Namespace TinyDictNs
 ⍝⍝⍝⍝⍝ See TinyDict below
   ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
   ⍝ Uses Triggers to map local vars onto dictionary namespace and vice versa
   ⍝ See docs/TinyDict.help
 
-  ⍝ TinyDict: Make namespace visible as <TinyDict> if TinyDict is in ⎕PATH
+  ⍝ TinyDict: Function to make namespace TinyDictNs ref visible as <TinyDict> if TinyDict is in ⎕PATH
     ∇ ns←TinyDict
       ns←⎕THIS
     ∇
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'TinyDict'
 
-    ∇ ns←new
+    ∇ ns←new0
       ns←⎕NS ⎕THIS
       ns.⎕DF'TinyDict[]'
-      ns.default←⍬
+      ns.default←0   ⍝ zero
     ∇
 
-    ∇ ns←{def}∆TINYDICT pairs
-      ns←⎕THIS.new
+    ∇ ns←{def}new entries
+      ns←⎕THIS.new0
       :If 0≠⎕NC'def'
           ns.default←def
       :EndIf
-      :If 0<≢pairs
-          ns.(Keys Vals)←{⍺←⍴⍴pairs
+      :If 0<≢entries   ⍝ If entries is ⍬ or '', same as new0
+          ns.(Keys Vals)←{⍺←⍴⍴entries
               2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
               1=⊃⍺:,⍵     ⍝  ⍪ ('one' 'two' 'three') (1 2 3)
               ↓⍵          ⍝  ↑('one' 'two')(1 2)
-          }pairs
+          }entries
       :EndIf
     ∇
-    _←##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS) ⊣⎕NR '∆TINYDICT'
 
     ⎕IO ⎕ML←0 1
     keysF valsF←⍬ ⍬
-  ⍝ default is defined in New or, optionally, in ∆TINYDICT.
-
+  ⍝ default: defined in new0 or new
+  
   ⍝ Set "methods"  keys, vals, values for vars keysF valsF
     ∇ k←keys
       k←keysF
@@ -695,10 +701,15 @@
       r←keysF,[0.5]valsF
     ∇
 
-
-    ∇ help;HELP
-      HELP←↑3↓¨⊃⎕NGET'pmsLibrary/docs/TinyDict.help' 1
-      ⎕ED'HELP'
+   ⍝ TinyDict.help/Help/HELP  - Display help documentation window.
+    ∇ {h}←help
+      :Access Public Shared
+      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS
+      :Trap 1000
+          ⎕ED'h'
+      :EndTrap
     ∇
+    _←⎕FX 'help'⎕R'Help'⊣⎕NR 'help'
+    _←⎕FX 'help'⎕R'HELP'⊣⎕NR 'help'
 
 :EndNamespace
