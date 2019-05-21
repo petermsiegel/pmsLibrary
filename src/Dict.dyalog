@@ -1,23 +1,3 @@
-:Class DefaultDictClass:DictClass
- ⍝ General Local Names
-    ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
-
-  ⍝ new0: "Constructs a default dictionary with default value 0 
-    ∇ new0
-      :Implements Constructor
-      :Access Public
-      ⎕DF ClassNameStr,'[]'
-      _load 0
-    ∇
-  ⍝ new1 arg: "Constructs a default dictionary with default value arg
-    ∇ new1 arg
-      :Implements Constructor
-      :Access Public
-      ⎕TRAP←∆TRAP
-      ⎕DF ClassNameStr,'[]'
-      _load ⊂arg
-    ∇   
-:EndClass
 :Class DictClass
 ⍝ dict: A fast, ordered, and simple dictionary for general use.
 ⍝ Hashes vector KEYS for efficiency on large dictionaries.
@@ -190,7 +170,9 @@
       me←⎕THIS ⋄ ⎕TRAP←∆TRAP
       _load initial
     ∇
+    ⍝ _load: used only by classes, but visible
     ∇ _load items;keys;vals;item         ⍝ Syntax                          Action
+      :Access Public
       :If 0=≢items                       ⍝ ∇ '' or ∇ ⍬                     SD (Set Default)
           defaultF has_defaultF←items 1
       :ElseIf 1=≢items                   ⍝ ∇ 1 or ∇ (⊂'') or ∇ ⎕NULL etc.  SD
@@ -288,7 +270,6 @@
       :Access Public
       ix←keysF⍳keys
     ∇
-
 
     ⍝ len:  "Returns the number of key-value pairs"
     ⍝ aliases: len,length,size,shape,tally
@@ -389,24 +370,26 @@
           :EndSelect
         ∇
     :EndProperty
-    
-    ⍝ inc, dec: 
+
+    ⍝ inc, dec:
     ⍝    ⍺ inc/dec ⍵:  Adds (subtracts) ⍺ from values for keys ⍵
     ⍝      inc/dec ⍵:  Adds (subtracts) 1 from values for key ⍵
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {new}←a inc w
+    ∇ {newv}←{a}inc w
       :Access Public
-       :IF 0=⎕NC 'a'  ⋄  a←1 ⋄ :endIF
-       new←⎕THIS[w]←⎕THIS[w]+a
+      :If 0=⎕NC'a' ⋄ a←1 ⋄ :EndIf
+      newv←⎕THIS[w]+a
+      import w newv
     ∇
-    ∇ {new}←a dec w
+    ∇ {newv}←{a}dec w
       :Access Public
-       :IF 0=⎕INC 'a' 
-           a←1
-       :endIF
-       new←⎕THIS[w]←⎕THIS[w]+a
+      :If 0=⎕NC'a'
+          a←1
+      :EndIf
+      newv←⎕THIS[w]-a
+      import w newv
     ∇
 
     ⍝ has_keys: Returns 1 for each key found in the dictionary
