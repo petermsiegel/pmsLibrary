@@ -8,7 +8,7 @@
       :Implements Constructor
       :Access Public
       ⎕DF ClassNameStr,'[]'
-      _load 0
+      load 0
     ∇
   ⍝ new1 arg: "Constructs a default dictionary with default value arg
     ∇ new1 arg
@@ -16,6 +16,6 @@
       :Access Public
       ⎕TRAP←∆TRAP
       ⎕DF ClassNameStr,'[]'
-      _load⊂arg
+      load⊂arg
     ∇
 :EndClass
