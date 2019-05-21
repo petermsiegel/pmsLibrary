@@ -99,7 +99,7 @@
               vals←valuesF
               :Return
           :EndIf
-         
+
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
@@ -509,7 +509,8 @@
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
     ∇ {h}←help
       :Access Public Shared
-      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS
+      ⍝ ⎕←⎕SH 'pwd;ls'
+      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕NGET'pmsLibrary/docs/Dict.help' 0
       :Trap 1000
           ⎕ED'h'
       :EndTrap
@@ -535,18 +536,18 @@
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-     
+
     ∇
 :EndClass
 :Class DefaultDictClass  : DictClass
     ⍝ require 'DictClass'
-    
+
   ⍝ DefaultDict: Function to make class ref visible as <DefaultDict> if DefaultDict is in ⎕PATH
     ∇ ns←DefaultDict
       ns←⎕THIS
     ∇
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'DefaultDict'
-    
+
  ⍝ General Local Names
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
 
@@ -601,7 +602,7 @@
     ⎕IO ⎕ML←0 1
     keysF valsF←⍬ ⍬
   ⍝ default: defined in new0 or new
-  
+
   ⍝ Set "methods"  keys, vals, values for vars keysF valsF
     ∇ k←keys
       k←keysF
@@ -704,7 +705,7 @@
    ⍝ TinyDict.help/Help/HELP  - Display help documentation window.
     ∇ {h}←help
       :Access Public Shared
-      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS
+      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕NGET'pmsLibrary/docs/Dict.help' 0
       :Trap 1000
           ⎕ED'h'
       :EndTrap
