@@ -1,8 +1,25 @@
 
-⍝H +--------------------+
-⍝H |  dict HELP         |
-⍝H +---------------------
-⍝H  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table)
+⍝H +-------------------------+
+⍝H |  dictClass HELP         |
+⍝H |  defaultDictClass HELP  |
+⍝H |  tinyDict HELP
+⍝H +-------------------------+
+⍝H dictClass
+⍝H    a←⎕NEW  Dict [data]   ⍝ data: initial values and/or default
+⍝H defaultDictClass
+⍝H    a←⎕NEW DefaultDict [default]
+⍝H tinyDict
+⍝H    a←TinyDict.new     ⍝ namespace, not class
+⍝H
+⍝H ---------------------------------------------------
+⍝H
+⍝H a←⎕NEW DefaultDict [default]
+⍝H a←⎕NEW defaultDictClass [default]
+⍝H  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table) with default on initialization
+⍝H
+⍝H a←⎕NEW Dict [initial_values]
+⍝H a←⎕NEW dictClass [initial_values]
+
 ⍝H     Items are stored in the order created; the dictionary order is maintained, even when a value is changed.
 ⍝H     (Items may be moved by sorting or by deleting and re-entering.)
 ⍝H  KEYS and VALUES
@@ -15,7 +32,7 @@
 ⍝H Note: Yes, there are too many choices in dict for how to set defaults; these are so we 
 ⍝H       can try out alternatives before culling the herd!
 ⍝H
-⍝H Syntax:    ⍺ ← ⎕NEW dict specs
+⍝H Syntax:    ⍺ ← ⎕NEW Dict specs
 ⍝H            specs: [[ Format I | Format II | Format III | Format IV ]]
 ⍝H                I:   [k v | dict | ⊂default)]+
 ⍝H                II:  (⊂default)                    ⍝ For simple scalar, same as ⊂default
@@ -53,22 +70,6 @@
 ⍝H  │a ← ⎕NEW Dict ((k,v)d1(k,v)d2)              │ Create dict from mix of k v pairs and dicts │
 ⍝H  └────────────────────────────────────────────┘─────────────────────────────────────────────│
 ⍝H
-⍝H  ∆DICT -- Ordered Dictionary Helper Function
-⍝H     Provides simple function (visible in ⎕PATH) for creating new dictionaries
-⍝H     with optional defaults for null values.
-⍝H  Syntax:   a ← {default} ∆DICT specs (same format for specs as for ⎕NEW)
-⍝H  ┌─────────────────────────────────────────────┐─────────────────────────────────────────────┐
-⍝H  │    a ← ∆DICT  1                             │ Create empty dict, default: 1               │
-⍝H  │or  a← 1 ∆DICT ⍬                             │ Create empty dict, default: 1               │
-⍝H  |    a ← ∆DICT  ('' | ⍬)                      │ Create empty dict, default '' or ⍬          │
-⍝H  │    a ← ∆DICT     (⊂default)                 │ Create empty dict, default (default)        │
-⍝H  │    a ← ∆DICT     ((k,v)(k,v))               │ Create dict with k v pairs, no def          │
-⍝H  │    a ← default ∆DICT  ⍪(k1 k2..)(v1 v2..)   │ Create dict with keys vals and def          │
-⍝H  |or  a ← ∆DICT ⍪(k1 k2..)(v1 v2..)(⊂default)  │ Create empty dict, default '' or ⍬          │
-⍝H  │    a ← ∆DICT     (d1,d2)                    │ Create dict from dicts d1 d2                │
-⍝H  │    a ← ∆DICT     ((k,v)d1(k,v)d2)           │ Create dict from mix of k v pairs and dicts │
-⍝H  └─────────────────────────────────────────────┘─────────────────────────────────────────────│
-
 ⍝H  Ordered Dictionary Creation
 ⍝H   ∘ Create empty
 ⍝H     a ← ⎕NEW Dict                              ⍝ Empty dictionary
@@ -87,17 +88,6 @@
 ⍝H     Here, c is made up of the contents of dictionary a, two key-value pairs, and b.
 ⍝H   ∘ To make a copy, called a, of a dictionary b, including its Defaults, use Copy:
 ⍝H       a ← b.Copy
-⍝H
-⍝H  Utility Function
-⍝H   ∆DICT:  "Create a new dictionary."
-⍝H           ⍺ [optional]    Default Value (none, if omitted).
-⍝H           ⍵:              Dictionary entries. Follows ⎕NEW dict syntax.
-⍝H   E.g. Create a new dictionary, setting the default to '', and specifying values for a list of items:
-⍝H       b ← '' ∆DICT ('John' 'Jones')('Mary' 'Smith')('Fred' 'Flintstone')
-⍝H   E.g. Create a new dictionary from list of Keys and Values
-⍝H       c ←    ∆DICT ⍪Keys Values         ⍝ Note ⍪ to signal Import (KeyVec ValVec) approach.
-⍝H   E.g. Create a new dictionary and Import Key and Value from vectors K V (not by pairs):
-⍝H       a ← (∆DICT ⎕NULL).Import K V
 ⍝H
 ⍝H  ┌─────────────────────────────┐
 ⍝H  | a.default←val   [*]         │
@@ -249,3 +239,69 @@
 ⍝H     ix←a.gradeup   (ascending)
 ⍝H     ix←a.gradedown (descending)
 ⍝H     ix←a.gradedn   (descending)
+⍝H
+⍝H ------------------------------------------------------
+  ⍝      TinyDict (namespace TinyDictNs)
+  ⍝
+  ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
+  ⍝ A tinyDict is an ordered dictionary, with items stored in the order entered;
+  ⍝ an item whose value is replaced maintains its original ordered position. 
+  ⍝ (Order can be changed only by deleting and re-entering an item via Del and Put/1).
+  ⍝  NB: ∆TINYDICT is promoted to the same namespace as <tinyDict>, when it's ⎕FIXED.
+  ⍝      a←∆TINYDICT pairs 
+  ⍝  is comparable to (regular) dict function ∆DICT, which is similarly promoted.
+  ⍝  See also:  (namespace) dict
+  ⍝
+  ⍝ dict ← TinyDict.new0
+  ⍝     Creates a dictionary with no values and Default←⍬
+  ⍝ dict ← [default] TinyDict.new  pairs
+  ⍝
+  ⍝ r←dict.get  key1 key2 ...
+  ⍝     Like dict.get1, but for multiple keys.
+  ⍝
+  ⍝ r←dict.get1 key
+  ⍝     Returns the value for key <key>, if defined.
+  ⍝     If not, but a default exists, returns that default.
+  ⍝     Otherwise, signals a key-undefined error.
+  ⍝     If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
+  ⍝
+  ⍝ {values}←key1 key2 ... dict.put val1 val2 ...    [DYADIC: keys put values]
+  ⍝     Like dict.put1, but for multiple keys and values.
+  ⍝
+  ⍝ {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
+  ⍝     Enter one or more key-value pairs into the tinyDict.
+  ⍝     Remember to enclose the argument if there is only one key-value pair:
+  ⍝        r←dict.put ⊂'key1' 'val1'
+  ⍝        r←dict.put ('key1' 'val1')('key2' 'val2')
+  ⍝
+  ⍝ {value}←key1 dict.put1 val1
+  ⍝     Sets the key specified to the corresponding value, returning the value.
+  ⍝     To set multiple keys, see put or put_pairs
+  ⍝
+  ⍝ {r}←dict.del1 key
+  ⍝     Deletes the specified key. If it existed (and was deleted), returns 1; else 0.
+  ⍝
+  ⍝ {r}←dict.del key1 key2 ...
+  ⍝     Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
+  ⍝
+  ⍝ r←dict.table
+  ⍝     Returns key-value pairs as a table.
+  ⍝
+  ⍝ dict.default←def   (See new and ∆TINYDICT for initial value).
+  ⍝     Sets the default to be returned for the value returned when a key is not found.
+  ⍝     dict.default may be undefined.
+  ⍝     To make undefined, do: dict.⎕EX 'default'
+  ⍝ 
+  ⍝ dict.has_default (function)
+  ⍝     Returns 1 if a default has been defined.
+  ⍝     Returns 0 if no default has been defined.
+  ⍝
+  ⍝ dict.keys
+  ⍝     A list of keys in order
+  ⍝
+  ⍝ dict.vals
+  ⍝ dict.values
+  ⍝     A (corresponding) list of values in order
+
+  ⍝ TinyDict.help
+  ⍝     Report this HELP information (as an edit [⎕ED] window).
