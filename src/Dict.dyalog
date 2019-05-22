@@ -359,19 +359,35 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {newv}←{a}inc w
+    ∇ {newv}←{a}inc w;fn
       :Access Public
+      fn←+
       :If 0=⎕NC'a' ⋄ a←1 ⋄ :EndIf
-      newv←⎕THIS[w]+a
-      import w newv
+      :IF (≢∪w)≡≢w
+         newv←⎕THIS[w] fn a
+         import w newv
+      :Else  ⍝ Some duplicates-- do one by one left to right
+         newv←a{
+           w1←⊂⍵
+           nv1←⎕THIS[w1] fn  ⍺
+           nv1⊣import w1 nv1
+          }¨w
+      :Endif
     ∇
-    ∇ {newv}←{a}dec w
+    ∇ {newv}←{a}dec w;fn
       :Access Public
-      :If 0=⎕NC'a'
-          a←1
-      :EndIf
-      newv←⎕THIS[w]-a
-      import w newv
+       fn←-
+      :If 0=⎕NC'a' ⋄ a←1 ⋄ :EndIf
+      :IF (≢∪w)≡≢w
+         newv←⎕THIS[w] fn a
+         import w newv
+      :Else  ⍝ Some duplicates-- do one by one left to right
+         newv←a{
+           w1←⊂⍵
+           nv1←⎕THIS[w1] fn ⍺
+           nv1⊣import w1 nv1
+          }¨w
+      :Endif
     ∇
 
     ⍝ has_keys: Returns 1 for each key found in the dictionary
@@ -676,21 +692,30 @@
       b←del1¨keys
     ∇
 
-  ⍝ dec keys by 1 or <amt>
-    ∇ {b}←{amt} inc keys
+  ⍝ inc keys by 1 or <amt>
+    ∇ {b}←{amt} inc keys;fn
+        fn←+
        :IF 0=⎕NC 'amt'
            amt←1
        :EndIf
-       b←keys put amt + get keys
+       :IF (∪≢keys)≡≢keys
+           b←keys put amt fn⍨ get keys
+       :Else ⍝ duplicates- do 1 at a time
+           b←amt{⍵ put1 ⍺ fn⍨ get1 ⍵}¨keys
+       :Endif
     ∇
-
     ⍝ dec keys by 1 or <amt>
-      ∇ {b}←{amt} dec keys
-         :IF 0=⎕NC 'amt'
-             amt←1
-         :EndIf
-         b←keys put amt -⍨ get keys
-      ∇
+    ∇ {b}←{amt} dec keys;fn
+        fn←-
+       :IF 0=⎕NC 'amt'
+           amt←1
+       :EndIf
+       :IF (∪≢keys)≡≢keys
+           b←keys put amt fn⍨ get keys
+       :Else ⍝ duplicates- do 1 at a time
+           b←amt{⍵ put1 ⍺ fn⍨ get1 ⍵}¨keys
+       :Endif
+    ∇
 
     ∇ b←has_default
       b←0≠⎕NC'default'
@@ -701,9 +726,11 @@
     ∇
 
    ⍝ TinyDict.help/Help/HELP  - Display help documentation window.
-    ∇ {h}←help
+    ∇ {h}←help;f;sel
       :Access Public Shared
-      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕NGET'pmsLibrary/docs/Dict.help' 0
+      f←⊃⎕NGET'pmsLibrary/docs/Dict.help'
+      sel←{p←'⍝H',⍵,'(.*$)' ⋄ p ⎕S '\1'⊣f}
+      h←(sel '3'),(sel '1')
       :Trap 1000
           ⎕ED'h'
       :EndTrap
