@@ -61,24 +61,6 @@
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
-    ⍝ General external utility function...
-    ⍝ ∆DICT:  "Create a new dictionary."
-    ⍝ Syntax:
-    ⍝    dict←{default} ∇ initial
-    ⍝    initial: (k1 v1)(k2 v2)...
-    ⍝    default: If present, sets Default value for missing key.
-    ∇ d←{default}∆DICT initial;Action;f;i;item;opt;⎕TRAP
-      :Access Public Shared
-      ⎕TRAP←⎕THIS.∆TRAP
-      d←⎕NEW ⎕THIS initial
-      :If ~(900⌶)0
-          d.Default←default
-      :EndIf
-    ∇
-    _←##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
-
-    ⍝-------------------------------------------------------------------------------------------
-    ⍝-------------------------------------------------------------------------------------------
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
 
