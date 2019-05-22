@@ -694,6 +694,22 @@
       b←del1¨keys
     ∇
 
+  ⍝ dec keys by 1 or <amt>
+    ∇ {b}←{amt} inc keys
+       :IF 0=⎕NC 'amt'
+           amt←1
+       :EndIf
+       b←keys put amt + get keys
+    ∇
+
+    ⍝ dec keys by 1 or <amt>
+      ∇ {b}←{amt} dec keys
+         :IF 0=⎕NC 'amt'
+             amt←1
+         :EndIf
+         b←keys put amt -⍨ get keys
+      ∇
+
     ∇ b←has_default
       b←0≠⎕NC'default'
     ∇

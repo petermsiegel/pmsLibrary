@@ -140,9 +140,11 @@
 ⍝H  ┌────────────────────────────────────────┐
 ⍝H  | a[k1 k2]←v1 v2                         │
 ⍝H  │ v1 v2←a[k1 k2]                         │
-⍝H  │ a.Vals[i1 i2]←v1 v2                    │
-⍝H  │ a.Values[i1 i2]←v1 v2                  │
+⍝H  │ a.vals[i1 i2]←v1 v2                    │
+⍝H  │ a.values[i1 i2]←v1 v2                  │
 ⍝H  │ k1 k2←a.Keys[i1 i2]                    │
+⍝H  | v1 v2←[amt] a.inc k1 k2                |
+⍝H  | v1 v2←[amt] a.dec k1 k2                |
 ⍝H  │ a.import keys vals                     │
 ⍝H  │ keys vals←a.export                     │
 ⍝H  │ i1 i2←a.Iota k1 k2   ⍝ a.Keys ⍳ k1 k2  │
@@ -152,20 +154,24 @@
 ⍝H  Retrieving values by key
 ⍝H     v1 v2...←a[k1 k2...]
 ⍝H  Setting values by index (indices must exist)
-⍝H     ⍺.Values[i1 i2...]←v1 v2...
-⍝H     ⍺.Vals[i1 i2...]  ←v1 v2
+⍝H     ⍺.values[i1 i2...]←v1 v2...
+⍝H     ⍺.vals[i1 i2...]  ←v1 v2
 ⍝H  Retrieving values by index (indices must exist)
-⍝H     ⍺.Values[i1 i2...]
-⍝H     ⍺.Vals[i1 i2...]
+⍝H     ⍺.values[i1 i2...]
+⍝H     ⍺.vals[i1 i2...]
 ⍝H  Retrieve all values
-⍝H     ⍺.Values
-⍝H     ⍺.Vals
+⍝H     ⍺.values
+⍝H     ⍺.vals
 ⍝H  Setting Keys by Index
 ⍝H     **NOT ALLOWED**
 ⍝H  Retrieving Keys by Index
 ⍝H      k1 k2...←⍺.Keys[i1 i2...]
 ⍝H  Retrieving all Keys (in index order, by default the order entered)
 ⍝H      k1 k2...←⍺.Keys
+⍝H  Increment/Decrement value of specific keys by amt (or 1).
+⍝H  ⍝   Shyly returns new values
+⍝H      [newval ← ] [amt | 1] a.inc k1 k2 ...
+⍝H      [newval ← ] [amt | 1] a.dec k1 k2
 ⍝H  Importing keys and values en masse from vectors keys vals
 ⍝H      ⍺.import keys vals
 ⍝H      Equivalent to: ⍺[keys]←vals   ⍝ But faster!
@@ -291,6 +297,8 @@
 ⍝H      Sets the key specified to the corresponding value, returning the value.
 ⍝H      To set multiple keys, see put or put_pairs
 ⍝H
+⍝H   {newvalue} ← [amt | 1] dict.inc key1 key2 ...
+⍝H   {newvalue} ← [amt | 1] dict.dec key1 key2 ...
 ⍝H  {r}←dict.del1 key
 ⍝H      Deletes the specified key. If it existed (and was deleted), returns 1; else 0.
 ⍝H
