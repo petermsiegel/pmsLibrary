@@ -359,36 +359,27 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {newv}←{a}inc w;fn
+    tally←≢   ⋄ not_match←≢        ⍝ (make it easier to read with github font glitch)
+    ∇ {newval}←{∆}inc keys 
       :Access Public
-      fn←+
-      :If 0=⎕NC'a' ⋄ a←1 ⋄ :EndIf
-      :IF (≢∪w)≡≢w
-         newv←⎕THIS[w] fn a
-         import w newv
-      :Else  ⍝ Some duplicates-- do one by one left to right
-         newv←a{
-           w1←⊂⍵
-           nv1←⎕THIS[w1] fn  ⍺
-           nv1⊣import w1 nv1
-          }¨w
+       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'  
+       :IF  (tally∪keys)not_match tally keys
+         newval←⎕THIS[keys] + ∆
+         import keys newval
+      :Else     ⍝ keys are duplicated; process left to right...  
+         newval←∆{ 
+            key1←⊂⍵ 
+            nv1←⎕THIS[key1] +  ⍺ 
+            nv1⊣import key1 nv1 
+         }¨keys
       :Endif
-    ∇
-    ∇ {newv}←{a}dec w;fn
+      ∇  
+      ∇ {newval}←{∆}dec keys
       :Access Public
-       fn←-
-      :If 0=⎕NC'a' ⋄ a←1 ⋄ :EndIf
-      :IF (≢∪w)≡≢w
-         newv←⎕THIS[w] fn a
-         import w newv
-      :Else  ⍝ Some duplicates-- do one by one left to right
-         newv←a{
-           w1←⊂⍵
-           nv1←⎕THIS[w1] fn ⍺
-           nv1⊣import w1 nv1
-          }¨w
-      :Endif
-    ∇
+       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆' 
+       newval←(-∆) inc keys
+      ∇
+
 
     ⍝ has_keys: Returns 1 for each key found in the dictionary
     ∇ old←has_keys keys
@@ -692,29 +683,20 @@
       b←del1¨keys
     ∇
 
-  ⍝ inc keys by 1 or <amt>
-    ∇ {b}←{amt} inc keys;fn
-        fn←+
-       :IF 0=⎕NC 'amt'
-           amt←1
-       :EndIf
+  ⍝ inc keys by 1 or <∆>, the increment amount
+    ∇ {newval}←{∆} inc keys
+       :IF 0=⎕NC '∆'  ⋄  ∆←1 ⋄  :EndIf
        :IF (∪≢keys)≡≢keys
-           b←keys put amt fn⍨ get keys
+           newval←keys put ∆ + get keys
        :Else ⍝ duplicates- do 1 at a time
-           b←amt{⍵ put1 ⍺ fn⍨ get1 ⍵}¨keys
+           newval←∆{⍵ put1 ⍺ + get1 ⍵}¨keys
        :Endif
     ∇
-    ⍝ dec keys by 1 or <amt>
-    ∇ {b}←{amt} dec keys;fn
-        fn←-
-       :IF 0=⎕NC 'amt'
-           amt←1
-       :EndIf
-       :IF (∪≢keys)≡≢keys
-           b←keys put amt fn⍨ get keys
-       :Else ⍝ duplicates- do 1 at a time
-           b←amt{⍵ put1 ⍺ fn⍨ get1 ⍵}¨keys
-       :Endif
+    
+    ⍝ dec keys by 1 or <∆>, the decrement amount 
+    ∇ {newval}←{∆} dec keys
+       :IF 0=⎕NC '∆' ⋄ ∆←1 ⋄ :EndIf
+       newval←(-∆) inc keys
     ∇
 
     ∇ b←has_default
