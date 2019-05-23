@@ -359,16 +359,17 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {newval}←{∆}inc keys
+    ∇ {newval}←{∆}inc keys;this
       :Access Public
+       this←⎕THIS
        ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
        :IF  (≢ ∪keys)≢  ≢  keys
-         newval←⎕THIS[keys] + ∆
+         newval←this[keys] + ∆
          import keys newval
       :Else     ⍝ keys are duplicated; process left to right so we get correct result!
          newval←∆{
             key1←⊂⍵
-            nv1←⎕THIS[key1] +  ⍺
+            nv1←this[key1] +  ⍺
             nv1⊣import key1 nv1
          }¨keys
       :Endif
@@ -496,8 +497,8 @@
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
     ∇ {h}←help
       :Access Public Shared
-      ⍝ ⎕←⎕SH 'pwd;ls'
-      h←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕NGET'pmsLibrary/docs/Dict.help' 0
+      ⍝ Pick up only ⍝H1 comments!
+      h←'^\h*⍝H1(.*)$' ⎕S '\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
       :Trap 1000
           ⎕ED'h'
       :EndTrap
@@ -708,9 +709,8 @@
    ⍝ TinyDict.help/Help/HELP  - Display help documentation window.
     ∇ {h}←help;f;sel
       :Access Public Shared
-      f←⊃⎕NGET'pmsLibrary/docs/Dict.help'
-      sel←{p←'⍝H',⍵,'(.*$)' ⋄ p ⎕S '\1'⊣f}
-      h←(sel '3'),(sel '1')
+    ⍝ Pick up ⍝H3 comments only as HELP...
+      h←'^\s*⍝H3(.*)$'  ⎕S '\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
       :Trap 1000
           ⎕ED'h'
       :EndTrap
