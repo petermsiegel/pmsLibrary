@@ -359,26 +359,25 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {newval}←{∆}inc keys 
+    ∇ {newval}←{∆}inc keys
       :Access Public
-       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'  
+       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
        :IF  (≢ ∪keys)≢  ≢  keys
          newval←⎕THIS[keys] + ∆
          import keys newval
-      :Else     ⍝ keys are duplicated; process left to right...  
-         newval←∆{ 
-            key1←⊂⍵ 
-            nv1←⎕THIS[key1] +  ⍺ 
-            nv1⊣import key1 nv1 
+      :Else     ⍝ keys are duplicated; process left to right so we get correct result!
+         newval←∆{
+            key1←⊂⍵
+            nv1←⎕THIS[key1] +  ⍺
+            nv1⊣import key1 nv1
          }¨keys
       :Endif
-      ∇  
+      ∇
       ∇ {newval}←{∆}dec keys
       :Access Public
-       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆' 
+       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
        newval←(-∆) inc keys
       ∇
-
 
     ⍝ has_keys: Returns 1 for each key found in the dictionary
     ∇ old←has_keys keys
@@ -691,8 +690,8 @@
            newval←∆{⍵ put1 ⍺ + get1 ⍵}¨keys
        :Endif
     ∇
-    
-    ⍝ dec keys by 1 or <∆>, the decrement amount 
+
+    ⍝ dec keys by 1 or <∆>, the decrement amount
     ∇ {newval}←{∆} dec keys
        :IF 0=⎕NC '∆' ⋄ ∆←1 ⋄ :EndIf
        newval←(-∆) inc keys
