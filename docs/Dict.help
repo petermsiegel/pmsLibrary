@@ -1,9 +1,11 @@
 ⍝H1-----------------------------------------------------------------------------
-⍝H1 +-----------------------+
-⍝H1 |  Dict        HELP     |
-⍝H1 |  DefaultDict HELP     |
-⍝H1 |  TinyDict    HELP     |
-⍝H1 +-----------------------+
+⍝H1 Family of services <Dict.help> provide three related dictionary services.
+⍝H1 +---------------------------------------------------------------+
+⍝H1 |  Dict        HELP                                             |
+⍝H1 |  DefaultDict HELP*                                            |
+⍝H1 |  TinyDict    HELP                                             |
+⍝H1 |  * DefaultDict objects have same syntax as Dict once created. |
+⍝H1 +---------------------------------------------------------------+
 ⍝H1 Dict
 ⍝H1    a←⎕NEW  Dict [data]   ⍝ data: initial values and/or default
 ⍝H1    Dict.help
