@@ -85,7 +85,7 @@
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
-              vals←valuesF[p]
+              vals←valuesF[p] ⍝ Error here... 
           :ElseIf has_defaultF
               vals←found\valuesF[found/p]
               ((~found)/vals)←⊂defaultF     ⍝ Add defaults
