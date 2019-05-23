@@ -359,11 +359,10 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    tally←≢   ⋄ not_match←≢        ⍝ (make it easier to read with github font glitch)
     ∇ {newval}←{∆}inc keys 
       :Access Public
        ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'  
-       :IF  (tally∪keys)not_match tally keys
+       :IF  (≢ ∪keys)≢  ≢  keys
          newval←⎕THIS[keys] + ∆
          import keys newval
       :Else     ⍝ keys are duplicated; process left to right...  
