@@ -14,7 +14,6 @@
      try2Num←{⍺←1 ⋄ ~⍺:⍵ 0 ⋄ 0::⍵ 0 ⋄ s n←⎕VFI ⍵ ⋄ (0=≢s)∨0∊s:⍵ 0 ⋄ n 1}
    ⍝ scalify: Treat 1-element vector or scalar as scalar; otherwise enclose.
      scalify←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}
-
    ⍝ I. declScan - scan declarations (⍺) for option names and values
      declScan←{∆←∇
        ⍝ Here, isReq (required) is 1 for required options.

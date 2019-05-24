@@ -195,7 +195,7 @@
     ⍝ ignore←_import keyVec valVec
     ⍝ Updates instance vars keysF valuesF, then calls _hashK to be sure hashing enabled.
       _import←{
-          k v←⍵                  ⍝ 0.  k, v: k may have old and new keys, some duplicated.
+          k v←,¨⍵                ⍝ 0.  k, v: k may have old and new keys, some duplicated.
           ∆←(≢keysF)>p←keysF⍳k   ⍝ I.  Note existing keys
           valuesF[∆/p]←∆/v       ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
           ~0∊∆:_←⍬               ⍝     All old? Return
@@ -369,8 +369,8 @@
          import keys newval
       :Else     ⍝ keys are duplicated; process left to right so we get correct result!
          newval←∆{
-            key1←⊂⍵
-            nv1←this[key1] +  ⍺
+            key1←,⊂⍵
+            nv1←,this[key1] +  ⍺
             nv1⊣import key1 nv1
          }¨keys
       :Endif
