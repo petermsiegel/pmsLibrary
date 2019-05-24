@@ -194,19 +194,17 @@
 
     ⍝ ignore←_import keyVec valVec
     ⍝ Updates instance vars keysF valuesF, then calls _hashK to be sure hashing enabled.
-    ⍝ Returns ⍬ (ignored).
-      _import←{
-          k v←,¨⍵                ⍝ 0.  k, v: k may have old and new keys, some duplicated.
-                                 ⍝     Make sure k and v are each vectors...
+    ⍝ Shyly returns ⍬ (ignored).
+      _import←{                  ⍝ 0.  k, v: k may have old and new keys, some duplicated.
+          k v←,¨⍵                ⍝     Make sure k and v are each vectors...
           old←(≢keysF)>p←keysF⍳k ⍝ I.  Note old keys
           valuesF[old/p]←old/v   ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
-          ~0∊old:_←⍬             ⍝     All old? No more to do; return.
+          ~0∊old:_←⍬             ⍝     All old? No more to do; shy return.
           k v←(⊂~old)/¨k v       ⍝ II. Mark new keys and their values as k, v.
-          first←⍳⍨k              ⍝     Identify first of duplicate keys
-          v[first]←v             ⍝     Accept val of last new dup, by copying all vals onto first
-          umask←first=⍳≢k        ⍝     Create mask of those to keep,
-          keysF valuesF,←(⊂umask)/¨k v
-          1:_←_hashK 0           ⍝     Return.
+          v[k1←⍳⍨k]←v            ⍝     For duplicate keys, "accept" last (rightmost) value
+          mask←⊂k1=⍳≢k           ⍝     Create and enclose mask of those to keep.
+          keysF valuesF,←mask/¨k v  ⍝ Update keys and values fields based on umask.
+          1:_←⍬⊣_hashK 0           ⍝    Update hash and shyly return.
       }
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
@@ -417,7 +415,7 @@
       :Access Public
       ⎕TRAP←∆TRAP
       ignore←{⍵:0 ⋄ ignore}(900⌶)1
-      keys←ignore del_by_index ix
+      ignore del_by_index ix
     ∇
     ∇ {b}←{ignore}del_by_index ix;∆;⎕TRAP
       :Access Public
@@ -425,14 +423,13 @@
       ix←∪ix
    ⍝ (0(≢keysF)⍸ix) → 0 [in range 0..≢keysF-1], ¯1 or 1 [out of range]
       b←{⍵:0=0(≢keysF)⍸ix ⋄ 0}×≢keysF
-      :If 0∊b             ⍝ At least 1 missing key?
-      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1  ⍝ And ignore=0
+      :If 0∊b                        ⍝ At least 1 missing key?
+      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1 ⍝ And ignore=0
           eIndexRange ⎕SIGNAL 7
       :EndIf
-      ix←b/ix             ⍝ Keep those in range
-      keys←keysF[ix]             ⍝ Remember keys being deleted
-      :If 0<≢ix                 ⍝ At least one...
-          ∆←(≢keysF)⍴1 ⋄ ∆[ix]←0 ⍝ Note their position in keysF
+      ix←b/ix                        ⍝ Keep those in range
+      :If 0<≢ix                      ⍝ Delete keys marked for del'n
+          ∆←(≢keysF)⍴1 ⋄ ∆[ix]←0     ⍝ Note their position in keysF
           _hashK keysF←∆/keysF ⋄ valuesF←∆/valuesF
       :EndIf
     ∇
