@@ -194,17 +194,20 @@
 
     ⍝ ignore←_import keyVec valVec
     ⍝ Updates instance vars keysF valuesF, then calls _hashK to be sure hashing enabled.
+    ⍝ Returns ⍬ (ignored).
       _import←{
           k v←,¨⍵                ⍝ 0.  k, v: k may have old and new keys, some duplicated.
-          ∆←(≢keysF)>p←keysF⍳k   ⍝ I.  Note existing keys
-          valuesF[∆/p]←∆/v       ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
-          ~0∊∆:_←⍬               ⍝     All old? Return
-          k v←(⊂~∆)/¨k v         ⍝ II. Update NEW k-v pairs
-          kik←k⍳k                ⍝     Identify first of duplicate keys
-          v[kik]←v               ⍝     Accept last new duplicate, by copying its value onto first
-          ∆←(kik)=⍳≢k            ⍝     Create duplicate mask
-          keysF,←(∆/k)           ⍝     ...remove duplicates (keep first for each key)
-          valuesF,←(∆/v)         ⍝     ...and update keysF and valuesF
+                                 ⍝     Make sure k and v are each vectors...
+          old←(≢keysF)>p←keysF⍳k ⍝ I.  Note old keys
+          valuesF[old/p]←old/v   ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
+          ~0∊old:_←⍬             ⍝     All old? No more to do; return.
+          k v←(⊂~old)/¨k v       ⍝ II. Mark new keys and their values as k, v.
+          first←⍳⍨k              ⍝     Identify first of duplicate keys
+          v[first]←v             ⍝     Accept val of last new dup, by copying all vals onto first
+          umask←first=⍳≢k        ⍝     Create mask of those to keep,
+          keysF,←umask/k         ⍝     ...non-duplicates or first of repeated keys.
+          valuesF,←umask/v       ⍝     ...and their values.
+
           1:_←_hashK 0           ⍝     Return.
       }
 
@@ -364,13 +367,13 @@
       :Access Public
        this←⎕THIS
        ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
-       :IF  (≢∪keys) ≡  ≢keys
+       :IF  (≢∪keys) =  ≢keys
          newval←this[keys] + ∆
          import keys newval
       :Else     ⍝ keys are duplicated; process left to right so we get correct result!
          newval←∆{
-            key1←,⊂⍵
-            nv1←,this[key1] +  ⍺
+            key1←⊂⍵
+            nv1←this[key1] +  ⍺
             nv1⊣import key1 nv1
          }¨keys
       :Endif
@@ -686,7 +689,7 @@
   ⍝ inc keys by 1 or <∆>, the increment amount
     ∇ {newval}←{∆} inc keys
        :IF 0=⎕NC '∆'  ⋄  ∆←1 ⋄  :EndIf
-       :IF (∪≢keys)≡≢keys
+       :IF (∪≢keys)=≢keys
            newval←keys put ∆ + get keys
        :Else ⍝ duplicates- do 1 at a time
            newval←∆{⍵ put1 ⍺ + get1 ⍵}¨keys
