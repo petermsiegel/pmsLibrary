@@ -85,7 +85,7 @@
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
-              vals←valuesF[p] ⍝ Error here... 
+              vals←valuesF[p] ⍝ Error here...
           :ElseIf has_defaultF
               vals←found\valuesF[found/p]
               ((~found)/vals)←⊂defaultF     ⍝ Add defaults
@@ -196,12 +196,13 @@
     ⍝ Updates instance vars keysF valuesF, then calls _hashK to be sure hashing enabled.
       _import←{
           k v←⍵                  ⍝ 0.  k, v: k may have old and new keys, some duplicated.
-          ∆←(≢keysF)>p←keysF⍳k   ⍝ I.  Find old keys
+          ∆←(≢keysF)>p←keysF⍳k   ⍝ I.  Note existing keys
           valuesF[∆/p]←∆/v       ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
           ~0∊∆:_←⍬               ⍝     All old? Return
           k v←(⊂~∆)/¨k v         ⍝ II. Update NEW k-v pairs
-          v[k⍳k]←v               ⍝     Accept last new duplicate, by copying its value onto first
-          ∆←(k⍳k)=⍳≢k            ⍝     Note duplicates
+          kik←k⍳k                ⍝     Identify first of duplicate keys
+          v[kik]←v               ⍝     Accept last new duplicate, by copying its value onto first
+          ∆←(kik)=⍳≢k            ⍝     Create duplicate mask
           keysF,←(∆/k)           ⍝     ...remove duplicates (keep first for each key)
           valuesF,←(∆/v)         ⍝     ...and update keysF and valuesF
           1:_←_hashK 0           ⍝     Return.
@@ -363,7 +364,7 @@
       :Access Public
        this←⎕THIS
        ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
-       :IF  (≢ ∪keys)≢  ≢  keys
+       :IF  (≢∪keys) ≡  ≢keys
          newval←this[keys] + ∆
          import keys newval
       :Else     ⍝ keys are duplicated; process left to right so we get correct result!
