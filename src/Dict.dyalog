@@ -205,9 +205,7 @@
           first←⍳⍨k              ⍝     Identify first of duplicate keys
           v[first]←v             ⍝     Accept val of last new dup, by copying all vals onto first
           umask←first=⍳≢k        ⍝     Create mask of those to keep,
-          keysF,←umask/k         ⍝     ...non-duplicates or first of repeated keys.
-          valuesF,←umask/v       ⍝     ...and their values.
-
+          keysF valuesF,←(⊂umask)/¨k v
           1:_←_hashK 0           ⍝     Return.
       }
 
