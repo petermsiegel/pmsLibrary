@@ -7,15 +7,16 @@
 
   ⍝ Shared Fields
   ⍝ To enter Debugging mode, set DictClass.DEBUG←1 (which will trigger DEBUGset)
-    :Field Public Shared DEBUG←0                  ⍝ See DEBUGset.
-    :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto: Dependent on DEBUG
+    :Field Public Shared DEBUG←0                  ⍝ Triggers DEBUGset (see).
+    :Field Private Shared DEBUGlast←DEBUG         ⍝ Ditto
+    :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto
     :Field Public Shared ∆TRAP←TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
 
   ⍝ INSTANCE FIELDS and Related
-    keysF←⍬     ⍝ Variable, not Field, to avoid APL hashing bug
+    keysF←⍬                                       ⍝ Variable, not Field, to avoid APL hashing bug
     :Field Private valuesF       ← ⍬
     :Field Private has_defaultF   ← 0
-    :Field Private defaultF      ← ''    ⍝ Initial value
+    :Field Private defaultF      ← ''             ⍝ Initial value
 
   ⍝ ERROR MESSAGES:
     eBadLoad←'Dict initial or loaded data not key-value pairs, dictionary or default value.'
@@ -118,15 +119,12 @@
     ∇ {vals}←{keys}put vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :If 0=⎕NC'keys'
-          keys vals←↓⍉↑vals
-      :EndIf
+      :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄  :EndIf
       :If 1=≢keys
           keys←⊂keys ⋄ vals←⊂vals
       :EndIf
       _import keys vals
     ∇
-
 
     ⍝ load ⍵: Load data into dictionary and/or set default for values of missing keys.
     ⍝        "Accept either SCALAR or VECTOR right argument.
@@ -185,8 +183,8 @@
     ⍝          import (keys values)."
     ⍝
     ⍝ _import: "Utility to be called from top-level routines.
-    ⍝           _import  keys values."
-    ⍝
+    ⍝           _import  keys values.
+    ⍝           keys, values are ravelled if not already vectors."
     ∇ {me}←import(keys vals);⎕TRAP
       :Access Public
       me←⎕THIS ⋄ ⎕TRAP←∆TRAP
@@ -269,8 +267,7 @@
     ⍝      In contrast, Values/Vals works element by element to allow direct updates (q.v.)."
     ⍝ k ← Keys              returns all Keys in entry order
     ⍝ k ← Keys[ix1 ix2...]  returns zero or more keys by index (user origin).
-    ⍝ :Property Numbered Keys,Key  ⍝ Keys by Index
-    :Property keys
+    :Property keys,key
     :Access Public
         ⍝ get: retrieves keys
         ∇ k←get args;cur;err;ix;keys;vals
@@ -289,7 +286,6 @@
     ⍝ values,vals,val:
     ⍝   "Get or Set values by key index, in creation order or, if sorted, sort order.
     ⍝    Indicates are in ⎕IO=0 ONLY"
-    ⍝
     :Property numbered values,value,vals,val  ⍝ Vi = keys by index
     :Access Public
         ⍝ get: retrieves values, not keysF
@@ -309,7 +305,7 @@
     :EndProperty
 
     ⍝ has_default,query_default,default
-    ⍝    "Sets or queries a default value for missing keys. Th
+    ⍝    "Sets or queries a default value for missing keys.
     ⍝     By default, has_default=0, so the initial Default ('') or previously set Default is ignored,
     ⍝     i.e. a VALUE ERROR is signalled. Setting has_default←1 will make the current Default available.
     ⍝     Setting Default to a new value always turns on has_default as well."
@@ -320,13 +316,13 @@
     ⍝
     ⍝ has_default:    "Sets the dictionary property ON (1) or OFF (0). If ON, activates current Default value.
     ⍝                  Alternatively, retrieves the current status (1 or 0)."
-    ⍝ Ddfault:        "Sets the default value for use when retrieving missing values, setting has_default←1.
+    ⍝ default:        "Sets the default value for use when retrieving missing values, setting has_default←1.
     ⍝                  Alternatively, retrieves the current default."
     ⍝ query_default:  "Combines has_default and Default in a single command, returning the current settings from
     ⍝                     has_default and Default
     ⍝                  as a single pair. QueryDefault may ONLY be queried, not set."
     ⍝ The default may have any datatype and shape.
-    :Property has_default,query_default,default
+    :Property default,has_default,query_default
     :Access Public
         ∇ r←get args
           :Select args.Name
@@ -341,14 +337,14 @@
         ∇
         ∇ set args
           :Select args.Name
-          :Case 'Default'
+          :Case 'default'
               defaultF has_defaultF←args.NewValue 1
           :Case 'has_default'
               :If ~0 1∊⍨⊂args.NewValue
                   eBadDefault ⎕SIGNAL 11
               :EndIf
               has_defaultF←⍬⍴args.NewValue   ⍝ defaultF unchanged...
-          :Case 'QueryDefault'
+          :Case 'query_default'
               eQueryDontSet ⎕SIGNAL 11
           :EndSelect
         ∇
@@ -363,11 +359,11 @@
     ∇ {newval}←{∆}inc keys;this
       :Access Public
        this←⎕THIS
-       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
+       :IF 900⌶1 ⋄ ∆←1 ⋄ :ENDIF
        :IF  (≢∪keys) =  ≢keys
          newval←this[keys] + ∆
          import keys newval
-      :Else     ⍝ keys are duplicated; process left to right so we get correct result!
+      :Else     ⍝ keys appear more than once; process all (L to R) so increments accumulate
          newval←∆{
             key1←⊂⍵
             nv1←this[key1] +  ⍺
@@ -377,7 +373,7 @@
       ∇
       ∇ {newval}←{∆}dec keys
       :Access Public
-       ∆←1{0=⎕NC ⍵:⍺  ⋄  ⎕OR ⍵}'∆'
+      :IF 900⌶1 ⋄ ∆←1 ⋄ :ENDIF
        newval←(-∆) inc keys
       ∇
 
@@ -394,12 +390,12 @@
     ∇ {b}←{ignore}del keys;nf;old;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
+      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
       keys←∪keys
       b←(≢keysF)>p←keysF⍳keys
       nf←0∊b
-      :If nf
-      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1
-          eDeleteKeyMissing ⎕SIGNAL 11   ⍝ SIGNAL error if not all k-v pairs exist
+      :If nf ∧ ~ignore     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
+          eDeleteKeyMissing ⎕SIGNAL 11
       :EndIf
       :If 0≠≢b←b/p
           ∆←1⍴⍨≢keysF ⋄ ∆[b]←0
@@ -415,17 +411,16 @@
     ∇ {b}←{ignore}di ix;keys;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      ignore←{⍵:0 ⋄ ignore}(900⌶)1
+      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
       ignore del_by_index ix
     ∇
     ∇ {b}←{ignore}del_by_index ix;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
+      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
       ix←∪ix
-   ⍝ (0(≢keysF)⍸ix) → 0 [in range 0..≢keysF-1], ¯1 or 1 [out of range]
       b←{⍵:0=0(≢keysF)⍸ix ⋄ 0}×≢keysF
-      :If 0∊b                        ⍝ At least 1 missing key?
-      :AndIf 0={⍵:0 ⋄ ignore}(900⌶)1 ⍝ And ignore=0
+      :If (0∊b) ∧ ~ignore               ⍝ At least 1 missing key?
           eIndexRange ⎕SIGNAL 7
       :EndIf
       ix←b/ix                        ⍝ Keep those in range
@@ -521,17 +516,16 @@
 
 
     ∇ DEBUGset
-      ⍝ See global DEBUG and debugWAS 
+      ⍝ See globals DEBUG and DEBUGlast
       :Implements Trigger DEBUG
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-      :IF debugWAS≢DEBUG
+      :IF DEBUGlast≢DEBUG
          'DEBUGGING mode ',(DEBUG≠0)⊃'disabled' 'enabled'
       :ENDIF
-      debugWAS←DEBUG
+      DEBUGlast←DEBUG
     ∇
-    debugWAS←DEBUG
 
 :EndClass
 :Class DefaultDictClass  : DictClass
@@ -582,9 +576,7 @@
 
     ∇ ns←{def}new entries
       ns←⎕THIS.new0
-      :If 0≠⎕NC'def'
-          ns.default←def
-      :EndIf
+      :If ~900⌶1  ⋄  ns.default←def ⋄  :EndIf
       :If 0<≢entries   ⍝ If entries is ⍬ or '', same as new0
           ns.(Keys Vals)←{⍺←⍴⍴entries
               2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
@@ -641,11 +633,11 @@
     ∇ {vals}←{keys}put vals;e;ePut1;ePut2;ie;kv;n;p
       ePUT1←'TinyDict/put (1adic): one or more key-value pairs required'
       ePUT2←'TinyDict/put (2adic): number of keys and values must match' 11
-      :If 0=⎕NC'keys'    ⍝ monadic put:   put (k1 v1)(k2 v2)...
+      :If 900⌶1       ⍝ monadic put [pairs]:   put (k1 v1)(k2 v2)...
           kv←↓⍉↑vals
           :If 2≠≢kv ⋄ ⎕SIGNAL/ePUT1 ⋄ :EndIf
           keys vals←kv
-      :ElseIf (≢keys)≠(≢vals)
+      :ElseIf (≢keys)≠(≢vals)   ⍝ dyadic put [lists]:  keys put vals
           ⎕SIGNAL/ePUT2
       :EndIf
       keys vals←(,keys)(,vals)
@@ -662,9 +654,7 @@
 
     ∇ {val}←{key}put1 val;p
     ⍝  put1 key val   OR    key put1 val
-      :If 0=⎕NC'key'
-          key val←val
-      :EndIf
+      :If 900⌶1 ⋄  key val←val ⋄  :EndIf
       p←keysF⍳⊂key
       :If p≥≢keysF
           keysF,←⊂key ⋄ valsF,←⊂val
@@ -691,7 +681,7 @@
 
   ⍝ inc keys by 1 or <∆>, the increment amount
     ∇ {newval}←{∆} inc keys
-       :IF 0=⎕NC '∆'  ⋄  ∆←1 ⋄  :EndIf
+       :IF 900⌶1 ⋄  ∆←1 ⋄  :EndIf
        :IF (∪≢keys)=≢keys
            newval←keys put ∆ + get keys
        :Else ⍝ duplicates- do 1 at a time
@@ -701,7 +691,7 @@
 
     ⍝ dec keys by 1 or <∆>, the decrement amount
     ∇ {newval}←{∆} dec keys
-       :IF 0=⎕NC '∆' ⋄ ∆←1 ⋄ :EndIf
+       :IF 900⌶1 ⋄ ∆←1 ⋄ :EndIf
        newval←(-∆) inc keys
     ∇
 
