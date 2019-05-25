@@ -6,6 +6,7 @@
     ⎕IO ⎕ML←0 1
 
   ⍝ Shared Fields
+  ⍝ To enter Debugging mode, set DictClass.DEBUG←1 (which will trigger DEBUGset)
     :Field Public Shared DEBUG←0                  ⍝ See DEBUGset.
     :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto: Dependent on DEBUG
     :Field Public Shared ∆TRAP←TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
@@ -518,13 +519,20 @@
       :EndIf
     ∇
 
+
     ∇ DEBUGset
+      ⍝ See global DEBUG and debugWAS 
       :Implements Trigger DEBUG
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-
+      :IF debugWAS≢DEBUG
+         'DEBUGGING mode ',(DEBUG≠0)⊃'disabled' 'enabled'
+      :ENDIF
+      debugWAS←DEBUG
     ∇
+    debugWAS←DEBUG
+
 :EndClass
 :Class DefaultDictClass  : DictClass
     ⍝ require 'DictClass'
