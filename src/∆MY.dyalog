@@ -56,7 +56,7 @@
     ∇ theirStat←{their}∆THEIR them;obj;val
       ;∆HERE;monadic;nc;theirStatNm;theirNm;⎕IO
       ⎕IO←0
-      monadic ∆HERE←((900⌶)⍬)(0⊃⎕RSI)        ⍝ ∆HERE-- ns (ref) where I was called.
+      monadic ∆HERE←(900⌶⍬)(0⊃⎕RSI)        ⍝ ∆HERE-- ns (ref) where I was called.
 
       :Select ≢⊆them
            ⋄ :Case 1 ⋄ setGet←0
@@ -143,6 +143,11 @@
 ⍝           myFn←{ stat.MYDATA ...} ⋄ myFn 1 2 3
 ⍝         ∇
 ⍝
+⍝ ∆THEIR: "-Retrieves or sets information about ∆MY services for a function
+⍝           passed by (relative or fully-specified) name, rather than the caller.
+⍝          -Returns the "static" namespace for function/operator, <them>, of the same form as ∆MY, except
+⍝           that here the function need not be active, though it must be defined. ∆THEIR creates, but does not update,
+⍝           required local variables. (See ∆MY)."
 ⍝ ∆THEIR:  theirStat ← {their} ∆THEIR them
 ⍝          theirStat ← {their} ∆THEIR them variable
 ⍝          theirStat ← {their} ∆THEIR them variable value
@@ -160,9 +165,6 @@
 ⍝        sets theirStat.variable←value, then
 ⍝        returns:
 ⍝           theirStat variable (new value of variable)
-⍝ ∆THEIR:  "Returns the "static" namespace for function/operator, <them>, of the same form as ∆MY, except
-⍝      that here the function need not be active, though it must be defined. ∆THEIR creates, but does not update,
-⍝      required local variables. (See ∆MY)."
 ⍝
 ⍝ ∆MYX:  theirStat ← ∆MYX callLvl
 ⍝      callLvl: how far into stack to find the caller. 0 means
