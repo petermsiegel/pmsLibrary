@@ -34,17 +34,22 @@
     ⍝ Name <me> based on my name (as a fn/op)
     ⍝ Name <my> based on caller namespace
       me←⎕THIS{(≢⍵)>cl1←1+callLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
-      my←callLvl⊃⎕NSI          ⍝ where caller lives (fully qualified)...
+      my←callLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
     ⍝ Ensure parent namespace <myPfx> (...STATIC) is valid.
-      :If ~9.1 0∊⍨⎕NC⊂myPfx←my,'.',⎕THIS.STATIC
+      :Select my.⎕NC⊂,STATIC
+      :Case 9.1
+            myPfx←my⍎STATIC
+      :Case 0
+            myPfx←my {0:: ⍺⍎STATIC ⋄ ⍎⍵} STATIC my.⎕NS ''
+      :Else
           11 ⎕SIGNAL⍨'∆MY static namespace name in use: ',myPfx
-      :EndIf
+      :EndSelect
     ⍝ Is sub-namespace <myStat/Nm> (...me) is defined?
-      :If 9.1=⎕NC⊂myStatNm←myPfx,'.',me     ⍝ YES. Set ∆FIRST if ∆RESET=1
-          myStat←⍎myStatNm
+      :If 9.1=myPfx.⎕NC⊂,me     ⍝ YES. Set ∆FIRST if ∆RESET=1
+          myStat←myPfx⍎me
           myStat.((∆RESET ∆FIRST)←0 ∆RESET)
-      :Else                                 ⍝  NO. It's new. Set state.
-          myStat←⍎myStatNm ⎕NS''
+      :Else                     ⍝  NO. It's new. Set state.
+          myStat←myPfx {0:: ⍺⍎me ⋄  ⍎⍵} me myPfx.⎕NS ''
           myStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 me my
       :EndIf
     ∇
