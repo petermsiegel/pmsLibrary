@@ -78,7 +78,7 @@
           ⎕SIGNAL 11
       :EndSelect
 
-       theirNs←'theirNs'{900⌶⍬: ⍵ ⋄ ⎕OR ⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
+       theirNs←'theirNs'{900⌶⍬: ⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
 
        :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
@@ -90,7 +90,7 @@
 
     ⍝ If local state vars aren't defined, set them...
       :If 0=theirStatNs.⎕NC '∆MYNS'
-          theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm their
+          theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm theirStatNs
       :EndIf
 
       :Select setGet
