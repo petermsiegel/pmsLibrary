@@ -1,6 +1,6 @@
-﻿:Namespace ∆MYgrp
+:Namespace ∆MYgrp
   ⍝ >>> ∆MY.dyalog → creates namespce ∆MYgrp and objects ##.∆MY and ##.∆THEIR
-  ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC objects within
+  ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC_NS_NM objects within
   ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
   ⍝ ∘ For an overview, see ∆MYgrp.help
   ⍝ ∘ We create files in namespaces within various user namespaces.
@@ -10,7 +10,7 @@
   ⍝ ∘ The namespace should not otherwise be used, or at least select a service name that is associated
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
-    STATIC←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
+    STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
   ⍝ Special function names:
   ⍝    __anon__  When the function is an anonymous dfn
   ⍝    __null__  When called from calculator mode with no fns on the stack.
@@ -23,78 +23,76 @@
     ∇ myStat←∆MY
       myStat←⎕THIS.∆MYX 1
     ∇
+
+  ⍝ appendNs: To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
+  ⍝ If ⍺⍺=1, sets the display form.
+  ⍝ Works even if ⍺ is anonymous (no string rep)
+    appendNs←{
+         dfOpt←{
+           1=⍵⍵: ref⊣ (ref←⍺⍎⍵        ).⎕DF⍣⍺⍺⊣ (⍕⍺),'.',⍵,':[ANONYMOUS STATIC]'
+                 ref⊣ (ref←⍎⍵ ⍺.⎕NS '').⎕DF⍣⍺⍺⊣ (⍕⍺),'.',⍵,':[STATIC]'
+         }
+         nc←⍺.⎕NC⊂,⍵
+         9.1=nc: ⍺⍎⍵
+         0≠nc: 11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
+         0:: ⍺ (⍺⍺ dfOpt 1)⍵
+             ⍺ (⍺⍺ dfOpt 0)⍵
+     }
+
 ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
    _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
 
-    ∇ myStat←∆MYX callLvl
-      ;me;my;myPfx;myStatNm;⎕IO
+    ∇ myOwnNs←∆MYX callerLvl
+      ;myCallerNs;myOwnNs;⎕IO
     ⍝ For function documentation, see below.
       ⎕IO←0
-
-    ⍝ Name <me> based on my name (as a fn/op)
-    ⍝ Name <my> based on caller namespace
-      me←⎕THIS{(≢⍵)>cl1←1+callLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
-      my←callLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
-    ⍝ Ensure parent namespace <myPfx> (...STATIC) is valid.
-      :Select my.⎕NC⊂,STATIC
-      :Case 9.1
-            myPfx←my⍎STATIC
-      :Case 0
-            myPfx←my {0:: ⍺⍎STATIC ⋄ ⍎⍵} STATIC my.⎕NS ''
-      :Else
-          11 ⎕SIGNAL⍨'∆MY static namespace name in use: ',myPfx
-      :EndSelect
-    ⍝ Is sub-namespace <myStat/Nm> (...me) is defined?
-      :If 9.1=myPfx.⎕NC⊂,me     ⍝ YES. Set ∆FIRST if ∆RESET=1
-          myStat←myPfx⍎me
-          myStat.((∆RESET ∆FIRST)←0 ∆RESET)
-      :Else                     ⍝  NO. It's new. Set state.
-          myStat←myPfx {0:: ⍺⍎me ⋄  ⍎⍵} me myPfx.⎕NS ''
-          myStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 me my
-      :EndIf
+    ⍝ Determine myName (the user function, or if none, either 'ANON' or 'NULL').
+      myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
+      myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
+    ⍝ Build <myCallerNs>.<STATIC_NS_NM>.me
+       myOwnNs←(myCallerNs (0 appendNs) STATIC_NS_NM) (1 appendNs) myName
     ∇
 
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ theirStat←{their}∆THEIR them;obj;val
-      ;∆HERE;monadic;nc;theirStatNm;theirNm;⎕IO
+    ∇ theirStatNs←{theirRef}∆THEIR argList;thatFnNm;obj;newVal
+      ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
-      monadic ∆HERE←(900⌶⍬)(0⊃⎕RSI)        ⍝ ∆HERE-- ns (ref) where I was called.
+      ∆HERE← 0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
 
-      :Select ≢⊆them
-           ⋄ :Case 1 ⋄ setGet←0
-           ⋄ :Case 2 ⋄ setGet←1 ⋄ them obj←them
-           ⋄ :Case 3 ⋄ setGet←2 ⋄ them obj val←them
+      :Select ≢⊆argList
+           ⋄ :Case 1 ⋄ setGet←0 ⋄ thatFnNm←argList
+           ⋄ :Case 2 ⋄ setGet←1 ⋄ thatFnNm obj←argList
+           ⋄ :Case 3 ⋄ setGet←2 ⋄ thatFnNm obj newVal←argList
            ⋄ :Else
           ⎕SIGNAL 11
       :EndSelect
 
-      their←monadic{⍺:⍕⍵ ⋄ ⍕their}∆HERE      ⍝ their: defaults to ∆HERE
+       theirNs←'theirNs'{900⌶⍬: ⍵ ⋄ ⎕OR ⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
 
-      theirNm←their,'.',them
-      :If ~3 4∊⍨∆HERE.⎕NC theirNm            ⍝ valid (or special) function?
-          :If ~(⊂them)∊⎕THIS.(NULL ANON)
+       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
+          :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',theirNm)⎕SIGNAL 11
           :EndIf
       :EndIf
 
-      theirStatNm←their,'.',⎕THIS.STATIC,'.',them
+      theirStatNs←theirRef (1 appendNs) ⎕THIS.STATIC_NS_NM,'.',thatFnNm
 
-    ⍝ *** Note carefully the items that must referenced w.r.t ∆HERE.
-      :If 9.1=nc←∆HERE.⎕NC⊂theirStatNm       ⍝ ***
-          theirStat←∆HERE⍎theirStatNm        ⍝ ***
-      :ElseIf nc≠0
-          ('∆THEIR static namespace name in use: ',theirStatNm)⎕SIGNAL 11
-      :Else
-          theirStat←⍎theirStatNm ∆HERE.⎕NS'' ⍝ ***
-          theirStat.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 them their
+    ⍝ If local state vars aren't defined, set them...
+      :If 0=theirStatNs.⎕NC '∆MYNS'
+          theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm their
       :EndIf
 
       :Select setGet
-           ⋄ :Case 1 ⋄ theirStat←theirStat obj(theirStat{0::'VALUE ERROR' ⋄ ⍺⍎⍵}obj)
-           ⋄ :Case 2 ⋄ theirStat←theirStat obj(theirStat{0::'VALUE ERROR' ⋄ ⍺⍎obj,'∘←⍵'}val)
+           ⋄ :Case 0 ⋄ result←theirStatNs
+           ⋄ :Case 1 ⋄ result←theirStatNs obj(theirStat{o←⍵
+                          0::'VALUE ERROR retrieving ',o ⋄ ⍺⍎o
+                       }obj)
+           ⋄ :Case 2 ⋄ result←theirStatNs obj(theirStat{o _←⍵
+                          0::'VALUE ERROR setting ',o ⋄ ⍺⍎o,'∘←⊃⌽⍵'
+                       }obj newVal)
       :EndSelect
     ∇
     ⍝ ∆THEIR only called via namespace: ∆MYgrp.∆THEIR
