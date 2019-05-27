@@ -11,6 +11,7 @@
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
+    STATIC_NS_RE←'\Q','\E',⍨STATIC_NS_NM 
   ⍝ Special function names:
   ⍝    ANON   When the function is an anonymous dfn
   ⍝    NULL   When called from calculator mode with no fns on the stack.
@@ -28,13 +29,16 @@
   ⍝ If ⍺⍺=1, sets the display form.
   ⍝ Works even if ⍺ is anonymous (no string rep)
     appendNs←{
-         dfOpt←{ ⍺⊣ (⍺.⎕DF⍣⍺⍺) (⍕⍺),⍵ }
+         dfOpt←{
+           ⍺⍺: ⍺⊣ ⍺.⎕DF STATIC_NS_RE ⎕R ⍵⊣⍕⍺   ⍝ A kludge!
+           ⍺
+         }
          nc←⍺.⎕NC⊂,⍵
          9.1=nc: ⍺⍎⍵
          0≠nc: 11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
       ⍝  Create combined namespace... Set display form if ⍺⍺=1
-         0:: (⍺⍎⍵)         (⍺⍺ dfOpt) ':[ANONYMOUS STATIC]'
-             (⍎⍵ ⍺.⎕NS '') (⍺⍺ dfOpt) ':[STATIC]'
+         0:: (⍺⍎⍵)         (⍺⍺ dfOpt) '[ANONYMOUS STATIC]'
+             (⍎⍵ ⍺.⎕NS '') (⍺⍺ dfOpt) '[STATIC]'
      }
 
   ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
