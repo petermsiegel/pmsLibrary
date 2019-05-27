@@ -65,17 +65,17 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ theirStatNs←{theirNs}∆THEIR argList;thatFnNm;obj;newVal
+    ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE← 0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
 
       :Select ≢⊆argList
-           ⋄ :Case 1 ⋄ setGet←0 ⋄ thatFnNm←argList
-           ⋄ :Case 2 ⋄ setGet←1 ⋄ thatFnNm obj←argList
-           ⋄ :Case 3 ⋄ setGet←2 ⋄ thatFnNm obj newVal←argList
+           ⋄ :Case 1 ⋄ setGet←⍬ ⋄ thatFnNm←argList
+           ⋄ :Case 2 ⋄ setGet←'GET' ⋄ thatFnNm obj←argList
+           ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
            ⋄ :Else
-          ⎕SIGNAL 11
+              ⎕SIGNAL 11
       :EndSelect
 
        theirNs←'theirNs'{900⌶⍬: ⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
@@ -94,13 +94,21 @@
       :EndIf
 
       :Select setGet
-           ⋄ :Case 0 ⋄ result←theirStatNs
-           ⋄ :Case 1 ⋄ result←theirStatNs obj(theirStat{o←⍵
-                          0::'VALUE ERROR retrieving ',o ⋄ ⍺⍎o
-                       }obj)
-           ⋄ :Case 2 ⋄ result←theirStatNs obj(theirStat{o _←⍵
-                          0::'VALUE ERROR setting ',o ⋄ ⍺⍎o,'∘←⊃⌽⍵'
-                       }obj newVal)
+           ⋄ :Case 'GET' ⍝ Return current obj value.
+                      :TRAP 0
+                         result←theirStatNs obj (theirStatNs⍎obj)
+                      :else
+                         11 ⎕SIGNAL⍨'VALUE ERROR getting ∆MY.',thatFnNm,'.',obj
+                      :EndTrap
+           ⋄ :Case 'SET' ⍝ Return old obj value, while setting to new.
+                     :TRAP 0
+                         was←theirStatNs⍎obj
+                         _←{theirStatNs⍎obj,'∘←⍵'}newVal
+                         result←theirStatNs obj was
+                      :Else
+                          11 ⎕SIGNAL⍨'VALUE ERROR setting ∆MY.',thatFnNm,'.',obj,' to ',⍕newVal
+                      :ENDTRAP
+           ⋄ :Else ⋄ result←theirStatNs
       :EndSelect
     ∇
     ⍝ ∆THEIR only called via namespace: ∆MYgrp.∆THEIR
