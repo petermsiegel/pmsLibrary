@@ -12,9 +12,9 @@
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
   ⍝ Special function names:
-  ⍝    __anon__  When the function is an anonymous dfn
-  ⍝    __null__  When called from calculator mode with no fns on the stack.
-    ANON NULL←'__anon__' '__null__'
+  ⍝    ANON   When the function is an anonymous dfn
+  ⍝    NULL   When called from calculator mode with no fns on the stack.
+    ANON NULL←'__unnamed_dfn__' '__empty_stack__'
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝     ∆MYX, ∆MY
@@ -28,19 +28,17 @@
   ⍝ If ⍺⍺=1, sets the display form.
   ⍝ Works even if ⍺ is anonymous (no string rep)
     appendNs←{
-         dfOpt←{
-           1=⍵⍵: ref⊣ (ref←⍺⍎⍵        ).⎕DF⍣⍺⍺⊣ (⍕⍺),'.',⍵,':[ANONYMOUS STATIC]'
-                 ref⊣ (ref←⍎⍵ ⍺.⎕NS '').⎕DF⍣⍺⍺⊣ (⍕⍺),'.',⍵,':[STATIC]'
-         }
+         dfOpt←{ ⍺⊣ (⍺.⎕DF⍣⍺⍺) (⍕⍺),⍵ }
          nc←⍺.⎕NC⊂,⍵
          9.1=nc: ⍺⍎⍵
          0≠nc: 11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
-         0:: ⍺ (⍺⍺ dfOpt 1)⍵
-             ⍺ (⍺⍺ dfOpt 0)⍵
+      ⍝  Create combined namespace... Set display form if ⍺⍺=1
+         0:: (⍺⍎⍵)         (⍺⍺ dfOpt) ':[ANONYMOUS STATIC]'
+             (⍎⍵ ⍺.⎕NS '') (⍺⍺ dfOpt) ':[STATIC]'
      }
 
-⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
-   _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
+    _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
 
     ∇ myOwnNs←∆MYX callerLvl
       ;myCallerNs;myOwnNs;⎕IO
@@ -51,13 +49,18 @@
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
     ⍝ Build <myCallerNs>.<STATIC_NS_NM>.me
        myOwnNs←(myCallerNs (0 appendNs) STATIC_NS_NM) (1 appendNs) myName
+       :IF 0≠myOwnNs.⎕NC '∆MYNS'               ⍝ Not first call to ∆MY.
+             myOwnNs.(∆FIRST ∆RESET←∆RESET 0)  ⍝ Update ∆FIRST←∆RESET and clear ∆RESET
+       :Else                                   ⍝ First call to ∆MY. Set state.
+             myOwnNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS )←0 1 myName myOwnNs
+       :EndIF
     ∇
 
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ theirStatNs←{theirRef}∆THEIR argList;thatFnNm;obj;newVal
+    ∇ theirStatNs←{theirNs}∆THEIR argList;thatFnNm;obj;newVal
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE← 0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
@@ -78,7 +81,7 @@
           :EndIf
       :EndIf
 
-      theirStatNs←theirRef (1 appendNs) ⎕THIS.STATIC_NS_NM,'.',thatFnNm
+      theirStatNs←theirNs (1 appendNs) ⎕THIS.STATIC_NS_NM,'.',thatFnNm
 
     ⍝ If local state vars aren't defined, set them...
       :If 0=theirStatNs.⎕NC '∆MYNS'
@@ -133,9 +136,10 @@
 ⍝           ∆FIRST← 0            ⍝ This was not the first time ∆MY was called for this function.
 ⍝  3. Returns a reference, <myStat>, to a static namespace for the caller:
 ⍝     <static>.<me> in namespace <my>, i.e. <my>.<static><.me>
-⍝     ∘ If called from an unnamed function, that function's caller is used if named,
-⍝       else the name '__anon__' is used.
-⍝     ∘ If called from outside any function, '__null__' is also used.
+⍝     ∘ If called from an unnamed function (must be a dfn), that function's caller is used if named,
+⍝       else the name '__anon_dfn__' is used.
+⍝     ∘ If called when the function stack is empty, '__empty_stack__' is used
+⍝       (e.g. not called from any active function).
 ⍝
 ⍝  Oddities: If called from a named dfn inside a tradfn, ∆MY accepts and uses the name of
 ⍝     the dfn. This could wreak havoc if there is a "global" dfn with the same name.
