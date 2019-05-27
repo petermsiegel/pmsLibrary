@@ -11,8 +11,7 @@
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
-    STATIC_NS_RE←'\Q','\E',⍨STATIC_NS_NM
-  ⍝ Special function names:
+    ⍝ Special function names:
   ⍝    ANON   When the function is an anonymous dfn
   ⍝    NULL   When called from calculator mode with no fns on the stack.
     ANON NULL←'__unnamed_dfn__' '__empty_stack__'
@@ -24,26 +23,27 @@
     ∇ myStat←∆MY
       myStat←⎕THIS.∆MYX 1
     ∇
-
-  ⍝ appendNs: To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
-  ⍝ If ⍺⍺=1, sets the display form.
-  ⍝ Works even if ⍺ is anonymous (no string rep)
-      FAST←0
-      appendNs←{
-         dfOpt←{ ⍝ A kludge! While in principle slow, doesn't affect cmpx timings.
-           FAST∨~⍺⍺: ⍺
-           ⍺⊣ ⍺.⎕DF STATIC_NS_RE ⎕R ⍵⊣⍕⍺
-         }
-         nc←⍺.⎕NC⊂,⍵
-         9.1=nc: ⍺⍎⍵
-         0≠nc: 11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
-      ⍝  Create combined namespace... Set display form if ⍺⍺=1
-         0:: (⍺⍎⍵)         (⍺⍺ dfOpt) '[ANONYMOUS STATIC]'
-             (⍎⍵ ⍺.⎕NS '') (⍺⍺ dfOpt) '[STATIC]'
-     }
-
-  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
+ ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
     _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+
+  ⍝ createStaticNs:
+  ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
+  ⍝ If ⍺⍺=1 and (~SKIP_DF), sets the display form ⎕DF.
+  ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
+    SKIP_DF←0
+    staticNsRe←'\Q','\E',⍨STATIC_NS_NM
+      createStaticNs←{
+          setDF←{ ⍝ While in principle slow, doesn't affect cmpx timings.
+              SKIP_DF∨~⍺⍺:⍺
+              ⍺⊣⍺.⎕DF staticNsRe ⎕R ⍵⊣⍕⍺
+          }
+          nc←⍺.⎕NC⊂,⍵
+          9.1=nc:⍺⍎⍵
+          0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
+      ⍝  Create combined namespace... Set display form if ⍺⍺=1
+          0::(⍺⍎⍵)(⍺⍺ setDF)'[ANONYMOUS STATIC]'
+          (⍎⍵ ⍺.⎕NS'')(⍺⍺ setDF)'[STATIC]'
+      }
 
     ∇ myOwnNs←∆MYX callerLvl
       ;myCallerNs;myOwnNs;⎕IO
@@ -53,12 +53,12 @@
       myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
     ⍝ Build <myCallerNs>.<STATIC_NS_NM>.me
-       myOwnNs←(myCallerNs (0 appendNs) STATIC_NS_NM) (1 appendNs) myName
-       :IF 0≠myOwnNs.⎕NC '∆MYNS'               ⍝ Not first call to ∆MY.
-             myOwnNs.(∆FIRST ∆RESET←∆RESET 0)  ⍝ Update ∆FIRST←∆RESET and clear ∆RESET
-       :Else                                   ⍝ First call to ∆MY. Set state.
-             myOwnNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS )←0 1 myName myOwnNs
-       :EndIF
+      myOwnNs←(myCallerNs(0 createStaticNs)STATIC_NS_NM)(1 createStaticNs)myName
+      :If 0≠myOwnNs.⎕NC'∆MYNS'               ⍝ Not first call to ∆MY.
+          myOwnNs.(∆FIRST ∆RESET←∆RESET 0)  ⍝ Update ∆FIRST←∆RESET and clear ∆RESET
+      :Else                                   ⍝ First call to ∆MY. Set state.
+          myOwnNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 myName myOwnNs
+      :EndIf
     ∇
 
 
@@ -68,47 +68,47 @@
     ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
-      ∆HERE← 0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
+      ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
 
       :Select ≢⊆argList
            ⋄ :Case 1 ⋄ setGet←⍬ ⋄ thatFnNm←argList
            ⋄ :Case 2 ⋄ setGet←'GET' ⋄ thatFnNm obj←argList
            ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
-           ⋄ :Else
-              ⎕SIGNAL 11
+           ⋄ :Else ⋄ 11 ⎕SIGNAL⍨'∆THEIR expects 1-3 objects in the right argument, not ',⍕≢⊆argList
       :EndSelect
 
-       theirNs←'theirNs'{900⌶⍬: ⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
+      theirNs←'theirNs'{900⌶⍬:⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
 
-       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
+      :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
-              ('∆THEIR: Object not a defined function or operator: ',theirNm)⎕SIGNAL 11
+              ('∆THEIR: Object not a defined function or operator: ',thatFnNm)⎕SIGNAL 11
           :EndIf
       :EndIf
 
-      theirStatNs←theirNs (1 appendNs) ⎕THIS.STATIC_NS_NM,'.',thatFnNm
+      theirStatNs←theirNs(1 createStaticNs)⎕THIS.STATIC_NS_NM,'.',thatFnNm
 
     ⍝ If local state vars aren't defined, set them...
-      :If 0=theirStatNs.⎕NC '∆MYNS'
+      :If 0=theirStatNs.⎕NC'∆MYNS'
           theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm theirStatNs
       :EndIf
 
       :Select setGet
-           ⋄ :Case 'GET' ⍝ Return current obj value.
-                      :TRAP 0
-                         result←theirStatNs obj (theirStatNs⍎obj)
-                      :else
-                         11 ⎕SIGNAL⍨'VALUE ERROR getting ∆MY.',thatFnNm,'.',obj
-                      :EndTrap
-           ⋄ :Case 'SET' ⍝ Return old obj value, while setting to new.
-                     :TRAP 0
-                         was←theirStatNs⍎obj
-                         _←{theirStatNs⍎obj,'∘←⍵'}newVal
-                         result←theirStatNs obj was
-                      :Else
-                          11 ⎕SIGNAL⍨'VALUE ERROR setting ∆MY.',thatFnNm,'.',obj,' to ',⍕newVal
-                      :ENDTRAP
-           ⋄ :Else ⋄ result←theirStatNs
+      :Case 'GET' ⍝ Return current obj value.
+          :Trap 0
+              result←theirStatNs obj(theirStatNs⍎obj)
+          :Else
+              11 ⎕SIGNAL⍨'VALUE ERROR getting ∆MY.',thatFnNm,'.',obj
+          :EndTrap
+      :Case 'SET' ⍝ Return old obj value, while setting to new.
+          :Trap 0
+              was←theirStatNs⍎obj
+              _←{theirStatNs⍎obj,'∘←⍵'}newVal
+              result←theirStatNs obj was
+          :Else
+              11 ⎕SIGNAL⍨'VALUE ERROR setting ∆MY.',thatFnNm,'.',obj,' to ',⍕newVal
+          :EndTrap
+      :Else
+          result←theirStatNs
       :EndSelect
     ∇
     ⍝ ∆THEIR only called via namespace: ∆MYgrp.∆THEIR
