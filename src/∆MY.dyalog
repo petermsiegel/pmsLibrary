@@ -11,7 +11,7 @@
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
-    STATIC_NS_RE←'\Q','\E',⍨STATIC_NS_NM 
+    STATIC_NS_RE←'\Q','\E',⍨STATIC_NS_NM
   ⍝ Special function names:
   ⍝    ANON   When the function is an anonymous dfn
   ⍝    NULL   When called from calculator mode with no fns on the stack.
@@ -28,10 +28,11 @@
   ⍝ appendNs: To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
   ⍝ If ⍺⍺=1, sets the display form.
   ⍝ Works even if ⍺ is anonymous (no string rep)
-    appendNs←{
-         dfOpt←{
-           ⍺⍺: ⍺⊣ ⍺.⎕DF STATIC_NS_RE ⎕R ⍵⊣⍕⍺   ⍝ A kludge!
-           ⍺
+      FAST←0
+      appendNs←{
+         dfOpt←{ ⍝ A kludge! While in principle slow, doesn't affect cmpx timings.
+           FAST∨~⍺⍺: ⍺
+           ⍺⊣ ⍺.⎕DF STATIC_NS_RE ⎕R ⍵⊣⍕⍺
          }
          nc←⍺.⎕NC⊂,⍵
          9.1=nc: ⍺⍎⍵
