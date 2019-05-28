@@ -45,20 +45,24 @@
           (⍎⍵ ⍺.⎕NS'')(⍺⍺ setDF)'[STATIC]'
       }
 
-    ∇ myOwnNs←∆MYX callerLvl
+    ∇ myOwnNs←∆MYX callerLvl;⍙;myName
       ;myCallerNs;myOwnNs;⎕IO
     ⍝ For function documentation, see below.
       ⎕IO←0
     ⍝ Determine myName (the user function, or if none, either 'ANON' or 'NULL').
       myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
-    ⍝ Build <myCallerNs>.<STATIC_NS_NM>.me
-      myOwnNs←(myCallerNs(0 createStaticNs)STATIC_NS_NM)(1 createStaticNs)myName
-      :If 0≠myOwnNs.⎕NC'∆MYNS'               ⍝ Not first call to ∆MY.
-          myOwnNs.(∆FIRST ∆RESET←∆RESET 0)  ⍝ Update ∆FIRST←∆RESET and clear ∆RESET
-      :Else                                   ⍝ First call to ∆MY. Set state.
-          myOwnNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 myName myOwnNs
+    ⍝ Build <myCallerNs>.<STATIC_NS_NM>.myName
+      :If 9.1=myCallerNs.⎕NC⊂⍙←STATIC_NS_NM,'.',myName    ⍝ Fast path (when obj already exists)
+          myOwnNs←myCallerNs⍎⍙
+      :Else
+          myOwnNs←(myCallerNs(0 createStaticNs)STATIC_NS_NM)(1 createStaticNs)myName
       :EndIf
+      :If 0=myOwnNs.⎕NC'∆FIRST' ⍝ If ∆FIRST not defined (state not initialized), initialize.
+          myOwnNs.(∆RESET ∆MYNAME ∆MYNS ∆CALLS)←1 myName myOwnNs 0
+          myOwnNs.⎕FX'r←∆FIRST' 'r ∆RESET←∆RESET 0'
+      :EndIf
+      myOwnNs.∆CALLS+←1
     ∇
 
 
@@ -69,37 +73,39 @@
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
-
+     
       :Select ≢⊆argList
            ⋄ :Case 1 ⋄ setGet←⍬ ⋄ thatFnNm←argList
            ⋄ :Case 2 ⋄ setGet←'GET' ⋄ thatFnNm obj←argList
            ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
            ⋄ :Else ⋄ 11 ⎕SIGNAL⍨'∆THEIR expects 1-3 objects in the right argument, not ',⍕≢⊆argList
       :EndSelect
-
+     
       theirNs←'theirNs'{900⌶⍬:⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
-
+     
       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',thatFnNm)⎕SIGNAL 11
           :EndIf
       :EndIf
-
+     
       theirStatNs←theirNs(1 createStaticNs)⎕THIS.STATIC_NS_NM,'.',thatFnNm
-
+     
     ⍝ If local state vars aren't defined, set them...
       :If 0=theirStatNs.⎕NC'∆MYNS'
           theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm theirStatNs
       :EndIf
-
+     
       :Select setGet
       :Case 'GET' ⍝ Return current obj value.
           :Trap 0
+              :If obj≡'∆FIRST' ⋄ obj←'∆RESET' ⋄ :EndIf
               result←theirStatNs obj(theirStatNs⍎obj)
           :Else
               11 ⎕SIGNAL⍨'VALUE ERROR getting ∆MY.',thatFnNm,'.',obj
           :EndTrap
       :Case 'SET' ⍝ Return old obj value, while setting to new.
+          :If obj≡'∆FIRST' ⋄ obj←'∆RESET' ⋄ :EndIf
           :Trap 0
               was←theirStatNs⍎obj
               _←{theirStatNs⍎obj,'∘←⍵'}newVal
@@ -115,7 +121,7 @@
 
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝  ∆MYgrp.HELP
+⍝  ∆MYgrp.HELP, Help, help
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
     ∇ HELP;H
       ⎕ED'H'⊣H←↑2↓¨2↓⎕NR ⎕IO⊃⎕SI
@@ -144,9 +150,20 @@
 ⍝    a. Iff that space is new, sets "pseudo-system" variables:
 ⍝           ∆MYNAME←me           ⍝ Simple name of the caller
 ⍝           ∆MYNS←my             ⍝ Fully qualified name (string) of the namespace the caller lives in.
-⍝           ∆FIRST←1             ⍝ This was the first time ∆MY was called for this function.
+⍝           ∆RESET←0             ⍝ If set to 1, ∆MY.∆FIRST will be 1 on the NEXT call.
+⍝           ∆CALLS←1             ⍝ Set to 1 first time ∆MY is called (initialized).
+⍝       and the niladic function ∆FIRST, if called, responds:
+⍝           ∆FIRST returns 1     ⍝ This was the first time ∆MY.∆FIRST was called for this function.
 ⍝    b. Iff that space is not new, sets "pseudo-system" variables:
-⍝           ∆FIRST← 0            ⍝ This was not the first time ∆MY was called for this function.
+⍝           ∆CALLS +←1           ⍝ How many times ∆MY was called
+⍝       and the niladic function ∆FIRST, if called, responds:
+⍝           ∆FIRST will return 0 ⍝ This was not the first time ∆MY.∆FIRST was called for this function.
+⍝    c. To reset ∆FIRST, so it returns 1 on the next call, do
+⍝           ∆MY.∆RESET←1
+⍝        or do
+⍝           ∆THEIR 'funcName'  '∆RESET' 1
+⍝     NOTE: ∆FIRST returns 0 on every call after the first call to ∆FIRST (unless ∆RESET).
+⍝           ∆CALLS, which counts calls to ∆MY, not (∆MY.)∆FIRST, will increment forever (unless reset via ∆THEIR '∆CALLS' 1)
 ⍝  3. Returns a reference, <myStat>, to a static namespace for the caller:
 ⍝     <static>.<me> in namespace <my>, i.e. <my>.<static><.me>
 ⍝     ∘ If called from an unnamed function (must be a dfn), that function's caller is used if named,
@@ -173,6 +190,13 @@
 ⍝          theirStat ← {their} ∆THEIR them variable value
 ⍝       them:      the name (string-form) of a function or operator;
 ⍝       their:     the name (string-form) of the namespace in which <them> resides, else the current directory.
+⍝       variable:  ∆MY "special" variables--  starting with ∆ -- or arbitrary use variables
+⍝           ∆RESET      1 if the next call to ∆FIRST should return 1. Values: 1 or 0.
+⍝           ∆MYNAME     the name of this specific function; do not reset.
+⍝           ∆MYNS       the namespace this function uses for ∆MY variables; do not reset.
+⍝           ∆CALLS      the number of times ∆MY has been called; 1 after first call.
+⍝           ∆FIRST      ∆FIRST is actually a function, but if it is queried or set via ∆THEIR, ∆RESET is actually used.
+⍝
 ⍝   Returns:
 ⍝   I. theirStat: a shy namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
 ⍝         namespace for objects associated with the function or operator specified via <them>/<their>.
@@ -194,6 +218,13 @@
 ⍝ ∆MYX: "∆MY utility. Returns the static namespace for the caller level specified."
 ⍝
     ∇
+    ∇ Help
+      HELP
+    ∇
+    ∇ help
+      HELP
+    ∇
+
 ⍝∇⍣§./PMSLibrary/∆MY.dyalog§0§ 2018 8 21 21 43 38 381 §åÊtÅZ§0
 
 :EndNamespace
