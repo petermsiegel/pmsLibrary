@@ -17,9 +17,9 @@
  optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
  :For opt :In {⍵⊆⍨' '≠⍵}optString
      :Select 2↑opt
-          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ BLank lines treated as comments (blank HERE lines in output)  
-          ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ output a SIngle (string)
-          ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ output MUltiple (strings)
+          ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ Blank lines treated as comments (blank HERE lines in output)
+          ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ output a SIngle (string) with embedded LFs or CRs
+          ⋄ :Case 'MU' ⋄ oMulti←1                   ⍝ output MUltiple (strings) w/o LFs or CRs
           ⋄ :Case 'LF' ⋄ lineEnd oMulti←(⎕UCS 10)0  ⍝ Use LF in output strings; implies SIngle
           ⋄ :Case 'CR' ⋄ lineEnd oMulti←(⎕UCS 13)0  ⍝ Use CR in output strings; implies SIngle
           ⋄ :CaseList 'DE' 'DB' ⋄ oDebug←1          ⍝ Use DEBUG mode: which is verbose....
