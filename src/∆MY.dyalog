@@ -65,7 +65,7 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
+    ∇ {result}←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
