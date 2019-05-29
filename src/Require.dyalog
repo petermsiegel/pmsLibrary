@@ -43,7 +43,8 @@
          }⍵
          scanOpts←{
            ⍝ Returns 1 only for -help; else 0.
-             ⋄ is←{⍵≡(819⌶)⍺↑⍨≢⍵}
+             ⋄ isI←{⍵≡(819⌶)⍺↑⍨≢⍵}   ⍝ case ignored
+             ⋄ isR←{⍵≡⍺↑⍨≢⍵}         ⍝ case respected
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
            ⍝ set2:
@@ -65,20 +66,21 @@
              }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
              9=⎕NC'o':∇ next⊣lib∘←o
-             o is'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
-             o is'-f':∇ next⊣force∘←1     ⍝ -f[orce]
-             o is'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
-             o is'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
-             o is'-ro':∇ next⊣lib∘←#      ⍝ -ro[ot]
-             o is'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
-             o is'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
-             o is'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
+             o isI'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
+             o isI'-f':∇ next⊣force∘←1     ⍝ -f[orce]
+             o isI'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
+             o isI'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
+             o isI'-ro':∇ next⊣lib∘←#      ⍝ -ro[ot]
+             o isR'-R':∇ next⊣lib∘←#       ⍝ -R[oot]
+             o isI'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
+             o isI'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
+             o isI'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
-             o is'--':0⊣args∘←next↓opts
+             o isI'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
          }
          scanOpts 0:⍬
-         ret←(2×'l'∊ret)+('s'∊ret)
+         ret←(2×'l'∊ret)+('s'∊ret)⊣ret←(819⌶)ret
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
@@ -515,7 +517,7 @@
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
      succ←0=≢⊃⌽statusList
    ⍝ oOut=3? Now returns 1 on success, 0 otherwise..
-     succ∧oOut∊3:_←{⍵}TRACE (⊂libR),statusList      ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
+     succ∧oOut∊3:_←{⍵}TRACE(⊂libR),statusList      ⍝ oOut 3:   SUCC: shy     (non-shy if oDebug)
      ⋄ oOut∊3:0(⊂libR),statusList                   ⍝           FAIL: non-shy
      succ∧oOut∊2 0:libR                             ⍝ oOut 2:   SUCC: non_shy
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
