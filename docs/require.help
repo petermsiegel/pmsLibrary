@@ -1,4 +1,4 @@
-﻿ require Documentation
+-out﻿ require Documentation
  ------- -------------
  require:
   o Ensures for specified APL objects
@@ -26,6 +26,8 @@
          opts: Each token may either be
               (a) a separate APL string or namespace,  or
               (b) tokens in a single string separated by one or more blanks.
+
+  Options:
    Options:        name                              default                   description
    force:          -f[orce]                          0                         force objects to load even if present somewher
    debug:          -d[ebug]                          0                         share debugging info
@@ -33,16 +35,16 @@
    defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *           Put new or forced obnects in <nsRef|nsStr>
                    nsRef                                (i.e. nsRef of ⎕NC 9)  -lib may be omitted if nsRef is class 9
                    -s[ession] Alias for -lib=⎕SE                               Put new or forced objects in ⎕SE
-                   -ro[ot]    Alias for -lib=#                                 Put new or forced objects in #
-   outputParms:    -r[eturn]=[s|l|ls|sl]                                       Return for each obj: library ref, status, or both
-                    Specifies return values, one item for each package listed:
+                   -r[oot]    Alias for -lib=#                                 Put new or forced objects in #
+   outputParms:    -o[utput]=[s|l|ls|sl]                                       Return for each obj: library ref, status, or both
+                    Specifies return (output) values, one item for each package listed:
                        s:  status of each package specified, as a string
                     >  l:  the library used, as a ns ref, for each object (default)
                        ls: the library AND the status of each package...
-                       sl: same as -ret=ls
-                   -o[utput]=...                                               Synonym for -return
+                       sl: same as -out=ls
+                       Output options (-o) may be in either case (s|l|sl|S|L|SL).
    ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
-   E.g.  require '-f  -call=⎕SE.mylib -ret=sl --   pkg1 -pkg_with_hyphen pkg3'
+   E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
                  opt  opt             opt     opt  pkgs -->     ...       -->
 
  Note: require searches disk directories specified in environment variables FSPATH and WSPATH.
@@ -75,20 +77,20 @@
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________
-   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-ret' 'l'
+   Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-out' 'l'
                                                                   ∇ package1 [package2 [... packageN]]
-             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-ret' 's'
+             rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's'
                                                                   ∇ ⍬
-             rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-ret' 'sl' ∇ ...
+             rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' ∇ ...
                                                                   ∇ package1 [package2 [... packageN]]
-   Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-ret [s|l|sl] {packages...}'
-          2a:                        ∇ '[-f] [-caller=nsN] [-lib=nsL] [-debug] [-ret=[s|l|sl] {packages...}'
+   Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}'
+          2a:                        ∇ '[-f] [-caller=nsN] [-lib=nsL] [-debug] [-out=[s|l|sl] {packages...}'
    Syntax 3: show help info        ←                              ∇ '-HELP'
 
 In Syntax 1, each package must be specified as a separate string vector. In this syntax,
    a package name may include spaces. -caller and -lib may be specified in one of two ways:
   '-caller=nsN' (one token) or '-caller' 'nsN' or '-caller' nsR, where nsN is a namespace name and nsR, a reference.
-  -ret may also use either format, but with strings only: e.g. '-ret=s' OR '-ret' 's'
+  -out may also use either format, but with strings only: e.g. '-out=s' OR '-out' 's'
 In Syntax 2, each option and package are separated by spaces only. Separate string vectors are not allowed.
    Namespaces as names only are valid and the syntax -lib=nsN is equiv. to -lib nsN.
    In this syntax, package names may not contain spaces (which separate options and packages).

@@ -19,12 +19,12 @@
      ⍝  defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *
      ⍝                  nsRef                                **
      ⍝                  -s[ession] Alias for -lib=⎕SE
-     ⍝                  -root    Alias for -lib=#
-     ⍝  returnParms:    -r[eturn] =['l'|'s'|'ls]
+     ⍝                  -r[oot]    Alias for -lib=#
+     ⍝  returnParms:    -o[utput] =['l'|'s'|'ls']  (or 'L', 'S', 'LS')
      ⍝                        s: status of each package specified
      ⍝                        l: the library used, as a reference
      ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
-     ⍝  E.g.  require '-f  -call=⎕SE.mylib -ret=sl --   pkg1 -pkg_with_hyphen pkg3'
+     ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
      ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
      ⍝ ----------------------
      ⍝ *  The defaultLib is by default within (prefixed with) the callerNs.
@@ -34,7 +34,7 @@
      ⍺←⎕NULL       ⍝ options in right arg before packages?
      options←⍺{
        ⍝ defaults set here... (caller → callerR callerN below)
-         force debug ret caller lib←0 0 0 ⍬ ⍬
+         forceO debugO outO callerO libO←0 0 ''⍬ ⍬
          monad opts args←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
              1<|≡⍵:1(,⍵)(,⊆⍵)
@@ -65,32 +65,31 @@
                  e⊃skip next
              }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
-             9=⎕NC'o':∇ next⊣lib∘←o
+             9=⎕NC'o':∇ next⊣libO∘←o
              o isI'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
-             o isI'-f':∇ next⊣force∘←1     ⍝ -f[orce]
-             o isI'-d':∇ next⊣debug∘←1     ⍝ -d[ebug]
-             o isI'-s':∇ next⊣lib∘←⎕SE     ⍝ -s[ession]
-             o isI'-ro':∇ next⊣lib∘←#      ⍝ -ro[ot]
-             o isR'-R':∇ next⊣lib∘←#       ⍝ -R[oot]
-             o isI'-r':∇'ret'set2 o        ⍝ -r[eturn]=[s|l|sl]  Output: s[tatus] l[ibrary]
-             o isI'-c':∇'caller'set2 o     ⍝ -c[aller]=nsName | -c[aller] nsRef
-             o isI'-l':∇'lib'set2 o        ⍝ -l[ib]=nsName    | -l[ib]    nsRef
+             o isI'-f':∇ next⊣forceO∘←1    ⍝ -f[orce]
+             o isI'-d':∇ next⊣debugO∘←1    ⍝ -d[ebug]
+             o isI'-s':∇ next⊣libO∘←⎕SE    ⍝ -s[ession]
+             o isI'-r':∇ next⊣libO∘←#      ⍝ -ro[ot]
+             o isI'-o':∇'outO'set2 o       ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
+             o isI'-c':∇'callerO'set2 o    ⍝ -c[aller]=nsName | -c[aller] nsRef
+             o isI'-l':∇'libO'set2 o       ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o isI'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
          }
          scanOpts 0:⍬
-         ret←(2×'l'∊ret)+('s'∊ret)⊣ret←(819⌶)ret
+         outO←{2 1+.×'ls'∊⍵}(819⌶)outO
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
              ⍵≡⍬:r n
              (r⍎⍵)⍵
-         }caller
-         options←force debug ret callerR callerN lib args
-         ~debug:options
-         ⎕←'force  'force ⋄ ⎕←'debug  'debug ⋄ ⎕←'ret    'ret
-         ⎕←'caller 'caller ⋄ ⎕←'lib    'lib ⋄ ⎕←'args  'args
+         }callerO
+         options←forceO debugO outO callerR callerN libO args
+         ~debugO:options
+         ⎕←'forceO  'forceO ⋄ ⎕←'debugO  'debugO ⋄ ⎕←'outO    'outO
+         ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄ ⎕←'args  'args
          options
      }⍵
    ⍝ If -help, done now...
@@ -403,7 +402,7 @@
 ⍝:DBG       _←{'>>> Checking workspace: ',⍵}TRACE wsN
              stat←wsN{
                  0::''
-                 0≠≢⍵:'wsN:name→lib'⊣⍵ libR.⎕CY ⍺     ⍝ Copy in object from wsN
+                 0≠≢⍵:'wsN:name→libO'⊣⍵ libR.⎕CY ⍺     ⍝ Copy in object from wsN
                  _←libR.⎕CY ⍺
                  _←⍺{
                      libR.⍎(dunder ⍺),'←⍵'               ⍝ Copy in entire wsN <wsN>.
