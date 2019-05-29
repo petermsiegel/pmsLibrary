@@ -42,8 +42,18 @@
           0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
       ⍝  Create combined namespace... Set display form if ⍺⍺=1
           0::(⍺⍎⍵)(⍺⍺ setDF)'[ANONYMOUS STATIC]'
-          (⍎⍵ ⍺.⎕NS'')(⍺⍺ setDF)'[STATIC]'
+          (⍎⍵ ⍺.⎕NS START_UP_ITEMS)(⍺⍺ setDF)'[STATIC]'
       }
+
+     ⍝ Copied into ∆MY namespaces...
+     ⍝
+    :Namespace START_UP_ITEMS
+        ∆RESET ∆CALLS←1 0
+       ⍝ ∆MYNAME ∆MYNS set when copied
+        ∇ r←∆FIRST
+          r ∆RESET←∆RESET 0
+        ∇
+    :ENDNAMESPACE
 
     ∇ myOwnNs←∆MYX callerLvl;⍙;myName
       ;myCallerNs;myOwnNs;⎕IO
@@ -58,9 +68,8 @@
       :Else
           myOwnNs←(myCallerNs(0 createStaticNs)STATIC_NS_NM)(1 createStaticNs)myName
       :EndIf
-      :If 0=myOwnNs.⎕NC'∆FIRST' ⍝ If ∆FIRST not defined (state not initialized), initialize.
-          myOwnNs.(∆RESET ∆MYNAME ∆MYNS ∆CALLS)←1 myName myOwnNs 0
-          myOwnNs.⎕FX'r←∆FIRST' 'r ∆RESET←∆RESET 0'
+      :If 0=myOwnNs.⎕NC'∆MYNS' ⍝ If ∆FIRST not defined (state not initialized), initialize.
+          myOwnNs.(∆MYNAME ∆MYNS)←myName myOwnNs
       :EndIf
       myOwnNs.∆CALLS+←1
     ∇
@@ -69,7 +78,7 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ {result}←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
+    ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
