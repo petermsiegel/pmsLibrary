@@ -11,22 +11,13 @@
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
-    ⍝ Special function names:
+ 
+  ⍝ Special function names:
   ⍝    ANON   When the function is an anonymous dfn
   ⍝    NULL   When called from calculator mode with no fns on the stack.
     ANON NULL←'__unnamed_dfn__' '__empty_stack__'
 
-⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝     ∆MYX, ∆MY
-⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-
-    ∇ myStat←∆MY
-      myStat←⎕THIS.∆MYX 1
-    ∇
- ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
-    _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
-
-   ⍝ START_UP_ITEMS:  Copied into ∆MY namespaces...
+  ⍝ START_UP_ITEMS:  Copied into ∆MY namespaces...
     :Namespace START_UP_ITEMS
         ∆RESET ∆CALLS←1 0
        ⍝ ∆MYNAME ∆MYNS set when copied
@@ -35,10 +26,19 @@
         ∇
     :EndNamespace
 
-  ⍝ createStaticNs:
+⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝     ∆MYX, ∆MY
+⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    ∇ myStat←∆MY
+      myStat←⎕THIS.∆MYX 1
+    ∇
+ ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
+    _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+
+  ⍝ getStaticNs:
   ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
   ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
-      createStaticNs←{
+      getStaticNs←{
           nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
           9.1=nc:⍺⍎mystat
           0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
@@ -47,14 +47,14 @@
           ns
       }
 
-    ∇ myOwnNs←∆MYX callerLvl;⍙;myName
-      ;myCallerNs;myOwnNs;⎕IO
+    ∇ myOwnNs←∆MYX callerLvl
+      ;myCallerNs;myName;myOwnNs;⍙;⎕IO
     ⍝ For function documentation, see below.
       ⎕IO←0
     ⍝ Determine myName (the user function, or if none, either 'ANON' or 'NULL').
       myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
-      myOwnNs←myCallerNs createStaticNs myName
+      myOwnNs←myCallerNs getStaticNs myName
       myOwnNs.∆CALLS+←1
     ∇
 
@@ -82,7 +82,7 @@
           :EndIf
       :EndIf
      
-      theirStatNs←theirNs createStaticNs thatFnNm
+      theirStatNs←theirNs getStaticNs thatFnNm
      
      
       :Select setGet
@@ -103,11 +103,10 @@
               11 ⎕SIGNAL⍨'VALUE ERROR setting ∆MY.',thatFnNm,'.',obj,' to ',⍕newVal
           :EndTrap
       :Else
-          result←theirStatNs
+          result←theirStatNs   ⍝ Just return their ∆MY namespace!
       :EndSelect
     ∇
-    ⍝ ∆THEIR only called via namespace: ∆MYgrp.∆THEIR
-
+   
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.HELP, Help, help
@@ -174,26 +173,26 @@
 ⍝          -Returns the "static" namespace for function/operator, <them>, of the same form as ∆MY, except
 ⍝           that here the function need not be active, though it must be defined. ∆THEIR creates, but does not update,
 ⍝           required local variables. (See ∆MY)."
-⍝ ∆THEIR:  theirStat ← {their} ∆THEIR them
-⍝          theirStat ← {their} ∆THEIR them variable
-⍝          theirStat ← {their} ∆THEIR them variable value
+⍝ ∆THEIR:  theirStat                  ← {their} ∆THEIR them
+⍝          theirStat variable curVal  ← {their} ∆THEIR them variable
+⍝          theirStat variable oldVal  ← {their} ∆THEIR them variable value
 ⍝       them:      the name (string-form) of a function or operator;
-⍝       their:     the name (string-form) of the namespace in which <them> resides, else the current directory.
+⍝       their:     the name (string-form) of the namespace in which <them> resides, else the namespace called from (current).
 ⍝       variable:  ∆MY "special" variables--  starting with ∆ -- or arbitrary use variables
 ⍝           ∆RESET      1 if the next call to ∆FIRST should return 1. Values: 1 or 0.
 ⍝           ∆MYNAME     the name of this specific function; do not reset.
 ⍝           ∆MYNS       the namespace this function uses for ∆MY variables; do not reset.
 ⍝           ∆CALLS      the number of times ∆MY has been called; 1 after first call.
-⍝           ∆FIRST      ∆FIRST is actually a function, but if it is queried or set via ∆THEIR, ∆RESET is actually used.
+⍝           ∆FIRST      ∆FIRST is actually a function, but if it is queried or set via ∆THEIR, ∆RESET is quietly used.
 ⍝
 ⍝   Returns:
-⍝   I. theirStat: a shy namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
+⍝   I. theirStat: a namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
 ⍝         namespace for objects associated with the function or operator specified via <them>/<their>.
 ⍝         If <theirStat> does not exist, it is created and local variables initialized.
 ⍝   II. If variable is included (e.g. ∆RESET),
 ⍝       checks current value of theirStat.variable,
 ⍝       returns:
-⍝           theirStat variable (current value of variable)
+⍝           theirStat variable (current [i.e. old] value of variable)
 ⍝   III. If variable and value are included,
 ⍝        sets theirStat.variable←value, then
 ⍝        returns:
