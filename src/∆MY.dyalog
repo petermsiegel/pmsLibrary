@@ -26,34 +26,26 @@
  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
     _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
 
-  ⍝ createStaticNs:
-  ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
-  ⍝ If ⍺⍺=1 and (~SKIP_DF), sets the display form ⎕DF.
-  ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
-    SKIP_DF←0
-    staticNsRe←'\Q','\E',⍨STATIC_NS_NM
-      createStaticNs←{
-          setDF←{ ⍝ While in principle slow, doesn't affect cmpx timings.
-              SKIP_DF∨~⍺⍺:⍺
-              ⍺⊣⍺.⎕DF staticNsRe ⎕R ⍵⊣⍕⍺
-          }
-          nc←⍺.⎕NC⊂,⍵
-          9.1=nc:⍺⍎⍵
-          0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name in use: ',(⍕⍺),'.',⍵
-      ⍝  Create combined namespace... Set display form if ⍺⍺=1
-          0::(⍺⍎⍵)(⍺⍺ setDF)'[ANONYMOUS STATIC]'
-          (⍎⍵ ⍺.⎕NS START_UP_ITEMS)(⍺⍺ setDF)'[STATIC]'
-      }
-
-     ⍝ Copied into ∆MY namespaces...
-     ⍝
+   ⍝ START_UP_ITEMS:  Copied into ∆MY namespaces...
     :Namespace START_UP_ITEMS
         ∆RESET ∆CALLS←1 0
        ⍝ ∆MYNAME ∆MYNS set when copied
         ∇ r←∆FIRST
           r ∆RESET←∆RESET 0
         ∇
-    :ENDNAMESPACE
+    :EndNamespace
+
+  ⍝ createStaticNs:
+  ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
+  ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
+      createStaticNs←{
+          nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
+          9.1=nc:⍺⍎mystat
+          0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
+          ns←⍺⍎mystat⊣mystat ⍺.⎕NS START_UP_ITEMS       ⍝ Use ⍺⍎⍵ to get ref, in case anon ns
+          ns.(∆MYNAME ∆MYNS)←⍵ ns
+          ns
+      }
 
     ∇ myOwnNs←∆MYX callerLvl;⍙;myName
       ;myCallerNs;myOwnNs;⎕IO
@@ -62,15 +54,7 @@
     ⍝ Determine myName (the user function, or if none, either 'ANON' or 'NULL').
       myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
-    ⍝ Build <myCallerNs>.<STATIC_NS_NM>.myName
-      :If 9.1=myCallerNs.⎕NC⊂⍙←STATIC_NS_NM,'.',myName    ⍝ Fast path (when obj already exists)
-          myOwnNs←myCallerNs⍎⍙
-      :Else
-          myOwnNs←(myCallerNs(0 createStaticNs)STATIC_NS_NM)(1 createStaticNs)myName
-      :EndIf
-      :If 0=myOwnNs.⎕NC'∆MYNS' ⍝ If ∆FIRST not defined (state not initialized), initialize.
-          myOwnNs.(∆MYNAME ∆MYNS)←myName myOwnNs
-      :EndIf
+      myOwnNs←myCallerNs createStaticNs myName
       myOwnNs.∆CALLS+←1
     ∇
 
@@ -98,12 +82,8 @@
           :EndIf
       :EndIf
      
-      theirStatNs←theirNs(1 createStaticNs)⎕THIS.STATIC_NS_NM,'.',thatFnNm
+      theirStatNs←theirNs createStaticNs thatFnNm
      
-    ⍝ If local state vars aren't defined, set them...
-      :If 0=theirStatNs.⎕NC'∆MYNS'
-          theirStatNs.(∆RESET ∆FIRST ∆MYNAME ∆MYNS)←0 1 thatFnNm theirStatNs
-      :EndIf
      
       :Select setGet
       :Case 'GET' ⍝ Return current obj value.
