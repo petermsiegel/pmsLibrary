@@ -1,8 +1,7 @@
 ﻿ hd←∆HERE
  ;kw;here;opt;optString;lineEnd;oDebug;oMulti;oBlanks;⎕IO;⎕ML
 ⍝ ∆HERE-- see documentation below
- ⎕IO ⎕ML←0 1
- oMulti oBlanks oDebug←1 0 0
+ ⎕IO ⎕ML oMulti oBlanks oDebug←0 1 1 0 0
  lineEnd←⎕UCS 13    ⍝  CR character. If used in Dyalog, behaves like CR + LF.
 
  here←1⊃2↑(50100⌶)2    ⍝ 2↑⎕LC = 2↑(50100⌶)2
@@ -51,7 +50,7 @@
  :EndIf
 
 ⍝ --------------------------------------------------------------------------------------------------
-⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
+⍝ ∆HERE:   hd ← ∆HERE [⍝ <anytext>  ⍠ keywords]
 ⍝       keywords:
 ⍝           BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
 ⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)?
@@ -59,7 +58,7 @@
 ⍝           CR | LF             Sets SIngle (above) and...
 ⍝                               ... uses the specified char (CR or LF) as the line separator (CR by default).
 ⍝           DEbug, DBG          Shows debug info.
-⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
+⍝       Returns an APL "Here Document" (hd) entered as a series of comments following the ∆HERE function.
 ⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
 ⍝              NoBlanks: treat blank lines as non-comment lines (default);
 ⍝              BLANKS:   treat blank lines /^\h*$/ as if prefixed by '⍝ ';
