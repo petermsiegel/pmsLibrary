@@ -44,7 +44,7 @@
 ⍝ A1. If oBlanks=1, treat blank lines as (empty) comment lines
  hd←'^\h*$'⎕R'⍝ '⍣oBlanks⊣hd
 ⍝ D. Among these, keep only ones w/ original '⍝ ' prefix and remove a single blank.
-⍝ |              C. Gather contiguous commented lines (see A1.) and drop comment symbol
+⍝ |              C. Gather contiguous comment (only) lines (see A1.) and drop comment symbol
 ⍝ ∨              ∨                 B. Drop leading blanks on each line (before comment symbol)
  hd←1↓¨hd/⍨' '=⊃¨hd←1↓¨hd/⍨∧\'⍝'=⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨hd
  :If ~oMulti
