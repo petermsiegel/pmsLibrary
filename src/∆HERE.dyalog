@@ -1,6 +1,12 @@
 ﻿ hd←∆HERE
- ;kw;here;opt;optString;lineEnd;oDebug;oMulti;oBlanks;⎕IO;⎕ML
-⍝ ∆HERE-- see documentation below
+⍝ ∆HERE-- see full documentation at ∆HERE.doc
+⍝ 1. hereDoc lines are those lines immediately after the ∆HERE that match /^ *⍝/,
+⍝ contiguously until the first line NOT matching /^ *⍝/
+⍝ 2. Those matching /^ *⍝[^ ]/ are then discarded as "hereDoc comments."
+⍝ 3. If the 'BL[anks]' option is specified (see below),
+⍝     lines matching /^ *$/ are treated as prefixed with '⍝'.
+ ;kw;here;opt;oString;lineEnd;oDebug;oMulti;oBlanks;⎕IO;⎕ML
+
  ⎕IO ⎕ML oMulti oBlanks oDebug←0 1 1 0 0
  lineEnd←⎕UCS 13    ⍝  CR character. If used in Dyalog, behaves like CR + LF.
 
@@ -13,8 +19,8 @@
  :EndIf
 
 ⍝ Get the options from the ∆HERE statement line- after ⍠ and up to ⍝ or end of line
- optString←1(819⌶)⊣∊'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
- :For opt :In {⍵⊆⍨' '≠⍵}optString
+ oString←'⍝[^⍠]*⍠([^⍝]*)'⎕S'\1'⊣here⊃hd
+ :For opt :In {⍵⊆⍨' '≠⍵}1(819⌶)⊣∊oString
      :Select 2↑opt
           ⋄ :Case 'BL' ⋄ oBlanks←1                  ⍝ Blank lines treated as comments (blank HERE lines in output)
           ⋄ :Case 'SI' ⋄ oMulti←0                   ⍝ output a SIngle (string) with embedded LFs or CRs
@@ -27,94 +33,20 @@
 
  :If oDebug
      ⎕←('DEBUG: here line:[',(⍕here),']: "'),(here⊃hd),'"'
-     ⎕←'DEBUG: option str: "',optString,'"'
-     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti,',lineEnd=',∊(10 13⍳⎕UCS lineEnd)⌷'LF' 'CR' ('⎕U',⍕⎕UCS lineEnd)
+     ⎕←'DEBUG: option str: "',oString,'"'
+     ⎕←'DEBUG: oBlanks=',oBlanks,',oMulti=',oMulti
+     ⎕←'DEBUG: lineEnd=',∊'LF' 'CR' '?'⊃⍨10 13⍳⎕UCS lineEnd
  :EndIf
 
-⍝ Get the ∆HERE document as follows:
-⍝   A: Gather all lines in caller following ∆HERE call in ⎕NR format.
-⍝      A1. If oBlanks=1, convert empty lines to the form '⍝ '.
-⍝   B: Drop leading blanks from each.
-⍝   C: Gather contig. lines beginning (now) with '⍝'.
-⍝      C1. Keeping in mind A1 above, stop when a line not beginning with '⍝' is reached.
-⍝   D. Select, from these, all those w/ '⍝ ' prefix, remove prefix, and return.
-⍝      Other selected lines are treated as comments and ignored. (e.g. '⍝⍝ Comment').
-
+⍝ Build the ∆HERE document as follows:
+⍝ A. Gather all lines after <here>
  hd←⊆hd↓⍨1+here
- :If oBlanks
-     hd←'^\h*$'⎕R'⍝ '⊣hd   ⍝ Convert blank lines to comment lines with single blank...
- :EndIf
+⍝ A1. If oBlanks=1, treat blank lines as (empty) comment lines
+ hd←'^\h*$'⎕R'⍝ '⍣oBlanks⊣hd
+⍝          D. Among these, keep only this w/ original '⍝ ' prefix.
+⍝          |           C. Gather contiguous commented lines (see A1.) and drop comment symbol
+⍝          ∨           ∨              B. Drop leading blanks on each line (before comment symbol)
  hd←1↓¨hd/⍨' '=⊃¨hd←1↓¨hd/⍨∧\'⍝'=⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨hd
  :If ~oMulti
      hd←¯1↓∊hd,¨lineEnd
  :EndIf
-
-⍝ --------------------------------------------------------------------------------------------------
-⍝ ∆HERE:   hd ← ∆HERE [⍝ <anytext>  ⍠ keywords]
-⍝       keywords:
-⍝           BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
-⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)?
-⍝                               If SIngle, use CR option by default (q.v.).
-⍝           CR | LF             Sets SIngle (above) and...
-⍝                               ... uses the specified char (CR or LF) as the line separator (CR by default).
-⍝           DEbug, DBG          Shows debug info.
-⍝       Returns an APL "Here Document" (hd) entered as a series of comments following the ∆HERE function.
-⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
-⍝              NoBlanks: treat blank lines as non-comment lines (default);
-⍝              BLANKS:   treat blank lines /^\h*$/ as if prefixed by '⍝ ';
-⍝                        only accept non-blank APL code lines as non-comment lines.
-⍝       ∘ Comment lines with a /⍝ / prefix, i.e. of the form
-⍝                 /^\h*⍝ /   are kept as part of the ∆HERE document;
-⍝                         ⍝ ¯1 + 2*31   ⍝ Code line
-⍝       ∘ Those of the form*
-⍝                 /^\h*⍝[^ ]/ are ignored, and won't appear as part of the resulting ∆HERE document.
-⍝                         ⍝* This is ignored, i.e. not included in the ∆HERE text....
-⍝                         ⍝⍝ So is this. Neither begins '⍝ '...
-⍝                 * I.e. a comment symbol immed followed by any char besides a blank is ignored.
-⍝
-⍝ Returns:
-⍝       [MULTIPLE* option] a vector of character vectors of ∆HERE-doc lines following the ∆HERE call.
-⍝       [SINGLE option] a single vector string with CR (default) or NL (option) <<separating>> lines.
-⍝       For each line returned, the prefix '^\h*⍝ ' is removed (leading blanks, comment symbol, one blank).
-⍝       ------------
-⍝       * MULTIPLE is the default.
-⍝ Options:
-⍝      ∆HERE is a niladic function. Options are within a comment on the same function line as the ∆HERE.
-⍝      Option keywords on the ∆HERE function line are of this Regex form:
-⍝           ⍝[^⍠]*⍠ ([^⍝]*) (⍝|^)
-⍝      e.g. this example treats empty lines after the ∆HERE as blank comment lines,
-⍝           and returns multiple lines using the carriage return.
-⍝           h←∆HERE    ⍝ ⍠ BL CR
-⍝
-⍝∘ Keyword Options, Associated Variables, and Actions
-⍝  Keyword    Abbrev Def  Options←val  Description
-⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ', part of the ∆HERE doc,
-⍝                                      so only actual APL code lines end a ∆HERE doc
-⍝  NOBLANKS   NOBL   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
-⍝  MULTIPLE   MU     Y    oMulti←1     If result has multiple lines, return as vec of vec strings w/o explicit line separators
-⍝  SINGLE     SI          oMulti←0     If result has multiple lines, return as a single string vector with CR as line separator
-⍝  LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
-⍝  CR         CR     Y    lineEnd←⎕UCS 13   (carriage return).  Sets SINGLE, i.e. oMulti←0.
-⍝  DEBUG      DEB    N    oDebug←1     Start debug (verbose) mode
-⍝             DBG         oDebug←1      Alternative to DEB/UG
-⍝  anything else          **ignore**
-⍝
-⍝ The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
-⍝ A common alternative is:   ⍝ ⍠ CR BL             -- Create a char string with lines separated by CR carriage return.
-⍝                                                     End ∆HERE doc at first code line (non-comment, non-blank line).
-⍝
-⍝ If SINGLE is specified, CR is the default line separator.
-⍝ The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
-⍝
-⍝  Here document example
-⍝      myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ BL
-⍝      ⍝ <!DOCTYPE HTML>
-⍝      ⍝ <html>
-⍝      ⍝⍝ Next line is blank.    <-- This line is ignored because of '⍝⍝'.
-⍝                                <-- Blank line would end the HERE doc without 'BLanks' option.
-⍝      ⍝ <head>
-⍝      ⍝ <meta name="viewport" content="width=device-width, initial-scale=1">
-⍝                                <-- Ditto
-⍝      <style>
-⍝      etc.
-⍝ BUGS:   The calling function must be an unlocked fn or op.
