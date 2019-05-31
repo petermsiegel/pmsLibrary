@@ -1,9 +1,10 @@
 :Namespace ∆MYgrp
-  ⍝ >>> ∆MY.dyalog → creates namespce ∆MYgrp and objects ##.∆MY and ##.∆THEIR
+  ⍝ >>> ∆MY.dyalog → creates namespce ∆MYgrp and object ##.∆MY  (utility ∆THEIR is avail in ∆MYgrp).
   ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC_NS_NM objects within
   ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
   ⍝ ∘ For an overview, see ∆MYgrp.help
-  ⍝ ∘ We create files in namespaces within various user namespaces.
+  ⍝ ∘ We create files in namespaces within various user namespaces based on
+  ⍝   1) the name of the calling (or referenced) function and 2) the namespace in which it resides.
   ⍝   This class uses a "private" namespace, ⍙⍙.∆MY, inside a namespace ⍙⍙, which supports a "family" of services.
   ⍝ ∘ While many ⍙⍙ services are only in the top-level spaces # or ⎕SE, ∆MYgrp places its namespace(s) in the
   ⍝   same namespace that the calling function uses.
@@ -11,16 +12,17 @@
   ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
- 
+
   ⍝ Special function names:
   ⍝    ANON   When the function is an anonymous dfn
   ⍝    NULL   When called from calculator mode with no fns on the stack.
     ANON NULL←'__unnamed_dfn__' '__empty_stack__'
 
   ⍝ START_UP_ITEMS:  Copied into ∆MY namespaces...
+  ⍝     Static:     (vars) ∆RESET ∆CALLS, (fn) ∆FIRST
+  ⍝     On the fly: (vars) ∆MYNAME ∆MYNS must be set dynamically when the static ns is created.
     :Namespace START_UP_ITEMS
         ∆RESET ∆CALLS←1 0
-       ⍝ ∆MYNAME ∆MYNS set when copied
         ∇ r←∆FIRST
           r ∆RESET←∆RESET 0
         ∇
@@ -30,22 +32,10 @@
 ⍝     ∆MYX, ∆MY
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
     ∇ myStat←∆MY
-      myStat←⎕THIS.∆MYX 1
+      myStat←⎕THIS.∆MYX 1    ⍝ ⎕THIS is hardwired below so ∆MY can be relocated.
     ∇
  ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
     _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
-
-  ⍝ getStaticNs:
-  ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
-  ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
-      getStaticNs←{
-          nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
-          9.1=nc:⍺⍎mystat
-          0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
-          ns←⍺⍎mystat⊣mystat ⍺.⎕NS START_UP_ITEMS       ⍝ Use ⍺⍎⍵ to get ref, in case anon ns
-          ns.(∆MYNAME ∆MYNS)←⍵ ns
-          ns
-      }
 
     ∇ myOwnNs←∆MYX callerLvl
       ;myCallerNs;myName;myOwnNs;⍙;⎕IO
@@ -58,33 +48,47 @@
       myOwnNs.∆CALLS+←1
     ∇
 
+    ⍝ [internal utility] getStaticNs
+    ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
+    ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
+        getStaticNs←{
+            nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
+            9.1=nc:⍺⍎mystat
+            0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
+            ns←⍺⍎mystat⊣mystat ⍺.⎕NS START_UP_ITEMS       ⍝ Use ⍺⍎⍵ to get ref, in case anon ns
+            ns.(∆MYNAME ∆MYNS)←⍵ ns
+            ns
+        }
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
+⍝     If uninitialized, initialize the ∆MY static namespace for the function named in ⍵.
+⍝     Get the current value of a static variable ∆RESET, ∆CALLS, or user variables.
+⍝     Set a new value for a static variable.
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
     ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
-     
+
       :Select ≢⊆argList
            ⋄ :Case 1 ⋄ setGet←⍬ ⋄ thatFnNm←argList
            ⋄ :Case 2 ⋄ setGet←'GET' ⋄ thatFnNm obj←argList
            ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
            ⋄ :Else ⋄ 11 ⎕SIGNAL⍨'∆THEIR expects 1-3 objects in the right argument, not ',⍕≢⊆argList
       :EndSelect
-     
+
       theirNs←'theirNs'{900⌶⍬:⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
-     
+
       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',thatFnNm)⎕SIGNAL 11
           :EndIf
       :EndIf
-     
+
       theirStatNs←theirNs getStaticNs thatFnNm
-     
-     
+
+
       :Select setGet
       :Case 'GET' ⍝ Return current obj value.
           :Trap 0
@@ -106,7 +110,7 @@
           result←theirStatNs   ⍝ Just return their ∆MY namespace!
       :EndSelect
     ∇
-   
+
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.HELP, Help, help
