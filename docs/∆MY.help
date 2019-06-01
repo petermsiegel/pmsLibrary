@@ -39,6 +39,15 @@ Method used:
           :IF stat.∆FIRST ⋄ ... set up stat.MYDATA ⋄ :ENDIF
           myFn←{ stat.MYDATA ...} ⋄ myFn 1 2 3
         ∇
+For efficiency, call ∆MY once per function, e.g.
+          :IF (my←∆MY).∆FIRST
+               my.table←...
+               ...
+           :ENDIF
+               operate_on(my.table)...
+               
+∆FIRST:  Alternative to ∆MY.∆FIRST
+         (Slightly slower than latter, given additional call to ∆MYX internally).
 
 ∆THEIR:  theirStat ← {their} ∆THEIR them
          theirStat ← {their} ∆THEIR them variable

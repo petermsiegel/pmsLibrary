@@ -51,14 +51,14 @@
     ⍝ [internal utility] getStaticNs
     ⍝ To ⍺:parent@nsRef, add ⍵:ns@nsNm and create the combined ns, returning the full nsRef
     ⍝ >>> Works even if ⍺ is anonymous (which has no unique string rep)
-        getStaticNs←{
-            nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
-            9.1=nc:⍺⍎mystat
-            0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
-            ns←⍺⍎mystat⊣mystat ⍺.⎕NS START_UP_ITEMS       ⍝ Use ⍺⍎⍵ to get ref, in case anon ns
-            ns.(∆MYNAME ∆MYNS)←⍵ ns
-            ns
-        }
+      getStaticNs←{
+          nc←⍺.⎕NC⊂mystat←STATIC_NS_NM,'.',⍵
+          9.1=nc:⍺⍎mystat
+          0≠nc:11 ⎕SIGNAL⍨'∆MY/∆THEIR: static namespace name not available: ',(⍕⍺),'.',mystat
+          ns←⍺⍎mystat⊣mystat ⍺.⎕NS START_UP_ITEMS       ⍝ Use ⍺⍎⍵ to get ref, in case anon ns
+          ns.(∆MYNAME ∆MYNS)←⍵ ns
+          ns
+      }
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.∆THEIR
@@ -70,25 +70,25 @@
       ;∆HERE;nc;theirStatNm;theirRef;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
-
+     
       :Select ≢⊆argList
            ⋄ :Case 1 ⋄ setGet←⍬ ⋄ thatFnNm←argList
            ⋄ :Case 2 ⋄ setGet←'GET' ⋄ thatFnNm obj←argList
            ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
            ⋄ :Else ⋄ 11 ⎕SIGNAL⍨'∆THEIR expects 1-3 objects in the right argument, not ',⍕≢⊆argList
       :EndSelect
-
+     
       theirNs←'theirNs'{900⌶⍬:⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
-
+     
       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',thatFnNm)⎕SIGNAL 11
           :EndIf
       :EndIf
-
+     
       theirStatNs←theirNs getStaticNs thatFnNm
-
-
+     
+     
       :Select setGet
       :Case 'GET' ⍝ Return current obj value.
           :Trap 0
@@ -111,6 +111,9 @@
       :EndSelect
     ∇
 
+    ∇ r←∆FIRST
+      r←(⎕THIS.∆MYX 1).∆FIRST
+    ∇
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∆MYgrp.HELP, Help, help
