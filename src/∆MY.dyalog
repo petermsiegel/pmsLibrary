@@ -14,8 +14,8 @@
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
 
   ⍝ Special function names:
-  ⍝    ANON   When the function is an anonymous dfn
-  ⍝    NULL   When called from calculator mode with no fns on the stack.
+  ⍝    ANON   When the only function on the stack is an anonymous dfn
+  ⍝    NULL   When called from calculator mode, with no named fns on the stack.
     ANON NULL←'__unnamed_dfn__' '__empty_stack__'
 
   ⍝ START_UP_ITEMS:  Copied into ∆MY namespaces...
