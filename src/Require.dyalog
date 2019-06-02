@@ -41,12 +41,14 @@
              _←' '(≠⊆⊢)⍵
              1 _ _
          }⍵
+
          scanOpts←{
            ⍝ Returns 1 only for -help; else 0.
              ⋄ isI←{⍵≡(819⌶)⍺↑⍨≢⍵}   ⍝ case ignored
              ⋄ isR←{⍵≡⍺↑⍨≢⍵}         ⍝ case respected
              ⍵≥≢opts:0
              o←⍵⊃opts ⋄ next skip←⍵+1 2
+
            ⍝ set2:
            ⍝  Format:  'var' set2 option
            ⍝  Given option '-opt' in token sequence of form:
@@ -87,6 +89,7 @@
              (r⍎⍵)⍵
          }callerO
          options←forceO debugO outO callerR callerN libO args
+
          ~debugO:options
          ⎕←'forceO  'forceO ⋄ ⎕←'debugO  'debugO ⋄ ⎕←'outO    'outO
          ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄ ⎕←'args  'args
