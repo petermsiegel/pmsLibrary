@@ -18,6 +18,7 @@ ___Table of Contents___
 * __future__      Create simple __future objects__, whose values may be scalars within APL arrays, built on isolate-related I-beams.
 * __∆format, ∆f__ Support _Python_-like __f-strings__ extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
 * __∆FIX__        A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with preprocessor statements ::IF, ::IFDEF, ::DEF, macro-like name substitution, "atoms" (pseudo-parameter names), continuation lines, etc.
+* __∆FPTR__      Create a scalar or list of function __ptrs__, namespaces that include the function and initial parameters.
 * __bigInt__  Provides support for __arbitrary-precision integers__ in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆HERE__       Robust support for "__here__" __documents__ or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
 * __∆SH__  Provides a thin cover to __⎕SH__, translating _UTF-8_ format encoded output into _Unicode_. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
@@ -60,6 +61,10 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
        ```(name → 'John Jones')(address → '3432 Maiden Ln')(salaries monthly→ ?3⍴1000)``` 
    * continuation lines,   
    etc.
+1. __∆FPTR__:  Create a scalar or list of function "ptrs", namespaces that include the function and initial parameters.
+     * ptrs ←  [alpha] {fn1} ∆FPTR {fn2} ∆FPTR {fn3} ∆FPTR omega
+       Creates ptrs.∆fn, ptrs.(∆ALPHA, ∆OMEGA, ∆NARGS, ∆ID).
+ 
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
