@@ -60,6 +60,10 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
        ```(name → 'John Jones')(address → '3432 Maiden Ln')(salaries monthly→ ?3⍴1000)``` 
    * continuation lines,   
    etc.
+1. __∆FPTR__:  Create a scalar or list of function "ptrs", namespaces that include the function and initial parameters.
+     * ptrs ←  [alpha] {fn1} ∆FPTR {fn2} ∆FPTR {fn3} ∆FPTR omega
+       Creates ptrs.∆fn, ptrs.(∆ALPHA, ∆OMEGA, ∆NARGS, ∆ID).
+ 
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
