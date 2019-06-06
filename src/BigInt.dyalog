@@ -50,12 +50,14 @@
       :EndTrap
     ∇
     :EndSection PREAMBLE - Utilities
+
     :Section PREAMBLE - Variables
     VERBOSE_INITIAL←0          ⍝ Set VERBOSE initial value; reset if DEBUG changed...
     DEBUG←DEBUG                ⍝ Set DEBUG here or on the fly
     loadHelp                   ⍝ Load help at ⎕FIX (compile) time.
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
     :EndSection PREAMBLE - Variables
+
     :EndSection PREAMBLE
 
     :Section Namespace and Utility Initializations
@@ -245,7 +247,7 @@
         ⍝ If ⍺⍺ has a ⍨ suffix (⍺⍺ may be an APL primitive/s or a string),
         ⍝ then fn←¯1↓fn and inv (inverse) is set:
         ⍝      to 1, if BI/X was called 2-adically;
-        ⍝      to 2, if called 1-adically (   ×⍨BI 3 ==> 3 ×BI 3).
+        ⍝      to 2, if called 1-adically, i.e. a "selfie":   ×⍨BI 3 ==> 3 ×BI 3
           fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0}⍺⍺ getOpName ⍵
           CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
      
@@ -280,9 +282,9 @@
               CASE'×':∆exp∆ ⍺ mul ⍵
               CASE'⌽':∆exp∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
               CASE'÷':∆exp∆ ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
-              CASE'*':∆exp∆ ⍺ pow ⍵                     ⍝ Handles ⍺*BI 0.5 and ⍺*BI '0.5' as special cases.
-              CASE'|':∆exp∆ ⍺ rem ⍵                    ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
-          ⍝ Logical: [Return single binary]
+              CASE'*':∆exp∆ ⍺ pow ⍵                     ⍝ Handles ⍵∊BI OR, as special case, ⍵∊0.5 '0.5' exactly.
+              CASE'|':∆exp∆ ⍺ rem ⍵                     ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
+          ⍝ Logical: [Return single boolean, 1∨0]
               CASE'<':⍺ lt ⍵
               CASE'≤':⍺ le ⍵
               CASE'=':⍺ eq ⍵
@@ -293,7 +295,7 @@
               CASE'AND':∆exp∆ ⍺ and ⍵
               CASE'OR':∆exp∆ ⍺ or ⍵
               CASE'XOR':∆exp∆ ⍺ xor ⍵
-              CASE'⌷':∆exp∆ ⍺ flipBits ⍵
+              CASE'⌷':∆exp∆ ⍺ flipBits ⍵                ⍝ Special meaning: flip bits w/in BI
      
           ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
               CASE'∨':∆exp∆ ⍺ gcd ⍵                     ⍝ ⍺∨⍵ as gcd.
@@ -306,11 +308,14 @@
               CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
      
-              CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Treat ⍺ in ⍺ ⍴ ⍵ as regular number
+              CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
-          }{0=inv:⍺ ⍺⍺ ⍵ ⋄ 1=inv:⍵ ⍺⍺ ⍺ ⋄ ⍵ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨
+          }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵        ⍝ Handle ⍨.   inv ∊ 0 1 2 (not inv, inv, selfie)
       }
 
+    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod. 
+    ⍝          Multiply × handled as special case:   x modMul (y mod)   
+    ⍝          Otherwise:                            mod |BIX x ⍺⍺ BI y
     ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BIX [LA:⍺] OP:⍺⍺ BI RA:⍵⍵
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BIX ⍵ (Modulo ⍵⍵)
     ⍝
@@ -358,7 +363,7 @@
       ⍝ ---------------+--------------------------------------
       ⍝       0             ∆str                         80, 160, 320
       ⍝       3             ∆int (integer)               83...
-      ⍝       5, 7          ∆aplNum (integer @ float)    645, 1287
+      ⍝       5, 7          ∆aplNum (integer as float)   645, 1287
       ⍝       6             BIi (internal)               326
       ⍝ Output: BIi, i.e.  (sign (,ints)), where ints∧.<RX10
       ⍝
@@ -374,7 +379,7 @@
           ∘
       }
     ∆←import    ⍝ ∆ used internally
-    imp←import
+    imp←import  ⍝ external alias...
       ⍝ importU, impU:
       ⍝     import ⍵ as unsigned bigInt (data portion only)
       importU←{
@@ -383,9 +388,9 @@
       ⍝ ∆int:    ∇ ⍵:I[1]
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
       ∆int←{
-          1≠≢⍵:err eNONINT,⍕⍵            ⍝ scalar only...
+          1≠≢⍵:err eNONINT,⍕⍵              ⍝ scalar only...
           RX10>u←,|⍵:(×⍵)(u)               ⍝ Small integer
-          (×⍵)(chkZ RX10⊥⍣¯1⊣u)             ⍝ Integer
+          (×⍵)(chkZ RX10⊥⍣¯1⊣u)            ⍝ Integer
       }
       ⍝ ∆aplNum: Convert an APL integer into a BIi
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
@@ -1273,7 +1278,7 @@
     :Section Bigint Namespace - Postamble
         ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
     _←0 ⎕EXPORT ⎕NL 3 4
-        _←1 ⎕EXPORT ssplit '_bigInt_ bi bix BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
+    _←1 ⎕EXPORT ssplit '_bigInt_ bi bix BI BIB BIM BIX BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
 
     ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
 
