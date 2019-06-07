@@ -4,9 +4,18 @@
      ⎕IO ⎕ML←0 1
 
    ⍝ Help info hard wired with respect to cur directory...
-     HELP_INFO←'./pmsLibrary/docs/require.help'
-
+     HELP_FNAME←'./pmsLibrary/docs/require.help'
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (next)
+
+     getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+     get_info←{
+         _←⊂'HELP FILE:    ',HELP_FNAME
+         _,←⊂'DEFAULT LIB:  ',DefaultLibName
+         _,←⊂'FSPATH:       ',getenv'FSPATH'
+         _,←⊂'WSPATH:       ',getenv'WSPATH'
+         ↑_
+     }
+
 
      ⍝ ⍺: opts (by default)-- each a string or namespace
      ⍝ ⍵: parms
@@ -68,14 +77,15 @@
              }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
              9=⎕NC'o':∇ next⊣libO∘←o
-             o isI'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_INFO
-             o isI'-f':∇ next⊣forceO∘←1    ⍝ -f[orce]
-             o isI'-d':∇ next⊣debugO∘←1    ⍝ -d[ebug]
-             o isI'-s':∇ next⊣libO∘←⎕SE    ⍝ -s[ession]
-             o isI'-r':∇ next⊣libO∘←#      ⍝ -ro[ot]
-             o isI'-o':∇'outO'set2 o       ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
-             o isI'-c':∇'callerO'set2 o    ⍝ -c[aller]=nsName | -c[aller] nsRef
-             o isI'-l':∇'libO'set2 o       ⍝ -l[ib]=nsName    | -l[ib]    nsRef
+             o isI'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_FNAME  ⍝ -help
+             o isI'-i':1⊣⎕ED'∆'⊣∆←get_info 0 ⍝ -i[nfo]   (General info on settings)
+             o isI'-f':∇ next⊣forceO∘←1      ⍝ -f[orce]
+             o isI'-d':∇ next⊣debugO∘←1      ⍝ -d[ebug]
+             o isI'-s':∇ next⊣libO∘←⎕SE      ⍝ -s[ession]
+             o isI'-r':∇ next⊣libO∘←#        ⍝ -ro[ot]
+             o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
+             o isI'-c':∇'callerO'set2 o      ⍝ -c[aller]=nsName | -c[aller] nsRef
+             o isI'-l':∇'libO'set2 o         ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
              o isI'--':0⊣args∘←next↓opts
              0⊣args∘←⍵↓opts
@@ -95,7 +105,8 @@
          ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄ ⎕←'args  'args
          options
      }⍵
-   ⍝ If -help, done now...
+
+   ⍝ If -help or -info, done now...
      0=≢options:''
    ⍝ ... Otherwise, hand out options by name
      oForce oDebug oOut callerR callerN oLib thePkgs←options
@@ -185,7 +196,7 @@
      ⍝ getenv:      Retrieve an env. variable value ⍵ in OS X
      ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
      ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
-     ⋄ getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+     ⍝ getenv: See Above.
      ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to callerR.
      ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
      resolveNs←callerR∘{

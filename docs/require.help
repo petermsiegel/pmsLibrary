@@ -29,6 +29,8 @@
 
   Options:
    Options:        name                              default                   description
+   help            -h[elp]                                                     show help info file, then exit.
+   info            -i[nfo]                                                     show info on initial defaults, env. variables, then exit.
    force:          -f[orce]                          0                         force objects to load even if present somewher
    debug:          -d[ebug]                          0                         share debugging info
    callerNs:       -c[aller] nsRef|=nsStr           (the actual caller ns)     ns where <require> was called from
@@ -86,6 +88,7 @@ ________________________________________________________________________________
    Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}'
           2a:                        ∇ '[-f] [-caller=nsN] [-lib=nsL] [-debug] [-out=[s|l|sl] {packages...}'
    Syntax 3: show help info        ←                              ∇ '-HELP'
+             show env/setup info   ←                              ∇ '-info'
 
 In Syntax 1, each package must be specified as a separate string vector. In this syntax,
    a package name may include spaces. -caller and -lib may be specified in one of two ways:
