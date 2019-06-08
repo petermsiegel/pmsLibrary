@@ -9,7 +9,7 @@ Description:
     flags (value 1 if present, else 0) and arbitrary default values."
     Note: Unless Unix conventions, we don't require a distinction between
     single-letter options and multi-letter. All hyphen prefixes are removed before
-    disambiguation. This -s and -string can be the same option or distinct, e.g.
+    disambiguation. Thus -s and -string can be the same option or distinct, e.g.
     if string is declared as 'st(ring)' or even 'string()' to distinguish from -s.
 Returns namespace ns with
     <opt>:    value of each named option ns.opt specified in declaration format (below).
