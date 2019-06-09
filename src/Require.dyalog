@@ -1,4 +1,4 @@
-﻿require←{
+﻿ require←{
    ⍝  See help documentation for syntax and overview.
    ⍝
      ⎕IO ⎕ML←0 1
@@ -43,7 +43,7 @@
      ⍺←⎕NULL       ⍝ options in right arg before packages?
      options←⍺{
        ⍝ defaults set here... (caller → callerR callerN below)
-         forceO debugO outO callerO libO←0 0 ''⍬ ⍬
+         forceO debugO recO outO callerO libO←0 0 0 ''⍬ ⍬
          monad opts pkgList←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
              1<|≡⍵:1(,⍵)(,⊆⍵)
@@ -82,6 +82,7 @@
              o isI'-f':∇ next⊣forceO∘←1      ⍝ -f[orce]
              o isI'-d':∇ next⊣debugO∘←1      ⍝ -d[ebug]
              o isI'-s':∇ next⊣libO∘←⎕SE      ⍝ -s[ession]
+             o isR'-R':∇ next⊣recO∘←1⊣⎕←'Note: -Recursive flag experimental' ⍝ -R[ecursive] ** experimental **
              o isI'-r':∇ next⊣libO∘←#        ⍝ -ro[ot]
              o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
              o isI'-c':∇'callerO'set2 o      ⍝ -c[aller]=nsName | -c[aller] nsRef
@@ -98,18 +99,20 @@
              ⍵≡⍬:r n
              (r⍎⍵)⍵
          }callerO
-         options←forceO debugO outO callerR callerN libO pkgList
+         options←forceO debugO recO outO callerR callerN libO pkgList
 
          ~debugO:options
-         ⎕←'forceO  'forceO ⋄ ⎕←'debugO  'debugO ⋄ ⎕←'outO     'outO
-         ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄  ⎕←'pkgList  'pkgList
+         ⎕←'forceO  ',forceO ⋄ ⎕←'debugO  ',debugO
+         ⎕←'recO    ',recO ⋄ ⎕←'outO    ',outO
+         ⎕←'callerO ',callerO ⋄ ⎕←'libO    ',libO
+         ⎕←'pkgList'pkgList
          options
      }⍵
 
    ⍝ If -help or -info, done now...
      0=≢options:''
    ⍝ ... Otherwise, hand out options by name
-     forceO debugO outO callerR callerN libO pkgList←options
+     forceO debugO recO outO callerR callerN libO pkgList←options
    ⍝ Internal option ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
    ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
@@ -282,7 +285,7 @@
 
          group name←'.'splitLast pkg     ⍝ grp1.grp2.grp3.name → 'grp1.grp2.grp3' 'name'
          ext wsN group name              ⍝ Return 4-string internal package format...
-     }¨pkgList
+     }¨∪pkgList                          ⍝ Remove duplicates w/o error-- process each pkg just once...
 
    ⍝ HOMEDIR-- see [HOME]
      HOMEDIR←getenv'HOME'
