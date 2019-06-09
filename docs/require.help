@@ -1,4 +1,4 @@
--out﻿ require Documentation
+ require Documentation
  ------- -------------
  require:
   o Ensures for specified APL objects
@@ -20,12 +20,12 @@
                    (c) both.
   Syntax:
     res ← [⍺] ∇ ⍵
-    ⍺: opts (by default)-- each a string or namespace
+    ⍺: opts (by default)-- each a string or namespace (one string per option or option value)
     ⍵: parms, list of APL objects required.
     If ⍺ omitted, ⍵ must be a single string with items separated by spaces. In this case,
-         opts: Each token may either be
-              (a) a separate APL string or namespace,  or
-              (b) tokens in a single string separated by one or more blanks.
+    options, separated by blanks, are followed by the list of APL objects.
+    Note: If ⍺ is not used and ⍵ is a single string, options and APL objects may not
+    contain internal blanks, since they separate items.
 
   Options:
    Options:        name                              default                   description
