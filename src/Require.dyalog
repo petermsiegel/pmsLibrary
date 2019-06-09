@@ -1,4 +1,4 @@
-﻿ require←{
+pkgListforceO﻿ require←{
    ⍝  See help documentation for syntax and overview.
    ⍝
      ⎕IO ⎕ML←0 1
@@ -44,7 +44,7 @@
      options←⍺{
        ⍝ defaults set here... (caller → callerR callerN below)
          forceO debugO outO callerO libO←0 0 ''⍬ ⍬
-         monad opts args←⍺{
+         monad opts pkgList←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
              1<|≡⍵:1(,⍵)(,⊆⍵)
              _←' '(≠⊆⊢)⍵
@@ -87,8 +87,8 @@
              o isI'-c':∇'callerO'set2 o      ⍝ -c[aller]=nsName | -c[aller] nsRef
              o isI'-l':∇'libO'set2 o         ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
-             o isI'--':0⊣args∘←next↓opts
-             0⊣args∘←⍵↓opts
+             o isI'--':0⊣pkgList∘←next↓opts
+             0⊣pkgList∘←⍵↓opts
          }
          scanOpts 0:⍬
          outO←{2 1+.×'ls'∊⍵}(819⌶)outO
@@ -98,18 +98,18 @@
              ⍵≡⍬:r n
              (r⍎⍵)⍵
          }callerO
-         options←forceO debugO outO callerR callerN libO args
+         options←forceO debugO outO callerR callerN libO pkgList
 
          ~debugO:options
-         ⎕←'forceO  'forceO ⋄ ⎕←'debugO  'debugO ⋄ ⎕←'outO    'outO
-         ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄ ⎕←'args  'args
+         ⎕←'forceO  'forceO ⋄ ⎕←'debugO  'debugO ⋄ ⎕←'outO     'outO
+         ⎕←'callerO 'callerO ⋄ ⎕←'libO    'libO ⋄  ⎕←'pkgList  'pkgList
          options
      }⍵
 
    ⍝ If -help or -info, done now...
      0=≢options:''
    ⍝ ... Otherwise, hand out options by name
-     oForce oDebug oOut callerR callerN oLib thePkgs←options
+     forceO debugO outO callerR callerN libO pkgList←options
    ⍝ Internal option ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
    ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
@@ -120,8 +120,8 @@
    ⍝ If 1, use [HOME] to represent env. var HOME.  See shortDirName
      USEHOMEDIR←1
 
-     999×oDebug::⎕SIGNAL/⎕DMX.(EM EN)
-   ⍝ Determine library ref and name from option oLib (via -lib or default)...
+     999×debugO::⎕SIGNAL/⎕DMX.(EM EN)
+   ⍝ Determine library ref and name from option libO (via -lib or default)...
      libR libN←DefaultLibName{
          deflib←⍺
          returning←{2=≢⍵:⍵ ⋄ (callerR⍎⍵ callerR.⎕NS'')⍵}   ⍝ Added callerR left of ⍎
@@ -148,16 +148,16 @@
              0=nc:callerN,'.',name             ⍝ Assume name refers to potential namespace...
              ∘∘∘                               ⍝ error!
          }⍵
-     }oLib
+     }libO
 
  ⍝------------------------------------------------------------------------------------
  ⍝  U T I L I T I E S
  ⍝------------------------------------------------------------------------------------
-     TRACE←{                                  ⍝ Prints ⍺⍺ ⍵ if oDebug. Always returns ⍵!
+     TRACE←{                                  ⍝ Prints ⍺⍺ ⍵ if debugO. Always returns ⍵!
          0::⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
          ⎕PW←9999
          ⍺←⊢
-         oDebug:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
+         debugO:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
          ⍵
      }
      ⍝ Set I: miscellaneous utilities
@@ -179,7 +179,7 @@
      ⍝               under certain circumstances.
      ⍝    Ex:        a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred',
      ⍝               ⎕SE.test → '__⍙SE__test', #.test → 'test'.
-     ⍝    If ⍵ has any of '/.', split on it on the fly. Wholly ignore args '##[.]' and '#[.]'.
+     ⍝    If ⍵ has any of '/.', split on it on the fly. Wholly ignore pkgList '##[.]' and '#[.]'.
      ⍝ apl2FS:      convert APL style namespace hierarchy to a filesystem hierarchy:
      ⍝    Syntax:   s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
      ⍝    Ex:       a.b.c → a/b/c     ##.a → ../a    #.a → /a
@@ -263,7 +263,7 @@
    ⍝ name must be present
      lastExt←''      ⍝ If a :: appears with nothing before it, the prior lastExt is used
      lastWs←''       ⍝ If a : appears ..., the prior lastWs is used!
-     thePkgs←{
+     pkgList←{
          0=≢⍵~' :.':''                  ⍝ All blanks or null? Bye!
          pkg←,⍵
 
@@ -282,7 +282,7 @@
 
          group name←'.'splitLast pkg     ⍝ grp1.grp2.grp3.name → 'grp1.grp2.grp3' 'name'
          ext wsN group name              ⍝ Return 4-string internal package format...
-     }¨thePkgs
+     }¨pkgList
 
    ⍝ HOMEDIR-- see [HOME]
      HOMEDIR←getenv'HOME'
@@ -317,7 +317,7 @@
      }'⎕SE.FSPATH'
 ⍝:DBG   _←{'FSPATH='⍵}TRACE FSPATH
      0=≢⍵:libR   ⍝ If no main right argument, return the library reference (default or user-specified)
-     0∊≢¨thePkgs~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
+     0∊≢¨pkgList~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
    ⍝------------------------------------------------------------------------------------
    ⍝ statusList:
    ⍝   [0] list of packages successfully found
@@ -338,7 +338,7 @@
        ⍝ Check for <name>, <group.name>, and <wsN>.
        ⍝------------------------------------------------------------------------------------
          pkg←{
-             oForce:⍵                                         ⍝ oForce? Don't even check caller
+             forceO:⍵                                         ⍝ forceO? Don't even check caller
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
              stat←{
@@ -359,7 +359,7 @@
        ⍝ Is the package in the ⎕PATH?
        ⍝------------------------------------------------------------------------------------
          pkg←{
-             oForce:⍵                                   ⍝ oForce? Ignore path.
+             forceO:⍵                                   ⍝ forceO? Ignore path.
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
              scanPath←{                                 ⍝ find pgk components in <path> or lib
@@ -514,14 +514,14 @@
              ''⊣(⊃⌽status),←⊂pkg map'❌NOT FOUND'
          }pkg
          status ∇ 1↓⍵    ⍝ Get next package!
-     }thePkgs
+     }pkgList
      _←{
          _←''('>>Caller''s ⎕PATH was ',⍕callerR.⎕PATH)
          _,←('  PathOrigR: ',⍕PathOrigR)('>>PathNewR: ',⍕∪PathNewR)
          ↑_
      }TRACE 0
    ⍝------------------------------------------------------------------------------------
-   ⍝ DONE-- process oOut options...
+   ⍝ DONE-- process outO options...
    ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
    ⍝ Prepend new items and merge with caller's ⎕PATH keeping relative ⎕PATH elements...
    ⍝ Here, we don't make sure callerR.⎕PATH entries are valid. Also ↑ is maintained.
@@ -529,13 +529,13 @@
      callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
      succ←0=≢⊃⌽statusList
-   ⍝ oOut=3 (SL)? Now returns 1 on success, 0 otherwise..
-     succ∧oOut∊3:_←{⍵}TRACE(⊂libR),statusList     ⍝ oOut 3 (SL):   SUCC: shy     (non-shy if oDebug)
-     ⋄ oOut∊3:0(⊂libR),statusList                 ⍝                FAIL: non-shy
-     succ∧oOut∊2 0:libR                           ⍝ oOut 2 (L):    SUCC: non_shy
+   ⍝ outO=3 (SL)? Now returns 1 on success, 0 otherwise..
+     succ∧outO∊3:_←{⍵}TRACE(⊂libR),statusList     ⍝ outO 3 (SL):   SUCC: shy     (non-shy if debugO)
+     ⋄ outO∊3:0(⊂libR),statusList                 ⍝                FAIL: non-shy
+     succ∧outO∊2 0:libR                           ⍝ outO 2 (L):    SUCC: non_shy
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-     ⋄ oOut∊2:⎕SIGNAL/eCode1                      ⍝                FAIL: ⎕SIGNAL
-     succ∧oOut∊1:_←{⍵}TRACE statusList            ⍝ oOut 1|0 (S):  SUCC: shy     (non-shy if oDebug)
-     ⋄ oOut∊1 0:statusList                        ⍝                FAIL: non-shy
-     ⎕SIGNAL/('require DOMAIN ERROR: Invalid oOut: ',⍕oOut)11   ⍝ ~oOut∊0 1 2 3
+     ⋄ outO∊2:⎕SIGNAL/eCode1                      ⍝                FAIL: ⎕SIGNAL
+     succ∧outO∊1:_←{⍵}TRACE statusList            ⍝ outO 1|0 (S):  SUCC: shy     (non-shy if debugO)
+     ⋄ outO∊1 0:statusList                        ⍝                FAIL: non-shy
+     ⎕SIGNAL/('require DOMAIN ERROR: Invalid outO: ',⍕outO)11   ⍝ ~outO∊0 1 2 3
  }
