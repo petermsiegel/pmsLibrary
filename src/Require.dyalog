@@ -1,4 +1,4 @@
-pkgListforceO﻿ require←{
+﻿require←{
    ⍝  See help documentation for syntax and overview.
    ⍝
      ⎕IO ⎕ML←0 1
