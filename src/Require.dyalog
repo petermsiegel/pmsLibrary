@@ -7,7 +7,11 @@
      HELP_FNAME←'./pmsLibrary/docs/require.help'
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (next)
 
+   ⍝ Minor utilities...
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
+     help_info←{
+       ↑⊃⎕NGET 1,⍨⊂HELP_FNAME
+     }
      get_info←{
          _←⊂'HELP FILE:    ',HELP_FNAME
          _,←⊂'DEFAULT LIB:  ',DefaultLibName
@@ -16,6 +20,17 @@
          ↑_
      }
 
+     ⍝ Miscellaneous utilities
+     ⍝ and:         A and B 0  < dfns 'and', where A, B are code
+     ⍝ or:          A or  B 0  < dfns 'or'...
+     ⍝ split:       Split ⍵ on char in set ⍺ (' '), removing ⍺, returning vector of strings.
+     ⍝ splitFirst:  Split ⍵ on FIRST single char ⍺ (' ') found, returning 2 vectors (each possibly null string).
+     ⍝ splitLast:   Split ⍵ on LAST single char ⍺ (' ') found, returning two vectors (...).
+     ⋄ and←{⍺⍺ ⍵:⍵⍵ ⍵ ⋄ 0}
+     ⋄ or←{⍺⍺ ⍵:1 ⋄ ⍵⍵ ⍵}
+     ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
+     ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
+     ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
 
      ⍝ ⍺: opts (by default)-- each a string or namespace
      ⍝ ⍵: parms
@@ -29,9 +44,10 @@
      ⍝                  nsRef                                **
      ⍝                  -s[ession] Alias for -lib=⎕SE
      ⍝                  -r[oot]    Alias for -lib=#
-     ⍝  returnParms:    -o[utput] =['l'|'s'|'ls']  (or 'L', 'S', 'LS')
+     ⍝  returnParms:    -o[utput] =['l'|'s'|'ls'|'c']  (or 'L', 'S', 'LS', 'C')
      ⍝                        s: status of each package specified
      ⍝                        l: the library used, as a reference
+     ⍝                        c: 1 if package was or had been loaded, else 0-- for each package specified.
      ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
      ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
      ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
@@ -77,14 +93,14 @@
              }
              3::('require: value for option ',o,' missing')⎕SIGNAL 11
              9=⎕NC'o':∇ next⊣libO∘←o
-             o isI'-h':1⊣⎕ED'∆'⊣∆←↑⊃⎕NGET 1,⍨⊂HELP_FNAME  ⍝ -help
+             o isI'-h':1⊣⎕ED'∆'⊣∆←help_info 0⍝ -help
              o isI'-i':1⊣⎕ED'∆'⊣∆←get_info 0 ⍝ -i[nfo]   (General info on settings)
              o isI'-f':∇ next⊣forceO∘←1      ⍝ -f[orce]
              o isI'-d':∇ next⊣debugO∘←1      ⍝ -d[ebug]
              o isI'-s':∇ next⊣libO∘←⎕SE      ⍝ -s[ession]
              o isR'-R':∇ next⊣recO∘←1⊣⎕←'Note: -Recursive flag experimental' ⍝ -R[ecursive] ** experimental **
              o isI'-r':∇ next⊣libO∘←#        ⍝ -ro[ot]
-             o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl]  Output: s[tatus] l[ibrary]
+             o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl|b]  Output: s[tatus] l[ibrary] [boolean]
              o isI'-c':∇'callerO'set2 o      ⍝ -c[aller]=nsName | -c[aller] nsRef
              o isI'-l':∇'libO'set2 o         ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
@@ -92,7 +108,7 @@
              0⊣pkgList∘←⍵↓opts
          }
          scanOpts 0:⍬
-         outO←{2 1+.×'ls'∊⍵}(819⌶)outO
+         outO←{'b'∊⍵:¯1 ⋄ 2 1+.×'ls'∊⍵}(819⌶)outO
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
@@ -154,7 +170,7 @@
      }libO
 
  ⍝------------------------------------------------------------------------------------
- ⍝  U T I L I T I E S
+ ⍝  M A J O R    U T I L I T I E S
  ⍝------------------------------------------------------------------------------------
      TRACE←{                                  ⍝ Prints ⍺⍺ ⍵ if debugO. Always returns ⍵!
          0::⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
@@ -163,19 +179,8 @@
          debugO:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
          ⍵
      }
-     ⍝ Set I: miscellaneous utilities
-     ⍝ and:         A and B 0  < dfns 'and', where A, B are code
-     ⍝ or:          A or  B 0  < dfns 'or'...
-     ⍝ split:       Split ⍵ on char in set ⍺ (' '), removing ⍺, returning vector of strings.
-     ⍝ splitFirst:  Split ⍵ on FIRST single char ⍺ (' ') found, returning 2 vectors (each possibly null string).
-     ⍝ splitLast:   Split ⍵ on LAST single char ⍺ (' ') found, returning two vectors (...).
-     ⋄ and←{⍺⍺ ⍵:⍵⍵ ⍵ ⋄ 0}
-     ⋄ or←{⍺⍺ ⍵:1 ⋄ ⍵⍵ ⍵}
-     ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
-     ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-     ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
 
-     ⍝ Set II: Converting names in form ⍵1 ⍵2 ... to APL or filesystem formats.
+     ⍝ Converting names in form ⍵1 ⍵2 ... to APL or filesystem formats.
      ⍝ dunder:       fs or APL name → unique APL name (using double underscores, dunders).
      ⍝    Syntax:    ∇ ⍵1@str ⍵2@str ... → '__s1__s2'
      ⍝    Usage:     Used to record loading a specific name or directory into a standard library
@@ -411,7 +416,39 @@
        ⍝ Is the object in the named workspace?
        ⍝ If there is no object named, copy the <entire> workspace into the default library (lib).
        ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
-       ⍝------------------------------------------------------------------------------------
+
+       ⍝⍝⍝⍝ Utilities for copying and fixing objects:
+       ⍝⍝⍝⍝ wsGetFix
+       ⍝⍝⍝⍝ fileGetFix
+       wsGetFix←{
+         ⍝   objList@VS ← [objList](destNs wsCopy) library
+         ⍝   → [list]destNs.⎕CY library
+         ⍝   ::extern recO (1 if -Recursive option specified)
+         ⍝   Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
+         ⍝   *** ONCE TESTED, add processing for recO
+         ⍝   BUGS: Doesn't determine the list of objects copied when an entire WS is copied.
+          0:: ⍬⊣⎕←'Details: ',⎕DMX.DM ⊣⎕←'Warning: ',⎕DMX.EM
+          recErr←'require: -Recursive option only valid copying lists of objects from workspace.' 911
+          ⍺←⊢ ⋄ list←⍺  ⋄ destNs←⍺⍺ ⋄ library←⍵ ⋄ monad←1≡⍺ 1
+          recO∧monad: ⎕SIGNAL/recErr
+          monad: ⊆'<<LIST>>'⊣destNs.⎕CY library
+          list←⊆{2=⍴⍴⍵:(↓⍵)~¨' ' ⋄ ⍵} list   ⍝ Treat matrix as a vector...
+          _←list destNs.⎕CY library
+          recO: list⊣⎕←'-recursive processing not implemented for objects: ',list
+          list
+         }
+         fileGetFix←{
+           ⍝   objList ← destNs fileGetFix fileId
+           ⍝   →  objList ← 2 destNs.⎕FIX'file://',fileId
+           ⍝   Signals error if not successful.
+           ⍝   Returns a list of objects (on success)...
+           0:: ⎕SIGNAL/⎕DMX.(EM EN)
+           destNs fileId←⍺ ⍵
+           list←2 destNs.⎕FIX'file://',fileId
+           recO: list⊣⎕←'-recursive processing not implemented for objects: ',list
+           list
+         }
+
          pkg←{
              0=≢⍵:⍵
              ext wsN group name←pkg←⍵
@@ -419,8 +456,8 @@
 ⍝:DBG       _←{'>>> Checking workspace: ',⍵}TRACE wsN
              stat←wsN{
                  0::''
-                 0≠≢⍵:'wsN:name→libO'⊣⍵ libR.⎕CY ⍺     ⍝ Copy in object from wsN
-                 _←libR.⎕CY ⍺
+                 0≠≢⍵:'wsN:name→libO'⊣⍵ (libR wsGetFix) ⍺     ⍝ Copy in object from wsN
+                 _←(libR wsGetFix) ⍺
                  _←⍺{
                      libR.⍎(dunder ⍺),'←⍵'               ⍝ Copy in entire wsN <wsN>.
                  }'Workspace ',⍺,' copied on ',⍕⎕TS               ⍝ Deposit in <lib> var  __wsN←'Workspace...'
@@ -470,10 +507,10 @@
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
                      load1Fi←{
-                         0:¯1
+                        0::¯1
 ⍝:DBG                   0::¯1⊣{'❌dir.file→lIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
 
-                         fixed←2 libR.⎕FIX'file://',⍵    ⍝ On error, see 0:: above.
+                         fixed←libR fileGetFix ⍵    ⍝ On error, see 0:: above.
                          cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 ⍝:DBG                _←{↑('>>>>> Loaded file: ',⍵)('>>>>>> Names fixed: ',fixed)}TRACE ⍵
                          1
@@ -495,7 +532,7 @@
                      group name←⍺
                      gwn←group with name
                      id←dunder group name
-                     fixed←2 libR.⎕FIX'file://',⍵
+                     fixed← libR fileGetFix ⍵
                      cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 ⍝:DBG              _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in libR for the loaded object.
@@ -532,7 +569,8 @@
      callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
      succ←0=≢⊃⌽statusList
-   ⍝ outO=3 (SL)? Now returns 1 on success, 0 otherwise..
+   ⍝ outO=¯1 'b[oolean]'  Return 1 on success else 0
+     outO=¯1:succ
      succ∧outO∊3:_←{⍵}TRACE(⊂libR),statusList     ⍝ outO 3 (SL):   SUCC: shy     (non-shy if debugO)
      ⋄ outO∊3:0(⊂libR),statusList                 ⍝                FAIL: non-shy
      succ∧outO∊2 0:libR                           ⍝ outO 2 (L):    SUCC: non_shy
