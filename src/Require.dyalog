@@ -10,7 +10,7 @@
    ⍝ Minor utilities...
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
      help_info←{
-       ↑⊃⎕NGET 1,⍨⊂HELP_FNAME
+         ↑⊃⎕NGET 1,⍨⊂HELP_FNAME
      }
      get_info←{
          _←⊂'HELP FILE:    ',HELP_FNAME
@@ -26,11 +26,16 @@
      ⍝ split:       Split ⍵ on char in set ⍺ (' '), removing ⍺, returning vector of strings.
      ⍝ splitFirst:  Split ⍵ on FIRST single char ⍺ (' ') found, returning 2 vectors (each possibly null string).
      ⍝ splitLast:   Split ⍵ on LAST single char ⍺ (' ') found, returning two vectors (...).
+     ⍝ newObjs:      Show what functions and ops have changed in the namespace <where>,
+     ⍝              given <old> the list of old fns/ops. Returns only the NEW ones.
+     ⍝              Example: old← ⍬ newObjs myNs ⋄ <<fiddle the namespace>> ⍝ new← old newObjs myNs
      ⋄ and←{⍺⍺ ⍵:⍵⍵ ⍵ ⋄ 0}
      ⋄ or←{⍺⍺ ⍵:1 ⋄ ⍵⍵ ⍵}
      ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
+     ⋄ newObjs←{old where←⍺ ⍵ ⋄ new←where.⎕NL-3 4 9.1 ⋄ new~old}
+
 
      ⍝ ⍺: opts (by default)-- each a string or namespace
      ⍝ ⍵: parms
@@ -420,33 +425,30 @@
        ⍝⍝⍝⍝ Utilities for copying and fixing objects:
        ⍝⍝⍝⍝ wsGetFix
        ⍝⍝⍝⍝ fileGetFix
-       wsGetFix←{
+         wsGetFix←{
          ⍝   objList@VS ← [objList](destNs wsCopy) library
          ⍝   → [list]destNs.⎕CY library
          ⍝   ::extern recO (1 if -Recursive option specified)
          ⍝   Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
          ⍝   *** ONCE TESTED, add processing for recO
-         ⍝   BUGS: Doesn't determine the list of objects copied when an entire WS is copied.
-          0:: ⍬⊣⎕←'Details: ',⎕DMX.DM ⊣⎕←'Warning: ',⎕DMX.EM
-          recErr←'require: -Recursive option only valid copying lists of objects from workspace.' 911
-          ⍺←⊢ ⋄ list←⍺  ⋄ destNs←⍺⍺ ⋄ library←⍵ ⋄ monad←1≡⍺ 1
-          recO∧monad: ⎕SIGNAL/recErr
-          monad: ⊆'<<LIST>>'⊣destNs.⎕CY library
-          list←⊆{2=⍴⍴⍵:(↓⍵)~¨' ' ⋄ ⍵} list   ⍝ Treat matrix as a vector...
-          _←list destNs.⎕CY library
-          recO: list⊣⎕←'-recursive processing not implemented for objects: ',list
-          list
+             0::⍬⊣⎕←'Warning: ',⎕DMX.DM
+             ⍺←⊢ ⋄ listIn←⍺ ⋄ destNs←⍺⍺ ⋄ library←⍵
+             ⋄ old←⍬ newObjs destNs
+             _←listIn destNs.⎕CY library     ⍝ listIn may be omitted...
+             ⋄ listOut←old newObjs destNs    ⍝ Figure out what objects of interest were created.
+             recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
+             listOut
          }
          fileGetFix←{
            ⍝   objList ← destNs fileGetFix fileId
            ⍝   →  objList ← 2 destNs.⎕FIX'file://',fileId
            ⍝   Signals error if not successful.
            ⍝   Returns a list of objects (on success)...
-           0:: ⎕SIGNAL/⎕DMX.(EM EN)
-           destNs fileId←⍺ ⍵
-           list←2 destNs.⎕FIX'file://',fileId
-           recO: list⊣⎕←'-recursive processing not implemented for objects: ',list
-           list
+             0::⎕SIGNAL/⎕DMX.(EM EN)
+             destNs fileId←⍺ ⍵
+             listOut←2 destNs.⎕FIX'file://',fileId
+             recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
+             listOut
          }
 
          pkg←{
@@ -456,8 +458,8 @@
 ⍝:DBG       _←{'>>> Checking workspace: ',⍵}TRACE wsN
              stat←wsN{
                  0::''
-                 0≠≢⍵:'wsN:name→libO'⊣⍵ (libR wsGetFix) ⍺     ⍝ Copy in object from wsN
-                 _←(libR wsGetFix) ⍺
+                 0≠≢⍵:'wsN:name→libO'⊣⍵(libR wsGetFix)⍺     ⍝ Copy in object from wsN
+                 _←(libR wsGetFix)⍺
                  _←⍺{
                      libR.⍎(dunder ⍺),'←⍵'               ⍝ Copy in entire wsN <wsN>.
                  }'Workspace ',⍺,' copied on ',⍕⎕TS               ⍝ Deposit in <lib> var  __wsN←'Workspace...'
@@ -507,7 +509,7 @@
                      ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
                      ⍝ Like loadFi below...
                      load1Fi←{
-                        0::¯1
+                         0::¯1
 ⍝:DBG                   0::¯1⊣{'❌dir.file→lIB found but ⎕FIX failed: "',⍵,'"'}TRACE ⍵
 
                          fixed←libR fileGetFix ⍵    ⍝ On error, see 0:: above.
@@ -532,7 +534,7 @@
                      group name←⍺
                      gwn←group with name
                      id←dunder group name
-                     fixed← libR fileGetFix ⍵
+                     fixed←libR fileGetFix ⍵
                      cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
 ⍝:DBG              _←{'>>>>> Loaded file: ',⍵}TRACE ⍵
                    ⍝ Put a 'loaded' flag in libR for the loaded object.
