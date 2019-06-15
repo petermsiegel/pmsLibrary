@@ -7,7 +7,8 @@
      HELP_FNAME←'./pmsLibrary/docs/require.help'
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (next)
 
-   ⍝ Minor utilities...
+   ⍝ General Utilities used below
+   ⍝ (These should be informational or those that could be quite general)
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
      help_info←{
          ↑⊃⎕NGET 1,⍨⊂HELP_FNAME
@@ -18,6 +19,37 @@
          _,←⊂'FSPATH:       ',getenv'FSPATH'
          _,←⊂'WSPATH:       ',getenv'WSPATH'
          ↑_
+     }
+
+     ⍝⍝⍝⍝ Utilities for copying and fixing objects:
+     ⍝⍝⍝⍝ wsGetFix
+     ⍝⍝⍝⍝ fileGetFix
+     wsGetFix←{
+         ⍝   objList@VS ← [objList](destNs wsGetFix) library
+         ⍝   → [list]destNs.⎕CY library
+         ⍝   ::extern recO (1 if -Recursive option specified)
+         ⍝   Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
+         ⍝   *** ONCE TESTED, add processing for -recursive flag, recO
+         0::⍬⊣⎕←'Warning: Error ',⎕DMX.(DM,' ',Message),', Library="',library,'"'
+         ⍺←⊢ ⋄ listIn←⍺ ⋄ destNs←⍺⍺ ⋄ library←⍵
+         ⋄ old←⍬ newObjs destNs
+
+         _←listIn destNs.⎕CY library     ⍝ listIn may be omitted...
+         ⋄ listOut←old newObjs destNs    ⍝ Figure out what objects of interest were created.
+         recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
+         listOut
+     }
+     fileGetFix←{
+           ⍝   objList ← destNs fileGetFix fileId
+           ⍝   →  objList ← 2 destNs.⎕FIX'file://',fileId
+           ⍝   Signals error if not successful.
+           ⍝   Returns a list of objects (on success)...
+           ⍝   *** ONCE TESTED, add processing for -recursive flag (recO)
+         0::⎕SIGNAL/⎕DMX.(EM EN)
+         destNs fileId←⍺ ⍵
+         listOut←2 destNs.⎕FIX'file://',fileId
+         recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
+         listOut
      }
 
      ⍝ Miscellaneous utilities
@@ -422,34 +454,6 @@
        ⍝ If there is no object named, copy the <entire> workspace into the default library (lib).
        ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
 
-       ⍝⍝⍝⍝ Utilities for copying and fixing objects:
-       ⍝⍝⍝⍝ wsGetFix
-       ⍝⍝⍝⍝ fileGetFix
-         wsGetFix←{
-         ⍝   objList@VS ← [objList](destNs wsCopy) library
-         ⍝   → [list]destNs.⎕CY library
-         ⍝   ::extern recO (1 if -Recursive option specified)
-         ⍝   Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
-         ⍝   *** ONCE TESTED, add processing for recO
-             0::⍬⊣⎕←'Warning: ',⎕DMX.DM
-             ⍺←⊢ ⋄ listIn←⍺ ⋄ destNs←⍺⍺ ⋄ library←⍵
-             ⋄ old←⍬ newObjs destNs
-             _←listIn destNs.⎕CY library     ⍝ listIn may be omitted...
-             ⋄ listOut←old newObjs destNs    ⍝ Figure out what objects of interest were created.
-             recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
-             listOut
-         }
-         fileGetFix←{
-           ⍝   objList ← destNs fileGetFix fileId
-           ⍝   →  objList ← 2 destNs.⎕FIX'file://',fileId
-           ⍝   Signals error if not successful.
-           ⍝   Returns a list of objects (on success)...
-             0::⎕SIGNAL/⎕DMX.(EM EN)
-             destNs fileId←⍺ ⍵
-             listOut←2 destNs.⎕FIX'file://',fileId
-             recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
-             listOut
-         }
 
          pkg←{
              0=≢⍵:⍵
