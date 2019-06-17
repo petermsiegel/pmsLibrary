@@ -1,4 +1,4 @@
-⍝ gen (namespace generator): 
+⍝ gen (namespace generator):
 ⍝   Emulates a python-like generator (iterator function) using Dyalog tokens and threads.
 ⍝   gen is a cover (niladic) function exported to the namespace containing generator.
 ⍝   gen points to (returns a reference to) namespace generator.
@@ -19,6 +19,16 @@
 ⍝     ∘ Returns: the value returned from the generator is in
 ⍝       gen.value (undefined until the function terminates).
 ⍝       The return value is otherwise UNUSED.
+⍝
+⍝      Simple example:  (pco n gets the n'th prime number)
+⍝      )copy dfns pco
+⍝       p← {⍺ ∇ (⍵+1)⊣⍺.yield pco ⍵} gen.erator 0
+⍝       p.next   ⍝ p.next's value will be the next prime in sequence until pco goes out of range
+⍝    2
+⍝       p.next
+⍝    3
+⍝       p.next
+⍝    5               ⍝  7, 11, 13, etc. (terminating only when ⍵ is too big for pco ⍵)
 ⍝
 ⍝ B. Key Elements
 ⍝   0. Setup            gen.TRAP 'gen1 gen2 ...'     ⍝ Setup the trap gen1 etc to cleanup generator (threadids and tokens) on failure.
