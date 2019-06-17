@@ -1,9 +1,12 @@
 ﻿:namespace Generator
 
-⍝   Namespace is <Generator>, but we export <gen> as a niladic function that
-⍝   points to this namespace...
-    _←##.⎕FX 'ns←gen' ('ns←',⍕⎕THIS)   ⍝ gen.erator or gen.generator visible
-    _←⎕FX 'ns←gen' ('ns←',⍕⎕THIS)      
+⍝   Namespace is <Generator>, but we export <gen> as a niladic function 
+⍝   in parent that points to this namespace...
+⍝   gen: makes gen.erator and gen.generator visible as equiv. to ⎕NEW
+   ∇ns←gen
+    ns←⎕THIS     
+   ∇
+    _←##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'gen'      
 
     ∇ help;h 
       ⎕ED'h'⊣h←↑2↓'^\h*⍝(\h*$|\h)'⎕R''⊣⎕NR'help'
