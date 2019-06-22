@@ -32,7 +32,7 @@
      getRef←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ '⎕SE' '#'∊⍨⊂⍵:⍎⍵ ⋄ ⎕NULL}
      scan←{fWhere←⍺⍺
          0=≢⍺:⎕NULL fNotFound
-         nc←(ns←0⊃⍺).⎕NC ⍵
+         nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: caller>
          0>nc:⎕NULL fInvalid
          0<nc:ns fWhere
          (1↓⍺)∇ ⍵
@@ -47,14 +47,12 @@
 
    ⍝ Ignore elements of ⎕PATH that aren't namespaces, ⎕SE or ⍵!
      path←{⍵/⍨⎕NULL≠⍵}caller getRef¨(caller.⎕PATH≠' ')⊆caller.⎕PATH
-     alt←∊(⊂# ⎕SE~⍨path,∪caller)refs¨# ⎕SE
+     else←∊(⊂# ⎕SE~⍨path,∪caller)refs¨# ⎕SE
 
      data←caller{
-         nc←⍺.⎕NC⍕⍵
-         0>nc:⎕NULL fInvalid
-         0<nc:⍺ fCaller
+         ⎕NULL≠⊃val2←caller(fCaller scan)⍵:val2
          ⎕NULL≠⊃val2←path(fPath scan)⍵:val2
-         ⎕NULL≠⊃val2←alt(fElsewhere scan)⍵:val2
+         ⎕NULL≠⊃val2←else(fElsewhere scan)⍵:val2
          ⎕NULL fNotFound
      }¨names
      ~longForm:data
