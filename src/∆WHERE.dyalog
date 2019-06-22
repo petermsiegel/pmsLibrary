@@ -1,8 +1,8 @@
  ∆WHERE←{
    ⍝ Returns a reference to the namespace in which object(s) ⍵ are found, else ⎕NULL
    ⍝ ⍺: [caller [longForm∊0 1=0]]
-   ⍝    caller:  the current namespace (or the caller namespace).
-   ⍝            a) the current namespace (⍺), b) ⍺.⎕PATH, then c) exhaustively EVERY NAMESPACE in ⎕SE and #
+   ⍝    caller:  the active namespace (default: the caller namespace).
+   ⍝             caller.⎕PATH will be used to determine what namespaces are in the active ⎕PATH.
    ⍝    longForm:     1 if type is a long-form alphabetic description
    ⍝                  0 if type is a short-form numeric descriptor (see below)
    ⍝    returning
@@ -18,8 +18,8 @@
    ⍝              1.3   elsewhere    item found outside current NS and ⎕PATH
    ⍝              0     notFound     item not found
    ⍝             ¯1     invalid       name is invalid
-   ⍝ Note that ∆WHERE works with respect to a namespace.
-   ⍝ Only functions and operators are searched outside the current namespace.
+   ⍝ While all objects are searched within ⎕PATH, only functions and operators are automatically
+   ⍝ found by APL without a namespace prefix.
    ⍝
      ⎕IO←0 ⋄ ⍺←0
      caller longForm←{L R←2↑⍵,0 0 ⋄ 9=⎕NC'L':L R ⋄ 9=⎕NC'R':R L ⋄ (0⊃⎕RSI),L}⍺
