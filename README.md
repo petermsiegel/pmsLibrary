@@ -22,6 +22,7 @@ ___Table of Contents___
 * __bigInt__  Provides support for __arbitrary-precision integers__ in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆HERE__       Robust support for "__here__" __documents__ or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
 * __∆SH__  Provides a thin cover to __⎕SH__, translating _UTF-8_ format encoded output into _Unicode_. Makes it easier to list filenames or contents that are encoded. (At least on OS X, while the terminal automatically handles this, ⎕SH does not.)
+* __∆WHERE__   For each object nameN, return the namespace where it was found as well as whether found in caller namespace (see opts), in ⎕PATH, or anywhere in the workspace. opts include the caller (reference) namespace and/or a long-form flag (default 0).
 * __∆OPTS__ Provide a simple package for handing options of the form -opt, -opt=value,-opt= value, etc. including the ability
 to handle non-string values, e.g. namespaces or object representations (⎕OR).  
 
