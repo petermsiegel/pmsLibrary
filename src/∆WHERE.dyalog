@@ -22,7 +22,7 @@
    ⍝ found by APL without a namespace prefix.
    ⍝
      ⎕IO←0 ⋄ ⍺←0
-     caller longForm←{L R←2↑⍵,0 0 ⋄ 9=⎕NC'L':L R ⋄ 9=⎕NC'R':R L ⋄ (0⊃⎕RSI),L}⍺
+     caller longForm←{L R←⍵ ⋄ l r←9=⎕NC¨'LR'⋄ l:L R ⋄ r:R L ⋄ (0⊃⎕RSI),L}2↑⍺,0 
      types←(1.1 'caller')(1.2 'path')(1.3 'elsewhere')(0 'not found')(¯1 'invalid')
      fCaller fPath fElsewhere fNotFound fInvalid←longForm⊃¨types
 
