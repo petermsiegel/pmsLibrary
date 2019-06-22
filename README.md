@@ -64,7 +64,7 @@ reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style 
 1. __∆FPTR__:  Create a scalar or list of function "ptrs", namespaces that include the function and initial parameters.
      * ptrs ←  [alpha] {fn1} ∆FPTR {fn2} ∆FPTR {fn3} ∆FPTR omega
        Creates ptrs.∆fn, ptrs.(∆ALPHA, ∆OMEGA, ∆NARGS, ∆ID).
- 
+     
 1. __∆HERE__: When executed in a traditional function/operator or named dfn/op, 
 generates and returns (as its value) a ___here__ document_-- i.e. a collection of the contiguous (see options) comment lines that  
 follow-- combined into a single string or a vector of string vectors, with the comment prefixes removed from each. 
@@ -84,7 +84,11 @@ Options are included within comments on the same line as the __∆HERE__ call, e
      ⍝ </html>
   processMyHtml myHtml    ⍝ Take the string separated by carriage returns and process it for display, etc.
  ```
-11. __opts__: __∆OPTS__ is not meant as a replacement for the ⎕SE.Parser, which is more flexible, but is useful when a user might be passing namespaces, class instances, or arrays.  It expects each argument to be passed separately (unless in ⎕TEXT) mode and parses each argument in turn, so that it can distinguish flags (options without values), options with string values, and options with arbitrary values.  See __Documentation__ _opts.help_ for details.     
+ 
+1. __∆WHERE__:     For each object nameN, return the namespace where it was found as well as whether found in caller namespace (see opts), in ⎕PATH, or anywhere in the workspace. opts include the caller (reference) namespace and/or a long-form flag (default 0).
+   * res ←  opts ∆WHERE name1 [name2 ...]
+
+12. __opts__: __∆OPTS__ is not meant as a replacement for the ⎕SE.Parser, which is more flexible, but is useful when a user might be passing namespaces, class instances, or arrays.  It expects each argument to be passed separately (unless in ⎕TEXT) mode and parses each argument in turn, so that it can distinguish flags (options without values), options with string values, and options with arbitrary values.  See __Documentation__ _opts.help_ for details.     
 ``` ⍝ Example
     )cs VERS1   
   ⍝ In advance, we set up #.VERS1.SOURCE and #.VERS1.SINK.
