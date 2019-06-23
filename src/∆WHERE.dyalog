@@ -23,14 +23,14 @@
    ⍝
      ⎕IO←0 ⋄ ⍺←0
    ⍝ caller namespace; longform flag (∊ 1 0)
-     callerNs longFormF←{L R←⍵ ⋄ l r←9=⎕NC¨'LR' ⋄ l:L R ⋄ r:R L ⋄ (0⊃⎕RSI),L}2↑⍺,0
+     callerNs longFormF←{L R←⍵ ⋄ l r←9=⎕NC¨'LR' ⋄ l:L R ⋄ r:R L ⋄ (1⊃⎕RSI,#),L}2↑⍺,0
      types←(1.1 'caller')(1.2 'path')(1.3 'elsewhere')(0 'not found')(¯1 'invalid')
      callerT pathT elsewhereT notFoundT invalidT←longFormF⊃¨types
 
      names←⊆⍵
 
    ⍝ Utils...
-     ns2Refs←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ ⎕SE # ⎕NULL⊃⍨'⎕SE' '#'⍳⊂⍵}¨
+     ns2Refs←{top←,'#' ⋄ 9.1=⎕NC⊂,⍵:⍺⍎⍵ ⋄ ⎕SE # ⎕NULL⊃⍨'⎕SE'top⍳⊂⍵}¨
      scan4Objs←{pathType←⍺⍺
          0=≢⍺:⎕NULL notFoundT
          nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: callerNs>
