@@ -22,22 +22,23 @@
    ⍝ found by APL without a namespace prefix.
    ⍝
      ⎕IO←0 ⋄ ⍺←0
-     caller longForm←{L R←⍵ ⋄ l r←9=⎕NC¨'LR'⋄ l:L R ⋄ r:R L ⋄ (0⊃⎕RSI),L}2↑⍺,0 
+   ⍝ caller namespace; longform flag (∊ 1 0)
+     callerNs longFormF←{L R←⍵ ⋄ l r←9=⎕NC¨'LR' ⋄ l:L R ⋄ r:R L ⋄ (0⊃⎕RSI),L}2↑⍺,0
      types←(1.1 'caller')(1.2 'path')(1.3 'elsewhere')(0 'not found')(¯1 'invalid')
-     fCaller fPath fElsewhere fNotFound fInvalid←longForm⊃¨types
+     callerT pathT elsewhereT notFoundT invalidT←longFormF⊃¨types
 
      names←⊆⍵
 
    ⍝ Utils...
-     getRef←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ '⎕SE' '#'∊⍨⊂⍵:⍎⍵ ⋄ ⎕NULL}
-     scan←{fWhere←⍺⍺
-         0=≢⍺:⎕NULL fNotFound
-         nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: caller>
-         0>nc:⎕NULL fInvalid
-         0<nc:ns fWhere
+     ns2Refs←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ '⎕SE' '#'∊⍨⊂⍵:⍎⍵ ⋄ ⎕NULL}¨
+     scan4Objs←{pathType←⍺⍺
+         0=≢⍺:⎕NULL notFoundT
+         nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: callerNs>
+         0>nc:⎕NULL invalidT
+         0<nc:ns pathType
          (1↓⍺)∇ ⍵
      }
-   ⍝ refs: from dfns, Returns all namespaces except those in ⍺:skip
+   ⍝ refs: from dfns, Returns refs to all namespaces in the ws except those in ⍺:skip
      refs←{                              ⍝ Vector of sub-space references for ⍵.
          ⍺←⍬ ⋄ (≢⍺)↓⍺{                   ⍝ default exclusion list.
              ⍵∊⍺:⍺                       ⍝ already been here: quit.
@@ -46,16 +47,18 @@
      }
 
    ⍝ Ignore elements of ⎕PATH that aren't namespaces, ⎕SE or ⍵!
-     path←{⍵/⍨⎕NULL≠⍵}caller getRef¨(caller.⎕PATH≠' ')⊆caller.⎕PATH
-     else←∊(⊂# ⎕SE~⍨path,∪caller)refs¨# ⎕SE
+     pathNs←{⍵/⍨⎕NULL≠⍵}callerNs ns2Refs(callerNs.⎕PATH≠' ')⊆callerNs.⎕PATH
+   ⍝ Gather all other namespaces (leave # ⎕SE as the roots from which to start).
+     elseNs←∊(⊂# ⎕SE~⍨pathNs,∪callerNs)refs¨# ⎕SE
 
-     data←caller{
-         ⎕NULL≠⊃val2←caller(fCaller scan)⍵:val2
-         ⎕NULL≠⊃val2←path(fPath scan)⍵:val2
-         ⎕NULL≠⊃val2←else(fElsewhere scan)⍵:val2
-         ⎕NULL fNotFound
+   ⍝ Gather data on each name in ⍵
+     data←callerNs{
+         ⎕NULL≠⊃val2←callerNs(callerT scan4Objs)⍵:val2   ⍝ the caller
+         ⎕NULL≠⊃val2←pathNs(pathT scan4Objs)⍵:val2       ⍝ the path
+         ⎕NULL≠⊃val2←elseNs(elsewhereT scan4Objs)⍵:val2  ⍝ all other namespaces
+         ⎕NULL notFoundT
      }¨names
-     ~longForm:data
+     ~longFormF:data
      data,⍨∘⊂¨names
 
 ⍝∇⍣§./∆WHERE.dyalog§0§ 2019 6 21 16 3 45 650 §ôûHuw§0
