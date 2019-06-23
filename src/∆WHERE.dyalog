@@ -30,7 +30,7 @@
      names←⊆⍵
 
    ⍝ Utils...
-     ns2Refs←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ '⎕SE' '#'∊⍨⊂⍵:⍎⍵ ⋄ ⎕NULL}¨
+     ns2Refs←{9.1=⍺.⎕NC⊂,⍵:⍺⍎⍵ ⋄ ⎕SE # ⎕NULL⊃⍨'⎕SE' '#'⍳⊂⍵}¨
      scan4Objs←{pathType←⍺⍺
          0=≢⍺:⎕NULL notFoundT
          nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: callerNs>
@@ -48,7 +48,7 @@
 
    ⍝ Ignore elements of ⎕PATH that aren't namespaces, ⎕SE or ⍵!
      pathNs←{⍵/⍨⎕NULL≠⍵}callerNs ns2Refs(callerNs.⎕PATH≠' ')⊆callerNs.⎕PATH
-   ⍝ elseNs: Gather all other namespaces. To allow the children 
+   ⍝ elseNs: Gather all other namespaces. To allow the children
    ⍝         of #, ⎕SE, callerNs, and pathNs, these ns's are not suppressed here.
      elseNs←∊refs¨# ⎕SE
 
@@ -61,6 +61,4 @@
      }¨names
      ~longFormF:data
      data,⍨∘⊂¨names
-
-⍝∇⍣§./∆WHERE.dyalog§0§ 2019 6 21 16 3 45 650 §ôûHuw§0
  }
