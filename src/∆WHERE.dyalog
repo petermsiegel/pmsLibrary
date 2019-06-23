@@ -48,8 +48,8 @@
 
    ⍝ Ignore elements of ⎕PATH that aren't namespaces, ⎕SE or ⍵!
      pathNs←{⍵/⍨⎕NULL≠⍵}callerNs ns2Refs(callerNs.⎕PATH≠' ')⊆callerNs.⎕PATH
-   ⍝ Gather all other namespaces (leave # ⎕SE as the roots from which to start).
-   ⍝ elseNs: Keep (pathNs∪callerNs), even though checked, because obj could be in their children
+   ⍝ elseNs: Gather all other namespaces. To allow the children 
+   ⍝         of #, ⎕SE, callerNs, and pathNs, these ns's are not suppressed here.
      elseNs←∊refs¨# ⎕SE
 
    ⍝ Gather data on each name in ⍵
