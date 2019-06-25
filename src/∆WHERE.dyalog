@@ -34,9 +34,9 @@
    ⍝ Utils...
      ns2Refs←{top←,'#' ⋄ 9.1=⎕NC⊂,⍵:⍺⍎⍵ ⋄ ⎕SE # ⎕NULL⊃⍨'⎕SE'top⍳⊂⍵}¨
      scan4Objs←{pathType←⍺⍺
-         0=≢⍺:⎕NULL notFoundT
+         0=≢⍺:⍬                   ⍝ exhausted search: not found (so far)
          nc←(ns←0⊃,⍺).⎕NC ⍵       ⍝ ,⍺ to handle scalar, e.g. <⍺: callerNs>
-         0>nc:⎕NULL invalidT
+         0>nc:⎕NULL invalidT      ⍝ terminate search!
          0<nc:ns pathType
          (1↓⍺)∇ ⍵
      }
@@ -56,9 +56,9 @@
 
    ⍝ Gather data on each name in ⍵
      data←callerNs{
-         ⎕NULL≠⊃val2←callerNs(callerT scan4Objs)⍵:val2   ⍝ the caller
-         ⎕NULL≠⊃val2←pathNs(pathT scan4Objs)⍵:val2       ⍝ the path
-         ⎕NULL≠⊃val2←elseNs(elsewhereT scan4Objs)⍵:val2  ⍝ all other namespaces
+         0≠≢val←callerNs(callerT scan4Objs)⍵:val   ⍝ the caller
+         0≠≢val←pathNs(pathT scan4Objs)⍵:val       ⍝ the path
+         0≠≢val←elseNs(elsewhereT scan4Objs)⍵:val  ⍝ all other namespaces
          ⎕NULL notFoundT
      }¨names
      ~longFormF:data
