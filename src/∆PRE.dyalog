@@ -22,10 +22,10 @@
          }
          ∆QT←{'''',⍵,''''}
          ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
-          h2d←{⎕IO ⎕ML←0 1                                 ⍝ Decimal from hexadecimal
+         h2d←{⎕IO ⎕ML←0 1                                 ⍝ Decimal from hexadecimal
               11::'h2d: number too large'⎕SIGNAL 11        ⍝ number too big.
               16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF' ⍝ Permissive-- ignores non-hex chars!
-          }
+         }
 
        ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -60,14 +60,15 @@
          expand←{str←⍵
            ⍝ Match/Expand...
            ⍝ [1] long names,
-             str←pQUOTE_exp pCOM_exp pLONG_NAME_exp ⎕R{
+             str←pQe pCe pLNe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ nm←⍵.PatternNum∊cName_exp ⋄ get⍣nm⊣f0
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
-             pQUOTE_exp pCOM_exp pSHORT_NAME_exp pINT_exp ⎕R{
+             cQe cCe cSNe cIe←0 1 2 3
+             pQe pCe pSNe pIe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
-                 case=3: {⍵∊'xX': h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
-                 case=2: get f0
+                 case=cIe: {⍵∊'xX': h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
+                 case=cSNe: get f0
                  f0
              }⍠'UCP' 1⊣str
          }
@@ -97,19 +98,19 @@
          cOTHER←reg'    ^                                            .*                     $'
 
        ⍝ patterns for expand fn
-         pQUOTE_exp←'(?x)    (''[^'']*'')+'
-         pCOM_exp←'(?x)      ⍝\s*$'
+         pQe←'(?x)    (''[^'']*'')+'
+         pCe←'(?x)      ⍝\s*$'
        ⍝ names include ⎕WA, :IF
-       ⍝ Long names are of the form #.a or a.b.c
-       ⍝ Short names are of the form a or b or c in a.b.c
-       ⍝ pINT: Allows both bigInt format and hex format
+       ⍝ pLNe Long names are of the form #.a or a.b.c
+       ⍝ pSNe Short names are of the form a or b or c in a.b.c
+       ⍝ pIe: Allows both bigInt format and hex format
        ⍝       This is permissive (allows illegal options to be handled by APL),
        ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
        ⍝       Exponents are invalid for hexadecimals, because the exponential range
        ⍝       is not defined/allowed.
-         pINT_exp←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
-         pLONG_NAME_exp←'(?x)   [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)(\.(?1))*'
-         pSHORT_NAME_exp←'(?x)  [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)'
+         pIe←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
+         pLNe←'(?x)   [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)(\.(?1))*'
+         pSNe←'(?x)  [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)'
 
        ⍝ -------------------------------------------------------------------------
        ⍝ [2] PATTERN PROCESSING
