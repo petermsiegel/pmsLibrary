@@ -1,4 +1,6 @@
  ∆PRE←{⎕IO←0
+     ⍝ Alternative to ∆FIX...
+
      ⍺←0 ⋄ DEBUG←⍺   ⍝ If 1, the preproc file created __<name>__ is not deleted.
      {
          1=0⊃⍵:(⎕EX⍣(~DEBUG)⊣2⊃⍵)⊢⍵{' '=1↑0⍴⍵:⍵
@@ -94,6 +96,12 @@
        ⍝ Long names are of the form #.a or a.b.c
        ⍝ Short names are of the form a or b or c in a.b.c
          cName_exp←2
+       ⍝ pINT: Allows both bigInt format and hex format
+       ⍝       This is permissive (allows illegal options to be handled by APL),
+       ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
+       ⍝       Exponents are invalid for hexadecimals, because the exponential range
+       ⍝       is not defined/allowed.
+         pINT←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
          pLONG_NAME_exp←'(?x)   [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)(\.(?1))*'
          pSHORT_NAME_exp←'(?x)  [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)'
 
