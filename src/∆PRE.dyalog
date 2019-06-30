@@ -22,6 +22,10 @@
          }
          ∆QT←{'''',⍵,''''}
          ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
+          h2d←{⎕IO ⎕ML←0 1                                 ⍝ Decimal from hexadecimal
+              11::'h2d: number too large'⎕SIGNAL 11        ⍝ number too big.
+              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF' ⍝ Permissive-- ignores non-hex chars!
+          }
 
        ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -61,9 +65,10 @@
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
              pQUOTE_exp pCOM_exp pSHORT_NAME_exp pINT_exp ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ nm←cName_exp∊⍨case←⍵.PatternNum
-                 3=case: ¯1↓f0
-                 get⍣nm⊣f0
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
+                 case=3: {⍵∊'xX': h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
+                 case=2: get f0
+                 f0
              }⍠'UCP' 1⊣str
          }
 
@@ -97,7 +102,6 @@
        ⍝ names include ⎕WA, :IF
        ⍝ Long names are of the form #.a or a.b.c
        ⍝ Short names are of the form a or b or c in a.b.c
-         cName_exp←2
        ⍝ pINT: Allows both bigInt format and hex format
        ⍝       This is permissive (allows illegal options to be handled by APL),
        ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
