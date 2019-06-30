@@ -60,8 +60,10 @@
                  f0←⍵ ∆FLD 0 ⋄ nm←⍵.PatternNum∊cName_exp ⋄ get⍣nm⊣f0
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
-             pQUOTE_exp pCOM_exp pSHORT_NAME_exp ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ nm←⍵.PatternNum∊cName_exp ⋄ get⍣nm⊣f0
+             pQUOTE_exp pCOM_exp pSHORT_NAME_exp pINT_exp ⎕R{
+                 f0←⍵ ∆FLD 0 ⋄ nm←cName_exp∊⍨case←⍵.PatternNum
+                 3=case: ¯1↓f0
+                 get⍣nm⊣f0
              }⍠'UCP' 1⊣str
          }
 
@@ -101,7 +103,7 @@
        ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
        ⍝       Exponents are invalid for hexadecimals, because the exponential range
        ⍝       is not defined/allowed.
-         pINT←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
+         pINT_exp←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
          pLONG_NAME_exp←'(?x)   [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)(\.(?1))*'
          pSHORT_NAME_exp←'(?x)  [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)'
 
