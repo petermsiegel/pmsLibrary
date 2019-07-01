@@ -1,4 +1,4 @@
- ∆PRE←{⎕IO←0
+ ∆PRE←{⎕IO ⎕ML←0 1
      ⍝ Alternative to ∆FIX...
 
      ⍺←0 ⋄ DEBUG←⍺   ⍝ If 1, the preproc file created __<name>__ is not deleted.
@@ -8,7 +8,7 @@
          }⎕FX⍎2⊃⍵
          _←⎕EX⍣(~DEBUG)⊣2⊃⍵
          11 ⎕SIGNAL⍨'preprocessor error  in ',(1⊃⍵),' on line ',⍕(2⊃⍵)
-     }{~3 4∊⍨⎕NC ⍵:11 ⎕SIGNAL⍨'preproc: right arg must be funNm of existing fun or op'
+     }{~3 4∊⍨(0⊃⎕RSI).⎕NC ⍵:11 ⎕SIGNAL⍨'preproc: right arg must be funNm of existing fun or op'
 
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
                                                            ⍝ a line to pass through to target user function
@@ -22,9 +22,9 @@
          }
          ∆QT←{'''',⍵,''''}
          ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
-         h2d←{⎕IO ⎕ML←0 1                                 ⍝ Decimal from hexadecimal
-              11::'h2d: number too large'⎕SIGNAL 11        ⍝ number too big.
-              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF' ⍝ Permissive-- ignores non-hex chars!
+         h2d←{                                             ⍝ Decimal from hexadecimal
+             11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
+             16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
          }
 
        ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
@@ -61,14 +61,14 @@
            ⍝ Match/Expand...
            ⍝ [1] long names,
              str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ nm←⍵.PatternNum∊cName_exp ⋄ get⍣nm⊣f0
+                 f0←⍵ ∆FLD 0 ⋄ 2=⍵.PatternNum: get f0 ⋄ f0
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
              cQe cCe cSNe cIe←0 1 2 3
              pQe pCe pSNe pIe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
-                 case=cIe: {⍵∊'xX': h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
-                 case=cSNe: get f0
+                 case=cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
+                 case=cSNe:get f0
                  f0
              }⍠'UCP' 1⊣str
          }
