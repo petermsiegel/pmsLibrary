@@ -165,7 +165,6 @@
            ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
            ⍝ Define name as val, unconditionally.
              case cDEF:{
-
                  f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
                  _←put f1 f2
                  ⎕←' ',(padx f1),' ← ',f2
