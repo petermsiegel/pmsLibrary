@@ -61,12 +61,14 @@
            ⍝ Match/Expand...
            ⍝ [1] long names,
              str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ 2=⍵.PatternNum: get f0 ⋄ f0
+                 f0←⍵ ∆FLD 0 ⋄ 2=⍵.PatternNum:get f0 ⋄ f0
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
              cQe cCe cSNe cIe←0 1 2 3
              pQe pCe pSNe pIe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
+                 ⎕←('f0="',f0,'", '),(case=cIe)⊃'case not cIe' 'case cIe'
+
                  case=cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
                  case=cSNe:get f0
                  f0
