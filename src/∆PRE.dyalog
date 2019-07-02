@@ -69,9 +69,9 @@
            ⍝ Match/Expand...
            ⍝ [1] pLNe: long names,
              str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum ⋄
-                 
-                 case=2:get f0
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+
+                 case 2:get f0
                  f0
              }⍠'UCP' 1⊣str
 
@@ -79,19 +79,19 @@
            ⍝     pIe: Hexadecimals and bigInts
              cQe cCe cSNe cIe←0 1 2 3
              str←pQe pCe pSNe pIe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
-                 case=cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
-                 case=cSNe:get f0
+                 case cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
+                 case cSNe:get f0
                  f0
              }⍠'UCP' 1⊣str
 
           ⍝  Ellipses - constants (pE1e) and variable (pE2e)
              str←pQe pCe pE1e pE2e ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
-                 case=2:⍕⍎(⍵ ∆FLD 1),' to ',⍵ ∆FLD 2  ⍝ Fields are integers
-                 case=3:toCode
+                 case 2:⍕⍎(⍵ ∆FLD 1),' to ',⍵ ∆FLD 2  ⍝ Fields are integers
+                 case 3:toCode
                  f0
              }⍠'UCP' 1⊣str
              str
@@ -144,11 +144,11 @@
        ⍝ -------------------------------------------------------------------------
          processPatterns←{
              f0 f1 f2←⍵ ∆FLD¨0 1 2
-             case←⍵.PatternNum
-             case=cOTHER:PASSTHRU,expand f0
+             case←⍵.PatternNum∘∊
+             case cOTHER:PASSTHRU,expand f0
            ⍝ ：：IFDEF name
            ⍝ ：：END[IF[DEF]]
-             case=cIFDEF:{
+             case cIFDEF:{
                  not←'~'↑⍨1∊'nN'∊f1
                  ':IF ',not,⍕def f2
              }0
@@ -156,7 +156,7 @@
            ⍝ ：：ELSEIF cond
            ⍝ ：：ELSE
            ⍝ ：：END[IF]
-             case=cIF_STMT:{                        ⍝ IF, ELSEIF, ELSE, END, ENDIF, ENDIFDEF
+             case cIF_STMT:{                        ⍝ IF, ELSEIF, ELSE, END, ENDIF, ENDIFDEF
                  ':',f1,expand f2
              }0
            ⍝ ：：DEF name ← val    ==>  name ← 'val'
@@ -164,7 +164,7 @@
            ⍝ ：：DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
            ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
            ⍝ Define name as val, unconditionally.
-             case=cDEF:{
+             case cDEF:{
 
                  f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
                  _←put f1 f2
@@ -175,7 +175,7 @@
            ⍝ ：：COND name            ==>  name ← 'name'
            ⍝  etc.
            ⍝ Set name to val only if name not already defined.
-             case=cCOND:{
+             case cCOND:{
                  d←def f1
                  status←'  ',d⊃'(FALSE)' '(TRUE)'
                  ⎕←'  ',(padx f1),' ← ',f2,status
@@ -187,13 +187,13 @@
              }0
            ⍝ ：：CODE code string
            ⍝ Pass through code to the preprocessor phase (to pass to user fn, simply enter it!!!)
-             case=cCODE:{
+             case cCODE:{
                  ln←f1,'⍝ ::CODE ...'
                  ln,NL,passComment f0
              }0
            ⍝ ：：UNSET name  ==> shadow 'name'
            ⍝ Warns if <name> was not set!
-             case=cUNDEF{
+             case cUNDEF{
                  _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
                  ⎕←' ',(padx f1),'   UNDEF'
                  passComment f0
