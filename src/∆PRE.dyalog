@@ -26,7 +26,7 @@
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
          }
-        
+
 
        ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -59,23 +59,42 @@
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
          expand←{str←⍵
+            ⍝ Concise variant on dfns:to, allowing start [incr] to end
+            ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
+            ⍝ expanded to allow simply (homogeneous) Unicode chars
+            ⍝     'ac' to 'g'    →   'aceg'
+             to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+             toCode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
+
            ⍝ Match/Expand...
-           ⍝ [1] long names,
-             str←pQe pCe pLNe pELe ⎕R{
+           ⍝ [1] pLNe: long names,
+             str←pQe pCe pLNe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum ⋄
+                 
                  case=2:get f0
-                 case=3:' ∆TO '
                  f0
              }⍠'UCP' 1⊣str
-           ⍝ [2] short names (even within found long names)
+
+           ⍝ [2] pSNe: short names (even within found long names)
+           ⍝     pIe: Hexadecimals and bigInts
              cQe cCe cSNe cIe←0 1 2 3
-             pQe pCe pSNe pIe ⎕R{
+             str←pQe pCe pSNe pIe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
 
                  case=cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
                  case=cSNe:get f0
                  f0
              }⍠'UCP' 1⊣str
+
+          ⍝  Ellipses - constants (pE1e) and variable (pE2e)
+             str←pQe pCe pE1e pE2e ⎕R{
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
+
+                 case=2:⍕⍎(⍵ ∆FLD 1),' to ',⍵ ∆FLD 2  ⍝ Fields are integers
+                 case=3:toCode
+                 f0
+             }⍠'UCP' 1⊣str
+             str
          }
 
        ⍝ passCommment:   S ←  passComment ⍵:S, where ⍵ starts with /[⍝ ]/
@@ -105,7 +124,9 @@
        ⍝ patterns for expand fn
          pQe←'(?x)    (''[^'']*'')+'
          pCe←'(?x)      ⍝\s*$'
-         pELe←'(?x)    \.{2,}'
+         pE1e←'(?x)    ( (?: ¯?\d+ )(?:\h+¯?\d+)* ) \h* \.{2,} \h* ((?1))'
+         pE2e←'(?x)    \.{2,}'
+
        ⍝ names include ⎕WA, :IF
        ⍝ pLNe Long names are of the form #.a or a.b.c
        ⍝ pSNe Short names are of the form a or b or c in a.b.c
