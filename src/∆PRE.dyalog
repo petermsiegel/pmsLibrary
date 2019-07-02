@@ -67,7 +67,6 @@
              cQe cCe cSNe cIe←0 1 2 3
              pQe pCe pSNe pIe ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum
-                 ⎕←('f0="',f0,'", '),(case=cIe)⊃'case not cIe' 'case cIe'
 
                  case=cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
                  case=cSNe:get f0
@@ -93,9 +92,9 @@
          reg←{⍺←'(?xi)' ⋄ patternList,←⊂⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
          cIFDEF←reg'    ^[⍝\h]* :: (IFN?DEF)                    \h+(.*)                     $'
          cIF_STMT←reg'  ^[⍝\h]* :: (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
-         cSET←reg'      ^[⍝\h]* :: [SL]ET   \h* ([^←]+) \h* (?:←\h*(.*))?                   $'
+         cDEF←reg'      ^[⍝\h]* :: DEF      \h* ([^←]+) \h* (?:←\h*(.*))?                   $'
          cCOND←reg'     ^[⍝\h]* :: COND     \h* ([^←]+) \h* (?:←\h*(.*))?                   $'
-         cUNSET←reg'    ^[⍝\h]* :: UN[SL]ET \h* ([^←]+) \h*                                 $'
+         cUNDEF←reg'    ^[⍝\h]* :: UNDEF    \h* ([^←]+) \h*                                 $'
          cCODE←reg'     ^[⍝\h]* :: CODE     \h*                     (.*)                    $'
          cOTHER←reg'    ^                                            .*                     $'
 
@@ -134,18 +133,21 @@
              case=cIF_STMT:{                        ⍝ IF, ELSEIF, ELSE, END, ENDIF, ENDIFDEF
                  ':',f1,expand f2
              }0
-           ⍝ ：：SET/LET name ← val   ==>  name ← 'val'
-           ⍝ ：：SET/LET name        ==>  name ← 'name'
-           ⍝ Set name to val, unconditionally.
-             case=cSET:{
+           ⍝ ：：DEF name ← val    ==>  name ← 'val'
+           ⍝ ：：DEF name          ==>  name ← 'name'
+           ⍝ ：：DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
+           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
+           ⍝ Define name as val, unconditionally.
+             case=cDEF:{
 
                  f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
                  _←put f1 f2
-                 ⎕←(padx f1),' ← ',f2
+                 ⎕←' ',(padx f1),' ← ',f2
                  passComment f0
              }0
            ⍝ ：：COND name ← val      ==>  name ← 'val'
            ⍝ ：：COND name            ==>  name ← 'name'
+           ⍝  etc.
            ⍝ Set name to val only if name not already defined.
              case=cCOND:{
                  d←def f1
@@ -165,9 +167,9 @@
              }0
            ⍝ ：：UNSET name  ==> shadow 'name'
            ⍝ Warns if <name> was not set!
-             case=cUNSET:{
-                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNSETting an unset name: ',⍵}f1
-                 ⎕←'  ',(padx f1),'   UNSET'
+             case=cUNDEF{
+                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
+                 ⎕←' ',(padx f1),'   UNDEF'
                  passComment f0
              }0
          }
