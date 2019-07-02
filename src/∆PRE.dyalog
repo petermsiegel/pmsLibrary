@@ -26,6 +26,7 @@
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
          }
+        
 
        ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -60,8 +61,11 @@
          expand←{str←⍵
            ⍝ Match/Expand...
            ⍝ [1] long names,
-             str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ 2=⍵.PatternNum:get f0 ⋄ f0
+             str←pQe pCe pLNe pELe ⎕R{
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum ⋄
+                 case=2:get f0
+                 case=3:' ∆TO '
+                 f0
              }⍠'UCP' 1⊣str
            ⍝ [2] short names (even within found long names)
              cQe cCe cSNe cIe←0 1 2 3
@@ -101,6 +105,7 @@
        ⍝ patterns for expand fn
          pQe←'(?x)    (''[^'']*'')+'
          pCe←'(?x)      ⍝\s*$'
+         pELe←'(?x)    \.{2,}'
        ⍝ names include ⎕WA, :IF
        ⍝ pLNe Long names are of the form #.a or a.b.c
        ⍝ pSNe Short names are of the form a or b or c in a.b.c
