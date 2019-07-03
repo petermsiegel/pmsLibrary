@@ -98,11 +98,10 @@
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
             str←pQe pCe pE1e pE2e ⎕R{
-                f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-
-                case 2:⍕⍎(⍵ ∆FLD 1),' ∆TO ',⍵ ∆FLD 2  ⍝  num [num] .. num
-                case 3:∆TOcode                        ⍝  .. preceded or followed by non-constants
-                else f0
+              case←⍵.PatternNum∘∊
+                case 0 1: ⍵ ∆FLD 0 ⋄
+                case 2: ⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2    ⍝  num [num] .. num
+                case 3: ∆TOcode                             ⍝  .. preceded or followed by non-constants⋄
             }⍠'UCP' 1⊣str
             str
         }
@@ -137,8 +136,8 @@
       ⍝ patterns for expand fn
         pQe←'(?x)    (''[^'']*'')+'
         pCe←'(?x)      ⍝\s*$'
-        ⋄ppNum ← ' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'
-    PAT∘←    pE1e←∆MAP  '(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
+        ppNum ← ' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )' ⍝ Non-complex numbers...
+        pE1e←∆MAP  '(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
         pE2e←'(?x)   \.{2,}'
 
       ⍝ names include ⎕WA, :IF
