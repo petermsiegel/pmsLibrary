@@ -32,15 +32,11 @@
 
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
         appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
-
       ⍝ Append quoted string                              ⍝ res@B ←  ⍺@B←1 appendCond ⍵:SV
-        appendCond←{
-            doPass←PASSTHRU=1↑⍵
-            doPass:appendRaw⊂'⍙,←⊂',∆QTX 1↓⍵
-            0 appendRaw⊂⍵
-        }¨
+        appendCond←{ PASSTHRU=1↑⍵:appendRaw⊂'⍙,←⊂',∆QTX 1↓⍵  ⋄   0 appendRaw⊂⍵ }¨
+      ⍝ Pad str ⍵ to at least ⍺ (15) chars.
         padx←{⍺←15 ⋄ ⍺<≢⍵:⍵ ⋄ ⍺↑⍵}
-
+      ⍝ get function '⍵' or its char. source '⍵_src', if defined.
         getDataIn←{
             0=⎕NC srcNm:{(0⊃⎕RSI,#)⍎srcNm,'∘←⍵'}⎕NR funNm
             ⎕←'For fn/op "',funNm,'" has a source file "',srcNm,'"'
