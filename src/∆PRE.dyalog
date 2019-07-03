@@ -59,36 +59,39 @@
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
          expand←{
-           ⍺←MAX_EXPAND      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
-           0≥⍺:⍵
-           strIn←str←⍵
+
             ⍝ Concise variant on dfns:to, allowing start [incr] to end
             ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
             ⍝ expanded to allow simply (homogeneous) Unicode chars
             ⍝     'ac' to 'g'    →   'aceg'
              ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
              ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
+            str←⍵
+            str←{⍺←MAX_EXPAND       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
+                strIn←str←⍵
+                0≥⍺:⍵
+              ⍝ Match/Expand...
+              ⍝ [1] pLNe: long names,
+               str←pQe pCe pLNe ⎕R{
+               f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
 
-           ⍝ Match/Expand...
-           ⍝ [1] pLNe: long names,
-             str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
+                case 2:get f0
+                else f0
+                }⍠'UCP' 1⊣str
 
-                 case 2:get f0
-                 else f0
-             }⍠'UCP' 1⊣str
+               ⍝ [2] pSNe: short names (even within found long names)
+               ⍝     pIe: Hexadecimals and bigInts
+               cQe cCe cSNe cIe←0 1 2 3
+               str←pQe pCe pSNe pIe ⎕R{
+                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
 
-           ⍝ [2] pSNe: short names (even within found long names)
-           ⍝     pIe: Hexadecimals and bigInts
-             cQe cCe cSNe cIe←0 1 2 3
-             str←pQe pCe pSNe pIe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
-
-                 case cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
-                 case cSNe:get f0
-                 else f0
-             }⍠'UCP' 1⊣str
-
+                  case cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
+                  case cSNe:get f0
+                  else f0
+                 }⍠'UCP' 1⊣str
+             str≢strIn: (⍺-1) ∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
+             str 
+           }str
           ⍝  Ellipses - constants (pE1e) and variable (pE2e)
              str←pQe pCe pE1e pE2e ⎕R{
                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
@@ -97,7 +100,6 @@
                  case 3:∆TOcode
                  else f0
              }⍠'UCP' 1⊣str
-             str≢strIn: (⍺-1) expand str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
              str
          }
 
@@ -140,8 +142,8 @@
        ⍝       Exponents are invalid for hexadecimals, because the exponential range
        ⍝       is not defined/allowed.
          pIe←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
-         pLNe←'(?x)   [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)(\.(?1))*'
-         pSNe←'(?x)  [⎕:]?([\w∆⍙_][\w∆⍙_0-9]+)'
+         pLNe←'(?x)   [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]+)(\.(?1))*'
+         pSNe←'(?x)  [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]*)'
 
        ⍝ -------------------------------------------------------------------------
        ⍝ [2] PATTERN PROCESSING
@@ -206,7 +208,7 @@
        ⍝ --------------------------------------------------------------------------------
        ⍝ EXECUTIVE
        ⍝ --------------------------------------------------------------------------------
-         MAX_EXPAND←2  ⍝ Maximum times to expand macros (if 0, none are expanded!)
+         MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
          tmpNm←'__',funNm,'__'
          srcNm←funNm,'_src'
