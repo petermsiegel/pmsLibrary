@@ -20,6 +20,8 @@
             ns.Lengths[⍵]=¯1:def                          ⍝ Defined field, but not used HERE (within this submatch) → ''
             ns.(Lengths[⍵]↑Offsets[⍵]↓Block)              ⍝ Simple match
         }
+        ∆MAP←{  '⍎\w+' ⎕R  {⍎1↓⍵ ∆FLD 0}⊣⍵}
+
         ∆QT←{'''',⍵,''''}
         ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
         h2d←{                                             ⍝ Decimal from hexadecimal
@@ -59,7 +61,7 @@
         del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
         def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
         expand←{
-
+             else←⊢
            ⍝ Concise variant on dfns:to, allowing start [incr] to end
            ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
            ⍝ expanded to allow simply (homogeneous) Unicode chars
@@ -73,7 +75,7 @@
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
               str←pQe pCe pLNe ⎕R{
-              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
+              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
                case 2:get f0
                else f0
@@ -83,7 +85,7 @@
               ⍝     pIe: Hexadecimals and bigInts
               cQe cCe cSNe cIe←0 1 2 3
               str←pQe pCe pSNe pIe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
                  case cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
                  case cSNe:get f0
@@ -93,11 +95,13 @@
             str
           }str
          ⍝  Ellipses - constants (pE1e) and variable (pE2e)
+         ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
+         ⍝  are optimized.
             str←pQe pCe pE1e pE2e ⎕R{
-                f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
-⎕←'case ',⍵.PatternNum,': "',f0,'"'
-                case 2:⍕⍎(⍵ ∆FLD 1),' ∆TO ',⍵ ∆FLD 2  ⍝ Fields are integers
-                case 3:∆TOcode
+                f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+
+                case 2:⍕⍎(⍵ ∆FLD 1),' ∆TO ',⍵ ∆FLD 2  ⍝  num [num] .. num
+                case 3:∆TOcode                        ⍝  .. preceded or followed by non-constants
                 else f0
             }⍠'UCP' 1⊣str
             str
@@ -118,20 +122,24 @@
       ⍝ [1] DEFINITIONS
       ⍝ -------------------------------------------------------------------------
         _CTR_←0 ⋄ patternList←⍬
-        reg←{⍺←'(?xi)' ⋄ patternList,←⊂⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
-        cIFDEF←reg'    ^[⍝\h]* :: (IFN?DEF)                    \h+(.*)                     $'
-        cIF_STMT←reg'  ^[⍝\h]* :: (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
-        cDEF←reg'      ^[⍝\h]* :: DEF      \h* ([^←]+) \h* (?:←\h*(.*))?                   $'
-        cCOND←reg'     ^[⍝\h]* :: COND     \h* ([^←]+) \h* (?:←\h*(.*))?                   $'
-        cUNDEF←reg'    ^[⍝\h]* :: UNDEF    \h* ([^←]+) \h*                                 $'
-        cCODE←reg'     ^[⍝\h]* :: CODE     \h*                     (.*)                    $'
-        cOTHER←reg'    ^                                            .*                     $'
+        reg←{⍺←'(?xi)' ⋄ patternList,←⊂∆MAP ⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
+        ⋄ ppBegin←'^[⍝\h]* :: '
+        cIFDEF←reg'    ⍎ppBegin (IFN?DEF)                    \h+(.*)                     $'
+        cIF_STMT←reg'  ⍎ppBegin (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
+        ⋄ ppName←'\h* ([^←]+) \h*'
+        ⋄ ppArr← '(?:←\h*(.*))?'
+        cDEF←reg'     ⍎ppBegin  DEF    ⍎ppName   ⍎ppArr    $'
+        cCOND←reg'    ⍎ppBegin  COND   ⍎ppName   ⍎ppArr    $'
+        cUNDEF←reg'   ⍎ppBegin  UNDEF  ⍎ppName             $'
+        cCODE←reg'    ⍎ppBegin  CODE   \h*        (.*)     $'
+        cOTHER←reg'   ^                            .*      $'
 
       ⍝ patterns for expand fn
         pQe←'(?x)    (''[^'']*'')+'
         pCe←'(?x)      ⍝\s*$'
-        pE1e←'(?x)    ( ¯?\d+  (?: \.\d* )? (?: \h+ ¯? \d+ (?: \.\d* )? )* ) \h* \.{2,} \h* ((?1))'
-        pE2e←'(?x)    \.{2,}'
+        ⋄ppNum ← ' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'
+    PAT∘←    pE1e←∆MAP  '(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
+        pE2e←'(?x)   \.{2,}'
 
       ⍝ names include ⎕WA, :IF
       ⍝ pLNe Long names are of the form #.a or a.b.c
@@ -181,11 +189,11 @@
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
             case cCOND:{
-                d←def f1
-                status←'  ',d⊃'(FALSE)' '(TRUE)'
+                defd ←def f1
+                status←'  ',defd⊃'(ACTIVE)' '(INACTIVE)'
                 ⎕←'  ',(padx f1),' ← ',f2,status
                 ln←passComment f0,status
-                ~d:ln
+                defd:ln
                 f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
                 _←put f1 f2
                 ln
