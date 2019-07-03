@@ -122,8 +122,9 @@
          cIFDEF←reg'    ⍎ppBegin (IFN?DEF)                    \h+(.*)                     $'
          cIF_STMT←reg'  ⍎ppBegin (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
          ⋄ ppName←'\h* ([^←]+) \h*'
-         ⋄ ppArr←'(?:←\h*(.*))?'
+         ⋄ ppArr←'(?:(←)\h*(.*))?'
          cDEF←reg'     ⍎ppBegin  DEF    ⍎ppName   ⍎ppArr    $'
+         cVAL←reg'     ⍎ppBegin  VAL    ⍎ppName   ⍎ppArr    $'
          cCOND←reg'    ⍎ppBegin  COND   ⍎ppName   ⍎ppArr    $'
          cUNDEF←reg'   ⍎ppBegin  UNDEF  ⍎ppName             $'
          cCODE←reg'    ⍎ppBegin  CODE   \h*        (.*)     $'
@@ -152,7 +153,7 @@
       ⍝ [2] PATTERN PROCESSING
       ⍝ -------------------------------------------------------------------------
          processPatterns←{
-             f0 f1 f2←⍵ ∆FLD¨0 1 2
+             f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
              case cOTHER:PASSTHRU,expand f0
           ⍝ ：：IFDEF name
@@ -174,9 +175,26 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
-                 _←put f1 f2
-                 ⎕←' ',(padx f1),' ← ',f2
+                 noArrow←1≠≢f2
+                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺) '' ⋄ 0=≢⍵: '' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 _←put f1 f3
+                 ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
+                 passComment f0
+             }0
+           ⍝  ：：VAL name ← val    ==>  name ← ⍎'val' etc.
+           ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+           ⍝ Experimental preprocessor-time evaluation
+             case cVAL:{
+                 noArrow←1≠≢f2
+                 f3 note←f1{
+                       noArrow∧0=≢⍵:(∆QT ⍺) ''
+                       0=≢⍵: '' '  [EMPTY]'
+                       {  0:: (⍵,' ∘∘∘') '  [INVALID PREPROCESSOR-TIME EXPRESSION]'
+                          (⍕⍎⍵)''
+                       }expand ⍵
+                  }f3
+                 _←put f1 f3
+                 ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  passComment f0
              }0
           ⍝ ：：COND name ← val      ==>  name ← 'val'
@@ -185,12 +203,12 @@
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
                  defd←def f1
-                 status←'  ',defd⊃'(ACTIVE)' '(INACTIVE)'
-                 ⎕←'  ',(padx f1),' ← ',f2,status
-                 ln←passComment f0,status
-                 defd:ln
-                 f2←f1{0=≢⍵:∆QT ⍺ ⋄ expand ⍵}f2
-                 _←put f1 f2
+                 ln←passComment f0
+                 defd:ln,'  [SUPPRESSED]'⊣ ⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
+                 noArrow←1≠≢f2
+                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺) '' ⋄ 0=≢⍵: '' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 _←put f1 f3
+                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  ln
              }0
           ⍝ ：：CODE code string
@@ -201,7 +219,7 @@
              }0
           ⍝ ：：UNSET name  ==> shadow 'name'
           ⍝ Warns if <name> was not set!
-             case cUNDEF{
+             case cUNDEF:{
                  _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
                  ⎕←' ',(padx f1),'   UNDEF'
                  passComment f0
