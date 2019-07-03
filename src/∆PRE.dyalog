@@ -58,42 +58,46 @@
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
-         expand←{str←⍵
+         expand←{
+           ⍺←MAX_EXPAND      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
+           0≥⍺:⍵
+           strIn←str←⍵
             ⍝ Concise variant on dfns:to, allowing start [incr] to end
             ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
             ⍝ expanded to allow simply (homogeneous) Unicode chars
             ⍝     'ac' to 'g'    →   'aceg'
-             to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-             toCode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
+             ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+             ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
 
            ⍝ Match/Expand...
            ⍝ [1] pLNe: long names,
              str←pQe pCe pLNe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
 
                  case 2:get f0
-                 f0
+                 else f0
              }⍠'UCP' 1⊣str
 
            ⍝ [2] pSNe: short names (even within found long names)
            ⍝     pIe: Hexadecimals and bigInts
              cQe cCe cSNe cIe←0 1 2 3
              str←pQe pCe pSNe pIe ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
 
                  case cIe:{⍵∊'xX':h2d f0 ⋄ 'BI(',(∆QT ¯1↓f0),')'}¯1↑f0
                  case cSNe:get f0
-                 f0
+                 else f0
              }⍠'UCP' 1⊣str
 
           ⍝  Ellipses - constants (pE1e) and variable (pE2e)
              str←pQe pCe pE1e pE2e ⎕R{
-                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                 f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊ ⋄ else←⊢
 
-                 case 2:⍕⍎(⍵ ∆FLD 1),' to ',⍵ ∆FLD 2  ⍝ Fields are integers
-                 case 3:toCode
-                 f0
+                 case 2:⍕⍎(⍵ ∆FLD 1),' ∆TO ',⍵ ∆FLD 2  ⍝ Fields are integers
+                 case 3:∆TOcode
+                 else f0
              }⍠'UCP' 1⊣str
+             str≢strIn: (⍺-1) expand str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
              str
          }
 
@@ -202,6 +206,7 @@
        ⍝ --------------------------------------------------------------------------------
        ⍝ EXECUTIVE
        ⍝ --------------------------------------------------------------------------------
+         MAX_EXPAND←2  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
          tmpNm←'__',funNm,'__'
          srcNm←funNm,'_src'
