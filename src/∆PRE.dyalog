@@ -121,17 +121,19 @@
          ⋄ ppBegin←'^[⍝\h]* :: '
          cIFDEF←reg'    ⍎ppBegin (IFN?DEF)                    \h+(.*)                     $'
          cIF_STMT←reg'  ⍎ppBegin (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
-         ⋄ ppName←'\h* ([^←]+) \h*'
+         ⋄ ppName←' \h* ([^←]+) \h*'
+         ⋄ ppToken←'\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←reg'     ⍎ppBegin  DEF    ⍎ppName   ⍎ppArr    $'
-         cVAL←reg'     ⍎ppBegin  VAL    ⍎ppName   ⍎ppArr    $'
-         cCOND←reg'    ⍎ppBegin  COND   ⍎ppName   ⍎ppArr    $'
-         cUNDEF←reg'   ⍎ppBegin  UNDEF  ⍎ppName             $'
-         cCODE←reg'    ⍎ppBegin  CODE   \h*        (.*)     $'
+         cDEF←reg'     ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
+         cVAL←reg'     ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
+         cINCL←reg'    ⍎ppBegin  INCLUDE ⍎ppToken            $'
+         cCOND←reg'    ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
+         cUNDEF←reg'   ⍎ppBegin  UNDEF   ⍎ppName             $'
+         cCODE←reg'    ⍎ppBegin  CODE    \h*        (.*)     $'
          cOTHER←reg'   ^                            .*      $'
 
       ⍝ patterns for expand fn
-         pQe←'(?x)    (''[^'']*'')+'
+         pQe←'(?x)   (|  (?:''[^''\R]*'')+ | (?: "[^"]*")*  )'
          pCe←'(?x)      ⍝\s*$'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )' ⍝ Non-complex numbers...
          pE1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
@@ -176,7 +178,7 @@
           ⍝ Define name as val, unconditionally.
              case cDEF:{
                  noArrow←1≠≢f2
-                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺) '' ⋄ 0=≢⍵: '' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  passComment f0
@@ -187,12 +189,12 @@
              case cVAL:{
                  noArrow←1≠≢f2
                  f3 note←f1{
-                       noArrow∧0=≢⍵:(∆QT ⍺) ''
-                       0=≢⍵: '' '  [EMPTY]'
-                       {  0:: (⍵,' ∘∘∘') '  [INVALID PREPROCESSOR-TIME EXPRESSION]'
-                          (⍕⍎⍵)''
-                       }expand ⍵
-                  }f3
+                     noArrow∧0=≢⍵:(∆QT ⍺)''
+                     0=≢⍵:'' '  [EMPTY]'
+                     {0::(⍵,' ∘∘∘')'  [INVALID PREPROCESSOR-TIME EXPRESSION]'
+                         (⍕⍎⍵)''
+                     }expand ⍵
+                 }f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  passComment f0
@@ -204,11 +206,11 @@
              case cCOND:{
                  defd←def f1
                  ln←passComment f0
-                 defd:ln,'  [SUPPRESSED]'⊣ ⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
+                 defd:ln,'  [SUPPRESSED]'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
                  noArrow←1≠≢f2
-                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺) '' ⋄ 0=≢⍵: '' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
+                 ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  ln
              }0
           ⍝ ：：CODE code string
@@ -222,6 +224,10 @@
              case cUNDEF:{
                  _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
                  ⎕←' ',(padx f1),'   UNDEF'
+                 passComment f0
+             }0
+             case cINCL:{
+                 ⎕←' include ',f1,' [not implemented]'
                  passComment f0
              }0
          }
@@ -245,5 +251,4 @@
          ' '=1↑0⍴fx∆:1 funNm fx∆   ⍝ f∆ usually is tmpNm
          0 funNm fx∆
      }⍵
-⍝∇⍣§./preproc.dyalog§0§ 2019 6 28 21 17 38 542 §dòéMØå§0
  }
