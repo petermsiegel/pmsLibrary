@@ -1,13 +1,16 @@
  ∆PRE←{⎕IO ⎕ML←0 1
     ⍝ Alternative to ∆FIX...
+    ⍝ Returns (shyly) the list of objects created (possibly none)
 
      ⍺←0 ⋄ DEBUG←⍺   ⍝ If 1, the preproc file created __<name>__ is not deleted.
      {
-         1=0⊃⍵:(⎕EX⍣(~DEBUG)⊣2⊃⍵)⊢⍵{' '=1↑0⍴⍵:⍵
-             11 ⎕SIGNAL⍨'preprocessor error fixing ',(1⊃⍺),' on line ',⍕2⊃⍺
-         }⎕FX⍎2⊃⍵
-         _←⎕EX⍣(~DEBUG)⊣2⊃⍵
-         11 ⎕SIGNAL⍨'preprocessor error  in ',(1⊃⍵),' on line ',⍕(2⊃⍵)
+         0::11 ⎕SIGNAL⍨{
+             ⍝ _←⎕EX⍣(~DEBUG)⊣2⊃⍵
+             'Preprocessor error. File"',(1⊃⍵),'" is invalid. See preprocessor file: "',(2⊃⍵),'"'
+         }⍵
+         0=0⊃⍵:∘∘∘
+         objs←2 ⎕FIX⍎2⊃⍵
+         1:objs←objs⊣⎕EX⍣(~DEBUG)⊣2⊃⍵
      }{
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
                                                           ⍝ a line to pass through to target user function
@@ -42,7 +45,7 @@
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
              dir dirs types←(⊃⍺)⍺('dyapp' 'dyalog')
              types{
-                 0=≢⍺:(1↓dirs) ∆∆ ⍵
+                 0=≢⍺:(1↓dirs)∆∆ ⍵
                  filenm←dir,'/',⍵,'.',⊃⍺
                  ⎕NEXISTS filenm:filenm(⊃⎕NGET filenm 1)
                  (1↓⍺)∇ ⍵
