@@ -8,8 +8,7 @@
          }⎕FX⍎2⊃⍵
          _←⎕EX⍣(~DEBUG)⊣2⊃⍵
          11 ⎕SIGNAL⍨'preprocessor error  in ',(1⊃⍵),' on line ',⍕(2⊃⍵)
-     }{~3 4∊⍨(0⊃⎕RSI).⎕NC ⍵:11 ⎕SIGNAL⍨'preproc: right arg must be funNm of existing fun or op'
-
+     }{
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
                                                           ⍝ a line to pass through to target user function
          ∆FLD←{
@@ -22,7 +21,8 @@
          }
          ∆MAP←{'⍎\w+'⎕R{⍎1↓⍵ ∆FLD 0}⊣⍵}
 
-         ∆QT←{'''',⍵,''''}
+         ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
+         ∆DQT←{'"'∆QT ⍵}
          ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
          h2d←{                                             ⍝ Decimal from hexadecimal
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
@@ -37,17 +37,16 @@
       ⍝ Pad str ⍵ to at least ⍺ (15) chars.
          padx←{⍺←15 ⋄ ⍺<≢⍵:⍵ ⋄ ⍺↑⍵}
       ⍝ get function '⍵' or its char. source '⍵_src', if defined.
-         getDataIn←{
-             0=⎕NC srcNm:{(0⊃⎕RSI,#)⍎srcNm,'∘←⍵'}⎕NR funNm
-             ⎕←'For fn/op "',funNm,'" has a source file "',srcNm,'"'
-             in←1↑' '~⍨⍞↓⍨≢⍞←'Use [s] source to recompile, [f] function body, or [q] quit? [source] '
-             in∊'q':909 ⎕SIGNAL⍨'preproc terminated by user for fun/op "',funNm,'"'
-             in∊'s ':{
-                 0::909 ⎕SIGNAL⍨'preproc: user source is not valid'
-                 3 4∊⍨⎕NC ⍵:⎕NR ⍵
-                 ↓⍣(2≠|≡∆)⊣∆←⎕OR ⍵
-             }srcNm
-             in∊'f':⎕NR funNm
+         getDataIn←{∆∆←∇
+             ⍺←{∪{(':'≠⍵)⊆⍵}'.:',1↓∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
+             0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
+             dir dirs types←(⊃⍺)⍺('dyapp' 'dyalog')
+             types{
+                 0=≢⍺:(1↓dirs) ∆∆ ⍵
+                 filenm←dir,'/',⍵,'.',⊃⍺
+                 ⎕NEXISTS filenm:filenm(⊃⎕NGET filenm 1)
+                 (1↓⍺)∇ ⍵
+             }⍵
          }
 
       ⍝ MACRO (NAME) PROCESSING
@@ -238,9 +237,9 @@
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
          tmpNm←'__',funNm,'__'
-         srcNm←funNm,'_src'
 
-         dataIn←getDataIn 0
+         fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
+         ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
          dataFinal←⍬
 
          _←appendRaw('⍙←',tmpNm)('⍝ Preprocessor for ',funNm)'⍙←⍬'
