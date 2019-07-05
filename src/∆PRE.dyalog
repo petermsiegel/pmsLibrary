@@ -118,7 +118,7 @@
       ⍝ -------------------------------------------------------------------------
          _CTR_←0 ⋄ patternList←⍬
          reg←{⍺←'(?xi)' ⋄ patternList,←⊂∆MAP ⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
-         ⋄ ppBegin←'^[⍝\h]* :: '
+         ⋄ ppBegin←'^[⍝\h]* ::\h*'
          cIFDEF←reg'    ⍎ppBegin (IFN?DEF)                    \h+(.*)                     $'
          cIF_STMT←reg'  ⍎ppBegin (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
          ⋄ ppName←' \h* ([^←]+) \h*'
