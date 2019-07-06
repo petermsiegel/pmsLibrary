@@ -169,6 +169,7 @@
       ⍝ [2] PATTERN PROCESSING
       ⍝ -------------------------------------------------------------------------
          processPatterns←{
+             lineNum+←1
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
              ⎕←'f0 "',f0,'" ','Case ',⍵.PatternNum
@@ -200,6 +201,7 @@
              }0
              case cEND:{                          ⍝ END(IF(N(DEF)))
                  stack↓⍨←¯1
+                 0=≢stack: '⍝ [INVALID] ',f0⊣stack←0→⎕←'INVALID ::END statement at line [',lineNum,']'
                  '⍝ ',f0
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
@@ -275,6 +277,7 @@
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
          stack←,1
+         lineNum←1
          tmpNm←'__',funNm,'__'
 
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
