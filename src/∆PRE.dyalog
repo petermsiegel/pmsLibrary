@@ -32,6 +32,15 @@
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
          }
 
+         ∆TRUE←{
+             0::0
+             0=≢⍵~' ':0
+             val←⍎⍵
+             0∊⍴val:0
+             0=≢val:0
+             (,0)≡∊val:0
+             1
+         }
 
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -162,38 +171,36 @@
          processPatterns←{
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
+             ⎕←'f0 "',f0,'" ','Case ',⍵.PatternNum
              case cOTHER:{
-                 res←,expand f0
-                 ⊃⌽stack:PASSTHRU, res
-                 passComment res
+                 ⊃⌽stack:expand f0
+                 '⍝ [×] ',f0
              }0
           ⍝ ：：IFDEF name
-          ⍝ ：：END[IF[DEF]]
              case cIFDEF:{
-                 c←def f2
-                 passComment f0
-                 1∊'nN'∊f1:stack,←~c
-                 stack,←c
+                 ~⊃⌽stack:'⍝ [×] ',f0⊣stack,←0
+                 stack,←~⍣(1∊'nN'∊f1)⊣def f2
+                 '⍝ ',f0
              }0
           ⍝ ：：IF cond
-          ⍝ ：：ELSEIF cond
-          ⍝ ：：ELSE
-          ⍝ ：：END[IF]
              case cIF:{                            ⍝ IF
-                 passComment f0
+                 ~⊃⌽stack:'⍝ [×] ',f0⊣stack,←0
                  stack,←∆TRUE expand f1
+                 '⍝ ',f0
              }0
              case cELSEIF:{                        ⍝ ELSEIF
-                 passComment f0
+                 ⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←0
                  (⊃⌽stack)←∆TRUE expand f1
+                 '⍝ ',f0
              }0
-             case cELSE:{                          ⍝ ELSE
-                 passComment f0
-                 (⊃⌽stack)←~⊃⌽stack
+             case cELSE:{
+                 ⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←0                       ⍝ ELSE
+                 (⊃⌽stack)←1
+                 '⍝ ',f0
              }0
              case cEND:{                          ⍝ END(IF(N(DEF)))
-                 passComment f0
                  stack↓⍨←¯1
+                 '⍝ ',f0
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -201,16 +208,18 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
-                 passComment f0
+                 '⍝ ',f0
              }0
            ⍝  ：：VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
@@ -221,15 +230,16 @@
                  }f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
-                 passComment f0
+                 '⍝ 'f0
              }0
           ⍝ ：：COND name ← val      ==>  name ← 'val'
           ⍝ ：：COND name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  defd←def f1
-                 ln←passComment f0
+                 ln←'⍝ ',f0
                  defd:ln,NL,'  [SUPPRESSED]'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
@@ -240,19 +250,22 @@
           ⍝ ：：CODE code string
           ⍝ Pass through code to the preprocessor phase (to pass to user fn, simply enter it!!!)
              case cCODE:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  ln←f1,'⍝ ::CODE ...'
                  ln,NL,passComment f0
              }0
           ⍝ ：：UNSET name  ==> shadow 'name'
           ⍝ Warns if <name> was not set!
              case cUNDEF:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
                  ⎕←' ',(padx f1),'   UNDEF'
-                 passComment f0
+                 '⍝ ',f0
              }0
              case cINCL:{
+                 ~⊃⌽stack:'⍝ [×] ',f0
                  ⎕←' include ',f1,' [not implemented]'
-                 passComment f0
+                 '⍝ ',f0
              }0
          }
 
