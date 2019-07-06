@@ -121,8 +121,11 @@
          _CTR_←0 ⋄ patternList←⍬
          reg←{⍺←'(?xi)' ⋄ patternList,←⊂∆MAP ⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
          ⋄ ppBegin←'^[⍝\h]* ::\h*'
-         cIFDEF←reg'    ⍎ppBegin (IFN?DEF)                    \h+(.*)                     $'
-         cIF_STMT←reg'  ⍎ppBegin (IF\h+ | ELSE(?:IF\h+)? | END(?:IF(?:N?DEF)?)?) \b (.*)  $'
+         cIFDEF←reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
+         cIF←reg'       ⍎ppBegin IF \h+      \h+(.*)         $'
+         cELSEIF←reg'   ⍎ppBegin ELSEIF      \h+(.*)         $'
+         cELSE←reg'     ⍎ppBegin ELSE            .*          $'
+         cEND←reg'      ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)  .*    $'
          ⋄ ppName←' \h* ([^←]+) \h*'
          ⋄ ppToken←'\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
@@ -159,19 +162,38 @@
          processPatterns←{
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
-             case cOTHER:PASSTHRU,expand f0
+             case cOTHER:{
+                 res←,expand f0
+                 ⊃⌽stack:PASSTHRU, res
+                 passComment res
+             }0
           ⍝ ：：IFDEF name
           ⍝ ：：END[IF[DEF]]
              case cIFDEF:{
-                 not←'~'↑⍨1∊'nN'∊f1
-                 ':IF ',not,⍕def f2
+                 c←def f2
+                 passComment f0
+                 1∊'nN'∊f1:stack,←~c
+                 stack,←c
              }0
           ⍝ ：：IF cond
           ⍝ ：：ELSEIF cond
           ⍝ ：：ELSE
           ⍝ ：：END[IF]
-             case cIF_STMT:{                        ⍝ IF, ELSEIF, ELSE, END, ENDIF, ENDIFDEF
-                 ':',f1,expand f2
+             case cIF:{                            ⍝ IF
+                 passComment f0
+                 stack,←∆TRUE expand f1
+             }0
+             case cELSEIF:{                        ⍝ ELSEIF
+                 passComment f0
+                 (⊃⌽stack)←∆TRUE expand f1
+             }0
+             case cELSE:{                          ⍝ ELSE
+                 passComment f0
+                 (⊃⌽stack)←~⊃⌽stack
+             }0
+             case cEND:{                          ⍝ END(IF(N(DEF)))
+                 passComment f0
+                 stack↓⍨←¯1
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -208,7 +230,7 @@
              case cCOND:{
                  defd←def f1
                  ln←passComment f0
-                 defd:ln,'  [SUPPRESSED]'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
+                 defd:ln,NL,'  [SUPPRESSED]'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
@@ -239,6 +261,7 @@
       ⍝ --------------------------------------------------------------------------------
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
+         stack←,1
          tmpNm←'__',funNm,'__'
 
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
