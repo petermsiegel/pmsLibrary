@@ -1,16 +1,20 @@
  ∆PRE←{⎕IO ⎕ML←0 1
-    ⍝ Alternative to ∆FIX...
-    ⍝ Returns (shyly) the list of objects created (possibly none)
-
-     ⍺←0 ⋄ DEBUG←⍺   ⍝ If 1, the preproc file created __<name>__ is not deleted.
-     {
+   ⍝ Alternative to ∆FIX... 20190706
+   ⍝ Returns (shyly) the list of objects created (possibly none)
+   ⍝ ⍺: DEBUG. If 1, the preproc file created __⍵__ is not deleted.
+     ⍺←0 ⋄
+     ⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
+              ⍝ ⍺: 1 if DEBUG, else 0
          0::11 ⎕SIGNAL⍨{
-             ⍝ _←⎕EX⍣(~DEBUG)⊣2⊃⍵
-             'Preprocessor error. File"',(1⊃⍵),'" is invalid. See preprocessor file: "',(2⊃⍵),'"'
+             _←1 ___save___ ⍵
+             _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
+             _,←'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-         0=0⊃⍵:∘∘∘
-         objs←2 ⎕FIX⍎2⊃⍵
-         1:objs←objs⊣⎕EX⍣(~DEBUG)⊣2⊃⍵
+         ___save___←{
+             ⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
+         }
+         objs←2 ⎕FIX ___save___ ⍵
+         1:objs←objs
      }{
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
                                                           ⍝ a line to pass through to target user function
@@ -133,20 +137,20 @@
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
          ⋄ ppBegin←'^[⍝\h]* ::\h*'
          cIFDEF←'ifdef'reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
-         cIF←'if'reg'       ⍎ppBegin IF \h+      \h+(.*)         $'
-         cELSEIF←'elseif'reg'   ⍎ppBegin ELSEIF      \h+(.*)         $'
-         cELSE←'else'reg'     ⍎ppBegin ELSE            .*          $'
-         cEND←'end'reg'      ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)  .*    $'
-         ⋄ ppName←' \h* ([^←]+) \h*'
-         ⋄ ppToken←'\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
+         cIF←'if'reg'          ⍎ppBegin IF \b       \h+(.*)         $'
+         cELSEIF←'elseif'reg'  ⍎ppBegin ELSEIF \b   \h+(.*)         $'
+         cELSE←'else'reg'      ⍎ppBegin ELSE \b         .*          $'
+         cEND←'end'reg'        ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)\b  .*    $'
+         ⋄ ppName←' \b\h* ([^←]+) \h*'
+         ⋄ ppToken←'\b\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←'def'reg'     ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
-         cVAL←'val'reg'     ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
-         cINCL←'include'reg'    ⍎ppBegin  INCLUDE ⍎ppToken            $'
-         cCOND←'cond'reg'    ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
-         cUNDEF←'undef'reg'   ⍎ppBegin  UNDEF   ⍎ppName             $'
-         cCODE←'code'reg'    ⍎ppBegin  CODE    \h*        (.*)     $'
-         cOTHER←'apl'reg'   ^                            .*      $'
+         cDEF←'def'reg'        ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
+         cVAL←'val'reg'        ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
+         cINCL←'include'reg'   ⍎ppBegin  INCLUDE ⍎ppToken            $'
+         cCOND←'cond'reg'      ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
+         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   ⍎ppName             $'
+         cCODE←'code'reg'      ⍎ppBegin  CODE \b  \h*       (.*)     $'
+         cOTHER←'apl'reg'   ^                                .*      $'
 
       ⍝ patterns for expand fn
          pQe←'(?x)   (|  (?:''[^''\R]*'')+ | (?: "[^"]*")*  )'
@@ -177,37 +181,38 @@
              case←⍵.PatternNum∘∊
              ⎕←'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
              case cOTHER:{
-                 T=⊃⌽stack:expand f0
-                 '⍝ [×] ',f0
+                 T=⊃⌽stack:{str←expand ⍵ ⋄ str≡⍵:str ⋄ '⍝ ',⍵,' 💡↑',NL,'  ',str}f0
+                 '⍝ ',f0,' 💡×'
              }0
           ⍝ ：：IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 T≠⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
-                 '⍝',(c⊃'[0]' ''),f0
+                 '⍝ ',f0,(c⊃' 💡↓' ' 💡↑')
              }0
           ⍝ ：：IF cond
              case cIF:{                            ⍝ IF
-                 T≠⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 T≠⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
                  stack,←c←∆TRUE expand f1
-                 '⍝',(c⊃'[0]' ''),f0
+                 '⍝ ',f0,(c⊃' 💡↓ ' '')
              }0
-             case cELSEIF:{                        ⍝ ELSEIF
-                 S=⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
-                 T=⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←F
+             case cELSEIF:{                           ⍝ ELSEIF
+                 S=⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
+                 T=⊃⌽stack:'⍝ ',f0,' 💡↓'⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE expand f1
-                 '⍝',(c⊃'[0]' ''),f0
+                 '⍝ ',f0,(c⊃' 💡↓' ' 💡↑')
              }0
              case cELSE:{
-                 S=⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
-                 T=⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←F                       ⍝ ELSE
+                 S=⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
+                 T=⊃⌽stack:'⍝ ',f0,' 💡↓'⊣(⊃⌽stack)←F  ⍝ ELSE
                  (⊃⌽stack)←T
-                 '⍝ ',f0
+                 '⍝ ',f0,' 💡↑'
              }0
-             case cEND:{                          ⍝ END(IF(N(DEF)))
+             case cEND:{                               ⍝ END(IF(N(DEF)))
                  stack↓⍨←¯1
-                 0=≢stack:'⍝ [ERR] ',f0⊣stack←,0→⎕←'INVALID ::END statement at line [',lineNum,']'
-                 '⍝ ',f0
+                 c←S≠⊃⌽stack
+                 0=≢stack:'⍝ ',f0,' 💡ERR'⊣stack←,0→⎕←'INVALID ::END statement at line [',lineNum,']'
+                 '⍝ ',(c⊃'.....' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -215,7 +220,7 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 ~⊃⌽stack:'⍝ [×] ',f0
+                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
@@ -226,7 +231,7 @@
            ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 ~⊃⌽stack:'⍝ [×] ',f0
+                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
@@ -237,19 +242,19 @@
                  }f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
-                 '⍝ 'f0
+                 '⍝ ',f0,' 💡↑'
              }0
           ⍝ ：：COND name ← val      ==>  name ← 'val'
           ⍝ ：：COND name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
-                 ~⊃⌽stack:'⍝ [×] ',f0
+                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
                  defd←def f1
                  ln←'⍝ ',f0
-                 defd:ln,NL,'  [SUPPRESSED]'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' [SUPPRESSED]'
+                 defd:ln,NL,' 💡↓'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' 💡↓'
                  noArrow←1≠≢f2
-                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  💡EMPTY' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  ln
@@ -257,22 +262,23 @@
           ⍝ ：：CODE code string
           ⍝ Pass through code to the preprocessor phase (to pass to user fn, simply enter it!!!)
              case cCODE:{
+                 ⍝⍝⍝⍝⍝ OBSOLETE - REMOVE <CODE> logic...
                  ~⊃⌽stack:'⍝ [×] ',f0
                  ln←f1,'⍝ ::CODE ...'
                  ln,NL,passComment f0
              }0
-          ⍝ ：：UNSET name  ==> shadow 'name'
+          ⍝ ：：UNDEF name  ==> shadow 'name'
           ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 ~⊃⌽stack:'⍝ [×] ',f0
-                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'UNDEFining an undefined name: ',⍵}f1
-                 ⎕←' ',(padx f1),'   UNDEF'
-                 '⍝ ',f0
+                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'💡💡💡 UNDEFining an undefined name: ',⍵}f1
+                 ⎕←' ',(padx f1),' → undefined 💡'
+                 '⍝ ',f0,' 💡↑'
              }0
              case cINCL:{
-                 ~⊃⌽stack:'⍝ [×] ',f0
-                 ⎕←' include ',f1,' [not implemented]'
-                 '⍝ ',f0
+                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 ⎕←'💡💡💡 include ',f1,' [not implemented]'
+                 '⍝ ',f0,' 💡↑'
              }0
          }
 
@@ -291,12 +297,8 @@
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
          dataFinal←⍬
 
-         _←appendRaw('⍙←',tmpNm)('⍝ Preprocessor for ',funNm)'⍙←⍬'
-
          names←vals←⍬
-         _←appendCond patternList ⎕R processDirectives⍠'UCP' 1⊣dataIn
-         fx∆←⎕FX dataFinal
-         ' '=1↑0⍴fx∆:1 funNm fx∆   ⍝ f∆ usually is tmpNm
-         0 funNm fx∆
+         lines←patternList ⎕R processDirectives⍠'UCP' 1⊣dataIn
+         funNm tmpNm lines
      }⍵
  }
