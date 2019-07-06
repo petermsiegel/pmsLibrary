@@ -5,14 +5,14 @@
      ⍺←0 ⋄
      ⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
               ⍝ ⍺: 1 if DEBUG, else 0
-         0::11 ⎕SIGNAL⍨{
-             _←1 ___save___ ⍵
-             _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
-             _,←'See preprocessor output: "',(1⊃⍵),'"'
-         }⍵
          ___save___←{
              ⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
          }
+         0::11 ⎕SIGNAL⍨{
+             _←1 ___save___ ⍵
+             _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
+             _,'See preprocessor output: "',(1⊃⍵),'"'
+         }⍵
          objs←2 ⎕FIX ___save___ ⍵
          1:objs←objs
      }{
