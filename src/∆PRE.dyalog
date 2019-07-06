@@ -33,13 +33,15 @@
          }
 
          ∆TRUE←{
-             0::0
-             0=≢⍵~' ':0
-             val←⍎⍵
-             0∊⍴val:0
-             0=≢val:0
-             (,0)≡∊val:0
-             1
+             ans←{0::0⊣⍞←' [ERR] '
+                 0=≢⍵~' ':0
+                 val←⍎⍵
+                 0∊⍴val:0
+                 0=≢val:0
+                 (,0)≡∊val:0
+                 1}⍵
+             ⎕←'Is ',⍵,' true? ',(ans⊃'NO' 'YES')
+             ans
          }
 
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
@@ -127,24 +129,24 @@
       ⍝ -------------------------------------------------------------------------
       ⍝ [1] DEFINITIONS
       ⍝ -------------------------------------------------------------------------
-         _CTR_←0 ⋄ patternList←⍬
-         reg←{⍺←'(?xi)' ⋄ patternList,←⊂∆MAP ⍺,⍵ ⋄ (_CTR_+←1)⊢_CTR_}
+         _CTR_←0 ⋄ patternList←patternName←⍬
+         reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
          ⋄ ppBegin←'^[⍝\h]* ::\h*'
-         cIFDEF←reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
-         cIF←reg'       ⍎ppBegin IF \h+      \h+(.*)         $'
-         cELSEIF←reg'   ⍎ppBegin ELSEIF      \h+(.*)         $'
-         cELSE←reg'     ⍎ppBegin ELSE            .*          $'
-         cEND←reg'      ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)  .*    $'
+         cIFDEF←'ifdef'reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
+         cIF←'if'reg'       ⍎ppBegin IF \h+      \h+(.*)         $'
+         cELSEIF←'elseif'reg'   ⍎ppBegin ELSEIF      \h+(.*)         $'
+         cELSE←'else'reg'     ⍎ppBegin ELSE            .*          $'
+         cEND←'end'reg'      ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)  .*    $'
          ⋄ ppName←' \h* ([^←]+) \h*'
          ⋄ ppToken←'\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←reg'     ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
-         cVAL←reg'     ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
-         cINCL←reg'    ⍎ppBegin  INCLUDE ⍎ppToken            $'
-         cCOND←reg'    ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
-         cUNDEF←reg'   ⍎ppBegin  UNDEF   ⍎ppName             $'
-         cCODE←reg'    ⍎ppBegin  CODE    \h*        (.*)     $'
-         cOTHER←reg'   ^                            .*      $'
+         cDEF←'def'reg'     ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
+         cVAL←'val'reg'     ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
+         cINCL←'include'reg'    ⍎ppBegin  INCLUDE ⍎ppToken            $'
+         cCOND←'cond'reg'    ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
+         cUNDEF←'undef'reg'   ⍎ppBegin  UNDEF   ⍎ppName             $'
+         cCODE←'code'reg'    ⍎ppBegin  CODE    \h*        (.*)     $'
+         cOTHER←'apl'reg'   ^                            .*      $'
 
       ⍝ patterns for expand fn
          pQe←'(?x)   (|  (?:''[^''\R]*'')+ | (?: "[^"]*")*  )'
@@ -168,40 +170,43 @@
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
       ⍝ -------------------------------------------------------------------------
-         processPatterns←{
+         processDirectives←{
+             T F S←1 0 ¯1    ⍝ true, false, skip
              lineNum+←1
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
-             ⎕←'f0 "',f0,'" ','Case ',⍵.PatternNum
+             ⎕←'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
              case cOTHER:{
-                 ⊃⌽stack:expand f0
+                 T=⊃⌽stack:expand f0
                  '⍝ [×] ',f0
              }0
-          ⍝ ：：IFDEF name
+          ⍝ ：：IFDEF/IFNDEF name
              case cIFDEF:{
-                 ~⊃⌽stack:'⍝ [×] ',f0⊣stack,←0
-                 stack,←~⍣(1∊'nN'∊f1)⊣def f2
-                 '⍝ ',f0
+                 T≠⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
+                 '⍝',(c⊃'[0]' ''),f0
              }0
           ⍝ ：：IF cond
              case cIF:{                            ⍝ IF
-                 ~⊃⌽stack:'⍝ [×] ',f0⊣stack,←0
-                 stack,←∆TRUE expand f1
-                 '⍝ ',f0
+                 T≠⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 stack,←c←∆TRUE expand f1
+                 '⍝',(c⊃'[0]' ''),f0
              }0
              case cELSEIF:{                        ⍝ ELSEIF
-                 ⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←0
-                 (⊃⌽stack)←∆TRUE expand f1
-                 '⍝ ',f0
+                 S=⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 T=⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←F
+                 (⊃⌽stack)←c←∆TRUE expand f1
+                 '⍝',(c⊃'[0]' ''),f0
              }0
              case cELSE:{
-                 ⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←0                       ⍝ ELSE
-                 (⊃⌽stack)←1
+                 S=⊃⌽stack:'⍝ [×] ',f0⊣stack,←S
+                 T=⊃⌽stack:'⍝ [×] ',f0⊣(⊃⌽stack)←F                       ⍝ ELSE
+                 (⊃⌽stack)←T
                  '⍝ ',f0
              }0
              case cEND:{                          ⍝ END(IF(N(DEF)))
                  stack↓⍨←¯1
-                 0=≢stack: '⍝ [INVALID] ',f0⊣stack←0→⎕←'INVALID ::END statement at line [',lineNum,']'
+                 0=≢stack:'⍝ [ERR] ',f0⊣stack←,0→⎕←'INVALID ::END statement at line [',lineNum,']'
                  '⍝ ',f0
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
@@ -277,17 +282,19 @@
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          funNm←⍵
          stack←,1
-         lineNum←1
+         lineNum←0
          tmpNm←'__',funNm,'__'
 
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
+         NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
+
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
          dataFinal←⍬
 
          _←appendRaw('⍙←',tmpNm)('⍝ Preprocessor for ',funNm)'⍙←⍬'
 
          names←vals←⍬
-         _←appendCond patternList ⎕R processPatterns⍠'UCP' 1⊣dataIn
+         _←appendCond patternList ⎕R processDirectives⍠'UCP' 1⊣dataIn
          fx∆←⎕FX dataFinal
          ' '=1↑0⍴fx∆:1 funNm fx∆   ⍝ f∆ usually is tmpNm
          0 funNm fx∆
