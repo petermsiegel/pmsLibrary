@@ -2,22 +2,25 @@
    ⍝ Alternative to ∆FIX... 20190706
    ⍝ Returns (shyly) the list of objects created (possibly none)
    ⍝ ⍺: DEBUG. If 1, the preproc file created __⍵__ is not deleted.
-     ⍺←0 ⋄
+     ⍺←0
      ⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
               ⍝ ⍺: 1 if DEBUG, else 0
-         ___save___←{
-             ⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
+         ___condSave___←{
+             _←⎕EX 1⊃⍵
+             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
+             2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
-             _←1 ___save___ ⍵
+             _←1 ___condSave___ ⍵
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-         objs←2 ⎕FIX ___save___ ⍵
-         1:objs←objs
-     }{
+         1:___objs___←2 ⎕FIX ⍺ ___condSave___ ⍵
+     }⍺{
+         VERBOSE←⍺
+         NOTE←{VERBOSE:⎕←⍵ ⋄ ''}
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
-                                                          ⍝ a line to pass through to target user function
+                                                           ⍝ a line to pass through to target user function
          ∆FLD←{
              ns def←2↑⍺,⊂''
              ' '=1↑0⍴⍵:⍺ ∇ ns.Names⍳⊂⍵
@@ -179,7 +182,7 @@
              lineNum+←1
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
-             ⎕←'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
+             _←NOTE'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
              case cOTHER:{
                  T=⊃⌽stack:{str←expand ⍵ ⋄ str≡⍵:str ⋄ '⍝ ',⍵,' 💡↑',NL,'  ',str}f0
                  '⍝ ',f0,' 💡×'
@@ -277,8 +280,9 @@
              }0
              case cINCL:{
                  ~⊃⌽stack:'⍝ ',f0,' 💡×'
-                 ⎕←'💡💡💡 include ',f1,' [not implemented]'
-                 '⍝ ',f0,' 💡↑'
+                 ⎕←'💡💡💡 include ',f1,' [simulated]'
+                 includeLines∘←(⊂'     '),¨'ted exists' 'mary exists' 'a←⍳10'
+                 '⍝ ',f0,' 💡↑ [Not implemented]'
              }0
          }
 
@@ -295,10 +299,16 @@
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
+         ⎕←'Object has ',NLINES,' lines'
          dataFinal←⍬
 
          names←vals←⍬
-         lines←patternList ⎕R processDirectives⍠'UCP' 1⊣dataIn
+         includeLines←⍬
+         lines←{⍺←⍬
+             0=≢⍵:⍺
+             l←patternList ⎕R processDirectives⍠'UCP' 1⊣⊃⍵
+             (⍺,⊂l)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
+         }dataIn
          funNm tmpNm lines
      }⍵
  }
