@@ -1,21 +1,23 @@
  ∆PRE←{⎕IO ⎕ML←0 1
    ⍝ Alternative to ∆FIX...
    ⍝ Returns (shyly) the list of objects created (possibly none)
-   ⍝ ⍺: DEBUG. If 1,
-   ⍝                 APL lines with macro replacements are shown in the output as comments
+   ⍝ ⍺: Contains one or more of the following letters:
+   ⍝
+   ⍝    'V' (Verbose)DEFAULT
+   ⍝                 APL lines with macro replacements are shown in the output code as comments
    ⍝                 preprocessor directives are shown in the output as comments
-   ⍝           If 2,
-   ⍝                 like DEBUG=1 above, and...
-   ⍝                 details on the flow of execution are showed on the console
-   ⍝           If 0,
+   ⍝    'D' (Debug)
+   ⍝                 Details on the flow of execution are showed on the console
+   ⍝    'DV'
+   ⍝                 Both V and D above
+   ⍝    'Q' or ''
+   ⍝                 Neither V nor D above.
    ⍝                 put no extra comments in output and no details on the console
-
-     ⍺←0
-     1:_←⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
-              ⍝ ⍺: 1 if DEBUG, else 0
+     ⍺←'V'
+     1:_←(1∊'DV'∊⍺){   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          ___condSave___←{
              _←⎕EX 1⊃⍵
-             ×⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
+             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
              2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
@@ -28,11 +30,11 @@
              (⍵≢¨⊂EMPTY)/⍵
          }(#.SAVE←⍺ ___condSave___ ⍵)
      }⍺{
-         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0   ⍝ An EMPTY line will be deleted before ⎕FIXing
+         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
 
-         VERBOSE←⍺
-         NOTE←{⍺←0 ⋄ ⍺∧VERBOSE=2:⍞←⍵ ⋄ VERBOSE=2:⎕←⍵ ⋄ ''}
-         PASS←{VERBOSE≥1:⍵ ⋄ EMPTY}   ⍝ See EMPTY above. Generated only if VERBOSE=1
+         VERBOSE DEBUG←'VD'∊⍺ ⋄ QUIET←VERBOSE⍱DEBUG
+         NOTE←{⍺←0 ⋄ ⍺∧DEBUG:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}
+         PASS←{VERBOSE:⍵ ⋄ EMPTY}                          ⍝ See EMPTY above. Generated only if VERBOSE
                                                            ⍝ a line to pass through to target user function
          YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
          ∆FLD←{
@@ -61,7 +63,8 @@
                  0∊⍴val:0
                  0=≢val:0
                  (,0)≡∊val:0
-                 1}⍵
+                 1
+             }⍵
              _←NOTE INFO,' Is ',⍵,' true? ',(ans⊃'NO' 'YES')
              ans
          }
@@ -109,10 +112,12 @@
                  0≥⍺:⍵
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
-                 str←pQe pCe pLNe ⎕R{
+                 cDQe cSQe cCe cLNe←0 1 2 3
+                 str←pDQe pSQe pCe pLNe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
-                     case 2:get f0
+                     case cDQe:∆QTX ∆DEQUOTE ⍵
+                     case cLNe:get f0
                      else f0
                  }⍠'UCP' 1⊣str
 
@@ -132,11 +137,12 @@
          ⍝  Ellipses - constants (pE1e) and variable (pE2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
+             cQe cCe cE1e cE2e←0 1 2 3
              str←pQe pCe pE1e pE2e ⎕R{
                  case←⍵.PatternNum∘∊
-                 case 0 1:⍵ ∆FLD 0 ⋄
-                 case 2:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2    ⍝  num [num] .. num
-                 case 3:∆TOcode                             ⍝  .. preceded or followed by non-constants⋄
+                 case cQe cCe:⍵ ∆FLD 0
+                 case cE1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
+                 case cE2e:∆TOcode                           ⍝  .. preceded or followed by non-constants⋄
              }⍠'UCP' 1⊣str
              str
          }
@@ -170,7 +176,9 @@
          cOTHER←'apl'reg'   ^                                .*      $'
 
       ⍝ patterns for expand fn
-         pQe←'(?x)   (?|  (?: ''[^''\n\r]*'' )+ | (?: "[^"]*")+  )'
+         pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
+         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'
+         pQe←'(?x)    (?|  (?: " [^"]*     "  )+  | (?: ''[^''\n\r]*'' )+ )'
          pCe←'(?x) \h* ⍝ .* $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
          pE1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
@@ -197,35 +205,39 @@
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
              _←NOTE'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
+          ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=⊃⌽stack:{str←expand ⍵ ⋄ (VERBOSE=0)∨str≡⍵:str ⋄ '⍝ ',⍵,YES,NL,'  ',str}f0
-                 PASS'⍝ ',f0,SKIP     ⍝ If VERBOSE=0, APL stmts not included are omitted.
+                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝ ',⍵,YES,NL,'  ',str}f0
+                 PASS'⍝ ',f0,SKIP     ⍝ See PASS, QUIET
              }0
-          ⍝ ：：IFDEF/IFNDEF name
+           ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
                  T≠⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
                  PASS'⍝ ',f0,(c⊃NO YES)
              }0
-          ⍝ ：：IF cond
-             case cIF:{                            ⍝ IF
+           ⍝ ::IF cond
+             case cIF:{
                  T≠⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE expand f1
                  PASS'⍝ ',f0,(c⊃NO YES)
              }0
-             case cELSEIF:{                           ⍝ ELSEIF
+          ⍝  ::ELSEIF
+             case cELSEIF:{
                  S=⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
                  T=⊃⌽stack:PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE expand f1
                  PASS'⍝ ',f0,(c⊃NO YES)
              }0
+           ⍝ ::ELSE
              case cELSE:{
                  S=⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F  ⍝ ELSE
+                 T=⊃⌽stack:PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
                  PASS'⍝ ',f0,YES
              }0
-             case cEND:{                               ⍝ END(IF(N(DEF)))
+           ⍝ ::END(IF(N)(DEF))
+             case cEND:{
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
                  0=≢stack:PASS'⍝ ',f0,ERR⊣stack←,0⊣NOTE'INVALID ::END statement at line [',lineNum,']'
@@ -244,8 +256,8 @@
                  _←NOTE INFO,'DEF   ',(padx f1),' ','←',' ',(30 padx f3),note
                  PASS'⍝ ',f0
              }0
-           ⍝  ：：VAL name ← val    ==>  name ← ⍎'val' etc.
-           ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+           ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
+           ⍝  ::VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
                  T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
@@ -253,7 +265,7 @@
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
                      0=≢⍵:'' '  [EMPTY]'
-                     {0::(⍵,' ∘∘∘')'  [INVALID PREPROCESSOR-TIME EXPRESSION]'
+                     {0::(⍵,' ∘∘∘')'  [INVALID EXPRESSION DURING PREPROCESSING]'
                          (⍕⍎⍵)''
                      }expand ⍵
                  }f3
@@ -261,8 +273,8 @@
                  _←NOTE' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  PASS'⍝ ',f0,YES
              }0
-          ⍝ ：：COND name ← val      ==>  name ← 'val'
-          ⍝ ：：COND name            ==>  name ← 'name'
+          ⍝ ::COND name ← val      ==>  name ← 'val'
+          ⍝ ::COND name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
@@ -276,14 +288,16 @@
                  _←NOTE' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  PASS ln
              }0
-          ⍝ ：：UNDEF name  ==> shadow 'name'
-          ⍝ Warns if <name> was not set!
+           ⍝ ::UNDEF name
+           ⍝ Warns if <name> was not set!
              case cUNDEF:{
                  T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  _←del f1⊣{def ⍵:'' ⋄ ⊢NOTE INFO,' UNDEFining an undefined name: ',⍵}f1
                  _←NOTE INFO,'UNDEF ',(padx f1)
                  PASS'⍝ ',f0,YES
              }0
+           ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
+           ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
                  T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  funNm←∆DEQUOTE f1
