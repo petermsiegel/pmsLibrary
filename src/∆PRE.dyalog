@@ -218,7 +218,7 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 S=⊃⌽stack:'⍝ ',f0,SKIP
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
@@ -229,7 +229,7 @@
            ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 S=⊃⌽stack:'⍝ ',f0,SKIP
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
@@ -247,7 +247,7 @@
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
-                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 S=⊃⌽stack:'⍝ ',f0,SKIP
                  defd←def f1
                  ln←'⍝ ',f0
                  defd:ln,NO,NL⊣⎕←'  ',(padx f1),' ',f2,' ',f3,NO
@@ -260,13 +260,13 @@
           ⍝ ：：UNDEF name  ==> shadow 'name'
           ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 S=⊃⌽stack:'⍝ ',f0,SKIP
                  _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ⎕←INFO,'UNDEF ',(padx f1)
                  '⍝ ',f0,YES
              }0
              case cINCL:{
-                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 S=⊃⌽stack:'⍝ ',f0,SKIP
                  funNm←f1
                  ⍞←INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (fullNm dataIn)←getDataIn funNm
@@ -284,7 +284,7 @@
                  }includedFiles
 
                  includeLines∘←dataIn
-                 '⍝ ',f0,'⍝',INFO,msg
+                 '⍝ ',f0,'  ',INFO,msg
              }0
          }
 
