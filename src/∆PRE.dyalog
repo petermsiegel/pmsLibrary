@@ -138,7 +138,7 @@
       ⍝ -------------------------------------------------------------------------
          _CTR_←0 ⋄ patternList←patternName←⍬
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
-         ⋄ ppBegin←'^[⍝\h]* ::\h*'
+         ⋄ ppBegin←'^\h* ::\h*'
          cIFDEF←'ifdef'reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
          cIF←'if'reg'          ⍎ppBegin IF \b       \h+(.*)         $'
          cELSEIF←'elseif'reg'  ⍎ppBegin ELSEIF \b   \h+(.*)         $'
@@ -227,7 +227,7 @@
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                 ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
+                 ⎕←'💡DEF ',(padx f1),' ','←',' ',(30 padx f3),note
                  '⍝ ',f0
              }0
            ⍝  ：：VAL name ← val    ==>  name ← ⍎'val' etc.
@@ -286,8 +286,14 @@
                  ⎕←msg←(''↑⍨+/∧\f0=' '),'💡↑ ','File: "',fullNm,'". ',(⍕≢dataIn),' lines'
 
                  _←fullNm{
-                     ⍵∊⍨⊂⍺:⎕←'Warning: File "',⍺,'" being included again!'
-                     1:includedFiles,←⊂⍺
+                     includedFiles,←⊂⍺
+                     ~⍵∊⍨⊂⍺:⍬
+                   ⍝ See ::extern INCLUDE_LIMITS
+                     count←+/includedFiles≡¨⊂⍺
+                     warn err←(⊂':INCLUDE '),¨'WARNING: ' 'ERROR: '
+                     count≤1↑INCLUDE_LIMITS:⍬
+                     count≤¯1↑INCLUDE_LIMITS:⎕←warn,'File "',⍺,'" included ',(⍕count),' times'
+                     11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
                  }includedFiles
 
                  includeLines∘←dataIn
@@ -307,6 +313,7 @@
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
          includedFiles←⊂fullNm
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
+         INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
 
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
          ⎕←'Object has ',NLINES,' lines'
