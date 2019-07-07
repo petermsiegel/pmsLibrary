@@ -3,11 +3,11 @@
    ⍝ Returns (shyly) the list of objects created (possibly none)
    ⍝ ⍺: DEBUG. If 1, the preproc file created __⍵__ is not deleted.
      ⍺←0
-     ⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
+     1:_←⍺{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
               ⍝ ⍺: 1 if DEBUG, else 0
          ___condSave___←{
              _←⎕EX 1⊃⍵
-             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
+             ×⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'
              2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
@@ -15,12 +15,12 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-         1:___objs___←2 ⎕FIX ⍺ ___condSave___ ⍵
+         1:2 ⎕FIX ⍺ ___condSave___ ⍵
      }⍺{
-         VERBOSE←⍺
-         NOTE←{VERBOSE:⎕←⍵ ⋄ ''}
+         VERBOSE←×⍺ ⋄ NOTE←{VERBOSE:⎕←⍵ ⋄ ''}
          NL←⎕UCS 10 ⋄ PASSTHRU←⎕UCS 1                      ⍝ PASSTHRU as 1st char in vector signals
                                                            ⍝ a line to pass through to target user function
+         YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
          ∆FLD←{
              ns def←2↑⍺,⊂''
              ' '=1↑0⍴⍵:⍺ ∇ ns.Names⍳⊂⍵
@@ -122,10 +122,6 @@
              str
          }
 
-      ⍝ passCommment:   S ←  passComment ⍵:S, where ⍵ starts with /[⍝ ]/
-      ⍝    Send (commented ⍵) through to user function, removing "extra" [⍝ ] symbols at start
-      ⍝    Each returned commentis marked with a lightbulb...
-         passComment←{⍺←'⍝ ' ⋄ PASSTHRU,'⍝💡 ',⍵↓⍨+/∧\⍵∊⍺}   ⍝ Trim '⍝ ' chars, prefix with '⍝💡 '
 
       ⍝ -------------------------------------------------------------------------
       ⍝ PATTERNS
@@ -152,7 +148,6 @@
          cINCL←'include'reg'   ⍎ppBegin  INCLUDE \b ⍎ppToken            $'
          cCOND←'cond'reg'      ⍎ppBegin  COND    \b ⍎ppName   ⍎ppArr    $'
          cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   \b ⍎ppName             $'
-         cCODE←'code'reg'      ⍎ppBegin  CODE    \b \h*       (.*)     $'
          cOTHER←'apl'reg'   ^                                .*      $'
 
       ⍝ patterns for expand fn
@@ -184,37 +179,37 @@
              case←⍵.PatternNum∘∊
              _←NOTE'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
              case cOTHER:{
-                 T=⊃⌽stack:{str←expand ⍵ ⋄ str≡⍵:str ⋄ '⍝ ',⍵,' 💡↑',NL,'  ',str}f0
-                 '⍝ ',f0,' 💡×'
+                 T=⊃⌽stack:{str←expand ⍵ ⋄ str≡⍵:str ⋄ '⍝ ',⍵,YES,NL,'  ',str}f0
+                 '⍝ ',f0,SKIP
              }0
           ⍝ ：：IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
+                 T≠⊃⌽stack:'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
-                 '⍝ ',f0,(c⊃' 💡↓' ' 💡↑')
+                 '⍝ ',f0,(c⊃NO YES)
              }0
           ⍝ ：：IF cond
              case cIF:{                            ⍝ IF
-                 T≠⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
+                 T≠⊃⌽stack:'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE expand f1
-                 '⍝ ',f0,(c⊃' 💡↓ ' '')
+                 '⍝ ',f0,(c⊃NO YES)
              }0
              case cELSEIF:{                           ⍝ ELSEIF
-                 S=⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
-                 T=⊃⌽stack:'⍝ ',f0,' 💡↓'⊣(⊃⌽stack)←F
+                 S=⊃⌽stack:'⍝ ',f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE expand f1
-                 '⍝ ',f0,(c⊃' 💡↓' ' 💡↑')
+                 '⍝ ',f0,(c⊃NO YES)
              }0
              case cELSE:{
-                 S=⊃⌽stack:'⍝ ',f0,' 💡×'⊣stack,←S
-                 T=⊃⌽stack:'⍝ ',f0,' 💡↓'⊣(⊃⌽stack)←F  ⍝ ELSE
+                 S=⊃⌽stack:'⍝ ',f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:'⍝ ',f0,NO⊣(⊃⌽stack)←F  ⍝ ELSE
                  (⊃⌽stack)←T
-                 '⍝ ',f0,' 💡↑'
+                 '⍝ ',f0,YES
              }0
              case cEND:{                               ⍝ END(IF(N(DEF)))
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
-                 0=≢stack:'⍝ ',f0,' 💡ERR'⊣stack←,0→⎕←'INVALID ::END statement at line [',lineNum,']'
+                 0=≢stack:'⍝ ',f0,ERR⊣stack←,0→⎕←'INVALID ::END statement at line [',lineNum,']'
                  '⍝ ',(c⊃'.....' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
@@ -223,18 +218,18 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 ~⊃⌽stack:'⍝ ',f0,SKIP
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                 ⎕←'💡DEF ',(padx f1),' ','←',' ',(30 padx f3),note
+                 ⎕←INFO,'DEF   ',(padx f1),' ','←',' ',(30 padx f3),note
                  '⍝ ',f0
              }0
            ⍝  ：：VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ：：VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 ~⊃⌽stack:'⍝ ',f0,SKIP
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
@@ -245,66 +240,62 @@
                  }f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
-                 '⍝ ',f0,' 💡↑'
+                 '⍝ ',f0,YES
              }0
           ⍝ ：：COND name ← val      ==>  name ← 'val'
           ⍝ ：：COND name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
-                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 ~⊃⌽stack:'⍝ ',f0,SKIP
                  defd←def f1
                  ln←'⍝ ',f0
-                 defd:ln,NL,' 💡↓'⊣⎕←'  ',(padx f1),' ',f2,' ',f3,' 💡↓'
+                 defd:ln,NO,NL⊣⎕←'  ',(padx f1),' ',f2,' ',f3,NO
                  noArrow←1≠≢f2
-                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  💡EMPTY' ⋄ (expand ⍵)''}f3
+                 f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:''('  ',INFO,'EMPTY') ⋄ (expand ⍵)''}f3
                  _←put f1 f3
                  ⎕←' ',(padx f1),' ',f2,' ',(30 padx f3),note
                  ln
              }0
-          ⍝ ：：CODE code string
-          ⍝ Pass through code to the preprocessor phase (to pass to user fn, simply enter it!!!)
-             case cCODE:{
-                 ⍝⍝⍝⍝⍝ OBSOLETE - REMOVE <CODE> logic...
-                 ~⊃⌽stack:'⍝ [×] ',f0
-                 ln←f1,'⍝ ::CODE ...'
-                 ln,NL,passComment f0
-             }0
           ⍝ ：：UNDEF name  ==> shadow 'name'
           ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
-                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←'💡💡💡 UNDEFining an undefined name: ',⍵}f1
-                 ⎕←' ',(padx f1),' → undefined 💡'
-                 '⍝ ',f0,' 💡↑'
+                 ~⊃⌽stack:'⍝ ',f0,SKIP
+                 _←del f1⊣{def ⍵:'' ⋄ ⊢⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
+                 ⎕←INFO,'UNDEF ',(padx f1)
+                 '⍝ ',f0,YES
              }0
              case cINCL:{
-                 ~⊃⌽stack:'⍝ ',f0,' 💡×'
+                 ~⊃⌽stack:'⍝ ',f0,SKIP
                  funNm←f1
-                 ⎕←f0
+                 ⍞←INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (fullNm dataIn)←getDataIn funNm
-                 ⎕←msg←(''↑⍨+/∧\f0=' '),'💡↑ ','File: "',fullNm,'". ',(⍕≢dataIn),' lines'
+                 ⍞←',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
                  _←fullNm{
                      includedFiles,←⊂⍺
                      ~⍵∊⍨⊂⍺:⍬
                    ⍝ See ::extern INCLUDE_LIMITS
                      count←+/includedFiles≡¨⊂⍺
-                     warn err←(⊂':INCLUDE '),¨'WARNING: ' 'ERROR: '
+                     warn err←(⊂INFO,'::INCLUDE '),¨'WARNING: ' 'ERROR: '
                      count≤1↑INCLUDE_LIMITS:⍬
                      count≤¯1↑INCLUDE_LIMITS:⎕←warn,'File "',⍺,'" included ',(⍕count),' times'
                      11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
                  }includedFiles
 
                  includeLines∘←dataIn
-                 '⍝ ',f0,NL,'⍝ ',msg
+                 '⍝ ',f0,'⍝',INFO,msg
              }0
          }
 
       ⍝ --------------------------------------------------------------------------------
       ⍝ EXECUTIVE
       ⍝ --------------------------------------------------------------------------------
+       ⍝ User-settable options
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
+         INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
+
+       ⍝ Initialization
          funNm←⍵
          stack←,1
          lineNum←0
@@ -313,7 +304,6 @@
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
          includedFiles←⊂fullNm
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
-         INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
 
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
          ⎕←'Object has ',NLINES,' lines'
@@ -321,11 +311,13 @@
 
          names←vals←⍬
          includeLines←⍬
+       ⍝ Go!
          lines←{⍺←⍬
              0=≢⍵:⍺
              l←patternList ⎕R processDirectives⍠'UCP' 1⊣⊃⍵
              (⍺,⊂l)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
          }dataIn
+       ⍝ Return specifics to next phase for ⎕FIXing
          funNm tmpNm lines
      }⍵
  }
