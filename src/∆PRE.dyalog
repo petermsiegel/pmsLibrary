@@ -65,7 +65,7 @@
                  (,0)≡∊val:0
                  1
              }⍵
-             _←NOTE INFO,' Is ',⍵,' true? ',(ans⊃'NO' 'YES')
+             _←NOTE INFO,' Is (',⍵,') true? ',(ans⊃'NO' 'YES')
              ans
          }
 
