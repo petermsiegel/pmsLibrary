@@ -144,15 +144,15 @@
          cELSEIF←'elseif'reg'  ⍎ppBegin ELSEIF \b   \h+(.*)         $'
          cELSE←'else'reg'      ⍎ppBegin ELSE \b         .*          $'
          cEND←'end'reg'        ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)\b  .*    $'
-         ⋄ ppName←' \b\h* ([^←]+) \h*'
-         ⋄ ppToken←'\b\h* (?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+) \h*'
+         ⋄ ppName←' \h* ([^←]+) \h*'
+         ⋄ ppToken←'\h* ((?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+)) \h* .*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←'def'reg'        ⍎ppBegin  DEF     ⍎ppName   ⍎ppArr    $'
-         cVAL←'val'reg'        ⍎ppBegin  VAL     ⍎ppName   ⍎ppArr    $'
-         cINCL←'include'reg'   ⍎ppBegin  INCLUDE ⍎ppToken            $'
-         cCOND←'cond'reg'      ⍎ppBegin  COND    ⍎ppName   ⍎ppArr    $'
-         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   ⍎ppName             $'
-         cCODE←'code'reg'      ⍎ppBegin  CODE \b  \h*       (.*)     $'
+         cDEF←'def'reg'        ⍎ppBegin  DEF     \b ⍎ppName   ⍎ppArr    $'
+         cVAL←'val'reg'        ⍎ppBegin  VAL     \b ⍎ppName   ⍎ppArr    $'
+         cINCL←'include'reg'   ⍎ppBegin  INCLUDE \b ⍎ppToken            $'
+         cCOND←'cond'reg'      ⍎ppBegin  COND    \b ⍎ppName   ⍎ppArr    $'
+         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   \b ⍎ppName             $'
+         cCODE←'code'reg'      ⍎ppBegin  CODE    \b \h*       (.*)     $'
          cOTHER←'apl'reg'   ^                                .*      $'
 
       ⍝ patterns for expand fn
@@ -280,9 +280,18 @@
              }0
              case cINCL:{
                  ~⊃⌽stack:'⍝ ',f0,' 💡×'
-                 ⎕←'💡💡💡 include ',f1,' [simulated]'
-                 includeLines∘←(⊂'     '),¨'ted exists' 'mary exists' 'a←⍳10'
-                 '⍝ ',f0,' 💡↑ [Not implemented]'
+                 funNm←f1
+                 ⎕←f0
+                 (fullNm dataIn)←getDataIn funNm
+                 ⎕←msg←(''↑⍨+/∧\f0=' '),'💡↑ ','File: "',fullNm,'". ',(⍕≢dataIn),' lines'
+
+                 _←fullNm{
+                     ⍵∊⍨⊂⍺:⎕←'Warning: File "',⍺,'" being included again!'
+                     1:includedFiles,←⊂⍺
+                 }includedFiles
+
+                 includeLines∘←dataIn
+                 '⍝ ',f0,NL,'⍝ ',msg
              }0
          }
 
@@ -296,6 +305,7 @@
          tmpNm←'__',funNm,'__'
 
          fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
+         includedFiles←⊂fullNm
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
          ⎕←'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
