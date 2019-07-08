@@ -51,7 +51,15 @@
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
          ∆DEQUOTE←{⍺←'"''' ⋄ ⍺∊⍨1↑⍵:1↓¯1↓⍵ ⋄ ⍵}
-         ∆QTX←{∆QT ⍵/⍨1+⍵=''''}                            ⍝ Quote each line, "escaping" each quote char.
+         ∆ESCAPE_NL←{
+             opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)
+             '\n\h+'⎕R''',(⎕UCS 13),'''⍠opts⊣⍵    ⍝ We replace with ⎕UCS 13 so ⎕FMT works properly.
+         }
+         ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍵/⍨1+⍵=⍺}
+         processDQ←{
+             '(',')',⍨∆QT ∆ESCAPE_NL'"'∆DEQUOTE ⍵
+         }
+                                 ⍝ Quote each line, "escaping" each quote char.
          h2d←{                                             ⍝ Decimal from hexadecimal
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
@@ -177,7 +185,7 @@
 
       ⍝ patterns for expand fn
          pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
-         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'
+         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pQe←'(?x)    (?|  (?: " [^"]*     "  )+  | (?: ''[^''\n\r]*'' )+ )'
          pCe←'(?x) \h* ⍝ .* $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
@@ -345,13 +353,13 @@
          names←vals←⍬
          includeLines←⍬
        ⍝ Go!
-       ⍝ Convert multiline comments to single lines
+       ⍝ Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          lines←pDQe pSQe pCe ⎕R{
              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-             case 0:'(',f0,')'⊣f0←'\n\h+'⎕R''',(⎕UCS 10),'''⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣f0←∆QTX ∆DEQUOTE f0
-             case 1:f0
-             f0
+             case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
+             f0                    ⍝ SQ or COMMENTS
          }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
+       ⍝ Process macros... one line at a time, so state is dependent only on lines before...
          lines←{⍺←⍬
              0=≢⍵:⍺
              l←patternList ⎕R processDirectives⍠'UCP' 1⊣⊃⍵
