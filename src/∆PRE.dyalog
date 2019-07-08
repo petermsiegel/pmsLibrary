@@ -14,6 +14,7 @@
    ⍝                 Neither V nor D above.
    ⍝                 put no extra comments in output and no details on the console
      ⍺←'V'
+     0≠≢⍺~'VDQ':11 ⎕SIGNAL⍨'∆PRE: Options are any of V, D, or Q (default ''V'')'
      1:_←(1∊'DV'∊⍺){   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          ___condSave___←{
              _←⎕EX 1⊃⍵
@@ -112,24 +113,23 @@
                  0≥⍺:⍵
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
-                 cDQe cSQe cCe cLNe←0 1 2 3
-                 str←pDQe pSQe pCe pLNe ⎕R{
+                 cSQe cCe cLNe←0 1 2
+                 str←pSQe pCe pLNe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-
-                     case cDQe:∆QTX ∆DEQUOTE ⍵
+                     case cSQe:f0
                      case cLNe:get f0
-                     else f0
+                     else f0                ⍝ pCe
                  }⍠'UCP' 1⊣str
 
               ⍝ [2] pSNe: short names (even within found long names)
               ⍝     pIe: Hexadecimals and bigInts
-                 cQe cCe cSNe cIe←0 1 2 3
-                 str←pQe pCe pSNe pIe ⎕R{
+                 cSQe cCe cSNe cIe←0 1 2 3
+                 str←pSQe pCe pSNe pIe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
                      case cIe:{⍵∊'xX':⍕h2d f0 ⋄ ∆QT ¯1↓f0}¯1↑f0
                      case cSNe:get f0
-                     else f0
+                     else f0     ⍝ pSQe or pCe
                  }⍠'UCP' 1⊣str
                  str≢strIn:(⍺-1)∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
                  str
@@ -137,12 +137,12 @@
          ⍝  Ellipses - constants (pE1e) and variable (pE2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-             cQe cCe cE1e cE2e←0 1 2 3
-             str←pQe pCe pE1e pE2e ⎕R{
+             cSQe cCe cE1e cE2e←0 1 2 3
+             str←pSQe pCe pE1e pE2e ⎕R{
                  case←⍵.PatternNum∘∊
-                 case cQe cCe:⍵ ∆FLD 0
+                 case cSQe cCe:⍵ ∆FLD 0
                  case cE1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
-                 case cE2e:∆TOcode                           ⍝  .. preceded or followed by non-constants⋄
+                 case cE2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
              }⍠'UCP' 1⊣str
              str
          }
@@ -345,11 +345,18 @@
          names←vals←⍬
          includeLines←⍬
        ⍝ Go!
+       ⍝ Convert multiline comments to single lines
+         lines←pDQe pSQe pCe ⎕R{
+             f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+             case 0:'(',f0,')'⊣f0←'\n\h+'⎕R''',(⎕UCS 10),'''⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣f0←∆QTX ∆DEQUOTE f0
+             case 1:f0
+             f0
+         }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
          lines←{⍺←⍬
              0=≢⍵:⍺
              l←patternList ⎕R processDirectives⍠'UCP' 1⊣⊃⍵
              (⍺,⊂l)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
-         }dataIn
+         }lines
        ⍝ Return specifics to next phase for ⎕FIXing
          funNm tmpNm lines
      }⍵
