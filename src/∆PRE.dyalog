@@ -1,4 +1,4 @@
- ∆PRE←{⎕IO ⎕ML←0 1
+ ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
    ⍝ Alternative to ∆FIX...
    ⍝ Returns (shyly) the list of objects created (possibly none)
    ⍝ ⍺: Contains one or more of the following letters:
@@ -10,11 +10,16 @@
    ⍝                 Details on the flow of execution are showed on the console
    ⍝    'DV'
    ⍝                 Both V and D above
+   ⍝    'S' | 'M'
+   ⍝                 Whether multi-line double-quoted strings are treated as
+   ⍝    'M' (Mult)   ... multiple vectors (M: default)
+   ⍝    'S' (Single) ... a single string with embedded newlines (S)
+   ⍝
    ⍝    'Q' or ''
-   ⍝                 Neither V nor D above.
+   ⍝                 Neither V nor D nor S above.
    ⍝                 put no extra comments in output and no details on the console
      ⍺←'V'
-     0≠≢⍺~'VDQ':11 ⎕SIGNAL⍨'∆PRE: Options are any of V, D, or Q (default ''V'')'
+     0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M} or Q (default ''VM'')'
      1:_←(1∊'DV'∊⍺){   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          ___condSave___←{
              _←⎕EX 1⊃⍵
@@ -34,6 +39,8 @@
          NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
 
          VERBOSE DEBUG←'VD'∊⍺ ⋄ QUIET←VERBOSE⍱DEBUG
+         DQ_SINGLE←'S'∊⍺
+
          NOTE←{⍺←0 ⋄ ⍺∧DEBUG:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}
          PASS←{VERBOSE:⍵ ⋄ EMPTY}                          ⍝ See EMPTY above. Generated only if VERBOSE
                                                            ⍝ a line to pass through to target user function
@@ -51,13 +58,12 @@
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
          ∆DEQUOTE←{⍺←'"''' ⋄ ⍺∊⍨1↑⍵:1↓¯1↓⍵ ⋄ ⍵}
-         ∆ESCAPE_NL←{
-             opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)
-             '\n\h+'⎕R''',(⎕UCS 13),'''⍠opts⊣⍵    ⍝ We replace with ⎕UCS 13 so ⎕FMT works properly.
-         }
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍵/⍨1+⍵=⍺}
-         processDQ←{
-             '(',')',⍨∆QT ∆ESCAPE_NL'"'∆DEQUOTE ⍵
+         ⋄ UCS13←∆QT',(⎕UCS 13),'
+         processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
+             opts←('Mode' 'M')('EOL' 'LF')
+             ⍺:'(',')',⍨∆QT'\n\h+'⎕R UCS13⍠opts⊢'"'∆DEQUOTE ⍵
+             ∆QT'\n\h+'⎕R''' '''⍠opts⊢'"'∆DEQUOTE ⍵
          }
                                  ⍝ Quote each line, "escaping" each quote char.
          h2d←{                                             ⍝ Decimal from hexadecimal
@@ -278,7 +284,7 @@
                      }expand ⍵
                  }f3
                  _←put f1 f3
-                 _←NOTE' ',(padx f1),' ',f2,' ',(30 padx f3),note
+                 _←NOTE INFO,'VAL   ',(padx f1),' ','←',' ',(30 padx f3),note
                  PASS'⍝ ',f0,YES
              }0
           ⍝ ::COND name ← val      ==>  name ← 'val'
