@@ -193,7 +193,7 @@
          pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
          pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pQe←'(?x)    (?|  (?: " [^"]*     "  )+  | (?: ''[^''\n\r]*'' )+ )'
-         pCe←'(?x) \h* ⍝ .* $'
+         pCe←'(?x)     ⍝ .*  $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
          pE1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
          pE2e←'(?x)   \.{2,}'
@@ -360,10 +360,19 @@
          includeLines←⍬
        ⍝ Go!
        ⍝ Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
-         lines←pDQe pSQe pCe ⎕R{
-             f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+         pConte←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
+         pEOL←'(?x)              \h* (⍝ .*)? \n'
+
+         comment←⍬
+         lines←pDQe pConte pSQe pEOL ⎕R{
+             f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
-             f0                    ⍝ SQ or COMMENTS
+             case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
+             case 2:f0
+           ⍝ case 3
+             0=≢comment:f0
+             ln←NL,comment,' ',f1,NL ⋄ comment⊢←⍬
+             ln
          }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
        ⍝ Process macros... one line at a time, so state is dependent only on lines before...
          lines←{⍺←⍬
