@@ -1,23 +1,41 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
-   ⍝ Alternative to ∆FIX...
+   ⍝ Alternative to ∆FIX... 20190709#2
    ⍝ Returns (shyly) the list of objects created (possibly none)
    ⍝ ⍺: Contains one or more of the following letters:
    ⍝
-   ⍝    'V' (Verbose)DEFAULT
-   ⍝                 APL lines with macro replacements are shown in the output code as comments
-   ⍝                 preprocessor directives are shown in the output as comments
+   ⍝ Verbosity
+   ⍝    'V' (Verbose)The default
+   ⍝                 Preprocessor directives and APL lines with macro replacements
+   ⍝                 are shown in the ⎕FIXed output code as comments
+   ⍝ Debugging output
    ⍝    'D' (Debug)
-   ⍝                 Details on the flow of execution are showed on the console
+   ⍝                 Details on the flow of execution are showed in the stdout (⎕←...)
+   ⍝                 For function ⍵, the function __⍵__, which shows all the details, is preserved.
    ⍝    'DV'
    ⍝                 Both V and D above
-   ⍝    'S' | 'M'
-   ⍝                 Whether multi-line double-quoted strings are treated as
-   ⍝    'M' (Mult)   ... multiple vectors (M: default)
-   ⍝    'S' (Single) ... a single string with embedded newlines (S)
-   ⍝
+   ⍝ Are multi-line double-quoted strings treated as
+   ⍝ multiple strings or a single strings with NLs
+   ⍝        str ← "line1
+   ⍝               line2
+   ⍝               line three"
+   ⍝    'M' (Mult)   The default
+   ⍝                 A multiline DQ string ends up as multiple char vectors
+   ⍝                 str←'line1' 'line2' 'line3'
+   ⍝    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
+   ⍝                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
    ⍝    'Q' or ''
-   ⍝                 Neither V nor D nor S above.
+   ⍝                 None of 'DVS' above.
    ⍝                 put no extra comments in output and no details on the console
+   ⍝ ⍵: The name of the function or cluster of ⎕FIXable objects, whose source will
+   ⍝    be loaded from:
+   ⍝        (if ⍵ has no filetype/extension): ⍵.dyapp, if found, else ⍵.dyalog
+   ⍝        (otherwise): ⍵
+   ⍝    looking in directory '.', '..', else from env vars FSPATH, WSPATH (: separates dirs)
+   ⍝ Returns (shyly) the names of 0 or more objects fixed via 2 ⎕FIX.
+   ⍝
+   ⍝ Features:
+   ⍝    ...
+
      ⍺←'V'
      0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M} or Q (default ''VM'')'
      1:_←(1∊'DV'∊⍺){   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
@@ -36,15 +54,11 @@
              (⍵≢¨⊂EMPTY)/⍵
          }(#.SAVE←⍺ ___condSave___ ⍵)
      }⍺{
-         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
 
-         VERBOSE DEBUG←'VD'∊⍺ ⋄ QUIET←VERBOSE⍱DEBUG
-         DQ_SINGLE←'S'∊⍺
-
-         NOTE←{⍺←0 ⋄ ⍺∧DEBUG:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}
-         PASS←{VERBOSE:⍵ ⋄ EMPTY}                          ⍝ See EMPTY above. Generated only if VERBOSE
+       ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
+         ∆NOTE←{⍺←0 ⋄ ⍺∧DEBUG:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}
+         ∆PASS←{VERBOSE:⍵ ⋄ EMPTY}                         ⍝ See EMPTY above. Generated only if VERBOSE
                                                            ⍝ a line to pass through to target user function
-         YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
          ∆FLD←{
              ns def←2↑⍺,⊂''
              ' '=1↑0⍴⍵:⍺ ∇ ns.Names⍳⊂⍵
@@ -59,13 +73,7 @@
          ∆DQT←{'"'∆QT ⍵}
          ∆DEQUOTE←{⍺←'"''' ⋄ ⍺∊⍨1↑⍵:1↓¯1↓⍵ ⋄ ⍵}
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍵/⍨1+⍵=⍺}
-         ⋄ UCS13←∆QT',(⎕UCS 13),'
-         processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
-             opts←('Mode' 'M')('EOL' 'LF')
-             ⍺:'(',')',⍨∆QT'\n\h+'⎕R UCS13⍠opts⊢'"'∆DEQUOTE ⍵
-             ∆QT'\n\h+'⎕R''' '''⍠opts⊢'"'∆DEQUOTE ⍵
-         }
-                                 ⍝ Quote each line, "escaping" each quote char.
+
          h2d←{                                             ⍝ Decimal from hexadecimal
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
@@ -80,10 +88,24 @@
                  (,0)≡∊val:0
                  1
              }⍵
-             _←NOTE INFO,' Is (',⍵,') true? ',(ans⊃'NO' 'YES')
+             _←∆NOTE INFO,' Is (',⍵,') true? ',(ans⊃'NO' 'YES')
              ans
          }
 
+       ⍝ GENERAL CONSTANTS
+         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
+         VERBOSE DEBUG←'VD'∊⍺ ⋄ QUIET←VERBOSE⍱DEBUG
+         DQ_SINGLE←'S'∊⍺
+         YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
+
+       ⍝ Process double quotes based on DQ_SINGLE flag.
+
+         processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
+             u13←''',(⎕UCS 13),'''                           ⍝ "xx\nyy\nzz'
+             opts←('Mode' 'M')('EOL' 'LF')                   ⍝ Do not convert CR, NEL, to LF
+             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢'"'∆DEQUOTE ⍵  ⍝ → ('xx',(⎕UCS 13),'yy',(⎕UCS 13),'zz')
+             ∆QT'\n\h+'⎕R''' '''⍠opts⊢'"'∆DEQUOTE ⍵          ⍝ → 'xx' 'yy' 'zz'
+         }
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
       ⍝ Append quoted string                              ⍝ res@B ←  ⍺@B←1 appendCond ⍵:SV
@@ -108,7 +130,7 @@
          }
 
       ⍝ MACRO (NAME) PROCESSING
-      ⍝ FUNCTIONS
+      ⍝ functions...
          put←{n v←⍵ ⋄ n~←' ' ⋄ names,⍨←⊂n ⋄ vals,⍨←⊂v ⋄ 1:⍵}  ⍝ add name val
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
@@ -128,31 +150,31 @@
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
                  cSQe cCe cLNe←0 1 2
-                 str←pSQe pCe pLNe ⎕R{
+                 str←expSQuote expCom pLNe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                      case cSQe:f0
                      case cLNe:get f0
-                     else f0                ⍝ pCe
+                     else f0                ⍝ expCom
                  }⍠'UCP' 1⊣str
 
               ⍝ [2] pSNe: short names (even within found long names)
-              ⍝     pIe: Hexadecimals and bigInts
+              ⍝     expInt: Hexadecimals and bigInts
                  cSQe cCe cSNe cIe←0 1 2 3
-                 str←pSQe pCe pSNe pIe ⎕R{
+                 str←expSQuote expCom pSNe expInt ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
                      case cIe:{⍵∊'xX':⍕h2d f0 ⋄ ∆QT ¯1↓f0}¯1↑f0
                      case cSNe:get f0
-                     else f0     ⍝ pSQe or pCe
+                     else f0     ⍝ expSQuote or expCom
                  }⍠'UCP' 1⊣str
                  str≢strIn:(⍺-1)∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
                  str
              }str
-         ⍝  Ellipses - constants (pE1e) and variable (pE2e)
+         ⍝  Ellipses - constants (expEllipses1) and variable (expEllipses2)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
              cSQe cCe cE1e cE2e←0 1 2 3
-             str←pSQe pCe pE1e pE2e ⎕R{
+             str←expSQuote expCom expEllipses1 expEllipses2 ⎕R{
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
                  case cE1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
@@ -164,7 +186,7 @@
 
       ⍝ -------------------------------------------------------------------------
       ⍝ PATTERNS
-      ⍝ [1] DEFINITIONS
+      ⍝ [1] DEFINITIONS -
       ⍝ [2] PATTERN PROCESSING
       ⍝ -------------------------------------------------------------------------
 
@@ -189,24 +211,23 @@
          cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   \b ⍎ppName             $'
          cOTHER←'apl'reg'   ^                                .*      $'
 
-      ⍝ patterns for expand fn
-         pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
-         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
-         pQe←'(?x)    (?|  (?: " [^"]*     "  )+  | (?: ''[^''\n\r]*'' )+ )'
-         pCe←'(?x)     ⍝ .*  $'
+      ⍝ patterns for the ∇expand∇ fn
+         expDQuote←'(?x)   (    (?: " [^"]*     "  )+  )'
+         expSQuote←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
+         expCom←'(?x)     ⍝ .*  $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
-         pE1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* \.{2,} \h* ((?1))'
-         pE2e←'(?x)   \.{2,}'
+         expEllipses1←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* (?: … |\.{2,} \h* ((?1))'
+         expEllipses2←'(?x)   (?: … | \.{2,}}'
 
       ⍝ names include ⎕WA, :IF
       ⍝ pLNe Long names are of the form #.a or a.b.c
       ⍝ pSNe Short names are of the form a or b or c in a.b.c
-      ⍝ pIe: Allows both bigInt format and hex format
+      ⍝ expInt: Allows both bigInt format and hex format
       ⍝       This is permissive (allows illegal options to be handled by APL),
       ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
       ⍝       Exponents are invalid for hexadecimals, because the exponential range
       ⍝       is not defined/allowed.
-         pIe←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
+         expInt←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
          pLNe←'(?x)   [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]+)(\.(?1))*'
          pSNe←'(?x)  [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]*)'
 
@@ -218,44 +239,44 @@
              lineNum+←1
              f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
              case←⍵.PatternNum∘∊
-             _←NOTE'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
+             _←∆NOTE'[',(∊'ZI2'⎕FMT lineNum),'] ',(8 padx∊patternName[⍵.PatternNum]),'| ',f0
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
                  T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝ ',⍵,YES,NL,'  ',str}f0
-                 PASS'⍝ ',f0,SKIP     ⍝ See PASS, QUIET
+                 ∆PASS'⍝ ',f0,SKIP     ⍝ See ∆PASS, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
-                 PASS'⍝ ',f0,(c⊃NO YES)
+                 ∆PASS'⍝ ',f0,(c⊃NO YES)
              }0
            ⍝ ::IF cond
              case cIF:{
-                 T≠⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE expand f1
-                 PASS'⍝ ',f0,(c⊃NO YES)
+                 ∆PASS'⍝ ',f0,(c⊃NO YES)
              }0
           ⍝  ::ELSEIF
              case cELSEIF:{
-                 S=⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
+                 S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE expand f1
-                 PASS'⍝ ',f0,(c⊃NO YES)
+                 ∆PASS'⍝ ',f0,(c⊃NO YES)
              }0
            ⍝ ::ELSE
              case cELSE:{
-                 S=⊃⌽stack:PASS'⍝ ',f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
+                 S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
-                 PASS'⍝ ',f0,YES
+                 ∆PASS'⍝ ',f0,YES
              }0
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
-                 0=≢stack:PASS'⍝ ',f0,ERR⊣stack←,0⊣NOTE'INVALID ::END statement at line [',lineNum,']'
-                 PASS'⍝ ',(c⊃'     ' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
+                 0=≢stack:∆PASS'⍝ ',f0,ERR⊣stack←,0⊣∆NOTE'INVALID ::END statement at line [',lineNum,']'
+                 ∆PASS'⍝ ',(c⊃'     ' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -263,18 +284,18 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                 _←NOTE INFO,'DEF   ',(padx f1),' ','←',' ',(30 padx f3),note
-                 PASS'⍝ ',f0
+                 _←∆NOTE INFO,'DEF   ',(padx f1),' ','←',' ',(30 padx f3),note
+                 ∆PASS'⍝ ',f0
              }0
            ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ::VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QT ⍺)''
@@ -284,40 +305,40 @@
                      }expand ⍵
                  }f3
                  _←put f1 f3
-                 _←NOTE INFO,'VAL   ',(padx f1),' ','←',' ',(30 padx f3),note
-                 PASS'⍝ ',f0,YES
+                 _←∆NOTE INFO,'VAL   ',(padx f1),' ','←',' ',(30 padx f3),note
+                 ∆PASS'⍝ ',f0,YES
              }0
           ⍝ ::COND name ← val      ==>  name ← 'val'
           ⍝ ::COND name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCOND:{
-                 T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  defd←def f1
                  ln←'⍝ ',f0
-                 defd:PASS ln,NO,NL⊣NOTE'  ',(padx f1),' ',f2,' ',f3,NO
+                 defd:∆PASS ln,NO,NL⊣∆NOTE'  ',(padx f1),' ',f2,' ',f3,NO
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QT ⍺)'' ⋄ 0=≢⍵:''('  ',INFO,'EMPTY') ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                 _←NOTE' ',(padx f1),' ',f2,' ',(30 padx f3),note
-                 PASS ln
+                 _←∆NOTE' ',(padx f1),' ',f2,' ',(30 padx f3),note
+                 ∆PASS ln
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
-                 _←del f1⊣{def ⍵:'' ⋄ ⊢NOTE INFO,' UNDEFining an undefined name: ',⍵}f1
-                 _←NOTE INFO,'UNDEF ',(padx f1)
-                 PASS'⍝ ',f0,YES
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 _←del f1⊣{def ⍵:'' ⋄ ⊢∆NOTE INFO,' UNDEFining an undefined name: ',⍵}f1
+                 _←∆NOTE INFO,'UNDEF ',(padx f1)
+                 ∆PASS'⍝ ',f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 T≠stk←⊃⌽stack:PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  funNm←∆DEQUOTE f1
-                 1 NOTE INFO,2↓(bl←+/∧\f0=' ')↓f0
+                 1 ∆NOTE INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (fullNm dataIn)←getDataIn funNm
-                 1 NOTE',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
+                 1 ∆NOTE',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
                  _←fullNm{
                      includedFiles,←⊂⍺
@@ -331,7 +352,7 @@
                  }includedFiles
 
                  includeLines∘←dataIn
-                 PASS'⍝ ',f0,'  ',INFO,msg
+                 ∆PASS'⍝ ',f0,'  ',INFO,msg
              }0
          }
 
@@ -352,27 +373,28 @@
          includedFiles←⊂fullNm
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
-         _←NOTE'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
-         _←NOTE'Object has ',NLINES,' lines'
+         _←∆NOTE'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
+         _←∆NOTE'Object has ',NLINES,' lines'
          dataFinal←⍬
 
          names←vals←⍬
          includeLines←⍬
        ⍝ Go!
        ⍝ Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
-         pConte←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
+         expCont←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
          pEOL←'(?x)              \h* (⍝ .*)? \n'
 
          comment←⍬
-         lines←pDQe pConte pSQe pEOL ⎕R{
+         lines←expDQuote expCont expSQuote pEOL ⎕R{
              f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
              case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
              case 2:f0
            ⍝ case 3
              0=≢comment:f0
-             ln←NL,comment,' ',f1,NL ⋄ comment⊢←⍬
-             ln
+             ln←comment,' ',f1,NL ⋄ comment⊢←⍬
+           ⍝ If the commment is more than (⎕PW÷2), put on newline
+             (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
          }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
        ⍝ Process macros... one line at a time, so state is dependent only on lines before...
          lines←{⍺←⍬
