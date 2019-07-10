@@ -6,7 +6,9 @@
   ⍝H
   ⍝H names ← [⍺:opts] ∆PRE ⍵:codeFileName
   ⍝H
+  ⍝H ---------------------------------------------------------
   ⍝H ⍺:opts   Contains one or more of the following letters:
+  ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
   ⍝H    'V' (Verbose)The default
@@ -34,18 +36,30 @@
   ⍝H Help Information
   ⍝H    'H'          Show this HELP information
   ⍝H    '?' | 'h'    Same as 'H'
-  ⍝H ⍵:codeFN
+  ⍝H
+  ⍝H ---------------------------------------------------------------------------------
+  ⍝H ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
+  ⍝H ---------------------------------------------------------------------------------
+  ⍝H
   ⍝H    The simple name, name.ext, or full filename
-  ⍝H    of the function or cluster of ⎕FIXable objects, whose source will be loaded from:
-  ⍝H    [a] if ⍵ has no filetype/extension,
-  ⍝H            ⍵.dyapp, then (if not found),   ⍵.dyalog
-  ⍝H    [b] else
-  ⍝H            ⍵ by itself.
+  ⍝H    of the function or cluster of objects compatible with (2 ⎕FIX ⍵),
+  ⍝H    whose source will be loaded from:
+  ⍝H      [a] if ⍵ has no filetype/extension,
+  ⍝H             ⍵.dyapp,
+  ⍝H          or (if not found in ⍵.dyapp),
+  ⍝H             ⍵.dyalog
+  ⍝H      [b] else
+  ⍝H             ⍵ by itself.
   ⍝H    THese directories are searched:
-  ⍝H           .  ..  followed by names in env vars FSPATH and WSPATH (: separates dirs)
+  ⍝H           .  ..  followed by dirs named in env vars FSPATH and WSPATH (: separates dirs)
+  ⍝H --------------
+  ⍝H Returns
+  ⍝H --------------
   ⍝H Returns (shyly) the names of 0 or more objects fixed via (2 ⎕FIX code).
   ⍝H
+  ⍝H ---------------------------------------------------------------------------------
   ⍝H Features:
+  ⍝H ---------------------------------------------------------------------------------
   ⍝H    implicit macros
   ⍝H       Hex number converted to decimal
   ⍝H            0FACX /[\d][\dA-F]*[xX]/
