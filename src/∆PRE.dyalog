@@ -1,43 +1,86 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
-   ⍝ Alternative to ∆FIX... 20190709#2
-   ⍝ Returns (shyly) the list of objects created (possibly none)
-   ⍝ ⍺: Contains one or more of the following letters:
-   ⍝
-   ⍝ Verbosity
-   ⍝    'V' (Verbose)The default
-   ⍝                 Preprocessor directives and APL lines with macro replacements
-   ⍝                 are shown in the ⎕FIXed output code as comments
-   ⍝ Debugging output
-   ⍝    'D' (Debug)
-   ⍝                 Details on the flow of execution are showed in the stdout (⎕←...)
-   ⍝                 For function ⍵, the function __⍵__, which shows all the details, is preserved.
-   ⍝    'DV'
-   ⍝                 Both V and D above
-   ⍝ Are multi-line double-quoted strings treated as
-   ⍝ multiple strings or a single strings with NLs
-   ⍝        str ← "line1
-   ⍝               line2
-   ⍝               line three"
-   ⍝    'M' (Mult)   The default
-   ⍝                 A multiline DQ string ends up as multiple char vectors
-   ⍝                 str←'line1' 'line2' 'line3'
-   ⍝    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
-   ⍝                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
-   ⍝    'Q' or ''
-   ⍝                 None of 'DVS' above.
-   ⍝                 put no extra comments in output and no details on the console
-   ⍝ ⍵: The name of the function or cluster of ⎕FIXable objects, whose source will
-   ⍝    be loaded from:
-   ⍝        (if ⍵ has no filetype/extension): ⍵.dyapp, if found, else ⍵.dyalog
-   ⍝        (otherwise): ⍵
-   ⍝    looking in directory '.', '..', else from env vars FSPATH, WSPATH (: separates dirs)
-   ⍝ Returns (shyly) the names of 0 or more objects fixed via 2 ⎕FIX.
-   ⍝
-   ⍝ Features:
-   ⍝    ...
+  ⍝H ∆PRE
+  ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
+  ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
+  ⍝H - Returns: (shyly) the list of objects created (possibly none).
+  ⍝H
+  ⍝H names ← [⍺:opts] ∆PRE ⍵:codeFileName
+  ⍝H
+  ⍝H ⍺:opts   Contains one or more of the following letters:
+  ⍝H
+  ⍝H Verbosity
+  ⍝H    'V' (Verbose)The default
+  ⍝H                 Preprocessor directives and APL lines with macro replacements
+  ⍝H                 are shown in the ⎕FIXed output code as comments
+  ⍝H Debugging output
+  ⍝H    'D' (Debug)
+  ⍝H                 Details on the flow of execution are showed in the stdout (⎕←...)
+  ⍝H                 For function ⍵, the function __⍵__, which shows all the details, is preserved.
+  ⍝H    'DV'
+  ⍝H                 Both V and D above
+  ⍝H Are multi-line double-quoted strings treated as
+  ⍝H multiple strings or a single strings with NLs
+  ⍝H        str ← "line1
+  ⍝H               line2
+  ⍝H               line three"
+  ⍝H    'M' (Mult)   The default
+  ⍝H                 A multiline DQ string ends up as multiple char vectors
+  ⍝H                 str←'line1' 'line2' 'line3'
+  ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
+  ⍝H                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
+  ⍝H    'Q' or ''
+  ⍝H                 None of 'DVS' above.
+  ⍝H                 put no extra comments in output and no details on the console
+  ⍝H Help Information
+  ⍝H    'H'          Show this HELP information
+  ⍝H    '?' | 'h'    Same as 'H'
+  ⍝H ⍵:codeFN
+  ⍝H    The simple name, name.ext, or full filename
+  ⍝H    of the function or cluster of ⎕FIXable objects, whose source will be loaded from:
+  ⍝H    [a] if ⍵ has no filetype/extension,
+  ⍝H            ⍵.dyapp, then (if not found),   ⍵.dyalog
+  ⍝H    [b] else
+  ⍝H            ⍵ by itself.
+  ⍝H    THese directories are searched:
+  ⍝H           .  ..  followed by names in env vars FSPATH and WSPATH (: separates dirs)
+  ⍝H Returns (shyly) the names of 0 or more objects fixed via (2 ⎕FIX code).
+  ⍝H
+  ⍝H Features:
+  ⍝H    implicit macros
+  ⍝H       Hex number converted to decimal
+  ⍝H            0FACX /[\d][\dA-F]*[xX]/
+  ⍝H       Big integers (any length) /¯?\d+[iI]/ converted to quoted numeric string.
+  ⍝H            04441433566767657I →  '04441433566767657'
+  ⍝H    explicit macros replaced
+  ⍝H       See ::DEF, ::CDEF
+  ⍝H    Directives
+  ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
+  ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
+  ⍝H       ::IFNDEF  name
+  ⍝H       ::ELSEIF  cond
+  ⍝H       ::ELIF                 Alias for ::ELSEIF
+  ⍝H       ::ELSE
+  ⍝H       ::END                  ::ENDIF, ::ENDIFDEF; allows ::END followed by ANY text
+  ⍝H       ::DEF     name ← [VAL] VAL may be an APL code sequence, including comments
+  ⍝H                              or nullstring. If parens are needed, use them.
+  ⍝H       ::DEF     name ←       Sets name to a nullstring, not its quoted value.
+  ⍝H       ::DEF     name         Same as ::DEF name ← 'name'
+  ⍝H       ::DEFINE  name ...     Alias for ::DEF ...
+  ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
+  ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
+  ⍝H       ::VAL     name ...     Same as ::DEF, except name ← ⍎val
+  ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
+  ⍝H       ::INCL    name
+  ⍝H       ----------------
+  ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
+  ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
+  ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
-     ⍺←'V'
-     0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M} or Q (default ''VM'')'
+     ⍺←'V'  ⍝  (2↑[1]↑'⍝H ab' 'fred' 'ted⍝H')∧.='⍝H'
+     1∊'Hh?'∊⍺:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR'∆PRE'
+
+     0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M}, Q, or H (default ''VM'')'
+
      1:_←(1∊'DV'∊⍺){   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          ___condSave___←{
              _←⎕EX 1⊃⍵
@@ -196,20 +239,20 @@
          _CTR_←0 ⋄ patternList←patternName←⍬
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
          ⋄ ppBegin←'^\h* ::\h*'
-         cIFDEF←'ifdef'reg'    ⍎ppBegin (IFN?DEF)   \h+(.*)         $'
-         cIF←'if'reg'          ⍎ppBegin IF \b       \h+(.*)         $'
-         cELSEIF←'elseif'reg'  ⍎ppBegin ELSEIF \b   \h+(.*)         $'
-         cELSE←'else'reg'      ⍎ppBegin ELSE \b         .*          $'
-         cEND←'end'reg'        ⍎ppBegin (?:END | ENDIF | ENDIFDEF | ENDIFNDEF)\b  .*    $'
+         cIFDEF←'ifdef'reg'    ⍎ppBegin  IF(N?)DEF         \h+(.*)         $'
+         cIF←'if'reg'          ⍎ppBegin  IF                \h+(.*)         $'
+         cELSEIF←'elseif'reg'  ⍎ppBegin  EL(?:SE)?IF \b    \h+(.*)         $'
+         cELSE←'else'reg'      ⍎ppBegin  ELSE         \b       .*          $'
+         cEND←'end'reg'        ⍎ppBegin  END                   .*          $'
          ⋄ ppName←' \h* ([^←]+) \h*'
          ⋄ ppToken←'\h* ((?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+)) \h* .*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←'def'reg'        ⍎ppBegin  DEF     \b ⍎ppName   ⍎ppArr    $'
-         cVAL←'val'reg'        ⍎ppBegin  VAL     \b ⍎ppName   ⍎ppArr    $'
-         cINCL←'include'reg'   ⍎ppBegin  INCLUDE \b ⍎ppToken            $'
-         cCOND←'cond'reg'      ⍎ppBegin  COND    \b ⍎ppName   ⍎ppArr    $'
-         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF   \b ⍎ppName             $'
-         cOTHER←'apl'reg'   ^                                .*      $'
+         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)? \b ⍎ppName   ⍎ppArr   $'
+         cVAL←'val'reg'        ⍎ppBegin  E?VAL       \b ⍎ppName   ⍎ppArr   $'
+         cINCL←'include'reg'   ⍎ppBegin  INCL(?:UDE)?\b ⍎ppToken           $'
+         cCDEF←'cond'reg'      ⍎ppBegin  CDEF        \b ⍎ppName   ⍎ppArr   $'
+         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF       \b ⍎ppName            $'
+         cOTHER←'apl'reg'   ^                                     .*       $'
 
       ⍝ patterns for the ∇expand∇ fn
          expDQuote←'(?x)   (    (?: " [^"]*     "  )+  )'
@@ -308,11 +351,11 @@
                  _←∆NOTE INFO,'VAL   ',(padx f1),' ','←',' ',(30 padx f3),note
                  ∆PASS'⍝ ',f0,YES
              }0
-          ⍝ ::COND name ← val      ==>  name ← 'val'
-          ⍝ ::COND name            ==>  name ← 'name'
+          ⍝ ::CDEF name ← val      ==>  name ← 'val'
+          ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
-             case cCOND:{
+             case cCDEF:{
                  T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  defd←def f1
                  ln←'⍝ ',f0
