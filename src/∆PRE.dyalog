@@ -1,5 +1,5 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
-  ⍝H ∆PRE
+  ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
   ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
   ⍝H - Returns: (shyly) the list of objects created (possibly none).
@@ -7,7 +7,8 @@
   ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:codeFileName
   ⍝H
   ⍝H ---------------------------------------------------------
-  ⍝H ⍺:opts   Contains one or more of the following letters:
+  ⍝H   ⍺
+  ⍝H (1↑⍺):opts   Contains one or more of the following letters:
   ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
@@ -53,6 +54,7 @@
   ⍝H
   ⍝H
   ⍝H ---------------------------------------------------------
+  ⍝H   ⍺
   ⍝H (1↓⍺): preamble1 ... preambleN
   ⍝H ---------------------------------------------------------
   ⍝H    Zero or more lines of a preamble to be included at the start,
@@ -60,7 +62,9 @@
   ⍝H         'V' '::DEF PHASE1' '::DEF pi ← 3.13'
   ⍝H          ↑   ↑__preamble1   preamble2
   ⍝H          ↑__ option(s)
+  ⍝H
   ⍝H ---------------------------------------------------------------------------------
+  ⍝H   ⍵
   ⍝H ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
@@ -75,21 +79,43 @@
   ⍝H             ⍵ by itself.
   ⍝H    THese directories are searched:
   ⍝H           .  ..  followed by dirs named in env vars FSPATH and WSPATH (: separates dirs)
-  ⍝H --------------
+  ⍝H ---------
   ⍝H Returns
-  ⍝H --------------
-  ⍝H Returns (shyly) the names of 0 or more objects fixed via (2 ⎕FIX code).
+  ⍝H ---------
+  ⍝H Returns (shyly) the names of the 0 or more objects fixed via (2 ⎕FIX code).
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
   ⍝H Features:
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H    implicit macros
+  ⍝H   ∘ implicit macros
   ⍝H       Hex number converted to decimal
   ⍝H            0FACX /[\d][\dA-F]*[xX]/
   ⍝H       Big integers (any length) /¯?\d+[iI]/ converted to quoted numeric string.
   ⍝H            04441433566767657I →  '04441433566767657'
-  ⍝H    explicit macros replaced
+  ⍝H       num1 [num2] .. num3    .. is either the ellipsis char. or 2 or more dots.
+  ⍝H            Creates a real progression from num1 to num3 with delta (num2-num1)
+  ⍝H   ∘ explicit macros replaced
   ⍝H       See ::DEF, ::CDEF
+  ⍝H   ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
+  ⍝H     possibly with a preceding comment. In the output file, the lines are
+  ⍝H     connected with the set of comments on the continuation lines on the last line
+  ⍝H     or (if large) the following (otherwise blank) line
+  ⍝H       vec←  1  2  3  4   5 ...   ⍝ Line 1
+  ⍝H            ¯1 ¯2 ¯3 ¯4  ¯5 ..    ⍝ Line 2
+  ⍝H            60 70 80 90 100       ⍝ Last line
+  ⍝H     ==>
+  ⍝H       vec← 1 2 3 4 5  ¯1 ¯2 ¯3 ¯4 ¯5 60 70 80 90 100
+  ⍝H       ⍝ Line 1 ⍝ Line 2 ⍝ Last line
+  ⍝H   ∘ Double quoted strings under options M (default) or S.
+  ⍝H     str←"This is line 1.
+  ⍝H          This is line 2.
+  ⍝H          This is line 3."
+  ⍝H   ==>
+  ⍝H   option 'M':
+  ⍝H     str←'This is line 1.' 'This is line 2.' 'This is line 3.'
+  ⍝H   option 'S':
+  ⍝H     str←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H
   ⍝H    Directives
   ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
   ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
@@ -108,6 +134,13 @@
   ⍝H       ::VAL     name ...     Same as ::DEF, except name ← ⍎val
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
+  ⍝H       ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
+  ⍝H       ::IMPORT  name1        The value must be used in a context that makes sense.
+  ⍝H                              If name2 omitted, it is the same as name1.
+  ⍝H                              big←?2 3 4⍴100
+  ⍝H                              :IMPORT big
+  ⍝H                              ::IF 3=⍴⍴big   ⍝ Makes sense
+  ⍝H                              ⎕←big          ⍝ Will not work!
   ⍝H       ----------------
   ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
@@ -146,7 +179,7 @@
              ns.Lengths[⍵]=¯1:def                          ⍝ Defined field, but not used HERE (within this submatch) → ''
              ns.(Lengths[⍵]↑Offsets[⍵]↓Block)              ⍝ Simple match
          }
-         ∆MAP←{'⍎\w+'⎕R{⍎1↓⍵ ∆FLD 0}⊣⍵}
+         ∆MAP←{∆←'⍎\w+'⎕R{⍎1↓⍵ ∆FLD 0}⊣⍵ ⋄ ∆≢⍵:∇ ∆ ⋄ ∆}
 
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
@@ -180,7 +213,7 @@
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
              u13←''',(⎕UCS 13),'''                           ⍝ "xx\nyy\nzz'
              opts←('Mode' 'M')('EOL' 'LF')                   ⍝ Do not convert CR, NEL, to LF
-             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢'"'∆DEQUOTE ⍵  ⍝ → ('xx',(⎕UCS 13),'yy',(⎕UCS 13),'zz')
+             ⍺:'(',')',⍨∆QTX'\n\h+'⎕R u13⍠opts⊢'"'∆DEQUOTE ⍵  ⍝ → ('xx',(⎕UCS 13),'yy',(⎕UCS 13),'zz')
              ∆QT'\n\h+'⎕R''' '''⍠opts⊢'"'∆DEQUOTE ⍵          ⍝ → 'xx' 'yy' 'zz'
          }
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
@@ -227,31 +260,31 @@
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
                  cSQe cCe cLNe←0 1 2
-                 str←expSQuote expCom pLNe ⎕R{
+                 str←pSQe pCOMe pLNe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                      case cSQe:f0
                      case cLNe:⍕get f0
-                     else f0                ⍝ expCom
+                     else f0                ⍝ pCOMe
                  }⍠'UCP' 1⊣str
 
               ⍝ [2] pSNe: short names (even within found long names)
-              ⍝     expInt: Hexadecimals and bigInts
+              ⍝     pINTe: Hexadecimals and bigInts
                  cSQe cCe cSNe cIe←0 1 2 3
-                 str←expSQuote expCom pSNe expInt ⎕R{
+                 str←pSQe pCOMe pSNe pINTe ⎕R{
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
 
                      case cIe:{⍵∊'xX':⍕h2d f0 ⋄ ∆QT ¯1↓f0}¯1↑f0
                      case cSNe:⍕get f0
-                     else f0     ⍝ expSQuote or expCom
+                     else f0     ⍝ pSQe or pCOMe
                  }⍠'UCP' 1⊣str
                  str≢strIn:(⍺-1)∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
                  str
              }str
-         ⍝  Ellipses - constants (expEllipses1) and variable (expEllipses2)
+         ⍝  Ellipses - constants (pDOTDOT1e) and variable (pDOTDOT2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
              cSQe cCe cE1e cE2e←0 1 2 3
-             str←expSQuote expCom expEllipses1 expEllipses2 ⎕R{
+             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e ⎕R{
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
                  case cE1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
@@ -278,35 +311,39 @@
          cELSEIF←'elseif'reg'  ⍎ppBegin  EL(?:SE)?IF \b    \h+(.*)         $'
          cELSE←'else'reg'      ⍎ppBegin  ELSE         \b       .*          $'
          cEND←'end'reg'        ⍎ppBegin  END                   .*          $'
-         ⋄ ppName←' \h* ([^←]+) \h*'
-         ⋄ ppToken←'\h* ((?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+)) \h* .*'
-         ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)? \h ⍎ppName   ⍎ppArr   $'
-         cVAL←'val'reg'        ⍎ppBegin  E?VAL       \b ⍎ppName   ⍎ppArr   $'
-         cINCL←'include'reg'   ⍎ppBegin  INCL(?:UDE)?\b ⍎ppToken           $'
-         cCDEF←'cond'reg'      ⍎ppBegin  CDEF        \b ⍎ppName   ⍎ppArr   $'
-         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF       \b ⍎ppName            $'
-         cOTHER←'apl'reg'   ^                                     .*       $'
+         ⋄ ppTarget←' \h* ([^←]+) \h*'
+         ⋄ ppToken←'\h* ( (?:"[^"]+")+ | (?:''[^'']+'')+ | ⍎ppLName )  .*'
+         ⋄ ppAssign←'(?:(←)\h*(.*))?'
+         ⋄ ppSName←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+         ⋄ ppLName←' ⍎ppSName (?: \. ⍎ppSName )*'
+
+         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)?     ⍎ppTarget  ⍎ppAssign   $'
+         cVAL←'val'reg'        ⍎ppBegin  E?VAL           ⍎ppTarget  ⍎ppAssign   $'
+         cINCL←'include'reg'   ⍎ppBegin  INCL(?:UDE)?    ⍎ppToken   $'
+         cIMPORT←'import'reg'  ⍎ppBegin  IMPORT   \h*   (⍎ppLName) (?:\h+ (⍎ppLName) )? \h* $'
+         cCDEF←'cond'reg'      ⍎ppBegin  CDEF            ⍎ppTarget  ⍎ppAssign   $'
+         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF    \h*   (⍎ppLName) .*        $'
+         cOTHER←'apl'reg'   ^  .*        $'
 
       ⍝ patterns for the ∇expand∇ fn
-         expDQuote←'(?x)   (    (?: " [^"]*     "  )+  )'
-         expSQuote←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
-         expCom←'(?x)     ⍝ .*  $'
+         dDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
+         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
+         pCOMe←'(?x)     ⍝ .*  $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
-         expEllipses1←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* (?: … |\.{2,}) \h* ((?1))'
-         expEllipses2←'(?x)   (?: … | \.{2,})'
+         pDOTDOT1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* (?: … |\.{2,}) \h* ((?1))'
+         pDOTDOT2e←'(?x)   (?: … | \.{2,})'
 
       ⍝ names include ⎕WA, :IF
       ⍝ pLNe Long names are of the form #.a or a.b.c
       ⍝ pSNe Short names are of the form a or b or c in a.b.c
-      ⍝ expInt: Allows both bigInt format and hex format
+      ⍝ pINTe: Allows both bigInt format and hex format
       ⍝       This is permissive (allows illegal options to be handled by APL),
       ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
       ⍝       Exponents are invalid for hexadecimals, because the exponential range
       ⍝       is not defined/allowed.
-         expInt←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
-         pLNe←'(?x)   [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]+)(\.(?1))*'
-         pSNe←'(?x)  [⎕:]?([\pL∆⍙_][\pL∆⍙_0-9]*)'
+         pINTe←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
+         pLNe←∆MAP'(?x) ⍎ppLName'
+         pSNe←∆MAP'(?x) ⍎ppSName'
 
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
@@ -430,6 +467,15 @@
                  includeLines∘←dataIn
                  ∆PASS'⍝ ',f0,'  ',INFO,msg
              }0
+             case cIMPORT:{
+                 f2←f2 f1⊃⍨0=≢f2
+                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 info←' ','[',']',⍨{
+                     0::'NOT FOUND. UNDEFINED'⊣del f1
+                     'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
+                 }⍬
+                 ∆PASS'⍝ ',f0,info
+             }⍬
          }
 
       ⍝ --------------------------------------------------------------------------------
@@ -459,11 +505,11 @@
          includeLines←⍬
        ⍝ Go!
        ⍝ Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
-         expCont←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
+         pCONTe←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
          pEOL←'(?x)              \h* (⍝ .*)? \n'
 
          comment←⍬
-         lines←expDQuote expCont expSQuote pEOL ⎕R{
+         lines←dDQe pCONTe pSQe pEOL ⎕R{
              f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
              case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
