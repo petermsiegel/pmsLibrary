@@ -4,7 +4,7 @@
   ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
   ⍝H - Returns: (shyly) the list of objects created (possibly none).
   ⍝H
-  ⍝H names ← [⍺:opts] ∆PRE ⍵:codeFileName
+  ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:codeFileName
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H ⍺:opts   Contains one or more of the following letters:
@@ -52,6 +52,14 @@
   ⍝H    Use ::IF __DEBUG__ etc. to change behavior based on debug status.
   ⍝H
   ⍝H
+  ⍝H ---------------------------------------------------------
+  ⍝H (1↓⍺): preamble1 ... preambleN
+  ⍝H ---------------------------------------------------------
+  ⍝H    Zero or more lines of a preamble to be included at the start,
+  ⍝H    e.g. ⍺ might include definitions to "import"
+  ⍝H         'V' '::DEF PHASE1' '::DEF pi ← 3.13'
+  ⍝H          ↑   ↑__preamble1   preamble2
+  ⍝H          ↑__ option(s)
   ⍝H ---------------------------------------------------------------------------------
   ⍝H ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
   ⍝H ---------------------------------------------------------------------------------
@@ -105,13 +113,13 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
-     ⍺←'V'
-     1∊'Hh?'∊⍺:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
+     ⍺←⊆'V' ⋄ o←⊃⍺
+     1∊'Hh?'∊o:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
 
-     0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M}, Q, or H (default ''VM'')'
+     0≠≢o~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M}, Q, or H (default ''VM'')'
 
    ⍝ Preprocessor variable #.__DEBUG__ is always 1 or 0 (unless UNDEF'd)
-     DEBUG←(~'Q'∊⍺)∧('D'∊⍺)∨'#.__DEBUG__'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+     DEBUG←(~'Q'∊o)∧('D'∊o)∨'#.__DEBUG__'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
 
      1:_←DEBUG{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
@@ -125,8 +133,8 @@
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
          1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}(⍺ condSave ⍵)
-     }⍺{
-
+     }(⊆,⍺){
+         o preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
          ∆PASS←{VERBOSE:⍵ ⋄ EMPTY}                         ⍝ EMPTY defined below as ⎕UCS 0)
          ∆NOTE←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}        ⍝ Keep notes only if DEBUG true.
@@ -152,8 +160,8 @@
 
          ∆TRUE←{ ⍝ ⍵ is true if it is valid APL code
                  ⍝ unless its value is 0-length (number or character) or is a simple 0.
-             ans←{0::0⊣⍞←' [ERR] '
-                 0=≢⍵~' ':0 ⋄ 0=≢val←∊⍎⍵:0 ⋄ (,0)≡val:0
+             ans←{0::0⊣⍞←'∆TRUE: CAN''T EVALUATE "',⍵,'" RETURNING 0'
+                 0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
                  1
              }⍵
              ans
@@ -162,9 +170,9 @@
        ⍝ GENERAL CONSTANTS
          NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
        ⍝ DEBUG - see above...
-         VERBOSE←1∊'VD'∊⍺ ⋄ QUIET←VERBOSE⍱DEBUG
+         VERBOSE←1∊'VD'∊o ⋄ QUIET←VERBOSE⍱DEBUG
 
-         DQ_SINGLE←'S'∊⍺
+         DQ_SINGLE←'S'∊o    ⍝ Else 'M' (default)
          YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
@@ -273,7 +281,7 @@
          ⋄ ppName←' \h* ([^←]+) \h*'
          ⋄ ppToken←'\h* ((?| (?:"[^"]+")+ | (?:''[^'']+'')+ | \w+)) \h* .*'
          ⋄ ppArr←'(?:(←)\h*(.*))?'
-         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)? \b ⍎ppName   ⍎ppArr   $'
+         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)? \h ⍎ppName   ⍎ppArr   $'
          cVAL←'val'reg'        ⍎ppBegin  E?VAL       \b ⍎ppName   ⍎ppArr   $'
          cINCL←'include'reg'   ⍎ppBegin  INCL(?:UDE)?\b ⍎ppToken           $'
          cCDEF←'cond'reg'      ⍎ppBegin  CDEF        \b ⍎ppName   ⍎ppArr   $'
@@ -356,6 +364,7 @@
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
+
                  pad←' '⍴⍨0⌈¯1++/∧\' '=f0
                  ∆PASS pad,'⍝ DEF ',f1,' ➡ ',f3,note,' ',YES
              }0
@@ -464,7 +473,7 @@
              ln←comment,' ',f1,NL ⋄ comment⊢←⍬
            ⍝ If the commment is more than (⎕PW÷2), put on newline
              (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
-         }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
+         }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣preamble,dataIn
        ⍝ Process macros... one line at a time, so state is dependent only on lines before...
          lines←{⍺←⍬
              0=≢⍵:⍺
