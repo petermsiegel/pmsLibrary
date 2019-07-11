@@ -1,3 +1,5 @@
+∆FIX  is now obsolete.  See ∆PRE (preprocessor).
+
 ∆FIX command: ∆FIX is a preprocessor for Dyalog APL files following the formal
 specifications of the `2∘⎕FIX` command. Normally specified as .dyalog files,
 these files contain one or more:
