@@ -106,7 +106,7 @@
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
      ⍺←'V'
-     1∊'Hh?'∊⍺:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR'∆PRE'
+     1∊'Hh?'∊⍺:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
 
      0≠≢⍺~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M}, Q, or H (default ''VM'')'
 
@@ -317,34 +317,34 @@
              case cIFDEF:{
                  T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
-                 ∆PASS'⍝ ',f0,' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS'⍝',f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::IF cond
              case cIF:{
                  T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE(e←expand f1)
-                 ∆PASS'⍝ ',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS'⍝',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
           ⍝  ::ELSEIF
              case cELSEIF:{
                  S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE(e←expand f1)
-                 ∆PASS'⍝ ',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS'⍝',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::ELSE
              case cELSE:{
                  S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
                  T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
-                 ∆PASS'⍝ ',f0,' ➡ 1',YES
+                 ∆PASS'⍝',f0,' ➡ 1',YES
              }0
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
                  0=≢stack:∆PASS'⍝ ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
-                 ∆PASS'⍝ ',(c⊃'     ' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
+                 ∆PASS'⍝',(c⊃'      ' ' '),f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -356,7 +356,7 @@
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
-                 pad←' '⍴⍨+/∧\' '=f0
+                 pad←' '⍴⍨0⌈¯1++/∧\' '=f0
                  ∆PASS pad,'⍝ DEF ',f1,' ➡ ',f3,note,' ',YES
              }0
            ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
