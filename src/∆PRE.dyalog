@@ -9,6 +9,7 @@
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
   ⍝H (1↑⍺):opts   Contains one or more of the following letters:
+  ⍝H              V, D, M | S, Q; H
   ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
@@ -169,7 +170,10 @@
      }(⊆,⍺){
          o preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
-         ∆PASS←{VERBOSE:⍵ ⋄ EMPTY}                         ⍝ EMPTY defined below as ⎕UCS 0)
+         ∆PASS←{
+             ~VERBOSE:EMPTY  ⍝ EMPTY defined below as ⎕UCS 0)
+             '⍝',(' '⍴⍨+/∧\' '=⍵),⍵
+         }
          ∆NOTE←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}        ⍝ Keep notes only if DEBUG true.
          ∆FLD←{
              ns def←2↑⍺,⊂''
@@ -326,7 +330,7 @@
          cOTHER←'apl'reg'   ^  .*        $'
 
       ⍝ patterns for the ∇expand∇ fn
-         dDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
+         pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
          pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCOMe←'(?x)     ⍝ .*  $'
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
@@ -344,6 +348,10 @@
          pINTe←'(?xi)  (?<![\dA-F\.])  ¯? [\.\d]  (?: [\d\.]* (?:E\d+)? I | [\dA-F]* X)'
          pLNe←∆MAP'(?x) ⍎ppLName'
          pSNe←∆MAP'(?x) ⍎ppSName'
+      ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
+         pCONTe←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
+         pEOLe←'(?x)              \h* (⍝ .*)? \n'
+
 
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
@@ -355,41 +363,41 @@
              case←⍵.PatternNum∘∊
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝ ',⍵,YES,NL,'  ',str}f0
-                 ∆PASS'⍝ ',f0,SKIP     ⍝ See ∆PASS, QUIET
+                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,'  ',str}f0
+                 ∆PASS f0,SKIP     ⍝ See ∆PASS, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T≠⊃⌽stack:∆PASS f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
-                 ∆PASS'⍝',f0,' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::IF cond
              case cIF:{
-                 T≠⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
+                 T≠⊃⌽stack:∆PASS f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE(e←expand f1)
-                 ∆PASS'⍝',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
           ⍝  ::ELSEIF
              case cELSEIF:{
-                 S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
+                 S=⊃⌽stack:∆PASS f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:∆PASS f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE(e←expand f1)
-                 ∆PASS'⍝',f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 ∆PASS f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::ELSE
              case cELSE:{
-                 S=⊃⌽stack:∆PASS'⍝ ',f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:∆PASS'⍝ ',f0,NO⊣(⊃⌽stack)←F
+                 S=⊃⌽stack:∆PASS f0,SKIP⊣stack,←S
+                 T=⊃⌽stack:∆PASS f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
-                 ∆PASS'⍝',f0,' ➡ 1',YES
+                 ∆PASS f0,' ➡ 1',YES
              }0
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
                  0=≢stack:∆PASS'⍝ ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
-                 ∆PASS'⍝',(c⊃'      ' ' '),f0     ⍝ Line up cEND with skipped IF/ELSE
+                 ∆PASS(c⊃'     ' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -402,8 +410,8 @@
                  f3 note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
 
-                 pad←' '⍴⍨0⌈¯1++/∧\' '=f0
-                 ∆PASS pad,'⍝ DEF ',f1,' ➡ ',f3,note,' ',YES
+                 pad←' '⍴⍨+/∧\' '=f0
+                 ∆PASS pad,'DEF ',f1,' ➡ ',f3,note,' ',YES
              }0
            ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ::VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
@@ -420,7 +428,7 @@
                  }f3
                  _←put f1 f3
                  pad←' '⍴⍨+/∧\' '=f0
-                 ∆PASS pad,'⍝ VAL ',f1,' ➡ ',f3,note,' ',YES
+                 ∆PASS pad,'VAL ',f1,' ➡ ',f3,note,' ',YES
              }0
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
@@ -435,14 +443,14 @@
                  f3←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
                  _←put f1 f3
                  pad←' '⍴⍨+/∧\' '=f0
-                 ∆PASS pad,'⍝ CDEF ',f1,' ➡ ',f3,(' [EMPTY] '/~0=≢f3),' ',YES
+                 ∆PASS pad,'CDEF ',f1,' ➡ ',f3,(' [EMPTY] '/~0=≢f3),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
                  T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
                  _←del f1⊣{def ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
-                 ∆PASS'⍝ ',f0,YES
+                 ∆PASS f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
@@ -465,7 +473,7 @@
                  }includedFiles
 
                  includeLines∘←dataIn
-                 ∆PASS'⍝ ',f0,'  ',INFO,msg
+                 ∆PASS f0,'  ',INFO,msg
              }0
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
@@ -474,7 +482,7 @@
                      0::'NOT FOUND. UNDEFINED'⊣del f1
                      'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
                  }⍬
-                 ∆PASS'⍝ ',f0,info
+                 ∆PASS(30 padx f0),info
              }⍬
          }
 
@@ -504,12 +512,9 @@
 
          includeLines←⍬
        ⍝ Go!
-       ⍝ Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
-         pCONTe←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
-         pEOL←'(?x)              \h* (⍝ .*)? \n'
 
          comment←⍬
-         lines←dDQe pCONTe pSQe pEOL ⎕R{
+         lines←pDQe pCONTe pSQe pEOLe ⎕R{
              f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
              case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
