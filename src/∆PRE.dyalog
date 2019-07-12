@@ -37,12 +37,14 @@
   ⍝H                 None of 'DVS' above.
   ⍝H                 put no extra comments in output and no details on the console
   ⍝H                 Q will force ∆PRE to ignore #.__DEBUG__.
+  ⍝H     'C'         (Compress)Remove blank lines and comment lines!
   ⍝H Help Information
   ⍝H    'H'          Show this HELP information
   ⍝H    '?' | 'h'    Same as 'H'
   ⍝H
   ⍝H Debugging Flags
-  ⍝H    If #.__DEBUG__ is defined, DEBUG mode is set, even if the 'D' flag is not given.
+  ⍝H    If __DEBUG__ (in the NS ∆PRE was called FROM) is defined,
+  ⍝H    DEBUG mode is set, even if the 'D' flag is not given.
   ⍝H           unless 'Q' (quiet) mode is set.
   ⍝H    If DEBUG mode is set,
   ⍝H           internal flag variable __DEBUG__ is defined (DEF'd) as 1.
@@ -147,15 +149,15 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
-     ⍺←⊆'V' ⋄ o←⊃⍺
+     ⍺←,'V' ⋄ o←⊃⊆⍺
      1∊'Hh?'∊o:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
 
-     0≠≢o~'VDQSM':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M}, Q, or H (default ''VM'')'
+     0≠≢o~'VDQSMC ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M},  Q, C, or H (default ''VM'')'
 
    ⍝ Preprocessor variable #.__DEBUG__ is always 1 or 0 (unless UNDEF'd)
-     DEBUG←(~'Q'∊o)∧('D'∊o)∨'#.__DEBUG__'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+     DEBUG←(~'Q'∊o)∧('D'∊o)∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
-     1:_←DEBUG{   ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
+     1:_←DEBUG{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
              _←⎕EX 1⊃⍵
              ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
@@ -166,15 +168,14 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-         1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}(⍺ condSave ⍵)
-     }(⊆,⍺){
+         1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}{~'C'∊o:⍵ ⋄ '^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵}(⍺ condSave ⍵)
+     }(⊆⍺){
          o preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
-         ∆PASS←{
-             ~VERBOSE:EMPTY  ⍝ EMPTY defined below as ⎕UCS 0)
-             '⍝',(' '⍴⍨+/∧\' '=⍵),⍵
-         }
+         ∆PASS←{~VERBOSE:EMPTY ⋄ '⍝',(' '⍴⍨+/∧\' '=⍵),⍵}   ⍝ EMPTY←⎕UCS 0 (defined below)
          ∆NOTE←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}        ⍝ Keep notes only if DEBUG true.
+
+       ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
          ∆FLD←{
              ns def←2↑⍺,⊂''
              ' '=1↑0⍴⍵:⍺ ∇ ns.Names⍳⊂⍵
@@ -183,12 +184,15 @@
              ns.Lengths[⍵]=¯1:def                          ⍝ Defined field, but not used HERE (within this submatch) → ''
              ns.(Lengths[⍵]↑Offsets[⍵]↓Block)              ⍝ Simple match
          }
-         ∆MAP←{∆←'⍎\w+'⎕R{⍎1↓⍵ ∆FLD 0}⊣⍵ ⋄ ∆≢⍵:∇ ∆ ⋄ ∆}
+       ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
+       ⍝       recursive (within limits ⍺←10) if ⍵≢∆MAP ⍵
+         ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
 
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
          ∆DEQUOTE←{⍺←'"''' ⋄ ⍺∊⍨1↑⍵:1↓¯1↓⍵ ⋄ ⍵}
-         ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍵/⍨1+⍵=⍺}
+         ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
+         ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
 
          h2d←{                                             ⍝ Decimal from hexadecimal
              11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
@@ -215,10 +219,11 @@
        ⍝ Process double quotes based on DQ_SINGLE flag.
 
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
-             u13←''',(⎕UCS 13),'''                           ⍝ "xx\nyy\nzz'
-             opts←('Mode' 'M')('EOL' 'LF')                   ⍝ Do not convert CR, NEL, to LF
-             ⍺:'(',')',⍨∆QTX'\n\h+'⎕R u13⍠opts⊢'"'∆DEQUOTE ⍵  ⍝ → ('xx',(⎕UCS 13),'yy',(⎕UCS 13),'zz')
-             ∆QT'\n\h+'⎕R''' '''⍠opts⊢'"'∆DEQUOTE ⍵          ⍝ → 'xx' 'yy' 'zz'
+             DQ←'"'
+             u13←''',(⎕UCS 13),'''
+             opts←('Mode' 'M')('EOL' 'LF')
+             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE ⍵  ⍝ ('line1',(⎕UCS 13),'line2'...)
+             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE ⍵           ⍝  'line1' 'line2' ...
          }
       ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
          appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
@@ -264,12 +269,16 @@
              ⍝ Match/Expand...
              ⍝ [1] pLNe: long names,
                  cSQe cCe cLNe←0 1 2
-                 str←pSQe pCOMe pLNe ⎕R{
-                     f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-                     case cSQe:f0
-                     case cLNe:⍕get f0
-                     else f0                ⍝ pCOMe
-                 }⍠'UCP' 1⊣str
+                 str←{
+                     4::⎕EN ⎕SIGNAL⍨'∆PRE: Macro value in code is too complex: "',⍵,'"'
+                     pSQe pCOMe pLNe ⎕R{
+                         f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                         case cSQe:f0
+                         case cLNe:⍕get f0                ⍝ Let multilines fail
+                       ⍝ case cLNe:1↓∊NL,⎕FMT get f0      ⍝ Deal with multilines...
+                         else f0                ⍝ pCOMe
+                     }⍠'UCP' 1⊣⍵
+                 }str
 
               ⍝ [2] pSNe: short names (even within found long names)
               ⍝     pINTe: Hexadecimals and bigInts
@@ -287,12 +296,12 @@
          ⍝  Ellipses - constants (pDOTDOT1e) and variable (pDOTDOT2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-             cSQe cCe cE1e cE2e←0 1 2 3
+             cSQe cCe cD1e cD2e←0 1 2 3
              str←pSQe pCOMe pDOTDOT1e pDOTDOT2e ⎕R{
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
-                 case cE1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
-                 case cE2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
+                 case cD1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
+                 case cD2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
              }⍠'UCP' 1⊣str
              str
          }
@@ -309,33 +318,35 @@
       ⍝ -------------------------------------------------------------------------
          _CTR_←0 ⋄ patternList←patternName←⍬
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
-         ⋄ ppBegin←'^\h* ::\h*'
-         cIFDEF←'ifdef'reg'    ⍎ppBegin  IF(N?)DEF         \h+(.*)         $'
-         cIF←'if'reg'          ⍎ppBegin  IF                \h+(.*)         $'
-         cELSEIF←'elseif'reg'  ⍎ppBegin  EL(?:SE)?IF \b    \h+(.*)         $'
-         cELSE←'else'reg'      ⍎ppBegin  ELSE         \b       .*          $'
-         cEND←'end'reg'        ⍎ppBegin  END                   .*          $'
-         ⋄ ppTarget←' \h* ([^←]+) \h*'
-         ⋄ ppToken←'\h* ( (?:"[^"]+")+ | (?:''[^'']+'')+ | ⍎ppLName )  .*'
+         ⋄ ppBeg←'^\h* ::\h*'
+         cIFDEF←'ifdef'reg'    ⍎ppBeg  IF(N?)DEF         \h+(.*)         $'
+         cIF←'if'reg'          ⍎ppBeg  IF                \h+(.*)         $'
+         cELSEIF←'elseif'reg'  ⍎ppBeg  EL(?:SE)?IF \b    \h+(.*)         $'
+         cELSE←'else'reg'      ⍎ppBeg  ELSE         \b       .*          $'
+         cEND←'end'reg'        ⍎ppBeg  END                   .*          $'
+         ⋄ ppTarg←' [^←]+ '
          ⋄ ppAssign←'(?:(←)\h*(.*))?'
+         ⋄ ppToken←'  (?:"[^"]+")+ | (?:''[^'']+'')+ | ⍎ppLName '
          ⋄ ppSName←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
          ⋄ ppLName←' ⍎ppSName (?: \. ⍎ppSName )*'
 
-         cDEF←'def'reg'        ⍎ppBegin  DEF(?:INE)?     ⍎ppTarget  ⍎ppAssign   $'
-         cVAL←'val'reg'        ⍎ppBegin  E?VAL           ⍎ppTarget  ⍎ppAssign   $'
-         cINCL←'include'reg'   ⍎ppBegin  INCL(?:UDE)?    ⍎ppToken   $'
-         cIMPORT←'import'reg'  ⍎ppBegin  IMPORT   \h*   (⍎ppLName) (?:\h+ (⍎ppLName) )? \h* $'
-         cCDEF←'cond'reg'      ⍎ppBegin  CDEF            ⍎ppTarget  ⍎ppAssign   $'
-         cUNDEF←'undef'reg'    ⍎ppBegin  UNDEF    \h*   (⍎ppLName) .*        $'
-         cOTHER←'apl'reg'   ^  .*        $'
+         cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?  \h* (⍎ppTarg) \h*  ⍎ppAssign   $'
+         cVAL←'val'reg'      ⍎ppBeg E?VAL        \h* (⍎ppTarg) \h*  ⍎ppAssign   $'
+         cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)? \h* (⍎ppToken) .*              $'
+         cIMPORT←'import'reg'⍎ppBeg IMPORT       \h* (⍎ppLName) (?:\h+(⍎ppLName))? \h* $'
+         cCDEF←'cond'reg'    ⍎ppBeg CDEF         \h* (⍎ppTarg)  \h* ⍎ppAssign   $'
+         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF        \h* (⍎ppLName) .*              $'
+         cOTHER←'apl'reg'   ^                                   .*              $'
 
       ⍝ patterns for the ∇expand∇ fn
          pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
          pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCOMe←'(?x)     ⍝ .*  $'
-         ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' ' ⍝ Non-complex numbers...
-         pDOTDOT1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* (?: … |\.{2,}) \h* ((?1))'
-         pDOTDOT2e←'(?x)   (?: … | \.{2,})'
+       ⍝ ppNum: A non-complex signed number (float or dec)
+         ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
+         ppDots←'(?:  … | \.{2,} )'
+         pDOTDOT1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDots \h* (⍎ppNum)'
+         pDOTDOT2e←∆MAP'(?x)   ⍎ppDots'
 
       ⍝ names include ⎕WA, :IF
       ⍝ pLNe Long names are of the form #.a or a.b.c
