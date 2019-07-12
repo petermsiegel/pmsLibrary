@@ -285,7 +285,7 @@
                          case cSQe:f0
                          case cLNe:⍕get f0                ⍝ Let multilines fail
                        ⍝ case cLNe:1↓∊NL,⎕FMT get f0      ⍝ Deal with multilines...
-                         else f0                ⍝ pCOMe
+                         else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
 
@@ -305,12 +305,16 @@
          ⍝  Ellipses - constants (pDOTDOT1e) and variable (pDOTDOT2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-             cSQe cCe cD1e cD2e←0 1 2 3
-             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e ⎕R{
+             ppN←'¯?\.?\d[¯\dE.]*'
+             pARROWe←∆MAP'(?xi) ( (?:⍎ppLName|⍎ppN) (?: \h+ (?:⍎ppLName|⍎ppN) )* ) \h*→ '
+             cSQe cCe cD1e cD2e cARROWe←0 1 2 3 4
+             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e pARROWe ⎕R{
+                 ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
                  case cD1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
                  case cD2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
+                 case cARROWe:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
              }⍠'UCP' 1⊣str
              str
          }
