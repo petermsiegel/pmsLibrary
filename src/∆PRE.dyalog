@@ -8,8 +8,8 @@
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
-  ⍝H (1↑⍺):opts   Contains one or more of the following letters:
-  ⍝H              V, D, M | S, Q; H
+  ⍝H  (1↑⍺):opts   Contains one or more of the following letters:
+  ⍝H               V, D, M | S, Q; C;  H
   ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
@@ -33,19 +33,19 @@
   ⍝H                 str←'line1' 'line2' 'line3'
   ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
   ⍝H                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
-  ⍝H    'Q' or ''
-  ⍝H                 None of 'DVS' above.
+  ⍝H    'Q' or ''    None of 'DVS' above.
   ⍝H                 put no extra comments in output and no details on the console
   ⍝H                 Q will force ∆PRE to ignore #.__DEBUG__.
-  ⍝H     'C'         (Compress)Remove blank lines and comment lines!
+  ⍝H    'C'          (Compress) Remove blank lines and comment lines (most useful w/ Q)!
+  ⍝H    'c'          (small compress) Remove blank lines only!
   ⍝H Help Information
   ⍝H    'H'          Show this HELP information
   ⍝H    '?' | 'h'    Same as 'H'
   ⍝H
   ⍝H Debugging Flags
-  ⍝H    If __DEBUG__ (in the NS ∆PRE was called FROM) is defined,
-  ⍝H    DEBUG mode is set, even if the 'D' flag is not given.
-  ⍝H           unless 'Q' (quiet) mode is set.
+  ⍝H    If __DEBUG__ (in the namespace from which ∆PRE was called) is defined,
+  ⍝H           then DEBUG mode is set, even if the 'D' flag is not given.
+  ⍝H           unless 'Q' (quiet) mode is set explicitly.
   ⍝H    If DEBUG mode is set,
   ⍝H           internal flag variable __DEBUG__ is defined (DEF'd) as 1.
   ⍝H           In addition, Verbose mode is set.
@@ -58,7 +58,7 @@
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
-  ⍝H (1↓⍺): preamble1 ... preambleN
+  ⍝H  (1↓⍺): preamble1 ... preambleN
   ⍝H ---------------------------------------------------------
   ⍝H    Zero or more lines of a preamble to be included at the start,
   ⍝H    e.g. ⍺ might include definitions to "import"
@@ -67,8 +67,8 @@
   ⍝H          ↑__ option(s)
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H   ⍵
-  ⍝H ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
+  ⍝H  ⍵
+  ⍝H  ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
   ⍝H    The simple name, name.ext, or full filename
@@ -141,21 +141,24 @@
   ⍝H       ::IMPORT  name1        The value must be used in a context that makes sense.
   ⍝H                              If name2 omitted, it is the same as name1.
   ⍝H                              big←?2 3 4⍴100
-  ⍝H                              :IMPORT big
+  ⍝H                              big2←'?2 3 4⍴100'
+  ⍝H                              ::IMPORT big
   ⍝H                              ::IF 3=⍴⍴big   ⍝ Makes sense
   ⍝H                              ⎕←big          ⍝ Will not work!
+  ⍝H                              ::IMPORT big2
+  ⍝H                              ⎕←big2         ⍝ Will work
   ⍝H       ----------------
   ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
-     ⍺←,'V' ⋄ o←⊃⊆⍺
-     1∊'Hh?'∊o:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
+     ⍺←'V' ⋄ opts←⊃⊆,⍺
+     1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
 
-     0≠≢o~'VDQSMC ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D, S or M},  Q, C, or H (default ''VM'')'
+     0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
 
-   ⍝ Preprocessor variable #.__DEBUG__ is always 1 or 0 (unless UNDEF'd)
-     DEBUG←(~'Q'∊o)∧('D'∊o)∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
+   ⍝ Preprocessor variable (0⊃⎕RSI).__DEBUG__ is always 1 or 0 (unless user UNDEFs it)
+     DEBUG←(~'Q'∊opts)∧('D'∊opts)∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
      1:_←DEBUG{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
@@ -168,11 +171,16 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-         1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}{~'C'∊o:⍵ ⋄ '^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵}(⍺ condSave ⍵)
-     }(⊆⍺){
-         o preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
+         1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
+             'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
+             'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
+             ⍵
+         }(⍺ condSave ⍵)
+     }(⊆,⍺){
+         opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
-         ∆PASS←{~VERBOSE:EMPTY ⋄ '⍝',(' '⍴⍨+/∧\' '=⍵),⍵}   ⍝ EMPTY←⎕UCS 0 (defined below)
+         ∆PAD←{' '⍴⍨+/∧\' '=⍵}
+         ∆PASS←{~VERBOSE:EMPTY ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵}   ⍝ EMPTY←⎕UCS 0 (defined below)
          ∆NOTE←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}        ⍝ Keep notes only if DEBUG true.
 
        ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
@@ -211,10 +219,10 @@
        ⍝ GENERAL CONSTANTS
          NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
        ⍝ DEBUG - see above...
-         VERBOSE←1∊'VD'∊o ⋄ QUIET←VERBOSE⍱DEBUG
+         VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱DEBUG
 
-         DQ_SINGLE←'S'∊o    ⍝ Else 'M' (default)
-         YES NO SKIP INFO←'  ' ' 😞' ' 🚫' ' 💡'
+         DQ_SINGLE←'S'∊opts    ⍝ Else 'M' (default)
+         YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
 
@@ -231,7 +239,8 @@
          appendCond←{PASSTHRU=1↑⍵:appendRaw⊂'⍙,←⊂',∆QTX 1↓⍵ ⋄ 0 appendRaw⊂⍵}¨
       ⍝ Pad str ⍵ to at least ⍺ (15) chars.
          padx←{⍺←15 ⋄ ⍺<≢⍵:⍵ ⋄ ⍺↑⍵}
-      ⍝ get function '⍵' or its char. source '⍵_src', if defined.
+
+       ⍝ get function '⍵' or its char. source '⍵_src', if defined.
          getDataIn←{∆∆←∇
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
@@ -374,7 +383,7 @@
              case←⍵.PatternNum∘∊
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,'  ',str}f0
+                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
                  ∆PASS f0,SKIP     ⍝ See ∆PASS, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
@@ -416,19 +425,18 @@
           ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
              case cDEF:{
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
                  f3 note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 f3
 
-                 pad←' '⍴⍨+/∧\' '=f0
-                 ∆PASS pad,'DEF ',f1,' ➡ ',f3,note,' ',YES
+                 ∆PASS(∆PAD f0),'DEF ',f1,' ➡ ',f3,note,' ',YES
              }0
            ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ::VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
                  f3 note←f1{
                      noArrow∧0=≢⍵:(∆QTX ⍺)''
@@ -438,35 +446,34 @@
                      }expand ⍵
                  }f3
                  _←put f1 f3
-                 pad←' '⍴⍨+/∧\' '=f0
-                 ∆PASS pad,'VAL ',f1,' ➡ ',f3,note,' ',YES
+
+                 ∆PASS(∆PAD f0),'VAL ',f1,' ➡ ',f3,note,' ',YES
              }0
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name not already defined.
              case cCDEF:{
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  defd←def f1
 
-                 defd:∆PASS'⍝ ',f0,NO
+                 defd:∆PASS f0,NO
                  noArrow←1≠≢f2
                  f3←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
                  _←put f1 f3
-                 pad←' '⍴⍨+/∧\' '=f0
-                 ∆PASS pad,'CDEF ',f1,' ➡ ',f3,(' [EMPTY] '/~0=≢f3),' ',YES
+                 ∆PASS(∆PAD f0),'CDEF ',f1,' ➡ ',f3,(' [EMPTY] '/~0=≢f3),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  _←del f1⊣{def ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆PASS f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  funNm←∆DEQUOTE f1
                  _←1 ∆NOTE INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (fullNm dataIn)←getDataIn funNm
@@ -488,7 +495,7 @@
              }0
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
-                 T≠stk←⊃⌽stack:∆PASS'⍝ ',f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  info←' ','[',']',⍨{
                      0::'NOT FOUND. UNDEFINED'⊣del f1
                      'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
