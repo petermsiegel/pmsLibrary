@@ -97,6 +97,16 @@
   ⍝H            04441433566767657I →  '04441433566767657'
   ⍝H       num1 [num2] .. num3    .. is either the ellipsis char. or 2 or more dots.
   ⍝H            Creates a real progression from num1 to num3 with delta (num2-num1)
+  ⍝H       MAPPING: word1 word2 ... wordN → anything
+  ⍝H            where word1 is an APL-style name or an APL number;
+  ⍝H            such that numbers are left as is, but names are quoted:
+  ⍝H               func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
+  ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6))
+  ⍝H       ATOM:    `word1 word2 ... wordN
+  ⍝H            as for MAPPINGS, as in:
+  ⍝H                `red orange  02FFFEX green ==>
+  ⍝H                ('red' 'orange' 196606 'green')      ⍝ Hex number converted to decimal
+  ⍝H
   ⍝H   ∘ explicit macros replaced
   ⍝H       See ::DEF, ::CDEF
   ⍝H   ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
@@ -305,16 +315,15 @@
          ⍝  Ellipses - constants (pDOTDOT1e) and variable (pDOTDOT2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-             ppN←'¯?\.?\d[¯\dE.]*'
-             pARROWe←∆MAP'(?xi) ( (?:⍎ppLName|⍎ppN) (?: \h+ (?:⍎ppLName|⍎ppN) )* ) \h*→ '
-             cSQe cCe cD1e cD2e cARROWe←0 1 2 3 4
-             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e pARROWe ⎕R{
+
+             cSQe cCe cD1e cD2e cATOMSe←0 1 2 3 4
+             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e pATOMSe ⎕R{
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
                  case cD1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
                  case cD2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
-                 case cARROWe:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
+                 case cATOMSe:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
              }⍠'UCP' 1⊣str
              str
          }
@@ -375,6 +384,10 @@
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          pCONTe←'(?x) \h* \.{2,} \h* (⍝ .*)? \n\h*'
          pEOLe←'(?x)              \h* (⍝ .*)? \n'
+      ⍝ For  (names → ...) and (`names)
+         ppN←'¯?\.?\d[¯\dE.]*'    ⍝ Overgeneral, letting APL complain of errors
+         ppNs←'  (?: ⍎ppLName | ⍎ppN ) (?: \h+ (?: ⍎ppLName | ⍎ppN ) )*'
+         pATOMSe←∆MAP'(?xi)  (?| (⍎ppNs)  \h* → | \` \h* (⍎ppNs) ) '
 
 
       ⍝ -------------------------------------------------------------------------
@@ -501,7 +514,7 @@
                  f2←f2 f1⊃⍨0=≢f2
                  T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  info←' ','[',']',⍨{
-                     0::'NOT FOUND. UNDEFINED'⊣del f1
+                     0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
                      'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
                  }⍬
                  ∆PASS(30 padx f0),info
