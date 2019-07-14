@@ -194,8 +194,15 @@
      }(⊆,⍺){
          opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
-         ∆PAD←{' '⍴⍨+/∧\' '=⍵}
-         ∆PASS←{~VERBOSE:EMPTY ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵}   ⍝ EMPTY←⎕UCS 0 (defined below)
+       ⍝ ∆PASS:  If VERBOSE,
+       ⍝         ∘ show Directive (::name) and result as comment in output.
+       ⍝         ∘ if len ⍺ not 0, pad ⍵ by its leading blanks.
+         ∆PASS←{
+             ~VERBOSE:EMPTY ⋄ ⍺←⍬
+             0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
+             '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
+         }
+
          ∆NOTE←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}        ⍝ Keep notes only if DEBUG true.
 
        ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
@@ -217,14 +224,16 @@
          ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
 
-         h2d←{                                             ⍝ Decimal from hexadecimal
-             11::'h2d: number too large'⎕SIGNAL 11         ⍝ number too big.
-             16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive-- ignores non-hex chars!
+         h2d←{   ⍝ Decimal from hexadecimal
+             11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
+             16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive:ignores non-hex chars!
          }
 
-         ∆TRUE←{ ⍝ ⍵ is true if it is valid APL code
-                 ⍝ unless its value is 0-length (number or character) or is a simple 0.
-             ans←{0::0⊣⍞←'∆TRUE: CAN''T EVALUATE "',⍵,'" RETURNING 0'
+       ⍝ ∆TRUE: a "Python-like" sense of truth
+       ⍝        ⍵ is true unless its value is 0-length ('', ⍬ etc)
+       ⍝                  or 0 or (,0)
+         ∆TRUE←{
+             ans←{0::0⊣⍞←'∆PRE: Can''t evaluate truth of {',⍵,'}, returning 0'
                  0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
                  1
              }⍵
@@ -232,28 +241,22 @@
          }
 
        ⍝ GENERAL CONSTANTS
-         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0                        ⍝ An EMPTY line will be deleted before ⎕FIXing
+         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0 ⍝ Marks ∆PRE-generated lines to be deleted before ⎕FIXing
        ⍝ DEBUG - see above...
          VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱DEBUG
 
-         DQ_SINGLE←'S'∊opts    ⍝ Else 'M' (default)
+         DQ_SINGLE←'S'∊opts          ⍝ Treatment of "...".  Default is 0 ("M" option).
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
-
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
-             DQ←'"'
-             u13←''',(⎕UCS 13),'''
-             opts←('Mode' 'M')('EOL' 'LF')
-             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE ⍵  ⍝ ('line1',(⎕UCS 13),'line2'...)
-             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE ⍵           ⍝  'line1' 'line2' ...
+             ⋄ DQ←'"'
+             ⋄ u13←''',(⎕UCS 13),'''
+             ⋄ opts←('Mode' 'M')('EOL' 'LF')
+             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE ⍵   ⍝ Single mode
+             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE ⍵              ⍝ Multi  mode
          }
-      ⍝ Append literal strings ⍵:SV.                      ⍝ res@B(←⍺) ← ⍺@B←1 appendRaw ⍵:SV
-         appendRaw←{⍺←1 ⋄ ⍺⊣dataFinal,←⍵}
-      ⍝ Append quoted string                              ⍝ res@B ←  ⍺@B←1 appendCond ⍵:SV
-         appendCond←{PASSTHRU=1↑⍵:appendRaw⊂'⍙,←⊂',∆QTX 1↓⍵ ⋄ 0 appendRaw⊂⍵}¨
-      ⍝ Pad str ⍵ to at least ⍺ (15) chars.
-         padx←{⍺←15 ⋄ ⍺<≢⍵:⍵ ⋄ ⍺↑⍵}
+
 
        ⍝ get function '⍵' or its char. source '⍵_src', if defined.
          getDataIn←{∆∆←∇
@@ -439,8 +442,8 @@
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠⊃⌽stack
-                 0=≢stack:∆PASS'⍝ ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
-                 ∆PASS(c⊃'     ' ''),f0     ⍝ Line up cEND with skipped IF/ELSE
+                 0=≢stack:∆PASS'⍝??? ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
+                 ∆PASS f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
           ⍝ ：：DEF name ← val    ==>  name ← 'val'
           ⍝ ：：DEF name          ==>  name ← 'name'
@@ -453,7 +456,7 @@
                  val note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
                  _←put f1 val
 
-                 ∆PASS(∆PAD f0),'::DEF ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
+                 f0 ∆PASS'::DEF ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
              }0
            ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
@@ -470,7 +473,7 @@
                  }f3
                  _←put f1 val
 
-                 ∆PASS(∆PAD f0),'::VAL ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
+                 f0 ∆PASS'::VAL ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
              }0
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
@@ -484,7 +487,7 @@
                  noArrow←1≠≢f2
                  val←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
                  _←put f1 val
-                 ∆PASS(∆PAD f0),'::CDEF ',f1,' ← ',f3,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
+                 f0 ∆PASS'::CDEF ',f1,' ← ',f3,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
@@ -514,7 +517,7 @@
                  }includedFiles
 
                  includeLines∘←dataIn
-                 ∆PASS f0,'  ',INFO,msg
+                 ∆PASS f0,' ',INFO,msg
              }0
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
@@ -523,7 +526,7 @@
                      0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
                      'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
                  }⍬
-                 ∆PASS(30 padx f0),info
+                 ∆PASS f0,info
              }⍬
          }
 
