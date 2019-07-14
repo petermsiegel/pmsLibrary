@@ -294,7 +294,8 @@
              ⍝ [1] pLNe: long names,
                  cSQe cCe cLNe←0 1 2
                  str←{
-                     4::⎕EN ⎕SIGNAL⍨'∆PRE: Macro value in code is too complex: "',⍵,'"'
+                     e1←'∆PRE: Value is too complex to represent statically:'
+                     4::4 ⎕SIGNAL⍨e1,(⎕UCS 13),'⍝     In macro code: "',⍵,'"'
                      pSQe pCOMe pLNe ⎕R{
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
