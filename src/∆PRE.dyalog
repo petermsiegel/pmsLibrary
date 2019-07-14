@@ -91,19 +91,24 @@
   ⍝H Features:
   ⍝H ---------------------------------------------------------------------------------
   ⍝H   ∘ implicit macros
-  ⍝H       Hex number converted to decimal
-  ⍝H            0FACX /[\d][\dA-F]*[xX]/
-  ⍝H       Big integers (any length) /¯?\d+[iI]/ converted to quoted numeric string.
-  ⍝H            04441433566767657I →  '04441433566767657'
-  ⍝H       num1 [num2] .. num3    .. is either the ellipsis char. or 2 or more dots.
-  ⍝H            Creates a real progression from num1 to num3 with delta (num2-num1)
-  ⍝H       MAPPING: word1 word2 ... wordN → anything
-  ⍝H            where word1 is an APL-style name or an APL number;
-  ⍝H            such that numbers are left as is, but names are quoted:
+  ⍝H     ∘ HEXADECIMALS: Hex number converted to decimal
+  ⍝H             0FACX /[\d][\dA-F]*[xX]/
+  ⍝H     ∘ BIG INTEGERS: Big integers (of any length) /¯?\d+[iI]/ are converted to
+  ⍝H             quoted numeric strings for use with Big Integer routines.
+  ⍝H             04441433566767657I →  '04441433566767657'
+  ⍝H     ∘ PROGRESSIONS: num1 [num2] .. num3
+  ⍝H             Progressions use either the ellipsis char (…) or 2 or more dots (..).
+  ⍝H             Creates a real-number progression from num1 to num3
+  ⍝H             with delta (num2-num1), defaulting to 1 or ¯1.
+  ⍝H             With constants  (10 0.5 .. 15), the progression is calculated at
+  ⍝H             preprocessor time; with variables, a DFN is inserted to calculate at run time.
+  ⍝H     ∘ MAPS: word1 word2 ... wordN → anything
+  ⍝H             where word1 is an APL-style name or an APL number;
+  ⍝H             such that numbers are left as is, but names are quoted:
   ⍝H               func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
   ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6))
-  ⍝H       ATOM:    `word1 word2 ... wordN
-  ⍝H            as for MAPPINGS, as in:
+  ⍝H     ∘ ATOM:    `word1 word2 ... wordN
+  ⍝H             as for MAPS, as in:
   ⍝H                `red orange  02FFFEX green ==>
   ⍝H                ('red' 'orange' 196606 'green')      ⍝ Hex number converted to decimal
   ⍝H
@@ -312,17 +317,17 @@
                  str≢strIn:(⍺-1)∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
                  str
              }str
-         ⍝  Ellipses - constants (pDOTDOT1e) and variable (pDOTDOT2e)
+         ⍝  Ellipses - constants (pDOT1e) and variable (pDOT2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
 
-             cSQe cCe cD1e cD2e cATOMSe←0 1 2 3 4
-             str←pSQe pCOMe pDOTDOT1e pDOTDOT2e pATOMSe ⎕R{
+             cSQe cCe cDOT1e cDOT2e cATOMSe←0 1 2 3 4
+             str←pSQe pCOMe pDOT1e pDOT2e pATOMSe ⎕R{
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
                  case cSQe cCe:⍵ ∆FLD 0
-                 case cD1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
-                 case cD2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
+                 case cDOT1e:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
+                 case cDOT2e:∆TOcode                           ⍝  .. preceded or followed by non-constants
                  case cATOMSe:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
              }⍠'UCP' 1⊣str
              str
@@ -366,9 +371,9 @@
          pCOMe←'(?x)     ⍝ .*  $'
        ⍝ ppNum: A non-complex signed number (float or dec)
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
-         ppDots←'(?:  … | \.{2,} )'
-         pDOTDOT1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDots \h* (⍎ppNum)'
-         pDOTDOT2e←∆MAP'(?x)   ⍎ppDots'
+         ppDot←'(?:  … | \.{2,} )'
+         pDOT1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDot \h* (⍎ppNum)'
+         pDOT2e←∆MAP'(?x)   ⍎ppDot'
 
       ⍝ names include ⎕WA, :IF
       ⍝ pLNe Long names are of the form #.a or a.b.c
@@ -444,27 +449,27 @@
              case cDEF:{
                  T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
-                 f3 note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
-                 _←put f1 f3
+                 val note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
+                 _←put f1 val
 
-                 ∆PASS(∆PAD f0),'DEF ',f1,' ➡ ',f3,note,' ',YES
+                 ∆PASS(∆PAD f0),'::DEF ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
              }0
-           ⍝  ::VAL name ← val    ==>  name ← ⍎'val' etc.
-           ⍝  ::VAL i5  ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+           ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
+           ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
                  T≠stk←⊃⌽stack:∆PASS f0,(SKIP NO⊃⍨F=stk)
                  noArrow←1≠≢f2
-                 f3 note←f1{
+                 val note←f1{
                      noArrow∧0=≢⍵:(∆QTX ⍺)''
                      0=≢⍵:'' '  [EMPTY STRING]'
                      {0::(⍵,' ∘∘∘')'  [INVALID EXPRESSION DURING PREPROCESSING]'
                          (⍕⍎⍵)''
                      }expand ⍵
                  }f3
-                 _←put f1 f3
+                 _←put f1 val
 
-                 ∆PASS(∆PAD f0),'VAL ',f1,' ➡ ',f3,note,' ',YES
+                 ∆PASS(∆PAD f0),'::VAL ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
              }0
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
@@ -476,9 +481,9 @@
 
                  defd:∆PASS f0,NO
                  noArrow←1≠≢f2
-                 f3←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
-                 _←put f1 f3
-                 ∆PASS(∆PAD f0),'CDEF ',f1,' ➡ ',f3,(' [EMPTY] '/~0=≢f3),' ',YES
+                 val←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
+                 _←put f1 val
+                 ∆PASS(∆PAD f0),'::CDEF ',f1,' ← ',f3,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
