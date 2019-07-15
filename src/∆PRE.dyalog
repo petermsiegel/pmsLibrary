@@ -112,7 +112,7 @@
   ⍝H                `red orange  02FFFEX green ==>
   ⍝H                ('red' 'orange' 196606 'green')      ⍝ Hex number converted to decimal
   ⍝H
-  ⍝H   ∘ explicit macros replaced
+  ⍝H   ∘ explicit macros for text replacement
   ⍝H       See ::DEF, ::CDEF
   ⍝H   ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
   ⍝H     possibly with a preceding comment. In the output file, the lines are
@@ -135,6 +135,7 @@
   ⍝H     str←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
   ⍝H
   ⍝H    Directives
+  ⍝H       (Note: currently comments are invalid and unpredictable on directive lines...)
   ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
   ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
   ⍝H       ::IFNDEF  name
