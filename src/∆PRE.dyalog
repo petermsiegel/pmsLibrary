@@ -43,11 +43,13 @@
   ⍝H    '?' | 'h'    Same as 'H'
   ⍝H
   ⍝H Debugging Flags
-  ⍝H    If __DEBUG__ (in the namespace from which ∆PRE was called) is defined,
-  ⍝H           then DEBUG mode is set, even if the 'D' flag is not given.
+  ⍝H    If __DEBUG__ is defined in the namespace from which ∆PRE was called,
+  ⍝H           then DEBUG mode is set, even if the 'D' flag is not specified.
   ⍝H           unless 'Q' (quiet) mode is set explicitly.
+  ⍝H           debugmode:  (__DEBUG__∨D)∧~Q
   ⍝H    If DEBUG mode is set,
-  ⍝H           internal flag variable __DEBUG__ is defined (DEF'd) as 1.
+  ⍝H           internal macro "variable" __DEBUG__ is defined (DEF'd) as 1, as if:
+  ⍝H                 ::VAL __DEBUG__ ← (__DEBUG__∨option_D)∧~option_Q   ⍝ Pseudocode...
   ⍝H           In addition, Verbose mode is set.
   ⍝H    Otherwise,
   ⍝H           Internal flag variable __DEBUG__ is defined as 0.
@@ -150,9 +152,12 @@
   ⍝H       ::DEFINE  name ...     Alias for ::DEF ...
   ⍝H       ::DEFQ    name ...     Like ::DEF except quoted evaluated string
   ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
-  ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H       ::[E]VAL     name ...     Same as ::DEF, except name ← ⍎val
   ⍝H       ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
+  ⍝H                 Note that ::DEF creates a string of code (including comments),
+  ⍝H                 and is "TRUE" if it is not-null.  EVAL executes the string to determine
+  ⍝H                 its value; it is true if not 0, or an object of length 0.
+  ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
   ⍝H       ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
@@ -466,54 +471,48 @@
                  0=≢stack:∆IF_VERBOSE'⍝??? ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
                  ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
-          ⍝ ::DEF | ::DEFQ
-          ⍝ ::DEF name ← val    ==>  name ← 'val'
-          ⍝ ::DEF name          ==>  name ← 'name'
-          ⍝ ::DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
-          ⍝ ::DEF name ← ⍝...      ==>  name ← '⍝...'
-          ⍝ Define name as val, unconditionally.
-          ⍝
-          ⍝ ::DEFQ ...
-          ⍝ Same as ::DEF, except quote val.
-             case cDEF:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 qtFlag arrFlag←0≠≢¨f1 f3
-                 val note←f2{
-                     (~arrFlag)∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]'
-                     exp←expand ⍵
-                     qtFlag:(∆QTX exp)''
-                     (exp)''
-                 }f4
-                 _←put f2 val
-
-                 f0 ∆IF_VERBOSE'::DEF ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
-             }0
-           ⍝  ::EVAL | ::EVALQ
-           ⍝  ::VAL  | ::VALQ
-           ⍝
-           ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
-           ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
-           ⍝  Returns <val> executed in the caller namespace...
-           ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
-           ⍝ Experimental preprocessor-time evaluation
-             case cVAL:{
+           ⍝ Shared code for
+           ⍝   ::DEF(Q) and ::(E)VALQ
+               DEF_EVAL←{
+                 isVal←⍵
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
                  val note←f2{
                      (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                      0=≢⍵:'' '  [EMPTY]'
                      exp←expand ⍵
-                     {
+
+                     isVal:{                ⍝ ::EVAL | ::VAL
                          m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
                          0::(⍵,' ∘∘INVALID∘∘')(m⊣⎕←m,': ',⍵)
                          qtFlag:(∆QTX⍕⍎⍵)''
                          (⍕⍎⍵)''
                      }exp
+
+                     qtFlag:(∆QTX exp)''    ⍝ ::DEF...
+                     exp''
                  }f4
                  _←put f2 val
-
-                 f0 ∆IF_VERBOSE'::VAL ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
-             }0
+                 f0 ∆IF_VERBOSE('::',isVal⊃'DEF' 'VAL '),f2,' ← ',f4,' ➡ ',val,note,' ',YES
+             }
+          ⍝ ::DEF | ::DEFQ
+          ⍝ ::DEF name ← val    ==>  name ← 'val'
+          ⍝ ::DEF name          ==>  name ← 'name'
+          ⍝ ::DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
+          ⍝ ::DEF name ← ⍝...      ==>  name ← '⍝...'
+          ⍝   Define name as val, unconditionally.
+          ⍝
+          ⍝ ::DEFQ ...
+          ⍝   Same as ::DEF, except quote val.
+             case cDEF:DEF_EVAL 0
+           ⍝  ::EVAL | ::EVALQ
+           ⍝  ::VAL  | ::VALQ
+           ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
+           ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+           ⍝    Returns <val> executed in the caller namespace...
+           ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
+           ⍝    Experimental preprocessor-time evaluation
+             case cVAL:DEF_EVAL 1
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
