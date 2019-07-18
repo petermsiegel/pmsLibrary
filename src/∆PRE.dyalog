@@ -203,7 +203,7 @@
              ⍵
          }(⍺ condSave ⍵){
              ~EDIT:⍺
-             ⍺⊣(0⊃⎕RSI).⎕ED (1⊃⍵)
+             ⍺⊣(0⊃⎕RSI).⎕ED(1⊃⍵)
          }⍵
      }(⊆,⍺){
          opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
@@ -514,7 +514,8 @@
                      exp''
                  }f4
                  _←put f2 val
-                 f0 ∆IF_VERBOSE('::',isVal⊃'DEF ' 'VAL '),f2,' ← ',f4,' ➡ ',val,note,' ',YES
+                 nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
+                 f0 ∆IF_VERBOSE(nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
           ⍝ ::DEF | ::DEFQ
           ⍝ ::DEF name ← val    ==>  name ← 'val'
