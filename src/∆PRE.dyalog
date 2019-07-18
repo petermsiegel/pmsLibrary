@@ -23,6 +23,8 @@
   ⍝H                 See Debugging Flags below.
   ⍝H     D sets 'V' as well.
   ⍝H
+  ⍝H     E  (Edit)   ⎕EDits the intermediate EDIT file when done... (Sets Debug mode)
+  ⍝H
   ⍝H Are multi-line double-quoted strings treated as
   ⍝H multiple strings or a single strings with NLs
   ⍝H        str ← "line1
@@ -180,8 +182,9 @@
 
      0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
 
+     EDIT←(⎕NULL≡⍵)∨'E'∊opts
    ⍝ Preprocessor variable (0⊃⎕RSI).__DEBUG__ is always 1 or 0 (unless user UNDEFs it)
-     DEBUG←(~'Q'∊opts)∧('D'∊opts)∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
+     DEBUG←(~'Q'∊opts)∧('D'∊opts)∨EDIT∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
      1:_←DEBUG{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
@@ -198,7 +201,10 @@
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
              ⍵
-         }(⍺ condSave ⍵)
+         }(⍺ condSave ⍵){
+             ~EDIT:⍺
+             ⍺⊣(0⊃⎕RSI).⎕ED (1⊃⍵)
+         }⍵
      }(⊆,⍺){
          opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
 
