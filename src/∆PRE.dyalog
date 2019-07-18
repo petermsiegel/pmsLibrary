@@ -391,7 +391,7 @@
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppLN) .*               $'
          cOTHER←'apl'reg'   ^                                   .*               $'
 
-      ⍝ patterns for the ∇expand∇ fn
+      ⍝ patterns solely for the ∇expand∇ fn
          pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
          pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCommentE←'(?x)     ⍝ .*  $'
@@ -400,18 +400,20 @@
          ppDot←'(?:  … | \.{2,} )'
          pDot1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDot \h* (⍎ppNum)'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
-
-      ⍝ names include ⎕WA, :IF
-      ⍝ pLongNmE Long names are of the form #.a or a.b.c
-      ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
-      ⍝ pSpecialIntE: Allows both bigInt format and hex format
-      ⍝       This is permissive (allows illegal options to be handled by APL),
-      ⍝       but also VALID bigInts like 12.34E10 which is equiv to 123400000000
-      ⍝       Exponents are invalid for hexadecimals, because the exponential range
-      ⍝       is not defined/allowed.
+      ⍝  Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
          ppHex←'   ¯? \d [\dA-F]                 X'
          ppBigInt←'¯? \d (?: [\d.])* (?: E \d+)? I'
+         ⍝ pSpecialIntE: Allows both bigInt format and hex format
+         ⍝ This is permissive (allows illegal options to be handled by APL),
+         ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
+         ⍝ Exponents are invalid for hexadecimals, because the exponential range
+         ⍝ is not defined/allowed.
          pSpecialIntE←'(?xi)  (?<![\dA-F\.]) (?: ⍎ppHex | ⍎ppBigInt ) '
+      ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
+      ⍝ pLongNmE Long names are of the form #.a or a.b.c
+      ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
+
+
          pLongNmE←∆MAP'(?x) ⍎ppLN'
          pShortNmE←∆MAP'(?x) ⍎ppSN'
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
@@ -473,7 +475,7 @@
              }0
            ⍝ Shared code for
            ⍝   ::DEF(Q) and ::(E)VALQ
-               DEF_EVAL←{
+             DEF_EVAL←{
                  isVal←⍵
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
@@ -529,7 +531,7 @@
                      exp
                  }f4
                  _←put f2 val
-                 f0 ∆IF_VERBOSE'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
+                 f0 ∆IF_VERBOSE'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
