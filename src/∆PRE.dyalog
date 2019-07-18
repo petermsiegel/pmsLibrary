@@ -290,8 +290,12 @@
              }⍵
          }
          promptForData←{
-             lines←'::DEF fred ← 2' '::VAL i10 ← ⍳10'
-             '__TERM__' '__TERM__'lines
+             ⎕←'Enter lines. Empty line to terminate.'
+             lines←{⍺←⊂'__TERM__'
+                 0=≢l←⍞↓⍨≢⍞←⍵:⍺
+                 (⍺,⊂l)∇ ⍵
+             }'> '
+             '__PROMPT__' '__NONE__'lines
          }
 
       ⍝ MACRO (NAME) PROCESSING
