@@ -148,9 +148,11 @@
   ⍝H       ::DEF     name ←       Sets name to a nullstring, not its quoted value.
   ⍝H       ::DEF     name         Same as ::DEF name ← 'name'
   ⍝H       ::DEFINE  name ...     Alias for ::DEF ...
+  ⍝H       ::DEFQ    name ...     Like ::DEF except quoted evaluated string
   ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
-  ⍝H       ::VAL     name ...     Same as ::DEF, except name ← ⍎val
+  ⍝H       ::[E]VAL     name ...     Same as ::DEF, except name ← ⍎val
+  ⍝H       ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
   ⍝H       ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
@@ -376,12 +378,12 @@
          ⋄ ppLN←'     ⍎ppSN (?: \. ⍎ppSN )*'
          ⋄ ppLN2←'    (?:\h+ (⍎ppLN) )'
 
-         cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?  \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cVAL←'val'reg'      ⍎ppBeg E?VAL        \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)? \h* (⍎ppFiSpec) .*               $'
-         cIMPORT←'import'reg'⍎ppBeg IMPORT       \h* (⍎ppLN)    \h*  ⍎ppLN2?     $'
-         cCDEF←'cond'reg'    ⍎ppBeg CDEF         \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF        \h* (⍎ppLN) .*               $'
+         cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
+         cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
+         cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec) .*               $'
+         cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppLN)    \h*  ⍎ppLN2?     $'
+         cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
+         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppLN) .*               $'
          cOTHER←'apl'reg'   ^                                   .*               $'
 
       ⍝ patterns for the ∇expand∇ fn
@@ -422,101 +424,125 @@
          processDirectives←{
              T F S←1 0 ¯1    ⍝ true, false, skip
              lineNum+←1
-             f0 f1 f2 f3←⍵ ∆FLD¨0 1 2 3
+             f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
              case←⍵.PatternNum∘∊
+             TOP←⊃⌽stack  ⍝ TOP can be T(true) F(false) or S(skip)...
+
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=⊃⌽stack:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
+                 T=TOP:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
                  ∆IF_VERBOSE f0,SKIP     ⍝ See ∆IF_VERBOSE, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠⊃⌽stack:∆IF_VERBOSE f0,SKIP⊣stack,←S
+                 T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
                  ∆IF_VERBOSE f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::IF cond
              case cIF:{
-                 T≠⊃⌽stack:∆IF_VERBOSE f0,SKIP⊣stack,←S
+                 T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE(e←expand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
           ⍝  ::ELSEIF
              case cELSEIF:{
-                 S=⊃⌽stack:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
+                 S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
+                 T=TOP:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE(e←expand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::ELSE
              case cELSE:{
-                 S=⊃⌽stack:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 T=⊃⌽stack:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
+                 S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
+                 T=TOP:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
                  ∆IF_VERBOSE f0,' ➡ 1',YES
              }0
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
-                 c←S≠⊃⌽stack
+                 c←S≠TOP
                  0=≢stack:∆IF_VERBOSE'⍝??? ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
                  ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
-          ⍝ ：：DEF name ← val    ==>  name ← 'val'
-          ⍝ ：：DEF name          ==>  name ← 'name'
-          ⍝ ：：DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
-          ⍝ ：：DEF name ← ⍝...      ==>  name ← '⍝...'
+          ⍝ ::DEF | ::DEFQ
+          ⍝ ::DEF name ← val    ==>  name ← 'val'
+          ⍝ ::DEF name          ==>  name ← 'name'
+          ⍝ ::DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
+          ⍝ ::DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝ Define name as val, unconditionally.
+          ⍝
+          ⍝ ::DEFQ ...
+          ⍝ Same as ::DEF, except quote val.
              case cDEF:{
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
-                 noArrow←1≠≢f2
-                 val note←f1{noArrow∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]' ⋄ (expand ⍵)''}f3
-                 _←put f1 val
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 qtFlag arrFlag←0≠≢¨f1 f3
+                 val note←f2{
+                     (~arrFlag)∧0=≢⍵:(∆QTX ⍺)'' ⋄ 0=≢⍵:'' '  [EMPTY]'
+                     exp←expand ⍵
+                     qtFlag:(∆QTX exp)''
+                     (exp)''
+                 }f4
+                 _←put f2 val
 
-                 f0 ∆IF_VERBOSE'::DEF ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
+                 f0 ∆IF_VERBOSE'::DEF ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }0
+           ⍝  ::EVAL | ::EVALQ
+           ⍝  ::VAL  | ::VALQ
+           ⍝
            ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
            ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+           ⍝  Returns <val> executed in the caller namespace...
+           ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
            ⍝ Experimental preprocessor-time evaluation
              case cVAL:{
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
-                 noArrow←1≠≢f2
-                 val note←f1{
-                     noArrow∧0=≢⍵:(∆QTX ⍺)''
-                     0=≢⍵:'' '  [EMPTY STRING]'
-                     {0::(⍵,' ∘∘∘')'  [INVALID EXPRESSION DURING PREPROCESSING]'
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 qtFlag arrFlag←0≠≢¨f1 f3
+                 val note←f2{
+                     (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
+                     0=≢⍵:'' '  [EMPTY]'
+                     exp←expand ⍵
+                     {
+                         m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
+                         0::(⍵,' ∘∘INVALID∘∘')(m⊣⎕←m,': ',⍵)
+                         qtFlag:(∆QTX⍕⍎⍵)''
                          (⍕⍎⍵)''
-                     }expand ⍵
-                 }f3
-                 _←put f1 val
+                     }exp
+                 }f4
+                 _←put f2 val
 
-                 f0 ∆IF_VERBOSE'::VAL ',f1,' ← ',f3,' ➡ ',val,note,' ',YES
+                 f0 ∆IF_VERBOSE'::VAL ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }0
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
-          ⍝ Set name to val only if name not already defined.
+          ⍝ Set name to val only if name NOT already defined.
+          ⍝ ::CDEFQ ...
+          ⍝ Like ::CDEF, but quotes result of CDEF.
              case cCDEF:{
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
-                 defd←def f1
-
-                 defd:∆IF_VERBOSE f0,NO
-                 noArrow←1≠≢f2
-                 val←f1{noArrow∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:'' ⋄ expand ⍵}f3
-                 _←put f1 val
-                 f0 ∆IF_VERBOSE'::CDEF ',f1,' ← ',f3,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 def f2:∆IF_VERBOSE f0,NO   ⍝ If <name> defined, don't ::DEF...
+                 qtFlag arrFlag←0≠≢¨f1 f3
+                 val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
+                     exp←expand ⍵
+                     qtFlag:∆QTX exp
+                     exp
+                 }f4
+                 _←put f2 val
+                 f0 ∆IF_VERBOSE'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/~0=≢val),' ',YES
              }0
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
                  _←del f1⊣{def ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
+                 T≠stk←TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  funNm←∆DEQUOTE f1
                  _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (fullNm dataIn)←getDataIn funNm
@@ -538,7 +564,7 @@
              }0
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
-                 T≠stk←⊃⌽stack:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  info←' ','[',']',⍨{
                      0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
                      'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
