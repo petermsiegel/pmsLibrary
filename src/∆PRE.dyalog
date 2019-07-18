@@ -268,8 +268,13 @@
          }
 
 
+       ⍝ getDataIn:
        ⍝ get function '⍵' or its char. source '⍵_src', if defined.
+       ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
+       ⍝ If the obj is ⎕NULL, the object is prompted from the user.
+       ⍝ (See promptForData) for returned value.
          getDataIn←{∆∆←∇
+             ⍵≡⎕NULL:promptForData ⍬
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
              dir dirs←(⊃⍺)⍺
@@ -280,9 +285,13 @@
              types{
                  0=≢⍺:(1↓dirs)∆∆ ⍵
                  filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
-                 ⎕NEXISTS filenm:filenm(⊃⎕NGET filenm 1)
+                 ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
                  (1↓⍺)∇ ⍵
              }⍵
+         }
+         promptForData←{
+             lines←'::DEF fred ← 2' '::VAL i10 ← ⍳10'
+             '__TERM__' '__TERM__'lines
          }
 
       ⍝ MACRO (NAME) PROCESSING
@@ -495,7 +504,7 @@
                      exp''
                  }f4
                  _←put f2 val
-                 f0 ∆IF_VERBOSE('::',isVal⊃'DEF' 'VAL '),f2,' ← ',f4,' ➡ ',val,note,' ',YES
+                 f0 ∆IF_VERBOSE('::',isVal⊃'DEF ' 'VAL '),f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
           ⍝ ::DEF | ::DEFQ
           ⍝ ::DEF name ← val    ==>  name ← 'val'
@@ -546,7 +555,7 @@
                  T≠stk←TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  funNm←∆DEQUOTE f1
                  _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
-                 (fullNm dataIn)←getDataIn funNm
+                 (_ fullNm dataIn)←getDataIn funNm
                  _←1 ∆IF_DEBUG',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
                  _←fullNm{
@@ -581,24 +590,28 @@
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
          INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
 
-       ⍝ Initialization
-         funNm←⍵ ⋄ stack←,1 ⋄ lineNum←0 ⋄ tmpNm←'__',funNm,'__'
+       ⍝ Read in data file...
+         funNm fullNm dataIn←getDataIn ⍵
+         tmpNm←'__',funNm,'__'
 
-         fullNm dataIn←getDataIn funNm       ⍝ dataIn: SV
+       ⍝ Initialization
+         stack←,1 ⋄ lineNum←0
          includedFiles←⊂fullNm
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
-         _←∆IF_DEBUG'Processing object ',(∆DQT funNm),' from file "',∆DQT fullNm
+         _←∆IF_DEBUG'Processing object ',(∆DQT funNm),' from file ',∆DQT fullNm
          _←∆IF_DEBUG'Object has ',NLINES,' lines'
+
          dataFinal←⍬
-
          names←vals←⍬
-         ⋄ _←put'__DEBUG__'DEBUG
-
          includeLines←⍬
+         comment←⍬
+
+       ⍝ Set prepopulated macros
+         _←put'__DEBUG__'DEBUG               ⍝ __DEBUG__
+
        ⍝ Go!
 
-         comment←⍬
          lines←pDQe pCONTe pSQe pEOLe ⎕R{
              f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
