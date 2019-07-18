@@ -17,7 +17,7 @@ ___Table of Contents___
 * __gen__         Create Python-like __generators__ that allow for functions to iteratively "yield" values without returning.
 * __future__      Create simple __future objects__, whose values may be scalars within APL arrays, built on isolate-related I-beams.
 * __∆format, ∆f__ Support _Python_-like __f-strings__ extended for APL multi-dimentional objects, allowing for variable interpolation into quoted strings.
-* __∆FIX__        A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with preprocessor statements ::IF, ::IFDEF, ::DEF, macro-like name substitution, "atoms" (pseudo-parameter names), continuation lines, etc.
+* __∆FIX__        __OBSOLETE. See _∆PRE_.__  A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with preprocessor statements ::IF, ::IFDEF, ::DEF, macro-like name substitution, "atoms" (pseudo-parameter names), continuation lines, etc.
 * __∆FPTR__      Create a scalar or list of function __ptrs__, namespaces that include the function and initial parameters.
 * __bigInt__  Provides support for __arbitrary-precision integers__ in convenient and higher-performance formats, along with an arbitrary-precision desk calculator in the tradition of Unix's __dc__.
 * __∆HERE__       Robust support for "__here__" __documents__ or "immediate" multiline strings within APL functions/ops, allowing multi-line HTML, documentation, or special strings to be pasted from other sources (or otherwise created) and passed to various APL routines.
@@ -53,7 +53,7 @@ Source: __format__. Help info: __format_help.pdf__.
 and internally as a series of (signed) integers. Built around dfns:nat as its numerical core,  extended to handle signed numbers,
 reduce and scan, factorial, and roll(?). Has both an easy-to-use operator style ``'2434324' *BI '3443'`` that takes care of importing and exporting APL numbers and (string-format) big integers, as well as a higher-performance function style ``bigInt.sqrt '449432342'`` suitable for user-designed algorithms. Easily extended to work with arbitrary APL arrays.<br>
    Try the big integer desk calculator `bi.dc` to see how it works (for help: issue `?` from the command line).
-1. __∆FIX__:     A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with 
+1. __∆FIX__:     __Obsolete (see _∆PRE_).__ A __preprocessor__ for _.dyalog_ files, which may contain a namespace-class object, functions, and operators, along with 
    * preprocessor statements __::IF__ / __::THEN__ / __::ELSEIF__, __::IFDEF__, __::DEF__, __::LET__, and more, 
    * macro-like name substitution, 
    * "atoms" (pseudo-parameter names / set members) with the __atom__ pseudo-operator (``` ` ```)    
