@@ -293,9 +293,9 @@
              ⋄ u13←''',(⎕UCS 13),'''
              ⋄ opts←('Mode' 'M')('EOL' 'LF')
              ⍺∧lit:'(',')',⍨∆QT'\n'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str       ⍝ Single mode ∧ literal
-             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str        ⍝ Single mode
+             ⍺:'(',')',⍨∆QT'\n\h*'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str        ⍝ Single mode
              lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                  ⍝ Multi  mode ∧ literal
-             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
+             '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
 
              '∆PRE: processDQ logic error'⎕SIGNAL 911
          }
@@ -446,7 +446,7 @@
 
       ⍝ patterns solely for the ∇mExpand∇ fn
          pDQe←'(?xi)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
-         pSQe←'(?xs)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
+         pSQe←'(?xs)   (    (?: ''[^'']*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCommentE←'(?x)     ⍝ .*  $'
        ⍝ ppNum: A non-complex signed APL number (float or dec)
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
@@ -470,7 +470,7 @@
          pLongNmE←∆MAP'(?x) ⍎ppLN'
          pShortNmE←∆MAP'(?x) ⍎ppSN'
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
-         pCONTe←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
+         pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'(?x)             \h* (⍝ .*)? \n'
       ⍝ For  (names → ...) and (`names)
          ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
@@ -662,13 +662,20 @@
        ⍝ Go!
 
        ⍝ Process double quotes and continuation lines that may cross lines
-         lines←pDQe pCONTe pSQe pCommentE pEOLe ⎕R{
+         lines←pDQe pSQe pCommentE pContE pEOLe ⎕R{
+             cDQ cSQ cCm cCn cEOL←⍳5
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
-             case 0:processDQ f1 f2   ⍝ DQ, w/ possible newlines...
-             case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
-             case 2:f0  ⍝ SQ  - passthru
-             case 3:f0  ⍝ COM - passthru
-           ⍝ case 4
+             case cDQ:processDQ f1 f2                ⍝ DQ, w/ possible newlines...
+             case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
+                 ~NL∊⍵:⍵
+                 ⎕←'WARNING: Newlines in single-quoted string are ignored!'
+                 ⎕←'String: ','⤶'@{NL=⍵}⍵
+                 ' '@{NL=⍵}⍵
+             }f0
+             case cCm:f0                             ⍝ COM - passthru
+             case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1  ⍝ Continuation
+           ⍝ case 4: EOL triggers comment processing from above
+             ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
              0=≢comment:f0
              ln←comment,' ',f1,NL ⋄ comment⊢←⍬
            ⍝ If the commment is more than (⎕PW÷2), put on newline
