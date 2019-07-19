@@ -301,6 +301,7 @@
        ⍝ If the obj is ⎕NULL, the object is prompted from the user.
        ⍝ (See promptForData) for returned value.
          getDataIn←{∆∆←∇
+             19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
              ⍵≡⎕NULL:promptForData ⍬
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
@@ -385,15 +386,21 @@
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-
+         ⍝  See MAX_PROGRESSION below
              cSQe cCommentE cDot1E cDot2E cAtomsE←0 1 2 3 4
              str←pSQe pCommentE pDot1e pDot2e pATOMSe ⎕R{
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
                  case cSQe cCommentE:⍵ ∆FLD 0
-                 case cDot1E:⍕⍎f1,' ∆TO ',f2⊣f1 f2←⍵ ∆FLD¨1 2  ⍝  num [num] .. num
-                 case cDot2E:∆TOcode                           ⍝  .. preceded or followed by non-constants
                  case cAtomsE:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
+                 case cDot2E:∆TOcode
+               ⍝ case cDot1E
+                 ⋄ f1 f2←⍵ ∆FLD¨1 2
+                 ⋄ progr←⍎f1,' ∆TO ',f2
+                 MAX_PROGRESSION<≢progr:f1,' ',∆TOcode,' ',f2
+                 ⍕progr
+                                        ⍝  .. preceded or followed by non-constants
+
              }⍠'UCP' 1⊣str
              str
          }
@@ -441,14 +448,14 @@
          pDot1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDot \h* (⍎ppNum)'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
       ⍝  Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
-         ppHex←'   ¯? \d [\dA-F]                 X'
-         ppBigInt←'¯? \d (?: [\d.])* (?: E \d+)? I'
+         ppHex←'   ¯? \d [\dA-F]*             X'
+         ppBigInt←'¯? \d [\d\.]* (?: E \d+ )? I'
          ⍝ pSpecialIntE: Allows both bigInt format and hex format
          ⍝ This is permissive (allows illegal options to be handled by APL),
          ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
          ⍝ Exponents are invalid for hexadecimals, because the exponential range
          ⍝ is not defined/allowed.
-         pSpecialIntE←'(?xi)  (?<![\dA-F\.]) (?: ⍎ppHex | ⍎ppBigInt ) '
+         pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?: ⍎ppHex | ⍎ppBigInt ) '
       ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
       ⍝ pLongNmE Long names are of the form #.a or a.b.c
       ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
@@ -536,7 +543,7 @@
                  }f4
                  _←put f2 val
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
-                 f0 ∆IF_VERBOSE(nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
+                 f0 ∆IF_VERBOSE nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
           ⍝ ::DEF | ::DEFQ
           ⍝ ::DEF name ← val    ==>  name ← 'val'
@@ -620,6 +627,9 @@
       ⍝ --------------------------------------------------------------------------------
        ⍝ User-settable options
          MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
+         MAX_PROGRESSION←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
+                              ⍝ Otherwise, does function call...
+
          INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
 
        ⍝ Read in data file...
