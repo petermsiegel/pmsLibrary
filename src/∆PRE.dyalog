@@ -161,7 +161,8 @@
   ⍝H     'This is a' '      raw format' 'double string.'
   ⍝H
   ⍝H    Directives
-  ⍝H       (Note: currently comments are invalid and unpredictable on directive lines...)
+  ⍝H       (Note: currently comments are removed from preprocessor directives
+  ⍝H        before processing.
   ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
   ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
   ⍝H       ::IFNDEF  name
@@ -169,18 +170,34 @@
   ⍝H       ::ELIF                 Alias for ::ELSEIF
   ⍝H       ::ELSE
   ⍝H       ::END                  ::ENDIF, ::ENDIFDEF; allows ::END followed by ANY text
-  ⍝H       ::DEF     name ← [VAL] VAL may be an APL code sequence, including comments
-  ⍝H                              or nullstring. If parens are needed, use them.
+  ⍝H       ::DEF     name ← [VAL] VAL may be an APL code sequence, including the null string
+  ⍝H                              If parens are needed, use them.
+  ⍝H                              If you want to ignore lines by prefixing with comments,
+  ⍝H                              use EVAL. Comments are IGNORED on directive lines, unless quoted.
   ⍝H       ::DEF     name ←       Sets name to a nullstring, not its quoted value.
   ⍝H       ::DEF     name         Same as ::DEF name ← 'name'
   ⍝H       ::DEFINE  name ...     Alias for ::DEF ...
   ⍝H       ::DEFQ    name ...     Like ::DEF except quoted evaluated string
   ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
-  ⍝H       ::[E]VAL     name ...     Same as ::DEF, except name ← ⍎val
+  ⍝H       ::[E]VAL  name ...     Same as ::DEF, except name ← ⍎val
   ⍝H       ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
-  ⍝H                 Note that ::DEF creates a string of code (including comments),
+  ⍝H                 ∘ Note that ::DEF creates a string of code (including comments),
   ⍝H                 and is "TRUE" if it is not-null.  EVAL executes the string to determine
   ⍝H                 its value; it is true if not 0, or an object of length 0.
+  ⍝H
+  ⍝H       ∘ To create a macro to "null out" code lines (have them ignored),
+  ⍝H         you can't use ::DEF, because (visible) comments are ignored for directives.
+  ⍝H         Instead, use ::VAL, which allows you to present the comment in quotes,
+  ⍝H         which ::VAL will evaluate (i.e. dequote) as an actual comment sequence.
+  ⍝H                      ::VAL PHASE1 ← '⍝ IGNORE PHASE1: '
+  ⍝H                      PHASE1 b←do_something_with 'PHASE1'
+  ⍝H         Treated as:  ⍝ IGNORE PHASE1: b←do_something_with 'PHASE1'
+  ⍝H                      ::VAL PHASE2 ← ''   ⍝ Don't ignore PHASE2.
+  ⍝H                                          ⍝ Or do ::DEF PHASE2←       ⍝ null "code" assigned
+  ⍝H                      PHASE2 b←do_something_with 'PHASE2'
+  ⍝H         Treated as:  b←do_something_with 'PHASE2'
+  ⍝H
+  ⍝H
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
@@ -271,7 +288,7 @@
        ⍝        ⍵ is true unless its value is 0-length ('', ⍬ etc)
        ⍝                  or 0 or (,0)
          ∆TRUE←{
-             ans←{0::0⊣⍞←'∆PRE: Can''t evaluate truth of {',⍵,'}, returning 0'
+             ans←{0::0⊣⎕←'∆PRE: Can''t evaluate truth of {',⍵,'}, returning 0'
                  0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
                  1
              }⍵
@@ -445,9 +462,9 @@
          cOTHER←'apl'reg'   ^                                   .*               $'
 
       ⍝ patterns solely for the ∇mExpand∇ fn
-         pDQe←'(?xi)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
-         pSQe←'(?xs)   (    (?: ''[^'']*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
-         pCommentE←'(?x)     ⍝ .*  $'
+         pDQe←'(?x)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
+         pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'            ⍝ We trap elsewhere multi-line SQ strings...
+         pCommentE←'(?x)   ⍝ .*  $'
        ⍝ ppNum: A non-complex signed APL number (float or dec)
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
          ppDot←'(?:  … | \.{2,} )'
@@ -471,7 +488,7 @@
          pShortNmE←∆MAP'(?x) ⍎ppSN'
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
-         pEOLe←'(?x)             \h* (⍝ .*)? \n'
+         pEOLe←'\n'
       ⍝ For  (names → ...) and (`names)
          ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ppNums←'  (?: ⍎ppLN | ⍎ppNum ) (?: \h+ (?: ⍎ppLN | ⍎ppNum ) )*'
@@ -528,7 +545,7 @@
              }0
            ⍝ Shared code for
            ⍝   ::DEF(Q) and ::(E)VALQ
-             DEF_EVAL←{
+             procDefVal←{
                  isVal←⍵
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
@@ -560,7 +577,7 @@
           ⍝
           ⍝ ::DEFQ ...
           ⍝   Same as ::DEF, except quote val.
-             case cDEF:DEF_EVAL 0
+             case cDEF:procDefVal 0
            ⍝  ::EVAL | ::EVALQ
            ⍝  ::VAL  | ::VALQ
            ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
@@ -568,7 +585,7 @@
            ⍝    Returns <val> executed in the caller namespace...
            ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
            ⍝    Experimental preprocessor-time evaluation
-             case cVAL:DEF_EVAL 1
+             case cVAL:procDefVal 1
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
@@ -661,21 +678,31 @@
 
        ⍝ Go!
 
+       ⍝ Kludge: We remove comments from all directives up front...
+       ⍝ Not ideal, but...
+         pInDirective←'^\h*::'
+         inDirective←0
        ⍝ Process double quotes and continuation lines that may cross lines
-         lines←pDQe pSQe pCommentE pContE pEOLe ⎕R{
-             cDQ cSQ cCm cCn cEOL←⍳5
+         lines←pInDirective pDQe pSQe pCommentE pContE pEOLe ⎕R{
+             cInDirective cDQ cSQ cCm cCn cEOL←⍳6
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
+
+            ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
+            ⍝  ⎕←(¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
+
+             case cInDirective:f0⊣inDirective⊢←1
              case cDQ:processDQ f1 f2                ⍝ DQ, w/ possible newlines...
              case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
                  ~NL∊⍵:⍵
-                 ⎕←'WARNING: Newlines in single-quoted string are ignored!'
+                 ⎕←'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
                  ⎕←'String: ','⤶'@{NL=⍵}⍵
                  ' '@{NL=⍵}⍵
              }f0
-             case cCm:f0                             ⍝ COM - passthru
-             case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1  ⍝ Continuation
+             case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
+             case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1   ⍝ Continuation
            ⍝ case 4: EOL triggers comment processing from above
              ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
+             inDirective⊢←0                             ⍝ Reset  flag after each NL
              0=≢comment:f0
              ln←comment,' ',f1,NL ⋄ comment⊢←⍬
            ⍝ If the commment is more than (⎕PW÷2), put on newline
