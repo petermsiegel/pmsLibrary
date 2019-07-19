@@ -9,7 +9,7 @@
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
   ⍝H  (1↑⍺):opts   Contains one or more of the following letters:
-  ⍝H               V, D, M | S, Q; C;  H
+  ⍝H               V, D, M | S, Q; E; C;  H
   ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
@@ -23,7 +23,9 @@
   ⍝H                 See Debugging Flags below.
   ⍝H     D sets 'V' as well.
   ⍝H
-  ⍝H     E  (Edit)   ⎕EDits the intermediate EDIT file when done... (Sets Debug mode)
+  ⍝H     E  (Edit)   ⎕EDits the intermediate preprocessor file(*) when done... (Sets 'D'; Debug mode)
+  ⍝H                 (*) The intermed. preproc file is a text file which is ⎕FIXed to create the
+  ⍝H                 executables. Unlike the latter, it will be viewable even if the ⎕FIXing fails.
   ⍝H
   ⍝H Are multi-line double-quoted strings treated as
   ⍝H multiple strings or a single strings with NLs
@@ -129,6 +131,9 @@
   ⍝H       vec← 1 2 3 4 5  ¯1 ¯2 ¯3 ¯4 ¯5 60 70 80 90 100
   ⍝H       ⍝ Line 1 ⍝ Line 2 ⍝ Last line
   ⍝H   ∘ Double quoted strings under options M (default) or S.
+  ⍝H     These may appear on one or more lines. By default, leading blanks on
+  ⍝H     continuation lines are ignored, allowing follow-on lines to easily line up
+  ⍝H     under the first line. (See the DQ Raw suffix below).
   ⍝H     str←"This is line 1.
   ⍝H          This is line 2.
   ⍝H          This is line 3."
@@ -137,6 +142,16 @@
   ⍝H     str←'This is line 1.' 'This is line 2.' 'This is line 3.'
   ⍝H   option 'S':
   ⍝H     str←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H
+  ⍝H   ∘ DQ Raw Suffix:
+  ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
+  ⍝H     leading spaces on continuation lines removed.
+  ⍝H     Options M and S (above) are both supported.
+  ⍝H     "This is a
+  ⍝H      raw format
+  ⍝H   double string."R
+  ⍝H   ==>  (option 'M')
+  ⍝H     'This is a' '      raw format' 'double string.'
   ⍝H
   ⍝H    Directives
   ⍝H       (Note: currently comments are invalid and unpredictable on directive lines...)
@@ -266,11 +281,17 @@
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
+             str type←⍵
+             ⋄ lit←'R'∊type
              ⋄ DQ←'"'
              ⋄ u13←''',(⎕UCS 13),'''
              ⋄ opts←('Mode' 'M')('EOL' 'LF')
-             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE ⍵   ⍝ Single mode
-             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE ⍵              ⍝ Multi  mode
+             ⍺∧lit:'(',')',⍨∆QT'\n'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str       ⍝ Single mode ∧ literal
+             ⍺:'(',')',⍨∆QT'\n\h+'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str        ⍝ Single mode
+             lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                  ⍝ Multi  mode ∧ literal
+             '\n\h+'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
+
+             '∆PRE: processDQ logic error'⎕SIGNAL 911
          }
 
 
@@ -411,8 +432,8 @@
          cOTHER←'apl'reg'   ^                                   .*               $'
 
       ⍝ patterns solely for the ∇expand∇ fn
-         pDQe←'(?x)   (    (?: " [^"]*     "  )+  )'
-         pSQe←'(?x)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
+         pDQe←'(?xi)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
+         pSQe←'(?xs)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCommentE←'(?x)     ⍝ .*  $'
        ⍝ ppNum: A non-complex signed APL number (float or dec)
          ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
@@ -624,8 +645,8 @@
        ⍝ Go!
 
          lines←pDQe pCONTe pSQe pEOLe ⎕R{
-             f0 f1←⍵ ∆FLD¨0 1 ⋄ case←⍵.PatternNum∘∊
-             case 0:processDQ f0   ⍝ DQ, w/ possible newlines...
+             f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
+             case 0:processDQ f1 f2   ⍝ DQ, w/ possible newlines...
              case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
              case 2:f0
            ⍝ case 3
