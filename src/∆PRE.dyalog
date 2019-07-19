@@ -8,8 +8,12 @@
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
-  ⍝H  (1↑⍺):opts   Contains one or more of the following letters:
-  ⍝H               V, D, M | S, Q; E; C;  H
+  ⍝H  (1↑⍺):opts    Contains one or more of the following letters:
+  ⍝H                V; D; E; Q; (M | S);(C | c);  H
+  ⍝H   Debugging:   Verbose, Debug, Edit; Quiet
+  ⍝H   [DQ lines]:  Multi-line | Single-line;
+  ⍝H   Compression: Compress (comments+blank lines), compress (blank lines)
+  ⍝H   Help info:   Help
   ⍝H ---------------------------------------------------------
   ⍝H
   ⍝H Verbosity
@@ -26,20 +30,21 @@
   ⍝H     E  (Edit)   ⎕EDits the intermediate preprocessor file(*) when done... (Sets 'D'; Debug mode)
   ⍝H                 (*) The intermed. preproc file is a text file which is ⎕FIXed to create the
   ⍝H                 executables. Unlike the latter, it will be viewable even if the ⎕FIXing fails.
+  ⍝H    'Q' or ''    None of 'DV' above.
+  ⍝H                 put no extra comments in output and no details on the console
+  ⍝H                 Q will force ∆PRE to ignore #.__DEBUG__.
   ⍝H
   ⍝H Are multi-line double-quoted strings treated as
   ⍝H multiple strings or a single strings with NLs
-  ⍝H        str ← "line1
-  ⍝H               line2
-  ⍝H               line three"
+  ⍝H     str ← "line1
+  ⍝H            line2
+  ⍝H            line three"
   ⍝H    'M' (Mult)   The default
   ⍝H                 A multiline DQ string ends up as multiple char vectors
   ⍝H                 str←'line1' 'line2' 'line3'
   ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
   ⍝H                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
-  ⍝H    'Q' or ''    None of 'DVS' above.
-  ⍝H                 put no extra comments in output and no details on the console
-  ⍝H                 Q will force ∆PRE to ignore #.__DEBUG__.
+  ⍝H
   ⍝H    'C'          (Compress) Remove blank lines and comment lines (most useful w/ Q)!
   ⍝H    'c'          (small compress) Remove blank lines only!
   ⍝H Help Information
@@ -75,6 +80,8 @@
   ⍝H ---------------------------------------------------------------------------------
   ⍝H  ⍵
   ⍝H  ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
+  ⍝H             ⎕NULL: Prompt for lines from the user, creating pseudo-function
+  ⍝H                 __PROMPT__
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
   ⍝H    The simple name, name.ext, or full filename
@@ -275,7 +282,6 @@
          NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0 ⍝ Marks ∆PRE-generated lines to be deleted before ⎕FIXing
        ⍝ DEBUG - see above...
          VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱DEBUG
-
          DQ_SINGLE←'S'∊opts          ⍝ Treatment of "...".  Default is 0 ("M" option).
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
 
@@ -334,7 +340,7 @@
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
       ⍝-----------------------------------------------------------------------
-      ⍝ expand (macro expansion, including special predefined expansion)
+      ⍝ mExpand (macro expansion, including special predefined expansion)
       ⍝     …                     for continuation
       ⍝     …                     for numerical sequences
       ⍝     25X                   for hexadecimal constants
@@ -343,7 +349,7 @@
       ⍝     `red 025X yellow      for implicit quoted (name) strings and numbers on right
       ⍝
       ⍝-----------------------------------------------------------------------
-         expand←{
+         mExpand←{
              else←⊢
            ⍝ Concise variant on dfns:to, allowing start [incr] to end
            ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
@@ -355,7 +361,7 @@
              str←{⍺←MAX_EXPAND       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
                  strIn←str←⍵
                  0≥⍺:⍵
-             ⍝ Match/Expand...
+             ⍝ Match/mExpand...
              ⍝ [1] pLongNmE: long names,
                  cSQe cCommentE cLNe←0 1 2
                  str←{
@@ -380,7 +386,7 @@
                      case cShortNmE:⍕get f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
-                 str≢strIn:(⍺-1)∇ str    ⍝ expand is recursive, but only initial MAX_EXPAND times.
+                 str≢strIn:(⍺-1)∇ str    ⍝ mExpand is recursive, but only initial MAX_EXPAND times.
                  str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
@@ -438,7 +444,7 @@
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppLN) .*               $'
          cOTHER←'apl'reg'   ^                                   .*               $'
 
-      ⍝ patterns solely for the ∇expand∇ fn
+      ⍝ patterns solely for the ∇mExpand∇ fn
          pDQe←'(?xi)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
          pSQe←'(?xs)   (    (?: ''[^''\n\r]*'' )+  )'    ⍝ Don't allow multi-line SQ strings...
          pCommentE←'(?x)     ⍝ .*  $'
@@ -484,7 +490,7 @@
 
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=TOP:{str←expand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
+                 T=TOP:{str←mExpand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
                  ∆IF_VERBOSE f0,SKIP     ⍝ See ∆IF_VERBOSE, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
@@ -496,14 +502,14 @@
            ⍝ ::IF cond
              case cIF:{
                  T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 stack,←c←∆TRUE(e←expand f1)
+                 stack,←c←∆TRUE(e←mExpand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
           ⍝  ::ELSEIF
              case cELSEIF:{
                  S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
                  T=TOP:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
-                 (⊃⌽stack)←c←∆TRUE(e←expand f1)
+                 (⊃⌽stack)←c←∆TRUE(e←mExpand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::ELSE
@@ -529,7 +535,7 @@
                  val note←f2{
                      (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                      0=≢⍵:'' '  [EMPTY]'
-                     exp←expand ⍵
+                     exp←mExpand ⍵
 
                      isVal:{                ⍝ ::EVAL | ::VAL
                          m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
@@ -574,7 +580,7 @@
                  def f2:∆IF_VERBOSE f0,NO   ⍝ If <name> defined, don't ::DEF...
                  qtFlag arrFlag←0≠≢¨f1 f3
                  val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
-                     exp←expand ⍵
+                     exp←mExpand ⍵
                      qtFlag:∆QTX exp
                      exp
                  }f4
@@ -626,11 +632,12 @@
       ⍝ EXECUTIVE
       ⍝ --------------------------------------------------------------------------------
        ⍝ User-settable options
-         MAX_EXPAND←5  ⍝ Maximum times to expand macros (if 0, none are expanded!)
+         MAX_EXPAND←5         ⍝ Maximum times to expand macros (if 0, none are expanded!)
          MAX_PROGRESSION←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
-                              ⍝ Otherwise, does function call...
+                              ⍝ Otherwise, does function call (to save space or preserve line size)
 
-         INCLUDE_LIMITS←5 10  ⍝ First # is min before warning. Second is max before error.
+         INCLUDE_LIMITS←5 10  ⍝ Max times a file may be ::INCLUDEd
+                              ⍝ First # is min before warning. Second is max before error.
 
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
@@ -654,12 +661,14 @@
 
        ⍝ Go!
 
-         lines←pDQe pCONTe pSQe pEOLe ⎕R{
+       ⍝ Process double quotes and continuation lines that may cross lines
+         lines←pDQe pCONTe pSQe pCommentE pEOLe ⎕R{
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
              case 0:processDQ f1 f2   ⍝ DQ, w/ possible newlines...
              case 1:' '⊣comment,←(' '/⍨0≠≢f1),f1
-             case 2:f0
-           ⍝ case 3
+             case 2:f0  ⍝ SQ  - passthru
+             case 3:f0  ⍝ COM - passthru
+           ⍝ case 4
              0=≢comment:f0
              ln←comment,' ',f1,NL ⋄ comment⊢←⍬
            ⍝ If the commment is more than (⎕PW÷2), put on newline
