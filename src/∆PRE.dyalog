@@ -1,5 +1,6 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
-     __MAX__EXPAND__←__DEBUG__←__MAX_PROGRESSION__←__INCLUDE_LIMITS__←¯1
+  ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
+     __INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←__PREFIX__←¯1
 
   ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
@@ -354,7 +355,8 @@
       ⍝ MACRO (NAME) PROCESSING
       ⍝ functions...
       ⍝ For now, special macros start and end with __.
-         put←{n v←⍵   ⍝ add (name, val) to macro list
+         put←{⍺←__DEBUG__
+             n v←⍵   ⍝ add (name, val) to macro list
              n~←' '
              names,⍨←⊂n
              vals,⍨←⊂v
@@ -362,9 +364,9 @@
              ⍝ Special macros-- all integers ≥0.
              n{
                  0::⍵                       ⍝ Error? Quietly move on.
-                 v←⌊0⌈⍎⍕v                   ⍝ Ensure integers at least 0
+                 v←{0::⍵ ⋄ ⌊0⌈⍎⍕⍵}v        ⍝ Ensure integers at least 0
                  _←⍎n,'∘←v'                 ⍝ Execute in ∆PRE space, not user space.
-                 __DEBUG__:⍵⊣⎕←'Set special variable ',n,'∘←',⍕v
+                 ⍺:⍵⊣⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v
                  ⍵
              }⍵
          }
@@ -675,12 +677,14 @@
                               ⍝ Otherwise, does function call (to save space or preserve line size)
        ⍝ __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
                               ⍝ First # is min before warning. Second is max before error.
+       ⍝ __PREFIX__←''
       ⍝ Set prepopulated macros
          names←vals←⍬
-         _←put'__DEBUG__'__DEBUG__
-         _←put'__MAX_EXPAND__' 5
-         _←put'__MAX_PROGRESSION__' 500
-         _←put'__INCLUDE_LIMITS__'(5 10)
+         _←0 put'__DEBUG__'__DEBUG__
+         _←0 put'__MAX_EXPAND__' 5
+         _←0 put'__MAX_PROGRESSION__' 500
+         _←0 put'__INCLUDE_LIMITS__'(5 10)
+         _←0 put'__PREFIX__' ''
 
 
        ⍝ Read in data file...
