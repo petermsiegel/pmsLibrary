@@ -1,4 +1,6 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
+     __MAX__EXPAND__←__DEBUG__←__MAX_PROGRESSION__←__INCLUDE_LIMITS__←¯1
+
   ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
   ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
@@ -53,10 +55,10 @@
   ⍝H
   ⍝H Debugging Flags
   ⍝H    If __DEBUG__ is defined in the namespace from which ∆PRE was called,
-  ⍝H           then DEBUG mode is set, even if the 'D' flag is not specified.
+  ⍝H           then __DEBUG__ mode is set, even if the 'D' flag is not specified.
   ⍝H           unless 'Q' (quiet) mode is set explicitly.
   ⍝H           debugmode:  (__DEBUG__∨D)∧~Q
-  ⍝H    If DEBUG mode is set,
+  ⍝H    If __DEBUG__ mode is set,
   ⍝H           internal macro "variable" __DEBUG__ is defined (DEF'd) as 1, as if:
   ⍝H                 ::VAL __DEBUG__ ← (__DEBUG__∨option_D)∧~option_Q   ⍝ Pseudocode...
   ⍝H           In addition, Verbose mode is set.
@@ -223,9 +225,9 @@
 
      EDIT←(⎕NULL≡⍵)∨'E'∊opts
    ⍝ Preprocessor variable (0⊃⎕RSI).__DEBUG__ is always 1 or 0 (unless user UNDEFs it)
-     DEBUG←(~'Q'∊opts)∧('D'∊opts)∨EDIT∨(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
+     __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
-     1:_←DEBUG{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
+     1:_←__DEBUG__{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
          condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
              _←⎕EX 1⊃⍵
              ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
@@ -258,7 +260,7 @@
              '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
          }
 
-         ∆IF_DEBUG←{⍺←0 ⋄ DEBUG∧⍺:⍞←⍵ ⋄ DEBUG:⎕←⍵ ⋄ ''}
+         ∆IF_DEBUG←{⍺←0 ⋄ __DEBUG__∧⍺:⍞←⍵ ⋄ __DEBUG__:⎕←⍵ ⋄ ''}
 
        ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
          ∆FLD←{
@@ -297,8 +299,8 @@
 
        ⍝ GENERAL CONSTANTS
          NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0 ⍝ Marks ∆PRE-generated lines to be deleted before ⎕FIXing
-       ⍝ DEBUG - see above...
-         VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱DEBUG
+       ⍝ __DEBUG__ - see above...
+         VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱__DEBUG__
          DQ_SINGLE←'S'∊opts          ⍝ Treatment of "...".  Default is 0 ("M" option).
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
 
@@ -351,7 +353,21 @@
 
       ⍝ MACRO (NAME) PROCESSING
       ⍝ functions...
-         put←{n v←⍵ ⋄ n~←' ' ⋄ names,⍨←⊂n ⋄ vals,⍨←⊂v ⋄ 1:⍵}  ⍝ add name val
+      ⍝ For now, special macros start and end with __.
+         put←{n v←⍵   ⍝ add (name, val) to macro list
+             n~←' '
+             names,⍨←⊂n
+             vals,⍨←⊂v
+             ((2↑n)∨.≠¯2↑n)∨'_'≠⊃n:⍵
+             ⍝ Special macros-- all integers ≥0.
+             n{
+                 0::⍵                       ⍝ Error? Quietly move on.
+                 v←⌊0⌈⍎⍕v                   ⍝ Ensure integers at least 0
+                 _←⍎n,'∘←v'                 ⍝ Execute in ∆PRE space, not user space.
+                 __DEBUG__:⍵⊣⎕←'Set special variable ',n,'∘←',⍕v
+                 ⍵
+             }⍵
+         }
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
@@ -375,7 +391,7 @@
              ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
              ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
              str←⍵
-             str←{⍺←MAX_EXPAND       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
+             str←{⍺←__MAX_EXPAND__       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
                  strIn←str←⍵
                  0≥⍺:⍵
              ⍝ Match/mExpand...
@@ -403,13 +419,13 @@
                      case cShortNmE:⍕get f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
-                 str≢strIn:(⍺-1)∇ str    ⍝ mExpand is recursive, but only initial MAX_EXPAND times.
+                 str≢strIn:(⍺-1)∇ str    ⍝ mExpand is recursive, but only initial __MAX_EXPAND__ times.
                  str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
          ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
          ⍝  are optimized.
-         ⍝  See MAX_PROGRESSION below
+         ⍝  See __MAX_PROGRESSION__ below
              cSQe cCommentE cDot1E cDot2E cAtomsE←0 1 2 3 4
              str←pSQe pCommentE pDot1e pDot2e pATOMSe ⎕R{
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
@@ -420,7 +436,7 @@
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
                  ⋄ progr←⍎f1,' ∆TO ',f2
-                 MAX_PROGRESSION<≢progr:f1,' ',∆TOcode,' ',f2
+                 __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
                  ⍕progr
                                         ⍝  .. preceded or followed by non-constants
 
@@ -450,7 +466,7 @@
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?:"[^"]+")+ | (?:''[^'']+'')+ | ⍎ppLN '
          ⋄ ppSN←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
-         ⋄ ppLN←'     ⍎ppSN (?: \. ⍎ppSN )*'
+         ⋄ ppLN←'     ⍎ppSN (?: \. ⍎ppSN )+'   ⍝ Note: Forcing Longnames to have at least one .
          ⋄ ppLN2←'    (?:\h+ (⍎ppLN) )'
 
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
@@ -607,14 +623,14 @@
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 T≠stk←TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=stk)
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  _←del f1⊣{def ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 T≠stk←TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  funNm←∆DEQUOTE f1
                  _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (_ fullNm dataIn)←getDataIn funNm
@@ -623,11 +639,11 @@
                  _←fullNm{
                      includedFiles,←⊂⍺
                      ~⍵∊⍨⊂⍺:⍬
-                   ⍝ See ::extern INCLUDE_LIMITS
+                   ⍝ See ::extern __INCLUDE_LIMITS__
                      count←+/includedFiles≡¨⊂⍺
                      warn err←(⊂INFO,'::INCLUDE '),¨'WARNING: ' 'ERROR: '
-                     count≤1↑INCLUDE_LIMITS:⍬
-                     count≤¯1↑INCLUDE_LIMITS:⎕←warn,'File "',⍺,'" included ',(⍕count),' times'
+                     count≤1↑__INCLUDE_LIMITS__:⍬
+                     count≤¯1↑__INCLUDE_LIMITS__:⎕←warn,'File "',⍺,'" included ',(⍕count),' times'
                      11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
                  }includedFiles
 
@@ -649,12 +665,21 @@
       ⍝ EXECUTIVE
       ⍝ --------------------------------------------------------------------------------
        ⍝ User-settable options
-         MAX_EXPAND←5         ⍝ Maximum times to expand macros (if 0, none are expanded!)
-         MAX_PROGRESSION←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
+       ⍝ See below
+       ⍝ __DEBUG__            ⍝ See above...
+       ⍝ __MAX_EXPAND__←5     ⍝ Maximum times to expand macros (if 0, none are expanded!)
+                              ⍝ Set via ⎕DEF __MAX_EXPAND__
+       ⍝ __MAX_PROGRESSION__←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
                               ⍝ Otherwise, does function call (to save space or preserve line size)
-
-         INCLUDE_LIMITS←5 10  ⍝ Max times a file may be ::INCLUDEd
+       ⍝ __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
                               ⍝ First # is min before warning. Second is max before error.
+      ⍝ Set prepopulated macros
+         names←vals←⍬
+         _←put'__DEBUG__'__DEBUG__
+         _←put'__MAX_EXPAND__' 5
+         _←put'__MAX_PROGRESSION__' 500
+         _←put'__INCLUDE_LIMITS__'(5 10)
+
 
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
@@ -669,12 +694,9 @@
          _←∆IF_DEBUG'Object has ',NLINES,' lines'
 
          dataFinal←⍬
-         names←vals←⍬
+
          includeLines←⍬
          comment←⍬
-
-       ⍝ Set prepopulated macros
-         _←put'__DEBUG__'DEBUG               ⍝ __DEBUG__
 
        ⍝ Go!
 
