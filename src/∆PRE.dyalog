@@ -464,17 +464,18 @@
          cEND←'end'reg'        ⍎ppBeg  END                   .*          $'
          ⋄ ppTarg←' [^←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
-         ⋄ ppFiSpec←'  (?:"[^"]+")+ | (?:''[^'']+'')+ | ⍎ppLN '
+         ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
          ⋄ ppSN←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
          ⋄ ppLN←'     ⍎ppSN (?: \. ⍎ppSN )+'   ⍝ Note: Forcing Longnames to have at least one .
          ⋄ ppLN2←'    (?:\h+ (⍎ppLN) )'
+         ⋄ ppName←'    ⍎ppSN (?: \. ⍎ppSN )*'   ⍝ ppName - long OR short
 
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
          cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec) .*               $'
-         cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppLN)    \h*  ⍎ppLN2?     $'
+         cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName) (?: \h+ (⍎ppName))?     $'
          cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppLN) .*               $'
+         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName ) .*               $'
          cOTHER←'apl'reg'   ^                                   .*               $'
 
       ⍝ patterns solely for the ∇mExpand∇ fn
@@ -500,14 +501,14 @@
       ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
 
 
-         pLongNmE←∆MAP'(?x) ⍎ppLN'
+         pLongNmE←∆MAP'(?x)  ⍎ppLN'
          pShortNmE←∆MAP'(?x) ⍎ppSN'
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
       ⍝ For  (names → ...) and (`names)
          ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
-         ppNums←'  (?: ⍎ppLN | ⍎ppNum ) (?: \h+ (?: ⍎ppLN | ⍎ppNum ) )*'
+         ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
          pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
 
 
@@ -630,6 +631,7 @@
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
+                 ⎕←'__INCLUDE_LIMITS__'__INCLUDE_LIMITS__
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  funNm←∆DEQUOTE f1
                  _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
