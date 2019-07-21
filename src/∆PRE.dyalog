@@ -1,6 +1,8 @@
  ∆PRE←{⎕IO ⎕ML ⎕PP←0 1 34
   ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
-     __INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←__PREFIX__←¯1
+  ⍝  These are all defined as "specialMacros" and start and end with dunder __.
+     __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
+     specialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
 
   ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
@@ -355,19 +357,18 @@
       ⍝ MACRO (NAME) PROCESSING
       ⍝ functions...
       ⍝ For now, special macros start and end with __.
-         put←{⍺←__DEBUG__
+         put←{⍺←__DEBUG__ ⋄ verbose←⍺
              n v←⍵   ⍝ add (name, val) to macro list
              n~←' '
              names,⍨←⊂n
              vals,⍨←⊂v
-             '____'≢4↑¯2⌽n:⍵     ⍝ Not of form:  __chars__
-             ⍝ Special macros-- all integers ≥0.
+             ~specialMacro n:⍵        ⍝ Not in domain of specialMacro function
+             ⍝ Special macros: if looks like number (as string), convert to numeric form.
              n{
-                 0::⍵                       ⍝ Error? Quietly move on.
-                 v←{0::⍵ ⋄ ⌊0⌈⍎⍕⍵}v        ⍝ Ensure integers at least 0
-                 _←⍎n,'∘←v'                 ⍝ Execute in ∆PRE space, not user space.
-                 ⍺:⍵⊣⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v
-                 ⍵
+                 0::⍵⊣⎕←'∆PRE: Logic error in put' ⍝ Error? Move on.
+                 v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v         ⍝ Numbers vs Text
+                 _←⍎n,'∘←v'                        ⍝ Execute in ∆PRE space, not user space.
+                 ⍵⊣{⍵:⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
              }⍵
          }
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
@@ -433,7 +434,7 @@
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
                  case cSQe cCommentE:⍵ ∆FLD 0
-                 case cAtomsE:'(',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1
+                 case cAtomsE:'(⊆',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1 ⍝ Atoms uses ⊆ all the time.
                  case cDot2E:∆TOcode
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
@@ -676,14 +677,12 @@
                               ⍝ Otherwise, does function call (to save space or preserve line size)
        ⍝ __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
                               ⍝ First # is min before warning. Second is max before error.
-       ⍝ __PREFIX__←''
       ⍝ Set prepopulated macros
          names←vals←⍬
          _←0 put'__DEBUG__'__DEBUG__
          _←0 put'__MAX_EXPAND__' 5
          _←0 put'__MAX_PROGRESSION__' 500
          _←0 put'__INCLUDE_LIMITS__'(5 10)
-         _←0 put'__PREFIX__' ''
 
 
        ⍝ Read in data file...
