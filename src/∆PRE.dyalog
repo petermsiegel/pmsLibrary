@@ -216,6 +216,13 @@
   ⍝H                              ⎕←big          ⍝ Will not work!
   ⍝H                              ::IMPORT big2
   ⍝H                              ⎕←big2         ⍝ Will work
+  ⍝H __DEBUG__                ⍝ See DEBUG/__DEBUG__ above...
+  ⍝H __MAX_EXPAND__←5         ⍝ Maximum times to expand macros (if 0, expansion is turned off!)
+  ⍝H                          ⍝ Set via ⎕DEF __MAX_EXPAND__ ← 100
+  ⍝H __MAX_PROGRESSION__←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
+  ⍝H                          ⍝ Otherwise, does function call (to save space or preserve line size)
+  ⍝H __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
+  ⍝H                          ⍝ First # is min before warning. Second is max before error.
   ⍝H       ----------------
   ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
@@ -669,15 +676,9 @@
       ⍝ EXECUTIVE
       ⍝ --------------------------------------------------------------------------------
        ⍝ User-settable options
+       ⍝ See HELP info above
        ⍝ See below
-       ⍝ __DEBUG__            ⍝ See above...
-       ⍝ __MAX_EXPAND__←5     ⍝ Maximum times to expand macros (if 0, none are expanded!)
-                              ⍝ Set via ⎕DEF __MAX_EXPAND__
-       ⍝ __MAX_PROGRESSION__←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
-                              ⍝ Otherwise, does function call (to save space or preserve line size)
-       ⍝ __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
-                              ⍝ First # is min before warning. Second is max before error.
-      ⍝ Set prepopulated macros
+       ⍝ Set prepopulated macros
          names←vals←⍬
          _←0 put'__DEBUG__'__DEBUG__
          _←0 put'__MAX_EXPAND__' 5
