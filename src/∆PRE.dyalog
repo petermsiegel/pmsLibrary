@@ -360,7 +360,7 @@
              n~←' '
              names,⍨←⊂n
              vals,⍨←⊂v
-             ((2↑n)∨.≠¯2↑n)∨'_'≠⊃n:⍵
+             '____'≢4↑¯2⌽n:⍵     ⍝ Not of form:  __chars__
              ⍝ Special macros-- all integers ≥0.
              n{
                  0::⍵                       ⍝ Error? Quietly move on.
@@ -633,7 +633,6 @@
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 ⎕←'__INCLUDE_LIMITS__'__INCLUDE_LIMITS__
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  funNm←∆DEQUOTE f1
                  _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
