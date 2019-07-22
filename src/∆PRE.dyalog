@@ -32,23 +32,27 @@
   ⍝H                 See Debugging Flags below.
   ⍝H     D sets 'V' as well.
   ⍝H
-  ⍝H     E  (Edit)   ⎕EDits the intermediate preprocessor file(*) when done... (Sets 'D'; Debug mode)
+  ⍝H     E  (Edit)   ⎕EDits the intermediate preprocessor file(*) when done...
+  ⍝H                 (Sets 'D'; Debug mode)
   ⍝H                 (*) The intermed. preproc file is a text file which is ⎕FIXed to create the
-  ⍝H                 executables. Unlike the latter, it will be viewable even if the ⎕FIXing fails.
+  ⍝H                 executables.
+  ⍝H                 Unlike the latter, the intermed. file will be viewable even if the
+  ⍝H                 ⎕FIXed executable can not be created (e.g. because of errors).
   ⍝H    'Q' or ''    None of 'DV' above.
-  ⍝H                 put no extra comments in output and no details on the console
+  ⍝H                 Put no preprocessor comments in output and no details on the console
   ⍝H                 Q will force ∆PRE to ignore #.__DEBUG__.
   ⍝H
-  ⍝H Are multi-line double-quoted strings treated as
-  ⍝H multiple strings or a single strings with NLs
-  ⍝H     str ← "line1
-  ⍝H            line2
-  ⍝H            line three"
+  ⍝H Are multi-line double-quoted strings treated as multiple strings (M)
+  ⍝H or a single strings with newlines?
+  ⍝H        Example Input
+  ⍝H                str ← "line1
+  ⍝H                       line2
+  ⍝H                       line three"
   ⍝H    'M' (Mult)   The default
   ⍝H                 A multiline DQ string ends up as multiple char vectors
-  ⍝H                 str←'line1' 'line2' 'line3'
+  ⍝H        Output:  str←'line1' 'line2' 'line3'
   ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
-  ⍝H                 str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
+  ⍝H        Output:  str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
   ⍝H
   ⍝H    'C'          (Compress) Remove blank lines and comment lines (most useful w/ Q)!
   ⍝H    'c'          (small compress) Remove blank lines only!
@@ -69,7 +73,7 @@
   ⍝H           Internal flag variable __DEBUG__ is defined as 0.
   ⍝H           Verbose mode then depends on the 'V' flag (default is 1).
   ⍝H
-  ⍝H    Use ::IF __DEBUG__ etc. to change behavior based on debug status.
+  ⍝H    Use ::IF __DEBUG__ etc. to change preprocessor behavior based on debug status.
   ⍝H
   ⍝H
   ⍝H ---------------------------------------------------------
@@ -108,18 +112,36 @@
   ⍝H ---------------------------------------------------------------------------------
   ⍝H Features:
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H   ∘ implicit macros
+  ⍝H   ∘ Implicit macros
   ⍝H     ∘ HEXADECIMALS: Hex number converted to decimal
   ⍝H             0FACX /[\d][\dA-F]*[xX]/
   ⍝H     ∘ BIG INTEGERS: Big integers (of any length) /¯?\d+[iI]/ are converted to
   ⍝H             quoted numeric strings for use with Big Integer routines.
   ⍝H             04441433566767657I →  '04441433566767657'
-  ⍝H     ∘ PROGRESSIONS: num1 [num2] .. num3
+  ⍝H       Big Integers may have non-negative exponents, but no decimals.
+  ⍝H       The exponents simply add trailing zeros. E.g. 123 with 100 trailing zeros:
+  ⍝H            123E100I  ==>   12300000[etc.]00000
+  ⍝H     ∘ PROGRESSIONS: num1 [num2] .. num3    OR   'c' 'd' .. 'e'  [where c,d,e are chars]
+  ⍝H                                            OR   'cd' .. e
   ⍝H             Progressions use either the ellipsis char (…) or 2 or more dots (..).
+  ⍝H         With Numbers
   ⍝H             Creates a real-number progression from num1 to num3
   ⍝H             with delta (num2-num1), defaulting to 1 or ¯1.
   ⍝H             With constants  (10 0.5 .. 15), the progression is calculated at
   ⍝H             preprocessor time; with variables, a DFN is inserted to calculate at run time.
+  ⍝H             Example:  :FOR i :in 1 1.5 .. 100  ==> :FOR i :in 1 1.5 2 2.5 [etc.] 99.5 100
+  ⍝H             Example:  :FOR i :in a b   .. 100  ==> :FOR i :in a b {progressn dfn} c
+  ⍝H         With Characters
+  ⍝H             Creates a progression from char1 to char3 (with gaps determined by char2-char1)
+  ⍝H                'a'..'h'         ==> 'abcdefgh'
+  ⍝H                'a' 'c' .. 'h'   ==> 'aceg'
+  ⍝H                'ac'..'h'        ==> 'aceg'
+  ⍝H                'h'..'a'         ==> 'hgfedcba'
+  ⍝H       Note: Progressions with constants that are too large (typically 500) are
+  ⍝H             not expanded, but calculated at run time. This saves on ⎕FIX-time storage and
+  ⍝H             perhaps editing awkwardness.
+  ⍝H             Example:  :FOR i :in 1..10000  ==> :FOR i :in 1 {progressn dfn}10000
+  ⍝H             See __MAX_PROGRESSION__ below to change this behavior.
   ⍝H     ∘ MAPS: word1 word2 ... wordN → anything
   ⍝H             where word1 is an APL-style name or an APL number;
   ⍝H             such that numbers are left as is, but names are quoted:
@@ -439,22 +461,24 @@
                  str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
-         ⍝  Check only after all substitutions, so ellipses with macros that resolve to numeric constants
-         ⍝  are optimized.
+         ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
+         ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
+         ⍝  numeric or char. constants are optimized.
          ⍝  See __MAX_PROGRESSION__ below
-             cSQe cCommentE cDot1E cDot2E cAtomsE←0 1 2 3 4
-             str←pSQe pCommentE pDot1e pDot2e pATOMSe ⎕R{
+             cDot1E cSQe cCommentE cDot2E cAtomsE←0 1 2 3 4
+             str←pDot1e pSQe pCommentE pDot2e pATOMSe ⎕R{
                  ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
+
                  case cSQe cCommentE:⍵ ∆FLD 0
                  case cAtomsE:'(⊆',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1 ⍝ Atoms uses ⊆ all the time.
                  case cDot2E:∆TOcode
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
-                 ⋄ progr←⍎f1,' ∆TO ',f2
+                 ⋄ progr←⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
                  __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
                  ⍕progr
-                                        ⍝  .. preceded or followed by non-constants
+                                          ⍝  .. preceded or followed by non-constants
 
              }⍠'UCP' 1⊣str
              str
@@ -500,7 +524,10 @@
        ⍝ ppNum: A non-complex signed APL number (float or dec)
          ⋄ ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
          ⋄ ppDot←'(?:  … | \.{2,} )'
-         pDot1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDot \h* (⍎ppNum)'
+         ⋄ ppCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ ppCh2←' '' (?: [^''] | ''{2} ){2} '' '
+         ⋄ ppDot1e←'  (?| ( ⍎ppNum (?: \h+ ⍎ppNum)*          ) \h* ⍎ppDot \h* (⍎ppNum) '
+         ⋄ ppDot1e,←'   | ( ⍎ppCh1 (?: \h+ ⍎ppCh1)* | ⍎ppCh2 ) \h* ⍎ppDot \h* (⍎ppCh1) ) '
+         pDot1e←∆MAP'(?x)   ⍎ppDot1e'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
       ⍝  Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
          ⋄ ppHex←'   ¯? (\d  [\dA-F]*)             X'
