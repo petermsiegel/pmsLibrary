@@ -404,6 +404,7 @@
              str←{⍺←__MAX_EXPAND__       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
                  strIn←str←⍵
                  0≥⍺:⍵
+                 ch1←ch2←0
              ⍝ Match/mExpand...
              ⍝ [1] pLongNmE: long names,
                  cSQe cCommentE cLNe←0 1 2
@@ -411,10 +412,10 @@
                      e1←'∆PRE: Value is too complex to represent statically:'
                      4::4 ⎕SIGNAL⍨e1,(⎕UCS 13),'⍝     In macro code: "',⍵,'"'
                      pSQe pCommentE pLongNmE ⎕R{
+                         ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
                          case cLNe:⍕get f0                ⍝ Let multilines fail
-                       ⍝ case cLNe:1↓∊NL,⎕FMT get f0      ⍝ Deal with multilines...
                          else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
@@ -423,13 +424,18 @@
               ⍝     pSpecialIntE: Hexadecimals and bigInts
                  cSQe cCommentE cShortNmE cSpecialIntE←0 1 2 3
                  str←pSQe pCommentE pShortNmE pSpecialIntE ⎕R{
+                     ch2⊢←1
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-
-                     case cSpecialIntE:{⍵∊'xX':⍕h2d f0 ⋄ ∆QT ¯1↓f0}¯1↑f0
+                     case cSpecialIntE:{
+                         ⍵∊'xX':⍕h2d f1
+                         0=≢f2:∆QT f1             ⍝ No exponent
+                         ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
+                     }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
                      case cShortNmE:⍕get f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
-                 str≢strIn:(⍺-1)∇ str    ⍝ mExpand is recursive, but only initial __MAX_EXPAND__ times.
+                 changed←ch1+ch2
+                 0≠changed:(⍺-changed)∇ str    ⍝ mExpand is recursive, but only initial __MAX_EXPAND__ times.
                  str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
@@ -475,50 +481,50 @@
          ⋄ ppTarg←' [^←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
-         ⋄ ppSN←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
-         ⋄ ppLN←'     ⍎ppSN (?: \. ⍎ppSN )+'   ⍝ Note: Forcing Longnames to have at least one .
-         ⋄ ppLN2←'    (?:\h+ (⍎ppLN) )'
-         ⋄ ppName←'    ⍎ppSN (?: \. ⍎ppSN )*'   ⍝ ppName - long OR short
+         ⋄ ppShortNm←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+         ⋄ ppLongNmOnly←'     ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
+         ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'          ⍝ ppName - long OR short
 
-         cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec) .*               $'
-         cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName) (?: \h+ (⍎ppName))?     $'
-         cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)  \h*  ⍎ppSetVal   $'
-         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName ) .*               $'
-         cOTHER←'apl'reg'   ^                                   .*               $'
+         cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
+         cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
+         cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
+         cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
+         cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
+         cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
+         cOTHER←'apl'reg'    ^                                         .*                $'
 
       ⍝ patterns solely for the ∇mExpand∇ fn
          pDQe←'(?x)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
          pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'            ⍝ We trap elsewhere multi-line SQ strings...
          pCommentE←'(?x)   ⍝ .*  $'
        ⍝ ppNum: A non-complex signed APL number (float or dec)
-         ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
-         ppDot←'(?:  … | \.{2,} )'
+         ⋄ ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
+         ⋄ ppDot←'(?:  … | \.{2,} )'
          pDot1e←∆MAP'(?x)  ( ⍎ppNum (?: \h+ ⍎ppNum)* ) \h* ⍎ppDot \h* (⍎ppNum)'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
       ⍝  Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
-         ppHex←'   ¯? \d [\dA-F]*             X'
-         ppBigInt←'¯? \d [\d\.]* (?: E \d+ )? I'
+         ⋄ ppHex←'   ¯? (\d  [\dA-F]*)             X'
+         ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
+         ⋄ ppBigInt←'¯? (\d+) (?: E (\d+) )? I'
          ⍝ pSpecialIntE: Allows both bigInt format and hex format
          ⍝ This is permissive (allows illegal options to be handled by APL),
          ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
          ⍝ Exponents are invalid for hexadecimals, because the exponential range
          ⍝ is not defined/allowed.
-         pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?: ⍎ppHex | ⍎ppBigInt ) '
+         pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎ppHex | ⍎ppBigInt ) '
       ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
       ⍝ pLongNmE Long names are of the form #.a or a.b.c
       ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
 
 
-         pLongNmE←∆MAP'(?x)  ⍎ppLN'
-         pShortNmE←∆MAP'(?x) ⍎ppSN'
+         pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
+         pShortNmE←∆MAP'(?x) ⍎ppShortNm'
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
       ⍝ For  (names → ...) and (`names)
-         ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
-         ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
+         ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
+         ⋄ ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
          pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
 
 
@@ -681,7 +687,7 @@
        ⍝ Set prepopulated macros
          names←vals←⍬
          _←0 put'__DEBUG__'__DEBUG__
-         _←0 put'__MAX_EXPAND__' 5
+         _←0 put'__MAX_EXPAND__' 10          ⍝ Allow macros to be expanded 10 times if changes occurred...
          _←0 put'__MAX_PROGRESSION__' 500
          _←0 put'__INCLUDE_LIMITS__'(5 10)
 
