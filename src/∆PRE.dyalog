@@ -733,10 +733,14 @@
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
          tmpNm←'__',funNm,'__'
-         ∆MY←''⎕NS⍨(⊃⎕NSI),'.ø.',funNm,'.∆MY'
-         (⍎∆MY)._FIRST_←0
-         _←0 put'⎕MY'∆MY
 
+       ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
+       ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
+         ∆MY←''⎕NS⍨(⊃⎕NSI),'.ø.',funNm,'.∆MY'
+         (∆MYR←⍎∆MY)._FIRST_←1
+         _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
+         _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←(~_FIRST_) 1'
+         _←0 put'⎕MY'∆MY
 
        ⍝ Initialization
          stack←,1 ⋄ lineNum←0
