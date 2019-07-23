@@ -164,6 +164,9 @@
   ⍝H     ==>
   ⍝H       vec← 1 2 3 4 5  ¯1 ¯2 ¯3 ¯4 ¯5 60 70 80 90 100
   ⍝H       ⍝ Line 1 ⍝ Line 2 ⍝ Last line
+  ⍝H
+  ⍝H   Double-Quoted (Multi-line Capable) Strings
+  ⍝H   ------------------------------------------
   ⍝H   ∘ Double quoted strings under options M (default) or S.
   ⍝H     These may appear on one or more lines. By default, leading blanks on
   ⍝H     continuation lines are ignored, allowing follow-on lines to easily line up
@@ -177,7 +180,7 @@
   ⍝H   option 'S':
   ⍝H     str←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
   ⍝H
-  ⍝H   ∘ DQ Raw Suffix:
+  ⍝H   ∘ Double-Quoted Raw Suffix:
   ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
   ⍝H     leading spaces on continuation lines removed.
   ⍝H     Options M and S (above) are both supported.
