@@ -250,17 +250,26 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
 
+   ⍝ OPTIONS
+   ⍝ 'V'
      ⍺←'V' ⋄ opts←⊃⊆,⍺
+   ⍝ 'H' etc.
      1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
 
      0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
 
+   ⍝ 'E'
      EDIT←(⎕NULL≡⍵)∨'E'∊opts
-   ⍝ Preprocessor variable (0⊃⎕RSI).__DEBUG__ is always 1 or 0 (unless user UNDEFs it)
+   ⍝ 'D'? Check (0⊃⎕RSI).__DEBUG__ and set macro __DEBUG__ to 1 or 0.
      __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
+   ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
+   ⍝ and attempt to ⎕FIX its included function or functions.
      1:_←__DEBUG__{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
-         condSave←{  ⍝ ⍺=1: Keep __name__. ⍺=0: Delete __name__ unless error.
+       ⍝ condSave:
+       ⍝    ⍺=1: Keep __name__.
+       ⍝    ⍺=0: Delete __name__ unless error.
+         condSave←{
              _←⎕EX 1⊃⍵
              ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
              2⊃⍵
@@ -270,12 +279,14 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
+       ⍝ ⎕FIX: If 'c', remove blank lines first; if 'C' remove comment lines and blank lines first.
          1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
              ⍵
          }(⍺ condSave ⍵){
              ~EDIT:⍺
+           ⍝ E(DIT) flag? edit before returning to save and ⎕FIX
              ⍺⊣(0⊃⎕RSI).⎕ED(1⊃⍵)
          }⍵
      }(⊆,⍺){
@@ -297,7 +308,7 @@
        ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
          ∆FLD←{
              ns def←2↑⍺,⊂''
-             ' '=1↑0⍴⍵:⍺ ∇ ns.Names⍳⊂⍵
+             ' '=1↑0⍴⍵:ns def ∇ ns.Names⍳⊂⍵
              ⍵=0:ns.Match                                  ⍝ Fast way to get whole match
              ⍵≥≢ns.Lengths:def                             ⍝ Field not defined AT ALL → ''
              ns.Lengths[⍵]=¯1:def                          ⍝ Defined field, but not used HERE (within this submatch) → ''
@@ -351,7 +362,6 @@
              '∆PRE: processDQ logic error'⎕SIGNAL 911
          }
 
-
        ⍝ getDataIn:
        ⍝ get function '⍵' or its char. source '⍵_src', if defined.
        ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
@@ -384,8 +394,7 @@
          }
 
       ⍝ MACRO (NAME) PROCESSING
-      ⍝ functions...
-      ⍝ For now, special macros start and end with __.
+      ⍝ Function (specialMacro n) returns 1 if <n> is a special Macro.
          put←{⍺←__DEBUG__ ⋄ verbose←⍺
              n v←⍵   ⍝ add (name, val) to macro list
              n~←' '
@@ -406,12 +415,12 @@
 
       ⍝-----------------------------------------------------------------------
       ⍝ mExpand (macro expansion, including special predefined expansion)
-      ⍝     …                     for continuation
-      ⍝     …                     for numerical sequences
+      ⍝     …                     for continuation (at end of (possbily commented) lines)
+      ⍝     …                     for numerical sequences of form n1 [n2] … n3
       ⍝     25X                   for hexadecimal constants
       ⍝     25I                   for big integer constants
-      ⍝     post USA → 14850      for implicit quoted (name) strings and numbers on left
-      ⍝     `red 025X yellow      for implicit quoted (name) strings and numbers on right
+      ⍝     name → value          for implicit quoted (name) strings and numbers on left
+      ⍝     `atom1 atom2...       for implicit quoted (name) strings and numbers on right
       ⍝
       ⍝-----------------------------------------------------------------------
          mExpand←{
@@ -553,7 +562,6 @@
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ⋄ ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
          pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
-
 
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
@@ -722,6 +730,10 @@
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
          tmpNm←'__',funNm,'__'
+         ∆MY←''⎕NS⍨(⊃⎕NSI),'.ø.',funNm,'.∆MY'
+         (⍎∆MY)._FIRST_←0
+         _←0 put'⎕MY'∆MY
+
 
        ⍝ Initialization
          stack←,1 ⋄ lineNum←0
