@@ -171,14 +171,19 @@
   ⍝H     These may appear on one or more lines. By default, leading blanks on
   ⍝H     continuation lines are ignored, allowing follow-on lines to easily line up
   ⍝H     under the first line. (See the DQ Raw suffix below).
-  ⍝H     str←"This is line 1.
-  ⍝H          This is line 2.
-  ⍝H          This is line 3."
+  ⍝H     A string may be forced to M or S mode by an M or S suffix, ignoring options M or S.
+  ⍝H     Example:
+  ⍝H       str←"This is line 1.     strM←"This is line 1.      strS←"This is line 1.
+  ⍝H            This is line 2.           This is line 2.            This is line 2.
+  ⍝H            This is line 3."          This is line 3."M          This is line 3."S
   ⍝H   ==>
   ⍝H   option 'M':
-  ⍝H     str←'This is line 1.' 'This is line 2.' 'This is line 3.'
+  ⍝H       str← 'This is line 1.' 'This is line 2.' 'This is line 3.'
   ⍝H   option 'S':
-  ⍝H     str←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H       str← ('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H   Regardless of option 'M' vs 'S':
+  ⍝H       strM←'This is line 1.' 'This is line 2.' 'This is line 3.'
+  ⍝H       strS←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
   ⍝H
   ⍝H   ∘ Double-Quoted Raw Suffix:
   ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
@@ -190,7 +195,16 @@
   ⍝H   ==>  (option 'M')
   ⍝H     'This is a' '      raw format' 'double string.'
   ⍝H
+  ⍝H    Triple-double quotes.  """ ... """
+  ⍝H      Triple-double quoted expressions may appear on one or more lines.
+  ⍝H      They are not treated as strings, but as comments, resolving to a single comment.
+  ⍝H          1 + """This is a triple-quote that
+  ⍝H                 is treated as a silly comment""" 4
+  ⍝H      ==>
+  ⍝H          1 +  4
+  ⍝H
   ⍝H    Directives
+  ⍝H    ----------
   ⍝H       (Note: currently comments are removed from preprocessor directives
   ⍝H        before processing.
   ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
@@ -252,6 +266,9 @@
   ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
+  ⍝H
+  ⍝H To add:  ::EXTERN directive:
+  ⍝H          ::EXTERN name←value   (sets  ⎕MY.name←value now and ::DEF name←⎕MY.name (once)
 
    ⍝ OPTIONS
    ⍝ 'V'
@@ -306,11 +323,20 @@
              '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
          }
 
+      ⍝ ∆IF_DEBUG: If ~__DEBUG__
+      ⍝                  [0|1] ∆IF_DEBUG ⍵   returns ''
+      ⍝            Otherwise:
+      ⍝                  [0] ∆IF_DEBUG ⍵     ⎕←⍵ and return ⍵
+      ⍝                  [1] ∆IF_DEBUG ⍵     ⍞←⍵ and return ⍵
+      ⍝
          ∆IF_DEBUG←{⍺←0 ⋄ __DEBUG__∧⍺:⍞←⍵ ⋄ __DEBUG__:⎕←⍵ ⋄ ''}
 
-       ⍝ ∆FLD: ⎕R helper.  ⍵ [default] ∆FLD [fld number | name]
+       ⍝ ∆FLD: ⎕R helper.  ns [default] ∆FLD [fld number | name]
+       ⍝                   ns- ⎕R namespace (passed by ⎕R as ⍵)
+       ⍝                   default- default string if field not defined
+       ⍝                   fld number or name: a single field number or name.
          ∆FLD←{
-             ns def←2↑⍺,⊂''
+             ns def←2↑⍺,⊂''   ⍝ We always use <def> default, so perhaps hard wire it?
              ' '=1↑0⍴⍵:ns def ∇ ns.Names⍳⊂⍵
              ⍵=0:ns.Match                                  ⍝ Fast way to get whole match
              ⍵≥≢ns.Lengths:def                             ⍝ Field not defined AT ALL → ''
@@ -318,47 +344,57 @@
              ns.(Lengths[⍵]↑Offsets[⍵]↓Block)              ⍝ Simple match
          }
        ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
-       ⍝       recursive (within limits ⍺←10) if ⍵≢∆MAP ⍵
+       ⍝       recursive (within limits <⍺>) if ⍵≢∆MAP ⍵
          ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
-
+       ⍝ ∆QT:  Add quotes (default single)
+       ⍝ ∆DQT: Add double quotes
+       ⍝ ∆DEQUOTE: Remove one level of quotes from around a string, addressing internal quotes.
+       ⍝           If ⍵ doesn't begin with a quote in ⍺, does nothing.
+       ⍝ ∆QT0: Double internal quotes (default single)
+       ⍝ ∆QTX: Add external quotes (default single), first doubling internal quotes (if any).
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
-         ∆DEQUOTE←{⍺←'"''' ⋄ ⍺∊⍨1↑⍵:1↓¯1↓⍵ ⋄ ⍵}
+         ∆DQI←{⍺←1↑⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~(2⍴⍺)⍷s}
+         ∆DEQUOTE←{⍺←'"''' ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
          ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
-
+       ⍝ h2d: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
+       ⍝      blanks or trailing X symbols.
          h2d←{   ⍝ Decimal from hexadecimal
              11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
-             16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'⍝ Permissive:ignores non-hex chars!
+             16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
          }
 
-       ⍝ ∆TRUE: a "Python-like" sense of truth
-       ⍝        ⍵ is true unless its value is 0-length ('', ⍬ etc)
-       ⍝                  or 0 or (,0)
+       ⍝ ∆TRUE: a "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
+       ⍝        ⍵ (always a string) is true unless
+       ⍝         a) ⍵ is a blank string, or
+       ⍝         b) its val, v such that v←∊(⊃⎕RSI)⍎⍵ is of length 0 or v≡(,0), or
+       ⍝         c) it cannot be evaluated, in which case a warning is given (and ∆TRUE returns 0).
          ∆TRUE←{
-             ans←{0::0⊣⎕←'∆PRE: Can''t evaluate truth of {',⍵,'}, returning 0'
-                 0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
-                 1
-             }⍵
-             ans
+             0::0⊣⎕←'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+             0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
+             1
          }
 
-       ⍝ GENERAL CONSTANTS
-         NL←⎕UCS 10 ⋄ EMPTY←,⎕UCS 0 ⍝ Marks ∆PRE-generated lines to be deleted before ⎕FIXing
+       ⍝ GENERAL CONSTANTS. Useful in ∆IF_VERBOSE etc.
+         NL←⎕UCS 10
+         YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
+       ⍝ EMPTY: Marks ∆PRE-generated lines to be deleted before ⎕FIXing
+         EMPTY←,⎕UCS 0
+
        ⍝ __DEBUG__ - see above...
          VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱__DEBUG__
          DQ_SINGLE←'S'∊opts          ⍝ Treatment of "...".  Default is 0 ("M" option).
-         YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
              str type←⍵
-             ⋄ lit←'R'∊type
+             ⋄ lit←'R'∊type ⋄ sngl←(⍺∨'S'∊type)∧~'M'∊type
              ⋄ DQ←'"'
              ⋄ u13←''',(⎕UCS 13),'''
              ⋄ opts←('Mode' 'M')('EOL' 'LF')
-             ⍺∧lit:'(',')',⍨∆QT'\n'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str       ⍝ Single mode ∧ literal
-             ⍺:'(',')',⍨∆QT'\n\h*'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str        ⍝ Single mode
+             sngl∧lit:'(',')',⍨∆QT'\n'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str    ⍝ Single mode ∧ literal
+             sngl:'(',')',⍨∆QT'\n\h*'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str     ⍝ Single mode
              lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                  ⍝ Multi  mode ∧ literal
              '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
 
@@ -529,8 +565,13 @@
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
          cOTHER←'apl'reg'    ^                                         .*                $'
 
-      ⍝ patterns solely for the ∇mExpand∇ fn
-         pDQe←'(?x)   (    (?: " [^"]*     "  )+   ) (R)?'  ⍝ R: raw (keep leading blanks)
+       ⍝ patterns solely for the ∇mExpand∇ fn
+       ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
+       ⍝      """... multiline ok """    ==> ' '
+         pDQ3e←'(?sx)  "{3} .*? "{3}'
+       ⍝ Double quote suffixes:  R (raw), S (single string), M (multiple string vectors)
+       ⍝ Default for S|M depends on S or M options. Raw means don't remove leading blanks
+         pDQe←'(?x)   (    (?: " [^"]*     "  )+ )   ([RSM]{0,2}) '
          pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'            ⍝ We trap elsewhere multi-line SQ strings...
          pCommentE←'(?x)   ⍝ .*  $'
        ⍝ ppNum: A non-complex signed APL number (float or dec)
@@ -762,14 +803,15 @@
          pInDirective←'^\h*::'
          inDirective←0
        ⍝ Process double quotes and continuation lines that may cross lines
-         lines←pInDirective pDQe pSQe pCommentE pContE pEOLe ⎕R{
-             cInDirective cDQ cSQ cCm cCn cEOL←⍳6
+         lines←pInDirective pDQ3e pDQe pSQe pCommentE pContE pEOLe ⎕R{
+             cInDirective cDQ3e cDQ cSQ cCm cCn cEOL←⍳7
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
             ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
             ⍝  ⎕←(¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
 
              case cInDirective:f0⊣inDirective⊢←1
+             case cDQ3e:' '                          ⍝ """..."""
              case cDQ:processDQ f1 f2                ⍝ DQ, w/ possible newlines...
              case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
                  ~NL∊⍵:⍵
