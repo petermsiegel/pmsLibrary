@@ -368,11 +368,11 @@
        ⍝ ∆TRUE: a "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
        ⍝        ⍵ (always a string) is true unless
        ⍝         a) ⍵ is a blank string, or
-       ⍝         b) its val, v such that v←∊(⊃⎕RSI)⍎⍵ is of length 0 or v≡(,0), or
+       ⍝         b) its val, v such that v←∊(⊃⎕RSI)⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
        ⍝         c) it cannot be evaluated, in which case a warning is given (and ∆TRUE returns 0).
          ∆TRUE←{
              0::0⊣⎕←'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
-             0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0
+             0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
              1
          }
 
