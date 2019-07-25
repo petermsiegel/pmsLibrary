@@ -291,7 +291,7 @@
        ⍝    ⍺=0: Delete __name__ unless error.
          condSave←{
              _←⎕EX 1⊃⍵
-             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
+             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
              2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
@@ -300,7 +300,9 @@
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
        ⍝ ⎕FIX: If 'c', remove blank lines first; if 'C' remove comment lines and blank lines first.
-         1:2 ⎕FIX{⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
+       ⍝ Lines containing only a null are removed.
+       ⍝ Other ⎕UCS 0's are removed at the very end.
+         1:2 ⎕FIX{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
              ⍵
@@ -429,7 +431,7 @@
                  0=≢l←⍞↓⍨≢⍞←⍵:⍺
                  (⍺,⊂l)∇ ⍵
              }'> '
-             '__PROMPT__' '__NONE__'lines
+             '__TERM__' '__NONE__'lines
          }
 
       ⍝ MACRO (NAME) PROCESSING
@@ -553,7 +555,7 @@
          ⋄ ppTarg←' [^←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
-         ⋄ ppShortNm←'  [\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+         ⋄ ppShortNm←'  [%\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
          ⋄ ppLongNmOnly←'     ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
          ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'          ⍝ ppName - long OR short
 
@@ -661,6 +663,9 @@
                  isVal←⍵
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
+
+                 f4a←(⎕UCS 0)@{'%'=⍵}⊣f4     ⍝ Demo only
+
                  val note←f2{
                      (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                      0=≢⍵:'' '  [EMPTY]'
@@ -675,7 +680,7 @@
 
                      qtFlag:(∆QTX exp)''    ⍝ ::DEF...
                      exp''
-                 }f4
+                 }f4a
                  _←put f2 val
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
                  f0 ∆IF_VERBOSE nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
