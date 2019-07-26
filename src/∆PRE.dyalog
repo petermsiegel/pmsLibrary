@@ -436,11 +436,14 @@
 
       ⍝ MACRO (NAME) PROCESSING
       ⍝ Function (specialMacro n) returns 1 if <n> is a special Macro.
+      ⍝ Includes a feature for preventing recursive matching of the same names
+      ⍝ in a single recursive (repeated) scan.
          put←{⍺←__DEBUG__ ⋄ verbose←⍺
              n v←⍵   ⍝ add (name, val) to macro list
              n~←' '
              names,⍨←⊂n
              vals,⍨←⊂v
+             nameVisible,⍨←1
              ~specialMacro n:⍵        ⍝ Not in domain of specialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              n{
@@ -450,7 +453,11 @@
                  ⍵⊣{⍵:⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
              }⍵
          }
+       ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
+       ⍝ getV ⍵: ditto, but only if nameVisible flag is 1
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
+         getV←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVisible:n
+             (p⊃nameVisible)←0 ⋄ p⊃vals}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
@@ -465,6 +472,7 @@
       ⍝
       ⍝-----------------------------------------------------------------------
          mExpand←{
+             ⍺←__MAX_EXPAND__   ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
              else←⊢
            ⍝ Concise variant on dfns:to, allowing start [incr] to end
            ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
@@ -473,7 +481,8 @@
              ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
              ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
              str←⍵
-             str←{⍺←__MAX_EXPAND__       ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
+             nameVisible[]←1   ⍝ Make all visible until next call to mExpand
+             str←⍺{
                  strIn←str←⍵
                  0≥⍺:⍵
                  ch1←ch2←0
@@ -487,7 +496,7 @@
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
-                         case cLNe:⍕get f0                ⍝ Let multilines fail
+                         case cLNe:⍕getV f0                ⍝ Let multilines fail
                          else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
@@ -503,7 +512,7 @@
                          0=≢f2:∆QT f1             ⍝ No exponent
                          ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
                      }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                     case cShortNmE:⍕get f0
+                     case cShortNmE:⍕getV f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
                  changed←ch1+ch2
@@ -555,7 +564,7 @@
          ⋄ ppTarg←' [^←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
-         ⋄ ppShortNm←'  [%\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+         ⋄ ppShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
          ⋄ ppLongNmOnly←'     ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
          ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'          ⍝ ppName - long OR short
 
@@ -664,7 +673,7 @@
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
 
-                 f4a←(⎕UCS 0)@{'%'=⍵}⊣f4     ⍝ Demo only
+                 f4a←(⎕UCS 0)@('%'∘=)f4     ⍝ Demo only
 
                  val note←f2{
                      (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
@@ -769,7 +778,7 @@
        ⍝ See HELP info above
        ⍝ See below
        ⍝ Set prepopulated macros
-         names←vals←⍬
+         names←vals←nameVisible←⍬
          _←0 put'__DEBUG__'__DEBUG__
          _←0 put'__MAX_EXPAND__' 10          ⍝ Allow macros to be expanded 10 times if changes occurred...
          _←0 put'__MAX_PROGRESSION__' 500
@@ -821,8 +830,8 @@
              case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
                  ~NL∊⍵:⍵
                  ⎕←'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
-                 ⎕←'String: ','⤶'@{NL=⍵}⍵
-                 ' '@{NL=⍵}⍵
+                 ⎕←'String: ','⤶'@(NL∘=)⍵
+                 ' '@(NL∘=)⍵
              }f0
              case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
              case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1   ⍝ Continuation
