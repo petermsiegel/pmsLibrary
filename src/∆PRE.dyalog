@@ -449,7 +449,7 @@
              names,⍨←⊂n
              vals,⍨←⊂v
              nameVis,⍨←1
-             ~specialMacro n:⍵        ⍝ Not in domain of specialMacro function
+             ~specialMacro n:⍵        ⍝ Not in domain of [fast] specialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              n{
                  0::⍵⊣⎕←'∆PRE: Logic error in put' ⍝ Error? Move on.
@@ -459,11 +459,15 @@
              }⍵
          }
        ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
-       ⍝ getV ⍵: ditto, but only if nameVis flag is 1
-       ⍝ hide ⍵: sets nameVis flag to 0 for name ⍵
+       ⍝ getIfVis ⍵: ditto, but only if nameVis flag is 1
+       ⍝ hideEach ⊆⍵: sets nameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
-         getV←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ p⊃vals}
-         hide←{⍺←0 ⋄ n←⍵ ⋄ n~←' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺}
+         getIfVis←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ p⊃vals}
+         hideEach←{
+             ⍺←0 ⋄ ⍺⊣⍺{
+                 p←names⍳⊂⍵~' ' ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺
+             }¨⍵
+         }
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          isDefd←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
@@ -503,12 +507,11 @@
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
-                         case cLongE:⍕getV f0⊣nmsFnd,←⊂f0               ⍝ Let multilines fail
+                         case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0               ⍝ Let multilines fail
                          else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
 
-                ⍝ _←nmsFnd←⍬⊣hide¨nmsFnd
 
               ⍝ [2] pShortNmE: short names (even within found long names)
               ⍝     pSpecialIntE: Hexadecimals and bigInts
@@ -521,12 +524,12 @@
                          0=≢f2:∆QT f1             ⍝ No exponent
                          ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
                      }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                     case cShortNmE:⍕getV f0⊣nmsFnd,←⊂f0
+                     case cShortNmE:⍕getIfVis f0⊣nmsFnd,←⊂f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
                  changed←ch1+ch2
                  0=changed:str
-                 _←nmsFnd←⍬⊣hide¨nmsFnd
+                 _←nmsFnd←⍬⊣hideEach nmsFnd
                  (⍺-changed)∇ str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
