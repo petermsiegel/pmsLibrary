@@ -579,8 +579,9 @@
          ⍝ This is mostly obsolete given we suppress macro definitions on recursion
          ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
          ⋄ ppShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
-         ⋄ ppLongNmOnly←'     ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
-         ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'          ⍝ ppName - long OR short
+         ⋄ ppShortNmPfx←' (?<!\.) ⍎ppShortNm '
+         ⋄ ppLongNmOnly←' ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
+         ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'      ⍝ ppName - long OR short
 
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
@@ -626,7 +627,7 @@
 
 
          pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
-         pShortNmE←∆MAP'(?x) ⍎ppShortNm'
+         pShortNmE←∆MAP'(?x) ⍎ppShortNmPfx'    ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
       ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
