@@ -2,7 +2,7 @@
   ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
   ⍝  These are all defined as "specialMacros" and start and end with dunder __.
      __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
-     specialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
+     isSpecialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
 
   ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
@@ -248,6 +248,40 @@
   ⍝H                              or a backslash followed by a single letter (e.g. to do space),
   ⍝H                              or a single letter. For a single backslash use \\ or 92.
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
+  ⍝H
+  ⍝H       ::STATIC  name         Defines a name stored in ⍵.ø.∆MY (⎕MY.name),
+  ⍝H                              a namespace stored in the calling namespace,
+  ⍝H                              where ⍵ is the fun/obj name, right argument to ∆PRE.
+  ⍝H                              Also, defines macro:
+  ⍝H                                ::DEF name ← ⍵.ø.∆MY.name
+  ⍝H                              so that any reference to the (simple) name <name> will
+  ⍝H                              refer to the identified STATIC <name>.
+  ⍝H                              <name> is erased if this is the first time it appears in a macro.
+  ⍝H       ::STATIC name←val      Like ::STATIC above, but also assigns
+  ⍝H                                ⍵.ø.∆MY.name ← val
+  ⍝H                              val may be a single-line dfn OR an APL expression,
+  ⍝H                              as long as it can be evaluated in the calling namespace
+  ⍝H                              at ∆PRE preprocessor time, with whatever side effects.
+  ⍝H                              If
+  ⍝H                                ::STATIC now←⎕TS
+  ⍝H                              then now is set at preprocessor time. This is completely
+  ⍝H                              different from
+  ⍝H                                ::DEF now←⎕TS
+  ⍝H                              which replaces 'now" with '⎕TS' wherever it is found in
+  ⍝H                              the function code to be evaluated at RUN TIME.
+  ⍝H
+  ⍝H                Note: Typically a STATIC name may refer to prior STATIC names,
+  ⍝H                      but not run-time names in the function, since they haven't
+  ⍝H                      been defined yet.
+  ⍝H                Note: While STATIC names may remain across ∆PRE calls, a name's
+  ⍝H                      value is erased the first time ::STATIC is executed.
+  ⍝H                      This allows a name to change classes across ∆PRE calls, but
+  ⍝H                      NOT within a ∆PRE sequence. E.g. this leads to an error just as in APL.
+  ⍝H                          ::STATIC i1 ← 1 2 3 {⍺←⊢ ⋄ ⎕io←1 ⋄ ⍺⍳⍵} 2
+  ⍝H                          ::STATIC i1 ← {⎕io←1 ⋄ ⍺⍳⍵}
+  ⍝H                      In the first case, i1 is a value, the RESULT of a call; in the second,
+  ⍝H                      it is a function definition.
+  ⍝H
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
   ⍝H       ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
@@ -384,7 +418,7 @@
          }
 
        ⍝ GENERAL CONSTANTS. Useful in ∆IF_VERBOSE etc.
-         NL←⎕UCS 10
+         NL CR←⎕UCS 10 13
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
        ⍝ EMPTY: Marks ∆PRE-generated lines to be deleted before ⎕FIXing
          EMPTY←,⎕UCS 0
@@ -440,7 +474,7 @@
          }
 
       ⍝ MACRO (NAME) PROCESSING
-      ⍝ Function (specialMacro n) returns 1 if <n> is a special Macro.
+      ⍝ Extern function (isSpecialMacro n) returns 1 if <n> is a special Macro.
       ⍝ Includes a feature for preventing recursive matching of the same names
       ⍝ in a single recursive (repeated) scan.
          put←{⍺←__DEBUG__ ⋄ verbose←⍺
@@ -449,14 +483,15 @@
              names,⍨←⊂n
              vals,⍨←⊂v
              nameVis,⍨←1
-             ~specialMacro n:⍵        ⍝ Not in domain of [fast] specialMacro function
+             ~isSpecialMacro n:⍵        ⍝ Not in domain of [fast] isSpecialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
-             n{
+             processSpecialM←{
                  0::⍵⊣⎕←'∆PRE: Logic error in put' ⍝ Error? Move on.
                  v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v         ⍝ Numbers vs Text
                  _←⍎n,'∘←v'                        ⍝ Execute in ∆PRE space, not user space.
                  ⍵⊣{⍵:⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
-             }⍵
+             }
+             n processSpecialM ⍵
          }
        ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
        ⍝ getIfVis ⍵: ditto, but only if nameVis flag is 1
@@ -588,11 +623,12 @@
 
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
+         cSTAT←'stat'reg'    ⍎ppBeg STATIC           \h+ (⍎ppName)    \h*    ⍎ppSetVal   $'
          cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
          cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
-         cTRANS←'trans'reg' ⍎ppBeg TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*         $'
+         cTRANS←'trans'reg' ⍎ppBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*         $'
          cOTHER←'apl'reg'    ^                                         .*                $'
 
 
@@ -686,7 +722,7 @@
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠TOP
-                 0=≢stack:∆IF_VERBOSE'⍝??? ',f0,ERR⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
+                 0=≢stack:∆IF_VERBOSE'⍝??? ',f0,NO⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
                  ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
            ⍝ Shared code for
@@ -757,6 +793,26 @@
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  _←del f1⊣{isDefd ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
+             }0
+             case cSTAT:{
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 nm arrow val←f1 f2 f3
+                 isNew←⍬⍴~isDefd nm             ⍝ Are we reassigning <nm> or not?
+                 _←put nm(myNm←∆MY,'.',nm)
+               ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
+               ⍝ e.g. from prior calls to ∆PRE for the same function/object.
+               ⍝ Note: assigning names with values across classes is not allowed in APL or here.
+                 _←∆MYR.⎕EX⍣isNew⊣nm
+                ⍝ _←∆IF_DEBUG'Erasing ',myNm,isNew⊃': FALSE' ': TRUE'
+
+                 okMsg more←{
+                     0=≢arrow:YES''
+                     invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
+                     0::NO(CR,'⍝ ',⎕←(invalidE,CR,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),CR,'∘err∘')
+
+                     YES''⊣∆MYR⍎nm,'←',val,'⋄1'
+                 }0
+                 ⊢⎕←(∆IF_VERBOSE f0,okMsg),more
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
@@ -833,6 +889,11 @@
        ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
        ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
          ∆MY←''⎕NS⍨(⊃⎕NSI),'.ø.',funNm,'.∆MY'
+         _←{
+             0=≢list←∆MY.⎕NL-⍳10:0
+             ⎕←'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
+             1⊣⎕←'  Variables:',∊' ',¨list
+         }
          (∆MYR←⍎∆MY)._FIRST_←1
          _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
          _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←(~_FIRST_) 1'
