@@ -242,6 +242,11 @@
   ⍝H         Treated as:  b←do_something_with 'PHASE2'
   ⍝H
   ⍝H
+  ⍝H       ::TR(ANS) code1 code2  Causes <code1> to be translated to <code2> in each
+  ⍝H                              line of input as it is processed.
+  ⍝H                              codeN is either a number (hex or dec) of at least 2 chars,
+  ⍝H                              or a backslash followed by a single letter (e.g. to do space),
+  ⍝H                              or a single letter. For a single backslash use \\ or 92.
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
@@ -443,7 +448,7 @@
              n~←' '
              names,⍨←⊂n
              vals,⍨←⊂v
-             nameVisible,⍨←1
+             nameVis,⍨←1
              ~specialMacro n:⍵        ⍝ Not in domain of specialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              n{
@@ -454,10 +459,10 @@
              }⍵
          }
        ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
-       ⍝ getV ⍵: ditto, but only if nameVisible flag is 1
+       ⍝ getV ⍵: ditto, but only if nameVis flag is 1
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
-         getV←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVisible:n
-             (p⊃nameVisible)←0 ⋄ p⊃vals}
+         getHide←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ (p⊃nameVis)∘←0 ⋄ p⊃vals}
+       ⍝  setVis←{n Vis←⍵ ⋄ n~←' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←Vis}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
          def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
@@ -481,14 +486,14 @@
              ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
              ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
              str←⍵
-             nameVisible[]←1   ⍝ Make all visible until next call to mExpand
+             nameVis[]∘←1   ⍝ Make all visible until next call to mExpand
              str←⍺{
                  strIn←str←⍵
                  0≥⍺:⍵
                  ch1←ch2←0
              ⍝ Match/mExpand...
              ⍝ [1] pLongNmE: long names,
-                 cSQe cCommentE cLNe←0 1 2
+                 cSQe cCommentE cLongE←0 1 2
                  str←{
                      e1←'∆PRE: Value is too complex to represent statically:'
                      4::4 ⎕SIGNAL⍨e1,(⎕UCS 13),'⍝     In macro code: "',⍵,'"'
@@ -496,7 +501,7 @@
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
-                         case cLNe:⍕getV f0                ⍝ Let multilines fail
+                         case cLongE:⍕getHide f0                ⍝ Let multilines fail
                          else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
@@ -512,12 +517,12 @@
                          0=≢f2:∆QT f1             ⍝ No exponent
                          ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
                      }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                     case cShortNmE:⍕getV f0
+                     case cShortNmE:⍕getHide f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
                  changed←ch1+ch2
-                 0≠changed:(⍺-changed)∇ str    ⍝ mExpand is recursive, but only initial __MAX_EXPAND__ times.
-                 str
+                 0=changed:str
+                 (⍺-changed)∇ str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
          ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
@@ -538,7 +543,6 @@
                  __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
                  ⍕progr
                                           ⍝  .. preceded or followed by non-constants
-
              }⍠'UCP' 1⊣str
              str
          }
@@ -564,6 +568,11 @@
          ⋄ ppTarg←' [^←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
+         ⍝ Note that we allow a null \0 to be the initial char. of a name.
+         ⍝ This can be used to suppress finding a name in a replacement,
+         ⍝ and \0 will be removed at the end of processing.
+         ⍝ This is mostly obsolete given we suppress macro definitions on recursion
+         ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
          ⋄ ppShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
          ⋄ ppLongNmOnly←'     ⍎ppShortNm (?: \. ⍎ppShortNm )+'   ⍝ Note: Forcing Longnames to have at least one .
          ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'          ⍝ ppName - long OR short
@@ -574,7 +583,10 @@
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
          cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
+         cTRANS←'trans'reg' ⍎ppBeg TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*         $'
          cOTHER←'apl'reg'    ^                                         .*                $'
+
+
 
        ⍝ patterns solely for the ∇mExpand∇ fn
        ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
@@ -630,7 +642,9 @@
 
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=TOP:{str←mExpand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str}f0
+                 T=TOP:{
+                     str←mExpand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str
+                 }f0
                  ∆IF_VERBOSE f0,SKIP     ⍝ See ∆IF_VERBOSE, QUIET
              }0
            ⍝ ::IFDEF/IFNDEF name
@@ -673,8 +687,6 @@
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
 
-                 f4a←(⎕UCS 0)@('%'∘=)f4     ⍝ Demo only
-
                  val note←f2{
                      (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                      0=≢⍵:'' '  [EMPTY]'
@@ -689,7 +701,7 @@
 
                      qtFlag:(∆QTX exp)''    ⍝ ::DEF...
                      exp''
-                 }f4a
+                 }f4
                  _←put f2 val
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
                  f0 ∆IF_VERBOSE nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
@@ -769,6 +781,26 @@
                  }⍬
                  ∆IF_VERBOSE f0,info
              }⍬
+           ⍝ ::TRANS can really mess up preprocessing, since all directives will be
+           ⍝ translated before they are seen. Use carefully.
+             case cTRANS:{
+                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 info←''
+                 f1 f2←{
+                     0::¯1
+                     0=≢⍵:¯1 ⋄ info,←','/⍨0≠≢info
+                     (1=≢⍵)∧⍵≡,'\':' '⊣info,←' " " U+32'          ⍝ \ch2    (ch2=' ')
+                     1=≢⍵:⍵⊣info,←' U+',⍕⎕UCS ⍵                   ⍝ ch1
+                     (2=≢⍵)∧'\'=⊃⍵:c⊣info,←' U+',⍕⎕UCS(c←⊃⌽⍵)     ⍝ \ch     (ch≠' ')
+                     c←⎕UCS u←{1∊'xX'∊⍵:h2d ⍵ ⋄ ⍎⍵}⍵
+                     u≥32:c⊣info,←' "',c,'"'                      ⍝ digits  (from hex/dec)
+                     c⊣info,←' [ctl]'                             ⍝ digits  (ctl char)
+                 }¨f1 f2
+                 ¯1∊f1 f2:(∆IF_VERBOSE f0),NL,'∘',(⎕←f0,NL)⊢⎕←'∆PRE ::TRANS ERROR'
+                 (translateIn translateOut)∘←f1 f2
+
+                 ∆IF_VERBOSE f0,' ⍝ ',info
+             }⍬
          }
 
       ⍝ --------------------------------------------------------------------------------
@@ -778,7 +810,7 @@
        ⍝ See HELP info above
        ⍝ See below
        ⍝ Set prepopulated macros
-         names←vals←nameVisible←⍬
+         names←vals←nameVis←⍬
          _←0 put'__DEBUG__'__DEBUG__
          _←0 put'__MAX_EXPAND__' 10          ⍝ Allow macros to be expanded 10 times if changes occurred...
          _←0 put'__MAX_PROGRESSION__' 500
@@ -800,6 +832,7 @@
        ⍝ Initialization
          stack←,1 ⋄ lineNum←0
          includedFiles←⊂fullNm
+         translateIn←translateOut←¯1           ⍝ None
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
          _←∆IF_DEBUG'Processing object ',(∆DQT funNm),' from file ',∆DQT fullNm
@@ -846,8 +879,11 @@
        ⍝ Process macros... one line at a time, so state is dependent only on lines before...
          lines←{⍺←⍬
              0=≢⍵:⍺
-             l←patternList ⎕R processDirectives⍠'UCP' 1⊣⊃⍵
-             (⍺,⊂l)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
+             line←⊃⍵
+           ⍝ Single-char translation input option. See ::TRANS
+             line←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⊃⍵
+             line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
+             (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
          }lines
        ⍝ Return specifics to next phase for ⎕FIXing
          funNm tmpNm lines
