@@ -460,11 +460,12 @@
          }
        ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
        ⍝ getV ⍵: ditto, but only if nameVis flag is 1
+       ⍝ hide ⍵: sets nameVis flag to 0 for name ⍵
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
-         getHide←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ (p⊃nameVis)∘←0 ⋄ p⊃vals}
-       ⍝  setVis←{n Vis←⍵ ⋄ n~←' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←Vis}
+         getV←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ p⊃vals}
+         hide←{⍺←0 ⋄ n←⍵ ⋄ n~←' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺}
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
-         def←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
+         isDefd←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
       ⍝-----------------------------------------------------------------------
       ⍝ mExpand (macro expansion, including special predefined expansion)
@@ -490,6 +491,7 @@
              str←⍺{
                  strIn←str←⍵
                  0≥⍺:⍵
+                 nmsFnd←⍬
                  ch1←ch2←0
              ⍝ Match/mExpand...
              ⍝ [1] pLongNmE: long names,
@@ -501,10 +503,12 @@
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
-                         case cLongE:⍕getHide f0                ⍝ Let multilines fail
+                         case cLongE:⍕getV f0⊣nmsFnd,←⊂f0               ⍝ Let multilines fail
                          else f0                          ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
+
+                ⍝ _←nmsFnd←⍬⊣hide¨nmsFnd
 
               ⍝ [2] pShortNmE: short names (even within found long names)
               ⍝     pSpecialIntE: Hexadecimals and bigInts
@@ -517,11 +521,12 @@
                          0=≢f2:∆QT f1             ⍝ No exponent
                          ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
                      }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                     case cShortNmE:⍕getHide f0
+                     case cShortNmE:⍕getV f0⊣nmsFnd,←⊂f0
                      else f0     ⍝ pSQe or pCommentE
                  }⍠'UCP' 1⊣str
                  changed←ch1+ch2
                  0=changed:str
+                 _←nmsFnd←⍬⊣hide¨nmsFnd
                  (⍺-changed)∇ str
              }str
          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
@@ -650,7 +655,7 @@
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
                  T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 stack,←c←~⍣(1∊'nN'∊f1)⊣def f2
+                 stack,←c←~⍣(1∊'nN'∊f1)⊣isDefd f2
                  ∆IF_VERBOSE f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
            ⍝ ::IF cond
@@ -732,7 +737,7 @@
           ⍝ Like ::CDEF, but quotes result of CDEF.
              case cCDEF:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 def f2:∆IF_VERBOSE f0,NO   ⍝ If <name> defined, don't ::DEF...
+                 isDefd f2:∆IF_VERBOSE f0,NO   ⍝ If <name> defined, don't ::DEF...
                  qtFlag arrFlag←0≠≢¨f1 f3
                  val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
                      exp←mExpand ⍵
@@ -746,7 +751,7 @@
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 _←del f1⊣{def ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
+                 _←del f1⊣{isDefd ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
