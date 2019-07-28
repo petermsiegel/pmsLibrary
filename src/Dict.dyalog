@@ -716,8 +716,8 @@
     _←⎕FX 'help'⎕R'HELP'⊣⎕NR 'help'
 
 :EndNamespace
- simpleDict←{
-     ⍝ d ← [default] simpleDict 
+ SimpleDict←{
+     ⍝ d ← [default] simpleDict
      ⍺←''   ⍝ Default is character null-string.
             ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
      set←{⍺←dict
@@ -736,7 +736,7 @@
      dict←⎕NS''
      dict.dict←dict
      dict.(keys values)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
-     dict.(default ⎕IO ⎕ML )←⍺ 0 1 
+     dict.(default ⎕IO ⎕ML )←⍺ 0 1
      dict.set←set
      dict.get←get
      dict
