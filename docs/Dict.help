@@ -4,6 +4,7 @@
 ⍝H1 |  Dict        HELP                                             |
 ⍝H1 |  DefaultDict HELP*                                            |
 ⍝H1 |  TinyDict    HELP                                             |
+⍝H1 |  simpleDict  [Not documented: function <simpleDict>]          |
 ⍝H1 |  * DefaultDict objects have same syntax as Dict once created. |
 ⍝H1 +---------------------------------------------------------------+
 ⍝H1 Dict
