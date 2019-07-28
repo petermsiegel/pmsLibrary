@@ -2,7 +2,7 @@
   ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
   ⍝  These are all defined as "specialMacros" and start and end with dunder __.
   ⍝  Comments? See below (at bottom)
-  
+
      __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
      isSpecialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
 
@@ -585,7 +585,7 @@
 
        ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
        ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
-         ∆MY←''⎕NS⍨(⊃⎕NSI),'.ø.',funNm,'.∆MY'
+         ∆MY←''⎕NS⍨(⊃⎕NSI),'.⍙⍙.',funNm,'.∆MY'
          _←{
              0=≢list←∆MY.⎕NL-⍳10:0
              ⎕←'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
@@ -655,7 +655,7 @@
        ⍝ Return specifics to next phase for ⎕FIXing
          funNm tmpNm lines
      }⍵
-  
+
   ⍝H ∆PRE    20190711
   ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
   ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
@@ -901,16 +901,16 @@
   ⍝H                              or a single letter. For a single backslash use \\ or 92.
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H
-  ⍝H       ::STATIC  name         Defines a name stored in ⍵.ø.∆MY (⎕MY.name),
+  ⍝H       ::STATIC  name         Defines a name stored in ⍵.⍙⍙.∆MY (⎕MY.name),
   ⍝H                              a namespace stored in the calling namespace,
   ⍝H                              where ⍵ is the fun/obj name, right argument to ∆PRE.
   ⍝H                              Also, defines macro:
-  ⍝H                                ::DEF name ← ⍵.ø.∆MY.name
+  ⍝H                                ::DEF name ← ⍵.⍙⍙.∆MY.name
   ⍝H                              so that any reference to the (simple) name <name> will
   ⍝H                              refer to the identified STATIC <name>.
   ⍝H                              <name> is erased if this is the first time it appears in a macro.
   ⍝H       ::STATIC name←val      Like ::STATIC above, but also assigns
-  ⍝H                                ⍵.ø.∆MY.name ← val
+  ⍝H                                ⍵.⍙⍙.∆MY.name ← val
   ⍝H                              val may be a single-line dfn OR an APL expression,
   ⍝H                              as long as it can be evaluated in the calling namespace
   ⍝H                              at ∆PRE preprocessor time, with whatever side effects.
@@ -960,5 +960,5 @@
   ⍝H
   ⍝H To add:  ::EXTERN directive:
   ⍝H          ::EXTERN name←value   (sets  ⎕MY.name←value now and ::DEF name←⎕MY.name (once)
-  
+
  }
