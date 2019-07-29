@@ -733,6 +733,15 @@
          p<≢d.keys:p⊃values
          d.default
      }
+     del←{⍺←dict
+         d n←⍺ ⍵
+         p←d.keys⍳⊂n
+         p>≢d.keys:_←0
+         k←p≠⍳≢keys
+         d.keys←k/d.keys 
+         d.values←k/d.values
+         1:_←1
+     }
      dict←⎕NS''
      dict.dict←dict
      dict.(keys values)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
