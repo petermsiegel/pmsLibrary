@@ -329,7 +329,9 @@
 
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
-         cSTAT←'stat'reg'    ⍎ppBeg STATIC           \h+ (⍎ppName)    \h*    ⍎ppSetVal   $'
+         ⍝ statPat: name | name ← val | code_to_execute
+         ⋄ statPat←'    ⍎ppBeg STATIC \h+ (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
+         cSTAT←'stat'reg statPat
          cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
          cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
@@ -503,19 +505,28 @@
              case cSTAT:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  nm arrow val←f1 f2 f3
-                 isNew←⍬⍴~isDefd nm             ⍝ Are we reassigning <nm> or not?
+               ⍝ ::STATIC apl_code
+                 0=≢nm:(∆IF_VERBOSE f0,okMsg),more⊣(okMsg more)←{
+                     invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
+                     0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
+                     YES''⊣∆MYR⍎val,'⋄1'
+                 }0
+               ⍝ ::STATIC name
+               ⍝ ::STATIC name ← value
+               ⍝ isOld: Erase name only if not prefixed absolutely and if already seen this ∆PRE
+                 isOld←⍬⍴(isDefd nm)∧~'#⎕'∊⍨1↑nm
                  _←put nm(myNm←∆MY,'.',nm)
                ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
                ⍝ e.g. from prior calls to ∆PRE for the same function/object.
                ⍝ Note: assigning names with values across classes is not allowed in APL or here.
-                 _←∆MYR.⎕EX⍣isNew⊣nm
+
+                 _←∆MYR.⎕EX⍣isOld⊣nm
                 ⍝ _←∆IF_DEBUG'Erasing ',myNm,isNew⊃': FALSE' ': TRUE'
 
                  okMsg more←{
                      0=≢arrow:YES''
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
-
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
                  (∆IF_VERBOSE f0,okMsg),more
