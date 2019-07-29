@@ -64,7 +64,7 @@
          }
          ∆SAY←{ ⍝ Print any UCS 10 using UCS 13-- so APL prints lined up on left.
              ⍺←0
-             txt←(⎕UCS 13)@(NL∘=)⊣⍵
+             txt←CR@(NL∘=)⊣⍵
              ⍺:⍵⊣⍞←txt
              ⍵⊣⎕←txt
          }
@@ -123,7 +123,8 @@
          }
 
        ⍝ GENERAL CONSTANTS. Useful in ∆IF_VERBOSE etc.
-         NL←⎕UCS 10
+       ⍝ Use NL for all newlines. Use CR in error msgs (APL treats NL as PC/typewriter newline)
+         NL CR←⎕UCS 10 13
 
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
        ⍝ EMPTY: Marks ∆PRE-generated lines to be deleted before ⎕FIXing
@@ -138,10 +139,10 @@
              str type←⍵
              ⋄ lit←'R'∊type ⋄ sngl←(⍺∨'S'∊type)∧~'M'∊type
              ⋄ DQ←'"'
-             ⋄ u13←''',(⎕UCS 13),'''
+             ⋄ Q_CR_Q←''',(⎕UCS 13),'''
              ⋄ opts←('Mode' 'M')('EOL' 'LF')
-             sngl∧lit:'(',')',⍨∆QT'\n'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str    ⍝ Single mode ∧ literal
-             sngl:'(',')',⍨∆QT'\n\h*'⎕R u13⍠opts⊢∆QT0 ∆DEQUOTE str     ⍝ Single mode
+             sngl∧lit:'(',')',⍨∆QT'\n'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆DEQUOTE str    ⍝ Single mode ∧ literal
+             sngl:'(',')',⍨∆QT'\n\h*'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆DEQUOTE str     ⍝ Single mode
              lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                  ⍝ Multi  mode ∧ literal
              '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
 
@@ -243,7 +244,7 @@
                  cSQe cCommentE cLongE←0 1 2
                  str←{
                      e1←'∆PRE: Value is too complex to represent statically:'
-                     4::4 ⎕SIGNAL⍨e1,(⎕UCS 13),'⍝     In macro code: "',⍵,'"'
+                     4::4 ⎕SIGNAL⍨e1,CR,'⍝     In macro code: "',⍵,'"'
                      pSQe pCommentE pLongNmE ⎕R{
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
@@ -375,7 +376,7 @@
 
          pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
          pShortNmE←∆MAP'(?x) ⍎ppShortNmPfx'    ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
-      ⍝       Convert multiline quoted strings "..." to single lines ('...',(⎕UCS 13),'...')
+      ⍝  Convert multiline quoted strings "..." to single lines ('...',CR,'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
       ⍝ For  (names → ...) and (`names)
@@ -504,24 +505,27 @@
              }0
              case cSTAT:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 nm arrow val←f1 f2 f3
-               ⍝ ::STATIC apl_code
-                 0=≢nm:(∆IF_VERBOSE f0,okMsg),more⊣(okMsg more)←{
+                 nm arrow←f1 f2
+                 val←mExpand f3
+               ⍝ If the expansion to <val> changed <f3>, note in output comment
+                 expMsg←(val≢f3)⊃'' (' ➡ ',val)
+               ⍝[1] ::STATIC apl_code
+                 0=≢nm:(∆IF_VERBOSE f0,expMsg,okMsg),more⊣(okMsg more)←{
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
                      YES''⊣∆MYR⍎val,'⋄1'
                  }0
-               ⍝ ::STATIC name
-               ⍝ ::STATIC name ← value
+               ⍝[2a] ::STATIC name
+               ⍝[2b] ::STATIC name ← value
                ⍝ isOld: Erase name only if not prefixed absolutely and if already seen this ∆PRE
                  isOld←⍬⍴(isDefd nm)∧~'#⎕'∊⍨1↑nm
                  _←put nm(myNm←∆MY,'.',nm)
-               ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
-               ⍝ e.g. from prior calls to ∆PRE for the same function/object.
-               ⍝ Note: assigning names with values across classes is not allowed in APL or here.
+                ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
+                ⍝ e.g. from prior calls to ∆PRE for the same function/object.
+                ⍝ Note: assigning names with values across classes is not allowed in APL or here.
 
                  _←∆MYR.⎕EX⍣isOld⊣nm
-                ⍝ _←∆IF_DEBUG'Erasing ',myNm,isNew⊃': FALSE' ': TRUE'
+                 ⍝ _←∆IF_DEBUG'Erasing ',myNm,isNew⊃': FALSE' ': TRUE'
 
                  okMsg more←{
                      0=≢arrow:YES''
@@ -529,7 +533,7 @@
                      0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
-                 (∆IF_VERBOSE f0,okMsg),more
+                 (∆IF_VERBOSE f0,expMsg,okMsg),more
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
@@ -597,6 +601,8 @@
          _←0 put'__MAX_EXPAND__' 10          ⍝ Allow macros to be expanded 10 times if changes occurred...
          _←0 put'__MAX_PROGRESSION__' 500
          _←0 put'__INCLUDE_LIMITS__'(5 10)
+       ⍝ Other macros
+         _←0 put'⎕UCMD' '⎕SE.UCMD'
 
 
        ⍝ Read in data file...
@@ -615,6 +621,7 @@
          _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
          _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←(~_FIRST_) 1'
          _←0 put'⎕MY'∆MY
+
 
        ⍝ Initialization
          stack←,1 ⋄ lineNum←0
@@ -724,7 +731,7 @@
   ⍝H                 A multiline DQ string ends up as multiple char vectors
   ⍝H        Output:  str←'line1' 'line2' 'line3'
   ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
-  ⍝H        Output:  str←('line1',(⎕UCS 13),'line2',(⎕UCS 13),'line three')
+  ⍝H        Output:  str←('line1',CR,'line2',CR,'line three')
   ⍝H
   ⍝H    'C'          (Compress) Remove blank lines and comment lines (most useful w/ Q)!
   ⍝H    'c'          (small compress) Remove blank lines only!
@@ -852,10 +859,10 @@
   ⍝H   option 'M':
   ⍝H       str← 'This is line 1.' 'This is line 2.' 'This is line 3.'
   ⍝H   option 'S':
-  ⍝H       str← ('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H       str← ('This is line 1.',CR,'This is line 2.',CR,'This is line 3.')
   ⍝H   Regardless of option 'M' vs 'S':
   ⍝H       strM←'This is line 1.' 'This is line 2.' 'This is line 3.'
-  ⍝H       strS←('This is line 1.',(⎕UCS 13),'This is line 2.',(⎕UCS 13),'This is line 3.')
+  ⍝H       strS←('This is line 1.',CR,'This is line 2.',CR,'This is line 3.')
   ⍝H
   ⍝H   ∘ Double-Quoted Raw Suffix:
   ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
