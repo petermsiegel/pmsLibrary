@@ -717,20 +717,20 @@
 
 :EndNamespace
  SimpleDict←{
-     ⍝ d ← [default] simpleDict
+     ⍝ d ← [default] simpleDict [key-value pairs | ⍬]
      ⍺←''   ⍝ Default is character null-string.
             ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
      set←{⍺←dict
          d(n v)←⍺ ⍵
          p←d.keys⍳⊂n
-         p<≢d.keys:(p⊃d.values)←v
+         p<≢d.keys:(p⊃d.vals)←v
          d.keys,←⊂n
-         1:_←v⊣d.values,←⊂v
+         1:_←v⊣d.vals,←⊂v
      }
      get←{⍺←dict
          d n←⍺ ⍵
          p←d.keys⍳⊂n
-         p<≢d.keys:p⊃values
+         p<≢d.keys:p⊃vals
          d.default
      }
      del←{⍺←dict
@@ -739,14 +739,15 @@
          p>≢d.keys:_←0
          k←p≠⍳≢keys
          d.keys←k/d.keys 
-         d.values←k/d.values
+         d.vals←k/d.vals
          1:_←1
      }
      dict←⎕NS''
      dict.dict←dict
-     dict.(keys values)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
+     dict.(keys vals)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
      dict.(default ⎕IO ⎕ML )←⍺ 0 1
      dict.set←set
      dict.get←get
+     dict.del←del
      dict
  }
