@@ -62,14 +62,20 @@
              0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
              '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
          }
+         ∆SAY←{ ⍝ Print any UCS 10 using UCS 13-- so APL prints lined up on left.
+             ⍺←0
+             txt←(⎕UCS 13)@(NL∘=)⊣⍵
+             ⍺:⍵⊣⍞←txt
+             ⍵⊣⎕←txt
+         }
 
       ⍝ ∆IF_DEBUG: If ~__DEBUG__
       ⍝                  [0|1] ∆IF_DEBUG ⍵   returns ''
       ⍝            Otherwise:
-      ⍝                  [0] ∆IF_DEBUG ⍵     ⎕←⍵ and return ⍵
+      ⍝                  [0] ∆IF_DEBUG ⍵     ⍵ and return ⍵
       ⍝                  [1] ∆IF_DEBUG ⍵     ⍞←⍵ and return ⍵
       ⍝
-         ∆IF_DEBUG←{⍺←0 ⋄ __DEBUG__∧⍺:⍞←⍵ ⋄ __DEBUG__:⎕←⍵ ⋄ ''}
+         ∆IF_DEBUG←{⍺←0 ⋄ __DEBUG__∧⍺:1 ∆SAY ⍵ ⋄ __DEBUG__:∆SAY ⍵ ⋄ ''}
 
        ⍝ ∆FLD: ⎕R helper.  ns [default] ∆FLD [fld number | name]
        ⍝                   ns- ⎕R namespace (passed by ⎕R as ⍵)
@@ -111,13 +117,14 @@
        ⍝         b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
        ⍝         c) it cannot be evaluated, in which case a warning is given (and ∆TRUE returns 0).
          ∆TRUE←{
-             0::0⊣⎕←'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+             0::0⊣∆SAY'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
              0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
              1
          }
 
        ⍝ GENERAL CONSTANTS. Useful in ∆IF_VERBOSE etc.
-         NL CR←⎕UCS 10 13
+         NL←⎕UCS 10
+
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
        ⍝ EMPTY: Marks ∆PRE-generated lines to be deleted before ⎕FIXing
          EMPTY←,⎕UCS 0
@@ -164,7 +171,7 @@
              }⍵
          }
          promptForData←{
-             ⎕←'Enter lines. Empty line to terminate.'
+             _←∆SAY'Enter lines. Empty line to terminate.'
              lines←{⍺←⊂'__TERM__'
                  0=≢l←⍞↓⍨≢⍞←⍵:⍺
                  (⍺,⊂l)∇ ⍵
@@ -185,10 +192,10 @@
              ~isSpecialMacro n:⍵        ⍝ Not in domain of [fast] isSpecialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              processSpecialM←{
-                 0::⍵⊣⎕←'∆PRE: Logic error in put' ⍝ Error? Move on.
+                 0::⍵⊣∆SAY'∆PRE: Logic error in put' ⍝ Error? Move on.
                  v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v         ⍝ Numbers vs Text
                  _←⍎n,'∘←v'                        ⍝ Execute in ∆PRE space, not user space.
-                 ⍵⊣{⍵:⎕←'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
+                 ⍵⊣{⍵:∆SAY'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
              }
              n processSpecialM ⍵
          }
@@ -421,7 +428,7 @@
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠TOP
-                 0=≢stack:∆IF_VERBOSE'⍝??? ',f0,NO⊣stack←,0⊣⎕←'INVALID ::END statement at line [',lineNum,']'
+                 0=≢stack:∆IF_VERBOSE'⍝??? ',f0,NO⊣stack←,0⊣∆SAY'INVALID ::END statement at line [',lineNum,']'
                  ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
            ⍝ Shared code for
@@ -438,7 +445,7 @@
 
                      isVal:{                ⍝ ::EVAL | ::VAL
                          m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
-                         0::(⍵,' ∘∘INVALID∘∘')(m⊣⎕←m,': ',⍵)
+                         0::(⍵,' ∘∘INVALID∘∘')(m⊣∆SAY m,': ',⍵)
                          qtFlag:(∆QTX⍕⍎⍵)''
                          (⍕⍎⍵)''
                      }exp
@@ -490,7 +497,7 @@
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 _←del f1⊣{isDefd ⍵:'' ⋄ ⎕←INFO,' UNDEFining an undefined name: ',⍵}f1
+                 _←del f1⊣{isDefd ⍵:'' ⋄ ∆SAY INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
              }0
              case cSTAT:{
@@ -507,7 +514,7 @@
                  okMsg more←{
                      0=≢arrow:YES''
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
-                     0::NO(CR,'⍝ ',⎕←(invalidE,CR,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),CR,'∘err∘')
+                     0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
 
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
@@ -529,7 +536,7 @@
                      count←+/includedFiles≡¨⊂⍺
                      warn err←(⊂INFO,'::INCLUDE '),¨'WARNING: ' 'ERROR: '
                      count≤1↑__INCLUDE_LIMITS__:⍬
-                     count≤¯1↑__INCLUDE_LIMITS__:⎕←warn,'File "',⍺,'" included ',(⍕count),' times'
+                     count≤¯1↑__INCLUDE_LIMITS__:∆SAY warn,'File "',⍺,'" included ',(⍕count),' times'
                      11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
                  }includedFiles
 
@@ -560,7 +567,7 @@
                      u≥32:c⊣info,←' "',c,'"'                      ⍝ digits  (from hex/dec)
                      c⊣info,←' [ctl]'                             ⍝ digits  (ctl char)
                  }¨f1 f2
-                 ¯1∊f1 f2:(∆IF_VERBOSE f0),NL,'∘',(⎕←f0,NL)⊢⎕←'∆PRE ::TRANS ERROR'
+                 ¯1∊f1 f2:(∆IF_VERBOSE f0),NL,'∘',(∆SAY f0,NL)⊢∆SAY'∆PRE ::TRANS ERROR'
                  (translateIn translateOut)∘←f1 f2
 
                  ∆IF_VERBOSE f0,' ⍝ ',info
@@ -590,8 +597,8 @@
          ∆MY←''⎕NS⍨(⊃⎕NSI),'.⍙⍙.',funNm,'.∆MY'
          _←{
              0=≢list←∆MY.⎕NL-⍳10:0
-             ⎕←'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
-             1⊣⎕←'  Variables:',∊' ',¨list
+             _←∆SAY'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
+             1⊣∆SAY'  Variables:',∊' ',¨list
          }
          (∆MYR←⍎∆MY)._FIRST_←1
          _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
@@ -624,15 +631,15 @@
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
             ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
-            ⍝  ⎕←(¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
+            ⍝  ∆SAY (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
 
              case cInDirective:f0⊣inDirective⊢←1
              case cDQ3e:' '                          ⍝ """..."""
              case cDQ:processDQ f1 f2                ⍝ DQ, w/ possible newlines...
              case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
                  ~NL∊⍵:⍵
-                 ⎕←'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
-                 ⎕←'String: ','⤶'@(NL∘=)⍵
+                 _←∆SAY'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
+                 _←∆SAY'String: ','⤶'@(NL∘=)⍵
                  ' '@(NL∘=)⍵
              }f0
              case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
