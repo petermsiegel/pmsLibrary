@@ -3,6 +3,8 @@
   ⍝  These are all defined as "specialMacros" and start and end with dunder __.
   ⍝  Comments? See below (at bottom)
 
+     CALLER←0⊃⎕RSI
+
      __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
      isSpecialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
 
@@ -16,8 +18,8 @@
 
    ⍝ 'E'
      EDIT←(⎕NULL≡⍵)∨'E'∊opts
-   ⍝ 'D'? Check (0⊃⎕RSI).__DEBUG__ and set macro __DEBUG__ to 1 or 0.
-     __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧(0⊃⎕RSI){0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
+   ⍝ 'D'? Check CALLER.__DEBUG__ and set macro __DEBUG__ to 1 or 0.
+     __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧CALLER{0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
    ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
    ⍝ and attempt to ⎕FIX its included function or functions.
@@ -27,7 +29,7 @@
        ⍝    ⍺=0: Delete __name__ unless error.
          condSave←{
              _←⎕EX 1⊃⍵
-             ⍺:⍎'(0⊃⎕RSI).',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
+             ⍺:⍎'CALLER.',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
              2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
@@ -38,14 +40,14 @@
        ⍝ ⎕FIX: If 'c', remove blank lines first; if 'C' remove comment lines and blank lines first.
        ⍝ Lines containing only a null are removed.
        ⍝ Other ⎕UCS 0's are removed at the very end.
-         1:2 ⎕FIX{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
+         1:2 CALLER.⎕FIX{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
              ⍵
          }(⍺ condSave ⍵){
              ~EDIT:⍺
            ⍝ E(DIT) flag? edit before returning to save and ⎕FIX
-             ⍺⊣(0⊃⎕RSI).⎕ED(1⊃⍵)
+             ⍺⊣CALLER.⎕ED(1⊃⍵)
          }⍵
      }(⊆,⍺){
          opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
@@ -106,11 +108,11 @@
        ⍝ ∆TRUE: a "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
        ⍝        ⍵ (always a string) is true unless
        ⍝         a) ⍵ is a blank string, or
-       ⍝         b) its val, v such that v←∊(⊃⎕RSI)⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
+       ⍝         b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
        ⍝         c) it cannot be evaluated, in which case a warning is given (and ∆TRUE returns 0).
          ∆TRUE←{
              0::0⊣⎕←'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
-             0=≢⍵~' ':0 ⋄ 0=≢val←∊(⊃⎕RSI)⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
+             0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
              1
          }
 
@@ -509,7 +511,7 @@
 
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
-                 ⊢⎕←(∆IF_VERBOSE f0,okMsg),more
+                 (∆IF_VERBOSE f0,okMsg),more
              }0
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
@@ -539,7 +541,7 @@
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  info←' ','[',']',⍨{
                      0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
-                     'IMPORTED'⊣put f1((⊃⎕RSI).⎕OR f2)
+                     'IMPORTED'⊣put f1(CALLER.⎕OR f2)
                  }⍬
                  ∆IF_VERBOSE f0,info
              }⍬
