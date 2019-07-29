@@ -506,26 +506,35 @@
              case cSTAT:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  nm arrow←f1 f2
-                 val←mExpand f3
+                 val←mExpand(f3←f3~' ')
                ⍝ If the expansion to <val> changed <f3>, note in output comment
-                 expMsg←(val≢f3)⊃'' (' ➡ ',val)
+                 expMsg←(val≢f3)⊃''(' ➡ ',val)
                ⍝[1] ::STATIC apl_code
                  0=≢nm:(∆IF_VERBOSE f0,expMsg,okMsg),more⊣(okMsg more)←{
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
-                     0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
+                     0::NO(NL,'⍝>  ',∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘static err∘')
                      YES''⊣∆MYR⍎val,'⋄1'
                  }0
                ⍝[2a] ::STATIC name
                ⍝[2b] ::STATIC name ← value
-               ⍝ isOld: Erase name only if not prefixed absolutely and if already seen this ∆PRE
-                 isOld←⍬⍴(isDefd nm)∧~'#⎕'∊⍨1↑nm
+               ⍝ isFirstDef: Erase name only if first definition and
+               ⍝             not prefixed with #. or ⎕SE etc.
+                 isFirstDef←⍬⍴(isNew←~isDefd nm)∧~'#⎕'∊⍨1↑nm
+               ⍝ Warn if name has been seen before in this session
+                 _←{⍵:''
+                     _←∆IF_DEBUG'Note: STATIC "',nm,': has been redeclared'
+                     0≠≢f3:∆IF_DEBUG'>     Value now "',f3,'"'
+                     ''
+                 }isNew
                  _←put nm(myNm←∆MY,'.',nm)
+
                 ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
                 ⍝ e.g. from prior calls to ∆PRE for the same function/object.
                 ⍝ Note: assigning names with values across classes is not allowed in APL or here.
 
-                 _←∆MYR.⎕EX⍣isOld⊣nm
-                 ⍝ _←∆IF_DEBUG'Erasing ',myNm,isNew⊃': FALSE' ': TRUE'
+                 _←∆MYR.⎕EX⍣isFirstDef⊣nm
+
+              ⍝   _←∆IF_DEBUG'>  Erasing ',myNm,': ',isFirstDef⊃'FALSE' 'TRUE'
 
                  okMsg more←{
                      0=≢arrow:YES''
