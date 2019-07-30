@@ -54,28 +54,33 @@
 
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
        ⍝
-       ⍝ ∆IF_VERBOSE:  If VERBOSE,
-       ⍝         ∘ show Directive (::name) and result as comment in output.
-       ⍝         ∘ if len ⍺ not 0, pad ⍵ by its leading blanks.
-         ∆IF_VERBOSE←{
+       ⍝ annotate:
+       ⍝ If VERBOSE,
+       ⍝     write to preprocessor output:
+       ⍝         (b⍴' '),⍵
+       ⍝     where
+       ⍝         b is # of leading blanks in string ⍺, if ⍺ is specified.
+       ⍝         b is # of leading blanks in string ⍵, otherwise.
+       ⍝     ⍵ is typically a preprocessor directive, potentially w/ leading blanks,
+       ⍝     Where ⍵ is modified, ⍺ is the original or model directive w/ leading blanks.
+       ⍝ else
+       ⍝     write the token EMPTY (a NULL char with special meaning).
+         annotate←{
              ~VERBOSE:EMPTY ⋄ ⍺←⍬
              0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
              '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
          }
-         ∆SAY←{ ⍝ Print any UCS 10 using UCS 13-- so APL prints lined up on left.
-             ⍺←0
-             txt←CR@(NL∘=)⊣⍵
-             ⍺:⍵⊣⍞←txt
-             ⍵⊣⎕←txt
-         }
+       ⍝ print- print ⍵ as a line ⍵' on output, converting NL to CR (so APL prints properly)
+       ⍝ printQ-same as print, but using ⍞←⍵' rather than ⎕←⍵.
+       ⍝ Both return: ⍵, not the translated ⍵'.
+         print←{⍵⊣⎕←CR@(NL∘=)⊣⍵}
+         printQ←{⍵⊣⍞←CR@(NL∘=)⊣⍵}
+       ⍝ dPrint- same as print,  but only if __DEBUG__=1.
+       ⍝ dPrintQ-same as printQ, but only if __DEBUG__=1.
+       ⍝ Returns ⍵.
+         dPrint←{__DEBUG__:print ⍵ ⋄ ⍵}
+         dPrintQ←{__DEBUG__:printQ ⍵ ⋄ ⍵}
 
-      ⍝ ∆IF_DEBUG: If ~__DEBUG__
-      ⍝                  [0|1] ∆IF_DEBUG ⍵   returns ''
-      ⍝            Otherwise:
-      ⍝                  [0] ∆IF_DEBUG ⍵     ⍵ and return ⍵
-      ⍝                  [1] ∆IF_DEBUG ⍵     ⍞←⍵ and return ⍵
-      ⍝
-         ∆IF_DEBUG←{⍺←0 ⋄ __DEBUG__∧⍺:1 ∆SAY ⍵ ⋄ __DEBUG__:∆SAY ⍵ ⋄ ''}
 
        ⍝ ∆FLD: ⎕R helper.  ns [default] ∆FLD [fld number | name]
        ⍝                   ns- ⎕R namespace (passed by ⎕R as ⍵)
@@ -92,67 +97,71 @@
        ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
        ⍝       recursive (within limits <⍺>) if ⍵≢∆MAP ⍵
          ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
-       ⍝ ∆QT:  Add quotes (default single)
+       ⍝ ∆QT:  Add quotes (default ⍺: single)
        ⍝ ∆DQT: Add double quotes
-       ⍝ ∆DEQUOTE: Remove one level of quotes from around a string, addressing internal quotes.
-       ⍝           If ⍵ doesn't begin with a quote in ⍺, does nothing.
-       ⍝ ∆QT0: Double internal quotes (default single)
-       ⍝ ∆QTX: Add external quotes (default single), first doubling internal quotes (if any).
+       ⍝ ∆UNQ: Remove one level of s/d quotes from around a string, addressing internal quotes.
+       ⍝       If ⍵ doesn't begin with a quote in ⍺ (default: s/d quotes), does nothing.
+       ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
+       ⍝ ∆QTX: Add external quotes (default ⍺: single), first doubling internal quotes (if any).
          ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
          ∆DQT←{'"'∆QT ⍵}
-         ∆DQI←{⍺←1↑⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~(2⍴⍺)⍷s}
-         ∆DEQUOTE←{⍺←'"''' ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
+         ∆UNQ←{⍺←'"''' ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
          ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
-       ⍝ h2d: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
+       ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
        ⍝      blanks or trailing X symbols.
-         h2d←{   ⍝ Decimal from hexadecimal
+         ∆H2D←{   ⍝ Decimal from hexadecimal
              11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
          }
 
-       ⍝ ∆TRUE: a "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
-       ⍝        ⍵ (always a string) is true unless
-       ⍝         a) ⍵ is a blank string, or
-       ⍝         b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
-       ⍝         c) it cannot be evaluated, in which case a warning is given (and ∆TRUE returns 0).
+       ⍝ ∆TRUE ⍵:
+       ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
+       ⍝ ⍵ (a string) is 1 (true) unless
+       ⍝    a) ⍵ is a blank or null string, or
+       ⍝    b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
+       ⍝    c) it cannot be evaluated, in which case a warning is given before returning 0.
          ∆TRUE←{
-             0::0⊣∆SAY'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+             0::0⊣print'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
              0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
              1
          }
 
-       ⍝ GENERAL CONSTANTS. Useful in ∆IF_VERBOSE etc.
+       ⍝ GENERAL CONSTANTS. Useful in annotate etc.
        ⍝ Use NL for all newlines. Use CR in error msgs (APL treats NL as PC/typewriter newline)
          NL CR←⎕UCS 10 13
-
+       ⍝ Annotations (see annotate).
+       ⍝   YES - path taken.    NO - path not taken (false conditional).
+       ⍝   SKIP- skipped because it is governed by a conditional that was false.
+       ⍝   INFO- added information.
          YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
-       ⍝ EMPTY: Marks ∆PRE-generated lines to be deleted before ⎕FIXing
+       ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
          EMPTY←,⎕UCS 0
 
-       ⍝ __DEBUG__ - see above...
+       ⍝ __DEBUG__  see above...
          VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱__DEBUG__
-         DQ_SINGLE←'S'∊opts          ⍝ Treatment of "...".  Default is 0 ("M" option).
+       ⍝ DQ_SINGLE: 'S' opt. Treat double-quoted lines as a single NL-embedded string
+       ⍝        vs: 'M' opt. Treat as a vector of strings.
+         DQ_SINGLE←'S'∊opts
 
        ⍝ Process double quotes based on DQ_SINGLE flag.
          processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
              str type←⍵
              ⋄ lit←'R'∊type ⋄ sngl←(⍺∨'S'∊type)∧~'M'∊type
              ⋄ DQ←'"'
-             ⋄ Q_CR_Q←''',(⎕UCS 13),'''
+             ⋄ Q_CR_Q←''',(⎕UCS 13),'''                            ⍝ APL expects a CR, not NL.
              ⋄ opts←('Mode' 'M')('EOL' 'LF')
-             sngl∧lit:'(',')',⍨∆QT'\n'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆DEQUOTE str    ⍝ Single mode ∧ literal
-             sngl:'(',')',⍨∆QT'\n\h*'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆DEQUOTE str     ⍝ Single mode
-             lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                  ⍝ Multi  mode ∧ literal
-             '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆DEQUOTE str                   ⍝ Multi  mode
-
+             sngl∧lit:'(',')',⍨∆QT'\n'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆UNQ str ⍝ Single mode ∧ literal
+             sngl:'(',')',⍨∆QT'\n\h*'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆UNQ str  ⍝ Single mode
+             lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆UNQ str                  ⍝ Multi  mode ∧ literal
+             '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆UNQ str                   ⍝ Multi  mode
              '∆PRE: processDQ logic error'⎕SIGNAL 911
          }
 
-       ⍝ getDataIn:
+       ⍝ getDataIn object:⍵
        ⍝ get function '⍵' or its char. source '⍵_src', if defined.
        ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
-       ⍝ If the obj is ⎕NULL, the object is prompted from the user.
+       ⍝ If the obj ⍵ is ⎕NULL, the object is prompted from the user.
        ⍝ (See promptForData) for returned value.
          getDataIn←{∆∆←∇
              19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
@@ -160,10 +169,8 @@
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
              dir dirs←(⊃⍺)⍺
-             types←{
-                 0≠≢⊃⌽⎕NPARTS ⍵:⊂''     ⍝ If the file has an explicit type, use only it...
-                 '.dyapp' '.dyalog'
-             }⍵
+           ⍝ If the file has an explicit extension, it determines the type.
+             types←{0≠≢⊃⌽⎕NPARTS ⍵:⊂'' ⋄ '.dyapp' '.dyalog'}⍵
              types{
                  0=≢⍺:(1↓dirs)∆∆ ⍵
                  filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
@@ -171,16 +178,16 @@
                  (1↓⍺)∇ ⍵
              }⍵
          }
+       ⍝ prompt User for data to preprocess. Useful for testing...
+       ⍝ Creates object __TERM__, its full filename is '/dev/null', and lines as specified.
          promptForData←{
-             _←∆SAY'Enter lines. Empty line to terminate.'
-             lines←{⍺←⊂'__TERM__'
-                 0=≢l←⍞↓⍨≢⍞←⍵:⍺
-                 (⍺,⊂l)∇ ⍵
-             }'> '
-             '__TERM__' '__NONE__'lines
+             _←print'Enter lines. Empty line to terminate.'
+             lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
+             '__TERM__' '/dev/null'lines
          }
 
       ⍝ MACRO (NAME) PROCESSING
+      ⍝ put, get, getIfVis, hideEach, del, isDefined
       ⍝ Extern function (isSpecialMacro n) returns 1 if <n> is a special Macro.
       ⍝ Includes a feature for preventing recursive matching of the same names
       ⍝ in a single recursive (repeated) scan.
@@ -193,10 +200,10 @@
              ~isSpecialMacro n:⍵        ⍝ Not in domain of [fast] isSpecialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              processSpecialM←{
-                 0::⍵⊣∆SAY'∆PRE: Logic error in put' ⍝ Error? Move on.
-                 v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v         ⍝ Numbers vs Text
-                 _←⍎n,'∘←v'                        ⍝ Execute in ∆PRE space, not user space.
-                 ⍵⊣{⍵:∆SAY'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
+                 0::⍵⊣print'∆PRE: Logic error in put' ⍝ Error? Move on.
+                 v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v            ⍝ Numbers vs Text
+                 _←⍎n,'∘←v'                           ⍝ Execute in ∆PRE space, not user space.
+                 ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
              }
              n processSpecialM ⍵
          }
@@ -205,13 +212,11 @@
        ⍝ hideEach ⊆⍵: sets nameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
          get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
          getIfVis←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ p⊃vals}
-         hideEach←{
-             ⍺←0 ⋄ ⍺⊣⍺{
-                 p←names⍳⊂⍵~' ' ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺
-             }¨⍵
+         hideEach←{⍺←0
+             ⍺⊣⍺{p←names⍳⊂⍵~' ' ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺}¨⍵
          }
          del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
-         isDefd←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
+         isDefined←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
 
       ⍝-----------------------------------------------------------------------
       ⍝ mExpand (macro expansion, including special predefined expansion)
@@ -225,7 +230,6 @@
       ⍝-----------------------------------------------------------------------
          mExpand←{
              ⍺←__MAX_EXPAND__   ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
-             else←⊢
            ⍝ Concise variant on dfns:to, allowing start [incr] to end
            ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
            ⍝ expanded to allow simply (homogeneous) Unicode chars
@@ -252,7 +256,7 @@
                          case cSQe:f0
                          case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0       ⍝ Let multilines fail
                          case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1       ⍝ ]etc → ⎕SE.UCMD 'etc'
-                         else f0                                    ⍝ comments
+                         ⊢f0                                        ⍝ else: comments
                      }⍠'UCP' 1⊣⍵
                  }str
 
@@ -264,12 +268,12 @@
                      ch2⊢←1
                      f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                      case cSpecialIntE:{
-                         ⍵∊'xX':⍕h2d f1
+                         ⍵∊'xX':⍕∆H2D f1
                          0=≢f2:∆QT f1             ⍝ No exponent
                          ∆QT f1,('0'⍴⍨⍎f2)        ⍝ Explicit exponent-- append 0s.
                      }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
                      case cShortNmE:⍕getIfVis f0⊣nmsFnd,←⊂f0
-                     else f0     ⍝ pSQe or pCommentE
+                     ⊢f0                         ⍝ else: pSQe or pCommentE
                  }⍠'UCP' 1⊣str
                  changed←ch1+ch2
                  0=changed:str
@@ -400,52 +404,52 @@
                  T=TOP:{
                      str←mExpand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str
                  }f0
-                 ∆IF_VERBOSE f0,SKIP     ⍝ See ∆IF_VERBOSE, QUIET
+                 annotate f0,SKIP     ⍝ See annotate, QUIET
              }0
 
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
-                 T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 stack,←c←~⍣(1∊'nN'∊f1)⊣isDefd f2
-                 ∆IF_VERBOSE f0,' ➡ ',(⍕c),(c⊃NO YES)
+                 T≠TOP:annotate f0,SKIP⊣stack,←S
+                 stack,←c←~⍣(1∊'nN'∊f1)⊣isDefined f2
+                 annotate f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
 
            ⍝ ::IF cond
              case cIF:{
-                 T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
+                 T≠TOP:annotate f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE(e←mExpand f1)
-                 ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
 
           ⍝  ::ELSEIF
              case cELSEIF:{
-                 S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 T=TOP:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
+                 S=TOP:annotate f0,SKIP⊣stack,←S
+                 T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←c←∆TRUE(e←mExpand f1)
-                 ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
 
            ⍝ ::ELSE
              case cELSE:{
-                 S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
-                 T=TOP:∆IF_VERBOSE f0,NO⊣(⊃⌽stack)←F
+                 S=TOP:annotate f0,SKIP⊣stack,←S
+                 T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
                  (⊃⌽stack)←T
-                 ∆IF_VERBOSE f0,' ➡ 1',YES
+                 annotate f0,' ➡ 1',YES
              }0
 
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
                  c←S≠TOP
-                 0=≢stack:∆IF_VERBOSE'⍝??? ',f0,NO⊣stack←,0⊣∆SAY'INVALID ::END statement at line [',lineNum,']'
-                 ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
+                 0=≢stack:annotate'⍝??? ',f0,NO⊣stack←,0⊣print'INVALID ::END statement at line [',lineNum,']'
+                 annotate f0
              }0
 
            ⍝ Shared code for
            ⍝   ::DEF(Q) and ::(E)VALQ
              procDefVal←{
                  isVal←⍵
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  qtFlag arrFlag←0≠≢¨f1 f3
 
                  val note←f2{
@@ -455,7 +459,7 @@
 
                      isVal:{                ⍝ ::EVAL | ::VAL
                          m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
-                         0::(⍵,' ∘∘INVALID∘∘')(m⊣∆SAY m,': ',⍵)
+                         0::(⍵,' ∘∘INVALID∘∘')(m⊣print m,': ',⍵)
                          qtFlag:(∆QTX⍕⍎⍵)''
                          (⍕⍎⍵)''
                      }exp
@@ -465,7 +469,7 @@
                  }f4
                  _←put f2 val
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
-                 f0 ∆IF_VERBOSE nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
+                 f0 annotate nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
 
           ⍝ ::DEF | ::DEFQ
@@ -474,28 +478,28 @@
           ⍝ ::DEF name ← ⊢      ==>  name ← '⊢'     Make name a NOP
           ⍝ ::DEF name ← ⍝...      ==>  name ← '⍝...'
           ⍝   Define name as val, unconditionally.
-          ⍝
           ⍝ ::DEFQ ...
-          ⍝   Same as ::DEF, except quote val.
+          ⍝   Same as ::DEF, except put the value in single-quotes.
              case cDEF:procDefVal 0
-           ⍝  ::EVAL | ::EVALQ
-           ⍝  ::VAL  | ::VALQ
-           ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
-           ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
-           ⍝    Returns <val> executed in the caller namespace...
-           ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
-           ⍝    Experimental preprocessor-time evaluation
 
+          ⍝  ::EVAL | ::EVALQ
+          ⍝  ::VAL  | ::VALQ
+          ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
+          ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
+          ⍝    Returns <val> executed in the caller namespace...
+          ⍝  ::EVALQ: like EVAL, but returns the value in single quotes.
+          ⍝    Experimental preprocessor-time evaluation
              case cVAL:procDefVal 1
+
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
           ⍝  etc.
           ⍝ Set name to val only if name NOT already defined.
           ⍝ ::CDEFQ ...
-          ⍝ Like ::CDEF, but quotes result of CDEF.
+          ⍝ Like ::CDEF, but returns the value in single quotes.
              case cCDEF:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 isDefd f2:∆IF_VERBOSE f0,NO   ⍝ If <name> defined, don't ::DEF...
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                 isDefined f2:annotate f0,NO   ⍝ If <name> defined, don't ::DEF...
                  qtFlag arrFlag←0≠≢¨f1 f3
                  val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
                      exp←mExpand ⍵
@@ -503,84 +507,96 @@
                      exp
                  }f4
                  _←put f2 val
-                 f0 ∆IF_VERBOSE'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
+                 f0 annotate'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
              }0
 
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 _←del f1⊣{isDefd ⍵:'' ⋄ ∆SAY INFO,' UNDEFining an undefined name: ',⍵}f1
-                 ∆IF_VERBOSE f0,YES
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                 _←del f1⊣{isDefined ⍵:'' ⋄ print INFO,' UNDEFining an undefined name: ',⍵}f1
+                 annotate f0,YES
              }0
 
+           ⍝ ::STATIC
+           ⍝   1) declare names that exist between function calls. See ⎕MY/∆MY
+           ⍝   2) create preproc-time static values,
+           ⍝   3) execute code at preproc time
              case cSTAT:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  usr nm arrow←f1 f2 f3
                  val←{
+               ⍝ [1a] Expand any code that is not prefixed ]...
                      0=≢usr:mExpand f4
-                   ⍝ Handle User commands by decoding any assignment ]name←val
-                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
+               ⍝ [1b] Expand ::STATIC ]user code
+               ⍝ Handle User commands by decoding any assignment ]name←val
+               ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
                      _←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4  ⍝ ]name ← val or  ]val
                      nm∘←arrow∘←''
                      _
                  }0
                ⍝ If the expansion to <val> changed <f3>, note in output comment
                  expMsg←''(' ➡ ',val)⊃⍨val≢f4
-               ⍝[1] ::STATIC apl_code
-                 0=≢nm:(∆IF_VERBOSE f0,expMsg,okMsg),more⊣(okMsg more)←{
+
+               ⍝[2] Evaluate ::STATIC apl_code and return.
+                 0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO({
                          _←NL,'⍝>  '
-                         _,←∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
+                         _,←print invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')',NL
                          _,←'∘static err∘'
                          _
                      }0)
                      YES''⊣∆MYR⍎val,'⋄1'
                  }0
-               ⍝[2a] ::STATIC name
-               ⍝[2b] ::STATIC name ← value
+               ⍝ Return if apl_code, i.e. NOT a name declaration (with opt'l assignment)
+
+               ⍝[3a] Process ::STATIC name          - declaration
+               ⍝[3b] Process ::STATIC name ← value  - declaration and assignment
+
                ⍝ isFirstDef: Erase name only if first definition and
-               ⍝             not prefixed with #. or ⎕SE etc.
-                 isFirstDef←⍬⍴(isNew←~isDefd nm)∧~'#⎕'∊⍨1↑nm
+               ⍝             not an absolute var, i.e. prefixed with # or ⎕ (⎕SE)
+                 isFirstDef←⍬⍴(isNew←~isDefined nm)∧~'#⎕'∊⍨1↑nm
 
                ⍝ Warn if name has been seen before in this session
                  _←{⍵:''
-                     _←∆IF_DEBUG'Note: STATIC "',nm,': has been redeclared'
-                     0≠≢f3:∆IF_DEBUG'>     Value now "',f3,'"'
+                     _←dPrint'Note: STATIC "',nm,': has been redeclared'
+                     0≠≢f3:dPrint'>     Value now "',f3,'"'
                      ''
                  }isNew
+                 ⍝ Register <nm> as if user ⎕MY.nm; see ⎕MY/∆MY.
+                 ⍝ Wherever it is used in subsequent code, it's as if calling:
+                 ⍝   ::DEF nm ← ⎕MY.nm
                  _←put nm(myNm←∆MY,'.',nm)
 
                 ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
                 ⍝ e.g. from prior calls to ∆PRE for the same function/object.
-                ⍝ Note: assigning names with values across classes is not allowed in APL or here.
-
+                ⍝ print: assigning names with values across classes is not allowed in APL or here.
                  _←∆MYR.⎕EX⍣isFirstDef⊣nm
 
-              ⍝   _←∆IF_DEBUG'>  Erasing ',myNm,': ',isFirstDef⊃'FALSE' 'TRUE'
-
-                 okMsg more←{
+                 okMsg errMsg←{
                      0=≢arrow:YES''
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO({
-                         _←NL,'⍝>  ',∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
+                         _←NL,'⍝>  '
+                         _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
                          _,←'∘static err∘'
                          _
                      }0)
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
-                 (∆IF_VERBOSE f0,expMsg,okMsg),more
+                 _←annotate f0,expMsg,okMsg
+                 _,errMsg
              }0
 
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 funNm←∆DEQUOTE f1
-                 _←1 ∆IF_DEBUG INFO,2↓(bl←+/∧\f0=' ')↓f0
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                 funNm←∆UNQ f1
+                 _←dPrintQ INFO,2↓(bl←+/∧\f0=' ')↓f0
                  (_ fullNm dataIn)←getDataIn funNm
-                 _←1 ∆IF_DEBUG',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
+                 _←dPrintQ',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
                  _←fullNm{
                      includedFiles,←⊂⍺
@@ -589,41 +605,42 @@
                      count←+/includedFiles≡¨⊂⍺
                      warn err←(⊂INFO,'::INCLUDE '),¨'WARNING: ' 'ERROR: '
                      count≤1↑__INCLUDE_LIMITS__:⍬
-                     count≤¯1↑__INCLUDE_LIMITS__:∆SAY warn,'File "',⍺,'" included ',(⍕count),' times'
+                     count≤¯1↑__INCLUDE_LIMITS__:print warn,'File "',⍺,'" included ',(⍕count),' times'
                      11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
                  }includedFiles
-
                  includeLines∘←dataIn
-                 ∆IF_VERBOSE f0,' ',INFO,msg
+                 annotate f0,' ',INFO,msg
              }0
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  info←' ','[',']',⍨{
                      0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
                      'IMPORTED'⊣put f1(CALLER.⎕OR f2)
                  }⍬
-                 ∆IF_VERBOSE f0,info
+                 annotate f0,info
              }⍬
+           ⍝ ::TRANS ⍺ ⍵    Translate char ⍺ to ⍵
            ⍝ ::TRANS can really mess up preprocessing, since all directives will be
            ⍝ translated before they are seen. Use carefully.
              case cTRANS:{
-                 T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
+                 T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  info←''
                  f1 f2←{
                      0::¯1
                      0=≢⍵:¯1 ⋄ info,←','/⍨0≠≢info
                      (1=≢⍵)∧⍵≡,'\':' '⊣info,←' " " U+32'          ⍝ \ch2    (ch2=' ')
                      1=≢⍵:⍵⊣info,←' U+',⍕⎕UCS ⍵                   ⍝ ch1
-                     (2=≢⍵)∧'\'=⊃⍵:c⊣info,←' U+',⍕⎕UCS(c←⊃⌽⍵)     ⍝ \ch     (ch≠' ')
-                     c←⎕UCS u←{1∊'xX'∊⍵:h2d ⍵ ⋄ ⍎⍵}⍵
+                     c←⍵↓⍨esc←'\'=⊃⍵
+                     escC←esc∧(~⎕D∊⍨⊃c)∧1=≢c
+                     escC:c⊣info,←' U+',⍕⎕UCS c                   ⍝ \c, ~(c∊⎕D)
+                     c←⎕UCS u←{1∊'xX'∊⍵:∆H2D ⍵ ⋄ ⍎⍵}c             ⍝ \dd or dd
                      u≥32:c⊣info,←' "',c,'"'                      ⍝ digits  (from hex/dec)
                      c⊣info,←' [ctl]'                             ⍝ digits  (ctl char)
                  }¨f1 f2
-                 ¯1∊f1 f2:(∆IF_VERBOSE f0),NL,'∘',(∆SAY f0,NL)⊢∆SAY'∆PRE ::TRANS ERROR'
+                 ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ::TRANS ERROR'
                  (translateIn translateOut)∘←f1 f2
-
-                 ∆IF_VERBOSE f0,' ⍝ ',info
+                 annotate f0,' ⍝ ',info
              }⍬
          }
 
@@ -652,8 +669,8 @@
          ∆MY←''⎕NS⍨(⊃⎕NSI),'.⍙⍙.',funNm,'.∆MY'
          _←{
              0=≢list←∆MY.⎕NL-⍳10:0
-             _←∆SAY'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
-             1⊣∆SAY'  Variables:',∊' ',¨list
+             _←print'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
+             1⊣print'  Variables:',∊' ',¨list
          }
          (∆MYR←⍎∆MY)._FIRST_←1
          _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
@@ -667,8 +684,8 @@
          translateIn←translateOut←¯1           ⍝ None
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
-         _←∆IF_DEBUG'Processing object ',(∆DQT funNm),' from file ',∆DQT fullNm
-         _←∆IF_DEBUG'Object has ',NLINES,' lines'
+         _←dPrint'Processing object ',(∆DQT funNm),' from file ',∆DQT fullNm
+         _←dPrint'Object has ',NLINES,' lines'
 
          dataFinal←⍬
 
@@ -687,15 +704,15 @@
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
             ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
-            ⍝  ∆SAY (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
+            ⍝  print (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
 
              case cInDirective:f0⊣inDirective⊢←1
              case cDQ3e:' '                          ⍝ """..."""
              case cDQ:processDQ f1 f2                ⍝ DQ, w/ possible newlines...
              case cSQ:{                              ⍝ SQ  - passthru, unless newlines...
                  ~NL∊⍵:⍵
-                 _←∆SAY'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
-                 _←∆SAY'String: ','⤶'@(NL∘=)⍵
+                 _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
+                 _←print'String: ','⤶'@(NL∘=)⍵
                  ' '@(NL∘=)⍵
              }f0
              case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
@@ -959,11 +976,14 @@
   ⍝H         Treated as:  b←do_something_with 'PHASE2'
   ⍝H
   ⍝H
-  ⍝H       ::TR(ANS) code1 code2  Causes <code1> to be translated to <code2> in each
-  ⍝H                              line of input as it is processed.
-  ⍝H                              codeN is either a number (hex or dec) of at least 2 chars,
-  ⍝H                              or a backslash followed by a single letter (e.g. to do space),
-  ⍝H                              or a single letter. For a single backslash use \\ or 92.
+  ⍝H       ::TRANS   code1 code2  Causes <code1> to be translated to <code2> in each
+  ⍝H       ::TR                   line of input as it is processed.
+  ⍝H                              codeN is either a single character OR
+  ⍝H                                 \\   backslash
+  ⍝H                                 \    space
+  ⍝H                                 \dd  digits indicating unicode decimal (or dd [*])
+  ⍝H                                 \ddX digits indicating unicode hexadecimal (or ddX [*])
+  ⍝H                              [*] if dd or ddX is 2 or more digits.
   ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
   ⍝H
   ⍝H       ::STATIC  name         Defines a name stored in ⍵.⍙⍙.∆MY (⎕MY.name),
