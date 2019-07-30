@@ -240,17 +240,19 @@
                  nmsFnd←⍬
                  ch1←ch2←0
              ⍝ Match/mExpand...
+                 pUserE←'^\h*\]\h*(.*)$'    ⍝ User cmds: ]... (See also ⎕UCMD)
              ⍝ [1] pLongNmE: long names,
-                 cSQe cCommentE cLongE←0 1 2
+                 cUserE cSQe cCommentE cLongE←0 1 2 3
                  str←{
                      e1←'∆PRE: Value is too complex to represent statically:'
                      4::4 ⎕SIGNAL⍨e1,CR,'⍝     In macro code: "',⍵,'"'
-                     pSQe pCommentE pLongNmE ⎕R{
+                     pUserE pSQe pCommentE pLongNmE ⎕R{
                          ch1⊢←1
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                          case cSQe:f0
-                         case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0               ⍝ Let multilines fail
-                         else f0                          ⍝ comments
+                         case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0       ⍝ Let multilines fail
+                         case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1       ⍝ ]etc → ⎕SE.UCMD 'etc'
+                         else f0                                    ⍝ comments
                      }⍠'UCP' 1⊣⍵
                  }str
 
@@ -331,7 +333,7 @@
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          ⍝ statPat: name | name ← val | code_to_execute
-         ⋄ statPat←'    ⍎ppBeg STATIC \h+ (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
+         ⋄ statPat←'    ⍎ppBeg STATIC \h+ (\]?) \h* (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
          cSTAT←'stat'reg statPat
          cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
@@ -359,7 +361,7 @@
          ⋄ ppDot1e,←'   | ( ⍎ppCh1 (?: \h+ ⍎ppCh1)* | ⍎ppCh2 ) \h* ⍎ppDot \h* (⍎ppCh1) ) '
          pDot1e←∆MAP'(?x)   ⍎ppDot1e'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
-      ⍝  Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
+       ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
          ⋄ ppHex←'   ¯? (\d  [\dA-F]*)             X'
          ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
          ⋄ ppBigInt←'¯? (\d+) (?: E (\d+) )? I'
@@ -369,17 +371,16 @@
          ⍝ Exponents are invalid for hexadecimals, because the exponential range
          ⍝ is not defined/allowed.
          pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎ppHex | ⍎ppBigInt ) '
-      ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
-      ⍝ pLongNmE Long names are of the form #.a or a.b.c
-      ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
 
-
+       ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
+       ⍝ pLongNmE Long names are of the form #.a or a.b.c
+       ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
          pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
          pShortNmE←∆MAP'(?x) ⍎ppShortNmPfx'    ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
-      ⍝  Convert multiline quoted strings "..." to single lines ('...',CR,'...')
+       ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
-      ⍝ For  (names → ...) and (`names)
+       ⍝ For  (names → ...) and (`names)
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ⋄ ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
          pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
@@ -401,18 +402,21 @@
                  }f0
                  ∆IF_VERBOSE f0,SKIP     ⍝ See ∆IF_VERBOSE, QUIET
              }0
+
            ⍝ ::IFDEF/IFNDEF name
              case cIFDEF:{
                  T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
                  stack,←c←~⍣(1∊'nN'∊f1)⊣isDefd f2
                  ∆IF_VERBOSE f0,' ➡ ',(⍕c),(c⊃NO YES)
              }0
+
            ⍝ ::IF cond
              case cIF:{
                  T≠TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
                  stack,←c←∆TRUE(e←mExpand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
+
           ⍝  ::ELSEIF
              case cELSEIF:{
                  S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
@@ -420,6 +424,7 @@
                  (⊃⌽stack)←c←∆TRUE(e←mExpand f1)
                  ∆IF_VERBOSE f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
              }0
+
            ⍝ ::ELSE
              case cELSE:{
                  S=TOP:∆IF_VERBOSE f0,SKIP⊣stack,←S
@@ -427,6 +432,7 @@
                  (⊃⌽stack)←T
                  ∆IF_VERBOSE f0,' ➡ 1',YES
              }0
+
            ⍝ ::END(IF(N)(DEF))
              case cEND:{
                  stack↓⍨←¯1
@@ -434,6 +440,7 @@
                  0=≢stack:∆IF_VERBOSE'⍝??? ',f0,NO⊣stack←,0⊣∆SAY'INVALID ::END statement at line [',lineNum,']'
                  ∆IF_VERBOSE f0     ⍝ Line up cEND with skipped IF/ELSE
              }0
+
            ⍝ Shared code for
            ⍝   ::DEF(Q) and ::(E)VALQ
              procDefVal←{
@@ -460,6 +467,7 @@
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
                  f0 ∆IF_VERBOSE nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
+
           ⍝ ::DEF | ::DEFQ
           ⍝ ::DEF name ← val    ==>  name ← 'val'
           ⍝ ::DEF name          ==>  name ← 'name'
@@ -477,6 +485,7 @@
            ⍝    Returns <val> executed in the caller namespace...
            ⍝  ::EVALQ: like EVAL, but returns the value QUOTED.
            ⍝    Experimental preprocessor-time evaluation
+
              case cVAL:procDefVal 1
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
@@ -496,6 +505,7 @@
                  _←put f2 val
                  f0 ∆IF_VERBOSE'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
              }0
+
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
@@ -503,12 +513,20 @@
                  _←del f1⊣{isDefd ⍵:'' ⋄ ∆SAY INFO,' UNDEFining an undefined name: ',⍵}f1
                  ∆IF_VERBOSE f0,YES
              }0
+
              case cSTAT:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
-                 nm arrow←f1 f2
-                 val←mExpand f3
+                 usr nm arrow←f1 f2 f3
+                 val←{
+                     0=≢usr:mExpand f4
+                   ⍝ Handle User commands by decoding any assignment ]name←val
+                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
+                     _←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4  ⍝ ]name ← val or  ]val
+                     nm∘←arrow∘←''
+                     _
+                 }0
                ⍝ If the expansion to <val> changed <f3>, note in output comment
-                 expMsg←''(' ➡ ',val)⊃⍨val≢f3
+                 expMsg←''(' ➡ ',val)⊃⍨val≢f4
                ⍝[1] ::STATIC apl_code
                  0=≢nm:(∆IF_VERBOSE f0,expMsg,okMsg),more⊣(okMsg more)←{
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
@@ -554,6 +572,7 @@
                  }0
                  (∆IF_VERBOSE f0,expMsg,okMsg),more
              }0
+
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
