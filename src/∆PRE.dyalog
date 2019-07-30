@@ -506,13 +506,18 @@
              case cSTAT:{
                  T≠TOP:∆IF_VERBOSE f0,(SKIP NO⊃⍨F=TOP)
                  nm arrow←f1 f2
-                 val←mExpand(f3←f3~' ')
+                 val←mExpand f3
                ⍝ If the expansion to <val> changed <f3>, note in output comment
-                 expMsg←(val≢f3)⊃''(' ➡ ',val)
+                 expMsg←''(' ➡ ',val)⊃⍨val≢f3
                ⍝[1] ::STATIC apl_code
                  0=≢nm:(∆IF_VERBOSE f0,expMsg,okMsg),more⊣(okMsg more)←{
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
-                     0::NO(NL,'⍝>  ',∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘static err∘')
+                     0::NO({
+                         _←NL,'⍝>  '
+                         _,←∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
+                         _,←'∘static err∘'
+                         _
+                     }0)
                      YES''⊣∆MYR⍎val,'⋄1'
                  }0
                ⍝[2a] ::STATIC name
@@ -520,6 +525,7 @@
                ⍝ isFirstDef: Erase name only if first definition and
                ⍝             not prefixed with #. or ⎕SE etc.
                  isFirstDef←⍬⍴(isNew←~isDefd nm)∧~'#⎕'∊⍨1↑nm
+
                ⍝ Warn if name has been seen before in this session
                  _←{⍵:''
                      _←∆IF_DEBUG'Note: STATIC "',nm,': has been redeclared'
@@ -539,7 +545,11 @@
                  okMsg more←{
                      0=≢arrow:YES''
                      invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
-                     0::NO(NL,'⍝ ',∆SAY(invalidE,NL,'⍝ ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL,'∘err∘')
+                     0::NO({
+                         _←NL,'⍝>  ',∆SAY(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
+                         _,←'∘static err∘'
+                         _
+                     }0)
                      YES''⊣∆MYR⍎nm,'←',val,'⋄1'
                  }0
                  (∆IF_VERBOSE f0,expMsg,okMsg),more
