@@ -236,7 +236,8 @@
            ⍝     'ac' to 'g'    →   'aceg'
              ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
              ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
-             str←⍵
+           ⍝ Single-char translation input option. See ::TRANS
+             str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
              nameVis[]∘←1   ⍝ Make all visible until next call to mExpand
              str←⍺{
                  strIn←str←⍵
@@ -628,15 +629,17 @@
                  info←''
                  f1 f2←{
                      0::¯1
-                     0=≢⍵:¯1 ⋄ info,←','/⍨0≠≢info
+                     0=≢⍵:¯1 ⋄ info,←' →'/⍨0≠≢info
                      (1=≢⍵)∧⍵≡,'\':' '⊣info,←' " " U+32'          ⍝ \ch2    (ch2=' ')
                      1=≢⍵:⍵⊣info,←' U+',⍕⎕UCS ⍵                   ⍝ ch1
                      c←⍵↓⍨esc←'\'=⊃⍵
-                     escC←esc∧(~⎕D∊⍨⊃c)∧1=≢c
+                     ⋄ escC←esc∧(~⎕D∊⍨⊃c)∧1=≢c
                      escC:c⊣info,←' U+',⍕⎕UCS c                   ⍝ \c, ~(c∊⎕D)
-                     c←⎕UCS u←{1∊'xX'∊⍵:∆H2D ⍵ ⋄ ⍎⍵}c             ⍝ \dd or dd
-                     u≥32:c⊣info,←' "',c,'"'                      ⍝ digits  (from hex/dec)
-                     c⊣info,←' [ctl]'                             ⍝ digits  (ctl char)
+                     ⋄ hex←1∊'xX'∊⍵
+                     c←⎕UCS u←hex{⍺:∆H2D ⍵ ⋄ ⍎⍵}c                 ⍝ \dd or dd
+                     info,←hex/' U+',⍕u
+                     u≥32:c⊣info,←' "',c,'"'             ⍝ digits  (from hex/dec)
+                     c⊣info,←' [ctl]'                    ⍝ digits  (ctl char)
                  }¨f1 f2
                  ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ::TRANS ERROR'
                  (translateIn translateOut)∘←f1 f2
@@ -729,8 +732,6 @@
          lines←{⍺←⍬
              0=≢⍵:⍺
              line←⊃⍵
-           ⍝ Single-char translation input option. See ::TRANS
-             line←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⊃⍵
              line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
              (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
          }lines
