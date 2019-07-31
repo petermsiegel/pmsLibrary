@@ -183,7 +183,7 @@
          promptForData←{
              _←print'Enter lines. Empty line to terminate.'
              lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
-             '__TERM__' '/dev/null'lines
+             '__TERM__' '[user input]'lines
          }
 
       ⍝ MACRO (NAME) PROCESSING
