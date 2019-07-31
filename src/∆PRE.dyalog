@@ -5,24 +5,24 @@
 
      CALLER←0⊃⎕RSI
 
+  ⍝ Special macros, isSpecialMacro ⍵.
      __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
      isSpecialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
 
    ⍝ OPTIONS
    ⍝ 'V'
      ⍺←'V' ⋄ opts←⊃⊆,⍺
-   ⍝ 'H' etc.
+   ⍝ 'H' ≡ 'h' ≡ '?'.
      1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
-
+   ⍝ 'V' + 'D' vs 'Q'; 'S' | 'M';  'C' | 'c'
      0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
-
    ⍝ 'E'
      EDIT←(⎕NULL≡⍵)∨'E'∊opts
-   ⍝ 'D'? Check CALLER.__DEBUG__ and set macro __DEBUG__ to 1 or 0.
+   ⍝ Debug? Check 'D' option and CALLER.__DEBUG__; set macro __DEBUG__ to 1 or 0 for user use.
      __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧CALLER{0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'__DEBUG__'
 
    ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
-   ⍝ and attempt to ⎕FIX its included function or functions.
+   ⍝ and attempt to ⎕FIX its included function(s).
      1:_←__DEBUG__{      ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
        ⍝ condSave:
        ⍝    ⍺=1: Keep __name__.
@@ -37,12 +37,14 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-       ⍝ ⎕FIX: If 'c', remove blank lines first; if 'C' remove comment lines and blank lines first.
-       ⍝ Lines containing only a null are removed.
-       ⍝ Other ⎕UCS 0's are removed at the very end.
+       ⍝ ⎕FIX:
+       ⍝    If 'c', remove blank lines before fixing;
+       ⍝    if 'C',  remove comment lines and blank lines before fixing.
+       ⍝ Nulls are  removed at the very end;
+       ⍝ a line consisting solely of a null is removed entirely.
          1:2 CALLER.⎕FIX{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
-             'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵
-             'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵
+             'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵         ⍝ c? Remove lines
+             'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵ ⍝ C? Remove lines and comments.
              ⍵
          }(⍺ condSave ⍵){
              ~EDIT:⍺
@@ -54,7 +56,7 @@
 
        ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
        ⍝
-       ⍝ annotate:
+       ⍝ annotate [preprocessor (output) code]
        ⍝ If VERBOSE,
        ⍝     write to preprocessor output:
        ⍝         (b⍴' '),⍵
@@ -70,6 +72,8 @@
              0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
              '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
          }
+       ⍝ print family - informing user, rather than annotating output code.
+       ⍝
        ⍝ print- print ⍵ as a line ⍵' on output, converting NL to CR (so APL prints properly)
        ⍝ printQ-same as print, but using ⍞←⍵' rather than ⎕←⍵.
        ⍝ Both return: ⍵, not the translated ⍵'.
@@ -81,11 +85,11 @@
          dPrint←{__DEBUG__:print ⍵ ⋄ ⍵}
          dPrintQ←{__DEBUG__:printQ ⍵ ⋄ ⍵}
 
-
-       ⍝ ∆FLD: ⎕R helper.  ns [default] ∆FLD [fld number | name]
-       ⍝                   ns- ⎕R namespace (passed by ⎕R as ⍵)
-       ⍝                   default- default string if field not defined
-       ⍝                   fld number or name: a single field number or name.
+       ⍝ ∆FLD: ⎕R helper.
+       ⍝ ns [default] ∆FLD [fld number | name]
+       ⍝    ns- active ⎕R namespace (passed by ⎕R as ⍵)
+       ⍝    default- default string if field not defined
+       ⍝    fld number or name: a single field number or name.
          ∆FLD←{
              ns def←2↑⍺,⊂''   ⍝ We always use <def> default, so perhaps hard wire it?
              ' '=1↑0⍴⍵:ns def ∇ ns.Names⍳⊂⍵
@@ -95,10 +99,10 @@
              ns.(Lengths[⍵]↑Offsets[⍵]↓Block)              ⍝ Simple match
          }
        ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
-       ⍝       recursive (within limits <⍺>) if ⍵≢∆MAP ⍵
+       ⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
          ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
        ⍝ ∆QT:  Add quotes (default ⍺: single)
-       ⍝ ∆DQT: Add double quotes
+       ⍝ ∆DQT: Add double quotes. See ∆QTX if you want to fix any internal double quotes.
        ⍝ ∆UNQ: Remove one level of s/d quotes from around a string, addressing internal quotes.
        ⍝       If ⍵ doesn't begin with a quote in ⍺ (default: s/d quotes), does nothing.
        ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
@@ -109,20 +113,20 @@
          ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
          ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
        ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
-       ⍝      blanks or trailing X symbols.
+       ⍝      blanks or trailing X symbols. (You don't need to remove X or blanks first.)
          ∆H2D←{   ⍝ Decimal from hexadecimal
              11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
              16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
          }
-
        ⍝ ∆TRUE ⍵:
        ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
        ⍝ ⍵ (a string) is 1 (true) unless
        ⍝    a) ⍵ is a blank or null string, or
        ⍝    b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
-       ⍝    c) it cannot be evaluated, in which case a warning is given before returning 0.
+       ⍝    c) it cannot be evaluated,
+       ⍝       in which case a warning is given (debug mode) before returning 0.
          ∆TRUE←{
-             0::0⊣print'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+             0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
              0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
              1
          }
@@ -191,12 +195,10 @@
       ⍝ Extern function (isSpecialMacro n) returns 1 if <n> is a special Macro.
       ⍝ Includes a feature for preventing recursive matching of the same names
       ⍝ in a single recursive (repeated) scan.
+      ⍝ Adds to extern: names, vals, nameVis (1 if a name is "visible" to getIfVis)
          put←{⍺←__DEBUG__ ⋄ verbose←⍺
              n v←⍵   ⍝ add (name, val) to macro list
-             n~←' '
-             names,⍨←⊂n
-             vals,⍨←⊂v
-             nameVis,⍨←1
+             n~←' ' ⋄ names,⍨←⊂n ⋄ vals,⍨←⊂v ⋄ nameVis,⍨←1
              ~isSpecialMacro n:⍵        ⍝ Not in domain of [fast] isSpecialMacro function
              ⍝ Special macros: if looks like number (as string), convert to numeric form.
              processSpecialM←{
@@ -245,7 +247,6 @@
                  nmsFnd←⍬
                  ch1←ch2←0
              ⍝ Match/mExpand...
-                 pUserE←'^\h*\]\h*(.*)$'    ⍝ User cmds: ]... (See also ⎕UCMD)
              ⍝ [1] pLongNmE: long names,
                  cUserE cSQe cCommentE cLongE←0 1 2 3
                  str←{
@@ -350,15 +351,17 @@
 
 
        ⍝ patterns solely for the ∇mExpand∇ fn
-       ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
-       ⍝      """... multiline ok """    ==> ' '
+          ⍝ User cmds: ]... (See also ⎕UCMD)
+         pUserE←'^\h*\]\h*(.*)$'
+           ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
+           ⍝      """... multiline ok """    ==> ' '
          pDQ3e←'(?sx)  "{3} .*? "{3}'
-       ⍝ Double quote suffixes:  R (raw), S (single string), M (multiple string vectors)
-       ⍝ Default for S|M depends on S or M options. Raw means don't remove leading blanks
+           ⍝ Double quote suffixes:  R (raw), S (single string), M (multiple string vectors)
+           ⍝ Default for S|M depends on S or M options. Raw means don't remove leading blanks
          pDQe←'(?x)   (    (?: " [^"]*     "  )+ )   ([RSM]{0,2}) '
-         pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'            ⍝ We trap elsewhere multi-line SQ strings...
+         pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'       ⍝ Allows multiline sq strings- prevented elsewhere.
          pCommentE←'(?x)   ⍝ .*  $'
-       ⍝ ppNum: A non-complex signed APL number (float or dec)
+           ⍝ ppNum: A non-complex signed APL number (float or dec)
          ⋄ ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
          ⋄ ppDot←'(?:  … | \.{2,} )'
          ⋄ ppCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ ppCh2←' '' (?: [^''] | ''{2} ){2} '' '
@@ -366,26 +369,26 @@
          ⋄ ppDot1e,←'   | ( ⍎ppCh1 (?: \h+ ⍎ppCh1)* | ⍎ppCh2 ) \h* ⍎ppDot \h* (⍎ppCh1) ) '
          pDot1e←∆MAP'(?x)   ⍎ppDot1e'
          pDot2e←∆MAP'(?x)   ⍎ppDot'
-       ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
+           ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
          ⋄ ppHex←'   ¯? (\d  [\dA-F]*)             X'
-         ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
+           ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
          ⋄ ppBigInt←'¯? (\d+) (?: E (\d+) )? I'
-         ⍝ pSpecialIntE: Allows both bigInt format and hex format
-         ⍝ This is permissive (allows illegal options to be handled by APL),
-         ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
-         ⍝ Exponents are invalid for hexadecimals, because the exponential range
-         ⍝ is not defined/allowed.
+           ⍝ pSpecialIntE: Allows both bigInt format and hex format
+           ⍝ This is permissive (allows illegal options to be handled by APL),
+           ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
+           ⍝ Exponents are invalid for hexadecimals, because the exponential range
+           ⍝ is not defined/allowed.
          pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎ppHex | ⍎ppBigInt ) '
 
        ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
-       ⍝ pLongNmE Long names are of the form #.a or a.b.c
-       ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
+           ⍝ pLongNmE Long names are of the form #.a or a.b.c
+           ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
          pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
          pShortNmE←∆MAP'(?x) ⍎ppShortNmPfx'    ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
-       ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
+           ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
-       ⍝ For  (names → ...) and (`names)
+           ⍝ For  (names → ...) and (`names)
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ⋄ ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
          pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
@@ -473,6 +476,7 @@
                  f0 annotate nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
 
+          ⍝ ::DEF family: Definitions after macro processing.
           ⍝ ::DEF | ::DEFQ
           ⍝ ::DEF name ← val    ==>  name ← 'val'
           ⍝ ::DEF name          ==>  name ← 'name'
@@ -483,8 +487,9 @@
           ⍝   Same as ::DEF, except put the value in single-quotes.
              case cDEF:procDefVal 0
 
+          ⍝  ::VAL family: Definitions from evaluating after macro processing
           ⍝  ::EVAL | ::EVALQ
-          ⍝  ::VAL  | ::VALQ
+          ⍝  ::VAL  | ::VALQ   [aliases for EVAL/Q]
           ⍝  ::[E]VAL name ← val    ==>  name ← ⍎'val' etc.
           ⍝  ::[E]VAL i5   ← (⍳5)         i5 set to '(0 1 2 3 4)' (depending on ⎕IO)
           ⍝    Returns <val> executed in the caller namespace...
@@ -492,9 +497,9 @@
           ⍝    Experimental preprocessor-time evaluation
              case cVAL:procDefVal 1
 
+          ⍝ ::CDEF family: Conditional Definitions
           ⍝ ::CDEF name ← val      ==>  name ← 'val'
           ⍝ ::CDEF name            ==>  name ← 'name'
-          ⍝  etc.
           ⍝ Set name to val only if name NOT already defined.
           ⍝ ::CDEFQ ...
           ⍝ Like ::CDEF, but returns the value in single quotes.
@@ -511,6 +516,7 @@
                  f0 annotate'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
              }0
 
+           ⍝ ::UNDEF - undefines a name set via ::DEF, ::VAL, ::STATIC, etc.
            ⍝ ::UNDEF name
            ⍝ Warns if <name> was not set!
              case cUNDEF:{
@@ -519,7 +525,8 @@
                  annotate f0,YES
              }0
 
-           ⍝ ::STATIC
+           ⍝ ::STATIC - declares persistent names, defines their values,
+           ⍝            executes code @ preproc time.
            ⍝   1) declare names that exist between function calls. See ⎕MY/∆MY
            ⍝   2) create preproc-time static values,
            ⍝   3) execute code at preproc time
@@ -590,6 +597,7 @@
                  _,errMsg
              }0
 
+           ⍝ ::INCLUDE - inserts a named file into the code here.
            ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
            ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
              case cINCL:{
@@ -612,6 +620,11 @@
                  includeLines∘←dataIn
                  annotate f0,' ',INFO,msg
              }0
+
+           ⍝ ::IMPORT name [extern_name]
+           ⍝ Imports name (or, if extern_name specified: imports extern_name as name)
+           ⍝ Reads in the value of a variable, then converts it to a value.
+           ⍝ If its format is unusable (e.g. in a macro), that's up to the user.
              case cIMPORT:{
                  f2←f2 f1⊃⍨0=≢f2
                  T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
@@ -621,10 +634,11 @@
                  }⍬
                  annotate f0,info
              }⍬
+
+           ⍝ ::TRANS / ::TR - translate a single character on input.
            ⍝ ::TRANS ⍺ ⍵    Translate char ⍺ to ⍵
-           ⍝ ::TRANS can really mess up preprocessing, since all directives will be
-           ⍝ translated before they are seen. Use carefully.
-             case cTRANS:{
+           ⍝ Affects only user code ('macro' scanning)
+               case cTRANS:{
                  T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  info←''
                  f1 f2←{
