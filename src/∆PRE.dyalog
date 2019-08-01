@@ -42,7 +42,15 @@
        ⍝    if 'C',  remove comment lines and blank lines before fixing.
        ⍝ Nulls are  removed at the very end;
        ⍝ a line consisting solely of a null is removed entirely.
-         1:2 CALLER.⎕FIX{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
+         fixKludge←{  ⍝ Bare bones to handle APL not quite registering 2∘⎕FIX lines properly.
+             ⍺←1 ⋄ tmp←(739⌶0),'/tmpøø.dyalog'
+             0=≢⍵:⊢⎕←'No lines to write'⎕SIGNAL 11
+             ct←(⊂⍵)⎕NPUT tmp 1
+             0=ct:⊢⎕←'Unable to write file ',tmp
+             'file://',tmp
+         }
+
+         1:2 CALLER.⎕FIX fixKludge{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵         ⍝ c? Remove lines
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵ ⍝ C? Remove lines and comments.
              ⍵
@@ -638,7 +646,7 @@
            ⍝ ::TRANS / ::TR - translate a single character on input.
            ⍝ ::TRANS ⍺ ⍵    Translate char ⍺ to ⍵
            ⍝ Affects only user code ('macro' scanning)
-               case cTRANS:{
+             case cTRANS:{
                  T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                  info←''
                  f1 f2←{
