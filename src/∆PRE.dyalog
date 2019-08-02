@@ -37,20 +37,10 @@
              _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
-       ⍝ ⎕FIX:
-       ⍝    If 'c', remove blank lines before fixing;
-       ⍝    if 'C',  remove comment lines and blank lines before fixing.
-       ⍝ Nulls are  removed at the very end;
-       ⍝ a line consisting solely of a null is removed entirely.
-         fixKludge←{  ⍝ Bare bones to handle APL not quite registering 2∘⎕FIX lines properly.
-             ⍺←1 ⋄ tmp←(739⌶0),'/tmpøø.dyalog'
-             0=≢⍵:⊢⎕←'No lines to write'⎕SIGNAL 11
-             ct←(⊂⍵)⎕NPUT tmp 1
-             0=ct:⊢⎕←'Unable to write file ',tmp
-             'file://',tmp
-         }
-
-         1:2 CALLER.⎕FIX fixKludge{(⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵}{
+         ⍝ '$'... We have embedded newlines (⎕UCS 10) within lines (char vectors) that we remove...
+         1:2 CALLER.⎕FIX'$'⎕R'&'⊣{
+             (⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵
+         }{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵         ⍝ c? Remove lines
              'C'∊opts:'^\h*(?:⍝.*)?$'⎕R(⎕UCS 0)⊣⍵ ⍝ C? Remove lines and comments.
              ⍵
@@ -85,6 +75,7 @@
        ⍝ print- print ⍵ as a line ⍵' on output, converting NL to CR (so APL prints properly)
        ⍝ printQ-same as print, but using ⍞←⍵' rather than ⎕←⍵.
        ⍝ Both return: ⍵, not the translated ⍵'.
+       ⍝ DO NOT USE CR in program code lines.
          print←{⍵⊣⎕←CR@(NL∘=)⊣⍵}
          printQ←{⍵⊣⍞←CR@(NL∘=)⊣⍵}
        ⍝ dPrint- same as print,  but only if __DEBUG__=1.
@@ -331,7 +322,7 @@
          cELSEIF←'elseif'reg'  ⍎ppBeg  EL(?:SE)?IF \b    \h+(.*)         $'
          cELSE←'else'reg'      ⍎ppBeg  ELSE         \b       .*          $'
          cEND←'end'reg'        ⍎ppBeg  END                   .*          $'
-         ⋄ ppTarg←' [^←]+ '
+         ⋄ ppTarg←' [^ ←]+ '
          ⋄ ppSetVal←' (?:(←)\h*(.*))?'
          ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
          ⍝ Note that we allow a null \0 to be the initial char. of a name.
@@ -462,6 +453,7 @@
              procDefVal←{
                  isVal←⍵
                  T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                 ' '∊f2:annotate f0,' ⍝ ',print'IGNORING INVALID MACRO NAME: "',f2,'" ',NO
                  qtFlag arrFlag←0≠≢¨f1 f3
 
                  val note←f2{
@@ -962,8 +954,21 @@
   ⍝H
   ⍝H    Directives
   ⍝H    ----------
+  ⍝H    ::IF, ::IFDEF, ::IFNDEF
+  ⍝H    ::ELSEIF
+  ⍝H    ::ELSE
+  ⍝H    ::ENDIF
+  ⍝H    ::DEF, ::DEFQ
+  ⍝H    ::CDEF, ::CDEFQ
+  ⍝H    ::EVAL, ::EVALQ
+  ⍝H    ::TRANS
+  ⍝H    ::UNDEF
+  ⍝H    ::STATIC
+  ⍝H    ::INCLUDE
+  ⍝H    ::IMPORT
+  ⍝H
   ⍝H       (Note: currently comments are removed from preprocessor directives
-  ⍝H        before processing.
+  ⍝H        before processing.)
   ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
   ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
   ⍝H       ::IFNDEF  name
@@ -1066,7 +1071,5 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
   ⍝H
-  ⍝H To add:  ::EXTERN directive:
-  ⍝H          ::EXTERN name←value   (sets  ⎕MY.name←value now and ::DEF name←⎕MY.name (once)
 
  }
