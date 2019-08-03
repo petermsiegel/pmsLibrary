@@ -29,7 +29,7 @@
        ⍝    ⍺=0: Delete __name__ unless error.
          condSave←{
              _←⎕EX 1⊃⍵
-             ⍺:⍎'CALLER.',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'   ⍝ Save preprocessor "log"  __⍵__, if 'D' option or #.__DEBUG__
+             ⍺:⍎'CALLER.',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'
              2⊃⍵
          }
          0::11 ⎕SIGNAL⍨{
@@ -308,7 +308,6 @@
              str
          }
 
-
       ⍝ -------------------------------------------------------------------------
       ⍝ PATTERNS
       ⍝ [1] DEFINITIONS -
@@ -348,10 +347,8 @@
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
          cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
          cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
-         cTRANS←'trans'reg' ⍎ppBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*         $'
+         cTRANS←'trans'reg'  ⍎ppBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
          cOTHER←'apl'reg'    ^                                         .*                $'
-
-
 
        ⍝ patterns solely for the ∇mExpand∇ fn
           ⍝ User cmds: ]... (See also ⎕UCMD)
@@ -408,10 +405,10 @@
 
           ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
              case cOTHER:{
-                 T=TOP:{
-                     str←mExpand ⍵ ⋄ QUIET∨str≡⍵:str ⋄ '⍝',⍵,YES,NL,' ',str
-                 }f0
-                 annotate f0,SKIP     ⍝ See annotate, QUIET
+                 T≠TOP:annotate f0,SKIP     ⍝ See annotate, QUIET
+                 str←mExpand f0
+                 QUIET:str ⋄ str≡f0:str
+                 '⍝',f0,YES,NL,' ',str
              }0
 
            ⍝ ::IFDEF/IFNDEF name
@@ -472,8 +469,8 @@
                          (⍕⍎⍵)''
                      }exp
 
-                     qtFlag:(∆QTX exp)''    ⍝ ::DEF...
-                     exp''
+                     qtFlag:(∆QTX exp)''    ⍝ ::DEFQ ...
+                     exp''                  ⍝ ::DEF  ...
                  }f4
                  _←put f2 val
                  nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
@@ -552,8 +549,8 @@
 
                ⍝[2] Evaluate ::STATIC apl_code and return.
                  0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
-                     invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO({
+                         invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                          _←NL,'⍝>  '
                          _,←print invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')',NL
                          _,←'∘static err∘'
@@ -588,8 +585,8 @@
 
                  okMsg errMsg←{
                      0=≢arrow:YES''
-                     invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                      0::NO({
+                         invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                          _←NL,'⍝>  '
                          _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
                          _,←'∘static err∘'
