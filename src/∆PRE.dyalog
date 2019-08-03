@@ -38,7 +38,8 @@
              _,'See preprocessor output: "',(1⊃⍵),'"'
          }⍵
          ⍝ '$'... We have embedded newlines (⎕UCS 10) within lines (char vectors) that we remove...
-         1:2 CALLER.⎕FIX'$'⎕R'&'⊣{
+         forceSplit←{⊃,/(⎕UCS 10)(≠⊆⊢)¨⍵} ⍝ 3x slower:  forceSplit←{'$'⎕R'&'⊣⍵}
+         1:2 CALLER.⎕FIX forceSplit{
              (⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵
          }{
              'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵         ⍝ c? Remove lines
