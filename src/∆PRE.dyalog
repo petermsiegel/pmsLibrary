@@ -163,27 +163,42 @@
          }
 
        ⍝ getDataIn object:⍵
-       ⍝ get function '⍵' or its char. source '⍵_src', if defined.
+       ⍝ ⍵:
+       ⍝    a vector of vectors: lines of APL code in 2∘FIX format.
+       ⍝    ⎕NULL:               prompts user for lines of APL code in 2∘FIX format.
+       ⍝    char vector:         name of function with lines of APL code.
+       ⍝          If the name ⍵ has no file extension, then we'll try ⍵.dyapp and ⍵.dyalog.
+       ⍝          ⍵ may have a prefix (test/ in test/myfi.dyapp).
+       ⍝          Searches , .. .. and directories in env FSPATH and WSPATH in turn.
+       ⍝
        ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
        ⍝ If the obj ⍵ is ⎕NULL, the object is prompted from the user.
        ⍝ (See promptForData) for returned value.
          getDataIn←{∆∆←∇
              19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
              ⍵≡⎕NULL:promptForData ⍬
-             _←{
-                 ~0 3 4∊⍨CALLER.⎕NC ⍵:⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing' ⋄ ''
-             }⍵
+             2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)  ⍝ In case last line is '∇' → (,'∇')
+
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
-             0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
+             0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
              dir dirs←(⊃⍺)⍺
-           ⍝ If the file has an explicit extension, it determines the type.
-             types←{0≠≢⊃⌽⎕NPARTS ⍵:⊂'' ⋄ '.dyapp' '.dyalog'}⍵
+
+           ⍝ If the file has an explicit extension, it determines the ONLY type.
+             pfx nm ext←⎕NPARTS ⍵
+             _←{
+                 0 3 4∊⍨CALLER.⎕NC ⍵:''
+                 ⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing'
+             }nm
+
+           ⍝ Otherwise, use types '.dyapp' [new] and '.dyalog' [std].
+             types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
+
              types{
                  0=≢⍺:(1↓dirs)∆∆ ⍵
                  filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
                  ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
                  (1↓⍺)∇ ⍵
-             }⍵
+             }pfx,nm
          }
        ⍝ prompt User for data to preprocess. Useful for testing...
        ⍝ Creates object __TERM__, its full filename is '/dev/null', and lines as specified.
@@ -296,7 +311,7 @@
                  case←⍵.PatternNum∘∊
 
                  case cSQe cCommentE:⍵ ∆FLD 0
-                 case cAtomsE:'(⊆',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1 ⍝ Atoms uses ⊆ all the time.
+                 case cAtomsE:'(⊆,¨',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1 ⍝ Atoms uses ⊆ all the time.
                  case cDot2E:∆TOcode
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
@@ -701,7 +716,7 @@
          translateIn←translateOut←¯1           ⍝ None
          NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
 
-         _←dPrint'Processing object ',(∆DQT funNm),' from file ',∆DQT fullNm
+         _←dPrint'Processing input object ',(∆DQT funNm),' from file ',∆DQT fullNm
          _←dPrint'Object has ',NLINES,' lines'
 
          dataFinal←⍬
