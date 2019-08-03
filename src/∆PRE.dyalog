@@ -170,6 +170,9 @@
          getDataIn←{∆∆←∇
              19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
              ⍵≡⎕NULL:promptForData ⍬
+             _←{
+                 ~0 3 4∊⍨CALLER.⎕NC ⍵:⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing' ⋄ ''
+             }⍵
              ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
              0=≢⍺:11 ⎕SIGNAL⍨'Unable to find or load source file ',(∆DQT ⍵),' (filetype must be dyapp or dyalog)'
              dir dirs←(⊃⍺)⍺
@@ -676,7 +679,6 @@
          _←0 put'__INCLUDE_LIMITS__'(5 10)
        ⍝ Other macros
          _←0 put'⎕UCMD' '⎕SE.UCMD'
-
 
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
