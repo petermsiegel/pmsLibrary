@@ -307,11 +307,10 @@
          ⍝  See __MAX_PROGRESSION__ below
              cDot1E cSQe cCommentE cDot2E cAtomsE←0 1 2 3 4
              str←pDot1e pSQe pCommentE pDot2e pATOMSe ⎕R{
-                 ⋄ qt2←{(⊃⍵)∊'¯.',⎕D:⍵ ⋄ ∆QT ⍵}
                  case←⍵.PatternNum∘∊
 
                  case cSQe cCommentE:⍵ ∆FLD 0
-                 case cAtomsE:'(⊆,¨',')',⍨,1↓∊' ',¨qt2¨' '(≠⊆⊢)⍵ ∆FLD 1 ⍝ Atoms uses ⊆ all the time.
+                 case cAtomsE:procAtoms ⍵ ∆FLD 1
                  case cDot2E:∆TOcode
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
@@ -321,6 +320,15 @@
                                           ⍝  .. preceded or followed by non-constants
              }⍠'UCP' 1⊣str
              str
+         }
+         procAtoms←{
+             '(⊆',')',⍨1↓∊{
+                 ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
+                 isNumAtom:' (,',⍵,')'
+                 ⋄ q←∆QT ⍵
+                 1=≢⍵:' (,',q,')'
+                 ' ',q
+             }¨' '(≠⊆⊢)⍵
          }
 
       ⍝ -------------------------------------------------------------------------
