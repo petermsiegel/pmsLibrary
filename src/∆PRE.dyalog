@@ -413,7 +413,7 @@
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
        ⍝ Treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
-         pZildeE←'\h*⍬\h*'
+         pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
            ⍝ For  (names → ...) and (`names)
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ⋄ ppAtom←'(?: ⍎ppName | ⍎ppNum | ⍬ )'
