@@ -323,6 +323,7 @@
          }
          procAtoms←{
              '(⊆',')',⍨1↓∊{
+                 '⍬'=⊃⍵:⍵
                  ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
                  isNumAtom:' (,',⍵,')'
                  ⋄ q←∆QT ⍵
@@ -411,10 +412,13 @@
            ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
          pContE←'(?x) \h* \.{2,} \h* (⍝ .*)? \n \h*'
          pEOLe←'\n'
+       ⍝ Treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
+         pZildeE←'\h*⍬\h*'
            ⍝ For  (names → ...) and (`names)
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
-         ⋄ ppNums←'  (?: ⍎ppName | ⍎ppNum ) (?: \h+ (?: ⍎ppName | ⍎ppNum ) )*'
-         pATOMSe←∆MAP'(?xi)  (?| (⍎ppNums)  \h* → | \` \h* (⍎ppNums) ) '
+         ⋄ ppAtom←'(?: ⍎ppName | ⍎ppNum | ⍬ )'
+         ⋄ ppAtoms←' ⍎ppAtom (?: \h+ ⍎ppAtom )*'
+         pATOMSe←∆MAP'(?xi)  (?| (⍎ppAtoms)  \h* → | \` \h* (⍎ppAtoms) ) '
 
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
@@ -736,11 +740,11 @@
 
        ⍝ Kludge: We remove comments from all directives up front...
        ⍝ Not ideal, but...
-         pInDirective←'^\h*::'
+         pInDirectiveE←'^\h*::'
          inDirective←0
        ⍝ Process double quotes and continuation lines that may cross lines
-         lines←pInDirective pDQ3e pDQe pSQe pCommentE pContE pEOLe ⎕R{
-             cInDirective cDQ3e cDQ cSQ cCm cCn cEOL←⍳7
+         lines←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
+             cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL←⍳8
              f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
             ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
@@ -755,9 +759,10 @@
                  _←print'String: ','⤶'@(NL∘=)⍵
                  ' '@(NL∘=)⍵
              }f0
-             case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
+             case cCm:f0/⍨~inDirective               ⍝ COM - passthru, unless in std directive
              case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1   ⍝ Continuation
-           ⍝ case 4: EOL triggers comment processing from above
+             case cZilde:' ⍬ '                       ⍝ Normalize as APL would...
+             ⍝ case 4: EOL triggers comment processing from above
              ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
              inDirective⊢←0                             ⍝ Reset  flag after each NL
              0=≢comment:f0
