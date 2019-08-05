@@ -13,7 +13,7 @@
    ⍝ 'V'
      ⍺←'V' ⋄ opts←⊃⊆,⍺
    ⍝ 'H' ≡ 'h' ≡ '?'.
-     1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
+     1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
    ⍝ 'V' + 'D' vs 'Q'; 'S' | 'M';  'C' | 'c'
      0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
    ⍝ 'E'
@@ -786,7 +786,7 @@
   ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
   ⍝H - Returns: (shyly) the list of objects created (possibly none).
   ⍝H
-  ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:codeFileName
+  ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:(codeFileName | strings[] | ⎕NULL)
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
@@ -865,12 +865,14 @@
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
   ⍝H  ⍵
-  ⍝H  ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
-  ⍝H             ⎕NULL: Prompt for lines from the user, creating pseudo-function
-  ⍝H                 __PROMPT__
+  ⍝H   [1] ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
+  ⍝H   [2] ⍵:str[]    A vector of strings, defining one or more fns, ops or namesoaces,
+  ⍝H                  in 2∘⎕FIX-format.
+  ⍝H   [3] ⍵:⎕NULL    Prompt for lines from the user, creating pseudo-function
+  ⍝H                  __PROMPT__
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
-  ⍝H    The simple name, name.ext, or full filename
+  ⍝H    [1] The simple name, name.ext, or full filename
   ⍝H    of the function or cluster of objects compatible with (2 ⎕FIX ⍵),
   ⍝H    whose source will be loaded from:
   ⍝H      [a] if ⍵ has no filetype/extension,
@@ -879,11 +881,11 @@
   ⍝H             ⍵.dyalog
   ⍝H      [b] else
   ⍝H             ⍵ by itself.
-  ⍝H    THese directories are searched:
+  ⍝H    These directories are searched:
   ⍝H           .  ..  followed by dirs named in env vars FSPATH and WSPATH (: separates dirs)
-  ⍝H ---------
-  ⍝H Returns
-  ⍝H ---------
+  ⍝H -----------
+  ⍝H + Returns +
+  ⍝H -----------
   ⍝H Returns (shyly) the names of the 0 or more objects fixed via (2 ⎕FIX code).
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
@@ -927,7 +929,7 @@
   ⍝H               func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
   ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6).
   ⍝H             Each word in
-  ⍝H                `word w 123.4 ⍬ a_very_long_word
+  ⍝H                word w 123.4 ⍬ a_very_long_word → value
   ⍝H             is replaced as follows:
   ⍝H               word             →  'word'
   ⍝H               w                →  (,'w')
@@ -936,10 +938,13 @@
   ⍝H               a_very_long_word → 'a_very_long_word'
   ⍝H             What's returned is
   ⍝H               (⊆'word' (,'w') (,123.4) ⍬ 'a_very_long_word')
-  ⍝H     ∘ ATOM:    `word1 word2 ... wordN
+  ⍝H     ∘ ATOMS: `word1 word2 ... wordN
   ⍝H             as for MAPS, as in:
   ⍝H                `red orange  02FFFEX green ==>
   ⍝H                ('red' 'orange' 196606 'green')      ⍝ Hex number converted to decimal
+  ⍝H             Each word in
+  ⍝H                `word w 123.4 ⍬ a_very_long_word
+  ⍝H             as in MAPS example above.
   ⍝H
   ⍝H   ∘ explicit macros for text replacement
   ⍝H       See ::DEF, ::CDEF
@@ -978,15 +983,15 @@
   ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
   ⍝H     leading spaces on continuation lines removed.
   ⍝H     Options M and S (above) are both supported.
-  ⍝H     "This is a
-  ⍝H      raw format
-  ⍝H   double string."R
-  ⍝H   ==>  (option 'M')
-  ⍝H     'This is a' '      raw format' 'double string.'
+  ⍝H        "This is a
+  ⍝H         raw format
+  ⍝H        double string."
+  ⍝H      ==>  (option 'M')
+  ⍝H        'This is a' '      raw format' 'double string.'
   ⍝H
   ⍝H    Triple-double quotes.  """ ... """
   ⍝H      Triple-double quoted expressions may appear on one or more lines.
-  ⍝H      They are not treated as strings, but as comments, resolving to a single comment.
+  ⍝H      They are not strings, but comments, resolving to a single comment.
   ⍝H          1 + """This is a triple-quote that
   ⍝H                 is treated as a silly comment""" 4
   ⍝H      ==>
@@ -1086,6 +1091,11 @@
   ⍝H                          ::STATIC i1 ← {⎕io←1 ⋄ ⍺⍳⍵}
   ⍝H                      In the first case, i1 is a value, the RESULT of a call; in the second,
   ⍝H                      it is a function definition.
+  ⍝H       ::STATIC code
+  ⍝H            Code to execute at preprocessor time for use with ::STATIC names.
+  ⍝H            To ensure a name←val or name pattern is viewed as code, do (e.g.):
+  ⍝H               ::STATIC ⊢some arbitrary code
+  ⍝H               ::STATIC (some arbitrary code)
   ⍝H
   ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
   ⍝H       ::INCL    name
