@@ -920,10 +920,22 @@
   ⍝H             Example:  :FOR i :in 1..10000  ==> :FOR i :in 1 {progressn dfn}10000
   ⍝H             See __MAX_PROGRESSION__ below to change this behavior.
   ⍝H     ∘ MAPS: word1 word2 ... wordN → anything
-  ⍝H             where word1 is an APL-style name or an APL number;
+  ⍝H             where word1 is
+  ⍝H                   a name (a sequence of one or morePCRE letter or _⍙∆),
+  ⍝H                   an APL number, or ⍬ or ();
   ⍝H             such that numbers are left as is, but names are quoted:
   ⍝H               func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
-  ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6))
+  ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6).
+  ⍝H             Each word in
+  ⍝H                `word w 123.4 ⍬ a_very_long_word
+  ⍝H             is replaced as follows:
+  ⍝H               word             →  'word'
+  ⍝H               w                →  (,'w')
+  ⍝H               123.4            →  (,123.4)
+  ⍝H               ⍬ or ()          →  ⍬
+  ⍝H               a_very_long_word → 'a_very_long_word'
+  ⍝H             What's returned is
+  ⍝H               (⊆'word' (,'w') (,123.4) ⍬ 'a_very_long_word')
   ⍝H     ∘ ATOM:    `word1 word2 ... wordN
   ⍝H             as for MAPS, as in:
   ⍝H                `red orange  02FFFEX green ==>
