@@ -310,7 +310,13 @@
                  case←⍵.PatternNum∘∊
 
                  case cSQe cCommentE:⍵ ∆FLD 0
-                 case cAtomsE:procAtoms ⍵ ∆FLD 1
+               ⍝  Matching       ≢graves ≢arrows
+               ⍝                  fld1    fld3
+               ⍝ `atom1 atom2       0      0
+               ⍝ (...→...)          0      0
+               ⍝ ``atom1 atom2      1      0
+               ⍝ (...→→...)         0      1
+                 case cAtomsE:(1∊≢¨⍵ ∆FLD¨1 3)procAtoms ⍵ ∆FLD 2
                  case cDot2E:∆TOcode
                ⍝ case cDot1E
                  ⋄ f1 f2←⍵ ∆FLD¨1 2
@@ -321,8 +327,9 @@
              }⍠'UCP' 1⊣str
              str
          }
-         procAtoms←{
-             '(⊆',')',⍨1↓∊{
+         procAtoms←{⍺←0  ⍝ 1: double arrow →→ or double grave ``
+             nest←'⊆'/⍨~⍺
+             atoms←1↓∊{
                  '⍬'=⊃⍵:⍵
                  ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
                  isNumAtom:' (,',⍵,')'
@@ -330,6 +337,7 @@
                  1=≢⍵:' (,',q,')'
                  ' ',q
              }¨' '(≠⊆⊢)⍵
+             '(',nest,')',⍨atoms
          }
 
       ⍝ -------------------------------------------------------------------------
@@ -365,7 +373,7 @@
          cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
          ⍝ statPat: name | name ← val | code_to_execute
-         ⋄ statPat←'    ⍎ppBeg STATIC \h+ (\]?) \h* (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
+         ⋄ statPat←'⍎ppBeg STATIC \h+ (\]?) \h* (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
          cSTAT←'stat'reg statPat
          cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
          cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
@@ -418,8 +426,9 @@
          ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'    ⍝ Overgeneral, letting APL complain of errors
          ⋄ ppAtom←'(?: ⍎ppName | ⍎ppNum | ⍬ )'
          ⋄ ppAtoms←' ⍎ppAtom (?: \h+ ⍎ppAtom )*'
-         pATOMSe←∆MAP'(?xi)  (?| (⍎ppAtoms)  \h* → | \` \h* (⍎ppAtoms) ) '
-
+         ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎ppAtoms)'
+         ⋄ _,←'        | (     )     (⍎ppAtoms) \h* →(→?)) '
+         pATOMSe←∆MAP _
       ⍝ -------------------------------------------------------------------------
       ⍝ [2] PATTERN PROCESSING
       ⍝ -------------------------------------------------------------------------
@@ -558,12 +567,13 @@
            ⍝   1) declare names that exist between function calls. See ⎕MY/∆MY
            ⍝   2) create preproc-time static values,
            ⍝   3) execute code at preproc time
+           ⍝      Dyalog user commands are of the form:  ]user_cmd or ]name ← user_cmd
              case cSTAT:{
                  T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                 usr nm arrow←f1 f2 f3
+                 usr nm arrow←f1 f2 f3   ⍝  f1: ]user_cmd, f2 f3: name ←
                  val←{
                ⍝ [1a] Expand any code that is not prefixed ]...
-                     0=≢usr:mExpand f4
+                     0=≢usr:mExpand f4  ⍝ User command?
                ⍝ [1b] Expand ::STATIC ]user code
                ⍝ Handle User commands by decoding any assignment ]name←val
                ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
@@ -571,7 +581,7 @@
                      nm∘←arrow∘←''
                      _
                  }0
-               ⍝ If the expansion to <val> changed <f3>, note in output comment
+               ⍝ If the expansion to <val> changed <f4>, note in output comment
                  expMsg←''(' ➡ ',val)⊃⍨val≢f4
 
                ⍝[2] Evaluate ::STATIC apl_code and return.
@@ -594,10 +604,10 @@
                ⍝             not an absolute var, i.e. prefixed with # or ⎕ (⎕SE)
                  isFirstDef←⍬⍴(isNew←~isDefined nm)∧~'#⎕'∊⍨1↑nm
 
-               ⍝ Warn if name has been seen before in this session
+               ⍝ Warn if name has been redeclared (and possibly reevaluated) in this session
                  _←{⍵:''
                      _←dPrint'Note: STATIC "',nm,': has been redeclared'
-                     0≠≢f3:dPrint'>     Value now "',f3,'"'
+                     0≠≢val:dPrint'>     Value now "',val,'"'
                      ''
                  }isNew
                  ⍝ Register <nm> as if user ⎕MY.nm; see ⎕MY/∆MY.
@@ -699,10 +709,10 @@
          names←vals←nameVis←⍬
          _←0 put'__DEBUG__'__DEBUG__
          _←0 put'__MAX_EXPAND__' 10          ⍝ Allow macros to be expanded 10 times if changes occurred...
-         _←0 put'__MAX_PROGRESSION__' 500
-         _←0 put'__INCLUDE_LIMITS__'(5 10)
+         _←0 put'__MAX_PROGRESSION__' 500    ⍝ ≤500 expands at preproc time.
+         _←0 put'__INCLUDE_LIMITS__'(5 10)   ⍝ [0] warn limit [1] error limit
        ⍝ Other macros
-         _←0 put'⎕UCMD' '⎕SE.UCMD'
+         _←0 put'⎕UCMD' '⎕SE.UCMD'           ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
 
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
@@ -938,6 +948,10 @@
   ⍝H               a_very_long_word → 'a_very_long_word'
   ⍝H             What's returned is
   ⍝H               (⊆'word' (,'w') (,123.4) ⍬ 'a_very_long_word')
+  ⍝H
+  ⍝H        Special MAPS:
+  ⍝H               name →→ val      =>    ('name'),val
+  ⍝H         Note: name1 name2 →→val is the same as name1 name2 → val
   ⍝H     ∘ ATOMS: `word1 word2 ... wordN
   ⍝H             as for MAPS, as in:
   ⍝H                `red orange  02FFFEX green ==>
@@ -945,6 +959,9 @@
   ⍝H             Each word in
   ⍝H                `word w 123.4 ⍬ a_very_long_word
   ⍝H             as in MAPS example above.
+  ⍝H
+  ⍝H        Special ATOMS: `` word   =>   ('word') rather than (⊆'word')
+  ⍝H                 Note: `` word1 word2 is the same as ` word1 word2.
   ⍝H
   ⍝H   ∘ explicit macros for text replacement
   ⍝H       See ::DEF, ::CDEF
