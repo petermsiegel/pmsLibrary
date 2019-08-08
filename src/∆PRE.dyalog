@@ -350,8 +350,9 @@
       ⍝ [1] DEFINITIONS
       ⍝ -------------------------------------------------------------------------
          _CTR_←0 ⋄ patternList←patternName←⍬
+         PREFIX←'::'    ⍝ PREFIX: The regex-compatible directive prefix can be modified here ONLY!
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
-         ⋄ ppBeg←'^\h* ::\h*'
+         ⋄ ppBeg←'^\h* ',PREFIX,'\h*'
          cIFDEF←'ifdef'reg'    ⍎ppBeg  IF(N?)DEF         \h+(.*)         $'
          cIF←'if'reg'          ⍎ppBeg  IF                \h+(.*)         $'
          cELSEIF←'elseif'reg'  ⍎ppBeg  EL(?:SE)?IF \b    \h+(.*)         $'
@@ -509,7 +510,7 @@
                      exp''                  ⍝ ::DEF  ...
                  }f4
                  _←put f2 val
-                 nm←(isVal⊃'::DEF' '::VAL'),qtFlag/'Q'
+                 nm←PREFIX,(isVal⊃'DEF' 'VAL'),qtFlag/'Q'
                  f0 annotate nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
              }
 
@@ -550,7 +551,7 @@
                      exp
                  }f4
                  _←put f2 val
-                 f0 annotate'::CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
+                 f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
              }0
 
            ⍝ ::UNDEF - undefines a name set via ::DEF, ::VAL, ::STATIC, etc.
@@ -623,7 +624,7 @@
                  okMsg errMsg←{
                      0=≢arrow:YES''
                      0::NO({
-                         invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
+                         invalidE←'∆PRE ',PREFIX,'STATIC WARNING: Unable to execute expression'
                          _←NL,'⍝>  '
                          _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
                          _,←'∘static err∘'
@@ -650,7 +651,7 @@
                      ~⍵∊⍨⊂⍺:⍬
                    ⍝ See ::extern __INCLUDE_LIMITS__
                      count←+/includedFiles≡¨⊂⍺
-                     warn err←(⊂INFO,'::INCLUDE '),¨'WARNING: ' 'ERROR: '
+                     warn err←(⊂INFO,PREFIX,'INCLUDE '),¨'WARNING: ' 'ERROR: '
                      count≤1↑__INCLUDE_LIMITS__:⍬
                      count≤¯1↑__INCLUDE_LIMITS__:print warn,'File "',⍺,'" included ',(⍕count),' times'
                      11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
@@ -693,7 +694,7 @@
                      u≥32:c⊣info,←' "',c,'"'             ⍝ digits  (from hex/dec)
                      c⊣info,←' [ctl]'                    ⍝ digits  (ctl char)
                  }¨f1 f2
-                 ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ::TRANS ERROR'
+                 ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ',PREFIX,'TRANS ERROR'
                  (translateIn translateOut)∘←f1 f2
                  annotate f0,' ⍝ ',info
              }⍬
@@ -724,7 +725,7 @@
          ∆MY←''⎕NS⍨(⊃⎕NSI),'.⍙⍙.',funNm,'.∆MY'
          _←{
              0=≢list←∆MY.⎕NL-⍳10:0
-             _←print'::STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
+             _←print PREFIX,'STATIC variables for ',(⊃⎕NSI),'.',funNm,'exists'
              1⊣print'  Variables:',∊' ',¨list
          }
          (∆MYR←⍎∆MY)._FIRST_←1
@@ -751,7 +752,7 @@
 
        ⍝ Kludge: We remove comments from all directives up front...
        ⍝ Not ideal, but...
-         pInDirectiveE←'^\h*::'
+         pInDirectiveE←'^\h*',PREFIX
          inDirective←0
        ⍝ Process double quotes and continuation lines that may cross lines
          lines←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
