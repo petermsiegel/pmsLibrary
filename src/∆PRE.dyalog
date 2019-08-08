@@ -713,7 +713,8 @@
          _←0 put'__INCLUDE_LIMITS__'(5 10)   ⍝ [0] warn limit [1] error limit
        ⍝ Other macros
          _←0 put'⎕UCMD' '⎕SE.UCMD'           ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
-
+         _←0 put'⎕DICT' 'SimpleDict '        ⍝ d← {default←''} ⎕DICT entries
+                                             ⍝     entries: (key-val pairs | ⍬)
        ⍝ Read in data file...
          funNm fullNm dataIn←getDataIn ⍵
          tmpNm←'__',funNm,'__'

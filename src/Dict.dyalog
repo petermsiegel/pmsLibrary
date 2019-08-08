@@ -83,7 +83,7 @@
               vals←valuesF
               :Return
           :EndIf
-
+         
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
@@ -119,7 +119,7 @@
     ∇ {vals}←{keys}put vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄  :EndIf
+      :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
       :If 1=≢keys
           keys←⊂keys ⋄ vals←⊂vals
       :EndIf
@@ -358,24 +358,24 @@
     ⍝  Esp. useful with DefaultDict...
     ∇ {newval}←{∆}inc keys;this
       :Access Public
-       this←⎕THIS
-       :IF 900⌶1 ⋄ ∆←1 ⋄ :ENDIF
-       :IF  (≢∪keys) =  ≢keys
-         newval←this[keys] + ∆
-         import keys newval
+      this←⎕THIS
+      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
+      :If (≢∪keys)=≢keys
+          newval←this[keys]+∆
+          import keys newval
       :Else     ⍝ keys appear more than once; process all (L to R) so increments accumulate
-         newval←∆{
-            key1←⊂⍵
-            nv1←this[key1] +  ⍺
-            nv1⊣import key1 nv1
-         }¨keys
-      :Endif
-      ∇
-      ∇ {newval}←{∆}dec keys
+          newval←∆{
+              key1←⊂⍵
+              nv1←this[key1]+⍺
+              nv1⊣import key1 nv1
+          }¨keys
+      :EndIf
+    ∇
+    ∇ {newval}←{∆}dec keys
       :Access Public
-      :IF 900⌶1 ⋄ ∆←1 ⋄ :ENDIF
-       newval←(-∆) inc keys
-      ∇
+      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
+      newval←(-∆)inc keys
+    ∇
 
     ⍝ has_keys: Returns 1 for each key found in the dictionary
     ∇ old←has_keys keys
@@ -390,11 +390,11 @@
     ∇ {b}←{ignore}del keys;nf;old;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
+      :If 900⌶1 ⋄ ignore←1 ⋄ :EndIf
       keys←∪keys
       b←(≢keysF)>p←keysF⍳keys
       nf←0∊b
-      :If nf ∧ ~ignore     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
+      :If nf∧~ignore     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
           eDeleteKeyMissing ⎕SIGNAL 11
       :EndIf
       :If 0≠≢b←b/p
@@ -411,16 +411,16 @@
     ∇ {b}←{ignore}di ix;keys;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
+      :If 900⌶1 ⋄ ignore←1 ⋄ :EndIf
       ignore del_by_index ix
     ∇
     ∇ {b}←{ignore}del_by_index ix;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :IF 900⌶1 ⋄ ignore←1 ⋄ :ENDIF
+      :If 900⌶1 ⋄ ignore←1 ⋄ :EndIf
       ix←∪ix
       b←{⍵:0=0(≢keysF)⍸ix ⋄ 0}×≢keysF
-      :If (0∊b) ∧ ~ignore               ⍝ At least 1 missing key?
+      :If (0∊b)∧~ignore               ⍝ At least 1 missing key?
           eIndexRange ⎕SIGNAL 7
       :EndIf
       ix←b/ix                        ⍝ Keep those in range
@@ -493,7 +493,7 @@
     ∇ {h}←help
       :Access Public Shared
       ⍝ Pick up only ⍝H1 comments!
-      h←'^\h*⍝H1(.*)$' ⎕S '\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
+      h←'^\h*⍝H1(.*)$'⎕S'\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
       :Trap 1000
           ⎕ED'h'
       :EndTrap
@@ -521,9 +521,9 @@
      ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-      :IF DEBUGlast≢DEBUG
-         'DEBUGGING mode ',(DEBUG≠0)⊃'disabled' 'enabled'
-      :ENDIF
+      :If DEBUGlast≢DEBUG
+          'DEBUGGING mode ',(DEBUG≠0)⊃'disabled' 'enabled'
+      :EndIf
       DEBUGlast←DEBUG
     ∇
 
@@ -553,7 +553,7 @@
       :Access Public
       ⎕TRAP←∆TRAP
       ⎕DF ClassNameStr,'[]'
-      load⊂arg
+      load arg
     ∇
 :EndClass
 :Namespace TinyDictNs
@@ -576,7 +576,7 @@
 
     ∇ ns←{def}new entries
       ns←⎕THIS.new0
-      :If ~900⌶1  ⋄  ns.default←def ⋄  :EndIf
+      :If ~900⌶1 ⋄ ns.default←def ⋄ :EndIf
       :If 0<≢entries   ⍝ If entries is ⍬ or '', same as new0
           ns.(Keys Vals)←{⍺←⍴⍴entries
               2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
@@ -654,7 +654,7 @@
 
     ∇ {val}←{key}put1 val;p
     ⍝  put1 key val   OR    key put1 val
-      :If 900⌶1 ⋄  key val←val ⋄  :EndIf
+      :If 900⌶1 ⋄ key val←val ⋄ :EndIf
       p←keysF⍳⊂key
       :If p≥≢keysF
           keysF,←⊂key ⋄ valsF,←⊂val
@@ -680,19 +680,19 @@
     ∇
 
   ⍝ inc keys by 1 or <∆>, the increment amount
-    ∇ {newval}←{∆} inc keys
-       :IF 900⌶1 ⋄  ∆←1 ⋄  :EndIf
-       :IF (∪≢keys)=≢keys
-           newval←keys put ∆ + get keys
-       :Else ⍝ duplicates- do 1 at a time
-           newval←∆{⍵ put1 ⍺ + get1 ⍵}¨keys
-       :Endif
+    ∇ {newval}←{∆}inc keys
+      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
+      :If (∪≢keys)=≢keys
+          newval←keys put ∆+get keys
+      :Else ⍝ duplicates- do 1 at a time
+          newval←∆{⍵ put1 ⍺+get1 ⍵}¨keys
+      :EndIf
     ∇
 
     ⍝ dec keys by 1 or <∆>, the decrement amount
-    ∇ {newval}←{∆} dec keys
-       :IF 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-       newval←(-∆) inc keys
+    ∇ {newval}←{∆}dec keys
+      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
+      newval←(-∆)inc keys
     ∇
 
     ∇ b←has_default
@@ -707,7 +707,7 @@
     ∇ {h}←help;f;sel
       :Access Public Shared
     ⍝ Pick up ⍝H3 comments only as HELP...
-      h←'^\s*⍝H3(.*)$'  ⎕S '\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
+      h←'^\s*⍝H3(.*)$'⎕S'\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
       :Trap 1000
           ⎕ED'h'
       :EndTrap
@@ -716,38 +716,38 @@
     _←⎕FX 'help'⎕R'HELP'⊣⎕NR 'help'
 
 :EndNamespace
- SimpleDict←{
+  SimpleDict←{
      ⍝ d ← [default] simpleDict [key-value pairs | ⍬]
-     ⍺←''   ⍝ Default is character null-string.
+      ⍺←''   ⍝ Default is character null-string.
             ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
-     set←{⍺←dict
-         d(n v)←⍺ ⍵
-         p←d.keys⍳⊂n
-         p<≢d.keys:(p⊃d.vals)←v
-         d.keys,←⊂n
-         1:_←v⊣d.vals,←⊂v
-     }
-     get←{⍺←dict
-         d n←⍺ ⍵
-         p←d.keys⍳⊂n
-         p<≢d.keys:p⊃vals
-         d.default
-     }
-     del←{⍺←dict
-         d n←⍺ ⍵
-         p←d.keys⍳⊂n
-         p>≢d.keys:_←0
-         k←p≠⍳≢keys
-         d.keys←k/d.keys 
-         d.vals←k/d.vals
-         1:_←1
-     }
-     dict←⎕NS''
-     dict.dict←dict
-     dict.(keys vals)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
-     dict.(default ⎕IO ⎕ML )←⍺ 0 1
-     dict.set←set
-     dict.get←get
-     dict.del←del
-     dict
- }
+      set←{⍺←dict
+          d(n v)←⍺ ⍵
+          p←d.keys⍳⊂n
+          p<≢d.keys:(p⊃d.vals)←v
+          d.keys,←⊂n
+          1:_←v⊣d.vals,←⊂v
+      }
+      get←{⍺←dict
+          d n←⍺ ⍵
+          p←d.keys⍳⊂n
+          p<≢d.keys:p⊃vals
+          d.default
+      }
+      del←{⍺←dict
+          d n←⍺ ⍵
+          p←d.keys⍳⊂n
+          p>≢d.keys:_←0
+          k←p≠⍳≢keys
+          d.keys←k/d.keys
+          d.vals←k/d.vals
+          1:_←1
+      }
+      dict←⎕NS''
+      dict.dict←dict
+      dict.(keys vals)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
+      dict.(default ⎕IO ⎕ML)←⍺ 0 1
+      dict.set←set
+      dict.get←get
+      dict.del←del
+      dict
+  }
