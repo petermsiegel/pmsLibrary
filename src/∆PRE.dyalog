@@ -350,9 +350,13 @@
       ⍝ [1] DEFINITIONS
       ⍝ -------------------------------------------------------------------------
          _CTR_←0 ⋄ patternList←patternName←⍬
-         PREFIX←'::'    ⍝ PREFIX: The regex-compatible directive prefix can be modified here ONLY!
+       ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
+       ⍝      Default '::' or CALLER.∆PRE_PREFIX, if set.
+       ⍝      Must be a char scalar or vector; treated as a regexp literal.
+         PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'
+
          reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
-         ⋄ ppBeg←'^\h* ',PREFIX,'\h*'
+         ⋄ ppBeg←'^\h* \Q',PREFIX,'\E \h*'
          cIFDEF←'ifdef'reg'    ⍎ppBeg  IF(N?)DEF         \h+(.*)         $'
          cIF←'if'reg'          ⍎ppBeg  IF                \h+(.*)         $'
          cELSEIF←'elseif'reg'  ⍎ppBeg  EL(?:SE)?IF \b    \h+(.*)         $'
@@ -752,7 +756,7 @@
 
        ⍝ Kludge: We remove comments from all directives up front...
        ⍝ Not ideal, but...
-         pInDirectiveE←'^\h*',PREFIX
+         pInDirectiveE←'^\h*\Q',PREFIX,'\E'
          inDirective←0
        ⍝ Process double quotes and continuation lines that may cross lines
          lines←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
