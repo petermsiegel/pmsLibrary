@@ -1,16 +1,21 @@
  ∆PRE←{
+  ⍝  Comments? See below (at bottom)
      ⍺←'V'
      ⍝ Move execution into a private NS...
      ⍺(⎕NS'').{
          ⎕IO ⎕ML ⎕PP←0 1 34
-      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
-      ⍝  These are all defined as "specialMacros" and start and end with dunder __.
-      ⍝  Comments? See below (at bottom)
-         CALLER←0⊃⎕RSI
-
-      ⍝ Special macros, isSpecialMacro ⍵.
+       ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
+       ⍝ When a user uses these (read or write), they are synched with
+       ⍝ ∆PRE local (special) variables.
+       ⍝ See Executive for meanings.
          __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
-         isSpecialMacro←(∊∘'__DEBUG__' '__INCLUDE_LIMITS__' '__MAX_EXPAND__' '__MAX_PROGRESSION__')∘⊂
+         isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
+       ⍝ Use NL   for all newlines to be included in the ∆PRE output.
+       ⍝ Use CR   in error msgs going to ⎕ (APL treats NL as a typewriter newline)
+       ⍝ Use NULL internally for special code lines (removed at end)
+         NL CR NULL←⎕UCS 10 13 0
+      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
+         CALLER←0⊃⎕RSI
 
       ⍝ OPTIONS
       ⍝ 'V'
@@ -32,7 +37,7 @@
       ⍝    ⍺=0: Delete __name__ unless error.
              condSave←{
                  _←⎕EX 1⊃⍵
-                 ⍺:⍎'CALLER.',(1⊃⍵),'←(⎕UCS 0)~⍨¨2⊃⍵'
+                 ⍺:⍎'CALLER.',(1⊃⍵),'←NULL~⍨¨2⊃⍵'
                  2⊃⍵
              }
              0::11 ⎕SIGNAL⍨{
@@ -40,13 +45,13 @@
                  _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
                  _,'See preprocessor output: "',(1⊃⍵),'"'
              }⍵
-          ⍝ '$'... We have embedded newlines (⎕UCS 10) within lines (char vectors) that we remove...
-             forceSplit←{⊃,/(⎕UCS 10)(≠⊆⊢)¨⍵}    ⍝ 3x slower:  forceSplit←{'$'⎕R'&'⊣⍵}
+          ⍝ '$'... We have embedded NLs within lines (char vectors) that we remove...
+             forceSplit←{⊃,/NL(≠⊆⊢)¨⍵}    ⍝ 3x slower:  forceSplit←{'$'⎕R'&'⊣⍵}
              1:2 CALLER.⎕FIX forceSplit{
-                 (⎕UCS 0)~⍨¨⍵/⍨(⎕UCS 0)≠⊃¨⍵
+                 NULL~⍨¨⍵/⍨NULL≠⊃¨⍵
              }{
-                 'c'∊opts:'^\h*$'⎕R(⎕UCS 0)⊣⍵            ⍝ c? Remove lines
-                 'C'∊opts:'^\h*(?:   ⍝.*)?$'⎕R(⎕UCS 0)⊣⍵    ⍝ C? Remove lines and comments.
+                 'c'∊opts:'^\h*$'⎕R NULL⊣⍵            ⍝ c? Remove lines
+                 'C'∊opts:'^\h*(?:⍝.*)?$'⎕R NULL⊣⍵    ⍝ C? Remove lines and comments.
                  ⍵
              }(⍺ condSave ⍵){
                  ~EDIT:⍺
@@ -135,15 +140,14 @@
              }
 
            ⍝ GENERAL CONSTANTS. Useful in annotate etc.
-           ⍝ Use NL for all newlines. Use CR in error msgs (APL treats NL as PC/typewriter newline)
-             NL CR←⎕UCS 10 13
+
            ⍝ Annotations (see annotate).
            ⍝   YES - path taken.    NO - path not taken (false conditional).
            ⍝   SKIP- skipped because it is governed by a conditional that was false.
            ⍝   INFO- added information.
              YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
            ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
-             EMPTY←,⎕UCS 0
+             EMPTY←,NULL
 
            ⍝ __DEBUG__  see above...
              VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱__DEBUG__
@@ -715,11 +719,11 @@
            ⍝ See below
            ⍝ Set prepopulated macros
              names←vals←nameVis←⍬
-             _←0 put'__DEBUG__'__DEBUG__
+             _←0 put'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
              _←0 put'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
              _←0 put'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
              _←0 put'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
-           ⍝ Other macros
+           ⍝ Other user-oriented macros
              _←0 put'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
              _←0 put'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
                                                     ⍝ entries: (key-val pairs | ⍬)
@@ -737,14 +741,14 @@
              }
              (∆MYR←⍎∆MY)._FIRST_←1
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
-             _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←(~_FIRST_) 1'
+             _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
              _←0 put'⎕MY'∆MY
 
 
            ⍝ Initialization
              stack←,1 ⋄ lineNum←0
              includedFiles←⊂fullNm
-             translateIn←translateOut←¯1              ⍝ None
+             translateIn←translateOut←⍬                 ⍝ None
              NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
              _←dPrint'Processing input object ',(∆DQT funNm),' from file ',∆DQT fullNm
              _←dPrint'Object has ',NLINES,' lines'
