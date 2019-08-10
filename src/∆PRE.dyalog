@@ -35,14 +35,14 @@
       ⍝   Default: (-M)
       ⍝   Alternate: (-noM)
       ⍝             Treat as a single string with newlines (⎕UCS 10).
-         opt←(819⌶,⍺)∘{1∊⍵⍷'-',⍺}
+         opt←(819⌶,⍺)∘{w←819⌶⍵ ⋄ 1∊w⍷'-',⍺}
          env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
-         __VERBOSE__←(opt'v')∨(env'VERBOSE')∨(⎕NULL≡⍵)∧~opt'nov'
-         __DEBUG__←(opt'd')env'DEBUG'
-         NOCOM NOBLANK HELP←opt¨'noc' 'nob' 'help'
-         EDIT←(⎕NULL≡⍵)∨opt'e'
+         __VERBOSE__←(opt'V')∨(env'VERBOSE')∨(⎕NULL≡⍵)∧~opt'nov'
+         __DEBUG__←(opt'D')env'DEBUG'
+         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
+         EDIT←(⎕NULL≡⍵)∨opt'E'
          QUIET←__VERBOSE__⍱__DEBUG__
-         DQ_SINGLE←~opt'nom'
+         DQ_SINGLE←~opt'noM'
 
          _←{~__VERBOSE__:0 ⋄ _←'    '
              ⎕←_,'Options: "','"',⍨819⌶,⍵
@@ -84,9 +84,8 @@
                ⍝ E(DIT) flag? edit before returning to save and ⎕FIX
                  ⍺⊣CALLER.⎕ED(1⊃⍵)
              }⍵
-         }(⊆,⍺){
-             opts preamble←{(⊃⍺)(⊆1↓⍺)}⍨⍺
-
+         }(1↓⊆,⍺){
+             preamble←⍺
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
            ⍝ annotate [preprocessor (output) code]
@@ -1138,7 +1137,7 @@
   ⍝H                              ⎕←big          ⍝ Will not work!
   ⍝H                              ::IMPORT big2
   ⍝H                              ⎕←big2         ⍝ Will work
-  ⍝H __DEBUG__                ⍝ See DEBUG/__DEBUG__ above...
+  ⍝H __DEBUG__                ⍝ See __DEBUG__ above...
   ⍝H __MAX_EXPAND__←5         ⍝ Maximum times to expand macros (if 0, expansion is turned off!)
   ⍝H                          ⍝ Set via ⎕DEF __MAX_EXPAND__ ← 100
   ⍝H __MAX_PROGRESSION__←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
