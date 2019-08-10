@@ -1,14 +1,12 @@
- ∆PRE←{
-  ⍝  Comments? See below (at bottom)
-     ⍺←'V'
-     ⍝ Move execution into a private NS...
-     ⍺(⎕NS'').{
+ ∆PRE←{⍺←''
+     ⍝ Move execution into a private NS so we don't worry about name conflicts.
+     (⊃⊆,⍺)(⎕NS'').{
          ⎕IO ⎕ML ⎕PP←0 1 34
        ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
        ⍝ When a user uses these (read or write), they are synched with
        ⍝ ∆PRE local (special) variables.
        ⍝ See Executive for meanings.
-         __DEBUG__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
+         __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
          isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
        ⍝ Use NL   for all newlines to be included in the ∆PRE output.
        ⍝ Use CR   in error msgs going to ⎕ (APL treats NL as a typewriter newline)
@@ -18,16 +16,44 @@
          CALLER←0⊃⎕RSI
 
       ⍝ OPTIONS
-      ⍝ 'V'
-         ⍺←'V' ⋄ opts←⊃⊆,⍺
-      ⍝ 'H' ≡ 'h' ≡ '?'.
-         1∊'Hh?'∊opts:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='   ⍝H'}2↓¨⎕NR⊃⎕XSI
-      ⍝ 'V' + 'D' vs 'Q'; 'S' | 'M';  'C' | 'c'
-         0≠≢opts~'VDQSMCc ':11 ⎕SIGNAL⍨'∆PRE: Options are any of {V or D}, {S or M}, Q, C, or H (default ''VM'')'
-      ⍝ 'E'
-         EDIT←(⎕NULL≡⍵)∨'E'∊opts
-      ⍝ Debug? Check 'D' option and CALLER.∆PRE_DEBUG; set macro __DEBUG__ to 1 or 0 for user use.
-         __DEBUG__←EDIT∨('D'∊opts)∨(~'Q'∊opts)∧CALLER{0=⍺.⎕NC ⍵:0 ⋄ ⍺.⎕OR ⍵}'∆PRE_DEBUG'
+      ⍝ (Defaults):
+      ⍝    -noV -D -noE -C -S -noH
+      ⍝ -D | -noD   __DEBUG__, add annotations to ⎕ (stdout)
+      ⍝   Default: -noD  (Also a R/W macro)
+      ⍝ -V | -noV   __VERBOSE__, include directives and status in output code.
+      ⍝   Default: -V    (Also a R/W macro)
+      ⍝ -E | -noE   EDIT, look at annotated preprocessed intermediate file
+      ⍝   Default: -noE, except as below
+      ⍝            -E, if ⍵ (right argument) is ⎕NULL
+      ⍝ -noC        NOCOM, remove all comment lines and blank lines
+      ⍝   Default: (-C)
+      ⍝ -noB        NOBLANK, remove blank lines
+      ⍝   Default: (-B)
+      ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
+      ⍝   Default: (-noH)
+      ⍝ -M          Treat double-quoted strings as multiple separate str vectors
+      ⍝   Default: (-M)
+      ⍝   Alternate: (-noM)
+      ⍝             Treat as a single string with newlines (⎕UCS 10).
+         opt←(819⌶,⍺)∘{1∊⍵⍷'-',⍺}
+         env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
+         __VERBOSE__←(opt'v')∨(env'VERBOSE')∨(⎕NULL≡⍵)∧~opt'nov'
+         __DEBUG__←(opt'd')env'DEBUG'
+         NOCOM NOBLANK HELP←opt¨'noc' 'nob' 'help'
+         EDIT←(⎕NULL≡⍵)∨opt'e'
+         QUIET←__VERBOSE__⍱__DEBUG__
+         DQ_SINGLE←~opt'nom'
+
+         _←{~__VERBOSE__:0 ⋄ _←'    '
+             ⎕←_,'Options: "','"',⍨819⌶,⍵
+             ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
+             ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
+             ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
+             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'DQ_SINGLE',DQ_SINGLE
+             0
+         }⍺
+
+         HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='   ⍝H'}2↓¨⎕NR⊃⎕XSI
 
       ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
       ⍝ and attempt to ⎕FIX its included function(s).
@@ -50,8 +76,8 @@
              1:2 CALLER.⎕FIX forceSplit{
                  NULL~⍨¨⍵/⍨NULL≠⊃¨⍵
              }{
-                 'c'∊opts:'^\h*$'⎕R NULL⊣⍵            ⍝ c? Remove lines
-                 'C'∊opts:'^\h*(?:⍝.*)?$'⎕R NULL⊣⍵    ⍝ C? Remove lines and comments.
+                 NOBLANK:'^\h*$'⎕R NULL⊣⍵            ⍝ c? Remove lines
+                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⊣⍵    ⍝ C? Remove lines and comments.
                  ⍵
              }(⍺ condSave ⍵){
                  ~EDIT:⍺
@@ -64,7 +90,7 @@
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
            ⍝ annotate [preprocessor (output) code]
-           ⍝ If VERBOSE,
+           ⍝ If __VERBOSE__,
            ⍝     write to preprocessor output:
            ⍝         (b⍴' '),⍵
            ⍝     where
@@ -75,7 +101,7 @@
            ⍝ else
            ⍝     write the token EMPTY (a NULL char with special meaning).
              annotate←{
-                 ~VERBOSE:EMPTY ⋄ ⍺←⍬
+                 ~__VERBOSE__:EMPTY ⋄ ⍺←⍬
                  0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
                  '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
              }
@@ -148,12 +174,6 @@
              YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
            ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
              EMPTY←,NULL
-
-           ⍝ __DEBUG__  see above...
-             VERBOSE←1∊'VD'∊opts ⋄ QUIET←VERBOSE⍱__DEBUG__
-           ⍝ DQ_SINGLE: 'S' opt. Treat double-quoted lines as a single NL-embedded string
-           ⍝        vs: 'M' opt. Treat as a vector of strings.
-             DQ_SINGLE←'S'∊opts
 
            ⍝ Process double quotes based on DQ_SINGLE flag.
              processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
@@ -720,6 +740,7 @@
            ⍝ Set prepopulated macros
              names←vals←nameVis←⍬
              _←0 put'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
+             _←0 put'__VERBOSE__'__VERBOSE__
              _←0 put'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
              _←0 put'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
              _←0 put'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
@@ -809,52 +830,34 @@
   ⍝H
   ⍝H ---------------------------------------------------------
   ⍝H   ⍺
-  ⍝H  (1↑⍺):opts    Contains one or more of the following letters:
-  ⍝H                V; D; E; Q; (M | S);(C | c);  H
-  ⍝H   Debugging:   Verbose, Debug, Edit; Quiet
-  ⍝H   [DQ lines]:  Multi-line | Single-line;
-  ⍝H   Compression: Compress (comments+blank lines), compress (blank lines)
-  ⍝H   Help info:   Help
-  ⍝H ---------------------------------------------------------
-  ⍝H
-  ⍝H Verbosity
-  ⍝H    'V' (Verbose)The default
-  ⍝H                 Preprocessor directives and APL lines with macro replacements
-  ⍝H                 are shown in the ⎕FIXed output code as comments
-  ⍝H Debugging output
-  ⍝H    'D' (Debug)
-  ⍝H                 Details on the flow of execution are showed in the stdout (⎕←...)
-  ⍝H                 For function ⍵, the function __⍵__, which shows all the details, is preserved.
-  ⍝H                 See Debugging Flags below.
-  ⍝H     D sets 'V' as well.
-  ⍝H
-  ⍝H     E  (Edit)   ⎕EDits the intermediate preprocessor file(*) when done...
-  ⍝H                 (Sets 'D'; Debug mode)
-  ⍝H                 (*) The intermed. preproc file is a text file which is ⎕FIXed to create the
-  ⍝H                 executables.
-  ⍝H                 Unlike the latter, the intermed. file will be viewable even if the
-  ⍝H                 ⎕FIXed executable can not be created (e.g. because of errors).
-  ⍝H    'Q' or ''    None of 'DV' above.
-  ⍝H                 Put no preprocessor comments in output and no details on the console
-  ⍝H                 Q will force ∆PRE to ignore CALLER.∆PRE_DEBUG.
-  ⍝H
-  ⍝H Are multi-line double-quoted strings treated as multiple strings (M)
-  ⍝H or a single strings with newlines?
+  ⍝H OPTIONS
+  ⍝H (Defaults):
+  ⍝H    -noV -D -noE -C -S -noH
+  ⍝H -V | -noV   __VERBOSE__, add annotations to ⎕ (stdout)
+  ⍝H   Default: -noV  (Also a R/W macro)
+  ⍝H -D | -noD   __DEBUG__, include directives and status in output code.
+  ⍝H   Default: -D    (Also a R/W macro)
+  ⍝H -E | -noE   EDIT, look at annotated preprocessed intermediate file
+  ⍝H   Default: -noE, except as below
+  ⍝H            -E, if ⍵ (right argument) is ⎕NULL
+  ⍝H -noC        NOCOM, remove all comment lines and blank lines
+  ⍝H   Default: (-C)
+  ⍝H -noB        NOBLANK, remove blank lines
+  ⍝H   Default: (-B)
+  ⍝H -H          HELP, show help info, ignoring ⍵ (right arg)
+  ⍝H   Default: (-noH)
+  ⍝H -M         MULTILINE:
+  ⍝    Default:  -M    Multi-line double-quoted strings are treated...
+  ⍝H             -M:   ...as multiple strings (M)
+  ⍝H             -noM: ...a single strings with newlines
   ⍝H        Example Input
   ⍝H                str ← "line1
   ⍝H                       line2
   ⍝H                       line three"
-  ⍝H    'M' (Mult)   The default
-  ⍝H                 A multiline DQ string ends up as multiple char vectors
-  ⍝H        Output:  str←'line1' 'line2' 'line3'
-  ⍝H    'S' (Single) A multiline DQ string ends up as a single string with embedded newlines
-  ⍝H        Output:  str←('line1',CR,'line2',CR,'line three')
-  ⍝H
-  ⍝H    'C'          (Compress) Remove blank lines and comment lines (most useful w/ Q)!
-  ⍝H    'c'          (small compress) Remove blank lines only!
-  ⍝H Help Information
-  ⍝H    'H'          Show this HELP information
-  ⍝H    '?' | 'h'    Same as 'H'
+  ⍝H        Under -M option
+  ⍝H                str ← 'line1' 'line2' 'line three'
+  ⍝H        Under -noM option
+  ⍝H                str ← ('line1',(⎕UCS 10),'line2',(⎕UCS 10),'line three')
   ⍝H
   ⍝H Debugging Flags
   ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
