@@ -6,7 +6,8 @@
        ⍝ When a user uses these (read or write), they are synched with
        ⍝ ∆PRE local (special) variables.
        ⍝ See Executive for meanings.
-         __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
+         __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1
+         __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
          isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
        ⍝ Use NL   for all newlines to be included in the ∆PRE output.
        ⍝ Use CR   in error msgs going to ⎕ (APL treats NL as a typewriter newline)
@@ -17,7 +18,7 @@
 
       ⍝ OPTIONS
       ⍝ (Defaults):
-      ⍝    -noV -D -noE -C -S -noH
+      ⍝    -noD -V -noE -C -S -M -noH
       ⍝ -D | -noD   __DEBUG__, add supplemental annotations to ⎕ (stdout)
       ⍝   Default: -noD  (Also a R/W macro)
       ⍝ -V | -noV   __VERBOSE__, include directives and status in output code.
@@ -31,12 +32,12 @@
       ⍝   Default: (-C)
       ⍝ -noB        NOBLANK, remove blank lines
       ⍝   Default: (-B)
-      ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
-      ⍝   Default: (-noH)
       ⍝ -M          Treat double-quoted strings as multiple separate str vectors
       ⍝   Default: (-M)
       ⍝   Alternate: (-noM)
       ⍝             Treat as a single string with newlines (⎕UCS 10).
+      ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
+      ⍝   Default: (-noH)
          opt←('-',819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
          __VERBOSE__←_∨(env'VERBOSE')∨(⎕NULL≡⍵)∧_←~opt'noV'
@@ -75,6 +76,8 @@
                  _,'See preprocessor output: "',(1⊃⍵),'"'
              }⍵
           ⍝ '$'... We have embedded NLs within lines (char vectors) that we remove...
+          ⍝     'aaaaaNaaaaaa'  'bbbbNbbbbbbNbbbbb'  'cccccc'
+          ⍝  →  'aaaaa' 'aaaaaa' 'bbbbb' 'bbbbb' 'bbbbb' 'cccccc'
              forceSplit←{⊃,/NL(≠⊆⊢)¨⍵}    ⍝ 3x slower:  forceSplit←{'$'⎕R'&'⊣⍵}
              1:2 CALLER.⎕FIX forceSplit{
                  NULL~⍨¨⍵/⍨NULL≠⊃¨⍵
@@ -103,9 +106,8 @@
            ⍝ else
            ⍝     write the token EMPTY (a NULL char with special meaning).
              annotate←{
-                 ~__VERBOSE__:EMPTY ⋄ ⍺←⍬
-                 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺
-                 '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
+                 ~__VERBOSE__:EMPTY
+                 ⍺←⍬ ⋄ 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺ ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
              }
            ⍝ print family - informing user, rather than annotating output code.
            ⍝
@@ -122,27 +124,28 @@
              dPrintQ←{__DEBUG__:printQ ⍵ ⋄ ⍵}
 
            ⍝ ∆FLD: ⎕R helper.
-           ⍝ ns [default] ∆FLD [fld number | name]
+           ⍝  Returns the contents of ⍺ regexp field ⍵, a number or name or ''
+           ⍝ val ← ns  ∆FLD [fld number | name]
            ⍝    ns- active ⎕R namespace (passed by ⎕R as ⍵)
-           ⍝    default- default string if field not defined
            ⍝    fld number or name: a single field number or name.
+           ⍝ Returns <val> the value of the field or ''
              ∆FLD←{
-                 ns def←2↑⍺,⊂''   ⍝ We always use <def> default, so perhaps hard wire it?
-                 ' '=1↑0⍴⍵:ns def ∇ ns.Names⍳⊂⍵
-                 ⍵=0:ns.Match                                  ⍝ Fast way to get whole match
-                 ⍵≥≢ns.Lengths:def                             ⍝ Field not defined AT ALL → ''
-                 ns.Lengths[⍵]=¯1:def                          ⍝ Defined field, but not used HERE (within this submatch) → ''
-                 ns.(Lengths[⍵]↑Offsets[⍵]↓Block)               ⍝ Simple match
+                 ns def←⍺''
+                 ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
+                 ⍵=0:ns.Match                          ⍝ Fast way to get whole match
+                 ⍵≥≢ns.Lengths:def                     ⍝ Field not defined AT ALL → ''
+                 ns.Lengths[⍵]=¯1:def                  ⍝ Defined field, but not used HERE (within this submatch) → ''
+                 ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
              }
            ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
            ⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
-             ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
-           ⍝ ∆QT:  Add quotes (default ⍺: single)
+                    ⍝ ∆QT:  Add quotes (default ⍺: single)
            ⍝ ∆DQT: Add double quotes. See ∆QTX if you want to fix any internal double quotes.
            ⍝ ∆UNQ: Remove one level of s/d quotes from around a string, addressing internal quotes.
            ⍝       If ⍵ doesn't begin with a quote in ⍺ (default: s/d quotes), does nothing.
            ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
            ⍝ ∆QTX: Add external quotes (default ⍺: single), first doubling internal quotes (if any).
+             ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
              ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
              ∆DQT←{'"'∆QT ⍵}
              ∆UNQ←{⍺←'"''' ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
@@ -166,11 +169,10 @@
                  0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
                  1
              }
-
            ⍝ GENERAL CONSTANTS. Useful in annotate etc.
-
            ⍝ Annotations (see annotate).
-           ⍝   YES - path taken.    NO - path not taken (false conditional).
+           ⍝   YES - path taken.
+           ⍝   NO  - path not taken (false conditional).
            ⍝   SKIP- skipped because it is governed by a conditional that was false.
            ⍝   INFO- added information.
              YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
@@ -766,7 +768,7 @@
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
              _←0 put'⎕MY'∆MY
-             _←0 put '⎕FIRST'(∆MY,'.FIRST')
+             _←0 put'⎕FIRST'(∆MY,'.FIRST')
 
 
            ⍝ Initialization
