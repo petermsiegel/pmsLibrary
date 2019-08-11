@@ -478,7 +478,7 @@
                      T≠TOP:annotate f0,SKIP        ⍝ See annotate, QUIET
                      str←mExpand f0
                      QUIET:str ⋄ str≡f0:str
-                     '   ⍝',f0,YES,NL,' ',str
+                     '⍝',f0,YES,NL,' ',str
                  }0
 
               ⍝ ::IFDEF/IFNDEF name
@@ -766,6 +766,7 @@
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
              _←0 put'⎕MY'∆MY
+             _←0 put '⎕FIRST'(∆MY,'.FIRST')
 
 
            ⍝ Initialization
