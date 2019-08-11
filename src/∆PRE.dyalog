@@ -18,9 +18,11 @@
       ⍝ OPTIONS
       ⍝ (Defaults):
       ⍝    -noV -D -noE -C -S -noH
-      ⍝ -D | -noD   __DEBUG__, add annotations to ⎕ (stdout)
+      ⍝ -D | -noD   __DEBUG__, add supplemental annotations to ⎕ (stdout)
       ⍝   Default: -noD  (Also a R/W macro)
       ⍝ -V | -noV   __VERBOSE__, include directives and status in output code.
+      ⍝             This always makes sense
+      ⍝             (but if -C is specified, all comments are removed, even these.)
       ⍝   Default: -V    (Also a R/W macro)
       ⍝ -E | -noE   EDIT, look at annotated preprocessed intermediate file
       ⍝   Default: -noE, except as below
@@ -35,16 +37,17 @@
       ⍝   Default: (-M)
       ⍝   Alternate: (-noM)
       ⍝             Treat as a single string with newlines (⎕UCS 10).
-         opt←(819⌶,⍺)∘{w←819⌶⍵ ⋄ 1∊w⍷'-',⍺}
+         opt←('-',819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
-         __VERBOSE__←(opt'V')∨(env'VERBOSE')∨(⎕NULL≡⍵)∧~opt'nov'
+         __VERBOSE__←_∨(env'VERBOSE')∨(⎕NULL≡⍵)∧_←~opt'noV'
          __DEBUG__←(opt'D')env'DEBUG'
+
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
          EDIT←(⎕NULL≡⍵)∨opt'E'
          QUIET←__VERBOSE__⍱__DEBUG__
          DQ_SINGLE←~opt'noM'
 
-         _←{~__VERBOSE__:0 ⋄ _←'    '
+         _←{~__DEBUG__:0 ⋄ _←'    '
              ⎕←_,'Options: "','"',⍨819⌶,⍵
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
@@ -832,10 +835,10 @@
   ⍝H OPTIONS
   ⍝H (Defaults):
   ⍝H    -noV -D -noE -C -S -noH
-  ⍝H -V | -noV   __VERBOSE__, add annotations to ⎕ (stdout)
-  ⍝H   Default: -noV  (Also a R/W macro)
-  ⍝H -D | -noD   __DEBUG__, include directives and status in output code.
-  ⍝H   Default: -D    (Also a R/W macro)
+  ⍝H -V | -noV   __VERBOSE__, include directives and status in output code.
+  ⍝H   Default: -V  (Also a R/W macro)
+  ⍝H -D | -noD   __DEBUG__, add annotations to ⎕ (stdout)
+  ⍝H   Default: -noD    (Also a R/W macro)
   ⍝H -E | -noE   EDIT, look at annotated preprocessed intermediate file
   ⍝H   Default: -noE, except as below
   ⍝H            -E, if ⍵ (right argument) is ⎕NULL
