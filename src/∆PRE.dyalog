@@ -13,9 +13,11 @@
        ⍝ Use CR   in error msgs going to ⎕ (APL treats NL as a typewriter newline)
        ⍝ Use NULL internally for special code lines (removed at end)
          NL CR NULL←⎕UCS 10 13 0
+         SQ DQ SQDQ←'''' '"' '''"'
       ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
          CALLER←0⊃⎕RSI
 
+      ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS
       ⍝ (Defaults):
       ⍝    -noD -V -noE -C -S -M -noH
@@ -32,13 +34,9 @@
       ⍝   Default: (-C)
       ⍝ -noB        NOBLANK, remove blank lines
       ⍝   Default: (-B)
-      ⍝ -M          Treat double-quoted strings as multiple separate str vectors
-      ⍝   Default: (-M)
-      ⍝   Alternate: (-noM)
-      ⍝             Treat as a single string with newlines (⎕UCS 10).
       ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
       ⍝   Default: (-noH)
-         opt←('-',819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
+         opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
          __VERBOSE__←_∨(env'VERBOSE')∨(⎕NULL≡⍵)∧_←~opt'noV'
          __DEBUG__←(opt'D')env'DEBUG'
@@ -46,18 +44,18 @@
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
          EDIT←(⎕NULL≡⍵)∨opt'E'
          QUIET←__VERBOSE__⍱__DEBUG__
-         DQ_SINGLE←~opt'noM'
 
          _←{~__DEBUG__:0 ⋄ _←'    '
              ⎕←_,'Options: "','"',⍨819⌶,⍵
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
              ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'DQ_SINGLE',DQ_SINGLE
+             ⎕←_,'Help:    ',HELP ⋄
              0
          }⍺
 
          HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='   ⍝H'}2↓¨⎕NR⊃⎕XSI
+      ⍝ -------------------------------------------------------------------
 
       ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
       ⍝ and attempt to ⎕FIX its included function(s).
@@ -146,11 +144,13 @@
            ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
            ⍝ ∆QTX: Add external quotes (default ⍺: single), first doubling internal quotes (if any).
              ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
-             ∆QT←{⍺←'''' ⋄ ⍺,⍵,⍺}
-             ∆DQT←{'"'∆QT ⍵}
-             ∆UNQ←{⍺←'"''' ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
-             ∆QT0←{⍺←'''' ⋄ ⍵/⍨1+⍵∊⍺}
-             ∆QTX←{⍺←'''' ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
+             ∆QT←{⍺←SQ ⋄ ⍺,⍵,⍺}
+             ∆DQT←{DQ ∆QT ⍵}
+             ∆UNQ←{⍺←SQDQ ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
+             ∆QT0←{⍺←SQ ⋄ ⍵/⍨1+⍵∊⍺}
+             ∆QTX←{⍺←SQ ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
+           ⍝ ∆PARENS: ⍵  →   '(⍵)'
+             ∆PARENS←{'(',')',⍨⍵}
            ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
            ⍝      blanks or trailing X symbols. (You don't need to remove X or blanks first.)
              ∆H2D←{   ⍝ Decimal from hexadecimal
@@ -179,17 +179,35 @@
            ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
              EMPTY←,NULL
 
-           ⍝ Process double quotes based on DQ_SINGLE flag.
-             processDQ←{⍺←DQ_SINGLE   ⍝ If 1, create a single string. If 0, create char vectors.
-                 str type←⍵
-                 ⋄ lit←'R'∊type ⋄ sngl←(⍺∨'S'∊type)∧~'M'∊type
-                 ⋄ DQ←'"'
-                 ⋄ Q_CR_Q←''',(⎕UCS 13),'''                             ⍝ APL expects a CR, not NL.
-                 ⋄ opts←('Mode' 'M')('EOL' 'LF')
-                 sngl∧lit:'(',')',⍨∆QT'\n'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆UNQ str ⍝ Single mode ∧ literal
-                 sngl:'(',')',⍨∆QT'\n\h*'⎕R Q_CR_Q⍠opts⊢∆QT0 ∆UNQ str  ⍝ Single mode
-                 lit:'\n'⎕R''' '''⍠opts⊢∆QTX ∆UNQ str                   ⍝ Multi  mode ∧ literal
-                 '\n\h*'⎕R''' '''⍠opts⊢∆QTX ∆UNQ str                    ⍝ Multi  mode
+           ⍝ Process double quotes based on double-quoted string suffixes "..."sfx
+           ⍝ Where suffixes are [vsm]? and  [r]? with default 'v' and (cooked).
+           ⍝ If suffix is (case ignored):
+           ⍝  type  suffix      set of lines in double quotes ends up as...
+           ⍝  VEC   v or none:  ... a vector of (string) vectors
+           ⍝ SING   s:          ... a single string with newlines (⎕UCS 10)
+           ⍝  MX    m:          ... a single matrix
+           ⍝  RAW   r:          blanks at the start of each line are preserved.
+           ⍝ COOKD  none:       blanks at the start of each line are removed.
+             processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
+                 str type←(⊃⍵)(819⌶⊃⌽⍵)
+               ⍝ type: 'v' (cooked) is nothing else specified.
+               ⍝       which sets raw←0, sing←0, cMx←''
+                 isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
+                 hasMany←NL∊str
+                 ⋄ toMx←{⍺:'↑',⍵ ⋄ '⎕FMT',⍵}          ⍝ Forces simple vec or scalar → matrix
+                 ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
+                 ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
+                 str2←∆QT0 ∆UNQ str
+
+                 isStr:∆PARENS⍣hasMany⊣∆QT{
+                     isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R''Q_CR_Q⍠opts⊢⍵
+                 }str2
+                 hasMany toMx⍣isMx⊣∆QT{
+                     isRaw:'\n'⎕R''' '''⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R'' ''' '''⍠opts⊢⍵
+                 }str2
+
                  '∆PRE: processDQ logic error'⎕SIGNAL 911
              }
 
@@ -424,10 +442,13 @@
               ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
               ⍝      """... multiline ok """    ==> ' '
              pDQ3e←'(?sx)  "{3} .*? "{3}'
-              ⍝ Double quote suffixes:  R (raw), S (single string), M (multiple string vectors)
-              ⍝ Default for S|M depends on S or M options. Raw means don't remove leading blanks
-             pDQe←'(?x)   (    (?: " [^"]*     "  )+ )   ([RSM]{0,2}) '
-             pSQe←'(?x)   (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
+              ⍝ Double quote suffixes:   [R/r] plus [S/s] or [M/m] or [V/v]
+              ⍝ R/r, Raw: don't remove leading blanks. Else, do.
+              ⍝ S/s, return single string with embedded newlines.
+              ⍝ V/v, return vector of strings, split at newlines.
+              ⍝ M/m  returns a matrix (padded with blanks).
+             pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
+             pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
              pCommentE←'(?x)      ⍝ .*  $'
               ⍝ ppNum: A non-complex signed APL number (float or dec)
              ⋄ ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
@@ -837,7 +858,7 @@
   ⍝H   ⍺
   ⍝H OPTIONS
   ⍝H (Defaults):
-  ⍝H    -noV -D -noE -C -S -noH
+  ⍝H    -noV -D -noE -C -noH
   ⍝H -V | -noV   __VERBOSE__, include directives and status in output code.
   ⍝H   Default: -V  (Also a R/W macro)
   ⍝H -D | -noD   __DEBUG__, add annotations to ⎕ (stdout)
@@ -851,18 +872,6 @@
   ⍝H   Default: (-B)
   ⍝H -H          HELP, show help info, ignoring ⍵ (right arg)
   ⍝H   Default: (-noH)
-  ⍝H -M         MULTILINE:
-  ⍝    Default:  -M    Multi-line double-quoted strings are treated...
-  ⍝H             -M:   ...as multiple strings (M)
-  ⍝H             -noM: ...a single strings with newlines
-  ⍝H        Example Input
-  ⍝H                str ← "line1
-  ⍝H                       line2
-  ⍝H                       line three"
-  ⍝H        Under -M option
-  ⍝H                str ← 'line1' 'line2' 'line three'
-  ⍝H        Under -noM option
-  ⍝H                str ← ('line1',(⎕UCS 10),'line2',(⎕UCS 10),'line three')
   ⍝H
   ⍝H Debugging Flags
   ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
