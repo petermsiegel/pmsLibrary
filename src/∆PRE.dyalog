@@ -194,7 +194,7 @@
                ⍝       which sets raw←0, sing←0, cMx←''
                  isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
                  hasMany←NL∊str
-                 ⋄ toMx←{⍺:'↑',⍵ ⋄ '⎕FMT',⍵}          ⍝ Forces simple vec or scalar → matrix
+                 ⋄ toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
                  ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
                  ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
                  str2←∆QT0 ∆UNQ str
