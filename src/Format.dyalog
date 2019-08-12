@@ -824,7 +824,7 @@
           text←header{0=≢⍺:⍵ ⋄ hd tx←⍺ ⍵ ⋄ '(',hd,')',∆overNm,tx}text
           text←footer{0=≢⍺:⍵ ⋄ ft tx←⍺ ⍵ ⋄ '(',tx,')',∆overNm,ft}text
      
-          '{',∆catNm,text,'}⍵'
+          '{',∆catNm,text,'}'
       }
     :endsection 3. Compilation Phase
 
