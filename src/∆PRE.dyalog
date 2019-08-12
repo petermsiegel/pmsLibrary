@@ -773,6 +773,11 @@
              _←0 put'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
              _←0 put'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
                                                     ⍝ entries: (key-val pairs | ⍬)
+             _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
+             _←0 put'⎕format' '∆format'
+             _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
+             _←0 put'⎕f' '∆format'
+
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn ⍵
              tmpNm←'__',funNm,'__'
@@ -788,8 +793,8 @@
              (∆MYR←⍎∆MY)._FIRST_←1
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-             _←0 put'⎕MY'∆MY
-             _←0 put'⎕FIRST'(∆MY,'.FIRST')
+             _←0 put'⎕MY'∆MY                  ⍝ ⎕MY    → a private 'static' namespace
+             _←0 put'⎕FIRST'(∆MY,'.FIRST')    ⍝ ⎕FIRST → ∆MY.FIRST
 
 
            ⍝ Initialization
