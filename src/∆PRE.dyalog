@@ -128,11 +128,11 @@
            ⍝    fld number or name: a single field number or name.
            ⍝ Returns <val> the value of the field or ''
              ∆FLD←{
-                 ns def←⍺''
+                 ns←⍺
                  ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
                  ⍵=0:ns.Match                          ⍝ Fast way to get whole match
-                 ⍵≥≢ns.Lengths:def                     ⍝ Field not defined AT ALL → ''
-                 ns.Lengths[⍵]=¯1:def                  ⍝ Defined field, but not used HERE (within this submatch) → ''
+                 ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
+                 ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
                  ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
              }
            ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
@@ -354,8 +354,9 @@
             ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
             ⍝  numeric or char. constants are optimized.
             ⍝  See __MAX_PROGRESSION__ below
-                 cDot1E cSQe cCommentE cDot2E cAtomsE←0 1 2 3 4
-                 str←pDot1e pSQe pCommentE pDot2e pATOMSe ⎕R{
+                 pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
+                 cDot1E cSQe cCommentE cDot2E cAtomsE cFormatStringE←0 1 2 3 4 5
+                 str←pDot1e pSQe pCommentE pDot2e pATOMSe pFormatStringE ⎕R{
                      case←⍵.PatternNum∘∊
 
                      case cSQe cCommentE:⍵ ∆FLD 0
@@ -367,6 +368,16 @@
                   ⍝ (...→→...)         0      1
                      case cAtomsE:(1∊≢¨⍵ ∆FLD¨1 3)procAtoms ⍵ ∆FLD 2
                      case cDot2E:∆TOcode
+                     case cFormatStringE:{
+                       ⍝ Let's assume we have ∆F[ORMAT] "format string" [code].
+                       ⍝ We'll scan the string for any ⍵ or ⍺.
+                       ⍝ If none, we'll post a dummy right arg ⍬.
+                       ⍝ Else, we'll assume the user has placed a right arg...
+                       ⍝ This is a kludge!!!
+                         0::⍵ ∆FLD 0
+                         f←0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
+                         f,'⍬'/⍨~∨/'⍵⍺'∊f           ⍝ Add a right arg per above.
+                     }⍵
                   ⍝ case cDot1E
                      ⋄ f1 f2←⍵ ∆FLD¨1 2
                      ⋄ progr←⍎f1,' ∆TO ',f2      ⍝ Calculate constant progression

@@ -824,7 +824,7 @@
           text←header{0=≢⍺:⍵ ⋄ hd tx←⍺ ⍵ ⋄ '(',hd,')',∆overNm,tx}text
           text←footer{0=≢⍺:⍵ ⋄ ft tx←⍺ ⍵ ⋄ '(',tx,')',∆overNm,ft}text
      
-          '{',∆catNm,text,'}'
+          '{',∆catNm,text,'}⍵'
       }
     :endsection 3. Compilation Phase
 
@@ -848,7 +848,7 @@
           ⍺←1
           ⍺{
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
-              ⍺=0:0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+              ⍺=0:¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵) ⍝ Drops ⍵ at end of "compile"
               ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
                 ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
                 ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)
