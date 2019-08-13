@@ -473,6 +473,7 @@
           str←'(?<!⍠)⍠A(\d)'⎕R{setAlphaP1⊃⌽⎕VFI ⍵ RE.get 1}⍵
      
           alphaP ⎕R{
+              ALPH_OM_SEEN∘←1
               ⍵ RE.case 0:'⍺'
             ⍝ case 1:
               f1←⍵ RE.get 1
@@ -690,6 +691,8 @@
   ⍝ Match ⍵⍵ (next ⍵) or ⍵\d+ (\d+ ⊃ ⍵).
   ⍝ # of digits matched is set by _omegaP, not omegaP
     omegaP←RE.canon '⍵ (?:⍵ | (\d+) )'    ⍝ field1 matches digits, not 2nd ⍵
+    omAlphBareP←RE.canon'([⍵⍺])'                ⍝ simple '⍵'
+
   ⍝ fmtPfx1aP is similar to optFmtPfxP, except the former is optional and
   ⍝      the latter captures the format string (either quoted or unquoted),
   ⍝      so the string can be processed correctly (with "..." → '...', etc.).
@@ -746,9 +749,9 @@
                   ⍝⍝ fieldType is 0-length if not set, else ¯1 0 1
                   fieldType(fieldReset fieldWidth fieldPadN rowVec)←⍬ 0
      
-                  s2←fmtPfx1aP unicodeP quoteStringP omegaP newlineP ⎕R{
-             ⍝ CASE: fm1       un1      qu1          om1    nl1
-                      fm1 un1 qu1 om1 nl1←⍳5
+                  s2←fmtPfx1aP unicodeP quoteStringP omegaP newlineP omAlphBareP ⎕R{
+             ⍝ CASE: fm1       un1      qu1          om1    nl1      oaBare
+                      fm1 un1 qu1 om1 nl1 oaBare←⍳6
                       ⋄ CASE←⍵.PatternNum∘∊
                       ⋄ field1 fmtIn←⍵ RE.get¨1 3
                       ⋄ ∆FMTx←fmtIn∘{⍵:∆FMTxNm ⋄ ⍺≡'$$':∆FMTxNm ⋄ '⎕FMT '}
@@ -768,16 +771,18 @@
                       }field1
                       CASE un1:3 selectUCSrc ⍵
      
-                      CASE om1:{pfx sfx←'(⍵⊃⍨⎕IO+' ')'
+                      CASE om1:{pfx sfx←'(⍵⊃⍨⎕IO+' ')'⊣ALPH_OM_SEEN∘←1
                           0=≢⍵:pfx,sfx,⍨CUR_OMEGA∘←{0::'0' ⋄ ⍕1+⊃⌽⎕VFI ⍵}CUR_OMEGA ⍝ ⍵⍵
                           ⋄ ⋄ pfx,sfx,⍨CUR_OMEGA∘←⍵                        ⍝ ⍵(\d+):  ⍵: only the digits!
                       }field1
+                      CASE oaBare:field1⊣ALPHA_OM_SEEN∘←1
      
                     ⍝ Quoted strings
                     ⍝ unicodeInQuotes←1|0: Set to 1 if you want Unicode processing ⎕Uxxx in quotes.
                       unicodeInQuotes←1    ⍝ ∊ 0 1
                       CASE qu1:unicodeInQuotes selectUCSrc cvt2SQString procAllSymbols field1
-                      ⎕SIGNAL/('format logic error: pn1=',⍕pn1)999
+     
+                      ⎕SIGNAL/('format logic error: pattern=',⍕⍵.PatternNum)999
                   }⊣s2
                 ⍝ :Endsection 3A.Compilation Subloop
      
@@ -846,9 +851,15 @@
       ∆format←{
           0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
           ⍺←1
+          ⎕THIS.ALPH_OM_SEEN←0
+     
           ⍺{
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
-              ⍺=0:¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵) ⍝ Drops ⍵ at end of "compile"
+              ⍺=0:{
+                  code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+                  ⎕THIS.ALPH_OM_SEEN:code
+                  '(',')',⍨1↓¯1↓code
+              }⍵
               ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
                 ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
                 ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)

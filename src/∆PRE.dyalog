@@ -369,14 +369,8 @@
                      case cAtomsE:(1∊≢¨⍵ ∆FLD¨1 3)procAtoms ⍵ ∆FLD 2
                      case cDot2E:∆TOcode
                      case cFormatStringE:{
-                       ⍝ Let's assume we have ∆F[ORMAT] "format string" [code].
-                       ⍝ We'll scan the string for any ⍵ or ⍺.
-                       ⍝ If none, we'll post a dummy right arg ⍬.
-                       ⍝ Else, we'll assume the user has placed a right arg...
-                       ⍝ This is a kludge!!!
                          0::⍵ ∆FLD 0
-                         f←0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
-                         f,'⍬'/⍨~∨/'⍵⍺'∊f           ⍝ Add a right arg per above.
+                         0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
                      }⍵
                   ⍝ case cDot1E
                      ⋄ f1 f2←⍵ ∆FLD¨1 2
