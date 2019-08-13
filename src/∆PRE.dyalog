@@ -14,9 +14,9 @@
        ⍝ Use NULL internally for special code lines (removed at end)
          NL CR NULL←⎕UCS 10 13 0
          SQ DQ SQDQ←'''' '"' '''"'
-      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
-         CALLER←0⊃⎕RSI
+         CALLER←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
 
+      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
       ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS
       ⍝ (Defaults):

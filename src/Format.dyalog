@@ -473,7 +473,6 @@
           str←'(?<!⍠)⍠A(\d)'⎕R{setAlphaP1⊃⌽⎕VFI ⍵ RE.get 1}⍵
      
           alphaP ⎕R{
-              ALPH_OM_SEEN∘←1
               ⍵ RE.case 0:'⍺'
             ⍝ case 1:
               f1←⍵ RE.get 1
@@ -771,11 +770,11 @@
                       }field1
                       CASE un1:3 selectUCSrc ⍵
      
-                      CASE om1:{pfx sfx←'(⍵⊃⍨⎕IO+' ')'⊣ALPH_OM_SEEN∘←1
+                      CASE om1:{pfx sfx←'(⍵⊃⍨⎕IO+' ')'⊣OMEGA_SEEN∘←1
                           0=≢⍵:pfx,sfx,⍨CUR_OMEGA∘←{0::'0' ⋄ ⍕1+⊃⌽⎕VFI ⍵}CUR_OMEGA ⍝ ⍵⍵
                           ⋄ ⋄ pfx,sfx,⍨CUR_OMEGA∘←⍵                        ⍝ ⍵(\d+):  ⍵: only the digits!
                       }field1
-                      CASE oaBare:field1⊣ALPHA_OM_SEEN∘←1
+                      CASE oaBare:field1⊣OMEGA_SEEN∘←1
      
                     ⍝ Quoted strings
                     ⍝ unicodeInQuotes←1|0: Set to 1 if you want Unicode processing ⎕Uxxx in quotes.
@@ -851,13 +850,13 @@
       ∆format←{
           0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
           ⍺←1
-          ⎕THIS.ALPH_OM_SEEN←0
      
-          ⍺{
+          ⍺ {
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
               ⍺=0:{
+                  ⎕THIS.OMEGA_SEEN←0
                   code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
-                  ⎕THIS.ALPH_OM_SEEN:code
+                  ⎕THIS.OMEGA_SEEN:code
                   '(',')',⍨1↓¯1↓code
               }⍵
               ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
