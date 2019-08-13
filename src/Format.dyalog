@@ -857,9 +857,9 @@
                   ⎕THIS.OMEGA_SEEN←0
                   code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
                ⍝  Convert any line breaks (CR/13) to APL line break (CR)
-                  code←∊(⊂''',(⎕UCS 13),''')@(=∘LINE_BRK)⊣code
-                  ⎕THIS.OMEGA_SEEN:code
-                  '(',')',⍨1↓¯1↓code
+                  code←∊(⊂''',(⎕UCS 13),''')@(=∘⎕THIS.LINE_BRK)⊣code
+                  ⎕THIS.OMEGA_SEEN:code   ⍝ {...} [args]
+                  '(',')',⍨1↓¯1↓code      ⍝ (...) [args]
               }⍵
               ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
                 ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
