@@ -851,11 +851,13 @@
           0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
           ⍺←1
      
-          ⍺ {
+          ⍺{
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
               ⍺=0:{
                   ⎕THIS.OMEGA_SEEN←0
                   code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+               ⍝  Convert any line breaks (CR/13) to APL line break (CR)
+                  code←∊(⊂''',(⎕UCS 13),''')@(=∘LINE_BRK)⊣code
                   ⎕THIS.OMEGA_SEEN:code
                   '(',')',⍨1↓¯1↓code
               }⍵
