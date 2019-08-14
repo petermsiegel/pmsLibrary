@@ -473,6 +473,7 @@
           str←'(?<!⍠)⍠A(\d)'⎕R{setAlphaP1⊃⌽⎕VFI ⍵ RE.get 1}⍵
      
           alphaP ⎕R{
+              ⎕THIS.ALPHOM_SEEN[0]∘←1
               ⍵ RE.case 0:'⍺'
             ⍝ case 1:
               f1←⍵ RE.get 1
@@ -770,12 +771,13 @@
                       }field1
                       CASE un1:3 selectUCSrc ⍵
      
-                      CASE om1:{pfx sfx←'(⍵⊃⍨⎕IO+' ')'⊣OMEGA_SEEN∘←1
+                      CASE om1:{
+                          ALPHOM_SEEN[1]∘←1
+                          pfx sfx←'(⍵⊃⍨⎕IO+' ')'
                           0=≢⍵:pfx,sfx,⍨CUR_OMEGA∘←{0::'0' ⋄ ⍕1+⊃⌽⎕VFI ⍵}CUR_OMEGA ⍝ ⍵⍵
                           ⋄ ⋄ pfx,sfx,⍨CUR_OMEGA∘←⍵                        ⍝ ⍵(\d+):  ⍵: only the digits!
                       }field1
-                      CASE oaBare:field1⊣OMEGA_SEEN∘←1
-     
+                      CASE oaBare:field1⊣ALPHOM_SEEN[field1='⍵']∘←1
                     ⍝ Quoted strings
                     ⍝ unicodeInQuotes←1|0: Set to 1 if you want Unicode processing ⎕Uxxx in quotes.
                       unicodeInQuotes←1    ⍝ ∊ 0 1
@@ -854,18 +856,24 @@
           ⍺{
               ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
               ⍺=0:{
-                  ⎕THIS.OMEGA_SEEN←0
+                  ⎕THIS.ALPHOM_SEEN←0 0   ⍝ Were ⍺ (⍺0...) or ⍵ (⍵0...) seen?
+                  alphaE←'∆format Error: ⍺, ⍺0, ⍺1, ..., ⍺⍵ are invalid with left arg ⍺=0' 11
+     
                   code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
                ⍝  Convert any line breaks (CR/13) to APL line break (CR)
                   code←∊(⊂''',(⎕UCS 13),''')@(=∘⎕THIS.LINE_BRK)⊣code
-                  ⎕THIS.OMEGA_SEEN:code   ⍝ {...} [args]
+                  ⎕THIS.ALPHOM_SEEN[0]:⎕SIGNAL/alphaE
+                  ⎕THIS.ALPHOM_SEEN[1]:code   ⍝ {...} [args]
                   '(',')',⍨1↓¯1↓code      ⍝ (...) [args]
               }⍵
-              ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
-                ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
-                ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)
-                  (⍺⍺.⎕PATH←∆ps)⊢⍺⍺.⍎⍺⊣⍺⍺.⎕PATH←(⍕⎕THIS),' ',∆ps←⍺⍺.⎕PATH
-              })⍨⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+              ⍺=1:{
+                  ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
+                    ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
+                    ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)
+                      (⍺⍺.⎕PATH←∆ps)⊢⍺⍺.⍎⍺⊣⍺⍺.⎕PATH←(⍕⎕THIS),' ',∆ps←⍺⍺.⎕PATH
+                  })⍨⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
+              }⍵
+              ⎕SIGNAL/'∆format: left argument ⍺ must be 1 (default) or 0' 11
           }{
               1≥|≡⍵:⍵ ⍬ ⋄ (⊃⍵)(1↓⍵)
           }⍵
