@@ -262,10 +262,13 @@
          ⍝ Extern function (isSpecialMacro n) returns 1 if <n> is a special Macro.
          ⍝ Includes a feature for preventing recursive matching of the same names
          ⍝ in a single recursive (repeated) scan.
-         ⍝ Adds to extern: names, vals, nameVis (1 if a name is "visible" to getIfVis)
+         ⍝ Adds to extern: mNames, mVals, mNameVis
+             lc←819⌶
              put←{⍺←__DEBUG__ ⋄ verbose←⍺
                  n v←⍵      ⍝ add (name, val) to macro list
-                 n~←' ' ⋄ names,⍨←⊂n ⋄ vals,⍨←⊂v ⋄ nameVis,⍨←1
+                 ⍝ case is 1 only for ⎕vars...
+                 c←⍬⍴'⎕:'∊⍨1↑n
+                 n~←' ' ⋄ mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂v ⋄ mNameVis,⍨←1
                  ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
                 ⍝ Special macros: if looks like number (as string), convert to numeric form.
                  processSpecialM←{
@@ -277,18 +280,27 @@
                  n processSpecialM ⍵
              }
            ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
-           ⍝ getIfVis ⍵: ditto, but only if nameVis flag is 1
-           ⍝ hideEach ⊆⍵: sets nameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
-             get←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ p⊃vals}
-             getIfVis←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ ~p⊃nameVis:n ⋄ p⊃vals}
-             hideEach←{⍺←0
-                 ⍺⊣⍺{p←names⍳⊂⍵~' ' ⋄ p≥≢names:_←¯1 ⋄ 1:_←(p⊃nameVis)∘←⍺}¨⍵
+           ⍝ getIfVis ⍵: ditto, but only if mNameVis flag is 1
+           ⍝ hideEach ⊆⍵: sets mNameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
+             get←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ p⊃mVals
              }
-             del←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:n ⋄ names vals⊢←(⊂p≠⍳≢names)/¨names vals ⋄ n}
-             isDefined←{n←⍵~' ' ⋄ p←names⍳⊂n ⋄ p≥≢names:0 ⋄ 1}
+             getIfVis←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ ~p⊃mNameVis:n ⋄ p⊃mVals
+             }
+             hideEach←{⍺←0
+                 ⍺⊣⍺{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                     p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
+                 }¨⍵
+             }
+             del←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n
+                 mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n}
+             isDefined←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1}
 
          ⍝-----------------------------------------------------------------------
-         ⍝ mExpand (macro expansion, including special predefined expansion)
+         ⍝ preEval (macro expansion, including special predefined expansion)
          ⍝     …                     for continuation (at end of (possbily commented) lines)
          ⍝     …                     for numerical sequences of form n1 [n2] … n3
          ⍝     25X                   for hexadecimal constants
@@ -297,7 +309,7 @@
          ⍝     `atom1 atom2...       for implicit quoted (name) strings and numbers on right
          ⍝
          ⍝-----------------------------------------------------------------------
-             mExpand←{
+             preEval←{
                  ⍺←__MAX_EXPAND__      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
               ⍝ Concise variant on dfns:to, allowing start [incr] to end
               ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
@@ -307,13 +319,13 @@
                  ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
               ⍝ Single-char translation input option. See ::TRANS
                  str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
-                 nameVis[]∘←1      ⍝ Make all visible until next call to mExpand
+                 mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
                  str←⍺{
                      strIn←str←⍵
                      0≥⍺:⍵
                      nmsFnd←⍬
                      ch1←ch2←0
-                ⍝ Match/mExpand...
+                ⍝ Match/preEval...
                 ⍝ [1] pLongNmE: long names,
                      cUserE cSQe cCommentE cLongE←0 1 2 3
                      str←{
@@ -441,7 +453,7 @@
              cTRANS←'trans'reg'  ⍎ppBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
              cOTHER←'apl'reg'    ^                                         .*                $'
 
-           ⍝ patterns solely for the ∇mExpand∇ fn
+           ⍝ patterns solely for the ∇preEval∇ fn
              ⍝ User cmds: ]... (See also ⎕UCMD)
              pUserE←'^\h*\]\h*(.*)$'
               ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
@@ -504,7 +516,7 @@
              ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
                  case cOTHER:{
                      T≠TOP:annotate f0,SKIP        ⍝ See annotate, QUIET
-                     str←mExpand f0
+                     str←preEval f0
                      QUIET:str ⋄ str≡f0:str
                      '⍝',f0,YES,NL,' ',str
                  }0
@@ -519,7 +531,7 @@
               ⍝ ::IF cond
                  case cIF:{
                      T≠TOP:annotate f0,SKIP⊣stack,←S
-                     stack,←c←∆TRUE(e←mExpand f1)
+                     stack,←c←∆TRUE(e←preEval f1)
                      annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
                  }0
 
@@ -527,7 +539,7 @@
                  case cELSEIF:{
                      S=TOP:annotate f0,SKIP⊣stack,←S
                      T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
-                     (⊃⌽stack)←c←∆TRUE(e←mExpand f1)
+                     (⊃⌽stack)←c←∆TRUE(e←preEval f1)
                      annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
                  }0
 
@@ -558,7 +570,7 @@
                      val note←f2{
                          (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                          0=≢⍵:'' '  [EMPTY]'
-                         exp←mExpand ⍵
+                         exp←preEval ⍵
 
                          isVal:{                   ⍝ ::EVAL | ::VAL
                              m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
@@ -607,7 +619,7 @@
                      isDefined f2:annotate f0,NO      ⍝ If <name> defined, don't ::DEF...
                      qtFlag arrFlag←0≠≢¨f1 f3
                      val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
-                         exp←mExpand ⍵
+                         exp←preEval ⍵
                          qtFlag:∆QTX exp
                          exp
                      }f4
@@ -635,7 +647,7 @@
                      usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
                      val←{
                   ⍝ [1a] Expand any code that is not prefixed ]...
-                         0=≢usr:mExpand f4     ⍝ User command?
+                         0=≢usr:preEval f4     ⍝ User command?
                   ⍝ [1b] Expand ::STATIC ]user code
                   ⍝ Handle User commands by decoding any assignment ]name←val
                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
@@ -768,7 +780,7 @@
            ⍝ See HELP info above
            ⍝ See below
            ⍝ Set prepopulated macros
-             names←vals←nameVis←⍬
+             mNames←mVals←mNameVis←⍬
              _←0 put'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
              _←0 put'__VERBOSE__'__VERBOSE__
              _←0 put'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
@@ -779,9 +791,8 @@
              _←0 put'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
                                                     ⍝ entries: (key-val pairs | ⍬)
              _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
-             _←0 put'⎕format' '∆format'
              _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
-             _←0 put'⎕f' '∆format'
+             _←0 put'⎕EVAL' '∆prePreEval'           ⍝ Not implemented...
 
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn ⍵
@@ -798,8 +809,8 @@
              (∆MYR←⍎∆MY)._FIRST_←1
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-             _←0 put'⎕MY'∆MY                  ⍝ ⎕MY    → a private 'static' namespace
-             _←0 put'⎕FIRST'(∆MY,'.FIRST')    ⍝ ⎕FIRST → ∆MY.FIRST
+             _←0 put'⎕MY'∆MY                    ⍝ ⎕MY    → a private 'static' namespace
+             _←0 put'⎕FIRST'(∆MY,'.FIRST')      ⍝ ⎕FIRST → ∆MY.FIRST
 
 
            ⍝ Initialization
@@ -1085,9 +1096,15 @@
   ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
   ⍝H       ::[E]VAL  name ...     Same as ::DEF, except name ← ⍎val
   ⍝H       ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
-  ⍝H                 ∘ Note that ::DEF creates a string of code (including comments),
+  ⍝H       ∘ Note that ::DEF creates a string of code (including comments),
   ⍝H                 and is "TRUE" if it is not-null.  EVAL executes the string to determine
   ⍝H                 its value; it is true if not 0, or an object of length 0.
+  ⍝H       ∘ Note: Names of the form ⎕cc..cc and :cc..ccc have their case ignored (in all other
+  ⍝H         cases, case is respected). Thus, these are the same:
+  ⍝H           ::DEF ⎕FRED ← 1 2 3            ::DEF :WHY ← ?
+  ⍝H           ::DEF ⎕fred ← 1 2 3            ::DEF :wHy ← ?
+  ⍝H           ::DEF ⎕FrEd ← 1 2 3
+  ⍝H           1 + ⎕FRED <==> 1 + ⎕fReE etc.
   ⍝H
   ⍝H       ∘ To create a macro to "null out" code lines (have them ignored),
   ⍝H         you can't use ::DEF, because (visible) comments are ignored for directives.
