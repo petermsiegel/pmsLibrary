@@ -1,4 +1,6 @@
  ∆PRE←{⍺←''
+     0≡⍺:'-X -noC -noV -noD'∇ ⍵
+
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      (⊃⊆,⍺)(⎕NS'').{
          ⎕IO ⎕ML ⎕PP←0 1 34
@@ -36,6 +38,7 @@
       ⍝   Default: (-B)
       ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
       ⍝   Default: (-noH)
+
          opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
          __VERBOSE__←_∨(env'VERBOSE')∨(⎕NULL≡⍵)∧_←~opt'noV'
@@ -44,13 +47,15 @@
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
          EDIT←(⎕NULL≡⍵)∨opt'E'
          QUIET←__VERBOSE__⍱__DEBUG__
+         NOSAVE←opt'X'
 
-         _←{~__DEBUG__:0 ⋄ _←'    '
+         _←{⍺←0 ⋄
+             ~__DEBUG__∨⍺:0 ⋄ _←'    '
              ⎕←_,'Options: "','"',⍨819⌶,⍵
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
              ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-             ⎕←_,'Help:    ',HELP ⋄
+             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'NoSave:  ',NOSAVE
              0
          }⍺
 
@@ -73,16 +78,19 @@
                  _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
                  _,'See preprocessor output: "',(1⊃⍵),'"'
              }⍵
-          ⍝ '$'... We have embedded NLs within lines (char vectors) that we remove...
-          ⍝     'aaaaaNaaaaaa'  'bbbbNbbbbbbNbbbbb'  'cccccc'
-          ⍝  →  'aaaaa' 'aaaaaa' 'bbbbb' 'bbbbb' 'bbbbb' 'cccccc'
-             forceSplit←{⊃,/NL(≠⊆⊢)¨⍵}    ⍝ 3x slower:  forceSplit←{'$'⎕R'&'⊣⍵}
-             1:2 CALLER.⎕FIX forceSplit{
+             1:{
+                 NOSAVE:⍵
+                 2 CALLER.⎕FIX ⍵
+             }{
                  NULL~⍨¨⍵/⍨NULL≠⊃¨⍵
              }{
-                 NOBLANK:'^\h*$'⎕R NULL⊣⍵            ⍝ c? Remove lines
-                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⊣⍵    ⍝ C? Remove lines and comments.
-                 ⍵
+                 ⍝ '$'... We have embedded NLs within lines (char vectors) that we remove...
+                 ⍝     'aaaaaNaaaaaa'  'bbbbNbbbbbbNbbbbb'  'cccccc'
+                 ⍝  →  'aaaaa' 'aaaaaa' 'bbbbb' 'bbbbb' 'bbbbb' 'cccccc'
+                 opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)
+                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵      ⍝ C? Remove lines and comments.
+                 NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵            ⍝ c? Remove lines
+                 {⊃,/NL(≠⊆⊢)¨⍵}⍵
              }(⍺ condSave ⍵){
                  ~EDIT:⍺
                ⍝ E(DIT) flag? edit before returning to save and ⎕FIX
@@ -792,7 +800,7 @@
                                                     ⍝ entries: (key-val pairs | ⍬)
              _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
              _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
-             _←0 put'⎕EVAL' '∆prePreEval'           ⍝ Not implemented...
+             _←0 put'⎕EVAL' '⍎¨0∘∆PRE⊆'
 
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn ⍵
