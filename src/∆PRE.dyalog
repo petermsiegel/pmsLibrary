@@ -1,19 +1,21 @@
  ∆PRE←{⍺←''
-     0≡⍺:'-X -noC -noV -noD'∇ ⍵
+     0≡⍺:'-X -noC -noV -noD'∇ ⍵   ⍝ Used internally for macros...
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
+     ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
      (⊃⊆,⍺)(⎕NS'').{
          ⎕IO ⎕ML ⎕PP←0 1 34
        ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
-       ⍝ When a user uses these (read or write), they are synched with
-       ⍝ ∆PRE local (special) variables.
-       ⍝ See Executive for meanings.
+       ⍝ When a user DEFs these macros (read or write), ∆PRE will see them
+       ⍝ as their corresponding local variables of the same name
+       ⍝ See Executive (below) for meanings.
+       ⍝ Note: Don't define any vars starting with '_' here or above!
          __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1
          __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
          isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
        ⍝ Use NL   for all newlines to be included in the ∆PRE output.
-       ⍝ Use CR   in error msgs going to ⎕ (APL treats NL as a typewriter newline)
-       ⍝ Use NULL internally for special code lines (removed at end)
+       ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
+       ⍝ Use NULL internally for special code lines (NULLs are removed at end)
          NL CR NULL←⎕UCS 10 13 0
          SQ DQ SQDQ←'''' '"' '''"'
          CALLER←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
@@ -38,19 +40,18 @@
       ⍝   Default: (-B)
       ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
       ⍝   Default: (-noH)
-
          opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
-         env←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
-         __VERBOSE__←_∨(env'VERBOSE')∨(⎕NULL≡⍵)∧_←~opt'noV'
-         __DEBUG__←(opt'D')env'DEBUG'
+         orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
 
+         __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'
+         __DEBUG__←(opt'D')orEnv'DEBUG'
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
          EDIT←(⎕NULL≡⍵)∨opt'E'
          QUIET←__VERBOSE__⍱__DEBUG__
          NOSAVE←opt'X'
 
-         _←{⍺←0 ⋄
-             ~__DEBUG__∨⍺:0 ⋄ _←'    '
+         _←{ ⍝ Option information
+             ⍺←0 ⋄ ~__DEBUG__∨⍺:0 ⋄ _←'    '
              ⎕←_,'Options: "','"',⍨819⌶,⍵
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
@@ -58,45 +59,11 @@
              ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'NoSave:  ',NOSAVE
              0
          }⍺
-
+       ⍝ HELP PATH
          HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='   ⍝H'}2↓¨⎕NR⊃⎕XSI
       ⍝ -------------------------------------------------------------------
 
-      ⍝ Execution stages ends with a conditional save of variable __name__ (⍵:name)
-      ⍝ and attempt to ⎕FIX its included function(s).
-         1:_←__DEBUG__{         ⍝ ⍵: [0] funNm, [1] tmpNm, [2] lines
-      ⍝ condSave:
-      ⍝    ⍺=1: Keep __name__.
-      ⍝    ⍺=0: Delete __name__ unless error.
-             condSave←{
-                 _←⎕EX 1⊃⍵
-                 ⍺:⍎'CALLER.',(1⊃⍵),'←NULL~⍨¨2⊃⍵'
-                 2⊃⍵
-             }
-             0::11 ⎕SIGNAL⍨{
-                 _←1 condSave ⍵
-                 _←'Preprocessor error. Generated object for input "',(0⊃⍵),'" is invalid.',⎕TC[2]
-                 _,'See preprocessor output: "',(1⊃⍵),'"'
-             }⍵
-             1:{
-                 NOSAVE:⍵
-                 2 CALLER.⎕FIX ⍵
-             }{
-                 NULL~⍨¨⍵/⍨NULL≠⊃¨⍵
-             }{
-                 ⍝ '$'... We have embedded NLs within lines (char vectors) that we remove...
-                 ⍝     'aaaaaNaaaaaa'  'bbbbNbbbbbbNbbbbb'  'cccccc'
-                 ⍝  →  'aaaaa' 'aaaaaa' 'bbbbb' 'bbbbb' 'bbbbb' 'cccccc'
-                 opts←('Mode' 'M')('EOL' 'LF')('NEOL' 1)
-                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵      ⍝ C? Remove lines and comments.
-                 NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵            ⍝ c? Remove lines
-                 {⊃,/NL(≠⊆⊢)¨⍵}⍵
-             }(⍺ condSave ⍵){
-                 ~EDIT:⍺
-               ⍝ E(DIT) flag? edit before returning to save and ⎕FIX
-                 ⍺⊣CALLER.⎕ED(1⊃⍵)
-             }⍵
-         }(1↓⊆,⍺){
+         (1↓⊆,⍺){
              preamble←⍺
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
@@ -282,7 +249,7 @@
                  processSpecialM←{
                      0::⍵⊣print'∆PRE: Logic error in put'    ⍝ Error? Move on.
                      v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v               ⍝ Numbers vs Text
-                     _←⍎n,'∘←v'                              ⍝ Execute in ∆PRE space, not user space.
+                     _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'                              ⍝ Execute in ∆PRE space, not user space.
                      ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
                  }
                  n processSpecialM ⍵
@@ -319,12 +286,12 @@
          ⍝-----------------------------------------------------------------------
              preEval←{
                  ⍺←__MAX_EXPAND__      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
-              ⍝ Concise variant on dfns:to, allowing start [incr] to end
-              ⍝     1 1.5 to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
-              ⍝ expanded to allow simply (homogeneous) Unicode chars
-              ⍝     'ac' to 'g'    →   'aceg'
-                 ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-                 ∆TOcode←'{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}'
+              ⍝ ∆TO: Concise variant on dfns:to, allowing start [incr] to end
+              ⍝     1 1.5 ∆TO 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
+              ⍝ expanded to allow (homogenous) Unicode chars
+              ⍝     'a' ∆TO 'f' → 'abcdef'  ⋄   'ac' ∆TO 'g'    →   'aceg'
+                 ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+                 ∆TOcode←5↓⊃⎕NR'∆TO'
               ⍝ Single-char translation input option. See ::TRANS
                  str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
                  mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
@@ -393,10 +360,10 @@
                          0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
                      }⍵
                   ⍝ case cDot1E
-                     ⋄ f1 f2←⍵ ∆FLD¨1 2
-                     ⋄ progr←⍎f1,' ∆TO ',f2      ⍝ Calculate constant progression
+                     ⋄ f1 f2←⍵ ∆FLD¨1 2 ⋄
+                     ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
                      __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
-                     ⍕progr
+                     {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
                                              ⍝  .. preceded or followed by non-constants
                  }⍠'UCP' 1⊣str
                  str
@@ -821,7 +788,7 @@
              _←0 put'⎕FIRST'(∆MY,'.FIRST')      ⍝ ⎕FIRST → ∆MY.FIRST
 
 
-           ⍝ Initialization
+           ⍝ Other Initializations
              stack←,1 ⋄ lineNum←0
              includedFiles←⊂fullNm
              translateIn←translateOut←⍬                 ⍝ None
@@ -832,13 +799,15 @@
              includeLines←⍬
              comment←⍬
 
-           ⍝ Go!
+           ⍝ --------------------------------------------------------------------------------
+           ⍝ Executive: Phase I
+           ⍝ --------------------------------------------------------------------------------
            ⍝ Kludge: We remove comments from all directives up front...
            ⍝ Not ideal, but...
              pInDirectiveE←'^\h*\Q',PREFIX,'\E'
              inDirective←0
            ⍝ Process double quotes and continuation lines that may cross lines
-             lines←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
+             phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
                  cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL←⍳8
                  f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
@@ -865,14 +834,45 @@
                  (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
              }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣preamble,dataIn
            ⍝ Process macros... one line at a time, so state is dependent only on lines before...
-             lines←{⍺←⍬
+             phaseI←{⍺←⍬
                  0=≢⍵:⍺
                  line←⊃⍵
                  line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
                  (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
-             }lines
-           ⍝ Return specifics to next phase for ⎕FIXing
-             funNm tmpNm lines
+             }phaseI
+
+           ⍝ --------------------------------------------------------------------------------
+           ⍝ Executive: PhaseII
+           ⍝ --------------------------------------------------------------------------------
+           ⍝ condSave ⍵:code
+           ⍝    ⍺=1: Keep __name__ (on error path or if __DEBUG__=1)
+           ⍝    ⍺=0: Delete __name__ unless error (not error and __DEBUG__=0)
+           ⍝ Returns ⍵ with NULLs removed...
+             condSave←{⍺←EDIT∨__DEBUG__
+                 _←⎕EX tmpNm
+                 ⍺:⍎'CALLER.',tmpNm,'←⍵~¨NULL'
+                 ⍵
+             }
+           ⍝ ERROR PATH
+             999::11 ⎕SIGNAL⍨{
+                 _←1 condSave ⍵
+                 _←'Preprocessor error. Generated object for input "',funNm,'" is invalid.',⎕TC[2]
+                 _,'See preprocessor output: "',tmpNm,'"'
+             }phaseI
+             phaseII←condSave phaseI
+           ⍝ Edit (for review) if EDIT=1
+             _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
+             phaseII←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
+                 ⋄ opts←('Mode' 'M')('EOL' 'LF')
+               ⍝ We have embedded newlines for lines with macros expanded: see annotate
+               ⍝ [a] ⎕R handles them (per EOL LF). See [b]
+                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵    ⍝ Remove blank lines and comments.
+                 NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
+               ⍝ [b] Explicitly handle embedded NLs
+                 {⊃,/NL(≠⊆⊢)¨⍵}⍵
+             }phaseII
+             NOSAVE:phaseII
+             1:_←2 CALLER.⎕FIX phaseII
          }⍵
      }⍵
 
