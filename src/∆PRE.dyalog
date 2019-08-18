@@ -1,5 +1,5 @@
  ∆PRE←{⍺←''
-     0≡⍺:'-X -noC -noV -noD'∇ ⍵   ⍝ Used internally for macros...
+     0≡⍺:'-noF -noC -noV -noD'∇ ⍵   ⍝ Used internally for macros...
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
@@ -38,17 +38,23 @@
       ⍝   Default: (-C)
       ⍝ -noB        NOBLANK, remove blank lines
       ⍝   Default: (-B)
+      ⍝ -F | -noF   FIX the result of execution of the file or lines passed.
+      ⍝   Default: (-F)
+      ⍝      -F     Fix the result and return the names returned from 2 ⎕FIX.
+      ⍝      -noF   Preprocess lines in ⍵ and return the results.
       ⍝ -H          HELP, show help info, ignoring ⍵ (right arg)
       ⍝   Default: (-noH)
-         opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
-         orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
+      ⍝ Special:
+      ⍝   For 0 ∆PRE ⍵, see full documentation below.
 
-         __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'
-         __DEBUG__←(opt'D')orEnv'DEBUG'
-         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'
-         EDIT←(⎕NULL≡⍵)∨opt'E'
-         QUIET←__VERBOSE__⍱__DEBUG__
-         NOSAVE←opt'X'
+         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
+         ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
+         __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
+         __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
+         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'        ⍝ Default 1 1 1
+         EDIT←(⎕NULL≡⍵)∨opt'E'                            ⍝ Default 0; 1 if ⍵≡⎕NULL
+         QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
+         FIX←~opt'noF'                                    ⍝ Default 1
 
          _←{ ⍝ Option information
              ⍺←0 ⋄ ~__DEBUG__∨⍺:0 ⋄ _←'    '
@@ -56,7 +62,7 @@
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
              ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'NoSave:  ',NOSAVE
+             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:  ',FIX
              0
          }⍺
        ⍝ HELP PATH
@@ -291,7 +297,7 @@
               ⍝ expanded to allow (homogenous) Unicode chars
               ⍝     'a' ∆TO 'f' → 'abcdef'  ⋄   'ac' ∆TO 'g'    →   'aceg'
                  ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-                 ∆TOcode←5↓⊃⎕NR'∆TO'
+                 ∆TOcode←{(2+≢⍵)↓⊃⎕NR ⍵}'∆TO'
               ⍝ Single-char translation input option. See ::TRANS
                  str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
                  mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
@@ -807,8 +813,9 @@
              pInDirectiveE←'^\h*\Q',PREFIX,'\E'
              inDirective←0
            ⍝ Process double quotes and continuation lines that may cross lines
-             phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe ⎕R{
-                 cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL←⍳8
+             pNotInSetP←⎕UCS 8713
+             phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
+                 cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
                  f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
               ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
@@ -825,6 +832,7 @@
                  case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
                  case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
                  case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
+                 case cNotInSet:'{~⍺∊⍵}'
                 ⍝ case 4: EOL triggers comment processing from above
                  ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
                  inDirective⊢←0                                ⍝ Reset  flag after each NL
@@ -871,8 +879,8 @@
                ⍝ [b] Explicitly handle embedded NLs
                  {⊃,/NL(≠⊆⊢)¨⍵}⍵
              }phaseII
-             NOSAVE:phaseII
-             1:_←2 CALLER.⎕FIX phaseII
+             FIX:_←2 CALLER.⎕FIX phaseII
+             phaseII
          }⍵
      }⍵
 
@@ -901,6 +909,14 @@
   ⍝H   Default: (-B)
   ⍝H -H          HELP, show help info, ignoring ⍵ (right arg)
   ⍝H   Default: (-noH)
+  ⍝H -F | -noF   FIX, i.e. do 2 ⎕FIX on the generated code (fns and namespaces)
+  ⍝H   Default: (-F)
+  ⍝H   -noF is used for preprocessing a sequence of code lines for dynamic use.
+  ⍝H   If -noF is specified, the result of the preprocessing is returned.
+  ⍝    ⍵ must be a vector of strings to avoid processing a file (with a single line).
+  ⍝H Special options:
+  ⍝H   0:  Same as: -noF[ix] -noC[omments] -noV[erbose] -noD[ebug]
+  ⍝H       Used internally for the ⎕EVAL macro:  (⎕EVAL string) ←==→ (⍎¨0∘∆PRE⊆string)
   ⍝H
   ⍝H Debugging Flags
   ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
