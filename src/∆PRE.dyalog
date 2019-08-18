@@ -827,12 +827,6 @@
                       line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
                       (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
                   }phaseI
-                  ⍝ We are duplicating scan for ⍬. Remove from above,
-                  ⍝ since we generate new (...) in semicolon scan processing.
-                  phaseI←pSQe pCommentE '\(\h*\)' ⎕R '\0' '\0' '⍬'⊣{
-                    FIX: (1↑⍵),semiColonScan¨1↓⍵
-                    semiColonScan¨⍵
-                  }phaseI
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: PhaseII
@@ -864,6 +858,11 @@
                ⍝ [b] Explicitly handle embedded NLs
                       {⊃,/NL(≠⊆⊢)¨⍵}⍵
                   }phaseII
+
+               ⍝ if FIX=1, we may have a tradfn w/o a leading ∇ whose first line needs to be skipped
+               ⍝ to avoid treating header semicolons as list separators.
+               ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
+                  phaseII←FIX scan4Semicolons phaseII
                   FIX:_←2 CALLER.⎕FIX phaseII
                   phaseII
               }⍵
@@ -1210,47 +1209,62 @@
 
     ##.∆PRE←∆PRE
 
-    ∇ out←semiColonScan line
-      ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
-      ;cur_ch;cur_gov;deQ;enQ;inQt;stk
-      ;⎕IO;⎕ML
+∇linesOut←{isFn}scan4Semicolons lines;pBareParens;pComment;pSQ
+;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
+;cur_ch;cur_gov;deQ;enQ;inQt;lineOut;prefix;stk
+;⎕IO;⎕ML
+isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+lines←⊆lines
+⎕IO ⎕ML←0 1
+QUOT←'''' ⋄ SEMI←';'
+LPAR RPAR LBRK RBRK←'()[]'
+stk←⎕NS ⍬
 
-      ⎕IO ⎕ML←0 1
-      QUOT←'''' ⋄ SEMI←';'
-      LPAR RPAR LBRK RBRK←'()[]'
-      stk←⎕NS ⍬
-      stk.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
-      out←,''
+deQ←{stk.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
+enQ←{stk.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
+:If isFn
+    prefix lines←(⊂⊃lines)(1↓lines)
+:ELSE
+    prefix←⍬
+:EndIf
+linesOut←⍬
 
-      deQ←{stk.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
-      enQ←{stk.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
+:For line :In lines
+    :If '∇'=1↑line~' ' ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers...
+    stk.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
+    lineOut←⍬
+    :For cur_ch :In line
+        cur_gov←⊃⌽stk.govern
+        inQt←QUOT=cur_gov
+        :If inQt
+            deQ QUOT=cur_ch
+        :Else
+            :Select cur_ch
+            :Case LPAR ⋄ enQ cur_ch(≢lineOut)
+            :Case LBRK ⋄ enQ cur_ch(≢lineOut)
+            :Case RPAR ⋄ lineOut,←(1+⊃⌽stk.sawSemi)/RPAR ⋄ deQ 1 ⋄ :Continue
+            :Case RBRK ⋄ deQ 1
+            :Case QUOT ⋄ enQ cur_ch ¯1
+            :Case SEMI
+                :Select cur_gov
+                :Case LPAR ⋄ lineOut,←') (' ⋄ lineOut[⊃⌽stk.lparIx]←⊂2/LPAR ⋄ (⊃⌽stk.sawSemi)←1 ⋄ :Continue
+                :Case LBRK ⍝ Not special
+                :Else ⋄ lineOut,←') (' ⋄ (⊃stk.sawSemi)←1 ⋄ :Continue
+                :EndSelect
+            :EndSelect
+        :EndIf
+        lineOut,←cur_ch
+    :EndFor
+    :If (⊃stk.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
+        lineOut←'((',lineOut,'))'
+    :EndIf
+    linesOut,←⊂∊lineOut
+:EndFor
 
-      :For cur_ch :In line
-          cur_gov←⊃⌽stk.govern
-          inQt←QUOT=cur_gov
-          :If inQt
-              deQ QUOT=cur_ch
-          :Else
-              :Select cur_ch
-              :Case LPAR ⋄ enQ cur_ch(≢out)
-              :Case LBRK ⋄ enQ cur_ch(≢out)
-              :Case RPAR ⋄ out,←(1+⊃⌽stk.sawSemi)/RPAR ⋄ deQ 1 ⋄ :Continue
-              :Case RBRK ⋄ deQ 1
-              :Case QUOT ⋄ enQ cur_ch ¯1
-              :Case SEMI
-                  :Select cur_gov
-                  :Case LPAR ⋄ out,←') (' ⋄ out[⊃⌽stk.lparIx]←⊂2/LPAR ⋄ (⊃⌽stk.sawSemi)←1 ⋄ :Continue
-                  :Case LBRK ⍝ Not special
-                  :Else ⋄ out,←') (' ⋄ (⊃stk.sawSemi)←1 ⋄ :Continue
-                  :EndSelect
-              :EndSelect
-          :EndIf
-          out,←cur_ch
-      :EndFor
-
-      out←∊out
-      :If (⊃stk.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
-          out←'((',out,'))'
-      :EndIf
-    ∇
+pSQ←'(?:''[^'']*'')+'
+pComment←'⍝.*$'
+pBareParens←'\(\h*\)'
+linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' '⍬'⍠('Mode' 'M')⊣linesOut
+linesOut←prefix,linesOut
+∇
 :endnamespace
