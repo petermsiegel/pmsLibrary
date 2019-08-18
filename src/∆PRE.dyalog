@@ -337,7 +337,7 @@
                   ⍝ (...→...)          0      0
                   ⍝ ``atom1 atom2      1      0
                   ⍝ (...→→...)         0      1
-                          case cAtomsE:(1∊≢¨⍵ ∆FLD¨1 3)procAtoms ⍵ ∆FLD 2
+                          case cAtomsE:(1∊≢¨f1 f4) (1=≢f3) procAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
                           case cDot2E:∆TOcode
                           case cFormatStringE:{
                               0::⍵ ∆FLD 0
@@ -352,8 +352,8 @@
                       }⍠'UCP' 1⊣str
                       str
                   }
-                  procAtoms←{⍺←0     ⍝ 1: double arrow →→ or double grave ``
-                      nest←'⊆'/⍨~⍺
+                  procAtoms←{⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
+                      nest←'⊆'/⍨~dbl
                       atoms←1↓∊{
                           '⍬'=⊃⍵:⍵
                           ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
@@ -362,7 +362,7 @@
                           1=≢⍵:' (,',q,')'
                           ' ',q
                       }¨' '(≠⊆⊢)⍵
-                      '(',nest,')',⍨atoms
+                      '(',nest,atoms,')','{⍺⍵}'/⍨arrow
                   }
 
          ⍝ -------------------------------------------------------------------------
@@ -460,9 +460,10 @@
                   ⋄ ppAtom←'(?: ⍎ppName | ⍎ppNum | ⍬ )'
                   ⋄ ppAtoms←' ⍎ppAtom (?: \h+ ⍎ppAtom )*'
                   ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎ppAtoms)'
-                  ⋄ _,←'        | (     )     (⍎ppAtoms) \h* →(→?)) '
+                  ⋄ _,←'        | (     )     (⍎ppAtoms) \h* (→)(→?)) '
+                  ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
                   pATOMSe←∆MAP _
-         ⍝ -------------------------------------------------------------------------
+         ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
          ⍝ -------------------------------------------------------------------------
                   processDirectives←{
@@ -826,6 +827,12 @@
                       line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
                       (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
                   }phaseI
+                  ⍝ We are duplicating scan for ⍬. Remove from above,
+                  ⍝ since we generate new (...) in semicolon scan processing.
+                  phaseI←pSQe pCommentE '\(\h*\)' ⎕R '\0' '\0' '⍬'⊣{
+                    FIX: (1↑⍵),semiColonScan¨1↓⍵
+                    semiColonScan¨⍵
+                  }phaseI
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: PhaseII
@@ -857,8 +864,8 @@
                ⍝ [b] Explicitly handle embedded NLs
                       {⊃,/NL(≠⊆⊢)¨⍵}⍵
                   }phaseII
-                  FIX:_←2 CALLER.⎕FIX (1↑phaseII),(scan¨1↓phaseII)
-                  scan¨phaseII
+                  FIX:_←2 CALLER.⎕FIX phaseII
+                  phaseII
               }⍵
           }⍵
       }
@@ -1203,7 +1210,7 @@
 
     ##.∆PRE←∆PRE
 
-    ∇ out←scan line
+    ∇ out←semiColonScan line
       ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
       ;cur_ch;cur_gov;deQ;enQ;inQt;stk
       ;⎕IO;⎕ML
