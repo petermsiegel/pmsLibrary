@@ -773,10 +773,10 @@
                                                     ⍝ entries: (key-val pairs | ⍬)
              _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
              _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
-             _←0 put'⎕EVAL' '⍎¨0∘∆PRE⊆'
+             _←0 put'⎕EVAL' '⍎¨0∘∆PRE '
 
            ⍝ Read in data file...
-             funNm fullNm dataIn←getDataIn ⍵
+             funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
              tmpNm←'__',funNm,'__'
 
            ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
@@ -911,12 +911,15 @@
   ⍝H   Default: (-noH)
   ⍝H -F | -noF   FIX, i.e. do 2 ⎕FIX on the generated code (fns and namespaces)
   ⍝H   Default: (-F)
-  ⍝H   -noF is used for preprocessing a sequence of code lines for dynamic use.
-  ⍝H   If -noF is specified, the result of the preprocessing is returned.
-  ⍝    ⍵ must be a vector of strings to avoid processing a file (with a single line).
+  ⍝H   With -noF,
+  ⍝H     the right argument is assumed to be 0 or more code lines, never
+  ⍝H     a file specification; it is used for preprocessing a sequence of code lines
+  ⍝H     for dynamic use, e.g. in ∆PRE itself...
+  ⍝H     If -noF is specified, the result of the preprocessing is returned.
+  ⍝H     ⍵ may be a single char vector or a vector of (char) vectors.
   ⍝H Special options:
   ⍝H   0:  Same as: -noF[ix] -noC[omments] -noV[erbose] -noD[ebug]
-  ⍝H       Used internally for the ⎕EVAL macro:  (⎕EVAL string) ←==→ (⍎¨0∘∆PRE⊆string)
+  ⍝H       Used internally for the ⎕EVAL macro:  (⎕EVAL string) ←==→ (⍎¨0∘∆PRE string)
   ⍝H
   ⍝H Debugging Flags
   ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
@@ -949,6 +952,8 @@
   ⍝H   [1] ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
   ⍝H   [2] ⍵:str[]    A vector of strings, defining one or more fns, ops or namesoaces,
   ⍝H                  in 2∘⎕FIX-format.
+  ⍝H       If ⍺ has the -noFix option (or is 0), ⍵ is converted to a vect of vectors,
+  ⍝H       if needed, i.e. ⍵ is passed as if ⊆⍵.
   ⍝H   [3] ⍵:⎕NULL    Prompt for lines from the user, creating pseudo-function
   ⍝H                  __PROMPT__
   ⍝H ---------------------------------------------------------------------------------
