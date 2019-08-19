@@ -29,7 +29,7 @@
               ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
               __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
               __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
-              NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'HELP'        ⍝ Default 1 1 1
+              NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
               EDIT←(⎕NULL≡⍵)∨opt'E'                            ⍝ Default 0; 1 if ⍵≡⎕NULL
               QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
               FIX←~opt'noF'                                    ⍝ Default 1
@@ -44,7 +44,7 @@
                   0
               }⍺
        ⍝ HELP PATH
-              HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='   ⍝H'}2↓¨⎕NR⊃⎕XSI
+              HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
       ⍝ -------------------------------------------------------------------
 
               (1↓⊆,⍺){
@@ -867,7 +867,7 @@
                   phaseII
               }⍵
           }⍵
-      }
+
 
 
   ⍝H ∆PRE    20190711
@@ -1206,7 +1206,7 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
   ⍝H
-
+  }
     ##.∆PRE←∆PRE
 
 ∇linesOut←{isFn}scan4Semicolons lines;pBareParens;pComment;pSQ
