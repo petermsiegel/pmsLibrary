@@ -606,14 +606,14 @@
                           T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                           usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
                           val←{
-                  ⍝ [1a] Expand any code that is not prefixed ]...
+                  ⍝ [1a] Expand any code that is not prefixed with ]...
                               0=≢usr:preEval f4     ⍝ User command?
                   ⍝ [1b] Expand ::STATIC ]user code
                   ⍝ Handle User commands by decoding any assignment ]name←val
                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
-                              _←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4     ⍝ ]name ← val or  ]val
+                              usr←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4     ⍝ ]name ← val or  ]val
                               nm∘←arrow∘←''
-                              _
+                              usr
                           }0
                   ⍝ If the expansion to <val> changed <f4>, note in output comment
                           expMsg←''(' ➡ ',val)⊃⍨val≢f4
@@ -1211,29 +1211,28 @@
 
 ∇linesOut←{isFn}scan4Semi lines
  ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
- ;cur_tok;cur_gov;deQ;enQ;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stk
+ ;cur_tok;cur_gov;deQ;enQ;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stack
  ;⎕IO;⎕ML
  isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
  lines←⊆lines
  ⎕IO ⎕ML←0 1
  QUOT←'''' ⋄ SEMI←';'
  LPAR RPAR LBRK RBRK←'()[]'
- stk←⎕NS ⍬
- deQ←{stk.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
- enQ←{stk.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
+ stack←⎕NS ⍬
+ deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
+ enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
  :If isFn
      prefix lines←(⊂⊃lines)(1↓lines)
  :Else
      prefix←⍬
  :EndIf
- linesOut←⍬  ⍝
-
+ linesOut←⍬
  :For line :In lines
-     :If '∇'=1↑line~' ' ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers...
-     stk.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
+     :If '∇'=1↑line↓⍨+/∧\line=' ' ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers...
+     stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
      lineOut←⍬
      :For cur_tok :In line
-         cur_gov←⊃⌽stk.govern
+         cur_gov←⊃⌽stack.govern
          inQt←QUOT=cur_gov
          :If inQt
              deQ QUOT=cur_tok
@@ -1241,20 +1240,20 @@
              :Select cur_tok
              :Case LPAR ⋄ enQ cur_tok(≢lineOut)
              :Case LBRK ⋄ enQ cur_tok(≢lineOut)
-             :Case RPAR ⋄ cur_tok←(1+⊃⌽stk.sawSemi)/RPAR ⋄ deQ 1
+             :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
              :Case RBRK ⋄ deQ 1
              :Case QUOT ⋄ enQ cur_tok ¯1
              :Case SEMI
                  :Select cur_gov
-                 :Case LPAR ⋄ cur_tok←')(' ⋄ lineOut[⊃⌽stk.lparIx]←⊂2/LPAR ⋄ (⊃⌽stk.sawSemi)←1
+                 :Case LPAR ⋄ cur_tok←')(' ⋄ lineOut[⊃⌽stack.lparIx]←⊂2/LPAR ⋄ (⊃⌽stack.sawSemi)←1
                  :Case LBRK
-                 :Else ⋄ cur_tok←')(' ⋄ (⊃stk.sawSemi)←1
+                 :Else ⋄ cur_tok←')(' ⋄ (⊃stack.sawSemi)←1
                  :EndSelect
              :EndSelect
          :EndIf
          lineOut,←cur_tok
      :EndFor
-     :If (⊃stk.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
+     :If (⊃stack.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
          lineOut←'((',lineOut,'))'
      :EndIf
      linesOut,←⊂∊lineOut
