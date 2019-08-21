@@ -2,6 +2,7 @@
       ∆PRE←{
           ⍺←''
           0≡⍺:'-noF -noC -noV -noD'∇ ⍵
+
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
           (⊃⊆,⍺)(⎕NS'').{
@@ -102,7 +103,7 @@
            ⍝       If ⍵ doesn't begin with a quote in ⍺ (default: s/d quotes), does nothing.
            ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
            ⍝ ∆QTX: Add external quotes (default ⍺: single), first doubling internal quotes (if any).
-                  ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
+                  ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
                   ∆QT←{⍺←SQ ⋄ ⍺,⍵,⍺}
                   ∆DQT←{DQ ∆QT ⍵}
                   ∆UNQ←{⍺←SQDQ ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
@@ -380,37 +381,42 @@
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
                   PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'
 
-                  reg←{⍺←'???' ⋄ p←'(?xi)' ⋄ patternList,←⊂∆MAP p,⍵ ⋄ patternName,←⊂⍺ ⋄ (_CTR_+←1)⊢_CTR_}
-                  ⋄ ppBeg←'^\h* \Q',PREFIX,'\E \h*'
-                  cIFDEF←'ifdef'reg'    ⍎ppBeg  IF(N?)DEF         \h+(.*)         $'
-                  cIF←'if'reg'          ⍎ppBeg  IF                \h+(.*)         $'
-                  cELSEIF←'elseif'reg'  ⍎ppBeg  EL(?:SE)?IF \b    \h+(.*)         $'
-                  cELSE←'else'reg'      ⍎ppBeg  ELSE         \b       .*          $'
-                  cEND←'end'reg'        ⍎ppBeg  END                   .*          $'
-                  ⋄ ppTarg←' [^ ←]+ '
-                  ⋄ ppSetVal←' (?:(←)\h*(.*))?'
-                  ⋄ ppFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎ppName '
+                  regPat←{⍺←'[unnamed]'
+                    p←'(?xi)'
+                    patternList,←⊂∆MAP p,⍵
+                    patternName,←⊂⍺
+                    (_CTR_+←1)⊢_CTR_
+                  }
+                  ⋄ _pBeg←'^\h* \Q',PREFIX,'\E \h*'
+                  cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF         \h+(.*)         $'
+                  cIF←'if'regPat'          ⍎_pBeg  IF                \h+(.*)         $'
+                  cELSEIF←'elseif'regPat'  ⍎_pBeg  EL(?:SE)?IF \b    \h+(.*)         $'
+                  cELSE←'else'regPat'      ⍎_pBeg  ELSE         \b       .*          $'
+                  cEND←'end'regPat'        ⍎_pBeg  END                   .*          $'
+                  ⋄ _pTarg←' [^ ←]+ '
+                  ⋄ _pSetVal←' (?:(←)\h*(.*))?'
+                  ⋄ _pFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎_pName '
             ⍝ Note that we allow a null \0 to be the initial char. of a name.
             ⍝ This can be used to suppress finding a name in a replacement,
             ⍝ and \0 will be removed at the end of processing.
             ⍝ This is mostly obsolete given we suppress macro definitions on recursion
             ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
-                  ⋄ ppShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
-                  ⋄ ppShortNmPfx←' (?<!\.) ⍎ppShortNm '
-                  ⋄ ppLongNmOnly←' ⍎ppShortNm (?: \. ⍎ppShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
-                  ⋄ ppName←'    ⍎ppShortNm (?: \. ⍎ppShortNm )*'         ⍝ ppName - long OR short
+                  ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+                  ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
+                  ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
+                  ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
 
-                  cDEF←'def'reg'      ⍎ppBeg DEF(?:INE)?(Q)?  \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
-                  cVAL←'val'reg'      ⍎ppBeg E?VAL(Q)?        \h* (⍎ppTarg)    \h*    ⍎ppSetVal   $'
+                  cDEF←'def'regPat'      ⍎_pBeg DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
+                  cVAL←'val'regPat'      ⍎_pBeg E?VAL(Q)?        \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
             ⍝ statPat: name | name ← val | code_to_execute
-                  ⋄ statPat←'⍎ppBeg STATIC \h+ (\]?) \h* (?|(⍎ppName) \h* ⍎ppSetVal $ | ()() (.*)  $)'
-                  cSTAT←'stat'reg statPat
-                  cINCL←'include'reg' ⍎ppBeg INCL(?:UDE)?     \h* (⍎ppFiSpec)         .*          $'
-                  cIMPORT←'import'reg'⍎ppBeg IMPORT           \h* (⍎ppName)   (?:\h+ (⍎ppName))?  $'
-                  cCDEF←'cond'reg'    ⍎ppBeg CDEF(Q)?         \h* (⍎ppTarg)     \h*   ⍎ppSetVal   $'
-                  cUNDEF←'undef'reg'  ⍎ppBeg UNDEF            \h* (⍎ppName )    .*                $'
-                  cTRANS←'trans'reg'  ⍎ppBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
-                  cOTHER←'apl'reg'    ^                                         .*                $'
+                  ⋄ statPat←'⍎_pBeg STATIC \h+ (\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal $ | ()() (.*)  $)'
+                  cSTAT←'stat'regPat statPat
+                  cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)         .*          $'
+                  cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)   (?:\h+ (⍎_pName))?  $'
+                  cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
+                  cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )    .*                $'
+                  cTRANS←'trans'regPat'  ⍎_pBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
+                  cOTHER←'apl'regPat'    ^                                         .*                $'
 
            ⍝ patterns solely for the ∇preEval∇ fn
              ⍝ User cmds: ]... (See also ⎕UCMD)
@@ -426,41 +432,41 @@
                   pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
                   pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
                   pCommentE←'(?x)      ⍝ .*  $'
-              ⍝ ppNum: A non-complex signed APL number (float or dec)
-                  ⋄ ppNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
-                  ⋄ ppDot←'(?:  … | \.{2,} )'
-                  ⋄ ppCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ ppCh2←' '' (?: [^''] | ''{2} ){2} '' '
-                  ⋄ ppDot1e←'  (?| ( ⍎ppNum (?: \h+ ⍎ppNum)*          ) \h* ⍎ppDot \h* (⍎ppNum) '
-                  ⋄ ppDot1e,←'   | ( ⍎ppCh1 (?: \h+ ⍎ppCh1)* | ⍎ppCh2 ) \h* ⍎ppDot \h* (⍎ppCh1) ) '
-                  pDot1e←∆MAP'(?x)   ⍎ppDot1e'
-                  pDot2e←∆MAP'(?x)   ⍎ppDot'
+              ⍝ _pNum: A non-complex signed APL number (float or dec)
+                  ⋄ _pNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
+                  ⋄ _pDot←'(?:  … | \.{2,} )'
+                  ⋄ _pCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ _pCh2←' '' (?: [^''] | ''{2} ){2} '' '
+                  ⋄ _pDot1e←'  (?| ( ⍎_pNum (?: \h+ ⍎_pNum)*          ) \h* ⍎_pDot \h* (⍎_pNum) '
+                  ⋄ _pDot1e,←'   | ( ⍎_pCh1 (?: \h+ ⍎_pCh1)* | ⍎_pCh2 ) \h* ⍎_pDot \h* (⍎_pCh1) ) '
+                  pDot1e←∆MAP'(?x)   ⍎_pDot1e'
+                  pDot2e←∆MAP'(?x)   ⍎_pDot'
               ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
-                  ⋄ ppHex←'   ¯? (\d  [\dA-F]*)             X'
+                  ⋄ _pHex←'   ¯? (\d  [\dA-F]*)             X'
               ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
-                  ⋄ ppBigInt←'¯? (\d+) (?: E (\d+) )? I'
+                  ⋄ _pBigInt←'¯? (\d+) (?: E (\d+) )? I'
               ⍝ pSpecialIntE: Allows both bigInt format and hex format
               ⍝ This is permissive (allows illegal options to be handled by APL),
               ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
               ⍝ Exponents are invalid for hexadecimals, because the exponential range
               ⍝ is not defined/allowed.
-                  pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎ppHex | ⍎ppBigInt ) '
+                  pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
 
            ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
               ⍝ pLongNmE Long names are of the form #.a or a.b.c
               ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
-                  pLongNmE←∆MAP'(?x)  ⍎ppLongNmOnly'
-                  pShortNmE←∆MAP'(?x) ⍎ppShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
+                  pLongNmE←∆MAP'(?x)  ⍎_pLongNmOnly'
+                  pShortNmE←∆MAP'(?x) ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
               ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
                   pContE←'(?x) \h* \.{2,} \h* (   ⍝ .*)? \n \h*'
                   pEOLe←'\n'
            ⍝ Treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
                   pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
               ⍝ For  (names → ...) and (`names)
-                  ⋄ ppNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
-                  ⋄ ppAtom←'(?: ⍎ppName | ⍎ppNum | ⍬ )'
-                  ⋄ ppAtoms←' ⍎ppAtom (?: \h+ ⍎ppAtom )*'
-                  ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎ppAtoms)'
-                  ⋄ _,←'        | (     )     (⍎ppAtoms) \h* (→)(→?)) '
+                  ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
+                  ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
+                  ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
+                  ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎_pAtoms)'
+                  ⋄ _,←'        | (     )     (⍎_pAtoms) \h* (→)(→?)) '
                   ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
                   pATOMSe←∆MAP _
          ⍝ -------------------------------⌈------------------------------------------
@@ -1214,7 +1220,7 @@
  ;cur_tok;cur_gov;deQ;enQ;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stack
  ;⎕IO;⎕ML
  isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
- lines←⊆lines
+ lines←,,¨⊆lines
  ⎕IO ⎕ML←0 1
  QUOT←'''' ⋄ SEMI←';'
  LPAR RPAR LBRK RBRK←'()[]'
@@ -1228,7 +1234,7 @@
  :EndIf
  linesOut←⍬
  :For line :In lines
-     :If '∇'=1↑line↓⍨+/∧\line=' ' ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers...
+     :If '∇'=1↑line↓⍨+/∧\line=' ' ⋄ linesOut,←⊂line ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers or footers...
      stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
      lineOut←⍬
      :For cur_tok :In line
