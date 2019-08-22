@@ -1234,10 +1234,12 @@
  :EndIf
  linesOut←⍬
  :For line :In lines
-     :If '∇'=1↑line↓⍨+/∧\line=' ' ⋄ linesOut,←⊂line ⋄ :Continue ⋄ :EndIf   ⍝ Skip function headers or footers...
-     stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
-     lineOut←⍬
-     :For cur_tok :In line
+     :If '∇'=1↑line↓⍨+/∧\line=' '
+        lineOut←line       ⍝ Skip function headers or footers...
+     :Else
+        stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
+        lineOut←⍬
+        :For cur_tok :In line
          cur_gov←⊃⌽stack.govern
          inQt←QUOT=cur_gov
          :If inQt
@@ -1259,9 +1261,10 @@
          :EndIf
          lineOut,←cur_tok
      :EndFor
-     :If (⊃stack.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
-         lineOut←'((',lineOut,'))'
-     :EndIf
+       :If (⊃stack.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
+           lineOut←'((',lineOut,'))'
+       :EndIf
+     :Endif
      linesOut,←⊂∊lineOut
  :EndFor
 
