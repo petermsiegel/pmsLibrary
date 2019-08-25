@@ -83,7 +83,7 @@
               vals←valuesF
               :Return
           :EndIf
-         
+
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
@@ -112,11 +112,11 @@
       vals←⎕THIS[keys]
     ∇
 
-    ⍝ dict.put
+    ⍝ dict.set
     ⍝ --------
-    ⍝ {vals}←keys dict.put vals
-    ⍝ {vals}←     dict,put (k v)(k v)...
-    ∇ {vals}←{keys}put vals;⎕TRAP
+    ⍝ {vals}←keys dict.set vals
+    ⍝ {vals}←     dict,set (k v)(k v)...
+    ∇ {vals}←{keys}set vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
@@ -526,11 +526,10 @@
       :EndIf
       DEBUGlast←DEBUG
     ∇
-
 :EndClass
-:Class DefaultDictClass  : DictClass
-    ⍝ require 'DictClass'
 
+:Class DefaultDictClass  : DictClass
+  ⍝ require 'DictClass'
   ⍝ DefaultDict: Function to make class ref visible as <DefaultDict> if DefaultDict is in ⎕PATH
     ∇ ns←DefaultDict
       ns←⎕THIS
@@ -556,198 +555,60 @@
       load arg
     ∇
 :EndClass
-:Namespace TinyDictNs
-⍝⍝⍝⍝⍝ See TinyDict below
-  ⍝ A simple, namespace-based, dictionary. Fast, low overhead.
-  ⍝ Uses Triggers to map local vars onto dictionary namespace and vice versa
-  ⍝ See docs/TinyDict.help
-
-  ⍝ TinyDict: Function to make namespace TinyDictNs ref visible as <TinyDict> if TinyDict is in ⎕PATH
-    ∇ ns←TinyDict
-      ns←⎕THIS
-    ∇
-    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'TinyDict'
-
-    ∇ ns←new0
-      ns←⎕NS ⎕THIS
-      ns.⎕DF'TinyDict[]'
-      ns.default←0   ⍝ zero
-    ∇
-
-    ∇ ns←{def}new entries
-      ns←⎕THIS.new0
-      :If ~900⌶1 ⋄ ns.default←def ⋄ :EndIf
-      :If 0<≢entries   ⍝ If entries is ⍬ or '', same as new0
-          ns.(Keys Vals)←{⍺←⍴⍴entries
-              2≠⍺:↓⍉↑⍵    ⍝  ('one' 1)('two' 2) ('three' 3)
-              1=⊃⍺:,⍵     ⍝  ⍪ ('one' 'two' 'three') (1 2 3)
-              ↓⍵          ⍝  ↑('one' 'two')(1 2)
-          }entries
-      :EndIf
-    ∇
-
-    ⎕IO ⎕ML←0 1
-    keysF valsF←⍬ ⍬
-  ⍝ default: defined in new0 or new
-
-  ⍝ Set "methods"  keys, vals, values for vars keysF valsF
-    ∇ k←keys
-      k←keysF
-    ∇
-    ∇ v←vals
-      v←valsF
-    ∇
-    ∇ v←values
-      v←valsF
-    ∇
-
-    ∇ r←get keys;e;ie;ine;p
-      keys←,keys
-      p←keysF⍳keys
-      r←keys        ⍝ r will have the shape, but not content, of keys.
-      :If 0≠≢ie←⍸e←p<≢keysF
-          r[ie]←valsF[e/p]
-      :EndIf
-      :If 0≠≢ine←⍸~e
-          :If 0≠⎕NC'default'
-              r[ine]←⊂default
-          :Else
-              ⎕SIGNAL/('TinyDict: One or more keys is undefined')11
-          :EndIf
-      :EndIf
-    ∇
-
-    ∇ r←get1 key;p
-      p←keysF⍳⊂key
-      :If p≥≢keysF
-          :If 0≠⎕NC'default'
-              r←default
-          :Else
-              ⎕SIGNAL/('TinyDict: Key is undefined')11
-          :EndIf
-      :Else
-          r←p⊃valsF
-      :EndIf
-    ∇
-
-    ∇ {vals}←{keys}put vals;e;ePut1;ePut2;ie;kv;n;p
-      ePUT1←'TinyDict/put (1adic): one or more key-value pairs required'
-      ePUT2←'TinyDict/put (2adic): number of keys and values must match' 11
-      :If 900⌶1       ⍝ monadic put [pairs]:   put (k1 v1)(k2 v2)...
-          kv←↓⍉↑vals
-          :If 2≠≢kv ⋄ ⎕SIGNAL/ePUT1 ⋄ :EndIf
-          keys vals←kv
-      :ElseIf (≢keys)≠(≢vals)   ⍝ dyadic put [lists]:  keys put vals
-          ⎕SIGNAL/ePUT2
-      :EndIf
-      keys vals←(,keys)(,vals)
-      e←(≢keysF)>p←keysF⍳keys
-      :If 0≠≢ie←⍸e    ⍝ Any existing keys?
-          valsF[e/p]←e/vals
-      :EndIf
-      :If 1∊n←~e      ⍝ Any new keys?
-        ⍝ If a key appears >1ce, use the LAST value for that key.
-          p←(≢keys)-1+(⌽keys)⍳∪n/keys
-          (keysF valsF),←(keys[p])(vals[p])
-      :EndIf
-    ∇
-
-    ∇ {val}←{key}put1 val;p
-    ⍝  put1 key val   OR    key put1 val
-      :If 900⌶1 ⋄ key val←val ⋄ :EndIf
-      p←keysF⍳⊂key
-      :If p≥≢keysF
-          keysF,←⊂key ⋄ valsF,←⊂val
-      :Else
-          (p⊃valsF)←val
-      :EndIf
-    ∇
-
-    ∇ {b}←del1 key;p;q
-      p←keysF⍳⊂key
-      :If p≥≢keysF
-          b←0   ⍝ Not deleted
-      :Else
-          b←1   ⍝ Deleted...
-          q←1⍴⍨≢keysF ⋄ q[p]←0
-          keysF valsF←(q/keysF)(q/valsF)
-      :EndIf
-    ∇
-
-  ⍝ del: Inefficient (just haven't gotten around to it)
-    ∇ {b}←del keys
-      b←del1¨keys
-    ∇
-
-  ⍝ inc keys by 1 or <∆>, the increment amount
-    ∇ {newval}←{∆}inc keys
-      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      :If (∪≢keys)=≢keys
-          newval←keys put ∆+get keys
-      :Else ⍝ duplicates- do 1 at a time
-          newval←∆{⍵ put1 ⍺+get1 ⍵}¨keys
-      :EndIf
-    ∇
-
-    ⍝ dec keys by 1 or <∆>, the decrement amount
-    ∇ {newval}←{∆}dec keys
-      :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      newval←(-∆)inc keys
-    ∇
-
-    ∇ b←has_default
-      b←0≠⎕NC'default'
-    ∇
-
-    ∇ r←table
-      r←keysF,[0.5]valsF
-    ∇
-
-   ⍝ TinyDict.help/Help/HELP  - Display help documentation window.
-    ∇ {h}←help;f;sel
-      :Access Public Shared
-    ⍝ Pick up ⍝H3 comments only as HELP...
-      h←'^\s*⍝H3(.*)$'⎕S'\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
-      :Trap 1000
-          ⎕ED'h'
-      :EndTrap
-    ∇
-    _←⎕FX 'help'⎕R'Help'⊣⎕NR 'help'
-    _←⎕FX 'help'⎕R'HELP'⊣⎕NR 'help'
-
-:EndNamespace
-  SimpleDict←{
+⍝ simpleDict: Fast, simply dictionary, for memoization, etc.
+⍝ d ← [default←''] simpleDict k_v_pairs
+  simpleDict←{
+      ⎕IO ⎕ML←0 1
      ⍝ d ← [default] simpleDict [key-value pairs | ⍬]
       ⍺←''   ⍝ Default is character null-string.
-            ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
-      set←{⍺←dict
-          d(n v)←⍺ ⍵
-          p←d.keys⍳⊂n
-          p<≢d.keys:(p⊃d.vals)←v
-          d.keys,←⊂n
-          1:_←v⊣d.vals,←⊂v
+             ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
+      dict.dict←dict←⎕NS''
+    ⍝ vals ← keys set  vals
+    ⍝ val  ← key  set1 val
+      dict.set←{1:_←⍺ set1¨⍵ }
+      dict.set1←{
+          p←keys⍳⊂⍺
+          p<≢keys:(p⊃vals)←⊂⍵
+          keys,←⊂⍺
+          1:_←vals,←⊂⍵   ⍝ returns val:⍵
       }
-      get←{⍺←dict
-          d n←⍺ ⍵
-          p←d.keys⍳⊂n
-          p<≢d.keys:p⊃vals
-          d.default
+    ⍝ new ← [increments←1]  inc  keys
+    ⍝ new ← [increment←1]   inc1 key
+      dict.inc←{⍺←1 ⋄ 1:_←⍺ inc1¨⍵}
+      dict.inc1←{⍺←1
+          p←keys⍳⊂⍵
+          p<≢keys:(p⊃vals)+←⍺
+          keys,←⊂⍵
+          1:_←vals,←⊂⍺+default
       }
-      del←{⍺←dict
-          d n←⍺ ⍵
-          p←d.keys⍳⊂n
-          p>≢d.keys:_←0
+      ⍝ new ← [decrements←1] dec   keys
+      ⍝ new ← [decrement←1]  dec1  k ey
+      dict.dec←{⍺←1 ⋄ 1:_←(-⍺) inc1¨⍵}
+      dict.dec1←{⍺←1
+          1:_←(-⍺)inc1 ⍵
+      }
+    ⍝ vals ← get keys
+    ⍝ val ← get1 key
+      dict.get←{get1¨⍵}
+      dict.get1←{
+          p←keys⍳⊂⍵
+          p<≢keys:p⊃vals
+          default
+      }
+    ⍝ vals ← del keys
+    ⍝ val ←  del1 key
+      dict.del←{del1¨⍵}
+      dict.del1←{
+          p←keys⍳⊂⍵
+          p>≢keys:_←0
           k←p≠⍳≢keys
-          d.keys←k/d.keys
-          d.vals←k/d.vals
+          keys∘←k/keys
+          vals∘←k/vals
           1:_←1
       }
-      dict←⎕NS''
-      dict.dict←dict
+      _←dict.⎕FX 'r←table' ':IF 0=≢keys ⋄ r←⍬ ⋄ :Else ⋄ r←⍉↑keys vals ⋄ :Endif'
+
       dict.(keys vals)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
-      dict.(default ⎕IO ⎕ML)←⍺ 0 1
-      dict.set←set
-      dict.get←get
-      dict.del←del
-      dict
+      dict.default←⍺
+      dict⊣dict.⎕DF '[simpleDict]'
   }
