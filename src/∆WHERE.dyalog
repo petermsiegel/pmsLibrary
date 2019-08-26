@@ -1,7 +1,9 @@
  ∆WHERE←{
    ⍝ Returns a reference to the namespace in which object(s) ⍵ are found, else ⎕NULL
-   ⍝ ⍵: name1 [name2 [name3...]]
-   ⍝    nameN:   the name of an APL object as a char. vector.
+   ⍝ ⍵@VVC: 'name1' ['name2' ['name3'...]]   OR ⍵@MC: 'name1' ['name2' [...]]
+   ⍝     nameN:   the name of an APL object as a char. vector.
+   ⍝     If ⍵ has rank 2, searches caller namespace or path only.
+   ⍝     If ⍵ is vec of strings, searches caller namespace, path, and all (other) namespaces
    ⍝ ⍺: [call=(1⊃⎕RSI,#)] [format∊0 1 2=0]]
    ⍝    DEFAULT: (1⊃⎕RSI,#) 0, i.e. caller namespace is actual from which ∆WHERE called
    ⍝                           and  return only the namespaces in which ⍵ is found.
@@ -34,10 +36,13 @@
 
    ⍝  Collect options in any order. callNs is option in class 9, else the caller Ns.
      callNs format←{l r←9=⎕NC¨'LR'⊣L R←⍵ ⋄ l:L R ⋄ r:R L ⋄ (1⊃⎕RSI,#)L}2↑⍺,0
-     names←⊆⍵
+     names pathOnly←{
+         2=⍴⍴⍵:(' '~⍨¨↓⍵)1     ⍝ pathOnly is 1 if <⍵> is a matrix.
+         (⊆⍵)0
+     }⍵
 
-      ~callNs{0:: 0 ⋄ (9=⎕NC'⍺')∧⍵∊0 1 2 }format: alphaE ⎕SIGNAL 11
-     ~{0:: 0 ⋄ 1⊣⎕NC ⍵}names: omegaE ⎕SIGNAL 11
+     ~callNs{0::0 ⋄ (9=⎕NC'⍺')∧⍵∊0 1 2}format:alphaE ⎕SIGNAL 11
+     ~{0::0 ⋄ 1⊣⎕NC ⍵}names:omegaE ⎕SIGNAL 11
 
      _types←↓⍉↑(1.1 'caller')(1.2 'path')(1.3 'elsewhere')(0 'not found')(¯1 'invalid')
      callT pathT elsewhereT notFoundT invalidT←(2=format)⊃_types
@@ -66,6 +71,8 @@
          0≠≢val←callNs(callT scan4Objs)⍵:val
        ⍝ Found on the path?
          0≠≢val←pathNs(pathT scan4Objs)⍵:val
+         pathOnly:⎕NULL notFoundT                    ⍝ Don't continue, if pathOnly set
+
        ⍝ Found in some othe namespace?
          elseNs⊢←{∊refs¨# ⎕SE}⍣(0=≢elseNs)⊣elseNs    ⍝ (refs is expensive. Calculate once only.)
          0≠≢val←elseNs(elsewhereT scan4Objs)⍵:val
