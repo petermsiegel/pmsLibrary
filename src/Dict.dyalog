@@ -555,8 +555,12 @@
       load arg
     ∇
 :EndClass
-⍝ simpleDict: Fast, simply dictionary, for memoization, etc.
-⍝ d ← [default←''] simpleDict k_v_pairs
+
+⍝ d ← [default←''] simpleDict[New] k_v_pairs
+  simpleDictNew←{⍺←''
+    ⍺ simpleDict ⍵
+  }
+  ⍝ ##.simpleDictNew←simpleDictNew
   simpleDict←{
       ⎕IO ⎕ML←0 1
      ⍝ d ← [default] simpleDict [key-value pairs | ⍬]
@@ -572,20 +576,20 @@
           keys,←⊂⍺
           1:_←vals,←⊂⍵   ⍝ returns val:⍵
       }
-    ⍝ new ← [increments←1]  inc  keys
-    ⍝ new ← [increment←1]   inc1 key
-      dict.inc←{⍺←1 ⋄ 1:_←⍺ inc1¨⍵}
+    ⍝ {key} ← [increments←1]  inc  keys
+    ⍝ {key} ← [increment←1]   inc1 key
+      dict.inc←{⍺←1 ⋄ 1:_←⍵⊣⍺ inc1¨⍵}
       dict.inc1←{⍺←1
           p←keys⍳⊂⍵
           p<≢keys:(p⊃vals)+←⍺
           keys,←⊂⍵
-          1:_←vals,←⊂⍺+default
+          1:_←⍵⊣vals,←⊂⍺+(default≡'')⊃default 0  ⍝ If default≡'', treat as if 0.
       }
-      ⍝ new ← [decrements←1] dec   keys
-      ⍝ new ← [decrement←1]  dec1  k ey
-      dict.dec←{⍺←1 ⋄ 1:_←(-⍺) inc1¨⍵}
+      ⍝ {key} ← [decrements←1] dec keys
+      ⍝ {key} ← [decrement←1]  dec1 key
+      dict.dec←{⍺←1 ⋄ 1:_←⍵⊣(-⍺) inc1¨⍵}
       dict.dec1←{⍺←1
-          1:_←(-⍺)inc1 ⍵
+          1:_←⍵⊣(-⍺)inc1 ⍵
       }
     ⍝ vals ← get keys
     ⍝ val ← get1 key
