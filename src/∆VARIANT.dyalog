@@ -26,14 +26,15 @@
  ⍝  principal←'IC'
  ⍝  ns← parmList principal ∆VARIANT ⍵
  ⍝
-     ⎕IO ⎕ML←0 1 ⋄ ∆IGNORE←⊂⎕NULL ⍬ ¯13707   ⍝ A magic #...
+     ⎕IO ⎕ML←0 1
+     ns←∆IGNORE←⎕NS ''
      okType←{ ⍝ Is the type in parmList for <⍺> consistent with value <⍵>
          p←(0⊃¨parmList)⍳⊂⍺
          p≥≢parmList:⎕SIGNAL/('∆VARIANT: User passed a variant "',⍺,'" we don''t know')901
          tp←1⊃p⊃parmList
    ⍝      ⎕←'Found obj '(p⊃parmList)
          ~tp∊'*BINCSR':⎕SIGNAL/('∆VARIANT: The type of the variant "',⍺,'" is unknown')902
-         ∆IGNORE≡⍵:1    ⍝ Arg of ∆IGNORE in parameter is ignored.
+         ∆IGNORE≡⍵:1                ⍝  Ignore: only for parameters...
          '*'=tp:2 9∊⍨⎕NC'⍵'
          'R'=tp:9=⎕NC'⍵'
          arg←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}⍵
@@ -51,23 +52,23 @@
      parmList←⊆¨⊃⍺
      principal hasPrincipal←{0=≢⍵:⍬ 0 ⋄ (⊃⍵)1}1↓⍺
      argList←⊆⍵
-     parmHasDef←3=≢¨parmList
- ⍝ Ensure every parm has a type. Default '*'
-     parmList←(≢¨parmList){3=⍺:⍵
-         2=⍺:(0⊃⍵)(1⊃⍵)∆IGNORE ⋄ (⊃⊆⍵)'*'∆IGNORE}¨parmList
+   Ensure every parm has a type. Default '*'
 
-     ns←⎕NS''
-     _←ns{nm _ val←⍵
+     parmList←ns{
+         2=≢⍵:(0⊃⍵)(1⊃⍵)∆IGNORE
+         1=≢⍵:(⊃⊆⍵)'*'∆IGNORE
+         nm _ val←⍵
          ~nm okType val:⎕SIGNAL/('∆VARIANT: Default value for variant ',nm,' of the wrong type')903
-         ⍺{⍎'⍺.',nm,'←⍵'}val
-     }¨parmHasDef/parmList
+         _←⍺{⍎'⍺.',nm,'←⍵'}val
+         ⍵
+     }¨parmList
 
+     argList←{2=≢⍵:⍵ ⋄ principal ⍵}¨argList
      (0∊2=≢¨⍵)∧~hasPrincipal:⎕SIGNAL/'∆VARIANT: User passed principle variant, but none was predefined' 904
      _←ns{
          nm val←⍵
          ~nm okType val:⎕SIGNAL/('∆VARIANT: User value for variant "',nm,'" of the wrong type')905
          ⍺{⍎'⍺.',nm,'←⍵'}val
-     }¨{2=≢⍵:⍵ ⋄ principal ⍵}¨argList
+     }¨argList
      ns
-
  }
