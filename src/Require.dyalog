@@ -5,7 +5,7 @@
 
    ⍝ Help info hard wired with respect to cur directory...
      HELP_FNAME←'./pmsLibrary/docs/require.help'
-     DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (next)
+     DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (default or passed by user)
 
    ⍝ General Utilities used below
    ⍝ (These should be informational or those that could be quite general)
@@ -176,7 +176,7 @@
    ⍝ If 1, use [HOME] to represent env. var HOME.  See shortDirName
      USEHOMEDIR←1
 
-     999×debugO::⎕SIGNAL/⎕DMX.(EM EN)
+     debugO::⎕SIGNAL/⎕DMX.(EM EN)
    ⍝ Determine library ref and name from option libO (via -lib or default)...
      libR libN←DefaultLibName{
          deflib←⍺
