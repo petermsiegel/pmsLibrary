@@ -2,19 +2,19 @@
  ⍝   ns← parmList [principal] ∇  argList
  ⍝   0   1         2             3
  ⍝       1. parmList: list of all valid parameters (case Respected) in this form:
- ⍝                     parameter type [default]
- ⍝          parameter: a string (case R)
+ ⍝                     parameter [type [default]]
+ ⍝          parameter: a string (case R): the only argument whose value can be set as [val] in place of [arg val]
  ⍝          type:      'B' a boolean: 1 or 0
  ⍝                     'I' an integer
  ⍝                     'N' a number
  ⍝                     'C' a char ('X' or 'y')
  ⍝                     'S' a string ('X' or 'XX')
- ⍝                     'R' a namespace ref or # of ⎕SE (unquoted)
+ ⍝                     'R' a namespace ref,  #,  ⎕SE (unquoted; not strings)
  ⍝                     '*' anything (default)
  ⍝          default:   if specified, any value. If omitted, no default.
  ⍝       2. principal: name of principal parameter or none, if omitted or ⎕NULL.
  ⍝       3. argList:  variant args passed by user, including default.
- ⍝       0. ns: a namespace with names of all parameters either found in argList or having default values.
+ ⍝       0. ns: a namespace with names of all parameters either found in argList or having default values from parmList.
  ⍝              Those names not found in argList will be undefined, if they have no defaults.
  ⍝              To ensure every name is defined, simply specify a default.
  ⍝
@@ -28,10 +28,10 @@
  ⍝
  ⍝ Error numbers (901: parameter-related; 911: argument-related)
  ⍝      901:   User passed an unknown variant
- ⍝             The type for the variant is invalid (parameter)
+ ⍝             The type specified for the variant parameter is invalid
  ⍝             Default value for variant of the wrong type
  ⍝             Principal variant is unknown
- ⍝      911:   The type for the variant is invalid (argument)
+ ⍝      911:   The type specified for the variant argument is invalid
  ⍝             User passed principle variant arg, but none was defined
  ⍝             User value for variant of the wrong type
 
@@ -43,8 +43,8 @@
      typeCheck←{
          p←(0⊃¨parmList)⍳⊂⍺
          p≥≢parmList:⎕SIGNAL/('∆VARIANT: User passed an unknown variant "',⍺,'"')901
-         tp←1⊃p⊃parmList
-         ~tp∊'*BINCSR':⎕SIGNAL/('∆VARIANT: The type "',tp,'" given for the variant "',(⍕⍺),'" is invalid')(⍺⍺⊃901 911)
+         tp←1⊃p⊃parmList ⋄ nm←⍕⍺
+         ~tp∊'*BINCSR':⎕SIGNAL/('∆VARIANT: The type "',tp,'" specified for the variant ',vt,' "',nm,'" is invalid')(⍺⍺⊃901 911)⊣vt←⍺⍺⊃'parameter' 'argument'
          ∆IGNORE≡⍵:1                ⍝  Ignore: only possible for parameters...
          '*'=tp:2 9∊⍨⎕NC'⍵' ⋄ 'R'=tp:9=⎕NC'⍵'
          arg←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}⍵ ⋄ 'B'=tp:arg∊0 1
@@ -75,16 +75,17 @@
      principal hasPrincipal←scanPrincipal 1↓⍺
 
    ⍝ Scan ⍵, user-defined variant argument list name-value pairs
+     noPrincE←'∆VARIANT: User passed principle variant, but none was predefined' 911
      scanArgs1←{
          3=|≡⍵:,⍵
          2=|≡⍵:,⊂⍵
          hasPrincipal:,⊂principal ⍵
-         ⎕SIGNAL/'∆VARIANT: User passed principle variant, but none was predefined' 911
+         ⎕SIGNAL/noPrincE
      }
      scanArgs2←{
          2=|≡⍵:⍵
          hasPrincipal:principal ⍵
-         ⎕SIGNAL/'∆VARIANT: User passed principle variant arg, but none was predefined' 911
+         ⎕SIGNAL/noPrincE
      }¨
      scanArgs3←{
          nm val←⍵
