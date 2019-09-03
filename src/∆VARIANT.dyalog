@@ -26,49 +26,74 @@
  ⍝  principal←'IC'
  ⍝  ns← parmList principal ∆VARIANT ⍵
  ⍝
+ ⍝ Error numbers (901: parameter-related; 911: argument-related)
+ ⍝      901:   User passed an unknown variant
+ ⍝             The type for the variant is invalid (parameter)
+ ⍝             Default value for variant of the wrong type
+ ⍝             Principal variant is unknown
+ ⍝      911:   The type for the variant is invalid (argument)
+ ⍝             User passed principle variant arg, but none was defined
+ ⍝             User value for variant of the wrong type
+
      ⎕IO ⎕ML←0 1
-     ns←∆IGNORE←⎕NS ''
-     okType←{ ⍝ Is the type in parmList for <⍺> consistent with value <⍵>
+   ⍝ namespace <ns> also flags parameters with no default value
+     ns←∆IGNORE←⎕NS''
+
+   ⍝ Is the type in parmList for <⍺> consistent with value <⍵>
+     typeCheck←{
          p←(0⊃¨parmList)⍳⊂⍺
-         p≥≢parmList:⎕SIGNAL/('∆VARIANT: User passed a variant "',⍺,'" we don''t know')901
+         p≥≢parmList:⎕SIGNAL/('∆VARIANT: User passed an unknown variant "',⍺,'"')901
          tp←1⊃p⊃parmList
-   ⍝      ⎕←'Found obj '(p⊃parmList)
-         ~tp∊'*BINCSR':⎕SIGNAL/('∆VARIANT: The type of the variant "',⍺,'" is unknown')902
-         ∆IGNORE≡⍵:1                ⍝  Ignore: only for parameters...
-         '*'=tp:2 9∊⍨⎕NC'⍵'
-         'R'=tp:9=⎕NC'⍵'
-         arg←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}⍵
-         'B'=tp:arg∊0 1
-         ⋄ dr←80|⎕DR arg
-         'I'=tp:3=dr
-         'N'=tp:dr∊3 5 7
-         dr≠0:0
-         'C'=tp:1=≢arg
-         'S'=tp:1
+         ~tp∊'*BINCSR':⎕SIGNAL/('∆VARIANT: The type "',tp,'" given for the variant "',(⍕⍺),'" is invalid')(⍺⍺⊃901 911)
+         ∆IGNORE≡⍵:1                ⍝  Ignore: only possible for parameters...
+         '*'=tp:2 9∊⍨⎕NC'⍵' ⋄ 'R'=tp:9=⎕NC'⍵'
+         arg←{1=≢⍵:⍬⍴⍵ ⋄ ⍵}⍵ ⋄ 'B'=tp:arg∊0 1
+         dr←80|⎕DR arg ⋄ 'I'=tp:3=dr ⋄ 'N'=tp:dr∊3 5 7
+         dr≠0:0 ⋄ 'C'=tp:1=≢arg ⋄ 'S'=tp:1
          ∘UNREACHABLE∘
      }
 
+   ⍝ Scan ⍺, function-defined parameter list of variants and (opt'l) principal variant
      ⍺←,⍬
-     parmList←⊆¨⊃⍺
-     principal hasPrincipal←{0=≢⍵:⍬ 0 ⋄ (⊃⍵)1}1↓⍺
-     argList←⊆⍵
-   Ensure every parm has a type. Default '*'
-
-     parmList←ns{
+     scanParms←{
          2=≢⍵:(0⊃⍵)(1⊃⍵)∆IGNORE
          1=≢⍵:(⊃⊆⍵)'*'∆IGNORE
          nm _ val←⍵
-         ~nm okType val:⎕SIGNAL/('∆VARIANT: Default value for variant ',nm,' of the wrong type')903
-         _←⍺{⍎'⍺.',nm,'←⍵'}val
+         ~nm(0 typeCheck)val:⎕SIGNAL/('∆VARIANT: Default value for variant "',nm,'" of the wrong type')901
+         _←ns{⍎'⍺.',nm,'←⍵'}val
          ⍵
-     }¨parmList
+     }¨
+   ⍝ !!!
+     parmList←scanParms⊆¨⊃⍺
 
-     argList←{2=≢⍵:⍵ ⋄ principal ⍵}¨argList
-     (0∊2=≢¨⍵)∧~hasPrincipal:⎕SIGNAL/'∆VARIANT: User passed principle variant, but none was predefined' 904
-     _←ns{
+     scanPrincipal←{
+         0=≢⍵:⍬ 0 ⋄ ⎕NULL≡nm←⊃⍵:⍬ 0
+         (≢parmList)≤(⊃¨parmList)⍳⊂nm:⎕SIGNAL/('∆VARIANT: Principal variant "',nm,'" is unknown')901
+         nm 1
+     }
+   ⍝ !!!
+     principal hasPrincipal←scanPrincipal 1↓⍺
+
+   ⍝ Scan ⍵, user-defined variant argument list name-value pairs
+     scanArgs1←{
+         3=|≡⍵:,⍵
+         2=|≡⍵:,⊂⍵
+         hasPrincipal:,⊂principal ⍵
+         ⎕SIGNAL/'∆VARIANT: User passed principle variant, but none was predefined' 911
+     }
+     scanArgs2←{
+         2=|≡⍵:⍵
+         hasPrincipal:principal ⍵
+         ⎕SIGNAL/'∆VARIANT: User passed principle variant arg, but none was predefined' 911
+     }¨
+     scanArgs3←{
          nm val←⍵
-         ~nm okType val:⎕SIGNAL/('∆VARIANT: User value for variant "',nm,'" of the wrong type')905
-         ⍺{⍎'⍺.',nm,'←⍵'}val
-     }¨argList
+         ~nm(1 typeCheck)val:⎕SIGNAL/('∆VARIANT: User value for variant "',nm,'" of the wrong type')911
+         ns{⍎'⍺.',nm,'←⍵'}val
+     }¨
+   ⍝ !!!
+     _←scanArgs3 scanArgs2 scanArgs1 ⍵
+
+   ⍝ Return populated namespace. Variants with no defaults that are not set are undefined.
      ns
  }
