@@ -1,10 +1,10 @@
 ﻿ ∆VARIANT←{
    ⍝ See documentation at bottom
-     911::NS EN EM⊣EM ⎕SIGNAL EN/⍨~TRAP_ERRS
+     911::NS EN EM⊣EM ⎕SIGNAL EN/⍨1≠TRAP_ERRS⊣⎕←'NS EN EM TRAP_ERRS'
      NS EN EM TRAP_ERRS←(⎕NS'')0 '' 0
 
    ⍝ EXTERNAL:  NS EN EM TRAP_ERRS
-     err←NS∘{EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵ ⋄ EN∘←⊃⌽⍵ ⋄ EM ⎕SIGNAL EN}
+     err←⎕SIGNAL/{(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
      find←{(≢⍺)>(⊃¨⍺)⍳⊂⍵}
    ⍝ Scan ⍺, function-defined parameter list of variants and (opt'l) principal variant
      scanParms←{
