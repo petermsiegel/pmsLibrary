@@ -1,44 +1,51 @@
-﻿ ∆VARIANT←{
+﻿ RES←ALPHA ∆VARIANT OMEGA
+ ;_VARIANT;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+
+ NS←⎕NS EM←''
+ (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
+
+ _VARIANT←{
    ⍝ See documentation at bottom
      911::NS EN EM⊣EM ⎕SIGNAL EN/⍨1≠TRAP_ERRS⊣⎕←'NS EN EM TRAP_ERRS'
-     NS EN EM TRAP_ERRS←(⎕NS'')0 '' 0
 
    ⍝ EXTERNAL:  NS EN EM TRAP_ERRS
      err←⎕SIGNAL/{(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
-     find←{(≢⍺)>(⊃¨⍺)⍳⊂⍵}
    ⍝ Scan ⍺, function-defined parameter list of variants and (opt'l) principal variant
      scanParms←{
-         princ←⎕NULL
-         getPrinc←{
-             '*'≠1↑⍵:⍵
-             princ≡⎕NULL:⊢princ∘←1↓⍵
-             err'Principal parameter set multiple times.' 901
-         }
-         parms←{
-       ⍝ -- Special parameters (may not be arguments)
-             '⎕TRAP'≡⊃⍵:⍬⊣TRAP_ERRS∘←1
-             1=≢⍵:(getPrinc⊃⊆⍵)∆NO_VALUE
-             2≠≢⍵:err'Parameter definitions must be of form: name [value]' 901
-             nm val←⍵ ⋄ nm←getPrinc nm
-             _←NS{⍎'⍺.',nm,'←⍵'}val
-             nm val
-         }¨⍵
+       ⍝ Valid parms:  ('name' value) OR ('name'), but not ('name' value 'junk') or (⍬)
+         count←≢¨⍵
+         0∊count∊1 2:err'Parameter definitions must be of form: name [value]' 901
+         parms←count{⍺=2:⍵ ⋄ (⊃⊆⍵)∆NO_VALUE}¨⍵
+
+       ⍝ Principal parameter (optional) has a * prefix
+         parms princ←{parms←⍵
+             ~1∊p←'*'=⊃∘⊃¨parms:parms ⎕NULL
+             princ←p/⊃¨parms
+             1<≢princ:err('Principal variant must be set exactly once:',∊' ',¨princ)901
+             (⊃⊃p/parms)↓⍨←1 ⋄ princ←1↓⊃princ
+             parms princ
+         }parms
+
+       ⍝ Special parameter '⎕TRAP' causes argument errors to be trapped. Others are signalled.
+         TRAP_ERRS∨←1∊trap←(⊂'⎕TRAP')≡∘⊃¨parms
+         parms/⍨←~trap ⋄ count/⍨←~trap
+
+       ⍝ Set defaults, where they exist
+         _←NS{⍎'⍺.',(⊃⍵),'←⊃⌽⍵'}¨parms/⍨count=2
+
          parms princ
      }
    ⍝ Scan ⍵, user-defined variant argument list name-value pairs
-     normalize←{⍺←⎕NULL
-         ⍺∘{0 1∊⍨|≡⍵:⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵
-     }
+     normalize←{⍺∘{0 1∊⍨|≡⍵:⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
      scanArgs←{
-         nm val←⍵
-         nm≡⎕NULL:err'User passed principal variant, but none was predefined' 911
-         ~parmList find nm:err('User-specified variant "',nm,'" is unknown')911
-         NS{⍎'⍺.',nm,'←⍵'}val
+         (nm val)←⍵
+         nm≡⎕NULL:err'User specified a value for the principal variant, but none was predefined' 911
+         ~parmList{(≢⍺)>(⊃¨⍺)⍳⊂⍵}nm:err('User-specified variant "',nm,'" is unknown')911
+         NS{⍎'⍺.',(⊃⍵),'←⊃⌽⍵'}⍵
      }¨
    ⍝ ----------------------
    ⍝ SUB-EXECUTIVE
    ⍝ ----------------------
-     ⎕IO ⎕ML←0 1
    ⍝ namespace <NS> also flags parameters with no default value
      ∆NO_VALUE←NS
      ⍺←,⍬
@@ -48,6 +55,15 @@
      _←scanArgs principal normalize ⍵
      TRAP_ERRS:NS EN EM
      NS
+ }
+
+ :Trap 0
+     RES←ALPHA _VARIANT OMEGA
+ :Case 911
+     RES←TRAP_ERRS⊃NS(NS EN EM)
+ :Else
+     ⎕SIGNAL/⎕DMX.(EM EN)
+ :EndTrap
 
  ⍝   ∆VARIANT:
  ⍝   "Process variants like those for ⍠,
@@ -100,4 +116,3 @@
  ⍝    ∘  If B is a vector of 2-element vectors, each item of B is interpreted as above.
  ⍝    ∘  If B is a scalar (a rank-0 array of any depth), it specifies the value of the
  ⍝       Principal option.   [Dyalog APL Reference Guide, 195]
- }
