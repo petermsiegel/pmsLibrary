@@ -1,15 +1,16 @@
 ﻿ RES←ALPHA ∆VARIANT OMEGA
- ;_VARIANT;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+ ;_VARIANT;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
 
 ⍝ res ← parameters ∆VARIANT arguments
 ⍝ See documentation at bottom
 
+ DEBUG←0
  NS←⎕NS EM←''
  (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
 
  _VARIANT←{
    ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
-     err←⎕SIGNAL/{(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
+     err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
    ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
      scanParms←{
          PRINC←⎕NULL
@@ -49,10 +50,9 @@
 ⍝ ----------------------
 ⍝ MAIN EXECUTIVE
 ⍝ ---------------------
- :Trap 0
+ :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
      RES←ALPHA _VARIANT OMEGA
  :Case 911
-     RES←NS EN EM
      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
  :Else
      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
