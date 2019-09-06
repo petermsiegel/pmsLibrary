@@ -21,7 +21,7 @@
              nm←isP{~⍺:⍵ ⋄ ⊢PRINC∘←1↓⍵}nm
              noV:nm val
              nm val⊣⍎'NS.',nm,'←val'
-         }¨⍵
+         }¨,⊆¨⍵
          parms PRINC
      }
    ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
@@ -39,7 +39,7 @@
      ∆NO_VALUE←NS
      ⍺←,⍬
    ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
-     parmList principal←scanParms,⊆¨⍺
+     parmList principal←scanParms ⍺
    ⍝ Scan the user args
      _←scanArgs principal normalize ⍵
      TRAP_ERRS:NS EN EM
