@@ -1,7 +1,7 @@
-﻿ RES←ALPHA ∆VARIANT OMEGA
+﻿ RES←ALPHA ∆VARIANTS OMEGA
  ;_VARIANT;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
 
-⍝ res ← parameters ∆VARIANT arguments
+⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
 
  DEBUG←0
@@ -58,7 +58,7 @@
      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
  :EndTrap
 
- ⍝   ∆VARIANT:
+ ⍝   ∆VARIANTS:
  ⍝   "Process variants like those for ⍠,
  ⍝    returning a namespace with values set by user or those with defaults."
  ⍝
@@ -87,7 +87,7 @@
  ⍝          errNum:   911 (integer), error with variant argument.
  ⍝          errMsg:   A description of the error (string).
  ⍝
- ⍝  NS← parmList ∆VARIANT ⍵
+ ⍝  NS← parmList ∆VARIANTS ⍵
  ⍝
  ⍝ Error numbers (901: parameter-related; 911: argument-related)
  ⍝      901:   User passed an unknown variant
