@@ -97,7 +97,13 @@
  ⍝      911:   The type specified for the variant argument is invalid
  ⍝             User passed principal variant arg, but none was defined
  ⍝             User value for variant of the wrong type
-
+ ⍝
+ ⍝ Example: Like ⎕R/⎕S
+ ⍝      options←('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+ ⍝      options,←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
+ ⍝      princ←'IC'
+ ⍝      ns en _←options ∆VARIANTS 5 ('Mode' 'M')('EOL' 'LF')('UCP' 1)
+ ⍝
  ⍝ Note: We allow more options than the Dyalog documention, which specifies:
  ⍝    For the operand function with right argument Y and optional left argument X,
  ⍝    the right operand B specifies the values of one or more options that are applicable
