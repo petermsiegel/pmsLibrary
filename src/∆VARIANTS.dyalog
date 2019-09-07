@@ -1,62 +1,62 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
- ;_VARIANT;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
-
+  ;_VARIANT;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+ 
 ⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
-
- DEBUG←0
- NS←⎕NS EM←''
- (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
-
- _VARIANT←{
+ 
+  DEBUG←0
+  NS←⎕NS EM←''
+  (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
+ 
+  _VARIANT←{
    ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
-     err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
+      err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
    ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
-     scanParms←{
-         PRINC←⎕NULL
-         parms←{
-             ~1 2∊⍨≢⍵:err'Parameter definitions must be of form: name [value]' 901
-             nm val←(noV←1=≢⍵){⍺:(⊃⊆⍵)∆NO_VALUE ⋄ ⍵}⍵
-             (PRINC≢⎕NULL)∧isP←'*'=⊃nm:err('Principal variant is set more than once: *',PRINC,' ',nm)901
-             nm≡'⎕TRAP':nm val⊣TRAP_ERRS∘←1
-             nm←isP{~⍺:⍵ ⋄ ⊢PRINC∘←1↓⍵}nm
-             noV:nm val
-             nm val⊣⍎'NS.',nm,'←val'
-         }¨,⊆¨⍵
-         parms PRINC
-     }
+      scanParms←{
+          PRINC←⎕NULL
+          parms←{
+              ~1 2∊⍨≢⍵:err'Parameter definitions must be of form: name [value]' 901
+              nm val←(noV←1=≢⍵){⍺:(⊃⊆⍵)∆NO_VALUE ⋄ ⍵}⍵
+              (PRINC≢⎕NULL)∧isP←'*'=⊃nm:err('Principal variant is set more than once: *',PRINC,' ',nm)901
+              nm≡'⎕TRAP':nm val⊣TRAP_ERRS∘←1
+              nm←isP{~⍺:⍵ ⋄ ⊢PRINC∘←1↓⍵}nm
+              noV:nm val
+              nm val⊣⍎'NS.',nm,'←val'
+          }¨,⊆¨⍵
+          parms PRINC
+      }
    ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
-     normalize←{⍺∘{0 1∊⍨|≡⍵:⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-     scanArgs←{
-         (nm val)←⍵
-         nm≡⎕NULL:err'User specified a value for the principal variant, but none was predefined' 911
-         ~parmList{(≢⍺)>(⊃¨⍺)⍳⊂⍵}nm:err('User-specified variant "',nm,'" is unknown')911
-         NS{⍎'⍺.',(⊃⍵),'←⊃⌽⍵'}⍵
-     }¨
+      normalize←{⍺∘{0 1∊⍨|≡⍵:⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
+      scanArgs←{
+          (nm val)←⍵
+          nm≡⎕NULL:err'User specified a value for the principal variant, but none was predefined' 911
+          ~parmList{(≢⍺)>(⊃¨⍺)⍳⊂⍵}nm:err('User-specified variant "',nm,'" is unknown')911
+          NS{⍎'⍺.',(⊃⍵),'←⊃⌽⍵'}⍵
+      }¨
    ⍝ ----------------------
    ⍝ SUB-EXECUTIVE
    ⍝ ----------------------
    ⍝ namespace <NS> also flags parameters with no default value
-     ∆NO_VALUE←NS
-     ⍺←,⍬
+      ∆NO_VALUE←NS
+      ⍺←,⍬
    ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
-     parmList principal←scanParms ⍺
+      parmList principal←scanParms ⍺
    ⍝ Scan the user args
-     _←scanArgs principal normalize ⍵
-     TRAP_ERRS:NS EN EM
-     NS
- }
-
+      _←scanArgs principal normalize ⍵
+      TRAP_ERRS:NS EN EM
+      NS
+  }
+ 
 ⍝ ----------------------
 ⍝ MAIN EXECUTIVE
 ⍝ ---------------------
- :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
-     RES←ALPHA _VARIANT OMEGA
- :Case 911
-     ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
- :Else
-     ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
- :EndTrap
+  :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
+      RES←ALPHA _VARIANT OMEGA
+  :Case 911
+      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
+  :Else
+      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
+  :EndTrap
 ∇
  ⍝   ∆VARIANTS:
  ⍝   "Process variants like those for ⍠,
@@ -99,12 +99,14 @@
  ⍝             User value for variant of the wrong type
  ⍝
  ⍝ Example: Like ⎕R/⎕S
- ∇∆VAR_DEMO
-      ⎕←⎕CR '∆VAR_DEMO'
-      options←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
-      options,←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
-      ns en _←options ∆VARIANTS 5 ('Mode' 'M')('EOL' 'LF')('UCP' 1)
- ∇
+∇ ∆VAR_DEMO;cmd;_
+   ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
+  ⎕←¯2↓3↓⎕CR'∆VAR_DEMO'
+  options←⎕←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
+   ⋄ _←⎕SE.UCMD cmd
+  ns en _←options ∆VARIANTS 5('Mode' 'M')('EOL' 'LF')('UCP' 1)
+∇
  ⍝ Note: We allow more options than the Dyalog documention, which specifies:
  ⍝    For the operand function with right argument Y and optional left argument X,
  ⍝    the right operand B specifies the values of one or more options that are applicable
