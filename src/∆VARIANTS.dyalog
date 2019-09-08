@@ -1,5 +1,5 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
-  ;_VARIANT;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+  ;scanVariants;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
  
 ⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
@@ -7,42 +7,44 @@
   DEBUG←0
   NS←⎕NS EM←''
   (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
- 
-  _VARIANT←{
+  scanVariants←{
    ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
       err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
+ 
+  ⍝ ⍺⍺=1: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍺, set to (⍺ MISSING)
+  ⍝ ⍺⍺=0: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍵, set to (principal ⍵)
+      normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
+ 
    ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
       scanParms←{
-          PRINC←⎕NULL
-          parms←{
-              ~1 2∊⍨≢⍵:err'Parameter definitions must be of form: name [value]' 901
-              nm val←(noV←1=≢⍵){⍺:(⊃⊆⍵)∆NO_VALUE ⋄ ⍵}⍵
-              (PRINC≢⎕NULL)∧isP←'*'=⊃nm:err('Principal variant is set more than once: *',PRINC,' ',nm)901
-              nm≡'⎕TRAP':nm val⊣TRAP_ERRS∘←1
-              nm←isP{~⍺:⍵ ⋄ ⊢PRINC∘←1↓⍵}nm
-              noV:nm val
-              nm val⊣⍎'NS.',nm,'←val'
-          }¨,⊆¨⍵
-          parms PRINC
+          0∊1 2∊⍨≢¨⍵:err'Parameter definitions must be of form: name [value]' 901
+          princ←nms/⍨isP←∊'*'=1↑¨nms←0⊃¨⍵
+          ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
+          princ←'*'~⍨⊃princ MISSING⊃⍨np=0       ⍝ If no principal, its "name" is MISSING
+          parms←⍵ ⋄ (0⊃(⍸isP)⊃parms)↓⍨←1
+          _←{nm val←⍵
+              nm≡'⎕TRAP':TRAP_ERRS∨←1 ⋄ val≡MISSING:0
+              ⍎'NS.',nm,'←val'
+          }¨parms
+          parms princ
       }
    ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
-      normalize←{⍺∘{0 1∊⍨|≡⍵:⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
       scanArgs←{
-          (nm val)←⍵
-          nm≡⎕NULL:err'User specified a value for the principal variant, but none was predefined' 911
-          ~parmList{(≢⍺)>(⊃¨⍺)⍳⊂⍵}nm:err('User-specified variant "',nm,'" is unknown')911
-          NS{⍎'⍺.',(⊃⍵),'←⊃⌽⍵'}⍵
-      }¨
+          nms←⊃¨⍵
+          0≠≢unk←nms~⊃¨⍺:err('User-specified variant(s) unknown:',∊' ',¨unk)911
+          MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
+          {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨⍵
+      }
    ⍝ ----------------------
    ⍝ SUB-EXECUTIVE
    ⍝ ----------------------
    ⍝ namespace <NS> also flags parameters with no default value
-      ∆NO_VALUE←NS
+      MISSING←NS
       ⍺←,⍬
    ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
-      parmList principal←scanParms ⍺
+      parmList principal←scanParms MISSING(1 normalize)⍺
    ⍝ Scan the user args
-      _←scanArgs principal normalize ⍵
+      _←parmList scanArgs principal(0 normalize)⍵
       TRAP_ERRS:NS EN EM
       NS
   }
@@ -51,7 +53,7 @@
 ⍝ MAIN EXECUTIVE
 ⍝ ---------------------
   :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
-      RES←ALPHA _VARIANT OMEGA
+      RES←ALPHA scanVariants OMEGA
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
