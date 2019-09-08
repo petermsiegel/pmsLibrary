@@ -1,59 +1,56 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
-  ;scanVariants;DEBUG;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+  ;err;normalize;parmList;principal;scanArgs;scanParms;DEBUG;MISSING;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
  
 ⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
  
-  DEBUG←0
+  DEBUG←1
   NS←⎕NS EM←''
   (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
-  scanVariants←{
+ 
    ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
-      err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
+  err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
  
   ⍝ ⍺⍺=1: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍺, set to (⍺ MISSING)
   ⍝ ⍺⍺=0: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍵, set to (principal ⍵)
-      normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
+  normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
  
    ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
-      scanParms←{
-          0∊1 2∊⍨≢¨⍵:err'Parameter definitions must be of form: name [value]' 901
-          princ←nms/⍨isP←∊'*'=1↑¨nms←0⊃¨⍵
-          ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
-          princ←'*'~⍨⊃princ MISSING⊃⍨np=0       ⍝ If no principal, its "name" is MISSING
-          parms←⍵ ⋄ (0⊃(⍸isP)⊃parms)↓⍨←1
-          _←{nm val←⍵
-              nm≡'⎕TRAP':TRAP_ERRS∨←1 ⋄ val≡MISSING:0
-              ⍎'NS.',nm,'←val'
-          }¨parms
-          parms princ
-      }
+  scanParms←{
+      parms←MISSING(1 normalize)⍵
+      0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+      princ←nms/⍨isP←∊'*'=1↑¨nms←0⊃¨⍵
+      ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
+      princ←'*'~⍨⊃princ MISSING⊃⍨np=0       ⍝ If no principal, its "name" is MISSING
+      (0⊃(⍸isP)⊃parms)↓⍨←1
+      parms princ⊣{
+          '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1 ⋄ MISSING≡⊃⌽⍵:0
+          ⍎'NS.',(⊃⍵),'←⊃⌽⍵'
+      }¨parms
+ 
+  }
    ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
-      scanArgs←{
-          nms←⊃¨⍵
-          0≠≢unk←nms~⊃¨⍺:err('User-specified variant(s) unknown:',∊' ',¨unk)911
-          MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
-          {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨⍵
-      }
-   ⍝ ----------------------
-   ⍝ SUB-EXECUTIVE
-   ⍝ ----------------------
-   ⍝ namespace <NS> also flags parameters with no default value
-      MISSING←NS
-      ⍺←,⍬
-   ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
-      parmList principal←scanParms MISSING(1 normalize)⍺
-   ⍝ Scan the user args
-      _←parmList scanArgs principal(0 normalize)⍵
-      TRAP_ERRS:NS EN EM
-      NS
+  scanArgs←{plist princ←⍺
+      nms←⊃¨args←princ(0 normalize)⍵
+      0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
+      MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
+      {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨args
   }
  
-⍝ ----------------------
-⍝ MAIN EXECUTIVE
-⍝ ---------------------
+   ⍝ ----------------------
+   ⍝ EXECUTIVE
+   ⍝ ----------------------
+   ⍝ namespace <NS> also flags parameters with no default value
   :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
-      RES←ALPHA scanVariants OMEGA
+      MISSING←NS
+   ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
+      parmList principal←scanParms ALPHA
+      parmList principal scanArgs OMEGA
+      :If TRAP_ERRS
+          RES←NS EN EM
+      :Else
+          NS
+      :EndIf
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
@@ -106,8 +103,9 @@
   ⎕←¯2↓3↓⎕CR'∆VAR_DEMO'
   options←⎕←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
   options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
+  args←⎕←5('Mode' 'M')('EOL' 'LF')('UCP' 1)
    ⋄ _←⎕SE.UCMD cmd
-  ns en _←options ∆VARIANTS 5('Mode' 'M')('EOL' 'LF')('UCP' 1)
+  ns en _←options ∆VARIANTS args
 ∇
  ⍝ Note: We allow more options than the Dyalog documention, which specifies:
  ⍝    For the operand function with right argument Y and optional left argument X,
