@@ -1,52 +1,59 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
   ;err;normalize;parmList;principal;scanArgs;scanParms;DEBUG;MISSING;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
-⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
-  DEBUG←1
-  MISSING`[NS EM←⎕NS '')
-  EM (EN TRAP_ERRS)⎕IO ⎕ML←'' 0 0 1
-
-  ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
-  err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
-  ⍝ ⍺⍺=1: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍺, set to (⍺ MISSING)
-  ⍝ ⍺⍺=0: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍵, set to (principal ⍵)
+ 
+  err←{⎕SIGNAL/1↓RES⊢←NS(EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN⊢←⊃⌽⍵)}
+⍝ normalize key-value pairs and depth.
+⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-   ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
+⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
       0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isP←∊'*'=1↑¨nms←0⊃¨⍵
       ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
-      princ←'*'~⍨⊃princ MISSING⊃⍨np=0       ⍝ If no principal, its "name" is MISSING
-      (0⊃(⍸isP)⊃parms)↓⍨←1
+      princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isP)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
       parms princ⊣{
-          '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1 ⋄ MISSING≡⊃⌽⍵:0
+          '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1
+          MISSING≡⊃⌽⍵:0
           ⍎'NS.',(⊃⍵),'←⊃⌽⍵'
       }¨parms
-   }
-   ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
+  }
+⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
   scanArgs←{plist princ←⍺
-      nms←⊃¨args←princ(0 normalize)⍵
+      args←princ(0 normalize)⍵
+      nms←⊃¨args
       0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
       {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨args
-   }
-
-   ⍝ ----------------------
-   ⍝ EXECUTIVE
-   ⍝ ----------------------
-   ⍝ namespace <NS> also flags parameters with no default value
-  :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
-   ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
+  }
+⍝ ----------------------
+⍝ EXECUTIVE
+⍝ ----------------------
+ 
+  DEBUG←1
+  MISSING←NS←⎕NS''
+  EM EN TRAP_ERRS ⎕IO ⎕ML←'' 0 0 0 1
+  :Trap DEBUG⊃0 999
       parmList principal←scanParms ALPHA
       parmList principal scanArgs OMEGA
-      RES←TRAP_ERRS⊃NS (NS EN EM)
+      RES←TRAP_ERRS⊃NS(NS EN EM)
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
   :EndTrap
 ∇
+∇ ∆VAR_DEMO;cmd;_
+   ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
+  ⎕←¯2↓3↓⎕CR'∆VAR_DEMO'
+  options←⎕←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
+  args←⎕←5('Mode' 'M')('EOL' 'LF')('UCP' 1)
+   ⋄ _←⎕SE.UCMD cmd
+  ns en _←options ∆VARIANTS args
+∇
+
  ⍝   ∆VARIANTS:
  ⍝   "Process variants like those for ⍠,
  ⍝    returning a namespace with values set by user or those with defaults."
@@ -88,15 +95,6 @@
  ⍝             User value for variant of the wrong type
  ⍝
  ⍝ Example: Like ⎕R/⎕S
-∇ ∆VAR_DEMO;cmd;_
-   ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
-  ⎕←¯2↓3↓⎕CR'∆VAR_DEMO'
-  options←⎕←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
-  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
-  args←⎕←5('Mode' 'M')('EOL' 'LF')('UCP' 1)
-   ⋄ _←⎕SE.UCMD cmd
-  ns en _←options ∆VARIANTS args
-∇
  ⍝ Note: We allow more options than the Dyalog documention, which specifies:
  ⍝    For the operand function with right argument Y and optional left argument X,
  ⍝    the right operand B specifies the values of one or more options that are applicable
