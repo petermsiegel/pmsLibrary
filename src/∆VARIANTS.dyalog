@@ -1,20 +1,16 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
   ;err;normalize;parmList;principal;scanArgs;scanParms;DEBUG;MISSING;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
- 
 ⍝ res ← parameters ∆VARIANTS arguments
 ⍝ See documentation at bottom
- 
   DEBUG←1
-  NS←⎕NS EM←''
-  (EN TRAP_ERRS)⎕IO ⎕ML←0 0 1
- 
-   ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
+  MISSING`[NS EM←⎕NS '')
+  EM (EN TRAP_ERRS)⎕IO ⎕ML←'' 0 0 1
+
+  ⍝ EXTERNAL:  NS EM EN TRAP_ERRS
   err←⎕SIGNAL/{1↓RES∘←NS(EM∘←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN∘←⊃⌽⍵)}
- 
   ⍝ ⍺⍺=1: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍺, set to (⍺ MISSING)
   ⍝ ⍺⍺=0: For each depth 2 item in ⍵, if it is a pair of form ⍺ ⍵, do nothing. If of form ⍵, set to (principal ⍵)
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
- 
    ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
@@ -27,30 +23,24 @@
           '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1 ⋄ MISSING≡⊃⌽⍵:0
           ⍎'NS.',(⊃⍵),'←⊃⌽⍵'
       }¨parms
- 
-  }
+   }
    ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
   scanArgs←{plist princ←⍺
       nms←⊃¨args←princ(0 normalize)⍵
       0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
       {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨args
-  }
- 
+   }
+
    ⍝ ----------------------
    ⍝ EXECUTIVE
    ⍝ ----------------------
    ⍝ namespace <NS> also flags parameters with no default value
   :Trap DEBUG⊃0 999                    ⍝ 999=SKIP
-      MISSING←NS
    ⍝ Get the formal parameter list and principal (or ⎕NULL, if none)
       parmList principal←scanParms ALPHA
       parmList principal scanArgs OMEGA
-      :If TRAP_ERRS
-          RES←NS EN EM
-      :Else
-          NS
-      :EndIf
+      RES←TRAP_ERRS⊃NS (NS EN EM)
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
