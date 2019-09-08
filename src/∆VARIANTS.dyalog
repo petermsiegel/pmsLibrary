@@ -1,5 +1,7 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
-  ;err;normalize;parmList;principal;scanArgs;scanParms;DEBUG;MISSING;NS;EM;EN;TRAP_ERRS;⎕IO;⎕ML
+  ;err;normalize;parmList;principal;scanArgs;scanParms
+  ;DEBUG;EM;EN;MISSING;NS;TRAP_ERRS
+  ;⎕IO;⎕ML
 ⍝ See documentation at bottom
  
   err←{⎕SIGNAL/1↓RES⊢←NS(EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN⊢←⊃⌽⍵)}
@@ -10,14 +12,15 @@
   scanParms←{
       parms←MISSING(1 normalize)⍵
       0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
-      princ←nms/⍨isP←∊'*'=1↑¨nms←0⊃¨⍵
+      princ←nms/⍨isP←∊'*'=1↑¨nms←,∘⊃¨⍵
       ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isP)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
-      parms princ⊣{
+      _←{
           '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1
           MISSING≡⊃⌽⍵:0
           ⍎'NS.',(⊃⍵),'←⊃⌽⍵'
       }¨parms
+      parms princ
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
   scanArgs←{plist princ←⍺
@@ -27,10 +30,10 @@
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
       {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨args
   }
+
 ⍝ ----------------------
 ⍝ EXECUTIVE
 ⍝ ----------------------
- 
   DEBUG←1
   MISSING←NS←⎕NS''
   EM EN TRAP_ERRS ⎕IO ⎕ML←'' 0 0 0 1
@@ -44,14 +47,19 @@
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
   :EndTrap
 ∇
-∇ ∆VAR_DEMO;cmd;_
+
+∇ ∆VAR_DEMO trapMode;cmd;_
    ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
-  ⎕←¯2↓3↓⎕CR'∆VAR_DEMO'
-  options←⎕←('⎕TRAP')('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
-  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')
-  args←⎕←5('Mode' 'M')('EOL' 'LF')('UCP' 1)
+  'trapMode is ',trapMode⊃'OFF' 'ON' 
+  'options:'
+  options←⎕←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')('_Augmented')
+  'args:'
+  args←⎕←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented' ('YES' 'NO'⊃⍨?2))
    ⋄ _←⎕SE.UCMD cmd
-  ns en _←options ∆VARIANTS args
+  ⎕←'Calling: ns en em←options ∆VARIANTS args'
+  ns en em←options ∆VARIANTS args
+  _←{0⍴⎕←ns.⍵,'= ',⍕ns⍎⍵}¨↓ns.⎕NL 2
 ∇
 
  ⍝   ∆VARIANTS:
