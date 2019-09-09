@@ -1,25 +1,27 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
-  ;err;normalize;parmList;principal;scanArgs;scanParms
+  ;err;normalize;parmList;principal;scanArgs;scanParms;setVars
   ;DEBUG;EM;EN;MISSING;NS;TRAP_ERRS
   ;⎕IO;⎕ML
+ 
 ⍝ See documentation at bottom
  
   err←{⎕SIGNAL/1↓RES⊢←NS(EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN⊢←⊃⌽⍵)}
 ⍝ normalize key-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
+  setVars←{NS⍎(⊃⍵),'←⊃⌽⍵'}
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-      0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+      ⋄ 0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isP←∊'*'=1↑¨nms←,∘⊃¨⍵
       ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isP)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
-      _←{
-          '⎕TRAP'≡⊃⍵:TRAP_ERRS∨←1
-          MISSING≡⊃⌽⍵:0
-          ⍎'NS.',(⊃⍵),'←⊃⌽⍵'
-      }¨parms
+      ⋄ notT←(⊂'⎕TRAP')≢∘⊃¨parms
+      ⋄ notM←MISSING≢∘⊃∘⌽¨parms
+      TRAP_ERRS∨←0∊notT
+    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
+      _←setVars¨parms/⍨notT∧notM
       parms princ
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
@@ -28,14 +30,14 @@
       nms←⊃¨args
       0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
-      {⍎'NS.',(⊃⍵),'←⊃⌽⍵'}¨args
+      setVars¨args
   }
-
+ 
 ⍝ ----------------------
 ⍝ EXECUTIVE
 ⍝ ----------------------
   DEBUG←1
-  MISSING←NS←⎕NS''
+  RES←MISSING←NS←⎕NS''
   EM EN TRAP_ERRS ⎕IO ⎕ML←'' 0 0 0 1
   :Trap DEBUG⊃0 999
       parmList principal←scanParms ALPHA
@@ -50,12 +52,12 @@
 
 ∇ ∆VAR_DEMO trapMode;cmd;_
    ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
-  'trapMode is ',trapMode⊃'OFF' 'ON' 
+  'trapMode is ',trapMode⊃'OFF' 'ON'
   'options:'
   options←⎕←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
   options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')('_Augmented')
   'args:'
-  args←⎕←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented' ('YES' 'NO'⊃⍨?2))
+  args←⎕←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented'('YES' 'NO'⊃⍨?2))
    ⋄ _←⎕SE.UCMD cmd
   ⎕←'Calling: ns en em←options ∆VARIANTS args'
   ns en em←options ∆VARIANTS args
