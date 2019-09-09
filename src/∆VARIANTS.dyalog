@@ -1,11 +1,11 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
   ;err;normalize;parmList;principal;scanArgs;scanParms;setVars
-  ;DEBUG;EM;EN;MISSING;NS;TRAP_ERRS
+  ;DEBUG;MISSING;NS;SYS;TRAP_ERRS
   ;⎕IO;⎕ML
- 
-⍝ See documentation at bottom
- 
-  err←{⎕SIGNAL/1↓RES⊢←NS(EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(EN⊢←⊃⌽⍵)}
+
+⍝ See documentation at bottom...
+
+  err←{⎕SIGNAL/1↓RES⊢←NS(SYS.EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵)(SYS.EN⊢←⊃⌽⍵)}
 ⍝ normalize key-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
@@ -14,14 +14,16 @@
   scanParms←{
       parms←MISSING(1 normalize)⍵
       ⋄ 0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
-      princ←nms/⍨isP←∊'*'=1↑¨nms←,∘⊃¨⍵
-      ⋄ 1<np←+/isP:err('Principal variant is set more than once:',∊' ',¨princ)901
-      princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isP)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
-      ⋄ notT←(⊂'⎕TRAP')≢∘⊃¨parms
-      ⋄ notM←MISSING≢∘⊃∘⌽¨parms
-      TRAP_ERRS∨←0∊notT
+      princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
+      ⋄ 1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
+      princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
+      ⋄ notOpt←'⎕'≠⊃∘⊃¨parms
+      ⋄ hasVal←MISSING≢∘⊃∘⌽¨parms  
+      ⋄ SYS.OPTS←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕ 
+      TRAP_ERRS∨←SYS.OPTS∊⍨⊂'⎕TRAP'
     ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
-      _←setVars¨parms/⍨notT∧notM
+      _←setVars¨parms/⍨notOpt∧hasVal
+      SYS.(PARMS PRINC)←(⊃¨parms)(princ)
       parms princ
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
@@ -30,19 +32,22 @@
       nms←⊃¨args
       0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
+      SYS.ARGS←⊃¨args
       setVars¨args
   }
- 
+
 ⍝ ----------------------
 ⍝ EXECUTIVE
 ⍝ ----------------------
   DEBUG←1
   RES←MISSING←NS←⎕NS''
-  EM EN TRAP_ERRS ⎕IO ⎕ML←'' 0 0 0 1
+  NS.__SYS←SYS←NS.⎕NS''
+  SYS.(EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
+  SYS.(ALPHA OMEGA)←ALPHA OMEGA
   :Trap DEBUG⊃0 999
       parmList principal←scanParms ALPHA
       parmList principal scanArgs OMEGA
-      RES←TRAP_ERRS⊃NS(NS EN EM)
+      RES←TRAP_ERRS⊃RES(NS SYS.EN SYS.EM)
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
@@ -61,7 +66,10 @@
    ⋄ _←⎕SE.UCMD cmd
   ⎕←'Calling: ns en em←options ∆VARIANTS args'
   ns en em←options ∆VARIANTS args
-  _←{0⍴⎕←ns.⍵,'= ',⍕ns⍎⍵}¨↓ns.⎕NL 2
+  30⍴'-' ⋄ 'Variants set' ⋄ 30⍴'¯'
+  _←{0⍴⎕←ns.⍵,' = ',(⍕ns⍎⍵)}¨↓ns.⎕NL 2
+  30⍴'-' ⋄ 'System variables (ns.__SYS)' ⋄ 30⍴'¯'
+  _←{0⍴⎕←ns.__SYS.⍵,' = ',(⍕ns.__SYS⍎⍵)}¨↓ns.__SYS.⎕NL 2
 ∇
 
  ⍝   ∆VARIANTS:
@@ -90,6 +98,13 @@
  ⍝          NS: a namespace with names of all parameters either found in argList or having default values from parmList.
  ⍝              Those names not found in argList will be undefined, if they have no defaults.
  ⍝              To ensure every name is defined, simply specify a default.
+ ⍝              Also saves internal variables in NS.__SYS
+ ⍝                   ALPHA- parameters in left arg    OMEGA- args in right arg
+ ⍝                   PARMS- parameter names           ARGS-  argument names
+ ⍝                   PRINC- principle parameter
+ ⍝                   EN EM- errNum (0) and errMsg (''), if any.
+ ⍝                   OPTS-  any options specified (e.g. ⎕TRAP)
+ ⍝             
  ⍝          errNum:   911 (integer), error with variant argument.
  ⍝          errMsg:   A description of the error (string).
  ⍝
