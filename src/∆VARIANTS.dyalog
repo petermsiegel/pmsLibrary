@@ -5,10 +5,7 @@
 
 ⍝ See documentation at bottom...
 
-  err←{
-    EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵ ⋄ EN⊢←⊃⌽⍵ 
-    RES⊢←NS EN EM  ⋄  EM ⎕SIGNAL EN
-    }
+  err←{EN⊢←⊃⌽⍵  ⋄ EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵ ⋄  RES⊢←NS EN EM  ⋄  EM ⎕SIGNAL EN }
 ⍝ normalize key-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
@@ -16,13 +13,13 @@
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-      ⋄ 0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+          0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
-      ⋄ 1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
+          1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
-      ⋄ notOpt←'⎕'≠⊃∘⊃¨parms
-      ⋄ hasVal←MISSING≢∘⊃∘⌽¨parms  
-      ⋄ opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕ 
+          notOpt←'⎕'≠⊃∘⊃¨parms
+          hasVal←MISSING≢∘⊃∘⌽¨parms
+          opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
       TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
     ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
       _←setVars¨parms/⍨notOpt∧hasVal
@@ -36,18 +33,15 @@
       MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
       setVars¨args
   }
-
 ⍝ ----------------------
 ⍝ EXECUTIVE
 ⍝ ----------------------
-  DEBUG←1
+  DEBUG←0
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
   :Trap DEBUG⊃0 999
-      parmList principal←scanParms ALPHA
-      parmList principal scanArgs OMEGA
+      (scanParms ALPHA) scanArgs OMEGA
       RES←TRAP_ERRS⊃RES(NS EN EM)
-
   :Case 911
       ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
   :Else
@@ -59,15 +53,15 @@
    ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
   'trapMode is ',trapMode⊃'OFF' 'ON'
   'options:'
-  options←⎕←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
-  options,←⎕←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')('_Augmented')
+      ⎕←options←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+      ⎕←options,←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')('_Augmented')
   'args:'
-  args←⎕←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented'('YES' 'NO'⊃⍨?2))
-   ⋄ _←⎕SE.UCMD cmd
-  ⎕←'Calling: ns en em←options ∆VARIANTS args'
-  ns en em←options ∆VARIANTS args
-  30⍴'-' ⋄ 'Variants set' ⋄ 30⍴'¯'
-  _←{0⍴⎕←ns.⍵,' = ',(⍕ns⍎⍵)}¨↓ns.⎕NL 2
+     ⎕←args←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented'('YES' 'NO'⊃⍨?2))
+     _←⎕SE.UCMD cmd
+  'Calling: ns en em←options ∆VARIANTS args'
+      ns en em←options ∆VARIANTS args
+  18⍴'-' ⋄ '   ns (namespace)'⋄ 18⍴'-'
+  (⎕JSON⍠'Compact' 0)ns
 ∇
 
  ⍝   ∆VARIANTS:
@@ -96,7 +90,7 @@
  ⍝          NS: a namespace with names of all parameters either found in argList or having default values from parmList.
  ⍝              Those names not found in argList will be undefined, if they have no defaults.
  ⍝              To ensure every name is defined, simply specify a default.
- ⍝             
+ ⍝
  ⍝          errNum:   911 (integer), error with variant argument.
  ⍝          errMsg:   A description of the error (string).
  ⍝
