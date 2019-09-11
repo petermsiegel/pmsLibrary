@@ -1219,6 +1219,7 @@
  ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
  ;cur_tok;cur_gov;deQ;enQ;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stack
  ;⎕IO;⎕ML
+ ⍝ Look for semicolons in parentheses() and outside of brackets[]
  isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
  lines←,,¨⊆lines
  ⎕IO ⎕ML←0 1

@@ -1,7 +1,7 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
   ;err;normalize;parmList;principal;scanArgs;scanParms;setVars
   ;DEBUG;EM;EN;MISSING;NS;opts;SYS;TRAP_ERRS
-  ;⎕IO;⎕ML
+  ;⎕IO;⎕ML;⎕TRAP
 
 ⍝ See documentation at bottom...
 
@@ -39,14 +39,15 @@
   DEBUG←0
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
-  :Trap DEBUG⊃0 999
-      (scanParms ALPHA) scanArgs OMEGA
-      RES←TRAP_ERRS⊃RES(NS EN EM)
-  :Case 911
-      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN/⍨~TRAP_ERRS
-  :Else
-      ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
-  :EndTrap
+  ⎕TRAP←(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
+      
+  (scanParms ALPHA) scanArgs OMEGA
+  RES←TRAP_ERRS⊃RES(NS EN EM)
+  :RETURN 
+
+DO_SIGNAL:
+   ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
+      
 ∇
 
 ∇ ∆VAR_DEMO trapMode;cmd;_
