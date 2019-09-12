@@ -13,16 +13,17 @@
      ANYp←'.'
      NLp←'\n'
 
+
      typeList←'DQ' 'SQ' 'NUM' 'COM' 'NAM' 'SP' 'ANY' 'NL'
      anyIn←,¨'←[]();' ⋄ anyOut←'ASGN' 'LBRK' 'RBRK' 'LPAR' 'RPAR' 'SEMI' 'FN'
-     types←⍬ ⋄ setType←{types,←⊂⍵}
+     types←⍬ ⋄ setType←{types,←⍵}
      escape←{∊(⊂'\n')@(NL∘=)⊣∊(⊂'\\')@('\'∘=)⊣⍵}
      tokens←DQp SQp NUMp COMp NAMEp SPACEp ANYp NLp ⎕R{
          pat←⍵.PatternNum
          f0←escape ⍵.Match
-         pat=5:' ',NL⊣setType'SP'(⍕≢f0)            ⍝ SP
-         pat=6:f0,NL⊣setType anyOut[anyIn⍳⊂f0]     ⍝ ANY
+         pat=6:f0,NL⊣setType⊂anyOut⊃⍨anyIn⍳⊂f0    ⍝ ANY
          f0,NL⊣setType typeList[pat]               ⍝ Everything else
      }⍠opts⊣⊆⍵
+
      types,[¯0.1]tokens
  }

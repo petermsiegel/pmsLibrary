@@ -9,11 +9,11 @@
 ⍝ normalize key-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-  setVars←{NS⍎(⊃⍵),'←⊃⌽⍵'}
+  setVars←{NS⍎(⊃⍵),'←1↓⍵'}   ⍝ 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-          0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+       ⍝   0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
           1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
@@ -40,14 +40,14 @@
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
   ⎕TRAP←(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
-      
+
   (scanParms ALPHA) scanArgs OMEGA
   RES←TRAP_ERRS⊃RES(NS EN EM)
-  :RETURN 
+  :RETURN
 
 DO_SIGNAL:
    ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
-      
+
 ∇
 
 ∇ ∆VAR_DEMO trapMode;cmd;_

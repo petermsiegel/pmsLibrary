@@ -39,7 +39,7 @@
          name↓⍨←+/∧\'-'=name
        ⍝ By default, any option's isMin abbrev is 1 char, unless of form opt(ion or opt(ion).
        ⍝   'test' 1    |    'te(st)' 2    |   'test()' 4 [no abbrev]
-       ⍝ If options clash, this will be flagged at when decoding ⍵ at callScan.
+       ⍝ If options clash, this will be flagged when decoding ⍵ at callScan.
          ptr←name(⌊/⍳)'=:' ⋄ isMin←1⌈{⍵≥ptr:1 ⋄ ⍵}(ptr↑name)⍳'('
        ⍝ name, i.e. a user flag.
        ⍝ We distinguish flags from other options in callScan2.
