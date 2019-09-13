@@ -9,9 +9,10 @@
 ⍝ normalize name-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-⍝ 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
-⍝ ALT ⊃⌽:    setVars←{NS⍎(⊃⍵),'←⊃⌽⍵'}
-  setVars←{⍙←{⊃⍣(1=≢⍵)⊣⍵} ⋄ NS⍎(⊃⍵),'←⍙ 1↓⍵'}
+⍝ [ALT ⊃⌽:] 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
+⍝ Use this setVars to replace the next (and see test below in scanParms)
+⍝ setVars←{w2←⊃⌽⍵                 ⋄ ⍎'NS.',(⊃⍵),'←w2'}
+  setVars←{w2←{⊃⍣(1=≢⍵)⊣⍵}∘(1∘↓)⍵ ⋄ ⍎'NS.',(⊃⍵),'←w2'}
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
