@@ -6,14 +6,17 @@
 ⍝ See documentation at bottom...
 
   err←{EN⊢←⊃⌽⍵  ⋄ EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵ ⋄  RES⊢←NS EN EM  ⋄  EM ⎕SIGNAL EN }
-⍝ normalize key-value pairs and depth.
+⍝ normalize name-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-  setVars←{NS⍎(⊃⍵),'←{⊃⍣(1=≢⍵)⊣⍵}1↓⍵'}   ⍝ 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
+⍝ 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
+⍝ ALT ⊃⌽:    setVars←{NS⍎(⊃⍵),'←⊃⌽⍵'}
+  setVars←{⍙←{⊃⍣(1=≢⍵)⊣⍵} ⋄ NS⍎(⊃⍵),'←⍙ 1↓⍵'}
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-       ⍝   0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+       ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
+       ⍝    0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
           1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
