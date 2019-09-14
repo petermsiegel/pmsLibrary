@@ -17,7 +17,7 @@
   scanParms←{
       parms←MISSING(1 normalize)⍵
        ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
-       ⍝    0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+    ⍝     0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
       princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
           1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
       princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
@@ -44,11 +44,9 @@
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
   ⎕TRAP←(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
-
   (scanParms ALPHA) scanArgs OMEGA
   RES←TRAP_ERRS⊃RES(NS EN EM)
   :RETURN
-
 DO_SIGNAL:
    ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
 
