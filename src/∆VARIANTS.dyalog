@@ -25,16 +25,26 @@
           hasVal←MISSING≢∘⊃∘⌽¨parms
           opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
       TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
-    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
+    ⍝ Handle variant-names abbrev'ns:  kilo(meter)
+      _←{min← (1⌈⍵⍳'(')
+         min{ 
+          ⍺>≢⍵:⍬   ⋄  ab←⍺↑⍵
+          (⊂ab)∊⊃dict:err('An abbrev for ',⍵,' already in use "',ab,'"')901
+          dict,¨←⊂¨ab ⍵  ⋄ (⍺+1)∇ ⍵
+         }⍵~'()'
+      }∘⊃¨parms/⍨notOpt⊣dict←⍬ ⍬ 
+      (⊃¨parms)~←⊂'()'  ⋄ princ~←'()'
+    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.  
       _←setVars¨parms/⍨notOpt∧hasVal
-      parms princ
+      parms princ dict
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
-  scanArgs←{plist princ←⍺
+  scanArgs←{parms princ dict←⍺
       args←princ(0 normalize)⍵
-      nms←⊃¨args
-      0≠≢unk←nms~⊃¨plist:err('User-specified variant(s) unknown:',∊' ',¨unk)911
-      MISSING∊nms:err'User specified a value for the principal variant, but none was predefined' 911
+      argNms←,∘⊃¨args
+      0≠≢unk←argNms~⊃dict:err('User-specified variant(s) unknown:',∊' ',¨unk)911
+      MISSING∊argNms:err'User specified a value for the principal variant, but none was predefined' 911
+      (⊃¨args)←(⊃⌽dict)[argNms⍳⍨⊃dict]
       setVars¨args
   }
 ⍝ ----------------------
@@ -43,7 +53,7 @@
   DEBUG←0
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
-  ⎕TRAP←(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
+  ⎕TRAP←(~DEBUG)/(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
   (scanParms ALPHA) scanArgs OMEGA
   RES←TRAP_ERRS⊃RES(NS EN EM)
   :RETURN
@@ -56,7 +66,7 @@ DO_SIGNAL:
    ⋄ cmd←'BOX',3↓⎕SE.UCMD'BOX ON -fns=on'
   'trapMode is ',trapMode⊃'OFF' 'ON'
   'options:'
-      ⎕←options←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('DotAll' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
+      ⎕←options←(trapMode/⊂'⎕TRAP'),('*IC' 0)('Mode' 'L')('Dot(All)' 0)('EOL' 'CRLF')('NEOL' 0)('ML' 0)('Greedy' 1)('OM' 0)
       ⎕←options,←('UCP' 0)('InEnc' 'UTF8')('OutEnc' 'Implied')('Enc' 'Implied')('_Augmented')
   'args:'
      ⎕←args←1('Mode' 'M')('EOL' 'LF')('UCP' 1)('_Augmented'('YES' 'NO'⊃⍨?2))
@@ -76,6 +86,17 @@ DO_SIGNAL:
  ⍝       1. parmList:   ([*]parameter [default]])([*]parameter [default])...
  ⍝          parameter: the name (string) of a variant.
  ⍝                     [*] See (1a) principal variant, below.
+ ⍝              Abbreviations are supported using parentheses:
+ ⍝                Long(Name) allows Long LongN longNa longNam longName
+ ⍝                LongName   allows LongName only
+ ⍝                Abbrev may be 1 char or more, but
+ ⍝                  1-char abbrev should generally be ravelled, unless the variant value
+ ⍝                  is non-scalar.
+ ⍝                  For  ('Name' 'John')
+ ⍝                  use  ('Na'   'John') 
+ ⍝                  or   ('N'    'John')
+ ⍝                  but ((,'N')     'J') not ('N' 'J')
+ ⍝                If two names have the same abbreviation(s), an error is flagged.
  ⍝          default:   if specified, any value. If omitted, no default.
  ⍝
  ⍝          1a. Principal variant
