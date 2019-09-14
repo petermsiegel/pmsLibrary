@@ -26,15 +26,22 @@
           opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
       TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
     ⍝ Handle variant-names abbrev'ns:  kilo(meter)
-      _←{min← (1⌈⍵⍳'(')
-         min{ 
-          ⍺>≢⍵:⍬   ⋄  ab←⍺↑⍵
-          (⊂ab)∊⊃dict:err('An abbrev for ',⍵,' already in use "',ab,'"')901
-          dict,¨←⊂¨ab ⍵  ⋄ (⍺+1)∇ ⍵
-         }⍵~'()'
-      }∘⊃¨parms/⍨notOpt⊣dict←⍬ ⍬ 
-      (⊃¨parms)~←⊂'()'  ⋄ princ~←'()'
-    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.  
+      handleAbbrev←{
+          notOpt (princ parms)←⍺ ⍵ ⋄ dict←⍬ ⍬
+          _←{
+           min← (1⌈⍵⍳'(')
+           min{
+             ⍺>≢⍵:⍬   ⋄  ab←⍺↑⍵
+             (⊂ab)∊⊃dict:err('An abbrev for ',⍵,' already in use "',ab,'"')901
+             dict,¨←⊂¨ab ⍵  ⋄ (⍺+1)∇ ⍵
+            }⍵~'()'
+          }∘⊃¨notOpt/parms
+          (⊃¨parms)~←⊂'()'
+          dict (princ~'()') parms
+      }
+      dict princ parms←notOpt handleAbbrev princ parms
+
+    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
       _←setVars¨parms/⍨notOpt∧hasVal
       parms princ dict
   }
@@ -93,7 +100,7 @@ DO_SIGNAL:
  ⍝                  1-char abbrev should generally be ravelled, unless the variant value
  ⍝                  is non-scalar.
  ⍝                  For  ('Name' 'John')
- ⍝                  use  ('Na'   'John') 
+ ⍝                  use  ('Na'   'John')
  ⍝                  or   ('N'    'John')
  ⍝                  but ((,'N')     'J') not ('N' 'J')
  ⍝                If two names have the same abbreviation(s), an error is flagged.
