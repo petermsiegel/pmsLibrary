@@ -16,31 +16,37 @@
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-       ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
+    ⍝ Handle variant name abbrev'ns:  kilo(meter) → kilo, kilom, ... kilometer
+      parms dict←{                      ⍝ Path where there is no abbrev: 'kilometer'
+          dict←⍬ ⍬
+          ~1∊'('∊¨⊃¨parms: parms ({⍵ ⍵}¨⊃¨parms)
+          _←{                           ⍝ 1st iter    2nd iter
+             cur←⍵~'*'                  ⍝ !!          !!
+             min← (1⌈cur⍳'(')           ⍝ !! min←≢⍵   !!
+             min{                       ⍝ !!          !!
+               ⍺>≢⍵:⍬                   ⍝ !! fails    succeeds and exits
+               abbr←⍺↑⍵                 ⍝ !! 
+               (⊂abbr)∊⊃dict:err('An abbrev for ',⍵,' already in use "',abbr,'"')901
+               dict,¨←⊂¨abbr ⍵          ⍝ !! Only (⍵ ⍵) added to dict
+               (⍺+1)∇ ⍵                 ⍝ !! Now (⍺+1) larger than ≢⍵
+             }cur~'()'
+          }∘⊃¨parms←⍵
+          (⊃¨parms)~←⊂'()'   ⍝ Remove () for abbrev, but not * for princ...
+          parms dict 
+      }parms
+    ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
     ⍝     0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
-      princ←nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨⍵
-          1<np←+/isPrinc:err('Principal variant is set more than once:',∊' ',¨princ)901
-      princ←princ{1=np:1↓⊃⍺⊣(0⊃(⍸isPrinc)⊃parms)↓⍨←1 ⋄ ⍵}MISSING
-          notOpt←'⎕'≠⊃∘⊃¨parms
-          hasVal←MISSING≢∘⊃∘⌽¨parms
-          opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
+      princ←MISSING{      
+          np←+/isPrinc
+          0=np: ⍺
+          1<np: err('Principal variant is set more than once:',∊' ',¨⍵)901
+          (0⊃(⍸isPrinc)⊃parms)↓⍨←1    ⍝ Update parms if 1=np
+          1↓⊃⍵
+      }nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms
+      notOpt←'⎕'≠⊃∘⊃¨parms
+      hasVal←MISSING≢∘⊃∘⌽¨parms
+      opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
       TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
-    ⍝ Handle variant-names abbrev'ns:  kilo(meter)
-      handleAbbrev←{
-          notOpt (princ parms)←⍺ ⍵ ⋄ dict←⍬ ⍬
-          _←{
-           min← (1⌈⍵⍳'(')
-           min{
-             ⍺>≢⍵:⍬   ⋄  ab←⍺↑⍵
-             (⊂ab)∊⊃dict:err('An abbrev for ',⍵,' already in use "',ab,'"')901
-             dict,¨←⊂¨ab ⍵  ⋄ (⍺+1)∇ ⍵
-            }⍵~'()'
-          }∘⊃¨notOpt/parms
-          (⊃¨parms)~←⊂'()'
-          dict (princ~'()') parms
-      }
-      dict princ parms←notOpt handleAbbrev princ parms
-
     ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
       _←setVars¨parms/⍨notOpt∧hasVal
       parms princ dict
@@ -57,7 +63,7 @@
 ⍝ ----------------------
 ⍝ EXECUTIVE
 ⍝ ----------------------
-  DEBUG←0
+  DEBUG←1
   RES←MISSING←NS←⎕NS''
   (EM EN) TRAP_ERRS ⎕IO ⎕ML←('' 0) 0 0 1
   ⎕TRAP←(~DEBUG)/(911 'C' '→DO_SIGNAL 0⊃⍨TRAP_ERRS') (0 'C' '→DO_SIGNAL')
