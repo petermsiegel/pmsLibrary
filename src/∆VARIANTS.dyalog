@@ -12,16 +12,29 @@
 ⍝ [ALT ⊃⌽:] 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
 ⍝ Use this setVars to replace the next (and see test below in scanParms)
 ⍝ setVars←{w2←⊃⌽⍵                 ⋄ ⍎'NS.',(⊃⍵),'←w2'}
-  setVars←{w2←{⊃⍣(1=≢⍵)⊣⍵}∘(1∘↓)⍵ ⋄ ⍎'NS.',(⊃⍵),'←w2'}
+⍝ If ⍺=1, then replace MISSING by ⎕NULL and set the variable.
+⍝ Otherwise, don't set variables with MISSING values.
+  setVars←{⍺←0  ⋄ w2←{⊃⍣(1=≢⍵)⊣⍵}∘(1∘↓)⍵ 
+           w2←w2 ⎕NULL ⊃⍨ ⍺∧w2≡MISSING ⋄ w2≡MISSING: 0 ⋄ ⍎'NS.',(⊃⍵),'←w2'
+  }
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-    ⍝ Handle variant name abbrev'ns:  kilo(meter) → kilo, kilom, ... kilometer
+          ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
+    ⍝     0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
+      princ←MISSING{      
+          np←+/isPrinc
+          0=np: ⍺
+          1<np: err('Principal variant is set more than once:',∊' ',¨⍵)901
+        ⍝ parms are updated (removing *) in next section (abbrev)
+          '*()'~⍨⊃⍵                   ⍝ Remove * and any parens for abbrev.
+      }nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms
+
+    ⍝ Abbrev'ns of variable names:  kilo(meter) → kilo, kilom, ... kilometer
       parms dict←{                      ⍝ Path where there is no abbrev: 'kilometer'
           dict←⍬ ⍬
-          ~1∊'('∊¨⊃¨parms: parms ({⍵ ⍵}¨⊃¨parms)
           _←{                           ⍝ 1st iter    2nd iter
-             cur←⍵~'*'                  ⍝ !!          !!
+             cur←⍵~'*'   ⍝ Ignore *     ⍝ !!          !!
              min← (1⌈cur⍳'(')           ⍝ !! min←≢⍵   !!
              min{                       ⍝ !!          !!
                ⍺>≢⍵:⍬                   ⍝ !! fails    succeeds and exits
@@ -29,26 +42,18 @@
                (⊂abbr)∊⊃dict:err('An abbrev for ',⍵,' already in use "',abbr,'"')901
                dict,¨←⊂¨abbr ⍵          ⍝ !! Only (⍵ ⍵) added to dict
                (⍺+1)∇ ⍵                 ⍝ !! Now (⍺+1) larger than ≢⍵
-             }cur~'()'
+             }cur~'()'        ⍝ Ignore ()
           }∘⊃¨parms←⍵
-          (⊃¨parms)~←⊂'()'   ⍝ Remove () for abbrev, but not * for princ...
+          (⊃¨parms)~←⊂'*()'   ⍝ Remove () for abbrev, and * from principals
           parms dict 
       }parms
-    ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
-    ⍝     0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
-      princ←MISSING{      
-          np←+/isPrinc
-          0=np: ⍺
-          1<np: err('Principal variant is set more than once:',∊' ',¨⍵)901
-          (0⊃(⍸isPrinc)⊃parms)↓⍨←1    ⍝ Update parms if 1=np
-          1↓⊃⍵
-      }nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms
-      notOpt←'⎕'≠⊃∘⊃¨parms
-      hasVal←MISSING≢∘⊃∘⌽¨parms
+      notOpt←'⎕'≠⊃∘⊃¨parms 
       opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
       TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
-    ⍝ Set variables whose names aren't ⎕TRAP and whose values aren't MISSING.
-      _←setVars¨parms/⍨notOpt∧hasVal
+    ⍝ If we have option ⎕NULL, then missing items have default value ⎕NULL (rather than none)  
+    ⍝ Set variables whose names aren't options (⎕TRAP) and whose values aren't MISSING, 
+    ⍝ unless ⎕NULL option is set (then MISSING→⎕NULL)
+      _←(opts∊⍨⊂'⎕NULL')setVars¨notOpt/parms 
       parms princ dict
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
