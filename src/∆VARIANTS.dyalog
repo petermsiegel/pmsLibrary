@@ -30,8 +30,14 @@
           '*()'~⍨⊃⍵                   ⍝ Remove * and any parens for abbrev.
       }nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms
 
+      notOpt←'⎕'≠⊃∘⊃¨parms 
+      opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
+      TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
+      ABBREV←~1∊'('∊¨⊃¨parms  ⍝ At least one parm has an abbrev declared...  
+
     ⍝ Abbrev'ns of variable names:  kilo(meter) → kilo, kilom, ... kilometer
-      parms dict←{                      ⍝ Path where there is no abbrev: 'kilometer'
+      parms dict←ABBREV{                      ⍝ Path where there is no abbrev: 'kilometer'
+          ⍺: parms (↓⍉↑{⍵ ⍵}¨⊃¨parms)⊣ (⊃¨parms)~←'*' ⊣parms←⍵
           dict←⍬ ⍬
           _←{                           ⍝ 1st iter    2nd iter
              cur←⍵~'*'   ⍝ Ignore *     ⍝ !!          !!
@@ -47,9 +53,6 @@
           (⊃¨parms)~←⊂'*()'   ⍝ Remove () for abbrev, and * from principals
           parms dict 
       }parms
-      notOpt←'⎕'≠⊃∘⊃¨parms 
-      opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
-      TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
     ⍝ If we have option ⎕NULL, then missing items have default value ⎕NULL (rather than none)  
     ⍝ Set variables whose names aren't options (⎕TRAP) and whose values aren't MISSING, 
     ⍝ unless ⎕NULL option is set (then MISSING→⎕NULL)
