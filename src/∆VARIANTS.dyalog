@@ -1,62 +1,72 @@
 ﻿∇ RES←ALPHA ∆VARIANTS OMEGA
+⍝ See documentation at bottom...
   ;err;normalize;parmList;principal;scanArgs;scanParms;setVars
   ;DEBUG;EM;EN;MISSING;NS;opts;SYS;TRAP_ERRS
   ;⎕IO;⎕ML;⎕TRAP
-
-⍝ See documentation at bottom...
-
+ 
   err←{EN⊢←⊃⌽⍵  ⋄ EM⊢←∊⎕FMT'∆VARIANT DOMAIN ERROR: ',⊃⍵ ⋄  RES⊢←NS EN EM  ⋄  EM ⎕SIGNAL EN }
 ⍝ normalize name-value pairs and depth.
 ⍝ When pair is defective (one member), it is padded on right (⍺⍺=1) or left (⍺⍺=0).
+⍝ Simple scalars ('a' 5) or ('a' 'b') are treated as if (invalid or valid) names...
   normalize←{aa←⍺⍺ ⋄ ⍺∘{0 1∊⍨|≡⍵:⌽⍣aa⊣⍺ ⍵ ⋄ ⍵}¨⊂⍣(2≥|≡⍵)⊣⍵}
-⍝ [ALT ⊃⌽:] 1↓: get remaining items in ('NAME' item1 item2) ⍝ ⊃⌽⍵: get <LAST> item
-⍝ Use this setVars to replace the next (and see test below in scanParms)
-⍝ setVars←{w2←⊃⌽⍵                 ⋄ ⍎'NS.',(⊃⍵),'←w2'}
-⍝ If ⍺=1, then replace MISSING by ⎕NULL and set the variable.
-⍝ Otherwise, don't set variables with MISSING values.
-  setVars←{⍺←0  ⋄ w2←{⊃⍣(1=≢⍵)⊣⍵}∘(1∘↓)⍵ 
-           w2←w2 ⎕NULL ⊃⍨ ⍺∧w2≡MISSING ⋄ w2≡MISSING: 0 ⋄ ⍎'NS.',(⊃⍵),'←w2'
+⍝ _ ← ⍺:0 setVar ⍵
+⍝ ⍵ of form  (name value)
+⍝ If value is MISSING, then
+⍝    If ⍺=1, then replace MISSING by ⎕NULL and 
+⍝        Set the variable.
+⍝    Otherwise, don't set variables with MISSING values.
+⍝ Otherwise (⍺=0)
+⍝    Set the variable.
+  setVar←{
+    ⍺←0  ⋄ assumeNull←⍺ ⋄ 
+    nm←⊃⍵  ⋄ val←{⊃⍣(1=≢⍵)⊣⍵}∘(1∘↓)⍵ 
+    val←val ⎕NULL ⊃⍨ assumeNull∧val≡MISSING 
+    val≡MISSING: 0 ⋄ ⍎'NS.',nm,'←val'
+  }
+⍝ _scanPrinc:
+⍝   If we have 1 active principal variant, return it, sans special symbols.
+⍝   parms are updated (removing *) in fn <_scanAbbrev> below. 
+  _scanPrinc←{missing parms←⍺ ⍵
+      isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms 
+      active←isPrinc/nms    
+      0=≢active: missing
+      1=≢active: '*()'~⍨⊃active                 
+      err('Principal variant is set more than once:',∊' ',¨active)901
+  }
+⍝ _scanAbbrev:  parms dict ← ∇ parms 
+⍝   Find abbrevns ⍺1,⍺2... for (⍺ in parms) and construct a dict mapping ⍺1,⍺2,...→⍺
+⍝   Minor tidying: Remove () and * from parm-names. 
+⍝   Returns parms dict
+  _scanAbbrev←{⍺←~1∊'('∘∊∘⊃¨parms←⍵    ⍝ ⍺=1: No abbrev found...
+      ⍺: parms (↓⍉↑{⍵ ⍵}∘⊃¨parms)⊣(⊃¨parms)~←'*'   ⍝ Fastpath out
+      dict←⍬ ⍬
+      _←{                              ⍝ 1st iter    2nd iter
+          cur←⍵~'*'   ⍝ Ignore *       ⍝ !!          !!
+          min← (1⌈cur⍳'(')             ⍝ !! min←≢⍵   !!
+          min{                         ⍝ !!          !!
+              ⍺>≢⍵:⍬                   ⍝ !! fails    succeeds and exits
+              abbr←⍺↑⍵                 ⍝ !! 
+              (⊂abbr)∊⊃dict:err('An abbrev for ',⍵,' already in use "',abbr,'"')901
+              dict,¨←⊂¨abbr ⍵          ⍝ !! Only (⍵ ⍵) added to dict
+              (⍺+1)∇ ⍵                 ⍝ !! Now (⍺+1) larger than ≢⍵
+          }cur~'()'        ⍝ Ignore ()
+      }∘⊃¨parms
+      (⊃¨parms)~←⊂'*()'   ⍝ Remove () for abbrev, and * from parm names
+      parms dict 
   }
 ⍝ Scan parameters ⍺, function-defined parameter list of variants and (opt'l) principal variant
   scanParms←{
       parms←MISSING(1 normalize)⍵
-          ⍝ If using ALT name-value pair definition per ⊃⌽ above, enable next line:
-    ⍝     0∊1 2∊⍨≢¨parms:err'Parameter definitions must be of form: name [value]' 901
-      princ←MISSING{      
-          np←+/isPrinc
-          0=np: ⍺
-          1<np: err('Principal variant is set more than once:',∊' ',¨⍵)901
-        ⍝ parms are updated (removing *) in next section (abbrev)
-          '*()'~⍨⊃⍵                   ⍝ Remove * and any parens for abbrev.
-      }nms/⍨isPrinc←∊'*'=1↑¨nms←,∘⊃¨parms
-
-      notOpt←'⎕'≠⊃∘⊃¨parms 
-      opts←⊃¨parms/⍨~notOpt   ⍝ options by convention start with ⎕
-      TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'
-      ABBREV←~1∊'('∊¨⊃¨parms  ⍝ At least one parm has an abbrev declared...  
-
-    ⍝ Abbrev'ns of variable names:  kilo(meter) → kilo, kilom, ... kilometer
-      parms dict←ABBREV{                      ⍝ Path where there is no abbrev: 'kilometer'
-          ⍺: parms (↓⍉↑{⍵ ⍵}¨⊃¨parms)⊣ (⊃¨parms)~←'*' ⊣parms←⍵
-          dict←⍬ ⍬
-          _←{                           ⍝ 1st iter    2nd iter
-             cur←⍵~'*'   ⍝ Ignore *     ⍝ !!          !!
-             min← (1⌈cur⍳'(')           ⍝ !! min←≢⍵   !!
-             min{                       ⍝ !!          !!
-               ⍺>≢⍵:⍬                   ⍝ !! fails    succeeds and exits
-               abbr←⍺↑⍵                 ⍝ !! 
-               (⊂abbr)∊⊃dict:err('An abbrev for ',⍵,' already in use "',abbr,'"')901
-               dict,¨←⊂¨abbr ⍵          ⍝ !! Only (⍵ ⍵) added to dict
-               (⍺+1)∇ ⍵                 ⍝ !! Now (⍺+1) larger than ≢⍵
-             }cur~'()'        ⍝ Ignore ()
-          }∘⊃¨parms←⍵
-          (⊃¨parms)~←⊂'*()'   ⍝ Remove () for abbrev, and * from principals
-          parms dict 
-      }parms
+      princ←MISSING _scanPrinc parms
+   ⍝ options by convention start with ⎕
+      opts←⊃¨parms/⍨~notOpt←'⎕'≠⊃∘⊃¨parms      
+      TRAP_ERRS∨←opts∊⍨⊂'⎕TRAP'  ⍝ global: TRAP_ERRS
+    ⍝ Scan for abbrev (if any); fast if none.
+      parms dict←_scanAbbrev parms
     ⍝ If we have option ⎕NULL, then missing items have default value ⎕NULL (rather than none)  
     ⍝ Set variables whose names aren't options (⎕TRAP) and whose values aren't MISSING, 
     ⍝ unless ⎕NULL option is set (then MISSING→⎕NULL)
-      _←(opts∊⍨⊂'⎕NULL')setVars¨notOpt/parms 
+      _←(opts∊⍨⊂'⎕NULL')setVar¨notOpt/parms 
       parms princ dict
   }
 ⍝ Scan arguments ⍵, user-defined variant argument list name-value pairs
@@ -66,7 +76,7 @@
       0≠≢unk←argNms~⊃dict:err('User-specified variant(s) unknown:',∊' ',¨unk)911
       MISSING∊argNms:err'User specified a value for the principal variant, but none was predefined' 911
       (⊃¨args)←(⊃⌽dict)[argNms⍳⍨⊃dict]
-      setVars¨args
+      setVar¨args
   }
 ⍝ ----------------------
 ⍝ EXECUTIVE
@@ -80,7 +90,6 @@
   :RETURN
 DO_SIGNAL:
    ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
-
 ∇
 
 ∇ ∆VAR_DEMO trapMode;cmd;_
@@ -131,11 +140,10 @@ DO_SIGNAL:
  ⍝       0. returnVal:
  ⍝          NS         Unless parameter '⎕TRAP' is specified.
  ⍝          NS errNum errMsg
- ⍝                     Otherwise
+ ⍝       where...     
  ⍝          NS: a namespace with names of all parameters either found in argList or having default values from parmList.
  ⍝              Those names not found in argList will be undefined, if they have no defaults.
  ⍝              To ensure every name is defined, simply specify a default.
- ⍝
  ⍝          errNum:   911 (integer), error with variant argument.
  ⍝          errMsg:   A description of the error (string).
  ⍝
