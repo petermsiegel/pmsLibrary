@@ -1,4 +1,4 @@
-﻿ hd←∆HERE
+﻿ ∇hd←∆HERE
 ⍝ ∆HERE-- see full documentation at ∆HERE.doc
 ⍝ 1. hereDoc lines are those lines immediately after the ∆HERE that match /^ *⍝/,
 ⍝ contiguously until the first line NOT matching /^ *⍝/
@@ -50,3 +50,7 @@
  :If ~oMulti
      hd←¯1↓∊hd,¨lineEnd
  :EndIf
+ ∇
+ ∇h←∆HEREf;⎕IO;⎕ML                                                                                           
+ h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\'⍝'=⊃¨h←{(+/∧\' '=⍵)↓⍵}¨(1+1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK
+∇
