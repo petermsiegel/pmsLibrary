@@ -1,63 +1,93 @@
-⍝ --------------------------------------------------------------------------------------------------
-⍝ ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
-⍝       keywords:
-⍝           BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
-⍝           MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)?
-⍝                               If SIngle, use CR option by default (q.v.).
-⍝           CR | LF             Sets SIngle (above) and...
-⍝                               ... uses the specified char (CR or LF) as the line separator (CR by default).
-⍝           DEbug, DBG          Shows debug info.
-⍝       Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
-⍝       The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
-⍝              NoBlanks: including a blank line;
-⍝              BLANKS: excluding blank lines '^\h*$', which are treated as '⍝ '.
-⍝       ∘ Comment lines of the form '^\h*⍝ ' are kept;
-⍝       ∘ Comment lines of the form '^\h*⍝[^⍝] are ignored, but don't end the ∆HERE document.
-⍝
-⍝ Returns:
-⍝       [MULTIPLE* option] a vector of character vectors of ∆HERE-doc lines following the ∆HERE call.
-⍝       [SINGLE option] a single vector string with CR (default) or NL (option) <<separating>> lines.
-⍝       For each line returned, the prefix '^\h*⍝ ' is removed (leading blanks, comment symbol, one blank).
-⍝       ------------
-⍝       * MULTIPLE is the default.
-⍝ Options:
-⍝      ∆HERE is a niladic function. Options are within a comment on the same function line as the ∆HERE.
-⍝      Option keywords on the ∆HERE function line are between the ⍠ and the first ⍝ or end of line of the 
-⍝      ∆HERE comment, e.g. field 1 in this regex:
-⍝           ⍝[^⍠]*⍠([^⍝]*) 
-⍝      e.g. this example treats empty lines after the ∆HERE as blank comment lines,
-⍝           and returns multiple lines using the carriage return.
-⍝           h←∆HERE    ⍝ ⍠ BL CR
-⍝
-⍝∘ Keyword Options, Associated Variables, and Actions
-⍝  Keyword    Abbrev Def  Options←val  Description
-⍝  BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ',
-⍝                                      so only code lines end a ∆HERE doc
-⍝  NOBLANKS   NOBL   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
-⍝  MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
-⍝  SINGLE     SI          oMulti←0     If multiple lines, return as single vector with CR as line separator
-⍝  LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
-⍝  CR         CR     Y    lineEnd←⎕UCS 13   (carriage return).  Sets SINGLE, i.e. oMulti←0.
-⍝  DEBUG      DEB    N    oDebug←1     Start debug (verbose) mode
-⍝             DBG         oDebug←1      Alternative to DEB/UG
-⍝  anything else          **ignore**
-⍝
-⍝ The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
-⍝ A common alternative is:   ⍝ ⍠ CR BL             -- Create a char string with lines separated by CR carriage return.
-⍝                                                     End ∆HERE doc at first code line (non-comment, non-blank line).
-⍝
-⍝ If SINGLE is specified, CR is the default line separator.
-⍝ The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
-⍝
-⍝  Here document example
-⍝      myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ BL
-⍝      ⍝ <!DOCTYPE HTML>
-⍝      ⍝ <html>
-⍝      ⍝⍝ Next line is blank.    <-- This line is ignored because of '⍝⍝'.
-⍝                                <-- Blank line would end the HERE doc without 'SPACES' option.
-⍝      ⍝ <head>
-⍝      ⍝ <meta name="viewport" content="width=device-width, initial-scale=1">
-⍝                                <-- Ditto
-⍝      <style>
-⍝      etc.
-⍝ BUGS:   The calling function must be an unlocked fn or op.
+   --------------------------------------------------------------------------------------------------
+   ∆HEREf:  hereDoc ← ∆HEREf
+            A super-fast version of ∆HERE, assuming NO options.
+              The "here" doc is terminated by any non-comment line, including a blank line.
+              Comment lines of the form ⍝⍝ are ignored.
+              Comment lines of the form '\h*⍝[^⍝]' are kept, but 
+              the symbol ⍝ and preceding blanks are discarded.
+            Returns a vector of strings. 
+   ∆HERE:   hereDoc ← ∆HERE [⍝ <anytext>  ⍠ keywords]
+         keywords:
+             BLanks | NOBLanks   Do uncommented blank lines end the ∆HERE doc?
+             MUltiple | SIngle   Do we return multiple strings (vector of vectors) or a single string (char vector)?
+                                 If SIngle, use CR option by default (q.v.).
+             CR | LF             Sets SIngle (above) and...
+                                 ... uses the specified char (CR or LF) as the line separator (CR by default).
+             DEbug, DBG          Shows debug info.
+         Returns an APL "Here Document" entered as a series of comments following the ∆HERE function.
+         The ∆HERE document ends when a non-comment line is seen, one not of the form '^\h*⍝'
+                NoBlanks: including a blank line;
+                BLANKS: excluding blank lines '^\h*$', which are treated as '⍝ '.
+         ∘ Comment lines of the form '^\h*⍝ ' are kept;
+         ∘ Comment lines of the form '^\h*⍝[^⍝] are ignored, but don't end the ∆HERE document.
+  
+   Returns:
+         [MULTIPLE* option] a vector of character vectors of ∆HERE-doc lines following the ∆HERE call.
+         [SINGLE option] a single vector string with CR (default) or NL (option) <<separating>> lines.
+         For each line returned, the prefix '^\h*⍝' is removed (leading blanks, comment symbol).
+         ------------
+         * MULTIPLE is the default.
+   Options:
+        ∆HERE is a niladic function. Options are within a comment on the same function line as the ∆HERE.
+        Option keywords on the ∆HERE function line are between the ⍠ and the first ⍝ or end of line of the 
+        ∆HERE comment, e.g. field 1 in this regex:
+             ⍝[^⍠]*⍠([^⍝]*) 
+        e.g. this example treats empty lines after the ∆HERE as blank comment lines,
+             and returns multiple lines using the carriage return.
+             h←∆HERE    ⍝ ⍠ BL CR
+  
+  ∘ Keyword Options, Associated Variables, and Actions
+    Keyword    Abbrev Def  Options←val  Description
+    BLANKS     BL          oBlanks←1    Treat empty lines as comment lines '⍝ ',
+                                        so only code lines end a ∆HERE doc
+    NOBLANKS   NOBL   Y    oBlanks←0    Treat empty lines as if APL code, ending a ∆HERE sequence.
+    MULTIPLE   MU     Y    oMulti←1     If multiple lines, return as vec of vec strings
+    SINGLE     SI          oMulti←0     If multiple lines, return as single vector with CR as line separator
+    LF         LF          lineEnd←⎕UCS 10   (linefeed). Sets SINGLE, i.e. oMulti←0
+    CR         CR     Y    lineEnd←⎕UCS 13   (carriage return).  Sets SINGLE, i.e. oMulti←0.
+    DEBUG      DEB    N    oDebug←1     Start debug (verbose) mode
+               DBG         oDebug←1      Alternative to DEB/UG
+    anything else          **ignore**
+  
+   The default keywords are:  ⍝ ⍠ MULTI  NOBLANKS   -- Create vector of vector and end the ∆HERE doc at first non-comment
+   A common alternative is:   ⍝ ⍠ CR BL             -- Create a char string with lines separated by CR carriage return.
+                                                       End ∆HERE doc at first code line (non-comment, non-blank line).
+  
+   If SINGLE is specified, CR is the default line separator.
+   The default options are:       oMulti←1 ⋄ oBlanks←0 ⋄ lineEnd←⎕UCS 13
+  
+    Here document example
+        myHtml←∆HERE     ⍝ Tolerate blank lines ⍠ BL
+        ⍝ <!DOCTYPE HTML>
+        ⍝ <html>
+        ⍝⍝ Next line is blank.    <-- This line is ignored because of '⍝⍝'.
+                                  <-- Blank line would end the HERE doc without 'SPACES' option.
+        ⍝ <head>
+        ⍝ <meta name="viewport" content="width=device-width, initial-scale=1">
+                                  <-- Ditto
+        <style>
+        etc.
+   BUGS:   The calling function must be an unlocked fn or op.
+
+⍝ EXAMPLE with ∆HEREf (or ∆HERE with no "options")...
+      
+      ⎕VR 'test'               ⍝ <== USER 
+     ∇ r←test n                
+[1]    r←∆HEREf                
+[2]    ⍝⍝  Function <PI n>     
+[3]        ⍝ ∇pi←PI n;⎕FR;⎕PP  
+[4]        ⍝  ⎕FR←1287 ⋄ ⎕PP←34
+[5]        ⍝  pi←⍕○n           
+[6]        ⍝ ∇                 
+[7]    ⍝⍝  End Function <PI n> 
+[8]    ⎕←'Function: ',(⎕FX r)  
+[9]    ⎕←↑r                    
+[10]   r←'Result:   ',PI n     
+     ∇     
+      test 10                  ⍝ <== USER              
+Function: PI
+ ∇pi←PI n;⎕FR;⎕PP  
+  ⎕FR←1287 ⋄ ⎕PP←34
+  pi←⍕○n           
+ ∇                 
+Result:   31.41592653589793238462643383279503

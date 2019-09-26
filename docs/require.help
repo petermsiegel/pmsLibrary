@@ -33,29 +33,38 @@
    info            -i[nfo]                                                     show info on initial defaults, env. variables, then exit.
    force:          -f[orce]                          0                         force objects to load even if present somewher
    debug:          -d[ebug]                          0                         share debugging info
-   callerNs:       -c[aller] nsRef|=nsStr           (the actual caller ns)     ns where <require> was called from
+   callerNs:       -c[aller] nsRef|=nsStr           (the actual caller ns)     ns where <require> is viewed as called from
    defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *           Put new or forced obnects in <nsRef|nsStr>
                    nsRef                                (i.e. nsRef of ⎕NC 9)  -lib may be omitted if nsRef is class 9
                    -s[ession] Alias for -lib=⎕SE                               Put new or forced objects in ⎕SE
                    -r[oot]    Alias for -lib=#                                 Put new or forced objects in #
-   outputParms:    -o[utput]=[s|l|ls|sl]                                       Return for each obj: library ref, status, or both
+    outputParms:    -o[utput]=[s|l|ls|sl]                                       Return for each obj: library ref, status, or both
                     Specifies return (output) values, one item for each package listed:
                        s:  status of each package specified, as a string
                     >  l:  the library used, as a ns ref, for each object (default)
                        ls: the library AND the status of each package...
                        sl: same as -out=ls
                        Output options (-o) may be in either case (s|l|sl|S|L|SL).
+   quiet:           -q[uiet]
+                    If the command was successful, return a shy null (⍬).
+                    On failure, returns output per -output option or defaults.
    ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
    E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
                  opt  opt             opt     opt  pkgs -->     ...       -->
 
- Note: require searches disk directories specified in environment variables FSPATH and WSPATH.
-       FSPATH (unique to "require") is of the form:
+ Note 1:  Ensuring libraries are put in ⎕SE, #, ⎕SE.[LIB] or #.[LIB]
+          Use -c=⎕SE or -lib=⎕SE.[LIB] to use std library at top session level
+          Use -c=# or -lib=#.[LIB] to use std library at top user root level #
+          Use -lib=[LIB] to use std lib at # or ⎕SE, depending on whether called from # or ⎕SE
+
+ Note 2: Fn require searches disk directories specified in environment variables 
+       FSPATH and WSPATH.
+       - FSPATH (unique to "require") is of the form:
           "[HOME]/myLibrary/src:.:./src", searching
-       ∘ "myLibrary/src" in the home directory for this user;
-       ∘ the currently active directory in APL;
-       ∘ directory "src" in the currently active directory in APL.
-       WSPATH has a more limited syntax, documented in Dyalog APL documentation.
+         ∘ "myLibrary/src" in the home directory for this user;
+         ∘ the currently active directory in APL;
+         ∘ directory "src" in the currently active directory in APL.
+       - WSPATH has a more limited syntax, documented in Dyalog APL documentation.
 
   ----------------------
   *  The defaultLib is by default within (prefixed with) the callerNs.
