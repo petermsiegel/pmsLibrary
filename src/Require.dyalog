@@ -2,11 +2,9 @@
    ⍝  See help documentation for syntax and overview.
    ⍝
      ⎕IO ⎕ML←0 1
-
    ⍝ Help info hard wired with respect to cur directory...
      HELP_FNAME←'./pmsLibrary/docs/require.help'
      DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (default or passed by user)
-
    ⍝ General Utilities used below
    ⍝ (These should be informational or those that could be quite general)
      getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
@@ -20,7 +18,6 @@
          _,←⊂'WSPATH:       ',getenv'WSPATH'
          ↑_
      }
-
      ⍝⍝⍝⍝ Utilities for copying and fixing objects:
      ⍝⍝⍝⍝ wsGetFix
      ⍝⍝⍝⍝ fileGetFix
@@ -67,8 +64,7 @@
      ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
      ⋄ newObjs←{old where←⍺ ⍵ ⋄ new←where.⎕NL-3 4 9.1 ⋄ new~old}
-
-
+     
      ⍝ ⍺: opts (by default)-- each a string or namespace
      ⍝ ⍵: parms
      ⍝ If ⍺ omitted, ⍵ must be a string. In this case,
@@ -83,12 +79,13 @@
      ⍝                     An alternative to -lib=⎕SE.[lib]: -caller=⎕SE
      ⍝                     An alternative to -lib=#.[lib]:   -caller=#⌈⌈
      ⍝                  -r[oot]    Alias for -lib=#
-     ⍝  returnParms:    -o[utput] =['l'|'s'|'⍵ls'|'c']  (or 'L', 'S', 'LS', 'C')
+     ⍝  returnParms:    -o[utput] =['l'|'s'|'ls'|'b'|'q']  (or 'L', 'S', 'LS', 'B' | 'Q')
      ⍝                        s: status of each package specified
      ⍝                        l: the library used, as a reference
-     ⍝                        c: 1 if package was or had been loaded, else 0-- for each package specified.
-     ⍝                   -q[uiet]
-     ⍝                        Returns shy ⍬, ignoring the -output option.quii
+     ⍝                        b: binary: 1 if package was or had been loaded, else 0-- for each package specified.
+     ⍝                        q: Returns shy ⍬ on success...
+     ⍝                  -q[uiet]
+     ⍝                        Same as -outout=q (quiet)
      ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
      ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
      ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
@@ -100,7 +97,7 @@
      ⍺←⎕NULL       ⍝ options in right arg before packages?
      options←⍺{
        ⍝ defaults set here... (caller → callerR callerN below)
-         forceO debugO recO quietO outO callerO libO←0 0 0 0 ''⍬ ⍬
+         forceO debugO recO outO callerO libO←0 0 0 ''⍬ ⍬
          monad opts pkgList←⍺{
              ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
              1<|≡⍵:1(,⍵)(,⊆⍵)
@@ -141,8 +138,8 @@
              o isI'-s':∇ next⊣libO∘←⎕SE      ⍝ -s[ession]
              o isR'-R':∇ next⊣recO∘←1⊣⎕←'Note: -Recursive flag experimental' ⍝ -R[ecursive] ** experimental **
              o isI'-r':∇ next⊣libO∘←#        ⍝ -ro[ot]
-             o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl|b]  Output: s[tatus] l[ibrary] [boolean]
-             o isI'-q':∇ next⊣quietO∘←1      ⍝ -q (quiet), overrides (ignores) -o
+             o isI'-o':∇'outO'set2 o         ⍝ -o[utput]=[s|l|sl|b|q]  Output: s[tatus] l[ibrary] [boolean]
+             o isI'-q':∇ next⊣outO∘←'q'      ⍝ -q (quiet), same as -output=q
              o isI'-c':∇'callerO'set2 o      ⍝ -c[aller]=nsName | -c[aller] nsRef
              o isI'-l':∇'libO'set2 o         ⍝ -l[ib]=nsName    | -l[ib]    nsRef
              ~monad:'require: invalid option(s) found'⎕SIGNAL 11
@@ -150,18 +147,18 @@
              0⊣pkgList∘←⍵↓opts
          }
          scanOpts 0:⍬
-         outO←{'b'∊⍵:¯1 ⋄ 2 1+.×'ls'∊⍵}(819⌶)outO
+         outO←{'q'∊⍵: ¯2 ⋄ 'b'∊⍵:¯1 ⋄ 2 1+.×'ls'∊⍵}(819⌶)outO
          callerR callerN←{
              9=⎕NC'⍵':⍵(⍕⍵)
              r n←(2⊃⎕RSI)(2⊃⎕NSI)
              ⍵≡⍬:r n
              (r⍎⍵)⍵
          }callerO
-         options←forceO debugO recO outO quietO callerR callerN libO pkgList
+         options←forceO debugO recO outO callerR callerN libO pkgList
 
          ~debugO:options
          ⎕←'forceO  ',forceO ⋄ ⎕←'debugO  ',debugO
-         ⎕←'recO    ',recO ⋄ ⎕←'outO    ',outO ⋄ ⎕←'quietO   ',quietO
+         ⎕←'recO    ',recO ⋄ ⎕←'outO    ',outO  
          ⎕←'callerO ',callerO ⋄ ⎕←'libO    ',libO
          ⎕←'pkgList'pkgList
          options
@@ -170,7 +167,7 @@
    ⍝ If -help or -info, done now...
      0=≢options:''
    ⍝ ... Otherwise, hand out options by name
-     forceO debugO recO outO quietO callerR callerN libO pkgList←options
+     forceO debugO recO outO callerR callerN libO pkgList←options
    ⍝ Internal option ADDFIXEDNAMESPACES: See add2PathIfNs
    ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
    ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
@@ -580,8 +577,8 @@
      callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
 ⍝:DBG _←{'>>Caller''s ⎕PATH now ',⍕callerR.⎕PATH}TRACE 0
      succ←0=≢⊃⌽statusList
-   ⍝ quietO=1: If successful, return shy ⍬. Ignore other output (-o) options.
-     succ∧quietO=1:_←⍬
+   ⍝ outO=¯2: If successful, return null, 1 or 0; else signal error. 
+     succ∧outO=¯2:_←⍬
    ⍝ outO=¯1 'b[oolean]'  Return 1 on success else 0
      outO=¯1:succ
      succ∧outO∊3:_←{⍵}TRACE(⊂libR),statusList     ⍝ outO 3 (SL):   SUCC: shy     (non-shy if debugO)
@@ -590,6 +587,6 @@
      ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
      ⋄ outO∊2:⎕SIGNAL/eCode1                      ⍝                FAIL: ⎕SIGNAL
      succ∧outO∊1:_←{⍵}TRACE statusList            ⍝ outO 1|0 (S):  SUCC: shy     (non-shy if debugO)
-     ⋄ outO∊1 0:statusList                        ⍝                FAIL: non-shy
+     ⋄ outO∊¯2 1 0:statusList                     ⍝                FAIL: non-shy
      ⎕SIGNAL/('require DOMAIN ERROR: Invalid outO: ',⍕outO)11   ⍝ ~outO∊0 1 2 3
  }
