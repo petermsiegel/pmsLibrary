@@ -48,7 +48,6 @@
          recO:listOut⊣⎕←'-recursive processing not yet implemented for objects: ',listOut
          listOut
      }
-
      ⍝ Miscellaneous utilities
      ⍝ and:         A and B 0  < dfns 'and', where A, B are code
      ⍝ or:          A or  B 0  < dfns 'or'...
@@ -79,13 +78,13 @@
      ⍝                     An alternative to -lib=⎕SE.[lib]: -caller=⎕SE
      ⍝                     An alternative to -lib=#.[lib]:   -caller=#⌈⌈
      ⍝                  -r[oot]    Alias for -lib=#
-     ⍝  returnParms:    -o[utput] =['l'|'s'|'ls'|'b'|'q']  (or 'L', 'S', 'LS', 'B' | 'Q')
+     ⍝  returnParms:    -o[utput] matches /l|s|ls|b|q/i  
      ⍝                        s: status of each package specified
      ⍝                        l: the library used, as a reference
      ⍝                        b: binary: 1 if package was or had been loaded, else 0-- for each package specified.
      ⍝                        q: Returns shy ⍬ on success...
      ⍝                  -q[uiet]
-     ⍝                        Same as -outout=q (quiet)
+     ⍝                        Shortcut for -output=q (quiet)
      ⍝  ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
      ⍝  E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
      ⍝                opt  opt             opt     opt  pkgs -->     ...       -->
