@@ -1,55 +1,55 @@
 :namespace ∆PREns
-      ∆PRE←{
-          ⍺←''
-          0≡⍺:'-noF -noC -noV -noD'∇ ⍵
+  ∆PRE←{
+     ⍺←''
+     0≡⍺:'-noF -noC -noV -noD'∇ ⍵
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
-          (⊃⊆,⍺)(⎕NS'').{
-              ⎕IO ⎕ML ⎕PP←0 1 34
+     (⊃⊆,⍺)(⎕NS'').{
+         ⎕IO ⎕ML ⎕PP←0 1 34
        ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
        ⍝ When a user DEFs these macros (read or write), ∆PRE will see them
        ⍝ as their corresponding local variables of the same name
        ⍝ See Executive (below) for meanings.
        ⍝ Note: Don't define any vars starting with '_' here or above!
-              __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1
-              __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
-              isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
+         __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1
+         __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
+         isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
        ⍝ Use NL   for all newlines to be included in the ∆PRE output.
        ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
        ⍝ Use NULL internally for special code lines (NULLs are removed at end)
-              NL CR NULL←⎕UCS 10 13 0
-              SQ DQ SQDQ←'''' '"' '''"'
-              CALLER←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
+         NL CR NULL←⎕UCS 10 13 0
+         SQ DQ SQDQ←'''' '"' '''"'
+         CALLER←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
 
       ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
       ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS-- see ⍝H documentation below...
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
-              ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
-              ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
-              __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
-              __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
-              NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-              EDIT←(⎕NULL≡⍵)∨opt'E'                            ⍝ Default 0; 1 if ⍵≡⎕NULL
-              QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
-              FIX←~opt'noF'                                    ⍝ Default 1
+         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
+         ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
+         __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
+         __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
+         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
+         EDIT←(⎕NULL≡⍵)∨opt'E'                            ⍝ Default 0; 1 if ⍵≡⎕NULL
+         QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
+         FIX←~opt'noF'                                    ⍝ Default 1
 
-              _←{ ⍝ Option information
-                  ⍺←0 ⋄ ~__DEBUG__∨⍺:0 ⋄ _←'    '
-                  ⎕←_,'Options: "','"',⍨819⌶,⍵
-                  ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
-                  ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
-                  ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-                  ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:  ',FIX
-                  0
-              }⍺
+         _←{ ⍝ Option information
+             ⍺←0 ⋄ ~__DEBUG__∨⍺:0 ⋄ _←'    '
+             ⎕←_,'Options: "','"',⍨819⌶,⍵
+             ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
+             ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
+             ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
+             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:  ',FIX
+             0
+         }⍺
        ⍝ HELP PATH
-              HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
+         HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
       ⍝ -------------------------------------------------------------------
 
-              (1↓⊆,⍺){
-                  preamble←⍺
+         (1↓⊆,⍺){
+             preamble←⍺
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
            ⍝ annotate [preprocessor (output) code]
@@ -63,23 +63,23 @@
            ⍝     Where ⍵ is modified, ⍺ is the original or model directive w/ leading blanks.
            ⍝ else
            ⍝     write the token EMPTY (a NULL char with special meaning).
-                  annotate←{
-                      ~__VERBOSE__:EMPTY
-                      ⍺←⍬ ⋄ 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺ ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
-                  }
+             annotate←{
+                 ~__VERBOSE__:EMPTY
+                 ⍺←⍬ ⋄ 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺ ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
+             }
            ⍝ print family - informing user, rather than annotating output code.
            ⍝
            ⍝ print- print ⍵ as a line ⍵' on output, converting NL to CR (so APL prints properly)
            ⍝ printQ-same as print, but using ⍞←⍵' rather than ⎕←⍵.
            ⍝ Both return: ⍵, not the translated ⍵'.
            ⍝ DO NOT USE CR in program code lines.
-                  print←{⍵⊣⎕←CR@(NL∘=)⊣⍵}
-                  printQ←{⍵⊣⍞←CR@(NL∘=)⊣⍵}
+             print←{⍵⊣⎕←CR@(NL∘=)⊣⍵}
+             printQ←{⍵⊣⍞←CR@(NL∘=)⊣⍵}
            ⍝ dPrint- same as print,  but only if __DEBUG__=1.
            ⍝ dPrintQ-same as printQ, but only if __DEBUG__=1.
            ⍝ Returns ⍵.
-                  dPrint←{__DEBUG__:print ⍵ ⋄ ⍵}
-                  dPrintQ←{__DEBUG__:printQ ⍵ ⋄ ⍵}
+             dPrint←{__DEBUG__:print ⍵ ⋄ ⍵}
+             dPrintQ←{__DEBUG__:printQ ⍵ ⋄ ⍵}
 
            ⍝ ∆FLD: ⎕R helper.
            ⍝  Returns the contents of ⍺ regexp field ⍵, a number or name or ''
@@ -87,14 +87,14 @@
            ⍝    ns- active ⎕R namespace (passed by ⎕R as ⍵)
            ⍝    fld number or name: a single field number or name.
            ⍝ Returns <val> the value of the field or ''
-                  ∆FLD←{
-                      ns←⍺
-                      ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
-                      ⍵=0:ns.Match                          ⍝ Fast way to get whole match
-                      ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
-                      ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
-                      ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
-                  }
+             ∆FLD←{
+                 ns←⍺
+                 ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
+                 ⍵=0:ns.Match                          ⍝ Fast way to get whole match
+                 ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
+                 ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
+                 ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
+             }
            ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
            ⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
                     ⍝ ∆QT:  Add quotes (default ⍺: single)
@@ -103,20 +103,20 @@
            ⍝       If ⍵ doesn't begin with a quote in ⍺ (default: s/d quotes), does nothing.
            ⍝ ∆QT0: Double internal quotes (default ⍺: single quotes)
            ⍝ ∆QTX: Add external quotes (default ⍺: single), first doubling internal quotes (if any).
-                  ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
-                  ∆QT←{⍺←SQ ⋄ ⍺,⍵,⍺}
-                  ∆DQT←{DQ ∆QT ⍵}
-                  ∆UNQ←{⍺←SQDQ ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
-                  ∆QT0←{⍺←SQ ⋄ ⍵/⍨1+⍵∊⍺}
-                  ∆QTX←{⍺←SQ ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
+             ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
+             ∆QT←{⍺←SQ ⋄ ⍺,⍵,⍺}
+             ∆DQT←{DQ ∆QT ⍵}
+             ∆UNQ←{⍺←SQDQ ⋄ ~⍺∊⍨q←1↑⍵:⍵ ⋄ s←1↓¯1↓⍵ ⋄ s/⍨~s⍷⍨2⍴q}
+             ∆QT0←{⍺←SQ ⋄ ⍵/⍨1+⍵∊⍺}
+             ∆QTX←{⍺←SQ ⋄ ⍺ ∆QT ⍺ ∆QT0 ⍵}
            ⍝ ∆PARENS: ⍵  →   '(⍵)'
-                  ∆PARENS←{'(',')',⍨⍵}
+             ∆PARENS←{'(',')',⍨⍵}
            ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
            ⍝      blanks or trailing X symbols. (You don't need to remove X or blanks first.)
-                  ∆H2D←{   ⍝ Decimal from hexadecimal
-                      11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
-                      16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
-                  }
+             ∆H2D←{   ⍝ Decimal from hexadecimal
+                 11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
+                 16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
+             }
            ⍝ ∆TRUE ⍵:
            ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
            ⍝ ⍵ (a string) is 1 (true) unless
@@ -124,20 +124,20 @@
            ⍝    b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
            ⍝    c) it cannot be evaluated,
            ⍝       in which case a warning is given (debug mode) before returning 0.
-                  ∆TRUE←{
-                      0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
-                      0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
-                      1
-                  }
+             ∆TRUE←{
+                 0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+                 0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
+                 1
+             }
            ⍝ GENERAL CONSTANTS. Useful in annotate etc.
            ⍝ Annotations (see annotate).
            ⍝   YES - path taken.
            ⍝   NO  - path not taken (false conditional).
            ⍝   SKIP- skipped because it is governed by a conditional that was false.
            ⍝   INFO- added information.
-                  YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
+             YES NO SKIP INFO←' ✓' ' 😞' ' 🚫' ' 💡'
            ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
-                  EMPTY←,NULL
+             EMPTY←,NULL
 
            ⍝ Process double quotes based on double-quoted string suffixes "..."sfx
            ⍝ Where suffixes are [vsm]? and  [r]? with default 'v' and (cooked).
@@ -148,28 +148,28 @@
            ⍝  MX    m:          ... a single matrix
            ⍝  RAW   r:          blanks at the start of each line are preserved.
            ⍝ COOKD  none:       blanks at the start of each line are removed.
-                  processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
-                      str type←(⊃⍵)(819⌶⊃⌽⍵)
+             processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
+                 str type←(⊃⍵)(819⌶⊃⌽⍵)
                ⍝ type: 'v' (cooked) is nothing else specified.
                ⍝       which sets raw←0, sing←0, cMx←''
-                      isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
-                      hasMany←NL∊str
-                      ⋄ toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
-                      ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
-                      ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
-                      str2←∆QT0 ∆UNQ str
+                 isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
+                 hasMany←NL∊str
+                 ⋄ toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
+                 ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
+                 ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
+                 str2←∆QT0 ∆UNQ str
 
-                      isStr:∆PARENS⍣hasMany⊣∆QT{
-                          isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
-                          '\A\h+' '\n\h*'⎕R''Q_CR_Q⍠opts⊢⍵
-                      }str2
-                      hasMany toMx⍣isMx⊣∆QT{
-                          isRaw:'\n'⎕R''' '''⍠opts⊢⍵
-                          '\A\h+' '\n\h*'⎕R'' ''' '''⍠opts⊢⍵
-                      }str2
+                 isStr:∆PARENS⍣hasMany⊣∆QT{
+                     isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R''Q_CR_Q⍠opts⊢⍵
+                 }str2
+                 hasMany toMx⍣isMx⊣∆QT{
+                     isRaw:'\n'⎕R''' '''⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R'' ''' '''⍠opts⊢⍵
+                 }str2
 
-                      '∆PRE: processDQ logic error'⎕SIGNAL 911
-                  }
+                 '∆PRE: processDQ logic error'⎕SIGNAL 911
+             }
 
            ⍝ getDataIn object:⍵
            ⍝ ⍵:
@@ -183,39 +183,39 @@
            ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
            ⍝ If the obj ⍵ is ⎕NULL, the object is prompted from the user.
            ⍝ (See promptForData) for returned value.
-                  getDataIn←{∆∆←∇
-                      19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
-                      ⍵≡⎕NULL:promptForData ⍬
-                      2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
+             getDataIn←{∆∆←∇
+                 19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
+                 ⍵≡⎕NULL:promptForData ⍬
+                 2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
 
-                      ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
-                      0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
-                      dir dirs←(⊃⍺)⍺
+                 ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
+                 0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
+                 dir dirs←(⊃⍺)⍺
 
               ⍝ If the file has an explicit extension, it determines the ONLY type.
-                      pfx nm ext←⎕NPARTS ⍵
-                      _←{
-                          0 3 4∊⍨CALLER.⎕NC ⍵:''
-                          ⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing'
-                      }nm
+                 pfx nm ext←⎕NPARTS ⍵
+                 _←{
+                     0 3 4∊⍨CALLER.⎕NC ⍵:''
+                     ⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing'
+                 }nm
 
               ⍝ Otherwise, use types '.dyapp' [new] and '.dyalog' [std].
-                      types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
+                 types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
 
-                      types{
-                          0=≢⍺:(1↓dirs)∆∆ ⍵
-                          filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
-                          ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
-                          (1↓⍺)∇ ⍵
-                      }pfx,nm
-                  }
+                 types{
+                     0=≢⍺:(1↓dirs)∆∆ ⍵
+                     filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
+                     ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
+                     (1↓⍺)∇ ⍵
+                 }pfx,nm
+             }
            ⍝ prompt User for data to preprocess. Useful for testing...
            ⍝ Creates object __TERM__, its full filename is '/dev/null', and lines as specified.
-                  promptForData←{
-                      _←print'Enter lines. Empty line to terminate.'
-                      lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
-                      '__TERM__' '[user input]'lines
-                  }
+             promptForData←{
+                 _←print'Enter lines. Empty line to terminate.'
+                 lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
+                 '__TERM__' '[user input]'lines
+             }
 
          ⍝ MACRO (NAME) PROCESSING
          ⍝ put, get, getIfVis, hideEach, del, isDefined
@@ -223,41 +223,41 @@
          ⍝ Includes a feature for preventing recursive matching of the same names
          ⍝ in a single recursive (repeated) scan.
          ⍝ Adds to extern: mNames, mVals, mNameVis
-                  lc←819⌶
-                  put←{⍺←__DEBUG__ ⋄ verbose←⍺
-                      n v←⍵      ⍝ add (name, val) to macro list
+             lc←819⌶
+             put←{⍺←__DEBUG__ ⋄ verbose←⍺
+                 n v←⍵      ⍝ add (name, val) to macro list
                  ⍝ case is 1 only for ⎕vars...
-                      c←⍬⍴'⎕:'∊⍨1↑n
-                      n~←' ' ⋄ mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂v ⋄ mNameVis,⍨←1
-                      ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
+                 c←⍬⍴'⎕:'∊⍨1↑n
+                 n~←' ' ⋄ mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂v ⋄ mNameVis,⍨←1
+                 ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
                 ⍝ Special macros: if looks like number (as string), convert to numeric form.
-                      processSpecialM←{
-                          0::⍵⊣print'∆PRE: Logic error in put'    ⍝ Error? Move on.
-                          v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v               ⍝ Numbers vs Text
-                          _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'                              ⍝ Execute in ∆PRE space, not user space.
-                          ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
-                      }
-                      n processSpecialM ⍵
-                  }
+                 processSpecialM←{
+                     0::⍵⊣print'∆PRE: Logic error in put'    ⍝ Error? Move on.
+                     v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v               ⍝ Numbers vs Text
+                     _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'                              ⍝ Execute in ∆PRE space, not user space.
+                     ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
+                 }
+                 n processSpecialM ⍵
+             }
            ⍝ get  ⍵: retrieves value for ⍵ (or ⍵, if none)
            ⍝ getIfVis ⍵: ditto, but only if mNameVis flag is 1
            ⍝ hideEach ⊆⍵: sets mNameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
-                  get←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                      p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ p⊃mVals
-                  }
-                  getIfVis←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                      p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ ~p⊃mNameVis:n ⋄ p⊃mVals
-                  }
-                  hideEach←{⍺←0
-                      ⍺⊣⍺{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                          p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
-                      }¨⍵
-                  }
-                  del←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                      p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n
-                      mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n}
-                  isDefined←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                      p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1}
+             get←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ p⊃mVals
+             }
+             getIfVis←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ ~p⊃mNameVis:n ⋄ p⊃mVals
+             }
+             hideEach←{⍺←0
+                 ⍺⊣⍺{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                     p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
+                 }¨⍵
+             }
+             del←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n
+                 mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n}
+             isDefined←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1}
 
          ⍝-----------------------------------------------------------------------
          ⍝ preEval (macro expansion, including special predefined expansion)
@@ -269,102 +269,109 @@
          ⍝     `atom1 atom2...       for implicit quoted (name) strings and numbers on right
          ⍝
          ⍝-----------------------------------------------------------------------
-                  preEval←{
-                      ⍺←__MAX_EXPAND__      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
+             preEval←{
+                 ⍺←__MAX_EXPAND__      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
               ⍝ ∆TO: Concise variant on dfns:to, allowing start [incr] to end
               ⍝     1 1.5 ∆TO 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
               ⍝ expanded to allow (homogenous) Unicode chars
               ⍝     'a' ∆TO 'f' → 'abcdef'  ⋄   'ac' ∆TO 'g'    →   'aceg'
-                      ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-                      ∆TOcode←{(2+≢⍵)↓⊃⎕NR ⍵}'∆TO'
+                 ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+                 ∆TOcode←{(2+≢⍵)↓⊃⎕NR ⍵}'∆TO'
               ⍝ Single-char translation input option. See ::TRANS
-                      str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
-                      mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
-                      str←⍺{
-                          strIn←str←⍵
-                          0≥⍺:⍵
-                          nmsFnd←⍬
-                          ch1←ch2←0
+                 str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
+                 mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
+                 str←⍺{
+                     strIn←str←⍵
+                     0≥⍺:⍵
+                     nmsFnd←⍬
                 ⍝ Match/preEval...
                 ⍝ [1] pLongNmE: long names,
-                          cUserE cSQe cCommentE cLongE←0 1 2 3
-                          str←{
-                              e1←'∆PRE: Value is too complex to represent statically:'
-                              4::4 ⎕SIGNAL⍨e1,CR,'   ⍝     In macro code: "',⍵,'"'
-                              pUserE pSQe pCommentE pLongNmE ⎕R{
-                                  ch1⊢←1
-                                  f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-                                  case cSQe:f0
-                                  case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
-                                  case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
-                                  ⊢f0                                           ⍝ else: comments
-                              }⍠'UCP' 1⊣⍵
-                          }str
-
-
+                     cUserE cSkipE cLongE←0 1 2
+                     str←{
+                         e1←'∆PRE: Value is too complex to represent statically:'
+                         4::4 ⎕SIGNAL⍨e1,CR,'   ⍝     In macro code: "',⍵,'"'
+                         pUserE pSkipE pLongNmE ⎕R{
+                             f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                             case cSkipE:f0
+                             case cLongE:⍕getIfVis f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
+                             case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
+                             ∘Unreachable∘                               ⍝ else: comments
+                         }⍠'UCP' 1⊣⍵
+                     }str
                  ⍝ [2] pShortNmE: short names (even within found long names)
                  ⍝     pSpecialIntE: Hexadecimals and bigInts
-                          cSQe cCommentE cShortNmE cSpecialIntE←0 1 2 3
-                          str←pSQe pCommentE pShortNmE pSpecialIntE ⎕R{
-                              ch2⊢←1
-                              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-                              case cSpecialIntE:{
-                                  ⍵∊'xX':⍕∆H2D f1
-                                  0=≢f2:∆QT f1                ⍝ No exponent
-                                  ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
-                              }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                              case cShortNmE:⍕getIfVis f0⊣nmsFnd,←⊂f0
-                              ⊢f0                            ⍝ else: pSQe or pCommentE
-                          }⍠'UCP' 1⊣str
-                          changed←ch1+ch2
-                          0=changed:str
-                          _←nmsFnd←⍬⊣hideEach nmsFnd
-                          (⍺-changed)∇ str
-                      }str
-            ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
-            ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
-            ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
-            ⍝  numeric or char. constants are optimized.
-            ⍝  See __MAX_PROGRESSION__ below
-                      pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
-                      cDot1E cSQe cCommentE cDot2E cAtomsE cFormatStringE←0 1 2 3 4 5
-                      str←pDot1e pSQe pCommentE pDot2e pATOMSe pFormatStringE ⎕R{
-                          case←⍵.PatternNum∘∊
+                     cSkipE cShortNmE cSpecialIntE←0 1 2
+                     str←pSkipE pShortNmE pSpecialIntE ⎕R{
+                         f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                         case cSkipE: f0
+                         case cSpecialIntE:{
+                             ⍵∊'xX':⍕∆H2D f1
+                             0=≢f2:∆QT f1                ⍝ No exponent
+                             ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
+                         }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
+                         case cShortNmE:⍕getIfVis f0⊣nmsFnd,←⊂f0
+                         ∘Unreachable∘
+                     }⍠'UCP' 1⊣str
 
-                          case cSQe cCommentE:⍵ ∆FLD 0
-                  ⍝  Matching       ≢graves ≢arrows
-                  ⍝                  fld1    fld3
-                  ⍝ `atom1 atom2       0      0
-                  ⍝ (...→...)          0      0
-                  ⍝ ``atom1 atom2      1      0
-                  ⍝ (...→→...)         0      1
-                          case cAtomsE:(1∊≢¨f1 f4) (1=≢f3) procAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
-                          case cDot2E:∆TOcode
-                          case cFormatStringE:{
-                              0::⍵ ∆FLD 0
-                              0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
-                          }⍵
-                  ⍝ case cDot1E
-                          ⋄ f1 f2←⍵ ∆FLD¨1 2 ⋄
-                          ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
-                          __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
-                          {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
-                                             ⍝  .. preceded or followed by non-constants
-                      }⍠'UCP' 1⊣str
-                      str
-                  }
-                  procAtoms←{⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
-                      nest←'⊆'/⍨~dbl
-                      atoms←1↓∊{
-                          '⍬'=⊃⍵:⍵
-                          ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
-                          isNumAtom:' (,',⍵,')'
-                          ⋄ q←∆QT ⍵
-                          1=≢⍵:' (,',q,')'
-                          ' ',q
-                      }¨' '(≠⊆⊢)⍵
-                      '(',nest,atoms,')','{⍺⍵}'/⍨arrow
-                  }
+               ⍝  Deal with ATOMS of two types:
+               ⍝  Simple atoms: names or numbers
+               ⍝     `  name 123.45 nam2 123j45 etc.
+               ⍝  Code atoms:
+               ⍝     `  ({dfn}|\(apl fn\))+
+               ⍝  Code atoms return a namespace ns such that
+               ⍝     ([⍺] ns.fn ⍵) calls  [⍺] {dfn} ⍵
+                     procSimpleAtoms←{
+                         ⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
+                         nest←'⊆'/⍨~dbl
+                         atoms←1↓∊{
+                             '⍬'=⊃⍵:⍵
+                             ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
+                             isNumAtom:' (,',⍵,')'
+                             ⋄ q←∆QT ⍵
+                             1=≢⍵:' (,',q,')'
+                             ' ',q
+                         }¨' '(≠⊆⊢)⍵
+                         '(',nest,atoms,')','{⍺⍵}'/⍨arrow
+                     }
+                     str←pSkipE pATOMSe pAtomFnListE ⎕R{
+                         case←⍵.PatternNum∘∊
+                         case 0:⍵ ∆FLD 0
+                         case 1:(1∊≢¨f1 f4)(1=≢f3)procSimpleAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
+                        ⍝ case 2:
+                         pSkipE pAtomFn1E ⎕R{
+                             case←⍵.PatternNum∘∊
+                             case 0:⍵ ∆FLD 0
+                             ⍝ case 1:
+                             '(',f1,'{(ns←⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⎕NR''fn''}0)'⊣f1←⍵ ∆FLD 1
+                         }⍵ ∆FLD 1
+                     }⍠('UCP' 1)('Mode' 'M')⊣str
+                  ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
+                  ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
+                  ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
+                  ⍝  numeric or char. constants are optimized.
+                  ⍝  See __MAX_PROGRESSION__ below
+                     pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
+                     cDot1E cSkipE cDot2E cFormatStringE←0 1 2 3
+                     str←pDot1e pSkipE pDot2e pFormatStringE ⎕R{
+                         case←⍵.PatternNum∘∊
+                         case cSkipE:⍵ ∆FLD 0
+                         case cFormatStringE:{
+                             0::⍵ ∆FLD 0
+                             0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
+                         }⍵
+                         case cDot2E:∆TOcode
+                        ⍝ case cDot1E:
+                         ⋄ f1 f2←⍵ ∆FLD¨1 2
+                         ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
+                         __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
+                         {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
+                     }⍠'UCP' 1⊣str
+                     str≡strIn:str
+                     _←nmsFnd←⍬⊣hideEach nmsFnd
+                     (⍺-1)∇ str
+                 }str
+              str
+             }
 
          ⍝ -------------------------------------------------------------------------
          ⍝ PATTERNS
@@ -375,183 +382,197 @@
          ⍝ -------------------------------------------------------------------------
          ⍝ [1] DEFINITIONS
          ⍝ -------------------------------------------------------------------------
-                  _CTR_←0 ⋄ patternList←patternName←⍬
+             _CTR_←0 ⋄ patternList←patternName←⍬
            ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
            ⍝      Default '::' or CALLER.∆PRE_PREFIX, if set.
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
-                  PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'
+             PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'
 
-                  regPat←{⍺←'[unnamed]'
-                    p←'(?xi)'
-                    patternList,←⊂∆MAP p,⍵
-                    patternName,←⊂⍺
-                    (_CTR_+←1)⊢_CTR_
-                  }
-                  ⋄ _pBeg←'^\h* \Q',PREFIX,'\E \h*'
-                  cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF         \h+(.*)         $'
-                  cIF←'if'regPat'          ⍎_pBeg  IF                \h+(.*)         $'
-                  cELSEIF←'elseif'regPat'  ⍎_pBeg  EL(?:SE)?IF \b    \h+(.*)         $'
-                  cELSE←'else'regPat'      ⍎_pBeg  ELSE         \b       .*          $'
-                  cEND←'end'regPat'        ⍎_pBeg  END                   .*          $'
-                  ⋄ _pTarg←' [^ ←]+ '
-                  ⋄ _pSetVal←' (?:(←)\h*(.*))?'
-                  ⋄ _pFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎_pName '
+             regPat←{⍺←'[unnamed]'
+                 p←'(?xi)'
+                 patternList,←⊂∆MAP p,⍵
+                 patternName,←⊂⍺
+                 (_CTR_+←1)⊢_CTR_
+             }
+             ⋄ _pBeg←'^\h* \Q',PREFIX,'\E \h*'
+             cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF         \h+(.*)         $'
+             cIF←'if'regPat'          ⍎_pBeg  IF                \h+(.*)         $'
+             cELSEIF←'elseif'regPat'  ⍎_pBeg  EL(?:SE)?IF \b    \h+(.*)         $'
+             cELSE←'else'regPat'      ⍎_pBeg  ELSE         \b       .*          $'
+             cEND←'end'regPat'        ⍎_pBeg  END                   .*          $'
+             ⋄ _pTarg←' [^ ←]+ '
+             ⋄ _pSetVal←' (?:(←)\h*(.*))?'
+             ⋄ _pFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎_pName '
             ⍝ Note that we allow a null \0 to be the initial char. of a name.
             ⍝ This can be used to suppress finding a name in a replacement,
             ⍝ and \0 will be removed at the end of processing.
             ⍝ This is mostly obsolete given we suppress macro definitions on recursion
             ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
-                  ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
-                  ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
-                  ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
-                  ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
+             ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+             ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
+             ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
+             ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
 
-                  cDEF←'def'regPat'      ⍎_pBeg DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
-                  cVAL←'val'regPat'      ⍎_pBeg E?VAL(Q)?        \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
+             cDEF←'def'regPat'      ⍎_pBeg DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
+             cVAL←'val'regPat'      ⍎_pBeg E?VAL(Q)?        \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
             ⍝ statPat: name | name ← val | code_to_execute
-                  ⋄ statPat←'⍎_pBeg STATIC \h+ (\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal $ | ()() (.*)  $)'
-                  cSTAT←'stat'regPat statPat
-                  cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)         .*          $'
-                  cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)   (?:\h+ (⍎_pName))?  $'
-                  cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
-                  cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )    .*                $'
-                  cTRANS←'trans'regPat'  ⍎_pBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
-                  cOTHER←'apl'regPat'    ^                                         .*                $'
+             ⋄ statPat←'⍎_pBeg STATIC \h+ (\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal $ | ()() (.*)  $)'
+             cSTAT←'stat'regPat statPat
+             cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)         .*          $'
+             cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)   (?:\h+ (⍎_pName))?  $'
+             cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
+             cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )    .*                $'
+             cTRANS←'trans'regPat'  ⍎_pBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
+             cOTHER←'apl'regPat'    ^                                         .*                $'
 
            ⍝ patterns solely for the ∇preEval∇ fn
              ⍝ User cmds: ]... (See also ⎕UCMD)
-                  pUserE←'^\h*\]\h*(.*)$'
+             pUserE←'^\h*\]\h*(.*)$'
               ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
               ⍝      """... multiline ok """    ==> ' '
-                  pDQ3e←'(?sx)  "{3} .*? "{3}'
+             pDQ3e←'(?sx)  "{3} .*? "{3}'
               ⍝ Double quote suffixes:   [R/r] plus [S/s] or [M/m] or [V/v]
               ⍝ R/r, Raw: don't remove leading blanks. Else, do.
               ⍝ S/s, return single string with embedded newlines.
               ⍝ V/v, return vector of strings, split at newlines.
               ⍝ M/m  returns a matrix (padded with blanks).
-                  pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
-                  pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
-                  pCommentE←'(?x)      ⍝ .*  $'
+             pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
+             pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
+             pCommentE←'(?x)      ⍝ .*  $'
+                ⍝ Use pSkipE when you are scanning SQs or Comments merely to skip them
+             pSkipE←'(?x)  (?: (?: ''[^'']*'' )+  |  ⍝ .*  $)'
               ⍝ _pNum: A non-complex signed APL number (float or dec)
-                  ⋄ _pNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
-                  ⋄ _pDot←'(?:  … | \.{2,} )'
-                  ⋄ _pCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ _pCh2←' '' (?: [^''] | ''{2} ){2} '' '
-                  ⋄ _pDot1e←'  (?| ( ⍎_pNum (?: \h+ ⍎_pNum)*          ) \h* ⍎_pDot \h* (⍎_pNum) '
-                  ⋄ _pDot1e,←'   | ( ⍎_pCh1 (?: \h+ ⍎_pCh1)* | ⍎_pCh2 ) \h* ⍎_pDot \h* (⍎_pCh1) ) '
-                  pDot1e←∆MAP'(?x)   ⍎_pDot1e'
-                  pDot2e←∆MAP'(?x)   ⍎_pDot'
+             ⋄ _pNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
+             ⋄ _pDot←'(?:  … | \.{2,} )'
+             ⋄ _pCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ _pCh2←' '' (?: [^''] | ''{2} ){2} '' '
+             ⋄ _pDot1e←'  (?| ( ⍎_pNum (?: \h+ ⍎_pNum)*          ) \h* ⍎_pDot \h* (⍎_pNum) '
+             ⋄ _pDot1e,←'   | ( ⍎_pCh1 (?: \h+ ⍎_pCh1)* | ⍎_pCh2 ) \h* ⍎_pDot \h* (⍎_pCh1) ) '
+             pDot1e←∆MAP'(?x)   ⍎_pDot1e'
+             pDot2e←∆MAP'(?x)   ⍎_pDot'
               ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
-                  ⋄ _pHex←'   ¯? (\d  [\dA-F]*)             X'
+             ⋄ _pHex←'   ¯? (\d  [\dA-F]*)             X'
               ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
-                  ⋄ _pBigInt←'¯? (\d+) (?: E (\d+) )? I'
+             ⋄ _pBigInt←'¯? (\d+) (?: E (\d+) )? I'
               ⍝ pSpecialIntE: Allows both bigInt format and hex format
               ⍝ This is permissive (allows illegal options to be handled by APL),
               ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
               ⍝ Exponents are invalid for hexadecimals, because the exponential range
               ⍝ is not defined/allowed.
-                  pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
+             pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
 
            ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
               ⍝ pLongNmE Long names are of the form #.a or a.b.c
               ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
-                  pLongNmE←∆MAP'(?x)  ⍎_pLongNmOnly'
-                  pShortNmE←∆MAP'(?x) ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
+             pLongNmE←∆MAP'(?x)  ⍎_pLongNmOnly'
+             pShortNmE←∆MAP'(?x) ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
               ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
-                  pContE←'(?x) \h* \.{2,} \h* (   ⍝ .*)? \n \h*'
-                  pEOLe←'\n'
+             pContE←'(?x) \h* \.{2,} \h* (   ⍝ .*)? \n \h*'
+             pEOLe←'\n'
            ⍝ Treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
-                  pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
+             pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
               ⍝ For  (names → ...) and (`names)
-                  ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
-                  ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
-                  ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
-                  ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎_pAtoms)'
-                  ⋄ _,←'        | (     )     (⍎_pAtoms) \h* (→)(→?)) '
+             ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
+             ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
+             ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
+             ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎_pAtoms)'
+             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* (→)(→?)) '
                   ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
-                  pATOMSe←∆MAP _
+             pATOMSe←∆MAP _
+
+          ⍝ ptrPat:   ` fn1 [ fn2 [ fn3 ] ... ]
+          ⍝             where fnN is a function expression:
+          ⍝                  {dfn} | (fn name) | (apl fn expression)
+             _←'(?xi)   (?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
+             _,←'                | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
+             _,←'       ) '
+             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrack←∆MAP _
+             (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
+             pAtomFn1E←'(',_pBrack,'|',_pParen,')'
+             pAtomFnListE←'(?xi) ` \h* ','(',pAtomFn1E,'(\h*',pAtomFn1E,')* )'
+
          ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
          ⍝ -------------------------------------------------------------------------
-                  processDirectives←{
-                      T F S←1 0 ¯1       ⍝ true, false, skip
-                      lineNum+←1
-                      f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
-                      case←⍵.PatternNum∘∊
-                      TOP←⊃⌽stack     ⍝ TOP can be T(true) F(false) or S(skip)...
+             processDirectives←{
+                 T F S←1 0 ¯1       ⍝ true, false, skip
+                 lineNum+←1
+                 f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
+                 case←⍵.PatternNum∘∊
+                 TOP←⊃⌽stack     ⍝ TOP can be T(true) F(false) or S(skip)...
 
              ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
-                      case cOTHER:{
-                          T≠TOP:annotate f0,SKIP        ⍝ See annotate, QUIET
-                          str←preEval f0
-                          QUIET:str ⋄ str≡f0:str
-                          '⍝',f0,YES,NL,' ',str
-                      }0
+                 case cOTHER:{
+                     T≠TOP:annotate f0,SKIP        ⍝ See annotate, QUIET
+                     str←preEval f0
+                     QUIET:str ⋄ str≡f0:str
+                     '⍝',f0,YES,NL,' ',str
+                 }0
 
               ⍝ ::IFDEF/IFNDEF name
-                      case cIFDEF:{
-                          T≠TOP:annotate f0,SKIP⊣stack,←S
-                          stack,←c←~⍣(1∊'nN'∊f1)⊣isDefined f2
-                          annotate f0,' ➡ ',(⍕c),(c⊃NO YES)
-                      }0
+                 case cIFDEF:{
+                     T≠TOP:annotate f0,SKIP⊣stack,←S
+                     stack,←c←~⍣(1∊'nN'∊f1)⊣isDefined f2
+                     annotate f0,' ➡ ',(⍕c),(c⊃NO YES)
+                 }0
 
               ⍝ ::IF cond
-                      case cIF:{
-                          T≠TOP:annotate f0,SKIP⊣stack,←S
-                          stack,←c←∆TRUE(e←preEval f1)
-                          annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
-                      }0
+                 case cIF:{
+                     T≠TOP:annotate f0,SKIP⊣stack,←S
+                     stack,←c←∆TRUE(e←preEval f1)
+                     annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 }0
 
              ⍝  ::ELSEIF
-                      case cELSEIF:{
-                          S=TOP:annotate f0,SKIP⊣stack,←S
-                          T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
-                          (⊃⌽stack)←c←∆TRUE(e←preEval f1)
-                          annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
-                      }0
+                 case cELSEIF:{
+                     S=TOP:annotate f0,SKIP⊣stack,←S
+                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
+                     (⊃⌽stack)←c←∆TRUE(e←preEval f1)
+                     annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
+                 }0
 
               ⍝ ::ELSE
-                      case cELSE:{
-                          S=TOP:annotate f0,SKIP⊣stack,←S
-                          T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
-                          (⊃⌽stack)←T
-                          annotate f0,' ➡ 1',YES
-                      }0
+                 case cELSE:{
+                     S=TOP:annotate f0,SKIP⊣stack,←S
+                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
+                     (⊃⌽stack)←T
+                     annotate f0,' ➡ 1',YES
+                 }0
 
               ⍝ ::END(IF(N)(DEF))
-                      case cEND:{
-                          stack↓⍨←¯1
-                          c←S≠TOP
-                          0=≢stack:annotate'   ⍝??? ',f0,NO⊣stack←,0⊣print'INVALID ::END statement at line [',lineNum,']'
-                          annotate f0
-                      }0
+                 case cEND:{
+                     stack↓⍨←¯1
+                     c←S≠TOP
+                     0=≢stack:annotate'   ⍝??? ',f0,NO⊣stack←,0⊣print'INVALID ::END statement at line [',lineNum,']'
+                     annotate f0
+                 }0
 
               ⍝ Shared code for
               ⍝   ::DEF(Q) and ::(E)VALQ
-                      procDefVal←{
-                          isVal←⍵
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          ' '∊f2:annotate f0,'    ⍝ ',print'IGNORING INVALID MACRO NAME: "',f2,'" ',NO
-                          qtFlag arrFlag←0≠≢¨f1 f3
+                 procDefVal←{
+                     isVal←⍵
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     ' '∊f2:annotate f0,'    ⍝ ',print'IGNORING INVALID MACRO NAME: "',f2,'" ',NO
+                     qtFlag arrFlag←0≠≢¨f1 f3
 
-                          val note←f2{
-                              (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
-                              0=≢⍵:'' '  [EMPTY]'
-                              exp←preEval ⍵
+                     val note←f2{
+                         (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
+                         0=≢⍵:'' '  [EMPTY]'
+                         exp←preEval ⍵
 
-                              isVal:{                   ⍝ ::EVAL | ::VAL
-                                  m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
-                                  0::(⍵,' ∘∘INVALID∘∘')(m⊣print m,': ',⍵)
-                                  qtFlag:(∆QTX⍕⍎⍵)''
-                                  (⍕⍎⍵)''
-                              }exp
+                         isVal:{                   ⍝ ::EVAL | ::VAL
+                             m←'WARNING: INVALID EXPRESSION DURING PREPROCESSING'
+                             0::(⍵,' ∘∘INVALID∘∘')(m⊣print m,': ',⍵)
+                             qtFlag:(∆QTX⍕⍎⍵)''
+                             (⍕⍎⍵)''
+                         }exp
 
-                              qtFlag:(∆QTX exp)''       ⍝ ::DEFQ ...
-                              exp''                     ⍝ ::DEF  ...
-                          }f4
-                          _←put f2 val
-                          nm←PREFIX,(isVal⊃'DEF' 'VAL'),qtFlag/'Q'
-                          f0 annotate nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
-                      }
+                         qtFlag:(∆QTX exp)''       ⍝ ::DEFQ ...
+                         exp''                     ⍝ ::DEF  ...
+                     }f4
+                     _←put f2 val
+                     nm←PREFIX,(isVal⊃'DEF' 'VAL'),qtFlag/'Q'
+                     f0 annotate nm,' ',f2,' ← ',f4,' ➡ ',val,note,' ',YES
+                 }
 
              ⍝ ::DEF family: Definitions after macro processing.
              ⍝ ::DEF | ::DEFQ
@@ -562,7 +583,7 @@
              ⍝   Define name as val, unconditionally.
              ⍝ ::DEFQ ...
              ⍝   Same as ::DEF, except put the value in single-quotes.
-                      case cDEF:procDefVal 0
+                 case cDEF:procDefVal 0
 
              ⍝  ::VAL family: Definitions from evaluating after macro processing
              ⍝  ::EVAL | ::EVALQ
@@ -572,7 +593,7 @@
              ⍝    Returns <val> executed in the caller namespace...
              ⍝  ::EVALQ: like EVAL, but returns the value in single quotes.
              ⍝    Experimental preprocessor-time evaluation
-                      case cVAL:procDefVal 1
+                 case cVAL:procDefVal 1
 
              ⍝ ::CDEF family: Conditional Definitions
              ⍝ ::CDEF name ← val      ==>  name ← 'val'
@@ -580,27 +601,27 @@
              ⍝ Set name to val only if name NOT already defined.
              ⍝ ::CDEFQ ...
              ⍝ Like ::CDEF, but returns the value in single quotes.
-                      case cCDEF:{
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          isDefined f2:annotate f0,NO      ⍝ If <name> defined, don't ::DEF...
-                          qtFlag arrFlag←0≠≢¨f1 f3
-                          val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
-                              exp←preEval ⍵
-                              qtFlag:∆QTX exp
-                              exp
-                          }f4
-                          _←put f2 val
-                          f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
-                      }0
+                 case cCDEF:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     isDefined f2:annotate f0,NO      ⍝ If <name> defined, don't ::DEF...
+                     qtFlag arrFlag←0≠≢¨f1 f3
+                     val←f2{(~arrFlag)∧0=≢⍵:∆QTX ⍺ ⋄ 0=≢⍵:''
+                         exp←preEval ⍵
+                         qtFlag:∆QTX exp
+                         exp
+                     }f4
+                     _←put f2 val
+                     f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
+                 }0
 
               ⍝ ::UNDEF - undefines a name set via ::DEF, ::VAL, ::STATIC, etc.
               ⍝ ::UNDEF name
               ⍝ Warns if <name> was not set!
-                      case cUNDEF:{
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          _←del f1⊣{isDefined ⍵:'' ⋄ print INFO,' UNDEFining an undefined name: ',⍵}f1
-                          annotate f0,YES
-                      }0
+                 case cUNDEF:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     _←del f1⊣{isDefined ⍵:'' ⋄ print INFO,' UNDEFining an undefined name: ',⍵}f1
+                     annotate f0,YES
+                 }0
 
               ⍝ ::STATIC - declares persistent names, defines their values,
               ⍝            executes code @ preproc time.
@@ -608,33 +629,33 @@
               ⍝   2) create preproc-time static values,
               ⍝   3) execute code at preproc time
               ⍝      Dyalog user commands are of the form:  ]user_cmd or ]name ← user_cmd
-                      case cSTAT:{
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
-                          val←{
+                 case cSTAT:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
+                     val←{
                   ⍝ [1a] Expand any code that is not prefixed with ]...
-                              0=≢usr:preEval f4     ⍝ User command?
+                         0=≢usr:preEval f4     ⍝ User command?
                   ⍝ [1b] Expand ::STATIC ]user code
                   ⍝ Handle User commands by decoding any assignment ]name←val
                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
-                              usr←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4     ⍝ ]name ← val or  ]val
-                              nm∘←arrow∘←''
-                              usr
-                          }0
+                         usr←∆MY,' ⎕SE.UCMD ',∆QTX nm,arrow,f4     ⍝ ]name ← val or  ]val
+                         nm∘←arrow∘←''
+                         usr
+                     }0
                   ⍝ If the expansion to <val> changed <f4>, note in output comment
-                          expMsg←''(' ➡ ',val)⊃⍨val≢f4
+                     expMsg←''(' ➡ ',val)⊃⍨val≢f4
 
                   ⍝[2] Evaluate ::STATIC apl_code and return.
-                          0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
-                              0::NO({
-                                  invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
-                                  _←NL,'⍝>  '
-                                  _,←print invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')',NL
-                                  _,←'∘static err∘'
-                                  _
-                              }0)
-                              YES''⊣∆MYR⍎val,'⋄1'
-                          }0
+                     0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
+                         0::NO({
+                             invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
+                             _←NL,'⍝>  '
+                             _,←print invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')',NL
+                             _,←'∘static err∘'
+                             _
+                         }0)
+                         YES''⊣∆MYR⍎val,'⋄1'
+                     }0
                   ⍝ Return if apl_code, i.e. NOT a name declaration (with opt'l assignment)
 
                   ⍝[3a] Process ::STATIC name          - declaration
@@ -642,102 +663,102 @@
 
                   ⍝ isFirstDef: Erase name only if first definition and
                   ⍝             not an absolute var, i.e. prefixed with # or ⎕ (⎕SE)
-                          isFirstDef←⍬⍴(isNew←~isDefined nm)∧~'#⎕'∊⍨1↑nm
+                     isFirstDef←⍬⍴(isNew←~isDefined nm)∧~'#⎕'∊⍨1↑nm
 
                   ⍝ Warn if name has been redeclared (and possibly reevaluated) in this session
-                          _←{⍵:''
-                              _←dPrint'Note: STATIC "',nm,': has been redeclared'
-                              0≠≢val:dPrint'>     Value now "',val,'"'
-                              ''
-                          }isNew
+                     _←{⍵:''
+                         _←dPrint'Note: STATIC "',nm,': has been redeclared'
+                         0≠≢val:dPrint'>     Value now "',val,'"'
+                         ''
+                     }isNew
                     ⍝ Register <nm> as if user ⎕MY.nm; see ⎕MY/∆MY.
                     ⍝ Wherever it is used in subsequent code, it's as if calling:
                     ⍝   ::DEF nm ← ⎕MY.nm
-                          _←put nm(myNm←∆MY,'.',nm)
+                     _←put nm(myNm←∆MY,'.',nm)
 
                    ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
                    ⍝ e.g. from prior calls to ∆PRE for the same function/object.
                    ⍝ print: assigning names with values across classes is not allowed in APL or here.
-                          _←∆MYR.⎕EX⍣isFirstDef⊣nm
+                     _←∆MYR.⎕EX⍣isFirstDef⊣nm
 
-                          okMsg errMsg←{
-                              0=≢arrow:YES''
-                              0::NO({
-                                  invalidE←'∆PRE ',PREFIX,'STATIC WARNING: Unable to execute expression'
-                                  _←NL,'⍝>  '
-                                  _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
-                                  _,←'∘static err∘'
-                                  _
-                              }0)
-                              YES''⊣∆MYR⍎nm,'←',val,'⋄1'
-                          }0
-                          _←annotate f0,expMsg,okMsg
-                          _,errMsg
-                      }0
+                     okMsg errMsg←{
+                         0=≢arrow:YES''
+                         0::NO({
+                             invalidE←'∆PRE ',PREFIX,'STATIC WARNING: Unable to execute expression'
+                             _←NL,'⍝>  '
+                             _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
+                             _,←'∘static err∘'
+                             _
+                         }0)
+                         YES''⊣∆MYR⍎nm,'←',val,'⋄1'
+                     }0
+                     _←annotate f0,expMsg,okMsg
+                     _,errMsg
+                 }0
 
               ⍝ ::INCLUDE - inserts a named file into the code here.
               ⍝ ::INCLUDE file or "file with spaces" or 'file with spaces'
               ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
-                      case cINCL:{
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          funNm←∆UNQ f1
-                          _←dPrintQ INFO,2↓(bl←+/∧\f0=' ')↓f0
-                          (_ fullNm dataIn)←getDataIn funNm
-                          _←dPrintQ',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
+                 case cINCL:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     funNm←∆UNQ f1
+                     _←dPrintQ INFO,2↓(bl←+/∧\f0=' ')↓f0
+                     (_ fullNm dataIn)←getDataIn funNm
+                     _←dPrintQ',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
-                          _←fullNm{
-                              includedFiles,←⊂⍺
-                              ~⍵∊⍨⊂⍺:⍬
+                     _←fullNm{
+                         includedFiles,←⊂⍺
+                         ~⍵∊⍨⊂⍺:⍬
                       ⍝ See ::extern __INCLUDE_LIMITS__
-                              count←+/includedFiles≡¨⊂⍺
-                              warn err←(⊂INFO,PREFIX,'INCLUDE '),¨'WARNING: ' 'ERROR: '
-                              count≤1↑__INCLUDE_LIMITS__:⍬
-                              count≤¯1↑__INCLUDE_LIMITS__:print warn,'File "',⍺,'" included ',(⍕count),' times'
-                              11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
-                          }includedFiles
-                          includeLines∘←dataIn
-                          annotate f0,' ',INFO,msg
-                      }0
+                         count←+/includedFiles≡¨⊂⍺
+                         warn err←(⊂INFO,PREFIX,'INCLUDE '),¨'WARNING: ' 'ERROR: '
+                         count≤1↑__INCLUDE_LIMITS__:⍬
+                         count≤¯1↑__INCLUDE_LIMITS__:print warn,'File "',⍺,'" included ',(⍕count),' times'
+                         11 ⎕SIGNAL⍨err,'File "',⍺,'" included too many times (',(⍕count),')'
+                     }includedFiles
+                     includeLines∘←dataIn
+                     annotate f0,' ',INFO,msg
+                 }0
 
               ⍝ ::IMPORT name [extern_name]
               ⍝ Imports name (or, if extern_name specified: imports extern_name as name)
               ⍝ Reads in the value of a variable, then converts it to a value.
               ⍝ If its format is unusable (e.g. in a macro), that's up to the user.
-                      case cIMPORT:{
-                          f2←f2 f1⊃⍨0=≢f2
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          info←' ','[',']',⍨{
-                              0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
-                              'IMPORTED'⊣put f1(CALLER.⎕OR f2)
-                          }⍬
-                          annotate f0,info
-                      }⍬
+                 case cIMPORT:{
+                     f2←f2 f1⊃⍨0=≢f2
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     info←' ','[',']',⍨{
+                         0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NO⊣del f1
+                         'IMPORTED'⊣put f1(CALLER.⎕OR f2)
+                     }⍬
+                     annotate f0,info
+                 }⍬
 
               ⍝ ::TRANS / ::TR - translate a single character on input.
               ⍝ ::TRANS ⍺ ⍵    Translate char ⍺ to ⍵
               ⍝ Affects only user code ('macro' scanning)
-                      case cTRANS:{
-                          T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                          info←''
-                          f1 f2←{
-                              0::¯1
-                              0=≢⍵:¯1 ⋄ info,←' →'/⍨0≠≢info
-                              (1=≢⍵)∧⍵≡,'\':' '⊣info,←' " " U+32'             ⍝ \ch2    (ch2=' ')
-                              1=≢⍵:⍵⊣info,←' U+',⍕⎕UCS ⍵                      ⍝ ch1
-                              c←⍵↓⍨esc←'\'=⊃⍵
-                              ⋄ escC←esc∧(~⎕D∊⍨⊃c)∧1=≢c
-                              escC:c⊣info,←' U+',⍕⎕UCS c                      ⍝ \c, ~(c∊⎕D)
-                              ⋄ hex←1∊'xX'∊⍵
-                              c←⎕UCS u←hex{⍺:∆H2D ⍵ ⋄ ⍎⍵}c                    ⍝ \dd or dd
-                              info,←hex/' U+',⍕u
-                              u≥32:c⊣info,←' "',c,'"'                ⍝ digits  (from hex/dec)
-                              c⊣info,←' [ctl]'                       ⍝ digits  (ctl char)
-                          }¨f1 f2
-                          ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ',PREFIX,'TRANS ERROR'
-                          (translateIn translateOut)∘←f1 f2
-                          annotate f0,' ⍝ ',info
-                      }⍬
-                  }
+                 case cTRANS:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     info←''
+                     f1 f2←{
+                         0::¯1
+                         0=≢⍵:¯1 ⋄ info,←' →'/⍨0≠≢info
+                         (1=≢⍵)∧⍵≡,'\':' '⊣info,←' " " U+32'             ⍝ \ch2    (ch2=' ')
+                         1=≢⍵:⍵⊣info,←' U+',⍕⎕UCS ⍵                      ⍝ ch1
+                         c←⍵↓⍨esc←'\'=⊃⍵
+                         ⋄ escC←esc∧(~⎕D∊⍨⊃c)∧1=≢c
+                         escC:c⊣info,←' U+',⍕⎕UCS c                      ⍝ \c, ~(c∊⎕D)
+                         ⋄ hex←1∊'xX'∊⍵
+                         c←⎕UCS u←hex{⍺:∆H2D ⍵ ⋄ ⍎⍵}c                    ⍝ \dd or dd
+                         info,←hex/' U+',⍕u
+                         u≥32:c⊣info,←' "',c,'"'                ⍝ digits  (from hex/dec)
+                         c⊣info,←' [ctl]'                       ⍝ digits  (ctl char)
+                     }¨f1 f2
+                     ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ',PREFIX,'TRANS ERROR'
+                     (translateIn translateOut)∘←f1 f2
+                     annotate f0,' ⍝ ',info
+                 }⍬
+             }
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ EXECUTIVE
@@ -746,93 +767,94 @@
            ⍝ See HELP info above
            ⍝ See below
            ⍝ Set prepopulated macros
-                  mNames←mVals←mNameVis←⍬
-                  _←0 put'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
-                  _←0 put'__VERBOSE__'__VERBOSE__
-                  _←0 put'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
-                  _←0 put'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
-                  _←0 put'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
+             mNames←mVals←mNameVis←⍬
+             _←0 put'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
+             _←0 put'__VERBOSE__'__VERBOSE__
+             _←0 put'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
+             _←0 put'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
+             _←0 put'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
            ⍝ Other user-oriented macros
-                  _←0 put'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
-                  _←0 put'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
+             _←0 put'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
+             _←0 put'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
                                                     ⍝ entries: (key-val pairs | ⍬)
-                  _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
-                  _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
-                  _←0 put'⎕EVAL' '⍎¨0∘∆PRE '
+             _←0 put'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
+             _←0 put'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
+             _←0 put'⎕EVAL' '⍎¨0∘∆PRE '
 
            ⍝ Read in data file...
-                  funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
-                  tmpNm←'__',funNm,'__'
+             funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
+             tmpNm←'__',funNm,'__'
 
            ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
            ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
-                  ∆MY←''⎕NS⍨(⍕CALLER),'.⍙⍙.',funNm,'.∆MY'
-                  _←{
-                      0=≢list←∆MY.⎕NL-⍳10:0
-                      _←print PREFIX,'STATIC variables for ',(⍕CALLER),'.',funNm,'exists'
-                      1⊣print'  Variables:',∊' ',¨list
-                  }
-                  (∆MYR←⍎∆MY)._FIRST_←1
-                  _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
-                  _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-                  _←0 put'⎕MY'∆MY                    ⍝ ⎕MY    → a private 'static' namespace
-                  _←0 put'⎕FIRST'(∆MY,'.FIRST')      ⍝ ⎕FIRST → ∆MY.FIRST
-
+             ∆MY←''⎕NS⍨(⍕CALLER),'.⍙⍙.',funNm,'.∆MY'
+             _←{
+                 0=≢list←∆MY.⎕NL-⍳10:0
+                 _←print PREFIX,'STATIC variables for ',(⍕CALLER),'.',funNm,'exists'
+                 1⊣print'  Variables:',∊' ',¨list
+             }
+             (∆MYR←⍎∆MY)._FIRST_←1
+             _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
+             _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
+             _←0 put'⎕MY'∆MY                 ⍝ ⎕MY    → a private 'static' namespace
+             _←0 put'⎕FIRST'(∆MY,'.FIRST')      ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+             _←0 put'⎕ME' '(⊃⎕SI)'            ⍝ Simple name of active function
+             _←0 put'⎕XME' '(⊃⎕XSI)'           ⍝ Full name of active functin
 
            ⍝ Other Initializations
-                  stack←,1 ⋄ lineNum←0
-                  includedFiles←⊂fullNm
-                  translateIn←translateOut←⍬                 ⍝ None
-                  NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
-                  _←dPrint'Processing input object ',(∆DQT funNm),' from file ',∆DQT fullNm
-                  _←dPrint'Object has ',NLINES,' lines'
-                  dataFinal←⍬
-                  includeLines←⍬
-                  comment←⍬
+             stack←,1 ⋄ lineNum←0
+             includedFiles←⊂fullNm
+             translateIn←translateOut←⍬                 ⍝ None
+             NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
+             _←dPrint'Processing input object ',(∆DQT funNm),' from file ',∆DQT fullNm
+             _←dPrint'Object has ',NLINES,' lines'
+             dataFinal←⍬
+             includeLines←⍬
+             comment←⍬
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: Phase I
            ⍝ --------------------------------------------------------------------------------
            ⍝ Kludge: We remove comments from all directives up front...
            ⍝ Not ideal, but...
-                  pInDirectiveE←'^\h*\Q',PREFIX,'\E'
-                  inDirective←0
+             pInDirectiveE←'^\h*\Q',PREFIX,'\E'
+             inDirective←0
            ⍝ Process double quotes and continuation lines that may cross lines
-                  pNotInSetP←⎕UCS 8713
-                  phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
-                      cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
-                      f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
+             pNotInSetP←⎕UCS 8713
+             phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
+                 cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
+                 f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
               ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
               ⍝  print (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
-                      case cInDirective:f0⊣inDirective⊢←1
-                      case cDQ3e:' '                             ⍝ """..."""
-                      case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
-                      case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
-                          ~NL∊⍵:⍵
-                          _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
-                          _←print'String: ','⤶'@(NL∘=)⍵
-                          ' '@(NL∘=)⍵
-                      }f0
-                      case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
-                      case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
-                      case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
-                      case cNotInSet:'{~⍺∊⍵}'
+                 case cInDirective:f0⊣inDirective⊢←1
+                 case cDQ3e:' '                             ⍝ """..."""
+                 case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
+                 case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
+                     ~NL∊⍵:⍵
+                     _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
+                     _←print'String: ','⤶'@(NL∘=)⍵
+                     ' '@(NL∘=)⍵
+                 }f0
+                 case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
+                 case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
+                 case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
+                 case cNotInSet:'{~⍺∊⍵}'
                 ⍝ case 4: EOL triggers comment processing from above
-                      ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
-                      inDirective⊢←0                                ⍝ Reset  flag after each NL
-                      0=≢comment:f0
-                      ln←comment,' ',f1,NL ⋄ comment⊢←⍬
+                 ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
+                 inDirective⊢←0                                ⍝ Reset  flag after each NL
+                 0=≢comment:f0
+                 ln←comment,' ',f1,NL ⋄ comment⊢←⍬
               ⍝ If the commment is more than (⎕PW÷2), put on newline
-                      (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
-                  }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣preamble,dataIn
+                 (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
+             }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣preamble,dataIn
            ⍝ Process macros... one line at a time, so state is dependent only on lines before...
-                  phaseI←{⍺←⍬
-                      0=≢⍵:⍺
-                      line←⊃⍵
-                      line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
-                      (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
-                  }phaseI
+             phaseI←{⍺←⍬
+                 0=≢⍵:⍺
+                 line←⊃⍵
+                 line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
+                 (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
+             }phaseI
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: PhaseII
@@ -841,38 +863,38 @@
            ⍝    ⍺=1: Keep __name__ (on error path or if __DEBUG__=1)
            ⍝    ⍺=0: Delete __name__ unless error (not error and __DEBUG__=0)
            ⍝ Returns ⍵ with NULLs removed...
-                  condSave←{⍺←EDIT∨__DEBUG__
-                      _←⎕EX tmpNm
-                      ⍺:⍎'CALLER.',tmpNm,'←⍵~¨NULL'
-                      ⍵
-                  }
+             condSave←{⍺←EDIT∨__DEBUG__
+                 _←⎕EX tmpNm
+                 ⍺:⍎'CALLER.',tmpNm,'←⍵~¨NULL'
+                 ⍵
+             }
            ⍝ ERROR PATH
-                  999::11 ⎕SIGNAL⍨{
-                      _←1 condSave ⍵
-                      _←'Preprocessor error. Generated object for input "',funNm,'" is invalid.',⎕TC[2]
-                      _,'See preprocessor output: "',tmpNm,'"'
-                  }phaseI
-                  phaseII←condSave phaseI
+             999::11 ⎕SIGNAL⍨{
+                 _←1 condSave ⍵
+                 _←'Preprocessor error. Generated object for input "',funNm,'" is invalid.',⎕TC[2]
+                 _,'See preprocessor output: "',tmpNm,'"'
+             }phaseI
+             phaseII←condSave phaseI
            ⍝ Edit (for review) if EDIT=1
-                  _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
-                  phaseII←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
-                      ⋄ opts←('Mode' 'M')('EOL' 'LF')
+             _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
+             phaseII←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
+                 ⋄ opts←('Mode' 'M')('EOL' 'LF')
                ⍝ We have embedded newlines for lines with macros expanded: see annotate
                ⍝ [a] ⎕R handles them (per EOL LF). See [b]
-                      NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵    ⍝ Remove blank lines and comments.
-                      NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
+                 NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵    ⍝ Remove blank lines and comments.
+                 NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
                ⍝ [b] Explicitly handle embedded NLs
-                      {⊃,/NL(≠⊆⊢)¨⍵}⍵
-                  }phaseII
+                 {⊃,/NL(≠⊆⊢)¨⍵}⍵
+             }phaseII
 
                ⍝ if FIX=1, we may have a tradfn w/o a leading ∇ whose first line needs to be skipped
                ⍝ to avoid treating header semicolons as list separators.
                ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
-                  phaseII←FIX scan4Semi phaseII
-                  FIX:_←2 CALLER.⎕FIX phaseII
-                  phaseII
-              }⍵
-          }⍵
+             phaseII←FIX scan4Semi phaseII
+             FIX:_←2 CALLER.⎕FIX phaseII
+             phaseII
+         }⍵
+     }⍵
 
 
 
@@ -1212,7 +1234,7 @@
   ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
   ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
   ⍝H
-  }
+ }
     ##.∆PRE←∆PRE
 
 ∇linesOut←{isFn}scan4Semi lines
