@@ -6,7 +6,7 @@
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
      (⊃⊆,⍺)(⎕NS'').{
-         ⎕IO ⎕ML ⎕PP←0 1 34
+         ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
        ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
        ⍝ When a user DEFs these macros (read or write), ∆PRE will see them
        ⍝ as their corresponding local variables of the same name
@@ -41,7 +41,7 @@
              ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
              ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
              ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:  ',FIX
+             ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:     ',FIX
              0
          }⍺
        ⍝ HELP PATH
@@ -275,8 +275,11 @@
               ⍝     1 1.5 ∆TO 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
               ⍝ expanded to allow (homogenous) Unicode chars
               ⍝     'a' ∆TO 'f' → 'abcdef'  ⋄   'ac' ∆TO 'g'    →   'aceg'
+              ⍝ We use ⎕FR=1287 internally, but the exported version will use the ambient value.
+              ⍝ This impacts only floating ranges...
                  ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
                  ∆TOcode←{(2+≢⍵)↓⊃⎕NR ⍵}'∆TO'
+
               ⍝ Single-char translation input option. See ::TRANS
                  str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
                  mNameVis[]∘←1      ⍝ Make all visible until next call to preEval
@@ -875,8 +878,6 @@
                  _,'See preprocessor output: "',tmpNm,'"'
              }phaseI
              phaseII←condSave phaseI
-           ⍝ Edit (for review) if EDIT=1
-             _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
              phaseII←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
                  ⋄ opts←('Mode' 'M')('EOL' 'LF')
                ⍝ We have embedded newlines for lines with macros expanded: see annotate
@@ -891,6 +892,9 @@
                ⍝ to avoid treating header semicolons as list separators.
                ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
              phaseII←FIX scan4Semi phaseII
+             ⍝ Edit (for review) if EDIT=1
+               _←⍎tmpNm,'←↑phaseII'  
+               _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
              FIX:_←2 CALLER.⎕FIX phaseII
              phaseII
          }⍵
