@@ -2,6 +2,7 @@
   ∆PRE←{
      ⍺←''
      0≡⍺:'-noF -noC -noV -noD'∇ ⍵
+     1≡⍺:'' ∇ (⊂'__PRE__'),⊆⍵
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
@@ -31,7 +32,7 @@
          __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-         EDIT←(⎕NULL≡⍵)∨opt'E'                            ⍝ Default 0; 1 if ⍵≡⎕NULL
+         EDIT←(⎕NULL≡⍬⍴⍵)∨opt'E'                           ⍝ Default 0; 1 if ⍵≡∊⎕NULL
          QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
          FIX←~opt'noF'                                    ⍝ Default 1
 
@@ -185,7 +186,7 @@
            ⍝ (See promptForData) for returned value.
              getDataIn←{∆∆←∇
                  19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
-                 ⍵≡⎕NULL:promptForData ⍬
+                 ⎕NULL≡⍬⍴⍵:promptForData ⍬
                  2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
 
                  ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
@@ -254,9 +255,11 @@
              }
              mDel←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
                  p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n
-                 mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n}
+                 mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n
+             }
              mHasDef←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1}
+                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1
+             }
 
          ⍝-----------------------------------------------------------------------
          ⍝ macroExpand (macro expansion, including special predefined expansion)
@@ -286,8 +289,8 @@
                      strIn←str←⍵
                      0≥⍺:⍵
                      nmsFnd←⍬
-                ⍝ Match/macroExpand...
-                ⍝ [1] pLongNmE: long names,
+                   ⍝ Match/macroExpand...
+                   ⍝ [1] pLongNmE: long names,
                      cUserE cSkipE cLongE←0 1 2
                      str←{
                          e1←'∆PRE: Value is too complex to represent statically:'
@@ -300,8 +303,8 @@
                              ∘Unreachable∘                               ⍝ else: comments
                          }⍠'UCP' 1⊣⍵
                      }str
-                 ⍝ [2] pShortNmE: short names (even within found long names)
-                 ⍝     pSpecialIntE: Hexadecimals and bigInts
+                   ⍝ [2] pShortNmE: short names (even within found long names)
+                   ⍝     pSpecialIntE: Hexadecimals and bigInts
                      cSkipE cShortNmE cSpecialIntE←0 1 2
                      str←pSkipE pShortNmE pSpecialIntE ⎕R{
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
@@ -314,13 +317,13 @@
                          case cShortNmE:⍕mGetActive f0⊣nmsFnd,←⊂f0
                          ∘Unreachable∘
                      }⍠'UCP' 1⊣str
-               ⍝  Deal with ATOMS of two types:
-               ⍝  Simple atoms: names or numbers
-               ⍝     `  name 123.45 nam2 123j45 etc.
-               ⍝  Code atoms:
-               ⍝     `  ({dfn}|\(apl fn\))+
-               ⍝  Code atoms return a namespace ns such that
-               ⍝     ([⍺] ns.fn ⍵) calls  [⍺] {dfn} ⍵
+                   ⍝ Deal with ATOMS of two types:
+                   ⍝ Simple atoms: names or numbers
+                   ⍝     `  name 123.45 nam2 123j45 etc.
+                   ⍝ Code atoms:
+                   ⍝     `  ({dfn}|\(apl fn\))+
+                   ⍝ Code atoms return a namespace ns such that
+                   ⍝     ([⍺] ns.fn ⍵) calls  [⍺] {dfn} ⍵
                      procSimpleAtoms←{
                          ⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
                          nest←'⊆'/⍨~dbl
@@ -334,17 +337,21 @@
                          }¨' '(≠⊆⊢)⍵
                          '(',nest,atoms,')','{⍺⍵}'/⍨arrow
                      }
+                   ⍝ We'll allow either a list of simple atoms (names or numbers) 
+                   ⍝ or a list of fns (dfns or parenthesized expressions), but not 
+                   ⍝ the two types mixed together.
                      str←pSkipE pATOMSe pAtomFnListE ⎕R{
                          case←⍵.PatternNum∘∊
                          case 0:⍵ ∆FLD 0
-                         case 1:(1∊≢¨f1 f4)(1=≢f3)procSimpleAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
+                         case 1:(1∊0<≢¨f1 f4)(1=≢f3)procSimpleAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
                         ⍝ case 2:
+                         1≠≢⍵ ∆FLD 1:⍵ ∆FLD 0  ⍝ `` {...} and related fn atoms sequences are ignored.
                          pSkipE pAtomFn1E ⎕R{
                              case←⍵.PatternNum∘∊
                              case 0:⍵ ∆FLD 0
                              ⍝ case 1:
                              '(',f1,'{(ns←⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⎕NR''fn''}0)'⊣f1←⍵ ∆FLD 1
-                         }⍵ ∆FLD 1
+                         }⍵ ∆FLD 2
                      }⍠('UCP' 1)('Mode' 'M')⊣str
                   ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
                   ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
@@ -368,6 +375,13 @@
                          {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
                      }⍠'UCP' 1⊣str
                   ⍝  Do we scan the string again?
+                  ⍝  It might be preferable to recursively scan code segments
+                  ⍝  that might have macros or special elements, 
+                  ⍝  but for naive simplicity, we simply
+                  ⍝  rescan the entire string every time it changes.
+                  ⍝  In case there is some kind of runaway replacements 
+                  ⍝  (e.g. ::DEF A←B and ::DEF B←A), we won't rescan more than
+                  ⍝  __MAX__EXPAND__ times. 
                      str≡strIn:str
                      _←nmsFnd← ⍬ ⊣ mHideAll nmsFnd
                      (⍺-1)∇ str
@@ -470,27 +484,47 @@
               ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
              pContE←'(?x) \h* \.{2,} \h* (   ⍝ .*)? \n \h*'
              pEOLe←'\n'
-           ⍝ Treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
+           ⍝ Pre-treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
              pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
-              ⍝ For  (names → ...) and (`names)
+
+           ⍝ Simple atoms: names and numbers (and zilde)
+           ⍝ Syntax:
+           ⍝       (atom1 [atom2...] → ...) and (` atom1 [atom2])
+           ⍝                                and (``atom1 [atom2])
+           ⍝ where 
+           ⍝        atom1 is either of the format of an APL name or number or zilde
+           ⍝           a_name, a.qualified.name, #.another.one
+           ⍝           125,  34J55, 1.2432423E¯55, ⍬
              ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
              ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
              ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
-             ⋄ _←'(?xi)  (?| \`(\`?) \h* (⍎_pAtoms)'
-             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* (→)(→?)) '
+             ⍝  Permissively consume extra ` or → and allow spaces between.
+             ⍝  (This avoids a later scan recursively interpreting ` ` ` name unpredictably).
+             ⋄ _←'(?xi)  (?| ` ( (?: \h* ` )* ) \h* (⍎_pAtoms)'
+             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* ( → ) ( (?: \h* → )* ) '
+             ⋄ _,←'      ) '
                   ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
              pATOMSe←∆MAP _
 
-          ⍝ ptrPat:   ` fn1 [ fn2 [ fn3 ] ... ]
-          ⍝             where fnN is a function expression:
-          ⍝                  {dfn} | (fn name) | (apl fn expression)
+          ⍝ Function atoms: dfns, parenthesized code
+          ⍝ Syntax:   
+          ⍝    ` fn1 [ fn2 [ fn3 ] ... ]
+          ⍝      where fnN  must be in braces (a dfn) or parentheses (a fork or APL fn name)
+          ⍝        {⍺⍳⍵}, (+.×) (sum ÷ tally)  (ave)   
+          ⍝      where sum and tally might be defined as
+          ⍝        sum←+/ ⋄ tally←≢                         
+          ⍝      and ave perhaps a tradfn name, a dfn name, or a named fork or other code
+          ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
+          ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
+          ⍝ Note: a 2nd ` is not allowed for function atoms.
              _←'(?xi)   (?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
              _,←'                | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
              _,←'       ) '
              (_BRL _BRR _BRN)←'{}1' ⋄ _pBrack←∆MAP _
              (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
              pAtomFn1E←'(',_pBrack,'|',_pParen,')'
-             pAtomFnListE←'(?xi) ` \h* ','(',pAtomFn1E,'(\h*',pAtomFn1E,')* )'
+             _pAtomPre← ' ` (?: \h* ` )* '
+             pAtomFnListE←∆MAP'(?xi) ( ⍎_pAtomPre ) \h* ( ⍎pAtomFn1E (?: \h* ⍎pAtomFn1E )* )'
 
          ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
@@ -772,7 +806,8 @@
              mNames←mVals←mNameVis←⍬
              _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
              _←0 mPut'__VERBOSE__'__VERBOSE__
-             _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded 10 times if changes occurred...
+             _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
+             ⍝                                       ⍝ Avoids runaway recursion...
              _←0 mPut'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
              _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
            ⍝ Other user-oriented macros
@@ -823,7 +858,7 @@
              inDirective←0
            ⍝ Process double quotes and continuation lines that may cross lines
              pNotInSetP←⎕UCS 8713
-             phaseI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
+             dataOut←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
                  cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
                  f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
@@ -851,12 +886,13 @@
                  (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
              }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣preamble,dataIn
            ⍝ Process macros... one line at a time, so state is dependent only on lines before...
-             phaseI←{⍺←⍬
+           ⍝ It may be slow, but it works!
+             dataOut←{⍺←⍬
                  0=≢⍵:⍺
                  line←⊃⍵
                  line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
                  (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
-             }phaseI
+             }dataOut
 
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: PhaseII
@@ -875,9 +911,9 @@
                  _←1 condSave ⍵
                  _←'Preprocessor error. Generated object for input "',funNm,'" is invalid.',⎕TC[2]
                  _,'See preprocessor output: "',tmpNm,'"'
-             }phaseI
-             phaseII←condSave phaseI
-             phaseII←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
+             }dataOut
+             dataOut←condSave dataOut 
+             dataOut←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
                  ⋄ opts←('Mode' 'M')('EOL' 'LF')
                ⍝ We have embedded newlines for lines with macros expanded: see annotate
                ⍝ [a] ⎕R handles them (per EOL LF). See [b]
@@ -885,17 +921,17 @@
                  NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
                ⍝ [b] Explicitly handle embedded NLs
                  {⊃,/NL(≠⊆⊢)¨⍵}⍵
-             }phaseII
+             }dataOut
 
                ⍝ if FIX=1, we may have a tradfn w/o a leading ∇ whose first line needs to be skipped
                ⍝ to avoid treating header semicolons as list separators.
                ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
-             phaseII←FIX scan4Semi phaseII
+             dataOut←FIX scan4Semi dataOut
              ⍝ Edit (for review) if EDIT=1
-               _←⍎tmpNm,'←↑phaseII'  
-               _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
-             FIX:_←2 CALLER.⎕FIX phaseII
-             phaseII
+               _←{CALLER⍎tmpNm,'←↑⍵'}dataOut  
+               _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←CALLER.⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
+             FIX:_←2 CALLER.⎕FIX dataOut
+             dataOut
          }⍵
      }⍵
 
@@ -909,36 +945,40 @@
   ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:(codeFileName | strings[] | ⎕NULL)
   ⍝H
   ⍝H ---------------------------------------------------------
-  ⍝H   ⍺
-  ⍝H OPTIONS
-  ⍝H (Defaults):
-  ⍝H    -noV -D -noE -C -noH
-  ⍝H -V | -noV   __VERBOSE__, include directives and status in output code.
-  ⍝H   Default: -V  (Also a R/W macro)
-  ⍝H -D | -noD   __DEBUG__, add annotations to ⎕ (stdout)
-  ⍝H   Default: -noD    (Also a R/W macro)
-  ⍝H -E | -noE   EDIT, look at annotated preprocessed intermediate file
-  ⍝H   Default: -noE, except as below
-  ⍝H            -E, if ⍵ (right argument) is ⎕NULL
-  ⍝H -noC        NOCOM, remove all comment lines and blank lines
-  ⍝H   Default: (-C)
-  ⍝H -noB        NOBLANK, remove blank lines
-  ⍝H   Default: (-B)
-  ⍝H -H          HELP, show help info, ignoring ⍵ (right arg)
-  ⍝H   Default: (-noH)
-  ⍝H -F | -noF   FIX, i.e. do 2 ⎕FIX on the generated code (fns and namespaces)
-  ⍝H   Default: (-F)
-  ⍝H   With -noF,
-  ⍝H     the right argument is assumed to be 0 or more code lines, never
-  ⍝H     a file specification; it is used for preprocessing a sequence of code lines
-  ⍝H     for dynamic use, e.g. in ∆PRE itself...
-  ⍝H     If -noF is specified, the result of the preprocessing is returned.
-  ⍝H     ⍵ may be a single char vector or a vector of (char) vectors.
+  ⍝H  ⍺
+  ⍝H  OPTIONS
+  ⍝H      DEBUG    -[no]D,    VERBOSE  -[no]V    EDIT  -[no]E 
+  ⍝H      COMMENTS -[no]C,    BLANK    -[no]B    FIX   -[no]F
+  ⍝H      HELP     -[no]H
+  ⍝H  Option Defaults): -noV -D -noE -C -noH
+  ⍝H   -[no]V     __VERBOSE__, include directives and status in output code.
+  ⍝H              Default: -V  (Also a R/W macro)
+  ⍝H   -[no]D     __DEBUG__, add annotations to ⎕ (stdout)
+  ⍝H              Default: -noD    (Also a R/W macro)
+  ⍝H   -[no]E     EDIT, look at annotated preprocessed intermediate file
+  ⍝H              Default: -noE   except as below
+  ⍝H                       -E     if ⍵ (right argument) is ⎕NULL
+  ⍝H   -[no]C     NOCOM, remove all comment lines and blank lines
+  ⍝H              Default: (-C)
+  ⍝H   -[no]B     NOBLANK, remove blank lines
+  ⍝H              Default: (-B)
+  ⍝H   -[no]H     HELP, show help info, ignoring ⍵ (right arg)
+  ⍝H              Default: (-noH)
+  ⍝H   -[no]F     FIX, i.e. do 2 ⎕FIX on the generated code (fns and namespaces)
+  ⍝H              Default: (-F)
+  ⍝H      With -noF,
+  ⍝H       the right argument is assumed to be 0 or more code lines, never
+  ⍝H       a file specification; it is used for preprocessing a sequence of code lines
+  ⍝H       for dynamic use, e.g. in ∆PRE itself...
+  ⍝H       If -noF is specified, the result of the preprocessing is returned.
+  ⍝H       ⍵ may be a single char vector or a vector of (char) vectors.
   ⍝H Special options:
-  ⍝H   0:  Same as: -noF[ix] -noC[omments] -noV[erbose] -noD[ebug]
+  ⍝H   0*  Same as: -noF[ix] -noC[omments] -noV[erbose] -noD[ebug]
   ⍝H       Used internally for the ⎕EVAL macro:  (⎕EVAL string) ←==→ (⍎¨0∘∆PRE string)
+  ⍝H       *Numeric 0.
+  ⍝H   1*  Same as: options '', but treats ⍵ as ⊆⍵
   ⍝H
-  ⍝H Debugging Flags
+  ⍝H Internal macro debugging Flags  
   ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
   ⍝H           then __DEBUG__ mode is set, even if the 'D' flag is not specified.
   ⍝H           unless 'Q' (quiet) mode is set explicitly.
@@ -950,12 +990,10 @@
   ⍝H    Otherwise,
   ⍝H           Internal flag variable __DEBUG__ is defined as 0.
   ⍝H           Verbose mode then depends on the 'V' flag (default is 1).
-  ⍝H
   ⍝H    Use ::IF __DEBUG__ etc. to change preprocessor behavior based on debug status.
   ⍝H
-  ⍝H
   ⍝H ---------------------------------------------------------
-  ⍝H   ⍺
+  ⍝H  ⍺
   ⍝H  (1↓⍺): preamble1 ... preambleN
   ⍝H ---------------------------------------------------------
   ⍝H    Zero or more lines of a preamble to be included at the start,
@@ -965,14 +1003,15 @@
   ⍝H          ↑__ option(s)
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H  ⍵
-  ⍝H   [1] ⍵:codeFN   The filename of the function, operator, namespace, or set of objects
-  ⍝H   [2] ⍵:str[]    A vector of strings, defining one or more fns, ops or namesoaces,
-  ⍝H                  in 2∘⎕FIX-format.
-  ⍝H       If ⍺ has the -noFix option (or is 0), ⍵ is converted to a vect of vectors,
-  ⍝H       if needed, i.e. ⍵ is passed as if ⊆⍵.
-  ⍝H   [3] ⍵:⎕NULL    Prompt for lines from the user, creating pseudo-function
-  ⍝H                  __PROMPT__
+  ⍝H  ⍵:   filename | code | ⎕NULL
+  ⍝H   [1] ⍵:filename   The filename of the function, operator, namespace, or set of objects
+  ⍝H   [2] ⍵:code       A vector of strings, defining one or more fns, ops or namespaces,
+  ⍝H                    in 2∘⎕FIX-format.
+  ⍝H   [3] ⍵:⎕NULL      Prompt for lines from the user, creating pseudo-function
+  ⍝H                    __PROMPT__
+  ⍝H   ∘ If ⍺ includes the -noFix option (or is 0), ⍵ is passed as a vector of strings,
+  ⍝H     as needed, i.e. ⊆⍵ (unless ⎕NULL).
+  ⍝H   ∘ If ⍺  is 1, ⍵ will be passed as a vector of strings, i.e. ⊆⍵.
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
   ⍝H    [1] The simple name, name.ext, or full filename
@@ -1302,10 +1341,12 @@
      linesOut,←⊂∊lineOut
  :EndFor
 
-    pSQ←'(?:''[^'']*'')+'
-    pComment←'⍝.*$'
-    pBareParens←'\(\h*\)'
- linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' '⍬'⍠('Mode' 'M')⊣linesOut
+ pSQ←'(?:''[^'']*'')+'
+ pComment←'⍝.*$'
+ pBareParens←'\(\h*\)'
+ :IF 0≠≢linesOut  
+    linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' '⍬'⍠('Mode' 'M')⊣linesOut
+ :ENDIF
  linesOut←prefix,linesOut
 ∇
 :endnamespace
