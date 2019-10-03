@@ -1,8 +1,9 @@
 :namespace ∆PREns
+ ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
      0≡⍺:'-noF -noC -noV -noD'∇ ⍵
-     1≡⍺:'' ∇ (⊂'__PRE__'),⊆⍵
+     1≡⍺:'' ∇ (⊂'__PRE__'),⊆⍵      ⍝ Is this useful?
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
@@ -51,6 +52,7 @@
 
          (1↓⊆,⍺){
              preamble←⍺
+             fnPtrCtr←¯1
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
            ⍝ annotate [preprocessor (output) code]
@@ -343,15 +345,26 @@
                      str←pSkipE pATOMSe pAtomFnListE ⎕R{
                          case←⍵.PatternNum∘∊
                          case 0:⍵ ∆FLD 0
-                         case 1:(1∊0<≢¨f1 f4)(1=≢f3)procSimpleAtoms f2⊣(f1 f2 f3 f4)←⍵ ∆FLD¨1 2 3 4
-                        ⍝ case 2:
-                         1≠≢⍵ ∆FLD 1:⍵ ∆FLD 0  ⍝ `` {...} and related fn atoms sequences are ignored.
+                         case 1:{ ⍝ simple atoms: l1 `, f2 atoms, l3 arrows
+                           l1 l3←≢¨(⍵ ∆FLD¨1 3 )~¨' ' ⋄ f0 atoms←⍵ ∆FLD¨0 2
+                           (2<l1)∨2<l3:f0   ⍝ Ignore triple etc ` or →
+                           (2∊l1,l3)(l3>0)procSimpleAtoms atoms
+                         }⍵
+                        ⍝ case 2:  function atoms: Don't allow more than one ` here.
+                         f0 f1 f2←⍵ ∆FLD¨ 0 1 2 ⋄ l1←≢f1~' '
+                         1≠l1:f0       ⍝ `` {...} and related fn atoms sequences are errors
+                       ⍝ EXTERN: fnPtrCtr←¯1  ⍝ Increments to assist debugging
                          pSkipE pAtomFn1E ⎕R{
                              case←⍵.PatternNum∘∊
                              case 0:⍵ ∆FLD 0
                              ⍝ case 1:
-                             '(',f1,'{(ns←⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⎕NR''fn''}0)'⊣f1←⍵ ∆FLD 1
-                         }⍵ ∆FLD 2
+                             fun←⍵ ∆FLD 1
+                          ⍝  This function-atom function could be inserted in-line
+                          ⍝  or placed in ⎕SE. We choose the latter to make the
+                          ⍝  processed code a bit easier to parse...
+                             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⍕⎕NR''fn''}'
+                             '(',')',⍨fun,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
+                         }f2
                      }⍠('UCP' 1)('Mode' 'M')⊣str
                   ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
                   ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
@@ -500,8 +513,9 @@
              ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
              ⍝  Permissively consume extra ` or → and allow spaces between.
              ⍝  (This avoids a later scan recursively interpreting ` ` ` name unpredictably).
-             ⋄ _←'(?xi)  (?| ` ( (?: \h* ` )* ) \h* (⍎_pAtoms)'
-             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* ( → ) ( (?: \h* → )* ) '
+             ⍝  f1 - ` or ``, f2 atoms,  f3 → or →→ etc.
+             ⋄ _←'(?xi)  (?| (`  (?: \h* ` )* ) \h* (⍎_pAtoms)'
+             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* ( → (?: \h* → )* ) '
              ⋄ _,←'      ) '
                   ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
              pATOMSe←∆MAP _
@@ -934,356 +948,6 @@
              dataOut
          }⍵
      }⍵
-
-
-
-  ⍝H ∆PRE    20190711
-  ⍝H - Preprocesses contents of codeFileName (a 2∘⎕FIX-format file) and fixes in
-  ⍝H   the workspace (via 2 ⎕FIX ppData, where ppData is the processed version of the contents).
-  ⍝H - Returns: (shyly) the list of objects created (possibly none).
-  ⍝H
-  ⍝H names ← [⍺:opts preamble1 ... preambleN] ∆PRE ⍵:(codeFileName | strings[] | ⎕NULL)
-  ⍝H
-  ⍝H ---------------------------------------------------------
-  ⍝H  ⍺
-  ⍝H  OPTIONS
-  ⍝H      DEBUG    -[no]D,    VERBOSE  -[no]V    EDIT  -[no]E 
-  ⍝H      COMMENTS -[no]C,    BLANK    -[no]B    FIX   -[no]F
-  ⍝H      HELP     -[no]H
-  ⍝H  Option Defaults): -noV -D -noE -C -noH
-  ⍝H   -[no]V     __VERBOSE__, include directives and status in output code.
-  ⍝H              Default: -V  (Also a R/W macro)
-  ⍝H   -[no]D     __DEBUG__, add annotations to ⎕ (stdout)
-  ⍝H              Default: -noD    (Also a R/W macro)
-  ⍝H   -[no]E     EDIT, look at annotated preprocessed intermediate file
-  ⍝H              Default: -noE   except as below
-  ⍝H                       -E     if ⍵ (right argument) is ⎕NULL
-  ⍝H   -[no]C     NOCOM, remove all comment lines and blank lines
-  ⍝H              Default: (-C)
-  ⍝H   -[no]B     NOBLANK, remove blank lines
-  ⍝H              Default: (-B)
-  ⍝H   -[no]H     HELP, show help info, ignoring ⍵ (right arg)
-  ⍝H              Default: (-noH)
-  ⍝H   -[no]F     FIX, i.e. do 2 ⎕FIX on the generated code (fns and namespaces)
-  ⍝H              Default: (-F)
-  ⍝H      With -noF,
-  ⍝H       the right argument is assumed to be 0 or more code lines, never
-  ⍝H       a file specification; it is used for preprocessing a sequence of code lines
-  ⍝H       for dynamic use, e.g. in ∆PRE itself...
-  ⍝H       If -noF is specified, the result of the preprocessing is returned.
-  ⍝H       ⍵ may be a single char vector or a vector of (char) vectors.
-  ⍝H Special options:
-  ⍝H   0*  Same as: -noF[ix] -noC[omments] -noV[erbose] -noD[ebug]
-  ⍝H       Used internally for the ⎕EVAL macro:  (⎕EVAL string) ←==→ (⍎¨0∘∆PRE string)
-  ⍝H       *Numeric 0.
-  ⍝H   1*  Same as: options '', but treats ⍵ as ⊆⍵
-  ⍝H
-  ⍝H Internal macro debugging Flags  
-  ⍝H    If CALLER.∆PRE_DEBUG is defined (CALLER: the namespace from which ∆PRE was called),
-  ⍝H           then __DEBUG__ mode is set, even if the 'D' flag is not specified.
-  ⍝H           unless 'Q' (quiet) mode is set explicitly.
-  ⍝H           debugmode:  (__DEBUG__∨D)∧~Q
-  ⍝H    If __DEBUG__ mode is set,
-  ⍝H           internal macro "variable" __DEBUG__ is defined (DEF'd) as 1, as if:
-  ⍝H                 ::VAL __DEBUG__ ← (__DEBUG__∨option_D)∧~option_Q   ⍝ Pseudocode...
-  ⍝H           In addition, Verbose mode is set.
-  ⍝H    Otherwise,
-  ⍝H           Internal flag variable __DEBUG__ is defined as 0.
-  ⍝H           Verbose mode then depends on the 'V' flag (default is 1).
-  ⍝H    Use ::IF __DEBUG__ etc. to change preprocessor behavior based on debug status.
-  ⍝H
-  ⍝H ---------------------------------------------------------
-  ⍝H  ⍺
-  ⍝H  (1↓⍺): preamble1 ... preambleN
-  ⍝H ---------------------------------------------------------
-  ⍝H    Zero or more lines of a preamble to be included at the start,
-  ⍝H    e.g. ⍺ might include definitions to "import"
-  ⍝H         'V' '::DEF PHASE1' '::DEF pi ← 3.13'
-  ⍝H          ↑   ↑__preamble1   preamble2
-  ⍝H          ↑__ option(s)
-  ⍝H
-  ⍝H ---------------------------------------------------------------------------------
-  ⍝H  ⍵:   filename | code | ⎕NULL
-  ⍝H   [1] ⍵:filename   The filename of the function, operator, namespace, or set of objects
-  ⍝H   [2] ⍵:code       A vector of strings, defining one or more fns, ops or namespaces,
-  ⍝H                    in 2∘⎕FIX-format.
-  ⍝H   [3] ⍵:⎕NULL      Prompt for lines from the user, creating pseudo-function
-  ⍝H                    __PROMPT__
-  ⍝H   ∘ If ⍺ includes the -noFix option (or is 0), ⍵ is passed as a vector of strings,
-  ⍝H     as needed, i.e. ⊆⍵ (unless ⎕NULL).
-  ⍝H   ∘ If ⍺  is 1, ⍵ will be passed as a vector of strings, i.e. ⊆⍵.
-  ⍝H ---------------------------------------------------------------------------------
-  ⍝H
-  ⍝H    [1] The simple name, name.ext, or full filename
-  ⍝H    of the function or cluster of objects compatible with (2 ⎕FIX ⍵),
-  ⍝H    whose source will be loaded from:
-  ⍝H      [a] if ⍵ has no filetype/extension,
-  ⍝H             ⍵.dyapp,
-  ⍝H          or (if not found in ⍵.dyapp),
-  ⍝H             ⍵.dyalog
-  ⍝H      [b] else
-  ⍝H             ⍵ by itself.
-  ⍝H    These directories are searched:
-  ⍝H           .  ..  followed by dirs named in env vars FSPATH and WSPATH (: separates dirs)
-  ⍝H -----------
-  ⍝H + Returns +
-  ⍝H -----------
-  ⍝H Returns (shyly) the names of the 0 or more objects fixed via (2 ⎕FIX code).
-  ⍝H
-  ⍝H ---------------------------------------------------------------------------------
-  ⍝H Features:
-  ⍝H ---------------------------------------------------------------------------------
-  ⍝H   ∘ Implicit macros
-  ⍝H     ∘ HEXADECIMALS: Hex number converted to decimal
-  ⍝H             0FACX /[\d][\dA-F]*[xX]/
-  ⍝H     ∘ BIG INTEGERS: Big integers (of any length) /¯?\d+[iI]/ are converted to
-  ⍝H             quoted numeric strings for use with Big Integer routines.
-  ⍝H             04441433566767657I →  '04441433566767657'
-  ⍝H       Big Integers may have non-negative exponents, but no decimals.
-  ⍝H       The exponents simply add trailing zeros. E.g. 123 with 100 trailing zeros:
-  ⍝H            123E100I  ==>   12300000[etc.]00000
-  ⍝H     ∘ PROGRESSIONS: num1 [num2] .. num3    OR   'c' 'd' .. 'e'  [where c,d,e are chars]
-  ⍝H                                            OR   'cd' .. e
-  ⍝H             Progressions use either the ellipsis char (…) or 2 or more dots (..).
-  ⍝H         With Numbers
-  ⍝H             Creates a real-number progression from num1 to num3
-  ⍝H             with delta (num2-num1), defaulting to 1 or ¯1.
-  ⍝H             With constants  (10 0.5 .. 15), the progression is calculated at
-  ⍝H             preprocessor time; with variables, a DFN is inserted to calculate at run time.
-  ⍝H             Example:  :FOR i :in 1 1.5 .. 100  ==> :FOR i :in 1 1.5 2 2.5 [etc.] 99.5 100
-  ⍝H             Example:  :FOR i :in a b   .. 100  ==> :FOR i :in a b {progressn dfn} c
-  ⍝H         With Characters
-  ⍝H             Creates a progression from char1 to char3 (with gaps determined by char2-char1)
-  ⍝H                'a'..'h'         ==> 'abcdefgh'
-  ⍝H                'a' 'c' .. 'h'   ==> 'aceg'
-  ⍝H                'ac'..'h'        ==> 'aceg'
-  ⍝H                'h'..'a'         ==> 'hgfedcba'
-  ⍝H       Note: Progressions with constants that are too large (typically 500) are
-  ⍝H             not expanded, but calculated at run time. This saves on ⎕FIX-time storage and
-  ⍝H             perhaps editing awkwardness.
-  ⍝H             Example:  :FOR i :in 1..10000  ==> :FOR i :in 1 {progressn dfn}10000
-  ⍝H             See __MAX_PROGRESSION__ below to change this behavior.
-  ⍝H     ∘ MAPS: word1 word2 ... wordN → anything
-  ⍝H             where word1 is
-  ⍝H                   a name (a sequence of one or morePCRE letter or _⍙∆),
-  ⍝H                   an APL number, or ⍬ or ();
-  ⍝H             such that numbers are left as is, but names are quoted:
-  ⍝H               func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
-  ⍝H               func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6).
-  ⍝H             Each word in
-  ⍝H                word w 123.4 ⍬ a_very_long_word → value
-  ⍝H             is replaced as follows:
-  ⍝H               word             →  'word'
-  ⍝H               w                →  (,'w')
-  ⍝H               123.4            →  (,123.4)
-  ⍝H               ⍬ or ()          →  ⍬
-  ⍝H               a_very_long_word → 'a_very_long_word'
-  ⍝H             What's returned is
-  ⍝H               (⊆'word' (,'w') (,123.4) ⍬ 'a_very_long_word')
-  ⍝H
-  ⍝H        Special MAPS:
-  ⍝H               name →→ val      =>    ('name'),val
-  ⍝H         Note: name1 name2 →→val is the same as name1 name2 → val
-  ⍝H     ∘ ATOM LISTS:    ` word1 word2 ... wordN  
-  ⍝H             ∘ Creates a list (vector) of atoms (char strings or numbers)
-  ⍝H       ATOM SPECIAL LISTS:  ``word1 word2 ... wordN 
-  ⍝H             ∘ Like ATOM LISTS, except ``word1 is "demoted" to a simple string.  
-  ⍝H               Useful in cases like ⎕CR ``myFun (possibly after macro substitution on myFun)
-  ⍝H       ATOM LISTS are similar to MAPS, as in:
-  ⍝H                `red orange  02FFFEX green ==>
-  ⍝H                ('red' 'orange' 196606 'green')      ⍝ Hex number converted to decimal
-  ⍝H             Each word in
-  ⍝H                `word w 123.4 ⍬ a_very_long_word
-  ⍝H             is as in MAPS example above.
-  ⍝H        EXAMPLES
-  ⍝H         ` word1             Vector of Vectors (of length 1)
-  ⍝H         ` word1 word2       Vector of vectors (of length 2)
-  ⍝H         ``word1             (Simple) character vector (length is length of word1)
-  ⍝H                             like ⊃`word1
-  ⍝H         ``word1 word2       Vector of vectors of lengths 2, 
-  ⍝H                             like ` word1 word2.
-  ⍝H
-  ⍝H   ∘ explicit macros for text replacement
-  ⍝H       See ::DEF, ::CDEF
-  ⍝H   ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
-  ⍝H     possibly with a preceding comment. In the output file, the lines are
-  ⍝H     connected with the set of comments on the continuation lines on the last line
-  ⍝H     or (if large) the following (otherwise blank) line
-  ⍝H       vec←  1  2  3  4   5 ...   ⍝ Line 1
-  ⍝H            ¯1 ¯2 ¯3 ¯4  ¯5 ..    ⍝ Line 2
-  ⍝H            60 70 80 90 100       ⍝ Last line
-  ⍝H     ==>
-  ⍝H       vec← 1 2 3 4 5  ¯1 ¯2 ¯3 ¯4 ¯5 60 70 80 90 100
-  ⍝H       ⍝ Line 1 ⍝ Line 2 ⍝ Last line
-  ⍝H
-  ⍝H   Double-Quoted (Multi-line Capable) Strings
-  ⍝H   ------------------------------------------
-  ⍝H   ∘ Double quoted strings under options M (default) or S.
-  ⍝H     These may appear on one or more lines. By default, leading blanks on
-  ⍝H     continuation lines are ignored, allowing follow-on lines to easily line up
-  ⍝H     under the first line. (See the DQ Raw suffix below).
-  ⍝H     A string may be forced to M or S mode by an M or S suffix, ignoring options M or S.
-  ⍝H     Example:
-  ⍝H       str←"This is line 1.     strM←"This is line 1.      strS←"This is line 1.
-  ⍝H            This is line 2.           This is line 2.            This is line 2.
-  ⍝H            This is line 3."          This is line 3."M          This is line 3."S
-  ⍝H   ==>
-  ⍝H   option 'M':
-  ⍝H       str← 'This is line 1.' 'This is line 2.' 'This is line 3.'
-  ⍝H   option 'S':
-  ⍝H       str← ('This is line 1.',CR,'This is line 2.',CR,'This is line 3.')
-  ⍝H   Regardless of option 'M' vs 'S':
-  ⍝H       strM←'This is line 1.' 'This is line 2.' 'This is line 3.'
-  ⍝H       strS←('This is line 1.',CR,'This is line 2.',CR,'This is line 3.')
-  ⍝H
-  ⍝H   ∘ Double-Quoted Raw Suffix:
-  ⍝H     Double-quoted strings followed (w/o spaces) by the R (raw) suffix will NOT have
-  ⍝H     leading spaces on continuation lines removed.
-  ⍝H     Options M and S (above) are both supported.
-  ⍝H        "This is a
-  ⍝H         raw format
-  ⍝H        double string."
-  ⍝H      ==>  (option 'M')
-  ⍝H        'This is a' '      raw format' 'double string.'
-  ⍝H
-  ⍝H    Triple-double quotes.  """ ... """
-  ⍝H      Triple-double quoted expressions may appear on one or more lines.
-  ⍝H      They are not strings, but comments, resolving to a single comment.
-  ⍝H          1 + """This is a triple-quote that
-  ⍝H                 is treated as a silly comment""" 4
-  ⍝H      ==>
-  ⍝H          1 +  4
-  ⍝H
-  ⍝H    Directives
-  ⍝H    ----------
-  ⍝H    ::IF, ::IFDEF, ::IFNDEF
-  ⍝H    ::ELSEIF
-  ⍝H    ::ELSE
-  ⍝H    ::ENDIF
-  ⍝H    ::DEF, ::DEFQ
-  ⍝H    ::CDEF, ::CDEFQ
-  ⍝H    ::EVAL, ::EVALQ
-  ⍝H    ::TRANS
-  ⍝H    ::UNDEF
-  ⍝H    ::STATIC
-  ⍝H    ::INCLUDE
-  ⍝H    ::IMPORT
-  ⍝H
-  ⍝H       (Note: currently comments are removed from preprocessor directives
-  ⍝H        before processing.)
-  ⍝H       ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
-  ⍝H       ::IFDEF   name         If name is defined, returns true even if name has value 0
-  ⍝H       ::IFNDEF  name
-  ⍝H       ::ELSEIF  cond
-  ⍝H       ::ELIF                 Alias for ::ELSEIF
-  ⍝H       ::ELSE
-  ⍝H       ::END                  ::ENDIF, ::ENDIFDEF; allows ::END followed by ANY text
-  ⍝H       ::DEF     name ← [VAL] VAL may be an APL code sequence, including the null string
-  ⍝H                              If parens are needed, use them.
-  ⍝H                              If you want to ignore lines by prefixing with comments,
-  ⍝H                              use EVAL. Comments are IGNORED on directive lines, unless quoted.
-  ⍝H       ::DEF     name ←       Sets name to a nullstring, not its quoted value.
-  ⍝H       ::DEF     name         Same as ::DEF name ← 'name'
-  ⍝H       ::DEFINE  name ...     Alias for ::DEF ...
-  ⍝H       ::DEFQ    name ...     Like ::DEF except quoted evaluated string
-  ⍝H       ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
-  ⍝H       ::[E]VAL  name ...     Same as ::DEF, except name ← ⍎val
-  ⍝H       ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
-  ⍝H       ∘ Note that ::DEF creates a string of code (including comments),
-  ⍝H                 and is "TRUE" if it is not-null.  EVAL executes the string to determine
-  ⍝H                 its value; it is true if not 0, or an object of length 0.
-  ⍝H       ∘ Note: Names of the form ⎕cc..cc and :cc..ccc have their case ignored (in all other
-  ⍝H         cases, case is respected). Thus, these are the same:
-  ⍝H           ::DEF ⎕FRED ← 1 2 3            ::DEF :WHY ← ?
-  ⍝H           ::DEF ⎕fred ← 1 2 3            ::DEF :wHy ← ?
-  ⍝H           ::DEF ⎕FrEd ← 1 2 3
-  ⍝H           1 + ⎕FRED <==> 1 + ⎕fReE etc.
-  ⍝H
-  ⍝H       ∘ To create a macro to "null out" code lines (have them ignored),
-  ⍝H         you can't use ::DEF, because (visible) comments are ignored for directives.
-  ⍝H         Instead, use ::VAL, which allows you to present the comment in quotes,
-  ⍝H         which ::VAL will evaluate (i.e. dequote) as an actual comment sequence.
-  ⍝H                      ::VAL PHASE1 ← '⍝ IGNORE PHASE1: '
-  ⍝H                      PHASE1 b←do_something_with 'PHASE1'
-  ⍝H         Treated as:  ⍝ IGNORE PHASE1: b←do_something_with 'PHASE1'
-  ⍝H                      ::VAL PHASE2 ← ''   ⍝ Don't ignore PHASE2.
-  ⍝H                                          ⍝ Or do ::DEF PHASE2←       ⍝ null "code" assigned
-  ⍝H                      PHASE2 b←do_something_with 'PHASE2'
-  ⍝H         Treated as:  b←do_something_with 'PHASE2'
-  ⍝H
-  ⍝H
-  ⍝H       ::TRANS   code1 code2  Causes <code1> to be translated to <code2> in each
-  ⍝H       ::TR                   line of input as it is processed.
-  ⍝H                              codeN is either a single character OR
-  ⍝H                                 \\   backslash
-  ⍝H                                 \    space
-  ⍝H                                 \dd  digits indicating unicode decimal (or dd [*])
-  ⍝H                                 \ddX digits indicating unicode hexadecimal (or ddX [*])
-  ⍝H                              [*] if dd or ddX is 2 or more digits.
-  ⍝H       ::UNDEF   name         Undefines name, warning if already undefined
-  ⍝H
-  ⍝H       ::STATIC  name         Defines a name stored in ⍵.⍙⍙.∆MY (⎕MY.name),
-  ⍝H                              a namespace stored in the calling namespace,
-  ⍝H                              where ⍵ is the fun/obj name, right argument to ∆PRE.
-  ⍝H                              Also, defines macro:
-  ⍝H                                ::DEF name ← ⍵.⍙⍙.∆MY.name
-  ⍝H                              so that any reference to the (simple) name <name> will
-  ⍝H                              refer to the identified STATIC <name>.
-  ⍝H                              <name> is erased if this is the first time it appears in a macro.
-  ⍝H       ::STATIC name←val      Like ::STATIC above, but also assigns
-  ⍝H                                ⍵.⍙⍙.∆MY.name ← val
-  ⍝H                              val may be a single-line dfn OR an APL expression,
-  ⍝H                              as long as it can be evaluated in the calling namespace
-  ⍝H                              at ∆PRE preprocessor time, with whatever side effects.
-  ⍝H                              If
-  ⍝H                                ::STATIC now←⎕TS
-  ⍝H                              then now is set at preprocessor time. This is completely
-  ⍝H                              different from
-  ⍝H                                ::DEF now←⎕TS
-  ⍝H                              which replaces 'now" with '⎕TS' wherever it is found in
-  ⍝H                              the function code to be evaluated at RUN TIME.
-  ⍝H
-  ⍝H                Note: Typically a STATIC name may refer to prior STATIC names,
-  ⍝H                      but not run-time names in the function, since they haven't
-  ⍝H                      been defined yet.
-  ⍝H                Note: While STATIC names may remain across ∆PRE calls, a name's
-  ⍝H                      value is erased the first time ::STATIC is executed.
-  ⍝H                      This allows a name to change classes across ∆PRE calls, but
-  ⍝H                      NOT within a ∆PRE sequence. E.g. this leads to an error just as in APL.
-  ⍝H                          ::STATIC i1 ← 1 2 3 {⍺←⊢ ⋄ ⎕io←1 ⋄ ⍺⍳⍵} 2
-  ⍝H                          ::STATIC i1 ← {⎕io←1 ⋄ ⍺⍳⍵}
-  ⍝H                      In the first case, i1 is a value, the RESULT of a call; in the second,
-  ⍝H                      it is a function definition.
-  ⍝H       ::STATIC code
-  ⍝H            Code to execute at preprocessor time for use with ::STATIC names.
-  ⍝H            To ensure a name←val or name pattern is viewed as code, do (e.g.):
-  ⍝H               ::STATIC ⊢some arbitrary code
-  ⍝H               ::STATIC (some arbitrary code)
-  ⍝H
-  ⍝H       ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
-  ⍝H       ::INCL    name
-  ⍝H       ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
-  ⍝H       ::IMPORT  name1        The value must be used in a context that makes sense.
-  ⍝H                              If name2 omitted, it is the same as name1.
-  ⍝H                              big←?2 3 4⍴100
-  ⍝H                              big2←'?2 3 4⍴100'
-  ⍝H                              ::IMPORT big
-  ⍝H                              ::IF 3=⍴⍴big   ⍝ Makes sense
-  ⍝H                              ⎕←big          ⍝ Will not work!
-  ⍝H                              ::IMPORT big2
-  ⍝H                              ⎕←big2         ⍝ Will work
-  ⍝H __DEBUG__                ⍝ See __DEBUG__ above...
-  ⍝H __MAX_EXPAND__←5         ⍝ Maximum times to expand macros (if 0, expansion is turned off!)
-  ⍝H                          ⍝ Set via ⎕DEF __MAX_EXPAND__ ← 100
-  ⍝H __MAX_PROGRESSION__←500  ⍝ Maximum expansion of constant dot sequences:  5..100 etc.
-  ⍝H                          ⍝ Otherwise, does function call (to save space or preserve line size)
-  ⍝H __INCLUDE_LIMITS__←5 10  ⍝ Max times a file may be ::INCLUDEd
-  ⍝H                          ⍝ First # is min before warning. Second is max before error.
-  ⍝H       ----------------
-  ⍝H       cond: Is 0 if value of expr is 0, '', or undefined! Else 1.
-  ⍝H       ext:  For ::INCLUDE/::INCL, extensions checked first are .dyapp and .dyalog.
-  ⍝H             Paths checked are '.', '..', then dirs in env vars FSPATH and WSPATH.
-  ⍝H
  }
     ##.∆PRE←∆PRE
 
