@@ -46,8 +46,9 @@
              ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:     ',FIX
              0
          }⍺
-       ⍝ HELP PATH
-         HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
+       ⍝ HELP PATH; currently an external file...
+         HELP:{⎕ED'___'⊣___←↑⊃⎕NGET ⍵}&'pmsLibrary/docs/∆PRE.help'
+      ⍝  HELP:{⎕ED'___'⊣___←↑(⊂'  '),¨3↓¨⍵/⍨(↑2↑¨⍵)∧.='⍝H'}2↓¨⎕NR⊃⎕XSI
       ⍝ -------------------------------------------------------------------
 
          (1↓⊆,⍺){
@@ -574,16 +575,18 @@
 
              ⍝  ::ELSEIF
                  case cELSEIF:{
-                     S=TOP:annotate f0,SKIP⊣stack,←S
-                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
+                  ⍝   was: S=TOP:annotate f0,SKIP⊣stack,←S
+                     S=TOP:annotate f0,SKIP⊣(⊃⌽stack)←S
+                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←S
                      (⊃⌽stack)←c←∆TRUE(e←macroExpand f1)
                      annotate f0,' ➡ ',(⍕e),' ➡ ',(⍕c),(c⊃NO YES)
                  }0
 
               ⍝ ::ELSE
                  case cELSE:{
-                     S=TOP:annotate f0,SKIP⊣stack,←S
-                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←F
+                   ⍝ was:  S=TOP:annotate f0,SKIP⊣stack,←S
+                     S=TOP:annotate f0,SKIP⊣(⊃⌽stack)←S
+                     T=TOP:annotate f0,NO⊣(⊃⌽stack)←S
                      (⊃⌽stack)←T
                      annotate f0,' ➡ 1',YES
                  }0

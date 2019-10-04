@@ -146,7 +146,7 @@
                 name →→ val      =>    ('name'),val
           Note: name1 name2 →→val is the same as name1 name2 → val
       ∘ ATOM LISTS:    ` word1 word2 ... wordN  
-              ∘ Creates a list (vector) of atoms (char strings or numbers)
+              ∘ Creates a list (vector) of atom values (char strings or numbers)
         ATOM SPECIAL LISTS:  ``word1 word2 ... wordN 
               ∘ Like ATOM LISTS, except a single ``word1 is "demoted" to a simple string.  
                 Useful in cases like ⎕CR ``myFun (possibly after macro substitution on myFun)
@@ -165,16 +165,19 @@
                               like ` word1 word2.
  
         ATOM FUNCTIONS:  ` function [function]
-        Atom functions create lists of functions stored as namespaces (the function is
-        at ns.fn for namespace ns). Atom functions and atom names and numbers may NOT be mixed.
+        An atom function is a namespace ns containing a function named ns.fn.;
+        the display form (⎕DF) for the namespace is the ∊⎕CR for the function ns.fn.
+        Atom functions and atom lists (names and numbers) may NOT be mixed.
              function:   {any dfns}                        {(+/⍵)÷≢⍵}
                          (name of any function)            (ave)
                          (An APL function expression)      (+/÷≢⍵)
-            E.g.  fnList ← ` (+)(-)(2∘*){⍺×2×⍵}
-            creates a list of four namespaces ns, whose function is at ns.fn.
-            The ⎕DF of each function is its value; here:
-                fnList
-            +  -  2∘*  {⍺×2×⍵}
+            E.g.  If you have defined fnList ← ` (+)(-)(*){⍺×2×⍵}
+                 fnList 
+            +  -  *   {⍺×2×⍵}                   ⍝ Display forms shown 
+                 ≢fnList
+            4 
+                 2 3 4 5 fnList.fn 5 4 3 1
+            7 ¯1 64 10                          ⍝ 2+5; 3-4; 4*3; 5×1+1
     ∘ explicit macros for text replacement
         See ::DEF, ::CDEF
     ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
@@ -261,7 +264,7 @@
         ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
         ::[E]VAL  name ...     Same as ::DEF, except name ← ⍎val
         ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
-        ∘ Note that ::DEF creates a string of code (including comments),
+        ∘ Note that ::DEF creates a string of code (excluding following comments),
                   and is "TRUE" if it is not-null.  EVAL executes the string to determine
                   its value; it is true if not 0, or an object of length 0.
         ∘ Note: Names of the form ⎕cc..cc and :cc..ccc have their case ignored (in all other
@@ -269,7 +272,7 @@
             ::DEF ⎕FRED ← 1 2 3            ::DEF :WHY ← ?
             ::DEF ⎕fred ← 1 2 3            ::DEF :wHy ← ?
             ::DEF ⎕FrEd ← 1 2 3
-            1 + ⎕FRED <==> 1 + ⎕fReE etc.
+            1 + ⎕FRED <==> 1 + ⎕fReD etc.
  
         ∘ To create a macro to "null out" code lines (have them ignored),
           you can't use ::DEF, because (visible) comments are ignored for directives.
@@ -283,7 +286,6 @@
                        PHASE2 b←do_something_with 'PHASE2'
           Treated as:  b←do_something_with 'PHASE2'
  
- 
         ::TRANS   code1 code2  Causes <code1> to be translated to <code2> in each
         ::TR                   line of input as it is processed.
                                codeN is either a single character OR
@@ -292,7 +294,7 @@
                                   \dd  digits indicating unicode decimal (or dd [*])
                                   \ddX digits indicating unicode hexadecimal (or ddX [*])
                                [*] if dd or ddX is 2 or more digits.
-        ::UNDEF   name         Undefines name, warning if already undefined
+        ::UNDEF   name         Undefines name, with a warning if already undefined
  
         ::STATIC  name         Defines a name stored in ⍵.⍙⍙.∆MY (⎕MY.name),
                                a namespace stored in the calling namespace,
