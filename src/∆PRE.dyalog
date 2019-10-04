@@ -2,8 +2,8 @@
  ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
-     0≡⍺:'-noF -noC -noV -noD'∇ ⍵
-     1≡⍺:'' ∇ (⊂'__PRE__'),⊆⍵      ⍝ Is this useful?
+     0≡⍺:'-noF -noV -noC'∇ ⍵         ⍝ execute returning only executables
+     1≡⍺:'-noF -V ' ∇ ⍵              ⍝ execute returning verbose info/comments
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
@@ -30,7 +30,7 @@
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
          ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
-         __VERBOSE__←(~opt'noV')∧~(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
+         __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
          EDIT←(⎕NULL≡⍬⍴⍵)∨opt'E'                           ⍝ Default 0; 1 if ⍵≡∊⎕NULL
@@ -451,10 +451,10 @@
              cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)         .*          $'
              cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)   (?:\h+ (⍎_pName))?  $'
              cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
+             cCDO←'cond do'regPat'  ⍎_pBeg CDO              \h+ ([^ ]+)     \h+   (.*)   $'
              cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )    .*                $'
-             cTRANS←'trans'regPat'  ⍎_pBeg  TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
+             cTRANS←'trans'regPat'  ⍎_pBeg TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
              cOTHER←'apl'regPat'    ^                                         .*                $'
-
            ⍝ patterns solely for the ∇macroExpand∇ fn
              ⍝ User cmds: ]... (See also ⎕UCMD)
              pUserE←'^\h*\]\h*(.*)$'
@@ -665,6 +665,13 @@
                      }f4
                      _←mPut f2 val
                      f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
+                 }0
+
+                 case cCDO:{
+                     T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
+                     ~mHasDef f1:annotate f0,NO      ⍝ If <name> defined, don't include code
+                     code←macroExpand f2
+                     (annotate f0,YES),NL,code
                  }0
 
               ⍝ ::UNDEF - undefines a name set via ::DEF, ::VAL, ::STATIC, etc.

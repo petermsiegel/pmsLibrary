@@ -124,7 +124,7 @@
               perhaps editing awkwardness.
               Example:  :FOR i :in 1..10000  ==> :FOR i :in 1 {progressn dfn}10000
               See __MAX_PROGRESSION__ below to change this behavior.
-      ∘ MAPS: word1 word2 ... wordN → anything
+      ∘ FULL MAPS: word1 word2 ... wordN → anything
               where word1 is
                     a name (a sequence of one or morePCRE letter or _⍙∆),
                     an APL number, or ⍬ or ();
@@ -142,12 +142,12 @@
               What's returned is
                 (⊆'word' (,'w') (,123.4) ⍬ 'a_very_long_word')
  
-         Special MAPS:
-                name →→ val      =>    ('name'),val
+         SIMPLE MAPS:  word1 word2 ... wordN →→ anything 
+                name →→ val      =>    ('name') val
           Note: name1 name2 →→val is the same as name1 name2 → val
-      ∘ ATOM LISTS:    ` word1 word2 ... wordN  
+      ∘ FULL ATOM LISTS:    ` word1 word2 ... wordN  
               ∘ Creates a list (vector) of atom values (char strings or numbers)
-        ATOM SPECIAL LISTS:  ``word1 word2 ... wordN 
+        SIMPLE ATOM LISTS:  ``word1 word2 ... wordN 
               ∘ Like ATOM LISTS, except a single ``word1 is "demoted" to a simple string.  
                 Useful in cases like ⎕CR ``myFun (possibly after macro substitution on myFun)
         ATOM LISTS are similar to MAPS, as in:
