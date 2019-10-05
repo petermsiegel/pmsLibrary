@@ -2,8 +2,12 @@
  ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
-     0≡⍺:'-noF -noV -noC'∇ ⍵         ⍝ execute returning only executables
-     1≡⍺:'-noF -V ' ∇ ⍵              ⍝ execute returning verbose info/comments
+  ⍝  ⍺=0,1: These are shortcuts for taking code lines as right argument,
+  ⍝         and returning the processed lines as output
+  ⍝  Other character options handle functions stored as text files, 
+  ⍝  debugging comments, etc.
+     0≡⍺:'-noF -noV -noC'∇ ⍵         ⍝ Adds no preproc comments, removes source comments.
+     1≡⍺:'-noF -V ' ∇ ⍵              ⍝ Includes preproc and source comments.
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
      ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
@@ -124,7 +128,7 @@
            ⍝ ∆TRUE ⍵:
            ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
            ⍝ ⍵ (a string) is 1 (true) unless
-           ⍝    a) ⍵ is a blank or null string, or
+           ⍝    a) ⍵ is 0-length or contains only spaces, or
            ⍝    b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
            ⍝    c) it cannot be evaluated,
            ⍝       in which case a warning is given (debug mode) before returning 0.
@@ -150,10 +154,12 @@
            ⍝  VEC   v or none:  ... a vector of (string) vectors
            ⍝ SING   s:          ... a single string with newlines (⎕UCS 10)
            ⍝  MX    m:          ... a single matrix
-           ⍝  RAW   r:          blanks at the start of each line are preserved.
-           ⍝ COOKD  none:       blanks at the start of each line are removed.
+           ⍝  RAW   r:          blanks at the start of each line*** are preserved.
+           ⍝ COOKD  none:       blanks at the start of each line*** are removed.
+           ⍝ *** Leading blanks on the first line are maintained in either case.
              processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
                  str type←(⊃⍵)(819⌶⊃⌽⍵)
+                 
                ⍝ type: 'v' (cooked) is nothing else specified.
                ⍝       which sets raw←0, sing←0, cMx←''
                  isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
@@ -162,16 +168,14 @@
                  ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
                  ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
                  str2←∆QT0 ∆UNQ str
-
                  isStr:∆PARENS⍣hasMany⊣∆QT{
                      isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
-                     '\A\h+' '\n\h*'⎕R''Q_CR_Q⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R'&'Q_CR_Q⍠opts⊢⍵
                  }str2
                  hasMany toMx⍣isMx⊣∆QT{
                      isRaw:'\n'⎕R''' '''⍠opts⊢⍵
-                     '\A\h+' '\n\h*'⎕R'' ''' '''⍠opts⊢⍵
+                     '\A\h+' '\n\h*'⎕R'&' ''' '''⍠opts⊢⍵
                  }str2
-
                  '∆PRE: processDQ logic error'⎕SIGNAL 911
              }
 
@@ -248,6 +252,8 @@
              mGet←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
                  p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ p⊃mVals
              }
+           ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆TRUE
+             mTrue←{ ~mHasDef ⍵:0 ⋄  ∆TRUE mGet ⍵}    
              mGetActive←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
                  p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ ~p⊃mNameVis:n ⋄ p⊃mVals
              }
@@ -260,8 +266,12 @@
                  p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n
                  mNames mVals mNameVis⊢←(⊂p≠⍳≢mNames)/¨mNames mVals mNameVis ⋄ n
              }
-             mHasDef←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:0 ⋄ 1
+             ⍝ Return 1 if name (⍵ ignoring ' ~') is a defined name as is.
+             ⍝ If name has a ~ at its start, return 1 if it has NO def.
+             ⍝ Case is respected, unless the name begins with ⎕ or :
+             mHasDef←{rev←'~'=1↑⍵~' ' ⋄ ic←⍬⍴'⎕:'∊⍨1↑nm←⍵~' ~'
+                 has←(≢mNames)>mNames⍳⊂lc⍣ic⊣nm 
+                 rev: ~has ⋄ has
              }
 
          ⍝-----------------------------------------------------------------------
@@ -425,7 +435,7 @@
                  (_CTR_+←1)⊢_CTR_
              }
              ⋄ _pBeg←'^\h* \Q',PREFIX,'\E \h*'
-             cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF         \h+(.*)         $'
+             cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF         \h+(~?.*)       $'
              cIF←'if'regPat'          ⍎_pBeg  IF                \h+(.*)         $'
              cELSEIF←'elseif'regPat'  ⍎_pBeg  EL(?:SE)?IF \b    \h+(.*)         $'
              cELSE←'else'regPat'      ⍎_pBeg  ELSE         \b       .*          $'
@@ -451,7 +461,7 @@
              cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)         .*          $'
              cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)   (?:\h+ (⍎_pName))?  $'
              cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
-             cCDO←'cond do'regPat'  ⍎_pBeg CDO              \h+ ([^ ]+)     \h+   (.*)   $'
+             cDOIF←'do if'regPat'  ⍎_pBeg DOIF         \h+ (~?[^ ]+)     \h+   (.*)   $'
              cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )    .*                $'
              cTRANS←'trans'regPat'  ⍎_pBeg TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*       $'
              cOTHER←'apl'regPat'    ^                                         .*                $'
@@ -548,6 +558,7 @@
                  T F S←1 0 ¯1       ⍝ true, false, skip
                  lineNum+←1
                  f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
+                 
                  case←⍵.PatternNum∘∊
                  TOP←⊃⌽stack     ⍝ TOP can be T(true) F(false) or S(skip)...
 
@@ -562,7 +573,7 @@
               ⍝ ::IFDEF/IFNDEF name
                  case cIFDEF:{
                      T≠TOP:annotate f0,SKIP⊣stack,←S
-                     stack,←c←~⍣(1∊'nN'∊f1)⊣mHasDef f2
+                     stack,←c←~⍣(1∊'nN'∊f1)⊣mHasDef f2 
                      annotate f0,' ➡ ',(⍕c),(c⊃NO YES)
                  }0
 
@@ -606,7 +617,6 @@
                      T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
                      ' '∊f2:annotate f0,'    ⍝ ',print'IGNORING INVALID MACRO NAME: "',f2,'" ',NO
                      qtFlag arrFlag←0≠≢¨f1 f3
-
                      val note←f2{
                          (~arrFlag)∧0=≢⍵:(∆QTX ⍺)''
                          0=≢⍵:'' '  [EMPTY]'
@@ -667,11 +677,19 @@
                      f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YES
                  }0
 
-                 case cCDO:{
+               ⍝ ::DOIF  [~]name arbitrary_code
+               ⍝   name: Preprocessor variable, possibly preceded by a single ~
+               ⍝   arbitrary_code: Any APL code
+               ⍝ Without ~
+               ⍝    If name is TRUE (see definition), the code is included
+               ⍝    If false, it is not.
+               ⍝ With ~, the code is included If name is FALSE.
+               
+                 case cDOIF:{
                      T≠TOP:annotate f0,(SKIP NO⊃⍨F=TOP)
-                     ~mHasDef f1:annotate f0,NO      ⍝ If <name> defined, don't include code
-                     code←macroExpand f2
-                     (annotate f0,YES),NL,code
+                     isTrue←mTrue f1 
+                     isTrue:(annotate f0,YES),NL,macroExpand f2    
+                     annotate f0,NO   
                  }0
 
               ⍝ ::UNDEF - undefines a name set via ::DEF, ::VAL, ::STATIC, etc.

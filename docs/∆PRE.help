@@ -246,24 +246,27 @@
  
         (Note: currently comments are removed from preprocessor directives
          before processing.)
-        ::IF      cond         If cond is an undefined name, returns false, as if ::IF 0
-        ::IFDEF   name         If name is defined, returns true even if name has value 0
-        ::IFNDEF  name
-        ::ELSEIF  cond
-        ::ELIF                 Alias for ::ELSEIF
-        ::ELSE
-        ::END                  ::ENDIF, ::ENDIFDEF; allows ::END followed by ANY text
-        ::DEF     name ← [VAL] VAL may be an APL code sequence, including the null string
-                               If parens are needed, use them.
-                               If you want to ignore lines by prefixing with comments,
-                               use EVAL. Comments are IGNORED on directive lines, unless quoted.
-        ::DEF     name ←       Sets name to a nullstring, not its quoted value.
-        ::DEF     name         Same as ::DEF name ← 'name'
-        ::DEFINE  name ...     Alias for ::DEF ...
-        ::DEFQ    name ...     Like ::DEF except quoted evaluated string
-        ::CDEF    name ...     Like ::DEF, except executed only if name is undefined
-        ::[E]VAL  name ...     Same as ::DEF, except name ← ⍎val
-        ::[E]VALQ name ...     Same as ::EVAL, except result is quoted.
+        ::IF       cond         If cond (APL expr.) is defined and is true, executes
+                                the if-block; else, skips it. (FALSE: 0, ⍬, ⎕NULL or 0-length)
+        ::IFDEF    name         If name is defined, executes block; else skips block.
+        ::IFDEF    ~name        If name is undefined, executes if block; else skips if block.
+                                No space is allowed between ~ and the name (else use ::IF).
+        ::IFNDEF   name         Variant, equiv. to IFDEF ~name 
+        ::ELSEIF   [~]cond      (elseif block)
+        ::ELIF                  Alias for ::ELSEIF
+        ::ELSE                  (else block)
+        ::END[any text]         ::END terminates a block. Any text after END is ignored.
+        ::DOIFD [~]name code    Execute code, if name exists and is true [~: doesn't / false].
+        ::DEF[INE] name ← [VAL] VAL may be an APL code sequence, including the null string
+                                If parens are needed, use them.
+                                If you want to ignore lines by prefixing with comments,
+                                use EVAL. Comments are IGNORED on directive lines, unless quoted.
+        ::DEF[INE] name ←       Sets name to a nullstring, not its quoted value.
+        ::DEF[INE] name         Same as ::DEF name ← 'name'
+        ::DEFQ     name ...     Like ::DEF except quoted evaluated string
+        ::CDEF     name ...     Like ::DEF, except executed only if name is undefined
+        ::[E]VAL   name ...     Same as ::DEF, except name ← ⍎val
+        ::[E]VALQ  name ...     Same as ::EVAL, except result is quoted.
         ∘ Note that ::DEF creates a string of code (excluding following comments),
                   and is "TRUE" if it is not-null.  EVAL executes the string to determine
                   its value; it is true if not 0, or an object of length 0.
@@ -278,10 +281,10 @@
           you can't use ::DEF, because (visible) comments are ignored for directives.
           Instead, use ::VAL, which allows you to present the comment in quotes,
           which ::VAL will evaluate (i.e. dequote) as an actual comment sequence.
-                       ::VAL PHASE1 ← '⍝ IGNORE PHASE1: '
+                       ::EVAL PHASE1 ← '⍝ IGNORE PHASE1: '
                        PHASE1 b←do_something_with 'PHASE1'
           Treated as:  ⍝ IGNORE PHASE1: b←do_something_with 'PHASE1'
-                       ::VAL PHASE2 ← ''   ⍝ Don't ignore PHASE2.
+                       ::EVAL PHASE2 ← ''   ⍝ Don't ignore PHASE2.
                                            ⍝ Or do ::DEF PHASE2←       ⍝ null "code" assigned
                        PHASE2 b←do_something_with 'PHASE2'
           Treated as:  b←do_something_with 'PHASE2'
