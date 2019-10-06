@@ -683,6 +683,7 @@
                      f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YESch
                  }⍵
 
+               ⍝ ::WHEN / ::UNLESS
                ⍝ ::WHEN  [~]expression arbitrary_code
                ⍝   0=≢f1  f2 f3         f5          (expression also sets f3)
                ⍝ ::UNLESS   expression arbitrary_code
