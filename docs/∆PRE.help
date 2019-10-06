@@ -237,9 +237,13 @@
      ::ENDIF
      ::DEF, ::DEFQ
      ::CDEF, ::CDEFQ
+     ::WHEN
+     ::UNLESS 
      ::EVAL, ::EVALQ
      ::TRANS
      ::UNDEF
+     ::WARN 
+     ::ERROR 
      ::STATIC
      ::INCLUDE
      ::IMPORT
@@ -256,7 +260,16 @@
         ::ELIF                  Alias for ::ELSEIF
         ::ELSE                  (else block)
         ::END[any text]         ::END terminates a block. Any text after END is ignored.
-        ::DOIFD [~]name code    Execute code, if name exists and is true [~: doesn't / false].
+        ::WHEN  [~]cond code    Execute code, if cond is true
+                                cond: either an apl expression in parens (...)
+                                      or an APL name, defined (via ::DEF), else false.
+                                A cond is true if all the names in it are defined
+                                and the evaluated value is not 0, ⍬, ⎕NULL or 0-length.
+                                Note that ~(expr) is not the same as (~expr).
+                                The former is true if expr is false, undefined, or invalid.
+                                The latter is true, only if expr is false (i.e. defined and valid).
+        ::UNLESS   cond code    Execute code, if cond is FALSE. 
+                                The inverse of ::WHEN, i.e. false where ::WHEN is true and vv.
         ::DEF[INE] name ← [VAL] VAL may be an APL code sequence, including the null string
                                 If parens are needed, use them.
                                 If you want to ignore lines by prefixing with comments,
@@ -337,6 +350,10 @@
                 ::STATIC ⊢some arbitrary code
                 ::STATIC (some arbitrary code)
  
+        ::WARN msg             prints '[lineNum] Warning: message' and increments warningCount
+        ::ERROR msg            prints '[lineNum] Error: message' and increments errorCount.
+                               For now, ::WARN and ::ERROR don't change other behavior;
+                               the output function is FIXed if required and so on.
         ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
         ::INCL    name
         ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
