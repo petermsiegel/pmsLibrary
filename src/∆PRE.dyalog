@@ -426,24 +426,28 @@
            ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
            ⍝      Default '::' or CALLER.∆PRE_PREFIX, if set.
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
-             PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'
+             PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'     
 
-             regPat←{⍺←'[unnamed]'
-                 p←'(?xi)'
-                 patternList,←⊂∆MAP p,⍵
-                 patternName,←⊂⍺
+             regPat←{  ⍝ ⍺: name [isDirctv]. name- name of pat. isDirctv: 1 (def) "is a directive".
+                 (nm isDirctv)←(2=|≡⍺)⊃(⍺ 1)⍺
+                 ⍺←everythingElseNm
+                 p←'(?xi)',isDirctv/_pDirectivePfx
+                 patternList,←pat←⊂∆MAP p,⍵
+                 '⍎'∊pat:11 ⎕SIGNAL⍨'∆PRE Internal Error: ⍎var in pattern not replaced: "',pat,'"' 
+                 patternName,←⊂nm 
                  (_CTR_+←1)⊢_CTR_
              }
-             ⋄ _pBeg←'^\h* \Q',PREFIX,'\E \h*'
+             ⋄ _pDirectivePfx←'^\h* \Q',PREFIX,'\E \h*'
              ⋄ _pTarg←' [^ ←]+ '
-             ⋄ _pSetVal←' (?:(←)\h*(.*))?'
+             ⍝ _pSetVal:  /← value/, all optional: f[N+0]=arrow, f[N+1] value
+             ⋄ _pSetVal←' (?:(←)\h*(.*))?'    
              ⋄ _pFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎_pName '
             ⍝ Note that we allow a null \0 to be the initial char. of a name.
             ⍝ This can be used to suppress finding a name in a replacement,
             ⍝ and \0 will be removed at the end of processing.
             ⍝ This is mostly obsolete given we suppress macro definitions on recursion
             ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
-             ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]* '
+             ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]*'
              ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
              ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
              ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
@@ -538,24 +542,27 @@
 
           ⍝  Directive Patterns
           ⍝  For simplicity, these all now follow all basic intra-pattern definitions
-             cIFDEF←'ifdef'regPat'    ⍎_pBeg  IF(N?)DEF     \h+(~?.*)                           $'
-             cIF←'if'regPat'          ⍎_pBeg  IF            \h+(.*)                             $'
-             cELSEIF←'elseif'regPat'  ⍎_pBeg  EL(?:SE)?IF \b\h+(.*)                             $'
-             cELSE←'else'regPat'      ⍎_pBeg  ELSE        \b                          .*        $'
-             cEND←'end'regPat'        ⍎_pBeg  END                                     .*        $'
-             cDEF←'def'regPat'      ⍎_pBeg DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
-             cVAL←'val'regPat'      ⍎_pBeg E?VAL(Q)?        \h* (⍎_pTarg)    \h*    ⍎_pSetVal   $'
-            ⍝ statPat: name | name ← val | code_to_execute
-             ⋄ statPat←'⍎_pBeg STATIC \h+ (\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal $ | ()() (.*)  $)'
-             cSTAT←'stat'regPat statPat
-             cINCL←'include'regPat' ⍎_pBeg INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*        $'
-             cIMPORT←'import'regPat'⍎_pBeg IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))?   $'
-             cCDEF←'cond'regPat'    ⍎_pBeg CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal   $'
-             cWHEN←'do if'regPat'   ⍎_pBeg (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)       $'
-             cUNDEF←'undef'regPat'  ⍎_pBeg UNDEF            \h* (⍎_pName )            .*        $'
-             cTRANS←'trans'regPat'  ⍎_pBeg TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*        $'
-             cWARN←'warn'regPat'    ⍎_pBeg (WARN(?:ING)? | ERR(?:OR)?) \b\h*         (.*)       $'
-             cOTHER←'apl'regPat'    ^                                                 .*        $'
+             cIFDEF←'ifdef'regPat'    IF(N?)DEF     \h+(~?.*)                           $'
+             cIF←'if'regPat'          IF            \h+(.*)                             $'
+             cELSEIF←'elseif'regPat'  EL(?:SE)?IF \b\h+(.*)                             $'
+             cELSE←'else'regPat'      ELSE        \b                          .*        $'
+             cEND←'end'regPat'        END                                     .*        $'
+             cDEF←'def'regPat'        DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal   $'
+             cVAL←'val'regPat'        E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal   $'
+            ⍝ static pattern: \]?  ( name [ ← code]  |  code_or_APL_user_fn )
+            ⍝                 1      2      3 4         4                  
+             ⋄ _pStatBody←'(\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal | ()() (.*) )'
+             ⍝             1            2:name        3:← 4:val   2 3  4:code
+             cSTAT←'stat'regPat'     STATIC           \h* ⍎_pStatBody                   $'
+             cINCL←'include'regPat'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
+             cIMPORT←'import'regPat' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
+             cCDEF←'cond'regPat'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal $'
+             cWHEN←'do if'regPat'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
+             cUNDEF←'undef'regPat'   UNDEF            \h* (⍎_pName )            .*      $'
+             cTRANS←'trans'regPat'   TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*      $'
+             cWARN←'warn'regPat'     (WARN(?:ING)? | ERR(?:OR)?) \b\h*         (.*)     $'
+          ⍝  cOTHER: Everything else (one line's worth, after any continuation lines resolved)
+             cOTHER←'other' 0 regPat' ^                                         .*      $'
       
          ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
@@ -726,11 +733,18 @@
                  }0
 
               ⍝ ::STATIC - declares persistent names, defines their values,
-              ⍝            executes code @ preproc time.
+              ⍝            or executes code @ preproc time.
               ⍝   1) declare names that exist between function calls. See ⎕MY/∆MY
               ⍝   2) create preproc-time static values,
               ⍝   3) execute code at preproc time
-              ⍝      Dyalog user commands are of the form:  ]user_cmd or ]name ← user_cmd
+              ⍝ ∘ Note: expressions of the form
+              ⍝     ::STATIC name   or   ::STATIC ⎕NAME 
+              ⍝   are interpreted as type (1), name declarations.
+              ⍝   To ensure they are interpreted as type (3), code to execute at preproc time,
+              ⍝   prefix the code with a ⊢, so the expression is unambiguous. E.g.
+              ⍝     ::STATIC ⊢myFunction 'data'
+              ⍝     ::STATIC ⊢⎕TS
+              ⍝ ∘ Dyalog user commands are of the form:  ]user_cmd or ]name ← user_cmd
                  case cSTAT:{
                      T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
                      usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
