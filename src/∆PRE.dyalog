@@ -282,6 +282,7 @@
          ⍝     25I                   for big integer constants
          ⍝     name → value          for implicit quoted (name) strings and numbers on left
          ⍝     `atom1 atom2...       for implicit quoted (name) strings and numbers on right
+         ⍝     ` {fn} (fn)(arb_code) creates a list of namespaces ns, each with fn ns.fn
          ⍝
          ⍝-----------------------------------------------------------------------
              macroExpand←{
@@ -331,7 +332,7 @@
                          ∘Unreachable∘
                      }⍠'UCP' 1⊣str
                    ⍝ Deal with ATOMS of two types:
-                   ⍝ Simple atoms: names or numbers
+                   ⍝ Simple atoms: names or numbers,zilde (⍬),⎕NULL
                    ⍝     `  name 123.45 nam2 123j45 etc.
                    ⍝ Code atoms:
                    ⍝     `  ({dfn}|\(apl fn\))+
@@ -341,7 +342,8 @@
                          ⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
                          nest←'⊆'/⍨~dbl
                          atoms←1↓∊{
-                             '⍬'=⊃⍵:⍵
+                             '⍬'=⊃⍵:' ',' ',⍨⍵
+                             '⎕NULL'≡⍵:⍵      ⍝ Don't quote ⎕NULL atom
                              ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
                              isNumAtom:' (,',⍵,')'
                              ⋄ q←∆QT ⍵
