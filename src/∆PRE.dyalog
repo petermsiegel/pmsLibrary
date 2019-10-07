@@ -428,14 +428,14 @@
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
              PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'     
 
-            ⍝ regPat:    name [isD:1] ∇ pattern
+            ⍝ regDirective:    name [isD:1] ∇ pattern
             ⍝ ⍺: name [isDirctv]. 
             ⍝    name:  name of pattern. 
             ⍝    isD:   1 (default) "pattern is a directive"; else "is not...".
             ⍝           If 1, prefix pattern with _pDirectivePfx, '::' etc.
             ⍝ Updates externals: patternList, patternName.
             ⍝ Returns the current pattern number (0 is first).
-             regPat←{  
+             regDirective←{  
                  (nm isD)←2↑1,⍨⊆⍺  
                  p←'(?xi)',isD/_pDirectivePfx
                  patternList,←pat←⊂∆MAP p,⍵
@@ -543,33 +543,33 @@
              pAtomFn1E←'(',_pBrack,'|',_pParen,')'
              _pAtomPre← ' ` (?: \h* ` )* '
              pAtomFnListE←∆MAP'(?xi) ( ⍎_pAtomPre ) \h* ( ⍎pAtomFn1E (?: \h* ⍎pAtomFn1E )* )'
+   
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
-
+          ⍝ static pattern: \]?  ( name [ ← code]  |  code_or_APL_user_fn )
+          ⍝                 1      2      3 4         4                  
+              _pStatBody←'(\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal | ()() (.*) )'
+          ⍝             1            2:name        3:← 4:val   2 3  4:code
+ 
           ⍝  Directive Patterns
           ⍝  For simplicity, these all now follow all basic intra-pattern definitions
-             cIFDEF←'ifdef'regPat'    IF(N?)DEF     \h+(~?.*)                           $'
-             cIF←'if'regPat'          IF            \h+(.*)                             $'
-             cELSEIF←'elseif'regPat'  EL(?:SE)?IF \b\h+(.*)                             $'
-             cELSE←'else'regPat'      ELSE        \b                          .*        $'
-             cEND←'end'regPat'        END                                     .*        $'
-             cDEF←'def'regPat'        DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal   $'
-             cVAL←'val'regPat'        E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal   $'
-            ⍝ static pattern: \]?  ( name [ ← code]  |  code_or_APL_user_fn )
-            ⍝                 1      2      3 4         4                  
-             ⋄ _pStatBody←'(\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal | ()() (.*) )'
-             ⍝             1            2:name        3:← 4:val   2 3  4:code
-             cSTAT←'stat'regPat'     STATIC           \h* ⍎_pStatBody                   $'
-             cINCL←'include'regPat'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
-             cIMPORT←'import'regPat' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
-             cCDEF←'cond'regPat'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal $'
-             cWHEN←'do if'regPat'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
-             cUNDEF←'undef'regPat'   UNDEF            \h* (⍎_pName )            .*      $'
-             cTRANS←'trans'regPat'   TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*      $'
-             cWARN←'warn'regPat'     (WARN(?:ING)? | ERR(?:OR)?) \b\h*         (.*)     $'
-          ⍝  cOTHER: Everything else (one line's worth, after any continuation lines resolved)
-             cOTHER←'other' 0 regPat' ^                                         .*      $'
-      
+             cIFDEF←'ifdef'regDirective'   IF(N?)DEF     \h+(~?.*)                            $'
+             cIF←'if'regDirective'         IF            \h+(.*)                              $'
+             cELSEIF←'elseif'regDirective' EL(?:SE)?IF \b\h+(.*)                              $'
+             cELSE←'else'regDirective'     ELSE        \b                          .*         $'
+             cEND←'end'regDirective'       END                                     .*         $'
+             cDEF←'def'regDirective'       DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal    $'
+             cVAL←'val'regDirective'       E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal    $'
+             cSTAT←'stat'regDirective'     STATIC           \h* ⍎_pStatBody                   $'
+             cINCL←'include'regDirective'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
+             cIMPORT←'import'regDirective' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
+             cCDEF←'cond'regDirective'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal $'
+             cWHEN←'do if'regDirective'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
+             cUNDEF←'undef'regDirective'   UNDEF            \h* (⍎_pName )            .*      $'
+             cTRANS←'trans'regDirective'   TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*      $'
+             cWARN←'warn'regDirective'     (WARN(?:ING)? | ERR(?:OR)?) \b\h*         (.*)     $'
+             cOTHER←'other' 0 regDirective' ^                                         .*      $'
+             ⍝              ↑___ 0: not a directive; no prefix added.
          ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
          ⍝ -------------------------------------------------------------------------
@@ -664,7 +664,7 @@
              ⍝ ::DEF name ←    ⍝...      ==>  name ← '   ⍝...'
              ⍝   Define name as val, unconditionally.
              ⍝ ::DEFQ ...
-             ⍝   Same as ::DEF, except put the value in single-quotes.
+             ⍝   Same as ::DEF, except put the resulting value in single-quotes.
                  case cDEF:0 procDefVal ⍵
 
              ⍝  ::VAL family: Definitions from evaluating after macro processing
