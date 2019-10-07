@@ -428,10 +428,16 @@
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
              PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'     
 
-             regPat←{  ⍝ ⍺: name [isDirctv]. name- name of pat. isDirctv: 1 (def) "is a directive".
-                 (nm isDirctv)←(2=|≡⍺)⊃(⍺ 1)⍺
-                 ⍺←everythingElseNm
-                 p←'(?xi)',isDirctv/_pDirectivePfx
+            ⍝ regPat:    name [isD:1] ∇ pattern
+            ⍝ ⍺: name [isDirctv]. 
+            ⍝    name:  name of pattern. 
+            ⍝    isD:   1 (default) "pattern is a directive"; else "is not...".
+            ⍝           If 1, prefix pattern with _pDirectivePfx, '::' etc.
+            ⍝ Updates externals: patternList, patternName.
+            ⍝ Returns the current pattern number (0 is first).
+             regPat←{  
+                 (nm isD)←2↑1,⍨⊆⍺  
+                 p←'(?xi)',isD/_pDirectivePfx
                  patternList,←pat←⊂∆MAP p,⍵
                  '⍎'∊pat:11 ⎕SIGNAL⍨'∆PRE Internal Error: ⍎var in pattern not replaced: "',pat,'"' 
                  patternName,←⊂nm 
