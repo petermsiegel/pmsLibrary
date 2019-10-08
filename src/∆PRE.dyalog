@@ -537,15 +537,32 @@
           ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
           ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
           ⍝ Note: a 2nd ` is not allowed for function atoms.
-             _←'(?xi)   (?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
-             _,←'                | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
-             _,←'       ) '
-             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrack←∆MAP _
+             _←'(?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
+             _,←'        | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
+             _,←') '
+             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrace←∆MAP _
              (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
-             pAtomFn1E←'(',_pBrack,'|',_pParen,')'
+             pAtomFn1E←'(?xi) (',_pBrace,'|',_pParen,')'
              _pAtomPre← ' ` (?: \h* ` )* '
              pAtomFnListE←∆MAP'(?xi) ( ⍎_pAtomPre ) \h* ( ⍎pAtomFn1E (?: \h* ⍎pAtomFn1E )* )'
    
+            ⍝ Experimental...
+             _←'(?xi) ',CR
+             ⍝ Right now a dfn {...} to the left of an arrow → is rejected as an atom.
+             ⍝ The form (...) is accepted, but must resolve to a valid value.
+             _,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+            ⍝                                              incl. ⎕NULL
+             _,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+            ⍝                                              incl. ⎕NULL   
+             _,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
+             _,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
+             _,←'(?| (?<ticks>`[` ]*) (?<atoms>(?&atomsR))     ()                   ',CR
+             _,←'  | ()               (?<atoms>(?&atomsL)) \h* (?<arrows>→[→ ]*) ',CR 
+             _,←')'
+             ⍝ Only one of <ticks> and <arrows> will be non-null on any given call.
+             ⍝ That's the easiest way to detect which pattern matched.
+             #.pATOMSXe←∆MAP _
+
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
           ⍝ static pattern: \]?  ( name [ ← code]  |  code_or_APL_user_fn )

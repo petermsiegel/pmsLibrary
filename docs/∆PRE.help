@@ -125,10 +125,16 @@
               Example:  :FOR i :in 1..10000  ==> :FOR i :in 1 {progressn dfn}10000
               See __MAX_PROGRESSION__ below to change this behavior.
       ∘ FULL MAPS: word1 word2 ... wordN → anything
-              where word1 is
-                    a name (a sequence of one or morePCRE letter or _⍙∆),
-                    an APL number, or ⍬ or ();
-              such that numbers are left as is, but names are quoted:
+              where wordN is an ATOM
+                  names:     a name (a sequence of one or morePCRE letter or _⍙∆),
+                  numbers+:  an APL number, zilde (⍬) or (), or ⎕NULL
+                  functions: an expression in braces {⍺⍳⍵} or parens (+.×), suitable
+                             as an operand ⍺⍺ or ⍵⍵ to an APL operator.
+              such that 
+                  names:     are put in quotes
+                  numbers+:  are left as is
+                  functions: are converted to namespaces, such that    
+                             for function fN namespace nsN is returned and nsN.fn←fN
                 func (name → 'John Smith', age → 25, code 1 → (2 3⍴⍳6)) ==>
                 func (('name')'John Smith'),('age')25,('code' 1)(2 3⍴⍳6).
               Each word in
@@ -146,7 +152,7 @@
                 name →→ val      =>    ('name') val
           Note: name1 name2 →→val is the same as name1 name2 → val
       ∘ FULL ATOM LISTS:    ` word1 word2 ... wordN  
-              ∘ Creates a list (vector) of atom values (char strings or numbers)
+              ∘ Creates a list (vector) of atom values, 
         SIMPLE ATOM LISTS:  ``word1 word2 ... wordN 
               ∘ Like ATOM LISTS, except a single ``word1 is "demoted" to a simple string.  
                 Useful in cases like ⎕CR ``myFun (possibly after macro substitution on myFun)
