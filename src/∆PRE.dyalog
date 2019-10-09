@@ -338,7 +338,8 @@
                    ⍝     `  ({dfn}|\(apl fn\))+
                    ⍝ Code atoms return a namespace ns such that
                    ⍝     ([⍺] ns.fn ⍵) calls  [⍺] {dfn} ⍵
-                     procSimpleAtoms←{
+                     procSimpleAtoms←{  
+                       ⍝ OBSOLETE!!!
                          ⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
                          nest←'⊆'/⍨~dbl
                          atoms←1↓∊{
@@ -355,7 +356,42 @@
                    ⍝ We'll allow either a list of simple atoms (names or numbers) 
                    ⍝ or a list of fns (dfns or parenthesized expressions), but not 
                    ⍝ the two types mixed together.
+                   ⍝ pAtomCompL←∆MAP¨(⊂'(?xi)'),¨_pParen _pName _pNum '⍬'
+                   ⍝ pAtomCompR←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen '⎕NULL' _pName _pNum '⍬'
+                   ⍝  type:                       0       1       2       3      4     5
+                     tBrace tParen tNull tName tNum tZilde←⍳6
+                     atomize←{
+                       pAtomTokens ⎕S  { 
+                             case←⍵.PatternNum∘∊
+                             f0←⍵ ∆FLD 0
+                             case tBrace tParen: '(',')',⍨f0,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
+                             case tNull: f0,' '
+                             case tName: f0{1=≢⍺:'(,',⍵,')' ⋄ ' ',⍵}∆QT f0
+                             case tNum tZilde: ' ',f0,' '
+                       }⍠('UCP' 1)('Mode' 'M')⊣⍵
+                     }
+                     str←pSkipE pAtomListL pAtomListR ⎕R {
+                        case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0
+                        case 0:f0 
+                        atoms←⍵ ∆FLD 'atoms'
+                        case 1:{ ⍝ LEFT: Atom list on left:   atoms → [→] 
+                          narrows←≢' '~⍨⍵ ∆FLD 'arrows'
+                          ~narrows∊1 2:f0⊣ ⎕←'∘∘∘ ⍝ Error: invalid atom punctuation: 'f0
+                          pfx←(narrows=2)⊃'⊆' ''
+                          atomTokens←atomize atoms
+                          '(',pfx,(∊atomTokens),'){⍺⍵}'
+                        }⍵
+                        case 2:{ ⍝ RIGHT: Atom list on right:  ` [`] atoms... 
+                          nticks←≢' '~⍨⍵ ∆FLD 'ticks'
+                          ~nticks∊1 2:f0⊣ ⎕←'∘∘∘ ⍝ Error: invalid atom punctuation: 'f0
+                          pfx←(nticks=2)⊃'⊆' ''
+                          atomTokens←atomize atoms
+                          '(',pfx,(∊atomTokens),')'
+                        }⍵
+                     }⍠('UCP' 1)⊣str
+                  ⍝  OBSOLETE
                      str←pSkipE pATOMSe pAtomFnListE ⎕R{
+                         ⍵ ∆FLD 0 ⍝ SKIP 
                          case←⍵.PatternNum∘∊
                          case 0:⍵ ∆FLD 0
                          case 1:{ ⍝ simple atoms: l1 `, f2 atoms, l3 arrows
@@ -375,10 +411,11 @@
                           ⍝  This function-atom function could be inserted in-line
                           ⍝  or placed in ⎕SE. We choose the latter to make the
                           ⍝  processed code a bit easier to parse...
-                             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⍕⎕NR''fn''}'
+                          ⍝  See initialization of ⍙fnAtom below...
                              '(',')',⍨fun,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
                          }f2
                      }⍠('UCP' 1)('Mode' 'M')⊣str
+
                   ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
                   ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
                   ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
@@ -547,21 +584,20 @@
              pAtomFnListE←∆MAP'(?xi) ( ⍎_pAtomPre ) \h* ( ⍎pAtomFn1E (?: \h* ⍎pAtomFn1E )* )'
    
             ⍝ Experimental...
-             _←'(?xi) ',CR
+             _L←_R←'(?xi) ',CR
              ⍝ Right now a dfn {...} to the left of an arrow → is rejected as an atom.
              ⍝ The form (...) is accepted, but must resolve to a valid value.
-             _,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+             _L,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL
-             _,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+             _R,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL   
-             _,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
-             _,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
-             _,←'(?| (?<ticks>`[` ]*) (?<atoms>(?&atomsR))     ()                   ',CR
-             _,←'  | ()               (?<atoms>(?&atomsL)) \h* (?<arrows>→[→ ]*) ',CR 
-             _,←')'
-             ⍝ Only one of <ticks> and <arrows> will be non-null on any given call.
-             ⍝ That's the easiest way to detect which pattern matched.
-             #.pATOMSXe←∆MAP _
+             _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
+             _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
+             _L _R←∆MAP¨ _L _R
+            pAtomListR←_R,' (?<ticks>`[` ]*)         (?<atoms>(?&atomsR))',CR
+            pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<arrows>→[→ ]*) ',CR 
+
+            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen '⎕NULL\b' _pName _pNum '⍬'
 
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
@@ -937,6 +973,9 @@
              _←0 mPut'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
              _←0 mPut'⎕EVAL' '⍎¨0∘∆PRE '
 
+           ⍝ Write out utility function(s) to ⎕SE
+           ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
+             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⍕⎕NR''fn''}'
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
              tmpNm←'__',funNm,'__'
