@@ -338,33 +338,21 @@
                    ⍝     `  ({dfn}|\(apl fn\))+
                    ⍝ Code atoms return a namespace ns such that
                    ⍝     ([⍺] ns.fn ⍵) calls  [⍺] {dfn} ⍵
-                     procSimpleAtoms←{  
-                       ⍝ OBSOLETE!!!
-                         ⍺←0 ⋄ dbl arrow←⍺      ⍝ 1: double arrow →→ or double grave ``
-                         nest←'⊆'/⍨~dbl
-                         atoms←1↓∊{
-                             '⍬'=⊃⍵:' ',' ',⍨⍵
-                             '⎕NULL'≡⍵:⍵      ⍝ Don't quote ⎕NULL atom
-                             ⋄ isNumAtom←(⊃⍵)∊'¯.',⎕D
-                             isNumAtom:' (,',⍵,')'
-                             ⋄ q←∆QT ⍵
-                             1=≢⍵:' (,',q,')'
-                             ' ',q
-                         }¨' '(≠⊆⊢)⍵
-                         '(',nest,atoms,')','{⍺⍵}'/⍨arrow
-                     }
+                   
                    ⍝ We'll allow either a list of simple atoms (names or numbers) 
                    ⍝ or a list of fns (dfns or parenthesized expressions), but not 
                    ⍝ the two types mixed together.
-                   ⍝ pAtomCompL←∆MAP¨(⊂'(?xi)'),¨_pParen _pName _pNum '⍬'
-                   ⍝ pAtomCompR←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen '⎕NULL' _pName _pNum '⍬'
-                   ⍝  type:                       0       1       2       3      4     5
-                     tBrace tParen tNull tName tNum tZilde←⍳6
+                   ⍝ pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParenQt _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
+
+                   ⍝  type:                       0       1       2    3      4     5       6        7    8
+                     tBrace tParenQt tParen tQt tNull tName tNum tZilde←⍳8
                      atomize←{
                        pAtomTokens ⎕S  { 
                              case←⍵.PatternNum∘∊
                              f0←⍵ ∆FLD 0
                              case tBrace tParen: '(',')',⍨f0,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
+                             case tParenQt:{1=¯2+≢⍺:'(,',⍵,')' ⋄ ' ',⍵}⍨⍵ ∆FLD 'string'
+                             case tQt:{1=¯2+≢⍺:'(,',⍵,')' ⋄ ' ',⍵}⍨f0
                              case tNull: f0,' '
                              case tName: f0{1=≢⍺:'(,',⍵,')' ⋄ ' ',⍵}∆QT f0
                              case tNum tZilde: ' ',f0,' '
@@ -375,46 +363,20 @@
                         case 0:f0 
                         atoms←⍵ ∆FLD 'atoms'
                         case 1:{ ⍝ LEFT: Atom list on left:   atoms → [→] 
-                          narrows←≢' '~⍨⍵ ∆FLD 'arrows'
-                          ~narrows∊1 2:f0⊣ ⎕←'∘∘∘ ⍝ Error: invalid atom punctuation: 'f0
+                          narrows←≢' '~⍨arrows←⍵ ∆FLD 'arrows'
+                          ~narrows∊1 2:atoms,' ∘err∘' ,arrows,'⍝ Error: invalid atom punctuation'
                           pfx←(narrows=2)⊃'⊆' ''
                           atomTokens←atomize atoms
                           '(',pfx,(∊atomTokens),'){⍺⍵}'
                         }⍵
                         case 2:{ ⍝ RIGHT: Atom list on right:  ` [`] atoms... 
-                          nticks←≢' '~⍨⍵ ∆FLD 'ticks'
-                          ~nticks∊1 2:f0⊣ ⎕←'∘∘∘ ⍝ Error: invalid atom punctuation: 'f0
+                          nticks←≢' '~⍨ticks←⍵ ∆FLD 'ticks'
+                          ~nticks∊1 2:ticks,' ∘err∘ ',atoms,'⍝ Error: invalid atom punctuation'
                           pfx←(nticks=2)⊃'⊆' ''
                           atomTokens←atomize atoms
                           '(',pfx,(∊atomTokens),')'
                         }⍵
                      }⍠('UCP' 1)⊣str
-                  ⍝  OBSOLETE
-                     str←pSkipE pATOMSe pAtomFnListE ⎕R{
-                         ⍵ ∆FLD 0 ⍝ SKIP 
-                         case←⍵.PatternNum∘∊
-                         case 0:⍵ ∆FLD 0
-                         case 1:{ ⍝ simple atoms: l1 `, f2 atoms, l3 arrows
-                           l1 l3←≢¨(⍵ ∆FLD¨1 3 )~¨' ' ⋄ f0 atoms←⍵ ∆FLD¨0 2
-                           (2<l1)∨2<l3:f0   ⍝ Ignore triple etc ` or →
-                           (2∊l1,l3)(l3>0)procSimpleAtoms atoms
-                         }⍵
-                        ⍝ case 2:  function atoms: Don't allow more than one ` here.
-                         f0 f1 f2←⍵ ∆FLD¨ 0 1 2 ⋄ l1←≢f1~' '
-                         1≠l1:f0       ⍝ `` {...} and related fn atoms sequences are errors
-                       ⍝ EXTERN: fnPtrCtr←¯1  ⍝ Increments to assist debugging
-                         pSkipE pAtomFn1E ⎕R{
-                             case←⍵.PatternNum∘∊
-                             case 0:⍵ ∆FLD 0
-                             ⍝ case 1:
-                             fun←⍵ ∆FLD 1
-                          ⍝  This function-atom function could be inserted in-line
-                          ⍝  or placed in ⎕SE. We choose the latter to make the
-                          ⍝  processed code a bit easier to parse...
-                          ⍝  See initialization of ⍙fnAtom below...
-                             '(',')',⍨fun,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
-                         }f2
-                     }⍠('UCP' 1)('Mode' 'M')⊣str
 
                   ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
                   ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
@@ -587,9 +549,9 @@
              _L←_R←'(?xi) ',CR
              ⍝ Right now a dfn {...} to the left of an arrow → is rejected as an atom.
              ⍝ The form (...) is accepted, but must resolve to a valid value.
-             _L,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+             _L,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL
-             _R,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎_pName | ⍎_pNum | ⍬))',CR
+             _R,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL   
              _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
              _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
@@ -597,7 +559,9 @@
             pAtomListR←_R,' (?<ticks>`[` ]*)         (?<atoms>(?&atomsR))',CR
             pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<arrows>→[→ ]*) ',CR 
 
-            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen '⎕NULL\b' _pName _pNum '⍬'
+           ⍝ Simple quoted strings in parens are handled specially.
+            _pParenQt←'\(\h*(?<string> (?:''[^'']*'')+) \h*\)'
+            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParenQt _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
 
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
@@ -975,7 +939,7 @@
 
            ⍝ Write out utility function(s) to ⎕SE
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
-             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄ns⊣ns.⎕DF∊⍕⎕NR''fn''}'
+             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
              tmpNm←'__',funNm,'__'
