@@ -57,7 +57,7 @@
 
          (1↓⊆,⍺){
              preamble←⍺
-             fnPtrCtr←¯1
+             fnAtomCtr←¯1
            ⍝ ∆GENERAL ∆UTILITY ∆FUNCTIONS
            ⍝
            ⍝ annotate [preprocessor (output) code]
@@ -342,38 +342,55 @@
                    ⍝ We'll allow either a list of simple atoms (names or numbers) 
                    ⍝ or a list of fns (dfns or parenthesized expressions), but not 
                    ⍝ the two types mixed together.
-                   ⍝ pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParenQt _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
+                   ⍝ pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
 
                    ⍝  type:                       0       1       2    3      4     5       6        7    8
-                     tBrace tParenQt tParen tQt tNull tName tNum tZilde←⍳8
+                     tBrace tParen tQt tNull tName tNum tZilde←⍳7
                      atomize←{
-                       pAtomTokens ⎕S  { 
+                       fnAtom←valAtom←0
+                       tok←pAtomTokens ⎕S  { 
                              case←⍵.PatternNum∘∊
                              f0←⍵ ∆FLD 0
-                             case tBrace tParen: '(',')',⍨f0,'⎕SE.⍙fnAtom ',⍕fnPtrCtr⊣fnPtrCtr+←1
-                             case tParenQt:{1=¯2+≢⍺:'(,',⍵,')' ⋄ ' ',⍵}⍨⍵ ∆FLD 'string'
+                             case tBrace tParen: {
+                              fnAtomCtr+←1 ⋄ fnAtom∘←1
+                              '(',')',⍨f0,'⎕SE.⍙fnAtom ',⍕ fnAtomCtr
+                             }⍵
+                             valAtom∘←1
                              case tQt:{1=¯2+≢⍺:'(,',⍵,')' ⋄ ' ',⍵}⍨f0
                              case tNull: f0,' '
                              case tName: f0{1=≢⍺:'(,',⍵,')' ⋄ ' ',⍵}∆QT f0
                              case tNum tZilde: ' ',f0,' '
                        }⍠('UCP' 1)('Mode' 'M')⊣⍵
+                       tok fnAtom valAtom
                      }
                      str←pSkipE pAtomListL pAtomListR ⎕R {
                         case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0
                         case 0:f0 
                         atoms←⍵ ∆FLD 'atoms'
-                        case 1:{ ⍝ LEFT: Atom list on left:   atoms → [→] 
-                          narrows←≢' '~⍨arrows←⍵ ∆FLD 'arrows'
-                          ~narrows∊1 2:atoms,' ∘err∘' ,arrows,'⍝ Error: invalid atom punctuation'
-                          pfx←(narrows=2)⊃'⊆' ''
-                          atomTokens←atomize atoms
+                        case 1:{ ⍝ LEFT: Atom list on left:   atoms → [→] anything 
+                          nPunct←≢' '~⍨punct←⍵ ∆FLD 'punct'
+                          ~nPunct∊1 2:atoms,' ∘err∘' ,punct,'⍝ Error: invalid atom punctuation'
+                          atomTokens fnAtom valAtom←atomize atoms      
+                          ⍝ If there's a fnAtom, treat → and → as if →→
+                          pfx←(fnAtom∨nPunct=2)⊃'⊆' ''
+                        ⍝ Currently function atoms are NOT allowed to left of →
+                          _←fnAtom{
+                            ⍺:⎕←'Warning: Function atom(s) used in atom map to left of arrow (→).' 
+                            ⍵:⎕←'Warning: Function atoms and value atoms mixed in the same map (→) expression.'
+                            ''
+                          }fnAtom∧valAtom
                           '(',pfx,(∊atomTokens),'){⍺⍵}'
                         }⍵
                         case 2:{ ⍝ RIGHT: Atom list on right:  ` [`] atoms... 
-                          nticks←≢' '~⍨ticks←⍵ ∆FLD 'ticks'
-                          ~nticks∊1 2:ticks,' ∘err∘ ',atoms,'⍝ Error: invalid atom punctuation'
-                          pfx←(nticks=2)⊃'⊆' ''
-                          atomTokens←atomize atoms
+                          nPunct←≢' '~⍨punct←⍵ ∆FLD 'punct'
+                          ~nPunct∊1 2:punct,' ∘err∘ ',atoms,'⍝ Error: invalid atom punctuation'
+                          atomTokens fnAtom valAtom←atomize atoms
+                        ⍝ if there's a fnAtom, treat ` and `` as if `` 
+                          pfx←(fnAtom∨nPunct=2)⊃'⊆' ''
+                          _←{
+                            ⍵:⎕←'Warning: Mixing function- and value-atoms in the same list (`) expression'
+                            ''
+                          }fnAtom∧valAtom
                           '(',pfx,(∊atomTokens),')'
                         }⍵
                      }⍠('UCP' 1)⊣str
@@ -541,27 +558,29 @@
              _,←') '
              (_BRL _BRR _BRN)←'{}1' ⋄ _pBrace←∆MAP _
              (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
-             pAtomFn1E←'(?xi) (',_pBrace,'|',_pParen,')'
-             _pAtomPre← ' ` (?: \h* ` )* '
-             pAtomFnListE←∆MAP'(?xi) ( ⍎_pAtomPre ) \h* ( ⍎pAtomFn1E (?: \h* ⍎pAtomFn1E )* )'
-   
+            
             ⍝ Experimental...
              _L←_R←'(?xi) ',CR
-             ⍝ Right now a dfn {...} to the left of an arrow → is rejected as an atom.
-             ⍝ The form (...) is accepted, but must resolve to a valid value.
-             _L,←'(?(DEFINE) (?<atomL>              ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
+             ⍝ allowFnAtomsInMap OPTION: 
+             ⍝ Select whether function atoms 
+             ⍝    {...} (...) 
+             ⍝ are allowed to left of an (atom) map: ... → ... 
+             ⍝ Right now a dfn {...} or (code) expression to the left of an arrow → 
+             ⍝ is rejected as an atom: 
+             ⍝   only names, numbers, zilde or quoted strings are allowed.
+             ⍝ To allow, enable here:
+             allowFnAtomsInMap←1/' ⍎_pBrace | ⍎_pParen | '
+             _L,←'(?(DEFINE) (?<atomL>   ⍎allowFnAtomsInMap    ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL
              _R,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL   
              _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
              _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
              _L _R←∆MAP¨ _L _R
-            pAtomListR←_R,' (?<ticks>`[` ]*)         (?<atoms>(?&atomsR))',CR
-            pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<arrows>→[→ ]*) ',CR 
+            pAtomListR←_R,' (?<punct>`[` ]*)         (?<atoms>(?&atomsR))',CR
+            pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→ ]*) ',CR 
 
-           ⍝ Simple quoted strings in parens are handled specially.
-            _pParenQt←'\(\h*(?<string> (?:''[^'']*'')+) \h*\)'
-            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParenQt _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
+            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
 
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
