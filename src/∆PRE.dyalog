@@ -225,7 +225,7 @@
                  '__TERM__' '[user input]'lines
              }
          ⍝ MACRO (NAME) PROCESSING
-         ⍝ mPut, mGet, mGetActive, mHideAll, mDel, mHasDef
+         ⍝ mPut, mGet, mHideAll, mDel, mHasDef
          ⍝ Extern function (isSpecialMacro n) returns 1 if <n> is a special Macro.
          ⍝ Includes a feature for preventing recursive matching of the same names
          ⍝ in a single recursive (repeated) scan.
@@ -246,17 +246,29 @@
                  }
                  n processSpecialM ⍵
              }
-           ⍝ mGet  ⍵: retrieves value for ⍵ (or ⍵, if none)
-           ⍝ mGetActive ⍵: ditto, but only if mNameVis flag is 1
+           ⍝ mPutMagic: allow special executed cases...
+             mPutMagic←{n v←⍵
+               ⍺←⊢ ⋄ ⍺ mPut n (1,v)
+             }
+           ⍝ mGet  ⍵: 
+           ⍝  ⍺=0 (default)  retrieves value for ⍵, if any; (or ⍵, if none)
+           ⍝  ⍺=1            ditto, but only if mNameVis flag is 1
            ⍝ mHideAll ⊆⍵: sets mNameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
-             mGet←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ p⊃mVals
+           ⍝ We now have a magic value, if mPutMagic is used.
+           ⍝   Remove magic 1 prefix on string, then execute in ∆PRE space...
+             mGet←{⍺←0   ⍝ If ⍺=1, i.e. treat as not found if inactive (mActive)
+                 n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
+                 p←mNames⍳⊂lc⍣c⊣n 
+                 p≥≢mNames:n  ⋄ ⍺∧~p⊃mNameVis:n  
+                 v←p⊃mVals
+                 0≠1↑0⍴v: v    ⍝ Not magic: return as is!            
+              ⍝  If "magic" value, execute and return result as string
+              ⍝  Used internally: make sure result is single line...
+               0:: 11 ⎕SIGNAL⍨'∆PRE Logic error: eval of magic macro failed: name="',n,'" val="',(⍕v),'"'
+                 ⍕⍎1↓v 
              }
            ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆TRUE
              mTrue←{ ~mHasDef ⍵:0 ⋄  ∆TRUE mGet ⍵}    
-             mGetActive←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                 p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:n ⋄ ~p⊃mNameVis:n ⋄ p⊃mVals
-             }
              mHideAll←{⍺←0
                  ⍺⊣⍺{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
                      p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
@@ -273,6 +285,12 @@
                  has←(≢mNames)>mNames⍳⊂lc⍣ic⊣nm 
                  rev: ~has ⋄ has
              }
+            tempVarCounter←¯1
+            tempVarName←'T⍙' 
+            getTempName←tempVarName∘{
+                        ⍵=0: ⍺,⍕tempVarCounter+tempVarCounter<0 
+                        ⍺,⍕tempVarCounter⊢tempVarCounter∘←100|tempVarCounter+⍵ 
+            }
 
          ⍝-----------------------------------------------------------------------
          ⍝ macroExpand (macro expansion, including special predefined expansion)
@@ -312,7 +330,7 @@
                          pUserE pSkipE pLongNmE ⎕R{
                              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                              case cSkipE:f0
-                             case cLongE:⍕mGetActive f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
+                             case cLongE:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
                              case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
                              ∘Unreachable∘                               ⍝ else: comments
                          }⍠'UCP' 1⊣⍵
@@ -328,7 +346,7 @@
                              0=≢f2:∆QT f1                ⍝ No exponent
                              ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
                          }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                         case cShortNmE:⍕mGetActive f0⊣nmsFnd,←⊂f0
+                         case cShortNmE:⍕1 mGet f0⊣nmsFnd,←⊂f0
                          ∘Unreachable∘
                      }⍠'UCP' 1⊣str
                    ⍝ Deal with ATOMS of two types:
@@ -343,8 +361,35 @@
                    ⍝ or a list of fns (dfns or parenthesized expressions), but not 
                    ⍝ the two types mixed together.
                    ⍝ pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
-
-                   ⍝  type:                       0       1       2    3      4     5       6        7    8
+                   ⍝  type:                       0       1       2    3      4     5       6        7    8      
+                   ⍝ SINK       
+                   ⍝     ← value     treated as   T⍙1 ← value (etc.)
+                   ⍝ Allow bare left arrows to function as "sink", i.e. assigning to ignored temp.
+                   ⍝ Vars will be named T⍙1, T⍙2, up to T⍙99, then recycled quietly
+                   ⍝    {←⎕DL 2 ⋄ do something}  →→ {_←⎕DL 2 ⋄ do something}
+                   ⍝ Generalize to the start of lines and:
+                   ⍝    (←here; ←here; ⎕TS[←here≢]) ⋄ ←here 
+                   ⍝ and 
+                   ⍝    {i≤10:←here} ⍝ Useful for shy output, avoiding an explicit temp.
+                   ⍝ ======================
+                   ⍝ MISSING MAP ELEMENT       
+                   ⍝    item →     treated as   item → ⎕NULL
+                   ⍝ Allow right arrow in Atoms to default to missing/default (⎕NULL):
+                   ⍝    (name→'John'; address→; phone→) →→ 
+                   ⍝    (name→'John'; address→⎕NULL; phone→⎕NULL)
+                   ⍝ Set missing value here:
+                     pNullRightArrowE←'(?x) → (\h*) (?= [][{}):;⋄] | $ )'
+                     missingValueToken←'⎕NULL'
+             
+                     pNullLeftArrowE←'(?x) (?<= [[(:;⋄]  | ^) (\h*)  ←'
+                  ⍝  see getTempName←{...}
+                     str←pSkipE pNullLeftArrowE pNullRightArrowE ⎕R {
+                        case←⍵.PatternNum∘∊ ⋄ f0 f1←⍵ ∆FLD¨ 0 1
+                        case 0: f0
+                        case 1: f1,temp,'←'⊣temp←getTempName 1
+                        case 2: '→',missingValueToken,f1↓⍨≢missingValueToken
+                     }⍠('UCP' 1)⊣str
+                 
                      tBrace tParen tQt tNull tName tNum tZilde←⍳7
                      atomize←{
                        fnAtom←valAtom←0
@@ -368,6 +413,7 @@
                         case 0:f0 
                         atoms←⍵ ∆FLD 'atoms'
                         case 1:{ ⍝ LEFT: Atom list on left:   atoms → [→] anything 
+                          ⍝ ⎕←'implied: ',⍵ ∆FLD 'implied'
                           nPunct←≢' '~⍨punct←⍵ ∆FLD 'punct'
                           ~nPunct∊1 2:atoms,' ∘err∘' ,punct,'⍝ Error: invalid atom punctuation'
                           atomTokens fnAtom valAtom←atomize atoms      
@@ -375,8 +421,8 @@
                           pfx←(fnAtom∨nPunct=2)⊃'⊆' ''
                         ⍝ Currently function atoms are NOT allowed to left of →
                           _←fnAtom{
-                            ⍺:⎕←'Warning: Function atom(s) used in atom map to left of arrow (→).' 
-                            ⍵:⎕←'Warning: Function atoms and value atoms mixed in the same map (→) expression.'
+                            ⍺:⎕←'Warning: Function atom(s) used in atom map to left of arrow (→):',CR,f0 
+                            ⍵:⎕←'Warning: Function atoms and value atoms mixed in the same map (→) expression:',CR,f0
                             ''
                           }fnAtom∧valAtom
                           '(',pfx,(∊atomTokens),'){⍺⍵}'
@@ -388,7 +434,7 @@
                         ⍝ if there's a fnAtom, treat ` and `` as if `` 
                           pfx←(fnAtom∨nPunct=2)⊃'⊆' ''
                           _←{
-                            ⍵:⎕←'Warning: Mixing function- and value-atoms in the same list (`) expression'
+                            ⍵:⎕←'Warning: Mixing function- and value-atoms in the same list (`) expression:',CR,f0
                             ''
                           }fnAtom∧valAtom
                           '(',pfx,(∊atomTokens),')'
@@ -533,33 +579,23 @@
              ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
              ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
              ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
-             ⍝  Permissively consume extra ` or → and allow spaces between.
-             ⍝  (This avoids a later scan recursively interpreting ` ` ` name unpredictably).
-             ⍝  f1 - ` or ``, f2 atoms,  f3 → or →→ etc.
-             ⋄ _←'(?xi)  (?| (`  (?: \h* ` )* ) \h* (⍎_pAtoms)'
-             ⋄ _,←'        | (     )     (⍎_pAtoms) \h* ( → (?: \h* → )* ) '
-             ⋄ _,←'      ) '
-                  ⍝ f1: 2nd ` or null;  f2 atoms; f3: 1st → or null; f4: 2nd → or null
-             pATOMSe←∆MAP _
-
-          ⍝ Function atoms: dfns, parenthesized code
-          ⍝ Syntax:   
-          ⍝    ` fn1 [ fn2 [ fn3 ] ... ]
-          ⍝      where fnN  must be in braces (a dfn) or parentheses (a fork or APL fn name)
-          ⍝        {⍺⍳⍵}, (+.×) (sum ÷ tally)  (ave)   
-          ⍝      where sum and tally might be defined as
-          ⍝        sum←+/ ⋄ tally←≢                         
-          ⍝      and ave perhaps a tradfn name, a dfn name, or a named fork or other code
-          ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
-          ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
-          ⍝ Note: a 2nd ` is not allowed for function atoms.
+           
+           ⍝ Function atoms: dfns, parenthesized code
+           ⍝ Syntax:   
+           ⍝    ` fn1 [ fn2 [ fn3 ] ... ]
+           ⍝      where fnN  must be in braces (a dfn) or parentheses (a fork or APL fn name)
+           ⍝        {⍺⍳⍵}, (+.×) (sum ÷ tally)  (ave)   
+           ⍝      where sum and tally might be defined as
+           ⍝        sum←+/ ⋄ tally←≢                         
+           ⍝      and ave perhaps a tradfn name, a dfn name, or a named fork or other code
+           ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
+           ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
+           ⍝ Note: a 2nd ` is not allowed for function atoms.
              _←'(?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
              _,←'        | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
              _,←') '
-             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrace←∆MAP _
+             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrace←∆MAP _ ⋄ _pBraceX←_pBrace,'(?:\h*&)?'
              (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
-            
-            ⍝ Experimental...
              _L←_R←'(?xi) ',CR
              ⍝ allowFnAtomsInMap OPTION: 
              ⍝ Select whether function atoms 
@@ -569,24 +605,23 @@
              ⍝ is rejected as an atom: 
              ⍝   only names, numbers, zilde or quoted strings are allowed.
              ⍝ To allow, enable here:
-             allowFnAtomsInMap←1/' ⍎_pBrace | ⍎_pParen | '
+             allowFnAtomsInMap←1/' ⍎_pBraceX | ⍎_pParen | '
              _L,←'(?(DEFINE) (?<atomL>   ⍎allowFnAtomsInMap    ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL
-             _R,←'(?(DEFINE) (?<atomR>   ⍎_pBrace | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
+             _R,←'(?(DEFINE) (?<atomR>   ⍎_pBraceX | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
             ⍝                                              incl. ⎕NULL   
              _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
              _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
              _L _R←∆MAP¨ _L _R
-            pAtomListR←_R,' (?<punct>`[` ]*)         (?<atoms>(?&atomsR))',CR
-            pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→ ]*) ',CR 
-
-            pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace  _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
-
+             pAtomListR←_R,' (?<punct>`[` ]*)         (?<atoms>(?&atomsR))',CR
+             pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→ ]*) ',CR 
+             pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBraceX  _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
-          ⍝ static pattern: \]?  ( name [ ← code]  |  code_or_APL_user_fn )
-          ⍝                 1      2      3 4         4                  
-              _pStatBody←'(\]?) \h* (?|(⍎_pName) \h* ⍎_pSetVal | ()() (.*) )'
+          ⍝ static pattern: \]?  ( name? [ ← code]  |  code_or_APL_user_fn )
+          ⍝                 1      2      3 4         4      
+          ⍝  We allow name to be optional to allow for "sinks" (q.v.).           
+             _pStatBody←'(\]?) \h* (?|(⍎_pName)? \h* ⍎_pSetVal | ()() (.*) )'
           ⍝             1            2:name        3:← 4:val   2 3  4:code
  
           ⍝  Directive Patterns
@@ -620,9 +655,12 @@
                  TOP←⊃⌽stack     ⍝ TOP can be T(true) F(false) or S(skip)...
 
              ⍝  Any non-directive, i.e. APL statement, comment, or blank line...
+             ⍝  We scan APL lines statement-by-statement
+             ⍝  E.g.  ' stmt1 ⋄ stmt2 ⋄ stmt3 ' 
                  case cOTHER:{
-                     T≠TOP:annotate f0,SKIPch        ⍝ See annotate, QUIET
-                     str←macroExpand f0
+                     T≠TOP:annotate f0,SKIPch             ⍝ See annotate, QUIET
+                     stmts←pSkipE '⋄' ⎕R '\0' '⋄\n'⊣⊆f0   ⍝ Find APL stmts (⋄)
+                     str←∊macroExpand¨ stmts              ⍝ Expand macros by stmt and reassemble
                      QUIET:str ⋄ str≡f0:str
                      '⍝',f0,YESch,NL,' ',str
                  }⍵
@@ -804,7 +842,10 @@
                      }0
                   ⍝ If the expansion to <val> changed <f4>, note in output comment
                      expMsg←''(' ➡ ',val)⊃⍨val≢f4
-
+                  ⍝ Do we have a "sink"?    ← name
+                  ⍝ If so, get a temporary name...
+                     isSink←0 1∧.=×≢¨nm arrow        ⍝(0=≢nm)∧0≠≢arrow
+                     nm←{⍵=0: nm ⋄ getTempName 1}isSink
                   ⍝[2] Evaluate ::STATIC apl_code and return.
                      0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
                          0::NOch({
@@ -821,7 +862,6 @@
 
                   ⍝[3a] Process ::STATIC name          - declaration
                   ⍝[3b] Process ::STATIC name ← value  - declaration and assignment
-
                   ⍝ isFirstDef: Erase name only if first definition and
                   ⍝             not an absolute var, i.e. prefixed with # or ⎕ (⎕SE)
                      isFirstDef←⍬⍴(isNew←~mHasDef nm)∧~'#⎕'∊⍨1↑nm
@@ -854,8 +894,10 @@
                          }0)
                          YESch''⊣∆MYR⍎nm,'←',val,'⋄1'
                      }0
-                     _←annotate f0,expMsg,okMsg
-                     _,errMsg
+                     sinkMsg←{⍵=0:''
+                       NL,'⍝',(' '↑⍨0⌈¯1++/∧\' '=f0),'::STATIC ',nm,'←',val,okMsg
+                     }isSink
+                     (annotate f0,expMsg,okMsg),sinkMsg,errMsg
                  }⍵
 
               ⍝ ::INCLUDE - inserts a named file into the code here.
@@ -958,7 +1000,7 @@
 
            ⍝ Write out utility function(s) to ⎕SE
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
-             _←⎕SE⍎' ⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
+             _←⎕SE⍎'⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
            ⍝ Read in data file...
              funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
              tmpNm←'__',funNm,'__'
@@ -974,10 +1016,23 @@
              (∆MYR←⍎∆MY)._FIRST_←1
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-             _←0 mPut'⎕MY'∆MY                 ⍝ ⎕MY    → a private 'static' namespace
-             _←0 mPut'⎕FIRST'(∆MY,'.FIRST')      ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
-             _←0 mPut'⎕ME' '(⊃⎕SI)'            ⍝ Simple name of active function
-             _←0 mPut'⎕XME' '(⊃⎕XSI)'           ⍝ Full name of active functin
+             _←0 mPut'⎕MY'∆MY                   ⍝ ⎕MY    → a private 'static' namespace
+             _←0 mPut'⎕FIRST'(∆MY,'.FIRST')     ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+             _←0 mPut'⎕ME' '(⊃⎕SI)'             ⍝ Simple name of active function
+             _←0 mPut'⎕XME' '(⊃⎕XSI)'           ⍝ Full name of active function
+             _←0 mPutMagic'__TS__' '⎕TS'        ⍝ Timestamp when statement preprocessed.
+           ⍝ ⎕T is a reference to the last IMPLICIT temporary variable from the previous
+           ⍝ statement (whether delimited by a newline or a lozenge [⋄])
+           ⍝    0 ∆PRE  'f←{1:←⍳5}'  '←⍳10 ⋄ ⎕←≢⎕T'  '⎕←≡⎕T' 
+           ⍝ ┌────────────────┬────────────────────┬───────┐
+           ⍝ │ f←{1:T⍙0←⍳5}   │ T⍙1←⍳10 ⋄ ⎕←≢T⍙0   │ ⎕←≡T⍙1│
+           ⍝ └────────────────┴────────────────────┴───────┘
+           ⍝    0 ∆PRE  '←__TS__'  '←"one two three ",⎕T ⋄ ⎕←(2×≢⎕T)↑⎕T'
+           ⍝ ┌─────────────────────────────┬───────────────────────────────────────────┐
+           ⍝ │ T⍙0←2019 10 12 22 10 52 328 │ T⍙1←'one two three ',T⍙0 ⋄ ⎕←(2×≢T⍙1)↑T⍙1 │
+           ⍝ └─────────────────────────────┴───────────────────────────────────────────┘
+ 
+             _←0 mPutMagic'⎕T' 'getTempName 0'
 
            ⍝ Other Initializations
              stack←,1 ⋄ (lineNum warningCount errorCount)←0
@@ -998,9 +1053,12 @@
              pInDirectiveE←'^\h*\Q',PREFIX,'\E'
              inDirective←0
            ⍝ Process double quotes and continuation lines that may cross lines
-             pNotInSetP←⎕UCS 8713
-             dataOut←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE pZildeE pEOLe pNotInSetP ⎕R{
-                 cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
+             pNotInSetE←'(?ix) (?: ',(⎕UCS 8713),' | ⎕NOTIN)'
+
+             _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
+             _pI,←pZildeE pEOLe pNotInSetE 
+             cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet ←⍳9
+             dataOut← _pI ⎕R{
                  f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
               ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
@@ -1019,8 +1077,10 @@
                  case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
                  case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
                  case cNotInSet:'{~⍺∊⍵}'
-                ⍝ case 4: EOL triggers comment processing from above
+                 ⍝ When matching abbreviated arrow schemes, try to keep any extra spacing,
+                 ⍝ so things line up...
                  ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
+               ⍝ case cEOL triggers comment processing from above
                  inDirective⊢←0                                ⍝ Reset  flag after each NL
                  0=≢comment:f0
                  ln←comment,' ',f1,NL ⋄ comment⊢←⍬
@@ -1035,7 +1095,7 @@
                  line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
                  (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
              }dataOut
-
+         
            ⍝ --------------------------------------------------------------------------------
            ⍝ Executive: PhaseII
            ⍝ --------------------------------------------------------------------------------
