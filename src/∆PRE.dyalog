@@ -2,6 +2,7 @@
  ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
+     0:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
   ⍝  ⍺=0,1: These are shortcuts for taking code lines as right argument,
   ⍝         and returning the processed lines as output
   ⍝  Other character options handle functions stored as text files, 
@@ -10,7 +11,7 @@
      1≡⍺:'-noF -V ' ∇ ⍵              ⍝ Includes preproc and source comments.
 
      ⍝ Move execution into a private NS so we don't worry about name conflicts.
-     ⍝ We'll explicitly save objects in CALLER ns or ∆MY ns (see ⎕MY macro)
+     ⍝ We'll explicitly save objects in ∆CALLR ns or ∆MY ns (see ⎕MY macro)
      (⊃⊆,⍺)(⎕NS'').{
          ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
        ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
@@ -26,14 +27,14 @@
        ⍝ Use NULL internally for special code lines (NULLs are removed at end)
          NL CR NULL←⎕UCS 10 13 0
          SQ DQ SQDQ←'''' '"' '''"'
-         CALLER←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
+         ∆CALLR←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
 
       ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
       ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS-- see ⍝H documentation below...
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
          ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
-         ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=CALLER.⎕NC var:0 ⋄ 1≡CALLER.⎕OR var}
+         ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=∆CALLR.⎕NC var:0 ⋄ 1≡∆CALLR.⎕OR var}
          __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
@@ -129,12 +130,12 @@
            ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
            ⍝ ⍵ (a string) is 1 (true) unless
            ⍝    a) ⍵ is 0-length or contains only spaces, or
-           ⍝    b) its val, v such that v←∊CALLER⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
+           ⍝    b) its val, v such that v←∊∆CALLR⍎⍵ is of length 0 or v≡(,0) or v≡⎕NULL, or
            ⍝    c) it cannot be evaluated,
            ⍝       in which case a warning is given (debug mode) before returning 0.
              ∆TRUE←{
                  0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
-                 0=≢⍵~' ':0 ⋄ 0=≢val←∊CALLER⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
+                 0=≢⍵~' ':0 ⋄ 0=≢val←∊∆CALLR⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
                  1
              }
            ⍝ GENERAL CONSTANTS. Useful in annotate etc.
@@ -203,7 +204,7 @@
               ⍝ If the file has an explicit extension, it determines the ONLY type.
                  pfx nm ext←⎕NPARTS ⍵
                  _←{
-                     0 3 4∊⍨CALLER.⎕NC ⍵:''
+                     0 3 4∊⍨∆CALLR.⎕NC ⍵:''
                      ⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing'
                  }nm
 
@@ -233,7 +234,7 @@
              lc←819⌶ ⋄ uc←1∘(819⌶)
              mPut←{⍺←__DEBUG__ ⋄ verbose←⍺
                  n v←⍵      ⍝ add (name, val) to macro list
-                 ⍝ case is 1 only for ⎕vars...
+                 ⍝ case is 1 only for system-style names of form /⎕\w+/
                  c←⍬⍴'⎕:'∊⍨1↑n
                  n~←' ' ⋄ mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂v ⋄ mNameVis,⍨←1
                  ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
@@ -247,25 +248,39 @@
                  n processSpecialM ⍵
              }
            ⍝ mPutMagic: allow special executed cases...
-             mPutMagic←{n v←⍵
-               ⍺←⊢ ⋄ ⍺ mPut n (1,v)
+           ⍝    ⍺: Execution Environment
+           ⍝    0, 1, 2: See mGet below
+             mPutMagic←{
+               ⍺←0 ⋄ n v←⍵  
+               mPut n (⍺,v)
              }
            ⍝ mGet  ⍵: 
            ⍝  ⍺=0 (default)  retrieves value for ⍵, if any; (or ⍵, if none)
            ⍝  ⍺=1            ditto, but only if mNameVis flag is 1
            ⍝ mHideAll ⊆⍵: sets mNameVis flag to (scalar) ⍺←0 for each name in ⍵, returning ⍺
-           ⍝ We now have a magic value, if mPutMagic is used.
-           ⍝   Remove magic 1 prefix on string, then execute in ∆PRE space...
+           ⍝ 
+           ⍝ Magic Values: 
+           ⍝ if mPutMagic [internal use only] is used, it will change ⍵, a string,
+           ⍝ to    n,⍵   where n is a single digit (0, 1, 2). See below.
+           ⍝ If we see a magic digit prefix, we remove it, and execute the resulting
+           ⍝ string in the environment required. The string is not macro substituted first,
+           ⍝ so do that "manually" or not at all.
+           ⍝ Magic prefix may be
+           ⍝     0: execute in ∆PRE space (local vars, etc.)
+           ⍝     1: execute in ∆MY space, the ::STATIC run-time environment
+           ⍝     2: execute in ∆CALLR environment
              mGet←{⍺←0   ⍝ If ⍺=1, i.e. treat as not found if inactive (mActive)
                  n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
                  p←mNames⍳⊂lc⍣c⊣n 
                  p≥≢mNames:n  ⋄ ⍺∧~p⊃mNameVis:n  
                  v←p⊃mVals
                  0≠1↑0⍴v: v    ⍝ Not magic: return as is!            
-              ⍝  If "magic" value, execute and return result as string
-              ⍝  Used internally: make sure result is single line...
-               0:: 11 ⎕SIGNAL⍨'∆PRE Logic error: eval of magic macro failed: name="',n,'" val="',(⍕v),'"'
-                 ⍕⍎1↓v 
+                 p v←(1↑v)(1↓v)
+     0:: 11 ⎕SIGNAL⍨'∆PRE Logic error: eval of magic macro failed: ',CR,'> name="',n,'" val="',(⍕v),'" ns="',(⍕p),'"'
+                 0=p: ⍕⍎v          ⍝ ∆PRE space
+                 1=p: ⍕∆MYR⍎v      ⍝ ∆MY space
+                 2=p: ⍕∆CALLR⍎v    ⍝ ∆CALLR space
+                 ∘ 'logic error: unknown environment' ∘
              }
            ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆TRUE
              mTrue←{ ~mHasDef ⍵:0 ⋄  ∆TRUE mGet ⍵}    
@@ -488,9 +503,9 @@
          ⍝ -------------------------------------------------------------------------
              _CTR_←0 ⋄ patternList←patternName←⍬
            ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
-           ⍝      Default '::' or CALLER.∆PRE_PREFIX, if set.
+           ⍝      Default '::' or ∆CALLR.∆PRE_PREFIX, if set.
            ⍝      Must be a char scalar or vector; treated as a regexp literal.
-             PREFIX←'∆PRE_PREFIX'{0≠CALLER.⎕NC ⍺:CALLER.⎕OR ⍺ ⋄ ⍵}'::'     
+             PREFIX←'∆PRE_PREFIX'{0≠∆CALLR.⎕NC ⍺:∆CALLR.⎕OR ⍺ ⋄ ⍵}'::'     
 
             ⍝ regDirective:    name [isD:1] ∇ pattern
             ⍝ ⍺: name [isDirctv]. 
@@ -641,14 +656,16 @@
              cUNDEF←'undef'regDirective'   UNDEF            \h* (⍎_pName )            .*      $'
              cTRANS←'trans'regDirective'   TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*      $'
              cWARN←'warn'regDirective'     (WARN(?:ING)? | ERR(?:OR)?) \b\h*         (.*)     $'
+             cMAGIC←'magic'regDirective'   MAGIC \h* (\d+)? \h+ (⍎_pName) \h* ← \h*  (.*)     $'
              cOTHER←'other' 0 regDirective' ^                                         .*      $'
-             ⍝              ↑___ 0: not a directive; no prefix added.
+             ⍝              ↑___ 0: 0 means "not a directive; no prefix added."
          ⍝ -------------------------------⌈------------------------------------------
          ⍝ [2] PATTERN PROCESSING
          ⍝ -------------------------------------------------------------------------
              processDirectives←{
                  T F S←1 0 ¯1       ⍝ true, false, skip
                  lineNum+←1
+                
                  f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
                  
                  case←⍵.PatternNum∘∊
@@ -772,6 +789,21 @@
                      f0 annotate PREFIX,'CDEF ',f2,' ← ',f4,' ➡ ',val,(' [EMPTY] '/⍨0=≢val),' ',YESch
                  }⍵
 
+              ⍝  ::MAGIC \h* [digits] name ← apl_code 
+              ⍝      digits: ∊0, 1, 2; the required environment (namespace); see mPutMagic.
+              ⍝              defaults to 0.
+              ⍝      name:   macro name being defined
+              ⍝      apl_code: code to be executed in the specified environment.
+              ⍝  Does an internal mPutMagic call...
+              ⍝  There is no reason for this to be exposed except to test perhaps.
+                 case cMAGIC:{
+                    T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
+                    type←1↑⊃⌽⎕VFI f1 ⋄ name code←f2 f3  
+                    ~type∊0 1 2:annotate f0,NOch
+                    _←type mPutMagic name code
+                    f0 annotate '::MAGIC ',(⍕type),' ',name,' ← ',code,' ',YESch
+                 }⍵
+
                ⍝ ::WHEN / ::UNLESS
                ⍝ ::WHEN  [~]expression arbitrary_code
                ⍝   0=≢f1  f2 f3         f5          (expression also sets f3)
@@ -830,13 +862,15 @@
                  case cSTAT:{
                      T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
                      usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
-                  ⍝ Do we have a "sink"?    ← name
-                  ⍝ If so, get a temporary name...
-                     isSink←0 0 1∧.=×≢¨usr nm arrow        ⍝ (0=≢usr)(0=≢nm)∧0≠≢arrow
-                     nm←{⍵=0: nm ⋄ getTempName 1}isSink
+                  ⍝ Do we have a "sink", an anonymous temp name? 
+                  ⍝     /^ ← .* /  
+                  ⍝ If so, get a temporary name...     
+                     nm←{⍵=0: nm ⋄ getTempName 1}isSink←0 0 1∧.=×≢¨usr nm arrow   
  
                      val←{
                   ⍝ [1a] Expand any code that is not prefixed with ]...
+                  ⍝ NOTE: We need a scan4Semi here, because we evaluate
+                  ⍝    STATICS before the entire set of input lines has been scanned.
                          0=≢usr:∊scan4Semi macroExpand f4     ⍝ User command?
                   ⍝ [1b] Expand ::STATIC ]user code
                   ⍝ Handle User commands by decoding any assignment ]name←val
@@ -881,7 +915,8 @@
 
                    ⍝ If the name <nm> is undefined (new), we'll clear out any old value,
                    ⍝ e.g. from prior calls to ∆PRE for the same function/object.
-                   ⍝ print: assigning names with values across classes is not allowed in APL or here.
+                   ⍝ NOTE: assigning names with values that change classes is not allowed in APL,
+                   ⍝       so we disallow here.
                      _←∆MYR.⎕EX⍣isFirstDef⊣nm
 
                      okMsg errMsg←{
@@ -935,7 +970,7 @@
                      T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
                      info←' ','[',']',⍨{
                          0::'UNDEFINED. ',(∆DQT f2),' NOT FOUND',NOch⊣mDel f1
-                         'IMPORTED'⊣mPut f1(CALLER.⎕OR f2)
+                         'IMPORTED'⊣mPut f1(∆CALLR.⎕OR f2)
                      }⍬
                      annotate f0,info
                  }⍬
@@ -1009,20 +1044,25 @@
 
            ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
            ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
-             ∆MY←''⎕NS⍨(⍕CALLER),'.⍙⍙.',funNm,'.∆MY'
+             ∆MY←''⎕NS⍨(⍕∆CALLR),'.⍙⍙.',funNm,'.∆MY'
              _←{
                  0=≢list←∆MY.⎕NL-⍳10:0
-                 _←print PREFIX,'STATIC variables for ',(⍕CALLER),'.',funNm,'exists'
+                 _←print PREFIX,'STATIC variables for ',(⍕∆CALLR),'.',funNm,'exists'
                  1⊣print'  Variables:',∊' ',¨list
              }
              (∆MYR←⍎∆MY)._FIRST_←1
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-             _←0 mPut'⎕MY'∆MY                   ⍝ ⎕MY    → a private 'static' namespace
-             _←0 mPut'⎕FIRST'(∆MY,'.FIRST')     ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
-             _←0 mPut'⎕ME' '(⊃⎕SI)'             ⍝ Simple name of active function
-             _←0 mPut'⎕XME' '(⊃⎕XSI)'           ⍝ Full name of active function
+             _←mPut'⎕MY'∆MY                     ⍝ ⎕MY    → a private 'static' namespace
+             _←mPut'⎕FIRST'(∆MY,'.FIRST')       ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+             _←mPut'⎕ME' '(⊃⎕SI)'               ⍝ Simple name of active function
+             _←mPut'⎕XME' '(⊃⎕XSI)'             ⍝ Full name of active function
+          ⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
+             _←0 mPutMagic'__LINE__' 'lineNum'  
+             _←0 mPutMagic'__FILE__' 'funNm' 
              _←0 mPutMagic'__TS__' '⎕TS'        ⍝ Timestamp when statement preprocessed.
+             _←1 mPutMagic '__STATIC__' '⎕THIS'
+             _←2 mPutMagic '__CALLER__' '⎕THIS'
            ⍝ ⎕T is a reference to the last IMPLICIT temporary variable from the previous
            ⍝ statement (whether delimited by a newline or a lozenge [⋄])
            ⍝    0 ∆PRE  'f←{1:←⍳5}'  '←⍳10 ⋄ ⎕←≢⎕T'  '⎕←≡⎕T' 
@@ -1033,8 +1073,8 @@
            ⍝ ┌─────────────────────────────┬───────────────────────────────────────────┐
            ⍝ │ T⍙0←2019 10 12 22 10 52 328 │ T⍙1←'one two three ',T⍙0 ⋄ ⎕←(2×≢T⍙1)↑T⍙1 │
            ⍝ └─────────────────────────────┴───────────────────────────────────────────┘
- 
              _←0 mPutMagic'⎕T' 'getTempName 0'
+             _←0 mPutMagic'⎕TNEW' '∆MY,''.'',getTempName 1'
 
            ⍝ Other Initializations
              stack←,1 ⋄ (lineNum warningCount errorCount)←0
@@ -1107,7 +1147,7 @@
            ⍝ Returns ⍵ with NULLs removed...
              condSave←{⍺←EDIT∨__DEBUG__
                  _←⎕EX tmpNm
-                 ⍺:⍎'CALLER.',tmpNm,'←⍵~¨NULL'
+                 ⍺:⍎'∆CALLR.',tmpNm,'←⍵~¨NULL'
                  ⍵
              }
            ⍝ ERROR PATH
@@ -1132,12 +1172,12 @@
                ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
              dataOut←FIX scan4Semi dataOut
              ⍝ Edit (for review) if EDIT=1
-                _←{CALLER⍎tmpNm,'←↑⍵'}dataOut  
-                _←CALLER.⎕ED⍣EDIT⊣tmpNm ⋄ _←CALLER.⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
+                _←{∆CALLR⍎tmpNm,'←↑⍵'}dataOut  
+                _←∆CALLR.⎕ED⍣EDIT⊣tmpNm ⋄ _←∆CALLR.⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
                 note←{ 0<⍵: ⎕←'*** There were ',(⍕⍵),' ',⍺ ⋄ ⍬}
                 _←'warnings' 'errors'note¨ warningCount errorCount 
              0<errorCount: '∆PRE: Fatal errors occurred' ⎕SIGNAL 911
-             FIX:_←2 CALLER.⎕FIX dataOut
+             FIX:_←2 ∆CALLR.⎕FIX dataOut
              dataOut
          }⍵
      }⍵
