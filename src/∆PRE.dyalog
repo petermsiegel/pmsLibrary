@@ -830,9 +830,14 @@
                  case cSTAT:{
                      T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
                      usr nm arrow←f1 f2 f3      ⍝  f1: ]user_cmd, f2 f3: name ←
+                  ⍝ Do we have a "sink"?    ← name
+                  ⍝ If so, get a temporary name...
+                     isSink←0 0 1∧.=×≢¨usr nm arrow        ⍝ (0=≢usr)(0=≢nm)∧0≠≢arrow
+                     nm←{⍵=0: nm ⋄ getTempName 1}isSink
+ 
                      val←{
                   ⍝ [1a] Expand any code that is not prefixed with ]...
-                         0=≢usr:macroExpand f4     ⍝ User command?
+                         0=≢usr:∊scan4Semi macroExpand f4     ⍝ User command?
                   ⍝ [1b] Expand ::STATIC ]user code
                   ⍝ Handle User commands by decoding any assignment ]name←val
                   ⍝ and setting up ⎕SE.UCMD wrt namespace ∆MY.
@@ -840,20 +845,17 @@
                          nm∘←arrow∘←''
                          usr
                      }0
-                  ⍝ If the expansion to <val> changed <f4>, note in output comment
+                   ⍝ If the expansion to <val> changed <f4>, note in output comment
                      expMsg←''(' ➡ ',val)⊃⍨val≢f4
-                  ⍝ Do we have a "sink"?    ← name
-                  ⍝ If so, get a temporary name...
-                     isSink←0 1∧.=×≢¨nm arrow        ⍝(0=≢nm)∧0≠≢arrow
-                     nm←{⍵=0: nm ⋄ getTempName 1}isSink
-                  ⍝[2] Evaluate ::STATIC apl_code and return.
+  
+                   ⍝[2] Evaluate ::STATIC apl_code and return.
                      0=≢nm:(annotate f0,expMsg,okMsg),more⊣(okMsg more)←{
                          0::NOch({
                              invalidE←'∆PRE ::STATIC WARNING: Unable to execute expression'
                              _←NL,'⍝>  '
                              _,←print invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')',NL
                              warningCount+←1
-                             _,←'∘static err∘'
+                             _,←'∘static err 1∘'
                              _
                          }0)
                          YESch''⊣∆MYR⍎val,'⋄1'
@@ -889,7 +891,7 @@
                              invalidE←'∆PRE ',PREFIX,'STATIC WARNING: Unable to execute expression'
                              _←NL,'⍝>  '
                              _,←print(invalidE,NL,'⍝>  ',⎕DMX.EM,' (',⎕DMX.Message,')'),NL
-                             _,←'∘static err∘'
+                             _,←'∘static err 2∘'
                              _
                          }0)
                          YESch''⊣∆MYR⍎nm,'←',val,'⋄1'
