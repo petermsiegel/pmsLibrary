@@ -2,7 +2,7 @@
  ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
-     0:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
+   ⍝ 0:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
   ⍝  ⍺=0,1: These are shortcuts for taking code lines as right argument,
   ⍝         and returning the processed lines as output
   ⍝  Other character options handle functions stored as text files, 
@@ -35,10 +35,10 @@
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
          ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
          ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=∆CALLR.⎕NC var:0 ⋄ 1≡∆CALLR.⎕OR var}
-         __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'  ⍝ Default 1; checking env
+         __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'   ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
          NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-         EDIT←(⎕NULL≡⍬⍴⍵)∨opt'E'                           ⍝ Default 0; 1 if ⍵≡∊⎕NULL
+         EDIT←(⎕NULL≡⍬⍴⍵)∨opt'E'                          ⍝ Default 0; 1 if ⍵≡∊⎕NULL
          QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
          FIX←~opt'noF'                                    ⍝ Default 1
 
@@ -277,9 +277,9 @@
                  0≠1↑0⍴v: v    ⍝ Not magic: return as is!            
                  p v←(1↑v)(1↓v)
      0:: 11 ⎕SIGNAL⍨'∆PRE Logic error: eval of magic macro failed: ',CR,'> name="',n,'" val="',(⍕v),'" ns="',(⍕p),'"'
-                 0=p: ⍕⍎v          ⍝ ∆PRE space
-                 1=p: ⍕∆MYR⍎v      ⍝ ∆MY space
-                 2=p: ⍕∆CALLR⍎v    ⍝ ∆CALLR space
+                 0=p: ∊⍕⍎v          ⍝ ∆PRE space
+                 1=p: ∊⍕∆MYR⍎v      ⍝ ∆MY space
+                 2=p: ∊⍕∆CALLR⍎v    ⍝ ∆CALLR space
                  ∘ 'logic error: unknown environment' ∘
              }
            ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆TRUE
@@ -331,19 +331,22 @@
 
               ⍝ Single-char translation input option. See ::TRANS
                  str←{0=≢translateIn:⍵ ⋄ translateOut@(translateIn∘=)⍵}⍵
-                 mNameVis[]∘←1      ⍝ Make all visible until next call to macroExpand
+                 mNameVis[]∘←1      ⍝ Make all macros visible until next call to macroExpand
                  str←⍺{
                      strIn←str←⍵
                      0≥⍺:⍵
                      nmsFnd←⍬
                    ⍝ Match/macroExpand...
+                   ⍝ NOTE: Should handle double quotes here, namely those
+                   ⍝       added via macros...
                    ⍝ [1] pLongNmE: long names,
-                     cUserE cSkipE cLongE←0 1 2
+                     cUserE cDQ cSkipE cLongE←0 1 2 3
                      str←{
                          e1←'∆PRE: Value is too complex to represent statically:'
                          4::4 ⎕SIGNAL⍨e1,CR,'   ⍝     In macro code: "',⍵,'"'
-                         pUserE pSkipE pLongNmE ⎕R{
+                         pUserE pDQe pSkipE pLongNmE ⎕R{
                              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                             case cDQ:processDQ ⍵ ∆FLD¨1 2  
                              case cSkipE:f0
                              case cLongE:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
                              case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
@@ -477,6 +480,31 @@
                          __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
                          {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
                      }⍠'UCP' 1⊣str
+
+                   ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
+                   ⍝ So far, we ONLY allow scanning here for String / Name catenation:
+                   ⍝     IN                           OUT
+                   ⍝     name1 ∘∘ name                name1name2
+                   ⍝     "str1" ∘∘ "str1"             'str1str2' (per processDQ)
+                   ⍝     'str1' ∘∘ 'str1'             'str1str2'
+                   ⍝     any other /\h*∘∘\h*/         *** ERROR ***
+                   ⍝ Allows recursion:
+                   ⍝      deb ∘∘ 45 ∘∘ jx             deb45jx
+                   ⍝      'one '∘∘'dark '∘∘'night'    'one dark night'
+                     pDQcatE←'(?x) ( (?: "  [^"]*  "  )+) \h* ∘∘ \h* ((?1))'
+                     pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
+                     pSkipExtraE←'⍝.*$ | (?: "  [^"]*  "  )+ | (?: ''  [^'']*  ''  )+'
+                     pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
+                     str←pDQcatE pSQcatE pSkipExtraE pCatNamesE  ⎕R  {
+                          cDQcat cSQcat cSkipX cNmCat←0 1 2 3 
+                          case←⍵.PatternNum∘∊
+                          case cSkipX: ⍵ ∆FLD 0       ⍝ SKIP comments, sq fields, dq fields
+                          case cNmCat:''      ⍝ Join the names
+                            f1f2←(¯1↓⍵ ∆FLD 1),1↓⍵ ∆FLD 2
+                          case cDQcat: processDQ f1f2 ' '
+                          case cSQcat:f1f2
+                     }str
+
                   ⍝  Do we scan the string again?
                   ⍝  It might be preferable to recursively scan code segments
                   ⍝  that might have macros or special elements, 
@@ -489,7 +517,7 @@
                      _←nmsFnd← ⍬ ⊣ mHideAll nmsFnd
                      (⍺-1)∇ str
                  }str
-              str
+                 str
              }
 
          ⍝ -------------------------------------------------------------------------
@@ -664,7 +692,7 @@
          ⍝ -------------------------------------------------------------------------
              processDirectives←{
                  T F S←1 0 ¯1       ⍝ true, false, skip
-                 lineNum+←1
+                 __LINE__+←1
                 
                  f0 f1 f2 f3 f4←⍵ ∆FLD¨0 1 2 3 4
                  
@@ -718,7 +746,7 @@
                  case cEND:{
                      stack↓⍨←¯1
                      c←S≠TOP
-                     0=≢stack:annotate'   ⍝??? ',f0,NOch⊣stack←,0⊣print'INVALID ::END statement at line [',lineNum,']'
+                     0=≢stack:annotate'   ⍝??? ',f0,NOch⊣stack←,0⊣print'INVALID ::END statement at line [',__LINE__,']'
                      annotate f0
                  }⍵
 
@@ -942,9 +970,9 @@
               ⍝ If file has no type, .dyapp [dyalog preprocessor] or .dyalog are assumed
                  case cINCL:{
                      T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
-                     funNm←∆UNQ f1
+                     __FILE__←∆UNQ f1
                      _←dPrintQ INFOch,2↓(bl←+/∧\f0=' ')↓f0
-                     (_ fullNm dataIn)←getDataIn funNm
+                     (_ fullNm dataIn)←getDataIn __FILE__
                      _←dPrintQ',',msg←' file "',fullNm,'", ',(⍕≢dataIn),' lines',NL
 
                      _←fullNm{
@@ -1004,7 +1032,7 @@
                     f1←(isW←'W'=1↑uc f1)⊃'ERROR' 'WARNING' 
                     f2←(0=≢f2)⊃f2 ('An unknown user ',f1,' has occurred') 
                     annotate '::',f1,' ',f2,YESch,NL,print isW{
-                        ln←{⍺←2 ⋄ ch←'[',']',⍨⍵ ⋄ ⍺>≢⍵: (-2+⍺)↑ch ⋄ ch}⍕lineNum
+                        ln←{⍺←2 ⋄ ch←'[',']',⍨⍵ ⋄ ⍺>≢⍵: (-2+⍺)↑ch ⋄ ch}⍕__LINE__
                         ⍝ Dyalog bug: takes 6 WARNch to have 3 print out! Sigh.
                         _←(3⍴'*'),' ',ln,' ',f1,': ',⍵
                         ⍺:WARNch, _ ⊣ warningCount+←1 
@@ -1034,20 +1062,26 @@
              _←0 mPut'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
              _←0 mPut'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
              _←0 mPut'⎕EVAL' '⍎¨0∘∆PRE '
+           ⍝ Add ⎕DFNS call - to provide access to common dfns
+             _←0 mPut '⎕DFNS' '⎕SE.dfns'
+             _←0 mPut '⎕PLOT'  '{⎕SE.UCMD ''Plot '',⍵}'
 
            ⍝ Write out utility function(s) to ⎕SE
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
              _←⎕SE⍎'⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
+           ⍝ Copy utility functions from dfns to ⎕SE.dfns
+             dfnsList←'pco' ⋄ _←'dfns'⎕SE.⎕NS ''
+             _← dfnsList ⎕SE.dfns.⎕CY'dfns'
            ⍝ Read in data file...
-             funNm fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
-             tmpNm←'__',funNm,'__'
+             __FILE__ fullNm dataIn←getDataIn(⊆⍣(~FIX))⍵
+             tmpNm←'__',__FILE__,'__'
 
-           ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <funNm>
-           ⍝ Then set up FIRST, which is 1 the first time ANY function in <funNm> is called.
-             ∆MY←''⎕NS⍨(⍕∆CALLR),'.⍙⍙.',funNm,'.∆MY'
+           ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <__FILE__>
+           ⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
+             ∆MY←''⎕NS⍨(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY'
              _←{
                  0=≢list←∆MY.⎕NL-⍳10:0
-                 _←print PREFIX,'STATIC variables for ',(⍕∆CALLR),'.',funNm,'exists'
+                 _←print PREFIX,'STATIC variables for ',(⍕∆CALLR),'.',__FILE__,'exists'
                  1⊣print'  Variables:',∊' ',¨list
              }
              (∆MYR←⍎∆MY)._FIRST_←1
@@ -1058,11 +1092,14 @@
              _←mPut'⎕ME' '(⊃⎕SI)'               ⍝ Simple name of active function
              _←mPut'⎕XME' '(⊃⎕XSI)'             ⍝ Full name of active function
           ⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
-             _←0 mPutMagic'__LINE__' 'lineNum'  
-             _←0 mPutMagic'__FILE__' 'funNm' 
-             _←0 mPutMagic'__TS__' '⎕TS'        ⍝ Timestamp when statement preprocessed.
-             _←1 mPutMagic '__STATIC__' '⎕THIS'
-             _←2 mPutMagic '__CALLER__' '⎕THIS'
+             _←0 mPutMagic'__LINE__'         '__LINE__'  
+             _←0 mPutMagic'__FILE__'         '__FILE__' 
+             _←0 mPutMagic'__TS__'           '⎕TS'        
+             _←1 mPutMagic '__STATIC__'      '⎕THIS'
+             _←2 mPutMagic '__CALLER__'      '⎕THIS'
+             _←0 mPutMagic '__TIME__'        '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
+             _←0 mPutMagic '__DATE__'        '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
+            _←mPut         '__DATE__TIME__'  '__DATE__ ∘∘ "T" ∘∘ __TIME__'
            ⍝ ⎕T is a reference to the last IMPLICIT temporary variable from the previous
            ⍝ statement (whether delimited by a newline or a lozenge [⋄])
            ⍝    0 ∆PRE  'f←{1:←⍳5}'  '←⍳10 ⋄ ⎕←≢⎕T'  '⎕←≡⎕T' 
@@ -1074,14 +1111,13 @@
            ⍝ │ T⍙0←2019 10 12 22 10 52 328 │ T⍙1←'one two three ',T⍙0 ⋄ ⎕←(2×≢T⍙1)↑T⍙1 │
            ⍝ └─────────────────────────────┴───────────────────────────────────────────┘
              _←0 mPutMagic'⎕T' 'getTempName 0'
-             _←0 mPutMagic'⎕TNEW' '∆MY,''.'',getTempName 1'
-
+          
            ⍝ Other Initializations
-             stack←,1 ⋄ (lineNum warningCount errorCount)←0
+             stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
              includedFiles←⊂fullNm
              translateIn←translateOut←⍬                 ⍝ None
              NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
-             _←dPrint'Processing input object ',(∆DQT funNm),' from file ',∆DQT fullNm
+             _←dPrint'Processing input object ',(∆DQT __FILE__),' from file ',∆DQT fullNm
              _←dPrint'Object has ',NLINES,' lines'
              dataFinal←⍬
              includeLines←⍬
@@ -1153,7 +1189,7 @@
            ⍝ ERROR PATH
              999::11 ⎕SIGNAL⍨{
                  _←1 condSave ⍵
-                 _←'Preprocessor error. Generated object for input "',funNm,'" is invalid.',⎕TC[2]
+                 _←'Preprocessor error. Generated object for input "',__FILE__,'" is invalid.',⎕TC[2]
                  _,'See preprocessor output: "',tmpNm,'"'
              }dataOut
              dataOut←condSave dataOut 
