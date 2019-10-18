@@ -340,33 +340,44 @@
                    ⍝ NOTE: Should handle double quotes here, namely those
                    ⍝       added via macros...
                    ⍝ [1] pLongNmE: long names,
-                     cUserE cDQ cSkipE cLongE←0 1 2 3
+                     cUser cDQ cSkip cLong←0 1 2 3
+                     
                      str←{
                          e1←'∆PRE: Value is too complex to represent statically:'
                          4::4 ⎕SIGNAL⍨e1,CR,'   ⍝     In macro code: "',⍵,'"'
                          pUserE pDQe pSkipE pLongNmE ⎕R{
                              f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-                             case cDQ:processDQ ⍵ ∆FLD¨1 2  
-                             case cSkipE:f0
-                             case cLongE:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
-                             case cUserE:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
+                             case cDQ cSkip: f0  ⍝ Just skip double quotes until [3] below
+                             case cLong:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
+                             case cUser:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
                              ∘Unreachable∘                               ⍝ else: comments
                          }⍠'UCP' 1⊣⍵
                      }str
+                     
                    ⍝ [2] pShortNmE: short names (even within found long names)
                    ⍝     pSpecialIntE: Hexadecimals and bigInts
-                     cSkipE cShortNmE cSpecialIntE←0 1 2
-                     str←pSkipE pShortNmE pSpecialIntE ⎕R{
+                     cDQ cSkip cShortNm cSpecialInt←0 1 2 3
+                     str←pDQe pSkipE pShortNmE pSpecialIntE ⎕R{
                          f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
-                         case cSkipE: f0
-                         case cSpecialIntE:{
+                         case cDQ cSkip: f0   ⍝ Just skip double quotes until after macros
+                         case cSpecialInt:{
                              ⍵∊'xX':⍕∆H2D f1
                              0=≢f2:∆QT f1                ⍝ No exponent
                              ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
                          }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                         case cShortNmE:⍕1 mGet f0⊣nmsFnd,←⊂f0
+                         case cShortNm:⍕1 mGet f0⊣nmsFnd,←⊂f0
                          ∘Unreachable∘
                      }⍠'UCP' 1⊣str
+                   
+                   ⍝  [3] Handle any double quotes introduced in macros (mGet) above.
+                   ⍝  NO MORE DOUBLE-QUOTED STRINGS SHOULD APPEAR AFTER THIS POINT...
+                   str←pDQe pSkipE  ⎕R{
+                             f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
+                             case 0:processDQ ⍵ ∆FLD¨1 2  
+                             case 1:f0
+                              ∘Unreachable∘                               ⍝ else: comments
+                   }⍠'UCP' 1⊣str
+                    
                    ⍝ Deal with ATOMS of two types:
                    ⍝ Simple atoms: names or numbers,zilde (⍬),⎕NULL
                    ⍝     `  name 123.45 nam2 123j45 etc.
@@ -480,6 +491,26 @@
                          __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
                          {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
                      }⍠'UCP' 1⊣str
+                    
+                  ⍝  color ← ::ENUM {red:0, orange: 1, "green": 3, rouge: 0}
+                  ⍝  where {...} is ⎕JSON format, except names may omit double-quotes.
+                  ⍝    and values in single-quotes will have double-quotes silently deployed.
+                  ⍝  Creates color, a namespace, with:
+                  ⍝     color.(red orange green rouge)← 0 1 3 0
+                  ⍝     color.∆NAMES←'red' 'orange' 'green' 'rouge'
+                  ⍝     color.∆VALUES←0     1        3       0
+                  ⍝     color.∆ENUM←  0     1        3      ⍝ No repeating values
+                     pEnumE2←∆MAP '(?x)',_pName,'(?=:)'
+                     pEnumE←∆MAP '(?xi)::ENUM \h* (⍎pMatchBraces)'
+                     str ← pSkipE pEnumE  ⎕R {
+                         case←⍵.PatternNum∘∊
+                         case 0:⍵ ∆FLD 0    
+                         val←∆QT pEnumE2 pSQe ⎕R {case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0 
+                             case 0: DQ ∆QT f0
+                             DQ ∆QT 1↓¯1↓f0
+                         }⍠'UCP' 1⊣⍵ ∆FLD 1  
+                         '⎕SE.⍙enum ',val
+                      }⍠'UCP' 1⊣ str
 
                    ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
                    ⍝ So far, we ONLY allow scanning here for String / Name catenation:
@@ -487,22 +518,32 @@
                    ⍝     name1 ∘∘ name                name1name2
                    ⍝     "str1" ∘∘ "str1"             'str1str2' (per processDQ)
                    ⍝     'str1' ∘∘ 'str1'             'str1str2'
+                   ⍝     Note: SQ and DQ strings may be mixed and matched:
+                   ⍝      'str1' ∘∘ "str2" ∘∘ 'str3'  'str1str2str3'
                    ⍝     any other /\h*∘∘\h*/         *** ERROR ***
                    ⍝ Allows recursion:
                    ⍝      deb ∘∘ 45 ∘∘ jx             deb45jx
                    ⍝      'one '∘∘'dark '∘∘'night'    'one dark night'
-                     pDQcatE←'(?x) ( (?: "  [^"]*  "  )+) \h* ∘∘ \h* ((?1))'
                      pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
-                     pSkipExtraE←'⍝.*$ | (?: "  [^"]*  "  )+ | (?: ''  [^'']*  ''  )+'
                      pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
-                     str←pDQcatE pSQcatE pSkipExtraE pCatNamesE  ⎕R  {
-                          cDQcat cSQcat cSkipX cNmCat←0 1 2 3 
+                     str← pSQcatE pSkipE pCatNamesE  ⎕R  {
+                          cSQcat cSkip cNmCat←0 1 2 
                           case←⍵.PatternNum∘∊
-                          case cSkipX: ⍵ ∆FLD 0       ⍝ SKIP comments, sq fields, dq fields
+                          case cSkip: ⍵ ∆FLD 0       ⍝ SKIP comments, sq fields, dq fields
                           case cNmCat:''      ⍝ Join the names
                             f1f2←(¯1↓⍵ ∆FLD 1),1↓⍵ ∆FLD 2
-                          case cDQcat: processDQ f1f2 ' '
                           case cSQcat:f1f2
+                     }str
+
+                   ⍝ ::UNQ(string) : dequotes strings (and adjusts) internal squotes, returning string'.
+                   ⍝ To ensure parens: ::UNQ(("str1" "str2"))
+                   ⍝ Alias: ::DEQ
+                     pUNQe←'::(?:UN|DE)Q\h*(',pMatchParens,')'
+                     str←pSkipE pUNQe ⎕R {
+                         0=⍵.PatternNum: ⍵ ∆FLD 0
+                       ⍝ Removes any balanced (single) quote patterns
+                       ⍝ and adjusts internal quotes...
+                         pSQe ⎕R {∆UNQ ⍵ ∆FLD 0}⊣1↓¯1↓⍵ ∆FLD 1  ⍝ Omit outermost parens
                      }str
 
                   ⍝  Do we scan the string again?
@@ -637,8 +678,11 @@
              _←'(?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
              _,←'        | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
              _,←') '
-             (_BRL _BRR _BRN)←'{}1' ⋄ _pBrace←∆MAP _ ⋄ _pBraceX←_pBrace,'(?:\h*&)?'
-             (_BRL _BRR _BRN)←'()2' ⋄ _pParen←∆MAP _
+             (_BRL _BRR _BRN)←'{}1' 
+                  ⋄ pMatchBraces←'(?xi)',_pBrace←∆MAP _ 
+                  ⋄ _pBraceX←_pBrace,'(?:\h*&)?'
+             (_BRL _BRR _BRN)←'()2' 
+                  ⋄ pMatchParens←'(?xi)',_pParen←∆MAP _
              _L←_R←'(?xi) ',CR
              ⍝ allowFnAtomsInMap OPTION: 
              ⍝ Select whether function atoms 
@@ -1067,6 +1111,8 @@
              _←0 mPut '⎕PLOT'  '{⎕SE.UCMD ''Plot '',⍵}'
 
            ⍝ Write out utility function(s) to ⎕SE
+           ⍝ ⍙enum:  Handle quasi-⎕JSON-style enumerations
+             _←⎕SE⍎'⍙enum←{nm←⎕JSON ⍵⋄nm.(∆ENUM←∪∆VALUES←⍎¨∆NAMES←⎕NL¯2)⋄nm}' 
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
              _←⎕SE⍎'⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
            ⍝ Copy utility functions from dfns to ⎕SE.dfns
@@ -1135,14 +1181,14 @@
 
              _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
              _pI,←pZildeE pEOLe pNotInSetE 
-             cInDirective cDQ3e cDQ cSQ cCm cCn cZilde cEOL cNotInSet ←⍳9
+             cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL cNotInSet ←⍳9
              dataOut← _pI ⎕R{
                  f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
 
               ⍝  spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
               ⍝  print (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
                  case cInDirective:f0⊣inDirective⊢←1
-                 case cDQ3e:' '                             ⍝ """..."""
+                 case cDQ3:' '                             ⍝ """..."""
                  case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
                  case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
                      ~NL∊⍵:⍵

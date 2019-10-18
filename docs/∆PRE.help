@@ -184,6 +184,16 @@
             4 
                  2 3 4 5 fnList.fn 5 4 3 1
             7 ¯1 64 10                          ⍝ 2+5; 3-4; 4*3; 5×1+1
+    ∘ String/Name Join
+      If two or more names or numbers are connected via ∘∘ (with optional spaces before/after),
+      the names are joined into one:
+            test ∘∘ 124  ∘∘ a      ==>   test124a
+      If two or more strings, either double-quoted strings or single-quoted strings,
+      are connected via ∘∘ (as above), the strings are joined into one:
+            "my name" ∘∘ " is " ∘∘ "John!' ≡≡> "my name is John!"
+      Otherwise, ∘∘ sequences are an error.
+      ---
+      Note: String/Name Joins are useful in macros (see ::DEF).
     ∘ explicit macros for text replacement
         See ::DEF, ::CDEF
     ∘ continuation lines end with .. (either the ellipsis char. or 2 or more dots),
@@ -229,7 +239,7 @@
  
      Triple-double quotes.  """ ... """
        Triple-double quoted expressions may appear on one or more lines.
-       They are not strings, but comments, resolving to a single comment.
+       They are not strings, but comments, resolving to a single space.
            1 + """This is a triple-quote that
                   is treated as a silly comment""" 4
        ==>
