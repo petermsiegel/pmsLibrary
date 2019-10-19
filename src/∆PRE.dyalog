@@ -493,21 +493,44 @@
                      }⍠'UCP' 1⊣str
                     
                   ⍝  color ← ::ENUM {red:0, orange: 1, "green": 3, rouge: 0}
-                  ⍝  where {...} is ⎕JSON format, except names may omit double-quotes.
+                  ⍝  or 
+                  ⍝  color ← ::ENUM {red:,  orange:, "green":, rouge: "red"}
+                  ⍝    i.e.  ::ENUM {red:"red", orange: "orange", green:"green","rouge":"rouge"}
+                  ⍝  -----
+                  ⍝  AUTOINCREMENT *  (Adds 1 to the prior value, with default initial = 0)
+                  ⍝  color ← ::ENUM {red:*, orange:*}
+                  ⍝    i.e.         {red:0, orange:1}
+                  ⍝  If a value is an integer (¯ or - ok), it "resets" the autoincrement
+                  ⍝  names← ::ENUM {a:25, b:*, c:*, d:¯10, e:*}
+                  ⍝                {a:25, b:26, c:27, d: -10, e:-9}
+                  ⍝  -----
+                  ⍝  In general, the ::ENUM is in ⎕JSON format, except names may omit double-quotes.
                   ⍝    and values in single-quotes will have double-quotes silently deployed.
-                  ⍝  Creates color, a namespace, with:
-                  ⍝     color.(red orange green rouge)← 0 1 3 0
-                  ⍝     color.∆NAMES←'red' 'orange' 'green' 'rouge'
-                  ⍝     color.∆VALUES←0     1        3       0
-                  ⍝     color.∆ENUM←  0     1        3      ⍝ No repeating values
-                     pEnumE2←∆MAP '(?x)',_pName,'(?=:)'
-                     pEnumE←∆MAP '(?xi)::ENUM \h* (⍎pMatchBraces)'
+                  ⍝  color ← ::ENUM {red:0,  orange:*, "green":*, rouge: 0}
+                  ⍝    creates color, a namespace, with:
+                  ⍝      color.(red orange green rouge)← 0 1 2 0
+                  ⍝      color.∆NAMES←'red' 'orange' 'green' 'rouge'
+                  ⍝      color.∆VALUES←0     1        2       0
+                  ⍝      color.∆ENUM←  0     1        2      ⍝ No repeating values
+                     pEnumE←∆MAP '(?xi) ::ENUM \h* (⍎pMatchBraces)'
+                     pEnumE0←∆MAP '(?x) (⍎_pName | ⍎_pSQe ) \h* : \h* ( [,}] )'
+                     pEnumE1←∆MAP '(?x)  ⍎_pName                (?=\h* : )'
+                     pEnumE2←     '(?x)  [-¯]?\d+               (?= \h* [,}] )'
+                     pEnumE3←∆MAP '(?x)  (?<=:) \h* (\* | [^,]+)(?= \h* [,}] )'
                      str ← pSkipE pEnumE  ⎕R {
                          case←⍵.PatternNum∘∊
                          case 0:⍵ ∆FLD 0    
-                         val←∆QT pEnumE2 pSQe ⎕R {case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0 
-                             case 0: DQ ∆QT f0
-                             DQ ∆QT 1↓¯1↓f0
+                         curV←¯1
+                         val←∆QT pEnumE0 pEnumE1  pEnumE2 pEnumE3 pSQe ⎕R {
+                             case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0 
+                             case 4:  DQ ∆QT 1↓¯1↓f0 ⍝ Change 'any val'    to  "any val"
+                             case 1:  DQ ∆QT f0      ⍝        fred: any,   to  "fred": any,
+                             case 2:  f0⊣curV∘←⍎f0←'-'@('¯'∘=)⊣f0 
+                             case 3:  {⍵≡,'*': '-'@('¯'∘=)⊣⍕curV∘←curV+1 ⋄ DQ ∆QT ∆UNQ ⍵}f0
+                           ⍝ case 2
+                             n←DQ ∆QT ∆UNQ ⍵ ∆FLD 1 ⋄ p←⍵ ∆FLD 2
+                             n,': ',n,p              ⍝        fred: ,      to  "fred": "fred", 
+                                                     ⍝     or fred:}       to  "fred": "fred"}
                          }⍠'UCP' 1⊣⍵ ∆FLD 1  
                          '⎕SE.⍙enum ',val
                       }⍠'UCP' 1⊣ str
@@ -601,7 +624,13 @@
             ⍝ and \0 will be removed at the end of processing.
             ⍝ This is mostly obsolete given we suppress macro definitions on recursion
             ⍝ so pats like  ::DEF fred← (⎕SE.fred) will work, rather than run away.
-             ⋄ _pShortNm←'  [\0]?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]*'
+            ⍝ Names may be of form 
+            ⍝     fred123,  ⎕fred123 (same as ⎕FRED123), 
+            ⍝     :fred123 (same as :FRED123)
+            ⍝ and ::fred123 (same as ::FRED123)
+            ⍝ Note that dfn sequences like 1: :FRED123 can be confused
+            ⍝      with 1 ::FRED123 if spacing isn't right...
+             ⋄ _pShortNm←'  [\0]?:?[\pL∆⍙_\#⎕:] [\pL∆⍙_0-9\#]*'
              ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
              ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
              ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
@@ -618,6 +647,7 @@
               ⍝ V/v, return vector of strings, split at newlines.
               ⍝ M/m  returns a matrix (padded with blanks).
              pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
+             _pSQe←'(?: ''[^'']*'' )+ '
              pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
              pCommentE←'(?x)      ⍝ .*  $'
                 ⍝ Use pSkipE when you are scanning SQs or Comments merely to skip them
