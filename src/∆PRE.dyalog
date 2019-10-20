@@ -494,7 +494,7 @@
                     
                   ⍝ Enumerations
                   ⍝    name0 ← ::ENUM { name1 [: [value1]], name2 [: [value2]], ...}
-                  ⍝       nameN:   APL-format name (short or long)
+                  ⍝       nameN:   APL-format name (short or long, no quotes)
                   ⍝       valueN:  [int | atom | "string" | *]
                   ⍝        int:     An APL integer using - or ¯ for negatives
                   ⍝        atom:    An APL-format name outside quotes
@@ -505,23 +505,26 @@
                   ⍝                 nameN will have value "nameN", i.e. itself. 
                   ⍝ color ← ::ENUM {red:,   orange: *, yellow: *, green,         rouge: 0}
                   ⍝    i.e. ::ENUM {red: 0, orange: 1, yellow: 2, green:"green", rouge: 0}
+                  ⍝ color ← ::ENUM {red,orange,yellow,green,rouge:red}
+                  ⍝    i.e. ::ENUM {red:"red", orange:"orange", ..., rouge:"red"}
                   ⍝  -----
+                  ⍝  Improvements: Allow multiple enumerations:
+                  ⍝  schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
+                  ⍝   ==>    schemes ← (first_enum_call)(second_enum_call)
                  
-                     pEnumE←∆MAP '(?xi) ::ENUM \h* (⍎pMatchBraces)'
-                     _B _E _I _W∘←'(?<=[{,])' '(?=\h*[,}])' '[¯-]?\d+'  '[⎕∆⍙\pL]\w*'
-                     pEnumE0←∆MAP '(?xi) ⍎_B \h* (⍎_W)  (?: \h* : \h* ((?| ⍎_I | ⍎_W | ⍎_pSQe | \*)?))?? ⍎_E'
-                     ⍝                           1                    2            
                      str ← pSkipE pEnumE  ⎕R {
                          case←⍵.PatternNum∘∊
                          case 0:⍵ ∆FLD 0    
                          curV←¯1
                          jn←'-'@('¯'∘=)⍕  ⍝ APL → JSON format number
+                         names←''
                          val←∆QT pEnumE0 ⎕R {
                              0:: f0,' ∘∘∘err∘∘∘'
                              1=⍵.PatternNum:', '
                              f0 name val←⍵ ∆FLD ¨0 1 2
+                              
                              name←DQ ∆QT name  ⋄ C←': ' 
-
+                             names,←name,' ' 
                              0=≢val: name,C,name                         ⍝ name:,
                              (⊃val)∊⎕D,'¯-': name,C,jn val⊣(curV∘←⍎val)  ⍝ name: 55,
                              '*'=⊃val:name,C,jn (curV∘←curV+1)           ⍝ name: *,
@@ -529,7 +532,7 @@
                              name,C,DQ ∆QT val                           ⍝ name: atom,
                              ∘∘UNREACHABLE∘∘⊣⎕←'ERROR: UNREACHABLE!'
                          }⍠'UCP' 1⊣⍵ ∆FLD 1  
-                         '⎕SE.⍙enum ',val
+                         '(',')',⍨names,'⎕SE.⍙enum ',val
                       }⍠'UCP' 1⊣ str
 
                    ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
@@ -611,7 +614,6 @@
                  patternName,←⊂nm 
                  (_CTR_+←1)⊢_CTR_
              }
-             _B←_E←_I←''  ⍝ Pre-declared...
              ⋄ _pDirectivePfx←'^\h* \Q',PREFIX,'\E \h*'
              ⋄ _pTarg←' [^ ←]+ '
              ⍝ _pSetVal:  /← value/, all optional: f[N+0]=arrow, f[N+1] value
@@ -733,6 +735,13 @@
              pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBraceX  _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
           ⍝  pExpression - matches \(anything\) or an_apl_long_name
              pExpression←∆MAP'⍎_pParen|⍎_pName'
+
+          ⍝ ::ENUM patterns
+             pEnumE←∆MAP '(?xi) ::ENUM \h* (⍎pMatchBraces) \h*'
+              _B _E _I _W←'(?<=[{,])' '(?=\h*[,}])' '[¯-]?\d+'  '[⎕∆⍙\pL]\w*'
+             pEnumE0←∆MAP '(?xi) ⍎_B \h* (⍎_W)  (?: \h* : \h* ((?| ⍎_I | ⍎_W | ⍎_pSQe | \*)?))?? ⍎_E'
+             ⍝                           1 name               2 val        
+         
           ⍝ static pattern: \]?  ( name? [ ← code]  |  code_or_APL_user_fn )
           ⍝                 1      2      3 4         4      
           ⍝  We allow name to be optional to allow for "sinks" (q.v.).           
@@ -1139,8 +1148,12 @@
              _←0 mPut '⎕PLOT'  '{⎕SE.UCMD ''Plot '',⍵}'
 
            ⍝ Write out utility function(s) to ⎕SE
+           ⍝ ----
            ⍝ ⍙enum:  Handle quasi-⎕JSON-style enumerations
-             _←⎕SE⍎'⍙enum←{nm←⎕JSON ⍵⋄nm.(∆ENUM←∪∆VALUES←⍎¨∆NAMES←⎕NL¯2)⋄nm⊣nm.⎕DF ''[ENUM]''}' 
+           ⍝ If ⍺ is specified as a vector of names (string vectors), 
+           ⍝ it usually contains the names of nm in original entry order.
+           ⍝ That way, ∆ENUM items etc are navigated as entered.
+             _←⎕SE⍎'⍙enum←{nm←⎕JSON⍵⋄⍺←nm.⎕NL¯2⋄nm.(∆ENUM←∪∆VALUES←⍎¨∆NAMES←⍺)⋄nm}' ⍝ ⊣nm.⎕DF ''[ENUM]''}' 
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
              _←⎕SE⍎'⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
            ⍝ Copy utility functions from dfns to ⎕SE.dfns
