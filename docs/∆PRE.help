@@ -263,6 +263,7 @@
      ::STATIC
      ::INCLUDE
      ::IMPORT
+     ::ENUM  
  
         (Note: currently comments are removed from preprocessor directives
          before processing.)
@@ -365,7 +366,7 @@
              To ensure a name←val or name pattern is viewed as code, do (e.g.):
                 ::STATIC ⊢some arbitrary code
                 ::STATIC (some arbitrary code)
- 
+        ::STATIC ::ENUM -- see ::ENUM
         ::WARN msg             prints '[lineNum] Warning: message' and increments warningCount
         ::ERROR msg            prints '[lineNum] Error: message' and increments errorCount.
                                For now, ::WARN and ::ERROR don't change other behavior;
@@ -382,6 +383,32 @@
                                ⎕←big          ⍝ Will not work!
                                ::IMPORT big2
                                ⎕←big2         ⍝ Will work
+         ::ENUM A pseudo-directive with these elements:
+              [ ::STATIC ] name ← ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
+                                  ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
+              where 
+                 name      a variable name to assign the enumeration to; if ::STATIC, it will be in ::STATIC space.
+                 type      a variable name indicating the type of enumeration; 
+                           if specified, it is ALWAYS defined as a constant (a niladic function)
+                           in ::STATIC space, with the enum established at compile time; 
+                           if type is omitted, the enumeration is defined 
+                                  statically, if ::STATIC is specified; or
+                                  at compile time, otherwise.
+                           The ⎕DF display form is [::ENUM] if type is omitted, else [::ENUM.type] if specified.
+                 enumN     {def1, def2, ..., defN}
+                    where  defN is either
+                              eName               eName is an APL-style name, eValue is "eName"
+                              eName: eValue       eName, eValue are APL-style names; "eValue" will be the value of eName
+                              eName: "qtValue"    "qtValue" will be the value of eName.
+                              ename:              Same as 1st option above
+                              ename: int          int a simple APL integer of form, which becomes the value of eNameN
+                              ename:*             assigns 1 plus the value of the previous integral-valued eName or the value 0 (¯1+1).
+                 name or type may represent one or more enumerations.
+               Each enumeration will always include these variables as well (don't clobber them):
+                              ∆ENUM               the unique list of values, equiv. to ∪∆VALUES.
+                              ∆NAMES              all the names specified, in order.
+                              ∆VALUES             all the values specified, in order.
+                              
   __DEBUG__                ⍝ See __DEBUG__ above...
   __MAX_EXPAND__←5         ⍝ Maximum times to expand macros (if 0, expansion is turned off!)
                            ⍝ Set via ⎕DEF __MAX_EXPAND__ ← 100
