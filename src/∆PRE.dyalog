@@ -2,7 +2,7 @@
  ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{
      ⍺←''
-   ⍝ 0:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
+    0:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
   ⍝  ⍺=0,1: These are shortcuts for taking code lines as right argument,
   ⍝         and returning the processed lines as output
   ⍝  Other character options handle functions stored as text files, 
@@ -26,14 +26,14 @@
        ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
        ⍝ Use NULL internally for special code lines (NULLs are removed at end)
          NL CR NULL←⎕UCS 10 13 0
-         SQ DQ SQDQ←'''' '"' '''"'
-         ∆CALLR←1⊃⎕RSI,#          ⍝ We're one level down, so take 1⊃⎕RSI...
-
+         SQ DQ SQDQ←'''' '"' '''"' ⋄ NUMFIRST←⎕D,'-¯'
+         ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
+        
       ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
       ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS-- see ⍝H documentation below...
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
-         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺}
+         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺} ⋄ nolb←{⍵↓⍨-+/∧\⍵=' '}
          ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=∆CALLR.⎕NC var:0 ⋄ 1≡∆CALLR.⎕OR var}
          __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'   ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
@@ -493,46 +493,73 @@
                      }⍠'UCP' 1⊣str
                     
                   ⍝ Enumerations
-                  ⍝    name0 ← ::ENUM { name1 [: [value1]], name2 [: [value2]], ...}
-                  ⍝       nameN:   APL-format name (short or long, no quotes)
-                  ⍝       valueN:  [int | atom | "string" | *]
-                  ⍝        int:     An APL integer using - or ¯ for negatives
-                  ⍝        atom:    An APL-format name outside quotes
-                  ⍝        string:  A string within quotes
-                  ⍝        *        indicates 1 more than the previous int or 0, if none.
-                  ⍝                 Non-integer values are ignored as predecessors
-                  ⍝        omitted, i.e. format:  'nameN:,' OR  'nameN,'    
-                  ⍝                 nameN will have value "nameN", i.e. itself. 
+                  ⍝    name0 ← ::ENUM { name1 [: [value1]], name2 [: [value2]], ...} 
+                  ⍝ OR 
+                  ⍝    [name0 ←]: :ENUM [typeName [←]]{ name1 [: [value1]], name2 [: [value2]], ...} 
+                  ⍝ Expanded form:
+                  ⍝    name0 ← ::ENUM  {...}{...} ... {...}
+                  ⍝    name0 ← ::ENUM  typeName {...}{...} ... {...}
+                  ⍝      typeName: Optional name of the enum type (a ← may optionally follow).
+                  ⍝            If set, [1] the typeName and value are set as ::STATICs
+                  ⍝                    [2] the display form of the object is [ENUM:typeName].
+                  ⍝                    [3] name0← may be omitted. The ::ENUM returns a shy result.
+                  ⍝      name0:    Any APL assignment expression at all...
+                  ⍝      nameN:    APL-format name (short or long, no quotes)
+                  ⍝      valueN:   [int | atom | "string" | *]
+                  ⍝      int:      An APL integer using - or ¯ for negatives
+                  ⍝      atom:     An APL-format name outside quotes
+                  ⍝      string:   A string within quotes
+                  ⍝      *         indicates 1 more than the previous int or 0, if none.
+                  ⍝                Non-integer values are ignored as predecessors
+                  ⍝      omitted, i.e. format:  'nameN:,' OR  'nameN,'    
+                  ⍝                nameN will have value "nameN", i.e. itself. 
                   ⍝ color ← ::ENUM {red:,   orange: *, yellow: *, green,         rouge: 0}
                   ⍝    i.e. ::ENUM {red: 0, orange: 1, yellow: 2, green:"green", rouge: 0}
                   ⍝ color ← ::ENUM {red,orange,yellow,green,rouge:red}
                   ⍝    i.e. ::ENUM {red:"red", orange:"orange", ..., rouge:"red"}
                   ⍝  -----
-                  ⍝  Improvements: Allow multiple enumerations:
-                  ⍝  schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
-                  ⍝   ==>    schemes ← (first_enum_call)(second_enum_call)
-                 
+                  ⍝  Now allows multiple enumerations:
+                  ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
+                  ⍝       schemes.∆NAMES
+                  ⍝    red  orange  yellow     green  blue  indigo  violet   
                      str ← pSkipE pEnumE  ⎕R {
                          case←⍵.PatternNum∘∊
-                         case 0:⍵ ∆FLD 0    
-                         curV←¯1
-                         jn←'-'@('¯'∘=)⍕  ⍝ APL → JSON format number
-                         names←''
-                         val←∆QT pEnumE0 ⎕R {
-                             0:: f0,' ∘∘∘err∘∘∘'
-                             1=⍵.PatternNum:', '
-                             f0 name val←⍵ ∆FLD ¨0 1 2
-                              
-                             name←DQ ∆QT name  ⋄ C←': ' 
-                             names,←name,' ' 
-                             0=≢val: name,C,name                         ⍝ name:,
-                             (⊃val)∊⎕D,'¯-': name,C,jn val⊣(curV∘←⍎val)  ⍝ name: 55,
-                             '*'=⊃val:name,C,jn (curV∘←curV+1)           ⍝ name: *,
-                             (⊃val)∊SQ,DQ: name,C,DQ ∆QT ∆UNQ val        ⍝ name: 'val' or "val"
-                             name,C,DQ ∆QT val                           ⍝ name: atom,
+                         case 0:⍵ ∆FLD 0 
+                         typeNm enums←⍵ ∆FLD¨1 2   
+                       ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
+                       ⍝ it will be assigned a value statically.
+                         11:: (⍵ ∆FLD 0),'∘∘∘err∘∘∘'
+                         err count←0
+                         staticOption←typeNm∘{
+                          ⍝ Not static, pass back 1 or more ⍙enum function calls.
+                            0=≢⍺:⍵
+                          ⍝ Is static. Do the ⍙enum calls now and assign the results to
+                          ⍝     ⍺ in ∆MYR.∆ENUM (∆ENUM is defined when ∆MY/R are defined).
+                          ⍝ Then create and pass back
+                          ⍝     ∆MYR.⍺ as a shy niladic function returning ∆MYR.∆ENUM.⍺.
+                            me←∆MY,'.',⍺ ⋄ _←mPut ⍺ me ⋄ myEnum←⍕∆MYR⍎'∆ENUM'
+                            _←∆MYR.⎕FX ('{_}←',⍺)('_←',myEnum,'.',⍺)
+                            me⊣⍎myEnum,'.',⍺,'←',⍵
+                         }
+                         staticOption ∆PARENS⍣(count>1)⊣∊pEnumEeach ⎕R { 
+                           count+←1 
+                           curV←¯1
+                           names←vals←'' 
+                           _←∆QT pEnumEsub ⎕R {
+                             0:: err∘←1
+                             f0 name val←⍵ ∆FLD ¨0 1 2        
+                             names,←' ',⍨name←SQ ∆QT name
+                             0=≢val: vals,←' ',⍨name                         ⍝ name:,
+                             isNum isStar isQt←(⊃val)∊¨NUMFIRST '*' SQDQ
+                             isNum: vals,←' ',⍨⍕val⊣(curV∘←⍎val)        ⍝ name: 55,
+                             isStar:vals,←' ',⍨⍕curV∘←curV+1            ⍝ name: *,
+                             isQt:  vals,←' ',⍨∆QT ∆UNQ val             ⍝ name: 'val' or "val"
+                             ⊢vals,←' ',⍨∆QT val                         ⍝ name: atom,
                              ∘∘UNREACHABLE∘∘⊣⎕←'ERROR: UNREACHABLE!'
-                         }⍠'UCP' 1⊣⍵ ∆FLD 1  
-                         '(',')',⍨names,'⎕SE.⍙enum ',val
+                           }⍠'UCP' 1⊣⍵ ∆FLD 1  
+                           err: ⎕SIGNAL 11
+                           ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum)',¯1↓vals
+                         }enums
                       }⍠'UCP' 1⊣ str
 
                    ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
@@ -547,9 +574,7 @@
                    ⍝ Allows recursion:
                    ⍝      deb ∘∘ 45 ∘∘ jx             deb45jx
                    ⍝      'one '∘∘'dark '∘∘'night'    'one dark night'
-                     pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
-                     pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
-                     str← pSQcatE pSkipE pCatNamesE  ⎕R  {
+                      str← pSQcatE pSkipE pCatNamesE  ⎕R  {
                           cSQcat cSkip cNmCat←0 1 2 
                           case←⍵.PatternNum∘∊
                           case cSkip: ⍵ ∆FLD 0       ⍝ SKIP comments, sq fields, dq fields
@@ -737,11 +762,15 @@
              pExpression←∆MAP'⍎_pParen|⍎_pName'
 
           ⍝ ::ENUM patterns
-             pEnumE←∆MAP '(?xi) ::ENUM \h* (⍎pMatchBraces) \h*'
+             pEnumE←∆MAP '(?xi) ::ENUM  (?: \h+ ( ⍎_pName )? \h*←?) \h* ((?: ⍎pMatchBraces \h*)+)'
+             pEnumEeach←∆MAP '(?xi) (⍎pMatchBraces)'
               _B _E _I _W←'(?<=[{,])' '(?=\h*[,}])' '[¯-]?\d+'  '[⎕∆⍙\pL]\w*'
-             pEnumE0←∆MAP '(?xi) ⍎_B \h* (⍎_W)  (?: \h* : \h* ((?| ⍎_I | ⍎_W | ⍎_pSQe | \*)?))?? ⍎_E'
+             pEnumEsub←∆MAP '(?xi) ⍎_B \h* (⍎_W)  (?: \h* : \h* ((?| ⍎_I | ⍎_W | ⍎_pSQe | \*)?))?? ⍎_E'
              ⍝                           1 name               2 val        
-         
+          ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
+             pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
+             pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
+                 
           ⍝ static pattern: \]?  ( name? [ ← code]  |  code_or_APL_user_fn )
           ⍝                 1      2      3 4         4      
           ⍝  We allow name to be optional to allow for "sinks" (q.v.).           
@@ -1153,9 +1182,16 @@
            ⍝ If ⍺ is specified as a vector of names (string vectors), 
            ⍝ it usually contains the names of nm in original entry order.
            ⍝ That way, ∆ENUM items etc are navigated as entered.
-             _←⎕SE⍎'⍙enum←{nm←⎕JSON⍵⋄⍺←nm.⎕NL¯2⋄nm.(∆ENUM←∪∆VALUES←⍎¨∆NAMES←⍺)⋄nm}' ⍝ ⊣nm.⎕DF ''[ENUM]''}' 
+           ⍝ We don't use ⎕JSON any more. More efficient and compact not to.
+           ⍝ ⍺⍺: Annotation from ::ENUM [name1 [etc.] ←]
+             ⎕SE.⍙enum←{⎕IO←0
+                    type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺   
+                    ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
+                    _ ←⍺{ns⍎⍺,'←⍵'}¨⍵
+                    ns⊣⍺{ns⍎'∆NAMES ∆VALUES ∆ENUM←⍺ ⍵ (∪⍵)'}⍵ 
+             }
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
-             _←⎕SE⍎'⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR''fn''⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}'
+             ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
            ⍝ Copy utility functions from dfns to ⎕SE.dfns
              dfnsList←'pco' ⋄ _←'dfns'⎕SE.⎕NS ''
              _← dfnsList ⎕SE.dfns.⎕CY'dfns'
@@ -1165,13 +1201,15 @@
 
            ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <__FILE__>
            ⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
-             ∆MY←''⎕NS⍨(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY'
+           ⍝ And set up ∆ENUM within ∆MY.
+             ∆MY←(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY' 
+             _←''⎕NS⍨∆MY,'.∆ENUM'        ⍝ Sets up ∆MY, ∆MY.∆ENUM
              _←{
                  0=≢list←∆MY.⎕NL-⍳10:0
                  _←print PREFIX,'STATIC variables for ',(⍕∆CALLR),'.',__FILE__,'exists'
                  1⊣print'  Variables:',∊' ',¨list
              }
-             (∆MYR←⍎∆MY)._FIRST_←1
+             (∆MYR←⍎∆MY)._FIRST_←1  
              _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
              _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
              _←mPut'⎕MY'∆MY                     ⍝ ⎕MY    → a private 'static' namespace
@@ -1364,8 +1402,8 @@
  pSQ←'(?:''[^'']*'')+'
  pComment←'⍝.*$'
  pBareParens←'\(\h*\)'
- :IF 0≠≢linesOut  
-    linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' '⍬'⍠('Mode' 'M')⊣linesOut
+ :IF 0≠≢∊linesOut  
+    linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' (,'⍬')⍠('Mode' 'M')⊣linesOut
  :ENDIF
  linesOut←prefix,linesOut
 ∇
