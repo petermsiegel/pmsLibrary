@@ -34,7 +34,7 @@
       ⍝ -------------------------------------------------------------------
       ⍝ OPTIONS-- see ⍝H documentation below...
       ⍝ For 0 ∆PRE ⍵, see full documentation below.
-         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺} ⋄ nolb←{⍵↓⍨-+/∧\⍵=' '}
+         ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺} ⋄ nolb←{⍵↓⍨+/∧\⍵=' '} ⋄ notb←⌽∘nolb∘⌽
          ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=∆CALLR.⎕NC var:0 ⋄ 1≡∆CALLR.⎕OR var}
          __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'   ⍝ Default 1; checking env
          __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
@@ -555,35 +555,39 @@
                   ⍝  Now allows multiple enumerations:
                   ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
                   ⍝       schemes.∆NAMES
-                  ⍝    red  orange  yellow     green  blue  indigo  violet   
+                  ⍝    red  orange  yellow     green  blue  indigo  violet 
+                    badName←{1∊' []'∊⍵:1 ⋄ (1↑⍵)∊⎕D,'¯'}   ⍝ Reject "names" with brackets or multiple names
                     str ← pSkipE pEnumE  ⎕R {
                         case←⍵.PatternNum∘∊
                         case 0:⍵ ∆FLD 0 
                         typeNm enums←⍵ ∆FLD¨1 2   
                       ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
                       ⍝ it will be assigned a constant value statically.
-                        11:: (⍵ ∆FLD 0),'∘∘∘err∘∘∘'
-                        err count←0
+                        11:: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
+                        err nEnum←0
                         num←'¯'@('-'∘=)⊣
-                        enumCode←∆PARENS⍣(count>1)⊣∊pEnumEeach ⎕R { 
-                          count+←1 
+                        enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEeach ⎕R { 
+                          nEnum+←1 
                           curV←¯1
-                          names←vals←'' 
+                          names←vals←'' ⋄ nNames←0
                           _←∆QT pEnumEsub ⎕R {
                              0:: err∘←1
-                             f0 name val←⍵ ∆FLD ¨0 1 2        
-                             names,←' ',⍨name←SQ ∆QT name
+                             f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name←nolb notb name ⋄ val←nolb notb val    
+                             nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
+                             badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
+                             names,←' ',⍨name←∆QT name
                              0=≢val: vals,←' ',⍨name                         ⍝ name:,
                              isNum isStar isQt←(⊃val)∊¨NUMFIRST '+*' SQDQ
-                             isNum: {vals,←' ',⍨⍕⍵⊣curV∘←⍎⍵}val←num val ⍝ name: ¯55 or -55
-                             isStar:vals,←' ',⍨⍕curV∘←curV+1            ⍝ name: *,
+                          ⍝  isNum: one or more numbers, replacing - with ¯
+                             isNum: vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎num val  
+                             isStar:vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+1            ⍝ name: *,
                              isQt:  vals,←' ',⍨∆QT ∆UNQ val             ⍝ name: 'val' or "val"
                              ⊢vals,←' ',⍨∆QT val                        ⍝ name: atom,
-                             ∘∘UNREACHABLE∘∘⊣⎕←'ERROR: UNREACHABLE!'
-                           }⍠'UCP' 1⊣⍵ ∆FLD 1  
-                           err: ⎕SIGNAL 11
-                           ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum)',¯1↓vals
+                          }⍠'UCP' 1⊣⍵ ∆FLD 1  
+                          err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
+                          ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum ',(⍕nNames>1),')',¯1↓vals
                         }enums
+                        ⍝ ⎕←'enumCode'enumCode
                         typeNm∘setStaticConst⍣(0≠≢typeNm)⊣enumCode
                     }⍠'UCP' 1⊣ str
 
@@ -789,10 +793,11 @@
           ⍝ ::ENUM patterns
              pEnumE←∆MAP '(?xi) ',PREFIX,'ENUM  (?: \h+ ( ⍎_pName )? \h*←?) \h* ((?: ⍎pMatchBraces \h*)+)'
              pEnumEeach←∆MAP '(?xi) (⍎pMatchBraces)'
-              _B _E _N _W←'(?<=[{,])' '(?=\h*[,}])' '[-¯]?[\d\.E]+(?:J[-¯]?[\d\.E]+)?'  '[⎕∆⍙\pL]\w*'
-             pEnumEsub←∆MAP '(?xi) ⍎_B \h* (⍎_W) (?| \h*:\h* (⍎_N|⍎_W|⍎_pSQe)? | \h*:*\h*([+*]))?? ⍎_E'  
-             ⍝ (?| \h* : \h* (?|(?: ⍎_N | ⍎_W | ⍎_pSQe) | [+*]) | [+*])?? ⍎_E'
-             ⍝                           1 name               2 val        
+             _Beg _End _Num _Atom←'(?<=[{,])' '(?=\h*[,}])' '(?:[-¯]?[\d\.E]+(?:J[-¯]?[\d\.E]+)?\h*)+'  '[^},]+'
+             _Var←'(?: ⎕?[∆⍙\[\]\w¯\s]+ )'  ⍝ Grab even invalid var. names, so ;:ENUM can report errors.
+             _ColOpt _ColSP _Plus← '(?: \h* (?: : \h*)?) ' '\h* : \h*' '[+*]'
+             pEnumEsub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColSP (⍎_Num | ⍎_pSQe | ⍎_Atom)? | ⍎_ColOpt (⍎_Plus) )?? ⍎_End'  
+             ⍝                             ↑ F1:name      ↑ F2:val        
           ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
              pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
              pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
@@ -1244,6 +1249,13 @@
            ⍝ Write out utility function(s) to ⎕SE
            ⍝ ----
            ⍝ ⍙enum:  Handle quasi-⎕JSON-style enumerations
+           ⍝     names (typeName ⍙enum plural)⊣values
+           ⍝       names:    one or more names (strings)
+           ⍝       typeName: the name of the enumeration type. Used in ⎕DF and often the static type variable name
+           ⍝                 Used for elegance (?): to avoid having (,¨typeName) in the preprocessor output.
+           ⍝       plural:   1 if more than one name, vs 0 if exactly 1.
+           ⍝       values:   one value for each name in <names>
+           ⍝       
            ⍝ If ⍺ is specified as a vector of names (string vectors), 
            ⍝ it usually contains the names of nm in original entry order.
            ⍝ That way, ∆ENUM items etc are navigated as entered.
@@ -1252,8 +1264,9 @@
              ⎕SE.⍙enum←{⎕IO←0
                     type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺   
                     ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
-                    _ ←⍺{ns⍎⍺,'←⍵'}¨⍵
-                    ns⊣⍺{ns⍎'∆NAMES ∆VALUES ∆ENUM←⍺ ⍵ (∪⍵)'}⍵ 
+                    names←⍵⍵{⍺: ,¨⍵ ⋄ ⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
+                    _ ←names{ns⍎⍺,'←⍵'}¨⍵
+                    ns⊣names{ns⍎'∆NAMES ∆VALUES ∆ENUM←⍺ ⍵ (∪⍵)'}⍵ 
              }
            ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
              ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
@@ -1268,44 +1281,26 @@
            ⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
            ⍝ And set up ∆CONST (for enums and other constants) within ∆MY.
             ∆MY←(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY' 
-            _←{n←⎕NC ⍵
-              9=n:  print'***** NOTE: STATIC NAMESPACE ⎕MY EXISTS: ',∆MY
-              0=n:''
-              ⎕EX ⍵⊣print'***** NOTE: CORRECTING INVALID TYPE ',(⍕n),' OF STATIC NAMESPACE ⎕MY: ',∆MY
-            }∆MY
-            ∆MYR←⍎∆MY ⎕NS ''  
-            _←{
-                 0=≢list←∆MYR.⎕NL-⍳10:0
-                 _←print PREFIX,'STATIC variables for ',∆MY,' exists'
-                 1⊣print'  Variables:',∊' ',¨list
-             }0
-             _←'∆CONST' ∆MYR.⎕NS ''             ⍝ (Static) constant namespace.
-             ∆MYR._FIRST_←1    
-             _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
-             _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-             _←mPut'⎕MY'∆MY                     ⍝ ⎕MY    → a private 'static' namespace
-             _←mPut'⎕FIRST'(∆MY,'.FIRST')       ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
-             _←mPut'⎕ME' '(⊃⎕SI)'               ⍝ Simple name of active function
-             _←mPut'⎕XME' '(⊃⎕XSI)'             ⍝ Full name of active function
+            ∆MYR←⍎∆MY ⎕NS '' ⊣⎕EX ∆MY  
+            _←'∆CONST' ∆MYR.⎕NS ''             ⍝ (Static) constant namespace.
+            ∆MYR._FIRST_←1    
+            _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
+            _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
+            _←mPut        '⎕MY'              ∆MY                     ⍝ ⎕MY    → a private 'static' namespace
+            _←mPut        '⎕FIRST'           (∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+            _←mPut        '⎕ME'              '(⊃⎕SI)'                ⍝ Simple name of active function
+            _←mPut        '⎕XME'             '(⊃⎕XSI)'               ⍝ Full name of active function
           ⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
-             _←0 mPutMagic'__LINE__'         '__LINE__'  
-             _←0 mPutMagic'__FILE__'         '__FILE__' 
-             _←0 mPutMagic'__TS__'           '⎕TS'        
-             _←1 mPutMagic '__STATIC__'      '⎕THIS'
-             _←2 mPutMagic '__CALLER__'      '⎕THIS'
-             _←0 mPutMagic '__TIME__'        '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
-             _←0 mPutMagic '__DATE__'        '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
-            _←mPut         '__DATE__TIME__'  '__DATE__ ∘∘ "T" ∘∘ __TIME__'
-           ⍝ ⎕T is a reference to the last IMPLICIT temporary variable from the previous
-           ⍝ statement (whether delimited by a newline or a lozenge [⋄])
-           ⍝    0 ∆PRE  'f←{1:←⍳5}'  '←⍳10 ⋄ ⎕←≢⎕T'  '⎕←≡⎕T' 
-           ⍝ ┌────────────────┬────────────────────┬───────┐
-           ⍝ │ f←{1:T⍙0←⍳5}   │ T⍙1←⍳10 ⋄ ⎕←≢T⍙0   │ ⎕←≡T⍙1│
-           ⍝ └────────────────┴────────────────────┴───────┘
-           ⍝    0 ∆PRE  '←__TS__'  '←"one two three ",⎕T ⋄ ⎕←(2×≢⎕T)↑⎕T'
-           ⍝ ┌─────────────────────────────┬───────────────────────────────────────────┐
-           ⍝ │ T⍙0←2019 10 12 22 10 52 328 │ T⍙1←'one two three ',T⍙0 ⋄ ⎕←(2×≢T⍙1)↑T⍙1 │
-           ⍝ └─────────────────────────────┴───────────────────────────────────────────┘
+            _←0 mPutMagic '__LINE__'         '__LINE__'  
+            _←0 mPutMagic '__FILE__'         '__FILE__' 
+            _←0 mPutMagic '__TS__'           '⎕TS'        
+            _←1 mPutMagic '__STATIC__'       '⎕THIS'
+            _←2 mPutMagic '__CALLER__'       '⎕THIS'
+            _←0 mPutMagic '__TIME__'         '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
+            _←0 mPutMagic '__DATE__'         '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
+            _←mPut        '__DATE__TIME__'   '__DATE__ ∘∘ "T" ∘∘ __TIME__'
+           ⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
+           ⍝    via a fence:    [left margin | ⋄ etc.] ← val
              _←0 mPutMagic'⎕T' 'getTempName 0'
           
            ⍝ Other Initializations
@@ -1383,7 +1378,7 @@
                  ⍵
              }
            ⍝ ERROR PATH
-             999::11 ⎕SIGNAL⍨{
+             999×__DEBUG__::11 ⎕SIGNAL⍨{
                  _←1 condSave ⍵
                  _←'Preprocessor error. Generated object for input "',__FILE__,'" is invalid.',⎕TC[2]
                  _,'See preprocessor output: "',tmpNm,'"'
