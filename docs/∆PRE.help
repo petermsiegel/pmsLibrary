@@ -319,16 +319,23 @@
                        PHASE2 b←do_something_with 'PHASE2'
           Treated as:  b←do_something_with 'PHASE2'
  
-        ::TRANS   code1 code2  Causes <code1> to be translated to <code2> in each
-        ::TR                   line of input as it is processed.
-                               codeN is either a single character OR
-                                  \\   backslash
-                                  \    space
-                                  \dd  digits indicating unicode decimal (or dd [*])
-                                  \ddX digits indicating unicode hexadecimal (or ddX [*])
-                               [*] if dd or ddX is 2 or more digits.
-        ::UNDEF   name         Undefines name, with a warning if already undefined
+        ::TRANS   code1 code2  
+        ::TR                  
+            Causes <code1> to be translated to <code2> in each line of input 
+            as it is processed. codeN is either 
+              a single character OR
+              \\    backslash
+              \     space
+              \dd   digits indicating unicode decimal; or dd if 2 or more digits.
+              \ddX  digits indicating unicode hexadecimal; or ddX.
+            To translate more than one character, use 2 or more ::TRANS directives.
+            To remove a translation, set code1 to itself:
+              ::TRANS c  c 
  
+        ::UNDEF   name         Undefines name, with a warning if already undefined
+            To avoid the warning:
+              ::IFDEF name \n ::UNDEF name \n ::ENDIF 
+
         ::STATIC  name         Defines a name stored in ⍵.⍙⍙.∆MY (⎕MY.name),
                                a namespace stored in the calling namespace,
                                where ⍵ is the fun/obj name, right argument to ∆PRE.
@@ -367,12 +374,16 @@
                 ::STATIC ⊢some arbitrary code
                 ::STATIC (some arbitrary code)
         ::STATIC ::ENUM -- see ::ENUM
+
         ::WARN msg             prints '[lineNum] Warning: message' and increments warningCount
+
         ::ERROR msg            prints '[lineNum] Error: message' and increments errorCount.
                                For now, ::WARN and ::ERROR don't change other behavior;
                                the output function is FIXed if required and so on.
+
         ::INCLUDE [name[.ext] | "dir/file" | 'dir/file']
         ::INCL    name
+
         ::IMPORT  name1 name2  Set internal name1 from the value of name2 in the calling env.
         ::IMPORT  name1        The value must be used in a context that makes sense.
                                If name2 omitted, it is the same as name1.
@@ -383,6 +394,7 @@
                                ⎕←big          ⍝ Will not work!
                                ::IMPORT big2
                                ⎕←big2         ⍝ Will work
+                               
          ::ENUM A pseudo-directive with these elements:
               [ ::STATIC ] name ← ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
                                   ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
