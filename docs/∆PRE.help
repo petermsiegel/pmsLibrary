@@ -396,34 +396,42 @@
                                ⎕←big2         ⍝ Will work
                                
          ::ENUM A pseudo-directive with these elements:
-              [ ::STATIC ] name ← ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
-                                  ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
+              A. Static variable name and constant type:  
+                  ::STATIC [name ← ] ::ENUM [ type ← ] {enum1} [ {enum2} ... {enumN} ]
+              B. Dynamic name and dynamic type (if type unnamed) or static type (if type named):
+                           [name ← ] ::ENUM  [type ← ] {enum1} [ {enum2} ... {enumN} ]
               where 
                  name      a variable name to assign the enumeration to; if ::STATIC, it will be in ::STATIC space.
-                 type      a variable name indicating the type of enumeration; 
-                           if specified, it is ALWAYS defined as a constant (a niladic function)
+                 type      a shy constant indicating the type of enumeration; 
+                           if specified, it is ALWAYS defined as a constant (a shy niladic function)
                            in ::STATIC space, with the enum established at compile time; 
-                           if type is omitted, the enumeration is defined 
-                                  statically, if ::STATIC is specified; or
-                                  at compile time, otherwise.
+                           if type is omitted, the enumeration is defined statically,
+                                  if ::STATIC is specified; or at run time, otherwise.
                            The ⎕DF display form is [::ENUM] if type is omitted, else [::ENUM.type] if specified.
                  enumN     {def1, def2, ..., defN}
-                    where  defN is either
-                              eName               eName is an APL-style name, eValue is "eName"
-                              eName: eValue       eValue consists or one or more strings that are neither numbers nor * nor +
+                    where  defN is any of:
+                         [1] autovalue, [2] string value,    [3] numeric value, [4] incremented numeric value,
+                             : [blank]      : ["]strings["]      : numbers          :+ [increments|1]
+                    that is:
+                    [1]       eName:              eName is an APL-style name, 
+                                                  sets eValue as quoted "eName"
+                              ename               Same as 1st option above
+                    [2a]      eName: eValue       eValue consists or one or more strings that are neither numbers nor +
                                                   to be automatically enquoted. Normally, should be 1 or more atoms (APL names)
                                                   If not, put in quotes.
-                              eName: "qtValue"    "qtValue" will be the value of eName.
-                              ename:              Same as 1st option above
-                              ename: nums         nums: one or more APL numbers, becoming the value of <ename>
-                              ename:+             Assigns 1 plus the value of the most recent numerically-assigned eName 
-                                                  or the value 0, by default. 
+                    [2b]      eName: "qtValue"    "qtValue" will be the value of eName.
+                    [3]       ename: nums         nums: one or more APL numbers, becoming the value of <ename>
+                                                  Note: nums may be integer, real, or complex constants only.
+                    [4]       ename:+[nums]       Assigns nums (default 1) plus the value of the most recent 
+                                                  numerically-assigned eName or the value 0, by default. 
                                                   If the most recent was a vector, all its components are incremented.
-                                                  {item: 10 100, next:+} === {item: 10 100, next: 11 101}
-                              ename+  OR name*    Same as ename:+ 
-                              ename:*             Synonym for ename:+
+                                                  If the most recent increment (via +...) is a vector,
+                                                  it must be conformable to the numerical eName.
+                                                  {item: 10 100, next:+}      === {item: 10 100, next: 11 101}
+                                                  {items: 10 100, next:+1 10} === {items: 10 100, next:11 110}
+                              ename+[nums]        Same as ename:+[nums] 
                  name or type may represent one or more enumerations.
-               Each enumeration will always include these variables as well (don't clobber them):
+               Each enumeration name or type will always include these defs as well (don't clobber them):
                               ∆ENUM               the unique list of values, equiv. to ∪∆VALUES.
                               ∆NAMES              all the names specified, in order.
                               ∆VALUES             all the values specified, in order.

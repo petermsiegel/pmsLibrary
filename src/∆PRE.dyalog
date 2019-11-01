@@ -1,14 +1,43 @@
 :namespace ∆PREns
 ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
-    __DEBUG__←0
+    __DEBUG__←1
     999×__DEBUG__:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
-  ⍝  ⍺=0,1: These are shortcuts for taking code lines as right argument,
-  ⍝         and returning the processed lines as output
-  ⍝  Other character options handle functions stored as text files, 
-  ⍝  debugging comments, etc.
-    0≡⍺:'-noF -noV -noC'∇ ⍵         ⍝ Adds no preproc comments, removes source comments.
-    1≡⍺:'-noF -V ' ∇ ⍵              ⍝ Includes preproc and source comments.
+  ⍝ Syntax:  I.  ⍺ ∆PRE line1 « line2 ... »
+  ⍝         II.  ⍺ ∆PRE « function_name | ⎕NULL »
+  ⍝  I. ⍺ ∆PRE line1 line2 ...
+  ⍝  Syntax:  [1 | 0 | ¯1 ] ∆PRE line1 line2 ...
+  ⍝  ⍺=0,1: Evaluate ⍵: vector of strings, returning processed strings.
+  ⍝      0: Removes all comments, including generated preprocessor comments.
+  ⍝         Use:  ⍎¨0 ∆PRE line1 line2 ...
+  ⍝         Executes each executable line lineN in turn.
+  ⍝      1: Generates preprocessor comments and keeps user comments.
+  ⍝         Use: ↑1 ∆PRE line1 line2 ...
+  ⍝         Displays all output lines, comments or executable...
+  ⍝     ¯1: Same as ↑1 ∆PRE line1 line2 ...
+  ⍝
+  ⍝  II. ⍺ ∆PRE « function_name | ⎕NULL »
+  ⍝  String options:  ⍺ a single string vector, with any of the options below,
+  ⍝         case is ignored and all options can be abbreviated or prefixed with "no".
+  ⍝
+  ⍝     Option     Default   Min     Variable      Info
+  ⍝     -Verbose   -NoV      -V      __VERBOSE__   Provide preproc. info in output file
+  ⍝     -Debug     -NoD      -D      __DEBUG__     Share additional debugging info on terminal!
+  ⍝     -NoComment -Com      -C      NOCOM         Delete Comments
+  ⍝     -NoBlanks  -Blanks   -B      NOBLANK       Remove Blank output lines
+  ⍝     -Edit      -NoEdit   -E      EDIT          If 1, edit the intermediate file (for viewing only)
+  ⍝     -Quiet     -NOQuiet  -Q      QUIET         1 if neither DEBUG nor VERBOSE
+  ⍝     -Fix       -NOFix    -F      FIX           If 1, create an output function via ⎕FIX.
+  ⍝     -Help      -NOHelp   -H      HELP          If 1, share HELP info rather than preprocessing.   
+  
+    0≡⍺:'  -noFix -noVerbose -noComments'∇ ⍵    
+    1≡⍺:'  -noFix   -Verbose' ∇ ⍵ 
+    ¯1≡⍺:↑'-noFix   -Verbose' ∇ ⍵ 
+
+  ⍝ Syntax: [ '-v' ] ∆PRE ⎕NULL                
+  ⍝     Prompt user for lines, ending prompt with null (not blank) line:
+  ⍝     After execution, you are placed in the editor to view the processed lines...
+  ⍝     Use -v to see helpful preprocessor comments; omit -v to see only executables (user comments preserved).
 
     ⍝ Move execution into a private NS so we don't worry about name conflicts.
     ⍝ We'll explicitly save objects in ∆CALLR ns or ∆MY ns (see ⎕MY macro)
@@ -19,7 +48,9 @@
       ⍝ as their corresponding local variables of the same name
       ⍝ See Executive (below) for meanings.
       ⍝ Note: Don't define any vars starting with '_' here or above!
-        __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1
+      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
+      ⍝ -------------------------------------------------------------------
+        __DEBUG__←__VERBOSE__←__INCLUDE_LIMITS__←¯1    ⍝ ¯1 simply declare the scope of these items.
         __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
         isSpecialMacro←(∊∘(' '~⍨¨↓'_'⎕NL 2))∘⊂
       ⍝ Use NL   for all newlines to be included in the ∆PRE output.
@@ -28,28 +59,34 @@
         NL CR NULL←⎕UCS 10 13 0
         SQ DQ SQDQ←'''' '"' '''"' ⋄ NUMFIRST←⎕D,'-¯'
         ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
-        TRANSLATE_IN←TRANSLATE_OUT←⍬
+        TRANSLATE←⎕NS ''
+        TRANSLATE.(in←out←⍬)
 
-      ⍝  ::EXTERN (Variables global to ∆PRE, but not above)
-      ⍝ -------------------------------------------------------------------
-      ⍝ OPTIONS-- see ⍝H documentation below...
-      ⍝ For 0 ∆PRE ⍵, see full documentation below.
-        ⋄ opt←(819⌶,⍺)∘{w←'-',819⌶⍵ ⋄ 1∊w⍷⍺} 
-        ⋄  deb←{⍺←' ' ⋄ ⍵/⍨(∧\b)⍱⌽∧\⌽b←⍵∊⍺}             ⍝ delete leading/trailing blanks
-        ⋄ orEnv←{⍺←0 ⋄ ⍺=1:⍺ ⋄ var←'∆PRE_',1(819⌶)⍵ ⋄ 0=∆CALLR.⎕NC var:0 ⋄ 1≡∆CALLR.⎕OR var}
-        __VERBOSE__←(~opt'noV')∧(opt'V')orEnv'VERBOSE'   ⍝ Default 1; checking env
-        __DEBUG__←(opt'D')orEnv'DEBUG'                   ⍝ Default 0; checking env
+      ⍝ General utilities...
+        lc←819⌶ ⋄ uc←1∘(819⌶)
+        opt←(lc,⍺)∘{w←'-',lc ⍵ ⋄ 1∊w⍷⍺}                  ⍝ ⍺: options passed by user
+        trimLR←{⍺←' ' ⋄ ⍵/⍨(∧\b)⍱⌽∧\⌽b←⍵∊⍺}              ⍝ delete ending (leading/trailing) blanks
+      ⍝ OPTIONS-- see documentation.
+      ⍝ Default (for string ⍺)
+      ⍝ - VERBOSE   unless -NOVERBOSE  
+      ⍝  -NODEBUG   unless -DEBUG     o 
+      ⍝  -COM, -BLANK, FIX  
+      ⍝  -NOEDIT (unless ⎕NULL is right arg),
+      ⍝  -NOHELP, QUIET 
+        __VERBOSE__←(~opt'noV')                          ⍝ Default 1;  
+        __DEBUG__←(opt'D')                               ⍝ Default 0 
         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-        EDIT←(⎕NULL≡⍬⍴⍵)∨opt'E'                          ⍝ Default 0; 1 if ⍵≡∊⎕NULL
+        EDIT←(~opt'noE' )∧(⎕NULL≡⍬⍴⍵)∨opt'E'             ⍝ Default 0; 1 if ⍵≡∊⎕NULL
         QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
         FIX←~opt'noF'                                    ⍝ Default 1
         _←{ ⍝ Option information
-            ⍺←0 ⋄ ~__DEBUG__∨⍺:0 ⋄ _←'    '
-            ⎕←_,'Options: "','"',⍨819⌶,⍵
-            ⎕←_,'Verbose: ',__VERBOSE__ ⋄ ⎕←_,'Debug:   ',__DEBUG__
-            ⎕←_,'NoCom:   ',NOCOM ⋄ ⎕←_,'NoBlanks:',NOBLANK
-            ⎕←_,'Edit:    ',EDIT ⋄ ⎕←_,'Quiet:   ',QUIET
-            ⎕←_,'Help:    ',HELP ⋄ ⎕←_,'Fix:     ',FIX
+            ⍺←0 ⋄ ~__DEBUG__∨⍺:0 
+            ⍙←4⍴' '
+            ⎕←⍙,'Options: "','"',⍨lc ⍵
+            ⎕←⍙,'Verbose: ',__VERBOSE__ ⋄ ⎕←⍙,'Debug:   ',__DEBUG__
+            ⎕←⍙,'NoCom:   ',NOCOM       ⋄ ⎕←⍙,'NoBlanks:',NOBLANK
+            ⎕←⍙,'Edit:    ',EDIT        ⋄ ⎕←⍙,'Quiet:   ',QUIET
+            ⎕←⍙,'Help:    ',HELP        ⋄ ⎕←⍙,'Fix:     ',FIX
             0
         }⍺
       ⍝ HELP PATH; currently an external file...
@@ -76,6 +113,7 @@
               ~__VERBOSE__:EMPTY
               ⍺←⍬ ⋄ 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺ ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
           }
+
         ⍝ print family - informing user, rather than annotating output code.
         ⍝
         ⍝ print- print ⍵ as a line ⍵' on output, converting NL to CR (so APL prints properly)
@@ -84,6 +122,7 @@
         ⍝ DO NOT USE CR in program code lines.
           print←{⍵⊣⎕←CR@(NL∘=)⊣⍵}
           printQ←{⍵⊣⍞←CR@(NL∘=)⊣⍵}
+        ⍝ dPrint/Q -- DEBUGGER OUTPUT
         ⍝ dPrint- same as print,  but only if __DEBUG__=1.
         ⍝ dPrintQ-same as printQ, but only if __DEBUG__=1.
         ⍝ Returns ⍵.
@@ -96,12 +135,12 @@
         ⍝    fld number or name: a single field number or name.
         ⍝ Returns <val> the value of the field or ''
           ∆FLD←{
-              ns←⍺
-              ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
-              ⍵=0:ns.Match                          ⍝ Fast way to get whole match
-              ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
-              ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
-              ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
+            ns←⍺
+            ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
+            ⍵=0:ns.Match                          ⍝ Fast way to get whole match
+            ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
+            ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
+            ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
           }
         ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
         ⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
@@ -133,9 +172,9 @@
         ⍝    c) it cannot be evaluated,
         ⍝       in which case a warning is given (debug mode) before returning 0.
           ∆TRUE←{
-              0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
-              0=≢⍵~' ':0 ⋄ 0=≢val←∊∆CALLR⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
-              1
+            0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
+            0=≢⍵~' ':0 ⋄ 0=≢val←∊∆CALLR⍎⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
+            1
           }
         ⍝ GENERAL CONSTANTS. Useful in annotate etc.
         ⍝ Annotations (see annotate).
@@ -157,24 +196,24 @@
         ⍝ COOKD  none:       blanks at the start of each line*** are removed.
         ⍝ *** Leading blanks on the first line are maintained in either case.
           processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
-              str type←(⊃⍵)(819⌶⊃⌽⍵)      
-            ⍝ type: 'v' (cooked) is nothing else specified.
-            ⍝       which sets raw←0, sing←0, cMx←''
-              isRaw←'r'∊type ⋄ isStr←'s'∊type ⋄ isMx←'m'∊type
-              hasMany←NL∊str
-              ⋄ toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
-              ⋄ Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
-              ⋄ ⋄ opts←('Mode' 'M')('EOL' 'LF')
-              str2←∆QT0 ∆UNQ str
-              isStr:∆PARENS⍣hasMany⊣∆QT{
-                  isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
-                  '\A\h+' '\n\h*'⎕R'&'Q_CR_Q⍠opts⊢⍵
-              }str2
-              hasMany toMx⍣isMx⊣∆QT{
-                  isRaw:'\n'⎕R''' '''⍠opts⊢⍵
-                  '\A\h+' '\n\h*'⎕R'&' ''' '''⍠opts⊢⍵
-              }str2
-              '∆PRE: processDQ logic error'⎕SIGNAL 911
+            str type←(⊃⍵)(lc⊃⌽⍵)      
+          ⍝ type: 'v' (cooked) is nothing else specified.
+          ⍝       which sets raw←0, sing←0, cMx←''
+            isRaw isStr isMx←'rsm'∊type  
+            hasMany←NL∊str
+            toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
+            Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
+            opts←('Mode' 'M')('EOL' 'LF')
+            str2←∆QT0 ∆UNQ str
+            isStr:∆PARENS⍣hasMany⊣∆QT{
+              isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
+              '\A\h+' '\n\h*'⎕R'&'Q_CR_Q⍠opts⊢⍵
+            }str2
+            hasMany toMx⍣isMx⊣∆QT{
+              isRaw:'\n'⎕R''' '''⍠opts⊢⍵
+              '\A\h+' '\n\h*'⎕R'&' ''' '''⍠opts⊢⍵
+            }str2
+            '∆PRE: processDQ logic error'⎕SIGNAL 911
           }
 
         ⍝ getDataIn object:⍵
@@ -193,26 +232,24 @@
             19::'∆PRE: Invalid or missing file'⎕SIGNAL 19
             ⎕NULL≡⍬⍴⍵:promptForData ⍬
             2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
-
             ⍺←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
             0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
             dir dirs←(⊃⍺)⍺
-
-          ⍝ If the file has an explicit extension, it determines the ONLY type.
+          ⍝ Check for file extention <ext>
             pfx nm ext←⎕NPARTS ⍵
             _←{
                 0 3 4∊⍨∆CALLR.⎕NC ⍵:''
                 ⎕←'∆PRE Warning. Existing incompatible object "',⍵,'" may prevent ⎕FIXing'
             }nm
-
-          ⍝ Otherwise, use types '.dyapp' [new] and '.dyalog' [std].
+          ⍝ Extension?    Use it as our <types>
+          ⍝ No extension? Try types '.dyapp' [our own] and '.dyalog' [std].
             types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
-
+          ⍝ Return whatever you find.
             types{
-                0=≢⍺:(1↓dirs)∆∆ ⍵
-                filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
-                ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
-                (1↓⍺)∇ ⍵
+              0=≢⍺:(1↓dirs)∆∆ ⍵
+              filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
+              ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
+              (1↓⍺)∇ ⍵
             }pfx,nm
           }
         ⍝ prompt User for data to preprocess. Useful for testing...
@@ -228,7 +265,6 @@
         ⍝ Includes a feature for preventing recursive matching of the same names
         ⍝ in a single recursive (repeated) scan.
         ⍝ Uses EXTERNAL vars: mNames, mVals, mNameVis
-          lc←819⌶ ⋄ uc←1∘(819⌶)
           mPut←{⍺←__DEBUG__ ⋄ verbose←⍺
             n v←⍵      ⍝ add (name, val) to macro list
             ⍝ case is 1 only for system-style names of form /⎕\w+/
@@ -237,10 +273,10 @@
             ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
           ⍝ Special macros: if looks like number (as string), convert to numeric form.
             processSpecialM←{
-                0::⍵⊣print'∆PRE: Logic error in mPut'  ⍝ Error? Move on.
-                v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v              ⍝ Numbers vs Text
-                _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'                   ⍝ Execute in ∆PRE space, not user space.
-                ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
+              0::⍵⊣print'∆PRE: Logic error in mPut'  ⍝ Error? Move on.
+              v←{0∊⊃V←⎕VFI ⍵:⍵ ⋄ ⊃⌽V}⍕v              ⍝ Numbers vs Text
+              _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'                   ⍝ Execute in ∆PRE space, not user space.
+              ⍵⊣{⍵:print'Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}verbose
             }
             n processSpecialM ⍵
           }
@@ -287,7 +323,7 @@
           mTrue←{ ~mHasDef ⍵:0 ⋄  ∆TRUE mGet ⍵}    
           mHideAll←{⍺←0
             ⍺⊣⍺{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
-                p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
+              p←mNames⍳⊂lc⍣c⊣n ⋄ p≥≢mNames:_←¯1 ⋄ 1:_←(p⊃mNameVis)∘←⍺
             }¨⍵
           }
           mDel←{n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
@@ -348,11 +384,11 @@
           ∆TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
           ∆TOcode←{(2+≢⍵)↓⊃⎕NR ⍵}'∆TO'
         ⍝ Multi-item translation input option. See ::TRANS
-          str←{0=≢TRANSLATE_IN:⍵  
-            (TRANSLATE_IN TRANSLATE_OUT){
-              (in out) str←⍺ ⍵ ⋄ 0=≢in:⍵
-              i o←⊃¨in out ⋄ in out←1↓¨in out
-              in out∇ o@(i∘=)⊣str
+          str←TRANSLATE{0=≢⍺.in:⍵  
+            ⍺.(in out){
+              (tr_in tr_out) str←⍺ ⍵ ⋄ 0=≢tr_in:⍵
+              i o←⊃¨tr_in tr_out ⋄ tr_in tr_out←1↓¨tr_in tr_out
+              (tr_in tr_out) ∇ o@(i∘=)⊣str
             } ⍵
           }⍵
           
@@ -403,6 +439,104 @@
               ∘Unreachable∘                               ⍝ else: comments
             }⍠'UCP' 1⊣str
           
+          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
+          ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
+          ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
+          ⍝  numeric or char. constants are optimized.
+          ⍝  See __MAX_PROGRESSION__ below
+            pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
+            cDot1E cSkipE cDot2E cFormatStringE←0 1 2 3
+            str←pDot1e pSkipE pDot2e pFormatStringE ⎕R{
+              case←⍵.PatternNum∘∊
+              case cSkipE:⍵ ∆FLD 0
+              case cFormatStringE:{
+                0::⍵ ∆FLD 0
+                0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
+              }⍵
+              case cDot2E:∆TOcode
+            ⍝ case cDot1E:
+              ⋄ f1 f2←⍵ ∆FLD¨1 2
+              ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
+              __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
+              {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
+            }⍠'UCP' 1⊣str
+
+          ⍝ Enumerations
+          ⍝    name0 ← ::ENUM { name1 [: [value1]], name2 [: [value2]], ...} 
+          ⍝ OR 
+          ⍝    [name0 ←]: :ENUM [typeName [←]]{ name1 [: [value1]], name2 [: [value2]], ...} 
+          ⍝ Expanded form:
+          ⍝    name0 ← ::ENUM  {...}{...} ... {...}
+          ⍝    name0 ← ::ENUM  typeName {...}{...} ... {...}
+          ⍝      typeName: Optional name of the enum type (a ← may optionally follow).
+          ⍝            If set, [1] the typeName and value are set as ::STATICs
+          ⍝                    [2] the display form of the object is [ENUM:typeName].
+          ⍝                    [3] name0← may be omitted. The ::ENUM returns a shy result.
+          ⍝      name0:    Any APL assignment expression at all...
+          ⍝      nameN:    APL-format name (short or long, no quotes)
+          ⍝      valueN:   [int | atom | "string" | *]
+          ⍝        num:      An APL-format number extended: - is treated as ¯
+          ⍝                  -25 => ¯25,  2.4E-55 => 2.4E¯55, 2J-1 => 2J¯1  
+          ⍝        atoms:    APL format names outside quotes converted to atoms...
+          ⍝                  {color:dark pink} same as {color: "dark" "pink"}
+          ⍝        string:   A string or strings within quotes
+          ⍝                  {color:"dark pink"} is    {color: "dark pink"}
+          ⍝                  {color:"dark" "pink"} is  {color" "dark" "pink"}
+          ⍝        * or +    indicates 1 more than the previous number or 0, if none.
+          ⍝                  Non-numeric values are ignored as predecessors
+          ⍝                  Note: The colon may be omitted before * or +
+          ⍝                     ::ENUM {red+,  orange+,  yellow+ }
+          ⍝                  => ::ENUM {red:0, orange:1, yellow:2}
+          ⍝       value omitted:
+          ⍝                  i.e. format:  'nameN:,' OR  'nameN,'    
+          ⍝                  nameN will have value "nameN", i.e. itself. 
+          ⍝ color ← ::ENUM {red: *, orange: *, yellow: *, green,         rouge: 0}
+          ⍝ OR      ::ENUM {red: +, orange: +, yellow: +, green,         rouge: 0}
+          ⍝ OR      ::ENUM {red  +, orange  +, yellow  +, green,         rouge: 0}
+          ⍝    i.e. ::ENUM {red: 0, orange: 1, yellow: 2, green:"green", rouge: 0}
+          ⍝ color ← ::ENUM {red,orange,yellow,green,rouge:red}
+          ⍝    i.e. ::ENUM {red:"red", orange:"orange", ..., rouge:"red"}
+          ⍝  -----
+          ⍝  Now allows multiple enumerations:
+          ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
+          ⍝       schemes.∆NAMES
+          ⍝    red  orange  yellow     green  blue  indigo  violet 
+            badName←{1∊' []'∊⍵:1 ⋄ (1↑⍵)∊⎕D,'¯'}   ⍝ Reject "names" with brackets or multiple names
+            str ← pSkipE pEnumE  ⎕R {
+              case←⍵.PatternNum∘∊
+              case 0:⍵ ∆FLD 0 
+              typeNm enums←⍵ ∆FLD¨1 2   
+            ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
+            ⍝ it will be assigned a constant value statically.
+              11+(988×__DEBUG__):: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
+              err nEnum←0
+              canonNum←'¯'@('-'∘=)⊣
+              enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEeach ⎕R { 
+                nEnum+←1 
+                curV curInc←¯1 1
+                names←vals←'' ⋄ nNames←0
+                _←∆QT pEnumEsub ⎕R {
+                  0:: err∘←1
+                  f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val    
+                  nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
+                  badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
+                  names,←' ',⍨name←∆QT name
+                  0=≢val: vals,←' ',⍨name                         ⍝ name:,
+                  isNum isStar isQt←(⊃val)∊¨NUMFIRST '+*' SQDQ
+              ⍝  isNum: one or more numbers, replacing - with ¯
+                  isNum: vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎canonNum val  
+                  isStar:vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+curInc∘←curInc{f n←⎕VFI ⍵ ⋄ 1∊f:f/n ⋄ ⍺}1↓val           
+                  isQt:  vals,←' ',⍨∆PARENS∊∆QT ∆UNQ val              ⍝ name: 'val' or "val"
+                     1:  vals,←' ',⍨∆PARENS∊' ',⍨¨∆QT¨' '(≠⊆⊢)val  ⍝ name: "atom1"  "atom2" ...
+                     1:  vals,←' ',⍨∆QT val                   ⍝ *** IGNORED ***  name: "atom1 atom2 ..."       
+                }⍠'UCP' 1⊣⍵ ∆FLD 1  
+                err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
+                ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum ',(⍕nNames>1),')',¯1↓vals
+              }enums
+              0=≢typeNm: enumCode
+              typeNm∘setStaticConst enumCode
+            }⍠'UCP' 1⊣ str
+
           ⍝ Deal with ATOMS of two types:
           ⍝ Simple atoms: names or numbers,zilde (⍬),⎕NULL
           ⍝     `  name 123.45 nam2 123j45 etc.
@@ -436,7 +570,7 @@
             missingValueToken←'⎕NULL'
     
             pNullLeftArrowE←'(?x) (?<= [[(:;⋄]  | ^) (\h*)  ←'
-          ⍝  see getTempName←{...}
+          ⍝ see getTempName←{...}
             str←pSkipE pNullLeftArrowE pNullRightArrowE ⎕R {
               case←⍵.PatternNum∘∊ ⋄ f0 f1←⍵ ∆FLD¨ 0 1
               case 0: f0
@@ -494,99 +628,6 @@
               }⍵
             }⍠('UCP' 1)⊣str
 
-          ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
-          ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
-          ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
-          ⍝  numeric or char. constants are optimized.
-          ⍝  See __MAX_PROGRESSION__ below
-            pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
-            cDot1E cSkipE cDot2E cFormatStringE←0 1 2 3
-            str←pDot1e pSkipE pDot2e pFormatStringE ⎕R{
-              case←⍵.PatternNum∘∊
-              case cSkipE:⍵ ∆FLD 0
-              case cFormatStringE:{
-                0::⍵ ∆FLD 0
-                0 ∆format ∆UNQ ⍵ ∆FLD 1  ⍝ (Remove extra quoting added above).
-              }⍵
-              case cDot2E:∆TOcode
-            ⍝ case cDot1E:
-              ⋄ f1 f2←⍵ ∆FLD¨1 2
-              ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ∆TO ',f2   ⍝ Calculate constant progression
-              __MAX_PROGRESSION__<≢progr:f1,' ',∆TOcode,' ',f2
-              {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
-            }⍠'UCP' 1⊣str
-          
-          ⍝ Enumerations
-          ⍝    name0 ← ::ENUM { name1 [: [value1]], name2 [: [value2]], ...} 
-          ⍝ OR 
-          ⍝    [name0 ←]: :ENUM [typeName [←]]{ name1 [: [value1]], name2 [: [value2]], ...} 
-          ⍝ Expanded form:
-          ⍝    name0 ← ::ENUM  {...}{...} ... {...}
-          ⍝    name0 ← ::ENUM  typeName {...}{...} ... {...}
-          ⍝      typeName: Optional name of the enum type (a ← may optionally follow).
-          ⍝            If set, [1] the typeName and value are set as ::STATICs
-          ⍝                    [2] the display form of the object is [ENUM:typeName].
-          ⍝                    [3] name0← may be omitted. The ::ENUM returns a shy result.
-          ⍝      name0:    Any APL assignment expression at all...
-          ⍝      nameN:    APL-format name (short or long, no quotes)
-          ⍝      valueN:   [int | atom | "string" | *]
-          ⍝        num:      An APL-format number extended: - is treated as ¯
-          ⍝                  -25 => ¯25,  2.4E-55 => 2.4E¯55, 2J-1 => 2J¯1  
-          ⍝        atom:     An APL-format name outside quotes
-          ⍝        string:   A string within quotes
-          ⍝        * or +    indicates 1 more than the previous number or 0, if none.
-          ⍝                  Non-numeric values are ignored as predecessors
-          ⍝                  Note: The colon may be omitted before * or +
-          ⍝                     ::ENUM {red+,  orange+,  yellow+ }
-          ⍝                  => ::ENUM {red:0, orange:1, yellow:2}
-          ⍝       value omitted:
-          ⍝                  i.e. format:  'nameN:,' OR  'nameN,'    
-          ⍝                  nameN will have value "nameN", i.e. itself. 
-          ⍝ color ← ::ENUM {red: *, orange: *, yellow: *, green,         rouge: 0}
-          ⍝ OR      ::ENUM {red: +, orange: +, yellow: +, green,         rouge: 0}
-          ⍝ OR      ::ENUM {red  +, orange  +, yellow  +, green,         rouge: 0}
-          ⍝    i.e. ::ENUM {red: 0, orange: 1, yellow: 2, green:"green", rouge: 0}
-          ⍝ color ← ::ENUM {red,orange,yellow,green,rouge:red}
-          ⍝    i.e. ::ENUM {red:"red", orange:"orange", ..., rouge:"red"}
-          ⍝  -----
-          ⍝  Now allows multiple enumerations:
-          ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
-          ⍝       schemes.∆NAMES
-          ⍝    red  orange  yellow     green  blue  indigo  violet 
-            badName←{1∊' []'∊⍵:1 ⋄ (1↑⍵)∊⎕D,'¯'}   ⍝ Reject "names" with brackets or multiple names
-            str ← pSkipE pEnumE  ⎕R {
-              case←⍵.PatternNum∘∊
-              case 0:⍵ ∆FLD 0 
-              typeNm enums←⍵ ∆FLD¨1 2   
-            ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
-            ⍝ it will be assigned a constant value statically.
-              11:: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
-              err nEnum←0
-              num←'¯'@('-'∘=)⊣
-              enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEeach ⎕R { 
-                nEnum+←1 
-                curV←¯1
-                names←vals←'' ⋄ nNames←0
-                _←∆QT pEnumEsub ⎕R {
-                  0:: err∘←1
-                  f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←deb¨ name val    
-                  nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
-                  badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
-                  names,←' ',⍨name←∆QT name
-                  0=≢val: vals,←' ',⍨name                         ⍝ name:,
-                  isNum isStar isQt←(⊃val)∊¨NUMFIRST '+*' SQDQ
-              ⍝  isNum: one or more numbers, replacing - with ¯
-                  isNum: vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎num val  
-                  isStar:vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+1            ⍝ name: *,
-                  isQt:  vals,←' ',⍨∆QT ∆UNQ val             ⍝ name: 'val' or "val"
-                  ⊢vals,←' ',⍨∆QT val                        ⍝ name: atom,
-                }⍠'UCP' 1⊣⍵ ∆FLD 1  
-                err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
-                ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum ',(⍕nNames>1),')',¯1↓vals
-              }enums
-              0=≢typeNm: enumCode
-              (typeNm∘setStaticConst enumCode),' ⍝ ::STATIC ',typeNm
-            }⍠'UCP' 1⊣ str
           ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
           ⍝ So far, we ONLY allow scanning here for String / Name catenation:
           ⍝     IN                           OUT
@@ -738,7 +779,8 @@
       ⍝        atom1 is either of the format of an APL name or number or zilde
       ⍝           a_name, a.qualified.name, #.another.one
       ⍝           125,  34J55, 1.2432423E¯55, ⍬
-        ⋄ _pNum←'¯?\.?\d[¯\dEJ.]*'       ⍝ Overgeneral, letting APL complain of errors
+        ⋄ _pNum←'(?: ¯?\.?\d[¯\dEJ.]* )'       ⍝ Overgeneral, letting APL complain of errors
+        ⋄ _pNums←'⍎_pNum (?: \h+ ⍎_pNum )*'    ⍝ Ditto
         ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
         ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
         
@@ -786,9 +828,12 @@
       ⍝ ::ENUM patterns
         pEnumE←∆MAP '(?xi) ',PREFIX,'ENUM  (?: \h+ ( ⍎_pName ) \h*←?)* \h* ((?: ⍎pMatchBraces \h*)+)'
         pEnumEeach←∆MAP '(?xi) (⍎pMatchBraces)'
-        _Beg _End _Num _Atom←'(?<=[{,])' '(?=\h*[,}])' '(?:[-¯]?[\d\.E]+(?:J[-¯]?[\d\.E]+)?\h*)+'  '[^},]+'
+      ⍝ Items may be terminated by commas or semicolons... 
+      ⍝ No parens are allowed in enumerations, so we don't need to go recursive. Disallowed: (this;that;more)
+        _Beg _End _Num _Atom←'(?<=[{,;])' '(?=\h*[,;}])' _pNums  '[^},;]+'
         _Var←'(?: ⎕?[∆⍙\[\]\w¯\s]+ )'  ⍝ Grab even invalid var. names, so ;:ENUM can report errors.
-        _ColOpt _ColSP _Plus← '(?: \h* (?: : \h*)?) ' '\h* : \h*' '[+*]'
+      ⍝ colon (can't use → unless enums are processed before atoms...)
+        _ColOpt _ColSP _Plus← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+*]\h* ⍎_Num?'
         pEnumEsub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColSP (⍎_Num | ⍎_pSQe | ⍎_Atom)? | ⍎_ColOpt (⍎_Plus) )?? ⍎_End'  
       ⍝                                 ↑ F1:name      ↑ F2:val        
       ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
@@ -1176,16 +1221,16 @@
             }¨f1 f2
             ¯1∊f1 f2:(annotate f0),NL,'∘',(print f0,NL)⊢print'∆PRE ',PREFIX,'TRANS ERROR'
           ⍝ UPDATE TRANSLATION tables...   
-          ⍝ Remove f1, if already in TRANSLATE_IN. We may add back below.
-            TRANSLATE_IN TRANSLATE_OUT∘←(f1=TRANSLATE_IN){
-              1∊⍺: (⊂~⍺)/¨⍵ ⋄ ⍵
-            }TRANSLATE_IN TRANSLATE_OUT
+          ⍝ Remove f1, if already in TRANSLATE.in. We may add back below.
+            _←(f1=TRANSLATE.in){
+              1∊⍺: ⍵.(in out)←(⊂~⍺)/¨⍵.(in out) ⋄ ⍵
+            }TRANSLATE
           ⍝ ::TR ch1 ch2    (ch1=ch2) turns off (if on) the translation for that char.
             f1=f2: annotate f0,' ⍝ [OFF] ',info
           ⍝ ::TR ch1 ch2    (ch1 ≠ ch2) turns on the translation for that char.   
-            TRANSLATE_IN,←f1 ⋄ TRANSLATE_OUT,←f2
-            ⎕←'IN  "',TRANSLATE_IN,'"'
-            ⎕←'OUT "',TRANSLATE_OUT,'"'
+            TRANSLATE.in,←f1 ⋄ TRANSLATE.out,←f2
+            ⎕←'IN  "',TRANSLATE.in,'"'
+            ⎕←'OUT "',TRANSLATE.out,'"'
             annotate f0,' ⍝ [ON]  ',info
           }⍵
 
@@ -1244,15 +1289,17 @@
       ⍝       
       ⍝ If ⍺ is specified as a vector of names (string vectors), 
       ⍝ it usually contains the names of nm in original entry order.
-      ⍝ That way, ∆ENUM items etc are navigated as entered.
+      ⍝ That way, ∆ENUMS items etc are navigated as entered.
       ⍝ We don't use ⎕JSON any more. More efficient and compact not to.
       ⍝ ⍺⍺: Annotation from ::ENUM [name1 [etc.] ←]
         ⎕SE.⍙enum←{⎕IO←0
           type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺   
           ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
-          names←⍵⍵{⍺: ,¨⍵ ⋄ ⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
-          _ ←names{ns⍎⍺,'←⍵'}¨⍵
-          ns⊣names{ns⍎'∆NAMES ∆VALUES ∆ENUM←⍺ ⍵ (∪⍵)'}⍵ 
+          names←⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
+          vals← ⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍵
+          _ ←names{ns⍎⍺,'←⍵'
+          }¨vals
+          ns⊣names{  ns⍎'∆ENUMS←∪⍵ ⋄ ∆NAMES ∆VALS ∆KEYS←⍺ ⍵ (⍺[⍵⍳∆ENUMS])' }vals 
         }
       ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
         ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
@@ -1292,7 +1339,6 @@
       ⍝ Other Initializations
         stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
         includedFiles←⊂fullNm
-        TRANSLATE_IN←TRANSLATE_OUT←⍬                 ⍝ None
         NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
         _←dPrint'Processing input object ',(∆DQT __FILE__),' from file ',∆DQT fullNm
         _←dPrint'Object has ',NLINES,' lines'
@@ -1408,15 +1454,15 @@
   ⍝ it is replaced by ⍬:
   ⍝        ( (anything1) ⍬ (and more) ⍬)
   ⍝ In general, () is equivalent to ⍬.
-    ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI
-    ;cur_tok;cur_gov;deQ;enQ;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stack
+    ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI;COM
+    ;cur_tok;cur_gov;deQ;enQ;inCom;inQt;lineOut;pBareParens;pComment;pSQ;prefix;stack
     ;⎕IO;⎕ML
   ⍝ Look for semicolons in parentheses() and outside of brackets[]
     isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
     lines←,,¨⊆lines
     ⎕IO ⎕ML←0 1
     QUOT←'''' ⋄ SEMI←';'
-    LPAR RPAR LBRK RBRK←'()[]'
+    LPAR RPAR LBRK RBRK COM←'()[]⍝'
     stack←⎕NS ⍬
     deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
     enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
@@ -1431,14 +1477,17 @@
         lineOut←line       ⍝ Skip function headers or footers...
       :Else
         stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
-        lineOut←⍬
+        lineOut←⍬ ⋄ inCom←0
         :For cur_tok :In line
           cur_gov←⊃⌽stack.govern
-          inQt←QUOT=cur_gov
+          inQt inCom←QUOT COM=cur_gov  
           :If inQt
               deQ QUOT=cur_tok
+          :Elseif inCom
+              ⋄   
           :Else
             :Select cur_tok
+            :Case COM  ⋄ enQ cur_tok(≢lineOut)
             :Case LPAR ⋄ enQ cur_tok(≢lineOut)
             :Case LBRK ⋄ enQ cur_tok(≢lineOut)
             :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
