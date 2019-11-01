@@ -57,7 +57,7 @@
       ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
       ⍝ Use NULL internally for special code lines (NULLs are removed at end)
         NL CR NULL←⎕UCS 10 13 0
-        SQ DQ SQDQ←'''' '"' '''"' ⋄ NUMFIRST←⎕D,'-¯'
+        SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"' ⋄ NUMFIRST←⎕D,'-¯'
         ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
         TRANSLATE←⎕NS ''
         TRANSLATE.(in←out←⍬)
@@ -508,27 +508,33 @@
               typeNm enums←⍵ ∆FLD¨1 2   
             ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
             ⍝ it will be assigned a constant value statically.
-              11+(988×__DEBUG__):: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
+             11+(988×__DEBUG__):: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
               err nEnum←0
               canonNum←'¯'@('-'∘=)⊣
               enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEeach ⎕R { 
                 nEnum+←1 
                 curV curInc←¯1 1
                 names←vals←'' ⋄ nNames←0
-                _←∆QT pEnumEsub ⎕R {
+                _←∆QTX pEnumEsub ⎕R {
                   0:: err∘←1
-                  f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val    
+                  f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val   
+                   ⎕←'f0="',f0,'" name="',name,'" val="',val,'"' 
                   nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
                   badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                   names,←' ',⍨name←∆QT name
-                  0=≢val: vals,←' ',⍨name                         ⍝ name:,
-                  isNum isStar isQt←(⊃val)∊¨NUMFIRST '+*' SQDQ
-              ⍝  isNum: one or more numbers, replacing - with ¯
-                  isNum: vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎canonNum val  
-                  isStar:vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+curInc∘←curInc{f n←⎕VFI ⍵ ⋄ 1∊f:f/n ⋄ ⍺}1↓val           
-                  isQt:  vals,←' ',⍨∆PARENS∊∆QT ∆UNQ val              ⍝ name: 'val' or "val"
-                     1:  vals,←' ',⍨∆PARENS∊' ',⍨¨∆QT¨' '(≠⊆⊢)val  ⍝ name: "atom1"  "atom2" ...
-                     1:  vals,←' ',⍨∆QT val                   ⍝ *** IGNORED ***  name: "atom1 atom2 ..."       
+                  0=≢val: 0⍴vals,←' ',⍨name                         ⍝ name:,   
+                  isNum isStar←(⊃val)∊¨NUMFIRST '+'
+                ⍝ isNum: scalar/vector of numbers; isStar: scalar/vector increments, else 1
+                  isNum: 0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎canonNum val  
+                  isStar:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+curInc∘←curInc{f n←⎕VFI ⍵ ⋄ 1∊f:f/n ⋄ ⍺}1↓val     
+                ⍝ string atoms (names or quoted strings or the former mixed w/ APL numbers)
+                  atoms←pListAtoms ⎕S '&'⊣val
+                  pfx←{⍺:',¨',⍵ ⋄ ⍵}
+                  1: 0⍴vals,←' ',⍨∆PARENS (1<≢atoms)pfx 1↓∊{
+                    SQ=1↑⍵: ' ',∆QTX ∆UNQ ⍵
+                    NUMFIRST∊⍨1↑⍵: ' ',⍵  
+                    ' ',∆QTX ⍵
+                  }¨atoms           
                 }⍠'UCP' 1⊣⍵ ∆FLD 1  
                 err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                 ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum ',(⍕nNames>1),')',¯1↓vals
@@ -723,7 +729,7 @@
         ⋄ _pShortNm←'  [\0]?(?::{1,2}|⎕)?[\pL∆⍙_\#] [\pL∆⍙_\#0-9]*'
         ⋄ _pShortNmPfx←' (?<!\.) ⍎_pShortNm '
         ⋄ _pLongNmOnly←' ⍎_pShortNm (?: \. ⍎_pShortNm )+'      ⍝ Note: Forcing Longnames to have at least one .
-        ⋄ _pName←'    ⍎_pShortNm (?: \. ⍎_pShortNm )*'         ⍝ _pName - long OR short
+        ⋄ _pName←'(?:    ⍎_pShortNm (?: \. ⍎_pShortNm )* )'         ⍝ _pName - long OR short
       ⍝ patterns mostly  for the ∇macroExpand∇ fn
       ⍝ User cmds: ]... (See also ⎕UCMD)
         pUserE←'^\h*\]\h*(.*)$'
@@ -780,7 +786,7 @@
       ⍝           a_name, a.qualified.name, #.another.one
       ⍝           125,  34J55, 1.2432423E¯55, ⍬
         ⋄ _pNum←'(?: ¯?\.?\d[¯\dEJ.]* )'       ⍝ Overgeneral, letting APL complain of errors
-        ⋄ _pNums←'⍎_pNum (?: \h+ ⍎_pNum )*'    ⍝ Ditto
+        ⋄ _pNums←'(?: ⍎_pNum (?: \h+ ⍎_pNum )*)'    ⍝ Ditto
         ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
         ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
         
@@ -830,12 +836,14 @@
         pEnumEeach←∆MAP '(?xi) (⍎pMatchBraces)'
       ⍝ Items may be terminated by commas or semicolons... 
       ⍝ No parens are allowed in enumerations, so we don't need to go recursive. Disallowed: (this;that;more)
-        _Beg _End _Num _Atom←'(?<=[{,;])' '(?=\h*[,;}])' _pNums  '[^},;]+'
+        _Beg _End ←'(?<=[{,;])' '(?=\h*[,;}])'  
         _Var←'(?: ⎕?[∆⍙\[\]\w¯\s]+ )'  ⍝ Grab even invalid var. names, so ;:ENUM can report errors.
-      ⍝ colon (can't use → unless enums are processed before atoms...)
-        _ColOpt _ColSP _Plus← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+*]\h* ⍎_Num?'
-        pEnumEsub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColSP (⍎_Num | ⍎_pSQe | ⍎_Atom)? | ⍎_ColOpt (⍎_Plus) )?? ⍎_End'  
-      ⍝                                 ↑ F1:name      ↑ F2:val        
+        _Atoms←'(?: (⍎pSQe | ⍎_pName | ⍎_pNum) \h* )+'
+      ⍝ colon: [:→]  increment: [+] ONLY.
+        _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNums?'
+        pEnumEsub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNums | ⍎_Atoms) )?? ⍎_End'  
+      ⍝                                 ↑ F1:name      ↑ F2:val  
+        pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pName | ⍎_pNum  )'      
       ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
         pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
         pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'      
@@ -1293,7 +1301,9 @@
       ⍝ We don't use ⎕JSON any more. More efficient and compact not to.
       ⍝ ⍺⍺: Annotation from ::ENUM [name1 [etc.] ←]
         ⎕SE.⍙enum←{⎕IO←0
-          type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺   
+        0:: ('∆PRE: Invalid Enumeration with names "',⍺,'"') ⎕SIGNAL 11
+          type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺  
+        0:: ('∆PRE: Invalid Enumeration with type "',type,'"') ⎕SIGNAL 11 
           ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
           names←⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
           vals← ⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍵
