@@ -511,11 +511,11 @@
              11+(988×__DEBUG__):: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
               err nEnum←0
               canonNum←'¯'@('-'∘=)⊣
-              enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEeach ⎕R { 
+              enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEach ⎕R { 
                 nEnum+←1 
                 curV curInc←¯1 1
                 names←vals←'' ⋄ nNames←0
-                _←∆QTX pEnumEsub ⎕R {
+                _←∆QTX pEnumSub ⎕R {
                   0:: err∘←1
                   f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val   
                    ⎕←'f0="',f0,'" name="',name,'" val="',val,'"' 
@@ -833,7 +833,7 @@
         pExpression←∆MAP'⍎_pParen|⍎_pName'
       ⍝ ::ENUM patterns
         pEnumE←∆MAP '(?xi) ',PREFIX,'ENUM  (?: \h+ ( ⍎_pName ) \h*←?)* \h* ((?: ⍎pMatchBraces \h*)+)'
-        pEnumEeach←∆MAP '(?xi) (⍎pMatchBraces)'
+        pEnumEach←∆MAP '(?xi) (⍎pMatchBraces)'
       ⍝ Items may be terminated by commas or semicolons... 
       ⍝ No parens are allowed in enumerations, so we don't need to go recursive. Disallowed: (this;that;more)
         _Beg _End ←'(?<=[{,;])' '(?=\h*[,;}])'  
@@ -841,7 +841,7 @@
         _Atoms←'(?: (⍎pSQe | ⍎_pName | ⍎_pNum) \h* )+'
       ⍝ colon: [:→]  increment: [+] ONLY.
         _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNums?'
-        pEnumEsub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNums | ⍎_Atoms) )?? ⍎_End'  
+        pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNums | ⍎_Atoms) )?? ⍎_End'  
       ⍝                                 ↑ F1:name      ↑ F2:val  
         pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pName | ⍎_pNum  )'      
       ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
