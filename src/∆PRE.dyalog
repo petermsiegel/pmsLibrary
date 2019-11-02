@@ -1,7 +1,7 @@
 :namespace ∆PREns
 ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
-    __DEBUG__←1
+    __DEBUG__←0
     999×__DEBUG__:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
   ⍝ Syntax:  I.  ⍺ ∆PRE line1 « line2 ... »
   ⍝         II.  ⍺ ∆PRE « function_name | ⎕NULL »
@@ -57,7 +57,7 @@
       ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
       ⍝ Use NULL internally for special code lines (NULLs are removed at end)
         NL CR NULL←⎕UCS 10 13 0
-        SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"' ⋄ NUMFIRST←⎕D,'-¯'
+        SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"'  
         ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
         TRANSLATE←⎕NS ''
         TRANSLATE.(in←out←⍬)
@@ -508,9 +508,8 @@
               typeNm enums←⍵ ∆FLD¨1 2   
             ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
             ⍝ it will be assigned a constant value statically.
-             11+(988×__DEBUG__):: (⍵ ∆FLD 0),'∘∘∘ ∆PRE ERROR: invalid enumeration∘∘∘'
+             11+(988×__DEBUG__):: '⍝ ',(⍵ ∆FLD 0),CR,'↑↑↑ ∆PRE: UNTRAPPED ENUMERATION ERROR ↑↑↑'
               err nEnum←0
-              canonNum←'¯'@('-'∘=)⊣
               enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEach ⎕R { 
                 nEnum+←1 
                 curV curInc←¯1 1
@@ -518,21 +517,30 @@
                 _←∆QTX pEnumSub ⎕R {
                   0:: err∘←1
                   f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val   
-                   ⎕←'f0="',f0,'" name="',name,'" val="',val,'"' 
+                    ⍝ ⎕←'1 f0="',f0,'" name="',name,'" val="',val,'"' 
                   nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
                   badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                   names,←' ',⍨name←∆QT name
                   0=≢val: 0⍴vals,←' ',⍨name                         ⍝ name:,   
-                  isNum isStar←(⊃val)∊¨NUMFIRST '+'
-                ⍝ isNum: scalar/vector of numbers; isStar: scalar/vector increments, else 1
-                  isNum: 0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val⊣val←⍎canonNum val  
-                  isStar:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+curInc∘←curInc{f n←⎕VFI ⍵ ⋄ 1∊f:f/n ⋄ ⍺}1↓val     
+                ⍝ Increment: +[num], Numbers: num1, ..., numN (no quotes or names)
+                  val isIncr isNum←curInc{ 
+                      canon←'¯'@('-'∘=)⊣           
+                      '+'=⊃⍵:  val  1  0  ⊣ val←⍺{ø v←⎕VFI ⍵ ⋄ 1∊ø:ø/v ⋄ ⍺}canon 1↓⍵
+                      ø val←⎕VFI canon ⍵
+                      ~0∊ø:    val  0  1  ⊣⎕←'isNum true: val=',val 
+                      1:         ⍵  0  0 
+                  }val
+                     ⍝ ⎕←'2 val' val 'isNum' isNum 'isIncr' isIncr
+                ⍝ isNum: scalar/vector of numbers; isIncr: scalar/vector increments, else 1
+                  isNum: 0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val 
+                  isIncr:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV+curInc∘←val     
                 ⍝ string atoms (names or quoted strings or the former mixed w/ APL numbers)
-                  atoms←pListAtoms ⎕S '&'⊣val
+                  atoms←pListAtoms ⎕S '&'⊣val 
                   pfx←{⍺:',¨',⍵ ⋄ ⍵}
                   1: 0⍴vals,←' ',⍨∆PARENS (1<≢atoms)pfx 1↓∊{
                     SQ=1↑⍵: ' ',∆QTX ∆UNQ ⍵
-                    NUMFIRST∊⍨1↑⍵: ' ',⍵  
+                    numVal←⊃(//⎕VFI ⍵)   
+                    1=≢numVal: ' ',⍕numVal  
                     ' ',∆QTX ⍵
                   }¨atoms           
                 }⍠'UCP' 1⊣⍵ ∆FLD 1  
@@ -785,8 +793,10 @@
       ⍝        atom1 is either of the format of an APL name or number or zilde
       ⍝           a_name, a.qualified.name, #.another.one
       ⍝           125,  34J55, 1.2432423E¯55, ⍬
-        ⋄ _pNum←'(?: ¯?\.?\d[¯\dEJ.]* )'       ⍝ Overgeneral, letting APL complain of errors
-        ⋄ _pNums←'(?: ⍎_pNum (?: \h+ ⍎_pNum )*)'    ⍝ Ditto
+        ⋄ _pNum← '(?: ¯?\.?\d[¯\dEJ.]* )'       ⍝ Overgeneral, letting APL complain of errors
+        ⋄ _pNumX←'(?:[-¯]?\.?\d[-¯\dEJ.]* )'   ⍝ Allow - where ¯ expeted.
+        ⋄ _pNums← '(?: ⍎_pNum (?: \h+ ⍎_pNum )*)'    ⍝ Ditto
+        ⋄ _pNumsX←'(?: ⍎_pNumX (?: \h+ ⍎_pNumX )*)' 
         ⋄ _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
         ⋄ _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
         
@@ -838,12 +848,13 @@
       ⍝ No parens are allowed in enumerations, so we don't need to go recursive. Disallowed: (this;that;more)
         _Beg _End ←'(?<=[{,;])' '(?=\h*[,;}])'  
         _Var←'(?: ⎕?[∆⍙\[\]\w¯\s]+ )'  ⍝ Grab even invalid var. names, so ;:ENUM can report errors.
-        _Atoms←'(?: (⍎pSQe | ⍎_pName | ⍎_pNum) \h* )+'
+        _Atoms←'(?: `{0,2} (⍎pSQe | ⍎_pName | ⍎_pNumX) \h* )+'
       ⍝ colon: [:→]  increment: [+] ONLY.
-        _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNums?'
-        pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNums | ⍎_Atoms) )?? ⍎_End'  
+        _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNumsX?'
+        pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms) )?? ⍎_End'  
       ⍝                                 ↑ F1:name      ↑ F2:val  
-        pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pName | ⍎_pNum  )'      
+        pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pName | ⍎_pNumX  )'  
+      ⍝ -------------------------------------------------------    
       ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
         pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
         pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'      
