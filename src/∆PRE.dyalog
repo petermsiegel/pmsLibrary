@@ -522,7 +522,8 @@
                   badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                   names,←' ',⍨name←∆QT name
                   0=≢val: 0⍴vals,←' ',⍨name                         ⍝ name:,   
-                ⍝ Increment: +[num], Numbers: num1, ..., numN (no quotes or names)
+                ⍝ Increment:  name[:]+[num1 num2 ... numN], 
+                ⍝ Numbers:    name:    num1 num2 ... numN   (no quotes or names)
                   val isIncr isNum←curInc{ 
                       canon←'¯'@('-'∘=)⊣           
                       '+'=⊃⍵:  val  1  0  ⊣ val←⍺{ø v←⎕VFI ⍵ ⋄ 1∊ø:ø/v ⋄ ⍺}canon 1↓⍵
@@ -530,26 +531,31 @@
                       ~0∊ø:    val  0  1   
                       1:         ⍵  0  0 
                   }val
-                   ⍝ ⎕←'2 val' val 'isNum' isNum 'isIncr' isIncr
-                  ⍝ ⎕←'curV' curV 'curInc' curInc
-                ⍝ isNum: scalar/vector of numbers
+                 ⍝ isNum: scalar/vector of numbers
                   isNum: 0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val 
-                ⍝ isIncr: scalar or vector, conformable to curV, else 1
                 ⍝ isIncr: If curV is undefined, treat as 0, as for isNum.
-                  isIncr:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV{⍺≡⎕NULL:0⋄⍺+(⍴⍺)⍴⍵}curInc∘←val     
-                ⍝ string atoms (names or quoted strings or the former mixed w/ APL numbers)
-                  atoms←pListAtoms ⎕S '&'⊣val 
+                ⍝         curInc will be conformed to curV
+                  isIncr:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV{
+                    ⍺≡⎕NULL:0 ⋄ ⍺+(⍴⍺)⍴⍵   ⍝ initialize / conform
+                  }curInc∘←val     
+                ⍝ isAtom: 
+                ⍝    format: [1] name: a mix of names and quoted strings
+                ⍝            [2] name: ` a mix of names, numbers, and quoted strings
+                ⍝    Format [2] is useful for entering numbers not to be used with increments
+                  atoms←pListAtoms ⎕S '\1'⊣val 
+                  ⎕←'atoms' atoms
                   pfx←{⍺:',¨',⍵ ⋄ ⍵}
                   1: 0⍴vals,←' ',⍨∆PARENS (1<≢atoms)pfx 1↓∊{
                     SQ=1↑⍵: ' ',∆QTX ∆UNQ ⍵
                     numVal←⊃(//⎕VFI ⍵)   
-                    1=≢numVal: ' ',⍕numVal  
+                    1=≢numVal: ' ',⍕numVal   ⍝ Via ` num1 num2 ... numN 
                   ⍝ Refuse any names APL doesn't accept (those must be enquoted).
                   ⍝ (Accept any system name, even unknown ones.)
                     ' ',∆QTX ⍵⊣err∨←badName ⍵
                   }¨atoms           
                 }⍠'UCP' 1⊣⍵ ∆FLD 1  
-                err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
+                err∨←0=≢names 
+                err:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                 ∆PARENS names,'(',(∆QT typeNm~' '),'⎕SE.⍙enum ',(⍕nNames>1),')',¯1↓vals
               }enums
               0=≢typeNm: enumCode
@@ -860,7 +866,7 @@
         _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNumsX?'
         pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms)? )?? ⍎_End'  
       ⍝                                 ↑ F1:name      ↑ F2:val  
-        pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'  
+        pListAtoms←∆MAP'(?xi) `{0,2}\h*( ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'  
       ⍝ -------------------------------------------------------    
       ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
         pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
