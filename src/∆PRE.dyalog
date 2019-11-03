@@ -1,4 +1,5 @@
 :namespace ∆PREns
+
 ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
     __DEBUG__←0 
@@ -39,9 +40,9 @@
   ⍝     After execution, you are placed in the editor to view the processed lines...
   ⍝     Use -v to see helpful preprocessor comments; omit -v to see only executables (user comments preserved).
 
-    ⍝ Move execution into a private NS so we don't worry about name conflicts.
+    ⍝ Use (⎕NS''). to move execution into a private NS so we don't worry about name conflicts.
     ⍝ We'll explicitly save objects in ∆CALLR ns or ∆MY ns (see ⎕MY macro)
-      (⊃⊆,⍺)(⎕NS'').{
+      (⊃⊆,⍺){
         ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
       ⍝ isSpecialMacro ⍵: Special macros include dunder (__) vars defined here.
       ⍝ When a user DEFs these macros (read or write), ∆PRE will see them
@@ -1332,8 +1333,15 @@
           names←⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
           vals← ⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍵
           _ ←names{ns⍎⍺,'←⍵'
-          }¨vals
-          ns⊣names{  ns⍎'∆ENUMS←∪⍵ ⋄ ∆NAMES ∆VALS ∆KEYS←⍺ ⍵ (⍺[⍵⍳∆ENUMS])' }vals 
+          }¨vals  
+          ⍝ ∆NAMES -- all names; 
+          ⍝ ∆VALS  -- vals for each n in ∆NAMES
+          ⍝ ∆PAIRS -- pairs (n v) for each n in ∆NAMES and its value v in `hVALS
+          ⍝ ∆KEYS  -- leftmost n in ∆NAMES with unique vals
+          ⍝ ∆ENUMS -- vals for each k in ∆KEYS
+          ns⊣names{  
+            ns⍎'∆NAMES ∆VALS ∆PAIRS ∆KEYS←⍺ ⍵ (⍺{⍺ ⍵}¨⍵) (⍺[⍵⍳∆ENUMS←∪⍵])' 
+          }vals 
         }
       ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
         ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
