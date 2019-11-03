@@ -501,14 +501,14 @@
           ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
           ⍝       schemes.∆NAMES
           ⍝    red  orange  yellow     green  blue  indigo  violet 
-            badName←{1∊' []'∊⍵:1 ⋄ (1↑⍵)∊⎕D,'¯'}   ⍝ Reject "names" with brackets or multiple names
+            badName←{¯1=⎕NC ⍵↓⍨'⎕'=1↑⍵}  ⍝ ⍵: a string. Returns 1 if not a simple valid single APL object name!
             str ← pSkipE pEnumE  ⎕R {
               case←⍵.PatternNum∘∊
               case 0:⍵ ∆FLD 0 
               typeNm enums←⍵ ∆FLD¨1 2   
             ⍝ If a name appears to the right of ::ENUM (with opt'l arrow)
             ⍝ it will be assigned a constant value statically.
-             11+(988×__DEBUG__):: '⍝ ',(⍵ ∆FLD 0),CR,'↑↑↑ ∆PRE: UNTRAPPED ENUMERATION ERROR ↑↑↑'
+          ⍝   11+(988×__DEBUG__):: '⍝ ',(⍵ ∆FLD 0),CR,'↑↑↑ ∆PRE: UNTRAPPED ENUMERATION ERROR ↑↑↑'
               err nEnum←0
               enumCode←∆PARENS⍣(nEnum>1)⊣∊pEnumEach ⎕R { 
                 nEnum+←1 
@@ -517,7 +517,7 @@
                 _←∆QTX pEnumSub ⎕R {
                   0:: err∘←1
                   f0 name val←⍵ ∆FLD ¨0 1 2 ⋄ name val←trimLR¨ name val   
-                    ⍝ ⎕←'1 f0="',f0,'" name="',name,'" val="',val,'"' 
+                  ⍝ ⎕←'1 f0="',f0,'" name="',name,'" val="',val,'"' 
                   nNames+←1                ⍝ Ensure each scalar name 'a' → ,'a'    
                   badName name: ('∆PRE: INVALID NAME IN ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
                   names,←' ',⍨name←∆QT name
@@ -530,12 +530,13 @@
                       ~0∊ø:    val  0  1   
                       1:         ⍵  0  0 
                   }val
-                     ⍝ ⎕←'2 val' val 'isNum' isNum 'isIncr' isIncr
+                   ⍝ ⎕←'2 val' val 'isNum' isNum 'isIncr' isIncr
+                  ⍝ ⎕←'curV' curV 'curInc' curInc
                 ⍝ isNum: scalar/vector of numbers
                   isNum: 0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←val 
                 ⍝ isIncr: scalar or vector, conformable to curV, else 1
                 ⍝ isIncr: If curV is undefined, treat as 0, as for isNum.
-                  isIncr:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV{⍺=⎕NULL:0⋄⍺+⍵}curInc∘←val     
+                  isIncr:0⍴vals,←' ',⍨∆PARENS⍣(1<≢curV)⊣⍕curV∘←curV{⍺≡⎕NULL:0⋄⍺+(⍴⍺)⍴⍵}curInc∘←val     
                 ⍝ string atoms (names or quoted strings or the former mixed w/ APL numbers)
                   atoms←pListAtoms ⎕S '&'⊣val 
                   pfx←{⍺:',¨',⍵ ⋄ ⍵}
@@ -545,7 +546,7 @@
                     1=≢numVal: ' ',⍕numVal  
                   ⍝ Refuse any names APL doesn't accept (those must be enquoted).
                   ⍝ (Accept any system name, even unknown ones.)
-                    ' ',∆QTX ⍵⊣err∨←¯1=⎕NC ⍵↓⍨'⎕'=1↑⍵ 
+                    ' ',∆QTX ⍵⊣err∨←badName ⍵
                   }¨atoms           
                 }⍠'UCP' 1⊣⍵ ∆FLD 1  
                 err∨0=≢names:  ('∆PRE: INVALID ENUMERATION: ',⍵ ∆FLD 0) ⎕SIGNAL 11
@@ -857,7 +858,7 @@
         _Atoms←'(?: `{0,2} (⍎pSQe | ⍎_pNameX | ⍎_pNumX) \h* )+'
       ⍝ colon: [:→]  increment: [+] ONLY.
         _ColOpt _ColSP _Incr← '(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNumsX?'
-        pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms) )?? ⍎_End'  
+        pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms)? )?? ⍎_End'  
       ⍝                                 ↑ F1:name      ↑ F2:val  
         pListAtoms←∆MAP'(?xi)(?: ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'  
       ⍝ -------------------------------------------------------    
