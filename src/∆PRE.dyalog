@@ -1,7 +1,7 @@
 :namespace ∆PREns
 ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
-    __DEBUG__←0
+    __DEBUG__←0 
     999×__DEBUG__:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
   ⍝ Syntax:  I.  ⍺ ∆PRE line1 « line2 ... »
   ⍝         II.  ⍺ ∆PRE « function_name | ⎕NULL »
