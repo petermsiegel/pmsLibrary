@@ -1,4 +1,5 @@
 :namespace ∆PREns
+:section Initializations 
   __DEBUG__←1       ⍝ Default: 0
 ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
 ⍝    A compile-time (⎕FIX-time) option, not run-time.
@@ -15,6 +16,8 @@
 ⍝ Use NULL internally for special code lines (NULLs are removed at end)
   NL CR NULL←⎕UCS 10 13 0
   SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"'  
+  NOTINSET←⎕UCS 8713    ⍝ Not in set: ∉ (⎕UCS 8713)
+
 ⍝ Annotations (see annotate).
 ⍝   YESch - path taken.
 ⍝   NOch  - path not taken (false conditional).
@@ -35,6 +38,9 @@
   ∇ {_ok_}←registerPatterns PREFIX
     _ok_←1
     _pDirectivePfx←'^\h* \Q',PREFIX,'\E \h*'
+    pInDirectiveE←'^\h*\Q',PREFIX,'\E'
+  ⍝ Process double quotes and continuation lines that may cross lines
+    pNotInSetE←'(?:',NOTINSET ')'
     _pTarg←' [^ ←]+ '
     ⍝ _pSetVal:  /← value/, NOT optional (optl add ?): f[N+0]=arrow, f[N+1] value
     _pSetVal←' (?:(←)\h*(.*))'    
@@ -80,6 +86,8 @@
     _pDot1e,←'   | ( ⍎_pCh1 (?: \h+ ⍎_pCh1)* | ⍎_pCh2 ) \h* ⍎_pDot \h* (⍎_pCh1) ) '
     pDot1e←∆MAP'(?x)   ⍎_pDot1e'
     pDot2e←∆MAP'(?x)   ⍎_pDot'
+  ⍝ Handle preprocessor cases of ∆FORMAT...
+   pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
   ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
     _pHex←'   ¯? (\d  [\dA-F]*)             X'
   ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
@@ -172,6 +180,9 @@
     pEnumSub←∆MAP '(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms)? )?? ⍎_End'  
   ⍝                                 ↑ F1:name      ↑ F2:val  
     pListAtoms←∆MAP'(?xi) `{0,2}\h*( ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'  
+    pNullRightArrowE←'(?x) → (\h*) (?= [][{}):;⋄] | $ )'
+    pNullLeftArrowE←'(?x) (?<= [[(:;⋄]  | ^) (\h*)  ←'
+
   ⍝ -------------------------------------------------------    
   ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
     pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
@@ -220,7 +231,7 @@
     }
 
    
-  ⍝ Directive Patterns
+  ⍝ Directive Patterns to Register...
   ⍝ For simplicity, these all now follow all basic intra-pattern definitions
     cIFDEF←'ifdef'regDirective'   IF(N?)DEF     \h+(~?.*)                            $'
     cIF←'if'regDirective'         IF            \h+(.*)                              $'
@@ -402,8 +413,15 @@
   }
   registerPatterns PREFIX 
   registerDirectives
-
   
+  ∇ {ok}←expungeSinglePrefixVars;l
+    ⎕EX ok← (∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
+    'Removed ',(≢ok),'"_"-prefixed variables.'
+  ∇
+  expungeSinglePrefixVars  ⍝ Remove prefix vars _NNN, but not __MMM variables.
+:endsection Initializations 
+
+:section Preprocessor
 ⍝ Syntax:  I.  ⍺ ∆PRE line1 « line2 ... »
 ⍝         II.  ⍺ ∆PRE « function_name | ⎕NULL »
 ⍝  I. ⍺ ∆PRE line1 line2 ...
@@ -447,9 +465,9 @@
   ∆PRE←{⍺←'' 
     999×__DEBUG__:: ⎕SIGNAL/⎕DMX.(('∆PRE ',EM) EN)
 
-      0≡⍺: '  -noFix -noVerbose -noComments'∇ ⍵    
-      1≡⍺: '  -noFix   -Verbose -Debug'     ∇ ⍵ 
-     ¯1≡⍺:↑'  -noFix   -Verbose -Debug'     ∇ ⍵ 
+      0≡⍺: '-noFix -noVerbose -noComments'∇ ⍵    
+      1≡⍺: '-noFix   -Verbose -Debug'     ∇ ⍵ 
+     ¯1≡⍺:↑'-noFix   -Verbose -Debug'     ∇ ⍵ 
   ⍝ Special macros: names are LOCAL to ∆PRE...
   ⍝ special← '__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__'
     __DEBUG__←__DEBUG__
@@ -587,13 +605,13 @@
 ⍝------------------------------------⍙-----------------------------------
   macroExpand←{
     ⍺←__MAX_EXPAND__      ⍝ If 0, macros including hex, bigInt, etc. are NOT expanded!!!
-  ⍝ ⍙TO: Concise variant on dfns:to, allowing start [incr] to end
-  ⍝     1 1.5 ⍙TO 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
+  ⍝ ⍙to: Concise variant on dfns:to, allowing start [incr] to end
+  ⍝     1 1.5 ⍙to 5     →   1 1.5 2 2.5 3 3.5 4 4.5 5
   ⍝ expanded to allow (homogenous) Unicode chars
-  ⍝     'a' ⍙TO 'f' → 'abcdef'  ⋄   'ac' ⍙TO 'g'    →   'aceg'
+  ⍝     'a' ⍙to 'f' → 'abcdef'  ⋄   'ac' ⍙to 'g'    →   'aceg'
   ⍝ We use ⎕FR=1287 internally, but the exported version will use the ambient value.
   ⍝ This impacts only floating ranges...
-    ⍙TOcode← '⎕SE.⍙TO'          ⍝ Was in-line fn {(2+≢⍵)↓⊃⎕NR ⍵}'⎕SE.⍙TO'
+    ⍙TOcode← '⎕SE.⍙to'          ⍝ Was in-line fn {(2+≢⍵)↓⊃⎕NR ⍵}'⎕SE.⍙to'
   ⍝ Multi-item translation input option. See ::TRANS
     str←TRANSLATE{0=≢⍺.in:⍵  
       ⍺.(in out){
@@ -655,7 +673,6 @@
     ⍝  Check only after all substitutions (above), so ellipses with macros that resolve to
     ⍝  numeric or char. constants are optimized.
     ⍝  See __MAX_PROGRESSION__ below
-      pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
       cDot1E cSkipE cDot2E cFormatStringE←0 1 2 3
       str←pDot1e pSkipE pDot2e pFormatStringE ⎕R{
         case←⍵.PatternNum∘∊
@@ -667,7 +684,7 @@
         case cDot2E:⍙TOcode
       ⍝ case cDot1E:
         ⋄ f1 f2←⍵ ∆FLD¨1 2
-        ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ⎕SE.⍙TO ',f2   ⍝ Calculate constant progression
+        ⋄ progr←∆QTX⍣(SQ=⊃f1)⊣⍎f1,' ⎕SE.⍙to ',f2   ⍝ Calculate constant progression
         __MAX_PROGRESSION__<≢progr:∆PARENS f1,' ',⍙TOcode,' ',f2
         {0=≢⍵:'⍬' ⋄ 1=≢⍵:'(,',')',⍨⍕⍵ ⋄ ⍕⍵}progr
       }⍠'UCP' 1⊣str
@@ -712,10 +729,11 @@
     ⍝       schemes←::ENUM{red,orange,yellow}{green,blue,indigo,violet}
     ⍝       schemes.∆NAMES
     ⍝    red  orange  yellow     green  blue  indigo  violet 
-    ⍝ Good names are defined as initial
-    ⍝     optional ⎕,                  then 
-    ⍝     any Unicode letter or [_∆⍙], then optionally
-    ⍝     any \w character or [∆⍙],    where \w includes [_0-9] under UCP (Unicode) defs.
+    ⍝ Good names are defined as  
+    ⍝   initially      optional ⎕,                 
+    ⍝   then           any Unicode letter or [_∆⍙],  
+    ⍝   then opt'lly   any \w character or [∆⍙],    
+    ⍝   where \w includes [_0-9] under UCP (Unicode) defs.
       badName←{1≠≢'(*UCP)^⎕?[_∆⍙\pL][∆⍙\w]*$'⎕S 1⊣⍵}
       str ← pSkipE pEnumE  ⎕R {
         case←⍵.PatternNum∘∊
@@ -804,11 +822,8 @@
     ⍝    (name→'John'; address→; phone→) →→ 
     ⍝    (name→'John'; address→⎕NULL; phone→⎕NULL)
     ⍝ Set missing value here:
-      pNullRightArrowE←'(?x) → (\h*) (?= [][{}):;⋄] | $ )'
-      missingValueToken←'⎕NULL'
-      
-      pNullLeftArrowE←'(?x) (?<= [[(:;⋄]  | ^) (\h*)  ←'
     ⍝ see getTempName←{...}
+      missingValueToken←'⎕NULL'
       str←pSkipE pNullLeftArrowE pNullRightArrowE ⎕R {
         case←⍵.PatternNum∘∊ ⋄ f0 f1←⍵ ∆FLD¨ 0 1
         case 0: f0
@@ -1292,295 +1307,302 @@
     }⍵
   }  ⍝ processDirectives
 
-⍝ --------------------------------------------------------------------------------
-⍝ EXECUTIVE
-⍝ --------------------------------------------------------------------------------
-⍝ User parameters...
-  ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
-  (TRANSLATE←⎕NS '').(in←out←⍬)
-  fnAtomCtr←¯1               ⍝ Dynamic counter...
+⍝ :section Preprocessor Executive
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ EXECUTIVE
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ User parameters...
+    ∆CALLR←1⊃⎕RSI,#            ⍝ The caller is the 2nd arg of ⎕RSI
+    (TRANSLATE←⎕NS '').(in←out←⍬)
+    fnAtomCtr←¯1               ⍝ Dynamic counter...
 
-⍝ User OPTIONS-- see documentation.
-⍝ Default (for string ⍺)
-⍝ - VERBOSE   unless -NOVERBOSE  
-⍝  -NODEBUG   unless -DEBUG     o 
-⍝  -COM, -BLANK, FIX  
-⍝  -NOEDIT (unless ⎕NULL is right arg),
-⍝  -NOHELP, QUIET 
-  opt←(lc,⍺)∘{w←'-',lc ⍵ ⋄ 1∊w⍷⍺}                  ⍝ ⍺: options passed by user
-  __VERBOSE__←(~opt'noV')                          ⍝ Default 1. Settable via ::DEF  
-  __DEBUG__←(opt'D')                               ⍝ Default 0. Settable via ::DEF 
-  NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-  EDIT←(~opt'noE' )∧(⎕NULL≡⍬⍴⍵)∨opt'E'             ⍝ Default 0; 1 if ⍵≡∊⎕NULL
-  QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
-  FIX←~opt'noF'                                    ⍝ Default 1
-  _←{ ⍝ Option information
-      ⍺←0 ⋄ ~__DEBUG__∨⍺:0 
-      ⍙←4⍴' '
-      ⎕←⍙,'Options: "','"',⍨{⍵/⍨~'  '⍷⍵}lc ⍵
-      ⍞←⍙,'Verbose: ',__VERBOSE__ ⋄ ⍞←⍙,'Debug:   ',__DEBUG__
-      ⍞←⍙,'NoCom:   ',NOCOM       ⋄ ⍞←⍙,'NoBlanks:',NOBLANK,CR
-      ⍞←⍙,'Edit:    ',EDIT        ⋄ ⍞←⍙,'Quiet:   ',QUIET
-      ⍞←⍙,'Help:    ',HELP        ⋄ ⍞←⍙,'Fix:     ',FIX,CR
-      0
-  }⍺
-⍝ HELP PATH; currently an external file...
-  HELP:{⎕ED'___'⊣___←↑⊃⎕NGET ⍵}&'pmsLibrary/docs/∆PRE.help'
-⍝ Set prepopulated macros
-  mNames←mVals←mNameVis←⍬
-  _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
-  _←0 mPut'__VERBOSE__'__VERBOSE__
-  _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
-  ⍝                                       ⍝ Avoids runaway recursion...
-  _←0 mPut'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
-  _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
-⍝ Other user-oriented macros
-  _←0 mPut'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
-  _←0 mPut'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
-                                        ⍝ entries: (key-val pairs | ⍬)
-  _←0 mPut'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
-  _←0 mPut'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
-  _←0 mPut'⎕EVAL' '⍎¨0∘∆PRE '
-⍝ Add ⎕DFNS call - to provide access to common dfns
-  _←0 mPut '⎕DFNS' '⎕SE.dfns'
-  _←0 mPut '⎕PLOT'  '{⎕SE.UCMD ''Plot '',⍵}'
+  ⍝ User OPTIONS-- see documentation.
+  ⍝ Default (for string ⍺)
+  ⍝ - VERBOSE   unless -NOVERBOSE  
+  ⍝  -NODEBUG   unless -DEBUG     o 
+  ⍝  -COM, -BLANK, FIX  
+  ⍝  -NOEDIT (unless ⎕NULL is right arg),
+  ⍝  -NOHELP, QUIET 
+    opt←(lc,⍺)∘{w←'-',lc ⍵ ⋄ 1∊w⍷⍺}                  ⍝ ⍺: options passed by user
+    __VERBOSE__←(~opt'noV')                          ⍝ Default 1. Special: Settable via ::DEF  
+    __DEBUG__←(opt'D')                               ⍝ Default 0. Special: Settable via ::DEF 
+    NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
+    EDIT←(~opt'noE' )∧(⎕NULL≡⍬⍴⍵)∨opt'E'             ⍝ Default 0; 1 if ⍵≡∊⎕NULL
+    QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
+    FIX←~opt'noF'                                    ⍝ Default 1
+    _←{ ⍝ Option information
+        ⍺←0 ⋄ ~__DEBUG__∨⍺:0 
+        ø←4⍴' '
+        ⎕←'Options: "','"',⍨{⍵/⍨~'  '⍷⍵}lc ⍵
+        ⍞←ø,'Verbose: ',__VERBOSE__ ⋄ ⍞←ø,'Debug:   ',__DEBUG__
+        ⍞←ø,'NoCom:   ',NOCOM       ⋄ ⍞←ø,'NoBlanks:',NOBLANK,CR
+        ⍞←ø,'Edit:    ',EDIT        ⋄ ⍞←ø,'Quiet:   ',QUIET
+        ⍞←ø,'Help:    ',HELP        ⋄ ⍞←ø,'Fix:     ',FIX,CR
+        0
+    }⍺
+  ⍝ HELP PATH; currently an external file...
+    HELP:{
+      ⎕ED'___'⊣___←↑⊃⎕NGET ⍵⊣⎕←'Help source "',⍵,'"'
+    }&'pmsLibrary/docs/∆PRE.help'
+  ⍝ Set prepopulated macros
+    mNames←mVals←mNameVis←⍬
+    _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
+    _←0 mPut'__VERBOSE__'__VERBOSE__
+    _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
+    ⍝                                       ⍝ Avoids runaway recursion...
+    _←0 mPut'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
+    _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
+  ⍝ Other user-oriented macros
+    _←0 mPut'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
+    _←0 mPut'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
+                                          ⍝ entries: (key-val pairs | ⍬)
+    _←0 mPut'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
+    _←0 mPut'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
+    _←0 mPut'⎕EVAL' '⍎¨0∘∆PRE '
+  ⍝ Add ⎕DFNS call - to provide access to common dfns
+    _←0 mPut '⎕DFNS' '⎕SE.dfns'
+    _←0 mPut '⎕PLOT'  '{⎕SE.UCMD ''Plot '',⍵}'
 
-⍝ Write out utility function(s) to ⎕SE
-⍝ ----
-⍝ ⍙enum:  Handle quasi-⎕JSON-style enumerations
-  ⎕SE.⍙enum←{⎕IO←0
-    0:: ('∆PRE: Invalid Enumeration with names "',⍺,'"') ⎕SIGNAL 11
-    type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺  
-    0:: ('∆PRE: Invalid Enumeration with type "',type,'"') ⎕SIGNAL 11 
-    ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
-    names←⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
-    vals← ⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍵
-    _ ←names{ns⍎⍺,'←⍵' }¨vals  
-    ⍝ ∆NAMES -- all names; 
-    ⍝ ∆VALS  -- vals for each n in ∆NAMES
-    ⍝ ∆PAIRS -- pairs (n v) for each n in ∆NAMES and its value v in `hVALS
-    ⍝ ∆KEYS  -- leftmost n in ∆NAMES with unique vals
-    ⍝ ∆ENUMS -- vals for each k in ∆KEYS
-    ns⊣names{  
-      ns⍎'∆NAMES ∆VALS ∆PAIRS ∆KEYS←⍺ ⍵ (⍺{⍺ ⍵}¨⍵) (⍺[⍵⍳∆ENUMS←∪⍵])' 
-    }vals 
-  }
-⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
-  ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
-⍝ ⍙TO: Do ranges  a b .. c     a to c in steps of (b-a); a, b, c all numbers
-  ⎕SE.⍙TO←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-  
-⍝ Copy utility functions from dfns to ⎕SE.dfns
-  dfnsList←'pco' ⋄ _←'dfns'⎕SE.⎕NS ''
-  _← dfnsList ⎕SE.dfns.⎕CY'dfns'
-⍝ Read in data file...
-  __FILE__ fullNm dataIn←∆CALLR∘getDataIn(⊆⍣(~FIX))⍵
-  tmpNm←'__',__FILE__,'__'
+  ⍝ Write out utility function(s) to ⎕SE
+  ⍝ ----
+  ⍝ ⍙enum:  Run-time support for non-static enumerations
+  ⍝   ∆NAMES -- all names; 
+  ⍝   ∆VALS  -- vals for each n in ∆NAMES
+  ⍝   ∆PAIRS -- pairs (n v) for each n in ∆NAMES and its value v in `hVALS
+  ⍝   ∆KEYS  -- leftmost n in ∆NAMES with unique vals
+  ⍝   ∆ENUMS -- vals for each k in ∆KEYS
+    ⎕SE.⍙enum←{⎕IO←0
+      0:: ('∆PRE: Invalid Enumeration with names "',⍺,'"') ⎕SIGNAL 11
+      type←'#.[ENUM',']',⍨('.',⍺⍺) ''⊃⍨0=≢⍺⍺  
+      0:: ('∆PRE: Invalid Enumeration with type "',type,'"') ⎕SIGNAL 11 
+      ns←#.⎕NS'' ⋄ _←ns.⎕DF type 
+      names←⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
+      vals← ⍵⍵{⍺: ,¨⍵ ⋄ ,⊂⍵}⍵
+      _ ←names{ns⍎⍺,'←⍵' }¨vals  
+      ns⊣names{  
+        ns⍎'∆NAMES ∆VALS ∆PAIRS ∆KEYS←⍺ ⍵ (⍺{⍺ ⍵}¨⍵) (⍺[⍵⍳∆ENUMS←∪⍵])' 
+      }vals 
+    }
+  ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
+    ⎕SE.⍙fnAtom←{(ns←#.⎕NS⍬).fn←fn←⍺⍺⋄∆←⍕∊⎕NR'fn'⋄0=≢∆:ns⊣ns.⎕DF ⍕fn⋄ns⊣ns.⎕DF ∊∆}
+  ⍝ ⍙to: Do ranges  a b .. c     a to c in steps of (b-a); a, b, c all numbers
+    ⎕SE.⍙to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+    
+  ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
+    _←'⎕SE.dfns'{          ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
+      nsR←⍎⍺ ⎕NS ''      ⍝ nsR: ref for dest
+      ~0∊nsR.⎕NC ⍵: ⍬    ⍝ All there? Do nothing
+      _← ⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
+      _←dPrint'Copying select dfns to ',⍺,':'
+      ⊣_←dPrint '   ',⍕⍵
+    } 'pco' 'cmpx'       ⍝ list of dfns
+  ⍝ Read in data file...
+    __FILE__ fullNm dataIn←∆CALLR∘getDataIn(⊆⍣(~FIX))⍵
+    tmpNm←'__',__FILE__,'__'
 
-⍝ Set up ⎕MY("static") namespace, local to the family of objects in <__FILE__>
-⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
-⍝ And set up ∆CONST (for enums and other constants) within ∆MY.
-  ∆MY←(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY' 
-  ∆MYR←⍎∆MY ⎕NS '' ⊣⎕EX ∆MY  
-  _←'∆CONST' ∆MYR.⎕NS ''             ⍝ (Static) constant namespace.
-  ∆MYR._FIRST_←1    
-  _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
-  _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-  _←mPut        '⎕MY'              ∆MY                     ⍝ ⎕MY    → a private 'static' namespace
-  _←mPut        '⎕FIRST'           (∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
-  _←mPut        '⎕ME'              '(⊃⎕SI)'                ⍝ Simple name of active function
-  _←mPut        '⎕XME'             '(⊃⎕XSI)'               ⍝ Full name of active function
-⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
-  _←0 mPutMagic '__LINE__'         '__LINE__'  
-  _←0 mPutMagic '__FILE__'         '__FILE__' 
-  _←0 mPutMagic '__TS__'           '⎕TS'        
-  _←1 mPutMagic '__STATIC__'       '⎕THIS'
-  _←2 mPutMagic '__CALLER__'       '⎕THIS'
-  _←0 mPutMagic '__TIME__'         '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
-  _←0 mPutMagic '__DATE__'         '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
-  _←mPut        '__DATE__TIME__'   '__DATE__ ∘∘ "T" ∘∘ __TIME__'
-⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
-⍝    via a fence:    [left margin | ⋄ etc.] ← val
-  _←0 mPutMagic'⎕T' 'getTempName 0'
+  ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <__FILE__>
+  ⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
+  ⍝ And set up ∆CONST (for enums and other constants) within ∆MY.
+    ∆MY←(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY' 
+    ∆MYR←⍎∆MY ⎕NS '' ⊣⎕EX ∆MY  
+    _←'∆CONST' ∆MYR.⎕NS ''             ⍝ (Static) constant namespace.
+    ∆MYR._FIRST_←1    
+    _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
+    _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
+    _←mPut        '⎕MY'              ∆MY                     ⍝ ⎕MY    → a private 'static' namespace
+    _←mPut        '⎕FIRST'           (∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+    _←mPut        '⎕ME'              '(⊃⎕SI)'                ⍝ Simple name of active function
+    _←mPut        '⎕XME'             '(⊃⎕XSI)'               ⍝ Full name of active function
+    _←mPut        '⎕NOTIN'           '{~⍺∊⍵}'                ⍝ See ∉ ⎕UCS 8713
+  ⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
+    _←0 mPutMagic '__LINE__'         '__LINE__'  
+    _←0 mPutMagic '__FILE__'         '__FILE__' 
+    _←0 mPutMagic '__TS__'           '⎕TS'        
+    _←1 mPutMagic '__STATIC__'       '⎕THIS'
+    _←2 mPutMagic '__CALLER__'       '⎕THIS'
+    _←0 mPutMagic '__TIME__'         '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
+    _←0 mPutMagic '__DATE__'         '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
+    _←mPut        '__DATE__TIME__'   '__DATE__ ∘∘ "T" ∘∘ __TIME__'
+  ⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
+  ⍝    via a fence:    [left margin | ⋄ etc.] ← val
+    _←0 mPutMagic'⎕T' 'getTempName 0'
 
-⍝ Other Initializations
-  stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
-  includedFiles←⊂fullNm
-  NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
-  _←dPrint'Processing input object ',(∆DQT __FILE__),' from file ',∆DQT fullNm
-  _←dPrint'Object has ',NLINES,' lines'
-  dataFinal←⍬
-  includeLines←⍬
-  comment←⍬
+  ⍝ Other Initializations
+    stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
+    includedFiles←⊂fullNm
+    NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
+    _←dPrint'Processing input object ',(∆DQT __FILE__),' from file ',∆DQT fullNm
+    _←dPrint'Object has ',NLINES,' lines'
+    dataFinal←⍬
+    includeLines←⍬
+    comment←⍬
 
-⍝ --------------------------------------------------------------------------------
-⍝ Executive: Phase I
-⍝ --------------------------------------------------------------------------------
-⍝ Kludge: We remove comments from all directives up front...
-⍝ Not ideal, but...
-  pInDirectiveE←'^\h*\Q',PREFIX,'\E'
-  inDirective←0
-⍝ Process double quotes and continuation lines that may cross lines
-  pNotInSetE←'(?ix) (?: ',(⎕UCS 8713),' | ⎕NOTIN)'
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ Executive: Phase I
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ Kludge: We remove comments from all directives up front...
+  ⍝ Not ideal, but...
+    inDirectiveFlag←0
+    _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
+    _pI,←pZildeE pEOLe pNotInSetE 
+    cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL cNotInSet ←⍳9
+    dataOut← _pI ⎕R{
+      f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
+       case cInDirective:f0⊣inDirectiveFlag⊢←1
+      case cDQ3:' '                             ⍝ """..."""
+      case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
+      case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
+        ~NL∊⍵:⍵
+        warningCount+←1
+        _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
+        _←print'String: ','⤶'@(NL∘=)⍵
+        ' '@(NL∘=)⍵
+      }f0
+      case cCm:f0/⍨~inDirectiveFlag                  ⍝ COM - passthru, unless in std directive
+      case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
+      case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
+      case cNotInSet:'{~⍺∊⍵}'
+    ⍝ When matching abbreviated arrow schemes, try to keep any extra spacing,
+    ⍝ so things line up...
+      ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
+    ⍝ case cEOL triggers comment processing from above
+      inDirectiveFlag⊢←0                                ⍝ Reset  flag after each NL
+      0=≢comment:f0
+      ln←comment,' ',f1,NL ⋄ comment⊢←⍬
+      ⍝ If the commment is more than (⎕PW÷2), put on newline
+      (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
+    }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
+  ⍝ Process macros... one line at a time, so state is dependent only on lines before...
+  ⍝ It may be slow, but it works!
+    dataOut←{⍺←⍬
+      0=≢⍵:⍺
+      line←⊃⍵
+      line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
+      (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
+    }dataOut
 
-  _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
-  _pI,←pZildeE pEOLe pNotInSetE 
-  cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL cNotInSet ←⍳9
-  dataOut← _pI ⎕R{
-    f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
-  ⍝ spec←⍵.PatternNum⊃'Spec' 'Std' 'DQ' 'SQ' 'CM' 'CONT' 'EOL'
-  ⍝ print (¯4↑spec),': f0="',f0,'" inDirective="',inDirective,'"'
-    case cInDirective:f0⊣inDirective⊢←1
-    case cDQ3:' '                             ⍝ """..."""
-    case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
-    case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
-      ~NL∊⍵:⍵
-      warningCount+←1
-      _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
-      _←print'String: ','⤶'@(NL∘=)⍵
-      ' '@(NL∘=)⍵
-    }f0
-    case cCm:f0/⍨~inDirective                  ⍝ COM - passthru, unless in std directive
-    case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
-    case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
-    case cNotInSet:'{~⍺∊⍵}'
-  ⍝ When matching abbreviated arrow schemes, try to keep any extra spacing,
-  ⍝ so things line up...
-    ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
-  ⍝ case cEOL triggers comment processing from above
-    inDirective⊢←0                                ⍝ Reset  flag after each NL
-    0=≢comment:f0
-    ln←comment,' ',f1,NL ⋄ comment⊢←⍬
-    ⍝ If the commment is more than (⎕PW÷2), put on newline
-    (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
-  }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
-⍝ Process macros... one line at a time, so state is dependent only on lines before...
-⍝ It may be slow, but it works!
-  dataOut←{⍺←⍬
-    0=≢⍵:⍺
-    line←⊃⍵
-    line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
-    (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
-  }dataOut
-
-⍝ --------------------------------------------------------------------------------
-⍝ Executive: PhaseII
-⍝ --------------------------------------------------------------------------------
-⍝ condSave ⍵:code
-⍝    ⍺=1: Keep __name__ (on error path or if __DEBUG__=1)
-⍝    ⍺=0: Delete __name__ unless error (not error and __DEBUG__=0)
-⍝ Returns ⍵ with NULLs removed...
-  condSave←{⍺←EDIT∨__DEBUG__
-    _←⎕EX tmpNm
-    ⍺:⍎'∆CALLR.',tmpNm,'←⍵~¨NULL'
-    ⍵
-  }
-⍝ ERROR PATH
-  999×__DEBUG__::11 ⎕SIGNAL⍨{
-    _←1 condSave ⍵
-    _←'Preprocessor error. Generated object for input "',__FILE__,'" is invalid.',⎕TC[2]
-    _,'See preprocessor output: "',tmpNm,'"'
-  }dataOut
-  dataOut←condSave dataOut 
-⍝  ∘ Lines starting with a NULL will be deleted (ignored) on output.
-⍝    These are generated in 1st phase of deleting comment lines or null lines. 
-⍝  ∘ Other NULLs anywhere are deleted (ignored) as well.
-  dataOut←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
-    ⋄ opts←('Mode' 'M')('EOL' 'LF')
-  ⍝ We have embedded newlines for lines with macros expanded: see annotate
-  ⍝ [a] ⎕R handles them (per EOL LF). See [b]
-    NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵    ⍝ Remove blank lines and comments.
-    NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
-  ⍝ [b] Explicitly handle embedded NLs
-    {⊃,/NL(≠⊆⊢)¨⍵}⍵
-  }dataOut
-⍝ if FIX=1, we may have a tradfn w/o a leading ∇ whose first line needs to be skipped
-⍝ to avoid treating header semicolons as list separators.
-⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
-  dataOut←FIX scan4Semi dataOut
-⍝ Edit (for review) if EDIT=1
-  _←{∆CALLR⍎tmpNm,'←↑⍵'}dataOut  
-  _←∆CALLR.⎕ED⍣EDIT⊣tmpNm ⋄ _←∆CALLR.⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
-  note←{ 0<⍵: ⎕←'*** There were ',(⍕⍵),' ',⍺ ⋄ ⍬}
-  _←'warnings' 'errors'note¨ warningCount errorCount 
-  0<errorCount: '∆PRE: Fatal errors occurred' ⎕SIGNAL 911
-  FIX:_←2 ∆CALLR.⎕FIX dataOut
-  dataOut
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ Executive: PhaseII
+  ⍝ --------------------------------------------------------------------------------
+  ⍝ condSave ⍵:code
+  ⍝    ⍺=1: Keep __name__ (on error path or if __DEBUG__=1)
+  ⍝    ⍺=0: Delete __name__ unless error (not error and __DEBUG__=0)
+  ⍝ Returns ⍵ with NULLs removed...
+    condSave←{⍺←EDIT∨__DEBUG__
+      _←⎕EX tmpNm
+      ⍺:⍎'∆CALLR.',tmpNm,'←⍵~¨NULL'
+      ⍵
+    }
+  ⍝ ERROR PATH
+    999×__DEBUG__::11 ⎕SIGNAL⍨{
+      _←1 condSave ⍵
+      _←'Preprocessor error. Generated object for input "',__FILE__,'" is invalid.',⎕TC[2]
+      _,'See preprocessor output: "',tmpNm,'"'
+    }dataOut
+    dataOut←condSave dataOut 
+  ⍝  ∘ Lines starting with a NULL will be deleted (ignored) on output.
+  ⍝    These are generated in 1st phase of deleting comment lines or null lines. 
+  ⍝  ∘ Other NULLs anywhere are deleted (ignored) as well.
+    dataOut←{NULL~⍨¨⍵/⍨NULL≠⊃¨⍵}{
+      ⋄ opts←('Mode' 'M')('EOL' 'LF')
+    ⍝ We have embedded newlines for lines with macros expanded: see annotate
+    ⍝ [a] ⎕R handles them (per EOL LF). See [b]
+      NOCOM:'^\h*(?:⍝.*)?$'⎕R NULL⍠opts⊣⍵    ⍝ Remove blank lines and comments.
+      NOBLANK:'^\h*$'⎕R NULL⍠opts⊣⍵          ⍝ Remove blank lines
+    ⍝ [b] Explicitly handle embedded NLs
+      {⊃,/NL(≠⊆⊢)¨⍵}⍵
+    }dataOut
+  ⍝ if FIX=1, we may have a tradfn w/o a leading ∇ whose first line needs to be skipped
+  ⍝ to avoid treating header semicolons as list separators.
+  ⍝ Whether ⍺ is set or not, we'll skip any line with leading ∇.
+    dataOut←FIX scan4Semi dataOut
+  ⍝ Edit (for review) if EDIT=1
+    _←{∆CALLR⍎tmpNm,'←↑⍵'}dataOut  
+    _←∆CALLR.⎕ED⍣EDIT⊣tmpNm ⋄ _←∆CALLR.⎕EX⍣(EDIT∧~__DEBUG__)⊣tmpNm
+    note←{ 0<⍵: ⎕←'*** There were ',(⍕⍵),' ',⍺ ⋄ ⍬}
+    _←'warnings' 'errors'note¨ warningCount errorCount 
+    0<errorCount: '∆PRE: Fatal errors occurred' ⎕SIGNAL 911
+    FIX:_←2 ∆CALLR.⎕FIX dataOut
+    dataOut
+  ⍝ :endsection Preprocessor Executive
   }         ⍝ ∆PRE←...
   ##.∆PRE←⎕THIS.∆PRE
+:endsection Preprocessor
 
-∇linesOut←{isFn}scan4Semi lines
-  ⍝ Look for sequences of sort
-  ⍝        (anything1; anything2; ...; anythingN)
-  ⍝ and replace with
-  ⍝        ( (anything) (anything) ... (anythingN) )
-  ⍝ If anythingN is 0 or more blanks, as in
-  ⍝        ( anything1; ; and more ;;)
-  ⍝ it is replaced by ⍬:
-  ⍝        ( (anything1) ⍬ (and more) ⍬)
-  ⍝ In general, () is equivalent to ⍬.
-    ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI;COM
-    ;cur_tok;cur_gov;deQ;enQ;inCom;inQt;line;lineOut;pBareParens;pComment;pSQ;prefix;stack
-    ;⎕IO;⎕ML
-  ⍝ Look for semicolons in parentheses() and outside of brackets[]
-    isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
-    lines←,,¨⊆lines
-    ⎕IO ⎕ML←0 1
-    QUOT←'''' ⋄ SEMI←';'
-    LPAR RPAR LBRK RBRK COM←'()[]⍝'
-    stack←⎕NS ⍬
-    deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
-    enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
-    :If isFn
-      prefix lines←(⊂⊃lines)(1↓lines)
-    :Else
-      prefix←⍬
-    :EndIf
-    linesOut←⍬
-    :For line :In lines
-      :If '∇'=1↑line↓⍨+/∧\line=' '
-        lineOut←line       ⍝ Skip function headers or footers...
+:section List Extensions (Semicolons in Parenthetical Expressions)
+  ∇linesOut←{isFn}scan4Semi lines
+    ⍝ Look for sequences of sort
+    ⍝        (anything1; anything2; ...; anythingN)
+    ⍝ and replace with
+    ⍝        ( (anything) (anything) ... (anythingN) )
+    ⍝ If anythingN is 0 or more blanks, as in
+    ⍝        ( anything1; ; and more ;;)
+    ⍝ it is replaced by ⍬:
+    ⍝        ( (anything1) ⍬ (and more) ⍬)
+    ⍝ In general, () is equivalent to ⍬.
+      ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI;COM
+      ;cur_tok;cur_gov;deQ;enQ;inCom;inQt;line;lineOut;pBareParens;pComment;pSQ;prefix;stack
+      ;⎕IO;⎕ML
+    ⍝ Look for semicolons in parentheses() and outside of brackets[]
+      isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+      lines←,,¨⊆lines
+      ⎕IO ⎕ML←0 1
+      QUOT←'''' ⋄ SEMI←';'
+      LPAR RPAR LBRK RBRK COM←'()[]⍝'
+      stack←⎕NS ⍬
+      deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
+      enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
+      :If isFn
+        prefix lines←(⊂⊃lines)(1↓lines)
       :Else
-        stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
-        lineOut←⍬ ⋄ inCom←0
-        :For cur_tok :In line
-          cur_gov←⊃⌽stack.govern
-          inQt inCom←QUOT COM=cur_gov  
-          :If inQt
-              deQ QUOT=cur_tok
-          :Elseif inCom
-              ⋄   
-          :Else
-            :Select cur_tok
-            :Case COM  ⋄ enQ cur_tok(≢lineOut)
-            :Case LPAR ⋄ enQ cur_tok(≢lineOut)
-            :Case LBRK ⋄ enQ cur_tok(≢lineOut)
-            :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
-            :Case RBRK ⋄ deQ 1
-            :Case QUOT ⋄ enQ cur_tok ¯1
-            :Case SEMI
-              :Select cur_gov
-              :Case LPAR ⋄ cur_tok←')(' ⋄ lineOut[⊃⌽stack.lparIx]←⊂2/LPAR ⋄ (⊃⌽stack.sawSemi)←1
-              :Case LBRK
-              :Else ⋄ cur_tok←')(' ⋄ (⊃stack.sawSemi)←1
+        prefix←⍬
+      :EndIf
+      linesOut←⍬
+      :For line :In lines
+        :If '∇'=1↑line↓⍨+/∧\line=' '
+          lineOut←line       ⍝ Skip function headers or footers...
+        :Else
+          stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
+          lineOut←⍬ ⋄ inCom←0
+          :For cur_tok :In line
+            cur_gov←⊃⌽stack.govern
+            inQt inCom←QUOT COM=cur_gov  
+            :If inQt
+                deQ QUOT=cur_tok
+            :Elseif inCom
+                ⋄   
+            :Else
+              :Select cur_tok
+              :Case COM  ⋄ enQ cur_tok(≢lineOut)
+              :Case LPAR ⋄ enQ cur_tok(≢lineOut)
+              :Case LBRK ⋄ enQ cur_tok(≢lineOut)
+              :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
+              :Case RBRK ⋄ deQ 1
+              :Case QUOT ⋄ enQ cur_tok ¯1
+              :Case SEMI
+                :Select cur_gov
+                :Case LPAR ⋄ cur_tok←')(' ⋄ lineOut[⊃⌽stack.lparIx]←⊂2/LPAR ⋄ (⊃⌽stack.sawSemi)←1
+                :Case LBRK
+                :Else ⋄ cur_tok←')(' ⋄ (⊃stack.sawSemi)←1
+                :EndSelect
               :EndSelect
-            :EndSelect
+            :EndIf
+            lineOut,←cur_tok
+          :EndFor
+          :If (⊃stack.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
+            lineOut←'((',lineOut,'))'
           :EndIf
-          lineOut,←cur_tok
-        :EndFor
-        :If (⊃stack.sawSemi)     ⍝ semicolon(s) seen at top level (outside parens and brackets)
-          lineOut←'((',lineOut,'))'
-        :EndIf
-      :Endif
-      linesOut,←⊂∊lineOut
-    :EndFor
+        :Endif
+        linesOut,←⊂∊lineOut
+      :EndFor
 
-    pSQ←'(?:''[^'']*'')+'
-    pComment←'⍝.*$'
-    pBareParens←'\(\h*\)'
-    :IF 0≠≢∊linesOut  
-      linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' (,'⍬')⍠('Mode' 'M')⊣linesOut
-    :ENDIF
-    linesOut←prefix,linesOut
-∇
+      pSQ←'(?:''[^'']*'')+'
+      pComment←'⍝.*$'
+      pBareParens←'\(\h*\)'
+      :IF 0≠≢∊linesOut  
+        linesOut←pSQ pComment pBareParens ⎕R'\0' '\0' (,'⍬')⍠('Mode' 'M')⊣linesOut
+      :ENDIF
+      linesOut←prefix,linesOut
+  ∇
+:endsection List Extensions (Semicolons in Parenthetical Expressions)
 :endnamespace
