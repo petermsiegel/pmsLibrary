@@ -1,13 +1,11 @@
 :namespace ∆PREns
-    :section Initializations
-    __DEBUG__←0       ⍝ Default: 0
+:section Initializations
+    __DEBUG__←1       ⍝ Default: 0
 ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
 ⍝    A compile-time (⎕FIX-time) option, not run-time.
 ⍝    Default '::' unless preset in our namespace...
 ⍝      Must be a char scalar or vector; treated as a regexp literal.
-    PREFIX←'PREFIX'{0=⎕NC ⍺: ⍵ ⋄ ⎕OR ⍺}'::'
-
-⍝ General Initializations
+    PREFIX←'::'
     ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
 
 ⍝ General Constants
@@ -17,7 +15,6 @@
     NL CR NULL←⎕UCS 10 13 0
     SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"'
     NOTINSET←⎕UCS 8713    ⍝ Not in set: ∉ (⎕UCS 8713)
-
 ⍝ Annotations (see annotate).
 ⍝   YESch - path taken.
 ⍝   NOch  - path not taken (false conditional).
@@ -26,7 +23,7 @@
     YESch NOch SKIPch INFOch WARNch ERRch←' ✓' ' 😞' ' 🚫' ' 💡' '⚠️' '💩'
 ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
     EMPTY←,NULL
-
+    :section Initialization Functions
 ⍝ registerSpecialMacros: Sets fn isSpecialMacro (returns 1 if ⍵ is special).
 ⍝ "special" means a macro name ⍵ defined via ::DEF or ::EVAL affects the
 ⍝ corresponding ∆PRE local variable of the same name.
@@ -35,8 +32,6 @@
       specialM←'__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__'
       isSpecialMacro←(∊∘(' '(≠⊆⊢)specialM))∘⊂
     ∇
-    registerSpecialMacros
-
 ⍝ PATTERNS BEGIN
     ∇ pat←_BRN matchPair(_BRL _BRR);_
       _←'(?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
@@ -49,7 +44,6 @@
       _pDirectivePfx←'^\h* \Q',PREFIX,'\E \h*'
       pInDirectiveE←'^\h*\Q',PREFIX,'\E'
   ⍝ Process double quotes and continuation lines that may cross lines
-      pNotInSetE←'(?:',NOTINSET')'
       _pTarg←' [^ ←]+ '
     ⍝ _pSetVal:  /← value/, NOT optional (optl add ?): f[N+0]=arrow, f[N+1] value
       _pSetVal←' (?:(←)\h*(.*))'
@@ -73,7 +67,7 @@
   ⍝ patterns mostly  for the ∇macroExpand∇ fn
   ⍝ User cmds: ]... (See also ⎕UCMD)
       pUserE←'^\h*\]\h*(.*)$'
-  ⍝ Triple-double quote strings are multiline comments (never quotes), replaced by blanks!
+  ⍝ Triple-double quote strings denote multiline comments (never quotes), replaced by blanks!
   ⍝      """... multiline ok """    ==> ' '
       pDQ3e←'(?sx)  "{3} .*? "{3}'
   ⍝ Double quote suffixes:   [R/r] plus [S/s] or [M/m] or [V/v]
@@ -107,11 +101,15 @@
   ⍝ Exponents are invalid for hexadecimals, because the exponential range
   ⍝ is not defined/allowed.
       pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
-  ⍝ Handle ⎕Unnn to create a quoted unicode character ⎕UCS nnn.
-      pUnicodeCh←'(?i)\h*⎕U(\d+)\h*'
-  ⍝ Handle ⎕Snnn to create a unicode symbol, unquoted char ⎕UCS nnn
-      pUnicodeSym←'(?i)\h*⎕S(\d+)\h*'
-     
+  ⍝ Unicode symbols or character, shorthand.
+  ⍝ Use ⎕Unnn to create an unquoted unicode character ⎕UCS nnn.
+  ⍝ Use ⎕UQnnn to create a QUOTED unicode character ⎕UCS nnn.
+  ⍝ To allow ⎕Unnn or ⎕UQnnn followed by numbers mm, use: ⎕U{nnn}mmm
+  ⍝ To allow multiple symbol statements, use ⎕U{nnn mmm ppp} for  ⎕Unnn⎕Ummm⎕Uppp  
+  ⍝ For ⎕U format, nnnn may not be control chars (nnn<32).
+  ⍝     ⎕U{99 97 116}s←55            ==>    cats←55    , given 'cat'≡⎕UCS 99 97 116
+  ⍝     a ← lc ⎕UQ{99 97 116},'s'    ==>    a ← lc 'cat','s'  
+      pUnicodeCh←'(?xi) ⎕U(Q?) (?|  ( \d+ ) |  \{ \h*  ( \d [\d\h]* ) \} )'
   ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
   ⍝ pLongNmE Long names are of the form #.a or a.b.c
   ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
@@ -122,7 +120,6 @@
       pEOLe←'\n'
   ⍝ Pre-treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
       pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
-     
   ⍝ Simple atoms: names and numbers (and zilde)
   ⍝ Syntax:
   ⍝       (atom1 [atom2...] → ...) and (` atom1 [atom2])
@@ -137,7 +134,6 @@
       _pNumsX←'(?: ⍎_pNumX (?: \h+ ⍎_pNumX )*)'
       _pAtom←'(?: ⍎_pName | ⍎_pNum | ⍬ )'
       _pAtoms←' ⍎_pAtom (?: \h+ ⍎_pAtom )*'
-     
   ⍝ Function atoms: dfns, parenthesized code
   ⍝ Syntax:
   ⍝    ` fn1 [ fn2 [ fn3 ] ... ]
@@ -152,7 +148,6 @@
       pMatchBraces←'(?xi)',_←1 matchPair'{' '}'
       _pBraceX←_,'(?:\h*&)?'
       pMatchParens←'(?xi)',_pParen←2 matchPair'(' ')'
-     
       _allowFnAtomsInMap←1/' ⍎_pBraceX | ⍎_pParen | '
       _L←_R←'(?xi) ',CR
   ⍝ allowFnAtomsInMap OPTION:
@@ -273,25 +268,25 @@
 ⍝    c) it cannot be evaluated,
 ⍝       in which case a warning is given (debug mode) before returning 0.
 ⍝ Depends on context ∆CALLR
-      ∆TRUE←{⍺←∆CALLR
+    ∆TRUE←{⍺←∆CALLR
           0::0⊣dPrint'∆PRE Warning: Unable to evaluate truth of {',⍵,'}, returning 0'
           0=≢⍵~' ':0 ⋄ 0=≢val←∊⍺⍎⍕⍵:0 ⋄ (,0)≡val:0 ⋄ (,⎕NULL)≡val:0
           1
-      }
+    }
 ⍝ ∆FLD: ⎕R helper.
 ⍝  Returns the contents of ⍺ regexp field ⍵, a number or name or ''
 ⍝ val ← ns  ∆FLD [fld number | name]
 ⍝    ns- active ⎕R namespace (passed by ⎕R as ⍵)
 ⍝    fld number or name: a single field number or name.
 ⍝ Returns <val> the value of the field or ''
-      ∆FLD←{
-          ns←⍺
-          ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
-          ⍵=0:ns.Match                          ⍝ Fast way to get whole match
-          ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
-          ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
-          ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
-      }
+    ∆FLD←{
+        ns←⍺
+        ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
+        ⍵=0:ns.Match                          ⍝ Fast way to get whole match
+        ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
+        ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
+        ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
+    }
 ⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
 ⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
     ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
@@ -310,10 +305,10 @@
     ∆PARENS←{'(',')',⍨⍵}
 ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
 ⍝       blanks or trailing X symbols. (You don't need to remove X or blanks first.)
-      ∆H2D←{   ⍝ Decimal from hexadecimal
-          11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
-          16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
-      }
+    ∆H2D←{   ⍝ Decimal from hexadecimal
+        11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
+        16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
+    }
 
 ⍝ Process double quotes based on double-quoted string suffixes "..."sfx
 ⍝ Where suffixes are [vsm]? and  [r]? with default 'v' and (cooked).
@@ -325,26 +320,26 @@
 ⍝  RAW   r:          blanks at the start of each line*** are preserved.
 ⍝ COOKD  none:       blanks at the start of each line*** are removed.
 ⍝ *** Leading blanks on the first line are maintained in either case.
-      processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
-          str type←(⊃⍵)(lc⊃⌽⍵)
-  ⍝ type: 'v' (cooked) is nothing else specified.
-  ⍝       which sets raw←0, sing←0, cMx←''
-          isRaw isStr isMx←'rsm'∊type
-          hasMany←NL∊str
-          toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
-          Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
-          opts←('Mode' 'M')('EOL' 'LF')
-          str2←∆QT0 ∆UNQ str
-          isStr:∆PARENS⍣hasMany⊣∆QT{
-              isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
-              '\A\h+' '\n\h*'⎕R'&'Q_CR_Q⍠opts⊢⍵
-          }str2
-          hasMany toMx⍣isMx⊣∆QT{
-              isRaw:'\n'⎕R''' '''⍠opts⊢⍵
-              '\A\h+' '\n\h*'⎕R'&' ''' '''⍠opts⊢⍵
-          }str2
-          '∆PRE: processDQ logic error'⎕SIGNAL 911
-      }
+    processDQ←{⍺←0       ⍝ If 1, create a single string. If 0, create char vectors.
+        str type←(⊃⍵)(lc⊃⌽⍵)
+    ⍝ type: 'v' (cooked) is nothing else specified.
+    ⍝       which sets raw←0, sing←0, cMx←''
+        isRaw isStr isMx←'rsm'∊type
+        hasMany←NL∊str
+        toMx←{⍺:'↑',⍵ ⋄ '↑,⊆',⍵}       ⍝ Forces simple vec or scalar → matrix
+        Q_CR_Q←''',(⎕UCS 13),'''       ⍝ APL expects a CR, not NL.
+        opts←('Mode' 'M')('EOL' 'LF')
+        str2←∆QT0 ∆UNQ str
+        isStr:∆PARENS⍣hasMany⊣∆QT{
+            isRaw:'\n'⎕R Q_CR_Q⍠opts⊢⍵
+            '\A\h+' '\n\h*'⎕R'&'Q_CR_Q⍠opts⊢⍵
+        }str2
+        hasMany toMx⍣isMx⊣∆QT{
+            isRaw:'\n'⎕R''' '''⍠opts⊢⍵
+            '\A\h+' '\n\h*'⎕R'&' ''' '''⍠opts⊢⍵
+        }str2
+        '∆PRE: processDQ logic error'⎕SIGNAL 911
+    }
 
 ⍝ _annotate:
 ⍝  ⍺:model_code (⍺⍺:verbose _annotate) ⍵:output_code
@@ -361,10 +356,10 @@
 ⍝     Where ⍵ is modified, ⍺ is the original or model directive w/ leading blanks.
 ⍝ else
 ⍝     write the token EMPTY (a NULL char with special meaning).
-      _annotate←{
+    _annotate←{
           ~⍺⍺:EMPTY
           ⍺←⍬ ⋄ 0≠≢⍺:'⍝',⍵,⍨⍺↑⍨0⌈¯1++/∧\' '=⍺ ⋄ '⍝',(' '⍴⍨0⌈p-1),⍵↓⍨p←+/∧\' '=⍵
-      }
+    }
 
 ⍝ print family - informing user, rather than annotating output code.
 ⍝
@@ -388,49 +383,52 @@
 ⍝ ⍺:  calling environment (required)
 ⍝ Returns ⍵:the object name, the full file name found, (the lines of the file)
 ⍝ If the obj ⍵ is ⎕NULL, the object is prompted from the user.
-      getDataIn←{
-          ∆∆←∇
-          callr←⍺
-          0 19::('∆PRE: Invalid or missing file specification: "',(⍕⍵),'"')⎕SIGNAL 19
-          ⎕NULL≡⍬⍴⍵:{ ⍝ Prompt for user data; object is __TERM__
-              _←print'Enter lines. Empty line to terminate.'
-              lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
-              '__TERM__' '[user input]'lines
-          }⍬
-          2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
-     
-          0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
-          dirs←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
-          dir←⊃dirs
-     
-  ⍝ Check for file extention <ext>
-          pfx nm ext←⎕NPARTS ⍵
-          _←{
-              0 3 4∊⍨nc←callr.⎕NC ⍵:'' ⋄ ¯1∊⍨nc:∘∘∘
-              ⎕←'∆PRE Warning. Existing object "',⍵,'" not a fn/op. ⎕FIXing may fail.'
-          }nm
-  ⍝ Extension?    Use it as our <types>
-  ⍝ No extension? Try types '.dyapp' [our own] and '.dyalog' [std].
-          types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
-  ⍝ Return whatever you find.
-          types{
-              0=≢⍺:(1↓dirs)∆∆ ⍵
-              filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
-              ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
-              (1↓⍺)∇ ⍵
-          }pfx,nm
-      }
-    registerPatterns PREFIX
-    registerDirectives
-
+    getDataIn←{
+        ∆∆←∇
+        callr←⍺
+        0 19::('∆PRE: Invalid or missing file specification: "',(⍕⍵),'"')⎕SIGNAL 19
+        ⎕NULL≡⍬⍴⍵:{ ⍝ Prompt for user data; object is __TERM__
+            _←print'Enter lines. Empty line to terminate.'
+            lines←{⍺←⊂'__TERM__' ⋄ 0=≢l←⍞↓⍨≢⍞←⍵:⍺ ⋄ (⍺,⊂l)∇ ⍵}'> '
+            '__TERM__' '[user input]'lines
+        }⍬
+        2=|≡⍵:'__TERM__' '[function line]'(,¨⍵)     ⍝ In case last line is '∇' → (,'∇')
+    
+        0=≢⍺:11 ⎕SIGNAL⍨'∆PRE: Unable to find or load source file ',∆DQT ⍵
+        dirs←{∪{(':'≠⍵)⊆⍵}'.:..',∊':',¨{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}¨⍵}'FSPATH' 'WSPATH'
+        dir←⊃dirs
+    
+    ⍝   Check for file extention <ext>
+        pfx nm ext←⎕NPARTS ⍵
+        _←{
+            0 3 4∊⍨nc←callr.⎕NC ⍵:'' ⋄ ¯1∊⍨nc:∘∘∘
+            ⎕←'∆PRE Warning. Existing object "',⍵,'" not a fn/op. ⎕FIXing may fail.'
+        }nm
+     ⍝ Extension?    Use it as our <types>
+      ⍝ No extension? Try types '.dyapp' [our own] and '.dyalog' [std].
+        types←{×≢⍵:⊂⍵ ⋄ '.dyapp' '.dyalog'}ext
+     ⍝ Return whatever you find.
+        types{
+            0=≢⍺:(1↓dirs)∆∆ ⍵
+            filenm←(2×dir≡,'.')↓dir,'/',⍵,⊃⍺
+            ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
+            (1↓⍺)∇ ⍵
+        }pfx,nm
+    }
     ∇ {ok}←expungeSinglePrefixVars;l
       ⎕EX ok←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
       'Removed ',(≢ok),'"_"-prefixed variables.'
     ∇
-    expungeSinglePrefixVars  ⍝ Remove prefix vars _NNN, but not __MMM variables.
-    :endsection Initializations
+    :endsection Initialization Functions
+    
+    registerSpecialMacros
+    registerPatterns PREFIX
+    registerDirectives
+    expungeSinglePrefixVars 
+    
+:endsection Initializations
 
-    :section Preprocessor
+:section Preprocessor
 ⍝ Syntax:  I.  ⍺ ∆PRE line1 « line2 ... »
 ⍝         II.  ⍺ ∆PRE « function_name | ⎕NULL »
 ⍝  I. ⍺ ∆PRE line1 line2 ...
@@ -656,8 +654,8 @@
      
     ⍝ [2] pShortNmE: short names (even within found long names)
     ⍝     pSpecialIntE: Hexadecimals and bigInts
-                  cDQ cSkip cUnicodeCh cUnicodeSym cShortNm cSpecialInt←0 1 2 3 4 5
-                  str←pDQe pSkipE pUnicodeCh pUnicodeSym pShortNmE pSpecialIntE ⎕R{
+                  cDQ cSkip cUnicodeCh cShortNm cSpecialInt←0 1 2 3 4 
+                  str←pDQe pSkipE pUnicodeCh pShortNmE pSpecialIntE ⎕R{
                       f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                       case cDQ cSkip:f0   ⍝ Just skip double quotes until after macros
                       case cSpecialInt:{
@@ -665,14 +663,12 @@
                           0=≢f2:∆QT f1                ⍝ No exponent
                           ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
                       }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
-                      case cUnicodeCh:{
-                          ⍵<32:∆PARENS'⎕UCS ',⍕⍵
-                          ' ',⍨∆QTX ⎕UCS ⍵
-                      }f1←⍎⍵ ∆FLD 1
-                      case cUnicodeSym:{
-                          ⍵<32:∆PARENS'⎕UCS ',⍕⍵
-                          ,⎕UCS ⍵
-                      }f1←⍎⍵ ∆FLD 1
+                      case cUnicodeCh: {   ⍝ ⎕Unnn, ⎕UQnnn, ⎕U{nnn mmm}, ⎕UQ{nnn mmm}
+                          quot←'q'=lc 1↑f1  
+                          quot∧⍵(1∘∊<)32: ∆PARENS'⎕UCS ',f2   ⍝ ⎕UQnnn and Ctl chars? Via run-time 
+                          quot:' ',⍨∆QTX ⎕UCS ⍵               ⍝ ⎕UQnnn. At compile-time
+                          ,⎕UCS 65533@(32∘>)⊣⍵                ⍝ ⎕Unnn, map ctl chars to � (65533)
+                      }⍎f2⊣f0 f1 f2←⍵ ∆FLD¨0 1 2
                       case cShortNm:⍕1 mGet f0⊣nmsFnd,←⊂f0
                       ∘Unreachable∘
                   }⍠'UCP' 1⊣str
@@ -930,6 +926,9 @@
       ⍝ and adjusts internal quotes...
                       pSQe ⎕R{∆UNQ ⍵ ∆FLD 0}⊣1↓¯1↓⍵ ∆FLD 1  ⍝ Omit outermost parens
                   }str
+
+                ⍝ Miscellaneous tweaks... 
+                str←∊(⊂'{~⍺∊⍵}')@(NOTINSET∘=)⊢str
     ⍝ Do we scan the string again?
     ⍝ It might be preferable to recursively scan code segments
     ⍝ that might have macros or special elements,
@@ -1462,8 +1461,8 @@
   ⍝ Not ideal, but...
           inDirectiveFlag←0
           _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
-          _pI,←pZildeE pEOLe pNotInSetE
-          cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL cNotInSet←⍳9
+          _pI,←pZildeE pEOLe  
+          cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL←⍳8
           dataOut←_pI ⎕R{
               f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
               case cInDirective:f0⊣inDirectiveFlag⊢←1
@@ -1479,7 +1478,6 @@
               case cCm:f0/⍨~inDirectiveFlag                  ⍝ COM - passthru, unless in std directive
               case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
               case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
-              case cNotInSet:'{~⍺∊⍵}'
     ⍝ When matching abbreviated arrow schemes, try to keep any extra spacing,
     ⍝ so things line up...
               ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
@@ -1545,9 +1543,9 @@
   ⍝ :endsection Preprocessor Executive
       }
     ##.∆PRE←⎕THIS.∆PRE
-    :endsection Preprocessor
+:endsection Preprocessor
 
-    :section List Extensions (Semicolons in Parenthetical Expressions)
+:section List Extensions (Semicolons in Parenthetical Expressions)
     ∇ linesOut←{isFn}scan4Semi lines
     ⍝ Look for sequences of sort
     ⍝        (anything1; anything2; ...; anythingN)
@@ -1622,5 +1620,5 @@
       :EndIf
       linesOut←prefix,linesOut
     ∇
-    :endsection List Extensions (Semicolons in Parenthetical Expressions)
+:endsection List Extensions (Semicolons in Parenthetical Expressions)
 :endnamespace
