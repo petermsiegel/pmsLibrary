@@ -41,8 +41,9 @@
     ∇
     ∇ {_ok_}←registerPatterns PREFIX
       _ok_←1
-      _pDirectivePfx←'^\h* \Q',PREFIX,'\E \h*'
-      pInDirectiveE←'^\h*\Q',PREFIX,'\E'
+      pInDirectiveE←  '^\h*\Q',PREFIX,'\E'
+      _pDirectivePfx← pInDirectiveE,'\h*'
+   
   ⍝ Process double quotes and continuation lines that may cross lines
       _pTarg←' [^ ←]+ '
     ⍝ _pSetVal:  /← value/, NOT optional (optl add ?): f[N+0]=arrow, f[N+1] value
@@ -67,9 +68,10 @@
   ⍝ patterns mostly  for the ∇macroExpand∇ fn
   ⍝ User cmds: ]... (See also ⎕UCMD)
       pUserE←'^\h*\]\h*(.*)$'
-  ⍝ Triple-double quote strings denote multiline comments (never quotes), replaced by blanks!
+  ⍝ Triple-double quoted strings OR double-angle quotation mark «...» strings
+  ⍝ denote multiline comments (never quotes), replaced by blanks!
   ⍝      """... multiline ok """    ==> ' '
-      pDQ3e←'(?sx)  "{3} .*? "{3}'
+      pDQ3e←'(?sx)  "{3} .*? "{3} | « [^»]* »'
   ⍝ Double quote suffixes:   [R/r] plus [S/s] or [M/m] or [V/v]
   ⍝ R/r, Raw: don't remove leading blanks. Else, do.
   ⍝ S/s, return single string with embedded newlines.
@@ -116,10 +118,11 @@
       pLongNmE←∆MAP'(?x)  ⍎_pLongNmOnly'
       pShortNmE←∆MAP'(?x) ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
   ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
-      pContE←'(?x) \h* \.{2,} \h* (   ⍝ .*)? \n \h*'
+  ⍝ Allow semicolons at right margin-- to be kept!
+      pContE←'(?x) \h* (\.{2,}|…|;) \h* (   ⍝ .*)? \n \h*'
       pEOLe←'\n'
   ⍝ Pre-treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
-      pZildeE←'\h* (?: ⍬ | \(\) ) \h*'~' '
+      pZildeE←'\h* (?: ⍬ | \(\h*\) ) \h*'~' '
   ⍝ Simple atoms: names and numbers (and zilde)
   ⍝ Syntax:
   ⍝       (atom1 [atom2...] → ...) and (` atom1 [atom2])
@@ -415,6 +418,48 @@
             (1↓⍺)∇ ⍵
         }pfx,nm
     }
+
+    :section Load and fix Session Runtime Utilities
+    ⍝ Write out RUN-TIME utility functions to ⎕SE, when the namespace is fixed.
+    ⍝ Currently, we don't bother with subdirectories, since there are few.
+    ∇{ok}←loadSessionUtilities
+        ;dfnsRequired;dfnsDest
+        ok←1
+    ⍝ ⍙enum:  Run-time support for non-static enumerations
+    ⍝   ∆NAMES -- all names;
+    ⍝   ∆VALS  -- vals for each n in ∆NAMES
+    ⍝   ∆PAIRS -- pairs (n v) for each n in ∆NAMES and its value v in `hVALS
+    ⍝   ∆KEYS  -- leftmost n in ∆NAMES with unique vals
+    ⍝   ∆ENUMS -- vals for each k in ∆KEYS
+        ⎕SE.⍙enum←{⎕IO←0
+            0::('∆PRE: Invalid Enumeration with names "',⍺,'"')⎕SIGNAL 11
+            type←'#.[ENUM',']',⍨('.',⍺⍺)''⊃⍨0=≢⍺⍺
+            0::('∆PRE: Invalid Enumeration with type "',type,'"')⎕SIGNAL 11
+            ns←#.⎕NS'' ⋄ _←ns.⎕DF type
+            names←⍵⍵{⍺:,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
+            vals←⍵⍵{⍺:,¨⍵ ⋄ ,⊂⍵}⍵
+            _←names{ns⍎⍺,'←⍵'}¨vals
+            ns⊣names{
+                ns⍎'∆NAMES ∆VALS ∆PAIRS ∆KEYS←⍺ ⍵ (⍺{⍺ ⍵}¨⍵) (⍺[⍵⍳∆ENUMS←∪⍵])'
+            }vals
+        }
+    ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
+        ⎕SE.⍙fnAtom←{(ns←#.⎕NS ⍬).fn←fn←⍺⍺ ⋄ ∆←⍕∊⎕NR'fn' ⋄ 0=≢∆:ns⊣ns.⎕DF⍕fn ⋄ ns⊣ns.⎕DF∊∆}
+    ⍝ ⍙to: Do ranges  a b .. c     a to c in steps of (b-a); a, b, c all numbers
+        ⎕SE.⍙to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
+    ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
+        dfnsDest←'⎕SE.dfns'
+        dfnsRequired←'pco' 'cmpx' 
+        _←dfnsDest{           ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
+            nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
+            ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
+            _←⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
+            _←dPrint'Copying select dfns to ',⍺,':'
+            ⊣_←dPrint'   ',⍕⍵
+        }dfnsRequired         ⍝ list of dfns
+    ∇
+    :EndSection Load and fix Session Runtime Utilities
+
     ∇ {ok}←expungeSinglePrefixVars;l
       ⎕EX ok←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
       'Removed ',(≢ok),'"_"-prefixed variables.'
@@ -425,6 +470,7 @@
     registerPatterns PREFIX
     registerDirectives
     expungeSinglePrefixVars 
+    loadSessionUtilities
     
 :endsection Initializations
 
@@ -1367,7 +1413,7 @@
           _←0 mPut'__VERBOSE__'__VERBOSE__
           _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
     ⍝                                       ⍝ Avoids runaway recursion...
-          _←0 mPut'__MAX_PROGRESSION__' 500       ⍝ ≤500 expands at preproc time.
+          _←0 mPut'__MAX_PROGRESSION__' 250       ⍝ ≤250 expands at preproc time.
           _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
   ⍝ Other user-oriented macros
           _←0 mPut'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
@@ -1380,39 +1426,6 @@
           _←0 mPut'⎕DFNS' '⎕SE.dfns'
           _←0 mPut'⎕PLOT' '{⎕SE.UCMD ''Plot '',⍵}'
      
-  ⍝ Write out utility function(s) to ⎕SE
-  ⍝ ----
-  ⍝ ⍙enum:  Run-time support for non-static enumerations
-  ⍝   ∆NAMES -- all names;
-  ⍝   ∆VALS  -- vals for each n in ∆NAMES
-  ⍝   ∆PAIRS -- pairs (n v) for each n in ∆NAMES and its value v in `hVALS
-  ⍝   ∆KEYS  -- leftmost n in ∆NAMES with unique vals
-  ⍝   ∆ENUMS -- vals for each k in ∆KEYS
-          ⎕SE.⍙enum←{⎕IO←0
-              0::('∆PRE: Invalid Enumeration with names "',⍺,'"')⎕SIGNAL 11
-              type←'#.[ENUM',']',⍨('.',⍺⍺)''⊃⍨0=≢⍺⍺
-              0::('∆PRE: Invalid Enumeration with type "',type,'"')⎕SIGNAL 11
-              ns←#.⎕NS'' ⋄ _←ns.⎕DF type
-              names←⍵⍵{⍺:,¨⍵ ⋄ ,⊂⍵}⍺   ⍝ If more than one name (⍵⍵), ensure each is a vector.
-              vals←⍵⍵{⍺:,¨⍵ ⋄ ,⊂⍵}⍵
-              _←names{ns⍎⍺,'←⍵'}¨vals
-              ns⊣names{
-                  ns⍎'∆NAMES ∆VALS ∆PAIRS ∆KEYS←⍺ ⍵ (⍺{⍺ ⍵}¨⍵) (⍺[⍵⍳∆ENUMS←∪⍵])'
-              }vals
-          }
-  ⍝ ⍙fnAtom: converts APL function to a function atom (namespace "ptr")
-          ⎕SE.⍙fnAtom←{(ns←#.⎕NS ⍬).fn←fn←⍺⍺ ⋄ ∆←⍕∊⎕NR'fn' ⋄ 0=≢∆:ns⊣ns.⎕DF⍕fn ⋄ ns⊣ns.⎕DF∊∆}
-  ⍝ ⍙to: Do ranges  a b .. c     a to c in steps of (b-a); a, b, c all numbers
-          ⎕SE.⍙to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
-     
-  ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
-          _←'⎕SE.dfns'{          ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
-              nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
-              ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
-              _←⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
-              _←dPrint'Copying select dfns to ',⍺,':'
-              ⊣_←dPrint'   ',⍕⍵
-          }'pco' 'cmpx'       ⍝ list of dfns
   ⍝ Read in data file...
           __FILE__ fullNm dataIn←∆CALLR∘getDataIn(⊆⍣(~FIX))⍵
           tmpNm←'__',__FILE__,'__'
@@ -1440,7 +1453,7 @@
           _←0 mPutMagic'__TIME__' '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
           _←0 mPutMagic'__DATE__' '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
           _←mPut'__DATE__TIME__' '__DATE__ ∘∘ "T" ∘∘ __TIME__'
-  ⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
+ ⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
   ⍝    via a fence:    [left margin | ⋄ etc.] ← val
           _←0 mPutMagic'⎕T' 'getTempName 0'
      
@@ -1457,35 +1470,37 @@
   ⍝ --------------------------------------------------------------------------------
   ⍝ Executive: Phase I
   ⍝ --------------------------------------------------------------------------------
-  ⍝ Kludge: We remove comments from all directives up front...
-  ⍝ Not ideal, but...
+  ⍝ Preprocessing: Removes comments from directives to make processing easier (a kludge).
           inDirectiveFlag←0
           _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
           _pI,←pZildeE pEOLe  
           cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL←⍳8
           dataOut←_pI ⎕R{
               f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
-              case cInDirective:f0⊣inDirectiveFlag⊢←1
-              case cDQ3:' '                             ⍝ """..."""
-              case cDQ:processDQ f1 f2                   ⍝ DQ, w/ possible newlines...
-              case cSQ:{                                 ⍝ SQ  - passthru, unless newlines...
+              case cInDirective:f0⊣inDirectiveFlag⊢←1   ⍝ Flag directives
+              case cDQ3:' '⊣comment,←f0,⍨' ⍝ '/⍨0≠≢f0    ⍝ """...""" or «...» => blanks
+              case cDQ:processDQ f1 f2                  ⍝ DQ string w/ possible newlines 
+              case cSQ:{                                ⍝ SQ strings - warn if newlines included.
                   ~NL∊⍵:⍵
                   warningCount+←1
                   _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
                   _←print'String: ','⤶'@(NL∘=)⍵
                   ' '@(NL∘=)⍵
               }f0
-              case cCm:f0/⍨~inDirectiveFlag                  ⍝ COM - passthru, unless in std directive
-              case cCn:' '⊣comment,←(' '/⍨0≠≢f1),f1      ⍝ Continuation
-              case cZilde:' ⍬ '                          ⍝ Normalize as APL would...
-    ⍝ When matching abbreviated arrow schemes, try to keep any extra spacing,
-    ⍝ so things line up...
+            ⍝ comment? If in directive, remove/place in stmt afterwards. Otherwise, keep.
+              case cCm:{
+                  ~⍵:f0
+                  ''⊣comment,←f0,⍨' '/⍨0≠≢f0 
+              }inDirectiveFlag       
+              case cCn:(' ' ';'⊃⍨';'≡f1)⊣comment,←f2,⍨' '/⍨0≠≢f2  ⍝ Continuation line?
+              case cZilde:' ⍬ '                         ⍝ Normalize spacing of ⍬ or ().
               ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
-    ⍝ case cEOL triggers comment processing from above
-              inDirectiveFlag⊢←0                                ⍝ Reset  flag after each NL
+            ⍝ case cEOL: end directive state (if any); triggers comment processing from above
+              inDirectiveFlag⊢←0    
+            ⍝   ⎕←'EOL: inDirective="',inDirectiveFlag,'" comment="',comment,'"'                          
               0=≢comment:f0
               ln←comment,' ',f1,NL ⋄ comment⊢←⍬
-      ⍝ If the commment is more than (⎕PW÷2), put on newline
+      ⍝ If the commment size is more than (⎕PW÷2), put on newline
               (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
           }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
   ⍝ Process macros... one line at a time, so state is dependent only on lines before...
@@ -1556,52 +1571,60 @@
     ⍝ it is replaced by ⍬:
     ⍝        ( (anything1) ⍬ (and more) ⍬)
     ⍝ In general, () is equivalent to ⍬.
-      ;LAST;LBRK;LPAR;QUOT;RBRK;RPAR;SEMI;COM
-      ;cur_tok;cur_gov;deQ;enQ;inCom;inQt;line;lineOut;pBareParens;pComment;pSQ;prefix;stack
+      ;LAST;LBRACK;LBRACE;LPAR;QUOT;RBRACK;RPAR;RBRACE;SEMI;COM
+      ;cur_tok;cur_gov;deQ;enQ;inCom;inQt;lBraceStack;line;lineOut;pBareParens;pComment;pSQ;prefix;stack
       ;⎕IO;⎕ML
     ⍝ Look for semicolons in parentheses() and outside of brackets[]
       isFn←'isFn'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
       lines←,,¨⊆lines
       ⎕IO ⎕ML←0 1
-      QUOT←'''' ⋄ SEMI←';'
-      LPAR RPAR LBRK RBRK COM←'()[]⍝'
+      QUOT←''''  
+      LPAR RPAR LBRACK RBRACK LBRACE RBRACE COM SEMI←'()[]{}⍝;'
       stack←⎕NS ⍬
-      deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1|0
-      enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ gNew lNew
+      deQ←{stack.(govern lparIx sawSemi↓⍨←-⍵)}     ⍝ deQ 1: dequeue item; deQ 0: do nothing
+      enQ←{stack.((govern lparIx)sawSemi,←⍵ 0)}    ⍝ enQ <governance_token lpar_index>. Sets sawSemi←0
       :If isFn
           prefix lines←(⊂⊃lines)(1↓lines)
       :Else
           prefix←⍬
       :EndIf
-      linesOut←⍬
+      linesOut←⍬ ⋄ lBraceStack←0
       :For line :In lines
-          :If '∇'=1↑line↓⍨+/∧\line=' '
-              lineOut←line       ⍝ Skip function headers or footers...
+          :If lBraceStack=0                   ⍝ Skip tradfn headers or footers
+          :ANDIF '∇'=1↑line↓⍨+/∧\line=' '
+              lineOut←line       
           :Else
-              stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ stacks
+              stack.(govern lparIx sawSemi)←,¨' ' 0 0   ⍝ initialize stacks
               lineOut←⍬ ⋄ inCom←0
               :For cur_tok :In line
                   cur_gov←⊃⌽stack.govern
                   inQt inCom←QUOT COM=cur_gov
                   :If inQt
-                      deQ QUOT=cur_tok
+                      deQ QUOT=cur_tok                  ⍝ In quote. Change state only if quote found
                   :ElseIf inCom
-                       ⋄
-                  :Else
-                      :Select cur_tok
-                      :Case COM ⋄ enQ cur_tok(≢lineOut)
-                      :Case LPAR ⋄ enQ cur_tok(≢lineOut)
-                      :Case LBRK ⋄ enQ cur_tok(≢lineOut)
-                      :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
-                      :Case RBRK ⋄ deQ 1
-                      :Case QUOT ⋄ enQ cur_tok ¯1
-                      :Case SEMI
-                          :Select cur_gov
-                          :Case LPAR ⋄ cur_tok←')(' ⋄ lineOut[⊃⌽stack.lparIx]←⊂2/LPAR ⋄ (⊃⌽stack.sawSemi)←1
-                          :Case LBRK
-                          :Else ⋄ cur_tok←')(' ⋄ (⊃stack.sawSemi)←1
-                          :EndSelect
-                      :EndSelect
+                       ⋄                                ⍝ In comment. No state changes
+                  :Else                                 ⍝ See whether state changes
+                    :Select cur_tok
+                    :Case COM ⋄ enQ cur_tok(≢lineOut)
+                    :Case LPAR ⋄ enQ cur_tok(≢lineOut)
+                    :Case LBRACK ⋄ enQ cur_tok(≢lineOut)
+                    :Case RPAR ⋄ cur_tok←(1+⊃⌽stack.sawSemi)/RPAR ⋄ deQ 1
+                    :Case RBRACK ⋄ deQ 1
+                    :Case QUOT ⋄ enQ cur_tok ¯1
+                    :Case SEMI
+                        :Select cur_gov
+                        :Case LPAR    ⍝ We handle (...) semicolons
+                            cur_tok←')(' 
+                            lineOut[⊃⌽stack.lparIx]←⊂2/LPAR 
+                            (⊃⌽stack.sawSemi)←1
+                        :Case LBRACK  ⍝ If we're in [...] indexing, APL handles semicolons, not us.
+                        :Else         ⍝ Top level semicolons. We handle.
+                            cur_tok←')(' 
+                            (⊃stack.sawSemi)←1
+                        :EndSelect
+                    :Case LBRACE ⋄ lBraceStack+←1 ⍝ So that ∇ in dfns aren't viewed 
+                    :Case RBRACE ⋄ lBraceStack-←1 ⍝ ... as toggling tradfn defs.
+                    :EndSelect
                   :EndIf
                   lineOut,←cur_tok
               :EndFor
