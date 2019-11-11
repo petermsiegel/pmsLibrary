@@ -1,11 +1,15 @@
 :namespace ∆PREns
 :section Initializations
-    __DEBUG__←1       ⍝ Default: 0
+    __DEBUG__←1       ⍝ Default: 0. Imported into ∆PRE
+    ∆←{__DEBUG__: ⎕←⍵ ⋄ 1: ⍵}
+    ∆'Namespace ',⎕THIS
+    ∆'   DEBUG: ',__DEBUG__,' at ⎕FIX time'
 ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
 ⍝    A compile-time (⎕FIX-time) option, not run-time.
-⍝    Default '::' unless preset in our namespace...
-⍝      Must be a char scalar or vector; treated as a regexp literal.
+⍝    Default '::' unless preset when this namespace is ⎕FIXed.
+⍝      Must be a char scalar or vector; treated as a regexp literal (\Q..\E).
     PREFIX←'::'
+    ∆'   Directive PREFIX "',PREFIX,'"'
     ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
 
 ⍝ General Constants
@@ -13,7 +17,7 @@
 ⍝ Use CR   in error msgs going to ⎕ (APL (mis)treats NL as a typewriter newline)
 ⍝ Use NULL internally for special code lines (NULLs are removed at end)
     NL CR NULL←⎕UCS 10 13 0
-    SQ SQ2 DQ SQDQ←'''' '''''' '"' '''"'
+    SP SQ SQ2 DQ SQDQ←' ' '''' '''''' '"' '''"'
     NOTINSET←⎕UCS 8713    ⍝ Not in set: ∉ (⎕UCS 8713)
 ⍝ Annotations (see annotate).
 ⍝   YESch - path taken.
@@ -23,6 +27,9 @@
     YESch NOch SKIPch INFOch WARNch ERRch←' ✓' ' 😞' ' 🚫' ' 💡' '⚠️' '💩'
 ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
     EMPTY←,NULL
+
+    OPTSs←('UCP' 1)('IC' 1)                    ⍝ For single line matches
+    OPTSm←OPTSs,('Mode' 'M')('EOL' 'LF')('NEOL' 1)       ⍝ For multi-line matches...
     :section Initialization Functions
 ⍝ registerSpecialMacros: Sets fn isSpecialMacro (returns 1 if ⍵ is special).
 ⍝ "special" means a macro name ⍵ defined via ::DEF or ::EVAL affects the
@@ -42,10 +49,9 @@
     ∇ {_ok_}←registerPatterns PREFIX
       _ok_←1
       pInDirectiveE←  '^\h*\Q',PREFIX,'\E'
-      _pDirectivePfx← pInDirectiveE,'\h*'
    
   ⍝ Process double quotes and continuation lines that may cross lines
-      _pTarg←' [^ ←]+ '
+      _pTarg←' [^\h←]+ '
     ⍝ _pSetVal:  /← value/, NOT optional (optl add ?): f[N+0]=arrow, f[N+1] value
       _pSetVal←' (?:(←)\h*(.*))'
       _pFiSpec←'  (?: "[^"]+")+ | (?:''[^'']+'')+ | ⍎_pName '
@@ -71,28 +77,28 @@
   ⍝ Triple-double quoted strings OR double-angle quotation mark «...» strings
   ⍝ denote multiline comments (never quotes), replaced by blanks!
   ⍝      """... multiline ok """    ==> ' '
-      pDQ3e←'(?sx)  "{3} .*? "{3} | « [^»]* »'
+      pDQ3e←∆MAP'  "{3} .*? "{3} | « [^»]* »'
   ⍝ Double quote suffixes:   [R/r] plus [S/s] or [M/m] or [V/v]
   ⍝ R/r, Raw: don't remove leading blanks. Else, do.
   ⍝ S/s, return single string with embedded newlines.
   ⍝ V/v, return vector of strings, split at newlines.
   ⍝ M/m  returns a matrix (padded with blanks).
-      pDQe←'(?ix) (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
+      pDQe←∆MAP'  (    (?: " [^"]*     "  )+ )   ([VSMR]{0,2}) '
       _pSQe←'(?: ''[^'']*'' )+ '
-      pSQe←'(?x)  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
-      pCommentE←'(?x)      ⍝ .*  $'
+      pSQe←∆MAP'  (    (?: ''[^'']*'' )+  )'          ⍝ Allows multiline sq strings- prevented elsewhere.
+      pCommentE← ∆MAP  '      ⍝ .*  $'
   ⍝ Use pSkipE when you are scanning SQs or Comments merely to skip them
-      pSkipE←'(?x)  (?: (?: ''[^'']*'' )+  |  ⍝ .*  $)'
+      pSkipE←∆MAP'  (?: (?: ''[^'']*'' )+  |  ⍝ .*  $)'
   ⍝ _pNum: A non-complex signed APL number (float or dec)
       _pNum←' (?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
       _pDot←'(?:  … | \.{2,} )'
       _pCh1←' ''(?: [^''] | ''{2} ) '' ' ⋄ _pCh2←' '' (?: [^''] | ''{2} ){2} '' '
       _pDot1e←'  (?| ( ⍎_pNum (?: \h+ ⍎_pNum)*          ) \h* ⍎_pDot \h* (⍎_pNum) '
       _pDot1e,←'   | ( ⍎_pCh1 (?: \h+ ⍎_pCh1)* | ⍎_pCh2 ) \h* ⍎_pDot \h* (⍎_pCh1) ) '
-      pDot1e←∆MAP'(?x)   ⍎_pDot1e'
-      pDot2e←∆MAP'(?x)   ⍎_pDot'
+      pDot1e←∆MAP'   ⍎_pDot1e'
+      pDot2e←∆MAP'  ⍎_pDot'
   ⍝ Handle preprocessor cases of ∆FORMAT...
-      pFormatStringE←'(?ix) ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
+      pFormatStringE←∆MAP' ∆FORMAT\h* ( (?: ''[^'']*'' )+ )'
   ⍝ Special Integer Constants: Hex (ends in X), Big Integer (ends in I)
       _pHex←'   ¯? (\d  [\dA-F]*)             X'
   ⍝ Big Integer: f1: bigint digits, f2: exponent... We'll allow non-negative exponents but not periods
@@ -102,7 +108,7 @@
   ⍝ but also VALID bigInts like 12.34E10 which is equiv to 123400000000
   ⍝ Exponents are invalid for hexadecimals, because the exponential range
   ⍝ is not defined/allowed.
-      pSpecialIntE←∆MAP'(?xi)  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
+      pSpecialIntE←∆MAP'  (?<![\dA-F\.]) (?| ⍎_pHex | ⍎_pBigInt ) '
   ⍝ Unicode symbols or character, shorthand.
   ⍝ Use ⎕Unnn to create an unquoted unicode character ⎕UCS nnn.
   ⍝ Use ⎕UQnnn to create a QUOTED unicode character ⎕UCS nnn.
@@ -111,18 +117,18 @@
   ⍝ For ⎕U format, nnnn may not be control chars (nnn<32).
   ⍝     ⎕U{99 97 116}s←55            ==>    cats←55    , given 'cat'≡⎕UCS 99 97 116
   ⍝     a ← lc ⎕UQ{99 97 116},'s'    ==>    a ← lc 'cat','s'  
-      pUnicodeCh←'(?xi) ⎕U(Q?) (?|  ( \d+ ) |  \{ \h*  ( \d [\d\h]* ) \} )'
+      pUnicodeCh←∆MAP' ⎕U(Q?) (?|  ( \d+ ) |  \{ \h*  ( \d [\d\h]* ) \} )'
   ⍝ For MACRO purposes, names include user variables, as well as those with ⎕ or : prefixes (like ⎕WA, :IF)
   ⍝ pLongNmE Long names are of the form #.a or a.b.c
   ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
-      pLongNmE←∆MAP'(?x)  ⍎_pLongNmOnly'
-      pShortNmE←∆MAP'(?x) ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆XX
+      pLongNmE←∆MAP'  ⍎_pLongNmOnly'
+      pShortNmE←∆MAP' ⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆MAPX
   ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
   ⍝ Allow semicolons at right margin-- to be kept!
-      pContE←'(?x) \h* (\.{2,}|…|;) \h* (   ⍝ .*)? \n \h*'
+      pContE←∆MAP' \h* (\.{2,}|…|;) \h* (   ⍝ .*)? \n \h*'
       pEOLe←'\n'
   ⍝ Pre-treat valid input ⍬⍬ or ⍬123 as APL-normalized ⍬ ⍬ and ⍬ 123 -- makes Atom processing simpler.
-      pZildeE←'\h* (?: ⍬ | \(\h*\) ) \h*'~' '
+      pZildeE←∆MAP'\h* (?: ⍬ | \(\h*\) ) \h*'
   ⍝ Simple atoms: names and numbers (and zilde)
   ⍝ Syntax:
   ⍝       (atom1 [atom2...] → ...) and (` atom1 [atom2])
@@ -148,11 +154,10 @@
   ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
   ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
   ⍝ Note: a 2nd ` is not allowed for function atoms.
-      pMatchBraces←'(?xi)',_←1 matchPair'{' '}'
+      pMatchBraces←∆MAP _←1 matchPair'{' '}'
       _pBraceX←_,'(?:\h*&)?'
-      pMatchParens←'(?xi)',_pParen←2 matchPair'(' ')'
+      pMatchParens←∆MAP _pParen←2 matchPair'(' ')'
       _allowFnAtomsInMap←1/' ⍎_pBraceX | ⍎_pParen | '
-      _L←_R←'(?xi) ',CR
   ⍝ allowFnAtomsInMap OPTION:
   ⍝ Select whether function atoms
   ⍝    {...} (...)
@@ -161,21 +166,20 @@
   ⍝ is rejected as an atom:
   ⍝   only names, numbers, zilde or quoted strings are allowed.
   ⍝ To allow, enable here:
-      _L,←'(?(DEFINE) (?<atomL>   ⍎_allowFnAtomsInMap    ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
+      _L←'(?(DEFINE) (?<atomL>   ⍎_allowFnAtomsInMap    ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))'
   ⍝                                              incl. ⎕NULL
-      _R,←'(?(DEFINE) (?<atomR>   ⍎_pBraceX | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))',CR
+      _R←'(?(DEFINE) (?<atomR>   ⍎_pBraceX | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))'
   ⍝                                              incl. ⎕NULL
-      _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))',CR
-      _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))',CR
-      _L _R←∆MAP¨_L _R
-      pAtomListR←_R,' (?<punct>`[` ]*)         (?<atoms>(?&atomsR))',CR
-      pAtomListL←_L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→ ]*) ',CR
-      pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBraceX _pParen pSQe'⎕NULL\b'_pName _pNum'⍬'
+      _L,←'(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))'
+      _R,←'(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))'
+      pAtomListR←∆MAP _R,' (?<punct>`[`\s]*)         (?<atoms>(?&atomsR))'
+      pAtomListL←∆MAP _L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→\s]*) '
+      pAtomTokens←∆MAP¨_pBraceX _pParen pSQe'⎕NULL\b'_pName _pNum'⍬'   
   ⍝ pExpression - matches \(anything\) or an_apl_long_name
       pExpression←∆MAP'⍎_pParen|⍎_pName'
   ⍝ ::ENUM patterns
-      pEnumE←∆MAP'(?xi) ',PREFIX,'ENUM  (?: \h+ ( ⍎_pName ) \h*←?)* \h* ((?: ⍎pMatchBraces \h*)+)'
-      pEnumEach←∆MAP'(?xi) (⍎pMatchBraces)'
+      pEnumE←   ∆MAP PREFIX,'ENUM  (?: \h+ ( ⍎_pName ) \h*←?)* \h* ((?: ⍎pMatchBraces \h*)+)'
+      pEnumEach←∆MAP'(⍎pMatchBraces)'
   ⍝ Items may be terminated by commas or semicolons...
   ⍝ No parens are allowed in enumerations, so we don't need to go recursive. Disallowed: (this;that;more)
       _Beg _End←'(?<=[{,;])' '(?=\h*[,;}])'
@@ -183,16 +187,16 @@
       _Junk←'[^\s:,;{}]+'
       _Atoms←'(?: `{0,2} (⍎pSQe | ⍎_pNameX | ⍎_pNumX) \h* )+'
   ⍝ colon: [:→]  increment: [+] ONLY.
-      _ColOpt _ColSP _Incr←'(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '[+]\h* ⍎_pNumsX?'
-      pEnumSub←∆MAP'(?xi) ⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms)? )?? ⍎_End'
+      _ColOpt _ColSP _Incr←'(?: \h* (?: [:→] \h*)?) ' '\h* [:→] \h*' '\+\h* ⍎_pNumsX?'
+      pEnumSub←∆MAP'⍎_Beg \h* (⍎_Var) (?| ⍎_ColOpt (⍎_Incr) | ⍎_ColSP (⍎_pNumsX | ⍎_Atoms)? )?? ⍎_End'
   ⍝                                 ↑ F1:name      ↑ F2:val
-      pListAtoms←∆MAP'(?xi) `{0,2}\h*( ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'
-      pNullRightArrowE←'(?x) → (\h*) (?= [][{}):;⋄] | $ )'
-      pNullLeftArrowE←'(?x) (?<= [[(:;⋄]  | ^) (\h*)  ←'
+      pListAtoms←∆MAP' `{0,2}\h*( ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'
+      pNullRightArrowE←∆MAP'→ (\h*) (?= [][{}):;⋄] | $ )'
+      pNullLeftArrowE← ∆MAP' (?<= [[(:;⋄]  | ^) (\h*)  ←'
      
   ⍝ -------------------------------------------------------
   ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
-      pSQcatE←'(?x) ( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
+      pSQcatE←∆MAP'( (?: '' [^'']* '' )+) \h* ∘∘ \h* ((?1))'
       pCatNamesE←'(?<=[\w⎕⍙∆])\h*∘∘\h*(?=[\w⎕⍙∆])'
   ⍝ static pattern: \]?  ( name? [ ← code]  |  code_or_APL_user_fn )
   ⍝                 1      2      3 4         4
@@ -219,45 +223,45 @@
   ⍝ -------------------------------------------------------------------------
   ⍝ [1] DEFINITIONS
   ⍝ -------------------------------------------------------------------------
-      regDirectiveCOUNTER←0 ⋄ patternList←patternName←⍬
+      regDirCOUNTER←0 ⋄ patternList←patternName←⍬
      
-  ⍝ regDirective:    name [isD:1] ∇ pattern
+  ⍝ regDir:    name [isD:1] ∇ pattern
   ⍝ ⍺: name [isDirctv].
   ⍝    name:  name of pattern.
   ⍝    isD:   1 (default) "pattern is a directive"; else "is not...".
-  ⍝           If 1, prefix pattern with _pDirectivePfx, '::' etc.
+  ⍝           If 1, prefix pattern with pInDirectiveE...
   ⍝ Updates externals: patternList, patternName.
   ⍝ Returns the current pattern number (0 is first).
-      regDirective←{
+      regDir←{
           (nm isD)←2↑1,⍨⊆⍺
-          p←'(?xi)',isD/_pDirectivePfx
+          p←isD/pInDirectiveE,'\h*'   
           patternList,←pat←⊂∆MAP p,⍵
           '⍎'∊pat:11 ⎕SIGNAL⍨'∆PRE Internal Error: ⍎var in pattern not replaced: "',pat,'"'
           patternName,←⊂nm
-          (regDirectiveCOUNTER+←1)⊢regDirectiveCOUNTER
+          (regDirCOUNTER+←1)⊢regDirCOUNTER
       }
      
      
   ⍝ Directive Patterns to Register...
   ⍝ For simplicity, these all now follow all basic intra-pattern definitions
-      cIFDEF←'ifdef'regDirective'   IF(N?)DEF     \h+(~?.*)                            $'
-      cIF←'if'regDirective'         IF            \h+(.*)                              $'
-      cELSEIF←'elseif'regDirective' EL(?:SE)?IF \b\h+(.*)                              $'
-      cELSE←'else'regDirective'     ELSE        \b                          .*         $'
-      cEND←'end'regDirective'       END                                     .*         $'
-      cDEF←'def'regDirective'       DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
-      cVAL←'val'regDirective'       E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
-      cSTAT←'stat'regDirective'     (STATIC)         \h* ⍎_pStatBody                   $'
-      cCONST←'const'regDirective'   (CONST)          \h* ⍎_pStatBody                   $'
-      cINCL←'include'regDirective'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
-      cIMPORT←'import'regDirective' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
-      cCDEF←'cond'regDirective'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal?$'
-      cWHEN←'do if'regDirective'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
-      cUNDEF←'undef'regDirective'   UNDEF            \h* (⍎_pName )            .*      $'
-      cTRANS←'trans'regDirective'   TR(?:ANS)?       \h+  ([^ ]+) \h+ ([^ ]+)  .*      $'
-      cWARN←'warn'regDirective'     (WARN(?:ING)?|ERR(?:OR)?|MSG|MESSAGE) \b\h*  (.*)  $'
-      cMAGIC←'magic'regDirective'   MAGIC \h* (\d+)? \h+ (⍎_pName) \h* ← \h*  (.*)     $'
-      cOTHER←'other' 0 regDirective' ^                                         .*      $'
+      cIFDEF←'ifdef'regDir'   IF(N?)DEF     \h+(~?.*)                            $'
+      cIF←'if'regDir'         IF            \h+(.*)                              $'
+      cELSEIF←'elseif'regDir' EL(?:SE)?IF \b\h+(.*)                              $'
+      cELSE←'else'regDir'     ELSE        \b                          .*         $'
+      cEND←'end'regDir'       END                                     .*         $'
+      cDEF←'def'regDir'       DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
+      cVAL←'val'regDir'       E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
+      cSTAT←'stat'regDir'     (STATIC)         \h* ⍎_pStatBody                   $'
+      cCONST←'const'regDir'   (CONST)          \h* ⍎_pStatBody                   $'
+      cINCL←'include'regDir'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
+      cIMPORT←'import'regDir' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
+      cCDEF←'cond'regDir'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal?$'
+      cWHEN←'do if'regDir'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
+      cUNDEF←'undef'regDir'   UNDEF            \h* (⍎_pName )            .*      $'
+      cTRANS←'trans'regDir'   TR(?:ANS)?       \h+  (\S+) \h+ (\S+)  .*      $'
+      cWARN←'warn'regDir'     (WARN(?:ING)?|ERR(?:OR)?|MSG|MESSAGE) \b\h*  (.*)  $'
+      cMAGIC←'magic'regDir'   MAGIC \h* (\d+)? \h+ (⍎_pName) \h* ← \h*  (.*)     $'
+      cOTHER←'other' 0 regDir' ^                                         .*      $'
     ∇
 
 ⍝ Miscellaneous utilities...
@@ -290,9 +294,22 @@
         ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
         ns.(Lengths[⍵]↑Offsets[⍵]↓Block)      ⍝ Simple match
     }
-⍝ ∆MAP: replaces elements of string ⍵ of form ⍎name with value of name.
-⍝       recursive (within limits <⍺>) whenever ⍵' changes:  ⍵≢⍵'←∆MAP ⍵
-    ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢⍵:(⍺-1)∇ ∆ ⋄ ∆}
+⍝ ∆MAP: Converts patterns into canonical form.
+⍝ Syntax:  patternString ←  [⍺:recursion ←15] ∇ patternString
+⍝        [1] Removes all blanks. (Use \s for spaces, not actual space literals).
+⍝        [2] Replaces strings of form ⍎name with value ⍎name, which must make sense.
+⍝            a] If replacement contains such strings, executes recursively up to ⍺ times.
+⍝ Notes: Default: Removes all blanks. 
+⍝        If __DEBUG__ at FIX time,  prepend (?x).
+   ∇{ok}←genMapUtil
+    :IF ok←__DEBUG__ 
+      ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢,⍵:(⍺-1)∇ ∆ ⋄ '(?x) ',∆}
+    :ELSE 
+      ∆MAP←{⍺←15 ⋄ ∆←'⍎[\w_∆⍙⎕]+'⎕R{⍎1↓⍵ ∆FLD 0}⍠'UCP' 1⊣⍵ ⋄ (⍺>0)∧∆≢,⍵:(⍺-1)∇ ∆ ⋄ ∆~' '}
+    :ENDIF
+   ∇
+   genMapUtil
+
 ⍝ ∆QT:  Add quotes (default ⍺: single)
 ⍝ ∆DQT: Add double quotes. See ∆QTX if you want to fix any internal double quotes.
 ⍝ ∆UNQ: Remove one level of s/d quotes from around a string, addressing internal quotes.
@@ -454,15 +471,17 @@
             nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
             ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
             _←⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
-            _←dPrint'Copying select dfns to ',⍺,':'
-            ⊣_←dPrint'   ',⍕⍵
+            _←print'Copying select dfns to ',⍺,':'
+            print'   ',⍕⍵
         }dfnsRequired         ⍝ list of dfns
     ∇
     :EndSection Load and fix Session Runtime Utilities
 
     ∇ {ok}←expungeSinglePrefixVars;l
       ⎕EX ok←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
-      'Removed ',(≢ok),'"_"-prefixed variables.'
+      :IF __DEBUG__ 
+         ⎕←'   Removed',(≢ok),'variables prefixed with a single underscore.'
+      :ENDIF
     ∇
     :endsection Initialization Functions
     
@@ -695,7 +714,7 @@
                           case cLong:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
                           case cUser:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
                           ∘Unreachable∘                               ⍝ else: comments
-                      }⍠'UCP' 1⊣⍵
+                      }⍠OPTSs⊣⍵
                   }str
      
     ⍝ [2] pShortNmE: short names (even within found long names)
@@ -710,14 +729,16 @@
                           ∆QT f1,('0'⍴⍨⍎f2)           ⍝ Explicit exponent-- append 0s.
                       }¯1↑f0⊣f1 f2←⍵ ∆FLD¨1 2
                       case cUnicodeCh: {   ⍝ ⎕Unnn, ⎕UQnnn, ⎕U{nnn mmm}, ⎕UQ{nnn mmm}
+                          BADCH←65533                 ⍝  � (65533)
                           quot←'q'=lc 1↑f1  
-                          quot∧⍵(1∘∊<)32: ∆PARENS'⎕UCS ',f2   ⍝ ⎕UQnnn and Ctl chars? Via run-time 
-                          quot:' ',⍨∆QTX ⎕UCS ⍵               ⍝ ⎕UQnnn. At compile-time
-                          ,⎕UCS 65533@(32∘>)⊣⍵                ⍝ ⎕Unnn, map ctl chars to � (65533)
+                          isCtl←⍵<32
+                          quot∧1∊isCtl: ∆PARENS'⎕UCS ',f2  ⍝ ⎕UQnnn and Ctl chars? Via run-time 
+                          quot:' ',⍨∆QTX ⎕UCS ⍵       ⍝ ⎕UQnnn. At compile-time
+                          ,⎕UCS BADCH@{isCtl}⊣⍵       ⍝ ⎕Unnn, map ctl chars to � (65533)
                       }⍎f2⊣f0 f1 f2←⍵ ∆FLD¨0 1 2
                       case cShortNm:⍕1 mGet f0⊣nmsFnd,←⊂f0
                       ∘Unreachable∘
-                  }⍠'UCP' 1⊣str
+                  }⍠OPTSs⊣str
      
     ⍝  [3] Handle any double quotes introduced in macros (mGet) above.
     ⍝  NO MORE DOUBLE-QUOTED STRINGS SHOULD APPEAR AFTER THIS POINT...
@@ -726,7 +747,7 @@
                       case 0:processDQ ⍵ ∆FLD¨1 2
                       case 1:f0
                       ∘Unreachable∘                               ⍝ else: comments
-                  }⍠'UCP' 1⊣str
+                  }⍠OPTSs⊣str
      
     ⍝  Ellipses - constants (pDot1e) and variable (pDot2e)
     ⍝  pDot1e must precede pSQe, so that char. progressions 'a'..'z' are found before simple 'a' 'z'
@@ -851,7 +872,7 @@
                       }enums
                       0=≢typeNm:enumCode
                       typeNm∘setStaticConst enumCode
-                  }⍠'UCP' 1⊣str
+                  }⍠OPTSs⊣str
      
     ⍝ Deal with ATOMS of two types:
     ⍝ Simple atoms: names or numbers,zilde (⍬),⎕NULL
@@ -864,7 +885,7 @@
     ⍝ We'll allow either a list of simple atoms (names or numbers)
     ⍝ or a list of fns (dfns or parenthesized expressions), but not
     ⍝ the two types mixed together.
-    ⍝ pAtomTokens←∆MAP¨(⊂'(?xi)'),¨_pBrace _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
+    ⍝ pAtomTokens←∆MAP¨_pBrace _pParen pSQe '⎕NULL\b' _pName _pNum '⍬'
     ⍝  type:                       0       1       2    3      4     5       6        7    8
     ⍝ SINK
     ⍝     ← value     treated as   T⍙1 ← value (etc.)
@@ -889,7 +910,7 @@
                       case 0:f0
                       case 1:f1,temp,'←'⊣temp←getTempName 1
                       case 2:'→',missingValueToken,f1↓⍨≢missingValueToken
-                  }⍠('UCP' 1)⊣str
+                  }⍠OPTSs⊣str
      
                   tBrace tParen tQt tNull tName tNum tZilde←⍳7
                   atomize←{
@@ -906,7 +927,7 @@
                           case tNull:f0,' '
                           case tName:f0{1=≢⍺:'(,',⍵,')' ⋄ ' ',⍵}∆QT f0
                           case tNum tZilde:' ',f0,' '
-                      }⍠('UCP' 1)('Mode' 'M')⊣⍵
+                      }⍠OPTSm⊣⍵
                       tok fnAtom valAtom
                   }
                   str←pSkipE pAtomListL pAtomListR ⎕R{
@@ -939,7 +960,7 @@
                           }fnAtom∧valAtom
                           '(',pfx,(∊atomTokens),')'
                       }⍵
-                  }⍠('UCP' 1)⊣str
+                  }⍠OPTSs⊣str
      
     ⍝ STRING / NAME CATENATION: *** EXPERIMENTAL ***
     ⍝ So far, we ONLY allow scanning here for String / Name catenation:
@@ -1465,22 +1486,27 @@
           _←dPrint'Object has ',NLINES,' lines'
           dataFinal←⍬
           includeLines←⍬
-          comment←⍬
-     
+         
   ⍝ --------------------------------------------------------------------------------
   ⍝ Executive: Phase I
   ⍝ --------------------------------------------------------------------------------
   ⍝ Preprocessing: Removes comments from directives to make processing easier (a kludge).
           inDirectiveFlag←0
+          comBuffer←⍬
+          dumpComBuffer←{
+              0=≢comBuffer:⍵
+              ln←(' '=1↑comBuffer)↓comBuffer,(' '/⍨0≠≢⍵),⍵,NL ⋄ comBuffer⊢←⍬
+              (SP NL⊃⍨(⎕PW×0.5)<≢ln),ln
+          }
           _pI←pInDirectiveE pDQ3e pDQe pSQe pCommentE pContE
           _pI,←pZildeE pEOLe  
           cInDirective cDQ3 cDQ cSQ cCm cCn cZilde cEOL←⍳8
           dataOut←_pI ⎕R{
               f0 f1 f2←⍵ ∆FLD¨0 1 2 ⋄ case←⍵.PatternNum∘∊
-              case cInDirective:f0⊣inDirectiveFlag⊢←1   ⍝ Flag directives
-              case cDQ3:' '⊣comment,←f0,⍨' ⍝ '/⍨0≠≢f0    ⍝ """...""" or «...» => blanks
-              case cDQ:processDQ f1 f2                  ⍝ DQ string w/ possible newlines 
-              case cSQ:{                                ⍝ SQ strings - warn if newlines included.
+              case cInDirective:f0⊣inDirectiveFlag⊢←1      ⍝ Flag directives
+              case cDQ3:' '⊣comBuffer,←f0,⍨' ⍝ '/⍨0≠≢f0    ⍝ """...""" or «...» => blanks
+              case cDQ:processDQ f1 f2                     ⍝ DQ string w/ possible newlines 
+              case cSQ:{                                   ⍝ SQ strings - warn if newlines included.
                   ~NL∊⍵:⍵
                   warningCount+←1
                   _←print'WARNING: Newlines in single-quoted string are invalid: treated as blanks!'
@@ -1489,26 +1515,24 @@
               }f0
             ⍝ comment? If in directive, remove/place in stmt afterwards. Otherwise, keep.
               case cCm:{
-                  ~⍵:f0
-                  ''⊣comment,←f0,⍨' '/⍨0≠≢f0 
+                  ~⍵:dumpComBuffer f0
+                  ''⊣comBuffer,←f0,⍨' '/⍨0≠≢f0 
               }inDirectiveFlag       
-              case cCn:(' ' ';'⊃⍨';'≡f1)⊣comment,←f2,⍨' '/⍨0≠≢f2  ⍝ Continuation line?
+              case cCn:(' ' ';'⊃⍨';'≡f1)⊣comBuffer,←f2,⍨' '/⍨0≠≢f2  ⍝ Continuation line?
               case cZilde:' ⍬ '                         ⍝ Normalize spacing of ⍬ or ().
               ~case cEOL:⎕SIGNAL/'∆PRE: Logic error' 911
             ⍝ case cEOL: end directive state (if any); triggers comment processing from above
               inDirectiveFlag⊢←0    
-            ⍝   ⎕←'EOL: inDirective="',inDirectiveFlag,'" comment="',comment,'"'                          
-              0=≢comment:f0
-              ln←comment,' ',f1,NL ⋄ comment⊢←⍬
-      ⍝ If the commment size is more than (⎕PW÷2), put on newline
-              (' 'NL⊃⍨(⎕PW×0.5)<≢ln),1↓ln
-          }⍠('Mode' 'M')('EOL' 'LF')('NEOL' 1)⊣dataIn
+            ⍝   ⎕←'EOL: inDirective="',inDirectiveFlag,'" comment="',comBuffer,'"'                          
+              dumpComBuffer f0 
+          }⍠OPTSm⊣dataIn
+          (⊃⌽dataOut),←dumpComBuffer ''
   ⍝ Process macros... one line at a time, so state is dependent only on lines before...
   ⍝ It may be slow, but it works!
           dataOut←{⍺←⍬
               0=≢⍵:⍺
               line←⊃⍵
-              line←patternList ⎕R processDirectives⍠'UCP' 1⊣line
+              line←patternList ⎕R processDirectives⍠OPTSs⊣line
               (⍺,⊂line)∇(includeLines∘←⍬)⊢includeLines,1↓⍵
           }dataOut
      
@@ -1639,7 +1663,7 @@
       pComment←'⍝.*$'
       pBareParens←'\(\h*\)'
       :If 0≠≢∊linesOut
-          linesOut←pSQ pComment pBareParens ⎕R'\0' '\0'(,'⍬')⍠('Mode' 'M')⊣linesOut
+          linesOut←pSQ pComment pBareParens ⎕R'\0' '\0'(,'⍬')⍠OPTSm⊣linesOut
       :EndIf
       linesOut←prefix,linesOut
     ∇
