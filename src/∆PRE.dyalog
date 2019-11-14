@@ -1,6 +1,9 @@
 :namespace ∆PREns
 :section Initializations
   __DEBUG__←1       ⍝ Default: 0. Imported into ∆PRE
+  _←⎕FX '{t}←TITLE t' ':IF __DEBUG__'  '⎕←'' ''⋄⎕←t' '⎕←''¯''⍴⍨≢t' ':ENDIF'
+  _←⎕FX '{t}←SUBTITLE t' ':IF __DEBUG__'  '⎕←''   '',t'  ':ENDIF'
+  TITLE '∆PRE Preprocessor Initialization'
 
 ⍝ PREFIX: Sets the prefix string for ∆PRE directives.
 ⍝    A compile-time (⎕FIX-time) option, not run-time.
@@ -226,41 +229,42 @@
     ⍝           If 1, prefix pattern with pInDirectiveE...
     ⍝ Updates externals: patternList, patternName.
     ⍝ Returns the current pattern number (0 is first).
-      regDir←{
+       regDir←{ 
+        0::11 ⎕SIGNAL⍨'∆PRE Internal Error: ⍎var in pattern not replaced: "',pat,'"'
         (nm isD)←2↑1,⍨⊆⍺
-        p←isD/pInDirectiveE,'\h*'   
-        patternList,←pat←⊂∆MAP p,⍵
-        '⍎'∊pat:11 ⎕SIGNAL⍨'∆PRE Internal Error: ⍎var in pattern not replaced: "',pat,'"'
-        patternName,←⊂nm
+        patternList,←⊂pat←∆MAP ⍵,⍨isD/pInDirectiveE,'\h*' 
+        patternName,←⊂nm  
+        _←regDirCOUNTER{⍵:⎕←⎕PW↑'   ',(3↑⍕⍺),nm ⋄ ⍬}__DEBUG__
         (regDirCOUNTER+←1)⊢regDirCOUNTER
       }
 
-
+     TITLE 'List of Directives'
     ⍝ Directive Patterns to Register...
     ⍝ For simplicity, these all now follow all basic intra-pattern definitions
-      cIFDEF←'ifdef'regDir'   IF(N?)DEF     \h+(~?.*)                            $'
-      cIF←'if'regDir'         IF            \h+(.*)                              $'
-      cELSEIF←'elseif'regDir' EL(?:SE)?IF \b\h+(.*)                              $'
-      cELSE←'else'regDir'     ELSE        \b                          .*         $'
-      cEND←'end'regDir'       END                                     .*         $'
-      cDEF←'def'regDir'       DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
-      cVAL←'val'regDir'       E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
-      cSTAT←'stat'regDir'     (STATIC)         \h* ⍎_pStatBody                   $'
-      cCONST←'const'regDir'   (CONST)          \h* ⍎_pStatBody                   $'
-      cINCL←'include'regDir'  INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
-      cIMPORT←'import'regDir' IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
-      cCDEF←'cond'regDir'     CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal?$'
-      cWHEN←'do if'regDir'    (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
-      cUNDEF←'undef'regDir'   UNDEF            \h* (⍎_pName )            .*      $'
-      cTRANS←'trans'regDir'   TR(?:ANS)?       \h+  (\S+) \h+ (\S+)  .*      $'
-      cWARN←'warn'regDir'     (WARN(?:ING)?|ERR(?:OR)?|MSG|MESSAGE) \b\h*  (.*)  $'
-      cMAGIC←'magic'regDir'   MAGIC \h* (\d+)? \h+ (⍎_pName) \h* ← \h*  (.*)     $'
-      cOTHER←'other' 0 regDir' ^                                         .*      $'
+      cIFDEF←'ifdef ifndef'regDir'   IF(N?)DEF     \h+(~?.*)                            $'
+      cIF←'if'             regDir'   IF            \h+(.*)                              $'
+      cELSEIF←'elseif'     regDir'   EL(?:SE)?IF \b\h+(.*)                              $'
+      cELSE←'else'         regDir'   ELSE        \b                          .*         $'
+      cEND←'end'           regDir'   END                                     .*         $'
+      cDEF←'def[ine][q]'   regDir'   DEF(?:INE)?(Q)?  \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
+      cVAL←'eval[q] val[q]'regDir'   E?VAL(Q)?        \h* (⍎_pTarg)    \h* ⍎_pSetVal?   $'
+      cSTAT←'static'       regDir'   (STATIC)         \h* ⍎_pStatBody                   $'
+      cCONST←'const'       regDir'   (CONST)          \h* ⍎_pStatBody                   $'
+      cINCL←'incl[ude]'    regDir'   INCL(?:UDE)?     \h* (⍎_pFiSpec)           .*      $'
+      cIMPORT←'import'     regDir'   IMPORT           \h* (⍎_pName)  (?:\h+ (⍎_pName))? $'
+      cCDEF←'cdef[q]'      regDir'   CDEF(Q)?         \h* (⍎_pTarg)     \h*   ⍎_pSetVal?$'
+      cWHEN←'when unless'  regDir'   (WHEN|UNLESS)    \h+ (~?)(⍎pExpression) \h(.*)     $'
+      cUNDEF←'undef'       regDir'   UNDEF            \h* (⍎_pName )            .*      $'
+      cTRANS←'tr[ans]'     regDir'   TR(?:ANS)?       \h+  (\S+) \h+ (\S+)      .*      $'
+      cWARN←'warn err[or] msg/message'regDir'(WARN(?:ING)?|ERR(?:OR)?|MSG|MESSAGE) \b\h*  (.*)  $'
+      cMAGIC←'magic'       regDir'   MAGIC \h* (\d+)? \h+ (⍎_pName) \h* ← \h*  (.*)     $'
+      cOTHER←'other' 0     regDir'   ^                                          .*      $'
     ∇
 
   ⍝ Miscellaneous utilities...
     lc←819⌶ ⋄ uc←1∘(819⌶)
     trimLR←{⍺←' ' ⋄ ⍵/⍨(∧\b)⍱⌽∧\⌽b←⍵∊⍺}              ⍝ delete ending (leading/trailing) blanks
+    trimM← {⍺←' ' ⋄ ⍵/⍨~⍵⍷⍨2⍴⍺}                      ⍝ delete duplicate contiguous internal blanks
   ⍝ ∆TRUE ⍵:
   ⍝ "Python-like" sense of truth, useful in ::IFDEF and ::IF statements.
   ⍝ ⍵ (a string) is 1 (true) unless
@@ -296,8 +300,9 @@
   ⍝ Notes: Default: Removes all blanks. 
   ⍝        If __DEBUG__ at FIX time,  prepend (?x).
     ∇{ok}←genMapUtil
-      ∆MAPerror←{e←'∆PRE.∆MAP FATAL ERROR: ' ⋄ nm←1↓⍵ ∆FLD 0
-        ⎕←'*** ',e←e,'Var "',nm,'" undefined',CR,'    in pat "',⍺,'"' ⋄ e 11
+      ∆MAPerror←{nm←1↓⍵ ∆FLD 0 ⋄ 
+        l1←'∆PRE.∆MAP LOGIC ERROR: "',nm,'" undefined' ⋄ l2←' in pat "',⍺,'"'
+        ⎕←'*** ',l1 ⋄ ⎕←'    ',l2 ⋄ (l1,l2) 11
       }
       :IF ok←__DEBUG__ 
         ∆MAP←{⍺←15 ⋄ pat←⍵ ⋄ ⍙←{0::⎕SIGNAL/pat ∆MAPerror ⍵ ⋄ ⍎1↓⍵ ∆FLD 0}
@@ -490,14 +495,16 @@
     ⎕EX varsDeleted ←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
   ∇
 
-  ∇ {ok}←reportInitializations (dfnsRequired varsDeleted)   
-    :IF ok←__DEBUG__
-      'Namespace ',⎕THIS
-      '   DEBUG: ',__DEBUG__,' at ⎕FIX time'
-      '   Directive PREFIX "',PREFIX,'"'
-      '   Loaded dfns functions: ',dfnsRequired
-      '   Removed',(≢varsDeleted),'variables prefixed with a single underscore.'
-    :ENDIF
+  ∇ {ok}←reportInitializations (dfnsRequired varsDeleted)  
+    TITLE'Loading runtime utilities and dfns'
+    SUBTITLE'⎕SE.(⍙enum, ⍙fnAtom, ⍙to, ⍙notin)'
+    SUBTITLE'Namespace Details'
+    SUBTITLE'   Namespace ',⎕THIS
+    SUBTITLE'   DEBUG: ',__DEBUG__,' at ⎕FIX time'
+    SUBTITLE'   Directive PREFIX "',PREFIX,'"'
+    SUBTITLE'   Loaded dfns functions: ',dfnsRequired
+    SUBTITLE'   Removed',(≢varsDeleted),'variables prefixed with a single underscore.'
+    ok←1
   ∇
   :endsection Initialization Functions
 
@@ -556,7 +563,6 @@
     1≡⍺:'-noFix   -Verbose -Debug'∇ ⍵
     ¯1≡⍺:↑'-noFix   -Verbose -Debug'∇ ⍵
   ⍝ Special macros: names are LOCAL to ∆PRE...
-  ⍝ special← '__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__'
     __DEBUG__←__DEBUG__
     __VERBOSE__←__INCLUDE_LIMITS__←¯1    ⍝ ¯1 simply declare the scope of these items.
     __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
@@ -572,8 +578,8 @@
   ⍝ ⍺ alert msg:   Share a message with the user and update error/warning counters as required.
     alert←{ 
       ⍺←2
-      line←{⍺←0 ⋄ ch←'[',']',⍨⍵ ⋄ ⍺>≢⍵:(-2+⍺)↑ch ⋄ ch}⍕__LINE__
-      line←' ',line,' ',(⍺⊃'MESSAGE' 'WARNING' 'ERROR'),': ',⍵
+      line←' ',' ',⍨{⍺←0 ⋄ ch←'[',']',⍨⍵ ⋄ ⍺>≢⍵:(-2+⍺)↑ch ⋄ ch}⍕__LINE__
+      line,←(⍺⊃'MESSAGE' 'WARNING' 'ERROR'),': ',⍵
       ⍺=2: print ' ',ERRch, line⊣errorCount+←1
       ⍺=1: print ' ',WARNch,line⊣warningCount+←1
       ⍺=0: print ' ',MSGch, line
