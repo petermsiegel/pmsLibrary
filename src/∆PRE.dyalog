@@ -1,15 +1,10 @@
 :namespace ∆PREns
 :section Initializations
-  __DEBUG__←0       ⍝ Default: 0. Imported into ∆PRE
+  __DEBUG__← 0 { 0:: 0 ⋄ 0=⎕NC ⍵: ⍺ ⋄ 0=d←⎕OR ⍵: 0 ⋄ 1⊣⎕←'⎕SE.DEBUG=1'} '⎕SE.DEBUG'       
   _←⎕FX '{t}←TITLE t' ':IF __DEBUG__'  '⎕←'' ''⋄⎕←t' '⎕←''¯''⍴⍨≢t' ':ENDIF'
   _←⎕FX '{t}←SUBTITLE t' ':IF __DEBUG__'  '⎕←''   '',t'  ':ENDIF'
   TITLE '∆PRE Preprocessor Initialization'
 
-⍝ PREFIX: Sets the prefix string for ∆PRE directives.
-⍝    A compile-time (⎕FIX-time) option, not run-time.
-⍝    Default '::' unless preset when this namespace is ⎕FIXed.
-⍝      Must be a char scalar or vector; treated as a regexp literal (\Q..\E).
-  PREFIX←'::'
   ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
 
 ⍝ General Constants
@@ -19,6 +14,11 @@
   NL CR NULL←⎕UCS 10 13 0
   SP SQ SQ2 DQ SQDQ←' ' '''' '''''' '"' '''"'
   NOTINSET←⎕UCS 8713    ⍝ Not in set: ∉ (⎕UCS 8713)
+⍝ PREFIX: Sets the prefix string for ∆PRE directives.
+⍝    A compile-time (⎕FIX-time) option, not run-time.
+⍝    Default '::' unless preset when this namespace is ⎕FIXed.
+⍝      Must be a char scalar or vector; treated as a regexp literal (\Q..\E).
+  PREFIX←'::'
 ⍝ Annotations (see annotate).
 ⍝   YESch - path taken.
 ⍝   NOch  - path not taken (false conditional).
@@ -39,11 +39,14 @@
       isSpecialMacro←(∊∘(' '(≠⊆⊢)specialM))∘⊂
   ∇
   ⍝ PATTERNS BEGIN
-    ∇ pat←_BRN matchPair(_BRL _BRR);_
-      _←  '(?: (?J) (?<Brace⍎_BRN> \⍎_BRL (?> [^⍎_BRL⍎_BRR''⍝]+ | ⍝.*\R | (?: "[^"]*")+ '
-      _,← '         | (?:''[^'']*'')+ | (?&Brace⍎_BRN)*     )+ \⍎_BRR)'
-      _,← ') '
-      pat←∆MAP _⊣_BRN←⍕_BRN
+  ⍝   matchPair(left right)     Creates distinct patterns for matching paired items...
+      _matchPairN←0
+    ∇ pat←matchPair(_L _R);_N;p  
+      _N←⍕_matchPairN←1+_matchPairN    ⍝ Each call creates a new ID (allows pats to be in same ⎕R/S)
+      p←  '(?: (?J) (?<Pair⍎_N> \⍎_L '
+      p,← '   (?> [^⍎_L⍎_R''"⍝]+ | ⍝.*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Pair⍎_N)* )+ \⍎_R)'
+      p,← ') '
+      pat←∆MAP p
     ∇
     ∇ {_ok_}←registerPatterns PREFIX
       _ok_←1
@@ -157,9 +160,9 @@
     ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
     ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
     ⍝ Note: a 2nd ` is not allowed for function atoms.
-      pMatchBraces←∆MAP   _←1 matchPair'{' '}'
+      pMatchBraces←∆MAP   _←     matchPair'{' '}'
       _pBraceX←           _,'(?:\h*&)?'
-      pMatchParens←∆MAP _pParen←2 matchPair'(' ')'
+      pMatchParens←∆MAP _pParen← matchPair'(' ')'
       _allowFnAtomsInMap←1/' ⍎_pBraceX | ⍎_pParen | '
     ⍝ allowFnAtomsInMap OPTION:
     ⍝ Select whether function atoms
@@ -491,8 +494,8 @@
           nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
           ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
           _←⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
-          _←print'Copying select dfns to ',⍺,':'
-          print'   ',⍕⍵
+          _←TITLE'Copying select dfns to ',⍺,':'
+          SUBTITLE ⍕⍵
     }dfnsRequired         ⍝ list of dfns
   ∇
   :EndSection Load and fix Session Runtime Utilities
@@ -601,34 +604,32 @@
   ⍝ mGet etc. include a feature for preventing recursive matching of the same names
   ⍝ in a single recursive (repeated) scan.
   ⍝ Uses EXTERNAL vars: mNames, mVals, mNameVis
-      mPut←{⍺←__DEBUG__ ⋄ dbg←⍺
-            n v←⍵      ⍝ add (name, val) to macro list
-        ⍝ case is 1 only for system-style names of form /⎕\w+/
-            c←⍬⍴'⎕:'∊⍨1↑n
-            n~←' ' ⋄ mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂v ⋄ mNameVis,⍨←1
-            ~isSpecialMacro n:⍵           ⍝ Not in domain of [fast] isSpecialMacro function
-  ⍝ For a special macro n set to value v
-  ⍝     if n=v or 'n'=v, return value 1
-  ⍝     if v is a number num, return num
-  ⍝     else v is an arb string, so return 0
-            n{
-              0::⍵⊣print'∆PRE: Logic error in mPut'  ⍝ Error? Move on.
-              v←{                    ⍝ Map value v to special values
-                  n≡∆UNQ ⍵:1          ⍝ n is ⍕v OR 'n' is ⍕v
-                  V N←⎕VFI ⍵
-                  1∊V:V/N              ⍝ ⍕v contains valid numbers
-                  0                    ⍝ ⍕v is not a number
-              }⍕v
-              _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'   ⍝ In ∆PRE space, set name to a scalar value if 1 item.
-              ⍵⊣{⍵:print'∆PRE: Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}dbg
-            }⍵
-      }
-  ⍝ mPutMagic: allow special executed cases...
-  ⍝    ⍺: Execution Environment
-  ⍝    0, 1, 2: See mGet below
-      mPutMagic←{
-            ⍺←0 ⋄ n v←⍵
-            mPut n(⍺,v)
+
+  ⍝ mPut...
+  ⍝ [debug=__DEBUG__ [env=0,i.e. none]] mPut name value
+    mPut ←{⍺←__DEBUG__ 0 
+        (dbg env)(n v)←(2↑⍺)⍵  ⋄ n~←' '      ⍝ add (name, val) to macro list
+    ⍝ case is 1 only for system-style names of form /⎕\w+/
+        c←⍬⍴'⎕:'∊⍨1↑n
+        special← isSpecialMacro n        ⍝ Special are vars transparent between ∆PRE and ::DEF
+        env←env{⍵∧0=⍺: 1 ⋄ ⍺}special     ⍝ If a special macro, its env is '∆PRE' by default.
+        mNames,⍨←⊂lc⍣c⊣n ⋄ mVals,⍨←⊂env v ⋄ mNameVis,⍨←1
+        ~special:⍵            ⍝ Not in domain of [fast] isSpecialMacro function
+      ⍝ For a special macro n set to value v
+      ⍝     if n=v or 'n'=v, return value 1
+      ⍝     if v is a number num, return num
+      ⍝     else v is an arb string, so return 0
+        n{
+          0::⍵⊣print'∆PRE: Logic error in mPut'  ⍝ Error? Move on.
+          v←{                    ⍝ Map value v to special values
+              n≡∆UNQ ⍵:1          ⍝ n is ⍕v OR 'n' is ⍕v
+              V N←⎕VFI ⍵
+              1∊V:V/N              ⍝ ⍕v contains valid numbers
+              0                    ⍝ ⍕v is not a number
+          }⍕v
+          _←⍎n,'∘←⍬⍴⍣(1=≢v)⊣v'     ⍝ In ∆PRE space, set name to a scalar value if 1 item.
+          ⍵⊣{⍵:print'∆PRE: Set special variable ',n,' ← ',(⍕v),' [EMPTY]'/⍨0=≢v ⋄ ⍬}dbg
+        }dbg
       }
     ⍝ mGet  ⍵:
     ⍝  ⍺=0 (default)  retrieves value for ⍵, if any; (or ⍵, if none)
@@ -642,24 +643,25 @@
     ⍝ string in the environment required. The string is not macro substituted first,
     ⍝ so do that "manually" or not at all.
     ⍝ Magic prefix may be
-    ⍝     0: execute in ∆PRE space (local vars, etc.)
-    ⍝     1: execute in ∆MY space, the ::STATIC run-time environment
-    ⍝     2: execute in ∆CALLR environment
+    ⍝     0: (not magic)
+    ⍝     1: execute in ∆PRE space (local vars, etc.)
+    ⍝     2: execute in ∆MY space, the ::STATIC run-time environment
+    ⍝     3: execute in ∆CALLR environment
         mGet←{⍺←0   ⍝ If ⍺=1, i.e. treat as not found if inactive (mActive)
               n←⍵~' ' ⋄ c←⍬⍴'⎕:'∊⍨1↑n
               p←mNames⍳⊂lc⍣c⊣n
               p≥≢mNames:n ⋄ ⍺∧~p⊃mNameVis:n
-              v←p⊃mVals
-              0≠1↑0⍴v:v    ⍝ Not magic: return as is!
-              p v←(1↑v)(1↓v)
+              env v←p⊃mVals
+              0=env:v
               0::⎕SIGNAL/{
-                _←'∆PRE Logic error: eval of magic macro failed: ',CR
-                _,←'> name="',n,'" val="',(⍕v),'" ns="',(⍕p),'"'
+                envNm←(env⊃'NONE' '∆PRE' '∆MY' '∆CALLR')
+                _← '∆PRE Logic error: eval of magic macro "',n,'" in env "',envNm,'" failed: ',CR
+                _,←'     Value: "',(⍕v),'"'
                 _ ⍵
               }11
-              0=p:∊⍕⍎v          ⍝ ∆PRE space
-              1=p:∊⍕∆MYR⍎v      ⍝ ∆MY space
-              2=p:∊⍕∆CALLR⍎v    ⍝ ∆CALLR space
+              1=env:∊⍕⍎v          ⍝ ∆PRE space
+              2=env:∊⍕∆MYR⍎v      ⍝ ∆MY space
+              3=env:∊⍕∆CALLR⍎v    ⍝ ∆CALLR space
               ∘'logic error: unknown environment'∘
         }
     ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆CALLR∘∆TRUE
@@ -1176,17 +1178,18 @@
               }⍵
 
               ⍝  ::MAGIC \h* [digits] name ← apl_code
-              ⍝      digits: ∊0, 1, 2; the required environment (namespace); see mPutMagic.
+              ⍝      digits: ∊0, 1, 2, 3; the required environment (namespace); see mPutMagic.
               ⍝              defaults to 0.
               ⍝      name:   macro name being defined
               ⍝      apl_code: code to be executed in the specified environment.
               ⍝  Does an internal mPutMagic call...
               ⍝  There is no reason for this to be exposed except to test perhaps.
-              case cMAGIC:{
+              case cMAGIC:{     
+                _←1 alert '::MAGIC is deprecated. Do not use'
                 T≠TOP:annotate f0,(SKIPch NOch⊃⍨F=TOP)
                 type←1↑⊃⌽⎕VFI f1 ⋄ name code←f2 f3
-                ~type∊0 1 2:annotate f0,NOch
-                _←type mPutMagic name code
+                ~type∊0 1 2 3:annotate f0,NOch⊣2 alert '::MAGIC requires types of 0..3, not ',⍕type
+                _←__DEBUG__ type mPut name code
                 f0 annotate'::MAGIC ',(⍕type),' ',name,' ← ',code,' ',YESch
               }⍵
 
@@ -1495,23 +1498,24 @@
         ∆MYR._FIRST_←1
         _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
         _←∆MYR.⎕FX'{F}←RESET' '(F _FIRST_)←~_FIRST_ 0'
-        _←mPut'⎕MY'∆MY                     ⍝ ⎕MY    → a private 'static' namespace
-        _←mPut'⎕FIRST'(∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
-        _←mPut'⎕ME' '(⊃⎕SI)'                ⍝ Simple name of active function
-        _←mPut'⎕XME' '(⊃⎕XSI)'               ⍝ Full name of active function
-        _←mPut'⎕NOTIN' '{~⍺∊⍵}'                ⍝ See ∉ ⎕UCS 8713
-    ⍝  mPutMagic: Declare macros evaluated at ∆PRE time via ⍎.
-        _←0 mPutMagic'__LINE__' '__LINE__'
-        _←0 mPutMagic'__FILE__' '__FILE__'
-        _←0 mPutMagic'__TS__' '⎕TS'
-        _←1 mPutMagic'__STATIC__' '⎕THIS'
-        _←2 mPutMagic'__CALLER__' '⎕THIS'
-        _←0 mPutMagic'__TIME__' '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
-        _←0 mPutMagic'__DATE__' '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
+        _←0 mPut'⎕MY'∆MY                     ⍝ ⎕MY    → a private 'static' namespace
+        _←0 mPut'⎕FIRST'(∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
+        _←0 mPut'⎕ME' '(⊃⎕SI)'                ⍝ Simple name of active function
+        _←0 mPut'⎕XME' '(⊃⎕XSI)'               ⍝ Full name of active function
+        _←0 mPut'⎕NOTIN' '{~⍺∊⍵}'                ⍝ See ∉ ⎕UCS 8713
+    ⍝  mPut magic: Declare macros evaluated at ∆PRE time via ⍎.
+    ⍝   ⍺: 1 (PRE env), 2 (⎕MY static), 3 (CALLER)
+        _←0 1 mPut'__LINE__' '__LINE__'
+        _←0 1 mPut'__FILE__' '__FILE__'
+        _←0 1 mPut'__TS__' '⎕TS'
+        _←0 2 mPut'__STATIC__' '⎕THIS'
+        _←0 3 mPut'__CALLER__' '⎕THIS'
+        _←0 1 mPut'__TIME__' '(∆QT ''G⊂ZZ:ZZ:ZZ⊃''   ⎕FMT +/10000 100 1×⎕TS[3 4 5])'
+        _←0 1 mPut'__DATE__' '(∆QT ''G⊂ZZZZ/ZZ/ZZ⊃'' ⎕FMT +/10000 100 1×⎕TS[0 1 2])'
         _←mPut'__DATE__TIME__' '__DATE__ ∘∘ "T" ∘∘ __TIME__'
     ⍝ ⎕T retrieves the most-recently (compile-time) generated temporary name, usually
     ⍝    via a fence:    [left margin | ⋄ etc.] ← val
-        _←0 mPutMagic'⎕T' 'getTempName 0'
+        _←0 1 mPut'⎕T' 'getTempName 0'
 
     ⍝ Other Initializations
         stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
@@ -1616,9 +1620,9 @@
     ⍝ :endsection Preprocessor Executive
     } ⍝ ⍙PRE
   ⍝ Logic of ∆PRE...
-     0≡⍺:  '-noFix -noVerbose -noComments'⍙PRE ⍵
-     1≡⍺:  '-noFix   -Verbose -Debug'⍙PRE ⍵
-    ¯1≡⍺:↑'-noFix   -Verbose -Debug'⍙PRE ⍵
+     0≡⍺:  '-noFix  -noVerbose -noComments'  ⍙PRE ⍵
+    ¯1≡⍺:↑ '-noFix    -Verbose -Debug'       ⍙PRE ⍵
+     1≡⍺:  '-prompt -noVerbose -noComments'  ⍙PRE ⍵
      1:⍺ ⍙PRE ⍵
   }
   ##.∆PRE←⎕THIS.∆PRE
