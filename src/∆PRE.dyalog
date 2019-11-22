@@ -1,6 +1,6 @@
 :namespace ∆PREns
 :section Initializations
-  __DEBUG__←1       ⍝ Default: 0. Imported into ∆PRE
+  __DEBUG__←0       ⍝ Default: 0. Imported into ∆PRE
   _←⎕FX '{t}←TITLE t' ':IF __DEBUG__'  '⎕←'' ''⋄⎕←t' '⎕←''¯''⍴⍨≢t' ':ENDIF'
   _←⎕FX '{t}←SUBTITLE t' ':IF __DEBUG__'  '⎕←''   '',t'  ':ENDIF'
   TITLE '∆PRE Preprocessor Initialization'
@@ -545,6 +545,7 @@
   ⍝     -NoComment -Com      -C      NOCOM         Delete Comments
   ⍝     -NoBlanks  -Blanks   -B      NOBLANK       Remove Blank output lines
   ⍝     -Edit      -NoEdit   -E      EDIT          If 1, edit the intermediate file (for viewing only)
+  ⍝     -Prompt    -NoPrompt -P      PROMPT        If 1, prompt for input and process sequentially.
   ⍝     -Quiet     -NOQuiet  -Q      QUIET         1 if neither DEBUG nor VERBOSE
   ⍝     -Fix       -NOFix    -F      FIX           If 1, create an output function via ⎕FIX.
   ⍝     -Help      -NOHelp   -H      HELP          If 1, share HELP info rather than preprocessing.
@@ -1434,7 +1435,8 @@
         __VERBOSE__←(~opt'noV')                          ⍝ Default 1. Special: Settable via ::DEF
         __DEBUG__←(opt'D')                               ⍝ Default 0. Special: Settable via ::DEF
         NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-        EDIT←(~opt'noE')∧(⎕NULL≡⍬⍴⍵)∨opt'E'             ⍝ Default 0; 1 if ⍵≡∊⎕NULL
+        PROMPT←opt'P'                                    ⍝ Default 0
+        EDIT←(~opt'noE')∧(⎕NULL≡⍬⍴⍵)∨opt'E'              ⍝ Default 0; 1 if ⍵≡∊⎕NULL     
         QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
         FIX←~opt'noF'                                    ⍝ Default 1
         _←{ ⍝ Option information
@@ -1445,12 +1447,22 @@
               ⍞←ø,'NoCom:   ',NOCOM ⋄ ⍞←ø,'NoBlanks:',NOBLANK,CR
               ⍞←ø,'Edit:    ',EDIT ⋄ ⍞←ø,'Quiet:   ',QUIET
               ⍞←ø,'Help:    ',HELP ⋄ ⍞←ø,'Fix:     ',FIX,CR
+              ⍞←ø,'Prompt:  ',PROMPT,CR
               0
         }⍺
     ⍝ HELP PATH; currently an external file...
         HELP:{
               ⎕ED'___'⊣___←↑⊃⎕NGET ⍵⊣⎕←'Help source "',⍵,'"'
         }&'pmsLibrary/docs/∆PRE.help'
+        PROMPT: {∆FORCE∘←0          ⍝ Replace with -Prompt option
+          0::∇ ⍬⊣⎕←⎕DMX.(EN EM)
+          in←⍞↓⍨≢⍞←'< '
+          0=≢in:_←0
+          0=≢in~' ':∇ ⍬
+          val←∊'-noFix -NoVerbose -noComments -NoBlanks' ⍙PRE in
+          0=≢val~' ':∇ ⍬
+          ∇ {⍵≢⍕out←∆CALLR⍎⍵: ⎕←out ⋄ ⍬}⎕←val
+        }⍬
     ⍝ Set prepopulated macros
         ⍝ Declared in outside fn... mNames←mVals←mNameVis←⍬
         _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
@@ -1604,19 +1616,10 @@
     ⍝ :endsection Preprocessor Executive
     } ⍝ ⍙PRE
   ⍝ Logic of ∆PRE...
-    0≡⍺:  '-noFix -noVerbose -noComments'⍙PRE ⍵
-    1≡⍺:  '-noFix   -Verbose -Debug'⍙PRE ⍵
+     0≡⍺:  '-noFix -noVerbose -noComments'⍙PRE ⍵
+     1≡⍺:  '-noFix   -Verbose -Debug'⍙PRE ⍵
     ¯1≡⍺:↑'-noFix   -Verbose -Debug'⍙PRE ⍵
-    ⎕NULL≡⍺: {∆FORCE∘←0
-      0::∇ ⍬⊣⎕←⎕DMX.(EN EM)
-        in←⍞↓⍨≢⍞←'< '
-        0=≢in:_←0
-        0=≢in~' ':∇ ⍬
-        val←∊'-noFix -NoVerbose -noComments' ⍙PRE in
-        0=≢val~' ':∇ ⍬
-        ∇ {⍵≢⍕out←∆CALLR⍎⍵: ⎕←out ⋄ ⍬}⎕←val
-    }⍬
-
+     1:⍺ ⍙PRE ⍵
   }
   ##.∆PRE←⎕THIS.∆PRE
   :endsection Preprocessor
