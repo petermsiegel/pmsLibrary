@@ -1,8 +1,8 @@
 :namespace ∆PREns
 :section Initializations
-  __DEBUG__← 0 { 0:: 0 ⋄ 0=⎕NC ⍵: ⍺ ⋄ 0=d←⎕OR ⍵: 0 ⋄ 1⊣⎕←'⎕SE.DEBUG=1'} '⎕SE.DEBUG'       
-  _←⎕FX '{t}←TITLE t' ':IF __DEBUG__'  '⎕←'' ''⋄⎕←t' '⎕←''¯''⍴⍨≢t' ':ENDIF'
-  _←⎕FX '{t}←SUBTITLE t' ':IF __DEBUG__'  '⎕←''   '',t'  ':ENDIF'
+  __DEBUG__← 0 { 0:: 0 ⋄ 0=⎕NC ⍵: ⍺ ⋄ 0=d←⎕OR ⍵: 0 ⋄ 1⊣⎕←⍵,'←1'} '⎕SE.DEBUG'       
+  TITLE←{~__DEBUG__: _←⍵ ⋄ ⎕←' ' ⋄ ⎕←⍵ ⋄ 1:⎕←'¯'⍴⍨≢⍵}
+  SUBTITLE←{⍺←1 ⋄ ~__DEBUG__: _←⍵ ⋄ 1: ⎕←⍵,⍨' '⍴⍨3×⍺}∘⍕ 
   TITLE '∆PRE Preprocessor Initialization'
 
   ⎕IO ⎕ML ⎕PP ⎕FR←0 1 34 1287
@@ -455,7 +455,7 @@
             ⎕NEXISTS filenm:⍵ filenm(⊃⎕NGET filenm 1)
             (1↓⍺)∇ ⍵
       }pfx,nm
-  }
+   }
 
   :section Load and fix Session Runtime Utilities
   ⍝ Write out RUN-TIME utility functions to ⎕SE, when the namespace is fixed.
@@ -489,30 +489,31 @@
     ⎕SE.⍙notin←{~⍺∊⍵}
   ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
     dfnsDest←'⎕SE.dfns'
-    dfnsRequired←'pco' 'cmpx' 
+    dfnsRequired←'pco'  'disp'
     _←dfnsDest{           ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
           nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
           ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
           _←⍵ nsR.⎕CY'dfns' ⍝ Copy them in. Then report back if debugging
           _←TITLE'Copying select dfns to ',⍺,':'
-          SUBTITLE ⍕⍵
+          SUBTITLE ⍵
     }dfnsRequired         ⍝ list of dfns
   ∇
   :EndSection Load and fix Session Runtime Utilities
 
-  ∇ {varsDeleted}←expungeSingleUnderscoreVars;l
-    ⎕EX varsDeleted ←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
+  ∇ {nVarsDeleted}←expungeSingleUnderscoreVars;l
+    ⎕EX l ←(∨/'_'≠2↑[1]l)/[0]l←'_'⎕NL 2
+    nVarsDeleted←≢l
   ∇
 
-  ∇ {ok}←reportInitializations (dfnsRequired varsDeleted)  
+  ∇ {ok}←reportInitializations (dfnsRequired nVarsDeleted)  
     TITLE'Loading runtime utilities and dfns'
     SUBTITLE'⎕SE.(⍙enum, ⍙fnAtom, ⍙to, ⍙notin)'
     SUBTITLE'Namespace Details'
-    SUBTITLE'   Namespace ',⎕THIS
-    SUBTITLE'   DEBUG: ',__DEBUG__,' at ⎕FIX time'
-    SUBTITLE'   Directive PREFIX "',PREFIX,'"'
-    SUBTITLE'   Loaded dfns functions: ',dfnsRequired
-    SUBTITLE'   Removed',(≢varsDeleted),'variables prefixed with a single underscore.'
+    2 SUBTITLE'Namespace ',⎕THIS
+    2 SUBTITLE'DEBUG: ',__DEBUG__,' at ⎕FIX time'
+    2 SUBTITLE'Directive PREFIX "',PREFIX,'"'
+    2 SUBTITLE'Loaded requested dfns functions: ',dfnsRequired
+    2 SUBTITLE'Removed',nVarsDeleted,'transient variables prefixed with a single underscore.'
     ok←1
   ∇
   :endsection Initialization Functions
@@ -521,6 +522,7 @@
   registerPatterns PREFIX
   registerDirectives
   reportInitializations loadSessionUtilities expungeSingleUnderscoreVars
+  ⎕EX 'TITLE' 'SUBTITLE'   ⍝ Namespace setup only
 
   :endsection Initializations
 
@@ -549,6 +551,7 @@
   ⍝     -NoBlanks  -Blanks   -B      NOBLANK       Remove Blank output lines
   ⍝     -Edit      -NoEdit   -E      EDIT          If 1, edit the intermediate file (for viewing only)
   ⍝     -Prompt    -NoPrompt -P      PROMPT        If 1, prompt for input and process sequentially.
+  ⍝                                                Right arg will be the prompt...
   ⍝     -Quiet     -NOQuiet  -Q      QUIET         1 if neither DEBUG nor VERBOSE
   ⍝     -Fix       -NOFix    -F      FIX           If 1, create an output function via ⎕FIX.
   ⍝     -Help      -NOHelp   -H      HELP          If 1, share HELP info rather than preprocessing.
@@ -654,14 +657,15 @@
               env v←p⊃mVals
               0=env:v
               0::⎕SIGNAL/{
+                ⎕←↑⎕DMX.DM 
                 envNm←(env⊃'NONE' '∆PRE' '∆MY' '∆CALLR')
                 _← '∆PRE Logic error: eval of magic macro "',n,'" in env "',envNm,'" failed: ',CR
                 _,←'     Value: "',(⍕v),'"'
                 _ ⍵
               }11
-              1=env:∊⍕⍎v          ⍝ ∆PRE space
-              2=env:∊⍕∆MYR⍎v      ⍝ ∆MY space
-              3=env:∊⍕∆CALLR⍎v    ⍝ ∆CALLR space
+              1=env:∊⍕⍎⍕v          ⍝ ∆PRE space
+              2=env:∊⍕∆MYR⍎⍕v      ⍝ ∆MY space
+              3=env:∊⍕∆CALLR⍎⍕v    ⍝ ∆CALLR space
               ∘'logic error: unknown environment'∘
         }
     ⍝ mTrue ⍵: Returns 1 if name ⍵ exists and its value is true per ∆CALLR∘∆TRUE
@@ -752,7 +756,7 @@
                           f0←⍵ ∆FLD 0 ⋄ case←⍵.PatternNum∘∊
                           case cDQ cSkip:f0  ⍝ Just skip double quotes until [3] below
                           case cLong:⍕1 mGet f0⊣nmsFnd,←⊂f0          ⍝ Let multilines fail
-                          case cUser:'⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
+                          case cUser: '↑⎕SE.UCMD ',∆QT ⍵ ∆FLD 1          ⍝ ]etc → ⎕SE.UCMD 'etc'
                           ∘Unreachable∘                               ⍝ else: comments
                     }⍠OPTSs⊣⍵
                 }str
@@ -1458,14 +1462,37 @@
               ⎕ED'___'⊣___←↑⊃⎕NGET ⍵⊣⎕←'Help source "',⍵,'"'
         }&'pmsLibrary/docs/∆PRE.help'
         PROMPT: {∆FORCE∘←0          ⍝ Replace with -Prompt option
-          0::∇ ⍬⊣⎕←⎕DMX.(EN EM)
-          in←⍞↓⍨≢⍞←'< '
+        ⍝ if ]box on, will show output lines with 
+        ⍝           ⎕←dfns::disp output;   ELSE  ⎕←output
+          disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
+          p1 p2←⍵{  1≠≢0⊃⍵:⍺ ⍺  ⋄ 1≠0⊃⍵:⍺ ⍺  
+                    p1 p2←⍕¨i1 _←0 1+⌊1⊃⍵ 
+                    p1←'[',p1,']',' '⍴⍨1⌈3-(i1<0)+⌊10⍟|i1+i1=0
+                    p1 p2 
+          }⎕VFI ⍵~'[]'
+          in←⍞↓⍨≢⍞←p1
           0=≢in:_←0
-          0=≢in~' ':∇ ⍬
-          val←∊'-noFix -NoVerbose -noComments -NoBlanks' ⍙PRE in
-          0=≢val~' ':∇ ⍬
-          ∇ {⍵≢⍕out←∆CALLR⍎⍵: ⎕←out ⋄ ⍬}⎕←val
-        }⍬
+          0=≢in~' ':∇ p1
+          mid←∊'-noFix -NoVerbose -noComments -NoBlanks' ⍙PRE in
+          0=≢mid~' ':∇ p2 
+        ⍝ Print input, mid (⍙PRE processed) and output (⍎mid) without duplication.
+          show←{(in mid) out←⍺ ⍵   
+                im←in≡mid ⋄ mo←mid≡out ⋄ oN←out≡⎕NULL
+            im: { mo∨oN: 0  ⋄ 1: ⎕←disp out }0
+                ⍞←CR⊣⍞←mid⊣⍞←'...'↑⍨≢p1
+            1:  { oN:    0  ⋄ 1: ⎕←disp out }0
+          }
+        ⍝ Execute mid in ∆CALLR env, handling any errors...
+          exec←{ 
+          ⍝ Error: print result and continue
+            1000:: ⎕←'Interrupt'
+            0::    ⎕←↑⎕DMX.DM 
+          ⍝ No output: treat as non-error (actually ANY value error anywhere)
+            6:: ⍵⊣in mid show ⎕NULL  
+            ⍵⊣in mid show ∆CALLR⍎mid 
+          }   
+          ∇ p2⊣exec ⍬
+        }⍕⍵
     ⍝ Set prepopulated macros
         ⍝ Declared in outside fn... mNames←mVals←mNameVis←⍬
         _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
@@ -1582,9 +1609,9 @@
     ⍝    ⍺=1: Keep __name__ (on error path or if __DEBUG__=1)
     ⍝    ⍺=0: Delete __name__ unless error (not error and __DEBUG__=0)
     ⍝ Returns ⍵ with NULLs removed...
-        condSave←{⍺←EDIT∨__DEBUG__
+        condSave←{⍺←0≢⍬⍴EDIT∨__DEBUG__
               _←⎕EX tmpNm
-              ⍺:⍎'∆CALLR.',tmpNm,'←⍵~¨NULL'
+              ⍺:⍎'∆CALLR.',tmpNm,'←⍵~¨NULL'  
               ⍵
         }
     ⍝ ERROR PATH
