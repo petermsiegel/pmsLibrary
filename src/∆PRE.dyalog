@@ -93,7 +93,9 @@
       pSQe←∆MAP         _pSQe                  
       pCommentE←∆MAP    '⍝ .*  $'
     ⍝ Use pSkipE when you are scanning SQs or Comments merely to skip them
+    ⍝ Use pSkipComments ONLY if any of your useful patterns might start with a quoted string...
       pSkipE←∆MAP       '(?: (?: ''[^'']*'' )+  |  ⍝ .*  $)'
+      pSkipComments←    '⍝.*$'       
     ⍝ _pNum: A non-complex signed APL number (float or dec)
       _pNum←            '(?: ¯?  (?: \d+ (?: \.\d* )? | \.\d+ ) (?: [eE]¯?\d+ )?  )'~' '
       _pDot←            '(?:  … | \.{2,} )'
@@ -163,7 +165,8 @@
       pMatchBraces←∆MAP   _←     matchPair'{' '}'
       _pBraceX←           _,'(?:\h*&)?'
       pMatchParens←∆MAP _pParen← matchPair'(' ')'
-      _allowFnAtomsInMap←1/' ⍎_pBraceX | ⍎_pParen | '
+      _ALLOW_FN_ATOMS_IN_MAP←0  ⍝ 0 or 1
+      _optlFnAtomsPat←_ALLOW_FN_ATOMS_IN_MAP/' ⍎_pBraceX | ⍎_pParen | '
     ⍝ allowFnAtomsInMap OPTION:
     ⍝ Select whether function atoms
     ⍝    {...} (...)
@@ -172,13 +175,13 @@
     ⍝ is rejected as an atom:
     ⍝   only names, numbers, zilde or quoted strings are allowed.
     ⍝ To allow, enable here:
-      _L←           '(?(DEFINE) (?<atomL>   ⍎_allowFnAtomsInMap    ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))'
-      _R←           '(?(DEFINE) (?<atomR>   ⍎_pBraceX | ⍎_pParen | ⍎pSQe | ⍎_pName | ⍎_pNum | ⍬))'
+      _L←           '(?(DEFINE) (?<atomL>   ⍎_optlFnAtomsPat       ⍎_pSQe | ⍎_pName | ⍎_pNum | ⍬))'
+      _R←           '(?(DEFINE) (?<atomR>   ⍎_pBraceX | ⍎_pParen | ⍎_pSQe | ⍎_pName | ⍎_pNum | ⍬))'
       _L,←          '(?(DEFINE) (?<atomsL>  (?&atomL) (?: \h* (?&atomL) )* ))'
       _R,←          '(?(DEFINE) (?<atomsR>  (?&atomR) (?: \h* (?&atomR) )* ))'
       pAtomListR←∆MAP   _R,' (?<punct>`[`\s]*)         (?<atoms>(?&atomsR))'
-      pAtomListL←∆MAP   _L,' (?<atoms>(?&atomsL)) \h* (?<punct>→[→\s]*) '
-      pAtomTokens←∆MAP¨_pBraceX _pParen pSQe'⎕NULL\b'_pName _pNum'⍬'   
+      pAtomListL←∆MAP   _L,' (?<atoms>(?&atomsL)) \h*  (?<punct>→[→\s]*) '
+      pAtomTokens←∆MAP¨_pBraceX _pParen _pSQe'⎕NULL\b'_pName _pNum'⍬'   
     ⍝ pExpression - matches \(anything\) or an_apl_long_name
       pExpression←∆MAP  '⍎_pParen|⍎_pName'
     ⍝ ::ENUM patterns
@@ -574,7 +577,7 @@
 
     ∆FORCE←1                 ⍝ GLOBALS
     mNames←mVals←mNameVis←⍬  ⍝ GLOBALS: See macro processing...
-    ∆CALLR←1⊃⎕RSI,#          ⍝ GLOBAL
+    ∆CALLR←0⊃⎕RSI,#          ⍝ GLOBAL
   ⍝ See logic after ⍙PRE
 
     ⍙PRE←{⍺←''
@@ -974,7 +977,7 @@
                     }⍠OPTSm⊣⍵
                     tok fnAtom valAtom
                 }
-                str←pSkipE pAtomListL pAtomListR ⎕R{
+                str←pSkipComments pAtomListL pAtomListR ⎕R{    
                     case←⍵.PatternNum∘∊ ⋄ f0←⍵ ∆FLD 0
                     case 0:f0
                     atoms←⍵ ∆FLD'atoms'
@@ -1484,12 +1487,16 @@
           }
         ⍝ Execute mid in ∆CALLR env, handling any errors...
           exec←{ 
+          ⍝ Decode error msgs. Treat shy result specially
           ⍝ Error: print result and continue
-            1000:: ⎕←'Interrupt'
-            0::    ⎕←↑⎕DMX.DM 
-          ⍝ No output: treat as non-error (actually ANY value error anywhere)
-            6:: ⍵⊣in mid show ⎕NULL  
-            ⍵⊣in mid show ∆CALLR⍎mid 
+            1000:: ''⊣⎕←'Interrupt'
+            0:: ''⊣{
+                 en←' [en=',']',⍨(⍕⍵.EN),(⍵.ENX≠0)⊃'' ('.',⍕⍵.ENX)  ⍝ Show EN and ENX (if not 0)
+                 em←(0≠≢⍵.Message)⊃'' (': ',⍵.Message)              ⍝ Show error msg and submsg (if not '')
+              1: ⎕←↑1↓⍵.DM⊣⎕←⍵.EM,en,em
+            }⎕DMX
+            85:: ⍵⊣in mid show ⎕NULL                ⍝ 85: shy result from I-beam. No error
+            ⍵⊣in mid show (∆CALLR.{ 1(85 ⌶) ⍵}mid)  ⍝ 1(85 ⌶)⍵: same as ⍎ exc. shy result triggers error 85
           }   
           ∇ p2⊣exec ⍬
         }⍕⍵
