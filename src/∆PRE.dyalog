@@ -35,7 +35,7 @@
 ⍝ corresponding ∆PRE local variable of the same name.
   ∇ {_ok_}←registerSpecialMacros;specialM
       _ok_←1
-      specialM←'__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__'
+      specialM←'__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__ __LINE__'
       isSpecialMacro←(∊∘(' '(≠⊆⊢)specialM))∘⊂
   ∇
   ⍝ PATTERNS BEGIN
@@ -573,19 +573,19 @@
 
   ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
+  ⍝ DECLARE USER-SETTABLE VARIABLES...
+    __DEBUG__←__DEBUG__
+    __VERBOSE__ ←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
+    __LINE__←1
+    SUBPROMPT NOCOM NOBLANK HELP PROMPT EDIT QUIET FIX←¯1 
+   
     999×__DEBUG__::⎕SIGNAL/⎕DMX.(('∆PRE ',EM)EN)
-
-    ∆FORCE←1                 ⍝ GLOBALS
+    SUBPROMPT←0              ⍝ GLOBALS
     mNames←mVals←mNameVis←⍬  ⍝ GLOBALS: See macro processing...
     ∆CALLR←0⊃⎕RSI,#          ⍝ GLOBAL
   ⍝ See logic after ⍙PRE
 
-    ⍙PRE←{⍺←''
-    ⍝ Special macros: names are LOCAL to ∆PRE...
-      __DEBUG__←__DEBUG__
-      __VERBOSE__←__INCLUDE_LIMITS__←¯1    ⍝ ¯1 simply declare the scope of these items.
-      __MAX_EXPAND__←__MAX_PROGRESSION__←¯1
-
+    ⍙PRE←{⍺←'' 
     ⍝ -------------------------------------------------------------------
     ⍝ Local DEBUG / VERBOSE-sensitive annotation or print routines...
     ⍝ annotate: see _annotate
@@ -1442,47 +1442,53 @@
     ⍝  -NOEDIT (unless ⎕NULL is right arg),
     ⍝  -NOHELP, QUIET
         opt←(lc,⍺)∘{w←'-',lc ⍵ ⋄ 1∊w⍷⍺}                  ⍝ ⍺: options passed by user
-        __VERBOSE__←(~opt'noV')                          ⍝ Default 1. Special: Settable via ::DEF
-        __DEBUG__←(opt'D')                               ⍝ Default 0. Special: Settable via ::DEF
-        NOCOM NOBLANK HELP←opt¨'noC' 'noB' 'H'           ⍝ Default 1 1 1
-        PROMPT←opt'P'                                    ⍝ Default 0
-        EDIT←(~opt'noE')∧(⎕NULL≡⍬⍴⍵)∨opt'E'              ⍝ Default 0; 1 if ⍵≡∊⎕NULL     
-        QUIET←__VERBOSE__⍱__DEBUG__                      ⍝ Default 1
-        FIX←~opt'noF'                                    ⍝ Default 1
+        __DEBUG__ __VERBOSE__ SUBPROMPT  NOCOM NOBLANK HELP PROMPT EDIT QUIET FIX∘←{ 
+        ⍝ :IF -SUBPROMPT
+          opt 'SubPrompt':{ ⍝   -NoFix -NoVerbose -noComments -NoBlanks 
+             __DEBUG__ __VERBOSE__ 1  1 1 0 0 0 1 0
+          }⍬
+        ⍝ ELSE...
+          sub←0
+          ver←(~opt'noV')                          ⍝ Default 1. Special: Settable via ::DEF
+          deb←(opt'D')                             ⍝ Default 0. Special: Settable via ::DEF
+          noc nob hlp←opt¨'noC' 'noB' 'H'          ⍝ Default 1 1 1
+          pro←opt'P'                               ⍝ Default 0
+          edt←(~opt'noE')∧(⎕NULL≡⍬⍴⍵)∨opt'E'       ⍝ Default 0; 1 if ⍵≡∊⎕NULL     
+          qui←ver⍱deb                              ⍝ Default 1
+          fix←~opt'noF'                            ⍝ Default 1
+          deb ver sub  noc nob hlp pro edt qui fix 
+        }⍬
         _←{ ⍝ Option information
               ⍺←0 ⋄ ~__DEBUG__∨⍺:0
               ø←4⍴' '
               ⎕←'Options: "','"',⍨{⍵/⍨~'  '⍷⍵}lc ⍵
-              ⍞←ø,'Verbose: ',__VERBOSE__ ⋄ ⍞←ø,'Debug:   ',__DEBUG__
-              ⍞←ø,'NoCom:   ',NOCOM ⋄ ⍞←ø,'NoBlanks:',NOBLANK,CR
-              ⍞←ø,'Edit:    ',EDIT ⋄ ⍞←ø,'Quiet:   ',QUIET
-              ⍞←ø,'Help:    ',HELP ⋄ ⍞←ø,'Fix:     ',FIX,CR
-              ⍞←ø,'Prompt:  ',PROMPT,CR
+              ⍞←ø,'Verbose: ',__VERBOSE__ ⋄ ⍞←ø,'Debug:    ',__DEBUG__
+              ⍞←ø,'NoCom:   ',NOCOM       ⋄ ⍞←ø,'NoBlanks: ',NOBLANK,CR
+              ⍞←ø,'Edit:    ',EDIT        ⋄ ⍞←ø,'Quiet:    ',QUIET
+              ⍞←ø,'Help:    ',HELP        ⋄ ⍞←ø,'Fix:      ',FIX,CR
+              ⍞←ø,'Prompt:  ',PROMPT      ⋄ ⍞←ø,'SubPrompt:',SUBPROMPT,CR
               0
         }⍺
     ⍝ HELP PATH; currently an external file...
         HELP:{
               ⎕ED'___'⊣___←↑⊃⎕NGET ⍵⊣⎕←'Help source "',⍵,'"'
         }&'pmsLibrary/docs/∆PRE.help'
-        PROMPT: {∆FORCE∘←0          ⍝ Replace with -Prompt option
+        PROMPT: {        
         ⍝ if ]box on, will show output lines with 
         ⍝           ⎕←dfns::disp output;   ELSE  ⎕←output
           disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
-          p1 p2←⍵{  1≠≢0⊃⍵:⍺ ⍺  ⋄ 1≠0⊃⍵:⍺ ⍺  
-                    p1 p2←⍕¨i1 _←0 1+⌊1⊃⍵ 
-                    p1←'[',p1,']',' '⍴⍨1⌈3-(i1<0)+⌊10⍟|i1+i1=0
-                    p1 p2 
-          }⎕VFI ⍵~'[]'
-          in←⍞↓⍨≢⍞←p1
+        ⍝ Prompt line # is formatted from __LINE__
+          pr ← {'[',(⍕⍵),']',' '⍴⍨1⌈3-(⍵<0)+⌊10⍟|⍵+⍵=0}__LINE__
+          in←⍞↓⍨≢⍞←pr
           0=≢in:_←0
-          0=≢in~' ':∇ p1
-          mid←∊'-noFix -NoVerbose -noComments -NoBlanks' ⍙PRE in
-          0=≢mid~' ':∇ p2 
+          0=≢in~' ':∇ ⍬
+          mid←∊'-SubPrompt' ⍙PRE in
+          0=≢mid~' ':∇ ⍬ 
         ⍝ Print input, mid (⍙PRE processed) and output (⍎mid) without duplication.
           show←{(in mid) out←⍺ ⍵   
                 im←in≡mid ⋄ mo←mid≡out ⋄ oN←out≡⎕NULL
             im: { mo∨oN: 0  ⋄ 1: ⎕←disp out }0
-                ⍞←CR⊣⍞←mid⊣⍞←'...'↑⍨≢p1
+                ⍞←CR⊣⍞←mid⊣⍞←'...'↑⍨≢pr
             1:  { oN:    0  ⋄ 1: ⎕←disp out }0
           }
         ⍝ Execute mid in ∆CALLR env, handling any errors...
@@ -1498,14 +1504,14 @@
             85:: ⍵⊣in mid show ⎕NULL                ⍝ 85: shy result from I-beam. No error
             ⍵⊣in mid show (∆CALLR.{ 1(85 ⌶) ⍵}mid)  ⍝ 1(85 ⌶)⍵: same as ⍎ exc. shy result triggers error 85
           }   
-          ∇ p2⊣exec ⍬
+          ∇ ⍬⊣exec ⍬
         }⍕⍵
     ⍝ Set prepopulated macros
         ⍝ Declared in outside fn... mNames←mVals←mNameVis←⍬
         _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
         _←0 mPut'__VERBOSE__'__VERBOSE__
         _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
-    ⍝                                       ⍝ Avoids runaway recursion...
+    ⍝                                           ⍝ Avoids runaway recursion...
         _←0 mPut'__MAX_PROGRESSION__' 250       ⍝ ≤250 expands at preproc time.
         _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
     ⍝ Other user-oriented macros
@@ -1527,7 +1533,7 @@
     ⍝ Then set up FIRST, which is 1 the first time ANY function in <__FILE__> is called.
     ⍝ And set up ∆CONST (for enums and other constants) within ∆MY.
         ∆MY←(⍕∆CALLR),'.⍙⍙.',__FILE__,'.∆MY'
-        ∆MYR←⍎∆MY ⎕NS''⊣⎕EX⍣∆FORCE⊣∆MY
+        ∆MYR←⍎∆MY ⎕NS''⊣⎕EX⍣(~SUBPROMPT)⊣∆MY
         _←'∆CONST'∆MYR.⎕NS''             ⍝ (Static) constant namespace.
         ∆MYR._FIRST_←1
         _←∆MYR.⎕FX'F←FIRST' '(F _FIRST_)←_FIRST_ 0'
@@ -1539,7 +1545,7 @@
         _←0 mPut'⎕NOTIN' '{~⍺∊⍵}'                ⍝ See ∉ ⎕UCS 8713
     ⍝  mPut magic: Declare macros evaluated at ∆PRE time via ⍎.
     ⍝   ⍺: 1 (PRE env), 2 (⎕MY static), 3 (CALLER)
-        _←0 1 mPut'__LINE__' '__LINE__'
+        _←0 1 mPut'__LINE__' __LINE__
         _←0 1 mPut'__FILE__' '__FILE__'
         _←0 1 mPut'__TS__' '⎕TS'
         _←0 2 mPut'__STATIC__' '⎕THIS'
@@ -1552,7 +1558,7 @@
         _←0 1 mPut'⎕T' 'getTempName 0'
 
     ⍝ Other Initializations
-        stack←,1 ⋄ (__LINE__ warningCount errorCount)←0
+        stack←,1 ⋄ (warningCount errorCount)←0
         includedFiles←⊂fullNm
         NLINES←≢dataIn ⋄ NWIDTH←⌈10⍟NLINES
         _←dPrint'Processing input object ',(∆DQT __FILE__),' from file ',∆DQT fullNm
