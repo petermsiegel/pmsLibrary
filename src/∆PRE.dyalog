@@ -24,7 +24,7 @@
 ⍝   NOch  - path not taken (false conditional).
 ⍝   SKIPch- skipped because it is governed by a conditional that was false.
 ⍝   INFOch- added information.
-  YESch NOch SKIPch INFOch  MSGch WARNch ERRch←' ✓' ' 😞' ' 🚫' ' 💡' '💡' '⚠️' '🚫'
+  YESch NOch SKIPch INFOch  MSGch WARNch ERRch←' ✓' ' ✖' ' ⏩' ' 😄' '💡' '⚠️' ' ⃠ '
 ⍝ EMPTY: Marks (empty) ∆PRE-generated lines to be deleted before ⎕FIXing
   EMPTY←,NULL
   OPTSs←('UCP' 1)('IC' 1)                    ⍝ For single line matches
@@ -36,7 +36,7 @@
   ∇ {_ok_}←registerSpecialMacros;specialM
       _ok_←1
       specialM←'__DEBUG__ __VERBOSE__ __INCLUDE_LIMITS__ __MAX_EXPAND__ __MAX_PROGRESSION__ __LINE__'
-      isSpecialMacro←(∊∘(' '(≠⊆⊢)specialM))∘⊂
+      isSpecialMacro←(∊∘(' '(≠⊆⊢)specialM))∘⊂   ⍝ EXTERN
   ∇
   ⍝ PATTERNS BEGIN
   ⍝   matchPair(left right)     Creates distinct patterns for matching paired items...
@@ -51,7 +51,6 @@
     ∇ {_ok_}←registerPatterns PREFIX
       _ok_←1
       pInDirectiveE←    '^\h*\Q',PREFIX,'\E'
-
     ⍝ Process double quotes and continuation lines that may cross lines
       _pTarg←           '[^\h←]+ '
     ⍝ Note that we allow a null \0 to be the initial char. of a name.
@@ -233,7 +232,6 @@
     ⍝ [1] DEFINITIONS
     ⍝ -------------------------------------------------------------------------
       regDirCOUNTER←0 ⋄ patternList←patternName←⍬
-
     ⍝ regDir:    name [isD:1] ∇ pattern
     ⍝ ⍺: name [isDirctv].
     ⍝    name:  name of pattern.
@@ -324,6 +322,7 @@
           x←'(?x)' ⋄ ∆,⍨x/⍨x≢∆↑⍨≢x
         }
       :ELSE 
+        SUBTITLE 'Patterns have spaces removed (and no ?x prefix) in non-DEBUG Mode'
         ∆MAP←{⍺←15 ⋄ pat←⍵ ⋄ ⍙←{0::'[:UNDEFINED VAR:]'⊣pat ∆MAPerror ⍵ ⋄ ⍎1↓⍵ ∆FLD 0}
           ∆←'⍎[\w_∆⍙⎕]+'⎕R ⍙ ⍠'UCP' 1⊣⍵  ⋄ (⍺>0)∧∆≢,⍵:(⍺-1)∇ ∆ 
           ∆~' '
@@ -348,7 +347,7 @@
   ⍝ ∆H2D: Converts hex to decimal, silently ignoring chars not in 0-9a-fA-F, including
   ⍝       blanks or trailing X symbols. (You don't need to remove X or blanks first.)
     ∆H2D←{   ⍝ Decimal from hexadecimal
-      11::'∆PRE hex number (0..X) too large'⎕SIGNAL 11
+      11::'∆PRE hex number (0..X) too large to represent in decimal'⎕SIGNAL 11
       16⊥16|a⍳⍵∩a←'0123456789abcdef0123456789ABCDEF'
     }
 
@@ -490,6 +489,15 @@
     ⎕SE.⍙to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
   ⍝ ⍙notin: not ∊
     ⎕SE.⍙notin←{~⍺∊⍵}
+  ⍝ ⍙plot:    [type: Bar, etc] ⎕PLOT arg
+  ⍝           arg: e.g. 1 2 3 4 5
+  ⍝                 or  'A B C' :where A←⍳10 :where B←○⍳10 :where C←1 3 5
+    ⎕SE.⍙plot←{⍺←'' ⋄ ⎕IO←0
+     NS←⊃⎕RSI
+     0::'INVALID PLOT'⎕SIGNAL 11
+     type←(0≠≢⍺~' ')⊃⍺(' -type=',⍺)
+     NS ⎕SE.UCMD∊'Plot ',(⍕⍵),type
+    }
   ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
     dfnsDest←'⎕SE.dfns'
     dfnsRequired←'pco'  'disp'
@@ -573,10 +581,12 @@
 
   ⍝ ∆PRE - For all documentation, see ∆PRE.help in (github) Docs.
   ∆PRE←{⍺←''
-  ⍝ DECLARE USER-SETTABLE VARIABLES...
-    __DEBUG__←__DEBUG__
+  ⍝ DECLARE USER-SETTABLE VARIABLES that CAN or SHOULD continue over 
+  ⍝ ⍙PRE (del-underscore...) calls used in PROMPTs. 
+    __DEBUG__←__DEBUG__    ⍝ Inherit default __DEBUG__ from the ∆PREns namespace
     __VERBOSE__ ←__INCLUDE_LIMITS__←__MAX_EXPAND__←__MAX_PROGRESSION__←¯1
-    __LINE__←1
+    __LINE__←1             ⍝ 1st line number. Used in PROMPTs and in messages.
+  ⍝ Option values. ¯1: undefined but local here. 1: True. 0: False.
     SUBPROMPT NOCOM NOBLANK HELP PROMPT EDIT QUIET FIX←¯1 
    
     999×__DEBUG__::⎕SIGNAL/⎕DMX.(('∆PRE ',EM)EN)
@@ -584,7 +594,7 @@
     mNames←mVals←mNameVis←⍬  ⍝ GLOBALS: See macro processing...
     ∆CALLR←0⊃⎕RSI,#          ⍝ GLOBAL
   ⍝ See logic after ⍙PRE
-
+  ⍝ ⍙PRE: Internal utility only. Not user-callable...
     ⍙PRE←{⍺←'' 
     ⍝ -------------------------------------------------------------------
     ⍝ Local DEBUG / VERBOSE-sensitive annotation or print routines...
@@ -1482,9 +1492,12 @@
           in←⍞↓⍨≢⍞←pr
           0=≢in:_←0
           0=≢in~' ':∇ ⍬
-          mid←∊'-SubPrompt' ⍙PRE in
-          0=≢mid~' ':∇ ⍬ 
+          mid←∊'-SubPrompt' ⍙PRE in       ⍝ Compile string <in> into string <mid>
+          0=≢mid~' ':∇ ⍬                  ⍝ Null? Go another round.
         ⍝ Print input, mid (⍙PRE processed) and output (⍎mid) without duplication.
+        ⍝ If in and mid are the same, show only <in>. 
+        ⍝ If mid and out are the same, show only <mid>.
+        ⍝ If out is NULL, don't show it at all; e.g. <mid> is shy / an assignment.
           show←{(in mid) out←⍺ ⍵   
                 im←in≡mid ⋄ mo←mid≡out ⋄ oN←out≡⎕NULL
             im: { mo∨oN: 0  ⋄ 1: ⎕←disp out }0
@@ -1502,7 +1515,7 @@
               1: ⎕←↑1↓⍵.DM⊣⎕←⍵.EM,en,em
             }⎕DMX
             85:: ⍵⊣in mid show ⎕NULL                ⍝ 85: shy result from I-beam. No error
-            ⍵⊣in mid show (∆CALLR.{ 1(85 ⌶) ⍵}mid)  ⍝ 1(85 ⌶)⍵: same as ⍎ exc. shy result triggers error 85
+            ⍵⊣in mid show (∆CALLR.{ 1(85 ⌶) ⍵}mid)  ⍝ 1(85 ⌶)⍵: Like ⍎, except shy result triggers error 85
           }   
           ∇ ⍬⊣exec ⍬
         }⍕⍵
@@ -1512,18 +1525,20 @@
         _←0 mPut'__VERBOSE__'__VERBOSE__
         _←0 mPut'__MAX_EXPAND__' 10             ⍝ Allow macros to be expanded n times (if any changes were detected).
     ⍝                                           ⍝ Avoids runaway recursion...
-        _←0 mPut'__MAX_PROGRESSION__' 250       ⍝ ≤250 expands at preproc time.
+        _←0 mPut'__MAX_PROGRESSION__' 250       ⍝ n1 [n2]..n3:  ≤250 expands at preproc time.
         _←0 mPut'__INCLUDE_LIMITS__'(5 10)      ⍝ [0] warn limit [1] error limit
     ⍝ Other user-oriented macros
         _←0 mPut'⎕UCMD' '⎕SE.UCMD'              ⍝ ⎕UCMD 'box on -fns=on' ≡≡ ']box on -fns=on'
         _←0 mPut'⎕DICT' 'SimpleDict '           ⍝ d← {default←''} ⎕DICT entries
-                                        ⍝ entries: (key-val pairs | ⍬)
+                                                ⍝ entries: (key-val pairs | ⍬)
         _←0 mPut'⎕FORMAT' '∆format'             ⍝ Requires ∆format in ⎕PATH...
         _←0 mPut'⎕F' '∆format'                  ⍝ ⎕F → ⎕FORMAT → ∆format
         _←0 mPut'⎕EVAL' '⍎¨0∘∆PRE '
     ⍝ Add ⎕DFNS call - to provide access to common dfns
         _←0 mPut'⎕DFNS' '⎕SE.dfns'
-        _←0 mPut'⎕PLOT' '{⎕SE.UCMD ''Plot '',⍵}'
+        _←0 mPut'⎕PLOT'  '⎕SE.⍙plot'
+    ⍝ Some nice eye candy
+        _←0 mPut ':WHERE' '⊢'
 
     ⍝ Read in data file...
         __FILE__ fullNm dataIn←∆CALLR∘getDataIn(⊆⍣(~FIX))⍵
