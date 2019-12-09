@@ -1454,7 +1454,7 @@
         opt←(lc,⍺)∘{w←'-',lc ⍵ ⋄ 1∊w⍷⍺}                  ⍝ ⍺: options passed by user
         __DEBUG__ __VERBOSE__ SUBPROMPT  NOCOM NOBLANK HELP PROMPT EDIT QUIET FIX∘←{ 
         ⍝ :IF -SUBPROMPT
-          opt 'SubPrompt':{ ⍝   -NoFix -NoVerbose -noComments -NoBlanks 
+          opt 'SubPrompt':{ ⍝    
              __DEBUG__ __VERBOSE__ 1  1 1 0 0 0 1 0
           }⍬
         ⍝ ELSE...
@@ -1489,19 +1489,25 @@
           disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
         ⍝ Prompt line # is formatted from __LINE__
           pr ← {'[',(⍕⍵),']',' '⍴⍨1⌈3-(⍵<0)+⌊10⍟|⍵+⍵=0}__LINE__
-          in←⍞↓⍨≢⍞←pr
-          0=≢in:_←0
-          0=≢in~' ':∇ ⍬
+          in stmtBuf←pr {1=≡⍵: ⍺ ∇ ⊂⍵ ⋄ p←≢⍞←⍺ ⋄ (⍵≡⊂'')∨0=≢b←⍵: (p↓⍞)b ⋄ ⍞←NL,⍨⊃b ⋄ (⊃b)(1↓b)}⍵
+          0=≢in: ⍬
+          0=≢in~' ':∇ stmtBuf
           mid←∊'-SubPrompt' ⍙PRE in       ⍝ Compile string <in> into string <mid>
-          0=≢mid~' ':∇ ⍬                  ⍝ Null? Go another round.
+          0=≢mid~' ':∇ stmtBuf            ⍝ Null? Go another round.
         ⍝ Print input, mid (⍙PRE processed) and output (⍎mid) without duplication.
         ⍝ If in and mid are the same, show only <in>. 
         ⍝ If mid and out are the same, show only <mid>.
         ⍝ If out is NULL, don't show it at all; e.g. <mid> is shy / an assignment.
-          show←{(in mid) out←⍺ ⍵   
+          clip1←{ 
+            MAX←(20⌈4×⎕PW) ⋄  v←,⍕⍵
+            MAX<r←⍴v:' ✄ ✄ ✄ ',⍨(MAX⌊r)↑v
+            ⍵ 
+          }
+          show←{pw←⎕PW 
+            (in mid) out←⍺ ⍵   
                 im←in≡mid ⋄ mo←mid≡out ⋄ oN←out≡⎕NULL
             im: { mo∨oN: 0  ⋄ 1: ⎕←disp out }0
-                ⍞←CR⊣⍞←mid⊣⍞←'...'↑⍨≢pr
+                ⍞←CR⊣⍞←clip1 mid⊣⍞←'...'↑⍨≢pr
             1:  { oN:    0  ⋄ 1: ⎕←disp out }0
           }
         ⍝ Execute mid in ∆CALLR env, handling any errors...
@@ -1515,10 +1521,12 @@
               1: ⎕←↑1↓⍵.DM⊣⎕←⍵.EM,en,em
             }⎕DMX
             85:: ⍵⊣in mid show ⎕NULL                ⍝ 85: shy result from I-beam. No error
-            ⍵⊣in mid show (∆CALLR.{ 1(85 ⌶) ⍵}mid)  ⍝ 1(85 ⌶)⍵: Like ⍎, except shy result triggers error 85
+            execute←∆CALLR.{ 1(85⌶) ⍵} ⋄ preprocessed_expression←mid
+            result←execute preprocessed_expression
+            ⍵⊣in mid show result  ⍝ 1(85 ⌶)⍵: Like ⍎, except shy result triggers error 85
           }   
-          ∇ ⍬⊣exec ⍬
-        }⍕⍵
+          ∇ stmtBuf⊣exec ⍬
+        }⍵
     ⍝ Set prepopulated macros
         ⍝ Declared in outside fn... mNames←mVals←mNameVis←⍬
         _←0 mPut'__DEBUG__'__DEBUG__            ⍝ Debug: set in options or caller env.
@@ -1540,8 +1548,8 @@
     ⍝ Some nice eye candy
         _←0 mPut ':WHERE' '⊢'
 
-    ⍝ Read in data file...
-        __FILE__ fullNm dataIn←∆CALLR∘getDataIn(⊆⍣(~FIX))⍵
+    ⍝ Read in data file... 
+        __FILE__ fullNm dataIn← ∆CALLR∘getDataIn (⊆⍣(~FIX))⍵
         tmpNm←'__',__FILE__,'__'
 
     ⍝ Set up ⎕MY("static") namespace, local to the family of objects in <__FILE__>
@@ -1677,7 +1685,7 @@
   ⍝ Logic of ∆PRE...
      0≡⍺:  '-noFix  -noVerbose -noComments'  ⍙PRE ⍵
     ¯1≡⍺:↑ '-noFix    -Verbose -Debug'       ⍙PRE ⍵
-     1≡⍺:  '-prompt -noVerbose -noComments'  ⍙PRE ⍵
+     1≡⍺:  '-prompt  -noFix -noVerbose -noComments'  ⍙PRE ⍵
      1:⍺ ⍙PRE ⍵
   }
   ##.∆PRE←⎕THIS.∆PRE
