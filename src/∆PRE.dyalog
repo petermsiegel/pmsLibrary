@@ -130,6 +130,7 @@
     ⍝ pShortNmE Short names are of the form a or b or c in a.b.c
       pLongNmE←∆MAP   '⍎_pLongNmOnly'
       pShortNmE←∆MAP  '⍎_pShortNmPfx'       ⍝ Can be part of a longer name as a pfx. To allow ⎕XX→∆MAPX
+
     ⍝ Convert multiline quoted strings "..." to single lines ('...',CR,'...')
     ⍝ Allow semicolons at right margin-- to be kept!
       pContE←∆MAP     '\h* (\.{2,}|…|;) \h* (   ⍝ .*)? \n \h*'
@@ -161,9 +162,9 @@
     ⍝        ave←(+/÷≢)  or   ⎕FX 'r←ave v' 'r←(+/v)÷≢v' et cetera.
     ⍝ Function atoms are not used to the left of a right arrow (see atom → value above)
     ⍝ Note: a 2nd ` is not allowed for function atoms.
-      pMatchBraces←∆MAP   _←     matchPair'{' '}'
-      _pBraceX←           _,'(?:\h*&)?'
-      pMatchParens←∆MAP _pParen← matchPair'(' ')'
+      pMatchBraces←∆MAP  _pBrace← matchPair'{' '}'
+      _pBraceX←           _pBrace,'(?:\h*&)?'
+      pMatchParens←∆MAP  _pParen← matchPair'(' ')'
       _ALLOW_FN_ATOMS_IN_MAP←0  ⍝ 0 or 1
       _optlFnAtomsPat←_ALLOW_FN_ATOMS_IN_MAP/' ⍎_pBraceX | ⍎_pParen | '
     ⍝ allowFnAtomsInMap OPTION:
@@ -201,6 +202,8 @@
       pListAtoms←∆MAP '`{0,2}\h*( ⍎_pSQe | ⍎_pNameX | ⍎_pNumX )'
       pNullRightArrowE←∆MAP '→ (\h*) (?= [][{}):;⋄] | $ )'
       pNullLeftArrowE← ∆MAP '(?<= [[(:;⋄]  | ^) (\h*)  ←'
+
+      pCodeE←          ∆MAP'(?<L> ⍎_pAtom | ⍎_pParen | ⍎_pBrace)\h*:(?<OP>AND|OR)\h*(?<R>(?1))'
 
     ⍝ -------------------------------------------------------
     ⍝ String/Name catenation variables:  n1∘∘n2 "s1"∘∘"s2"
@@ -297,7 +300,7 @@
   ⍝ Returns <val> the value of the field or ''
     ∆FLD←{
       ns←⍺
-      ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂⍵
+      ' '=1↑0⍴⍵:ns ∇ ns.Names⍳⊂,⍵
       ⍵=0:ns.Match                          ⍝ Fast way to get whole match
       ⍵≥≢ns.Lengths:''                      ⍝ Field not defined AT ALL → ''
       ns.Lengths[⍵]=¯1:''                   ⍝ Defined field, but not used HERE (within this submatch) → ''
@@ -498,9 +501,16 @@
      type←(0≠≢⍺~' ')⊃⍺(' -type=',⍺)
      NS ⎕SE.UCMD∊'Plot ',(⍕⍵),type
     }
+    ⎕SE.⍙and←{   ⍝ Modified from dfns to allow non-fn ⍺⍺/⍵⍵ args
+     ⍺⍺ ⊣ ⍵:⍵⍵ ⊣ ⍵ ⋄ 0         
+    }                         
+    ⎕SE.⍙or←{    ⍝  Modified from dfns to allow non-fn ⍺⍺/⍵⍵ args                 
+     ⍺⍺ ⊣ ⍵:1 ⋄ ⍵⍵ ⊣ ⍵     
+    }                         
+
   ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
     dfnsDest←'⎕SE.dfns'
-    dfnsRequired←'pco'  'disp'
+    dfnsRequired←'pco'  'disp'  
     _←dfnsDest{           ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
           nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
           ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
@@ -1051,6 +1061,15 @@
                     pSQe ⎕R{∆UNQ ⍵ ∆FLD 0}⊣1↓¯1↓⍵ ∆FLD 1  ⍝ Omit outermost parens
                 }str
 
+                ⍝ fn :AND fn,  fn :OR fn
+                ⍝     pCodeE: L, R args; OP: either ':AND' or ':OR'
+                str←pSkipE pCodeE ⎕R{
+                  0=⍵.PatternNum:⍵ ∆FLD 0
+                  L R←⍵ ∆FLD¨ 'L' 'R'
+                  OP←' ⎕SE.⍙',{'o'=lc ⊃⍵: 'or '  ⋄ 'and '}⍵ ∆FLD 'OP'  ⍝ Map OP to ⎕SE.⍙and, ⎕SE.⍙or 
+                  ∆PARENS L, OP, R,'⊣⍬'   
+                }str
+
                 ⍝ Miscellaneous tweaks... 
                 str←∊(⊂'⎕SE.⍙notin ')@(NOTINSET∘=)⊢str
                 ⍝ Do we scan the string again?
@@ -1484,10 +1503,7 @@
               ⎕ED'___'⊣___←↑⊃⎕NGET ⍵⊣⎕←'Help source "',⍵,'"'
         }&'pmsLibrary/docs/∆PRE.help'
         PROMPT: {        
-        ⍝ if ]box on, will show output lines with 
-        ⍝           ⎕←dfns::disp output;   ELSE  ⎕←output
-          disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
-        ⍝ Prompt line # is formatted from __LINE__
+         ⍝ Prompt line # is formatted from __LINE__
           pr ← {'[',(⍕⍵),']',' '⍴⍨1⌈3-(⍵<0)+⌊10⍟|⍵+⍵=0}__LINE__
           in stmtBuf←pr {1=≡⍵: ⍺ ∇ ⊂⍵ ⋄ p←≢⍞←⍺ ⋄ (⍵≡⊂'')∨0=≢b←⍵: (p↓⍞)b ⋄ ⍞←NL,⍨⊃b ⋄ (⊃b)(1↓b)}⍵
           0=≢in: ⍬
@@ -1498,20 +1514,20 @@
         ⍝ If in and mid are the same, show only <in>. 
         ⍝ If mid and out are the same, show only <mid>.
         ⍝ If out is NULL, don't show it at all; e.g. <mid> is shy / an assignment.
-          clip1←{ 
-            MAX←(20⌈4×⎕PW) ⋄  v←,⍕⍵
-            MAX<r←⍴v:' ✄ ✄ ✄ ',⍨(MAX⌊r)↑v
-            ⍵ 
-          }
-          show←{pw←⎕PW 
-            (in mid) out←⍺ ⍵   
-                im←in≡mid ⋄ mo←mid≡out ⋄ oN←out≡⎕NULL
-            im: { mo∨oN: 0  ⋄ 1: ⎕←disp out }0
-                ⍞←CR⊣⍞←clip1 mid⊣⍞←'...'↑⍨≢pr
-            1:  { oN:    0  ⋄ 1: ⎕←disp out }0
-          }
         ⍝ Execute mid in ∆CALLR env, handling any errors...
           exec←{ 
+            show←{ 
+              clipV←{ ⍺←4×⎕PW ⋄ shp←⍴vec←,⍕⍵ ⋄ ⍺≥shp: ⍵ ⋄ ⍺<shp:' ✄ ✄ ✄ ',⍨(⍺⌊shp)↑vec}
+              ⍝ if ]box on, will show output lines with 
+              ⍝ ⎕←dfns::disp output;   ELSE  ⎕←output
+              disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
+              (in mid) out←⍺ ⍵   
+              im←in≡mid ⋄ mo←mid≡⍕out ⋄ oN←out≡⎕NULL
+              im: { oN: 0  ⋄ 1: ⎕←disp out }0
+              mo: ⎕←disp out
+              ⍞←CR⊣⍞←clipV mid⊣⍞←'...'↑⍨≢pr
+              1:  { oN:    0  ⋄ 1: ⎕←disp out }0
+            }
           ⍝ Decode error msgs. Treat shy result specially
           ⍝ Error: print result and continue
             1000:: ''⊣⎕←'Interrupt'
@@ -1521,7 +1537,9 @@
               1: ⎕←↑1↓⍵.DM⊣⎕←⍵.EM,en,em
             }⎕DMX
             85:: ⍵⊣in mid show ⎕NULL                ⍝ 85: shy result from I-beam. No error
-            execute←∆CALLR.{ 1(85⌶) ⍵} ⋄ preprocessed_expression←mid
+          ⍝ Execute using user-friendly names-- so if __DEBUG__, the displayed stmt is self-documenting...
+            execute←∆CALLR.{ 1(85⌶) ⍵} 
+            preprocessed_expression←mid
             result←execute preprocessed_expression
             ⍵⊣in mid show result  ⍝ 1(85 ⌶)⍵: Like ⍎, except shy result triggers error 85
           }   
@@ -1545,9 +1563,15 @@
     ⍝ Add ⎕DFNS call - to provide access to common dfns
         _←0 mPut'⎕DFNS' '⎕SE.dfns'
         _←0 mPut'⎕PLOT'  '⎕SE.⍙plot'
+    ⍝ Consider adding :AND and :OR with syntax:
+    ⍝        L :AND R    or L :OR R
+    ⍝            L, R of the form: (NAME | (PAREN_STRING) | {DFN}) 
+    ⍝ evaluated as:
+    ⍝        (L ⎕SE.dfns.and R ⍬)      (L ⎕SE.dfns.or R ⍬)
+        _←0 mPut'⎕AND'   '⎕SE.⍙and'
+        _←0 mPut '⎕OR'   '⎕SE.⍙or'
     ⍝ Some nice eye candy
         _←0 mPut ':WHERE' '⊢'
-
     ⍝ Read in data file... 
         __FILE__ fullNm dataIn← ∆CALLR∘getDataIn (⊆⍣(~FIX))⍵
         tmpNm←'__',__FILE__,'__'
