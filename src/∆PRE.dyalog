@@ -510,7 +510,7 @@
 
   ⍝ Copy utility functions from ws dfns to ⎕SE.dfns
     dfnsDest←'⎕SE.dfns'
-    dfnsRequired←'pco'  'disp'  
+    dfnsRequired←'pco'  
     _←dfnsDest{           ⍝ ⍺:   name of destination; ⍵: list of dfns to put there
           nsR←⍎⍺ ⎕NS''      ⍝ nsR: ref for dest
           ~0∊nsR.⎕NC ⍵:⍬    ⍝ All there? Do nothing
@@ -599,7 +599,7 @@
   ⍝ Option values. ¯1: undefined but local here. 1: True. 0: False.
     SUBPROMPT NOCOM NOBLANK HELP PROMPT EDIT QUIET FIX←¯1 
    
-    999×__DEBUG__::⎕SIGNAL/⎕DMX.(('∆PRE ',EM)EN)
+    _DEBUG__↓0::⎕SIGNAL/⎕DMX.(('∆PRE ',EM)EN)
     SUBPROMPT←0              ⍝ GLOBALS
     mNames←mVals←mNameVis←⍬  ⍝ GLOBALS: See macro processing...
     ∆CALLR←0⊃⎕RSI,#          ⍝ GLOBAL
@@ -1519,8 +1519,10 @@
             show←{ 
               clipV←{ ⍺←4×⎕PW ⋄ shp←⍴vec←,⍕⍵ ⋄ ⍺≥shp: ⍵ ⋄ ⍺<shp:' ✄ ✄ ✄ ',⍨(⍺⌊shp)↑vec}
               ⍝ if ]box on, will show output lines with 
-              ⍝ ⎕←dfns::disp output;   ELSE  ⎕←output
-              disp←{'N'=4⌷⎕SE.UCMD 'BOX':⎕SE.dfns.disp ⍵ ⋄ ⍵}
+              ⍝     ⎕←dfns::disp output;   ELSE  ⎕←output
+              ⍝ For speed, check ]box state via
+              ⍝     ⎕SE.Dyalog.Out.B.state≡'on' ('on' | 'off'). See also ...B.fns
+              disp←{'on'≡⎕SE.Dyalog.Out.B.state: ⎕SE.Dyalog.Utils.disp ⍵ ⋄ ⍵}
               (in mid) out←⍺ ⍵   
               im←in≡mid ⋄ mo←mid≡⍕out ⋄ oN←out≡⎕NULL
               im: { oN: 0  ⋄ 1: ⎕←disp out }0
@@ -1675,7 +1677,7 @@
               ⍵
         }
     ⍝ ERROR PATH
-        999×__DEBUG__::11 ⎕SIGNAL⍨{
+        __DEBUG__↓0::11 ⎕SIGNAL⍨{
               _←1 condSave ⍵
               _←'Preprocessor error. Generated object for input "',__FILE__,'" is invalid.',⎕TC[2]
               _,'See preprocessor output: "',tmpNm,'"'
