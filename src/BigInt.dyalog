@@ -249,7 +249,7 @@
         ⍝      to 1, if BI/X was called 2-adically;
         ⍝      to 2, if called 1-adically, i.e. a "selfie":   ×⍨BI 3 ==> 3 ×BI 3
           fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0}⍺⍺ getOpName ⍵
-          CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2..., where at least one ⍵N is @CV, others can be @CS.
+          CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2...
      
           ⍝ Monadic...
           monad:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
