@@ -189,16 +189,17 @@
     0 setHandSizeInBits 0
 
   ⍝ Data field (unsigned) constants
-    zeroUD←,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
-    oneUD←,1          ⍝ data field ONE, i.e. unsigned canonical ONE
-    twoUD←,2          ⍝ data field TWO
+    zero_D← ,0         ⍝ data field ZERO, i.e. unsigned canonical ZERO
+    one_D←  ,1          ⍝ data field ONE, i.e. unsigned canonical ONE
+    two_D←  ,2          ⍝ data field TWO
+    ten_D←  ,10
 
   ⍝ bi CONSTANTS for users: zero, one, two, neg_one (¯1), 10
-    zero←0 zeroUD
-    one←1 oneUD
-    two←1 twoUD
-    neg_one←¯1 oneUD    ⍝ ¯1
-    ten←1 (,10)
+    zero←    0 zero_D
+    one←     1 one_D
+    two←     1 two_D
+    neg_one←¯1 one_D    
+    ten←     1 ten_D
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
@@ -249,7 +250,8 @@
         ⍝      to 1, if BI/X was called 2-adically;
         ⍝      to 2, if called 1-adically, i.e. a "selfie":   ×⍨BI 3 ==> 3 ×BI 3
           fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0}⍺⍺ getOpName ⍵
-          CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2...
+         ⍝ CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2...
+           CASE←(atom fn)∘∊∘⊆
      
           ⍝ Monadic...
           monad:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
@@ -434,12 +436,12 @@
       }
     exp←export
     ⍝ ∆z:  r:BIi ←∇ ⍵:BIi
-    ⍝      If ⍵:BIi has data≡zeroUD, then return (0 zeroUD).
+    ⍝      If ⍵:BIi has data≡zero_D, then return (0 zero_D).
     ⍝      Else return ⍵ w/ leading zero deleted.
-    ∆z←{w←dLZs⊃⌽⍵ ⋄ zeroUD≡chkZ w : 0 zeroUD ⋄ (⊃⍵) w}
+    ∆z←{w←dLZs⊃⌽⍵ ⋄ zero_D≡chkZ w : 0 zero_D ⋄ (⊃⍵) w}
     ⍝
-    ⍝ ∆zU2I: If ⍵:BIu IS zeroUD, then return (zeroUD ⍵); else ⍺ ⍵
-    ∆zU2I←{zeroUD≡⍵:zeroUD ⍵ ⋄ ⍺ ⍵}
+    ⍝ ∆zU2I: If ⍵:BIu IS zero_D, then return (zero_D ⍵); else ⍺ ⍵
+    ∆zU2I←{zero_D≡⍵:zero_D ⍵ ⋄ ⍺ ⍵}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
@@ -487,20 +489,20 @@
     ⍝ inc[rement]:                         ⍝ ⍵+1
       inc←{
           (sw w)←∆ ⍵
-          sw=0:1 oneUD                     ⍝ ⍵=0? Return 1.
+          sw=0:1 one_D                     ⍝ ⍵=0? Return 1.
           sw=¯1:∆z sw(⊃⌽dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
           RX10>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
-          sw w add 1 oneUD                 ⍝ Otherwise, do long way.
+          sw w add 1 one_D                 ⍝ Otherwise, do long way.
       }
     ⍝ dec[rement]:                         ⍝ ⍵-1
       dec←{
           (sw w)←∆ ⍵
-          sw=0:¯1 oneUD                    ⍝ ⍵ is zero? Return ¯1
+          sw=0:¯1 one_D                    ⍝ ⍵ is zero? Return ¯1
           sw=¯1:∆z sw(⊃⌽inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
           0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
-          sw w sub 1 oneUD                 ⍝ Otherwise, do long way.
+          sw w sub 1 one_D                 ⍝ Otherwise, do long way.
       }
       not←{
           sw bw←bitsView ⍵
@@ -523,7 +525,7 @@
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
       fact←{                                ⍝ !⍵
           sw w←∆ ⍵
-          sw=0:0 zeroUD                     ⍝ !0
+          sw=0:one                          ⍝ !0
           sw=¯1:err eFACTOR                 ⍝ ⍵<0
           factBig←{
               1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ≢⍵ is 1 hand.
@@ -718,17 +720,16 @@
       sub←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
-          sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
-     
+          sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵ 
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
           <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
       mul←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          0∊sa,sw:0 zeroUD
-          oneUD≡a:(sa×sw)w
-          oneUD≡w:(sa×sw)a
+          0∊sa,sw:zero
+          two_D∊a w : {⍺←sa×sw ⋄ ⍵: ⍺(w _plus w) ⋄ ⍺(a _plus a)}two_D≡a
+          one_D∊a w : {⍺←sa×sw ⋄ ⍵: ⍺ w ⋄ ⍺ a}one_D≡a 
           (sa×sw)(a mulU w)
       }
       div←{
@@ -747,7 +748,8 @@
       pow←{
           (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ pow 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
-          sa sw∨.=0 ¯1:0 zeroUD    ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
+          sa sw∨.=0 ¯1:zero        ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
+          w≡two_D:1 (a mulU a)     ⍝ ⍺*2   ==>   ⍺×⍺
           p←a powU w
           sa≠¯1:1 p                ⍝ sa= 1 (can't be 0).
           0=2|⊃⌽w:1 p              ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
@@ -755,12 +757,12 @@
       }
       rem←{                        ⍝ remainder/residue. APL'S DEF: ⍺=base.
           (sa a)(sw w)←⍺ ∆ ⍵
-          sw=0:0 zeroUD
+          sw=0:zero
           sa=0:sw w
           r←,a remU w              ⍝ remU is fast if a>w
           sa=sw:∆z sa r            ⍝ sa=sw: return (R)        R←sa r
-          zeroUD≡r:0 zeroUD        ⍝ sa≠sw ∧ R≡0, return 0
-          ∆z sa a sub sa r       ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          zero_D≡r:zero            ⍝ sa≠sw ∧ R≡0, return 0
+          ∆z sa a sub sa r         ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     res←rem                        ⍝ residue (APL name)
     mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
@@ -776,7 +778,7 @@
           shiftU←{⍵<0:chkZ ⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eMUL10                       ⍝ ⍵ must be small integer.
-          sa=0:0 zeroUD                           ⍝ ⍺ is zero: return 0.
+          sa=0:0 zero_D                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
         ⍝ Kludge- use unsigned ints... otherwise odd results with neg #s
           ∆z sa(⊃⌽1 ubits2BI(BI2Bits 1 a)shiftU sw×w)
@@ -796,15 +798,17 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
       mul10Exp←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          1≠≢w:err eMUL10                        ⍝ ⍵ must be small integer.
-          sa=0:0 zeroUD                            ⍝ ⍺ is zero: return 0.
-          sw=0:sa a                                ⍝ ⍵ is zero: ⍺ stays as is.
-          ustr←export 1 a                          ⍝ ⍺ as unsigned string
+          1≠≢w:err eMUL10                          ⍝ ⍵ must be small integer.
+          sa=0:zero                                ⍝ ⍺ is zero: return 0.
+          sw=0:sa a                                ⍝ ⍵ is zero: sa a returned.
+          ustr←export 1 a                          ⍝ ⍺ as unsigned string.  
           ss←'¯'/⍨sa=¯1                            ⍝ sign as string
-          sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw =1
-          {0=≢⍵:zeroUD ⋄ ∆ ⍵}(w×sw)↓ustr           ⍝ sw=¯1. Return a BIi
+          sw=1: ∆ ss,ustr,w⍴'0'                    ⍝ sw= 1? shift right by appending zeroes.
+          ustr↓⍨←-w                                ⍝ sw=¯1? shift right by dec truncation
+          0=≢ustr:zero                             ⍝ No chars left? It's a zero
+          ∆ ss,ustr                                ⍝ Return in internal form...
       }
-    shiftDecimal←mul10Exp                        ⍝ positive/left
+    shiftDecimal←mul10Exp                          ⍝ positive/left
     shiftD←mul10Exp
 
   ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
@@ -929,7 +933,7 @@
     ⍝ These are the workhorses of bigInt; most are from dfns:nats (handling unsigned bigInts).
     ⍝ Note: ⍺ and ⍵ are guaranteed by BI and BIX to be vectors, but not
     ⍝       by internal functions or if called directly.
-    ⍝       So tests for 2, 1, 0 (twoUD etc) use ravel:  (twoUD≡,⍺)
+    ⍝       So tests for 2, 1, 0 (two_D etc) use ravel:  (two_D≡,⍺)
 
     ⍝ addU:   ⍺ + ⍵
       addU←{
@@ -969,8 +973,8 @@
    ⍝       For ⍺*1, returns 0 ⍺, which indicates to caller to use sign sa of left operand ⍺'.
    ⍝ RXdiv2: (Defined above.)
       powU←{                                  ⍝ exponent.
-          zeroUD≡,⍵:oneUD                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          oneUD≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          zero_D≡,⍵:one_D                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
+          one_D≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
           hlf←{,ndn(⌊⍵÷2)+0,¯1↓RXdiv2×2|⍵}    ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
@@ -982,8 +986,8 @@
    ⍝   r:BIi[2] ← ⍺:BIi ∇ ⍵:BIi
       divU←{
           a w←dLZs¨⍺ ⍵
-          zeroUD≡,⍵:a{                        ⍝ ⍺÷0
-              zeroUD≡,⍺:oneUD                 ⍝ 0÷0 → 1 remainder 0
+          zero_D≡,⍵:a{                        ⍝ ⍺÷0
+              zero_D≡,⍺:one_D                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
           }w
           svec←(≢w)+⍳0⌈1+(≢a)-≢w              ⍝ shift vector.
@@ -1007,10 +1011,10 @@
           }/svec,⊂⍬ a                         ⍝ fold-accumulated reslt.
       }
     quotientU←⊃divU
-    gcdU←{zeroUD≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
+    gcdU←{zero_D≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
       remU←{                                  ⍝ BIu remainder
-          twoUD≡,⍺:2|⊃⌽⍵                     ⍝ fast (short-circuit) path for modulo 2
+          two_D≡,⍺:2|⊃⌽⍵                     ⍝ fast (short-circuit) path for modulo 2
           <cmp ⍵ mix ⍺:⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                         ⍝ Otherwise, do full divide
       }
