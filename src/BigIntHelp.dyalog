@@ -603,7 +603,7 @@
 
   ⍝ Utility function for HELP information!
     ∇ __HELP__;help
-      ⎕ED'help'⊣help←'^\h*⍝(?|\h(.*)|())'⎕S'\1'⎕NR((1+⎕IO)⊃⎕SI)
+      ⎕ED&'help'⊣help←'^\h*⍝(?|\h(.*)|())'⎕S'\1'⎕NR((1+⎕IO)⊃⎕SI)
     ∇
 
     1

@@ -28,36 +28,22 @@
 
 ⍝ --------------------------------------------------------------------------------------------------
     :Section BI
-
     :Section PREAMBLE
-    DEBUG←0    ⍝ Set DEBUG here only.
+    ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28
+    ⎕FR←645          ⍝ For ⎕FR,  see below
+    DEBUG←0          ⍝ Set DEBUG here.
+    VERBOSE←0        ⍝ Set VERBOSE here.
+    ∆ERR←DEBUG↓0
 
     :Section PREAMBLE -  Utilities
-    ∇ trigger_DEBUG args
-      :Implements Trigger DEBUG
-    ⍝ Sets VERBOSE, ⎕TRAP, and ∇note∇ dynamically when DEBUG is set or reset.
-      :If 1≡args.NewValue ⋄ args.Name,' set to',args.NewValue ⋄ :EndIf
-      VERBOSE←VERBOSE_INITIAL∨DEBUG≠0                     ⍝ Force to 1 if DEBUG set.
-      :If DEBUG ⋄ ∆ERR←⍬
-      :Else ⋄ ∆ERR←0 1000
-      :EndIf
-      err←{⍺←1 ⋄ ⍺=0:_←⍵ ⋄ m←⍵ ⎕DMX.EM⊃⍨0=≢⍵ ⋄ ⎕SIGNAL/('BigInt: ',m)⎕DMX.EN}
-      ⎕FX'{ok}←note str'('ok←1',VERBOSE/'⊣⎕←str')
-    ∇
+    note←{⍺←0 ⋄ VERBOSE∨⍺: ⎕←⍵ ⋄ 1:_←⍵ }
     ∇ {r}←loadHelp
       :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' pmsLibrary/src/BigIntHelp'
       :Else ⋄ r←⎕←'Unable to load BigIntHelp'
       :EndTrap
     ∇
-    :EndSection PREAMBLE - Utilities
-
-    :Section PREAMBLE - Variables
-    VERBOSE_INITIAL←0          ⍝ Set VERBOSE initial value; reset if DEBUG changed...
-    DEBUG←DEBUG                ⍝ Set DEBUG here or on the fly
     loadHelp                   ⍝ Load help at ⎕FIX (compile) time.
-    ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28   ⍝ For ⎕FR,  see below
-    :EndSection PREAMBLE - Variables
-
+    :EndSection PREAMBLE - Utilities
     :EndSection PREAMBLE
 
     :Section Namespace and Utility Initializations
@@ -139,7 +125,7 @@
   ⍝ NRX2∆: NRX2-1. We use 1 fewer bits than our integers can hold when converting to bits,
   ⍝        so that even after arbitrary user bit manipulations, we can't generate hands in decimal format
   ⍝        that are NRX2 bits, but ≥ RX10.
-  ⍝        (E.g. if RX10 is 10*6 so NRX2 is 20 bits, it's easy with logical anding, oring, etc.
+  ⍝        (E.g. if RX10 is 10*6, NRX2 is 20 bits: it's easy with logical anding, oring, etc
   ⍝        to have a number like 1000123, which is still 20 bits: 1 1 1 1 0 1 0 0 0 0 1 0 1 0 1 1 1 0 1 1
   ⍝        In this case, the largest 19-bit number still is < RX10.
   ⍝ RXBASE∆: NRX2∆⍴2 for use with decode
@@ -152,7 +138,7 @@
   ⍝      or 128-bit decimal (93 mantissa bits and much slower)..
     ∇ {ok}←{verbose}setHandSizeInBits nbits;nbitsBest;nbitsMax;nbitsMid;eBAD
     ⍝ Set key constants/initial values...
-      verbose←1='verbose'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}0
+      verbose←0≠'verbose'{0=⎕NC ⍺:⍵ ⋄ ⎕OR ⍺}VERBOSE
       nbitsBest←20                    ⍝ "Ideal" default for NRX2
       nbitsMid nbitsMax←⌊53 93÷2        ⍝ Max bits to fit in Binary(645) and Dec Float (1287) resp.
     ⍝ Handle frType and 0; ensure nbits in proper range...
@@ -195,11 +181,11 @@
     ten_D←  ,10
 
   ⍝ bi CONSTANTS for users: zero, one, two, neg_one (¯1), 10
-    zero←    0 zero_D
-    one←     1 one_D
-    two←     1 two_D
-    neg_one←¯1 one_D    
-    ten←     1 ten_D
+    zero←     0 zero_D
+    one←      1 one_D
+    two←      1 two_D
+    neg_one← ¯1 one_D
+    ten←      1 ten_D
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Invalid BigInteger'
@@ -251,7 +237,7 @@
         ⍝      to 2, if called 1-adically, i.e. a "selfie":   ×⍨BI 3 ==> 3 ×BI 3
           fn monad inv←(1≡⍺ 1){'⍨'=¯1↑⍵:(¯1↓⍵)0(1+⍺) ⋄ ⍵ ⍺ 0}⍺⍺ getOpName ⍵
          ⍝ CASE←1∘∊(atom fn)∘≡∘⊆¨∘⊆       ⍝ CASE ⍵1 or CASE ⍵1 ⍵2...
-           CASE←(atom fn)∘∊∘⊆
+          CASE←(atom fn)∘∊∘⊆
      
           ⍝ Monadic...
           monad:{                              ⍝ BIX: ∆exp∆: See Build BIX/BI below.
@@ -267,7 +253,7 @@
               CASE'⊥':∆exp∆ 1 bits2BI ⍵        ⍝     bits→BI:    Converts from bit vector to internal
               CASE'⊤':BI2Bits ⍵                ⍝     BI→bits:    Converts a BI ⍵ to its bit form
               CASE'~' 'NOT':not ⍵    ⍝
-              CASE'≢':∆exp∆ 1,⊂NRX2∆×≢⊃⌽∆ ⍵     ⍝     # actual bits in bigInt internal form...
+              CASE'≢':∆exp∆ 1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
               CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIi→int:    If in range, returns a std APL number; else error
               CASE'←':∆ ⍵                      ⍝     BIi out:    Returns the BI internal form of ⍵: NRX2∆-bit signed integers
               CASE'⍕':exp ∆ ⍵                  ⍝     BIi→BIx:    Takes a BI internal form vector of integers and returns a BI string
@@ -309,14 +295,13 @@
               CASE'SHIFTD':∆exp∆ ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
               CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
-     
               CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
               err eCANTDO2,,⎕FMT #.FN∘←fn               ⍝ Not found!
           }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵        ⍝ Handle ⍨.   inv ∊ 0 1 2 (not inv, inv, selfie)
       }
 
-    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod. 
-    ⍝          Multiply × handled as special case:   x modMul (y mod)   
+    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod.
+    ⍝          Multiply × handled as special case:   x modMul (y mod)
     ⍝          Otherwise:                            mod |BIX x ⍺⍺ BI y
     ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BIX [LA:⍺] OP:⍺⍺ BI RA:⍵⍵
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BIX ⍵ (Modulo ⍵⍵)
@@ -341,11 +326,11 @@
     :Section BigInt internal structure
     ⍝ An internal BI, BIi, is of this form:
     ⍝    sign data,
-    ⍝       sign: a scalar integer in ¯1 0 1                     sign:IS∊¯1 0 1
-    ⍝       data: an unsigned integer vector ⍵, where ⍵∧.<RX10.    data:UV
+    ⍝       sign: a scalar integer in ¯1 0 1                       sign:  IS∊¯1 0 1
+    ⍝       data: an unsigned integer vector ⍵, where ⍵∧.<RX10.    data:  UV
     ⍝    Together sign and data define a big integer.
     ⍝    If sign=0, data≡,0 when returned from functions. Internally, extra leading 0's may appear.
-    ⍝    If sign≠0, data may not be 0 (i.e. data∨.≠0).
+    ⍝    If sign≠0, data elements may not all be 0 (i.e. data∨.≠0).
 
       ⍝ ============================================
       ⍝ import / imp / ∆ - Import to internal bigInteger
@@ -398,12 +383,11 @@
       ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
       ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
       ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
-      ⍝ If not, you must use big integer strings of any length. Exponents are disallowed.
+      ⍝ If not, you must use big integer strings of any length (exponents are disallowed in BI strings).
       ⍝ Normally, ∆aplNum is not called by the user, since BI and BIX call it automatically.
       ⍝ Usage:
       ⍝    (bigInt.∆  1E100)  ≡  bigInt.∆ '1',100⍴'0'   <==>  1
       ⍝            *- calls ∆aplNum     *- calls ∆str
-
       ∆aplNum←{⎕FR←1287 ⍝ 1287: to handle large exponents
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(chkZ RX10⊥⍣¯1⊣|⍵)
           err eNONINT,⍕⍵
@@ -490,7 +474,7 @@
       inc←{
           (sw w)←∆ ⍵
           sw=0:1 one_D                     ⍝ ⍵=0? Return 1.
-          sw=¯1:∆z sw(⊃⌽dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
+          sw=¯1:∆z sw(⊃⌽_dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
           RX10>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
           sw w add 1 one_D                 ⍝ Otherwise, do long way.
@@ -499,10 +483,10 @@
       dec←{
           (sw w)←∆ ⍵
           sw=0:¯1 one_D                    ⍝ ⍵ is zero? Return ¯1
-          sw=¯1:∆z sw(⊃⌽inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
+          sw=¯1:∆z sw(⊃⌽_inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
           0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
-          sw w sub 1 one_D                 ⍝ Otherwise, do long way.
+          sw w _sub 1 one_D                 ⍝ Otherwise, do long way.
       }
       not←{
           sw bw←bitsView ⍵
@@ -529,7 +513,7 @@
           sw=¯1:err eFACTOR                 ⍝ ⍵<0
           factBig←{
               1=≢⍵:⍺ factSmall ⍵            ⍝ Skip to factSmall when ≢⍵ is 1 hand.
-              (⍺ mulU ⍵)∇⊃⌽decrement 1 ⍵
+              (⍺ mulU ⍵)∇⊃⌽_dec 1 ⍵
           }
           factSmall←{
               ⍵≤1:1 ⍺
@@ -707,20 +691,20 @@
   ⍝ The first name will be the APL std name (exceptions noted), followed by
   ⍝ abbreviations and common alternatives.
   ⍝ E.g. dyadic | is called  residue; we define res[idue] and mod[ulo], i.e.  res⍨.
-  ⍝ Each name (sub, etc.) has a version (_sub) that assumes data already imported...
-
+  ⍝ Each major dyadic fn (sub, etc.) has a version (_sub) that assumes data already imported:
+  ⍝    *** Used internally ***
       add←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
-          sa=sw:sa(ndnZ 0,+⌿a mix w)       ⍝ 5 + 10 or ¯5 + ¯10
-          sa<0:sw w sub 1 a              ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
-          sa a sub 1 w                   ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
+          sa=sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5 + 10 or ¯5 + ¯10
+          sa<0:sw w _sub 1 a                  ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
+          sa a _sub 1 w                       ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
       sub←{
           (sa a)(sw w)←⍺ ∆ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
-          sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵ 
+          sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
           <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)    ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
@@ -728,8 +712,8 @@
       mul←{
           (sa a)(sw w)←⍺ ∆ ⍵
           0∊sa,sw:zero
-          two_D∊a w : {⍺←sa×sw ⋄ ⍵: ⍺(w _plus w) ⋄ ⍺(a _plus a)}two_D≡a
-          one_D∊a w : {⍺←sa×sw ⋄ ⍵: ⍺ w ⋄ ⍺ a}one_D≡a 
+          two_D≡a:(sa×sw)(addU⍨w) ⋄ two_D≡w:(sa×sw)(addU⍨a)
+          one_D≡a:(sa×sw)w ⋄ one_D≡w:(sa×sw)a
           (sa×sw)(a mulU w)
       }
       div←{
@@ -749,7 +733,7 @@
           (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ pow 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
           sa sw∨.=0 ¯1:zero        ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
-          w≡two_D:1 (a mulU a)     ⍝ ⍺*2   ==>   ⍺×⍺
+          w≡two_D:1(a mulU a)     ⍝ ⍺*2   ==>   ⍺×⍺
           p←a powU w
           sa≠¯1:1 p                ⍝ sa= 1 (can't be 0).
           0=2|⊃⌽w:1 p              ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
@@ -762,7 +746,7 @@
           r←,a remU w              ⍝ remU is fast if a>w
           sa=sw:∆z sa r            ⍝ sa=sw: return (R)        R←sa r
           zero_D≡r:zero            ⍝ sa≠sw ∧ R≡0, return 0
-          ∆z sa a sub sa r         ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          ∆z sa a _sub sa r        ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     res←rem                        ⍝ residue (APL name)
     mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
@@ -801,9 +785,9 @@
           1≠≢w:err eMUL10                          ⍝ ⍵ must be small integer.
           sa=0:zero                                ⍝ ⍺ is zero: return 0.
           sw=0:sa a                                ⍝ ⍵ is zero: sa a returned.
-          ustr←export 1 a                          ⍝ ⍺ as unsigned string.  
+          ustr←export 1 a                          ⍝ ⍺ as unsigned string.
           ss←'¯'/⍨sa=¯1                            ⍝ sign as string
-          sw=1: ∆ ss,ustr,w⍴'0'                    ⍝ sw= 1? shift right by appending zeroes.
+          sw=1:∆ ss,ustr,w⍴'0'                    ⍝ sw= 1? shift right by appending zeroes.
           ustr↓⍨←-w                                ⍝ sw=¯1? shift right by dec truncation
           0=≢ustr:zero                             ⍝ No chars left? It's a zero
           ∆ ss,ustr                                ⍝ Return in internal form...
@@ -897,10 +881,10 @@
 
   ⍝ genVariants: For negate, create related _negate, such that
   ⍝        (import ⍺) _add import ⍵   <==> ⍺ add ⍵
-    genVariants¨ 'add'    'sub' 'mul' 'div'
-    genVariants¨ 'divRem' 'pow' 'rem' 'res'  'mod'
+    genVariants¨ 'add'      'sub'          'mul'         'div'
+    genVariants¨ 'divRem'   'pow'          'rem'         'res'  'mod'
     genVariants¨ 'mul2Exp'  'div2Exp'      'shiftBinary' 'shiftB'
-    genVariants¨ 'mul10Exp' 'shiftDecimal' 'shiftD'      'gcd' 'lcm'
+    genVariants¨ 'mul10Exp' 'shiftDecimal' 'shiftD'      'gcd'  'lcm'
 
     :EndSection BI Dyadic Operands/Functions
 
@@ -1023,16 +1007,16 @@
 
     :Section Service Routines
 
-    atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}                    ⍝ If ⍵ is length 1, treat as a scalar (atom).
+    atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}                    ⍝ atom: simple scalar if ⍵ of length 1; else enclosed obj.
 
   ⍝ These routines operate on unsigned BIu data unless documented…
     dLZ←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
     dLZs←{chkZ(∨\⍵≠0)/⍵}                    ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
     chkZ←{0≠≢⍵:,⍵ ⋄ ,0}                     ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
 
-            ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
+    ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
     ndnZ←dLZ ndn                            ⍝ ndn, then remove (earlier added) leading zero, if still 0.
-            nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡           ⍝ normalise up:   3 ¯1 → 2 9
+    nup←{⍵++⌿0 1⌽RX10 ¯1∘.×⍵<0}⍣≡           ⍝ normalise up:   3 ¯1 → 2 9
     nupZ←dLZ nup                            ⍝ PMS
 
     mix←{↑(-(≢⍺)⌈≢⍵)↑¨⍺ ⍵}                  ⍝ right-aligned mix.
@@ -1055,8 +1039,8 @@
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
    ⍝ Utilities…
 
-  ⍝ bi:  Returns ⎕THIS
-    ⎕FX 'ns←bi' 'ns←⎕THIS'
+  ⍝ bi:  Returns ⎕THIS namespace
+    ⎕FX 'ns←bi' 'ns←⎕THIS'          ⍝ Simple user-friendly name...
     ⎕FX 'ns←_bigInt_' 'ns←⎕THIS'    ⍝ A more unique name for use by utilities...
 
     ⍝ RE∆GET-- ⎕R/⎕S Regex utility-- returns field #n or ''
@@ -1125,6 +1109,7 @@
 
 
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
+   ⍝  BIC: Compile a function ⍵ with BI directives...
       BIC←{
           ⍺←1
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
@@ -1137,32 +1122,29 @@
           ⍺=1:((1+⎕IO)⊃⎕RSI,#)⍎matchBiCalls ⍵   ⍝ Compile and execute string ⍵ in CALLER space, returning value of execution
       }
 
-    ∇ dc;caller;code;dc_LAST;dc_in;exec;msg;shy
-      msg←⊂'bi.dc - APL format arbitrary precision integer desk calculator'
-      msg,←⊂'Type dc_in an APL arithmetic expression containing scalars only.'
-      msg,←⊂'   item          where       description'
-      msg,←⊂'     ⍵           anywhere    The result of the dc_LAST successful expression (initially 0)'
-      msg,←⊂'     ^C          note 1      Exit calculator'
-      msg,←⊂'     .           note 1      Exit calculator'
-      msg,←⊂'     empty line              Do nothing  '
-      msg,←⊂'     ?           note 1      Get help (nothing else on line)'
-      msg,←⊂' --------------------------'
-      msg,←⊂' note 1: only thing on line, besides leading or trailing spaces.'
+    ∇ dc;caller;code;dc_LAST;dc_in;exec;msg;shy;HELP
+      msg←⊂'bi.dc'
+      msg←⊂'¯¯¯¯¯'
+      msg,←⊂'APL format arbitrary precision integer desk calculator'
+      msg,←⊂''
+      msg,←⊂'Enter APL arithmetic expressions containing scalars only'
+      msg,←⊂'⍵          The result of the last successful expression (initially 0)'
+      msg,←⊂'≥1 blank   Do nothing. ignored!'
+      msg,←⊂'empty line Exit calculator '
+      msg,←⊂'?          Get help'
       msg,←⊂''
       msg←↑msg
       ⍝ This
       ⍝   ⎕ED&'msg'
       ⍝ Replaces:
-      alert msg
-     
-      dc_LAST←'0'
+      alert msg 
+      dc_LAST←'0' ⋄ HELP←,'?'
       :While 1
           :Trap 1000
               dc_in←⍞↓⍨≢⍞←'> '
-              :If 0=≢dc_in~' ' ⋄ :Continue ⋄ :EndIf
-              :If ×≢'^\h*(\^[cC]|\.)\h*$'⎕S 0⊣dc_in
-                  :Return
-              :ElseIf (,'?')≡dc_in~' '  ⍝ ? alone → help...
+              :If 0=≢dc_in ⋄ :Leave                    ⍝ Empty line:  DOne
+              :ElseIf 0=≢dc_in~' ' ⋄ :Continue         ⍝ Blank line:  ignored
+              :ElseIf HELP≡dc_in~' '                   ⍝ Lone '?':    HELP
                   BIC_HELP ⋄ :Continue
               :EndIf
               :Trap 0
@@ -1178,7 +1160,6 @@
                       ↑dm0 dm1(' ',dm2)
                   }⎕DMX
               :EndTrap
-     
           :Else
      interrupt:
               l←≢⍞←'Interrupted. Exit? Y/N [Yes] '
@@ -1235,7 +1216,10 @@
       callerNs←(⊃⎕RSI)
       callerCode←(1+⎕LC⊃⍨1+⎕IO)↓callerNs.⎕NR callerNm←⎕SI⊃⍨1+⎕IO
       cloneNm←callerNm,'__BigInteger_TEMP'
-      callback←cloneNm,' ⋄ →0'
+    ⍝ If user codes                   instead of
+    ⍝                   bi⍎BI∆HERE                 ⍎bi.BI∆HERE,
+    ⍝ ⎕CS callerNs is required. Otherwise, function terminates in namespace BigInt (bi is alias).
+      callback←cloneNm,' ⋄ ⎕CS callerNs ⋄ →0'
     ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
     ⍝ starting with a statement to erase the clone
       :Trap 0
@@ -1247,7 +1231,7 @@
           err eBIHFAILED
       :EndTrap
       :If DEBUG
-          ⎕←'Executing...'
+          ⎕←'Executing in ',(⍕callerNs),'...'
           ⎕←callerNs.⎕VR cloneNm
       :EndIf
     ∇
