@@ -2,31 +2,30 @@
 ⍝ dict: A fast, ordered, and simple dictionary for general use.
 ⍝ Hashes vector KEYS for efficiency on large dictionaries.
 ⍝ For HELP information, call 'dict.HELP'.
-    ⍝ ⎕←'For dictionary HELP, call "dict.HELP".'
     ⎕IO ⎕ML←0 1
 
   ⍝ Shared Fields
   ⍝ To enter Debugging mode, set DictClass.DEBUG←1 (which will trigger DEBUGset)
-    :Field Public Shared DEBUG←0                  ⍝ Triggers DEBUGset (see).
-    :Field Private Shared DEBUGlast←DEBUG         ⍝ Ditto
-    :Field Public Shared TRAP_SIGNAL←DEBUG×999    ⍝ Ditto
-    :Field Public Shared ∆TRAP←TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
+    :Field Public  Shared DEBUG←      0                  ⍝ Triggers DEBUGset (see).
+    :Field Private Shared DEBUGwas←   DEBUG              ⍝ See DEBUGset
+    :Field Public  Shared TRAP_SIGNAL←DEBUG×999          ⍝ See DEBUGset
+    :Field Public  Shared ∆TRAP←      TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
 
   ⍝ INSTANCE FIELDS and Related
-    keysF←⍬                                       ⍝ Variable, not Field, to avoid APL hashing bug
+    keysF←⍬                                 ⍝ Variable, not Field, to avoid APL hashing bug
     :Field Private valuesF       ← ⍬
-    :Field Private has_defaultF   ← 0
-    :Field Private defaultF      ← ''             ⍝ Initial value
+    :Field Private has_defaultF  ← 0
+    :Field Private defaultF      ← ''       ⍝ Initial value
 
   ⍝ ERROR MESSAGES:
-    eBadLoad←'Dict initial or loaded data not key-value pairs, dictionary or default value.'
-    eBadDefault←'Dict/has_default: has_default must be set to 1 (true) or 0 (false).'
+    eBadLoad←         'Dict arg must contain: key-value pairs, dictionary, or scalar (default value).'
+    eBadDefault←      'Dict: has_default must be set to 1 (true) or 0 (false).'
     eDeleteKeyMissing←'Dict/del: Attempt to delete non-existent keys with Ignore=0.'
-    eIndexRange←'Dict/del_by_index: An index argument was not in range.'
-    eKeyAlterAttempt←'dict/keys: An entry''s key may not be altered.'
-    eHasNoDefaultK←'dict: Value Error: Key does not exist.'
-    eHasNoDefaultD←'dict: Value Error: has_default set to 0.'
-    eQueryDontSet←'dict/query_default may be queried, but not set directly.'
+    eIndexRange←      'Dict/del_by_index: An index argument was not in range.'
+    eKeyAlterAttempt← 'Dict/keys: An entry''s key may not be altered.'
+    eHasNoDefaultK←   'Dict: Value Error: Key does not exist.'
+    eHasNoDefaultD←   'Dict: Value Error: has_default set to 0.'
+    eQueryDontSet←    'Dict/query_default may be queried, but not set directly.'
 
   ⍝ General Local Names
     ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
@@ -49,7 +48,7 @@
       :Implements Constructor
       :Access Public
       ⎕DF ClassNameStr,'[]'
-      :Trap DEBUG×99
+      :Trap 0⍴⍨~DEBUG
           _load initial
       :EndTrap
     ∇
@@ -105,25 +104,50 @@
 
     ⍝ dict.get
     ⍝ --------
-    ⍝ dict.get items
-    ∇ vals←get keys;⎕TRAP
+    ⍝         dict.get keys   ⍝ -- all keys must exist or have a default
+    ⍝ default dict.get keys   ⍝ -- keys which don't exist are given the specified default
+    ∇ vals←{def} get keys;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      vals←⎕THIS[keys]
+      :IF 900⌶1 
+          vals←⎕THIS[keys]
+      :ELSE 
+          nh←~has←has_keys keys
+          vals←⎕THIS[has/keys]
+          vals←has\vals
+          (nh/vals)←⊂def
+      :ENDIF
+    ∇
+    ⍝ dict.get1
+    ⍝ --------
+    ⍝         dict.get1 key   ⍝ -- the key must exist or have a default
+    ⍝ default dict.get1 key   ⍝ -- if key doesn't exist, it's given the specified default
+    ∇ val←{def} get1 key;⎕TRAP
+      :Access Public
+      ⎕TRAP←∆TRAP
+      :IF 900⌶1  ⋄ def←⊢ ⋄ :ENDIF
+      val←⊃def get ⊂key
     ∇
 
-    ⍝ dict.set
+    ⍝ dict.set  -- set multiple key/value pairs
     ⍝ --------
     ⍝ {vals}←keys dict.set vals
-    ⍝ {vals}←     dict,set (k v)(k v)...
-    ∇ {vals}←{keys}set vals;⎕TRAP
+    ⍝ {vals}←     dict.set (k v)(k v)...
+    ∇ {vals}←{keys} set vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
-      :If 1=≢keys
-          keys←⊂keys ⋄ vals←⊂vals
-      :EndIf
       _import keys vals
+    ∇
+    ⍝ dict.set1  -- set a single key-value pair
+    ⍝ ---------
+    ⍝ {val}←key dict.set1 val
+    ⍝ {val}←    dict.set1 k v
+    ∇ {val}←{key} set1 val;⎕TRAP
+      :Access Public
+      ⎕TRAP←∆TRAP
+      :If 900⌶1 ⋄ key val←val ⋄ :EndIf
+      val←⊃(,⊂key) set (,⊂val)
     ∇
 
     ⍝ load ⍵: Load data into dictionary and/or set default for values of missing keys.
@@ -383,7 +407,7 @@
       old←(≢keysF)>keysF⍳keys
     ∇
 
-    ⍝ Del:  "Deletes key-value pairs from the dictionary by key, but only if all the keys exist"
+    ⍝ del:  "Deletes key-value pairs from the dictionary by key, but only if all the keys exist"
     ⍝        If left arg is specified and 0, missing keys cause an error. Otherwise, they are ignored."
     ⍝ b ← {ignore←1} ⍵.del key1 key2...
     ⍝ Retursn bN=1 for each key kN deleted; else 0.
@@ -403,10 +427,9 @@
       :EndIf
     ∇
 
-    ⍝ DelByIndex | DI:    "Deletes key-value pairs from the dict. by index. Like Del"
-    ⍝
+    ⍝ del_by_index | di:    "Deletes key-value pairs from the dict. by index. Like Del"
     ⍝ b ← {ignore←1} ⍵.del_by_index ix1 ix2...
-    ⍝ b ← (ignore←1} ⍵.di ix1 ix2...
+    ⍝ b ← (ignore←1} ⍵.di           ix1 ix2...
     ⍝
     ∇ {b}←{ignore}di ix;keys;⎕TRAP
       :Access Public
@@ -438,7 +461,7 @@
       dict←⎕THIS
     ∇
 
-    ⍝ oop:  "Removes and returns last <n> items (pairs) from dictionary as if a LIFO stack.
+    ⍝ pop:  "Removes and returns last <n> items (pairs) from dictionary as if a LIFO stack.
     ⍝        Efficiently updates keysF to preserve hash status."
     ⍝ kv1 kv2... ← ⍵.pop n   where n is a number between 0 and Len
     ⍝
@@ -475,7 +498,7 @@
         ∇
     :EndProperty
 
-    ⍝ GradeUp, GradeDown/GradeDn: Returns the indices of the keys in sorted order, either graded up or down.
+    ⍝ gradeup, gradedown/gradedn: Returns the indices of the keys in sorted order, either graded up or down.
     ⍝ Note: Doesn't reorder the dictionary, returns indices reordered..
     :Property gradeup,gradedown,gradedn
     :Access Public
@@ -516,15 +539,15 @@
 
 
     ∇ DEBUGset
-      ⍝ See globals DEBUG and DEBUGlast
+    ⍝ See globals DEBUG and DEBUGwas
       :Implements Trigger DEBUG
-     ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
+    ⍝ Dependents: TRAP_SIGNAL, ∆TRAP
       TRAP_SIGNAL←999×DEBUG≠0
       ∆TRAP←TRAP_SIGNAL'C' '⎕SIGNAL/⎕DMX.(EM EN)'  ⍝ Ditto
-      :If DEBUGlast≢DEBUG
+      :If DEBUGwas≢DEBUG
           'DEBUGGING mode ',(DEBUG≠0)⊃'disabled' 'enabled'
       :EndIf
-      DEBUGlast←DEBUG
+      DEBUGwas←DEBUG
     ∇
 :EndClass
 
