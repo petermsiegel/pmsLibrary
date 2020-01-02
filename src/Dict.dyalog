@@ -385,12 +385,12 @@
       this←⎕THIS
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :If (≢∪keys)=≢keys
-          newval←this[keys]+∆
+          newval←∆+0 get keys
           import keys newval
       :Else     ⍝ keys appear more than once; process all (L to R) so increments accumulate
           newval←∆{
               key1←⊂⍵
-              nv1←this[key1]+⍺
+              nv1←⍺+0 get key1
               nv1⊣import key1 nv1
           }¨keys
       :EndIf
@@ -551,33 +551,6 @@
     ∇
 :EndClass
 
-:Class DefaultDictClass  : DictClass
-  ⍝ require 'DictClass'
-  ⍝ DefaultDict: Function to make class ref visible as <DefaultDict> if DefaultDict is in ⎕PATH
-    ∇ ns←DefaultDict
-      ns←⎕THIS
-    ∇
-    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'DefaultDict'
-
- ⍝ General Local Names
-    ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
-
-  ⍝ new0: "Constructs a default dictionary with default value 0
-    ∇ new0
-      :Implements Constructor
-      :Access Public
-      ⎕DF ClassNameStr,'[]'
-      load 0
-    ∇
-  ⍝ new1 arg: "Constructs a default dictionary with default value arg
-    ∇ new1 arg
-      :Implements Constructor
-      :Access Public
-      ⎕TRAP←∆TRAP
-      ⎕DF ClassNameStr,'[]'
-      load arg
-    ∇
-:EndClass
 
 ⍝ d ← [default←''] simpleDict[New] k_v_pairs
   simpleDictNew←{⍺←''

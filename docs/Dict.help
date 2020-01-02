@@ -5,7 +5,6 @@
 ⍝H1 |  DefaultDict HELP*                                            |
 ⍝H1 |  TinyDict    HELP                                             |
 ⍝H1 |  simpleDict  [Not documented: function <simpleDict>]          |
-⍝H1 |  * DefaultDict objects have same syntax as Dict once created. |
 ⍝H1 +---------------------------------------------------------------+
 ⍝H1 Dict
 ⍝H1    a←⎕NEW  Dict [data]   ⍝ data: initial values and/or default
@@ -19,15 +18,6 @@
 ⍝H1
 ⍝H1 ---------------------------------------------------
 ⍝H1
-⍝H1 DefaultDict
-⍝H1  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table) with default on initialization
-⍝H1 a←⎕NEW DefaultDict
-⍝H1     Dictionary with default 0 (zero)
-⍝H1 a←⎕NEW DefaultDict default
-⍝H1     Dictionary with default as object <default>
-⍝H1 a←⎕NEW defaultDictClass [default]
-⍝H1     Actual class name for Default Dictionary.
-⍝H1
 ⍝H1 Dict
 ⍝H1  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table)
 ⍝H1 a←⎕NEW Dict
@@ -37,7 +27,7 @@
 ⍝H1 a←⎕NEW dictClass [initial_values/default]
 ⍝H1      Actual class name for Dictionary.
 ⍝H1
-⍝H1  Dict, DefaultDict
+⍝H1  Dict
 ⍝H1     Items are stored in the order created; the dictionary order is maintained,
 ⍝H1     even when a value is changed.
 ⍝H1     (Items may be moved by sorting or by deleting and re-entering.)
@@ -149,10 +139,17 @@
 ⍝H1
 ⍝H1  ┌────────────────────────────────────────┐
 ⍝H1  | a[k1 k2]←v1 v2                         │
+⍝H1  | a.put (k1 v1)(k2 v2)                   │
+⍝H1  | a.put1 k1 v1                           │
+⍝H1  | k1 a.put1 v1                           │                    
 ⍝H1  │ v1 v2←a[k1 k2]                         │
+⍝H1  │ v1 v2←a.get k1                         │
+⍝H1  │ v1   ←a.get1 k1                        │
+⍝H1  │ v1 v2←default a.get k1 k2              │
+⍝H1  │ v1   ←default a.get1 k1                │
 ⍝H1  │ a.vals[i1 i2]←v1 v2                    │
 ⍝H1  │ a.values[i1 i2]←v1 v2                  │
-⍝H1  │ k1 k2←a.Keys[i1 i2]                    │
+⍝H1  │ k1 k2←a.keys[i1 i2]                    │
 ⍝H1  | v1 v2←[amt] a.inc k1 k2                |
 ⍝H1  | v1 v2←[amt] a.dec k1 k2                |
 ⍝H1  │ a.import keys vals                     │
@@ -233,7 +230,7 @@
 ⍝H1      ⍺.length
 ⍝H1
 ⍝H1  ┌────────────────────────────────────────┐
-⍝H1  | k1v1 k2v2←a.Pop 2                      │
+⍝H1  | k1v1 k2v2←a.pop 2                      │
 ⍝H1  │ a['penult' 'ult']←v1 v2   ⍝ Push       │
 ⍝H1  │ {}a.sort/A      ⍝ Sort up in place     │
 ⍝H1  │ {}a.sortD       ⍝ Sort dn in place     │
