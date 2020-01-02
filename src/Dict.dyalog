@@ -8,7 +8,7 @@
   ⍝ To enter Debugging mode, set DictClass.DEBUG←1 (which will trigger DEBUGset)
     :Field Public  Shared DEBUG←      0                  ⍝ Triggers DEBUGset (see).
     :Field Private Shared DEBUGwas←   DEBUG              ⍝ See DEBUGset
-    :Field Public  Shared TRAP_SIGNAL←DEBUG×999          ⍝ See DEBUGset
+    :Field Public  Shared TRAP_SIGNAL←(~DEBUG)⍴0         ⍝ See DEBUGset
     :Field Public  Shared ∆TRAP←      TRAP_SIGNAL 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
 
   ⍝ INSTANCE FIELDS and Related
