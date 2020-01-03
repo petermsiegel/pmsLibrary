@@ -2,16 +2,12 @@
 ⍝H1 Family of services <Dict.help> provide three related dictionary services.
 ⍝H1 +---------------------------------------------------------------+
 ⍝H1 |  Dict        HELP                                             |
-⍝H1 |  DefaultDict HELP*                                            |
 ⍝H1 |  TinyDict    HELP                                             |
 ⍝H1 |  simpleDict  [Not documented: function <simpleDict>]          |
 ⍝H1 +---------------------------------------------------------------+
 ⍝H1 Dict
 ⍝H1    a←⎕NEW  Dict [data]   ⍝ data: initial values and/or default
 ⍝H1    Dict.help
-⍝H1 DefaultDict
-⍝H1    a←⎕NEW DefaultDict [default]
-⍝H1    DefaultDict.help
 ⍝H1 TinyDict
 ⍝H1    a←TinyDict.new     ⍝ namespace, not class
 ⍝H1    TinyDict.help
@@ -33,15 +29,15 @@
 ⍝H1     (Items may be moved by sorting or by deleting and re-entering.)
 ⍝H1  KEYS and VALUES
 ⍝H1     Keys may be of any type and shape. Case is always respected.
-⍝H1  ⍵.Default, ⍵.HasDefault
-⍝H1     If ⍵.HasDefault←1 (default is 0), then
+⍝H1  ⍵.default, ⍵.hasdefault
+⍝H1     If ⍵.hasdefault←1 (default is 0), then
 ⍝H1     ⍵.Default will be returned as the value when missing keys are requested.
-⍝H1     Initially, ⍵.Default←'' but ⍵.HasDefault←0, so missing keys trigger a VALUE ERROR.
-⍝H1     If ⍵.HasDefault←1, then the current ⍵.Default is used.
+⍝H1     Initially, ⍵.Default←'' but ⍵.hasdefault←0, so missing keys trigger a VALUE ERROR.
+⍝H1     If ⍵.hasdefault←1, then the current ⍵.Default is used.
 ⍝H1 Note: Yes, there are too many choices in dict for how to set defaults;
-⍝H1     Use DefaultDict when assuming a default initial value, especially useful
-⍝H1     when counting items:
-⍝H1          words ← ⎕NEW DefaultDict     ⍝ Default value is 0
+⍝H1  When counting items, any key not yet defined will be treated as having value 0, when
+⍝H1  used with ⍵.inc, ⍵.dec, ⍵.inc1, or ⍵.dec1.
+⍝H1          words ← ⎕NEW Dict        ⍝ No default value
 ⍝H1          wordList←'cat' 'dog' 'mouse' 'house' 'cat'
 ⍝H1          words.inc wordList
 ⍝H1        ⍝ cat 2, dog 1, mouse 1, house 1 
@@ -94,20 +90,20 @@
 ⍝H1       a ← ⎕NEW Dict (b)
 ⍝H1     copies b's values into a.
 ⍝H1     - Attributes are NOT copied via ⎕NEW.
-⍝H1     - To copy all keys, values, and default: Use a←b.Copy
+⍝H1     - To copy all keys, values, and default: Use a←b.copy
 ⍝H1   ∘ Pairs and dictionaries may be assigned to a new dictionary on creation:
 ⍝H1       c←  ⎕NEW Dict (a (key1 val1) (key2 val2) b)
 ⍝H1     Elements are assigned IN ORDER, left to right, with the last value "sticking."
 ⍝H1     Here, c is made up of the contents of dictionary a, two key-value pairs, and b.
-⍝H1   ∘ To make a copy, called a, of a dictionary b, including its Defaults, use Copy:
-⍝H1       a ← b.Copy
+⍝H1   ∘ To make a copy, called a, of a dictionary b, including its Defaults, use copy:
+⍝H1       a ← b.copy
 ⍝H1
 ⍝H1  ┌─────────────────────────────┐
 ⍝H1  | a.default←val   [*]         │
 ⍝H1  │ w←a.default                 │
-⍝H1  │ w←a.has_default             │
-⍝H1  │ a.has_default←b             │
-⍝H1  │ hasdef def←a.query_default  │
+⍝H1  │ w←a.hasdefault              │
+⍝H1  │ a.hasdefault←b              │
+⍝H1  │ hasdef def←a.querydefault   │
 ⍝H1  │ ————————————————            │
 ⍝H1  │ * See ⎕NEW Dict             │
 ⍝H1  └─────────────────────────────┘
@@ -118,8 +114,8 @@
 ⍝H1       a[10]
 ⍝H1     VALUE ERROR
 ⍝H1     This even occurs when retrieving values from a mix of present and missing keys.
-⍝H1   ∘ The default may be set to any scalar or vector value. When you set it, HasDefault←1 for you.
-⍝H1     (If you then set HasDefault←0, the Default value is "hidden" until HasDefault←1 again).
+⍝H1   ∘ The default may be set to any scalar or vector value. When you set it, hasdefault←1 for you.
+⍝H1     (If you then set hasdefault←0, the Default value is "hidden" until hasdefault←1 again).
 ⍝H1     ⍺.default←⍵
 ⍝H1     Example:
 ⍝H1       a←⎕NEW Dict ⋄ a.default←1 3
@@ -128,11 +124,11 @@
 ⍝H1   ∘ Check defaults
 ⍝H1     def←⍺.default
 ⍝H1   ∘ Check whether a default exists
-⍝H1     bool←⍺.has_default
+⍝H1     bool←⍺.hasdefault
 ⍝H1   ∘ Turn on the default (If turned on and Default hasn't been set, it's set to Default←'').
-⍝H1      ⍺.has_default←bool
-⍝H1   ∘ Query current has_default flag and default (⎕NULL if not set):
-⍝H1     hasdef def←⍺.query_default
+⍝H1      ⍺.hasdefault←bool
+⍝H1   ∘ Query current hasdefault flag and default (⎕NULL if not set):
+⍝H1     hasdef def←⍺.querydefault
 ⍝H1  The default may also be set in the ⎕NEW call if there is an argument of this form:
 ⍝H1   ∘ scalar
 ⍝H1   ∘ non-dictionary (not of nameclass 9.2, or if 9.2 doesn't have method isDict or if it does, isDict returns 0).
@@ -193,33 +189,35 @@
 ⍝H1  ┌──────────────────────────────────────────────┐
 ⍝H1  | {b1 b2}←a.del k1 k2                          │
 ⍝H1  │ {b1 b2}←(ignore←0) a.del k1 k2               │
-⍝H1  │ {b1 b2}←a.del_by_index i1 i2                 │
-⍝H1  │ {b1 b2}←(ignore←0) a.del_by_index i1 i2      │
+⍝H1  │ {b1 b2}←a.delbyindex i1 i2                   │
+⍝H1  │ {b1 b2}←(ignore←0) a.delbyindex i1 i2        │
 ⍝H1  │ {b1 b2}←a.di i1 i2                           │
 ⍝H1  │ a←a.clear          ⍝ Returns a               │
 ⍝H1  └──────────────────────────────────────────────┘
 ⍝H1  Delete key-value pairs by key (returns the unique keys deleted)
-⍝H1  If left arg is 1 (default 1), missing keys are ignored and 0 is returned for each.
-⍝H1  If 0, missing keys generate an ERROR signal.
+⍝H1  If 0 (default), missing keys generate an ERROR signal.
+⍝H1  If left arg is 1 (ignore), missing keys are ignored and 0 is returned for each.
 ⍝H1  Returns 1 for each key deleted; 0 otherwise.
 ⍝H1      {b1 b2}...← [[1|0]] ⍺.del k1 k2...
 ⍝H1  Delete key-value pairs by index (returns the unique keys deleted)
 ⍝H1  ∘ All indices must be valid.
-⍝H1      {b1 b2}...← ⍺.del_by_index i1 i2...
+⍝H1      {b1 b2}...← ⍺.delbyindex i1 i2...
 ⍝H1      {b1 b2}...← ⍺.di i1 i2
 ⍝H1  ∘ Invalid indices to be ignored.
-⍝H1      {b1 b2}...← 1 ⍺.del_by_index i1 i2...
+⍝H1      {b1 b2}...← 1 ⍺.delbyindex i1 i2...
 ⍝H1      b1 b2...← 1 ⍺.DI i1 i2
 ⍝H1
 ⍝H1  ┌───────────────────────────────────────────┐
-⍝H1  | b1 b2←a.has_keys k1 k2                    │
+⍝H1  | b1 b2←a.defined k1 k2                     │
 ⍝H1  │ k1v1 k2v2←a.items                         │
 ⍝H1  │ k1v1 k2v2←a.pairs                         │
-⍝H1  │ kv_Mx←a.table                             │
+⍝H1  │ kv_Mx←a.table    show pairs as a table    │
+⍝H1  │ kv_Mx←a.print    same as a.table          │
+⍝H1  │ kv_Mx←a.disp     show table via dfns.disp │
 ⍝H1  │ nitems←a.len(gth)                         │
 ⍝H1  └───────────────────────────────────────────┘
 ⍝H1  Query if a key-value pair exists, by key. Returns 1 for each pair that exists...
-⍝H1      b1 b2...← ⍺.has_keys k1 k2...
+⍝H1      b1 b2...← ⍺.defined k1 k2...
 ⍝H1  Get all key value pairs
 ⍝H1       k1v1 k2v2...←⍺.items
 ⍝H1       k1v1 k2v2...←⍺.pairs
@@ -230,21 +228,22 @@
 ⍝H1      ⍺.length
 ⍝H1
 ⍝H1  ┌────────────────────────────────────────┐
-⍝H1  | k1v1 k2v2←a.pop 2                      │
+⍝H1  | k1v1 k2v2←a.popitem 2                  │
 ⍝H1  │ a['penult' 'ult']←v1 v2   ⍝ Push       │
-⍝H1  │ {}a.sort/A      ⍝ Sort up in place     │
-⍝H1  │ {}a.sortD       ⍝ Sort dn in place     │
+⍝H1  │ {}a.sort        ⍝ Sort up in place     │
+⍝H1  │ {}a.sorta       ⍝ Sort up in place     │
+⍝H1  │ {}a.sortd       ⍝ Sort dn in place     │
 ⍝H1  │ ix←a.gradeup    ⍝ Return indices       │
 ⍝H1  │ ix←a.gradedown/gradedn                 │
 ⍝H1  └────────────────────────────────────────┘
 ⍝H1  Popping the first <n> items from the Ordered Dictionary
-⍝H1       k1v1...knvn ← ⍺.pop count
+⍝H1       k1v1...knvn ← ⍺.popitem count
 ⍝H1  Removes and returns the LAST <count> entries from the dictionary (in order of creation, not update).
 ⍝H1  Note 0: The value is returned shyly.
 ⍝H1  Note 1: This uses the efficient idiom for removing items from hashed vectors: item↓⍨←-count
 ⍝H1  Note 2: to "push" items onto the end of the dictionary, simply add them, ONLY if the key is new.
 ⍝H1      a['2nd to last' 'last'] ← 'val1' 'val2'
-⍝H1      a.Pop 2
+⍝H1      a.popitem 2
 ⍝H1  ┌───────────┬────┐
 ⍝H1  |2nd to last│val1│
 ⍝H1  ├───────────┼────┤
@@ -259,8 +258,8 @@
 ⍝H1  Sorts items in ascending (Sort/SortA) or descending (SortD) order IN PLACE.
 ⍝H1  Uses Dyalog total array ordering.
 ⍝H1  Returns the dictionary itself (not a copy!). Use {} to suppress returned dictionary.
-⍝H1     {}⍺.sort  or  {}⍺.sortA
-⍝H1     {}⍺.sortD
+⍝H1     {}⍺.sort  or  {}⍺.sorta
+⍝H1     {}⍺.sortd
 ⍝H1  Return the indices for the dictionary's keys in sorted order
 ⍝H1     ix←a.gradeup   (ascending)
 ⍝H1     ix←a.gradedown (descending)
@@ -270,7 +269,7 @@
 ⍝H3  TinyDict services  (namespace <TinyDictNs>)
 ⍝H3
 ⍝H3  A simple, namespace-based, dictionary. Fast, low overhead.
-⍝H3  A tinyDict is an ordered dictionary, with items stored in the order entered;
+⍝H3  A TinyDict is an ordered dictionary, with items stored in the order entered;
 ⍝H3  an item whose value is replaced maintains its original ordered position.
 ⍝H3  (Order can be changed only by deleting and re-entering an item via Del and Put/1).
 ⍝H3  Note: <TinyDict> is actually a function that returns a reference to the
@@ -294,7 +293,7 @@
 ⍝H3      Like dict.put1, but for multiple keys and values.
 ⍝H3
 ⍝H3  {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
-⍝H3      Enter one or more key-value pairs into the tinyDict.
+⍝H3      Enter one or more key-value pairs into the TinyDict.
 ⍝H3      Remember to enclose the argument if there is only one key-value pair:
 ⍝H3         r←dict.put ⊂'key1' 'val1'
 ⍝H3         r←dict.put ('key1' 'val1')('key2' 'val2')
@@ -312,6 +311,7 @@
 ⍝H3      Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
 ⍝H3
 ⍝H3  r←dict.table
+⍝H3  r←dict.print [Python style]
 ⍝H3      Returns key-value pairs as a table.
 ⍝H3
 ⍝H3  dict.default←def   (See new and ∆TINYDICT for initial value).
@@ -319,7 +319,7 @@
 ⍝H3      dict.default may be undefined.
 ⍝H3      To make undefined, do: dict.⎕EX 'default'
 ⍝H3
-⍝H3  dict.has_default (function)
+⍝H3  dict.hasdefault (function)
 ⍝H3      Returns 1 if a default has been defined.
 ⍝H3      Returns 0 if no default has been defined.
 ⍝H3
