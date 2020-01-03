@@ -16,7 +16,7 @@
   ⍝ INSTANCE FIELDS and Related
     keysF←⍬                                 ⍝ Variable, not Field, to avoid APL hashing bug
     :Field Private valuesF←       ⍬
-    :Field Private hasdefaultF←  0
+    :Field Private hasdefaultF←   0
     :Field Private defaultF←      ''       ⍝ Initial value
 
   ⍝ ERROR MESSAGES:
@@ -30,14 +30,20 @@
     eQueryDontSet←    'Dict/querydefault may not be set; set default or hasdefault.'
 
   ⍝ General Local Names
-    ClassNameStr←⍕⊃⊃⎕CLASS ⎕THIS
+    CLASSNAME_str←⍕⊃⊃⎕CLASS ⎕THIS
 
-    ∇ ns←Dict
+    ∇ ns←Dict                     ⍝ Returns this namespace 
       :Access Public Shared
       ns←⎕THIS
     ∇
-    ⍝ Export Dict to the parent environment.
+    ∇ns←{def} ∆DICT initial       ⍝ Creates ⎕NEW Dict via cover function
+     ns←⎕NEW ⎕THIS initial 
+     :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
+     ∇
+     
+    ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
+    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
@@ -50,7 +56,7 @@
     ∇ new1 initial
       :Implements Constructor
       :Access Public
-      ⎕DF ClassNameStr,'[]'
+      ⎕DF CLASSNAME_str,'[]'
       :Trap 0⍴⍨~DEBUG
           _load initial
       :EndTrap
@@ -60,7 +66,7 @@
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF ClassNameStr,'[]'
+      ⎕DF CLASSNAME_str,'[]'
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -249,10 +255,10 @@
       new._copy(keysF valuesF hasdefaultF defaultF)
     ∇
     ⍝ _copy-- internal fast copying method.
-    ∇ {me}←_copy(_keysF _valuesF _hasdefaultF _defaultF)
+    ∇ {me}←_copy(keys values hasdefault default)
       :Access Private
       me←⎕THIS
-      (keysF valuesF hasdefaultF defaultF)←_keysF _valuesF _hasdefaultF _defaultF
+      (keysF valuesF hasdefaultF defaultF)←keys values hasdefault default
     ∇
 
     ⍝ export: "Returns a list of Keys and Values for the object in an efficient way."
