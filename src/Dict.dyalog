@@ -42,6 +42,7 @@
      ∇
      
     ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
+    ⍝ ⎕NEW version:  [x] visible, [ ] suppressed: 
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
 
@@ -53,20 +54,19 @@
     ⍝        or by name from existing dictionaries. Alternatively, sets the default value."
     ⍝ Uses Load/Import, which will handle duplicate keys (the last value quietly wins), and so on.
     ⍝ *** See Load for conventions for <initial>.
-    ∇ new1 initial
+    ∇ new1 struct
       :Implements Constructor
       :Access Public
-      ⎕DF CLASSNAME_str,'[]'
+      ⎕DF CLASSNAME_str,'.1'
       :Trap 0⍴⍨~DEBUG
-          _load initial
+          _load struct
       :EndTrap
     ∇
-
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF CLASSNAME_str,'[]'
+      ⎕DF CLASSNAME_str,'.0'
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -74,7 +74,7 @@
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
 
-    ⍝ getval: "Using standard vector selection and assignment, set and get values given keys. 
+    ⍝ map: "Using standard vector selection and assignment, set and get values given keys. 
     ⍝ New entries are created automatically"
     ⍝ SETTING key-value pairs
     ⍝ dict[key1 key2...] ← val1 val2...
@@ -84,7 +84,7 @@
     ⍝
     ⍝ As always, if there is only one pair to set or get, use ⊂, as in:
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
-    :Property default keyed getval
+    :Property default keyed map
     :Access Public
         ∇ vals←get args;err;_ix;found;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
@@ -249,16 +249,11 @@
       }
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
-    ∇ new←copy
+    ⍝         Uses ⊃⊃⎕CLASS in case the object is from a class derived from Dict (as a base class).
+    ∇ {new}←copy
       :Access Public
-      new←⎕NEW⊃⎕CLASS ⎕THIS
-      new._copy(keysF valuesF hasdefaultF defaultF)
-    ∇
-    ⍝ _copy-- internal fast copying method.
-    ∇ {me}←_copy(keys values hasdefault default)
-      :Access Private
-      me←⎕THIS
-      (keysF valuesF hasdefaultF defaultF)←keys values hasdefault default
+      new←⎕NEW (⊃⊃⎕CLASS ⎕THIS) (⍪keysF valuesF)
+      :IF hasdefaultF ⋄ new.default←defaultF ⋄ :ENDIF 
     ∇
 
     ⍝ export: "Returns a list of Keys and Values for the object in an efficient way."
@@ -300,8 +295,8 @@
     ∇
 
     ⍝ len:  "Returns the number of key-value pairs"
-    ⍝ aliases: len,length,size,shape,tally
-    :Property len,length,size,shape,tally
+    ⍝ aliases: len,length,size,shape,tally.count
+    :Property len,length,size,shape,tally,count
     :Access Public
         ∇ r←get args
           r←≢keysF
@@ -317,17 +312,12 @@
     :Property keys,key
     :Access Public
         ⍝ get: retrieves keys
-        ∇ k←get args;cur;err;ix;keys;vals
+        ∇ k←get args 
           k←keysF
-⍝          ix←⊃args.Indexers
-⍝          k←keysF[ix]    ⍝ Always scalar-- APL handles ok even if 1-elem vector
         ∇
         ∇ set args
           eKeyAlterAttempt ⎕SIGNAL 11
         ∇
-⍝        ∇ r←shape
-⍝          r←≢keysF
-⍝        ∇
     :EndProperty
 
     ⍝ values,vals,val:
@@ -336,7 +326,7 @@
     :Property numbered values,value,vals,val  ⍝ Vi = keys by index
     :Access Public
         ⍝ get: retrieves values, not keysF
-        ∇ vals←get args;ix;vals
+        ∇ vals←get args;ix
           ix←⊃args.Indexers
           vals←valuesF[ix]     ⍝ Always scalar-- APL handles ok even if 1-elem vector
         ∇
@@ -358,7 +348,7 @@
     ⍝     Setting Default to a new value always turns on hasdefault as well."
     ⍝                SETTING    GETTING
     ⍝ hasdefault        Y          Y
-    ⍝ default            Y          Y
+    ⍝ default           Y          Y
     ⍝ querydefault      N          Y
     ⍝
     ⍝ hasdefault:    "Sets the dictionary property ON (1) or OFF (0). If ON, activates current Default value.
