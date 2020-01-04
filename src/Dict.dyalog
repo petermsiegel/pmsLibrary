@@ -10,14 +10,14 @@
 
   ⍝ Shared Fields
   ⍝ If DEBUG is set to one before ⎕FIXing, the ⎕TRAP is ignored.
-    :Field Public  Shared DEBUG←  0                       
+    :Field Public  Shared DEBUG←  1                       
     :Field Public  Shared ∆TRAP←  (0⍴⍨~DEBUG) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
 
   ⍝ INSTANCE FIELDS and Related
     keysF←⍬                                 ⍝ Variable, not Field, to avoid APL hashing bug
     :Field Private valuesF←       ⍬
     :Field Private hasdefaultF←   0
-    :Field Private defaultF←      ''       ⍝ Initial value
+    :Field Private defaultF←      ''        ⍝ Initial value
 
   ⍝ ERROR MESSAGES:
     eBadLoad←         'Dict: args consist of key-value pairs, dictionaries, and a scalar default value.'
@@ -30,15 +30,17 @@
     eQueryDontSet←    'Dict/querydefault may not be set; set default or hasdefault.'
 
   ⍝ General Local Names
-    CLASSNAME_str←⍕⊃⊃⎕CLASS ⎕THIS
-
     ∇ ns←Dict                     ⍝ Returns this namespace 
       :Access Public Shared
       ns←⎕THIS
     ∇
     ∇ns←{def} ∆DICT initial       ⍝ Creates ⎕NEW Dict via cover function
-     ns←⎕NEW ⎕THIS initial 
-     :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
+     :TRAP 0⍴⍨~⎕THIS.DEBUG 
+        ns←⎕NEW ⎕THIS initial 
+        :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
+     :Else
+        ⎕SIGNAL/⎕DMX.(EM EN)
+     :EndTrap
      ∇
      
     ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
@@ -57,16 +59,18 @@
     ∇ new1 struct
       :Implements Constructor
       :Access Public
-      ⎕DF CLASSNAME_str,'.1'
+      ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS),'<1>'
       :Trap 0⍴⍨~DEBUG
           _load struct
+      :Else  
+          ⎕SIGNAL/⎕DMX.(EM EN)
       :EndTrap
     ∇
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF CLASSNAME_str,'.0'
+      ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS),'<0>'
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -88,10 +92,7 @@
     :Access Public
         ∇ vals←get args;err;_ix;found;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
-          :If ⎕NULL≡⊃args.Indexers
-              vals←valuesF
-              :Return
-          :EndIf
+          :If ⎕NULL≡⊃args.Indexers ⋄ vals←valuesF ⋄ :Return ⋄  :EndIf
           p←keysF⍳⊃args.Indexers
           found←(≢keysF)>p
           :If ~0∊found
@@ -194,29 +195,33 @@
       me←⎕THIS
     ∇
     ⍝ _load: used only internally, but visible
-    ∇ _load items;keys;vals;item         ⍝ Syntax                          Action
+    ∇ _load items;k;v;scanArgs 
+      k←v←⍬                              ⍝ Syntax                          Action
+      scanArg←{
+        2<≢⍵:eBadLoad ⎕SIGNAL 11   
+        2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load k-v pair
+        ⋄ isDict←9.2=⎕NC⊂'item'⊣item←⍬⍴⍵
+        isDict:(k v),←⍵.export           ⍝ dict                            Import Dictionary
+        defaultF hasdefaultF∘←(⊃⍵) 1        ⍝ default←⊃⍵                      SD
+      }
       :If 0=≢items                       ⍝ ∇ '' or ∇ ⍬                     SD (Set Default)
           defaultF hasdefaultF←items 1
-      :ElseIf 1=≢items                   ⍝ ∇ 1 or ∇ (⊂'') or ∇ ⎕NULL etc.  SD
-      :AndIf 9.2≠⎕NC⊂'item'⊣item←⍬⍴items ⍝ ∇ dict1
-          defaultF hasdefaultF←(⊃⊆item)1
-      :ElseIf 2=⍴⍴items                  ⍝ ∇ ⍪keyVec valVec                (2=⍴) Import
-          :If 3=⍴items←,items            ⍝ ∇ ⍪keyVec valVec [Default]      (3=⍴) Import + SD
+      :ElseIf 1=≢items                   ⍝ ∇ dict OR ∇ scalar              Import Dict or SD
+          scanArg ⊂items ⋄ _import k v   ⍝ To default to a 1-item vector (,2), pass as: (⊂,2)
+      :ElseIf 2=⍴⍴items                  ⍝ ∇ ⍪keyVec valVec [default]      Matrix? Import
+          :Select ⍬⍴⍴items←,items        ⍝ Must be 2 or 3 rows, 1 col.
+            :Case 2                      ⍝                                 2 rows? Import
+            :Case 3                      ⍝                                 3 rows? Import + SD
               defaultF hasdefaultF←(2⊃items)1
-          :EndIf
+            :Else 
+              eBadLoad ⎕SIGNAL 11
+          :EndSelect
           _import 2↑items
       :ElseIf 2∧.=≢¨items                ⍝ ∇ (k1 v1)(k2 v2) etc.           Import
           _import↓⍉↑items
-      :Else                              ⍝ ((k1 v1)(k2 v2)*                Load
-          keys←vals←⍬                    ⍝  | (d1)(d2)* | (⊂default))+
-          {
-              2<≢⍵:eBadLoad ⎕SIGNAL 11
-              2=≢⍵:(keys vals),←⊂¨⍵      ⍝ (k1 v1)                         Load k-v pair
-              item←⍵
-              9.2=⎕NC⊂'item':(keys vals),←⍵.export   ⍝ dict1               Import Dictionary
-              defaultF hasdefaultF∘←(⊃⍵)1  ⍝ default←⊃⍵                   SD
-          }¨⊆items
-          _import keys vals
+      :Else                              ⍝ mix of items                    Load item by item
+          k←v←⍬                       
+          scanArg¨items ⋄ _import k v  ⍝ scan items one by one
       :EndIf
     ∇
 
@@ -238,6 +243,7 @@
     ⍝ Shyly returns ⍬ (ignored).
       _import←{                   ⍝ 0.  k, v: k may have old and new keys, some duplicated.
           k v←,¨⍵                 ⍝     Make sure k and v are each vectors...
+          0=≢k:_←⍬                ⍝     No keys/vals? Return now.
           old←(≢keysF)>p←keysF⍳k  ⍝ I.  Note old keys
           valuesF[old/p]←old/v    ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
           ~0∊old:_←⍬              ⍝     All old? No more to do; shy return.
