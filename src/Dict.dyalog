@@ -1,16 +1,118 @@
 :Class DictClass
-⍝ dict: A fast, ordered, and simple dictionary for general use.
-⍝ Hashes vector KEYS for efficiency on large dictionaries.
-⍝ For HELP information, call 'dict.HELP'.
-⍝ While retrieving item[⊂'name'] is valid only if 'name' exists in the dictionary <item>,
-⍝ or if a default has been set,  item.get or item.get1 can take an arbitrary default (⍺).
-⍝ See also item.inc and item.dec -- which increment (decrement) counters:if no default
-⍝ is set, non-existent items are assumed to have a starting value of 0 beforehand.
+⍝⍝ DictClass: A fast, ordered, and simple dictionary for general use.
+⍝⍝ ∆DICT:     Primary function for creating new dictionaries.
+⍝⍝            d←∆DICT ⍬       ⍝ Create a new, empty dictionary with default value ⍬.
+⍝⍝ Dict:      A utility that returns the full name of the dictionary class, often #.DictClass
+⍝⍝            d←⎕NEW Dict     ⍝ Create a new, empty dictionary with no default values.
+⍝⍝ Hashes vector KEYS for efficiency on large dictionaries.
+⍝⍝ For HELP information, call 'dict.HELP'.
+⍝⍝
+⍝⍝ d←∆DICT item
+⍝⍝ d← default ∆DICT item
+⍝⍝    item: (key1 val1)(key2 val2)...
+⍝⍝          items passed as key-value pairs; keys and vals may be of any type...
+⍝⍝    item: dict
+⍝⍝          A dict is an existing instance (scalar) of a DictClass object.   
+⍝⍝    item: ⍪keys vals [⊂default]  
+⍝⍝          items are passed as 2 vectors (keys, vals); 
+⍝⍝          the default may optionally be appended as a scalar.
+⍝⍝ d←∆DICT [default]
+⍝⍝    default must either a scalar:  0 [default: 0],  ⊂'' [default: ''], ⊂⍬ [default: ⍬], 
+⍝⍝                                   ⊂'text' [default: 'text'], ⎕NULL, (⊂2 3⍴⍳6)
+⍝⍝                 or null:          '' (same as ⊂'') or ⍬ (same as ⊂⍬)
+⍝⍝
+⍝⍝ d[⊂k1] or d[k1 k2...]
+⍝⍝ Return the item of d with key key. Raises an error any key is not in the dictionary, 
+⍝⍝ unless a default is specified.
+⍝⍝ See also get, get1 
+⍝⍝
+⍝⍝ d[⊂k1] ← (⊂v1) OR d[k1 k2...]←v1 v2 ...
+⍝⍝ Assign a value to each key specified, new or existing.
+⍝⍝
+⍝⍝ keys ← d.keys                     [alias: key]
+⍝⍝ Return a list of all the keys used in the dictionary d.
+⍝⍝
+⍝⍝ keys ← d.keys[indices]            [alias: key]
+⍝⍝ Return a list of keys by numeric indices i1 i2 ...
+⍝⍝
+⍝⍝ vals ← d.vals                     [alias: val]
+⍝⍝ Returns the list of values  in entry order for  all items; suitable for iteration
+⍝⍝      :FOR v :in d.vals ...
+⍝⍝
+⍝⍝ vals ← d.vals[indices]            [alias: val]
+⍝⍝ Returns a list of item values by numeric indices i1 i2 ...
+⍝⍝
+⍝⍝ d.vals[indices]←newvals           [alias: val]
+⍝⍝ Sets new values <newvals> for existing items by indices.
+⍝⍝
+⍝⍝ d.len  
+⍝⍝ Return the number of items in the dictionary d.
+⍝⍝
+⍝⍝ d.del (⊂k1) OR d.del k1 k2 ...
+⍝⍝ Remove keys from d.  
+⍝⍝ Shyly returns 1 for each key. Signals an error of any key is not in the dictionary.
+⍝⍝
+⍝⍝ 1 d.del (⊂k1) OR 1 d.del k1 k2
+⍝⍝ Removes items from d by keys; takes no action if any key is missing.
+⍝⍝ Shyly returns 1 for each key found, 0 otherwise.
+⍝⍝
+⍝⍝ d.delbyindex indices              [alias: di]
+⍝⍝ Removes items from d by indices i1 i2 .... Returns 1 for each item removed.
+⍝⍝ Signals an error if any item does not exist.
+⍝⍝
+⍝⍝ 1 d.delbyindex indices            [alias: di]
+⍝⍝ Removes items from d by indices i1 i2 .... Returns 1 for each item removed; else 0.
+⍝⍝
+⍝⍝ d.defined (⊂k1) OR d.defined k1 k2
+⍝⍝ Return 1 for each key that is defined (i.e. is in the dictionary)
+⍝⍝
+⍝⍝ d.clear
+⍝⍝ Remove all items from the dictionary.
+⍝⍝
+⍝⍝ d.copy
+⍝⍝ Return a shallow copy of the dictionary, including its defaults
+⍝⍝
+⍝⍝ [default] d.get  k1 k2 ...
+⍝⍝ [default] d.get1 k1
+⍝⍝ Return the value for keys in the dictionary, else default. 
+⍝⍝ If <default> is omitted and a key is not found, returns the existing default.
+⍝⍝
+⍝⍝ (k1 k2 ... d.set v1 v2) ... OR (d.set1 (k1 v1)(k2 v2)...)
+⍝⍝ (k1 d.set1 v1) OR (d.set1 k1 v1)
+⍝⍝ Set one or more key-value pairs
+⍝⍝
+⍝⍝ d.items
+⍝⍝ Return a list of the dictionary’s items ((key, value) pairs).  
+⍝⍝
+⍝⍝ d.popitem n
+⍝⍝ Remove and return the n most-recently entered key-value pairs.
+⍝⍝ This is done efficiently, so that the dictionary is not rehashed.
+⍝⍝
+⍝⍝ d ← d.sort OR d.sorta
+⍝⍝ Sort a dictionary's keys in place in ascending order
+⍝⍝
+⍝⍝ d ← d.sortd
+⍝⍝ Sort a dictionary's keys in place in descending order
+⍝⍝
+⍝⍝ d.default←value
+⍝⍝ Sets a default value for missing keys. Also sets d.hasdefault←1
+⍝⍝
+⍝⍝ d.hasdefault←[1 | 0]
+⍝⍝ Activates (1) or deactivates (0) the current default; if a default exists, it is ignored
+⍝⍝ if hasdefault←0, but it is not deleted; when hasdefault is reset to 1, the default (if any) is restored.
+⍝⍝
+⍝⍝ d.querydefault
+⍝⍝ Returns a vector containing the current default and 1, if defined; else ('' 0)
+⍝⍝
+⍝⍝ Dictionaries preserve insertion order. Note that updating a key does not affect the order. 
+⍝⍝ Keys added after deletion are inserted at the end.
+⍝⍝ Dictionaries are hashed according to their keys (using APL hashing: 1500⌶)
+
     ⎕IO ⎕ML←0 1
 
   ⍝ Shared Fields
   ⍝ If DEBUG is set to one before ⎕FIXing, the ⎕TRAP is ignored.
-    :Field Public  Shared DEBUG←  1                       
+    :Field Public  Shared DEBUG←  0                       
     :Field Public  Shared ∆TRAP←  (0⍴⍨~DEBUG) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
 
   ⍝ INSTANCE FIELDS and Related
@@ -282,8 +384,8 @@
     ∇
     :EndProperty
 
-    ⍝ items/pairs: "Returns ALL key-value pairs as a vector, one vector element per pair"
-    :Property items,item,pairs,pair
+    ⍝ items: "Returns ALL key-value pairs as a vector, one vector element per pair"
+    :Property items,item 
     :Access Public
         ∇ r←get args
           :If 0=≢keysF ⋄ r←⍬
@@ -301,8 +403,8 @@
     ∇
 
     ⍝ len:  "Returns the number of key-value pairs"
-    ⍝ aliases: len,length,size,shape,tally.count
-    :Property len,length,size,shape,tally,count
+    ⍝ aliases: len 
+    :Property len 
     :Access Public
         ∇ r←get args
           r←≢keysF
@@ -534,12 +636,12 @@
     :EndProperty
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
-    ∇ {h}←help
+    ∇ {h}←help;ln 
       :Access Public Shared
       ⍝ Pick up only ⍝H1 comments!
-      h←'^\h*⍝H1(.*)$'⎕S'\1'⊣⊃⎕NGET'pmsLibrary/docs/Dict.help'
-      :Trap 1000
-          ⎕ED'h'
+      :Trap 0 ⋄ h←⎕SRC ⎕THIS ⋄ h←3↓¨h/⍨(⊂'⍝⍝')≡¨2↑¨h 
+              :FOR ln :in h ⋄ ⎕←ln ⋄ :ENDFOR
+      :Else ⋄ ⎕SIGNAL/'Dict.HELP: No help available' 911
       :EndTrap
     ∇
     _←⎕FX 'help'⎕R'Help'⊣⎕NR 'help'
