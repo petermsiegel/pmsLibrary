@@ -8,19 +8,21 @@
 ⍝⍝ For HELP information, call 'dict.HELP'.
 ⍝⍝
 ⍝⍝ d←∆DICT item
-⍝⍝ d← default ∆DICT item
-⍝⍝    item: (key1 val1)(key2 val2)...
-⍝⍝          items passed as key-value pairs; keys and vals may be of any type...
-⍝⍝    item: dict
-⍝⍝          A dict is an existing instance (scalar) of a DictClass object.   
-⍝⍝    item: ⍪keys vals [⊂default]  
-⍝⍝          items are passed as 2 vectors (keys, vals); 
-⍝⍝          the default may optionally be appended as a scalar.
-⍝⍝ d←∆DICT [default]
-⍝⍝    default must either a scalar:  0 [default: 0],  ⊂'' [default: ''], ⊂⍬ [default: ⍬], 
-⍝⍝                                   ⊂'text' [default: 'text'], ⎕NULL, (⊂2 3⍴⍳6)
-⍝⍝                 or null:          '' (same as ⊂'') or ⍬ (same as ⊂⍬)
-⍝⍝
+⍝⍝ d← default1 ∆DICT [item1 | item2 | item3]
+⍝⍝    item1: (key1 val1)(key2 val2)...
+⍝⍝           items passed as key-value pairs; keys and vals may be of any type...
+⍝⍝    item2: dict
+⍝⍝           A dict is an existing instance (scalar) of a DictClass object.   
+⍝⍝    item3: ⍪keys vals [⊂default2]  
+⍝⍝           items are passed as 2 vectors (keys, vals); 
+⍝⍝           the default may optionally be appended as a scalar.
+⍝⍝    default1: any APL object of any shape. It is NOT enclosed.
+⍝⍝           E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬ 
+⍝⍝ d←∆DICT [⊂default]
+⍝⍝    default2 must either be null: e.g.         ''  OR  ⍬  
+⍝⍝            or be enclosed as a scalar: e.g.  5   OR  ⎕NULL OR ⊂,5   OR  (⊂2 3⍴⍳6) OR  (⊂'Mary')
+⍝⍝            The default is defined as the disclose of the item, unless it's simple.
+⍝⍝            Here:   5   ⎕NULL   ,5   (2 3⍴⍳6)  'Mary'
 ⍝⍝ d[⊂k1] or d[k1 k2...]
 ⍝⍝ Return the item of d with key key. Raises an error any key is not in the dictionary, 
 ⍝⍝ unless a default is specified.
@@ -48,7 +50,7 @@
 ⍝⍝ d.len  
 ⍝⍝ Return the number of items in the dictionary d.
 ⍝⍝
-⍝⍝ d.del (⊂k1) OR d.del k1 k2 ...
+⍝⍝ [0] d.del (⊂k1) OR d.del k1 k2 ...
 ⍝⍝ Remove keys from d.  
 ⍝⍝ Shyly returns 1 for each key. Signals an error of any key is not in the dictionary.
 ⍝⍝
@@ -56,7 +58,7 @@
 ⍝⍝ Removes items from d by keys; takes no action if any key is missing.
 ⍝⍝ Shyly returns 1 for each key found, 0 otherwise.
 ⍝⍝
-⍝⍝ d.delbyindex indices              [alias: di]
+⍝⍝ [0] d.delbyindex indices              [alias: di]
 ⍝⍝ Removes items from d by indices i1 i2 .... Returns 1 for each item removed.
 ⍝⍝ Signals an error if any item does not exist.
 ⍝⍝
@@ -87,6 +89,16 @@
 ⍝⍝ d.popitem n
 ⍝⍝ Remove and return the n most-recently entered key-value pairs.
 ⍝⍝ This is done efficiently, so that the dictionary is not rehashed.
+⍝⍝
+⍝⍝ [1]    d.inc k1 k2 ...
+⍝⍝ Increment the values of keys by 1. If undefined and no default is set, 0 is assumed (incremented to 1).
+⍝⍝
+⍝⍝ amount d.inc k1 k2 ...
+⍝⍝ Increments the values of keys by <amount>. If undefined and no default is set, 0 i assumed.
+⍝⍝
+⍝⍝ [1]    d.dec k1 k2 ...
+⍝⍝ amount d.dec k1 k2 ...
+⍝⍝ Identical to d.inc (above) except decrements the values by 1 or <amount> respectively.
 ⍝⍝
 ⍝⍝ d ← d.sort OR d.sorta
 ⍝⍝ Sort a dictionary's keys in place in ascending order
@@ -661,83 +673,3 @@
       :EndIf
     ∇
 :EndClass
-
-
-⍝ d ← [default←''] SimpleDict k_v_pairs   OR  [default←''] SimpleDict ⍬
-⍝      d.default is ⍺, if specified, else ''
-⍝      d.keys    is the list of current keys
-⍝      d.vals     is the list of current values
-⍝ Methods:
-⍝       set:             keys    d.set   vals
-⍝       set1:            key     d.set1  val
-⍝       get:   vals    ← [def]   d.get   vals   (default for def is d.default)
-⍝       get1:  val     ← [def]   d.get1  val
-⍝       inc:   newvals ← [num←1] d.inc   keys   (if key is new, increment default (if numeric), else 0)
-⍝       inc1:  newval  ← [num←1] d.inc1  key    (ditto)
-⍝       dec:   newvals ← [num←1] d.dec   keys   (ditto)
-⍝       dec1:  newval  ← [num←1] d.dec1  key    (ditto)
-⍝       del:   bools   ←         d.del   keys
-⍝       del1:  bool    ←         d.del1  key
-⍝       table: mx      ←         d.table
-⍝       print: (alias for d.table)
-  SimpleDict←{
-      ⎕IO ⎕ML←0 1
-     ⍝ d ← [default] SimpleDict [key-value pairs | ⍬]
-      ⍺←''   ⍝ Default is character null-string.
-             ⍝ Use ⍺:⎕NULL etc to distinguish from typical values...
-      dict.dict←dict←⎕NS''
-    ⍝ vals ← keys set  vals
-    ⍝ val  ← key  set1 val
-      dict.set←{1:_←⍺ set1¨⍵ }
-      dict.set1←{
-          p←keys⍳⊂⍺
-          p<≢keys:(p⊃vals)←⊂⍵
-          keys,←⊂⍺
-          1:_←vals,←⊂⍵   ⍝ returns val:⍵
-      }
-    ⍝ {newval} ← [increments←1]  inc  keys
-    ⍝ {newval} ← [increment←1]   inc1 key
-      dict.inc←{⍺←1 ⋄ 1:_←⍺ inc1¨⍵}
-      dict.inc1←{⍺←1
-          p←keys⍳⊂⍵
-          p<≢keys:(p⊃vals)+←⍺
-          keys,←⊂⍵
-        ⍝ If key not found, if default is (apparently) numeric, increment/decrement default
-          0=1↑0⍴default: _←vals⊣vals,←⊂⍺+default
-        ⍝ Else, ignore default and increment from 0
-          1:_←vals⊣vals,←⊂⍺+0  
-      }
-      ⍝ {key} ← [decrements←1] dec keys
-      ⍝ {key} ← [decrement←1]  dec1 key
-      dict.dec←{⍺←1 ⋄ 1:_←(-⍺) inc1¨⍵}
-      dict.dec1←{⍺←1
-          1:_←(-⍺)inc1 ⍵
-      }
-    ⍝ vals ← [def] get  keys
-    ⍝ val ←  [def] get1 key
-      dict.get←{⍺←⊢ ⋄ ⍺ get1¨⍵}
-      dict.get1←{⍺←default
-          p←keys⍳⊂⍵
-          p<≢keys:p⊃vals
-          ⍺
-      }
-    ⍝ bools ←  del keys
-    ⍝ bool  ←  del1 key
-      dict.del←{del1¨⍵}
-      dict.del1←{
-          p←keys⍳⊂⍵
-          p≥≢keys:_←0
-          k←p≠⍳≢keys
-          keys∘←k/keys
-          vals∘←k/vals
-          1:_←1
-      }
-      ⍝ mx ← dict.table
-      ⍝ mx ← dict.print
-      tblFn←':IF 0=≢keys ⋄ r←⍬ ⋄ :Else ⋄ r←⍉↑keys vals ⋄ :Endif'
-      _←dict.⎕FX¨ ('r←table' tblFn)('r←print' tblFn)
-
-      dict.(keys vals)←{0=≢⍵:⍬ ⍬ ⋄ ↓⍉↑⍵}⍵
-      dict.default←⍺
-      dict⊣dict.⎕DF '[SimpleDict]'
-  }

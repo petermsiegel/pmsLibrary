@@ -1,337 +1,122 @@
-⍝H1-----------------------------------------------------------------------------
-⍝H1 Family of services <Dict.help> provide three related dictionary services.
-⍝H1 +---------------------------------------------------------------+
-⍝H1 |  Dict        HELP                                             |
-⍝H1 |  TinyDict    HELP                                             |
-⍝H1 |  simpleDict  [Not documented: function <simpleDict>]          |
-⍝H1 +---------------------------------------------------------------+
-⍝H1 Dict
-⍝H1    a←⎕NEW  Dict [data]   ⍝ data: initial values and/or default
-⍝H1    Dict.help
-⍝H1 TinyDict
-⍝H1    a←TinyDict.new     ⍝ namespace, not class
-⍝H1    TinyDict.help
-⍝H1
-⍝H1 ---------------------------------------------------
-⍝H1
-⍝H1 Dict
-⍝H1  A fast, streamlined Ordered Dictionary (i.e. an Ordered Hash Table)
-⍝H1 a←⎕NEW Dict
-⍝H1      A dictionary with no initial entries and no default.
-⍝H1 a←⎕NEW Dict [initial_values/default]
-⍝H1      A dictionary with initial values and/or default specified.
-⍝H1 a←⎕NEW dictClass [initial_values/default]
-⍝H1      Actual class name for Dictionary.
-⍝H1
-⍝H1  Dict
-⍝H1     Items are stored in the order created; the dictionary order is maintained,
-⍝H1     even when a value is changed.
-⍝H1     (Items may be moved by sorting or by deleting and re-entering.)
-⍝H1  KEYS and VALUES
-⍝H1     Keys may be of any type and shape. Case is always respected.
-⍝H1  ⍵.default, ⍵.hasdefault
-⍝H1     If ⍵.hasdefault←1 (default is 0), then
-⍝H1     ⍵.Default will be returned as the value when missing keys are requested.
-⍝H1     Initially, ⍵.Default←'' but ⍵.hasdefault←0, so missing keys trigger a VALUE ERROR.
-⍝H1     If ⍵.hasdefault←1, then the current ⍵.Default is used.
-⍝H1 Note: Yes, there are too many choices in dict for how to set defaults;
-⍝H1  When counting items, any key not yet defined will be treated as having value 0, when
-⍝H1  used with ⍵.inc, ⍵.dec, ⍵.inc1, or ⍵.dec1.
-⍝H1          words ← ⎕NEW Dict        ⍝ No default value
-⍝H1          wordList←'cat' 'dog' 'mouse' 'house' 'cat'
-⍝H1          words.inc wordList
-⍝H1        ⍝ cat 2, dog 1, mouse 1, house 1 
-⍝H1 Syntax:    ⍺ ← ⎕NEW Dict specs
-⍝H1            specs: [[ Format I | Format II | Format III | Format IV ]]
-⍝H1                I:   [k v | dict | ⊂default)]+
-⍝H1                II:  (⊂default)                    ⍝ For simple scalar, same as ⊂default
-⍝H1                III: n×1 Matrix:   ⍪keyVec valVec [default]
-⍝H1                IV:  0-length Vec: '' or ⍬
-⍝H1
-⍝H1     Format I: list of  [k v  |  dict  |  ⊂default]
-⍝H1           k v:      key-value pair of the form (k1 v1)
-⍝H1           dict:     an existing dictionary returned from ⎕NEW dict.
-⍝H1           default:  If a scalar value ⍵1 is detected and it's not a dictionary.
-⍝H1                     ⊃⍵ will be the default value returned for keys which are not in the dict.
-⍝H1                     E.g. to enter items or dictionaries AND a default:
-⍝H1                     for Default←'':     ⎕New dict ((⊂'')(key1 val1)(key2 val2)...)
-⍝H1                     for Default←⎕NULL:  ⎕NEW dict (⎕NULL(key1 val1)(key2 val2)...)
-⍝H1     Format II: Enclosed or simple scalar
-⍝H1         general ⍵:  Initialize empty dictionary with Default←⊃⍵
-⍝H1           1:            "        "       "        "  Default←1  (numeric 1)
-⍝H1           0:            "        "       "        "  Default←0  (numeric 0)
-⍝H1           ⎕NULL:        "        "       "        "  Default←⎕NULL
-⍝H1     Format III: Matrix of shape 2 1 or 3 1
-⍝H1           ⍪keys vals [default]:
-⍝H1                     First row is ⊂keys, 2nd row is ⊂values, third is the default (if present).
-⍝H1                     ⎕NEW dict (⍪keys vals)  ←-→   ⎕NEW dict (↓⍉↑keys vals)
-⍝H1     Format IV: 0-length Vector arg
-⍝H1           '' or ⍬   Initialize empty dictionary with Default←'' or Default←⍬
-⍝H1
-⍝H1  ┌────────────────────────────────────────────┐─────────────────────────────────────────────┐
-⍝H1  |a ← ⎕NEW Dict                               │ Create empty dict, no default               │
-⍝H1  │a ← ⎕NEW Dict (1)                           │ Create empty dict, default: 1               │
-⍝H1  |a ← ⎕NEW Dict ('' | ⍬)                      │ Create empty dict, default '' or ⍬          │
-⍝H1  │a ← ⎕NEW Dict (⊂default)                    │ Create empty dict, default (default)        │
-⍝H1  │a ← ⎕NEW Dict ((k,v)(k,v))                  │ Create dict with k v pairs, no def          │
-⍝H1  │a ← ⎕NEW Dict ⍪(k1 k2..)(v1 v2..) [default] │ Create dict with keys vals and def          │
-⍝H1  │a ← ⎕NEW Dict (d1,d2)                       │ Create dict from dicts d1 d2                │
-⍝H1  │a ← ⎕NEW Dict ((k,v)d1(k,v)d2)              │ Create dict from mix of k v pairs and dicts │
-⍝H1  └────────────────────────────────────────────┘─────────────────────────────────────────────│
-⍝H1
-⍝H1  Ordered Dictionary Creation
-⍝H1   ∘ Create empty
-⍝H1     a ← ⎕NEW Dict                              ⍝ Empty dictionary
-⍝H1   ∘ Create and Insert key-value pairs
-⍝H1     a ← ⎕NEW Dict ((key1 val1)(key2 val2)...)  ⍝ With items, i.e. key-value pairs
-⍝H1   ∘ Create empty with default value
-⍝H1     a ← ⎕NEW Dict (⊂default)                   ⍝ Argument passed must be scalar, which will be disclosed.
-⍝H1   ∘ If b is an existing dict, then:
-⍝H1       a ← ⎕NEW Dict (b)
-⍝H1     copies b's values into a.
-⍝H1     - Attributes are NOT copied via ⎕NEW.
-⍝H1     - To copy all keys, values, and default: Use a←b.copy
-⍝H1   ∘ Pairs and dictionaries may be assigned to a new dictionary on creation:
-⍝H1       c←  ⎕NEW Dict (a (key1 val1) (key2 val2) b)
-⍝H1     Elements are assigned IN ORDER, left to right, with the last value "sticking."
-⍝H1     Here, c is made up of the contents of dictionary a, two key-value pairs, and b.
-⍝H1   ∘ To make a copy, called a, of a dictionary b, including its Defaults, use copy:
-⍝H1       a ← b.copy
-⍝H1
-⍝H1  ┌─────────────────────────────┐
-⍝H1  | a.default←val   [*]         │
-⍝H1  │ w←a.default                 │
-⍝H1  │ w←a.hasdefault              │
-⍝H1  │ a.hasdefault←b              │
-⍝H1  │ hasdef def←a.querydefault   │
-⍝H1  │ ————————————————            │
-⍝H1  │ * See ⎕NEW Dict             │
-⍝H1  └─────────────────────────────┘
-⍝H1  Manage Default Values
-⍝H1   ∘ At initialization, unless a (dictionary-wide) default has been set,
-⍝H1     a VALUE ERROR results from trying to retrieve a value for a missing key.
-⍝H1       a←⎕NEW Dict
-⍝H1       a[10]
-⍝H1     VALUE ERROR
-⍝H1     This even occurs when retrieving values from a mix of present and missing keys.
-⍝H1   ∘ The default may be set to any scalar or vector value. When you set it, hasdefault←1 for you.
-⍝H1     (If you then set hasdefault←0, the Default value is "hidden" until hasdefault←1 again).
-⍝H1     ⍺.default←⍵
-⍝H1     Example:
-⍝H1       a←⎕NEW Dict ⋄ a.default←1 3
-⍝H1       a[10]
-⍝H1     1 3
-⍝H1   ∘ Check defaults
-⍝H1     def←⍺.default
-⍝H1   ∘ Check whether a default exists
-⍝H1     bool←⍺.hasdefault
-⍝H1   ∘ Turn on the default (If turned on and Default hasn't been set, it's set to Default←'').
-⍝H1      ⍺.hasdefault←bool
-⍝H1   ∘ Query current hasdefault flag and default (⎕NULL if not set):
-⍝H1     hasdef def←⍺.querydefault
-⍝H1  The default may also be set in the ⎕NEW call if there is an argument of this form:
-⍝H1   ∘ scalar
-⍝H1   ∘ non-dictionary (not of nameclass 9.2, or if 9.2 doesn't have method isDict or if it does, isDict returns 0).
-⍝H1
-⍝H1  ┌────────────────────────────────────────┐
-⍝H1  | a[k1 k2]←v1 v2                         │
-⍝H1  | a.put (k1 v1)(k2 v2)                   │
-⍝H1  | a.put1 k1 v1                           │
-⍝H1  | k1 a.put1 v1                           │                    
-⍝H1  │ v1 v2←a[k1 k2]                         │
-⍝H1  │ v1 v2←a.get k1                         │
-⍝H1  │ v1   ←a.get1 k1                        │
-⍝H1  │ v1 v2←default a.get k1 k2              │
-⍝H1  │ v1   ←default a.get1 k1                │
-⍝H1  │ a.vals[i1 i2]←v1 v2                    │
-⍝H1  │ a.values[i1 i2]←v1 v2                  │
-⍝H1  │ k1 k2←a.keys[i1 i2]                    │
-⍝H1  | v1 v2←[amt] a.inc k1 k2                |
-⍝H1  | v1 v2←[amt] a.dec k1 k2                |
-⍝H1  │ a.import keys vals                     │
-⍝H1  │ keys vals←a.export                     │
-⍝H1  │ i1 i2←a.Iota k1 k2   ⍝ a.Keys ⍳ k1 k2  │
-⍝H1  └────────────────────────────────────────┘
-⍝H1  Setting keys and values
-⍝H1     ⍺[k1 k2...]←v1 v2...
-⍝H1  Retrieving values by key
-⍝H1     v1 v2...←a[k1 k2...]
-⍝H1  Setting values by index (indices must exist)
-⍝H1     ⍺.values[i1 i2...]←v1 v2...
-⍝H1     ⍺.vals[i1 i2...]  ←v1 v2
-⍝H1  Retrieving values by index (indices must exist)
-⍝H1     ⍺.values[i1 i2...]
-⍝H1     ⍺.vals[i1 i2...]
-⍝H1  Retrieve all values
-⍝H1     ⍺.values
-⍝H1     ⍺.vals
-⍝H1  Setting Keys by Index
-⍝H1     **NOT ALLOWED**
-⍝H1  Retrieving Keys by Index
-⍝H1      k1 k2...←⍺.Keys[i1 i2...]
-⍝H1  Retrieving all Keys (in index order, by default the order entered)
-⍝H1      k1 k2...←⍺.Keys
-⍝H1  Increment/Decrement value of specific keys by amt (or 1).
-⍝H1  ⍝   Shyly returns new values
-⍝H1      [newval ← ] [amt | 1] a.inc k1 k2 ...
-⍝H1      [newval ← ] [amt | 1] a.dec k1 k2
-⍝H1  Importing keys and values en masse from vectors keys vals
-⍝H1      ⍺.import keys vals
-⍝H1      Equivalent to: ⍺[keys]←vals   ⍝ But faster!
-⍝H1      Note: if a key exists, its value is updated in its original order.
-⍝H1  Exporting keys and values en masse as vectors keys vals
-⍝H1      keys vals ← ⍺.Export
-⍝H1      Equivalent to:  keys vals← ⍺.(Keys Vals) ⍝ But faster!
-⍝H1  Finding index of each key (like ⍳) (or Len if not found)
-⍝H1      i1 i2... ← a.Iota k1 k2
-⍝H1      Equiv. to a.Keys ⍳ key1 key2   ⍝ But much faster!
-⍝H1
-⍝H1  ┌──────────────────────────────────────────────┐
-⍝H1  | {b1 b2}←a.del k1 k2                          │
-⍝H1  │ {b1 b2}←(ignore←0) a.del k1 k2               │
-⍝H1  │ {b1 b2}←a.delbyindex i1 i2                   │
-⍝H1  │ {b1 b2}←(ignore←0) a.delbyindex i1 i2        │
-⍝H1  │ {b1 b2}←a.di i1 i2                           │
-⍝H1  │ a←a.clear          ⍝ Returns a               │
-⍝H1  └──────────────────────────────────────────────┘
-⍝H1  Delete key-value pairs by key (returns the unique keys deleted)
-⍝H1  If 0 (default), missing keys generate an ERROR signal.
-⍝H1  If left arg is 1 (ignore), missing keys are ignored and 0 is returned for each.
-⍝H1  Returns 1 for each key deleted; 0 otherwise.
-⍝H1      {b1 b2}...← [[1|0]] ⍺.del k1 k2...
-⍝H1  Delete key-value pairs by index (returns the unique keys deleted)
-⍝H1  ∘ All indices must be valid.
-⍝H1      {b1 b2}...← ⍺.delbyindex i1 i2...
-⍝H1      {b1 b2}...← ⍺.di i1 i2
-⍝H1  ∘ Invalid indices to be ignored.
-⍝H1      {b1 b2}...← 1 ⍺.delbyindex i1 i2...
-⍝H1      b1 b2...← 1 ⍺.DI i1 i2
-⍝H1
-⍝H1  ┌───────────────────────────────────────────┐
-⍝H1  | b1 b2←a.defined k1 k2                     │
-⍝H1  │ k1v1 k2v2←a.items                         │
-⍝H1  │ k1v1 k2v2←a.pairs                         │
-⍝H1  │ kv_Mx←a.table    show pairs as a table    │
-⍝H1  │ kv_Mx←a.print    same as a.table          │
-⍝H1  │ kv_Mx←a.disp     show table via dfns.disp │
-⍝H1  │ nitems←a.len(gth)                         │
-⍝H1  └───────────────────────────────────────────┘
-⍝H1  Query if a key-value pair exists, by key. Returns 1 for each pair that exists...
-⍝H1      b1 b2...← ⍺.defined k1 k2...
-⍝H1  Get all key value pairs
-⍝H1       k1v1 k2v2...←⍺.items
-⍝H1       k1v1 k2v2...←⍺.pairs
-⍝H1  Get all key value pairs as a matrix
-⍝H1      key_value_matrix←⍺.table
-⍝H1  Get # of items in a dictionary
-⍝H1      ⍺.len
-⍝H1      ⍺.length
-⍝H1
-⍝H1  ┌────────────────────────────────────────┐
-⍝H1  | k1v1 k2v2←a.popitem 2                  │
-⍝H1  │ a['penult' 'ult']←v1 v2   ⍝ Push       │
-⍝H1  │ {}a.sort        ⍝ Sort up in place     │
-⍝H1  │ {}a.sorta       ⍝ Sort up in place     │
-⍝H1  │ {}a.sortd       ⍝ Sort dn in place     │
-⍝H1  │ ix←a.gradeup    ⍝ Return indices       │
-⍝H1  │ ix←a.gradedown/gradedn                 │
-⍝H1  └────────────────────────────────────────┘
-⍝H1  Popping the first <n> items from the Ordered Dictionary
-⍝H1       k1v1...knvn ← ⍺.popitem count
-⍝H1  Removes and returns the LAST <count> entries from the dictionary (in order of creation, not update).
-⍝H1  Note 0: The value is returned shyly.
-⍝H1  Note 1: This uses the efficient idiom for removing items from hashed vectors: item↓⍨←-count
-⍝H1  Note 2: to "push" items onto the end of the dictionary, simply add them, ONLY if the key is new.
-⍝H1      a['2nd to last' 'last'] ← 'val1' 'val2'
-⍝H1      a.popitem 2
-⍝H1  ┌───────────┬────┐
-⍝H1  |2nd to last│val1│
-⍝H1  ├───────────┼────┤
-⍝H1  │last       │val2│
-⍝H1  └───────────┴────┘
-⍝H1  If keys aren't new, you can delete them first and readd, so they are added at the end.
-⍝H1  This guarantees that a possibly new <key> is the most recent (first Pop'd) item in dictionary.
-⍝H1     1 a.del ⊂'test' ⋄ a[⊂'test']←⊂'THIS IS A TEST!'
-⍝H1     ⎕←a.pop 1
-⍝H1  test   THIS IS A TEST!
-⍝H1
-⍝H1  Sorts items in ascending (Sort/SortA) or descending (SortD) order IN PLACE.
-⍝H1  Uses Dyalog total array ordering.
-⍝H1  Returns the dictionary itself (not a copy!). Use {} to suppress returned dictionary.
-⍝H1     {}⍺.sort  or  {}⍺.sorta
-⍝H1     {}⍺.sortd
-⍝H1  Return the indices for the dictionary's keys in sorted order
-⍝H1     ix←a.gradeup   (ascending)
-⍝H1     ix←a.gradedown (descending)
-⍝H1     ix←a.gradedn   (descending)
-⍝H1
-⍝H3 ------------------------------------------------------
-⍝H3  TinyDict services  (namespace <TinyDictNs>)
-⍝H3
-⍝H3  A simple, namespace-based, dictionary. Fast, low overhead.
-⍝H3  A TinyDict is an ordered dictionary, with items stored in the order entered;
-⍝H3  an item whose value is replaced maintains its original ordered position.
-⍝H3  (Order can be changed only by deleting and re-entering an item via Del and Put/1).
-⍝H3  Note: <TinyDict> is actually a function that returns a reference to the
-⍝H3        namespace <TinyDictNs>. Normally, the namespace containing <TinyDict>
-⍝H3        is in ⎕PATH.
-⍝H3
-⍝H3  dict ← TinyDict.new0
-⍝H3      Creates a dictionary with no values and Default←⍬
-⍝H3  dict ← [default] TinyDict.new  pairs
-⍝H3
-⍝H3  r←dict.get  key1 key2 ...
-⍝H3      Like dict.get1, but for multiple keys.
-⍝H3
-⍝H3  r←dict.get1 key
-⍝H3      Returns the value for key <key>, if defined.
-⍝H3      If not, but a default exists, returns that default.
-⍝H3      Otherwise, signals a key-undefined error.
-⍝H3      If there is one key, dict.Get1 key ≡≡ ⊃dict.Get key
-⍝H3
-⍝H3  {values}←key1 key2 ... dict.put val1 val2 ...    [DYADIC: keys put values]
-⍝H3      Like dict.put1, but for multiple keys and values.
-⍝H3
-⍝H3  {values}←dict.put  (key1 val1)(key2 val2)...     [MONADIC: put (k1 v1)(k2 v2)...]
-⍝H3      Enter one or more key-value pairs into the TinyDict.
-⍝H3      Remember to enclose the argument if there is only one key-value pair:
-⍝H3         r←dict.put ⊂'key1' 'val1'
-⍝H3         r←dict.put ('key1' 'val1')('key2' 'val2')
-⍝H3
-⍝H3  {value}←key1 dict.put1 val1
-⍝H3      Sets the key specified to the corresponding value, returning the value.
-⍝H3      To set multiple keys, see put or put_pairs
-⍝H3
-⍝H3   {newvalue} ← [amt | 1] dict.inc key1 key2 ...
-⍝H3   {newvalue} ← [amt | 1] dict.dec key1 key2 ...
-⍝H3  {r}←dict.del1 key
-⍝H3      Deletes the specified key. If it existed (and was deleted), returns 1; else 0.
-⍝H3
-⍝H3  {r}←dict.del key1 key2 ...
-⍝H3      Deletes the specified keys. Returns 1 for each that is found; 0 otherwise.
-⍝H3
-⍝H3  r←dict.table
-⍝H3  r←dict.print [Python style]
-⍝H3      Returns key-value pairs as a table.
-⍝H3
-⍝H3  dict.default←def   (See new and ∆TINYDICT for initial value).
-⍝H3      Sets the default to be returned for the value returned when a key is not found.
-⍝H3      dict.default may be undefined.
-⍝H3      To make undefined, do: dict.⎕EX 'default'
-⍝H3
-⍝H3  dict.hasdefault (function)
-⍝H3      Returns 1 if a default has been defined.
-⍝H3      Returns 0 if no default has been defined.
-⍝H3
-⍝H3  dict.keys
-⍝H3      A list of keys in order
-⍝H3
-⍝H3  dict.vals
-⍝H3  dict.values
-⍝H3      A (corresponding) list of values in order
-⍝H3
-⍝H3  TinyDict.help
-⍝H3      Report this HELP information (as an edit [⎕ED] window).
-⍝H3
-⍝H3-----------------------------------------------------------------------------
-⍝H3
+--------------------------------------------------------------------------------------
+    DictClass: A fast, ordered, and simple dictionary for general use.
+    ∆DICT:     Primary function for creating new dictionaries.
+               d←∆DICT ⍬       ⍝ Create a new, empty dictionary with default value ⍬.
+    Dict:      A utility that returns the full name of the dictionary class, often #.DictClass
+               d←⎕NEW Dict     ⍝ Create a new, empty dictionary with no default values.
+    Hashes vector KEYS for efficiency on large dictionaries.
+    For HELP information, call 'dict.HELP'.
+   
+    d←∆DICT item
+    d← default1 ∆DICT [item1 | item2 | item3]
+       item1: (key1 val1)(key2 val2)...
+              items passed as key-value pairs; keys and vals may be of any type...
+       item2: dict
+              A dict is an existing instance (scalar) of a DictClass object.   
+       item3: ⍪keys vals [⊂default2]  
+              items are passed as 2 vectors (keys, vals); 
+              the default may optionally be appended as a scalar.
+       default1: any APL object of any shape. It is NOT enclosed.
+              E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬ 
+    d←∆DICT [⊂default]
+       default2 must either be null: e.g.         ''  OR  ⍬  
+               or be enclosed as a scalar: e.g.  5   OR  ⎕NULL OR ⊂,5   OR  (⊂2 3⍴⍳6) OR  (⊂'Mary')
+               The default is defined as the disclose of the item, unless it's simple.
+               Here:   5   ⎕NULL   ,5   (2 3⍴⍳6)  'Mary'
+    d[⊂k1] or d[k1 k2...]
+    Return the item of d with key key. Raises an error any key is not in the dictionary, 
+    unless a default is specified.
+    See also get, get1 
+   
+    d[⊂k1] ← (⊂v1) OR d[k1 k2...]←v1 v2 ...
+    Assign a value to each key specified, new or existing.
+   
+    keys ← d.keys                     [alias: key]
+    Return a list of all the keys used in the dictionary d.
+   
+    keys ← d.keys[indices]            [alias: key]
+    Return a list of keys by numeric indices i1 i2 ...
+   
+    vals ← d.vals                     [alias: val]
+    Returns the list of values  in entry order for  all items; suitable for iteration
+         :FOR v :in d.vals ...
+   
+    vals ← d.vals[indices]            [alias: val]
+    Returns a list of item values by numeric indices i1 i2 ...
+   
+    d.vals[indices]←newvals           [alias: val]
+    Sets new values <newvals> for existing items by indices.
+   
+    d.len  
+    Return the number of items in the dictionary d.
+   
+    [0] d.del (⊂k1) OR d.del k1 k2 ...
+    Remove keys from d.  
+    Shyly returns 1 for each key. Signals an error of any key is not in the dictionary.
+   
+    1 d.del (⊂k1) OR 1 d.del k1 k2
+    Removes items from d by keys; takes no action if any key is missing.
+    Shyly returns 1 for each key found, 0 otherwise.
+   
+    [0] d.delbyindex indices              [alias: di]
+    Removes items from d by indices i1 i2 .... Returns 1 for each item removed.
+    Signals an error if any item does not exist.
+   
+    1 d.delbyindex indices            [alias: di]
+    Removes items from d by indices i1 i2 .... Returns 1 for each item removed; else 0.
+   
+    d.defined (⊂k1) OR d.defined k1 k2
+    Return 1 for each key that is defined (i.e. is in the dictionary)
+   
+    d.clear
+    Remove all items from the dictionary.
+   
+    d.copy
+    Return a shallow copy of the dictionary, including its defaults
+   
+    [default] d.get  k1 k2 ...
+    [default] d.get1 k1
+    Return the value for keys in the dictionary, else default. 
+    If <default> is omitted and a key is not found, returns the existing default.
+   
+    (k1 k2 ... d.set v1 v2) ... OR (d.set1 (k1 v1)(k2 v2)...)
+    (k1 d.set1 v1) OR (d.set1 k1 v1)
+    Set one or more key-value pairs
+   
+    d.items
+    Return a list of the dictionary’s items ((key, value) pairs).  
+   
+    d.popitem n
+    Remove and return the n most-recently entered key-value pairs.
+    This is done efficiently, so that the dictionary is not rehashed.
+   
+    [1]    d.inc k1 k2 ...
+    Increment the values of keys by 1. If undefined and no default is set, 0 is assumed (incremented to 1).
+   
+    amount d.inc k1 k2 ...
+    Increments the values of keys by <amount>. If undefined and no default is set, 0 i assumed.
+   
+    [1]    d.dec k1 k2 ...
+    amount d.dec k1 k2 ...
+    Identical to d.inc (above) except decrements the values by 1 or <amount> respectively.
+   
+    d ← d.sort OR d.sorta
+    Sort a dictionary's keys in place in ascending order
+   
+    d ← d.sortd
+    Sort a dictionary's keys in place in descending order
+   
+    d.default←value
+    Sets a default value for missing keys. Also sets d.hasdefault←1
+   
+    d.hasdefault←[1 | 0]
+    Activates (1) or deactivates (0) the current default; if a default exists, it is ignored
+    if hasdefault←0, but it is not deleted; when hasdefault is reset to 1, the default (if any) is restored.
+   
+    d.querydefault
+    Returns a vector containing the current default and 1, if defined; else ('' 0)
+   
+    Dictionaries preserve insertion order. Note that updating a key does not affect the order. 
+    Keys added after deletion are inserted at the end.
+    Dictionaries are hashed according to their keys (using APL hashing: 1500⌶)
+   
