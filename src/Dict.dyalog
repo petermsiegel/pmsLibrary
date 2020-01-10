@@ -8,23 +8,23 @@
 ⍝⍝ For HELP information, call 'dict.HELP'.
 ⍝⍝
 ⍝⍝ d←∆DICT item
-⍝⍝ d← default1 ∆DICT [item1 | item2 | item3]
+⍝⍝ d← default ∆DICT [item1 | item2 | item3]...
 ⍝⍝    item1: (key1 val1)(key2 val2)...
 ⍝⍝           items passed as key-value pairs; keys and vals may be of any type...
 ⍝⍝    item2: dict
 ⍝⍝           A dict is an existing instance (scalar) of a DictClass object.   
-⍝⍝    item3: ⍪keys vals [⊂default2]  
-⍝⍝           items are passed as 2 vectors (keys, vals); 
-⍝⍝           the default may optionally be appended as a scalar.
-⍝⍝    default1: any APL object of any shape. It is NOT enclosed.
+⍝⍝    item3: ⍪keys vals 
+⍝⍝           keys and values are each scalars, structured in table form (as a column matrix).
+⍝⍝    default: any APL object of any shape. It is NOT enclosed.
 ⍝⍝           E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬ 
+⍝⍝
 ⍝⍝ d←∆DICT [⊂default]
 ⍝⍝    default2 must either be null: e.g.         ''  OR  ⍬  
 ⍝⍝            or be enclosed as a scalar: e.g.  5   OR  ⎕NULL OR ⊂,5   OR  (⊂2 3⍴⍳6) OR  (⊂'Mary')
 ⍝⍝            The default is defined as the disclose of the item, unless it's simple.
 ⍝⍝            Here:   5   ⎕NULL   ,5   (2 3⍴⍳6)  'Mary'
 ⍝⍝ d[⊂k1] or d[k1 k2...]
-⍝⍝ Return the item of d with key key. Raises an error any key is not in the dictionary, 
+⍝⍝ Return a value for each key specified. Raises an error any key is not in the dictionary, 
 ⍝⍝ unless a default is specified.
 ⍝⍝ See also get, get1 
 ⍝⍝
@@ -47,35 +47,31 @@
 ⍝⍝ d.vals[indices]←newvals           [alias: val]
 ⍝⍝ Sets new values <newvals> for existing items by indices.
 ⍝⍝
-⍝⍝ d.len  
+⍝⍝ nitems ← d.len  
 ⍝⍝ Return the number of items in the dictionary d.
 ⍝⍝
-⍝⍝ [0] d.del (⊂k1) OR d.del k1 k2 ...
-⍝⍝ Remove keys from d.  
-⍝⍝ Shyly returns 1 for each key. Signals an error of any key is not in the dictionary.
+⍝⍝ bool ← [ignore←0] d.del (⊂k1) OR d.del k1 k2 ...
+⍝⍝ Remove keys from d.
+⍝⍝ Ignore=0: Shyly returns 1 for each key; signals an error of any key is not in the dictionary
+⍝⍝ Ignore=1: Shyly returns 1 for each key found, 0 otherwise.
 ⍝⍝
-⍝⍝ 1 d.del (⊂k1) OR 1 d.del k1 k2
-⍝⍝ Removes items from d by keys; takes no action if any key is missing.
-⍝⍝ Shyly returns 1 for each key found, 0 otherwise.
+⍝⍝ bool ← [ignore←0] d.delbyindex i1 i2 ...               
+⍝⍝ bool ← [ignore←0] d.di i1 i2 ...              ⍝ Alias to delbyindex
+⍝⍝ Removes items from d by indices i1 i2 .... 
+⍝  Ignore=0: Returns 1 for each item removed. Signals an error if any item does not exist.
+⍝⍝ Ignore=1: Returns 1 for each item removed; else 0.
 ⍝⍝
-⍝⍝ [0] d.delbyindex indices              [alias: di]
-⍝⍝ Removes items from d by indices i1 i2 .... Returns 1 for each item removed.
-⍝⍝ Signals an error if any item does not exist.
-⍝⍝
-⍝⍝ 1 d.delbyindex indices            [alias: di]
-⍝⍝ Removes items from d by indices i1 i2 .... Returns 1 for each item removed; else 0.
-⍝⍝
-⍝⍝ d.defined (⊂k1) OR d.defined k1 k2
+⍝⍝ bool ← d.defined (⊂k1) OR d.defined k1 k2 ...
 ⍝⍝ Return 1 for each key that is defined (i.e. is in the dictionary)
 ⍝⍝
 ⍝⍝ d.clear
 ⍝⍝ Remove all items from the dictionary.
 ⍝⍝
-⍝⍝ d.copy
-⍝⍝ Return a shallow copy of the dictionary, including its defaults
+⍝⍝ d2 ← d.copy
+⍝⍝ Return a shallow copy of the dictionary d, including its defaults
 ⍝⍝
-⍝⍝ [default] d.get  k1 k2 ...
-⍝⍝ [default] d.get1 k1
+⍝⍝ vals ← [default] d.get  k1 k2 ...
+⍝⍝ val  ← [default] d.get1 k1
 ⍝⍝ Return the value for keys in the dictionary, else default. 
 ⍝⍝ If <default> is omitted and a key is not found, returns the existing default.
 ⍝⍝
@@ -83,49 +79,69 @@
 ⍝⍝ (k1 d.set1 v1) OR (d.set1 k1 v1)
 ⍝⍝ Set one or more key-value pairs
 ⍝⍝
-⍝⍝ d.items
-⍝⍝ Return a list of the dictionary’s items ((key, value) pairs).  
+⍝⍝ items ← d.items [k1 k2 ...]
+⍝⍝ Return a list of all OR the specified dictionary’s items ((key, value) pairs).  
 ⍝⍝
-⍝⍝ d.popitem n
-⍝⍝ Remove and return the n most-recently entered key-value pairs.
+⍝⍝ items ← d.popitems n
+⍝⍝ Remove and return the n (n≥0) most-recently entered key-value pairs.
 ⍝⍝ This is done efficiently, so that the dictionary is not rehashed.
 ⍝⍝
-⍝⍝ [1]    d.inc k1 k2 ...
-⍝⍝ Increment the values of keys by 1. If undefined and no default is set, 0 is assumed (incremented to 1).
+⍝⍝ nums ←  [amount ← 1] d.inc k1 k2 ...
+⍝⍝ Increments the values of keys by <amount←1>. If undefined and no default is set, 0 is assumed.
+⍝⍝ If any referenced key's value is defined and non-numeric, an error is signalled.
 ⍝⍝
-⍝⍝ amount d.inc k1 k2 ...
-⍝⍝ Increments the values of keys by <amount>. If undefined and no default is set, 0 i assumed.
-⍝⍝
-⍝⍝ [1]    d.dec k1 k2 ...
-⍝⍝ amount d.dec k1 k2 ...
-⍝⍝ Identical to d.inc (above) except decrements the values by 1 or <amount> respectively.
+⍝⍝ nums ← [amount] d.dec k1 k2 ...
+⍝⍝ Identical to d.inc (above) except decrements the values by <amount←1>.
 ⍝⍝
 ⍝⍝ d ← d.sort OR d.sorta
-⍝⍝ Sort a dictionary's keys in place in ascending order
+⍝⍝ Sort a dictionary in place in ascending order by keys, returning the dictionary
 ⍝⍝
 ⍝⍝ d ← d.sortd
-⍝⍝ Sort a dictionary's keys in place in descending order
+⍝⍝ Sort a dictionary in place in descending order by keys, returning the dictionary 
+⍝⍝
+⍝⍝ ix ← d.gradeup
+⍝⍝ Returns the indices of the dictionary sorted in ascending order by keys (doesn't reorder the dictionary)
+⍝⍝
+⍝⍝ ix ← d.gradedown    
+⍝⍝ ix ← d.gradedn           ⍝ Alias for d.gradedown
+⍝⍝ Returns the indices of the dictionary sorted in descending order by keys (doesn't reorder the dictionary)
 ⍝⍝
 ⍝⍝ d.default←value
 ⍝⍝ Sets a default value for missing keys. Also sets d.hasdefault←1
 ⍝⍝
 ⍝⍝ d.hasdefault←[1 | 0]
-⍝⍝ Activates (1) or deactivates (0) the current default; if a default exists, it is ignored
-⍝⍝ if hasdefault←0, but it is not deleted; when hasdefault is reset to 1, the default (if any) is restored.
+⍝⍝ Activates (1) or deactivates (0) the current default.
+⍝⍝ ∘ Initially, by default:  hasdefault←0  and default←'' 
+⍝⍝ ∘ If set to 0, referencing new entries with missing keys cause a VALUE ERROR to be signalled. 
+⍝⍝ ∘ Setting hasdefault←0 does not delete any existing default; 
+⍝⍝   it is simply inaccessible until hasdefault←1.
 ⍝⍝
 ⍝⍝ d.querydefault
 ⍝⍝ Returns a vector containing the current default and 1, if defined; else ('' 0)
 ⍝⍝
-⍝⍝ Dictionaries preserve insertion order. Note that updating a key does not affect the order. 
-⍝⍝ Keys added after deletion are inserted at the end.
-⍝⍝ Dictionaries are hashed according to their keys (using APL hashing: 1500⌶)
+⍝⍝ Dictionaries are ORDERED: they preserve insertion order unless items are sorted or deleted. 
+⍝⍝ ∘ Updating an item's key does not affect its order. 
+⍝⍝ ∘ New keys are always added at the end, in the last positions in order.
+⍝⍝ ∘ To force an  existing item to the last position in order, 
+⍝⍝   it must be deleted and re-entered.
+⍝⍝ Dictionaries are hashed according to their keys (using APL hashing: 1500⌶).
+⍝⍝ ∘ Popping items is fast (since they are dropped from the end).
+⍝⍝   Currently popitems is optimized, but not del or di:
+⍝⍝   ∘ if you happen to delete the last items by key (del) or index (di),
+⍝⍝     it takes as long as deleting randomly.
+⍝⍝ ∘ Getting items by key or index is quite fast, as is checking if they are defined. 
+⍝⍝ ∘ Adding new items or updating existing items is fast.
+⍝⍝ ∘ Deleting random items is slow (but it's faster to delete many at once).
+⍝⍝ ∘ If multiple items are added at the same time with the same key,
+⍝⍝   the last entry is the only one kept.
+
 
     ⎕IO ⎕ML←0 1
 
   ⍝ Shared Fields
   ⍝ If DEBUG is set to one before ⎕FIXing, the ⎕TRAP is ignored.
-    :Field Public  Shared DEBUG←  0                       
-    :Field Public  Shared ∆TRAP←  (0⍴⍨~DEBUG) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
+    :Field Public  Shared DEBUG←  1                       
+    :Field Public  Shared ∆TRAP_toplvl←  (0⍴⍨~DEBUG) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'  
 
   ⍝ INSTANCE FIELDS and Related
     keysF←⍬                                 ⍝ Variable, not Field, to avoid APL hashing bug
@@ -134,12 +150,12 @@
     :Field Private defaultF←      ''        ⍝ Initial value
 
   ⍝ ERROR MESSAGES:
-    eBadLoad←         'Dict: args consist of key-value pairs, dictionaries, and a scalar default value.'
+    eBadLoad←         'Dict: args must consist of a list of key-value pairs, a dictionary, or a default value (enclosed).'
     eBadDefault←      'Dict: hasdefault must be set to 1 (true) or 0 (false).'
-    eDeleteKeyMissing←'Dict/del: non-existent keys may not be deleted, unless ignore (⍺)=1.'
+    eDelKeyMissing←   'Dict/del: non-existent keys may not be deleted, unless ignore (⍺)=1.'
     eIndexRange←      'Dict/delbyindex: An index argument was not in range.'
     eKeyAlterAttempt← 'Dict/keys: keys may not be altered.'
-    eHasNoDefaultK←   'Dict: Value Error: key does not exist and no default was set.'
+    eHasNoDefault←    'Dict: Value Error: key does not exist and no default was set.'
     eHasNoDefaultD←   'Dict: Value Error: no default is set (hasdefault←0).'
     eQueryDontSet←    'Dict/querydefault may not be set; set default or hasdefault.'
 
@@ -148,9 +164,9 @@
       :Access Public Shared
       ns←⎕THIS
     ∇
-    ∇ns←{def} ∆DICT initial       ⍝ Creates ⎕NEW Dict via cover function
+    ∇ns←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
      :TRAP 0⍴⍨~⎕THIS.DEBUG 
-        ns←⎕NEW ⎕THIS initial 
+        ns←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
      :Else
         ⎕SIGNAL/⎕DMX.(EM EN)
@@ -158,8 +174,8 @@
      ∇
      
     ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
-    ⍝ ⎕NEW version:  [x] visible, [ ] suppressed: 
-    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
+    ⍝ ⎕NEW version:  [ ] visible, [x] suppressed: 
+    ⍝ ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
 
     ⍝-------------------------------------------------------------------------------------------
@@ -173,7 +189,7 @@
     ∇ new1 struct
       :Implements Constructor
       :Access Public
-      ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS),'<1>'
+       ⎕DF 'Dict[]' ⍝ alt: ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS) 
       :Trap 0⍴⍨~DEBUG
           _load struct
       :Else  
@@ -184,7 +200,7 @@
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS),'<0>'
+      ⎕DF 'Dict[]'  ⍝ alt: ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS) 
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -192,35 +208,34 @@
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
 
-    ⍝ map: "Using standard vector selection and assignment, set and get values given keys. 
+    ⍝ index: "Using standard vector indexing and assignment, set and get values given keys. 
     ⍝ New entries are created automatically"
-    ⍝ SETTING key-value pairs
+    ⍝ SETTING values for each key
     ⍝ dict[key1 key2...] ← val1 val2...
     ⍝
-    ⍝ GETTING key-value pairs
+    ⍝ GETTING values for each key
     ⍝ val ← dict[key1 key2...]
     ⍝
     ⍝ As always, if there is only one pair to set or get, use ⊂, as in:
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
-    :Property default keyed map
+    :Property default keyed index
     :Access Public
-        ∇ vals←get args;err;_ix;found;keys;vals;⎕TRAP
-          ⎕TRAP←∆TRAP
+        ∇ vals←get args;err;_ix;found;ix;keys;vals;⎕TRAP
+          ⎕TRAP←∆TRAP_toplvl
           :If ⎕NULL≡⊃args.Indexers ⋄ vals←valuesF ⋄ :Return ⋄  :EndIf
-          p←keysF⍳⊃args.Indexers
-          found←(≢keysF)>p
-          :If ~0∊found
-              vals←valuesF[p] ⍝ Error here...
+          ix←keysF⍳⊃args.Indexers
+          :If ~0∊found←ix<≢keysF
+              vals←valuesF[ix]                
           :ElseIf hasdefaultF
-              vals←found\valuesF[found/p]
+              vals←found\valuesF[found/ix]
               ((~found)/vals)←⊂defaultF     ⍝ Add defaults
-              vals←(⍴p)⍴vals               ⍝ If input parm is scalar, vals must be as well...
+              vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
           :Else
-              eHasNoDefaultK ⎕SIGNAL 11
+              eHasNoDefault ⎕SIGNAL 11
           :EndIf
         ∇
         ∇ set args;keys;vals;⎕TRAP
-          ⎕TRAP←∆TRAP
+          ⎕TRAP←∆TRAP_toplvl
           keys←⊃args.Indexers ⋄ vals←args.NewValue
           _import keys vals
         ∇
@@ -228,11 +243,11 @@
 
     ⍝ dict.get      Retrieve keys ⍵ with optional default ⍺
     ⍝ --------      (See also dict.get1)
-    ⍝         dict.get keys   ⍝ -- all keys must exist or have a default
-    ⍝ default dict.get keys   ⍝ -- keys which don't exist are given the specified default
+    ⍝         dict.get keys   ⍝ -- all keys must exist or have a (class-basd) default
+    ⍝ default dict.get keys   ⍝ -- keys which don't exist are given the (fn-specified) default
     ∇ vals←{def} get keys;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :IF 900⌶1 
           vals←⎕THIS[keys]
       :ELSE 
@@ -248,7 +263,7 @@
     ⍝ default dict.get1 key   ⍝ -- if key doesn't exist, it's given the specified default
     ∇ val←{def} get1 key;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :IF 900⌶1  ⋄ def←⊢ ⋄ :ENDIF
       val←⊃def get ⊂key
     ∇
@@ -259,7 +274,7 @@
     ⍝ {vals}←     dict.set (k v)(k v)...
     ∇ {vals}←{keys} set vals;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
       _import keys vals
     ∇
@@ -269,7 +284,7 @@
     ⍝ {val}←    dict.set1 k v
     ∇ {val}←{key} set1 val;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
       val←⊃(,⊂key) set (,⊂val)
     ∇
@@ -287,7 +302,7 @@
     ⍝ ∘  0-LENGTH VECTOR (⍬ or '')
     ⍝     If ⍵≡⍬    dictionary is empty with default ⍬
     ⍝     If ⍵≡''   dictionary is empty with default ''
-    ⍝ ∘  MATRIX (3×1 or 2×1). 
+    ⍝ ∘  MATRIX (3×1 or 2×1) using ⍪ (table / comma-bar) 
     ⍝       2×1 MATRIX:  ⍵ is ⍪Keys_vector Values_vector
     ⍝       3×1 MATRIX:  ⍵ is ⍪Keys_vector Value_vector Default_scalar
     ⍝         Equiv. to dict.import 2↑⍵  ⋄ dict.default←⊃2⊃⍵ 
@@ -304,40 +319,37 @@
    
     ∇ {me}←load initial;⎕TRAP
       :Access Public
-       ⎕TRAP←∆TRAP
+       ⎕TRAP←∆TRAP_toplvl
       _load initial
       me←⎕THIS
     ∇
-    ⍝ _load: used only internally, but visible
-    ∇ _load items;k;v;scanArgs 
-      k←v←⍬                              ⍝ Syntax                          Action
-      scanArg←{
-        2<≢⍵:eBadLoad ⎕SIGNAL 11   
-        2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load k-v pair
-        ⋄ isDict←9.2=⎕NC⊂'item'⊣item←⍬⍴⍵
-        isDict:(k v),←⍵.export           ⍝ dict                            Import Dictionary
-        defaultF hasdefaultF∘←(⊃⍵) 1        ⍝ default←⊃⍵                      SD
-      }
-      :If 0=≢items                       ⍝ ∇ '' or ∇ ⍬                     SD (Set Default)
-          defaultF hasdefaultF←items 1
-      :ElseIf 1=≢items                   ⍝ ∇ dict OR ∇ scalar              Import Dict or SD
-          scanArg ⊂items ⋄ _import k v   ⍝ To default to a 1-item vector (,2), pass as: (⊂,2)
-      :ElseIf 2=⍴⍴items                  ⍝ ∇ ⍪keyVec valVec [default]      Matrix? Import
-          :Select ⍬⍴⍴items←,items        ⍝ Must be 2 or 3 rows, 1 col.
-            :Case 2                      ⍝                                 2 rows? Import
-            :Case 3                      ⍝                                 3 rows? Import + SD
-              defaultF hasdefaultF←(2⊃items)1
-            :Else 
-              eBadLoad ⎕SIGNAL 11
-          :EndSelect
-          _import 2↑items
-      :ElseIf 2∧.=≢¨items                ⍝ ∇ (k1 v1)(k2 v2) etc.           Import
-          _import↓⍉↑items
-      :Else                              ⍝ mix of items                    Load item by item
-          k←v←⍬                       
-          scanArg¨items ⋄ _import k v  ⍝ scan items one by one
-      :EndIf
-    ∇
+    ⍝ <SHY VOID> ← _load args: used only internally
+    ⍝ Loads command-line args from ⎕NEW Dict or ∆DICT:
+    ⍝ May update keysF and valuesF and/or defaultF and hasdefaultF
+    _load←{
+        k←v←d←⍬ ⋄ hd←0   ⍝ Local buffers for keysF, valuesF; defaultF,  hasdefaultF
+        0=≢⍵: defaultF hasdefaultF∘←⍵ 1 
+        0=⍴⍴⍵: defaultF hasdefaultF∘←(⊃⍵) 1
+        ismx←⊃2=⍴⍴⍵
+        _←{ ⍝ Extern: k, v, d, hd
+            2=⍴⍴⍵:_←{                        ⍝ ⍪keys vals [defaults]
+              (k v),←0 1⊃¨⊂⍵                 ⍝ Keys, values are subitems 0, 1
+              2=⍬⍴⍴⍵: ⍬                      ⍝ No optional default? Done.
+              dEnc←2⊃⍵                       ⍝ Opt'l default must be enclosed within a scalar
+              0≠⍴⍴dEnc: eBadLoad ⎕SIGNAL 11  ⍝ If not, complain.
+              ⊣d hd∘←(⊃dEnc) 1               ⍝ Opt'l default disclosed!       Set Defaults
+            },⍵
+          ⍝ Each non-matrix item must have 2 or 1 members...
+            2<≢⍵:eBadLoad ⎕SIGNAL 11   
+            2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load single k-v pair
+            ⋄ isDict←9.2=⎕NC⊂'item'⊣item←⍬⍴⍵
+            isDict:(k v),←⍵.export           ⍝ dict                            Import Dictionary
+            1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
+        }¨⊂⍣ismx⊣⍵ 
+        _← _import k v
+        ~hd:_← ⍬
+        1: defaultF hasdefaultF∘←d 1
+    }
 
     ⍝ import: "Enters keys and values separately into a dictionary.
     ⍝          import (keys values)."
@@ -347,25 +359,26 @@
     ⍝           keys, values are ravelled if not already vectors."
     ∇ {me}←import(keys vals);⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       _import keys vals
       me←⎕THIS 
     ∇
 
     ⍝ ignore←_import keyVec valVec
-    ⍝ Updates instance vars keysF valuesF, then calls _hashK to be sure hashing enabled.
-    ⍝ Shyly returns ⍬ (ignored).
-      _import←{                   ⍝ 0.  k, v: k may have old and new keys, some duplicated.
-          k v←,¨⍵                 ⍝     Make sure k and v are each vectors...
-          0=≢k:_←⍬                ⍝     No keys/vals? Return now.
-          old←(≢keysF)>p←keysF⍳k  ⍝ I.  Note old keys
-          valuesF[old/p]←old/v    ⍝     Update old keys in place w/ new vals; duplicates? Keep last new val.
-          ~0∊old:_←⍬              ⍝     All old? No more to do; shy return.
-          k v←(⊂~old)/¨k v        ⍝ II. Mark new keys and their values as k, v.
-          v[k1←⍳⍨k]←v             ⍝     For duplicate keys, "accept" last (rightmost) value
-          msk←⊂k1=⍳≢k             ⍝     Create and enclose mask of those to keep.
-          keysF valuesF,←msk/¨k v ⍝ III.Update keys and values fields based on umask.
-          1:_←⍬⊣_hashK            ⍝     Update hash and shyly return.
+    ⍝ Updates instance vars keysF valuesF, then calls hashKeys to be sure hashing enabled.
+    ⍝ Returns: shy VOID
+      _import←{                   ⍝ 0.   k, v: k may have old and new keys, some duplicated.
+          k v←,¨⍵                 ⍝      Make sure k and v are each vectors...
+          0=≢k:_←⍬                ⍝      No keys/vals? Return now.
+          ix←keysF⍳k              ⍝ I.   Process existing (old) keys
+          old←ix<≢keysF           ⍝      Update old keys in place w/ new vals;
+          valuesF[old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
+          ~0∊old:_←⍬              ⍝      All old? No more to do; shy return.
+          nk nv←k v/¨⍨⊂~old       ⍝ II.  Process new keys (which may include duplicates)
+          nv[k1←⍳⍨k]←nv           ⍝      For duplicate keys, "accept" last (rightmost) value
+          nk nv←nk nv/¨⍨⊂k1=⍳≢k   ⍝      Create and enclose mask of those to keep.
+          keysF valuesF,←nk nv    ⍝ III. Update keys and values fields based on umask.
+          1:_←hashKeys          ⍝      Update hash and shyly return.
       }
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
@@ -384,15 +397,14 @@
 
     ⍝ table/print: "Returns all the key-value pairs as a matrix, one pair per row.
     ⍝         Equivalent to ↑⍵.items."
-    :Property table,print,disp,display
+    ⍝ disp/display: "filter output of d.table through (std dfns) disp or display."
+    ⍝ If no items, returns ⍬ (unfiltered).
+    :Property table,print,display,disp 
     :Access Public
-    ∇ r←get args
-      :If 0=≢keysF ⋄ r←⍬
-      :Else ⋄ r←⍉↑keysF valuesF
-      :EndIf
-      :IF 'd'=1↑args.Name   ⍝ Display using short-form disp(lay) 
-          r←⎕SE.Dyalog.Utils.disp r
-      :EndIf 
+    ∇ r←get args;show 
+      :If 0=≢keysF ⋄ r←⍬ ⋄ :RETURN ⋄ :ENDIF 
+      show←⎕SE.Dyalog.Utils{3≠⍺⍺.⎕NC ⍺: ⍵ ⋄ (⍺⍺.⎕OR ⍺){⍺⍺ ⍵}⍵} ⍝ display, disp are std utilities.
+      r←args.Name show ⍉↑keysF valuesF  
     ∇
     :EndProperty
 
@@ -406,15 +418,7 @@
         ∇
     :EndProperty
 
-    ⍝ iota ⍵: "Returns the indices (⎕IO=0) of each key specified in ⍵ (returns (len) for missing values).
-    ⍝          The order is the same as used in ⍺.Keys and ⍺.Vals
-    ⍝          Same as (⍵.Keys⍳keys) but much faster."
-    ∇ ix←iota keys
-      :Access Public
-      ix←keysF⍳keys
-    ∇
-
-    ⍝ len:  "Returns the number of key-value pairs"
+    ⍝ len:  "Returns the number of key-value pairs."
     ⍝ aliases: len 
     :Property len 
     :Access Public
@@ -441,9 +445,9 @@
     :EndProperty
 
     ⍝ values,vals,val:
-    ⍝   "Get or Set values by key index, in creation order or, if sorted, sort order.
-    ⍝    Indicates are in current user ⎕IO ONLY"
-    :Property numbered values,value,vals,val  ⍝ Vi = keys by index
+    ⍝   "Get or Set values by index, in creation order (or, if sorted, sort order).
+    ⍝    Indices are in caller ⎕IO (per APL).
+    :Property numbered values,value,vals,val  
     :Access Public
         ⍝ get: retrieves values, not keysF
         ∇ vals←get args;ix
@@ -457,7 +461,7 @@
           valuesF[ix]←newvals
         ∇
         ∇ r←shape
-          r←len
+          r←⍴valuesF
         ∇
     :EndProperty
 
@@ -475,7 +479,7 @@
     ⍝                  Alternatively, retrieves the current status (1 or 0)."
     ⍝ default:       "Sets the default value for use when retrieving missing values, setting hasdefault←1.
     ⍝                  Alternatively, retrieves the current default."
-    ⍝ querydefault:  "Combines hasdefault and Default in a single command, returning the current settings from
+    ⍝ querydefault:  "Combines hasdefault and default in a single command, returning the current settings from
     ⍝                  hasdefault and Default as a single pair. querydefault may ONLY be queried, not set."
     ⍝ The default may have any datatype and shape.
     :Property default,hasdefault,querydefault
@@ -510,25 +514,31 @@
     ⍝    ⍺ inc/dec ⍵:  Adds (subtracts) ⍺ from values for keys ⍵
     ⍝      inc/dec ⍵:  Adds (subtracts) 1 from values for key ⍵
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
+    ⍝    Processes keys left to right: If a key is repeated, increments accumulate.
     ⍝  Returns: Newest value
     ⍝  Esp. useful with DefaultDict...
-    ∇ {newval}←{∆}inc keys;this
+    ∇ {newvals}←{∆} inc keys;_inc;eBadInt
       :Access Public
-      this←⎕THIS
+      eBadInt←'Dict.inc/dec: increment (⍺) and value of keys (⍵) must be numeric.'
+      _inc←{
+          nv←⍺+0 get ⍵
+          nv⊣_import ⍵ nv
+      }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      :If (≢∪keys)=≢keys
-          newval←∆+0 get keys
-          import keys newval
-      :Else     ⍝ keys appear more than once; process all (L to R) so increments accumulate
-          newval←∆{
-              key1←⊂⍵
-              nv1←⍺+0 get key1
-              nv1⊣import key1 nv1
-          }¨keys
-      :EndIf
+      :TRAP 11 0
+          :IF (≢∪keys)=≢keys
+            newvals←∆ _inc keys
+          :Else 
+            newvals←∆ _inc¨⊂¨keys
+          :Endif
+      :Case 11 ⋄  eBadInt ⎕SIGNAL 11
+      :Else    ⋄  ⎕SIGNAL/⎕DMX.(EM EN)
+      :EndTrap 
     ∇
-    ∇ {newval}←{∆}dec keys
+
+    ∇ {newval}←{∆}dec keys;⎕TRAP
       :Access Public
+       ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       newval←(-∆)inc keys
     ∇
@@ -544,19 +554,19 @@
     ⍝        If ignore is 0 or omitted, missing keys signal a DOMAIN error (11).
     ⍝ b ← {ignore←1} ⍵.del key1 key2...
     ⍝ Returns a vector of 1s and 0s: a 1 for each key kN deleted; else 0.
-    ∇ {b}←{ignore}del keys;nf;old;∆;⎕TRAP
+    ∇ {b}←{ignore} del keys;nf;ix;old;∆;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
       keys←∪keys
-      b←(≢keysF)>p←keysF⍳keys
+      b←(≢keysF)>ix←keysF⍳keys
       nf←0∊b
       :If nf∧~ignore     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
-          eDeleteKeyMissing ⎕SIGNAL 11
+          eDelKeyMissing ⎕SIGNAL 11
       :EndIf
-      :If 0≠≢b←b/p
+      :If 0≠≢b←b/ix
           ∆←1⍴⍨≢keysF ⋄ ∆[b]←0
-          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ _hashK 
+          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ hashKeys 
       :EndIf
     ∇
 
@@ -566,25 +576,24 @@
     ⍝ b ← {ignore←1} ⍵.delbyindex ix1 ix2...
     ⍝ b ← (ignore←1} ⍵.di           ix1 ix2...
     ⍝
-    ∇ {b}←{ignore}di ix;keys;⎕TRAP
+    ∇ {b}←{ignore} di ix;keys;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
       ignore delbyindex ix
     ∇
-    ∇ {b}←{ignore}delbyindex ix;∆;⎕TRAP
+    ∇ {b}←{ignore} delbyindex ix;∆;del;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←∆TRAP_toplvl
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf    
-      ix←∪ix
-      b←{⍵:0=0(≢keysF)⍸ix ⋄ 0}×≢keysF
+      b←{⍵:0=0(≢keysF)⍸ix ⋄ 0⍴⍨≢ix}×≢keysF
       :If (0∊b)∧~ignore               ⍝ At least 1 missing key?
           eIndexRange ⎕SIGNAL 7
       :EndIf
-      ix←b/ix                        ⍝ Keep those in range
-      :If 0<≢ix                      ⍝ Delete keys marked for del'n
-          ∆←(≢keysF)⍴1 ⋄ ∆[ix]←0     ⍝ Note their position in keysF
-          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ _hashK 
+      del←b/ix                         ⍝ Consider only those in index range
+      :If 0≠≢del                       ⍝ Delete keys marked for del'n
+          ∆←(≢keysF)⍴1 ⋄ ∆[del]←0      ⍝ ∆: Delete items with indices in <del>
+          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ hashKeys 
       :EndIf
     ∇
 
@@ -592,44 +601,51 @@
     ⍝          and returns the dictionary."
     ∇ {me}←clear
       :Access Public
-      keysF←valuesF←⍬                            ⍝ Rehash: See AutoKeyHashUpdateTrigger
+      keysF←valuesF←⍬                            ⍝ Rehash: See AutohashKeysUpdateTrigger
       me←⎕THIS
     ∇
 
-    ⍝ popitem:  "Removes and returns last <n> items (pairs) from dictionary as if a LIFO stack.
-    ⍝            Efficiently updates keysF to preserve hash status."
-    ⍝ kv1 kv2... ← ⍵.pop n   where n is a number between 0 and Len
+    ⍝ popitems:  "Removes and returns last (|n) items (pairs) from dictionary as if a LIFO stack.
+    ⍝             Efficiently updates keysF to preserve hash status."
+    ⍝ kv1 kv2... ← d.pop count   where count is a non-negative number.
+    ⍝     If count≥≢keysF, all items will be popped (and the dictionary will have no entries).
+    ⍝     If count<0, it will be treated as |count.
     ⍝
     ⍝ Use dict[k1 k2]←val1 val2 to push N*E*W items onto the dictionary "LIFO" stack.
-    ⍝ Remove n items from the END of the table (most recent items)
-    ⍝ Return pairs popped as a (shy) vector of key-value pairs
-    ∇ {poppedItems}←popitem n;last;k;v
+    ⍝ Remove |n items from the END of the table (most recent items)
+    ⍝ Return pairs popped as a (shy) vector of key-value pairs. 
+    ⍝ If no pairs, returns simple ⍬.
+    ∇ {poppedItems}←popitems count 
       :Access Public
-      :If 0=n ⋄ poppedItems←⍬ ⋄ :Return ⋄ :EndIf        ⍝ Pop 0 does nothing, returns ⍬
-      last←-|n⌊≢keysF                                   ⍝ Don't pop what isn't there...
-      poppedItems←↓⍉↑last↑¨keysF valuesF
-      keysF↓⍨←last ⋄ valuesF↓⍨←last
+      count←-(≢keysF)⌊|count                               ⍝ Treat ∇¯5 as if ∇5 
+      :If count=0                                          ⍝ Fast exit if nothing to pop
+         poppedItems←⍬                           
+      :Else
+        poppedItems←↓⍉↑count↑¨keysF valuesF
+        keysF↓⍨←count ⋄ valuesF↓⍨←count
+      :ENDIF 
     ∇
 
     ⍝ sort/sorta (ascending),
     ⍝ sortd (descending)
     ⍝ Descr:
     ⍝    "Sort a dictionary IN PLACE:
-    ⍝     ∘ Sort keys in (Sort/A: ascending (D: descending) order;
-    ⍝       - revised to use TAO (sorting anything).
+    ⍝     ∘ Sort keys in (Sort/A: ascending (D: descending) 
+    ⍝     ∘ Keys may be any array in the domain of ⍋, using TAO (total array ordering).
     ⍝ Returns: the dict
     ⍝
     :Property sort,sorta,sortd
     :Access Public
         ∇ me←get args;ix;⎕TRAP
-          ⎕TRAP←∆TRAP
-          :If 'd'=¯1↑args.Name ⍝ sortd
-              ix←⍒keysF
+          ⎕TRAP←∆TRAP_toplvl
+          :If 'd'=¯1↑args.Name   ⍝ sortd
+              ix←⊂⍒keysF
           :Else                  ⍝ sorta, sort
-              ix←⍋keysF
+              ix←⊂⍋keysF
           :EndIf
-          keysF←keysF[ix] ⋄ valuesF←valuesF[ix] ⋄  _hashK 
-          me←⎕THIS
+          keysF   ⌷⍨←ix  
+          valuesF ⌷⍨←ix 
+          hashKeys ⋄ me←⎕THIS
         ∇
     :EndProperty
 
@@ -638,7 +654,7 @@
     :Property gradeup,gradedown,gradedn
     :Access Public
         ∇ ix←get args;⎕TRAP
-          ⎕TRAP←∆TRAP
+          ⎕TRAP←∆TRAP_toplvl
           :If args.Name≡'gradeup'
               ix←⍋keysF
           :Else  ⍝ gradedown,gradedn
@@ -665,7 +681,7 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
-    ∇ {hashStatus}←_hashK  
+    ∇ {hashStatus}←hashKeys  
     ⍝ Set keysF to be hashed (if not already and if there are at least 2 keys [Dyalog "bug"]!
       hashStatus←1(1500⌶)keysF
       :If (0=hashStatus)∧2≤≢keysF
