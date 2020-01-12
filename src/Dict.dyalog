@@ -85,7 +85,18 @@
 ⍝⍝
 ⍝⍝ (k1 k2 ... d.set v1 v2) ... OR (d.set1 (k1 v1)(k2 v2)...)
 ⍝⍝ (k1 d.set1 v1) OR (d.set1 k1 v1)
-⍝⍝     Set one or more key-value pairs
+⍝⍝     Set one or more items either with 
+⍝⍝          a keylist and valuelist: k1 k2 ... ∇ v1 v2 ...
+⍝⍝     or as
+⍝⍝          key-value pairs: (k1 v1)(k2 v2)...
+⍝⍝
+⍝⍝ d.import (k1 k2 ...) (v1 v2 ...)
+⍝⍝     Set one or more items with two vectors (⍵1 ⍵2), where
+⍝⍝         ⍵1: a vector of keys
+⍝⍝         ⍵2: a vector of values.
+⍝⍝     To set a single key-value pair (k1 v1), use e.g.:
+⍝⍝         k1 d.set1 v1 
+⍝⍝         d.import (,k1)(,v1)
 ⍝⍝
 ⍝⍝ items ← d.items [k1 k2 ...]
 ⍝⍝     Return a list of all OR the specified dictionary’s items ((key, value) pairs).  
@@ -150,24 +161,24 @@
 
 
     ⎕IO ⎕ML←0 1
- ⍝ DEBUG_TRIGGER: When DEBUG class variable changes, keep ∆TRAP synchronized...
- ∇ DEBUG_TRIGGER     
+  
+  ⍝ DEBUG_TRIGGER: When DEBUG instance variable changes, keep ∆TRAP synchronized...
+  ∇ DEBUG_TRIGGER    
      :Implements Trigger DEBUG
   ⍝  External: DEBUG, DEBUG_WAS, ∆TRAP
      →0/⍨DEBUG=DEBUG_WAS ⋄ DEBUG_WAS←DEBUG 
-     :IF DEBUG≠0 ⋄ ⎕←'Dict: DEBUG ACTIVE' ⋄ :ENDIF
-     ∆TRAP←  (0⍴⍨DEBUG=0) 'C' '⎕SIGNAL/⎕DMX.(EM EN)'   
+     ∆TRAP←  (0⍴⍨DEBUG=0) 'C' '⎕SIGNAL/⎕DMX.(EM EN)' 
+     :IF DEBUG≠0 ⋄ ⎕←'DEBUG ACTIVE' ⋄ :ENDIF 
   ∇
 
   ⍝ Shared Fields
   ⍝ DEBUG and ⎕TRAP-related: If DEBUG is set or reset to a new value, the ⎕TRAP is updated...
-    :Field Public  Shared  DEBUG←        ⎕NULL 
-    :Field Public  Shared  ∆TRAP←        ⎕NULL
-    :Field Private Shared  DEBUG_WAS←    ⎕NULL                       
-     DEBUG←0          ⍝ Set DEBUG here or later (sets ∆TRAP)
-
+    :Field Public  DEBUG←        0 
+    :Field Private ∆TRAP←        0⍴⎕TRAP
+    :Field Private DEBUG_WAS←    ⎕NULL  
+                   
   ⍝ INSTANCE FIELDS and Related
-    keysF←⍬                                 ⍝ Variable, not Field, to avoid APL hashing bug
+                   keysF←         ⍬         ⍝ Variable, not Field, to avoid Dyalog bugs (catenating/hashing)
     :Field Private valuesF←       ⍬
     :Field Private hasdefaultF←   0
     :Field Private defaultF←      ''        ⍝ Initial value
@@ -189,9 +200,9 @@
       :Access Public Shared
       ns←⎕THIS
     ∇
-    ∇ns←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
-     :TRAP 0⍴⍨0=⎕THIS.DEBUG 
-        ns←(⊃⎕RSI).⎕NEW ⎕THIS initial 
+    ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
+     :TRAP 0
+        dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
      :Else
         ⎕SIGNAL/⎕DMX.(EM EN)
@@ -214,7 +225,7 @@
     ∇ new1 struct
       :Implements Constructor
       :Access Public
-       ⎕DF 'Dict[]' ⍝ alt: ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS) 
+       ⎕DF 'Dict[]'  
       :Trap 0⍴⍨0=DEBUG
           _load struct
       :Else  
@@ -225,7 +236,7 @@
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF 'Dict[]'  ⍝ alt: ⎕DF (⍕⊃⊃⎕CLASS ⎕THIS) 
+      ⎕DF 'Dict[]'
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -245,7 +256,7 @@
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
     :Property default keyed index
     :Access Public
-        ∇ vals←get args;err;_ix;found;ix;keys;vals;⎕TRAP
+        ∇ vals←get args;found;ix;vals;⎕TRAP
           ⎕TRAP←∆TRAP
           :If ⎕NULL≡⊃args.Indexers ⋄ vals←valuesF ⋄ :Return ⋄  :EndIf
           ix←keysF⍳⊃args.Indexers
@@ -253,7 +264,7 @@
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
               vals←found\valuesF[found/ix]
-              ((~found)/vals)←⊂defaultF     ⍝ Add defaults
+              ((~found)/vals)←⊂defaultF      ⍝ Add defaults
               vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
           :Else
               eHasNoDefault ⎕SIGNAL 11
@@ -262,11 +273,11 @@
         ∇ set args;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
           keys←⊃args.Indexers ⋄ vals←args.NewValue
-          _set keys vals
+          _import keys vals
         ∇
     :EndProperty
 
-    ⍝ dict.get      Retrieve keys ⍵ with optional default ⍺
+    ⍝ dict.get      Retrieve values for keys ⍵ with optional default value ⍺ for each missing key
     ⍝ --------      (See also dict.get1)
     ⍝         dict.get keys   ⍝ -- all keys must exist or have a (class-basd) default
     ⍝ default dict.get keys   ⍝ -- keys which don't exist are given the (fn-specified) default
@@ -282,8 +293,8 @@
           (nh/vals)←⊂def
       :ENDIF
     ∇
-    ⍝ dict.get1      Retrieve key ⍵ with optional default ⍺
-    ⍝ ---------      (See also dict.get AND dict[o1 o2 ...])
+    ⍝ dict.get1    Retrieve value for key ⍵ with optional default value ⍺
+    ⍝ ---------   (See also dict.get AND dict[o1 o2 ...])
     ⍝         dict.get1 key   ⍝ -- the key must exist or have a default
     ⍝ default dict.get1 key   ⍝ -- if key doesn't exist, it's given the specified default
     ∇ val←{def} get1 key;⎕TRAP
@@ -294,29 +305,37 @@
     ∇
 
     ⍝ dict.set  --  Set keys ⍺ to values ⍵ OR set key value pairs: (k1:⍵11 v1:⍵12)(k2:⍵21 v2:⍵22)...
+    ⍝ dict.import-  Set keys to values ⍵
     ⍝ --------      (See also dict.set1)
     ⍝ {vals}←keys dict.set vals
     ⍝ {vals}←     dict.set (k v)(k v)...
+    ⍝ {vals}←     dict.import keys values    
     ∇ {vals}←{keys} set vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
-      _set keys vals
+      _import keys vals
     ∇
+    ∇{vals}←import (keys vals);⎕TRAP
+      :Access Public
+      ⎕TRAP←∆TRAP
+      _import keys vals
+    ∇
+
     ⍝ dict.set1  -- set single key ⍺ to value ⍵ OR set key value pair: (k1:⍵1 v1:⍵2)
     ⍝ ---------     (See also dict.set)
-    ⍝ {val}←key dict.set1 val    |← equiv-
-    ⍝ {val}←    dict.set1 k v    |← alent
+    ⍝ {val}←k1 dict.set1 v1    
+    ⍝ {val}←   dict.set1 k1 v1    
     ∇ {val}←{key} set1 val;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
-      _set (,⊂key) (,⊂val)
+      _import (,⊂key) (,⊂val)
     ∇
 
     ⍝ load ⍵:  Load data into dictionary and/or set default for values of missing keys.
     ⍝          Workhorse for loading dictionaries, importing vectors of (keys values), and key-value pairs.
-    ⍝          Determines the argument types and calls _set as needed. 
+    ⍝          Determines the argument types and calls _import as needed. 
     ⍝ _load ⍵: Internal utility to be called from top-level routines."
     ⍝ load accepts either a SCALAR or VECTOR right argument ⍵.
     ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Class Instance (⎕NC≠9.2)
@@ -373,16 +392,16 @@
             isDict:(k v),←⍵.export           ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
         }¨⊂⍣ismx⊣⍵ 
-        _← _set k v
+        _← _import k v
         ~hd:_← ⍬
         1: defaultF hasdefaultF∘←d 1
     }
 
-    ⍝ ignore←_set keyVec valVec
+    ⍝ ignore←_import keyVec valVec
     ⍝ From vectors of keys and values, keyVec valVec, 
     ⍝ updates instance vars keysF valuesF, then calls hashKeys to be sure hashing enabled.
     ⍝ Returns: shy VOID
-      _set←{                   ⍝ 0.   k, v: k may have old and new keys, some duplicated.
+      _import←{                   ⍝ 0.   k, v: k may have old and new keys, some duplicated.
           k v←,¨⍵                 ⍝      Make sure k and v are each vectors...
           0=≢k:_←⍬                ⍝      No keys/vals? Return now.
           ix←keysF⍳k              ⍝ I.   Process existing (old) keys
@@ -392,9 +411,9 @@
           nk nv←k v/¨⍨⊂~old       ⍝ II.  Process new keys (which may include duplicates)
           uniq←⍳⍨nk               ⍝      For duplicate keys,... 
           nv[uniq]←nv             ⍝      ... "accept" last (rightmost) value
-          keep←⊂uniq=⍳≢nk         ⍝      Create and enclose mask...
-          nk nv←keep/¨nk nv       ⍝      ... of those to keep.
-          keysF valuesF,←nk nv    ⍝ III. Update keys and values fields based on umask.
+          kp←⊂uniq=⍳≢nk           ⍝      Keep: Create and enclose mask...
+          nk nv←kp/¨nk nv         ⍝      ... of those to keep.
+          (keysF valuesF),← nk nv ⍝ III. Update keys and values fields based on umask.
           1:_←hashKeys            ⍝      Update hash and shyly return.
       }
 
@@ -413,6 +432,16 @@
       k v←keysF valuesF
     ∇
 
+    ⍝ items: "Returns ALL key-value pairs as a vector, one pair per vector element"
+    :Property items,item 
+    :Access Public
+        ∇ r←get args
+          :If 0=≢keysF ⋄ r←⍬
+          :Else ⋄ r←↓⍉↑keysF valuesF
+          :EndIf
+        ∇
+    :EndProperty
+
     ⍝ table/print: "Returns all the key-value pairs as a matrix, one pair per row.
     ⍝         Equivalent to ↑⍵.items."
     ⍝ disp/display: "filter output of d.table through (std dfns) disp or display."
@@ -423,21 +452,11 @@
       :If 0=≢keysF ⋄ r←⍬ ⋄ :RETURN ⋄ :ENDIF 
       lib←⎕SE.Dyalog.Utils   ⍝ Includes: disp, display (not table or print)
       r←⍉↑keysF valuesF  
-      :SELECT args.Name 
+      :SELECT args.Name   ⍝ default: do nothing more
          :Case 'display' ⋄ r←lib.display r
          :Case 'disp'    ⋄ r←lib.disp    r 
       :EndSelect
     ∇
-    :EndProperty
-
-    ⍝ items: "Returns ALL key-value pairs as a vector, one vector element per pair"
-    :Property items,item 
-    :Access Public
-        ∇ r←get args
-          :If 0=≢keysF ⋄ r←⍬
-          :Else ⋄ r←↓⍉↑keysF valuesF
-          :EndIf
-        ∇
     :EndProperty
 
     ⍝ len:  "Returns the number of key-value pairs."
@@ -453,8 +472,8 @@
     ⍝     "For efficiency, returns the keysF vector, rather than one index element
     ⍝      at a time. Keys may be retrieved, but not set.
     ⍝      In contrast, Values/Vals works element by element to allow direct updates (q.v.)."
-    ⍝ k ← Keys              returns all Keys in entry order
-    ⍝ k ← Keys[ix1 ix2...]  returns zero or more keys by index (user origin).
+    ⍝ k ← keys              returns all Keys in entry order
+    ⍝ k ← keys[ix1 ix2...]  returns zero or more keys by index (user origin).
     :Property keys,key
     :Access Public
         ⍝ get: retrieves keys
@@ -466,9 +485,14 @@
         ∇
     :EndProperty
 
-    ⍝ values,vals,val:
+    ⍝ values,value, vals,val:
     ⍝   "Get or Set values by index, in creation order (or, if sorted, sort order).
     ⍝    Indices are in caller ⎕IO (per APL).
+    ⍝    Note: sets/retrieves element-by-element, as a Dyalog numbered property.
+    ⍝ dict.vals← v1 v2 ...
+    ⍝ dict.vals[ix1 ix2...] ← v1 v2...
+    ⍝ :For v :in dict.vals ⋄ ... ⋄ :EndFor
+    ⍝ :For v :in dict.vals[2×⍳ ⌊0.5×dict.vals] ⋄ ... ⋄ :EndFor
     :Property numbered values,value,vals,val  
     :Access Public
         ⍝ get: retrieves values, not keysF
@@ -544,7 +568,7 @@
       ⎕TRAP←∆TRAP
       _inc←{
           nv←⍺+0 get ⍵
-          nv⊣_set ⍵ nv
+          nv⊣_import ⍵ nv
       }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :TRAP 11 
@@ -624,7 +648,7 @@
     ⍝          and returns the dictionary."
     ∇ {me}←clear
       :Access Public
-      keysF←valuesF←⍬                            ⍝ Rehash: See AutohashKeysUpdateTrigger
+      keysF←valuesF←⍬                            
       me←⎕THIS
     ∇
 
@@ -710,5 +734,6 @@
       :If (0=hashStatus)∧2≤≢keysF
           keysF←1500⌶keysF
       :EndIf
+      :IF DEBUG≠0 ⋄ ⎕DF 'Debug[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
 :EndClass
