@@ -163,13 +163,16 @@
     ⎕IO ⎕ML←0 1
   
   ⍝ DEBUG_TRIGGER: When DEBUG instance variable changes, keep ∆TRAP synchronized...
+  ⍝ For use in Instances only.
   ∇ DEBUG_TRIGGER    
-     :Implements Trigger DEBUG
-  ⍝  External: DEBUG, DEBUG_WAS, ∆TRAP
-     →0/⍨DEBUG=DEBUG_WAS ⋄ DEBUG_WAS←DEBUG 
-     ∆TRAP←  (0⍴⍨DEBUG=0) 'C' '⎕SIGNAL/⎕DMX.(EM EN)' 
-     :IF DEBUG≠0 ⋄ ⎕←'DEBUG ACTIVE' ⋄ :ENDIF 
-  ∇
+      :Implements Trigger DEBUG
+      :SELECT ⍬⍴DEBUG
+        :CASE DEBUG_WAS 
+        :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP ⋄  ⎕←'DEBUG ACTIVE' ⋄ UPDATE
+        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'⋄ ⎕DF 'Dict[]'
+      :ENDSELECT
+      DEBUG_WAS←DEBUG 
+   ∇
 
   ⍝ Shared Fields
   ⍝ DEBUG and ⎕TRAP-related: If DEBUG is set or reset to a new value, the ⎕TRAP is updated...
@@ -203,14 +206,15 @@
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
      :TRAP 0
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
-        :IF ~900⌶1 ⋄ ns.default←def ⋄ :Endif 
+        :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
      :Else
         ⎕SIGNAL/⎕DMX.(EM EN)
      :EndTrap
      ∇
      
     ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
-    ⍝ ⎕NEW version:  [ ] visible, [x] suppressed: 
+    ⍝ ##.Dict:   [ ] created, [x] suppressed. 
+    ⍝ ##.∆DICT:  [x] created, [ ] suppressed. 
     ⍝ ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
 
@@ -226,7 +230,7 @@
       :Implements Constructor
       :Access Public
        ⎕DF 'Dict[]'  
-      :Trap 0⍴⍨0=DEBUG
+      :Trap 0
           _load struct
       :Else  
           ⎕SIGNAL/⎕DMX.(EM EN)
@@ -330,7 +334,7 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
-      _import (,⊂key) (,⊂val)
+      _import (⊂key) (⊂val)
     ∇
 
     ⍝ load ⍵:  Load data into dictionary and/or set default for values of missing keys.
@@ -400,29 +404,30 @@
     ⍝ ignore←_import keyVec valVec
     ⍝ From vectors of keys and values, keyVec valVec, 
     ⍝ updates instance vars keysF valuesF, then calls hashKeys to be sure hashing enabled.
-    ⍝ Returns: shy VOID
-      _import←{                   ⍝ 0.   k, v: k may have old and new keys, some duplicated.
-          k v←,¨⍵                 ⍝      Make sure k and v are each vectors...
-          0=≢k:_←⍬                ⍝      No keys/vals? Return now.
+    ⍝ Returns: shy keys
+    ∇ {k}←_import (k v)
+          ;ix;old;nk;nv;uniq;kp   ⍝ 0.   k, v: k may have old and new keys, some duplicated.                 
+          →0/⍨0=≢k                ⍝      No keys/vals? Return now.
+          k v←,¨k v               ⍝      Make sure k and v are each vectors...
           ix←keysF⍳k              ⍝ I.   Process existing (old) keys
           old←ix<≢keysF           ⍝      Update old keys in place w/ new vals;
           valuesF[old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
-          ~0∊old:_←⍬              ⍝      All old? No more to do; shy return.
+          →0/⍨~0∊old              ⍝      All old? No more to do; shy return.
           nk nv←k v/¨⍨⊂~old       ⍝ II.  Process new keys (which may include duplicates)
           uniq←⍳⍨nk               ⍝      For duplicate keys,... 
           nv[uniq]←nv             ⍝      ... "accept" last (rightmost) value
           kp←⊂uniq=⍳≢nk           ⍝      Keep: Create and enclose mask...
           nk nv←kp/¨nk nv         ⍝      ... of those to keep.
           (keysF valuesF),← nk nv ⍝ III. Update keys and values fields based on umask.
-          1:_←hashKeys            ⍝      Update hash and shyly return.
-      }
+          UPDATE                  ⍝      Update hash and shyly return.
+      ∇
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
     ⍝         Uses ⊃⊃⎕CLASS in case the object is from a class derived from Dict (as a base class).
     ∇ {new}←copy
       :Access Public
       new←⎕NEW (⊃⊃⎕CLASS ⎕THIS) 
-      keysF new.set valuesF
+      new.import keysF valuesF
       :IF hasdefaultF ⋄ new.default←defaultF ⋄ :ENDIF 
     ∇
 
@@ -591,9 +596,9 @@
     ∇
 
     ⍝ defined: Returns 1 for each key found in the dictionary
-    ∇ old←defined keys
+    ∇ exists←defined keys
       :Access Public
-      old←(≢keysF)>keysF⍳keys
+      exists←(≢keysF)>keysF⍳keys
     ∇
 
     ⍝ del:  "Deletes key-value pairs from the dictionary by key, but only if all the keys exist"
@@ -640,7 +645,8 @@
       del←b/ix                         ⍝ Consider only those in index range
       :If 0≠≢del                       ⍝ Delete keys marked for del'n
           ∆←(≢keysF)⍴1 ⋄ ∆[del]←0      ⍝ ∆: Delete items with indices in <del>
-          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ hashKeys 
+          keysF←∆/keysF ⋄ valuesF←∆/valuesF 
+          hashKeys 
       :EndIf
     ∇
 
@@ -649,7 +655,7 @@
     ∇ {me}←clear
       :Access Public
       keysF←valuesF←⍬                            
-      me←⎕THIS
+      me←⎕THIS ⋄ UPDATE
     ∇
 
     ⍝ popitems:  "Removes and returns last (|n) items (pairs) from dictionary as if a LIFO stack.
@@ -728,12 +734,13 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
-    ∇ {hashStatus}←hashKeys  
+    ∇ {hashStatus}←UPDATE
     ⍝ Set keysF to be hashed (if not already and if there are at least 2 keys [Dyalog "bug"]!
+    ⍝ If DEBUG≡1:  Sets display form to show # of entries.
       hashStatus←1(1500⌶)keysF
       :If (0=hashStatus)∧2≤≢keysF
           keysF←1500⌶keysF
       :EndIf
-      :IF DEBUG≠0 ⋄ ⎕DF 'Debug[',(⍕≢keysF),']' ⋄ :ENDIF 
+      :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
 :EndClass
