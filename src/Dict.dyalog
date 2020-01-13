@@ -196,7 +196,6 @@
     eHasNoDefaultD←   'Dict: Value Error: no default is set (hasdefault←0).'
     eQueryDontSet←    'Dict/querydefault may not be set; set default or hasdefault.'
     eBadInt←          'Dict.inc/dec: increment (⍺) and value of keys (⍵) must be numeric.'
-     
 
   ⍝ General Local Names
     ∇ ns←Dict                     ⍝ Returns this namespace 
@@ -247,7 +246,7 @@
     ⍝-------------------------------------------------------------------------------------------
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
-
+    ⍝-------------------------------------------------------------------------------------------
     ⍝ index: "Using standard vector indexing and assignment, set and get values given keys. 
     ⍝ New entries are created automatically"
     ⍝ SETTING values for each key
@@ -337,9 +336,13 @@
       _import (⊂key) (⊂val)
     ∇
 
-    ⍝ load ⍵:  Load data into dictionary and/or set default for values of missing keys.
-    ⍝          Workhorse for loading dictionaries, importing vectors of (keys values), and key-value pairs.
-    ⍝          Determines the argument types and calls _import as needed. 
+    ⍝ dict.load ⍵:  
+    ⍝ Load data into dictionary and/or set default for values of missing keys.
+    ⍝ Workhorse for loading dictionaries, importing vectors of (keys values), and key-value pairs.
+    ⍝ Determines the argument types and calls _import as needed. 
+    ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
+    ⍝         (e.g. exported via dict1.export)
+    ⍝ 
     ⍝ _load ⍵: Internal utility to be called from top-level routines."
     ⍝ load accepts either a SCALAR or VECTOR right argument ⍵.
     ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Class Instance (⎕NC≠9.2)
@@ -373,15 +376,23 @@
       _load initial
       me←⎕THIS
     ∇
-    ⍝ <SHY VOID> ← _load args: used only internally
+    ⍝ <new_keys> ← _load args: used only internally
     ⍝ Loads command-line args from ⎕NEW Dict or ∆DICT:
     ⍝ May update keysF and valuesF and/or defaultF and hasdefaultF
-    _load←{
-        k←v←d←⍬ ⋄ hd←0   ⍝ Local buffers for keysF, valuesF; defaultF,  hasdefaultF
-        0=≢⍵: defaultF hasdefaultF∘←⍵ 1 
-        0=⍴⍴⍵: defaultF hasdefaultF∘←(⊃⍵) 1
-        ismx←⊃2=⍴⍴⍵
-        _←{ ⍝ Extern: k, v, d, hd
+    ⍝ Returns new keys (if any)
+    ∇ {k}←_load args
+        ;k;v;d;hd;ismx;isD 
+        isD←{9.2=⎕NC⊂,'⍵'}
+        k←⍬                      ⍝ Local buffer for keysF
+        :IF 0=≢args ⋄ defaultF hasdefaultF←args 1  ⍝ Fast path
+        :ElseIf 0=⍴⍴args                           ⍝ Fast path
+            :IF isD args ⋄ _import args.export
+            :Else        ⋄ defaultF hasdefaultF←(⊃args) 1   
+            :Endif
+        :Else 
+          :IF 2=⍴⍴args ⋄ args←⊂args ⋄ :ENDIF
+          v←d←⍬ ⋄ hd←0           ⍝ Local buffers for valuesF; defaultF, hasdefaultF
+          { ⍝ Extern: k, v, d, hd
             2=⍴⍴⍵:_←{                        ⍝ ⍪keys vals [defaults]
               (k v),←0 1⊃¨⊂⍵                 ⍝ Keys, values are subitems 0, 1
               2=⍬⍴⍴⍵: ⍬                      ⍝ No optional default? Done.
@@ -392,14 +403,13 @@
           ⍝ Each non-matrix item must have 2 or 1 members...
             2<≢⍵:eBadLoad ⎕SIGNAL 11   
             2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load single k-v pair
-            ⋄ isDict←9.2=⎕NC⊂'item'⊣item←⍬⍴⍵
-            isDict:(k v),←⍵.export           ⍝ dict                            Import Dictionary
+            isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
-        }¨⊂⍣ismx⊣⍵ 
-        _← _import k v
-        ~hd:_← ⍬
-        1: defaultF hasdefaultF∘←d 1
-    }
+          }¨args
+          _import k v
+          :IF hd ⋄ defaultF hasdefaultF←d 1 ⋄ :Endif 
+        :Endif 
+    ∇
 
     ⍝ ignore←_import keyVec valVec
     ⍝ From vectors of keys and values, keyVec valVec, 
