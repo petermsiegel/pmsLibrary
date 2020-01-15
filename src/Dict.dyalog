@@ -2,35 +2,31 @@
 ⍝⍝ DictClass: A fast, ordered, and simple dictionary for general use.
 ⍝⍝ ∆DICT:     Primary function for creating new dictionaries.
 ⍝⍝            d←∆DICT ⍬       ⍝ Create a new, empty dictionary with default value ⍬.
-⍝⍝ Dict:      A utility that returns the full name of the dictionary class, often #.DictClass
-⍝⍝            d←⎕NEW Dict     ⍝ Create a new, empty dictionary with no default values.
+⍝X Dict:      A utility that returns the full name of the dictionary class, often #.DictClass
+⍝X            d←⎕NEW Dict     ⍝ Create a new, empty dictionary with no default values.
 ⍝⍝ Hashes vector KEYS for efficiency on large dictionaries.
 ⍝⍝ For HELP information, call 'dict.HELP'.
 ⍝⍝
-⍝⍝ d←∆DICT item
-⍝⍝ d← [default] ∆DICT items
+⍝⍝ --------------------------
+⍝⍝    CREATION
+⍝⍝ --------------------------
+⍝⍝ d←∆DICT obj
+⍝⍝ d← [default] ∆DICT objs
 ⍝⍝    Creates dictionary <d> with optional default <default> and calls 
-⍝⍝       d.load items   ⍝ Se below
+⍝⍝       d.load objs   ⍝ Se below
 ⍝⍝    to set keys and values from key-value pairs, (keys values) vectors, and dictionaries.
-⍝⍝
-⍝⍝ d.load [item1 | item2 | item3]...
-⍝⍝    For dictionary d, import key-value pairs, dictionaryies, (keys values) lists, and defaults.
-⍝⍝    item1: (key1 val1)(key2 val2)...
-⍝⍝           items passed as key-value pairs; keys and vals may be of any type...
-⍝⍝    item2: dict
-⍝⍝           A dict is an existing instance (scalar) of a DictClass object.   
-⍝⍝    item3: ⍪keys vals 
-⍝⍝           keys and values are each scalars, structured in table form (as a column matrix).
-⍝⍝    default: any APL object of any shape. It is NOT enclosed.
-⍝⍝           E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬  
 ⍝⍝
 ⍝⍝ d←∆DICT [⊂default]
 ⍝⍝    default must either be null: e.g.      
 ⍝⍝           ''  OR  ⍬  
 ⍝⍝    or be enclosed as a scalar: e.g.  5   OR  ⎕NULL OR ⊂,5   OR  (⊂2 3⍴⍳6) OR  (⊂'Mary')
-⍝⍝    The default is defined as the disclose of the item, unless it's simple.
+⍝⍝    The default is defined as the disclose of the obj, unless it's simple.
 ⍝⍝        Here:   5   ⎕NULL   ,5   (2 3⍴⍳6)  'Mary'
+⍝⍝
 ⍝⍝ 
+⍝⍝ --------------------------------
+⍝⍝    SETTING/GETTING ITEMS BY KEY
+⍝⍝ --------------------------------
 ⍝⍝ d[⊂k1] or d[k1 k2...]
 ⍝⍝    Return a value for each key specified. Raises an error any key is not in the dictionary, 
 ⍝⍝    unless a default is specified.
@@ -39,12 +35,18 @@
 ⍝⍝ d[⊂k1] ← (⊂v1) OR d[k1 k2...]←v1 v2 ...
 ⍝⍝     Assign a value to each key specified, new or existing.
 ⍝⍝
+⍝⍝ ---------------------------------------------------
+⍝⍝     GETTING (LISTING) OF ALL KEYS / KEYS BY INDEX
+⍝⍝ ---------------------------------------------------
 ⍝⍝ keys ← d.keys                     [alias: key]
 ⍝⍝     Return a list of all the keys used in the dictionary d.
 ⍝⍝
 ⍝⍝ keys ← d.keys[indices]            [alias: key]
 ⍝⍝     Return a list of keys by numeric indices i1 i2 ...
 ⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    SETTING/GETTING ALL VALUES / VALUES BY INDEX
+⍝⍝ ------------------------------------------------
 ⍝⍝ vals ← d.vals                     [alias: val]
 ⍝⍝     Returns the list of values  in entry order for  all items; suitable for iteration
 ⍝⍝         :FOR v :in d.vals ...
@@ -54,6 +56,15 @@
 ⍝⍝
 ⍝⍝ d.vals[indices]←newvals           [alias: val]
 ⍝⍝     Sets new values <newvals> for existing items by indices.
+⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    COMMON MISCELLANEOUS METHODS
+⍝⍝ ------------------------------------------------
+⍝⍝ d2 ← d.copy
+⍝⍝     Return a shallow copy of the dictionary d, including its defaults
+⍝⍝
+⍝⍝ bool ← d.defined (⊂k1) OR d.defined k1 k2 ...
+⍝⍝     Return 1 for each key that is defined (i.e. is in the dictionary)
 ⍝⍝
 ⍝⍝ nitems ← d.len  
 ⍝⍝     Return the number of items in the dictionary d.
@@ -69,14 +80,33 @@
 ⍝      Ignore=0: Returns 1 for each item removed. Signals an error if any item does not exist.
 ⍝⍝     Ignore=1: Returns 1 for each item removed; else 0.
 ⍝⍝
-⍝⍝ bool ← d.defined (⊂k1) OR d.defined k1 k2 ...
-⍝⍝     Return 1 for each key that is defined (i.e. is in the dictionary)
-⍝⍝
 ⍝⍝ d.clear
 ⍝⍝     Remove all items from the dictionary.
 ⍝⍝
-⍝⍝ d2 ← d.copy
-⍝⍝     Return a shallow copy of the dictionary d, including its defaults
+⍝⍝ d.DEBUG ← [1 | 0]   
+⍝⍝ :IF d.DEBUG ⋄ ... ⋄ :ENDIF 
+⍝⍝     If DEBUG is 1, an error will be signalled where it occurs.
+⍝⍝     Otherwise, it will be signalled at the dictionary call (cutback).
+⍝⍝     When DEBUG←1, the # of items in a dictionary is part of its display form.
+⍝⍝ 
+⍝⍝ ------------------------------------------------
+⍝⍝    DEALING WITH VALUE DEFAULTS
+⍝⍝ ------------------------------------------------
+⍝⍝ d←[DEFAULT] ∆DICT objs
+⍝⍝   Set DEFAULT values at creation
+⍝⍝
+⍝⍝ d.default←value
+⍝⍝     Sets a default value for missing keys. Also sets d.hasdefault←1
+⍝⍝
+⍝⍝ d.hasdefault←[1 | 0]
+⍝⍝     Activates (1) or deactivates (0) the current default.
+⍝⍝     ∘ Initially, by default:  hasdefault←0  and default←'' 
+⍝⍝     ∘ If set to 0, referencing new entries with missing keys cause a VALUE ERROR to be signalled. 
+⍝⍝     ∘ Setting hasdefault←0 does not delete any existing default; 
+⍝⍝       it is simply inaccessible until hasdefault←1.
+⍝⍝
+⍝⍝ d.querydefault
+⍝⍝      Returns a vector containing the current default and 1, if defined; else ('' 0)
 ⍝⍝
 ⍝⍝ vals ← [default] d.get  k1 k2 ...
 ⍝⍝ val  ← [default] d.get1 k1
@@ -90,14 +120,41 @@
 ⍝⍝     or as
 ⍝⍝          key-value pairs: (k1 v1)(k2 v2)...
 ⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    BULK LOADING OF DICTIONARIES
+⍝⍝ ------------------------------------------------
+⍝⍝ d.load [obj1 | obj2 | obj3]...
+⍝⍝    For dictionary d, sets keys and values from objs of various types or set value defaults:
+⍝⍝         ∘ ITEMS:     key-value pairs (each pair specified one at a time), 
+⍝⍝         ∘ DICTS:     dictionaries (or any obj in  a class, ⎕NC 9.2) 
+⍝⍝         ∘ LISTS:     key-value lists (keys in one vector, values in another), and 
+⍝⍝         ∘ DEFAULTS: defaults (set as a scalar not in a class, i.e. not ⎕NC 9.2)
+⍝⍝    Any defaults are not loaded.
+⍝⍝    obj1:  (key1 val1)(key2 val2)...
+⍝⍝           objects passed as key-value pairs; keys and vals may be of any type...
+⍝⍝    obj2:  dict
+⍝⍝           A dict is an existing instance (scalar) of a DictClass object.   
+⍝⍝    obj3:  ⍪keys vals 
+⍝⍝           keys and values are each scalars, structured in table form (as a column matrix).
+⍝⍝    default: any APL object of any shape. It is NOT enclosed.
+⍝⍝           E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬  
+⍝⍝
 ⍝⍝ d.import (k1 k2 ...) (v1 v2 ...)
-⍝⍝     Set one or more items with two vectors (⍵1 ⍵2), where
+⍝⍝     Set one or more items from a K-V LIST (⍵1 ⍵2)
 ⍝⍝         ⍵1: a vector of keys
 ⍝⍝         ⍵2: a vector of values.
 ⍝⍝     To set a single key-value pair (k1 v1), use e.g.:
 ⍝⍝         k1 d.set1 v1 
 ⍝⍝         d.import (,k1)(,v1)
+⍝⍝ keys vals ← d.export
+⍝⍝     Returns a K-V LIST consisting of a vector of keys.
+⍝⍝     Efficient way to export ITEMS from one dictionary to another:
+⍝⍝          d2.import d1.export 
+⍝⍝     Does not export defaults.
 ⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    MANAGING ITEMS (K-V PAIRS)
+⍝⍝ ------------------------------------------------
 ⍝⍝ items ← d.items [k1 k2 ...]
 ⍝⍝     Return a list of all OR the specified dictionary’s items ((key, value) pairs).  
 ⍝⍝
@@ -105,6 +162,9 @@
 ⍝⍝     Remove and return the n (n≥0) most-recently entered key-value pairs.
 ⍝⍝     This is done efficiently, so that the dictionary is not rehashed.
 ⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    COUNTING OBJECTS AS KEYS
+⍝⍝ ------------------------------------------------
 ⍝⍝ nums ←  [amount ← 1] d.inc k1 k2 ...
 ⍝⍝     Increments the values of keys by <amount←1>. If undefined and no default is set, 0 is assumed.
 ⍝⍝     If any referenced key's value is defined and non-numeric, an error is signalled.
@@ -112,6 +172,9 @@
 ⍝⍝ nums ← [amount] d.dec k1 k2 ...
 ⍝⍝      Identical to d.inc (above) except decrements the values by <amount←1>.
 ⍝⍝
+⍝⍝ ------------------------------------------------
+⍝⍝    SORTING KEYS
+⍝⍝ ------------------------------------------------
 ⍝⍝ d ← d.sort OR d.sorta
 ⍝⍝     Sort a dictionary in place in ascending order by keys, returning the dictionary
 ⍝⍝
@@ -127,20 +190,9 @@
 ⍝⍝     Returns the indices of the dictionary sorted in descending order by keys 
 ⍝⍝     (doesn't reorder the dictionary)
 ⍝⍝
-⍝⍝ d.default←value
-⍝⍝     Sets a default value for missing keys. Also sets d.hasdefault←1
-⍝⍝
-⍝⍝ d.hasdefault←[1 | 0]
-⍝⍝     Activates (1) or deactivates (0) the current default.
-⍝⍝     ∘ Initially, by default:  hasdefault←0  and default←'' 
-⍝⍝     ∘ If set to 0, referencing new entries with missing keys cause a VALUE ERROR to be signalled. 
-⍝⍝     ∘ Setting hasdefault←0 does not delete any existing default; 
-⍝⍝       it is simply inaccessible until hasdefault←1.
-⍝⍝
-⍝⍝ d.querydefault
-⍝⍝      Returns a vector containing the current default and 1, if defined; else ('' 0)
-⍝⍝
-⍝⍝ NOTES
+⍝⍝ ------------------------------------------------
+⍝⍝    [NOTES]
+⍝⍝ ------------------------------------------------
 ⍝⍝ Dictionaries are ORDERED: they preserve insertion order unless items are sorted or deleted. 
 ⍝⍝ ∘ Updating an item's key does not affect its order. 
 ⍝⍝ ∘ New keys are always added at the end, in the last positions in order, so updates are fast.
@@ -198,7 +250,7 @@
     eBadInt←          'Dict.inc/dec: increment (⍺) and value of keys (⍵) must be numeric.'
 
   ⍝ General Local Names
-    ∇ ns←Dict                     ⍝ Returns this namespace 
+    ∇ ns←Dict                      ⍝ Returns this namespace 
       :Access Public Shared
       ns←⎕THIS
     ∇
@@ -729,9 +781,9 @@
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
     ∇ {h}←help;ln 
       :Access Public Shared
-      ⍝ Pick up only ⍝H1 comments!
+      ⍝ Pick up only ⍝⍝ comments!
       :Trap 0 ⋄ h←⎕SRC ⎕THIS ⋄ h←3↓¨h/⍨(⊂'⍝⍝')≡¨2↑¨h 
-              :FOR ln :in h ⋄ ⎕←ln ⋄ :ENDFOR
+                h←∊h,¨⎕UCS 13
       :Else ⋄ ⎕SIGNAL/'Dict.HELP: No help available' 911
       :EndTrap
     ∇
