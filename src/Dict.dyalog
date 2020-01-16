@@ -73,12 +73,14 @@
 ⍝⍝     Remove keys from d.
 ⍝⍝     Ignore=0: Shyly returns 1 for each key; signals an error of any key is not in the dictionary
 ⍝⍝     Ignore=1: Shyly returns 1 for each key found, 0 otherwise.
+⍝⍝     Efficient if the items to delete are contiguous at the end of the dictionary
 ⍝⍝
 ⍝⍝ bool ← [ignore←0] d.delbyindex i1 i2 ...               
 ⍝⍝ bool ← [ignore←0] d.di i1 i2 ...              ⍝ Alias to delbyindex
 ⍝⍝     Removes items from d by indices i1 i2 .... 
 ⍝      Ignore=0: Returns 1 for each item removed. Signals an error if any item does not exist.
 ⍝⍝     Ignore=1: Returns 1 for each item removed; else 0.
+⍝⍝     Efficient if the items to delete are contiguous at the end of the dictionary
 ⍝⍝
 ⍝⍝ d.clear
 ⍝⍝     Remove all items from the dictionary.
@@ -221,7 +223,7 @@
       :SELECT ⍬⍴DEBUG
         :CASE DEBUG_WAS 
         :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP ⋄  ⎕←'DEBUG ACTIVE' ⋄ UPDATE
-        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'⋄ ⎕DF 'Dict[]'
+        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.((EM,'': '',Message) EN)'⋄ ⎕DF 'Dict[]'   
       :ENDSELECT
       DEBUG_WAS←DEBUG 
    ∇
@@ -238,16 +240,17 @@
     :Field Private hasdefaultF←   0
     :Field Private defaultF←      ''        ⍝ Initial value
 
-  ⍝ ERROR MESSAGES:
-    eBadLoad←         'Dict: args must consist of a list of key-value pairs, a dictionary, or a default value (enclosed).'
-    eBadDefault←      'Dict: hasdefault must be set to 1 (true) or 0 (false).'
-    eDelKeyMissing←   'Dict/del: non-existent keys may not be deleted, unless ignore (⍺)=1.'
-    eIndexRange←      'Dict/delbyindex: An index argument was not in range.'
-    eKeyAlterAttempt← 'Dict/keys: keys may not be altered.'
-    eHasNoDefault←    'Dict: Value Error: key does not exist and no default was set.'
-    eHasNoDefaultD←   'Dict: Value Error: no default is set (hasdefault←0).'
-    eQueryDontSet←    'Dict/querydefault may not be set; set default or hasdefault.'
-    eBadInt←          'Dict.inc/dec: increment (⍺) and value of keys (⍵) must be numeric.'
+  ⍝ ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
+    T1 T2←'  ' '       ' ⋄ Ñ←(⎕UCS 13),6⍴' ' 
+    eBadLoad←         'Valid args (⍵N): [ITEM | LIST | DICT | DEF]*',Ñ,'ITEM: key-value pair',T1,'LIST: ⍪key-value list',Ñ,'DICT: dictonary',T2,'DEF: ⊂default value'
+    eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
+    eDelKeyMissing←   'del: at least one key was not found and ⍺:ignore≠1.'
+    eIndexRange←      'delbyindex: An index argument was not in range and ⍺:ignore≠1.'
+    eKeyAlterAttempt← 'keys: item keys may not be altered.'
+    eHasNoDefault←    'key does not exist and no default was set.'
+    eHasNoDefaultD←   'no default has been set.'
+    eQueryDontSet←    'querydefault may not be set; Use Dict.(default or hasdefault).'
+    eBadInt←          'inc/dec: increment (⍺) and value for each key in ⍵ must be numeric.'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns this namespace 
@@ -259,7 +262,7 @@
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
      :Else
-        ⎕SIGNAL/⎕DMX.(EM EN)
+        ⎕SIGNAL ⊂('EN' 11)('EM' '∆DICT DOMAIN ERROR') ('Message' ⎕DMX.Message)
      :EndTrap
      ∇
      
@@ -284,7 +287,7 @@
       :Trap 0
           _load struct
       :Else  
-          ⎕SIGNAL/⎕DMX.(EM EN)
+          ⎕SIGNAL ⊂('EN' 11)('EM' '∆DICT DOMAIN ERROR') ('Message' ⎕DMX.Message)
       :EndTrap
     ∇
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
@@ -322,7 +325,7 @@
               ((~found)/vals)←⊂defaultF      ⍝ Add defaults
               vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
           :Else
-              eHasNoDefault ⎕SIGNAL 11
+               ⎕SIGNAL ERROR eHasNoDefault
           :EndIf
         ∇
         ∇ set args;keys;vals;⎕TRAP
@@ -343,8 +346,7 @@
           vals←⎕THIS[keys]
       :ELSE 
           nh←~has←defined keys
-          vals←⎕THIS[has/keys]
-          vals←has\vals
+          vals←has\⎕THIS[has/keys]
           (nh/vals)←⊂def
       :ENDIF
     ∇
@@ -424,8 +426,11 @@
    
     ∇ {me}←load initial;⎕TRAP
       :Access Public
-       ⎕TRAP←∆TRAP
-      _load initial
+       :TRAP 0 
+          _load initial  
+       :Else
+          ⎕SIGNAL ERROR (⎕UCS 10),⎕DMX.Message
+       :EndTrap
       me←⎕THIS
     ∇
     ⍝ <new_keys> ← _load args: used only internally
@@ -449,11 +454,11 @@
               (k v),←0 1⊃¨⊂⍵                 ⍝ Keys, values are subitems 0, 1
               2=⍬⍴⍴⍵: ⍬                      ⍝ No optional default? Done.
               dEnc←2⊃⍵                       ⍝ Opt'l default must be enclosed within a scalar
-              0≠⍴⍴dEnc: eBadLoad ⎕SIGNAL 11  ⍝ If not, complain.
+              0≠⍴⍴dEnc:⎕SIGNAL ERROR eBadLoad ⍝ If not, complain.
               ⊣d hd∘←(⊃dEnc) 1               ⍝ Opt'l default disclosed!       Set Defaults
             },⍵
           ⍝ Each non-matrix item must have 2 or 1 members...
-            2<≢⍵:eBadLoad ⎕SIGNAL 11   
+            2<≢⍵:⎕SIGNAL ERROR eBadLoad   
             2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load single k-v pair
             isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
@@ -465,7 +470,7 @@
 
     ⍝ ignore←_import keyVec valVec
     ⍝ From vectors of keys and values, keyVec valVec, 
-    ⍝ updates instance vars keysF valuesF, then calls hashKeys to be sure hashing enabled.
+    ⍝ updates instance vars keysF valuesF, then calls UPDATE to be sure hashing enabled.
     ⍝ Returns: shy keys
     ∇ {k}←_import (k v)
           ;ix;old;nk;nv;uniq;kp   ⍝ 0.   k, v: k may have old and new keys, some duplicated.                 
@@ -510,7 +515,7 @@
     :EndProperty
 
     ⍝ table/print: "Returns all the key-value pairs as a matrix, one pair per row.
-    ⍝         Equivalent to ↑⍵.items."
+    ⍝         Equivalent to ↑d.items."
     ⍝ disp/display: "filter output of d.table through (std dfns) disp or display."
     ⍝ If no items, returns ⍬ (unfiltered).
     :Property table,print,display,disp 
@@ -548,7 +553,7 @@
           k←keysF
         ∇
         ∇ set args
-          eKeyAlterAttempt ⎕SIGNAL 11
+          ⎕SIGNAL ERROR eKeyAlterAttempt 
         ∇
     :EndProperty
 
@@ -600,7 +605,7 @@
         ∇ r←get args
           :Select args.Name
           :Case 'default'
-              :If ~hasdefaultF ⋄ eHasNoDefaultD ⎕SIGNAL 11 ⋄ :EndIf
+              :If ~hasdefaultF ⋄ ⎕SIGNAL ERROR eHasNoDefaultD ⋄ :EndIf
               r←defaultF
           :Case 'hasdefault'
               r←hasdefaultF
@@ -614,11 +619,11 @@
               defaultF hasdefaultF←args.NewValue 1
           :Case 'hasdefault'
               :If ~0 1∊⍨⊂args.NewValue
-                  eBadDefault ⎕SIGNAL 11
+                  ⎕SIGNAL ERROR eBadDefault
               :EndIf
               hasdefaultF←⍬⍴args.NewValue   ⍝ defaultF unchanged...
           :Case 'querydefault'
-              eQueryDontSet ⎕SIGNAL 11
+              ⎕SIGNAL ERROR eQueryDontSet
           :EndSelect
         ∇
     :EndProperty
@@ -645,7 +650,7 @@
             newvals←∆ _inc¨⊂¨keys
           :Endif
       :Else
-          eBadInt ⎕SIGNAL 11
+          ⎕SIGNAL ERROR eBadInt
       :EndTrap 
     ∇
 
@@ -653,7 +658,7 @@
       :Access Public
        ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      :IF 0≠1↑0⍴∆ ⋄ eBadInt ⎕SIGNAL 11 ⋄ :ENDIF 
+      :IF 0≠1↑0⍴∆ ⋄ ⎕SIGNAL ERROR eBadInt ⋄ :ENDIF 
       newval←(-∆)inc keys
     ∇
 
@@ -668,20 +673,14 @@
     ⍝        If ignore is 0 or omitted, missing keys signal a DOMAIN error (11).
     ⍝ b ← {ignore←1} ⍵.del key1 key2...
     ⍝ Returns a vector of 1s and 0s: a 1 for each key kN deleted; else 0.
-    ∇ {b}←{ignore} del keys;nf;ix;old;∆;⎕TRAP
+    ∇ {b}←{ignore} del keys;ix;∆;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
-      keys←∪keys
       b←(≢keysF)>ix←keysF⍳keys
-      nf←0∊b
-      :If nf∧~ignore     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
-          eDelKeyMissing ⎕SIGNAL 11
-      :EndIf
-      :If 0≠≢b←b/ix
-          ∆←1⍴⍨≢keysF ⋄ ∆[b]←0
-          keysF←∆/keysF ⋄ valuesF←∆/valuesF ⋄ hashKeys 
-      :EndIf
+    ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
+      ⎕SIGNAL eDelKeyMissing ERROR⍨ (0∊b)∧~ignore 
+      ignore _delbyindex b/ix
     ∇
 
     ⍝ delbyindex | di:    "Deletes key-value pairs from the dict. by index. See del."
@@ -690,25 +689,35 @@
     ⍝ b ← {ignore←1} ⍵.delbyindex ix1 ix2...
     ⍝ b ← (ignore←1} ⍵.di           ix1 ix2...
     ⍝
-    ∇ {b}←{ignore} di ix;keys;⎕TRAP
+    ∇ {b}←{ignore} di ix;keys 
       :Access Public
-      ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
-      ignore delbyindex ix
+      :TRAP 0 
+         b←ignore delbyindex ix
+      :Else
+         ⎕SIGNAL ERROR ⎕DMX.Message
+      :EndTrap
     ∇
-    ∇ {b}←{ignore} delbyindex ix;∆;del;⎕TRAP
+
+    ∇ {b}←{ignore} delbyindex ix;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf    
-      b←{⍵:0=0(≢keysF)⍸ix ⋄ 0⍴⍨≢ix}×≢keysF
-      :If (0∊b)∧~ignore               ⍝ At least 1 missing key?
-          eIndexRange ⎕SIGNAL 7
-      :EndIf
-      del←b/ix                         ⍝ Consider only those in index range
-      :If 0≠≢del                       ⍝ Delete keys marked for del'n
-          ∆←(≢keysF)⍴1 ⋄ ∆[del]←0      ⍝ ∆: Delete items with indices in <del>
-          keysF←∆/keysF ⋄ valuesF←∆/valuesF 
-          hashKeys 
+      b←ix{⍵:0=0(≢keysF)⍸⍺ ⋄ 0⍴⍨≢⍺}×≢keysF
+      ⎕SIGNAL eIndexRange ERROR⍨ (0∊b)∧~ignore       ⍝ At least 1 index out of range                     
+      ignore _delbyindex b/ix                    ⍝ Consider only those in index range
+    ∇
+
+    ⍝ _delbyindex: Delete items by ix, where ix (if non-null) in range of keysF.
+    ∇ ignore _delbyindex ix;count
+      :If 0≠count←≢ix←∪ix                    ⍝ Delete keys marked for del'n
+          :IF  ∧/ix∊(¯1+≢keysF)-⍳count       ⍝ Fast path: all keys to delete at end!
+              keysF↓⍨←-count ⋄ valuesF↓⍨←-count
+          :Else  
+              ∆←(≢keysF)⍴1 ⋄ ∆[ix]←0      ⍝ ∆: Delete items with indices in <ix>
+              keysF←∆/keysF ⋄ valuesF←∆/valuesF 
+              UPDATE 
+          :EndIf 
       :EndIf
     ∇
 
@@ -760,7 +769,7 @@
           :EndIf
           keysF   ⌷⍨←ix  
           valuesF ⌷⍨←ix 
-          hashKeys ⋄ me←⎕THIS
+          UPDATE ⋄ me←⎕THIS
         ∇
     :EndProperty
 
@@ -805,4 +814,11 @@
       :EndIf
       :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
+    ∇ entire←{cond} ERROR message
+      :IF cond ← 1{⍵:⍺ ⋄ cond}900⌶1
+           entire ← ⊂ ('EN' 11)('EM' 'Dict DOMAIN ERROR')('Message' message)
+      :Else 
+           entire ← ⍬   ⍝ Suppress error...
+      :ENDIF 
+     ∇
 :EndClass
