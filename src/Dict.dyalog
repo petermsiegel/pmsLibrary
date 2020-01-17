@@ -1,29 +1,42 @@
 :Class DictClass
 ⍝⍝ DictClass: A fast, ordered, and simple dictionary for general use.
+⍝⍝            A dictionary is a collection of ITEMS (or pairs), each consisting of 
+⍝⍝            one key and one value, each an arbitrary shape and  
+⍝⍝            in nameclass 2 or 9 (value or namespace-related).
 ⍝⍝ ∆DICT:     Primary function for creating new dictionaries.
-⍝⍝            d←∆DICT ⍬       ⍝ Create a new, empty dictionary with default value ⍬.
-⍝X Dict:      A utility that returns the full name of the dictionary class, often #.DictClass
-⍝X            d←⎕NEW Dict     ⍝ Create a new, empty dictionary with no default values.
-⍝⍝ Hashes vector KEYS for efficiency on large dictionaries.
+⍝⍝ TYPE       CODE                          ITEMS                                 DEFAULT
+⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝⍝ empty      a←∆DICT ⍬                     ⍝ None                                none
+⍝⍝ items      b←∆DICT (1 10)(2 20)(3 30)    ⍝ 3: (1 10)...                        none
+⍝⍝ items+     c←0 ∆DICT (1 10)(2 20)(3 30)  ⍝ 3: (1 10)...                        0
+⍝⍝ lists+     d←⍬ ∆DICT ⍪(1 2 3)(10 20 30)  ⍝ 3: (1 10)...                        ⍬ (numeric null)
+⍝⍝ copy       e←∆DICT d (4 40)              ⍝ 4: (1 10)...(4 40)                  none
+⍝⍝ 
+⍝X Dict:      A utility fn that returns the full name of the dictionary class, often #.DictClass.
+⍝X            To enable, put #.DictClass in your ⎕PATH.
+⍝X            d←⎕NEW Dict            ⍝ Create a new, empty dictionary with no default values.
+⍝X            d←⎕NEW Dict (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.load.
+⍝⍝ Hashes keys for efficiently searching and updating items in large dictionaries.
 ⍝⍝ For HELP information, call 'dict.HELP'.
 ⍝⍝
 ⍝⍝ --------------------------
 ⍝⍝    CREATION
 ⍝⍝ --------------------------
-⍝⍝ d←∆DICT obj
+⍝⍝ d← ∆DICT ⍬
+⍝⍝    Creates a dictionary <d> with no items and no default. Items may be added via d[k1 k2...]←v1 v2...
+⍝⍝    A default value may be added via d.default← <any object>.
+⍝⍝
 ⍝⍝ d← [default] ∆DICT objs
 ⍝⍝    Creates dictionary <d> with optional default <default> and calls 
 ⍝⍝       d.load objs   ⍝ Se below
 ⍝⍝    to set keys and values from key-value pairs, (keys values) vectors, and dictionaries.
 ⍝⍝
-⍝⍝ d←∆DICT [⊂default]
-⍝⍝    default must either be null: e.g.      
-⍝⍝           ''  OR  ⍬  
-⍝⍝    or be enclosed as a scalar: e.g.  5   OR  ⎕NULL OR ⊂,5   OR  (⊂2 3⍴⍳6) OR  (⊂'Mary')
-⍝⍝    The default is defined as the disclose of the obj, unless it's simple.
-⍝⍝        Here:   5   ⎕NULL   ,5   (2 3⍴⍳6)  'Mary'
+⍝⍝ d←∆DICT ⊂default      OR    d←default ∆DICT ⍬
+⍝⍝    default must be a simple scalar, like 5, or it must be enclosed.
+⍝⍝        e.g. ∆DICT 10         creates an empty dictionary with default value 10.
+⍝⍝             ∆DICT ⊂⍬         creates an empty dictionary with default value ⍬ (not ⊂⍬).
+⍝⍝             ∆DICT ⊂'Missing' creates an empty dictionary with default value 'Missing'.
 ⍝⍝
-⍝⍝ 
 ⍝⍝ --------------------------------
 ⍝⍝    SETTING/GETTING ITEMS BY KEY
 ⍝⍝ --------------------------------
@@ -95,7 +108,7 @@
 ⍝⍝    DEALING WITH VALUE DEFAULTS
 ⍝⍝ ------------------------------------------------
 ⍝⍝ d←[DEFAULT] ∆DICT objs
-⍝⍝   Set DEFAULT values at creation
+⍝⍝   Set DEFAULT values at creation (no default is created if objs is null)
 ⍝⍝
 ⍝⍝ d.default←value
 ⍝⍝     Sets a default value for missing keys. Also sets d.hasdefault←1
@@ -125,21 +138,24 @@
 ⍝⍝ ------------------------------------------------
 ⍝⍝    BULK LOADING OF DICTIONARIES
 ⍝⍝ ------------------------------------------------
-⍝⍝ d.load [obj1 | obj2 | obj3]...
+⍝⍝ d.load  [obj1 | obj2 | obj3 | ⊂default] [obj1 | obj2 | obj3 | ⊂default] ...
 ⍝⍝    For dictionary d, sets keys and values from objs of various types or set value defaults:
 ⍝⍝         ∘ ITEMS:     key-value pairs (each pair specified one at a time), 
 ⍝⍝         ∘ DICTS:     dictionaries (or any obj in  a class, ⎕NC 9.2) 
 ⍝⍝         ∘ LISTS:     key-value lists (keys in one vector, values in another), and 
-⍝⍝         ∘ DEFAULTS: defaults (set as a scalar not in a class, i.e. not ⎕NC 9.2)
+⍝⍝         ∘ DEFAULTS:  defaults (must be a scalar or namespace-class, 
+⍝⍝                      as long as not a class instance, ⎕NC 9.2)
 ⍝⍝    Any defaults are not loaded.
 ⍝⍝    obj1:  (key1 val1)(key2 val2)...
 ⍝⍝           objects passed as key-value pairs; keys and vals may be of any type...
 ⍝⍝    obj2:  dict
 ⍝⍝           A dict is an existing instance (scalar) of a DictClass object.   
-⍝⍝    obj3:  ⍪keys vals 
+⍝⍝    obj3:  ⍪keys vals [default] 
 ⍝⍝           keys and values are each scalars, structured in table form (as a column matrix).
-⍝⍝    default: any APL object of any shape. It is NOT enclosed.
-⍝⍝           E.g.  5   OR   'John'   OR  (2 3⍴⍳6)  OR  ''   OR  ⍬  
+⍝⍝           The default, if present, may be any shape or nameclass.
+⍝⍝    default: any APL object of any shape, but must be enclosed to be recognized. 
+⍝⍝           Note: a default would normally be specified once. Those to the right take precedence.
+⍝⍝           E.g.  5   OR   ⊂'John'   OR  (⊂2 3⍴⍳6)  OR  (⊂'')   OR  (⊂⍬)  
 ⍝⍝
 ⍝⍝ d.import (k1 k2 ...) (v1 v2 ...)
 ⍝⍝     Set one or more items from a K-V LIST (⍵1 ⍵2)
@@ -206,13 +222,14 @@
 ⍝⍝ Dictionaries are hashed according to their keys (using APL hashing: 1500⌶).
 ⍝⍝ ∘ Hashing is preserved when updating items, adding new items, searching for items, etc.
 ⍝⍝ ∘ Hashing is preserved when popping items (which is therefore fast)
-⍝⍝ ∘ Hashing is NOT preserved when deleting objects (del or di), so deleting can be slow.
-⍝⍝   ∘ Deleting a set of keys at once is efficient; the dictionary is updated all at once.
+⍝⍝ ∘ Hashing is NOT usually preserved when deleting objects (del or di).
+⍝⍝   ∘ If all keys to delete are a contiguous set of the last (rightmost) keys, hashing is preserved.
+⍝⍝   ∘ If at least one key is not part of a contiguous set at the right end, the hash is rebuilt.
+⍝⍝   ∘ Deleting a set of keys at once is efficient; the dictionary is rehashed all at once.
 ⍝⍝   ∘ Deleting items one at a time reequires rebuilding and rehashing each time. Avoid!
 ⍝⍝ ∘ If the same key is updated in a single call with multiple values 
 ⍝⍝       dict[k1 k1 k1]←v1 v2 v3
 ⍝⍝   only the last entry (v3) is kept.
-
 
     ⎕IO ⎕ML←0 1
   
@@ -223,7 +240,7 @@
       :SELECT ⍬⍴DEBUG
         :CASE DEBUG_WAS 
         :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP ⋄  ⎕←'DEBUG ACTIVE' ⋄ UPDATE
-        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.((EM,'': '',Message) EN)'⋄ ⎕DF 'Dict[]'   
+        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.((''Dict:'',EM,'': '',Message) EN)'⋄ ⎕DF 'Dict[]'   
       :ENDSELECT
       DEBUG_WAS←DEBUG 
    ∇
@@ -241,19 +258,18 @@
     :Field Private defaultF←      ''        ⍝ Initial value
 
   ⍝ ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
-    T1 T2←'  ' '       ' ⋄ Ñ←(⎕UCS 13),6⍴' ' 
-    eBadLoad←         'Valid args (⍵N): [ITEM | LIST | DICT | DEF]*',Ñ,'ITEM: key-value pair',T1,'LIST: ⍪key-value list',Ñ,'DICT: dictonary',T2,'DEF: ⊂default value'
-    eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
-    eDelKeyMissing←   'del: at least one key was not found and ⍺:ignore≠1.'
-    eIndexRange←      'delbyindex: An index argument was not in range and ⍺:ignore≠1.'
-    eKeyAlterAttempt← 'keys: item keys may not be altered.'
-    eHasNoDefault←    'key does not exist and no default was set.'
-    eHasNoDefaultD←   'no default has been set.'
-    eQueryDontSet←    'querydefault may not be set; Use Dict.(default or hasdefault).'
-    eBadInt←          'inc/dec: increment (⍺) and value for each key in ⍵ must be numeric.'
+    eBadLoad←         11 'invalid right argument (⍵) on initialization or load.'
+    eBadDefault←      11 'hasdefault must be set to 1 (true) or 0 (false).'
+    eDelKeyMissing←   11 'del: at least one key was not found and ⍺:ignore≠1.'
+    eIndexRange←       3 'delbyindex: An index argument was not in range and ⍺:ignore≠1.'
+    eKeyAlterAttempt← 11 'keys: item keys may not be altered.'
+    eHasNoDefault←     3 'index: key does not exist and no default was set.'
+    eHasNoDefaultD←   11 'no default has been set.'
+    eQueryDontSet←    11 'querydefault may not be set; Use Dict.(default or hasdefault).'
+    eBadInt←          11 'inc/dec: increment (⍺) and value for each key in ⍵ must be numeric.'
 
   ⍝ General Local Names
-    ∇ ns←Dict                      ⍝ Returns this namespace 
+    ∇ ns←Dict                      ⍝ Returns this namespace. Searchable via ⎕PATH. 
       :Access Public Shared
       ns←⎕THIS
     ∇
@@ -262,7 +278,7 @@
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
      :Else
-        ⎕SIGNAL ⊂('EN' 11)('EM' '∆DICT DOMAIN ERROR') ('Message' ⎕DMX.Message)
+        ⎕SIGNAL ⊂('EN' 11)('EM' ('∆DICT ',⎕DMX.EM)) ('Message' ⎕DMX.Message)
      :EndTrap
      ∇
      
@@ -287,7 +303,7 @@
       :Trap 0
           _load struct
       :Else  
-          ⎕SIGNAL ⊂('EN' 11)('EM' '∆DICT DOMAIN ERROR') ('Message' ⎕DMX.Message)
+          ⎕SIGNAL ⊂('EN' 11)('EM' ⎕DMX.EM) ('Message' ⎕DMX.Message)
       :EndTrap
     ∇
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
@@ -321,7 +337,8 @@
           :If ~0∊found←ix<≢keysF
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
-              vals←found\valuesF[found/ix]
+            ⍝ {0=...}: If valuesF starts with a namespace, found\valuesF[...] can lead to a NONCE ERROR.
+              vals←found\{0=≢⍵:⍬ ⋄ ⍵}valuesF[found/ix]
               ((~found)/vals)←⊂defaultF      ⍝ Add defaults
               vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
           :Else
@@ -364,7 +381,7 @@
     ⍝ dict.set  --  Set keys ⍺ to values ⍵ OR set key value pairs: (k1:⍵11 v1:⍵12)(k2:⍵21 v2:⍵22)...
     ⍝ dict.import-  Set keys to values ⍵
     ⍝ --------      (See also dict.set1)
-    ⍝ {vals}←keys dict.set vals
+    ⍝ {vals}←keys dict.set values
     ⍝ {vals}←     dict.set (k v)(k v)...
     ⍝ {vals}←     dict.import keys values    
     ∇ {vals}←{keys} set vals;⎕TRAP
@@ -423,7 +440,6 @@
     ⍝               To set the default to a null value:
     ⍝                   null string:  (⊂'')     numeric null:  (⊂⍬)
     ⍝                   ⎕NULL:        ⎕NULL     0 (zero):      0            
-   
     ∇ {me}←load initial;⎕TRAP
       :Access Public
        :TRAP 0 
@@ -440,22 +456,21 @@
     ∇ {k}←_load args
         ;k;v;d;hd;ismx;isD 
         isD←{9.2=⎕NC⊂,'⍵'}
-        k←⍬                      ⍝ Local buffer for keysF
-        :IF 0=≢args ⋄ defaultF hasdefaultF←args 1  ⍝ Fast path
-        :ElseIf 0=⍴⍴args                           ⍝ Fast path
+        k←⍬                                        ⍝ Local buffer for keysF
+        :IF 0=≢args ⋄ :RETURN                      ⍝ null?   Fast path
+        :ElseIf 0=⍴⍴args                           ⍝ SCALAR? Fast path
             :IF isD args ⋄ _import args.export
             :Else        ⋄ defaultF hasdefaultF←(⊃args) 1   
-            :Endif
-        :Else 
+            :Endif 
+        :Else                                      ⍝ Scan each item, one at a time!
           :IF 2=⍴⍴args ⋄ args←⊂args ⋄ :ENDIF
           v←d←⍬ ⋄ hd←0           ⍝ Local buffers for valuesF; defaultF, hasdefaultF
           { ⍝ Extern: k, v, d, hd
             2=⍴⍴⍵:_←{                        ⍝ ⍪keys vals [defaults]
               (k v),←0 1⊃¨⊂⍵                 ⍝ Keys, values are subitems 0, 1
               2=⍬⍴⍴⍵: ⍬                      ⍝ No optional default? Done.
-              dEnc←2⊃⍵                       ⍝ Opt'l default must be enclosed within a scalar
-              0≠⍴⍴dEnc:⎕SIGNAL ERROR eBadLoad ⍝ If not, complain.
-              ⊣d hd∘←(⊃dEnc) 1               ⍝ Opt'l default disclosed!       Set Defaults
+              def←2⊃⍵                        ⍝ Opt'l default. Disclose from scalar packaging...
+              ⊣d hd∘←def 1                   ⍝ Opt'l default disclosed!       Set Defaults
             },⍵
           ⍝ Each non-matrix item must have 2 or 1 members...
             2<≢⍵:⎕SIGNAL ERROR eBadLoad   
@@ -463,7 +478,7 @@
             isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
           }¨args
-          _import k v
+          _import k v  
           :IF hd ⋄ defaultF hasdefaultF←d 1 ⋄ :Endif 
         :Endif 
     ∇
@@ -633,8 +648,8 @@
     ⍝      inc/dec ⍵:  Adds (subtracts) 1 from values for key ⍵
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝    Processes keys left to right: If a key is repeated, increments accumulate.
-    ⍝  Returns: Newest value
-    ⍝  Esp. useful with DefaultDict...
+    ⍝  Returns: Newest values (will be incremental, if a key is repeated).
+    ⍝  NOTE: Forces a default of 0, for undefined keys.
     ∇ {newvals}←{∆} inc keys;_inc;⎕TRAP 
       :Access Public
       ⎕TRAP←∆TRAP
@@ -708,7 +723,8 @@
       ignore _delbyindex b/ix                    ⍝ Consider only those in index range
     ∇
 
-    ⍝ _delbyindex: Delete items by ix, where ix (if non-null) in range of keysF.
+    ⍝ _delbyindex: [INTERNAL UTILITY] 
+    ⍝ Delete items by ix, where ix (if non-null) in range of keysF.
     ∇ ignore _delbyindex ix;count
       :If 0≠count←≢ix←∪ix                    ⍝ Delete keys marked for del'n
           :IF  ∧/ix∊(¯1+≢keysF)-⍳count       ⍝ Fast path: all keys to delete at end!
@@ -788,12 +804,12 @@
     :EndProperty
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
-    ∇ {h}←help;ln 
+    ∇ h←help;ln 
       :Access Public Shared
       ⍝ Pick up only ⍝⍝ comments!
       :Trap 0 ⋄ h←⎕SRC ⎕THIS ⋄ h←3↓¨h/⍨(⊂'⍝⍝')≡¨2↑¨h 
-                h←∊h,¨⎕UCS 13
-      :Else ⋄ ⎕SIGNAL/'Dict.HELP: No help available' 911
+                h←⎕PW↑[1]↑h
+      :Else ⋄ ⎕SIGNAL/'Dict.help: No help available' 911
       :EndTrap
     ∇
     _←⎕FX 'help'⎕R'Help'⊣⎕NR 'help'
@@ -814,9 +830,13 @@
       :EndIf
       :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
-    ∇ entire←{cond} ERROR message
+    ⍝ ERROR:   ⎕SIGNAL  [cond:1] ERROR (en message), where en and message are ⎕DMX fields EN and Message.
+    ⍝          Field EM is determined by EN.
+    ⍝          If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
+    ⍝          If cond is 0, returns null.
+    ∇ entire←{cond} ERROR (en message)
       :IF cond ← 1{⍵:⍺ ⋄ cond}900⌶1
-           entire ← ⊂ ('EN' 11)('EM' 'Dict DOMAIN ERROR')('Message' message)
+           entire ← ⊂ ('EN' en)('Message'  message)
       :Else 
            entire ← ⍬   ⍝ Suppress error...
       :ENDIF 
