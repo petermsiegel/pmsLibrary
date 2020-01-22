@@ -3,7 +3,13 @@
 ⍝⍝            A dictionary is a collection of ITEMS (or pairs), each consisting of 
 ⍝⍝            one key and one value, each an arbitrary shape and  
 ⍝⍝            in nameclass 2 or 9 (value or namespace-related).
+⍝⍝
 ⍝⍝ ∆DICT:     Primary function for creating new dictionaries.
+⍝⍝            Documented immediately below.
+⍝⍝ ∆JDICT:    Convert between dictionaries and {⎕JSON strings and/or ⎕JSON-compatible namespaces}.
+⍝⍝            Documented later.
+⍝⍝
+⍝⍝ ∆DICT: Creating a dict, initializing items (key-value pairs), setting the default for missing values.
 ⍝⍝ TYPE       CODE                          ITEMS                                 DEFAULT
 ⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝⍝ empty      a←∆DICT ⍬                     ⍝ None                                none
@@ -141,10 +147,10 @@
 ⍝⍝ d.load  [obj1 | obj2 | obj3 | ⊂default] [obj1 | obj2 | obj3 | ⊂default] ...
 ⍝⍝    For dictionary d, sets keys and values from objs of various types or set value defaults:
 ⍝⍝         ∘ ITEMS:     key-value pairs (each pair specified one at a time), 
-⍝⍝         ∘ DICTS:     dictionaries (or any obj in  a class, ⎕NC 9.2) 
+⍝⍝         ∘ DICTS:     dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
 ⍝⍝         ∘ LISTS:     key-value lists (keys in one vector, values in another), and 
 ⍝⍝         ∘ DEFAULTS:  defaults (must be a scalar or namespace-class, 
-⍝⍝                      as long as not a class instance, ⎕NC 9.2)
+⍝⍝                      as long as not a Dict
 ⍝⍝    Any defaults are not loaded.
 ⍝⍝    obj1:  (key1 val1)(key2 val2)...
 ⍝⍝           objects passed as key-value pairs; keys and vals may be of any type...
@@ -153,7 +159,7 @@
 ⍝⍝    obj3:  ⍪keys vals [default] 
 ⍝⍝           keys and values are each scalars, structured in table form (as a column matrix).
 ⍝⍝           The default, if present, may be any shape or nameclass.
-⍝⍝    default: any APL object of any shape, but must be enclosed to be recognized. 
+⍝⍝    default: any APL object of any shape (as long as not a dict), but must be enclosed to be recognized. 
 ⍝⍝           Note: a default would normally be specified once. Those to the right take precedence.
 ⍝⍝           E.g.  5   OR   ⊂'John'   OR  (⊂2 3⍴⍳6)  OR  (⊂'')   OR  (⊂⍬)  
 ⍝⍝
@@ -231,6 +237,10 @@
 ⍝⍝       dict[k1 k1 k1]←v1 v2 v3
 ⍝⍝   only the last entry (v3) is kept.
 
+⍝ Export key utilities to the parent environment (hard-wiring this namespace)
+  ⍝ ##.Dict:   [ ] created, [x] suppressed. 
+  ⍝ ##.∆DICT:  [x] created, [ ] suppressed. 
+  ⍝ ##.∆JDICT:[x] created, [ ] suppressed
     ⎕IO ⎕ML←0 1
   
   ⍝ DEBUG_TRIGGER: When DEBUG instance variable changes, keep ∆TRAP synchronized...
@@ -240,39 +250,47 @@
       :SELECT ⍬⍴DEBUG
         :CASE DEBUG_WAS 
         :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP ⋄  ⎕←'DEBUG ACTIVE' ⋄ UPDATE
-        :CASE 0 ⋄ ∆TRAP← 0 'C' '⎕SIGNAL/⎕DMX.((''Dict:'',EM,'': '',Message) EN)'⋄ ⎕DF 'Dict[]'   
+        :CASE 0 ⋄ ∆TRAP←  ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
+                  ⎕DF 'Dict[]'   
       :ENDSELECT
       DEBUG_WAS←DEBUG 
    ∇
+   ∇t←⍙TRAP
+    t←⊂⎕DMX.(('EM' EM)('EN' EN)('Message' Message))
+   ∇
+
 
   ⍝ Shared Fields
   ⍝ DEBUG and ⎕TRAP-related: If DEBUG is set or reset to a new value, the ⎕TRAP is updated...
-    :Field Public  DEBUG←        0 
-    :Field Private ∆TRAP←        0⍴⎕TRAP
-    :Field Private DEBUG_WAS←    ⎕NULL  
+    :Field Public  DEBUG←      0 
+    :Field Private ∆TRAP←      0 'C' '⎕SIGNAL/⎕DMX.(((''∆DICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
+    :Field Private DEBUG_WAS←  ⎕NULL  
                    
   ⍝ INSTANCE FIELDS and Related
                    keysF←         ⍬         ⍝ Variable, not Field, to avoid Dyalog bugs (catenating/hashing)
     :Field Private valuesF←       ⍬
     :Field Private hasdefaultF←   0
     :Field Private defaultF←      ''        ⍝ Initial value
+    :Field Private baseclassF←     ⊃⊃⎕CLASS ⎕THIS
 
   ⍝ ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
-    eBadLoad←         11 'invalid right argument (⍵) on initialization or load.'
-    eBadDefault←      11 'hasdefault must be set to 1 (true) or 0 (false).'
-    eDelKeyMissing←   11 'del: at least one key was not found and ⍺:ignore≠1.'
-    eIndexRange←       3 'delbyindex: An index argument was not in range and ⍺:ignore≠1.'
-    eKeyAlterAttempt← 11 'keys: item keys may not be altered.'
-    eHasNoDefault←     3 'index: key does not exist and no default was set.'
-    eHasNoDefaultD←   11 'no default has been set.'
-    eQueryDontSet←    11 'querydefault may not be set; Use Dict.(default or hasdefault).'
-    eBadInt←          11 'inc/dec: increment (⍺) and value for each key in ⍵ must be numeric.'
+    eBadLoad←         11 '∆DICT: invalid right argument (⍵) on initialization or load.'
+    eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
+    eDelKeyMissing←   11 '∆DICT.del: at least one key was not found and ⍺:ignore≠1.'
+    eIndexRange←       3 '∆DICT.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
+    eKeyAlterAttempt← 11 '∆DICT.keys: item keys may not be altered.'
+    eHasNoDefault←     3 '∆DICT.index: key does not exist and no default was set.'
+    eHasNoDefaultD←   11 '∆DICT: no default has been set.'
+    eQueryDontSet←    11 '∆DICT: querydefault may not be set; Use Dict.(default or hasdefault).'
+    eBadInt←          11 '∆DICT.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns this namespace. Searchable via ⎕PATH. 
       :Access Public Shared
       ns←⎕THIS
     ∇
+    ⍝ ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
+
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
      :TRAP 0
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
@@ -280,12 +298,7 @@
      :Else
         ⎕SIGNAL ⊂('EN' 11)('EM' ('∆DICT ',⎕DMX.EM)) ('Message' ⎕DMX.Message)
      :EndTrap
-     ∇
-     
-    ⍝ Export Dict and ∆DICT to the parent environment (hard-wiring this namespace)
-    ⍝ ##.Dict:   [ ] created, [x] suppressed. 
-    ⍝ ##.∆DICT:  [x] created, [ ] suppressed. 
-    ⍝ ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
+    ∇
     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
 
     ⍝-------------------------------------------------------------------------------------------
@@ -303,7 +316,7 @@
       :Trap 0
           _load struct
       :Else  
-          ⎕SIGNAL ⊂('EN' 11)('EM' ⎕DMX.EM) ('Message' ⎕DMX.Message)
+          ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
     ∇
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
@@ -342,7 +355,7 @@
               ((~found)/vals)←⊂defaultF      ⍝ Add defaults
               vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
           :Else
-               ⎕SIGNAL ERROR eHasNoDefault
+               THROW eHasNoDefault
           :EndIf
         ∇
         ∇ set args;keys;vals;⎕TRAP
@@ -416,11 +429,11 @@
     ⍝ 
     ⍝ _load ⍵: Internal utility to be called from top-level routines."
     ⍝ load accepts either a SCALAR or VECTOR right argument ⍵.
-    ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Class Instance (⎕NC≠9.2)
+    ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Dict
     ⍝     dictionary is empty with default←⊃⍵ and hasdefault←1.
     ⍝     E.g. load 1:   default←1
     ⍝         load ⊂'': default←''
-    ⍝ ∘  DICTIONARY IMPORT: SCALAR or 1-ITEM VECTOR that is a Class instance (⎕NC=9.2)
+    ⍝ ∘  DICTIONARY IMPORT: SCALAR or 1-ITEM VECTOR that is a Dict
     ⍝     dictionary's keys and values will be copied from the dictionary ⍵ (fast)
     ⍝     ⍵ need not be in the class 'dict', but ⍵.export must return a list of (keys values)
     ⍝ ∘  SET DEFAULT: 0-LENGTH VECTOR (⍬ or '')
@@ -433,7 +446,7 @@
     ⍝ ∘  MISCELLANY: VECTOR: ⍵ interpreted as 1 or more items: ⍵1 ⍵2 ⍵3 ... 
     ⍝     For each element ⍵N:
     ⍝       2=≢⍵N:    ⍵N is a (key value) pair
-    ⍝       9.2=⎕NC'⍵N': ⍵N is a class instance with keys and values accessed via ⍵N.export
+    ⍝       9.2=⎕NC'⍵N' and #.DictClass∊⊃⊃⎕CLASS: ⍵N is a Dict instance
     ⍝       scalar:  ⍵N specifies the default (for missing keys). Normally, this item is first or last.
     ⍝               If more than one is specified, the last is used.
     ⍝               Equivalent to dict←⎕NEW dict ⋄ dict.default←⊃⍵N
@@ -445,7 +458,7 @@
        :TRAP 0 
           _load initial  
        :Else
-          ⎕SIGNAL ERROR (⎕UCS 10),⎕DMX.Message
+          THROW (⎕UCS 10),⎕DMX.Message
        :EndTrap
       me←⎕THIS
     ∇
@@ -455,7 +468,7 @@
     ⍝ Returns new keys (if any)
     ∇ {k}←_load args
         ;k;v;d;hd;ismx;isD 
-        isD←{9.2=⎕NC⊂,'⍵'}
+        isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}  ⍝ Note more stringent definition... 
         k←⍬                                        ⍝ Local buffer for keysF
         :IF 0=≢args ⋄ :RETURN                      ⍝ null?   Fast path
         :ElseIf 0=⍴⍴args                           ⍝ SCALAR? Fast path
@@ -473,7 +486,7 @@
               ⊣d hd∘←def 1                   ⍝ Opt'l default disclosed!       Set Defaults
             },⍵
           ⍝ Each non-matrix item must have 2 or 1 members...
-            2<≢⍵:⎕SIGNAL ERROR eBadLoad   
+            2<≢⍵:THROW eBadLoad   
             2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load single k-v pair
             isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
@@ -568,7 +581,7 @@
           k←keysF
         ∇
         ∇ set args
-          ⎕SIGNAL ERROR eKeyAlterAttempt 
+          THROW eKeyAlterAttempt 
         ∇
     :EndProperty
 
@@ -620,7 +633,7 @@
         ∇ r←get args
           :Select args.Name
           :Case 'default'
-              :If ~hasdefaultF ⋄ ⎕SIGNAL ERROR eHasNoDefaultD ⋄ :EndIf
+              :If ~hasdefaultF ⋄ THROW eHasNoDefaultD ⋄ :EndIf
               r←defaultF
           :Case 'hasdefault'
               r←hasdefaultF
@@ -634,11 +647,11 @@
               defaultF hasdefaultF←args.NewValue 1
           :Case 'hasdefault'
               :If ~0 1∊⍨⊂args.NewValue
-                  ⎕SIGNAL ERROR eBadDefault
+                  THROW eBadDefault
               :EndIf
               hasdefaultF←⍬⍴args.NewValue   ⍝ defaultF unchanged...
           :Case 'querydefault'
-              ⎕SIGNAL ERROR eQueryDontSet
+              THROW eQueryDontSet
           :EndSelect
         ∇
     :EndProperty
@@ -665,7 +678,7 @@
             newvals←∆ _inc¨⊂¨keys
           :Endif
       :Else
-          ⎕SIGNAL ERROR eBadInt
+          THROW eBadInt
       :EndTrap 
     ∇
 
@@ -673,7 +686,7 @@
       :Access Public
        ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      :IF 0≠1↑0⍴∆ ⋄ ⎕SIGNAL ERROR eBadInt ⋄ :ENDIF 
+      :IF 0≠1↑0⍴∆ ⋄ THROW eBadInt ⋄ :ENDIF 
       newval←(-∆)inc keys
     ∇
 
@@ -694,7 +707,7 @@
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
       b←(≢keysF)>ix←keysF⍳keys
     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
-      ⎕SIGNAL eDelKeyMissing ERROR⍨ (0∊b)∧~ignore 
+      eDelKeyMissing THROW⍨ (0∊b)∧~ignore 
       ignore _delbyindex b/ix
     ∇
 
@@ -719,7 +732,7 @@
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf    
       b←ix{⍵:0=0(≢keysF)⍸⍺ ⋄ 0⍴⍨≢⍺}×≢keysF
-      ⎕SIGNAL eIndexRange ERROR⍨ (0∊b)∧~ignore       ⍝ At least 1 index out of range                     
+      eIndexRange ERROR⍨ (0∊b)∧~ignore       ⍝ At least 1 index out of range                     
       ignore _delbyindex b/ix                    ⍝ Consider only those in index range
     ∇
 
@@ -830,15 +843,153 @@
       :EndIf
       :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
-    ⍝ ERROR:   ⎕SIGNAL  [cond:1] ERROR (en message), where en and message are ⎕DMX fields EN and Message.
+    ⍝ THROW:    [cond:1] THROW (en message), where en and message are ⎕DMX fields EN and Message.
     ⍝          Field EM is determined by EN.
     ⍝          If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
     ⍝          If cond is 0, returns null.
-    ∇ entire←{cond} ERROR (en message)
-      :IF cond ← 1{⍵:⍺ ⋄ cond}900⌶1
-           entire ← ⊂ ('EN' en)('Message'  message)
-      :Else 
-           entire ← ⍬   ⍝ Suppress error...
-      :ENDIF 
-     ∇
+    THROW←⎕SIGNAL {⍺←1 ⋄ e m←⍵ ⋄ ⍺: ⊂('EN' e)('Message'  m) ⋄ ⍬}
+    
+⍝⍝
+⍝⍝ =========================================================================================
+⍝⍝ =========================================================================================
+⍝⍝    ∆JDICT function   
+⍝⍝ =====================
+⍝⍝  {minorOpt} ∆JDICT json
+⍝⍝   Converts between a JSON string or APL ns equivalent and a DictClass dictionary (or vice versa).
+⍝⍝   Assumes that JSON null is mapped onto APL ⎕NULL and vice versa: minorOpt ('Null'⎕NULL).
+⍝⍝   The user can select either compact or non-compact JSON output; both are valid on input.
+⍝⍝ 
+⍝⍝  I. If argument <json> is a string or namespace,  
+⍝⍝    ∘ Convert a Json object string or its equivalent APL namespace
+⍝⍝      to dictionary. 
+⍝⍝    ∘ Keys will be in JSON (non-mangled) format.
+⍝⍝    ∘ If the JSON string refers to an array with multiple items 
+⍝⍝      or if multiple namespaces are presented, returns a vector of dictionaries;
+⍝⍝      Otherwise, returns a single dictionary.
+⍝⍝    ∘ If in namespace form, only objects of classes 2.1 and 9.1 are evaluated,
+⍝⍝      as expected for JSON.
+⍝⍝    ∘ Here, the {minorOpt} parameter is ignored.
+⍝⍝ 
+⍝⍝  II. If argument <json> is a dictionary,  
+⍝⍝  A...and if minorOpt is 0 or 1
+⍝⍝    ∘ Reverse the process: from dictionary to JSON object.
+⍝⍝      minorOpt=0 or omitted: ⎕JSON compact (single line) format;
+⍝⍝      minorOpt=1:            ⎕JSON non-compact (multiline) format.
+⍝⍝  B...and if minorOpt is 2 
+⍝⍝    ∘ Reverse the process, but from dictionary to APL namespace 
+⍝⍝    ∘ Names are mangled via JSON (APL) protocols, so APL variable names are valid.
+⍝⍝  
+⍝⍝  NOTE: inverses are only partial, since all JSON keys MUST be strings and
+⍝⍝        values must be those that ⎕JSON can deal with. Otherwise an error occurs.
+⍝⍝  EXAMPLE: 
+⍝⍝      d←∆JDICT '{"123": 5, "⍴5":1}'
+⍝⍝      d.table
+⍝⍝  123  5
+⍝⍝  ⍴5   1
+⍝⍝       n←2 ∆JDICT d
+⍝⍝       )cs n
+⍝⍝  #.[Namespace]
+⍝⍝       )vars
+⍝⍝  ⍙123    ⍙⍙9076⍙5      ⍝ From keys: "123"   "⍴5"   
+⍝⍝      ⍙123
+⍝⍝  5
+⍝⍝      ⍙⍙9076⍙5
+⍝⍝  1
+⍝⍝ ---------------------------------------------------------------
+⍝⍝
+⍝⍝ ⍝ Simple JSON test case! Generates 3 top-level dictionaries.
+⍝⍝ ⍝ Use DictClass object DictClass.JSONsample
+⍝⍝  
+⍝⍝       ⎕←DictClass.JSONsample
+⍝⍝ [{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", 
+⍝⍝   "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]
+⍝⍝      ⎕←(d e f)← ∆JDICT  ⎕←DictClass.JSONsample
+⍝⍝ Dict[]  Dict[]  Dict[]         ⍝ 3 dictionaries
+⍝⍝      1 ∆JDICT d e f
+⍝⍝ [                             
+⍝⍝   {                           
+⍝⍝     "id": "001",              
+⍝⍝     "name": "John Smith",     
+⍝⍝     "phone": "999-1212"       
+⍝⍝   },                          
+⍝⍝   {                           
+⍝⍝     "id": "002",              
+⍝⍝     "name": "Fred Flintstone",
+⍝⍝     "phone": "254-5000"       
+⍝⍝   },                          
+⍝⍝   {                           
+⍝⍝     "id": "003",              
+⍝⍝     "name": "Jack Sprat",     
+⍝⍝     "phone": "NONE"           
+⍝⍝   }                           
+⍝⍝ ]  
+⍝⍝     (d e f).table            ⍝   Show the contents of the 3 dictionaries
+⍝⍝  id     001           id     002                id     003         
+⍝⍝  name   John Smith    name   Fred Flintstone    name   Jack Sprat  
+⍝⍝  phone  999-1212      phone  254-5000           phone  NONE        
+⍝⍝
+    :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
+
+    ∇ result ← {minorOpt} ∆JDICT json
+      ;TRAP;THROW11;keys;majorOpt;mangle;ns;optNull;unmangle;vals;⎕IO;⎕TRAP   
+      TRAP←0 ⋄ ⎕IO←0 ⋄ optNull←('Null'⎕NULL)
+      ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
+      THROW11←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
+    ⍝ Major opt (majorOpt) automatically set based on type of <json>.
+    ⍝ If several namespaces or strings OR converts from string to namespaces, majorOpt=2.
+    ⍝ If majorOpt=0, minor option is checked; otherwise ignored.
+      minorOpt←{⍵: 0 ⋄ minorOpt} 900⌶1    
+      ns majorOpt←json{
+        badStrE←'At least one invalid ⎕JSON input string found in arg ⍵.'  
+        badObjE←'At least one object in arg ⍵ not a JSON string or compatible APL namespace or dictionary.' 
+        0::  THROW11 badStrE
+        ⍵=2.1: json{
+          ⍵: ns (1+1<≢ns) ⊣ ns←⎕JSON ⍠optNull ⊣⍺ 
+          1<≢⍺: ⍺ 2 
+          THROW11 badObjE
+        }0=80|⎕DR ⍺
+        ⍵=9.1: ⍺ 1
+        ⍵=9.2: ⎕NULL 0    ⍝ Object is a class instance; expected to be a dict.
+        THROW11 badObjE
+      }⎕NC⊂'json'
+
+      :Select majorOpt
+      :Case 2      ⍝ several objects: json strings, namespaces, or dicts
+          result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
+      :Case 1      ⍝ ns from ⎕JSON obj or directly from user
+          unmangle←1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
+          dict←∆DICT ⍬
+          ns dict∘{
+              TRAP:: THROW11 'Valid JSON object ⍵ could not be converted to dictionary.' 
+              ⋄ ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangle ⍵) ⋄ val←ns⍎itemA
+              2=ns.⎕NC itemA:_←itemJ dict.set1 val
+              ⋄ dict2←∆DICT ⍬ ⋄ ns2←val
+              ⋄ _←itemJ dict.set1 dict2
+              1:_←ns2 dict2∘∇¨ns2.⎕NL-2.1 9.1
+          }¨ns.⎕NL-2.1 9.1
+          result←dict  ⍝ Return a single dictionary
+      :Else           ⍝ User passed a dictionary to convert
+          (~minorOpt∊0 1 2) THROW11 'Option ⍺ was invalid: Must be 0, 1, 2.'  
+          mangle←(0∘(7162⌶))∘⍕¨ 
+          scan←{
+              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ ⎕THIS∊⊃⊃⎕CLASS ⍵} 
+              ns←⍺⍺ ⋄ k v←⍺ ⍵
+              ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
+              _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
+              1: ⍬⊣(mangle v.keys)(ns2 ∇∇)¨v.vals
+          }
+          dict←json
+          :TRAP TRAP 
+              ns←⎕NS ''
+              (mangle dict.keys) (ns scan)¨dict.vals
+          :Else 
+              THROW11 'Dictionary ⍵ could not be converted to ⎕JSON.' 
+          :EndTrap
+        ⍝ Use a compact ⎕JSON format if minorOpt is 0.
+        ⍝ minorOpt∊0 1: result is a  JSON string 
+        ⍝ minorOpt=2:   result is a namespace.
+          result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ optNull('Compact' (⍺=0))⊣⍵ }ns
+      :EndSelect 
+    ∇
+     ##.⎕FX '⎕THIS\b' ⎕R (⍕⎕THIS)⊣⎕NR '∆JDICT'
 :EndClass
