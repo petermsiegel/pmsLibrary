@@ -30,8 +30,13 @@
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
             ⍝ Allow options: [-f|-force]   -lib=library   (-f or -force must be first)
               r←⎕SE.require '-lib [CALLER].[LIB] -caller ',(⍕CALLER),' ',input
-              :IF 0≡≢r ⋄ ⎕EX 'r' ⋄ →0 ⋄ :ENDIF   ⍝ If empty, return nothing...
-              r←⍪⍪¨r ⋄ :TRAP 0 ⋄ (⊃⊃r),⍨←'Lib namespace: ' ⋄ :ENDTrap
+              :IF 0≡≢r 
+                   ⎕EX 'r'         ⍝ If empty, return nothing...
+              :ElseIf 0=⍴⍴r
+                  r←'Library namespace: ',∊r
+              :Else
+                  :TRAP 0 ⋄ r←⎕FMT ⊃⌽r ⋄ :ENDTRAP
+              :EndIF     
               →0
           :ENDIF
           :IF 0=≢r

@@ -21,10 +21,50 @@
 ⍝X Dict:      A utility fn that returns the full name of the dictionary class, often #.DictClass.
 ⍝X            To enable, put #.DictClass in your ⎕PATH.
 ⍝X            d←⎕NEW Dict            ⍝ Create a new, empty dictionary with no default values.
-⍝X            d←⎕NEW Dict (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.load.
+⍝X            d←⎕NEW Dict (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.update.
 ⍝⍝ Hashes keys for efficiently searching and updating items in large dictionaries.
 ⍝⍝ For HELP information, call 'dict.HELP'.
 ⍝⍝
+⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝⍝ -----------------------------------------------
+⍝⍝    List of ∆DICT calls and methods (abridged)
+⍝⍝ -----------------------------------------------
+⍝⍝ CREATE
+⍝⍝    d        ← [default] ∆DICT ⍬
+⍝⍝    d        ← [default] ∆DICT (k1 v1)(k2 v2)...
+⍝⍝    d        ← [default] ∆DICT ⍪(k1 k2 ...)(v1 v2 ...)
+⍝⍝ GET
+⍝⍝    v1 v2 v3 ←           d[k1 k2 k3]
+⍝⍝    v1       ← [default] d.get1 k1
+⍝⍝    v1 v2 v3 ← [default] d.get  k1 k2 k3...
+⍝⍝    keys vals ←          d.export
+⍝⍝    keys     ←           d.keys
+⍝⍝    k1 k2 k3 ←           d.keys[i1 i2 i3]
+⍝⍝    vals     ←           d.vals
+⍝⍝    v1 v2 v3 ←           d.vals[i1 i2 i3]
+⍝⍝    (k1 v1)...        ←  d.items
+⍝⍝    (k1 v1)(k2 v2)... ←  d.items[i1 i2...]
+⍝⍝ SET
+⍝⍝                         d[k1 k2 k3] ←  v1 v2 v3
+⍝⍝                      k1 d.set1 v1
+⍝⍝                   k1 k2 d.set  v1
+⍝⍝                         d.import (k1 k2 ...)(v1 v2 ...)
+⍝⍝ STATUS
+⍝⍝    len      ←           d.len
+⍝⍝    b1 b2 b3 ←           d.defined k1 k2 k3
+⍝⍝                         d.print      ⍝ keys, values by columns
+⍝⍝                         d.hprint     ⍝ keys, values by rows
+⍝⍝ DELETE
+⍝⍝    b1 b2 b3 ←  [ignore] d.del k1 k2 k3
+⍝⍝    b1 b2 b3 ←  [ignore] d.delbyindex i1 i2 i3
+⍝⍝ INC/DEC
+⍝⍝    n1 n2 n3 ←  [increm] d.inc k1 k2 k3
+⍝⍝    n1 n2 n3 ←  [increm] d.dec k1 k2 k3
+⍝⍝ POP
+⍝⍝    (k1 v1)(k2 v2)... ←  d.popitem count
+⍝⍝    v1 v2 v3 ←           d.pop k1 k2
+⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝⍝ --------------------------
 ⍝⍝    CREATION
 ⍝⍝ --------------------------
@@ -34,7 +74,7 @@
 ⍝⍝
 ⍝⍝ d← [default] ∆DICT objs
 ⍝⍝    Creates dictionary <d> with optional default <default> and calls 
-⍝⍝       d.load objs   ⍝ Se below
+⍝⍝       d.update objs   ⍝ Se below
 ⍝⍝    to set keys and values from key-value pairs, (keys values) vectors, and dictionaries.
 ⍝⍝
 ⍝⍝ d←∆DICT ⊂default      OR    d←default ∆DICT ⍬
@@ -144,7 +184,7 @@
 ⍝⍝ ------------------------------------------------
 ⍝⍝    BULK LOADING OF DICTIONARIES
 ⍝⍝ ------------------------------------------------
-⍝⍝ d.load  [obj1 | obj2 | obj3 | ⊂default] [obj1 | obj2 | obj3 | ⊂default] ...
+⍝⍝ d.update  [obj1 | obj2 | obj3 | ⊂default] [obj1 | obj2 | obj3 | ⊂default] ...
 ⍝⍝    For dictionary d, sets keys and values from objs of various types or set value defaults:
 ⍝⍝         ∘ ITEMS:     key-value pairs (each pair specified one at a time), 
 ⍝⍝         ∘ DICTS:     dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
@@ -170,6 +210,7 @@
 ⍝⍝     To set a single key-value pair (k1 v1), use e.g.:
 ⍝⍝         k1 d.set1 v1 
 ⍝⍝         d.import (,k1)(,v1)
+⍝⍝
 ⍝⍝ keys vals ← d.export
 ⍝⍝     Returns a K-V LIST consisting of a vector of keys.
 ⍝⍝     Efficient way to export ITEMS from one dictionary to another:
@@ -183,9 +224,26 @@
 ⍝⍝     Return a list of all OR the specified dictionary’s items ((key, value) pairs).  
 ⍝⍝
 ⍝⍝ items ← d.popitems n
-⍝⍝     Remove and return the n (n≥0) most-recently entered key-value pairs.
+⍝⍝     Shyly returns and deletes the n (n≥0) most-recently entered key-value pairs.
 ⍝⍝     This is done efficiently, so that the dictionary is not rehashed.
 ⍝⍝
+⍝⍝ keys ← [default] d.pop key1 key2 ...
+⍝⍝     Shyly returns the values for keys key1..., while deleting each found item.
+⍝⍝     If default is NOT specified and there is no dictionary default, then
+⍝⍝     if any key is not found, d.pop signals an error; otherwise,
+⍝⍝     it returns the default for each missing item.
+⍝⍝
+⍝⍝ namespace ← d.namespace
+⍝⍝     Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
+⍝⍝     Changes to <namespace> variables are reflected back to the dictionary as they are made.
+⍝⍝   NOTE: variable names must be valid APL variable names to be useful.
+⍝⍝       ∘ If not, we attempt to convert to variable names via ⎕JSON name mangling.  
+⍝⍝         Numbers, in particular, will convert silently to mangled character strings.
+⍝⍝         E.g. APL 0.03811950614 ends up as name '⍙0⍙46⍙03811950614'.
+⍝⍝       ∘ If any name cannot be converted, an error will be signalled.
+⍝⍝       ∘ Once the namespace is created, changes to the dictionary will NOT be reflected
+⍝⍝         to it; i.e. the tracking (via TRIGGER) is from namespace to the parent dictionary only.
+
 ⍝⍝ ------------------------------------------------
 ⍝⍝    COUNTING OBJECTS AS KEYS
 ⍝⍝ ------------------------------------------------
@@ -255,16 +313,14 @@
       :ENDSELECT
       DEBUG_WAS←DEBUG 
    ∇
-   ∇t←⍙TRAP
-    t←⊂⎕DMX.(('EM' EM)('EN' EN)('Message' Message))
-   ∇
-
-
+ 
   ⍝ Shared Fields
   ⍝ DEBUG and ⎕TRAP-related: If DEBUG is set or reset to a new value, the ⎕TRAP is updated...
     :Field Public  DEBUG←      0 
-    :Field Private ∆TRAP←      0 'C' '⎕SIGNAL/⎕DMX.(((''∆DICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
+    :Field Private ∆TRAP←      0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
     :Field Private DEBUG_WAS←  ⎕NULL  
+     unmangleJ←                 1∘(7162⌶)        ⍝ APL strings <--> JSON strings
+     mangleJ←                  (0∘(7162⌶))∘⍕
                    
   ⍝ INSTANCE FIELDS and Related
                    keysF←         ⍬         ⍝ Variable, not Field, to avoid Dyalog bugs (catenating/hashing)
@@ -274,7 +330,7 @@
     :Field Private baseclassF←     ⊃⊃⎕CLASS ⎕THIS
 
   ⍝ ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
-    eBadLoad←         11 '∆DICT: invalid right argument (⍵) on initialization or load.'
+    eBadUpdate←         11 '∆DICT: invalid right argument (⍵) on initialization or update.'
     eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
     eDelKeyMissing←   11 '∆DICT.del: at least one key was not found and ⍺:ignore≠1.'
     eIndexRange←       3 '∆DICT.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
@@ -289,7 +345,7 @@
       :Access Public Shared
       ns←⎕THIS
     ∇
-    ⍝ ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR 'Dict'
+  ⍝ ##.Dict←Dict
 
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
      :TRAP 0
@@ -299,22 +355,22 @@
         ⎕SIGNAL ⊂('EN' 11)('EM' ('∆DICT ',⎕DMX.EM)) ('Message' ⎕DMX.Message)
      :EndTrap
     ∇
-    ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'
-
+     ##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR '∆DICT'    ⍝ ##.∆DICT: Hard-wire ⎕THIS
+ 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
     ⍝ Constructors...
 
-    ⍝ New1: "Constructs a dictionary and loads*** with entries, defined either as individual key-value pairs,
+    ⍝ New1: "Constructs a dictionary and updates*** with entries, defined either as individual key-value pairs,
     ⍝        or by name from existing dictionaries. Alternatively, sets the default value."
-    ⍝ Uses Load/Import, which will handle duplicate keys (the last value quietly wins), and so on.
-    ⍝ *** See Load for conventions for <initial>.
+    ⍝ Uses update/import, which will handle duplicate keys (the last value quietly wins), and so on.
+    ⍝ *** See update for conventions for <initial>.
     ∇ new1 struct
       :Implements Constructor
       :Access Public
        ⎕DF 'Dict[]'  
       :Trap 0
-          _load struct
+          _update struct
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
@@ -406,6 +462,7 @@
     ∇{vals}←import (keys vals);⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
+      :IF DEBUG ⋄ ⎕←'Setting keys: ',key ⋄ :ENDIF
       _import keys vals
     ∇
 
@@ -417,22 +474,24 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
+      :IF DEBUG ⋄ ⎕←'Setting key: ',key ⋄ :ENDIF
       _import (⊂key) (⊂val)
     ∇
 
-    ⍝ dict.load ⍵:  
-    ⍝ Load data into dictionary and/or set default for values of missing keys.
-    ⍝ Workhorse for loading dictionaries, importing vectors of (keys values), and key-value pairs.
+    ⍝ dict.update ⍵:  
+    ⍝ update data into dictionary and/or set default for values of missing keys.
+    ⍝ Workhorse for adding objects to dictionaries: 
+    ⍝           dictionaries, vectors of (keys values), and key-value pairs.
     ⍝ Determines the argument types and calls _import as needed. 
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
     ⍝         (e.g. exported via dict1.export)
     ⍝ 
-    ⍝ _load ⍵: Internal utility to be called from top-level routines."
-    ⍝ load accepts either a SCALAR or VECTOR right argument ⍵.
+    ⍝ _update ⍵: Internal utility to be called from top-level routines."
+    ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.
     ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Dict
     ⍝     dictionary is empty with default←⊃⍵ and hasdefault←1.
-    ⍝     E.g. load 1:   default←1
-    ⍝         load ⊂'': default←''
+    ⍝     E.g. update 1:    default←1
+    ⍝          update ⊂'':  default←''
     ⍝ ∘  DICTIONARY IMPORT: SCALAR or 1-ITEM VECTOR that is a Dict
     ⍝     dictionary's keys and values will be copied from the dictionary ⍵ (fast)
     ⍝     ⍵ need not be in the class 'dict', but ⍵.export must return a list of (keys values)
@@ -453,20 +512,20 @@
     ⍝               To set the default to a null value:
     ⍝                   null string:  (⊂'')     numeric null:  (⊂⍬)
     ⍝                   ⎕NULL:        ⎕NULL     0 (zero):      0            
-    ∇ {me}←load initial;⎕TRAP
+    ∇ {me}←update initial;⎕TRAP
       :Access Public
        :TRAP 0 
-          _load initial  
+          _update initial  
        :Else
           THROW (⎕UCS 10),⎕DMX.Message
        :EndTrap
       me←⎕THIS
     ∇
-    ⍝ <new_keys> ← _load args: used only internally
-    ⍝ Loads command-line args from ⎕NEW Dict or ∆DICT:
+    ⍝ <new_keys> ← _update args: used only internally
+    ⍝ updates command-line args from ⎕NEW Dict or ∆DICT:
     ⍝ May update keysF and valuesF and/or defaultF and hasdefaultF
     ⍝ Returns new keys (if any)
-    ∇ {k}←_load args
+    ∇ {k}←_update args
         ;k;v;d;hd;ismx;isD 
         isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}  ⍝ Note more stringent definition... 
         k←⍬                                        ⍝ Local buffer for keysF
@@ -486,8 +545,8 @@
               ⊣d hd∘←def 1                   ⍝ Opt'l default disclosed!       Set Defaults
             },⍵
           ⍝ Each non-matrix item must have 2 or 1 members...
-            2<≢⍵:THROW eBadLoad   
-            2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    Load single k-v pair
+            2<≢⍵:THROW eBadUpdate   
+            2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    update single k-v pair
             isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
             1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
           }¨args
@@ -542,19 +601,21 @@
         ∇
     :EndProperty
 
-    ⍝ table/print: "Returns all the key-value pairs as a matrix, one pair per row.
-    ⍝         Equivalent to ↑d.items."
+    ⍝ print/hprint: "Returns all the key-value pairs as a matrix, one pair per row/column."
+    ⍝ disp/hdisp:   "Returns results of print/hprint formatted via dfns.disp (⎕SE.Dyalog.utils.disp)"
     ⍝ disp/display: "filter output of d.table through (std dfns) disp or display."
     ⍝ If no items, returns ⍬ (unfiltered).
-    :Property table,print,display,disp 
+    :Property print,hprint,disp,hdisp
     :Access Public
     ∇ r←get args;show;lib
       :If 0=≢keysF ⋄ r←⍬ ⋄ :RETURN ⋄ :ENDIF 
       lib←⎕SE.Dyalog.Utils   ⍝ Includes: disp, display (not table or print)
       r←⍉↑keysF valuesF  
       :SELECT args.Name   ⍝ default: do nothing more
-         :Case 'display' ⋄ r←lib.display r
-         :Case 'disp'    ⋄ r←lib.disp    r 
+         :Case 'print'   ⋄ r←         ⍉↑keysF valuesF  
+         :Case 'hprint'  ⋄ r←          ↑keysF valuesF  
+         :Case 'disp'    ⋄ r← 0 1 lib.disp ⍉↑keysF valuesF  
+         :Case 'hdisp'   ⋄ r← 0 1 lib.disp  ↑keysF valuesF   
       :EndSelect
     ∇
     :EndProperty
@@ -759,7 +820,8 @@
     ∇
 
     ⍝ popitems:  "Removes and returns last (|n) items (pairs) from dictionary as if a LIFO stack.
-    ⍝             Efficiently updates keysF to preserve hash status."
+    ⍝             Efficiently updates keysF to preserve hash status. 
+    ⍝             If there are insufficient pairs left, returns only what is left (potentially none)"
     ⍝ kv1 kv2... ← d.pop count   where count is a non-negative number.
     ⍝     If count≥≢keysF, all items will be popped (and the dictionary will have no entries).
     ⍝     If count<0, it will be treated as |count.
@@ -768,8 +830,10 @@
     ⍝ Remove |n items from the END of the table (most recent items)
     ⍝ Return pairs popped as a (shy) vector of key-value pairs. 
     ⍝ If no pairs, returns simple ⍬.
-    ∇ {poppedItems}←popitems count 
+
+    ∇ {poppedItems}←popitems count ;⎕TRAP
       :Access Public
+      ⎕TRAP←∆TRAP
       count←-(≢keysF)⌊|count                               ⍝ Treat ∇¯5 as if ∇5 
       :If count=0                                          ⍝ Fast exit if nothing to pop
          poppedItems←⍬                           
@@ -777,6 +841,16 @@
         poppedItems←↓⍉↑count↑¨keysF valuesF
         keysF↓⍨←count ⋄ valuesF↓⍨←count
       :ENDIF 
+    ∇
+
+    ∇{vals}←{default}pop keys;⎕TRAP 
+      :Access Public 
+      ⎕TRAP←∆TRAP
+      :If 900⌶1  
+         vals←get keys ⋄ 0 del keys 
+      :Else 
+         vals←default get keys ⋄ 1 del keys
+      :Endif 
     ∇
 
     ⍝ sort/sorta (ascending),
@@ -815,6 +889,31 @@
           :EndIf
         ∇
     :EndProperty
+
+    ∇ns←namespace
+      :Access Public
+      ns←⎕NS ''   
+      :TRAP 99 
+           ⍝ If it's not a valid name, use ⎕JSON mangling (may not be useful). If it is valid, mangle is a NOP.
+          {}(mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF
+          ns.⎕FX '⍝X⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
+      :ELSE
+          ⎕SIGNAL/'Dict.namespace: Dictionary keys not valid as variable names' 11
+      :ENDTRAP
+    ∇
+
+    ⍝ __namespaceTrigger__: helper for d.namespace above ONLY.
+    ⍝ Don't enable trigger here: only in subsidiary namespaces!
+    ∇__namespaceTrigger__ args;unmangleJ
+      ⍝X⍝ :Implements Trigger *
+      ⍝ Use ⎕JSON unmangling for argument name!
+      unmangleJ←                1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
+      :TRAP 0
+          (unmangleJ args.Name) ##.set1 (⍎args.Name)
+      :Else 
+          ⎕SIGNAL/'Dict.namespace: Unable to set or update key-value pair from namespace variable' 11
+      :ENDTrap
+    ∇
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
     ∇ h←help;ln 
@@ -931,7 +1030,10 @@
     :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
 
     ∇ result ← {minorOpt} ∆JDICT json
-      ;TRAP;THROW11;keys;majorOpt;mangle;ns;optNull;unmangle;vals;⎕IO;⎕TRAP   
+      ;TRAP;THROW11;keys;majorOpt;mangleJ;unmangleJ;ns;optNull;vals;⎕IO;⎕TRAP   
+
+      unmangleJ←                 1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
+      mangleJ←                  (0∘(7162⌶))∘⍕ 
       TRAP←0 ⋄ ⎕IO←0 ⋄ optNull←('Null'⎕NULL)
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
       THROW11←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
@@ -957,31 +1059,29 @@
       :Case 2      ⍝ several objects: json strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-          unmangle←1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
-          dict←∆DICT ⍬
+           dict←∆DICT ⍬
           ns dict∘{
               TRAP:: THROW11 'Valid JSON object ⍵ could not be converted to dictionary.' 
-              ⋄ ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangle ⍵) ⋄ val←ns⍎itemA
+                ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangleJ ⍵) ⋄ val←ns⍎itemA
               2=ns.⎕NC itemA:_←itemJ dict.set1 val
-              ⋄ dict2←∆DICT ⍬ ⋄ ns2←val
-              ⋄ _←itemJ dict.set1 dict2
+                dict2←∆DICT ⍬ ⋄ ns2←val
+                _←itemJ dict.set1 dict2
               1:_←ns2 dict2∘∇¨ns2.⎕NL-2.1 9.1
           }¨ns.⎕NL-2.1 9.1
           result←dict  ⍝ Return a single dictionary
       :Else           ⍝ User passed a dictionary to convert
           (~minorOpt∊0 1 2) THROW11 'Option ⍺ was invalid: Must be 0, 1, 2.'  
-          mangle←(0∘(7162⌶))∘⍕¨ 
           scan←{
               isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ ⎕THIS∊⊃⊃⎕CLASS ⍵} 
               ns←⍺⍺ ⋄ k v←⍺ ⍵
               ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
               _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
-              1: ⍬⊣(mangle v.keys)(ns2 ∇∇)¨v.vals
+              1: ⍬⊣(mangleJ¨ v.keys)(ns2 ∇∇)¨v.vals
           }
           dict←json
           :TRAP TRAP 
               ns←⎕NS ''
-              (mangle dict.keys) (ns scan)¨dict.vals
+              (mangleJ¨ dict.keys) (ns scan)¨dict.vals
           :Else 
               THROW11 'Dictionary ⍵ could not be converted to ⎕JSON.' 
           :EndTrap
