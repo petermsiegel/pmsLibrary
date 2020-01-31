@@ -45,11 +45,10 @@
 ⍝        Is a msg from generator waiting?
 ⍝                       mg.more
 ⍝                       mg.done
-⍝        Special Handling via Signals in caller
-⍝                       mg.STOPITERATION
-⍝                       set:    ⎕TRAP (mg.STOPITERATION)'C' '→done'
-⍝                       tradfn: TRAP mg.STOPITERATION ⋄ ...
-⍝                       dfn:    mg.STOPITERATION::⍺ ∇ transform* ⍵
+⍝        Special Handling via Signals in caller using mg.STOPITERATION:
+⍝                       set:    ⎕TRAP← mg.STOPITERATION 'C' '→done'
+⍝                       tradfn: :Trap mg.STOPITERATION ⋄ ... ⋄ :EndTrap
+⍝                       dfn:    mg.STOPITERATION::⍺ ∇ {your_code} ⍵
 ⍝                       mg.close
 ⍝
 ⍝                                                     * transform is whatever code you want

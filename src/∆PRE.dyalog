@@ -491,7 +491,7 @@
   ⍝ ⍙to: Do ranges  a b .. c     a to c in steps of (b-a); a, b, c all numbers
     ⎕SE.⍙to←{⎕IO←0 ⋄ 0=80|⎕DR ⍬⍴⍺:⎕UCS⊃∇/⎕UCS¨⍺ ⍵ ⋄ f s←1 ¯1×-\2↑⍺,⍺+×⍵-⍺ ⋄ ,f+s×⍳0⌈1+⌊(⍵-f)÷s+s=0}
   ⍝ ⍙notin: not ∊
-    ⎕SE.⍙notin←{~⍺∊⍵}
+    ⎕SE.⍙notin←  (~∊)  ⍝ {~⍺∊⍵}
   ⍝ ⍙plot:    [type: Bar, etc] ⎕PLOT arg
   ⍝           arg: e.g. 1 2 3 4 5
   ⍝                 or  'A B C' :where A←⍳10 :where B←○⍳10 :where C←1 3 5
@@ -1591,7 +1591,7 @@
         _←0 mPut'⎕FIRST'(∆MY,'.FIRST')          ⍝ ⎕FIRST → ∆MY.FIRST. 1 on 1st call, else 0
         _←0 mPut'⎕ME' '(⊃⎕SI)'                ⍝ Simple name of active function
         _←0 mPut'⎕XME' '(⊃⎕XSI)'               ⍝ Full name of active function
-        _←0 mPut'⎕NOTIN' '{~⍺∊⍵}'                ⍝ See ∉ ⎕UCS 8713
+        _←0 mPut'⎕NOTIN' '(~∊)'                ⍝ See ∉ ⎕UCS 8713
     ⍝  mPut magic: Declare macros evaluated at ∆PRE time via ⍎.
     ⍝   ⍺: 1 (PRE env), 2 (⎕MY static), 3 (CALLER)
         _←0 1 mPut'__LINE__' __LINE__

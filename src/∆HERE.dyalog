@@ -1,10 +1,11 @@
 ﻿ ∇h ←∆HERE
 ⍝ ∆HERE-- see full documentation at ∆HERE.doc
+⍝ ⍙HERE-- like ∆HERE, but fixed with options MULTI, NOBLANKS, NODEBUG (oMulti oBlanks oDebug←1 0 0) 
 ⍝ 1. hereDoc lines are those lines immediately after the ∆HERE that match /^ *⍝/,
 ⍝ contiguously until the first line NOT matching /^ *⍝/
-⍝ 2. Those matching /^ *⍝[^ ]/ are then discarded as "hereDoc comments."
+⍝ 2. Those matching /^ *⍝[^⍝]/ are then discarded as "hereDoc comments."
 ⍝ 3. If the 'BL[anks]' option is specified (see below),
-⍝     lines matching /^ *$/ are treated as prefixed with '⍝'.
+⍝     lines matching /^ *$/ are treated as if prefixed with '⍝' (resulting in blank "here" lines).
  ;kw;here;opt;oString;lineEnd;oDebug;oMulti;oBlanks;⎕IO;⎕ML
 
  ⎕IO ⎕ML oMulti oBlanks oDebug←0 1 1 0 0
@@ -56,8 +57,7 @@
  ⍝   Grabs contiguous comment lines only (not blank ones), 
  ⍝   returning a vector of (0 or more) strings with '⍝⍝...' lines omitted (as comments),
  ⍝   and all '⍝...' lines returned sans initial '⍝'.
- ∇h←∆HEREf;⎕IO;⎕ML                                                                                           
- h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\'⍝'=⊃¨h←{(+/∧\' '=⍵)↓⍵}¨(1+1⊃2↑(50100⌶)2)↓{
-     0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI
-     }⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1 
+ ∇h←⍙HERE;⎕IO;⎕ML       
+ ⎕IO ⎕ML←0 1 ⋄ h←⎕NR⊃1 0⌷⎕STACK                                                                                    
+ h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\'⍝'=⊃¨h←{(+/∧\' '=⍵)↓⍵}¨(1+1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}h
 ∇
