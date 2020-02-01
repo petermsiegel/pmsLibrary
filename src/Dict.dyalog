@@ -10,7 +10,7 @@
 ⍝⍝            Documented later.
 ⍝⍝
 ⍝⍝ ∆DICT: Creating a dict, initializing items (key-value pairs), setting the default for missing values.
-⍝⍝ TYPE       CODE                          ITEMS                                 DEFAULT
+⍝⍝ TYPE       CODE                          ITEMS                                 DEFAULT VALUE
 ⍝⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝⍝ empty      a←∆DICT ⍬                     ⍝ None                                none
 ⍝⍝ items      b←∆DICT (1 10)(2 20)(3 30)    ⍝ (1 10)(2 20)(3 30)                  none
@@ -31,45 +31,46 @@
 ⍝⍝ ---------------------------------------------------
 ⍝⍝    [default]: An optional default for missing keys of most any value or shape.
 ⍝⍝    kN, a key (of most any value); vN, a value of most any value;  iN (an index, ⎕IO dependent).
+⍝⍝    keys, a list of keys; vals, a list of values; indices, a list of indices (integer positions, per ⎕IO)
 ⍝⍝ CREATE
 ⍝⍝    d        ← [default] ∆DICT ⍬                        ⍝ Create empty dictionary
 ⍝⍝    d        ← [default] ∆DICT (k1 v1)(k2 v2)...        ⍝ Create dict with initial key-value pairs.
-⍝⍝    d        ← [default] ∆DICT ⍪(k1 k2...)(v1 v2...)    ⍝ Create dict with initial keys in keylist and values in valuelist
+⍝⍝    d        ← [default] ∆DICT ⍪keys vals               ⍝ Create dict with initial keys in keylist and values in valuelist
 ⍝⍝ GET
 ⍝⍝    v1 v2 v3 ←           d[k1 k2 k3]                    ⍝ Get value list by key list
 ⍝⍝    v1       ← [default] d.get1 k1                      ⍝ Get a value disclosed by key
-⍝⍝    v1 v2 v3 ← [default] d.get  k1 k2 k3...             ⍝ Get value list by key list, else default
+⍝⍝    v1 v2 v3 ← [default] d.get  keys                    ⍝ Get value list by key list, else default
 ⍝⍝    keys vals ←          d.export                       ⍝ Get key list followed by value list
 ⍝⍝    keys     ←           d.keys                         ⍝ Get all keys in active order
-⍝⍝    k1 k2 k3 ←           d.keys[i1 i2 i3]               ⍝ Get keys by index (position in active key order)
+⍝⍝    k1 k2 k3 ←           d.keys[indices]                ⍝ Get keys by index (position in active key order)
 ⍝⍝    vals     ←           d.vals                         ⍝ Get all values in active (key) order
-⍝⍝    v1 v2 v3 ←           d.vals[i1 i2 i3]               ⍝ Get values by index (position in active key order)
+⍝⍝    v1 v2 v3 ←           d.vals[indices]                ⍝ Get values by index (position in active key order)
 ⍝⍝    (k1 v1)...        ←  d.items                        ⍝ Get all items (key-val pairs) in active order
-⍝⍝    (k1 v1)(k2 v2)... ←  d.items[i1 i2...]              ⍝ Get all items in active (key) order
+⍝⍝    (k1 v1)(k2 v2)... ←  d.items[indices]               ⍝ Get all items in active (key) order
 ⍝⍝ SET  
-⍝⍝                   d[k1 k2 k3] ←  v1 v2 v3              ⍝ Set values for arbitrary keys
+⍝⍝                   d[keys] ←  vals                      ⍝ Set values for arbitrary keys
 ⍝⍝                   k1 d.set1 v1                         ⍝ Set value for one key
-⍝⍝                   k1 k2 d.set  v1 v2                   ⍝ Set values for keys
-⍝⍝                   d.import (k1 k2 ...)(v1 v2 ...)      ⍝ Set values for arbitrary keys
+⍝⍝                   keys d.set  vals                     ⍝ Set values for keys
+⍝⍝                   d.import keys vals                   ⍝ Set values for arbitrary keys
 ⍝⍝                   d.update (k1 v1)(k2 v2)(k3 v3)...    ⍝ Set key-value pairs, new or old
 ⍝⍝                   d.sort                               ⍝ Set active order, sorting by ascending keys 
 ⍝⍝                   d.sortd                              ⍝ Set active order, sorting by descending keys
 ⍝⍝ STATUS
 ⍝⍝    len      ←     d.len                                ⍝ Return # of items
-⍝⍝    b1 b2 b3 ←     d.defined k1 k2 k3                   ⍝ Return 1 for each key in list that exists
+⍝⍝    b1 b2 b3 ←     d.defined keys                       ⍝ Return 1 for each key in list that exists
 ⍝⍝                   d.print                              ⍝ Show (⎕←) keys, values by columns  
 ⍝⍝                   d.hprint                             ⍝ Show keys, values by rows (⍪d.print)
 ⍝⍝                   d.disp                               ⍝ Print by columns via dfns disp (variant of display) 
 ⍝⍝                   d.hdisp                              ⍝ Print by rows via dfns disp
 ⍝⍝ DELETE
-⍝⍝    b1 b2 b3 ←  [ignore] d.del k1 k2 k3                 ⍝ Delete items by specific key
-⍝⍝    b1 b2 b3 ←  [ignore] d.delbyindex i1 i2 i3          ⍝ Delete items by specific index
+⍝⍝    b1 b2 b3 ←  [ignore] d.del keys                     ⍝ Delete items by specific key
+⍝⍝    b1 b2 b3 ←  [ignore] d.delbyindex indices           ⍝ Delete items by specific index
 ⍝⍝ INC/DEC
-⍝⍝    n1 n2 n3 ←  [incr←1] d.inc k1 k2 k3                 ⍝ Increment values for specific keys
-⍝⍝    n1 n2 n3 ←  [decr←1] d.dec k1 k2 k3                 ⍝ Decrement values for specific keys
+⍝⍝    n1 n2 n3 ←  [incr←1] d.inc keys                     ⍝ Increment values for specific keys
+⍝⍝    n1 n2 n3 ←  [decr←1] d.dec keys                     ⍝ Decrement values for specific keys
 ⍝⍝ POP
 ⍝⍝    (k1 v1)(k2 v2)... ←  d.popitem count                ⍝ Remove/return <count> items from end of dictionary.
-⍝⍝    v1 v2 v3 ←           d.pop k1 k2                    ⍝ Remove/return values for specific keys from dictionary.
+⍝⍝    vals  ←              d.pop keys                     ⍝ Remove/return values for specific keys from dictionary.
 ⍝⍝ MISC
 ⍝⍝                  ns  ←  d.namespace                    ⍝ Create a namespace with dictionary values, 
 ⍝⍝                                                        ⍝ whose changes are reflected back in the dictionary.
