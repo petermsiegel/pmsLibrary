@@ -107,26 +107,39 @@
 ⍝⍝ d[⊂k1] ← (⊂v1) OR d[k1 k2...]←v1 v2 ...
 ⍝⍝     Assign a value to each key specified, new or existing.
 ⍝⍝
-⍝⍝ ---------------------------------------------------
-⍝⍝     GETTING (LISTING) OF ALL KEYS / KEYS BY INDEX
-⍝⍝ ---------------------------------------------------
+⍝⍝ -----------------------------------------------------------------------------
+⍝⍝     GETTING (LISTING) OF ALL KEYS / KEYS BY INDEX OR VALUE (REVERSE LOOK-UP)
+⍝⍝ -----------------------------------------------------------------------------
 ⍝⍝ keys ← d.keys                     [alias: key]
 ⍝⍝     Return a list of all the keys used in the dictionary d.
 ⍝⍝
 ⍝⍝ keys ← d.keys[indices]            [alias: key]
 ⍝⍝     Return a list of keys by numeric indices i1 i2 ...
 ⍝⍝
+⍝⍝ keys  ←  d.valIndex[vals]  OR  d.valIx[vals]
+⍝⍝ keys  ←  d.valIndex[]  OR  d.valIx[]
+⍝⍝ "Return lists of keys indexed by values <vals>, as if a 'reverse' lookup." 
+⍝⍝ "Treating values as indices, find all keys with given values, if any.
+⍝⍝  Returns a list of 0 or more keys for each value sought; ⍬ is returned for each MISSING value.
+⍝⍝  Unlike dict.keyIndex keys, aka dict[keys], dict.valIndex[] may return many keys for each value." 
+⍝⍝  If an index expression is elided,
+⍝⍝       keys←d.valIndex[] or keys←d.valIx[],
+⍝⍝  it is treated as requesting ALL values:
+⍝⍝       keys←d.valIndex[d.values],
+⍝⍝  returning a keylist for each value in d.values (which need not be unique).
+⍝⍝  (These need not be unique; for only 1 copy of each keylist, do: ukeys←∪d.valIx[]).
+⍝⍝
 ⍝⍝ ------------------------------------------------
 ⍝⍝    SETTING/GETTING ALL VALUES / VALUES BY INDEX
 ⍝⍝ ------------------------------------------------
-⍝⍝ vals ← d.vals                     [alias: val]
+⍝⍝ vals ← d.values                     [alias: value, vals, val]
 ⍝⍝     Returns the list of values  in entry order for  all items; suitable for iteration
-⍝⍝         :FOR v :in d.vals ...
+⍝⍝         :FOR v :in d.values ...
 ⍝⍝
-⍝⍝ vals ← d.vals[indices]            [alias: val]
+⍝⍝ vals ← d.values[indices]            [aliases as above]
 ⍝⍝     Returns a list of item values by numeric indices i1 i2 ...
 ⍝⍝
-⍝⍝ d.vals[indices]←newvals           [alias: val]
+⍝⍝ d.values[indices]←newvals           [aliases as above]
 ⍝⍝     Sets new values <newvals> for existing items by indices.
 ⍝⍝
 ⍝⍝ ------------------------------------------------
@@ -162,7 +175,7 @@
 ⍝⍝     If DEBUG is 1, an error will be signalled where it occurs.
 ⍝⍝     Otherwise, it will be signalled at the dictionary call (cutback).
 ⍝⍝     When DEBUG←1, the # of items in a dictionary is part of its display form.
-⍝⍝ 
+⍝⍝
 ⍝⍝ ------------------------------------------------
 ⍝⍝    DEALING WITH VALUE DEFAULTS
 ⍝⍝ ------------------------------------------------
@@ -364,7 +377,7 @@
       :Access Public Shared
       ns←⎕THIS
     ∇
-  ⍝ ##.Dict←Dict
+    ##.⎕FX 'Dict'  
 
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
      :TRAP 0
@@ -406,7 +419,7 @@
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
     ⍝-------------------------------------------------------------------------------------------
-    ⍝ kvIndex: "Using standard vector indexing and assignment, set and get values given keys. 
+    ⍝ keyIndex: "Using standard vector indexing and assignment, set and get values given keys. 
     ⍝           New entries are created automatically"
     ⍝ SETTING values for each key
     ⍝ dict[key1 key2...] ← val1 val2...
@@ -416,7 +429,7 @@
     ⍝
     ⍝ As always, if there is only one pair to set or get, use ⊂, as in:
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
-    :Property default keyed kvIndex
+    :Property default keyed keyIndex
     :Access Public
         ∇ vals←get args;found;ix;vals;⎕TRAP
           ⎕TRAP←∆TRAP
@@ -428,7 +441,7 @@
             ⍝ {0=...}: If valuesF starts with a namespace, found\valuesF[...] can lead to a NONCE ERROR.
               vals←found\{0=≢⍵:⍬ ⋄ ⍵}valuesF[found/ix]
               ((~found)/vals)←⊂defaultF      ⍝ Add defaults
-              vals←(⍴ix)⍴vals                ⍝ If input parm is scalar, vals must be as well...
+              vals⍴⍨←⍴vals                   ⍝ If input parm is scalar, vals must be as well...
           :Else
                THROW eHasNoDefault
           :EndIf
@@ -440,6 +453,30 @@
         ∇
     :EndProperty
 
+ ⍝ valIndex, valIx: 
+ ⍝    "Using standard vector indexing and assignment, find all keys with given values, if any.
+ ⍝     Returns a list of 0 or more keys for each value sought. 
+ ⍝     ⍬ is returned for each MISSING value.
+ ⍝     Unlike dict.keyIndex keys, aka dict[keys], may return many keys for each value.
+ ⍝ keys ← dict.valIndex[vals]     ⍝ Return keys for each v in vals, else ⍬.
+ ⍝ keys ← dict.valIndex[]         ⍝ Return keys for all values
+ ⍝ Note: To find FIRST key for each of several value, for dictionary with:
+ ⍝          (1 or more keys with) values 'five' and 'six', but not 'MISSING'
+ ⍝       use dict.vals and dict.keys:
+ ⍝ YES:     (dict.keys,⊂⍬)[dict.vals⍳'five' 'six' 'MISSING']
+ ⍝       rather than
+ ⍝ NO:      ⊃¨r1←dict.valIx['five' 'six' 'MISSING']
+ ⍝       which will return 0 for each ⍬ (no entries) in the result r1, thanks to (0 ≡ ⊃⍬). 
+    :Property keyed valIndex,valIx
+    :Access Public
+        ∇ keys←get args;ix;⎕TRAP
+          ⎕TRAP←∆TRAP
+          ix←{⎕NULL≡⍵: valuesF ⋄ ⍵}⊃args.Indexers
+          keys←{k ⍬⊃⍨0=≢k←keysF/⍨valuesF≡¨⊂⍵}¨ix   ⍝ Ensure 0-length ⍬ when vals missing.
+          keys⍴⍨←⍴ix     ⍝ Ensure scalar index means scalar is returned.
+        ∇
+    :EndProperty
+    
     ⍝ dict.get      Retrieve values for keys ⍵ with optional default value ⍺ for each missing key
     ⍝ --------      (See also dict.get1)
     ⍝         dict.get keys   ⍝ -- all keys must exist or have a (class-basd) default
@@ -448,10 +485,10 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :IF 900⌶1 
-          vals←kvIndex[keys]
+          vals←keyIndex[keys]
       :ELSE 
           nd←~d←defined keys
-          vals←d\kvIndex[d/keys]
+          vals←d\keyIndex[d/keys]
           (nd/vals)←⊂def
       :ENDIF
     ∇
@@ -928,11 +965,11 @@
     ∇
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
-    ∇ h←help;ln 
+    ∇ {h}←help;ln 
       :Access Public Shared
       ⍝ Pick up only ⍝⍝ comments!
       :Trap 0 ⋄ h←⎕SRC ⎕THIS ⋄ h←3↓¨h/⍨(⊂'⍝⍝')≡¨2↑¨h 
-                h←⎕PW↑[1]↑h
+                h←⎕PW↑[1]↑h ⋄ ⎕ED&'h' ⋄ ⎕DL 30
       :Else ⋄ ⎕SIGNAL/'Dict.help: No help available' 911
       :EndTrap
     ∇
