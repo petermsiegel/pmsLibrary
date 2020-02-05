@@ -13,33 +13,33 @@
  
   ⍝ Instance Fields and Related
   ⍝ A. DEBUG and ⎕TRAP fields: See also DEBUG_TRIGGER.
-                   STD_TRAP←   0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
-    :Field Public  DEBUG←      0 
-    :Field Private ∆TRAP←      STD_TRAP ⍝ 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
-    :Field Private DEBUG_WAS←  ⎕NULL  
-     unmangleJ←                 1∘(7162⌶)        ⍝ APL strings <--> JSON strings
-     mangleJ←                  (0∘(7162⌶))∘⍕
+                   STD_TRAP←               0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
+    :Field Public  DEBUG←                  0 
+    :Field Private ∆TRAP←                  STD_TRAP ⍝ 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
+    :Field Private DEBUG_WAS←              ⎕NULL  
+     unmangleJ←                            1∘(7162⌶)        ⍝ APL strings <--> JSON strings
+     mangleJ←                              (0∘(7162⌶))∘⍕
   ⍝ B. Core dictionary fields
-                   keysF←         ⍬         ⍝ Variable, not Field, to avoid Dyalog bugs (catenating/hashing)
-    :Field Private valuesF←       ⍬
-    :Field Private hasdefaultF←   0
-    :Field Private defaultF←      ''        ⍝ Initial value
-    :Field Private baseclassF←     ⊃⊃⎕CLASS ⎕THIS
+                   keysF←                  ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
+    :Field Private valuesF←                ⍬
+    :Field Private hasdefaultF←            0
+    :Field Private defaultF←               ''        ⍝ Initial value
+    :Field Private baseclassF←             ⊃⊃⎕CLASS ⎕THIS
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
-    eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
-    eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
-    eDelKeyMissing←   11 '∆DICT.del: at least one key was not found and ⍺:ignore≠1.'
-    eIndexRange←       3 '∆DICT.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
-    eKeyAlterAttempt← 11 '∆DICT.keys: item keys may not be altered.'
-    eHasNoDefault←     3 '∆DICT.index: key does not exist and no default was set.'
-    eHasNoDefaultD←   11 '∆DICT: no default has been set.'
-    eQueryDontSet←    11 '∆DICT: querydefault may not be set; Use Dict.(default or hasdefault).'
-    eBadInt←          11 '∆DICT.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
-    eKeyBadName←      11 'Dict.namespace: Unable to convert key to valid APL variable name'
+    :Field Private Shared eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
+    :Field Private Shared eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
+    :Field Private Shared eDelKeyMissing←   11 '∆DICT.del: at least one key was not found and ⍺:ignore≠1.'
+    :Field Private Shared eIndexRange←       3 '∆DICT.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
+    :Field Private Shared eKeyAlterAttempt← 11 '∆DICT.keys: item keys may not be altered.'
+    :Field Private Shared eHasNoDefault←     3 '∆DICT.index: key does not exist and no default was set.'
+    :Field Private Shared eHasNoDefaultD←   11 '∆DICT: no default has been set.'
+    :Field Private Shared eQueryDontSet←    11 '∆DICT: querydefault may not be set; Use Dict.(default or hasdefault).'
+    :Field Private Shared eBadInt←          11 '∆DICT.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
+    :Field Private Shared eKeyBadName←      11 'Dict.namespace: Unable to convert key to valid APL variable name'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns this namespace. Searchable via ⎕PATH. 
-      :Access Public Shared
+      :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]
       ns←⎕THIS
     ∇
 
@@ -48,7 +48,7 @@
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
      :Else
-        ⎕SIGNAL ⊂('EN' 11)('EM' ('∆DICT ',⎕DMX.EM)) ('Message' ⎕DMX.Message)
+        ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
      :EndTrap
     ∇
 
@@ -105,17 +105,19 @@
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
     :Property default keyed keyIndex
     :Access Public
-        ∇ vals←get args;found;ix;vals;⎕TRAP
+        ∇ vals←get args;found;ix;shape;⎕TRAP
           ⎕TRAP←∆TRAP
           :If ⎕NULL≡⊃args.Indexers ⋄ vals←valuesF ⋄ :Return ⋄  :EndIf
-          ix←keysF⍳⊃args.Indexers
+          shape←⍴ix←keysF⍳⊃args.Indexers  
           :If ~0∊found←ix<≢keysF
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
-            ⍝ {0=...}: If valuesF starts with a namespace, found\valuesF[...] can lead to a NONCE ERROR.
-              vals←found\{0=≢⍵:⍬ ⋄ ⍵}valuesF[found/ix]
+            ⍝ Note [Special Backslash]
+            ⍝ valuesF may start with a namespace, which has no fill item (leading to a NONCE ERROR).
+            ⍝ Prefix with a 0 before expanding to ensure a valid fill; afterwards, remove prefix.  
+              vals←1↓(1,found)\0,valuesF[found/ix]     ⍝ See Note [Special Backslash]
               ((~found)/vals)←⊂defaultF      ⍝ Add defaults
-              vals⍴⍨←⍴vals                   ⍝ If input parm is scalar, vals must be as well...
+              vals⍴⍨←shape                   ⍝ If input parm is scalar, vals must be as well...
           :Else
                THROW eHasNoDefault
           :EndIf
@@ -162,7 +164,7 @@
           vals←keyIndex[keys]
       :ELSE 
           nd←~d←defined keys
-          vals←d\keyIndex[d/keys]
+          vals←1↓(1,d)\0,keyIndex[d/keys]      ⍝ See Note [Special Backslash] above
           (nd/vals)←⊂def
       :ENDIF
     ∇
@@ -416,13 +418,10 @@
     :Access Public
         ∇ r←get args
           :Select args.Name
-          :Case 'default'
-              :If ~hasdefaultF ⋄ THROW eHasNoDefaultD ⋄ :EndIf
-              r←defaultF
-          :Case 'hasdefault'
-              r←hasdefaultF
-          :Case 'querydefault'
-              r←hasdefaultF defaultF
+          :Case 'default'      ⋄ :If ~hasdefaultF ⋄ THROW eHasNoDefaultD ⋄ :EndIf
+                                 r←defaultF
+          :Case 'hasdefault'   ⋄ r←hasdefaultF
+          :Case 'querydefault' ⋄ r←hasdefaultF defaultF
           :EndSelect
         ∇
         ∇ set args
@@ -430,9 +429,7 @@
           :Case 'default'
               defaultF hasdefaultF←args.NewValue 1
           :Case 'hasdefault'
-              :If ~0 1∊⍨⊂args.NewValue
-                  THROW eBadDefault
-              :EndIf
+              :If ~0 1∊⍨⊂args.NewValue ⋄ THROW eBadDefault ⋄ :EndIf
               hasdefaultF←⍬⍴args.NewValue   ⍝ defaultF unchanged...
           :Case 'querydefault'
               THROW eQueryDontSet
@@ -447,19 +444,16 @@
     ⍝    Processes keys left to right: If a key is repeated, increments accumulate.
     ⍝  Returns: Newest values (will be incremental, if a key is repeated).
     ⍝  NOTE: Forces a default of 0, for undefined keys.
-    ∇ {newvals}←{∆} inc keys;_inc;⎕TRAP 
+    ∇ {newvals}←{∆} inc keys;add2;⎕TRAP 
       :Access Public
       ⎕TRAP←∆TRAP
-      _inc←{
-          nv←⍺+0 get ⍵
-          nv⊣_import ⍵ nv
-      }
+      add2← { nv←⍺+0 get ⍵ ⋄ nv⊣_import ⍵ nv }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :TRAP 11 
           :IF (≢∪keys)=≢keys
-            newvals←∆ _inc keys
+            newvals←∆ add2 keys
           :Else 
-            newvals←∆ _inc¨⊂¨keys
+            newvals←∆ add2¨⊂¨keys
           :Endif
       :Else
           THROW eBadInt
@@ -480,9 +474,9 @@
       exists←(≢keysF)>keysF⍳keys
     ∇
 
-    ⍝ del:  "Deletes key-value pairs from the dictionary by key, but only if all the keys exist"
+    ⍝ del:  "Deletes key-value pairs from the dictionary for all keys found in a dictionary.
     ⍝        If ignore is 1, missing keys quietly return 0.
-    ⍝        If ignore is 0 or omitted, missing keys signal a DOMAIN error (11).
+    ⍝        If ignore is 0 or omitted, missing keys signal a DOMAIN error (11)."
     ⍝ b ← {ignore←1} ⍵.del key1 key2...
     ⍝ Returns a vector of 1s and 0s: a 1 for each key kN deleted; else 0.
     ∇ {b}←{ignore} del keys;ix;∆;⎕TRAP
@@ -492,7 +486,7 @@
       b←(≢keysF)>ix←keysF⍳keys
     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
       eDelKeyMissing THROW⍨ (0∊b)∧~ignore 
-      ignore _delbyindex b/ix
+      diFast b/ix
     ∇
 
     ⍝ delbyindex | di:    "Deletes key-value pairs from the dict. by index. See del."
@@ -517,21 +511,21 @@
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf    
       b←ix{⍵:0=0(≢keysF)⍸⍺ ⋄ 0⍴⍨≢⍺}×≢keysF
       eIndexRange THROW⍨ (0∊b)∧~ignore           ⍝ At least 1 index out of range                     
-      ignore _delbyindex b/ix                    ⍝ Consider only those in index range
+      diFast b/ix                                ⍝ Consider only those in index range
     ∇
 
-    ⍝ _delbyindex: [INTERNAL UTILITY] 
+    ⍝ diFast: [INTERNAL UTILITY] 
     ⍝ Delete items by ix, where ix (if non-null) in range of keysF.
-    ∇ ignore _delbyindex ix;count
-      :If 0≠count←≢ix←∪ix                    ⍝ Delete keys marked for del'n
-          :IF  ∧/ix∊(¯1+≢keysF)-⍳count       ⍝ Fast path: all keys to delete at end!
-              keysF↓⍨←-count ⋄ valuesF↓⍨←-count
-          :Else  
-              ∆←(≢keysF)⍴1 ⋄ ∆[ix]←0      ⍝ ∆: Delete items with indices in <ix>
-              keysF←∆/keysF ⋄ valuesF←∆/valuesF 
-              UPDATE 
-          :EndIf 
-      :EndIf
+    ∇ diFast ix;count;endblock;uix;∆
+      → 0/⍨ 0=count←≢uix←∪ix                ⍝ Return now if no indices refer to active keys.
+      endblock←(¯1+≢keysF)-⍳count           ⍝ All keys contiguous at end?
+      :IF  ∧/uix∊endblock                   ⍝ Fast path: delete contiguous keys as a block
+          keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to UPDATE hash.
+      :Else  
+          ∆←1⍴⍨≢keysF ⋄ ∆[uix]←0            ⍝ ∆: Delete items with indices in <ix>
+          keysF←∆/keysF ⋄ valuesF←∆/valuesF 
+          UPDATE 
+      :EndIf 
     ∇
 
     ⍝ clear:  "Clears the entire dictionary (i.e. deletes every key-value pair)
@@ -619,7 +613,7 @@
       :TRAP 0  ⍝ 4 if rank error
         ⍝ If it's not a valid name, use ⎕JSON mangling (may not be useful). If it is valid, mangle is a NOP.
           (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF 
-          ns.⎕FX '⍝∊⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
+          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
@@ -628,7 +622,7 @@
     ⍝ __namespaceTrigger__: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: only in subsidiary namespaces!
     ∇__namespaceTrigger__ args;unmangleJ
-      ⍝∊⍝ :Implements Trigger *
+      ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Use ⎕JSON unmangling for argument name!
       unmangleJ←                1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
       :TRAP 0
@@ -659,12 +653,15 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
-    ∇ {hashStatus}←UPDATE
-    ⍝ Set keysF to be hashed (if not already and if there are at least 2 keys [Dyalog "bug"]!
+    ∇ {didHash}←UPDATE;min
+    ⍝ Set keysF to be hashed when we actually have a vector of set length.
+    ⍝ Base hash threshold on keysF datatype...
     ⍝ If DEBUG≡1:  Sets display form to show # of entries.
-      hashStatus←1(1500⌶)keysF
-      :If (0=hashStatus)∧2≤≢keysF
-          keysF←1500⌶keysF
+      :If 0=1(1500⌶)keysF  
+      :AndIf min≤≢keysF ⊣ min←2 100 200 500[326 1287 645 ⍳ ⎕DR keysF]  
+          keysF←1500⌶keysF ⋄ didHash←1
+      :Else 
+          didHash←0
       :EndIf
       :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
