@@ -249,43 +249,41 @@
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ <new_keys> ← _update object: used only internally.
+    ⍝ _update objects: used only internally.
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
-    ⍝ object: 
+    ⍝ objects: 
     ⍝        (⍪keys vals), (key value), dictionary
     ⍝ Special case:
     ⍝         If a scalar is passed which is not a dictionary, 
     ⍝         it is assumed to be an updated default value.
-    ⍝ Returns:
-    ⍝         new keys (if any).
-    ∇ {k}←_update object
-        ;kv;d;hd;scanObj 
-
-        :IF 0=≢object ⋄ :Return                  ⍝ NULL?   FAST PATH
-      ⍝ kv: keys values; d: default; hd: has_default
-        kv←⍬ ⍬ ⋄ d hd←⍬ 0  
-        scanObj←{  
-                2=⍴⍴⍵:{                          ⍝ arg: ⍪keys vals [defaults]
-                  kv,¨←0 1⊃¨⊂⍵                         
-                  2=⍬⍴⍴⍵: _←⍬                    ⍝ No optional default? Done. 
-                  1: d hd⊢←(2⊃⍵) 1               ⍝ Set default
-                },⍵
-              ⍝ Each non-matrix item must have 2 or 1 members...
-                2=≢⍵:kv,¨←⊂¨⍵                    ⍝ Update key-val pair 
-                isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}     
-                isD ⍵:kv,¨←⍵.export              ⍝ Import Dictionary
-                1=≢⍵:d hd⊢←(⊃⍵) 1                ⍝ Set Defaults
-                THROW eBadUpdate   
-        } 
-        :EIf 0 2∊⍨⍴⍴object                       ⍝ SCALAR or Matrix? FAST PATH
-            scanObj object  
-        :ElseIF 2∧.=≢¨object                     ⍝ K-V PAIRS? FAST PATH
-            kv←↓⍉↑object     
-        :Else                                    ⍝ Scan item by item (slow!)
-            scanObj¨object
-        :Endif 
-        _import kv
-        :IF hd ⋄ defaultF hasdefaultF←d hd ⋄ :Endif
+    ⍝ Returns: NONE
+    ∇ _update objects;kv;list 
+      :IF 0=≢objects                            ⍝ EMPTY?  NOP
+          :Return
+      :ElseIf 0=⍴⍴objects                       ⍝ SCALAR? FAST PATH
+          objects←⊂objects  
+      :Elseif 2=⍴⍴objects                       ⍝ MATRIX? FAST PATH
+          _import 0 1⊃¨⊂list←,objects
+          :IF 2<≢list ⋄ defaultF hasdefaultF←(2⊃list)1 ⋄ :Endif
+          :Return
+      :ElseIF 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
+          _import ↓⍉↑objects ⋄ :Return 
+    ⍝ :Else       →     →     →                 ⍝ One or more miscellaneous objects 
+      :Endif 
+      kv←⍬ ⍬  
+      _import kv⊣{  
+          2=⍴⍴⍵:{                               ⍝ arg: ⍪keys vals [defaults]
+                kv,¨←0 1⊃¨⊂⍵                         
+                2=⍬⍴⍴⍵: _←⍬                     ⍝ No optional default? Done. 
+                1: defaultF hasdefaultF⊢←(2⊃⍵) 1  ⍝ Set default
+          },⍵
+        ⍝ Each non-matrix item must have 2 or 1 members...
+          2=≢⍵:kv,¨←⊂¨⍵                         ⍝ Update key-val pair 
+          isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}     
+          isD ⍵:kv,¨←⍵.export                   ⍝ Import Dictionary
+          1=≢⍵:defaultF hasdefaultF⊢←(⊃⍵) 1     ⍝ Set Defaults
+          THROW eBadUpdate   
+      }¨objects
     ∇
 
     ⍝ ignore←_import keyVec valVec
@@ -306,7 +304,7 @@
           kp←⊂uniq=⍳≢nk           ⍝      Keep: Create and enclose mask...
           nk nv←kp/¨nk nv         ⍝      ... of those to keep.
           (keysF valuesF),← nk nv ⍝ III. Update keys and values fields based on umask.
-          OPTIMIZE                  ⍝      Update hash and shyly return.
+          OPTIMIZE                ⍝      New entries: Update hash and shyly return.
     ∇
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
