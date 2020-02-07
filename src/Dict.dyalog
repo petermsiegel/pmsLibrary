@@ -1,10 +1,10 @@
 :Class DictClass
 ⍝ Documentation is provided in detail at the bottom of this class.
 
-⍝ Export key utilities to the parent environment (hard-wiring this namespace)
-  ⍝ ##.Dict:   [x] created, [ ] suppressed. 
-  ⍝ ##.∆DICT:  [x] created, [ ] suppressed. 
-  ⍝ ##.∆JDICT: [x] created, [ ] suppressed
+⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
+  ⍝ ##.Dict:   [x] YES, [ ] NO. 
+  ⍝ ##.∆DICT:  [x] YES, [ ] NO. 
+  ⍝ ##.∆JDICT: [x] YES, [ ] NO.
   :Field Private Shared EXPORT_LIST←'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
 
   ⍝ Initialization of APL System Variables
@@ -14,7 +14,8 @@
   ⍝ Instance Fields and Related
   ⍝ A. DEBUG and ⎕TRAP fields: See also DEBUG_TRIGGER.
                    STD_TRAP←               0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
-    :Field Public  DEBUG←                  0 
+    :Field Public  DEBUG←                  1 
+    :Field Public  IN_COPY←                0
     :Field Private ∆TRAP←                  STD_TRAP ⍝ 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
     :Field Private DEBUG_WAS←              ⎕NULL  
      unmangleJ←                            1∘(7162⌶)        ⍝ APL strings <--> JSON strings
@@ -53,12 +54,15 @@
     ∇
 
   ⍝ DEBUG_TRIGGER: When DEBUG instance variable changes, keep ∆TRAP synchronized...
-  ⍝ For use in Instances only.
+  ⍝ For use in Instances only. (See d.copy for use of IN_COPY)
     ∇ DEBUG_TRIGGER;stdTrap    
         :Implements Trigger DEBUG
         :SELECT ⍬⍴DEBUG
           :CASE DEBUG_WAS 
-          :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP ⋄  ⎕←'DEBUG ACTIVE' ⋄ UPDATE
+          :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP 
+                    :IF IN_COPY ⋄ IN_COPY←0 
+                    :Else ⋄  ⎕←'DEBUG ACTIVE' ⋄ :Endif
+                    OPTIMIZE
           :CASE 0 ⋄ ∆TRAP←  ⎕TRAP← STD_TRAP ⋄ ⎕DF 'Dict[]'   
         :ENDSELECT
         DEBUG_WAS←DEBUG 
@@ -93,7 +97,7 @@
     ⍝ Instance Methods
     ⍝    (Methods of form Name; helper fns of form _Name)
     ⍝-------------------------------------------------------------------------------------------
-    ⍝ keyIndex: "Using standard vector indexing and assignment, set and get values given keys. 
+    ⍝ keyIndex: "Using standard vector indexing and assignment, set and get the value for each key. 
     ⍝           New entries are created automatically"
     ⍝ SETTING values for each key
     ⍝ dict[key1 key2...] ← val1 val2...
@@ -103,7 +107,7 @@
     ⍝
     ⍝ As always, if there is only one pair to set or get, use ⊂, as in:
     ⍝        dict[⊂'unicorn'] ← ⊂'non-existent'
-    :Property default keyed keyIndex
+    :Property default keyed keyIndex 
     :Access Public
         ∇ vals←get args;found;ix;shape;⎕TRAP
           ⎕TRAP←∆TRAP
@@ -130,19 +134,12 @@
     :EndProperty
 
  ⍝ valIndex, valIx: 
- ⍝    "Using standard vector indexing and assignment, find all keys with given values, if any.
- ⍝     Returns a list of 0 or more keys for each value sought. 
- ⍝     ⍬ is returned for each MISSING value.
- ⍝     Unlike dict.keyIndex keys, aka dict[keys], may return many keys for each value.
- ⍝ keys ← dict.valIndex[vals]     ⍝ Return keys for each v in vals, else ⍬.
+ ⍝    "Using standard vector indexing and assignment, get the keys for each value, parallel to keyIndex.
+ ⍝     Since each many keys may have the same value, 
+ ⍝     returns a list (vector) of 0 or more keys for each value sought.
+ ⍝     ⍬ is returned for each MISSING value."
+ ⍝     Setting is prohibited!
  ⍝ keys ← dict.valIndex[]         ⍝ Return keys for all values
- ⍝ Note: To find FIRST key for each of several value, for dictionary with:
- ⍝          (1 or more keys with) values 'five' and 'six', but not 'MISSING'
- ⍝       use dict.vals and dict.keys:
- ⍝ YES:     (dict.keys,⊂⍬)[dict.vals⍳'five' 'six' 'MISSING']
- ⍝       rather than
- ⍝ NO:      ⊃¨r1←dict.valIx['five' 'six' 'MISSING']
- ⍝       which will return 0 for each ⍬ (no entries) in the result r1, thanks to (0 ≡ ⊃⍬). 
     :Property keyed valIndex,valIx
     :Access Public
         ∇ keys←get args;ix;⎕TRAP
@@ -248,47 +245,52 @@
       :TRAP 0 
           _update initial  
       :Else
-          THROW (⎕UCS 10),⎕DMX.Message
+          THROW ⎕DMX.EN ((⎕UCS 10),⎕DMX.Message)
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ <new_keys> ← _update args: used only internally
-    ⍝ updates command-line args from ⎕NEW Dict or ∆DICT:
-    ⍝ May update keysF and valuesF and/or defaultF and hasdefaultF
-    ⍝ Returns new keys (if any)
-    ∇ {k}←_update args
-        ;k;v;d;hd;ismx;isD 
-        isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}  ⍝ Note more stringent definition... 
-        k←⍬                                        ⍝ Local buffer for keysF
-        :IF 0=≢args ⋄ :RETURN                      ⍝ null?   Fast path
-        :ElseIf 0=⍴⍴args                           ⍝ SCALAR? Fast path
-            :IF isD args ⋄ _import args.export
-            :Else        ⋄ defaultF hasdefaultF←(⊃args) 1   
-            :Endif 
-        :Else                                      ⍝ Scan each item, one at a time!
-          :IF 2=⍴⍴args ⋄ args←⊂args ⋄ :ENDIF
-          v←d←⍬ ⋄ hd←0           ⍝ Local buffers for valuesF; defaultF, hasdefaultF
-          { ⍝ Extern: k, v, d, hd
-            2=⍴⍴⍵:_←{                        ⍝ ⍪keys vals [defaults]
-              (k v),←0 1⊃¨⊂⍵                 ⍝ Keys, values are subitems 0, 1
-              2=⍬⍴⍴⍵: ⍬                      ⍝ No optional default? Done.
-              def←2⊃⍵                        ⍝ Opt'l default. Disclose from scalar packaging...
-              ⊣d hd∘←def 1                   ⍝ Opt'l default disclosed!       Set Defaults
-            },⍵
-          ⍝ Each non-matrix item must have 2 or 1 members...
-            2<≢⍵:THROW eBadUpdate   
-            2=≢⍵:(k v),←⊂¨⍵                  ⍝ key-val pair                    update single k-v pair
-            isD ⍵:(k v),←⍵.export            ⍝ dict                            Import Dictionary
-            1:_←d hd∘←(⊃⍵) 1                 ⍝ default←⊃⍵                      Set Defaults
-          }¨args
-          _import k v  
-          :IF hd ⋄ defaultF hasdefaultF←d 1 ⋄ :Endif 
+    ⍝ <new_keys> ← _update object: used only internally.
+    ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
+    ⍝ object: 
+    ⍝        (⍪keys vals), (key value), dictionary
+    ⍝ Special case:
+    ⍝         If a scalar is passed which is not a dictionary, 
+    ⍝         it is assumed to be an updated default value.
+    ⍝ Returns:
+    ⍝         new keys (if any).
+    ∇ {k}←_update object
+        ;kv;d;hd;scanObj 
+
+        :IF 0=≢object ⋄ :Return                  ⍝ NULL?   FAST PATH
+      ⍝ kv: keys values; d: default; hd: has_default
+        kv←⍬ ⍬ ⋄ d hd←⍬ 0  
+        scanObj←{  
+                2=⍴⍴⍵:{                          ⍝ arg: ⍪keys vals [defaults]
+                  kv,¨←0 1⊃¨⊂⍵                         
+                  2=⍬⍴⍴⍵: _←⍬                    ⍝ No optional default? Done. 
+                  1: d hd⊢←(2⊃⍵) 1               ⍝ Set default
+                },⍵
+              ⍝ Each non-matrix item must have 2 or 1 members...
+                2=≢⍵:kv,¨←⊂¨⍵                    ⍝ Update key-val pair 
+                isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}     
+                isD ⍵:kv,¨←⍵.export              ⍝ Import Dictionary
+                1=≢⍵:d hd⊢←(⊃⍵) 1                ⍝ Set Defaults
+                THROW eBadUpdate   
+        } 
+        :EIf 0 2∊⍨⍴⍴object                       ⍝ SCALAR or Matrix? FAST PATH
+            scanObj object  
+        :ElseIF 2∧.=≢¨object                     ⍝ K-V PAIRS? FAST PATH
+            kv←↓⍉↑object     
+        :Else                                    ⍝ Scan item by item (slow!)
+            scanObj¨object
         :Endif 
+        _import kv
+        :IF hd ⋄ defaultF hasdefaultF←d hd ⋄ :Endif
     ∇
 
     ⍝ ignore←_import keyVec valVec
     ⍝ From vectors of keys and values, keyVec valVec, 
-    ⍝ updates instance vars keysF valuesF, then calls UPDATE to be sure hashing enabled.
+    ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
     ⍝ Returns: shy keys
     ∇ {k}←_import (k v)
           ;ix;old;nk;nv;uniq;kp   ⍝ 0.   k, v: k may have old and new keys, some duplicated.                 
@@ -304,7 +306,7 @@
           kp←⊂uniq=⍳≢nk           ⍝      Keep: Create and enclose mask...
           nk nv←kp/¨nk nv         ⍝      ... of those to keep.
           (keysF valuesF),← nk nv ⍝ III. Update keys and values fields based on umask.
-          UPDATE                  ⍝      Update hash and shyly return.
+          OPTIMIZE                  ⍝      Update hash and shyly return.
     ∇
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
@@ -313,6 +315,7 @@
       :Access Public
       newDict←⎕NEW (⊃⊃⎕CLASS ⎕THIS) 
       newDict.import keysF valuesF
+      newDict.(IN_COPY DEBUG)←1 DEBUG
       :IF hasdefaultF ⋄ newDict.default←defaultF ⋄ :ENDIF 
     ∇
 
@@ -520,11 +523,11 @@
       → 0/⍨ 0=count←≢uix←∪ix                ⍝ Return now if no indices refer to active keys.
       endblock←(¯1+≢keysF)-⍳count           ⍝ All keys contiguous at end?
       :IF  ∧/uix∊endblock                   ⍝ Fast path: delete contiguous keys as a block
-          keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to UPDATE hash.
+          keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to OPTIMIZE hash.
       :Else  
           ∆←1⍴⍨≢keysF ⋄ ∆[uix]←0            ⍝ ∆: Delete items with indices in <ix>
           keysF←∆/keysF ⋄ valuesF←∆/valuesF 
-          UPDATE 
+          OPTIMIZE 
       :EndIf 
     ∇
 
@@ -533,7 +536,7 @@
     ∇ {dict}←clear
       :Access Public
       keysF←valuesF←⍬                            
-      dict←⎕THIS ⋄ UPDATE
+      dict←⎕THIS ⋄ OPTIMIZE
     ∇
 
     ⍝ popitems:  "Removes and returns last (|n) items (pairs) from dictionary as if a LIFO stack.
@@ -589,24 +592,25 @@
           :EndIf
           keysF   ⌷⍨←ix  
           valuesF ⌷⍨←ix 
-          UPDATE ⋄ dict←⎕THIS
+          OPTIMIZE ⋄ dict←⎕THIS
         ∇
     :EndProperty
 
-    ⍝ gradeup, gradedown/gradedn: Returns the indices of the keys in sorted order, either graded up or down.
-    ⍝ Note: Doesn't reorder the dictionary, returns indices reordered..
-    :Property gradeup,gradedown,gradedn
-    :Access Public
-        ∇ ix←get args;⎕TRAP
-          ⎕TRAP←∆TRAP
-          :If args.Name≡'gradeup'
-              ix←⍋keysF
-          :Else  ⍝ gradedown,gradedn
-              ix←⍒keysF
-          :EndIf
-        ∇
-    :EndProperty
+  ⍝ reorder:  
+  ⍝     "Reorder a dictionary in place based on the new indices specified. 
+  ⍝      All the indices of the dictionary must be specified exactly once in the caller's ⎕IO."
+  ⍝ Allows sorting externally by keys, values, or whatever, without losing any keys...
+    ∇{dict}←reorder ix
+     :Access Public
+      ix-←(⊃⎕RSI).⎕IO      ⍝ Adjust indices to reflect caller's index origin, if needbe
+      (ix[⍋ix]≢⍳≢keysF) THROW 11 'Dict.reorder: at least one index value is out of range, missing, or duplicated.'
+      keysF ⌷⍨←⊂ix ⋄ valuesF ⌷⍨←⊂ix 
+      OPTIMIZE ⋄ dict←⎕THIS
+    ∇
 
+  ⍝ namespace: See documentation. Enables a namespace that 
+  ⍝            replicates the dictionaries keys as variable names and
+  ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
     ∇ns←namespace
       :Access Public
       ns←⎕NS ''   
@@ -621,14 +625,15 @@
 
     ⍝ __namespaceTrigger__: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: only in subsidiary namespaces!
-    ∇__namespaceTrigger__ args;unmangleJ
+    ∇__namespaceTrigger__ args;eTrigger;unmangleJ
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Use ⎕JSON unmangling for argument name!
-      unmangleJ←                1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
+      unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
       :TRAP 0
           (unmangleJ args.Name) ##.set1 (⍎args.Name)
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
-          ⎕SIGNAL/'Dict.namespace: Unable to update key-value pair from namespace variable' 11
+          eTrigger←11 'Dict.namespace: Unable to update key-value pair from namespace variable' 
+          ⎕SIGNAL⍨/eTrigger
       :ENDTrap
     ∇
 
@@ -653,15 +658,19 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
-    ∇ {didHash}←UPDATE;min
-    ⍝ Set keysF to be hashed when we actually have a vector of set length.
-    ⍝ Base hash threshold on keysF datatype...
+    ∇ {status}←OPTIMIZE;min
+    ⍝ Set keysF to be hashed whenever keysF changed (but not valuesF).
+    ⍝ Base hash threshold on keysF datatype and key count:
+    ⍝      ptr > dec > flt > int/char/etc
+    ⍝ status: 0= not hashed, 1= hashed just now, 2= already hashed.
     ⍝ If DEBUG≡1:  Sets display form to show # of entries.
-      :If 0=1(1500⌶)keysF  
-      :AndIf min≤≢keysF ⊣ min←2 100 200 500[326 1287 645 ⍳ ⎕DR keysF]  
-          keysF←1500⌶keysF ⋄ didHash←1
+      :If 0<1(1500⌶)keysF                             ⍝ If keysF is hashed, return status←2
+        status←2
       :Else 
-          didHash←0
+        min←2 100 200 500[326 1287 645 ⍳ ⎕DR keysF]   ⍝ Calculate threshold...                                           
+        :If status←min≤≢keysF                         ⍝ If keysF worth hashing
+          keysF←1500⌶keysF                            ⍝ then hash and return status←1
+        :EndIf                                        ⍝ Otherwise, return status←0   
       :EndIf
       :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
@@ -1114,20 +1123,24 @@
 ⍝⍝ d ← d.sortd
 ⍝⍝     Sort a dictionary in place in descending order by keys, returning the dictionary 
 ⍝⍝
-⍝⍝ ix ← d.gradeup
-⍝⍝     Returns the indices of the dictionary sorted in ascending order by keys 
-⍝⍝     (doesn't reorder the dictionary)
-⍝⍝
-⍝⍝ ix ← d.gradedown    
-⍝⍝ ix ← d.gradedn           ⍝ Alias for d.gradedown
-⍝⍝     Returns the indices of the dictionary sorted in descending order by keys 
-⍝⍝     (doesn't reorder the dictionary)
+⍝⍝ d ← d.reorder indices
+⍝⍝     Sort a dictionary in place in order by indices.
+⍝⍝     Indices depend on ⎕IO in the caller environment.
+⍝⍝     All indices of <d> must be present w/o duplication:
+⍝⍝           indices[⍋indices] ≡ ⍳d.len
+⍝⍝     Example: Equivalent of d.sortd; sort dictionary by keys
+⍝⍝           d.reorder ⍋d.keys
+⍝⍝     Example: Sort dictionary by values
+⍝⍝           d.reorder ⍋d.values
+⍝⍝     Example: Make a copy of <d>, but sorted in reverse order by values:
+⍝⍝           d_prime ← d.copy.reorder ⍋d.values
 ⍝⍝
 ⍝⍝ ------------------------------------------------
 ⍝⍝    Fancy Example
 ⍝⍝ ------------------------------------------------
-⍝⍝ Reorganize a dictionary ordered by vals, rather than original entry or keys
-⍝⍝       a←a.copy.clear.update a.items[⍒a.vals]
+⍝⍝ Reorganize a dictionary ordered by vals in descending order, rather than original entry or keys
+⍝⍝      OK       a←a.copy.clear.update a.items[⍒a.vals]
+⍝⍝      BETTER   a.reorder ⍒a.vals
 ⍝⍝ ------------------------------------------------
 ⍝⍝    [NOTES]
 ⍝⍝ ------------------------------------------------
