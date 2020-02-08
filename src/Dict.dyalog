@@ -257,54 +257,54 @@
     ⍝         If a scalar is passed which is not a dictionary, 
     ⍝         it is assumed to be an updated default value.
     ⍝ Returns: NONE
-    ∇ _update objects;kv;list 
-      :IF 0=≢objects                            ⍝ EMPTY?  NOP
-          :Return
-      :ElseIf 0=⍴⍴objects                       ⍝ SCALAR? FAST PATH
-          objects←⊂objects  
-      :Elseif 2=⍴⍴objects                       ⍝ MATRIX? FAST PATH
-          _import 0 1⊃¨⊂list←,objects
-          :IF 2<≢list ⋄ defaultF hasdefaultF←(2⊃list)1 ⋄ :Endif
-          :Return
-      :ElseIF 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
-          _import ↓⍉↑objects ⋄ :Return 
-    ⍝ :Else       →     →     →                 ⍝ One or more miscellaneous objects 
+    isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵} 
+    ∇ _update objects;k;v;o 
+      :If 0=≢objects                            ⍝ EMPTY?  NOP
+      :Elseif 0=⍴⍴objects                       ⍝ SCALAR? FAST PATH
+          defaultF hasdefaultF←(⊃objects) 1 
+      :Elseif 2=⍴⍴objects                       ⍝ COLUMN VECTOR KEYVEC/VALUEVEC? 
+          _import ,objects                      ⍝ ... FAST PATH
+      :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
+          _import ↓⍉↑objects 
+      :Else 
+          k←v←⍬   
+          :For o :in objects  
+              :IF 2=⍴⍴o        ⋄ _import ,o                     ⍝ MATRIX. Handle en masse
+              :Elseif 2=≢o     ⋄ k v,←⊂¨o                       ⍝ K-V Pair. Collect 
+              :Elseif 1≠≢o     ⋄ THROW eBadUpdate               ⍝ Not Scalar. Error.
+              :Elseif isDict o ⋄ _import o.export               ⍝ Import Dictionary
+              :Else            ⋄ defaultF hasdefaultF←(⊃o) 1    ⍝ Set Defaults 
+              :Endif 
+          :EndFor
+          :IF ×≢k  ⋄ _import k v ⋄ :Endif
       :Endif 
-      kv←⍬ ⍬  
-      _import kv⊣{  
-          2=⍴⍴⍵:{                               ⍝ arg: ⍪keys vals [defaults]
-                kv,¨←0 1⊃¨⊂⍵                         
-                2=⍬⍴⍴⍵: _←⍬                     ⍝ No optional default? Done. 
-                1: defaultF hasdefaultF⊢←(2⊃⍵) 1  ⍝ Set default
-          },⍵
-        ⍝ Each non-matrix item must have 2 or 1 members...
-          2=≢⍵:kv,¨←⊂¨⍵                         ⍝ Update key-val pair 
-          isD←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵}     
-          isD ⍵:kv,¨←⍵.export                   ⍝ Import Dictionary
-          1=≢⍵:defaultF hasdefaultF⊢←(⊃⍵) 1     ⍝ Set Defaults
-          THROW eBadUpdate   
-      }¨objects
     ∇
 
-    ⍝ ignore←_import keyVec valVec
+    ⍝ {keys}←_import keyVec valVec [default]. 
+    ⍝ keyVec must be present, but may be 0-len list.
     ⍝ From vectors of keys and values, keyVec valVec, 
     ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
+    ⍝ If default is specified, sets (defaultF hasdefaultF) as well.
     ⍝ Returns: shy keys
-    ∇ {k}←_import (k v)
-          ;ix;old;nk;nv;uniq;kp   ⍝ 0.   k, v: k may have old and new keys, some duplicated.                 
-          →0/⍨0=≢k                ⍝      No keys/vals? Return now.
-          k v←,¨k v               ⍝      Make sure k and v are each vectors...
-          ix←keysF⍳k              ⍝ I.   Process existing (old) keys
-          old←ix<≢keysF           ⍝      Update old keys in place w/ new vals;
-          valuesF[old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
-          →0/⍨~0∊old              ⍝      All old? No more to do; shy return.
-          nk nv←k v/¨⍨⊂~old       ⍝ II.  Process new keys (which may include duplicates)
-          uniq←⍳⍨nk               ⍝      For duplicate keys,... 
-          nv[uniq]←nv             ⍝      ... "accept" last (rightmost) value
-          kp←⊂uniq=⍳≢nk           ⍝      Keep: Create and enclose mask...
-          nk nv←kp/¨nk nv         ⍝      ... of those to keep.
-          (keysF valuesF),← nk nv ⍝ III. Update keys and values fields based on umask.
-          OPTIMIZE                ⍝      New entries: Update hash and shyly return.
+    ∇ {k}←_import vecs
+          ;ix;k;v;kp;old;nk;nv;uniq   
+      k v←,¨2↑vecs   
+      :IF 2<≢vecs
+          (3≠≢vecs) THROW eBadUpdate
+          defaultF hasdefaultF←(2⊃vecs) 1
+      :EndIf
+      →0/⍨0=≢k                    ⍝      No keys/vals? Return now.
+      ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
+      old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
+      valuesF[old/ix]←old/v       ⍝      Duplicates? Keep only the last val for a given ix.
+      →0/⍨~0∊old                  ⍝      All old? No more to do; shy return.
+      nk nv←k v/¨⍨⊂~old           ⍝ II.  Process new keys (which may include duplicates)
+      uniq←⍳⍨nk                   ⍝      For duplicate keys,... 
+      nv[uniq]←nv                 ⍝      ... "accept" last (rightmost) value
+      kp←⊂uniq=⍳≢nk               ⍝      Keep: Create and enclose mask...
+      nk nv←kp/¨nk nv             ⍝      ... of those to keep.
+      (keysF valuesF),← nk nv     ⍝ III. Update keys and values fields based on umask.
+      OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
     ∇
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
