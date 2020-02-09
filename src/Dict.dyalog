@@ -6,18 +6,17 @@
   ⍝ ##.∆DICT:  [x] YES, [ ] NO. 
   ⍝ ##.∆JDICT: [x] YES, [ ] NO.
   :Field Private Shared EXPORT_LIST←'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+  :Field Private Shared ID_MAJOR← ,'⊂Dict⊃,2G⊂99⊃,⊂T⊃,3G⊂99⊃,⊂.⊃'⎕FMT 1 5⍴1↓⎕TS
+  :Field Private Shared ID_CUR←   0
+  :Field Private        ID_MINOR← 0
 
   ⍝ Initialization of APL System Variables
   ⍝ Right now, ⎕CT, ⎕DCT left as same as in #
     (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT)←#.(⎕CT ⎕DCT)
  
   ⍝ Instance Fields and Related
-  ⍝ A. DEBUG and ⎕TRAP fields: See also DEBUG_TRIGGER.
-                   STD_TRAP←               0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
-    :Field Public  DEBUG←                  1 
-    :Field Public  IN_COPY←                0
-    :Field Private ∆TRAP←                  STD_TRAP ⍝ 0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
-    :Field Private DEBUG_WAS←              ⎕NULL  
+  ⍝ A. TRAPPING
+    :Field Private ∆TRAP←                  0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
      unmangleJ←                            1∘(7162⌶)        ⍝ APL strings <--> JSON strings
      mangleJ←                              (0∘(7162⌶))∘⍕
   ⍝ B. Core dictionary fields
@@ -52,21 +51,6 @@
         ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
      :EndTrap
     ∇
-
-  ⍝ DEBUG_TRIGGER: When DEBUG instance variable changes, keep ∆TRAP synchronized...
-  ⍝ For use in Instances only. (See d.copy for use of IN_COPY)
-    ∇ DEBUG_TRIGGER;stdTrap    
-        :Implements Trigger DEBUG
-        :SELECT ⍬⍴DEBUG
-          :CASE DEBUG_WAS 
-          :CASE 1 ⋄ ∆TRAP← 0⍴⎕TRAP 
-                    :IF IN_COPY ⋄ IN_COPY←0 
-                    :Else ⋄  ⎕←'DEBUG ACTIVE' ⋄ :Endif
-                    OPTIMIZE
-          :CASE 0 ⋄ ∆TRAP←  ⎕TRAP← STD_TRAP ⋄ ⎕DF 'Dict[]'   
-        :ENDSELECT
-        DEBUG_WAS←DEBUG 
-    ∇
     
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
@@ -78,18 +62,19 @@
     ∇ new1 struct
       :Implements Constructor
       :Access Public
-       ⎕DF 'Dict[]'  
       :Trap 0
-          _update struct
+          importObjs struct        
+          ID_CUR+←1 ⋄ ⎕DF ID_MAJOR,⍕ID_MINOR←ID_CUR
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
     ∇
+
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
     ∇ new0
       :Implements Constructor
       :Access Public
-      ⎕DF 'Dict[]'
+      ID_CUR+←1 ⋄ ⎕DF ID_MAJOR,⍕ID_MINOR←ID_CUR
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -129,7 +114,7 @@
         ∇ set args;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
           keys←⊃args.Indexers ⋄ vals←args.NewValue
-          _import keys vals
+          importVecs keys vals
         ∇
     :EndProperty
 
@@ -186,12 +171,12 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
-      _import keys vals
+      importVecs keys vals
     ∇
     ∇{dict}←import (keys vals);⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      _import keys vals
+      importVecs keys vals
       dict←⎕THIS
     ∇
 
@@ -203,96 +188,67 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
-      _import (⊂key) (⊂val)
+      importVecs ,∘⊂¨key val
     ∇
 
     ⍝ dict.update ⍵:  
     ⍝ update data into dictionary and/or set default for values of missing keys.
     ⍝ Workhorse for adding objects to dictionaries: 
     ⍝           dictionaries, vectors of (keys values), and key-value pairs.
-    ⍝ Determines the argument types and calls _import as needed. 
+    ⍝ Determines the argument types and calls importVecs as needed. 
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
     ⍝         (e.g. exported via dict1.export)
     ⍝ 
-    ⍝ _update ⍵: Internal utility to be called from top-level routines."
-    ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.
-    ⍝ ∘  SET DEFAULT: SCALAR or 1-ITEM VECTOR that is not a Dict
-    ⍝     dictionary is empty with default←⊃⍵ and hasdefault←1.
-    ⍝     E.g. update 1:    default←1
-    ⍝          update ⊂'':  default←''
-    ⍝ ∘  DICTIONARY IMPORT: SCALAR or 1-ITEM VECTOR that is a Dict
-    ⍝     dictionary's keys and values will be copied from the dictionary ⍵ (fast)
-    ⍝     ⍵ need not be in the class 'dict', but ⍵.export must return a list of (keys values)
-    ⍝ ∘  SET DEFAULT: 0-LENGTH VECTOR (⍬ or '')
-    ⍝     If ⍵≡⍬    dictionary is empty with default ⍬
-    ⍝     If ⍵≡''   dictionary is empty with default ''
-    ⍝ ∘  IMPORT KEYS, VALUES [AND OPT'L DEFAULT]: MATRIX (3×1 or 2×1) using ⍪ (table / comma-bar) 
-    ⍝       2×1 MATRIX:  ⍵ is ⍪Keys_vector Values_vector
-    ⍝       3×1 MATRIX:  ⍵ is ⍪Keys_vector Value_vector Default_scalar
-    ⍝         Equiv. to dict.import 2↑⍵  ⋄ dict.default←⊃2⊃⍵ 
-    ⍝ ∘  MISCELLANY: VECTOR: ⍵ interpreted as 1 or more items: ⍵1 ⍵2 ⍵3 ... 
-    ⍝     For each element ⍵N:
-    ⍝       2=≢⍵N:    ⍵N is a (key value) pair
-    ⍝       9.2=⎕NC'⍵N' and #.DictClass∊⊃⊃⎕CLASS: ⍵N is a Dict instance
-    ⍝       scalar:  ⍵N specifies the default (for missing keys). Normally, this item is first or last.
-    ⍝               If more than one is specified, the last is used.
-    ⍝               Equivalent to dict←⎕NEW dict ⋄ dict.default←⊃⍵N
-    ⍝               To set the default to a null value:
-    ⍝                   null string:  (⊂'')     numeric null:  (⊂⍬)
-    ⍝                   ⎕NULL:        ⎕NULL     0 (zero):      0            
+    ⍝ importObjs ⍵: Internal utility to be called from top-level routines."
+    ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.           
     ∇ {dict}←update initial;⎕TRAP
       :Access Public
       :TRAP 0 
-          _update initial  
+          importObjs initial  
       :Else
           THROW ⎕DMX.EN ((⎕UCS 10),⎕DMX.Message)
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ _update objects: used only internally.
+    ⍝ importObjs objects: used only internally.
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
     ⍝ objects: 
-    ⍝        (⍪keys vals), (key value), dictionary
+    ⍝        (⍪keys vals [default]) OR (key1 val1)(key2 val2)(...) OR dictionary
+    ⍝    OR  (key1 val1) dict2 (key3 val3) dict4...      ⍝ A mix of key-value pairs and dictionaries
     ⍝ Special case:
-    ⍝         If a scalar is passed which is not a dictionary, 
-    ⍝         it is assumed to be an updated default value.
+    ⍝        If a scalar is passed which is not a dictionary, 
+    ⍝        it is assumed to be a default value instead.
     ⍝ Returns: NONE
     isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵} 
-    ∇ _update objects;k;v;o 
+    ∇ importObjs objects;k;v;o 
       :If 0=≢objects                            ⍝ EMPTY?  NOP
       :Elseif 0=⍴⍴objects                       ⍝ SCALAR? FAST PATH
           defaultF hasdefaultF←(⊃objects) 1 
       :Elseif 2=⍴⍴objects                       ⍝ COLUMN VECTOR KEYVEC/VALUEVEC? 
-          _import ,objects                      ⍝ ... FAST PATH
+          importMx objects                      ⍝ ... FAST PATH
       :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
-          _import ↓⍉↑objects 
-      :Else 
-          k←v←⍬   
-          :For o :in objects  
-              :IF 2=⍴⍴o        ⋄ _import ,o                     ⍝ MATRIX. Handle en masse
-              :Elseif 2=≢o     ⋄ k v,←⊂¨o                       ⍝ K-V Pair. Collect 
-              :Elseif 1≠≢o     ⋄ THROW eBadUpdate               ⍝ Not Scalar. Error.
-              :Elseif isDict o ⋄ _import o.export               ⍝ Import Dictionary
-              :Else            ⋄ defaultF hasdefaultF←(⊃o) 1    ⍝ Set Defaults 
+          importVecs ↓⍉↑objects 
+      :Else   
+          :For o :in objects⊣k←v←⍬ 
+              :IF 2=⍴⍴o        ⋄ importMx o                      ⍝ MATRIX. Handle en masse
+              :Elseif 2=≢o     ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
+              :Elseif 1≠≢o     ⋄ THROW eBadUpdate                ⍝ Not Scalar. Error.
+              :Elseif isDict o ⋄ importVecs o.export             ⍝ Import Dictionary
+              :Elseif 2∧.=≢¨o  ⋄ importVec ↓⍉↑o                  ⍝
+              :Else            ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
               :Endif 
           :EndFor
-          :IF ×≢k  ⋄ _import k v ⋄ :Endif
+          :IF ×≢k  ⋄ importVecs k v ⋄ :Endif
       :Endif 
     ∇
 
-    ⍝ {keys}←_import keyVec valVec [default]. 
+    ⍝ {keys}←importVecs (keyVec valVec) 
     ⍝ keyVec must be present, but may be 0-len list.
     ⍝ From vectors of keys and values, keyVec valVec, 
     ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
-    ⍝ If default is specified, sets (defaultF hasdefaultF) as well.
     ⍝ Returns: shy keys
-    ∇ {k}←_import vecs
-          ;ix;k;v;kp;old;nk;nv;uniq   
-      k v←,¨2↑vecs   
-      :IF 2<≢vecs
-          (3≠≢vecs) THROW eBadUpdate
-          defaultF hasdefaultF←(2⊃vecs) 1
-      :EndIf
+    ∇ {k}←importVecs (k v)
+          ;ix;kp;old;nk;nv;uniq     
       →0/⍨0=≢k                    ⍝      No keys/vals? Return now.
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
       old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
@@ -306,6 +262,8 @@
       (keysF valuesF),← nk nv     ⍝ III. Update keys and values fields based on umask.
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
     ∇
+    ⍝ importMx: Imports ⍪keyvec valvec [default]
+    importMx←importVecs{2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
     ⍝         Uses ⊃⊃⎕CLASS in case the object is from a class derived from Dict (as a base class).
@@ -313,7 +271,6 @@
       :Access Public
       newDict←⎕NEW (⊃⊃⎕CLASS ⎕THIS) 
       newDict.import keysF valuesF
-      newDict.(IN_COPY DEBUG)←1 DEBUG
       :IF hasdefaultF ⋄ newDict.default←defaultF ⋄ :ENDIF 
     ∇
 
@@ -339,14 +296,14 @@
     :Property print,hprint,disp,hdisp
     :Access Public
     ∇ r←get args;show;disp 
-      :If 0=≢keysF ⋄ r←⍬ ⋄ :RETURN ⋄ :ENDIF 
+      :If 0=≢keysF ⋄ r←⍬ ⋄ :Return ⋄ :EndIf
       disp←⎕SE.Dyalog.Utils.disp    
       r←↑keysF valuesF  
       :SELECT args.Name    
          :Case 'print'   ⋄ r←           ⍉r
          :Case 'disp'    ⋄ r← 0 1 disp  ⍉r 
          :Case 'hdisp'   ⋄ r← 0 1 disp   r  
-      ⍝  :Case 'hprint'  ⋄ r←            r
+      ⍝  :Case 'hprint'  ⍝ r returned as is
       :EndSelect
     ∇
     :EndProperty
@@ -448,7 +405,7 @@
     ∇ {newvals}←{∆} inc keys;add2;⎕TRAP 
       :Access Public
       ⎕TRAP←∆TRAP
-      add2← { nv←⍺+0 get ⍵ ⋄ nv⊣_import ⍵ nv }
+      add2← { nv←⍺+0 get ⍵ ⋄ nv⊣importVecs ⍵ nv }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :TRAP 11 
           :IF (≢∪keys)=≢keys
@@ -614,7 +571,7 @@
       ns←⎕NS ''   
       :TRAP 0  ⍝ 4 if rank error
         ⍝ If it's not a valid name, use ⎕JSON mangling (may not be useful). If it is valid, mangle is a NOP.
-          (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF 
+          :IF ×≢keysF ⋄ (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
           ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
       :ELSE
           THROW eKeyBadName
@@ -670,7 +627,6 @@
           keysF←1500⌶keysF                            ⍝ then hash and return status←1
         :EndIf                                        ⍝ Otherwise, return status←0   
       :EndIf
-      :IF DEBUG≡1 ⋄ ⎕DF 'Dict[',(⍕≢keysF),']' ⋄ :ENDIF 
     ∇
     ⍝ THROW:    [cond:1] THROW (en message), where en and message are ⎕DMX fields EN and Message.
     ⍝          Field EM is determined by EN.
@@ -1001,12 +957,6 @@
 ⍝⍝
 ⍝⍝ d.clear
 ⍝⍝     Remove all items from the dictionary.
-⍝⍝
-⍝⍝ d.DEBUG ← [1 | 0]   
-⍝⍝ :IF d.DEBUG ⋄ ... ⋄ :ENDIF 
-⍝⍝     If DEBUG is 1, an error will be signalled where it occurs.
-⍝⍝     Otherwise, it will be signalled at the dictionary call (cutback).
-⍝⍝     When DEBUG←1, the # of items in a dictionary is part of its display form.
 ⍝⍝
 ⍝⍝ ------------------------------------------------
 ⍝⍝    DEALING WITH VALUE DEFAULTS
