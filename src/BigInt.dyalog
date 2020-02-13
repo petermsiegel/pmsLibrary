@@ -153,9 +153,9 @@
     ⍝ Set key bigInt constants...
       ⎕FR←645 1287⊃⍨nbits>nbitsMid
       NRX2←nbits
-      NRX2∆←nbits-1      ⍝ NRX2∆:   Experimental (see RXBASE∆). See comments above on NRX2∆.
+      NRX2∆←nbits-1      ⍝ NRX2∆:   Experimental (see RXBASE∆).  
       NRX10←⌊10⍟RX2←2*NRX2
-      RXBASE∆←NRX2∆⍴2    ⍝ RXBASE∆: Experimental (see comments above on NRX2∆).
+      RXBASE∆←NRX2∆⍴2    ⍝ RXBASE∆: Experimental (see NRX2∆).
       RX10←10*NRX10 ⋄ RX10div2←RX10÷2  ⍝ RX10div2: see ∇powU∇
       OFL←{⌊(2*⍵)÷RX10×RX10}(⎕FR=1287)⊃53 93
     ⍝ Report...

@@ -1,6 +1,18 @@
  require Documentation
  ------- -------------
- require:
+ require
+ Description:
+     If called from a function, ensures that supporting or related functions are
+    available in the calling PATH or loads them either quietly or with required information.
+    o  Includes a user command ]require allowing a single string right-argument, where spaces 
+       separate tokens.
+    o  Includes a function call require with option tokens in left arg and object tokens on right.
+ Typical usage:
+    require'dfns:cmpx' 'dict'      - loads cmpx from 'dfns' ws and dict from file path,
+                                     placing both in library (namespace) ⍙⍙.require. 
+    '-l=⎕SE.dfns'require'dfns:'    - loads the dfns ws into ⎕SE.dfns, unless already loaded somewhere.
+    '-f' '-r' require 'dict'       - load dict from file, even if already loaded, and place in # (root).
+  Details:      
   o Ensures for specified APL objects
     (A) that they are* in the calling function's or operator's namespace or ⎕PATH; else,
     (B) loads them from (i) a workspace (*.dws), if wsN: is prefixed, and/or (ii) from  dyalog files.
@@ -8,12 +20,18 @@
   o The objects are specified
     (a) by name alone,
     (b) namespace/directory hierarchy, and name; or
-    (c) workspace, namespace/directory hierarchy, and name, e.g.
-          'fsExt::ns1.[ns2.ns3.]name'
+    (c) namespace/directory hierarchy, and name, e.g.
+          'fsExt::ns1.[ns2.ns3.]name'    'wsName:object_in_ws' (e.g. 'dfns:cmpx')
     which, during a disk search is treated as a search for:
           fsExt/ns1/[ns2/ns3/]name/*.dyalog  AND  fsExt/ns1/[ns2/ns3/]name.dyalog
-    While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
-          ns1[.ns2.ns3] are treated as the full specification of the package.
+    (d) Single : format searches for and loads objects in workspaces:
+            ws:obj  - searches in <ws> for an obj 
+            :obj    - searches in the prior <ws>, already specified, for <obj>
+            ws:     - searches for <ws> and loads everything in it, if found
+      E.g.  ]require dfns:cmpx :and :or myws:     
+      Loads dfns:cmpx, dfns:and, dfns:or and the entirety of workspace <myws>
+      While fsExt or wsN are part of the search path, they are not part of the resulting package specification.
+            ns1[.ns2.ns3] are treated as the full specification of the package.
   o Returns either (a) the namespace in which each object is located, in reference form
                        a←⊃⎕SE.require 'myLib:'      ⍝ Even one item reference is enclosed
                    (b) the status of each search as a string
@@ -25,33 +43,33 @@
     If ⍺ omitted, ⍵ must be a single string with items separated by spaces. In this case,
     options, separated by blanks, are followed by the list of APL objects.
     Note: If ⍺ is not used and ⍵ is a single string, options and APL objects may not
-    contain internal blanks, since they separate items.
+    contain internal blanks, since blanks are used to separate items. Namespace strings
+    must be used, rather than references or strings.
 
   Options:
    Options:        name                              default                   description
    help            -h[elp]                                                     show help info file, then exit.
    info            -i[nfo]                                                     show info on initial defaults, env. variables, then exit.
-   force:          -f[orce]                          0                         force objects to load even if present somewher
+   force:          -f[orce]                          0                         force objects to load even if already in the ⎕PATH.
    debug:          -d[ebug]                          0                         share debugging info
-   callerNs:       -c[aller] nsRef|=nsStr           (the actual caller ns)     ns where <require> is viewed as called from
-   defaultLib:     -l[ibrary] nsRef|=nsStr              ⍙⍙.require *           Put new or forced obnects in <nsRef|nsStr>
-                   nsRef                                (i.e. nsRef of ⎕NC 9)  -lib may be omitted if nsRef is class 9
+   callerNs:       -c[aller] nsRef|=nsStr           (the actual caller ns)     ns where <require> was called from by defaults
+   defaultLib:     -l[ibrary] nsRef|=nsStr           ⍙⍙.require                Put new objects (or all, if -f) in <nsRef|nsStr>
+                   nsRef                             ⍙⍙.require                -lib may be omitted if nsRef is class 9
                    -s[ession] Alias for -lib=⎕SE                               Put new or forced objects in ⎕SE
                    -r[oot]    Alias for -lib=#                                 Put new or forced objects in #
-    outputParms:    -o[utput]=[s|l|ls|sl]                                       Return for each obj: library ref, status, or both
+    outputParms:    -o[utput]=[s|l|ls|sl]                                      Return for each obj: library ref, status, or both
                     Specifies return (output) values, one item for each package listed:
                        s:  status of each package specified, as a string
-                    >  l:  the library used, as a ns ref, for each object (default)
+                    >  l:  the library used, as a ns ref, for all new objects or (if -f) all objects: (default)
                        ls: the library AND the status of each package...
-                       sl: same as -out=ls
+                       sl: same as ls
                        Output options (-o) may be in either case (s|l|sl|S|L|SL).
    quiet:           -q[uiet]
                     If the command was successful, return a shy null (⍬).
                     On failure, returns output per -output option or defaults.
    ends opt list:  --    if  opts in ⍵, right arg., where following packages may start with hyphen.
    E.g.  require '-f  -call=⎕SE.mylib -out=sl --   pkg1 -pkg_with_hyphen pkg3'
-                 opt  opt             opt     opt  pkgs -->     ...       -->
-
+   
  Note 1:  Ensuring libraries are put in ⎕SE, #, ⎕SE.[LIB] or #.[LIB]
           Use -c=⎕SE or -lib=⎕SE.[LIB] to use std library at top session level
           Use -c=# or -lib=#.[LIB] to use std library at top user root level #
@@ -68,7 +86,7 @@
 
   ----------------------
   *  The defaultLib is by default within (prefixed with) the callerNs.
-  ** A simple nsRef by itself (# but not '#') is treated as -l nsRef.
+  ** A simple nsRef by itself (# or myns.subns but not '#' or 'myns.subns') is treated as if prefixed with -l.
 
    ____________________________________________________________________________________________________________
    Simple Examples:
@@ -76,28 +94,27 @@
                                           If not found, load cmpx from workspace dfns into the "standard" library (ns) in the calling namespace.
                                           Updates ⎕PATH as required.
        require 'tinyDict'              -- Searches for <tinyDict> in the calling namespace and ⎕PATH.
-                                          If not found, searches the filesystem (as specified in env. variables FSPATH
- and WSPATH)
+                                          If not found, searches the filesystem (as specified in env. variables FSPATH and WSPATH)
                                           for (a) the directory tinyDict/*.dyalog or (b) the file tinyDict.dyalog.
                                           If found, loads and ⎕FIXes any dyalog files and adjusts ⎕PATH.
-   '-d' require 'src::∆MYgrp' '::∆HERE'  -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
+'-d' require 'src::∆MYgrp' '::∆HERE'   -- Searches (as above); if ∆MYgrp is not found, searches the filesystem as specified,
                                           for files src/∆MYgrp/*.dyalog or src/∆MYgrp.dyalog and loads what is found, adjusting path.
                                           Then, looks for src/∆HERE/*.dyalog and src/∆HERE.dyalog.
-                                          Shows each step of the search verbosely (¯1).
+                                          Shows each step of the search verbosely.
       require 'dfns::'                 -- Searches for namespace dfns in the calling namespace and ⎕PATH.
                                           If not found, loads the entire workspace <dfns> into the standard library (ns), as above.
                                           Adds <dfns> to the ⎕PATH as required.
 ________________________________________________________________________________________________________________
    Syntax 1: rc  pkg_status        ← ['-f'] ['-caller' ns] ['-lib' stdLib | -se | -root] ['-debug'] '-out' 'l'
-                                                                  ∇ package1 [package2 [... packageN]]
+                                     ∇ package1 [package2 [... packageN]]
              rc  lib_ns            ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 's'
-                                                                  ∇ ⍬
-             rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' ∇ ...
-                                                                  ∇ package1 [package2 [... packageN]]
+                                     ∇ ⍬
+             rc  pkg_status libNs  ← ['-f'] ['-caller' ns] ['-lib' stdLib] ['-debug'] '-out' 'sl' 
+                                     ∇ package1 [package2 [... packageN]]
    Syntax 2: [as above]            ← ∇ '[-f] [-caller nsN] [-lib nsL] [-debug] [-out [s|l|sl] {packages...}'
           2a:                        ∇ '[-f] [-caller=nsN] [-lib=nsL] [-debug] [-out=[s|l|sl] {packages...}'
-   Syntax 3: show help info        ←                              ∇ '-HELP'
-             show env/setup info   ←                              ∇ '-info'
+   Syntax 3: show help info        ← ∇ '-HELP'
+             show env/setup info   ← ∇ '-info'
 
 In Syntax 1, each package must be specified as a separate string vector. In this syntax,
    a package name may include spaces. -caller and -lib may be specified in one of two ways:
@@ -114,12 +131,12 @@ generalized for other operating systems. See file system path and library symbol
 <require> "should" otherwise be compatible with other operating systems.
 __________________________________________________________________________________________________________________
 
- Syntax 1: Verify or load packages, update ⎕PATH
+ Syntax 1: Verify or load packages, update ⎕PATH (in the caller namespace ONLY)
            Right arg is a list of packages (each a string)
 __________________________________________________________________________________________________________________
      "Given names of packages:
-         APL objects, namespaces/directories and objects, or
-         workspaces (optionally with namespaces and objects),
+         o  APL objects, namespaces/directories and objects, or
+            workspaces (optionally with namespaces and objects),
      look in the current directory, the ⎕PATH, and on disk in directories set in ⎕SE.∆FSPATH,
      for those packages and, if not in the active workspace, copy them from the file system
      or workspace  into the library specified as the stdLib."
@@ -190,37 +207,17 @@ ________________________________________________________________________________
        return on success OR failure
             <library ns ref> list1 list2
 
- Syntax 2: Return reference to the standard library
+ Syntax 2: Return reference to the current standard library
            Right argument is ⍬
-______________________________________________________________________________________________________________
    ∘ Returns a reference to the specified or default standard library (stdLib).
-     IIa. CODE∊0 1 2 is ignored.  No searching or loading is expected or done.
        E.g. if mathPack is a class, one might "require" it this way:
           require 'mathPack'
        then access it this way:
           myMath ← ⎕NEW (require '').mathPack
- _____________________________________________________________________________________________________________
-  ∘  Returns: namespaceRef
-     The namespace reference for the specified or default library.
-
+ 
  Syntax 3: Help information.
            Right argument is '-HELP'
-_____________________________________________________________________________________________________________
-
->>> FOR ALL SYNTAX FORMS, if the first two arguments in ⍺ are:
-      ['CALLER' ns]
-    then the calling namespace is set from <ns> (which must be a namespace reference, not string),
-    rather than from the calling environment. Use in the user command ]require.
-    Example: (Considers namespace <myCaller> as where pkg1 and pkg2 are run...
-       'CALLER' myCaller '[CALLER].[LIB]' require pkg1 pkg2
-
-    Note: ]require allows the user to override the default library '[CALLER].[LIB]' via the option -lib=ns:
-     Example 1: Put packages in namespace ⎕SE (unless already loaded)
-       ]require -lib=⎕SE  pkg1 pkg2 pkg2
-     Example 2: Put packages in namespace #.utils
-       ]require -lib=#.utils pkg1 pkg2 pkg2
-_____________________________________________________________________________________________________________
-   ∘ Displays help information (from require/documentation.txt).
+_    Displays help information (from require/documentation.txt).
 _____________________________________________________________________________________________________________
 
  Search: What is searched to find each package?

@@ -5,9 +5,11 @@ Description:
     decode a set of 0 or more function call arguments and options(call_specs),
     each a separate scalar (with an option of splitting a string right argument
     into tokens on blanks).
-    Allow <-option arg> pairs where arg can be a scalar of any type, as well as
+    Allow 
+       -option' arg
+    pairs where arg can be a scalar of any type, as well as
     flags (value 1 if present, else 0) and arbitrary default values."
-    Note: Unless Unix conventions, we don't require a distinction between
+    Note: Unlike Unix conventions, we don't require a distinction between
     single-letter options and multi-letter. All hyphen prefixes are removed before
     disambiguation. Thus -s and -string can be the same option or distinct, e.g.
     if string is declared as 'st(ring)' or even 'string()' to distinguish from -s.
@@ -16,7 +18,7 @@ Returns namespace ns with
     ARGS:     ordered list of those arguments not associated with options.
 
 DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and variants)
-  DECLARATIONS (may begin with optional single hyphen, ignored)
+  DECLARATIONS (each declared name may begin with optional single hyphen, ignored)
     name      Option is num 1 if present, else default 0.
     !name     Option is default num 1 if present, but 0 if -noname is specified.
     name=val  Option is <newval> if present, else character <val>
@@ -27,18 +29,21 @@ DECLARATION SPECIFICATIONS: declaration_specs  (defining user options and varian
               -name must be specified in the call  or an error occurs.
               E.g. call format:   '-name=0'  OR   '-name' ⎕IO
   VARIANT OPTIONS (All begin with ⍠, followed by 1 or more capital letters)
-    ⍠A[LL] (default)  |  ⍠L[EFT]
+    ⍠A[LL] |  ⍠L[EFT]
       ⍠ALL    Options may appear before and after arguments.
+              Default.
       ⍠LEFT   Call options appear only to the left of arguments, ending at the
               first item not associated with an option. Options to the right are treated as simple arguments.
               See also Call Option '--'.
-    ⍠T[EXT]  Right arg (⍵) must be a simple string. It will be split into args and options on blanks.
+    ⍠T[EXT]   Right arg (⍵) must be a simple string, rather than a sequence of 
+              option argument pairs, followed by non-option objects. 
+              It will be split into args and options on blanks.
               If ⍠TEXT is specified and ⍵ is not a simple string, an error will be signalled.
     (default) By default, ⍵ is a list, i.e. a vector of objects, with char vectors starting with
-              -ccc for options (where ccc is 1 or more characters), as defined in Call Specifications Below.
-    ⍠STRICT   (No abbrev). If specified, will not be flexible on the use of flags vs regular options.
-               E.g. a declared flag won't be able to be assigned a value EXPLICITLY--
-                   It will be 1 if present and 0 otherwise.
+              -cc for options (where -cc is a hyphen followed by 1 or more characters), 
+              as defined in Call Specifications Below.
+    ⍠STRICT   If specified, a declared flag won't be able to be assigned a value EXPLICITLY--
+                   It will be 1 if present and 0 otherwise-- and can't behave like an explicit regular option.
 
   NOTE: Wherever = is specified above, : may be used instead.
      name=val <==>  name:value       Define option and default

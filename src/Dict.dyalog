@@ -6,25 +6,26 @@
   ⍝ ##.∆DICT:  [x] YES, [ ] NO. 
   ⍝ ##.∆JDICT: [x] YES, [ ] NO.
   :Field Private Shared EXPORT_LIST←'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
-  :Field Private Shared ID_MAJOR← ,'⊂Dict⊃,2G⊂99⊃,⊂T⊃,3G⊂99⊃,⊂.⊃'⎕FMT 1 5⍴1↓⎕TS
-  :Field Private Shared ID_CUR←   0
-  :Field Private        ID_MINOR← 0
+  ⍝ IDs:  Create Display form of form:
+  ⍝       DictDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
+  :Field Public         ID 
+  :Field Private Shared ID_COMMON←  0
 
   ⍝ Initialization of APL System Variables
   ⍝ Right now, ⎕CT, ⎕DCT left as same as in #
-    (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT)←#.(⎕CT ⎕DCT)
+    (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT)←#.(⎕CT ⎕DCT)  ⋄ ⎕PP←34  ⋄ ⎕RL←#.⎕RL
  
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
-    :Field Private ∆TRAP←                  0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
-     unmangleJ←                            1∘(7162⌶)        ⍝ APL strings <--> JSON strings
-     mangleJ←                              (0∘(7162⌶))∘⍕
+    :Field Private ∆TRAP←                   0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
+     unmangleJ←                             1∘(7162⌶)        ⍝ APL strings <--> JSON strings
+     mangleJ←                               (0∘(7162⌶))∘⍕
   ⍝ B. Core dictionary fields
-                   keysF←                  ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
-    :Field Private valuesF←                ⍬
-    :Field Private hasdefaultF←            0
-    :Field Private defaultF←               ''        ⍝ Initial value
-    :Field Private baseclassF←             ⊃⊃⎕CLASS ⎕THIS
+                   keysF←                   ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
+    :Field Private valuesF←                 ⍬
+    :Field Private hasdefaultF←             0
+    :Field Private defaultF←                ''        ⍝ Initial value
+    :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
     :Field Private Shared eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
     :Field Private Shared eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
@@ -63,8 +64,8 @@
       :Implements Constructor
       :Access Public
       :Trap 0
-          importObjs struct        
-          ID_CUR+←1 ⋄ ⎕DF ID_MAJOR,⍕ID_MINOR←ID_CUR
+          importObjs struct      
+          ⎕DF 'Dict:',⍕SET_ID
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
@@ -74,7 +75,13 @@
     ∇ new0
       :Implements Constructor
       :Access Public
-      ID_CUR+←1 ⋄ ⎕DF ID_MAJOR,⍕ID_MINOR←ID_CUR
+       ⎕DF 'Dict:',⍕SET_ID
+    ∇
+    ⍝ SET_ID: Every dictionary has a unique ID included in its display form (see new1, new0).)
+    ∇ id←SET_ID;enc;tsIn
+      :IF ID_COMMON = 0 ⋄ ID_COMMON←?2147483647 ⋄ :ENDIF 
+      ID_COMMON←2147483647 | ID_COMMON+1
+      id←ID←ID_COMMON
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -418,7 +425,7 @@
       :EndTrap 
     ∇
 
-    ∇ {newval}←{∆}dec keys;⎕TRAP
+    ∇ {newval}←{∆} dec keys;⎕TRAP
       :Access Public
        ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
@@ -596,7 +603,7 @@
     ∇ {h}←help;ln 
       :Access Public Shared
       ⍝ Pick up only ⍝⍝ comments!
-      :Trap 0  
+      :Trap 0 1000  
            ⍝ h←⊃⎕NGET '/Users/petermsiegel/MyDyalogLibrary/pmslibrary/docs/Dict.help' 0
            h←⎕SRC ⎕THIS 
            h←3↓¨h/⍨(⊂'⍝⍝')≡¨2↑¨h 
