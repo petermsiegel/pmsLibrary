@@ -15,7 +15,7 @@
   ⍝      Monadic Operands/Functions for BII, BI, BIM
   ⍝      Dyadic Operands/Functions for BII, BI, BIM
   ⍝      Directly-callable Functions ⍵⍵ via bi.⍵⍵.
-  ⍝      BII Special Functions/Operations (More than 2 Args)
+  ⍝      BI Special Functions/Operations (More than 2 Args)
   ⍝      Unsigned Utility Math Routines
   ⍝      Service Routines
   ⍝  Utilities
@@ -214,7 +214,7 @@
 
     ⍝ monadFnsList   [0] single-char symbols [1] multi-char names
     ⍝ dyadFnsList    ditto
-    monadFnsList←'-+|×÷<>!?⊥⊤⍎→√⍳~'('SQRT' 'NOT')
+    monadFnsList←'-+|×÷<>!?⊥⊤⍎→√~⍳'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
     dyadFnsList←('+-×*÷⌊⌈|∨∧⌽√≢⌷','<≤=≥>≠⍴')('FLIP' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
 
@@ -244,20 +244,20 @@
         CASE←(atom fn)∘∊∘⊆
     
         ⍝ Monadic...
-        monad:{                              ⍝ BI: ∆exp∆: See Build BI/BII below.
-            CASE'-':∆exp∆ neg ⍵              ⍝     -⍵
-            CASE'+':∆exp∆ ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIint form.
-            CASE'|':∆exp∆ abs ⍵              ⍝     |⍵
-            CASE'×':∆exp∆⊃∆ ⍵                ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BII.
-            CASE'÷':∆exp∆ recip ⍵            ⍝     ÷⍵:         Why bother?
-            CASE'<':∆exp∆ dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1.
-            CASE'>':∆exp∆ inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
-            CASE'!':∆exp∆ fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
-            CASE'?':∆exp∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
-            CASE'⊥':∆exp∆ 1 bits2BI ⍵        ⍝     bits→BII:    Converts from bit vector to internal
-            CASE'⊤':BI2Bits ⍵                ⍝     BII→bits:    Converts a BII ⍵ to its bit form
-            CASE'~' 'NOT':∆exp∆ not ⍵        ⍝     Bit-level manipulation...
-            CASE'≢':∆exp∆ 1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
+        monad:{                                 ⍝ BI: cond∆exp: See Build BI/BII below.
+            CASE'-':cond∆exp neg ⍵              ⍝     -⍵
+            CASE'+':cond∆exp ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIint form.
+            CASE'|':cond∆exp abs ⍵              ⍝     |⍵
+            CASE'×':cond∆exp⊃∆ ⍵                ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BII.
+            CASE'÷':cond∆exp recip ⍵            ⍝     ÷⍵:         Why bother?
+            CASE'<':cond∆exp dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1.
+            CASE'>':cond∆exp inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
+            CASE'!':cond∆exp fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
+            CASE'?':cond∆exp roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
+            CASE'⊥':cond∆exp 1 bits2BI ⍵        ⍝     bits→BII:    Converts from bit vector to internal
+            CASE'⊤':BI2Bits ⍵                   ⍝     BII→bits:    Converts a BII ⍵ to its bit form
+            CASE'~' 'NOT':cond∆exp not ⍵        ⍝     Bit-level manipulation...
+            CASE'≢':cond∆exp 1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
             CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIint→int:    If in range, returns a std APL number; else error
             CASE'←':∆ ⍵                      ⍝     BIint out:    Returns the BII internal form of ⍵: NRX2∆-bit signed integers
             CASE'⍕':exp ∆ ⍵                  ⍝     BIint→BIext:    Takes a BII internal form vector of integers and returns a BII string
@@ -269,13 +269,13 @@
         ⍝ See discussion of ⍨ above...
         ⍺{
             ⍝ High Use: [Return BigInt]
-            CASE'+':∆exp∆ ⍺ add ⍵
-            CASE'-':∆exp∆ ⍺ sub ⍵
-            CASE'×':∆exp∆ ⍺ mul ⍵
-            CASE'⌽':∆exp∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
-            CASE'÷':∆exp∆ ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
-            CASE'*':∆exp∆ ⍺ pow ⍵                     ⍝ Handles ⍵∊BIint OR, as special case, ⍵∊0.5 '0.5' exactly.
-            CASE'|':∆exp∆ ⍺ rem ⍵                     ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
+            CASE'+':cond∆exp ⍺ add ⍵
+            CASE'-':cond∆exp ⍺ sub ⍵
+            CASE'×':cond∆exp ⍺ mul ⍵
+            CASE'⌽':cond∆exp ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
+            CASE'÷':cond∆exp ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
+            CASE'*':cond∆exp ⍺ pow ⍵                     ⍝ Handles ⍵∊BIint OR, as special case, ⍵∊0.5 '0.5' exactly.
+            CASE'|':cond∆exp ⍺ rem ⍵                     ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
         ⍝ Logical: [Return single boolean, 1∨0]
             CASE'<':⍺ lt ⍵
             CASE'≤':⍺ le ⍵
@@ -284,21 +284,21 @@
             CASE'>':⍺ gt ⍵
             CASE'≠':⍺ ne ⍵
         ⍝ bits
-            CASE'AND':∆exp∆ ⍺ and ⍵
-            CASE'OR':∆exp∆ ⍺ or ⍵
-            CASE'XOR':∆exp∆ ⍺ xor ⍵
-            CASE '⌷' 'FLIP':∆exp∆ ⍺ flipBits ⍵        ⍝ Special meaning: flip bits numbered ⍺ w/in ⍵: BII
+            CASE'AND':cond∆exp ⍺ and ⍵
+            CASE'OR':cond∆exp ⍺ or ⍵
+            CASE'XOR':cond∆exp ⍺ xor ⍵
+            CASE '⌷' 'FLIP':cond∆exp ⍺ flipBits ⍵        ⍝ Special meaning: flip bits numbered ⍺ w/in ⍵: BII
     
         ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
-            CASE'∨' 'GCD':∆exp∆ ⍺ gcd ⍵               ⍝ ⍺∨⍵ as gcd.
-            CASE'∧' 'LCM':∆exp∆ ⍺ lcm ⍵               ⍝ ⍺∧⍵ as lcm.
+            CASE'∨' 'GCD':cond∆exp ⍺ gcd ⍵               ⍝ ⍺∨⍵ as gcd.
+            CASE'∧' 'LCM':cond∆exp ⍺ lcm ⍵               ⍝ ⍺∧⍵ as lcm.
         ⍝
-            CASE'√' 'ROOT':∆exp∆ ⍺ root ⍵             ⍝ See ∇root.
-            CASE'MOD':∆exp∆ ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
-            CASE'SHIFTB':∆exp∆ ⍺ mul2Exp ⍵            ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
-            CASE'SHIFTD':∆exp∆ ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
-            CASE'DIVREM':∆exp∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
-            CASE'MODMUL' 'MMUL':∆exp∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
+            CASE'√' 'ROOT':cond∆exp ⍺ root ⍵             ⍝ See ∇root.
+            CASE'MOD':cond∆exp ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
+            CASE'SHIFTB':cond∆exp ⍺ mul2Exp ⍵            ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+            CASE'SHIFTD':cond∆exp ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
+            CASE'DIVREM':cond∆exp¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+            CASE'MODMUL' 'MMUL':cond∆exp ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
             CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
             err eCANTDO2,∆QT fn                       ⍝ Not found!
         }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵        ⍝ Handle ⍨.   inv ∊ 0 1 2 (not inv, inv, selfie)
@@ -318,12 +318,12 @@
     }
 
     ⍝ Build BI/BII.
-    ⍝ BI: Change ∆exp∆ to string imp.
-    ⍝ BII:  Change ∆exp∆ to null string. Use name BII in place of BI.
-    note'Created operator BII' ⊣⎕FX'_BI_src' '∆exp∆¨?'⎕R'BII' ''   ⊣⎕NR'_BI_src'
-    note'Created operator BI'  ⊣⎕FX'_BI_src' '∆exp∆'  ⎕R 'BI' 'exp'⊣⎕NR'_BI_src'
+    ⍝ BI: Change cond∆exp to string imp.
+    ⍝ BII:  Change cond∆exp to null string. Use name BII in place of BI.
+    note'Created operator BII' ⊣⎕FX'_BI_src' 'cond∆exp¨?'⎕R'BII' ''   ⊣⎕NR'_BI_src'
+    note'Created operator BI'  ⊣⎕FX'_BI_src' 'cond∆exp'  ⎕R 'BI' 'exp'⊣⎕NR'_BI_src'
     _←⎕EX '_BI_src'
-    note'BII/BI Operands:'
+    note'BI/BII Operands:'
     note ⎕FMT(' Monadic:'monadFnsList),[¯0.1]' Dyadic: 'dyadFnsList
     note 55⍴'¯'
     :EndSection BI Executive
@@ -405,7 +405,7 @@
           w←'_'~⍨⍵↓⍨s=¯1        ⍝ Remove initial sign and embedded _ (spacer: ignored).
           (0=≢w)∨0∊w∊⎕D:err eBADBI  ⍝ w must include only ⎕D and at least one.
           d←dLZrun rep ⎕D⍳w       ⍝ d: data portion of BIint
-          ∆z s d                ⍝ If d is zero, return zero. Else (s d)
+          ∆dlzNorm s d                ⍝ If d is zero, return zero. Else (s d)
       }
       ⍝ ∆2Small: Import ⍵ only if (when imported) it is a single-hand integer
       ⍝          i.e. equivalent to a number (|⍵) < RX10.
@@ -419,19 +419,14 @@
     ⍝ export / exp: EXPORT a SCALAR BigInt to external "standard" bigInteger
     ⍝ ---------------------------------------------------------------------
     ⍝    r:BIc ← ∇ ⍵:BIint
-      export←{
-          sw w←⍵
-        ⍝ Not needed:  zero_D≡w:,'0'
-          ('¯'/⍨sw=¯1),⎕D[dLZrun,⍉(NRX10⍴10)⊤|w]
-      }
+    export←{ ('¯'/⍨¯1=⊃⍵),⎕D[dLZrun,⍉(NRX10⍴10)⊤|⊃⌽⍵]}
     exp←export
-    ⍝ ∆z:  r:BIint ←∇ ⍵:BIint
-    ⍝      If ⍵:BIint has data≡zero_D, then return (0 zero_D).
-    ⍝      Else return ⍵ w/ leading zero deleted.
-    ∆z←{w←dLZrun⊃⌽⍵ ⋄ zero_D≡w : 0 zero_D ⋄ (⊃⍵) w}
-    ⍝
-    ⍝ ∆zU2I: If ⍵:BIu IS zero_D, then return internal 0; else ⍺ ⍵
-    ∆zU2I←{zero_D≡⍵:zero_BI ⋄ ⍺ ⍵}
+    ⍝ ∆dlzNorm ⍵:BIint  If ⊃⌽⍵ is zero after removing leading 0's, 
+    ⍝                   return canonical 0 (0 (,0)). 
+    ⍝                   Otherwise return ⍵ w/o leading zeroes.
+    ⍝ ∆norm ⍵:BIint  If ⊃⌽⍵ is zero, ensure sign is 0. Otherwise, pass ⍵ as is.
+    ∆dlzNorm←{zero_D≡w←dLZrun⊃⌽⍵: zero_BI ⋄ (⊃⍵) w}
+    ∆norm←{zero_D≡⊃⌽⍵:zero_BI ⋄ ⍵}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
@@ -484,7 +479,7 @@
       inc←{
           (sw w)←∆ ⍵
           sw=0:1 one_D                     ⍝ ⍵=0? Return 1.
-          sw=¯1:∆z sw(⊃⌽_dec 1 w)           ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆x handles 0.
+          sw=¯1:∆dlzNorm sw(⊃⌽_dec 1 w)          ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). ∆dlzNorm handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
           RX10>î:sw w⊣(⊃⌽w)←î                ⍝ No overflow? Increment and we're done!
           sw w add 1 one_D                 ⍝ Otherwise, do long way.
@@ -493,9 +488,9 @@
       dec←{
           (sw w)←∆ ⍵
           sw=0:¯1 one_D                    ⍝ ⍵ is zero? Return ¯1
-          sw=¯1:∆z sw(⊃⌽_inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆z handles 0.
+          sw=¯1:∆dlzNorm sw(⊃⌽_inc 1 w)           ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). ∆dlzNorm handles 0.
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
-          0≠⊃⌽w:∆z sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
+          0≠⊃⌽w:∆dlzNorm sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
           sw w _sub 1 one_D                 ⍝ Otherwise, do long way.
       }
       not←{
@@ -564,7 +559,7 @@
           dig←,|2⊥⍉sg preDecode bits
         ⍝ Experimental code...
         ⍝ 1∊RX10≤dig:sg,⊂ndnZ 0,dig⊣⎕←'bits2BI: normalizing down'
-          ∆z sg,⊂dig
+          ∆dlzNorm sg,⊂dig
       }
 
     ∇ {yes}←UseTwosComplements yes;_chunkS;_chunkU;_preDecodeS;_preDecodeU
@@ -728,19 +723,19 @@
       }
       div←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          (sa×sw) ∆zU2I (⊃a divU w)
+          ∆norm (sa×sw) (⊃a divU w)
       }
       divRem←{
           (sa a)(sw w)←⍺ ∆ ⍵
-          div rem←a divU w
-          ((sa×sw)∆zU2I div)(sw ∆zU2I rem)
+          quot rem←a divU w
+          (∆norm (sa×sw)quot)(∆norm sw rem)
       }
     ⍝ ⍺ pow ⍵:
     ⍝   General case:  ⍺*⍵ where both are BIint
     ⍝   Special case:  ⍵≡0.5 or '0.5':    sqrt ⍵
     ⍝                  The string must match EXACTLY ('00.5' will fail)
       pow←{
-          (⊂⍵)∊0.5 '0.5':sqrt ⍺    ⍝  ⍺ pow 0.5 → sqrt ⍺
+          0.5 '0.5'∊⍨⊂⍵:sqrt ⍺     ⍝  ⍺ pow 0.5 → sqrt ⍺
           (sa a)(sw w)←⍺ ∆ ⍵
           sa sw∨.=0 ¯1:zero_BI     ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           w≡two_D:1(a mulU a)      ⍝ ⍺*2   ==>   ⍺×⍺
@@ -753,9 +748,9 @@
           sw=0:zero_BI
           sa=0:sw w
           r←,a remU w              ⍝ remU is fast if a>w
-          sa=sw:∆z sa r            ⍝ sa=sw: return (R)        R←sa r
+          sa=sw:∆dlzNorm sa r            ⍝ sa=sw: return (R)        R←sa r
           zero_D≡r:zero_BI            ⍝ sa≠sw ∧ R≡0, return 0
-          ∆z sa a _sub sa r        ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
+          ∆dlzNorm sa a _sub sa r        ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
     res←rem                        ⍝ residue (APL name)
     mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
@@ -774,7 +769,7 @@
           sa=0:0 zero_D                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
         ⍝ Kludge- use unsigned ints... otherwise odd results with neg #s
-          ∆z sa(⊃⌽1 ubits2BI(BI2Bits 1 a)shiftU sw×w)
+          ∆dlzNorm sa(⊃⌽1 ubits2BI(BI2Bits 1 a)shiftU sw×w)
       }
       div2Exp←{
           ⍺ mul2Exp negate ⍵

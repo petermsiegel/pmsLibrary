@@ -1,15 +1,25 @@
 :Namespace ∆MYgrp
   ⍝ >>> ∆MY.dyalog → creates namespce ∆MYgrp and object ##.∆MY  (utility ∆THEIR is avail in ∆MYgrp).
-  ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting STATIC_NS_NM objects within
-  ⍝   APL functions. When ∆MYgrp is created (⎕FIXed), ∆MY is copied into the parent namespace.
-  ⍝ ∘ For an overview, see ∆MYgrp.help
-  ⍝ ∘ We create files in namespaces within various user namespaces based on
-  ⍝   1) the name of the calling (or referenced) function and 2) the namespace in which it resides.
-  ⍝   This class uses a "private" namespace, ⍙⍙.∆MY, inside a namespace ⍙⍙, which supports a "family" of services.
-  ⍝ ∘ While many ⍙⍙ services are only in the top-level spaces # or ⎕SE, ∆MYgrp places its namespace(s) in the
-  ⍝   same namespace that the calling function uses.
-  ⍝ ∘ The namespace should not otherwise be used, or at least select a service name that is associated
-  ⍝   with your own functions or classes, e.g. ⍙⍙.SparseArrays, etc.
+  ⍝ Description: ∆MY and associated functions support a reasonably lightweight way of supporting "static" objects
+  ⍝   (objects that persist across function calls) within APL functions. 
+  ⍝   ∆MY returns a namespace associated with the named, calling function. Best used with TRADFNS or
+  ⍝   DFNS visible in the stack )FNS.
+  ⍝ Simple example:
+  ⍝  ∇ res←{reset}prompt message;my;⎕IO
+  ⍝    my←∆MY ⋄ ⎕IO←0
+  ⍝    :If 0≠⎕NC'reset'
+  ⍝      my.∆RESET←1      ⍝ Allow user way to reset ∆MY.yourname
+  ⍝    :EndIf
+  ⍝    :With my
+  ⍝      :If ∆FIRST                ⍝ First time ∆MY.∆FIRST has been called (perhaps since reset)!
+  ⍝          yourname←⍞↓⍨≢⍞←'Enter your name: '
+  ⍝          yourname←yourname'friend'⊃⍨0=≢yourname~' '
+  ⍝      :EndIf
+  ⍝    :EndWith
+  ⍝    res←⍞↓⍨≢⍞←'Hello, ',my.yourname,'. 'message
+  ⍝  ∇
+  ⍝ ∘ For details, see ∆MYgrp.help
+  
 
     STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
 
@@ -31,22 +41,23 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝     ∆MYX, ∆MY
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ myStat←∆MY
-      myStat←⎕THIS.∆MYX 1    ⍝ ⎕THIS is hardwired below so ∆MY can be relocated.
-    ∇
- ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in this directory name.
-    _←##.⎕FX'⎕THIS'⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
-
+   
+ 
     ∇ myOwnNs←∆MYX callerLvl
-      ;myCallerNs;myName;myOwnNs;⍙;⎕IO
+      ;myCallerNs;myName;⎕IO
     ⍝ For function documentation, see below.
       ⎕IO←0
     ⍝ Determine myName (the user function, or if none, either 'ANON' or 'NULL').
       myName←⎕THIS{(≢⍵)>cl1←1+callerLvl:⍺{⍵≢'':⍵ ⋄ ⍺.ANON}cl1⊃⍵ ⋄ ⍺.NULL}⎕SI
       myCallerNs←callerLvl⊃⎕RSI          ⍝ where caller lives  (ref)...
-      myOwnNs←myCallerNs getStaticNs myName
+      myOwnNs←myCallerNs ⎕THIS.getStaticNs myName
       myOwnNs.∆CALLS+←1
     ∇
+    ⍝ Create <∆MY> as niladic equiv. to <∆MYX 1>.
+      _←⎕FX '∆MYX callerLvl' 'callerLvl' ⎕R '∆MY'  '0'⊣⎕NR '∆MYX'
+    ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in ⎕THIS directory name.
+      _←##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+
 
     ⍝ [internal utility] getStaticNs
     ⍝     'Build a namespace reference from three components:
@@ -76,8 +87,8 @@
 ⍝     Get the current value of a static variable ∆RESET, ∆CALLS, or user variables.
 ⍝     Set a new value for a static variable.
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    ∇ result←{theirNs}∆THEIR argList;thatFnNm;obj;newVal;was
-      ;∆HERE;nc;theirStatNm;theirRef;⎕IO
+    ∇ result←{theirNs}∆THEIR argList
+      ;∆HERE;nc;newVal;obj;thatFnNm;theirRef;theirStatNs;was;⎕IO
       ⎕IO←0
       ∆HERE←0⊃⎕RSI            ⍝ ∆HERE-- ns (ref) where I was called.
 
@@ -87,18 +98,13 @@
            ⋄ :Case 3 ⋄ setGet←'SET' ⋄ thatFnNm obj newVal←argList
            ⋄ :Else ⋄ 11 ⎕SIGNAL⍨'∆THEIR expects 1-3 objects in the right argument, not ',⍕≢⊆argList
       :EndSelect
-
       theirNs←'theirNs'{900⌶⍬:⍵ ⋄ ⍎⍺}∆HERE  ⍝ theirRef: defaults to ∆HERE
-
       :If ~3 4∊⍨theirNs.⎕NC thatFnNm            ⍝ valid (or special) function?
           :If ~(⊂thatFnNm)∊⎕THIS.(NULL ANON)
               ('∆THEIR: Object not a defined function or operator: ',thatFnNm)⎕SIGNAL 11
           :EndIf
       :EndIf
-
       theirStatNs←theirNs getStaticNs thatFnNm
-
-
       :Select setGet
       :Case 'GET' ⍝ Return current obj value.
           :Trap 0
@@ -143,7 +149,7 @@
 ⍝     namespace <static> added, defined as '⍙⍙.∆MY' below, which will contain static info for all such functions.
 ⍝     Thus if a variable 'MATH.BASIC.COS' is copied from workspace BIGINTEGER,
 ⍝     and requires its static data, this is what's needed:
-⍝       'MATH.BASIC.COS' 'MATH.BASIC.⍙⍙.∆MY.COS' ⎕CY 'BIGINTEGER',
+⍝       'MATH.BASIC.COS' 'MATH.BASIC.⍙⍙.∆MY.COS' ⎕CY 'BIGINTEGER'
 ⍝     since MATH.BASIC.⍙⍙.∆MY.COS is the name of the namespace containing static data
 ⍝     associated with MATH.BASIC.COS."
 ⍝ Method used:
@@ -164,9 +170,9 @@
 ⍝       and the niladic function ∆FIRST, if called, responds:
 ⍝           ∆FIRST will return 0 ⍝ This was not the first time ∆MY.∆FIRST was called for this function.
 ⍝    c. To reset ∆FIRST, so it returns 1 on the next call, do
-⍝           ∆MY.∆RESET←1
+⍝           ∆MY.∆RESET←1                      ⍝ From within user function <funcName>
 ⍝        or do
-⍝           ∆THEIR 'funcName'  '∆RESET' 1
+⍝           ∆THEIR 'funcName'  '∆RESET' 1     ⍝ Returns prior setting of ∆RESET (0 or 1) 
 ⍝     NOTE: ∆FIRST returns 0 on every call after the first call to ∆FIRST (unless ∆RESET).
 ⍝           ∆CALLS, which counts calls to ∆MY, not (∆MY.)∆FIRST, will increment forever (unless reset via ∆THEIR '∆CALLS' 1)
 ⍝  3. Returns a reference, <myStat>, to a static namespace for the caller:
@@ -200,7 +206,7 @@
 ⍝           ∆MYNAME     the name of this specific function; do not reset.
 ⍝           ∆MYNS       the namespace this function uses for ∆MY variables; do not reset.
 ⍝           ∆CALLS      the number of times ∆MY has been called; 1 after first call.
-⍝           ∆FIRST      ∆FIRST is actually a function, but if it is queried or set via ∆THEIR, ∆RESET is quietly used.
+⍝           ∆FIRST      ∆FIRST is otherwise a function, but in a ∆THEIR call, it is simply an alias for ∆RESET.
 ⍝
 ⍝   Returns:
 ⍝   I. theirStat: a namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
@@ -223,12 +229,8 @@
 ⍝ ∆MYX: "∆MY utility. Returns the static namespace for the caller level specified."
 ⍝
     ∇
-    ∇ Help
-      HELP
-    ∇
-    ∇ help
-      HELP
-    ∇
+⍝ ALIASES for HELP:  Help, help
+    ⎕FX¨ ('Help' 'HELP')('help' 'HELP')
 
 ⍝∇⍣§./PMSLibrary/∆MY.dyalog§0§ 2018 8 21 21 43 38 381 §åÊtÅZ§0
 
