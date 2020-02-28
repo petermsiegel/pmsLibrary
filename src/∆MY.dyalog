@@ -9,16 +9,16 @@
     ANON EMPTY←'__ANONYMOUS_DFN__' '__EMPTY_FN_STACK__'
 
   ⍝ STARTUP_ITEMS:  Copied into ∆MY namespaces...
-  ⍝     User-level:  ∆FIRST, ∆RESET, ∆DESTROY, ∆MYNAME, ∆MYNS 
+  ⍝     User-level:  ∆FIRST, ∆RESET, ∆DESTROY, ∆NAME, ∆NS 
   ⍝     Internal:    ∆MY_DATA[0 1 2]←fn name, namespace, first flag 
     :Namespace STARTUP_ITEMS
-        ⍝ ⍙MyData: [0] ∆MYNAME [1] ∆MYNS [2] ∆FIRST flag
+        ⍝ ⍙MyData: [0] ∆NAME [1] ∆NS [2] ∆FIRST flag
         ⍙MyData←              '[dummy]' ⎕NULL 1  
         ⎕FX 'now←    ∆FIRST'   'now    (⍙MyData[2])← ⍙MyData[2] 0'
         ⎕FX '{was}←  ∆RESET'   'was    (⍙MyData[2])← ⍙MyData[2] 1'
         ⎕FX 'ex←     ∆DESTROY' 'ex←⎕EX ⍕⎕THIS ⍝ Delete our ∆MY namespace'
-        ⎕FX 'myName← ∆MYNAME'  'myName← ⍙MyData[0]'
-        ⎕FX 'myNs←   ∆MYNS'    'myNs←   ⍙MyData[1]'
+        ⎕FX 'myName← ∆NAME'    'myName← 0⊃⍙MyData'
+        ⎕FX 'myNs←   ∆NS'      'myNs←   1⊃⍙MyData'
     :EndNamespace
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝     ∆MY
@@ -26,7 +26,7 @@
     ∇ myNs←∆MY  
       ;auto;callerNs;myNm;myNsNm;si;⎕IO
     ⍝ Optimized high-use equivalent of: ∆MYX 0 1
-      ⎕IO←0  
+    ⍝USE⍝ ⎕IO←0  
       :IF 2≤≢si←⎕SI 
           myNm←1⊃si
           :IF 0=≢myNm ⋄ myNm←⎕THIS.ANON                 ⍝ FAST (alt: myNm is anon dfn)
@@ -50,8 +50,9 @@
              11 ⎕SIGNAL⍨'∆MY: static namespace not available: ',(⍕callerNs),'.',myNsNm
       :EndSelect     
      ∇
-    ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), hardwiring in ⎕THIS directory name.
-      _←##.⎕FX '⎕THIS' ⎕R (⍕⎕THIS)⊣⎕NR'∆MY'
+    ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), 
+    ⍝  hardwiring in ⎕THIS directory name and enabling commented out code
+      _←##.⎕FX '⎕THIS' '⍝USE⍝' ⎕R (⍕⎕THIS) ''⊣⎕NR'∆MY'
 
     ∆MYX←{
     ⍝ myNs←{callerNs} ∆MYX args  
@@ -82,9 +83,12 @@
       myNs            
     }
 
-  ⍝ ∆OPT: See HELP below...
-    ∆OPT←{⎕IO←0 ⋄ ⍺←0⊃⎕RSI
-      1: _←⍺.⎕FX '(''[^'']*'')+' '(?<!\.)∆MY\b(?!\.)'⎕R '\0' (⍕⍺ ∆MYX ⍵)⍠'UCP' 1⊣⍺.⎕NR ⍵
+  ⍝ ∆OPTIM: See HELP below...
+    ∆OPTIM←{⎕IO←0 ⋄ ⍺←1⊃⎕RSI 
+      nm←⎕SI{0<≢⍵: ⍵ ⋄ 1⊃⍺}⍵
+      qtd← '(''[^'']*'')+' ⋄ myNm←   '(?<!\.)∆MY\b'
+      skip← '\0'           ⋄ myTrue← ⍕⍺ ∆MYX nm
+      1: _←⍺.⎕FX qtd myNm ⎕R skip myTrue⍠'UCP' 1⊣⍺.⎕NR nm
     }
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -100,7 +104,7 @@
   ⍝     namespace ∆MYgrp
   ⍝     function  ∆MY and ∆MYgrp.∆MY     (∆MY is copied from ∆MYgrp to ##.∆MYgrp)
   ⍝     function  ∆MYgrp.∆MYX
-  ⍝     function  ∆MYgrp.∆OPT
+  ⍝     function  ∆MYgrp.∆OPTIM
   ⍝ Description: 
   ⍝   ∆MY and associated functions support a reasonably lightweight way of supporting "static" objects
   ⍝   (objects that persist across function calls) within APL functions. 
@@ -143,16 +147,21 @@
   ⍝
   ⍝  Note: ∆MY is an optimized equivalent to (∆MYX 1). It's about 30% faster.
   ⍝ 
-  ⍝  [caller_ns] ∆MYgrp.∆OPT fn
-  ⍝  Description: takes the function name <fn> specified and replaces IN PLACE any use of ∆MY with the 
-  ⍝  namespace for the fn's ∆MY-space. Allows ∆MY functionality with minimal performance penalty.
+  ⍝  [caller_ns] ∆MYgrp.∆OPTIM  [fn | '']
+  ⍝  Description: Takes the function name <fn> specified or ((1+⎕IO)⊃⎕SI) if 0-length
+  ⍝  and replaces IN PLACE any use of the unprefixed name ∆MY  (i.e. ∆MY or ∆MY,anything) with
+  ⍝  the name (string form) of the fn's ∆MY-space.  The caller_ns defaults to the calling fn's namespace.
+  ⍝  Allows ∆MY functionality with minimal performance penalty.
   ⍝  Details: 
   ⍝    ∘ It initializes the ∆MY-space, leaving any initialization of ∆MY-space variables to 
   ⍝      the fn itself, e.g. via ∆MY.∆FIRST.
-  ⍝    ∘ Only ∆MY not surrounded by dots or alphanumeric characters are replaced.
-  ⍝    ∘ Those in quotes are ignored. To check on the nameclass, etc., of ∆MY, do:
-  ⍝            my ← ∆MY ⋄  ⎕NC 'my'
-  ⍝      since '∆MY' is honored as a quoted string.
+  ⍝    ∘ ∆MY prefixed in any way (##.∆MY or x∆MY) or followed by alphanumerics (∆MYx ∆MY2 etc) are ignored.
+  ⍝      Put positively, ∆MY is replaced in:  ∆MY.∆FIRST, ∆MY.∆RESET, or ∆MY.someVariableName.
+  ⍝    ∘ Any ∆MY within quotes like
+  ⍝         '∆MY'   OR   'Oh, ∆MY!' 
+  ⍝      is ignored. To check on the nameclass, etc., of ∆MY, 
+  ⍝      Try:
+  ⍝         my ← ∆MY ⋄  ⎕NC 'my'     OR    {⎕NC 'my'⊣ my←⍵} ∆MY
   ⍝ 
   ⍝ ------------------------------------------------
   ⍝  Simple example:
