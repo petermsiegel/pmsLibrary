@@ -9,8 +9,8 @@
   ⍝ Special function names:
   ⍝    ANON   When the only function on the stack is an anonymous dfn
   ⍝    EMPTY   When called from calculator mode, with no named fns on the stack.
-    ANON ANONdf  ← '__ANONYMOUS_DFN__'   '∆MY:[ANON DFN]' 
-    EMPTY EMPTYdf← '__EMPTY_FN_STACK__'  '∆MY:[EMPTY STACK]'
+    ANON    ← '__ANONYMOUS_DFN__'   '[ANON DFN]' 
+    EMPTY   ← '__EMPTY_FN_STACK__'  '[EMPTY STACK]'
 
   ⍝ STARTUP_ITEMS:  Copied into ∆MY namespaces...
   ⍝     User-level:  ∆FIRST, ∆RESET, ∆DESTROY, ∆NAME, ∆NS 
@@ -32,11 +32,11 @@
     ⍝ Optimized high-use equivalent of: ∆MYX 0 1
       callerNs←0⊃⎕RSI   ⋄ si←⎕SI 
       :IF 2≤≢si
-          myNm←1⊃si ⋄ myDF←'∆MY:[',myNm,']'
-          :IF 0=≢myNm ⋄ myNm myDF←ANON ANONdf            ⍝ FAST (alt: myNm is anon dfn)
+          myNm myDF←⊂1⊃si  
+          :IF 0=≢myNm ⋄ myNm myDF←ANON            ⍝ FAST (alt: myNm is anon dfn)
           :Endif
       :Else 
-           myNm myDF←EMPTY EMPTYdf
+           myNm myDF←EMPTY  
       :ENDIF 
       myNsNm←STATIC_PREFIX,myNm                   ⍝ FAST  
       :Select callerNs.⎕NC⊂myNsNm 
@@ -45,7 +45,7 @@
           :Case 0
              :IF auto←1   ⍝ Automatically create if new...
                  myNs←callerNs⍎myNsNm⊣myNsNm callerNs.⎕NS STARTUP_ITEMS 
-                 myNs.⎕DF myDF
+                 myNs.⎕DF (⍕callerNs),'.[∆MY].',myDF  
                  myNs.⍙MyData[0 1]←myNm myNs          
              :Else   ⍝ Return ⍬ if new...
                  myNs←⍬
@@ -54,11 +54,6 @@
              11 ⎕SIGNAL⍨'∆MY: static namespace not available: ',(⍕callerNs),'.',myNsNm
       :EndSelect     
      ∇
-
-
-    ⍝ Hardwire key constants
-     _←   'STATIC_PREFIX'   'ANONdf' 'EMPTYdf' 'ANON' 'EMPTY'
-     _←   ⎕FX _ ⎕R (qt∘⍎¨_)⍠'UCP' 1 ⊣⎕NR'∆MY'
 
     ∆MYX←{
     ⍝ myNs←{callerNs} ∆MYX args  
