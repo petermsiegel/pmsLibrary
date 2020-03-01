@@ -1,12 +1,16 @@
 :Namespace ∆MYgrp
  ⍝ See HELP below for documentation
-    ⎕IO←0
-    STATIC_NS_NM←'⍙⍙.∆MY'                ⍝ special namespace for all local fns with ∆MY namespaces...
+
+    ⎕IO←0 ⋄ qt←{'''',⍵,''''}
+  ⍝ special namespace ⍙⍙ within the caller's namespace for all local fns with ∆MY namespaces...
+  ⍝ We use ∆MY_ in place of ∆MY. since it's a bit faster w/ no loss of clarity and separation!
+    STATIC_PREFIX←'⍙⍙.∆MY_'     
 
   ⍝ Special function names:
   ⍝    ANON   When the only function on the stack is an anonymous dfn
   ⍝    EMPTY   When called from calculator mode, with no named fns on the stack.
-    ANON EMPTY←'__ANONYMOUS_DFN__' '__EMPTY_FN_STACK__'
+    ANON ANONdf  ← '__ANONYMOUS_DFN__'   '∆MY:[ANON DFN]' 
+    EMPTY EMPTYdf← '__EMPTY_FN_STACK__'  '∆MY:[EMPTY STACK]'
 
   ⍝ STARTUP_ITEMS:  Copied into ∆MY namespaces...
   ⍝     User-level:  ∆FIRST, ∆RESET, ∆DESTROY, ∆NAME, ∆NS 
@@ -14,8 +18,8 @@
     :Namespace STARTUP_ITEMS
         ⍝ ⍙MyData: [0] ∆NAME [1] ∆NS [2] ∆FIRST flag
         ⍙MyData←              '[dummy]' ⎕NULL 1  
-        ⎕FX 'now←    ∆FIRST'   'now    (⍙MyData[2])← ⍙MyData[2] 0'
-        ⎕FX '{was}←  ∆RESET'   'was    (⍙MyData[2])← ⍙MyData[2] 1'
+        ⎕FX '{now}←  ∆FIRST'   'now←⍙MyData[2] ⋄ ⍙MyData[2]←0 '
+        ⎕FX '{was}←  ∆RESET'   'was←⍙MyData[2] ⋄ ⍙MyData[2]←1 '
         ⎕FX 'ex←     ∆DESTROY' 'ex←⎕EX ⍕⎕THIS ⍝ Delete our ∆MY namespace'
         ⎕FX 'myName← ∆NAME'    'myName← 0⊃⍙MyData'
         ⎕FX 'myNs←   ∆NS'      'myNs←   1⊃⍙MyData'
@@ -24,24 +28,24 @@
 ⍝     ∆MY
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
     ∇ myNs←∆MY  
-      ;auto;callerNs;myNm;myNsNm;si;⎕IO
+      ;auto;callerNs;myDF;myNm;myNsNm;si 
     ⍝ Optimized high-use equivalent of: ∆MYX 0 1
-    ⍝USE⍝ ⎕IO←0  
-      :IF 2≤≢si←⎕SI 
-          myNm←1⊃si
-          :IF 0=≢myNm ⋄ myNm←⎕THIS.ANON                 ⍝ FAST (alt: myNm is anon dfn)
+      callerNs←0⊃⎕RSI   ⋄ si←⎕SI 
+      :IF 2≤≢si
+          myNm←1⊃si ⋄ myDF←'∆MY:[',myNm,']'
+          :IF 0=≢myNm ⋄ myNm myDF←ANON ANONdf            ⍝ FAST (alt: myNm is anon dfn)
           :Endif
       :Else 
-           myNm←⎕THIS.EMPTY
+           myNm myDF←EMPTY EMPTYdf
       :ENDIF 
-      myNsNm←⎕THIS.STATIC_NS_NM,'.',myNm                ⍝ FAST
-      callerNs←0⊃⎕RSI    
+      myNsNm←STATIC_PREFIX,myNm                   ⍝ FAST  
       :Select callerNs.⎕NC⊂myNsNm 
           :Case 9.1 
-              myNs←callerNs⍎myNsNm                      ⍝ FAST
+              myNs←callerNs⍎myNsNm                ⍝ FAST
           :Case 0
              :IF auto←1   ⍝ Automatically create if new...
-                 myNs←callerNs⍎myNsNm⊣myNsNm callerNs.⎕NS ⎕THIS.STARTUP_ITEMS 
+                 myNs←callerNs⍎myNsNm⊣myNsNm callerNs.⎕NS STARTUP_ITEMS 
+                 myNs.⎕DF myDF
                  myNs.⍙MyData[0 1]←myNm myNs          
              :Else   ⍝ Return ⍬ if new...
                  myNs←⍬
@@ -50,9 +54,11 @@
              11 ⎕SIGNAL⍨'∆MY: static namespace not available: ',(⍕callerNs),'.',myNsNm
       :EndSelect     
      ∇
-    ⍝ Copy ∆MY into the **PARENT** ns (# or ⎕SE), 
-    ⍝  hardwiring in ⎕THIS directory name and enabling commented out code
-      _←##.⎕FX '⎕THIS' '⍝USE⍝' ⎕R (⍕⎕THIS) ''⊣⎕NR'∆MY'
+
+
+    ⍝ Hardwire key constants
+     _←   'STATIC_PREFIX'   'ANONdf' 'EMPTYdf' 'ANON' 'EMPTY'
+     _←   ⎕FX _ ⎕R (qt∘⍎¨_)⍠'UCP' 1 ⊣⎕NR'∆MY'
 
     ∆MYX←{
     ⍝ myNs←{callerNs} ∆MYX args  
@@ -74,7 +80,7 @@
           0≠≢myNm: myNm auto
           ⎕THIS.ANON auto     
       }⍵
-      myNsNm←⎕THIS.STATIC_NS_NM,'.',myNm                            ⍝ FAST
+      myNsNm←⎕THIS.STATIC_PREFIX,myNm                            ⍝ FAST
       9.1=nc←⍺.⎕NC⊂myNsNm: ⍺⍎myNsNm                                 ⍝ FAST
       0≠nc: 11 ⎕SIGNAL⍨'∆MYX: static namespace not available: ',(⍕⍺),'.',myNsNm
       ~auto: ⍬
