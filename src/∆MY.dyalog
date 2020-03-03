@@ -20,71 +20,79 @@
         ⍙MyData←               '[dummy]'   ⎕NULL   1  
         ⎕FX '{now}←  ∆FIRST'   'now←⍙MyData[2] ⋄ ⍙MyData[2]←0 '
         ⎕FX '{was}←  ∆RESET'   'was←⍙MyData[2] ⋄ ⍙MyData[2]←1 '
-        ⎕FX '{ex}←   ∆DESTROY' 'ex←{⎕EX ⍕⍵⊣⎕EX ⎕NL 2 3}⎕THIS⊣⎕DF ⎕NULL ⍝ Delete our ∆MY namespace'
+      ⍝ ∆DESTROY: Expunges the current ns ⎕THIS and its contents, only if ⎕THIS≡myNs.
+      ⍝           It won't actually disappear until last reference to it is gone (e.g. on fn return)
+        ⎕FX '{ex}←   ∆DESTROY' 'ex←∆NS{⍺≡⍵:⎕EX ⍕⍺⊣⍺.⎕EX ⎕NL 2+⍳3 ⋄ ⎕SIGNAL 11}⎕THIS⊣⎕DF ⎕NULL ⍝ Delete our ∆MY namespace'
         ⎕FX 'myName← ∆NAME'    'myName← 0⊃⍙MyData'
         ⎕FX 'myNs←   ∆NS'      'myNs←   1⊃⍙MyData'
     :EndNamespace
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝     ∆MY
+⍝     ∆MY, ∆MYX
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    inUseE  ←  '∆MY: static namespace not available:'
+    inUseXE ← '∆MYX: static namespace not available: '
+    callerXE← '∆MYX: Left Arg (caller''s ns) must be a namespace reference' 
     ∇ myNs←∆MY  
       ;auto;callerNs;myDF;myNm;myNsNm;si 
     ⍝ Optimized high-use equivalent of: ∆MYX 0 1
       callerNs←0⊃⎕RSI    
       :IF 2≤≢si←⎕SI 
-          myNm myDF←⊂1⊃si  
-          :IF 0=≢myNm 
-               myNm myDF←ANON                     ⍝ FAST  
-          :Endif
-      :Else 
-          myNm myDF←EMPTY  
-      :ENDIF 
-      myNsNm←STATIC_PREFIX,myNm                   ⍝ FAST  
+          myNm myDF←⊂1⊃si                         ⍝ I. FAST PATH  
+          :IF 0=≢myNm ⋄ myNm myDF←ANON ⋄ :Endif
+      :Else ⋄ myNm myDF←EMPTY ⋄ :ENDIF 
+      myNsNm←STATIC_PREFIX,myNm                   ⍝ II. FAST PATH 
       :Select callerNs.⎕NC⊂myNsNm 
-          :Case 9.1 
-              myNs←callerNs⍎myNsNm                ⍝ FAST
+          :Case 9.1                               ⍝ myNs exists; assumes ⎕DF updated on earlier ∆MY call.
+              myNs←callerNs⍎myNsNm                ⍝ III. FAST PATH AND RETURN
           :Case 0
              :IF auto←1   ⍝ Automatically create if new...
-                 myNs←updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
+                 myNs← callerNs myDF updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
                  myNs.⍙MyData[0 1]←myNm myNs          
              :Else   ⍝ Return ⍬ if new...
                  myNs←⍬
              :EndIf 
           :Else 
-             11 ⎕SIGNAL⍨'∆MY: static namespace not available: ',(⍕callerNs),'.',myNsNm
+             11 ⎕SIGNAL⍨inUseE,(⍕callerNs),'.',myNsNm
       :EndSelect     
      ∇
 
-     ∇  {myNs}←updateDF myNs 
-        myNs.⎕DF (⍕callerNs),'.[∆MY].',myDF  
+   ⍝ ACTIVE_updateDF ⍵: ⎕FIX-time option
+   ⍝    ⍵=1: Use friendly display form (at cost of 20% of ∆MY call speed)
+   ⍝         path.[∆MY].fn_name, where path might be #.ns1.ns2 and fn_name is the calling function for ∆MY.
+   ⍝    ⍵=0: Use actual path name for ∆MY display form.
+   ⍝ updateDF ⍵@R returns ⍵, ref for the namespace being updated.
+     ∇  true←ACTIVATE_updateDF true
+        :If true ⋄  updateDF←{ clr mydf←⍺ ⋄ ⍵⊣ ⍵.⎕DF (⍕clr),'.[∆MY].',mydf }
+        :Else    ⋄  updateDF←⊢         
+        :EndIf 
      ∇
-     ⍝ updateDF←⊢                       ⍝ 20% faster without ⎕DF change...
+     ACTIVATE_updateDF 1
 
-    ∆MYX←{
-    ⍝ myNs←{callerNs} ∆MYX args  
+     ∆MYX←{
+    ⍝ myNs← [callerNs@R] ∆MYX args@(I B | S B)  
      ⍝ ;auto;callerNs;fnLvl;myNm;myNsNm;si;⎕IO
-      ⍝ args: Either   fnLvl [auto=1]  OR  myNm [auto=1]
+      ⍝ args: Either   fnLvl@I [auto=1]  OR  myNm@S [auto=1]
       ⍝ fnLvl:  An int n: get the n-th function on the stack after this one.
       ⍝         n=0: Get the function that called this one (1⊃⎕SI), in general ((1+n)⊃⎕SI).
       ⍝ myNm:   The simple name of the calling/queried function
       ⍝ auto:   1: If no ∆MYspace has been created for the fn, create and return its ref.
       ⍝         0: If no ∆MYspace has been created for the fn, don't create it; return ⍬. 
       ⍺←0⊃⎕RSI ⋄ callerNs←⍺  
-      9≠⎕NC 'callerNs': '∆MYX: Left Arg (caller''s ns) must be a namespace reference' ⎕SIGNAL 11 
+      9≠⎕NC 'callerNs':  callerXE ⎕SIGNAL 11 
       (myNm myDF) auto←{  
           arg1 auto←2↑(⊆⍵),1   
           0=80|⎕DR arg1: ((0=≢myNm)⊃(myNm myNm) EMPTY) auto ⊣ myNm←arg1
-          fnLvl←1+arg1  
-          fnLvl≥≢⎕SI: EMPTY auto
-          myNm←fnLvl⊃⎕SI  
+          fnLvl←arg1 ⋄ si←2↓⎕SI 
+          fnLvl≥≢si: EMPTY auto
+          myNm←fnLvl⊃si  
           0≠≢myNm: (myNm myNm) auto
           ANON auto     
       }⍵
-      myNsNm←⎕THIS.STATIC_PREFIX,myNm                                       ⍝ FAST
-      9.1=nc←callerNs.⎕NC⊂myNsNm: myNs←updateDF callerNs⍎myNsNm    ⍝ FAST
-      0≠nc: 11 ⎕SIGNAL⍨'∆MYX: static namespace not available: ',(⍕callerNs),'.',myNsNm
+      myNsNm←STATIC_PREFIX,myNm                                       ⍝ FAST
+      9.1=nc←callerNs.⎕NC⊂myNsNm: myNs←callerNs⍎myNsNm    ⍝ FAST
+      0≠nc: 11 ⎕SIGNAL⍨inUseXE,(⍕callerNs),'.',myNsNm
       ~auto: ⍬
-      myNs←updateDF ⍎myNsNm callerNs.⎕NS ⎕THIS.STARTUP_ITEMS 
+      myNs←callerNs myDF updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
       myNs.⍙MyData[0 1]←myNm myNs  
       myNs            
     }
