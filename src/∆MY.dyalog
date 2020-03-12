@@ -4,7 +4,8 @@
     ⎕IO←0 ⋄ qt←{'''',⍵,''''}
   ⍝ special namespace ⍙⍙ within the caller's namespace for all local fns with ∆MY namespaces...
   ⍝ We use ∆MY_ in place of ∆MY. since it's a bit faster w/ no loss of clarity and separation!
-    STATIC_PREFIX←'⍙⍙.∆MY_'     
+    STATIC_NS←     '⍙⍙'
+    STATIC_PREFIX← STATIC_NS,'.∆MY_'     
 
   ⍝ Special function names:
   ⍝    ANON   When the only function on the stack is an anonymous dfn
@@ -26,35 +27,6 @@
         ⎕FX 'myName← ∆NAME'    'myName← 0⊃⍙MyData'
         ⎕FX 'myNs←   ∆NS'      'myNs←   1⊃⍙MyData'
     :EndNamespace
-⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝     ∆MY, ∆MYX
-⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-    inUseE  ←  '∆MY: static namespace not available:'
-    inUseXE ← '∆MYX: static namespace not available: '
-    callerXE← '∆MYX: Left Arg (caller''s ns) must be a namespace reference' 
-    ∇ myNs←∆MY  
-      ;auto;callerNs;myDF;myNm;myNsNm;si 
-    ⍝ Optimized high-use equivalent of: ∆MYX 0 1
-      callerNs←0⊃⎕RSI    
-      :IF 2≤≢si←⎕SI 
-          myNm myDF←⊂1⊃si                         ⍝ I. FAST PATH  
-          :IF 0=≢myNm ⋄ myNm myDF←ANON ⋄ :Endif
-      :Else ⋄ myNm myDF←EMPTY ⋄ :ENDIF 
-      myNsNm←STATIC_PREFIX,myNm                   ⍝ II. FAST PATH 
-      :Select callerNs.⎕NC⊂myNsNm 
-          :Case 9.1                               ⍝ myNs exists; assumes ⎕DF updated on earlier ∆MY call.
-              myNs←callerNs⍎myNsNm                ⍝ III. FAST PATH AND RETURN
-          :Case 0
-             :IF auto←1   ⍝ Automatically create if new...
-                 myNs← callerNs myDF updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
-                 myNs.⍙MyData[0 1]←myNm myNs          
-             :Else   ⍝ Return ⍬ if new...
-                 myNs←⍬
-             :EndIf 
-          :Else 
-             11 ⎕SIGNAL⍨inUseE,(⍕callerNs),'.',myNsNm
-      :EndSelect     
-     ∇
 
    ⍝ ACTIVE_updateDF ⍵: ⎕FIX-time option
    ⍝    ⍵=1: Use friendly display form (at cost of 20% of ∆MY call speed)
@@ -68,7 +40,27 @@
      ∇
      ACTIVATE_updateDF 1
 
-     ∆MYX←{
+⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝     ∆MY, ∆MYX
+⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    baseInUseE←   '∆MY: base namespace for statics not available: '
+    userInUseE←   '∆MY: user static namespace not available: '
+    callerE ←     '∆MYX: Left Arg (caller''s ns) must be a namespace reference' 
+  ⍝ Optimized fast path for high-use equivalent of: ∆MYX 0 1 
+    ∇ myNs←∆MY
+     :Trap 0 
+        myNs←(0⊃⎕RSI)⍎STATIC_PREFIX,1⊃⎕SI  
+     :Else
+        :Trap 0  
+          myNs←(0⊃⎕RSI) ∆MYX 1 
+        :Else    
+          ⎕SIGNAL/⎕DMX.(EM EN) 
+        :EndTrap
+      :EndTrap 
+    ∇ 
+
+    ∇ myNs← {callerNs} ∆MYX args
+         ; auto; myNm; myDF; myNsNm
     ⍝ myNs← [callerNs@R] ∆MYX args@(I B | S B)  
      ⍝ ;auto;callerNs;fnLvl;myNm;myNsNm;si;⎕IO
       ⍝ args: Either   fnLvl@I [auto=1]  OR  myNm@S [auto=1]
@@ -77,8 +69,11 @@
       ⍝ myNm:   The simple name of the calling/queried function
       ⍝ auto:   1: If no ∆MYspace has been created for the fn, create and return its ref.
       ⍝         0: If no ∆MYspace has been created for the fn, don't create it; return ⍬. 
-      ⍺←0⊃⎕RSI ⋄ callerNs←⍺  
-      9≠⎕NC 'callerNs':  callerXE ⎕SIGNAL 11 
+      :IF 900⌶0 
+         callerNs←0⊃⎕RSI 
+      :Elseif 9≠⎕NC 'callerNs' 
+         callerE ⎕SIGNAL 11
+      :ENDIF 
       (myNm myDF) auto←{  
           arg1 auto←2↑(⊆⍵),1   
           0=80|⎕DR arg1: ((0=≢myNm)⊃(myNm myNm) EMPTY) auto ⊣ myNm←arg1
@@ -87,22 +82,31 @@
           myNm←fnLvl⊃si  
           0≠≢myNm: (myNm myNm) auto
           ANON auto     
-      }⍵
-      myNsNm←STATIC_PREFIX,myNm                                       ⍝ FAST
-      9.1=nc←callerNs.⎕NC⊂myNsNm: myNs←callerNs⍎myNsNm    ⍝ FAST
-      0≠nc: 11 ⎕SIGNAL⍨inUseXE,(⍕callerNs),'.',myNsNm
-      ~auto: ⍬
-      myNs←callerNs myDF updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
-      myNs.⍙MyData[0 1]←myNm myNs  
-      myNs            
-    }
+      }args 
+      :Select callerNs.⎕NC⊂myNsNm← STATIC_PREFIX,myNm 
+          :Case 0
+              :IF auto   ⍝ auto? Automatically create myNs if new...
+                 :IF ~0 9.1∊⍨callerNs.⎕NC⊂STATIC_NS
+                      11 ⎕SIGNAL⍨baseInUseE,(⍕callerNs),'.',STATIC_NS 
+                 :ENDIF  
+                 myNs← callerNs myDF updateDF ⍎myNsNm callerNs.⎕NS STARTUP_ITEMS 
+                 myNs.⍙MyData[0 1]←myNm myNs          
+              :Else     ⍝ ~auto: Don't create myNs; return ⍬
+                 myNs←⍬
+              :EndIf 
+          :Case 9.1    ⍝ myNs exists; assume created on ∆MYX call. (Never reached via ∆MY).
+              myNs←callerNs⍎myNsNm               
+          :Else 
+              11 ⎕SIGNAL⍨userInUseE,(⍕callerNs),'.',myNsNm
+      :EndSelect     
+    ∇         
 
   ⍝ ∆OPTIM: See HELP below...
     ∆OPTIM←{⎕IO←0 ⋄ ⍺←1⊃⎕RSI 
       nm←⎕SI{0<≢⍵: ⍵ ⋄ 1⊃⍺}⍵
-      qtd← '(''[^'']*'')+' ⋄ myNm←   '(?<!\.)∆MY\b'
-      skip← '\0'           ⋄ myTrue← ⍕⍺ ∆MYX nm
-      1: _←⍺.⎕FX qtd myNm ⎕R skip myTrue⍠'UCP' 1⊣⍺.⎕NR nm
+      skipP← '(''[^'']*'')+|⍝.*' ⋄ nameP←  '(?<!\.)∆MY\b'
+      skipA← '\0'                ⋄ nameA←  ⍕⍺ ∆MYX nm
+      1: _←⍺.⎕FX skipP nameP ⎕R skipA nameA ⍠'UCP' 1⊣⍺.⎕NR nm
     }
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -169,7 +173,7 @@
   ⍝  Details: 
   ⍝    ∘ It initializes the ∆MY-space, leaving any initialization of ∆MY-space variables to 
   ⍝      the fn itself, e.g. via ∆MY.∆FIRST.
-  ⍝    ∘ ∆MY prefixed in any way (##.∆MY or x∆MY) or followed by alphanumerics (∆MYx ∆MY2 etc) are ignored.
+  ⍝    ∘ ∆MY prefixed in any way (##.∆MY or x∆MY) or followed by alphanumerics (∆MYx ∆MY000 etc) are ignored.
   ⍝      Put positively, ∆MY is replaced in:  ∆MY.∆FIRST, ∆MY.∆RESET, or ∆MY.someVariableName.
   ⍝    ∘ Any ∆MY within quotes like
   ⍝         '∆MY'   OR   'Oh, ∆MY!' 

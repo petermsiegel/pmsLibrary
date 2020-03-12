@@ -5,11 +5,11 @@
   ⍝ ##.Dict:   [x] YES, [ ] NO. 
   ⍝ ##.∆DICT:  [x] YES, [ ] NO. 
   ⍝ ##.∆JDICT: [x] YES, [ ] NO.
-  :Field Private Shared EXPORT_LIST←'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+  :Field Private Shared EXPORT_LIST← ⍬  ⍝ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
   ⍝ IDs:  Create Display form of form:
   ⍝       DictDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
   :Field Public         ID 
-  :Field Private Shared ID_COMMON←  0
+  :Field Private Shared ID_COMMON←  2147483647 | 31  24 60 60 1000⊥¯1 0 0 0 0+¯5↑⎕TS 
 
   ⍝ Initialization of APL System Variables
   ⍝ Right now, ⎕CT, ⎕DCT left as same as in #
@@ -24,7 +24,7 @@
                    keysF←                   ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
     :Field Private valuesF←                 ⍬
     :Field Private hasdefaultF←             0
-    :Field Private defaultF←                ''        ⍝ Initial value
+    :Field Private defaultF←                ''        ⍝ Default value (hidden until hasdefaultF is 1)
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
     :Field Private Shared eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
@@ -65,7 +65,7 @@
       :Access Public
       :Trap 0
           importObjs struct      
-          ⎕DF 'Dict:',⍕SET_ID
+          ⎕DF 'Dict:',SET_ID
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
@@ -75,13 +75,13 @@
     ∇ new0
       :Implements Constructor
       :Access Public
-       ⎕DF 'Dict:',⍕SET_ID
+       ⎕DF 'Dict:',SET_ID
     ∇
     ⍝ SET_ID: Every dictionary has a unique ID included in its display form (see new1, new0).)
-    ∇ id←SET_ID;enc;tsIn
-      :IF ID_COMMON = 0 ⋄ ID_COMMON←?2147483647 ⋄ :ENDIF 
-      ID_COMMON←2147483647 | ID_COMMON+1
-      id←ID←ID_COMMON
+    ⍝         Initial # set based on current day, hr, min, sec, ms when Dict class is first ⎕FIXed.
+    ⍝ Returns ⍕ID.
+    ∇ id←SET_ID
+      id ← ⍕ID ← ID_COMMON ← 2147483647 | ID_COMMON + 1
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -620,21 +620,14 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
-    ∇ {status}←OPTIMIZE;min
-    ⍝ Set keysF to be hashed whenever keysF changed (but not valuesF).
-    ⍝ Base hash threshold on keysF datatype and key count:
-    ⍝      ptr > dec > flt > int/char/etc
-    ⍝ status: 0= not hashed, 1= hashed just now, 2= already hashed.
-    ⍝ If DEBUG≡1:  Sets display form to show # of entries.
-      :If 0<1(1500⌶)keysF                             ⍝ If keysF is hashed, return status←2
-        status←2
-      :Else 
-        min←2 100 200 500[326 1287 645 ⍳ ⎕DR keysF]   ⍝ Calculate threshold...                                           
-        :If status←min≤≢keysF                         ⍝ If keysF worth hashing
-          keysF←1500⌶keysF                            ⍝ then hash and return status←1
-        :EndIf                                        ⍝ Otherwise, return status←0   
-      :EndIf
+    ∇ {status}←OPTIMIZE 
+    ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is never called).
+    ⍝ While it is usually of no benefit to hash small key vectors of simple integers or characters,
+    ⍝ it takes about 25% longer to check datatypes and ~15% simply to check first whether keysF is already hashed. 
+    ⍝ So we just hash keysF whenever it changes!
+      keysF←1500⌶keysF                                                               
     ∇
+    
     ⍝ THROW:    [cond:1] THROW (en message), where en and message are ⎕DMX fields EN and Message.
     ⍝          Field EM is determined by EN.
     ⍝          If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
