@@ -310,7 +310,7 @@
          :Case 'print'   ⋄ r←           ⍉r
          :Case 'disp'    ⋄ r← 0 1 disp  ⍉r 
          :Case 'hdisp'   ⋄ r← 0 1 disp   r  
-      ⍝  :Case 'hprint'  ⍝ r returned as is
+         :Case 'hprint'  ⍝ r returned as is
       :EndSelect
     ∇
     :EndProperty
@@ -408,7 +408,7 @@
     ⍝    ⍺ must be conformable to ⍵ (same shape or scalar)
     ⍝    Processes keys left to right: If a key is repeated, increments accumulate.
     ⍝  Returns: Newest values (will be incremental, if a key is repeated).
-    ⍝  NOTE: Forces a default of 0, for undefined keys.
+    ⍝  NOTE: Forces a default value of 0, for undefined keys.
     ∇ {newvals}←{∆} inc keys;add2;⎕TRAP 
       :Access Public
       ⎕TRAP←∆TRAP
