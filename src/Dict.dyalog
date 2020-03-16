@@ -2,10 +2,13 @@
 ⍝ Documentation is provided in detail at the bottom of this class.
 
 ⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
-  ⍝ ##.Dict:   [x] YES, [ ] NO. 
-  ⍝ ##.∆DICT:  [x] YES, [ ] NO. 
-  ⍝ ##.∆JDICT: [x] YES, [ ] NO.
-  :Field Private Shared EXPORT_LIST← ⍬  ⍝ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+⍝ If exportSelection[n]=1, item [n] will be exported to ##
+⍝  n     Is exported to ##
+⍝ [0]    Dict   
+⍝ [1]    ∆DICT   
+⍝ [2]    ∆JDICT 
+  exportSelection←1 1 1
+  :Field Private Shared EXPORT_LIST← exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
   ⍝ IDs:  Create Display form of form:
   ⍝       DictDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
   :Field Public         ID 
@@ -79,9 +82,13 @@
     ∇
     ⍝ SET_ID: Every dictionary has a unique ID included in its display form (see new1, new0).)
     ⍝         Initial # set based on current day, hr, min, sec, ms when Dict class is first ⎕FIXed.
-    ⍝ Returns ⍕ID.
-    ∇ id←SET_ID
-      id ← ⍕ID ← ID_COMMON ← 2147483647 | ID_COMMON + 1
+    ⍝ Returns ⍕ID, after incrementing by 1.
+    ∇ idStr←SET_ID
+      idStr ← ⍕ID ← ID_COMMON ← 2147483647 | ID_COMMON + 1
+    ∇
+
+    ∇ destroy
+      :Implements Destructor
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -108,12 +115,9 @@
           :If ~0∊found←ix<≢keysF
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
-            ⍝ Note [Special Backslash]
-            ⍝ valuesF may start with a namespace, which has no fill item (leading to a NONCE ERROR).
-            ⍝ Prefix with a 0 before expanding to ensure a valid fill; afterwards, remove prefix.  
-              vals←1↓(1,found)\0,valuesF[found/ix]     ⍝ See Note [Special Backslash]
-              ((~found)/vals)←⊂defaultF      ⍝ Add defaults
-              vals⍴⍨←shape                   ⍝ If input parm is scalar, vals must be as well...
+             vals← found \fillZero valuesF[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [Special Backslash]
+              ((~found)/vals)←⊂defaultF                 ⍝ Add default values for slots just inserted.
+              vals⍴⍨←shape                              ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
           :Else
                THROW eHasNoDefault
           :EndIf
@@ -153,7 +157,7 @@
           vals←keyIndex[keys]
       :ELSE 
           nd←~d←defined keys
-          vals←1↓(1,d)\0,keyIndex[d/keys]      ⍝ See Note [Special Backslash] above
+          vals← d \fillZero keyIndex[d/keys]  ⍝ See Note [Special Backslash] above
           (nd/vals)←⊂def
       :ENDIF
     ∇
@@ -204,7 +208,7 @@
     ⍝           dictionaries, vectors of (keys values), and key-value pairs.
     ⍝ Determines the argument types and calls importVecs as needed. 
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
-    ⍝         (e.g. exported via dict1.export)
+    ⍝         (e.g. one exported via dict1.export)
     ⍝ 
     ⍝ importObjs ⍵: Internal utility to be called from top-level routines."
     ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.           
@@ -250,7 +254,7 @@
     ∇
 
     ⍝ {keys}←importVecs (keyVec valVec) 
-    ⍝ keyVec must be present, but may be 0-len list.
+    ⍝ keyVec must be present, but may be 0-len list [call is then a nop].
     ⍝ From vectors of keys and values, keyVec valVec, 
     ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
     ⍝ Returns: shy keys
@@ -327,8 +331,8 @@
     ⍝     "For efficiency, returns the keysF vector, rather than one index element
     ⍝      at a time. Keys may be retrieved, but not set.
     ⍝      In contrast, Values/Vals works element by element to allow direct updates (q.v.)."
-    ⍝ k ← keys              returns all Keys in entry order
-    ⍝ k ← keys[ix1 ix2...]  returns zero or more keys by index (user origin).
+    ⍝ k ← d.keys              returns all Keys in entry order
+    ⍝ k ← d.keys[ix1 ix2...]  returns zero or more keys by index (user origin).
     :Property keys,key
     :Access Public
         ⍝ get: retrieves keys
@@ -352,10 +356,10 @@
           vals←valuesF[ix]     ⍝ Always scalar-- APL handles ok even if 1-elem vector
         ∇
         ⍝ set: sets Values, not keysF
-        ∇ set args;newvals;ix
+        ∇ set args;newval;ix
           ix←⊃args.Indexers
-          newvals←args.NewValue
-          valuesF[ix]←newvals
+          newval←args.NewValue
+          valuesF[ix]←newval
         ∇
         ∇ r←shape
           r←⍴valuesF
@@ -620,6 +624,18 @@
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
 
+    ⍝ Note [Special Backslash]
+    ⍝ fillZero: an operator that uses 0 as its fill item, rather than the first element.
+    ⍝    out ← bool \fillZero in          
+            ⍝ We use expand in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
+            ⍝ valuesF[...] may include namespaces or other items w/o a fill value. 
+            ⍝ If the first item in  ⍵, during an expand operation ⍺\⍵, contains such an item, a NONCE ERROR occurs,
+            ⍝ We resolve this using the equivalent of: 
+            ⍝       fillZero←{fi←0 ⋄ 1↓(1,⍺)⍺⍺ fi,⍵}, where fi is the fill item, ⍵ a vector, ⍺ a selection suitable for ⍺\⍵
+            ⍝ effectively replacing \ with \fill0 where required as in:
+            ⍝       vals←found \fillZero valuesF[found/ix]  
+      fillZero←{fi←0 ⋄ 1↓(1,⍺)⍺⍺ fi,⍵}
+      
     ∇ {status}←OPTIMIZE 
     ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is never called).
     ⍝ While it is usually of no benefit to hash small key vectors of simple integers or characters,
