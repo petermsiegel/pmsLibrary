@@ -53,11 +53,10 @@
      h ←¯1↓∊h ,¨lineEnd
  :EndIf
  ∇
- ⍝ ∆HEREf -- a "fast" version that has no options. 
+ ⍝ ⍙HERE -- a "fast" version that has no options. 
  ⍝   Grabs contiguous comment lines only (not blank ones), 
  ⍝   returning a vector of (0 or more) strings with '⍝⍝...' lines omitted (as comments),
  ⍝   and all '⍝...' lines returned sans initial '⍝'.
  ∇h←⍙HERE;⎕IO;⎕ML       
- ⎕IO ⎕ML←0 1 ⋄ h←⎕NR⊃1 0⌷⎕STACK                                                                                    
- h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\'⍝'=⊃¨h←{(+/∧\' '=⍵)↓⍵}¨(1+1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}h
+ h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\'⍝'=⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨(1+1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
 ∇

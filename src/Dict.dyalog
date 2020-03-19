@@ -1,23 +1,24 @@
 :Class DictClass
 ⍝ Documentation is provided in detail at the bottom of this class.
 
+⍝ Initialization of APL System Variables
+⍝ Right now, ⎕CT, ⎕DCT left as same as in #
+    (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT)←#.(⎕CT ⎕DCT)  ⋄ ⎕PP←34  ⋄ ⎕RL←#.⎕RL
+ 
 ⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
 ⍝ If exportSelection[n]=1, item [n] will be exported to ##
 ⍝  n     Is exported to ##
 ⍝ [0]    Dict   
 ⍝ [1]    ∆DICT   
 ⍝ [2]    ∆JDICT 
-  exportSelection←1 1 1
+  exportSelection← (1∊'⍙⍙'⍷⍕⎕THIS)⊃ (1 1 1)(1 1 1)     ⍝ Copy all utilities to ## in each case...
   :Field Private Shared EXPORT_LIST← exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+ 
   ⍝ IDs:  Create Display form of form:
   ⍝       DictDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
   :Field Public         ID 
   :Field Private Shared ID_COMMON←  2147483647 | 31  24 60 60 1000⊥¯1 0 0 0 0+¯5↑⎕TS 
 
-  ⍝ Initialization of APL System Variables
-  ⍝ Right now, ⎕CT, ⎕DCT left as same as in #
-    (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT)←#.(⎕CT ⎕DCT)  ⋄ ⎕PP←34  ⋄ ⎕RL←#.⎕RL
- 
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
     :Field Private ∆TRAP←                   0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
@@ -48,6 +49,7 @@
     ∇
 
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
+    :Access Public Shared
      :TRAP 0
         dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
         :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
@@ -729,7 +731,7 @@
 
     ∇ result ← {minorOpt} ∆JDICT json
       ;TRAP;THROW11;keys;majorOpt;mangleJ;unmangleJ;ns;optNull;vals;⎕IO;⎕TRAP   
-
+      :Access Public Shared
       unmangleJ←                 1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
       mangleJ←                  (0∘(7162⌶))∘⍕ 
       TRAP←0 ⋄ ⎕IO←0 ⋄ optNull←('Null'⎕NULL)
