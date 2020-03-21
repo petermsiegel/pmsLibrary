@@ -15,7 +15,7 @@
 ⍝      ∆ID    -- which ∆FPTR in the sequence, from left to right,
 ⍝                with the left-most having ∆ID=⎕IO, incrementing by 1.
 ⍝      ∆fn    -- the function passed as ⍺⍺.  You can call it with your own args ⍺ (optional) and ⍵,
-⍝                and it can refer to ∆ALPHA, ∆OMEGA, ∆NARGS, and ∆NID
+⍝                and it can refer to ∆ALPHA, ∆OMEGA, ∆NARGS, and ∆ID
 ⍝    Note: Each namespace will have (overriding any earlier values set)
 ⍝          the SAME ∆ALPHA as passed by the left-most ∆FPTR and
 ⍝          the SAME ∆OMEGA as passed by the right-most ∆FPTR
