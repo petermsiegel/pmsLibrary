@@ -1,7 +1,9 @@
-∆HERE:   hereDoc ← ∆HERE    [ ⍝ ⍠0 ]
-         A fast here-document utility, with only simple "option":  ⍝ ⍠0
-         ∘ Default or ⍠1
-           The "here" doc is terminated by a line with is neither a comment nor a blank line. 
+∆HERE:   hereDoc ← ∆HERE    [[ ⍝ ⍠0  |  ⍝ ⍠1 <the default>]]
+         A fast here-document utility, with only a simple "option" 
+         included in a commeont on the ∆HERE line:  ⍝ ⍠0 
+         ∘ ⍝ ⍠1 <the default>
+           The "here" doc is terminated by a line which is neither a comment nor a blank line, e.g. 
+              APL  code  or a directive (e.g. :SECTION)
          ∘ With ⍠0
            The "here" doc is terminated by any non-comment line, including a blank line.
          ∘ Comment lines with a prefix ⍝⍝ are ignored.
