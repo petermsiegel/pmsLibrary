@@ -1,4 +1,4 @@
-﻿ ⍝ "Here document" Functions
+ ⍝ "Here document" Functions
  ⍝   ∆HERE         
  ⍝ 
  ⍝   Description:
@@ -20,6 +20,11 @@
  ⍝      the resulting lines as a vector of character vectors.
     
  ∇h←∆HERE;⎕IO;⎕ML;hp       
+ h←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
+ hp← '⍝ ' '⍝'⊃⍨1∊'⍠0'⍷⊃h   
+ h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\hp∊⍨⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨1↓h
+∇
+ ∇h←∆HERE2;⎕IO;⎕ML;hp       
  h←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
  hp← '⍝ ' '⍝'⊃⍨1∊'⍠0'⍷⊃h   
  h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\hp∊⍨⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨1↓h
