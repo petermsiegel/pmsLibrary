@@ -1,4 +1,4 @@
- ⍝ "Here document" Functions
+﻿ ⍝ "Here document" Functions
  ⍝   ∆HERE         
  ⍝ 
  ⍝   Description:
