@@ -24,15 +24,15 @@
  ⍝       See ⍠V and ⍠S above
       
     ⎕VR 'test'               ⍝ <== USER 
-     ∇ r←test n                
-[1]    r←∆HERE                
+     ∇ r←test n;nm                
+[1]    nm←⎕FX r←∆HERE                
 [2]    ⍝⍝  Function <PI n>     
 [3]        ⍝ ∇pi←PI n;⎕FR;⎕PP  
 [4]        ⍝  ⎕FR←1287 ⋄ ⎕PP←34
 [5]        ⍝  pi←⍕○n           
 [6]        ⍝ ∇                 
 [7]    ⍝⍝  End Function <PI n> 
-[8]    ⎕←'Function: ',(⎕FX r)  
+[8]    ⎕←'Function: ',nm  
 [9]    ⎕←↑r                    
 [10]   r←'Result:   ',PI n     
      ∇     
