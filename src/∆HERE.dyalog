@@ -3,30 +3,33 @@
  ⍝ 
  ⍝   Description:
  ⍝     ∆HERE -- a "fast" here-document selector with simple options
- ⍝     lines ← ∆HERE ⍝      Option 1 (default)
- ⍝     lines ← ∆HERE ⍝ ⍠0   Option 0 
+ ⍝     lines ← ∆HERE  [ ⍝ options] 
+ ⍝     options: ⍠B ⍠C ⍠V ⍠S  (Blanks Comments Vectors String)
  ⍝     ∘ Note that the option is specified anywhere in a comment on the ∆HERE line!
- ⍝     ∘ Its form must be exactly '⍠0', not '⍠ 0' or  '⍠x⊣x←0' etc.                                
+ ⍝     ∘ Its form must be exactly '⍠C', not '⍠ C' or  "⍠x⊣x←'C'" etc.                                
  ⍝   Details:
- ⍝      ⍠0  or  ⍠1 (default)
- ⍝        Option 0: comment-only lines:           
- ⍝        Option 1: comment AND blank lines   
- ⍝      ⍠2  or  ⍠3 (default)
- ⍝        Option 2: return a vector of character vectors
- ⍝        Option 3: return a string with LFs separating each line from the next 
- ⍝     Default is option 1. To get option 1, include ⍠0 in a comment on the ∆HERE line, e.g.
- ⍝         myCode ← ∆HERE   ⍝ ⍠0  That selects option 0.  
- ⍝     Under both options,
+ ⍝     ⍠B  (default) or  ⍠C 
+ ⍝       +Option B: comment AND [B] blank lines constitute a here-doc   
+ ⍝        Option C: [C] comment-only lines constitute a here-doc           
+ ⍝     ⍠V  (default) or  ⍠S 
+ ⍝       +Option V: return a [V] vector of character vectors
+ ⍝        Option S: return a [S] string with LFs separating each line from the next 
+ ⍝     Default are options B and V. 
+ ⍝     To get option C, include ⍠C in a comment on the ∆HERE line, e.g.
+ ⍝         myCode ← ∆HERE   ⍝ ⍠C  That selects option 0.  
+ ⍝     Under both options C and B,
  ⍝       ∘ The comment begins with ⍝⍝, it is ignored. Otherwise, the comment symbol is removed.
  ⍝       ∘ Blank lines always end up as 0-length char vectors.
  ⍝   Returns: 
- ⍝       See ⍠2 and ⍠3 above
+ ⍝       See ⍠V and ⍠S above
     
-∇h←∆HERE;⎕IO;⎕ML;f;hp;o       
- f←⊃h←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
- hp← '⍝ ' '⍝'⊃⍨'0'∊o←f[1+ ⍸f∊'⍠'] 
- h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\hp∊⍨⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨1↓h
- :IF '3'∊o ⋄ h←¯1↓∊h,¨⎕UCS 10  ⋄ :Endif
+ ⍝ hd: here doc, cb: comment + opt'l blank, op: options
+∇hd←∆HERE;⎕IO;⎕ML;cb;op       
+ hd←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
+ op←(⊃hd)[1+⍸'⍠'∊⍨⊃hd] ⋄ cb← '⍝ ' '⍝'⊃⍨'C'∊op 
+ hd/⍨←'⍝'≠⊃¨hd←1↓¨hd/⍨∧\cb∊⍨⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨1↓hd
+ →0↓⍨'S'∊op
+ hd←¯1↓∊hd,¨⎕UCS 10  
 ∇
 
 ∇_dummy_
