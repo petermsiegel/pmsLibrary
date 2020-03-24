@@ -22,20 +22,13 @@
  ⍝   Returns: 
  ⍝       See ⍠2 and ⍠3 above
     
-<<<<<<< HEAD
 ∇h←∆HERE;⎕IO;⎕ML;f;hp;o       
- h←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1  
- h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\ (⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨1↓h)∊⍨ '⍝ ' '⍝'⊃⍨'0'∊o←f[1+⍸'⍠'∊⍨f←⊃h]
- :IF '3'∊o ⋄ h←¯1↓∊h,¨⎕UCS 10  ⋄ :Endif
-=======
- ∇h←∆HERE;⎕IO;⎕ML;f;hp;o       
  f←⊃h←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
  hp← '⍝ ' '⍝'⊃⍨'0'∊o←f[1+ ⍸f∊'⍠'] 
  h←h/⍨'⍝'≠⊃¨h←1↓¨h/⍨∧\hp∊⍨⊃¨h←{⍵↓⍨+/∧\' '=⍵}¨1↓h
- '3'∊o:¯1↓∊h,¨⎕UCS 10 
- h
->>>>>>> parent of 2b469c1... Update ∆HERE.dyalog
+ :IF '3'∊o ⋄ h←¯1↓∊h,¨⎕UCS 10  ⋄ :Endif
 ∇
+
 ∇_dummy_
  ⎕EX '_dummy_'
 ∇
