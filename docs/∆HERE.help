@@ -1,27 +1,38 @@
-∆HERE:   hereDoc ← ∆HERE    [[ ⍝ ⍠0  |  ⍝ ⍠1 <the default>]]
-         A fast here-document utility, with only a simple "option" 
-         included in a commeont on the ∆HERE line:  ⍝ ⍠0 
-         ∘ ⍝ ⍠1 <the default>
-           The "here" doc is terminated by a line which is neither a comment nor a blank line, e.g. 
-              APL  code  or a directive (e.g. :SECTION)
-         ∘ With ⍠0
-           The "here" doc is terminated by any non-comment line, including a blank line.
-         ∘ Comment lines with a prefix ⍝⍝ are ignored.
-         ∘ Other comment lines are kept, but the symbol ⍝ and preceding blanks are discarded.
-         Returns a vector of character strings (possibly of length 0).  
-
-⍝ EXAMPLE with ∆HERE 
+ ⍝ "Here document" Functions
+ ⍝   ∆HERE         
+ ⍝ 
+ ⍝   Description:
+ ⍝     ∆HERE -- a "fast" here-document selector with simple options
+ ⍝     lines ← ∆HERE  [ ⍝ options] 
+ ⍝     options: ⍠B ⍠C ⍠V ⍠S  (Blanks Comments Vectors String)
+ ⍝     ∘ Note that the option is specified anywhere in a comment on the ∆HERE line!
+ ⍝     ∘ Its form must be exactly '⍠C', not '⍠ C' or  "⍠x⊣x←'C'" etc.                                
+ ⍝   Details:
+ ⍝     ⍠B  (default) or  ⍠C 
+ ⍝       +Option B: comment AND [B] blank lines constitute a here-doc   
+ ⍝        Option C: [C] comment-only lines constitute a here-doc           
+ ⍝     ⍠V  (default) or  ⍠S 
+ ⍝       +Option V: return a [V] vector of character vectors
+ ⍝        Option S: return a [S] string with LFs separating each line from the next 
+ ⍝     Default are options B and V. 
+ ⍝     To get option C, include ⍠C in a comment on the ∆HERE line, e.g.
+ ⍝         myCode ← ∆HERE   ⍝ ⍠C  That selects option 0.  
+ ⍝     Under both options C and B,
+ ⍝       ∘ The comment begins with ⍝⍝, it is ignored. Otherwise, the comment symbol is removed.
+ ⍝       ∘ Blank lines always end up as 0-length char vectors.
+ ⍝   Returns: 
+ ⍝       See ⍠V and ⍠S above
       
     ⎕VR 'test'               ⍝ <== USER 
-     ∇ r←test n                
-[1]    r←∆HERE                
+     ∇ r←test n;nm                
+[1]    nm←⎕FX r←∆HERE                
 [2]    ⍝⍝  Function <PI n>     
 [3]        ⍝ ∇pi←PI n;⎕FR;⎕PP  
 [4]        ⍝  ⎕FR←1287 ⋄ ⎕PP←34
 [5]        ⍝  pi←⍕○n           
 [6]        ⍝ ∇                 
 [7]    ⍝⍝  End Function <PI n> 
-[8]    ⎕←'Function: ',(⎕FX r)  
+[8]    ⎕←'Function: ',nm  
 [9]    ⎕←↑r                    
 [10]   r←'Result:   ',PI n     
      ∇     
