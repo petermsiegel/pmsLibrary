@@ -1,5 +1,5 @@
 ﻿ ⍝ "Here document" Functions
- ⍝   ∆HERE         
+ ⍝   ∆HERE           ... [ [ ⍠ B | ⍠C] | [⍠V | ⍠S] ]? 
  ⍝ 
  ⍝   Description:
  ⍝     ∆HERE -- a "fast" here-document selector with simple options
@@ -24,6 +24,7 @@
  ⍝       See ⍠V and ⍠S above
     
  ⍝ hd: here doc, cb: comment + opt'l blank, op: options
+ 
 ∇hd←∆HERE;⎕IO;⎕ML;cb;op       
  hd←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
  op←(⊃hd)[1+⍸'⍠'∊⍨⊃hd] ⋄ cb← '⍝ ' '⍝'⊃⍨'C'∊op 
@@ -32,8 +33,8 @@
  hd←¯1↓∊hd,¨⎕UCS 10  
 ∇
 
-∇_dummy_
- ⎕EX '_dummy_'
+∇__dummy__
+ ⎕EX ⊃⎕SI
 ∇
 
  
