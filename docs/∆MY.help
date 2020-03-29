@@ -49,30 +49,13 @@ For efficiency, call ∆MY once per function, e.g.
 ∆FIRST:  Alternative to ∆MY.∆FIRST
          (Slightly slower than latter, given additional call to ∆MYX internally).
 
-∆THEIR:  theirStat ← {their} ∆THEIR them
-         theirStat ← {their} ∆THEIR them variable
-         theirStat ← {their} ∆THEIR them variable value
-      them:      the name (string-form) of a function or operator;
-      their:     the name (string-form) of the namespace in which <them> resides, else the current directory.
-  Returns:
-  I. theirStat: a shy namespace reference; the namespace is a "static" (permanent if ⎕SAVEd)
-        namespace for objects associated with the function or operator specified via <them>/<their>.
-        If <theirStat> does not exist, it is created and local variables initialized.
-  II. If variable is included (e.g. ∆RESET),
-      checks current value of theirStat.variable,
-      returns:
-          theirStat variable (current value of variable)
-  III. If variable and value are included,
-       sets theirStat.variable←value, then
-       returns:
-          theirStat variable (new value of variable)
-∆THEIR:  "Returns the "static" namespace for function/operator, <them>, of the same form as ∆MY, except
-     that here the function need not be active, though it must be defined. ∆THEIR creates, but does not update,
-     required local variables. (See ∆MY)."
+∆MYX:  staticNs  ← [homeNs] ∆MYX fnName
+       staticNs  ← [homeNs] ∆MYX callLvl
 
-∆MYX:  theirStat ← ∆MYX callLvl
-     callLvl: how far into stack to find the caller. 0 means
-     callerNS is at 0⊃⎕NSI, caller function name at (0+1)⊃⎕STACK.
-     ∘ From ∆MY, it's ∆MYX 1.
-     ∘ If called directly, it's ∆MYX 0.
-∆MYX: "∆MY utility. Returns the static namespace for the caller level specified."
+         fnName: name of the function. 
+         callLvl: the fn at this level on the call stack
+         homeNs: the namespace the function is from
+
+         Returns:  staticNs, the static namespace for the specified function.
+         Example:  Reset the ∆FIRST flag for function 'myfn' so next function use is first:
+                  (∆MYX 'myfn').∆RESET

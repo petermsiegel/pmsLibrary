@@ -34,7 +34,7 @@
    ⍝    ⍵=0: Use actual path name for ∆MY display form.
    ⍝ updateDF ⍵@R returns ⍵, ref for the namespace being updated.
      ∇  true←ACTIVATE_updateDF true
-        :If true ⋄  updateDF←{ clr mydf←⍺ ⋄ ⍵⊣ ⍵.⎕DF (⍕clr),'.[∆MY].',mydf }
+        :If true ⋄  updateDF←{ calr mydf←⍺ ⋄ ⍵⊣ ⍵.⎕DF (⍕calr),'.[∆MY].',mydf }
         :Else    ⋄  updateDF←⊢         
         :EndIf 
      ∇
@@ -48,19 +48,19 @@
     callerE ←     '∆MYX: Left Arg (caller''s ns) must be a namespace reference' 
   ⍝ Optimized fast path for high-use equivalent of: ∆MYX 0 1 
     ∇ myNs←∆MY
-     :Trap 0 
+    :Trap 0 
         myNs←(0⊃⎕RSI)⍎STATIC_PREFIX,1⊃⎕SI  
-     :Else
+    :Else
         :Trap 0  
           myNs←(0⊃⎕RSI) ∆MYX 1 
         :Else    
           ⎕SIGNAL/⎕DMX.(EM EN) 
         :EndTrap
-      :EndTrap 
+    :EndTrap 
     ∇ 
 
     ∇ myNs← {callerNs} ∆MYX args
-         ; auto; myNm; myDF; myNsNm
+         ;auto ;myNm ;myDF ;myNsNm
     ⍝ myNs← [callerNs@R] ∆MYX args@(I B | S B)  
      ⍝ ;auto;callerNs;fnLvl;myNm;myNsNm;si;⎕IO
       ⍝ args: Either   fnLvl@I [auto=1]  OR  myNm@S [auto=1]

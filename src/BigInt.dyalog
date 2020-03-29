@@ -340,7 +340,7 @@
       ⍝ ============================================
       ⍝ import / imp / ∆ - Import to internal bigInteger
       ⍝ ============================================
-      ⍝ ∆  - internal alias for import
+      ⍝ ∆  - internal alias for import w/o error handling and sanity check...
       ⍝    from: external-format* (BIc) (⍺ and) ⍵--
       ⍝          each either a BigInteger string or an APL integer--
       ⍝          * Or an internal-format (BIint) BigInteger, passed through unchanged.
@@ -351,33 +351,38 @@
       ⍝    Dyadic:  Returns for ⍺ ⍵, (sign data)_of_⍺ (sign data)_of_⍵.
       ⍝
       ⍝ To be fast, we have these tests and assumed types...
-      ⍝ If   80|⎕DR ⍵       assume...                    ⎕DR
-      ⍝ ---------------+--------------------------------------
-      ⍝       0             importStr                        80, 160, 320
-      ⍝       3             importInt (integer)              83...
-      ⍝       5, 7          importFloat (integer as float)   645, 1287
-      ⍝       6             BIint (internal)                   26
+      ⍝ If   80|⎕DR ⍵       assume...                        ⎕DR
+      ⍝ ---------------+-------------------------------------------------------
+      ⍝       0             importStr                        80, 160, 320 char
+      ⍝       3             importInt (integer)              83...        int
+      ⍝       5, 7          importFloat (integer as float)   645, 1287    float
+      ⍝       6             BIint (internal)                 326          ptr objects
       ⍝ Output: BIint, i.e.  (sign (,ints)), where ints∧.<RX10
       ⍝
-      import←{⍺←⊢
-          0:: ⎕SIGNAL/⎕DMX.(EM EN)          ⍝ ∆ is an alias, w/o error handling.
-          1≢⍺ 1:           (∇ ⍺)(∇ ⍵)
-          type←80|⎕DR ⍵ ⋄ dep←≡⍵            ⍝ Returned by likelihood [1]=highest.
-          (dep=¯2)∧6=type: ⍵                ⍝ [1] BIint. Also: 3 3≡80| ⎕DR¨⍵
-          1<|dep:          err eIMPORT      ⍝ Basic sanity check
-          3=type:          importInt ⍵      ⍝ [2] int ([2a] small or [2b] otherwise)
-          0=type:          importStr ⍵      ⍝ [3] String
-          5 7∊⍨type:       importFloat ⍵    ⍝ [4] Float-format integer (e.g. 3E45)
-                           err eIMPORT      ⍝ Logic error!
-      }
-    ⍝ ∆ used internally; same as import, except no error handling internally
-      ⎕FX 'import←{' '^ *0::.*$' ⎕R '∆←{' '⍝ (Internal Util). See import.'⊣⎕NR 'import'
+      ⍝ Keep for import: {I: ...}                            
+      import←{⍺←⊢                
+          0::⎕SIGNAL/⎕DMX.(EM EN)
+          1≢⍺ 1:           (∇ ⍺)(∇ ⍵)       
+          type←80|⎕DR ⍵  ⋄ dep←≡⍵         
+          (¯2=dep)∧type=6: ⍵   
+          1<|dep:          err eIMPORT     
+          type=3:          importInt ⍵     
+          type=0:          importStr ⍵     
+          type∊5 7:        importFloat ⍵ 
+                           err eIMPORT            
+        } 
+      ⍝ ∆ (sampe as import, w/o sanity check and error handling. See discussion above.)
+        ∆←{⍺←⊢                     
+          1≢⍺ 1:          (∇ ⍺)(∇ ⍵)       
+          type←80|⎕DR ⍵          
+          type=6:         ⍵               
+          type=3:         importInt ⍵     
+          type=0:         importStr ⍵     
+          type∊5 7:       importFloat ⍵ 
+                          err eIMPORT            
+      }    
       imp←import  ⍝ external alias...
-      ⍝ importU, impU:
-      ⍝     import ⍵ as unsigned bigInt (data portion only)
-      importU←{
-          ⊃⌽import ⍵
-      }
+
       ⍝ importInt:    ∇ ⍵:I[1]
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
       importInt←{
