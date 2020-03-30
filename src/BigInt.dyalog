@@ -244,20 +244,20 @@
         CASE←(atom fn)∘∊∘⊆
     
         ⍝ Monadic...
-        monad:{                                 ⍝ BI: cond∆exp: See Build BI/BII below.
-            CASE'-':cond∆exp neg ⍵              ⍝     -⍵
-            CASE'+':cond∆exp ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIint form.
-            CASE'|':cond∆exp abs ⍵              ⍝     |⍵
-            CASE'×':cond∆exp⊃∆ ⍵                ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BII.
-            CASE'÷':cond∆exp recip ⍵            ⍝     ÷⍵:         Why bother?
-            CASE'<':cond∆exp dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1.
-            CASE'>':cond∆exp inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
-            CASE'!':cond∆exp fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
-            CASE'?':cond∆exp roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
-            CASE'⊥':cond∆exp 1 bits2BI ⍵        ⍝     bits→BII:    Converts from bit vector to internal
+        monad:{                                 ⍝ BI: ∆export∆: See Build BI/BII below.
+            CASE'-':∆export∆ neg ⍵              ⍝     -⍵
+            CASE'+':∆export∆ ∆ ⍵                ⍝     nop, except makes sure obj is valid in BIint form.
+            CASE'|':∆export∆ abs ⍵              ⍝     |⍵
+            CASE'×':∆export∆⊃∆ ⍵                ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BII.
+            CASE'÷':∆export∆ recip ⍵            ⍝     ÷⍵:         Why bother?
+            CASE'<':∆export∆ dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1.
+            CASE'>':∆export∆ inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1.
+            CASE'!':∆export∆ fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
+            CASE'?':∆export∆ roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid)
+            CASE'⊥':∆export∆ 1 bits2BI ⍵        ⍝     bits→BII:    Converts from bit vector to internal
             CASE'⊤':BI2Bits ⍵                   ⍝     BII→bits:    Converts a BII ⍵ to its bit form
-            CASE'~' 'NOT':cond∆exp not ⍵        ⍝     Bit-level manipulation...
-            CASE'≢':cond∆exp 1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
+            CASE'~' 'NOT':∆export∆ not ⍵        ⍝     Bit-level manipulation...
+            CASE'≢':∆export∆ 1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
             CASE'⍎':⍎exp ∆ ⍵                 ⍝     BIint→int:    If in range, returns a std APL number; else error
             CASE'←':∆ ⍵                      ⍝     BIint out:    Returns the BII internal form of ⍵: NRX2∆-bit signed integers
             CASE'⍕':exp ∆ ⍵                  ⍝     BIint→BIext:    Takes a BII internal form vector of integers and returns a BII string
@@ -269,13 +269,13 @@
         ⍝ See discussion of ⍨ above...
         ⍺{
             ⍝ High Use: [Return BigInt]
-            CASE'+':cond∆exp ⍺ add ⍵
-            CASE'-':cond∆exp ⍺ sub ⍵
-            CASE'×':cond∆exp ⍺ mul ⍵
-            CASE'⌽':cond∆exp ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
-            CASE'÷':cond∆exp ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
-            CASE'*':cond∆exp ⍺ pow ⍵                     ⍝ Handles ⍵∊BIint OR, as special case, ⍵∊0.5 '0.5' exactly.
-            CASE'|':cond∆exp ⍺ rem ⍵                     ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
+            CASE'+':∆export∆ ⍺ add ⍵
+            CASE'-':∆export∆ ⍺ sub ⍵
+            CASE'×':∆export∆ ⍺ mul ⍵
+            CASE'⌽':∆export∆ ⍵ mul2Exp ⍺                 ⍝  ⍵×2*⍺,  where ±⍵. Decimal shift.
+            CASE'÷':∆export∆ ⍺ div ⍵                     ⍝  ⌊⍺÷⍵
+            CASE'*':∆export∆ ⍺ pow ⍵                     ⍝ Handles ⍵∊BIint OR, as special case, ⍵∊0.5 '0.5' exactly.
+            CASE'|':∆export∆ ⍺ rem ⍵                     ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
         ⍝ Logical: [Return single boolean, 1∨0]
             CASE'<':⍺ lt ⍵
             CASE'≤':⍺ le ⍵
@@ -284,21 +284,21 @@
             CASE'>':⍺ gt ⍵
             CASE'≠':⍺ ne ⍵
         ⍝ bits
-            CASE'AND':cond∆exp ⍺ and ⍵
-            CASE'OR':cond∆exp ⍺ or ⍵
-            CASE'XOR':cond∆exp ⍺ xor ⍵
-            CASE '⌷' 'FLIP':cond∆exp ⍺ flipBits ⍵        ⍝ Special meaning: flip bits numbered ⍺ w/in ⍵: BII
+            CASE'AND':∆export∆ ⍺ and ⍵
+            CASE'OR':∆export∆ ⍺ or ⍵
+            CASE'XOR':∆export∆ ⍺ xor ⍵
+            CASE '⌷' 'FLIP':∆export∆ ⍺ flipBits ⍵        ⍝ Special meaning: flip bits numbered ⍺ w/in ⍵: BII
     
         ⍝ gcd/lcm: [Return BigInt]                    ⍝ ∨, ∧ return bigInt.
-            CASE'∨' 'GCD':cond∆exp ⍺ gcd ⍵               ⍝ ⍺∨⍵ as gcd.
-            CASE'∧' 'LCM':cond∆exp ⍺ lcm ⍵               ⍝ ⍺∧⍵ as lcm.
+            CASE'∨' 'GCD':∆export∆ ⍺ gcd ⍵               ⍝ ⍺∨⍵ as gcd.
+            CASE'∧' 'LCM':∆export∆ ⍺ lcm ⍵               ⍝ ⍺∧⍵ as lcm.
         ⍝
-            CASE'√' 'ROOT':cond∆exp ⍺ root ⍵             ⍝ See ∇root.
-            CASE'MOD':cond∆exp ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
-            CASE'SHIFTB':cond∆exp ⍺ mul2Exp ⍵            ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
-            CASE'SHIFTD':cond∆exp ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
-            CASE'DIVREM':cond∆exp¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
-            CASE'MODMUL' 'MMUL':cond∆exp ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
+            CASE'√' 'ROOT':∆export∆ ⍺ root ⍵             ⍝ See ∇root.
+            CASE'MOD':∆export∆ ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
+            CASE'SHIFTB':∆export∆ ⍺ mul2Exp ⍵            ⍝  ⍺×2*⍵,  where ±⍵. Binary shift.
+            CASE'SHIFTD':∆export∆ ⍺ mul10Exp ⍵           ⍝  ⍺×10*⍵, where ±⍵. Decimal shift
+            CASE'DIVREM':∆export∆¨⍺ divRem ⍵             ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+            CASE'MODMUL' 'MMUL':∆export∆ ⍺ modMul ⍵      ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
             CASE'⍴':(∆2Small ⍺)⍴⍵                     ⍝ Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
             err eCANTDO2,∆QT fn                       ⍝ Not found!
         }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵        ⍝ Handle ⍨.   inv ∊ 0 1 2 (not inv, inv, selfie)
@@ -318,10 +318,10 @@
     }
 
     ⍝ Build BI/BII.
-    ⍝ BI: Change cond∆exp to string imp.
-    ⍝ BII:  Change cond∆exp to null string. Use name BII in place of BI.
-    note'Created operator BII' ⊣⎕FX'_BI_src' 'cond∆exp¨?'⎕R'BII' ''   ⊣⎕NR'_BI_src'
-    note'Created operator BI'  ⊣⎕FX'_BI_src' 'cond∆exp'  ⎕R 'BI' 'exp'⊣⎕NR'_BI_src'
+    ⍝ BI: Change ∆export∆ to string imp.
+    ⍝ BII:  Change ∆export∆ to null string. Use name BII in place of BI.
+    note'Created operator BII' ⊣⎕FX'_BI_src' '∆export∆¨?'⎕R'BII' ''      ⊣⎕NR'_BI_src'
+    note'Created operator BI'  ⊣⎕FX'_BI_src' '∆export∆'  ⎕R 'BI' 'export'⊣⎕NR'_BI_src'
     _←⎕EX '_BI_src'
     note'BI/BII Operands:'
     note ⎕FMT(' Monadic:'monadFnsList),[¯0.1]' Dyadic: 'dyadFnsList
@@ -872,7 +872,7 @@
     ∇ {r}←fxBool(NAME SYM);model;∆NAME;in;out
       ∆NAME←{
         ⍝ ⍺ ∆NAME ⍵: emulates (⍺ ∆SYM ⍵)
-        ⍝ ⍺, ⍵: Both are external-format BigIntegers (BIext)
+        ⍝ ⍺, ⍵: BigIntegers
           (sa a)(sw w)←⍺ ∆ ⍵
           0∊sa sw:sa ∆SYM sw        ⍝ ⍺, ⍵, or both are 0
           sa≠sw:sa ∆SYM sw          ⍝ ⍺, ⍵ different signs
