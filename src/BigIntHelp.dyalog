@@ -6,7 +6,7 @@
   ⍝
   ⍝ ∘ BigInt is a signed Big-Integer utility built around the unsigned big integer utility, dfns:nats.
   ⍝   <nats> seems to have the fastest general-purpose multiply and divide in dfns.
-  ⍝ ∘ BIint: We've created an efficient BigInt Internal Data "structure" BIint (BI Internal) of this form:
+  ⍝ ∘ BIint: We've created an efficient BigInt Internal Data "structure" internal-format BigInt(BI Internal) of this form:
   ⍝        BIint ← sign  data
   ⍝        where sign@I∊¯1 0 1, data@UV<10E6
   ⍝              The sign is an integer;
@@ -19,14 +19,15 @@
   ⍝        on output:  "¯?[\d+]"
   ⍝        Note: BigInt fns returning BIext only return output-format strings, never (say) '-25' or '25_123'.
   ⍝ ∘ BIc: On occasion we'll mention BIc, a "character" string format string used as INPUT, as opposed to
-  ⍝        BIint (internal-format sign/data structure) or Int (APL Integer).
+  ⍝        internal-format BigInt or Int (APL Integer).
   ⍝
-  ⍝ ∘ Operators BII, BI:   For  [⍺] op BII* ⍵
+  ⍝ ∘ Operators BI, BI:   For  [⍺] op BII* ⍵
   ⍝       Performs   ⍺ op ⍵ or op ⍵, where ⍺, ⍵ are bigIntegers (in external or internal form.)
   ⍝       BII  (returns BIint, internal form bigInt) and BI (returns BIext, external form).
   ⍝   Operator BIM:        For [⍺] op BIM ⍵⍵ ⊣ modulo
+  ⍝       EQUIVALENT TO:   modulo | [⍺] op BI ⍵
   ⍝       Performs  ⍺ op ⍵⍵ (MODULO ⍵)    or   op ⍵⍵ (MODULO ⍵)
-  ⍝       Returns BIint (like BI)
+  ⍝       Returns internal-format BigInt(like BI)
   ⍝       Currently, only ×BIM is optimized for modular arithmetic (modMul)
   ⍝
   ⍝   We've added a range of monadic functions and extended the dyadic functions as well, all signed.
@@ -45,7 +46,7 @@
   ⍝               +BII\⍵1 ⍵2 ⍵2...
   ⍝
   ⍝   BII doesn't return external BigInt strings, but ONLY internal format objects, for efficiency.
-  ⍝        (To convert to external, use ⍕BII or simply use BI for the last computation in a series.)
+  ⍝        (To convert a BII result <r> to external, use (⍕BII r) or simply use BI for the last computation in a series.)
   ⍝   BI returns BigInt strings wherever BII would return a BigInt-internal object.
   ⍝         c +BI x ×BII b +BII x ×BII a    ←→  ⍕BII c +BII x ×BII b +BII x ×BII a    ⍝ (a×x*2)+(b×x)+c
   ⍝   Both BI and BII return booleans with logical functions (< ≤ = ≥ > ≠). See below.
@@ -64,7 +65,7 @@
   ⍝   Those with special meaning include:
   ⍝       dyadic:  ⌽ (shiftD), ∨ (gcd), ∧ (lcm)
   ⍝       monadic: ? (roll on ⍵>0),  ⍎ (convert to APL integer), ⍕ (convert to BI external string)
-  ⍝                ← (return BII-internal format)
+  ⍝                ← (return BigInt-Internal format)
   ⍝                ⊥ (bits to bigint), ⊤ (bigInt to bits),
   ⍝                ≢ (sign×count of bits different from sign-bit in twos-complement)
   ⍝ ∘ Arguments to most functions are BigIntegers of any BIext form:
@@ -72,41 +73,51 @@
   ⍝       a single APL signed integer (whether stored as an integer or float)   ¯2343243422
   ⍝       a BI Internal-format vector, consisting of a scalar sign followed by a data vector of unsigned numbers;
   ⍝          See the internal format (above).     ¯1 (2343 243422)
-  ⍝ ∘ Instead of using operand with BII (+BII), a set of BigInteger functions can be called directly:
+  ⍝ ∘ Instead of using operand with BI (+BI), a set of BigInteger functions can be called directly:
   ⍝       dyadic:   ⍺ add ⍵ ⋄  ⍺ gcd ⍵ ⋄⋄⋄
   ⍝       monadic:  sig  ⍵   ⋄  roll '1',99⍴'0'
-  ⍝   These all return a BIint (BigInteger internal format), with a few exceptions (exp/ort returns a BIext).
+  ⍝   These all return a internal-format BigInt(BigInteger internal format), with a few exceptions (exp/ort returns a BIext).
   ⍝   Many local functions have abbreviated synonyms. Local functions include:
   ⍝       add sub mul div  divrem pow res(idue)/rem(ainder) mod (res⍨)
   ⍝       shiftD times10Exp div10Exp shiftB times2Exp div2Exp
   ⍝       neg sig(num)  abs roll
   ⍝   Logical functions < ≤ = ≥ > ≠ return a single boolean, to make them easy to use
   ⍝   in program control. (gcd ∨ and lcm ∧ always return BI Internals, since their logical use is a subset).
+  ⍝   See also:   ~BI num          flip all the bits of num,  
+  ⍝               num ~BI indices: flip bits [indices] of <num>. The # of bits in <num> will be a multiple of hand sizes,
+  ⍝                                and the result will enlarge automatically  to accommodate the highest index in <indices>.
   ⍝
   ⍝ ∘ Bit strings are passed to the user as two's-complement boolean vectors,
   ⍝   with the lowest-order bit last (so ⍵[¯1+≢⍵] is the LOB),
   ⍝   and the sign-bit first, i.e. as the leftmost- bit (i.e. ⊃⍵ is 1, if the # if negative).
   ⍝
   ⍝ Notable enhancements compared to dfns:nats:
-  ⍝ ∘ Input BII strings may have ¯ or - prefixed for negative numbers and may include _ as spacers,
+  ⍝ ∘ Input BigInt strings may have ¯ or - prefixed for negative numbers and may include _ as spacers,
   ⍝   which are ignored:   e.g.  '-553_555_555'    '¯99999_12345_12345'    '00000_00000_00000'
-  ⍝ ∘ ⌽BII is used to shift (not rotate) binary digits left and right,
-  ⍝   i.e. to multiply and divide by 2**⍵ very quickly and efficiently.
+  ⍝ ∘ ⌽BI is used to shift (not rotate) [decimal] digits left and right,
+  ⍝   i.e. to multiply and divide by 10**⍵ very quickly and efficiently.
   ⍝      ∘ Example: A million-digit string ⍵ can be multiplied by 10*10000 quickly via
-  ⍝        10000 ⌽BII ⍵
-  ⍝ ∘ We include ⊤BII and ⊥BII to convert BII's to and from APL bits, so that APL ⌽ ∧ ∨ = ≠ can be used for
+  ⍝        10000 ⌽BI ⍵
+  ⍝        10000 ('SHIFTD'BI⍨) ⍵
+  ⍝ ∘ To do a binary shift of number ⍵, use ('SHIFTB' BI):
+  ⍝        10000 ('SHIFTB'BI⍨) ⍵    
+  ⍝     OR 10000 ↑BI ⍵
+  ⍝     does
+  ⍝        ⍵ × 2*10000
+  ⍝ ∘ We include ⊤BI and ⊥BI to convert BigInts to and from APL bits, so that APL ⌽ ∧ ∨ = ≠ can be used for
   ⍝   various bit manipulations on BIext; a utility BIB (Big Integer Bits) has been provided as well.
   ⍝ ∘ We support an efficient (Newton's method) integer sqrt and general root:
   ⍝        ('SQRT' BII)⍵ or ('√' BII)⍵, as well as  BIC '√⍵', where ⍵ is a big integer.
-  ⍝        Or use the special case of (⍺*BII 0.5) or (⍺*BII '0.5').:
+  ⍝        Or use the special case of (⍺*BII 0.5) or (⍺*BII '0.5') or (⍺*BII '÷2')
   ⍝   We provide a mechanism to find any  integral root:
   ⍝           9 ('√'BI) 1000        ⍝ 9th root of 1000
+  ⍝       OR  1000 *BI ÷9           ⍝ 9th root. Any right arg ⍵ such that (⌊÷⍵) or (⌊÷⍎⍵) is a positive integer will be treated as a valid radix.
   ⍝        2
   ⍝           bi.exp 9 bi.root 1000  ⍝ ditto
   ⍝        2
   ⍝           (9 ('√'BI) (1000⍴⎕d))≡bi.exp 9 bi.root 1000⍴⎕d
   ⍝        1
-  ⍝   To find a root besides the square root, you must use root.
+  ⍝   To find a root nth besides the square root, use n *BI ÷rdx as above.
   ⍝
   ⍝   There are other useful string functions to BII or BI:
   ⍝       a shiftD n      shift Decimal (pos n multiplies by powers of 10; neg n divides by powers of 10)
@@ -201,7 +212,7 @@
    ⍝ ----------------------------------------------------
    ⍝ ∘ For formats: ⍺ op BII ⍵, and equivalent: ⍺ fun ⍵.
    ⍝ ∘ All directly called functions return a
-   ⍝   BIint (internal-format BigInteger with integer sign and data vector)
+   ⍝   internal-format BigInt(internal-format BigInteger with integer sign and data vector)
    ⍝   except where specified.
    ⍝  --------------------------------------------------------------------
    ⍝                 Directly-called function
@@ -240,17 +251,17 @@
    ⍝    ⍺ +BII ⍵           ⍺ add ⍵          ⍺+⍵
    ⍝    ⍺ ×BII ⍵           ⍺ mul ⍵          ⍺×⍵
    ⍝    ⍺ ('MODMUL'BII)⍵1 ⍵2
-   ⍝                      ⍺ modMul ⍵1 ⍵2   ⍵2|⍺ modMul ⍵1 (MODULO ⍵2). See also (⍺ ×BIM ⍵⍵⊣⍵)
+   ⍝                       ⍺ modMul ⍵1 ⍵2   ⍵2|⍺ modMul ⍵1 (MODULO ⍵2). See also (⍺ ×BIM ⍵⍵⊣⍵)
    ⍝    ⍺ ⌽BII ⍵           ⍺ shiftD ⍵       ⍺×10*⍵ Performs an efficient(**) shift by orders of 10.
-   ⍝    ⍺ ('SHIFTD'BII)⍵   ↓                If ⍵>0, decimal shifts left; if ⍵<0, shifts right.
-   ⍝    ⍺ ('SHIFTB'BII)⍵   ↓                If ⍵>0, binary shifts left; if ⍵<0, right.
+   ⍝    ⍺ ('SHIFTD'BII)⍵   ⍵ ↑ ⍺            If ⍵>0, decimal shifts left; if ⍵<0, shifts right.
+   ⍝    ⍺ ('SHIFTB'BII)⍵   ⍵ ⌽ ⍺            If ⍵>0, binary shifts left; if ⍵<0, right.
    ⍝    ⍺ ÷BII ⍵           a div ⍵          ⍺÷⍵
    ⍝    ⍺ ('DIVREM'BII)⍵   ⍺ divRem ⍵      (⍺÷⍵)(⍵|⍺) Returns a pair of BigIntegers.
    ⍝    ⍺ *BII ⍵           ⍺ pow ⍵          ⍺*⍵
    ⍝    ⍺ |BII ⍵           ⍺ res ⍵          ⍺|⍵
-   ⍝                      ⍺ rem ⍵          ⍺|⍵
+   ⍝                       ⍺ rem ⍵          ⍺|⍵
    ⍝    ⍺ |⍨BII ⍵          ⍺ mod ⍵          ⍵|⍺
-   ⍝                      ⍺ root ⍵         ⍺*÷⍵   ⍵ small pos. integers (default ⍺←2).
+   ⍝                       ⍺ root ⍵         ⍺*÷⍵   ⍵ small pos. integers (default ⍺←2).
    ⍝    ⍺ ∨BII ⍵           ⍺ gcd ⍵          ⍺∨⍵    Returns a BigInteger. Not viewed as boolean.
    ⍝    ⍺ ∧BII ⍵           ⍺ lcm ⍵          ⍺∧⍵    Returns a BigInteger. Not viewed as boolean
    ⍝  BIT-MANIPULATIONS (DYADIC)
@@ -271,7 +282,7 @@
    ⍝      Calling:
    ⍝                  bi.exp   bi.neg 3             -BI 3
    ⍝              ¯3                            ¯3
-   ⍝  (**) ⌽BII, shiftD are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
+   ⍝  (**) ↑BII, shiftD are typically 20-30% faster than the equivalent ⍺ × 10*⍵ if 10*⍵ is precomputed.
    ⍝  (***) For dyadic bit-manipulations, operations are padded on the left with sign bits, simulating
    ⍝      two-complement binary numbers (i.e. pad with 0 for pos and 1s for negative bigInts).
    ⍝      For bit-function ⍺⍺, the resulting sign will be negative, iff  sign_bit(⍺) ⍺⍺ sign_bit(⍵).
@@ -305,22 +316,22 @@
    ⍝
    ⍝      Dyadic <≤=≥>≠
    ⍝         Always return APL (not BII) integers 1 or 0. See Returns, below.
-   ⍝      Dyadic ⌽:   ⍺⌽⍵ multiplies BII ⍵ by 10*⍺ for ⍺>0
-   ⍝                      divides BII ⍵ by 10*⍺ for ⍺<0
+   ⍝      Dyadic ↑:   ⍺↑⍵ multiplies BII ⍵ by 10*⍺ for ⍺>0
+   ⍝      Dyadic ↓:       divides BII ⍵ by 10*⍺ for ⍺>0
    ⍝         To replicate a "shift by 10s", with the amount on the right, use
-   ⍝             ⌽BII⍨
-   ⍝             '12345' ⌽BII⍨ 3            3 ⌽BII '12345'
+   ⍝             ↑BII⍨
+   ⍝             '12345' ↑BII⍨ 3            3 ↑BII '12345'
    ⍝         12345000                  12345000
-   ⍝             '54321' ⌽BII⍨¯2            ¯2 ⌽BII '54321'
+   ⍝             '54321' ↑BII⍨¯2            ¯2 ↑BII '54321'
    ⍝         543                       543
    ⍝
-   ⍝         Multiply/Divide by Ten In Place: var (⌽BII⍨) ← nnn
+   ⍝         Multiply/Divide by Ten In Place: var (↑BII⍨) ← nnn
    ⍝         ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯ ¯¯¯ ¯¯ ¯¯¯¯¯¯ ¯¯¯ ¯¯¯¯¯¯ ¯ ¯¯¯
    ⍝         OK:                             BAD:(Invalid modified assignment)
-   ⍝             a←'123321' ⋄ a(⌽BII⍨)←¯3         a←'123321' ⋄ a⌽BII⍨←¯3
+   ⍝             a←'123321' ⋄ a(↑BII⍨)←¯3         a←'123321' ⋄ a↑BII⍨←¯3
    ⍝         123
    ⍝      Dyadic 'SHIFTD' (⍺, decimal shifted ⍵ places)
-   ⍝         Reverse-arg synonym of ⌽:
+   ⍝         Reverse-arg synonym of ↑:
    ⍝              ⍺ ('SHIFTD' BII) ⍵
    ⍝         multiplies ⍺ by 10*⍵, if ⍵>0, or divides by 10*⍵,
    ⍝         i.e. adds 0's on the right or truncates from the right.
@@ -488,7 +499,7 @@
    ⍝        :For i :in ⍳(:10:)
    ⍝         …
    ⍝        :EndFor
-   ⍝   ∘ Extension 2 [for options 2 ¯2] :BII and :ENDBI Directives
+   ⍝   ∘ Extension 2 [for options 2 ¯2] :BI and :ENDBI Directives
    ⍝     For APL functions (option 2=|⍺), no code is automatically
    ⍝     assumed to consist of BII calls or integers. Code to be converted
    ⍝     must appear between ⍝:BII and ⍝:ENDBI statements*.
@@ -504,7 +515,7 @@
    ⍝    2          :  evaluate ⍵: the name of an APL function with BII-ready code between
    ⍝                  ⍝ :BII and ⍝ :ENDBI statements (case is ignored).
    ⍝                  Regular integer constants within :BII sequences will be treated as
-   ⍝                  BII's and quoted. To force to APL, use (: … :)
+   ⍝                  BigInts and quoted. To force to APL, use (: … :)
    ⍝   ¯2          : like 2, except ⍵ is a char vec or vectors as if output of ⎕NR name.
    ⍝ ∇…
    ⍝ :FOR i :in ⍳count
