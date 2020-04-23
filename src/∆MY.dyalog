@@ -1,7 +1,7 @@
 :Namespace ∆MYgrp
  ⍝ See HELP below for documentation
 
-    ⎕IO←0 ⋄ qt←{'''',⍵,''''}
+    ⎕IO ⎕ML←0 1 ⋄ qt←{'''',⍵,''''}
   ⍝ special namespace ⍙⍙ within the caller's namespace for all local fns with ∆MY namespaces...
   ⍝ We use ∆MY_ in place of ∆MY. since it's a bit faster w/ no loss of clarity and separation!
     STATIC_NS←     '⍙⍙'
@@ -17,6 +17,8 @@
   ⍝     User-level:  ∆FIRST, ∆RESET, ∆DESTROY, ∆NAME, ∆NS 
   ⍝     Internal:    ∆MY_DATA[0 1 2]←fn name, namespace, first flag 
     :Namespace STARTUP_ITEMS
+      ⍝ Special variables ; 0-adic functions:  ⍙MyData; ∆FIRST, ∆RESET, ∆DESTROY, ∆NAME, ∆NS
+        ⎕IO ⎕ML←0 1            ⍝ Be explicit
         ⍝ ⍙MyData:             [0] ∆NAME   [1] ∆NS [2] ∆FIRST flag
         ⍙MyData←               '[dummy]'   ⎕NULL   1  
         ⎕FX '{now}←  ∆FIRST'   'now←⍙MyData[2] ⋄ ⍙MyData[2]←0 '
@@ -29,7 +31,7 @@
     :EndNamespace
 
    ⍝ ACTIVE_updateDF ⍵: ⎕FIX-time option
-   ⍝    ⍵=1: Use friendly display form (at cost of 20% of ∆MY call speed)
+   ⍝    ⍵=1: Use friendly display form (at cost of [initial call only] 20% of ∆MY call speed)
    ⍝         path.[∆MY].fn_name, where path might be #.ns1.ns2 and fn_name is the calling function for ∆MY.
    ⍝    ⍵=0: Use actual path name for ∆MY display form.
    ⍝ updateDF ⍵@R returns ⍵, ref for the namespace being updated.
@@ -43,6 +45,7 @@
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝     ∆MY, ∆MYX
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝   Errors...
     baseInUseE←   '∆MY: base namespace for statics not available: '
     userInUseE←   '∆MY: user static namespace not available: '
     callerE ←     '∆MYX: Left Arg (caller''s ns) must be a namespace reference' 

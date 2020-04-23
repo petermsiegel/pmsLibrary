@@ -25,11 +25,11 @@
     
  ⍝ hd: here doc, cb: comment + opt'l blank, op: options
  
-∇hd←∆HERE;⎕IO;⎕ML;cb;op       
+∇hd←∆HERE;⎕IO;⎕ML;cb;opt       
  hd←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
- op←(⊃hd)[1+⍸'⍠'∊⍨⊃hd] ⋄ cb← '⍝ ' '⍝'⊃⍨'C'∊op 
+ opt←(⊃hd)[1+⍸'⍠'∊⍨⊃hd] ⋄ cb← '⍝ ' '⍝'⊃⍨'C'∊opt 
  hd/⍨←'⍝'≠⊃¨hd←1↓¨hd/⍨∧\cb∊⍨⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨1↓hd
- →0↓⍨'S'∊op
+ →0↓⍨'S'∊opt
  hd←¯1↓∊hd,¨⎕UCS 10  
 ∇
 
