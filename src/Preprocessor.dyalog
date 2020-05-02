@@ -93,6 +93,15 @@
     _noB←0∘{0=⍺: ⍵~' ' ⋄ pre←'(?X)' ⋄ pre≡4↑⍵: ⍵ ⋄ pre,⍵}   ⍝ In regexp patterns, use \s or \h for spaces, never ' '
     _MAP←_noB ⎕THIS∘∆MAP
 
+  ⍝ ∆R:   ⎕r ⍠optsS, skipping quoted strings and comments, where possible...
+    ∆R←{ ⍺←optsS
+        skipP←quoteP commentP 
+        ww←⍵⍵ ⋄ nSkip←≢skipP ⋄ skipR←nSkip⍴⊆'\0'
+        pats←(skipP,⊆⍺⍺) 
+        2=⎕NC 'ww': pats ⎕R repl ⍠optsS⊣⍵  ⊣repl←skipR,((≢⊆⍺⍺))⍴⊆ww
+        pats ⎕R { ⍵.PatternNum∊0 1: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ww ⍵ }⍠⍺⊣⍵
+    }
+
  ⍝  _____P : Regexp Patterns
  ⍝  Match recursive balanced {}, [], (), including multilines (with Mode M), sq strings 'just so', dq strings "just so", and comments ⍝ just so
  ⍝  "Uses up" ??? fields.
@@ -144,7 +153,7 @@
               enParen type∘mapQuotedNL ⍵ ∆FLD 1 
           }
           procDFns←      { 
-              f0←⍵ ∆FLD 0 ⋄ ⍵.PatternNum≠2:  f0 ⋄ '\n'⎕R escN_RE⍠optsM⊣ f0
+              '\n'⎕R escN_RE⍠optsM⊣ ⍵ ∆FLD 0
           }
           procIfThenElse←{
               if then else←⍵ ∆FLD 'IF' 'THEN' 'ELSE'
@@ -154,7 +163,7 @@
 
           s←quoteP commentP  fauxZildeP dQuotePlusP ⎕R procDQStrings⍠optsM⊣⍵
           s←ifThenElseP ⎕R  procIfThenElse⊣s 
-          quoteP commentP braceP ⎕R procDFns⍠optsM⊣s
+          optsM (braceP ∆R procDFns)⊣s
       }
       canonicalOutput←{  
            escN_RE ⎕R '\n'⍠optsM⊣⊆⍵
@@ -246,7 +255,7 @@
           atomP ⎕R atomProc⍠optsM⊣⍵
       }
 
-      process←canonicalOutput procAtoms canonicalInput 
+      process←{canonicalOutput procAtoms canonicalInput ⍵} 
 
   ⍝ Delete "temporary" names (prefixed with _) from final namespace
     ⎕EX  '_' ⎕NL 2 3
