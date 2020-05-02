@@ -8,7 +8,8 @@
     DEBUG←0  ⍝
 
     SQ←'''' ⋄ DQ←'"' ⋄ DQ2←2⍴DQ
-    LP←'(' ⋄ RP←')'
+    LP RP←'()'
+    LBr RBr←'{}'
     optsM←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)
     optsS←            ('EOL' 'LF')('NEOL' 1)('UCP' 1)
 
@@ -16,7 +17,9 @@
     dtb←{⍵↓⍨-+/∧\' '=⌽⍵}          ⍝ Delete trailing blanks
     doubleSQ← {⍵/⍨1+⍵=SQ}         ⍝ Double internal single-quotes
     halveDQ←  {⍵/⍨~DQ2⍷⍵}         ⍝ Convert doubled double-quotes to single
-    enParen←{LP,⍵,RP}             ⍝ Put ⍵ in parens
+    chop←     {1↓¯1↓⍵}            ⍝ Remove matching parens, quotes, etc. [no checks here]
+    addParens←  {LP,⍵,RP}          ⍝ Put ⍵ in parens
+    addBraces←  {LBr,⍵,RBr}        ⍝ Put ⍵ in braces
     enQuoteRaw←{SQ,⍵,SQ}          ⍝ Put ⍵ in quotes-- no other processing
     enQuote← enQuoteRaw doubleSQ  ⍝ Put ⍵ in quotes, doubling any single quotes
 
@@ -93,14 +96,16 @@
     _noB←0∘{0=⍺: ⍵~' ' ⋄ pre←'(?X)' ⋄ pre≡4↑⍵: ⍵ ⋄ pre,⍵}   ⍝ In regexp patterns, use \s or \h for spaces, never ' '
     _MAP←_noB ⎕THIS∘∆MAP
 
-  ⍝ ∆R:   ⎕r ⍠optsS, skipping quoted strings and comments, where possible...
-    ∆R←{ ⍺←optsS
+  ⍝ ∆Rm:   ⎕r ⍠optsM, skipping quoted strings and comments, where possible...
+    ∆R←{⍺←optsM
         skipP←quoteP commentP 
         ww←⍵⍵ ⋄ nSkip←≢skipP ⋄ skipR←nSkip⍴⊆'\0'
         pats←(skipP,⊆⍺⍺) 
         2=⎕NC 'ww': pats ⎕R repl ⍠optsS⊣⍵  ⊣repl←skipR,((≢⊆⍺⍺))⍴⊆ww
-        pats ⎕R { ⍵.PatternNum∊0 1: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ww ⍵ }⍠⍺⊣⍵
+        pats ⎕R { ⍵.PatternNum∊0 1: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ⍵.Case← ⍵.PatternNum∘∊ ⋄ ww ⍵ }⍠⍺⊣⍵
     }
+    ∆Rm←{optsM (⍺⍺ ∆R ⍵⍵) ⊣ ⍵}
+    ∆Rs←{optsS (⍺⍺ ∆R ⍵⍵) ⊣ ⍵}
 
  ⍝  _____P : Regexp Patterns
  ⍝  Match recursive balanced {}, [], (), including multilines (with Mode M), sq strings 'just so', dq strings "just so", and comments ⍝ just so
@@ -131,7 +136,10 @@
     _atomDyad←  _MAP'(( ⍎atomSimpleP | ⍎braceP | ⍎parenP)  \s* ⍎_aArrowP )'
     atomP←      _MAP'(⍎_atomMonad | ⍎_atomDyad) '
 
+    leftArrowP ← _noB ' (?<= ^|[[(:] ) (\s* ← )'
+
       SQspSQ←SQ,' ',SQ  
+      TMP_CTR←0 ⋄ '⍙' #.⎕NS ''
       canonicalInput←{
           ⍝ types (⍺) for mapQuotedNL
           ⍝   "any double_quoted string"type
@@ -139,7 +147,7 @@
           ⍝   M/m          : create a matrix, one line per vector.                M: Ditto
           ⍝   S/s          : create a string with CRs (preferred by Dyalog APL)   S: Ditto
           mapQuotedNL← { type←1↑⍺,'V' 
-              s←enQuote halveDQ 1↓¯1↓⍵
+              s←enQuote halveDQ chop ⍵
               pat← '\n','\s*'/⍨type∊'VMS'
               type∊'Ss': pat ⎕R  SQcrSQ⍠optsM⊣s
               s←pat ⎕R SQspSQ⍠optsM⊣s
@@ -150,23 +158,27 @@
               ⍵.PatternNum=2:  '⍬'
               ⍵.PatternNum≠3:  ⍵ ∆FLD 0  
               type←⍵ ∆FLD 'TYPE'
-              enParen type∘mapQuotedNL ⍵ ∆FLD 1 
-          }
-          procDFns←      { 
-              '\n'⎕R escN_RE⍠optsM⊣ ⍵ ∆FLD 0
+              addParens type∘mapQuotedNL ⍵ ∆FLD 1 
           }
           procIfThenElse←{
               if then else←⍵ ∆FLD 'IF' 'THEN' 'ELSE'
               else←'{⎕NULL}' else ⊃⍨ 0≠≢else 
                if,'{⍺:_←',then,'0⋄1:_←',else,'0}0' 
           }
-
-          s←quoteP commentP  fauxZildeP dQuotePlusP ⎕R procDQStrings⍠optsM⊣⍵
-          s←ifThenElseP ⎕R  procIfThenElse⊣s 
-          optsM (braceP ∆R procDFns)⊣s
+          matchParens ← { ∆←∇
+                parenP ∆Rm {
+                     addParens ⊢ braceP '\n' ⎕R {⍵.PatternNum = 0: addBraces ∆ chop ⍵ ∆FLD 0 ⋄ ' '}⍠optsM⊣chop ⍵ ∆FLD 0 
+                }⊣⍵
+          }
+          s←  quoteP commentP  fauxZildeP dQuotePlusP ⎕R procDQStrings⍠optsM⊣⍵
+          s←  ifThenElseP ⎕R  procIfThenElse⍠optsM⊣s 
+          s←  leftArrowP ∆Rs {TMP_CTR+←1 ⋄ '#.⍙.T',(⍕TMP_CTR),'←'}⊣s  
+          s←  matchParens s 
+          s 
       }
-      canonicalOutput←{  
-           escN_RE ⎕R '\n'⍠optsM⊣⊆⍵
+      canonicalOutput←{ 
+           ⍵ 
+           ⍝ escN_RE ⎕R '\n'⍠optsM⊣⊆⍵
       }
 
   ⍝ An ATOMLIST or ALIST (for short: used below) consists of
