@@ -58,7 +58,9 @@
 
       ∆RS←{⍺⍺ ⎕R ⍵⍵⍠optsS⊣⍵}
       ∆RM←{⍺⍺ ⎕R ⍵⍵⍠optsM⊣⍵}
-    ⍝ ∆RSkipM:   ⎕r ⍠optsM, skipping quoted strings and comments, where possible...
+    ⍝ ∆RSkipM:   pat ∆RSkip[M/S] replacement ⊣string
+    ⍝    Syntax: Finds pat in ⍵ only if not w/in quoted strings or w/in comments.
+    ⍝            pat must not expand rightward into a quoted string (e.g. 'abc.*' might do so).
       ∆RSkip←{⍺←optsM
         skipP←quoteP commentP 
         ww←⍵⍵ ⋄ nSkip←≢skipP ⋄ skipR←nSkip⍴⊆'\0'
@@ -102,8 +104,8 @@
               post~skip
           }⍵
     }
-    _noB←0∘{0=⍺: ⍵~' ' ⋄ pre←'(?X)' ⋄ pre≡4↑⍵: ⍵ ⋄ pre,⍵}   ⍝ In regexp patterns, use \s or \h for spaces, never ' '
-    _MAP←_noB ⎕THIS∘∆MAP
+    _noB←0∘{0=⍺: ⍵~' ' ⋄ preL←'\Q','\E',⍨pre←'(?xx)' ⋄ pre, preL ⎕R ''⊣⍵}   ⍝ In regexp patterns, use \s or \h for spaces, never ' '
+    map←_noB ⎕THIS∘∆MAP
 
 
  ⍝  _____P : Regexp Patterns
@@ -120,20 +122,20 @@
     numP  ←   _noB   '(?i) ¯? [\d\.] [\d\.EJ¯]* '
     quoteP←   _noB   '(?: '' [^'']* '')+ '
     dQuoteP←  _noB   '(?: " [^"]*    ")+ '    ⍝ All double quote strings are handled at <process>
-    dQuotePlusP←_MAP '(⍎dQuoteP)(?<TYPE>\pL?)'
+    dQuotePlusP←map  '(⍎dQuoteP)(?<TYPE>\pL?)'
     commentP← _noB   ' ⍝ .* $'
     atomSimpleP←     '( (?| ⍎nameP | ⍎numP | ⍎quoteP)  (?: \s* (?| ⍎nameP | ⍎numP | ⍎quoteP) )* ) '
-    groupP←_MAP      '(?: ⍎nameP | ⍎braceP | ⍎parenP | ⍎numP )'
+    groupP←map       '(?: ⍎nameP | ⍎braceP | ⍎parenP | ⍎numP )'
 
   ⍝ if then else:    name ← (cond) :TH {action} :EL {action}
-    ifThenElseP←_MAP '(?<IF>⍎groupP) \h*:TH\h* (?<THEN>⍎groupP) (?| \h*:EL\h* (?<ELSE>⍎groupP) | (?<ELSE>) )'
+    ifThenElseP←map '(?<IF>⍎groupP) \h*:TH\h* (?<THEN>⍎groupP) (?| \h*:EL\h* (?<ELSE>⍎groupP) | (?<ELSE>) )'
 
     _aListP←'(?:⍎groupP) (?:\h* ⍎groupP)*'
     _aQuoteP←'`{1,}'
     _aArrowP←'→{1,}'
-    _atomMonad← _MAP'(⍎_aQuoteP \s* ( ⍎atomSimpleP | ⍎braceP | ⍎parenP ))'
-    _atomDyad←  _MAP'(( ⍎atomSimpleP | ⍎braceP | ⍎parenP)  \s* ⍎_aArrowP )'
-    atomP←      _MAP'(⍎_atomMonad | ⍎_atomDyad) '
+    _atomMonad← map'(⍎_aQuoteP \s* ( ⍎atomSimpleP | ⍎braceP | ⍎parenP ))'
+    _atomDyad←  map'(( ⍎atomSimpleP | ⍎braceP | ⍎parenP)  \s* ⍎_aArrowP )'
+    atomP←      map'(⍎_atomMonad | ⍎_atomDyad) '
 
     leftArrowP ← _noB ' (?<= ^|[[(:⋄] ) (\s* ← )'
 
@@ -149,39 +151,46 @@
   ⍝           INPUT:    ⎕← me ← ` {⍺⍳⍵} ⋄  1 2 3 me.fn 2   ⍝ ⎕IO←0
   ⍝           OUTPUT:   [fnPtr 1]                          ⍝ Display form...
   ⍝           RESULT:   1
+  ⍝           An ATOMLIST or ALIST (for short: used below) consists of
+  ⍝             1)  [value list] a list of names (simple or fully-qualified), numbers, and quoted strings
+  ⍝             2)  [code]       a single dfn {}; a train or fn-related code or names inside parens (+.×) or (name1,name2).
+  ⍝              ∘    A value list may contain 1 or more items.
+  ⍝              ∘    A code specification may contain exactly one dfn, or parenthesized code expression.
+  ⍝           An explicit ATOMLIST or ALIST  consists of a backtick followed by an ALIST
+  ⍝               ` fred 'mary' ¯45        
+  ⍝               ` {⍳⍵}   
+  ⍝               ` (+.×)  
+  ⍝           A MAP consists of an atomic specification followed by a right arrow, followed by any APL expression:
+  ⍝                 ATOMLIST  →  APL_EXPRESSION
+  ⍝           e.g.   (name → 'John Q. Smith'), (address → 95), (temp celsius → 12)
+  ⍝           An explicit ALIST is a "regular" APL expression, so it may be used to the right of an arrow
+  ⍝                  (address home → `123 Main St)
+  ⍝           Do not use an explicit ALIST on the left-side of a MAP:
+  ⍝             [INVALID]  (` name → 'John Q Smith')
+  ⍝           Expressions with a single ` or → always generate a vector result, a value list of 1 or more vectors.
+  ⍝           Often, it's convenient to be able to assume you are always handed a list of values...
+  ⍝           Sometimes it's useful to generate a scalar, when there is just one item:
+  ⍝           Expressions with doubled `` or →→ work exactly like their singular counterparts, except:
+  ⍝             An ALIST returned from `` or →→ (LHS only) will be a scalar, unless there are at least 2 items in the list.
+  ⍝           Example of single or double `.  
+  ⍝             alpha beta←1 2                   ⍝       variables in the ws
+  ⍝             scan4Atoms '⎕NC `alpha'         ⍝       ` statement:  ⎕NC ` alpha
+  ⍝           ⎕NC (⊆'alpha')                      ⍝       result is a vector of vectors (depth [≡] 2), even though 1 name.
+  ⍝             ⎕NC (⊆'alpha') 
+  ⍝           2.1                                 ⍝       ⎕NC on depth 2 returns name class and subclass.
+  ⍝             scan4Atoms '⎕NC `alpha beta'
+  ⍝           ⎕NC (⊆'alpha' 'beta')
+  ⍝             ⎕NC (⊆'alpha' 'beta')            ⍝       Same as ⎕NC ('alpha' 'beta')
+  ⍝           2.1 2.1
+  ⍝             scan4Atoms '⎕NC ``alpha'        ⍝       `` statement:  ⎕NC `` alpha
+  ⍝           ⎕NC ('alpha')                       ⍝       result is a simple char vector (depth [≡] 1), when just 1 name.
+  ⍝             ⎕NC ('alpha')
+  ⍝          2                                   ⍝       ⎕NC on depth 1 string returns simple nameclass.
+  ⍝             scan4Atoms '⎕NC ``alpha beta'
+  ⍝          ⎕NC ('alpha' 'beta')
+  ⍝             ⎕NC ('alpha' 'beta') 
+  ⍝          2.1 2.1
     atomCtr←0
-
-    scan4Atoms←{
-          matchAtoms←{
-              pfx←'`' ⋄ sfx←'→'
-              procByType←{affix atoms←⍵
-                  '({'∊⍨1↑atoms:'(',atoms,fnPtr,'⊣',(⍕atomCtr),')'⊣atomCtr⊢←2147483648|atomCtr+1
-                  nitems←0 ⋄ listRequired←1=≢affix
-                  s←quoteP nameP numP ⎕S {
-                         f0←⍵ ∆FLD 0
-                         isQuote isName isNum←0 1 2=⍵.PatternNum
-                         nitems+←1
-                         isNum: f0
-                         len1←1=(≢f0)-2×isQuote
-                         s←SQ{isName: ⍺,⍵,⍺ ⋄ ⍵}f0
-                         len1: '(,',s,')'
-                         s 
-                  }⊣⊆atoms
-                  listPfx←',⊂'/⍨listRequired∧nitems=1
-                  '(',listPfx,')',⍨¯1↓∊' ',⍨¨s 
-              }
-              f0←⍵ ∆FLD 0
-              n←+/pfx=2↑f0
-              ⍝ ` atomList
-              0≠n:procByType affix_atoms⊣affix_atoms←(n↑f0)(dlb n↓f0)
-              n←-+/sfx=¯2↑f0
-              ⍝ atomList → apl_code
-              0≠n:'(',(procByType affix_atoms),'){⍺⍵}'⊣affix_atoms←(n↑f0)(dtb n↓f0)
-              ⎕SIGNAL/'Preprocessor: Logic error' 11
-          }
-          atomP ∆RM matchAtoms⊣⍵
-    }
-
     SQspSQ←SQ,' ',SQ  
     TMP_CTR←0 ⋄ '⍙' #.⎕NS ''
     process←{
@@ -190,18 +199,19 @@
           ⍝   V/v (default): create vector of string vectors.                     V: Removing leading blanks from all but first line.
           ⍝   M/m          : create a matrix, one line per vector.                M: Ditto
           ⍝   S/s          : create a string with CRs (preferred by Dyalog APL)   S: Ditto
-          procQuotedNL← { type←1↑⍺,'V' 
-              s←enQuote halveDQ chop ⍵
-              pat← '\n','\s*'/⍨type∊'VMS'
-              type∊'Ss': pat ∆RM  SQcrSQ⊣s
-              s←pat ∆RM SQspSQ⊣s
-              type∊'Mm':'↑',s 
-              s
-          } 
+
           matchVarious← {
               ⍵.Case 0:  '⍬'
               ⍵.Case 1: '#.⍙.T',(⍕TMP_CTR),'←'  ⊣ TMP_CTR+←1 
               type←⍵ ∆FLD 'TYPE'
+              procQuotedNL← { type←1↑⍺,'V' 
+                  s←enQuote halveDQ chop ⍵
+                  pat← '\n','\s*'/⍨type∊'VMS'
+                  type∊'Ss': pat ∆RM  SQcrSQ⊣s
+                  s←pat ∆RM SQspSQ⊣s
+                  type∊'Mm':'↑',s 
+                  s
+              } 
               addParens type∘procQuotedNL ⍵ ∆FLD 1 
           }
           matchIfThenElse←{
@@ -209,61 +219,99 @@
               else←'{⎕NULL}' else ⊃⍨ 0≠≢else 
                if,'{⍺:_←',then,'0⋄1:_←',else,'0}0' 
           }
-          scan4Parens ← { ∆←∇ 
+          scan4Parens ← { outerFn←∇ 
                 parenP ∆RSkipM {
-                     addParens ⊢ braceP '\n' ∆RSkipM {⍵.PatternNum = 0: addBraces ∆ chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
+                     addParens ⊢ braceP '\n' ∆RSkipM {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
                 }⊣⍵
           }
+          scan4Atoms←{
+              matchAtoms←{
+              pfx←'`' ⋄ sfx←'→'
+              procByType←{affix atoms←⍵
+                  ' ({'∊⍨1↑atoms:'(',atoms,fnPtr,'⊣',(⍕atomCtr),')'⊣atomCtr⊢←2147483648|atomCtr+1
+                    nitems←0 ⋄ listRequired←1=≢affix
+                    s←quoteP nameP numP ⎕S {
+                         f0←⍵ ∆FLD 0
+                         isQuote isName isNum←0 1 2=⍵.PatternNum
+                         nitems+←1
+                         isNum: f0
+                         len1←1=(≢f0)-2×isQuote
+                         s←SQ{isName: ⍺,⍵,⍺ ⋄ ⍵}f0
+                         len1: '(,',s,')'
+                         s 
+                    }⊣⊆atoms
+                    listPfx←',⊂'/⍨listRequired∧nitems=1
+                    '(',listPfx,')',⍨¯1↓∊' ',⍨¨s 
+              }
+              f0←⍵ ∆FLD 0
+              n←+/pfx=2↑f0
+            ⍝ ` atomList
+              0≠n:procByType affix_atoms⊣affix_atoms←(n↑f0)(dlb n↓f0)
+              n←-+/sfx=¯2↑f0
+            ⍝ atomList → apl_code
+              0≠n:'(',(procByType affix_atoms),'){⍺⍵}'⊣affix_atoms←(n↑f0)(dtb n↓f0)
+              ⎕SIGNAL/'Preprocessor: Logic error' 11
+              }
+              atomP ∆RM matchAtoms⊣⍵
+          }
 
-          s←  fauxZildeP leftArrowP dQuotePlusP ∆RSkipM matchVarious⊣⍵
-          s←  ifThenElseP ∆RSkipM  matchIfThenElse⊣s 
-          s←  scan4Atoms scan4Parens s 
+          s←  fauxZildeP leftArrowP dQuotePlusP ∆RSkipM    matchVarious          ⊣⍵
+          s←  ifThenElseP ∆RSkipM                          matchIfThenElse       ⊣s 
+          s←                                               scan4Atoms scan4Parens s 
           s 
     }
 
-  ⍝ An ATOMLIST or ALIST (for short: used below) consists of
-  ⍝    1)  [value list] a list of names (simple or fully-qualified), numbers, and quoted strings
-  ⍝    2)  [code]       a single dfn {}; a train or fn-related code or names inside parens (+.×) or (name1,name2).
-  ⍝    ∘    A value list may contain 1 or more items.
-  ⍝    ∘    A code specification may contain exactly one dfn, or parenthesized code expression.
-  ⍝ An explicit ATOMLIST or ALIST  consists of a backtick followed by an ALIST
-  ⍝         ` fred 'mary' ¯45        
-  ⍝         ` {⍳⍵}   
-  ⍝         ` (+.×)  
-  ⍝ A MAP consists of an atomic specification followed by a right arrow, followed by any APL expression:
-  ⍝           ATOMLIST  →  APL_EXPRESSION
-  ⍝ e.g.   (name → 'John Q. Smith'), (address → 95), (temp celsius → 12)
-  ⍝ An explicit ALIST is a "regular" APL expression, so it may be used to the right of an arrow
-  ⍝            (address home → `123 Main St)
-  ⍝ Do not use an explicit ALIST on the left-side of a MAP:
-  ⍝       [INVALID]  (` name → 'John Q Smith')
-  ⍝ 
-  ⍝ Expressions with a single ` or → always generate a vector result, a value list of 1 or more vectors.
-  ⍝ Often, it's convenient to be able to assume you are always handed a list of values...
-  ⍝ Sometimes it's useful to generate a scalar, when there is just one item:
-  ⍝ Expressions with doubled `` or →→ work exactly like their singular counterparts, except:
-  ⍝       An ALIST returned from `` or →→ (LHS only) will be a scalar, unless there are at least 2 items in the list.
-  ⍝ Example of single or double `.  
-  ⍝       alpha beta←1 2                   ⍝ variables in the ws
-  ⍝       scan4Atoms '⎕NC `alpha'         ⍝ ` statement:  ⎕NC ` alpha
-  ⍝    ⎕NC (⊆'alpha')                      ⍝ result is a vector of vectors (depth [≡] 2), even though 1 name.
-  ⍝       ⎕NC (⊆'alpha') 
-  ⍝    2.1                                 ⍝ ⎕NC on depth 2 returns name class and subclass.
-  ⍝       scan4Atoms '⎕NC `alpha beta'
-  ⍝    ⎕NC (⊆'alpha' 'beta')
-  ⍝       ⎕NC (⊆'alpha' 'beta')            ⍝ Same as ⎕NC ('alpha' 'beta')
-  ⍝    2.1 2.1
-  ⍝       scan4Atoms '⎕NC ``alpha'        ⍝ `` statement:  ⎕NC `` alpha
-  ⍝    ⎕NC ('alpha')                       ⍝ result is a simple char vector (depth [≡] 1), when just 1 name.
-  ⍝       ⎕NC ('alpha')
-  ⍝    2                                   ⍝ ⎕NC on depth 1 string returns simple nameclass.
-  ⍝       scan4Atoms '⎕NC ``alpha beta'
-  ⍝    ⎕NC ('alpha' 'beta')
-  ⍝       ⎕NC ('alpha' 'beta') 
-  ⍝    2.1 2.1
- 
-  
+    ∆RR←{⎕IO←0 ⋄ ww←⍵⍵ ⋄ 
+          ⍺⍺ ⎕R { and←{⍺⍺ ⍵: ⍵⍵ ⍵ ⋄ 0}
+              m←⍵.PatternNum
+              3=⎕NC 'ww':,ww ⍵
+              {1=≢⍵}and{9=⎕NC ⊃⍵}ww: ,(⊃ww).fn ⍵
+              {1≠≢⍵}and{m<≢⍵}ww: ,(m⊃ww){9=⎕NC '⍺':  ⍺.fn ⍵ ⋄ ⍺}⍵
+              ww 
+          } ⊣⍵ 
+    }
 
+    tokenize←{
+      ⍝      Indicate token number:  ⍺ +← 1   (default: no token number)
+      ⍝      Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
+      ⍝      Return just tokens   :  ⍺ +← 4   (All other flags are ignored)
+        ⍺←0 ⋄ simpleFlag spaceFlag tokFlag←2 2 2⊤⍺
+
+        extraE←'Extra right paren/brace/bracket' 
+        missingE←'Missing right paren/brace/bracket'
+        logicE←'Logic error: Invalid token type seen for token '
+         objList←⍬ ⋄ stack←⍬ 
+         _←⎕FX 'r←curBrk' ':IF 0=≢stack ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽stack ⋄ :ENDIF'
+         add←{ ''⊣ objList,←⊂ 5↑ ⍵ , 0 }  
+         leftBP← '[[({]'
+         rightBP←'[])}]'
+          
+         _←quoteP  dQuoteP '\h+' nameP  numP leftBP rightBP '\R'  '⋄' '.' ⎕R {
+              quoteC dQuoteC spC nameC  numC leftBC rightBC nlC stmtC symC  ←⍳10
+              types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SYM'  
+              case←⍵.PatternNum∘∊
+              type←⍵.PatternNum⊃types
+              f0←⍵ ∆FLD 0
+              LEN_IX←4
+
+              etcC←quoteC nameC symC stmtC 
+              ⍝                 tok   type  index      curBrk  # blanks     
+              case etcC:    add  f0    type   ⍬        curBrk        
+              case spC:  ''⊣ { 
+                       ⍵:   add  f0    type   ⍬        curBrk (≢f0) ⋄  ⊣ (LEN_IX⊃⊃⌽objList)←≢f0  
+              }spaceFlag
+              case dQuoteC: add  df0   type   ⍬        curBrk       ⊣ df0← enQuote halveDQ chop f0 
+              case numC:    add  vfi   type   ⍬        curBrk       ⊣ vfi ← (⊃⌽⎕VFI f0)
+              case leftBC:  add  f0    type  ¯1        curBrk       ⊣ stack,← ≢objList   
+              case rightBC: add  f0    type  prior     lstBrk       ⊣ stack↓⍨←¯1 ⊣  (prior 2⊃objList)←⍬⍴≢objList ⊣ lstBrk←curBrk ⊣ prior←⊃⌽stack ⊣ extraE ⎕SIGNAL 11/⍨0=≢stack
+              case nlC:     add  '\n'  type  (⎕UCS f0) curBrk  
+              11 ⎕SIGNAL⍨logicE '"',f0,'"'
+         }⍠optsM⊣⍵
+         ¯1∊2⊃¨objList: missingE ⎕SIGNAL 11
+         simpleFlag: 0⊃¨objList 
+         tokFlag: objList,⍨¨⍳≢objList
+         objList
+    }
 
   ⍝ Delete "temporary" names (prefixed with _) from final namespace
     ⎕EX  '_' ⎕NL 2 3
