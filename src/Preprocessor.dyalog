@@ -274,15 +274,18 @@
     tokenize←{
       ⍝      Indicate token number:  ⍺ +← 1   (default: no token number)
       ⍝      Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
-      ⍝      Return just tokens   :  ⍺ +← 4   (All other flags are ignored)
-        ⍺←0 ⋄ simpleFlag spaceFlag tokFlag←2 2 2⊤⍺
+      ⍝      Display fancily:        ⍺ +← 8   (Honors all other flags)
+      ⍝      Return just tokens   :  ⍺ =  4   (All other flags are ignored)
+    
+        ⍺←0 ⋄  justTokensFlag prettyFlag spaceFlag tokFlag←2 2 2 2⊤⍺
 
         extraE←'Extra right paren/brace/bracket' 
         missingE←'Missing right paren/brace/bracket'
         logicE←'Logic error: Invalid token type seen for token '
-         objList←⍬ ⋄ stack←⍬ 
-         _←⎕FX 'r←curBrk' ':IF 0=≢stack ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽stack ⋄ :ENDIF'
-         add←{ ''⊣ objList,←⊂ 5↑ ⍵ , 0 }  
+         tokenTable←⍬ 
+         bracketStack←⍬ 
+         _←⎕FX 'r←curBrk' ':IF 0=≢bracketStack ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽bracketStack ⋄ :ENDIF'
+         add←{ ''⊣ tokenTable,←⊂ 5↑ ⍵ , 0 }  
          leftBP← '[[({]'
          rightBP←'[])}]'
           
@@ -298,19 +301,26 @@
               ⍝                 tok   type  index      curBrk  # blanks     
               case etcC:    add  f0    type   ⍬        curBrk        
               case spC:  ''⊣ { 
-                       ⍵:   add  f0    type   ⍬        curBrk (≢f0) ⋄  ⊣ (LEN_IX⊃⊃⌽objList)←≢f0  
+                       ⍵:   add  f0    type   ⍬        curBrk (≢f0) ⋄  ⊣ (LEN_IX⊃⊃⌽tokenTable)←≢f0  
               }spaceFlag
               case dQuoteC: add  df0   type   ⍬        curBrk       ⊣ df0← enQuote halveDQ chop f0 
               case numC:    add  vfi   type   ⍬        curBrk       ⊣ vfi ← (⊃⌽⎕VFI f0)
-              case leftBC:  add  f0    type  ¯1        curBrk       ⊣ stack,← ≢objList   
-              case rightBC: add  f0    type  prior     lstBrk       ⊣ stack↓⍨←¯1 ⊣  (prior 2⊃objList)←⍬⍴≢objList ⊣ lstBrk←curBrk ⊣ prior←⊃⌽stack ⊣ extraE ⎕SIGNAL 11/⍨0=≢stack
+              case leftBC:  add  f0    type  ¯1        curBrk       ⊣ bracketStack,← ≢tokenTable   
+              case rightBC: add  f0    type  prior     cur          ⊣ prior  cur← {
+                 0=≢⍵: extraE ⎕SIGNAL 11
+                 prior←⊃⌽bracketStack 
+                 (prior 2⊃tokenTable)←⍬⍴≢tokenTable 
+                 bracketStack↓⍨←¯1  
+                 prior ⍵   
+              }curBrk
               case nlC:     add  '\n'  type  (⎕UCS f0) curBrk  
               11 ⎕SIGNAL⍨logicE '"',f0,'"'
          }⍠optsM⊣⍵
-         ¯1∊2⊃¨objList: missingE ⎕SIGNAL 11
-         simpleFlag: 0⊃¨objList 
-         tokFlag: objList,⍨¨⍳≢objList
-         objList
+         ¯1∊2⊃¨tokenTable: missingE ⎕SIGNAL 11
+         justTokensFlag: 0⊃¨tokenTable 
+         table←{tokFlag: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tokenTable
+         prettyFlag: ('id' 'tok' 'typ' (↑'match' 'ix') (↑'brack' 'id') (↑'trail' 'blnks')↑⍨-≢⊃table) ,[0]↑table
+         table
     }
 
   ⍝ Delete "temporary" names (prefixed with _) from final namespace
