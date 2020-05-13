@@ -10,8 +10,8 @@
     SQ←'''' ⋄ DQ←'"' ⋄ DQ2←2⍴DQ
     LP RP←'()'
     LBr RBr←'{}'
-    optsM←('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)
-    optsS←            ('EOL' 'LF')('NEOL' 1)('UCP' 1)
+    optsM←('Mode' 'M')('EOL' 'LF')('NEOL' 0)('UCP' 1)    ⍝ We need NEOL 0 in tokenize.
+    optsS←            ('EOL' 'LF')('NEOL' 0)('UCP' 1)
 
     dlb←{⍵↓⍨+/∧\' '=⍵}            ⍝ Delete leading blanks
     dtb←{⍵↓⍨-+/∧\' '=⌽⍵}          ⍝ Delete trailing blanks
@@ -206,7 +206,7 @@
               type←⍵ ∆FLD 'TYPE'
               procQuotedNL← { type←1↑⍺,'V' 
                   s←enQuote halveDQ chop ⍵
-                  pat← '\n','\s*'/⍨type∊'VMS'
+                  pat← '\R','\s*'/⍨type∊'VMS'
                   type∊'Ss': pat ∆RM  SQcrSQ⊣s
                   s←pat ∆RM SQspSQ⊣s
                   type∊'Mm':'↑',s 
@@ -221,7 +221,7 @@
           }
           scan4Parens ← { outerFn←∇ 
                 parenP ∆RSkipM {
-                     addParens ⊢ braceP '\n' ∆RSkipM {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
+                     addParens ⊢ braceP '\R' ∆RSkipM {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
                 }⊣⍵
           }
           scan4Atoms←{
@@ -274,53 +274,76 @@
     tokenize←{
       ⍝      Indicate token number:  ⍺ +← 1   (default: no token number)
       ⍝      Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
-      ⍝      Display fancily:        ⍺ +← 8   (Honors all other flags)
-      ⍝      Return just tokens   :  ⍺ =  4   (All other flags are ignored)
+      ⍝      Display fancily:        ⍺ +← 4   Mixes, adds headers; honors 1 + 2 
+      ⍝      Return just tokens   :  ⍺ ←  8   (All other flags are ignored)
     
-        ⍺←0 ⋄  justTokensFlag prettyFlag spaceFlag tokFlag←2 2 2 2⊤⍺
-
-        extraE←'Extra right paren/brace/bracket' 
+        ⍺←0 
+      ⍝ F: Flags
+        tknsOnlyF prettyF spaceTknF tknIdF←2 2 2 2⊤⍺ 
+      ⍝ E: Error msgs
+        extraE←  'Extra right paren/brace/bracket' 
         missingE←'Missing right paren/brace/bracket'
-        logicE←'Logic error: Invalid token type seen for token '
-         tokenTable←⍬ 
-         bracketStack←⍬ 
-         _←⎕FX 'r←curBrk' ':IF 0=≢bracketStack ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽bracketStack ⋄ :ENDIF'
-         add←{ ''⊣ tokenTable,←⊂ 5↑ ⍵ , 0 }  
-         leftBP← '[[({]'
-         rightBP←'[])}]'
+        wrongE←  'Mismatched right paren/brace/bracket: '
+        logicE←  'Logic error: Invalid token type seen for token '
+      ⍝ tkn: data structure. table: records of tokens + attributes.  state: bracket depth state.
+        tkn←⎕NS ''
+        tkn.table←⍬ 
+        tkn.state←⍬ 
+
+        TOK_IX BRAK_IX LEN_IX←0 2 4
+
+        leftBP← '[[({]'
+        rightBP←'[])}]'
           
-         _←quoteP  dQuoteP '\h+' nameP  numP leftBP rightBP '\R'  '⋄' '.' ⎕R {
-              quoteC dQuoteC spC nameC  numC leftBC rightBC nlC stmtC symC  ←⍳10
-              types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SYM'  
+        typesP←quoteP  dQuoteP '\h+' nameP  numP leftBP rightBP '\R'  '⋄'  ';' '.' 
+        populate←{ tkn.table⊣ ⍺⍺ ⎕R ⍵⍵⍠optsM⊣⍵}
+        _←⎕FX 'c←curBrk'  'c←(0≡c)↓c←⊃⌽tkn.state'
+        add←{ '' ⊣ tkn.table,←⊂ 5↑ ⍵ , 0 }  
+        scanningString←{ ⍝ sets extern: tkn.table
+              quoteC dQuoteC spC nameC  numC leftBC rightBC nlC stmtC semiC symC  ←⍳11
+              types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SEMI' 'SYM'  
               case←⍵.PatternNum∘∊
               type←⍵.PatternNum⊃types
               f0←⍵ ∆FLD 0
-              LEN_IX←4
-
-              etcC←quoteC nameC symC stmtC 
-              ⍝                 tok   type  index      curBrk  # blanks     
-              case etcC:    add  f0    type   ⍬        curBrk        
-              case spC:  ''⊣ { 
-                       ⍵:   add  f0    type   ⍬        curBrk (≢f0) ⋄  ⊣ (LEN_IX⊃⊃⌽tokenTable)←≢f0  
-              }spaceFlag
-              case dQuoteC: add  df0   type   ⍬        curBrk       ⊣ df0← enQuote halveDQ chop f0 
-              case numC:    add  vfi   type   ⍬        curBrk       ⊣ vfi ← (⊃⌽⎕VFI f0)
-              case leftBC:  add  f0    type  ¯1        curBrk       ⊣ bracketStack,← ≢tokenTable   
-              case rightBC: add  f0    type  prior     cur          ⊣ prior  cur← {
+              
+              procRightBC←{
                  0=≢⍵: extraE ⎕SIGNAL 11
-                 prior←⊃⌽bracketStack 
-                 (prior 2⊃tokenTable)←⍬⍴≢tokenTable 
-                 bracketStack↓⍨←¯1  
-                 prior ⍵   
-              }curBrk
-              case nlC:     add  '\n'  type  (⎕UCS f0) curBrk  
+                 ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
+                 (⍵ BRAK_IX⊃tkn.table)←⍬⍴≢tkn.table 
+                 tkn.state↓⍨←¯1  
+                 ⍵   
+              }
+              procSemi←{
+                  0=≢⍵: ⊃⍺ ⋄ '['=1↑⍵ TOK_IX⊃tkn.table:⊃⍺ ⋄ ⊃⌽⍺
+              }
+              ⍝                  tok   type  index     current  nspaces
+              ⍝                                        bracket      
+              etcC←quoteC nameC symC stmtC  
+              case etcC:    add  f0    type   ⍬        curBrk        
+              case spC: {   new←⍵ ∨ 0=≢tkn.table                   ⍝ A space at start of string generates spaceToken record, even if ~spaceTknF
+                    new:    add  f0    type   ⍬        curBrk (≢f0) 
+                            ''                                     ⊣ (LEN_IX⊃⊃⌽tkn.table)←≢f0 
+              } spaceTknF
+              case dQuoteC: add  df0   type   ⍬        curBrk      ⊣ df0← enQuote halveDQ chop f0 
+              case numC:    add  vfi   type   ⍬        curBrk      ⊣ vfi ← (⊃⌽⎕VFI f0)
+              case leftBC:  add  f0    type  ¯1        curBrk      ⊣ tkn.state,← ≢tkn.table   
+              case rightBC: add  f0    type  curIx     curIx       ⊣ curIx← f0 procRightBC curBrk
+              case semiC:   add  f0    type  ⍬         curBrk      ⊣ type←type 'SEMI2' procSemi curBrk
+            ⍝ nlC: may match any newline type \r\n \n \nel etc.
+              case nlC:     add  '\n' nlType (⎕UCS f0) curBrk      ⊣ nlType←{0=≢⍵: 'NL' ⋄ '{'≡1↑⍵ TOK_IX⊃tkn.table: 'NL' ⋄ 'NL2' }curBrk 
               11 ⎕SIGNAL⍨logicE '"',f0,'"'
-         }⍠optsM⊣⍵
-         ¯1∊2⊃¨tokenTable: missingE ⎕SIGNAL 11
-         justTokensFlag: 0⊃¨tokenTable 
-         table←{tokFlag: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tokenTable
-         prettyFlag: ('id' 'tok' 'typ' (↑'match' 'ix') (↑'brack' 'id') (↑'trail' 'blnks')↑⍨-≢⊃table) ,[0]↑table
-         table
+         }
+  
+         headings← 'id' 'tok' 'typ' (↑'match' ' ix') (↑'brack' ' id') (↑'trail' 'blnks')
+         formatResults←{ ⍝ ⍵: tkn.table
+              ¯1∊BRAK_IX⊃¨⍵: missingE ⎕SIGNAL 11
+              tknsOnlyF: TOK_IX⊃¨⍵
+              tt←{tknIdF: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}⍵
+              prettyF:(headings↑⍨-≢⊃tt) ,[0]↑tt
+              tt 
+         }
+      ⍝  Executive 
+         formatResults (typesP populate scanningString) ⍵
     }
 
   ⍝ Delete "temporary" names (prefixed with _) from final namespace
