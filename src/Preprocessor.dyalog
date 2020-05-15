@@ -206,10 +206,13 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                   pat← '\R','\s*'/⍨type∊'VMS'
                   type∊'Ss': pat ⎕R  SQcrSQ⍠optsM⊣s
                   s←pat ⎕R SQspSQ⍠optsM⊣s
 =======
+=======
+>>>>>>> parent of addeee7... Update Preprocessor.dyalog
 =======
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
 =======
@@ -237,6 +240,9 @@
                      addParens ⊢ braceP '\n' ∆RSkipM {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of addeee7... Update Preprocessor.dyalog
+=======
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
 =======
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
@@ -305,6 +311,7 @@
               case←⍵.PatternNum∘∊
               type←⍵.PatternNum⊃types
               f0←⍵ ∆FLD 0
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -413,6 +420,28 @@
               case nlC:     add  '\n'  type  (⎕UCS f0) curBrk  
               11 ⎕SIGNAL⍨logicE '"',f0,'"'
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
+=======
+              LEN_IX←4
+
+              etcC←quoteC nameC symC stmtC 
+              ⍝                 tok   type  index      curBrk  # blanks     
+              case etcC:    add  f0    type   ⍬        curBrk        
+              case spC:  ''⊣ { 
+                       ⍵:   add  f0    type   ⍬        curBrk (≢f0) ⋄  ⊣ (LEN_IX⊃⊃⌽tokenTable)←≢f0  
+              }spaceFlag
+              case dQuoteC: add  df0   type   ⍬        curBrk       ⊣ df0← enQuote halveDQ chop f0 
+              case numC:    add  vfi   type   ⍬        curBrk       ⊣ vfi ← (⊃⌽⎕VFI f0)
+              case leftBC:  add  f0    type  ¯1        curBrk       ⊣ bracketStack,← ≢tokenTable   
+              case rightBC: add  f0    type  prior     cur          ⊣ prior  cur← {
+                 0=≢⍵: extraE ⎕SIGNAL 11
+                 prior←⊃⌽bracketStack 
+                 (prior 2⊃tokenTable)←⍬⍴≢tokenTable 
+                 bracketStack↓⍨←¯1  
+                 prior ⍵   
+              }curBrk
+              case nlC:     add  '\n'  type  (⎕UCS f0) curBrk  
+              11 ⎕SIGNAL⍨logicE '"',f0,'"'
+>>>>>>> parent of addeee7... Update Preprocessor.dyalog
          }⍠optsM⊣⍵
          ¯1∊2⊃¨tokenTable: missingE ⎕SIGNAL 11
          justTokensFlag: 0⊃¨tokenTable 
@@ -421,6 +450,9 @@
          table
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of addeee7... Update Preprocessor.dyalog
+=======
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
 =======
 >>>>>>> parent of addeee7... Update Preprocessor.dyalog
