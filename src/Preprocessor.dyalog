@@ -5,7 +5,7 @@
   ⍝                 If 0, each occurrence of special functions is emitted as a single-line dfn of possibly moderate length.
     RUNTIME_ASSIST←1           
     ⎕IO←0
-    DEBUG←0  ⍝
+    DEBUG←0   
 
     SQ←'''' ⋄ DQ←'"' ⋄ DQ2←2⍴DQ
     LP RP←'()'
@@ -56,21 +56,18 @@
           }¨⍵
       }
 
-      ∆RS←{⍺⍺ ⎕R ⍵⍵⍠optsS⊣⍵}
-      ∆RM←{⍺⍺ ⎕R ⍵⍵⍠optsM⊣⍵}
-    ⍝ ∆RSkipM:   pat ∆RSkip[M/S] replacement ⊣string
-    ⍝    Syntax: Finds pat in ⍵ only if not w/in quoted strings or w/in comments.
-    ⍝            pat must not expand rightward into a quoted string (e.g. 'abc.*' might do so).
-      ∆RSkip←{⍺←optsM
+    ⍝ ∆Rcode:   "replace text in code (not strings or comments)"
+    ⍝    [1:default | 0] patterns ∆Rcode replacements ⊣string
+    ⍝    Syntax: Finds pat in ⍵ only if not w/in quoted strings or w/in comments in Mode M mode (⍺=1; default) or Mode S mode (⍺=0)
+    ⍝            To respect and skip quotes and comments, pat must not expand rightward into a quoted string or pat (e.g. 'abc.*' might do so).
+      ∆Rcode←{⍺←1 ⋄ opts←⍺⊃optsS optsM
         skipP←quoteP commentP 
         ww←⍵⍵ ⋄ nSkip←≢skipP ⋄ skipR←nSkip⍴⊆'\0'
         pats←(skipP,⊆⍺⍺) 
-        2=⎕NC 'ww': pats ⎕R repl ⍠optsS⊣⍵  ⊣repl←skipR,((≢⊆⍺⍺))⍴⊆ww
-        pats ⎕R { ⍵.PatternNum∊0 1: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ⍵.Case← ⍵.PatternNum∘∊ ⋄ ww ⍵ }⍠⍺⊣⍵
+        2=⎕NC 'ww': pats ⎕R repl ⍠opts⊣⍵  ⊣repl←skipR,((≢⊆⍺⍺))⍴⊆ww
+        pats ⎕R { ⍵.PatternNum∊0 1: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ⍵.Case← ⍵.PatternNum∘∊ ⋄ ww ⍵ }⍠opts⊣⍵
       }
-      ∆RSkipM←  {optsM (⍺⍺ ∆RSkip ⍵⍵) ⊣ ⍵}
-      ∆RSkipS←  {optsS (⍺⍺ ∆RSkip ⍵⍵) ⊣ ⍵}
-
+    
       ⍝  string2 ← [ environment?caller_ns [errOnNull?1]] ∆MAP string1
       ⍝  string1:⍵, a string containing text including 0 or more...
       ⍝      nameStrings of the form:
@@ -95,11 +92,11 @@
           ⍺←0⊃⎕RSI ⋄ where errOnNull←2↑⍺,1 ⋄ skip←⎕UCS 0 
           mapTries{
               curTries←⍺
-              post←'⍎⍎' '⍎(?|(([\w_∆⍙⎕\#]+)(\.(?-1))*)|\{(.*?)\})'∆RS{
+              post←'⍎⍎' '⍎(?|(([\w_∆⍙⎕\#]+)(\.(?-1))*)|\{(.*?)\})'⎕R{
                   0/⍨DEBUG⍲errOnNull::⍵ ∆FLD 0⊣mapErr ⎕SIGNAL errOnNull/11
                   0=⍵.PatternNum:'⍎',skip
                   0≠≢f1←⍵ ∆FLD 1:⍕where⍎f1 
-              }⊣pre←⍵
+              }⍠optsS⊣pre←⍵
               (curTries>0)∧post≢pre:(curTries-1)∇ post
               post~skip
           }⍵
@@ -119,7 +116,7 @@
 
     fauxZildeP←      '\(\h*\)'
     nameP ←   _noB   '(?: ( [\pL_∆⍙⎕#⍺⍵] [\w_∆⍙⎕#⍺⍵]*) (?: \. (?-1) )* )'
-    numP  ←   _noB   '(?i) ¯? [\d\.] [\d\.EJ¯]* '
+    numP  ←   _noB   '(?i) ¯? ( \d | \.  (?=\d))  [\d\.EJ¯]* '    ⍝ Good:  .5  5   5.0 .5E¯2    Bad:  .  .E¯2
     quoteP←   _noB   '(?: '' [^'']* '')+ '
     dQuoteP←  _noB   '(?: " [^"]*    ")+ '    ⍝ All double quote strings are handled at <process>
     dQuotePlusP←map  '(⍎dQuoteP)(?<TYPE>\pL?)'
@@ -207,8 +204,8 @@
               procQuotedNL← { type←1↑⍺,'V' 
                   s←enQuote halveDQ chop ⍵
                   pat← '\R','\s*'/⍨type∊'VMS'
-                  type∊'Ss': pat ∆RM  SQcrSQ⊣s
-                  s←pat ∆RM SQspSQ⊣s
+                  type∊'Ss': pat ⎕R  SQcrSQ⍠optsM⊣s
+                  s←pat ⎕R SQspSQ⍠optsM⊣s
                   type∊'Mm':'↑',s 
                   s
               } 
@@ -220,8 +217,8 @@
                if,'{⍺:_←',then,'0⋄1:_←',else,'0}0' 
           }
           scan4Parens ← { outerFn←∇ 
-                parenP ∆RSkipM {
-                     addParens ⊢ braceP '\R' ∆RSkipM {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
+                parenP ∆Rcode {
+                     addParens ⊢ braceP '\R' ∆Rcode {⍵.PatternNum = 0: addBraces outerFn chop ⍵ ∆FLD 0 ⋄ ' '}⊣chop ⍵ ∆FLD 0 
                 }⊣⍵
           }
           scan4Atoms←{
@@ -252,23 +249,13 @@
               0≠n:'(',(procByType affix_atoms),'){⍺⍵}'⊣affix_atoms←(n↑f0)(dtb n↓f0)
               ⎕SIGNAL/'Preprocessor: Logic error' 11
               }
-              atomP ∆RM matchAtoms⊣⍵
+              atomP ⎕R  matchAtoms⍠optsM⊣⍵
           }
 
-          s←  fauxZildeP leftArrowP dQuotePlusP ∆RSkipM    matchVarious          ⊣⍵
-          s←  ifThenElseP ∆RSkipM                          matchIfThenElse       ⊣s 
-          s←                                               scan4Atoms scan4Parens s 
+          s←  fauxZildeP leftArrowP dQuotePlusP ∆Rcode    matchVarious          ⊣⍵
+          s←  ifThenElseP ∆Rcode                          matchIfThenElse       ⊣s 
+          s←                                              scan4Atoms scan4Parens s 
           s 
-    }
-
-    ∆RR←{⎕IO←0 ⋄ ww←⍵⍵ ⋄ 
-          ⍺⍺ ⎕R { and←{⍺⍺ ⍵: ⍵⍵ ⍵ ⋄ 0}
-              m←⍵.PatternNum
-              3=⎕NC 'ww':,ww ⍵
-              {1=≢⍵}and{9=⎕NC ⊃⍵}ww: ,(⊃ww).fn ⍵
-              {1≠≢⍵}and{m<≢⍵}ww: ,(m⊃ww){9=⎕NC '⍺':  ⍺.fn ⍵ ⋄ ⍺}⍵
-              ww 
-          } ⊣⍵ 
     }
 
     tokenize←{
@@ -307,14 +294,15 @@
               f0←⍵ ∆FLD 0
               
               procRightBC←{
+                ⎕←'curBrk' curBrk
                  0=≢⍵: extraE ⎕SIGNAL 11
                  ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
                  (⍵ BRAK_IX⊃tkn.table)←⍬⍴≢tkn.table 
                  tkn.state↓⍨←¯1  
                  ⍵   
               }
-              procSemi←{
-                  0=≢⍵: ⊃⍺ ⋄ '['=1↑⍵ TOK_IX⊃tkn.table:⊃⍺ ⋄ ⊃⌽⍺
+              procSemi←{ std alt←⍺ 
+                  0=≢⍵: alt ⋄ '['=1↑⍵ TOK_IX⊃tkn.table: std ⋄ alt
               }
               ⍝                  tok   type  index     current  nspaces
               ⍝                                        bracket      
@@ -328,7 +316,7 @@
               case numC:    add  vfi   type   ⍬        curBrk      ⊣ vfi ← (⊃⌽⎕VFI f0)
               case leftBC:  add  f0    type  ¯1        curBrk      ⊣ tkn.state,← ≢tkn.table   
               case rightBC: add  f0    type  curIx     curIx       ⊣ curIx← f0 procRightBC curBrk
-              case semiC:   add  f0    type  ⍬         curBrk      ⊣ type←type 'SEMI2' procSemi curBrk
+              case semiC:   add  f0    type  ⍬         curBrk      ⊣ f0 type←(f0  type) (f0 'SEMI2') procSemi curBrk  ⍝ altF0 cld be {⍺⍵}
             ⍝ nlC: may match any newline type \r\n \n \nel etc.
               case nlC:     add  '\n' nlType (⎕UCS f0) curBrk      ⊣ nlType←{0=≢⍵: 'NL' ⋄ '{'≡1↑⍵ TOK_IX⊃tkn.table: 'NL' ⋄ 'NL2' }curBrk 
               11 ⎕SIGNAL⍨logicE '"',f0,'"'
@@ -339,7 +327,7 @@
               ¯1∊BRAK_IX⊃¨⍵: missingE ⎕SIGNAL 11
               tknsOnlyF: TOK_IX⊃¨⍵
               tt←{tknIdF: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}⍵
-              prettyF:(headings↑⍨-≢⊃tt) ,[0]↑tt
+              prettyF:(headings↑⍨-≢⊃tt) ⍪ ↑tt
               tt 
          }
       ⍝  Executive 
