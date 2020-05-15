@@ -1,6 +1,6 @@
 ﻿:namespace Preprocessor
   ⍝ NOTE: All namespace names beginning of the form _xxx are ephemeral, erased at the end of the namespace load.
-  ⍝
+  ⍝  
   ⍝ RUNTIME_ASSIST: If 1, instead of constant functions or variables, ⎕SE.⍙xxx variable names are defined for run-time use.
   ⍝                 If 0, each occurrence of special functions is emitted as a single-line dfn of possibly moderate length.
     RUNTIME_ASSIST←1           
