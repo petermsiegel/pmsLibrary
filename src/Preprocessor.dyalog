@@ -10,7 +10,9 @@
     SQ←'''' ⋄ DQ←'"' ⋄ DQ2←2⍴DQ
     PARENS←LPAREN RPAREN←'()'
     BRACES←LBRACE RBRACE←'{}'
-    ⍝ optsMulti: Warning: Uses DOTALL, so '.' matches \n; \N matches everything but!
+    ⍝ optsMulti: Warning: Uses DOTALL, so '.' matches \n; 
+    ⍝ \N matches everything except \R (\n, \r\n, NEL, etc).
+    ⍝ \X (match extended grapheme cluster)can be used to match anything, but it may be slower.
     optsMulti←   ('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)   
     optsSingle←              ('EOL' 'LF')('NEOL' 1)('UCP' 1)
 
@@ -52,8 +54,9 @@
     ⍝   fieldIDs:  One or more identifiers for regexp fields, each
     ⍝              a string field name (@S) or integer field number (@I), or 0 for the entire match.
     ⍝   If a field is non-existent or currently has no value, a null string '' is returned (without complaint).
+      errMissingLeftArg ← '∆FLD left arg (a regexp ns) is missing'
       ∆FLD←{
-          0=⎕NC'⍺':⎕SIGNAL/'∆FLD left arg (a regexp ns) is missing' 11
+          0=⎕NC'⍺':⎕SIGNAL/errMissingLeftArg 11
           0=80|⎕DR ⍵:⍺ ∇⊂⍵                          ⍝ If ⍵ is a single string vector, enclose.
           ns←⍺ ⋄ sngl←⍬⍴0=⍴⍴⍵                       ⍝ ns: the namespace passed to a ⎕R right-hand-side function as ⍵.
           ⊃⍣sngl⊣{                                  ⍝ If ⍵ is a single item, disclose the string result.
@@ -283,8 +286,8 @@
     tokenize←{
     ⍝   Indicate token number:  ⍺ +← 1   (default: no token number)
     ⍝   Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
-    ⍝   Display fancily:        ⍺ +← 8   (Honors all other flags)
     ⍝   Return just tokens   :  ⍺ =  4   (All other flags are ignored)
+    ⍝   Display fancily:        ⍺ +← 8   (Honors all other flags)
     
         ⍺←0 ⋄  flagJustTokens flagPretty flagSpaces flagToken←2 2 2 2⊤⍺
 
