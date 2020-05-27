@@ -103,10 +103,9 @@
     }
   ⍝ Set SHOW_BLANKS_IN_PATS to 1 if you want ⎕R to handle blanks via 'xx' option, rather than APL
   ⍝ (Useful for troubleshooting to see all original blanks in patterns generated).
-    SHOW_BLANKS_IN_PATS ← 1
+    SHOW_BLANKS_IN_PATS ← 0
     NoBlanks←SHOW_BLANKS_IN_PATS∘{0=⍺: ⍵~' ' ⋄ preL←'\Q','\E',⍨pre←'(?xx)' ⋄ pre, preL ⎕R ''⊣⍵}  
     Map←NoBlanks ⎕THIS∘∆MAP
-
 
     ⍝ ∆RX:   "Replace patterns pat in string ⍵ with {target}, EXCEPT within quoted strings or comments, 
     ⍝         as long as each pat does not explicitly match prior to and including any part of a single-quoted string ('...') or comment (⍝...)."
@@ -289,7 +288,7 @@
     ⍝   Return just tokens   :  ⍺ =  4   (All other flags are ignored)
     ⍝   Display fancily:        ⍺ +← 8   (Honors all other flags)
     
-        ⍺←0 ⋄  flagJustTokens flagPretty flagSpaces flagToken←2 2 2 2⊤⍺
+        ⍺←0 ⋄  flagJustTokens flagPretty flagSpaces flagAddTokenNum←2 2 2 2⊤⍺
 
         errExtra       ←'Extra right paren/brace/bracket' 
         errMissingPair ←'Missing right paren/brace/bracket'
@@ -309,16 +308,16 @@
           0=≢⍵: errExtra ⎕SIGNAL 11
           ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
           (⍵ BRAK_IX⊃tkn.table)←⍬⍴≢tkn.table 
-          tkn.state↓⍨←¯1  
+          tkn.brackets↓⍨←¯1  
           ⍵   
         }
         ProcSemi←{ std alt←⍺ 
           0=≢⍵: alt ⋄ '['=1↑⍵ TOK_IX⊃tkn.table: std ⋄ alt
         }
         ScanInput←{
-            tkn.table ⊣ pQuote  pDQuote '\h+' pName  pNum pLeftB pRightB '\R'  '⋄' '.' ⎕R {
-                cQuote cDQuote cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSymbol  ← ⍳10
-                types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SYM'  
+            tkn.table ⊣ pQuote  pDQuote '\h+'   pName  pNum pLeftB pRightB '\R'   '⋄'   ';'   '\N' ⎕R {
+                        cQuote cDQuote  cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
+                types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SEMI' 'SYM'  
                 case←⍵.PatternNum∘∊
                 type←⍵.PatternNum⊃types
                 f0←⍵ ∆FLD 0    
@@ -331,25 +330,26 @@
                               ''                                     ⊣ (NSPAC_IX⊃⊃⌽tkn.table)←≢f0  }⍬
                 case cDQuote: tkn.add  df0   type   ⍬        BrakPeek      ⊣ df0← NormalizeString f0 
                 case cNum:    tkn.add  vfi   type   ⍬        BrakPeek      ⊣ vfi ← (⊃⌽⎕VFI f0)
-                case cLeftB:  tkn.add  f0    type  DUMMY     BrakPeek      ⊣ tkn.state,← ≢tkn.table   
+                case cLeftB:  tkn.add  f0    type  DUMMY     BrakPeek      ⊣ tkn.brackets,← ≢tkn.table   
                 case cRightB: tkn.add  f0    type  curIx     curIx         ⊣ curIx← f0 ProcRightBC BrakPeek
-                case semiC:   tkn.add  f0    type  ⍬         BrakPeek      ⊣ f0 type←(f0  type) (f0 'SEMI2') ProcSemi BrakPeek  ⍝ altF0 cld be {⍺⍵}
-                case cAnyNL:  tkn.add  '\n' nlType (⎕UCS f0) BrakPeek      ⊣ nlType←{0=≢⍵: 'NL' ⋄ '{'≡1↑⍵ TOK_IX⊃tkn.table: 'NL' ⋄ 'NL2' }BrakPeek 
+                case cSemi:   tkn.add  f0    type  ⍬         BrakPeek      ⊣ f0 type←(f0  type) (f0 'SEMI2') ProcSemi BrakPeek  ⍝ altF0 cld be {⍺⍵}
+                              setNLType←{0=≢⍵: 'NL' ⋄ '{'≡⍬⍴⍵ TOK_IX⊃tkn.table: 'NLdfn' ⋄ 'NL' }
+                case cAnyNL:  tkn.add  '\n' nlType (⎕UCS f0) BrakPeek      ⊣ nlType←setNLType BrakPeek 
                 11 ⎕SIGNAL⍨errLogic '"',f0,'"'
-              } ⍵
+              }⍠optsMulti⊣ ⍵
         }
   
         headings← 'id' 'tok' 'typ' (↑'match' ' ix') (↑'brack' ' id') (↑'trail' 'blnks')
         FormatResults←{ ⍝ ⍵: tkn.table
             tt←(DUMMY=NSPAC_IX⊃⊃tkn.table)↓⍵              ⍝ If leading entry is a dummy token, omit it.
             DUMMY∊BRAK_IX⊃¨tt: errMissingPair ⎕SIGNAL 11        ⍝ If any left bracket is not paired with a right bracket, signal an error!
-            tknsOnlyF: TOK_IX⊃¨tt
-            tt←{tknIdF: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
-            prettyF:(headings↑⍨-≢⊃tt) ⍪ ↑tt
+            flagJustTokens: TOK_IX⊃¨tt
+            tt←{flagAddTokenNum: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
+            flagPretty:(headings↑⍨-≢⊃tt) ⍪ ↑tt
             tt 
         }
       ⍝  Executive 
-        FormatResults ScanInput ⍵
+        FormatResults ScanInput ⊆⍵
     }
 
   ⍝ Delete "temporary" names (prefixed with _) from final namespace
