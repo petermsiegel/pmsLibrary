@@ -13,8 +13,10 @@
     ⍝ optsMulti: Warning: Uses DOTALL, so '.' matches \n; 
     ⍝ \N matches everything except \R (\n, \r\n, NEL, etc).
     ⍝ \X (match extended grapheme cluster)can be used to match anything, but it may be slower.
-    optsMulti←   ('Mode' 'M')('EOL' 'LF')('NEOL' 1)('UCP' 1)('DotAll' 1)   
-    optsSingle←              ('EOL' 'LF')('NEOL' 1)('UCP' 1)
+    ⍝ We don't normalize all newlines-- we accept what APL divides into separate vectors...
+    ⍝ We use CR since that's what APL formats nicely internally.
+    optsMulti←   ('Mode' 'M')('EOL' 'CR')('NEOL' 0)('UCP' 1)('DotAll' 1)   
+    optsSingle←              ('EOL' 'CR')('NEOL' 0)('UCP' 1)
 
     ∆DLB←  {⍵↓⍨+/∧\' '=⍵}                 ⍝ Delete leading blanks
     ∆DTB←  {⍵↓⍨-+/∧\' '=⌽⍵}               ⍝ Delete trailing blanks
@@ -30,9 +32,9 @@
   ⍝                       ↓          Double internal single-quotes
   ⍝                                  ↓             Convert doubled double-quotes to single
   ⍝                                                ↓              Drop pre-/post-DQ    
-  ⍝                                                               ↓          If   DQ is prefix.                                                   
+  ⍝                                                               ↓          If   DQ is prefix.                                    
     NormalizeString ← { ( SQ∘Affix ∘ {⍵/⍨1+⍵=SQ} ∘ {⍵/⍨~DQ2⍷⍵}  ∘ Chop )     ⍣  ( DQ=⍬⍴⍵ )       ⊣ ⍵  }
- 
+   
 
     ∇ {rta}←_USE_RUNTIME_ASSIST rta;fpAsgn;fpCode 
     fpAsgn←'⍙FNPTR←'
@@ -101,7 +103,7 @@
               post~skip
           }⍵
     }
-  ⍝ Set SHOW_BLANKS_IN_PATS to 1 if you want ⎕R to handle blanks via 'xx' option, rather than APL
+  ⍝ Set SHOW_BLANKS_IN_PATS to 1 if you want to pass 'xx' option to ⎕R so it ignores actual blanks. If 0, actual blanks are removed via APLL
   ⍝ (Useful for troubleshooting to see all original blanks in patterns generated).
     SHOW_BLANKS_IN_PATS ← 0
     NoBlanks←SHOW_BLANKS_IN_PATS∘{0=⍺: ⍵~' ' ⋄ preL←'\Q','\E',⍨pre←'(?xx)' ⋄ pre, preL ⎕R ''⊣⍵}  
@@ -110,22 +112,22 @@
     ⍝ ∆RX:   "Replace patterns pat in string ⍵ with {target}, EXCEPT within quoted strings or comments, 
     ⍝         as long as each pat does not explicitly match prior to and including any part of a single-quoted string ('...') or comment (⍝...)."
      ⍝    strings2 ←   [multi/⍺: 1]  pats/⍺⍺  ∆RX  targs/⍵⍵ ⊣ strings/⍵
-    ⍝         multi:    1 (Mode M) DEFAULT: patterns may span lines; or 0 (Mode S): patterns must matchi within one line at a time.
-    ⍝         pats:     One or more quoted strings
+    ⍝         opts:     optsMulti (default) or whatever options you want.
+    ⍝         pats:     One or more strings
     ⍝         targs:    Either a function or replacement string(s) compatible with the pattern strings (pats).
     ⍝                   If a function, PatternNum will be as expected (hiding internal patterns for matching quoted strings and comments).
     ⍝         strings:  The source strings, consisting of one or more string vectors
     ⍝         strings2: The result strings.
     ⍝
       skipP← ,⊂ NoBlanks '(?: '' [^'']* '')+ | ⍝ \N*  '  
-      ∆RX←{⍺←1 ⋄ opts←⍺⊃optsSingle optsMulti
+      ∆RX←{⍺←optsMulti ⋄ opts←⍺
         ww←⍵⍵ ⋄ nSkip←≢skipP ⋄ skipR←nSkip⍴⊆'\0'
         pats←(skipP,⊆⍺⍺) 
         2=⎕NC 'ww': pats ⎕R repl ⍠opts⊣⍵  ⊣repl←skipR,((≢⊆⍺⍺))⍴⊆ww
         pats ⎕R { ⍵.PatternNum∊⍳nSkip: ⍵ ∆FLD 0 ⋄ ⍵.PatternNum-←nSkip ⋄ ⍵.Case← ⍵.PatternNum∘∊ ⋄ ww ⍵ }⍠opts⊣⍵
       }
 
- ⍝  _____P : Regexp Patterns
+ ⍝  pXXXXX : Regexp Patterns; _pXXXXX: temporary/local RegExp Patterns 
  ⍝  Match recursive balanced {}, [], (), including multilines (with Mode M), sq strings 'just so', dq strings "just so", and comments ⍝ just so
  ⍝  "Uses up" ??? fields.
     _pMatchedPunct←'(?: (?J) (?<NAME> LB  (?> [^LBRB''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&NAME)* )+ RB))'
@@ -134,15 +136,16 @@
     pBrack←NoBlanks 'NAME' 'LB' 'RB' ⎕R 'brack' '\\[' '\\]'⊣_pMatchedPunct
     pParen←NoBlanks 'NAME' 'LB' 'RB' ⎕R 'paren' '\\(' '\\)'⊣_pMatchedPunct
 
-    pFauxZilde←      '\(\h*\)'
+    pFauxZilde←          '\(\h*\)'
     pName ←   NoBlanks   '(?: ( [\pL_∆⍙⎕#⍺⍵] [\w_∆⍙⎕#⍺⍵]*) (?: \. (?-1) )* )'
     pNum  ←   NoBlanks   '(?i) ¯? ( \d | \.  (?=\d))  [\d\.EJ¯]* '    ⍝ Good:  .5  5   5.0 .5E¯2    Bad:  .  .E¯2
-    pQuote←   NoBlanks   '(?: '' [^'']* '')+ '
+    pSQuote←  NoBlanks   '(?: '' [^'']* '')+ '
     pDQuote←  NoBlanks   '(?: " [^"]*    ")+ '    ⍝ All double quote strings are handled at <Process>
-    pDQuotePlus←Map  '(⍎pDQuote)(?<TYPE>\pL?)'
+  ⍝ pDQuotePlus:  If suffix <TYPE> is any of vVmMsS it's accepted. Any other suffix is treated as (part of) the following token and TYPE is ''.
+    pDQuotePlus←Map      '(⍎pDQuote)(?<TYPE>[vVmMsS]?)'         
     pComment← NoBlanks   ' ⍝ \N* $'
-    pAtomSimple←     '( (?| ⍎pName | ⍎pNum | ⍎pQuote)  (?: \s* (?| ⍎pName | ⍎pNum | ⍎pQuote) )* ) '
-    pGroup←Map       '(?: ⍎pName | ⍎pBrace | ⍎pParen | ⍎pNum )'
+    pAtomSimple←         '( (?| ⍎pName | ⍎pNum | ⍎pSQuote)  (?: \s* (?| ⍎pName | ⍎pNum | ⍎pSQuote) )* ) '
+    pGroup←Map           '(?: ⍎pName | ⍎pBrace | ⍎pParen | ⍎pNum )'
 
   ⍝ if then else:    name ← (cond) :TH {action} :EL {action}
     pIfThenElse←Map '(?<IF>⍎pGroup) \h*:TH\h* (?<THEN>⍎pGroup) (?| \h*:EL\h* (?<ELSE>⍎pGroup) | (?<ELSE>) )'
@@ -216,6 +219,7 @@
           ⍝   V/v (default): create vector of string vectors.                     V: Removing leading blanks from all but first line.
           ⍝   M/m          : create a matrix, one line per vector.                M: Ditto
           ⍝   S/s          : create a string with CRs (preferred by Dyalog APL)   S: Ditto
+          ⍝ For pDQuotePlus, field 'TYPE' must be ∊ VvMmSs; otherwise, it's ignored and treated as 'v' (lower case).
 
           MatchVarious← {
               ⍵.Case 0:  '⍬'
@@ -224,12 +228,9 @@
               procQuotedNL← { type←1↑⍺,'V' 
                   s←NormalizeString ⍵
                   pat← '\R','\s*'/⍨type∊'VMS'
-                  type∊'Ss': pat ⎕R  SQ_CR_SQ⍠optsMulti⊣s
-                  s←pat ⎕R SQ_SP_SQ⍠optsMulti⊣s
-                  pat← '\n','\s*'/⍨type∊'VMS'
-                  type∊'Ss': pat ∆RM  SQ_CR_SQ⊣s
+                type∊'Ss': pat ∆RM  SQ_CR_SQ⊣s
                   s←pat ∆RM SQ_SP_SQ⊣s
-                  type∊'Mm':'↑',s 
+                type∊'Mm':'↑',s 
                   s
               } 
               PARENS∘Affix type∘procQuotedNL ⍵ ∆FLD 1 
@@ -250,7 +251,7 @@
               procByType←{affix atoms←⍵
                   ' ({'∊⍨1↑atoms:'(',atoms,FN_PTR_STR,'⊣',(⍕_atomCtr),')'⊣_atomCtr⊢←2147483648|_atomCtr+1
                     nitems←0 ⋄ listRequired←1=≢affix
-                    s←pQuote pName pNum ⎕S {
+                    s←pSQuote pName pNum ⎕S {
                         f0←⍵ ∆FLD 0
                         isQuote isName isNum←0 1 2=⍵.PatternNum
                         nitems+←1
@@ -294,11 +295,11 @@
         errMissingPair ←'Missing right paren/brace/bracket'
         errLogic       ←'Logic error: Invalid token type seen for token '
 
-        TOK_IX TYPE_IX INDX_IX BRAK_IX NSPAC_IX←⍳5 ⋄ DUMMY ← ¯1
+        TOK_IX TYPE_IX BRAK_IX NSPAC_IX←⍳4 ⋄ DUMMY ← ¯1
         tkn←⎕NS ''
-        tkn.table←,⊂' ' 'SP' ⍬ 0 DUMMY          ⍝ Assume 1st token consists of leading spaces of length ¯1, i.e. a dummy (removed below unless updated)
+        tkn.table←,⊂' '  'SP' 0 DUMMY          ⍝ Assume 1st token consists of leading spaces of length ¯1, i.e. a dummy (removed below unless updated)
         tkn.brackets←⍬ 
-        tkn.add←tkn.{ ''⊣ table,←⊂ 5↑ ⍵ , 0 }  
+        tkn.add←tkn.{ ''⊣ table,←⊂ 4↑ ⍵ , 0 }  
         _←⎕FX 'r←BrakPeek' ':IF 0=≢tkn.brackets ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽tkn.brackets ⋄ :ENDIF'
 
         pLeftB← '[[({]'
@@ -307,7 +308,7 @@
         ProcRightBC←{
           0=≢⍵: errExtra ⎕SIGNAL 11
           ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
-          (⍵ BRAK_IX⊃tkn.table)←⍬⍴≢tkn.table 
+          (⍵ BRAK_IX⊃tkn.table)⊢←⍬⍴≢tkn.table 
           tkn.brackets↓⍨←¯1  
           ⍵   
         }
@@ -315,33 +316,34 @@
           0=≢⍵: alt ⋄ '['=1↑⍵ TOK_IX⊃tkn.table: std ⋄ alt
         }
         ScanInput←{
-            tkn.table ⊣ pQuote  pDQuote '\h+'   pName  pNum pLeftB pRightB '\R'   '⋄'   ';'   '\N' ⎕R {
-                        cQuote cDQuote  cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
-                types←'QT' 'QT' 'SP' 'NM' 'NUM' 'LBRK' 'RBRK' 'NL' 'STMT' 'SEMI' 'SYM'  
+            tkn.table ⊣ pSQuote pDQuotePlus '\h+'   pName  pNum pLeftB pRightB '\R'   '⋄'   ';'   '\N' ⎕R {
+                        cSQuote cDQuote     cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
+                types←'QT' 'QT' 'SP' 'NM' 'NUM' 'OPEN' 'CLOSE' 'NL' 'STMT' 'SEMI' 'SYM'  
                 case←⍵.PatternNum∘∊
                 type←⍵.PatternNum⊃types
                 f0←⍵ ∆FLD 0    
-              ⍝                        tok   type  index     current  nspaces
+              ⍝                        tok   type            current  nspaces
               ⍝                                              bracket      
-                etcC←cQuote cName cSymbol cStmt  
-                case etcC:    tkn.add  f0    type   ⍬        BrakPeek        
+                etcC←cSQuote cName cSymbol cStmt  
+                case etcC:    tkn.add  f0    type          BrakPeek        
                 case cSpaces: {
-                  flagSpaces:  tkn.add  f0    type   ⍬        BrakPeek  (≢f0) 
+                  flagSpaces: tkn.add  f0    type          BrakPeek  (≢f0) 
                               ''                                     ⊣ (NSPAC_IX⊃⊃⌽tkn.table)←≢f0  }⍬
-                case cDQuote: tkn.add  df0   type   ⍬        BrakPeek      ⊣ df0← NormalizeString f0 
-                case cNum:    tkn.add  vfi   type   ⍬        BrakPeek      ⊣ vfi ← (⊃⌽⎕VFI f0)
-                case cLeftB:  tkn.add  f0    type  DUMMY     BrakPeek      ⊣ tkn.brackets,← ≢tkn.table   
-                case cRightB: tkn.add  f0    type  curIx     curIx         ⊣ curIx← f0 ProcRightBC BrakPeek
-                case cSemi:   tkn.add  f0    type  ⍬         BrakPeek      ⊣ f0 type←(f0  type) (f0 'SEMI2') ProcSemi BrakPeek  ⍝ altF0 cld be {⍺⍵}
+                  SubType←{t←1↑⍵,'v' ⋄ '?' t⊃⍨t∊'VvMmSs'}
+                case cDQuote: tkn.add  df0   type          BrakPeek      ⊣ df0← NormalizeString ⍵ ∆FLD 1 ⊣ type,←SubType ⍵ ∆FLD 'TYPE'
+                case cNum:    tkn.add  vfi   type          BrakPeek      ⊣ vfi ← (⊃⌽⎕VFI f0)
+                case cLeftB:  tkn.add  f0    type          BrakPeek      ⊣ tkn.brackets,← ≢tkn.table   
+                case cRightB: tkn.add  f0    type          curIx         ⊣ curIx← f0 ProcRightBC BrakPeek
+                case cSemi:   tkn.add  f0    type          BrakPeek      ⊣ f0 type←(f0  type) (f0 'SEMI2') ProcSemi BrakPeek  ⍝ altF0 cld be {⍺⍵}
                               setNLType←{0=≢⍵: 'NL' ⋄ '{'≡⍬⍴⍵ TOK_IX⊃tkn.table: 'NLdfn' ⋄ 'NL' }
-                case cAnyNL:  tkn.add  '\n' nlType (⎕UCS f0) BrakPeek      ⊣ nlType←setNLType BrakPeek 
+                case cAnyNL:  tkn.add  '\n' nlType ⍬ BrakPeek      ⊣ nlType←setNLType BrakPeek 
                 11 ⎕SIGNAL⍨errLogic '"',f0,'"'
               }⍠optsMulti⊣ ⍵
         }
   
-        headings← 'id' 'tok' 'typ' (↑'match' ' ix') (↑'brack' ' id') (↑'trail' 'blnks')
+        headings← 'id' 'tok' 'typ'   (↑'brack' ' id') (↑'trail' 'blnks')
         FormatResults←{ ⍝ ⍵: tkn.table
-            tt←(DUMMY=NSPAC_IX⊃⊃tkn.table)↓⍵              ⍝ If leading entry is a dummy token, omit it.
+            tt←(DUMMY=NSPAC_IX⊃⊃tkn.table)↓⍵                    ⍝ If leading entry is a dummy token, omit it.
             DUMMY∊BRAK_IX⊃¨tt: errMissingPair ⎕SIGNAL 11        ⍝ If any left bracket is not paired with a right bracket, signal an error!
             flagJustTokens: TOK_IX⊃¨tt
             tt←{flagAddTokenNum: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
