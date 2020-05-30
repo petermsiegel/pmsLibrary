@@ -17,6 +17,7 @@
     ⍝ We use CR since that's what APL formats nicely internally.
     optsMulti←   ('Mode' 'M')('EOL' 'CR')('NEOL' 0)('UCP' 1)('DotAll' 1)   
     optsSingle←              ('EOL' 'CR')('NEOL' 0)('UCP' 1)
+    CR←⎕UCS 13
 
     ∆DLB←  {⍵↓⍨+/∧\' '=⍵}                 ⍝ Delete leading blanks
     ∆DTB←  {⍵↓⍨-+/∧\' '=⌽⍵}               ⍝ Delete trailing blanks
@@ -283,7 +284,7 @@
     }
 
 
-    tokenize←{
+    Tokenize←{
     ⍝   Indicate token number:  ⍺ +← 1   (default: no token number)
     ⍝   Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
     ⍝   Return just tokens   :  ⍺ =  4   (All other flags are ignored)
@@ -300,51 +301,57 @@
         tkn.table←,⊂' '  'SP' 0 DUMMY          ⍝ Assume 1st token consists of leading spaces of length ¯1, i.e. a dummy (removed below unless updated)
         tkn.brackets←⍬ 
         tkn.add←tkn.{ ''⊣ table,←⊂ 4↑ ⍵ , 0 }  
-        _←⎕FX 'r←BrakPeek' ':IF 0=≢tkn.brackets ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽tkn.brackets ⋄ :ENDIF'
+        _←⎕FX 'r←peekBrak' ':IF 0=≢tkn.brackets ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽tkn.brackets ⋄ :ENDIF'
 
         pLeftB← '[[({]'
         pRightB←'[])}]'
-
-        ProcRightBC←{
+        pSpaces pAnyNL pStmt pSemi pSymbol←'\h+' '\R' '⋄' ';' '\N' 
+   
+      ⍝ SubFns for ScanInput
+        ScanRightB←{
           0=≢⍵: errExtra ⎕SIGNAL 11
           ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
           (⍵ BRAK_IX⊃tkn.table)⊢←⍬⍴≢tkn.table 
           tkn.brackets↓⍨←¯1  
           ⍵   
         }
-        ProcSemi←{ std alt←⍺ 
+        ScanSemi←{ std alt←⍺ 
           0=≢⍵: alt ⋄ '['=1↑⍵ TOK_IX⊃tkn.table: std ⋄ alt
         }
+        ScanDQType←{~CR∊⍺: '' ⋄ t←1↑⍵,'v' ⋄ '?' t⊃⍨t∊'VvMmSs'}
+        ScanNLType←{0=≢⍵: 'NL' ⋄ '{'≡⍬⍴⍵ TOK_IX⊃tkn.table: 'NLdfn' ⋄ 'NL' }  ⍝ Is NL a linesep in dfns (handled by APL) or in an "extension"
+
         ScanInput←{
-            tkn.table ⊣ pSQuote pDQuotePlus '\h+'   pName  pNum pLeftB pRightB '\R'   '⋄'   ';'   '\N' ⎕R {
-                        cSQuote cDQuote     cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
+             tkn.table ⊣ pSQuote pDQuotePlus pSpaces pName  pNum pLeftB pRightB pAnyNL pStmt pSemi pSymbol ⎕R {
+                         cSQuote cDQuote     cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
                 types←'QT' 'QT' 'SP' 'NM' 'NUM' 'OPEN' 'CLOSE' 'NL' 'STMT' 'SEMI' 'SYM'  
                 case←⍵.PatternNum∘∊
                 type←⍵.PatternNum⊃types
                 f0←⍵ ∆FLD 0    
-              ⍝                        tok   type            current  nspaces
-              ⍝                                              bracket      
+              ⍝                        tok   type  current  nspaces
+              ⍝                                    bracket      
                 etcC←cSQuote cName cSymbol cStmt  
-                case etcC:    tkn.add  f0    type          BrakPeek        
+                case etcC:    tkn.add  f0    type  peekBrak        
                 case cSpaces: {
-                  flagSpaces: tkn.add  f0    type          BrakPeek  (≢f0) 
-                              ''                                     ⊣ (NSPAC_IX⊃⊃⌽tkn.table)←≢f0  }⍬
-                  SubType←{t←1↑⍵,'v' ⋄ '?' t⊃⍨t∊'VvMmSs'}
-                case cDQuote: tkn.add  df0   type          BrakPeek      ⊣ df0← NormalizeString ⍵ ∆FLD 1 ⊣ type,←SubType ⍵ ∆FLD 'TYPE'
-                case cNum:    tkn.add  vfi   type          BrakPeek      ⊣ vfi ← (⊃⌽⎕VFI f0)
-                case cLeftB:  tkn.add  f0    type          BrakPeek      ⊣ tkn.brackets,← ≢tkn.table   
-                case cRightB: tkn.add  f0    type          curIx         ⊣ curIx← f0 ProcRightBC BrakPeek
-                case cSemi:   tkn.add  f0    type          BrakPeek      ⊣ f0 type←(f0  type) (f0 'SEMI2') ProcSemi BrakPeek  ⍝ altF0 cld be {⍺⍵}
-                              setNLType←{0=≢⍵: 'NL' ⋄ '{'≡⍬⍴⍵ TOK_IX⊃tkn.table: 'NLdfn' ⋄ 'NL' }
-                case cAnyNL:  tkn.add  '\n' nlType ⍬ BrakPeek      ⊣ nlType←setNLType BrakPeek 
+                  flagSpaces: tkn.add  f0    type  peekBrak (≢f0) 
+                              ''                                 ⊣ (NSPAC_IX⊃⊃⌽tkn.table)←≢f0  
+                }⍬                                                
+                case cDQuote: tkn.add  df0   type  peekBrak      ⊣ df0← NormalizeString f1 ⊣ type,← f1 ScanDQType subtype⊣(f1 subtype)←⍵ ∆FLD 1 'TYPE'
+                case cNum:    tkn.add  vfi   type  peekBrak      ⊣ vfi ← (⊃⌽⎕VFI f0)
+                case cLeftB:  tkn.add  f0    type  peekBrak      ⊣ tkn.brackets,← ≢tkn.table     ⍝ Will show right bracket...
+                case cRightB: tkn.add  f0    type  curIx         ⊣ curIx← f0 ScanRightB peekBrak
+                case cSemi:   tkn.add  f0    type  peekBrak      ⊣ f0 type←(f0  type) (f0 'SEMI2') ScanSemi peekBrak  ⍝ altF0 cld be {⍺⍵}                                                   
+                case cAnyNL:  tkn.add  '\n'  nlTyp peekBrak      ⊣ nlTyp←ScanNLType peekBrak 
                 11 ⎕SIGNAL⍨errLogic '"',f0,'"'
               }⍠optsMulti⊣ ⍵
         }
   
         headings← 'id' 'tok' 'typ'   (↑'brack' ' id') (↑'trail' 'blnks')
         FormatResults←{ ⍝ ⍵: tkn.table
-            tt←(DUMMY=NSPAC_IX⊃⊃tkn.table)↓⍵                    ⍝ If leading entry is a dummy token, omit it.
+            firstEmpty←DUMMY=NSPAC_IX⊃⊃tkn.table
+            tt←firstEmpty↓⍵                                     ⍝ If leading entry is an empty (dummy) token, omit it.
             DUMMY∊BRAK_IX⊃¨tt: errMissingPair ⎕SIGNAL 11        ⍝ If any left bracket is not paired with a right bracket, signal an error!
+            (BRAK_IX⊃¨tt)-←firstEmpty                           ⍝ If leading dummy token is removed, update governing bracket indices.
             flagJustTokens: TOK_IX⊃¨tt
             tt←{flagAddTokenNum: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
             flagPretty:(headings↑⍨-≢⊃tt) ⍪ ↑tt
