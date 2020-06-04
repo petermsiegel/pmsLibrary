@@ -283,78 +283,102 @@
           s 
     }
 
+    ∆ASSERT←{⍺←'ASSERTION FAILURE' ⋄ ⍵:0 ⋄ ⍺ ⎕SIGNAL 911}
 
+⍝   Tokenize:  Create a tokenized version of a program <pgm>.
+⍝   tokenized_pgm ← [options] Tokenize pgm
+⍝    ...
+⍝
+⍝   Tokenize: DECLARATIONS AND FN DEFINITIONS
+      NL_VIS←'\n'   ⋄  SEMI_ALT←'SEMIalt' 
+      errExtra       ←'Extra right paren/brace/bracket' 
+      errMissingPair ←'Missing right paren/brace/bracket'
+      errLogic       ←'Logic error: Invalid token type seen for token '
+      IX_TOK IX_TYPE IX_BRAK IX_SPACES←⍳4 ⋄ DUMMY_ENTRY ← ¯1
+⍝ 
+⍝   Tokenize::ScanInput: key declarations
+      pLeftB← '[[({]'
+      pRightB←'[])}]'
+      pSpaces pAnyNL pStmt pSemi pSymbol←'\h+' '\R' '⋄' ';' '\N' 
+
+      tNm2← tBRKo tBRKc tNL tNLd tNLc tQT tSP tNM tNUM tSEMI tSEMIa tSTMT tSYM←'BRKopen' 'BRKclose' 'NL' 'NLdfn' 'NLcont'  'QT' 'SP' 'NM' 'NUM' 'SEMI' 'SEMIalt' 'STMT' 'SYM'
+      typeNames← ((⊂'QT'),¨'VvMmS'),tNm2
+   
+      patList ← pSQuote pDQuotePlus pSpaces pName  pNum pLeftB pRightB pAnyNL pStmt pSemi pSymbol
+                cSQuote cDQuote     cSpaces cName  cNum   cLeftB cRightB cAnyNL cStmt  cSemi  cSymbol  ← ⍳≢patList
+      typeList← tQT     tQT         tSP     tNM    tNUM   tBRKo  tBRKc   tNL    tSTMT  tSEMI  tSYM       
+      
+      ∇r←peekBrak
+        :IF 0=≢tkn.brackets ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽tkn.brackets ⋄ :ENDIF
+      ∇
+    
+⍝   Tokenize: Tokenize function
+⍝   Because of how APL formats, we use CR (13) not NL (10) for the newline token...
     Tokenize←{
+    ⍝   Show token typenames:   ⍺ ≡ ¯1   (ignores right argument)
     ⍝   Indicate token number:  ⍺ +← 1   (default: no token number)
     ⍝   Treat space as token :  ⍺ +← 2   (default: # spaces is field[3] for each preceding token)
-    ⍝   Return just tokens   :  ⍺ =  4   (All other flags are ignored)
-    ⍝   Display fancily:        ⍺ +← 8   (Honors all other flags)
+    ⍝   Display fancily:        ⍺ +← 4   (Honors all other flags)  (NL token (CR char) will be replaced by text '\n')
+    ⍝   Return just tokens   :  ⍺ =  8   (All other flags are ignored)
     
-        ⍺←0 ⋄  flagJustTokens flagPretty flagSpaces flagAddTokenNum←2 2 2 2⊤⍺
+        ⍺←0 
+      ⍝ 8           4       2       1
+        ¯1≡⍺: {(⊂⍋⍵)⌷⍵}typeNames   ⍝ Shows all token typenames
+        fJustTokens fPretty fSpaces fAddTokenNum←2 2 2 2⊤⍺          ⍝ f___: Flags
 
-        errExtra       ←'Extra right paren/brace/bracket' 
-        errMissingPair ←'Missing right paren/brace/bracket'
-        errLogic       ←'Logic error: Invalid token type seen for token '
-
-        TOK_IX TYPE_IX BRAK_IX NSPAC_IX←⍳4 ⋄ DUMMY ← ¯1
         tkn←⎕NS ''
-        tkn.table←,⊂' '  'SP' 0 DUMMY          ⍝ Assume 1st token consists of leading spaces of length ¯1, i.e. a dummy (removed below unless updated)
+        tkn.table←,⊂' '  'SP' 0 DUMMY_ENTRY          ⍝ Assume 1st token consists of leading spaces of length ¯1, i.e. a dummy (removed below unless updated)
         tkn.brackets←⍬ 
-        tkn.add←tkn.{ ''⊣ table,←⊂ 4↑ ⍵ , 0 }  
-        _←⎕FX 'r←peekBrak' ':IF 0=≢tkn.brackets ⋄ r←⍬ ⋄ :Else ⋄ r←⊃⌽tkn.brackets ⋄ :ENDIF'
-
-        pLeftB← '[[({]'
-        pRightB←'[])}]'
-        pSpaces pAnyNL pStmt pSemi pSymbol←'\h+' '\R' '⋄' ';' '\N' 
-   
-      ⍝ SubFns for ScanInput
+        tkn.add←tkn.{ ∆ASSERT 3 4∊⍨≢⍵: ⋄ ''⊣ table,←⊂ 4↑ ⍵ , 0 }  
+    
+      ⍝ ScanInput: key subfunctions
         ScanRightB←{
           0=≢⍵: errExtra ⎕SIGNAL 11
-          ⍺≠'})]?'⌷⍨'{(['⍳(⍵ TOK_IX⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
-          (⍵ BRAK_IX⊃tkn.table)⊢←⍬⍴≢tkn.table 
+          ⍺≠'})]?'⌷⍨'{(['⍳(⍵ IX_TOK⊃tkn.table): 11 ⎕SIGNAL⍨ wrongE,⍺ 
+          (⍵ IX_BRAK⊃tkn.table)⊢←⍬⍴≢tkn.table 
           tkn.brackets↓⍨←¯1  
           ⍵   
         }
         ScanSemi←{ std alt←⍺ 
-          0=≢⍵: alt ⋄ '['=1↑⍵ TOK_IX⊃tkn.table: std ⋄ alt
+          0=≢⍵: alt ⋄ '['=1↑⍵ IX_TOK⊃tkn.table: std ⋄ alt
         }
-        ScanDQType←{~CR∊⍺: '' ⋄ t←1↑⍵,'v' ⋄ '?' t⊃⍨t∊'VvMmSs'}
-        ScanNLType←{0=≢⍵: 'NL' ⋄ '{'≡⍬⍴⍵ TOK_IX⊃tkn.table: 'NLdfn' ⋄ 'NL' }  ⍝ Is NL a linesep in dfns (handled by APL) or in an "extension"
-
+        ScanDQType←{~CR∊⍺: '' ⋄ t←1↑⍵,'v' ⋄  'Logic Error' ∆ASSERT t∊'VvMmSs': ⋄ t }
+        ScanNLType←{0=≢⍵: 'NL' ⋄  gov← ⍬⍴⍵ IX_TOK⊃tkn.table ⋄ '{'≡gov: tNLd ⋄ gov∊'([': tNLc ⋄ tNL }  ⍝ Is NL a linesep in dfns (handled by APL) or in an "extension"
+ 
+      ⍝ ScanInput:  main
         ScanInput←{
-             tkn.table ⊣ pSQuote pDQuotePlus pSpaces pName  pNum pLeftB pRightB pAnyNL pStmt pSemi pSymbol ⎕R {
-                         cSQuote cDQuote     cSpaces cName  cNum cLeftB cRightB cAnyNL cStmt cSemi cSymbol  ← ⍳11
-                types←'QT' 'QT' 'SP' 'NM' 'NUM' 'OPEN' 'CLOSE' 'NL' 'STMT' 'SEMI' 'SYM'  
+               tkn.table ⊣ patList ⎕R {
                 case←⍵.PatternNum∘∊
-                type←⍵.PatternNum⊃types
+                type←⍵.PatternNum⊃typeList
                 f0←⍵ ∆FLD 0    
               ⍝                        tok   type  current  nspaces
               ⍝                                    bracket      
                 etcC←cSQuote cName cSymbol cStmt  
                 case etcC:    tkn.add  f0    type  peekBrak        
                 case cSpaces: {
-                  flagSpaces: tkn.add  f0    type  peekBrak (≢f0) 
-                              ''                                 ⊣ (NSPAC_IX⊃⊃⌽tkn.table)←≢f0  
+                  fSpaces: tkn.add     f0    type  peekBrak (≢f0) 
+                              ''                                 ⊣ (IX_SPACES⊃⊃⌽tkn.table)←≢f0  
                 }⍬                                                
-                case cDQuote: tkn.add  df0   type  peekBrak      ⊣ df0← NormalizeString f1 ⊣ type,← f1 ScanDQType subtype⊣(f1 subtype)←⍵ ∆FLD 1 'TYPE'
+                case cDQuote: tkn.add  df0   type  peekBrak      ⊣ df0← NormalizeString f1 ⊣ type,←f1 ScanDQType subtype⊣(f1 subtype)←⍵ ∆FLD 1 'TYPE'
                 case cNum:    tkn.add  vfi   type  peekBrak      ⊣ vfi ← (⊃⌽⎕VFI f0)
                 case cLeftB:  tkn.add  f0    type  peekBrak      ⊣ tkn.brackets,← ≢tkn.table     ⍝ Will show right bracket...
                 case cRightB: tkn.add  f0    type  curIx         ⊣ curIx← f0 ScanRightB peekBrak
-                case cSemi:   tkn.add  f0    type  peekBrak      ⊣ f0 type←(f0  type) (f0 'SEMI2') ScanSemi peekBrak  ⍝ altF0 cld be {⍺⍵}                                                   
-                case cAnyNL:  tkn.add  '\n'  nlTyp peekBrak      ⊣ nlTyp←ScanNLType peekBrak 
+                case cSemi:   tkn.add  f0    type  peekBrak      ⊣ f0 type←(f0  type) (f0 SEMI_ALT) ScanSemi peekBrak                                                  
+                case cAnyNL:  tkn.add  tNl   nlTyp peekBrak      ⊣ nlTyp←ScanNLType peekBrak    ⊣ tNl← fPretty ⊃ CR NL_VIS
                 11 ⎕SIGNAL⍨errLogic '"',f0,'"'
               }⍠optsMulti⊣ ⍵
         }
   
-        headings← 'id' 'tok' 'typ'   (↑'brack' ' id') (↑'trail' 'blnks')
         FormatResults←{ ⍝ ⍵: tkn.table
-            firstEmpty←DUMMY=NSPAC_IX⊃⊃tkn.table
+            firstEmpty←DUMMY_ENTRY=IX_SPACES⊃⊃tkn.table
             tt←firstEmpty↓⍵                                     ⍝ If leading entry is an empty (dummy) token, omit it.
-            DUMMY∊BRAK_IX⊃¨tt: errMissingPair ⎕SIGNAL 11        ⍝ If any left bracket is not paired with a right bracket, signal an error!
-            (BRAK_IX⊃¨tt)-←firstEmpty                           ⍝ If leading dummy token is removed, update governing bracket indices.
-            flagJustTokens: TOK_IX⊃¨tt
-            tt←{flagAddTokenNum: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
-            flagPretty:(headings↑⍨-≢⊃tt) ⍪ ↑tt
+            DUMMY_ENTRY∊IX_BRAK⊃¨tt: errMissingPair ⎕SIGNAL 11  ⍝ If any left bracket is not paired with a right bracket, signal an error!
+            (IX_BRAK⊃¨tt)-←firstEmpty                           ⍝ If leading dummy token is removed, update governing bracket indices.
+            fJustTokens: IX_TOK⊃¨tt
+            tt←{fAddTokenNum: ⍵,⍨¨⍳≢⍵ ⋄ ⍵}tt
+
+            headings← (↑'tokn' ' id') (↑'tokn' 'text') (↑'' 'type')   (↑'brkt' 'indx') (↑'trail' 'space')
+            fPretty:(headings↑⍨-≢⊃tt) ⍪ ↑tt
             tt 
         }
       ⍝  Executive 
