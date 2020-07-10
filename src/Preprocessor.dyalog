@@ -301,8 +301,9 @@
       pRightB←'[])}]'
       pSpaces pAnyNL pStmt pSemi pSymbol←'\h+' '\R' '⋄' ';' '\N' 
 
-      tNm2← tBRKo tBRKc tNL tNLd tNLc tQT tSP tNM tNUM tSEMI tSEMIa tSTMT tSYM←'BRKopen' 'BRKclose' 'NL' 'NLdfn' 'NLcont'  'QT' 'SP' 'NM' 'NUM' 'SEMI' 'SEMIalt' 'STMT' 'SYM'
-      typeNames← ((⊂'QT'),¨'VvMmS'),tNm2
+      _tNm← 'BRKopen' 'BRKclose' 'NL' 'NLdfn' 'NLcont'  'QT' 'SP' 'NM' 'NUM' 'SEMI' 'SEMIalt' 'STMT' 'SYM'
+      tBRKo tBRKc tNL tNLd tNLc tQT tSP tNM tNUM tSEMI tSEMIa tSTMT tSYM←_tNm
+      typeNames← _tNm,((⊂'QT'),¨'VvMmS')      ⍝ QTV ... QTS types are generated on the fly below
    
       patList ← pSQuote pDQuotePlus pSpaces pName  pNum pLeftB pRightB pAnyNL pStmt pSemi pSymbol
                 cSQuote cDQuote     cSpaces cName  cNum   cLeftB cRightB cAnyNL cStmt  cSemi  cSymbol  ← ⍳≢patList
@@ -359,12 +360,12 @@
                   fSpaces: tkn.add     f0    type  peekBrak (≢f0) 
                               ''                                 ⊣ (IX_SPACES⊃⊃⌽tkn.table)←≢f0  
                 }⍬                                                
-                case cDQuote: tkn.add  df0   type  peekBrak      ⊣ df0← NormalizeString f1 ⊣ type,←f1 ScanDQType subtype⊣(f1 subtype)←⍵ ∆FLD 1 'TYPE'
+                case cDQuote: tkn.add  df0   type  peekBrak      ⊣ df0← NormalizeString f1 ⊣ type,←f1 ScanDQType ftype⊣(f1 ftype)←⍵ ∆FLD 1 'TYPE'
                 case cNum:    tkn.add  vfi   type  peekBrak      ⊣ vfi ← (⊃⌽⎕VFI f0)
                 case cLeftB:  tkn.add  f0    type  peekBrak      ⊣ tkn.brackets,← ≢tkn.table     ⍝ Will show right bracket...
                 case cRightB: tkn.add  f0    type  curIx         ⊣ curIx← f0 ScanRightB peekBrak
                 case cSemi:   tkn.add  f0    type  peekBrak      ⊣ f0 type←(f0  type) (f0 SEMI_ALT) ScanSemi peekBrak                                                  
-                case cAnyNL:  tkn.add  tNl   nlTyp peekBrak      ⊣ nlTyp←ScanNLType peekBrak    ⊣ tNl← fPretty ⊃ CR NL_VIS
+                case cAnyNL:  tkn.add  ttok  ttyp  peekBrak      ⊣ ttyp←ScanNLType peekBrak    ⊣ ttok← fPretty ⊃ CR NL_VIS
                 11 ⎕SIGNAL⍨errLogic '"',f0,'"'
               }⍠optsMulti⊣ ⍵
         }
