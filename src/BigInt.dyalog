@@ -4,6 +4,7 @@
   ⍝   This version is tighter, smaller, and decreases visible local_fns like bi.add.
   ⍝   I.e. it assumes users will use the BI and BIX operators: 
   ⍝        YES:   3 +BI 2         NO:  3 bi.add 2
+  ⍝   Binary routines were removed. APL intrinsically handles large bit arrays better...
   ⍝
   ⍝ ∘ NOTE: See BigIntHelp for details..
   ⍝         Call BigInt.help or edit 'BigIntHelp'
@@ -77,18 +78,8 @@
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28
     ⎕FR←645          ⍝ For ⎕FR,  see below
   
-    :Section PREAMBLE -  Utilities
-    note←{⍺←0 ⋄ VERBOSE∨⍺: ⎕←⍵ ⋄ 1:_←⍵ }
     err←11∘(⎕SIGNAL⍨)
-    ∇ {r}←loadHelp
-        ;src
-      src←HELP_FILES_SRC 
-      :Trap 0 ⋄ r←⎕SE.SALT.Load'-target=',(⍕⎕THIS.##),' ',src
-      :Else ⋄ r←⎕←↑'BigInt WARNING: Unable to load BigIntHelp.'  ('   filename="',src,'"')
-      :EndTrap
-    ∇
-    loadHelp                   ⍝ Load help at ⎕FIX (compile) time.
-    :EndSection PREAMBLE - Utilities
+
     :EndSection PREAMBLE
 
     :Section Namespace and Utility Initializations
@@ -97,26 +88,27 @@
   ⍝-------------------------------------------------------------------------------+⍝
  
   ⍝ Set key bigInt constants...
-      ⎕FR←645
-      NRX2←20
-      NRX2∆←19                                ⍝ NRX2∆:   Experimental (see RXBASE∆).
-      NRX10←⌊10⍟RX2←2*NRX2
-      RXBASE∆←NRX2∆⍴2                         ⍝ RXBASE∆: Experimental (see NRX2∆).
-      RX10←10*NRX10 ⋄ RX10div2←RX10÷2         ⍝ RX10div2: see ∇powU∇
-      OFL←{⌊(2*⍵)÷RX10×RX10}(⎕FR=1287)⊃53 93  ⍝ Overflow bits
+    ⎕FR←             645
+    NRX2←            20                                  ⍝ Num bits in a "hand"
+    NRX10←           ⌊10⍟RX2←2*NRX2                      ⍝ Max num of dec digits in a hand
+    NRX2BASE←        NRX2⍴2                              ⍝ Encode/decode binary base
+    RX10BASE←        NRX10⍴10                            ⍝ Encode/decode decimal base    
+    RX10←            10*NRX10                            ⍝ Actual base for each hand (each hand ⍵ < RX10)
+    RX10div2←        RX10÷2                              ⍝ Sqrt of each hand's base, for use in <pow> (power).
+    OFL←             {⌊(2*⍵)÷RX10×RX10}(⎕FR=1287)⊃53 93  ⍝ Overflow bits for use in mulU (unsigned multiply)
  
   ⍝ Data field (unsigned) constants
-    zero_D ← ,0          ⍝ data field ZERO, i.e. unsigned canonical ZERO
-    one_D ←  ,1          ⍝ data field ONE, i.e. unsigned canonical ONE
-    two_D ←  ,2          ⍝ data field TWO
+    zero_D ← ,0                                          ⍝ data field ZERO, i.e. unsigned canonical ZERO
+    one_D ←  ,1                                          ⍝ data field ONE, i.e. unsigned canonical ONE
+    two_D ←  ,2                                          ⍝ data field TWO
     ten_D ← ,10
 
   ⍝ BigInt Internal CONSTANTS for users and utilities.
-    zero_BI←     0 zero_D   ⍝  0
-    one_BI←      1 one_D    ⍝  1
-    two_BI←      1 two_D    ⍝  2
-    minus1_BI←  ¯1 one_D    ⍝ ¯1
-    ten_BI←      1 ten_D    ⍝ 10
+    zero_BI←     0 zero_D                                ⍝  0
+    one_BI←      1 one_D                                 ⍝  1
+    two_BI←      1 two_D                                 ⍝  2
+    minus1_BI←  ¯1 one_D                                 ⍝ ¯1
+    ten_BI←      1 ten_D                                 ⍝ 10
 
   ⍝ Error messages. All will be used with fn <err> and ⎕SIGNAL 911: BigInt DOMAIN ERROR
     eBADBI   ←'Importing Invalid BigInteger'
@@ -132,8 +124,9 @@
     eMUL2    ← eSMALLRT
     eMUL10   ← eSMALLRT
     eBIC     ←'BIC argument must be a fn name or one or more code strings.'
-    eBITSIN  ←'Importing bits requires arg to contain only boolean integers'
     eBADRANGE←'Big integer exponent too large to be represented in APL (±1E6145)'
+    eBOOL    ←'Boolean arg imported (⊥) must be ∊ 1 0 ''1'' ''0'''
+  
 
     :EndSection Namespace and Utility Initializations
 
@@ -143,9 +136,9 @@
     ⍝ monadFnsList   [0] single-char symbols [1] multi-char names
     ⍝ dyadFnsList    ditto
     ⍝ Both required for BIC to function, so keep the lists complete!
-    monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳→'('SQRT' 'NOT')
+    monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳'('SQRT' 'NOT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
-    dyadFnsList←('+-×*÷⌊⌈|∨∧⌽↑↓√≢~','<≤=≥>≠⍴')('*∘÷' '*⊢÷' 'ROOT' 'FLIP' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL' 'AND' 'OR' 'XOR')
+    dyadFnsList←('+-×*÷⌊⌈|∨∧⌽↑↓√≢~','<≤=≥>≠⍴')('*∘÷' '*⊢÷' 'ROOT' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL')
 
     ⍝ BII: Basic utility operator for using APL functions in special BigInt meanings.
     ⍝     BIint ← ∇ ⍵:BIext
@@ -170,25 +163,25 @@
         ⍝ Monadic...
           monad:{                                      ⍝ BI: __EXP__: See Build BI/BII below.
               CASE'-':__EXP__       neg ⍵              ⍝     -⍵
-              CASE'+':__EXP__       ∆ ⍵                ⍝     validate:  simply makes sure obj is in a valid BIint form.
+              CASE'+':__EXP__       ∆ ⍵                ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
               CASE'|':__EXP__       abs ⍵              ⍝     |⍵
-              CASE'×':__EXP__       ⊃∆ ⍵               ⍝     ×⍵ signum:  Returns APL int (∊¯1 0 1), not BII.
-              CASE'÷':__EXP__       recip ⍵            ⍝     ÷⍵:         Why bother?
-              CASE'<':__EXP__       dec ⍵              ⍝     ⍵-1:        Optimized for constant in ⍵-1. I prefer <, but J prefers ≤
-              CASE'≤':__EXP__       dec ⍵              ⍝     ditto
-              CASE'>':__EXP__       inc ⍵              ⍝     ⍵+1:        Optimized for constant in ⍵+1. I prefer >, but J prefers ≥
-              CASE'≥':__EXP__       inc ⍵              ⍝     ditto
-              CASE'!':__EXP__       fact ⍵             ⍝     !⍵          For smallish integers ⍵≥0
-              CASE'?':__EXP__       roll ⍵             ⍝     ?⍵:         For int ⍵>0 (0 invalid: result would always truncate to 0)
-              CASE'⊥':__EXP__       1 bits2BI ⍵        ⍝     bits→BII:    Converts from bit vector to internal
-              CASE'⊤':              BI2Bits ⍵         ⍝     BII→bits:    Converts a BII ⍵ to its bit equivalent
-              CASE'~' 'NOT':__EXP__ not ⍵              ⍝     Bit-level manipulation...
-              CASE'≢':__EXP__       1,⊂NRX2∆×≢⊃⌽∆ ⍵    ⍝     # actual bits in bigInt internal form...
-              CASE'⍎':              ∆2Apl ⍵            ⍝     BIint→APL int:    If in range, returns a std APL number; else error               
-              CASE'⍕':              prettify exp ∆ ⍵   ⍝     BIint→BIext:  Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
-              CASE'SQRT' '√':       exp  qrt ⍵         ⍝     ⌊⍵*0.5:     See dyadic *
-              CASE'⍳':              ∆2Small ⍵          ⍝     ⍳ (std APL).  Allow only small integers... Returns an APL # only.
-              CASE'→':              ∆ ⍵                ⍝     Return ⍵ in internal form. (We used to use ←, but parser doesn't allow any more).
+              CASE'×':__EXP__       ⊃∆ ⍵               ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
+              CASE'÷':__EXP__       recip ⍵            ⍝     inverse     Why bother? Mostly 0!
+              CASE'<':__EXP__       dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1. 
+              CASE'≤':__EXP__       dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
+              CASE'>':__EXP__       inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
+              CASE'≥':__EXP__       inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
+              CASE'!':__EXP__       fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
+              CASE'?':__EXP__       roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
+              CASE'≢':              +/1=bitsExport ⍵   ⍝     popcount:   # 1 bits in the bigint in bits format, including the sign bit (1=neg)
+              CASE'⍎':              ∆2Apl ⍵            ⍝     aplint      If in range, returns a std APL number; else error               
+              CASE'⍕':              prettify exp ∆ ⍵   ⍝     pretty      Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
+              CASE'SQRT' '√':       exp  qrt ⍵         ⍝     sqrt        See dyadic *0.5
+              CASE'⍳':              ⍳importSmallInt ⍵  ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
+              CASE'→':              ∆ ⍵                ⍝     internal    Return ⍵ in internal form. 
+              CASE'⊥':__EXP__       bitsImport ⍵       ⍝     bitsImport  Convert bits to bigint
+              CASE'⊤':              bitsExport ⍵       ⍝     bitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
+              CASE '~':__EXP__      bitsImport ~ bitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
               err eCANTDO1,∆QT fn                      ⍝     Not found.
           }⍵
       ⍝ Dyadic...
@@ -198,10 +191,10 @@
               CASE'+':__EXP__        ⍺ add ⍵
               CASE'-':__EXP__        ⍺ sub ⍵
               CASE'×':__EXP__        ⍺ mul ⍵
-              CASE'÷':__EXP__        ⍺ div ⍵                    ⍝ Integer divide: ⌊⍺÷⍵
-              CASE'*':__EXP__        ⍺ pow ⍵                    ⍝ Power / Roots I.    num *BI  ÷r
-              CASE'*∘÷' '*⊢÷':__EXP__ ⍵ root ⍺                ⍝         Roots II.   num *∘÷BI r
-              CASE'√' 'ROOT':__EXP__ ⍺ root ⍵                ⍝         Roots III.  r ('ROOT'BI) num
+              CASE'÷':__EXP__        ⍺ div ⍵            ⍝ Integer divide: ⌊⍺÷⍵
+              CASE'*':__EXP__        ⍺ pow ⍵            ⍝ Power / Roots I.    num *BI  ÷r
+              CASE'*∘÷' '*⊢÷':__EXP__ ⍵ root ⍺          ⍝         Roots II.   num *∘÷BI r
+              CASE'√' 'ROOT':__EXP__ ⍺ root ⍵           ⍝         Roots III.  r ('ROOT'BI) num
      
         ⍝ ↑ ↓ Decimal shift (mul, div by 10*⍵)
         ⍝ ⌽   Binary shift  (mul, div by 2*⍵)
@@ -211,20 +204,13 @@
      
               CASE'|':__EXP__        ⍺ rem ⍵                    ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
         ⍝ Logical: [Return single boolean, 1∨0]
-              CASE'<':                  ⍺ lt ⍵
-              CASE'≤':                  ⍺ le ⍵
-              CASE'=':                  ⍺ eq ⍵
-              CASE'≥':                  ⍺ ge ⍵
-              CASE'>':                  ⍺ gt ⍵
-              CASE'≠':                  ⍺ ne ⍵
-        ⍝ bits
-              CASE'AND':__EXP__      ⍺ and ⍵                   ⍝ ∧ is used for LCM, below.
-              CASE'OR':__EXP__       ⍺ or ⍵                    ⍝ ∨ is used for GCD, below.
-              CASE'XOR':__EXP__      ⍺ xor ⍵                   ⍝ ≠ is only used as a logical item (above).
-              CASE'FLIP':__EXP__     ⍺ flipBits ⍵              ⍝ 1 4 5 ('FLIP'BI)bi   "Flip bits 1 4 5 in bi"   0 is rightmost bit.
-              CASE'~':__EXP__        ⍵ flipBits ⍺              ⍝ bi ~BI 1 4 5         "Flip bits 1 4 5 in bi"   0 is rightmost bit.
-     
-        ⍝ gcd/lcm: [Return BigInt]                                ⍝ ∨, ∧ return bigInt.
+              CASE'<':               ⍺ lt ⍵
+              CASE'≤':               ⍺ le ⍵
+              CASE'=':               ⍺ eq ⍵
+              CASE'≥':               ⍺ ge ⍵
+              CASE'>':               ⍺ gt ⍵
+              CASE'≠':               ⍺ ne ⍵     
+        ⍝ gcd/lcm: [Return BigInt]                             ⍝ ∨, ∧ return bigInt.
               CASE'∨' 'GCD':__EXP__  ⍺ gcd ⍵                   ⍝ ⍺∨⍵ as gcd.
               CASE'∧' 'LCM':__EXP__  ⍺ lcm ⍵                   ⍝ ⍺∧⍵ as lcm.
      
@@ -233,9 +219,9 @@
               CASE'SHIFTD':__EXP__   ⍺ mul10Exp ⍵              ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
               CASE'DIVREM':__EXP__   ¨⍺ divRem ⍵               ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'MODMUL' 'MMUL':__EXP__ ⍺ modMul ⍵           ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
-              CASE'⍴':                 (∆2Small ⍺)⍴⍵              ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
-              err eCANTDO2,∆QT fn                                 ⍝ Not found!
-          }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵                  ⍝ Handle ⍨.   inv ∊ 0 1 2 (not inv, inv, selfie)
+              CASE'⍴':               (importSmallInt ⍺)⍴⍵      ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
+              err eCANTDO2,∆QT fn                              ⍝ Not found!
+          }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵               ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, s2: elfie)
       }
 
     ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod.
@@ -251,12 +237,9 @@
     ⍝ Build BI/BII.
     ⍝ BI: Change __EXP__ to string imp.
     ⍝ BII:  Change __EXP__ to null string. Use name BII in place of BI.
-    note'Created operator BII' ⊣⎕FX'__BI_SOURCE__' '__EXP__¨?'⎕R'BII' ''      ⊣⎕NR'__BI_SOURCE__'
-    note'Created operator BI'  ⊣⎕FX'__BI_SOURCE__' '__EXP__'  ⎕R 'BI' 'export'⊣⎕NR'__BI_SOURCE__'
-    _←⎕EX '__BI_SOURCE__'
-    note'BI/BII Operands:'
-    note ⎕FMT(' Monadic:'monadFnsList),[¯0.1]' Dyadic: 'dyadFnsList
-    note 55⍴'¯'
+      ⎕FX'__BI_SOURCE__' '__EXP__¨?'⎕R'BII' ''      ⊣⎕NR'__BI_SOURCE__'
+      ⎕FX'__BI_SOURCE__' '__EXP__'  ⎕R 'BI' 'export'⊣⎕NR'__BI_SOURCE__'
+      ___←⎕EX '__BI_SOURCE__'
     :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
 
@@ -295,8 +278,10 @@
           type∊5 7:importFloat ⍵
           err eIMPORT
       }
-      ⍝ ∆ (alias for import, w/o sanity check and error handling. See discussion above.)
-      ∆←{⍺←⊢
+      ⍝ [⍺] importFast ⍵ 
+      ⍝ [⍺] ∆ ⍵
+      ⍝ Like <import>, but w/o sanity check and error handling. See discussion above.)
+      importFast←{⍺←⊢
           1≢⍺ 1:(∇ ⍺)(∇ ⍵)
           type←80|⎕DR ⍵
           type=6:⍵
@@ -305,7 +290,8 @@
           type∊5 7:importFloat ⍵
           err eIMPORT
       }
-    imp←import  ⍝ external alias...
+      ∆←importFast
+      imp←import  ⍝ external alias...
 
       ⍝ importInt:    ∇ ⍵:I[1]
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
@@ -327,20 +313,20 @@
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(chkZ RX10⊥⍣¯1⊣|⍵)
           err eNONINT,⍕⍵
       }
-      ⍝ importStr: Convert a BIstr (BIext string) into a BIint.
+      ⍝ importStr: Convert a BigInt in string format into an internal BigInt
       ⍝       importStr ⍵:S[≥1]   (⍵ must have at least one digit, possibly a 0)
       importStr←{
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵            ⍝ Get sign, if any
           w←'_'~⍨⍵↓⍨s=¯1               ⍝ Remove initial sign and embedded _ (spacer: ignored).
           (0=≢w)∨0∊w∊⎕D:err eBADBI     ⍝ w must include only ⎕D and at least one.
-          d←dLZrun rep ⎕D⍳w            ⍝ d: data portion of BIint
+          d←dlzRun rep ⎕D⍳w            ⍝ d: data portion of BIint
           ∆dlzNorm s d                 ⍝ If d is zero, return zero. Else (s d)
       }
-      ⍝ ∆2Small: Import ⍵ only if (when imported) it is a single-hand integer
+      ⍝ importSmallInt: Import ⍵ only if (when imported) it is a single-hand integer
       ⍝          i.e. equivalent to a number (|⍵) < RX10.
       ⍝ Returns a small integer!
       ⍝ Usage: so far, we only use it in BI/BII where we are passing data to an APL fn (⍳).
-      ∆2Small←{
+      importSmallInt←{
           s w←∆ ⍵ ⋄ 1≠≢w:err eSMALLRT
           s×,w
       }
@@ -348,19 +334,19 @@
     ⍝ export / exp: EXPORT a SCALAR BigInt to external "standard" bigInteger
     ⍝ ---------------------------------------------------------------------
     ⍝    r:BIc ← ∇ ⍵:BIint
-    export←{ ('¯'/⍨¯1=⊃⍵),⎕D[dLZrun,⍉(NRX10⍴10)⊤|⊃⌽⍵]}
+    export←{ ('¯'/⍨¯1=⊃⍵),⎕D[dlzRun,⍉RX10BASE⊤|⊃⌽⍵]}
     exp←export
     ⍝ ∆dlzNorm ⍵:BIint  If ⊃⌽⍵ is zero after removing leading 0's,
     ⍝                   return canonical 0 (0 (,0)).
     ⍝                   Otherwise return ⍵ w/o leading zeroes.
     ⍝ ∆norm ⍵:BIint  If ⊃⌽⍵ is zero, ensure sign is 0. Otherwise, pass ⍵ as is.
-    ∆dlzNorm←{zero_D≡w←dLZrun⊃⌽⍵: zero_BI ⋄ (⊃⍵) w}
+    ∆dlzNorm←{zero_D≡w←dlzRun⊃⌽⍵: zero_BI ⋄ (⊃⍵) w}
     ∆norm←{zero_D≡⊃⌽⍵:zero_BI ⋄ ⍵}
 
     :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
 
-    :Section BI Monadic Operands/Functions
+    :Section BI Monadic Operations/Functions
 
     ⍝ neg[ate] / _neg[ate]
       neg←{                                ⍝ -
@@ -376,7 +362,6 @@
           (sw w)←∆ ⍵
           (|sw)w
       }
-
     ⍝ inc[rement]:                         ⍝ ⍵+1
       inc←{
           (sw w)←∆ ⍵
@@ -394,18 +379,6 @@
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
           0≠⊃⌽w:∆dlzNorm sw w⊣(⊃⌽w)-←1           ⍝ No underflow?  Decrement and we're done!
           sw w _sub 1 one_D                 ⍝ Otherwise, do long way.
-      }
-      not←{
-          sw bw←bitsView ∆ ⍵
-          sw ubits2BI~bw
-      }
-    ⍝ popCount: # of bits in a bigInteger (2's-complement)
-    ⍝   that DIFFER from the twos-complement sign-bit,
-    ⍝   i.e. that are 1s for pos #s and 0s for negative...
-      popCount←{
-          sw bw←bitsView ∆ ⍵
-          sw≥0:1,⊂+/bw    ⍝ non-neg:  (# of 1s)
-          ¯1,⊂+/~bw     ⍝ neg:     -(# of 0s)
       }
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIext
@@ -447,87 +420,45 @@
       }
   ⍝⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝⍝  Bit Management Utilities
-      ⍝ bits2BI <<<BEGIN>>>
-      ⍝ bits2BI:     r@BII ← sign∊(¯1 0 1) ∇  bits@B[]
-      ⍝ If object is not multiple of nbe bits, propagate the sign bit ⍺
-      ⍝ (1=neg, 0=non-neg) on the left (padding what will be the leftmost,
-      ⍝ high order, int in the resulting bigInt vector).
-      ⍝ If sign is neg, add ¯1 prefix to each row to decode as twos-complement neg numbers.
-      bits2BI←{
-          sg←⍺                                  ⍝ sg: bigInt sign scalar ∊ ¯1 0 1
-          0∊⍵∊0 1:err'Argument is not a vector of bits (1s and 0s)'
-        ⍝ Break ⍵ into NRX2∆-bit chunk, propagating the sign bit specified if enabled...
-          bits←NRX2∆(sg chunkBits)⍵
-          dig←,|2⊥⍉sg preDecode bits
-        ⍝ Experimental code...
-        ⍝ 1∊RX10≤dig:sg,⊂ndnZ 0,dig⊣⎕←'bits2BI: normalizing down'
-          ∆dlzNorm sg,⊂dig
+  ⍝⍝  ⊥    bits→bi
+  ⍝⍝  ⊤    bi→bits, 
+  ⍝⍝  ~    reverses bits of bi ⍵, i.e.   (⊥ ~ ⊤ ⍵) 
+  ⍝⍝  We allow 
+  ⍝⍝      1. Importing from a simple bit array ⍵ ravelled to: bits←,⍵
+  ⍝⍝          [sign] bits
+  ⍝⍝           sign: 1 for negative, 0 for positive.
+  ⍝⍝           bits: 1 or more bits 
+  ⍝⍝         Returns a bigint in internal format, normalized as required.
+  ⍝⍝         If <bits> are not multiple of 20 (NRX2), the non-sign <bits> are padded on the left with 0s (unsigned)
+  ⍝⍝      2. Exporting from a signed bigint object to a vector:
+  ⍝⍝          [sign] bits
+  ⍝⍝          sign, bits: as above    
+  ⍝⍝  For bit array manipulation, perform entirely using APL's more powerful intrinsics, then convert to a bigint. 
+  ⍝⍝  ~ included in BI(I) calls for demonstration purposes.  
+  ⍝⍝    
+  ⍝⍝  Bugs: Except for the overall sign bit, the bigint data is handled as unsigned in every case,
+  ⍝⍝        not in a  2s-complement representation.
+  ⍝⍝        That is, ¯1 is stored as (sign bit: 1) plus (data: 0 0 0 ... 0 1), not as all 1s (as expected for 2s-complement).
+  ⍝⍝            ¯1 can be represented as   1 1    OR    1 0 1    OR    1 0 0 0 ... 0 1, etc.
+  ⍝⍝  See  ⊥BI ⍵ OR 'BITSIN' BI ⍵ and  ⊤BI ⍵ OR 'BITSOUT' BI ⍵
+      bitsImport←{
+          ' '=1↑0⍴⍵: ∇ '1'=b ⊣   eBOOL ⎕SIGNAL 11/⍨0∊'01'∊⍨b←⍵~' '     ⍝ Allow quoted args, since will be presented by bi.dc desk calculator
+          0∊⍵∊0 1: eBOOL ⎕SIGNAL 11
+          bits←,⍵             
+          sgn←(⊃bits)⊃1 ¯1 ⋄ bits←1↓bits    ⍝ 1st bit is sign bit.
+          nhands←⌈exact←NRX2÷⍨≢bits         ⍝ Process remaining bits into hands of <nbits> each
+          bits←nhands NRX2⍴{
+              nhands=exact: ⍵
+              (-nhands×NRX2)↑⍵              ⍝ Padding first hand on left with 0s (unsigned)
+          }bits   
+          ∆dlzNorm sgn (2 ⊥⍉ bits )         ⍝ Convert to bigint:  (sign) (integer array)
       }
-
-    ∇ {yes}←UseTwosComplements yes;_chunkS;_chunkU;_preDecodeS;_preDecodeU
-    ⍝ chunk---, decode...: see bits2BI
-    ⍝ These determine whether bit routines encode twos-complement or keep bit strings positive...
-      _chunkS←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ flipCond←~⍣(⍺⍺<0) ⋄ c⍴flipCond(-×/c)↑flipCond ⍵}  ⍝ Propagate sign  (1 if neg, 0 if pos)
-      _chunkU←{c←(⌈⍺÷⍨≢⍵)⍺ ⋄ c⍴(-×/c)↑⍵ ⋄ ⍺⍺'ignored'}       ⍝ Treat bits as if positive #
-      _preDecodeS←{⍺=¯1:⍺,⍵ ⋄ ⍵}
-      _preDecodeU←⊢
-      :If yes
-          twosComplement←1
-          chunkBits←_chunkS
-          preDecode←_preDecodeS
-      :Else
-          twosComplement←0
-          chunkBits←_chunkU
-          preDecode←_preDecodeU
-      :EndIf
-    ∇
-    UseTwosComplements 0
-    ⍝ bits2BI <<<END>>>
-
-      ⍝ BI2Bits:   r@B[]  ← ∇ BII
-      ⍝ ⍵ must be a properly formed bigInt.
-      ⍝ Returns: a twos-complement bit representation of ⍵.
-      ⍝ While the sign-bit is included, bits2bi will include
-      ⍝ the original sign-bit, meaning the sign bit can not be
-      ⍝ altered by bit manipulation.
-      BI2Bits←{
+      bitsExport←{
           sw w←∆ ⍵
-          twosComplement:BIu2Bits w×sw    ⍝ Uses twos-complement if sw<0
-          BIu2Bits w
+          sw=0:   0,NRX2⍴0
+          (sw=¯1),,⍉NRX2BASE⊤w 
       }
-      BIu2Bits←{
-          ,⍉RXBASE∆⊤⍵                      ⍝ Uses twos-complement if ⍵<0
-      }
-
-      ⍝ bitsView: Given a bigInt, returns (sign)(bigInt-as-bits)
-      ⍝ Kludge: Gets bits unsigned (see bits2BI)
-      bitsView←{
-          sw w←⍵
-          sw(BI2Bits ⍵)
-      }
-      ⍝ Given two bigInts ⍺, ⍵
-      ⍝ Returns each converted to bits and
-      ⍝ padded on the left to the length of the longest.
-      ⍝ If the int is neg, pad with 1; else with 0.
-      bitsView2←{
-          (sa ba)(sw bw)←bitsView¨⍺ ⍵
-          ⋄ m←(≢ba)⌈≢bw
-          ⋄ chunkS←{flipCond←~⍣(⍺⍺<0) ⋄ ⍺⍺,⊂flipCond ⍺↑flipCond ⍵} ⍝ Pad as signed
-          ⋄ chunkU←{⍺⍺,⊂⍺↑⍵}                          ⍝ Pad as signed
-          twosComplement:(m(sa chunkS)ba)(m(sw chunkS)bw)
-          (m(sa chunkU)ba)(m(sw chunkU)bw)
-      }
-
-    ⍝ ubits2BI: Takes a set of unsigned bits ⍵ and return a signed integer
-    ⍝    based on the sign ⍺.
-    ⍝    If ⍵ is not 0, ⍺ is used to set sign to ¯1 or 1.
-    ⍝    Otherwise, returns bigInt 0.
-    ⍝ Unsigned ubits2BI (bits no sign bit → |BIint) and BIu2Bits (BIu → bits)
-    ⍝ ⍺: Take sign bit from external routine...
-    ⍝    Used internally, so no validation that ⍵ is only bits
-      ubits2BI←{⍺←1
-          ⍺ bits2BI ⍵
-      }
+     
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
     ⍝ (int) root: A fast integer nth root.
@@ -582,9 +513,9 @@
     rootX←{⍺←⊢ ⋄ export ⍺ root ⍵}
 
   ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
-    recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dLZrun ⍵}
+    recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzRun ⍵}
 
-    :Endsection BI Monadic Functions/Operands
+    :Endsection BI Monadic Functions/Operations
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BI Dyadic Functions/Operations
@@ -672,18 +603,18 @@
     ⍝ mul2Exp:  Shift ⍺:BIext left or right by ⍵:Int binary digits
     ⍝  r:BIint ← ⍺:BIint   ∇  ⍵:aplInt
     ⍝     Note: ⍵ must be an APL integer (<RX10).
-    ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
-    ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
+    ⍝  -  If ⍵>0: shift ⍺ left by ⍵ binary digits
+    ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ binary digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-    ⍝ GMP: mul_2exp
+    ⍝ Very slow!
       mul2Exp←{
-          shiftU←{⍵<0:chkZ ⍵↓⍺ ⋄ ⍺,⍵⍴0}             ⍝ <bits> shift <degree> (left=pos.)
           (sa a)(sw w)←⍺ ∆ ⍵
-          1≠≢w:err eMUL10                       ⍝ ⍵ must be small integer.
+          1≠≢w:err eMUL10                         ⍝ ⍵ must be small integer.
           sa=0:0 zero_D                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
-        ⍝ Kludge- use unsigned ints... otherwise odd results with neg #s
-          ∆dlzNorm sa(⊃⌽1 ubits2BI(BI2Bits 1 a)shiftU sw×w)
+          pow2←2*w 
+          sw>0: sa a mul pow2
+          sa a div pow2    
       }
       div2Exp←{
           ⍺ mul2Exp negate ⍵
@@ -712,61 +643,6 @@
       }
     shiftDecimal←mul10Exp                          ⍝ positive/left
     shiftD←mul10Exp
-
-  ⍝ (bi.exp 3000 bi.div10 2)  ≡ 30  ≡  (bi.exp 3000 bi.mul10Exp ¯2)
-    div10Exp←{⍺ _mul10Exp neg ⍵}
-
-    and←{⍺ ∧bits ⍵}
-    or←{⍺ ∨bits ⍵}
-    xor←{⍺ ≠bits ⍵}
-
-    ⍝ a (logop bits) w
-    ⍝ DYADIC...
-    ⍝ bits: Perform bitwise  and signwise comparisons of bigInts ⍺, ⍵
-    ⍝       1. View ⍺, ⍵ as bits
-    ⍝       2. Pad the shorter of ⍺, ⍵ to the length of the longer:
-    ⍝          Pad by replicating the sign-bit (1=neg, 0=otherwise)
-    ⍝          on the left.
-    ⍝          If ⍵ is
-    ⍝             ¯1 → ¯1 (1) → ¯1 (20⍴1)
-    ⍝          and ⍺ has 40 bits, then pad ⍵ with 1 (neg sign-bit):
-    ⍝             ¯1 ((20⍴1),20⍴1)
-    ⍝       3. Perform ⍺⍺ pairwise on each element of ⍺, ⍵
-    ⍝       4. Perform ⍺⍺ on the signs, this way:
-    ⍝             If   (sign_⍵=¯1)⍺⍺(sign_⍺=¯1)
-    ⍝             then sign_result ← ¯1 else 0.
-    ⍝          That way, relationals like < or > will work properly,
-    ⍝          (or user relationals), within the domain of 0 1.
-    ⍝          Let sign_⍺←¯1, but sign_⍵←1:
-    ⍝          so  (sign_⍵=¯1)<(sign_⍺=¯1)
-    ⍝          so           0 < 1
-    ⍝          so the resulting sign is ¯1.
-    ⍝       5. View the result as a signed bigInt.
-    ⍝ MONADIC...
-    ⍝  bits: Perform bitwise ⍺⍺ on bigInt ⍵ as sequence of bits and sign bit.
-    ⍝ See BIB←{bi.export ⍺ bi.bits ⍵}
-      bits←{⍺←⊢
-          0≡⍺ 0:⍺ ⍺⍺{
-              sw bw←bitsView ∆ ⍵
-              ⍺⍺(sw=¯1):¯1 ubits2BI ⍺⍺ bw
-              1 ubits2BI ⍺⍺ bw
-          }⍵
-          (sa ba)(sw bw)←(∆ ⍺)bitsView2(∆ ⍵)
-          (sw=¯1)⍺⍺(sa=¯1):¯1 ubits2BI(ba ⍺⍺ bw)
-          1 ubits2BI(ba ⍺⍺ bw)
-      }
-    ⍝ flipBits:  r:BII ← ⍺:I[] ∇ ⍵:BII
-    ⍝ Flips bits ⍺ of bigInteger ⍵ and returns it.
-    ⍝ ⍺ is an integer array...
-    ⍝ Bit 0 is the rightmost bit in ⍵...
-    ⍝ WARNING: THIS FUNCTION NEEDS WORK!
-      flipBits←{(sw w)←∆ ⍵
-          0::⎕SIGNAL/(⎕←'err:  (⍵~BI a OR ⍺ ('FLIP'BI) ⍵) flipBits function not fully implemented.)')911⊣⎕←↑⎕DMX.DM
-          maxLenBits←1+⌈/⍺
-          b←(-maxLenBits⌈≢b)↑b←BI2Bits ⍵       ⍝ Expand to highest index specified (counting booleans from right to left)...
-          i←(≢b)-⍺+1 ⋄ b[i]←~b[i]            ⍝ ⎕IO=0
-          sw bits2BI b
-      }
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
@@ -798,7 +674,7 @@
     genBooleanFn¨ ('lt' '<')('le' '≤')('eq' '=')('ge' '≥')('gt' '>')('ne' '≠')
     ⎕EX 'genBooleanFn'
 
-    :EndSection BI Dyadic Operands/Functions
+    :EndSection BI Dyadic Operators/Functions
 
     :Section BI Special Functions/Operations (More than 2 Args)
     ⍝ modMul:  modulo m of product a×b
@@ -818,8 +694,8 @@
           m _rem(m _rem a)_mul(m _rem b)
       }
 
-    eModMul←'modMul syntax: ⍺ ∇ ⍵1 ⍵2',⎕UCS 10
-    eModMul,←'               ⍺: multiplicand, ⍵1: multiplier, ⍵2: base for modulo'
+      eModMul←'modMul syntax: ⍺ ∇ ⍵1 ⍵2',⎕UCS 10
+      eModMul,←'               ⍺: multiplicand, ⍵1: multiplier, ⍵2: base for modulo'
 
     :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
@@ -832,16 +708,16 @@
 
     ⍝ addU:   ⍺ + ⍵
       addU←{
-          dLZrun ndn 0,+⌿⍺ mix ⍵    ⍝ We use dLZrun in case ⍺ or ⍵ have multiple leading 0s. If not, use ndnZ
+          dlzRun ndn 0,+⌿⍺ mix ⍵    ⍝ We use dlzRun in case ⍺ or ⍵ have multiple leading 0s. If not, use ndnZ
       }
     ⍝ subU:  ⍺ - ⍵   Since unsigned, if ⍵>⍺, there are two options:
     ⍝        [1] Render as 0
     ⍝        [2] signal an error...
       subU←{
           <cmp ⍺ mix ⍵:eSUB ⎕SIGNAL 11          ⍝ [opt 2] 3-5 →  -(5-3)
-          dLZrun nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
+          dlzRun nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
       }
-    eSUB←'bigInt subU: unsigned subtraction may not become negative'
+      eSUB←'bigInt subU: unsigned subtraction may not become negative'
     ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIint ⍺ and ⍵
     ⍝ r:BIint ← ⍺:BIint ∇ ⍵:BIint
     ⍝ This is dfns:nats mul.
@@ -849,7 +725,7 @@
     ⍝ even for larger numbers (up to xtimes smallish design limit)
     ⍝ We call ndnZ to remove extra zeros, esp. so zero is exactly ,0 and 1 is ,1.
       mulU←{
-          dLZrun ⍺{                                 ⍝ product.
+          dlzRun ⍺{                                 ⍝ product.
               ndnZ 0,↑⍵{                          ⍝ canonicalised vector.
                   digit take←⍺                    ⍝ next digit and shift.
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
@@ -879,13 +755,13 @@
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIint[2] ← ⍺:BIint ∇ ⍵:BIint
       divU←{
-          a w←dLZrun¨⍺ ⍵
+          a w←dlzRun¨⍺ ⍵
           zero_D≡,⍵:a{                        ⍝ ⍺÷0
               zero_D≡,⍺:one_D                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
           }w
           svec←(≢w)+⍳0⌈1+(≢a)-≢w              ⍝ shift vector.
-          dLZrun¨↑w{                            ⍝ fold along dividend.
+          dlzRun¨↑w{                            ⍝ fold along dividend.
               r p←⍵                           ⍝ result & dividend.
               q←⍺↑⍺⍺                          ⍝ shifted divisor.
               ppqq←RX10⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
@@ -918,14 +794,14 @@
     :Section Service Routines
 
     atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}                    ⍝ atom:     Simple scalar if ⍵ of length 1; else enclosed obj.
-                                            ⍝ prettify: Add underscores every 5 digits; replace ¯ by - .
-    prettify←  '-'@('¯'∘=) '(\d)(?=(\d{5})+$)' ⎕R '\1_'   
+                                            ⍝ prettify: Add underscores every 5 digits; ⍺=0 (default): replace ¯ by - .
+    prettify←  {0:: ⍵ ⋄ ⍺←0 ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}    
                                             ⍝ ∆2Apl:    Convert valid bigint ⍵ to APL, with error if exponent too large.
     ∆2Apl←{  0:: eBADRANGE ⎕SIGNAL 11  ⋄  ⍎exp ∆ ⍵}   
 
-  ⍝ These routines operate on unsigned BIu data unless documented… (Mostly from dfn routines)
+  ⍝ These routines operate on unsigned BIu data unless documented… (Mostly from dfn utilities)
     dLZ←{(0=⊃⍵)↓⍵}                          ⍝ drop FIRST leading zero.
-    dLZrun←{0≠≢v←(∨\⍵≠0)/⍵:v ⋄ ,0}          ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
+    dlzRun←{0≠≢v←(∨\⍵≠0)/⍵:v ⋄ ,0}          ⍝ drop RUN of leading zeros, but [PMS] make sure at least one 0
     chkZ←{0≠≢⍵:,⍵ ⋄ ,0}                     ⍝ ⍬ → ,0. Ensure canonical Bii, so even 0 has one digit (,0).
 
     ndn←{ +⌿1 0⌽0 RX10⊤⍵}⍣≡                 ⍝ normalise down: 3 21 → 5 1 (RH).
@@ -943,20 +819,19 @@
 ⍝ --------------------------------------------------------------------------------------------------
     :Endsection Big Integers
 
-    :Section Utilities: bi, dc (desk calc), BIB, BIC, BI∆HERE
+    :Section Utilities: bi, dc (desk calc), BIB, BIC
    ⍝ bi      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, bi will be found without typing explicit path.
    ⍝ bi.dc   - desk calculator (self-documenting)
    ⍝ BIB     - Shortcut to manipulate BIs as arbitrary signed binary numbers
    ⍝ BIC     - Utility to compile code strings or functions with BI arithmetic
-   ⍝ BI∆HERE - Utility to compile and run embedded code (stored as comments) on the fly
-
+ 
    ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
    ⍝ Utilities…
 
   ⍝ bi:  Returns ⎕THIS namespace
-    ⎕FX 'ns←bi' 'ns←⎕THIS'          ⍝ Simple user-friendly name...
-    ⎕FX 'ns←_bigInt_' 'ns←⎕THIS'    ⍝ A more unique name for use by utilities...
+      ⎕FX 'ns←bi' 'ns←⎕THIS'          ⍝ Simple user-friendly name...
+      ⎕FX 'ns←BI_LIB' 'ns←⎕THIS'    ⍝ A more unique name for use by utilities...
 
     ⍝ RE∆GET-- ⎕R/⎕S Regex utility-- returns field #n or ''
       RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
@@ -994,15 +869,15 @@
       _Q _E←⊂¨'\Q' '\E'
       t2←¯1↓∊(_Q,¨_E,⍨¨tDM,tMM),¨'|'
       p2Funs1←'(?:⍺⍺|⍵⍵)'                      ⍝ See pFunsSmall.
-      p2Funs2←'(?:[',t1,']|\b(?:',t2,')\b)'    ⍝ See pFunsBig. Case is respected for MUL10, SQRT…
+      p2Funs2←'(?:',t2,')|(?:[',t1,'])'        ⍝ See pFunsBig. Case is respected for MUL10, SQRT…
      
       ⍝ …P:  Patterns. Most have a field#1
       pCom←'(⍝.*?)$'                           ⍝ Keep comments as is
       pVar←'([',p2Vars,'][',p2Vars,'\d]*)'     ⍝ Keep variable names as is, except MUL10 and SQRT
       pQot←'((?:''[^'']*'')+)'                 ⍝ Keep quoted numbers as is and anything else quoted
-      pFunsNoQ←'(',p2Funs1,'(?!\h*BII))'        ⍝ ⍺⍺, ⍵⍵ operands NOT quoted. → (⍺⍺ BII) (⍵⍵ BII)
-      pFunsQ←'(',p2Funs2,'(?!\h*BII))'          ⍝ All fns: APL or named are quoted. Simpler/faster.
-                                               ⍝ SQRT → ('SQRT'BII), + → ('+' BII), ditto √ → '√'
+      pFunsNoQ←'(',p2Funs1,'(?!\h*BII))'       ⍝ ⍺⍺, ⍵⍵ operands NOT quoted. → (⍺⍺ BII) (⍵⍵ BII)
+      pFunsQ←'((?:',p2Funs2,')⍨?(?!\h*BII))'   ⍝ All fns: APL or named are quoted. Simpler/faster.
+                                               ⍝ SQRT → ('SQRT'BII), + → ('+' BII), √ 100 → ('√' BI '100')
       pNonBiCode←'\(:(.*?):\)'                 ⍝ Anything in (: … :) treated as APL
      
       pIntExp←'([\-¯]?[\d.]+[eE]¯?\d+)'        ⍝ [-¯]4.4E55 will be padded out. Underscores invalid.
@@ -1012,14 +887,14 @@
    ⍝ …AB: BII (Big Integer) action building-blocks
       actBiCallNoQ←'(\1',(⍕⎕THIS),'.BI)'       ⍝ See pFunsNoQ above
       actBiCallQ←'(''\1''',(⍕⎕THIS),'.BI)'     ⍝ See pFunsQ above
-      actKeep actKeepParen actQuoted←'\1' '(\1)' '''\1'''
+      actKeep actKeepParen actQuoted actBool←'\1' '(\1)' '''\1'''   '⊥BI \1'
    ⍝ EXTERN pBiCalls:     Full BI (Big Integer) pattern
    ⍝    pFunsBig must precede pVar, so that MUL10 and SQRT will be treated as BI operands…
    ⍝ pAplInt replaced by pFancy-- see NOTE 20181016 below
-      pBiCalls←pCom pFunsQ pVar pQot pFunsNoQ pNonBiCode pIntExp pIntOnly
+      pBiCalls←pCom pFunsQ pVar pQot pFunsNoQ pNonBiCode  pIntExp pIntOnly
    ⍝ EXTERN actBiCalls:   BI (Big Integer) action
    ⍝ In this version, we quote all APL integers unless they have exponents...
-      actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeep actKeepParen actQuoted
+      actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeep  actKeepParen actQuoted
    ⍝ EXTERN matchBiCalls: BI (Big Integer) matching calls…
       matchBiCalls←{⍺←1
           res←⊃⍣(1=≢res)⊣res←pBiCalls ⎕R actBiCalls⍠('UCP' 1)⊣⊆⍵
@@ -1039,165 +914,90 @@
           ∆ERR::⎕SIGNAL/⎕DMX.(('bigInt: ',EM)EN)
           0=1↑0⍴∊⍵:err eBIC
         ⍝ ⍺ a string, treat as: ⍺,1 BIC ⍵
-          0≠1↑0⍴⍺:⍺,matchBiCalls ⍵              ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
-          ⍺=2:matchFnRep ⎕NR ⍵                  ⍝ Compile function named ⍵
-          ⍺=¯2:matchFnRep ⍵                     ⍝ Compile function whose ⎕NR is ⍵
-          ⍺=0:matchBiCalls ⍵                    ⍝ Compile string ⍵ and return compiled string
-          ⍺=¯1:0 matchBiCalls ⍵                 ⍝ Compile string ⍵ and return compiled string w/o BI namespace prefixes (for ease of viewing)
+          0≠1↑0⍴⍺: ⍺,matchBiCalls ⍵              ⍝ ⍺ is catenated: as if ⍺,1 BIC ⍵
+          ⍺=2:     matchFnRep ⎕NR ⍵                  ⍝ Compile function named ⍵
+          ⍺=¯2:    matchFnRep ⍵                     ⍝ Compile function whose ⎕NR is ⍵
+          ⍺=0:     matchBiCalls ⍵                    ⍝ Compile string ⍵ and return compiled string
+          ⍺=¯1:    0 matchBiCalls ⍵                 ⍝ Compile string ⍵ and return compiled string w/o BI namespace prefixes (for ease of viewing)
           ⍺=1:((1+⎕IO)⊃⎕RSI,#)⍎matchBiCalls ⍵   ⍝ Compile and execute string ⍵ in CALLER space, returning value of execution
       }
 
-    ∇ dc;caller;code;lastResult;exprIn;exec;msg;isShy;exprHelp
-      msg←⊂'      bi.dc'
-      msg,←⊂'desk calculator'
-      msg,←⊂'¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
-      msg,←⊂'User command:     APL expression:  '
-      msg,←⊂'   ]dc               bi.dc'
-      msg,←⊂''
-      msg,←⊂'○  Enter APL arithmetic expressions containing arbitrary integer scalars:'
-      msg,←⊂'      2*3100'
-      msg,←⊂'   15595042345474685813045672264607686080812712147276542043334539529...'
-      msg,←⊂'   ...329802184437989484872233686480420850069400034198779281...26085376'
-      msg,←⊂'○  ⍵ refers to the result of the previous expression:'
-      msg,←⊂'      ⍵=(2*3000)×2*100        ⍝ Is (2*3100) the same as (2*3000)×(2*100)'
-      msg,←⊂'   1                          ⍝ YES!'
-      msg,←⊂'○  Empty lines? Exit the desk calculator.'
-      msg,←⊂'   (Lines consisting of 1 or more blanks are ignored).'
-      msg,←⊂'○  To request HELP info, enter a lone ? after the prompt:'
-      msg,←⊂'      ?'
-      msg,←⊂'○  ? is the usual random # function, when followed by a number:'
-      msg,←⊂'      ? 12343224324342344342391095446'
-      msg,←⊂'○  Functions:'
-      msg,←⊂'   MONADIC*:   - + | × ÷ < > ! ? ⊥ ⊤ ⍎ ⍳ SQRT(√) NOT(~)'
-      msg,←⊂'   DYADIC*:    + - × * ÷ ⌊ ⌈ | ∨ ∧ ⌽ √ ≢ SHIFTD SHIFTB DIVREM MOD MODMUL(MMUL)'
-      msg,←⊂'     Bit-level**: AND OR XOR ~(FLIP) '
-      msg,←⊂'     Return boolean: < ≤ = ≥ > ≠        Return integer: ⍴(length)'
-      msg,←⊂'-------------------'
-      msg,←⊂'  *All functions return integer strings (BIext) or internal-format BigInts (BIint), unless specified'
-      msg,←⊂' **AND, OR, XOR, ~(FLIP) simulate bit-level logical operations as if arbitrary-length integers'
-      msg,←⊂'--------------------------------------------'
-      msg,←⊂'Press escape key to exit this screen'
-      msg←↑msg
-      ⎕ED&'msg'
+      dc_HELP←⊂'bi.dc'
+      dc_HELP,←⊂'desk calculator'
+      dc_HELP,←⊂'¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
+      dc_HELP,←⊂'User command:     APL expression:  '
+      dc_HELP,←⊂'   ]dc               bi.dc'
+      dc_HELP,←⊂''
+      dc_HELP,←⊂'○  Enter APL arithmetic expressions containing arbitrary integer scalars:'
+      dc_HELP,←⊂'      2*3100'
+      dc_HELP,←⊂'   15595042345474685813045672264607686080812712147276542043334539529...'
+      dc_HELP,←⊂'   ...329802184437989484872233686480420850069400034198779281...26085376'
+      dc_HELP,←⊂'○  ⍵ refers to the result of the previous expression:'
+      dc_HELP,←⊂'      ⍵=(2*3000)×2*100        ⍝ Is (2*3100) the same as (2*3000)×(2*100)'
+      dc_HELP,←⊂'   1                          ⍝ YES!'
+      dc_HELP,←⊂'○  Empty lines? Exit the desk calculator.'
+      dc_HELP,←⊂'   (Lines consisting of 1 or more blanks are ignored).'
+      dc_HELP,←⊂'○  To request dc_HELP info, enter a lone ? after the prompt:'
+      dc_HELP,←⊂'      ?'
+      dc_HELP,←⊂'○  ? is the usual random # function, when followed by a number:'
+      dc_HELP,←⊂'      ? 12343224324342344342391095446'
+      dc_HELP,←⊂'○  Functions:'
+      dc_HELP,←⊂'   MONADIC*:   - + | × ÷ < > ! ? ⊥ ⊤ ⍎ ⍳ SQRT(√) NOT(~)'
+      dc_HELP,←⊂'   DYADIC*:    + - × * ÷ ⌊ ⌈ | ∨ ∧ ⌽ √ ≢ SHIFTD SHIFTB DIVREM MOD MODMUL(MMUL)'
+      dc_HELP,←⊂'   DYADIC*:    + - × * ÷ ⌊ ⌈ | ∨ ∧ ⌽ √ ≢ SHIFTD SHIFTB DIVREM MOD MODMUL(MMUL)'
+      dc_HELP,←⊂'   SPECIAL:    →BI nnn:    Return nnn in internal format.'
+      dc_HELP,←⊂'               ⍎BI nnn:    Return nnn in APL format. Error if exponent not in range for decimal float'
+      dc_HELP,←⊂'               ⍕BI nnn:    Return nnn in external string format, with _ separator every 5 digits'
+      dc_HELP,←⊂''
+      dc_HELP,←⊂'     Return boolean: < ≤ = ≥ > ≠        Return integer: ⍴(length)'
+      dc_HELP,←⊂'-------------------'
+      dc_HELP,←⊂'  *All functions return integer strings (BIext) or internal-format BigInts (BIint), unless specified'
+      dc_HELP,←⊂' **AND, OR, XOR, ~(FLIP) simulate bit-level logical operations as if arbitrary-length integers'
+      dc_HELP,←⊂'--------------------------------------------'
+      dc_HELP,←⊂'Press escape key to exit this screen'
+      dc_HELP←↑dc_HELP
+
+    ∇ dc;caller;code;lastResult;exprIn;exec;help;isShy;exprHelp
+    ⍝ extern:  BigInt.dc_HELP (help information)
+      help←{⎕PW←120  ⋄ (⎕THIS.⎕ED⍠'ReadOnly' 1)&'dc_HELP'}
+      ⎕←'dc: big integer desk calculator.'
+      ⎕←'To see brief HELP information, enter "?" at prompt.'
+      ⎕←'To terminate dc mode, enter an empty line.'
       lastResult←'0' ⋄ exprHelp←,'?'
       :While 1
           :Trap 1000
               exprIn←⍞↓⍨≢⍞←'> '
-              :If 0=≢exprIn ⋄ :Leave                    ⍝ Empty line:  DOne
-              :ElseIf 0=≢exprIn~' ' ⋄ :Continue         ⍝ Blank line:  ignored
-              :ElseIf exprHelp≡exprIn~' '                   ⍝ Lone '?':    HELP
-                  BIC_HELP ⋄ :Continue
+              :If 0=≢exprIn ⋄ :Leave                     ⍝ Empty line:  Done
+              :ElseIf 0=≢exprIn~' '                      ⍝ Blank line:  ignored
+                 :Continue         
+              :ElseIf exprHelp≡exprIn~' '                ⍝ Lone '?':    HELP
+                  help 0 ⋄ :Continue
               :EndIf
               :Trap 0
                   caller←(1+⎕IO)⊃⎕RSI,#
-                  code←0 BIC exprIn                                 ⍝ ('\w'⎕S'\0')
-                  exec←{⍵⍵:⍺⍎⍺⍺ ⋄ ⊢⎕←⍺⍎⍺⍺}                         ⍝ ⍎ sees ⍵←lastResult
+                  code←0 BIC exprIn                      ⍝ ('\w'⎕S'\0')
+                  exec←{⍵⍵:⍺⍎⍺⍺ ⋄ ⊢⎕←1∘prettify ⍺⍎⍺⍺}               ⍝ ⍎ sees ⍵←lastResult
                   isShy←×≢('^\(?(\w+(\[[^]]*\])?)+\)?←'⎕S 1⍠'UCP' 1)⊣code~' ' ⍝ Kludge to see if code has an explicit result.
                   lastResult←caller(code exec isShy)lastResult
               :Else
-                  ⎕←{
-                      dm0 dm1 dm2←⍵.DM ⋄ p←1+dm1⍳']' ⋄ (p↑dm1)←' ' ⋄ ↑dm0 dm1(' ',dm2)
-                  }⎕DMX
+                  ⎕←{ dm0 dm1 dm2←⍵.DM ⋄ p←1+dm1⍳']' ⋄ (p↑dm1)←' ' ⋄ ↑dm0 dm1(' ',dm2) }⎕DMX
               :EndTrap
           :Else
-     interrupt:
-              l←≢⍞←'Interrupted. Exit? Y/N [Yes] '
-              :If ~1∊'nN'∊l↓⍞ ⋄ :Return ⋄ :EndIf
-          :EndTrap
+              interrupt:
+              :If ~1∊'nN'∊⍞↓⍨≢⍞←'Interrupted. Exit? Y/N [Yes] '
+                  :Return 
+              :EndIf
+          :EndTrap  
       :EndWhile
     ∇
-
-      BIB←{
-          0::'bigInt BIB error'⎕SIGNAL ⎕EN
-          ⍺←⊢
-          bi.exp ⍺ ⍺⍺ bits ⍵
-      }
-
-    eBIHFAILED←'BI∆HERE failed: unable to run compiled BI code'
-    eBIHBADCALL←'BI∆HERE not called from active traditional fn'
-    ∇ {callback}←BI∆HERE;callerCode;callerNm;cloneNm;callerNs;opt;pat;RE∆GET;⎕TRAP
-      ⍝ See BI∆HERE_HELP
-      ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
-      :IF (2>≢⎕SI) ⋄ err eBIHBADCALL ⋄ :ENDIF 
-      RE∆GET←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ RE∆GET¨2 3
-          ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
-      }
-      opt←('Mode' 'M')('EOL' 'LF')('IC' 1)('UCP' 1)('DotAll' 1)
-      pat←'^ (?: \h* ⍝?:BII \b \N*$) (.*?) (?: \R ⍝?:ENDBI \b \N*$)'~' '
-      callerNs←(⊃⎕RSI)
-      callerCode←(1+⎕LC⊃⍨1+⎕IO)↓callerNs.⎕NR callerNm←⎕SI⊃⍨1+⎕IO
-      cloneNm←callerNm,'__BigInteger_TEMP'
-    ⍝ If user codes                   instead of
-    ⍝                   bi⍎BI∆HERE                 ⍎bi.BI∆HERE,
-    ⍝ ⎕CS callerNs is required. Otherwise, function terminates in namespace BigInt (bi is alias).
-      callback←cloneNm,' ⋄ ⎕CS callerNs ⋄ →0'
-    ⍝ The callback will call the caller function (cloned) starting after the BI∆HERE,
-    ⍝ starting with a statement to erase the clone
-      :Trap 0
-          :If 0=1↑0⍴callerNs.⎕FX(⊂cloneNm),(⊂'⎕EX ''',cloneNm,''''),(⊆0 BIC callerCode)
-              err eBIHFAILED
-          :EndIf
-          ⍝ Success!
-      :Else
-          err eBIHFAILED
-      :EndTrap
-      :If DEBUG
-          ⎕←'Executing in ',(⍕callerNs),'...'
-          ⎕←callerNs.⎕VR cloneNm
-      :EndIf
-    ∇
-    :Endsection Utilities: bi, dc (desk calc), BIB, BIC, BI∆HERE
-
-    :Section Documentation
-    ⍝ See BigIntHelp
-    ∇ HELP
-      ##.BigIntHelp.HELP
-    ∇
-    ∇ help
-      ##.BigIntHelp.HELP
-    ∇
-    ∇ Help
-      ##.BigIntHelp.HELP
-    ∇
-    ∇ BI_HELP
-      ##.BigIntHelp.BI_HELP
-    ∇
-    ∇ BIB_HELP
-      ##.BigIntHelp.BIB_HELP
-    ∇
-    ∇ BIC_HELP
-      ##.BigIntHelp.BIC_HELP
-    ∇
-    ∇ BI∆HERE_HELP
-      ##.BigIntHelp.BI∆HERE_HELP
-    ∇
-
-    :EndSection Documentation   -------------------------------------------------------------------------
+    :Endsection Utilities: bi, dc (desk calc), BIB, BIC 
 
     :Section Bigint Namespace - Postamble
-        ssplit←{⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}     ⍝ ssplit: split and sort space-separated words...
-    _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ssplit '_bigInt_ bi bix BI BII BIB BIM BI BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
-
-    ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
-
-    ⍝ note 'For help, type bi.HELP'
-    ⍝ note '¯¯¯ ¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯¯'
-    ⍝ note 'To access bigInt functions directly, use bi (lower-case)  as shortcut to bigInt namespace:'
-    ⍝ note '    10 bi.add 3 bi.mul 9'
-    ⍝ note '    bi.dc    - big integer desk calculator'
-
-    ⍝ fns1←ssplit 'sig export exp fact neg recip roll'
-    ⍝ fns2←'div divRem gcd lcm  abs sub'
-    ⍝ fns2←ssplit fns2,' add mul pow rem res mod mul10Exp div10Exp'
-
-    ⍝ note 50⍴'-'⋄ note'  MONADIC FUNCTIONS' ⋄ note 50⍴'¯' ⋄ note ↑fns1
-    ⍝ note 50⍴'-'⋄ note'  DYADIC FUNCTIONS ' ⋄ note 50⍴'¯' ⋄ note ↑fns2
-    ⍝ note 50⍴'-'
-    ⍝ note'Exporting…'⊣⎕EX '_' 'ssplit'
-    ⍝ note{(⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
-    ⍝ note'*** ',(⍕⎕THIS),' initialized. See ',(⍕⎕THIS),'.HELP'
-    ⍝ note 50⍴'-'
+        _namelist_←'BI_LIB bi bix BI BII BIB BIM BI BIB_HELP BIC BI∆HERE BIC_HELP BI_HELP BI∆HERE_HELP HELP RE∆GET'
+        ___←0 ⎕EXPORT ⎕NL 3 4
+        ___←1 ⎕EXPORT {⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}  _namelist_
+        ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
+        ⎕EX '___'
     :EndSection Bigint Namespace - Postamble
 
 :EndNamespace
