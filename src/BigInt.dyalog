@@ -152,7 +152,7 @@
     ⍝ Note: __EXP__ is placeholder text (a pseudo-macro) to be replaced by export or null for BI and BII cover functions.
 
 ⍝ --------------------------------------------------------------------------------------------------
-    getOpName←{aa←⍺⍺ ⋄ 3=⎕NC'aa':⍕⎕CR'aa' ⋄ 1(819⌶)aa}
+    getOpName←{aa←⍺⍺ ⋄ 3=⎕NC'aa':' '~⍨∊⍕⎕CR 'aa'   ⋄ 1(819⌶)aa}
     ⍝ __BI_SOURCE__ is a template for ops BII and BI.
       __BI_SOURCE__←{⍺←⊢
           ∆ERR::⎕SIGNAL/⎕DMX.(EM EN)
@@ -162,26 +162,30 @@
           CASE←(atom fn)∘∊∘⊆  
         ⍝ Monadic...
           monad:{                                      ⍝ BI: __EXP__: See Build BI/BII below.
+            ⍝ math
               CASE'-':__EXP__       neg ⍵              ⍝     -⍵
               CASE'+':__EXP__       ∆ ⍵                ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
               CASE'|':__EXP__       abs ⍵              ⍝     |⍵
               CASE'×':__EXP__       ⊃∆ ⍵               ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
               CASE'÷':__EXP__       recip ⍵            ⍝     inverse     Why bother? Mostly 0!
+            ⍝ Misc
               CASE'<':__EXP__       dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1. 
               CASE'≤':__EXP__       dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
               CASE'>':__EXP__       inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
               CASE'≥':__EXP__       inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
               CASE'!':__EXP__       fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
               CASE'?':__EXP__       roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
-              CASE'≢':              +/1=bitsExport ⍵   ⍝     popcount:   # 1 bits in the bigint in bits format, including the sign bit (1=neg)
               CASE'⍎':              ∆2Apl ⍵            ⍝     aplint      If in range, returns a std APL number; else error               
               CASE'⍕':              prettify exp ∆ ⍵   ⍝     pretty      Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
               CASE'SQRT' '√':       exp  qrt ⍵         ⍝     sqrt        See dyadic *0.5
               CASE'⍳':              ⍳importSmallInt ⍵  ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
               CASE'→':              ∆ ⍵                ⍝     internal    Return ⍵ in internal form. 
+            ⍝ Bit manipulation
+              CASE'≢':              +/1=bitsExport ⍵   ⍝     popcount:   # 1 bits in the bigint in bits format, including the sign bit (1=neg)
               CASE'⊥':__EXP__       bitsImport ⍵       ⍝     bitsImport  Convert bits to bigint
               CASE'⊤':              bitsExport ⍵       ⍝     bitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
-              CASE '~':__EXP__      bitsImport ~ bitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
+              CASE'~':__EXP__       bitsImport ~ bitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)                                          
+              CASE'⎕AT':            getBIAttributes ⍵  ⍝     ⎕AT         <num hands> <num bits> <num 1 bits> 
               err eCANTDO1,∆QT fn                      ⍝     Not found.
           }⍵
       ⍝ Dyadic...
@@ -458,6 +462,11 @@
           sw=0:   0,NRX2⍴0
           (sw=¯1),,⍉NRX2BASE⊤w 
       }
+
+    ⍝ getBIAttributes: Returns    #Hands   #Bits*   #1-bits*         *=(in bit representations)
+    ⍝        ≢bits is also  1 + 20 × #hands
+      getBIAttributes←{hands←≢⊃⌽w←∆ ⍵ ⋄ bits←bitsExport w ⋄ hands (≢bits) (+/1=bits) }
+   
      
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
