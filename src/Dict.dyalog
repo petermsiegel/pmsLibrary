@@ -30,6 +30,7 @@
     :Field Private hasdefaultF←             0
     :Field Private defaultF←                ''        ⍝ Default value (hidden until hasdefaultF is 1)
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
+    
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
     :Field Private Shared eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
     :Field Private Shared eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
@@ -117,7 +118,7 @@
           :If ~0∊found←ix<≢keysF
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
-             vals← found \fillZero valuesF[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [Special Backslash]
+             vals← found expandNonce valuesF[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [Special Backslash]
               ((~found)/vals)←⊂defaultF                 ⍝ Add default values for slots just inserted.
               vals⍴⍨←shape                              ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
           :Else
@@ -159,7 +160,7 @@
           vals←keyIndex[keys]
       :ELSE 
           nd←~d←defined keys
-          vals← d \fillZero keyIndex[d/keys]  ⍝ See Note [Special Backslash] above
+          vals← d expandNonce keyIndex[d/keys]  ⍝ See Note [Special Backslash] above
           (nd/vals)←⊂def
       :ENDIF
     ∇
@@ -627,16 +628,15 @@
     ⍝ ----------------------------------------------------------------------------------------
 
     ⍝ Note [Special Backslash]
-    ⍝ fillZero: an operator that uses 0 as its fill item, rather than the first element.
-    ⍝    out ← bool \fillZero in          
+    ⍝ expandNonce: an operator that uses 0 as its fill item, rather than the first element.
+    ⍝    out ← bool expandNonce in          
             ⍝ We use expand in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
             ⍝ valuesF[...] may include namespaces or other items w/o a fill value. 
             ⍝ If the first item in  ⍵, during an expand operation ⍺\⍵, contains such an item, a NONCE ERROR occurs,
-            ⍝ We resolve this using the equivalent of: 
-            ⍝       fillZero←{fi←0 ⋄ 1↓(1,⍺)⍺⍺ fi,⍵}, where fi is the fill item, ⍵ a vector, ⍺ a selection suitable for ⍺\⍵
-            ⍝ effectively replacing \ with \fill0 where required as in:
-            ⍝       vals←found \fillZero valuesF[found/ix]  
-      fillZero←{fi←0 ⋄ 1↓(1,⍺)⍺⍺ fi,⍵}
+            ⍝ We resolve this using <expandNonce>, which uses a fill value of 0:
+            ⍝       vals←found expandNonce valuesF[found/ix]  
+    ⍝ TACIT version:  a expandNonce b, where expandNonce ← 1↓(1,⊣)⊢⍤\(0,⊢)    
+      expandNonce←{1↓(1,⍺)\ 0,⍵}          ⍝ TACIT VERSION: expandNonce ← 1↓(1,⊣)⊢⍤\0,⊢      ⍝ slightly slower than dfn version!
       
     ∇ {status}←OPTIMIZE 
     ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is never called).
