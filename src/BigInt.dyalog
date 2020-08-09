@@ -1,11 +1,12 @@
 ﻿:namespace BigInt
- DEBUG←0                ⍝ Set DEBUG here.
+ DEBUG←1               ⍝ Set DEBUG here.
 
 :Section HELP
   ⍝H   The BigInt Library
   ⍝H   operator:  BI           BigIntE ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as an BigIntE (external-format BigInt)"
   ⍝H   operator:  BII          BIgIntI ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntI (Internal BigInt)"
   ⍝H   operator:  BIM          BigIntE ←   [⍺] +BIM ⍵ ⊣ m    "Modulo Methods, returning  m | ⍺ + ⍵ as a BigIntE.
+  ⍝H                                                          optimized cases: × (multiply)  * (power)
   ⍝H   function:  BIC                   [opts] BIC string    "BigInt ¨Compile¨, converting string with APL code subset as a BI call"
   ⍝H   function:  BI_DC                        BI_DC         "BigInt Desk Calculator"
   ⍝H   function   BI_LIB       lib    ←        BI_LIB        "Return BigInt Namespace (if not in ⎕PATH)"
@@ -13,14 +14,18 @@
   ⍝H              where BigInt refers to a big integer in external (string) format (BigIntE) or internal (vector) format (BigIntI).
   ⍝H 
   ⍝H   Built on dfns::nats, restructured for signed integers. Faster than dfns::big.
- ⍝H    Typically you all all routines via the interfaces here, rather than calling the BI_LIB.add, BI_LIB_sub (etc.) routines directly.
+  ⍝H    Typically you all all routines via the interfaces here, rather than calling the BI_LIB.add, BI_LIB_sub (etc.) routines directly.
   ⍝H       BI - does all the operations: + - * etc.  
   ⍝H            Input:  any "scalar" BigIntE (in external format) or BigIntI (internal format).  See details below.
   ⍝H            Output: a BigIntE normalized. ⍕BI shares normalized with underscores every five digits for readability.
   ⍝H       BII- does all the operations, just like BI.
   ⍝H            Input:  Same as BI
   ⍝H            Output: Always an internal format big integer (normalized, i.e. checks for leading 0s etc)
-  ⍝H       BIC- Takes a "std" APL-format expression without BI or BIC and inserts the BI calls.
+  ⍝H       BIM- does operation  ⍺<op>⍵ modulo m, returning an external-format BigIntE.  
+  ⍝H            Specifically:
+  ⍝H                     ⍺ ×BIM ⍵ ⊣ m   is the same as    m |BI ⍺ ×BII ⍵   (except faster)
+  ⍝H            BIM is optimized for ops: × (mul) and * (pow) so far.  For other operations, calls modulo after performing <op>.
+  ⍝H       BIC- Takes a standard APL-format mathematical expression without BI or BIC and inserts the BI calls.
   ⍝H            E.g.      BIC ' a←BIC'10 * 10 * 5'
   ⍝H                      ≢a
   ⍝H                 100001     ⍝ Returns a 10,001-digit number
@@ -121,7 +126,7 @@
   ⍝H           ⍺ ⌊ ⍵          min
   ⍝H           ⍺ ∨ ⍵          gcd (not: or)
   ⍝H           ⍺ ∧ ⍵          lcm (not: and)
-  ⍝H           ⍺ 'DIVREM' ⍵   returns two items: ⌊⍺÷⍵ and  ⍵|⍺
+  ⍝H           ⍺ 'DIVREM' ⍵   returns two BigInts: ⌊⍺÷⍵ and  ⍵|⍺
   ⍝H        Logical:  ⍺ < ⍵ means   ⍺ <BI ⍵,  where ⍺ and ⍵ are bigints; each fn returns 1 if true, else 0
   ⍝H           < ≤ = ≥ > ≠
   ⍝H 
@@ -129,8 +134,8 @@
   ⍝H           ZERO_BI← +BI 0     ONE_BI    ←+BI 1
   ⍝H           TWO_BI ← +BI 2     MINUS1_BI ←_BI ¯1  
   ⍝H           TEN_BI ← +BI 10
-  ⍝H         INTERNAL CONSTANTS (fast arrays found via their full namespace specification in B_LIB).   
-  ⍝H           zero_BI, one_BI, two_BI, minus1_BI, ten_BI  
+  ⍝H         INTERNAL CONSTANTS (fast arrays found via their full namespace specification:  
+  ⍝H           BI_LIB.( zero_BI one_BI two_BI minus1_BI ten_BI)  
     :EndSection
 
 
@@ -183,6 +188,7 @@
     eBOOL    ←'Boolean arg imported (⊥) must be ∊ 1 0 ''1'' ''0'''
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
+    eDYADIC  ←'BIM Operator allows only dyadic functions'
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eIMPORT  ←'Importing invalid object'
     eINVALID ←'Format of big integer is not valid: '
@@ -208,7 +214,7 @@
     ⍝ Both required for BIC to function, so keep the lists complete!
     monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳⍟'('SQRT' 'NOT' '⎕AT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
-    dyadFnsList←('+-×*÷⌊⌈|∨∧⌽↑↓√≢~⍟','<≤=≥>≠⍴')('*∘÷' '*⊢÷' 'ROOT' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'MODMUL' 'MMUL')
+    dyadFnsList←('+-×*÷⌊⌈|∨∧⌽↑↓√≢~⍟','<≤=≥>≠⍴')('*∘÷' '*⊢÷' 'ROOT' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD')
 
     ⍝ BII: Basic utility operator for using APL functions in special BigInt meanings.
     ⍝     BIint ← ∇ ⍵:BIext
@@ -301,27 +307,29 @@
               CASE'⌊':_EXPORT_        (∆⍺){⍺ le ⍵: ⍺ ⋄ ⍵}∆⍵     ⍝ ⍺ ⌊ ⍵
               CASE'∨' 'GCD':_EXPORT_  ⍺ gcd ⍵                   ⍝ ⍺∨⍵ as gcd.  NOT boolean or.
               CASE'∧' 'LCM':_EXPORT_  ⍺ lcm ⍵                   ⍝ ⍺∧⍵ as lcm.  NOT boolean and.
-
               CASE '⍟':_EXPORT_       ⍺ log ⍵                   ⍝ ⍺ log ⍵                
-     
               CASE'MOD':_EXPORT_      ⍵ rem ⍺                   ⍝ modulo:  Same as |⍨
               CASE'SHIFTB':_EXPORT_   ⍺ mul2Exp ⍵               ⍝ Binary shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
               CASE'SHIFTD':_EXPORT_   ⍺ mul10Exp ⍵              ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
               CASE'DIVREM':_EXPORT_   ¨⍺ divRem ⍵               ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
-              CASE'MODMUL' 'MMUL':_EXPORT_ ⍺ modMul ⍵           ⍝ ⍺ modMul ⍵0 ⍵1 ==> ⍵1 | ⍺ × ⍵0.
               CASE'⍴':               (importSmallInt ⍺)⍴⍵       ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
               err eCANTDO2,QT,QT,⍨fn                            ⍝ Not found!
           }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵                ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
       }
 
-    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod.
+    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod.    x *BIM y ⊣ mod
     ⍝          Multiply × handled as special case:   x modMul (y mod)
+    ⍝          Power    * --- ditto ---
     ⍝          Otherwise (naively):                  mod |BI x ⍺⍺ BII y
     ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BI [LA:⍺] OP:⍺⍺ BII RA:⍵⍵
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BI ⍵ (Modulo ⍵⍵)
  
       BIM←{
-          ⍺←⊢ ⋄ fn _ _←⍺ ⍺⍺ decodeCall ⍵ ⋄ fn≡'×':export ⍺ modMul(⍵⍵ ⍵) ⋄ ⍵|BI ⍺(⍺⍺ BII)⍵⍵
+          ⍺←⊢ ⋄ fn _ _←⍺ ⍺⍺ decodeCall ⍵  
+          1≡⍺ 1:  err  eDYADIC
+          fn≡'×': export ⍺ modMul ⍵⍵ ⊣ ⍵ 
+          fn≡'*': export ⍺ modPow ⍵⍵ ⊣ ⍵
+          ⋄ ⍵|BI ⍺(⍺⍺ BII)⍵⍵
       }
 
     ⍝ Build BI/BII.
@@ -442,6 +450,22 @@
 
     :Section BI Monadic Operations/Functions
 
+    ⍝H 
+    ⍝H BI Monadic Internal Functions
+    ⍝H             Does Arg                  Requires BigInt     Requires Special Args
+    ⍝H             Conversions               Internal Args 
+    ⍝H             neg                       _neg
+    ⍝H             sig                       _sig
+    ⍝H             abs                       _abs
+    ⍝H             inc                       _inc
+    ⍝H             dec                       _dec
+    ⍝H             fact                      ----
+    ⍝H             roll                      ----
+    ⍝H                                                            bitsImport (requires ⍵ boolean vector)
+    ⍝H             bitsExport
+    ⍝H             root
+    ⍝H             getBIAttributes
+
     ⍝ neg[ate] / _neg[ate]
       neg←{                                ⍝ -
           (sw w)←∆ ⍵
@@ -449,11 +473,12 @@
       }
     ⍝ sig[num], _signum
       sig←{                                ⍝ ×
-          (sw w)←∆ ⍵
+          (sw w)←∆ ⍵ 
           sw(|sw)
       }
+    ⍝ abs: absolute value
       abs←{                                ⍝ |
-          (sw w)←∆ ⍵
+          (sw w)←∆ ⍵ 
           (|sw)w
       }
     ⍝ inc[rement]:                         ⍝ ⍵+1
@@ -474,7 +499,7 @@
           0≠⊃⌽w:∆dlzNorm sw w⊣(⊃⌽w)-←1     ⍝ No underflow?  Decrement and we're done!
           sw w _sub 1 one_D                ⍝ Otherwise, do long way.
       }
-      gen_Fast_for_Internal_Use¨'inc' 'dec'
+      gen_Fast_for_Internal_Use¨'neg' 'sig' 'abs'  'inc' 'dec'
 
     ⍝ fact: compute BI factorials.
     ⍝       r:BIc ← fact ⍵:BIext
@@ -620,6 +645,24 @@
 ⍝ --------------------------------------------------------------------------------------------------
 
     :Section BI Dyadic Functions/Operations
+    ⍝H             Does Arg                  Requires BigInt      Details
+    ⍝H             Conversions               Internal Args  
+    ⍝H             add                       _add
+    ⍝H             sub                       _sub
+    ⍝H             mul                       _mul
+    ⍝H             div                       _div
+    ⍝H             divRem                    _divRem
+    ⍝H             pow                       _pow
+    ⍝H             rem                       _rem                 ⍺ rem ⍵  ==  ⍺ | ⍵  (APL style)
+    ⍝H             mod                       _mod                 ⍺ mod ⍵  ==  ⍵ | ⍺  (CS style)
+    ⍝H             mul2Exp, shiftB           _mul2Exp             Shift ⍺ left or right by ⍵ binary digits (SLOW)
+    ⍝H             mul10Exp, shiftD          _mul10Exp            Shift ⍺ left or right by ⍵ decimal digits (FAST)
+    ⍝H             gcd                                            Greatest common divisor
+    ⍝H             lcm                                            Lowest common multiple
+    ⍝H
+    ⍝H BI Boolean Functions (return 1 or 0)
+    ⍝H             lt <, le ≤, eq =, ge ≥, gt >, ne ≠
+
   ⍝ dyad:    compute all supported dyadic functions
       add←{
           (sa a)(sw w)←⍺ ∆ ⍵
@@ -637,8 +680,6 @@
           <cmp a mix w:(-sw)(nupZ-⌿dck w mix a)  ⍝ 3-5 →  -(5-3)
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
-      gen_Fast_for_Internal_Use¨'add' 'sub'
-
       mul←{
           (sa a)(sw w)←⍺ ∆ ⍵
           0∊sa,sw:zero_BI
@@ -646,8 +687,6 @@
           one_D≡a:(sa×sw)w ⋄ one_D≡w:(sa×sw)a
           (sa×sw)(a mulU w)
       }
-      gen_Fast_for_Internal_Use 'mul'
-
       div←{
           (sa a)(sw w)←⍺ ∆ ⍵
           ∆normFromSign(sa×sw)(⊃a divU w)
@@ -657,22 +696,24 @@
           quot rem←a divU w
           (∆normFromSign(sa×sw)quot)(∆normFromSign sw rem)
       }
+       gen_Fast_for_Internal_Use¨'add' 'sub' 'mul'  'div' 'divRem' 
+
     ⍝ ⍺ pow ⍵:
     ⍝   General case:  ⍺*⍵ where both are BIint
     ⍝   Special case:  (÷⍵) (or ÷⍎⍵) is an integer: (÷⍵) root ⍺. Example:  ⍺*BI 0.5 is sqrt; ⍺*BI (÷3) is cube root; etc.
     ⍝                  (÷⍵) must be an integer to the limit of the current ⎕CT.
-    ⍝ decodeRoot (pow utility): Allow special syntax ( ⍺ *BI ÷⍵ ) in place of  ( ⍵ root ⍺ ).
+    ⍝ _decodeRoot (pow utility): Allow special syntax ( ⍺ *BI ÷⍵ ) in place of  ( ⍵ root ⍺ ).
     ⍝       ⍵ must be an integer such that 0<⍵<1 or a string representation of such an integer.
     ⍝       For 3 root 27, use:
     ⍝             I.e. '27' *BI ÷3    '27' *BI '÷3'
     ⍝       The root is truncated to an integer.
-      decodeRoot←{              ⍝ If not a root, return 0 to signify skip. Otherwise, return the radix (small positive number).
+      _decodeRoot←{              ⍝ If not a root, return 0 to signify skip. Otherwise, return the radix (small positive number).
           0::0 ⋄ 0>≡⍵:0         ⍝ Bigint internal format? Skip
             ⍝             skip   ÷3   ←integer                 '÷3'                            '0.33'
           ⌊{extract←{1≤⍵:0 ⋄ ÷⍵} ⋄ 0=1↑0⍴⍵:extract ⍵ ⋄ '÷'=1↑⍵:⊃⊃⌽⎕VFI 1↓⍵ ⋄ extract⊃⊃⌽⎕VFI ⍵}⍵
       }
       pow←{
-          0≠rt←decodeRoot ⍵:rt root ⍺
+          0≠rt←_decodeRoot ⍵:rt root ⍺
         ⍝ Not a root, so decode as usual
         ⍝ Special cases ⍺*2, ⍺*1, ⍺*0 handled in powU.
           (sa a)(sw w)←⍺ ∆ ⍵
@@ -690,10 +731,10 @@
           zero_D≡r:zero_BI         ⍝ sa≠sw ∧ R≡0, return 0
           ∆dlzNorm sa a _sub sa r  ⍝ sa≠sw: return (A - R')   A←sa a; R'←sa r
       }
-      gen_Fast_for_Internal_Use 'rem'
-
+    
     res←rem                        ⍝ residue (APL name)
     mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
+    gen_Fast_for_Internal_Use¨ 'pow' 'rem' 'mod'
 
     ⍝ mul2Exp:  Shift ⍺:BIext left or right by ⍵:Int binary digits
     ⍝  r:BIint ← ⍺:BIint   ∇  ⍵:aplInt
@@ -738,6 +779,7 @@
       }
     shiftDecimal←mul10Exp                          ⍝ positive/left
     shiftD←mul10Exp
+     gen_Fast_for_Internal_Use¨ 'mul10Exp' 'mul2Exp' 'shiftD' 'shiftB'
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
@@ -749,6 +791,7 @@
           (sa a)(sw w)←⍺ ∆ ⍵
           (sa×sw)(a lcmU w)
       }
+       gen_Fast_for_Internal_Use¨ 'gcd' 'lcm'
 
     ⍝ genBooleanFn-- generate Boolean functions lt <, le ≤, eq =, ge ≥, gt >, ne ≠
     ∇ {r}←genBooleanFn(NAME SYM);model;∆TEMPLATE;in;out
@@ -790,15 +833,22 @@
     ⍝      Here, the multiply is on len(m) digits, and the final m operates on 2×len(m).
     ⍝ For large a b of length 5000 dec digits or more, this alg can be 2ce the speed (13 sec vs 26).
     ⍝ It is nominally faster at lengths around 75 digits.
-    ⍝ Only for smaller (and faster) a and b, the cost of 3 modulos instead of 1 predominates.
+    ⍝ Only for smaller a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
-          2≠≢⍵:eModMul ⎕SIGNAL 11
-          a(b m)←(∆ ⍺)(⊃∆/⍵)
+          (a b) m←(⍺⍺ ∆ ⍵⍵)(∆ ⍵)
           m _rem(m _rem a)_mul(m _rem b)
       }
-
-      eModMul←'modMul syntax: ⍺ ∇ ⍵1 ⍵2',⎕UCS 10
-      eModMul,←'               ⍺: multiplicand, ⍵1: multiplier, ⍵2: base for modulo'
+    ⍝ modPow from article by Roger Hui Aug 2020 (the arg order was changed trivially).
+      ∇ z←(a modPow n)m;s
+      ⍝ m|a*n  ==>   a modPower n ⊣m
+        (a n)m ← (a ∆ n)(∆ m)
+        z←one_BI ⋄ s←m rem a
+        :While zero_BI lt n
+          :If 1 eq 2 rem n ⋄ z←z modMul s⊣m ⋄ :EndIf    ⍝ z←m| z×s
+           s←s modMul s⊣m                               ⍝ m|×⍨s
+           n←n div 2
+        :EndWhile
+      ∇
 
     :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
