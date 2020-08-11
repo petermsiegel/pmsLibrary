@@ -1,5 +1,5 @@
 ﻿:namespace BigInt
- DEBUG←1               ⍝ Set DEBUG here.
+ DEBUG←0               ⍝ Set DEBUG here.
 
 :Section HELP
   ⍝H   The BigInt Library
@@ -118,6 +118,7 @@
   ⍝H           ⍺ * ⍵          power.    ⍵ may be fractional to express integral root ÷⍵.    cube root: ⍵ *BI ÷3 
   ⍝H           ⍺ *∘÷ ⍵        ⍵th root ⍺                                                    cube root: 3 *∘÷ BI ⍵
   ⍝H           ⍺ '√' ⍵        ⍵th root ⍺                                                    cube root: 3 ('√' BI) ⍵
+  ⍝H           ⍺ ⍟ ⍵          log of ⍵ in base ⍺.    Optimized for ⍺∊10 only.
   ⍝H           ⍺ ↑ ⍵          decimal shift of ⍵ left  by ⍺ digits
   ⍝H           ⍺ ↓ ⍵          decimal shift of ⍵ right by ⍺ digits
   ⍝H           ⍺ ⌽ ⍵          binary shift of ⍵ to left (⍺≥0) or right (⍺≤0) by ⍺ digits
@@ -191,6 +192,7 @@
     eDYADIC  ←'BIM Operator allows only dyadic functions'
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eIMPORT  ←'Importing invalid object'
+    eLOG     ←'Log of a non-positive BigInteger is undefined'
     eINVALID ←'Format of big integer is not valid: '
     eNONINT  ←'Importing Invalid BigInteger: APL number not a single integer: '
     eSMALLRT ←'Right argument must be a small APL integer ⍵<',⍕RX10
@@ -212,7 +214,7 @@
     ⍝ monadFnsList   [0] single-char symbols [1] multi-char names
     ⍝ dyadFnsList    ditto
     ⍝ Both required for BIC to function, so keep the lists complete!
-    monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳⍟'('SQRT' 'NOT' '⎕AT')
+    monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳'('SQRT' 'NOT' '⎕AT')
     ⍝            reg. fns       boolean  names   [use Upper case here]
     dyadFnsList←('+-×*÷⌊⌈|∨∧⌽↑↓√≢~⍟','<≤=≥>≠⍴')('*∘÷' '*⊢÷' 'ROOT' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD')
 
@@ -269,7 +271,6 @@
               CASE'SQRT' '√':_EXPORT_  sqrt ⍵           ⍝     sqrt        See dyadic *0.5
               CASE'⍳':               ⍳importSmallInt ⍵  ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
               CASE'→':               importFast ⍵       ⍝     internal    Return ⍵ in internal form. 
-              CASE'⍟':               log ⍵              ⍝     log         10 log ⍵
             ⍝ Bit manipulation
               CASE'⊥':_EXPORT_       bitsImport ⍵       ⍝     bitsImport  Convert bits to bigint
               CASE'⊤':               bitsExport ⍵       ⍝     bitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
@@ -810,13 +811,20 @@
       :EndIf
     ∇
     genBooleanFn¨ ('lt' '<')('le' '≤')('eq' '=')('ge' '≥')('gt' '>')('ne' '≠')
+    gen_Fast_for_Internal_Use¨ 'lt' 'le'  'eq' 'ge' 'gt' 'ne'
     ⎕EX 'genBooleanFn'
 
-  ⍝ log:  L ← B log A
-  ⍝  integer logarithm base <B> of big integer <A>. B defaults to (base) 10.
+  ⍝ log:  L ← B log N
+  ⍝  integer logarithm base <B> of big integer <N>. B defaults to (base) 10.
       log←{ 
-        ⍺←ten_BI ⋄ B←⍺
-        zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ div B}⍵   ⍝  0 {⍵ ≤ 1: ⍺  ⋄ (>⍺) ∇ ⍵ ÷ B} ⍵}
+        log10←{¯1+≢export ⍵}
+        log2←{c←-⌊0.01×log10 ⍵⋄ c+¯1+≢{⍵↓⍨+/∧\0=⍵}⊤BI ⍵}
+        ⍺←ten_BI ⋄ B N←⍺ ∆ ⍵
+              zero_BI≡B:  zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ _div B}N ⊣B←two_BI
+        N _le zero_BI: err eLOG
+        ten_BI≡B: ∆ log10 N 
+        two_BI≡B: ∆ log2  N    ⍝ Magical, but sometimes off by a digit (???)
+        zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ _div B}N   ⍝  0 {⍵ ≤ 1: ⍺  ⋄ (>⍺) ∇ ⍵ ÷ B} ⍵}
       }
 
 
@@ -895,9 +903,9 @@
    ⍝ RX10div2: (Defined above.)
       powU←{                                  ⍝ exponent.
           zero_D≡,⍵:one_D                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          one_D≡,⍵:,⍺                        ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
-          two_D≡,⍵:⍺ mulU ⍺                 ⍝ ⍺×⍺
-          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}    ⍝ quick ⌊⍵÷2.
+          one_D≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          two_D≡,⍵:⍺ mulU ⍺                   ⍝ ⍺×⍺
+          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}  ⍝ quick ⌊⍵÷2.
           evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
           0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
       }
