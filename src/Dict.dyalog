@@ -639,7 +639,7 @@
       expandNonce←{1↓(1,⍺)\ 0,⍵}          ⍝ TACIT VERSION: expandNonce ← 1↓(1,⊣)⊢⍤\0,⊢      ⍝ slightly slower than dfn version!
       
     ∇ {status}←OPTIMIZE 
-    ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is never called).
+    ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is not usefully called).
     ⍝ While it is usually of no benefit to hash small key vectors of simple integers or characters,
     ⍝ it takes about 25% longer to check datatypes and ~15% simply to check first whether keysF is already hashed. 
     ⍝ So we just hash keysF whenever it changes!
@@ -759,7 +759,7 @@
       :Case 2      ⍝ several objects: json strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-           dict←∆DICT ⍬
+          dict←∆DICT ⍬
           ns dict∘{
               TRAP:: THROW11 'Valid JSON object ⍵ could not be converted to dictionary.' 
                 ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangleJ ⍵) ⋄ val←ns⍎itemA

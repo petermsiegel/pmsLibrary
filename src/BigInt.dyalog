@@ -1,10 +1,10 @@
 ﻿:namespace BigInt
- DEBUG←0               ⍝ Set DEBUG here.
+ DEBUG←1               ⍝ Set DEBUG here.
 
 :Section HELP
   ⍝H   The BigInt Library
-  ⍝H   operator:  BI           BigIntE ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as an BigIntE (external-format BigInt)"
-  ⍝H   operator:  BII          BIgIntI ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntI (Internal BigInt)"
+  ⍝H   operator:  BI           BigIntE ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntE (external-format BigInt)"
+  ⍝H   operator:  BII          BIgIntI ←   [⍺] +BII ⍵        "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntI (Internal BigInt)"
   ⍝H   operator:  BIM          BigIntE ←   [⍺] +BIM ⍵ ⊣ m    "Modulo Methods, returning  m | ⍺ + ⍵ as a BigIntE.
   ⍝H                                                          optimized cases: × (multiply)  * (power)
   ⍝H   function:  BIC                   [opts] BIC string    "BigInt ¨Compile¨, converting string with APL code subset as a BI call"
@@ -13,6 +13,12 @@
   ⍝H   help:      BI_HELP                      BI_HELP       "Show BigInt HELP Information"
   ⍝H              where BigInt refers to a big integer in external (string) format (BigIntE) or internal (vector) format (BigIntI).
   ⍝H 
+  ⍝H   EXAMPLE #1
+  ⍝H       u←!BI 49000           ⍝    u← !49000
+  ⍝H       v←34+BI !BI 6000      ⍝    v← 34 + !6000
+  ⍝H       u ∨BI v               ⍝    u ∨ v
+  ⍝H   275978                    ⍝ Correct!             [Takes minutes of CPU time]
+  ⍝H
   ⍝H   Built on dfns::nats, restructured for signed integers. Faster than dfns::big.
   ⍝H    Typically you all all routines via the interfaces here, rather than calling the BI_LIB.add, BI_LIB_sub (etc.) routines directly.
   ⍝H       BI - does all the operations: + - * etc.  
@@ -55,7 +61,7 @@
   ⍝H  Postamble
   ⍝H      Exported and non-exported Utilities
   ⍝H   ----------------------------------
-  ⍝H   INTERNAL-FORMAT BIs (BigInts)
+  ⍝H   INTERNAL-FORMAT BIs (BigIntI)
   ⍝H   ----------------------------------
   ⍝H    BIint  -internal-format signed Big Integer numeric vector:
   ⍝H          sign (data) ==>  sign (¯1 0 1)   data (a vector of integers)
@@ -68,7 +74,9 @@
   ⍝H    BIu  -unsigned internal-format BIint (vector of integers) used in unsigned routines internally.
   ⍝H          ∘ Consists solely of the data vector (2nd element of BIint).
   ⍝H
-  ⍝H   EXTERNAL-FORMAT BIs (BIext)
+  ⍝H   ---------------------------------
+  ⍝H   EXTERNAL-FORMAT BIs (BigIntE)
+  ⍝H   ---------------------------------  
   ⍝H     ON INPUT
   ⍝H          an external-format Big Integer on input, i.e. a character string as entered by the user.
   ⍝H          a BIext has these characteristics:
@@ -85,50 +93,62 @@
   ⍝H          ∘ 0 is represented by (,'0'), unsigned with no extra '0' digits.
   ⍝H 
   ⍝H   OTHER TYPES
-  ⍝H    Int   -an APL-format single small integer ⍵, often specified to be in range ⍵<RX10 (the internal radix).  
+  ⍝H    Int   -an APL-format single small integer ⍵, often specified to be in range ⍵<RX10 (the internal radix, 1E6).  
   ⍝H --------------------------------------------------------------------------------------------------
-  ⍝H  Functions:
-  ⍝H        Monadic:   -⍵ means  -BI ⍵, where ⍵ is a bigint in internal or external format
-  ⍝H           -⍵             negate
-  ⍝H           +⍵             canonical (returns ⍵ in canonical form)
-  ⍝H           |⍵             absolute value
-  ⍝H           ×⍵             signum
-  ⍝H           ÷⍵             inverse (mostly useless)
-  ⍝H           <⍵             decrement (alternate ≤). Optimized (wherever overflow/underflow do NOT occur). 
-  ⍝H           >⍵             increment (alternate ≥). Optimized (ditto).
-  ⍝H           !⍵             factorial
-  ⍝H           ?⍵             roll. ⍵>0
-  ⍝H           ⍎⍵             APL integer, if exponent in range
-  ⍝H           ⍕⍵             prettify: returns canonical integer with - for negative and _ separator every 5 digits
-  ⍝H           '√'⍵           sqrt (alternate 'SQRT')
-  ⍝H           ⍳⍵             std APL ⍳ returns APL vector. Convenience function for small ⍵ only (under 2*20)
-  ⍝H           →⍵             internal: returns ⍵ in internal form
-  ⍝H           ⊥⍵             converts bits to big integer: 1 sign bit, 20 bits per unsigned "hand"
-  ⍝H           ⊤⍵             converts big integer to bits
-  ⍝H           ~⍵             flip all the bits in big integer ⍵
-  ⍝H           ⎕AT ⍵          returns bigint attributes:     <num hands> <num bits> <num 1 bits>
+  ⍝H  OPERANDS AND ARGUMENTS FOR BI, BII, and BIM
+  ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+  ⍝H        BI:  Usually returns a BigInt in External format. In specific cases, returns integer scalars (see ∧, ∨, etc.) or arrays (DIVREM, ⎕AT)
+  ⍝H        BII: Usually returns a BigInt in Internal format. In specific cases, like BI above.
+  ⍝H        BIM: Requires ⍺ and ⍵⍵ as per ⍺ and ⍵ in BII and m (modulo) as right argument. Valid only for operands above returning BigInts.
+  ⍝H           23456 ×BIM '9999999999' ⊣ 16
+  ⍝H  MONADIC OPERANDS: +BI ⍵
+  ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+  ⍝H        Right argument: ⍵ in BigInt internal or external formats (BigIntI or BigIntE).
+  ⍝H        Operators: BI or BII only. BIM is only used dyadically.
+  ⍝H           -BI  ⍵             negate
+  ⍝H           +BI  ⍵             canonical (returns BI  ⍵ in canonical form)
+  ⍝H           |BI  ⍵             absolute value
+  ⍝H           ×BI  ⍵             signum
+  ⍝H           ÷BI  ⍵             inverse (mostly useless)
+  ⍝H           <BI  ⍵             decrement (alternate ≤). Optimized (wherever overflow/underflow do NOT occur). 
+  ⍝H           >BI  ⍵             increment (alternate ≥). Optimized (ditto).
+  ⍝H           !BI  ⍵             factorial
+  ⍝H           ?BI  ⍵             roll.  ⍵>0
+  ⍝H           ⍎BI  ⍵             APL integer, if exponent in range
+  ⍝H           ⍕BI  ⍵             prettify: returns canonical integer with - for negative and _ separator every 5 digits
+  ⍝H           ('√'BI)  ⍵         sqrt (alternate 'SQRT'). Use ⍺*0.5
+  ⍝H           ⍳BI  ⍵             std APL ⍳ returns APL vector. Convenience function for small BI  ⍵ only (under 2*20)
+  ⍝H           →BI  ⍵             internal: returns BI  ⍵ in internal form
+  ⍝H           ⊥BI  ⍵             converts bits to big integer: 1 sign bit, 20 bits per unsigned "hand"
+  ⍝H           ⊤BI  ⍵             converts big integer to bits
+  ⍝H           ~BI  ⍵             flip all the bits in big integer BI  ⍵
+  ⍝H           ⎕AT BI  ⍵          returns bigint attributes:     <num hands> <num bits> <num 1 bits>
   ⍝H                          (hands: a BigInt consists of a sign num (¯1 0 1) and a vector of unsigned integers, each such integer is called a hand.)
   ⍝H                          (num bits: We pretend each big integer consists of the ravel of a sign bit (1=neg) and a sequence of bits for each hand.)
   ⍝H                          (num 1 bits: Also known as a population count (popcount).)
-  ⍝H        Dyadic:    ⍺ + ⍵ means   ⍺ +BI ⍵, where ⍺, ⍵ are in bigint internal or external formats
-  ⍝H           ⍺ + ⍵          add
-  ⍝H           ⍺ - ⍵          subtract
-  ⍝H           ⍺ × ⍵          multiply
-  ⍝H           ⍺ ÷ ⍵          divide
-  ⍝H           ⍺ * ⍵          power.    ⍵ may be fractional to express integral root ÷⍵.    cube root: ⍵ *BI ÷3 
-  ⍝H           ⍺ *∘÷ ⍵        ⍵th root ⍺                                                    cube root: 3 *∘÷ BI ⍵
-  ⍝H           ⍺ '√' ⍵        ⍵th root ⍺                                                    cube root: 3 ('√' BI) ⍵
-  ⍝H           ⍺ ⍟ ⍵          log of ⍵ in base ⍺.    Optimized for ⍺∊10 only.
-  ⍝H           ⍺ ↑ ⍵          decimal shift of ⍵ left  by ⍺ digits
-  ⍝H           ⍺ ↓ ⍵          decimal shift of ⍵ right by ⍺ digits
-  ⍝H           ⍺ ⌽ ⍵          binary shift of ⍵ to left (⍺≥0) or right (⍺≤0) by ⍺ digits
-  ⍝H           ⍺ | ⍵          remainder ⍺ | ⍵
-  ⍝H           ⍺ ⌈ ⍵          max
-  ⍝H           ⍺ ⌊ ⍵          min
-  ⍝H           ⍺ ∨ ⍵          gcd (not: or)
-  ⍝H           ⍺ ∧ ⍵          lcm (not: and)
-  ⍝H           ⍺ 'DIVREM' ⍵   returns two BigInts: ⌊⍺÷⍵ and  ⍵|⍺
-  ⍝H        Logical:  ⍺ < ⍵ means   ⍺ <BI ⍵,  where ⍺ and ⍵ are bigints; each fn returns 1 if true, else 0
+  ⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM ⍵⍵ ⊣ modulo
+  ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+  ⍝H        BI, BII: Arguments ⍺ and ⍵ are Big Integer internal or external formats (BigIntI or BigIntE)
+  ⍝H        BIM:     Argument ⍺, operand ⍵⍵, and modulo argument ⍵: all BigInteger internal or external formats (BigIntI or BigIntE). 
+  ⍝H           ⍺ + BI  ⍵          add
+  ⍝H           ⍺ - BI  ⍵          subtract
+  ⍝H           ⍺ × BI  ⍵          multiply
+  ⍝H           ⍺ ÷ BI  ⍵          divide
+  ⍝H           ⍺ * BI  ⍵          power.    BI  ⍵ may be fractional to express integral root ÷BI  ⍵.    cube root:    ⍵ *BI ÷3 
+  ⍝H           ⍺ *∘÷ BI  ⍵        BI  ⍵th root ⍺                                                        cube root: 3 *∘÷ BI  ⍵
+  ⍝H           ⍺ ('√' BI)  ⍵      BI  ⍵th root ⍺                                                    cube root: 3 ('√' BI) BI  ⍵
+  ⍝H           ⍺ ⍟ BI  ⍵          log of ⍵ in base ⍺.    Optimized for ⍺∊2 10 only.
+  ⍝H           ⍺ ↑ BI  ⍵          decimal shift of ⍵ left  by ⍺ digits. Special code.    May be slower than [⍺ ×BI 10*BI  ⍵]
+  ⍝H           ⍺ ↓ BI  ⍵          decimal shift of ⍵ right by ⍺ digits. Special code.    Ditto.
+  ⍝H           ⍺ ⌽ BI  ⍵          binary shift of ⍵ to left (⍺≥0) or right (⍺≤0) by ⍺ digits [same as ⍺ ×BI 2*BII  ⍵]
+  ⍝H           ⍺ | BI  ⍵          remainder ⍺ | BI  ⍵
+  ⍝H                          ALIAS:  BI  ⍵ ('MOD' BI) ⍺  or   BI  ⍵ |⍨BI ⍺   (or its equiv:  BI  ⍵ |BI⍨ ⍺)
+  ⍝H           ⍺ ⌈ BI  ⍵          max
+  ⍝H           ⍺ ⌊ BI  ⍵          min
+  ⍝H           ⍺ ∨ BI  ⍵          gcd (not: or)
+  ⍝H           ⍺ ∧ BI  ⍵          lcm (not: and)
+  ⍝H           ⍺ 'DIVREM' BI  ⍵   returns two BigInts: ⌊⍺÷BI  ⍵ and  BI  ⍵|⍺
+  ⍝H        Logical:  ⍺ < BI  ⍵ means   ⍺ <BI ⍵,  where ⍺ and ⍵ are bigints; each fn returns 1 if true, else 0
   ⍝H           < ≤ = ≥ > ≠
   ⍝H 
   ⍝H        CONSTANTS (niladic functions findable by ⎕PATH)
@@ -189,7 +209,7 @@
     eBOOL    ←'Boolean arg imported (⊥) must be ∊ 1 0 ''1'' ''0'''
     eCANTDO1 ←'Monadic function not implemented as BI operand: '
     eCANTDO2 ←'Dyadic function not implemented as BI operand: '
-    eDYADIC  ←'BIM Operator allows only dyadic functions'
+    eBIMDYAD ←'BIM Operator allows only dyadic functions'
     eFACTOR  ←'Factorial (!) argument must be ≥ 0'
     eIMPORT  ←'Importing invalid object'
     eLOG     ←'Log of a non-positive BigInteger is undefined'
@@ -326,15 +346,15 @@
     ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BI ⍵ (Modulo ⍵⍵)
  
       BIM←{
-          ⍺←⊢ ⋄ fn _ _←⍺ ⍺⍺ decodeCall ⍵  
-          1≡⍺ 1:  err  eDYADIC
+          ⍺←⊢ ⋄ fn←⊃⌽⍺ ⍺⍺ decodeCall ⍵⍵  
+          1≡⍺ 1:  err  eBIMDYAD
           fn≡'×': export ⍺ modMul ⍵⍵ ⊣ ⍵ 
           fn≡'*': export ⍺ modPow ⍵⍵ ⊣ ⍵
           ⋄ ⍵|BI ⍺(⍺⍺ BII)⍵⍵
       }
 
-    ⍝ Build BI/BII.
-    ⍝ BI: Change _EXPORT_ to string imp.
+    ⍝ Build BI and BII from __BI_SOURCE__.
+    ⍝ BI: Change _EXPORT_ to string export.
     ⍝ BII:  Change _EXPORT_ to null string. Use name BII in place of BI.
       ⎕FX'__BI_SOURCE__' '_EXPORT_¨?'⎕R'BII' ''      ⊣⎕NR'__BI_SOURCE__'
       ⎕FX'__BI_SOURCE__' '_EXPORT_'  ⎕R 'BI' 'export'⊣⎕NR'__BI_SOURCE__'
@@ -684,15 +704,21 @@
       mul←{
           (sa a)(sw w)←⍺ ∆ ⍵
           0∊sa,sw:zero_BI
-          two_D≡a:(sa×sw)(addU⍨w) ⋄ two_D≡w:(sa×sw)(addU⍨a)
-          one_D≡a:(sa×sw)w ⋄ one_D≡w:(sa×sw)a
+          
+          two_D≡a:(sa×sw)(addU⍨w)       ⋄  two_D≡w:(sa×sw)(addU⍨a)
+          one_D≡a:(sa×sw)w              ⋄  one_D≡w:(sa×sw)a
+        ⍝ Performs more slowly: 
+        ⍝    ten_D≡a: (sa×sw) w mul10Exp one_BI ⋄  ten_D≡w: (sa×sw) a mul10Exp one_BI 
           (sa×sw)(a mulU w)
       }
       div←{
           (sa a)(sw w)←⍺ ∆ ⍵
+          ten_D≡w: (sa×sw) a mul10Exp minus1_BI  
           ∆normFromSign(sa×sw)(⊃a divU w)
       }
-      divRem←{
+    ⍝ Since divU returns both quotient and remainder, this is preferred if you need both
+    ⍝    (⍺ div ⍵)  and (⍺ mod ⍵)
+      divRem←{ 
           (sa a)(sw w)←⍺ ∆ ⍵
           quot rem←a divU w
           (∆normFromSign(sa×sw)quot)(∆normFromSign sw rem)
@@ -734,9 +760,9 @@
       }
     
     res←rem                        ⍝ residue (APL name)
-    mod←{⍵ rem ⍺}                  ⍝ modulo←rem[ainder]⍨
-    gen_Fast_for_Internal_Use¨ 'pow' 'rem' 'mod'
-
+    gen_Fast_for_Internal_Use¨ 'pow' 'rem'  
+    mod←rem⍨  ⋄  _mod←_rem⍨        ⍝ ⍺ mod ⍵  <== ⍵ rem ⍺
+   
     ⍝ mul2Exp:  Shift ⍺:BIext left or right by ⍵:Int binary digits
     ⍝  r:BIint ← ⍺:BIint   ∇  ⍵:aplInt
     ⍝     Note: ⍵ must be an APL integer (<RX10).
@@ -762,11 +788,12 @@
     ⍝ mul10Exp: Shift ⍺:BIext left or right by ⍵:Int decimal digits.
     ⍝      Converts ⍺ to BIc, since shifts are a matter of appending '0' or removing char digits from right.
     ⍝  r:BIint ← ⍺:BIint   ∇  ⍵:Int
-    ⍝     Note: ⍵ must be an APL integer (<RX10).
+    ⍝     Note: ⍵ must be an APL  big integer, BigIntA (<RX10).
     ⍝  -  If ⍵>0: shift ⍺ left by ⍵-decimal digits
     ⍝  -  If ⍵<0: shift ⍺ rght by ⍵ decimal digits
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
-      mul10Exp←{
+    ⍝  WARNING: THIS APPEARS TO RUN ABOUT 80% SLOWER THAN A SIMPLE MULTIPLY FOR MEDIUM AND LONG ⍺, unless ⍵ is long, e.g. 1000 digits.
+      mul10Exp←{                
           (sa a)(sw w)←⍺ ∆ ⍵
           1≠≢w:err eMUL10                          ⍝ ⍵ must be small integer.
           sa=0:zero_BI                             ⍝ ⍺ is zero: return 0.
@@ -780,7 +807,7 @@
       }
     shiftDecimal←mul10Exp                          ⍝ positive/left
     shiftD←mul10Exp
-     gen_Fast_for_Internal_Use¨ 'mul10Exp' 'mul2Exp' 'shiftD' 'shiftB'
+     gen_Fast_for_Internal_Use¨ 'mul10Exp' 'shiftD' 'mul2Exp'  'shiftB'
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
@@ -816,15 +843,21 @@
 
   ⍝ log:  L ← B log N
   ⍝  integer logarithm base <B> of big integer <N>. B defaults to (base) 10.
+  ⍝ Returns <L> in BigIntI format.
+      log2_10←(2⍟10)
       log←{ 
         log10←{¯1+≢export ⍵}
-        log2←{c←-⌊0.01×log10 ⍵⋄ c+¯1+≢{⍵↓⍨+/∧\0=⍵}⊤BI ⍵}
+        log2← {⌊log2_10×log10 ⍵}      ⍝ verify. Close
+
         ⍺←ten_BI ⋄ B N←⍺ ∆ ⍵
-              zero_BI≡B:  zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ _div B}N ⊣B←two_BI
+
+      ⍝ Hidden way to calculate  2 log N the slow mathematical way. VERY SLOW!
+        minus1_BI≡B:  zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ _div B}N    ⊣B←two_BI
+
         N _le zero_BI: err eLOG
         ten_BI≡B: ∆ log10 N 
         two_BI≡B: ∆ log2  N    ⍝ Magical, but sometimes off by a digit (???)
-        zero_BI{⍵ le one_BI:⍺ ⋄ (inc ⍺) ∇ ⍵ _div B}N   ⍝  0 {⍵ ≤ 1: ⍺  ⋄ (>⍺) ∇ ⍵ ÷ B} ⍵}
+        zero_BI{⍵ _le one_BI:⍺ ⋄ (_inc ⍺) ∇ ⍵ _div B}N   ⍝  0 {⍵ ≤ 1: ⍺  ⋄ (>⍺) ∇ ⍵ ÷ B} ⍵}
       }
 
 
@@ -875,23 +908,23 @@
     ⍝        [1] Render as 0
     ⍝        [2] signal an error...
       subU←{
-          <cmp ⍺ mix ⍵:eSUB ⎕SIGNAL 11          ⍝ [opt 2] 3-5 →  -(5-3)
+          <cmp ⍺ mix ⍵:eSUB ⎕SIGNAL 11            ⍝ [opt 2] 3-5 →  -(5-3)
           dlzRun nup-⌿dck ⍺ mix ⍵                 ⍝ a≥w: 5-3 → +(5-3). ⍺<⍵: 0 [opt 1]
       }
-    ⍝ mulU:  multiply ⍺ × ⍵  for unsigned BIint ⍺ and ⍵
+    ⍝ mulU:  multiply ⍺ × ⍵  for unsigned Big Integer (BigIntU) ⍺ and ⍵
     ⍝ r:BIint ← ⍺:BIint ∇ ⍵:BIint
     ⍝ This is dfns:nats mul.
     ⍝ It is faster than dfns:xtimes (FFT-based algorithm)
     ⍝ even for larger numbers (up to xtimes smallish design limit)
     ⍝ We call ndnZ to remove extra zeros, esp. so zero is exactly ,0 and 1 is ,1.
       mulU←{
-          dlzRun ⍺{                                 ⍝ product.
+          dlzRun ⍺{                               ⍝ product.
               ndnZ 0,↑⍵{                          ⍝ canonicalised vector.
                   digit take←⍺                    ⍝ next digit and shift.
                   +⌿⍵ mix digit×take↑⍺⍺           ⍝ accumulated product.
               }/(⍺,¨(≢⍵)+⌽⍳≢⍺),⊂,0                ⍝ digit-shift pairs.
           }{                                      ⍝ guard against overflow:
-              m n←,↑≢¨⍺ ⍵                         ⍝ numbers of RX10-digits in each arg.
+              m n←,↑≢¨⍺ ⍵                         ⍝ numbers of hands (RX10-digits) in each arg.
               m>n:⍺ ∇⍨⍵                           ⍝ quicker if larger number on right.
               n<OFL:⍺ ⍺⍺ ⍵                        ⍝ ⍵ won't overflow: proceed.
               s←⌊n÷2                              ⍝ digit-split for large ⍵.
@@ -900,28 +933,32 @@
           }⍵
       }
    ⍝ powU: compute ⍺*⍵ for unsigned ⍺ and ⍵. (⍺ may not be omitted).
+   ⍝       Note: ⍺ and ⍵ must be vectors!!!
    ⍝ RX10div2: (Defined above.)
-      powU←{                                  ⍝ exponent.
-          zero_D≡,⍵:one_D                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          one_D≡,⍵:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
-          two_D≡,⍵:⍺ mulU ⍺                   ⍝ ⍺×⍺
-          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}  ⍝ quick ⌊⍵÷2.
-          evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵     ⍝ even power
-          0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn      ⍝ even or odd power.
+      powU←{ powCase← (,⍵) ∘≡                        
+        ⍝ (1≠⍴⍴⍵)∨1≠⍴⍴⍺:  err 'powU: ⍺ and ⍵ must be vectors'
+          powCase zero_D:  one_D                      ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
+          powCase one_D:  ,⍺                          ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          powCase two_D:  ⍺ mulU ⍺                    ⍝ ⍺×⍺
+          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}          ⍝ quick ⌊⍵÷2.
+          evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵             ⍝ even power
+          0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn              ⍝ even or odd power.
       }
    ⍝ divU/: unsigned division
-   ⍝  divU:   Removes leading 0s from ⍺, ⍵ then calls _divU
+   ⍝  divU:   Removes leading 0s from ⍺, ⍵ ...
+   ⍝    Optimizes ⍺÷0 (error)
+   ⍝    Other optimizations happen at div, not here
    ⍝ Returns:  (int. quotient) (remainder)
    ⍝           (⌊ua ÷ uw)      (ua | uw)
    ⍝   r:BIint[2] ← ⍺:BIint ∇ ⍵:BIint
       divU←{
           a w←dlzRun¨⍺ ⍵
-          zero_D≡,⍵:a{                        ⍝ ⍺÷0
-              zero_D≡,⍺:one_D                 ⍝ 0÷0 → 1 remainder 0
+          zero_D≡w:a{                         ⍝ ⍺÷0
+              zero_D≡⍺: one_D                 ⍝ 0÷0 → 1 remainder 0
               1÷0                             ⍝ Error message
-          }w
+          }w                     
           svec←(≢w)+⍳0⌈1+(≢a)-≢w              ⍝ shift vector.
-          dlzRun¨↑w{                            ⍝ fold along dividend.
+          dlzRun¨↑w{                          ⍝ fold along dividend.
               r p←⍵                           ⍝ result & dividend.
               q←⍺↑⍺⍺                          ⍝ shifted divisor.
               ppqq←RX10⊥⍉2 2↑p mix q            ⍝ 2 most signif. digits of p & q.
@@ -938,16 +975,16 @@
               mpl←dLZ ndn 0,q×r∆              ⍝ multiple.
               p∆←dLZ nup-⌿p mix mpl           ⍝ remainder.
               (r,r∆)p∆                        ⍝ result & remainder.
-          }/svec,⊂⍬ a                         ⍝ fold-accumulated reslt.
+          }/svec,⊂⍬ a                         ⍝ fold-accumulated result.
       }
     quotientU←⊃divU
     gcdU←{zero_D≡,⍵:⍺ ⋄ ⍵ ∇⊃⌽⍺ divU ⍵}        ⍝ greatest common divisor.
     lcmU←{⍺ mulU⊃⍵ divU ⍺ gcdU ⍵}             ⍝ least common multiple.
-      remU←{                                  ⍝ BIu remainder
-          two_D≡,⍺:2|⊃⌽⍵                     ⍝ fast (short-circuit) path for modulo 2
-          <cmp ⍵ mix ⍺:⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
-          ⊃⌽⍵ divU ⍺                         ⍝ Otherwise, do full divide
-      }
+    remU←{                                    ⍝ BigIntU remainder. ⍺ and ⍵ should be vectors only.
+          two_D≡,⍺:     2|⊃⌽⍵                 ⍝ fast (short-circuit) path for modulo 2
+          <cmp ⍵ mix ⍺: ⍵                     ⍝ ⍵ < ⍺? remainder is ⍵
+          ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
+    }
     :Endsection BI Unsigned Utility Math Routines
 ⍝ --------------------------------------------------------------------------------------------------
 
