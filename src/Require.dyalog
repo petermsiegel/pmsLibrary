@@ -2,8 +2,8 @@
   ⍝  See help documentation for syntax and overview.
   ⍝   aa,a,a, ab
     ⎕IO ⎕ML←0 1    
-  ⍝ Help info hard wired with respect to cur directory...
-    HELP_FNAME←'./pmsLibrary/docs/require.help'
+  ⍝ Help info hardwired..
+    HELP_FNAME←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/docs/require.help'
     DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (default or passed by user)
   ⍝ General Utilities used below
   ⍝ (These should be informational - general)
@@ -37,8 +37,7 @@
       ⍝ Returns a list of objects (on success)...
         0::⎕SIGNAL/⎕DMX.(EM EN)
         destNs fileId←⍺ ⍵
-        listOut←2 destNs.⎕FIX'file://',fileId
-        listOut
+        2 destNs.⎕FIX'file://',fileId
     }
     ⍝ Miscellaneous utilities
     ⍝ and:         A and B 0  < dfns 'and', where A, B are code {} or binary
@@ -158,12 +157,10 @@
 ⍝------------------------------------------------------------------------------------
 ⍝  M A J O R    U T I L I T I E S
 ⍝------------------------------------------------------------------------------------
-    TRACE←{                                  ⍝ Prints ⍺⍺ ⍵ if debugOpt. Always returns ⍵!
-        0::⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
-        ⎕PW←9999
-        ⍺←⊢
-        debugOpt:⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵
-        ⍵
+⍝   {special_fn} TRACE ⍵: Prints ⍺⍺ ⍵ if debugOpt. Always returns ⍵!
+    TRACE←{ ⍺←⊢  ⋄ ⎕PW←9999                               
+        0:: ⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
+        debugOpt: ⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵ ⋄ ⍵
     }
 
     ⍝ Converting names in form ⍵1 ⍵2 ... to APL or filesystem formats.
@@ -214,26 +211,24 @@
 
   ⍝ resolvePath: Determines actual ordered path to search, based on callerR and ⎕PATH.
   ⍝ resolvePath:  allow non-existent namespaces to stay (since user may have other uses)
-    resolvePath←{
-        ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵
-    }
+    resolvePath←{ ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵ }
 
-  ⍝ ⍺ inNs ⍵:  Is object ⍺ found in namespace ⍵?
-  ⍝    ⍺: String of form: a, b.a, c.b.a etc.  If 0=≢⍺: inNs fails.
+  ⍝ ⍺ objInNs ⍵:  Is object ⍺ found in namespace ⍵?
+  ⍝    ⍺: String of form: a, b.a, c.b.a etc.  If 0=≢⍺: objInNs fails.
   ⍝    ⍵: an namespace reference or name (interpreted wrt callerR).
-    inNs←{
-        0::'require/inNs: DOMAIN ERROR: Invalid namespace, library, or package'⎕SIGNAL ⎕DMX.EN
+    objInNs←{
+        0::'require/objInNs: DOMAIN ERROR: Invalid namespace, library, or package'⎕SIGNAL ⎕DMX.EN
         0=≢⍺:0
         clr←callerR     ⍝ Dyalog bug Workaround: external callerR, used directly like this (callerR.⍎), won't be found.
         ns←clr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
         0<ns.⎕NC ⍺      ⍝ ⍺ defined in ns?
     }
 
-  ⍝ repkg: Convert a split-up package (in <e w d n> format) to a string
-    repkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
+  ⍝ rePkg: Convert a split-up package (in <e w d n> format) to a string
+    rePkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
 
-  ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (repkg ⍺)⍵
-    map←{0=≢⍵:'' ⋄ (repkg ⍺)⍵}
+  ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (rePkg ⍺)⍵
+    map←{0=≢⍵:'' ⋄ (rePkg ⍺)⍵}
 
   ⍝ See ADDFIXEDNAMESPACES above for more info.
   ⍝ ⍵ must be a name of an existing object in libR in string form.
@@ -313,7 +308,8 @@
     0=≢⍵:libR   ⍝ If no main right argument, return the library reference (default or user-specified)
     0∊≢¨pkgList~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
   ⍝------------------------------------------------------------------------------------
-  ⍝ statusList:
+  ⍝ scanPkgs:
+  ⍝ Returns
   ⍝   [0] list of packages successfully found
   ⍝           wsN:group.name status
   ⍝   [1] list of packages not found or whose copy failed (e.g. ⎕FIX failed, etc.)
@@ -322,7 +318,7 @@
   ⍝   If wsN is present,  group and/or name  may each be null.
   ⍝   The status field is always present.
   ⍝------------------------------------------------------------------------------------
-    statusList←⍬ ⍬{
+   scanPkgs←{
         0=≢⍵:⍺
         status←⍺
         pkg←⊃⍵
@@ -336,10 +332,10 @@
             0=≢⍵:⍵
             ext wsN group name←pkg←⍵
             stat←{
-                ('__',wsN)inNs callerR:pkg map'ws∊CALLER'   ⍝ wsN found?   success
-                name inNs callerR:pkg map'name∊CALLER'      ⍝ name found? success
+                ('__',wsN)objInNs callerR:pkg map'ws∊CALLER'   ⍝ wsN found?   success
+                name objInNs callerR:pkg map'name∊CALLER'      ⍝ name found? success
                 group≡'':''
-                ~(group with name)inNs callerR:''           ⍝ none found? failure
+                ~(group with name)objInNs callerR:''           ⍝ none found? failure
                 PathNewR,⍨←⊂resolveNs group                 ⍝ group.name found
                 pkg map'group.name∊CALLER'                  ⍝ ...         success
             }⍵
@@ -369,19 +365,19 @@
               ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in pathEntry
               ⍝⍝ Description: For now, we leave out the update, choice (B).
               ⍝⍝   For (A), replace (B) below with (A):
-              ⍝⍝       (A) name inNs pathEntry:'name∊',⍺⊣PathNewR,⍨←pathEntry
+              ⍝⍝       (A) name objInNs pathEntry:'name∊',⍺⊣PathNewR,⍨←pathEntry
               ⍝⍝ --------------------------------------------------------------------------------------
 
-                {0≠≢group}and{pathEntry inNs⍨dunder group name}1:'group.name[.dyalog]∊',pathInfo
-                {0=≢group}and{pathEntry inNs⍨dunder name}1:'name[.dyalog]∊',pathInfo
-                {0=≢name}and{pathEntry inNs⍨dunder wsN}0:'ws∊',pathInfo
-                {wsN inNs pathEntry}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
-                    ⍵ inNs pathEntry,'.',wsN                ⍝ wsN found and group/name found in pathEntry.wsN: success
+                {0≠≢group}and{pathEntry objInNs⍨dunder group name}1:'group.name[.dyalog]∊',pathInfo
+                {0=≢group}and{pathEntry objInNs⍨dunder name}1:'name[.dyalog]∊',pathInfo
+                {0=≢name}and{pathEntry objInNs⍨dunder wsN}0:'ws∊',pathInfo
+                {wsN objInNs pathEntry}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
+                    ⍵ objInNs pathEntry,'.',wsN                ⍝ wsN found and group/name found in pathEntry.wsN: success
                 }group with name:'ws∊',pathInfo
 
-                name inNs pathEntry:'name∊',pathInfo        ⍝ Name found: Success.
+                name objInNs pathEntry:'name∊',pathInfo        ⍝ Name found: Success.
                 group≡'':∇ 1↓⍵                              ⍝ Not found: try another pathEntry element
-                ~{(group with name)inNs pathEntry}and{9=libR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathEntry element
+                ~{(group with name)objInNs pathEntry}and{9=libR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathEntry element
                 PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group ⍝ group.name found: ...
                 'group→',pathInfo                           ⍝ ...         success
             }
@@ -416,7 +412,7 @@
             }group with name
             0=≢stat:pkg
             PathNewR,⍨←libR                             ⍝ Succeeded: Add libR to path
-            _←{'>>> Found in ws: ',repkg ⍵}TRACE ⍵
+            _←{'>>> Found in ws: ',rePkg ⍵}TRACE ⍵
             ''⊣(⊃status),←⊂pkg map stat
         }pkg
 
@@ -497,11 +493,15 @@
             ''⊣(⊃⌽status),←⊂pkg map'❌NOT FOUND'
         }pkg
         status ∇ 1↓⍵                                     ⍝ Get next package!
-    }pkgList
+    }
+
+    statusList←⍬ ⍬ scanPkgs pkgList
     _←{
-        _←''('>>Caller''s ⎕PATH was ',⍕callerR.⎕PATH)
-        _,←('  PathOrigR: ',⍕PathOrigR)('>>PathNewR:  ',⍕∪PathNewR)
-        ↑_
+        msg←'' 
+        msg,←  '>>Caller''s ⎕PATH was ',⍕callerR.⎕PATH  
+        msg,←  '  PathOrigR: ',⍕PathOrigR               
+        msg,←  '>>PathNewR:  ',⍕∪PathNewR
+       ↑msg
     }TRACE 0
   ⍝------------------------------------------------------------------------------------
   ⍝ DONE-- process outOpt options...

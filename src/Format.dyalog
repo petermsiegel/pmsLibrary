@@ -1,944 +1,332 @@
-﻿:namespace Format
-
-    :Section 1A. Documentation
-        ⍝⍝⍝ See formatLib.Documentation> below.
-        ⍝⍝⍝ Overview Documentation, see...
-        ⍝⍝⍝      format.Documentation.README
-        ⍝⍝⍝ Detailed Documentation:
-        ⍝⍝⍝     './pmsLibrary/docs/formatHelp.pdf'
-        ⍝⍝⍝ Source Documentation:
-        ⍝⍝⍝      [Google Docs] https://goo.gl/QaNsWq
-    :EndSection 1A.
-
-    :section  1B. Preamble and Constants
-    ⎕IO ⎕ML ⎕PW ⎕FR←0 1 132 645
-    QUIET←1
-    TRAP_SIGNALS← 0 1000
-
-     ⍝ Helper fn...
-    _←⎕FX '{r}←msg txt' 'r←1' (' ' '⎕←txt'⊃⍨~QUIET)
-
-   ⍝ Add format to ⎕PATH if it's empty on ]load format. Say so, if QUIET=0
-    _←'When format was loaded or saved, #.⎕PATH was empty ('''').'
-    msg _{0≠≢⍵.⎕PATH: ⍵ ⋄new←⍵.⎕PATH∘←⍕⎕THIS⋄ ↑⍺ ('>>> Setting ',(⍕⍵),'.⎕PATH←''',new,'''')  }#
-
-  ⍝ formatPath: A run-time auxiliary function.
-  ⍝     Returns this namespace reference.
-  ⍝     Set as a function so it is found by ⎕PATH.
-  ⍝     Used with:   ∆pad, ∆master, ∆, and ∆cat
-  ⍝ Usage: Use with any run-time utilities used in ∆f/ormat, so we don't pollute the namespace.
-  ⍝     Only these user-callable routines need be visible:
-  ⍝        ∆f, ∆format, PLUS formatPath and format itself.
-    ∇ ns←formatPath
-      ns←⎕THIS
-    ∇
-    msg 'format library:      ',⍕formatPath
-    msg 'format TRAP_SIGNAL(S): ',TRAP_SIGNALS
-
-  ⍝ ALLOW_UNICODE_NULLS:  Installation option...
-  ⍝ If allowed, right now, ⎕UCS 0 chars cause bugs with ⍎ (1 format ...).
-  ⍝ We handle those bugs via nullMagicIn/_OUT code (q.v.).
-  ⍝   1: allow and manage unicode nulls (by "hiding" them as non-nulls during ∆f's ⍎)
-  ⍝   0: unicode nulls will be disallowed, e.g. when specified via via ⎕Unnn[X]
-  ⍝ Bugs: A Minor Kludge.
-    ALLOW_UNICODE_NULLS←1  ⋄    msg 'Allowing and Managing Unicode Nulls? ',ALLOW_UNICODE_NULLS⊃'No' 'Yes'
-
-  ⍝ Key constants...
-    ∆ALPH←⎕A,⎕UCS(⎕UCS'a')+⍳26
-    SQ←'''' ⋄ DQ←'"' ⋄ LINE_BRK←⎕UCS 13 ⋄    KANJI_SPACE←⎕UCS 12288
-    SPucs←⎕UCS ' '   ⍝ SPucs: space, i.e. decimal 32
-    RCucs←65533      ⍝ RCucs: Unicode "replacement character" 65533  �
-
-    :endSection 1B. Preamble and Constants
-
-    :section 2.  Initialization
-    :section 2A. Initialization: Define Run-time Utilities (Visible to User Code in <format> string)
-
-⍝⍝ -----------------------------------------------------------------------------------------------------⍝⍝
-⍝⍝ FUNCTIONS VISIBLE TO format-internal user-specified code- and variable name-fields when executed.
-⍝⍝ These functions will be called fully-specified via formatPath
-⍝⍝ While user-callable, we generate them within ∆f/∆format.
-⍝⍝ -----------------------------------------------------------------------------------------------------⍝⍝
-
-    ⍝ ∆pad:
-    ⍝   "Pad any APL object, converted to a character matrix."
-    ⍝   objOut@S ← width@N type@N pad@N|0 ∇ objIn@S
-    ⍝     width: ≥0
-    ⍝     type:  ¯1 (put text on left), 1 (put text on right), 0 (center)
-    ⍝     pad:   a single padding character in text or unicode numeric format. Missing→' '.
-    ⍝ Any pad char that affects line spacing is replaced by Replacement Char (RC) '�' on output.
-
-      ∆pad←{⍝0::⎕SIGNAL/'∆pad: Invalid padding width, type, or character' 11
-          width type pad←⍺,0 32↑⍨0⌊¯3+≢⍺            ⍝  width [type=0 [pad=32]]
-          ' '=1↑0⍴pad:width type(⎕UCS ⍬⍴pad)∇ ⍵
-     
-          ch←⎕UCS pad RCucs⊃⍨pad∊0 9 10 13 133         ⍝ Ctl chars and null treated as soft error
-     
-          mh mw←⍴mx←⎕FMT ⍵                 ⍝ the ht and width of the matrix
-          mw>width:mx⊣(¯2↑[1]mx)←'.'⊣mx←mh width↑mx
-          mw=width:mx
-     
-          type=¯1:mx,mh(0⌈width-mw)⍴ch     ⍝ ¯1: text on left  (padding on right)
-          type=+1:mx,⍨mh(0⌈width-mw)⍴ch    ⍝  1: text on right (padding on left)
-        ⍝ ↓↓↓                              ⍝  0: text centered
-          (mh(0⌈⌈hf)⍴ch),mx,(mh(0⌈⌊hf)⍴ch)⊣hf←0.5×width-mw
-      }
-    ∆padNm←'formatPath.∆pad' ⍝ The "name" of the ∆pad function.
-
-    ⍝ ∆master: allow for connecting displayable objects horizontally and vertically.
-      ∆master←{
-     
-          ⎕PP←(⎕IO⊃⎕RSI).⎕PP              ⍝ Get ⎕PP from calling environment...
-          widths←⍬
-        ⍝ M: keep Matrix;  B: box it;  W: include widths; V: Convert 1-line matrix result to vector (default)
-        ⍝ W (incl. widths) is no longer used in the format namespace.
-          caseM caseB caseW←'MBW'∊⍺⍺
-          box←⊢    ⍝ box is suppressed/ignored in this version
-     
-          over←{
-            ⍝ L: Put ⍵ on left; R: Put ⍵ on right; C: Put ⍵ in center (default)
-              caseL caseR←'LR'∊⍺⍺
-              widA widW←⊃∘⌽∘⍴¨⍺ ⍵
-              widA=widW:⍺,[0]⍵
-              caseL∨caseR:⍺{
-                  mult←caseR⊃1 ¯1
-                  widA<widW:((mult×widW)↑[1]⍺),[0]⍵
-                  ⋄ ⋄ ⋄ ⋄ ⋄ ((mult×widA)↑[1]⍵),[0]⍨⍺
-              }⍵
-            ⍝ case 'C' (the default case)
-              ⍺{
-                  dif←⌊0.5×|widW-widA
-                  widA<widW:(widW↑[1](-widA+dif)↑[1]⍺),[0]⍵
-                  ⋄ ⋄ ⋄ ⋄ ⋄ (widA↑[1](-widW+dif)↑[1]⍵),[0]⍨⍺
-              }⍵
-          }
-          form←{
-              0 1∊⍨|≡⍵:{caseW:⍵⊣widths,←⊃⌽⍴⍵ ⋄ ⍵}⎕FMT ⍵
-              (0=⍴⍴⍵)∧0<|≡⍵:∇⊃⍵
-              {⊃,/[0](⊃⌈/0∘⌷∘⍴¨⍵)↑[0]¨⍵}∇¨⍵
-          }
-        ⍝ flatM2V: "Convert a 1-row matrix to a vector, if ⍺=1. Otherwise, a NOP."
-        ⍝
-          flatM2V←{
-              ,⍣(⍺⍱1≠⍬⍴⍴⍵)⊣⍵
-          }
-          ⍺←⊢
-        ⍝ dyadic...
-        ⍝ case M:           return matrix result
-        ⍝ case V (Default): return vector if 1-row matrix, else matrix
-          opt2To1←'M',caseB/'B'
-          1≢⍺ 1:box⍣caseB⊣caseM flatM2V(opt2To1 ∇∇ ⍺)(⍺⍺ over)(opt2To1 ∇∇ ⍵)
-     
-        ⍝ monadic...
-        ⍝ case M/MW:               Return matrix result
-        ⍝ case V|VW (V default):   Return vector if 1-row matrix, else matrix.
-        ⍝ ret ∊⍨ W      Also include widths of each item
-          obj←box⍣caseB⊣caseM flatM2V form ⍵
-          caseW:obj widths
-          obj
-      }
-    ∆masterNm←'formatPath.∆master'    ⍝ My "name" as a string.
-
-    ⍝ ∆: General case for building rectangular/multidimensional objects
-    ⍝        ⍺ ∆ ⍵                ⍺ over ⍵
-    ⍝        ∆ ⍵1 ⍵2 ... ⍵N       ⍵ concat'd with ⍵2 ... with ⍵N
-    ⍝    default "cat" and "over" with default options: 'V' (convert to vector if 1-row). 'C' center is default.
-    ∆←{⍺←⊢⋄⍺ (''∆master) ⍵}
-    ∆overNm←'formatPath.∆ '         ⍝ ∆ with default options. Final space required.
-
-    ⍝ ∆FMTx:
-    ⍝   "Converts a simple vector right argument to a 1-row matrix, then calls 2-adic ⎕FMT.
-    ⍝    Otherwise, identical to ⎕FMT."
-    ⍝    ∘ ⎕FMT treats a simple vector rt. arg. as a column vector (⍪⍵); sometimes, you
-    ⍝      want each item in ⍵ to be formatted separately. ∆FMTx handles this case, without
-    ⍝      changing other objects (with different depth or shape).
-    ⍝   Example:  'F5.2' ∆FMTx 1 2 3  ←-→  'F5.2' ⎕FMT 1 3⍴1 2 3
-    ⍝   Usage:    See <format> syntax $, $$, e.g. format '{F5.2$$ 1 2 3}' calls ∆FMTx.
-    ∆FMTx←⎕FMT∘{1≠⍴⍴⍵:⍵ ⋄ 1≠≡⍵:⍵ ⋄ ⍉⍪⍵}
-    ∆FMTxNm←'formatPath.∆FMTx',' '         ⍝ My "name"; final space required.
-
-    ⍝ ∆cat:
-    ⍝   "Catenates each element ⍵N in ⍵, if a vector, treating ⍵N as a character matrix,
-    ⍝    and joining it to those on its left and right by extending their heights as required.
-    ⍝    No spaces are placed between items (those must be specified explicitly)."
-    ⍝       objOut ← [widthF←0] ∇ items
-    ⍝       ∘ items: zero or more objects of any shape in a list.
-    ⍝       ∘ widthF←0: If 0, returns the objects catenated per above.
-    ⍝                   If 1, returns a two-element list: the width of all objects, the objects as above.
-    ⍝       ∘ objOut: The objects returned or (widths, objects) returned.
-      ∆cat←{
-          ⍺←0 ⋄ (⍺⊃'V' 'VW')∆master ⍵
-      }
-    ∆catNm←'formatPath.∆cat',' '           ⍝ My "name"; final space required.
-
-    :endSection 2A. Initialization Phase to Define Run-time Utilities
-
-    :section 2B. Initialization Phase to Define Compile-Time (Internal) Utilities
-
-    ⍝ decHex2Num: Convert decimal string or hex string (with trailing [xX]) to number
-      decHex2Num←{
-          'xX'∊⍨⊃⌽⍵:h2d ⍵      ⍝ Shex → Idec
-          ⊃⌽⎕VFI ⍵             ⍝ Sdec → Idec
-      }
-    ⍝ h2d:
-    ⍝  "Takes unsigned numeric strings of form [\da-fA-F][xX]? and
-    ⍝   returns decimal numbers."
-      h2d←{                                   ⍝ Decimal from hexadecimal
-          0=≢⍵:0                              ⍝ dec'' → 0.
-          11::eConversion ⎕SIGNAL 11          ⍝ number too big.
-          16⊥16|hexDigits⍳⍵∩hexDigits         ⍝ Ignore ⍵ not ∊ hexDigits
-      }
-    hexDigits←⎕D,'ABCDEF',⎕D,'abcdef'
-    eConversion←'Number too large to convert to/from hexadecimal'
-
-    ⍝ d2h:
-    ⍝    "Takes one APL integer and returns a char vector representing a hexadecimal integer,
-    ⍝     beginning with a decimal digit (0-9) and otherwise digits in 0-9A-F."
-    ⍝     ∘ No X suffix is added to the hex result.
-    ⍝        ⍺ omitted: Leading zeros are removed.
-    ⍝        ⍺ present: Returns hex string of length ⍺. Any extra digits are truncated."
-    ⍝     Requires: ⎕IO←0
-      d2h←{⎕CT←0                              ⍝ Hexadecimal from decimal.
-          ⍺←⊢                                 ⍝ Default: No width specification.
-          0=⍵:,'0'
-          1∊⍵=1+⍵:eConversion ⎕SIGNAL 11      ⍝ loss of precision.
-          n←⍬⍴⍺,2*⌈2⍟2⌈16⍟1+|⍵                ⍝ default width.
-          h←,hexDigits[(n/16)⊤⍵]              ⍝ character hex numbers.
-          0≢⍺ 0:h                             ⍝ If ⍺ was set, don't remove or add leading 0's.
-          h↓⍨←+/∧\h='0'                       ⍝ remove leading 0's unless only digit left.
-          ('0'/⍨'ABCDEF'∊⍨1↑h),h              ⍝ If leading char is [A-F], prefix with 0.
-      }
-  ⍝ :Section 2B1. Regular expression (⎕R/⎕S) routines
-    :namespace RE
-        ⍝ RE.get:
-        ⍝   "Returns pcre regexp field #⍵, if defined; else character nullstring."
-        ⍝ call:
-        ⍝   ns i←⍺ ⍵, ns@Ns i@I,  where fields ≥1 per pcre; 0 is the entire match.
-        ⍝ returns:
-        ⍝   field <i> from ⎕R-generated namespace <ns>, or '' if undefined (or inactive).
-        ⍝
-          get←{                       ⍝ Regexp get field by #. Returns '' if fld not defined.
-              1<≢⍵:⍺ ∇¨⍵              ⍝ a b c← ⍺ get 1 2 3   vs   a←⍺ get 1
-              ns i←⍺ ⍵
-              i=0:ns.Match            ⍝ ⍵ get 0: get the full match...
-              i≥≢ns.Offsets:''
-              ¯1=ns.Offsets[i]:''     ⍝ field exists somewhere in the pattern (e.g. alternation), but not here!
-              ns.Lengths[i]↑ns.Offsets[i]↓ns.Block
-          }
-        ⍝ RE.case: Usage:   case pat1,pat2    Returns 1 if ⍺.PatternNum is in the pattern list spec'd.
-        ⍝   "For ⎕R namespace ⍺,
-        ⍝    ∘ returns 1 if ⍺.PatternNum is in the list of pattern nums ⍵;
-        ⍝    ∘ else 0"
-          case←{
-              ⍺.PatternNum∊⍵
-          }
-
-        ⍝ canon:
-        ⍝   "Take regexp patterns in APL Strand "vector" format:
-        ⍝      in:  'one. '   ' two a b c.'   '   3   '
-        ⍝    removing spaces and strands added for readability."
-        ⍝      out: 'one.twoabc.3'
-          canon←{' '~⍨∊⍵
-          }
-    :EndNamespace
-  ⍝ :EndSection 2B1.  Regular Expression Routines
-
-       ⍝ setFormFieldChar:
-       ⍝ Given a format field char of the form [CLR]ddd⍞str⍞...$,
-       ⍝ converts str to the proper element based (in order) on
-       ⍝   (1) Single Char    ⍞x⍞  or ⍞9⍞
-       ⍝       If 1=≢str, use that char, even if a digit. I.e. '9' matches the character '9'.
-       ⍝          To enter the Unicode number 9, enter '09' ('009' etc.).
-       ⍝          In this version, the following may not be properly matched or handled:
-       ⍝               (especially if not balanced):  ' " { } ( )
-       ⍝          Use formats (2) or (3) for these (symbols or Unicode digits
-       ⍝   (2) Multi-char Symbol   ⍞LP⍞
-       ⍝       If SQ, DQ, SP, LP, RP, LB, RB, MD, KS, RC [see Note 1]:
-       ⍝         SQ → '   DQ → "  SP → ' '  LP→ ( RP→ ) LB → {    RB → }   MD → ·    KS → '　'   RC→ �
-       ⍝         'SingleQuote' 'DoubleQuote'  'Space'     'LeftParen'  'RightParen'
-       ⍝         'LeftBracket' 'RightBracket' 'MiddleDot' 'KanjiSpace' 'ReplacementChar'
-       ⍝   (3) Multi-digit Unicode  ⍞63⍞  ←-→ ⍞?⍞
-       ⍝       - If digits ddd of length of at least 2, matches ⎕UCS ddd.  See Note 2.
-       ⍝       - To include a single-digit unicode constant, prefix with 0: ⍞01⍞ uses (⎕UCS 1).
-       ⍝         ⍞9⍞ inserts the character '9', equivalent to ⍞57⍞.
-       ⍝       - To include hexadecimal, e.g. hex 100, specify ⍞⎕N100⍞ ←-→ ⍞64⍞.
-       ⍝         (If the value may be 9 or under in decimal, be sure to prefix with 0).
-       ⍝   (4) Otherwise, an error.
-       ⍝ Note 1:
-       ⍝ ∘ MD=middle dot.  ⎕U183 middle dot (·).
-       ⍝ ∘ KS=Kanji-space ('　'). ⎕U12288 CJK-space,
-       ⍝   wide space matching width of CJK ("Kanji") chars, similar to em-space.
-       ⍝ ∘ RC=replacement char (used in Unicode as a replacement for invalid or unavailable chars)
-       ⍝ Note 2:
-       ⍝ ∘ The NULL (⎕UCS 0) character is mangled on output currently (Dyalog 16 on MacOS),
-       ⍝   and when used in strings executed via ⍎, which format requires, so they are either
-       ⍝   disallowed or managed via a kludge (see KLUDGE in 4a. below).
-
-  ⍝ Form Field Character routines and data
-      setFormFieldChar←{
-          0=≢⍵:SPucs                           ⍝ No char specified, use space
-          1=≢⍵:⎕UCS ⍵                          ⍝ Single char specified...
-          uc←⊃(FFCharOut,⊂⍵)[FFCharIn⍳⊂,⍵]     ⍝ Name specified: Use the Unicode number as a text literal
-          ' '=1↑0⍴uc:⊃⌽⎕VFI uc                 ⍝ See FFCharIn/Out below.
-          uc
-      }
-  ⍝ Map symbolic names to numeric unicode.
-  ⍝ If user specified a number instead of a name, it is used directly.
-  ⍝ E.g.  '39' → numeric 39
-    FFCharIn← 'SQ' '""'  'DQ' 'SP' 'LP' 'RP' 'LB' 'RB' 'MD' 'KS' 'RC'
-    FFCharOut← 39  34 34 32 40 41 123 125  183 12288  65533
-
-  ⍝ procFmtSymbols: processing basic formatting symbols and their escapes:
-  ⍝     e.g. ⍎⋄, ⍎⍎  {{   }}
-  ⍝ fmtSymbolDict:
-  ⍝     "Dictionary mapping from special symbol combos to their values."
-  ⍝ Mappings:
-  ⍝    in     out                     in     out
-  ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  ⍝    ⍎⋄     linebreak               ⍎⍎     ⍎
-  ⍝    {{     {                       }}     }
-  ⍝    [[     [                       ]]     ]
-  ⍝    ⍎>     unicode 12288 (space matching width of CJK chars [similar to em-space, but not so defined])
-  ⍝ HANDLED ELSEWHERE:
-  ⍝    {} and related      See processNullFArg. Handled separately.
-  ⍝    ⍺N, ⍺⍺N             See procAlphas. Handled separately.
-  ⍝    ⍠ and ⍠⍠            See <compile> pre-processing, routine <preprocessOptions>.
-  ⍝
-    _sd←('⍎⍎' '⍎')  ('⍎>' KANJI_SPACE) ('⍎⋄' LINE_BRK)
-    _sd,← ('{{' '{') ('}}' '}')
-    _sd,←  ('[[' '[')   (']]' ']')
-
-    fmtSymbolDict←{{(⊃¨⍵)((⊃∘⌽¨⍵),⊂'**BADSYMBL**')},¨¨⍵}_sd
-    ⍝ procFmtSymbols: "Process Symbols like ⍎⋄ ⍎⍎ {{ etc. as defined above."
-      procFmtSymbols←{
-          (1⊃fmtSymbolDict)⊃⍨(0⊃fmtSymbolDict)⍳⊂⍵~' '
-      }
-
-  ⍝ procSpaceFld: Format '{25}'
-  ⍝ Description:  "Processes NullF argument if a non-neg integer (≥0)."
-  ⍝ ∇ arg@S:/\s*\d*\s*/
-    maxSFSpacing←999         ⍝ maxSFSpacing: If {nnn} has  nnn>maxSFSpacing, an error occurs
-      procSpaceFld←{
-        ⍝ {} or {0} signifies a null (space) field (creates a new field of 0-length).
-          n←¯1↑⊃⌽⎕VFI ⍵
-        ⍝ ..ss{nn}ss..  →  ..ss' 'spaces' 'ss...
-          0=n:SQ,' ',SQ                                    ⍝ NullField
-          (0≤n)∧n≤maxSFSpacing:SQ,' ',(enQ n⍴' '),' ',SQ   ⍝ (Non-null) Space Field
-          ⎕SIGNAL/('Null Field spacing out of range [0..',(⍕maxSFSpacing),']: {',⍵,'}')11
-      }
-
-  ⍝ spaceFldP: {} | { \h+ } | { \d+ } (We grab { ¯\d+} in order to treat as error)
-    spaceFldP←'(?<!\{)\{((?:\h*¯?\d*\h*))\}'  ⍝ ← Fld 1 is what is inside braces ONLY.
-
-  ⍝ symbolsP: Symbols  with exception of spaceFldP,
-  ⍝           e.g. ⍎⍎, ⍎⋄, {{ and }}
-    symbolsP←RE.canon' (?| ( ⍎[>⍎] ) | ( \{ \{ ) | (\}\}) | ((?<!⍎) ⍎⋄)  ) '
-    ⍝ procAllSymbols: "Process sequence for SpaceField (incl. NullField) and various symbols"
-      procAllSymbols←{
-          spaceFldP symbolsP ⎕R{
-              s←⍵ RE.get 1
-              ⍵ RE.case 0:procSpaceFld s
-              procFmtSymbols s
-          }⍵
-      }
-
-    ⍝ cvt2SQString ⍵@S:
-    ⍝   "Convert a single- or double-quoted string to a single-quoted string,
-    ⍝    handing any internal quotes."
-    ⍝    ∘ If start- and end- quotes are SQ, return as is.
-    ⍝    ∘ If both DQ, convert internal doubled DQs ("") to a single DQ ("),
-    ⍝      convert internal single SQs (') to double, and return as SQ string.
-    ⍝    ∘ If start and end quotes are different ('like this"), return error!
-      cvt2SQString←{
-          ⍺←⊃⍵
-          ⍺≠⊃⌽⍵:('String has different start & end quotes: ',⍵)⎕SIGNAL 11
-          SQ=⍺:⍵        ⍝ If already 'xxxx', do nothing!
-          enQX deQX ⍵   ⍝ If "xxx""x'xx", convert to xxx"x'xx, then to 'xxx"x''xx'.
-      }
-    ⍝ enQ ⍵:   "enquote:
-    ⍝           Put ⍵ between ⍺ (default: single) quotes. Don't scan for internal quotes."
-      enQ←{
-          ⍺←SQ
-          ⍺,⍺,⍨⍵
-      }
-    ⍝ enQX ⍵:  "enquote and double internal SQs.
-    ⍝           Put ⍵ between ⍺ (default: single) quotes. Scan and double internal quotes found."
-      enQX←{
-          ⍺←SQ
-          ⍺,⍺,⍨⍵/⍨1+⍺=⍵
-      }
-    ⍝ enQXPlus ⍵: "enquote extra with spaces around string.
-    ⍝              Like enQX, but include a space before and after quoted string."
-      enQXPlus←{
-          ⍺←SQ
-          ' ',' ',⍨⍺ enQX ⍵
-      }
-    ⍝ deQX ⍵:   dequote and remove doubled quotes internal to string.
-    ⍝          "Take quoted string, remove quotes, and convert doubled quotes to singletons.
-    ⍝           The 1st char of string is assumed to be the quote and the first and last chars are removed."
-      deQX←{
-          ⍺←⊃⍵
-          ⍵{⍵/⍨~⍵⍷⍨2⍴⍺}1↓¯1↓⍵
-      }
-
-    ⍝ selectUCSrc: "Process Unicode var ⎕Uddd[X] or literal ⎕⎕Uddd[x],
-    ⍝    with various args (string vs. regexp namespace) and return values."
-    ⍝ If ⍺=0, return ⍵:S
-    ⍝ If ⍺=1, then ⍵@S. Process substrings matching unicodeP
-    ⍝ If ⍺=2, then ⍵@NS is a ⎕R-generated namespace matching unicodeP
-    ⍝ If ⍺=3, then ⍵@NS is unicode char w/ inside quotes.
-      selectUCSrc←{
-          charNullE←'⎕U0 (NUL) character is not allowed (Dyalog ⍎ bug)' 11
-        ⍝ ALLOW_UNICODE_NULLS←1
-          noNulls←~ALLOW_UNICODE_NULLS ⍝ If noNulls=1, treat ⎕U0 (NUL) as an error
-        ⍝ STR→STR: ⍵@S. Result@S: same string. (I.e. do nothing).
-          ⍺=0:⍵
-        ⍝ STR→UNI: ⍵@S. Result@C1, Unicode char (within existing quotes).
-          ⍺=1:unicodeP ⎕R{
-              2 selectUCSrc ⍵
-          }⍵
-          double←2=≢⍵ RE.get 1
-        ⍝ ⎕R→UNI: ⍵@Ns: ⎕R-generated. Result@C1: Unicode char (within existing quotes)
-        ⍝         field1: ⎕ or ⎕⎕,  field2: digits
-          ⍺=2:{
-              double:1↓⍵ RE.get 0         ⍝ Saw ⎕⎕Uddd[X]; return ⎕Uddd[X]
-              n←decHex2Num ⍵ RE.get 2
-              noNulls∧0=n:⎕SIGNAL/charNullE
-              ⎕UCS n  ⍝ Saw ⎕Uddd[X];  return ⎕UCS ddd (hex → dec)
-          }⍵
-        ⍝ ⎕R→'UNI': ⍵@Ns: ⎕R-generated. Result@S[3]: Unicode char w/added surrounding squotes.
-        ⍝           fields: as for ⍺=2
-          ⍺=3:{
-              double:enQXPlus 1↓⍵ RE.get 0
-              n←decHex2Num ⍵ RE.get 2
-              noNulls∧0=n:⎕SIGNAL/charNullE
-              enQXPlus ⎕UCS n
-          }⍵
-      }
-
-    ⍝ procFmtExtensions:
-    ⍝  "Process extensions to ⎕FMT based on prefixes C, L, R + int; and V (no int)"
-    ⍝   Search a string for patterns looking like the pseudo-⎕FMT extensions:"
-    ⍝      1. Center/Left/Right justification:
-    ⍝                                     Cddd[⍞pad⍞] Lddd[⍞pad⍞] and Rddd[⍞pad⍞]
-    ⍝         ⍞pad⍞, where ⍞ is any ⎕FMT delimiter pair (⍞⍞  ⎕⎕ ⊂⊃ <> ¨¨), and
-    ⍝         pad is
-    ⍝         - a single char (but not a quote or brace-- due to how we do parsing);
-    ⍝         - a 2-digit or more unicode decimal value or the multi-char "names":
-    ⍝         - SP: ' ', LB: '{', RB: '}', DQ: ", SQ: ', MD: (a mid-level small dot), KS: (Kanji/large space)
-    ⍝         format 'F9.4,I6$⍵0' (1.1 2.2)  →    ('F9.4,I6'⎕FMT 1.1 2.2)
-    ⍝
-    ⍝      2. Treat Simple Vectors as Row vectors, not column vectors:
-    ⍝                                     V
-    ⍝      e.g.  t←1 3 5 ⋄ format 'V,I3$t'  ←-→  format 'I3,V$t' ←-→  format 'I3$$t'
-    ⍝      See also format flag: $$ vs $.
-    ⍝
-      procFmtExtensions←{
-        ⍝ fieldReset (fr) fieldWidth (fw) fieldType (ft) fieldPadN (fp) rowVec (rv)
-          fr fw ft fp rv←⍺                ⍝ ⍺ has values of semi-globals fieldWidth fieldType fieldPadC rowVec
-          str←formatExtensionsP ⎕R{
-              f1 f2←⍵ RE.get¨1 2
-              f1='V':''⊣rv∘←1              ⍝ Note:  0=≢f2:
-            ⍝ f1 can only be C|L|R here.   ⍝ Only one is allowed per $/⎕FMT field...
-              0≠≢ft:''⊣fr∘←1               ⍝ If fieldType already set (not null), set fieldReset←1, but don't update other vars.
-              ft∘←¯1 1 0['LR'⍳1↑'C',⍨f1]   ⍝ Default is 0 (Center)
-              fw∘←1↑⊃⌽⎕VFI f2              ⍝ fw=0 if invalid width
-              fp∘←setFormFieldChar 1↓¯1↓⍵ RE.get 3
-              ''
-          }⊣⍵
-          str(fr fw ft fp rv)             ⍝ str fieldReset fieldWidth fieldType fieldPadC rowVec
-      }
-
-    ⍝ setAlphaP: "Determine # of digits for an ⍺-variable, e.g. ⍺1. Following digits are treated as literals.
-    ⍝             ⍠A1 is the default (allowing ⍺0..⍺9) (see below)."
-    ⍝ ⍠A1: ⍺0..⍺9   ⍠A2: ⍺0..⍺99   ⍠A3: ⍺0..⍺999
-    ∇ null←setAlphaP width;w
-      w←⍕width←1⌈3⌊width                             ⍝ width forced to be between 1 and 3.
-    ⍝ :external alphaP - a pattern that matches the desired ⍺n and ⍺⍺n patterns.
-    ⍝ If ⍺⍺\d is seen, the ⍺⍺ → ⍺ (we don't need to check whether \d or \d{2,})
-    ⍝ If ⍺\d+ is seen, we take <width> digits of \d+ as part of the ⍺-var.
-    ⍝ If ⍺⍵ is seen, we treat it as ⍺DD, where the prior was ⍺(0⌈DD-1)
-      alphaP←('⍺⍺ (?=\d) ')(' ⍺ (?: (\d{1,',w,'}) | ⍵)')~¨' ' ⍝  lit: ⍺⍺→⍺ or ⍺⍺123→⍺123; processed: ⍺9 or ⍺⍵
-      null←''
-    ∇
-
-  ⍝ Set the default ⍠A1 here. Creates "global" pair of patterns alphaP. See ∇procAlphas∇.
-    _←setAlphaP 1
-
-    ⍝ procAlphas:
-      procAlphas←{
-          alphas←⍺                  ⍝ Make visible to ⎕R fn below
-          ⎕PP←34                    ⍝ Make large for ⍕ below...
-          ⍝ ⍠An: Forced between 1 and 3 in setAlphaP1
-          str←'(?<!⍠)⍠A(\d)'⎕R{setAlphaP1⊃⌽⎕VFI ⍵ RE.get 1}⍵
-     
-          alphaP ⎕R{
-              ⎕THIS.ALPHOM_SEEN[0]∘←1
-              ⍵ RE.case 0:'⍺'
-            ⍝ case 1:
-              f1←⍵ RE.get 1
-              ix←⊃⌽⎕VFI ⍵.CUR_ALPHA←{
-                  reNs f1←⍵
-                  0=≢f1:{0::'0' ⋄ ⍕1+⊃⌽⎕VFI ⍵.CUR_ALPHA}reNs
-                  f1
-              }⍵ f1
-              ~ix∊⍳≢alphas:⍵ RE.get 0  ⍝ Unknown values → literal
-              val←ix⊃alphas
-              ⎕NULL≡val:⍵ RE.get 0     ⍝ ⎕NULL-- consider value "missing"
-              ⍕val                   ⍝ Depends on ⎕PP above.
-          }⊣str
-      }
-
-    ⍝ Dealing with sections
-    ⍝ A section ends with ⍎→ or at the end of the string.
-    ⍝ This simply breaks input lines into one or more lines at section breaks!
-    ⍝ Then breaks sections into stacks (subsections of stacked components)
-    ⍝ (Note: ⍎⍎ always means literal '⍎', so ⍎⍎→ is literal '⍎→', ditto ⍎⍎↓ as ⍎↓)
-    ⍝
-    ⍝ |...      section 1        ... |  ...      section 2        ...|
-    ⍝  stack11 ⍎↓ stack12 ⍎↓ stack13 ⍎→ stack21 ⍎↓ stack22 ⍎↓ stack23
-    ⍝          ↓                                       ↓
-    ⍝          ↓                  becomes              ↓
-    ⍝          ↓                                       ↓
-    ⍝ section1 sections2 ← [stack11 stack12 stack13] [stack21 stack22 stack23]
-    ⍝
-      splitStackIntoSections←{
-        ⍝ [2] split sections into stacks ← [1] Split a line into sections;
-        ⍝ ⍎↓ at start of string is treated as NOP, not a null stack.
-          {'⍎⍎↓' '^⍎↓' '⍎↓'⎕R'⍎↓' '' '\r\n'⊣⊂⍵}¨⊆'⍎⍎→' '⍎→'⎕R'⍎→' '\r\n'⊣⊂⍵
-      }
-
-
-    ⍝ preprocessOptions: "Matching and removing all ⍠Sc (where c is any character) in ⍵,
-    ⍝                     replace in the source (input) text
-    ⍝
-    ⍝ ⍠Sc: replace all characters c with spaces and, simult., remove input spaces.
-    ⍝                     Only the first c is used, but all matching ⍠Sc patterns are removed.
-    ⍝                     Escapes... ⍠⍠Sc → ⍠Sc"
-    ⍝ Set ⍺←1 to bypass ⍠S processing (e.g. if no ⍠ chars in input)
-      preprocessOptions←{ ⋄ ⍺←0
-          header←footer←⍬                   ⍝ ⍬= no header/footer; '' means 0-length
-          ⍺:⍵ header footer                 ⍝ ⍺=1? No options (⍠), so return ⍵ as is.
-          SP NL←' ' '' ⋄ fs←SP              ⍝ fs: faux space char.
-          text←{
-              fs=SP:⍵                       ⍝ Do no more processing if fs not set by user or set to SP.
-              fs,⍨←'\'/⍨~fs∊∆ALPH           ⍝ Escape fs if not in a-zA-Z.  . → \., but B → B.
-              fs SP ⎕R SP''⊣⍵               ⍝ fs→space and space→''
-          }preOptionsP ⎕R{           ⍝ preOptionsP-- see below
-              let val←⍵ RE.get¨1 2
-              ⍝ A: Handled in procAlphas:
-              ⍝⍝⍝ let='A':setAlphaP⊃⌽⎕VFI val
-            ⍝ ⍠? "HELP" processing.
-            ⍝ Option A: Service HELP request, then treat as a null, and continue normal processing.
-            ⍝ Option B: Service HELP request, then signal 911 and allow processing as an Error/Non-std exit.
-              let='?':''⊣Documentation.formatHelp ⍝'⍠? option: HELP displayed'      ⍝ Option A
-              let='H':''⊣header∘←_compile 1↓¯1↓val   ⍝ ⊣msg 'header IN'val
-              let='F':''⊣footer∘←_compile 1↓¯1↓val   ⍝ ⊣msg 'footer IN'val
-              let≠'S':⎕SIGNAL/('Unexpected preprocessing option: ',⍵ RE.get 0)11
-              fs∘←(fs=SP)⊃fs val             ⍝ Once fs has been set to anything but SP, changes are ignored.
-              ''
-          }⍵
-          text header footer
-      }
-
-    ⍝ processSpecialNumbers: "Handles code of form ⎕N123 and ⎕N123X, as well as ⎕⎕N.
-    ⍝          These are treated not as variables, but directly as numbers or text:
-    ⍝             ⎕⎕N     →  '⎕N' literal
-    ⍝             ⎕N123   →  '7B' conversion of 123 decimal to hexadecimal string. Leading 0s are removed.
-    ⍝             ⎕N7BX   →  123  conversion of '7B' hexadecimal to decimal number.
-    ⍝             Invalid numbers trigger an error.
-    ⍝ Right now, we require ⎕N numbers to ALWAYS start with a digit in 0..9, even if HEX,
-    ⍝ so there's no confusion between a pseudo-variable (e.g. ⎕NEEDX) and a number (⎕N0EEDX).
-    ⍝ E.g.   ⍎C30⊂⎕N0FFFDX⊃$"Hello" is equiv. to ⍎C30⊂RC⊃$"Hello", where RC is the replacement char �
-      processSpecialNumbers←{
-          quadNP0 quadNP1 ⎕R{
-              ⍵ RE.case 0:'⎕',⍵ RE.get 1       ⍝ ⎕⎕N → ⎕N
-              ⍝ case 1:
-              num hex←⍵ RE.get¨1 2
-              0≠≢hex:⍕∊h2d num                 ⍝ HEX → DEC
-              ∊d2h⊃⌽⎕VFI num                   ⍝ DEC → HEX
-          }⍵
-      }
-
-    ⍝ postprocessStacks: "After each stacked component is compiled, we now
-    ⍝    build and return the list of sections (with stacked
-    ⍝    components flattened into a combo of components and stacking instructions)
-    ⍝    The left-side stacked segment may set the options for the current stacking instruction.
-    ⍝    That will become the default for the next. Returns a flattened string including all stacks."
-    ⍝ Set ⍺=0 to require ∇ to execute in full. ⍺=1 skips option ⍠ processing...
-    ⍝
-    ⍝ Handles options ⍠[BCLR]. If there are NO stacked sections, these options are INVALID.
-      postprocessStacks←{⍺←0
-          noOpts←⍺
-          opt←optT←'L' ⋄ box←''                        ⍝ Default for 'CLR' is 'L', left justified.
-          ∊{
-              '(',')',⍨∊(⍳≢⍵){
-                  stk←{
-                      noOpts:⍵      ⍝ We skip scan only if no ⍠ anywhere...
-                      '(?<!⍠)⍠([BCLR])'⎕R{opt←⍵ RE.get 1
-                          opt='B':''⊣box∘←'B'              ⍝ opt∊B
-                          ''⊣optT∘←opt                     ⍝ opt∊LCR
-                      }⊣⍵
-                  }⍵
-                  code←{
-                      ⍺=0:'(',stk,')'
-                      ' (',SQ,'V',box,opt,SQ,' ',∆masterNm,') (',stk,')'
-                  }⍨⍺
-                  opt∘←optT
-                  code
-              }¨⍵   ⍝ ⍵: stack1a stack1b ... stack1z
-          }¨⍵       ⍝ ⍵: [ stack1a stack1b ... stack1z ] [stack2a stack2b ...]
-      }
-
-    ⍝ postprocessCleanup:   noOpts=1|0 ∇ string
-    ⍝    Performs "final" cleanup and check of options etc.
-      postprocessCleanup←{
-          ⍺:⍵                                       ⍝ ⍺=1? No options (⍠), so return as is.
-          postOptionsP ⎕R{pfx opt←⍵ RE.get¨1 2
-              2=≢pfx:'⍠',opt                         ⍝ (⍠⍠)([a-zA-Z])      →   ⍠\2
-              em1←'Option used in wrong context or with invalid value: '
-              em2←'Option unknown: '
-              em←em2 em1⊃⍨'BCLPSAHF'∊⍨⊃opt
-              11 ⎕SIGNAL⍨em,⍵ RE.get 0
-          }⍵
-      }
-
-  ⍝ balPat: generates a pattern that matches balanced parens or equivalent,
-  ⍝         skipping embedded SQ strings, DQ strings.
-  ⍝         ∘ Skips comments ⍝...
-  ⍝         ∘ Skips "escaped" closing parens: ⍎)
-  ⍝   ...P ← balPat '()'
-    _bpCount←1    ⍝ Use the ctr to generate a unique name balNNN for referencing inside the pattern.
-      balPat←{    ⍝ ⍵←L R where  L: left delimiter; R: right delim
-          N←'bal',⍕_bpCount ⋄ _bpCount+←1     ⍝ local N- unique pattern-internal name.
-          L R←⍵
-          ∊'(?:(?J)(?<'N'>\'L'(?>[^\'L'\'R'"''⍝]+|⍝.*\R|(?:"[^"]*")+|(?:''[^''\r\n]*'')+|(?&'N')*)+(?<!⍎)\'R'))'
-      }
-    :endSection Initialization Phase B
-
-    :Section 2C.   Initializing Patterns for (3)  Compilation Phases
-    :Section 2C1.  Initializing Patterns for (3A) Compilation Main Loop
- ⍝↓ -----------------------------------------------------------------------------------------
- ⍝↓ Patterns required for Compiler Main Loop [includes building blocks for Subloop]
- ⍝⍝ Most patterns are "compiled" at namespace creation (fixing) for efficiency, and
- ⍝⍝ so that clearly written and spaced patterns have no run-time costs...
- ⍝↓ -----------------------------------------------------------------------------------------
-
-  ⍝  Balanced patterns for parens, brackets, and braces...
-  ⍝  These handle embedded quotes and the left and right bracket type, but ignore others.
-  ⍝  So   ( [[ (abc[))  will match because the parens match-- the brackets are blissfully ignored.
-  ⍝  That makes sense here.
-  ⍝  _...P  e.g. _braceP  - patterns used within other patterns only
-  ⍝   ...P  e.g. unicodeP - patterns used in Phases C1 and C1a (and, if noted, elsewhere)
-    _parenP←balPat '()'⋄  _brackP←balPat '[]'
-    _braceP←balPat '{}'⋄  codeFieldP←'(',_braceP,')'
-
-  ⍝ Unicode ⎕U literals must start with a decimal digit 0..9, even if hexadecimal.
-  ⍝ See also ⎕N literals.
-    unicodeP←'(?i)(⎕{1,2})U(\d[\dA-F]*X|\d+)\.?'     ⍝ Handle both ⎕U... Unicode and ⎕⎕U... literals.
-
-  ⍝ _optFmtPfxP: "Format prefixes are a pseudo-extension to ⎕FMT left arg,
-  ⍝               terminated by a $ suffix, i.e. $ must be used in place of ⎕FMT for this purpose.
-  ⍝               See <procFmtExtensions> for details. Here we simply accommodate anything fitting
-  ⍝               the basic format of ⎕FMT's left arg.
-    _fmtQuoteP←'⍞[^⍞]*?⍞ | ⎕[^⎕]*?⎕ | <[^>]*?> | ⊂[^⊃]*?⊃ | ¨[^¨]*?¨'
-  ⍝ _aplFmtP: matches most or all ⎕FMT left args and permissively passes through ill-formed specs to ⎕FMT
-    _aplFmtP←'(?: [A-Z\d\.\,¯]+ | '_parenP' | '_fmtQuoteP' )+'
-    _qStringP←'(?: "[^"]*" )+ | (?: ''[^'']*'')+'
-
-    _fmtPfx0P←_aplFmtP' | '_qStringP' |'
-    _quadFMT← '\h* (\${1,2} | ⎕FMT )\h*'
-  ⍝ _optFmtPfxP: See also fmtPfx1aP below.
-    _optFmtPfxP←'(?: (?: ' _fmtPfx0P ') ' _quadFMT,' )?'
-
-    _fnP←'[+\-×÷*⍟⌹○!?|⌈⌊⊥⊤⊣⊢=≠≤<>≥≡≢∨∧⍲⍱↑↓⊂⊃⊆⌷⍋⍒⍳⍸∊⍷∪∩~/\\⌿⍀,⍪⍴⌽⊖⍉¨⍨⍣.∘⍤@⌸⌺⍎⍕&\[\]]+'
-    _numP←'(?: ¯? (?: \d+ (?:\.\d*)? | \.\d+ ) (?: [eE]¯?\d+)? )'
-    _numVecP←'(?: ' _numP ' (?: \h+' _numP ')* )'
-
-    _codePfxP←'(?: '_parenP '|' _numVecP '|' _fnP ')*'
-
-  ⍝ _omegaP: special meaning with ⍎ or {}:  ⍵⍵ or ⍵1..⍵99 etc. ⍵⍵3 accepted as <⍵⍵><3>
-    _omegaP←'⍵(⍵|\d{1,2})? '_brackP'?'      ⍝ We allow simple '⍵', which we let APL handle as a var.
-    _varP←'(?: (?:\#{1,2} | ⎕?[_\pL]\p{Xwd}*) (?:\.(?:\#{1,2} | ⎕?[_\pL]\p{Xwd}*))* '_brackP'? )'
-    _stringP←'(?: (?: "[^"]*" )+ | (?: ''[^'']*'' )+   )'
-    _nameLitP←'( '_omegaP' | '_varP' | '_stringP' )'   ⍝ F2 is the name or "..."/'...'
-
-    nameFieldP←RE.canon'⍎(' _optFmtPfxP _codePfxP   _nameLitP ')'
-
-  ⍝ preOptionsP: options handled in preprocessOptions
-  ⍝ ⍠S.  ⍠A[123]  ⍠H⊂...⊃  ⍠F⊂...⊃
-    preOptionsP←RE.canon '(?<!⍠) ⍠ (?| (\?) | (S)(.) | (A)([123]) | ([HF]) ('_fmtQuoteP ') )' ⍝ See preprocessOptions
-
-  ⍝ quadNP0/1: Special system "variables" handled in processSpecialNumbers
-  ⍝ ⎕N\d+ (A decimal # converted to hex string)
-  ⍝ ⎕N[\dA-Fa-f]+ (a hexadecimal # converted to decimal).
-  ⍝ See also Unicode variables: ⎕U\d[\dA-Fa-f]*
-  ⍝     field1: hex_number; field2: X/x or ''
-    quadNP0←RE.canon '⎕⎕([Nn])'
-    quadNP1←RE.canon'⎕[Nn] (?| (\d[\da-fA-F]*)([Xx]) | (\d+) ()\.? )'
-
-  ⍝ postOptionsP: Handle options in prostProcessCleanup (q.v.) which were not handled elsewhere.
-  ⍝ Those not escaped (⍠⍠X) are treated as errors.
-  ⍝ We assume options are of the form ⍠\pL, unless a 2nd ⍠ precedes.
-    postOptionsP←RE.canon'(?| (⍠⍠) (\pL) | (⍠) ([SA].| \pL)   )'
-
-    :endSection 2C1. Initializing Patterns for (3A) Compiler Main Loop
-
-    :Section 2C1A. Initializing Patterns for (3B) Compiler Subloop
-
-    formatExtensionsP←RE.canon',? (?| ([CLR])(\d+) | (V))(',_fmtQuoteP,')?,?'
-    quoteStringP←RE.canon'(',_qStringP,')'
-  ⍝ Match ⍵⍵ (next ⍵) or ⍵\d+ (\d+ ⊃ ⍵).
-  ⍝ # of digits matched is set by _omegaP, not omegaP
-    omegaP←RE.canon '⍵ (?:⍵ | (\d+) )'    ⍝ field1 matches digits, not 2nd ⍵
-    omAlphBareP←RE.canon'([⍵⍺])'                ⍝ simple '⍵'
-
-  ⍝ fmtPfx1aP is similar to optFmtPfxP, except the former is optional and
-  ⍝      the latter captures the format string (either quoted or unquoted),
-  ⍝      so the string can be processed correctly (with "..." → '...', etc.).
-    fmtPfx1aP←RE.canon'(' _fmtPfx0P ')' _quadFMT       ⍝ Last alternate: monadic $ (⎕FMT)
-
-    skipSQP←''''
-    newlineP←'(?<!⍎)⍎⋄'    ⍝ Newlines in code are handled differently, as codestring (⎕UCS 13)
-
-⍝↑ -----------------------------------------------------------------------------------------
-⍝↑ END patterns for Compilation Subphase C1a
-⍝↑ -----------------------------------------------------------------------------------------
-    :endSection 2C1A. Initializing Patterns for (3B) Compilation Subloop
-    :EndSection 2C. Initializing Patterns for (3) Compilation Phases
-
-    :endSection 2. Initialization
-
-    :section 3. Compilation Phase - Main Scan of Format String
-    ⍝  compile and _compile
-    ⍝  compile: a cover function, returns a complete executable (⍎) string including any user right args.
-    ⍝ _compile: a compilation engine, may be called repeatedly, even recursively.
-
-    ⍝ _compile:
-    ⍝     "format each substring or section... Returns the string alone.
-    ⍝      ∘ See also "compile" below.
-      _compile←{
-          CUR_OMEGA←0
-          ⍬≡⍵:⍵         ⍝ numeric null ⍵ means bypass compilation. Different from ''
-          str←⍵
-          str←processSpecialNumbers str
-          str←spaceFldP symbolsP codeFieldP nameFieldP skipSQP unicodeP ⎕R{
-      ⍝ CASE: nl        sy       cf         nf         qu      un
-              nl sy cf nf qu un←⍳6
-              ⋄ CASE←⍵.PatternNum∘∊
-              ⋄ s1←⍵ RE.get 1             ⍝ normally s1 is the string matched, but it varies.
-     
-              CASE nl:procSpaceFld s1    ⍝ s1 is the digits or blanks inside {  [\s\d]* }
-              CASE sy:procFmtSymbols s1
-              CASE un:2 selectUCSrc ⍵ ⍝ Unquoted Unicode value
-              CASE qu:''''''
-     
-               ⍝⍝ CFs/NFs: Only continue if named fields and code fields (NF's, CF's)
-               ⍝⍝ pn ∊ nf cf → continue
-              ~CASE nf cf:⎕SIGNAL/'Logic Error: unexpected patternNum' 11
-              s1←{
-                  s2←{'{'=⊃⍵:1↓¯1↓⍵ ⋄ ⍵}⍵   ⍝ Remove braces if CF...
-     
-              ⍝ :section 3 A.Compilation Subloop-Scan of NameFields,Code Fields and Related
-              ⍝↓ ----------------------------------------------------------------------------
-              ⍝↓ 3A. Scan Namefields (⍎...), Codefields {code} and Related:
-              ⍝⍝     Spacefields {5} and Nullfields {}
-              ⍝↓ ----------------------------------------------------------------------------
-     
-                  ⍝⍝ Compilation Phase (1a) - for Name Fields & Code Fields
-                  ⍝⍝ fieldType is 0-length if not set, else ¯1 0 1
-                  fieldType(fieldReset fieldWidth fieldPadN rowVec)←⍬ 0
-     
-                  s2←fmtPfx1aP unicodeP quoteStringP omegaP newlineP omAlphBareP ⎕R{
-             ⍝ CASE: fm1       un1      qu1          om1    nl1      oaBare
-                      fm1 un1 qu1 om1 nl1 oaBare←⍳6
-                      ⋄ CASE←⍵.PatternNum∘∊
-                      ⋄ field1 fmtIn←⍵ RE.get¨1 3
-                      ⋄ ∆FMTx←fmtIn∘{⍵:∆FMTxNm ⋄ ⍺≡'$$':∆FMTxNm ⋄ '⎕FMT '}
-     
-                      CASE nl1:'(⎕UCS 13)'
-                      CASE fm1:{
-                          0=≢⍵:∆FMTx 0
-                          s←{(⊃⍵)∊SQ,DQ:1↓¯1↓⍵ ⋄ ⍵}⍵
-                          ⋄ fldArgs←fieldReset fieldWidth fieldType fieldPadN rowVec
-                          s fldArgs←fldArgs procFmtExtensions s
-                          ⋄ fieldReset fieldWidth fieldType fieldPadN rowVec∘←fldArgs
-     
-                          fieldReset:('field padding already Unicode:',(fieldType),'. Not changed.')⎕SIGNAL 11
-     
-                          0=≢s~' ':∆FMTx rowVec
-                          (enQXPlus s),∆FMTx rowVec
-                      }field1
-                      CASE un1:3 selectUCSrc ⍵
-     
-                      CASE om1:{
-                          ALPHOM_SEEN[1]∘←1
-                          pfx sfx←'(⍵⊃⍨⎕IO+' ')'
-                          0=≢⍵:pfx,sfx,⍨CUR_OMEGA∘←{0::'0' ⋄ ⍕1+⊃⌽⎕VFI ⍵}CUR_OMEGA ⍝ ⍵⍵
-                          ⋄ ⋄ pfx,sfx,⍨CUR_OMEGA∘←⍵                        ⍝ ⍵(\d+):  ⍵: only the digits!
-                      }field1
-                      CASE oaBare:field1⊣ALPHOM_SEEN[field1='⍵']∘←1
-                    ⍝ Quoted strings
-                    ⍝ unicodeInQuotes←1|0: Set to 1 if you want Unicode processing ⎕Uxxx in quotes.
-                      unicodeInQuotes←1    ⍝ ∊ 0 1
-                      CASE qu1:unicodeInQuotes selectUCSrc cvt2SQString procAllSymbols field1
-     
-                      ⎕SIGNAL/('format logic error: pattern=',⍕⍵.PatternNum)999
-                  }⊣s2
-                ⍝ :Endsection 3A.Compilation Subloop
-     
-                ⍝ Do we have a positional fmt prefix?
-                ⍝     Of the form  [CLR]ddd(⊂...⊃)?
-                ⍝ NO  ---→ return s2
-                  fieldWidth≤0:s2
-                ⍝ YES ---→ Call ¨∆pad¨ on s2, e.g.
-                ⍝ ∆pad syntax:  fieldWidth@I fieldType@CS padChar@CS ∇ matrix@SM
-                ⍝   (    12               'C'                  ' '           ∆pad         s2)
-     
-                  larg←⍕fieldWidth fieldType fieldPadN
-     
-                  ∊'( ',larg,' ',∆padNm,' ',s2,' )'
-              }s1
-              ''' (',s1,') '''                  ⍝ 'a...{c}...b' →  'a...' (c) '...b'
-          }⊣str
-          '''','''',⍨str
-      }
-
-    ⍝ compile:  Format main compile code as executable string:
-    ⍝             { ∆cat ('string') }⊃⌽êçR
-    ⍝           ∆cat: fully-specified name of service routine <∆cat>.
-    ⍝           string: the fully-compiled format string.
-    ⍝           êçR:    original right argument (normalized) to <format>.
-
-
-      compile←{
-          alphas←⍺
-     
-          text←⍵
-          text←alphas procAlphas text        ⍝ Note: ⍺'s may contain any code, including ⍠... and ⍎...
-          ⋄ noOpts←~'⍠'∊text                    ⍝ If no ⍠, we will skip checks below for ⍠ args
-          ⋄ noStacks←~1∊∊'⍎→' '⍎↓'⍷¨⊂⍵          ⍝ If no ⍎→ or ⍎↓, we will skip checks for "stacks"
-     
-          text header footer←noOpts preprocessOptions text
-     
-          text←noOpts postprocessCleanup noStacks{
-              ⍺:_compile ⍵                    ⍝ _compile¨¨  :compile each stack of each section separately...
-              noOpts postprocessStacks _compile¨¨splitStackIntoSections ⍵
-          }text
-     
-        ⍝ Handle ⍠H/⍠F, headers and footers.
-          text←header{0=≢⍺:⍵ ⋄ hd tx←⍺ ⍵ ⋄ '(',hd,')',∆overNm,tx}text
-          text←footer{0=≢⍺:⍵ ⋄ ft tx←⍺ ⍵ ⋄ '(',tx,')',∆overNm,ft}text
-     
-          '{',∆catNm,text,'}⍵'
-      }
-    :endsection 3. Compilation Phase
-
-    :section 4. Executive Function: ∆format
-⍝↓ -----------------------------------------------------------------------------------------
-⍝↓ Executive: Generate ∆format and ∆f
-⍝↓ -----------------------------------------------------------------------------------------
-
-    :section 4a. Executive Function: Kludges
-    ⍝ Set up kludgey code to handle user's user of nulls.
-    ⍝ Dyalog APL improperly handles string with null chars, so
-    ⍝ we just hide them during compilation, if ALLOW_UNICODE_NULLS=1.
-    NULLucs VISIBLE_NULLucs FAUX_NULLucs←⎕UCS 0 9216 57345
-    nullMagicIn←{⍺←1 ⋄~ALLOW_UNICODE_NULLS: ⍵ ⋄ (VISIBLE_NULLucs FAUX_NULLucs⊃⍨0≠⍺)@(NULLucs∘=)⊣⍵}
-    nullMagicOut←{~ALLOW_UNICODE_NULLS: ⍵  ⋄ NULLucs@(FAUX_NULLucs∘=)⊣⍵}
-    :endSection 4a. Executive Functions: Kludges
-
-    :section 4b. User-callable functions: ∆format, ∆f
-      ∆format←{
-          0::⎕SIGNAL/⎕DMX.(('∆format ',EM,(': '/⍨0≠≢Message),Message)EN)
-          ⍺←1
-     
-          ⍺{
-              ø←⍺{⍺≠2:⍵ ⋄ ⎕←'∆format'({⎕THIS.enQX ⍵}(⊃⍵))(1↓⍵)}⍵
-              ⍺=0:{
-                  ⎕THIS.ALPHOM_SEEN←0 0   ⍝ Were ⍺ (⍺0...) or ⍵ (⍵0...) seen?
-                  alphaE←'∆format Error: ⍺, ⍺0, ⍺1, ..., ⍺⍵ are invalid with left arg ⍺=0' 11
-     
-                  code←¯1↓0 ⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
-               ⍝  Convert any line breaks (CR/13) to APL line break (CR)
-                  code←∊(⊂''',(⎕UCS 13),''')@(=∘⎕THIS.LINE_BRK)⊣code
-                  ⎕THIS.ALPHOM_SEEN[0]:⎕SIGNAL/alphaE
-                  ⎕THIS.ALPHOM_SEEN[1]:code   ⍝ {...} [args]
-                  '(',')',⍨1↓¯1↓code      ⍝ (...) [args]
-              }⍵
-              ⍺=1:{
-                  ⎕THIS.nullMagicOut(⊃⌽⍵)(((1+⎕IO)⊃(2⍴⎕RSI)){
-                    ⍝ ⍺ must execute in ⍺⍺, the ns that called ∆f/ormat
-                    ⍝ Add ⎕THIS to the local path just for the (⍺⍺⍎⍵)
-                      (⍺⍺.⎕PATH←∆ps)⊢⍺⍺.⍎⍺⊣⍺⍺.⎕PATH←(⍕⎕THIS),' ',∆ps←⍺⍺.⎕PATH
-                  })⍨⎕THIS.nullMagicIn(⊃1↓⍵)⎕THIS.compile(⍕⊃⍵)
-              }⍵
-              ⎕SIGNAL/'∆format: left argument ⍺ must be 1 (default) or 0' 11
-          }{
-              1≥|≡⍵:⍵ ⍬ ⋄ (⊃⍵)(1↓⍵)
-          }⍵
-      }
-    ∆f←∆format                                 ⍝ ∆f is an alias for ∆format.
-
-    ##.⎕FX '⎕THIS'⎕R(⍕⎕THIS)⊣⎕NR '∆format'     ⍝ Make sure ∆format/∆f is in ⎕PATH automagically.
-    ##.(∆f←∆format)
-
-
-    :endSection 4b. User-callable functions: ∆format ∆f
-    :endSection 4. Executive Functions: ∆format ∆f
-
-
-    :Section Exporting ∆f, ∆format, formatPath
-   ⍝ Only export functions and operators here!
-    0 ⎕EXPORT ⎕NL 3 4
-    1 ⎕EXPORT '∆f' '∆format' 'formatPath'
-    msg'Exporting:',∊' ',¨' '~⍨¨{⍵/⍨⎕EXPORT ⍵}↓ ⎕NL 3 4
-
-    :EndSection Exporting ∆f, ∆format, formatPath
-
-
-    :Namespace Documentation
-        :Section 1B.   Documentation
-
-        ∇ r←README
-⍝ format.Documentation.README
-⍝ The format has one major user function ∆format or ∆f.
-⍝     ∆format or ∆f-
-⍝        useful for displaying a mix of multi-line text, APL arrays (optionally using
-⍝        APL dyadic format options and extensions) with headers and footers. Objects
-⍝        are automatically converted to matrix formats and appropriately padded when
-⍝        catenated horizontally or vertically.
-⍝        Unicode and hexadecimal numbers are concisely supported.
-⍝        See notes_format for details.
-⍝ There is one auxiliary function which must be found when ∆format/∆f is executed:
-⍝     formatPath-
-⍝        This is called as part of service routines executed in ∆format/∆f.
-⍝        Since the resulting format string is executed in the user's namespace,
-⍝        format (e.g. #.format or ⎕SE.format) must be in ⎕PATH at that time.
-⍝        WHen found, formatPath returns the specific path in format, so no other
-⍝        utility functions need be exported to clutter the user namespace.
+:namespace Format
+    DEBUG←0    ⍝ Set to 1 to suppress error trapping...
+    _←{DEBUG:⎕←(⍕⎕THIS),': DEBUG ENABLED'  ⋄  ''}DEBUG
+
+    :Section For Documentation, see Section "Documentation"
+⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
 ⍝
-⍝ For HELP information, type  ∆format '⍠?'         ⍝ Note: ⍠? is typed `??
-⍝ Source file for formatHelp.pdf is  https://goo.gl/QaNsWq
-          r←{⍵⊣⎕ED'ed'⊣ed←' ',↑1↓¨nr/⍨∊'⍝'=1↑¨nr←⎕NR ⍵}⊃⎕SI
-        ∇
-        ∇ r←formatHelp;head;body
-          :Trap 0
-              ⎕SH'open ./pmsLibrary/docs/formatHelp.pdf'
-              r←⎕←'formatHelp: complete'
-          :Else
-              r←⎕←'formatHelp: Unable to find/display ./pmsLibrary/docs/formatHelp.pdf info.'
-              head←'<head><title>Format </title><head>'
-              body←'<iframe src="//goo.gl/QaNsWq" width="1400" height="1400"></iframe>'
-              'hr'⎕WC'HTMLRenderer'(head,body)('Size'(500 500))
-          :EndTrap
-        ∇
-        :endSection 1B. Documentation
-    :EndNamespace
-    ∇ {r}←HELP
-      r←Documentation.formatHelp
+⍝  Generate and Return a 1 or 2D Formatted String
+⍝      string←  [⍺0 [⍺1 ...]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
+⍝
+⍝  Displays Format Help info!
+⍝               ∆FMT ⍬
+    :EndSection
+
+
+    ⎕IO←0
+    CR←⎕UCS 13  ⋄ DQ SQ←'"'''
+
+⍝ ------ UTILITIES
+     ⍝ ∆F:  Find a pcre field by name or field number
+      ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
+          def←'' ⋄ isN←0≠⍬⍴0⍴⍵
+          p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
+          B[O[p]+⍳L[p]]
+      }
+
+    ⍝ GenBalanced: generates a pattern that matches balanced parens or equivalent,
+    ⍝  P ← GenBalanced '()'
+    ⍝  (Default) Recursive, matches balanced delimiters, skipping embedded single-quoted or double-quoted strings.
+    ⍝         skipping embedded SQ strings, DQ strings.
+    ⍝         ∘ Skips comments ⍝...
+    ⍝         ∘ Skips "escaped" closing parens: ⍎)
+    ⍝
+      GenBalanced←{L R←⍵
+          Nm←'bal',⍕bpCount_ ⋄ bpCount_+←1     ⍝ local N- unique pattern-internal name.
+          ∊'(?:(?J)(?<'Nm'>\'L'(?>[^\'L'\'R'"''⍝]+|⍝.*\R|(?:"[^"]*")+|(?:''[^''\r\n]*'')+|(?&'Nm')*)+(?<!⍎)\'R'))'
+      }
+    bpCount_←1    ⍝ Use the ctr to generate a unique name balNNN for referencing inside the pattern.
+
+  ⍝ ∆XR: Execute and Replace
+  ⍝      Replace names of the form ⍎XXX in a string with its executed value in the calling context (in string form)...
+  ⍝      ⍺: caller_NS[=⊃⎕RSI]  [err=1] [count=25]
+  ⍝         caller_NS: Where to execute each expression found.  Default is caller env.
+  ⍝         error:     If 1 (default), signals an error if it can't make the requisite replacements.
+  ⍝                    If 0, - if ⍎'my_str' failed, the vector 'my_str' is returned.
+  ⍝                          - results of more than one line will be raveled.
+  ⍝                          - if it exceeds count, returns current replacement (If a b c d e f←'⍎',¨'bcdefa', try with count of 5).
+  ⍝         count:     How many times to scan the ENTIRE string for replacements. Default is 25.
+    XRCallE←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  ⋄  XRLoopE←'∆XR: looping on runaway replacement strings.'
+    XRExecE←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         ⋄  XRFormE←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
+      ∆XR←{⍺←⊃⎕RSI
+          caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller, err, cnt
+          9≠⎕NC'caller':⎕SIGNAL∘11 XRCallE
+          CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⎕SIGNAL∘11 ⍵}
+          cnt{cnt←⍺
+              cnt≤0:⍵ CondErr XRLoopE
+              S←'⍎([\w∆⍙#⎕\.]+)'⎕R{f1←⍵ ∆F 1
+                  0::f1 CondErr XRExecE f1
+                  1=≢r←⎕FMT caller.⍎f1:,r
+                  (∊r,' ')CondErr XRFormE f1
+              }⍠('UCP' 1)⊣⍵
+              ⍵≡S:S ⋄ '⍎'(~∊)S:S ⋄ (cnt-1)∇ S
+          }⍵
+      }
+  ⍝ ∆XRL: Execute and Replace Locally
+    ∆XRL←⎕THIS∘∆XR
+
+  ⍝ ========= MAIN ∆FMT Formatting Function
+  ⍝ ∆FMT - Major formatting patterns:
+  ⍝    ...P the pattern, ...C the pattern number
+  ⍝ Braces: Embedded balanced braces are allowed, as are quoted strings (extended to double-quoted strings).
+    nextFC←0⊣nextFP←'\{\h*\}'                     ⍝ Next Omega.
+    endFC←1⊣endFP←'⋄|\{\h*[⍬:]\h*\}'              ⍝ End of Field. This optimizes. The <codeFP> path has the same result, just slower.
+    codeFC←2⊣codeFP←GenBalanced '{}'              ⍝ Code field.
+    textFC←3⊣textFP←'(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
+
+  ⍝ Pseudo-format strings specs:
+  ⍝     Strings of the form {specs: expression}
+  ⍝ In place of APL  ('specs' ⎕FMT expression), we have shorthand
+  ⍝       {specs:   expression}.
+  ⍝ E.g.  {I5,F4.2: ivec fvec}
+  ⍝ fmtP matches the specs and following colon.
+  ⍝ Fmt Patterns: < >, ⊂ ⊃, ⎕ ⎕ or ¨ ¨ by APL ⎕FMT rules (no embedded matching delims).
+  ⍝
+  ⍝ Special pseudo-format spec extensions
+  ⍝    Lnn, Cnn, Rnn, as in
+  ⍝    {C15,I5,F4.2: ivec fvec}, which centers the result of ('I5,F4.2' ⎕FMT ivec fvec)
+  ⍝ Must be first (or only) specification given, with optional comma following.
+  ⍝    Lnn: obj on left, padded on right to width nn. Ignored if the object is ≥nn in width.
+  ⍝    Rnn: obj on right, padded on left to with nn.   Ditto.
+  ⍝    Cnn: obj centered.                              Ditto.
+    _fmtQts←'⍞' '<>'  '⊂⊃' '⎕' '¨'
+    _fmtQuoters←¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
+    _uptoColonP←'[^ : ⍎DQ ⍎SQ ⍎_FQ ]+'~' '  ⊣ _FQ←∊_fmtQts      ⍝ quotes are valid only within _fmtQuoters above.
+    fmtP← ∆XRL '(?xi) (?| ((?: ⍎_fmtQuoters | ⍎_uptoColonP )*) : (.*) $ | () (.*) ) $'
+
+    ⍝ Special:   \⍎ \{  \n==>  ⍎ { \r (=CR).  (CR works as newline with APL ⎕FMT).
+      ProcEscapes←{
+          '\\(\{)' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
+      }
+    ⍝ Join ⍺ and ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to left of ⍵, adding rows to ⍺ or ⍵ as needed..
+      Join←{
+          new←⎕FMT ⍵ ⋄ 0=≢⍺:new
+          LH LW←⍴old←⎕FMT ⍺
+          RH RW←⍴new
+          CH←LH⌈RH ⋄ (CH LW↑old),(CH RW↑new)
+      }
+    ⍝ omega type ScanCode format_string
+    ⍝ Handle strings of the form   ⍵NN in format specs, strings within code, and code outside strings:
+    ⍝   type=0:  In format specs:  The value of (⍕NN⊃⍵) will be immediately interpolated into the spec (⎕IO=0).
+    ⍝   type=1:  In code outside strings:  The code (⍵⊃⍨NN+⎕IO) will replace ⍵NN (⎕IO-independent).
+    ⍝ If index N is out of range of alpha or omega, signals an index error.
+      ScanCode←{
+          env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
+          '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2})' '(?|(⍵)⍵|(⍺)⍺)'⎕R{  ⍝ ⍵00 to ⍵99
+              case←⍵.PatternNum∘=
+              case 0:CanonQuotes ⍵ ∆F 0     ⍝ Convert double quote sequences to single quote sequences...
+              case 1:⍵ ∆F 1                 ⍝ \⍵ istreated as char ⍵
+            ⍝ cases 2 3 together: ⍵3, ⍺3, ⍵⍵, ⍺⍺
+              k←'⍵'=f1←⍵ ∆F 1
+              f2←{0≠≢⍵:⍵ ⋄ ⍕1+env.index[k]}⍵ ∆F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
+              ix←env.index[k]←⍎f2 ⋄ alom←k⊃env.(alpha omega)
+              ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ∆F 0),' out of range'
+              isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
+              ⍕ix⊃alom
+          }⍵
+      }
+
+    CanonQuotes←{DQ≠1↑⍵: ⍵ ⋄ SQ,SQ,⍨{⍵/⍨1+SQ=⍵}{⍵/⍨~(DQ,DQ)⍷⍵}1↓¯1↓⍵  }
+
+      ExecCode←{
+          env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
+          6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
+        ⍝ Handle omegas
+        ⍝ Find formatting prefix, if any
+          (pfx cod)←fmtP ⎕R'\1\n\2'⊣⊆cod
+          pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
+          cod←env(1 ScanCode)cod              ⍝ 1:  isCode
+     
+        ⍝ Spacing / Justification
+        ⍝ Get special specification, if any:
+        ⍝     (noTrunc=0):  Lnn, Cnn, Rnn   (noTrunc=1): lnn, cnn, rnn
+        ⍝ Set locals: lcr, pfc, pad, noTrunc
+          lcr pad noTrunc←' ' 0 1
+          pfx←'^(?i)([LCR])(\d+),?'⎕R{f1 f2←⍵ ∆F¨1 2
+              ''⊣pad∘←⍎f2⊣noTrunc∘←f1≡lcr∘←1 ⎕C f1
+          }pfx
+     
+        ⍝ Apply standard Dyalog ⎕FMT dyadically, if a prefix is presented, else monadically...
+        ⍝ ... to the value of executing <cod> in the caller environment!
+          val←pfx{
+              0=≢⍺:⎕FMT ⍵ ⋄ ⍺ ⎕FMT ⍵
+          }{
+              0=≢⍵:'' ⋄ env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
+          }cod
+     
+        ⍝ Apply special justification: [Ll]nn [Rr]nn or [Cc] nn. [LRC]: noTrunc=0; [lrc]: noTrunc=1.
+        ⍝ No padding/truncation requested OR (noTrunc=1 and truncation
+          wid←⊃⌽⍴val
+          noTrunc∧pad≤wid:val
+        ⍝ Process padding specs for Left, Right, and Center, enlarging or truncating as required.
+          lcr='L':pad↑[1]val ⋄ lcr='R':(-pad)↑[1]val ⋄ pad↑[1](-⌊0.5×wid+pad)↑[1]val
+      }
+
+    ⍝ Main user function ∆FMT
+    ∇ text←{leftArgs}∆FMT rightArgs;env;_
+      :Trap 0⍴⍨~DEBUG
+          :If rightArgs≡⍬ ⋄ FORMAT_HELP ⋄ :Return ⋄ :EndIf
+     
+          text←''
+          env←⎕NS''   ⍝ fields: env.(caller alpha omega index)
+           ⋄ env.caller←0⊃⎕RSI
+           ⋄ env.alpha←,{⍵:⍬ ⋄ ⍺←leftArgs ⋄ 1<⍴⍴⍺:,⊂⍺ ⋄ ' '≡⍬⍴0⍴⍺:⊆⍺ ⋄ ⍺}900⌶⍬
+           ⋄ env.omega←1↓rightArgs←⊆rightArgs
+           ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
+     
+          _←nextFP endFP codeFP textFP ⎕S{
+              case←⍵.PatternNum∘= ⋄ f0←⍵ ∆F 0
+              case textFC:0⍴text∘←text Join ProcEscapes f0          ⍝ Any text except {...} or ⋄
+              case codeFC:0⍴text∘←text Join env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
+              case nextFC:0⍴text∘←text Join env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
+              case endFC:⍬                                          ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
+              ⎕SIGNAL/'∆FMT: Unreachable stmt.' 11
+          }⊣⊃rightArgs    
+          text←,⍣(1=≢text)⊣text     ⍝ 1 row matrix quietly converted to a vector...
+      :Else
+          ⎕SIGNAL/⎕DMX.(EM EN)
+      :EndTrap
     ∇
-    msg '>>> For overview, see            "',(⍕formatPath),'.Documentation.README"'
-    msg '>>> Documentation is in          "formatHelp.pdf"'
-    msg '>>> Source doc is in Google Docs "//goo.gl/QaNsWq"'
-:endNamespace
+
+    ∇ FORMAT_HELP;h
+      h←'_HELP'
+      :If 0=⎕NC h ⋄ _HELP←(⊂'  '),¨3↓¨{⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS ⋄ :EndIf
+      ⎕ED⍠('ReadOnly' 1)&h
+    ∇
+
+  ⍝ Add ⎕THIS to ⎕PATH cleanly and exactly once (if not already present).
+    ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
+
+  ⍝ Delete underscore-prefixed vars (those not used at runtime)
+    ⎕EX '_' ⎕NL 2 3 4
+
+
+    :Section Documentation
+⍝H ∆FMT - a modest Python-like APL Array-Oriented Format Function
+⍝H
+⍝H Syntax:
+⍝H    string← [⍺0 [⍺1 ... [⍺99]]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
+⍝H
+⍝H    Preview!
+⍝H          what←'rain' ⋄ where←'Spain' ⋄ does←'falls' ⋄ locn←'plain'
+⍝H          ∆FMT 'The {what} in {where} {does} mainly on the {locn}.'
+⍝H    The rain in Spain falls mainly on the plain.
+⍝H        'you' 'know'  ∆FMT 'The {} in {} {} mainly on the {}, {⍺⍺} {⍺⍺}.' 'rain' 'Spain' 'falls' 'plain'
+⍝H    The rain in Spain falls mainly on the plain, you know.
+⍝H
+⍝H    Specification: a string containing text, variable names, code, and ⎕FMT specifications, in a single vector string.
+⍝H    ∘ In addition to ⍺ or ⍵ (each entire array) or selections therefrom,
+⍝H      special variable names within code include
+⍝H         ⍺0 (short for (0⊃⍺)), ⍺⍺ (for the next element of ⍺), and
+⍝H         ⍵0 (short for (0⊃⍵)), ⍵⍵ (for the next element of ⍵), ... ⍺99 and ⍵99.
+⍝H      These may appear one or more times within a Code field and are processed left to right.
+⍝H
+⍝H  Types of Fields:
+⍝H  type:    TEXT      | SIMPLE | PREFIXED |  BLANK  |  END OF  |  NEXT ARG
+⍝H                     | CODEa  |  CODEb   |  CODEc  |  FIELD   |  CODEe
+⍝H  format:  any\ntext | {code} | {fmt:code}| {Lnn:} |   ⋄      |  {}  {⍵⍵}  {⍺⍺}
+⍝H
+⍝H  Special chars in format specifications:
+⍝H    Escaped chars:  \{  \\ \⋄   - Represented in output as { (left brace), \ (backslash) and ⋄ (lozenge).
+⍝H    Newlines        \n          - In TEXT fields or inside quotes within CODE fields.
+⍝H                                  \n is actually a CR char (Unicode 13), forcing a new APL line in ⎕FMT.
+⍝H
+⍝H Fields:
+⍝H  1.  TEXT field: Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
+⍝H
+⍝H  2.  CODE field
+⍝H   a. SIMPLE CODE: {code}   returns the value of the code executed as a 2-d object.
+⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a code field (see above).
+⍝H
+⍝H   b. PREFIXED CODE: {prefix: code}
+⍝H      executes <code> and then formats it as (prefix ⎕FMT value).
+⍝H      prefix: any valid ⎕FMT specification,
+⍝H         with these additions as the first or only specification.
+⍝H         A.  The first "field" may be [truncate ok] Lnn, Rnn, or Cnn; or
+⍝H                                      [no truncate] lnn, rnn, or cnn.
+⍝H             L/l- object on left side, padded on right.
+⍝H               L20: Pad a left-anchored object on right to 20 chars. Do not truncate.
+⍝H               l20: Ditto. Truncate as required.
+⍝H             C/c- centered.
+⍝H               C15: Pad  a field with 8 chars on left and 7 on right. Do not truncate.
+⍝H               c15: Ditto. Truncate as required.
+⍝H             R/r- right side.
+⍝H               R5:  Pad a right-anchored object on left to 5 chars. Do not truncate.
+⍝H               r5:  Ditto. Truncate as required.
+⍝H             Examples:                               12345678901234567890
+⍝H             #1  ∆FMT '<{C20,I3: 1 5⍴⍳5}>'   ==>    <    0  1  2  3  4   >
+⍝H             #2  ∆FMT '<{C2,I5:  1 5 ⍴⍳5}>'  ==>    <    0    1    2    3    4>
+⍝H             #3  ∆FMT '<{C5:"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆FMT '<{R5:"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆FMT '<{c5:"1234567890"}>'  ==>    <45678>
+⍝H         B.  A field spec may include any of ⍵0 through ⍵99. If there is a right argument ⍵[N] matching ⍵N, it will
+⍝H             be converted to string form and replace the latter.
+⍝H         Example:
+⍝H             ∆FMT 'Random: {C⍵0,⊂< ⊃,F⍵1,⎕ >⎕: ?3⍴0}' 8 4.2  (or '8' '4.2')
+⍝H         Random: < 0.30 >
+⍝H                 < 1.00 >
+⍝H                 < 0.64 >
+⍝H         If a standard format specification is used, APL ⎕FMT rules are followed, treating
+⍝H         vectors as 1-column matrices:
+⍝H         Example:
+⍝H             ∆FMT 'a: {3↑⎕TS} b: {I4: 3↑⎕TS} c: {ZI2,⊂/⊃,ZI2,⊂/⊃,I4: ⍉⍪1⌽3↑⎕TS}'
+⍝H         a: 2020 9 6 b: 2020 c: 09/06/2020
+⍝H                           9
+⍝H                           6
+⍝H
+⍝H      Code fields (only) may also contain double-quoted strings "like this" or single-quoted strings
+⍝H      entered ''like this'' which appears 'like this'. Valid: "A cat named ""Felix"" is ok!"
+⍝H      Quotes entered into TEXT fields are treated as ordinary text and not processed in any way.
+⍝H
+⍝H      Example:
+⍝H         ∆FMT '{⍪6⍴"|"} {↑"one\ntwo" "three\nfour" "five\nsix"}'
+⍝H      | one
+⍝H      | two
+⍝H      | three
+⍝H      | four
+⍝H      | five
+⍝H      | six
+⍝H
+⍝H      Code fields may be arbitrarily complicated. Only the first "prefix:" specification
+⍝H      is special:
+⍝H      Example:
+⍝H         ∆FMT 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
+⍝H      Today is Sunday, 06th September 2020 17:25:21.
+⍝H
+⍝H   c. BLANK field: {Lnn:}
+⍝H      Create a field nn blanks wide, where nn is a non-negative integer.
+⍝H      Only these cases are allowed: {Lnn:} | {Cnn:} | {Rnn:}. All are equivalent.
+⍝H      E.g. to insert 10 blanks between fields:  {L10:}.
+⍝H
+⍝H   d: END OF FIELD (EOF): ⋄
+⍝H      An unescaped lozenge ⋄ terminates the preceding field (if any).
+⍝H      Equivalents: Since {⍬} or {:} evaluates to an empty (0-width) field, they are synonyms for EOF.
+⍝H      Example:
+⍝H          ∆FMT 'The cat ⋄is\nisn''t{⍬}here {:}and\nAND {"It isn''t here either"}'
+⍝H      The cat is   here and It isn't here either
+⍝H              isn't     AND
+⍝H
+⍝H   e. NEXT OMEGA FIELD:  {} is equiv to {⍵⍵}, i.e. the next element in ⍵.
+⍝H    - if no explicit {⍵NN} is specified, {} is {⍵0} {⍵1} ....
+⍝H    - if {⍵10} is specified, {} to its right selects {⍵11};
+⍝H      i.e. after {⍵N},  {} or {⍵⍵} refers to ⍵M, M=N+1.
+⍝H    - There is no short-cut for the next alpha field (⍺⍺); it is useful nonetheless.
+⍝H    Example:
+⍝H      ⍝ 1. A long line.
+⍝H         ∆FMT '{} {} lives at {} in {}, {} in {}' 'John' 'Smith' '424 Main St.' 'Milwaukee' 'WI' 'the USA'
+⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
+⍝H      ⍝ 2. A bit of magic to pass format specs and args as peer strings (vectors).
+⍝H         info←'John' 'Smith' '424 Main St.' 'Milwaukee' 'WI' 'the USA'
+⍝H         ∆FMT '{} {} lives at {} in {}, {} in {}' {⍵,⍨⊂⍺} info
+⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
+⍝H      ⍝ 3. Using ⍺ on the left to pass a list of strings is simple.
+⍝H         info  ∆FMT '{⍺⍺} {⍺⍺} lives at {⍺⍺} in {⍺⍺}, {⍺⍺} in {⍺⍺}'
+⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
+⍝H
+⍝H Returns: a matrix-format string if 2 or more lines are generated.
+⍝H If 1 line, returns it as a vector.
+⍝H
+⍝H ∆FMT ⍬  -- Displays Format Help info!
+    :EndSection Documentation
+
+:EndNamespace
