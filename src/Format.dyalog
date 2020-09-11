@@ -84,7 +84,11 @@
     _fmtQts←'⍞' '<>'  '⊂⊃' '⎕' '¨'
     _fmtQuoters←¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
     _uptoColonP←'[^ : ⍎_FQ ]+'~' '  ⊣ _FQ←∊_fmtQts      ⍝ quotes are valid only within _fmtQuoters above.
-    fmtP← ∆XRL '(?xi) ^ (?|  ( (?: [^":]+ | :{1} | "[^"]*")+? ) (::) (.*) | ( (?: ⍎_fmtQuoters | ⍎_uptoColonP )*? ) (:) (.*)  | () (.*) () ) $'
+    fmtP←'(?xi) ^ (?|  ( (?: [^":]+ | :{1} | "[^"]*"      )+? )  ( :{2}      )  (.*)  '     ⍝ Date-time code
+    fmtP,←'         |  ( (?: ⍎_fmtQuoters  | ⍎_uptoColonP )*? )  ( :{1} (?!:))  (.*)  '     ⍝ ⎕FMT code
+    fmtP,←'         |  (                                      )  (           )  (.*)  '     ⍝ Simple code
+    fmtP,←'       ) $'
+    fmtP←∆XRL fmtP
 
     ⍝ Special:   \⍎ \{  \n==>  ⍎ { \r (=CR).  (CR works as newline with APL ⎕FMT).
       ProcEscapes←{
@@ -92,9 +96,15 @@
       }
     ⍝ Join ⍺ and ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to left of ⍵, adding rows to ⍺ or ⍵ as needed..
       Join←{
-          RH RW←⍴new←⎕FMT ⍵ ⋄ 0=≢⍺:new
-          LH LW←⍴old←⎕FMT ⍺ ⋄ CH←LH⌈RH
-          (CH LW↑old),(CH RW↑new)
+          RH RW←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
+          LH LW←⍴left←⎕FMT ⍺ ⋄ CH←LH⌈RH
+          (CH LW↑left),(CH RW↑right)
+      }
+      Over←{
+          UH UW←⍴upper←⎕FMT ⍺ ⋄ 0=≢⍵:upper
+          LH LW←⍴lower←⎕FMT ⍵ ⋄ CW←UW⌈LW
+          UW<LW:(ctr⌽UH LW↑upper)⍪lower⊣ctr←⌈0.5×UW-LW
+          upper⍪(ctr⌽LH UW↑lower)⊣ctr←⌈0.5×LW-UW
       }
     ⍝ omega type ScanCode format_string
     ⍝ Handle strings of the form   ⍵NN in format specs, strings within code, and code outside strings:
@@ -125,7 +135,10 @@
           6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
         ⍝ Handle omegas
         ⍝ Find formatting prefix, if any
-          (pfx colons cod)←fmtP ⎕R'\1\n\2\n\3'⊣⊆cod
+          (pfx colons cod)←{
+              ~':'∊cod: '' '' ⍵
+              fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
+          }cod
      
           pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
           cod←env(1 ScanCode)cod              ⍝ 1:  isCode
@@ -141,10 +154,10 @@
      
         ⍝ Apply standard Dyalog ⎕FMT dyadically, if a prefix is presented, else monadically...
         ⍝ ... to the value of executing <cod> in the caller environment!
-        ⍝ If 2 colons, format a date-time (1200⌶). Else use standard ⎕FMT
+        ⍝ If 2 colons, format a date-time (1200⌶), removing extra blanks...
+        ⍝ Else use standard ⎕FMT
           val←pfx(2=≢colons){pfx isDT←⍺
-              Scale←{1=≢⍵:⊃⍵ ⋄ ⍵}
-              0=≢pfx:⎕FMT ⍵ ⋄ isDT:⎕FMT Scale pfx(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
+              0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT pfx(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
           }{
               0=≢⍵:'' ⋄ env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
           }cod
@@ -206,15 +219,15 @@
   ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←' '~⍨¨↓'_' ⎕NL _←2 3 4
     _CSAY 'Deleting temp objects:',∊' ',¨_
-
     _CSAY 'Format namespace being fixed as ',⍕⎕THIS
-
     ⎕EX¨_
 
 
 
     :Section Documentation
 ⍝H ∆FMT - a modest Python-like APL Array-Oriented Format Function
+⍝H        formatting multi-dimensional objects, ⎕FMT-compatible numerical fields,
+⍝H        and I-Beam 1200-compatible Date-Time objects.
 ⍝H
 ⍝H Syntax:
 ⍝H    string← [⍺0 [⍺1 ... [⍺99]]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
@@ -234,7 +247,7 @@
 ⍝H      These may appear one or more times within a Code field and are processed left to right.
 ⍝H
 ⍝H  Types of Fields:
-⍝H  type:    |    TEXT   |  SIMPLE |  PREFIXED   |     TIME     | BLANK  |  END OF  |   NEXT ARG
+⍝H  type:    |    TEXT   |  SIMPLE |    ⎕FMT     |  DATE-TIME   | BLANK  |  END OF  |   NEXT ARG
 ⍝H           |           |  CODEa  |    CODEb    |     CODEc    | CODEd  |  FIELD   |     CODEf
 ⍝H  format:  | any\ntext | {code}  | {fmt:code}  |  {fmt::code} | {Lnn:} |    ⋄     | {}  {⍵⍵}  {⍺⍺}
 ⍝H
@@ -248,13 +261,17 @@
 ⍝H
 ⍝H  2.  CODE field
 ⍝H   a. SIMPLE CODE: {code}   returns the value of the code executed as a 2-d object.
-⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a code field (see above).
+⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a CODE field.
+⍝H                  ⍵0 refers to (0⊃⍵); ⍺99 to (99⊃⍺) in ⎕IO=0;
+⍝H                  ⍵⍵ refers to the next element of ⍵. If the last (to the left) was ⍵5, then ⍵⍵ is ⍵6.
+⍝H                  ⍺⍺ refers to the next element of ⍺. If the last (to the left) was ⍺9, then ⍺⍺ is ⍺10.
+⍝H             If used in a format specification, ⍵NN and ⍺NN vars must refer to simple vectors or scalars.
 ⍝H
-⍝H   b. PREFIXED CODE: {prefix: code}      See also c. TIME CODE field.
+⍝H   b. ⎕FMT CODE field: {[LCR,]prefix: code}      See also c. TIME CODE field.
 ⍝H      executes <code> and then formats it as (prefix ⎕FMT value).
 ⍝H      prefix: any valid ⎕FMT specification,
-⍝H         with these additions as the first or only specification.
-⍝H         A.  LCR specification:
+⍝H         An LCR specification may be the first or only specification.
+⍝H         1. LCR specification:
 ⍝H             The first "field" may be [no truncate] Lnn, Rnn, or Cnn; or
 ⍝H                                      [truncate ok] lnn, rnn, or cnn.
 ⍝H             L, C, or R may pad the associated field, but will not truncate, even if the field is wider than <nn> characters.
@@ -278,8 +295,8 @@
 ⍝H             #3  ∆FMT '<{C5:"1234567890"}>'  ==>    <1234567890>
 ⍝H                 ∆FMT '<{R5:"1234567890"}>'  ==>    <1234567890>
 ⍝H                 ∆FMT '<{c5:"1234567890"}>'  ==>    <45678>
-⍝H         B.  A field spec may include any of ⍵0 through ⍵99. If there is a right argument ⍵[N] matching ⍵N, it will
-⍝H             be converted to string form and replace the latter.
+⍝H         2.  A field spec may include special ⍵NN- or ⍺NN-positional variables (above), wherever variables are allowed:
+⍝H
 ⍝H         Example:
 ⍝H             ∆FMT 'Random: {C⍵0,⊂< ⊃,F⍵1,⎕ >⎕: ?3⍴0}' 8 4.2  (or '8' '4.2')
 ⍝H         Random: < 0.30 >
@@ -312,7 +329,7 @@
 ⍝H         ∆FMT 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
-⍝H   c. TIME CODE: {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
+⍝H   c. DATE-TIME CODE field: {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
 ⍝H      If time_spec is a specification for formatting dates and times via I-Beam (1200⌶)
 ⍝H      and timestamp is 1 or more timestamps of the form  (1 ⎕DT ⊂⎕TS) or (1 ⎕DT TS1 TS2 ...)
 ⍝H      then this returns the timestamp formatted according to the time_spec.
@@ -331,6 +348,11 @@
 ⍝H      03::50:51 44083.660324
 ⍝H          ∆FMT '{tt::mm:ss:: now} {F12.6:now}'
 ⍝H      VALUE ERROR: Undefined name: mm
+⍝H          t1 t2 t3←{⎕TS⊣⎕DL 1+?0}¨1 2 3
+⍝H          ∆FMT'{I1,⊂. ⊃:1+⍳≢⍵}{%ISO%::1 ⎕DT ⍪⍵ }' t1 t2 t3
+⍝H      1. 2020-09-10T18:30:18
+⍝H      2. 2020-09-10T18:30:19
+⍝H      3. 2020-09-10T18:30:21
 ⍝H
 ⍝H   d. BLANK: {Lnn:}
 ⍝H      Create a field nn blanks wide, where nn is a non-negative integer.
@@ -345,7 +367,7 @@
 ⍝H      The cat is   here and It isn't here either
 ⍝H              isn't     AND
 ⍝H
-⍝H   f. NEXT ARG:  {} is equiv to {⍵⍵}, i.e. the next element in ⍵.
+⍝H   f. NEXT ARG field:  {} is equiv to {⍵⍵}, i.e. the next element in ⍵.
 ⍝H    - if no explicit {⍵NN} is specified, {} is {⍵0} {⍵1} ....
 ⍝H    - if {⍵10} is specified, {} to its right selects {⍵11};
 ⍝H      i.e. after {⍵N},  {} or {⍵⍵} refers to ⍵M, M=N+1.
