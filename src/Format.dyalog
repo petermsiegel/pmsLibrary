@@ -1,6 +1,6 @@
 :namespace Format
   ⍝ Set to 1 to suppress error trapping...
-    DEBUG←0
+    DEBUG←1
     ⎕FX '{msg}←_CSAY msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
     _CSAY 'DEBUG is active'
 
@@ -17,7 +17,8 @@
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
 
-⍝ ------ "STANDARD" UTILITIES
+⍝ ------ PMSLIB "STANDARD" UTILITIES
+    :Section PMSLIB
      ⍝ ∆F:  Find a pcre field by name or field number
       ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
           def←'' ⋄ isN←0≠⍬⍴0⍴⍵
@@ -66,6 +67,21 @@
   ⍝ ∆XRL: Execute and Replace Locally
     ∆XRL←⎕THIS∘∆XR
 
+    ⍝ ⍺ Join ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
+      Join←{
+          RH RW←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
+          LH LW←⍴left←⎕FMT ⍺ ⋄ CH←LH⌈RH
+          (CH LW↑left),(CH RW↑right)
+      }
+    ⍝ ⍺ Over ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ OVER (ON TOP OF) ⍵, adding COLUMNS to ⍺ or ⍵ as needed..
+      Over←{
+          UH UW←⍴upper←⎕FMT ⍺ ⋄ 0=≢⍵:upper
+          LH LW←⍴lower←⎕FMT ⍵ ⋄ CW←UW⌈LW
+          UW<LW:(ctr⌽UH LW↑upper)⍪lower⊣ctr←⌈0.5×UW-LW
+          upper⍪(ctr⌽LH UW↑lower)⊣ctr←⌈0.5×LW-UW
+      }
+ :EndSection PMSLIB
+
   ⍝ Pseudo-format strings specs:
   ⍝     Strings of the form {specs: expression}
   ⍝ In place of APL  ('specs' ⎕FMT expression), we have shorthand
@@ -82,11 +98,11 @@
   ⍝    Rnn: obj on right, padded on left to with nn.   Ditto.
   ⍝    Cnn: obj centered.                              Ditto.
     _fmtQts←'⍞' '<>'  '⊂⊃' '⎕' '¨'
-    _fmtQuoters←¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
-    _uptoColonP←'[^ : ⍎_FQ ]+'~' '  ⊣ _FQ←∊_fmtQts      ⍝ quotes are valid only within _fmtQuoters above.
-    fmtP←'(?xi) ^ (?|  ( (?: [^":]+ | :{1} | "[^"]*"      )+? )  ( :{2}      )  (.*)  '     ⍝ Date-time code
-    fmtP,←'         |  ( (?: ⍎_fmtQuoters  | ⍎_uptoColonP )*? )  ( :{1} (?!:))  (.*)  '     ⍝ ⎕FMT code
-    fmtP,←'         |  (                                      )  (           )  (.*)  '     ⍝ Simple code
+    _fmtQuoteStrP←¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
+    _fmtOrdCharP←'[^ : ⍎_FQ ]'~' '  ⊣ _FQ←∊_fmtQts      ⍝ quotes are valid only within _fmtQuoters above.
+    fmtP←'(?xi) ^ (?|   ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '     ⍝ Date-time code
+    fmtP,←'         |   ( (?: ⍎_fmtQuoteStrP | ⍎_fmtOrdCharP++ )*+)  ( :{1} (?!:))  (.*+)  '     ⍝ ⎕FMT code
+    fmtP,←'         |   (                                         )  (           )  (.*+)  '     ⍝ Simple code
     fmtP,←'       ) $'
     fmtP←∆XRL fmtP
 
@@ -94,33 +110,22 @@
       ProcEscapes←{
           '\\(\{)' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
       }
-    ⍝ Join ⍺ and ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to left of ⍵, adding rows to ⍺ or ⍵ as needed..
-      Join←{
-          RH RW←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
-          LH LW←⍴left←⎕FMT ⍺ ⋄ CH←LH⌈RH
-          (CH LW↑left),(CH RW↑right)
-      }
-      Over←{
-          UH UW←⍴upper←⎕FMT ⍺ ⋄ 0=≢⍵:upper
-          LH LW←⍴lower←⎕FMT ⍵ ⋄ CW←UW⌈LW
-          UW<LW:(ctr⌽UH LW↑upper)⍪lower⊣ctr←⌈0.5×UW-LW
-          upper⍪(ctr⌽LH UW↑lower)⊣ctr←⌈0.5×LW-UW
-      }
+   
     ⍝ omega type ScanCode format_string
-    ⍝ Handle strings of the form   ⍵NN in format specs, strings within code, and code outside strings:
+    ⍝ Handle strings of the form <⍵NN, ⍺NN, ⍺⍺, ⍵⍵> in format specs, strings within code, and code outside strings:
     ⍝   type=0:  In format specs:  The value of (⍕NN⊃⍵) will be immediately interpolated into the spec (⎕IO=0).
     ⍝   type=1:  In code outside strings:  The code (⍵⊃⍨NN+⎕IO) will replace ⍵NN (⎕IO-independent).
     ⍝ If index N is out of range of alpha or omega, signals an index error.
-      ScanCode←{
+      ScanCode←{0=≢⍵: ⍵
           env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
-          '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2})' '(?|(⍵)⍵|(⍺)⍺)'⎕R{  ⍝ ⍵00 to ⍵99
+          '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2}|\1)'  ⎕R{  ⍝ ⍵00 to ⍵99 | ⍵⍵ | ⍺⍺
               case←⍵.PatternNum∘=
               case 0:CanonQuotes ⍵ ∆F 0     ⍝ Convert double quote sequences to single quote sequences...
-              case 1:⍵ ∆F 1                 ⍝ \⍵ istreated as char ⍵
-            ⍝ cases 2 3 together: ⍵3, ⍺3, ⍵⍵, ⍺⍺
-              k←'⍵'=f1←⍵ ∆F 1
-              f2←{0≠≢⍵:⍵ ⋄ ⍕1+env.index[k]}⍵ ∆F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
-              ix←env.index[k]←⍎f2 ⋄ alom←k⊃env.(alpha omega)
+              case 1:⍵ ∆F 1                 ⍝ \⍵ is treated as char ⍵
+            ⍝ case 2:                       ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
+              isW←'⍵'=f1←⍵ ∆F 1
+              f2←{(⊃⍵)∊'⍺⍵': ⍕1+env.index[isW]  ⋄  ⍵}⍵ ∆F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
+              ix←env.index[isW]←⍎f2 ⋄ alom←isW⊃env.(alpha omega)
               ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ∆F 0),' out of range'
               isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
               ⍕ix⊃alom
@@ -128,16 +133,17 @@
       }
 
   ⍝ CanonQuotes str:   "..." has " removed, handling internal DQs and SQs.
-    CanonQuotes←{DQ≠1↑⍵: ⍵ ⋄ SQ,SQ,⍨{⍵/⍨1+SQ=⍵}{⍵/⍨~(DQ,DQ)⍷⍵}1↓¯1↓⍵  }
+      CanonQuotes←{
+         DQ≠1↑⍵: ⍵ ⋄ SQ,SQ,⍨{⍵/⍨1+SQ=⍵}{⍵/⍨~(DQ,DQ)⍷⍵}1↓¯1↓⍵  
+      }
 
       ExecCode←{
           env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
           6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
         ⍝ Handle omegas
         ⍝ Find formatting prefix, if any
-          (pfx colons cod)←{
-              ~':'∊cod: '' '' ⍵
-              fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
+          (pfx colons cod)←{   ⍝ Speeds up ⎕R when no : exists at all!
+              ':'(~∊)cod:'' ''⍵  ⋄ fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
           }cod
      
           pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
@@ -146,18 +152,21 @@
         ⍝ Spacing / Justification
         ⍝ Get special specification, if any:
         ⍝     (noTrunc=0):  Lnn, Cnn, Rnn   (noTrunc=1): lnn, cnn, rnn
-        ⍝ Set locals: lcr, pfc, pad, noTrunc
+        ⍝ Set locals: pfx; lcr, pad, noTrunc
           lcr pad noTrunc←' ' 0 1
           pfx←'^(?i)([LCR])(\d+),?'⎕R{f1 f2←⍵ ∆F¨1 2
               ''⊣pad∘←⍎f2⊣noTrunc∘←f1≡lcr∘←1 ⎕C f1
           }pfx
      
-        ⍝ Apply standard Dyalog ⎕FMT dyadically, if a prefix is presented, else monadically...
-        ⍝ ... to the value of executing <cod> in the caller environment!
-        ⍝ If 2 colons, format a date-time (1200⌶), removing extra blanks...
-        ⍝ Else use standard ⎕FMT
+        ⍝ Format codestring <cod> executed according to three formatting options...
+        ⍝ 1] If prefix <pfx> is null or all blanks
+        ⍝    and there is one colon,   call:   ⎕FMT cod
+        ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝ Format cod in the ISO std date-time format.
+        ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
+        ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
           val←pfx(2=≢colons){pfx isDT←⍺
-              0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT pfx(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
+              pfx←pfx{0≠≢⍵: ⍺ ⋄ isDT:   '%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
+              0=≢pfx:⎕FMT ⍵   ⋄ isDT:0 1↓0 ¯1↓⎕FMT pfx(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
           }{
               0=≢⍵:'' ⋄ env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
           }cod
@@ -170,15 +179,17 @@
           lcr='L':pad↑[1]val ⋄ lcr='R':(-pad)↑[1]val ⋄ pad↑[1](-⌊0.5×wid+pad)↑[1]val
       }
 
-    ⍝ ========= MAIN ∆FMT Formatting Function
+      ⍝ ========= MAIN ∆FMT Formatting Function
       ⍝ ∆FMT - Major formatting patterns:
       ⍝    ...P the pattern, ...C the pattern number
       ⍝ Braces: Embedded balanced braces are allowed, as are quoted strings (extended to double-quoted strings).
-    nextFC←0⊣nextFP←'\{\h*\}'                     ⍝ Next Omega.
-    endFC←1⊣endFP←'⋄|\{\h*[⍬:]\h*\}'              ⍝ End of Field. This optimizes. The <codeFP> path has the same result, just slower.
-    codeFC←2⊣codeFP←GenBalanced '{}'              ⍝ Code field.
-    textFC←3⊣textFP←'(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
-
+      addPat←{_patNum+←1 ⋄ fmtPats,←⊂⍵ ⋄ 1: fmtNums,←⍎⍺,'∘←_patNum' } 
+      fmtPats←fmtNums←⍬ ⋄ _patNum←¯1
+      'nextFC' addPat '\{\h*\}'                     ⍝ Next Omega.
+      'endFC'  addPat  '⋄|\{\h*[⍬:]\h*\}'           ⍝ End of Field. 
+      'codeFC' addPat GenBalanced '{}'              ⍝ Code field.
+      'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
+      
     ⍝ Main user function ∆FMT
     ∇ text←{leftArgs}∆FMT rightArgs;env;_
       :Trap 0⍴⍨~DEBUG
@@ -191,13 +202,13 @@
            ⋄ env.omega←1↓rightArgs←⊆rightArgs
            ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
      
-          _←nextFP endFP codeFP textFP ⎕S{
+          _←fmtPats ⎕S{
               case←⍵.PatternNum∘= ⋄ f0←⍵ ∆F 0
               case textFC:0⍴text∘←text Join ProcEscapes f0          ⍝ Any text except {...} or ⋄
               case codeFC:0⍴text∘←text Join env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
               case nextFC:0⍴text∘←text Join env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
               case endFC:⍬                                          ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
-              ⎕SIGNAL/'∆FMT: Unreachable stmt.' 11
+              11 ⎕SIGNAL⍨'∆FMT: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
           }⊣⊃rightArgs
           text←,⍣(1=≢text)⊣text     ⍝ 1 row matrix quietly converted to a vector...
       :Else
@@ -214,15 +225,14 @@
   ⍝ Add ⎕THIS to ⎕PATH cleanly and exactly once (if not already present).
     ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
     _CSAY (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
-
-
   ⍝ Delete underscore-prefixed vars (those not used at runtime)
-    _←' '~⍨¨↓'_' ⎕NL _←2 3 4
+    _←' '~⍨¨↓'_' ⎕NL 2 3 4
     _CSAY 'Deleting temp objects:',∊' ',¨_
     _CSAY 'Format namespace being fixed as ',⍕⎕THIS
-    ⎕EX¨_
-
-
+    _←0 ⎕EXPORT ⎕NL 3 4
+    _←1 ⎕EXPORT ↑'∆FMT' '∆XR' 'Join' 'Over'  
+    _CSAY 'Exporting fns/ops:',∊' ',¨' '~⍨¨↓{(0≠⎕EXPORT ⍵)⌿⍵}⎕NL 3 4  
+    ⎕EX '_' ⎕NL 2 3 4
 
     :Section Documentation
 ⍝H ∆FMT - a modest Python-like APL Array-Oriented Format Function
@@ -269,16 +279,18 @@
 ⍝H
 ⍝H   b. ⎕FMT CODE field: {[LCR,]prefix: code}      See also c. TIME CODE field.
 ⍝H      executes <code> and then formats it as (prefix ⎕FMT value).
-⍝H      prefix: any valid ⎕FMT specification,
+⍝H      prefix: any valid ⎕FMT specification (null or blank specifications are quietly ignored).
 ⍝H         An LCR specification may be the first or only specification.
 ⍝H         1. LCR specification:
 ⍝H             The first "field" may be [no truncate] Lnn, Rnn, or Cnn; or
 ⍝H                                      [truncate ok] lnn, rnn, or cnn.
-⍝H             L, C, or R may pad the associated field, but will not truncate, even if the field is wider than <nn> characters.
-⍝H             l, c, or r will either pad or truncate, depending on whether the calculated field is wider or narrower than <nn> characters.
+⍝H             L, C, or R may pad the associated field, but will NEVER truncate, 
+⍝H                    even if the field is wider than <nn> characters.
+⍝H             l, c, or r will either pad or truncate, depending
+⍝H                    on whether the calculated field is wider or narrower than <nn> characters.
 ⍝H             Example:
 ⍝H             ⍝  Delay five seconds, truncating  the result (LEFT) or displaying the result (RIGHT).
-⍝H                ∆FMT '<{l0:⎕DL 0.2}>'                 ∆FMT '<{L0:⎕DL 0.2}>'  ⍝ Note: the L0 is superfluous.
+⍝H                ∆FMT '<{l0:⎕DL 0.2}>'                 ∆FMT '<{L0:⎕DL 0.2}>'  ⍝ Equiv to {⎕DL 0.2}, w/o superfluous L0.
 ⍝H             <>                                    <0.202345>
 ⍝H             L/l- object on left side, padded on right.
 ⍝H               L20: Pad a left-anchored object on right to 20 chars. Do not truncate.
@@ -325,7 +337,7 @@
 ⍝H
 ⍝H      Code fields may be arbitrarily complicated. Only the first "prefix:" specification
 ⍝H      is special:
-⍝H      Example:
+⍝H      Example (see DATE-TIME CODE fields for a better approach):
 ⍝H         ∆FMT 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
@@ -335,10 +347,12 @@
 ⍝H      then this returns the timestamp formatted according to the time_spec.
 ⍝H      - If a single timestamp is passed, a single string is returned by I-Beam 1200 in enclosed form;
 ⍝H        it is disclosed automatically (i.e. is treated as a regular string).
-⍝H      - Restriction: Because of how ∆FMT parses, two or more contiguous colons must be double-quoted "::".
-⍝H        A single colon will be interpreted correctly.
+⍝H      - If the time_spec is blank, it is treated as '%ISO' and not ignored (See ⎕FMT Code fields, which differ).
+⍝H      - Restriction: Because of how ∆FMT parses, two or more contiguous colons within a specificatin
+⍝H        must be double-quoted "::". A single colon will be interpreted correctly, whether quoted or not.
+⍝H           Good: {tt"::"mm:ss:: now}     Bad: {tt::mm:ss:: now}
 ⍝H
-⍝H      Example
+⍝H      Examples
 ⍝H          now← 1 ⎕DT  ⊂⎕TS
 ⍝H          ∆FMT '<{%ISO%::now}>'
 ⍝H      <2020-09-10T15:34:48>
@@ -349,13 +363,19 @@
 ⍝H          ∆FMT '{tt::mm:ss:: now} {F12.6:now}'
 ⍝H      VALUE ERROR: Undefined name: mm
 ⍝H          t1 t2 t3←{⎕TS⊣⎕DL 1+?0}¨1 2 3
-⍝H          ∆FMT'{I1,⊂. ⊃:1+⍳≢⍵}{%ISO%::1 ⎕DT ⍪⍵ }' t1 t2 t3
+⍝H      More Examples
+⍝H          ∆FMT'{I1,⊂. ⊃:⍵⍵}{%ISO%::1 ⎕DT ⍪⍵ }' (1 2 3) t1 t2 t3    ⍝ Explicit ISO-formatted DATE-TIME
 ⍝H      1. 2020-09-10T18:30:18
 ⍝H      2. 2020-09-10T18:30:19
 ⍝H      3. 2020-09-10T18:30:21
+⍝H      ⍝  Presenting a null DATE-TIME specification {::tt}          ⍝ Default ISO-formatted DATE-TIME
+⍝H          tt← ⍪0 0.111+1 ⎕DT ⊂ 2020 9 11 23 13 36 136 
+⍝H          ∆FMT '{::tt}'
+⍝H      2020-09-11T23:13:36
+⍝H      2020-09-12T01:53:26
 ⍝H
-⍝H   d. BLANK: {Lnn:}
-⍝H      Create a field nn blanks wide, where nn is a non-negative integer.
+⍝H   d. BLANK field: {Lnn:}
+⍝H      Create a field nn blanks wide, with no other text, where nn is a non-negative integer.
 ⍝H      Only these cases are allowed: {Lnn:} | {Cnn:} | {Rnn:}. All are equivalent.
 ⍝H      E.g. to insert 10 blanks between fields:  {L10:}.
 ⍝H
