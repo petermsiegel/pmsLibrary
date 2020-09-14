@@ -17,7 +17,7 @@
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
 
-⍝ ------ PMSLIB "STANDARD" UTILITIES
+⍝ ------ PMSLIB "STANDARD" UTILITIES (could be in common utility file)
     :Section PMSLIB
      ⍝ ∆F:  Find a pcre field by name or field number
       ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
@@ -31,37 +31,40 @@
     ⍝  (Default) Recursive, matches balanced delimiters, skipping embedded single-quoted or double-quoted strings.
     ⍝         skipping embedded SQ strings, DQ strings.
     ⍝         fails on unbalanced braces, e.g. a single left or right brace.
-      GenBalanced←{L R←'\',¨⍵
-          Nm←'bal',⍕bpCount_ ⋄ bpCount_+←1     ⍝ local N- unique pattern-internal name.
-          _p←'(?x)(?<'Nm'> 'L,CR
-          _p,←'      (?>    (?: \\['L''R'])+ | [^'L''R'\\"'']+      ',CR
-          _p,←'           | (?: "[^"]*"   )+ | (?: ''[^''\r\n]*'')+ ',CR
-          _p,←'           | (?&'Nm')*',CR
+    ⍝ Display to be easy to read ;-)
+      GenBalanced←{L R←⊂¨'\',¨⍵
+          N←⊂'bal',⍕bpCount_ ⋄ bpCount_+←1     ⍝ local N- unique pattern-internal name.
+          _p←'(?x) (?<N> ',CR
+          _p,←'L',CR
+          _p,←'      (?>    (?: \\.)+ | [^LR\\"'']+      ',CR  ⍝ Allow \L and \R
+          _p,←'           | (?: "[^"]*"   )+ | (?: ''[^'']*'')+ ',CR
+          _p,←'           | (?&N)*',CR
           _p,←'      )+',CR
-          _p,←R'  )'
-          ∊_p
+          _p,←'R   )'
+          ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p
       }
     bpCount_←1    ⍝ Use the ctr to generate a unique name balNNN for referencing inside the pattern.
 
   ⍝ ∆XR: Execute and Replace
-  ⍝      Replace names of the form ⍎XXX in a string with its executed value in the calling context (in string form)...
-  ⍝      XXX: An APL name, possibly preceded by any of ',∊'
-  ⍝      ⍺: caller_NS[=⊃⎕RSI]  [err=1] [count=25]
-  ⍝         caller_NS: Where to execute each expression found.  Default is caller env.
-  ⍝         error:     If 1 (default), signals an error if it can't make the requisite replacements.
+  ⍝      Replace names of the form ⍎XXX in a string with its executed value
+  ⍝      in the calling context (in string form)...
+  ⍝       XXX: An APL name, possibly preceded by any of ',∊'
+  ⍝       ⍺: caller_NS[=⊃⎕RSI]  [err=1] [count=25]
+  ⍝          caller_NS: Where to execute each expression found.  Default is caller env.
+  ⍝          error:    If 1 (default), signals an error if it can't make the requisite replacements.
   ⍝                    If 0, - if ⍎'my_str' failed, the vector 'my_str' is returned.
   ⍝                          - results of more than one line will be raveled.
   ⍝                          - if it exceeds count, returns current replacement (If a b c d e f←'⍎',¨'bcdefa', try with count of 5).
-  ⍝         count:     How many times to scan the ENTIRE string for replacements. Default is 25.
+  ⍝          count:     How many times to scan the ENTIRE string for replacements. Default is 25.
     XRCallE←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  ⋄  XRLoopE←'∆XR: looping on runaway replacement strings.'
     XRExecE←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         ⋄  XRFormE←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
       ∆XR←{⍺←⊃⎕RSI
-          caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller, err, cnt
+          caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller ns, err, cnt
           9≠⎕NC'caller':⎕SIGNAL∘11 XRCallE
-          CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⎕SIGNAL∘11 ⍵}
+          CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⍵ ⎕SIGNAL 11}
           cnt{cnt←⍺
               cnt≤0:⍵ CondErr XRLoopE
-              S←'⍎([,∊]?[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ∆F 1
+              S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ∆F 1
                   0::f1 CondErr XRExecE f1
                   1=≢r←⎕FMT caller.⍎f1:,r
                   (∊r,' ')CondErr XRFormE f1
@@ -139,9 +142,10 @@
     _p1←'(?ix) ^ (?<type> [LCR]) (?<wid> \d+)        (?<char> ⍎fmtQS?) ,?'
     _p2←'(?ix) ^ (?<type> [LCR]) (?<char> ⍎fmtQS?)  (?<wid> \d+)       ,?'
     padP←∆XRL¨_p1 _p2
-    ⍝ Special:   \⍎ \{  \n==>  ⍎ { \r (=CR).  (CR works as newline with APL ⎕FMT).
+
+    ⍝ Escapes: \{ \} \\n \n \⋄   ==>  { } \n CR ⋄    (CR=⎕UCS 13)
       ProcEscapes←{
-          '\\(\{)' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
+          '\\([{}])' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
       }
 
     ⍝ omega type ScanCode format_string
@@ -180,11 +184,9 @@
               ':'(~∊)cod:'' ''⍵ ⋄ fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
           }cod
      
-        ⍝ KLUDGE: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions.
-          pfx←fmtQS ⎕R{
-              f0←⍵ ∆F 0
-              f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0
-          }⊣pfx
+        ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
+        ⍝ See KLUDGE 2 below
+          pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ∆F 0}⊣pfx
      
           pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
           cod←env(1 ScanCode)cod              ⍝ 1:  isCode
@@ -204,15 +206,14 @@
         ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝ Format cod in the ISO std date-time format.
         ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
         ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
+        ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
           val←pfx(2=≢colons){pfx isDT←⍺
               pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
-              0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT pfx(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
-          }{
-              0=≢⍵:'' ⋄ env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
+              0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
+          }{0=≢⍵:''
+              env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
           }cod
-     
-        ⍝ Process L|C|R|l|c|r.  See Pad for details...
-          padType∊'lcrLCR':padChar(padWid Pad padType)val
+          padType∊'lcrLCR':padChar(padWid Pad padType)val  ⍝ Process L|C|R|l|c|r.  See Pad for details...
           val
       }
 
@@ -227,18 +228,16 @@
     'codeFC' addPat GenBalanced '{}'              ⍝ Code field.
     'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
 
-    ⍝ Main user function ∆FMT
+  ⍝ ∆FMT: Main user function
     ∇ text←{leftArgs}∆FMT rightArgs;env;_
       :Trap 0⍴⍨~DEBUG
           :If rightArgs≡⍬ ⋄ FORMAT_HELP ⋄ :Return ⋄ :EndIf
-     
           text←''
           env←⎕NS''   ⍝ fields: env.(caller alpha omega index)
            ⋄ env.caller←0⊃⎕RSI ⋄ isNum←{16::0 ⋄ ⍬⍴0⍴⍵}  ⍝ 16:: Handles namespace NONCE ERROR
            ⋄ env.alpha←,{⍵:⍬ ⋄ ⍺←leftArgs ⋄ 1<⍴⍴⍺:,⊂⍺ ⋄ ' '≡isNum ⍺:⊆⍺ ⋄ ⍺}900⌶⍬
            ⋄ env.omega←1↓rightArgs←⊆rightArgs
            ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
-     
           _←fmtPats ⎕S{
               case←⍵.PatternNum∘= ⋄ f0←⍵ ∆F 0
               case textFC:0⍴text∘←text Join ProcEscapes f0          ⍝ Any text except {...} or ⋄
@@ -264,15 +263,15 @@
     _CSAY (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
   ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←' '~⍨¨↓'_' ⎕NL 2 3 4
-    _CSAY 'Deleting temp objects:',∊' ',¨_
+    _CSAY (DEBUG⊃'Deleting' 'Maintaining'),' temp objects:',∊' ',¨_
     _CSAY 'Format namespace being fixed as ',⍕⎕THIS
     _←0 ⎕EXPORT ⎕NL 3 4
     _←1 ⎕EXPORT ↑'∆FMT' '∆XR' 'Join' 'Over'
     _CSAY 'Exporting fns/ops:',∊' ',¨' '~⍨¨↓{(0≠⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
-    ⎕EX '_' ⎕NL 2 3 4
+    ⎕EX⍣(0=DEBUG)⊣'_' ⎕NL 2 3 4
 
     :Section Documentation
-⍝H ∆FMT - a modest Python-like APL Array-Oriented Format Function
+⍝H ∆FMT - a modest APL Array-Oriented Format Function Reminiscent of format of Python or C++.
 ⍝H        formatting multi-dimensional objects, ⎕FMT-compatible numerical fields,
 ⍝H        and I-Beam 1200-compatible Date-Time objects.
 ⍝H
@@ -294,22 +293,22 @@
 ⍝H      These may appear one or more times within a Code field and are processed left to right.
 ⍝H
 ⍝H  Types of Fields:
-⍝H  type:    |    TEXT   |  SIMPLE |    ⎕FMT     |  DATE-TIME   | BLANK  |  END OF  |   NEXT ARG
-⍝H           |           |  CODEa  |    CODEb    |     CODEc    | CODEd  |  FIELD   |     CODEf
-⍝H  format:  | any\ntext | {code}  | {fmt:code}  |  {fmt::code} | {Lnn:} |    ⋄     | {}  {⍵⍵}  {⍺⍺}
+⍝H  type:    |    TEXT   |  SIMPLE |    ⎕FMT     |  DATE-TIME   | BLANK  | END OF  |   NEXT ARG
+⍝H           |           |  CODE a |   CODE b    |   CODE c     | CODE d | FIELD e |     CODE f
+⍝H  format:  | any\ntext | {code}  | {fmt:code}  |  {fmt::code} | {Lnn:} |    ⋄    | {}  {⍵⍵}  {⍺⍺}
 ⍝H
 ⍝H  Special chars in format specifications outside quoted strings:
-⍝H    Escaped chars:  \{  \\ \⋄   - Represented in output as { (left brace), \ (backslash) and ⋄ (lozenge).
-⍝H    Newlines        \n          - In TEXT fields or inside quotes within CODE fields.
-⍝H                                  \n is actually a CR char (Unicode 13), forcing a new APL line in ⎕FMT.
-⍝H    In ⎕FMT field quotes ⎕...⎕, ⊂...⊃, etc., an unbalanced brace { or } must be backslashed, due to limitations
-⍝H    in the parsing algorithm. No other characters should be backslashed.
+⍝H    ∘ Escaped chars:  \{  \\ \⋄   - Represented in output as { (left brace), \ (backslash) and ⋄ (lozenge).
+⍝H    ∘ Newlines        \n          - In TEXT fields or inside quotes within CODE fields or DATE-TIME specs.
+⍝H                                    \n is actually a CR char (Unicode 13), forcing a new APL line in ⎕FMT.
+⍝H    ∘ In ⎕FMT field quotes ⎕...⎕, ⊂...⊃, etc., a lone or unbalanced brace { or } must be backslashed, due to limitations
+⍝H      in the ∆FMT parsing algorithm. \ before other chars is treated as expected APL text.
 ⍝H    Example:
-⍝H    ⍝ Good                             ⍝ Bad!
-⍝H         ∆FMT'#1: {⊂\{⊃,I1,⎕\}⎕:⍳3}'     ∆FMT'#1: {⊂{⊃,I1,⎕\}⎕:⍳3}'
-⍝H    #1: {0}                            SYNTAX ERROR
-⍝H        {1}                              ∆FMT'#1: {⊂{⊃,I1,⎕\}⎕:⍳3}' 
-⍝H        {2}                              ∧
+⍝H    ⍝ Good: Single escaped brace  ⍝ Good: Balanced braces       ⍝ Bad! Single unescaped brace
+⍝H      ∆FMT'#1: {¨\{¨,I1:⍳3}'        ∆FMT'#1: {¨{¨,I1,¨}¨:⍳3}'     ∆FMT'#1: ¨{¨,I1:⍳3}'
+⍝H    #1: {0                        #1: {0}                         SYNTAX ERROR
+⍝H        {1                            {1}                           ∆FMT'#1: {⊂{⊃,I1:⍳3}'
+⍝H        {2                            {2}                           ∧
 ⍝H
 ⍝H Fields:
 ⍝H  1.  TEXT field: Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
@@ -381,9 +380,10 @@
 ⍝H                           9
 ⍝H                           6
 ⍝H
-⍝H      Code fields  may also contain double-quoted strings "like this" or single-quoted strings
-⍝H      entered ''like this'' which appears 'like this'. Valid: "A cat named ""Felix"" is ok!"
-⍝H      Quotes entered into other fields like TEXT fields are treated as ordinary text 
+⍝H      Code fields and Date-Time specifications may also contain double-quoted strings "like this"
+⍝H      or single-quoted strings entered ''like this'' which appears 'like this'.
+⍝H            Valid: "A cat named ""Felix"" is ok!"
+⍝H      Quotes entered into other fields like TEXT fields are treated as ordinary text
 ⍝H      and not processed in this way.
 ⍝H
 ⍝H      Example:
@@ -397,7 +397,7 @@
 ⍝H
 ⍝H      Code fields may be arbitrarily complicated. Only the first "prefix:" specification
 ⍝H      is special:
-⍝H      Example (see DATE-TIME CODE fields for a better approach):
+⍝H      Example (see DATE-TIME CODE fields for a ∆FMT-style approach):
 ⍝H         ∆FMT 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
@@ -405,12 +405,15 @@
 ⍝H      If time_spec is a specification for formatting dates and times via I-Beam (1200⌶)
 ⍝H      and timestamp is 1 or more timestamps of the form  (1 ⎕DT ⊂⎕TS) or (1 ⎕DT TS1 TS2 ...)
 ⍝H      then this returns the timestamp formatted according to the time_spec.
-⍝H      - If a single timestamp is passed, a single string is returned by I-Beam 1200 in enclosed form;
-⍝H        it is disclosed automatically (i.e. is treated as a regular string).
-⍝H      - If the time_spec is blank, it is treated as '%ISO' and not ignored (See ⎕FMT Code fields, which differ).
-⍝H      - Restriction: Because of how ∆FMT parses, two or more contiguous colons within a specificatin
+⍝H      - If a single timestamp is passed, a single enclosed string is returned by I-Beam 1200;
+⍝H        ∆FMT automatically discloses single timestamps  (i.e. adds no extra blanks).
+⍝H      - If the time_spec is blank, it is treated as '%ISO' and not ignored (contra I-Beam 1200's default).
+⍝H        (⎕FMT specifications, if provided, must not be blank).
+⍝H      - Restriction: Because of how ∆FMT parses, two or more contiguous colons within specification text
 ⍝H        must be double-quoted "::". A single colon will be interpreted correctly, whether quoted or not.
 ⍝H           Good: {tt"::"mm:ss:: now}     Bad: {tt::mm:ss:: now}
+⍝H      - According to the std I-Beam 1200, special chars must be enclosed in double quotes.
+⍝H        {, }, and \n are valid within such double-quotes. \n is treated as CR (⎕UCS 13).
 ⍝H
 ⍝H      Examples
 ⍝H          now← 1 ⎕DT  ⊂⎕TS
@@ -441,7 +444,7 @@
 ⍝H
 ⍝H   e: END OF FIELD (EOF): ⋄
 ⍝H      An unescaped lozenge ⋄ terminates the preceding field (if any).
-⍝H      Equivalents: Since {⍬} or {:} evaluates to an empty (0-width) field, they are synonyms for EOF.
+⍝H      Equivalents: Since {⍬} or {:} evaluates to an empty (0-width) field, they are synonyms for lozenge as EOF.
 ⍝H      Example:
 ⍝H          ∆FMT 'The cat ⋄is\nisn''t{⍬}here {:}and\nAND {"It isn''t here either"}'
 ⍝H      The cat is   here and It isn't here either
