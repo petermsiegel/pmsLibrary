@@ -106,7 +106,7 @@
 
       ∇{checked}←checkRequire
         :IF checked←0=⎕SE.⎕NC 'require'
-              ⎕SE.SALT.Load'pmsLibrary/src/Require -target=⎕SE'
+              ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
         :ENDIF
         :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣#.⎕PATH
               #.⎕PATH,⍨←'⎕SE '

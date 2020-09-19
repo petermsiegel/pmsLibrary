@@ -13,7 +13,8 @@
  ⍝           unless they include blanks
  ⍝ Note 2: An APL statement separator ⋄ will separate each specification from the next.
  ⍝         It may not appear in identifiers, even if quoted...
-
+     DEBUG←1
+     CALLER←⊃⎕RSI 
      ⎕IO←0
      Err←⎕SIGNAL∘11
 
@@ -59,6 +60,46 @@
      M3←∆R'(?xxi) ⍎∆ (⍎W)'
      A1 A2 A3←'\1\rfrom\l2\r\3\ras\r\4' '\1\rfrom\l3\r\4\ras\r\2' '\1\rfrom\r\ras\r'
 
+  source←⍵
+⍝ Capture options 
+⍝    -f: force, -r: root (envR←#), -s :⎕SE (envR←⎕SE), -q: quiet
+⍝    -e environment: envR, -l library: libS 
+   force envR libS quiet testS skip←0 CALLER  '⍙'  0 '[none]' 0
+
+   W WX←'([^\h]+)'  '((?:"[^"]*")+|(?:''[^'']*'')+|[^\h]+)'
+   noQ←{w1←⊃⍵ ⋄  w1(~∊)'''"': ⍵ ⋄ w←1↓¯1↓⍵ ⋄  w1='"': w/⍨~'""'⍷w⋄ w }
+⍝          0      1      2      3      4             5            6            7             8
+   matchP←'-f\b' '-r\b' '-s\b' '-q\b' ('-e\h+',W)  ('-l\h+',W)  ('-t\h+',WX)  '-[a-zA-Z]+'  '--'
+   source←matchP ⎕R {
+   cF cR cS cQ cE cL cT cOther cSkip←⍳9
+       skip: ⍵ ∆F 0
+       case←⍵.PatternNum∘=
+       case cF: ''⊣force∘←1       ⋄    case cR: ''⊣envR∘←#
+       case cS: ''⊣envR∘←⎕SE      ⋄    case cQ: ''⊣quiet←1
+       case cE: ''⊣envR∘←{envStr←⍵ 
+            0:: 11 ⎕SIGNAL⍨'Unable to validate environment: "','"',⍨envStr
+           ⎕← ns←CALLER.⎕NC envStr
+            ns=9: ⍎envStr CALLER.⎕NS ''  
+            ns=0: 11 ⎕SIGNAL⍨ 'Calling environment must already exist: "','"',⍨,envStr
+            11 ⎕SIGNAL⍨'Calling environment in use or invalid: "','"',⍨envStr
+       } ⍵ ∆F 1
+       case cL: ''⊣libS∘←⍵ ∆F 1   
+       case cT:''⊣testS∘←noQ ⍵ ∆F 1
+       case cSkip: ''⊣skip∘←1
+    ⍝  case cOther
+       11 ⎕SIGNAL⍨'Invalid option: "','"',⍨⍵ ∆F 0    ⍝ 6 or fall-through
+   }⍠('UCP' 1)⊣source
+
+     ns←envR.⎕NC libS
+     ~ns∊0 9: 11 ⎕SIGNAL⍨'Library name in use or invalid: ',(⍕envR),'.',libS
+     libExists←9=ns 
+   
+   _←DEBUG{~⍺:⍬
+     ⎕←'force=',⍕force ⋄ ⎕←'envR=',⍕envR
+     ⎕←'quiet=',⍕quiet ⋄ ⎕←'libS=',⍕libS ⋄ ⎕←'libExists=',⍕libExists
+     ⎕←'test string=¨',testS,'¨'
+     ⍬
+   }0
 ⍝ Decode each instruction "obj [from[ws] xxx[::]] [as yyy]" and process one by one.
-     ScanTokens M1 M2 M3 ⎕S A1 A2 A3⊣⊆⍵
+     ScanTokens M1 M2 M3 ⎕S A1 A2 A3⊣⊆source
  }

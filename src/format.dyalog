@@ -1,5 +1,5 @@
 :namespace Format
-  ⍝ Set to 1 to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
+  ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
     DEBUG←0
     :Section For Documentation, see Section "Documentation"
     ⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
@@ -77,7 +77,7 @@
               topHt topWid←⍴top←⎕FMT ⍺ ⋄ 0=≢⍵:top
               botHt botWid←⍴bottom←⎕FMT ⍵
               center←0.5×topWid-botWid
-              topWid<botWid:((⌈center)⌽topHt botWid↑top)⍪bottom 
+              topWid<botWid:((⌈center)⌽topHt botWid↑top)⍪bottom
               top⍪((⌈-center)⌽botHt topWid↑bottom)
           }
 

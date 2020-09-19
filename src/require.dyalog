@@ -511,16 +511,17 @@
   ⍝-------------------------------------------------------------------------------------
     callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
     succ←0=≢⊃⌽statusList
-  ⍝ outOpt=¯2: If successful, return null, 1 or 0; else signal error. 
-    succ∧outOpt=¯2:_←⍬
-  ⍝ outOpt=¯1 'b[oolean]'  Return 1 on success else 0
-    outOpt=¯1:succ
-    succ∧outOpt∊3:_←{⍵}TRACE(⊂libR),statusList     ⍝ outOpt 3 (SL):   SUCC: shy     (non-shy if debugOpt)
-    ⋄ outOpt∊3:0(⊂libR),statusList                 ⍝                FAIL: non-shy
-    succ∧outOpt∊2 0:libR                           ⍝ outOpt 2 (L):    SUCC: non_shy
+    outNullF outBoolF outShyF outLibF outStatusF outDefF←¯2 ¯1 3 2 1 0
+  ⍝ outOpt=outNullF: If successful, return null, 1 or 0; else signal error. 
+    succ∧outOpt∊outNullF:_←⍬
+  ⍝ outOpt=outBoolF 'b[oolean]'  Return 1 on success else 0
+    outOpt∊outBoolF:succ
+    succ∧outOpt∊outShyF:_←{⍵}TRACE(⊂libR),statusList              ⍝ outOpt 3 (SL):   SUCC: shy     (non-shy if debugOpt)
+    ⋄ outOpt∊outShyF:0(⊂libR),statusList                          ⍝                  FAIL: non-shy
+    succ∧outOpt∊outLibF outDefF:libR                              ⍝ outOpt 2 (L):    SUCC: non_shy
     ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-    ⋄ outOpt∊2:⎕SIGNAL/eCode1                      ⍝                FAIL: ⎕SIGNAL
-    succ∧outOpt∊1:_←{⍵}TRACE statusList            ⍝ outOpt 1|0 (S):  SUCC: shy     (non-shy if debugOpt)
-    ⋄ outOpt∊¯2 1 0:statusList                     ⍝                FAIL: non-shy
-    ⎕SIGNAL/('require DOMAIN ERROR: Invalid outOpt: ',⍕outOpt)11   ⍝ ~outOpt∊0 1 2 3
+    ⋄ outOpt∊outLibF:⎕SIGNAL/eCode1                               ⍝                  FAIL: ⎕SIGNAL
+    succ∧outOpt∊outStatusF:_←{⍵}TRACE statusList                  ⍝ outOpt 1|0 (S):  SUCC: shy     (non-shy if debugOpt)
+    ⋄ outOpt∊outNullF outStatusF outDefF:statusList               ⍝                FAIL: non-shy
+    ⎕SIGNAL/('require DOMAIN ERROR: Invalid outOpt: ',⍕outOpt)11  ⍝ ~outOpt∊0 1 2 3
 }
