@@ -1,9 +1,7 @@
-﻿ ns←opts ∆OPTS source
- ;findName;getNums;getString;setVar
- ;_;fpat;npat;pats;spat
- ;DEBUG;VALID_TYPES
+﻿ ∆OPTS←{opts source←⍺ ⍵
 
  DEBUG←0    ⍝ If 1, ⎕SIGNALs will not be trapped...
+ 0⍴⍨~DEBUG: ⎕SIGNAL/⎕DMX.(EM EN)
 
  ⍝H   ns ←  opts ∆OPTS source
  ⍝H   Descr: Processes <source> from left to right, scanning for options of two forms:
@@ -11,19 +9,19 @@
  ⍝H   For options of type 'F' (Flag)
  ⍝H      E.g. ('Flag' 1 'F') defines a flag named 'Flag' with a default of 1 (set).
  ⍝H      If -Flag is seen in Source, it sets ns.Flag←1.
- ⍝H      If -noFlag is seen, it sets ns.Flag←0.  
+ ⍝H      If -noFlag is seen, it sets ns.Flag←0.
  ⍝H   For an option <Option> of type 'S' (String) or 'N' (Numeric)
  ⍝H     E.g. ('Name' '' 'S') defines an option named 'Name' whose default is a null string which can be set to a string.
  ⍝H     E.g. ('Coord' ⎕NULL 'N') defines 'Coord' which can be defined as a numeric vector, but defaulting to ⎕NULL.
  ⍝H          If <Source> contains '-Coord 15 -24 12.3j¯45 -Name "Baton Rouge"'
  ⍝H          ns.Coord←15 ¯24 12.3J¯45 and ns.Name←'Baton Rouge'
- ⍝H     -Option num1 num2...   
+ ⍝H     -Option num1 num2...
  ⍝H     -Option "string one"  OR   -Option ''string #2''   OR  -option string3
- ⍝H        sets ns.Option ← value. 
+ ⍝H        sets ns.Option ← value.
  ⍝H        If Numeric, value will be a numeric vector (not a string).
  ⍝H        If String, value will have quotes (single or double) removed and adjusted for any APL-style internal doubling.
  ⍝H        If not quoted, a string value begins with the first non-blank char and ends at the last contiguous non-blank char.
- ⍝H  
+ ⍝H
  ⍝H   opts←(name1 def1 type1) ... (nameN defN typeN)
  ⍝H   nameN:   a name (to be preceded by a hyphen). Some names beginning with ∆ are reserved.
  ⍝H            A name may not begin with a digit.
@@ -52,7 +50,7 @@
  ⍝H     ns.∆VALUES   is the list of current values
  ⍝H     ns.∆DEFAULTS is the list of defaults for the names.
  ⍝H
- 
+
  ⍝   PMSLIB Utilities
  ⍝ ∆F:  Find a pcre field by name or field number
  ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
@@ -62,15 +60,15 @@
  }
  ⍝ End PMSLIB Utilities
 
-⍝ Initializations 
-  VALID_TYPES←'FSN'
+⍝ Initializations
+ VALID_TYPES←'FSN'
 ⍝ Patterns
-  numsP←'(?x) ^ \h* ((?<num> [-¯]? \.? \d [^\h]*) (\h+ (?&num))*)'
-  stringP←'(?x) ^ \h* ( (?:"[^"]*")+ | (?:''[^'']*'')+ | [^\h]+ )'
+ numsP←'(?x) ^ \h* ((?<num> [-¯]? \.? \d [^\h]*) (\h+ (?&num))*)'
+ stringP←'(?x) ^ \h* ( (?:"[^"]*")+ | (?:''[^'']*'')+ | [^\h]+ )'
 ⍝ Error msgs
-  optE←'Each option spec must include 3 items: name default type.'
-  unknownE←'Unknown option: -'
-  badNumE←'Invalid numeric option: -'
+ optE←'Each option spec must include 3 items: name default type.'
+ unknownE←'Unknown option: -'
+ badNumE←'Invalid numeric option: -'
 
  :Trap 0⍴⍨~DEBUG
       ⍝ Utilities
@@ -102,10 +100,10 @@
 
      ns←⎕NS'' ⋄ setVar←ns.{1:⍎⍺,'←⍵'}
 
-     optE ⎕SIGNAL 11/⍨0∊3=≢¨opts
+     0∊3=≢¨opts: optE ⎕SIGNAL 11
      ns.(∆NAMES ∆DEFAULTS ∆TYPES)←↓⍉↑opts
-     ns.∆NAMES setVar¨ns.∆DEFAULTS   ⍝ Set defaults
-      ⍝ Walk left to right through source string, looking for options and associated value tokens
+     _←ns.∆NAMES setVar¨ns.∆DEFAULTS   ⍝ Set defaults
+   ⍝ Walk left to right through source string, looking for options and associated value tokens
      ns.∆ARGS←{src←skipBlanks ⍵
          0=≢src:src
          '-'≠1↑src:src ⋄ src↓⍨←1
@@ -119,7 +117,6 @@
          11 ⎕SIGNAL⍨'∆OPTS: Invalid type: "','"',p⊃ns.∆TYPES
      }ns.∆SOURCE←source
      ns.∆VALUES←ns⍎¨ns.∆NAMES
- :Else
-     ⎕SIGNAL/⎕DMX.(EM EN)
- :EndTrap
+     ns
 ⍝∇⍣§./∆OPTSNew2.dyalog§0§ 2020 9 19 12 57 57 258 §ÅtSZK§0
+ }
