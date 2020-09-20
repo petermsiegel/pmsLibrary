@@ -3,8 +3,27 @@
  ;_;fpat;npat;pats;spat
  ;DEBUG;VALID_TYPES
 
- DEBUG←0    ⍝ If 1, ⎕SIGNALs will interrupt in place.
+ DEBUG←0    ⍝ If 1, ⎕SIGNALs will not be trapped...
 
+ ⍝H   ns ←  opts ∆OPTS source
+ ⍝H   Descr: Processes <source> from left to right, scanning for options of two forms:
+ ⍝H          -Flag or -Option value.
+ ⍝H   For options of type 'F' (Flag)
+ ⍝H      E.g. ('Flag' 1 'F') defines a flag named 'Flag' with a default of 1 (set).
+ ⍝H      If -Flag is seen in Source, it sets ns.Flag←1.
+ ⍝H      If -noFlag is seen, it sets ns.Flag←0.  
+ ⍝H   For an option <Option> of type 'S' (String) or 'N' (Numeric)
+ ⍝H     E.g. ('Name' '' 'S') defines an option named 'Name' whose default is a null string which can be set to a string.
+ ⍝H     E.g. ('Coord' ⎕NULL 'N') defines 'Coord' which can be defined as a numeric vector, but defaulting to ⎕NULL.
+ ⍝H          If <Source> contains '-Coord 15 -24 12.3j¯45 -Name "Baton Rouge"'
+ ⍝H          ns.Coord←15 ¯24 12.3J¯45 and ns.Name←'Baton Rouge'
+ ⍝H     -Option num1 num2...   
+ ⍝H     -Option "string one"  OR   -Option ''string #2''   OR  -option string3
+ ⍝H        sets ns.Option ← value. 
+ ⍝H        If Numeric, value will be a numeric vector (not a string).
+ ⍝H        If String, value will have quotes (single or double) removed and adjusted for any APL-style internal doubling.
+ ⍝H        If not quoted, a string value begins with the first non-blank char and ends at the last contiguous non-blank char.
+ ⍝H  
  ⍝H   opts←(name1 def1 type1) ... (nameN defN typeN)
  ⍝H   nameN:   a name (to be preceded by a hyphen). Some names beginning with ∆ are reserved.
  ⍝H            A name may not begin with a digit.
@@ -18,7 +37,14 @@
  ⍝H                          -Name John_Jacob            ns.Name←'John_Jacob'       any non-blank text '[^\s]+'
  ⍝H   Numeric 'N'            -Coord 25 -34 17.2 ¯.5      ns.Coord←25 ¯34 17.2 ¯.5   hyphen converted to high-minus
  ⍝H
- ⍝H   Returns a namespace
+ ⍝H  Sample <opts>
+ ⍝H           name    default  type                               flag -Debug:   ns.Debug←1
+ ⍝H           ↓       ↓        ↓                                  ↓    -noDebug: ns.Debug←0
+ ⍝H    opts← ('Nums'  (45 55)  'N')   ('Name'  'john smith' 'S')  ('Debug' 1 'F')   ('Alpha'  ⎕A 'S')
+ ⍝H
+ ⍝H -------------------------------------------------------------------------------------------------------
+ ⍝H
+ ⍝H   Returns a namespace <ns> with these elements...
  ⍝H     ns.Rainbow   gives the current value of option 'Rainbow' (default, if not otherwise set)
  ⍝H     ns.∆NAMES    is the list of names of options. These are sorted with longer names first.
  ⍝H     ns.∆ARGS     is the final string components that remain after all options removed...
@@ -26,15 +52,9 @@
  ⍝H     ns.∆VALUES   is the list of current values
  ⍝H     ns.∆DEFAULTS is the list of defaults for the names.
  ⍝H
- ⍝H  Sample <opts>
- ⍝H           name    default  type                               flag -Debug:   ns.Debug←1
- ⍝H           ↓       ↓        ↓                                  ↓    -noDebug: ns.Debug←0
- ⍝H    opts← ('Nums'  (45 55)  'N')   ('Name'  'john smith' 'S')  ('Debug' 1 'F')   ('Alpha'  ⎕A 'S')
-
+ 
  ⍝   PMSLIB Utilities
  ⍝ ∆F:  Find a pcre field by name or field number
-
-
  ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
      def←'' ⋄ isN←0≠⍬⍴0⍴⍵
      p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
@@ -42,15 +62,15 @@
  }
  ⍝ End PMSLIB Utilities
 
- VALID_TYPES←'FSN'
-
-    ⍝ Patterns
- numsP←'(?x) ^ \h* ((?<num> [-¯]? \.? \d [^\h]*) (\h+ (?&num))*)'
- stringP←'(?x) ^ \h* ( (?:"[^"]*")+ | (?:''[^'']*'')+ | [^\h]+ )'
-    ⍝ Error msgs
- optE←'Each option spec must include 3 items: name default type.'
- unknownE←'Unknown option: -'
- badNumE←'Invalid numeric option: -'
+⍝ Initializations 
+  VALID_TYPES←'FSN'
+⍝ Patterns
+  numsP←'(?x) ^ \h* ((?<num> [-¯]? \.? \d [^\h]*) (\h+ (?&num))*)'
+  stringP←'(?x) ^ \h* ( (?:"[^"]*")+ | (?:''[^'']*'')+ | [^\h]+ )'
+⍝ Error msgs
+  optE←'Each option spec must include 3 items: name default type.'
+  unknownE←'Unknown option: -'
+  badNumE←'Invalid numeric option: -'
 
  :Trap 0⍴⍨~DEBUG
       ⍝ Utilities
