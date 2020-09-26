@@ -1,9 +1,9 @@
 ﻿ ∆OPTS←{
  ⍝ If no left arg, provides HELP information...
  ⍝ See ⍝H prefixed lines below for HELP info.
-     0=⎕NC'⍺':⎕ED⍠('ReadOnly' 1)&'__∆OPTS_HELP'⊣__∆OPTS_HELP∘←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨1↓¨⍵}⎕NR'∆OPTS'
+     Help←{⎕ED⍠('ReadOnly' 1)&'__∆OPTS_HELP'⊣__∆OPTS_HELP∘←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨1↓¨⍵}⎕NR ⍵}
+     0=⎕NC'⍺':Help '∆OPTS'
 
-     opts source←⍺ ⍵
      DEBUG←0    ⍝ If 1, ⎕SIGNALs will not be trapped...
      0⍴⍨~DEBUG:⎕SIGNAL/⎕DMX.(EM EN)
 
@@ -17,14 +17,16 @@
    ⍝ End PMSLIB Utilities
 
 ⍝ Initializations
-     VALID_TYPES←'FSNA'
    ⍝ Patterns
      numsP←'(?x) ^ \h* ((?<num> [-¯]? \.? \d [^\h]*) (\h+ (?&num))*)'
      stringP←'(?x) ^ \h* ( (?:"[^"]*")+ | (?:''[^'']*'')+ | [^\h]+ )'
    ⍝ Error msgs
-     optE←'Each option spec must include 3 items: name default type.'
-     unknownE←'Unknown option: -'
+     badSpecE←'Each option spec must include 3 items: name default type.'
+     badOptE←'Unknown option: -'
      badNumE←'Invalid numeric option: -'
+     badPrefixE←'∆OPTS: un- or no- prefix invalid with non-flag option: -'
+     badTypeE←'∆OPTS: unknown type specified for option: -'
+     
 
 ⍝ Utilities
      getNums←{nm←⍺ ⋄ src←⍵ ⋄ numStr←''
@@ -38,17 +40,14 @@
          deQuote←{f←⊃⍵ ⋄ f(~∊)SQ DQ:⍵ ⋄ w←1↓¯1↓⍵ ⋄ f∊SQ:w ⋄ w/⍨~(DQ DQ)⍷w}
          str(stringP ⎕R{''⊣str∘←deQuote ⍵ ∆F 1}⊣src)
      }
-    findName←{ns←⍺ ⋄ nm←⍵ ⋄ nmsFull←ns.∆NAMES ⋄ inRange←<∘(≢nmsFull)
-         resolve← {ns←⍺ ⋄ p v←⍵ 
-         ⋄ 'A'=p⊃ns.∆TYPES: ns findName (p⊃ns.∆DEFAULTS)  ⋄ p v}
-         1{ ⍺←0 ⋄ nms←⍵     ⍝ ⍺=1: 1 full names, ⍺=0: abbrevs
-            p←nms⍳⊂nm
-            inRange p : ns resolve p 1
-            ⍺∧noMore←'no'≢2↑nm: ∇ (≢nm)↑¨nms ⋄ noMore: 11 ⎕SIGNAL⍨unknownE,nm
-          ⍝ -noXXX valid only with flags (type F) or aliases (type A).
-            p←nms⍳⊂nm2←2↓nm ⋄ {⍵:'FA'∊⍨p⊃ns.∆TYPES ⋄ 0}inRange p:  ns resolve p 0    
-            ⍺: ∇ (≢nm2)↑¨nms ⋄ 11 ⎕SIGNAL⍨unknownE,nm
-         }nmsFull 
+     findName←{ns←⍺ ⋄ nm←⍵ ⋄ nms←ns.∆NAMES ⋄ A0 A1←ns.∆ALIAS ⋄ L←≢A0 
+          ⍝ getP ⍵: Find ⍵ in ∆ALIAS (option name, else alias). Try [1] as full name, then [2] as abbrev.   
+          ⍝ ¯1: option not found
+            p pn←{ L≤p←(≢⍵){ p←A0⍳⍵ ⋄  p<L: p ⋄ (⍺↑¨A0)⍳⍵}⊂⍵: ¯1 ⋄ p⊃A1}¨nm (2↓nm)
+            ¯1≠p:  p 1 
+          ⍝ -noFlag, -unFlag are synonymous. Possible only with 'F' (flag) option, but not trapped here.
+            'no' 'un'(~∊⍨)⊂2↑nm: 11 ⎕SIGNAL⍨badTypeE,nm    ⍝ Not un- or no- prefix on option.
+            ¯1≠pn: pn 0       ⋄  11 ⎕SIGNAL⍨badOptE,nm     ⍝ Was an option found with un- or no- prefix?
      }
      is←{(,⍺)≡,⍵}
      in←{(⊂⍺)∊⊆⍵}
@@ -57,26 +56,31 @@
    ⍝ -------------------------------------------------------
    ⍝ EXECUTIVE
    ⍝ -------------------------------------------------------
-     ns←#.⎕NS'' ⋄ _←ns.⎕DF '[∆OPTS]' ⋄ setVar←ns.{1:⍎⍺,'←⍵'}
-     0∊3=≢¨opts:optE ⎕SIGNAL 11
-     ns.(∆NAMES ∆DEFAULTS ∆TYPES)←↓⍉↑opts ⋄ ns.∆NAMES←,¨ns.∆NAMES
+     opts source←⍺ ⍵
+     ns←#.⎕NS'' ⋄ _←ns.⎕DF '[∆OPTS]' 
+     setVar←ns.{1:⍎⍺,'←⍵'}
+
+     0∊3=≢¨opts: badSpecE ⎕SIGNAL 11
+     (ns.∆ALIAS opts)←{  ⍝ Map aliases onto index of options, else ¯1
+       (⊃¨O)←,∘⊃¨O←⍵ ⋄ A1←A2←0⊃¨O ⋄ a←'A'=2⊃¨O ⋄  L←≢O∆←(~a)/O ⋄ (a/A2)←a/1⊃¨O ⋄  A2←¯1@(L∘≤)⊣(0⊃¨O∆)⍳A2 
+       (A1 A2) O∆
+     }opts 
+     ns.(∆NAMES ∆DEFAULTS ∆TYPES)←↓⍉↑opts 
      _←ns.∆NAMES setVar¨ns.∆DEFAULTS   ⍝ Set defaults
    ⍝ Walk left to right through source string, looking for options and associated value tokens
-     ns.∆ARGS←{src←skipBlanks ⍵
+     ns.∆ARGS←skipBlanks{
+         src←skipBlanks ⍵
          0=≢src:src ⋄ '-'≠1↑src:src ⋄ src↓⍨←1
          nm←src↑⍨p←src⍳' ' ⋄ src↓⍨←p
          nm is'-':src                 ⍝ Flag '--' ends scan
          p flagV←ns findName nm  ⋄  nm←p⊃ns.∆NAMES
          case←(p⊃ns.∆TYPES)∘=
          case'F':∇ src⊣nm setVar flagV      ⍝ set var to 1 (-Opt) or 0 (-noOpt)
+         ~flagV: 11 ⎕SIGNAL⍨badPrefixE,nm 
          case'N':∇ src⊣nm setVar nums⊣nums src←nm getNums src
          case'S':∇ src⊣nm setVar str⊣str src←nm getString src
-         11 ⎕SIGNAL⍨'∆OPTS: Invalid type: "','"',p⊃ns.∆TYPES
-     }ns.∆SOURCE←source
-  ⍝  Suppress Aliases
-     keep←ns.∆TYPES≠'A'
-     ns.(∆NAMES ∆DEFAULTS ∆TYPES)←(⊂keep)/¨ns.(∆NAMES ∆DEFAULTS ∆TYPES) 
-     ns.∆VALUES←ns⍎¨ns.∆NAMES
+         11 ⎕SIGNAL⍨badTypeE,nm 
+     } ns.∆SOURCE←source
      1:ns
 
  ⍝    HELP INFORMATION
