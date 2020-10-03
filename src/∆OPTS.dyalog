@@ -1,6 +1,6 @@
 ﻿ ∆OPTS←{
-    DEBUG←0    ⍝ If 1, ⎕SIGNALs will not be trapped...
-    0⍴⍨~DEBUG:⎕SIGNAL/⎕DMX.(EM EN)
+    DEBUG←0   ⍝ If 1, ⎕SIGNALs will not be trapped. intermediate alias table ns.⍙ALIAS will be preserved.
+    0⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)
 
 ⍝ PMSLIB Utilities
   ⍝ ∆F:  Find a pcre field by name or field number
@@ -31,8 +31,9 @@
       ⎕ED⍠('ReadOnly' 1)&'__∆OPTS_HELP'⊣__∆OPTS_HELP∘←{3↓¨⍵/⍨(⊂'⍝H')≡¨2↑¨1↓¨⍵}⎕NR ⍵
     }
   ⍝ MapAliases:  (amap opts′)← ∇ opts
-  ⍝               amap: (A1@SV A2@IV), the map from aliases to indices to names.
-  ⍝ Map aliases in opts onto index of option names, else ¯1. Remove aliases now in amap from opts′.
+  ⍝               amap: (A1@SV A2@IV), the map from aliases to indices-to-names.
+  ⍝ Map each name in <opts>, aliases or otherwise,  onto an index pointing to an option name in ∆OPTS, else ¯1. 
+  ⍝ Aliases in opts are removed from opts′.
   ⍝ opts are canonicalized: names → vectors, aliases are removed.
     MapAliases←{  
       (⊃¨O)←,∘⊃¨O←⍵ ⋄ A1←A2←0⊃¨O ⋄ a←'A'=2⊃¨O ⋄  O∆←(~a)/O ⋄ (a/A2)←a/1⊃¨O ⋄  A2←(0⊃¨O∆)IotaN A2 
@@ -92,9 +93,9 @@
         case'SC':∇ src⊣nm SetVar str⊣str src←nm GetString src ⍝ GetString may grab a token or anything in "quotes" or 'quotes'.
         11 ⎕SIGNAL⍨badTypeE,nm 
      } ns.∆SOURCE←source
-     _←EvalCode ns.∆NAMES/⍨ns.∆TYPES='C'  
+     _←EvalCode ns.(∆NAMES/⍨∆TYPES='C')                      ⍝ Now execute code values (new or default) in the caller namespace.
      ns.(∆VALUES←⍎¨∆NAMES)                                   ⍝ Set value in ∆VALUES for each name in ∆NAMES. 
-     _←ns.⎕EX '⍙ALIAS'                                       ⍝  Done with alias table.
+     _←ns.⎕EX⍣(~DEBUG)⊣'⍙ALIAS'                              ⍝  Done with alias table.
      1: ns 
 
  ⍝H   ∆OPTS HELP INFORMARTION
@@ -122,7 +123,7 @@
  ⍝H                            -Name John_Jacob            ns.Name←'John_Jacob'       any non-blank text '[^\s]+'
  ⍝H     Numeric 'N'            -Coord 25 -34 17.2 ¯.5      ns.Coord←25 ¯34 17.2 ¯.5   hyphen converted to high-minus
  ⍝H     Alias   'A'            -Moniker "string"           ns.Name←"string"           options includes: ('Moniker' 'Name' 'A')
- ⍝H     Code    'C'            -Time ⎕TS                   ns.Time←⍎⎕TS               see footnote below.
+ ⍝H     Code    'C'            -Time ⎕TS                   ns.Time←⍎⎕TS               code sequence entered as a string
  ⍝H
  ⍝H  ALIAS: If an alias or its abbrev is found and used, it will update the fully-specified variable it resolves to.
  ⍝H  E.g. if -Moniker "fred" is seen in the source text, ns.Name←'fred', but no ns.Moniker is created.
@@ -192,5 +193,33 @@
  ⍝H    --  Option '-' is a special option that terminates option scanning. Everything following  
  ⍝H        -- or the last option is stored in ns.∆ARGS.
  ⍝H
+ ⍝H    
+ ⍝H     ---------------------------------------------------------------
+ ⍝H     EXAMPLE WITH DETAILS on aliases and ⍙ALIAS (requires DEBUG←1)
+ ⍝H     ---------------------------------------------------------------
+ ⍝H       o←('JACK' 'jack' 'A')('ALPH' 'alph' 'A')('PI' 'pi' 'A')('jack' 'Smith, Jack' 'S')('alph' '⎕A' 'C')('pi' (○1) 'N')
+ ⍝H       o  
+ ⍝H     ┌─────────────┬─────────────┬─────────┬────────────────────┬─────────────┬──────────────────┐
+ ⍝H     │┌────┬────┬─┐│┌────┬────┬─┐│┌──┬──┬─┐│┌────┬───────────┬─┐│┌────┬────┬─┐│┌──┬───────────┬─┐│
+ ⍝H     ││JACK│jack│A│││ALPH│alph│A│││PI│pi│A│││jack│Smith, Jack│S│││alph│ ⎕A │C│││pi│3.141592654│N││
+ ⍝H     │└────┴────┴─┘│└────┴────┴─┘│└──┴──┴─┘│└────┴───────────┴─┘│└────┴────┴─┘│└──┴───────────┴─┘│
+ ⍝H     └─────────────┴─────────────┴─────────┴────────────────────┴─────────────┴──────────────────┘
+ ⍝H           ns←o ∆OPTS '-AL "∊⍉2 13⍴⎕A"'   ⍝ Reset ns.alph from ⍎'⎕A' to ⍎'∊⍉2 13⍴⎕A'
+ ⍝H           ns.alph
+ ⍝H     ANBOCPDQERFSGTHUIVJWKXLYMZ
+ ⍝H
+ ⍝H  ⍝    ⍙ALIAS maps option aliases and names onto (indices to actual) option names
+ ⍝H           ns.⍙ALIAS   ⍝ ⍙ALIAS exists only if DEBUG is 1
+ ⍝H  ⍝    ∨---aliases                ∨--- indices to option names in ∆NAMES
+ ⍝H     ┌───────────────────────────┬───────────┐
+ ⍝H     │┌────┬────┬──┬────┬────┬──┐│0 1 2 0 1 2│
+ ⍝H     ││JACK│ALPH│PI│jack│alph│pi││           │
+ ⍝H     │└────┴────┴──┴────┴────┴──┘│           │
+ ⍝H     └───────────────────────────┴───────────┘  
+ ⍝H           ns.∆NAMES  
+ ⍝H     ┌────┬────┬──┐
+ ⍝H     │jack│alph│pi│
+ ⍝H     └────┴────┴──┘
+
 ⍝∇⍣§./∆OPTSNew2.dyalog§0§ 2020 9 19 12 57 57 258 §ÅtSZK§0
  }

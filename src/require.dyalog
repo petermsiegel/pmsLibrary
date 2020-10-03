@@ -5,6 +5,7 @@
   ⍝ Help info hardwired..
     HELP_FNAME←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/docs/require.help'
     DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (default or passed by user)
+ 
   ⍝ General Utilities used below
   ⍝ (These should be informational - general)
     getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
@@ -16,6 +17,7 @@
         _,←⊂'WSPATH:       ',getenv'WSPATH'
         ↑_
     }
+
     ⍝⍝⍝⍝ Utilities for copying and fixing objects:
     ⍝⍝⍝⍝ wsGetFix
     ⍝⍝⍝⍝ fileGetFix
@@ -23,7 +25,7 @@
       ⍝ objList@VS ← [objList](destNs wsGetFix) library
       ⍝ → [list]destNs.⎕CY library
       ⍝ Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
-        0::⍬⊣⎕←'Warning: Error ',⎕DMX.(DM,' ',Message),', Library="',library,'"'
+        0::⍬⊣⎕←'Warning: Error ',⎕DMX.(DM,' ',Message),', Library="','"',⍨library
         ⍺←⊢ ⋄ listIn←⍺ ⋄ destNs←⍺⍺ ⋄ library←⍵
         ⋄ old←⍬ newObjs destNs
         _←listIn destNs.⎕CY library     ⍝ listIn may be omitted...
@@ -39,6 +41,7 @@
         destNs fileId←⍺ ⍵
         2 destNs.⎕FIX'file://',fileId
     }
+
     ⍝ Miscellaneous utilities
     ⍝ and:         A and B 0  < dfns 'and', where A, B are code {} or binary
     ⍝ or:          A or  B 0  < dfns 'or',  ...
@@ -67,7 +70,6 @@
             _←' '(≠⊆⊢)⍵
             1 _ _
         }⍵
-
         scanOpts←{
           ⍝ Returns 1 only for -help; else 0.
             ⍵≥≢opts:0
