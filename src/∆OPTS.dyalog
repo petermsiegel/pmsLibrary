@@ -9,6 +9,8 @@
         p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
         B[O[p]+⍳L[p]]
     }
+    and←{⍺⍺⊣⍵:⍵⍵⊣⍵ ⋄ 0     }   ⍝ Unlike dfns.and, allows array args
+    or← {⍺⍺⊣⍵:1    ⋄ ⍵⍵ ⊣ ⍵}   ⍝ -ditto-
 ⍝ End PMSLIB Utilities
 
 ⍝ Initializations
