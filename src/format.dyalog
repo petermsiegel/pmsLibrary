@@ -1,6 +1,6 @@
 :namespace Format
   ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
-    DEBUG←0
+    DEBUG←0  ⋄  ÇR ← DEBUG/⎕UCS 13   ⍝ If DEBUG: ÇR makes complex patterns easy to read by adding CR's. Else null.
     :Section For Documentation, see Section "Documentation"
     ⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
     ⍝
@@ -14,6 +14,7 @@
     :Section PMSLIB
   ⍝  PMSLIB:  "STANDARD" UTILITIES (to be put in common file/namespace)
     :Namespace PMSLIB
+          ÇR ← ##.DEBUG/⎕UCS 13   
      ⍝ ∆F:  Find a pcre field by name or field number
           ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
               def←'' ⋄ isN←0≠⍬⍴0⍴⍵
@@ -26,14 +27,14 @@
     ⍝         skipping embedded SQ strings, DQ strings.
     ⍝         fails on unbalanced braces, e.g. a single left or right brace.
     ⍝ Display to be easy to read ;-)
-          GenBalanced←{L R←⊂¨'\',¨⍵ ⋄ CR←⎕UCS 13
+          GenBalanced←{L R←⊂¨'\',¨⍵  
               N←⊂'bal',⍕bpCount_ ⋄ bpCount_+←1    ⍝ local N- unique pat name in case several in use
-              _p←'(?x) (?<N> ',CR                                         ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
-              _p,←'L',CR                                                  ⍝ ∘ Match "{", then atomically 1 or more of:
-              _p,←'      (?>    (?: \\.)+ | [^LR\\"'']+      ',CR         ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
-              _p,←'           | (?: "[^"]*"   )+ | (?: ''[^'']*'')+ ',CR  ⍝     ∘ QT anything QT  OR
-              _p,←'           | (?&N)*',CR                                ⍝     ∘ bal1 {...} recursively 0 or more times
-              _p,←'      )+',CR                                           ⍝     ∘ Else submatch done. Finally,
+              _p←'(?x) (?<N> ',ÇR                                         ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
+              _p,←'L',ÇR                                                  ⍝ ∘ Match "{", then atomically 1 or more of:
+              _p,←'      (?>    (?: \\.)+ | [^LR\\"'']+      ',ÇR         ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
+              _p,←'           | (?: "[^"]*"   )+ | (?: ''[^'']*'')+ ',ÇR  ⍝     ∘ QT anything QT  OR
+              _p,←'           | (?&N)*',ÇR                                ⍝     ∘ bal1 {...} recursively 0 or more times
+              _p,←'      )+',ÇR                                           ⍝     ∘ Else submatch done. Finally,
               _p,←'R   )'                                                 ⍝ ∘ Match "}"
               ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p  ⍝ Repl. N with bal1 etc., L with \{, R with \}.
           }
@@ -136,12 +137,12 @@
     fmtQS← '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
   ⍝ Pretty-formatted to be easy-ish to read.
     _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQuoters above.
-    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  ',CR     ⍝ Date-time code
-    _f,←'          | ( (?: ⍎fmtQS |',CR
-    _f,←'                  ⍎_fmtNotQts++ )*+',CR
-    _f,←'            ) ',CR
-    _f,←'            ( :{1} (?!:))  (.*+)',CR                                                  ⍝ ⎕FMT code
-    _f,←'          | (                                         )  (           )  (.*+)  ',CR     ⍝ Simple code
+    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  ',ÇR     ⍝ Date-time code
+    _f,←'          | ( (?: ⍎fmtQS |',ÇR
+    _f,←'                  ⍎_fmtNotQts++ )*+',ÇR
+    _f,←'            ) ',ÇR
+    _f,←'            ( :{1} (?!:))  (.*+)',ÇR                                                  ⍝ ⎕FMT code
+    _f,←'          | (                                         )  (           )  (.*+)  ',ÇR     ⍝ Simple code
     _f,←'        ) $'
     fmtP←∆XRL _f
 

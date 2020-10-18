@@ -14,7 +14,8 @@
  ⍝     ⍠V  (default) or  ⍠S 
  ⍝       +Option V: return a [V] vector of character vectors
  ⍝        Option S: return a [S] string with LFs separating each line from the next 
- ⍝     Default are options B and V. 
+ ⍝
+ ⍝     Defaults are options B and V. 
  ⍝     To get option C, include ⍠C in a comment on the ∆HERE line, e.g.
  ⍝         myCode ← ∆HERE   ⍝ ⍠C  That selects option 0.  
  ⍝     Under both options C and B,
