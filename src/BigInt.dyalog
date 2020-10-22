@@ -1,7 +1,7 @@
 ﻿:namespace BigInt
  ⍝+++++  FOR HELP information, see :SECTION HELP_INTRO, followed by ⍝H comments throughout.
 
-:Section HELP_INTRO
+    :Section HELP_INTRO
   ⍝H   The BigInt Library
   ⍝H   operator:  BI           BigIntE ←   [⍺] +BI ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntE (external-format BigInt)"
   ⍝H   operator:  BII          BIgIntI ←   [⍺] +BII ⍵        "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntI (Internal BigInt)"
@@ -157,17 +157,17 @@
   ⍝H           TEN_BI ← +BI 10
   ⍝H         INTERNAL CONSTANTS (fast arrays found via their full namespace specification:
   ⍝H           BI_LIB.( zero_BI one_BI two_BI minus1_BI ten_BI)
-  :EndSection HELP_INTRO
-  
-  :Section BI
-  :Section PREAMBLE
+    :EndSection HELP_INTRO
+
+    :Section BI
+    :Section PREAMBLE
     DEBUG←1               ⍝ Set DEBUG here.
     ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28
     ⎕FR←645
     err←11∘(⎕SIGNAL⍨)
-  :EndSection PREAMBLE
+    :EndSection PREAMBLE
 
-  :Section Namespace and Utility Initializations
+    :Section Namespace and Utility Initializations
   ⍝+------------------------------------------------------------------------------+⍝
   ⍝+-- BI INITIALIZATIONS                            BI INITIALIZATIONS         --+⍝
   ⍝-------------------------------------------------------------------------------+⍝
@@ -185,7 +185,7 @@
     zero_D ←  ,0                                         ⍝ data field ZERO, i.e. unsigned canonical ZERO
     one_D  ←  ,1                                         ⍝ data field ONE, i.e. unsigned canonical ONE
     two_D  ←  ,2                                         ⍝ data field TWO
-    ten_D  ← ,10  
+    ten_D  ← ,10
 
   ⍝ BigInt Internal CONSTANTS for users and utilities.
     zero_BI   ←   0 zero_D                               ⍝  0
@@ -216,16 +216,16 @@
     eSQRT    ←'sqrt: arg must be non-negative'
     eSUB←'bigInt subU: unsigned subtraction may not become negative'
 
-  :EndSection Namespace and Utility Initializations
+    :EndSection Namespace and Utility Initializations
 
-  :Section Executive
+    :Section Executive
     ∇ BI_HELP;⎕PW
      ⍝ extern: HELP_INFO
       :If 0=⎕NC'HELP_INFO' ⋄ HELP_INFO←'^\h*⍝H(.*)$'⎕S'\1'⎕SRC ⎕THIS ⋄ :EndIf
       ⎕PW←120 ⋄ (⎕ED⍠'ReadOnly' 1)&'HELP_INFO'
     ∇
     ⍝ --------------------------------------------------------------------------------------------------
-    ⍝ monadFnsList, dyadFnsList - required for BIC to function, so keep the lists complete! 
+    ⍝ monadFnsList, dyadFnsList - required for BIC to function, so keep the lists complete!
     ⍝    @(S SV):  [0] single-char symbols [1] multi-char names in upper case
     monadFnsList←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳'('SQRT' 'NOT' '⎕AT')
     ⍝             reg. fns            boolean               <use upper case here>
@@ -347,13 +347,13 @@
     ⍝ Build BI and BII from __BI_SOURCE__.
     ⍝ BI:   Change _EXPORT_ to "export", __BI__SOURCE__ to "BI".
     ⍝ BII:  Change _EXPORT_ or _EXPORT_¨ to "", __BI__SOURCE__ to "BII".
-      ⎕FX'__BI_SOURCE__' '_EXPORT_'  ⎕R 'BI'  'export'⊣⎕NR'__BI_SOURCE__'
-      ⎕FX'__BI_SOURCE__' '_EXPORT_¨?'⎕R 'BII' ''      ⊣⎕NR'__BI_SOURCE__'
-      ___←⎕EX '__BI_SOURCE__'
-  :EndSection BI Executive
+    ⎕FX'__BI_SOURCE__' '_EXPORT_'  ⎕R 'BI'  'export'⊣⎕NR'__BI_SOURCE__'
+    ⎕FX'__BI_SOURCE__' '_EXPORT_¨?'⎕R 'BII' ''      ⊣⎕NR'__BI_SOURCE__'
+    ___←⎕EX '__BI_SOURCE__'
+    :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
 
-  :Section BigInt internal structure
+    :Section BigInt internal structure
       ⍝ ============================================
       ⍝ import / imp / ∆ - Import to internal bigInteger
       ⍝ ============================================
@@ -403,8 +403,8 @@
           type∊5 7:importFloat ⍵
           err eIMPORT
       }
-      ∆←importFast
-      imp←import  ⍝ external alias...
+    ∆←importFast
+    imp←import  ⍝ external alias...
 
       ⍝ importInt:    ∇ ⍵:I[1]
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
@@ -450,7 +450,7 @@
     exp←export
 
 
-  :EndSection BigInt internal structure
+    :EndSection BigInt internal structure
 ⍝ --------------------------------------------------------------------------------------------------
 
      ⍝ gen_Fast_for_Internal_Use (monadic and dyadic)
@@ -462,7 +462,7 @@
       fn←⎕FX fnInP check2P check1P ⎕R fnOutA noCheck2A noCheck1A⍠opts⊣⎕NR fn
     ∇
 
-  :Section BI Monadic Operations/Functions
+    :Section BI Monadic Operations/Functions
     ⍝H
     ⍝H BI Monadic Internal Functions
     ⍝H             Does Arg                  Requires BigInt     Requires Special Args
@@ -641,7 +641,7 @@
           }N
         ⍝ Refine x, aka ⍵, until y > x
         ⍝ All unsigned here
-          {   x←⍵
+          {x←⍵
               y←(x addU N quotientU x)quotientU rdx    ⍝ y is next guess: y←⌊((x+⌊(N÷x))÷nth)
               ≥cmp y mix x:1(,x)
               ∇ y                              ⍝ y is smaller than ⍵. Make x ← y and try another.
@@ -654,10 +654,10 @@
   ⍝ recip:  ÷⍵ ←→ 1÷⍵ Almost useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
     recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzRun ⍵}
 
-  :Endsection BI Monadic Functions/Operations
+    :Endsection BI Monadic Functions/Operations
 ⍝ --------------------------------------------------------------------------------------------------
 
-  :Section BI Dyadic Functions/Operations
+    :Section BI Dyadic Functions/Operations
     ⍝H             Does Arg                  Requires BigInt      Details
     ⍝H             Conversions               Internal Args
     ⍝H             add                       _add
@@ -853,9 +853,9 @@
       }
 
 
-  :EndSection BI Dyadic Operators/Functions
+    :EndSection BI Dyadic Operators/Functions
 
-  :Section BI Special Functions/Operations (More than 2 Args)
+    :Section BI Special Functions/Operations (More than 2 Args)
     ⍝ modMul:  modulo m of product a×b
     ⍝ A faster method than (m|a×b), when a, b are large and m is substantially smaller.
     ⍝ r ← a modMul b m    →→→    r ← m | a × b
@@ -882,10 +882,10 @@
           n←n div 2
       :EndWhile
     ∇
-  :EndSection BI Special Functions/Operations (More than 2 Args)
+    :EndSection BI Special Functions/Operations (More than 2 Args)
 ⍝ --------------------------------------------------------------------------------------------------
 
-  :Section BI Unsigned Utility Math Routines
+    :Section BI Unsigned Utility Math Routines
     ⍝ These are the workhorses of bigInt; most are from dfns:nats (handling unsigned bigInts).
     ⍝ Note: ⍺ and ⍵ are guaranteed by BII and BI to be vectors, but not
     ⍝       by internal functions or if called directly.
@@ -976,10 +976,10 @@
           <cmp ⍵ mix ⍺:⍵                      ⍝ ⍵ < ⍺? remainder is ⍵
           ⊃⌽⍵ divU ⍺                          ⍝ Otherwise, do full divide
       }
-  :Endsection BI Unsigned Utility Math Routines
+    :Endsection BI Unsigned Utility Math Routines
 ⍝ --------------------------------------------------------------------------------------------------
 
-  :Section Service Routines
+    :Section Service Routines
                                             ⍝ prettify: Add underscores every 5 digits; ⍺=0 (default): replace ¯ by - .
     prettify←  {0:: ⍵ ⋄ ⍺←0 ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}
                                             ⍝ exportApl:    Convert valid bigint ⍵ to APL, with error if exponent too large.
@@ -1007,11 +1007,11 @@
     cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                     ⍝ compare first different digit of ⍺ and ⍵.
 
 
-  :Endsection Service Routines
+    :Endsection Service Routines
 ⍝ --------------------------------------------------------------------------------------------------
-  :Endsection Big Integers
+    :Endsection Big Integers
 
-  :Section Utilities: BI_LIB, BI_DC (desk calc), BIB, BIC
+    :Section Utilities: BI_LIB, BI_DC (desk calc), BIB, BIC
    ⍝ BI_LIB      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, BI_LIB will be found without typing explicit path.
    ⍝ BI_DC   - desk calculator (self-documenting)
@@ -1084,7 +1084,10 @@
       pBiCalls←pCom pFunsQ pVar pQot pFunsNoQ pNonBiCode pIntExp pIntOnly
    ⍝ EXTERN actBiCalls:   BI (Big Integer) action
    ⍝ In this version, we quote all APL integers unless they have exponents...
-      actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actQuoted
+   ⍝ WAS:
+   ⍝   actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actQuoted
+   ⍝ NOW:
+        actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actKeep
    ⍝ EXTERN matchBiCalls: BI (Big Integer) matching calls…
       matchBiCalls←{⍺←1
           res←⊃⍣(1=≢res)⊣res←pBiCalls ⎕R actBiCalls⍠('UCP' 1)⊣⊆⍵
@@ -1125,6 +1128,9 @@
 
     ∇ {ok}←BI_DC
       ;caller;code;lastResult;exprIn;exec;isShy;helpInfo;help1Cmd;help2Cmd;offon;pretty;prettyCmd;verbose;verboseCmd
+      ;⎕PW
+     
+      ⎕PW←132
     ⍝ extern:  BigInt.dc_HELP (help information)
       verbose pretty offon lastResult←0 1('OFF' 'ON')'0'
       help2Cmd help1Cmd verboseCmd prettyCmd←,¨'??' '?' '!' '⍕'
@@ -1184,14 +1190,14 @@
           :EndTrap
       :EndWhile
     ∇
-  :Endsection Utilities: BI_LIB, BI_DC (desk calc), BIC
+    :Endsection Utilities: BI_LIB, BI_DC (desk calc), BIC
 
-  :Section Bigint Namespace - Postamble
+    :Section Bigint Namespace - Postamble
     _namelist_←'BI_LIB BI BII BIM BI_DC BIC BI_HELP RE∆GET',_CONSTANT_LIST
     ___←0 ⎕EXPORT ⎕NL 3 4
     ___←1 ⎕EXPORT {⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}  _namelist_
     ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was null. Setting to ''',(⍕⍺),''''⋄ ⍵}⎕PATH
     ⎕EX '___'
-  :EndSection Bigint Namespace - Postamble
+    :EndSection Bigint Namespace - Postamble
 
 :EndNamespace

@@ -361,7 +361,7 @@
                 pathInfo←⍺,' ',⍕pathEntry
 
               ⍝⍝ --------------------------------------------------------------------------------------
-              ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NOpt.
+              ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NO.
               ⍝⍝   PROS: pathEntry may have ↑ and the item may work for this caller ns, but not another
               ⍝⍝         that inherits its ⎕PATH.
               ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in pathEntry
