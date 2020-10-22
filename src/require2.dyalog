@@ -1,6 +1,8 @@
  require2←{⍺←⊃⎕RSI
-     ⍝ require [flags] [objects]
+     ⍝ require [flags] [object1 [object2] ... ]]
      ⍝
+     ⍝ object:   name OR  dir:name OR wsid::name  OR  dir:(name1 name2 ...)  OR wsid::(name1 name2 ...)
+     ⍝ 
 
     DEBUG←1   ⋄   ⎕IO←0 ⋄ Err←⎕SIGNAL∘11
     LIB_SFX←'⍙⍙.require'
@@ -20,6 +22,35 @@
      }
      GetEnv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
      DLB←{⍵↓⍨+/∧\⍵=' '}                                   ⍝ Delete leading blanks
+
+  GetObj←{⎕IO←0
+    ⍝⍝ object of form
+    ⍝⍝    namesp:name, namesp::name, namesp:(name1 name2 ...) namesp::(name1 name2 ...)
+    ⍝⍝    namesp: any chars but space--
+    ⍝⍝    name:   any valid APL name chars
+    ⍝⍝ Returns
+    ⍝⍝    [0] name (or null if no : or ::)
+    ⍝⍝    [1] ':' or '::' or ''
+    ⍝⍝    [2] name1 [name2 ...]
+        obj←⍵
+        namesp punct obj←{
+            ~⍵:'' '' '' ''
+            na←obj↑⍨p
+            pu←':'⍴⍨∆←1+':'=1↑obj↓⍨p+1
+            ob←DLB obj↓⍨p+∆
+            na pu ob
+        }(≢obj)>p←obj⍳':'
+
+        names←{
+            ~⍵:⊂obj
+            ~')'∊obj:('GetObj: namelist terminator not found: ',obj)⎕SIGNAL 11
+            p←')'⍳⍨obj←1↓obj
+            ' '(≠⊆⊢)p↑obj
+        }'('=1↑obj
+        ¯1∊⎕NC↑names:'GetObj: at least one object name is invalid'⎕SIGNAL 11
+        namesp punct names
+ }
+
   ⍝ ========= MAIN
 
      ScanOptions←{  ⍝ Process options -fff, returning unaffected tokens...
