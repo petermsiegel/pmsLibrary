@@ -162,8 +162,8 @@
     :Section BI
     :Section PREAMBLE
     DEBUG←1               ⍝ Set DEBUG here.
-    ⎕IO ⎕ML←0 1 ⋄  ⎕PP←34 ⋄ ⎕CT←⎕DCT←0 ⋄ ⎕CT←1E¯14 ⋄ ⎕DCT←1E¯28
-    ⎕FR←645
+    ⎕IO ⎕ML ⎕PP ⎕CT ⎕DCT ⎕FR ← 0 1 34 0 0 645            ⍝ Beware: ⎕FR determines OFL below
+  ⍝ ⎕CT ⎕DCT←1E¯14 1E¯28  ⍝  Do we need this??? 
     err←11∘(⎕SIGNAL⍨)
     :EndSection PREAMBLE
 
@@ -183,9 +183,9 @@
 
   ⍝ Data field (unsigned) constants
     zero_D ←  ,0                                         ⍝ data field ZERO, i.e. unsigned canonical ZERO
-    one_D  ←  ,1                                         ⍝ data field ONE, i.e. unsigned canonical ONE
+    one_D  ←  ,1                                         ⍝ data field ONE,  i.e. unsigned canonical ONE
     two_D  ←  ,2                                         ⍝ data field TWO
-    ten_D  ← ,10
+    ten_D  ← ,10                                         ⍝ data field TEN
 
   ⍝ BigInt Internal CONSTANTS for users and utilities.
     zero_BI   ←   0 zero_D                               ⍝  0
@@ -239,7 +239,7 @@
     ⍝     BIext ← ∇ ⍵:BIext
     ⍝     Returns BIext, an external string-format BigInteger object ("[¯]\d+").
     ⍝ Note: __BI_SOURCE__ is a TEMPLATE fn to be replaced, after substitutions, by cover functions BI and BII.
-    ⍝ Note: _EXPORT_ is TEMPLATE name to be substituted by name "export" or null string in BI and BII cover fns.
+    ⍝ Note: _COND_EXPORT_ is TEMPLATE name to be substituted by name "export" or null string in BI and BII cover fns.
 
 ⍝ --------------------------------------------------------------------------------------------------
 ⍝   decodeCall: Handle operator name plus monadic vs dyadic plus operands like +⍨. (We treat +⍨⍨ etc. like +⍨)
@@ -264,29 +264,29 @@
           CASE←fn∘∊∘⊆
      
         ⍝ Monadic...
-          monad:{                                       ⍝ BI: _EXPORT_: See Build BI/BII below.
+          monad:{                                       ⍝ BI: _COND_EXPORT_: See Build BI/BII below.
             ⍝ math
-              CASE'-':_EXPORT_ neg ⍵              ⍝     -⍵
-              CASE'+':_EXPORT_ import ⍵           ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
-              CASE'|':_EXPORT_ abs ⍵              ⍝     |⍵
-              CASE'×':_EXPORT_⊃importFast ⍵       ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
-              CASE'÷':_EXPORT_ recip ⍵            ⍝     inverse     Why bother? Mostly 0!
+              CASE'-':_COND_EXPORT_ neg ⍵              ⍝     -⍵
+              CASE'+':_COND_EXPORT_ import ⍵           ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
+              CASE'|':_COND_EXPORT_ abs ⍵              ⍝     |⍵
+              CASE'×':_COND_EXPORT_⊃importFast ⍵       ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
+              CASE'÷':_COND_EXPORT_ recip ⍵            ⍝     inverse     Why bother? Mostly 0!
             ⍝ Misc
-              CASE'<':_EXPORT_ dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1.
-              CASE'≤':_EXPORT_ dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
-              CASE'>':_EXPORT_ inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
-              CASE'≥':_EXPORT_ inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
-              CASE'!':_EXPORT_ fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
-              CASE'?':_EXPORT_ roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
+              CASE'<':_COND_EXPORT_ dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1.
+              CASE'≤':_COND_EXPORT_ dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
+              CASE'>':_COND_EXPORT_ inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
+              CASE'≥':_COND_EXPORT_ inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
+              CASE'!':_COND_EXPORT_ fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
+              CASE'?':_COND_EXPORT_ roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
               CASE'⍎':exportApl ⍵                 ⍝     aplint      If in range, returns a std APL number; else error
               CASE'⍕':prettify exp ∆ ⍵            ⍝     pretty      Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
-              CASE'SQRT' '√':_EXPORT_ sqrt ⍵      ⍝     sqrt        See dyadic *0.5
+              CASE'SQRT' '√':_COND_EXPORT_ sqrt ⍵      ⍝     sqrt        See dyadic *0.5
               CASE'⍳':⍳importSmallInt ⍵           ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
               CASE'→':importFast ⍵                ⍝     internal    Return ⍵ in internal form.
             ⍝ Bit manipulation
-              CASE'⊥':_EXPORT_ bitsImport ⍵       ⍝     bitsImport  Convert bits to bigint
+              CASE'⊥':_COND_EXPORT_ bitsImport ⍵       ⍝     bitsImport  Convert bits to bigint
               CASE'⊤':bitsExport ⍵                ⍝     bitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
-              CASE'~':_EXPORT_ bitsImport~bitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
+              CASE'~':_COND_EXPORT_ bitsImport~bitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
               CASE'⎕AT':getBIAttributes ⍵         ⍝     ⎕AT         <num hands> <num bits> <num 1 bits>
               err eCANTDO1,QT,QT,⍨fn              ⍝     Not found.
           }⍵
@@ -294,20 +294,20 @@
         ⍝ See discussion of ⍨ above...
           ⍺{
             ⍝ High Use: [Return BigInt]
-              CASE'+':_EXPORT_ ⍺ add ⍵
-              CASE'-':_EXPORT_ ⍺ sub ⍵
-              CASE'×':_EXPORT_ ⍺ mul ⍵
-              CASE'÷':_EXPORT_ ⍺ div ⍵                  ⍝ Integer divide: ⌊⍺÷⍵
-              CASE'*':_EXPORT_ ⍺ pow ⍵                  ⍝ Power / Roots I.    num *BI  ÷r
-              CASE'*∘÷' '*⊢÷':_EXPORT_ ⍵ root ⍺         ⍝         Roots II.   num *∘÷BI r
-              CASE'√' 'ROOT':_EXPORT_ ⍺ root ⍵          ⍝         Roots III.  r ('ROOT'BI) num
+              CASE'+':_COND_EXPORT_ ⍺ add ⍵
+              CASE'-':_COND_EXPORT_ ⍺ sub ⍵
+              CASE'×':_COND_EXPORT_ ⍺ mul ⍵
+              CASE'÷':_COND_EXPORT_ ⍺ div ⍵                  ⍝ Integer divide: ⌊⍺÷⍵
+              CASE'*':_COND_EXPORT_ ⍺ pow ⍵                  ⍝ Power / Roots I.    num *BI  ÷r
+              CASE'*∘÷' '*⊢÷':_COND_EXPORT_ ⍵ root ⍺         ⍝         Roots II.   num *∘÷BI r
+              CASE'√' 'ROOT':_COND_EXPORT_ ⍺ root ⍵          ⍝         Roots III.  r ('ROOT'BI) num
      
         ⍝ ↑ ↓ Decimal shift (mul, div by 10*⍵)
         ⍝ ⌽   Binary shift  (mul, div by 2*⍵)
-              CASE'↑':_EXPORT_ ⍵ mul10Exp ⍺             ⍝  ⍵×10*⍺,   where ±⍺. Decimal shift.
-              CASE'↓':_EXPORT_ ⍵ mul10Exp-⍺             ⍝  ⍵×10*-⍺   where ±⍺. Decimal shift right (+) or left (-).
-              CASE'⌽':_EXPORT_ ⍵ mul2Exp ⍺              ⍝  ⍵×2*⍺     where ±⍺. Binary shift left (+) or right (-).
-              CASE'|':_EXPORT_ ⍺ rem ⍵                  ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
+              CASE'↑':_COND_EXPORT_ ⍵ mul10Exp ⍺             ⍝  ⍵×10*⍺,   where ±⍺. Decimal shift.
+              CASE'↓':_COND_EXPORT_ ⍵ mul10Exp-⍺             ⍝  ⍵×10*-⍺   where ±⍺. Decimal shift right (+) or left (-).
+              CASE'⌽':_COND_EXPORT_ ⍵ mul2Exp ⍺              ⍝  ⍵×2*⍺     where ±⍺. Binary shift left (+) or right (-).
+              CASE'|':_COND_EXPORT_ ⍺ rem ⍵                  ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
         ⍝ Logical: [Return single boolean, 1∨0]
               CASE'<':⍺ lt ⍵
               CASE'≤':⍺ le ⍵
@@ -316,15 +316,15 @@
               CASE'>':⍺ gt ⍵
               CASE'≠':⍺ ne ⍵
         ⍝ Other fns
-              CASE'⌈':_EXPORT_(∆ ⍺){⍺ ge ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌈ ⍵
-              CASE'⌊':_EXPORT_(∆ ⍺){⍺ le ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌊ ⍵
-              CASE'∨' 'GCD':_EXPORT_ ⍺ gcd ⍵             ⍝ ⍺∨⍵ as gcd.  NOT boolean or.
-              CASE'∧' 'LCM':_EXPORT_ ⍺ lcm ⍵             ⍝ ⍺∧⍵ as lcm.  NOT boolean and.
-              CASE'⍟':_EXPORT_ ⍺ log ⍵                   ⍝ ⍺ log ⍵
-              CASE'MOD':_EXPORT_ ⍵ rem ⍺                 ⍝ modulo:  Same as |⍨
-              CASE'SHIFTB':_EXPORT_ ⍺ mul2Exp ⍵          ⍝ Binary shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
-              CASE'SHIFTD':_EXPORT_ ⍺ mul10Exp ⍵         ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
-              CASE'DIVREM':_EXPORT_¨⍺ divRem ⍵           ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+              CASE'⌈':_COND_EXPORT_(∆ ⍺){⍺ ge ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌈ ⍵
+              CASE'⌊':_COND_EXPORT_(∆ ⍺){⍺ le ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌊ ⍵
+              CASE'∨' 'GCD':_COND_EXPORT_ ⍺ gcd ⍵             ⍝ ⍺∨⍵ as gcd.  NOT boolean or.
+              CASE'∧' 'LCM':_COND_EXPORT_ ⍺ lcm ⍵             ⍝ ⍺∧⍵ as lcm.  NOT boolean and.
+              CASE'⍟':_COND_EXPORT_ ⍺ log ⍵                   ⍝ ⍺ log ⍵
+              CASE'MOD':_COND_EXPORT_ ⍵ rem ⍺                 ⍝ modulo:  Same as |⍨
+              CASE'SHIFTB':_COND_EXPORT_ ⍺ mul2Exp ⍵          ⍝ Binary shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
+              CASE'SHIFTD':_COND_EXPORT_ ⍺ mul10Exp ⍵         ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
+              CASE'DIVREM':_COND_EXPORT_¨⍺ divRem ⍵           ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
               CASE'⍴':(importSmallInt ⍺)⍴⍵               ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
               err eCANTDO2,QT,QT,⍨fn                     ⍝ Not found!
           }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵         ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
@@ -345,10 +345,10 @@
       }
 
     ⍝ Build BI and BII from __BI_SOURCE__.
-    ⍝ BI:   Change _EXPORT_ to "export", __BI__SOURCE__ to "BI".
-    ⍝ BII:  Change _EXPORT_ or _EXPORT_¨ to "", __BI__SOURCE__ to "BII".
-    ⎕FX'__BI_SOURCE__' '_EXPORT_'  ⎕R 'BI'  'export'⊣⎕NR'__BI_SOURCE__'
-    ⎕FX'__BI_SOURCE__' '_EXPORT_¨?'⎕R 'BII' ''      ⊣⎕NR'__BI_SOURCE__'
+    ⍝ BI:   Change _COND_EXPORT_ to "export", __BI__SOURCE__ to "BI".
+    ⍝ BII:  Change _COND_EXPORT_ or _COND_EXPORT_¨ to "", __BI__SOURCE__ to "BII".
+    ⎕FX'__BI_SOURCE__' '_COND_EXPORT_'  ⎕R 'BI'  'export'⊣⎕NR'__BI_SOURCE__'
+    ⎕FX'__BI_SOURCE__' '_COND_EXPORT_¨?'⎕R 'BII' ''      ⊣⎕NR'__BI_SOURCE__'
     ___←⎕EX '__BI_SOURCE__'
     :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
@@ -601,7 +601,8 @@
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
     ⍝ (int) root: A fast integer nth root.
-    ⍝ Syntax:    x@BIint ← nth@BIext<RX10 ∇ N@BIext     ==>  x ← N *÷nth
+    ⍝ Syntax:    x@BIint ← nth@BIext<RX10 ∇ N@BIext     
+    ⍝            x ← nth root N  ==>   x ← ⌊N *÷nth
     ⍝   nth: a small, positive integer (<RX10); default 2 (for sqrt).
     ⍝   N:   any BIext
     ⍝   x:   the nth root as an internal big integer.
@@ -634,10 +635,10 @@
         ⍝ Initial estimate (x):
         ⍝   DECIMAL est: ¯1+10*⌈num_dec_digits(N)÷2   ←-- We use this one.
         ⍝   BINARY  est:  2*⌈numbits(N)÷2
-          x←{ ⍝ We use est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
+          x←{ ⍝ We use DECIMAL est(sqrt N) as initial estimate for ANY root. Not ideal, but safe.
               0::1((⌈rootU⊃⍵),(RX10-1)⍴⍨⌈0.5×ndig-1) ⍝ Too big for APL est. Use DECIMAL est. above.
               ⎕FR←1287
-              ⊃⌽import 1+⌈rootU⍎export 1 ⍵     ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬ 1E6145
+              ⊃⌽import 1+⌈rootU ⍎export 1 ⍵     ⍝ Est from APL: works for ⍵ ≤ ⌊/⍬ 1E6145
           }N
         ⍝ Refine x, aka ⍵, until y > x
         ⍝ All unsigned here
@@ -1087,7 +1088,7 @@
    ⍝ WAS:
    ⍝   actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actQuoted
    ⍝ NOW:
-        actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actKeep
+      actBiCalls←actKeep actBiCallQ actKeep actKeep actBiCallNoQ actKeepParen actKeepParen actKeep
    ⍝ EXTERN matchBiCalls: BI (Big Integer) matching calls…
       matchBiCalls←{⍺←1
           res←⊃⍣(1=≢res)⊣res←pBiCalls ⎕R actBiCalls⍠('UCP' 1)⊣⊆⍵
