@@ -1,9 +1,10 @@
 ∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML
-   ;defMainNs;dir;execPath;hasOpt;libNs;mainNs;obj;dirSearchPath;defSubNs;o;OF;pathOpt;status;subNs;t;verbose
+   ;defMainNs;dir;dirSearchPath;defSubNs;execPath;hasOpt;libNs;mainNs
+   ;obj;oldPath;o;OF;pathOpt;s;status;subNs;t;verbose;w 
  
     ⎕IO ⎕ML←0   
-    verbose←0  ⋄  defMainNs defSubNs←⎕SE  '∆.⍙'  ⋄ here←⊃⎕RSI, defMainNs
+    verbose←0  ⋄  defMainNs defSubNs←⎕SE  '⍙⍙.Ø'  ⋄ here←⊃⎕RSI, defMainNs
     dirSearchPath←∪⊃,/{':' (≠⊆⊢) 2 ⎕NQ'.' 'GetEnvironment'⍵}¨'FSPATH'   'WSPATH'
 
     :IF 1≥|≡objs ⋄ objs←' ' (≠⊆⊢),objs ⋄ :ENDIF
@@ -11,10 +12,11 @@
     
   ⍝ Options   -Session*   | -Root | -Local
   ⍝           -Prefix*    | -NOPrefix                    
-  ⍝           -Path*      | -NOPAth                      
+  ⍝           -Path*      | -NOPAth           
+  ⍝           -Update*    | -NOUpdate           
   ⍝           -NOVerbose  | -Verbose                   *=Default
   ⍝ An option's case is ignored; when specified as left arg, each option may omit the initial hyphen.
-    mainNs subNs pathOpt←defMainNs defSubNs 1  
+    mainNs subNs pathOpt update where←defMainNs defSubNs 1  1 ⍬
     :FOR o :IN ⎕C opts←' '(≠⊆⊢)opts ~'-' 
         OF←(≢o)∘{p←'(' ⋄ l←(l<≢⍵)×l←⍵⍳p ⋄ (l⌈⍺)↑⍵~p}
         :SELECT o  
@@ -23,10 +25,12 @@
           :CASE OF 'local'      ⋄ mainNs←here
           :CASE OF 'nopr(efix'  ⋄ subNs←''
           :CASE OF 'nopa(th'    ⋄ pathOpt←0
+          :CASE OF 'nou(pdate'  ⋄ update←0
           :CASE OF 'pa(th'      ⋄ pathOpt←1
           :CASE OF 'pr(efix'    ⋄ subNs←defSubNs
           :CASE OF 'session'    ⋄ mainNs←⎕SE 
           :CASE OF 'nov(erbose' ⋄ verbose←0 
+          :CASE OF 'update'     ⋄ update←1 
           :CASE OF 'help'       
             'require2: HELP INFORMATION'
             'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
@@ -34,8 +38,9 @@
             '   (By "local" (namespace), we mean the namespace from which require2 is called).' 
             'Syntax:'
             '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj2...'' | [''opts''] ''obj1'' ''obj2'' ... ]'
-            '   opts:      -[no*]verbose  -[session* | root | local] -[no]prefix*    -[no]path*       -help'
-            '                             <   library location     > <Lib name=∆.⍙>  <search ⎕PATH?>  <This help>'
+            '   opts:'      
+            '      -[no*]verbose  -[session* | root | local] -[no]prefix*    -[no]path*        -[no]update*    -help'
+            '                     <   library location     > <Lib name=∆.⍙>  <search ⎕PATH?>   <update ⎕PATH> <This help>'
             'Notes:'
             '   ∘ Defaults are indicated by an asterisk (*) above.'
             '   ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.' 
@@ -45,6 +50,10 @@
             '     but only if there is no explicit left argument (options).'
             '   ∘ If -path is specified, the entire "local"namespace, local search ⎕PATH, and the library are searched for objects.'
             '     If -nopath, only the "local" namespace and the library are searched.'
+            'The Standard Library:'
+            '   ∘ The standard library is at      ⎕SE.⍙⍙.⍙    - option -session, the default'
+            '   ∘ The standard library is at        #.⍙⍙.⍙    - option -root'
+            '   ∘ The standard library is at  #.mylib.⍙⍙.⍙    - option -local, with require called from #.mylib'
             '' ⋄ :RETURN
           :ELSE ⋄ 11 ⎕SIGNAL⍨'Unknown option: ',o
         :ENDSELECT   
@@ -53,7 +62,7 @@
     ⍝ Scan ⍵.⎕PATH, returning a list of references, resolving ↑ and ignoring undefd namespaces.
     ⍝ Return list, prepending libNs (our library)...
     libNs←⍎subNs mainNs.⎕NS ⍬
-    execPath←here libNs
+    execPath← here libNs
     :IF pathOpt
         execPath←execPath{UP←⊂,'↑'
             path←' '(≠⊆⊢)⍵.⎕PATH
@@ -64,31 +73,34 @@
         }here
     :ENDIF
 
-    status←where←⍬  
+    status←⍬            ⍝ status, s: 1= Found, 0:=Not Found, ¯1= Invalid Name. where: ns where found or ⎕NULL, if not.
     :FOR o :in objs
-        s←0 ⋄ w←⎕NULL
+        s←0 ⋄ w←⎕NULL   
         :FOR p :in execPath
-            :IF s=0 
-            :ANDIF 1=s←×p.⎕NC o    
+            :IF s=0  
+            :ANDIF 1=s←×p.⎕NC o  
                 w←p  
             :ENDIF
+            :IF s≠0 ⋄ :LEAVE ⋄ :ENDIF    ⍝ Don't keep looking if found or invalid name.
         :ENDFOR
         status,←s  ⋄ where,←w 
     :ENDFOR
 
     :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid name(s): ',⍕t/objs ⋄ :ENDIF 
     
-    :IF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
+    oldPath←here.⎕PATH
+    :IF update  ⋄ :ANDIF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
         here.⎕PATH,⍨←t
     :ENDIF
 
     :IF verbose
         'opts     ' opts
-        'verbose  ' verbose              ⋄  'mainNs   ' mainNs      
-        'subNs    ' subNs ' libNs' libNs ⋄  'objs     ' objs      
-        'mem srch ' execPath             ⋄  'fi  srch ' dirSearchPath   
-        'status  ' status                ⋄  '⎕PATH    ' here.⎕PATH
-        'mem:    ' (objs/⍨status)   ⋄  'disk:   ' (objs/⍨~status)
+        'verbose  ' verbose              ⋄ 'library  ' libNs                ⋄  'objs     ' objs      
+        'mem srch ' execPath             ⋄ 'fi  srch ' dirSearchPath        ⋄  'update   ' (update⊃'OFF' 'ON') 
+      ⍞←'⎕PATH IS:' ('''','''',⍨here.⎕PATH)             ⋄ :IF update ⋄ :ANDIF oldPath≢here.⎕PATH 
+      ⍞←'     WAS:' ('''','''',⍨oldPath)                ⋄ :ENDIF 
+        'mem:     ' (objs/⍨1=status)     ⋄  'disk?    ' (objs/⍨0=status)  
+        'status   ' status               ⋄  'where    ' where
     :ENDIF
 
     
