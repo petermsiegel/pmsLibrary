@@ -1,4 +1,4 @@
-∇ {libNs}←{opts} require2 objs
+∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML
    ;defMainNs;dir;execPath;hasOpt;libNs;mainNs;obj;dirSearchPath;defSubNs;o;OF;pathOpt;status;subNs;t;verbose
  
@@ -64,20 +64,33 @@
         }here
     :ENDIF
 
-    status←×libNs.⎕NC objs 
+    status←where←⍬  
+    :FOR o :in objs
+        s←0 ⋄ w←⎕NULL
+        :FOR p :in execPath
+            :IF s=0 
+            :ANDIF 1=s←×p.⎕NC o    
+                w←p  
+            :ENDIF
+        :ENDFOR
+        status,←s  ⋄ where,←w 
+    :ENDFOR
+
     :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid name(s): ',⍕t/objs ⋄ :ENDIF 
+    
+    :IF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
+        here.⎕PATH,⍨←t
+    :ENDIF
+
     :IF verbose
         'opts     ' opts
         'verbose  ' verbose              ⋄  'mainNs   ' mainNs      
         'subNs    ' subNs ' libNs' libNs ⋄  'objs     ' objs      
         'mem srch ' execPath             ⋄  'fi  srch ' dirSearchPath   
-        'status  ' status          
+        'status  ' status                ⋄  '⎕PATH    ' here.⎕PATH
         'mem:    ' (objs/⍨status)   ⋄  'disk:   ' (objs/⍨~status)
     :ENDIF
 
-    :IF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
-        here.⎕PATH,⍨←t
-     :ENDIF
     
     ⍝ :FOR dir :IN dirSearchPath
     ⍝     'dir' dir 
