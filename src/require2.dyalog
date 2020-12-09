@@ -1,10 +1,12 @@
 ∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML
-   ;defMainNs;dir;dirSearchPath;defSubNs;execPath;hasOpt;libNs;mainNs
-   ;obj;oldPath;o;OF;pathOpt;s;status;subNs;t;verbose;w 
+   ;mainNsD;dir;dirSearchPath;subNsD;execPath;hasO;libNs;mainNs
+   ;obj;oldPath;o;OF;pathO;s;status;subNs;t;updateO;verboseO;w 
  
-    ⎕IO ⎕ML←0   
-    verbose←0  ⋄  defMainNs defSubNs←⎕SE  '⍙⍙.Ø'  ⋄ here←⊃⎕RSI, defMainNs
+    ⎕IO ⎕ML←0 
+  ⍝ Defaults 
+    mainNsD subNsD verboseD←⎕SE  '⍙⍙.⍙' 1        ⍝ ...D: Defaults 
+    here←⊃⎕RSI, mainNsD
     dirSearchPath←∪⊃,/{':' (≠⊆⊢) 2 ⎕NQ'.' 'GetEnvironment'⍵}¨'FSPATH'   'WSPATH'
 
     :IF 1≥|≡objs ⋄ objs←' ' (≠⊆⊢),objs ⋄ :ENDIF
@@ -16,21 +18,21 @@
   ⍝           -Update*    | -NOUpdate           
   ⍝           -NOVerbose  | -Verbose                   *=Default
   ⍝ An option's case is ignored; when specified as left arg, each option may omit the initial hyphen.
-    mainNs subNs pathOpt update where←defMainNs defSubNs 1  1 ⍬
+   verboseO mainNs pathO updateO subNs where←verboseD mainNsD 1  1 subNsD ⍬    ⍝ ...O options and other settings
     :FOR o :IN ⎕C opts←' '(≠⊆⊢)opts ~'-' 
-        OF←(≢o)∘{p←'(' ⋄ l←(l<≢⍵)×l←⍵⍳p ⋄ (l⌈⍺)↑⍵~p}
+        OF←(≢o)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (l⌈⍺)↑⍵~'('}
         :SELECT o  
-          :CASE OF 'verbose'    ⋄ verbose←1      
+          :CASE OF 'verbose'    ⋄ verboseO←1      
           :CASE OF 'root'       ⋄ mainNs←#
           :CASE OF 'local'      ⋄ mainNs←here
           :CASE OF 'nopr(efix'  ⋄ subNs←''
-          :CASE OF 'nopa(th'    ⋄ pathOpt←0
-          :CASE OF 'nou(pdate'  ⋄ update←0
-          :CASE OF 'pa(th'      ⋄ pathOpt←1
-          :CASE OF 'pr(efix'    ⋄ subNs←defSubNs
+          :CASE OF 'nopa(th'    ⋄ pathO←0
+          :CASE OF 'nou(pdate'  ⋄ updateO←0
+          :CASE OF 'pa(th'      ⋄ pathO←1
+          :CASE OF 'pr(efix'    ⋄ subNs←subNsD
           :CASE OF 'session'    ⋄ mainNs←⎕SE 
-          :CASE OF 'nov(erbose' ⋄ verbose←0 
-          :CASE OF 'update'     ⋄ update←1 
+          :CASE OF 'nov(erbose' ⋄ verboseO←0 
+          :CASE OF 'update'     ⋄ updateO←1 
           :CASE OF 'help'       
             'require2: HELP INFORMATION'
             'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
@@ -63,7 +65,7 @@
     ⍝ Return list, prepending libNs (our library)...
     libNs←⍎subNs mainNs.⎕NS ⍬
     execPath← here libNs
-    :IF pathOpt
+    :IF pathO
         execPath←execPath{UP←⊂,'↑'
             path←' '(≠⊆⊢)⍵.⎕PATH
             GetRef←⍺∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
@@ -72,7 +74,6 @@
             GetRef ⍬{0=≢⍵:⍺ ⋄ isUp≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺,climb)∇ 1↓⍵}path
         }here
     :ENDIF
-
     status←⍬            ⍝ status, s: 1= Found, 0:=Not Found, ¯1= Invalid Name. where: ns where found or ⎕NULL, if not.
     :FOR o :in objs
         s←0 ⋄ w←⎕NULL   
@@ -86,18 +87,26 @@
         status,←s  ⋄ where,←w 
     :ENDFOR
 
-    :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid name(s): ',⍕t/objs ⋄ :ENDIF 
+    :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕t/objs ⋄ :ENDIF 
     
+    :FOR d :in dirSearchPath
+        'Searching ',d 
+        :FOR o s :ineach objs status
+          :IF s≠0  ⋄ :continue ⋄ :ENDIF
+          '   > Object ',o
+        :ENDFOR  
+    :ENDFOR
+
     oldPath←here.⎕PATH
-    :IF update  ⋄ :ANDIF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
+    :IF updateO  ⋄ :ANDIF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
         here.⎕PATH,⍨←t
     :ENDIF
 
-    :IF verbose
+    :IF verboseO
         'opts     ' opts
-        'verbose  ' verbose              ⋄ 'library  ' libNs                ⋄  'objs     ' objs      
-        'mem srch ' execPath             ⋄ 'fi  srch ' dirSearchPath        ⋄  'update   ' (update⊃'OFF' 'ON') 
-      ⍞←'⎕PATH IS:' ('''','''',⍨here.⎕PATH)             ⋄ :IF update ⋄ :ANDIF oldPath≢here.⎕PATH 
+        'verbose  ' verboseO              ⋄ 'library  ' libNs                ⋄  'objs     ' objs      
+        'mem srch ' execPath             ⋄ 'fi  srch ' dirSearchPath        ⋄  'updateO   ' (updateO⊃'OFF' 'ON') 
+      ⍞←'⎕PATH IS:' ('''','''',⍨here.⎕PATH)             ⋄ :IF updateO ⋄ :ANDIF oldPath≢here.⎕PATH 
       ⍞←'     WAS:' ('''','''',⍨oldPath)                ⋄ :ENDIF 
         'mem:     ' (objs/⍨1=status)     ⋄  'disk?    ' (objs/⍨0=status)  
         'status   ' status               ⋄  'where    ' where
