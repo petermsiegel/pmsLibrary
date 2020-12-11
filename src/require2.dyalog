@@ -1,51 +1,51 @@
 ∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML
-   ;mainNsD;dir;dirSearchPath;subNsD;execPath;hasO;libNs;mainNs
-   ;obj;oldPath;o;OF;pathO;s;status;subNs;t;updateO;verboseO;w 
- 
-    ⎕IO ⎕ML←0 
-  ⍝ Defaults 
-    mainNsD subNsD verboseD←⎕SE  '⍙⍙.⍙' 1        ⍝ ...D: Defaults 
+   ;i;j;dir;dirSearchPath;subNsD;execPath;fnd;hasO;libNs;mainNs;mainNsD
+   ;obj;oldPath;o;OF;pathO;s;status;subNs;t;t2;t3;t3a;updateO;verboseO;w
+
+    ⎕IO ⎕ML←0
+  ⍝ Defaults
+    mainNsD subNsD verboseD←⎕SE  '⍙⍙.⍙' 0       ⍝ ...D: Defaults
     here←⊃⎕RSI, mainNsD
     dirSearchPath←∪⊃,/{':' (≠⊆⊢) 2 ⎕NQ'.' 'GetEnvironment'⍵}¨'FSPATH'   'WSPATH'
 
     :IF 1≥|≡objs ⋄ objs←' ' (≠⊆⊢),objs ⋄ :ENDIF
-    :IF  (900⌶)0 ⋄ opts objs←''{ 0=≢⍵:⍺ ⍵ ⋄  '-'≠1↑first←0⊃⍵ : ⍺ ⍵ ⋄ (⍺,' ',first) ∇ 1↓⍵ } objs ⋄ :ENDIF 
-    
+    :IF  (900⌶)0 ⋄ opts objs←''{ 0=≢⍵:⍺ ⍵ ⋄  '-'≠1↑first←0⊃⍵ : ⍺ ⍵ ⋄ (⍺,' ',first) ∇ 1↓⍵ } objs ⋄ :ENDIF
+
   ⍝ Options   -Session*   | -Root | -Local
-  ⍝           -Prefix*    | -NOPrefix                    
-  ⍝           -Path*      | -NOPAth           
-  ⍝           -Update*    | -NOUpdate           
+  ⍝           -Prefix*    | -NOPrefix
+  ⍝           -Path*      | -NOPAth
+  ⍝           -Update*    | -NOUpdate
   ⍝           -NOVerbose  | -Verbose                   *=Default
   ⍝ An option's case is ignored; when specified as left arg, each option may omit the initial hyphen.
    verboseO mainNs pathO updateO subNs where←verboseD mainNsD 1  1 subNsD ⍬    ⍝ ...O options and other settings
-    :FOR o :IN ⎕C opts←' '(≠⊆⊢)opts ~'-' 
-        OF←(≢o)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (l⌈⍺)↑⍵~'('}
-        :SELECT o  
-          :CASE OF 'verbose'    ⋄ verboseO←1      
-          :CASE OF 'root'       ⋄ mainNs←#
-          :CASE OF 'local'      ⋄ mainNs←here
-          :CASE OF 'nopr(efix'  ⋄ subNs←''
-          :CASE OF 'nopa(th'    ⋄ pathO←0
-          :CASE OF 'nou(pdate'  ⋄ updateO←0
-          :CASE OF 'pa(th'      ⋄ pathO←1
-          :CASE OF 'pr(efix'    ⋄ subNs←subNsD
-          :CASE OF 'session'    ⋄ mainNs←⎕SE 
-          :CASE OF 'nov(erbose' ⋄ verboseO←0 
-          :CASE OF 'update'     ⋄ updateO←1 
-          :CASE OF 'help'       
+    :FOR o :IN ⎕C opts←' '(≠⊆⊢)opts ~'-'
+        OF←(≢o)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}
+        :SELECT o
+          :CASE OF 'verbose'        ⋄ verboseO←1
+          :CASE OF 'root'           ⋄ mainNs←#
+          :CASE OF 'local'          ⋄ mainNs←here
+          :CASE OF 'nop(refix'      ⋄ subNs←''
+          :CASE OF 'nosea(rchpath'  ⋄ pathO←0
+          :CASE OF 'noset(path'     ⋄ updateO←0
+          :CASE OF 'set(path'       ⋄ pathO←1
+          :CASE OF 'p(refix'        ⋄ subNs←subNsD
+          :CASE OF 'ses(sion'       ⋄ mainNs←⎕SE
+          :CASE OF 'nov(erbose'     ⋄ verboseO←0
+          :CASE OF 'sea(rchpath'    ⋄ updateO←1
+          :CASE OF 'help'
             'require2: HELP INFORMATION'
             'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
             '   Returns the local library. As a side effect, ensures the local library is in the local ⎕PATH.'
-            '   (By "local" (namespace), we mean the namespace from which require2 is called).' 
+            '   (By "local" (namespace), we mean the namespace from which require2 is called).'
             'Syntax:'
             '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj2...'' | [''opts''] ''obj1'' ''obj2'' ... ]'
-            '   opts:'      
-            '      -[no*]verbose  -[session* | root | local] -[no]prefix*    -[no]path*        -[no]update*    -help'
+            '   opts:'
+            '      -[no*]Verbose  -[SESsion* | Root | Local] -[no]Prefix*    -[no]SEArchpath*  -[no]SETpath*    -help'
             '                     <   library location     > <Lib name=∆.⍙>  <search ⎕PATH?>   <update ⎕PATH> <This help>'
             'Notes:'
             '   ∘ Defaults are indicated by an asterisk (*) above.'
-            '   ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.' 
+            '   ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.'
             '   ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).'
             '   ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).'
             '   ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,'
@@ -58,8 +58,8 @@
             '   ∘ The standard library is at  #.mylib.⍙⍙.⍙    - option -local, with require called from #.mylib'
             '' ⋄ :RETURN
           :ELSE ⋄ 11 ⎕SIGNAL⍨'Unknown option: ',o
-        :ENDSELECT   
-    :ENDFOR   
+        :ENDSELECT
+    :ENDFOR
 
     ⍝ Scan ⍵.⎕PATH, returning a list of references, resolving ↑ and ignoring undefd namespaces.
     ⍝ Return list, prepending libNs (our library)...
@@ -76,25 +76,49 @@
     :ENDIF
     status←⍬            ⍝ status, s: 1= Found, 0:=Not Found, ¯1= Invalid Name. where: ns where found or ⎕NULL, if not.
     :FOR o :in objs
-        s←0 ⋄ w←⎕NULL   
+        s←0 ⋄ w←⎕NULL
         :FOR p :in execPath
-            :IF s=0  
-            :ANDIF 1=s←×p.⎕NC o  
-                w←p  
+            :IF s=0
+            :ANDIF 1=s←×p.⎕NC o
+                w←p
             :ENDIF
             :IF s≠0 ⋄ :LEAVE ⋄ :ENDIF    ⍝ Don't keep looking if found or invalid name.
         :ENDFOR
-        status,←s  ⋄ where,←w 
+        status,←s  ⋄ where,←w
     :ENDFOR
 
-    :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕t/objs ⋄ :ENDIF 
-    
-    :FOR d :in dirSearchPath
-        'Searching ',d 
-        :FOR o s :ineach objs status
-          :IF s≠0  ⋄ :continue ⋄ :ENDIF
-          '   > Object ',o
-        :ENDFOR  
+    :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕t/objs ⋄ :ENDIF
+
+    ⎕SHADOW 'pad' 'trim' ⋄ pad←{⍺←10 ⋄ ⍺>≢⍵: ⍵↑⍨-⍺ ⋄ ⍵} ⋄ trim←{(~'  '⍷⍵)/⍵}
+    :FOR d :in 1⍴dirSearchPath
+        :FOR i :in ⍳≢ objs
+            fnd←0
+            :IF status[i]≠0  ⋄ :continue ⋄ :ENDIF
+          ⍝ Use  0 ⎕NINFO ⍠1⊣t,'.dy*' to return 0 or more values.   Same as  "0 ⎕NINFO ⍠ ('Wildcard' 1)".
+          ⍝ Also 1 ⎕NINFO t           to see if t is a directory (absorb all contents)... 
+            o←i⊃objs
+            t←d,'/',('/'@('.'∘=)⊣o)
+            :FOR j :IN ⍳≢t2←↓('' '/*',⍨¨⊂t)∘.,'.dyalog' '.apl*' 
+                :IF ∨/f←(⎕NEXISTS⍠1)j⊃t2 
+                    fnd←1
+                    n←+/≢∘⊃¨t3←0 (⎕NINFO ⍠1)f/j⊃t2 
+                    :IF j=0  ⍝ "Is a single object", not a directory of 0 or more namespace member objects
+                        :IF n>1 
+                          'DOMAIN ERROR: [',(⍕i),'] ','Multiple Objects ',(pad o),' NOT ALLOWED:',trim ⍕t3
+                        :ELSE 
+                          '[',(⍕i),'] ','            Object ',(pad o),' found:',trim ⍕t3
+                          where[i]←libNs ⍝ Simulated...
+                        :ENDIF
+                    :ELSE 
+                        '[',(⍕i),'] ',(3 pad ⍕n),' objects for ns ',(pad o),' found:',trim ⍕t3
+                        where[i]←libNs ⍝ Simulated...
+                    :ENDIF 
+                :ENDIF
+            :ENDFOR 
+            :IF ~fnd
+                    '[',(⍕i),'] Object ',(pad o),' not found in workspace or directories identified.'
+            :ENDIF
+        :ENDFOR
     :ENDFOR
 
     oldPath←here.⎕PATH
@@ -104,19 +128,19 @@
 
     :IF verboseO
         'opts     ' opts
-        'verbose  ' verboseO              ⋄ 'library  ' libNs                ⋄  'objs     ' objs      
-        'mem srch ' execPath             ⋄ 'fi  srch ' dirSearchPath        ⋄  'updateO   ' (updateO⊃'OFF' 'ON') 
-      ⍞←'⎕PATH IS:' ('''','''',⍨here.⎕PATH)             ⋄ :IF updateO ⋄ :ANDIF oldPath≢here.⎕PATH 
-      ⍞←'     WAS:' ('''','''',⍨oldPath)                ⋄ :ENDIF 
-        'mem:     ' (objs/⍨1=status)     ⋄  'disk?    ' (objs/⍨0=status)  
+        'verbose  ' verboseO             ⋄ 'library  ' libNs                ⋄  'objs     ' objs
+        'mem srch ' execPath             ⋄ 'fi  srch ' dirSearchPath        ⋄  'updateO   ' (updateO⊃'OFF' 'ON')
+      ⍞←'⎕PATH IS:' ('''','''',⍨here.⎕PATH)             ⋄ :IF updateO ⋄ :ANDIF oldPath≢here.⎕PATH
+      ⍞←'     WAS:' ('''','''',⍨oldPath)                ⋄ :ENDIF
+        'mem:     ' (objs/⍨1=status)     ⋄  'disk?    ' (objs/⍨0=status)
         'status   ' status               ⋄  'where    ' where
     :ENDIF
 
-    
+
     ⍝ :FOR dir :IN dirSearchPath
-    ⍝     'dir' dir 
-    ⍝ :ENDFOR 
-    
+    ⍝     'dir' dir
+    ⍝ :ENDFOR
+
 
 ⍝  require2←{⍺←⊃⎕RSI
 ⍝     ⍝ require [flags] [object1 [object2] ... ]]
@@ -125,7 +149,7 @@
 ⍝     ⍝
 ⍝      ⎕IO←0 ⋄ Err←⎕SIGNAL∘11 ⋄ with←⊣ ⋄ ∆SPLIT←{⍺←' ' ⋄ ⍺(≠⊆⊢)⍵}
 ⍝      SetCaller←{⍺←'In -c arg, arg'
-⍝          0::Err'require: ',⍺,' "',(⍕⍵),'" must refer to a valid & active namespace.' 
+⍝          0::Err'require: ',⍺,' "',(⍕⍵),'" must refer to a valid & active namespace.'
 ⍝          9=⎕NC'⍵':⍵ ⋄ 0≤⎕NC ⍵,'._': {9=⎕NC '⍵': ⍵  ⋄  ∘}(⊃⎕RSI)⍎⍵ ⋄  ∘   ⍝ ⎕NC '#' is ¯1, but for '#._' is 0
 ⍝      }
 ⍝      dVERBOSE←0
@@ -136,7 +160,7 @@
 ⍝      SQ DQ DQ2←'''' '"' '""'
 ⍝      FILE_EXTENSIONS←∆SPLIT'dws dyapp aplf aplo apln aplc  apli      apla  dyalog'
 ⍝      FILE_TYPES←∆SPLIT'WS  SALT  FN   OP   NS   CLASS INTERFACE ARRAY GENERIC'
-   
+
 ⍝ ⍝ ------ UTILITIES
 ⍝ ⍝ ∆F:  Find a pcre field by name or field number
 ⍝      ∆F←{⎕IO←0
@@ -146,7 +170,7 @@
 ⍝          B[O[p]+⍳L[p]]
 ⍝      }
 ⍝      GetEnv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-⍝      DLB←{⍵↓⍨+/∧\⍵=' '}                    
+⍝      DLB←{⍵↓⍨+/∧\⍵=' '}
 ⍝     ⍝ Delete leading blanks
 ⍝      UnDQ←{DQ≠1↑⍵:⍵ ⋄ s/⍨~DQ2⍷s←1↓¯1↓⍵}   ⍝ Convert a DQ string to SQ string, else do nothing.
 
@@ -174,11 +198,11 @@
 ⍝          parent←{⍺←1↑⍵ ⋄ ⍺=SQ:1↓¯1↓⍵ ⋄ ⍺=DQ:UnDQ ⍵ ⋄ ⍵}parent
 ⍝     ⍝   Process parens that group many child names. There may be 0 or more children.
 ⍝          children←obj{
-⍝              0=≢⍺:⍬ 
+⍝              0=≢⍺:⍬
 ⍝              ~⍵:⊂⍺
 ⍝              ~')'∊⍺:('GetObj: namelist terminator not found: ',⍺)⎕SIGNAL 11
 ⍝              kids←∆SPLIT ostr↑⍨')'⍳⍨ostr←1↓⍺
-⍝              kids 
+⍝              kids
 ⍝          }LPAR=1↑obj
 ⍝          ok err←{0=≢⍵: 1 0 ⋄ err←¯1=⎕NC↑⍵ ⋄  (1(~∊)err) err  }children
 ⍝          ok: parent type children
@@ -234,46 +258,46 @@
 
 ⍝     EnQ←{⍺←SQ ⋄ 1↓∊⍺{' ',⍺,⍺,⍨⍕⍵}¨⊆⍵}
 
-⍝   ⍝ ∆CY: Just in time creation of the require library from oCALLER and oLIB 
+⍝   ⍝ ∆CY: Just in time creation of the require library from oCALLER and oLIB
 ⍝   ⍝      ⍺ ∆CY ⍵
 ⍝   ⍝        - copy objects 'a1' 'a2' ... from apl ws <⍵>, a qualified APL file name (.dws)
 ⍝   ⍝        - return 1 (success) or 0 (failure). ∆CY is atomic: on failure, no objects are copied at all.
 ⍝   ⍝        - If the ∆CY fails, oCALLER.⍎oLIB is not created, if not already in existence.
 ⍝   ⍝      This approach is fast:
-⍝   ⍝             1) ⎕CY into a tmp ns, then 2) "copy" (⎕NS) into the target ns <oLIB>, 2a) creating <oLIB> if required.   
-⍝     ∆CY←{ ⍺←⍬ 
+⍝   ⍝             1) ⎕CY into a tmp ns, then 2) "copy" (⎕NS) into the target ns <oLIB>, 2a) creating <oLIB> if required.
+⍝     ∆CY←{ ⍺←⍬
 ⍝           ⍙CY←{⍺←⊢  ⋄ 0:: 0 ⋄ tmp←⎕NS ''  ⋄  1⊣oLIB oCALLER.⎕NS  tmp ⊣⍺ tmp.⎕CY ⍵  }
 ⍝           0=≢⍺:⍙CY  ⍵ ⋄ ⍺ ⍙CY  ⍵
 ⍝     }
-   
-⍝     Scan←{        
+
+⍝     Scan←{
 ⍝         STARTL←⍬ 1
-⍝         dirs objects←⍵    
+⍝         dirs objects←⍵
 ⍝         sFULLNS←(⍕oCALLER),('.'/⍨0≠≢oLIB),oLIB
-⍝         ScanL1←{ 
+⍝         ScanL1←{
 ⍝             ⍺←STARTL                  ⍝ Scan Dirs
 ⍝             res done←⍺
-⍝             done∨0=≢⍵: ⍺ ⋄ dir←⊃⍵  
+⍝             done∨0=≢⍵: ⍺ ⋄ dir←⊃⍵
 ⍝             ⎕←'dir="',dir,'"'
-⍝             objLists←{  
+⍝             objLists←{
 ⍝                 ⍺←STARTL         ⍝ Scan Objects
 ⍝                 res done←⍺
-⍝                 done∨0=≢⍵: ⍺ 
-⍝                 parent type children←⊃⍵ 
+⍝                 done∨0=≢⍵: ⍺
+⍝                 parent type children←⊃⍵
 ⍝                 type≡'WS': ⍺ ∇ (1↓⍵) with {
-⍝                     ws←dir,'/',parent,'.dws' 
-⍝                     found←children ∆CY ws   
+⍝                     ws←dir,'/',parent,'.dws'
+⍝                     found←children ∆CY ws
 ⍝                     ⊢⎕←('Not '/⍨~found),'Found ',(EnQ children),' ',sFULLNS,'.⎕CY',(EnQ ws)
-⍝                 }⍬ 
+⍝                 }⍬
 ⍝                 fileLists←{
 ⍝                       ⍺←STARTL        ⍝ Scan Children Objects. If none, use '*'
 ⍝                       res done←⍺
-⍝                       done∨0=≢⍵: ⍺ 
-⍝                       child←⊃⍵ 
-⍝                       c←'/'@('.'∘=)⊣child ⋄ fi←parent,'/',c 
-⍝                       ⎕←'  2 ',sFULLNS,'.⎕FIX ',EnQ '//FILE:',fi,'.*'     
+⍝                       done∨0=≢⍵: ⍺
+⍝                       child←⊃⍵
+⍝                       c←'/'@('.'∘=)⊣child ⋄ fi←parent,'/',c
+⍝                       ⎕←'  2 ',sFULLNS,'.⎕FIX ',EnQ '//FILE:',fi,'.*'
 ⍝                       res done ∇ 1↓⍵
-⍝                 }{0=≢⍵: ⊂'*'  ⋄ ⍵}children  
+⍝                 }{0=≢⍵: ⊂'*'  ⋄ ⍵}children
 ⍝                 (res, fileLists) done ∇ 1↓⍵
 ⍝             }objects
 ⍝             res done ∇ 1↓⍵
