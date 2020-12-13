@@ -1,7 +1,7 @@
 ∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML
    ;i;j;dir;dirSearchPath;subNsD;memPath;fnd;forceO;hasO;libNs;mainNs;mainNsD
-   ;o;o2;obj;oldPath;OF;pathO;s;status;subNs;t;t2;t3;t3a;updateO;verboseO;w;_
+   ;newLibsRefs;o;o2;obj;oldPath;OF;pad;pathO;s;say;status;subNs;t;t2;t3;t3a;updateO;verboseO;w;_
 
     ⎕IO ⎕ML←0 1
   ⍝ Defaults
@@ -12,16 +12,21 @@
     :IF 1≥|≡objs ⋄ objs←' ' (≠⊆⊢),objs ⋄ :ENDIF
     :IF  (900⌶)0 ⋄ opts objs←''{ 0=≢⍵:⍺ ⍵ ⋄  '-'≠1↑first←0⊃⍵ : ⍺ ⍵ ⋄ (⍺,' ',first) ∇ 1↓⍵ } objs ⋄ :ENDIF
 
-  ⍝ OPTIONS   DEFAULTS      ... ALTERNATIVES ...
-  ⍝ ¯¯¯¯¯¯¯   -Session    | -Root  |  -Local
-  ⍝           -Prefix     | -NOPrefix
-  ⍝           -Path       | -NOPAth
-  ⍝           -Update*    | -NOUpdate
-  ⍝           -NOVerbose  | -Verbose                   
-  ⍝           -NOForce    | -Force
+  ⍝ Mini-utilities
+    say←{verboseO: ⎕←⍵ ⋄ 1: ⍬}
+    pad←{⍺←10 ⋄ ⍺>≢⍵: ⍵↑⍨-⍺ ⋄ ⍵}
+
+  ⍝ Process OPTIONS
+  ⍝    DEFAULTS    |  ... ALTERNATIVES ...  | Gist
+  ⍝    -Session    |  -Root  |  -Local      | What ns to put lib (NS)
+  ⍝    -Prefix     |  -NOPrefix             | Put objs in ns directly or sub-library (NS)
+  ⍝    -SEArchpath |  -NOSEArcppath         | Search entire ⎕PATH for objs
+  ⍝    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
+  ⍝    -NOVerbose  |  -Verbose              | Provide details on search       
+  ⍝    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
   ⍝ An option's case is ignored; when specified as left arg, each option may omit the initial hyphen.
-        verboseO mainNs  pathO updateO forceO subNs  where ←{
-     ⍵} verboseD mainNsD 1     1       0      subNsD ⍬    ⍝ ...O options and other settings
+    verboseO mainNs  pathO updateO forceO subNs  where ←{
+⍵}  verboseD mainNsD 1     1       0      subNsD ⍬    ⍝ ...O options and other settings
     :FOR o :IN ⎕C opts←' '(≠⊆⊢)opts ~'-'
         OF←(≢o)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}
         :SELECT o
@@ -79,6 +84,12 @@
             GetRef ⍬{0=≢⍵:⍺ ⋄ isUp≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺,climb)∇ 1↓⍵}path
         }here
     :ENDIF
+
+    :IF verboseO
+        'Memory path is ',memPath
+        'Directory path is ',dirSearchPath
+    :EndIf 
+
     :IF forceO         ⍝ force? Skip check in here, libNs, ⎕PATH; load from disk (if found), even if in memory already...
         status where←(≢objs)⍴¨0 ⎕NULL
     :ELSE 
@@ -98,8 +109,8 @@
 
     :IF  1∊t←0>status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕t/objs ⋄ :ENDIF
 
-    ⎕SHADOW 'pad' ⋄ pad←{⍺←10 ⋄ ⍺>≢⍵: ⍵↑⍨-⍺ ⋄ ⍵}
-    :FOR d :in 1⍴dirSearchPath
+    newLibsRefs←libNs
+    :FOR d :in dirSearchPath
         :FOR i :in ⍳≢ objs
             fnd←0
             :IF status[i]≠0  ⋄ :continue ⋄ :ENDIF
@@ -111,44 +122,52 @@
                 :IF ∨/f←(⎕NEXISTS⍠1)j⊃t2 
                     fnd←1
                     n←+/≢∘⊃¨t3←0 (⎕NINFO ⍠1)f/j⊃t2 
-                    :IF j=0  ⍝ "Is a single object", not a directory of 0 or more namespace member objects
+                    :IF j=0  ⍝ (j⊃t2) is a single object: not a directory of 0 or more namespace member objects
                         :IF n>1 
                           'DOMAIN ERROR: [',(⍕i),'] ','Multiple Objects ',(pad o),' NOT ALLOWED: ',∊ t3
                         :ELSE 
-                          '[',(⍕i),'] ','            Object ',(pad o),' found: ',∊t3
+                          say'[',(⍕i),'] ','            Object ',(pad o),' found: ',∊t3
                           :TRAP 22
-                              ⎕←'obj t3: ',t3  
+                              say'obj t3: ',t3  
                               o2←2 libNs.⎕FIX 'file://', ∊t3      
-                              ⎕←'Loaded into ',libNs,': ',⍕o2
+                              say'Loaded into ',libNs,': ',⍕o2
+                              :IF 1∊_←∊9.1=libNs.⎕NC ⊆,o2
+                                  say 'Obj "',o2,'" is a namespace. Adding to newLibRefs' 
+                                  newLibsRefs,←libNs⍎¨_/o2
+                              :ENDIF 
                               where[i]←libNs ⍝ Simulated...
-                          :CASE 22  ⋄ 'On ⎕FIX, file not found???'
                           :ELSE ⋄ ⎕SIGNAL/⎕DMX.(EM EN)         
                           :ENDTRAP
                         :ENDIF
                     :ELSE 
-                        '[',(⍕i),'] ',(3 pad ⍕n),' objects for ns ',(pad o),' found: ',∊t3
+                        say'[',(⍕i),'] ',(3 pad ⍕n),' objects for ns ',(pad o),' found: ',∊t3
                         :TRAP 0 
-                            ⎕←'dir t3: ',t3
-                            'Fixing objects: ','file://'∘,¨∊¨t3
-                            o2←2 libNs.⎕FIX¨'file://'∘,¨∊¨t3
-                            ⎕←'Loaded into ',libNs,'.',o,': ',o2
-                            where[i]←libNs  
-                        :CASE 22  ⋄ 'On ⎕FIX, file(s) not found???'  
+                            say'dir t3: ',t3
+                            say'Fixing objects: ','file://'∘,¨∊¨t3
+                            _←⍎o libNs.⎕NS ''
+                            o2←2 _.⎕FIX¨'file://'∘,¨∊¨t3
+                            newLibsRefs,←_
+                            say'Loaded into ',(⍕_),': ',o2
+                            where[i]←libNs   
                         :ELSE ⋄ ⎕SIGNAL/⎕DMX.(EM EN)         
                         :ENDTRAP
                     :ENDIF 
                 :ENDIF
             :ENDFOR 
-            :IF ~fnd
-                    '[',(⍕i),'] Object ',(pad o),' not found in workspace or directories identified.'
-            :ENDIF
         :ENDFOR
     :ENDFOR
 
-    oldPath←here.⎕PATH
-    :IF updateO  ⋄ :ANDIF ~1∊(' ',t←' ',⍨⍕libNs)⍷' ',' ',⍨here.⎕PATH
-        here.⎕PATH,⍨←t
+    :IF verboseO  ⋄ :ANDIF ⎕NULL∊where
+        '*** OBJECTS NOT FOUND!'
+        (where∊⎕NULL){  (⍺/⍳≢⍵) {say'    [',(⍕⍺),'] ',⍵}¨ ⍺/⍵  }objs
     :ENDIF
+
+    oldPath←here.⎕PATH
+    :IF updateO
+        here.⎕PATH←{
+          ⍺←here.⎕PATH ⋄ old new←{' '(≠⊆⊢)⍣(1≥|≡⍵)⊣⍵}¨⍺ ⍵ ⋄ 1↓∊' ',¨∪old,new
+        }⍕¨newLibsRefs
+    :ENDIF 
 
     :IF verboseO
         'opts     ' opts
