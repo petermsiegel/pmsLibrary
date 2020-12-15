@@ -1,7 +1,7 @@
 ∇ {where}←{opts} require2 objs
    ;⎕IO;⎕ML   
-   ;count;Debug;debugO;dir;dirSearchPath;fname;fname2;fileIx;fnd;fnd2;fnd3;forceO;hasO;here;ScanFileSys;libNs;lib_sub2
-   ;mainNs;mainNsD;memPath;m2;newLibsRefs;obj;obj2;objIx;OF;oldPath;opt;Pad;searchPathO;setPathO;status
+   ;count;Debug;debugO;dir;dirSearchPath;fileName;fileList;fileId;fileIx;Fix2Group;fnd;fnd2;forceO;hasO;here;ScanFileSpecs;libNs;libNsDotObj
+   ;mainNs;mainNsD;memPath;m2;newLibsRefs;obj;objList;objIx;OF;oldPath;opt;Pad;searchPathO;setPathO;status
    ;stat2;subNs;subNsD;verboseO;where;wh2;_ 
 
   ⍝ Defaults
@@ -16,6 +16,7 @@
   ⍝ Mini-utilities
     Pad←{⍺←10 ⋄ ⍺>≢⍵: ⍵↑⍨-⍺ ⋄ ⍵}
     Debug←{debugO: ⎕←'>>> ',⍵ ⋄ 1: _←⍬}  
+    Fix2Group←{0:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ 2 ⍺.⎕FIX 'file://'∘,¨⍵}
 
   ⍝ Process OPTIONS
   ⍝    DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...
@@ -26,7 +27,7 @@
   ⍝    -NOVerbose  |  -Verbose              | Provide details on search  
   ⍝    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.     
   ⍝    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
-  ⍝ An option's case is ignored; when specified as main fname left arg, each option may omit the initial hyphen.
+  ⍝ An option's case is ignored; when specified as main fileName left arg, each option may omit the initial hyphen.
     debugO verboseO mainNs  searchPathO setPathO forceO subNs  where ←{
 ⍵}  0      0        mainNsD 1           1        0      subNsD ⍬    ⍝ ...O options and other settings
     :FOR opt :IN ⎕C opts←' '(≠⊆⊢)opts ~'-'
@@ -45,7 +46,7 @@
             '   Returns the local library. As a side effect, ensures the local library is in the local ⎕PATH.'
             '   (By "local" (namespace), we mean the namespace from which require2 is called).'
             'Syntax:'
-            '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj2...'' | [''opts''] ''obj1'' ''obj2'' ... ]'
+            '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj...'' | [''opts''] ''obj1'' ''obj'' ... ]'
             '   opts:'
             '      -[SESsion* | -Root | -Local]'
             '      -[no]Prefix*       -[no]SEArchpath*'
@@ -117,50 +118,49 @@
             :IF status[objIx]≠0  ⋄ :continue ⋄ :ENDIF
             obj←objIx⊃objs
           ⍝ Obj name of form OBJL.OBJR. See [OBJ FORMS] below.
-            fname←dir,'/',('/'@('.'∘=)⊣obj)
+            fileName←dir,'/',('/'@('.'∘=)⊣obj)
           ⍝ OBJ FORMS: (A) OBJ is simple name, e.g. "this"; (B) OBJ has embedded dots, e.g. "this.that".
-          ⍝ (A) Search for files DIR/this.dyalog, DIR/this.apl*      & dirs DIR/this/*.dyalog, DIR/this/*.apl*
-          ⍝ (B) Search for files DIR/this/that.dyalog, DIR/this.apl* & dirs DIR/this/that/*.dyalog, DIR/this/that/*.apl
-            ScanFileSys←{ nms←⍺∘,¨⍵
-              ~∨/fnd←(⎕NEXISTS⍠1)nms: ⍬ 
-              0=count←+/≢fnameOut←⊃,/0 (⎕NINFO ⍠1)fnd/nms: ⍬
-              fnameOut
+          ⍝ (A) Search for files DIR/this.dyalog, DIR/this.apl?      & dirs DIR/this/*.dyalog, DIR/this/*.apl?
+          ⍝ (B) Search for files DIR/this/that.dyalog, DIR/this.apl? & dirs DIR/this/that/*.dyalog, DIR/this/that/*.apl?
+          ⍝ The following file types are associated with various source code management tools.
+          ⍝    .dyalog (generic),
+          ⍝    .aplf (functions), .aplo (operators), .apln (namespaces), .aplc (classes), .apli (interfaces),
+          ⍝    .apla (serialised arrays for Link).
+          ⍝ We accept all as direct input to 2∘⎕FIX.
+
+          ⍝ ScanFileSpecs:  fileIds@VS ← fileName@S ∇ fileExtensions@VS
+            ScanFileSpecs←{ NAME_SPEC←0
+              found←(⎕NEXISTS⍠1)fileSpecs←⍺∘,¨⍵
+              1(~∊)found:   ⍬   ⋄  fileIds←⊃,/ NAME_SPEC (⎕NINFO ⍠1) found/fileSpecs
+              0=+/≢fileIds: ⍬   ⋄  fileIds
             }
-            :IF ×≢fname2←fname ScanFileSys '.dyalog' '.apl*'
-                :IF 1<≢fname2
-                    '⎕SIGNAL... DOMAIN ERROR: [',(⍕objIx),'] ','Multiple Objects ',(Pad obj),' NOT ALLOWED: ',∊fname2
-                :ELSE 
-                    Debug'[',(⍕objIx),'] ','            Object ',(Pad obj),' found: ',∊fname2
-                    :TRAP 0/⍨~debugO
-                        Debug'obj name: ',fname2  
-                        obj2←2 libNs.⎕FIX 'file://',∊fname2      
-                        Debug'Loaded into',libNs,':',obj2
-                        :IF 1∊_←∊9.1=libNs.⎕NC ⊆,obj2
-                            Debug 'Obj "',(1↓¯1↓⍕obj2),'" is a namespace. Adding to newLibRefs' 
-                            newLibsRefs,←libNs⍎¨_/obj2
-                        :ENDIF 
-                        where[objIx]←libNs  
-                    :ELSE 
-                        ⎕SIGNAL/⎕DMX.(EM EN)         
-                    :ENDTRAP
-                :ENDIF
+            :IF ×≢fileList←fileName ScanFileSpecs '.dyalog' '.apl?'
+                :IF 1<≢fileList
+                    'WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
+                :ENDIF 
+                :FOR fileId :IN fileList
+                    Debug'[',(⍕objIx),'] ','            Object ',(Pad obj),' found: ',fileId
+                    Debug'obj name: ',fileId
+                    objList←libNs Fix2Group ⊂fileId   
+                    Debug'Loaded into',libNs,':',objList
+                    :IF 1∊fnd2←∊9.1=libNs.⎕NC objList
+                        Debug 'Obj "',(1↓¯1↓⍕objList),'" is a namespace. Adding to newLibRefs' 
+                        newLibsRefs,←libNs⍎¨fnd2/objList
+                    :ENDIF 
+                    where[objIx]←libNs  
+                :ENDFOR
             :ENDIF
-            :IF ×≢fname2←fname ScanFileSys '/*.dyalog' '/*.apl*'
-                    Debug'[',(⍕objIx),'] ',(3 Pad ⍕+/≢fname2),' objects for ns ',(Pad obj),' found: ',fname2
-                    :TRAP 0/⍨~debugO
-                        Debug'dir name: ',obj
-                        Debug'Fixing objects: ',(⊂'file://')∘,¨∊¨fname2
-                        lib_sub2←⍎obj libNs.⎕NS ''
-                        obj2←{⎕←'fixing "',⍵,'" [items=',(⍕≢⍵),']'⋄ 2 lib_sub2.⎕FIX¨'file://',⍵}¨fname2
-                        :IF 1∊fnd3←∊9.1=lib_sub2.⎕NC ⊆,obj2
-                            Debug 'Obj "',(1↓¯1↓⍕obj2),'" is a namespace(s). Adding to newLibRefs' 
-                            newLibsRefs,←lib_sub2⍎¨fnd3/obj2
-                        :ENDIF
-                        Debug'Loaded into ',(⍕lib_sub2),':',obj2
-                        where[objIx]←libNs   
-                    :ELSE 
-                        ⎕SIGNAL/⎕DMX.(EM EN)         
-                    :ENDTRAP
+            :IF ×≢fileList←fileName ScanFileSpecs '/*.dyalog' '/*.apl?'
+                Debug'[',(⍕objIx),'] ',(3 Pad ⍕+/≢fileList),' objects for ns ',(Pad obj),' found: ',fileList
+                Debug'dir name: ',obj
+                Debug'Fixing objects: ',(⊂'file://')∘,¨∊¨fileList
+                libNsDotObj←⍎obj libNs.⎕NS ''
+                objList←libNsDotObj Fix2Group fileList 
+                :IF 1∊fnd2←∊9.1=libNsDotObj.⎕NC objList
+                    Debug 'Obj "',(1↓¯1↓⍕objList),'" is 1 or more namespaces. Adding to newLibRefs' 
+                    newLibsRefs,←libNsDotObj⍎¨fnd2/objList
+                :ENDIF
+                Debug'Loaded into ',(⍕libNsDotObj),':',objList
             :ENDIF
         :ENDFOR
     :ENDFOR
