@@ -1,1 +1,3 @@
-Test.dyalog
+∇test001
+⍳5
+∇ 
