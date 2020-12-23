@@ -1,15 +1,15 @@
 ∇ {rWhere}←{opts} require2 objs
    ;⎕IO;⎕ML   
-   ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;here;rLibNs;libNsDotObj
-   ;rMainNs;mainNsD;memPath;mem;rNewLibsRefs;obj;objList;objIx;oldPath;opt;Pad;searchPathÔ;setPathÔ;status
-   ;stat;sSubNs;subNsD;verboseÔ;rWhere;wh 
-   ;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
+   ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;here;i;libNsDotObj
+   ;mainNsDef;memPath;mem;obj;objList;objIx;oldPath;opt;Pad;rLibNs;rMainNs;rNewLibsRefs;searchPathÔ;setPathÔ;status
+   ;stat;sSubNs;subNsDef;verboseÔ;rWhere
+   ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
    ;notFoundOkÔ   ⍝Experimental 
 
   ⍝ Defaults
     ⎕IO ⎕ML←0 1
-    mainNsD subNsD←⎕SE  '⍙⍙.⍙'        ⍝ ...D: Defaults
-    here←⊃⎕RSI, mainNsD
+    mainNsDef subNsDef←⎕SE  '⍙⍙.⍙'        ⍝ ...D: Defaults
+    here←⊃⎕RSI, mainNsDef
     dirSearchPath←∪⊃,/{':' (≠⊆⊢) 2 ⎕NQ'.' 'GetEnvironment'⍵}¨'FSPATH'   'WSPATH'
 
     :IF 1≥|≡objs ⋄ objs←' ' (≠⊆⊢),objs ⋄ :ENDIF
@@ -18,6 +18,13 @@
   ⍝ Utilities
     Pad←{⍺←10 ⋄ ⍺>≢⍵: ⍵↑⍨-⍺ ⋄ ⍵}
     DebugMsg←{⍺←0 ⋄ debugÔ∨⍺: ⎕←'>>> ',⍵ ⋄ 1: _←⍬}  
+    ExpandSearchToPath←{UP←⊂,'↑'  ⋄ here path0←⍺ ⍵
+            path←' '(≠⊆⊢)here.⎕PATH
+            GetRef←path0∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
+            Climb←{⍵.##≡⍵:⍺ ⋄ (⍺,⍵.##)∇ ⍵.##}⍨                ⍝ Returns all namespaces between ⍵ and the top level inclusive!
+            ~UP∊path:GetRef path
+            GetRef ⍬{0=≢⍵:⍺ ⋄ UP≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺, Climb here)∇ 1↓⍵}path
+    }
   ⍝ ScanFileSpecs:  fileIds@VS ← fileName@S ∇ fileExtensions@VS
     ScanFileSpecs←{  GetFileNames←0∘(⎕NINFO ⍠1)
       fnd←(⎕NEXISTS⍠1)fiSpecs←⍺∘,¨⍵
@@ -27,8 +34,8 @@
   ⍝ Fix2Group-- Fix named objects.
   ⍝             Each ⍵ may return multiple obj names; ∇ returns a flat list (of depth 2).
     Fix2Group←{
-        0/⍨~debugÔ:: ⎕SIGNAL/⎕DMX.(EM EN) 
-        _←1 DebugMsg '⎕FIXing: ' ('file://'∘,¨⊆⍵) ⋄ ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵ 
+        0/⍨~debugÔ:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg '⎕FIXing: ' ('file://'∘,¨⊆⍵) 
+        ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵ 
     }   
    ⍝ Directory Services: provide fast search for objects
    ⍝ Call:     (force@B rlibNs@Ns) ∇ objs@SV
@@ -49,8 +56,8 @@
         dir←rLibNs.⎕OR '⍙Directory'
         rWh←(1⊃dir)[objs⍳⍨0⊃dir]                        
         done←0(~∊)rWh ScanForObjs objs                  
-        done: done rWh ⊣ 1 DebugMsg 'All objects located in fast directory table: ',(⍕rLibNs),'.⍙Directory'
-        done rWh 
+        done: 1 rWh ⊣ DebugMsg 'All objects located in fast directory table: ',(⍕rLibNs),'.⍙Directory'
+        0 rWh 
     }
     Update⍙Directory←{
         oOut wOut←⍺,⍨¨⍵  ⋄ kp←⎕NULL≠¯1↓wOut ⋄ ⍝ Keep only those objects found...
@@ -69,19 +76,22 @@
   ⍝    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
   ⍝    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING
   ⍝ An option's case is ignored; when specified as main fileName left arg, each option may omit the initial hyphen.
-    debugÔ verboseÔ rMainNs  searchPathÔ setPathÔ forceÔ sSubNs  rWhere notFoundOkÔ ←{
-⍵}  0      0        mainNsD  1           1        0      subNsD  ⍬      0  
+    debugÔ verboseÔ rMainNs    searchPathÔ setPathÔ forceÔ sSubNs    rWhere notFoundOkÔ ←{
+⍵}  0      0        mainNsDef  1           1        0      subNsDef  ⍬      0  
     :FOR opt :IN ⎕C opts←' '(≠⊆⊢)opts ~'-'
         OF←(≢opt)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}
         :SELECT opt  ⍝ Ordered approx. by likelihood. Left paren shows minimal abbrev.
-          :CASE OF 'verbose'        ⋄ verboseÔ←1     ⋄  :CASE OF 'root'           ⋄ rMainNs←#
-          :CASE OF 'local'          ⋄ rMainNs←here   ⋄  :CASE OF 'nop(refix'      ⋄ sSubNs←''
-          :CASE OF 'nosea(rchpath'  ⋄ searchPathÔ←0  ⋄  :CASE OF 'noset(path'     ⋄ setPathÔ←0
-          :CASE OF 'force'          ⋄ forceÔ←1       ⋄  :CASE OF 'debug'          ⋄ debugÔ←1  
-          :CASE OF 'set(path'       ⋄ setPathÔ←1     ⋄  :CASE OF 'nov(erbose'     ⋄ verboseÔ←0   
-          :CASE OF 'nof(orce'       ⋄ forceÔ←0       ⋄  :CASE OF 'p(refix'        ⋄ sSubNs←subNsD   
-          :CASE OF 'ses(sion'       ⋄ rMainNs←⎕SE    ⋄  :CASE OF 'sea(rchpath'    ⋄ searchPathÔ←1   
-          :CASE OF 'nf(ok'          ⋄ notFoundOkÔ←01 ⋄  :CASE OF 'nonf'           ⋄ notFoundOkÔ←0  
+        ⍝  Non-defaults
+          :CASE OF 'root'           ⋄ rMainNs←#      ⋄ :CASE OF 'local'         ⋄ rMainNs←here   
+          :CASE OF 'NOp(refix'      ⋄ sSubNs←''
+          :CASE OF 'NOsea(rchpath'  ⋄ searchPathÔ←0  ⋄ :CASE OF 'NOset(path'    ⋄ setPathÔ←0
+          :CASE OF 'verbose'        ⋄ verboseÔ←1     ⋄ :CASE OF 'debug'         ⋄ debugÔ←1     
+          :CASE OF 'force'          ⋄ forceÔ←1       ⋄ :CASE OF 'nf(OK'         ⋄ notFoundOkÔ← 1  
+        ⍝ Defaults 
+          :CASE OF 'ses(sion'       ⋄ rMainNs←⎕SE    ⋄ :CASE OF 'p(refix'       ⋄ sSubNs←subNsDef   
+          :CASE OF 'sea(rchpath'    ⋄ searchPathÔ←1  ⋄ :CASE OF 'set(path'      ⋄ setPathÔ←1  
+          :CASE OF 'NOv(erbose'     ⋄ verboseÔ←0     ⋄ :CASE OF 'NOf(orce'      ⋄ forceÔ←0  
+          :CASE OF 'NOnf'           ⋄ notFoundOkÔ←0        
           :CASE OF 'help'
             'require2: HELP INFORMATION'
             'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
@@ -127,47 +137,33 @@
     rLibNs←⍎sSubNs rMainNs.⎕NS ⍬     ⍝ If sSubNs is '', returns reference to rMainNs
 
    ⍝ rWhere:        ns where found or ⎕NULL, if not.
-    :IF stat  ⊣ stat rWhere←forceÔ rLibNs Import⍙Directory objs 
-         :RETURN 
-    :ENDIF 
-   
-   ⍝ status contains ints: 2= Found in fs, 1=found in APL space, 0= not found, ¯1= Invalid Name. 
+    found rWhere←forceÔ rLibNs Import⍙Directory objs   ⍝ initializes rWhere
+    :IF found ⋄ :RETURN ⋄ :ENDIF 
+   ⍝ status contains ints: 2= Found in filesys, 1= found in APL space, 0= not found, ¯1= Invalid Name. 
     status←(≢objs)⍴0 
+    memPath←here ExpandSearchToPath⍣(searchPathÔ) ⊣ here rLibNs   
+    :IF verboseÔ ⋄ 'Memory path is    ',memPath ⋄ 'Directory path is ',dirSearchPath ⋄ :EndIf 
 
-    memPath← here rLibNs
-    :IF searchPathÔ         
-        memPath←memPath{UP←⊂,'↑'
-            path←' '(≠⊆⊢)⍵.⎕PATH
-            GetRef←⍺∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
-            Climb←{⍵.##≡⍵:⍺ ⋄ (⍺,⍵.##)∇ ⍵.##}⍨                ⍝ Returns all namespaces between ⍵ and the top level inclusive!
-            ~UP∊path:GetRef path
-            GetRef ⍬{0=≢⍵:⍺ ⋄ UP≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺, Climb here)∇ 1↓⍵}path
-        }here
-    :ENDIF
-
-    :IF verboseÔ
-        'Memory path is    ',memPath
-        'Directory path is ',dirSearchPath
-    :EndIf 
-
-  ⍝ Scan for objs in APL namespaces <memPath>, unless forceÔ.   If found, skip filesys scan.   
+   ⍝ Scan for objs in APL namespaces <memPath>, unless forceÔ.   If found, skip filesys scan.   
     :IF ~forceÔ
         :FOR i :IN ⍳≢objs   ⍝ Search memPath namespaces for <obj>
-            obj←i⊃objs  ⋄ stat←0 ⋄ wh←⎕NULL  
+            obj←i⊃objs  
             :FOR mem :IN memPath   
-                :IF stat=0
-                :ANDIF 1=stat←×mem.⎕NC obj      ⍝ stat∊ 1 (found), 0 (not found), ¯1 (bad name-- leave)
-                    wh←mem
-                    ⋄ DebugMsg '>>> In memory: ',obj,' at ',⍕wh
+                found←×mem.⎕NC obj         ⍝ found ∊ 1 (found), 0 (not found), ¯1 (malformed name)
+                :IF 0≠found                ⍝ 1 or ¯1
+                    status[i]←found 
+                    :IF found=1   
+                        rWhere[i]←mem  
+                        ⋄ DebugMsg '>>> In memory: ',obj,' at ',⍕mem
+                    :ENDIF 
+                    :LEAVE ⍝ :FOR mem :IN memPath   
                 :ENDIF
-                :IF stat≠0 ⋄ :LEAVE ⋄ :ENDIF    ⍝ Don't keep looking if found or invalid name.
             :ENDFOR
-            status[i]←stat  ⋄ rWhere[i]←wh
         :ENDFOR
     :ENDIF
   ⍝ Error if any obj names are invalid.
     :IF  ¯1∊status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕objs/⍨¯1=status ⋄ :ENDIF
-
+ 
     rNewLibsRefs←rLibNs
     :FOR dir :IN dirSearchPath
         :FOR objIx :IN ⍳≢ objs
