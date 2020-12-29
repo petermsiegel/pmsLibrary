@@ -1,4 +1,4 @@
-:namespace Format
+﻿:namespace Format
   ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
     DEBUG←0  ⋄  ÇR ← DEBUG/⎕UCS 13   ⍝ If DEBUG: ÇR makes complex patterns easy to read by adding CR's. Else null.
     :Section For Documentation, see Section "Documentation"
@@ -14,7 +14,7 @@
     :Section PMSLIB
   ⍝  PMSLIB:  "STANDARD" UTILITIES (to be put in common file/namespace)
     :Namespace PMSLIB
-          ÇR ← ##.DEBUG/⎕UCS 13   
+        ÇR ← ##.DEBUG/⎕UCS 13
      ⍝ ∆F:  Find a pcre field by name or field number
           ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
               def←'' ⋄ isN←0≠⍬⍴0⍴⍵
@@ -27,7 +27,7 @@
     ⍝         skipping embedded SQ strings, DQ strings.
     ⍝         fails on unbalanced braces, e.g. a single left or right brace.
     ⍝ Display to be easy to read ;-)
-          GenBalanced←{L R←⊂¨'\',¨⍵  
+          GenBalanced←{L R←⊂¨'\',¨⍵
               N←⊂'bal',⍕bpCount_ ⋄ bpCount_+←1    ⍝ local N- unique pat name in case several in use
               _p←'(?x) (?<N> ',ÇR                                         ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
               _p,←'L',ÇR                                                  ⍝ ∘ Match "{", then atomically 1 or more of:
@@ -111,8 +111,8 @@
 
     :Section Global Declarations
     ⎕FX '{msg}←_CSAY msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
-    _CSAY 'DEBUG is active'
-    _CSAY '⎕PATH←',(⎕PATH←⍕PMSLIB)
+     _CSAY 'DEBUG is active'
+     _CSAY '⎕PATH←',(⎕PATH←⎕PATH,' ',⍕PMSLIB)
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
  ⍝ ∆XRL: "Execute and Replace Locally"
@@ -281,8 +281,9 @@
     ∇
 
   ⍝ Add ⎕THIS to ⎕PATH cleanly and exactly once (if not already present).
-    ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
-    _CSAY (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
+  ⍝ Suppressed!
+  ⍝  ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
+  ⍝  _CSAY (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
   ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←' '~⍨¨↓'_' ⎕NL 2 3 4
     _CSAY (DEBUG⊃'Deleting' 'Maintaining'),' temp objects:',∊' ',¨_

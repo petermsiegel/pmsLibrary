@@ -1,529 +1,262 @@
-﻿require←{
-  ⍝  See help documentation for syntax and overview.
-  ⍝   aa,a,a, ab
-    ⎕IO ⎕ML←0 1    
-  ⍝ Help info hardwired..
-    HELP_FNAME←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/docs/require.help'
-    DefaultLibName←'⍙⍙.require'       ⍝ Default will be in # or ⎕SE, based on callerN (default or passed by user)
- 
-  ⍝ General Utilities used below
-  ⍝ (These should be informational - general)
-    getenv←{⊢2 ⎕NQ'.' 'GetEnvironment'⍵}
-    help_info←{ ↑⊃⎕NGET 1,⍨⊂HELP_FNAME}
-    get_info←{
-        _←⊂ 'HELP FILE:    ',HELP_FNAME
-        _,←⊂'DEFAULT LIB:  ',DefaultLibName
-        _,←⊂'FSPATH:       ',getenv'FSPATH'
-        _,←⊂'WSPATH:       ',getenv'WSPATH'
-        ↑_
-    }
+﻿ {rWhere}←{opts}require objs
+ ;⎕IO;⎕ML
+ ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;HERE;HERE_PATH
+ ;i;libNsDotObj;mainNsDef;memPath;mem;obj;objList;objIx;oldPath;opt;Pad;rLibNs;rMainNs;rNewLibsRefs
+ ;searchPathÔ;setPathÔ;status;stat;sSubNs;subNsDef;verboseÔ;rWhere
+ ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
+ ;notFoundOkÔ   ⍝Experimental
 
-    ⍝⍝⍝⍝ Utilities for copying and fixing objects:
-    ⍝⍝⍝⍝ wsGetFix
-    ⍝⍝⍝⍝ fileGetFix
-    wsGetFix←{
-      ⍝ objList@VS ← [objList](destNs wsGetFix) library
-      ⍝ → [list]destNs.⎕CY library
-      ⍝ Returns list of objects if successful.  ⍬ if it fails. (Reports any error msg as well)
-        0::⍬⊣⎕←'Warning: Error ',⎕DMX.(DM,' ',Message),', Library="','"',⍨library
-        ⍺←⊢ ⋄ listIn←⍺ ⋄ destNs←⍺⍺ ⋄ library←⍵
-        ⋄ old←⍬ newObjs destNs
-        _←listIn destNs.⎕CY library     ⍝ listIn may be omitted...
-        ⋄ listOut←old newObjs destNs    ⍝ Figure out what objects of interest were created.
-        listOut
-    }
-    fileGetFix←{
-      ⍝ objList ← destNs fileGetFix fileId
-      ⍝ →  objList ← 2 destNs.⎕FIX'file://',fileId
-      ⍝ Signals error if not successful.
-      ⍝ Returns a list of objects (on success)...
-        0::⎕SIGNAL/⎕DMX.(EM EN)
-        destNs fileId←⍺ ⍵
-        2 destNs.⎕FIX'file://',fileId
-    }
+  ⍝ Defaults
+  ⎕IO ⎕ML←0 1
+  mainNsDef subNsDef←⎕SE'⍙⍙.⍙'        ⍝ ...D: Defaults
+  HERE←⊃⎕RSI,mainNsDef
+  ⍝ Save HERE.⎕PATH into HERE_PATH to detect changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
+  HERE_PATH←HERE.⎕PATH                
 
-    ⍝ Miscellaneous utilities
-    ⍝ and:         A and B 0  < dfns 'and', where A, B are code {} or binary
-    ⍝ or:          A or  B 0  < dfns 'or',  ...
-    ⍝ split:       Split ⍵ on char in set ⍺ (' '), removing ⍺, returning vector of strings.
-    ⍝ splitFirst:  Split ⍵ on FIRST single char ⍺ (' ') found, returning 2 vectors (each possibly null string).
-    ⍝ splitLast:   Split ⍵ on LAST single char ⍺ (' ') found, returning two vectors (...).
-    ⍝ newObjs:     Show what functions and ops have changed in the namespace <where>,
-    ⍝              given <old> the list of old fns/ops. Returns only the NEW ones.
-    ⍝              Example: old← ⍬ newObjs myNs ⋄ <<fiddle the namespace>> ⍝ new← old newObjs myNs
-    ⋄ and←{⍺⍺⊣⍵:⍵⍵⊣⍵ ⋄ 0     }
-    ⋄ or← {⍺⍺⊣⍵:1    ⋄ ⍵⍵ ⊣ ⍵}
-    ⋄ split←{⍺←' ' ⋄ (~⍵∊⍺)⊆⍵}∘,
-    ⋄ splitFirst←{⍺←' ' ⋄ (≢⍵)>p←⍵⍳⍺:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-    ⋄ splitLast←{⍺←' ' ⋄ 0≤p←(≢⍵)-1+⍺⍳⍨⌽⍵:(⍵↑⍨p)(⍵↓⍨p+1) ⋄ ''⍵}∘,
-    ⋄ newObjs←{old where←⍺ ⍵ ⋄ new←where.⎕NL-3 4 9.1 ⋄ new~old}
-    
-  ⍝ For inforation on options. see -HELP information in Require.help
-  ⍝ Scan for options
-    ⍺←⎕NULL       ⍝ options in right arg before packages?
-    options←⍺{
-      ⍝ defaults set here... (caller → callerR callerN below)
-        forceOpt debugOpt outOpt callerOpt libOpt←0 0 ''⍬ ⍬
-        monad opts pkgList←⍺{
-            ⍺≢⎕NULL:0(,⊆⍺)(,⊆⍵)
-            1<|≡⍵:1(,⍵)(,⊆⍵)
-            _←' '(≠⊆⊢)⍵
-            1 _ _
-        }⍵
-        scanOpts←{
-          ⍝ Returns 1 only for -help; else 0.
-            ⍵≥≢opts:0
-            o←⍵⊃opts ⋄ next skip←⍵+1 2
-            case←(819⌶o)∘{⍵≡⍺↑⍨≢⍵}          
-          ⍝ setFrmNext: Options of form:  -name=val set ⍎⍺ to <val>
-          ⍝                  form   -name     set ⍎⍺ to next⊃opts
-            setFrmNext←{ 
-                e←'='∊⍵    ⋄ ø←{⍵:(1+o⍳'=')↓o ⋄ next⊃opts}e
-                _←⍎⍺,'∘←ø' ⋄ e⊃skip next
-            }
-            3:: 11 ⎕SIGNAL⍨'require: value for option ',o,' missing'
-          ⍝ Option is a namespace. Set libOpt option.
-            9=⎕NC'o': ∇ next⊣libOpt∘←o
-          ⍝ Option begins with -X, X∊'hifd...'
-            case'-h':  1⊣⎕ED'⍙'⊣⍙←help_info 0   ⍝ -help
-            case'-i':  1⊣⎕ED'⍙'⊣⍙← get_info 0   ⍝ -i[nfo]   (General info on settings)
-            case'-f':  ∇ next⊣forceOpt∘←1       ⍝ -f[orce]
-            case'-d':  ∇ next⊣debugOpt∘←1       ⍝ -d[ebug]
-            case'-s':  ∇ next⊣libOpt∘←⎕SE       ⍝ -s[ession]
-            case'-r':  ∇ next⊣libOpt∘←#         ⍝ -ro[ot]
-            case'-o':  ∇'outOpt'setFrmNext o    ⍝ -o[utput]=[s|l|sl|b|q]  Output: s[tatus] l[ibrary] [boolean]
-            case'-q':  ∇ next⊣outOpt∘←'q'       ⍝ -q (quiet), same as -output=q
-            case'-c':  ∇'callerOpt'setFrmNext o ⍝ -c[aller]=nsName | -c[aller] nsRef
-            case'-l':  ∇'libOpt'setFrmNext o    ⍝ -l[ib]=nsName    | -l[ib]    nsRef
-            ~monad:'require: invalid option(s) found'⎕SIGNAL 11
-            case'--':0⊣pkgList∘←next↓opts
-            0⊣pkgList∘←⍵↓opts
-        }
-        scanOpts 0:⍬
-        outOpt←{'q'∊⍵: ¯2 ⋄ 'b'∊⍵:¯1 ⋄ 2 1+.×'ls'∊⍵}(819⌶)outOpt
-        callerR callerN←{
-            9=⎕NC'⍵':⍵(⍕⍵)
-            r n←(2⊃⎕RSI)(2⊃⎕NSI)
-            ⍵≡⍬:r n
-            (r⍎⍵)⍵
-        }callerOpt
-        options←forceOpt debugOpt outOpt callerR callerN libOpt pkgList
+⍝ Get search path from FSPATH if present, else WSPATH, else '.:..'
+  dirSearchPath←'.' '..'{
+      Get←{2 ⎕NQ'.' 'GetEnvironment' ⍵} 
+      0=≢⍵: ⍺
+      0≠≢p←Get ⊃⍵: ∪':'(≠⊆⊢)⊣p  ⋄ ⍺ ∇ 1↓⍵
+  }'FSPATH' 'WSPATH' 
 
-        ~debugOpt:options
-        ⎕←'forceOpt  ',⍕forceOpt ⋄ ⎕←'debugOpt  ',⍕debugOpt
-        ⎕←'outOpt    ',⍕outOpt   ⋄ ⎕←'callerOpt ',⍕callerOpt 
-        ⎕←'libOpt    ',⍕libOpt   ⋄ ⎕←'pkgList   ',,⎕FMT pkgList
-        options
-    }⍵
+  :If 1≥|≡objs ⋄ objs←' '(≠⊆⊢),objs ⋄ :EndIf
+  :If (900⌶)0 ⋄ opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵}objs ⋄ :EndIf
 
-  ⍝ If -help or -info, done now...
-    0=≢options:''
-  ⍝ ... Otherwise, hand out options by name
-    forceOpt debugOpt outOpt callerR callerN libOpt pkgList←options
-  ⍝ Internal option ADDFIXEDNAMESPACES: See add2PathIfNs
-  ⍝   If a .dyalog file is fixed, the created items are returned by ⎕FIX.
-  ⍝   If an item is a namespace (now in libR), should it be added to ⎕PATH?
-  ⍝   >>> If ADDFIXEDNAMESPACES←1, then it will be added to ⎕PATH.
-  ⍝   >>> Otherwise, not.
-    ADDFIXEDNAMESPACES←1
-  ⍝ Internal option USEHOMEDIR:
-  ⍝ If 1, use [HOME] to represent env. var HOME.  See shortDirName
-    USEHOMEDIR←1
-    debugOpt::⎕SIGNAL/⎕DMX.(EM EN)
-  ⍝ Determine library ref and name from option libOpt (via -lib or default)...
-    libR libN←DefaultLibName{
-        deflib←⍺
-        returning←{2=≢⍵:⍵ ⋄ (callerR⍎⍵ callerR.⎕NS'')⍵}   ⍝ Added callerR left of ⍎
-      ⍝  Same as ⍕{⍵.##}⍣≡callerR
-        top←'⎕SE' '#'⊃⍨'#'=1↑callerN          ⍝ what's our top level?
-        topDef←top,'.',deflib                 ⍝ the default if there's no default library
-        ⍵≡⍬:returning topDef
-       ⍝ Regexp's for special prefixes [LIB] and [CALLER]
-        LIB_PFX1p LIB_PFX2p CALR_PFXp←'^\Q[LIB]\E'  '\Q[LIB]\E' '\Q[CALLER]\E'   
-        0::⎕SIGNAL/('require DOMAIN ERROR: Default library name invalid: ',{0::⍕⍵ ⋄ ⍕⍎⍵}⍵)11
-        returning{
-            val←(⍕⍵)~' '                      ⍝ Set val. If ⍵ is ⎕SE or #, val is '⎕SE' or '#'
-            (⊂,val)∊'⎕SE'(,'#'):(⍎val)val     ⍝ Matches:  ⎕SE, '⎕SE', #, '#'
-            9.1 9.2∊⍨nc←callerR.⎕NC⊂,'⍵':(⍵)(⍕⍵)  ⍝ Matches: an actual namespace reference
-            2.1≠nc:○○○                        ⍝ If we reached here, ⍵ must be a string.
-            0=≢val:(⍎top)top                  ⍝ Null (or blank) string? Use <top>
-          ⍝ Handle (⎕SE or #).[LIB], [LIB].mysub and [CALLER], calling env.
-            name←LIB_PFX1p LIB_PFX2p CALR_PFXp ⎕R topDef deflib callerN⊣val
-            nc←callerR.⎕NC⊂,name              ⍝ nc of name stored in lib w.r.t. caller.
-            9.1=nc:{⍵(⍕⍵)}(callerR⍎name)      ⍝ name refers to active namespace. Simplify via ⍎.
-            0=nc:callerN,'.',name             ⍝ Assume name refers to potential namespace...
-            error∘∘∘                          ⍝ error!
-        }⍵
-    }libOpt
+⍝ Utilities
+  Pad←{⍺←10 ⋄ ⍺>≢⍵:⍵↑⍨-⍺ ⋄ ⍵}
+  DebugMsg←{⍺←0 ⋄ debugÔ∨⍺:⎕←'>>> ',⍵ ⋄ 1:_←⍬}
+  ExpandSearchToPath←{UP←⊂,'↑' ⋄ here path0←⍺ ⍵
+      path←' '(≠⊆⊢)here.⎕PATH
+      GetRef←path0∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
+      Climb←{⍵.##≡⍵:⍺ ⋄ (⍺,⍵.##)∇ ⍵.##}⍨                ⍝ Returns all namespaces between ⍵ and the top level inclusive!
+      ~UP∊path:GetRef path
+      GetRef ⍬{0=≢⍵:⍺ ⋄ UP≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺,Climb here)∇ 1↓⍵}path
+  }
+⍝ ScanFileSpecs:  fileIds@VS ← fileName@S ∇ fileExtensions@VS
+  ScanFileSpecs←{GetFileNames←0∘(⎕NINFO⍠1)
+      fnd←(⎕NEXISTS⍠1)fiSpecs←⍺∘,¨⍵
+      1(~∊)fnd:⍬ ⋄ fiIds←⊃,/⊃¨⊆GetFileNames fnd/fiSpecs
+      0=+/≢fiIds:⍬ ⋄ fiIds
+  }
+⍝ Fix2Group-- Fix named objects.
+⍝             Each ⍵ may return multiple obj names; ∇ returns a flat list (of depth 2).
+  Fix2Group←{
+        PathChange←{HERE_PATH≡HERE.⎕PATH: ⍵ ⋄ ⍵⊣⎕←'>>> Warning: ',(⍕HERE),'.⎕PATH change during ⎕FIX of file(s) in: ',⍕⍵}
+        0/⍨~debugÔ::⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg'⎕FIXing: '('file://'∘,¨⊆⍵)
+        PathChange ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵
+  }
+⍝ Directory Services: provide fast search for objects
+⍝ Call:     (force@B rlibNs@Ns) ∇ objs@SV
+⍝ Returns:  done @B rWhere@NsV
+⍝           done:   1 if all objs were found, else 0.
+⍝           rWh:    namespace (ref) where each object is found, or ⎕NULL.
+⍝ ⍙Directory: [0] list of objects; [1] their locations (else ⎕NULL-- 1 more item than [0] contains)
+  Import⍙Directory←{
+      0/⍨~debugÔ::11 ⎕SIGNAL⍨'require2: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
+      (force rLibNs)objs←⍺ ⍵
+      case←rLibNs.⎕NC'⍙Directory' ⋄ no⍙Dir valid⍙Dir←0 2 ⋄ noneFound←0((≢objs)⍴⎕NULL)
+      ScanForObjs←{⍺≡⎕NULL:0 ⋄ 0<⍺.⎕NC ⍵}¨
+        ⍝ Look for valid directory. If none, initialize...
+      case=no⍙Dir:noneFound⊣{⍵.⍙Directory←⍬(,⎕NULL)}rLibNs
+      case≠valid⍙Dir:11 ⎕SIGNAL⍨'require2: LOGIC ERROR- Invalid ⍙Directory type in ns ',⍕rLibNs
+      force:noneFound                      ⍝ Even if force, ensure directory exists (used later).
+        ⍝ Scan directory (that exists) for objects
+      dir←rLibNs.⎕OR'⍙Directory'
+      rWh←(1⊃dir)[objs⍳⍨0⊃dir]
+      done←0(~∊)rWh ScanForObjs objs
+      done:1 rWh⊣DebugMsg'All objects located in fast directory table: ',(⍕rLibNs),'.⍙Directory'
+      0 rWh
+  }
+  Update⍙Directory←{
+      oOut wOut←⍺,⍨¨⍵ ⋄ kp←⎕NULL≠¯1↓wOut ⋄ ⍝ Keep only those objects found...
+      scan←kp∧≠oOut ⋄ (oOut/⍨scan)(wOut/⍨scan,1)
+  }
 
-⍝------------------------------------------------------------------------------------
-⍝  S U P P O R T I N G     F U N C T I O N S
-⍝------------------------------------------------------------------------------------
-⍝   {special_fn} TRACE ⍵: Prints ⍺⍺ ⍵ if debugOpt. Always returns ⍵!
-    TRACE←{ ⍺←⊢  ⋄ ⎕PW←9999                               
-        0:: ⍵⊣⎕←'TRACE: APL trapped error ',⎕DMX.((⍕EN),': ',⎕EM)
-        debugOpt: ⍵⊣⎕←⎕FMT ⍺ ⍺⍺ ⍵ ⋄ ⍵
-    }
+⍝ Process OPTIONS
+⍝    DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...
+⍝    -Session    |  -Root  |  -Local      | What ns to put lib (NS)
+⍝    -Prefix     |  -NOPrefix             | Put objs in ns directly or sub-library (NS)
+⍝    -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs
+⍝    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
+⍝    -NOVerbose  |  -Verbose              | Provide details on search
+⍝    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.
+⍝    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
+⍝    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING
+⍝ An option's case is ignored; when specified as main fileName left arg, each option may omit the initial hyphen.
+ debugÔ verboseÔ rMainNs searchPathÔ setPathÔ forceÔ sSubNs rWhere notFoundOkÔ←{
+     ⍵}0 0 mainNsDef 1 1 0 subNsDef ⍬ 0
+ :For opt :In ⎕C opts←' '(≠⊆⊢)opts~'-'
+     OF←(≢opt)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}∘⎕C
+     :Select opt  ⍝ Ordered approx. by likelihood. Left paren shows minimal abbrev.
+        ⍝  Non-defaults
+     :Case OF'root' ⋄ rMainNs←# ⋄ :Case OF'local' ⋄ rMainNs←HERE
+     :Case OF'NOp(refix' ⋄ sSubNs←''
+     :Case OF'NOsea(rchpath' ⋄ searchPathÔ←0 ⋄ :Case OF'NOset(path' ⋄ setPathÔ←0
+     :Case OF'verbose' ⋄ verboseÔ←1 ⋄ :Case OF'debug' ⋄ debugÔ←1
+     :Case OF'force' ⋄ forceÔ←1 ⋄ :Case OF'nf(OK' ⋄ notFoundOkÔ←1
+        ⍝ Defaults
+     :Case OF'ses(sion' ⋄ rMainNs←⎕SE ⋄ :Case OF'p(refix' ⋄ sSubNs←subNsDef
+     :Case OF'sea(rchpath' ⋄ searchPathÔ←1 ⋄ :Case OF'set(path' ⋄ setPathÔ←1
+     :Case OF'NOv(erbose' ⋄ verboseÔ←0 ⋄ :Case OF'NOf(orce' ⋄ forceÔ←0
+     :Case OF'NOnf' ⋄ notFoundOkÔ←0
+     :Case OF'help'
+         'require2: HELP INFORMATION'
+         'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
+         '   Returns the local library. As a side effect, ensures the local library is in the local ⎕PATH.'
+         '   (By "local" (namespace), we mean the namespace from which require2 is called).'
+         'Syntax:'
+         '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj...'' | [''opts''] ''obj1'' ''obj'' ... ]'
+         '   opts:'
+         '      -[SESsion* | -Root | -Local]'
+         '      -[no]Prefix*       -[no]SEArchpath*'
+         '      -[no]SETpath*      -[no*]Force'
+         '      -nonf | nfok       ⍝ Experimental: return ⎕NULL for missing obj'
+         '      -help              -[no*]Verbose      -Debug'
+         'Notes:'
+         '   ∘ Default library location: ⎕SE (alternatives: # if -Root, calling namespace if -Local).'
+         '   ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).'
+         '   ∘ Defaults are indicated by an asterisk (*) above.'
+         '   ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.'
+         '   ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).'
+         '   ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).'
+         '   ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,'
+         '     but only if there is no explicit left argument (options).'
+         '   ∘ If -SEArchpath is specified, the entire "local"namespace, local search ⎕PATH, and the library are searched for objects.'
+         '     If -noSEArpath, only the "local" namespace and the library are searched.'
+         '   ∘ If an obj is found, but cannot be fixed via 2∘⎕FIX, an error is ⎕SIGNALled no matter what.'
+         '   ∘ Experimental:'
+         '     If -nfok is specified, returns ⎕NULL elements for missing objs, rather than ⎕SIGNALling failure.'
+         'Options for the Standard Library Namespace'
+         '[Option -local assumes that require2 happened to be called from namespace #.mylib]'
+         '   ∘   Option 1  Option 2     Std Library     Notes'
+         '   ∘   -session  -prefix      ⎕SE.⍙⍙.⍙        Defaults: -session and -prefix'
+         '       -session  -noprefix    ⎕SE             Default:  -session'
+         '   ∘   -root     -prefix      #.⍙⍙.⍙          Defaults:              -prefix'
+         '       -root     -noprefix    # '
+         '   ∘   -local    -prefix      #.mylib.⍙⍙.⍙  '
+         '       -local    -noprefix    #.mylib       '
+         '' ⋄ :Return
+     :Else ⋄ 11 ⎕SIGNAL⍨'For help, type "require2 ''-help''".',(⎕UCS 13),'Unknown option: ',opt
+     :EndSelect
+ :EndFor
 
-    ⍝ Converting names in form ⍵1 ⍵2 ... to APL or filesystem formats.
-    ⍝ dunder:       fs or APL name → unique APL name (using double underscores, dunders).
-    ⍝    Syntax:    ∇ ⍵1@str ⍵2@str ... → '__s1__s2'
-    ⍝    Usage:     Used to record loading a specific name or directory into a standard library
-    ⍝               under certain circumstances.
-    ⍝    Ex:        a.b → '__a__b', a → '__a', 'a/b' → '__a__b', '##.fred' → '__fred',
-    ⍝               ⎕SE.test → '__⍙SE__test', #.test → 'test'.
-    ⍝    If ⍵ has any of '/.', split on it on the fly. Wholly ignore pkgList '##[.]' and '#[.]'.
-    ⍝ apl2FS:      convert APL style namespace hierarchy to a filesystem hierarchy:
-    ⍝    Syntax:   s1 ∇ s2    → 's1.s2' ⋄ '' ∇ s2 → s2 ⋄ s1 ∇ '' → ''
-    ⍝    Ex:       a.b.c → a/b/c     ##.a → ../a    #.a → /a
-    ⍝ with:        Concatenate strings ⍺ with ⍵.
-    ⍝              If ⍺≡'', returns ⍵.   If ⍵≡'', returns ''.  Else returns ⍺,'.',⍵
-    ⍝
-    ⋄ dunder←{2=|≡⍵:∊∇¨⍵ ⋄ 0=≢⍵~'#':'' ⋄ 1∊'/.'∊⍵:∊∇¨'/.'split ⍵ ⋄ '__','⍙'@('⎕'∘=)⊣⍵}
-    ⋄ apl2FS←{'.'@('#'∘=)⊣'/'@('.'∘=)⊣⍵↓⍨'#.'≡2↑⍵}
-    ⋄ with←{0=≢⍵:'' ⋄ 0=≢⍺:⍵ ⋄ ∊⍺,'.',⍵}
+  ⍝ Scan ⍵.⎕PATH, returning a list of references, resolving ↑ and ignoring undefined namespaces.
+  ⍝ Return <mempath>, ⎕PATH references prepended by rLibNs (our library)...
+ rLibNs←⍎sSubNs rMainNs.⎕NS ⍬     ⍝ If sSubNs is '', returns reference to rMainNs
 
-    ⍝ set III: Manage file specs in colon format like Dyalog's WSPATH: 'file1:file2:file3' etc.
-    ⍝ noEmpty:     Remove empty file specs from colon-format string, string-initial, -medial, and -final.
-    ⍝ symbols:     Replace [HOME], [FSPATH] etc in colon spec. with their environment variable value (getenv).
-    ⍝ getenv:      Retrieve an env. variable value ⍵ in OS X
-    ⋄ noEmpty←{{⍵↓⍨-':'=¯1↑⍵}{⍵↓⍨':'=1↑⍵}{⍵/⍨~'::'⍷⍵}⍵}
-    ⋄ symbols←{'\[(HOME|FSPATH|WSPATH|PWD)\]'⎕R{getenv ⍵.(Lengths[1]↑Offsets[1]↓Block)}⊣⍵}
-    ⍝ getenv: See Above.
-    ⍝ resolveNs Ns@str: Return a reference for a namespace string with respect to callerR.
-    ⍝                   Deals with '#', '##', '⎕SE' in a kludgey way (they aren't valid names, but #.what is.
-    resolveNs←callerR∘{
-        ''≡⍵~' ':⎕NULL
-        nc←⍺.⎕NC⊂⍵
-        nc∊9.1 ¯1:⍺⍎⍵      ⍝ nc=¯1: ##.## etc.  nc=9.1: namespace
-        ⎕NULL              ⍝ If not valid, return ⎕NULL
-    }∘,
-  ⍝ resolvePathUpArrow: Where a ↑ is seen in ⎕PATH, replace the ↑ with the actual higher-level namespaces,
-  ⍝    so that those namespaces can be searched for packages.
-  ⍝    Approach: If we are in #.a.b.c.d and ⎕PATH has ↑, it is replaced by:
-  ⍝         ##       ##.##  ##.##.## and ##.##.##.##, which is resolved to the absolute namespaces:
-  ⍝         #.a.b.c  #.a.b  #.a      and #
-  ⍝ If no ↑, returns ⍵; otherwise returns ⍵ with any '↑' replaced as above.
-    resolvePathUpArrow←{
-        ~⍺:⍵
-        dist←¯1++/callerN='.' ⋄ p←⍵⍳'↑' ⋄ w←⍵
-      ⍝ Remove any extra up arrows
-        '↑'~⍨(∊w)⊣w[p]←⊂{⍺←'' ⋄ ⍵>dist:⍺ ⋄ (⍺,' ',∊'##',⍵⍴⊂'.##')∇ ⍵+1}0
-    }
+   ⍝ rWhere:        ns where found or ⎕NULL, if not.
+ found rWhere←forceÔ rLibNs Import⍙Directory objs   ⍝ initializes rWhere
+ :If found ⋄ :Return ⋄ :EndIf
+   ⍝ status contains ints: 2= Found in filesys, 1= found in APL space, 0= not found, ¯1= Invalid Name.
+ status←(≢objs)⍴0
+ memPath←HERE ExpandSearchToPath⍣searchPathÔ⊣HERE rLibNs
+ :If verboseÔ ⋄ 'Memory path is    ',memPath ⋄ 'Directory path is ',dirSearchPath ⋄ :EndIf
 
-  ⍝ resolvePath: Determines actual ordered path to search, based on callerR and ⎕PATH.
-  ⍝ resolvePath:  allow non-existent namespaces to stay (since user may have other uses)
-    resolvePath←{ ⎕NULL~⍨∪resolveNs¨split⍣(1≥|≡⍵)⊣⍵ }
+   ⍝ Scan for objs in APL namespaces <memPath>, unless forceÔ.   If found, skip filesys scan.
+ :If ~forceÔ
+     :For i :In ⍳≢objs   ⍝ Search memPath namespaces for <obj>
+         obj←i⊃objs
+         :For mem :In memPath
+             found←×mem.⎕NC obj         ⍝ found ∊ 1 (found), 0 (not found), ¯1 (malformed name)
+             :If 0≠found                ⍝ 1 or ¯1
+                 status[i]←found
+                 :If found=1
+                     rWhere[i]←mem
+                      ⋄ DebugMsg'>>> In memory: ',obj,' at ',⍕mem
+                 :EndIf
+                 :Leave ⍝ :FOR mem :IN memPath
+             :EndIf
+         :EndFor
+     :EndFor
+ :EndIf
+  ⍝ Error if any obj names are invalid.
+ :If ¯1∊status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕objs/⍨¯1=status ⋄ :EndIf
 
-  ⍝ ⍺ objInNs ⍵:  Is object ⍺ found in namespace ⍵?
-  ⍝    ⍺: String of form: a, b.a, c.b.a etc.  If 0=≢⍺: objInNs fails.
-  ⍝    ⍵: an namespace reference or name (interpreted wrt callerR).
-    objInNs←{
-        0::'require/objInNs: DOMAIN ERROR: Invalid namespace, library, or package'⎕SIGNAL ⎕DMX.EN
-        0=≢⍺:0
-        clr←callerR     ⍝ Dyalog bug Workaround: external callerR, used directly like this (callerR.⍎), won't be found.
-        ns←clr.⍎⍣(⍬⍴2=⎕NC'ns')⊣ns←⍵
-        0<ns.⎕NC ⍺      ⍝ ⍺ defined in ns?
-    }
+ rNewLibsRefs←rLibNs
+ :For dir :In dirSearchPath
+     :For objIx :In ⍳≢objs
+         found←0
+         :If rWhere[objIx]≠⎕NULL ⋄ :Continue ⋄ :EndIf
+         obj←objIx⊃objs
+          ⍝ Obj name of form OBJL.OBJR. See [OBJ FORMS] below.
+         fileName←dir,'/',('/'@('.'∘=)⊣obj)
+          ⍝ OBJ FORMS: (A) OBJ is simple name, e.g. "this"; (B) OBJ has embedded dots, e.g. "this.that".
+          ⍝ (A) Search for files DIR/this.dyalog, DIR/this.apl?      & dirs DIR/this/*.dyalog, DIR/this/*.apl?
+          ⍝ (B) Search for files DIR/this/that.dyalog, DIR/this.apl? & dirs DIR/this/that/*.dyalog, DIR/this/that/*.apl?
+          ⍝ The following file types are associated with various source code management tools.
+          ⍝    .dyalog (generic),
+          ⍝    .aplf (functions), .aplo (operators), .apln (namespaces), .aplc (classes), .apli (interfaces),
+          ⍝    .apla (serialised arrays for Link).
+          ⍝ We accept all as direct input to 2∘⎕FIX.
+          ⍝ +---------------+
+          ⍝ | Scan Type I.  | OBJ is a file in directory DIR.
+          ⍝ +---------------+ If any object SUB found in file OBJ fixes as a namespace, include that namespace in ⎕PATH.
+          ⍝                   I.e. if SUB is so fixed, add DIR.SUB to ⎕PATH.
+         :If ×≢fileList←fileName ScanFileSpecs'.dyalog' '.apl?'
+             found←1
+             :If 1<≢fileList
+                 'WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
+             :EndIf
+             :For fileId :In fileList
+                 objList←rLibNs Fix2Group fileId
+                  ⋄ DebugMsg'[',(⍕objIx),'] ','            Object ',(Pad obj),' found: ',fileId
+                  ⋄ DebugMsg'obj name: ',fileId
+                  ⋄ DebugMsg'Loaded into',rLibNs,':',objList
+                 :If 1∊fnd←∊9.1=rLibNs.⎕NC objList
+                     rNewLibsRefs,←rLibNs⍎¨fnd/objList
+                      ⋄ DebugMsg'Obj "',(1↓¯1↓⍕objList),'" is a namespace. Adding to newLibRefs'
+                 :EndIf
+             :EndFor
+             rWhere[objIx]←rLibNs ⋄ status[objIx]←2
+         :EndIf
+            ⍝ +---------------+
+            ⍝ | Scan Type II. | OBJ is a directory in directory DIR.
+            ⍝ +---------------+ If any object SUB found in DIR/OBJ fixes as a namespace, include that namespace in ⎕PATH.
+            ⍝                   I.e. if SUB is so fixed, add DIR.OBJ.SUB to ⎕PATH.
+         :If ~found ⋄ :AndIf ×≢fileList←fileName ScanFileSpecs'/*.dyalog' '/*.apl?'
+             found←1
+             objList←libNsDotObj Fix2Group fileList
+             libNsDotObj←⍎obj rLibNs.⎕NS''
+              ⋄ DebugMsg'[',(⍕objIx),'] ',(3 Pad⍕+/≢fileList),' objects for ns ',(Pad obj),' found: ',fileList
+             DebugMsg'dir name: ',obj ⋄ DebugMsg'Fixing objects: ',fileList
+             :If 1∊fnd←∊9.1=libNsDotObj.⎕NC objList
+                 DebugMsg'Obj "',(1↓¯1↓⍕objList),'" is 1 or more namespaces. Adding to newLibRefs'
+                 rNewLibsRefs,←libNsDotObj⍎¨fnd/objList
+             :EndIf
+              ⋄ DebugMsg'Loaded into ',(⍕libNsDotObj),':',objList
+         :EndIf
+         :If ~found ⋄ :Leave ⋄ :EndIf
+         rWhere[objIx]←rLibNs ⋄ status[objIx]←2
+     :EndFor ⍝ :FOR objIx :IN ⍳≢ objs
+ :EndFor  ⍝ :FOR dir :IN dirSearchPath
 
-  ⍝ rePkg: Convert a split-up package (in <e w d n> format) to a string
-    rePkg←{e w d n←⍵ ⋄ pkg←e,('::'/⍨0≠≢e),w,(':'/⍨0≠≢w),d,('.'/⍨0≠≢d),n}
+ :If setPathÔ  
+  ⍝ APPEND NEW ITEMS ⍵ AFTER EXISTING ⎕PATH items: ⍺ 
+  ⍝ Currently, doesn't protect against ⎕FIXed functions changing ⎕PATH.
+  ⍝ To do so, change next line to:     HERE.⎕PATH←HERE_PATH{  
+     HERE.⎕PATH←HERE.⎕PATH{  
+         old new←{' '(≠⊆⊢)⍣(1≥|≡⍵)⊣⍵}¨⍺ ⍵ ⋄ 1↓∊' ',¨∪old,new
+     }⍕¨rNewLibsRefs
+ :EndIf
 
-  ⍝ map:   For ⍺ a split-up package and ⍵ a string, if ⍵ is non-null, return 2 strings:  (rePkg ⍺)⍵
-    map←{0=≢⍵:'' ⋄ (rePkg ⍺)⍵}
+ :If verboseÔ
+     ⎕SHADOW'CShow' ⋄ CShow←{0=≢⍵:⍺'[none]' ⋄ ⍺ ⍵}
+     'opts     'opts
+     'verbose  'verboseÔ ⋄ 'library  'rLibNs ⋄ 'objs     'objs
+     'mem srch 'memPath ⋄ 'fi  srch 'dirSearchPath ⋄ 'setPathÔ   '(setPathÔ⊃'OFF' 'ON')
+     ⍞←'⎕PATH IS:'('''','''',⍨HERE.⎕PATH) ⋄ :If setPathÔ ⋄ :AndIf HERE_PATH≢HERE.⎕PATH
+         ⍞←'     WAS:'('''','''',⍨oldPath) ⋄ :EndIf
+     'Objects Found...'
+     '  In mem:     'CShow(objs/⍨1=status)
+     '  On disk:    'CShow(objs/⍨2=status)
+     '  Not found:  'CShow(objs/⍨0=status)    ⍝ Only if -NFok option set.
+     'objs \ rWhere '(objs,[-0.2]rWhere)
+ :EndIf
 
-  ⍝ See ADDFIXEDNAMESPACES above for more info.
-  ⍝ ⍵ must be a name of an existing object in libR in string form.
-  ⍝ If ADDFIXEDNAMESPACES=1, and if ⍵ refers to a namespace (⎕NC 9.1),
-  ⍝ ⍵'s reference is added to PathNewR,
-  ⍝ and ultimately to callerR.⎕PATH.
-    add2PathIfNs←{~ADDFIXEDNAMESPACES:'' ⋄ 9.1≠libR.⎕NC⊂,⍵:'' ⋄ ⍵⊣PathNewR,⍨←libR⍎⍵}
-
-  ⍝------------------------------------------------------------------------------------
-  ⍝  E N D      U T I L I T I E S
-  ⍝------------------------------------------------------------------------------------
-
-  ⍝ Decode ⍵ → list of packages (possibly 0-length), each package a string (format below)
-  ⍝ --------
-  ⍝ From each item in packages of the (regexp with spaces) form:
-  ⍝      (\w+::)?    (\w+:)? (\w+(\.\w+)*)\.)? (\w+)
-  ⍝      ext         wsN     group             name
-  ⍝ ext:  a filesystem extension (suffix) to add to path before testing whether group/name is found
-  ⍝ wsN:  a full string ('abc.def:') | null string (':') | ⎕NULL (no wsN).
-  ⍝ group may be a full string or null string (if omitted)
-  ⍝ name must be present
-    lastExt←''      ⍝ If a :: appears with nothing before it, the prior lastExt is used
-    lastWs←''       ⍝ If a : appears ..., the prior lastWs is used!
-    pkgList←{
-        0=≢⍵~' :.':''                  ⍝ All blanks or null? Bye!
-        pkg←,⍵
-
-        ext pkg←⍵{                     ⍝ ext::[group.]name
-            0=≢⍺:''⍵                   ⍝ '::group name' → <lastExt> '' <group> <name>
-            0=⍺:lastExt(⍵↓⍨⍺+2)
-            (lastExt∘←⍵↑⍨⍺)(⍵↓⍨⍺+2)    ⍝ ext:: and wsN: are mutually exclusive in fact.
-        }⍨⍸'::'⍷pkg
-
-        wsN pkg←{                      ⍝ wsN:[group.]name
-            wsDef←(':'=1↑pkg)∧(':'≠1↑1↓pkg)
-            wsDef:lastWs(1↓pkg)    ⍝ ':group name'  → '' <lastWs> <group> <name>
-            lastWs∘←w⊣w p←':'splitFirst pkg          ⍝ wsN: ws name comes before simple :
-            w p
-        }pkg
-
-        group name←'.'splitLast pkg     ⍝ grp1.grp2.grp3.name → 'grp1.grp2.grp3' 'name'
-        ext wsN group name              ⍝ Return 4-string internal package format...
-    }¨∪pkgList                          ⍝ Remove duplicates w/o error-- process each pkg just once...
-
-  ⍝ HOMEDIR-- see [HOME]
-    HOMEDIR←getenv'HOME'
-  ⍝ Process caller APL ⎕PATH → PathOrigR:  handling ↑, resolving namespaces (ignoring those that don't exist).
-    PathOrigR←resolvePath('↑'∊callerR.⎕PATH)resolvePathUpArrow callerR.⎕PATH
-    PathNewR←PathOrigR
-  ⍝ FSPATH: Find File System Path to search
-  ⍝   1. If ⎕SE.FSPATH exists and is not null, use it.
-  ⍝      You can merge new paths with the values of the existing OS X environment variables:
-  ⍝        - FSPATH (require-specific for File System Path. See WSPATH for format)
-  ⍝        - WSPATH (Dyalog's search path for workspaces; libraries are colon-separated)
-  ⍝        - HOME   (the HOME directory)
-  ⍝        - PWD    (the current working directory)
-  ⍝        - .      (the current working directory)
-  ⍝        - ..     (the parent directory)
-  ⍝        e.g. if FSPATH includes:
-  ⍝                   '.:lib1:lib2'
-  ⍝        then       'mydir1:mydir1/mydir1a:[FSPATH]'
-  ⍝               →   'mydir1:mydir2/mydir1a:.:lib1:lib':
-  ⍝   2. If GetEnvironment FSPATH is not null, use it.
-  ⍝   3. If GetEnvironment WSPATH is not null, use it.
-  ⍝      APL maintains this mostly for finding workspaces.
-  ⍝   3. Use '.:[HOME]'   (see HOME above).
-  ⍝   Each item a string of the form here (if onle group, no colon is used):
-  ⍝       'dir1:dir2:...:dirN'
-
-    FSPATH←∪':'split noEmpty{
-        2=⎕NC ⍵:symbols ⎕OR ⍵
-        0≠≢fs←symbols getenv'FSPATH':fs
-        0≠≢env←symbols getenv'WSPATH':env
-        symbols'.:[HOME]'             ⍝ current dir ([PWD]) and [HOME]
-    }'⎕SE.FSPATH'
-
-    0=≢⍵:libR   ⍝ If no main right argument, return the library reference (default or user-specified)
-    0∊≢¨pkgList~¨⊂'.: ':⎕SIGNAL/'require DOMAIN ERROR: at least one package string was empty.' 11
-  ⍝------------------------------------------------------------------------------------
-  ⍝ scanPkgs:
-  ⍝ Returns
-  ⍝   [0] list of packages successfully found
-  ⍝           wsN:group.name status
-  ⍝   [1] list of packages not found or whose copy failed (e.g. ⎕FIX failed, etc.)
-  ⍝           wsN:group.name status
-  ⍝   If wsN not present, wsN and group may be null strings.
-  ⍝   If wsN is present,  group and/or name  may each be null.
-  ⍝   The status field is always present.
-  ⍝------------------------------------------------------------------------------------
-   scanPkgs←{
-        0=≢⍵:⍺
-        status←⍺
-        pkg←⊃⍵
-
-      ⍝------------------------------------------------------------------------------------
-      ⍝ Is the package in the caller's namespace?
-      ⍝ Check for <name>, <group.name>, and <wsN>.
-      ⍝------------------------------------------------------------------------------------
-        pkg←{
-            forceOpt:⍵                                      ⍝ forceOpt? Don't even check caller
-            0=≢⍵:⍵
-            ext wsN group name←pkg←⍵
-            stat←{
-                ('__',wsN)objInNs callerR:pkg map'ws∊CALLER'   ⍝ wsN found?   success
-                name objInNs callerR:pkg map'name∊CALLER'      ⍝ name found? success
-                group≡'':''
-                ~(group with name)objInNs callerR:''           ⍝ none found? failure
-                PathNewR,⍨←⊂resolveNs group                 ⍝ group.name found
-                pkg map'group.name∊CALLER'                  ⍝ ...         success
-            }⍵
-            0=≢stat:pkg
-
-            ''⊣(⊃status),←⊂stat
-        }pkg
-        0=≢pkg:status ∇ 1↓⍵                        ⍝ Fast path out. Otherwise, we short-circuit one by one
-
-      ⍝------------------------------------------------------------------------------------
-      ⍝ Is the package in the ⎕PATH?
-      ⍝------------------------------------------------------------------------------------
-        pkg←{
-            0=≢⍵:⍵                                     ⍝ Short circuit.
-            forceOpt:⍵                                 ⍝ forceOpt? Ignore path.
-            ext wsN group name←pkg←⍵
-            scanPath←{                                 ⍝ find pgk components in <path> or lib
-                ⍺←'PATH'
-                0=≢⍵:''                                ⍝ none found. pathEntry exhausted: failure
-                pathEntry←⊃⍵
-                pathInfo←⍺,' ',⍕pathEntry
-
-              ⍝⍝ --------------------------------------------------------------------------------------
-              ⍝⍝ If name is found in PathNewR, do we explicitly add to pathEntry? CHOICE (A)=YES, (B)=NO.
-              ⍝⍝   PROS: pathEntry may have ↑ and the item may work for this caller ns, but not another
-              ⍝⍝         that inherits its ⎕PATH.
-              ⍝⍝   CONS: (1) pollutes ⎕PATH and (2) reorders items user explicitly put in pathEntry
-              ⍝⍝ Description: For now, we leave out the update, choice (B).
-              ⍝⍝   For (A), replace (B) below with (A):
-              ⍝⍝       (A) name objInNs pathEntry:'name∊',⍺⊣PathNewR,⍨←pathEntry
-              ⍝⍝ --------------------------------------------------------------------------------------
-
-                {0≠≢group}and{pathEntry objInNs⍨dunder group name}1:'group.name[.dyalog]∊',pathInfo
-                {0=≢group}and{pathEntry objInNs⍨dunder name}1:'name[.dyalog]∊',pathInfo
-                {0=≢name}and{pathEntry objInNs⍨dunder wsN}0:'ws∊',pathInfo
-                {wsN objInNs pathEntry}and{0=≢⍵:1              ⍝ wsN found and group/name empty: success
-                    ⍵ objInNs pathEntry,'.',wsN                ⍝ wsN found and group/name found in pathEntry.wsN: success
-                }group with name:'ws∊',pathInfo
-
-                name objInNs pathEntry:'name∊',pathInfo        ⍝ Name found: Success.
-                group≡'':∇ 1↓⍵                              ⍝ Not found: try another pathEntry element
-                ~{(group with name)objInNs pathEntry}and{9=libR.⎕NC group}0:∇ 1↓⍵ ⍝ Not found: try another pathEntry element
-                PathNewR,⍨←⊂resolveNs(⍕pathEntry)with group ⍝ group.name found: ...
-                'group→',pathInfo                           ⍝ ...         success
-            }
-          ⍝ Go through pathEntry, next item in PathNewR. If found, return success.
-          ⍝ Otherwise, try libR (unless in PathNewR). If found, add libR to PathNewR.
-            recurse←{
-                ×≢r←scanPath∪PathNewR:r                ⍝ Check pathEntry. Found? Yes: Return status.
-                libR∊PathNewR:''                       ⍝ No. If libR in PATHR, return ''.
-                0=≢r←'STDLIB'scanPath libR:''          ⍝ Check libR?   Not found: ''
-                r⊣PathNewR,⍨←libR                      ⍝ Found: Add libR to pathEntry and return status.
-            }⍬
-            0=≢recurse:pkg
-            ''⊣(⊃status),←⊂pkg map recurse
-        }pkg
-
-      ⍝------------------------------------------------------------------------------------
-      ⍝ Is the object in the named workspace?
-      ⍝ If there is no object named, copy the <entire> workspace into the default library (lib).
-      ⍝ creating the name <wsN> in the copied namespace, so it won't be copied in each time.
-        pkg←{
-            0=≢⍵:⍵                                     ⍝ Short circuit
-            ext wsN group name←pkg←⍵
-            0=≢wsN:⍵
-            stat←wsN{
-                0::''
-                0≠≢⍵:'wsN:name→libOpt'⊣⍵(libR wsGetFix)⍺     ⍝ Copy in object from wsN
-                _←(libR wsGetFix)⍺
-                _←⍺{
-                    libR.⍎(dunder ⍺),'←⍵'               ⍝ Copy in entire wsN <wsN>.
-                }'Workspace ',⍺,' copied on ',⍕⎕TS               ⍝ Deposit in <lib> var  __wsN←'Workspace...'
-                'ws→lib'
-            }group with name
-            0=≢stat:pkg
-            PathNewR,⍨←libR                             ⍝ Succeeded: Add libR to path
-            _←{'>>> Found in ws: ',rePkg ⍵}TRACE ⍵
-            ''⊣(⊃status),←⊂pkg map stat
-        }pkg
-
-      ⍝------------------------------------------------------------------------------------
-      ⍝ Is the package in the file system path?
-      ⍝ We even check those with a wsN: prefix (whenever the workspace is not found)
-      ⍝ See FSSearchPath
-      ⍝------------------------------------------------------------------------------------
-        pkg←{
-            0=≢⍵:⍵                                      ⍝ Short circuit
-            ext wsN group name←pkg←⍵
-            0∧.=≢¨group name:⍵
-            dirFS←apl2FS group                          ⍝ Convert a.b→a/b, ##.a→../a
-            shortDirName←USEHOMEDIR∘{
-                ⍺:('\Q',HOMEDIR,'\E')⎕R'[HOME]'⊣⍵
-                ⍵
-            }
-            recurse←{                                   ⍝ find pgk components in <path>.
-                0=≢⍵:''                                 ⍝ none found. path exhausted: failure
-                path←⊃⍵
-                0=≢path:∇ 1↓⍵                           ⍝ NEXT!
-                searchDir←path,('/'/⍨0≠≢ext),ext,'/',dirFS,('/'⍴⍨0≠≢dirFS),name
-                searchFi←searchDir,'.dyalog'
-                loadDir←{
-                    group name←⍺
-                    aplNs←group with name ⋄ fsDir←⍵
-                    1≠⊃1 ⎕NINFO fsDir:'NOT A DIRECTORY: ',fsDir
-                    names←⊃(⎕NINFO⍠1)fsDir,'/*.dyalog'    ⍝ Will ignore subsidiary directories...
-                    0=≢names:aplNs{
-                      ⍝ Put a 'loaded' flag in the libR ns for the empty dir.
-                        stamp←'First group ',⍺,'found was empty on ',(⍕⎕TS),': ',⍵
-                        _←(dunder ⍺)libR.{⍎⍺,'←⍵'}stamp
-                        'empty group→lib: ',⍵
-                    }fsDir
-                    cont←''
-                    ⍝ Returns 1 for each item ⎕FIXed, ¯1 for each item not ⎕FIXed.
-                    ⍝ Like loadFi below...
-                    load1Fi←{
-                        0::¯1
-                        fixed←libR fileGetFix ⍵    ⍝ On error, see 0:: above.
-                        cont,←' ',,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
-                        1
-                    }
-                    tried←load1Fi¨names
-                    gwn←group with name
-                  ⍝ Put a 'loaded' flag in the libR ns for the non-empty dir
-                    stamp←gwn,' copied from dir: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
-                    _←(dunder group name)libR.{⍎⍺,'←⍵'}stamp
-                    res←'[group] ',gwn,'→lib: "',(shortDirName ⍵),'"'
-                    res,←⎕TC[2],'   [Fixed: ',(⍕+/tried=1),' Failed: ',(⍕+/tried=¯1),']'
-                  ⍝ Add libR to PathNewR if at least one object was loaded and  ⎕FIXED.
-                    1∊tried:res⊣PathNewR,⍨←libR
-                    res
-                }
-              ⍝ See also load1Fi, which has the same basic logic.
-                loadFi←{
-                    0::'❌file→lib found, but ⎕FIX failed: "',⍵,'"'
-                    group name←⍺
-                    gwn←group with name
-                    id←dunder group name
-                    fixed←libR fileGetFix ⍵
-                    cont←,⎕FMT fixed ⋄ _←add2PathIfNs¨fixed
-                  ⍝ Put a 'loaded' flag in libR for the loaded object.
-                    stamp←gwn,' copied from file: "',⍵,'" objects: {',cont,'} on ',⍕⎕TS
-                    _←id libR.{⍎⍺,'←⍵'}stamp
-                    PathNewR,⍨←libR                ⍝ Succeeded: Note libR (if not already)
-                    '[file] ',gwn,'→lib: "',(shortDirName ⍵),'"'
-                }
-                ⎕NEXISTS searchDir:(group name)loadDir searchDir
-                ⎕NEXISTS searchFi:(group name)loadFi searchFi
-                ∇ 1↓⍵                                     ⍝ NEXT!
-            }FSPATH
-            0=≢recurse:pkg
-            ''⊣(⊃status),←⊂pkg map recurse
-        }pkg
-        pkg←{ ⍝ Any package <pkg> left must not have been found!
-            0=≢⍵:''                                      ⍝ Short circuit
-            ''⊣(⊃⌽status),←⊂pkg map'❌NOT FOUND'
-        }pkg
-        status ∇ 1↓⍵                                     ⍝ Get next package!
-    }
-
-    statusList←⍬ ⍬ scanPkgs pkgList
-    _←{
-        msg←'' 
-        msg,←  '>>Caller''s ⎕PATH was ',⍕callerR.⎕PATH  
-        msg,←  '  PathOrigR: ',⍕PathOrigR               
-        msg,←  '>>PathNewR:  ',⍕∪PathNewR
-       ↑msg
-    }TRACE 0
-  ⍝------------------------------------------------------------------------------------
-  ⍝ DONE-- process outOpt options...
-  ⍝ Update PATH, adding the default Library. Allow no duplicates, but names should be valid.
-  ⍝ Prepend new items and merge with caller's ⎕PATH keeping relative ⎕PATH elements...
-  ⍝ Here, we don't make sure callerR.⎕PATH entries are valid. Also ↑ is maintained.
-  ⍝-------------------------------------------------------------------------------------
-    callerR.⎕PATH←1↓∊' ',¨∪(⍕¨∪PathNewR),(split callerR.⎕PATH)
-    succ←0=≢⊃⌽statusList
-    outNullF outBoolF outShyF outLibF outStatusF outDefF←¯2 ¯1 3 2 1 0
-  ⍝ outOpt=outNullF: If successful, return null, 1 or 0; else signal error. 
-    succ∧outOpt∊outNullF:_←⍬
-  ⍝ outOpt=outBoolF 'b[oolean]'  Return 1 on success else 0
-    outOpt∊outBoolF:succ
-    succ∧outOpt∊outShyF:_←{⍵}TRACE(⊂libR),statusList              ⍝ outOpt 3 (SL):   SUCC: shy     (non-shy if debugOpt)
-    ⋄ outOpt∊outShyF:0(⊂libR),statusList                          ⍝                  FAIL: non-shy
-    succ∧outOpt∊outLibF outDefF:libR                              ⍝ outOpt 2 (L):    SUCC: non_shy
-    ⋄ eCode1←'require DOMAIN ERROR: At least one package not found or not ⎕FIXed.' 11
-    ⋄ outOpt∊outLibF:⎕SIGNAL/eCode1                               ⍝                  FAIL: ⎕SIGNAL
-    succ∧outOpt∊outStatusF:_←{⍵}TRACE statusList                  ⍝ outOpt 1|0 (S):  SUCC: shy     (non-shy if debugOpt)
-    ⋄ outOpt∊outNullF outStatusF outDefF:statusList               ⍝                FAIL: non-shy
-    ⎕SIGNAL/('require DOMAIN ERROR: Invalid outOpt: ',⍕outOpt)11  ⍝ ~outOpt∊0 1 2 3
-}
+  ⍝ Add new items to start of ⍙Directory in rLibNs so most recent items found fastest...
+ rLibNs.⍙Directory Update⍙Directory←objs rWhere
+  ⍝ :IF -NFok set, objs may contain names not found! rWhere will contain corresponding ⎕NULLs.
+ :If ~notFoundOkÔ ⋄ :AndIf ⎕NULL∊rWhere
+     911 ⎕SIGNAL⍨'Required objects not found:',,⎕FMT objs/⍨rWhere∊⎕NULL
+ :EndIf
