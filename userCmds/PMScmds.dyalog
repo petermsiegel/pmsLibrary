@@ -8,8 +8,8 @@
     ⍝ Name, group, short description and parsing rules
       r.Name←'require' 'dc'
       r.Group←⊂'PMScmds'
-      r[0].Desc←']require: manage packages, loading from workspaces or dyalog files as required.'
-      r[1].Desc←']dc:      run a big integer desk calculator.'
+      r[0].Desc←']req(uire): manage packages, loading from workspaces or dyalog files as required.'
+      r[1].Desc←']dc:        run a big integer desk calculator.'
       r.Parse←⊂''         ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
 
@@ -17,39 +17,28 @@
       CALLER←##.THIS
 
       :Select cmd
-      :Case 'require'
+      :Caselist 'require' 'req'
           r←⍬
           :IF checkRequire
-              r,←⊂'Loaded fn "require" into ⎕SE'
+              r,←⊂'Loaded user cmd ]require. Callable as  ⎕SE.∆REQ'
           :ENDIF
-          :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣CALLER.⎕PATH
+          :IF  0=≢' ⎕SE '⎕S 0⊣' ',CALLER.⎕PATH,' '
               CALLER.⎕PATH,⍨←'⎕SE '
               r,←⊂'Adding ⎕SE to ',(⍕CALLER),'.⎕PATH'
           :ENDIF
           :IF 0≠≢input~' '
             ⍝ Force the output into tabular (row) format (from a PAIR of simple vector of vectors)
             ⍝ Allow options: [-f|-force]   -lib=library   (-f or -force must be first)
-              r←⎕SE.require '-lib [CALLER].[LIB] -caller ',(⍕CALLER),' ',input
-              :IF 0≡≢r 
-                   ⎕EX 'r'         ⍝ If empty, return nothing...
-              :ElseIf 0=⍴⍴r
-                  r←'Library namespace: ',∊r
-              :Else
-                  :TRAP 0 ⋄ r←⎕FMT ⊃⌽r ⋄ :ENDTRAP
-              :EndIF     
+              r←⎕SE.∆REQ input
               →0
-          :ENDIF
-          :IF 0=≢r
+          :ELSE
               r←⊂']require is active.'
           :ENDIF
-          r←↑r
       :Case 'dc'
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            {}'-caller' CALLER '-lib' '#.[LIB]'⎕SE.require 'bigInt'
-            ⎕←'For help, type ''?'' at any prompt.'
-            bi.dc
+            bi_dc
             r←''
       :EndSelect
     ∇
@@ -57,34 +46,35 @@
     ∇ {r}←level Help cmd
       checkRequire
       :Select cmd
-      :Case 'require'         ⍝ Be sure require is loaded.
+      :Caselist 'require' 'req'         ⍝ Be sure require is loaded.
          :IF level<1
             r←⊂']require loads ⎕SE.require (as needed) and adds to ⎕PATH in current namespace (if needed).'
             r,←⊂' Useful to ensuring that current namespace can find function require.'
-            r,←⊂' Function require:'
+            r,←⊂' Function  ⎕SE.∆REQ:'
             r,←⊂'     Is used to verify that objects are in the current namespace or the ⎕PATH.'
             r,←⊂'     If not, loads them from requested workspace, directory, or file.'
             r,←⊂'     For HELP, type:'
             r,←⊂'         ]??require'
             r,←⊂'     OR'
-            r,←⊂'         require ''-HELP'' '
+            r,←⊂'          ⎕SE.∆REQ ''-HELP''' 
             r,←⊂']require (with no arguments)'
-            r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/require -target=⎕SE'''
+            r,←⊂'     executes:  ⎕SE.SALT.Load ''pmsLibrary/src/∆REQ -target=⎕SE'''
             r,←⊂']require  pkg1  pkg ...'
-            r,←⊂'     executes:  require ''pkg1'' ''pkg2'' ...'
-            r,←⊂']require [-f] [-lib=ns |  -session | -root]  pkg1 pkg ...'
-            r,←⊂'     executes:  ns require ''pkg1'' ''pkg2'' ...'
+            r,←⊂'     executes:   ⎕SE.∆REQ ''pkg1'' ''pkg2'' ...'
+            r,←⊂']require [-force] [-session | -root | -local]  pkg1 pkg ...'
+            r,←⊂'     executes:   require ''pkg1'' ''pkg2'' ...'
             r,←⊂' i.e. loads (new) packages into library ns, a namespace or root (# or ⎕SE)'
-            r,←⊂'     -f          Forces packages to be loaded, even if present in caller NS or ⎕PATH.'
-            r,←⊂'     -lib=ns     Searches and loads packages into specified namespace.'
-            r,←⊂'     -s[ession]  Same as -lib=#⎕SE'
-            r,←⊂'     -r[oot]     Same as -lib=#'
-            r,←⊂'     -out=[sl]   outputs: s: package Status, l: name of Library used, sl: both.'
+            r,←⊂'     -force      Forces packages to be loaded, even if present in caller NS or ⎕PATH.'
+            r,←⊂'     -     Searches and loads packages into specified namespace.'
+            r,←⊂'     -s[ession]  Puts results in library ⎕SE.⍙⍙.⍙'
+            r,←⊂'     -r[oot]     Puts results in library #.⍙⍙.⍙'
+	    r,←⊂'     -local     Puts results in library [caller].⍙⍙.⍙, where [caller] is the namespace ∆REQ was called from.  '
+            r,←⊂'Returns the namespace(s) for the specified object(s).'
             r,←⊂'    '
             r,←⊂'Note: require searches disk directories specified in environment variables FSPATH and WSPATH.'
             r,←⊂'      See ]require -HELP for more information.'
          :Else
-            {}⎕SE.require '-HELP'
+            {}⎕SE.∆REQ '-HELP'
             r←⊂']require -HELP launched in full screen.'
          :ENDIF
       :Case 'dc'
@@ -98,17 +88,17 @@
             r,←⊂'    A single period (.) terminates dc mode. Ctrl-c interrupts it.'
             r,←⊂'    For HELP at any time, enter a lone ? (question mark) after the prompt.'
             :IF level≥1
-                r,←⊂'For more information, see the <bigInteger> package and bi.HELP.'
+                r,←⊂'For more information, see the <bigInteger> package and BigInt.HELP.'
             :ENDIF
       :EndSelect
       r←↑r
       ∇
 
       ∇{checked}←checkRequire
-        :IF checked←0=⎕SE.⎕NC 'require'
+        :IF checked←0=⎕SE.⎕NC '⎕SE.∆REQ' 
               ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'
         :ENDIF
-        :IF  0=≢'(^|\h)⎕SE(\h|$)'⎕S 0⊣#.⎕PATH
+        :IF  0=≢' ⎕SE '⎕S 0⊣' ',#.⎕PATH,' '
               #.⎕PATH,⍨←'⎕SE '
         :ENDIF
       ∇

@@ -1,7 +1,7 @@
-﻿ {rWhere}←{opts}require objs
+﻿ {rWhere}←{opts} ∆REQ  objs
  ;⎕IO;⎕ML
- ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;HERE;HERE_PATH
- ;i;libNsDotObj;mainNsDef;memPath;mem;obj;objList;objIx;oldPath;opt;Pad;rLibNs;rMainNs;rNewLibsRefs
+ ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;CALLENV;CE_PATH
+ ;i;libNsDotObj;mainNsDef;memPath;mem;oNC;obj;objList;objIx;oldPath;opt;Pad;rLibNs;rMainNs;rNewLibsRefs
  ;searchPathÔ;setPathÔ;status;stat;sSubNs;subNsDef;verboseÔ;rWhere
  ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
  ;notFoundOkÔ   ⍝Experimental
@@ -9,10 +9,7 @@
   ⍝ Defaults
   ⎕IO ⎕ML←0 1
   mainNsDef subNsDef←⎕SE'⍙⍙.⍙'        ⍝ ...D: Defaults
-  HERE←⊃⎕RSI,mainNsDef
-  ⍝ Save HERE.⎕PATH into HERE_PATH to detect changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
-  HERE_PATH←HERE.⎕PATH                
-
+  
 ⍝ Get search path from FSPATH if present, else WSPATH, else '.:..'
   dirSearchPath←'.' '..'{
       Get←{2 ⎕NQ'.' 'GetEnvironment' ⍵} 
@@ -21,17 +18,25 @@
   }'FSPATH' 'WSPATH' 
 
   :If 1≥|≡objs ⋄ objs←' '(≠⊆⊢),objs ⋄ :EndIf
-  :If (900⌶)0 ⋄ opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵}objs ⋄ :EndIf
+  :IF  9 0∊⍨oNC←⎕NC 'opts' 
+      opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵}objs 
+  :ENDIF
+  ⍝ CALLENV: The calling environment (namespace)
+  ⍝ Special use of left arg-- to pass an alternative namespace
+  CALLENV←{⍵: 1 opts  ⋄  ⊃⎕RSI,mainNsDef}9=oNC 
+  
+  ⍝ Save CALLENV.⎕PATH into CE_PATH now to detect changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
+  CE_PATH←CALLENV.⎕PATH                
 
 ⍝ Utilities
   Pad←{⍺←10 ⋄ ⍺>≢⍵:⍵↑⍨-⍺ ⋄ ⍵}
   DebugMsg←{⍺←0 ⋄ debugÔ∨⍺:⎕←'>>> ',⍵ ⋄ 1:_←⍬}
-  ExpandSearchToPath←{UP←⊂,'↑' ⋄ here path0←⍺ ⍵
-      path←' '(≠⊆⊢)here.⎕PATH
+  ExpandSearchToPath←{UP←⊂,'↑' ⋄ env path0←⍺ ⍵
+      path←' '(≠⊆⊢)env.⎕PATH
       GetRef←path0∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
       Climb←{⍵.##≡⍵:⍺ ⋄ (⍺,⍵.##)∇ ⍵.##}⍨                ⍝ Returns all namespaces between ⍵ and the top level inclusive!
       ~UP∊path:GetRef path
-      GetRef ⍬{0=≢⍵:⍺ ⋄ UP≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺,Climb here)∇ 1↓⍵}path
+      GetRef ⍬{0=≢⍵:⍺ ⋄ UP≢⊂⊃⍵:(⍺,⊂⊃⍵)∇ 1↓⍵ ⋄ (⍺,Climb env)∇ 1↓⍵}path
   }
 ⍝ ScanFileSpecs:  fileIds@VS ← fileName@S ∇ fileExtensions@VS
   ScanFileSpecs←{GetFileNames←0∘(⎕NINFO⍠1)
@@ -42,7 +47,7 @@
 ⍝ Fix2Group-- Fix named objects.
 ⍝             Each ⍵ may return multiple obj names; ∇ returns a flat list (of depth 2).
   Fix2Group←{
-        PathChange←{HERE_PATH≡HERE.⎕PATH: ⍵ ⋄ ⍵⊣⎕←'>>> Warning: ',(⍕HERE),'.⎕PATH change during ⎕FIX of file(s) in: ',⍕⍵}
+        PathChange←{CE_PATH≡CALLENV.⎕PATH: ⍵ ⋄ ⍵⊣⎕←'>>> Warning: ',(⍕CALLENV),'.⎕PATH change during ⎕FIX of file(s) in: ',⍕⍵}
         0/⍨~debugÔ::⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg'⎕FIXing: '('file://'∘,¨⊆⍵)
         PathChange ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵
   }
@@ -53,13 +58,13 @@
 ⍝           rWh:    namespace (ref) where each object is found, or ⎕NULL.
 ⍝ ⍙Directory: [0] list of objects; [1] their locations (else ⎕NULL-- 1 more item than [0] contains)
   Import⍙Directory←{
-      0/⍨~debugÔ::11 ⎕SIGNAL⍨'require2: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
+      0/⍨~debugÔ::11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
       (force rLibNs)objs←⍺ ⍵
       case←rLibNs.⎕NC'⍙Directory' ⋄ no⍙Dir valid⍙Dir←0 2 ⋄ noneFound←0((≢objs)⍴⎕NULL)
       ScanForObjs←{⍺≡⎕NULL:0 ⋄ 0<⍺.⎕NC ⍵}¨
         ⍝ Look for valid directory. If none, initialize...
       case=no⍙Dir:noneFound⊣{⍵.⍙Directory←⍬(,⎕NULL)}rLibNs
-      case≠valid⍙Dir:11 ⎕SIGNAL⍨'require2: LOGIC ERROR- Invalid ⍙Directory type in ns ',⍕rLibNs
+      case≠valid⍙Dir:11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory type in ns ',⍕rLibNs
       force:noneFound                      ⍝ Even if force, ensure directory exists (used later).
         ⍝ Scan directory (that exists) for objects
       dir←rLibNs.⎕OR'⍙Directory'
@@ -73,24 +78,14 @@
       scan←kp∧≠oOut ⋄ (oOut/⍨scan)(wOut/⍨scan,1)
   }
 
-⍝ Process OPTIONS
-⍝    DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...
-⍝    -Session    |  -Root  |  -Local      | What ns to put lib (NS)
-⍝    -Prefix     |  -NOPrefix             | Put objs in ns directly or sub-library (NS)
-⍝    -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs
-⍝    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
-⍝    -NOVerbose  |  -Verbose              | Provide details on search
-⍝    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.
-⍝    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
-⍝    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING
-⍝ An option's case is ignored; when specified as main fileName left arg, each option may omit the initial hyphen.
+⍝ Process OPTIONS-- see Options in Brief (below).
  debugÔ verboseÔ rMainNs searchPathÔ setPathÔ forceÔ sSubNs rWhere notFoundOkÔ←{
      ⍵}0 0 mainNsDef 1 1 0 subNsDef ⍬ 0
- :For opt :In ⎕C opts←' '(≠⊆⊢)opts~'-'
+ :For opt :In ⎕C opts←' '(≠⊆⊢)opts~'-'                ⍝ Ignore case and hyphens here...
      OF←(≢opt)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}∘⎕C
      :Select opt  ⍝ Ordered approx. by likelihood. Left paren shows minimal abbrev.
         ⍝  Non-defaults
-     :Case OF'root' ⋄ rMainNs←# ⋄ :Case OF'local' ⋄ rMainNs←HERE
+     :Case OF'root' ⋄ rMainNs←# ⋄ :Case OF'local' ⋄ rMainNs←CALLENV
      :Case OF'NOp(refix' ⋄ sSubNs←''
      :Case OF'NOsea(rchpath' ⋄ searchPathÔ←0 ⋄ :Case OF'NOset(path' ⋄ setPathÔ←0
      :Case OF'verbose' ⋄ verboseÔ←1 ⋄ :Case OF'debug' ⋄ debugÔ←1
@@ -101,18 +96,48 @@
      :Case OF'NOv(erbose' ⋄ verboseÔ←0 ⋄ :Case OF'NOf(orce' ⋄ forceÔ←0
      :Case OF'NOnf' ⋄ notFoundOkÔ←0
      :Case OF'help'
-         'require2: HELP INFORMATION'
-         'Description: Checks if required APL objects are in a local "library" or loads them from file or workspace'
-         '   Returns the local library. As a side effect, ensures the local library is in the local ⎕PATH.'
-         '   (By "local" (namespace), we mean the namespace from which require2 is called).'
+         'require: HELP INFORMATION'
+         'Description: Checks if required APL objects are in a local library* or loads them from file or workspace'
+         '   Returns the local library. As a side effect (see -NOSETpath), ensures the library is in the search ⎕PATH '
+         '   in the calling environment.'
+         '--------------------------'
+         '   [*] By "local library", we mean the namespace from which require is called, ⎕SE or #.'
          'Syntax:'
-         '   {libNS} ← {opts} require2 [ ''<opts> obj1 obj...'' | [''opts''] ''obj1'' ''obj'' ... ]'
+         '   {libNS} ←[optsL | altCallEnv] require [-optsR] argsR'
+         '           optsL:If optsL is present, but not a namespace, '
+         '                       it must be a single string with space-separated options, with optional hyphen (-) prefixes. '
+         '                 If omitted , <opts> are contained in argsR. See below'
+         '           altCallEnv: If optL is a namespace, it will be used for the local path. See -local'
+         '           argsR: If a string, it is split on spaces into a vector of strings'
+         '                  If opts not defined in optsL, opts are the initial strings of argsR:'
+         '           optsR: If opts not set in optsL, opts are optionally set from the leading strings'
+         '                       of argsR, left to right, ending before the first without a hyphen (-) prefix.'
+         '           objs:  one or more strings of argsR after the last option in optsR'
+         'Syntax Summary:'
+         '    {libNs} ← ''[-]opt1 [[-]opt2 ...]'' require ''obj1 [obj2] ...'''
+         '    {libNs} ← [altCallEnv@Ns]         require '' [-opt1 [-opt2] ...] obj1 [obj2] ... '''
+         '                                      require '' [-opt1 [-opt2] ...] obj1 [obj2] ... '''
+         '                                      require ''-help''    ⍝ To view this help information.'
          '   opts:'
          '      -[SESsion* | -Root | -Local]'
          '      -[no]Prefix*       -[no]SEArchpath*'
          '      -[no]SETpath*      -[no*]Force'
          '      -nonf | nfok       ⍝ Experimental: return ⎕NULL for missing obj'
          '      -help              -[no*]Verbose      -Debug'
+         ''
+         '+------------------+'
+         '+ Options in Brief +'
+         '+------------------+'
+         '   DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...'
+         '   -Session    |  -Root  |  -Local      | What ns to put library in (NS): ⎕SE # or calling environment.'
+         '   -Prefix     |  -NOPrefix             | Put objs in sub-library ⍙⍙.⍙ vs above ns directly'
+         '   -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs'
+         '   -SETpath    |  -NOSETpAth            | Update ⎕PATH on success'
+         '   -NOVerbose  |  -Verbose              | Provide details on search'
+        '    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.'
+         '   -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?'
+         '   -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING.'
+         ''
          'Notes:'
          '   ∘ Default library location: ⎕SE (alternatives: # if -Root, calling namespace if -Local).'
          '   ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).'
@@ -128,7 +153,7 @@
          '   ∘ Experimental:'
          '     If -nfok is specified, returns ⎕NULL elements for missing objs, rather than ⎕SIGNALling failure.'
          'Options for the Standard Library Namespace'
-         '[Option -local assumes that require2 happened to be called from namespace #.mylib]'
+         '[Option -local assumes that require happened to be called from namespace #.mylib]'
          '   ∘   Option 1  Option 2     Std Library     Notes'
          '   ∘   -session  -prefix      ⎕SE.⍙⍙.⍙        Defaults: -session and -prefix'
          '       -session  -noprefix    ⎕SE             Default:  -session'
@@ -137,7 +162,7 @@
          '   ∘   -local    -prefix      #.mylib.⍙⍙.⍙  '
          '       -local    -noprefix    #.mylib       '
          '' ⋄ :Return
-     :Else ⋄ 11 ⎕SIGNAL⍨'For help, type "require2 ''-help''".',(⎕UCS 13),'Unknown option: ',opt
+     :Else ⋄ 11 ⎕SIGNAL⍨'For help, type "require ''-help''".',(⎕UCS 13),'Unknown option: ',opt
      :EndSelect
  :EndFor
 
@@ -150,7 +175,7 @@
  :If found ⋄ :Return ⋄ :EndIf
    ⍝ status contains ints: 2= Found in filesys, 1= found in APL space, 0= not found, ¯1= Invalid Name.
  status←(≢objs)⍴0
- memPath←HERE ExpandSearchToPath⍣searchPathÔ⊣HERE rLibNs
+ memPath←CALLENV ExpandSearchToPath⍣searchPathÔ⊣CALLENV rLibNs
  :If verboseÔ ⋄ 'Memory path is    ',memPath ⋄ 'Directory path is ',dirSearchPath ⋄ :EndIf
 
    ⍝ Scan for objs in APL namespaces <memPath>, unless forceÔ.   If found, skip filesys scan.
@@ -234,8 +259,8 @@
  :If setPathÔ  
   ⍝ APPEND NEW ITEMS ⍵ AFTER EXISTING ⎕PATH items: ⍺ 
   ⍝ Currently, doesn't protect against ⎕FIXed functions changing ⎕PATH.
-  ⍝ To do so, change next line to:     HERE.⎕PATH←HERE_PATH{  
-     HERE.⎕PATH←HERE.⎕PATH{  
+  ⍝ To do so, change next line to:     CALLENV.⎕PATH←CE_PATH{  
+     CALLENV.⎕PATH←CALLENV.⎕PATH{  
          old new←{' '(≠⊆⊢)⍣(1≥|≡⍵)⊣⍵}¨⍺ ⍵ ⋄ 1↓∊' ',¨∪old,new
      }⍕¨rNewLibsRefs
  :EndIf
@@ -245,7 +270,7 @@
      'opts     'opts
      'verbose  'verboseÔ ⋄ 'library  'rLibNs ⋄ 'objs     'objs
      'mem srch 'memPath ⋄ 'fi  srch 'dirSearchPath ⋄ 'setPathÔ   '(setPathÔ⊃'OFF' 'ON')
-     ⍞←'⎕PATH IS:'('''','''',⍨HERE.⎕PATH) ⋄ :If setPathÔ ⋄ :AndIf HERE_PATH≢HERE.⎕PATH
+     ⍞←'⎕PATH IS:'('''','''',⍨CALLENV.⎕PATH) ⋄ :If setPathÔ ⋄ :AndIf CE_PATH≢CALLENV.⎕PATH
          ⍞←'     WAS:'('''','''',⍨oldPath) ⋄ :EndIf
      'Objects Found...'
      '  In mem:     'CShow(objs/⍨1=status)
