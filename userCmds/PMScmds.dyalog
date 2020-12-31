@@ -13,7 +13,7 @@
       r.Parse←⊂''         ⍝ ENTER NUMBER OF ARGS AND OPTIONALLY -modifiers HERE
     ∇
 
-    ∇ {r}←Run(cmd input);CALLER;LIB;pat;defaultLib
+    ∇ {r}←Run(cmd input);CALLER;LIB;ns;pat;defaultLib
       CALLER←##.THIS
 
       :Select cmd
@@ -38,7 +38,7 @@
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
-            bi_dc
+	    (⎕SE.∆REQ 'BigInt').BigInt.BI_DC
             r←''
       :EndSelect
     ∇

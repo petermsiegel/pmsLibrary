@@ -6,7 +6,7 @@
 ;pEndHere;pHERE;pHERE_WIKI                           ⍝ p- Regex pats*
 ;rHERE                                               ⍝ r- Regex replacements or response*
 ;eUNKNOWN;ePREFIX;eSCRIPT                            ⍝ e- Error text*    
-;GetOpts;Set_pEndHere;∆Encode;Error                  ⍝ Fns   (∆Pseudo-Sys, User)          
+;GetOpts;Set_pEndHere;SpecialQuote2APL;∆Encode;Error ⍝ Fns   (∆Pseudo-Sys, User)          
 ⍝                                                      * formats: eVars eCONSTS, so for p-, r- objects
 
 ⍝ ∆FIX:    [⎕FIX options] ∇  <⎕FIX code lines or fileid>
@@ -56,7 +56,7 @@
 ⍝ Returns a long char string consisting of executable code-- APL functions and quoted text.
   ∆Encode←{ ⍝ Extern: STYLES
       style prependEOL←⍺    
-      ∆EnPar←{0=≢⍵: ⍵ ⋄ '(',')',⍨⍵} ⋄ ∆EnQt←{QT←'''' ⋄ QT,QT,⍨(1+⍵=QT)/⍵} ⋄ ∆2Vec←⍵∘{1=≢⍺: ',',⍵ ⋄ ⍵}
+      ∆EnPar←{0=≢⍵: ⍵ ⋄ '(',')',⍨⍵} ⋄ ∆EnQt←{SQ←'''' ⋄ SQ,SQ,⍨(1+⍵=SQ)/⍵} ⋄ ∆2Vec←⍵∘{1=≢⍺: ',',⍵ ⋄ ⍵}
       SELECT←(STYLES⍳⊂style)∘=         ⍝ STYLES← ':STD' ':MX' ':LF' ':CR'  ':STR'
       sSTD sMX sLF sCR sSTR←⍳5
       ∆Enc1←{preEOL postEOL←⍺
@@ -112,6 +112,25 @@
       Error eUNKNOWN,cmd,'")'
   }
 
+⍝ SpecialQuote2APL: Find all """...""" and "..." strings, which may span one or more lines. 
+  SpecialQuote2APL←{⍺←0
+      ⋄ SQ DQ←'''"' ⋄ CR←⎕UCS 13 ⋄ CRcode←⊂SQ,(⎕UCS 13),SQ  
+      DTBC←⍺∘{⍺:⍵↓⍨-+/∧\' '=⌽⍵ ⋄ ⍵}¨                          ⍝ Delete trailing blanks conditionally: if ⍺=1
+      UnDQ←{DQ2←2⍴DQ ⋄ ⍺: s/⍨1+SQ=s←s/⍨~DQ2⍷s←1↓¯1↓⍵ ⋄ ⍵}     ⍝ <"abc"" isn't"> ==> <abc" isn''t>, w/o '...'.
+
+      ⍝ 0: """..\n.."""   1: "..\n.."     2: '...'           3: ⍝ ..\n
+      '"{3}(.*?)"{3}?'  '((?:"[^"]*")+)' '((?:''[^'']*'')+)' '(⍝\N*$)'⎕R{
+          SKIP←⍵.PatternNum(~∊)0 1  
+          IS_DQ1←⍵.PatternNum=1                        ⍝ "..." requires DQ escaping (""); """...""" does not.
+          field1←⍵.Lengths[1]↑⍵.Offsets[1]↓⍵.Block
+          SKIP: field1
+          str←IS_DQ1 UnDQ field1
+          str←∊CRcode@(CR∘=)⊢{⍵/⍨1+⍵=SQ}str
+          '(',SQ,str,SQ,')'
+      }⍠('Mode' 'M')('DotAll' 1)('EOL' 'CR')⊢DTBC ⍵
+  }
+
+
 ⍝ EXECUTIVE ------------------------------------------------------------------------------------------------
   :IF 1≥|≡linesIn                         ⍝ If a single line, must be a fileid.
       linesIn←{
@@ -166,6 +185,7 @@
   fHereActive Error eSCRIPT,'(:HERE directive found, but no matching :END[HERE])'
 
 FINISH_UP: 
+    linesOut←1 SpecialQuote2APL linesOut   ⍝ Bugs-- :HERE docs and """...""" quotes should not mix...
     result←(⊃⎕RSI){
         0:: Error eSCRIPT
         fOpts ⍺.⎕FIX ⍵     ⍝ Call from caller's env...
@@ -178,9 +198,14 @@ FINISH_UP:
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝ ∆FIX:    fix_result  ←   [⎕FIX options]  ∇  «⎕FIX lines or fn id»
 ⍝ Descr:   Extension to ⎕FIX formatting HERE-strings in lines passed directly or in files. 
-⍝          Allows variables to be set verbatim from multiline string literals, with options including
+⍝          ∘ Allows variables to be set verbatim from multiline string literals, with options including
 ⍝          maintaining absolute indentation, trimming indentation, appending carriage returns,
 ⍝          linefeeds, or spaces, formatting as equivalent matrices, or returning as vectors of vectors.
+⍝          ∘ Also handles special double-quote strings and triple-quotes, using """ OR ''' equivalently.
+⍝             - Double-quoted strings work like STD APL single-quoted strings, except that they can 
+⍝               span multiple lines; double-quotes in the text must be "escaped" by repetition.
+⍝             - Triple-quotes start and end with THREE double-quotes """ and may span multiple lines.
+⍝               No special escaping is honored.
 ⍝          Finally, allows arbitrary data to be embedded, through the use of unique pattern terminators.    
 ⍝ See:     https://en.wikipedia.org/wiki/Here_document
 ⍝
