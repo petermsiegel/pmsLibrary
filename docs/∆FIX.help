@@ -1,0 +1,62 @@
+⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
+⍝D               1] TQs:  Triple Quotes """...""", supporting a limited, multiline here-string. 
+⍝D                 (Only double quotes (") are recognized).
+⍝D               2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
+⍝D               3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
+⍝D            Not all 3 options make sense, but they're provided to allow experimentation.
+⍝D  Syntax:   Uses ⎕FIX syntax, with enhancements
+⍝D  See Documentation for more information...
+⍝D
+⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
+⍝D               1] TQs:  Triple Quotes """...""", supporting a limited, multiline here-string. 
+⍝D                 (Only double quotes (") are recognized).
+⍝D               2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
+⍝D               3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
+⍝D            Not all 3 options make sense, but they're provided to allow experimentation.
+⍝D  Syntax:   Uses ⎕FIX syntax, with enhancements:
+⍝D            Recognizes and converts source lines passed or in object named to standard APL...
+⍝D               1] TQs                   2]  DQs               3] Here-strings
+⍝D               ------------------       --------------         ----------------------
+⍝D  Specs:       s1← """\h*\n...\n\h*"""  s2← "l1\nl\nl3"       s3← ::: endToken [[:CR|:MX|:VV|:SP]] [.\n]* endToken
+⍝D               Opening and closing                            For <endToken> of form '[\w∆⍙_.#⎕]+:?', 
+⍝D               """ must appear on                                collects all lines up to (but not incl.) 
+⍝D               their own lines                                '\R?\h*:?\<endToken>:?'
+⍝D               Otherwise """x""" treated 
+⍝D               as equiv to '"x"'
+⍝D  Escaping?    Nothing escaped.         Double " to include.  Any text protected, as long as not matching endToken.
+⍝D               Internal """ invalid. 
+⍝D  Format:      s1← """                  s2← "Text on line 1   s3← ::: end_s3
+⍝D                 line 1                   text on line 2...       text on line 1
+⍝D                 line 2 ...               text on line 3"         more on line 2
+⍝D               """                                         end_s3: 
+⍝D  Must opening / closing quote or token be the last / first thing on separate line?
+⍝D               YES, BOTH                NO                    NO
+⍝D  Trim LHS?    YES                      NO                    YES
+⍝D  ...based on: spaces preceding         --                    spaces preceding endToken on same line. 
+⍝D               closing """
+⍝D  Options?     NONE                     NONE                  :CR (use CR as linend), :VV (use vector of vectors),
+⍝D                                                              :MX (create char matrix)            
+⍝D  Output:      APL quoted strings       APL quoted strings    APL quoted strings
+⍝D  Linesep:     (⎕UCS 13)                (⎕UCS 13)             [:CR]: (⎕UCS 13)
+⍝D  Other formats:                                              [:VV]: as APL Vector of Vectors
+⍝D                                                              [:MX]: as ↑(APL Vector of Vectors)
+⍝D                                                              [:SP]: with each CRsreplaced by a space.
+
+⍝D  _Flatten:  lines2 ← fVec (fTrim ∇) lines
+⍝D  fType:     ⍺= 1:  :v  return vec of strings (char vectors)
+⍝D             ⍺= 2:  :m  return matrix of strings  
+⍝D             ⍺=¯1: :s  return single string with spaces where linends would be.
+⍝D             ⍺= 0:  :cr (default) return single string w/ CR-separated lines
+⍝D  fIndent:   ⍺⍺=1:  trim each line based on least indented line;
+⍝D             ⍺⍺<0:  trim based on indent of closing line to iHere: '::: endToken [options] ... \r? (\h*) :?endToken:?
+⍝D                    or TQ closing quotes: (\h*)"""
+⍝D             ⍺⍺=0:  don't trim
+    _Flatten←{
+        ⍺←0 ⋄ fType fIndent←⍺ ⍺⍺
+        VV←             {2=|≡⍵:⍵ ⋄ CR(≠⊆⊢)⊢⍵}
+      ⍝ If fIndent<0, determine indent trim based on left-most line in ⍵. If >0, base on fIndent.
+        TrimL← fIndent∘ { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\[1]' '=↑⍵ ⋄ ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺}
+        EnQ←            {⍵/⍨1+⍵=SQ}¨ 
+        QFlat← fType∘   {⍺>0:∊SQ,¨⍵,¨⊂SQ,' ' ⋄ ⍺=¯1: SQ,SQ,⍨1↓∊' ',¨⍵ ⋄ SQ,SQ,⍨∊{⍺,CRcode,⍵}/⍵}
+        '(',')',⍨ ('↑'/⍨fType=2),QFlat EnQ TrimL VV ⍵
+    }
