@@ -96,7 +96,7 @@
      :Case OF'NOv(erbose' ⋄ verboseÔ←0 ⋄ :Case OF'NOf(orce' ⋄ forceÔ←0
      :Case OF'NOnf' ⋄ notFoundOkÔ←0
      :Case OF'help'
-         'require: HELP INFORMATION'
+         ']require and ⎕SE.∆REQ: HELP INFORMATION'
          'Description: Checks if required APL objects are in a local library* or loads them from file or workspace'
          '   Returns the local library. As a side effect (see -NOSETpath), ensures the library is in the search ⎕PATH '
          '   in the calling environment.'
@@ -162,9 +162,10 @@
          '   ∘   -local    -prefix      #.mylib.⍙⍙.⍙  '
          '       -local    -noprefix    #.mylib       '
          '' ⋄ :Return
-     :Else ⋄ 11 ⎕SIGNAL⍨'For help, type "require ''-help''".',(⎕UCS 13),'Unknown option: ',opt
+     :Else ⋄ 11 ⎕SIGNAL⍨'require: For help, type "require ''-help''".',(⎕UCS 13),'Unknown option: ',opt
      :EndSelect
  :EndFor
+ :IF 0=≢objs ⋄ ⎕SIGNAL/'require: no objects to require?' 11 ⋄ :Endif 
 
   ⍝ Scan ⍵.⎕PATH, returning a list of references, resolving ↑ and ignoring undefined namespaces.
   ⍝ Return <mempath>, ⎕PATH references prepended by rLibNs (our library)...
@@ -196,7 +197,7 @@
      :EndFor
  :EndIf
   ⍝ Error if any obj names are invalid.
- :If ¯1∊status ⋄ 11 ⎕SIGNAL⍨'Invalid object name(s): ',⍕objs/⍨¯1=status ⋄ :EndIf
+ :If ¯1∊status ⋄ 11 ⎕SIGNAL⍨'require: Invalid object name(s): ',⍕objs/⍨¯1=status ⋄ :EndIf
 
  rNewLibsRefs←rLibNs
  :For dir :In dirSearchPath
@@ -283,5 +284,5 @@
  rLibNs.⍙Directory Update⍙Directory←objs rWhere
   ⍝ :IF -NFok set, objs may contain names not found! rWhere will contain corresponding ⎕NULLs.
  :If ~notFoundOkÔ ⋄ :AndIf ⎕NULL∊rWhere
-     911 ⎕SIGNAL⍨'Required objects not found:',,⎕FMT objs/⍨rWhere∊⎕NULL
+     911 ⎕SIGNAL⍨'require: Required objects not found:',,⎕FMT objs/⍨rWhere∊⎕NULL
  :EndIf
