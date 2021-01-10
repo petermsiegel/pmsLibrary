@@ -1,7 +1,7 @@
 ﻿ {rWhere}←{opts} ∆REQ  objs
  ;⎕IO;⎕ML
  ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;CALLENV;CE_PATH
- ;i;libNsDotObj;mainNsDef;memPath;mem;oNC;obj;objList;objIx;oldPath;opt;Pad;rLibNs;rMainNs;rNewLibsRefs
+ ;i;libNsDotObj;mainNsDef;memPath;mem;oNC;obj;objList;objIx;opt;Pad;path;rLibNs;rMainNs;rNewLibsRefs
  ;searchPathÔ;setPathÔ;status;stat;sSubNs;subNsDef;verboseÔ;rWhere
  ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
  ;notFoundOkÔ   ⍝Experimental
@@ -17,20 +17,24 @@
       0≠≢p←Get ⊃⍵: ∪':'(≠⊆⊢)⊣p  ⋄ ⍺ ∇ 1↓⍵
   }'FSPATH' 'WSPATH' 
 
-  :If 1≥|≡objs ⋄ objs←' '(≠⊆⊢),objs ⋄ :EndIf
-  :IF  9 0∊⍨oNC←⎕NC 'opts' 
+  :IF 1≥|≡objs ⋄ objs←' '(≠⊆⊢),objs ⋄ :ENDIF
+
+  ⍝ CALLENV: See next line.
+  ⍝ opts: If ⎕NC 9, it is the default calling environment (CALLENV); else CALLENV is set from (⊃⎕RSI,mainNsDef).
+  ⍝       If     0, it is set from first args of objs (contiguous objs on left with initial hyphens)
+  ⍝       Else   2, so all tokens are options, w/ initial hyphens optional.
+  CALLENV←⎕RSI{⍵: opts ⋄ ⊃⍺,mainNsDef }9=oNC←⎕NC 'opts'
+  :IF oNC∊0 9
       opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵}objs 
   :ENDIF
-  ⍝ CALLENV: The calling environment (namespace)
-  ⍝ Special use of left arg-- to pass an alternative namespace
-  CALLENV←{⍵: 1 opts  ⋄  ⊃⎕RSI,mainNsDef}9=oNC 
   
-  ⍝ Save CALLENV.⎕PATH into CE_PATH now to detect changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
+  ⍝ Save CALLENV.⎕PATH into CE_PATH now; allows detection of changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
+  ⍝ We allow those changes, but warn (since they can mess things up).
   CE_PATH←CALLENV.⎕PATH                
 
 ⍝ Utilities
   Pad←{⍺←10 ⋄ ⍺>≢⍵:⍵↑⍨-⍺ ⋄ ⍵}
-  DebugMsg←{⍺←0 ⋄ debugÔ∨⍺:⎕←'>>> ',⍵ ⋄ 1:_←⍬}
+  DebugMsg←{⍺←0 ⋄ debugÔ∨⍺: ⎕←'∆REQ: ',⍵ ⋄ 1:_←⍬}
   ExpandSearchToPath←{UP←⊂,'↑' ⋄ env path0←⍺ ⍵
       path←' '(≠⊆⊢)env.⎕PATH
       GetRef←path0∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
@@ -47,7 +51,10 @@
 ⍝ Fix2Group-- Fix named objects.
 ⍝             Each ⍵ may return multiple obj names; ∇ returns a flat list (of depth 2).
   Fix2Group←{
-        PathChange←{CE_PATH≡CALLENV.⎕PATH: ⍵ ⋄ ⍵⊣⎕←'>>> Warning: ',(⍕CALLENV),'.⎕PATH change during ⎕FIX of file(s) in: ',⍕⍵}
+        PathChange←{
+            CE_PATH≡CALLENV.⎕PATH: ⍵ 
+            ⍵⊣⎕←'∆REQ WARNING: ',(⍕CALLENV),'.⎕PATH changed while ⎕FIXing file(s) in: ',⍕⍵
+        }
         0/⍨~debugÔ::⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg'⎕FIXing: '('file://'∘,¨⊆⍵)
         PathChange ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵
   }
@@ -222,7 +229,7 @@
          :If ×≢fileList←fileName ScanFileSpecs'.dyalog' '.apl?'
              found←1
              :If 1<≢fileList
-                 'WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
+                 '∆REQ WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
              :EndIf
              :For fileId :In fileList
                  objList←rLibNs Fix2Group fileId
@@ -259,10 +266,10 @@
 
  :If setPathÔ  
   ⍝ APPEND NEW ITEMS ⍵ AFTER EXISTING ⎕PATH items: ⍺ 
-  ⍝ Currently, doesn't protect against ⎕FIXed functions changing ⎕PATH.
-  ⍝ To do so, change next line to:     CALLENV.⎕PATH←CE_PATH{  
-     CALLENV.⎕PATH←CALLENV.⎕PATH{  
-         old new←{' '(≠⊆⊢)⍣(1≥|≡⍵)⊣⍵}¨⍺ ⍵ ⋄ 1↓∊' ',¨∪old,new
+  ⍝ Note:  Doesn't protect against ⎕FIXed functions changing ⎕PATH, though a warning is issued above.
+  ⍝        To prevent this, set protect←1 in the next line (default: protect←0).
+     CALLENV.⎕PATH←{ protect←0  
+         old new←{' '(≠⊆⊢)⍣(1≥|≡⍵)⊣⍵}¨(protect⊃CALLENV.⎕PATH CE_PATH) ⍵ ⋄ 1↓∊' ',¨∪old,new
      }⍕¨rNewLibsRefs
  :EndIf
 
@@ -272,7 +279,7 @@
      'verbose  'verboseÔ ⋄ 'library  'rLibNs ⋄ 'objs     'objs
      'mem srch 'memPath ⋄ 'fi  srch 'dirSearchPath ⋄ 'setPathÔ   '(setPathÔ⊃'OFF' 'ON')
      ⍞←'⎕PATH IS:'('''','''',⍨CALLENV.⎕PATH) ⋄ :If setPathÔ ⋄ :AndIf CE_PATH≢CALLENV.⎕PATH
-         ⍞←'     WAS:'('''','''',⍨oldPath) ⋄ :EndIf
+         ⍞←'     WAS:'('''','''',⍨CE_PATH) ⋄ :EndIf
      'Objects Found...'
      '  In mem:     'CShow(objs/⍨1=status)
      '  On disk:    'CShow(objs/⍨2=status)
