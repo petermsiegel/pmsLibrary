@@ -930,12 +930,12 @@
    ⍝ RX10div2: (Defined above.)
       powU←{powCase←(,⍵)∘≡
         ⍝ (1≠⍴⍴⍵)∨1≠⍴⍴⍺:  err 'powU: ⍺ and ⍵ must be vectors'
-          powCase zero_D:one_D                      ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
-          powCase one_D:,⍺                          ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
-          powCase two_D:⍺ mulU ⍺                    ⍝ ⍺×⍺
-          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}          ⍝ quick ⌊⍵÷2.
-          evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵             ⍝ even power
-          0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn              ⍝ even or odd power.
+          powCase zero_D:one_D                     ⍝ =cmp ⍵ mix,0:,1 ⍝ ⍺*0 → 1
+          powCase one_D:,⍺                         ⍝ =cmp ⍵ mix,1:⍺  ⍝ ⍺*1 → ⍺. Return "odd," i.e. use sa in caller.
+          powCase two_D:⍺ mulU ⍺                   ⍝ ⍺×⍺
+          hlf←{,ndn(⌊⍵÷2)+0,¯1↓RX10div2×2|⍵}       ⍝ quick ⌊⍵÷2.
+          evn←ndnZ{⍵ mulU ⍵}ndn ⍺ ∇ hlf ⍵          ⍝ even power
+          0=2|¯1↑⍵:evn ⋄ ndnZ ⍺ mulU evn           ⍝ even or odd power.
       }
    ⍝ divU/: unsigned division
    ⍝  divU:   Removes leading 0s from ⍺, ⍵ ...

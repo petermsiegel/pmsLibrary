@@ -1,12 +1,24 @@
 ⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
-⍝D               1] TQs:  Triple Quotes """...""", supporting a limited, multiline here-string. 
-⍝D                 (Only double quotes (") are recognized).
-⍝D               2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
-⍝D               3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
-⍝D            Not all 3 options make sense, but they're provided to allow experimentation.
 ⍝D  Syntax:   Uses ⎕FIX syntax, with enhancements
-⍝D  See Documentation for more information...
 ⍝D
+⍝D Quick Intro to Here-strings using :::
+⍝D ¯¯¯¯¯ ¯¯¯¯¯ ¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯
+⍝D        ::: <end_token>   [opts] \n arbitrary text \n ... \n end_token2 rest of APL code
+⍝D             end_token:  A string in APL variable form. 
+⍝D                         - Everything between that string and end_token2  will be accepted as the here-string. 
+⍝D             end_token2: end_token, end_token:, or :end_token
+⍝D                         - A preceding or following colon is simply syntactic sugar.
+⍝D                         - Anything after <end_token2> will be APL code added after the converted here-string.
+⍝D             opts:       [:c | :l | :v | :m | :s]     
+⍝D                         :c - The here-string will be a single quoted expression with CRs (⎕UCS 13) as line separator.
+⍝D                         :l - ...                     a single quoted expression with LFs (⎕UCS 10) as line separator.
+⍝D                         :v - ...                     a vector of char vectors
+⍝D                         :m - ...                     a character matrix.
+⍝D                         :s - ...                     a single quoted expression, with line separators replaced by a single space.
+⍝D                         - Only the first char after a colon is checked; case and all other text is ignored.
+⍝D                           E.g. for convenience, you might specify :CR :LF :VV :MX :SP in upper or lower case.
+⍝D  ∆FIX:     Full Specification
+⍝D  ¯¯¯¯¯     ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
 ⍝D               1] TQs:  Triple Quotes """...""", supporting a limited, multiline here-string. 
 ⍝D                 (Only double quotes (") are recognized).
@@ -41,22 +53,3 @@
 ⍝D  Other formats:                                              [:VV]: as APL Vector of Vectors
 ⍝D                                                              [:MX]: as ↑(APL Vector of Vectors)
 ⍝D                                                              [:SP]: with each CRsreplaced by a space.
-
-⍝D  _Flatten:  lines2 ← fVec (fTrim ∇) lines
-⍝D  fType:     ⍺= 1:  :v  return vec of strings (char vectors)
-⍝D             ⍺= 2:  :m  return matrix of strings  
-⍝D             ⍺=¯1: :s  return single string with spaces where linends would be.
-⍝D             ⍺= 0:  :cr (default) return single string w/ CR-separated lines
-⍝D  fIndent:   ⍺⍺=1:  trim each line based on least indented line;
-⍝D             ⍺⍺<0:  trim based on indent of closing line to iHere: '::: endToken [options] ... \r? (\h*) :?endToken:?
-⍝D                    or TQ closing quotes: (\h*)"""
-⍝D             ⍺⍺=0:  don't trim
-    _Flatten←{
-        ⍺←0 ⋄ fType fIndent←⍺ ⍺⍺
-        VV←             {2=|≡⍵:⍵ ⋄ CR(≠⊆⊢)⊢⍵}
-      ⍝ If fIndent<0, determine indent trim based on left-most line in ⍵. If >0, base on fIndent.
-        TrimL← fIndent∘ { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\[1]' '=↑⍵ ⋄ ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺}
-        EnQ←            {⍵/⍨1+⍵=SQ}¨ 
-        QFlat← fType∘   {⍺>0:∊SQ,¨⍵,¨⊂SQ,' ' ⋄ ⍺=¯1: SQ,SQ,⍨1↓∊' ',¨⍵ ⋄ SQ,SQ,⍨∊{⍺,CRcode,⍵}/⍵}
-        '(',')',⍨ ('↑'/⍨fType=2),QFlat EnQ TrimL VV ⍵
-    }

@@ -110,9 +110,9 @@
     :EndSection PMSLIB
 
     :Section Global Declarations
-    ⎕FX '{msg}←_CSAY msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
-     _CSAY 'DEBUG is active'
-     _CSAY '⎕PATH←',(⎕PATH←⎕PATH,' ',⍕PMSLIB)
+    ⎕FX '{msg}←DSay msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
+     DSay 'DEBUG is active'
+     DSay '⎕PATH←',(⎕PATH←⎕PATH,' ',⍕PMSLIB)
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
  ⍝ ∆XRL: "Execute and Replace Locally"
@@ -283,14 +283,14 @@
   ⍝ Add ⎕THIS to ⎕PATH cleanly and exactly once (if not already present).
   ⍝ Suppressed!
   ⍝  ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
-  ⍝  _CSAY (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
+  ⍝  DSay (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
   ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←' '~⍨¨↓'_' ⎕NL 2 3 4
-    _CSAY (DEBUG⊃'Deleting' 'Maintaining'),' temp objects:',∊' ',¨_
-    _CSAY 'Format namespace being fixed as ',⍕⎕THIS
+    DSay (DEBUG⊃'Deleting' 'Maintaining'),' temp objects:',∊' ',¨_
+    DSay 'Format namespace being fixed as ',⍕⎕THIS
     _←0 ⎕EXPORT ⎕NL 3 4
     _←1 ⎕EXPORT ↑'∆FMT' '∆XR' 'Join' 'Over' 'fmtLib'
-    _CSAY 'Exporting fns/ops:',∊' ',¨' '~⍨¨↓{(0≠⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
+    DSay 'Exporting fns/ops:',∊' ',¨' '~⍨¨↓{(0≠⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
     ⎕EX⍣(0=DEBUG)⊣'_' ⎕NL 2 3 4
 
     :Section Documentation
