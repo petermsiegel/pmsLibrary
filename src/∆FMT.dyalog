@@ -1,44 +1,41 @@
-﻿:namespace Format
+﻿:namespace Format 
   ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
-    DEBUG←0  ⋄  ÇR ← DEBUG/⎕UCS 13   ⍝ If DEBUG: ÇR makes complex patterns easy to read by adding CR's. Else null.
-    :Section For Documentation, see Section "Documentation"
-    ⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
-    ⍝
-    ⍝  Generate and Return a 1 or 2D Formatted String
-    ⍝      string←  [⍺0 [⍺1 ...]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
-    ⍝
-    ⍝  Displays Format Help info!
-    ⍝               ∆FMT ⍬
-    :EndSection
+    DEBUG←0  
+:SECTION For Documentation, see Section "Documentation" below
+  ⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
+  ⍝
+  ⍝  Generate and Return a 1 or 2D Formatted String
+  ⍝      string←  [⍺0 [⍺1 ...]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
+  ⍝
+  ⍝  Displays Format Help info!
+  ⍝      ∆FMT ⍬
+:ENDSECTION For Documentation...
 
-    :Section PMSLIB
-  ⍝  PMSLIB:  "STANDARD" UTILITIES (to be put in common file/namespace)
-    :Namespace PMSLIB
-        ÇR ← ##.DEBUG/⎕UCS 13
-     ⍝ ∆F:  Find a pcre field by name or field number
-          ∆F←{N O B L←⍺.(Names Offsets Block Lengths)
-              def←'' ⋄ isN←0≠⍬⍴0⍴⍵
-              p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
-              B[O[p]+⍳L[p]]
-          }
-    ⍝ GenBalanced: generates a pattern that matches balanced parens or equivalent,
-    ⍝  P ← GenBalanced '()'
-    ⍝  (Default) Recursive, matches balanced delimiters, skipping embedded single-quoted or double-quoted strings.
-    ⍝         skipping embedded SQ strings, DQ strings.
-    ⍝         fails on unbalanced braces, e.g. a single left or right brace.
-    ⍝ Display to be easy to read ;-)
-          GenBalanced←{L R←⊂¨'\',¨⍵
-              N←⊂'bal',⍕bpCount_ ⋄ bpCount_+←1    ⍝ local N- unique pat name in case several in use
-              _p←'(?x) (?<N> ',ÇR                                         ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
-              _p,←'L',ÇR                                                  ⍝ ∘ Match "{", then atomically 1 or more of:
-              _p,←'      (?>    (?: \\.)+ | [^LR\\"'']+      ',ÇR         ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
-              _p,←'           | (?: "[^"]*"   )+ | (?: ''[^'']*'')+ ',ÇR  ⍝     ∘ QT anything QT  OR
-              _p,←'           | (?&N)*',ÇR                                ⍝     ∘ bal1 {...} recursively 0 or more times
-              _p,←'      )+',ÇR                                           ⍝     ∘ Else submatch done. Finally,
-              _p,←'R   )'                                                 ⍝ ∘ Match "}"
-              ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p  ⍝ Repl. N with bal1 etc., L with \{, R with \}.
-          }
-        bpCount_←1    ⍝ Use the ctr to generate a unique name balNNN for referencing inside the pattern.
+:SECTION Miscellaneous Utilities
+⍝ ⍙F:  Find a pcre field by name or field number
+    ⍙F←{N O B L←⍺.(Names Offsets Block Lengths)
+        def←'' ⋄ isN←0≠⍬⍴0⍴⍵
+        p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
+        B[O[p]+⍳L[p]]
+    }
+⍝ GenBalanced: generates a pattern that matches balanced parens or equivalent,
+⍝  P ← GenBalanced '()'
+⍝  (Default) Recursive, matches balanced delimiters, skipping embedded single-quoted or double-quoted strings.
+⍝         skipping embedded SQ strings, DQ strings.
+⍝         fails on unbalanced braces, e.g. a single left or right brace.
+⍝ Display to be easy to read ;-)
+    GenBalanced←{L R←⊂¨'\',¨⍵
+        N←⊂'bal',⍕bpCount_ ⋄ bpCount_+←1    ⍝ local N- unique pat name in case several in use
+        _p←'(?x) (?<N> '                                            ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
+        _p,←'L'                                                     ⍝ ∘ Match "{", then atomically 1 or more of:
+        _p,←'      (?>    (?: \\.)+ | [^LR\\"'']+      '            ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
+        _p,←'           | (?: "[^"]*"   )+ | (?: ''[^'']*'')+ '     ⍝     ∘ QT anything QT  OR
+        _p,←'           | (?&N)*'                                   ⍝     ∘ bal1 {...} recursively 0 or more times
+        _p,←'      )+'                                              ⍝     ∘ Else submatch done. Finally,
+        _p,←'R   )'                                                 ⍝ ∘ Match "}"
+        ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p  ⍝ Repl. N with bal1 etc., L with \{, R with \}.
+    }
+    bpCount_←1    ⍝ Use the ctr to generate a unique name balNNN for referencing inside the pattern.
   ⍝ ∆XR: Execute and Replace
   ⍝      Replace names of the form ⍎XXX in a string with its executed value
   ⍝      in the calling context (in string form)...
@@ -51,72 +48,79 @@
   ⍝                          - if it exceeds count, returns current replacement
   ⍝                    Default is 1 (signals error).
   ⍝          count:     How many times to scan the ENTIRE string for replacements. Default is 25.
-        XRCallE←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  ⋄  XRLoopE←'∆XR: looping on runaway replacement strings.'
-    XRExecE←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         ⋄  XRFormE←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
-          ∆XR←{⍺←⊃⎕RSI
+  ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use ⎕THIS∘∆XR
+      eXRCall←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  
+      eXRLoop←'∆XR: looping on runaway replacement strings.'
+      eXRExec←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         
+      eXRForm←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
+    ∆XR←{⍺←⊃⎕RSI
               caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller ns, err, cnt
-              9≠⎕NC'caller':⎕SIGNAL∘11 XRCallE
+              9≠⎕NC'caller':⎕SIGNAL∘11 eXRCall
               CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⍵ ⎕SIGNAL 11}
               cnt{cnt←⍺
-                  cnt≤0:⍵ CondErr XRLoopE
-                  S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ∆F 1
-                      0::f1 CondErr XRExecE f1
+                  cnt≤0:⍵ CondErr eXRLoop
+                  S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ⍙F 1
+                      0::f1 CondErr eXRExec f1
                       1=≢r←⎕FMT caller.⍎f1:,r
-                      (∊r,' ')CondErr XRFormE f1
+                      (∊r,' ')CondErr eXRForm f1
                   }⍠('UCP' 1)⊣⍵
                   ⍵≡S:S ⋄ '⍎'(~∊)S:S ⋄ (cnt-1)∇ S
               }⍵
-          }
-    ⍝ ⍺ Join ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
-          Join←{
-              rightHt rightWid←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
-              leftHt leftWid←⍴left←⎕FMT ⍺ ⋄ MaxHt←leftHt⌈rightHt
-              (MaxHt leftWid↑left),(MaxHt rightWid↑right)
-          }
-    ⍝ ⍺ Over ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ OVER (ON TOP OF) ⍵, adding COLUMNS to ⍺ or ⍵ as needed..
-          Over←{
-              topHt topWid←⍴top←⎕FMT ⍺ ⋄ 0=≢⍵:top
-              botHt botWid←⍴bottom←⎕FMT ⍵
-              center←0.5×topWid-botWid
-              topWid<botWid:((⌈center)⌽topHt botWid↑top)⍪bottom
-              top⍪((⌈-center)⌽botHt topWid↑bottom)
-          }
+    }
+  ⍝ ⍺ ∆JOIN ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
+    ∆JOIN←{
+        rightHt rightWid←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
+        leftHt leftWid←⍴left←⎕FMT ⍺ ⋄ MaxHt←leftHt⌈rightHt
+        (MaxHt leftWid↑left),(MaxHt rightWid↑right)
+    }
+  ⍝ ⍺ ∆OVER ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ OVER (ON TOP OF) ⍵, adding COLUMNS to ⍺ or ⍵ as needed..
+    ∆OVER←{
+        topHt topWid←⍴top←⎕FMT ⍺ ⋄ 0=≢⍵:top
+        botHt botWid←⍴bottom←⎕FMT ⍵
+        center←0.5×topWid-botWid
+        topWid<botWid:((⌈center)⌽topHt botWid↑top)⍪bottom
+        top⍪((⌈-center)⌽botHt topWid↑bottom)
+    }
+  ⍝ Pad:  strM2 ← [char] (pad Pad how) strM
+  ⍝ strM: a string in matrix form
+  ⍝ char: a single pad char
+  ⍝ pad:  non-negative number
+  ⍝ how:  L|C|R - left (pad right), center, right (pad left). Do not truncate.
+  ⍝       l|c|r - ditto, but truncate if pad is < current width.
+  ⍝       Default (' '): Center.
+  ⍝ Returns strM2: <strM> padded or truncated as requested.
+    Pad←{
+        ⍺←' ' ⋄ char pad how strM←⍺ ⍺⍺ ⍵⍵ ⍵
+        1≠≢char:11 ⎕SIGNAL⍨'The padding must be exactly one character.'
+        wid←⊃⌽⍴strM←⎕FMT strM
+        (how∊'LRC ')∧pad≤wid:strM
+        strM pad←pad{
+            how∊'Ll':(⍺↑[1]⍵)(wid-⍺) ⋄ how∊'Rr':((-⍺)↑[1]⍵)(⍺-wid)
+            (⍺↑[1]p↑[1]⍵)(0.5×wid-⍺)⊣p←-⌊0.5×wid+⍺
+        }strM
+        ' '=char:strM
+        pad{
+            how∊'Ll':strM⊣(⍺↑[1]strM)←char ⋄ how∊'Rr':strM⊣(⍺↑[1]strM)←char
+            ((0⌊⌊⍺)↑[1]strM)←char ⋄ ((0⌈⌊-⍺)↑[1]strM)←char
+            strM
+        }strM
+    }
+    ∇ ns←FORMAT_LIB
+      ns←⎕THIS.PMSLIB
+    ∇
+    ∇ {_HELP}←FORMAT_HELP
+      :If 0=⎕NC '_HELP'⋄ _HELP←(⊂'  '),¨3↓¨{⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS ⋄ :EndIf
+      ⎕ED⍠('ReadOnly' 1)&_HELP
+    ∇   
+  :ENDSECTION Miscellaneous Utilities
 
-    ⍝ strM2 ← [char] (pad Pad how) strM
-    ⍝ strM: a string in matrix form
-    ⍝ char: a single pad char
-    ⍝ pad:  non-negative number
-    ⍝ how:  L|C|R - left (pad right), center, right (pad left). Do not truncate.
-    ⍝       l|c|r - ditto, but truncate if pad is < current width.
-    ⍝       Default (' '): Center.
-    ⍝ Returns strM2: <strM> padded or truncated as requested.
-          Pad←{
-              ⍺←' ' ⋄ char pad how strM←⍺ ⍺⍺ ⍵⍵ ⍵
-              1≠≢char:11 ⎕SIGNAL⍨'The padding must be exactly one character.'
-              wid←⊃⌽⍴strM←⎕FMT strM
-              (how∊'LRC ')∧pad≤wid:strM
-              strM pad←pad{
-                  how∊'Ll':(⍺↑[1]⍵)(wid-⍺) ⋄ how∊'Rr':((-⍺)↑[1]⍵)(⍺-wid)
-                  (⍺↑[1]p↑[1]⍵)(0.5×wid-⍺)⊣p←-⌊0.5×wid+⍺
-              }strM
-              ' '=char:strM
-              pad{
-                  how∊'Ll':strM⊣(⍺↑[1]strM)←char ⋄ how∊'Rr':strM⊣(⍺↑[1]strM)←char
-                  ((0⌊⌊⍺)↑[1]strM)←char ⋄ ((0⌈⌊-⍺)↑[1]strM)←char
-                  strM
-              }strM
-          }
-    :EndNamespace
-    :EndSection PMSLIB
-
-    :Section Global Declarations
+  :SECTION Global Declarations
     ⎕FX '{msg}←DSay msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
      DSay 'DEBUG is active'
-     DSay '⎕PATH←',(⎕PATH←⎕PATH,' ',⍕PMSLIB)
+     ⍝ ⎕PATH←1↓∊' ',¨∪' '(≠⊆⊢) ⎕PATH,' ',⍕PMSLIB
+     DSay '⎕PATH←',⎕PATH
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
- ⍝ ∆XRL: "Execute and Replace Locally"
-    ∆XRL←⎕THIS∘PMSLIB.∆XR
 
   ⍝ Pseudo-format strings specs:
   ⍝     Strings of the form {specs: expression}
@@ -137,103 +141,103 @@
     fmtQS← '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
   ⍝ Pretty-formatted to be easy-ish to read.
     _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQuoters above.
-    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  ',ÇR     ⍝ Date-time code
-    _f,←'          | ( (?: ⍎fmtQS |',ÇR
-    _f,←'                  ⍎_fmtNotQts++ )*+',ÇR
-    _f,←'            ) ',ÇR
-    _f,←'            ( :{1} (?!:))  (.*+)',ÇR                                                  ⍝ ⎕FMT code
-    _f,←'          | (                                         )  (           )  (.*+)  ',ÇR     ⍝ Simple code
+    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '        ⍝ Date-time code
+    _f,←'          | ( (?: ⍎fmtQS |'   
+    _f,←'                  ⍎_fmtNotQts++ )*+'   
+    _f,←'            ) '   
+    _f,←'            ( :{1} (?!:))  (.*+)'                                                     ⍝ ⎕FMT code
+    _f,←'          | (                                         )  (           )  (.*+)  '        ⍝ Simple code
     _f,←'        ) $'
-    fmtP←∆XRL _f
+    fmtP←⎕THIS∘∆XR _f
 
   ⍝ padP:   L<*>25 or L25<*> The entire sequence is followed by a comma or the terminating single colon.
     _p1←'(?ix) ^ (?<type> [LCR]) (?<wid> \d+)        (?<char> ⍎fmtQS?) ,?'
     _p2←'(?ix) ^ (?<type> [LCR]) (?<char> ⍎fmtQS?)  (?<wid> \d+)       ,?'
-    padP←∆XRL¨_p1 _p2
+    padP←⎕THIS∘∆XR¨_p1 _p2
 
-    :Endsection Global Declarations
+:ENDSECTION Global Declarations
 
-
-    ⍝ Escapes: \{ \} \\n \n \⋄   ==>  { } \n CR ⋄    (\n => CR=⎕UCS 13)
-      ProcEscapes←{
-          '\\([{}])' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
-      }
-
-    ⍝ omega type ScanCode format_string
-    ⍝ Handle strings of the form <⍵NN, ⍺NN, ⍺⍺, ⍵⍵> in format specs, strings within code, and code outside strings:
-    ⍝   type=0:  In format specs:  The value of (⍕NN⊃⍵) will be immediately interpolated into the spec (⎕IO=0).
-    ⍝   type=1:  In code outside strings:  The code (⍵⊃⍨NN+⎕IO) will replace ⍵NN (⎕IO-independent).
-    ⍝ If index N is out of range of alpha or omega, signals an index error.
-      ScanCode←{0=≢⍵:⍵
-          env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
-          '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2}|\1)'⎕R{  ⍝ ⍵00 to ⍵99 | ⍵⍵ | ⍺⍺
-              case←⍵.PatternNum∘=
-              case 0:CanonQuotes ⍵ ∆F 0     ⍝ Convert double quote sequences to single quote sequences...
-              case 1:⍵ ∆F 1                 ⍝ \⍵ is treated as char ⍵
-            ⍝ case 2:                       ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
-              isW←'⍵'=f1←⍵ ∆F 1
-              f2←{(⊃⍵)∊'⍺⍵':⍕1+env.index[isW] ⋄ ⍵}⍵ ∆F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
-              ix←env.index[isW]←⍎f2 ⋄ alom←isW⊃env.(alpha omega)
-     
-              ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ∆F 0),' out of range'
-              isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
-              ⍕ix⊃alom
-          }⍵
-      }
-
+:SECTION MAIN Routines
+  ⍝ Escapes: \{ \} \\n \n \⋄   ==>  { } \n CR ⋄    (\n => CR=⎕UCS 13)
+    ProcEscapes←{
+        '\\([{}])' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
+    }
+  ⍝ omega type ScanCode format_string
+  ⍝ Handle strings of the form <⍵NN, ⍺NN, ⍺⍺, ⍵⍵> in format specs, strings within code, and code outside strings:
+  ⍝   type=0:  In format specs:  The value of (⍕NN⊃⍵) will be immediately interpolated into the spec (⎕IO=0).
+  ⍝   type=1:  In code outside strings:  The code (⍵⊃⍨NN+⎕IO) will replace ⍵NN (⎕IO-independent).
+  ⍝ If index N is out of range of alpha or omega, signals an index error.
+    ScanCode←{0=≢⍵:⍵
+        env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
+        '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2}|\1)'⎕R{  ⍝ ⍵00 to ⍵99 | ⍵⍵ | ⍺⍺
+            case←⍵.PatternNum∘=
+            case 0:CanonQuotes ⍵ ⍙F 0     ⍝ Convert double quote sequences to single quote sequences...
+            case 1:⍵ ⍙F 1                 ⍝ \⍵ is treated as char ⍵
+          ⍝ case 2:                       ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
+            isW←'⍵'=f1←⍵ ⍙F 1
+            f2←{(⊃⍵)∊'⍺⍵':⍕1+env.index[isW] ⋄ ⍵}⍵ ⍙F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
+            ix←env.index[isW]←⍎f2 ⋄ alom←isW⊃env.(alpha omega)
+    
+            ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ⍙F 0),' out of range'
+            isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
+            ⍕ix⊃alom
+        }⍵
+    }
   ⍝ str2 ← CanonQuotes str
-    ⍝ Convert strings of form "..." to '...', handling internal " and ' chars.
-      CanonQuotes←{
-          DQ≠1↑⍵:⍵ ⋄ SQ,SQ,⍨{⍵/⍨1+SQ=⍵}{⍵/⍨~(DQ,DQ)⍷⍵}1↓¯1↓⍵
-      }
-    ⍝ codeStr2 ← env ExecCode codeString
-    ⍝     codeString:  'fmtString : code' |  'date_time_string :: code' | 'code'
-    ⍝ ∘ Executes <code> according to the prefix: fmtString (⎕FMT) or the date_time_string (1200⌶) and
-    ⍝   any justification specs (L10, C20¨*¨, etc.).
-    ⍝ ∘ Returns the ⎕FMTed result (always a char matrix) or ⎕SIGNALs an error.
-    ⍝ ∘ Calls <ScanCode> on the prefix and the code itself.
-      ExecCode←{
-          env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
-          6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
-        ⍝ Handle omegas
-        ⍝ Find formatting prefix, if any
-          (pfx colons cod)←{   ⍝ Speeds up ⎕R when no : exists at all!
-              ':'(~∊)cod:'' ''⍵ ⋄ fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
-          }cod
-     
-        ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
-        ⍝ See KLUDGE 2 below
-          pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ∆F 0}⊣pfx
-     
-          pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
-          cod←env(1 ScanCode)cod              ⍝ 1:  isCode
-     
-        ⍝ Spacing / Justification Pseudo-⎕FMT specs:
-        ⍝    pattern: [LCRlcr] (ddd⎕c⎕ | ⎕c⎕ddd) ,?
-        ⍝ Set locals: pfx; padTYpe, padWid, padChar
-          padType padWid padChar←' ' 0 ' '
-          pfx←padP ⎕R{t w c←⍵ ∆F¨'type' 'wid' 'char'
-              padType padWid padChar∘←t(⍎w)' '
-              0=≢c:'' ⋄ padChar∘←1↓¯1↓c ⋄ ''
-          }pfx
-     
-        ⍝ Format codestring <cod> executed according to three formatting options...
-        ⍝ 1] If prefix <pfx> is null or all blanks
-        ⍝    and there is one colon,   call:   ⎕FMT cod
-        ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝ Format cod in the ISO std date-time format.
-        ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
-        ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
-        ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
-          val←pfx(2=≢colons){pfx isDT←⍺
-              pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
-              0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
-          }{0=≢⍵:''
-              env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
-          }cod
-          padType∊'lcrLCR':padChar(padWid Pad padType)val  ⍝ Process L|C|R|l|c|r.  See Pad for details...
-          val
-      }
+  ⍝ Convert strings of form "..." to '...', handling internal " and ' chars.
+    CanonQuotes←{
+        DQ≠1↑⍵:⍵ ⋄ SQ,SQ,⍨{⍵/⍨1+SQ=⍵}{⍵/⍨~(DQ,DQ)⍷⍵}1↓¯1↓⍵
+    }
+  ⍝ codeStr2 ← env ExecCode codeString
+  ⍝     codeString:  'fmtString : code' |  'date_time_string :: code' | 'code'
+  ⍝ ∘ Executes <code> according to the prefix: fmtString (⎕FMT) or the date_time_string (1200⌶) and
+  ⍝   any justification specs (L10, C20¨*¨, etc.).
+  ⍝ ∘ Returns the ⎕FMTed result (always a char matrix) or ⎕SIGNALs an error.
+  ⍝ ∘ Calls <ScanCode> on the prefix and the code itself.
+    ExecCode←{
+        env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
+        6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
+      ⍝ Handle omegas
+      ⍝ Find formatting prefix, if any
+        (pfx colons cod)←{   ⍝ Speeds up ⎕R when no : exists at all!
+            ':'(~∊)cod:'' ''⍵ ⋄ fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
+        }cod
+    
+      ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
+      ⍝ See KLUDGE 2 below
+        pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙F 0}⊣pfx
+    
+        pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
+        cod←env(1 ScanCode)cod              ⍝ 1:  isCode
+    
+      ⍝ Spacing / Justification Pseudo-⎕FMT specs:
+      ⍝    pattern: [LCRlcr] (ddd⎕c⎕ | ⎕c⎕ddd) ,?
+      ⍝ Set locals: pfx; padTYpe, padWid, padChar
+        padType padWid padChar←' ' 0 ' '
+        pfx←padP ⎕R{t w c←⍵ ⍙F¨'type' 'wid' 'char'
+            padType padWid padChar∘←t(⍎w)' '
+            0=≢c:'' ⋄ padChar∘←1↓¯1↓c ⋄ ''
+        }pfx
+    
+      ⍝ Format codestring <cod> executed according to three formatting options...
+      ⍝ 1] If prefix <pfx> is null or all blanks
+      ⍝    and there is one colon,   call:   ⎕FMT cod
+      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝ Format cod in the ISO std date-time format.
+      ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
+      ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
+      ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
+        val←pfx(2=≢colons){pfx isDT←⍺
+            pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
+            0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
+        }{0=≢⍵:''
+            env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
+        }cod
+        padType∊'lcrLCR':padChar(padWid Pad padType)val  ⍝ Process L|C|R|l|c|r.  See Pad for details...
+        val
+    }
+:EndSection Main Routines
 
+:SECTION Main Executive
   ⍝ ========= MAIN ∆FMT Formatting Function
   ⍝ ∆FMT - Major formatting patterns:
   ⍝    ...P the pattern, ...C the pattern number
@@ -243,7 +247,7 @@
 
     'nextFC' addPat '\{\h*\}'                     ⍝ Next Omega.
     'endFC'  addPat  '⋄|\{\h*[⍬:]\h*\}'           ⍝ End of Field.
-    'codeFC' addPat PMSLIB.GenBalanced '{}'              ⍝ Code field.
+    'codeFC' addPat GenBalanced '{}'              ⍝ Code field.
     'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
 
   ⍝ ∆FMT: Main user function
@@ -257,10 +261,10 @@
            ⋄ env.omega←1↓rightArgs←⊆rightArgs
            ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
           _←fmtPats ⎕S{
-              case←⍵.PatternNum∘= ⋄ f0←⍵ ∆F 0
-              case textFC:0⍴text∘←text Join ProcEscapes f0          ⍝ Any text except {...} or ⋄
-              case codeFC:0⍴text∘←text Join env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
-              case nextFC:0⍴text∘←text Join env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
+              case←⍵.PatternNum∘= ⋄ f0←⍵ ⍙F 0
+              case textFC:0⍴text∘←text ∆JOIN ProcEscapes f0          ⍝ Any text except {...} or ⋄
+              case codeFC:0⍴text∘←text ∆JOIN env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
+              case nextFC:0⍴text∘←text ∆JOIN env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
               case endFC:⍬                                          ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
               11 ⎕SIGNAL⍨'∆FMT: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
           }⊣⊃rightArgs
@@ -268,32 +272,16 @@
       :Else
           ⎕SIGNAL/⎕DMX.(EM EN)
       :EndTrap
-    ∇
+    ∇ 
+:ENDSECTION Main Executive
 
-    ∇ ns←fmtLib
-      ns←⎕THIS.PMSLIB
-    ∇
-
-    ∇ FORMAT_HELP;h
-      h←'_HELP'
-      :If 0=⎕NC h ⋄ _HELP←(⊂'  '),¨3↓¨{⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS ⋄ :EndIf
-      ⎕ED⍠('ReadOnly' 1)&h
-    ∇
-
-  ⍝ Add ⎕THIS to ⎕PATH cleanly and exactly once (if not already present).
-  ⍝ Suppressed!
-  ⍝  ##.⎕PATH← 1↓∊' ',¨∪(' ' (≠⊆⊢) ##.⎕PATH),⊂⍕⎕THIS
-  ⍝  DSay (⍕##),'.⎕PATH now ''',##.⎕PATH,''''
-  ⍝ Delete underscore-prefixed vars (those not used at runtime)
-    _←' '~⍨¨↓'_' ⎕NL 2 3 4
-    DSay (DEBUG⊃'Deleting' 'Maintaining'),' temp objects:',∊' ',¨_
-    DSay 'Format namespace being fixed as ',⍕⎕THIS
+:SECTION CLEANUP AND EXPORT
+    ⎕EX '_' ⎕NL 2 3 4         ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ↑'∆FMT' '∆XR' 'Join' 'Over' 'fmtLib'
-    DSay 'Exporting fns/ops:',∊' ',¨' '~⍨¨↓{(0≠⎕EXPORT ⍵)⌿⍵}⎕NL 3 4
-    ⎕EX⍣(0=DEBUG)⊣'_' ⎕NL 2 3 4
+    _←1 ⎕EXPORT ↑'∆FMT' '∆XR' '∆JOIN' '∆OVER' 'FORMAT_LIB'
+:ENDSECTION CLEANUP AND EXPORT
 
-    :Section Documentation
+:SECTION Documentation
 ⍝H ∆FMT - a modest APL Array-Oriented Format Function Reminiscent of format of Python or C++.
 ⍝H        formatting multi-dimensional objects, ⎕FMT-compatible numerical fields,
 ⍝H        and I-Beam 1200-compatible Date-Time objects.

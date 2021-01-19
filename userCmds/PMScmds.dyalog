@@ -16,7 +16,7 @@
     ∇ {r}←Run(cmd input);CALLER;LIB;ns;pat;defaultLib
       CALLER←##.THIS
 
-      :Select cmd
+      :Select  ⎕C cmd
       :Caselist 'require' 'req'
           r←⍬
           :IF checkRequire
@@ -34,7 +34,7 @@
           :ELSE
               r←⊂']require is active.'
           :ENDIF
-      :Case 'dc'
+      :Case  'dc' 
           checkRequire
           ⍝ Execute in # (if in ⎕SE, can create ⎕SE←→# problems for )saving).
           ⍝ Note: an HTML renderer in bi.dc has been modified to run in user # space.
@@ -45,7 +45,7 @@
 
     ∇ {r}←level Help cmd
       checkRequire
-      :Select cmd
+      :Select   ⎕C cmd
       :Caselist 'require' 'req'         ⍝ Be sure require is loaded.
          :IF level<1
             r←⊂']require loads ⎕SE.require (as needed) and adds to ⎕PATH in current namespace (if needed).'
@@ -77,12 +77,12 @@
             {}⎕SE.∆REQ '-HELP'
             r←⊂']require -HELP launched in full screen.'
          :ENDIF
-      :Case 'dc'
+      :Case 'dc'  
             r←⊂']dc interactively executes APL mathematical'
             r,←⊂'  statements using arbitrary-precision (big) integers.'
             r,←⊂'  Numbers must be integers of 1 or more digits; either ¯ or - may be used'
             r,←⊂'  for minus signs; underscores (_) may be used to separate digits in numbers.'
-            r,←⊂'  ⍵ represents the prior answer. variables may be assigned to and used.'
+            r,←⊂'  ⍵ represents the prior answer. variables may be assigned to and used.'
             r,←⊂']dc (no args)'
             r,←⊂'    enters interactive desk calculator mode.'
             r,←⊂'    A single period (.) terminates dc mode. Ctrl-c interrupts it.'

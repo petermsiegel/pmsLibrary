@@ -1,11 +1,12 @@
 ﻿ {rWhere}←{opts} ∆REQ  objs
  ;⎕IO;⎕ML
- ;count;debugÔ;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd;forceÔ;hasÔ;CALLENV;CE_PATH
+ ;CALLENV;CE_PATH;HELP
+ ;count;oDebug;dir;dirSearchPath;fileName;fileList;fileId;fileIx;found;fnd
  ;i;libNsDotObj;mainNsDef;memPath;mem;oNC;obj;objList;objIx;opt;Pad;path;rLibNs;rMainNs;rNewLibsRefs
- ;searchPathÔ;setPathÔ;status;stat;sSubNs;subNsDef;verboseÔ;rWhere
- ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory
- ;notFoundOkÔ   ⍝Experimental
-
+ ;status;stat;sSubNs;subNsDef;rWhere
+ ;oForce;oHas;oNFOk ;oSearchPath;oSetPath;oVerbose;oWarn
+ ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory;WarnMsg
+  
   ⍝ Defaults
   ⎕IO ⎕ML←0 1
   mainNsDef subNsDef←⎕SE'⍙⍙.⍙'        ⍝ ...D: Defaults
@@ -34,7 +35,8 @@
 
 ⍝ Utilities
   Pad←{⍺←10 ⋄ ⍺>≢⍵:⍵↑⍨-⍺ ⋄ ⍵}
-  DebugMsg←{⍺←0 ⋄ debugÔ∨⍺: ⎕←'∆REQ: ',⍵ ⋄ 1:_←⍬}
+  DebugMsg←{⍺←0 ⋄ oDebug∨⍺: ⎕←'∆REQ: ',⍵ ⋄ 1:_←⍬}
+  WarnMsg←{⍺←0 ⋄ oWarn∨⍺: ⎕←'∆REQ Warning: ',⍵ ⋄ 1:_←⍬}
   ExpandSearchToPath←{UP←⊂,'↑' ⋄ env path0←⍺ ⍵
       path←' '(≠⊆⊢)env.⎕PATH
       GetRef←path0∘{∪⍺,(0≠≢¨⍵)/⍵}{6::⍬ ⋄ 9=⎕NC'⍵':⍵ ⋄ ⍎⍵}¨  ⍝ Returns ns ref from string or ref, else ⍬
@@ -53,9 +55,9 @@
   Fix2Group←{
         PathChange←{
             CE_PATH≡CALLENV.⎕PATH: ⍵ 
-            ⍵⊣⎕←'∆REQ WARNING: ',(⍕CALLENV),'.⎕PATH changed while ⎕FIXing file(s) in: ',⍕⍵
+            ⍵⊣WarnMsg (⍕CALLENV),'.⎕PATH changed while ⎕FIXing file(s) in: ',⍕⍵
         }
-        0/⍨~debugÔ::⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg'⎕FIXing: '('file://'∘,¨⊆⍵)
+        0/⍨~oDebug::⎕SIGNAL/⎕DMX.(EM EN) ⋄ _←DebugMsg'⎕FIXing: '('file://'∘,¨⊆⍵)
         PathChange ⊃,/2∘⍺.⎕FIX¨'file://'∘,¨⊆⍵
   }
 ⍝ Directory Services: provide fast search for objects
@@ -65,7 +67,7 @@
 ⍝           rWh:    namespace (ref) where each object is found, or ⎕NULL.
 ⍝ ⍙Directory: [0] list of objects; [1] their locations (else ⎕NULL-- 1 more item than [0] contains)
   Import⍙Directory←{
-      0/⍨~debugÔ::11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
+      0/⍨~oDebug::11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
       (force rLibNs)objs←⍺ ⍵
       case←rLibNs.⎕NC'⍙Directory' ⋄ no⍙Dir valid⍙Dir←0 2 ⋄ noneFound←0((≢objs)⍴⎕NULL)
       ScanForObjs←{⍺≡⎕NULL:0 ⋄ 0<⍺.⎕NC ⍵}¨
@@ -86,89 +88,24 @@
   }
 
 ⍝ Process OPTIONS-- see Options in Brief (below).
- debugÔ verboseÔ rMainNs searchPathÔ setPathÔ forceÔ sSubNs rWhere notFoundOkÔ←{
-     ⍵}0 0 mainNsDef 1 1 0 subNsDef ⍬ 0
+ oDebug oWarn oVerbose rMainNs oSearchPath oSetPath oForce sSubNs rWhere oNFOk←{
+     ⍵}0 0 0 mainNsDef 1 1 0 subNsDef ⍬ 0
  :For opt :In ⎕C opts←' '(≠⊆⊢)opts~'-'                ⍝ Ignore case and hyphens here...
      OF←(≢opt)∘{l←(l<≢⍵)×l←⍵⍳'(' ⋄ (1⌈l⌈⍺)↑⍵~'('}∘⎕C
      :Select opt  ⍝ Ordered approx. by likelihood. Left paren shows minimal abbrev.
-        ⍝  Non-defaults
-     :Case OF'root' ⋄ rMainNs←# ⋄ :Case OF'local' ⋄ rMainNs←CALLENV
-     :Case OF'NOp(refix' ⋄ sSubNs←''
-     :Case OF'NOsea(rchpath' ⋄ searchPathÔ←0 ⋄ :Case OF'NOset(path' ⋄ setPathÔ←0
-     :Case OF'verbose' ⋄ verboseÔ←1 ⋄ :Case OF'debug' ⋄ debugÔ←1
-     :Case OF'force' ⋄ forceÔ←1 ⋄ :Case OF'nf(OK' ⋄ notFoundOkÔ←1
-        ⍝ Defaults
-     :Case OF'ses(sion' ⋄ rMainNs←⎕SE ⋄ :Case OF'p(refix' ⋄ sSubNs←subNsDef
-     :Case OF'sea(rchpath' ⋄ searchPathÔ←1 ⋄ :Case OF'set(path' ⋄ setPathÔ←1
-     :Case OF'NOv(erbose' ⋄ verboseÔ←0 ⋄ :Case OF'NOf(orce' ⋄ forceÔ←0
-     :Case OF'NOnf' ⋄ notFoundOkÔ←0
+     :Case OF'root' ⋄ rMainNs←#              ⋄ :Case OF'local' ⋄ rMainNs←CALLENV
+     :Case OF'ses(sion' ⋄ rMainNs←⎕SE   
+     :Case OF'p(refix' ⋄ sSubNs←subNsDef     ⋄ :Case OF'NOp(refix' ⋄ sSubNs←''
+     :Case OF'debug' ⋄ oDebug←1              ⋄ :Case OF'NOd(ebug' ⋄ oDebug←0
+     :Case OF'sea(rchpath' ⋄ oSearchPath←1   ⋄ :Case OF'NOsea(rchpath' ⋄ oSearchPath←0 
+     :Case OF'set(path' ⋄ oSetPath←1         ⋄ :Case OF'NOset(path' ⋄ oSetPath←0
+     :Case OF'f(orce' ⋄ oForce←1             ⋄ :Case OF'NOf(orce' ⋄ oForce←0        
+     :Case OF'nf(OK' ⋄ oNFOk←1               ⋄ :Case OF'NOnf' ⋄ oNFOk←0   
+     :Case OF'verbose' ⋄ oVerbose←1          ⋄ :Case OF'NOv(erbose' ⋄ oVerbose←0
+     :Case OF'W(arn' ⋄ oWarn←1               ⋄ :Case OF'NOw(arn' ⋄ oWarn←0      
      :Case OF'help'
-         ']require and ⎕SE.∆REQ: HELP INFORMATION'
-         'Description: Checks if required APL objects are in a local library* or loads them from file or workspace'
-         '   Returns the local library. As a side effect (see -NOSETpath), ensures the library is in the search ⎕PATH '
-         '   in the calling environment.'
-         '--------------------------'
-         '   [*] By "local library", we mean the namespace from which require is called, ⎕SE or #.'
-         'Syntax:'
-         '   {libNS} ←[optsL | altCallEnv] require [-optsR] argsR'
-         '           optsL:If optsL is present, but not a namespace, '
-         '                       it must be a single string with space-separated options, with optional hyphen (-) prefixes. '
-         '                 If omitted , <opts> are contained in argsR. See below'
-         '           altCallEnv: If optL is a namespace, it will be used for the local path. See -local'
-         '           argsR: If a string, it is split on spaces into a vector of strings'
-         '                  If opts not defined in optsL, opts are the initial strings of argsR:'
-         '           optsR: If opts not set in optsL, opts are optionally set from the leading strings'
-         '                       of argsR, left to right, ending before the first without a hyphen (-) prefix.'
-         '           objs:  one or more strings of argsR after the last option in optsR'
-         'Syntax Summary:'
-         '    {libNs} ← ''[-]opt1 [[-]opt2 ...]'' require ''obj1 [obj2] ...'''
-         '    {libNs} ← [altCallEnv@Ns]         require '' [-opt1 [-opt2] ...] obj1 [obj2] ... '''
-         '                                      require '' [-opt1 [-opt2] ...] obj1 [obj2] ... '''
-         '                                      require ''-help''    ⍝ To view this help information.'
-         '   opts:'
-         '      -[SESsion* | -Root | -Local]'
-         '      -[no]Prefix*       -[no]SEArchpath*'
-         '      -[no]SETpath*      -[no*]Force'
-         '      -nonf | nfok       ⍝ Experimental: return ⎕NULL for missing obj'
-         '      -help              -[no*]Verbose      -Debug'
-         ''
-         '+------------------+'
-         '+ Options in Brief +'
-         '+------------------+'
-         '   DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...'
-         '   -Session    |  -Root  |  -Local      | What ns to put library in (NS): ⎕SE # or calling environment.'
-         '   -Prefix     |  -NOPrefix             | Put objs in sub-library ⍙⍙.⍙ vs above ns directly'
-         '   -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs'
-         '   -SETpath    |  -NOSETpAth            | Update ⎕PATH on success'
-         '   -NOVerbose  |  -Verbose              | Provide details on search'
-        '    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.'
-         '   -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?'
-         '   -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING.'
-         ''
-         'Notes:'
-         '   ∘ Default library location: ⎕SE (alternatives: # if -Root, calling namespace if -Local).'
-         '   ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).'
-         '   ∘ Defaults are indicated by an asterisk (*) above.'
-         '   ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.'
-         '   ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).'
-         '   ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).'
-         '   ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,'
-         '     but only if there is no explicit left argument (options).'
-         '   ∘ If -SEArchpath is specified, the entire "local"namespace, local search ⎕PATH, and the library are searched for objects.'
-         '     If -noSEArpath, only the "local" namespace and the library are searched.'
-         '   ∘ If an obj is found, but cannot be fixed via 2∘⎕FIX, an error is ⎕SIGNALled no matter what.'
-         '   ∘ Experimental:'
-         '     If -nfok is specified, returns ⎕NULL elements for missing objs, rather than ⎕SIGNALling failure.'
-         'Options for the Standard Library Namespace'
-         '[Option -local assumes that require happened to be called from namespace #.mylib]'
-         '   ∘   Option 1  Option 2     Std Library     Notes'
-         '   ∘   -session  -prefix      ⎕SE.⍙⍙.⍙        Defaults: -session and -prefix'
-         '       -session  -noprefix    ⎕SE             Default:  -session'
-         '   ∘   -root     -prefix      #.⍙⍙.⍙          Defaults:              -prefix'
-         '       -root     -noprefix    # '
-         '   ∘   -local    -prefix      #.mylib.⍙⍙.⍙  '
-         '       -local    -noprefix    #.mylib       '
-         '' ⋄ :Return
+         HELP←'^ *⍝H ?(.*)$'⎕S'\1'⊣⎕NR⊃⎕SI ⋄ ⎕ED 'HELP' 
+         :Return
      :Else ⋄ 11 ⎕SIGNAL⍨'require: For help, type "require ''-help''".',(⎕UCS 13),'Unknown option: ',opt
      :EndSelect
  :EndFor
@@ -179,15 +116,15 @@
  rLibNs←⍎sSubNs rMainNs.⎕NS ⍬     ⍝ If sSubNs is '', returns reference to rMainNs
 
    ⍝ rWhere:        ns where found or ⎕NULL, if not.
- found rWhere←forceÔ rLibNs Import⍙Directory objs   ⍝ initializes rWhere
+ found rWhere←oForce rLibNs Import⍙Directory objs   ⍝ initializes rWhere
  :If found ⋄ :Return ⋄ :EndIf
    ⍝ status contains ints: 2= Found in filesys, 1= found in APL space, 0= not found, ¯1= Invalid Name.
  status←(≢objs)⍴0
- memPath←CALLENV ExpandSearchToPath⍣searchPathÔ⊣CALLENV rLibNs
- :If verboseÔ ⋄ 'Memory path is    ',memPath ⋄ 'Directory path is ',dirSearchPath ⋄ :EndIf
+ memPath←CALLENV ExpandSearchToPath⍣oSearchPath⊣CALLENV rLibNs
+ :If oVerbose ⋄ 'Memory path is    ',memPath ⋄ 'Directory path is ',dirSearchPath ⋄ :EndIf
 
-   ⍝ Scan for objs in APL namespaces <memPath>, unless forceÔ.   If found, skip filesys scan.
- :If ~forceÔ
+   ⍝ Scan for objs in APL namespaces <memPath>, unless oForce.   If found, skip filesys scan.
+ :If ~oForce
      :For i :In ⍳≢objs   ⍝ Search memPath namespaces for <obj>
          obj←i⊃objs
          :For mem :In memPath
@@ -228,8 +165,8 @@
           ⍝                   I.e. if SUB is so fixed, add DIR.SUB to ⎕PATH.
          :If ×≢fileList←fileName ScanFileSpecs'.dyalog' '.apl?'
              found←1
-             :If 1<≢fileList
-                 '∆REQ WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
+             :If 1<≢fileList ⋄ :ANDIF oWarn
+                 1 WarnMsg '∆REQ WARNING: [',(⍕objIx),'] ','Processing multiple Objects WITH NAME "',(obj),'": ',∊fileList
              :EndIf
              :For fileId :In fileList
                  objList←rLibNs Fix2Group fileId
@@ -264,7 +201,7 @@
      :EndFor ⍝ :FOR objIx :IN ⍳≢ objs
  :EndFor  ⍝ :FOR dir :IN dirSearchPath
 
- :If setPathÔ  
+ :If oSetPath  
   ⍝ APPEND NEW ITEMS ⍵ AFTER EXISTING ⎕PATH items: ⍺ 
   ⍝ Note:  Doesn't protect against ⎕FIXed functions changing ⎕PATH, though a warning is issued above.
   ⍝        To prevent this, set protect←1 in the next line (default: protect←0).
@@ -273,12 +210,12 @@
      }⍕¨rNewLibsRefs
  :EndIf
 
- :If verboseÔ
+ :If oVerbose
      ⎕SHADOW'CShow' ⋄ CShow←{0=≢⍵:⍺'[none]' ⋄ ⍺ ⍵}
      'opts     'opts
-     'verbose  'verboseÔ ⋄ 'library  'rLibNs ⋄ 'objs     'objs
-     'mem srch 'memPath ⋄ 'fi  srch 'dirSearchPath ⋄ 'setPathÔ   '(setPathÔ⊃'OFF' 'ON')
-     ⍞←'⎕PATH IS:'('''','''',⍨CALLENV.⎕PATH) ⋄ :If setPathÔ ⋄ :AndIf CE_PATH≢CALLENV.⎕PATH
+     'verbose  'oVerbose ⋄ 'library  'rLibNs ⋄ 'objs     'objs
+     'mem srch 'memPath ⋄ 'fi  srch 'dirSearchPath ⋄ 'oSetPath   '(oSetPath⊃'OFF' 'ON')
+     ⍞←'⎕PATH IS:'('''','''',⍨CALLENV.⎕PATH) ⋄ :If oSetPath ⋄ :AndIf CE_PATH≢CALLENV.⎕PATH
          ⍞←'     WAS:'('''','''',⍨CE_PATH) ⋄ :EndIf
      'Objects Found...'
      '  In mem:     'CShow(objs/⍨1=status)
@@ -290,6 +227,157 @@
   ⍝ Add new items to start of ⍙Directory in rLibNs so most recent items found fastest...
  rLibNs.⍙Directory Update⍙Directory←objs rWhere
   ⍝ :IF -NFok set, objs may contain names not found! rWhere will contain corresponding ⎕NULLs.
- :If ~notFoundOkÔ ⋄ :AndIf ⎕NULL∊rWhere
+ :If ~oNFOk ⋄ :AndIf ⎕NULL∊rWhere
      911 ⎕SIGNAL⍨'require: Required objects not found:',,⎕FMT objs/⍨rWhere∊⎕NULL
  :EndIf
+ →0
+
+
+⍝H ]require and ⎕SE.∆REQ: HELP INFORMATION 
+⍝H +---------------+
+⍝H +   IN BRIEF    +
+⍝H +---------------+
+⍝H Syntax:        {libNS} ←[optsL | altCallEnv] require [-optsR] argsR
+⍝H Description:  For each object <obj> in argsR...
+⍝H    Checks if <obj> is in a local library* or loads it from file or workspace
+⍝H    Returns the local library it was found in or now loaded into, or signals an error (see -noNF).
+⍝H    As a side effect (see -NOSETpath), ensures the library is in the search ⎕PATH in the calling environment.
+⍝H --------------------------
+⍝H    [*] By "local library", we mean the namespace from which require is called, ⎕SE or #.
+⍝H
+⍝H +---------------+
+⍝H +   IN DEPTH    +
+⍝H +---------------+
+⍝H Syntax:
+⍝H    {libNS} ←[optsL | altCallEnv] require [-optsR] argsR
+⍝H            optsL:If optsL is present, but not a namespace, 
+⍝H                        it must be a single string, separated at spaces into a vector of strings (tokens).
+⍝H                        Each token must be an option, with an optional leading hyphen.
+⍝H                  If omitted , <opts>, if any, are found in argsR (below).
+⍝H            altCallEnv: If optL is a namespace, it will be used for the local path. See -local
+⍝H            argsR: If a string, it is split on spaces into a vector of strings (tokens)
+⍝H                   If optsL is not a string, options are found in optsR before any objects to scan for.
+⍝H            optsR: If optsL is not a string, then options are defined before argsR as:
+⍝H                   those tokens, left to right, starting with hyphens, ending before the first w/o a hyphen.
+⍝H                   If an object has a hyphen prefix, it will be recognized only if
+⍝H                   preceded by an object w/o a hyphen or if optsL is a string (possibly empty)
+⍝H            objs:  one or more strings of argsR after the last option in optsR
+⍝H Syntax Summary:
+⍝H     {libNs} ← ''[-]opt1 [[-]opt2 ...]'' require ''obj1 [obj2] ...''
+⍝H     {libNs} ← [altCallEnv@Ns]         require '' [-opt1 [-opt2] ...] obj1 [obj2] ... ''
+⍝H                                       require '' [-opt1 [-opt2] ...] obj1 [obj2] ... ''
+⍝H                                       require ''-help''    ⍝ To view this help information.
+⍝H    opts:
+⍝H       -[SESsion* | -Root | -Local]
+⍝H       -[no]Prefix*       -[no]SEArchpath*
+⍝H       -[no]SETpath*      -[no*]Force
+⍝H       -nonf | nfok       ⍝ Experimental: return ⎕NULL for missing obj
+⍝H       -help              -[no*]Verbose      -Debug     -[no*]Warn
+⍝H 
+⍝H +------------------+
+⍝H + Options in Brief +
+⍝H +------------------+
+⍝H    DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...
+⍝H    -Session    |  -Root  |  -Local      | What ns to put library in (NS): ⎕SE # or calling environment.
+⍝H    -Prefix     |  -NOPrefix             | Put objs in sub-library ⍙⍙.⍙ vs above ns directly
+⍝H    -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs
+⍝H    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
+⍝H    -NOVerbose  |  -Verbose              | Provide details on search
+⍝H    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.
+⍝H    -NOWarn     |  -Warn               | Warn when an unusual situation occurs.
+⍝H    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
+⍝H    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING.
+⍝H 
+⍝H Notes:
+⍝H    ∘ Default library location: ⎕SE (alternatives: # if -Root, calling namespace if -Local).
+⍝H    ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).
+⍝H    ∘ Defaults are indicated by an asterisk (*) above.
+⍝H    ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.
+⍝H    ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).
+⍝H    ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).
+⍝H    ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,
+⍝H      but only if there is no explicit left argument (options).
+⍝H    ∘ If -SEArchpath is specified, the entire "local"namespace, local search ⎕PATH, and the library are searched for objects.
+⍝H      If -noSEArpath, only the "local" namespace and the library are searched.
+⍝H    ∘ If an obj is found, but cannot be fixed via 2∘⎕FIX, an error is ⎕SIGNALled no matter what.
+⍝H    ∘ Experimental:
+⍝H      If -nfok is specified, returns ⎕NULL elements for missing objs, rather than ⎕SIGNALling failure.
+⍝H Options for the Standard Library Namespace
+⍝H [Option -local assumes that require happened to be called from namespace #.mylib]
+⍝H    ∘   Option 1  Option 2     Std Library     Notes
+⍝H    ∘   -session  -prefix      ⎕SE.⍙⍙.⍙        Defaults: -session and -prefix
+⍝H        -session  -noprefix    ⎕SE             Default:  -session
+⍝H    ∘   -root     -prefix      #.⍙⍙.⍙          Defaults:              -prefix
+⍝H        -root     -noprefix    # 
+⍝H    ∘   -local    -prefix      #.mylib.⍙⍙.⍙  
+⍝H        -local    -noprefix    #.mylib       '    ']require and ⎕SE.∆REQ: HELP INFORMATION
+⍝H Syntax:        {libNS} ←[optsL | altCallEnv] require [-optsR] argsR
+⍝H Description:  For each object <obj> in argsR...
+⍝H    Checks if <obj> is in a local library* or loads it from file or workspace
+⍝H    Returns the local library it was found in or now loaded into, or signals an error (see -noNF).
+⍝H    As a side effect (see -NOSETpath), ensures the library is in the search ⎕PATH in the calling environment.
+⍝H --------------------------
+⍝H    [*] By "local library", we mean the namespace from which require is called, ⎕SE or #.
+⍝H Syntax:
+⍝H    {libNS} ←[optsL | altCallEnv] require [-optsR] argsR
+⍝H            optsL:If optsL is present, but not a namespace, 
+⍝H                        it must be a single string, separated at spaces into a vector of strings (tokens).
+⍝H                        Each token must be an option, with an optional leading hyphen.
+⍝H                  If omitted , <opts>, if any, are found in argsR (below).
+⍝H            altCallEnv: If optL is a namespace, it will be used for the local path. See -local
+⍝H            argsR: If a string, it is split on spaces into a vector of strings (tokens)
+⍝H                   If optsL is not a string, options are found in optsR before any objects to scan for.
+⍝H            optsR: If optsL is not a string, then options are defined before argsR as:
+⍝H                   those tokens, left to right, starting with hyphens, ending before the first w/o a hyphen.
+⍝H                   If an object has a hyphen prefix, it will be recognized only if
+⍝H                   preceded by an object w/o a hyphen or if optsL is a string (possibly empty)
+⍝H            objs:  one or more strings of argsR after the last option in optsR
+⍝H Syntax Summary:
+⍝H     {libNs} ← ''[-]opt1 [[-]opt2 ...]'' require ''obj1 [obj2] ...''
+⍝H     {libNs} ← [altCallEnv@Ns]         require '' [-opt1 [-opt2] ...] obj1 [obj2] ... ''
+⍝H                                       require '' [-opt1 [-opt2] ...] obj1 [obj2] ... ''
+⍝H                                       require ''-help''    ⍝ To view this help information.
+⍝H    opts:
+⍝H       -[SESsion* | -Root | -Local]
+⍝H       -[no]Prefix*       -[no]SEArchpath*
+⍝H       -[no]SETpath*      -[no*]Force
+⍝H       -nonf | nfok       ⍝ Experimental: return ⎕NULL for missing obj
+⍝H       -help              -[no*]Verbose      -Debug     -[no*]Warn
+⍝H 
+⍝H +------------------+
+⍝H + Options in Brief +
+⍝H +------------------+
+⍝H    DEFAULTS... |  ALTERNATIVES ...      | IN BRIEF...
+⍝H    -Session    |  -Root  |  -Local      | What ns to put library in (NS): ⎕SE # or calling environment.
+⍝H    -Prefix     |  -NOPrefix             | Put objs in sub-library ⍙⍙.⍙ vs above ns directly
+⍝H    -SEArchpath |  -NOSEArchpath         | Search entire ⎕PATH for objs
+⍝H    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
+⍝H    -NOVerbose  |  -Verbose              | Provide details on search
+⍝H    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.
+⍝H    -NOWarn     |  -Warn               | Warn when an unusual situation occurs.
+⍝H    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
+⍝H    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING.
+⍝H 
+⍝H Notes:
+⍝H    ∘ Default library location: ⎕SE (alternatives: # if -Root, calling namespace if -Local).
+⍝H    ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).
+⍝H    ∘ Defaults are indicated by an asterisk (*) above.
+⍝H    ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.
+⍝H    ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).
+⍝H    ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).
+⍝H    ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,
+⍝H      but only if there is no explicit left argument (options).
+⍝H    ∘ If -SEArchpath is specified, the entire "local"namespace, local search ⎕PATH, and the library are searched for objects.
+⍝H      If -noSEArpath, only the "local" namespace and the library are searched.
+⍝H    ∘ If an obj is found, but cannot be fixed via 2∘⎕FIX, an error is ⎕SIGNALled no matter what.
+⍝H    ∘ Experimental:
+⍝H      If -nfok is specified, returns ⎕NULL elements for missing objs, rather than ⎕SIGNALling failure.
+⍝H Options for the Standard Library Namespace
+⍝H [Option -local assumes that require happened to be called from namespace #.mylib]
+⍝H    ∘   Option 1  Option 2     Std Library     Notes
+⍝H    ∘   -session  -prefix      ⎕SE.⍙⍙.⍙        Defaults: -session and -prefix
+⍝H        -session  -noprefix    ⎕SE             Default:  -session
+⍝H    ∘   -root     -prefix      #.⍙⍙.⍙          Defaults:              -prefix
+⍝H        -root     -noprefix    # 
+⍝H    ∘   -local    -prefix      #.mylib.⍙⍙.⍙  
+⍝H        -local    -noprefix    #.mylib       

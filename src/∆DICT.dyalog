@@ -608,7 +608,7 @@
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
       DICT_HELP←⍬
-    ∇ {h}←help;ln 
+    ∇ {h}←HELP;ln 
       :Access Public Shared
       ⍝ Pick up only internal ⍝H comments!
       :Trap 0 1000  
@@ -618,11 +618,10 @@
               DICT_HELP←h←⎕PW↑[1]↑h 
           :ENDIF
           ⎕ED&'DICT_HELP'       
-      :Else ⋄ ⎕SIGNAL/'Dict.help: No help available' 911
+      :Else ⋄ ⎕SIGNAL/'Dict.HELP: No help available' 911
       :EndTrap
     ∇
-    _←⎕FX 'help'⎕R'Help'⊣⎕NR 'help'
-    _←⎕FX 'help'⎕R'HELP'⊣⎕NR 'help'
+    _←{⍺←'HELP'⋄ ⎕FX ('\b',⍺,'\b')⎕R ⍵⊣⎕NR ⍺}¨ 'help' 'Help'
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
@@ -661,39 +660,40 @@
 
     :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
 
-    ∇ result ← {minorOpt} ∆JDICT json
-      ;TRAP;THROW11;keys;majorOpt;mangleJ;unmangleJ;ns;optNull;vals;⎕IO;⎕TRAP   
+    ∇ result ← {minorOpt} ∆JDICT strJson
+      ;err;oJson5;keys;majorOpt;mangleJ;unmangleJ;ns;oNull;vals;⎕IO;⎕TRAP   
       :Access Public Shared
       unmangleJ←                 1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
       mangleJ←                  (0∘(7162⌶))∘⍕ 
-      TRAP←0 ⋄ ⎕IO←0 ⋄ optNull←('Null'⎕NULL)
+      
+      ⎕IO←0 ⋄ oNull oJson5 oJson3←('Null'⎕NULL)('Dialect' 'JSON5')('Dialect' 'JSON')
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
-      THROW11←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
+      err←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
     ⍝ Major opt (majorOpt) automatically set based on type of <json>.
     ⍝ If several namespaces or strings OR converts from string to namespaces, majorOpt=2.
     ⍝ If majorOpt=0, minor option is checked; otherwise ignored.
       minorOpt←{⍵: 0 ⋄ minorOpt} 900⌶1    
-      ns majorOpt←json{
+      ns majorOpt←strJson{
         badStrE←'At least one invalid ⎕JSON input string found in arg ⍵.'  
         badObjE←'At least one object in arg ⍵ not a JSON string or compatible APL namespace or dictionary.' 
-        0::  THROW11 badStrE
-        ⍵=2.1: json{
-          ⍵: ns (1+1<≢ns) ⊣ ns←⎕JSON ⍠optNull ⊣⍺ 
+        0::  err badStrE
+        ⍵=2.1: strJson{
+          ⍵: ns (1+1<≢ns) ⊣ ns←⎕JSON ⍠ oNull oJson5⊣⍺   ⍝ Allow JSON5 on import.
           1<≢⍺: ⍺ 2 
-          THROW11 badObjE
+          err badObjE
         }0=80|⎕DR ⍺
         ⍵=9.1: ⍺ 1
         ⍵=9.2: ⎕NULL 0    ⍝ Object is a class instance; expected to be a dict.
-        THROW11 badObjE
-      }⎕NC⊂'json'
+        err badObjE
+      }⎕NC⊂'strJson'
 
       :Select majorOpt
-      :Case 2      ⍝ several objects: json strings, namespaces, or dicts
+      :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
           dict←∆DICT ⍬
           ns dict∘{
-              TRAP:: THROW11 'Valid JSON object ⍵ could not be converted to dictionary.' 
+              0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
                 ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangleJ ⍵) ⋄ val←ns⍎itemA
               2=ns.⎕NC itemA:_←itemJ dict.set1 val
                 dict2←∆DICT ⍬ ⋄ ns2←val
@@ -702,7 +702,7 @@
           }¨ns.⎕NL-2.1 9.1
           result←dict  ⍝ Return a single dictionary
       :Else           ⍝ User passed a dictionary to convert
-          (~minorOpt∊0 1 2) THROW11 'Option ⍺ was invalid: Must be 0, 1, 2.'  
+          (~minorOpt∊0 1 2) err 'Option ⍺ was invalid: Must be 0, 1, 2.'  
           scan←{
               isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ ⎕THIS∊⊃⊃⎕CLASS ⍵} 
               ns←⍺⍺ ⋄ k v←⍺ ⍵
@@ -710,17 +710,18 @@
               _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
               1: ⍬⊣(mangleJ¨ v.keys)(ns2 ∇∇)¨v.vals
           }
-          dict←json
-          :TRAP TRAP 
+          dict←strJson
+          :TRAP  0
               ns←⎕NS ''
               (mangleJ¨ dict.keys) (ns scan)¨dict.vals
           :Else 
-              THROW11 'Dictionary ⍵ could not be converted to ⎕JSON.' 
+              err 'Dictionary ⍵ could not be converted to ⎕JSON.' 
           :EndTrap
         ⍝ Use a compact ⎕JSON format if minorOpt is 0.
         ⍝ minorOpt∊0 1: result is a  JSON string 
         ⍝ minorOpt=2:   result is a namespace.
-          result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ optNull('Compact' (⍺=0))⊣⍵ }ns
+        ⍝ Always export (default) as JSON3 format.
+          result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
       :EndSelect 
     ∇
      
@@ -744,7 +745,7 @@
 ⍝H ∆DICT:     Primary function for creating new dictionaries.
 ⍝H            Documented immediately below.
 ⍝H ∆JDICT:    Convert between dictionaries and {⎕JSON strings and/or ⎕JSON-compatible namespaces}.
-⍝H            Documented later.
+⍝H            Documented further below (see ∆JDICT).
 ⍝H
 ⍝H ∆DICT: Creating a dict, initializing items (key-value pairs), setting the default for missing values.
 ⍝H TYPE       CODE                          ITEMS                                 DEFAULT VALUE
@@ -756,11 +757,11 @@
 ⍝H dict       e←∆DICT d (4 40)              ⍝ (1 10)(2 20)(3 30)  (4 40)          none
 ⍝H 
 ⍝X Dict:      A utility fn that returns the full name of the dictionary class, often #.DictClass.
-⍝X            To enable, put #.DictClass in your ⎕PATH.
+⍝X            To enable, put [full path].Dict in your ⎕PATH (or specify full path to DictClass).
 ⍝X            d←⎕NEW Dict            ⍝ Create a new, empty dictionary with no default values.
-⍝X            d←⎕NEW Dict (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.update.
+⍝X            d←⎕NEW DictC (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.update.
 ⍝H Hashes keys for efficiently searching and updating items in large dictionaries.
-⍝H For HELP information, call 'dict.HELP'.
+⍝H For HELP information, call 'Dict.HELP'.
 ⍝H
 ⍝H =========================================================================================
 ⍝H    ∆DICT function 
@@ -771,13 +772,15 @@
 ⍝H    [default]: An optional default for missing keys of most any value or shape.
 ⍝H    kN, a key (of most any value); vN, a value of most any value;  iN (an index, ⎕IO dependent).
 ⍝H    keys, a list of keys; vals, a list of values; indices, a list of indices (integer positions, per ⎕IO)
+⍝H    "Active order": the current explicit ordering of keys-- as entered, unless reordered (see sort, reorder).
 ⍝H CREATE
 ⍝H    d        ← [default] ∆DICT ⍬                        ⍝ Create empty dictionary
-⍝H    d        ← [default] ∆DICT (k1 v1)(k2 v2)...        ⍝ Create dict with initial key-value pairs.
-⍝H    d        ← [default] ∆DICT ⍪keys vals               ⍝ Create dict with initial keys in keylist and values in valuelist
+⍝H    d        ← [default] ∆DICT (k1 v1)(k2 v2)...        ⍝ Create dict by initial key-value pairs.
+⍝H    d        ← [default] ∆DICT ⍪keys vals               ⍝ Create dict by initial 
+⍝H                                                        ⍝    keys in keylist and values in valuelist
 ⍝H GET
 ⍝H    v1 v2 v3 ←           d[k1 k2 k3]                    ⍝ Get value list by key list
-⍝H    v1       ← [default] d.get1 k1                      ⍝ Get a value disclosed by key
+⍝H    v1       ← [default] d.get1 k1                      ⍝ Get a value disclosed by key (see d.get).
 ⍝H    v1 v2 v3 ← [default] d.get  keys                    ⍝ Get value list by key list, else default
 ⍝H    keys vals ←          d.export                       ⍝ Get key list followed by value list
 ⍝H    keys     ←           d.keys                         ⍝ Get all keys in active order
@@ -788,7 +791,7 @@
 ⍝H    (k1 v1)(k2 v2)... ←  d.items[indices]               ⍝ Get all items in active (key) order
 ⍝H SET  
 ⍝H                   d[keys] ←  vals                      ⍝ Set values for arbitrary keys.  For one key:  d[⊂key]←⊂val   
-⍝H                   k1 d.set1 v1                         ⍝ Set value for one key
+⍝H                   k1 d.set1 v1                         ⍝*Set value for one key (see d.set)
 ⍝H                   keys d.set  vals                     ⍝ Set values for keys
 ⍝H                   d.import keys vals                   ⍝ Set values for arbitrary keys
 ⍝H                   d.update (k1 v1)(k2 v2)(k3 v3)...    ⍝ Set key-value pairs, new or old
@@ -1007,11 +1010,12 @@
 ⍝⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
 ⍝H =========================================================================================
-⍝H nums ←  [amount ← 1] d.inc k1 k2 ...
-⍝H     Increments the values of keys by <amount←1>. If undefined and no default is set, 0 is assumed.
+⍝H nums ← [amount ← 1] d.inc k1 k2 ...
+⍝H     Increments the values of keys by <amount←1>. 
+⍝H     If a value is undefined and no default is set, 0 is assumed (and incremented).
 ⍝H     If any referenced key's value is defined and non-numeric, an error is signalled.
 ⍝H
-⍝H nums ← [amount] d.dec k1 k2 ...
+⍝H nums ← [amount ← 1] d.dec k1 k2 ...
 ⍝H      Identical to d.inc (above) except decrements the values by <amount←1>.
 ⍝H
 ⍝H =========================================================================================
@@ -1045,12 +1049,12 @@
 ⍝H    [NOTES]
 ⍝H ------------------------------------------------
 ⍝H Dictionaries are ORDERED: they preserve insertion order unless items are sorted or deleted. 
-⍝H ∘ Updating an item's key does not affect its order. 
+⍝H ∘ Updating an item's key does not affect its position in order. 
 ⍝H ∘ New keys are always added at the end, in the last positions in order, so updates are fast.
 ⍝H ∘ Existing items are updated in place, so updates are fast.
 ⍝H ∘ Getting items by key or index is quite fast, as is checking if they are defined. 
 ⍝H ∘ To force an  existing item to the last position in order, 
-⍝H   it must be deleted and re-entered.
+⍝H   it must be deleted and re-entered, or the entire array must be sorted or reordered.
 ⍝H
 ⍝H Dictionaries are hashed according to their keys (using APL hashing: 1500⌶).
 ⍝H ∘ Hashing is preserved when updating items, adding new items, searching for items, etc.
@@ -1059,18 +1063,22 @@
 ⍝H   ∘ If all keys to delete are a contiguous set of the last (rightmost) keys, hashing is preserved.
 ⍝H   ∘ If at least one key is not part of a contiguous set at the right end, the hash is rebuilt.
 ⍝H   ∘ Deleting a set of keys at once is efficient; the dictionary is rehashed all at once.
+⍝H     FAST:     d.del 1 20 17 5 22 29 ... 
 ⍝H   ∘ Deleting items one at a time reequires rebuilding and rehashing each time. Avoid!
+⍝H     SLOW:    :FOR i :in 1 20 17 5 22 29 ... ⋄ d.del i ⋄ :ENDFOR
+⍝H     SLOW:    {d.del ⍵}¨ 1 20 17 5 22 29 ...  
 ⍝H ∘ If the same key is updated in a single call with multiple values 
 ⍝H       dict[k1 k1 k1]←v1 v2 v3
-⍝H   only the last entry (v3) is kept.
+⍝H   only the last value (v3) is kept.
 ⍝H
 ⍝H =========================================================================================
 ⍝H    ∆JDICT function  for JSON <==> APL Namespaces and Dictionaries  
 ⍝H =========================================================================================
-⍝H  {minorOpt} ∆JDICT json
-⍝H   Converts between a JSON string or APL ns equivalent and a DictClass dictionary (or vice versa).
-⍝H   Assumes that JSON null is mapped onto APL ⎕NULL and vice versa: minorOpt ('Null'⎕NULL).
-⍝H   The user can select either compact or non-compact JSON output; both are valid on input.
+⍝H  {minorOpt} ∆JDICT fs
+⍝H   ∘ Converts between one or more JSON object defs or APL ns equivalents and the equivalent
+⍝H     DictClass dictionary (or vice versa).
+⍝H   ∘ Assumes that JSON null is mapped onto APL ⎕NULL and vice versa: minorOpt ('Null'⎕NULL).
+⍝H   ∘ The user can select either compact or non-compact JSON output; both are valid on input.
 ⍝H 
 ⍝H  I. If argument <json> is a string or namespace,  
 ⍝H    ∘ Convert a Json object string or its equivalent APL namespace

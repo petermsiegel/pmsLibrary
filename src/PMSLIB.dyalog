@@ -17,12 +17,17 @@
     ∆AND←{⍺⍺⊣⍵:⍵⍵⊣⍵ ⋄ 0     }   ⍝ Unlike dfns.and, allows array args
     ∆OR← {⍺⍺⊣⍵:1    ⋄ ⍵⍵ ⊣ ⍵}   ⍝ -ditto-
     
-    ∇hd←∆HERE;⎕IO;⎕ML;cb;opt       
+    ∇ hd←∆HERE;⎕IO;⎕ML;cb;opt       
         hd←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
         opt←(⊃hd)[1+⍸'⍠'∊⍨⊃hd] ⋄ cb← '⍝ ' '⍝'⊃⍨'C'∊opt 
         hd/⍨←'⍝'≠⊃¨hd←1↓¨hd/⍨∧\cb∊⍨⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨1↓hd
         →0↓⍨'S'∊opt
-        hd←¯1↓∊hd,¨⎕UCS 10  
+        hd←1↓∊hd,⍨¨⎕UCS 13  
+    ∇
+  ⍝ ⍙HERE. Same as ⍙HERE with options B and S (return a string). No option specs (changes) allowed.
+    ∇ hd←⍙HERE;⎕IO;⎕ML       
+        hd←(1⊃2↑(50100⌶)2)↓{0<≢⍵:⍵ ⋄ ↓(0⊃⎕RSI).(180⌶)1⊃⎕SI}⎕NR⊃1 0⌷⎕STACK⊣⎕IO ⎕ML←0 1
+        hd←1↓∊(⎕UCS 13),¨hd/⍨'⍝'≠⊃¨hd←1↓¨hd/⍨∧\'⍝ '∊⍨⊃¨hd←{⍵↓⍨+/∧\' '=⍵}¨1↓hd
     ∇
 
  ⍝H  ∆HERE: A Fast "here-document" selector for Dyalog APL, with simple options ⍠B, ⍠C; ⍠V, ⍠S.
@@ -42,13 +47,13 @@
  ⍝H        Option C: [C] comment-only lines constitute a here-doc           
  ⍝H     ⍠V  (default) or  ⍠S 
  ⍝H       +Option V: return a [V] vector of character vectors
- ⍝H        Option S: return a [S] string with LFs separating each line from the next 
+ ⍝H        Option S: return a [S] string with CRs separating each line from the next 
  ⍝H
  ⍝H     Defaults are options B and V. 
  ⍝H     To get option C, include ⍠C in a comment on the ∆HERE line, e.g.
  ⍝H         myCode ← ∆HERE   ⍝ ⍠C  That selects option 0.  
  ⍝H     Under both options C and B,
- ⍝H       ∘ The comment begins with ⍝⍝, it is ignored. Otherwise, the comment symbol is removed.
+ ⍝H       ∘ The comment begins with ⍝⍝, the entire comment is ignored. Otherwise, the comment symbol is removed.
  ⍝H       ∘ Blank lines always end up as 0-length char vectors.
  ⍝H   Returns: 
  ⍝H       See ⍠V and ⍠S above
