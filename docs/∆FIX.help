@@ -1,55 +1,61 @@
-⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
-⍝D  Syntax:   Uses ⎕FIX syntax, with enhancements
-⍝D
-⍝D Quick Intro to Here-strings using :::
-⍝D ¯¯¯¯¯ ¯¯¯¯¯ ¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯
-⍝D        ::: <end_token>   [opts] \n arbitrary text \n ... \n end_token2 rest of APL code
-⍝D             end_token:  A string in APL variable form. 
-⍝D                         - Everything between that string and end_token2  will be accepted as the here-string. 
-⍝D             end_token2: end_token, end_token:, or :end_token
-⍝D                         - A preceding or following colon is simply syntactic sugar.
-⍝D                         - Anything after <end_token2> will be APL code added after the converted here-string.
-⍝D             opts:       [:c | :l | :v | :m | :s]     
-⍝D                         :c - The here-string will be a single quoted expression with CRs (⎕UCS 13) as line separator.
-⍝D                         :l - ...                     a single quoted expression with LFs (⎕UCS 10) as line separator.
-⍝D                         :v - ...                     a vector of char vectors
-⍝D                         :m - ...                     a character matrix.
-⍝D                         :s - ...                     a single quoted expression, with line separators replaced by a single space.
-⍝D                         - Only the first char after a colon is checked; case and all other text is ignored.
-⍝D                           E.g. for convenience, you might specify :CR :LF :VV :MX :SP in upper or lower case.
-⍝D  ∆FIX:     Full Specification
-⍝D  ¯¯¯¯¯     ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝D  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
-⍝D               1] TQs:  Triple Quotes """...""", supporting a limited, multiline here-string. 
-⍝D                 (Only double quotes (") are recognized).
-⍝D               2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
-⍝D               3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
-⍝D            Not all 3 options make sense, but they're provided to allow experimentation.
-⍝D  Syntax:   Uses ⎕FIX syntax, with enhancements:
-⍝D            Recognizes and converts source lines passed or in object named to standard APL...
-⍝D               1] TQs                   2]  DQs               3] Here-strings
-⍝D               ------------------       --------------         ----------------------
-⍝D  Specs:       s1← """\h*\n...\n\h*"""  s2← "l1\nl\nl3"       s3← ::: endToken [[:CR|:MX|:VV|:SP]] [.\n]* endToken
-⍝D               Opening and closing                            For <endToken> of form '[\w∆⍙_.#⎕]+:?', 
-⍝D               """ must appear on                                collects all lines up to (but not incl.) 
-⍝D               their own lines                                '\R?\h*:?\<endToken>:?'
-⍝D               Otherwise """x""" treated 
-⍝D               as equiv to '"x"'
-⍝D  Escaping?    Nothing escaped.         Double " to include.  Any text protected, as long as not matching endToken.
-⍝D               Internal """ invalid. 
-⍝D  Format:      s1← """                  s2← "Text on line 1   s3← ::: end_s3
-⍝D                 line 1                   text on line 2...       text on line 1
-⍝D                 line 2 ...               text on line 3"         more on line 2
-⍝D               """                                         end_s3: 
-⍝D  Must opening / closing quote or token be the last / first thing on separate line?
-⍝D               YES, BOTH                NO                    NO
-⍝D  Trim LHS?    YES                      NO                    YES
-⍝D  ...based on: spaces preceding         --                    spaces preceding endToken on same line. 
-⍝D               closing """
-⍝D  Options?     NONE                     NONE                  :CR (use CR as linend), :VV (use vector of vectors),
-⍝D                                                              :MX (create char matrix)            
-⍝D  Output:      APL quoted strings       APL quoted strings    APL quoted strings
-⍝D  Linesep:     (⎕UCS 13)                (⎕UCS 13)             [:CR]: (⎕UCS 13)
-⍝D  Other formats:                                              [:VV]: as APL Vector of Vectors
-⍝D                                                              [:MX]: as ↑(APL Vector of Vectors)
-⍝D                                                              [:SP]: with each CRsreplaced by a space.
+  ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
+  Syntax:   Uses ⎕FIX syntax, with enhancements
+ 
+  Enhancements:
+  ∘  Here-strings using ::: as delimiter.
+  ∘  Backslash escapes in here-strings to allow one line of text to be continued on another.
+  ∘  Double-quoted multi-line strings (can be used anywhere, equiv to here-strings with :c option).
+  ∘  Triple-quoted multi-line strings with """ as delimiter.
+  ∘  Marking continued code lines with trailing dots (... or ..) or ellipses (…).
+
+ Quick Intro to Here-strings using :::
+ ¯¯¯¯¯ ¯¯¯¯¯ ¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯
+        ::: <end_token>   [opts] \n arbitrary text \n ... \n end_token2 rest of APL code
+             end_token:  A string in APL variable form. 
+                         - Everything between that string and end_token2  will be accepted as the here-string. 
+             end_token2: end_token, end_token:, or :end_token
+                         - A preceding or following colon is simply syntactic sugar.
+                          - Anything after <end_token2> will be APL code added after the converted here-string.
+              opts:       [:c | :l | :v | :m | :s]     
+                          :c - lines separated by carriage returns (⎕UCS 13)
+                          :l - ...             by linefeeds (⎕UCS 10) 
+                          :s - ... by linefeeds (⎕UCS 10)   
+                          :v - ... lines become APL vector of vectors  
+                          :m - ... lines become rows in matrix
+                          :e - ..  backslash + linend catenate current and next line:  '\\\c' => ' '
+                          - Only the first char after a colon is checked; case and all other text is ignored.
+                            E.g. for convenience, you might specify :CR :LF :VV :MX :SP in upper or lower case.
+   ∆FIX:     Full Specification
+   ¯¯¯¯¯     ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯¯
+   ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
+                1] TQs:  Triple Quotes (""" delimiter) supporting a limited, multiline here-string. 
+                  (Only three double quotes (") are recognized, not three single quotes.)
+                2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
+                3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
+             Not all 3 options make sense, but they're provided to allow experimentation.
+   Syntax:   Uses ⎕FIX syntax, with enhancements:
+             Recognizes and converts source lines passed or in object named to standard APL...
+                1] TQs                   2]  DQs               3] Here-strings
+                ------------------       --------------         ----------------------
+   Specs:       s1← """\h*\n...\n\h*"""  s2← "l1\nl\nl3"       s3← ::: endToken [[:CR|:MX|:VV|:SP]] [.\n]* endToken
+                Opening and closing                            For <endToken> of form '[\w∆⍙_.#⎕]+:?', 
+                """ must appear on                                collects all lines up to (but not incl.) 
+                their own lines                                '\R?\h*:?\<endToken>:?'
+   Escaping?    Nothing escaped.         Double " to include.  Any text protected, as long as not matching endToken.
+                Internal """ invalid. 
+   Format:      s1← """                  s2← "Text on line 1   s3← ::: end_s3
+                  line 1                   text on line 2...       text on line 1
+                  line 2 ...               text on line 3"         more on line 2
+                """                                                end_s3: 
+   Must opening / closing quote or token be the last / first thing on separate line?
+                YES, BOTH                NO                    NO
+   Trim LHS?    YES                      NO                    YES
+   ...based on: spaces preceding         --                    spaces preceding 
+                closing """                                    endToken on same line. 
+   Options?     NONE                     NONE                  VARIOUS. See Options above.        
+   Output:      APL quoted strings       APL quoted strings    APL quoted strings
+   Linesep:     (⎕UCS 13)                (⎕UCS 13)             (⎕UCS 13) by default. See options.
+      
+  Additional Extension:
+  - Outside quotes, a line may be continued by placing two or three dots (.., ..., or a ellipses …)
+    at the end of a line (with possible blanks afterwards). Blanks before the dots will be kept.
