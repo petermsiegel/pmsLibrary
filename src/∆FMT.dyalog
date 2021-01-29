@@ -146,7 +146,7 @@
     _f,←'                  ⍎_fmtNotQts++ )*+'   
     _f,←'            ) '   
     _f,←'            ( :{1} (?!:))  (.*+)'                                                     ⍝ ⎕FMT code
-    _f,←'          | (                                         )  (           )  (.*+)  '        ⍝ Simple code
+    _f,←'          | (                                         )  (           )  (.*+)  '      ⍝ Simple code
     _f,←'        ) $'
     fmtP←⎕THIS∘∆XR _f
 
@@ -265,7 +265,7 @@
               case textFC:0⍴text∘←text ∆JOIN ProcEscapes f0          ⍝ Any text except {...} or ⋄
               case codeFC:0⍴text∘←text ∆JOIN env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
               case nextFC:0⍴text∘←text ∆JOIN env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
-              case endFC:⍬                                          ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
+              case endFC:⍬                                           ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
               11 ⎕SIGNAL⍨'∆FMT: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
           }⊣⊃rightArgs
           text←,⍣(1=≢text)⊣text     ⍝ 1 row matrix quietly converted to a vector...
