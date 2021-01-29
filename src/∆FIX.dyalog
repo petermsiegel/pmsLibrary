@@ -4,18 +4,19 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←0 ⋄ DSAY←{⍺←''⋄ DEBUG: ⍵⊣⎕←⍺,(': '/⍨0≠≢⍺),⍵ ⋄ 1: _←⍵}
+    DEBUG←0  
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
 
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
     LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
-    ∆TRACE←{⍺←⊢
-      res←⍺ ⍺⍺ ⍵ ⋄  name←⍺⍺
-      0≢⍺ 0: res⊣⎕←(name,':')('⍺:'⍺) ('⍵:' ⍵ 'res:' res)
-      res⊣(name,':')('⍵:' ⍵) ('res:' res)
-    }
+⍝ ∆TRACE←{⍺←⊢
+⍝   res←⍺ ⍺⍺ ⍵ ⋄  name←⍺⍺
+⍝   0≢⍺ 0: res⊣⎕←(name,':')('⍺:'⍺) ('⍵:' ⍵ 'res:' res)
+⍝   res⊣(name,':')('⍵:' ⍵) ('res:' res)
+⍝ }
+
   ⍝ SaveRunTime:  SaveRunTime [force←0]
   ⍝ Save Run-time Utilities in ⎕SE if not already...
   ⍝     ⎕SE.⍙PTR
@@ -107,9 +108,17 @@
         DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
         UnDQ←{ s/⍨1+SQ=s←s/⍨~(2⍴DQ)⍷s←d↓⍵↓⍨-d←DQ=1↑⍵ } ⍝ Remove surrounding DQs and APL-escaped DQs. Double SQs  
         EvalStmt←{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
-           res2←⎕FMT res←(⊃⎕RSI)⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
+            res2←⎕FMT res←(⊃⎕RSI)⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
-
+        ProcIfEl←{ F←⍺⍺
+            dir←1 ⎕C F 1  ⋄ CASE←(⊂dir)∘∊∘⊆
+            CASE 'IF' 'ELSEIF': {
+                bool val←⍕¨{ 0:: '∘ERR∘' '∘ERR∘' ⋄ (,0)≡v←,⍎⍵: 0 v ⋄ (0≠≢v) v}code2←MacScan ⊢code←⍵
+              '::',dir,' ',bool,' ',code,' → ',val
+            }DTB F 2 
+            CASE 'END': '::ENDIF' 
+            '::',dir 
+        }
         ⍝ May require input line to be trimmed. 
              pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
         pDef  ←'(?xi)^ \h* ::def  \h+ (',pMac,') \h? (',pNOCOM,'|)' 
@@ -120,7 +129,7 @@
         pSkip ←  '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
         pPAR pBRC ←GenBracePat¨'()'  '{}'             ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
         pPtr    ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
-        pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
+            pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
         pHere←∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
         pHCom←∊'(?x) ^ \h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) \R?' ⍝ Consume newline (none on last line)
@@ -144,24 +153,30 @@
                   l1←  opt ((≢F 4 ) Encode)  F 3
                   l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, FullScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
                 }0   
-                CASE iHCom: (F 2){kp←0≠≢⍺ ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
+                CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
                 CASE iMac:  ⊢MacScan MacGet F 0                     
                 CASE iDef:  '⍝ ',F 0 ⊣ (F 1) (1 MacSet) FullScan DTB F 2   ⍝ :DEF name (everything before) ⍝ a comment!
                 CASE iEvl:  '⍝ ',F 0 ⊣ (F 1) (0 MacSet) EvalStmt FullScan DTB F 2  
                 CASE iDefL: '⍝ ',F 0 ⊣ (F 1) (0 MacSet) DTB F 2            ⍝ :DEF name everything that follows
                 CASE iDebg: ''⊣DEBUG∘←'off'≢⎕C F 1    ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
-                CASE iIfEl: { dir←1 ⎕C F 1  ⋄ CASE←(⊂dir)∘∊∘⊆
-                  CASE 'IF' 'ELSEIF': {
-                     val←⍕{ 0:: '⎕NULL' ⋄ (,0)≢v←,⍎⍵: 0 ⋄ 0≠≢v}code2←MacScan ⊢code←⍵
-                    '::',dir,' ',val,' ←',code2,' ←',code
-                  }DTB F 2 
-                  CASE 'END': '::ENDIF' 
-                  '::',dir 
-                }0
+                CASE iIfEl: F ProcIfEl ⍬
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
         }
-        FullScan DTB¨⊆⍵
+        PostScan←{
+             pStd←'^[^:]'   ⋄  pIf←'^::IF\h+(1|0|∘ERR∘)' ⋄ pElIf←'^::ELSEIF\h+(1|0|∘ERR∘)'
+             pEl←'^::ELSE'  ⋄  pEnd←'^::ENDIF' 
+             pStd pIf pElIf pEl pEnd  ⎕R {F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+                p←⍵.PatternNum
+                p=0:  ⍵.Match
+                p=1: '⍝::IF     ',(F 1),' ⍝ '
+                p=2: '⍝::ELSEIF ',(F 1),' ⍝ '
+                p=3: '⍝::ELSE'
+                p=4: '⍝::ENDIF'
+                ∘Unreachable∘
+             }⍠reOPTS⊣⍵
+        }¨
+        PostScan FullScan DTB¨⊆⍵
     }  
     ⍺←⊢  ⋄ fix←0=≢'-nof'⎕S 3⊣(⍕⍺),''    ⍝ Secret -nofix option...
     ⍺(⊃⎕RSI).⎕FIX⍣fix⊣ Executive LoadLines ⍵  
