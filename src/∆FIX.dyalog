@@ -4,7 +4,7 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←1
+    DEBUG←0 ⋄ DSAY←{⍺←''⋄ DEBUG: ⍵⊣⎕←⍺,(': '/⍨0≠≢⍺),⍵ ⋄ 1: _←⍵}
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
 
@@ -36,7 +36,7 @@
         MacScan←{
           ⍺←5    ⍝ Max of total times to scan entire line (prevents runaway replacements)
           ⍺≤0: ⍵  
-          str←pSkip '("[^"]*")+' pMac ⎕R { F0← ⍵.Match ⋄ ⍵.PatternNum=2: MacGet F0 ⋄  F0  }⍵
+          str←pSkip '("[^"]*")+' pMac ⎕R { F0← ⍵.Match ⋄ p←⍵.PatternNum ⋄ p=2: MacGet F0 ⋄  F0  }⍵
           ⍵≢str: (⍺-1) ∇ str ⋄ str        ⍝ If any changes, scan again up to <⍺> times.
         }
         ⍝MacScan←MacScan ∆TRACE 'MacScan'
@@ -112,10 +112,10 @@
 
         ⍝ May require input line to be trimmed. 
              pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
-        pDef  ←'(?xi)^ \h* :def  \h+ (',pMac,') \h? (',pNOCOM,'|)' 
-        pEvl  ←'(?xi)^ \h* :eval \h+ (',pMac,') \h? (',pNOCOM,'|)'   
-        pDefL ←'(?xi)^ \h* :defl \h+ (',pMac,') \h? (\N*)$'  
-        pDebg ←'(?xi)^ \h* :debug (?|  \h+ (ON|OFF) | () ) \h*\R'
+        pDef  ←'(?xi)^ \h* ::def  \h+ (',pMac,') \h? (',pNOCOM,'|)' 
+        pEvl  ←'(?xi)^ \h* ::eval \h+ (',pMac,') \h? (',pNOCOM,'|)'   
+        pDefL ←'(?xi)^ \h* ::defl \h+ (',pMac,') \h? (\N*)$'  
+        pDebg ←'(?xi)^ \h* ::debug (?|  \h+ (ON|OFF) | () ) \h*\R'
         pTrpQ ←  '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ ←  '(?i)((?:"[^"]*")+)([a-z]*)'
         pSkip ←  '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
         pPAR pBRC ←GenBracePat¨'()'  '{}'             ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
@@ -125,7 +125,7 @@
         pHere←∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
         pHCom←∊'(?x) ^ \h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) \R?' ⍝ Consume newline (none on last line)
       ⍝ pMac defined above 
-        pIfEl←'(?xi)^ \h* ::  (?|  (IF|ELSEIF) \h* (\N+) | (ELSE|END(?:IF)?) \h*) $' 
+        pIfEl←'(?xi)^ \h* ::  (?|  (IF|ELSEIF) \h* (\N+) | (ELSE|END(?:IF)?) \N*) $' 
         mainPatterns← pDef pEvl pDefL pDebg pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac pIfEl
                       iDef iEvl iDefL iDebg iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac iIfEl←⍳≢mainPatterns
         FullScan←{    
@@ -145,15 +145,18 @@
                   l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, FullScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
                 }0   
                 CASE iHCom: (F 2){kp←0≠≢⍺ ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
-                CASE iMac:  MacScan MacGet F 0                     
+                CASE iMac:  ⊢MacScan MacGet F 0                     
                 CASE iDef:  '⍝ ',F 0 ⊣ (F 1) (1 MacSet) FullScan DTB F 2   ⍝ :DEF name (everything before) ⍝ a comment!
                 CASE iEvl:  '⍝ ',F 0 ⊣ (F 1) (0 MacSet) EvalStmt FullScan DTB F 2  
                 CASE iDefL: '⍝ ',F 0 ⊣ (F 1) (0 MacSet) DTB F 2            ⍝ :DEF name everything that follows
                 CASE iDebg: ''⊣DEBUG∘←'off'≢⎕C F 1    ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
-                CASE iIfEl: '::',{ 
-                   cw←1 ⎕C F 1   ⍝ control word IF, etc.
-                   'IF' 'ELSEIF'∊⍨⊂cw: cw,' ',⍕{0:: '00' ⋄ v←,⍎⍵ ⋄ v≡(,0): 0 ⋄ 0≠≢v}MacScan DTB F 2 
-                  'END'≡cw: 'ENDIF' ⋄ cw,' ',CR
+                CASE iIfEl: { dir←1 ⎕C F 1  ⋄ CASE←(⊂dir)∘∊∘⊆
+                  CASE 'IF' 'ELSEIF': {
+                     val←⍕{ 0:: '⎕NULL' ⋄ (,0)≢v←,⍎⍵: 0 ⋄ 0≠≢v}code2←MacScan ⊢code←⍵
+                    '::',dir,' ',val,' ←',code2,' ←',code
+                  }DTB F 2 
+                  CASE 'END': '::ENDIF' 
+                  '::',dir 
                 }0
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
