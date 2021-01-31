@@ -11,7 +11,7 @@
 
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
   ⍝ Add CR to last line to make Regex patterns simpler...
-    LoadLines←(⊂'⍝EXTRA: ',⎕UCS 2 1),⍨'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
+    LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
 ⍝ ∆TRACE←{⍺←⊢
 ⍝   res←⍺ ⍺⍺ ⍵ ⋄  name←⍺⍺
@@ -56,7 +56,7 @@
            (≢mac.K)>p←mac.K⍳kk←⊂⍙K ⍺: ⍵⊣mac.V[p]←⊂v ⋄ mac.K,←kk ⋄ mac.V,←⊂v ⋄ v
         }  
         ⍝ MacSet←MacSet ('MacScan' ∆TRACE)
-        MacGet←{0=≢⍵: ⍵ ⋄ p←mac.K⍳⊂⍙K ⍵ ⋄ p≥≢mac.K: ⍵ ⋄ p⊃mac.V}
+        MacGet←{0=≢⍵: ⍵ ⋄ p←mac.K⍳⊂⍙K ⍵ ⋄ p≥≢mac.K: ⍵ ⋄ 1:p⊃mac.V}
         pMac←{
             APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
             pVarName← '(?i)[',APL_LET,'][⎕.\d',APL_LET,']*'
@@ -110,7 +110,7 @@
         DTB←{⍵↓⍨-+/∧\' '=⌽⍵}                           ⍝ Delete trailing blanks from one line
         DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
         UnDQ←{ s/⍨1+SQ=s←s/⍨~(2⍴DQ)⍷s←d↓⍵↓⍨-d←DQ=1↑⍵ } ⍝ Remove surrounding DQs and APL-escaped DQs. Double SQs  
-        EvalStmt←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
+        Execute←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
             res2←⎕FMT res←⍺⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
 
@@ -134,8 +134,7 @@
                       iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢preScanPats
           stack←,ON ⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           Eval←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄ (0≠≢v)}
-          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 
-               11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
+          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
           }  
           PreScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
@@ -149,9 +148,9 @@
                     CASE iOther:     F 0
                     CASE iUndef:     SendDef (F 1) (0 MacSet) F 1 
                     CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2    
-                    CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←EvalStmt FullScan DTB F 2  
+                    CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←Execute FullScan DTB F 2  
                     CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
-                    CASE iIf:        SendState stack,←Eval F 1    
+                    CASE iIf:        SendState stack,←Eval MacScan F 1    
                     CASE iElIf iEl:  SendState (⊃⌽stack)←SKIP
                     CASE iEndIf:     SendState Pop ⍵   
                     CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
@@ -161,7 +160,7 @@
               ⍝ OFF...
                 OFF=⊃⌽stack: {
                     CASE iIf:    SendState stack,←SKIP
-                    CASE iElIf:  SendState (⊃⌽stack)←Eval F 1
+                    CASE iElIf:  SendState (⊃⌽stack)←Eval  MacScan F 1
                     CASE iEl:    SendState (⊃⌽stack)←ON 
                     CASE iEndIf: SendState Pop ⍵ 
                     ∘UNREACHABLE∘ 
@@ -214,8 +213,8 @@
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
         }
-         ¯1↓FullScan PreScan DTB¨⊆⍵
+         ¯1↓FullScan PreScan DTB¨(⊆⍵),⊂'⍝EXTRA LINE'
     }  
     ⍺←⊢  ⋄ fix←0=≢'-nof'⎕S 3⊣(⍕⍺),''    ⍝ Secret -nofix option...
-    ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵
+    ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵ 
 }
