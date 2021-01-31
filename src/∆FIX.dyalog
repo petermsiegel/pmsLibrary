@@ -4,13 +4,14 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←1 
+    DEBUG←1  ⋄   SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
 
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
-    LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
+  ⍝ Add CR to last line to make Regex patterns simpler...
+    LoadLines←(⊂'⍝EXTRA: ',⎕UCS 2 1),⍨'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
 ⍝ ∆TRACE←{⍺←⊢
 ⍝   res←⍺ ⍺⍺ ⍵ ⋄  name←⍺⍺
@@ -32,7 +33,6 @@
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via Encode below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{⍺←0
-        SQ DQ←'''"' ⋄ CR←⎕UCS 13  
         AddPar← '('∘,∘⊢,∘')' 
 
       ⍝ ---- MACROS
@@ -118,71 +118,79 @@
     ⍝ These are required to match an entire line each...
         PreScan←{
               pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
-          pIf←'(?xi)    ^ \h* :: IF         \b \h* (\N+) \r?'
-          pElIf←'(?xi)  ^ \h* :: ELSEIF     \b \h* (\N+) \r?'
-          pEl←'(?xi)    ^ \h* :: ELSE       \b      \h*  \r?'
-          pEndIf←'(?xi) ^ \h* :: END(?:IF)? \b      \h*  \r?'
-          pDef  ←'(?xi) ^ \h* :: def  \h+ (',pMac,') \h? ←  (',pNOCOM,'|) \N* \r' 
-          pEvl  ←'(?xi) ^ \h* :: eval \h+ (',pMac,') \h? ←  (',pNOCOM,'|) \N* \r'   
-          pDefL ←'(?xi) ^ \h* :: defl \h+ (',pMac,') \h? ←  (\N*) \r?'  
-          pErr←'(?xi)   ^ \h* :(def|eval|defl) \b \N* \r?'
-          pOther←'^\N*\r?'   
-          preScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pErr pOther
-                      iIf iElIf iEl iEndIf iDef iEvl iDefL iErr iOther←⍳≢preScanPats
-          stack←ON ⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'x' '-' '+'
+          pIf   ←'(?xi) ^ \h* :: IF         \b \h* (\N+) $\r'
+          pElIf ←'(?xi) ^ \h* :: ELSEIF     \b \h* (\N+) $\r'
+          pEl   ←'(?xi) ^ \h* :: ELSE       \b      \h*  $\r'
+          pEndIf←'(?xi) ^ \h* :: END(?:IF)? \b      \h*  $\r'
+          pDef  ←'(?xi) ^ \h* :: def  \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* $\r' 
+          pEvl  ←'(?xi) ^ \h* :: eval \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* $\r'   
+          pDefL ←'(?xi) ^ \h* :: defl \h+ ([^\h←]+) \h* ←  (\N*) $\r'  
+        ⍝ '::DEF name'  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'. Equiv to Undefining <name>.   
+          pUndef←'(?xi) ^ \h* :: (?:defl?|eval) \h+ ([^\h]+) \h*  \r' 
+          pErr  ←'(?xi) ^ \h* :(defl?|eval) \b \N* $\r'
+          pDebug ←'(?xi)^ \h* ::debug \b \h*  (ON|OFF|) \h* $\r'
+          pOther←'^\N*\r'   
+          preScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
+                      iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢preScanPats
+          stack←,ON ⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           Eval←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄ (0≠≢v)}
+          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 
+               11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
+          }  
           PreScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
-                SendState←{'   ⍝',(STATES⊃⍨1+⊃⍵),' ',F 0}
+                SendState←{DEBUG: '⍝',(STATES⊃⍨1+⊃⍵),'⍝ ',(F 0) ⋄ ''}
               ⍝ Format for SendDef:   /::SysDefø <name> value/ with the name /[^\h]+/ and single spaces as shown.
-                SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }
-                notIfGrp←⍵.PatternNum≥iDef
+                SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
+                notIfGrp←⍵.PatternNum>iEndIf 
                 CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
               ⍝ ON...
-                ON=⊃⌽stack: { 
+                ON=⊃⌽stack: {  
                     CASE iOther:     F 0
-                  ⍝ Internal Definition for FullScan of form '^##DEF\hvalue$', where value is taken verbatim.
-                    CASE iDef:       SendDef (F 1) (1 MacSet) val←FullScan DTB F 2    
-                    CASE iEvl:       SendDef (F 1) (0 MacSet) val←EvalStmt FullScan DTB F 2  
-                    CASE iDefL:      SendDef (F 1) (0 MacSet) val←DTB F 2   
+                    CASE iUndef:     SendDef (F 1) (0 MacSet) F 1 
+                    CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2    
+                    CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←EvalStmt FullScan DTB F 2  
+                    CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
                     CASE iIf:        SendState stack,←Eval F 1    
                     CASE iElIf iEl:  SendState (⊃⌽stack)←SKIP
-                    CASE iEndIf:     SendState ⍵ ⊣ stack↓⍨←¯1    
+                    CASE iEndIf:     SendState Pop ⍵   
+                    CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
                 }ON
               ⍝ OFF or SKIP for iDef, iEvl, IDefL, iOther
               notIfGrp: SendState SKIP 
               ⍝ OFF...
                 OFF=⊃⌽stack: {
-                    CASE iIf:   SendState stack,←SKIP
-                    CASE iElIf: SendState (⊃⌽stack)←Eval F 1
-                    CASE iEl:   SendState (⊃⌽stack)←ON 
-                    CASE iEndIf:SendState ⍵ ⊣ stack↓⍨←¯1    
+                    CASE iIf:    SendState stack,←SKIP
+                    CASE iElIf:  SendState (⊃⌽stack)←Eval F 1
+                    CASE iEl:    SendState (⊃⌽stack)←ON 
+                    CASE iEndIf: SendState Pop ⍵ 
+                    ∘UNREACHABLE∘ 
                 }OFF
               ⍝ SKIP...
                 {   CASE iIf:       SendState ⍵ ⊣ stack,←SKIP
                     CASE iElIf iEl: SendState ⍵
-                    CASE iEndIf:    SendState ⍵ ⊣ stack↓⍨←¯1
+                    CASE iEndIf:    SendState Pop ⍵
                 } SKIP
                 ∘Unreachable∘
           }
-          save←mac.(K V)                            ⍝ Save macros
-            res←preScanPats ⎕R PreScanAction ⍠reOPTS⊣⍵     ⍝ Scan
-          mac.(K V)←save                            ⍝ Restore macros
+          save←mac.(K V) DEBUG                          ⍝ Save macros
+            res←Pop preScanPats ⎕R PreScanAction ⍠reOPTS⊣⍵     ⍝ Scan
+          mac.(K V) DEBUG← save                            ⍝ Restore macros
           res
         }
-        pSysDefX ←'^::SysDefø ([^←]+)←(\N+)$\r?'   ⍝ Internal Def simple here-- note spelling
-        pDebg ←'(?xi)^ \h* ::debug (?|  \h+ (ON|OFF) | () ) \h*\R'
-        pTrpQ ←  '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ ←  '(?i)((?:"[^"]*")+)([a-z]*)'
-        pSkip ←  '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
-        pPAR pBRC ←GenBracePat¨'()'  '{}'             ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
-        pPtr    ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
+        pSysDefX ←'^::SysDefø ([^←]+)←(\N*)\r'   ⍝ Internal Def simple here-- note spelling
+        pDebug   ←'(?xi)^ \h* ::debug (?|  \h+ (ON|OFF) | () ) \h*$\r'
+        pTrpQ    ←'"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
+        pSkip    ←'(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
+        pPAR pBRC ←GenBracePat¨'()'  '{}'              ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
+        pPtr     ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
             pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
         pHere←∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-        pHCom←∊'(?x) ^ \h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) \R?' ⍝ Consume newline (none on last line)
+        pHCom←∊'(?x) ^ \h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) \r' ⍝ Consume newline (we add to last)
   
-        fullScanPats← pSysDefX pDebg pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac 
-                      iSysDefX iDebg iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac←⍳≢fullScanPats
+        fullScanPats← pSysDefX pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac 
+                      iSysDefX iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac←⍳≢fullScanPats
         FullScan←{    
             fullScanPats ⎕R{  
                 ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
@@ -202,12 +210,12 @@
                 CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
                 CASE iMac:  ⊢MacScan MacGet F 0                     
                 CASE iSysDefX: ''⊣ (F 1) (0 MacSet) F 2   ⍝ :DEF name (everything before) ⍝ a comment!
-                CASE iDebg: ''⊣DEBUG∘←'off'≢⎕C F 1    ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                CASE iDebug: ''⊣DEBUG∘←'off'≢⎕C F 1    ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
         }
-         FullScan  PreScan DTB¨⊆⍵
+         ¯1↓FullScan PreScan DTB¨⊆⍵
     }  
     ⍺←⊢  ⋄ fix←0=≢'-nof'⎕S 3⊣(⍕⍺),''    ⍝ Secret -nofix option...
-    ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵  
+    ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵
 }
