@@ -13,12 +13,6 @@
   ⍝ Add CR to last line to make Regex patterns simpler...
     LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
-⍝ ∆TRACE←{⍺←⊢
-⍝   res←⍺ ⍺⍺ ⍵ ⋄  name←⍺⍺
-⍝   0≢⍺ 0: res⊣⎕←(name,':')('⍺:'⍺) ('⍵:' ⍵ 'res:' res)
-⍝   res⊣(name,':')('⍵:' ⍵) ('res:' res)
-⍝ }
-
   ⍝ SaveRunTime:  SaveRunTime [force←0]
   ⍝ Save Run-time Utilities in ⎕SE if not already...
   ⍝     ⎕SE.⍙PTR
@@ -40,7 +34,8 @@
         MacScan←{
           ⍺←5    ⍝ Max of total times to scan entire line (prevents runaway replacements)
           ⍺≤0: ⍵  
-          str←pSkip '("[^"]*")+' pMac ⎕R { F0← ⍵.Match ⋄ p←⍵.PatternNum ⋄ p=2: MacGet F0 ⋄  F0  }⍵
+          str←pSkip '("[^"]*")+' pMac ⎕R { F0← ⍵.Match ⋄ p←⍵.PatternNum 
+              p=2: MacGet F0 ⋄ p=1: SQ,SQ,⍨UnDQ F0  ⋄ F0 } ⍵
           ⍵≢str: (⍺-1) ∇ str ⋄ str        ⍝ If any changes, scan again up to <⍺> times.
         }
         ⍝MacScan←MacScan ∆TRACE 'MacScan'
