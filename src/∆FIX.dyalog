@@ -4,7 +4,7 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←1  ⋄   DOFULLSCAN DOPRESCAN COMPRESS←1 1 1
+    DEBUG←0  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
     SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
@@ -105,10 +105,10 @@
             res2←⎕FMT res←⍺⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
         FullLn←{'(?xi) ^',⍵,'$\r'}
-    ⍝ PreScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
+    ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
     ⍝ These are required to match an entire line each...
-        PreScan←{ 
-          ~DOPRESCAN: ⍵
+        ControlScan←{ 
+          ~DO_CONTROLSCAN: ⍵
               pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
           pIf    ←FullLn'\h* :: IF         \b \h* (\N+) '
           pElIf  ←FullLn'\h* :: ELSEIF     \b \h* (\N+) '
@@ -122,52 +122,53 @@
           pErr   ←FullLn'\h* :(defl?|eval) \b \N* '
           pDebug ←FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
           pOther ←FullLn'\N*'   
-          preScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
-                      iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢preScanPats
-          stack←,ON ⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
+          controlScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
+                      iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
+          stack←,⊂ON OFF⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           Eval←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄ (0≠≢v)}
           Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 
                11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
           }  
-          PreScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+          ControlScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
-                SendState←{DEBUG: '⍝',(STATES⊃⍨1+⊃⍵),'⍝ ',(F 0) ⋄ ''}
+                SendState←{DEBUG: '⍝',(STATES⊃⍨1+⊃∊⍵),'⍝ ',(F 0) ⋄ ''
+                }
               ⍝ Format for SendDef:   /::SysDefø <name> value/ with the name /[^\h]+/ and single spaces as shown.
                 SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
                 notIfGrp←⍵.PatternNum>iEndIf 
                 CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
               ⍝ ON...
-                ON=⊃⌽stack: {  
+                ON=⊃⊃⌽stack: {  
                     CASE iOther:     F 0
                     CASE iUndef:     SendDef (F 1) (0 MacSet) F 1 
                     CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2    
                     CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←Execute FullScan DTB F 2  
                     CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
-                    CASE iIf:        SendState stack,←Eval MacScan F 1    
-                    CASE iElIf iEl:  SendState (⊃⌽stack)←SKIP
-                    CASE iEndIf:     SendState Pop ⍵   
+                    CASE iIf:        SendState stack,←⊂s (s=1) ⊣ s←Eval MacScan F 1
+                    CASE iElIf iEl:  SendState (⊃⊃⌽stack)←SKIP 
+                    CASE iEndIf:     SendState Pop ⍵
                     CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
                     ∘UNREACHABLE∘
                 }ON
               ⍝ OFF or SKIP for iDef, iEvl, IDefL, iOther
               notIfGrp: SendState SKIP 
-              ⍝ OFF...
-                OFF=⊃⌽stack: {
-                    CASE iIf:    SendState stack,←SKIP
-                    CASE iElIf:  SendState (⊃⌽stack)←Eval  MacScan F 1
-                    CASE iEl:    SendState (⊃⌽stack)←ON 
-                    CASE iEndIf: SendState Pop ⍵ 
+              ⍝ OFF...     
+                OFF=⊃⊃⌽stack: {
+                    CASE iIf:    SendState stack,←⊂SKIP OFF
+                    CASE iElIf:  SendState (⊃⊃⌽stack)←s ⊣ (⊃⌽⊃⌽stack)∨←s=1 ⊣ s←Eval MacScan F 1
+                    CASE iEl:    SendState (⊃⊃⌽stack)←ON
+                    CASE iEndIf: SendState Pop ⍵ 1⊃⍨⊃⌽⊃⌽stack 
                     ∘UNREACHABLE∘ 
                 }OFF
               ⍝ SKIP...
-                {   CASE iIf:       SendState ⍵ ⊣ stack,←SKIP
+                {   CASE iIf:       SendState ⍵ ⊣ stack,←⊂SKIP OFF
                     CASE iElIf iEl: SendState ⍵
-                    CASE iEndIf:    SendState Pop ⍵
+                    CASE iEndIf:    SendState Pop ⍵ 1⊃⍨⊃⌽⊃⌽stack 
                 } SKIP
                 ∘Unreachable∘
           }
           save←mac.(K V) DEBUG                          ⍝ Save macros
-            res←Pop preScanPats ⎕R PreScanAction ⍠reOPTS⊣⍵     ⍝ Scan
+            res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣⍵     ⍝ Scan- stack must be empty after Pop
           mac.(K V) DEBUG← save                            ⍝ Restore macros
           res
         } 
@@ -185,7 +186,7 @@
         fullScanPats← pSysDefX pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac 
                       iSysDefX iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac←⍳≢fullScanPats
         FullScan←{
-            ~DOFULLSCAN: ⍵    
+            ~DO_FULLSCAN: ⍵    
             fullScanPats ⎕R{  
                 ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 ⋄ CASE←⍵.PatternNum∘∊                      
@@ -212,10 +213,9 @@
         _←'⎕F'   (0 MacSet) '∆FMT' 
         _←':COM' (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
       ⍝ <<< PREDEFINED MACROS END 
-      ⍝ Add an extra line so any patterns including linend are simpler.
-        Compress←{~COMPRESS: ⍵ ⋄  '^(\h*⍝[↑↓∇]⍝\N*\r)+\h*$\r' '^(\h*$.)+'  ⎕R'' '\r' ⍠reOPTS ⊣⍵} 
-        
-        Compress ¯1↓ FullScan PreScan DTB¨(⊆⍵),⊂'⍝EXTRA LINE'
+
+      ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
+        ¯1↓ FullScan ControlScan DTB¨(⊆⍵),⊂'⍝EXTRA⍝'
     }  
     ⍺←⊢  ⋄ fix←0=≢'-nof'⎕S 3⊣(⍕⍺),''    ⍝ Secret -nofix option...
     ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵ 
