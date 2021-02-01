@@ -4,7 +4,8 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←1  ⋄   SQ DQ←'''"' ⋄ CR←⎕UCS 13  
+    DEBUG←1  ⋄   DOFULLSCAN DOPRESCAN COMPRESS←1 1 1
+    SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
@@ -28,7 +29,6 @@
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{⍺←0
         AddPar← '('∘,∘⊢,∘')' 
-
       ⍝ ---- MACROS
         mac.K←mac.V←⍬ ⊣  mac←⎕NS ''
         MacScan←{
@@ -58,10 +58,6 @@
             pMac←'[]:⎕]?',pVarName
             pMac
         } ⍬
-        ⍝ >>> PREDEFINED MACROS BEGIN
-            _←'⎕F'   (0 MacSet) '∆FMT' 
-            _←':COM' (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
-        ⍝ <<< PREDEFINED MACROS END 
       ⍝ ------END MACROS
 
       ⍝ Encode: ⍺: 
@@ -108,28 +104,30 @@
         Execute←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
             res2←⎕FMT res←⍺⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
-
+        FullLn←{'(?xi) ^',⍵,'$\r'}
     ⍝ PreScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
     ⍝ These are required to match an entire line each...
-        PreScan←{
+        PreScan←{ 
+          ~DOPRESCAN: ⍵
               pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
-          pIf   ←'(?xi) ^ \h* :: IF         \b \h* (\N+) $\r'
-          pElIf ←'(?xi) ^ \h* :: ELSEIF     \b \h* (\N+) $\r'
-          pEl   ←'(?xi) ^ \h* :: ELSE       \b      \h*  $\r'
-          pEndIf←'(?xi) ^ \h* :: END(?:IF)? \b      \h*  $\r'
-          pDef  ←'(?xi) ^ \h* :: def  \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* $\r' 
-          pEvl  ←'(?xi) ^ \h* :: eval \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* $\r'   
-          pDefL ←'(?xi) ^ \h* :: defl \h+ ([^\h←]+) \h* ←  (\N*) $\r'  
+          pIf    ←FullLn'\h* :: IF         \b \h* (\N+) '
+          pElIf  ←FullLn'\h* :: ELSEIF     \b \h* (\N+) '
+          pEl    ←FullLn'\h* :: ELSE       \b      \h*  '
+          pEndIf ←FullLn'\h* :: END(?:IF)? \b      \h*  '
+          pDef   ←FullLn'\h* :: def  \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* ' 
+          pEvl   ←FullLn'\h* :: eval \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* '   
+          pDefL  ←FullLn'\h* :: defl \h+ ([^\h←]+) \h* ←  (\N*) '  
         ⍝ '::DEF name'  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'. Equiv to Undefining <name>.   
-          pUndef←'(?xi) ^ \h* :: (?:defl?|eval) \h+ ([^\h]+) \h*  \r' 
-          pErr  ←'(?xi) ^ \h* :(defl?|eval) \b \N* $\r'
-          pDebug ←'(?xi)^ \h* ::debug \b \h*  (ON|OFF|) \h* $\r'
-          pOther←'^\N*\r'   
+          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ([^\h]+) \h* ' 
+          pErr   ←FullLn'\h* :(defl?|eval) \b \N* '
+          pDebug ←FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
+          pOther ←FullLn'\N*'   
           preScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
                       iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢preScanPats
           stack←,ON ⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           Eval←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄ (0≠≢v)}
-          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
+          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 
+               11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
           }  
           PreScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
@@ -149,6 +147,7 @@
                     CASE iElIf iEl:  SendState (⊃⌽stack)←SKIP
                     CASE iEndIf:     SendState Pop ⍵   
                     CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
+                    ∘UNREACHABLE∘
                 }ON
               ⍝ OFF or SKIP for iDef, iEvl, IDefL, iOther
               notIfGrp: SendState SKIP 
@@ -171,21 +170,22 @@
             res←Pop preScanPats ⎕R PreScanAction ⍠reOPTS⊣⍵     ⍝ Scan
           mac.(K V) DEBUG← save                            ⍝ Restore macros
           res
-        }
-        pSysDefX ←'^::SysDefø ([^←]+)←(\N*)\r'   ⍝ Internal Def simple here-- note spelling
-        pDebug   ←'(?xi)^ \h* ::debug (?|  \h+ (ON|OFF) | () ) \h*$\r'
-        pTrpQ    ←'"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
-        pSkip    ←'(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
-        pPAR pBRC ←GenBracePat¨'()'  '{}'              ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
+        } 
+        pSysDefX ← FullLn'^::SysDefø \h ([^←]+) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+        pDebug   ← FullLn'\h* ::debug (?|  \h+ (ON|OFF) | () ) \h*'
+        pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
+        pSkip    ← '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
+        pPAR pBRC ←GenBracePat¨'()'  '{}'               ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
         pPtr     ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
             pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
-        pHere←∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-        pHCom←∊'(?x) ^ \h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) \r' ⍝ Consume newline (we add to last)
+        pHere    ← ∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
+        pHCom   ← FullLn∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
   
         fullScanPats← pSysDefX pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac 
                       iSysDefX iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac←⍳≢fullScanPats
-        FullScan←{    
+        FullScan←{
+            ~DOFULLSCAN: ⍵    
             fullScanPats ⎕R{  
                 ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 ⋄ CASE←⍵.PatternNum∘∊                      
@@ -208,7 +208,14 @@
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
         }
-         ¯1↓FullScan PreScan DTB¨(⊆⍵),⊂'⍝EXTRA LINE'
+      ⍝ >>> PREDEFINED MACROS BEGIN
+        _←'⎕F'   (0 MacSet) '∆FMT' 
+        _←':COM' (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
+      ⍝ <<< PREDEFINED MACROS END 
+      ⍝ Add an extra line so any patterns including linend are simpler.
+        Compress←{~COMPRESS: ⍵ ⋄  '^(\h*⍝[↑↓∇]⍝\N*\r)+\h*$\r' '^(\h*$.)+'  ⎕R'' '\r' ⍠reOPTS ⊣⍵} 
+        
+        Compress ¯1↓ FullScan PreScan DTB¨(⊆⍵),⊂'⍝EXTRA LINE'
     }  
     ⍺←⊢  ⋄ fix←0=≢'-nof'⎕S 3⊣(⍕⍺),''    ⍝ Secret -nofix option...
     ⍺ CALR.⎕FIX⍣fix⊣ Executive LoadLines ⍵ 
