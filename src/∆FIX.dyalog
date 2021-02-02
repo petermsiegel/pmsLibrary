@@ -4,7 +4,7 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←1  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
+    DEBUG←0  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
     SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
@@ -30,7 +30,7 @@
     Executive←{⍺←0
         AddPar← '('∘,∘⊢,∘')' 
       ⍝ ---- MACROS
-        mac.K←mac.V←⍬ ⊣  mac←⎕NS ''
+        mâc.K←mâc.V←⍬ ⊣  mâc←⎕NS ''
         MacScan←{
           ⍺←5    ⍝ Max of total times to scan entire line (prevents runaway replacements)
           ⍺≤0: ⍵  
@@ -48,14 +48,14 @@
       ⍝   flag=1:  Sets macro <key> to have value '(',<val>,')', a string. See :DEFL
       ⍝            Special case: If <val> is a nullstring, value is <val> alone (no parentheses).
         MacSet←{v←{'(',⍵,')'}⍣(⍺⍺∧0≠≢⍵)⊣⍵ 
-           (≢mac.K)>p←mac.K⍳kk←⊂⍙K ⍺: ⍵⊣mac.V[p]←⊂v ⋄ mac.K,←kk ⋄ mac.V,←⊂v ⋄ v
+           (≢mâc.K)>p←mâc.K⍳kk←⊂⍙K ⍺: ⍵⊣mâc.V[p]←⊂v ⋄ mâc.K,←kk ⋄ mâc.V,←⊂v ⋄ v
         }  
         ⍝ MacSet←MacSet ('MacScan' ∆TRACE)
-        MacGet←{0=≢⍵: ⍵ ⋄ p←mac.K⍳⊂⍙K ⍵ ⋄ p≥≢mac.K: ⍵ ⋄ 1:p⊃mac.V}
+        MacGet←{0=≢⍵: ⍵ ⋄ p←mâc.K⍳⊂⍙K ⍵ ⋄ p≥≢mâc.K: ⍵ ⋄ 1:p⊃mâc.V}
         pMac←{
             APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
             pVarName← '(?i)[',APL_LET,'][⎕.\d',APL_LET,']*'
-            pMac←'[]:⎕]?',pVarName
+            pMac←'(?:\]|:{1,2}|⎕)',pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
             pMac
         } ⍬
       ⍝ ------END MACROS
@@ -118,12 +118,12 @@
           pEvl   ←FullLn'\h* :: eval \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* '   
           pDefL  ←FullLn'\h* :: defl \h+ ([^\h←]+) \h* ←  (\N*) '  
         ⍝ '::DEF name'  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'. Equiv to Undefining <name>.   
-          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ([^\h]+) \h* ' 
+          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ([^\h←]+?) \h* ' 
           pErr   ←FullLn'\h* :(defl?|eval) \b \N* '
           pDebug ←FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
           pOther ←FullLn'\N*'   
           controlScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
-                      iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
+                          iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
           SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           Truthy←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄  (0≠≢v)}
           Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
@@ -136,7 +136,7 @@
           ControlScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
                 SendState←{~DEBUG: '' ⋄ stateIx←1+⊃∊⍵ ⋄ '⍝',(stateIx⊃STATES),'⍝ ',(F 0) }
-              ⍝ Format for SendDef:   /::SysDefø <name> value/ with the name /[^\h]+/ and single spaces as shown.
+              ⍝ Format for SendDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
                 SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
 
                 CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
@@ -150,7 +150,7 @@
                     CASE iIf:        SendState Push Truthy MacScan F 1
                     CASE iElIf iEl:  SendState Poke SKIP  
                     CASE iEndIf:     SendState Pop ⍵
-                    CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
+                    CASE iDebug:     (F 0),SendState ON⊣DEBUG∘←'off'≢⎕C F 1 
                     ∘UNREACHABLE∘
                 }ON
               ⍝ (CurStateIs OFF SKIP) for iDef, iEvl, IDefL, iOther
@@ -169,13 +169,13 @@
                 } SKIP
                 ∘Unreachable∘
           }
-          save←mac.(K V) DEBUG                          ⍝ Save macros
+          save←mâc.(K V) DEBUG                          ⍝ Save macros
             res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣⍵     ⍝ Scan- stack must be empty after Pop
-          mac.(K V) DEBUG← save                            ⍝ Restore macros
+          mâc.(K V) DEBUG← save                            ⍝ Restore macros
           res
         } 
-        pSysDefX ← FullLn'^::SysDefø \h ([^←]+) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-        pDebug   ← FullLn'\h* ::debug (?|  \h+ (ON|OFF) | () ) \h*'
+        pSysDef ←  FullLn'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+        pDebug   ← FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
         pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
         pSkip    ← '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
         pPAR pBRC ←GenBracePat¨'()'  '{}'               ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
@@ -183,10 +183,11 @@
             pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
         pHere    ← ∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-        pHCom   ← FullLn∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
+        pHCom    ← FullLn∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
+        pDump    ← FullLn'::DUMP::'
   
-        fullScanPats← pSysDefX pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac 
-                      iSysDefX iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac←⍳≢fullScanPats
+        fullScanPats← pSysDef pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac pDump
+                      iSysDef iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac iDump←⍳≢fullScanPats
         FullScan←{
             ~DO_FULLSCAN: ⍵    
             fullScanPats ⎕R{  
@@ -206,14 +207,21 @@
                 }0   
                 CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
                 CASE iMac:  ⊢MacScan MacGet F 0                     
-                CASE iSysDefX: ''⊣ (F 1) (0 MacSet) F 2   ⍝ :DEF name (everything before) ⍝ a comment!
-                CASE iDebug: ''⊣DEBUG∘←'off'≢⎕C F 1    ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                CASE iSysDef: ''⊣ (F 1) (0 MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
+                CASE iDebug:  ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+              ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                CASE iDump:   {
+                  c←⍕mâc.{0:: count∘←1  ⋄ ⊣count←count+1}0
+                  '⍝DUMP#',c,CR⊣⎕←('DUMP#',c,' macros: ')mâc.(K,[-0.2]V)' '(⎕TS)
+                }0
                 ∘Unreachable∘
             }⍠reOPTS⊣⍵
         }
       ⍝ >>> PREDEFINED MACROS BEGIN
-        _←'⎕F'   (0 MacSet) '∆FMT' 
-        _←':COM' (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
+        _←'⎕F'    (0 MacSet) '∆FMT' 
+        _←':COM'  (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
+        mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}
+        _←'::DEF' (0 MacSet) 'mâc.⍙DEF '   ⍝ ::IF ::DEF "name" is 1 if name is defined...
       ⍝ <<< PREDEFINED MACROS END 
 
       ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
