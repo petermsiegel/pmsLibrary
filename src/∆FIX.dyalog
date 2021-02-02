@@ -4,7 +4,7 @@
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML←0 1   
-    DEBUG←0  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
+    DEBUG←1  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
     SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
@@ -124,46 +124,48 @@
           pOther ←FullLn'\N*'   
           controlScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
                       iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
-          stack←,⊂ON OFF⊣ SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
-          Eval←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄ (0≠≢v)}
-          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 
-               11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0
-          }  
+          SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
+          Truthy←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄  (0≠≢v)}
+          Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
+          Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
+          Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
+          Peek←{(⊃⌽⊃⌽stack)⊃⍵ 1}
+          CurStateIs←{⍵∊⍨⊃⊃⌽stack}
+          
+          stack←,⊂ON ON
           ControlScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 CASE←⍵.PatternNum∘∊  
-                SendState←{DEBUG: '⍝',(STATES⊃⍨1+⊃∊⍵),'⍝ ',(F 0) ⋄ ''
-                }
+                SendState←{~DEBUG: '' ⋄ stateIx←1+⊃∊⍵ ⋄ '⍝',(stateIx⊃STATES),'⍝ ',(F 0) }
               ⍝ Format for SendDef:   /::SysDefø <name> value/ with the name /[^\h]+/ and single spaces as shown.
                 SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
-                notIfGrp←⍵.PatternNum>iEndIf 
+
                 CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
               ⍝ ON...
-                ON=⊃⊃⌽stack: {  
+                CurStateIs ON: {  
                     CASE iOther:     F 0
                     CASE iUndef:     SendDef (F 1) (0 MacSet) F 1 
                     CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2    
                     CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←Execute FullScan DTB F 2  
                     CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
-                    CASE iIf:        SendState stack,←⊂s (s=1) ⊣ s←Eval MacScan F 1
-                    CASE iElIf iEl:  SendState (⊃⊃⌽stack)←SKIP 
+                    CASE iIf:        SendState Push Truthy MacScan F 1
+                    CASE iElIf iEl:  SendState Poke SKIP  
                     CASE iEndIf:     SendState Pop ⍵
                     CASE iDebug:     ''⊣DEBUG∘←'off'≢⎕C F 1 
                     ∘UNREACHABLE∘
                 }ON
-              ⍝ OFF or SKIP for iDef, iEvl, IDefL, iOther
-              notIfGrp: SendState SKIP 
-              ⍝ OFF...     
-                OFF=⊃⊃⌽stack: {
-                    CASE iIf:    SendState stack,←⊂SKIP OFF
-                    CASE iElIf:  SendState (⊃⊃⌽stack)←s ⊣ (⊃⌽⊃⌽stack)∨←s=1 ⊣ s←Eval MacScan F 1
-                    CASE iEl:    SendState (⊃⊃⌽stack)←ON
-                    CASE iEndIf: SendState Pop ⍵ 1⊃⍨⊃⌽⊃⌽stack 
+              ⍝ (CurStateIs OFF SKIP) for iDef, iEvl, IDefL, iOther
+                ⍵.PatternNum>iEndIf : SendState SKIP    
+                CurStateIs OFF: {
+                    CASE iIf:    SendState Push SKIP  
+                    CASE iElIf:  SendState Poke Truthy MacScan F 1
+                    CASE iEl:    SendState Poke ON
+                    CASE iEndIf: SendState Pop Peek ⍵
                     ∘UNREACHABLE∘ 
                 }OFF
-              ⍝ SKIP...
-                {   CASE iIf:       SendState ⍵ ⊣ stack,←⊂SKIP OFF
-                    CASE iElIf iEl: SendState ⍵
-                    CASE iEndIf:    SendState Pop ⍵ 1⊃⍨⊃⌽⊃⌽stack 
+              ⍝ CurStateIs SKIP:
+                {   CASE iIf:       SendState Push SKIP
+                    CASE iElIf iEl: SendState SKIP
+                    CASE iEndIf:    SendState Pop Peek ⍵
                 } SKIP
                 ∘Unreachable∘
           }
