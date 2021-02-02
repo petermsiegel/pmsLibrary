@@ -55,7 +55,7 @@
         pMac←{
             APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
             pVarName← '(?i)[',APL_LET,'][⎕.\d',APL_LET,']*'
-            pMac←'(?:\]|:{1,2}|⎕)',pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
+            pMac←'(?:[]⎕]|:{1,2}|)',pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
             pMac
         } ⍬
       ⍝ ------END MACROS
@@ -114,18 +114,20 @@
           pElIf  ←FullLn'\h* :: ELSEIF     \b \h* (\N+) '
           pEl    ←FullLn'\h* :: ELSE       \b      \h*  '
           pEndIf ←FullLn'\h* :: END(?:IF)? \b      \h*  '
-          pDef   ←FullLn'\h* :: def  \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* ' 
-          pEvl   ←FullLn'\h* :: eval \h+ ([^\h←]+) \h* ←  (',pNOCOM,'|) \N* '   
-          pDefL  ←FullLn'\h* :: defl \h+ ([^\h←]+) \h* ←  (\N*) '  
-        ⍝ '::DEF name'  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'. Equiv to Undefining <name>.   
-          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ([^\h←]+?) \h* ' 
+          pDef   ←FullLn'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h?  (',pNOCOM,'|) \N* ' 
+          pEvl   ←FullLn'\h* :: eval \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pNOCOM,'|) \N* '   
+          pDefL  ←FullLn'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (\N*) '  
+        ⍝ ::DEF name  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'.  
+        ⍝ ::DEF name value ==> ::DEFL name←value.  If this isn't desired, treat this variant as an error!
+        ⍝ Returns name, same value as if name were undefined.  
+          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ((?>[^\h←\r]+)) \h* ( [^\h\r]* )'
           pErr   ←FullLn'\h* :(defl?|eval) \b \N* '
           pDebug ←FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
           pOther ←FullLn'\N*'   
           controlScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
                           iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
           SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
-          Truthy←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄  (0≠≢v)}
+          BoolElseErr←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄  (0≠≢v)}    ⍝ True 1, False 0, Error ¯1
           Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
           Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
           Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
@@ -133,8 +135,8 @@
           CurStateIs←{⍵∊⍨⊃⊃⌽stack}
           
           stack←,⊂ON ON
-          ControlScanAction←{F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                CASE←⍵.PatternNum∘∊  
+          ControlScanAction←{F←⍵.{0:: '' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
+                CASE←⍵.PatternNum∘∊ 
                 SendState←{~DEBUG: '' ⋄ stateIx←1+⊃∊⍵ ⋄ '⍝',(stateIx⊃STATES),'⍝ ',(F 0) }
               ⍝ Format for SendDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
                 SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
@@ -142,22 +144,22 @@
                 CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
               ⍝ ON...
                 CurStateIs ON: {  
-                    CASE iOther:     F 0
-                    CASE iUndef:     SendDef (F 1) (0 MacSet) F 1 
-                    CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2    
+                    CASE iOther:     F 0  
+                    CASE iUndef:     {fld2←⍵⊃1 2 ⋄ SendDef (F 1) (0 MacSet) F fld2}0≠≢F 2 
+                    CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2   
                     CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←Execute FullScan DTB F 2  
                     CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
-                    CASE iIf:        SendState Push Truthy MacScan F 1
+                    CASE iIf:        SendState Push BoolElseErr MacScan F 1
                     CASE iElIf iEl:  SendState Poke SKIP  
                     CASE iEndIf:     SendState Pop ⍵
                     CASE iDebug:     (F 0),SendState ON⊣DEBUG∘←'off'≢⎕C F 1 
                     ∘UNREACHABLE∘
                 }ON
-              ⍝ (CurStateIs OFF SKIP) for iDef, iEvl, IDefL, iOther
+              ⍝ When (CurStateIs OFF or SKIP) for iDef, iEvl, IDefL, iOther
                 ⍵.PatternNum>iEndIf : SendState SKIP    
                 CurStateIs OFF: {
                     CASE iIf:    SendState Push SKIP  
-                    CASE iElIf:  SendState Poke Truthy MacScan F 1
+                    CASE iElIf:  SendState Poke BoolElseErr MacScan F 1
                     CASE iEl:    SendState Poke ON
                     CASE iEndIf: SendState Pop Peek ⍵
                     ∘UNREACHABLE∘ 
@@ -167,7 +169,7 @@
                     CASE iElIf iEl: SendState SKIP
                     CASE iEndIf:    SendState Pop Peek ⍵
                 } SKIP
-                ∘Unreachable∘
+                ∘UNREACHABLE∘
           }
           save←mâc.(K V) DEBUG                          ⍝ Save macros
             res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣⍵     ⍝ Scan- stack must be empty after Pop
@@ -219,8 +221,8 @@
         }
       ⍝ >>> PREDEFINED MACROS BEGIN
         _←'⎕F'    (0 MacSet) '∆FMT' 
-        _←':COM'  (0 MacSet) '⍝COM⍝'    ⍝ <== :DEFL :COM ⍝COM⍝
-        mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}
+        _←':COM'  (0 MacSet) '⍝COM⍝'       ⍝ <== :DEFL :COM ⍝COM⍝
+        mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}          ⍝ mâc: macro internal namespace
         _←'::DEF' (0 MacSet) 'mâc.⍙DEF '   ⍝ ::IF ::DEF "name" is 1 if name is defined...
       ⍝ <<< PREDEFINED MACROS END 
 
