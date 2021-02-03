@@ -25,7 +25,7 @@
     }
   ⍝ Executive: Search through lines (vector of vectors) for: 
   ⍝     "double-quoted strings", triple-quoted ("""\n...\n"""), and  ::: here-strings.
-  ⍝     Return executable APL single-quoted equivalents, encoded into various format via Encode below.
+  ⍝     Return executable APL single-quoted equivalents, encoded into various format via _Encode below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{⍺←0
         AddPar← '('∘,∘⊢,∘')' 
@@ -43,14 +43,13 @@
       ⍝       E.g. ⎕NaMe, :myIF, or a.b.⎕NaMe 
       ⍝ val ← ⍙K key, key: a string.
         ⍙K←{ ~'⎕:'∊⍨⊃⊃⌽k←'.'(≠⊆⊢)⍵ :⍵  ⋄ k⊣(⊃⌽k)←⎕C ⊃k }  ⍝ Case ignored for ⎕xxx and :xxx
-      ⍝ val ← key (flag MacSet) val
+      ⍝ val ← key (flag _MacSet) val
       ⍝   flag=0:  Sets macro <key> to have value <val>, a string.         See :DEF
       ⍝   flag=1:  Sets macro <key> to have value '(',<val>,')', a string. See :DEFL
       ⍝            Special case: If <val> is a nullstring, value is <val> alone (no parentheses).
-        MacSet←{v←{'(',⍵,')'}⍣(⍺⍺∧0≠≢⍵)⊣⍵ 
+        _MacSet←{v←{'(',⍵,')'}⍣(⍺⍺∧0≠≢⍵)⊣⍵ 
            (≢mâc.K)>p←mâc.K⍳kk←⊂⍙K ⍺: ⍵⊣mâc.V[p]←⊂v ⋄ mâc.K,←kk ⋄ mâc.V,←⊂v ⋄ v
         }  
-        ⍝ MacSet←MacSet ('MacScan' ∆TRACE)
         MacGet←{0=≢⍵: ⍵ ⋄ p←mâc.K⍳⊂⍙K ⍵ ⋄ p≥≢mâc.K: ⍵ ⋄ 1:p⊃mâc.V}
         pMac←{
             APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
@@ -60,7 +59,7 @@
         } ⍬
       ⍝ ------END MACROS
 
-      ⍝ Encode: ⍺: 
+      ⍝ _Encode: ⍺: 
       ⍝ Output format: options '[clsvm]'.   
       ⍝    'r' carriage returns for linends (def); 'l' LF for linends; 's' spaces replace linends 
       ⍝    'v' vector of vectors;    'm' APL matrix;    
@@ -68,7 +67,7 @@
       ⍝    'e' backslash (\) escape followed by eol => single space. Otherwise, as above.
       ⍝    'c' string is a comment to treat in toto as a blank.
       ⍝ indent: >0, use as is for indent of lines; <0, use indent of left-most line for indent; 0, as is.
-        Encode←{ ⍺←'' ⋄ indent←⍺⍺  
+        _Encode←{ ⍺←'' ⋄ indent←⍺⍺  
           ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'r'.
             o1 o2 od ←'rlsvm' 'ec' 'r'  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od) ⎕C ⍺
             R L S V M E C←o∊⍨∊o1 o2
@@ -104,28 +103,48 @@
         Execute←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
             res2←⎕FMT res←⍺⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
-        FullLn←{'(?xi) ^',⍵,'$\r'}
+        RE⍙Line←{'(?xi) ^',⍵,'$\r'}
     ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
     ⍝ These are required to match an entire line each...
         ControlScan←{ 
           ~DO_CONTROLSCAN: ⍵
               pNOCOM←'(?<NOCOM>(?:[^⍝''"\r]+|(?:''[^'']*'')+|(?:"[^"]*")+)(?&NOCOM)*)'
-          pIf    ←FullLn'\h* :: IF         \b \h* (\N+) '
-          pElIf  ←FullLn'\h* :: ELSEIF     \b \h* (\N+) '
-          pEl    ←FullLn'\h* :: ELSE       \b      \h*  '
-          pEndIf ←FullLn'\h* :: END(?:IF)? \b      \h*  '
-          pDef   ←FullLn'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h?  (',pNOCOM,'|) \N* ' 
-          pEvl   ←FullLn'\h* :: eval \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pNOCOM,'|) \N* '   
-          pDefL  ←FullLn'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (\N*) '  
-        ⍝ ::DEF name  ==>  '::DEFL name←name'.  Same for '::DEFL' or '::EVAL'.  
-        ⍝ ::DEF name value ==> ::DEFL name←value.  If this isn't desired, treat this variant as an error!
-        ⍝ Returns name, same value as if name were undefined.  
-          pUndef ←FullLn'\h* :: (?:defl?|eval) \h+ ((?>[^\h←\r]+)) \h* ( [^\h\r]* )'
-          pErr   ←FullLn'\h* :(defl?|eval) \b \N* '
-          pDebug ←FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
-          pOther ←FullLn'\N*'   
-          controlScanPats←pIf pElIf pEl pEndIf pDef pEvl pDefL pUndef pErr pDebug pOther
-                          iIf iElIf iEl iEndIf iDef iEvl iDefL iUndef iErr iDebug iOther←⍳≢controlScanPats
+          pIf    ←RE⍙Line'\h* :: IF         \b \h* (\N+) '
+          pElIf  ←RE⍙Line'\h* :: ELSEIF     \b \h* (\N+) '
+          pEl    ←RE⍙Line'\h* :: ELSE       \b      \h*  '
+          pEndIf ←RE⍙Line'\h* :: END(?:IF)? \b      \h*  '
+        ⍝ For ::DEF (define) of the form  ::DEF name ← value, match after the control word:
+        ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
+        ⍝ where name* is a sequence of chars except spaces, ←, or CR.
+        ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
+          pDef1   ←RE⍙Line'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h*  (',pNOCOM,'|) \N* ' 
+        ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
+        ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
+        ⍝ where name* is a sequence of chars except spaces, ←, or CR. 
+        ⍝ The value stored will be determined in the calling namespace CALR as
+        ⍝     CALR ⍎ value
+          pEvl   ←RE⍙Line'\h* :: eval \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pNOCOM,'|) \N* '   
+        ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
+        ⍝      blanks, word*, blanks, ← optional blank, value*
+        ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
+        ⍝ The value will not be enclosed in parentheses.
+          pDefL  ←RE⍙Line'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (\N*) '  
+        ⍝ For ::DEF of forms:   
+        ⍝     ::DEF name    OR    ::def name value  
+        ⍝ we match after the ctl word:
+        ⍝ I.     blanks, name*  which is translated to: ::DEF name1* ← name1*
+        ⍝    where name* and name1* defined as name* above, name1* the same in both cases.
+        ⍝    This is equivalent to undefining name*, i.e. replacing it with itself.
+        ⍝ II.    blanks, name*, blanks, value
+        ⍝    where name* as above and value* consists of all text to the end of the line, excluding leading blanks.
+        ⍝    This is equivalent to ::def name ← value above.
+          pDef2 ←RE⍙Line'\h* :: (?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
+        ⍝ :DEF, :DEFL, :EVAL  are errors.
+          pErr   ←RE⍙Line'\h* :(defl?|eval) \b \N* '
+          pDebug ←RE⍙Line'\h* ::debug \b \h*  (ON|OFF|) \h* '
+          pOther ←RE⍙Line'\N*'   
+          controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pDefL pErr pDebug pOther
+                          iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iDefL iErr iDebug iOther←⍳≢controlScanPats
           SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
           BoolElseErr←{0:: ¯1  ⋄ (,0)≡v←,⍎⍵: 0 ⋄  (0≠≢v)}    ⍝ True 1, False 0, Error ¯1
           Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
@@ -145,17 +164,17 @@
               ⍝ ON...
                 CurStateIs ON: {  
                     CASE iOther:     F 0  
-                    CASE iUndef:     {fld2←⍵⊃1 2 ⋄ SendDef (F 1) (0 MacSet) F fld2}0≠≢F 2 
-                    CASE iDef:       SendDef (F 1) (1 MacSet)⊣val←FullScan DTB F 2   
-                    CASE iEvl:       SendDef (F 1) (0 MacSet)⊣val←Execute FullScan DTB F 2  
-                    CASE iDefL:      SendDef (F 1) (0 MacSet)⊣val←DTB F 2   
+                    CASE iDef1:      SendDef (F 1) (1 _MacSet)⊣val←FullScan DTB F 2   
+                    CASE iDef2:      {SendDef (F 1) (⍵ _MacSet) F 1+⍵}0≠≢F 2 
+                    CASE iEvl:       SendDef (F 1) (1 _MacSet)⊣val←Execute FullScan DTB F 2  
+                    CASE iDefL:      SendDef (F 1) (0 _MacSet)⊣val←DTB F 2   
                     CASE iIf:        SendState Push BoolElseErr MacScan F 1
                     CASE iElIf iEl:  SendState Poke SKIP  
                     CASE iEndIf:     SendState Pop ⍵
                     CASE iDebug:     (F 0),SendState ON⊣DEBUG∘←'off'≢⎕C F 1 
                     ∘UNREACHABLE∘
                 }ON
-              ⍝ When (CurStateIs OFF or SKIP) for iDef, iEvl, IDefL, iOther
+              ⍝ When (CurStateIs OFF or SKIP) for iDef1, iEvl, IDefL, iOther
                 ⍵.PatternNum>iEndIf : SendState SKIP    
                 CurStateIs OFF: {
                     CASE iIf:    SendState Push SKIP  
@@ -176,8 +195,8 @@
           mâc.(K V) DEBUG← save                            ⍝ Restore macros
           res
         } 
-        pSysDef ←  FullLn'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-        pDebug   ← FullLn'\h* ::debug \b \h*  (ON|OFF|) \h* '
+        pSysDef ←  RE⍙Line'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+        pDebug   ← RE⍙Line'\h* ::debug \b \h*  (ON|OFF|) \h* '
         pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
         pSkip    ← '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
         pPAR pBRC ←GenBracePat¨'()'  '{}'               ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
@@ -185,8 +204,8 @@
             pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
         pHere    ← ∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-        pHCom    ← FullLn∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
-        pDump    ← FullLn'::DUMP::'
+        pHCom    ← RE⍙Line∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
+        pDump    ← RE⍙Line'::DUMP::'
   
         fullScanPats← pSysDef pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac pDump
                       iSysDef iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac iDump←⍳≢fullScanPats
@@ -195,8 +214,8 @@
             fullScanPats ⎕R{  
                 ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 ⋄ CASE←⍵.PatternNum∘∊                      
-                CASE iTrpQ: (F 3) ((≢F 2) Encode) F 1               
-                CASE iDblQ: (F 2) (0 Encode) UnDQ F 1                
+                CASE iTrpQ: (F 3) ((≢F 2) _Encode) F 1               
+                CASE iDblQ: (F 2) (0 _Encode) UnDQ F 1                
                 CASE iDots: ' '                                
                 CASE iPtr:  AddPar  (FullScan F 1),' ⎕SE.⍙PTR 0'⊣SaveRunTime 0
                 CASE iSkip: F 0                
@@ -204,12 +223,12 @@
               ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
                 CASE iHere: {  
                   opt← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Get option after each :
-                  l1←  opt ((≢F 4 ) Encode)  F 3
+                  l1←  opt ((≢F 4 ) _Encode)  F 3
                   l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, FullScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
                 }0   
                 CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
                 CASE iMac:  ⊢MacScan MacGet F 0                     
-                CASE iSysDef: ''⊣ (F 1) (0 MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
+                CASE iSysDef: ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
                 CASE iDebug:  ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
               ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                 CASE iDump:   {
@@ -220,10 +239,9 @@
             }⍠reOPTS⊣⍵
         }
       ⍝ >>> PREDEFINED MACROS BEGIN
-        _←'⎕F'    (0 MacSet) '∆FMT' 
-        _←':COM'  (0 MacSet) '⍝COM⍝'       ⍝ <== :DEFL :COM ⍝COM⍝
+        _←'⎕F'    (0 _MacSet) '∆FMT' 
         mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}          ⍝ mâc: macro internal namespace
-        _←'::DEF' (0 MacSet) 'mâc.⍙DEF '   ⍝ ::IF ::DEF "name" is 1 if name is defined...
+        _←'::DEF' (0 _MacSet) 'mâc.⍙DEF '   ⍝ ::IF ::DEF "name" is 1 if name is defined...
       ⍝ <<< PREDEFINED MACROS END 
 
       ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
