@@ -3,7 +3,7 @@
   ⍝ Syntax is as for ⎕FIX, except for 
   ⍝    a) '-nof[ix]' option, which shows the translated lines.
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
-    ⎕IO ⎕ML←0 1   
+    ⎕IO ⎕ML ⎕PP←0 1 34     
     DEBUG←0  ⋄   DO_FULLSCAN DO_CONTROLSCAN←1 1 
     SQ DQ←'''"' ⋄ CR←⎕UCS 13  
     CALR←0⊃⎕RSI
@@ -20,7 +20,12 @@
   ⍝  CALR.⎕PATH←1↓∊' ',¨∪'⎕SE',' '(≠⊆⊢)CALR.⎕PATH
     SaveRunTime←{⍺←0 ⋄ (~DEBUG)∧(~⍺)∧4=⎕SE.⎕NC '⍙PTR': 0 
       2:: ⎕SIGNAL/'∆FIX: Unable to set utility operator ⎕SE.⍙PTR' 11
+    ⍝  Runtime: Default/standard version
       ⎕SE.⍙PTR←{(ns←⎕NS '').∆DO←⍺⍺ ⋄ ns⊣ns.⎕DF '[⍙PTR]'}
+    ⍝ Runtime: Debug-active version
+      ⎕SE.⍙PTRD←{aa←⍺⍺ ⋄ (ns←⎕NS '').∆DO←⍺⍺  ⋄ LB RB←,¨'{}' ⋄ DLB←{⍵↓⍨+/∧\' '= ⍵}
+          ns⊣ns.⎕DF '[', ('\{⋄' '⋄\}'⎕R LB RB⊣ ¯1↓∊'⋄',⍨¨DLB¨⎕NR 'aa'),']'
+      }
       1
     }
   ⍝ Executive: Search through lines (vector of vectors) for: 
@@ -28,6 +33,27 @@
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via _Encode below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{⍺←0
+        DTB←{⍵↓⍨-+/∧\' '=⌽⍵}                           ⍝ Delete trailing blanks from one line
+        DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
+      ⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137), converting to decimal.
+      ⍝ Converts up to 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF (28 hex digits) as integers...
+      ⍝ Returns right arg (⍵) if not a known base (xbo), number is negative, digits are out of range,
+      ⍝ or if it can't represent in an integer of 34 decimal digits...
+        ∆DEC←{ ⎕PP ⎕FR←34 1287  ⍝ Ensures largest # of decimal digits.
+            nstr←⎕C ⍵ ⋄ base←2 8 16 0['box'⍳1↑1↓nstr] ⋄ ('0'≠1↑nstr)∨0=base: ⍵ 
+            n←(base↑'0123456789abcdef')⍳2↓nstr ⋄ ∨/n≥base:  ⍵ 
+            'E'∊res←⍕base⊥n: ⍵ ⋄ res  
+        }
+      ⍝ range ← from [next=from±1] To end [incr=1]. Sign of increment is ignored.
+      ⍝         Specify one of [next] and [incr].
+      ⍝         Sign of ¨next¨ and ¨incr¨ are ignored,  determined by ¨from¨ and ¨end¨.
+      ⍝ ⎕IO←0
+        ⎕SE.∆TO←{
+            eTo←'⎕TO: range ← from [next=from+1] To end [incr=1]. Do not include both ¨next¨ and ¨incr¨.'
+            from end←1↑¨⍺ ⍵  ⋄ 2∧.≤≢¨⍺ ⍵: eTo ⎕SIGNAL 11  
+            step←(×end-from)×|1↑1↓⍵,(from-1↑1↓⍺)
+            from+step×⍳0⌈1+⌊(end-from)÷step+step=0     
+        }
         AddPar← '('∘,∘⊢,∘')' 
       ⍝ ---- MACROS
         mâc.K←mâc.V←⍬ ⊣  mâc←⎕NS ''
@@ -97,8 +123,6 @@
           pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
           'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
         }
-        DTB←{⍵↓⍨-+/∧\' '=⌽⍵}                           ⍝ Delete trailing blanks from one line
-        DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
         UnDQ←{ s/⍨1+SQ=s←s/⍨~(2⍴DQ)⍷s←d↓⍵↓⍨-d←DQ=1↑⍵ } ⍝ Remove surrounding DQs and APL-escaped DQs. Double SQs  
         Execute←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
             res2←⎕FMT res←⍺⍎⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
@@ -198,50 +222,61 @@
         pSysDef ←  RE⍙Line'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
         pDebug   ← RE⍙Line'\h* ::debug \b \h*  (ON|OFF|) \h* '
         pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDblQ   ← '(?i)((?:"[^"]*")+)([a-z]*)'
-        pSkip    ← '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*\r\h*'
+        pSkip    ← '(?:''[^'']*'')+|⍝\N*$'              ⋄  pDots   ← '(?:\.{2,3}|…)\h*(⍝\N*)?\r\h*'
         pPAR pBRC ←GenBracePat¨'()'  '{}'               ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
         pPtr     ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
             pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
       ⍝ Here-strings and Multiline ("Here-string"-style) comments 
         pHere    ← ∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
         pHCom    ← RE⍙Line∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
-        pDump    ← RE⍙Line'::DUMP::'
+        pBase    ← '(?xi) 0 [xbo] \w+'
   
-        fullScanPats← pSysDef pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac pDump
-                      iSysDef iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac iDump←⍳≢fullScanPats
+        fullScanPats← pSysDef pDebug pTrpQ pDblQ pSkip pDots pHere pHCom pPtr pMac pBase   
+                      iSysDef iDebug iTrpQ iDblQ iSkip iDots iHere iHCom iPtr iMac iBase ←⍳≢fullScanPats
         FullScan←{
-            ~DO_FULLSCAN: ⍵    
-            fullScanPats ⎕R{  
-                ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                ⋄ CASE←⍵.PatternNum∘∊                      
-                CASE iTrpQ: (F 3) ((≢F 2) _Encode) F 1               
-                CASE iDblQ: (F 2) (0 _Encode) UnDQ F 1                
-                CASE iDots: ' '                                
-                CASE iPtr:  AddPar  (FullScan F 1),' ⎕SE.⍙PTR 0'⊣SaveRunTime 0
-                CASE iSkip: F 0                
-              ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts   ← :c :l :v :m :s
-              ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
-                CASE iHere: {  
-                  opt← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Get option after each :
-                  l1←  opt ((≢F 4 ) _Encode)  F 3
-                  l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, FullScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
-                }0   
-                CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
-                CASE iMac:  ⊢MacScan MacGet F 0                     
-                CASE iSysDef: ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
-                CASE iDebug:  ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
-              ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
-                CASE iDump:   {
-                  c←⍕mâc.{0:: count∘←1  ⋄ ⊣count←count+1}0
-                  '⍝DUMP#',c,CR⊣⎕←('DUMP#',c,' macros: ')mâc.(K,[-0.2]V)' '(⎕TS)
-                }0
-                ∘Unreachable∘
-            }⍠reOPTS⊣⍵
+            ~DO_FULLSCAN: ⍵  
+            FullScan1←{  
+                fullScanPats ⎕R{  
+                    ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+                    ⋄ CASE←⍵.PatternNum∘∊                 
+                    CASE iTrpQ: (F 3) ((≢F 2) _Encode) F 1               
+                    CASE iDblQ: (F 2) (0 _Encode) UnDQ F 1                
+                    CASE iDots: ' '                                
+                    CASE iPtr:  AddPar  (FullScan F 1),' ⎕SE.⍙PTR',dbg,' 0'⊣SaveRunTime 0 ⊣ dbg←DEBUG/'D'
+                    CASE iSkip: F 0                
+                  ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts   ← :c :l :v :m :s
+                  ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
+                    CASE iHere: {  
+                      opt← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Get option after each :
+                      l1←  opt ((≢F 4 ) _Encode)  F 3
+                      l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, FullScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
+                    }0   
+                    CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
+                    CASE iMac:  ⊢MacScan MacGet F 0                     
+                    CASE iSysDef: ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
+                    CASE iDebug:  ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                  ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                    CASE iBase:    ∆DEC F 0
+                    ∘Unreachable∘
+                }⍠reOPTS⊣⍵
+            }
+            FullScan2←{
+                pAtoms ← '`\h*(["'']?)([\w∆⍙_#\.⎕¯ ]+)\1' ⋄ pAtomErr←'`\h*(?>[^\h]+)'    ⍝ ` (var | number)
+                pSkip pAtoms pAtomErr ⎕R  {CASE←⍵.PatternNum∘∊
+                  F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+                  CASE 0: F 0 ⋄ CASE 2: (F 0),' ∘ Atom Err ∘ '
+                  AddPar {ch←1 ⋄ wds←1↓∊{1=⍬⍴⊃⎕VFI ⍵: ' ',⍵⊣ch∘←0 ⋄ ' ',SQ,SQ,⍨⍵}¨⍵ ⋄ ch∧1=≢⍵: '⊂,',wds ⋄ wds}' ' (≠⊆⊢) MacScan F 2
+                }⍠reOPTS⊣⍵
+            }
+            FullScan2 FullScan1 ⍵
         }
-      ⍝ >>> PREDEFINED MACROS BEGIN
-        _←'⎕F'    (0 _MacSet) '∆FMT' 
-        mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}          ⍝ mâc: macro internal namespace
-        _←'::DEF' (0 _MacSet) 'mâc.⍙DEF '   ⍝ ::IF ::DEF "name" is 1 if name is defined...
+      ⍝ >>> PREDEFINED MACROS BEGIN             ⍝ Usage / Info
+         mâc.⍙DEF← mâc.{(≢K)>K⍳⊂⍵}              ⍝   mâc: macro internal namespace
+         mâc.⍙DUMP← mâc.{K,[-0.2]V}
+         macro←(0 _MacSet)
+        _←'⎕F'     macro '∆F'                   ⍝   APL-ified Python-reminiscent format function
+        _←'⎕TO'    macro '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
+        _←'::DEF'  macro 'mâc.⍙DEF'             ⍝   ::IF ::DEF "name"is 1 if name is defined...
       ⍝ <<< PREDEFINED MACROS END 
 
       ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...

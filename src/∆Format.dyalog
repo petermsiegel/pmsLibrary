@@ -1,19 +1,19 @@
-﻿:namespace Format 
+﻿:namespace ∆Format 
   ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
     DEBUG←0  
 :SECTION For Documentation, see Section "Documentation" below
-  ⍝  ∆FMT - a modest Python-like APL Array-Oriented Format Function
+  ⍝  ∆F - a modest Python-like APL Array-Oriented∆Format Function
   ⍝
   ⍝  Generate and Return a 1 or 2D Formatted String
-  ⍝      string←  [⍺0 [⍺1 ...]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
+  ⍝      string←  [⍺0 [⍺1 ...]] ∆F specification [⍵0 [⍵1 ... [⍵99]]]]
   ⍝
-  ⍝  Displays Format Help info!
-  ⍝      ∆FMT ⍬
+  ⍝  Displays∆Format Help info!
+  ⍝      ∆F ⍬
 :ENDSECTION For Documentation...
 
 :SECTION Miscellaneous Utilities
-⍝ ⍙F:  Find a pcre field by name or field number
-    ⍙F←{N O B L←⍺.(Names Offsets Block Lengths)
+⍝ ⍙FLD:  Find a pcre field by name or field number
+    ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
         def←'' ⋄ isN←0≠⍬⍴0⍴⍵
         p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
         B[O[p]+⍳L[p]]
@@ -59,7 +59,7 @@
               CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⍵ ⎕SIGNAL 11}
               cnt{cnt←⍺
                   cnt≤0:⍵ CondErr eXRLoop
-                  S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ⍙F 1
+                  S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ⍙FLD 1
                       0::f1 CondErr eXRExec f1
                       1=≢r←⎕FMT caller.⍎f1:,r
                       (∊r,' ')CondErr eXRForm f1
@@ -171,14 +171,14 @@
         env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
         '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2}|\1)'⎕R{  ⍝ ⍵00 to ⍵99 | ⍵⍵ | ⍺⍺
             case←⍵.PatternNum∘=
-            case 0:CanonQuotes ⍵ ⍙F 0     ⍝ Convert double quote sequences to single quote sequences...
-            case 1:⍵ ⍙F 1                 ⍝ \⍵ is treated as char ⍵
+            case 0:CanonQuotes ⍵ ⍙FLD 0     ⍝ Convert double quote sequences to single quote sequences...
+            case 1:⍵ ⍙FLD 1                 ⍝ \⍵ is treated as char ⍵
           ⍝ case 2:                       ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
-            isW←'⍵'=f1←⍵ ⍙F 1
-            f2←{(⊃⍵)∊'⍺⍵':⍕1+env.index[isW] ⋄ ⍵}⍵ ⍙F 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
+            isW←'⍵'=f1←⍵ ⍙FLD 1
+            f2←{(⊃⍵)∊'⍺⍵':⍕1+env.index[isW] ⋄ ⍵}⍵ ⍙FLD 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
             ix←env.index[isW]←⍎f2 ⋄ alom←isW⊃env.(alpha omega)
     
-            ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ⍙F 0),' out of range'
+            ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ⍙FLD 0),' out of range'
             isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
             ⍕ix⊃alom
         }⍵
@@ -205,7 +205,7 @@
     
       ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
       ⍝ See KLUDGE 2 below
-        pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙F 0}⊣pfx
+        pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙FLD 0}⊣pfx
     
         pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
         cod←env(1 ScanCode)cod              ⍝ 1:  isCode
@@ -214,15 +214,15 @@
       ⍝    pattern: [LCRlcr] (ddd⎕c⎕ | ⎕c⎕ddd) ,?
       ⍝ Set locals: pfx; padTYpe, padWid, padChar
         padType padWid padChar←' ' 0 ' '
-        pfx←padP ⎕R{t w c←⍵ ⍙F¨'type' 'wid' 'char'
+        pfx←padP ⎕R{t w c←⍵ ⍙FLD¨'type' 'wid' 'char'
             padType padWid padChar∘←t(⍎w)' '
             0=≢c:'' ⋄ padChar∘←1↓¯1↓c ⋄ ''
         }pfx
     
-      ⍝ Format codestring <cod> executed according to three formatting options...
+      ⍝∆Format codestring <cod> executed according to three formatting options...
       ⍝ 1] If prefix <pfx> is null or all blanks
       ⍝    and there is one colon,   call:   ⎕FMT cod
-      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝ Format cod in the ISO std date-time format.
+      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝∆Format cod in the ISO std date-time format.
       ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
       ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
       ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
@@ -238,8 +238,8 @@
 :EndSection Main Routines
 
 :SECTION Main Executive
-  ⍝ ========= MAIN ∆FMT Formatting Function
-  ⍝ ∆FMT - Major formatting patterns:
+  ⍝ ========= MAIN ∆F Formatting Function
+  ⍝ ∆F - Major formatting patterns:
   ⍝    ...P the pattern, ...C the pattern number
   ⍝ Braces: Embedded balanced braces are allowed, as are quoted strings (extended to double-quoted strings).
     addPat←{_patNum+←1 ⋄ fmtPats,←⊂⍵ ⋄ 1: fmtNums,←⍎⍺,'∘←_patNum' }
@@ -250,8 +250,8 @@
     'codeFC' addPat GenBalanced '{}'              ⍝ Code field.
     'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
 
-  ⍝ ∆FMT: Main user function
-    ∇ text←{leftArgs}∆FMT rightArgs;env;_
+  ⍝ ∆F: Main user function
+    ∇ text←{leftArgs}∆F rightArgs;env;_
       :Trap 0⍴⍨~DEBUG
           :If rightArgs≡⍬ ⋄ FORMAT_HELP ⋄ :Return ⋄ :EndIf
           text←''
@@ -261,12 +261,12 @@
            ⋄ env.omega←1↓rightArgs←⊆rightArgs
            ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
           _←fmtPats ⎕S{
-              case←⍵.PatternNum∘= ⋄ f0←⍵ ⍙F 0
+              case←⍵.PatternNum∘= ⋄ f0←⍵ ⍙FLD 0
               case textFC:0⍴text∘←text ∆JOIN ProcEscapes f0          ⍝ Any text except {...} or ⋄
               case codeFC:0⍴text∘←text ∆JOIN env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
               case nextFC:0⍴text∘←text ∆JOIN env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
               case endFC:⍬                                           ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
-              11 ⎕SIGNAL⍨'∆FMT: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
+              11 ⎕SIGNAL⍨'∆F: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
           }⊣⊃rightArgs
           text←,⍣(1=≢text)⊣text     ⍝ 1 row matrix quietly converted to a vector...
       :Else
@@ -278,22 +278,22 @@
 :SECTION CLEANUP AND EXPORT
     ⎕EX '_' ⎕NL 2 3 4         ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ↑'∆FMT' '∆XR' '∆JOIN' '∆OVER' 'FORMAT_LIB'
+    _←1 ⎕EXPORT ↑'∆F' '∆XR' '∆JOIN' '∆OVER' 'FORMAT_LIB'
 :ENDSECTION CLEANUP AND EXPORT
 
 :SECTION Documentation
-⍝H ∆FMT - a modest APL Array-Oriented Format Function Reminiscent of format of Python or C++.
+⍝H ∆F - a modest APL Array-Oriented Format Function Reminiscent of format of Python or C++.
 ⍝H        formatting multi-dimensional objects, ⎕FMT-compatible numerical fields,
 ⍝H        and I-Beam 1200-compatible Date-Time objects.
 ⍝H
 ⍝H Syntax:
-⍝H    string← [⍺0 [⍺1 ... [⍺99]]] ∆FMT specification [⍵0 [⍵1 ... [⍵99]]]]
+⍝H    string← [⍺0 [⍺1 ... [⍺99]]] ∆F specification [⍵0 [⍵1 ... [⍵99]]]]
 ⍝H
 ⍝H    Preview!
 ⍝H          what←'rain' ⋄ where←'Spain' ⋄ does←'falls' ⋄ locn←'plain'
-⍝H          ∆FMT 'The {what} in {where} {does} mainly on the {locn}.'
+⍝H          ∆F 'The {what} in {where} {does} mainly on the {locn}.'
 ⍝H    The rain in Spain falls mainly on the plain.
-⍝H        'you' 'know'  ∆FMT 'The {} in {} {} mainly on the {}, {⍺⍺} {⍺⍺}.' 'rain' 'Spain' 'falls' 'plain'
+⍝H        'you' 'know'  ∆F 'The {} in {} {} mainly on the {}, {⍺⍺} {⍺⍺}.' 'rain' 'Spain' 'falls' 'plain'
 ⍝H    The rain in Spain falls mainly on the plain, you know.
 ⍝H
 ⍝H    Specification: a string containing text, variable names, code, and ⎕FMT specifications, in a single vector string.
@@ -313,12 +313,12 @@
 ⍝H    ∘ Newlines        \n          - In TEXT fields or inside quotes within CODE fields or DATE-TIME specs.
 ⍝H                                    \n is actually a CR char (Unicode 13), forcing a new APL line in ⎕FMT.
 ⍝H    ∘ In ⎕FMT field quotes ⎕...⎕, ⊂...⊃, etc., a lone or unbalanced brace { or } must be backslashed, due to limitations
-⍝H      in the ∆FMT parsing algorithm. \ before other chars is treated as expected APL text.
+⍝H      in the ∆F parsing algorithm. \ before other chars is treated as expected APL text.
 ⍝H    Example:
 ⍝H    ⍝ Good: Single escaped brace  ⍝ Good: Balanced braces       ⍝ Bad! Single unescaped brace
-⍝H      ∆FMT'#1: {¨\{¨,I1:⍳3}'        ∆FMT'#1: {¨{¨,I1,¨}¨:⍳3}'     ∆FMT'#1: ¨{¨,I1:⍳3}'
+⍝H      ∆F'#1: {¨\{¨,I1:⍳3}'        ∆F'#1: {¨{¨,I1,¨}¨:⍳3}'     ∆F'#1: ¨{¨,I1:⍳3}'
 ⍝H    #1: {0                        #1: {0}                         SYNTAX ERROR
-⍝H        {1                            {1}                           ∆FMT'#1: {⊂{⊃,I1:⍳3}'
+⍝H        {1                            {1}                           ∆F'#1: {⊂{⊃,I1:⍳3}'
 ⍝H        {2                            {2}                           ∧
 ⍝H
 ⍝H Fields:
@@ -344,7 +344,7 @@
 ⍝H                 If multiple characters are specified <char>, an error occurs
 ⍝H
 ⍝H         Note: {C10⎕⊂⎕,I1: ⍳3} and {C10,⎕⊂⎕,I1: ⍳3} differ!
-⍝H              ∆FMT'{C10⎕⊂⎕,I1: ⍳3}'         ∆FMT'{C10,⎕⊂⎕,I1: ⍳3}'
+⍝H              ∆F'{C10⎕⊂⎕,I1: ⍳3}'         ∆F'{C10,⎕⊂⎕,I1: ⍳3}'
 ⍝H         ⊂⊂⊂⊂1⊂⊂⊂⊂⊂                            ⊂1
 ⍝H         ⊂⊂⊂⊂2⊂⊂⊂⊂⊂                            ⊂2
 ⍝H         ⊂⊂⊂⊂3⊂⊂⊂⊂⊂                            ⊂3
@@ -368,25 +368,25 @@
 ⍝H
 ⍝H             Example:
 ⍝H             ⍝  Delay five seconds, truncating  the result (LEFT) or displaying the result (RIGHT).
-⍝H                ∆FMT '<{l0:⎕DL 0.2}>'                 ∆FMT '<{L0:⎕DL 0.2}>'  ⍝ Equiv to {⎕DL 0.2}, w/o superfluous L0.
+⍝H                ∆F '<{l0:⎕DL 0.2}>'                 ∆F '<{L0:⎕DL 0.2}>'  ⍝ Equiv to {⎕DL 0.2}, w/o superfluous L0.
 ⍝H             <>                                    <0.202345>
 ⍝H             Examples:                               12345678901234567890
-⍝H             #1  ∆FMT '<{C20,I3: 1 5⍴⍳5}>'   ==>    <    0  1  2  3  4   >
-⍝H             #2  ∆FMT '<{C2,I5:  1 5 ⍴⍳5}>'  ==>    <    0    1    2    3    4>
-⍝H             #3  ∆FMT '<{C5:"1234567890"}>'  ==>    <1234567890>
-⍝H                 ∆FMT '<{R5:"1234567890"}>'  ==>    <1234567890>
-⍝H                 ∆FMT '<{c5:"1234567890"}>'  ==>    <45678>
+⍝H             #1  ∆F '<{C20,I3: 1 5⍴⍳5}>'   ==>    <    0  1  2  3  4   >
+⍝H             #2  ∆F '<{C2,I5:  1 5 ⍴⍳5}>'  ==>    <    0    1    2    3    4>
+⍝H             #3  ∆F '<{C5:"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆F '<{R5:"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆F '<{c5:"1234567890"}>'  ==>    <45678>
 ⍝H         2.  A field spec may include special ⍵NN- or ⍺NN-positional variables (above), wherever variables are allowed:
 ⍝H
 ⍝H         Example:
-⍝H             ∆FMT 'Random: {C⍵0,⊂< ⊃,F⍵1,⎕ >⎕: ?3⍴0}' 8 4.2  (or '8' '4.2')
+⍝H             ∆F 'Random: {C⍵0,⊂< ⊃,F⍵1,⎕ >⎕: ?3⍴0}' 8 4.2  (or '8' '4.2')
 ⍝H         Random: < 0.30 >
 ⍝H                 < 1.00 >
 ⍝H                 < 0.64 >
 ⍝H         If a standard format specification is used, APL ⎕FMT rules are followed, treating
 ⍝H         vectors as 1-column matrices:
 ⍝H         Example:
-⍝H             ∆FMT 'a: {3↑⎕TS} b: {I4: 3↑⎕TS} c: {ZI2,⊂/⊃,ZI2,⊂/⊃,I4: ⍉⍪1⌽3↑⎕TS}'
+⍝H             ∆F 'a: {3↑⎕TS} b: {I4: 3↑⎕TS} c: {ZI2,⊂/⊃,ZI2,⊂/⊃,I4: ⍉⍪1⌽3↑⎕TS}'
 ⍝H         a: 2020 9 6 b: 2020 c: 09/06/2020
 ⍝H                           9
 ⍝H                           6
@@ -398,7 +398,7 @@
 ⍝H      and not processed in this way.
 ⍝H
 ⍝H      Example:
-⍝H         ∆FMT '{⍪6⍴"|"} {↑"one\ntwo" "three\nfour" "five\nsix"}'
+⍝H         ∆F '{⍪6⍴"|"} {↑"one\ntwo" "three\nfour" "five\nsix"}'
 ⍝H      | one
 ⍝H      | two
 ⍝H      | three
@@ -408,8 +408,8 @@
 ⍝H
 ⍝H      Code fields may be arbitrarily complicated. Only the first "prefix:" specification
 ⍝H      is special:
-⍝H      Example (see DATE-TIME CODE fields for a ∆FMT-style approach):
-⍝H         ∆FMT 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
+⍝H      Example (see DATE-TIME CODE fields for a ∆F-style approach):
+⍝H         ∆F 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
 ⍝H   c. DATE-TIME CODE field: {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
@@ -417,10 +417,10 @@
 ⍝H      and timestamp is 1 or more timestamps of the form  (1 ⎕DT ⊂⎕TS) or (1 ⎕DT TS1 TS2 ...)
 ⍝H      then this returns the timestamp formatted according to the time_spec.
 ⍝H      - If a single timestamp is passed, a single enclosed string is returned by I-Beam 1200;
-⍝H        ∆FMT automatically discloses single timestamps  (i.e. adds no extra blanks).
+⍝H        ∆F automatically discloses single timestamps  (i.e. adds no extra blanks).
 ⍝H      - If the time_spec is blank, it is treated as '%ISO' and not ignored (contra I-Beam 1200's default).
 ⍝H        (⎕FMT specifications, if provided, must not be blank).
-⍝H      - Restriction: Because of how ∆FMT parses, two or more contiguous colons within specification text
+⍝H      - Restriction: Because of how ∆F parses, two or more contiguous colons within specification text
 ⍝H        must be double-quoted "::". A single colon will be interpreted correctly, whether quoted or not.
 ⍝H           Good: {tt"::"mm:ss:: now}     Bad: {tt::mm:ss:: now}
 ⍝H      - According to the std I-Beam 1200, special chars must be enclosed in double quotes.
@@ -428,23 +428,23 @@
 ⍝H
 ⍝H      Examples
 ⍝H          now← 1 ⎕DT  ⊂⎕TS
-⍝H          ∆FMT '<{%ISO%::now}>'
+⍝H          ∆F '<{%ISO%::now}>'
 ⍝H      <2020-09-10T15:34:48>
-⍝H          ∆FMT '{tt:mm:ss:: now} {F12.6:now}'
+⍝H          ∆F '{tt:mm:ss:: now} {F12.6:now}'
 ⍝H      03:50:51 44083.660324
-⍝H          ∆FMT '{tt"::"mm:ss:: now} {F12.6:now}'
+⍝H          ∆F '{tt"::"mm:ss:: now} {F12.6:now}'
 ⍝H      03::50:51 44083.660324
-⍝H          ∆FMT '{tt::mm:ss:: now} {F12.6:now}'
+⍝H          ∆F '{tt::mm:ss:: now} {F12.6:now}'
 ⍝H      VALUE ERROR: Undefined name: mm
 ⍝H          t1 t2 t3←{⎕TS⊣⎕DL 1+?0}¨1 2 3
 ⍝H      More Examples
-⍝H          ∆FMT'{I1,⊂. ⊃:⍵⍵}{%ISO%::1 ⎕DT ⍪⍵ }' (1 2 3) t1 t2 t3    ⍝ Explicit ISO-formatted DATE-TIME
+⍝H          ∆F'{I1,⊂. ⊃:⍵⍵}{%ISO%::1 ⎕DT ⍪⍵ }' (1 2 3) t1 t2 t3    ⍝ Explicit ISO-formatted DATE-TIME
 ⍝H      1. 2020-09-10T18:30:18
 ⍝H      2. 2020-09-10T18:30:19
 ⍝H      3. 2020-09-10T18:30:21
 ⍝H      ⍝  Presenting a null DATE-TIME specification {::tt}          ⍝ Default ISO-formatted DATE-TIME
 ⍝H          tt← ⍪0 0.111+1 ⎕DT ⊂ 2020 9 11 23 13 36 136
-⍝H          ∆FMT '{::tt}'
+⍝H          ∆F '{::tt}'
 ⍝H      2020-09-11T23:13:36
 ⍝H      2020-09-12T01:53:26
 ⍝H
@@ -457,7 +457,7 @@
 ⍝H      An unescaped lozenge ⋄ terminates the preceding field (if any).
 ⍝H      Equivalents: Since {⍬} or {:} evaluates to an empty (0-width) field, they are synonyms for lozenge as EOF.
 ⍝H      Example:
-⍝H          ∆FMT 'The cat ⋄is\nisn''t{⍬}here {:}and\nAND {"It isn''t here either"}'
+⍝H          ∆F 'The cat ⋄is\nisn''t{⍬}here {:}and\nAND {"It isn''t here either"}'
 ⍝H      The cat is   here and It isn't here either
 ⍝H              isn't     AND
 ⍝H
@@ -468,20 +468,20 @@
 ⍝H    - There is no short-cut for the next alpha field (⍺⍺); it is useful as is.
 ⍝H    Example:
 ⍝H      ⍝ 1. A long line.
-⍝H         ∆FMT '{} {} lives at {} in {}, {} in {}' 'John' 'Smith' '424 Main St.' 'Milwaukee' 'WI' 'the USA'
+⍝H         ∆F '{} {} lives at {} in {}, {} in {}' 'John' 'Smith' '424 Main St.' 'Milwaukee' 'WI' 'the USA'
 ⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
 ⍝H      ⍝ 2. A bit of magic to pass format specs and args as peer strings (vectors).
 ⍝H         info←'John' 'Smith' '424 Main St.' 'Milwaukee' 'WI' 'the USA'
-⍝H         ∆FMT '{} {} lives at {} in {}, {} in {}' {⍵,⍨⊂⍺} info
+⍝H         ∆F '{} {} lives at {} in {}, {} in {}' {⍵,⍨⊂⍺} info
 ⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
 ⍝H      ⍝ 3. Using ⍺ on the left to pass a list of strings is simple.
-⍝H         info  ∆FMT '{⍺⍺} {⍺⍺} lives at {⍺⍺} in {⍺⍺}, {⍺⍺} in {⍺⍺}'
+⍝H         info  ∆F '{⍺⍺} {⍺⍺} lives at {⍺⍺} in {⍺⍺}, {⍺⍺} in {⍺⍺}'
 ⍝H      John Smith lives at 424 Main St. in Milwaukee, WI in the USA
 ⍝H
 ⍝H Returns: a matrix-format string if 2 or more lines are generated.
 ⍝H If 1 line, returns it as a vector.
 ⍝H
-⍝H ∆FMT ⍬  -- Displays Format Help info!
+⍝H ∆F ⍬  -- Displays∆Format Help info!
     :EndSection Documentation
 
 :EndNamespace

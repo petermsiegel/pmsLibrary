@@ -26,7 +26,7 @@
   ⍝       Else   2, so all tokens are options, w/ initial hyphens optional.
   CALLENV←⎕RSI{⍵: opts ⋄ ⊃⍺,mainNsDef }9=oNC←⎕NC 'opts'
   :IF oNC∊0 9
-      opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵}objs 
+      opts objs←''{0=≢⍵:⍺ ⍵ ⋄ '-'≠1↑first←0⊃⍵:⍺ ⍵ ⋄ (⍺,' ',first)∇ 1↓⍵},objs 
   :ENDIF
   
   ⍝ Save CALLENV.⎕PATH into CE_PATH now; allows detection of changes to ⎕PATH when ⎕FIXing objects (See <PathChange> below)
