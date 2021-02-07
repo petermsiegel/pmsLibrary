@@ -20,11 +20,19 @@
   ⍝  CALR.⎕PATH←1↓∊' ',¨∪'⎕SE',' '(≠⊆⊢)CALR.⎕PATH
     SaveRunTime←{⍺←0 ⋄ (~DEBUG)∧(~⍺)∧4=⎕SE.⎕NC '⍙PTR': 0 
         2:: ⎕SIGNAL/'∆FIX: Unable to set utility operator ⎕SE.⍙PTR' 11
-      ⍝  Runtime: Default/standard version
-        ⎕SE.⍙PTR←{(ns←⎕NS '').∆DO←⍺⍺ ⋄ ns⊣ns.⎕DF '[⍙PTR]'}
-      ⍝ Runtime: Debug-active version
-        ⎕SE.⍙PTRD←{aa←⍺⍺ ⋄ (ns←⎕NS '').∆DO←⍺⍺  ⋄ LB RB←,¨'{}' ⋄ DLB←{⍵↓⍨+/∧\' '= ⍵}
-            ns⊣ns.⎕DF '[', ('\{⋄' '⋄\}'⎕R LB RB⊣ ¯1↓∊'⋄',⍨¨DLB¨⎕NR 'aa'),']'
+      ⍝  Runtime Ptr. See $ Ptr prefix: ${operand}, $(operand), $operand_name...
+      ⍝     ptr←(operand ⎕SE.⍙PTR debug]⊣0)
+      ⍝          operand: Function to "turn into" a pointer, accessed via ptr.Run
+      ⍝          debug:   If 0, display form is '[⍙PTR]' (fast).
+      ⍝                   If 1, display form is an abridged version of the nested 
+      ⍝                   representation of <operand>, up to 30 chars (slow).
+      ⍝ Was: ⎕SE.⍙PTR←{(ns←⎕NS '').Run←⍺⍺ ⋄ ns⊣ns.⎕DF '[⍙PTR]'}
+        ⍙PTR←{0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11
+            (ns←⎕NS'').Run←⍺⍺ ⋄ MAXL←30
+            0=⍵⍵:ns⊣ns.⎕DF'[⍙PTR]'
+               Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1} ⋄ Shrink←{'^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
+               Dlb←{⍵↓⍨+/∧\' '=⍵}¨             ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
+            ns⊣ns.⎕DF '[⍙PTR:', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
         }
         1
     }
@@ -246,7 +254,7 @@
                     CASE iTrpQ: (F 3) ((≢F 2) _Fmt2CodeStr) F 1               
                     CASE iDblQ: (F 2) (0 _Fmt2CodeStr) UnDQ F 1                
                     CASE iDots: ' '                                
-                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR',dbg,' 0'⊣SaveRunTime 0 ⊣ dbg←DEBUG/'D'
+                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG),'⊣ 0'⊣SaveRunTime 0  
                     CASE iSkip: F 0                
                   ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts   ← :c :l :v :m :s
                   ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
@@ -288,16 +296,15 @@
 
       UserEd←{
           0:: ↑(⊂'⍝ '),¨(⊂'Processing terminated due to error.'),⎕DMX.DM
-          Fs⍙←FullScan ⋄ in⍙←⊆⍵
-          _←'∊' ⎕ED 'in⍙' 
-          in⍙≡⍵: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
-            #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''FIX_FN DONE'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
+          _←'∊' ⎕ED 'inp' ⊣ inp←⊆⍵ 
+          inp≡⍵: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
+            #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''>>> FIX_FN done.'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
             0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘err∘
             'User Edit complete. See function #.',rc,'.'
-          }in⍙
-          in⍙←'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣in⍙
-          ln⍙←⊂'⍝>⍝',30⍴' -'
-          ∇ in⍙ ,ln⍙,'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣Fs⍙ in⍙
+          }⍵
+          inp←'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣inp
+          sep←⊂'⍝>⍝',30⍴' -'
+          ∇ inp ,sep,'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣FullScan inp
       }
     ⍝ If ⍺=1, UserEd for rt arg; otherwise simply use ⍵.
       ⍺: UserEd '⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
