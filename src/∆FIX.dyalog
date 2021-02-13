@@ -5,7 +5,7 @@
   ⍝    b) tolerates a missing :file// prefix when loading from a file.
     ⎕IO ⎕ML ⎕PP←0 1 34     
     DEBUG←1 ⋄   DO_MAINSCAN DO_CONTROLSCAN←1 1 
-    SQ DQ←'''"' ⋄ CR HIDDEN_CR←⎕UCS 13 01  ⍝ See also SendState: \x01 below
+    SQ DQ←'''"' ⋄ CR HIDDEN_CR←⎕UCS 13 01  ⍝ See also PassState: \x01 below
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
@@ -14,29 +14,104 @@
   ⍝ Add CR to last line to make Regex patterns simpler...
     LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
+  ⍝+--------------------------------------------------+
+  ⍝ BEGIN Pattern Definitions   (organized by scan)   +
+  ⍝+--------------------------------------------------+
+  ⍝ Pattern-related Utilities                         +
+  ⍝+--------------------------------------------------+
     GenBracePat←{⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
           Lb Rb←⍵,⍨¨⊂'\\'                     
           pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
           'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
     }
-  ⍝ General patterns used in more than one scan...
-    pDots  ←'(?:\.{2,3}|…)\h*(⍝\N*)?\r\h*'
+    ∆Anchor←{'(?xi) ^',⍵,'$\r'}
+  ⍝+--------------------------------------------------+
+  ⍝ A. MULTIPLE SCANS                                 +
+  ⍝+--------------------------------------------------+
+    pDots  ←'(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?\r\h*'
     pDQ    ← '("[^"]*")+'
-    pSQ    ← '(?:''[^''\r]*'')+' 
+    pSQ    ← '(?:''[^''\r\x01]*'')+' 
     pDQSQ  ← pDQ,'|',pSQ
-    pCom   ←'⍝\N*$' 
+    pCom   ←'⍝[^\r\x01]*$' 
     pBRC←GenBracePat'{}'
-    HideCR←{HIDDEN_CR@ (CR∘=)⊢⍵}¨
-    ShowCR←{⍺←CR ⋄ ⍺@ (HIDDEN_CR∘=)⊢⍵}¨
-    DFnScanIn←{ pBRC pSQ pDQ pCom ⎕R {  F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ HideCR F0 }⍠reOPTS⊣⍵ }
-    DFnScanOut←{⍺←CR ⋄ ⍺ ShowCR ⍵}
+  ⍝+--------------------------------------------------+
+  ⍝ B.CONTROL SCANS                                   +
+  ⍝+--------------------------------------------------+
+  ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
+  ⍝ These are required to match a SINGLE line each in its entirety OR a line continued explicitly using dot format.
+  ⍝ BUG: Does not allow continuation via parens, braces, double quotes, etc.
+    pMULTI_NOCOM ←'(?x) (?<NOC> (?: [^\{⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+ | ',pBRC,') (?&NOC)*)'
+    pMULTI_COM   ←'(?x) (?<ANY> (?: [^\{⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+ | ',pBRC,' | ⍝[^\r\x01]* ) (?&ANY)*)'
+    pIf    ← ∆Anchor'\h* :: IF         \b \h* (\N+) '
+    pElIf  ← ∆Anchor'\h* :: ELSEIF     \b \h* (\N+) '
+    pEl    ← ∆Anchor'\h* :: ELSE       \b      \h*  '
+    pEndIf ← ∆Anchor'\h* :: END(?:IF)? \b      \h*  '
+  ⍝ For ::DEF (define) of the form  ::DEF name ← value, match after the control word:
+  ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
+  ⍝ where name* is a sequence of chars except spaces, ←, or CR.
+  ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
+    pDef1   ← ∆Anchor'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h*  (',pMULTI_NOCOM,'+|) \N* ' 
+  ⍝ ::EVAL or synonym ::DEFE 
+  ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
+  ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
+  ⍝ where name* is a sequence of chars except spaces, ←, or CR. 
+  ⍝ The value stored will be determined in the calling namespace CALR as
+  ⍝     CALR ⍎ value
+    pEvl   ← ∆Anchor'\h* :: (?:eval|defe) \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_NOCOM,'+|) \N* '   
+  ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
+  ⍝      blanks, word*, blanks, ← optional blank, value*
+  ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
+  ⍝ The value will not be enclosed in parentheses.
+    pDefL  ← ∆Anchor'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_COM,'|) '  
+  ⍝ For ::DEF of forms:   
+  ⍝     ::DEF name    OR    ::def name value  
+  ⍝ we match after the ctl word:
+  ⍝ I.     blanks, name*  which is translated to: ::DEF name1* ← name1*
+  ⍝    where name* and name1* defined as name* above, name1* the same in both cases.
+  ⍝    This is equivalent to undefining name*, i.e. replacing it with itself.
+  ⍝ II.    blanks, name*, blanks, value
+  ⍝    where name* as above and value* consists of all text to the end of the line, excluding leading blanks.
+  ⍝    This is equivalent to ::def name ← value above.
+    pDef2  ← ∆Anchor'\h* :: (?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
+  ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
+    pErr   ← ∆Anchor'\h* :(def[el]?|eval) \b \N* '
+    pDebug ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
+    pOther ← ∆Anchor'\N*' 
+  ⍝+--------------------------------------------------+
+  ⍝ C. MAIN SCAN PATTERNS   / ATOM SCAN PATTERNS      +  
+  ⍝+--------------------------------------------------+
+    pSysDef ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+    pDebug   ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
+    pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?i)',pDQ,'([a-z]*)'
+    pSkip    ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
+    pPAR     ←'()'                                  ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
+    pPtr     ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
+    _pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
+  ⍝ Here-strings and Multiline ("Here-string"-style) comments 
+    pHere    ← ∊'(?x)       ::: \h*   '_pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
+    pHCom    ← ∆Anchor∊'\h* ::: \h* ⍝ '_pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
+    pBase    ← '(?xi) 0 [xbo] [\w_]+'
+    pNum     ← '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
+    pMacro     ← {
+        APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
+        _pVarName← '(?i)[',APL_LET,'][⎕.\d',APL_LET,']*'
+        _pMac←'(?:[]⎕]|:{1,2}|)',_pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
+        _pMac
+    }⍬
+  ⍝ Atom Pattern...
+    pAtomVec ← '(?x) (`{1,2})  \h* ( (?: (?: (''[^''\r\x01]*'')+ | [\w∆⍙_#\.⎕¯]+  ) \h*  )+ )'          
+
+  ⍝+--------------------------------------------------+
+  ⍝ END Pattern Definitions                           +
+  ⍝+--------------------------------------------------+
+
 
   ⍝ SaveRunTime:  SaveRunTime [force←0]
   ⍝ Save Run-time Utilities in ⎕SE if not already...
   ⍝     ⎕SE.⍙PTR
   ⍝  CALR.⎕PATH←1↓∊' ',¨∪'⎕SE',' '(≠⊆⊢)CALR.⎕PATH
     SaveRunTime←{⍺←0 ⋄ (~DEBUG)∧(~⍺)∧4=⎕SE.⎕NC '⍙PTR': 0 
-        2:: ⎕SIGNAL/'∆FIX: Unable to set utility operator ⎕SE.⍙PTR' 11
+        2/⍨~DEBUG:: ⎕SIGNAL/'∆FIX: Unable to set utility operator ⎕SE.⍙PTR' 11
       ⍝  Runtime Ptr. See $ Ptr prefix: ${operand}, $(operand), $operand_name...
       ⍝     ptr←(operand ⎕SE.⍙PTR debug]⊣0)
       ⍝          operand: Function to "turn into" a pointer, accessed via ptr.Run
@@ -44,13 +119,14 @@
       ⍝                   If 1, display form is an abridged version of the nested 
       ⍝                   representation of <operand>, up to 30 chars (slow).
       ⍝ Was: ⎕SE.⍙PTR←{(ns←⎕NS '').Run←⍺⍺ ⋄ ns⊣ns.⎕DF '[⍙PTR]'}
-        ⎕SE.⍙PTR←{
-            0⍴⍨~DEBUG::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
+        ⎕SE.⍙PTR←{ ⍝ Place in ⎕SE, with CALR as ⎕THIS namespace
+            0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
             MAXL←30
             (ns←⎕NS'').Run←⍺⍺ ⋄ _←ns.⎕FX 'r←Exec' 'r←Run ⍬'
             0=⍵⍵:ns⊣ns.⎕DF'[$⍙PTR]'
-               Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1} ⋄ Shrink←{'^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
-               Dlb←{⍵↓⍨+/∧\' '=⍵}¨             ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
+            Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1}    
+            Shrink←{'^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
+            Dlb←{⍵↓⍨+/∧\' '=⍵}¨  ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
             ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
         }
         1
@@ -60,7 +136,6 @@
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via Fmt2Code below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{⍺←0   ⍝ If 1, Edit for input...
-
       ⍝ Miscellaneous Utilities
         DTB←{⍵↓⍨-+/∧\' '=⌽⍵}                           ⍝ Delete trailing blanks from one line
         DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
@@ -95,10 +170,10 @@
         MacScan←{
           ⍺←5    ⍝ Max of total times to scan entire line (prevents runaway replacements)
           ⍺≤0: ⍵  
-          pList←pSQ pCom pDQ pMac
-                iSQ iCom iDQ iMac←⍳≢pList
+          pList←pSQ pCom pDQ pMacro
+                iSQ iCom iDQ iMacro←⍳≢pList
           str←pList ⎕R { F0← ⍵.Match ⋄ CASE←⍵.PatternNum∘∊ 
-              CASE iMac: MacGet F0 ⋄ CASE iDQ: SQ,SQ,⍨UnDQ F0  ⋄ F0 } ⍵
+              CASE iMacro: MacGet F0 ⋄ CASE iDQ: SQ,SQ,⍨UnDQ F0  ⋄ F0 } ⍵
           ⍵≢str: (⍺-1) ∇ str ⋄ str        ⍝ If any changes, scan again up to <⍺> times.
         }
       ⍝ Note: macro names whose last component starts with ⎕ or :  are case-insensitive.
@@ -116,17 +191,16 @@
               (F 2) (0 Fmt2Code) UnDQ F 1    ⍝ Convert double quotes.
             }⍠reOPTS⊣⍵
         }
+      ⍝ ⍺ (⍺⍺ _MacSet) ⍵. Set key <⍺> to have value <⍵>, or ⍺ if key <⍺> doesn't exit.
+      ⍝ If ⍺≡⍵, delete key <⍺>.
+      ⍝ If ⍺⍺=1, put ⍵ in parens, unless ⍵ is an APL name or null.
         _MacSet←{ 
-           v←AddPar⍣(⍺⍺∧0≠≢⍵)⊣⍵      ⍝ ⋄ ⎕←'MacSet "',⍺,'" ← "',v,'"'
-           (≢mâc.K)>p←mâc.K⍳kk←⊂⍙K ⍺: ⍵⊣mâc.V[p]←⊂v ⋄ mâc.K,←kk ⋄ mâc.V,←⊂v ⋄ v
+            val←AddPar⍣(⊃⍺⍺∧(0≠≢⍵)∧¯1=⎕NC ⍵ )⊣⍵ 
+            nKV←≢mâc.K ⋄ p←mâc.K⍳⊂key←⍙K ⍺       
+            p<nKV: val⊣ { ⍵: mâc.V[p]←⊂val ⋄ 1: mâc.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
+            ⍺≡⍵: val ⋄ mâc.(K V),← ⊂¨key val ⋄   val
         }  
-        MacGet←{0=≢⍵: ⍵ ⋄ p←mâc.K⍳⊂⍙K ⍵ ⋄ p≥≢mâc.K: ⍵ ⋄ 1:p⊃mâc.V}
-        pMac←{
-            APL_LET←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
-            pVarName← '(?i)[',APL_LET,'][⎕.\d',APL_LET,']*'
-            pMac←'(?:[]⎕]|:{1,2}|)',pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
-            pMac
-        }⍬
+        MacGet←{0=≢⍵: ⍵ ⋄ p←mâc.K⍳⊂⍙K ⍵ ⋄ p<≢mâc.K: p⊃mâc.V ⋄ ⍵ }
       ⍝ ------END MACROS
 
       ⍝ Fmt2Code: ⍺: 
@@ -164,128 +238,74 @@
       ⍝ Uses a name based on the braces and the ?J option, so PCRE functions properly[*].
       ⍝    * Any repeat definitions of these names MUST be identical.
     
-        Execute←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
+      ⍝ Eval2Str: Execute and return a string rep.
+        Eval2Str←CALR∘{⎕PP←34 ⋄ 0:: ⍵,' ∘err∘'
             res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
         }
-        ∆Anchor←{'(?xi) ^',⍵,'$\r'}
+      ⍝ Eval2Bool: Execute and return 1 True, 0 False, ¯1 Error.
+        Eval2Bool←CALR∘{0:: ¯1  ⋄ (,0)≡v←,⍺⍎'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}    
 
-      
-
-      ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
-      ⍝ These are required to match a SINGLE line each in its entirety OR a line continued explicitly using dot format.
-      ⍝ BUG: Does not allow continuation via parens, braces, double quotes, etc.
-        pMULTI_NOCOM ←'(?x) (?<NOC> (?: [^⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+ | ',pBRC,') (?&NOC)*)'
-        pMULTI_COM   ←'(?x) (?<ANY> (?: [^{⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+| ',pBRC,' | ⍝\N* ) (?&ANY)*)'
-        pIf    ← ∆Anchor'\h* :: IF         \b \h* (\N+) '
-        pElIf  ← ∆Anchor'\h* :: ELSEIF     \b \h* (\N+) '
-        pEl    ← ∆Anchor'\h* :: ELSE       \b      \h*  '
-        pEndIf ← ∆Anchor'\h* :: END(?:IF)? \b      \h*  '
-      ⍝ For ::DEF (define) of the form  ::DEF name ← value, match after the control word:
-      ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
-      ⍝ where name* is a sequence of chars except spaces, ←, or CR.
-      ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
-        pDef1   ← ∆Anchor'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h*  (',pMULTI_NOCOM,'|) \N* ' 
-      ⍝ ::EVAL or synonym ::DEFE 
-      ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
-      ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
-      ⍝ where name* is a sequence of chars except spaces, ←, or CR. 
-      ⍝ The value stored will be determined in the calling namespace CALR as
-      ⍝     CALR ⍎ value
-        pEvl   ← ∆Anchor'\h* :: (?:eval|defe) \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_NOCOM,'|) \N* '   
-      ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
-      ⍝      blanks, word*, blanks, ← optional blank, value*
-      ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
-      ⍝ The value will not be enclosed in parentheses.
-        pDefL  ← ∆Anchor'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_COM,'|) '  
-      ⍝ For ::DEF of forms:   
-      ⍝     ::DEF name    OR    ::def name value  
-      ⍝ we match after the ctl word:
-      ⍝ I.     blanks, name*  which is translated to: ::DEF name1* ← name1*
-      ⍝    where name* and name1* defined as name* above, name1* the same in both cases.
-      ⍝    This is equivalent to undefining name*, i.e. replacing it with itself.
-      ⍝ II.    blanks, name*, blanks, value
-      ⍝    where name* as above and value* consists of all text to the end of the line, excluding leading blanks.
-      ⍝    This is equivalent to ::def name ← value above.
-        pDef2  ← ∆Anchor'\h* :: (?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
-      ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
-        pErr   ← ∆Anchor'\h* :(def[el]?|eval) \b \N* '
-        pDebug ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-        pOther ← ∆Anchor'\N*' 
-  
         ControlScan←{ 
             ~DO_CONTROLSCAN: ⍵
             controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pDefL pErr pDebug pOther
                             iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iDefL iErr iDebug iOther←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
-            BoolElseErr←CALR∘{0:: ¯1  ⋄ (,0)≡v←, ⎕←⍺⍎⎕←'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}    ⍝ True 1, False 0, Error ¯1
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
             Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
             Peek←{(⊃⌽⊃⌽stack)⊃⍵ 1}
             CurStateIs←{⍵∊⍨⊃⊃⌽stack}
-            
+          ⍝ Keep final CR; otherwise: CR and hidden_CR → display_CR 
+            patsCrFamily← '\r\z'  '[\r\x01]'  ⋄ actionCrFamily←  '\0' '◈' 
             stack←,⊂ON ON
-            ControlScanAction←{F←⍵.{0:: '' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
+            ControlScanAction←{
+                  F←⍵.{0:: '' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
                   CASE←⍵.PatternNum∘∊ 
-                  SendState←{ ⍺←0 
-                      ~DEBUG: '' ⋄ state←STATES⊃⍨1+⊃∊⍵  
-                     '⍝',state,'\r\Z' '[\r\x01]' ⎕R '\r' '◈'⍠reOPTS⊣F 0  
+                  PassState←{ ⍺←0 ⋄ ~DEBUG: ''  
+                     '⍝', (STATES⊃⍨1+⊃∊⍵), patsCrFamily ⎕R actionCrFamily ⍠reOPTS⊣F 0  
                   }
-                ⍝ Format for SendDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
-                  SendDef←{(SendState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
+                ⍝ Format for PassDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
+                  PassDef←{(PassState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
 
                   CASE iErr: (¯1↓F 0),' ○ Error: invalid directive. Prefix :: expected. ○',CR
                 ⍝ ON...
                   CurStateIs ON: {  
                       CASE iOther:     F 0  
-                      CASE iDef1:      SendDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
-                      CASE iDef2:      SendDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
-                      CASE iEvl:       SendDef (F 1)  (1 _MacSet)⊣val←Execute MainScan DTB F 2  
-                      CASE iDefL:      SendDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2      
-                      CASE iIf:        SendState Push BoolElseErr MacScan F 1
-                      CASE iElIf iEl:  SendState Poke SKIP  
-                      CASE iEndIf:     SendState Pop ⍵
-                      CASE iDebug:     (F 0),SendState ON⊣DEBUG∘←'off'≢⎕C F 1 
+                      CASE iDef1:      PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
+                      CASE iDef2:      PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
+                      CASE iEvl:       PassDef (F 1)  (1 _MacSet)⊣val←Eval2Str MainScan DTB F 2  
+                      CASE iDefL:      PassDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2      
+                      CASE iIf:        PassState Push Eval2Bool MacScan F 1
+                      CASE iElIf iEl:  PassState Poke SKIP  
+                      CASE iEndIf:     PassState Pop ⍵
+                      CASE iDebug:     (F 0),PassState ON⊣DEBUG∘←'off'≢⎕C F 1 
                       ∘UNREACHABLE∘
                   }ON
                 ⍝ When (CurStateIs OFF or SKIP) for iDef1, iEvl, IDefL, iOther
-                  ⍵.PatternNum>iEndIf : SendState SKIP    
+                  ⍵.PatternNum>iEndIf : PassState SKIP    
                   CurStateIs OFF: {
-                      CASE iIf:    SendState Push SKIP  
-                      CASE iElIf:  SendState Poke BoolElseErr MacScan F 1
-                      CASE iEl:    SendState Poke ON
-                      CASE iEndIf: SendState Pop Peek ⍵
+                      CASE iIf:    PassState Push SKIP  
+                      CASE iElIf:  PassState Poke Eval2Bool MacScan F 1
+                      CASE iEl:    PassState Poke ON
+                      CASE iEndIf: PassState Pop Peek ⍵
                       ∘UNREACHABLE∘ 
                   }OFF
                 ⍝ CurStateIs SKIP:
-                  {   CASE iIf:       SendState Push SKIP
-                      CASE iElIf iEl: SendState SKIP
-                      CASE iEndIf:    SendState Pop Peek ⍵
+                  {   CASE iIf:       PassState Push SKIP
+                      CASE iElIf iEl: PassState SKIP
+                      CASE iEndIf:    PassState Pop Peek ⍵
                   } SKIP
                   ∘UNREACHABLE∘
-            }
+            } ⍝ ControlScanAction
             save←mâc.(K V) DEBUG                          ⍝ Save macros
               lines←pDQSQ pDots ⎕R '\0' ' ' ⍠reOPTS⊣⍵     ⍝ Simple continuation lines in Ctl directives...
               res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
             mâc.(K V) DEBUG← save                            ⍝ Restore macros
             res
-        } 
-        pSysDef ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-        pDebug   ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-        pTrpQ    ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?i)',pDQ,'([a-z]*)'
-        pSkip    ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
-        ⍝ pBRC←GenBracePat'{}'
-        pPAR     ←'()'                                  ⋄  pWRD    ← '[\w∆⍙_#\.⎕]+'
-        pPtr     ← ∊'(?ix) \$ \h* (' pPAR '|' pBRC '|' pWRD ')'
-            pHMID←'( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
-      ⍝ Here-strings and Multiline ("Here-string"-style) comments 
-        pHere    ← ∊'(?x)       ::: \h*   'pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-        pHCom    ← ∆Anchor∊'\h* ::: \h* ⍝ 'pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
-        pBase    ← '(?xi) 0 [xbo] [\w_]+'
-        pNum     ← '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
+        } ⍝ ControlScan 
   
-        mainScanPats← pSysDef pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMac pBase pNum 
-                      iSysDef iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMac iBase iNum←⍳≢mainScanPats
+        mainScanPats← pSysDef pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pBase pNum 
+                      iSysDef iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iBase iNum←⍳≢mainScanPats
         MainScan←{
             ~DO_MAINSCAN: ⍵  
             MainScan1←{  
@@ -304,8 +324,10 @@
                       l1←  opt ((≢F 4 ) Fmt2Code)  F 3
                       l1 {0=≢⍵~' ':⍺ ⋄ ⍺, CR, MainScan ⍵} F 5     ⍝ If no code after endToken, do nothing more...
                     }0   
-                    CASE iHCom: (F 2){kp←0≠≢⍺   0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR} DLB F 5 
-                    CASE iMac:  ⊢MacScan MacGet F 0                     
+                    CASE iHCom: (F 2){
+                      kp←0≠≢⍺  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
+                    } DLB F 5 
+                    CASE iMacro:  ⊢MacScan MacGet F 0                     
                     CASE iSysDef: ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
                     CASE iDebug:  ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                   ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
@@ -314,23 +336,23 @@
                     ∘Unreachable∘
                 }⍠reOPTS⊣⍵
             }
-            AtomScan←{ ⍝ ` (var | number | 'qt' | "qt")+
-            ⍝                    1 2       3                   4       4    4            4  3  2  1
-                pAtoms ← '(?x) `  \h* ( (?: (?: (''[^''\r]*'')+ | [\w∆⍙_#\.⎕¯]+  ) \h*  )+ )'          
-                pAtoms ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
-                    pAtomL← pSQ '[¯\d\.]\H*' '\H+' 
-                    iQt  iNum iLet←⍳≢pAtomL
-                    count←0 ⋄ allNum←1 ⋄ atomErr←0  
-                    list←pAtomL ⎕R {oneStr←1=≢⍵ ⋄  F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ CASE←⍵.PatternNum∘∊
-                        F0← F 0 ⋄ count+←1
-                        CASE iQt:   {3=≢⍵: AddPar ',', ⍵ ⋄ ⍵} F0 
-                        CASE iNum:  {(,1)≡⊃⎕VFI ⍵: ⍵ ⋄ atomErr∘←1 ⋄ ⍵⊣⎕←'∆FIX Warning: Invalid numeric atom'} F 0
-                        CASE iLet:  {3=≢⍵: AddPar ',' , ⍵ ⋄  ⍵} SQ,SQ,⍨F0 
-                        ∘Unreachable∘
-                    }⊣F 1 
-                    atomErr: F 0
-                    AddPar (',⊂'/⍨1=count), list
-                }⍠reOPTS⊣⍵
+            AtomScan←{ ⍝ [` or ``] (var | number | 'qt' | "qt")+
+                pAtomVec pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
+                  0≠⍵.PatternNum: F 0
+                  force←1=≢F 1    ⍝ If the ` is single (`), treat a single atom as a one-element list.
+                  pAtomEach← pSQ '[¯\d\.]\H*' '\H+' 
+                             iSQ iNum         iLet←⍳≢pAtomEach
+                  count←0 ⋄ allNum←1 ⋄ atomErr←0  
+                  list←pAtomEach ⎕R {oneStr←1=≢⍵ ⋄  F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ CASE←⍵.PatternNum∘∊
+                      F0← F 0 ⋄ count+←1
+                      CASE iSQ:   {3=≢⍵: AddPar ',', ⍵ ⋄ ⍵} F0 
+                      CASE iNum:  {(,1)≡⊃⎕VFI ⍵: ⍵ ⋄ atomErr∘←1 ⋄ ⍵⊣⎕←'∆FIX Warning: Invalid numeric atom'} F 0
+                      CASE iLet:  {3=≢⍵: AddPar ',' , ⍵ ⋄  ⍵} SQ,SQ,⍨F0 
+                      ∘Unreachable∘
+                  }⊣F 2 
+                  atomErr: F 0
+                  AddPar (',⊂'/⍨force∧1=count), list
+              }⍠reOPTS⊣⍵
             }
              AtomScan MainScan1  ⍵
         } ⍝ End MainScan 
@@ -344,9 +366,13 @@
         _←'::DEF'  macro 'mâc.⍙DEF'             ⍝   ::IF ::DEF "name"is 1 if name is defined...
       ⍝ <<< PREDEFINED MACROS END 
 
+      DFnScanIn←{ pBRC pSQ pDQ pCom ⎕R { 
+          F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ {HIDDEN_CR@ (CR∘=)⊢⍵}¨F0 
+      }⍠reOPTS⊣⍵ }
+      DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (HIDDEN_CR∘=)⊢⍵ }¨⍵}
       FullScan←{¯1↓ DFnScanOut MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝EXTRA⍝'}
 
-      UserEd←{
+      UserEdit←{
           ⍝ 0:: ↑(⊂'⍝ '),¨(⊂'Processing terminated due to error.'),⎕DMX.DM
           _←'∊' ⎕ED 'inp' ⊣ inp←⊆⍵ 
           inp≡⍵: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
@@ -358,8 +384,8 @@
           sep←⊂'⍝>⍝',30⍴' -'
           ∇ inp ,sep,'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣FullScan inp
       }
-    ⍝ If ⍺=1, UserEd for rt arg; otherwise simply use ⍵.
-      ⍺: UserEd '⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
+    ⍝ If ⍺=1, UserEdit for rt arg; otherwise simply use ⍵.
+      ⍺: UserEdit '⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
     ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
         FullScan ⍵
     }  
