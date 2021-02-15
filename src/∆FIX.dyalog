@@ -89,13 +89,13 @@
   ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
     pErr        ← ∆Anchor'\h* :(def[el]?|eval) \b \N* '
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pC_UCmd   ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
+    pC_UCmd     ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
     pOther      ← ∆Anchor'\N*' 
   ⍝+--------------------------------------------------+
   ⍝ C. MAIN SCAN PATTERNS   / ATOM SCAN PATTERNS      +  
   ⍝+--------------------------------------------------+
     pSysDef     ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-    pUCmd        ←'^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
+    pUCmd       ← '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
     pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?i)',pDQ,'([a-z]*)'
     pSkip       ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
