@@ -36,7 +36,7 @@
   ⍝ A. MULTIPLE SCANS                                 +
   ⍝+--------------------------------------------------+
     pDots  ←'(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?\r\h*'
-    pDQ    ← '("[^"]*")+'
+    pDQ    ← '(?:"[^"]*")+'
     pSQ    ← '(?:''[^''\r\x01]*'')+' 
     pDQSQ  ← pDQ,'|',pSQ
     pCom   ←'⍝[^\r\x01]*$' 
@@ -63,19 +63,21 @@
   ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
   ⍝ where name* is a sequence of chars except spaces, ←, or CR.
   ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
-    pDef1        ← ∆Anchor'\h* :: def  \h+ ((?>[^\h←\r]+)) \h* ← \h*  (',pMULTI_NOCOM,'+|) \N* ' 
+    pDef1        ← ∆Anchor'\h* :: def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (',pMULTI_NOCOM,'+|) \N* ' 
   ⍝ ::EVAL or synonym ::DEFE 
   ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
   ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
   ⍝ where name* is a sequence of chars except spaces, ←, or CR. 
   ⍝ The value stored will be determined in the calling namespace CALR as
   ⍝     CALR ⍎ value
-    pEvl         ← ∆Anchor'\h* :: (?:eval|defe) \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_NOCOM,'+|) \N* '   
+  ⍝                                                  F1                            F2
+    pEvl         ← ∆Anchor'\h* :: (?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (',pMULTI_NOCOM,'+|) \N* '   
+    pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic)) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (',pMULTI_NOCOM,'+|) \N* ' 
   ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
   ⍝      blanks, word*, blanks, ← optional blank, value*
   ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
   ⍝ The value will not be enclosed in parentheses.
-    pDefL        ← ∆Anchor'\h* :: defl \h+ ((?>[^\h←\r]+)) \h* ← \h? (',pMULTI_COM,'|) '  
+    pDefL        ← ∆Anchor'\h* :: defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h? (',pMULTI_COM,'|) '  
   ⍝ For ::DEF of forms:   
   ⍝     ::DEF name    OR    ::def name value  
   ⍝ we match after the ctl word:
@@ -97,7 +99,7 @@
     pSysDef     ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
     pUCmd       ← '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?i)',pDQ,'([a-z]*)'
+    pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?xi) (',pDQ,') ([a-z]*)'
     pSkip       ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
     pParen      ← GenBracePat '()'                     ⋄  pWord   ← '[\w∆⍙_#.⎕]+'
     pPtr        ← ∊'(?ix) \$ \h* (' pParen '|' pBrak '|' pWord ')'
@@ -247,18 +249,33 @@
             p<nKV: val⊣ { ⍵: mâc.V[p]←⊂val ⋄ 1: mâc.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
             ⍺≡⍵: val ⋄ mâc.(K V),← ⊂¨key val ⋄   val
         }  
-        MacGet←{0=≢⍵: ⍵ ⋄ p←mâc.K⍳⊂⍙K ⍵ ⋄ p<≢mâc.K: p⊃mâc.V ⋄ ⍵ }
+      ⍝ MacGet ⍵  -- Return macro defined for ⍵, if found;
+      ⍝              Else if ⍵ is complex, i.e. of the form ⍵1.⍵2.⍵3 (etc.), 
+      ⍝                  Return macro for each ⍵N in ⍵1.⍵2.⍵3, else ⍵N itself
+      ⍝              Else return ⍵ itself.
+      ⍝              If any ⍵N returns null, do not include a period before or after it.
+        MacGet←{
+            0=≢⍵: ⍵ 
+            p←mâc.K⍳⊂⍙K ⍵ 
+            p<≢mâc.K: p⊃mâc.V          ⍝ Full name found, simple or complex
+            '.'(~∊)⍵: ⍵                ⍝ Name is simple...    
+            AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ⍺,(noNull/'.'),⍵ }   
+            ⊃AddDots/∇¨'.'(≠⊆⊢)⍵       ⍝ Name is complex. Check for definitions of the pieces! 
+        }
       ⍝ ------END MACROS
 
-      ⍝ Fmt2Code: ⍺: 
+      ⍝ Fmt2Code: 
       ⍝     Convert possibly multiline strings to the requested format and return as an APL code string.
+      ⍝ output_string ← ⍺: options (⍺⍺: indent ∇ ) ⍵: input_string
       ⍝ Output format: options '[clsvm]'.   
       ⍝    'r' carriage returns for linends (def); 'l' LF for linends; 's' spaces replace linends 
       ⍝    'v' vector of vectors;    'm' APL matrix;    
       ⍝ Escape option. Works with any one above. 
       ⍝    'e' backslash (\) escape followed by eol => single space. Otherwise, as above.
       ⍝    'c' string is a comment to treat in toto as a blank.
-      ⍝ indent: >0, use as is for indent of lines; <0, use indent of left-most line for indent; 0, as is.
+      ⍝ indent: ⍺⍺>0,  remove ⍺⍺ leading blanks from each line presented
+      ⍝         ⍺⍺=¯1  remove left_in, the indent of left-most line for indent, from each line presented...
+      ⍝         ⍺⍺=0   leave lines as is.
         Fmt2Code←{ ⍺←'' ⋄ indent←⍺⍺  
           ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'r'.
             o1 o2 od ←'rlsvm' 'ec' 'r'  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od) ⎕C ⍺
@@ -285,17 +302,25 @@
       ⍝ Uses a name based on the braces and the ?J option, so PCRE functions properly[*].
       ⍝    * Any repeat definitions of these names MUST be identical.
     
-      ⍝ Eval2Str: Execute and return a string rep.
-        Eval2Str←CALR∘{⎕FR ⎕PP←1287 34 ⋄ 0:: ⍵,' ∘err∘'
-            res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵ ⋄ 0≠80|⎕DR res: 1↓∊CR,res2 ⋄  ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
+      ⍝ In CALR env, ensure max rep possible for numeric results.
+      ⍝ See Eval2Str, EvalStat.
+        _MaxOut←{save←CALR.(⎕FR ⎕PP) ⋄ CALR.(⎕FR ⎕PP)←1287 34 
+                 r← CALR ⍺⍺ ⍵ ⋄ CALR.(⎕FR ⎕PP)←save ⋄ r 
         }
+      ⍝ Eval2Str: In CALR env., execute a string and return a string rep of the result.
+        Eval2Str←{ 0:: ⍵,' ∘err∘' ⋄ res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵  
+            0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
+        } _MaxOut
       ⍝ Eval2Bool: Execute and return 1 True, 0 False, ¯1 Error.
-        Eval2Bool←CALR∘{0:: ¯1  ⋄ (,0)≡v←,⍺⍎'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}    
+        Eval2Bool←CALR∘{0:: ¯1  ⋄ (,0)≡v←,⍺⍎'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}  
+      ⍝ EvalStat: In CALR env, execute a string and return the result as a precalculated static value. 
+      ⍝           Leave string as is, if unable.  OK with various basic types per repObj in Dyalog utils.
+        EvalStat← {0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxOut 
 
         ControlScan←{ 
             ~DO_CONTROLSCAN: ⍵
-            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pDefL pErr pDebug pC_UCmd pOther
-                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iDefL iErr iDebug iC_UCmd iOther←⍳≢controlScanPats
+            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDefL pErr pDebug pC_UCmd pOther
+                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDefL iErr iDebug iC_UCmd iOther←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -312,7 +337,7 @@
                      '⍝', (STATES⊃⍨1+⊃∊⍵), pCrFamily ⎕R actCrFamily ⍠reOPTS⊣F 0  
                   }
                 ⍝ Format for PassDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
-                  PassDef←{(PassState ON),'::SysDefø ',(F 1),'←',⍵,CR }    
+                  PassDef←{(PassState ON),(F 1),'←',⍵,CR }    
 
                   CASE iErr: (¯1↓F 0),'○○○ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
                 ⍝ ON...
@@ -320,18 +345,19 @@
                       CASE iOther:      F 0  
                       CASE iDef1:       PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
-                      CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣val←Eval2Str MainScan DTB F 2  
+                      CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣      Eval2Str MainScan DTB F 2  
+                      CASE iStatic:    (PassState ON),  (F 1),(F 2),CR,⍨ EvalStat MainScan DTB F 3  
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2      
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
                       CASE iEndIf:      PassState Pop ⍵
                       CASE iDebug:      (F 0),PassState ON⊣DEBUG∘←'off'≢⎕C F 1 
                       CASE iC_UCmd:     (PassState ON),{
-                                           0=≢⍵:'' ⋄ '⍝> ',CR,⍨⍵
+                                           0=≢⍵:'' ⋄ '⍝> ',CR,⍨⍵     ⍝ Report result, if any...
                                         }Eval2Str'⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2    
                       ∘UNREACHABLE∘
                   }ON
-                ⍝ When (CurStateIs OFF or SKIP) for iDef1, iEvl, IDefL, iOther
+                ⍝ When (CurStateIs OFF or SKIP) for iDef1, iEvl, IDefL, iOther, iStatic
                   ⍵.PatternNum>iEndIf : PassState SKIP    
                   CurStateIs OFF: {
                       CASE iIf:    PassState Push SKIP  
@@ -362,8 +388,9 @@
                 mainScanPats ⎕R{  
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                     ⋄ CASE←⍵.PatternNum∘∊                 
-                    CASE iTrpQ: (F 3) ((≢F 2) Fmt2Code) F 1               
-                    CASE iDQPlus: (F 2) (0 Fmt2Code) UnDQ F 1                
+                    CASE iTrpQ: (F 3) ((≢F 2) Fmt2Code) F 1  
+                  ⍝ Body indent based on leading blanks on left-most line...             
+                    CASE iDQPlus: (F 2) (¯1 Fmt2Code) UnDQ F 1   ⍝ ⊣ lb←≢∊'\r( *)\N*\Z' ⎕S '\1' ⍠('Mode' 'M')⊣F 1                
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
                     CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE' ⊣⎕←'<',(MainScan F 1),'>' 
                     CASE iSkip: F 0                
@@ -415,34 +442,42 @@
         _←'⎕F'     macro '∆F'                   ⍝   APL-ified Python-reminiscent format function
         _←'⎕TO'    macro '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
         _←'::DEF'  macro 'mâc.⍙DEF'             ⍝   ::IF ::DEF "name"is 1 if name is defined...
+      ⍝ ⎕MY - a static namespace for each function... Requires (⎕SE.∆REQ) '∆MY'
+        _←'⎕MY'    macro {
+                      STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
+                         _←'({0:: ⎕SIGNAL/''Requires library ∆MY'' 11 ⋄  0:: ⍵ ∆MYX 1'
+                      _⊣ _,←'⋄ ⍵⍎','''',STATIC_PREFIX,'''',',1⊃⎕SI}(0⊃⎕RSI,#))' 
+        }⍬
       ⍝ <<< PREDEFINED MACROS END 
 
       DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { 
           F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ {CR_HIDDEN@ (CR∘=)⊢⍵}¨F0 
       }⍠reOPTS⊣⍵ }
       DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_HIDDEN∘=)⊢⍵ }¨⍵}
-      FullScan←{¯1↓ DFnScanOut MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝EXTRA⍝'}
+    ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
+      FullScan←{¯1↓ DFnScanOut MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
       UserEdit←{
+          alt←'⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
+          cur←⊆(0<≢⍵)⊃alt ⍵
           ⍝ 0:: ↑(⊂'⍝ '),¨(⊂'Processing terminated due to error.'),⎕DMX.DM
-          _←'∊' ⎕ED 'inp' ⊣ inp←⊆⍵ 
-          inp≡⍵: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
+          _←⎕ED 'edit' ⊣ edit←cur 
+          edit≡cur: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
             #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''>>> FIX_FN done.'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
             0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘err∘
             'User Edit complete. See function #.',rc,'.'
-          }⍵
-          inp←'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣inp
+          }cur
+          edit←'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣edit
           sep←⊂'⍝>⍝',30⍴' -'
-          ∇ inp ,sep,'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣FullScan inp
+          ∇ edit ,sep,'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣FullScan edit
       }
     ⍝ If ⍺=1, UserEdit for rt arg; otherwise simply use ⍵.
-      ⍺: UserEdit '⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
-    ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
-        FullScan ⍵
+      ⍺:  UserEdit ⍵ 
+          FullScan ⍵
     }  
 
   ⍝ "Secret" options -e (edit), -nof (do not fix)
     ⍺←⊢  ⋄  oEdit noFix←'-e' '-nof'≡¨2 4↑¨⊂⍕⍺,''
-    oEdit: 1 Executive ⍬
+    oEdit: 1 Executive ⍵
     ⍺ CALR.⎕FIX⍣(~noFix)⊣Executive LoadLines ⍵ 
 }

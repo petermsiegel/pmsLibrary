@@ -62,10 +62,14 @@
     :EndTrap 
     ∇ 
 
+    ∇ string ← ∆MY_MACRO
+      string←'({0:: ⍵ ∆MYX 1⋄ ⍵⍎','''',STATIC_PREFIX,'''',',1⊃⎕SI}(0⊃⎕RSI,#))'
+    ∇
+
     ∇ myNs← {callerNs} ∆MYX args
          ;auto ;myNm ;myDF ;myNsNm
-    ⍝ myNs← [callerNs@R] ∆MYX args@(I B | S B)  
-     ⍝ ;auto;callerNs;fnLvl;myNm;myNsNm;si;⎕IO
+      ⍝ myNs← [callerNs@R] ∆MYX args@(I B | S B)  
+      ⍝ ;auto;callerNs;fnLvl;myNm;myNsNm;si;⎕IO
       ⍝ args: Either   fnLvl@I [auto=1]  OR  myNm@S [auto=1]
       ⍝ fnLvl:  An int n: get the n-th function on the stack after this one.
       ⍝         n=0: Get the function that called this one (1⊃⎕SI), in general ((1+n)⊃⎕SI).
@@ -105,11 +109,12 @@
     ∇         
 
   ⍝ ∆OPTIM: See HELP below...
-    ∆OPTIM←{⎕IO←0 ⋄ ⍺←1⊃⎕RSI 
+    ∆OPTIM←{⎕IO←0 ⋄ ⍺←0⊃⎕RSI 
+      NsRealName←{0:: ⍵ ⋄ (⍵.⎕DF save)⊢ ⍕⍵ ⊣ save←⍵.⎕DF ⎕NULL}
       nm←⎕SI{0<≢⍵: ⍵ ⋄ 1⊃⍺}⍵
       skipP← '(''[^'']*'')+|⍝.*' ⋄ nameP←  '(?<!\.)∆MY\b'
-      skipA← '\0'                ⋄ nameA←  ⍕⍺ ∆MYX nm
-      1: _←⍺.⎕FX skipP nameP ⎕R skipA nameA ⍠'UCP' 1⊣⍺.⎕NR nm
+      skipA← '\0'                ⋄ nameA←  NsRealName ⍺ ∆MYX nm
+      1: _←⍺.⎕FX skipP nameP ⎕R skipA nameA ⍠'UCP' 1⊣⊆⍺.⎕NR nm
     }
 
 ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -169,7 +174,7 @@
   ⍝  Note: ∆MY is an optimized equivalent to (∆MYX 1). It's about 30% faster.
   ⍝ 
   ⍝  [caller_ns] ∆MYgrp.∆OPTIM  [fn | '']
-  ⍝  Description: Takes the function name <fn> specified or ((1+⎕IO)⊃⎕SI) if 0-length
+  ⍝  Description: Takes the function name <fn> specified or ((1+⎕IO)⊃⎕SI) if ⍵ is a 0-length string
   ⍝  and replaces IN PLACE any use of the unprefixed name ∆MY  (i.e. ∆MY or ∆MY,anything) with
   ⍝  the name (string form) of the fn's ∆MY-space.  The caller_ns defaults to the calling fn's namespace.
   ⍝  Allows ∆MY functionality with minimal performance penalty.
