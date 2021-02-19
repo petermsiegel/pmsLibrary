@@ -11,7 +11,7 @@
 
     ⎕IO ⎕ML←0 1    
     DEBUG←1 ⋄   DO_MAINSCAN DO_CONTROLSCAN←1 1 
-    SINK_NAME←'TMPØØØ'
+    SINK_NAME←'_síñk'
 
   ⍝ For CR_HIDDEN, see also \x01 in Pattern Defs (below).
     SQ DQ←'''"' ⋄ CR CR_HIDDEN←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
@@ -33,7 +33,7 @@
           pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
           'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
     }
-    ∆Anchor←{'(?xi) ^',⍵,'$\r'}
+    ∆Anchor←{∊'(?xi) ^',⍵,'$\r'}
   ⍝+--------------------------------------------------+
   ⍝ A. MULTIPLE SCANS                                 +
   ⍝+--------------------------------------------------+
@@ -65,7 +65,7 @@
   ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
   ⍝ where name* is a sequence of chars except spaces, ←, or CR.
   ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
-    pDef1        ← ∆Anchor'\h* :: def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (',pMULTI_NOCOM,'+|) \N* ' 
+    pDef1        ← ∆Anchor'\h* :: def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (' pMULTI_NOCOM '+|) \N* ' 
   ⍝ ::EVAL or synonym ::DEFE 
   ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
   ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
@@ -73,16 +73,16 @@
   ⍝ The value stored will be determined in the calling namespace CALR as
   ⍝     CALR ⍎ value
   ⍝                                                  F1                            F2
-    pEvl         ← ∆Anchor'\h* :: (?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (',pMULTI_NOCOM,'+|) \N* '   
+    pEvl         ← ∆Anchor'\h* :: (?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (' pMULTI_NOCOM '+|) \N* '   
   ⍝ Static, similar logic to Eval, but outputs
   ⍝         name ← value 
   ⍝ using Dyalog's <repObj> to create an executable expression in the output code.
-    pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic)) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (',pMULTI_NOCOM,'+|) \N* ' 
+    pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic)) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
   ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
   ⍝      blanks, word*, blanks, ← optional blank, value*
   ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
   ⍝ The value will not be enclosed in parentheses.
-    pDefL        ← ∆Anchor'\h* :: defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h? (',pMULTI_COM,'|) '  
+    pDefL        ← ∆Anchor'\h* :: defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h? (' pMULTI_COM '|) '  
   ⍝ For ::DEF of forms:   
   ⍝     ::DEF name    OR    ::def name value  
   ⍝ we match after the ctl word:
@@ -96,7 +96,7 @@
   ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
     pErr        ← ∆Anchor'\h* :(def[el]?|eval) \b \N* '
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pUCmdC     ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
+    pUCmdC      ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
     pOther      ← ∆Anchor'\N*' 
   ⍝+--------------------------------------------------+
   ⍝ C. MAIN SCAN PATTERNS   / ATOM SCAN PATTERNS      +  
@@ -104,7 +104,7 @@
     pSysDef     ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
     pUCmd       ← '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← '(?xi) (',pDQ,') ([a-z]*)'
+    pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← ∊'(?xi) (' pDQ ') ([a-z]*)'
     pSkip       ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
     pParen      ← GenBracePat '()'                     ⋄  pWord   ← '[\w∆⍙_#.⎕]+'
     pPtr        ← ∊'(?ix) \$ \h* (' pParen '|' pBrak '|' pWord ')'
@@ -139,7 +139,6 @@
   ⍝         ...                                         
   ⍝ pAtomVec: "[\w∆⍙_#\.⎕¯]+" includes pWord chars plus '¯'
     pAtomVec     ← ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ )'          
-
   ⍝+--------------------------------------------------+
   ⍝ END Pattern Definitions                           +
   ⍝+--------------------------------------------------+
@@ -278,29 +277,39 @@
       ⍝ Escape option. Works with any one above. 
       ⍝    'e' backslash (\) escape followed by eol => single space. Otherwise, as above.
       ⍝    'c' string is a comment to treat in toto as a blank.
+      ⍝ Exdent option. Useful for DQString "..." only. Triple quote strings and here docs already use ¯1.
+      ⍝    'x' Force indent←¯1, ignoring actual setting... (Will work even on a single-line DQ string)
       ⍝ indent: ⍺⍺>0,  remove ⍺⍺ leading blanks from each line presented
       ⍝         ⍺⍺=¯1  remove left_in, the indent of left-most line for indent, from each line presented...
       ⍝         ⍺⍺=0   leave lines as is.
-        Fmt2Code←{ ⍺←'' ⋄ indent←⍺⍺  
+      ⍝         See also 'x' exdent option.
+        Fmt2Code←{ ⍺←''   
           ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'r'.
-            o1 o2 od ←'rlsvm' 'ec' 'r'  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od) ⎕C ⍺
-            R L S V M E C←o∊⍨∊o1 o2
-            0≠≢err←o~∊o1 o2: 11 ⎕SIGNAL⍨'∆FIX: Invalid option "',err,'"' 
+            o1 o2 od ←'rlsvm' 'ecx' 'r'  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
+          ⍝ R: CRs    L: LFs    S: Spaces   V: Vectors   M: Matrix
+          ⍝ E: Escape (\)       C: Comment (⍝)
+            R L S V M E C X←o∊⍨∊o1 o2
+            0≠≢err←o~∊o1 o2: 11 ⎕SIGNAL⍨'∆FIX String/Here: One or more invalid options "',err,'" in "',⍺,'"' 
+            indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
             C: ' '
             SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
-            S2Vv←      { 2=|≡⍵:⍵ ⋄ CR(≠⊆⊢)⊢⍵ }                        
+            S2Vv←      { 2=|≡⍵:⍵ ⋄ CR_HIDDEN~⍨¨CR(≠⊆⊢)⊢⍵ }     ⍝ See DQTweak below for origin of these CR_HIDDENs                   
             TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
-            FormatPerOpt← {
+            FormatPerOpt← {multi←⍺
              ⍝  0=≢⍵: 2⍴SQ
               AddSQ←SQ∘,∘⊢,∘SQ 
-              V∨M: (M/'↑') ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
+              V∨M: ('↑'/⍨M∧multi) ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
               R∨L: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃10 13 ),'),',SQ  
               ∘Unreachable∘  
             }
             0=≢⍵: 2⍴SQ
-            nl←≢lines←S2Vv ⍵  ⍝ Don't add parens, if just one line...
-            AddPar⍣((nl>1)∧~V)⊣FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
+            multi←1<≢lines←S2Vv ⍵  ⍝ Don't add parens, if just one line...
+            AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
         }
+      ⍝ See iDQPlus (below) and Fmt2Code above...
+      ⍝ We add a "spurioius" CR_HIDDEN so Fmt2Code sees leading and trailing bare " on separate lines... 
+        DQTweak←CR_HIDDEN∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }           
+      
       ⍝ pat ← GenBracePat ⍵, where ⍵ is a pair of braces: ⍵='()', '[]', or '{}'.  
       ⍝ Generates a pattern to match unquoted balanced braces across newlines, skipping
       ⍝   (a) comments to the end of the current line, (b) quoted strings (single or double).
@@ -387,7 +396,7 @@
         } ⍝ ControlScan 
   
 
-        pSink←'(?xi) (?:^|(?<=[]{(⋄]))(\h*)(←)'
+        pSink←'(?xi) (?:^|(?<=[]{(⋄:]))(\h*)(←)'  ⍝ Move up
         mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum pSink
                       iSysDef iUCmd iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum iSink←⍳≢mainScanPats
         MainScan←{
@@ -397,8 +406,8 @@
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                     ⋄ CASE←⍵.PatternNum∘∊                 
                     CASE iTrpQ: (F 3) ((≢F 2) Fmt2Code) F 1  
-                  ⍝ Body indent based on leading blanks on left-most line...             
-                    CASE iDQPlus: (F 2) (¯1 Fmt2Code) UnDQ F 1   ⍝ ⊣ lb←≢∊'\r( *)\N*\Z' ⎕S '\1' ⍠('Mode' 'M')⊣F 1                
+                  ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
+                    CASE iDQPlus: (F 2) (0 Fmt2Code) DQTweak UnDQ F 1                    
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
                     CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE'  
                     CASE iSkip: F 0                
