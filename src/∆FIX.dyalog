@@ -11,6 +11,8 @@
 
     ⎕IO ⎕ML←0 1    
     DEBUG←1 ⋄   DO_MAINSCAN DO_CONTROLSCAN←1 1 
+    SINK_NAME←'TMPØØØ'
+
   ⍝ For CR_HIDDEN, see also \x01 in Pattern Defs (below).
     SQ DQ←'''"' ⋄ CR CR_HIDDEN←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
@@ -72,6 +74,9 @@
   ⍝     CALR ⍎ value
   ⍝                                                  F1                            F2
     pEvl         ← ∆Anchor'\h* :: (?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (',pMULTI_NOCOM,'+|) \N* '   
+  ⍝ Static, similar logic to Eval, but outputs
+  ⍝         name ← value 
+  ⍝ using Dyalog's <repObj> to create an executable expression in the output code.
     pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic)) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (',pMULTI_NOCOM,'+|) \N* ' 
   ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
   ⍝      blanks, word*, blanks, ← optional blank, value*
@@ -91,7 +96,7 @@
   ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
     pErr        ← ∆Anchor'\h* :(def[el]?|eval) \b \N* '
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pC_UCmd     ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
+    pUCmdC     ← ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
     pOther      ← ∆Anchor'\N*' 
   ⍝+--------------------------------------------------+
   ⍝ C. MAIN SCAN PATTERNS   / ATOM SCAN PATTERNS      +  
@@ -302,25 +307,26 @@
       ⍝ Uses a name based on the braces and the ?J option, so PCRE functions properly[*].
       ⍝    * Any repeat definitions of these names MUST be identical.
     
-      ⍝ In CALR env, ensure max rep possible for numeric results.
+      ⍝ In CALR env, ensure max precision possible for numeric results.
       ⍝ See Eval2Str, EvalStat.
-        _MaxOut←{save←CALR.(⎕FR ⎕PP) ⋄ CALR.(⎕FR ⎕PP)←1287 34 
+        _MaxPrecision←{save←CALR.(⎕FR ⎕PP) ⋄ CALR.(⎕FR ⎕PP)←1287 34 
                  r← CALR ⍺⍺ ⍵ ⋄ CALR.(⎕FR ⎕PP)←save ⋄ r 
         }
       ⍝ Eval2Str: In CALR env., execute a string and return a string rep of the result.
-        Eval2Str←{ 0:: ⍵,' ∘err∘' ⋄ res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵  
+        Eval2Str←{ 0:: ⍵,' ∘EVALUATION ERROR∘'  ⋄ res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵  
             0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
-        } _MaxOut
+        } _MaxPrecision
       ⍝ Eval2Bool: Execute and return 1 True, 0 False, ¯1 Error.
         Eval2Bool←CALR∘{0:: ¯1  ⋄ (,0)≡v←,⍺⍎'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}  
       ⍝ EvalStat: In CALR env, execute a string and return the result as a precalculated static value. 
       ⍝           Leave string as is, if unable.  OK with various basic types per repObj in Dyalog utils.
-        EvalStat← {0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxOut 
+        EvalStat← {0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxPrecision 
 
         ControlScan←{ 
             ~DO_CONTROLSCAN: ⍵
-            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDefL pErr pDebug pC_UCmd pOther
-                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDefL iErr iDebug iC_UCmd iOther←⍳≢controlScanPats
+          ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code
+            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDefL pErr pDebug pUCmdC pOther
+                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -336,23 +342,23 @@
                     ⍝ See:  pCrFamily,  actCrFamily above.
                      '⍝', (STATES⊃⍨1+⊃∊⍵), pCrFamily ⎕R actCrFamily ⍠reOPTS⊣F 0  
                   }
-                ⍝ Format for PassDef:   /::SysDefø name←value/ with the name /[^←]+/ and single spaces as shown.
-                  PassDef←{(PassState ON),(F 1),'←',⍵,CR }    
+                ⍝ Format for PassDef:   "::SysDefø name←value" with the name /[^←]+/ and a single space as shown.
+                  PassDef←{(PassState ON),'::SysDefø ' ,(F 1),'←',⍵,CR }    
 
                   CASE iErr: (¯1↓F 0),'○○○ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
                 ⍝ ON...
-                  CurStateIs ON: {  
+                  CurStateIs ON: {   chk←{⎕←'<',⍵,'>' ⋄ ⍵}
                       CASE iOther:      F 0  
                       CASE iDef1:       PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
                       CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣      Eval2Str MainScan DTB F 2  
-                      CASE iStatic:    (PassState ON),  (F 1),(F 2),CR,⍨ EvalStat MainScan DTB F 3  
-                      CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2      
+                      CASE iStatic:     (PassState ON),(F 1),(F 2),CR,⍨ EvalStat MainScan DTB F 3  
+                      CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
                       CASE iEndIf:      PassState Pop ⍵
                       CASE iDebug:      (F 0),PassState ON⊣DEBUG∘←'off'≢⎕C F 1 
-                      CASE iC_UCmd:     (PassState ON),{
+                      CASE iUCmdC:     (PassState ON),{
                                            0=≢⍵:'' ⋄ '⍝> ',CR,⍨⍵     ⍝ Report result, if any...
                                         }Eval2Str'⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2    
                       ∘UNREACHABLE∘
@@ -380,8 +386,10 @@
             res
         } ⍝ ControlScan 
   
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum 
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum←⍳≢mainScanPats
+
+        pSink←'(?xi) (?:^|(?<=[]{(⋄]))(\h*)(←)'
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum pSink
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum iSink←⍳≢mainScanPats
         MainScan←{
             ~DO_MAINSCAN: ⍵  
             MainScan1←{  
@@ -392,7 +400,7 @@
                   ⍝ Body indent based on leading blanks on left-most line...             
                     CASE iDQPlus: (F 2) (¯1 Fmt2Code) UnDQ F 1   ⍝ ⊣ lb←≢∊'\r( *)\N*\Z' ⎕S '\1' ⍠('Mode' 'M')⊣F 1                
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
-                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE' ⊣⎕←'<',(MainScan F 1),'>' 
+                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE'  
                     CASE iSkip: F 0                
                   ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts   ← :c :l :v :m :s
                   ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
@@ -410,7 +418,8 @@
                   ⍝ CASE iDebug:  (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                     CASE iNumBase: ∆DEC (F 0)~'_'
                     CASE iNum:     (F 0)~'_'
-                    CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2    
+                    CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2   
+                    CASE iSink:    (F 1),SINK_NAME,(F 2)    ⍝ F1: blanks (keep alignment), SINK_NAME←
                     ∘UNREACHABLE∘
                 }⍠reOPTS⊣⍵
             }
@@ -442,12 +451,13 @@
         _←'⎕F'     macro '∆F'                   ⍝   APL-ified Python-reminiscent format function
         _←'⎕TO'    macro '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
         _←'::DEF'  macro 'mâc.⍙DEF'             ⍝   ::IF ::DEF "name"is 1 if name is defined...
-      ⍝ ⎕MY - a static namespace for each function... Requires (⎕SE.∆REQ) '∆MY'
+      ⍝ ⎕MY - a static namespace for each function... Requires accessible namespace '∆MYgrp' (library ∆MY).
         _←'⎕MY'    macro {
                       STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
                          _←'({0:: ⎕SIGNAL/''Requires library ∆MY'' 11 ⋄  0:: ⍵ ∆MYX 1'
                       _⊣ _,←'⋄ ⍵⍎','''',STATIC_PREFIX,'''',',1⊃⎕SI}(0⊃⎕RSI,#))' 
         }⍬
+        _←'⎕TMP'  macro SINK_NAME
       ⍝ <<< PREDEFINED MACROS END 
 
       DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { 
