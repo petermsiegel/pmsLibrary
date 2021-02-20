@@ -1,20 +1,25 @@
 ﻿∆FIX←{
   ⍝ See ∆FIX.help for documentation.
+  ⍝     result ← options ∆FIX  [filename:@S | lines:@VS]
+  ⍝ The result is as for ⎕FIX, i.e. names of objects fixed, unless a "nonce" option (extension) is used (q.v.).
+  ⍝
   ⍝ Syntax is as for ⎕FIX, except for 
-  ⍝    a) "secret" options:
-  ⍝       -nof[ix]  Return the translated lines without then ⎕FIXing them.
-  ⍝       -e[dit]   Enter an editing environment to test various code sequences and 
-  ⍝                 view the translated lines. Creates:
-  ⍝                 ∘ a char var #.FIX_FN_SRC with the current test code, and
-  ⍝                 ∘ an executable #.FIX_FN, if successfully ∆FIXed.
-  ⍝    b) tolerates a missing :file// prefix (required by ⎕FIX) when ∆FIX's right arg ⍵ is a single vector fileid.
-
+  ⍝    a) "nonce" options:
+  ⍝        'n[ofix]'  Return the translated lines without then ⎕FIXing them.
+  ⍝        'e[dit]'   Enter an editing environment to test various code sequences and 
+  ⍝                   view the translated lines. Creates:
+  ⍝                   ∘ a char var #.FIX_FN_SRC with the current test code, and
+  ⍝                   ∘ an executable #.FIX_FN, if successfully ∆FIXed.
+  ⍝    b) filename: Automatically supplies :file// prefix (required by ⎕FIX), if a simple character vector (VS).
+  ⍝ 
+    DEBUG←0 
     ⎕IO ⎕ML←0 1    
-    DEBUG←1 ⋄   DO_MAINSCAN DO_CONTROLSCAN←1 1 
-    SINK_NAME←'_síñk'
 
-  ⍝ For CR_HIDDEN, see also \x01 in Pattern Defs (below).
-    SQ DQ←'''"' ⋄ CR CR_HIDDEN←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
+  ⍝ See pSink ←
+   SINK_NAME←'_síñk'
+  ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
+  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displayinh preprocessor control statments.
+    SQ DQ←'''"' ⋄ CR CR_INTERNAL←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
@@ -114,6 +119,7 @@
     pHCom       ← ∆Anchor∊'\h* ::: \h* ⍝ '_pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
     pNumBase    ← '(?xi) 0 [xbo] [\w_]+'
     pNum        ← '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
+    pSink←'(?xi) (?:^|(?<=[]{(⋄\x01:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
     pMacro      ← {
         APL_LET1←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
         _pVarName← '(?i)[',APL_LET1,'][⎕.\d',APL_LET1,']*'
@@ -137,8 +143,9 @@
   ⍝         mycolor←`red 
   ⍝         :IF mycolor ∊ colors  ⍝ Is my color valid?
   ⍝         ...                                         
-  ⍝ pAtomVec: "[\w∆⍙_#\.⎕¯]+" includes pWord chars plus '¯'
-    pAtomVec     ← ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ )'          
+  ⍝ pAtomList: "[\w∆⍙_#\.⎕¯]+" includes pWord chars plus '¯'
+    pAtomList     ← ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ )'     
+    pAtomsArrow  ← ∊'(?x) ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ ) (→{1,2}) '          
   ⍝+--------------------------------------------------+
   ⍝ END Pattern Definitions                           +
   ⍝+--------------------------------------------------+
@@ -293,7 +300,7 @@
             indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
             C: ' '
             SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
-            S2Vv←      { 2=|≡⍵:⍵ ⋄ CR_HIDDEN~⍨¨CR(≠⊆⊢)⊢⍵ }     ⍝ See DQTweak below for origin of these CR_HIDDENs                   
+            S2Vv←      { 2=|≡⍵:⍵ ⋄ CR_INTERNAL~⍨¨CR(≠⊆⊢)⊢⍵ }     ⍝ See DQTweak below for origin of these CR_INTERNALs                   
             TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
             FormatPerOpt← {multi←⍺
              ⍝  0=≢⍵: 2⍴SQ
@@ -307,8 +314,8 @@
             AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
         }
       ⍝ See iDQPlus (below) and Fmt2Code above...
-      ⍝ We add a "spurioius" CR_HIDDEN so Fmt2Code sees leading and trailing bare " on separate lines... 
-        DQTweak←CR_HIDDEN∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }           
+      ⍝ We add a "spurioius" CR_INTERNAL so Fmt2Code sees leading and trailing bare " on separate lines... 
+        DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }           
       
       ⍝ pat ← GenBracePat ⍵, where ⍵ is a pair of braces: ⍵='()', '[]', or '{}'.  
       ⍝ Generates a pattern to match unquoted balanced braces across newlines, skipping
@@ -332,7 +339,6 @@
         EvalStat← {0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxPrecision 
 
         ControlScan←{ 
-            ~DO_CONTROLSCAN: ⍵
           ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code
             controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDefL pErr pDebug pUCmdC pOther
                             iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
@@ -347,7 +353,7 @@
                   F←⍵.{0:: '' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
                   CASE←⍵.PatternNum∘∊ 
                   PassState←{ ⍺←0 ⋄ ~DEBUG: ''  
-                    ⍝ ControlScan: Keep final CR; otherwise: CR and CR_HIDDEN become display_CR 
+                    ⍝ ControlScan: Keep final CR; otherwise: CR and CR_INTERNAL become display_CR 
                     ⍝ See:  pCrFamily,  actCrFamily above.
                      '⍝', (STATES⊃⍨1+⊃∊⍵), pCrFamily ⎕R actCrFamily ⍠reOPTS⊣F 0  
                   }
@@ -396,11 +402,9 @@
         } ⍝ ControlScan 
   
 
-        pSink←'(?xi) (?:^|(?<=[]{(⋄:]))(\h*)(←)'  ⍝ Move up
         mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum pSink
                       iSysDef iUCmd iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum iSink←⍳≢mainScanPats
         MainScan←{
-            ~DO_MAINSCAN: ⍵  
             MainScan1←{  
                 mainScanPats ⎕R{  
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
@@ -433,9 +437,13 @@
                 }⍠reOPTS⊣⍵
             }
             AtomScan←{ ⍝ [` or ``] (var | number | 'qt' | "qt")+
-                pAtomVec pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
-                  0≠⍵.PatternNum: F 0
-                  force←1=≢F 1    ⍝ If the ` is single (`), treat a single atom as a one-element list.
+                       ⍝  (var | number | 'qt' | "qt")+ → any_code
+                iSkip←2 3
+                pAtomList pAtomsArrow pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
+                  FAll←F 0 
+                  ⍵.PatternNum∊iSkip: FAll  
+                  (FGlyph FAtoms) arr←{⍵=0: (F¨1 2) 0 ⋄ (F¨2 1) 1}⍵.PatternNum 
+                  force←1=≢FGlyph    ⍝ If the ` is single (`), treat a single atom as a one-element list.
                   pAtomEach← pSQ '[¯\d\.]\H*' '\H+' 
                              iSQ iNum         iLet←⍳≢pAtomEach
                   count←0 ⋄ allNum←1 ⋄ atomErr←0  
@@ -445,9 +453,9 @@
                       CASE iNum:  {(,1)≡⊃⎕VFI ⍵: ⍵ ⋄ atomErr∘←1 ⋄ ⍵⊣⎕←'∆FIX Warning: Invalid numeric atom'} F 0
                       CASE iLet:  {3=≢⍵: AddPar ',' , ⍵ ⋄  ⍵} SQ,F0,SQ 
                       ∘UNREACHABLE∘
-                  }⊣F 2 
-                  atomErr: F 0
-                  AddPar (',⊂'/⍨force∧1=count), list
+                  }⊣FAtoms 
+                  atomErr: FAll
+                  (AddPar (',⊂'/⍨force∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
              AtomScan MainScan1  ⍵
@@ -470,9 +478,9 @@
       ⍝ <<< PREDEFINED MACROS END 
 
       DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { 
-          F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ {CR_HIDDEN@ (CR∘=)⊢⍵}¨F0 
+          F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨F0 
       }⍠reOPTS⊣⍵ }
-      DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_HIDDEN∘=)⊢⍵ }¨⍵}
+      DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵}
     ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
       FullScan←{¯1↓ DFnScanOut MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
@@ -495,8 +503,10 @@
           FullScan ⍵
     }  
 
-  ⍝ "Secret" options -e (edit), -nof (do not fix)
-    ⍺←⊢  ⋄  oEdit noFix←'-e' '-nof'≡¨2 4↑¨⊂⍕⍺,''
-    oEdit: 1 Executive ⍵
-    ⍺ CALR.⎕FIX⍣(~noFix)⊣Executive LoadLines ⍵ 
+  ⍝ "Ad hoc options 'e(dit)', 'n(ofix)'. All others passed to ⎕FIX
+    ⍺←⊢  ⋄  adhoc←⊃1↑(⍕⍺,'')~'-' 
+    edit fix hasArgs←(adhoc='e')(adhoc(~∊)'ne')(0<≢⍵)
+
+  ⍝ Execute 
+    ⍺ CALR.⎕FIX⍣fix⊢ edit∘Executive LoadLines⍣hasArgs⊣⍵ 
 }
