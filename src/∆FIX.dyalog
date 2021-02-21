@@ -42,12 +42,13 @@
   ⍝+--------------------------------------------------+
   ⍝ A. MULTIPLE SCANS                                 +
   ⍝+--------------------------------------------------+
-    pDots  ←'(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?\r\h*'
-    pDQ    ← '(?:"[^"]*")+'
-    pSQ    ← '(?:''[^''\r\x01]*'')+' 
-    pDQSQ  ← pDQ,'|',pSQ
-    pCom   ←'⍝[^\r\x01]*$' 
-    pBrak  ←GenBracePat'{}'
+    pDotsNoCom ← '(?:\.{2,3}|…)\h*[\r\x01]\h*'
+    pDots     ← '(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?[\r\x01]\h*'
+    pDQ       ← '(?:"[^"]*")+'
+    pSQ       ← '(?:''[^''\r\x01]*'')+' 
+    pDQSQ     ← pDQ,'|',pSQ
+    pCom      ←'⍝[^\r\x01]*$' 
+    pBrak     ← GenBracePat'{}'
   ⍝+--------------------------------------------------+
   ⍝ B.CONTROL SCANS                                   +
   ⍝+--------------------------------------------------+
@@ -67,9 +68,19 @@
     pEl          ← ∆Anchor'\h* :: ELSE       \b      \h*  '
     pEndIf       ← ∆Anchor'\h* :: END(?:IF)? \b      \h*  '
   ⍝ For ::DEF (define) of the form  ::DEF name ← value, match after the control word:
-  ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] up to a comment or EOL,
+  ⍝     blanks, name*, blanks, ←, optional blanks, any text [excluding leading blanks] 
+  ⍝     up to (but not including) a comment or EOL,
   ⍝ where name* is a sequence of chars except spaces, ←, or CR.
-  ⍝ The value will be enclosed in parentheses, limiting surprising side effects.
+  ⍝ The value will be enclosed in parentheses, limiting surprising side effects due to precedence.
+  ⍝ Given the expression Pi2
+  ⍝      ::DEF Pi2← ○2
+  ⍝ when we execute
+  ⍝      ⎕← Pi2 + 3  
+  ⍝ we get the expected  
+  ⍝     (○2) + 3   
+  ⍝ NOT  
+  ⍝     ○2  + 3, i.e. ○5
+  ⍝ Use ::DEFL (literal) to suppress parentheses (and allow comments to be carried into the macro).
     pDef1        ← ∆Anchor'\h* :: def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (' pMULTI_NOCOM '+|) \N* ' 
   ⍝ ::EVAL or synonym ::DEFE 
   ⍝ For ::EVAL (evaluate string value) of form ::EVAL name ← value, match after the control word:
@@ -109,7 +120,10 @@
     pSysDef     ←  ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
     pUCmd       ← '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
     pDebug      ← ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-    pTrpQ       ← '"""\h*\R(.*?)\R(\h*)"""([a-z]*)'    ⋄  pDQPlus ← ∊'(?xi) (' pDQ ') ([a-z]*)'
+  ⍝ """...""".  F1: string, F2: leading blanks on matching line, F3: suffixes. 
+  ⍝ """...""".  2nd alternative will trigger an error-- F2 and F3 won't have a value...
+    pTrpQ       ← '"""(?|\h*\R(.*?)\R(\h*)"""([a-z]*)|)'    
+    pDQPlus     ← ∊'(?xi) (' pDQ ') ([a-z]*)'
     pSkip       ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
     pParen      ← GenBracePat '()'                     ⋄  pWord   ← '[\w∆⍙_#.⎕]+'
     pPtr        ← ∊'(?ix) \$ \h* (' pParen '|' pBrak '|' pWord ')'
@@ -126,24 +140,45 @@
         _pMac←'(?:[]⎕]|:{1,2}|)',_pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
         _pMac
     }⍬
-  ⍝ Atomlist Pattern:    (` | ``) item, where item: word | number | "quote" | 'quote'
-  ⍝                       `: Ensures atom list is always a vector, no matter how many atoms.
-  ⍝                      ``: Encodes a single atom as a scalar; multiple atoms as a list. E.g. for ⎕NC ``item.
-  ⍝                      Each char atom will be encoded as an enclosed vector (even if an APL scalar `x).
-  ⍝                      Each numeric atom will be encoded as a simple scalar. 
-  ⍝ Uses 1: To allow objects to be defined using ::DEFs, yet presented to fns and ops as quoted strings.
-  ⍝          ::IF format=='in_color'
+  ⍝ Atomlist Pattern:    
+  ⍝    (` | ``) item, where item: word | number | "quote" | 'quote'
+  ⍝         `: Ensures atom list is always a vector, no matter how many atoms.
+  ⍝        ``: Encodes a single atom as a scalar; multiple atoms as a list. E.g. for ⎕NC ``item.
+  ⍝            Each char atom will be encoded as an enclosed vector (even if an APL scalar `x).
+  ⍝            Each numeric atom will be encoded as a simple scalar. 
+  ⍝  Uses 1: To allow objects to be defined using ::DEFs, yet presented to fns and ops as quoted strings.
+  ⍝            ::IF format=='in_color'
   ⍝               ::DEF MYFUN← GetColors
-  ⍝          ::ELSE
+  ⍝            ::ELSE
   ⍝               ::DEF MYFUN← GetBlackWhite
-  ⍝          ::ENDIF 
-  ⍝          ⎕FX ``MYFUN
-  ⍝ Uses 2: To allow enumerations or word-based classes.
-  ⍝         colors←`red orange yellow green
-  ⍝         mycolor←`red 
-  ⍝         :IF mycolor ∊ colors  ⍝ Is my color valid?
-  ⍝         ...                                         
-  ⍝ pAtomList: "[\w∆⍙_#\.⎕¯]+" includes pWord chars plus '¯'
+  ⍝            ::ENDIF 
+  ⍝            ⎕FX ``MYFUN
+  ⍝   Uses 2: To allow enumerations or word-based classes.
+  ⍝           colors←`red orange yellow green
+  ⍝           mycolor←`red 
+  ⍝           :IF mycolor ∊ colors  ⍝ Is my color valid?
+  ⍝           ...     
+  ⍝  atomList →  anything
+  ⍝  atomList →→ anything
+  ⍝            Quotes a list of 1 or more words to left of the arrow, which list will be a peer
+  ⍝            item with all that is to the right.
+  ⍝            A single arrow ensures even a single item to the left is encoded as a 1-elem list;
+  ⍝            a double arrow treats a single item as an independent scalar.
+  ⍝  Uses 1: Allows simulation of named arguments in function calls or object members:
+  ⍝          ((name→"John Smith")(address→"24 Mill Ln")(zip→01426))
+  ⍝  is encoded as:
+  ⍝         (((,⊂'name')(,⍥⊂)'John Smith')((,⊂'address')(,⍥⊂)'24 Mill Ln')((,⊂'zip')(,⍥⊂)01426)) 
+  ⍝  whose value is:
+  ⍝         name   John Smith     address   24 Mill Ln     zip   1426 
+  ⍝  boxed as:
+  ⍝       ┌───────────────────┬──────────────────────┬────────────┐
+  ⍝       │┌──────┬──────────┐│┌─────────┬──────────┐│┌─────┬────┐│
+  ⍝       ││┌────┐│John Smith│││┌───────┐│24 Mill Ln│││┌───┐│1426││
+  ⍝       │││name││          ││││address││          ││││zip││    ││
+  ⍝       ││└────┘│          │││└───────┘│          │││└───┘│    ││
+  ⍝       │└──────┴──────────┘│└─────────┴──────────┘│└─────┴────┘│
+  ⍝       └───────────────────┴──────────────────────┴────────────┘
+                                     
     pAtomList     ← ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ )'     
     pAtomsArrow  ← ∊'(?x) ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ ) (→{1,2}) '          
   ⍝+--------------------------------------------------+
@@ -254,8 +289,8 @@
       ⍝                             "Fred Jack"  "1 2"   "3 PI R"
       ⍝            returns 1 for ⍵: "",  "FRED+JACK", ":DIRECTIVE"
         NonSimple←{¯1=⎕NC ⊂'X',⍵~'⎕#.¯ '}  
-        _MacSet←{ 
-            val←AddPar⍣(⍺⍺∧(NonSimple ⍵))⊣⍵ 
+        _MacSet←{ par←⍺⍺∧NonSimple ⍵
+            val←AddPar⍣par⊣⍵ 
             nKV←≢mâc.K ⋄ p←mâc.K⍳⊂key←⍙K ⍺       
             p<nKV: val⊣ { ⍵: mâc.V[p]←⊂val ⋄ 1: mâc.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
             ⍺≡⍵: val ⋄ mâc.(K V),← ⊂¨key val ⋄   val
@@ -360,7 +395,7 @@
                 ⍝ Format for PassDef:   "::SysDefø name←value" with the name /[^←]+/ and a single space as shown.
                   PassDef←{(PassState ON),'::SysDefø ' ,(F 1),'←',⍵,CR }    
 
-                  CASE iErr: (¯1↓F 0),'○○○ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
+                  CASE iErr: (¯1↓F 0),'∘∘∘ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
                 ⍝ ON...
                   CurStateIs ON: {   chk←{⎕←'<',⍵,'>' ⋄ ⍵}
                       CASE iOther:      F 0  
@@ -395,7 +430,10 @@
                   ∘UNREACHABLE∘
             } ⍝ ControlScanAction
             save←mâc.(K V) DEBUG                          ⍝ Save macros
-              lines←pDQSQ pDots ⎕R '\0' ' ' ⍠reOPTS⊣⍵     ⍝ Simple continuation lines in Ctl directives...
+            ⍝ Merge continued control lines (ONLY) into single lines.
+            ⍝ Note: comments are literals on Control lines.
+              pNotCtl←'^\h*([^:]|:[^:])\N*$'
+              lines←pNotCtl pDQSQ pDotsNoCom ⎕R  '\0' '\0' ' ' ⍠reOPTS⊣⍵      
               res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
             mâc.(K V) DEBUG← save                            ⍝ Restore macros
             res
@@ -409,7 +447,10 @@
                 mainScanPats ⎕R{  
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                     ⋄ CASE←⍵.PatternNum∘∊                 
-                    CASE iTrpQ: (F 3) ((≢F 2) Fmt2Code) F 1  
+                    CASE iTrpQ: {
+                      4>≢⍵.Lengths: (F 0),'∘∘ Matching Triple Quote Not Found ∘∘'
+                      (F 3) ((≢F 2) Fmt2Code) F 1
+                    }⍵ 
                   ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
                     CASE iDQPlus: (F 2) (0 Fmt2Code) DQTweak UnDQ F 1                    
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
@@ -433,15 +474,15 @@
                     CASE iNum:     (F 0)~'_'
                     CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2   
                     CASE iSink:    (F 1),SINK_NAME,(F 2)    ⍝ F1: blanks (keep alignment), SINK_NAME←
-                    ∘UNREACHABLE∘
+                    ∘∘UNREACHABLE∘∘
                 }⍠reOPTS⊣⍵
             }
             AtomScan←{ ⍝ [` or ``] (var | number | 'qt' | "qt")+
-                       ⍝  (var | number | 'qt' | "qt")+ → any_code
+                       ⍝  (var | number | 'qt' | "qt")+ → any_code        
                 iSkip←2 3
                 pAtomList pAtomsArrow pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
                   FAll←F 0 
-                  ⍵.PatternNum∊iSkip: FAll  
+                  ⍵.PatternNum∊iSkip:  FAll  
                   (FGlyph FAtoms) arr←{⍵=0: (F¨1 2) 0 ⋄ (F¨2 1) 1}⍵.PatternNum 
                   force←1=≢FGlyph    ⍝ If the ` is single (`), treat a single atom as a one-element list.
                   pAtomEach← pSQ '[¯\d\.]\H*' '\H+' 
@@ -452,7 +493,7 @@
                       CASE iSQ:   {3=≢⍵: AddPar ',', ⍵ ⋄ ⍵} F0 
                       CASE iNum:  {(,1)≡⊃⎕VFI ⍵: ⍵ ⋄ atomErr∘←1 ⋄ ⍵⊣⎕←'∆FIX Warning: Invalid numeric atom'} F 0
                       CASE iLet:  {3=≢⍵: AddPar ',' , ⍵ ⋄  ⍵} SQ,F0,SQ 
-                      ∘UNREACHABLE∘
+                      ∘∘UNREACHABLE∘∘
                   }⊣FAtoms 
                   atomErr: FAll
                   (AddPar (',⊂'/⍨force∧1=count), list), (arr/'(,⍥⊂)')
@@ -477,12 +518,35 @@
         _←'⎕TMP'  macro SINK_NAME
       ⍝ <<< PREDEFINED MACROS END 
 
-      DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { 
-          F0←⍵.Match ⋄  0≠⍵.PatternNum: F0 ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨F0 
+      SemiScan←{
+         ⍝ ⍵ ⍝ Disabled...
+         pLBrk pRBrk pLPar pRPar pSemi ←{'\Q',⍵,'\E'}¨'[]();'
+         stk←0 ⋄ INPAR INBRK←1 2
+         PUSH←{⍺⊣stk,←⍵} ⋄ POP←{⍵⊣stk↓⍨←¯1} ⋄  POPX←{POP⊣ ⍵⊃⍨⊃⌽stk}
+      ⍝  Imports pDQSQ
+         pDir←'^\h*::\N*$' ⋄  pEtc← '.' ⍝ pEtc: any char including newline...
+         pList← pLBrk pRBrk pLPar pRPar pSemi pDir pDQSQ pCom  
+                iLBrk iRBrk iLPar iRPar iSemi iDir iDQSQ iCom ←⍳≢pList
+         LP0←⎕UCS 0
+         res←pList ⎕R {
+              CASE←⍵.PatternNum∘∊ ⋄ CASE_iSkip←⍵.PatternNum≥iDir
+              m←⍵.Match
+              CASE_iSkip: m
+              CASE iLBrk: m PU SHINBRK
+              CASE iRBrk: POP m
+              CASE iLPar: LP0 PUSH INPAR
+              CASE iRPar: POPX ')' '))' ')'
+              CASE iSemi: POPX'⋄'  ')(,⍥⊂)'  ';' 
+              ○○unreachable○○
+         }⍠reOPTS⊣⍵
+         '\x00' ⎕R '((' ⊣res
+      }
+      DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { iBrak←0
+          F0←⍵.Match ⋄  iBrak≠⍵.PatternNum: F0 ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨F0 
       }⍠reOPTS⊣⍵ }
       DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵}
     ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
-      FullScan←{¯1↓ DFnScanOut MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
+      FullScan←{¯1↓ DFnScanOut SemiScan MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
       UserEdit←{
           alt←'⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
@@ -491,7 +555,7 @@
           _←⎕ED 'edit' ⊣ edit←cur 
           edit≡cur: {0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
             #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''>>> FIX_FN done.'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
-            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘err∘
+            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘∘err∘∘
             'User Edit complete. See function #.',rc,'.'
           }cur
           edit←'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣edit
