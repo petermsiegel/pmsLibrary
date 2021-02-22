@@ -477,14 +477,19 @@
                     ∘∘UNREACHABLE∘∘
                 }⍠reOPTS⊣⍵
             }
-            AtomScan←{ ⍝ [` or ``] (var | number | 'qt' | "qt")+
-                       ⍝  (var | number | 'qt' | "qt")+ → any_code        
+            AtomScan←{ ⍝ Atom Punctuation:  `  → and variants: `` and →→ .
+                       ⍝ Atom List:   ` (var | number | 'qt' | "qt")+
+                       ⍝             `` ...
+                       ⍝ Atom Map:      (var | number | 'qt' | "qt")+  →  any_code     
+                       ⍝                  ...                         →→  ...   
                 iSkip←2 3
                 pAtomList pAtomsArrow pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
                   FAll←F 0 
                   ⍵.PatternNum∊iSkip:  FAll  
+                ⍝ ⍵.PatternNum? (0) Simple Atom quote (`) or (1) Atom map  quote (→).
                   (FGlyph FAtoms) arr←{⍵=0: (F¨1 2) 0 ⋄ (F¨2 1) 1}⍵.PatternNum 
-                  force←1=≢FGlyph    ⍝ If the ` is single (`), treat a single atom as a one-element list.
+                ⍝ If the ` is single (`), treat a single atom as a one-element list.
+                  promoteSingle←1=≢FGlyph    
                   pAtomEach← pSQ '[¯\d\.]\H*' '\H+' 
                              iSQ iNum         iLet←⍳≢pAtomEach
                   count←0 ⋄ allNum←1 ⋄ atomErr←0  
@@ -496,10 +501,10 @@
                       ∘∘UNREACHABLE∘∘
                   }⊣FAtoms 
                   atomErr: FAll
-                  (AddPar (',⊂'/⍨force∧1=count), list), (arr/'(,⍥⊂)')
+                  (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
-             AtomScan MainScan1  ⍵
+            AtomScan MainScan1  ⍵
         } ⍝ End MainScan 
 
       ⍝ >>> PREDEFINED MACROS BEGIN             ⍝ Usage / Info
@@ -518,15 +523,16 @@
         _←'⎕TMP'  macro SINK_NAME
       ⍝ <<< PREDEFINED MACROS END 
 
-      SemiScan←{
-         ⍝ ⍵ ⍝ Disabled...
+      SemicolonScan←{
+         ⍝ Place  SemicolonScan after DQ->SQ processing, macro processing, etc.
+         ';'(~∊)∊⍵: ⍵    ⍝ Skip any scanning if we see no semicolons...
          pLBrk pRBrk pLPar pRPar pSemi ←{'\Q',⍵,'\E'}¨'[]();'
          stk←0 ⋄ INPAR INBRK←1 2
-         PUSH←{⍺⊣stk,←⍵} ⋄ POP←{⍵⊣stk↓⍨←¯1} ⋄  POPX←{POP⊣ ⍵⊃⍨⊃⌽stk}
+         PUSH←{⍺⊣stk,←⍵} ⋄ POP←{⍵⊣stk↓⍨←¯1} ⋄  POPX←{POP⊣ ⍵⊃⍨⊃⌽stk}  ⋄  PEEKX←{⍵⊃⍨⊃⌽stk} 
       ⍝  Imports pDQSQ
          pDir←'^\h*::\N*$' ⋄  pEtc← '.' ⍝ pEtc: any char including newline...
-         pList← pLBrk pRBrk pLPar pRPar pSemi pDir pDQSQ pCom  
-                iLBrk iRBrk iLPar iRPar iSemi iDir iDQSQ iCom ←⍳≢pList
+         pList← pLBrk pRBrk pLPar pRPar pSemi pDir pSQ pCom  
+                iLBrk iRBrk iLPar iRPar iSemi iDir iSQ iCom ←⍳≢pList
          LP0←⎕UCS 0
          res←pList ⎕R {
               CASE←⍵.PatternNum∘∊ ⋄ CASE_iSkip←⍵.PatternNum≥iDir
@@ -536,7 +542,10 @@
               CASE iRBrk: POP m
               CASE iLPar: LP0 PUSH INPAR
               CASE iRPar: POPX ')' '))' ')'
-              CASE iSemi: POPX'⋄'  ')(,⍥⊂)'  ';' 
+            ⍝ Semicolon in brackets:  [pass to APL]
+            ⍝ Semicolon in parens:    (a;b;c)  -->  ((a) (b) (c))
+            ⍝ Semicolon outside:       a;b;c   -->    a ⋄ b ⋄ c
+              CASE iSemi: PEEKX'⋄'  ')('  ';' 
               ○○unreachable○○
          }⍠reOPTS⊣⍵
          '\x00' ⎕R '((' ⊣res
@@ -546,7 +555,7 @@
       }⍠reOPTS⊣⍵ }
       DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵}
     ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
-      FullScan←{¯1↓ DFnScanOut SemiScan MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
+      FullScan←{¯1↓ DFnScanOut SemicolonScan MainScan ControlScan DFnScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
       UserEdit←{
           alt←'⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
