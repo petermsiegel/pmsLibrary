@@ -12,11 +12,12 @@
   ⍝                   ∘ an executable #.FIX_FN, if successfully ∆FIXed.
   ⍝    b) filename: Automatically supplies :file// prefix (required by ⎕FIX), if a simple character vector (VS).
   ⍝ 
-    DEBUG←0 
-    ⎕IO ⎕ML←0 1    
+    DEBUG←1 
+    ⎕IO ⎕ML←0 1  
+    FIX_PFX←'FÍX_'  
 
   ⍝ See pSink ←
-   SINK_NAME←'_síñk'
+   SINK_NAME←FIX_PFX,'t'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
   ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displayinh preprocessor control statments.
     SQ DQ←'''"' ⋄ CR CR_INTERNAL←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
@@ -44,11 +45,17 @@
   ⍝+--------------------------------------------------+
     pDotsNoCom ← '(?:\.{2,3}|…)\h*[\r\x01]\h*'
     pDots     ← '(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?[\r\x01]\h*'
-    pDQ       ← '(?:"[^"]*")+'
+    pDQ       ← '(?:"[^"]*")+' 
+    pDAQ      ← '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ Double Angled Quotes = Guillemets  « »
     pSQ       ← '(?:''[^''\r\x01]*'')+' 
+     pSQ       ← '(?:''[^'']*'')+'    ⍝ Allow multi-line pSQ?
     pDQSQ     ← pDQ,'|',pSQ
+    pAllQ     ← pDQ,'|',pSQ,'|',pDAQ
     pCom      ←'⍝[^\r\x01]*$' 
-    pBrak     ← GenBracePat'{}'
+    pDFn      ← GenBracePat '{}'
+    pParen    ← GenBracePat '()' 
+    pBrack    ← GenBracePat '[]'
+    pBraces3  ← '(?:' pDFn '|' pParen '|' pBrack ')'
   ⍝+--------------------------------------------------+
   ⍝ B.CONTROL SCANS                                   +
   ⍝+--------------------------------------------------+
@@ -60,9 +67,12 @@
   ⍝ \r is carriage return, \x01 is the faux carriage return, 
   ⍝ ◈ is a visible rendering for display purposes distinct from ⋄.
     pCrFamily← '\r\z'  '[\r\x01]'  ⋄ actCrFamily←  '\0' CR_VISIBLE
-  ⍝⍝⍝ NB. Changed ?: to ?> here  ↓            
-    pMULTI_NOCOM ←∊'(?x) (?<NOC> (?> [^\{⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+ | ' pBrak            ') (?&NOC)*)'
-    pMULTI_COM   ←∊'(?x) (?<ANY> (?> [^\{⍝''"\r]+ | (?:''[^'']*'')+ | (?:"[^"]*")+ | ' pBrak ' | ' pCom ') (?&ANY)*)'
+ 
+  ⍝⍝⍝ Experimental-- replace pDFn on next 2 lines with pBraces3. 
+  ⍝⍝⍝ ... Next, add Dyalog code for extended array definition formats (multiline).
+  ⍝⍝⍝    «[^»
+    pMULTI_NOCOM ←∊'(?x) (?<NOC> (?> [^\{[(⍝''"«\r]+ |' pAllQ '|' pBraces3          ') (?&NOC)*)'
+    pMULTI_COM   ←∊'(?x) (?<ANY> (?> [^\{[(⍝''"«\r]+ |' pAllQ '|' pBraces3 '|' pCom ') (?&ANY)*)'
     pIf          ← ∆Anchor'\h* :: IF         \b \h* (\N+) '
     pElIf        ← ∆Anchor'\h* :: ELSEIF     \b \h* (\N+) '
     pEl          ← ∆Anchor'\h* :: ELSE       \b      \h*  '
@@ -124,9 +134,10 @@
   ⍝ """...""".  2nd alternative will trigger an error-- F2 and F3 won't have a value...
     pTrpQ       ← '"""(?|\h*\R(.*?)\R(\h*)"""([a-z]*)|)'    
     pDQPlus     ← ∊'(?xi) (' pDQ ') ([a-z]*)'
-    pSkip       ← pSQ,'|',pCom                         ⍝  pDots   ← See Above
-    pParen      ← GenBracePat '()'                     ⋄  pWord   ← '[\w∆⍙_#.⎕]+'
-    pPtr        ← ∊'(?ix) \$ \h* (' pParen '|' pBrak '|' pWord ')'
+    pDAQPlus    ← ∊'(?xi) (' pDAQ') ([a-z]*)'      ⍝ DAQ: Guillemet Quotes! « »
+    pSkip       ← pSQ,'|',pCom                                         ⍝  pDots   ← See Above
+    pWord       ← '[\w∆⍙_#.⎕]+'
+    pPtr        ← ∊'(?ix) \$ \h* (' pParen '|' pDFn '|' pWord ')'
     _pHMID      ← '( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
   ⍝ Here-strings and Multiline ("Here-string"-style) comments 
     pHere       ← ∊'(?x)       ::: \h*   '_pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
@@ -192,7 +203,10 @@
     DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
     AddPar← {'(',⍵,')'}
     DblSQ←  {⍺←0 ⋄ s←⍵/⍨1+⍵=SQ ⋄ ⍺=0: s ⋄ SQ,s,SQ }  ⍝ Double single quotes. If ⍺=1, add outer quotes.
-    UnDQ←{ s/⍨~(2⍴DQ)⍷s←d↓⍵↓⍨-d←DQ=1↑⍵ } ⍝ Remove surrounding DQs and APL-escaped DQs. Double SQs   
+  ⍝ UnDQ_DAQ: Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
+    UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': '∆FIX UnDQ_DAQ Logic Error' ⎕SIGNAL 11 
+          s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
+    }   
   ⍝ ∆DEC: 
   ⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137), converting to decimal.
   ⍝ Converts up to 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF (28 hex digits) as integer strings.
@@ -263,7 +277,7 @@
           pList←pSQ pCom pDQ pMacro
                 iSQ iCom iDQ iMacro←⍳≢pList
           str←pList ⎕R { F0← ⍵.Match ⋄ CASE←⍵.PatternNum∘∊ 
-              CASE iMacro: MacGet F0 ⋄ CASE iDQ: SQ,SQ,⍨UnDQ F0  ⋄ F0 } ⍵
+              CASE iMacro: MacGet F0 ⋄ CASE iDQ: SQ,SQ,⍨UnDQ_DAQ F0⊣⎕←'MacScan DQ seen'  ⋄ F0 } ⍵
           ⍵≢str: (⍺-1) ∇ str ⋄ str        ⍝ If any changes, scan again up to <⍺> times.
         }
       ⍝ Note: macro names whose last component starts with ⎕ or :  are case-insensitive.
@@ -274,11 +288,15 @@
       ⍝   flag=0:  Sets macro <key> to have value <val>, a string.         See :DEF
       ⍝   flag=1:  Sets macro <key> to have value '(',<val>,')', a string. See :DEFL
       ⍝            Special case: If <val> is a nullstring, value is <val> alone (no parentheses).
-        DQScan←{
-           pDQPlus pSQ pCom ⎕R { 
+        AllQScan←{
+            iDQ     iDAQ     iSQ iCom ←⍳4
+            pDQPlus pDAQPlus pSQ pCom ⎕R { 
               F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}  
-              0≠⍵.PatternNum: F 0            ⍝ Skip...
-              (F 2) (0 Fmt2Code) UnDQ F 1    ⍝ Convert double quotes.
+              CASE←⍵.PatternNum∘∊
+              ⍝ CASE iSQ iCom: F 0   
+              CASE iCom: F 0
+              CASE iSQ:  'v' (0 Fmt2Code) 1↓¯1↓F 0    ⍝ SQ: No options. Just vector or vectors...          
+              (F 2) (0 Fmt2Code) UnDQ_DAQ F 1         ⍝ Convert double [angle] quotes
             }⍠reOPTS⊣⍵
         }
       ⍝ ⍺ (⍺⍺ _MacSet) ⍵. Set key <⍺> to have value <⍵>, or ⍺ if key <⍺> doesn't exit.
@@ -314,8 +332,9 @@
       ⍝     Convert possibly multiline strings to the requested format and return as an APL code string.
       ⍝ output_string ← ⍺: options (⍺⍺: indent ∇ ) ⍵: input_string
       ⍝ Output format: options '[clsvm]'.   
-      ⍝    'r' carriage returns for linends (def); 'l' LF for linends; 's' spaces replace linends 
-      ⍝    'v' vector of vectors;    'm' APL matrix;    
+      ⍝    'r' carriage returns for linends ; 'l' LF for linends; 's' spaces replace linends 
+      ⍝    'v' vector of vectors;    'm' APL matrix;   
+      ⍝     DEFAULT: Set below to 'v' 
       ⍝ Escape option. Works with any one above. 
       ⍝    'e' backslash (\) escape followed by eol => single space. Otherwise, as above.
       ⍝    'c' string is a comment to treat in toto as a blank.
@@ -326,8 +345,9 @@
       ⍝         ⍺⍺=0   leave lines as is.
       ⍝         See also 'x' exdent option.
         Fmt2Code←{ ⍺←''   
-          ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'r'.
-            o1 o2 od ←'rlsvm' 'ecx' 'r'  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
+          ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'v'.
+            DEF_TYPE←'v'
+            o1 o2 od ←'rlsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
           ⍝ R: CRs    L: LFs    S: Spaces   V: Vectors   M: Matrix
           ⍝ E: Escape (\)       C: Comment (⍝)
             R L S V M E C X←o∊⍨∊o1 o2
@@ -349,7 +369,7 @@
             AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
         }
       ⍝ See iDQPlus (below) and Fmt2Code above...
-      ⍝ We add a "spurioius" CR_INTERNAL so Fmt2Code sees leading and trailing bare " on separate lines... 
+      ⍝ We add a "spurious" CR_INTERNAL so Fmt2Code sees leading and trailing bare " on separate lines... 
         DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }           
       
       ⍝ pat ← GenBracePat ⍵, where ⍵ is a pair of braces: ⍵='()', '[]', or '{}'.  
@@ -403,7 +423,7 @@
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
                       CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣      Eval2Str MainScan DTB F 2  
                       CASE iStatic:     (PassState ON),(F 1),(F 2),CR,⍨ EvalStat MainScan DTB F 3  
-                      CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←DQScan DTB F 2    
+                      CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
                       CASE iEndIf:      PassState Pop ⍵
@@ -433,15 +453,15 @@
             ⍝ Merge continued control lines (ONLY) into single lines.
             ⍝ Note: comments are literals on Control lines.
               pNotCtl←'^\h*([^:]|:[^:])\N*$'
-              lines←pNotCtl pDQSQ pDotsNoCom ⎕R  '\0' '\0' ' ' ⍠reOPTS⊣⍵      
+              lines←pNotCtl pAllQ  pDotsNoCom ⎕R  '\0' '\0' ' ' ⍠reOPTS⊣⍵      
               res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
             mâc.(K V) DEBUG← save                            ⍝ Restore macros
             res
         } ⍝ ControlScan 
   
 
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum pSink
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum iSink←⍳≢mainScanPats
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pSkip pDots pHere pHCom pPtr pMacro pNumBase pNum pSink
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iSkip iDots iHere iHCom iPtr iMacro iNumBase iNum iSink←⍳≢mainScanPats
         MainScan←{
             MainScan1←{  
                 mainScanPats ⎕R{  
@@ -452,7 +472,8 @@
                       (F 3) ((≢F 2) Fmt2Code) F 1
                     }⍵ 
                   ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
-                    CASE iDQPlus: (F 2) (0 Fmt2Code) DQTweak UnDQ F 1                    
+                    CASE iDQPlus:  (F 2) (0 Fmt2Code) DQTweak UnDQ_DAQ F 1  
+                    CASE iDAQPlus: (F 2) (0 Fmt2Code) DQTweak UnDQ_DAQ F 1                  
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
                     CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE'  
                     CASE iSkip: F 0                
@@ -483,7 +504,8 @@
                        ⍝ Atom Map:      (var | number | 'qt' | "qt")+  →  any_code     
                        ⍝                  ...                         →→  ...   
                 iSkip←2 3
-                pAtomList pAtomsArrow pCom pSQ  ⎕R  { F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
+                pAtomList pAtomsArrow pCom pSQ  ⎕R  {
+                  F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} 
                   FAll←F 0 
                   ⍵.PatternNum∊iSkip:  FAll  
                 ⍝ ⍵.PatternNum? (0) Simple Atom quote (`) or (1) Atom map  quote (→).
@@ -513,7 +535,11 @@
         macro←(0 _MacSet)
         _←'⎕F'     macro '∆F'                   ⍝   APL-ified Python-reminiscent format function
         _←'⎕TO'    macro '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
-        _←'::DEF'  macro 'mâc.⍙DEF'             ⍝   ::IF ::DEF "name"is 1 if name is defined...
+      ⍝ ::DEF. Used in sequence ::IF ::DEF "name"
+      ⍝        Returns 1 if <name> is active Macro, else 0. Valid only during Control Scan
+      ⍝        Note:  "::DEF macro" undefs <name> (its value is "name"). 
+      ⍝ Do <<::DEF name 1>> (among many choices) to ensure  «::IF ::DEF "name"» is true.
+        _←'::DEF'  macro 'mâc.⍙DEF'            
       ⍝ ⎕MY - a static namespace for each function... Requires accessible namespace '∆MYgrp' (library ∆MY).
         _←'⎕MY'    macro {
                       STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
@@ -524,12 +550,11 @@
       ⍝ <<< PREDEFINED MACROS END 
 
       SemicolonScan←{
-         ⍝ Place  SemicolonScan after DQ->SQ processing, macro processing, etc.
+         ⍝ Place  SemicolonScan after DQ/DAQ->SQ processing, macro processing, etc.
          ';'(~∊)∊⍵: ⍵    ⍝ Skip any scanning if we see no semicolons...
          pLBrk pRBrk pLPar pRPar pSemi ←{'\Q',⍵,'\E'}¨'[]();'
          stk←0 ⋄ INPAR INBRK←1 2
          PUSH←{⍺⊣stk,←⍵} ⋄ POP←{⍵⊣stk↓⍨←¯1} ⋄  POPX←{POP⊣ ⍵⊃⍨⊃⌽stk}  ⋄  PEEKX←{⍵⊃⍨⊃⌽stk} 
-      ⍝  Imports pDQSQ
          pDir←'^\h*::\N*$' ⋄  pEtc← '.' ⍝ pEtc: any char including newline...
          pList← pLBrk pRBrk pLPar pRPar pSemi pDir pSQ pCom  
                 iLBrk iRBrk iLPar iRPar iSemi iDir iSQ iCom ←⍳≢pList
@@ -550,7 +575,7 @@
          }⍠reOPTS⊣⍵
          '\x00' ⎕R '((' ⊣res
       }
-      DFnScanIn←{ pBrak pSQ pDQ pCom ⎕R { iBrak←0
+      DFnScanIn←{ pDFn pSQ pDQ pCom ⎕R { iBrak←0
           F0←⍵.Match ⋄  iBrak≠⍵.PatternNum: F0 ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨F0 
       }⍠reOPTS⊣⍵ }
       DFnScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵}
