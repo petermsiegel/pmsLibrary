@@ -100,10 +100,45 @@
   ⍝     CALR ⍎ value
   ⍝                                                  F1                            F2
     pEvl         ← ∆Anchor'\h* :: (?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (' pMULTI_NOCOM '+|) \N* '   
-  ⍝ Static, similar logic to Eval, but outputs
-  ⍝         name ← value 
-  ⍝ using Dyalog's <repObj> to create an executable expression in the output code.
-    pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic)) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
+  ⍝ ::STATIic name ← value
+  ⍝ ::DECLare name ← value
+  ⍝    name:      An APL run-time variable
+  ⍝    variable:  A Dyalog code value OR a Dyalog new Array or Namespace declaration on one or more lines.
+  ⍝ Simple APL declarations are allowed. 
+  ⍝    ::DECLARE time ← ⎕TS    ⍝ This will execute at run-time
+  ⍝    ::STATIC  time ← ⎕TS    ⍝ This will be replaced by its value at ∆FIX time.
+  ⍝ More complex declarations may extend over multiple lines or use statment separators (⋄),
+  ⍝ using double-quoted multi-line strings, complex declarations in brackets [] or parentheses [].
+  ⍝    ::DECLARE multiLater ← [ 'iota10   ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
+  ⍝                             'revAlph' ⋄ ⌽⎕A
+  ⍝                             'when'    ⋄ ⎕TS  ⍝ Changes on each call, if internal to a object.
+  ⍝                          ]
+  ⍝    ::STATIC multiNow ←   [ 'iota10   ⋄ ⍳10   ⍝ Creates a  declaration evaluated at ∆FIX time.
+  ⍝                            'revAlph' ⋄ ⌽⎕A
+  ⍝                            'when'    ⋄ ⎕TS   ⍝ Set as a constant, when an object is ∆FIXed.
+  ⍝                         ]
+  ⍝     ::STATIC variables have access only to named objects created earlier in the same session.
+  ⍝
+  ⍝  EXAMPLE:
+  ⍝  ¯¯¯¯¯¯¯¯
+  ⍝>       2 ∆FIX '(TS TSS)←test' '::DECLARE TS ← ⎕TS' '::STATIC TSS ← ⎕TS'
+  ⍝>       ⎕CR 'test'              ⍝ Show resulting code from ∆FIX.
+  ⍝   (TS TSS)←test                     
+  ⍝   ⍝↑::DECLARE TS ← ⎕TS      
+  ⍝   TS←⎕TS                       ⍝ Note: Code executed at run-time on each function call.
+  ⍝   ⍝↑::STATIC TSS ← ⎕TS      
+  ⍝   TSS←2021 2 23 22 44 5 178    ⍝ Note: precalculated, so constant at run-time
+  ⍝  
+  ⍝>       test
+  ⍝   2021 2 23 22 47 21 69   2021 2 23 22 47 18 465    ⍝ TS changes.  TSS is constant.
+  ⍝>       test
+  ⍝   2021 2 23 22 47 24 283  2021 2 23 22 47 18 465 
+  ⍝>       test
+  ⍝   2021 2 23 22 47 35 984  2021 2 23 22 47 18 465 
+  ⍝
+  ⍝ See  https://www.dyalog.com/uploads/conference/dyalog20/presentations/D09_Array_Notation_RC1.pdf
+    pStatic      ← ∆Anchor'\h* :: (?:stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
+    pDeclare     ← ∆Anchor'\h* :: (?:decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
   ⍝ For ::DEFL (literal) of the form ::DEFL name ← value, match after the ctl word: 
   ⍝      blanks, word*, blanks, ← optional blank, value*
   ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
@@ -378,25 +413,41 @@
       ⍝ Uses a name based on the braces and the ?J option, so PCRE functions properly[*].
       ⍝    * Any repeat definitions of these names MUST be identical.
     
-      ⍝ In CALR env, ensure max precision possible for numeric results.
+      ⍝ Ensure max precision possible for numeric results for routine ⍺⍺ called in env ⍵⍵ (usu: CALR)
       ⍝ See Eval2Str, EvalStat.
-        _MaxPrecision←{save←CALR.(⎕FR ⎕PP) ⋄ CALR.(⎕FR ⎕PP)←1287 34 
-                 r← CALR ⍺⍺ ⍵ ⋄ CALR.(⎕FR ⎕PP)←save ⋄ r 
+        _MaxPrecision←{save←⍵⍵.(⎕FR ⎕PP) ⋄ ⍵⍵.(⎕FR ⎕PP)←1287 34 
+                 r←  ⍺⍺ ⍵ ⋄ CALR.(⎕FR ⎕PP)←save ⋄ r 
         }
       ⍝ Eval2Str: In CALR env., execute a string and return a string rep of the result.
-        Eval2Str←{ 0:: ⍵,' ∘EVALUATION ERROR∘'  ⋄ res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵  
-            0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
-        } _MaxPrecision
+        Eval2Str←CALR∘{ 0:: ⍵,' ∘EVALUATION ERROR∘'  ⋄ res2←⎕FMT res←⍺⍎'⋄' DFnScanOut ⍵  
+           ⍝  0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
+           0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨1∘DblSQ¨↓res2
+        } _MaxPrecision CALR
       ⍝ Eval2Bool: Execute and return 1 True, 0 False, ¯1 Error.
         Eval2Bool←CALR∘{0:: ¯1  ⋄ (,0)≡v←,⍺⍎'⋄' DFnScanOut ⍵: 0 ⋄  (0≠≢v)}  
-      ⍝ EvalStat: In CALR env, execute a string and return the result as a precalculated static value. 
-      ⍝           Leave string as is, if unable.  OK with various basic types per repObj in Dyalog utils.
-        EvalStat← {0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxPrecision 
+
+      ⍝ EvalDeclare, EvalStatic:
+      ⍝    Evaluate APL Declarations using Array and Namespace Notation (based on ⎕SE.Link.Deserialise).
+      ⍝    Declare: converts a declaration to executable APL code.
+      ⍝    Static:  Evaluates and sets that same code at ∆FIX ("Compile") time.
+      ⍝ For more details, see definitions of pStatic and pDeclare
+
+      ⍝ [OLD. Delete after final test]
+      ⍝ EvalStatic←  CALR∘{0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxPrecision CALR 
+        EvalStatic← CALR∘{
+            0 ⎕SE.Dyalog.Utils.repObj ⍺⍎_EvalDeclare ⍵
+        } _MaxPrecision CALR 
+        _EvalDeclare← CALR∘{0:: ⍵ 
+            doc ← pSQ pCom ⎕R '&' ''⍠'Mode' 'M'⊣⍵  ⍝ Remove comments
+            doc ← 1∘DblSQ '⋄'@(CR∘=)⊣ doc          ⍝ Enquote and escape internal quotes
+            ⍺⍎'0 ⎕SE.Link.Deserialise ', doc       ⍝ Convert to Dyalog deserialized code...
+        } 
+        EvalDeclare←_EvalDeclare _MaxPrecision CALR 
 
         ControlScan←{ 
           ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code
-            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDefL pErr pDebug pUCmdC pOther
-                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
+            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDeclare pDefL pErr pDebug pUCmdC pOther
+                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDeclare iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -422,7 +473,8 @@
                       CASE iDef1:       PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
                       CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣      Eval2Str MainScan DTB F 2  
-                      CASE iStatic:     (PassState ON),(F 1),(F 2),CR,⍨ EvalStat MainScan DTB F 3  
+                      CASE iStatic:     (PassState ON),(F 1),(F 2),CR,⍨ EvalStatic  MainScan DTB F 3  
+                      CASE iDeclare:    (PassState ON),(F 1),(F 2),CR,⍨ EvalDeclare MainScan DTB F 3  
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
