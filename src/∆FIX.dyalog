@@ -14,11 +14,11 @@
   ⍝ 
     DEBUG←1 
     ⎕IO ⎕ML←0 1  
-    FIX_PFX←'FÍX_'  
+    FIX_PFX←'FÍX_'                     ⍝ Prefix for sink constants
 
   ⍝ See pSink ←
    SINK_NAME←FIX_PFX,'t'
-  ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
+  ⍝ For CR_INTERNAL, also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
   ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displayinh preprocessor control statments.
     SQ DQ←'''"' ⋄ CR CR_INTERNAL←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
@@ -407,15 +407,16 @@
             C: ' '
             SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
           ⍝ Str2SVs: Ensures a vector of strings.
-          ⍝       ⍵: Vector of strings or a single flat string with CRs.
-          ⍝ Note: Ensure split sees "\rabc as 2 lines, not 1 line; ditto abc\r"; ditto abc\r\rdef'
-            Str2SVs←{2=|≡⍵:⍵ ⋄ n←⎕UCS 0 ⋄ p←CR=w←⍵ ⋄ (p/w)←⊂n,CR,n ⋄ n~⍨¨CR(≠⊆⊢)∊w}                
-            TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
+          ⍝       ⍵: Vector of strings or a single flat string with CRs (\r =U+13).
+          ⍝ Note: Ensure split sees each of these as 2 lines:
+          ⍝             "\rabc    " abc\r"     "abc\r\rdef"
+            Str2SVs←{ 2=|≡⍵:⍵ ⋄ NL←⎕UCS 0 ⋄ p←CR=w←⍵ ⋄ (p/w)←⊂NL,CR,NL ⋄ NL~⍨¨CR(≠⊆⊢)∊w }                
+            TrimL←  { 0=⍺: ⍵  ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
             FormatPerOpt← {multi←⍺
              ⍝  0=≢⍵: 2⍴SQ
               AddSQ←SQ∘,∘⊢,∘SQ 
               V∨M: ('↑'/⍨M∧multi) ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
-              R∨N: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃10 13 ),'),',SQ  
+              R∨N: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃'10' '13' ),'),',SQ  
               ∘Unreachable∘  
             }
             0=≢⍵: 2⍴SQ
