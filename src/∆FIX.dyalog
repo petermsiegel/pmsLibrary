@@ -293,11 +293,10 @@
         ⍝ * Specifying both <next> and <step> is an error.  
         ⍝   If next is specified, the actual step is (×end-start)×|next-start.    
         ⎕SE.∆TO←{⎕IO←0
-            2∧.≤≢¨⍺ ⍵: 11⎕SIGNAL⍨'⎕TO: range ← start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
-            (start next)(end step)←2↑¨⍺ ⍵ ⋄ step←(×∆←end-start)×|1↑(2=≢⍺)↓step,(start-next)
+            2∧.≤≢¨⍺ ⍵: 11 ⎕SIGNAL⍨'⎕TO: range ← start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
+            ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵: 1⊃⍵ ⋄ 2=≢⍺: -/⍺ ⋄ 1}⍵
             start+step×⍳0⌈1+⌊∆÷step+step=0     
         }
-        ⎕←'SaveRunTime called'
         1
     }
   ⍝ Executive: Search through lines (vector of vectors) for: 
