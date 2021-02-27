@@ -297,6 +297,7 @@
             (start next)(end step)←2↑¨⍺ ⍵ ⋄ step←(×∆←end-start)×|1↑(2=≢⍺)↓step,(start-next)
             start+step×⍳0⌈1+⌊∆÷step+step=0     
         }
+        ⎕←'SaveRunTime called'
         1
     }
   ⍝ Executive: Search through lines (vector of vectors) for: 
@@ -643,6 +644,7 @@
                       _⊣ _,←'⋄ ⍵⍎','''',STATIC_PREFIX,'''',',1⊃⎕SI}(0⊃⎕RSI,#))' 
         }⍬
         _←'⎕TMP'  macro SINK_NAME
+        _←SaveRunTime 'NOFORCE'
       ⍝ <<< PREDEFINED MACROS END 
 
       DFnScanIn←{ pDFn pAllQ pCom ⎕R { iDFn←0
