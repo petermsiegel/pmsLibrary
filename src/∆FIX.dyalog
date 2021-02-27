@@ -293,10 +293,9 @@
         ⍝ * Specifying both <next> and <step> is an error.  
         ⍝   If next is specified, the actual step is (×end-start)×|next-start.    
         ⎕SE.∆TO←{⎕IO←0
-            eTo←'⎕TO: range ← start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
-            start end←1↑¨⍺ ⍵  ⋄ 2∧.≤≢¨⍺ ⍵: eTo ⎕SIGNAL 11  
-            step←(×end-start)×|1↑1↓⍵,(start-1↑1↓⍺)
-            start+step×⍳0⌈1+⌊(end-start)÷step+step=0     
+            2∧.≤≢¨⍺ ⍵: 11⎕SIGNAL⍨'⎕TO: range ← start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
+            (start next)(end step)←2↑¨⍺ ⍵ ⋄ step←(×∆←end-start)×|1↑(2=≢⍺)↓step,(start-next)
+            start+step×⍳0⌈1+⌊∆÷step+step=0     
         }
         1
     }
