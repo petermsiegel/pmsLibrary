@@ -12,29 +12,34 @@
   ⍝                   ∘ an executable #.FIX_FN, if successfully ∆FIXed.
   ⍝    b) filename: Automatically supplies :file// prefix (required by ⎕FIX), if a simple character vector (VS).
   ⍝ 
+  ⍝ +--------------------------------------------------+
+  ⍝ |     CONSTANTS and OPTIONS                        |
+  ⍝ +-------------------------------------------- -----+
     DEBUG←1 
     ⎕IO ⎕ML←0 1  
+  ⍝ Prefix for any user-visible variable...
     FIX_PFX←'FÍX_'  
-
-  ⍝ See pSink← 
+  ⍝ See pSink←. 
    SINK_NAME←FIX_PFX,'t'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
-  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displayinh preprocessor control statments.
+  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUG.
     SQ DQ←'''"' ⋄ CR CR_INTERNAL←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
-
-  ⍝ Warnings-- only if DEBUG is active...
+  ⍝ ∆WARN: Warning are emitted as msgs only if DEBUG is active. Else NOP.
     ∆WARN←{⍺←1 ⋄ ⍺∧DEBUG: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
+    ∆ASSERT←{⍺←'ASSERTION FAILED' ⋄  ⍵: 0 ⋄ ⍺ ⎕SIGNAL 911}
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
   ⍝ Add CR to last line to make Regex patterns simpler...
     LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
 
+  ⍝ +-------------------------------------------------+
+  ⍝ | Patterns                                        +
+  ⍝ |   - Utilities                                   +
+  ⍝ |   - Definitions, organized by scan              +
   ⍝+--------------------------------------------------+
-  ⍝ BEGIN Pattern Definitions   (organized by scan)   +
-  ⍝+--------------------------------------------------+
-  ⍝ Pattern-related Utilities                         +
+  ⍝ | Pattern-related Utilities                         +
   ⍝+--------------------------------------------------+
     GenBracePat←{⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
           Lb Rb←⍵,⍨¨⊂'\\'                     
@@ -43,22 +48,21 @@
     }
     ∆Anchor←{∊'(?xi) ^',⍵,'$\r'}
   ⍝+--------------------------------------------------+
-  ⍝ A. MULTIPLE SCANS                                 +
+  ⍝ A. Pattern Defs, MULTIPLE SCANS                   +
   ⍝+--------------------------------------------------+
     pDotsNoCom←  '(?:\.{2,3}|…)\h*[\r\x01]\h*'
     pDots←      '(?:\.{2,3}|…)\h*(⍝[^\r\x01]*)?[\r\x01]\h*'
     pDQ←        '(?:"[^"]*")+' 
     pDAQ←       '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ Double Angled Quotes = Guillemets  « »
-  ⍝   pSQ←        '(?:''[^''\r\x01]*'')+'   ⍝ Allow multi-line pSQ.
-    pSQ←        '(?:''[^'']*'')+'           ⍝ Match multiline SQ strings, but detect and warn...
-    pAllQ←      pDQ,'|',pSQ,'|',pDAQ
+    pSQ←        '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
+    pAllQ←      pDQ,'|',pSQ,'|',pDAQ        ⍝ For Triple Quotes (not matched here), see pTrpQ below.
     pCom←      '⍝[^\r\x01]*$' 
     pDFn←       GenBracePat '{}'
     pParen←     GenBracePat '()' 
     pBrack←     GenBracePat '[]'
     pBraces3←   '(?:' pDFn '|' pParen '|' pBrack ')'
   ⍝+--------------------------------------------------+
-  ⍝ B.CONTROL SCANS                                   +
+  ⍝ B.Pattern Defs, CONTROL SCANS                     +
   ⍝+--------------------------------------------------+
   ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
   ⍝ These are required to match a SINGLE line each in its entirety OR a line continued explicitly using dot format.
@@ -138,8 +142,9 @@
   ⍝   2021 2 23 22 47 35 984  2021 2 23 22 47 18 465 
   ⍝
   ⍝ See  https://www.dyalog.com/uploads/conference/dyalog20/presentations/D09_Array_Notation_RC1.pdf
-    pStatic←       ∆Anchor'\h* :: (?:stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
-    pDeclare←      ∆Anchor'\h* :: (?:decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
+    pStatic←       ∆Anchor'\h* :: (?>stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
+    pDeclare←      ∆Anchor'\h* :: (?>decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
+    pInclude←      ∆Anchor'\h* :: (?>incl(?:ude)?) \h+ ([^\r⍝]*)  \N*'  ⍝ F1: File identifiers (0 or more)
   ⍝ For ::DEFL (literal) of the form ::DEFL name←  value, match after the ctl word: 
   ⍝      blanks, word*, blanks,←  optional blank, value*
   ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
@@ -160,9 +165,9 @@
     pDebug←       ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
     pUCmdC←       ∆Anchor '\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
     pOther←       ∆Anchor'\N*' 
-  ⍝+-----------------------------------+
-  ⍝ C. MAIN SCAN PATTERNS              +  
-  ⍝+-----------------------------------+
+  ⍝+-------------------------------------+
+  ⍝ C. Pattern Defs, MAIN SCAN PATTERNS  +  
+  ⍝+-------------------------------------+
     pSysDef←       ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
     pUCmd←        '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
     pDebug←       ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
@@ -186,10 +191,11 @@
         _pMac←'(?:[]⎕]|:{1,2}|)',_pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
         _pMac
     }⍬
-   pDump←       '^\h*::DUMP\b\h*$' 
-  ⍝+-----------------------------------+
-  ⍝ D. ATOM SCAN PATTERNS              +  
-  ⍝+-----------------------------------+
+    pNSEmpty← '\(\h*\)'   ⍝ Dyalog APL (future) extension: ⎕NS ⍬.  Other namespace extensions handled via ::DECLARE
+    pDump←       '^\h*::DUMP\b\h*$' 
+  ⍝+---------------------------------------+
+  ⍝ D. Pattern Defs, ATOM SCAN PATTERNS    +  
+  ⍝+---------------------------------------+
   ⍝ Atomlist Pattern:    
   ⍝    (` | ``) item, where item: word | number | "quote" | 'quote'
   ⍝         `: Ensures atom list is always a vector, no matter how many atoms.
@@ -214,6 +220,8 @@
   ⍝            item with all that is to the right.
   ⍝            A single arrow ensures even a single item to the left is encoded as a 1-elem list;
   ⍝            a double arrow treats a single item as an independent scalar.
+  ⍝  See also ::DECLARE and Dyalog APL namespace declarations like
+  ⍝          name ← (var: value ⋄ var2: value2)
   ⍝  Uses 1: Allows simulation of named arguments in function calls or object members:
   ⍝          ((name→"John Smith")(address→"24 Mill Ln")(zip→01426))
   ⍝  is encoded as:
@@ -246,21 +254,63 @@
           s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
     }   
   ⍝ ∆DEC: 
-  ⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137), converting to decimal.
+  ⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137, with suffixes [boxBOX], converting to decimal.
   ⍝ Converts up to 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF (28 hex digits) as integer strings.
-  ⍝ Returns right arg (⍵) if  
-  ⍝      (a) not a known base (b|o|x) (b: 2, o: 8, x: 16); (b) number is negative, or (c) digits are out of range,
-  ⍝ or if it can't represent in an integer of 34 decimal digits...
+  ⍝ Returns right arg (⍵) AS IS if  
+  ⍝   (a) the base is unknown, not b|o|x UC or LC (base 2, 8, 16 resp.),
+  ⍝   (b) the number is negative, or its digits are out of range,
+  ⍝   (c) the number can't be represented in an integer of 34 decimal digits...
     ∆DEC←{⎕PP ⎕FR←34 1287  ⍝ Ensures largest # of decimal digits.
         canon←⎕C ⍵ 
         0=base←2 8 16 0['box'⍳1↑1↓canon]: ⍵    ⋄ '0'≠⊃canon: ⍵
         res←(base↑'0123456789abcdef')⍳2↓canon  ⋄ ∨/res≥base: ⍵
         'E'∊res←⍕base⊥res: ⍵ ⋄ res
     }
-  ⍝ SaveRunTime:  SaveRunTime ['FORCE' | 'NOFORCE']
-  ⍝ Save Run-time Utilities in ⎕SE if not already...
-  ⍝     ⎕SE.⍙PTR
-  ⍝ CALR.⎕PATH←1↓∊' ',¨∪'⎕SE',' '(≠⊆⊢)CALR.⎕PATH
+  ⍝ ∆INCLUDE ... 
+    ∆INCLUDE←{
+        ⍺←1
+        ⎕IO ⎕ML←0 1
+        
+      ⍝ Get search path from FSPATH if present, else WSPATH. Always start with search path: '.' and '..'.
+      ⍝ If pathss are repeated, only the first is used.
+        setSearchPath←{⍺←,¨'.' '..'
+            0=≢⍵: ⍺ ⋄ 0≠≢p←{2 ⎕NQ'.' 'GetEnvironment' ⍵}⊃⍵: ∪⍺,':'(≠⊆⊢)⊣p ⋄ ⍺ ∇ 1↓⍵
+        } 
+      ⍝ FindFirstFiles:  fullPaths ← searchPath FindFirstFiles files
+      ⍝    Returns fullPaths where each file is found in searchPath, or ⎕NULL if not found.
+        FindFirstFiles←{  ⍺←⍬
+            0=≢⍺:  11 ⎕SIGNAL⍨ eNoPath
+            0=≢⍵: ⎕NULL
+            FindEach←⍺∘{0:: 11 ⎕SIGNAL⍨eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
+                0=≢⍺: ⎕NULL                ⍝ Exhausted search
+                full←(rel/'/',⍨⊃⍺),⍵ ⊣ rel←'/'≠1↑⍵  
+                ⎕NEXISTS full: full 
+              ⍝ Keep searching only if not absolute name      
+                rel: (1↓⍺) ∇ ⍵ ⋄ ⎕NULL                  
+            }
+            FindEach¨⊆⍵
+        }
+        eNoPath←     '∆INCLUDE: No search directories were specified.'
+        eUnexpected← '∆INCLUDE: Unexpected error evaluating filename.'
+        eNoFiles←    '∆INCLUDE: No file(s) to include.'
+        eNotFound←   '∆INCLUDE: At least one file to include was not found in search path:'
+
+      ⍝ EXECUTIVE
+        files←{1=≡⍵:  ' ' (≠⊆⊢)⍵ ⋄ ⍵ },⍵
+            0=≢files:          11 ⎕SIGNAL⍨ eNoFiles
+        searchPath←setSearchPath 'FSPATH' 'WSPATH'  
+        filesFull←searchPath FindFirstFiles files   
+      ⍺=¯1: filesFull
+            ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
+
+        ⍺=0: filesFull
+      ⍝ Read each file, one APL char vector per line, and concatenate all vectors together
+        1: _←⊃,/{⊃⎕NGET ⍵ 1}¨filesFull
+    }    
+  ⍝ SaveRunTime:  SaveRunTime ['NOFORCE' | 'FORCE'], default 'NOFORCE'.
+  ⍝ Save Run-time Utilities shown here in ⎕SE if not already there...
+  ⍝     ⎕SE.⍙PTR, ⎕SE.⍙FIX_TRADFN   -- not expected to be called by user.
+  ⍝     ⎕SE.∆TO                     -- potentially called by user.
     SaveRunTime←{utils utype←↓⍉↑('⍙PTR' 4) ('∆TO' 3)('⍙FIX_TRADFN' 3) 
         (~DEBUG)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUG∨FORCE) or if utils not created...
         2/⍨~DEBUG:: 11 ⎕SIGNAL⍨'∆FIX: Unable to set utilities: ⎕SE.(',utils,')'
@@ -344,11 +394,22 @@
               (F 2) (0 StringFormat) UnDQ_DAQ F 1         ⍝ Convert double [angle] quotes
             }⍠reOPTS⊣⍵
         }
-        ProcSQ←{ ⍝ SQ Strings don't allow multiple lines or suffix chars.
-            wMsg←'Multi-line std (single-quote) APL Strings disallowed'
-            multi←1∊CR CR_INTERNAL∊⍵
-            ('v' (0 StringFormat) 1↓¯1↓⍵) ⊣ multi ∆WARN wMsg
+      ⍝ ProcSQ:    strRep ← ProcSQ strCR
+      ⍝     strCR: Must include explicit surrounding SQs. 
+      ⍝ SQ Strings are defined as single-line only with no suffix modifier extensions.
+      ⍝ Here we detect a multiple line SQ string and 
+      ⍝ 1) Warn the user.
+      ⍝ 2) Fix it up so that 'abc\rdef\rghi'  => 'abc' 'def' 'ghi'
+      ⍝ I.e. multiline SQ strings ==> a vector of char strings in code form.
+        ProcSQ←{ 
+            ∆ASSERT 0(~∊)SQ=(⊃⍵)(⊃⌽⍵):
+            1(~∊)CR CR_INTERNAL∊⍵: ⍵ 
+            _←∊SQ,¨SQ_SP,⍨¨Str2SVs 1↓¯1↓⍵  
+            ~DEBUG: _  
+            _ ⊣  (⎕←⎕SE.UCMD 'Disp ',_)   ⊣ ∆WARN eProcSQ
         }
+        SQ_SP← ⊂SQ,' ' 
+        eProcSQ←'Error: Multiline strings with single quotes detected.'
       ⍝ ⍺ (⍺⍺ _MacSet) ⍵. Set key <⍺> to have value <⍵>, or ⍺ if key <⍺> doesn't exit.
       ⍝ If ⍺≡⍵, delete key <⍺>.
       ⍝ If ⍺⍺=1, put ⍵ in parens, unless ⍵ is a non-simple "expression" 
@@ -401,7 +462,7 @@
       ⍝         ⍺⍺=¯1  remove left_in, the indent of left-most line for indent, from each line presented...
       ⍝         ⍺⍺=0   leave lines as is.
       ⍝         See also 'x' exdent option.
-        StringFormat←{ ⍺←''   
+          StringFormat←{ ⍺←''   
           ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'v'.
             DEF_TYPE←'v'
             o1 o2 od← 'rnsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
@@ -412,13 +473,8 @@
             indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
             C: ' '
             SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
-          ⍝ Str2SVs: Ensures a vector of strings.
-          ⍝       ⍵: Vector of strings or a single flat string with CRs.
-          ⍝ Note: Ensure split sees "\rabc as 2 lines, not 1 line; ditto abc\r"; ditto abc\r\rdef'
-            Str2SVs←{2=|≡⍵:⍵ ⋄ n←⎕UCS 0 ⋄ p←CR=w←⍵ ⋄ (p/w)←⊂n,CR,n ⋄ n~⍨¨CR(≠⊆⊢)∊w}                
             TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
             FormatPerOpt← {multi←⍺
-             ⍝  0=≢⍵: 2⍴SQ
               AddSQ←SQ∘,∘⊢,∘SQ 
               V∨M: ('↑'/⍨M∧multi) ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
               R∨N: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃10 13 ),'),',SQ  
@@ -428,6 +484,11 @@
             multi←1<≢lines←Str2SVs ⍵  ⍝ Don't add parens, if just one line...
             AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
         }
+      ⍝ Str2SVs: Ensures a vector of strings.
+      ⍝       ⍵: Vector of strings or a single flat string with CRs.
+      ⍝ Note: Ensure split sees "\rabc as 2 lines, not 1 line; ditto abc\r"; ditto abc\r\rdef'
+        Str2SVs←{2=|≡⍵:⍵ ⋄ n←⎕UCS 0 ⋄ p←CR=w←⍵ ⋄ (p/w)←⊂n,CR,n ⋄ n~⍨¨CR(≠⊆⊢)∊w}                
+
       ⍝ See iDQPlus (below) and StringFormat above...
       ⍝ We add a "spurious" CR_INTERNAL so StringFormat sees leading and trailing bare " on separate lines... 
       ⍝ DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }   
@@ -478,8 +539,8 @@
   ⍝+-------------------------------------------------+
         ControlScan←{ 
           ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code
-            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDeclare pDefL pErr pDebug pUCmdC pOther
-                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDeclare iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
+            controlScanPats←pIf pElIf pEl pEndIf pDef1 pDef2 pEvl pStatic pDeclare pInclude pDefL pErr pDebug pUCmdC pOther
+                            iIf iElIf iEl iEndIf iDef1 iDef2 iEvl iStatic iDeclare iInclude iDefL iErr iDebug iUCmdC iOther←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -500,13 +561,14 @@
 
                   CASE iErr: (¯1↓F 0),'∘∘∘ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
                 ⍝ ON...
-                  CurStateIs ON: {   chk←{⎕←'<',⍵,'>' ⋄ ⍵}
+                  CurStateIs ON: {              
                       CASE iOther:      F 0  
                       CASE iDef1:       PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
                       CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣     Eval2Str MainScan DTB F 2  
                       CASE iStatic:     (PassState ON),(F 1),(F 2),CR,⍨ EvalStatic  MainScan DTB F 3  
                       CASE iDeclare:    (PassState ON),(F 1),(F 2),CR,⍨ EvalDeclare MainScan DTB F 3  
+                      CASE iInclude:    (PassState ON),∊CR,⍨¨∆INCLUDE F 1   ⍝ F 1 - 0 or more fileids (blank separated)
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
@@ -542,14 +604,14 @@
             mâc.(K V) DEBUG← save                            ⍝ Restore macros
             res
         } ⍝ ControlScan 
-  
+
   ⍝+--------------------------------------------------+
   ⍝ MAIN SCANS:   translating code in APL Statements  +  
   ⍝     MainScan - most statements                    +
   ⍝     AtomScan - handle Atoms via ` `` → →→         +
   ⍝+--------------------------------------------------+
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDots pHere pHCom pPtr pNumBase pNum pSink pDump pMacro 
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDots iHere iHCom iPtr iNumBase iNum iSink iDump iMacro ←⍳≢mainScanPats
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDots pHere pHCom pNSEmpty pPtr pNumBase pNum pSink pDump pMacro 
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDots iHere iHCom iNSEmpty iPtr iNumBase iNum iSink iDump iMacro ←⍳≢mainScanPats
         MainScan←{ 
             MainScan1←{ 
                 macroSeen∘←0
@@ -569,7 +631,7 @@
                     CASE iSQ: ProcSQ F 0  
                     CASE iCom: F 0                
                   ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts←    :c :l :v :m :s
-                  ⍝     F 3: body of here_doc, F 2: opns,  4: spaces before end_token, 5: code after end-token 
+                  ⍝     F 3: body of here_doc, F 2: opNSEmpty,  4: spaces before end_token, 5: code after end-token 
                     CASE iHere: {  
                       opt← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Get option after each :
                       l1←  opt ((≢F 4 ) StringFormat)  F 3
@@ -586,6 +648,7 @@
                     CASE iNum:     (F 0)~'_'
                     CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2   
                     CASE iSink:    (F 1),SINK_NAME,(F 2)    ⍝ F1: blanks (keep alignment), SINK_NAME←
+                    CASE iNSEmpty: '(⎕NS⍬)'
                     CASE iDump:    ''⊣MacDump '  MACRO DUMP'
                     ∘∘UNREACHABLE∘∘
                 }⍠reOPTS⊣⍵
@@ -618,8 +681,8 @@
                   (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
-            ⍺←0 ⋄ MAX←10 ⋄ count strIn←⍺ ⍵
-            count≥MAX: ⍵  ⊣ ⎕←'∆FIX: MainScan macro replacement limit (',(⍕MAX),') reached. Cyclic macro pattern?'
+            ⍺←0 ⋄ MAX←2 ⋄ count strIn←⍺ ⍵
+            count≥MAX: ⍵  ⊣⎕←'∆FIX: MainScan macro replacement limit (',(⍕MAX),') reached. Cyclic macro pattern?'
             strOut←AtomScan MainScan1  strIn ⊣ macroSeen←0
             ~macroSeen: strOut ⋄  strOut≡strIn: strOut ⋄ (count+1) ∇ strOut  
         } ⍝ End MainScan 
