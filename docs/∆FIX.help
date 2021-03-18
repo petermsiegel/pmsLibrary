@@ -16,46 +16,88 @@
              end_token2: end_token, end_token:, or :end_token
                          - A preceding or following colon is simply syntactic sugar.
                           - Anything after <end_token2> will be APL code added after the converted here-string.
-              opts:       [:c | :l | :v | :m | :s]     
-                          :c - lines separated by carriage returns (⎕UCS 13)
-                          :l - ...             by linefeeds (⎕UCS 10) 
-                          :s - ... by linefeeds (⎕UCS 10)   
-                          :v - ... lines become APL vector of vectors  
-                          :m - ... lines become rows in matrix
-                          :e - ..  backslash + linend catenate current and next line:  '\\\c' => ' '
-                          - Only the first char after a colon is checked; case and all other text is ignored.
-                            E.g. for convenience, you might specify :CR :LF :VV :MX :SP in upper or lower case.
+              opts:       :[ v | r| n | s | m | e]    
+              DEFAULT     v - ... lines become APL vector of vectors  
+                          r - lines separated by carriage returns (⎕UCS 13)
+                          n - ...             by linefeeds (⎕UCS 10) 
+                          s - ...             by spaces    
+                          m - ... lines become rows in matrix (↑⍵, where ⍵ as for :v option)
+                          e - ..  backslash + linend catenate current and next line:  '\\\c' => ' '
    ∆FIX:     Full Specification
    ¯¯¯¯¯     ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯¯¯
    ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
                 1] TQs:  Triple Quotes (""" delimiter) supporting a limited, multiline here-string. 
                   (Only three double quotes (") are recognized, not three single quotes.)
                 2] DQs:  Double Quotes "...", like standard single-quote strings, over 1 or more lines.
+                         Double angled brackets (guillemets) « » may be used within ALTERNATIVE
+                         "balanced" DQ strings. A right double angled bracket » may be included
+                         within the string by doubling »». (An internal left angled bracket can appear as is).
                 3] HERE: Here-strings, using a triple colon syntax, and allowing several options.
              Not all 3 options make sense, but they're provided to allow experimentation.
    Syntax:   Uses ⎕FIX syntax, with enhancements:
              Recognizes and converts source lines passed or in object named to standard APL...
-                1] TQs                   2]  DQs               3] Here-strings
+                1] TQs                   2]  DQs                3] HERE 
                 ------------------       --------------         ----------------------
-   Specs:       s1← """\h*\n...\n\h*"""  s2← "l1\nl\nl3"       s3← ::: endToken [[:CR|:MX|:VV|:SP]] [.\n]* endToken
-                Opening and closing                            For <endToken> of form '[\w∆⍙_.#⎕]+:?', 
-                """ must appear on                                collects all lines up to (but not incl.) 
-                their own lines                                '\R?\h*:?\<endToken>:?'
-   Escaping?    Nothing escaped.         Double " to include.  Any text protected, as long as not matching endToken.
-                Internal """ invalid. 
+   Specs:       s1← """\h*\n...\n\h*"""  s2← "l1\nl2\nl3"       s3← ::: endToken [[:CR|:MX|:VV|:SP]] [.\n]* endToken
+                Opening and closing      s2← «l1\nl2\nl3»       Collects all text to closing text endToken          
+                """ must appear on                              (any word char), optionally preceded or followed by ':'. 
+                their own lines                                 endToken:   or   :endToken.
+   Escaping     Nope.                    Double " to include.  Any text protected, as long as not matching endToken.
+   internally?  No internal """          Double » to include.
    Format:      s1← """                  s2← "Text on line 1   s3← ::: end_s3
                   line 1                   text on line 2...       text on line 1
                   line 2 ...               text on line 3"         more on line 2
                 """                                                end_s3: 
-   Must opening / closing quote or token be the last / first thing on separate line?
-                YES, BOTH                NO                    NO
-   Trim LHS?    YES                      NO                    YES
-   ...based on: spaces preceding         --                    spaces preceding 
-                closing """                                    endToken on same line. 
-   Options?     NONE                     NONE                  VARIOUS. See Options above.        
-   Output:      APL quoted strings       APL quoted strings    APL quoted strings
-   Linesep:     (⎕UCS 13)                (⎕UCS 13)             (⎕UCS 13) by default. See options.
+   Syntax Restrictions
+                Opening quote must be                
+                last item on opening line.
+                Closing quote must be
+                first thing (after spaces)
+                on last line.
+   Trim Options vrnsme                   vrnsme                : followed by vrnsme
+   Default:     v                        v                     v  
+   ...based on: left-most                left-most             left-most
+                margin                   margin                margin       
+   Output:      APL quoted strings       APL quoted strings    APL quoted strings 
+                See trim options.       See trim options.      See trim options.        
       
   Additional Extension:
-  - Outside quotes, a line may be continued by placing two or three dots (.., ..., or a ellipses …)
+  - Outside quotes, a line may be continued by placing two or three dots (.., ..., or Unicode ellipses …)
     at the end of a line (with possible blanks afterwards). Blanks before the dots will be kept.
+
+
+∆FIX Preprocessor Directives
+  Each directive MUST appear on its own line. Directives start with 2 colons.
+  The case of the directive is ignored.
+
+::INCLUDE filename1 [filename2 ...]
+  Includes whatever file is specified verbatim. The full file name and extension must be specified.
+  ∆FIX will search a variety of directories automatically.
+
+::IF expression
+  Includes lines within the ::IF block if the expression given evaluates at ∆FIX time to
+  true: a numeric object that isn't 0, a non-empty char string, a non-null array.
+
+::ELSEIF expression
+  Like ::IF
+
+::ELSE
+  Executes links within the ::ELSE block if prior ::IF or ::ELSEIF expressions were false.
+
+::END[IF]
+  Terminates an ::IF block.
+
+::DEF  name← expression
+
+::DEFL name← expression
+
+::EVAL name← expression
+::DEFE name← expression 
+
+::DEF  name←
+
+::DEF  name 
+
+::STATIC  name← expression
+
+::DECLARE name← expression
