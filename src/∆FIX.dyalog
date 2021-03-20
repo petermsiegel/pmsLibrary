@@ -789,12 +789,25 @@
     ⍝   2. Visible Strand function (⍮) replaced by current APL (,⍥⊂). 
     ⍝      Mnemonic: Like ';' separates/links items of "equal" status
       FirstScanIn←{  
-          pStrand←'⍮'     ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂)   ⍝ '⍮' is U+236E
-          Align← {  p←⍵.PatternNum
-             p=3:'(,⍥⊆)' ⋄ p≠0: ⍵.Match ⋄ pDFn pAllQ pCom ⎕R _Align ⍠reOPTS⊣⍵.Match 
+          pStrand←'⍮'     ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
+          pSemi←';'       ⍝ Implicit strand function outside control of brackets...
+          pLPB←'[[(]'  
+          pRPB←'[])]'
+          STRAND_OUT SEMI_OUT←'(,⍥⊆)' ';'
+          STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
+          iDFn iStrand iSemi iLPB iRPB←0 3 4 5 6
+          Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match
+             CASE iSemi:   STRAND_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
+             CASE iLPB:    str⊣STK,←1+str='['
+             CASE iRPB:    str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
+             CASE iStrand: STRAND_OUT 
+             CASE iDFn:    pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣str 
+             str
           }
-          _Align← {  ⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match           }
-          pDFnDirective pAllQ pCom pStrand  ⎕R Align ⍠reOPTS⊣⍵
+          SubAlign← {  
+              ⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match 
+          }
+          pDFnDirective pAllQ pCom pStrand pSemi pLPB pRPB  ⎕R Align ⍠reOPTS⊣⍵
       }
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
       LastScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵ }
