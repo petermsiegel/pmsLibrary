@@ -119,11 +119,11 @@
   ⍝    ::STATIC  time←  ⎕TS    ⍝ This will be replaced by its value at ∆FIX/⎕FIX ("compile") time (exactly once).
   ⍝ More complex declarations may extend over multiple lines or use statment separators (⋄),
   ⍝ using double-quoted multi-line strings, complex declarations in brackets [] or parentheses [].
-  ⍝    ::DECLARE multiLater←  [ 'iota10   ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
+  ⍝    ::DECLARE multiLater←  [ 'iota10'  ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
   ⍝                             'revAlph' ⋄ ⌽⎕A
   ⍝                             'when'    ⋄ ⎕TS  ⍝ Changes on each call, if internal to a object.
   ⍝                          ]
-  ⍝    ::STATIC multiNow←    [ 'iota10   ⋄ ⍳10   ⍝ Creates a  declaration evaluated at ∆FIX time.
+  ⍝    ::STATIC multiNow←    [ 'iota10'  ⋄ ⍳10   ⍝ Creates a  declaration evaluated at ∆FIX time.
   ⍝                            'revAlph' ⋄ ⌽⎕A
   ⍝                            'when'    ⋄ ⎕TS   ⍝ Set as a constant, when an object is ∆FIXed.
   ⍝                         ]
@@ -189,7 +189,7 @@
     pHCom←        ∆Anchor '\h* ::: \h* ⍝ '_pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
     pNumBase←     '(?xi) 0 [xbo] [\w_]+'
     pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
-    pSink←'(?xi) (?:^|(?<=[]{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
+    pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
     pMacro←       {
         APL_LET1←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
         _pVarName← '(?i)[',APL_LET1,'][⎕.\d',APL_LET1,']*'
@@ -458,11 +458,12 @@
       ⍝ If ⍺≡⍵, delete key <⍺>.
       ⍝ If ⍺⍺=1, put ⍵ in parens, unless ⍵ is a non-simple "expression" 
       ⍝          i.e. neither an APL user/system name, number, or null.
-      ⍝ NonSimple: returns 0 for ⍵: FrEd, #.JaCk, FrEd.Jack, ⎕SE, 12345J45 123.45J¯4 ⎕IO 
+      ⍝ ParensNeeded: returns 0 for ⍵: FrEd, #.JaCk, FrEd.Jack, ⎕SE, 12345J45 123.45J¯4 ⎕IO 
       ⍝                             "Fred Jack"  "1 2"   "3 PI R"
-      ⍝            returns 1 for ⍵: "",  "FRED+JACK", ":DIRECTIVE"
-        NonSimple←{¯1=⎕NC ⊂'X',⍵~'⎕#.¯ '}  
-        _MacSet←{ par←⍺⍺∧NonSimple ⍵
+      ⍝               returns 0 for any single-char ⍵ (so, e.g.,  ::DEF semi←; is replaced by ';', not '(;)')
+      ⍝               returns 1 for ⍵: "",  "FRED+JACK", ":DIRECTIVE"
+        ParensNeeded←{⍺=0: 0 ⋄ 1=≢⍵: 0 ⋄ ¯1=⎕NC ⊂'X',⍵~'⎕#.¯ '}  
+        _MacSet←{ par←⍺⍺ ParensNeeded ⍵
             val←AddPar⍣par⊣⍵ 
             nKV←≢mâc.K ⋄ p←mâc.K⍳⊂key←⍙K ⍺       
             p<nKV: val⊣ { ⍵: mâc.V[p]←⊂val ⋄ 1: mâc.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
@@ -559,7 +560,7 @@
                  r←  ⍺⍺ ⍵ ⋄ CALR.(⎕FR ⎕PP)←save ⋄ r 
         }
       ⍝ Eval2Str: In CALR env., execute a string and return a string rep of the result.
-        Eval2Str←CALR∘{ 0:: ⍵,' ∘EVALUATION ERROR∘'  ⋄ res2←⎕FMT res←⍺⍎'⋄' LastScanOut ⍵  
+        Eval2Str←CALR∘{ 0:: ⍵,' ∘EVALUATION ERROR∘'  ⋄ res2←⍺.⎕FMT res←⍺⍎'⋄' LastScanOut ⍵  
            ⍝  0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨SQ,¨SQ,⍨¨{ ⍵/⍨1+⍵=SQ }¨↓res2
            0≠80|⎕DR res: 1↓∊CR,res2 ⋄ ,1↓∊CR,¨1∘DblSQ¨↓res2
         } _MaxPrecision CALR
@@ -789,28 +790,33 @@
     ⍝   2. Visible Strand function (⍮) replaced by current APL (,⍥⊂). 
     ⍝      Mnemonic: Like ';' separates/links items of "equal" status
       FirstScanIn←{  
-          pStrand←'⍮'     ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
-          pSemi←';'       ⍝ Implicit strand function outside control of brackets...
-          pLPB←'[[(]'  
-          pRPB←'[])]'
-          STRAND_OUT SEMI_OUT←'(,⍥⊆)' ';'
-          STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
-          iDFn iStrand iSemi iLPB iRPB←0 3 4 5 6
-          Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match
-             CASE iSemi:   STRAND_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
-             CASE iLPB:    str⊣STK,←1+str='['
-             CASE iRPB:    str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
-             CASE iStrand: STRAND_OUT 
-             CASE iDFn:    pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣str 
-             str
-          }
-          SubAlign← {  
-              ⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match 
-          }
-          pDFnDirective pAllQ pCom pStrand pSemi pLPB pRPB  ⎕R Align ⍠reOPTS⊣⍵
+          Align←    {  ⍵.PatternNum≠0: ⍵.Match ⋄ pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣⍵.Match }
+          SubAlign← {  ⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match }
+          pDFnDirective pAllQ pCom  ⎕R Align ⍠reOPTS⊣⍵
       }
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
-      LastScanOut←{⍺←CR ⋄ ⍺{ ⍺@ (CR_INTERNAL∘=)⊢⍵ }¨⍵ }
+      LastScanOut←{
+            ⍺←CR            ⍝ Default for CR_OUT
+            pCrIn←'\x01'
+            pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
+            pSemi←  ';'             ⍝ Implicit strand function outside control of brackets... 
+            pLBrak←'[[(]'  
+            pRBrak←'[])]'
+            STRAND_OUT SEMI_OUT CR_OUT←'(,⍥⊆)' ';' ⍺ 
+            STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
+            iCR iStrand iSemi iLBrak iRBrak← 2 3 4 5 6 
+            Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match
+              CASE iCR:     CR_OUT
+              CASE iStrand: STRAND_OUT 
+              CASE iSemi:   STRAND_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
+              CASE iLBrak:    str⊣STK,←1+str='['
+              CASE iRBrak:    str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
+            ⍝ ELSE matches (AllQ Com) 
+              str   
+            }
+            scanPats←  pAllQ pCom pCrIn pStrand pSemi pLBrak pRBrak
+            scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
+      }
       UserEdit←{⍺←0 ⋄ recurs←⍺
           sep←⊂'⍝>⍝',30⍴' -'
           alt←'⍝ Enter ESC to exit with changes (if any)' '⍝ Enter CTL-ESC to exit without changes' 
