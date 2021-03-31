@@ -70,7 +70,7 @@
   ⍝ B.Pattern Defs, CONTROL SCANS                     +
   ⍝+--------------------------------------------------+
   ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
-  ⍝ These are required to match a SINGLE line each in its entirety OR a line continued explicitly using dot format.
+  ⍝ These are required to match a SINGLE line each in its entirety OR a line continued implicitly or explicitly (via dot format).
   ⍝ BUG: Does not allow continuation via parens, braces, double quotes, etc.
 
   ⍝ control CR Family: Multi-line dfns and strings on ::directives. 
@@ -115,18 +115,18 @@
   ⍝    name:      An APL run-time variable
   ⍝    variable:  A Dyalog code value OR a Dyalog new Array or Namespace declaration on one or more lines.
   ⍝ Simple APL declarations are allowed. 
-  ⍝    ::DECLARE time←  ⎕TS    ⍝ This will execute at run-time (each time statement is reached).
   ⍝    ::STATIC  time←  ⎕TS    ⍝ This will be replaced by its value at ∆FIX/⎕FIX ("compile") time (exactly once).
+  ⍝    ::DECLARE time←  ⎕TS    ⍝ This will execute at run-time (each time statement is reached).
   ⍝ More complex declarations may extend over multiple lines or use statment separators (⋄),
   ⍝ using double-quoted multi-line strings, complex declarations in brackets [] or parentheses [].
-  ⍝    ::DECLARE multiLater←  [ 'iota10'  ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
-  ⍝                             'revAlph' ⋄ ⌽⎕A
-  ⍝                             'when'    ⋄ ⎕TS  ⍝ Changes on each call, if internal to a object.
-  ⍝                          ]
   ⍝    ::STATIC multiNow←    [ 'iota10'  ⋄ ⍳10   ⍝ Creates a  declaration evaluated at ∆FIX time.
   ⍝                            'revAlph' ⋄ ⌽⎕A
   ⍝                            'when'    ⋄ ⎕TS   ⍝ Set as a constant, when an object is ∆FIXed.
-  ⍝                         ]
+  ⍝                          ]
+  ⍝    ::DECLARE multiLater←  [ 'iota10'  ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
+  ⍝                             'revAlph' ⋄ ⌽⎕A
+  ⍝                             'when'    ⋄ ⎕TS  ⍝ Changes on each call, if internal to a object.
+  ⍝                           ]
   ⍝     ::STATIC variables have access only to named objects created earlier in the same session.
   ⍝
   ⍝  EXAMPLE:
@@ -151,10 +151,10 @@
     pDeclare←      ∆Anchor'\h* :: (?>decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pMULTI_NOCOM '+|) \N* ' 
     pInclude←      ∆Anchor'\h* :: (?>incl(?:ude)?) \h+ (    [^$R⋄⍝]*  )  (?:⍝ [^$R⋄]* )?'   
   ⍝ For ::DEFL (literal) of the form ::DEFL name←  value, match after the ctl word: 
-  ⍝      blanks, word*, blanks,←  optional blank, value*
+  ⍝      blanks, word*, blanks,←  value*    ⍝ NOTE: Blanks after ← are significant and kept...
   ⍝ where word* defined as above and value* includes everything up to the EOL, including leading and internal blanks.
   ⍝ The value will not be enclosed in parentheses.
-    pDefL←         ∆Anchor'\h* :: defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h? (' pMULTI_COM '|) '  
+    pDefL←         ∆Anchor'\h* :: defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ←  (' pMULTI_COM '|) '  
   ⍝ For ::DEF of forms:   
   ⍝     ::DEF name    OR    ::def name value  
   ⍝ we match after the ctl word:
@@ -190,14 +190,18 @@
     pNumBase←     '(?xi) 0 [xbo] [\w_]+'
     pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
     pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
-    pMacro←       {
-        APL_LET1←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÅÈÉÊËÒÓÔÕÖØÙÚÛÄÆÜÌÍÎÏÐÇÑ∆⍙_#'
-        _pVarName← '(?i)[',APL_LET1,'][⎕.\d',APL_LET1,']*'
-        _pMac←'(?:[]⎕]|:{1,2}|)',_pVarName     ⍝ OK: ::NAME, ⎕NAME, ]NAME
-        _pMac
+
+    ⍝    pMULTI_COM←    ∆R '(?x) (?<ANY> (?> [^\{[(⍝''"«$R]+ |' pAllQ '|' pBraces3 '|' pCom ') (?&ANY)*)'
+ 
+    pMacro←       { 
+      ⍝ Matches:  ⎕X012  #.X012 ::X012 or  A.B.⎕X012, ⎕X012.A.B etc. Trailing '.' is not included!    
+      ⍝ APL variable name initial letters: 
+      ⍝     [ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_] ==>  [A-ZÀ-ÖØ-Ü∆⍙_]
+        _AplName← '(?<APLNAME> (?: ⎕|::?)? [A-ZÀ-ÖØ-Ü∆⍙_] [\dA-ZÀ-ÖØ-Ü∆⍙_]* | \#{1,2} )'
+        ∊_pMac←'(?xi)' _AplName ' (\.(?&APLNAME))*'   ⍝ OK: ::NAME, ⎕NAME, ]NAME
     }⍬
     pNSEmpty← '\(\h*\)'   ⍝ Dyalog APL (future) extension: ⎕NS ⍬.  Other namespace extensions handled via ::DECLARE
-    pDump←       '^\h*::DUMP\b\h*$' 
+    pDump←    '^\h*::DUMP\b\h*$' 
   ⍝+---------------------------------------+
   ⍝ D. Pattern Defs, ATOM SCAN PATTERNS    +  
   ⍝+---------------------------------------+
@@ -344,7 +348,8 @@
   ⍝ Save Run-time Utilities shown here in ⎕SE if not already there...
   ⍝     ⎕SE.⍙PTR, ⎕SE.⍙FIX_TRADFN   -- not expected to be called by user.
   ⍝     ⎕SE.∆TO                     -- potentially called by user.
-    SaveRunTime←{utils utype←↓⍉↑('∆ASSERT' 3)('⍙FIX_TRADFN' 3)('⍙PTR' 4) ('∆TO' 3)
+  ⍝     ⎕SE.∆NS                     -- see extensions from Adam B on github.
+    SaveRunTime←{utils utype←↓⍉↑('∆ASSERT' 3)('⍙FIX_TRADFN' 3)('⍙PTR' 4) ('∆TO' 3)('∆NS' 3)
         (~DEBUG)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUG∨FORCE) or if utils not created...
         2/⍨~DEBUG:: 11 ⎕SIGNAL⍨'∆FIX: Unable to set utilities: ⎕SE.(',utils,')'
       ⍝ ∆ASSERT for Macro ⎕ASSERT 
@@ -396,6 +401,20 @@
             2∧.≤≢¨⍺ ⍵: 11 ⎕SIGNAL⍨'⎕TO: range←  start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
             ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵: 1⊃⍵ ⋄ 2=≢⍺: -/⍺ ⋄ 1}⍵
             start+step×⍳0⌈1+⌊∆÷step+step=0     
+        }
+        ⍝ ∆NS (from Adam B's github...).
+        ⍝ We don't use this directly in macros, but use '{⍺←⊢⋄⍺⎕SE.∆NS⍵}' to allow myNS.⎕NS 
+        ⍝ ∆NS modified to point to caller...     
+        ⎕SE.∆NS←{ ⍝ allows ⎕NS names values
+            CALR←⊃⎕RSI
+            ⍺←⊢ ⍝ default to unnamed namespace
+            11::⎕SIGNAL 11
+            (0=≢⍵)∨2≥|≡⍵:{_←⍵}⍣(2∊⎕NC'⍺')⊢⍺ CALR.⎕NS ⍵ ⍝ default behaviour
+            {_←⍵}⍣(2∊⎕NC'⍺')⊃⊃(⍺⊣⍣(2∊⎕NC'⍺')⊢⍺ CALR.⎕NS ⍬){ ⍝ new behaviour
+                (,1)≢(⍴,≡)⍵:⍺⍺⍎⍺,'←⍵ ⋄ ⍺⍺' ⍝ non-⎕OR: use value
+                4 11::⍺⍺⍎⍺,'←CALR.⎕NS ⍵ ⋄ ⍺⍺' ⍝ object?
+                ⍺⍺⍎⍺,'←⍎CALR.⎕FX ⍵ ⋄ ⍺⍺⊣⍺CALR.{⍺≡⍵:⍬ ⋄ ⎕EX ⍵}CALR.⎕FX ⍵' ⍝ function?
+            }¨/⍵
         }
         1
     }
@@ -471,16 +490,20 @@
         }  
       ⍝ MacGet ⍵  -- Return macro defined for ⍵, if found;
       ⍝              Else if ⍵ is complex, i.e. of the form ⍵1.⍵2.⍵3 (etc.), 
+      ⍝                  Allow and keep trailing dots, e.g. in:  myns.{⎕NS ⍵}
       ⍝                  Return macro for each ⍵N in ⍵1.⍵2.⍵3, else ⍵N itself
       ⍝              Else return ⍵ itself.
       ⍝              If any ⍵N returns null, do not include a period before or after it.
-        MacGet←{
+        MacGet←{dot←'.'
             0=≢⍵: ⍵ 
             p←mâc.K⍳⊂⍙K ⍵ 
-            p<≢mâc.K: p⊃mâc.V          ⍝ Full name found, simple or complex
-            '.'(~∊)⍵: ⍵                ⍝ Name is simple...    
-            AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ⍺,(noNull/'.'),⍵ }   
-            ⊃AddDots/∇¨'.'(≠⊆⊢)⍵       ⍝ Name is complex. Check for definitions of the pieces! 
+            p<≢mâc.K: p⊃mâc.V                   ⍝ Full name found, simple or complex
+            dot(~∊)⍵: ⍵                         ⍝ Name is simple...   
+            dot=¯1↑⍵: ⎕←{  
+              'LOGIC ERROR: APL-style name with trailing dot was presented to macro processing'    
+            }⍬
+            AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/dot),⍵ }  
+            ⊃AddDots/∇¨'.'(≠⊆⊢)⍵         ⍝ Name is complex. Check for definitions of the pieces! 
         }
         MacDump← {⎕←⍵⋄ ⎕←(⎕PW-1)↑[1]⎕FMT mâc.(K,[0.2]V) ⋄ ''}
       ⍝ ------END MACROS
@@ -781,6 +804,7 @@
         }⍬
         _←'⎕TMP' '⎕TEMP' Mâcro SINK_NAME
         _←'::TRADFN' Mâcro (SINK_NAME,'←⎕SE.⍙FIX_TRADFN')
+        _← '⎕NS' Mâcro  '{⍺←⊢⋄⍺⎕SE.∆NS⍵}'  ⍝ Replace ⎕NS with Enhanced version... 
         _←SaveRunTime 'NOFORCE'
       ⍝ <<< PREDEFINED MACROS END 
  

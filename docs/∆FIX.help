@@ -12,8 +12,53 @@
         NL, a linefeed/newline (UCS 10);
         ↑(...), a matrix.
 
+0. SUMMARY
+    DQ Str              str← "sample\nmore"[[VRNSMCEX]]                      ⍝ Vector, Return, Newline/LF, Scalar, Matrix
+                        str← «sample\nmore»[[VRNSMCEX]]                      ⍝ Comment, Escape, eXdent
+    TQ Str              str←"""\nsample\nmore\n"""[[VRNSMCE]]                ⍝ X implicit.
+    HERE String         str←::: end_tok [:[VRNSMCE]] ... \n [:]end_tok[:]    ⍝ X implicit
+    Continuation        line1 ... \n line2 ... \n line3                      ⍝ .., ..., or …
+    Pointers            name←${dfn} ${tacit} $by_name                        ⍝ Access: name.Run, name.Exec
+    Pseudo-Strand fn    ( code1⍮ code2⍮ code3 )                              ⍝ ⍮ behaves like an APL dyadic function...
+    Pseudo-Strand punct ( code1; code2; code3 )                              ⍝ Regular semicolon for indexing.
+    Atom List           `  word int "quoted"                                 ⍝ Single item = 1-elem list 
+    Atom Item/List      `` word                                              ⍝ Single item = scalar
+    Map                 word int "quoted" → code                             ⍝ Left-side as for Atom List
+    Map Item/List       word → code                                          ⍝ Left-side as for Atom Item/List 
+    Fence               ← abc                                                ⍝ FÍX_t← abc 
+    Null Namespace      ()                                                   ⍝ (⎕NS ⍬)
+    Hex Literal         0X0FAB                                               ⍝ or 0xofab (case ignored)
+    Oct Literal         0o0712                                               ⍝ or 0O0712 (with "oh")
+    Bin Literal         0B101101110                                          ⍝ or 0b101101110
+    Numeric Spacers     123_456.789_123
+    Macro Definitions    
+       Def              ::DEF  name← value
+       Null             ::DEF  name←
+       UNDEF            ::DEF  name 
+       Literal          ::DEFL name← value 
+       Evaluate         ::EVAL name← code                                    ⍝ Alias ::DEFE
+    Literal Notation
+       Static           ::STATIC  name← Array or Namespace Notation
+       Dynamic          ::DECLARE name← Array or Namespace Notation
+    Include Files       ::INCLUDE file1.ext file2.ext etc.
+    IF/ELSEIF Preprocessor Directives
+       IF               ::IF code 
+         Name Defined    ::IF ::DEF "name"
+       ELSEIF           ::ELSEIF code 
+         Name Defined    ::ELSEIF ::DEF "name" 
+       ELSE             ::ELSE 
+       ENDIF            ::END[IF]
+    Miscellany
+       Format            ⎕F "String {⍪⍵⍵⍴⎕TS} with multiple 2-D {⍳⍵⍵} fields" 3 (2 2)     
+       Range            1 ⎕TO 10 2, 1 3 ⎕TO 10
+       Assert           ⎕ASSERT 2=⍴⍴⍵:                     
+       Static NS        my←⎕MY       
+       Sink varname     ⎕TMP             
+       Fix Tradfn       ←::TRADFN """\n header\n body1\n etc\n"""
+
+     
 1. STRINGS 
-   DQ-strings: Multi-line Double-quoted Strings (Use "" to include internal double quotes)
+   DQ Strings: Multi-line Double-quoted Strings (Use "" to include internal double quotes)
       [str←] "sample\nmore"[[VRNSMCEX]]
             V:  'sample' 'more'          ⍝ Vector of vectors. DEFAULT.
             R:  ('sample',CR,'more')     ⍝ (Carriage) return-separated
@@ -25,37 +70,37 @@
               "long\       ==> 'longword'      "short \     ==>  'short words'
               word"E                           words"E
             X:  'one\n  two\nthree'      ⍝ Exdent-mode. Leading blanks are removed from each line, treating the 
-                                           the left-most line (with the least leading blanks) as having 0 blanks.
-                                           This even works on a single-line DQ-string.
+                                         ⍝ the left-most line (with the least leading blanks) as having 0 blanks.
+                                         ⍝ This even works on a single-line DQ-string.
               test←"  one               
                         two
                       three"X
               t2←"     Won't you trim me?"X  ==>  t2←'Won''t you trim me?'
 
-  DQ-strings, variant: Use « » in place of "..." above. (Use »» to include internal doubled »)
+  DQ Strings, variant: Use « » in place of "..." above. (Use »» to include internal doubled »)
       [str←] «sample\nmore"»             ⍝ Same as str← "sample\nmore", but allows embedded ", «, or ' w/o doubling.
 
-  TQ-strings: Multi-line triple double-quoted strings (No """ allowed internally)
+  TQ Strings: Multi-line triple double-quoted strings (No """ allowed internally)
         [str←]"""                    ==> (V option)
               line 1 of string           str← 'line 1 of string' 'line 2'
               line 2
-        """[[VRNSMCEX]] 
+        """[[VRNSMCE]] 
       ∘ TQ-strings implicitly include the X option, extending all lines based on the left-most (including the last line,
         containing the closing """).
-    ⍝ TQ-string lines are aligned each under the previous. On output, they are exdented based on left-most line.
+    ⍝ TQ String lines are aligned each under the previous. On output, they are exdented based on left-most line.
         abc←"""                ==>   abc←'one' 'two' '  three' 
             one' 
             two
               three
             """'  
-    ⍝ Since closing """ is left-justified, all input leading blanks are preserved on output.
+    ⍝ Since closing """ is left-justified here, all input leading blanks are preserved on output.
         abc←"""               ==>   abc←'     one' '     two'  '       three'
             one
             two
               three
         """'       
 
-  HERE-strings: Multi-line Strings ended with delimiter
+  HERE Strings: Multi-line Strings ended with delimiter
         [str←] ::: my_end_token [:[VRNSMCEX]]   ==> (V option)   
               any text at all                      str←('my_end_token' 'more_text') ⍝ Nothing more    
               more text
@@ -78,45 +123,70 @@
                  two ...
                  three"
 
-3. Special punctuation symbols or sequences
-  … .. ...    Continuation symbol: See continuation lines above
-  ;           Pseudo-Strand notation. Replaced by APL (,⍥⊆) except when directly appearing within brackets [] or within quotes.
+3. Special punctuation (symbols or sequences)
+  $           "Pointer" Declarations: 
+              Convert a dfn {...}, tacit function (...) or a non-niladic function by-name to a "pointer",
+              i.e. a namespace containing a niladic fn Exec and a dyadic/monadic fn Run.
+                   ptr1←${1 2 3 4⍳⍵}   ⋄  ptr2←$(+.×)    ⋄   ptr3←$My_Fn_Name
+              The function can be called monadically, e.g.:  ptr1.Run 3, or dyadically: 1 2 3 ptr2.Run 3 4 5;
+              Or for niladic functions (e.g. 'procedures'): ptr3.Exec  (which calls ptr3.Run ⍬), 
+              where Run is the original (non-niladic) function passed. 
+              ∘ Useful for passing arbitrary functions as pseudo-first-class objects.  
+              ∘ Names are not required when passing to functions or when grouping into arrays:
+                  myPtrs← ${1 2 3 4⍳⍵} $(+.×) $My_Fn_Name 
+                  ≢⎕←myPtrs
+              3
+              [${1 2 3 4⍳⍵}]  [$+.×]  [$r←My_Fn_Name x⋄r←○1] 
+  … .. ...    Continuation symbols: See continuation lines above
+  ;           Implicit Pseudo-Strand notation: 
+              The semicolon (;) is replaced by APL sequence  (,⍥⊆) except when appearing: 
+                a) directly (w/o intervening parentheses) within brackets [], or 
+                b) within quotes.
               ∘  Given: M← 2 3⍴1 2 3
-                 (123 ; M[0 ; (1 ; 2)])  ==> (123 (,⍥⊆) M[0; (1(,⍥⊆)2)])    ==> 123  2 3
-  ⍮           Explicit pseudo-strand notation (⎕UCS 9070). Replaced by (,⍥⊆) when appearing outside quotes.
-  `           Atoms: Following APL names (simple or com.plex) or numbers (¯123 25J34)  are treated as "atoms": 
-              a vector of strings (character vectors) and (scalar) numbers.
+                 (123 ; M[0 ; (1 ; 2)])  ==> (123 (,⍥⊆) M[0 ; (1 (,⍥⊆)2 )])    ==> 123  2 3
+  ⍮           Explicit Pseudo-Strand notation (behaves like an APL function).  
+              The char ⍮ (⎕UCS 9070) is replaced by (,⍥⊆) when appearing outside quotes.
+  `           Atom Vectors: 
+              Any following APL names (simple or com.plex) or numbers (¯123 25J34) are treated as "atoms" and
+              placed within quotes; quoted strings (SQ or DQ strings) are accepted as is:
               ∘  ≢`example  ==>  1    ≢`45  ==> 1      ≢`one 2 three  ==>  3
               ∘  `¯123 cat.dog 25J34' ==>  (¯123 'cat.dog' 25J34)   
-  ``          Atoms: Like `, except a single APL name will be treated as a single character vector, not a vector of strings.  
+  ``          Atoms Scalar/Vectors: 
+              Like `, except a single APL name will be treated as a single character vector, not a vector of strings.  
               ∘  ≢``example ==>  7    ≢``45 ==> 1      ≢``one 2 three ==>  3
-  →           Dyadic → treats a sequence of APL names and numbers to its left as a set of atoms, joining
-              it via a pseudo-Strand construction (,⍥⊂) to the (unaffected) objects to their right. 
+  →           Maps (Vector): 
+              Dyadic → treats a sequence of APL names and numbers to its left as a set of atoms
+              (see ` above), joining it via a pseudo-Strand construction (,⍥⊂) to the (unaffected) objects to its right. 
               ∘  name1 name2 → result   ==>  ((`name1 name2) result)  ==>  (('name1' 'name2' )(,⍥⊂) result
               ∘  name1       → result   ==>  ((`name1)       result)  ==>  (,⊂'name1' )       (,⍥⊂) result
-  →→          Dyadic →→ is like dyadic →, except a single name is treated as if prefixed by ``:
-              ∘  name1 name2 →→ result   ==>  ((``name1 name2) result)  ==>   ('name1' 'name2' )(,⍥⊂) result 
-              ∘  name1       →→ result   ==>  ((``name1)       result)  ==>   ('name1' )        (,⍥⊂) result 
-  ←           When ← is (a) the leftmost token in a line or follows any of these chars:  "[:{(⋄", 
+  →→          Maps (Scalar/Vector): 
+              Dyadic →→ is like dyadic →, except a single name to its left is treated as if prefixed by ``:
+              ∘  name1 name2 →→ result   ==>  ((``name1 name2) ⍮ result)  ==>   ('name1' 'name2') (,⍥⊂) result 
+              ∘  name1       →→ result   ==>  ((``name1)       ⍮ result)  ==>   ('name1' )        (,⍥⊂) result 
+  ←           Fence:
+              When ← is (a) the leftmost token in a line or follows any of these chars:  "[:{(⋄", 
               its value is thrown away, actually assigned to a special variable name, available at ⎕TMP below.
               It is useful when a side-effect is required:   
-                  Copy←{⍺←⊢ ⋄ ←⍺ ⎕CY ⍵}   is equivalent to:    Copy←{⍺←⊢ ⋄ FÍX_t←⍺ ⎕CY ⍵}  
+                  Copy←{⍺←⊢ ⋄ ←⍺ ⎕CY ⍵}   is equivalent to:    Copy←{⍺←⊢ ⋄ FÍX_t←⍺ ⎕CY ⍵} 
+  ()          Empty Namespace:
+              Empty parens return an empty namespace (⎕NS⍬). 
+              See also APL Literal Notation (:STATIC and :DECLARE).
 
-Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no 'J' infix).
+4. Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no 'J' infix).
   0Xnnn       Hexadecimal number [xX]:  0XF32A       ==>    62250
   0onnn       Octal number [oO]:        0o0773       ==>      507   
   0Bnnn       Binary number [bB]:       0b10111010   ==>      186
   nnn_mmm_ppp Underscore spacers in numbers: underscores in numbers (after 0X, 0o, 0B) are ignored, including in exponents.
                 123_456.789_012E_45    =>   123456.789012E45
  
-      'n' ∆FIX '0XF32A'  '0o0773' '0b10111010'
- 62250  507  186 
+      ⎕← 0XF32A  0o0773 0b10111010
+  62250  507  186 
 
-4. ∆FIX Preprocessor Directives
+5. ∆FIX Preprocessor Directives
   Each directive MUST appear on its own line. Directives start with 2 colons.
   The case of the directive is ignored.
 
-4A. MACRO DEFINITIONS
+5A. MACRO DEFINITIONS
     name: Either a simple or complex APL name (test, ns.subns.test). If a simple name, it could
           match any simple name within a complex expression. If complex, it must match the complex name exactly.
           A name may include #, ⎕SE, ##, or names beginning with ⎕ or : (as in ⎕MY_SYS or :MY_DIRECTIVE).
@@ -162,7 +232,7 @@ Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no
             GROUPA  'Does nothing'       ==>  ⍝ Exclude me:'Does nothing'
             GROUPB  'Is printed'         ==>  ⎕←'Is printed'
 
-    DEFINE AS EVALUATED 
+    DEFINE AS EVALUATED (⍎) 
     ::EVAL name← expression
     ::DEFE name← expression 
           Replaces name with the result of evaluating the expression in the calling environment via ⍎,
@@ -177,39 +247,45 @@ Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no
             ⎕←PI
             ⎕←3.141592653589793238462643383279503
 
-    DEFINE VIA A CONSTANT APL ARRAY OR NAMESPACE DEFINITION
+  5B. APL ARRAY AND NAMESPACE LITERAL NOTATION  
+        APL Array and Namespace Literal Notation allows users (of a future Dyalog APL) to
+        specify a mixture of multidimensional arrays and complex namespaces within a single, 
+        possibly multiline, expression.       See  https://github.com/abrudz/apl-array-notation 
+
+    1. DEFINE STATIC (CONSTANT) ARRAYS OR NAMESPACES
     ::STATIC  name← expression
         Define name as the constant (∆FIX-time evaluated) expression within the user program.
-        If the expression contains APL Array and Namespace Definition extensions, they are evaluated once at ∆FIX-time.
+        If the expression contains APL Array and Namespace Literal Expressions, they are evaluated once at ∆FIX-time.
         They may contain variables or values executed earlier at run-time or visible in the caller's namespace.
+        If any component creates output (via ⎕← or a fn call), that output appears when ∆FIX is executed.
           ::STATIC multiNow←    [ 'iota10'  ⋄ ⍳10   ⍝ Creates a  declaration evaluated at ∆FIX time.
                                   'revAlph' ⋄ ⌽⎕A
                                   'when'    ⋄ ⎕TS   ⍝ Set as a constant, when an object is ∆FIXed.
                                 ]
           ::STATIC employee←    (name: "John Smith"
                                  addr: "45 Main St."
-                                 post: "A2B 3C4"
+                                 sal:  ?1000   ⍝ Executed exactly once, at ∆FIX-time only.
                                 )
-    DEFINE VIA A DYNAMIC APL ARRAY OR NAMESPACE DEFINITION
+    2. DEFINE DYNAMIC ARRAYS OR NAMESPACES 
     ::DECLARE name← expression
         Define name as the expression given, to be evaluated at run-time.
-        If the expression contains APL Array and Namespace Definition extensions, they are evaluated when the statement
-        is executed at run-time.
+        If the expression contains APL Array and Namespace Definition extensions, each is evaluated when the statement
+        is executed (during run-time).
           ::DECLARE multiLater←  [ 'iota10'  ⋄ ⍳10  ⍝ Creates a declaration to be evaluated at run-time
                                   'revAlph' ⋄ ⌽⎕A
                                   'when'    ⋄ ⎕TS  ⍝ Changes on each call, if internal to a object.
                                 ]
           ::DECLARE employee←   (name: "John Smith"
                                  addr: "45 Main St."
-                                 post: "A2B 3C4"
+                                 sal:  ?1000     ⍝ Executed each time this statement is seen in the execution flow 
                                 )
 
-  4B. INCLUDING FILES 
+  5C. INCLUDING FILES 
       ::INCLUDE filename1 [filename2 ...]
       Includes verbatim all the lines in whatever files are specified. The full file name and extension must be specified.
       ∆FIX will search a variety of directories automatically, minimally: . and ..
 
-  4C. IF/ELSEIF Directives: These directives are evaluated at ∆FIX time. 
+  5D. IF/ELSEIF Directives: These directives are evaluated at ∆FIX time. 
       A directive is considered TRUE, if its expression:
           evaluates to a numeric object that isn't scalar or vector 0,  a non-empty string, or a non-null array.
       It is considered FALSE otherwise, i.e. its expression: 
@@ -229,12 +305,16 @@ Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no
     ::END[IF]
       Terminates the matching ::IF block.
 
-5. Predefined Macros
+  6. Predefined Macros (See ::DEF and ::DEFL)
      ⎕F       APLified Python-reminiscent format function
                 Cap←{ '\b(\w)' ⎕R '\u1'⊣⍵} ⍝ Capitalize 1st letter of each word...
                 their name city← 'her' 'Mary Smith' 'Providence'                                  
                 ⎕F '{Cap their} name is {name} and {their} address is {?150} Main St. in {city}.'   
               Her name is Mary Smith and her address is 121 Main St. in Providence.
+                ⎕F "String {⍪⍵⍵⍴⎕TS} with multiple 2-D {⍳⍵⍵} fields" 3 (2 2)  
+              String 2021 with multiple 2-D  0 0  0 1  fields
+                        3                    1 0  1 1        
+                       30   
      ⎕TO      Returns a numeric sequence  1 ⎕TO 20 2   or 1 3 ⎕TO 20
      ⎕ASSERT  [errMsg] ⎕ASSERT assertion1 [assertion2...].  Returns shy 0 unless an assertion is true.
      ::DEF    Used in sequence ::IF ::DEF "name"
@@ -243,8 +323,10 @@ Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no
               Requires accessible namespace '∆MYgrp' (library ∆MY).
      ⎕TMP     Returns name of temporary name used in "sink" constructins.
      ⎕TEMP    Same as ⎕TMP
-     ::TRADFN Fixes the tradfn created via    ::TRADFN """    or   ::TRADFN "fn_hdr
-                                                  fn_hdr                     fn_body"
-                                                  fn_body
-                                               """
-      
+     ::TRADFN Fixes the tradfn created via    ::TRADFN """    or   ::TRADFN "fn_hdr          or ::TRADFN """
+                                                  fn_hdr                     fn_body"            ⍝ Ignore me
+                                                  fn_body                                          r←PI n
+                                               """                                                 r←○n
+              If leading lines passed to ::TRADFN are blank or comments, they are ignored.       """
+              The first non-blank, non-comment line must contain the function header.
+              Here docs may also be used:    ::TradFn ::: EndTrad \nfn_hdr \nfn_body... \n :EndTrad 
