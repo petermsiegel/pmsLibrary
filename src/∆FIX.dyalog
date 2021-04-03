@@ -187,7 +187,7 @@
   ⍝ Here-strings and Multiline ("Here-string"-style) comments 
     pHere←        ∊'(?x)       ::: \h*   '_pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
     pHCom←        ∆Anchor '\h* ::: \h* ⍝ '_pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
-    pNumBase←     '(?xi) 0 [xbo] [\w_]+'
+    pNumBase←     '(?xi) ¯?0 [box] [\w_]+ (?>\.[\w_]+)?'    ⍝ Use ¯ \w to trap invalid non-decimal numbers
     pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
     pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
 
@@ -269,11 +269,15 @@
   ⍝   (a) the base is unknown, not b|o|x UC or LC (base 2, 8, 16 resp.),
   ⍝   (b) the number is negative, or its digits are out of range,
   ⍝   (c) the number can't be represented in an integer of 34 decimal digits...
+  ⍝ Note: Numbers like 0X123E0 are valid, since E is a valid hex digit.
     ∆DEC←{⎕PP ⎕FR←34 1287  ⍝ Ensures largest # of decimal digits.
-        canon←⎕C ⍵ 
-        0=base←2 8 16 0['box'⍳1↑1↓canon]: ⍵    ⋄ '0'≠⊃canon: ⍵
-        res←(base↑'0123456789abcdef')⍳2↓canon  ⋄ ∨/res≥base: ⍵
-        'E'∊res←⍕base⊥res: ⍵ ⋄ res
+        0:: ⍵⊣⎕←'∆FIX DOMAIN ERROR: NON-DECIMAL CONSTANTS MUST BE NON-NEGATIVE INTEGERS: "',⍵,'"'
+        canon←⎕C ⍵ ⋄ base←2 8 16 0['box'⍳1↑1↓canon]
+        '¯'∊⍵: ∘ ⋄ 0=base: ∘    ⋄ '0'≠⊃canon: ∘
+        res←(base↑'0123456789abcdef')⍳2↓canon  
+        ∨/res≥base: ∘ 
+         0:: ⍵⊣⎕←'∆FIX CONVERSION ERROR: NON-DECIMAL CONSTANT TOO LARGE TO REPRESENT: "',⍵,'"'
+        'E'∊res←⍕base⊥res: ∘  ⋄ res
     }
 ∆INCLUDE←{ ⍝ ::INCLUDE '∆INCLUDE.dyalog'
   ⍝  lines@SV ← [spec=1] ∆INCLUDE files
@@ -307,14 +311,13 @@
   ⍝ FindFirstFiles:  fullPaths ← searchPath FindFirstFiles files
   ⍝    Returns fullPaths where each file is found in searchPath, or ⎕NULL if not found.
     FindFirstFiles←{ ⍺←⍬
-        0=≢⍺:  11 ⎕SIGNAL⍨ eNoPath
-        0=≢⍵: ⎕NULL
         FindEach←⍺∘{0:: 11 ⎕SIGNAL⍨eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
             0=≢⍺: ⎕NULL                                 ⍝ Exhausted search
             full←(rel/'/',⍨⊃⍺),⍵ ⊣ rel←'/'≠1↑⍵  
             ⎕NEXISTS full: full 
             rel: (1↓⍺) ∇ ⍵ ⋄ ⎕NULL                      ⍝ Keep searching only if not absolute name                    
         }
+        0=≢⍺:  11 ⎕SIGNAL⍨ eNoPath ⋄ 0=≢⍵: ⎕NULL
         FindEach¨⊆⍵
     }
     eBadSpecs←   '∆INCLUDE: Specification (⍺) must be ∊ ¯1 0 1 ''N'' ''R''; default: 1'
@@ -364,7 +367,7 @@
       ⍝     """
         ⎕SE.⍙FIX_TRADFN←{
           0:: ⎕SIGNAL/'∆FIX: ::FIX Directive failed. Likely syntax error in code string.' 11
-          '⍝ '∊⍨1↑' '~⍨⊃⍵: ∇ 1↓⍵ ⋄ 1:_←2 (0⊃⎕RSI).⎕FIX ⍵      
+          0=≢⍵: ∘ ⋄ '⍝ '∊⍨1↑' '~⍨⊃⍵: ∇ 1↓⍵ ⋄ 1:_←2 (0⊃⎕RSI).⎕FIX ⍵      
         }
       ⍝ ⍙PTR for "pointer" prefix $
       ⍝ Syntax:   ${code_operand}   |   $(tacit_operand)  |   $named_operand 
