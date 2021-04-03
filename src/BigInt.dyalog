@@ -640,7 +640,8 @@
 
     :Section BI Dyadic Functions/Operations
     ⍝H        Does Arg Conversions   Requires BI-Internal Args   Details
-    ⍝H        For general use          For sophisticated use           
+    ⍝H        For general use          For sophisticated use  
+    ⍝H           slower                     faster         
     ⍝H             add                       _add
     ⍝H             sub                       _sub
     ⍝H             mul                       _mul
