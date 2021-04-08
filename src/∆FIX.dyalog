@@ -197,8 +197,8 @@
       ⍝ Matches:  ⎕X012  #.X012 ::X012 or  A.B.⎕X012, ⎕X012.A.B etc. Trailing '.' is not included!    
       ⍝ APL variable name initial letters: 
       ⍝     [ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_] ==>  [A-ZÀ-ÖØ-Ü∆⍙_]
-        _AplName← '(?<APLNAME> (?: ⎕|::?)? [A-ZÀ-ÖØ-Ü∆⍙_] [\dA-ZÀ-ÖØ-Ü∆⍙_]* | \#{1,2} )'
-        ∊_pMac←'(?xi)' _AplName ' (\.(?&APLNAME))*'   ⍝ OK: ::NAME, ⎕NAME, ]NAME
+        _AplName← '(?<APLNAME> (?: ⎕|::?)? [A-ZÀ-ÖØ-Ü∆⍙_] [\dA-ZÀ-ÖØ-Ü∆⍙_]* | \#{1,2} )'  
+        ∊_pMac←'(?xi)(' _AplName ' ((\.(?&APLNAME))*))'   ⍝ OK: ::NAME, ⎕NAME, ]NAME
     }⍬
     pNSEmpty← '\(\h*\)'   ⍝ Dyalog APL (future) extension: ⎕NS ⍬.  Other namespace extensions handled via ::DECLARE
     pDump←    '^\h*::DUMP\b\h*$' 
@@ -695,8 +695,34 @@
   ⍝     MainScan - most statements                    +
   ⍝     AtomScan - handle Atoms via ` `` → →→         +
   ⍝+--------------------------------------------------+
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDots pHere pHCom pNSEmpty pPtr pNumBase pNum pSink pDump pMacro  
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDots iHere iHCom iNSEmpty iPtr iNumBase iNum iSink iDump iMacro ←⍳≢mainScanPats
+  ⍝ BEGIN Experimental  ←←  
+  ⍝ EXTENDED ASSIGNMENT:   name_expression ←← val        OR  name_expression   simple_fnal_expression ←← val
+  ⍝       becomes:        {⍎name_expression',←⍵'}val        {⍎name_expression,'(simple_fnal_expression)←⍵'}val
+  ⍝   list←'name1' 'name2' 'name3' 
+  ⍝   list[1]←←val        ⋄  list[3]*←←2
+  ⍝ is equiv to (⎕IO=0)
+  ⍝   name2←val           ⋄  name3*←2
+  ⍝ Note: list[2] or 2⊃list will be treated as equivalent here.
+  ⍝ 
+  ⍝ Despite the complexity of pASGNX, this is only really useful for simple LHS patterns after the name expr.
+  ⍝ No parens, quotes or spaces are matched.
+  ⍝      v←'abc'  v[1] ←←5  sets b←5
+  ⍝               v[1] +←←3 sets b+←3
+  ⍝    
+  _q←'+-×÷⌊⌈|*⍟<≤=≥>≠∨∧⍱⍲!?~○'           ⍝ scalar fns  
+  _q,←'⌷/⌿\⍀∊⍴↑↓⍳⊂⊃∩∪⊣⊢⊥⊤,⍒⍋⍉⌽⊖⌹⍕⍎⍪≡≢⍷'  ⍝ other fns  
+  _q,←'∘⍨¨⍣⍤⍥⍬.'                         ⍝ operators and misc
+  pASGNX←'([\d\Q',_q,'\E]*)←←'           ⍝ fns/opts/misc quoted via \Q...\E 
+  ⎕SE.⍙ASGNX←{0:: ('SYNTAX ERROR (extended assignment)' ⎕SIGNAL 11
+      aa←⍺⍺
+      calr←⊃⎕RSI
+      fn←{⍺←⎕NC ⍵ ⋄ 3=⍺:'(',')',⍨∊⎕NR ⍵ ⋄ 2=⍺: '' ⋄ }'aa'  ⍝ Error causes signal above.
+      1:_←calr⍎(∊⍺),fn,'←⍵'
+  }
+  ⍝ END Experimental
+
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDots pHere pHCom pNSEmpty pPtr pNumBase pNum pSink pDump pMacro pASGNX  
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDots iHere iHCom iNSEmpty iPtr iNumBase iNum iSink iDump iMacro iASGNX←⍳≢mainScanPats
         MainScan←{ 
             MainScan1←{ 
                 macroSeen∘←0
@@ -725,7 +751,7 @@
                     CASE iHCom: (F 2){
                       kp←0≠≢⍺  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
                     } DLB F 5 
-                    CASE iMacro:   ⊢MacScan MacGet F 0 ⊣ macroSeen∘←1                    
+                    CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
                     CASE iDebug:   ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                   ⍝ CASE iDebug:   (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
@@ -734,7 +760,8 @@
                     CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2   
                     CASE iSink:    (F 1),SINK_NAME,(F 2)    ⍝ F1: blanks (keep alignment), SINK_NAME←
                     CASE iNSEmpty: '(⎕NS⍬)'
-                    CASE iDump:    ''⊣MacDump '  MACRO DUMP'
+                    CASE iDump:    ''⊣MacDump '  MACRO DUMP'  
+                    CASE iASGNX:   '(',fn,' ⎕SE.⍙ASGNX)'⊣fn←{0=≢⍵~' ':'0'⋄ ⍵ }F 1
                     ∘∘UNREACHABLE∘∘
                 }⍠reOPTS⊣⍵
             }
