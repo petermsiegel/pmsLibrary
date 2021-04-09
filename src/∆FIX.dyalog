@@ -279,28 +279,21 @@
          0:: ⍵⊣⎕←'∆FIX CONVERSION ERROR: NON-DECIMAL CONSTANT TOO LARGE TO REPRESENT: "',⍵,'"'
         'E'∊res←⍕base⊥res: ∘  ⋄ res
     }
-∆INCLUDE←{ ⍝ ::INCLUDE '∆INCLUDE.dyalog'
-  ⍝  lines@SV ← [spec=1] ∆INCLUDE files
+⍙INCLUDE←{  
+  ⍝  lines@SV ←   ⍙INCLUDE files
+  ⍝  Stripped down version of ∆INCLUDE utility(PMS): ⍺ formatting options omitted ('N' newline formatting hardwired).
   ⍝  Finds specified files fileN in directories named in FSPATH and WSPATH, starting with '.' and '..'.
   ⍝      files: file1 [file2 ... [fileN]]
   ⍝           - a single vector with files file1 ... fileN separated by blanks, or
   ⍝           - a vector of separate strings, file1 through fileN,
   ⍝      Each string must include any suffixes and appropriate prefixes (parent directories) to be prefixed
   ⍝      by (ie. found in) the parent directories per above.
-  ⍝  spec=¯1
-  ⍝      Same as spec=0, but ⎕NULL for each file not found.
-  ⍝  spec=0
-  ⍝      Returns full paths of files found. Error if any file not found.
-  ⍝  spec=1 (default)
-  ⍝      Returns lines from files as a vector of string vectors (no LFs or CRs). Error if any file not found.
-  ⍝  spec='N' <Newlines, i.e. linefeeds> 
-  ⍝      Returns lines from files found as a vector of strings separated by LFs (⎕UCS 10). Error if any file not found.
-  ⍝  spec='R' <carriage Returns>
-  ⍝      Returns lines from files found as a vector of strings separated by CRs (⎕UCS 13). Error if any file not found.
+  ⍝  Returns:
+  ⍝      All lines from files catenated to a single char vector, each input line terminated by LF (⎕UCS 10). 
+  ⍝      Error if any file not found.
   ⍝  Errors
   ⍝    If files were not found and spec≠¯1, signals error number 22 and msg eNotFound below.
   ⍝    For other errors, signals 11 with various messages (below).
-    ⍺←1
     ⎕IO ⎕ML←0 1 ⋄ CR LF←⎕UCS 13 10
     FIRST_DIRS←'.' '..'
   ⍝ Get search path from FSPATH if present, else WSPATH. Always start with search path: '.' and '..'.
@@ -320,31 +313,19 @@
         0=≢⍺:  11 ⎕SIGNAL⍨ eNoPath ⋄ 0=≢⍵: ⎕NULL
         FindEach¨⊆⍵
     }
-    eBadSpecs←   '∆INCLUDE: Specification (⍺) must be ∊ ¯1 0 1 ''N'' ''R''; default: 1'
-    eNoPath←     '∆INCLUDE: No search directories were specified [LOGIC ERROR].'
-    eUnexpected← '∆INCLUDE: Unexpected error evaluating filename.'
-    eNoFiles←    '∆INCLUDE: No file(s) to include.'
-    eNotFound←   '∆INCLUDE: At least one file to include was not found in search path:'
-  ⍝ ∆INCLUDE EXECUTIVE
-    1≠≢⍺: 11 ⎕SIGNAL⍨eBadSpecs
-    'N' 'R' ¯1 0 1(~∊⍨),⍺: 11 ⎕SIGNAL⍨eBadSpecs
+    eNoPath←     '⍙INCLUDE: No search directories were specified [LOGIC ERROR].'
+    eUnexpected← '⍙INCLUDE: Unexpected error evaluating filename.'
+    eNoFiles←    '⍙INCLUDE: No file(s) to include.'
+    eNotFound←   '⍙INCLUDE: At least one file to include was not found in search path:'
+  ⍝ ⍙INCLUDE EXECUTIVE
     files←{1=≡⍵:  ' ' (≠⊆⊢)⍵ ⋄ ⍵ },⍵
     0=≢files:          11 ⎕SIGNAL⍨ eNoFiles
     searchPath←setSearchPath 'FSPATH' 'WSPATH'  
     filesFull←searchPath FindFirstFiles files 
-  ⍝ ¯1: Return full paths of files found. Missing => ⎕NULL  
-    ⍺=¯1: filesFull
     ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
-  ⍝ 0: Return full paths for each file. Missing => Err
-    ⍺=0:  filesFull
-  ⍝ 1: Return contents of all file s found as a continuous vector of string vectors,  Missing => Err.
-    ⍺=1:  lines←⊃,/{⊃⎕NGET ⍵ 1}¨filesFull
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
-    lines←⊃,/{⊃⎕NGET ⍵ 0}¨filesFull
-  ⍝ 'N': Return single string with NLs as linends. Missing => Err
-    ⍺='N': _←lines
-  ⍝ 'R': Like ⍺='N', but convert LFs to CRs.
-    ⍺='R': _←CR@(LF∘=)⊢lines
+  ⍝ Return (default) single string with NLs as linends. Missing => Err
+    ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
 } 
 
   ⍝ SaveRunTime:  SaveRunTime ['NOFORCE' | 'FORCE'], default 'NOFORCE'.
@@ -653,7 +634,9 @@
                       CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣     Eval2Str MainScan DTB F 2  
                       CASE iStatic:    (PassState ON),(F 1),(F 2),CR,⍨ EvalStatic  MainScan DTB F 3  
                       CASE iDeclare:   (PassState ON),(F 1),(F 2),CR,⍨ EvalDeclare MainScan DTB F 3  
-                      CASE iInclude:   (PassState ON), 'N'∘∆INCLUDE F 1 
+                    ⍝ ::INCLUDE: The recursive ControlScan doesn't know calling env.
+                    ⍝            So something goes wrong!
+                      CASE iInclude:   (PassState ON),ControlScan ⍙INCLUDE F 1   
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
@@ -793,7 +776,7 @@
                   (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
-            ⍺←0 ⋄ MAX←2 ⋄ count strIn←⍺ ⍵
+            ⍺←0 ⋄ MAX←20 ⋄ count strIn←⍺ ⍵
             count≥MAX: ⍵  ⊣⎕←'∆FIX: MainScan macro replacement limit (',(⍕MAX),') reached. Cyclic macro pattern?'
             strOut←AtomScan MainScan1  strIn ⊣ macroSeen←0
             ~macroSeen: strOut ⋄  strOut≡strIn: strOut ⋄ (count+1) ∇ strOut  
@@ -896,8 +879,8 @@
           FullScan ⍵
     }  
 
-  ⍝ opts:  S (std): Valid ⎕FIX option; E (edit);  N (don't fix); H (⍵ has a value).
+  ⍝ opts:   Valid ⎕FIX option; E (edit);  N (don't fix); H (⍵ has a value).
     ⍺←0 ⋄ F E H← (⍬⍴⍺){(⍺∊⍳3)(⍺='e')⍵}0<≢⍵
   ⍝ Execute 
-    ⍺ CALR.⎕FIX⍣F ⊣ E∘Executive LoadLines⍣H ⊣ ⍵ 
+    ↑⍣(~F)⊢⍺ CALR.⎕FIX⍣F ⊣ E∘Executive LoadLines⍣H ⊣ ⍵ 
 }
