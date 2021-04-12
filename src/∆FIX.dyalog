@@ -1,4 +1,6 @@
 ﻿∆FIX←{
+  ⍺←0
+  opt mâc←{9=⎕NC '⍺': 'i' ⍺  ⋄ ⍺ (⎕NS '')}⍨⍺
   ⍝ See ∆FIX.help for documentation.
   ⍝     result←  options ∆FIX  [filename:@S | lines:@VS]
   ⍝ The result is as for ⎕FIX, i.e. names of objects fixed, unless a "nonce" option (extension) is used (q.v.).
@@ -25,7 +27,7 @@
    SINK_NAME←FIX_PFX,'t'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
   ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUG.
-    SQ DQ←'''"' ⋄ CR01← CR CR_INTERNAL←⎕UCS 13 01 ⋄  CR_VISIBLE←'◈' 
+    SQ DQ←'''"' ⋄ NL CR CR_INTERNAL←⎕UCS 10 13 01 ⋄  CR_VISIBLE←'◈' 
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
@@ -279,7 +281,7 @@
          0:: ⍵⊣⎕←'∆FIX CONVERSION ERROR: NON-DECIMAL CONSTANT TOO LARGE TO REPRESENT: "',⍵,'"'
         'E'∊res←⍕base⊥res: ∘  ⋄ res
     }
-⍙INCLUDE←{  
+⍙INCLUDE←{  ⍺←1 
   ⍝  lines@SV ←   ⍙INCLUDE files
   ⍝  Stripped down version of ∆INCLUDE utility(PMS): ⍺ formatting options omitted ('N' newline formatting hardwired).
   ⍝  Finds specified files fileN in directories named in FSPATH and WSPATH, starting with '.' and '..'.
@@ -291,6 +293,7 @@
   ⍝  Returns:
   ⍝      All lines from files catenated to a single char vector, each input line terminated by LF (⎕UCS 10). 
   ⍝      Error if any file not found.
+  ⍝  If ⍺=0, calls ⍙FIX rather than simply including...
   ⍝  Errors
   ⍝    If files were not found and spec≠¯1, signals error number 22 and msg eNotFound below.
   ⍝    For other errors, signals 11 with various messages (below).
@@ -325,6 +328,7 @@
     ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
   ⍝ Return (default) single string with NLs as linends. Missing => Err
+   ⍺=0: ∊{∊CR,⍨¨mâc ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
     ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
 } 
 
@@ -388,9 +392,10 @@
         }
         ⍝ ∆NS (from Adam B's github...).
         ⍝ We don't use this directly in macros, but use '{⍺←⊢⋄⍺⎕SE.∆NS⍵}' to allow myNS.⎕NS 
-        ⍝ ∆NS modified to point to caller...     
+        ⍝ ∆NS modified to point to caller...    
+        ⍝ Not used by default... Problem finding dfn-based variables. Switch this to tradfn... 
         ⎕SE.∆NS←{ ⍝ allows ⎕NS names values
-            CALR←⊃⎕RSI
+            CALR←⊃⎕RSI,#
             ⍺←⊢ ⍝ default to unnamed namespace
             11::⎕SIGNAL 11
             (0=≢⍵)∨2≥|≡⍵:{_←⍵}⍣(2∊⎕NC'⍺')⊢⍺ CALR.⎕NS ⍵ ⍝ default behaviour
@@ -406,13 +411,14 @@
   ⍝     "double-quoted strings", triple-quoted ("""\n...\n"""), and  ::: here-strings.
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via StringFormat below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
-    Executive←{⍺←0   ⍝ If 1, Edit for input...
-    
+    Executive←{
+      INCLUDE_SCAN EDIT_SCAN FULL_SCAN←2 1 0
+      ⍺←FULL_SCAN   ⍝ Default  
   ⍝+-------------------------------------------------+
   ⍝ Mac- routines: Handle Macros (see ::DEF, etc.)   +  
   ⍝+-------------------------------------------------+
   ⍝⍝⍝⍝ FIX ME!!! We should NOT have any DQ or DAQ quotes here!!!
-        mâc.K←mâc.V←⍬ ⊣  mâc←⎕NS ''
+        mâc.K←mâc.V←⍬   ⍝ Set at top...   mâc←⎕NS ''
         MacScan←{
           ⍺←5    ⍝ Max of total times to scan entire line (prevents runaway replacements)
           ⍺≤0: ⍵  
@@ -583,10 +589,11 @@
       ⍝ [OLD. Delete after final test]
       ⍝ EvalStatic←  CALR∘{0:: ⍵ ⋄ 0 ⎕SE.Dyalog.Utils.repObj ⍺⍎⍵} _MaxPrecision CALR 
         EvalStatic← CALR∘{
-            0 ⎕SE.Dyalog.Utils.repObj ⍺⍎_EvalDeclare ⍵
+           0 ⎕SE.Dyalog.Utils.repObj ⍺⍎_EvalDeclare ⍵
         } _MaxPrecision CALR 
         _EvalDeclare← CALR∘{0:: ⍵ 
-            doc←  pSQ pCom ⎕R '&' ''⍠'Mode' 'M'⊣⍵  ⍝ Remove comments
+            tidy←{ pSQ pCom '\h+' ⎕R '&' '' ' '⍠reOPTS⊣⍵ }
+            doc← tidy ⍵  ⍝ Remove comments and extra blanks  
             doc←  1∘DblSQ '⋄'@(CR∘=)⊣ doc          ⍝ Enquote and escape internal quotes
             ⍺⍎'0 ⎕SE.Link.Deserialise ', doc       ⍝ Convert to Dyalog deserialized code...
         } 
@@ -617,9 +624,10 @@
                     ⍝     issue the PassState comment expected and issue an IN_SKIP.
                     ⍝ If otherMode and we see an IN_SKIP, then we are at the end of a line also in otherMode same line. 
                     ⍝     issue '' (a NOP) and terminate the IN_SKIP.
+                      tidy← { pAllQ pCom '\h+' ⎕R '&' '' ' '⍠reOPTS⊣⍵ }  
                       ~DEBUG: ''  
                       otherMode: IN_SKIP{ IN_SKIP∘←~⍺ ⋄ ⍺: '' ⋄  COMMENT_PFX,(STATES⊃⍨1+⊃∊⍵) }⍵
-                      CR,⍨COMMENT_PFX,(STATES⊃⍨1+⊃∊⍵),pCrFamily ⎕R actionCrFamily ⍠reOPTS⊣¯1↓F 0
+                      CR,⍨COMMENT_PFX,(STATES⊃⍨1+⊃∊⍵),tidy pCrFamily ⎕R actionCrFamily ⍠reOPTS⊣¯1↓F 0
                   }
                 ⍝ Format for PassDef:   "::SysDefø name←value" with the name /[^←]+/ and a single space as shown.
                 ⍝ THis "directive" is passed on to the MainScan
@@ -636,7 +644,8 @@
                       CASE iDeclare:   (PassState ON),(F 1),(F 2),CR,⍨ EvalDeclare MainScan DTB F 3  
                     ⍝ ::INCLUDE: The recursive ControlScan doesn't know calling env.
                     ⍝            So something goes wrong!
-                      CASE iInclude:   (PassState ON),ControlScan ⍙INCLUDE F 1   
+                    ⍝ CASE iInclude:   (PassState ON),_CtlScan (1 ⍙INCLUDE F 1)
+                      CASE iInclude:   (PassState ON),0 ⍙INCLUDE F 1  
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
@@ -666,9 +675,12 @@
             save←mâc.(K V) DEBUG                          ⍝ Save macros
             ⍝ Merge continued control lines (ONLY) into single lines.
             ⍝ Note: comments are literals on Control lines.
-              pNotCtl←'^\h*([^:]|:[^:])\N*$'
-              lines←pNotCtl pAllQ  pDotsNoCom ⎕R  '\0' '\0' ' ' ⍠reOPTS⊣⍵   
-              res←Pop controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
+            pNotCtl←'^\h*([^:]|:[^:])\N*$'
+            _CtlScan←{
+            lines←pNotCtl pAllQ  pDotsNoCom ⎕R  '\0' '\0' ' ' ⍠reOPTS⊣⍵   
+            controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
+            }
+            res←Pop _CtlScan ⍵
             mâc.(K V) DEBUG← save                            ⍝ Restore macros
             res
         } ⍝ ControlScan 
@@ -817,7 +829,7 @@
         }⍬
         _←'⎕TMP' '⎕TEMP' Mâcro SINK_NAME
         _←'::TRADFN' Mâcro (SINK_NAME,'←⎕SE.⍙FIX_TRADFN')
-        _← '⎕NS' Mâcro  '{⍺←⊢⋄⍺⎕SE.∆NS⍵}'  ⍝ Replace ⎕NS with Enhanced version... 
+      ⍝  _← '⎕NS' Mâcro  '{⍺←⊢⋄⍺⎕SE.∆NS⍵}'  ⍝ Replace ⎕NS with Enhanced version... 
         _←SaveRunTime 'NOFORCE'
       ⍝ <<< PREDEFINED MACROS END 
  
@@ -836,7 +848,7 @@
             ⍺←CR            ⍝ Default for CR_OUT
             pCrIn←'\x01'
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
-            pSemi←  ';'             ⍝ Implicit strand function outside control of brackets... 
+            pSemi←  ';'             ⍝ Implicit strand function within control of parens...
             pLBrak←'[[(]'  
             pRBrak←'[])]'
             STRAND_OUT SEMI_OUT CR_OUT←'(,⍥⊆)' ';' ⍺ 
@@ -845,7 +857,8 @@
             Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match
               CASE iCR:     CR_OUT
               CASE iStrand: STRAND_OUT 
-              CASE iSemi:   STRAND_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
+            ⍝ Top of stack: 0        1          2
+              CASE iSemi:   SEMI_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
               CASE iLBrak:    str⊣STK,←1+str='['
               CASE iRBrak:    str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
             ⍝ ELSE matches (AllQ Com) 
@@ -873,14 +886,20 @@
       }
       ⍝ Add (and remove) an extra line so every internal line has a linend at each stage...
       FullScan←{¯1↓ LastScanOut MainScan ControlScan FirstScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
+      InclScan←{¯1↓  ControlScan FirstScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
-    ⍝ If ⍺=1, UserEdit rt arg; otherwise simply use ⍵.
-      ⍺:  UserEdit ⍵ 
-          FullScan ⍵
+    ⍝ Include scan? Run only the ControlScan...
+      INCLUDE_SCAN=⍺:  InclScan ⍵
+    ⍝ Edit scan? UserEdit rt arg; otherwise simply use ⍵.
+      EDIT_SCAN=⍺:     UserEdit ⍵ 
+    ⍝ Full scan (default)...
+      FullScan ⍵
     }  
 
-  ⍝ opts:   Valid ⎕FIX option; E (edit);  N (don't fix); H (⍵ has a value).
-    ⍺←0 ⋄ F E H← (⍬⍴⍺){(⍺∊⍳3)(⍺='e')⍵}0<≢⍵
+  ⍝ opts:  e, i, 0, 1, 2.
+  ⍝   (0 1 2 → F) Valid ⎕FIX option; e→E (edit);  N (don't fix); H (⍵ has a value); i→I: internal call
+    F (E I) H ← opt{(⍺∊⍳3)(⍺='ei')⍵}0<≢⍵
   ⍝ Execute 
-    ↑⍣(~F)⊢⍺ CALR.⎕FIX⍣F ⊣ E∘Executive LoadLines⍣H ⊣ ⍵ 
+  I: (2×I)∘Executive LoadLines⍣H ⊣ ⍵ 
+    ↑⍣F⊢⍺ CALR.⎕FIX⍣F ⊣ E∘Executive LoadLines⍣H ⊣ ⍵ 
 }
