@@ -196,7 +196,7 @@
   ⍝ ∘ Calls <ScanCode> on the prefix and the code itself.
     ExecCode←{
         env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
-        6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod
+        6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod 
       ⍝ Handle omegas
       ⍝ Find formatting prefix, if any
         (pfx colons cod)←{   ⍝ Speeds up ⎕R when no : exists at all!
@@ -226,11 +226,13 @@
       ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
       ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
       ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
-        val←pfx(2=≢colons){pfx isDT←⍺
-            pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
-            0=≢pfx:⎕FMT ⍵ ⋄ isDT:0 1↓0 ¯1↓⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx ⎕FMT ⍵
-        }{0=≢⍵:''
-            env⍎'alpha caller.{',(ProcEscapes ⍵),'}omega'
+        isDT←2=≢colons ⋄ pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
+        val←{clr←env.caller
+            0=≢pfx:⍵   ⍝ Was clr.⎕FMT ⍵.  Handled below at '⎕FMT '...'
+            isDT:0 1↓0 ¯1↓clr.⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx clr.⎕FMT ⍵ 
+        }{
+            0=≢⍵:''
+            env⍎'alpha caller.{',('⎕FMT '/⍨0=≢pfx),(ProcEscapes ⍵),'}omega' 
         }cod
         padType∊'lcrLCR':padChar(padWid Pad padType)val  ⍝ Process L|C|R|l|c|r.  See Pad for details...
         val
@@ -255,7 +257,7 @@
       :Trap 0⍴⍨~DEBUG
           :If rightArgs≡⍬ ⋄ FORMAT_HELP ⋄ :Return ⋄ :EndIf
           text←''
-          env←⎕NS''   ⍝ fields: env.(caller alpha omega index)
+          env←(⊃⎕RSI,#).⎕NS'' ⋄ env.⎕DF '[∆Format]'  ⍝ fields: env.(caller alpha omega index)
            ⋄ env.caller←0⊃⎕RSI ⋄ isNum←{16::0 ⋄ ⍬⍴0⍴⍵}  ⍝ 16:: Handles namespace NONCE ERROR
            ⋄ env.alpha←,{⍵:⍬ ⋄ ⍺←leftArgs ⋄ 1<⍴⍴⍺:,⊂⍺ ⋄ ' '≡isNum ⍺:⊆⍺ ⋄ ⍺}900⌶⍬
            ⋄ env.omega←1↓rightArgs←⊆rightArgs
