@@ -108,9 +108,11 @@
     ∇ ns←FORMAT_LIB
       ns←⎕THIS.PMSLIB
     ∇
-    ∇ {_HELP}←FORMAT_HELP
-      :If 0=⎕NC '_HELP'⋄ _HELP←(⊂'  '),¨3↓¨{⍵/⍨(⊂'⍝H')≡¨2↑¨⍵}⎕SRC ⎕THIS ⋄ :EndIf
-      ⎕ED⍠('ReadOnly' 1)&_HELP
+    ∇ FORMAT_HELP
+      ⍝:IF 0=⎕NC '_HELP'
+          _HELP← '^\h*⍝H(.*)' ⎕S '\1'⊣⎕SRC ⎕THIS 
+      ⍝:ENDIF
+      ⎕ED⍠('ReadOnly' 0)&'_HELP'
     ∇   
   :ENDSECTION Miscellaneous Utilities
 
@@ -141,7 +143,7 @@
     fmtQS← '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
   ⍝ Pretty-formatted to be easy-ish to read.
     _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQuoters above.
-    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '        ⍝ Date-time code
+    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '       ⍝ Date-time code
     _f,←'          | ( (?: ⍎fmtQS |'   
     _f,←'                  ⍎_fmtNotQts++ )*+'   
     _f,←'            ) '   
@@ -158,9 +160,11 @@
 :ENDSECTION Global Declarations
 
 :SECTION MAIN Routines
-  ⍝ Escapes: \{ \} \\n \n \⋄   ==>  { } \n CR ⋄    (\n => CR=⎕UCS 13)
     ProcEscapes←{
-        '\\([{}])' '\\\\n' '\\n' '\\⋄'⎕R'\1' '\\n' '\r' '⋄'⊣⍵
+      ⍝           \{ \}      \\n    \n    \⋄   (⋄ itself is a field separator outside code quotes {"like this"}).
+        escIn← '\\([{}])' '\\\\n' '\\n' '\\⋄'
+        escOut←   '\1'      '\\n'  '\r'   '⋄'  
+        escIn ⎕R escOut⊣⍵
     }
   ⍝ omega type ScanCode format_string
   ⍝ Handle strings of the form <⍵NN, ⍺NN, ⍺⍺, ⍵⍵> in format specs, strings within code, and code outside strings:
@@ -195,20 +199,20 @@
   ⍝ ∘ Returns the ⎕FMTed result (always a char matrix) or ⎕SIGNALs an error.
   ⍝ ∘ Calls <ScanCode> on the prefix and the code itself.
     ExecCode←{
-        env cod←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
-        6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',cod 
+        env code←⍺ ⍵     ⍝ env fields: env.(caller alpha omega index)
+        6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',code 
       ⍝ Handle omegas
       ⍝ Find formatting prefix, if any
-        (pfx colons cod)←{   ⍝ Speeds up ⎕R when no : exists at all!
-            ':'(~∊)cod:'' ''⍵ ⋄ fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵
-        }cod
+        (pfx colons code)←{   ⍝ Speeds up ⎕R when no : exists at all!
+            ':'(~∊)code:'' ''⍵ ⋄ 3↑(fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵),⊂''    ⍝ {L15:} => 'L15' ':' ''
+        }code
     
       ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
       ⍝ See KLUDGE 2 below
         pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙FLD 0}⊣pfx
     
         pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
-        cod←env(1 ScanCode)cod              ⍝ 1:  isCode
+        code←env(1 ScanCode)code              ⍝ 1:  isCode
     
       ⍝ Spacing / Justification Pseudo-⎕FMT specs:
       ⍝    pattern: [LCRlcr] (ddd⎕c⎕ | ⎕c⎕ddd) ,?
@@ -219,22 +223,28 @@
             0=≢c:'' ⋄ padChar∘←1↓¯1↓c ⋄ ''
         }pfx
     
-      ⍝∆Format codestring <cod> executed according to three formatting options...
+      ⍝∆Format codestring <code> executed according to three formatting options...
       ⍝ 1] If prefix <pfx> is null or all blanks
-      ⍝    and there is one colon,   call:   ⎕FMT cod
-      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)cod  ⍝∆Format cod in the ISO std date-time format.
-      ⍝ 2] If there is one colon,   call: pfx ⎕FMT cod
-      ⍝ 3] If there are two colons, call: ⎕FMT pfx (1200⌶)cod...
-      ⍝ KLUDGE 2 (see KLUDGE 1 above): Handle \n in 1200⌶ specifications (valid only in double-quoted expressions).
-        isDT←2=≢colons ⋄ pfx←pfx{0≠≢⍵:⍺ ⋄ isDT:'%ISO%' ⋄ ⍵}pfx↓⍨+/∧\' '=pfx
-        val←{clr←env.caller
-            0=≢pfx:⍵   ⍝ Was clr.⎕FMT ⍵.  Handled below at '⎕FMT '...'
-            isDT:0 1↓0 ¯1↓clr.⎕FMT('\\n'⎕R'\n'⊣pfx)(1200⌶)⍵ ⋄ pfx clr.⎕FMT ⍵ 
-        }{
-            0=≢⍵:''
-            env⍎'alpha caller.{',('⎕FMT '/⍨0=≢pfx),(ProcEscapes ⍵),'}omega' 
-        }cod
-        padType∊'lcrLCR':padChar(padWid Pad padType)val  ⍝ Process L|C|R|l|c|r.  See Pad for details...
+      ⍝    and there is one colon,   call:   ⎕FMT code
+      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)code  ⍝∆Format code in the ISO std date-time format.
+      ⍝ OTHERWISE...
+      ⍝ 2] If there is one colon,    call: pfx ⎕FMT code
+      ⍝ 3] If there are two colons,  call: ⎕FMT pfx (1200⌶)code...
+      ⍝ WE NO LONGER ALLOW \n in 1200⌶ specifications
+        notDT←2≠≢colons 
+        hasPfx←×≢pfx↓⍨+/∧\' '=pfx                   ⍝ Is the pfx blank or null?
+        pfx←pfx{hasPfx: ⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
+        val←pfx{                                
+            notDT∧0=≢⍵~' ':''  
+            code←ProcEscapes ⍵                                                ⍝ Pfx? Code? | Call...
+            0=≢⍺: env⍎'alpha caller.{⎕FMT ',code,'}omega'                     ⍝ N    Y     | ⎕FMT code     - and orig ⍺ ⍵
+            notDT:  env⍎'alpha (⍺ caller.{⍺⍺ ⎕FMT ',code,'})omega'            ⍝ Y    Y     | pfx ⎕FMT code - ditto
+            0 1↓0 ¯1↓⎕FMT ⍺ (1200⌶){                                          ⍝ -    Date  | pfx (1200⌶)dt 
+               ×≢⍵~' ': env⍎'alpha caller.{',⍵,'}omega' 
+               1 ⎕DT ⊂⎕TS
+            }code                    
+        }code
+        padType∊'lcrLCR':padChar(padWid Pad padType)val                    ⍝ See Pad for details...
         val
     }
 :EndSection Main Routines
@@ -326,16 +336,18 @@
 ⍝H Fields:
 ⍝H  1.  TEXT field: Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
 ⍝H
-⍝H  2.  CODE field
-⍝H   a. SIMPLE CODE: {code}   returns the value of the code executed as a 2-d object.
+⍝H  2.  CODE fields (code NOT preceded by a format with a single or double colon)
+⍝H   a. SIMPLE CODE FIELD
+⍝H      Syntax: {code}   returns the value of the code executed as a 2-d object.
 ⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a CODE field.
 ⍝H                  ⍵0 refers to (0⊃⍵); ⍺99 to (99⊃⍺) in ⎕IO=0;
 ⍝H                  ⍵⍵ refers to the next element of ⍵. If the last (to the left) was ⍵5, then ⍵⍵ is ⍵6.
 ⍝H                  ⍺⍺ refers to the next element of ⍺. If the last (to the left) was ⍺9, then ⍺⍺ is ⍺10.
 ⍝H             If used in a format specification, ⍵NN and ⍺NN vars must refer to simple vectors or scalars.
 ⍝H
-⍝H   b. ⎕FMT CODE field: {[LCR Spec,]prefix: code}      See also c. TIME CODE field.
-⍝H      executes <code> and then formats it as (prefix ⎕FMT value).
+⍝H   b. NUMERIC ⎕FMT CODE FIELD (single colon).    See also c. TIME CODE field.
+⍝H      Syntax: {[LCR Spec,]prefix: code}, executes <code> and then returns it after formatting via 
+⍝H              prefix ⎕FMT code
 ⍝H      prefix: any valid ⎕FMT specification (null or blank specifications are quietly ignored).
 ⍝H
 ⍝H      LCR Spec: An LCR specification may be the first (foll. by comma) or only specification.
@@ -414,14 +426,18 @@
 ⍝H         ∆F 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
-⍝H   c. DATE-TIME CODE field: {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
+⍝H   c. DATE-TIME CODE Field (double-colon), invoking I-beam 1200 (optionally ⎕DT).
+⍝H      Syntax:  {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
 ⍝H      If time_spec is a specification for formatting dates and times via I-Beam (1200⌶)
 ⍝H      and timestamp is 1 or more timestamps of the form  (1 ⎕DT ⊂⎕TS) or (1 ⎕DT TS1 TS2 ...)
 ⍝H      then this returns the timestamp formatted according to the time_spec.
 ⍝H      - If a single timestamp is passed, a single enclosed string is returned by I-Beam 1200;
 ⍝H        ∆F automatically discloses single timestamps  (i.e. adds no extra blanks).
-⍝H      - If the time_spec is blank, it is treated as '%ISO' and not ignored (contra I-Beam 1200's default).
+⍝H      - If the time_spec is blank, it is treated as '%ISO%' and not ignored (contra I-Beam 1200's default).
 ⍝H        (⎕FMT specifications, if provided, must not be blank).
+⍝H      - If the timestamp is blank, it is assumed to be "now", 1 ⎕DT ⊂⎕TS. 
+⍝H        (If both time_spec and timestamp are blank, same as {%ISO%:: 1 ⎕DT⊂⎕TS }
+⍝H        See  examples below.
 ⍝H      - Restriction: Because of how ∆F parses, two or more contiguous colons within specification text
 ⍝H        must be double-quoted "::". A single colon will be interpreted correctly, whether quoted or not.
 ⍝H           Good: {tt"::"mm:ss:: now}     Bad: {tt::mm:ss:: now}
@@ -429,9 +445,9 @@
 ⍝H        {, }, and \n are valid within such double-quotes. \n is treated as CR (⎕UCS 13).
 ⍝H
 ⍝H      Examples
-⍝H          now← 1 ⎕DT  ⊂⎕TS
-⍝H          ∆F '<{%ISO%::now}>'
-⍝H      <2020-09-10T15:34:48>
+⍝H          now← 1 ⎕DT  ⊂⎕TS         ⍝ Null timestamp means "now" (1 ⎕DT ⊂⎕TS)  ⍝ Ditto
+⍝H          ∆F '{%ISO%::now}'            ∆F '{%ISO%::}'                            ∆F '{::}'  
+⍝H      2021-04-18T21:01:16          2021-04-18T21:01:16                        2021-04-18T21:01:16
 ⍝H          ∆F '{tt:mm:ss:: now} {F12.6:now}'
 ⍝H      03:50:51 44083.660324
 ⍝H          ∆F '{tt"::"mm:ss:: now} {F12.6:now}'

@@ -1,10 +1,15 @@
 ﻿∆FIX←{
+  DEBUG←0 
+⍝ +--------------------------------------------------+
+⍝ |     ⍺: Options                                   |
+⍝ |     ⍺ => OPT@N|V, MACROS@Ns                      |
+⍝ +-------------------------------------------- -----+  
   ⍺←0
-⍝ For internal, recursive calls, ⍺ is a namespace containing defined macros: used for ::INCLUDE statements.
+⍝ For internal, recursive calls, ⍺ is a namespace containing defined MACROS: used for ::INCLUDE statements.
 ⍝ If so, the option flag is set to 'i' (internal).
-  opt macros←{9=⎕NC '⍺': 'i' ⍺  ⋄ ⍺ m ⊣ m.(K←V←⍬) ⊣ m←⍎'macros'⎕NS ''}⍨⍺
-  2.1∨.≠macros.⎕NC,¨'KV': 11 ⎕SIGNAL⍨'∆FIX: Macro namespace invalid: "','"',⍨⍕macros
-  opt(~∊)0 1 2,'ein': 11 ⎕SIGNAL⍨'∆FIX: Invalid option: "','"',⍨⍕opt
+  OPTION MACROS←{9=⎕NC '⍺': 'i' ⍺  ⋄ ⍺ m ⊣ m.(K←V←⍬) ⊣ m←⍎'MACROS'⎕NS ''}⍨⍺
+  2.1∨.≠MACROS.⎕NC,¨'KV': 11 ⎕SIGNAL⍨'∆FIX: Macro namespace invalid: "','"',⍨⍕MACROS
+  OPTION(~∊)0 1 2,'ein': 11 ⎕SIGNAL⍨'∆FIX: Invalid option: "','"',⍨⍕OPTION
  
   ⍝ See ∆FIX.help for documentation.
   ⍝     result←  options ∆FIX  [filename:@S | lines:@VS]
@@ -20,9 +25,8 @@
   ⍝    b) filename: Automatically supplies :file// prefix (required by ⎕FIX), if a simple character vector (VS).
   ⍝ 
   ⍝ +--------------------------------------------------+
-  ⍝ |     CONSTANTS and OPTIONS                        |
+  ⍝ |    CONSTANTS                                     |
   ⍝ +-------------------------------------------- -----+
-    DEBUG←1 
     ⎕IO ⎕ML←0 1  
   ⍝ Major scan types...
     INCLUDE_SCAN EDIT_SCAN FULL_SCAN←2 1 0
@@ -335,7 +339,7 @@
     ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
   ⍝ Return (default) single string with NLs as linends. Missing => Err
-   ⍺=0: ∊{∊CR,⍨¨macros ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
+   ⍺=0: ∊{∊CR,⍨¨MACROS ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
     ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
 } 
 
@@ -461,12 +465,12 @@
       ⍝               returns 0 for any single-char ⍵ (so, e.g.,  ::DEF semi←; is replaced by ';', not '(;)')
       ⍝               returns 1 for ⍵: "",  "FRED+JACK", ":DIRECTIVE"
         ParensNeeded←{⍺=0: 0 ⋄ 1=≢⍵: 0 ⋄ ¯1=⎕NC ⊂'X',⍵~'⎕#.¯ '}  
-      ⍝ Initialize macros above
+      ⍝ Initialize MACROS above
          _MacSet←{ par←⍺⍺ ParensNeeded ⍵
             val←AddPar⍣par⊣⍵ 
-            nKV←≢macros.K ⋄ p←macros.K⍳⊂key←⍙K ⍺       
-            p<nKV: val⊣ { ⍵: macros.V[p]←⊂val ⋄ 1: macros.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
-            ⍺≡⍵: val ⋄ macros.(K V),← ⊂¨key val ⋄   val
+            nKV←≢MACROS.K ⋄ p←MACROS.K⍳⊂key←⍙K ⍺       
+            p<nKV: val⊣ { ⍵: MACROS.V[p]←⊂val ⋄ 1: MACROS.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
+            ⍺≡⍵: val ⋄ MACROS.(K V),← ⊂¨key val ⋄   val
         }  
       ⍝ MacGet ⍵  -- Return macro defined for ⍵, if found;
       ⍝              Else if ⍵ is complex, i.e. of the form ⍵1.⍵2.⍵3 (etc.), 
@@ -476,8 +480,8 @@
       ⍝              If any ⍵N returns null, do not include a period before or after it.
         MacGet←{dot←'.'
             0=≢⍵: ⍵ 
-            p←macros.K⍳⊂⍙K ⍵ 
-            p<≢macros.K: p⊃macros.V                   ⍝ Full name found, simple or complex
+            p←MACROS.K⍳⊂⍙K ⍵ 
+            p<≢MACROS.K: p⊃MACROS.V                   ⍝ Full name found, simple or complex
             dot(~∊)⍵: ⍵                         ⍝ Name is simple...   
             dot=¯1↑⍵: ⎕←{  
               'LOGIC ERROR: APL-style name with trailing dot was presented to macro processing'    
@@ -485,7 +489,7 @@
             AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/dot),⍵ }  
             ⊃AddDots/∇¨'.'(≠⊆⊢)⍵         ⍝ Name is complex. Check for definitions of the pieces! 
         }
-        MacDump← {⎕←⍵⋄ ⎕←(⎕PW-1)↑[1]⎕FMT macros.(K,[0.2]V) ⋄ ''}
+        MacDump← {⎕←⍵⋄ ⎕←(⎕PW-1)↑[1]⎕FMT MACROS.(K,[0.2]V) ⋄ ''}
       ⍝ ------END MACROS
 
   ⍝+-------------------------------------------------+
@@ -662,7 +666,7 @@
                   }SKIP
                   ∘UNREACHABLE∘
             } ⍝ ControlScanAction
-            save←macros.(K V) DEBUG                          ⍝ Save macros
+            save←MACROS.(K V) DEBUG                          ⍝ Save macros
             ⍝ Merge continued control lines (ONLY) into single lines.
             ⍝ Note: comments are literals on Control lines.
             pNotCtl←'^\h*([^:]|:[^:])\N*$'
@@ -671,7 +675,7 @@
             controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
             }
             res←Pop _CtlScan ⍵
-            macros.(K V) DEBUG← save                            ⍝ Restore macros
+            MACROS.(K V) DEBUG← save                        ⍝ Restore MACROS
             res
         } ⍝ ControlScan 
 
@@ -799,7 +803,7 @@
   ⍝ Predefined User MACROs                           +  
   ⍝+-------------------------------------------------+
       ⍝ >>> PREDEFINED MACROS BEGIN             ⍝ Usage / Info
-        macros.⍙DEF←  macros.{(≢K)>K⍳⊂⍵}              ⍝   macros: macro internal namespace
+        MACROS.⍙DEF←  MACROS.{(≢K)>K⍳⊂⍵}              ⍝   MACROS: macro internal namespace
       ⍝ Macro-- alias1 [alias2...] Macro macro_text. 
       ⍝ You can specify 1 or more aliases for the same macro text)
      
@@ -813,7 +817,7 @@
           ⍝        Returns 1 if <name> is active Macro, else 0. Valid only during Control Scan
           ⍝        Note:  "::DEF macro" undefs <name> (its value is "name"). 
           ⍝ Do <<::DEF name 1>> (among many choices) to ensure  «::IF ::DEF "name"» is true.
-            _←'::DEF'  SetMacros 'macros.⍙DEF'   
+            _←'::DEF'  SetMacros 'MACROS.⍙DEF'   
           ⍝ ⎕MY - a static namespace for each function... Requires accessible namespace '∆MYgrp' (library ∆MY).
             _←'⎕MY'    SetMacros {
                           STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
@@ -895,7 +899,7 @@
 
   ⍝ opts:  'e', 'i', 'n', 0, 1, 2.
   ⍝   (0 1 2 → FIX) Valid ⎕FIX option; e→E (edit);  N (don't fix); WVAL (⍵ has a value); i→INCL: ::INCLUDE call
-    FIX (ED INCL NOFIX) WVAL ← opt{(⍺∊⍳3)(⍺='ein')⍵}0<≢⍵
+    FIX (ED INCL NOFIX) WVAL ← OPTION{(⍺∊⍳3)(⍺='ein')⍵}0<≢⍵
   ⍝ Execute 
   INCL: INCLUDE_SCAN∘Executive LoadLines ⊣ ⍵ 
     ↑⍣NOFIX⊢⍺ CALR.⎕FIX⍣FIX ⊣ (ED×EDIT_SCAN)∘Executive LoadLines⍣WVAL ⊣ ⍵ 

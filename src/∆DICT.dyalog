@@ -593,13 +593,22 @@
     ∇
 
     ⍝ __namespaceTrigger__: helper for d.namespace above ONLY.
-    ⍝ Don't enable trigger here: only in subsidiary namespaces!
-    ∇__namespaceTrigger__ args;eTrigger;unmangleJ
+    ⍝ Don't enable trigger here: it's copied/activated in subsidiary namespaces!
+    ⍝ namespace key '⍙457' ==> numeric 457, but '457' remains char '457'
+    ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
+
+    ∇__namespaceTrigger__ args
+      ;eTrigger;unmangleJ;k;numK
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      ⍝ Use ⎕JSON unmangling for argument name!
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
       :TRAP 0
-          (unmangleJ args.Name) ##.set1 (⍎args.Name)
+           k←unmangleJ args.Name
+          :IF '⍙'=1↑args.Name  ⍝ Namespace was mangled...
+              numK←⎕VFI k 
+          :AndIf ~0∊⊃numK 
+              k←⊃⌽numK
+          :ENDIF     
+           k ##.set1 (⍎args.Name)
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
           eTrigger←11 'Dict.namespace: Unable to update key-value pair from namespace variable' 
           ⎕SIGNAL⍨/eTrigger
