@@ -1,6 +1,6 @@
 ﻿:namespace ∆Format 
-  ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages on namespace ⎕FIX...
-    DEBUG←0  
+  ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages...
+    DEBUG←0 
 :SECTION For Documentation, see Section "Documentation" below
   ⍝  ∆F - a modest Python-like APL Array-Oriented∆Format Function
   ⍝
@@ -49,10 +49,10 @@
   ⍝                    Default is 1 (signals error).
   ⍝          count:     How many times to scan the ENTIRE string for replacements. Default is 25.
   ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use ⎕THIS∘∆XR
-      eXRCall←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  
-      eXRLoop←'∆XR: looping on runaway replacement strings.'
-      eXRExec←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         
-      eXRForm←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
+    eXRCall←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  
+    eXRLoop←'∆XR: looping on runaway replacement strings.'
+    eXRExec←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         
+    eXRForm←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
     ∆XR←{⍺←⊃⎕RSI
               caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller ns, err, cnt
               9≠⎕NC'caller':⎕SIGNAL∘11 eXRCall
@@ -70,7 +70,7 @@
   ⍝ ⍺ ∆JOIN ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
     ∆JOIN←{
         rightHt rightWid←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
-        leftHt leftWid←⍴left←⎕FMT ⍺ ⋄ MaxHt←leftHt⌈rightHt
+        leftHt leftWid←⍴left←   ⎕FMT ⍺ ⋄ MaxHt←leftHt⌈rightHt
         (MaxHt leftWid↑left),(MaxHt rightWid↑right)
     }
   ⍝ ⍺ ∆OVER ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ OVER (ON TOP OF) ⍵, adding COLUMNS to ⍺ or ⍵ as needed..
@@ -142,7 +142,7 @@
     _fmtQts←'⍞' '<>'  '⊂⊃' '⎕' '¨'
     fmtQS← '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
   ⍝ Pretty-formatted to be easy-ish to read.
-    _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQuoters above.
+    _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQts above.
     _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '       ⍝ Date-time code
     _f,←'          | ( (?: ⍎fmtQS |'   
     _f,←'                  ⍎_fmtNotQts++ )*+'   
@@ -162,6 +162,7 @@
 :SECTION MAIN Routines
     ProcEscapes←{
       ⍝           \{ \}      \\n    \n    \⋄   (⋄ itself is a field separator outside code quotes {"like this"}).
+        0=≢⍵: ⍵
         escIn← '\\([{}])' '\\\\n' '\\n' '\\⋄'
         escOut←   '\1'      '\\n'  '\r'   '⋄'  
         escIn ⎕R escOut⊣⍵
@@ -232,18 +233,24 @@
       ⍝ 3] If there are two colons,  call: ⎕FMT pfx (1200⌶)code...
       ⍝ WE NO LONGER ALLOW \n in 1200⌶ specifications
         notDT←2≠≢colons 
-        hasPfx←×≢pfx↓⍨+/∧\' '=pfx                   ⍝ Is the pfx blank or null?
-        pfx←pfx{hasPfx: ⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
-        val←pfx{                                
-            notDT∧0=≢⍵~' ':''  
-            code←ProcEscapes ⍵                                                ⍝ Pfx? Code? | Call...
-            0=≢⍺: env⍎'alpha caller.{⎕FMT ',code,'}omega'                     ⍝ N    Y     | ⎕FMT code     - and orig ⍺ ⍵
-            notDT:  env⍎'alpha (⍺ caller.{⍺⍺ ⎕FMT ',code,'})omega'            ⍝ Y    Y     | pfx ⎕FMT code - ditto
-            0 1↓0 ¯1↓⎕FMT ⍺ (1200⌶){                                          ⍝ -    Date  | pfx (1200⌶)dt 
-               ×≢⍵~' ': env⍎'alpha caller.{',⍵,'}omega' 
-               1 ⎕DT ⊂⎕TS
-            }code                    
-        }code
+      ⍝ If the pfx present? Yes, return it sans leading blanks.
+      ⍝ If not, (a) not a date, return ''; (b) a date, return %ISO% prefix.
+        pfx←pfx{×≢⍺~' ': ⍺↓⍨+/∧\' '=⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
+        val←pfx{     
+            Dt2Str←⍺∘{0 1↓0 ¯1↓⎕FMT ⍺(1200⌶)⍵} 
+          ⍝ Select and execute code string in caller env; alpha/omega are caller's ⍺/⍵  
+            Case←env∘⍎ ⍵∘{ 
+                ⍵=0: 'alpha    caller.{   ⎕FMT ',⍺,'} omega'  ⍝ ⎕FMT code      (niladic)
+                ⍵=1: 'alpha (⍺ caller.{⍺⍺ ⎕FMT ',⍺,'})omega'  ⍝ pfx ⎕FMT code, ⍺→⍺⍺: pfx 
+                ⍵=2: 'alpha    caller.{',        ⍺,'} omega'  ⍝          code   
+            }          
+            hasCode←×≢⍵~' '                     ⍝ Pfx? Code? | Call...
+            notDT∧~hasCode: ''                  ⍝ Y    N     | Do nothing                                      
+            0=≢⍺:           Case 0              ⍝ N    Y     | 0adic ⎕FMT code  - and orig ⍺ ⍵
+            notDT:          Case 1              ⍝ Y    Y     | pfx   ⎕FMT code  - ditto
+            hasCode: Dt2Str Case 2              ⍝ Y/N  Date  | pfx  (1200⌶) dt  - If pfx omitted, is %ISO%
+                     Dt2Str 1 ⎕DT ⊂⎕TS          ⍝ Y/N  No    | pfx  (1200⌶) now - ditto
+        }ProcEscapes code
         padType∊'lcrLCR':padChar(padWid Pad padType)val                    ⍝ See Pad for details...
         val
     }
