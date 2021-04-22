@@ -39,7 +39,8 @@
   ⍝ ∆XR: Execute and Replace
   ⍝      Replace names of the form ⍎XXX in a string with its executed value
   ⍝      in the calling context (in string form)...
-  ⍝       XXX: An APL name, possibly preceded by any of ',∊'
+  ⍝       XXX: An APL name, possibly preceded by a limited set of 
+  ⍝            simple string-modifying APL fns: ',∊⊂⊃'
   ⍝       ⍺: caller_NS[=⊃⎕RSI]  [err=1] [count=25]
   ⍝          caller_NS: Where to execute each expression found.  Default is the caller's env.
   ⍝          error:    If 1, signals an error if it can't make the requisite replacements.
@@ -48,25 +49,27 @@
   ⍝                          - if it exceeds count, returns current replacement
   ⍝                    Default is 1 (signals error).
   ⍝          count:     How many times to scan the ENTIRE string for replacements. Default is 25.
-  ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use ⎕THIS∘∆XR
+  ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use SetP←⎕THIS∘∆XR
     eXRCall←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  
     eXRLoop←'∆XR: looping on runaway replacement strings.'
     eXRExec←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         
     eXRForm←{'∆XR: Result not a single line in ⍎"',⍵,'".'}
     ∆XR←{⍺←⊃⎕RSI
-              caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           ⍝ Declaring caller ns, err, cnt
-              9≠⎕NC'caller':⎕SIGNAL∘11 eXRCall
-              CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⍵ ⎕SIGNAL 11}
-              cnt{cnt←⍺
-                  cnt≤0:⍵ CondErr eXRLoop
-                  S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ⍙FLD 1
-                      0::f1 CondErr eXRExec f1
-                      1=≢r←⎕FMT caller.⍎f1:,r
-                      (∊r,' ')CondErr eXRForm f1
-                  }⍠('UCP' 1)⊣⍵
-                  ⍵≡S:S ⋄ '⍎'(~∊)S:S ⋄ (cnt-1)∇ S
-              }⍵
+      ⍝ ::LOCAL caller ns, err, cnt
+        caller err cnt←3↑⍺,1 25↑⍨¯3+≢⍺           
+        9≠⎕NC'caller':⎕SIGNAL∘11 eXRCall
+        CondErr←{cnt∘←0 ⋄ ~err:⍺ ⋄ ⍵ ⎕SIGNAL 11}
+        cnt{cnt←⍺
+          cnt≤0:⍵ CondErr eXRLoop
+          S←'⍎([,∊⊂⊃]*[\w∆⍙#⎕]+(?:\.[\w∆⍙#⎕]+)*)'⎕R{f1←⍵ ⍙FLD 1
+              0::f1 CondErr eXRExec f1
+              1=≢r←⎕FMT caller.⍎f1:,r
+              (∊r,' ')CondErr eXRForm f1
+          }⍠('UCP' 1)⊣⍵
+          ⍵≡S:S ⋄ '⍎'(~∊)S:S ⋄ (cnt-1)∇ S
+        }⍵
     }
+    SetP←⎕THIS∘∆XR
   ⍝ ⍺ ∆JOIN ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
     ∆JOIN←{
         rightHt rightWid←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
@@ -129,7 +132,7 @@
   ⍝ In place of APL  ('specs' ⎕FMT expression), we have shorthand
   ⍝       {specs:   expression}.
   ⍝ E.g.  {I5,F4.2: ivec fvec}
-  ⍝ fmtP matches the specs and following colon.
+  ⍝ fmtFullP matches the specs and following colon.
   ⍝ Fmt Patterns: < >, ⊂ ⊃, ⎕ ⎕ or ¨ ¨ by APL ⎕FMT rules (no embedded matching delims).
   ⍝
   ⍝ Special pseudo-format spec extensions
@@ -139,23 +142,21 @@
   ⍝    Lnn: obj on left, padded on right to width nn. Ignored if the object is ≥nn in width.
   ⍝    Rnn: obj on right, padded on left to with nn.   Ditto.
   ⍝    Cnn: obj centered.                              Ditto.
-    _fmtQts←'⍞' '<>'  '⊂⊃' '⎕' '¨'
-    fmtQS← '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨_fmtQts
-  ⍝ Pretty-formatted to be easy-ish to read.
-    _fmtNotQts←'[^ : ⍎∊_fmtQts ]'~' '            ⍝ quotes are valid only within _fmtQts above.
-    _f←'(?ix) ^ (?| ( (?: [^":]++   | :{1} | "[^"]*+"  )*?    )  ( :{2}      )  (.*+)  '       ⍝ Date-time code
-    _f,←'          | ( (?: ⍎fmtQS |'   
-    _f,←'                  ⍎_fmtNotQts++ )*+'   
-    _f,←'            ) '   
-    _f,←'            ( :{1} (?!:))  (.*+)'                                                     ⍝ ⎕FMT code
-    _f,←'          | (                                         )  (           )  (.*+)  '      ⍝ Simple code
+    SPECIAL_Q←'⍞' '<>'  '⊂⊃' '⎕' '¨'
+    fmtQtP←   '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨SPECIAL_Q 
+    _skipQtsP← '[^ : ⍎∊SPECIAL_Q "'']'~' '       
+    _qtStrP←   '[^"'':]++  | "[^"]*+" | ''[^'']*+'''  
+  ⍝ Disallow [⍞<>⊂⊃⎕¨"'] in ⎕FMT prefixes (⍺) except within special quotes [⍞<>⊂⊃⎕¨].
+    _f← '(?ix) ^ (?| ( (?: ⍎_qtStrP )*?               ) ( :{2}      )  (.*+)  '  ⍝ Date-time code
+    _f,←'          | ( (?: ⍎fmtQtP | ⍎_skipQtsP++ )*+ ) ( :{1} (?!:))  (.*+)'    ⍝ ⎕FMT code
+    _f,←'          | (                                ) (           )  (.*+)  '  ⍝ Simple code
     _f,←'        ) $'
-    fmtP←⎕THIS∘∆XR _f
+   fmtFullP← SetP _f
 
   ⍝ padP:   L<*>25 or L25<*> The entire sequence is followed by a comma or the terminating single colon.
-    _p1←'(?ix) ^ (?<type> [LCR]) (?<wid> \d+)        (?<char> ⍎fmtQS?) ,?'
-    _p2←'(?ix) ^ (?<type> [LCR]) (?<char> ⍎fmtQS?)  (?<wid> \d+)       ,?'
-    padP←⎕THIS∘∆XR¨_p1 _p2
+    _p1←'(?ix) ^ (?<type> [LCR]) (?<wid> \d+)        (?<char> ⍎fmtQtP?) ,?'
+    _p2←'(?ix) ^ (?<type> [LCR]) (?<char> ⍎fmtQtP?)  (?<wid> \d+)       ,?'
+    padP←SetP¨_p1 _p2
 
 :ENDSECTION Global Declarations
 
@@ -205,12 +206,12 @@
       ⍝ Handle omegas
       ⍝ Find formatting prefix, if any
         (pfx colons code)←{   ⍝ Speeds up ⎕R when no : exists at all!
-            ':'(~∊)code:'' ''⍵ ⋄ 3↑(fmtP ⎕R'\1\n\2\n\3'⊣⊆⍵),⊂''    ⍝ {L15:} => 'L15' ':' ''
+            ':'(~∊)code:'' ''⍵ ⋄ 3↑(fmtFullP ⎕R'\1\n\2\n\3'⊣⊆⍵),⊂''    ⍝ {L15:} => 'L15' ':' ''
         }code
     
       ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
       ⍝ See KLUDGE 2 below
-        pfx←fmtQS ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙FLD 0}⊣pfx
+        pfx←fmtQtP ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙FLD 0}⊣pfx
     
         pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
         code←env(1 ScanCode)code              ⍝ 1:  isCode
@@ -238,16 +239,20 @@
         pfx←pfx{×≢⍺~' ': ⍺↓⍨+/∧\' '=⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
         val←pfx{     
             Dt2Str←⍺∘{0 1↓0 ¯1↓⎕FMT ⍺(1200⌶)⍵} 
-          ⍝ Select and execute code string in caller env; alpha/omega are caller's ⍺/⍵  
-            Case←env∘⍎ ⍵∘{ 
-                ⍵=0: 'alpha    caller.{   ⎕FMT ',⍺,'} omega'  ⍝ ⎕FMT code      (niladic)
-                ⍵=1: 'alpha (⍺ caller.{⍺⍺ ⎕FMT ',⍺,'})omega'  ⍝ pfx ⎕FMT code, ⍺→⍺⍺: pfx 
-                ⍵=2: 'alpha    caller.{',        ⍺,'} omega'  ⍝          code   
+          ⍝ Select and execute code string in caller env; alpha/omega are caller's ⍺/⍵ 
+          ⍝   (unquoted) ⎕NOW -> current date-time 
+            Case←env∘⍎ ⍵∘{ code←⍺ ⋄  case←⍵∘∊ 
+                RNow←'((?:''[^'']*'')+)' '⎕NOW\b' ⎕R  '\1' '(1⎕DT⊂⎕TS)'⍠1 ⍝ CASE I
+                code← RNow⍣(1∊'⎕NOW'⍷code)⊣code   
+                case 0: 'alpha   caller.{   ⎕FMT{',code,'}⍵}omega'  ⍝ ⎕FMT code      (niladic)        
+                case 1: 'alpha(⍺ caller.{⍺⍺ ⎕FMT ',code,'}) omega'  ⍝ pfx ⎕FMT code, ⍺→⍺⍺: pfx       
+                case 2: 'alpha   caller.{',        code,'}  omega'  ⍝          code   
             }          
             hasCode←×≢⍵~' '                     ⍝ Pfx? Code? | Call...
             notDT∧~hasCode: ''                  ⍝ Y    N     | Do nothing                                      
             0=≢⍺:           Case 0              ⍝ N    Y     | 0adic ⎕FMT code  - and orig ⍺ ⍵
             notDT:          Case 1              ⍝ Y    Y     | pfx   ⎕FMT code  - ditto
+          ⍝ Date-Time
             hasCode: Dt2Str Case 2              ⍝ Y/N  Date  | pfx  (1200⌶) dt  - If pfx omitted, is %ISO%
                      Dt2Str 1 ⎕DT ⊂⎕TS          ⍝ Y/N  No    | pfx  (1200⌶) now - ditto
         }ProcEscapes code
@@ -343,9 +348,11 @@
 ⍝H Fields:
 ⍝H  1.  TEXT field: Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
 ⍝H
-⍝H  2.  CODE fields (code NOT preceded by a format with a single or double colon)
+⍝H  2.  CODE fields  -- code NOT preceded by a format with a single or double colon
+⍝H                      (or preceded by a bare colon with blank or null format)
 ⍝H   a. SIMPLE CODE FIELD
 ⍝H      Syntax: {code}   returns the value of the code executed as a 2-d object.
+⍝H              {:code}  [ditto]
 ⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a CODE field.
 ⍝H                  ⍵0 refers to (0⊃⍵); ⍺99 to (99⊃⍺) in ⎕IO=0;
 ⍝H                  ⍵⍵ refers to the next element of ⍵. If the last (to the left) was ⍵5, then ⍵⍵ is ⍵6.
@@ -353,9 +360,11 @@
 ⍝H             If used in a format specification, ⍵NN and ⍺NN vars must refer to simple vectors or scalars.
 ⍝H
 ⍝H   b. NUMERIC ⎕FMT CODE FIELD (single colon).    See also c. TIME CODE field.
-⍝H      Syntax: {[LCR Spec,]prefix: code}, executes <code> and then returns it after formatting via 
-⍝H              prefix ⎕FMT code
-⍝H      prefix: any valid ⎕FMT specification (null or blank specifications are quietly ignored).
+⍝H      Syntax: {[LCR Spec,]prefix: code}, 
+⍝H      Action: Executes <code> and then returns it after formatting via 
+⍝H                 prefix ⎕FMT code
+⍝H      prefix: any valid ⎕FMT specification 
+⍝H              (null or blank specifications are treated as if missing. See SIMPLE CODE FIELDS above)
 ⍝H
 ⍝H      LCR Spec: An LCR specification may be the first (foll. by comma) or only specification.
 ⍝H         It is of the form  "[LCR]nn⎕c⎕," or "[LCR]nn⎕c⎕"
@@ -412,6 +421,13 @@
 ⍝H                           9
 ⍝H                           6
 ⍝H
+⍝H      Code fields and Date-Time specifications may contain the special variable ⎕NOW (case is ignored).
+⍝H           ⎕NOW returns (1 ⎕DT ⊂⎕TS), a floating point number.
+⍝H      It is most useful in Date-Time specifications (see below). It is only replaced outside single or double quotes.
+⍝H         ⍝ Here, we have ⎕NOW in %ISO% format and as a float.
+⍝H           ∆F 'Now={::} Now={::⎕NOW} Float={⎕NOW}'      
+⍝H         Now=2021-04-20T22:53:20 Now=2021-04-20T22:53:20 Float=44305.9537
+⍝H 
 ⍝H      Code fields and Date-Time specifications may also contain double-quoted strings "like this"
 ⍝H      or single-quoted strings entered ''like this'' which appears 'like this'.
 ⍝H            Valid: "A cat named ""Felix"" is ok!"
@@ -442,6 +458,8 @@
 ⍝H        ∆F automatically discloses single timestamps  (i.e. adds no extra blanks).
 ⍝H      - If the time_spec is blank, it is treated as '%ISO%' and not ignored (contra I-Beam 1200's default).
 ⍝H        (⎕FMT specifications, if provided, must not be blank).
+⍝H      - In a timestamp code field, the variable ⎕NOW is replaced by (1 ⎕DT ⊂⎕TS).
+⍝H            {::7+⎕NOW} returns the %ISO% time for a week from today.
 ⍝H      - If the timestamp is blank, it is assumed to be "now", 1 ⎕DT ⊂⎕TS. 
 ⍝H        (If both time_spec and timestamp are blank, same as {%ISO%:: 1 ⎕DT⊂⎕TS }
 ⍝H        See  examples below.
