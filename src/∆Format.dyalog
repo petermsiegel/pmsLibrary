@@ -1,6 +1,11 @@
 ﻿:namespace ∆Format 
   ⍝ Set to 1  before ⎕FIXing to suppress error trapping and to generate verbose messages...
     DEBUG←0 
+  ⍝ SEP: Char that separates text format (⎕FMT) or date-time format (1200 I-beam) from code.
+  ⍝ Useful SEP chars are ones that don't appear often in code or formats.
+  ⍝ To use in such, they are escaped: for $, \$, etc.
+  ⍝ E.g. $ £ % 
+    SEP←'$' ⋄ eSEP←'\',SEP   
 :SECTION For Documentation, see Section "Documentation" below
   ⍝  ∆F - a modest Python-like APL Array-Oriented∆Format Function
   ⍝
@@ -15,7 +20,7 @@
 ⍝ ⍙FLD:  Find a pcre field by name or field number
     ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
         def←'' ⋄ isN←0≠⍬⍴0⍴⍵
-        p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
+        p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def     
         B[O[p]+⍳L[p]]
     }
 ⍝ GenBalanced: generates a pattern that matches balanced parens or equivalent,
@@ -49,7 +54,7 @@
   ⍝                          - if it exceeds count, returns current replacement
   ⍝                    Default is 1 (signals error).
   ⍝          count:     How many times to scan the ENTIRE string for replacements. Default is 25.
-  ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use SetP←⎕THIS∘∆XR
+  ⍝ Note: ∆XR by default uses caller's namespace. Internally, we use ∆P←⎕THIS∘∆XR
     eXRCall←'∆XR: 1st element of ⍺ (caller) must be a namespace.'  
     eXRLoop←'∆XR: looping on runaway replacement strings.'
     eXRExec←{'∆XR: An error occurred executing ⍎"',⍵,'".'}         
@@ -69,7 +74,7 @@
           ⍵≡S:S ⋄ '⍎'(~∊)S:S ⋄ (cnt-1)∇ S
         }⍵
     }
-    SetP←⎕THIS∘∆XR
+    ∆P←⎕THIS∘∆XR
   ⍝ ⍺ ∆JOIN ⍵:  Treat ⍺, ⍵ each as a matrix and attach ⍺ to the LEFT of ⍵, adding ROWS to ⍺ or ⍵ as needed..
     ∆JOIN←{
         rightHt rightWid←⍴right←⎕FMT ⍵ ⋄ 0=≢⍺:right
@@ -121,9 +126,9 @@
 
   :SECTION Global Declarations
     ⎕FX '{msg}←DSay msg' ':IF DEBUG ⋄ ⎕←''>>> '',msg ⋄ :ENDIF'
-     DSay 'DEBUG is active'
-     ⍝ ⎕PATH←1↓∊' ',¨∪' '(≠⊆⊢) ⎕PATH,' ',⍕PMSLIB
-     DSay '⎕PATH←',⎕PATH
+    DSay 'DEBUG is active'
+  ⍝ ⎕PATH←1↓∊' ',¨∪' '(≠⊆⊢) ⎕PATH,' ',⍕PMSLIB
+    DSay '⎕PATH←',⎕PATH
     ⎕IO←0
     CR←⎕UCS 13  ⋄ DQ SQ←'"'''
 
@@ -142,52 +147,49 @@
   ⍝    Lnn: obj on left, padded on right to width nn. Ignored if the object is ≥nn in width.
   ⍝    Rnn: obj on right, padded on left to with nn.   Ditto.
   ⍝    Cnn: obj centered.                              Ditto.
-    SPECIAL_Q←'⍞' '<>'  '⊂⊃' '⎕' '¨'
-    fmtQtP←   '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨SPECIAL_Q 
-    _skipQtsP← '[^ : ⍎∊SPECIAL_Q "'']'~' '       
-    _qtStrP←   '[^"'':]++  | "[^"]*+" | ''[^'']*+'''  
-  ⍝ Disallow [⍞<>⊂⊃⎕¨"'] in ⎕FMT prefixes (⍺) except within special quotes [⍞<>⊂⊃⎕¨].
-    _f← '(?ix) ^ (?| ( (?: ⍎_qtStrP )*?               ) ( :{2}      )  (.*+)  '  ⍝ Date-time code
-    _f,←'          | ( (?: ⍎fmtQtP | ⍎_skipQtsP++ )*+ ) ( :{1} (?!:))  (.*+)'    ⍝ ⎕FMT code
+    SPECIAL_Q←'⍞' '<>'  '⊂⊃' '⎕' '¨'      ⍝ (?: ⍞[^⍞]*⍞ | <[^>]> ...)
+    fmtQtP←    '(?x)(?:',')',⍨¯3↓∊{L R←⍵ ⋄ L,' [^',R,']* ',R,' | '}¨SPECIAL_Q 
+    _qtStrP←   '[^"''\⍎SEP\\]++  | "[^"]*+" | ''[^'']*+'' | \\[\⍎SEP]?+'  
+  ⍝ Disallow [⍞<>⊂⊃⎕¨"'] in ⎕FMT prefixes, except within special quotes per se [⍞<>⊂⊃⎕¨].
+    _f← '(?ix) ^ (?| ( (?: ⍎_qtStrP )*?               ) ( (?<!\\) \⍎SEP{1,2})  (.*+)  '  ⍝ Date-time code
     _f,←'          | (                                ) (           )  (.*+)  '  ⍝ Simple code
     _f,←'        ) $'
-   fmtFullP← SetP _f
+    fmtFullP← ∆P _f
 
   ⍝ padP:   L<*>25 or L25<*> The entire sequence is followed by a comma or the terminating single colon.
+  ⍝         Fields: type, wid, char
     _p1←'(?ix) ^ (?<type> [LCR]) (?<wid> \d+)        (?<char> ⍎fmtQtP?) ,?'
     _p2←'(?ix) ^ (?<type> [LCR]) (?<char> ⍎fmtQtP?)  (?<wid> \d+)       ,?'
-    padP←SetP¨_p1 _p2
+    padP←∆P¨_p1 _p2
 
 :ENDSECTION Global Declarations
 
 :SECTION MAIN Routines
-    ProcEscapes←{
-      ⍝           \{ \}      \\n    \n    \⋄   (⋄ itself is a field separator outside code quotes {"like this"}).
-        0=≢⍵: ⍵
-        escIn← '\\([{}])' '\\\\n' '\\n' '\\⋄'
-        escOut←   '\1'      '\\n'  '\r'   '⋄'  
-        escIn ⎕R escOut⊣⍵
+    ProcEscapes←{  0=≢⍵: ⍵ ⋄ fmt←⍺=¯1 ⋄ text←⍺=0   ⍝ ⍺? ¯1=fmt, 1=code, 0=text
+      escIn←   '\\\\n' '\\n', (fmt∨text)⍴⊂∊'\\(['(text fmt/'⋄{}' eSEP),'])'          
+      escOut←  '\\n'   '\r' , (fmt∨text)⍴⊂'\1'                     
+      escIn ⎕R escOut⊣⍵
     }
   ⍝ omega type ScanCode format_string
   ⍝ Handle strings of the form <⍵NN, ⍺NN, ⍺⍺, ⍵⍵> in format specs, strings within code, and code outside strings:
   ⍝   type=0:  In format specs:  The value of (⍕NN⊃⍵) will be immediately interpolated into the spec (⎕IO=0).
   ⍝   type=1:  In code outside strings:  The code (⍵⊃⍨NN+⎕IO) will replace ⍵NN (⎕IO-independent).
-  ⍝ If index N is out of range of alpha or omega, signals an index error.
-    ScanCode←{0=≢⍵:⍵
+  ⍝ ∘ Null code is an alias for ⍵⍵ (next ⍵ arg).
+  ⍝ ∘ If index N is out of range of alpha or omega, signals an index error.
+    ScanCode←{ 
         env isCode←⍺ ⍺⍺     ⍝ env fields: env.(caller alpha omega index)
         '("[^"]*")+|(''[^'']*'')+' '\\([⍵⍺])' '([⍵⍺])(\d{1,2}|\1)'⎕R{  ⍝ ⍵00 to ⍵99 | ⍵⍵ | ⍺⍺
             case←⍵.PatternNum∘=
             case 0:CanonQuotes ⍵ ⍙FLD 0     ⍝ Convert double quote sequences to single quote sequences...
             case 1:⍵ ⍙FLD 1                 ⍝ \⍵ is treated as char ⍵
-          ⍝ case 2:                       ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
+          ⍝ case 2:                         ⍝ ⍵3, ⍺3, ⍵⍵, ⍺⍺
             isW←'⍵'=f1←⍵ ⍙FLD 1
             f2←{(⊃⍵)∊'⍺⍵':⍕1+env.index[isW] ⋄ ⍵}⍵ ⍙FLD 2   ⍝ If ⍵NN, return NN; if ⍵⍵, return 1+env.index<⍺ or ⍵>
             ix←env.index[isW]←⍎f2 ⋄ alom←isW⊃env.(alpha omega)
-    
             ix≥≢alom:3 ⎕SIGNAL⍨(⍵ ⍙FLD 0),' out of range'
             isCode:'(',f1,'⊃⍨',f2,'+⎕IO)'
             ⍕ix⊃alom
-        }⍵
+        }{isNull←0=≢⍵~' ' ⋄ isNull∧isCode: '⍵⍵' ⋄ ⍵} ⍵
     }
   ⍝ str2 ← CanonQuotes str
   ⍝ Convert strings of form "..." to '...', handling internal " and ' chars.
@@ -205,19 +207,20 @@
         6⍴⍨~DEBUG::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←'Error executing code: ',code 
       ⍝ Handle omegas
       ⍝ Find formatting prefix, if any
-        (pfx colons code)←{   ⍝ Speeds up ⎕R when no : exists at all!
-            ':'(~∊)code:'' ''⍵ ⋄ 3↑(fmtFullP ⎕R'\1\n\2\n\3'⊣⊆⍵),⊂''    ⍝ {L15:} => 'L15' ':' ''
+        (pfx separators code)←{   ⍝ Speeds up ⎕R when no : exists at all!
+            SEP(~∊)code:'' ''⍵ ⋄ 3↑(fmtFullP ⎕R'\1\n\2\n\3'⊣⊆⍵),⊂''    ⍝ {L15:} => 'L15' ':' ''
         }code
     
-      ⍝ KLUDGE 1: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions
-      ⍝ See KLUDGE 2 below
+      ⍝ KLUDGE: treat \{ and \} as { } in ⊂...⊃-style ⎕FMT expressions. Weakness of using ⎕R for parsing.
         pfx←fmtQtP ⎕R{f0/⍨~⊃∨/'\{' '\}'⍷¨⊂f0←⍵ ⍙FLD 0}⊣pfx
     
-        pfx←env(0 ScanCode)pfx              ⍝ 0: ~isCode
-        code←env(1 ScanCode)code              ⍝ 1:  isCode
+        pfx← env(0 ScanCode)pfx              ⍝ 0: ~isCode
+        code←env(1 ScanCode)code             ⍝ 1:  isCode
     
-      ⍝ Spacing / Justification Pseudo-⎕FMT specs:
-      ⍝    pattern: [LCRlcr] (ddd⎕c⎕ | ⎕c⎕ddd) ,?
+      ⍝ Spacing and Justification Pseudo-⎕FMT specs: L20 C20 R20 etc...
+      ⍝    pattern: [LCRlcr] (ddd⍞c⍞ | ⍞c⍞ddd) ,?   
+      ⍝           ⍞ is any ⎕FMT delim;
+      ⍝           c is any single char.
       ⍝ Set locals: pfx; padTYpe, padWid, padChar
         padType padWid padChar←' ' 0 ' '
         pfx←padP ⎕R{t w c←⍵ ⍙FLD¨'type' 'wid' 'char'
@@ -225,37 +228,37 @@
             0=≢c:'' ⋄ padChar∘←1↓¯1↓c ⋄ ''
         }pfx
     
-      ⍝∆Format codestring <code> executed according to three formatting options...
+      ⍝ ∆Format codestring <code> executed according to three formatting options...
       ⍝ 1] If prefix <pfx> is null or all blanks
-      ⍝    and there is one colon,   call:   ⎕FMT code
-      ⍝    and there are two colons, call: '%ISO%' (1200)⌶)code  ⍝∆Format code in the ISO std date-time format.
+      ⍝    and there is one colon,   call monadic:   
+      ⍝          ⎕FMT code
+      ⍝    and there are two separators, call: 
+      ⍝         '%ISO%' (1200)⌶)code     ⍝ ISO std date-time format.
       ⍝ OTHERWISE...
-      ⍝ 2] If there is one colon,    call: pfx ⎕FMT code
-      ⍝ 3] If there are two colons,  call: ⎕FMT pfx (1200⌶)code...
-      ⍝ WE NO LONGER ALLOW \n in 1200⌶ specifications
-        notDT←2≠≢colons 
-      ⍝ If the pfx present? Yes, return it sans leading blanks.
+      ⍝ 2] If there is one separator,    call: pfx ⎕FMT code
+      ⍝ 3] If there are two separators,  call: ⎕FMT pfx (1200⌶)code...
+        notDT←2≠≢separators 
+      ⍝ Is the pfx present? Yes, return it sans leading blanks, after handling Escapes...
       ⍝ If not, (a) not a date, return ''; (b) a date, return %ISO% prefix.
-        pfx←pfx{×≢⍺~' ': ⍺↓⍨+/∧\' '=⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
+        pfx←pfx{×≢⍺~' ': ¯1 ProcEscapes ⍺↓⍨+/∧\' '=⍺ ⋄ notDT: '' ⋄ ⍵}'%ISO%'
         val←pfx{     
             Dt2Str←⍺∘{0 1↓0 ¯1↓⎕FMT ⍺(1200⌶)⍵} 
           ⍝ Select and execute code string in caller env; alpha/omega are caller's ⍺/⍵ 
           ⍝   (unquoted) ⎕NOW -> current date-time 
+          ⍝ Double dfn inside dfn needed since code may have ≥1 expressions sep. by '⋄'.
             Case←env∘⍎ ⍵∘{ code←⍺ ⋄  case←⍵∘∊ 
                 RNow←'((?:''[^'']*'')+)' '⎕NOW\b' ⎕R  '\1' '(1⎕DT⊂⎕TS)'⍠1 ⍝ CASE I
-                code← RNow⍣(1∊'⎕NOW'⍷code)⊣code   
-                case 0: 'alpha   caller.{   ⎕FMT{',code,'}⍵}omega'  ⍝ ⎕FMT code      (niladic)        
-                case 1: 'alpha(⍺ caller.{⍺⍺ ⎕FMT ',code,'}) omega'  ⍝ pfx ⎕FMT code, ⍺→⍺⍺: pfx       
-                case 2: 'alpha   caller.{',        code,'}  omega'  ⍝          code   
-            }          
-            hasCode←×≢⍵~' '                     ⍝ Pfx? Code? | Call...
-            notDT∧~hasCode: ''                  ⍝ Y    N     | Do nothing                                      
+                code← RNow⍣(1∊'⎕NOW'⍷code)⊣code  
+                case 0: 'alpha   caller.{   ⎕FMT ⍺{', code,'}⍵}omega'   ⍝ ⎕FMT code      (niladic)      
+              ⍝                ↓=pfx
+                case 1: 'alpha(⍺ caller.{⍺⍺ ⎕FMT ⍺{', code,'}⍵}) omega' ⍝ pfx ⎕FMT code, ⍺→⍺⍺: pfx       
+                case 2: 'alpha   caller.{',           code,'}  omega'   ⍝          code   
+            }      
+          ⍝                                     ⍝ Pfx? Code? | Call...
             0=≢⍺:           Case 0              ⍝ N    Y     | 0adic ⎕FMT code  - and orig ⍺ ⍵
             notDT:          Case 1              ⍝ Y    Y     | pfx   ⎕FMT code  - ditto
-          ⍝ Date-Time
-            hasCode: Dt2Str Case 2              ⍝ Y/N  Date  | pfx  (1200⌶) dt  - If pfx omitted, is %ISO%
-                     Dt2Str 1 ⎕DT ⊂⎕TS          ⍝ Y/N  No    | pfx  (1200⌶) now - ditto
-        }ProcEscapes code
+                     Dt2Str Case 2              ⍝ Y/N  Date  | pfx  (1200⌶) dt  - If pfx omitted, is %ISO%
+        }1∘ProcEscapes code
         padType∊'lcrLCR':padChar(padWid Pad padType)val                    ⍝ See Pad for details...
         val
     }
@@ -269,10 +272,10 @@
     addPat←{_patNum+←1 ⋄ fmtPats,←⊂⍵ ⋄ 1: fmtNums,←⍎⍺,'∘←_patNum' }
     fmtPats←fmtNums←⍬ ⋄ _patNum←¯1
 
-    'nextFC' addPat '\{\h*\}'                     ⍝ Next Omega.
-    'endFC'  addPat  '⋄|\{\h*[⍬:]\h*\}'           ⍝ End of Field.
-    'codeFC' addPat GenBalanced '{}'              ⍝ Code field.
-    'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'  ⍝ Text Field
+    'nextFC' addPat  '\{\h*\}'                        ⍝ Next Omega.
+    'endFC'  addPat  '⋄|\{\h*[⍬]\h*\}'                ⍝ End of Field.
+    'codeFC' addPat GenBalanced '{}'                  ⍝ Code field.
+    'textFC' addPat '(?x) (?: \\. | [^{\\⋄]+ )+'      ⍝ Text Field
 
   ⍝ ∆F: Main user function
     ∇ text←{leftArgs}∆F rightArgs;env;_
@@ -286,11 +289,11 @@
            ⋄ env.index←2⍴¯1    ⍝ "Next" element of alpha ([0]: ⍺, ⍺⍺) and omega ([1]: ⍵, ⍵⍵) to read in ExecCode is index+1.
           _←fmtPats ⎕S{
               case←⍵.PatternNum∘= ⋄ f0←⍵ ⍙FLD 0
-              case textFC:0⍴text∘←text ∆JOIN ProcEscapes f0          ⍝ Any text except {...} or ⋄
-              case codeFC:0⍴text∘←text ∆JOIN env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
-              case nextFC:0⍴text∘←text ∆JOIN env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
-              case endFC:⍬                                           ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
-              11 ⎕SIGNAL⍨'∆F: Unreachable stmt: ⍵.PatternNum=',⍕⍵.PatternNum
+              case textFC: 0⍴text∘←text ∆JOIN 0 ProcEscapes f0        ⍝ Any text except {...} or ⋄
+              case codeFC: 0⍴text∘←text ∆JOIN env ExecCode 1↓¯1↓f0    ⍝ {[fmt:] code}
+              case nextFC: 0⍴text∘←text ∆JOIN env ExecCode'⍵⍵'        ⍝ {}    - Shortcut for '{⍵⍵}'
+              case endFC:  ⍬                                          ⍝ ⋄     - End of Field (ends preceding field). Syn: {⍬} {:}
+              ⎕SIGNAL/'∆F: Unreachable stmt' 11
           }⊣⊃rightArgs
           text←,⍣(1=≢text)⊣text     ⍝ 1 row matrix quietly converted to a vector...
       :Else
@@ -320,6 +323,9 @@
 ⍝H        'you' 'know'  ∆F 'The {} in {} {} mainly on the {}, {⍺⍺} {⍺⍺}.' 'rain' 'Spain' 'falls' 'plain'
 ⍝H    The rain in Spain falls mainly on the plain, you know.
 ⍝H
+⍝H          ∆F'{} produced {I2$ ⍵⍵} units on {Mmm DD, YYYY$$⎕NOW}.' 'We' 25
+⍝H     We produced 25 units on Apr 25, 2021.
+⍝H
 ⍝H    Specification: a string containing text, variable names, code, and ⎕FMT specifications, in a single vector string.
 ⍝H    ∘ In addition to ⍺ or ⍵ (each entire array) or selections therefrom,
 ⍝H      special variable names within code include
@@ -330,29 +336,30 @@
 ⍝H  Types of Fields:
 ⍝H  type:    |    TEXT   |  SIMPLE |    ⎕FMT     |  DATE-TIME   | BLANK  | END OF  |   NEXT ARG
 ⍝H           |           |  CODE a |   CODE b    |   CODE c     | CODE d | FIELD e |     CODE f
-⍝H  format:  | any\ntext | {code}  | {fmt:code}  |  {fmt::code} | {Lnn:} |    ⋄    | {}  {⍵⍵}  {⍺⍺}
+⍝H  format:  | any\ntext | {code}  | {fmt$code}  |  {fmt$$code} | {Lnn$} |    ⋄    | {}  {⍵⍵}  {⍺⍺}
 ⍝H
 ⍝H  Special chars in format specifications outside quoted strings:
 ⍝H    ∘ Escaped chars:  \{  \\ \⋄   - Represented in output as { (left brace), \ (backslash) and ⋄ (lozenge).
+⍝H                      \$            dollar sign
 ⍝H    ∘ Newlines        \n          - In TEXT fields or inside quotes within CODE fields or DATE-TIME specs.
 ⍝H                                    \n is actually a CR char (Unicode 13), forcing a new APL line in ⎕FMT.
 ⍝H    ∘ In ⎕FMT field quotes ⎕...⎕, ⊂...⊃, etc., a lone or unbalanced brace { or } must be backslashed, due to limitations
 ⍝H      in the ∆F parsing algorithm. \ before other chars is treated as expected APL text.
 ⍝H    Example:
 ⍝H    ⍝ Good: Single escaped brace  ⍝ Good: Balanced braces       ⍝ Bad! Single unescaped brace
-⍝H      ∆F'#1: {¨\{¨,I1:⍳3}'        ∆F'#1: {¨{¨,I1,¨}¨:⍳3}'     ∆F'#1: ¨{¨,I1:⍳3}'
+⍝H      ∆F'#1: {¨\{¨,I1$⍳3}'        ∆F'#1: {¨{¨,I1,¨}¨$⍳3}'     ∆F'#1: ¨{¨,I1$⍳3}'
 ⍝H    #1: {0                        #1: {0}                         SYNTAX ERROR
-⍝H        {1                            {1}                           ∆F'#1: {⊂{⊃,I1:⍳3}'
+⍝H        {1                            {1}                           ∆F'#1: {⊂{⊃,I1$⍳3}'
 ⍝H        {2                            {2}                           ∧
 ⍝H
 ⍝H Fields:
-⍝H  1.  TEXT field: Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
+⍝H  1.  TEXT field$ Arbitrary text, requiring escaped chars \{ \⍎ and \\ for {⍎\ and \n for newline.
 ⍝H
 ⍝H  2.  CODE fields  -- code NOT preceded by a format with a single or double colon
 ⍝H                      (or preceded by a bare colon with blank or null format)
 ⍝H   a. SIMPLE CODE FIELD
 ⍝H      Syntax: {code}   returns the value of the code executed as a 2-d object.
-⍝H              {:code}  [ditto]
+⍝H              {$code}  [ditto]
 ⍝H      ⍵0..⍵99, ⍵⍵, ⍵, ⍺0..⍺99, ⍺⍺, ⍺ may be used anywhere in a CODE field.
 ⍝H                  ⍵0 refers to (0⊃⍵); ⍺99 to (99⊃⍺) in ⎕IO=0;
 ⍝H                  ⍵⍵ refers to the next element of ⍵. If the last (to the left) was ⍵5, then ⍵⍵ is ⍵6.
@@ -360,7 +367,7 @@
 ⍝H             If used in a format specification, ⍵NN and ⍺NN vars must refer to simple vectors or scalars.
 ⍝H
 ⍝H   b. NUMERIC ⎕FMT CODE FIELD (single colon).    See also c. TIME CODE field.
-⍝H      Syntax: {[LCR Spec,]prefix: code}, 
+⍝H      Syntax: {[LCR Spec,]prefix$ code}, 
 ⍝H      Action: Executes <code> and then returns it after formatting via 
 ⍝H                 prefix ⎕FMT code
 ⍝H      prefix: any valid ⎕FMT specification 
@@ -373,8 +380,8 @@
 ⍝H            ⎕c⎕: Using ⎕FMT quotes (⎕c⎕, ⊂c⊃, etc.) specify <c> a single padding char, if not a blank.
 ⍝H                 If multiple characters are specified <char>, an error occurs
 ⍝H
-⍝H         Note: {C10⎕⊂⎕,I1: ⍳3} and {C10,⎕⊂⎕,I1: ⍳3} differ!
-⍝H              ∆F'{C10⎕⊂⎕,I1: ⍳3}'         ∆F'{C10,⎕⊂⎕,I1: ⍳3}'
+⍝H         Note: {C10⎕⊂⎕,I1$ ⍳3} and {C10,⎕⊂⎕,I1$ ⍳3} differ!
+⍝H              ∆F'{C10⎕⊂⎕,I1$ ⍳3}'         ∆F'{C10,⎕⊂⎕,I1$ ⍳3}'
 ⍝H         ⊂⊂⊂⊂1⊂⊂⊂⊂⊂                            ⊂1
 ⍝H         ⊂⊂⊂⊂2⊂⊂⊂⊂⊂                            ⊂2
 ⍝H         ⊂⊂⊂⊂3⊂⊂⊂⊂⊂                            ⊂3
@@ -398,25 +405,25 @@
 ⍝H
 ⍝H             Example:
 ⍝H             ⍝  Delay five seconds, truncating  the result (LEFT) or displaying the result (RIGHT).
-⍝H                ∆F '<{l0:⎕DL 0.2}>'                 ∆F '<{L0:⎕DL 0.2}>'  ⍝ Equiv to {⎕DL 0.2}, w/o superfluous L0.
+⍝H                ∆F '<{l0$⎕DL 0.2}>'                 ∆F '<{L0$⎕DL 0.2}>'  ⍝ Equiv to {⎕DL 0.2}, w/o superfluous L0.
 ⍝H             <>                                    <0.202345>
 ⍝H             Examples:                               12345678901234567890
-⍝H             #1  ∆F '<{C20,I3: 1 5⍴⍳5}>'   ==>    <    0  1  2  3  4   >
-⍝H             #2  ∆F '<{C2,I5:  1 5 ⍴⍳5}>'  ==>    <    0    1    2    3    4>
-⍝H             #3  ∆F '<{C5:"1234567890"}>'  ==>    <1234567890>
-⍝H                 ∆F '<{R5:"1234567890"}>'  ==>    <1234567890>
-⍝H                 ∆F '<{c5:"1234567890"}>'  ==>    <45678>
+⍝H             #1  ∆F '<{C20,I3$ 1 5⍴⍳5}>'   ==>    <    0  1  2  3  4   >
+⍝H             #2  ∆F '<{C2,I5$  1 5 ⍴⍳5}>'  ==>    <    0    1    2    3    4>
+⍝H             #3  ∆F '<{C5$"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆F '<{R5$"1234567890"}>'  ==>    <1234567890>
+⍝H                 ∆F '<{c5$"1234567890"}>'  ==>    <45678>
 ⍝H         2.  A field spec may include special ⍵NN- or ⍺NN-positional variables (above), wherever variables are allowed:
 ⍝H
 ⍝H         Example:
-⍝H             ∆F 'Random: {C⍵0,⊂< ⊃,F⍵1,⎕ >⎕: ?3⍴0}' 8 4.2  (or '8' '4.2')
+⍝H             ∆F 'Random: {C⍵0,¨< ¨,F⍵1,⎕ >⎕$ ?3⍴0}' 8 4.2  (or '8' '4.2')
 ⍝H         Random: < 0.30 >
 ⍝H                 < 1.00 >
 ⍝H                 < 0.64 >
 ⍝H         If a standard format specification is used, APL ⎕FMT rules are followed, treating
 ⍝H         vectors as 1-column matrices:
 ⍝H         Example:
-⍝H             ∆F 'a: {3↑⎕TS} b: {I4: 3↑⎕TS} c: {ZI2,⊂/⊃,ZI2,⊂/⊃,I4: ⍉⍪1⌽3↑⎕TS}'
+⍝H             ∆F 'a: {3↑⎕TS} b: {I4$ 3↑⎕TS} c: {ZI2,⊂/⊃,ZI2,⊂/⊃,I4$ ⍉⍪1⌽3↑⎕TS}'
 ⍝H         a: 2020 9 6 b: 2020 c: 09/06/2020
 ⍝H                           9
 ⍝H                           6
@@ -425,8 +432,8 @@
 ⍝H           ⎕NOW returns (1 ⎕DT ⊂⎕TS), a floating point number.
 ⍝H      It is most useful in Date-Time specifications (see below). It is only replaced outside single or double quotes.
 ⍝H         ⍝ Here, we have ⎕NOW in %ISO% format and as a float.
-⍝H           ∆F 'Now={::} Now={::⎕NOW} Float={⎕NOW}'      
-⍝H         Now=2021-04-20T22:53:20 Now=2021-04-20T22:53:20 Float=44305.9537
+⍝H           ∆F 'Now={$$⎕NOW} Float={⎕NOW}'      
+⍝H         Now=2021-04-20T22:53:20 Float=44305.9537
 ⍝H 
 ⍝H      Code fields and Date-Time specifications may also contain double-quoted strings "like this"
 ⍝H      or single-quoted strings entered ''like this'' which appears 'like this'.
@@ -443,64 +450,62 @@
 ⍝H      | five
 ⍝H      | six
 ⍝H
-⍝H      Code fields may be arbitrarily complicated. Only the first "prefix:" specification
+⍝H      Code fields may be arbitrarily complicated. Only the first "prefix$" specification
 ⍝H      is special:
 ⍝H      Example (see DATE-TIME CODE fields for a ∆F-style approach):
 ⍝H         ∆F 'Today is {now←1 ⎕DT ⊂⎕TS ⋄ spec←"__en__Dddd, DDoo Mmmm YYYY hh:mm:ss"⋄ ∊spec(1200⌶)now}.'
 ⍝H      Today is Sunday, 06th September 2020 17:25:21.
 ⍝H
 ⍝H   c. DATE-TIME CODE Field (double-colon), invoking I-beam 1200 (optionally ⎕DT).
-⍝H      Syntax:  {time_spec:: timestamp}  OR  { [LCR-spec,]time_spec:: timestamp}
+⍝H      Syntax:  {time_spec$$ timestamp}  OR  { [LCR-spec,]time_spec$$ timestamp}
 ⍝H      If time_spec is a specification for formatting dates and times via I-Beam (1200⌶)
 ⍝H      and timestamp is 1 or more timestamps of the form  (1 ⎕DT ⊂⎕TS) or (1 ⎕DT TS1 TS2 ...)
 ⍝H      then this returns the timestamp formatted according to the time_spec.
 ⍝H      - If a single timestamp is passed, a single enclosed string is returned by I-Beam 1200;
 ⍝H        ∆F automatically discloses single timestamps  (i.e. adds no extra blanks).
+⍝H      - Separators within the timestamp need to be in quotes "$" or escaped \$.
 ⍝H      - If the time_spec is blank, it is treated as '%ISO%' and not ignored (contra I-Beam 1200's default).
 ⍝H        (⎕FMT specifications, if provided, must not be blank).
 ⍝H      - In a timestamp code field, the variable ⎕NOW is replaced by (1 ⎕DT ⊂⎕TS).
-⍝H            {::7+⎕NOW} returns the %ISO% time for a week from today.
-⍝H      - If the timestamp is blank, it is assumed to be "now", 1 ⎕DT ⊂⎕TS. 
-⍝H        (If both time_spec and timestamp are blank, same as {%ISO%:: 1 ⎕DT⊂⎕TS }
+⍝H            {$$7+⎕NOW} returns the %ISO% time for a week from today.
 ⍝H        See  examples below.
-⍝H      - Restriction: Because of how ∆F parses, two or more contiguous colons within specification text
-⍝H        must be double-quoted "::". A single colon will be interpreted correctly, whether quoted or not.
-⍝H           Good: {tt"::"mm:ss:: now}     Bad: {tt::mm:ss:: now}
-⍝H      - According to the std I-Beam 1200, special chars must be enclosed in double quotes.
-⍝H        {, }, and \n are valid within such double-quotes. \n is treated as CR (⎕UCS 13).
+⍝H      - Restriction: Because of how ∆F parses, two or more contiguous separators within specification text
+⍝H        must be double-quoted "$$". 
 ⍝H
 ⍝H      Examples
-⍝H          now← 1 ⎕DT  ⊂⎕TS         ⍝ Null timestamp means "now" (1 ⎕DT ⊂⎕TS)  ⍝ Ditto
-⍝H          ∆F '{%ISO%::now}'            ∆F '{%ISO%::}'                            ∆F '{::}'  
-⍝H      2021-04-18T21:01:16          2021-04-18T21:01:16                        2021-04-18T21:01:16
-⍝H          ∆F '{tt:mm:ss:: now} {F12.6:now}'
+⍝H          now← 1 ⎕DT  ⊂⎕TS         ⍝ ⎕NOW in timestamp code field is (1 ⎕DT ⊂⎕TS) 
+⍝H          ∆F '{%ISO%$$now}'         ∆F '{%ISO%$$⎕NOW}'        ∆F '{$$⎕NOW}'  
+⍝H      2021-04-18T21:01:16       2021-04-18T21:01:16       2021-04-18T21:01:16
+⍝H          ∆F '{tt:mm:ss$$ ⎕NOW} {F12.6$⎕NOW}'
 ⍝H      03:50:51 44083.660324
-⍝H          ∆F '{tt"::"mm:ss:: now} {F12.6:now}'
-⍝H      03::50:51 44083.660324
-⍝H          ∆F '{tt::mm:ss:: now} {F12.6:now}'
-⍝H      VALUE ERROR: Undefined name: mm
+⍝H          ∆F'{__da__Dddd, DDoo mmmm YYYY; hh:mm:ss$$⎕NOW}' ⍝ Danish
+⍝H      Lørdag, 24. april 2021; 22:08:37
+⍝H          ∆F'{__en__Dddd, DDoo mmmm YYYY; hh:mm:ss$$⎕NOW}' ⍝ English (typically, the default)
+⍝H      Saturday, 24th april 2021; 22:08:42
 ⍝H          t1 t2 t3←{⎕TS⊣⎕DL 1+?0}¨1 2 3
 ⍝H      More Examples
-⍝H          ∆F'{I1,⊂. ⊃:⍵⍵}{%ISO%::1 ⎕DT ⍪⍵ }' (1 2 3) t1 t2 t3    ⍝ Explicit ISO-formatted DATE-TIME
+⍝H          ∆F'{I1,⊂. ⊃$⍵⍵}{%ISO%$$1 ⎕DT ⍪⍵ }' (1 2 3) t1 t2 t3    ⍝ Explicit ISO-formatted DATE-TIME
 ⍝H      1. 2020-09-10T18:30:18
 ⍝H      2. 2020-09-10T18:30:19
 ⍝H      3. 2020-09-10T18:30:21
-⍝H      ⍝  Presenting a null DATE-TIME specification {::tt}          ⍝ Default ISO-formatted DATE-TIME
+⍝H      ⍝  Presenting a null DATE-TIME specification {$$tt}          ⍝ Default ISO-formatted DATE-TIME
 ⍝H          tt← ⍪0 0.111+1 ⎕DT ⊂ 2020 9 11 23 13 36 136
-⍝H          ∆F '{::tt}'
+⍝H          ∆F '{$$tt}'
 ⍝H      2020-09-11T23:13:36
 ⍝H      2020-09-12T01:53:26
 ⍝H
-⍝H   d. BLANK field: {Lnn:}
+⍝H   d. BLANK field: {Lnn$⍬} or {Lnn$""}
 ⍝H      Create a field nn blanks wide, with no other text, where nn is a non-negative integer.
-⍝H      Only these cases are allowed: {Lnn:} | {Cnn:} | {Rnn:}. All are equivalent.
-⍝H      E.g. to insert 10 blanks between fields:  {L10:}.
+⍝H      Only these cases are allowed: {Lnn$} | {Cnn$} | {Rnn$}. All are equivalent.
+⍝H      E.g. to insert 10 blanks between fields:  
+⍝H          ∆F'<<<{L10$⍬}>>>'
+⍝H      <<<          >>>
 ⍝H
 ⍝H   e: END OF FIELD (EOF): ⋄
 ⍝H      An unescaped lozenge ⋄ terminates the preceding field (if any).
-⍝H      Equivalents: Since {⍬} or {:} evaluates to an empty (0-width) field, they are synonyms for lozenge as EOF.
+⍝H      Equivalents: Since {⍬} evaluates to an empty (0-width) field, they are synonyms for lozenge as EOF.
 ⍝H      Example:
-⍝H          ∆F 'The cat ⋄is\nisn''t{⍬}here {:}and\nAND {"It isn''t here either"}'
+⍝H          ∆F 'The cat ⋄is\nisn''t{⍬}here ⋄and\nAND {"It isn''t here either"}'
 ⍝H      The cat is   here and It isn't here either
 ⍝H              isn't     AND
 ⍝H
