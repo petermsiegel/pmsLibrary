@@ -1,5 +1,6 @@
 ﻿∆FIX←{
-  DEBUG←0 
+  DEBUG←0      ⍝ See ::DEBUG [[ON | OFF]]
+  COMPRESS←0   ⍝ See ::COMPRESS [[ON | OFF]]
 ⍝ +--------------------------------------------------+
 ⍝ |     ⍺: Options                                   |
 ⍝ |     ⍺ => OPT@N|V, MACROS@Ns                      |
@@ -73,8 +74,8 @@
     pDQ←         '(?:"[^"]*")+' 
     pDAQ←        '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ Double Angled Quotes = Guillemets  « »
     pSQ←         '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
-    pAllQ←       pDQ,'|',pSQ,'|',pDAQ        ⍝ For Triple Quotes (not matched here), see pTrpQ below.
-    pCom←     ∆R'⍝[^$R]*$' 
+    pAllQ←     pDQ,'|',pSQ,'|',pDAQ        ⍝ For Triple Quotes (not matched here), see pTrpQ below.
+    pCom←      ∆R'⍝[^$R]*$' 
     pDFn←       GenBracePat '{}'
     pParen←     GenBracePat '()' 
     pBrack←     GenBracePat '[]'
@@ -180,7 +181,8 @@
     pDef2←        ∆Anchor'\h* :: (?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
   ⍝ :DEF, :DEFL (literal), :EVAL (:DEFE, def and eval)  are errors.
     pErr←         ∆Anchor'\h* :(def[el]?|eval) \b \N* '
-    pDebug←       ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
+    pDebug←       ∆Anchor'\h* ::debug    \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
+    pCompress←    ∆Anchor'\h* ::compress \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
     pUCmdC←       ∆Anchor'\h*::(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
     pOther←       ∆R     '(?=[$R]|^)(?!\h*::)'               ⍝ Non-interfering with other cmds on line! Was:  ∆Anchor'\N*'    Removed-- unneeded???
   ⍝+-------------------------------------+
@@ -197,9 +199,13 @@
     pWord←        '[\w∆⍙_#.⎕]+'
     pPtr←         ∊'(?ix) \$ \h* (' pParen '|' pDFn '|' pWord ')'
     _pHMID←       '( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
-  ⍝ Here-strings and Multiline ("Here-string"-style) comments 
-    pHere←        ∊'(?x)       ::: \h*   '_pHMID' :? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-    pHCom←        ∆Anchor '\h* ::: \h* ⍝ '_pHMID' ⍝? \1 (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '
+  ⍝ Here-strings and Multiline ("Here-string"-style) comments. The case for the token must match exactly.
+  ⍝    The case of the "end" prefix itself (if present) is ignored. 
+  ⍝ var ← ::: Token       ::: ⍝ Doc
+  ⍝     lines                 lines
+  ⍝ [:][End]Token[:]      ⍝ [End]Doc[:]
+    pHere←        ∊'(?x)       ::: \h*      ' _pHMID' :?      (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
+    pHCom←        ∆Anchor '\h* ::: \h* ⍝\h* ' _pHMID' (⍝\h*)? (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
     pNumBase←     '(?xi) ¯?0 [box] [\w_]+ (?>\.[\w_]+)?'    ⍝ Use ¯ \w to trap invalid non-decimal numbers
     pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
     pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
@@ -597,10 +603,9 @@
   ⍝ Control Scans - handle :: Directives             +  
   ⍝+-------------------------------------------------+
         ControlScan←{ 
-
           ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code   Modified: pOther
-            controlScanPats←pIf pElIf pEl pEndIf pInclude pDef1 pDef2 pEvl pStatic pDeclare pDefL pErr pDebug pUCmdC pOther 
-                            iIf iElIf iEl iEndIf iInclude iDef1 iDef2 iEvl iStatic iDeclare iDefL iErr iDebug iUCmdC iOther ←⍳≢controlScanPats
+            controlScanPats←pIf pElIf pEl pEndIf pInclude pDef1 pDef2 pEvl pStatic pDeclare pDefL pErr pDebug pCompress pUCmdC pOther 
+                            iIf iElIf iEl iEndIf iInclude iDef1 iDef2 iEvl iStatic iDeclare iDefL iErr iDebug iCompress iUCmdC iOther ←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇' '↓' '↑'
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -645,7 +650,8 @@
                       CASE iElIf iEl:   PassState Poke SKIP  
                       CASE iEndIf:      PassState Pop ⍵
                       CASE iDebug:      (F 0),PassState ON⊣DEBUG∘←'off'≢⎕C F 1 
-                      CASE iUCmdC:     (PassState ON),{
+                      CASE iCompress:   PassState ON⊣COMPRESS∘←'off'≢⎕C F 1 
+                      CASE iUCmdC:      (PassState ON),{
                                            0=≢⍵:'' ⋄ '⍝> ',CR,⍨⍵     ⍝ Report result, if any...
                                         }Eval2Str'⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2    
                       ∘UNREACHABLE∘
@@ -897,10 +903,16 @@
       FullScan ⍵
     }  
 
+  ⍝ Compress ⍵: Remove from string <⍵> all extra spaces (beyond 1), blank and empty lines, and comments...
+    Compress←{  ⍺←1 ⋄ 0=⍺: ⍵ ⋄ F0 NUL SP←'\0' '' ' '          
+        pList← '''[^'']*'''  '^[\h⋄]*(⍝.*)?\R?'  '[\h⋄]*(⍝.*)?$' '\h+' 
+        aList← F0            NUL                 NUL             SP
+        pList ⎕R aList ⍠'Mode' 'M'⊣⍵
+    }  
   ⍝ opts:  'e', 'i', 'n', 0, 1, 2.
   ⍝   (0 1 2 → FIX) Valid ⎕FIX option; e→E (edit);  N (don't fix); WVAL (⍵ has a value); i→INCL: ::INCLUDE call
     FIX (ED INCL NOFIX) WVAL ← OPTION{(⍺∊⍳3)(⍺='ein')⍵}0<≢⍵
   ⍝ Execute 
   INCL: INCLUDE_SCAN∘Executive LoadLines ⊣ ⍵ 
-    ↑⍣NOFIX⊢⍺ CALR.⎕FIX⍣FIX ⊣ (ED×EDIT_SCAN)∘Executive LoadLines⍣WVAL ⊣ ⍵ 
+    ↑⍣NOFIX⊢⍺ CALR.⎕FIX⍣FIX ⊣ (FIX∧COMPRESS) Compress (ED×EDIT_SCAN)∘Executive LoadLines⍣WVAL ⊣ ⍵ 
 }

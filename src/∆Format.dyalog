@@ -129,7 +129,7 @@
   :ENDSECTION Miscellaneous Utilities
 
   :SECTION Global Declarations
-    ⎕FX '{msg}←{title} DSay msg' ':IF DEBUG ⋄ :IF 0≠⎕NC ''title'' ⋄ ⎕←''>>> '',title ⋄ :ENDIF ⋄ ⎕←''>>>  '',msg ⋄ :ENDIF'
+    ⎕FX '{msg}←{title} DSay msg' ':IF DEBUG ⋄ :IF ~900⌶⍬ ⋄ ⎕←''>>> '',title ⋄ :ENDIF ⋄ ⎕←''>>>  '',msg ⋄ :ENDIF'
     'Debug' DSay 'DEBUG is active'
   ⍝ ⎕PATH←1↓∊' ',¨∪' '(≠⊆⊢) ⎕PATH,' ',⍕PMSLIB
     'Path' DSay '⎕PATH←',⎕PATH
@@ -315,6 +315,15 @@
           ⎕SIGNAL/⎕DMX.(EM EN)
       :EndTrap
     ∇ 
+    ∇text←{leftArgs} ∆Fdbg rightArgs;env;_;DEBUG
+     DEBUG←1
+     :IF 900⌶⍬ ⋄ leftArgs←⊢ ⋄ :ENDIF
+     :TRAP 0 
+          text←leftArgs ∆F rightArgs
+      :Else
+          ⎕SIGNAL/⎕DMX.(EM EN)
+      :ENDTRAP
+    ∇
 :ENDSECTION Main Executive
 
 :SECTION VALIDATION
@@ -361,7 +370,7 @@
 :SECTION CLEANUP AND EXPORT
     ⎕EX '_' ⎕NL 2 3 4         ⍝ Delete underscore-prefixed vars (those not used at runtime)
     _←0 ⎕EXPORT ⎕NL 3 4
-    _←1 ⎕EXPORT ↑ 'Exporting...'DSay '∆F' '∆XR' '∆JOIN' '∆OVER' 'FORMAT_LIB' '∆F_VALIDATE'
+    _←1 ⎕EXPORT ↑ 'Exporting...'DSay '∆F' '∆Fdbg' '∆XR' '∆JOIN' '∆OVER' 'FORMAT_LIB' '∆F_VALIDATE'
 :ENDSECTION CLEANUP AND EXPORT
 
 :SECTION Documentation
