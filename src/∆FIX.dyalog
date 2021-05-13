@@ -1,17 +1,4 @@
 ﻿∆FIX←{
-  DEBUG←0      ⍝ See ::DEBUG [[ON | OFF]]
-  COMPRESS←0   ⍝ See ::COMPRESS [[ON | OFF]]
-⍝ +--------------------------------------------------+
-⍝ |     ⍺: Options                                   |
-⍝ |     ⍺ => OPT@N|V, MACROS@Ns                      |
-⍝ +-------------------------------------------- -----+  
-  ⍺←0
-⍝ For internal, recursive calls, ⍺ is a namespace containing defined MACROS: used for ::INCLUDE statements.
-⍝ If so, the option flag is set to 'i' (internal).
-  OPTION MACROS←{9=⎕NC '⍺': 'i' ⍺  ⋄ ⍺ m ⊣ m.(K←V←⍬) ⊣ m←⍎'MACROS'⎕NS ''}⍨⍺
-  2.1∨.≠MACROS.⎕NC,¨'KV': 11 ⎕SIGNAL⍨'∆FIX: Macro namespace invalid: "','"',⍨⍕MACROS
-  OPTION(~∊)0 1 2,'ein': 11 ⎕SIGNAL⍨'∆FIX: Invalid option: "','"',⍨⍕OPTION
- 
   ⍝ See ∆FIX.help for documentation.
   ⍝     result←  options ∆FIX  [filename:@S | lines:@VS]
   ⍝ The result is as for ⎕FIX, i.e. names of objects fixed, unless a "nonce" option (extension) is used (q.v.).
@@ -24,13 +11,31 @@
   ⍝                   ∘ a char var #.FIX_FN_SRC with the current test code, and
   ⍝                   ∘ an executable #.FIX_FN, if successfully ∆FIXed.
   ⍝    b) filename: Automatically supplies :file// prefix (required by ⎕FIX), if a simple character vector (VS).
-  ⍝ 
+  ⍝
+  ⍝ +--------------------------------------------------+
+⍝ |     ⍺: Options                                   |
+⍝ |     ⍺ => OPT@N|V, MACROSns@Ns                      |
+⍝ +-------------------------------------------- -----+  
+  ⍺←0
+  FIXf←2     ⍝ Default:  2 ∆FIX object. If ⍺ is missing, default is 0 ∆FIX object, as for ⎕FIX.
+  DEBUGf←0      ⍝ See ::DEBUG [[ON | OFF]]      
+  COMPRESSf←0   ⍝ See ::COMPRESS [[ON | OFF]]
+⍝ For internal, recursive calls, ⍺ is a namespace containing defined MACROSns: used for ::INCLUDE statements.
+⍝ If so, the option flag is set to 'i' (internal).
+  (FIXf DEBUGf COMPRESSf)MACROSns←FIXf DEBUGf COMPRESSf{odc←⍵
+      odc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSns'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }odc
+      b←¯1=odc←3↑odc,¯1 ¯1 ¯1 ⋄ (b/odc)←b/⍺ ⋄ odc m
+      }⍺
+  2.1∨.≠MACROSns.⎕NC,¨'KV': 11 ⎕SIGNAL⍨'∆FIX: Macro namespace invalid: "','"',⍨⍕MACROSns
+  FIXf(~∊)0 1 2,'ein':  11 ⎕SIGNAL⍨'∆FIX: Invalid option: "','"',⍨⍕FIXf
+ 
+  
   ⍝ +--------------------------------------------------+
   ⍝ |    CONSTANTS                                     |
   ⍝ +-------------------------------------------- -----+
     ⎕IO ⎕ML←0 1  
   ⍝ Major scan types...
-    INCLUDE_SCAN EDIT_SCAN FULL_SCAN←2 1 0
+    SCAN_INCLUDEe SCAN_EDITe SCAN_FULLe←2 1 0
   ⍝ Prefix for any user-visible variable...
     FIX_PFX←'FÍX_'  
   ⍝ Prefix for comments emitted to document directives
@@ -38,13 +43,13 @@
   ⍝ See pSink←. 
    SINK_NAME←FIX_PFX,'t'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
-  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUG.
+  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUGf.
     SQ DQ←'''"' ⋄ NL CR CR_INTERNAL←⎕UCS 10 13 01 ⋄  CR_VISIBLE←'◈' 
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
-    0/⍨~DEBUG::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
-  ⍝ ∆WARN: Warning are emitted as msgs only if DEBUG is active. Else NOP.
-    ∆WARN←{⍺←1 ⋄ ⍺∧DEBUG: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
+    0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
+  ⍝ ∆WARN: Warning are emitted as msgs only if DEBUGf is active. Else NOP.
+    ∆WARN←{⍺←1 ⋄ ⍺∧DEBUGf: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
     ∆ASSERT←{⍺←'ASSERTION FAILED' ⋄  ⍵: 0 ⋄ ⍺ ⎕SIGNAL 911}
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
   ⍝ Add CR to last line to make Regex patterns simpler...
@@ -74,8 +79,8 @@
     pDQ←         '(?:"[^"]*")+' 
     pDAQ←        '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ Double Angled Quotes = Guillemets  « »
     pSQ←         '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
-    pAllQ←     pDQ,'|',pSQ,'|',pDAQ        ⍝ For Triple Quotes (not matched here), see pTrpQ below.
-    pCom←      ∆R'⍝[^$R]*$' 
+    pAllQ←    pDQ,'|',pSQ,'|',pDAQ           ⍝ For Triple Quotes (not matched here), see pTrpQ below.
+    pCom←     ∆R'⍝[^$R]*$' 
     pDFn←       GenBracePat '{}'
     pParen←     GenBracePat '()' 
     pBrack←     GenBracePat '[]'
@@ -188,24 +193,31 @@
   ⍝+-------------------------------------+
   ⍝ C. Pattern Defs, MAIN SCAN PATTERNS  +  
   ⍝+-------------------------------------+
-    pSysDef←       ∆Anchor'^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-    pUCmd←        '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
-    pDebug←       ∆Anchor'\h* ::debug \b \h*  (ON|OFF|) \h* '
-  ⍝ """...""".  F1: string, F2: leading blanks on matching line, F3: suffixes. 
-  ⍝ """...""".  2nd alternative will trigger an error-- F2 and F3 won't have a value...
-    pTrpQ←        '"""(?|\h*\R(.*?)\R(\h*)"""([a-z]*)|)'    
+    pSysDef← ∆Anchor '^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+    pUCmd←           '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
+    pDebug← ∆Anchor  '\h* ::debug \b \h*  (ON|OFF|) \h* '
+  ⍝ Triple Quote lines: 
+  ⍝ ∘ Line with leading """ may start with anything but only blanks follow """
+  ⍝ ∘ Line with trailing """ may start with blanks only then """, then optional [a-z], followed by anything.
+  ⍝ Pattern Alternates:
+  ⍝   #1: F1: matching string on line following opening """; 
+  ⍝       F2: leading blanks on closing """ line; 
+  ⍝       F3: suffixes. 
+  ⍝   #2: In matching routine, this will trigger an error, since F1, F2, F3 are null.
+  ⍝                                     F1       F2        F3
+    pTrpQ←        ∊'(?xi) """ (?| \h*\R (.*?) \R (\h*) """ ([a-z]*) | )'    
     pDQPlus←      ∊'(?xi) (' pDQ ') ([a-z]*)'
     pDAQPlus←     ∊'(?xi) (' pDAQ') ([a-z]*)'      ⍝ DAQ: Guillemet Quotes! « »
     pWord←        '[\w∆⍙_#.⎕]+'
     pPtr←         ∊'(?ix) \$ \h* (' pParen '|' pDFn '|' pWord ')'
-    _pHMID←       '( [\w∆⍙_.#⎕]+ :? ) ( \N* ) \R ( .*? ) \R ( \h* )'
+    _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
   ⍝ Here-strings and Multiline ("Here-string"-style) comments. The case for the token must match exactly.
   ⍝    The case of the "end" prefix itself (if present) is ignored. 
   ⍝ var ← ::: Token       ::: ⍝ Doc
   ⍝     lines                 lines
-  ⍝ [:][End]Token[:]      ⍝ [End]Doc[:]
-    pHere←        ∊'(?x)       ::: \h*      ' _pHMID' :?      (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-    pHCom←        ∆Anchor '\h* ::: \h* ⍝\h* ' _pHMID' (⍝\h*)? (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
+  ⍝ [:][End]Token[:]      [⍝][:] [End]Doc[:]
+    pHere←        ∊'(?x)       ::: \h*      ' _pHMID'       :? (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
+    pHCom←        ∆Anchor '\h* ::: \h* ⍝\h* ' _pHMID' ⍝?\h* :? (?i:END)?(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
     pNumBase←     '(?xi) ¯?0 [box] [\w_]+ (?>\.[\w_]+)?'    ⍝ Use ¯ \w to trap invalid non-decimal numbers
     pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
     pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
@@ -345,7 +357,7 @@
     ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
   ⍝ Return (default) single string with NLs as linends. Missing => Err
-   ⍺=0: ∊{∊CR,⍨¨MACROS ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
+   ⍺=0: ∊{∊CR,⍨¨MACROSns ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
     ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
 } 
 
@@ -354,8 +366,8 @@
   ⍝     ⎕SE.⍙PTR, ⎕SE.⍙FIX_TRADFN   -- not expected to be called by user.
   ⍝     ⎕SE.∆TO                     -- potentially called by user.
     SaveRunTime←{utils utype←↓⍉↑('∆ASSERT' 3)('⍙FIX_TRADFN' 3)('⍙PTR' 4) ('∆TO' 3) 
-        (~DEBUG)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUG∨FORCE) or if utils not created...
-        2/⍨~DEBUG:: 11 ⎕SIGNAL⍨'∆FIX: Unable to set utilities: ⎕SE.(',utils,')'
+        (~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
+        2/⍨~DEBUGf:: 11 ⎕SIGNAL⍨'∆FIX: Unable to set utilities: ⎕SE.(',utils,')'
       ⍝ ∆ASSERT for Macro ⎕ASSERT 
         ⎕SE.∆ASSERT←{⍺←'Assertion failure' ⋄ 0∊⍵:⍺ ⎕SIGNAL 8 ⋄ shy←0}
       ⍝ ⍙FIX_TRADFN for macro ::TRADFN
@@ -413,7 +425,7 @@
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via StringFormat below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
     Executive←{
-      ⍺←FULL_SCAN   ⍝ Default  
+      ⍺←SCAN_FULLe   ⍝ Default  
   ⍝+-------------------------------------------------+
   ⍝ Mac- routines: Handle Macros (see ::DEF, etc.)   +  
   ⍝+-------------------------------------------------+
@@ -430,7 +442,7 @@
       ⍝ Note: macro names whose last component starts with ⎕ or :  are case-insensitive.
       ⍝       E.g. ⎕NaMe, :myIF, or a.b.⎕NaMe 
       ⍝ val←  ⍙K key, key: a string.
-        ⍙K←{ ~'⎕:'∊⍨⊃⊃⌽k←'.'(≠⊆⊢)⍵ :⍵ ⋄ k⊣(⊃⌽k)←⎕C ⊃k }  ⍝ Case ignored for ⎕xxx and :xxx
+        ⍙K←{ ~'⎕:'∊⍨⊃⊃⌽k←'.'(≠⊆⊢)⍵ :⍵ ⋄ k⊣(⊃⌽k)←⎕C ⊃k}  ⍝ Case ignored for ⎕xxx and :xxx
       ⍝ val←  key (flag _MacSet) val
       ⍝   flag=0:  Sets macro <key> to have value <val>, a string.         See :DEF
       ⍝   flag=1:  Sets macro <key> to have value '(',<val>,')', a string. See :DEFL
@@ -457,7 +469,7 @@
             ∆ASSERT 0(~∊)SQ=(⊃⍵)(⊃⌽⍵):
             1(~∊)CR CR_INTERNAL∊⍵: ⍵ 
             _←∊SQ,¨SQ_SP,⍨¨Str2SVs 1↓¯1↓⍵  
-            ~DEBUG: _  
+            ~DEBUGf: _  
             _ ⊣  (⎕←⎕SE.UCMD 'Disp ',_)   ⊣ ∆WARN eProcSQ
         }
         SQ_SP← ⊂SQ,' ' 
@@ -471,12 +483,13 @@
       ⍝               returns 0 for any single-char ⍵ (so, e.g.,  ::DEF semi←; is replaced by ';', not '(;)')
       ⍝               returns 1 for ⍵: "",  "FRED+JACK", ":DIRECTIVE"
         ParensNeeded←{⍺=0: 0 ⋄ 1=≢⍵: 0 ⋄ ¯1=⎕NC ⊂'X',⍵~'⎕#.¯ '}  
-      ⍝ Initialize MACROS above
+      ⍝ Initialize MACROSns above
+         MacroLiteral←{(⊆⍺) (0 _MacSet)¨ ⊂ ⍵}    
          _MacSet←{ par←⍺⍺ ParensNeeded ⍵
             val←AddPar⍣par⊣⍵ 
-            nKV←≢MACROS.K ⋄ p←MACROS.K⍳⊂key←⍙K ⍺       
-            p<nKV: val⊣ { ⍵: MACROS.V[p]←⊂val ⋄ 1: MACROS.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
-            ⍺≡⍵: val ⋄ MACROS.(K V),← ⊂¨key val ⋄   val
+            nKV←≢MACROSns.K ⋄ p←MACROSns.K⍳⊂key←⍙K ⍺       
+            p<nKV: val⊣ { ⍵: MACROSns.V[p]←⊂val ⋄ 1: MACROSns.(K V)/⍨¨←⊂p≠⍳nKV }⍺≢⍵
+            ⍺≡⍵: val ⋄ MACROSns.(K V),← ⊂¨key val ⋄   val
         }  
       ⍝ MacGet ⍵  -- Return macro defined for ⍵, if found;
       ⍝              Else if ⍵ is complex, i.e. of the form ⍵1.⍵2.⍵3 (etc.), 
@@ -484,19 +497,17 @@
       ⍝                  Return macro for each ⍵N in ⍵1.⍵2.⍵3, else ⍵N itself
       ⍝              Else return ⍵ itself.
       ⍝              If any ⍵N returns null, do not include a period before or after it.
-        MacGet←{dot←'.'
+        MacGet←{DOT←'.'
             0=≢⍵: ⍵ 
-            p←MACROS.K⍳⊂⍙K ⍵ 
-            p<≢MACROS.K: p⊃MACROS.V                   ⍝ Full name found, simple or complex
-            dot(~∊)⍵: ⍵                         ⍝ Name is simple...   
-            dot=¯1↑⍵: ⎕←{  
-              'LOGIC ERROR: APL-style name with trailing dot was presented to macro processing'    
-            }⍬
-            AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/dot),⍵ }  
+            p←MACROSns.K⍳⊂⍙K ⍵ 
+            p<≢MACROSns.K: p⊃MACROSns.V             ⍝ Full name found, simple or complex
+            DOT(~∊)⍵: ⍵                         ⍝ Name is simple...   
+            DOT=¯1↑⍵: 11 ⎕SIGNAL⍨'LOGIC ERROR: APL-style name with trailing dot was presented to macro processing'    
+            AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/DOT),⍵ }  
             ⊃AddDots/∇¨'.'(≠⊆⊢)⍵         ⍝ Name is complex. Check for definitions of the pieces! 
         }
-        MacDump← {⎕←⍵⋄ ⎕←(⎕PW-1)↑[1]⎕FMT MACROS.(K,[0.2]V) ⋄ ''}
-      ⍝ ------END MACROS
+        MacDump← {⎕←⍵⋄ ⎕←(⎕PW-1)↑[1]⎕FMT MACROSns.(K,[0.2]V) ⋄ ''}
+      ⍝ ------END MACROSns
 
   ⍝+-------------------------------------------------+
   ⍝ StringFormat - Format Multiline Strings              +  
@@ -526,6 +537,7 @@
             o1 o2 od← 'rnsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
           ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
           ⍝ E: Escape (\)       C: Comment (⍝)
+
             R N S V M E C X←o∊⍨∊o1 o2
             0≠≢err←o~∊o1 o2: 11 ⎕SIGNAL⍨'∆FIX String/Here: One or more invalid options "',err,'" in "',⍺,'"' 
             indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
@@ -624,13 +636,13 @@
                     ⍝ If otherMode and we see an IN_SKIP, then we are at the end of a line also in otherMode same line. 
                     ⍝     issue '' (a NOP) and terminate the IN_SKIP.
                       tidy← { pAllQ pCom '\h+' ⎕R '&' '' ' '⍠reOPTS⊣⍵ }  
-                      ~DEBUG: ''  
+                      ~DEBUGf: ''  
                       otherMode: IN_SKIP{ IN_SKIP∘←~⍺ ⋄ ⍺: '' ⋄  COMMENT_PFX,(STATES⊃⍨1+⊃∊⍵) }⍵
                       CR,⍨COMMENT_PFX,(STATES⊃⍨1+⊃∊⍵),tidy pCrFamily ⎕R actionCrFamily ⍠reOPTS⊣¯1↓F 0
                   }
                 ⍝ Format for PassDef:   "::SysDefø name←value" with the name /[^←]+/ and a single space as shown.
                 ⍝ THis "directive" is passed on to the MainScan
-                  PassDef←{(PassState ON),'::SysDefø ' ,(F 1),'←',⍵,CR }    
+                  PassDef←{⍺←F 1 ⋄ (PassState ON),'::SysDefø ',⍺,'←',⍵,CR }    
 
                   CASE iErr: (¯1↓F 0),'∘∘∘ ⍝ ERR: ⍝ Invalid directive. Prefix :: expected.',CR
                 ⍝ ON...
@@ -638,19 +650,18 @@
                       CASE iOther:      ''               ⍝ A NOP when CurStateIs ON
                       CASE iDef1:       PassDef (F 1)  (1 _MacSet)⊣val←MainScan DTB F 2   
                       CASE iDef2:       PassDef (F 1)  (fVal _MacSet) F 1+fVal←0≠≢F 2 
-                      CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣     Eval2Str MainScan DTB F 2  
+                      CASE iEvl:        PassDef (F 1)  (1 _MacSet)⊣    Eval2Str MainScan DTB F 2  
                       CASE iStatic:    (PassState ON),(F 1),(F 2),CR,⍨ EvalStatic  MainScan DTB F 3  
                       CASE iDeclare:   (PassState ON),(F 1),(F 2),CR,⍨ EvalDeclare MainScan DTB F 3  
-                    ⍝ ::INCLUDE: The recursive ControlScan doesn't know calling env.
-                    ⍝            So something goes wrong!
-                    ⍝ CASE iInclude:   (PassState ON),_CtlScan (1 ⍙INCLUDE F 1)
                       CASE iInclude:   (PassState ON),0 ⍙INCLUDE F 1  
                       CASE iDefL:       PassDef (F 1)  (0 _MacSet)⊣val←AllQScan DTB F 2    
                       CASE iIf:         PassState Push Eval2Bool MacScan F 1
                       CASE iElIf iEl:   PassState Poke SKIP  
                       CASE iEndIf:      PassState Pop ⍵
-                      CASE iDebug:      (F 0),PassState ON⊣DEBUG∘←'off'≢⎕C F 1 
-                      CASE iCompress:   PassState ON⊣COMPRESS∘←'off'≢⎕C F 1 
+                    ⍝ Setting ::DEBUG ON/OFF sets variable ::DEBUG as well
+                    ⍝ Setting ::COMPRESS ON/OFF ditto...
+                      CASE iDebug:   '::DEBUG'    PassDef ⍕DEBUGf∘←   'off'≢⎕C F 1 
+                      CASE iCompress:'::COMPRESS' PassDef ⍕COMPRESSf∘←'off'≢⎕C F 1 
                       CASE iUCmdC:      (PassState ON),{
                                            0=≢⍵:'' ⋄ '⍝> ',CR,⍨⍵     ⍝ Report result, if any...
                                         }Eval2Str'⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2    
@@ -672,7 +683,7 @@
                   }SKIP
                   ∘UNREACHABLE∘
             } ⍝ ControlScanAction
-            save←MACROS.(K V) DEBUG                          ⍝ Save macros
+            save←MACROSns.(K V) DEBUGf                          ⍝ Save macros
             ⍝ Merge continued control lines (ONLY) into single lines.
             ⍝ Note: comments are literals on Control lines.
             pNotCtl←'^\h*([^:]|:[^:])\N*$'
@@ -681,7 +692,7 @@
             controlScanPats ⎕R ControlScanAction ⍠reOPTS⊣lines     ⍝ Scan- stack must be empty after Pop
             }
             res←Pop _CtlScan ⍵
-            MACROS.(K V) DEBUG← save                        ⍝ Restore MACROS
+            MACROSns.(K V) DEBUGf← save                        ⍝ Restore MACROSns
             res
         } ⍝ ControlScan 
 
@@ -733,7 +744,7 @@
                     CASE iDQPlus:  (F 2) (0 StringFormat)  UnDQ_DAQ F 1     ⍝ Removed DQTweak...
                     CASE iDAQPlus: (F 2) (0 StringFormat)  UnDQ_DAQ F 1                  
                     CASE iDots: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
-                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUG)⊣SaveRunTime 'NOFORCE'  
+                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUGf)⊣SaveRunTime 'NOFORCE'  
                     CASE iSQ: ProcSQ F 0  
                     CASE iCom: F 0                
                   ⍝ ::: ENDH...ENDH  Here-doc  Y   Via Opts←    :c :l :v :m :s
@@ -748,8 +759,7 @@
                     } DLB F 5 
                     CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
-                    CASE iDebug:   ''⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
-                  ⍝ CASE iDebug:   (DEBUG/'⍝2⍝ ',F 0)⊣ DEBUG∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
+                    CASE iDebug:   ''⊣ DEBUGf∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
                     CASE iNumBase: ∆DEC (F 0)~'_'
                     CASE iNum:     (F 0)~'_'
                     CASE iUCmd:     '⎕SE.UCMD ',1 DblSQ ('←'/⍨2=≢F 1),F 2   
@@ -808,34 +818,36 @@
   ⍝+-------------------------------------------------+
   ⍝ Predefined User MACROs                           +  
   ⍝+-------------------------------------------------+
-      ⍝ >>> PREDEFINED MACROS BEGIN             ⍝ Usage / Info
-        MACROS.⍙DEF←  MACROS.{(≢K)>K⍳⊂⍵}              ⍝   MACROS: macro internal namespace
+      ⍝ >>> PREDEFINED MACROSns BEGIN             ⍝ Usage / Info
+        MACROSns.⍙DEF←  MACROSns.{(≢K)>K⍳⊂⍵}              ⍝   MACROSns: macro internal namespace
       ⍝ Macro-- alias1 [alias2...] Macro macro_text. 
       ⍝ You can specify 1 or more aliases for the same macro text)
      
 
-        _SetBuiltinMacros←{
-            SetMacros←{(⊆⍺) (0 _MacSet)¨ ⊂ ⍵}           
-            _←'⎕F'     SetMacros '∆F'                   ⍝   APL-ified Python-reminiscent format function
-            _←'⎕TO'    SetMacros '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
-            _←'⎕ASSERT' SetMacros '⎕SE.∆ASSERT'
+        _SetBuiltinMacros←{       
+            _←'⎕F'     MacroLiteral '∆F'                   ⍝   APL-ified Python-reminiscent format function
+            _←'⎕TO'    MacroLiteral '⎕SE.∆TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
+            _←'⎕ASSERT' MacroLiteral '⎕SE.∆ASSERT'
           ⍝ ::DEF. Used in sequence ::IF ::DEF "name"
           ⍝        Returns 1 if <name> is active Macro, else 0. Valid only during Control Scan
           ⍝        Note:  "::DEF macro" undefs <name> (its value is "name"). 
           ⍝ Do <<::DEF name 1>> (among many choices) to ensure  «::IF ::DEF "name"» is true.
-            _←'::DEF'  SetMacros 'MACROS.⍙DEF'   
+            _←'::DEF'  MacroLiteral 'MACROSns.⍙DEF'   
+            _←'::COMPRESS' MacroLiteral ⍕COMPRESSf
+            _←'::DEBUG'    MacroLiteral ⍕DEBUGf 
           ⍝ ⎕MY - a static namespace for each function... Requires accessible namespace '∆MYgrp' (library ∆MY).
-            _←'⎕MY'    SetMacros {
+            _←'⎕MY'    MacroLiteral {
                           STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
                             _←'({0:: ⎕SIGNAL/''Requires library ∆MY'' 11 ⋄  0:: ⍵ ∆MYX 1'
                           _⊣ _,←'⋄ ⍵⍎','''',STATIC_PREFIX,'''',',1⊃⎕SI}(0⊃⎕RSI,#))' 
             }⍬
-            _←'⎕TMP' '⎕TEMP' SetMacros SINK_NAME
-            _←'::TRADFN' SetMacros (SINK_NAME,'←⎕SE.⍙FIX_TRADFN')
+            _←'⎕TMP' '⎕TEMP' MacroLiteral SINK_NAME
+            _←'⎕MONADIC' '⎕M' MacroLiteral '(900⌶⍬)'         ⍝ Monadic Function
+            _←'::TRADFN' MacroLiteral (SINK_NAME,'←⎕SE.⍙FIX_TRADFN')
              _←SaveRunTime 'NOFORCE'
             1: ⍵
         }
-      ⍝ <<< PREDEFINED MACROS END 
+      ⍝ <<< PREDEFINED MACROSns END 
  
       pDFnDirective←∆R'[$R]\h*::[^$R]*',pDFn,'[^$R]*[$R]'
     ⍝ FirstScanIn:
@@ -893,12 +905,12 @@
       IncludeScan←{¯1↓  ControlScan FirstScanIn (DTB¨⊆⍵),⊂'⍝⍝⍝'}
 
     ⍝ Include scan? Run only the ControlScan...
-      INCLUDE_SCAN=⍺:  IncludeScan ⍵
+      SCAN_INCLUDEe=⍺:  IncludeScan ⍵
 
     ⍝ Initial (Non-recursive) Scan: Initialize Macros
       _←_SetBuiltinMacros ⍬
     ⍝ Edit scan? UserEdit rt arg; otherwise simply use ⍵.
-      EDIT_SCAN=⍺: UserEdit ⍵ 
+      SCAN_EDITe=⍺: UserEdit ⍵ 
     ⍝ Full scan (default)...
       FullScan ⍵
     }  
@@ -909,10 +921,14 @@
         aList← F0            NUL                 NUL             SP
         pList ⎕R aList ⍠'Mode' 'M'⊣⍵
     }  
-  ⍝ opts:  'e', 'i', 'n', 0, 1, 2.
-  ⍝   (0 1 2 → FIX) Valid ⎕FIX option; e→E (edit);  N (don't fix); WVAL (⍵ has a value); i→INCL: ::INCLUDE call
-    FIX (ED INCL NOFIX) WVAL ← OPTION{(⍺∊⍳3)(⍺='ein')⍵}0<≢⍵
+  ⍝ Option (special) flags; (std) settings:  'e', 'i', 'n'; 0, 1, 2.
+  ⍝    Ff  IF 1, FIXf is a standard ⎕FIX flag.
+  ⍝    Ef  edit rather than fixing  
+  ⍝    If: This is an ::INCLUDE call
+  ⍝    Nf  don't fix 
+  ⍝    Wf  ⍵ has a value 
+    Ff (Ef If  Nf) Wf ← FIXf{(⍺∊⍳3)(⍺='ein')⍵}0<≢⍵
   ⍝ Execute 
-  INCL: INCLUDE_SCAN∘Executive LoadLines ⊣ ⍵ 
-    ↑⍣NOFIX⊢⍺ CALR.⎕FIX⍣FIX ⊣ (FIX∧COMPRESS) Compress (ED×EDIT_SCAN)∘Executive LoadLines⍣WVAL ⊣ ⍵ 
+  If: SCAN_INCLUDEe∘Executive LoadLines ⊣ ⍵ 
+      ↑⍣Nf⊢FIXf CALR.⎕FIX⍣Ff⊣ (Ff∧COMPRESSf) Compress (Ef×SCAN_EDITe)∘Executive LoadLines⍣Wf ⊣ ⍵ 
 }

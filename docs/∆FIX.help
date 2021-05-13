@@ -1,10 +1,21 @@
   ∆FIX:     Extension to ⎕FIX that supports special quoted strings/here-strings:
   Syntax:   Uses standard ⎕FIX syntax, with enhancements.
-            ⍺ defaults to 0 (as for ⎕FIX).
+            ⍺ missing: Same as  
+              0 0 0
             Non-standard options for ⍺: 
+             ⍺[0]
+              2   (default). Fix set of objects in file.
               'n' (nofix): Show the result of translation without FIXing. Typically ↑'n' ∆FIX 'line1' 'line2' ...
               'e' (edit): Go into the editor to repeatedly test/modify the sample code and show the results of translation.
                           'e' ∆FIX ⍬, 'e' ∆FIX 'my_file', 'e' ∆FIX 'line1' 'line2' ...
+               ¯1  Set ⍺[0] to 2 (∆FIX: default).
+            ⍺[1]
+               1   DEBUG←1
+               0   DEBUG←0 (default)
+              ¯1   DEBUG←0 (leave as default)
+            ⍺[2]
+               1   COMPRESS←1 (see ::COMPRESS)
+               0   COMPRESS←0 
   
   Enhancements
   Note: \n in templates denotes an actual newline character in an input file. 
@@ -13,10 +24,10 @@
         ↑(...), a matrix.
 
 0. SUMMARY
-    DQ Str              str← "sample\nmore"[[VRNSMCEX]]                      ⍝ Vector, Return, Newline/LF, Scalar, Matrix
-                        str← «sample\nmore»[[VRNSMCEX]]                      ⍝ Comment, Escape, eXdent
+    DQ Str              str← "sample\nmore"[[VRNSM][CEX]]                    ⍝ Vector, Return, Newline/LF, Scalar, Matrix
+                        str← «sample\nmore»[[VRNSM][CEX]]                    ⍝ Comment, Escape, eXdent
     TQ Str              str←"""\nsample\nmore\n"""[[VRNSMCE]]                ⍝ X implicit.
-    HERE String         str←::: token [:[VRNSMCE]] ... \n [:]end_tok[:]    ⍝ X implicit
+    HERE String         str←::: token [:[VRNSM][CE]] ... \n [:]end_tok[:]      ⍝ X implicit
     HERE Comment        ::: ⍝ token[END] ... \n ⍝ token[END]
     Continuation        line1 ... \n line2 ... \n line3                      ⍝ .., ..., or …
     Pointers            name←${dfn} ${tacit} $by_name                        ⍝ Access: name.Run, name.Exec
@@ -68,13 +79,14 @@
      
 1. STRINGS 
    DQ Strings: Multi-line Double-quoted Strings (Use "" to include internal double quotes)
-      [str←] "sample\nmore"[[VRNSMCEX]]
+      [str←] "sample\nmore"[[VRNSM][CEX]]
+      Options: [VRNSMC][E][X] in either case...
             V:  'sample' 'more'          ⍝ Vector of vectors. DEFAULT.
             R:  ('sample',CR,'more')     ⍝ (Carriage) return-separated
             N:  ('sample',NL,'more')     ⍝ Newline- / linefeed-separated
             S:  ('sample more')          ⍝ Space-separated
             M:  (↑'sample' 'more')       ⍝ Matrix Format
-            C:  ' '                      ⍝ Comment-mode (text treated as a single blank)
+            C:  ' '                      ⍝ Comment-mode (text treated as a single blank- other options irrelevant, ignored))
             E:  'sample more'            ⍝ Escape-format (backslash at end of line is ignored; line continues) 
               "long\       ==> 'longword'      "short \     ==>  'short words'
               word"E                           words"E
@@ -93,7 +105,7 @@
         [str←]"""                    ==> (V option)
               line 1 of string           str← 'line 1 of string' 'line 2'
               line 2
-        """[[VRNSMCE]] 
+        """[[VRNSM][CE]] 
       ∘ TQ-strings implicitly include the X option, extending all lines based on the left-most (including the last line,
         containing the closing """).
     ⍝ TQ String lines are aligned each under the previous. On output, they are exdented based on left-most line.
@@ -110,7 +122,7 @@
         """'       
 
   HERE Strings: Multi-line Strings ended with delimiter
-        [str←] ::: my_token [:[VRNSMCEX]]   ==> (V option)   
+        [str←] ::: my_token [:[VRNSM][CEX]]   ==> (V option)   
               any text at all                      str←('my_end_token' 'more_text') ⍝ Nothing more    
               more text
         [:][END]my_token[:] 
@@ -260,6 +272,15 @@
             ⎕←PI
             ⎕←3.141592653589793238462643383279503
 
+      ::DEBUG [ON* | OFF]
+            Turns ON or OFF debugging mode, which shares additional info as ∆FIX comments in the output.
+            See ∆FIX macro '::DEBUG' (always 1 or 0).
+      ::COMPRESS [ON* | OFF]
+            Turns ON or OFF compression mode. If ON, removes all comments, blank lines, and extra blanks 
+            and ⋄ chars  on code lines.
+            ::COMPRESS is global. If ON when the input has been fully scanned, compression operates on every line output.
+            See ∆FIX macro '::COMPRESS' (always 1 or 0).
+
   5B. APL ARRAY AND NAMESPACE LITERAL NOTATION  
         APL Array and Namespace Literal Notation allows users (of a future Dyalog APL) to
         specify a mixture of multidimensional arrays and complex namespaces within a single, 
@@ -332,10 +353,23 @@
       ⎕ASSERT  [errMsg] ⎕ASSERT assertion1 [assertion2...].  Returns shy 0 unless an assertion is true.
       ::DEF    Used in sequence ::IF ::DEF "name"
                Returns 1 if <name> is an active Macro, else 0. Valid only with ::IF or ::ELSEIF control stmts.
+      ⎕MONADIC Returns 1 if governing traditional function was called monadically; else 0. I.e. (900⌶⍬)
+      ⎕M       Ditto. Example: 
+                  ∇ R←{res} PIstr n ; ⎕FR;⎕PP 
+                    :IF ⎕M ⋄ res←0  ⋄ :ENDIF 
+                    ⎕FR← res ⊃ 1287 645 ⋄ ⎕PP← res ⊃ 34 12
+                    ⍕○n
+                  ∇
+                  PIstr 2 ⋄ 1 PIstr 2
+               6.283185307179586476925286766559006
+               6.28318530718
       ⎕MY      Returns a static namespace for the currently-called Tradfn or named Dfn.
                Requires accessible namespace '∆MYgrp' (library ∆MY).
       ⎕TMP     Returns name of temporary name used in "sink" constructins.
       ⎕TEMP    Same as ⎕TMP
+      ::DEBUG  1 if ∆FIX was called with DEBUG=1 (⍺[1]=1) or ::DEBUG ON was set. Else 0.
+      ::COMPRESS 
+               1 if ∆FIX was called with COMPRESS=1 (⍺[2]=1) or ::COMPRESS ON was set. Else 0.
       ::TRADFN Fixes the tradfn created via    ::TRADFN """    or   ::TRADFN "fn_hdr          or ::TRADFN """
                                                     fn_hdr                     fn_body"            ⍝ Ignore me
                                                     fn_body                                          r←PI n
