@@ -28,7 +28,8 @@
                    keysF←                   ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
     :Field Private valuesF←                 ⍬
     :Field Private hasdefaultF←             0
-    :Field Private defaultF←                ''        ⍝ Default value (hidden until hasdefaultF is 1)
+    :Field Private defaultF←                ''       ⍝ Default value (hidden until hasdefaultF is 1)
+    :Field Private theNS←                   ⍬        ⍝ 0=≢theNS. Set to a namespace in method namespace.
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
     
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
@@ -582,11 +583,14 @@
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
     ∇ns←namespace
       :Access Public
-      ns←⎕NS ''   
+      :IF 0=≢theNS
+          theNS←⎕NS ''  ⋄ theNS.⎕DF '[∆DICT namespace]' 
+      :ENDIF 
+      ns←theNS 
       :TRAP 0  ⍝ 4 if rank error
         ⍝ If it's not a valid name, use ⎕JSON mangling (may not be useful). If it is valid, mangle is a NOP.
-          :IF ×≢keysF ⋄ (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
-          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
+          :IF ×≢keysF ⋄ (mangleJ¨ keysF) theNS.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
+          theNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
