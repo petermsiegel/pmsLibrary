@@ -2,9 +2,7 @@
   Syntax:   Uses a superset to standard ⎕FIX syntax.
             ∘ ⍵ (per ⎕FIX) is a filename or a vector of char vectors (code).
               Extension: If ⍵ is a char vector, the prefix :file// is supplied as needed.
-            ∘ ⍺ 
-              by default:  ⍺←0 0 0
-              ∘ Non-standard options for ⍺: a[0 1 2] 
+            ∘ ⍺, by default:  ⍺←0 0 0
               ⍺[0]
                  2   (default). Fix set of objects in file.
                 'n' (nofix): Show the result of translation without FIXing. Typically ↑'n' ∆FIX 'line1' 'line2' ...
@@ -32,8 +30,9 @@
     DQ Str              str← "sample\nmore"[[VRNSM][CEX]]                    ⍝ Vector, Return, Newline/LF, Scalar, Matrix
                         str← «sample\nmore»[[VRNSM][CEX]]                    ⍝ Comment, Escape, eXdent
     TQ Str              str←"""\nsample\nmore\n"""[[VRNSMCE]]                ⍝ X implicit.
-    HERE String         str←::: token [:[VRNSM][CE]] ... \n [:][END]token[:] ⍝ X implicit
-    HERE Comment        ::: ⍝ token[END] ... \n ⍝ token[END]
+    HERE String         str←::: token [:[VRNSM][CE]] ... \n [:]ENDtoken[:] ⍝ X implicit
+    HERE Comment        ::: ⍝ token .\n .. \n ⍝ ENDtoken
+    TRADFN              ::TRADFN token \n header \n body1 ... \n [:]ENDtoken[:]
     Continuation        line1 ... \n line2 ... \n line3                      ⍝ .., ..., or …
     Pointers            name←${dfn} ${tacit} $by_name                        ⍝ Access: name.Run, name.Exec
     Pseudo-Strand fn    ( code1⍮ code2⍮ code3 )                              ⍝ ⍮ behaves like an APL dyadic function...
@@ -42,7 +41,7 @@
     Atom Item/List      `` word                                              ⍝ Single item = scalar
     Map                 word int "quoted" → code                             ⍝ Left-side as for Atom List
     Map Item/List       word → code                                          ⍝ Left-side as for Atom Item/List 
-    Fence               ← abc                                                ⍝ FÍX_t← abc 
+    Fence               ← abc  　                                             ⍝ FÍX_t← abc 
     Null Namespace      ()                                                   ⍝ (⎕NS ⍬)
     Hex Literal         0X0FAB                                               ⍝ or 0xofab (case ignored)
     Oct Literal         0o0712                                               ⍝ or 0O0712 (with "oh")
@@ -79,9 +78,8 @@
        Range             1 ⎕TO 10 2, 1 3 ⎕TO 10
        Assert            ⎕ASSERT 2=⍴⍴⍵:                     
        Static NS         my←⎕MY       
-       Sink varname      ⎕TMP             
-       Fix Tradfn        ←::TRADFN """\n header\n body1\n etc\n"""
-
+       Sink varname      ⎕T         
+    
      
 1. STRINGS 
    DQ Strings: Multi-line Double-quoted Strings (Use "" to include internal double quotes)
@@ -128,19 +126,20 @@
         """'       
 
   HERE Strings: Multi-line Strings ended with delimiter
-        [str←] ::: my_token [:[VRNSM][CEX]]   ==> (V option)   
+        [str←] ::: MyToken [:[VRNSM][CEX]]   ==> (V option)   
               any text at all                      str←('my_end_token' 'more_text') ⍝ Nothing more    
               more text
-        [:][END]my_token[:] 
-      ∘ my_token can be any string allowed as an APL variable, with leading and/or trailing colon (:).
-      ∘ The ending token may optionally be prefixed by END (either case). A simple END is NOT allowed.
+        [:]ENDMyToken [:] 
+      ∘ MyToken can be any string allowed as an APL variable, with leading and/or trailing colon (:).
+      ∘ The ending token must be END (case ignored) catenated to the exact starting token, e.g. EndMyToken.
+      ∘ Note that the case of END is ignored, but the ending MyToken must be in the same case as the starting MyToken.
       ∘ Options are the same as for DQ-strings, except the X (exdent) option is automatically specified.
       ∘ To suppress exdentation, place the closing end token (here: "my_end_token:") at the left-most position (as shown);
         otherwise, the left-most line (including the end token line) will determine the indentation.
   HERE Comments: Like HERE strings, but comments only.
-       ::: ⍝ my_token           ::: ⍝ Documentation
+       ::: ⍝ MyToken           ::: ⍝ Documentation
            any text ...             anything
-       ⍝ [END]my_token          ⍝ EndDocumentation
+       ⍝ [END]MyToken          ⍝ EndDocumentation
 2. Continuation Lines for Code: 2-3 dots (.., ...) or ellipses … at end of a line (outside quotes and preceding any comments)
       are replaced by a single blank and concatenated with the following line:
           example← 1 2 3   ...      ==>  example← 1 2 3 4 5 6 ⍳ 2
@@ -196,13 +195,14 @@
               ∘  name1       →→ result   ==>  ((``name1)       ⍮ result)  ==>   ('name1' )        (,⍥⊂) result 
   ←           Fence:
               When ← is (a) the leftmost token in a line or follows any of these chars:  "[:{(⋄", 
-              its value is thrown away, actually assigned to a special variable name, available at ⎕TMP below.
+              its value is thrown away, actually assigned to a special variable name, available at ⎕Tbelow.
               It is useful when a side-effect is required:   
                   Copy←{⍺←⊢ ⋄ ←⍺ ⎕CY ⍵}   is equivalent to:    Copy←{⍺←⊢ ⋄ FÍX_t←⍺ ⎕CY ⍵} 
   ()          Empty Namespace:
               Empty parens return an empty namespace (⎕NS⍬). 
               See also APL Literal Notation (:STATIC and :DECLARE).
   ∉           Not In (set function): eye-candy equiv. to (~∊). ⎕UCS 8713.
+  ⍢           Under, synonym: Dual:  ⎕UNDER, ⎕DUAL. Macro implementing the under fn (Dyalog dfn). See ⎕SE.∆UNDER.
   ←←          Extended assignment (EXPERIMENTAL).
 
 4. Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no 'J' infix).
@@ -373,19 +373,47 @@
                6.28318530718
       ⎕MY      Returns a static namespace for the currently-called Tradfn or named Dfn.
                Requires accessible namespace '∆MYgrp' (library ∆MY).
-      ⎕TMP     Returns name of temporary name used in "sink" constructins.
-      ⎕TEMP    Same as ⎕TMP
+      ⎕T       Returns name of temporary name used in "sink" constructions.
       ::DEBUG  1 if ∆FIX was called with DEBUG=1 (⍺[1]=1) or ::DEBUG ON was set. Else 0.
       ::COMPRESS 
                1 if ∆FIX was called with COMPRESS=1 (⍺[2]=1) or ::COMPRESS ON was set. Else 0.
-      ::TRADFN Fixes the tradfn created via    ::TRADFN """    or   ::TRADFN "fn_hdr          or ::TRADFN """
-                                                    fn_hdr                     fn_body"            ⍝ Ignore me
-                                                    fn_body                                          r←PI n
-                                                """                                                 r←○n
-                If leading lines passed to ::TRADFN are blank or comments, they are ignored.       """
+      ::TRADFN Defines and FIXES a traditional function whose header and body is between a token matched with 
+                    [:]ENDtoken[:]          
+               The ENDToken may be preceded or followed by a colon (or both).
+               The token is typically the name of the function: 
+               ::TRADFN MyFun   ::TRADFN MyFun
+                  r←MyFun n        ⍝ This is a leading comment line.
+                  body1            r←MyFun n  
+                  ...              body1 
+                  ...              ...
+               :EndMyFun        :EndMyFun      
+                If leading lines passed to ::TRADFN are blank or comments, they are ignored.       
                 The first non-blank, non-comment line must contain the function header.
-                Here docs may also be used:    ::TradFn ::: EndTrad \nfn_hdr \nfn_body... \n :EndTrad 
-                If an error occurs, a signal is generated. Otherwise, the name of the function ⎕FXed is shyly returned...
+                If an error occurs, a signal is generated. Otherwise, the name of the function ⎕FXed is assigned to ⎕T.
+                See sink for  ⎕T.
+        ::TRADFN 
+                  ::TRADFN PI          Resolves to: 
+                     r←pi n               __tmp←⎕SE.⍙FIX_TRADFN 'r←pi n' 'r←○n' 
+                     r←○n               
+                  :EndPI            
+
+      ⎕UNDER, ⎕DUAL
+               Executes Iverson's ⍢, implemented as Dyalog's dfn Under. Runtime utility: ⎕SE.∆UNDER.
+                  mean ← +/ ÷ ≢		arithmetic mean
+                  mean⍢⍟	     	geometric mean
+                  mean⍢÷	    	harmonic mean
+                  mean⍢(*∘2)		quadratic mean (root mean square)
+                  mean⍢(*∘p)		power mean (generalized mean)
+               Diagrammatially (from Hui, The Under Operator)
+                  f⍢g ⍵         ⍺ f⍢g ⍵
+                  ----------   ----------
+                    g⍣¯1           g⍣¯1
+                    |              |
+                    f              f
+                    |             / \
+                    g            g   g
+                    |            |   |
+                    ⍵            ⍺   ⍵
 
   +---------------------------------------+
   | ::STATIic name←  value                +
