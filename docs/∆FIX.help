@@ -378,7 +378,8 @@
       ::COMPRESS 
                1 if ∆FIX was called with COMPRESS=1 (⍺[2]=1) or ::COMPRESS ON was set. Else 0.
       ::TRADFN Defines and FIXES a traditional function whose header and body is between a token matched with 
-                    [:]ENDtoken[:]          
+                    [:]ENDtoken[:]      
+               The code is run independently through ∆FIX, so any current macros are not included...    
                The ENDToken may be preceded or followed by a colon (or both).
                The token is typically the name of the function: 
                ::TRADFN MyFun   ::TRADFN MyFun

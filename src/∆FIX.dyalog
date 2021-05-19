@@ -684,10 +684,15 @@
                     CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙PTR ',(⍕DEBUGf)⊣SaveRunTime 'NOFORCE'  
                     CASE iSQ: ProcSQ F 0  
                     CASE iCom: F 0                
-                    CASE iHere iTradFn: (CASE iTradFn){  
-                      opt← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Get option after each :
-                      left← ⍺{⍺: SINK_NAME,'←⎕SE.⍙FIX_TRADFN ',⍵ ⋄ ⍵} opt ((≢F 4)StringFormat)F 3 
-                      left {0=≢⍵~' ':⍺ ⋄ ⍺, MainScan ⍵} F 5       ⍝ If no code after endToken, do nothing more...
+                    CASE iHere iTradFn: { 
+                      opts← {⍵/⍨¯1⌽⍵=':'}F 2                       ⍝ Pick up single-letter option after each :
+                      l1←opts((≢F 4)StringFormat)F 3 
+                      l1←{ 
+                        Unpack←⍎ ⋄ Repack←{∊SQ,¨⍵,¨SQ_SP}DblSQ¨
+                        isTrad←CASE iTradFn
+                        isTrad: SINK_NAME,'←⎕SE.⍙FIX_TRADFN ',Repack MainScan Unpack ⍵ ⋄ ⍵
+                      } l1
+                      l1 {0=≢⍵~' ':⍺ ⋄ ⍺, MainScan ⍵} F 5       ⍝ If no code after endToken, do nothing more...
                     } 0 
                   ⍝ ::: ⍝ Here Comment...
                     CASE iHCom: (F 2){
