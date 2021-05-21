@@ -1,5 +1,5 @@
 :Class DictClass
-⍝ Documentation is provided in detail at the bottom of this class.
+⍝ Documentation is provided in detail at ∆DICT.help
 
 ⍝ Initialization of APL System Variables
 ⍝ Right now, ⎕CT, ⎕DCT, ⎕RL are set to be the same as in # at FIX time (when loaded)
