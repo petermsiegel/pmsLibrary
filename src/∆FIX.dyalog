@@ -28,10 +28,10 @@
   ⍝ Prefix for any user-visible variable...
     FIX_PFX←'__'  
   ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  (allows spacing before directives)
-     DDCLNp  ←':: \h*'
+     DDCLNp ← '::\h*'
   ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
     SPECIAL_COM←'⍝',(⎕UCS 0),'F'     
-    pSpecCom←'^⍝\x00\N*\r'
+    pSpecCom←'⍝\x00\N*\r'
   ⍝ See pSink←. 
     SINK_NAME←FIX_PFX,'tmp'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
@@ -182,9 +182,13 @@
   ⍝
     _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
     pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-    pTradFn← ∊'(?x)'  DDCLNp  '(?i:FN|OP|FIX) \h*    ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline 
+    pTradFn← ∊'(?x)'  DDCLNp  '(?i:FN|OP|FIX) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline 
     pHCom←   ∆Anchor '\h* ::: \h* ⍝\h* '              _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
-  
+  ⍝ pHereNF -  The matching string EndXXX not found
+  ⍝ pHereNF:   F1 - 1st line matched, F2- name of directive, F3 - "string" to match, F4 - following lines
+    pHereNF←∊'(?ix) (  (::: | 'DDCLNp'(?:FN|OP|FIX) ) \h* ([^\h\r]*)\N*\r) (.*)'
+  ⍝                 1  2                           -2     3       -3    -1 4 -4
+
   ⍝ Number spacers (_), hex, octal, and binary numbers
   ⍝   Valid for simple integers only.
   ⍝   Hex numbers must start with a digit in \d (⎕D).
@@ -709,8 +713,8 @@
   }
   ⍝ END Experimental
 
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHCom pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHCom iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHCom pHereNF pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHCom iHereNF iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
         MainScan←{ 
             MainScan1←{ 
                 macroSeen∘←0
@@ -743,6 +747,11 @@
                     CASE iHCom: (F 2){
                       kp←0≠≢⍺  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
                     } DLB F 5 
+                  ⍝ iHereNF: One of these failed: iHere, iTradFn, iHCOM. No matching endstring.
+                    CASE iHereNF:  { F1 F2 F3 rest ←F¨ 1 2 3 4  
+                       direct←F2,' ',F3  ⋄ endStr←'"END',F3,'".'
+                       direct,' <∘∘ERR∘∘ ⍝ ERROR: EOF reached w/o finding matching ',endStr,CR,rest
+                    }⍬
                     CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
                     CASE iDebug:   ''⊣ DEBUGf∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
