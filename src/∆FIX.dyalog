@@ -9,6 +9,8 @@
   FIXf←2                         ⍝ Default:  2 ∆FIX object. If ⍺ is missing, default is 0 ∆FIX object, as for ⎕FIX.
   DEBUGf←0                       ⍝ See ::DEBUG [[ON | OFF]]      
   COMPRESSf←0                    ⍝ See ::COMPRESS [[ON | OFF]]
+  ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled. 
+  SetABENDf←{ABENDf∘←Ff ⋄  ⍵}    ⍝ SetABENDf: Sets ABENDf←Ff
   (FIXf DEBUGf COMPRESSf)MACROSñ←FIXf DEBUGf COMPRESSf{fdc←⍵
       fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
       b←¯1=fdc←3↑fdc,¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
@@ -27,8 +29,9 @@
     SCAN_INCLUDEt SCAN_EDITt SCAN_FULLt←2 1 0
   ⍝ Prefix for any user-visible variable...
     FIX_PFX←'__'  
-  ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  (allows spacing before directives)
-     DDCLNp ← '::\h*'
+  ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
+  ⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
+     DDCLNp ← '(?<!:)::(?!:)'
   ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
     SPECIAL_COM←'⍝',(⎕UCS 0),'F'     
     pSpecCom←'⍝\x00\N*\r'
@@ -46,7 +49,8 @@
   ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
   ⍝ Add CR to last line to make Regex patterns simpler...
     LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
-
+  ⍝ See ControlScan/PassState, MainScan/pHereNF
+    IN_SKIP←0
   ⍝ +-------------------------------------------------+
   ⍝ | Patterns                                        +
   ⍝ |   - Utilities                                   +
@@ -134,7 +138,7 @@
     pDefL←         ∆Anchor'\h* '  DDCLNp  'defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ←  (' pEnclosC '|) '  
     pEvl←          ∆Anchor'\h* '  DDCLNp  '(?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (' pEnclosNC '+|) \N* '  
     pDef2←         ∆Anchor'\h* '  DDCLNp  '(?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
-    pDefErr←       ∆Anchor'\h* : (def[el]?|eval) \b \N* '
+    pDefWarn←      '(?xi) (?<!:) ((?: : | :: \h+)  (?: def[el]?|eval|fn|op|fix|stat(?:ic)?|decl(?:are)?|incl(?:ude)?|debug|compress)\b \N*)(\r?)'
   
   ⍝ ::STATic  name←  value
   ⍝ ::DECLare name←  value
@@ -182,12 +186,12 @@
   ⍝
     _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
     pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-    pTradFn← ∊'(?x)'  DDCLNp  '(?i:FN|OP|FIX) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline 
-    pHCom←   ∆Anchor '\h* ::: \h* ⍝\h* '              _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
+    pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline 
+    pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
   ⍝ pHereNF -  The matching string EndXXX not found
   ⍝ pHereNF:   F1 - 1st line matched, F2- name of directive, F3 - "string" to match, F4 - following lines
-    pHereNF←∊'(?ix) (  (::: | 'DDCLNp'(?:FN|OP|FIX) ) \h* ([^\h\r]*)\N*\r) (.*)'
-  ⍝                 1  2                           -2     3       -3    -1 4 -4
+    pHereNF←∊'(?ix) (  (::: | 'DDCLNp' (?:fn|op|fix) )\b \h* ([^\h\r]*)\N*\r) (.*)'
+  ⍝                 1  2                            -2       3       -3    -1 4 -4
 
   ⍝ Number spacers (_), hex, octal, and binary numbers
   ⍝   Valid for simple integers only.
@@ -525,7 +529,6 @@
             o1 o2 od← 'rnsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
           ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
           ⍝ E: Escape (\)       C: Comment (⍝)
-
             R N S V M E C X←o∊⍨∊o1 o2
             0≠≢err←o~∊o1 o2: 11 ⎕SIGNAL⍨'∆FIX String/Here: One or more invalid options "',err,'" in "',⍺,'"' 
             indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
@@ -603,8 +606,8 @@
   ⍝+-------------------------------------------------+
         ControlScan←{ 
           ⍝ |< ::Directive    Conditionals     >|<  ::Directive Other                             >|< APL code   Modified: pOther
-            controlScanPats←pIf pElseIf pElse pEndIf pInclude pDef1 pDef2 pEvl pStatic pDeclare pDefL  pDefErr pDebug pCompress pUCmdC pOther 
-                            iIf iElseIf iElse iEndIf iInclude iDef1 iDef2 iEvl iStatic iDeclare iDefL  iDefErr iDebug iCompress iUCmdC iOther ←⍳≢controlScanPats
+            controlScanPats←pIf pElseIf pElse pEndIf pInclude pDef1 pDef2 pEvl pStatic pDeclare pDefL  pDefWarn pDebug pCompress pUCmdC pOther 
+                            iIf iElseIf iElse iEndIf iInclude iDef1 iDef2 iEvl iStatic iDeclare iDefL  iDefWarn iDebug iCompress iUCmdC iOther ←⍳≢controlScanPats
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇ ' '↓ ' '↑ '
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
@@ -612,7 +615,7 @@
             Peek←{(⊃⌽⊃⌽stack)⊃⍵ 1}
             CurStateIs←{⍵∊⍨⊃⊃⌽stack}
             stack←,⊂ON ON
-            IN_SKIP←0                      ⍝ IN_SKIP: Used in ControlScanAction/PassState
+            IN_SKIP∘←0                      ⍝ IN_SKIP: Used in ControlScanAction/PassState
             ControlScanAction←{
                   F←⍵.{0:: '' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
                   CASE←⍵.PatternNum∘∊ 
@@ -630,7 +633,7 @@
                 ⍝ THis "directive" is passed on to the MainScan
                   PassDef←{⍺←F 1 ⋄ (PassState ON),'::SysDefø ',⍺,'←',⍵,CR }    
 
-                  CASE  iDefErr: (¯1↓F 0),'∘∘∘ ⍝ ERR: ⍝ Invalid directive. Directive format: ::name ...',CR
+                  CASE  iDefWarn: F1,' ⍝ WARNING: ',_,'.',F2⊣∆WARN (_←'Possible directive detected in improper context'),': "',F1,'"'⊣F1 F2←F¨1 2
                 ⍝ ON...
                   CurStateIs ON: {         
                       CASE iOther:      ''               ⍝ A NOP when CurStateIs ON
@@ -713,8 +716,8 @@
   }
   ⍝ END Experimental
 
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHCom pHereNF pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHCom iHereNF iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
+        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHereC pHereNF pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
+                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHereC iHereNF iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
         MainScan←{ 
             MainScan1←{ 
                 macroSeen∘←0
@@ -723,7 +726,7 @@
                     ⋄ CASE←⍵.PatternNum∘∊      
                        ⍝ ⎕←⍵.PatternNum,': ','<',(F 0),'>'           
                     CASE iTrpQ: {
-                      4>≢⍵.Lengths: (F 0),'∘∘ Matching Triple Quote Not Found ∘∘'
+                      4>≢⍵.Lengths: SetABENDf ⎕←(F 0),'∘∘ERR∘∘ ⍝ Matching Triple Quote Not Found'
                       (F 3) ((≢F 2) StringFormat) F 1
                     }⍵ 
                   ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
@@ -744,14 +747,16 @@
                       l1 {0=≢⍵~' ':⍺ ⋄ ⍺, MainScan ⍵} F 5       ⍝ If no code after endToken, do nothing more...
                     } 0 
                   ⍝ ::: ⍝ Here Comment...
-                    CASE iHCom: (F 2){
+                    CASE iHereC: (F 2){
                       kp←0≠≢⍺  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
                     } DLB F 5 
-                  ⍝ iHereNF: One of these failed: iHere, iTradFn, iHCOM. No matching endstring.
+                  ⍝ iHereNF: One of these failed: iHere, iTradFn, iHereC. No matching endstring.
                     CASE iHereNF:  { F1 F2 F3 rest ←F¨ 1 2 3 4  
+                       (IN_SKIP∘←~IN_SKIP)⊢IN_SKIP:''          ⍝ Avoid duplicate error msgs on same line...
                        direct←F2,' ',F3  ⋄ endStr←'"END',F3,'".'
-                       direct,' <∘∘ERR∘∘ ⍝ ERROR: EOF reached w/o finding matching ',endStr,CR,rest
-                    }⍬
+                       ⎕←'Error on line:' ⋄   ⎕←F1~CR ⋄ ⎕←_←'EOF reached w/o finding matching ',endStr
+                       SetABENDf direct,' ∘∘ERR∘∘ ⍝ ERROR: ',_,CR,rest
+                    }⍬                 
                     CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
                     CASE iDebug:   ''⊣ DEBUGf∘←'off'≢⎕C F 1     ⍝ Turns ∆FIX's debug on or off. Otherwise ignored...
@@ -794,7 +799,7 @@
                   (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
-            ⍺←0 ⋄ MAX←20 ⋄ count strIn←⍺ ⍵
+            ⍺←0 ⋄ MAX←20 ⋄ count strIn←⍺ ⍵ ⋄ IN_SKIP∘←0
             count≥MAX: ⍵  ⊣⎕←'∆FIX: MainScan macro replacement limit (',(⍕MAX),') reached. Cyclic macro pattern?'
             strOut←AtomScan MainScan1  strIn ⊣ macroSeen←0
             ~macroSeen: strOut ⋄  strOut≡strIn: strOut ⋄ (count+1) ∇ strOut  
@@ -887,7 +892,7 @@
           Exit←{
             0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
             #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''>>> FIX_FN done.'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
-            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘∘err∘∘
+            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘∘ERR∘∘
             'User Edit complete. See function #.',rc,'.'
           }
           FormIn←{'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣⍵}
@@ -928,7 +933,9 @@
   ⍝ 'v'       Vf    Users wants to see code in mixed (matrix) format; don't ⎕FIX.
   ⍝  -        Wf    ⍵ has at least one line (otherwise start with empty code list). 
     Ff (Ef If  Vf) Wf ← FIXf{(⍺∊⍳3)(⍺='eiv')⍵}0<≢⍵
-  ⍝ Execute 
+  ⍝ Execute.  ABENDf might be set above to Ff, to avoid a ⎕FIX that might succeed despite directive failures. 
   If: SCAN_INCLUDEt∘Executive LoadLines ⊣ ⍵ 
-      ↑⍣Vf⊢FIXf CALR.⎕FIX⍣Ff⊣  (Ff∧COMPRESSf) Compress (Ef×SCAN_EDITt)∘Executive LoadLines⍣Wf ⊣ ⍵ 
+  _← ↑⍣Vf⊢FIXf CALR.⎕FIX⍣Ff⊣ __←(Ff∧COMPRESSf) Compress (Ef×SCAN_EDITt)∘Executive LoadLines⍣Wf ⊣ ⍵ 
+  ~ABENDf: _ ⋄ #.FIX_LINES←↑__
+  11 ⎕SIGNAL⍨'∆FIX ERROR: Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
 }
