@@ -15,8 +15,10 @@
       fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
       b←¯1=fdc←3↑fdc,¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
   }⍺
-  2.1∨.≠MACROSñ.⎕NC,¨'KV': 11 ⎕SIGNAL⍨'∆FIX: Macro namespace invalid: "','"',⍨⍕MACROSñ
-  FIXf(~∊)0 1 2,'eiv':  11 ⎕SIGNAL⍨'∆FIX: Invalid option: "','"',⍨⍕FIXf
+⍝  ∆SIG: [EN | 11] ∆SIG Message   OR    [EN | 11] ∆SIG EM Message
+  ∆SIG←⎕SIGNAL {⍺←11 ⋄ EM Msg← (2=≢⊆⍵)⊃('∆FIX ERROR' ⍵)⍵ ⋄  ⊂('EN' ⍺)('EM' EM)('Message' Msg)}      
+  2.1∨.≠MACROSñ.⎕NC,¨'KV':  ∆SIG'Macro namespace invalid: "','"',⍨⍕MACROSñ
+  FIXf(~∊)0 1 2,'eiv':      ∆SIG'Invalid option: "','"',⍨⍕FIXf
   
   ⍝ +--------------------------------------------------+
   ⍝ |    CONSTANTS                                     |
@@ -29,20 +31,24 @@
     SCAN_INCLUDEt SCAN_EDITt SCAN_FULLt←2 1 0
   ⍝ Prefix for any user-visible variable...
     FIX_PFX←'__'  
-  ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
-  ⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
-     DDCLNp ← '(?<!:)::(?!:)'
-  ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
-    SPECIAL_COM←'⍝',(⎕UCS 0),'F'     
-    pSpecCom←'⍝\x00\N*\r'
   ⍝ See pSink←. 
     SINK_NAME←FIX_PFX,'tmp'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
   ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUGf.
-    SQ DQ←'''"' ⋄ NL CR CR_INTERNAL←⎕UCS 10 13 01 ⋄  CR_VISIBLE←'◈' 
+    SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈' 
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
+  ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
+  ⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
+     DDCLNp ← '(?<!:)::(?!:)'
+  ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
+  ⍝    At end of processing: ⍝\0F ==> ''     ⍝\0E ==> ''
+    SPECIAL_COM SPECIAL_COM2←∊¨('⍝',NUL),¨'F' 'E'    
+    pSpecCom←'⍝\x00\N*\r'
+  ⍝ Case 1: Remove '⍝\0Fc ', where c is any char (actually only a few expected)
+  ⍝ Case 2: Remove '⍝\0E' exactly
+    pSpecComKludge←'⍝\x00(F\N\h|E)'    ⍝ See LastScanOut: very kludgey...
   ⍝ ∆WARN: Warning are emitted as msgs only if DEBUGf is active or ⍺=1. Else NOP.
     ∆WARN←{⍺←1 ⋄ ⍺∧DEBUGf: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
     ∆ASSERT←{⍺←'ASSERTION FAILED' ⋄  ⍵: 0 ⋄ ⍺ ⎕SIGNAL 911}
@@ -244,7 +250,7 @@
     AddPar← {'(',⍵,')'}
     DblSQ←  {⍺←0 ⋄ s←⍵/⍨1+⍵=SQ ⋄ ⍺=0: s ⋄ SQ,s,SQ }  ⍝ Double single quotes. If ⍺=1, add outer quotes.
   ⍝ UnDQ_DAQ: Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
-    UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': '∆FIX UnDQ_DAQ Logic Error' ⎕SIGNAL 11 
+    UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': ∆SIG'UnDQ_DAQ Logic Error'  
           s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
     }   
   ⍝ ∆DEC: 
@@ -290,25 +296,25 @@
   ⍝ FindFirstFiles:  fullPaths ← searchPath FindFirstFiles files
   ⍝    Returns fullPaths where each file is found in searchPath, or ⎕NULL if not found.
     FindFirstFiles←{ ⍺←⍬
-        FindEach←⍺∘{0:: 11 ⎕SIGNAL⍨eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
+        FindEach←⍺∘{0:: ∆SIG eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
             0=≢⍺: ⎕NULL                                 ⍝ Exhausted search
             full←(rel/'/',⍨⊃⍺),⍵ ⊣ rel←'/'≠1↑⍵  
             ⎕NEXISTS full: full 
             rel: (1↓⍺) ∇ ⍵ ⋄ ⎕NULL                      ⍝ Keep searching only if not absolute name                    
         }
-        0=≢⍺:  11 ⎕SIGNAL⍨ eNoPath ⋄ 0=≢⍵: ⎕NULL
+        0=≢⍺:  ∆SIG eNoPath ⋄ 0=≢⍵: ⎕NULL
         FindEach¨⊆⍵
     }
-    eNoPath←     '⍙INCLUDE: No search directories were specified [LOGIC ERROR].'
-    eUnexpected← '⍙INCLUDE: Unexpected error evaluating filename.'
-    eNoFiles←    '⍙INCLUDE: No file(s) to include.'
-    eNotFound←   '⍙INCLUDE: At least one file to include was not found in search path:'
+    eNoPath←     '⍙INCLUDE' 'No search directories were specified [LOGIC ERROR].'
+    eUnexpected← '⍙INCLUDE' 'Unexpected error evaluating filename.'
+    eNoFiles←    '⍙INCLUDE' 'No file(s) to include.'
+    eNotFound←   '⍙INCLUDE' 'At least one file to include was not found in search path:'
   ⍝ ⍙INCLUDE EXECUTIVE
     files←{1=≡⍵:  ' ' (≠⊆⊢)⍵ ⋄ ⍵ },⍵
-    0=≢files:          11 ⎕SIGNAL⍨ eNoFiles
+    0=≢files:          ∆SIG eNoFiles
     searchPath←setSearchPath 'FSPATH' 'WSPATH'  
     filesFull←searchPath FindFirstFiles files 
-    ⎕NULL∊_←filesFull:  22 ⎕SIGNAL⍨ eNotFound,∊' ',¨files/⍨_∊⎕NULL
+    ⎕NULL∊_f←filesFull:  ∆SIG eNotFound,¨'' (∊' ',¨files/⍨_f∊⎕NULL)
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
   ⍝ Return (default) single string with NLs as linends. Missing => Err
    ⍺=0: ∊{∊CR,⍨¨MACROSñ ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
@@ -322,7 +328,7 @@
     RUNTIME_MAP←↓⍉↑('ASSERT' 3)('FIX' 3)('PTR' 4) ('TO' 3)('UNDER' 4) ('OBVERSE' 4)
     SaveRunTime←{utils utype←RUNTIME_MAP
         (~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⍙⍙.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
-        2/⍨~DEBUGf:: 11 ⎕SIGNAL⍨'∆FIX: Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
+        2/⍨~DEBUGf:: ∆SIG'Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
       ⍝ ∆ASSERT for Macro ⎕ASSERT 
         ⎕SE.⍙⍙.ASSERT←{⍺←'Assertion failure' ⋄ 0∊⍵:⍺ ⎕SIGNAL 8 ⋄ shy←0}
       ⍝ ⍙FIXX for directive ::FN, ::OP, ::FIX
@@ -334,7 +340,7 @@
       ⍝          r←○n'          
       ⍝    EndPI
         ⎕SE.⍙⍙.FIXX←{⎕IO←0
-          0:: ⎕SIGNAL/'∆FIX: ::FIX or related directive failed. Likely syntax error in code string.' 11
+          0:: ∆SIG '::FIX or related directive failed. Likely syntax error in code string.' 
           1≥|≡⍵: ∇ ⊆⍵                                                   ⍝ Ensure vector of vectors
           '⍝ '∊⍨1↑' '~⍨⊃⍵: _←∇ 1↓⍵ ⋄ 0≠≢⍵:_←2 (1⊃⎕RSI,#).⎕FIX ⍵,⊂''     ⍝ Ensure at least 2 vectors passed to ⎕FIX
           ∘ 
@@ -371,7 +377,7 @@
         ⍝ * Specifying both <next> and <step> is an error.  
         ⍝   If next is specified, the actual step is (×end-start)×|next-start.    
         ⎕SE.⍙⍙.TO←{⎕IO←0
-            2∧.≤≢¨⍺ ⍵: 11 ⎕SIGNAL⍨'⎕TO: range←  start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
+            2∧.≤≢¨⍺ ⍵: ∆SIG'⎕TO: range←  start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
             ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵: 1⊃⍵ ⋄ 2=≢⍺: -/⍺ ⋄ 1}⍵
             start+step×⍳0⌈1+⌊∆÷step+step=0     
         }
@@ -494,7 +500,7 @@
             p←MACROSñ.K⍳⊂⍙K ⍵ 
             p<≢MACROSñ.K: p⊃MACROSñ.V             ⍝ Full name found, simple or complex
             DOT(~∊)⍵: ⍵                         ⍝ Name is simple...   
-            DOT=¯1↑⍵: 11 ⎕SIGNAL⍨'LOGIC ERROR: APL-style name with trailing dot was presented to macro processing'    
+            DOT=¯1↑⍵: ∆SIG'APL-style name with trailing dot was presented to macro processing'    
             AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/DOT),⍵ }  
             ⊃AddDots/∇¨'.'(≠⊆⊢)⍵         ⍝ Name is complex. Check for definitions of the pieces! 
         }
@@ -530,7 +536,7 @@
           ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
           ⍝ E: Escape (\)       C: Comment (⍝)
             R N S V M E C X←o∊⍨∊o1 o2
-            0≠≢err←o~∊o1 o2: 11 ⎕SIGNAL⍨'∆FIX String/Here: One or more invalid options "',err,'" in "',⍺,'"' 
+            0≠≢err←o~∊o1 o2: ∆SIG'For DQ or Here string, one or more invalid options "',err,'" in "',⍺,'"' 
             indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
             C: ' '
             SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
@@ -611,7 +617,7 @@
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇ ' '↓ ' '↑ '
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
-            Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ 11 ⎕SIGNAL⍨'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
+            Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ ∆SIG'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
             Peek←{(⊃⌽⊃⌽stack)⊃⍵ 1}
             CurStateIs←{⍵∊⍨⊃⊃⌽stack}
             stack←,⊂ON ON
@@ -708,7 +714,7 @@
   _q,←'⌷/⌿\⍀∊⍴↑↓⍳⊂⊃∩∪⊣⊢⊥⊤,⍒⍋⍉⌽⊖⌹⍕⍎⍪≡≢⍷'    ⍝ other fns  
   _q,←'∘⍨¨⍣⍤⍥⍬.'                           ⍝ operators and misc
   pAssignX←'([\d\Q',_q,'\E]*)←←'           ⍝ fns/opts/misc quoted via \Q...\E 
-  ⎕SE.⍙⍙.ASGNX←{⍝ 0:: ('SYNTAX ERROR (extended assignment)' ⎕SIGNAL 11
+  ⎕SE.⍙⍙.ASGNX←{ 0:: ∆SIG 'SYNTAX ERROR (extended assignment)'  
       nm←⊆⍺ ⋄ 1≠≢nm: nm ∇¨ ⍵ 
       aa←⍺⍺ ⋄ calr←⊃⎕RSI
       fn←{⍺←⎕NC ⍵ ⋄ 3=⍺:'(',')',⍨∊⎕NR ⍵ ⋄ 2=⍺: '' ⋄ }'aa'  ⍝ Error causes signal above.
@@ -726,7 +732,7 @@
                     ⋄ CASE←⍵.PatternNum∘∊      
                        ⍝ ⎕←⍵.PatternNum,': ','<',(F 0),'>'           
                     CASE iTrpQ: {
-                      4>≢⍵.Lengths: SetABENDf ⎕←(F 0),'∘∘ERR∘∘ ⍝ Matching Triple Quote Not Found'
+                      4>≢⍵.Lengths: SetABENDf ⎕←(F 0),SPECIAL_COM2,'∘∘ERR∘∘ ⍝ Matching Triple Quote Not Found'
                       (F 3) ((≢F 2) StringFormat) F 1
                     }⍵ 
                   ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
@@ -755,7 +761,7 @@
                        (IN_SKIP∘←~IN_SKIP)⊢IN_SKIP:''          ⍝ Avoid duplicate error msgs on same line...
                        direct←F2,' ',F3  ⋄ endStr←'"END',F3,'".'
                        ⎕←'Error on line:' ⋄   ⎕←F1~CR ⋄ ⎕←_←'EOF reached w/o finding matching ',endStr
-                       SetABENDf direct,' ∘∘ERR∘∘ ⍝ ERROR: ',_,CR,rest
+                       SetABENDf direct,SPECIAL_COM2,' ∘∘ERR∘∘ ⍝ ERROR: ',_,CR,rest
                     }⍬                 
                     CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
@@ -799,10 +805,12 @@
                   (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
               }⍠reOPTS⊣⍵
             }
+
+            MULTI_SCAN_MODE←0    ⍝ Problems with rescanning???
             ⍺←0 ⋄ MAX←20 ⋄ count strIn←⍺ ⍵ ⋄ IN_SKIP∘←0
             count≥MAX: ⍵  ⊣⎕←'∆FIX: MainScan macro replacement limit (',(⍕MAX),') reached. Cyclic macro pattern?'
             strOut←AtomScan MainScan1  strIn ⊣ macroSeen←0
-            ~macroSeen: strOut ⋄  strOut≡strIn: strOut ⋄ (count+1) ∇ strOut  
+            ~macroSeen∧MULTI_SCAN_MODE: strOut ⋄  strOut≡strIn: strOut ⋄ (count+1) ∇ strOut  
         } ⍝ End MainScan 
 
   ⍝+-------------------------------------------------+
@@ -863,6 +871,7 @@
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
       LastScanOut←{
             ⍺←CR            ⍝ Default for CR_OUT
+            NUL←⎕UCS 0
             pCrIn←'\x01'
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
@@ -884,7 +893,7 @@
             ⍝ ELSE matches (AllQ Com) 
               str   
             }
-            scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
+            pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
       }
       UserEdit←{⍺←0 ⋄ recurs←⍺
           sep←⊂'⍝>⍝',30⍴' -'
@@ -937,5 +946,5 @@
   If: SCAN_INCLUDEt∘Executive LoadLines ⊣ ⍵ 
   _← ↑⍣Vf⊢FIXf CALR.⎕FIX⍣Ff⊣ __←(Ff∧COMPRESSf) Compress (Ef×SCAN_EDITt)∘Executive LoadLines⍣Wf ⊣ ⍵ 
   ~ABENDf: _ ⋄ #.FIX_LINES←↑__
-  11 ⎕SIGNAL⍨'∆FIX ERROR: Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
+  ∆SIG 'Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
 }
