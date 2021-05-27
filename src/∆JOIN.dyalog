@@ -20,6 +20,7 @@
      0 1 2│                   0 1 2│3 4 5
      3 4 5│                   3 4 5│
 :EndDocumentation
+⍝ ok
          dir rule←⍺⍺ ⍵⍵
          ruleChars← (⌊dir){ww←∊⍵⍵ ⋄ 0≠1↑0⍴ww: ww ⋄ ww/(⍺⍺⊃⍵)  }rule⊣'│—'
          ctr← dir≠⌊dir

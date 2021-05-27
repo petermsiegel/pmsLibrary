@@ -10,7 +10,7 @@
   DEBUGf←0                       ⍝ See ::DEBUG [[ON | OFF]]      
   COMPRESSf←0                    ⍝ See ::COMPRESS [[ON | OFF]]
   ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled. 
-  SetABENDf←{ABENDf∘←Ff ⋄  ⍵}    ⍝ SetABENDf: Sets ABENDf←Ff
+⍝  
   (FIXf DEBUGf COMPRESSf)MACROSñ←FIXf DEBUGf COMPRESSf{fdc←⍵
       fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
       b←¯1=fdc←3↑fdc,¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
@@ -24,6 +24,7 @@
   ⍝ |    CONSTANTS                                     |
   ⍝ +-------------------------------------------- -----+
     ⎕IO ⎕ML←0 1  
+    CR←⎕UCS 13
   ⍝ ⎕SE.⍙⍙: Top level contains ∆FIX Library. Other libraries may exist.
   ⍝ Ensure this NS (directory) exists.
     _←'⎕SE.⍙⍙' ⎕NS ''
@@ -35,7 +36,7 @@
     SINK_NAME←FIX_PFX,'tmp'
   ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
   ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUGf.
-    SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈' 
+    SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
     0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
@@ -44,7 +45,12 @@
      DDCLNp ← '(?<!:)::(?!:)'
   ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
   ⍝    At end of processing: ⍝\0F ==> ''     ⍝\0E ==> ''
-    SPECIAL_COM SPECIAL_COM2←∊¨('⍝',NUL),¨'F' 'E'    
+    SPECIAL_COM SPECIAL_COM2←∊¨(⊂'⍝',NUL),¨'F' 'E'  
+  ⍝ SetABENDf:  Sets ABENDf←Ff. If DEBUGf, shows ⍵ to right; on stdout, if DEBUGf.
+  ⍝    Syntax:  ∇ msg1 msg2 [msg3 msg4] 
+  ⍝    Returns: msg2,⍺,msg2 [CR,msg3,CR,msg4]  
+  ⍝    msg2 is prefixed by SPECIAL_COM2, which treats it as unanalyzable code going forward.
+    SetABENDf←SPECIAL_COM2∘{ ABENDf∘←Ff  ⋄ (⊃⍵),⍺,∊¯1↓⊃,/(1↓⍵),¨⊂⊂CR} 
     pSpecCom←'⍝\x00\N*\r'
   ⍝ Case 1: Remove '⍝\0Fc ', where c is any char (actually only a few expected)
   ⍝ Case 2: Remove '⍝\0E' exactly
@@ -191,13 +197,13 @@
   ⍝    [:]EndToken[:]        [⍝][:] EndDoc[:]
   ⍝
     _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
-    pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline
-    pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'   ⍝ Match just before newline 
-    pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) '    ⍝ Include newline
+    pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
+    pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
+    pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'     
   ⍝ pHereNF -  The matching string EndXXX not found
   ⍝ pHereNF:   F1 - 1st line matched, F2- name of directive, F3 - "string" to match, F4 - following lines
-    pHereNF←∊'(?ix) (  (::: | 'DDCLNp' (?:fn|op|fix) )\b \h* ([^\h\r]*)\N*\r) (.*)'
-  ⍝                 1  2                            -2       3       -3    -1 4 -4
+    pHereNF←∊'(?ix) (  (::: | 'DDCLNp' (?:fn|op|fix) \b ) \h* ([^\h\r]*)\N*\r) (.*)'
+  ⍝                 1  2                               -2     3       -3    -1 4 -4
 
   ⍝ Number spacers (_), hex, octal, and binary numbers
   ⍝   Valid for simple integers only.
@@ -732,7 +738,7 @@
                     ⋄ CASE←⍵.PatternNum∘∊      
                        ⍝ ⎕←⍵.PatternNum,': ','<',(F 0),'>'           
                     CASE iTrpQ: {
-                      4>≢⍵.Lengths: SetABENDf ⎕←(F 0),SPECIAL_COM2,'∘∘ERR∘∘ ⍝ Matching Triple Quote Not Found'
+                      4>≢⍵.Lengths: SetABENDf (F 0) '○○ERR○○ ⍝ Matching Triple Quote Not Found'
                       (F 3) ((≢F 2) StringFormat) F 1
                     }⍵ 
                   ⍝ DQ strings indents are left as is. Use Triple Quotes """ when auto-exdent is needed.
@@ -750,18 +756,19 @@
                         isTrad←CASE iTradFn
                         isTrad: SINK_NAME,'←⎕SE.⍙⍙.FIXX ',Repack MainScan  ⊆Unpack ⍵ ⋄ ⍵
                       } l1
-                      l1 {0=≢⍵~' ':⍺ ⋄ ⍺, MainScan ⍵} F 5       ⍝ If no code after endToken, do nothing more...
+                       l1 {0=≢⍵~' ':⍺ ⋄ ⍺, MainScan ⍵} F 5       ⍝ If no code after endToken, do nothing more...
                     } 0 
                   ⍝ ::: ⍝ Here Comment...
                     CASE iHereC: (F 2){
-                      kp←0≠≢⍺  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
+                      kp←0≠≢⍺~' '  ⋄ 0=≢⍵~' ': kp/'⍝',⍺ ⋄ (kp/'⍝',⍺,CR),('⍝ '/⍨'⍝'≠⊃⍵), ⍵,CR
                     } DLB F 5 
                   ⍝ iHereNF: One of these failed: iHere, iTradFn, iHereC. No matching endstring.
-                    CASE iHereNF:  { F1 F2 F3 rest ←F¨ 1 2 3 4  
+                    CASE iHereNF:  { F1 F2 F3 context2 ←F¨ 1 2 3 4  
                        (IN_SKIP∘←~IN_SKIP)⊢IN_SKIP:''          ⍝ Avoid duplicate error msgs on same line...
-                       direct←F2,' ',F3  ⋄ endStr←'"END',F3,'".'
-                       ⎕←'Error on line:' ⋄   ⎕←F1~CR ⋄ ⎕←_←'EOF reached w/o finding matching ',endStr
-                       SetABENDf direct,SPECIAL_COM2,' ∘∘ERR∘∘ ⍝ ERROR: ',_,CR,rest
+                       context1←F2,' ',F3  ⋄ search←'"END',F3,'".'
+                       ⎕←'Error on line:',CR,F1~CR  
+                       errmsg←' ○○ERR○○ ⍝ ERROR: ',⎕←'EOF reached w/o finding matching ',search
+                       SetABENDf context1 errmsg context2
                     }⍬                 
                     CASE iMacro:   ⊢MacScan MacGet F 1 ⊣ macroSeen∘←1            
                     CASE iSysDef:  ''⊣ (F 1) (0 _MacSet) F 2                ⍝ SysDef: ::DEF, ::DEFL, ::EVAL on 2nd pass
@@ -774,7 +781,7 @@
                     CASE iMacDump:    ''⊣MacDump '  MACRO DUMP'  
                     CASE iAssignX:  '(',fn,' ⎕SE.⍙⍙.ASGNX)'⊣fn←{0=≢⍵~' ':'0'⋄ ⍵ }F 1
                     CASE iSymbol:    ∊SYMBOL_MAP[1;SYMBOL_MAP[0;]⍳F 0]       
-                    ∘∘UNREACHABLE∘∘
+                    ○○UNREACHABLE○○
                 }⍠reOPTS⊣⍵  
             }
             AtomScan←{ ⍝ Atom Punctuation:  `  → and variants: `` and →→ .
@@ -799,7 +806,7 @@
                       CASE iSQ:   {3=≢⍵: AddPar ',', ⍵ ⋄ ⍵} F0 
                       CASE iNum:  {(,1)≡⊃⎕VFI ⍵: ⍵ ⋄ atomErr∘←1 ⋄ ⍵⊣∆WARN 'Invalid numeric atom'} F 0
                       CASE iLet:  {3=≢⍵: AddPar ',' , ⍵ ⋄  ⍵} SQ,F0,SQ 
-                      ∘∘UNREACHABLE∘∘
+                      ○○UNREACHABLE○○
                   }⊣FAtoms 
                   atomErr: FAll
                   (AddPar (',⊂'/⍨promoteSingle∧1=count), list), (arr/'(,⍥⊂)')
@@ -871,7 +878,6 @@
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
       LastScanOut←{
             ⍺←CR            ⍝ Default for CR_OUT
-            NUL←⎕UCS 0
             pCrIn←'\x01'
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
@@ -901,7 +907,7 @@
           Exit←{
             0:: 'User Edit complete. Unable to fix. See variable #.FIX_FN_SRC.' 
             #.FIX_FN_SRC←(⊂'ok←FIX_FN'),(⊂'ok←''>>> FIX_FN done.'''),⍨'^⍝>' '^\h*(?!⍝)' ⎕R '' '⍝' ⊣⍵
-            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ∘∘ERR∘∘
+            0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ○○ERR○○
             'User Edit complete. See function #.',rc,'.'
           }
           FormIn←{'^⍝>.*$\R?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠('Mode' 'M')⊣⍵}
