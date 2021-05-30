@@ -10,7 +10,7 @@
 ⍝H ∘ BII: Big Integer Internal Operator (same opts as BI, but returns a BigInt in INTERNAL BigInt format)
 ⍝H     operator:  BII          BIgIntI ←  [⍺] +BII ⍵         "Arithmetic+ Methods, returning ⍺ + ⍵ as a BigIntI (Internal BigInt)"
 ⍝H ∘ BIM: Big Integer Modulo Methods, optimized only for multiply and power.
-⍝H     operator:  BIM          BigIntE ←  [⍺] +BIM ⍵⍵ ⊣ mod  "Modulo Methods, returning  mod | ⍺ + ⍵⍵ as a BigIntE.
+⍝H     operator:  BIM          BigIntE ←  [⍺] +BIM mod⊣ ⍵  "Modulo Methods, returning  mod | ⍺ + ⍵⍵ as a BigIntE.
 ⍝H ∘ BI_DC: BigInt Desk Calculator
 ⍝H     function:  BI_DC                        BI_DC         "BigInt Desk Calculator"
 ⍝H ∘ BI_HELP                   BI_HELP       "Show BigInt HELP Information"
@@ -39,7 +39,7 @@
 ⍝H            Output: Always an internal format big integer (normalized, i.e. checks for leading 0s etc)
 ⍝H       BIM- does operation  ⍺<op>⍵ modulo m, returning an external-format BigIntE.
 ⍝H            Specifically:
-⍝H                     ⍺ ×BIM ⍵ ⊣ m   is the same as    m |BI ⍺ ×BII ⍵   (except faster)
+⍝H                     ⍺ ×BIM m ⊣ ⍵   is the same as    m |BI ⍺ ×BII ⍵   (except faster)
 ⍝H            BIM is optimized for ops: × (mul) and * (pow) so far.  For other operations, calls modulo after performing <op>.
 ⍝H       BIC- Takes a standard APL-format mathematical expression without BI or BIC and inserts the BI calls.
 ⍝H            E.g.      BIC  '!500'
@@ -109,8 +109,9 @@
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H        BI:  Usually returns a BigInt in External format. In specific cases, returns integer scalars (see ∧, ∨, etc.) or arrays (DIVREM, ⎕AT)
 ⍝H        BII: Usually returns a BigInt in Internal format. In specific cases, like BI above.
-⍝H        BIM: Requires ⍺ and ⍵⍵ as per ⍺ and ⍵ in BII and m (modulo) as right argument. Valid only for operands above returning BigInts.
-⍝H           23456 ×BIM '9999999999' ⊣ 16
+⍝H        BIM: Requires ⍺ and ⍵ as for (fn BII) and m (modulo) as right operand ⍵⍵. 
+⍝              Valid only for operands above returning BigInts.
+⍝H           23456 (×BIM 16) '9999999999'  
 ⍝H  MONADIC OPERANDS: +BI ⍵
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H        Right argument: ⍵ in BigInt internal or external formats (BigIntI or BigIntE).
@@ -139,7 +140,7 @@
 ⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM ⍵⍵ ⊣ modulo
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H        BI, BII: Arguments ⍺ and ⍵ are Big Integer internal or external formats (BigIntI or BigIntE)
-⍝H        BIM:     Argument ⍺, operand ⍵⍵, and modulo argument ⍵: all BigInteger internal or external formats (BigIntI or BigIntE).
+⍝H        BIM:     Arguments ⍺ and ⍵, fn ⍺⍺, and modulo ⍵⍵: all BigInteger internal or external formats (BigIntI or BigIntE).
 ⍝H           ⍺ + BI  ⍵          add
 ⍝H           ⍺ - BI  ⍵          subtract
 ⍝H           ⍺ × BI  ⍵          multiply
@@ -333,18 +334,15 @@
           }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵         ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
       }
 
-    ⍝ BIM:     Biginteger modulo operation:  x ×BIM y ⊣ mod.    x *BIM y ⊣ mod
-    ⍝          Multiply × handled as special case:   x modMul (y mod)
-    ⍝          Power    * --- ditto ---
-    ⍝          Otherwise (naively):                  mod |BI x ⍺⍺ BII y
-    ⍝ BIM:     res ← [LA:⍺] OP:⍺⍺ BIM RA:⍵⍵ ⊣ MOD:⍵   ==>    MOD:⍵ |BI [LA:⍺] OP:⍺⍺ BII RA:⍵⍵
-    ⍝ Perform  res ← LA OP RA (Modulo ⍵)  <==>  ⍺ ⍺⍺ BI ⍵ (Modulo ⍵⍵)
+    ⍝ BIM:   Perform BI modulo <mod>.
+    ⍝ BIM:   x (fn BIM mod)y  ==>   mod |BI x (fn BII) y, but more efficient for fn: × or *. 
       BIM←{
-          ⍺←⊢ ⋄ fn←⊃⌽⍺ ⍺⍺ DecodeCall ⍵⍵
-          1≡⍺ 1:Err eBIMDYAD
-          fn≡'×':Export ⍺ modMul ⍵⍵⊣⍵
-          fn≡'*':Export ⍺ modPow ⍵⍵⊣⍵
-          ⋄ ⍵|BI ⍺(⍺⍺ BII)⍵⍵
+          ⍺←⎕NULL ⋄  x y mod←⍺ ⍵ ⍵⍵  
+          fn←⊃⌽x ⍺⍺ DecodeCall mod
+          ⍺≡⎕NULL:Err eBIMDYAD
+          fn≡'×':Export x (mod modMul) y 
+          fn≡'*':Export x (mod modPow) y
+          ⋄ mod|BI x(fn BII)y
       }
 
     ⍝ Build BI and BII from __BI_SOURCE__.
@@ -843,7 +841,7 @@
     :Section BI Special Functions/Operations (More than 2 Args)
     ⍝ modMul:  modulo m of product a×b
     ⍝ A faster method than (m|a×b), when a, b are large and m is substantially smaller.
-    ⍝ r ← a modMul b m    →→→    r ← m | a × b
+    ⍝ r ← a (m modMul) b   →→→    r ← m | a × b
     ⍝ BIint ← ⍺:BIint ∇ ⍵:BIint m:BIint
     ⍝ Naive method: (m|a×b)
     ⍝      If a,b have 1000 digits each and m is smaller, the m| operates on 2000 digits.
@@ -853,17 +851,18 @@
     ⍝ It is nominally faster at lengths around 75 digits.
     ⍝ Only for smaller a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
-          (a b)m←(⍺⍺ ∆ ⍵⍵)(∆ ⍵)
+          (a b)m←(⍺ ∆ ⍵)(∆ ⍺⍺)
           m _rem(m _rem a)_mul(m _rem b)
       }
-    ⍝ modPow from article by Roger Hui Aug 2020 (the arg order was changed trivially).
-    ∇ z←(a modPow n)m;s
-      ⍝ m|a*n  ==>   a modPower n ⊣m
+    ⍝ modPow -- a (m modPow) n -- from article by Roger Hui Aug 2020  
+    ∇ z←a(m modPow)n;s;mmM
+      ⍝ m|a*n  ==>   a (m modPow) n  
       (a n)m←(a ∆ n)(∆ m)
       z←ONE_BI ⋄ s←m rem a
+      mmM←m modMul 
       :While ZERO_BI lt n
-          :If 1 eq 2 rem n ⋄ z←z modMul s⊣m ⋄ :EndIf    ⍝ z←m| z×s
-          s←s modMul s⊣m                               ⍝ m|×⍨s
+          :If 1 eq 2 rem n ⋄ z←z mmM s ⋄ :EndIf    ⍝ z←m| z×s
+          s←s mmM s                                ⍝ s←m| s×s
           n←n div 2
       :EndWhile
     ∇

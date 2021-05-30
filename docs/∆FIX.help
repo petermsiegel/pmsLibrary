@@ -78,7 +78,13 @@
        Range             1 ⎕TO 10 2, 1 3 ⎕TO 10
        Assert            ⎕ASSERT 2=⍴⍴⍵:                     
        Static NS         my←⎕MY       
-       Sink varname      ⎕T         
+       Sink varname      ⎕T 
+    Extensions  (** = from Abrudz, Dyalog APL Extended)      
+       Operators:       ⍢  under, dual                 [DEL DIERESIS] **
+                        ⍛  before, reverse composition [JOT UNDERBAR] **
+                        ⍫  obverse                     [DEL TILDE]    **
+       Function         ⍮  Pseudo-Strand (,⍥⊆)     
+       Punctuation      $  ptr:  ${...} $(...) $name 
     
      
 1. STRINGS 
@@ -202,7 +208,10 @@
               Empty parens return an empty namespace (⎕NS⍬). 
               See also APL Literal Notation (:STATIC and :DECLARE).
   ∉           Not In (set function): eye-candy equiv. to (~∊). ⎕UCS 8713.
-  ⍢           Under, synonym: Dual:  ⎕UNDER, ⎕DUAL. Macro implementing the under fn (Dyalog dfn). See ⎕SE.∆UNDER.
+  ⍢           Under, Dual: Macro implementing the under fn (Dyalog dfn). ⎕SE.⍙⍙.UNDER 
+  ⍛           Before, reverse composition. ⎕SE.⍙⍙.BEFORE
+  ⍫           Obverse                      ⎕SE.⍙⍙.OBVERSE 
+  
   ←←          Extended assignment (EXPERIMENTAL).
 
 4. Numeric Punctuation (Prefixes, Spacers): Allowed only in wholly real numbers (no 'J' infix).

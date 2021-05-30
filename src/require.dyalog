@@ -5,7 +5,7 @@
  ;i;libNsDotObj;mainNsDef;memPath;mem;oNC;obj;objList;objIx;opt;Pad;path;rLibNs;rMainNs;rNewLibsRefs
  ;status;stat;sSubNs;subNsDef;rWhere
  ;oForce;oHas;oNFOk ;oSearchPath;oSetPath;oVerbose;oWarn
- ;ExpandSearchToPath;DebugMsg;Import⍙Directory;Fix2Group;OF;ScanFileSpecs;Update⍙Directory;WarnMsg
+ ;ExpandSearchToPath;DebugMsg;Import⍙DIRECTORY;Fix2Group;OF;ScanFileSpecs;Update⍙DIRECTORY;WarnMsg
   
   ⍝ Defaults
   ⎕IO ⎕ML←0 1
@@ -65,24 +65,24 @@
 ⍝ Returns:  done @B rWhere@NsV
 ⍝           done:   1 if all objs were found, else 0.
 ⍝           rWh:    namespace (ref) where each object is found, or ⎕NULL.
-⍝ ⍙Directory: [0] list of objects; [1] their locations (else ⎕NULL-- 1 more item than [0] contains)
-  Import⍙Directory←{
-      0/⍨~oDebug::11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory format in ns ',⍕rLibNs
+⍝ ⍙DIRECTORY: [0] list of objects; [1] their locations (else ⎕NULL-- 1 more item than [0] contains)
+  Import⍙DIRECTORY←{
+      0/⍨~oDebug::11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙DIRECTORY format in ns ',⍕rLibNs
       (force rLibNs)objs←⍺ ⍵
-      case←rLibNs.⎕NC'⍙Directory' ⋄ no⍙Dir valid⍙Dir←0 2 ⋄ noneFound←0((≢objs)⍴⎕NULL)
+      case←rLibNs.⎕NC'⍙DIRECTORY' ⋄ no⍙Dir valid⍙Dir←0 2 ⋄ noneFound←0((≢objs)⍴⎕NULL)
       ScanForObjs←{⍺≡⎕NULL:0 ⋄ 0<⍺.⎕NC ⍵}¨
         ⍝ Look for valid directory. If none, initialize...
-      case=no⍙Dir:noneFound⊣{⍵.⍙Directory←⍬(,⎕NULL)}rLibNs
-      case≠valid⍙Dir:11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙Directory type in ns ',⍕rLibNs
+      case=no⍙Dir:noneFound⊣{⍵.⍙DIRECTORY←⍬(,⎕NULL)}rLibNs
+      case≠valid⍙Dir:11 ⎕SIGNAL⍨'require: LOGIC ERROR- Invalid ⍙DIRECTORY type in ns ',⍕rLibNs
       force:noneFound                      ⍝ Even if force, ensure directory exists (used later).
         ⍝ Scan directory (that exists) for objects
-      dir←rLibNs.⎕OR'⍙Directory'
+      dir←rLibNs.⎕OR'⍙DIRECTORY'
       rWh←(1⊃dir)[objs⍳⍨0⊃dir]
       done←0(~∊)rWh ScanForObjs objs
-      done:1 rWh⊣DebugMsg'All objects located in fast directory table: ',(⍕rLibNs),'.⍙Directory'
+      done:1 rWh⊣DebugMsg'All objects located in fast directory table: ',(⍕rLibNs),'.⍙DIRECTORY'
       0 rWh
   }
-  Update⍙Directory←{
+  Update⍙DIRECTORY←{
       oOut wOut←⍺,⍨¨⍵ ⋄ kp←⎕NULL≠¯1↓wOut ⋄ ⍝ Keep only those objects found...
       scan←kp∧≠oOut ⋄ (oOut/⍨scan)(wOut/⍨scan,1)
   }
@@ -116,7 +116,7 @@
  rLibNs←⍎sSubNs rMainNs.⎕NS ⍬     ⍝ If sSubNs is '', returns reference to rMainNs
 
    ⍝ rWhere:        ns where found or ⎕NULL, if not.
- found rWhere←oForce rLibNs Import⍙Directory objs   ⍝ initializes rWhere
+ found rWhere←oForce rLibNs Import⍙DIRECTORY objs   ⍝ initializes rWhere
  :If found ⋄ :Return ⋄ :EndIf
    ⍝ status contains ints: 2= Found in filesys, 1= found in APL space, 0= not found, ¯1= Invalid Name.
  status←(≢objs)⍴0
@@ -224,8 +224,8 @@
      'objs \ rWhere '(objs,[-0.2]rWhere)
  :EndIf
 
-  ⍝ Add new items to start of ⍙Directory in rLibNs so most recent items found fastest...
- rLibNs.⍙Directory Update⍙Directory←objs rWhere
+  ⍝ Add new items to start of ⍙DIRECTORY in rLibNs so most recent items found fastest...
+ rLibNs.⍙DIRECTORY Update⍙DIRECTORY←objs rWhere
   ⍝ :IF -NFok set, objs may contain names not found! rWhere will contain corresponding ⎕NULLs.
  :If ~oNFOk ⋄ :AndIf ⎕NULL∊rWhere
      911 ⎕SIGNAL⍨'require: Required objects not found:',,⎕FMT objs/⍨rWhere∊⎕NULL

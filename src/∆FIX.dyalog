@@ -9,12 +9,21 @@
   FIXf←2                         ⍝ Default:  2 ∆FIX object. If ⍺ is missing, default is 0 ∆FIX object, as for ⎕FIX.
   DEBUGf←0                       ⍝ See ::DEBUG [[ON | OFF]]      
   COMPRESSf←0                    ⍝ See ::COMPRESS [[ON | OFF]]
-  ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled. 
+  ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled.
+  MAXLENf←50                     ⍝ See XXX below...
 ⍝  
-  (FIXf DEBUGf COMPRESSf)MACROSñ←FIXf DEBUGf COMPRESSf{fdc←⍵
+  (FIXf DEBUGf COMPRESSf MAXLENf)MACROSñ←FIXf DEBUGf COMPRESSf MAXLENf{fdc←⍵
       fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
-      b←¯1=fdc←3↑fdc,¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
+      b←¯1=fdc←4↑fdc,¯1 ¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
   }⍺
+    
+  Say←{DEBUGf: ⎕←⎕FMT ⍵ ⋄ _←⍵} 
+  _←Say 'Options...'
+  _←Say 'FIXf      'FIXf
+  _←Say 'DEBUGf    'DEBUGf
+  _←Say 'COMPRESSf 'COMPRESSf
+  _←Say 'MAXLENf   'MAXLENf
+  
 ⍝  ∆SIG: [EN | 11] ∆SIG Message   OR    [EN | 11] ∆SIG EM Message
   ∆SIG←⎕SIGNAL {⍺←11 ⋄ EM Msg← (2=≢⊆⍵)⊃('∆FIX ERROR' ⍵)⍵ ⋄  ⊂('EN' ⍺)('EM' EM)('Message' Msg)}      
   2.1∨.≠MACROSñ.⎕NC,¨'KV':  ∆SIG'Macro namespace invalid: "','"',⍨⍕MACROSñ
@@ -232,12 +241,16 @@
   ⍝ ∉ NOTIN  (see also macro ⎕NOTIN)
     NOTINch←   '∉'     ⍝ ⎕UCS 8713
   ⍝ Under / Dual (⎕SE.⍙⍙.UNDER)
-    UNDERch←'⍢'                ⍝ ⎕UCS 9058: See Abrudz Extended APL 
+    UNDERch←'⍢'               ⍝ See UNDER/DUAL, DelDiaeresis, < Abrudz Extended APL 
   ⍝ OBVERSE (DELTILDE)
-    OBVERSEch←'⍫'             ⍝ See DELTILDE, Abrudz Extended APL 
-    pSymbol←    '[',NOTINch,UNDERch,OBVERSEch,']'   
+    OBVERSEch←'⍫'             ⍝ See OBVERSE, DELTILDE < Abrudz Extended APL 
+  ⍝ BEFORE (JOTUNDERBAR)
+    BEFOREch←'⍛'              ⍝ See BEFORE, JOTUNDERBAR < Abrudx Extended APL
+    pSymbol←    '[',NOTINch,UNDERch,OBVERSEch,BEFOREch,']'   
   ⍝ SYMBOL_MAP: [0] list of symbols; [1] their values (spacing, case: respected)
-    SYMBOL_MAP← ↑(NOTINch,UNDERch OBVERSEch)('(~∊)' ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ')
+    _SMch← NOTINch UNDERch           OBVERSEch         BEFOREch
+    _SMfn← '(~∊)'  ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ' ' ⎕SE.⍙⍙.BEFORE '
+    SYMBOL_MAP← ↑_SMch _SMfn
   ⍝+---------------------------------------+
   ⍝ Pattern Defs, ATOM SCAN PATTERNS       +  
   ⍝    See ∆FIX.HELP for details.          ÷
@@ -251,11 +264,12 @@
   ⍝+--------------------------------------------------+
   ⍝ Utilities, Miscellaneous                          +
   ⍝+--------------------------------------------------+
-    DTB←{⍵↓⍨-+/∧\' '=⌽⍵}                           ⍝ Delete trailing blanks from one line
-    DLB←{⍵↓⍨ +/∧\' '= ⍵}                           ⍝ Delete leading blanks...
+    DTB←  ⊢↓⍨ -∘ (+/∘  (∧\ ⍤⌽⍤ =∘' ' ))      ⍝ Delete trailing blanks from one line. Tacit can be obscure...
+    DLB←  ⊢↓⍨     +/∘  (∧\     =∘' ' )       ⍝ Delete leading blanks...
     AddPar← {'(',⍵,')'}
     DblSQ←  {⍺←0 ⋄ s←⍵/⍨1+⍵=SQ ⋄ ⍺=0: s ⋄ SQ,s,SQ }  ⍝ Double single quotes. If ⍺=1, add outer quotes.
-  ⍝ UnDQ_DAQ: Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
+  ⍝ UnDQ_DAQ: Remove DQs (double quotes) or DAQs (double alternate quotes: angled quotes « » )
+  ⍝   Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
     UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': ∆SIG'UnDQ_DAQ Logic Error'  
           s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
     }   
@@ -353,21 +367,21 @@
         }
       ⍝ ⍙PTR for "pointer" prefix $
       ⍝ Syntax:   ${code_operand}   |   $(tacit_operand)  |   $named_operand 
-      ⍝     ptr← ⍺⍺:operand ⎕SE.⍙⍙.PTR ⍵:0
+      ⍝     ptr← ⍺⍺:operand ⎕SE.⍙⍙.PTR ⍵: 1 | 0 (or aliases: 'DEBUG'=1, 'NODEBUG'=0)
       ⍝          ⍺⍺:operand: Function to "turn into" a pointer, accessed via ptr.Run
       ⍝           ⍵:debug:   If 0, display form is '[⍙PTR]' (fast).
       ⍝                      If 1, display form is an abridged version of the nested 
       ⍝                      representation of <operand>, up to <MAXL:30> chars (slower).
       ⍝
         ⎕SE.⍙⍙.PTR←{ ⍝ Place in ⎕SE.⍙⍙, with CALR as ⎕THIS namespace
-            debug←⍵ 
+            debug←'1Dd'∊⍨1↑⍕⍵ 
             0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
             MAXL←30
             (ns←⎕NS'').Run←⍺⍺ ⋄ _←ns.⎕FX 'r←Exec' 'r←Run ⍬'
             ~debug: ns⊣ns.⎕DF'[$⍙PTR]'
             Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1}    
             Shrink←{'''[^'']*''|⍝.*$' '^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'&' '' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
-            Dlb←{⍵↓⍨+/∧\' '=⍵}¨  ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
+            Dlb←(⊢↓⍨(+/(∧\' '∘=)))¨ ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
             ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
         }
         ⍝ ∆TO: for function ⎕TO
@@ -397,7 +411,7 @@
               ⍵⍵{
                   aa←⍺⍺
                   3::0
-                  (⎕SE.⍙⍙.⎕CR'OBVERSE')≡2⊃⎕CR'aa'       ⍝ For OBVERSE, Adam A. uses the char name 'DelTilde' here.
+                  (⎕SE.⍙⍙.⎕CR'OBVERSE')≡2⊃⎕CR'aa'       ⍝ For OBVERSE, DelTilde. From {Abrudz APL Extended}
               }⍬:ww.InvFn(ww.NrmFn ⍺)⍺⍺(ww←⍵⍵ ns).NrmFn ⍵
               ⍵ ⍵⍵{           ⍝ pass in original ⍵
                   A←⍺             ⍝ modifiable array
@@ -421,6 +435,10 @@
             Fn.InvFn←⍵⍵
             Fn.Obv←1
             Fn
+        }
+        ⎕SE.⍙⍙.BEFORE←{ ⍝ ⍛ JotUnderbar, Before, reverse composition X f⍛g Y ←→ (f x) g Y.  From {Abrudz APL Extended}
+          ⍺←{⍵ ⋄ ⍺⍺}
+         (⍺⍺ ⍺)⍵⍵ ⍵
         }
         1 
     }
@@ -745,7 +763,7 @@
                     CASE iDQPlus:  (F 2) (0 StringFormat)  UnDQ_DAQ F 1     ⍝ Removed DQTweak...
                     CASE iDAQPlus: (F 2) (0 StringFormat)  UnDQ_DAQ F 1                  
                     CASE iDotsC: ' '   ⍝ Keep: this seems redundant, but can be reached when used inside MainScan                             
-                    CASE iPtr:  AddPar  (MainScan F 1),' ⎕SE.⍙⍙.PTR ',(⍕DEBUGf)⊣SaveRunTime 'NOFORCE'  
+                    CASE iPtr: AddPar (MainScan F 1),' ⎕SE.⍙⍙.PTR ',_⊣SaveRunTime 'NOFORCE'⊣_←SQ,SQ,⍨'DEBUG',⍨DEBUGf⊃'NO' ''
                     CASE iSQ: ProcSQ F 0  
                     CASE iCom: F 0                
                     CASE iHere iTradFn: { 
@@ -883,12 +901,14 @@
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
             pLBrak←'[[(]'  
             pRBrak←'[])]'
+               pN←  '[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*' ⋄ pD←'\h*(?:…|\.{2,})\h*'
+            pRange← ∊'(?x) (' pN ') ' pD '  (' pN ')  (?| (?:\h+|'pD')('pN')|() )' 
             STRAND_OUT SEMI_OUT CR_OUT←'(,⍥⊆)' ';' ⍺ 
           ⍝ pSpecCom: Special Internally Generated Comments
             STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
-            scanPats←  pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak
-                       _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak← ⍳≢scanPats
-            Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match
+            scanPats←  pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak pRange
+                       _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak iRange← ⍳≢scanPats
+            Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match 
               CASE iSpecCom:DEBUGf/(1↑str),2↓str       
               CASE iCrIn:   CR_OUT
               CASE iStrand: STRAND_OUT 
@@ -896,8 +916,21 @@
               CASE iSemi:   SEMI_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
               CASE iLBrak:  str⊣STK,←1+str='['
               CASE iRBrak:  str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
-            ⍝ ELSE matches (AllQ Com) 
-              str   
+            ⍝ CASE matching: Quoted Strings, Comments
+              ~CASE iRange: str
+            ⍝ CASE iRange:   Match a constant range spec of the form:
+            ⍝                start..end[..step | step]
+            ⍝                101..110    ==>  101 102 103 104 105 106 ... 109 110
+            ⍝                101..110 2  ==>  101 103 105 107 109
+            ⍝                101..110..2 ==>  101 103 105 107 109
+            ⍝ If there are more than MAXLENf numbers calculated, an expression will be used instead:
+            ⍝                (101 ⎕SE.⍙⍙.TO 110 2)
+            ⍝
+            ⍝  MAXLENf←50   ⍝ Set above, but can be specified in ⍺ for ⍺ ∆FIX ...    
+              F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄  F1 F2 F3←F¨1 2 3 ⋄ F3←(' '/⍨0≠≢F3),F3
+              range←⍎F1, ' ⎕SE.⍙⍙.TO ',F2,F3
+              MAXLENf≥≢range: '(',(⍕range),')'
+              '(',F1, ' ⎕SE.⍙⍙.TO ', F2, F3,')'     
             }
             pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
       }

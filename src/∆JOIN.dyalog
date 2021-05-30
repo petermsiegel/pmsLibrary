@@ -46,3 +46,10 @@
          b2←bLen Center Extend b
          a2 Cat b2
 }
+
+∆←{
+   ⍺ (0.1 ∆JOIN 1) ⍵
+}
+⍙←{
+  ⍺ (1.1 ∆JOIN 1) ⍵
+}
