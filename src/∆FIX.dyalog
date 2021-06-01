@@ -48,6 +48,7 @@
     SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈'  
     CALR←0⊃⎕RSI
     reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
+    0/⍨~DEBUGf::  ⎕SIGNAL/'Unexpected error' 11⊣⎕←↑⎕DMX.DM
     0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
   ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
   ⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
@@ -384,22 +385,28 @@
             Dlb←(⊢↓⍨(+/(∧\' '∘=)))¨ ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
             ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
         }
-        ⍝ ∆TO: for function ⎕TO
-        ⍝ range←  start [next]  ∆TO  end [step]   
-        ⍝         start: starting numeric value.
-        ⍝         next: first element after <start> used to calculate <step>. 
+        ⍝ ∆TO: for function ⎕TO or ...
+        ⍝ range←  start [next]  TO  end [step]   
+        ⍝         start: starting value*
+        ⍝         next: first element* after <start> used to calculate <step>. 
         ⍝               If omitted*, next is (start+×end-start), unless <step> is specified.
-        ⍝         end:  ending numeric value.
+        ⍝         end:  ending value*.
         ⍝         step: in-/decrement start first value to next. 
-        ⍝               If omitted*, (×end-start) is assumed, unless <next> is specified. 
+        ⍝               If omitted**, (×end-start) is assumed, unless <next> is specified. 
         ⍝               The sign of <step> passed is ignored and the signum (×end-start) is used.
         ⍝ ________________________________
-        ⍝ * Specifying both <next> and <step> is an error.  
-        ⍝   If next is specified, the actual step is (×end-start)×|next-start.    
+        ⍝ *  values may be characters or numbers. If the first is a character, the result is a character string.
+        ⍝ ** Specifying both <next> and <step> is invalid.  
+        ⍝    If next is specified, the actual step is (×end-start)×|next-start.    
         ⎕SE.⍙⍙.TO←{⎕IO←0
-            2∧.≤≢¨⍺ ⍵: ∆SIG'⎕TO: range←  start [next] ∆TO end [step=1]. Do not include both ¨next¨ and ¨step¨.'
-            ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵: 1⊃⍵ ⋄ 2=≢⍺: -/⍺ ⋄ 1}⍵
-            start+step×⍳0⌈1+⌊∆÷step+step=0     
+            0::⎕SIGNAL⊂('Message' 'Invalid Range')('EN'⎕DMX.EN)
+            2∧.≤≢¨⍺ ⍵:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
+            num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ char→ucs val; num? as is.
+            retC←0∊80|⎕DR¨⍺,⍵
+            ⎕UCS⍣retC⊣⊃{
+                ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵:1⊃⍵ ⋄ 2=≢⍺:-/⍺ ⋄ 1}⍵
+                start+step×⍳0⌈1+⌊∆÷step+step=0
+            }/num¨⍺ ⍵
         }
         ⍝ Under (from dfns) symbol: ⍢  Alias: Dual  
         ⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
@@ -856,8 +863,8 @@
         MACROSñ.⍙DEF←  MACROSñ.{(≢K)>K⍳⊂⍵}              ⍝   MACROSñ: macro internal namespace
       ⍝ Macro-- alias1 [alias2...] Macro macro_text: specify 1 or more aliases on left for macro text on right. 
         _SetBuiltinMacros←{       
-            _←'⎕F'            MacroLiteral '∆F'                   ⍝   APL-ified Python-reminiscent format function
-            _←'⎕TO'           MacroLiteral '⎕SE.⍙⍙.TO'              ⍝   1 ⎕TO 20 2   "One to 20 by twos'
+            _←'⎕F'            MacroLiteral '∆F'           ⍝   APL-ified Python-reminiscent format function
+            _←'⎕TO'           MacroLiteral '⎕SE.⍙⍙.TO'    ⍝   1 ⎕TO 20 2   "One to 20 by twos'. 'a' ⎕TO 'z' 2' 'ac'⎕TO'z'
             _←'⎕ASSERT'       MacroLiteral '⎕SE.⍙⍙.ASSERT'
           ⍝ ::DEF. Used in sequence ::IF ::DEF "name"
           ⍝        Returns 1 if <name> is active Macro, else 0. Valid only during Control Scan
@@ -901,13 +908,13 @@
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
             pLBrak←'[[(]'  
             pRBrak←'[])]'
-               pN←  '[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*' ⋄ pD←'\h*(?:…|\.{2,})\h*'
+               pN←  '(?:[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*)| ''\N{1,2}'' ' ⋄ pD←'\h*(?:…|\.{2,})\h*'
             pRange← ∊'(?x) (' pN ') ' pD '  (' pN ')  (?| (?:\h+|'pD')('pN')|() )' 
             STRAND_OUT SEMI_OUT CR_OUT←'(,⍥⊆)' ';' ⍺ 
           ⍝ pSpecCom: Special Internally Generated Comments
             STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
-            scanPats←  pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak pRange
-                       _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak iRange← ⍳≢scanPats
+            scanPats←  pRange pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak 
+                       iRange _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak ← ⍳≢scanPats
             Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match 
               CASE iSpecCom:DEBUGf/(1↑str),2↓str       
               CASE iCrIn:   CR_OUT
@@ -919,18 +926,41 @@
             ⍝ CASE matching: Quoted Strings, Comments
               ~CASE iRange: str
             ⍝ CASE iRange:   Match a constant range spec of the form:
-            ⍝                start..end[..step | step]
-            ⍝                101..110    ==>  101 102 103 104 105 106 ... 109 110
-            ⍝                101..110 2  ==>  101 103 105 107 109
-            ⍝                101..110..2 ==>  101 103 105 107 109
+            ⍝                   start..end[..step | step]
+            ⍝                   101..110    ==>  101 102 103 104 105 106 ... 109 110
+            ⍝                   101..110 2  ==>  101 103 105 107 109
+            ⍝                   101..110..2 ==>  101 103 105 107 109
+            ⍝                 Or
+            ⍝                   "a".."z"    ==>  'abcdefghij..z'
+            ⍝                   "ac".."z"   ==>  'acegikmoqsuwy'
+            ⍝                   "a".."z"..2 ==>  'acegikmoqsuwy'
             ⍝ If there are more than MAXLENf numbers calculated, an expression will be used instead:
             ⍝                (101 ⎕SE.⍙⍙.TO 110 2)
-            ⍝
-            ⍝  MAXLENf←50   ⍝ Set above, but can be specified in ⍺ for ⍺ ∆FIX ...    
-              F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄  F1 F2 F3←F¨1 2 3 ⋄ F3←(' '/⍨0≠≢F3),F3
-              range←⍎F1, ' ⎕SE.⍙⍙.TO ',F2,F3
-              MAXLENf≥≢range: '(',(⍕range),')'
-              '(',F1, ' ⎕SE.⍙⍙.TO ', F2, F3,')'     
+            ⍝  MAXLENf←50   ⍝ Set at top, but can be specified as ⍺[3] in:  ⍺ ∆FIX ...    
+              {
+                  L R arg3←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}¨1 2 3 
+                  R,←(' '/⍨0≠≢arg3),arg3
+                  rangeV←⍎rangeC←L,' ⎕SE.⍙⍙.TO ',R
+                ⍝ If rangeV is small (≤MAXLENf),  use RepSimple(stripped down variant of Utils.repObj) 
+                ⍝ to convert to a char rep., ensuring it is encoded properly for APL:
+                ⍝    a) numbers converted to char  b) str quoted with single quotes 
+                ⍝    c) internal quotes doubled    d) ctl chars handled.
+                ⍝ ElseIf rangeV Too many items... Let TO handle at runtime.
+                  MAXLENf<≢rangeV: rangeC
+                  RepSimple←{ ⍺←1 ⋄ Q←'''' 
+                      CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. Avoid: p{Cc}.
+                      0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34
+                      str←∊Q,Q,⍨CTLp Q ⎕R { CASE←⍵.PatternNum∘∊
+                          CASE 0: ''',(⎕UCS ','),''',⍨⍕⎕UCS ⍵.Match
+                          CASE 1: 2⍴Q
+                      }⍠('Mode' 'M')('UCP' 1)⊣⊆⍵ 
+                      NullQS←{⍵↓⍨len×qqc≡⍵↑⍨len←⍺×≢qqc←''','''⌽⍨-⍺}  ⍝ qqc: ⍺=1: "'',"  ⍺=¯1: ",''"
+                      str←¯1 NullQS 1 NullQS str
+                      ⍺=0: str 
+                      '(',')',⍨str
+                  }
+                  RepSimple rangeV  
+              }⍵     
             }
             pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
       }
