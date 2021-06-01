@@ -341,114 +341,123 @@
    ⍺=0: ∊{∊CR,⍨¨MACROSñ ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
     ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
 } 
-
-  ⍝ SaveRunTime:  SaveRunTime ['NOFORCE' | 'FORCE'], default 'NOFORCE'.
-  ⍝ Save Run-time Utilities shown here in ⎕SE if not already there...
-  ⍝     ⍙PTR, ⍙FIX                -- ⍙... not expected to be called by user.
-  ⍝     ∆ASSERT, ∆TO, ∆UNDER             -- ∆... potentially called by user.
-    RUNTIME_MAP←↓⍉↑('ASSERT' 3)('FIX' 3)('PTR' 4) ('TO' 3)('UNDER' 4) ('OBVERSE' 4)
-    SaveRunTime←{utils utype←RUNTIME_MAP
-        (~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⍙⍙.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
-        2/⍨~DEBUGf:: ∆SIG'Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
-      ⍝ ∆ASSERT for Macro ⎕ASSERT 
-        ⎕SE.⍙⍙.ASSERT←{⍺←'Assertion failure' ⋄ 0∊⍵:⍺ ⎕SIGNAL 8 ⋄ shy←0}
-      ⍝ ⍙FIXX for directive ::FN, ::OP, ::FIX
-      ⍝ ⍙FIXX fixes anything valid for 2 ⎕FIX ...
-      ⍝ If leading lines of string are blank or comments, they are removed before ⎕FIXing.
-      ⍝ Makes it easy to create a tradfn or detailed namespace using directives:
-      ⍝    ::FN PI         ⍝ PI here is solely text to match via EndPI. The name itself has no significance.          
-      ⍝          r←pi n         
-      ⍝          r←○n'          
-      ⍝    EndPI
-        ⎕SE.⍙⍙.FIXX←{⎕IO←0
-          0:: ∆SIG '::FIX or related directive failed. Likely syntax error in code string.' 
-          1≥|≡⍵: ∇ ⊆⍵                                                   ⍝ Ensure vector of vectors
-          '⍝ '∊⍨1↑' '~⍨⊃⍵: _←∇ 1↓⍵ ⋄ 0≠≢⍵:_←2 (1⊃⎕RSI,#).⎕FIX ⍵,⊂''     ⍝ Ensure at least 2 vectors passed to ⎕FIX
-          ∘ 
-        }
-      ⍝ ⍙PTR for "pointer" prefix $
-      ⍝ Syntax:   ${code_operand}   |   $(tacit_operand)  |   $named_operand 
-      ⍝     ptr← ⍺⍺:operand ⎕SE.⍙⍙.PTR ⍵: 1 | 0 (or aliases: 'DEBUG'=1, 'NODEBUG'=0)
-      ⍝          ⍺⍺:operand: Function to "turn into" a pointer, accessed via ptr.Run
-      ⍝           ⍵:debug:   If 0, display form is '[⍙PTR]' (fast).
-      ⍝                      If 1, display form is an abridged version of the nested 
-      ⍝                      representation of <operand>, up to <MAXL:30> chars (slower).
-      ⍝
-        ⎕SE.⍙⍙.PTR←{ ⍝ Place in ⎕SE.⍙⍙, with CALR as ⎕THIS namespace
-            debug←'1Dd'∊⍨1↑⍕⍵ 
-            0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
-            MAXL←30
-            (ns←⎕NS'').Run←⍺⍺ ⋄ _←ns.⎕FX 'r←Exec' 'r←Run ⍬'
-            ~debug: ns⊣ns.⎕DF'[$⍙PTR]'
-            Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1}    
-            Shrink←{'''[^'']*''|⍝.*$' '^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'&' '' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
-            Dlb←(⊢↓⍨(+/(∧\' '∘=)))¨ ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
-            ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
-        }
-        ⍝ ∆TO: for function ⎕TO or ...
-        ⍝ range←  start [next]  TO  end [step]   
-        ⍝         start: starting value*
-        ⍝         next: first element* after <start> used to calculate <step>. 
-        ⍝               If omitted*, next is (start+×end-start), unless <step> is specified.
-        ⍝         end:  ending value*.
-        ⍝         step: in-/decrement start first value to next. 
-        ⍝               If omitted**, (×end-start) is assumed, unless <next> is specified. 
-        ⍝               The sign of <step> passed is ignored and the signum (×end-start) is used.
-        ⍝ ________________________________
-        ⍝ *  values may be characters or numbers. If the first is a character, the result is a character string.
-        ⍝ ** Specifying both <next> and <step> is invalid.  
-        ⍝    If next is specified, the actual step is (×end-start)×|next-start.    
-        ⎕SE.⍙⍙.TO←{⎕IO←0
-            0::⎕SIGNAL⊂('Message' 'Invalid Range')('EN'⎕DMX.EN)
-            2∧.≤≢¨⍺ ⍵:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
-            num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ char→ucs val; num? as is.
-            retC←0∊80|⎕DR¨⍺,⍵
-            ⎕UCS⍣retC⊣⊃{
-                ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵:1⊃⍵ ⋄ 2=≢⍺:-/⍺ ⋄ 1}⍵
-                start+step×⍳0⌈1+⌊∆÷step+step=0
-            }/num¨⍺ ⍵
-        }
-        ⍝ Under (from dfns) symbol: ⍢  Alias: Dual  
-        ⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
-        ⎕SE.⍙⍙.UNDER←{ ⍝ DelDiaeresis ⍢ Under or Dual. From {Abrudz APL Extended}
-              ns←⎕NULL⍴⍨15⍴0
-              0::⎕SIGNAL ⎕EN
-              2 2≡⎕NC↑'⍺' '⍺⍺':⎕SIGNAL⊂('EN' 2)('Message' 'Array left argument conflicts with array left operand')
-              ⍺←{⍵ ⋄ ⍺⍺}      ⍝ no ⍺: pass through
-              ⍵⍵{
-                  aa←⍺⍺
-                  3::0
-                  (⎕SE.⍙⍙.⎕CR'OBVERSE')≡2⊃⎕CR'aa'       ⍝ For OBVERSE, DelTilde. From {Abrudz APL Extended}
-              }⍬:ww.InvFn(ww.NrmFn ⍺)⍺⍺(ww←⍵⍵ ns).NrmFn ⍵
-              ⍵ ⍵⍵{           ⍝ pass in original ⍵
-                  A←⍺             ⍝ modifiable array
-                  11::A⊣((⍺⍺)A)←⍵ ⍝ structural inversion on error...
-                  NoOp←{0::0 ⋄ ⍵≡⍺⍺ ⍵} ⍝ Is ⍺⍺ a no-op? (or fails)
-                  ~(⍺⍺⍣¯1 ⍺⍺)NoOp ⍺:!# ⍝ ... or if imperfect inverse
-                  ⍺⍺⍣¯1⊢⍵         ⍝ try computational inverse
-              }(⍵⍵ ⍺)⍺⍺{          ⍝ ⍺⍺, but:
-                  ⍺←⊢                    ⍝ no ⍺: pass through
-                  2=⎕NC'⍺⍺':⍺(⍺⍺⊣⊢)⍤0⊢⍵ ⍝ if array: treat as scalar fn
-                  ⍺ ⍺⍺ ⍵                ⍝ else: just apply
-              }⍵⍵ ⍵           ⍝ ⍺ ⍺⍺ over ⍵⍵ ⍵
-        }
-        ⎕SE.⍙⍙.OBVERSE←{ ⍝ Obverse, DelTilde, ⍫ ⍺⍺ but with inverse ⍵⍵ represented as ns.  From {Abrudz APL Extended}
-            0::⎕SIGNAL⊂⎕DMX.(('EN'EN)('Message'Message))
-            ns←⎕NULL⍴⍨15⍴0
-            ⍺←⊢
-            ⍵≢ns:⍺ ⍺⍺ ⍵
-            Fn←⎕NS ⍬
-            Fn.NrmFn←⍺⍺
-            Fn.InvFn←⍵⍵
-            Fn.Obv←1
-            Fn
-        }
-        ⎕SE.⍙⍙.BEFORE←{ ⍝ ⍛ JotUnderbar, Before, reverse composition X f⍛g Y ←→ (f x) g Y.  From {Abrudz APL Extended}
-          ⍺←{⍵ ⋄ ⍺⍺}
-         (⍺⍺ ⍺)⍵⍵ ⍵
-        }
+RepSimple←{ ⍺←1 ⋄ Q←''''  
+    CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. Too broad: p{Cc}.
+    0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34
+    str←∊Q,Q,⍨CTLp Q ⎕R { ctlF←⍵.PatternNum=0
+        ctlF: ''',(⎕UCS ','),''',⍨⍕⎕UCS ⍵.Match ⋄ 2⍴Q
+    }⍠('Mode' 'M')('UCP' 1)⊣⊆⍵ 
+    NullQS←{⍵↓⍨len×qqc≡⍵↑⍨len←⍺×≢qqc←''','''⌽⍨-⍺}  ⍝ qqc: ⍺=1: "'',"  ⍺=¯1: ",''"
+    str←¯1 NullQS 1 NullQS str
+    ⍺=0: str ⋄ '(',')',⍨str
+}
+⍝ SaveRunTime:  SaveRunTime ['NOFORCE' | 'FORCE'], default 'NOFORCE'.
+⍝ Save Run-time Utilities shown here in ⎕SE if not already there...
+⍝     ⍙PTR, ⍙FIX                -- ⍙... not expected to be called by user.
+⍝     ∆ASSERT, ∆TO, ∆UNDER             -- ∆... potentially called by user.
+RUNTIME_MAP←↓⍉↑('ASSERT' 3)('FIX' 3)('PTR' 4) ('TO' 3)('UNDER' 4) ('OBVERSE' 4)
+SaveRunTime←{utils utype←RUNTIME_MAP
+(~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⍙⍙.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
+2/⍨~DEBUGf:: ∆SIG'Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
+⍝ ∆ASSERT for Macro ⎕ASSERT 
+  ⎕SE.⍙⍙.ASSERT←{⍺←'Assertion failure' ⋄ 0∊⍵:⍺ ⎕SIGNAL 8 ⋄ shy←0}
+⍝ ⍙FIXX for directive ::FN, ::OP, ::FIX
+⍝ ⍙FIXX fixes anything valid for 2 ⎕FIX ...
+⍝ If leading lines of string are blank or comments, they are removed before ⎕FIXing.
+⍝ Makes it easy to create a tradfn or detailed namespace using directives:
+⍝    ::FN PI         ⍝ PI here is solely text to match via EndPI. The name itself has no significance.          
+⍝          r←pi n         
+⍝          r←○n'          
+⍝    EndPI
+⎕SE.⍙⍙.FIXX←{⎕IO←0
+  0:: ∆SIG '::FIX or related directive failed. Likely syntax error in code string.' 
+  1≥|≡⍵: ∇ ⊆⍵                                                   ⍝ Ensure vector of vectors
+  '⍝ '∊⍨1↑' '~⍨⊃⍵: _←∇ 1↓⍵ ⋄ 0≠≢⍵:_←2 (1⊃⎕RSI,#).⎕FIX ⍵,⊂''     ⍝ Ensure at least 2 vectors passed to ⎕FIX
+  ∘ 
+}
+⍝ ⍙PTR for "pointer" prefix $
+⍝ Syntax:   ${code_operand}   |   $(tacit_operand)  |   $named_operand 
+⍝     ptr← ⍺⍺:operand ⎕SE.⍙⍙.PTR ⍵: 1 | 0 (or aliases: 'DEBUG'=1, 'NODEBUG'=0)
+⍝          ⍺⍺:operand: Function to "turn into" a pointer, accessed via ptr.Run
+⍝           ⍵:debug:   If 0, display form is '[⍙PTR]' (fast).
+⍝                      If 1, display form is an abridged version of the nested 
+⍝                      representation of <operand>, up to <MAXL:30> chars (slower).
+⍝
+⎕SE.⍙⍙.PTR←{ ⍝ Place in ⎕SE.⍙⍙, with CALR as ⎕THIS namespace
+    debug←'1Dd'∊⍨1↑⍕⍵ 
+    0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
+    MAXL←30
+    (ns←⎕NS'').Run←⍺⍺ ⋄ _←ns.⎕FX 'r←Exec' 'r←Run ⍬'
+    ~debug: ns⊣ns.⎕DF'[$⍙PTR]'
+    Fit←MAXL∘{⍺>≢⍵:⍵ ⋄ '⋯',⍨⍵↑⍨⍺-1}    
+    Shrink←{'''[^'']*''|⍝.*$' '^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'&' '' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
+    Dlb←(⊢↓⍨(+/(∧\' '∘=)))¨ ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
+    ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
+}
+  ⍝ ∆TO: for function ⎕TO or ...
+  ⍝ range←  start [next]  TO  end [step]   
+  ⍝         start: starting value*
+  ⍝         next: first element* after <start> used to calculate <step>. 
+  ⍝               If omitted*, next is (start+×end-start), unless <step> is specified.
+  ⍝         end:  ending value*.
+  ⍝         step: in-/decrement start first value to next. 
+  ⍝               If omitted**, (×end-start) is assumed, unless <next> is specified. 
+  ⍝               The sign of <step> passed is ignored and the signum (×end-start) is used.
+  ⍝ ________________________________
+  ⍝ *  values may be characters or numbers. If the first is a character, the result is a character string.
+  ⍝ ** Specifying both <next> and <step> is invalid.  
+  ⍝    If next is specified, the actual step is (×end-start)×|next-start.    
+  ⎕SE.⍙⍙.TO←{⎕IO←0
+      0::⎕SIGNAL⊂('Message' 'Invalid Range')('EN'⎕DMX.EN)
+      2∧.≤≢¨⍺ ⍵:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
+      num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ char→ucs val; num? as is.
+      retC←0∊80|⎕DR¨⍺,⍵
+      ⎕UCS⍣retC⊣⊃{
+          ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵:1⊃⍵ ⋄ 2=≢⍺:-/⍺ ⋄ 1}⍵
+          start+step×⍳0⌈1+⌊∆÷step+step=0
+      }/num¨⍺ ⍵
+  }
+  ⍝ Under (from dfns) symbol: ⍢  Alias: Dual  
+  ⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
+  ⎕SE.⍙⍙.UNDER←{ ⍝ DelDiaeresis ⍢ Under or Dual. From {Abrudz APL Extended}
+        ns←⎕NULL⍴⍨15⍴0
+        0::⎕SIGNAL ⎕EN
+        2 2≡⎕NC↑'⍺' '⍺⍺':⎕SIGNAL⊂('EN' 2)('Message' 'Array left argument conflicts with array left operand')
+        ⍺←{⍵ ⋄ ⍺⍺}      ⍝ no ⍺: pass through
+        ⍵⍵{
+            aa←⍺⍺
+            3::0
+            (⎕SE.⍙⍙.⎕CR'OBVERSE')≡2⊃⎕CR'aa'       ⍝ For OBVERSE, DelTilde. From {Abrudz APL Extended}
+        }⍬:ww.InvFn(ww.NrmFn ⍺)⍺⍺(ww←⍵⍵ ns).NrmFn ⍵
+        ⍵ ⍵⍵{           ⍝ pass in original ⍵
+            A←⍺             ⍝ modifiable array
+            11::A⊣((⍺⍺)A)←⍵ ⍝ structural inversion on error...
+            NoOp←{0::0 ⋄ ⍵≡⍺⍺ ⍵} ⍝ Is ⍺⍺ a no-op? (or fails)
+            ~(⍺⍺⍣¯1 ⍺⍺)NoOp ⍺:!# ⍝ ... or if imperfect inverse
+            ⍺⍺⍣¯1⊢⍵         ⍝ try computational inverse
+        }(⍵⍵ ⍺)⍺⍺{          ⍝ ⍺⍺, but:
+            ⍺←⊢                    ⍝ no ⍺: pass through
+            2=⎕NC'⍺⍺':⍺(⍺⍺⊣⊢)⍤0⊢⍵ ⍝ if array: treat as scalar fn
+            ⍺ ⍺⍺ ⍵                ⍝ else: just apply
+        }⍵⍵ ⍵           ⍝ ⍺ ⍺⍺ over ⍵⍵ ⍵
+  }
+  ⎕SE.⍙⍙.OBVERSE←{ ⍝ Obverse, DelTilde, ⍫ ⍺⍺ but with inverse ⍵⍵ represented as ns.  From {Abrudz APL Extended}
+      0::⎕SIGNAL⊂⎕DMX.(('EN'EN)('Message'Message))
+      ns←⎕NULL⍴⍨15⍴0
+      ⍺←⊢
+      ⍵≢ns:⍺ ⍺⍺ ⍵
+      Fn←⎕NS ⍬
+      Fn.NrmFn←⍺⍺
+      Fn.InvFn←⍵⍵
+      Fn.Obv←1
+      Fn
+  }
+  ⎕SE.⍙⍙.BEFORE←{ ⍝ ⍛ JotUnderbar, Before, reverse composition X f⍛g Y ←→ (f x) g Y.  From {Abrudz APL Extended}
+    ⍺←{⍵ ⋄ ⍺⍺}
+    (⍺⍺ ⍺)⍵⍵ ⍵
+  }
         1 
-    }
+  }
   ⍝ Executive: Search through lines (vector of vectors) for: 
   ⍝     "double-quoted strings", triple-quoted ("""\n...\n"""), and  ::: here-strings.
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via StringFormat below.
@@ -542,60 +551,60 @@
   ⍝ StringFormat - Format Multiline Strings              +  
   ⍝   DQStrings, Here Strings, and related           +
   ⍝+-------------------------------------------------+
-      ⍝ StringFormat: 
-      ⍝     Convert possibly multiline strings to the requested format and return as an APL code string.
-      ⍝ output_string←  ⍺: options (⍺⍺: indent ∇ ) ⍵: input_string
-      ⍝ Output format: options '[rnsvm]'.   
-      ⍝    'r' carriage return (\r) for linends  
-      ⍝    'n' linefeed (\n) for linends 
-      ⍝    's' spaces replace linends 
-      ⍝    'v' vector of vectors;    'm' APL matrix;   
-      ⍝     DEFAULT: Set below to 'v' 
-      ⍝ Escape option. Works with any one above. 
-      ⍝    'e' backslash (\) escape as last non-blank char on the line is converted to a single space. Otherwise, as above.
-      ⍝    'c' string is a comment treated in toto as a singleblank.
-      ⍝ Exdent option. Useful for DQString "..." only. Triple quote strings and here docs already use ¯1.
-      ⍝    'x' Force indent←¯1, ignoring any actual setting... (Will work even on a single-line DQ string)
-      ⍝ indent: ⍺⍺>0,  remove ⍺⍺ leading blanks from each line presented
-      ⍝         ⍺⍺=¯1  remove left_in, the indent of left-most line for indent, from each line presented...
-      ⍝         ⍺⍺=0   leave lines as is.
-      ⍝         See also 'x' exdent option.
-          StringFormat←{ ⍺←''   
-          ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'v'.
-            DEF_TYPE←'v'
-            o1 o2 od← 'rnsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
-          ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
-          ⍝ E: Escape (\)       C: Comment (⍝)
-            R N S V M E C X←o∊⍨∊o1 o2
-            0≠≢err←o~∊o1 o2: ∆SIG'For DQ or Here string, one or more invalid options "',err,'" in "',⍺,'"' 
-            indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
-            C: ' '
-            SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
-            TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
-            FormatPerOpt← {multi←⍺
-              AddSQ←SQ∘,∘⊢,∘SQ 
-              V∨M: ('↑'/⍨M∧multi) ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
-              R∨N: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃10 13 ),'),',SQ  
-              ∘Unreachable∘  
-            }
-            0=≢⍵: 2⍴SQ
-            multi←1<≢lines←Str2SVs ⍵  ⍝ Don't add parens, if just one line...
-            AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
-        }
-      ⍝ Str2SVs: Ensures a vector of strings.
-      ⍝       ⍵: Vector of strings or a single flat string with CRs.
-      ⍝ Note: Ensure split sees                # partitions
-      ⍝         "abc"         as    abc        1
-      ⍝         "\rabc "      as   |abc        2
-      ⍝         "abc\r"       as    abc|       2
-      ⍝         "abc\r\rdef"  as    abc||def   3
-      ⍝         "\r\rabc\r\r" as  ||abc||      5
-        Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~⍨¨⍵⊂⍨r,q↓p } ⍵}       
-       
-      ⍝ See iDQPlus (below) and StringFormat above...
-      ⍝ We add a "spurious" CR_INTERNAL so StringFormat sees leading and trailing bare " on separate lines... 
-      ⍝ DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }   
-      ⍝ DQUntweak←{⍵~¨CR_INTERNAL}        
+⍝ StringFormat: 
+⍝     Convert possibly multiline strings to the requested format and return as an APL code string.
+⍝ output_string←  ⍺: options (⍺⍺: indent ∇ ) ⍵: input_string
+⍝ Output format: options '[rnsvm]'.   
+⍝    'r' carriage return (\r) for linends  
+⍝    'n' linefeed (\n) for linends 
+⍝    's' spaces replace linends 
+⍝    'v' vector of vectors;    'm' APL matrix;   
+⍝     DEFAULT: Set below to 'v' 
+⍝ Escape option. Works with any one above. 
+⍝    'e' backslash (\) escape as last non-blank char on the line is converted to a single space. Otherwise, as above.
+⍝    'c' string is a comment treated in toto as a singleblank.
+⍝ Exdent option. Useful for DQString "..." only. Triple quote strings and here docs already use ¯1.
+⍝    'x' Force indent←¯1, ignoring any actual setting... (Will work even on a single-line DQ string)
+⍝ indent: ⍺⍺>0,  remove ⍺⍺ leading blanks from each line presented
+⍝         ⍺⍺=¯1  remove left_in, the indent of left-most line for indent, from each line presented...
+⍝         ⍺⍺=0   leave lines as is.
+⍝         See also 'x' exdent option.
+StringFormat←{ ⍺←''   
+    ⍝ options--   o1 (options1) (r|l|s|v|m); o2 (options2): [ec]; od(efault): 'v'.
+      DEF_TYPE←'v'
+      o1 o2 od← 'rnsvm' 'ecx' DEF_TYPE  ⋄ o←(o1{1∊⍵∊⍺⍺: ⍵ ⋄ ⍵⍵,⍵}od)⊣⎕C ⍺
+    ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
+    ⍝ E: Escape (\)       C: Comment (⍝)
+      R N S V M E C X←o∊⍨∊o1 o2
+      0≠≢err←o~∊o1 o2: ∆SIG'For DQ or Here string, one or more invalid options "',err,'" in "',⍺,'"' 
+      indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
+      C: ' '
+      SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
+      TrimL←     { 0=⍺: ⍵ ⋄ 0=≢⍵: ⍵ ⋄ lb←+/∧\' '=↑⍵  ⋄  ⍺<0: ⍵↓⍨¨lb⌊⌊/lb ⋄ ⍵↓⍨¨lb⌊⍺ }   
+      FormatPerOpt← {multi←⍺
+        AddSQ←SQ∘,∘⊢,∘SQ 
+        V∨M: ('↑'/⍨M∧multi) ,¯1↓∊' ',⍨∘AddSQ¨ ⍵ ⋄  S: AddSQ 1↓∊' ',¨⍵ 
+        R∨N: AddSQ ∊{⍺,nlc,⍵}/⍵ ⊣ nlc←SQ,',(⎕UCS ',(⍕R⊃10 13 ),'),',SQ  
+        ∘Unreachable∘  
+      }
+      0=≢⍵: 2⍴SQ
+      multi←1<≢lines←Str2SVs ⍵  ⍝ Don't add parens, if just one line...
+      AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
+}
+⍝ Str2SVs: Ensures a vector of strings.
+⍝       ⍵: Vector of strings or a single flat string with CRs.
+⍝ Note: Ensure split sees                # partitions
+⍝         "abc"         as    abc        1
+⍝         "\rabc "      as   |abc        2
+⍝         "abc\r"       as    abc|       2
+⍝         "abc\r\rdef"  as    abc||def   3
+⍝         "\r\rabc\r\r" as  ||abc||      5
+Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~⍨¨⍵⊂⍨r,q↓p } ⍵}       
+    
+⍝ See iDQPlus (below) and StringFormat above...
+⍝ We add a "spurious" CR_INTERNAL so StringFormat sees leading and trailing bare " on separate lines... 
+⍝ DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }   
+⍝ DQUntweak←{⍵~¨CR_INTERNAL}        
 
   ⍝+-------------------------------------------------+
   ⍝ Other Routines                                   +
@@ -947,18 +956,6 @@
                 ⍝    c) internal quotes doubled    d) ctl chars handled.
                 ⍝ ElseIf rangeV Too many items... Let TO handle at runtime.
                   MAXLENf<≢rangeV: rangeC
-                  RepSimple←{ ⍺←1 ⋄ Q←'''' 
-                      CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. Avoid: p{Cc}.
-                      0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34
-                      str←∊Q,Q,⍨CTLp Q ⎕R { CASE←⍵.PatternNum∘∊
-                          CASE 0: ''',(⎕UCS ','),''',⍨⍕⎕UCS ⍵.Match
-                          CASE 1: 2⍴Q
-                      }⍠('Mode' 'M')('UCP' 1)⊣⊆⍵ 
-                      NullQS←{⍵↓⍨len×qqc≡⍵↑⍨len←⍺×≢qqc←''','''⌽⍨-⍺}  ⍝ qqc: ⍺=1: "'',"  ⍺=¯1: ",''"
-                      str←¯1 NullQS 1 NullQS str
-                      ⍺=0: str 
-                      '(',')',⍨str
-                  }
                   RepSimple rangeV  
               }⍵     
             }
