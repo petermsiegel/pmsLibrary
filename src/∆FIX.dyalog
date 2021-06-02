@@ -10,19 +10,20 @@
   DEBUGf←0                       ⍝ See ::DEBUG [[ON | OFF]]      
   COMPRESSf←0                    ⍝ See ::COMPRESS [[ON | OFF]]
   ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled.
-  MAXLENf←50                     ⍝ See XXX below...
+  MAXLENf←50                     ⍝ See LastScanOut iRange below...
 ⍝  
   (FIXf DEBUGf COMPRESSf MAXLENf)MACROSñ←FIXf DEBUGf COMPRESSf MAXLENf{fdc←⍵
       fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
       b←¯1=fdc←4↑fdc,¯1 ¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
   }⍺
     
-  Say←{DEBUGf: ⎕←⎕FMT ⍵ ⋄ _←⍵} 
-  _←Say 'Options...'
-  _←Say 'FIXf      'FIXf
-  _←Say 'DEBUGf    'DEBUGf
-  _←Say 'COMPRESSf 'COMPRESSf
-  _←Say 'MAXLENf   'MAXLENf
+  _←{ ⍵: ⍬
+      ⎕←⎕FMT 'Options...'
+      ⎕←⎕FMT 'FIXf      'FIXf
+      ⎕←⎕FMT 'DEBUGf    'DEBUGf
+      ⎕←⎕FMT 'COMPRESSf 'COMPRESSf
+    ⊢ ⎕←⎕FMT'MAXLENf   'MAXLENf
+} ~DEBUGf
   
 ⍝  ∆SIG: [EN | 11] ∆SIG Message   OR    [EN | 11] ∆SIG EM Message
   ∆SIG←⎕SIGNAL {⍺←11 ⋄ EM Msg← (2=≢⊆⍵)⊃('∆FIX ERROR' ⍵)⍵ ⋄  ⊂('EN' ⍺)('EM' EM)('Message' Msg)}      
@@ -92,9 +93,9 @@
   ⍝ (⍵ may itself match multiple lines via embedded \r or \01 chars.
   ⍝ A statement boundary is defined herein as matching
   ⍝     \r, \01, ⋄,  the beginning (^) or end ($) of a line as determined by ⎕R 'Mode M'.  
-  ⍝ Note ∆Anchor assumes CASE I, so use (?-i) when case must be respected in pattern matching.    
-    _∆Anchor_L _∆Anchor_R←∆R¨'(?:(?<=[$R⋄])|^)' '(?:[$R⋄]|$)'  
-    ∆Anchor← {'(?xi)',_∆Anchor_L,⍵,_∆Anchor_R }∆R        
+  ⍝ Note ∆Anchor assumes CASE I, so use (?-i) when case must be respected in pattern matching.  
+    anchL anchR←∆R¨'(?:(?<=[$R⋄])|^)' '(?:[$R⋄]|$)'   
+    ∆Anchor← {  '(?xi)',anchL, ⍵, anchR }∆R        
    
   ⍝+--------------------------------------------------+
   ⍝ B. Pattern Defs, MULTIPLE SCANS                   +
@@ -238,19 +239,19 @@
   ⍝ () is treated as (⎕NS ⍬). See also ::DECLARE extensions.
     pNSEmpty← '\(\h*\)'   
   ⍝ ::MACROS - list all macro definitions in the (⎕←...) output. 
-    pMacDump←    ∊'(?i)^\h*'  DDCLNp  'MACROS\b\h*$' 
+    pMacDump←  ∊'(?i)^\h*'  DDCLNp  'MACROS\b\h*$' 
   ⍝ ∉ NOTIN  (see also macro ⎕NOTIN)
-    NOTINch←   '∉'     ⍝ ⎕UCS 8713
+    NOTINch← '∉'              ⍝ ⎕UCS 8713
   ⍝ Under / Dual (⎕SE.⍙⍙.UNDER)
-    UNDERch←'⍢'               ⍝ See UNDER/DUAL, DelDiaeresis, < Abrudz Extended APL 
+    UNDERch← '⍢'              ⍝ See UNDER/DUAL, DelDiaeresis, < Abrudz Extended APL 
   ⍝ OBVERSE (DELTILDE)
-    OBVERSEch←'⍫'             ⍝ See OBVERSE, DELTILDE < Abrudz Extended APL 
+    OBVERSEch← '⍫'            ⍝ See OBVERSE, DELTILDE < Abrudz Extended APL 
   ⍝ BEFORE (JOTUNDERBAR)
-    BEFOREch←'⍛'              ⍝ See BEFORE, JOTUNDERBAR < Abrudx Extended APL
+    BEFOREch← '⍛'             ⍝ See BEFORE, JOTUNDERBAR < Abrudx Extended APL
     pSymbol←    '[',NOTINch,UNDERch,OBVERSEch,BEFOREch,']'   
   ⍝ SYMBOL_MAP: [0] list of symbols; [1] their values (spacing, case: respected)
-    _SMch← NOTINch UNDERch           OBVERSEch         BEFOREch
-    _SMfn← '(~∊)'  ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ' ' ⎕SE.⍙⍙.BEFORE '
+    _SMch← NOTINch   UNDERch           OBVERSEch         BEFOREch
+    _SMfn← '(~∊)'    ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ' ' ⎕SE.⍙⍙.BEFORE '
     SYMBOL_MAP← ↑_SMch _SMfn
   ⍝+---------------------------------------+
   ⍝ Pattern Defs, ATOM SCAN PATTERNS       +  
@@ -945,7 +946,7 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
             ⍝                   "a".."z"..2 ==>  'acegikmoqsuwy'
             ⍝ If there are more than MAXLENf numbers calculated, an expression will be used instead:
             ⍝                (101 ⎕SE.⍙⍙.TO 110 2)
-            ⍝  MAXLENf←50   ⍝ Set at top, but can be specified as ⍺[3] in:  ⍺ ∆FIX ...    
+            ⍝  MAXLENf←...   ⍝ Set at top, but can be specified as ⍺[3] in:  ⍺ ∆FIX ...    
               {
                   L R arg3←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}¨1 2 3 
                   R,←(' '/⍨0≠≢arg3),arg3
@@ -955,8 +956,7 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
                 ⍝    a) numbers converted to char  b) str quoted with single quotes 
                 ⍝    c) internal quotes doubled    d) ctl chars handled.
                 ⍝ ElseIf rangeV Too many items... Let TO handle at runtime.
-                  MAXLENf<≢rangeV: rangeC
-                  RepSimple rangeV  
+                  MAXLENf<≢rangeV: rangeC ⋄ RepSimple rangeV  
               }⍵     
             }
             pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
@@ -1011,6 +1011,6 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
   ⍝ Execute.  ABENDf might be set above to Ff, to avoid a ⎕FIX that might succeed despite directive failures. 
   If: SCAN_INCLUDEt∘Executive LoadLines ⊣ ⍵ 
   _← ↑⍣Vf⊢FIXf CALR.⎕FIX⍣Ff⊣ __←(Ff∧COMPRESSf) Compress (Ef×SCAN_EDITt)∘Executive LoadLines⍣Wf ⊣ ⍵ 
-  ~ABENDf: _ ⋄ #.FIX_LINES←↑__
-  ∆SIG 'Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
+  ~ABENDf: _ 
+  #.FIX_LINES←↑__ ⋄ ∆SIG 'Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
 }
