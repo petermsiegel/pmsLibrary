@@ -5,7 +5,7 @@
             ∘ ⍺, by default:  ⍺←0 0 0
               ⍺[0]
                  2   (default). Fix set of objects in file.
-                'n' (nofix): Show the result of translation without FIXing. Typically ↑'n' ∆FIX 'line1' 'line2' ...
+                'v' (nofix): Show the result of translation without FIXing. Typically ↑'n' ∆FIX 'line1' 'line2' ...
                 'e' (edit): Go into the editor to repeatedly test/modify the sample code and show the results of translation.
                            'e' ∆FIX ⍬, 'e' ∆FIX 'my_file', 'e' ∆FIX 'line1' 'line2' ...
                 ¯1  Set ⍺[0] to 2 (∆FIX: default).
@@ -16,7 +16,9 @@
               ⍺[2]
                  1   COMPRESS←1 (see ::COMPRESS)
                  0   COMPRESS←0 
-  
+              ⍺[3]
+                50   Sets ... MAXLENf, max length of static vectors produced via  nn..mm or "ac".."z".
+                nn   Once exceeded, produces code to generate dynamically via ⎕TO (q.v.).
   Enhancements to ⍵ (content in filename or directly as code) appear below.
 
     Note: \n in schemas below denotes an actual newline character in an input file;
@@ -75,7 +77,10 @@
                          COMPACT is ignored, when an object is displayed, returned, but not FIXed.
        ::MACROS          List all actively defined macros on stdout (⎕←...).
        Format            ⎕F "String {⍪⍵⍵⍴⎕TS} with multiple 2-D {⍳⍵⍵} fields" 3 (2 2)     
-       Range             1 ⎕TO 10 2, 1 3 ⎕TO 10
+       Range             1 ⎕TO 10 2       1 3 ⎕TO 10  
+                         "a" ⎕TO "z" 2   "ac" ⎕TO "z"
+       Static range      1..10..2         1 3..10   (will be converted to dynamic ⎕TO based on ⍺[3]: default 50).
+                         "a".."z" 2       "ac".."z"
        Assert            ⎕ASSERT 2=⍴⍴⍵:                     
        Static NS         my←⎕MY       
        Sink varname      ⎕T 
@@ -366,6 +371,10 @@
                 String 2021 with multiple 2-D  0 0  0 1  fields
                           3                    1 0  1 1        
                          30   
+      ⎕LET,⎕LETUC,⎕LETLC - Valid 1st characters of APL Variable Names. (Add ⎕D for non-initial chars).
+      ⎕LETUC←   'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_'  ⍝ Upper case
+      ⎕LETLC←⎕C 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_'  ⍝ Lower case 
+      ⎕LET←    ∪⎕LETUC ⎕LETLC                                                ⍝ All (no duplicates)
       ⎕TO      Returns a numeric sequence  1 ⎕TO 20 2   or 1 3 ⎕TO 20
       ⎕ASSERT  [errMsg] ⎕ASSERT assertion1 [assertion2...].  Returns shy 0 unless an assertion is true.
       ::DEF    Used in sequence ::IF ::DEF "name"

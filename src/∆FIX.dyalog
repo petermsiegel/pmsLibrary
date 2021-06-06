@@ -1,298 +1,305 @@
 ﻿∆FIX←{
   ⍝ See ∆FIX.help for documentation.
   ⍝     result←  options ∆FIX  [filename:@S | lines:@VS]
-  ⍝ The result is as for ⎕FIX, i.e. names of objects fixed, unless a "nonce" option (extension) is used (q.v.). 
-  ⍝ For internal, recursive calls, ⍺ is a namespace containing defined macros (MACROSñ) used as context for ::INCLUDE statements.
-  ⍝ If seen, the FIXf←'i' (internal call).    
-  ⍝ Note new feature (unused): ⍵(86⌶)'abc'  returns value of object 'abc' at different stack levels: 0=current  
+  ⍝ For "user" calls, ∆FIX must have ⍺[0] option
+  ⍝     i) 0, 1, 2 to initiate a ⎕FIX call after ∆FIX processing.
+  ⍝    ii) 'v': return the resulting code as a matrix (mixed) format, without ⎕FIXing.
+  ⍝   iii) 'e': enter edit mode (DEPRECATED).
+  ⍝ For "internal" calls, we specify ⍺ as a namespace, which then passes on 'i' as the internal option.
+  ⍝     This is used to pass on the internal macro dictionary to recursive calls...
+  ⍝   
+  ⍝ Note new feature (unused here): ⍵(86⌶)'abc'  returns value of object 'abc' at different stack levels: 0=current  
+
+  ⍝ KEY FLAGS: DEFAULTS
   ⍺←0
   FIXf←2                         ⍝ Default:  2 ∆FIX object. If ⍺ is missing, default is 0 ∆FIX object, as for ⎕FIX.
   DEBUGf←0                       ⍝ See ::DEBUG [[ON | OFF]]      
   COMPRESSf←0                    ⍝ See ::COMPRESS [[ON | OFF]]
   ABENDf←0                       ⍝ If a directive error is detected, this is set to 1 if and only if a ⎕FIX is scheduled.
   MAXLENf←50                     ⍝ See LastScanOut iRange below...
-⍝  
-  (FIXf DEBUGf COMPRESSf MAXLENf)MACROSñ←FIXf DEBUGf COMPRESSf MAXLENf{fdc←⍵
-      fdc m←{9=⎕NC '⍵': 'i' ⍵  ⋄ m←⍎'MACROSñ'⎕NS '' ⋄  m.(K←V←⍬) ⋄ ⍵ m }fdc
-      b←¯1=fdc←4↑fdc,¯1 ¯1 ¯1 ¯1 ⋄ (b/fdc)←b/⍺ ⋄ fdc m  
-  }⍺
-    
+⍝ KEY FLAGS: MODIFIED BASED ON options ⍺
+⍝ ⍺[0] determines FIXF and MACROSñ, ⍺[1] DEBUGf, ⍺[2] COMPRESSf, ⍺[3] MAXLENf
+  (FIXf DEBUGf COMPRESSf MAXLENf)MACROSñ←FIXf DEBUGf COMPRESSf MAXLENf{fdcm←⍵
+      fdcm ns←{9=⎕NC '⍵': 'i' ⍵  ⋄ ns←⍎'MACROSñ'⎕NS '' ⋄  ns.(K←V←⍬) ⋄ ⍵ ns }fdcm
+      b←¯1=fdcm←4↑fdcm,¯1 ¯1 ¯1 ¯1 ⋄ (b/fdcm)←b/⍺ ⋄ fdcm ns  
+  }⍺  
   _←{ ⍵: ⍬
       ⎕←⎕FMT 'Options...'
       ⎕←⎕FMT 'FIXf      'FIXf
       ⎕←⎕FMT 'DEBUGf    'DEBUGf
       ⎕←⎕FMT 'COMPRESSf 'COMPRESSf
-    ⊢ ⎕←⎕FMT'MAXLENf   'MAXLENf
-} ~DEBUGf
+    ⊢ ⎕←⎕FMT 'MAXLENf   'MAXLENf
+} ~DEBUGf 
+⍝ ERROR HANDLING: ∆ERR
+⍝  ∆ERR: [EN | 11] ∆ERR Message   OR    [EN | 11] ∆ERR EM Message
+  ∆ERR←⎕SIGNAL {⍺←11 ⋄ EM Msg← (2=≢⊆⍵)⊃('∆FIX ERROR' ⍵)⍵ ⋄  ⊂('EN' ⍺)('EM' EM)('Message' Msg)} 
+⍝ VALIDATE KEY FLAGS      
+  2.1∨.≠MACROSñ.⎕NC,¨'KV':  ∆ERR'Macro namespace invalid: "','"',⍨⍕MACROSñ
+  FIXf(~∊)0 1 2,'eiv':      ∆ERR'Invalid option: "','"',⍨⍕FIXf
+⍝ +--------------------------------------------------+
+⍝ |    CONSTANTS                                     |
+⍝ +-------------------------------------------- -----+
+  ⎕IO ⎕ML←0 1  
+  CR←⎕UCS 13
+⍝ ⎕SE.⍙⍙: Top level contains ∆FIX Library. 
+⍝ Ensure this NS (directory) exists. Other sublibraries may exist.
+  _←'⎕SE.⍙⍙' ⎕NS ''
+⍝ Major scan types...
+  SCAN_INCLUDEt SCAN_EDITt SCAN_FULLt←2 1 0
+⍝ Prefix for any user-visible variable...
+  FIX_PFX←'__'  
+⍝ See pSink←. 
+  SINK_NAME←FIX_PFX,'tmp'
+⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
+⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUGf.
+  SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈'  
+  CALR←0⊃⎕RSI
+  reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
+  0/⍨~DEBUGf::  ⎕SIGNAL/'Unexpected error' 11⊣⎕←↑⎕DMX.DM
+  0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
+⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
+⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
+    DDCLNp ← '(?<!:)::(?!:)'
+⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
+⍝    At end of processing: ⍝\0F ==> ''     ⍝\0E ==> ''
+  SPECIAL_COM SPECIAL_COM2←∊¨(⊂'⍝',NUL),¨'F' 'E'  
+⍝ SetABENDf:  Sets ABENDf←Ff. If DEBUGf, shows ⍵ to right; on stdout, if DEBUGf.
+⍝    Syntax:  ∇ msg1 msg2 [msg3 msg4] 
+⍝    Returns: msg2,⍺,msg2 [CR,msg3,CR,msg4]  
+⍝    msg2 is prefixed by SPECIAL_COM2, which treats it as unanalyzable code going forward.
+  SetABENDf←SPECIAL_COM2∘{ ABENDf∘←Ff  ⋄ (⊃⍵),⍺,∊¯1↓⊃,/(1↓⍵),¨⊂⊂CR} 
+  pSpecCom←'⍝\x00\N*\r'
+⍝ Case 1: Remove '⍝\0Fc ', where c is any char (actually only a few expected)
+⍝ Case 2: Remove '⍝\0E' exactly
+  pSpecComKludge←'⍝\x00(F\N\h|E)'    ⍝ See LastScanOut: very kludgey...
+⍝ ∆WARN: Warning are emitted as msgs only if DEBUGf is active or ⍺=1. Else NOP.
+  ∆WARN←{⍺←1 ⋄ ⍺∧DEBUGf: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
+  ∆ASSERT←{⍺←'ASSERTION FAILED' ⋄  ⍵: 0 ⋄ ⍺ ⎕SIGNAL 911}
+⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
+⍝ Add CR to last line to make Regex patterns simpler...
+  LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
+⍝ See ControlScan/PassState, MainScan/pHereNF
+  IN_SKIP←0
+⍝ +-------------------------------------------------+
+⍝ | Patterns                                        +
+⍝ |   - Utilities                                   +
+⍝ |   - Definitions, organized by scan type         +
+⍝+--------------------------------------------------+
+⍝ A. Pattern-related Utilities                         +
+⍝+--------------------------------------------------+
+  GenBracePat←{⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
+        Lb Rb←⍵,⍨¨⊂'\\'                     
+        pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
+        'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
+  }
+⍝ ∆R ⍵:   Allows pattern ⍵ to use $R to match \r and \01, our faux carriage return. 
+⍝         Note: PCRE's \R matches any std newline, not \01.
+  ∆R←      {'\$R' ⎕R '\\r\\x01'⊣∊⍵ }          
+⍝ ∆Anchor ⍵: Ensures single pattern ⍵ is matched only if it is preceded and followed by statement boundaries
+⍝ (⍵ may itself match multiple lines via embedded \r or \01 chars.
+⍝ A statement boundary is defined herein as matching
+⍝     \r, \01, ⋄,  the beginning (^) or end ($) of a line as determined by ⎕R 'Mode M'.  
+⍝ Note ∆Anchor assumes CASE I, so use (?-i) when case must be respected in pattern matching.  
+  anchL anchR←∆R¨'(?:(?<=[$R⋄])|^)' '(?:[$R⋄]|$)'   
+  ∆Anchor← {  '(?xi)',anchL, ⍵, anchR }∆R        
   
-⍝  ∆SIG: [EN | 11] ∆SIG Message   OR    [EN | 11] ∆SIG EM Message
-  ∆SIG←⎕SIGNAL {⍺←11 ⋄ EM Msg← (2=≢⊆⍵)⊃('∆FIX ERROR' ⍵)⍵ ⋄  ⊂('EN' ⍺)('EM' EM)('Message' Msg)}      
-  2.1∨.≠MACROSñ.⎕NC,¨'KV':  ∆SIG'Macro namespace invalid: "','"',⍨⍕MACROSñ
-  FIXf(~∊)0 1 2,'eiv':      ∆SIG'Invalid option: "','"',⍨⍕FIXf
-  
-  ⍝ +--------------------------------------------------+
-  ⍝ |    CONSTANTS                                     |
-  ⍝ +-------------------------------------------- -----+
-    ⎕IO ⎕ML←0 1  
-    CR←⎕UCS 13
-  ⍝ ⎕SE.⍙⍙: Top level contains ∆FIX Library. Other libraries may exist.
-  ⍝ Ensure this NS (directory) exists.
-    _←'⎕SE.⍙⍙' ⎕NS ''
-  ⍝ Major scan types...
-    SCAN_INCLUDEt SCAN_EDITt SCAN_FULLt←2 1 0
-  ⍝ Prefix for any user-visible variable...
-    FIX_PFX←'__'  
-  ⍝ See pSink←. 
-    SINK_NAME←FIX_PFX,'tmp'
-  ⍝ For CR_INTERNAL, see also \x01 in Pattern Defs (below). Used in DQ sequences and for CRs separating DFN lines.
-  ⍝ CR_VISIBLE is a display version of a CR_INTERNAL when displaying preprocessor control statements e.g. via ::DEBUGf.
-    SQ DQ←'''"' ⋄ NL CR NUL CR_INTERNAL←⎕UCS 10 13 00 01 ⋄  CR_VISIBLE←'◈'  
-    CALR←0⊃⎕RSI
-    reOPTS←('Mode' 'M')('DotAll' 1)('EOL' 'CR')('UCP' 1)
-    0/⍨~DEBUGf::  ⎕SIGNAL/'Unexpected error' 11⊣⎕←↑⎕DMX.DM
-    0/⍨~DEBUGf::  ⎕SIGNAL ⊂⎕DMX.(('EN' EN) ('EM' EM)('Message' Message)('OSError' OSError)) 
-  ⍝  DDCLNp  "Directive Double Colons pat":  '::directive' | ':: directive'  
-  ⍝  Note: We reject spacing between :: and  directives-- in case used in DFNs.
-     DDCLNp ← '(?<!:)::(?!:)'
-  ⍝ Prefix for comments emitted internally for code or directives on deactivated paths.
-  ⍝    At end of processing: ⍝\0F ==> ''     ⍝\0E ==> ''
-    SPECIAL_COM SPECIAL_COM2←∊¨(⊂'⍝',NUL),¨'F' 'E'  
-  ⍝ SetABENDf:  Sets ABENDf←Ff. If DEBUGf, shows ⍵ to right; on stdout, if DEBUGf.
-  ⍝    Syntax:  ∇ msg1 msg2 [msg3 msg4] 
-  ⍝    Returns: msg2,⍺,msg2 [CR,msg3,CR,msg4]  
-  ⍝    msg2 is prefixed by SPECIAL_COM2, which treats it as unanalyzable code going forward.
-    SetABENDf←SPECIAL_COM2∘{ ABENDf∘←Ff  ⋄ (⊃⍵),⍺,∊¯1↓⊃,/(1↓⍵),¨⊂⊂CR} 
-    pSpecCom←'⍝\x00\N*\r'
-  ⍝ Case 1: Remove '⍝\0Fc ', where c is any char (actually only a few expected)
-  ⍝ Case 2: Remove '⍝\0E' exactly
-    pSpecComKludge←'⍝\x00(F\N\h|E)'    ⍝ See LastScanOut: very kludgey...
-  ⍝ ∆WARN: Warning are emitted as msgs only if DEBUGf is active or ⍺=1. Else NOP.
-    ∆WARN←{⍺←1 ⋄ ⍺∧DEBUGf: ''⊣⎕←'∆FIX WARNING: ',⍵ ⋄ 1: ''}
-    ∆ASSERT←{⍺←'ASSERTION FAILED' ⋄  ⍵: 0 ⋄ ⍺ ⎕SIGNAL 911}
-  ⍝ Per ⎕FIX, a single vector is the name of a file to be read. We tolerate missing 'file://' prefix.
-  ⍝ Add CR to last line to make Regex patterns simpler...
-    LoadLines←'file://'∘{ 1<|≡⍵: ⍵ ⋄ ⊃⎕NGET fn 1 ⊣ fn←⍵↓⍨n×⍺≡⍵↑⍨n←≢⍺ }
-  ⍝ See ControlScan/PassState, MainScan/pHereNF
-    IN_SKIP←0
-  ⍝ +-------------------------------------------------+
-  ⍝ | Patterns                                        +
-  ⍝ |   - Utilities                                   +
-  ⍝ |   - Definitions, organized by scan type         +
-  ⍝+--------------------------------------------------+
-  ⍝ A. Pattern-related Utilities                         +
-  ⍝+--------------------------------------------------+
-    GenBracePat←{⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
-          Lb Rb←⍵,⍨¨⊂'\\'                     
-          pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\R | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
-          'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
-    }
-  ⍝ ∆R ⍵:   Allows pattern ⍵ to use $R to match \r and \01, our faux carriage return. 
-  ⍝         Note: PCRE's \R matches any std newline, not \01.
-    ∆R←      {'\$R' ⎕R '\\r\\x01'⊣∊⍵ }          
-  ⍝ ∆Anchor ⍵: Ensures single pattern ⍵ is matched only if it is preceded and followed by statement boundaries
-  ⍝ (⍵ may itself match multiple lines via embedded \r or \01 chars.
-  ⍝ A statement boundary is defined herein as matching
-  ⍝     \r, \01, ⋄,  the beginning (^) or end ($) of a line as determined by ⎕R 'Mode M'.  
-  ⍝ Note ∆Anchor assumes CASE I, so use (?-i) when case must be respected in pattern matching.  
-    anchL anchR←∆R¨'(?:(?<=[$R⋄])|^)' '(?:[$R⋄]|$)'   
-    ∆Anchor← {  '(?xi)',anchL, ⍵, anchR }∆R        
-   
-  ⍝+--------------------------------------------------+
-  ⍝ B. Pattern Defs, MULTIPLE SCANS                   +
-  ⍝+--------------------------------------------------+
-    pDotsNC←∆R'(?:\.{2,3}|…)\h*[$R⋄]\h*'
-    pDotsC←     ∆R'(?:\.{2,3}|…)\h*(⍝[^$R⋄]*)?[$R⋄]\h*'  ⍝ DotsC: Matches continuation chars at end of poss. commented lines.
-    pDQ←         '(?:"[^"]*")+'              ⍝ DQ:  "..."
-    pDAQ←        '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ DAQ: Double Angled Quotes = Guillemets  « »
-    pSQ←         '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
-    pAllQ←    pDQ,'|',pSQ,'|',pDAQ           ⍝ For Triple Quotes (not matched here), see pTrpQ below.
-    pCom←     ∆R'⍝[^$R]*$'                   ⍝ Comments even at end of internal "line" ending with \01.
-    pDFn←       GenBracePat '{}'
-    pParen←     GenBracePat '()' 
-    pBrack←     GenBracePat '[]'
-    pAllBr←   '(?:' pDFn '|' pParen '|' pBrack ')'
-  ⍝+--------------------------------------------------+
-  ⍝ C.Pattern Defs, CONTROL SCANS                     +
-  ⍝+--------------------------------------------------+
-  ⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
-  ⍝ These are required to match a SINGLE line each in its entirety OR a line continued implicitly or explicitly (via dot format).
-  ⍝ BUG: Does not allow continuation via parens, braces, double quotes, etc.
+⍝+--------------------------------------------------+
+⍝ B. Pattern Defs, MULTIPLE SCANS                   +
+⍝+--------------------------------------------------+
+  pDotsNC←∆R'(?:\.{2,3}|…)\h*[$R⋄]\h*'
+  pDotsC←     ∆R'(?:\.{2,3}|…)\h*(⍝[^$R⋄]*)?[$R⋄]\h*'  ⍝ DotsC: Matches continuation chars at end of poss. commented lines.
+  pDQ←         '(?:"[^"]*")+'              ⍝ DQ:  "..."
+  pDAQ←        '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ DAQ: Double Angled Quotes = Guillemets  « »
+  pSQ←         '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
+  pAllQ←    pDQ,'|',pSQ,'|',pDAQ           ⍝ For Triple Quotes (not matched here), see pTrpQ below.
+  pCom←     ∆R'⍝[^$R]*$'                   ⍝ Comments even at end of internal "line" ending with \01.
+  pDFn←       GenBracePat '{}'
+  pParen←     GenBracePat '()' 
+  pBrack←     GenBracePat '[]'
+  pAllBr←   '(?:' pDFn '|' pParen '|' pBrack ')'
+⍝+--------------------------------------------------+
+⍝ C.Pattern Defs, CONTROL SCANS                     +
+⍝+--------------------------------------------------+
+⍝ ControlScan: Process ONLY ::IF, ::ELSEIF, ::ELSE, ::ENDIF, ::DEF, ::DEFL, and ::EVAL statements
+⍝ These are required to match a SINGLE line each in its entirety OR a line continued implicitly or explicitly (via dot format).
+⍝ BUG: Does not allow continuation via parens, braces, double quotes, etc.
 
-  ⍝ pCrFamily, actionCrFamily: 
-  ⍝ Handle multi-line dfns and (quoted) strings within ::directives. 
-  ⍝ See $R and ∆R above.
-  ⍝ CR_VISIBLE (◈) is a visible rendering of \r and \01 for display purposes only, e.g. in comments and debugging.
-     pCrFamily← ∆R¨'[$R]\z'  '[$R]'  ⋄ actionCrFamily←  '\0' CR_VISIBLE
- 
-  ⍝ +------------------------------------------------+
-  ⍝   Handle multiline enclosures, 
-  ⍝     i.e. sequences starting with { ( or [ (
-  ⍝     and ending 0 or more lines later with } ) ].
-  ⍝   pEnclosNC - Enclosure w/o comments allowed
-  ⍝   pEnclosC  - Enclosure w/ internal comments allowed
-  ⍝ +-------------------------------------------------+
-    pEnclosNC← ∆R  '(?x) (?<NOC> (?> [^\{[(⍝''"«$R]+ |' pAllQ '|' pAllBr          ') (?&NOC)*)'
-    pEnclosC←  ∆R  '(?x) (?<ANY> (?> [^\{[(⍝''"«$R]+ |' pAllQ '|' pAllBr '|' pCom ') (?&ANY)*)'
-  ⍝ +-----------------------------------------+
-  ⍝ + ::If, ::ElseIf, ::Else, ::EndIf         +
-  ⍝ +-----------------------------------------+
-    pIf←      ∆Anchor'\h* '  DDCLNp  'IF         \b \h* (\N+) '
-    pElseIf←  ∆Anchor'\h* '  DDCLNp  'ELSEIF     \b \h* (\N+) '
-    pElse←    ∆Anchor'\h* '  DDCLNp  'ELSE       \b      \h*  '
-    pEndIf←   ∆Anchor'\h* '  DDCLNp  'END(?:IF)? \b      \h*  '
-  ⍝ +-------------------------------------------------------------------+
-  ⍝ + ::DEF, ::DEFL, ::DEFE/EVAL                                        +
-  ⍝ +        ::DEF aplName← code      Case I                            +
-  ⍝ +        ::DEF aplName            Case II
-  ⍝ + ::DEF  Definition may go across multiple lines (via pEnclosNC),   +
-  ⍝ +        and ends before any comment. 
-  ⍝ +        CASE I:  The code value will be placed in parens.
-  ⍝ +        CASE II: Deletes macro entry for aplName; equivalently,
-  ⍝ +                 sets value for aplName to aplName (w/o parens).
-  ⍝ + ::DEFL Definition is like ::DEF, 
-  ⍝ +        but the "code" sequence is stored literally:
-  ⍝ +        - blanks between the ← and the value are significant.
-  ⍝ +        - trailing comments and/or spaces are maintained.
-  ⍝ + ::DEFE or ::EVAL
-  ⍝ +        Like ::DEF, except evaluates the code once, via CALR⍎code, +
-  ⍝ +        and uses those results as the macro value.                 +
-  ⍝ +-------------------------------------------------------------------+
-    pDef1←         ∆Anchor'\h* '  DDCLNp  'def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (' pEnclosNC '+|) \N* ' 
-    pDefL←         ∆Anchor'\h* '  DDCLNp  'defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ←  (' pEnclosC '|) '  
-    pEvl←          ∆Anchor'\h* '  DDCLNp  '(?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (' pEnclosNC '+|) \N* '  
-    pDef2←         ∆Anchor'\h* '  DDCLNp  '(?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
-    pDefWarn←      '(?xi) (?<!:) ((?: : | :: \h+)  (?: def[el]?|eval|fn|op|fix|stat(?:ic)?|decl(?:are)?|incl(?:ude)?|debug|compress)\b \N*)(\r?)'
-  
-  ⍝ ::STATic  name←  value
-  ⍝ ::DECLare name←  value
-  ⍝ See  https://www.dyalog.com/uploads/conference/dyalog20/presentations/D09_Array_Notation_RC1.pdf
-    pStatic←       ∆Anchor'\h* '  DDCLNp  '(?>stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
-    pDeclare←      ∆Anchor'\h* '  DDCLNp  '(?>decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
-  ⍝ ::INCLUDE filename1 filename2 ...
-    pInclude←      ∆Anchor'\h* '  DDCLNp  '(?>incl(?:ude)?) \h+ (    [^$R⋄⍝]*  )  (?:⍝ [^$R⋄]* )?'   
-  ⍝ ::DEBUG, ::COMPRESS
-  ⍝ ::]user_command 
-  ⍝ ::]var←user_command
-    pDebug←       ∆Anchor'\h* '  DDCLNp  'debug    \h* \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
-    pCompress←    ∆Anchor'\h* '  DDCLNp  'compress \h* \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
-    pUCmdC←       ∆Anchor'\h* '  DDCLNp  '\h*(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
-  ⍝ pOther: Matches other code segments
-    pOther←       ∆R     '(?=[$R]|^)(?!\h*::)'              
-  
-  ⍝+-------------------------------------+
-  ⍝ D. Pattern Defs, MAIN SCAN PATTERNS  +  
-  ⍝+-------------------------------------+
-    pSysDef← ∆Anchor '^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
-    pUCmd←           '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
-  ⍝ """Triple Quote Strings"""[a-z]*
-  ⍝ Triple Quote lines are of this format, optionally preceded by arbitrary code: 
-  ⍝    """              ⍝ Opening """ must be last non-blank items on the line
-  ⍝      line1          ⍝ lines must not start with \h*""" 
-  ⍝      line2...       ⍝ """ may otherwise appear within lines. No escape sequence exists.
-  ⍝    """[a-z]*        ⍝ Closing """ must be first non-blank item on line to be recognized.
-  ⍝
-    pTrpQ←        ∊'(?xi) """ (?| \h*\R (.*?) \R (\h*) """ ([a-z]*) | )'   
-  ⍝ "Double Quote Strings"[a-z]*     
-  ⍝ «Guillemet Quotes»[a-z]*
-  ⍝    Both treated identically, allowing multi-line strings (internal comment symbols are text).
-  ⍝    Escapes: "" and »» respectively.
-    pDQPlus←      ∊'(?xi) (' pDQ ') ([a-z]*)'
-    pDAQPlus←     ∊'(?xi) (' pDAQ') ([a-z]*)'      ⍝ DAQ: Guillemet Quotes! « »
-    pWord←        '[\w∆⍙_#.⎕]+'
-    pPtr←         ∊'(?ix) \$ \h* (' pParen '|' pDFn '|' pWord ')'
-  ⍝ ::: Here strings 
-  ⍝ ::: ⍝ Here comments 
-  ⍝ Format:
-  ⍝    var ← ::: Token         ::: ⍝ Doc
-  ⍝        lines                   lines
-  ⍝    [:]EndToken[:]        [⍝][:] EndDoc[:]
-  ⍝
-    _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
-    pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
-    pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
-    pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'     
-  ⍝ pHereNF -  The matching string EndXXX not found
-  ⍝ pHereNF:   F1 - 1st line matched, F2- name of directive, F3 - "string" to match, F4 - following lines
-    pHereNF←∊'(?ix) (  (::: | 'DDCLNp' (?:fn|op|fix) \b ) \h* ([^\h\r]*)\N*\r) (.*)'
-  ⍝                 1  2                               -2     3       -3    -1 4 -4
+⍝ pCrFamily, actionCrFamily: 
+⍝ Handle multi-line dfns and (quoted) strings within ::directives. 
+⍝ See $R and ∆R above.
+⍝ CR_VISIBLE (◈) is a visible rendering of \r and \01 for display purposes only, e.g. in comments and debugging.
+  pCrFamily← ∆R¨'[$R]\z'  '[$R]'  ⋄ actionCrFamily←  '\0' CR_VISIBLE
 
-  ⍝ Number spacers (_), hex, octal, and binary numbers
-  ⍝   Valid for simple integers only.
-  ⍝   Hex numbers must start with a digit in \d (⎕D).
-  ⍝     123_456 => 123456     hex: 123x 0FFX   octal: 177o 771O   binary: 010010b 
-    pNumBase←     '(?xi) ¯?0 [box] [\w_]+ (?>\.[\w_]+)?'    ⍝ Use ¯ \w to trap invalid non-decimal numbers
-    pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\w+ ) )  (j (?1))?'
-  ⍝ ← sink
-  ⍝   Allows expressions of form  ←code, automatically provided a "sink" temporary variable name.
-  ⍝   Valid in dfns or tradfns.
-    pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
- 
-  ⍝ pMacro: matches any valid name, including qualified names (one.two), system names,
-  ⍝         plus extensions :name, ::name, :one.two, ::one.two
-    pMacro←       { 
-      ⍝ Matches:  ⎕X012  #.X012 ::X012 or  A.B.⎕X012, ⎕X012.A.B etc. Trailing '.' is not included!    
-      ⍝ APL variable name initial letters: 
-      ⍝     [ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_] ==>  [A-ZÀ-ÖØ-Ü∆⍙_]
-        _AplName← '(?<APLNAME> (?: ⎕|::?)? [A-ZÀ-ÖØ-Ü∆⍙_] [\dA-ZÀ-ÖØ-Ü∆⍙_]* | \#{1,2} )'  
-        ∊_pMac←'(?xi)(' _AplName ' ((\.(?&APLNAME))*))'   ⍝ OK: ::NAME, ⎕NAME, ]NAME
-    }⍬
-  ⍝ () is treated as (⎕NS ⍬). See also ::DECLARE extensions.
-    pNSEmpty← '\(\h*\)'   
-  ⍝ ::MACROS - list all macro definitions in the (⎕←...) output. 
-    pMacDump←  ∊'(?i)^\h*'  DDCLNp  'MACROS\b\h*$' 
-  ⍝ ∉ NOTIN  (see also macro ⎕NOTIN)
-    NOTINch← '∉'              ⍝ ⎕UCS 8713
-  ⍝ Under / Dual (⎕SE.⍙⍙.UNDER)
-    UNDERch← '⍢'              ⍝ See UNDER/DUAL, DelDiaeresis, < Abrudz Extended APL 
-  ⍝ OBVERSE (DELTILDE)
-    OBVERSEch← '⍫'            ⍝ See OBVERSE, DELTILDE < Abrudz Extended APL 
-  ⍝ BEFORE (JOTUNDERBAR)
-    BEFOREch← '⍛'             ⍝ See BEFORE, JOTUNDERBAR < Abrudx Extended APL
-    pSymbol←    '[',NOTINch,UNDERch,OBVERSEch,BEFOREch,']'   
-  ⍝ SYMBOL_MAP: [0] list of symbols; [1] their values (spacing, case: respected)
-    _SMch← NOTINch   UNDERch           OBVERSEch         BEFOREch
-    _SMfn← '(~∊)'    ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ' ' ⎕SE.⍙⍙.BEFORE '
-    SYMBOL_MAP← ↑_SMch _SMfn
-  ⍝+---------------------------------------+
-  ⍝ Pattern Defs, ATOM SCAN PATTERNS       +  
-  ⍝    See ∆FIX.HELP for details.          ÷
-  ⍝+---------------------------------------+                            
-    pAtomList←     ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ )'     
-    pAtomsArrow←   ∊'(?x) ( (?> ' pSQ ' \h* | [\w∆⍙_#\.⎕¯]+  \h*  )+ ) (→{1,2}) '          
-  ⍝+--------------------------------------------------+
-  ⍝ END Pattern Definitions                           +
-  ⍝+--------------------------------------------------+
+⍝ +------------------------------------------------+
+⍝   Handle multiline enclosures, 
+⍝     i.e. sequences starting with { ( or [ (
+⍝     and ending 0 or more lines later with } ) ].
+⍝   pEnclosNC - Enclosure w/o comments allowed
+⍝   pEnclosC  - Enclosure w/ internal comments allowed
+⍝ +-------------------------------------------------+
+  pEnclosNC← ∆R  '(?x) (?<NOC> (?> [^\{[(⍝''"«$R]+ |' pAllQ '|' pAllBr          ') (?&NOC)*)'
+  pEnclosC←  ∆R  '(?x) (?<ANY> (?> [^\{[(⍝''"«$R]+ |' pAllQ '|' pAllBr '|' pCom ') (?&ANY)*)'
+⍝ +-----------------------------------------+
+⍝ + ::If, ::ElseIf, ::Else, ::EndIf         +
+⍝ +-----------------------------------------+
+  pIf←      ∆Anchor'\h* '  DDCLNp  'IF         \b \h* (\N+) '
+  pElseIf←  ∆Anchor'\h* '  DDCLNp  'ELSEIF     \b \h* (\N+) '
+  pElse←    ∆Anchor'\h* '  DDCLNp  'ELSE       \b      \h*  '
+  pEndIf←   ∆Anchor'\h* '  DDCLNp  'END(?:IF)? \b      \h*  '
+⍝ +-------------------------------------------------------------------+
+⍝ + ::DEF, ::DEFL, ::DEFE/EVAL                                        +
+⍝ +        ::DEF aplName← code      Case I                            +
+⍝ +        ::DEF aplName            Case II
+⍝ + ::DEF  Definition may go across multiple lines (via pEnclosNC),   +
+⍝ +        and ends before any comment. 
+⍝ +        CASE I:  The code value will be placed in parens.
+⍝ +        CASE II: Deletes macro entry for aplName; equivalently,
+⍝ +                 sets value for aplName to aplName (w/o parens).
+⍝ + ::DEFL Definition is like ::DEF, 
+⍝ +        but the "code" sequence is stored literally:
+⍝ +        - blanks between the ← and the value are significant.
+⍝ +        - trailing comments and/or spaces are maintained.
+⍝ + ::DEFE or ::EVAL
+⍝ +        Like ::DEF, except evaluates the code once, via CALR⍎code, +
+⍝ +        and uses those results as the macro value.                 +
+⍝ +-------------------------------------------------------------------+
+  pDef1←         ∆Anchor'\h* '  DDCLNp  'def  \h+ ((?>[\w∆⍙#.⎕]+)) \h* ← \h*  (' pEnclosNC '+|) \N* ' 
+  pDefL←         ∆Anchor'\h* '  DDCLNp  'defl \h+ ((?>[\w∆⍙#.⎕]+)) \h* ←  (' pEnclosC '|) '  
+  pEvl←          ∆Anchor'\h* '  DDCLNp  '(?:eval|defe)  \h+ ((?>[\w∆⍙#.⎕]+))    \h* ← \h? (' pEnclosNC '+|) \N* '  
+  pDef2←         ∆Anchor'\h* '  DDCLNp  '(?:def) \h+ ((?>[^\h←\r]+)) \h*? ( [^\h\r]* )'
+  pDefWarn←      '(?xi) (?<!:) ((?: : | :: \h+)  (?: def[el]?|eval|fn|op|fix|stat(?:ic)?|decl(?:are)?|incl(?:ude)?|debug|compress)\b \N*)(\r?)'
+⍝
+⍝ ::STATic  name←  value
+⍝ ::DECLare name←  value
+⍝ See  https://www.dyalog.com/uploads/conference/dyalog20/presentations/D09_Array_Notation_RC1.pdf
+  pStatic←       ∆Anchor'\h* '  DDCLNp  '(?>stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
+  pDeclare←      ∆Anchor'\h* '  DDCLNp  '(?>decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
+⍝ ::INCLUDE filename1 filename2 ...
+  pInclude←      ∆Anchor'\h* '  DDCLNp  '(?>incl(?:ude)?) \h+ (    [^$R⋄⍝]*  )  (?:⍝ [^$R⋄]* )?'   
+⍝ ::DEBUG, ::COMPRESS
+⍝ ::]user_command 
+⍝ ::]var←user_command
+  pDebug←       ∆Anchor'\h* '  DDCLNp  'debug    \h* \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
+  pCompress←    ∆Anchor'\h* '  DDCLNp  'compress \h* \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
+  pUCmdC←       ∆Anchor'\h* '  DDCLNp  '\h*(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
+⍝ pOther: Matches other code segments
+  pOther←       ∆R     '(?=[$R]|^)(?!\h*::)'              
+⍝
+⍝+-------------------------------------+
+⍝ D. Pattern Defs, MAIN SCAN PATTERNS  +  
+⍝+-------------------------------------+
+  pSysDef← ∆Anchor '^::SysDefø \h ([^←]+?) ← (\N*)'   ⍝ Internal Def simple here-- note spelling
+  pUCmd←           '^\h*(\]{1,2})\h*(\N+)$'                    ⍝ ]user_commands or  ]var←user_commands
+⍝ """Triple Quote Strings"""[a-z]*
+⍝ Triple Quote lines are of this format, optionally preceded by arbitrary code: 
+⍝    """              ⍝ Opening """ must be last non-blank items on the line
+⍝      line1          ⍝ lines must not start with \h*""" 
+⍝      line2...       ⍝ """ may otherwise appear within lines. No escape sequence exists.
+⍝    """[a-z]*        ⍝ Closing """ must be first non-blank item on line to be recognized.
+⍝
+  pTrpQ←        ∊'(?xi) """ (?| \h*\R (.*?) \R (\h*) """ ([a-z]*) | )'   
+⍝ "Double Quote Strings"[a-z]*     
+⍝ «Guillemet Quotes»[a-z]*
+⍝    Both treated identically, allowing multi-line strings (internal comment symbols are text).
+⍝    Escapes: "" and »» respectively.
+  pDQPlus←      ∊'(?xi) (' pDQ ') ([a-z]*)'
+  pDAQPlus←     ∊'(?xi) (' pDAQ') ([a-z]*)'      ⍝ DAQ: Guillemet Quotes! « »
+  pWord←        '[\w∆⍙_#.⎕]+'
+  pPtr←         ∊'(?ix) \$ \h* (' pParen '|' pDFn '|' pWord ')'
+⍝ ::: Here strings 
+⍝ ::: ⍝ Here comments 
+⍝ Format:
+⍝    var ← ::: Token         ::: ⍝ Doc
+⍝        lines                   lines
+⍝    [:]EndToken[:]        [⍝][:] EndDoc[:]
+⍝
+  _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \R ( .*? ) \R ( \h* )'
+  pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
+  pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
+  pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'     
+⍝ pHereNF -  The matching string EndXXX not found
+⍝ pHereNF:   F1 - 1st line matched, F2- name of directive, F3 - "string" to match, F4 - following lines
+  pHereNF←∊'(?ix) (  (::: | 'DDCLNp' (?:fn|op|fix) \b ) \h* ([^\h\r]*)\N*\r) (.*)'
+⍝                 1  2                               -2     3       -3    -1 4 -4
 
-  ⍝+--------------------------------------------------+
-  ⍝ Utilities, Miscellaneous                          +
-  ⍝+--------------------------------------------------+
-    DTB←  ⊢↓⍨ -∘ (+/∘  (∧\ ⍤⌽⍤ =∘' ' ))      ⍝ Delete trailing blanks from one line. Tacit can be obscure...
-    DLB←  ⊢↓⍨     +/∘  (∧\     =∘' ' )       ⍝ Delete leading blanks...
-    AddPar← {'(',⍵,')'}
-    DblSQ←  {⍺←0 ⋄ s←⍵/⍨1+⍵=SQ ⋄ ⍺=0: s ⋄ SQ,s,SQ }  ⍝ Double single quotes. If ⍺=1, add outer quotes.
-  ⍝ UnDQ_DAQ: Remove DQs (double quotes) or DAQs (double alternate quotes: angled quotes « » )
-  ⍝   Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
-    UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': ∆SIG'UnDQ_DAQ Logic Error'  
-          s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
-    }   
-  ⍝ ∆DEC: 
-  ⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137, with suffixes [boxBOX], converting to decimal.
-  ⍝ Converts up to 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF (28 hex digits) as integer strings.
-  ⍝ Returns right arg (⍵) AS IS [w/o error] if  
-  ⍝   (a) the base is unknown, not b|o|x UC or LC (base 2, 8, 16 resp.),
-  ⍝   (b) the number is negative, or its digits are out of range,
-  ⍝   (c) the number can't be represented in an integer of 34 decimal digits...
-  ⍝ Note: Numbers like 0X123E0 are valid, since E is a valid hex digit.
-    ∆DEC←{⎕PP ⎕FR←34 1287  ⍝ Ensures largest # of decimal digits.
-        0:: ⍵⊣⎕←'∆FIX DOMAIN ERROR: NON-DECIMAL CONSTANTS MUST BE NON-NEGATIVE INTEGERS: "',⍵,'"'
-        canon←⎕C ⍵ ⋄ base←2 8 16 0['box'⍳1↑1↓canon]
-        '¯'∊⍵: ∘ ⋄ 0=base: ∘    ⋄ '0'≠⊃canon: ∘
-        res←(base↑'0123456789abcdef')⍳2↓canon  
-        ∨/res≥base: ∘ 
-         0:: ⍵⊣⎕←'∆FIX CONVERSION ERROR: NON-DECIMAL CONSTANT TOO LARGE TO REPRESENT: "',⍵,'"'
-        'E'∊res←⍕base⊥res: ∘  ⋄ res
-    }
-⍙INCLUDE←{  ⍺←1 
+⍝ Number spacers (_), hex, octal, and binary numbers
+⍝   Valid for simple integers only.
+⍝   Hex numbers must start with a digit in \d (⎕D).
+⍝     123_456 => 123456     hex: 123x 0FFX   octal: 177o 771O   binary: 010010b 
+  pNumBase←     '(?xi) ¯?0 [box] [\w_]+ (?>\.[\w_]+)?'    ⍝ Use ¯ \w to trap invalid non-decimal numbers
+  pNum←         '(?xi) (?<!\d)   (¯? (?: \d\w+ (?: \.\w* )? | \.\d\w* ) )  (j (?1))?'
+⍝ ← sink
+⍝   Allows expressions of form  ←code, automatically provided a "sink" temporary variable name.
+⍝   Valid in dfns or tradfns.
+  pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01: After CR_INTERNAL (dfn-internal CR)
+
+⍝ pMacro: matches any valid name, including qualified names (one.two), system names,
+⍝         plus extensions :name, ::name, :one.two, ::one.two
+  pMacro←       { 
+    ⍝ Matches:  ⎕X012  #.X012 ::X012 or  A.B.⎕X012, ⎕X012.A.B etc. Trailing '.' is not included!    
+    ⍝ APL variable name initial letters: 
+    ⍝     [ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_] ==>  [A-ZÀ-ÖØ-Ü∆⍙_]
+      _AplName← '(?<APLNAME> (?: ⎕|::?)? [A-ZÀ-ÖØ-Ü∆⍙_] [\dA-ZÀ-ÖØ-Ü∆⍙_]* | \#{1,2} )'  
+      ∊_pMac←'(?xi)(' _AplName ' ((\.(?&APLNAME))*))'   ⍝ OK: ::NAME, ⎕NAME, ]NAME
+  }⍬
+⍝ () is treated as (⎕NS ⍬). See also ::DECLARE extensions.
+  pNSEmpty← '\(\h*\)'   
+⍝ ::MACROS - list all macro definitions in the (⎕←...) output. 
+  pMacDump←  ∊'(?i)^\h*'  DDCLNp  'MACROS\b\h*$' 
+⍝ ∉ NOTIN  (see also macro ⎕NOTIN)
+  NOTINch← '∉'              ⍝ ⎕UCS 8713
+⍝ Under / Dual (⎕SE.⍙⍙.UNDER)
+  UNDERch← '⍢'              ⍝ See UNDER/DUAL, DelDiaeresis, < Abrudz Extended APL 
+⍝ OBVERSE (DELTILDE)
+  OBVERSEch← '⍫'            ⍝ See OBVERSE, DELTILDE < Abrudz Extended APL 
+⍝ BEFORE (JOTUNDERBAR)
+  BEFOREch← '⍛'             ⍝ See BEFORE, JOTUNDERBAR < Abrudx Extended APL
+  pSymbol←    '[',NOTINch,UNDERch,OBVERSEch,BEFOREch,']'   
+⍝ SYMBOL_MAP: [0] list of symbols; [1] their values (spacing, case: respected)
+  _SMch← NOTINch   UNDERch           OBVERSEch         BEFOREch
+  _SMfn← '(~∊)'    ' ⎕SE.⍙⍙.UNDER ' ' ⎕SE.⍙⍙.OBVERSE ' ' ⎕SE.⍙⍙.BEFORE '
+  SYMBOL_MAP← ↑_SMch _SMfn
+⍝+---------------------------------------+
+⍝ Pattern Defs, ATOM SCAN PATTERNS       +  
+⍝    See ∆FIX.HELP for details.          ÷
+⍝+---------------------------------------+                       
+  pDot←' (?: (?<!\.) \. (?!\.) )? '      
+  pAtomList←     ∊'(?x) (`{1,2})  \h* ( (?> ' pSQ ' \h* | (?:[\w∆⍙_#⎕¯]+ 'pDot' )+  \h*  )+ )'     
+  pAtomsArrow←   ∊'(?x) ( (?> ' pSQ ' \h* | (?:[\w∆⍙_#⎕¯]+ 'pDot' )+  \h*  )+ ) (→{1,2}) '          
+⍝+--------------------------------------------------+
+⍝ END Pattern Definitions                           +
+⍝+--------------------------------------------------+
+
+⍝+--------------------------------------------------+
+⍝ Utilities, Miscellaneous                          +
+⍝+--------------------------------------------------+
+  DTB←  ⊢↓⍨ -∘ (+/∘  (∧\ ⍤⌽⍤ =∘' ' ))      ⍝ Delete trailing blanks from one line. Tacit can be obscure...
+  DLB←  ⊢↓⍨     +/∘  (∧\     =∘' ' )       ⍝ Delete leading blanks...
+  AddPar← {'(',⍵,')'}
+  DblSQ←  {⍺←0 ⋄ s←⍵/⍨1+⍵=SQ ⋄ ⍺=0: s ⋄ SQ,s,SQ }  ⍝ Double single quotes. If ⍺=1, add outer quotes.
+⍝ UnDQ_DAQ: Remove DQs (double quotes) or DAQs (double alternate quotes: angled quotes « » )
+⍝   Remove surrounding DQs and APL-escaped DQs, then double SQs.  Allow for alternate DQ pairs as ⍺.
+  UnDQ_DAQ←{DQ1←1↑⍵ ⋄  DQ2←'"«?'['"«'⍳DQ1]  ⋄ DQ2='?': ∆ERR'UnDQ_DAQ Logic Error'  
+        s/⍨~(2⍴DQ2)⍷s←1↓¯1↓⍵
+  }   
+⍝ ∆DEC: 
+⍝ Read hex, binary, octal numbers (e.g. 0x09DF, 0b0111, and 0o0137, with suffixes [boxBOX], converting to decimal.
+⍝ Converts up to 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF (28 hex digits) as integer strings.
+⍝ Returns right arg (⍵) AS IS [w/o error] if  
+⍝   (a) the base is unknown, not b|o|x UC or LC (base 2, 8, 16 resp.),
+⍝   (b) the number is negative, or its digits are out of range,
+⍝   (c) the number can't be represented in an integer of 34 decimal digits...
+⍝ Note: Numbers like 0X123E0 are valid, since E is a valid hex digit.
+  ∆DEC←{⎕PP ⎕FR←34 1287  ⍝ Ensures largest # of decimal digits.
+      0:: ⍵⊣⎕←'∆FIX DOMAIN ERROR: NON-DECIMAL CONSTANTS MUST BE NON-NEGATIVE INTEGERS: "',⍵,'"'
+      canon←⎕C ⍵ ⋄ base←2 8 16 0['box'⍳1↑1↓canon]
+      '¯'∊⍵: ∘ ⋄ 0=base: ∘    ⋄ '0'≠⊃canon: ∘
+      res←(base↑'0123456789abcdef')⍳2↓canon  
+      ∨/res≥base: ∘ 
+        0:: ⍵⊣⎕←'∆FIX CONVERSION ERROR: NON-DECIMAL CONSTANT TOO LARGE TO REPRESENT: "',⍵,'"'
+      'E'∊res←⍕base⊥res: ∘  ⋄ res
+  }
+  ⍙INCLUDE←{  ⍺←1 
   ⍝  lines@SV ←   ⍙INCLUDE files
   ⍝  Stripped down version of ∆INCLUDE utility(PMS): ⍺ formatting options omitted ('N' newline formatting hardwired).
   ⍝  Finds specified files fileN in directories named in FSPATH and WSPATH, starting with '.' and '..'.
@@ -318,13 +325,13 @@
   ⍝ FindFirstFiles:  fullPaths ← searchPath FindFirstFiles files
   ⍝    Returns fullPaths where each file is found in searchPath, or ⎕NULL if not found.
     FindFirstFiles←{ ⍺←⍬
-        FindEach←⍺∘{0:: ∆SIG eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
+        FindEach←⍺∘{0:: ∆ERR eUnexpected⊣⎕←'FindFirstFiles: ⍺' ⍺ ' ⍵' ⍵
             0=≢⍺: ⎕NULL                                 ⍝ Exhausted search
             full←(rel/'/',⍨⊃⍺),⍵ ⊣ rel←'/'≠1↑⍵  
             ⎕NEXISTS full: full 
             rel: (1↓⍺) ∇ ⍵ ⋄ ⎕NULL                      ⍝ Keep searching only if not absolute name                    
         }
-        0=≢⍺:  ∆SIG eNoPath ⋄ 0=≢⍵: ⎕NULL
+        0=≢⍺:  ∆ERR eNoPath ⋄ 0=≢⍵: ⎕NULL
         FindEach¨⊆⍵
     }
     eNoPath←     '⍙INCLUDE' 'No search directories were specified [LOGIC ERROR].'
@@ -333,33 +340,36 @@
     eNotFound←   '⍙INCLUDE' 'At least one file to include was not found in search path:'
   ⍝ ⍙INCLUDE EXECUTIVE
     files←{1=≡⍵:  ' ' (≠⊆⊢)⍵ ⋄ ⍵ },⍵
-    0=≢files:          ∆SIG eNoFiles
+    0=≢files:          ∆ERR eNoFiles
     searchPath←setSearchPath 'FSPATH' 'WSPATH'  
     filesFull←searchPath FindFirstFiles files 
-    ⎕NULL∊_f←filesFull:  ∆SIG eNotFound,¨'' (∊' ',¨files/⍨_f∊⎕NULL)
+    ⎕NULL∊_f←filesFull:  ∆ERR eNotFound,¨'' (∊' ',¨files/⍨_f∊⎕NULL)
   ⍝ Read each file as a single string with NLs as linends, concatenating all strings together. Missing => Err
   ⍝ Return (default) single string with NLs as linends. Missing => Err
    ⍺=0: ∊{∊CR,⍨¨MACROSñ ∆FIX ⍵}¨filesFull    ⍝ Pass current macro namespace to each function called (which they may change)
     ⊃,/{⊃⎕NGET ⍵ 0}¨filesFull    ⍝ Omitted: CR@(LF∘=)⊣
-} 
-RepSimple←{ ⍺←1 ⋄ Q←''''  
-    CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. Too broad: p{Cc}.
-    0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34
-    str←∊Q,Q,⍨CTLp Q ⎕R { ctlF←⍵.PatternNum=0
+  } 
+
+  RepSimple←{ ⍺←1 ⋄ Q←''''  
+    CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. p{Cc} is too broad.
+    0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34 ⍝ Q∘,,∘Q
+    str←∊ Q,,∘Q ⊢ CTLp Q ⎕R { ctlF←⍵.PatternNum=0
         ctlF: ''',(⎕UCS ','),''',⍨⍕⎕UCS ⍵.Match ⋄ 2⍴Q
     }⍠('Mode' 'M')('UCP' 1)⊣⊆⍵ 
+  ⍝ Handle '\x{00}abc' => '',(⎕UCS 0),'abc' as (⎕UCS 0),'abc'. Similarly,'abc\x{00}' as ('abc','').
     NullQS←{⍵↓⍨len×qqc≡⍵↑⍨len←⍺×≢qqc←''','''⌽⍨-⍺}  ⍝ qqc: ⍺=1: "'',"  ⍺=¯1: ",''"
     str←¯1 NullQS 1 NullQS str
     ⍺=0: str ⋄ '(',')',⍨str
-}
+  }
+
 ⍝ SaveRunTime:  SaveRunTime ['NOFORCE' | 'FORCE'], default 'NOFORCE'.
 ⍝ Save Run-time Utilities shown here in ⎕SE if not already there...
-⍝     ⍙PTR, ⍙FIX                -- ⍙... not expected to be called by user.
-⍝     ∆ASSERT, ∆TO, ∆UNDER             -- ∆... potentially called by user.
-RUNTIME_MAP←↓⍉↑('ASSERT' 3)('FIX' 3)('PTR' 4) ('TO' 3)('UNDER' 4) ('OBVERSE' 4)
-SaveRunTime←{utils utype←RUNTIME_MAP
-(~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⍙⍙.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
-2/⍨~DEBUGf:: ∆SIG'Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
+RUNTIME_MAP←↓⍉↑('ASSERT' 3)('FIX' 3)('PTR' 4) ('TO' 3)('UNDER' 4) ('OBVERSE' 4)('BEFORE' 4)
+⍝ SaveRunTime: Load in as needed...
+SaveRunTime←{
+  utils utype←RUNTIME_MAP
+  (~DEBUGf)∧(⍵≢'FORCE')∧utype∧.=⎕SE.⍙⍙.⎕NC ↑utils: 0    ⍝ Save Runtime Utils if (DEBUGf∨FORCE) or if utils not created...
+  2/⍨~DEBUGf:: ∆ERR'Unable to set utilities: ⎕SE.⍙⍙.(',utils,')'
 ⍝ ∆ASSERT for Macro ⎕ASSERT 
   ⎕SE.⍙⍙.ASSERT←{⍺←'Assertion failure' ⋄ 0∊⍵:⍺ ⎕SIGNAL 8 ⋄ shy←0}
 ⍝ ⍙FIXX for directive ::FN, ::OP, ::FIX
@@ -370,12 +380,12 @@ SaveRunTime←{utils utype←RUNTIME_MAP
 ⍝          r←pi n         
 ⍝          r←○n'          
 ⍝    EndPI
-⎕SE.⍙⍙.FIXX←{⎕IO←0
-  0:: ∆SIG '::FIX or related directive failed. Likely syntax error in code string.' 
-  1≥|≡⍵: ∇ ⊆⍵                                                   ⍝ Ensure vector of vectors
-  '⍝ '∊⍨1↑' '~⍨⊃⍵: _←∇ 1↓⍵ ⋄ 0≠≢⍵:_←2 (1⊃⎕RSI,#).⎕FIX ⍵,⊂''     ⍝ Ensure at least 2 vectors passed to ⎕FIX
-  ∘ 
-}
+  ⎕SE.⍙⍙.FIXX←{⎕IO←0
+    0:: ∆ERR '::FIX or related directive failed. Likely syntax error in code string.' 
+    1≥|≡⍵: ∇ ⊆⍵                                                   ⍝ Ensure vector of vectors
+    '⍝ '∊⍨1↑' '~⍨⊃⍵: _←∇ 1↓⍵ ⋄ 0≠≢⍵:_←2 (1⊃⎕RSI,#).⎕FIX ⍵,⊂''     ⍝ Ensure at least 2 vectors passed to ⎕FIX
+    ∘ 
+  }
 ⍝ ⍙PTR for "pointer" prefix $
 ⍝ Syntax:   ${code_operand}   |   $(tacit_operand)  |   $named_operand 
 ⍝     ptr← ⍺⍺:operand ⎕SE.⍙⍙.PTR ⍵: 1 | 0 (or aliases: 'DEBUG'=1, 'NODEBUG'=0)
@@ -384,7 +394,7 @@ SaveRunTime←{utils utype←RUNTIME_MAP
 ⍝                      If 1, display form is an abridged version of the nested 
 ⍝                      representation of <operand>, up to <MAXL:30> chars (slower).
 ⍝
-⎕SE.⍙⍙.PTR←{ ⍝ Place in ⎕SE.⍙⍙, with CALR as ⎕THIS namespace
+  ⎕SE.⍙⍙.PTR←{ ⍝ Place in ⎕SE.⍙⍙, with CALR as ⎕THIS namespace
     debug←'1Dd'∊⍨1↑⍕⍵ 
     0::'$ POINTER DOMAIN ERROR'⎕SIGNAL 11 
     MAXL←30
@@ -394,33 +404,34 @@ SaveRunTime←{utils utype←RUNTIME_MAP
     Shrink←{'''[^'']*''|⍝.*$' '^Run←' '\{⋄' '⋄\}' '\h+⋄\h+'⎕R'&' '' '{' '}' '⋄'⊣¯1↓∊'⋄',⍨¨⍵} 
     Dlb←(⊢↓⍨(+/(∧\' '∘=)))¨ ⋄ Sane←{0<≢⍵: ⍵ ⋄ err∘}     
     ns⊣ns.⎕DF '[$', (Fit Shrink Dlb Sane⊆ns.⎕NR 'Run'), ']'
-}
-  ⍝ ∆TO: for function ⎕TO or ...
-  ⍝ range←  start [next]  TO  end [step]   
-  ⍝         start: starting value*
-  ⍝         next: first element* after <start> used to calculate <step>. 
-  ⍝               If omitted*, next is (start+×end-start), unless <step> is specified.
-  ⍝         end:  ending value*.
-  ⍝         step: in-/decrement start first value to next. 
-  ⍝               If omitted**, (×end-start) is assumed, unless <next> is specified. 
-  ⍝               The sign of <step> passed is ignored and the signum (×end-start) is used.
-  ⍝ ________________________________
-  ⍝ *  values may be characters or numbers. If the first is a character, the result is a character string.
-  ⍝ ** Specifying both <next> and <step> is invalid.  
-  ⍝    If next is specified, the actual step is (×end-start)×|next-start.    
+  }
+⍝ ∆TO, punctuation ... or fn ⎕TO  
+⍝ range←  start [next]  TO  end [step]   
+⍝         start: starting value*
+⍝         next: first element* after <start> used to calculate <step>. 
+⍝               If omitted*, next is (start+×end-start), unless <step> is specified.
+⍝         end:  ending value*.
+⍝         step: in-/decrement start first value to next. 
+⍝               If omitted**, (×end-start) is assumed, unless <next> is specified. 
+⍝               The sign of <step> passed is ignored and the signum (×end-start) is used.
+⍝ ________________________________
+⍝ *  values may be characters or numbers. If the first is a character, the result is a character string.
+⍝ ** Specifying both <next> and <step> is invalid.  
+⍝    If next is specified, the actual step is (×end-start)×|next-start.    
   ⎕SE.⍙⍙.TO←{⎕IO←0
       0::⎕SIGNAL⊂('Message' 'Invalid Range')('EN'⎕DMX.EN)
-      2∧.≤≢¨⍺ ⍵:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
+      from to←∊¨⍺ ⍵    ⍝ Ignore any depth...
+      2∧.≤≢¨from to:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
       num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ char→ucs val; num? as is.
-      retC←0∊80|⎕DR¨⍺,⍵
+      retC←0∊80|⎕DR¨from,to
       ⎕UCS⍣retC⊣⊃{
           ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵:1⊃⍵ ⋄ 2=≢⍺:-/⍺ ⋄ 1}⍵
           start+step×⍳0⌈1+⌊∆÷step+step=0
-      }/num¨⍺ ⍵
+      }/num¨from to
   }
-  ⍝ Under (from dfns) symbol: ⍢  Alias: Dual  
-  ⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
-  ⎕SE.⍙⍙.UNDER←{ ⍝ DelDiaeresis ⍢ Under or Dual. From {Abrudz APL Extended}
+⍝ Under op ⍢, aka Dual, DelDiaeresis. From {Abrudz APL Extended}
+⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
+  ⎕SE.⍙⍙.UNDER←{  
         ns←⎕NULL⍴⍨15⍴0
         0::⎕SIGNAL ⎕EN
         2 2≡⎕NC↑'⍺' '⍺⍺':⎕SIGNAL⊂('EN' 2)('Message' 'Array left argument conflicts with array left operand')
@@ -442,7 +453,8 @@ SaveRunTime←{utils utype←RUNTIME_MAP
             ⍺ ⍺⍺ ⍵                ⍝ else: just apply
         }⍵⍵ ⍵           ⍝ ⍺ ⍺⍺ over ⍵⍵ ⍵
   }
-  ⎕SE.⍙⍙.OBVERSE←{ ⍝ Obverse, DelTilde, ⍫ ⍺⍺ but with inverse ⍵⍵ represented as ns.  From {Abrudz APL Extended}
+⍝ Obverse op ⍫, DelTilde. Iverson but ⍫ with extension: inverse ⍵⍵ represented as ns.  From {Abrudz APL Extended}
+  ⎕SE.⍙⍙.OBVERSE←{ 
       0::⎕SIGNAL⊂⎕DMX.(('EN'EN)('Message'Message))
       ns←⎕NULL⍴⍨15⍴0
       ⍺←⊢
@@ -453,17 +465,18 @@ SaveRunTime←{utils utype←RUNTIME_MAP
       Fn.Obv←1
       Fn
   }
-  ⎕SE.⍙⍙.BEFORE←{ ⍝ ⍛ JotUnderbar, Before, reverse composition X f⍛g Y ←→ (f x) g Y.  From {Abrudz APL Extended}
+⍝ JotUnderbar op ⍛ , aka Before, reverse composition. X f⍛g Y ←→ (f x) g Y.  From {Abrudz APL Extended}
+  ⎕SE.⍙⍙.BEFORE←{ 
     ⍺←{⍵ ⋄ ⍺⍺}
     (⍺⍺ ⍺)⍵⍵ ⍵
   }
-        1 
-  }
+  1 
+}
   ⍝ Executive: Search through lines (vector of vectors) for: 
   ⍝     "double-quoted strings", triple-quoted ("""\n...\n"""), and  ::: here-strings.
   ⍝     Return executable APL single-quoted equivalents, encoded into various format via StringFormat below.
   ⍝     Returns one or more vectors of vectors... (Use ⊃res if one line expected/required).
-    Executive←{
+  Executive←{
       ⍺←SCAN_FULLt   ⍝ Default  
   ⍝+-------------------------------------------------+
   ⍝ Mac- routines: Handle Macros (see ::DEF, etc.)   +  
@@ -541,7 +554,7 @@ SaveRunTime←{utils utype←RUNTIME_MAP
             p←MACROSñ.K⍳⊂⍙K ⍵ 
             p<≢MACROSñ.K: p⊃MACROSñ.V             ⍝ Full name found, simple or complex
             DOT(~∊)⍵: ⍵                         ⍝ Name is simple...   
-            DOT=¯1↑⍵: ∆SIG'APL-style name with trailing dot was presented to macro processing'    
+            DOT=¯1↑⍵: ∆ERR'APL-style name with trailing dot was presented to macro processing'    
             AddDots←{⍺←'' ⋄ noNull←0(~∊)≢¨⍺ ⍵ ⋄ ,⍺,(noNull/DOT),⍵ }  
             ⊃AddDots/∇¨'.'(≠⊆⊢)⍵         ⍝ Name is complex. Check for definitions of the pieces! 
         }
@@ -577,7 +590,7 @@ StringFormat←{ ⍺←''
     ⍝ R: CRs    N: LFs    S: Spaces   V: Vectors   M: Matrix
     ⍝ E: Escape (\)       C: Comment (⍝)
       R N S V M E C X←o∊⍨∊o1 o2
-      0≠≢err←o~∊o1 o2: ∆SIG'For DQ or Here string, one or more invalid options "',err,'" in "',⍺,'"' 
+      0≠≢err←o~∊o1 o2: ∆ERR'For DQ or Here string, one or more invalid options "',err,'" in "',⍺,'"' 
       indent←X⊃⍺⍺  ¯1   ⍝ Allow for x (exdent option)
       C: ' '
       SlashScan←  { '\\(\r|$)'⎕R' '⍠reOPTS⊣⍵ }  ⍝ backsl + EOL  => space given e (escape) mode.
@@ -658,7 +671,7 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
             SKIP OFF ON←¯1 0 1 ⋄ STATES←'∇ ' '↓ ' '↑ '
             Poke←{ ⍵⊣(⊃⌽stack)←⍵ ((⍵=1)∨⊃⌽⊃⌽stack)}
             Push←{ ⍵⊣stack,←⊂⍵ (⍵=1)}
-            Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ ∆SIG'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
+            Pop←{0<s←≢stack: ⍵⊣stack↓⍨←¯1 ⋄ ∆ERR'Closing "::ENDIF" not found' 'Extra "::ENDIF" detected'⊃⍨s=0 }  
             Peek←{(⊃⌽⊃⌽stack)⊃⍵ 1}
             CurStateIs←{⍵∊⍨⊃⊃⌽stack}
             stack←,⊂ON ON
@@ -755,7 +768,7 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
   _q,←'⌷/⌿\⍀∊⍴↑↓⍳⊂⊃∩∪⊣⊢⊥⊤,⍒⍋⍉⌽⊖⌹⍕⍎⍪≡≢⍷'    ⍝ other fns  
   _q,←'∘⍨¨⍣⍤⍥⍬.'                           ⍝ operators and misc
   pAssignX←'([\d\Q',_q,'\E]*)←←'           ⍝ fns/opts/misc quoted via \Q...\E 
-  ⎕SE.⍙⍙.ASGNX←{ 0:: ∆SIG 'SYNTAX ERROR (extended assignment)'  
+  ⎕SE.⍙⍙.ASGNX←{ 0:: ∆ERR 'SYNTAX ERROR (extended assignment)'  
       nm←⊆⍺ ⋄ 1≠≢nm: nm ∇¨ ⍵ 
       aa←⍺⍺ ⋄ calr←⊃⎕RSI
       fn←{⍺←⎕NC ⍵ ⋄ 3=⍺:'(',')',⍨∊⎕NR ⍵ ⋄ 2=⍺: '' ⋄ }'aa'  ⍝ Error causes signal above.
@@ -771,7 +784,7 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
                 mainScanPats ⎕R{  
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                     ⋄ CASE←⍵.PatternNum∘∊      
-                       ⍝ ⎕←⍵.PatternNum,': ','<',(F 0),'>'           
+                     ⍝  ⎕←⍵.PatternNum,': ','<',(F 0),'>'        
                     CASE iTrpQ: {
                       4>≢⍵.Lengths: SetABENDf (F 0) '○○ERR○○ ⍝ Matching Triple Quote Not Found'
                       (F 3) ((≢F 2) StringFormat) F 1
@@ -883,6 +896,9 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
             _←'::DEF'         MacroLiteral 'MACROSñ.⍙DEF'   
             _←'::COMPRESS'    MacroLiteral ⍕COMPRESSf
             _←'::DEBUG'       MacroLiteral ⍕DEBUGf 
+            ⎕SE.⍙⍙.LETUC←'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜ∆⍙_'
+            ⎕SE.⍙⍙.LET←{∪⍵.LETUC,⍵.LETLC←⎕C ⍵.LETUC}⎕SE.⍙⍙
+            _←'⎕LET' '⎕LETUC' '⎕LETLC' MacroLiteral¨ '⎕SE.⍙⍙.LET' '⎕SE.⍙⍙.LETUC' '⎕SE.⍙⍙.LETLC'
           ⍝ ⎕MY - a static namespace for each function... Requires accessible namespace '∆MYgrp' (library ∆MY).
             _←'⎕MY'           MacroLiteral {
                                 STATIC_NS← '⍙⍙'  ⋄ STATIC_PREFIX← STATIC_NS,'.∆MY_'     
@@ -906,8 +922,8 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
     ⍝   2. Visible Pseudo-Strand function (⍮) replaced by current APL (,⍥⊂). This is not quite a Strand, in fact.
     ⍝      Mnemonic: Like ';' separates/links items of "equal" status
       FirstScanIn←{  
-          Align←    {  ⍵.PatternNum≠0: ⍵.Match ⋄ pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣⍵.Match }
-          SubAlign← {  ⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match }
+          Align←{0≠⍵.PatternNum: ⍵.Match ⋄ pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣⍵.Match }
+          SubAlign← {⍵.PatternNum≠0: ⍵.Match ⋄ {CR_INTERNAL@ (CR∘=)⊢⍵}¨⍵.Match }
           pDFnDirective pAllQ pCom  ⎕R Align ⍠reOPTS⊣⍵
       }
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
@@ -916,16 +932,23 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
             pCrIn←'\x01'
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
-            pLBrak←'[[(]'  
-            pRBrak←'[])]'
-               pN←  '(?:[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*)| ''\N{1,2}'' ' ⋄ pD←'\h*(?:…|\.{2,})\h*'
-            pRange← ∊'(?x) (' pN ') ' pD '  (' pN ')  (?| (?:\h+|'pD')('pN')|() )' 
+            pLBrak←'X[[(]'  
+            pRBrak←'X[])]'
+               _pL _pR←'(?: (?:\( [,⊂\h]* )*' '[)\h]* )'
+               pN←  _pL, _pR,⍨ '( (?:[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*)| ''\N{1,2}'' (?:\h* ''\N{1,2}'' )* )' 
+               pD←  '\h*(?:…|\.{2,})\h*'
+            pRange1← ∊'(?x)  ' pN  pD pN '(?| (?:\h+|'pD')' pN '|() )' 
+            pRange2← ∊'(?x) 'pD
             STRAND_OUT SEMI_OUT CR_OUT←'(,⍥⊆)' ';' ⍺ 
           ⍝ pSpecCom: Special Internally Generated Comments
             STK←,0     ⍝ Value→Out: 0→Strand (outside parens); 1→Semicolon (in brackets); 2→Strand (in parens)
-            scanPats←  pRange pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak 
-                       iRange _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak ← ⍳≢scanPats
+            scanPats←  pRange1 pRange2 pAllQ pSpecCom pCom pCrIn pStrand pSemi pLBrak pRBrak 
+                       iRange1 iRange2 _     iSpecCom _    iCrIn iStrand iSemi iLBrak iRBrak ← ⍳≢scanPats
             Align← {  CASE←⍵.PatternNum∘∊   ⋄ str←⍵.Match 
+              _←{~DEBUGf: ⍵ 
+                Show←'\r' '\x{00}' ⎕R '╲r' '╲0'⍠('Mode' 'M')
+                1: ⎕←'CASE', ⍵.PatternNum, 'match "',(Show str),'"' 
+              }⍵
               CASE iSpecCom:DEBUGf/(1↑str),2↓str       
               CASE iCrIn:   CR_OUT
               CASE iStrand: STRAND_OUT 
@@ -933,30 +956,25 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
               CASE iSemi:   SEMI_OUT STRAND_OUT SEMI_OUT ⊃⍨ ⊃⌽STK
               CASE iLBrak:  str⊣STK,←1+str='['
               CASE iRBrak:  str⊣STK↓⍨←¯1×1<≢STK      ⍝ Don't delete leftmost stack entry (0).
+              CASE iRange2: ' ⎕SE.⍙⍙.TO '            ⍝ Complicated ⍺ or ⍵, e.g. code: `a..`z 
             ⍝ CASE matching: Quoted Strings, Comments
-              ~CASE iRange: str
+              ~CASE iRange1: str
             ⍝ CASE iRange:   Match a constant range spec of the form:
-            ⍝                   start..end[..step | step]
-            ⍝                   101..110    ==>  101 102 103 104 105 106 ... 109 110
-            ⍝                   101..110 2  ==>  101 103 105 107 109
-            ⍝                   101..110..2 ==>  101 103 105 107 109
-            ⍝                 Or
-            ⍝                   "a".."z"    ==>  'abcdefghij..z'
-            ⍝                   "ac".."z"   ==>  'acegikmoqsuwy'
-            ⍝                   "a".."z"..2 ==>  'acegikmoqsuwy'
+            ⍝                   start..end OR start..end step  OR start..end..step
+            ⍝                where start, end, step are either numbers OR strings:  1, 1j3, "a", "ac", etc.
             ⍝ If there are more than MAXLENf numbers calculated, an expression will be used instead:
             ⍝                (101 ⎕SE.⍙⍙.TO 110 2)
             ⍝  MAXLENf←...   ⍝ Set at top, but can be specified as ⍺[3] in:  ⍺ ∆FIX ...    
               {
                   L R arg3←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}¨1 2 3 
                   R,←(' '/⍨0≠≢arg3),arg3
-                  rangeV←⍎rangeC←L,' ⎕SE.⍙⍙.TO ',R
+                  rangeV rangeC← L {  rC←⍺,' ⎕SE.⍙⍙.TO ',⍵ ⋄ (⍎rC)rC} R
                 ⍝ If rangeV is small (≤MAXLENf),  use RepSimple(stripped down variant of Utils.repObj) 
                 ⍝ to convert to a char rep., ensuring it is encoded properly for APL:
                 ⍝    a) numbers converted to char  b) str quoted with single quotes 
                 ⍝    c) internal quotes doubled    d) ctl chars handled.
                 ⍝ ElseIf rangeV Too many items... Let TO handle at runtime.
-                  MAXLENf<≢rangeV: rangeC ⋄ RepSimple rangeV  
+                  (0=≢rangeV)∨MAXLENf<≢rangeV: rangeC ⋄ RepSimple rangeV  
               }⍵     
             }
             pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
@@ -1012,5 +1030,5 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
   If: SCAN_INCLUDEt∘Executive LoadLines ⊣ ⍵ 
   _← ↑⍣Vf⊢FIXf CALR.⎕FIX⍣Ff⊣ __←(Ff∧COMPRESSf) Compress (Ef×SCAN_EDITt)∘Executive LoadLines⍣Wf ⊣ ⍵ 
   ~ABENDf: _ 
-  #.FIX_LINES←↑__ ⋄ ∆SIG 'Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
+  #.FIX_LINES←↑__ ⋄ ∆ERR 'Invalid directive. Unable to ⎕FIX. See variable #.FIX_LINES.'
 }
