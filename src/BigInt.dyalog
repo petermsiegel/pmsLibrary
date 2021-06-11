@@ -140,7 +140,7 @@
 ⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM ⍵⍵ ⊣ modulo
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H        BI, BII: Arguments ⍺ and ⍵ are Big Integer internal or external formats (BigIntI or BigIntE)
-⍝H        BIM:     Arguments ⍺ and ⍵, fn ⍺⍺, and modulo ⍵⍵: all BigInteger internal or external formats (BigIntI or BigIntE).
+⍝H        BIM:     ⍺ (fn BIM modulo)⍵  <==>   modulo | ⍺ fn BI ⍵, except × and * are calculated efficiently within range <modulo>.
 ⍝H           ⍺ + BI  ⍵          add
 ⍝H           ⍺ - BI  ⍵          subtract
 ⍝H           ⍺ × BI  ⍵          multiply
@@ -333,18 +333,29 @@
               Err eCANTDO2,QT,QT,⍨fn                          ⍝ Not found!
           }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵         ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
       }
-
-    ⍝ BIM:   Perform BI modulo <mod>.
-    ⍝ BIM:   x (fn BIM mod)y  ==>   mod |BI x (fn BII) y, but more efficient for fn: × or *. 
+    ⍝H
+    ⍝H BIM:   Perform BI modulo <mod>.
+    ⍝H BIM:   x (fn BIM mod)y  ==>   mod |BI x (fn BII) y, but more efficient for fn: × or *. 
+    ⍝H Example:    a←(100⍴⎕D)  ⋄   b←⌽'5',99⍴⎕D 
+    ⍝H             c←88⍴⎕D,'321'
+    ⍝H             a(×BIM c)⊢b 
+    ⍝H          14316503065026389482323754496389255946041429392115238386058791621521416992113483598656
+    ⍝H             c |BI a×BI b
+    ⍝H          14316503065026389482323754496389255946041429392115238386058791621521416992113483598656
+    ⍝H             a(*BIM '9999')⊢b       ⍝ *BIM   -- calculation fits in workspace (266M)
+    ⍝H          2727
+    ⍝H             (9999 |BI a*BI b)      ⍝ a*BI b -- too large to calculate!
+    ⍝H          WS FULL
+    ⍝H          (9999|BI a*BI b)
+    ⍝H                    ∧
       BIM←{
-          ⍺←⎕NULL ⋄  x y mod←⍺ ⍵ ⍵⍵  
-          fn←⊃⌽x ⍺⍺ DecodeCall mod
+          ⍺←⎕NULL ⋄  x y modulo←⍺ ⍵ ⍵⍵  
+          fn←⊃x ⍺⍺ DecodeCall modulo
           ⍺≡⎕NULL:Err eBIMDYAD
-          fn≡'×':Export x (mod modMul) y 
-          fn≡'*':Export x (mod modPow) y
+          fn≡'×':Export x (modulo modMul) y 
+          fn≡'*':Export x (modulo modPow) y
           ⋄ mod|BI x(fn BII)y
       }
-
     ⍝ Build BI and BII from __BI_SOURCE__.
     ⍝ BI:   Change _COND_EXPORT_ to "Export", __BI__SOURCE__ to "BI".
     ⍝ BII:  Change _COND_EXPORT_ or _COND_EXPORT_¨ to "", __BI__SOURCE__ to "BII".

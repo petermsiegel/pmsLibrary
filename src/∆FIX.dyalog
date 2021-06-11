@@ -8,7 +8,7 @@
   ⍝ For "internal" calls, we specify ⍺ as a namespace, which then passes on 'i' as the internal option.
   ⍝     This is used to pass on the internal macro dictionary to recursive calls...
   ⍝   
-  ⍝ Note new feature (unused here): ⍵(86⌶)'abc'  returns value of object 'abc' at different stack levels: 0=current  
+  ⍝ Note: Dyalog feature (unused here): ⍵(86⌶)'abc'  returns value of object 'abc' at different stack levels: 0=current  
 
   ⍝ KEY FLAGS: DEFAULTS
   ⍺←0
@@ -419,15 +419,15 @@ SaveRunTime←{
 ⍝ ** Specifying both <next> and <step> is invalid.  
 ⍝    If next is specified, the actual step is (×end-start)×|next-start.    
   ⎕SE.⍙⍙.TO←{⎕IO←0
-      0::⎕SIGNAL⊂('Message' 'Invalid Range')('EN'⎕DMX.EN)
       from to←∊¨⍺ ⍵    ⍝ Ignore any depth...
-      2∧.≤≢¨from to:⎕SIGNAL⊂('Message' 'Extra parameters')('EN' 2)
-      num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ char→ucs val; num? as is.
-      retC←0∊80|⎕DR¨from,to
+      2∧.≤≢¨from to: ⎕SIGNAL⊂('Message' '⎕TO: Extra args')('EN' 2)
+      0::⎕SIGNAL⊂('Message' '⎕TO: Invalid Range')('EN'⎕DMX.EN)
+      Num←{0≠80|⎕DR ⍵:⍵ ⋄ ⎕UCS ⍵}¨   ⍝ Convert characters to numeric equiv, leaving numbers as is.
+      retC←0∊80|⎕DR¨from,to          ⍝ If any element in each of <from> or <to> is a char, return char result.
       ⎕UCS⍣retC⊣⊃{
           ∆←-/end start←⊃¨⍵ ⍺ ⋄ step←(×∆)×|⍺{2=≢⍵:1⊃⍵ ⋄ 2=≢⍺:-/⍺ ⋄ 1}⍵
           start+step×⍳0⌈1+⌊∆÷step+step=0
-      }/num¨from to
+      }/Num¨from to
   }
 ⍝ Under op ⍢, aka Dual, DelDiaeresis. From {Abrudz APL Extended}
 ⍝ ⎕SE.⍙⍙.UNDER←{0=⎕nc'⍺': ⍵⍵⍣¯1⊢⍺⍺ ⍵⍵ ⍵ ⋄ ⍵⍵⍣¯1⊢(⍵⍵ ⍺)⍺⍺(⍵⍵ ⍵)} 
@@ -510,17 +510,16 @@ SaveRunTime←{
               (F 2) (0 StringFormat) UnDQ_DAQ F 1         ⍝ Convert double [angle] quotes
             }⍠reOPTS⊣⍵
         }
-      ⍝ ProcSQ:    strRep ← ProcSQ strCR
-      ⍝     strCR: Must include explicit surrounding SQs. 
-      ⍝ SQ Strings are defined as single-line only with no suffix modifier extensions.
-      ⍝ Here we detect a multiple line SQ string and 
-      ⍝ 1) Warn the user.
-      ⍝ 2) Fix it up so that 'abc\rdef\rghi'  => 'abc' 'def' 'ghi'
-      ⍝ I.e. multiline SQ strings ==> a vector of char strings in code form.
+      ⍝ ProcSQ:    strRep ← ProcSQ ⍵ 
+      ⍝     ⍵: is a string possibly with embedded CRs, which must include explicit surrounding SQs. 
+      ⍝ A SQ String is by definition single-line only (no CRs) with no suffix modifier extensions.
+      ⍝ However, we warn the user here if it contains multiple lines, only if DEBUGf=1.
+      ⍝ Suffix modifiers are simply ignored (assumed to be parts of trailing variable names, etc.)
+      ⍝ In all cases, we return (in code form) a vector of strings appropriately quoted.
         ProcSQ←{ 
             ∆ASSERT 0(~∊)SQ=(⊃⍵)(⊃⌽⍵):
             1(~∊)CR CR_INTERNAL∊⍵: ⍵ 
-            _←∊SQ,¨SQ_SP,⍨¨Str2SVs 1↓¯1↓⍵  
+            _←∊SQ,¨SQ_SP,⍨¨VectorOfStrings 1↓¯1↓⍵  
             ~DEBUGf: _  
             _ ⊣  (⎕←⎕SE.UCMD 'Disp ',_)   ⊣ ∆WARN eProcSQ
         }
@@ -602,24 +601,19 @@ StringFormat←{ ⍺←''
         ∘Unreachable∘  
       }
       0=≢⍵: 2⍴SQ
-      multi←1<≢lines←Str2SVs ⍵  ⍝ Don't add parens, if just one line...
+      multi←1<≢lines←VectorOfStrings ⍵  ⍝ Don't add parens, if just one line...
       AddPar⍣(multi∧~V)⊣ multi FormatPerOpt (SlashScan⍣E)DblSQ¨ indent∘TrimL lines
 }
-⍝ Str2SVs: Ensures a vector of strings.
-⍝       ⍵: Vector of strings or a single flat string with CRs.
+⍝ VectorOfStrings: Returns a vector of strings, given ⍵ as defined:
+⍝       ⍵: Vector of strings or a single flat string with 0 or more CRs.
 ⍝ Note: Ensure split sees                # partitions
 ⍝         "abc"         as    abc        1
 ⍝         "\rabc "      as   |abc        2
 ⍝         "abc\r"       as    abc|       2
 ⍝         "abc\r\rdef"  as    abc||def   3
 ⍝         "\r\rabc\r\r" as  ||abc||      5
-Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~⍨¨⍵⊂⍨r,q↓p } ⍵}       
+VectorOfStrings←{2=|≡⍵: ⍵ ⋄ lead← 1++/∧\ part← ⍵=CR ⋄ (lead ⍴ part)←1 ⋄ (part⊂⍵)~¨CR }         
     
-⍝ See iDQPlus (below) and StringFormat above...
-⍝ We add a "spurious" CR_INTERNAL so StringFormat sees leading and trailing bare " on separate lines... 
-⍝ DQTweak←CR_INTERNAL∘{ (⍺/⍨CR=⊃⍵),⍵,⍺/⍨CR=⊃⌽⍵ }   
-⍝ DQUntweak←{⍵~¨CR_INTERNAL}        
-
   ⍝+-------------------------------------------------+
   ⍝ Other Routines                                   +
   ⍝+-------------------------------------------------+ 
@@ -932,8 +926,8 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
             pCrIn←'\x01'
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
-            pLBrak←'X[[(]'  
-            pRBrak←'X[])]'
+            pLBrak←'[[(]'  
+            pRBrak←'[])]'
                _pL _pR←'(?: (?:\( [,⊂\h]* )*' '[)\h]* )'
                pN←  _pL, _pR,⍨ '( (?:[¯]?\d (?: [¯\w]+ | (?<!\.) \. (?!\.) )*)| ''\N{1,2}'' (?:\h* ''\N{1,2}'' )* )' 
                pD←  '\h*(?:…|\.{2,})\h*'
@@ -968,13 +962,15 @@ Str2SVs←{2=|≡⍵:⍵ ⋄ CR∘{r←1⍴⍨q←1++/∧\p←⍵=⍺ ⋄ ⍺~�
               {
                   L R arg3←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}¨1 2 3 
                   R,←(' '/⍨0≠≢arg3),arg3
-                  rangeV rangeC← L {  rC←⍺,' ⎕SE.⍙⍙.TO ',⍵ ⋄ (⍎rC)rC} R
+                  rangeC←L,' ⎕SE.⍙⍙.TO ',R
+                  rangeV← {0:: ⍬ ⋄ ⍎⍵} rangeC
                 ⍝ If rangeV is small (≤MAXLENf),  use RepSimple(stripped down variant of Utils.repObj) 
                 ⍝ to convert to a char rep., ensuring it is encoded properly for APL:
                 ⍝    a) numbers converted to char  b) str quoted with single quotes 
                 ⍝    c) internal quotes doubled    d) ctl chars handled.
                 ⍝ ElseIf rangeV Too many items... Let TO handle at runtime.
-                  (0=≢rangeV)∨MAXLENf<≢rangeV: rangeC ⋄ RepSimple rangeV  
+                  (0=≢rangeV)∨MAXLENf<≢rangeV: rangeC 
+                  RepSimple rangeV  
               }⍵     
             }
             pSpecComKludge  ⎕R '' ⊣scanPats  ⎕R Align ⍠reOPTS⊣⍵ 
