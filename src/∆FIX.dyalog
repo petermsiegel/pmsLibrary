@@ -40,8 +40,8 @@
 ⍝ |    CONSTANTS                                     |
 ⍝ +-------------------------------------------- -----+
   ⎕IO ⎕ML←0 1  
-  NUL NL CR NEL←⎕UCS 0 10 13 133         ⍝ NEL: Used as internal CR. In patterns: \x{85}.
-⍝ CR_VISIBLE is a display version of a NEL when displaying preprocessor control statements e.g. via ::DEBUGf.
+  NUL NL CR ICR←⎕UCS 0 10 13 1         ⍝ ICR: Used as internal CR. In patterns: \x01.
+⍝ CR_VISIBLE is a display version of a ICR when displaying preprocessor control statements e.g. via ::DEBUGf.
   CR_VISIBLE←'◈' 
 ⍝ ⎕SE.⍙⍙: Top level contains ∆FIX Library. 
 ⍝ Ensure this NS (directory) exists. Other sublibraries may exist.
@@ -89,27 +89,27 @@
 ⍝+--------------------------------------------------+
   GenBracePat←{⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
         Lb Rb←⍵,⍨¨⊂'\\'                     
-        pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*\v | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
+        pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N*[\r\x01] | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
         'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
   }     
 ⍝ ∆Anchor ⍵: Ensures single pattern ⍵ is matched only if it is preceded and followed by statement boundaries
-⍝ (⍵ may itself match multiple lines via embedded \r or \x{85} chars.
+⍝ (⍵ may itself match multiple lines via embedded \r or \x01 chars.
 ⍝ A statement boundary is defined herein as matching
-⍝     \r, \x{85}, ⋄,  the beginning (^) or end ($) of a line as determined by ⎕R 'Mode M'.  
+⍝     \r, \x01, ⋄,  the beginning (^) or end ($) of a line as determined by ⎕R 'Mode M'.  
 ⍝ Note ∆Anchor assumes CASE I, so use (?-i) when case must be respected in pattern matching.  
-  anchL anchR←'(?:(?<=[\v⋄])|^)' '(?:[\v⋄]|$)'   
+  anchL anchR←'(?:(?<=[\r\x01⋄])|^)' '(?:[\r\x01⋄]|$)'   
   ∆Anchor← ∊{  '(?xi)',anchL, ⍵, anchR }        
   
 ⍝+--------------------------------------------------+
 ⍝ B. Pattern Defs, MULTIPLE SCANS                   +
 ⍝+--------------------------------------------------+
-  pDotsNC←'(?:\.{2,3}|…)\h*[\v⋄]\h*'
-  pDotsC←     '(?:\.{2,3}|…)\h*(⍝[^\v⋄]*)?[\v⋄]\h*'  ⍝ DotsC: Matches continuation chars at end of poss. commented lines.
+  pDotsNC←'(?:\.{2,3}|…)\h*[\r\x01⋄]\h*'
+  pDotsC←     '(?:\.{2,3}|…)\h*(⍝[^\r\x01⋄]*)?[\r\x01⋄]\h*'  ⍝ DotsC: Matches continuation chars at end of poss. commented lines.
   pDQ←         '(?:"[^"]*")+'              ⍝ DQ:  "..."
   pDAQ←        '(?:«[^»]*)(?:»»[^»]*)*»'   ⍝ DAQ: Double Angled Quotes = Guillemets  « »
   pSQ←         '(?:''[^'']*'')+'           ⍝ Multiline SQ strings are matched, but disallowed when processed.
   pAllQ←    pDQ,'|',pSQ,'|',pDAQ           ⍝ For Triple Quotes (not matched here), see pTrpQ below.
-  pCom←     '⍝\V*$'                   ⍝ Comments even at end of internal "line" ending with \x{85}.
+  pCom←     '⍝[^\r\x01]*$'                 ⍝ Comments even at end of internal "line" ending with \x01.
   pDFn←       GenBracePat '{}'
   pParen←     GenBracePat '()' 
   pBrack←     GenBracePat '[]'
@@ -123,9 +123,9 @@
 
 ⍝ pCrFamily, actionCrFamily: 
 ⍝ Handle multi-line dfns and (quoted) strings within ::directives. 
-⍝ See \v and  above.
-⍝ CR_VISIBLE (◈) is a visible rendering of \r and \x{85} for display purposes only, e.g. in comments and debugging.
-  pCrFamily← '\v\z'  '\v'  ⋄ actionCrFamily←  '\0' CR_VISIBLE
+⍝ See \r\x01 and  above.
+⍝ CR_VISIBLE (◈) is a visible rendering of \r and \x01 for display purposes only, e.g. in comments and debugging.
+  pCrFamily← '[\r\x01]\z'  '[\r\x01]'  ⋄ actionCrFamily←  '\0' CR_VISIBLE
 
 ⍝ +------------------------------------------------+
 ⍝   Handle multiline enclosures, 
@@ -134,8 +134,8 @@
 ⍝   pEnclosNC - Enclosure w/o comments allowed
 ⍝   pEnclosC  - Enclosure w/ internal comments allowed
 ⍝ +-------------------------------------------------+
-  pEnclosNC←  ∊ '(?x) (?<NOC> (?> [^\{[(⍝''"«\v]+ |' pAllQ '|' pAllBr          ') (?&NOC)*)'
-  pEnclosC←   ∊ '(?x) (?<ANY> (?> [^\{[(⍝''"«\v]+ |' pAllQ '|' pAllBr '|' pCom ') (?&ANY)*)'
+  pEnclosNC←  ∊ '(?x) (?<NOC> (?> [^\{[(⍝''"«\r\x01]+ |' pAllQ '|' pAllBr          ') (?&NOC)*)'
+  pEnclosC←   ∊ '(?x) (?<ANY> (?> [^\{[(⍝''"«\r\x01]+ |' pAllQ '|' pAllBr '|' pCom ') (?&ANY)*)'
 ⍝ +-----------------------------------------+
 ⍝ + ::If, ::ElseIf, ::Else, ::EndIf         +
 ⍝ +-----------------------------------------+
@@ -172,7 +172,7 @@
   pStatic←       ∆Anchor'\h* '  DDCLNp  '(?>stat(?:ic )?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
   pDeclare←      ∆Anchor'\h* '  DDCLNp  '(?>decl(?:are)?) \h  (\h*(?>[\w∆⍙#.⎕]+)) \h* ([∘⊢]?←) \h? (' pEnclosNC '+|) \N* ' 
 ⍝ ::INCLUDE filename1 filename2 ...
-  pInclude←      ∆Anchor'\h* '  DDCLNp  '(?>incl(?:ude)?) \h+ (    [^\v⋄⍝]*  )  (?:⍝ [^\v⋄]* )?'   
+  pInclude←      ∆Anchor'\h* '  DDCLNp  '(?>incl(?:ude)?) \h+ (    [^\r\x01⋄⍝]*  )  (?:⍝ [^\r\x01⋄]* )?'   
 ⍝ ::DEBUG, ::COMPRESS
 ⍝ ::]user_command 
 ⍝ ::]var←user_command
@@ -180,7 +180,7 @@
   pCompress←    ∆Anchor'\h* '  DDCLNp  'compress \h* \b (?:\h+(ON|OFF)|)  (?:\h*⍝\N*)? '  ⍝ Ignore comments
   pUCmdC←       ∆Anchor'\h* '  DDCLNp  '\h*(\]{1,2})\h*(\N+)'            ⍝ ::]user_commands or  ::]var←user_commands
 ⍝ pOther: Matches other code segments
-  pOther←            '(?=\v|^)(?!\h*::)'              
+  pOther←            '(?=[\r\x01]|^)(?!\h*::)'              
 ⍝
 ⍝+-------------------------------------+
 ⍝ D. Pattern Defs, MAIN SCAN PATTERNS  +  
@@ -194,7 +194,7 @@
 ⍝      line2...       ⍝ """ may otherwise appear within lines. No escape sequence exists.
 ⍝    """[a-z]*        ⍝ Closing """ must be first non-blank item on line to be recognized.
 ⍝
-  pTrpQ←        ∊'(?xi) """ (?| \h*\v (.*?) \v (\h*) """ ([a-z]*) | )'   
+  pTrpQ←        ∊'(?xi) """ (?| \h*[\r\x01] (.*?) [\r\x01] (\h*) """ ([a-z]*) | )'   
 ⍝ "Double Quote Strings"[a-z]*     
 ⍝ «Guillemet Quotes»[a-z]*
 ⍝    Both treated identically, allowing multi-line strings (internal comment symbols are text).
@@ -210,7 +210,7 @@
 ⍝        lines                   lines
 ⍝    [:]EndToken[:]        [⍝][:] EndDoc[:]
 ⍝
-  _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) \v ( .*? ) \v ( \h* )'
+  _pHMID←       '( [\w∆⍙_.#⎕]+ ) :? ( \N* ) [\r\x01] ( .*? ) [\r\x01] ( \h* )'
   pHere←   ∊'(?x)  ::: \h*                        ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
   pTradFn← ∊'(?x)'  DDCLNp  '(?i:fn|op|fix) \h*   ' _pHMID'       :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'    
   pHereC←   ∆Anchor '\h* ::: \h* ⍝\h* '             _pHMID' ⍝?\h* :? (?i:END)(?-i:\1) (?! [\w∆⍙_.#⎕] ) :? \h? (\N*) $'     
@@ -228,7 +228,7 @@
 ⍝ ← sink
 ⍝   Allows expressions of form  ←code, automatically provided a "sink" temporary variable name.
 ⍝   Valid in dfns or tradfns.
-  pSink←'(?xi) (?:^|(?<=[[{(\x{85}⋄:]))(\h*)(←)'   ⍝ \x{85}:  NEL (dfn-internal CR)
+  pSink←'(?xi) (?:^|(?<=[[{(\x01⋄:]))(\h*)(←)'   ⍝ \x01:  ICR (dfn-internal CR)
 
 ⍝ pMacro: matches any valid name, including qualified names (one.two), system names,
 ⍝         plus extensions :name, ::name, :one.two, ::one.two
@@ -348,7 +348,7 @@
   } 
 
   RepSimple←{ ⍺←1 ⋄ Q←''''  
-    CTLp←'[\x{00}-\x{1F}\v]+'  ⍝ Handle problematic ctl chars and vertical spaces only. p{Cc} is too broad.
+    CTLp←'[\x{00}-\x{1F}\r\x01]+'  ⍝ Handle problematic ctl chars and vertical spaces only. p{Cc} is too broad.
     0≠80|⎕DR ⍵:'(',')',⍨⍕⍵⊣⎕PP←34 ⍝ Q∘,,∘Q
     str←∊ Q,,∘Q ⊢ CTLp Q ⎕R { ctlF←⍵.PatternNum=0
         ctlF: ''',(⎕UCS ','),''',⍨⍕⎕UCS ⍵.Match ⋄ 2⍴Q
@@ -531,7 +531,7 @@ SaveRunTime←{
       ⍝ In all cases, we return (in code form) a vector of strings appropriately quoted.
         ProcSQ←{ 
             ∆ASSERT 0(~∊)SQ=(⊃⍵)(⊃⌽⍵):
-            1(~∊)CR NEL∊⍵: ⍵ 
+            1(~∊)CR ICR∊⍵: ⍵ 
             _←∊SQ,¨SQ_SP,⍨¨VectorOfStrings 1↓¯1↓⍵  
             ~DEBUGf: _  
             _ ⊣  (⎕←⎕SE.UCMD 'Disp ',_)   ⊣ ∆WARN eProcSQ
@@ -934,20 +934,20 @@ VectorOfStrings←{2=|≡⍵: ⍵ ⋄ lead← 1++/∧\ part← ⍵=CR ⋄ (lead 
         }
       ⍝ <<< PREDEFINED MACROS END 
  
-      pDFnDirective←'\v\h*::\V*',pDFn,'\V*\v'
+      pDFnDirective←  '[\r\x01]\h*::[^\r\x01]*',pDFn,'[^\r\x01]*[\r\x01]'  
     ⍝ FirstScanIn:
     ⍝   1. A DFn started on a ::directive line is detected and treated as part of that line.
     ⍝   2. Visible Pseudo-Strand function (⍮) replaced by current APL (,⍥⊂). This is not quite a Strand, in fact.
     ⍝      Mnemonic: Like ';' separates/links items of "equal" status
       FirstScanIn←{  
-          Align←{0≠⍵.PatternNum: ⍵.Match ⋄ pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣⍵.Match }
-          SubAlign← {⍵.PatternNum≠0: ⍵.Match ⋄ {NEL@ (CR∘=)⊢⍵}¨⍵.Match }
+          Align←{0≠⍵.PatternNum: ⍵.Match ⋄  pDFn pAllQ pCom ⎕R SubAlign ⍠reOPTS⊣⍵.Match }
+          SubAlign← {⍵.PatternNum≠0: ⍵.Match ⋄  {ICR@ (CR∘=)⊢⍵}¨⍵.Match }
           pDFnDirective pAllQ pCom  ⎕R Align ⍠reOPTS⊣⍵
       }
     ⍝ LastScanOut: Moves DFn directives from single-line to standard multi-line format.
       LastScanOut←{
             ⍺←CR                    ⍝ Default for CR_OUT
-            pCrIn←'\x{85}'          ⍝ NEL \x85, within \v
+            pCrIn←'\x01'            ⍝ ICR \x01, within [\r\x01]
             pStrand←'⍮'             ⍝ Explicit "strand" function:  ⍮ --> (,⍥⊂), where  ⍮is U+236E
             pSemi←  ';'             ⍝ Implicit strand function within control of parens...
             pLBrak←'[[(]'  
@@ -1008,7 +1008,7 @@ VectorOfStrings←{2=|≡⍵: ⍵ ⋄ lead← 1++/∧\ part← ⍵=CR ⋄ (lead 
             0=1↑0⍴rc←#.⎕FX #.FIX_FN_SRC: ○○ERR○○
             'User Edit complete. See function #.',rc,'.'
           }
-          FormIn←{'^⍝>.*$\v?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠reOPTS⊣⍵}
+          FormIn←{'^⍝>.*$[\r\x01]?' '^⍝(.*)$'  ⎕R '' '⍝>⍝\1' ⍠reOPTS⊣⍵}
           FormOut←{'^ *⍝'  '^' ⎕R  '\0'  '⍝> '⊣⍵}
           
           edit←cur←⊆(0<≢⍵)⊃alt ⍵ 
@@ -1034,7 +1034,7 @@ VectorOfStrings←{2=|≡⍵: ⍵ ⋄ lead← 1++/∧\ part← ⍵=CR ⋄ (lead 
   ⍝ Compress ⍵: Remove from string <⍵> all extra spaces (beyond 1), blank and empty lines, and comments...
     Compress←{  ⍺←1 
         0=⍺: ⍵ ⋄ F0 NUL SP←'\0' '' ' '          
-        pList← '''[^'']*'''  '^[\h⋄]*(⍝.*)?\v?'  '[\h⋄]*(⍝.*)?$' '\h+' 
+        pList← '''[^'']*'''  '^[\h⋄]*(⍝.*)?[\r\x01]?'  '[\h⋄]*(⍝.*)?$' '\h+' 
         aList← F0            NUL                 NUL             SP
         pList ⎕R aList ⍠reOPTS⊣⍵
     }  
