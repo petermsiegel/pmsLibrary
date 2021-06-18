@@ -84,6 +84,8 @@
        Assert            ⎕ASSERT 2=⍴⍴⍵:                     
        Static NS         my←⎕MY       
        Sink varname      ⎕T 
+       Resignal          [errno=EN] ⎕RESIGNAL msg|''   
+                         Format and ⎕SIGNAL the currently active error as if from the current stack level.
     Extensions  (** = from Abrudz, Dyalog APL Extended)      
        Operators:       ⍢  under, dual                 [DEL DIERESIS] **
                         ⍛  before, reverse composition [JOT UNDERBAR] **
@@ -391,7 +393,33 @@
                6.28318530718
       ⎕MY      Returns a static namespace for the currently-called Tradfn or named Dfn.
                Requires accessible namespace '∆MYgrp' (library ∆MY).
-      ⎕T       Returns name of temporary name used in "sink" constructions.
+      ⎕RESIGNAL 
+              [errno|⎕DMX.EN] ⎕RESIGNAL msg|⍬
+              "Signals the most recent error as if from the current calling environment (stack frame), 
+               adjusting EN and Message in ⎕DMX, if specified. Most useful with trapped errors."
+               If no error is active (i.e. ⎕DMX.EN=0), then:
+                     EN=911, EM='NO ERROR/SIGNAL IS ACTIVE', Message='', OSError='' 
+               Otherwise, all are from ⎕DMX, except:
+                     If <errno> is non-zero, EN=errno.
+                     If msg (treated as char str) is not 0-length, Message=msg.
+               If Message is not 0-length, it is appended to EM (which may not be changed), with a colon prefix.
+               If OSError is not 0-length, it is appended to EM, within parentheses.
+                  test←{                                       test 3         ⍝ OK 
+                      2:: ⎕RESIGNAL "whoops!"               1.666666667              
+                      11:: 900 ⎕RESIGNAL"Why is ⍵=0?"          test 0         ⍝ DOMAIN ERROR, divide by 0
+                      ⍵≥0: 5÷⍵                              DOMAIN ERROR: Why is ⍵=0?
+                      5÷ ⍝ sic! SYNTAX ERROR                   test 0
+                  }                                            ∧
+                      2 ∆FIX src                               test ¯3        ⍝ SYNTAX ERROR in <test>
+                  test                                      SYNTAX ERROR: whoops!
+                     ⍝ See right col. above                    test ¯3
+                                                               ∧
+      ⎕T       Returns name of temporary name used in "sink" constructions. 
+               E.g. for use in TradFn headers:
+                  ∇r←MyFn in 
+                   ;whatever;⎕T;alpha
+                   ...
+                  ∇ 
       ::DEBUG  1 if ∆FIX was called with DEBUG=1 (⍺[1]=1) or ::DEBUG ON was set. Else 0.
       ::COMPRESS 
                1 if ∆FIX was called with COMPRESS=1 (⍺[2]=1) or ::COMPRESS ON was set. Else 0.
