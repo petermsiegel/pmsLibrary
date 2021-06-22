@@ -263,11 +263,12 @@
     ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
     ⍝ Returns: shy keys
     ∇ {k}←importVecs (k v)
-          ;ix;kp;old;nk;nv;uniq     
+          ;ix;kp;old;oix;nk;nv;uniq     
       →0/⍨0=≢k                    ⍝      No keys/vals? Return now.
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
       old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
-      valuesF[old/ix]←old/v       ⍝      Duplicates? Keep only the last val for a given ix.
+      valuesF[oix←old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
+      ns∆Mirror (keysF[oix]) (valuesF[oix]) 0
       →0/⍨~0∊old                  ⍝      All old? No more to do; shy return.
       nk nv←k v/¨⍨⊂~old           ⍝ II.  Process new keys (which may include duplicates)
       uniq←⍳⍨nk                   ⍝      For duplicate keys,... 
@@ -275,7 +276,22 @@
       kp←⊂uniq=⍳≢nk               ⍝      Keep: Create and enclose mask...
       nk nv←kp/¨nk nv             ⍝      ... of those to keep.
       (keysF valuesF),← nk nv     ⍝ III. Update keys and values fields based on umask.
+      ns∆Mirror nk nv 0
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
+    ∇
+  ⍝ ns∆Mirror-- (del=0) update values (vals) for keys; (del=1) delete keys (vals ignored)
+    ∇ns∆Mirror (keys vals del)
+     ;mangleJ;NoTrigger
+     :IF 0=≢keys ⋄  :ORIF 0=≢theNS ⋄ :RETURN ⋄ :ENDIF 
+     mangleJ← (0∘(7162⌶))∘⍕ 
+     noTrigger←theNS.{1: _←2007 ⌶ ⍵}
+     noTrigger 1
+     :IF del 
+         {}theNS.⎕EX mangleJ¨keys
+     :Else 
+        (mangleJ¨keys) theNS.{⍎⍺,'←⍵'}¨vals
+     :ENDIF
+     noTrigger 0
     ∇
     ⍝ importMx: Imports ⍪keyvec valvec [default]
     importMx←importVecs{2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
@@ -488,10 +504,11 @@
     ∇
 
     ⍝ diFast: [INTERNAL UTILITY] 
-    ⍝ Delete items by ix, where ix (if non-null) in range of keysF.
+    ⍝ Delete items by ix, where ix (if non-null) guaranteed to be in range of keysF.
     ∇ diFast ix;count;endblock;uix;∆
       → 0/⍨ 0=count←≢uix←∪ix                ⍝ Return now if no indices refer to active keys.
       endblock←(¯1+≢keysF)-⍳count           ⍝ All keys contiguous at end?
+      ns∆Mirror (keysF[ix]) ⎕NULL 1
       :IF  ∧/uix∊endblock                   ⍝ Fast path: delete contiguous keys as a block
           keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to OPTIMIZE hash.
       :Else  
@@ -582,28 +599,31 @@
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
     ∇ns←namespace
+      ;TriggerSkip
       :Access Public
-      :IF 0=≢theNS
-          theNS←⎕NS ''  ⋄ theNS.⎕DF '[∆DICT namespace]' 
+      :IF ×≢ns←theNS 
+          :RETURN
       :ENDIF 
-      ns←theNS 
       :TRAP 0  ⍝ 4 if rank error
-        ⍝ If it's not a valid name, use ⎕JSON mangling (may not be useful). If it is valid, mangle is a NOP.
-          :IF ×≢keysF ⋄ (mangleJ¨ keysF) theNS.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
-          theNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__namespaceTrigger__'
+          ns←theNS←⎕NS ''  ⋄   ns.⎕DF '[∆DICT namespace]' 
+          ns.__theDict__← ⎕THIS   ⍝ Class 9, so users checking their namespace Variables will do
+        ⍝ If it's not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
+          :IF ×≢keysF ⋄ (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
+          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__NS_TRIGGER__'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
     ∇
 
-    ⍝ __namespaceTrigger__: helper for d.namespace above ONLY.
+    ⍝ __NS_TRIGGER__: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: it's copied/activated in subsidiary namespaces!
-    ⍝ namespace key '⍙457' ==> numeric 457, but '457' remains char '457'
+    ⍝ namespace key '⍙457' ==> numeric 457, but 'X457' (or any valid name) remains as is.
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
 
-    ∇__namespaceTrigger__ args
+    ∇__NS_TRIGGER__ args
       ;eTrigger;unmangleJ;k;numK
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
+      ⍝ :IF __NS_STATUS__.TriggerSkip ⋄ :RETURN ⋄ :ENDIF  
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
       :TRAP 0
            k←unmangleJ args.Name
@@ -612,10 +632,10 @@
           :AndIf ~0∊⊃numK 
               k←⊃⌽numK
           :ENDIF     
-           k ##.set1 (⍎args.Name)
+           k __theDict__.set1 (⍎args.Name)
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
-          eTrigger←11 'Dict.namespace: Unable to update key-value pair from namespace variable' 
-          ⎕SIGNAL⍨/eTrigger
+          eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
+          ⎕SIGNAL/eTrigger
       :ENDTrap
     ∇
 
@@ -708,7 +728,7 @@
           ns dict∘{
               0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
                 ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangleJ ⍵) ⋄ val←ns⍎itemA
-              2=ns.⎕NC itemA:_←itemJ dict.set1 val
+              2=ns.⎕NC itemA:_←itemJ dict. val
                 dict2←∆DICT ⍬ ⋄ ns2←val
                 _←itemJ dict.set1 dict2
               1:_←ns2 dict2∘∇¨ns2.⎕NL-2.1 9.1
