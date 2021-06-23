@@ -249,7 +249,7 @@
               :Elseif 2=≢o     ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
               :Elseif 1≠≢o     ⋄ THROW eBadUpdate                ⍝ Not Scalar. Error.
               :Elseif isDict o ⋄ importVecs o.export             ⍝ Import Dictionary
-              :Elseif 2∧.=≢¨o  ⋄ importVec ↓⍉↑o                  ⍝
+              :Elseif 2∧.=≢¨o  ⋄ importVecs ↓⍉↑o                 ⍝
               :Else            ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
               :Endif 
           :EndFor
@@ -268,7 +268,7 @@
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
       old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
       valuesF[oix←old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
-      ns∆Mirror (keysF[oix]) (valuesF[oix]) 0
+      :IF ×≢theNS ⋄ ⍙Mirror2NS (keysF[oix]) (valuesF[oix]) 0 ⋄ :ENDIF
       →0/⍨~0∊old                  ⍝      All old? No more to do; shy return.
       nk nv←k v/¨⍨⊂~old           ⍝ II.  Process new keys (which may include duplicates)
       uniq←⍳⍨nk                   ⍝      For duplicate keys,... 
@@ -276,21 +276,24 @@
       kp←⊂uniq=⍳≢nk               ⍝      Keep: Create and enclose mask...
       nk nv←kp/¨nk nv             ⍝      ... of those to keep.
       (keysF valuesF),← nk nv     ⍝ III. Update keys and values fields based on umask.
-      ns∆Mirror nk nv 0
+      :IF ×≢theNS ⋄ ⍙Mirror2NS nk nv 0 ⋄ :ENDIF
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
     ∇
-  ⍝ ns∆Mirror-- (del=0) update values (vals) for keys; (del=1) delete keys (vals ignored)
-    ∇ns∆Mirror (keys vals del)
-     ;mangleJ;NoTrigger
+  ⍝ ⍙Mirror2NS-- (delF=0) update values (vals) for keys; (delF=1) delete keys (vals ignored)
+    ∇⍙Mirror2NS (keys vals delF)
+     ;mangleJ;NoTrigger;_
      :IF 0=≢keys ⋄  :ORIF 0=≢theNS ⋄ :RETURN ⋄ :ENDIF 
      mangleJ← (0∘(7162⌶))∘⍕ 
      noTrigger←theNS.{1: _←2007 ⌶ ⍵}
      noTrigger 1
-     :IF del 
-         {}theNS.⎕EX mangleJ¨keys
-     :Else 
-        (mangleJ¨keys) theNS.{⍎⍺,'←⍵'}¨vals
-     :ENDIF
+        :IF delF 
+            _←theNS.⎕EX mangleJ¨keys
+        :ELSE 
+            _←(mangleJ¨keys) theNS.{ _←⎕EX ⍺
+              (1=≡⍵)∧0=⍴⍴⍵: ⍺{0=1↑0⍴⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍬}⍵
+              ⍎⍺,'←⍵'
+            }¨vals
+        :ENDIF
      noTrigger 0
     ∇
     ⍝ importMx: Imports ⍪keyvec valvec [default]
@@ -504,11 +507,11 @@
     ∇
 
     ⍝ diFast: [INTERNAL UTILITY] 
-    ⍝ Delete items by ix, where ix (if non-null) guaranteed to be in range of keysF.
+    ⍝ Delete items by ix, where indices <ix> (if non-null) guaranteed to be in range of keysF.
     ∇ diFast ix;count;endblock;uix;∆
       → 0/⍨ 0=count←≢uix←∪ix                ⍝ Return now if no indices refer to active keys.
       endblock←(¯1+≢keysF)-⍳count           ⍝ All keys contiguous at end?
-      ns∆Mirror (keysF[ix]) ⎕NULL 1
+      :IF theNS ⋄ ⍙Mirror2NS (keysF[ix]) ⎕NULL 1 ⋄ :ENDIF 
       :IF  ∧/uix∊endblock                   ⍝ Fast path: delete contiguous keys as a block
           keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to OPTIMIZE hash.
       :Else  
@@ -599,7 +602,6 @@
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
     ∇ns←namespace
-      ;TriggerSkip
       :Access Public
       :IF ×≢ns←theNS 
           :RETURN
@@ -621,9 +623,9 @@
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
 
     ∇__NS_TRIGGER__ args
-      ;eTrigger;unmangleJ;k;numK
+      ;eTrigger;unmangleJ;k;numK;saveNS;val;valIn;_
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      ⍝ :IF __NS_STATUS__.TriggerSkip ⋄ :RETURN ⋄ :ENDIF  
+      ⍝ Be sure all local variables are in fact local. Else infinite loop!!!
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
       :TRAP 0
            k←unmangleJ args.Name
@@ -632,12 +634,24 @@
           :AndIf ~0∊⊃numK 
               k←⊃⌽numK
           :ENDIF     
-           k __theDict__.set1 (⍎args.Name)
+           valIn←⍎args.Name
+           :SELECT ⍬⍴⎕NC 'valIn'
+           :CASELIST 3 4 ⋄ val← ⎕OR 'valIn' 
+           :CASELIST 2 9 ⋄ val←valIn
+           :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
+           :ENDSELECT 
+           _←__theDict__{key val←⍵
+               _←⍺.⍙HideNS 1
+               0:: ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN ⊣⍺.⍙HideNS 0 
+               _←key ⍺.set1 val    
+               1: _←⍺.⍙HideNS 0 
+           }k val
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
           eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
           ⎕SIGNAL/eTrigger
       :ENDTrap
     ∇
+    
 
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
       DICT_HELP←⍬
@@ -757,7 +771,17 @@
           result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
       :EndSelect 
     ∇
-     
+    hiddenNS isHidden←⍬ 0
+  ⍝ ⍙HideNS: Only used by __NS_TRIGGER__
+    ∇{res}←⍙HideNS flag
+    :Access Public
+    res←0
+    :IF flag 
+        :IF ~isHidden ⋄ theNS hiddenNS isHidden res←⍬ theNS 1 1 ⋄ :ENDIF
+     :ELSE
+        :IF isHidden  ⋄ theNS hiddenNS isHidden res←hiddenNS ⍬ 0 1 ⋄:ENDIF
+     :ENDIF 
+    ∇
 
      ∇{list}←EXPORT_FUNCTIONS list;fn;ok
       actual←⍬
@@ -849,7 +873,7 @@
 ⍝H    vals  ←              d.pop keys                     ⍝ Remove/return values for specific keys from dictionary.
 ⍝H MISC
 ⍝H                  ns  ←  d.namespace                    ⍝ Create a namespace with dictionary values, 
-⍝H                                                        ⍝ whose changes are reflected back in the dictionary.
+⍝H                                                        ⍝ whose changes are reflected back in the dictionary and vice versa
 ⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
@@ -1030,15 +1054,23 @@
 ⍝H     it returns the default for each missing item.
 ⍝H
 ⍝H namespace ← d.namespace
-⍝H     Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
-⍝H     Changes to <namespace> variables are reflected back to the dictionary as they are made.
+⍝H   >>> Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
+⍝H       Changes to <namespace> variables are reflected back to the dictionary as they are made and vice versa.
 ⍝H   NOTE: variable names must be valid APL variable names to be useful.
 ⍝H       ∘ If not, we attempt to convert to variable names via ⎕JSON name mangling.  
 ⍝H         Numbers, in particular, will convert silently to mangled character strings.
+⍝H         This is likely to be very slow and lead to surprises given different ⎕CT and so on. (⎕PP=34 internally).
 ⍝H         E.g. APL 0.03811950614 ends up as name '⍙0⍙46⍙03811950614'.
 ⍝H       ∘ If any name cannot be converted, an error will be signalled.
-⍝H       ∘ Once the namespace is created, changes to the dictionary will NOT be reflected
-⍝H         to it; i.e. the tracking (via TRIGGER) is from namespace to the parent dictionary only.
+⍝H       ∘ Compatible object values include objects in name classes 2, 3, 4, and 9 (var, fn, op, namespace/class)
+⍝H         Object Representations (⊂⎕OR) in the dictionary are treated as functions or operators in the namespace:
+⍝H         - If a namespace object is assigned as a function or op (class 3 or 4)
+⍝H                 its dictionary value will be in object representation (⊂⎕OR)  without comment.
+⍝H         - If a dictionary object is assigned a value that is in object representation (⊂⎕OR),
+⍝H                 its  will be converted to a function or op in the associated namespace. 
+⍝H         - The dictionary value cannot be set to a function or operator directly, due to APL restrictions.
+⍝H         - Because of this automatic conversion, you can only set a namespace object to an object representation
+⍝H           directly, not via the dictionary.
 ⍝H
 ⍝⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
