@@ -290,7 +290,7 @@
             _←theNS.⎕EX mangleJ¨keys
         :ELSE 
             _←(mangleJ¨keys) theNS.{ _←⎕EX ⍺
-              (1=≡⍵)∧0=⍴⍴⍵: ⍺{0=1↑0⍴⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍬}⍵
+              (1=≡⍵)∧0=⍴⍴⍵: ⍺{2:: ⍬ ⋄  0=1↑0⍴fnName←⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍎⍺,'←',fnName}⍵
               ⍎⍺,'←⍵'
             }¨vals
         :ENDIF
@@ -623,7 +623,7 @@
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
 
     ∇__NS_TRIGGER__ args
-      ;eTrigger;unmangleJ;k;numK;saveNS;val;valIn;_
+      ;eTrigger;unmangleJ;k;⍙Mirror2Dict;numK;saveNS;val;__fnDef__;_
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Be sure all local variables are in fact local. Else infinite loop!!!
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
@@ -634,18 +634,19 @@
           :AndIf ~0∊⊃numK 
               k←⊃⌽numK
           :ENDIF     
-           valIn←⍎args.Name
-           :SELECT ⍬⍴⎕NC 'valIn'
-           :CASELIST 3 4 ⋄ val← ⎕OR 'valIn' 
-           :CASELIST 2 9 ⋄ val←valIn
-           :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
+           __fnDef__←⍎args.Name
+           :SELECT ⍬⍴⎕NC '__fnDef__'
+              :CASELIST 3 4 ⋄ val← ⎕OR '__fnDef__' 
+              :CASELIST 2 9 ⋄ val←__fnDef__
+              :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
            :ENDSELECT 
-           _←__theDict__{key val←⍵
+           ⍙Mirror2Dict←{key val←⍵
                _←⍺.⍙HideNS 1
                0:: ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN ⊣⍺.⍙HideNS 0 
                _←key ⍺.set1 val    
                1: _←⍺.⍙HideNS 0 
-           }k val
+           }
+           _←__theDict__ ⍙Mirror2Dict k val
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
           eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
           ⎕SIGNAL/eTrigger
@@ -771,19 +772,22 @@
           result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
       :EndSelect 
     ∇
-    hiddenNS isHidden←⍬ 0
+
+    hiddenNS←⍬   ⍝ a stack. If empty, returns theNS.
   ⍝ ⍙HideNS: Only used by __NS_TRIGGER__
+  ⍝ res: new value of theNS  
     ∇{res}←⍙HideNS flag
     :Access Public
-    res←0
     :IF flag 
-        :IF ~isHidden ⋄ theNS hiddenNS isHidden res←⍬ theNS 1 1 ⋄ :ENDIF
-     :ELSE
-        :IF isHidden  ⋄ theNS hiddenNS isHidden res←hiddenNS ⍬ 0 1 ⋄:ENDIF
-     :ENDIF 
+        res←theNS←⍬⊣hiddenNS,←theNS   
+    :ELSEIF ×≢hiddenNS
+        res←theNS←(hiddenNS↓⍨←¯1)⊢⊃⌽hiddenNS   
+    :ELSE 
+        res←theNS
+    :ENDIF 
     ∇
 
-     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
+    ∇{list}←EXPORT_FUNCTIONS list;fn;ok
       actual←⍬
       :FOR fn :IN list
           ok←##.⎕FX '⎕THIS\b' ⎕R (⍕⎕THIS)⊣⎕NR fn  
@@ -791,8 +795,8 @@
               ⎕←'EXPORT_GROUP: Unable to export fn "',fn,'". Error in ',fn,' line',ok
           :ENDIF
       :EndFor
-      ∇
-      EXPORT_FUNCTIONS EXPORT_LIST
+    ∇
+    EXPORT_FUNCTIONS EXPORT_LIST
 
 ⍝H DictClass: A fast, ordered, and simple dictionary for general use.
 ⍝H            A dictionary is a collection of ITEMS (or pairs), each consisting of 
