@@ -279,10 +279,13 @@
       :IF ×≢theNS ⋄ ⍙Mirror2NS nk nv 0 ⋄ :ENDIF
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
     ∇
-  ⍝ ⍙Mirror2NS-- (delF=0) update values (vals) for keys; (delF=1) delete keys (vals ignored)
+  ⍝ ⍙Mirror2NS
+  ⍝    (void)← ∇ (keys vals delF=0|1)
+  ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
+  ⍝ (Local utility used in importVecs)
     ∇⍙Mirror2NS (keys vals delF)
      ;mangleJ;NoTrigger;_
-     :IF 0=≢keys ⋄  :ORIF 0=≢theNS ⋄ :RETURN ⋄ :ENDIF 
+     →0/⍨  (0=≢keys) ∨ ~×≢theNS
      mangleJ← (0∘(7162⌶))∘⍕ 
      noTrigger←theNS.{1: _←2007 ⌶ ⍵}
      noTrigger 1
@@ -290,12 +293,24 @@
             _←theNS.⎕EX mangleJ¨keys
         :ELSE 
             _←(mangleJ¨keys) theNS.{ _←⎕EX ⍺
-              (1=≡⍵)∧0=⍴⍴⍵: ⍺{2:: ⍬ ⋄  0=1↑0⍴fnName←⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍎⍺,'←',fnName}⍵
+              (1=≡⍵)∧0=⍴⍴⍵: ⍺{2:: ⍬ ⋄  0=1↑0⍴fnNm←⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍎⍺,'←',fnNm}⍵
               ⍎⍺,'←⍵'
             }¨vals
         :ENDIF
      noTrigger 0
     ∇
+
+  ⍝ set1⍙NoMirror2NS 
+  ⍝    key ⍺:Dict val
+  ⍝ Do set1 without mirroring key/value to namespace (if active)
+  ⍝ Used only in ⍙DICT_TRIGGER⍙
+    ∇{val}←key set1⍙NoMirror2NS val;hideNS
+        :Access Public
+        hideNS theNS← theNS ⍬
+            key set1 val   
+        theNS← hideNS
+    ∇
+
     ⍝ importMx: Imports ⍪keyvec valvec [default]
     importMx←importVecs{2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
@@ -511,7 +526,7 @@
     ∇ diFast ix;count;endblock;uix;∆
       → 0/⍨ 0=count←≢uix←∪ix                ⍝ Return now if no indices refer to active keys.
       endblock←(¯1+≢keysF)-⍳count           ⍝ All keys contiguous at end?
-      :IF theNS ⋄ ⍙Mirror2NS (keysF[ix]) ⎕NULL 1 ⋄ :ENDIF 
+      :IF ×≢theNS ⋄ ⍙Mirror2NS (keysF[ix]) ⎕NULL 1 ⋄ :ENDIF 
       :IF  ∧/uix∊endblock                   ⍝ Fast path: delete contiguous keys as a block
           keysF↓⍨←-count ⋄ valuesF↓⍨←-count ⍝ No need to OPTIMIZE hash.
       :Else  
@@ -608,22 +623,22 @@
       :ENDIF 
       :TRAP 0  ⍝ 4 if rank error
           ns←theNS←⎕NS ''  ⋄   ns.⎕DF '[∆DICT namespace]' 
-          ns.__theDict__← ⎕THIS   ⍝ Class 9, so users checking their namespace Variables will do
+          ns.⍙theDict⍙← ⎕THIS   ⍝ Class 9, so users checking their namespace Variables will do
         ⍝ If it's not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
           :IF ×≢keysF ⋄ (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
-          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__NS_TRIGGER__'
+          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '⍙DICT_TRIGGER⍙'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
     ∇
 
-    ⍝ __NS_TRIGGER__: helper for d.namespace above ONLY.
+    ⍝ ⍙DICT_TRIGGER⍙: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: it's copied/activated in subsidiary namespaces!
     ⍝ namespace key '⍙457' ==> numeric 457, but 'X457' (or any valid name) remains as is.
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
 
-    ∇__NS_TRIGGER__ args
-      ;eTrigger;unmangleJ;k;⍙Mirror2Dict;numK;saveNS;val;__fnDef__;_
+    ∇⍙DICT_TRIGGER⍙ args
+      ;eTrigger;unmangleJ;k;numK;saveNS;val;valIn
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Be sure all local variables are in fact local. Else infinite loop!!!
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
@@ -634,26 +649,19 @@
           :AndIf ~0∊⊃numK 
               k←⊃⌽numK
           :ENDIF     
-           __fnDef__←⍎args.Name
-           :SELECT ⍬⍴⎕NC '__fnDef__'
-              :CASELIST 3 4 ⋄ val← ⎕OR '__fnDef__' 
-              :CASELIST 2 9 ⋄ val←__fnDef__
+          valIn←⍎args.Name
+          :SELECT ⍬⍴⎕NC 'valIn' 
+              :CASELIST 3 4 ⋄ val← ⎕OR args.Name            
+              :CASELIST 2 9 ⋄ val←valIn
               :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
-           :ENDSELECT 
-           ⍙Mirror2Dict←{key val←⍵
-               _←⍺.⍙HideNS 1
-               0:: ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN ⊣⍺.⍙HideNS 0 
-               _←key ⍺.set1 val    
-               1: _←⍺.⍙HideNS 0 
-           }
-           _←__theDict__ ⍙Mirror2Dict k val
+          :ENDSELECT 
+          {}k ⍙theDict⍙.set1⍙NoMirror2NS val   ⍝  dict.set1⍙NoMirror2NS  - See ∆DICT
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
           eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
           ⎕SIGNAL/eTrigger
       :ENDTrap
     ∇
     
-
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
       DICT_HELP←⍬
     ∇ {h}←HELP;ln 
@@ -771,20 +779,6 @@
         ⍝ Always export (default) as JSON3 format.
           result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
       :EndSelect 
-    ∇
-
-    hiddenNS←⍬   ⍝ a stack. If empty, returns theNS.
-  ⍝ ⍙HideNS: Only used by __NS_TRIGGER__
-  ⍝ res: new value of theNS  
-    ∇{res}←⍙HideNS flag
-    :Access Public
-    :IF flag 
-        res←theNS←⍬⊣hiddenNS,←theNS   
-    :ELSEIF ×≢hiddenNS
-        res←theNS←(hiddenNS↓⍨←¯1)⊢⊃⌽hiddenNS   
-    :ELSE 
-        res←theNS
-    :ENDIF 
     ∇
 
     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
