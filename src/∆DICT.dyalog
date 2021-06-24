@@ -284,20 +284,20 @@
   ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
   ⍝ (Local utility used in importVecs)
     ∇⍙Mirror2NS (keys vals delF)
-     ;mangleJ;NoTrigger;_
+     ;mangleJ;mKeys;NoTrigger
      →0/⍨  (0=≢keys) ∨ ~×≢theNS
      mangleJ← (0∘(7162⌶))∘⍕ 
-     noTrigger←theNS.{1: _←2007 ⌶ ⍵}
-     noTrigger 1
-        :IF delF 
-            _←theNS.⎕EX mangleJ¨keys
-        :ELSE 
-            _←(mangleJ¨keys) theNS.{ _←⎕EX ⍺
+     NoTrigger←theNS.{1: _←2007 ⌶ ⍵}
+     NoTrigger 1
+        mKeys←mangleJ¨keys
+        {}theNS.⎕EX mKeys     ⍝ Delete name (~delF: before (re)setting)
+        :IF ~delF 
+            {}mKeys theNS.{ 
               (1=≡⍵)∧0=⍴⍴⍵: ⍺{2:: ⍬ ⋄  0=1↑0⍴fnNm←⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍎⍺,'←',fnNm}⍵
               ⍎⍺,'←⍵'
             }¨vals
         :ENDIF
-     noTrigger 0
+     NoTrigger 0
     ∇
 
   ⍝ set1⍙NoMirror2NS 
