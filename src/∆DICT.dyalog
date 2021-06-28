@@ -29,6 +29,7 @@
     :Field Private valuesF←                 ⍬
     :Field Private hasdefaultF←             0
     :Field Private defaultF←                ''       ⍝ Default value (hidden until hasdefaultF is 1)
+  ⍝ theNS: see d.namespace, d.noNamespace
     :Field Private theNS←                   ⍬        ⍝ 0=≢theNS. Set to a namespace in method namespace.
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
     
@@ -45,7 +46,7 @@
     :Field Private Shared eKeyBadName←      11 'Dict.namespace: Unable to convert key to valid APL variable name'
 
   ⍝ General Local Names
-    ∇ ns←Dict                      ⍝ Returns this namespace. Searchable via ⎕PATH. 
+    ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
       :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]
       ns←⎕THIS
     ∇
@@ -285,26 +286,24 @@
   ⍝ (Local utility used in importVecs)
     ∇⍙Mirror2NS (keys vals delF)
      ;mangleJ;mKeys;NoTrigger
-     →0/⍨  (0=≢keys) ∨ ~×≢theNS
+     →0/⍨  (0=≢keys) ∨ ~×≢theNS   
      mangleJ← (0∘(7162⌶))∘⍕ 
-     NoTrigger←theNS.{1: _←2007 ⌶ ⍵}
+     NoTrigger←theNS.theUser.{1: _←2007 ⌶ ⍵}
      NoTrigger 1
         mKeys←mangleJ¨keys
-        {}theNS.⎕EX mKeys     ⍝ Delete name (~delF: before (re)setting)
-        :IF ~delF 
-            {}mKeys theNS.{ 
-              (1=≡⍵)∧0=⍴⍴⍵: ⍺{2:: ⍬ ⋄  0=1↑0⍴fnNm←⎕FX ⊃⍵: ⍎⍺,'←⍵' ⋄ ⍎⍺,'←',fnNm}⍵
-              ⍎⍺,'←⍵'
-            }¨vals
+        :IF delF 
+            theNS.theUser.⎕EX mKeys      
+        :ELSE 
+            mKeys (theNS.theUser AssignVar)¨vals
         :ENDIF
      NoTrigger 0
     ∇
 
-  ⍝ set1⍙NoMirror2NS 
+  ⍝ set1NoMirror 
   ⍝    key ⍺:Dict val
   ⍝ Do set1 without mirroring key/value to namespace (if active)
   ⍝ Used only in ⍙DICT_TRIGGER⍙
-    ∇{val}←key set1⍙NoMirror2NS val;hideNS
+    ∇{val}←key set1NoMirror val;hideNS
         :Access Public
         hideNS theNS← theNS ⍬
             key set1 val   
@@ -616,20 +615,39 @@
   ⍝ namespace: See documentation. Enables a namespace that 
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
-    ∇ns←namespace
+  ⍝ On first call (or first after noNamespace),
+  ⍝ 1. creates namespace <ns>.
+  ⍝ 2. creates 
+  ⍝    ns.theDict - points to the active dictionary instance
+  ⍝    ns.theUser   - contains user variables and the trigger fn (⍙DICT_TRIGGER⍙)
+  ⍝ 3. returns ns.theUser
+    ∇theUser←namespace
       :Access Public
-      :IF ×≢ns←theNS 
-          :RETURN
-      :ENDIF 
+      :IF ×≢theNS 
+           theUser←theNS.theUser 
+      :ENDIF
       :TRAP 0  ⍝ 4 if rank error
-          ns←theNS←⎕NS ''  ⋄   ns.⎕DF '[∆DICT namespace]' 
-          ns.⍙theDict⍙← ⎕THIS   ⍝ Class 9, so users checking their namespace Variables will do
-        ⍝ If it's not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
-          :IF ×≢keysF ⋄ (mangleJ¨ keysF) ns.{⍎⍺,'←⍵'}¨valuesF  ⋄ :ENDIF
-          ns.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '⍙DICT_TRIGGER⍙'
+          theNS←⎕NS ''  ⋄   theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '[∆DICT User Namespace]' 
+          theNS.theDict← ⎕THIS   
+        ⍝ Load keys and values... 
+        ⍝ If a key not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
+        ⍝ Note the overhead and potential inconsistencies of converting numbers!
+          :IF ×≢keysF   
+            mKeys← mangleJ¨ keysF
+            mKeys (theUser AssignVar)¨valuesF  
+          :ENDIF
+          theUser.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '⍙DICT_TRIGGER⍙'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
+    ∇
+  ⍝ noNamespace: Returns 1 if it deleted the namespace; 0 otherwise.
+    ∇deleted←noNamespace
+      :Access Public
+      :IF deleted←×≢theNS
+          ⎕EX theNS
+          theNS←⍬
+      :ENDIF
     ∇
 
     ⍝ ⍙DICT_TRIGGER⍙: helper for d.namespace above ONLY.
@@ -638,9 +656,10 @@
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
 
     ∇⍙DICT_TRIGGER⍙ args
-      ;eTrigger;unmangleJ;k;numK;saveNS;val;valIn
+       ;eTrigger;theDict;unmangleJ;k;numK;saveNS;val;valIn
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Be sure all local variables are in fact local. Else infinite loop!!!
+      theDict←##.theDict
       unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
       :TRAP 0
            k←unmangleJ args.Name
@@ -655,7 +674,7 @@
               :CASELIST 2 9 ⋄ val←valIn
               :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
           :ENDSELECT 
-          {}k ⍙theDict⍙.set1⍙NoMirror2NS val   ⍝  dict.set1⍙NoMirror2NS  - See ∆DICT
+          {}k theDict.set1NoMirror val              ⍝  dict.set1NoMirror  - See ∆DICT
       :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
           eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
           ⎕SIGNAL/eTrigger
@@ -780,6 +799,25 @@
           result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
       :EndSelect 
     ∇
+  ⍝ AssignVar:    Assign to name in context <where> the value (std) or create as a function if the value is an ⎕OR.
+  ⍝ name ←   name (where AssignVar) val
+  ⍝ Details:
+  ⍝     If <val> is a non-⎕OR value,
+  ⍝         assigns value <val> to name <name>.
+  ⍝     If <val> is an ⎕OR,
+  ⍝         assigns the associated function, in place of the value.
+  ⍝ Returns <name> shyly.
+  ⍝ Syntax:
+  ⍝     ⍺:name (⍺⍺:where ∇) ⍵:val
+  ⍝     ⍺:name:   a valid variable name in the current env.
+  ⍝     ⍵:val:    a variable (⎕NC 2).
+  ⍝               If an ⎕OR, may be a dfn, tradfn, or a derived fn or system fn...
+  ⍝     ⍺⍺:where: namespace in which to execute (assign to name).  
+    AssignVar←{
+        _←⍺⍺.⎕EX ⍺                               ⍝ <name> may exist with incompatible class (⎕NC).  
+        (1=≡⍵)∧0=⍴⍴⍵:(⍺⍺{⍺⍺∘⍎ ⍺,'←⍵⍵' ⋄ ⍵⍵}⍵)⍨⍺  ⍝ <val> is an ⎕OR  
+        1:_←⍺⍺∘⍎ ⍺,'←⍵'                          ⍝ <val> is a value (⎕NC 2 or 9) that is not an ⎕OR. 
+    }                                           
 
     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
       actual←⍬
@@ -1051,9 +1089,15 @@
 ⍝H     if any key is not found, d.pop signals an error; otherwise,
 ⍝H     it returns the default for each missing item.
 ⍝H
-⍝H namespace ← d.namespace
-⍝H   >>> Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
-⍝H       Changes to <namespace> variables are reflected back to the dictionary as they are made and vice versa.
+⍝H namespace ← d.namespace 
+⍝H   >>> First call (on a specific dictionary)
+⍝H       Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
+⍝H       Changes to the dictionary will be reflected in the namespace and vice versa, from here on in.
+⍝H       To halt updates and delete the namespace, specify d.noNamespace.
+⍝H   >>> Subsequent calls...
+⍝H       Returns the currently active namespace reference, unless d.noNamespace has been specified.
+⍝H       Even if the namespace name has been deleted, the namespace will continue to be updated and its
+⍝H       name retrieved (unless noNamespace has been specified).  
 ⍝H   NOTE: variable names must be valid APL variable names to be useful.
 ⍝H       ∘ If not, we attempt to convert to variable names via ⎕JSON name mangling.  
 ⍝H         Numbers, in particular, will convert silently to mangled character strings.
