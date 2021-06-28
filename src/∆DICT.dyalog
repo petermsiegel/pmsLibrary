@@ -641,11 +641,10 @@
           THROW eKeyBadName
       :ENDTRAP
     ∇
-  ⍝ noNamespace: Returns 1 if it deleted the namespace; 0 otherwise.
-    ∇deleted←noNamespace
+  ⍝ noNamespace: Returns (shyly): 1 if it deleted the namespace, 0 otherwise.
+    ∇{deleted}←noNamespace
       :Access Public
       :IF deleted←×≢theNS
-          ⎕EX theNS
           theNS←⍬
       :ENDIF
     ∇
