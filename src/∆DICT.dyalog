@@ -15,9 +15,10 @@
   :Field Private Shared EXPORT_LIST← exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
  
   ⍝ IDs:  Create Display form of form:
-  ⍝       DictDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
+  ⍝       DictMMDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
   :Field Public         ID 
-  :Field Private Shared ID_COMMON←  (¯1+ 2*31) | 31  24 60 60 1000⊥¯1 0 0 0 0+¯5↑⎕TS 
+  :Field Private Shared ID_COUNT←  0
+  :Field Private Shared ID_PREFIX←  ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
 
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
@@ -73,23 +74,22 @@
       :Access Public
       :Trap 0
           importObjs struct      
-          ⎕DF 'Dict:',SET_ID
+          SET_ID
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
     ∇
-
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
     ∇ new0
       :Implements Constructor
       :Access Public
-       ⎕DF 'Dict:',SET_ID
+       SET_ID
     ∇
-    ⍝ SET_ID: Every dictionary has a unique ID included in its display form (see new1, new0).)
-    ⍝         Initial # set based on current day, hr, min, sec, ms when Dict class is first ⎕FIXed.
-    ⍝ Returns ⍕ID, after incrementing by 1.
-    ∇ idStr←SET_ID
-      idStr ← ⍕ID ← ID_COMMON ← 2147483647 | ID_COMMON + 1
+    ⍝ SET_ID: Set unique ID of this dictionary (for fast comparisons) of the form:
+    ⍝        ID:   'DICT:',<date-time prefix>,<counter>
+    ⍝ Sets the display form and returns the ID.
+    ∇ {returning}←SET_ID
+      ⎕DF returning ← ID←ID_PREFIX,⍕ID_COUNT ← 2147483647 | ID_COUNT + 1
     ∇
 
     ∇ destroy
@@ -280,6 +280,7 @@
       :IF ×≢theNS ⋄ ⍙Mirror2NS nk nv 0 ⋄ :ENDIF
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
     ∇
+    
   ⍝ ⍙Mirror2NS
   ⍝    (void)← ∇ (keys vals delF=0|1)
   ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
@@ -306,7 +307,7 @@
     ∇{val}←key set1NoMirror val;hideNS
         :Access Public
         hideNS theNS← theNS ⍬
-            key set1 val   
+        ⋄ key set1 val   
         theNS← hideNS
     ∇
 
@@ -616,19 +617,20 @@
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
   ⍝ On first call (or first after noNamespace),
-  ⍝ 1. creates namespace <ns>.
+  ⍝ 1. creates namespace <ns>, setting
+  ⍝      theNS - the created namespace
   ⍝ 2. creates 
   ⍝    ns.theDict - points to the active dictionary instance
   ⍝    ns.theUser   - contains user variables and the trigger fn (⍙DICT_TRIGGER⍙)
-  ⍝ 3. returns ns.theUser
+  ⍝ 3. returns theNS.theUser
     ∇theUser←namespace
       :Access Public
       :IF ×≢theNS 
            theUser←theNS.theUser 
       :ENDIF
+      theNS←⎕NS ''  ⋄   theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '⎕NS@',ID
+      theNS.theDict← ⎕THIS  
       :TRAP 0  ⍝ 4 if rank error
-          theNS←⎕NS ''  ⋄   theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '[∆DICT User Namespace]' 
-          theNS.theDict← ⎕THIS   
         ⍝ Load keys and values... 
         ⍝ If a key not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
         ⍝ Note the overhead and potential inconsistencies of converting numbers!
@@ -646,37 +648,34 @@
     ∇{deleted}←noNamespace
       :Access Public
       deleted theNS←(×≢theNS) ⍬
-      :ENDIF
     ∇
 
     ⍝ ⍙DICT_TRIGGER⍙: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: it's copied/activated in subsidiary namespaces!
     ⍝ namespace key '⍙457' ==> numeric 457, but 'X457' (or any valid name) remains as is.
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
-
     ∇⍙DICT_TRIGGER⍙ args
-       ;eTrigger;theDict;unmangleJ;k;numK;saveNS;val;valIn
+       ;eTrigger;theDict;unmangleJ;key;numK;saveNS;val;valIn
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      ⍝ Be sure all local variables are in fact local. Else infinite loop!!!
+      ⍝ Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!
       theDict←##.theDict
-      unmangleJ←1∘(7162⌶)                          ⍝ Convert APL key strings to JSON format
+      unmangleJ←1∘(7162⌶)         ⍝ Convert JSON-format names to APL-format.
       :TRAP 0
-           k←unmangleJ args.Name
-          :IF '⍙'=1↑args.Name  ⍝ Namespace was mangled...
-              numK←⎕VFI k 
-          :AndIf ~0∊⊃numK 
-              k←⊃⌽numK
+           key←unmangleJ args.Name  ⍝ Set key from the variable name (args.Name)
+          :IF '⍙'=1↑args.Name     ⍝ Var name had been mangled to be valid...
+              numK←⎕VFI key      
+          :AndIf ~0∊⊃numK         ⍝ Is the name (unmangled) a simple scalar/vector of numbers?
+              key←⊃⌽numK            ⍝ Yes-- the key now has those number(s) in APL format...
           :ENDIF     
           valIn←⍎args.Name
           :SELECT ⍬⍴⎕NC 'valIn' 
               :CASELIST 3 4 ⋄ val← ⎕OR args.Name            
               :CASELIST 2 9 ⋄ val←valIn
-              :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
+              :ELSE         ⋄ 11 ⎕SIGNAL⍨'Value for Key "',(⍕key),'" cannot be represented in the dictionary'
           :ENDSELECT 
-          {}k theDict.set1NoMirror val              ⍝  dict.set1NoMirror  - See ∆DICT
-      :Else  ⍝ Use ⎕SIGNAL, since used in user namespace, not DictClass.
-          eTrigger←'Dict.namespace: Unable to update key-value pair from namespace variable'  11
-          ⎕SIGNAL/eTrigger
+          {}key theDict.set1NoMirror val              ⍝  dict.set1NoMirror  - See ∆DICT
+      :Else  ⍝ Use ⎕SIGNAL, since we are in user namespace, not DictClass.
+          ⎕SIGNAL/'Dict.namespace: Unable to update key-value pair from namespace variable'  11
       :ENDTrap
     ∇
     
@@ -800,22 +799,22 @@
     ∇
   ⍝ AssignVar:    Assign to name in context <where> the value (std) or create as a function if the value is an ⎕OR.
   ⍝ name ←   name (where AssignVar) val
-  ⍝ Details:
-  ⍝     If <val> is a non-⎕OR value,
-  ⍝         assigns value <val> to name <name>.
-  ⍝     If <val> is an ⎕OR,
-  ⍝         assigns the associated function, in place of the value.
-  ⍝ Returns <name> shyly.
   ⍝ Syntax:
   ⍝     ⍺:name (⍺⍺:where ∇) ⍵:val
   ⍝     ⍺:name:   a valid variable name in the current env.
   ⍝     ⍵:val:    a variable (⎕NC 2).
   ⍝               If an ⎕OR, may be a dfn, tradfn, or a derived fn or system fn...
   ⍝     ⍺⍺:where: namespace in which to execute (assign to name).  
+  ⍝ Action:
+  ⍝     If <val> is a non-⎕OR value,
+  ⍝         assigns value <val> to name <name>.
+  ⍝     If <val> is an ⎕OR,
+  ⍝         assigns the associated function, in place of the value.
+  ⍝ Returns <name> shyly.
     AssignVar←{
         _←⍺⍺.⎕EX ⍺                               ⍝ <name> may exist with incompatible class (⎕NC).  
-        (1=≡⍵)∧0=⍴⍴⍵:(⍺⍺{⍺⍺∘⍎ ⍺,'←⍵⍵' ⋄ ⍵⍵}⍵)⍨⍺  ⍝ <val> is an ⎕OR  
-        1:_←⍺⍺∘⍎ ⍺,'←⍵'                          ⍝ <val> is a value (⎕NC 2 or 9) that is not an ⎕OR. 
+        (1=≡⍵)∧0=⍴⍴⍵:(⍺⍺{⍺⍺∘⍎ ⍺,'←⍵⍵' ⋄ ⍵⍵}⍵)⍨⍺  ⍝ <val> is an ⎕OR. ⍵⍵: magically convert ⎕OR to function (⎕NC 3).  
+        1:_←             ⍺⍺∘⍎ ⍺,'←⍵'             ⍝ <val> is a value (⎕NC 2 or 9) that is not an ⎕OR. 
     }                                           
 
     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
