@@ -3,7 +3,7 @@
 
 ⍝ Initialization of APL System Variables
 ⍝ Right now, ⎕CT, ⎕DCT, ⎕RL are set to be the same as in # at FIX time (when loaded)
-    (⎕IO ⎕ML)←0 1 ⋄ (⎕CT ⎕DCT ⎕RL)←#.(⎕CT ⎕DCT ⎕RL)  ⋄ ⎕PP←34  
+    (⎕IO ⎕ML ⎕PP)←0 1 34 ⋄ (⎕CT ⎕DCT ⎕RL)←#.(⎕CT ⎕DCT ⎕RL)   
  
 ⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
 ⍝ If exportSelection[n]=1, item [n] will be exported to ##
@@ -11,7 +11,7 @@
 ⍝ [0]    Dict   
 ⍝ [1]    ∆DICT   
 ⍝ [2]    ∆JDICT 
-  exportSelection← (1∊'⍙⍙'⍷⍕⎕THIS)⊃ (1 1 1)(1 1 1)     ⍝ Copy all EXPORT_LIST utilities to ## in each case...
+  exportSelection← 1 1 1                     ⍝ Copy all EXPORT_LIST utilities to ## in each case...
   :Field Private Shared EXPORT_LIST← exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
  
   ⍝ IDs:  Create Display form of form:
@@ -23,15 +23,13 @@
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
     :Field Private ∆TRAP←                   0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
-     unmangleJ←                             1∘(7162⌶)        ⍝ APL strings <--> JSON strings
-     mangleJ←                               (0∘(7162⌶))∘⍕
   ⍝ B. Core dictionary fields
-                   keysF←                   ⍬        ⍝ Variable to avoid Dyalog bugs (catenating/hashing)
+                   keysF←                   ⍬        ⍝ Non-field variable avoids Dyalog bugs with catenating/hashing.
     :Field Private valuesF←                 ⍬
     :Field Private hasdefaultF←             0
-    :Field Private defaultF←                ''       ⍝ Default value (hidden until hasdefaultF is 1)
+    :Field Private defaultF←                ''       ⍝ Default value (suppressed until hasdefaultF is 1)
   ⍝ theNS: see d.namespace, d.noNamespace
-    :Field Private theNS←                   ⍬        ⍝ 0=≢theNS. Set to a namespace in method namespace.
+    :Field Private theNS←                   ⍬        ⍝ If ×≢theNS, a mirrored namespace is created in method namespace.
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
     
   ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
@@ -44,7 +42,7 @@
     :Field Private Shared eHasNoDefaultD←   11 '∆DICT: no default has been set.'
     :Field Private Shared eQueryDontSet←    11 '∆DICT: querydefault may not be set; Use Dict.(default or hasdefault).'
     :Field Private Shared eBadInt←          11 '∆DICT.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
-    :Field Private Shared eKeyBadName←      11 'Dict.namespace: Unable to convert key to valid APL variable name'
+    :Field Private Shared eKeyBadName←      11 '∆DICT.namespace: Unable to convert key to valid APL variable name'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
@@ -55,7 +53,7 @@
     ∇dict←{def} ∆DICT initial      ⍝ Creates ⎕NEW Dict via cover function
     :Access Public Shared
      :TRAP 0
-        dict←(⊃⎕RSI).⎕NEW ⎕THIS initial 
+        dict←(⊃⎕RSI).⎕NEW ⎕THIS initial    ⍝ May set the dict.default via <initial 
         :IF ~900⌶1 ⋄ dict.default←def ⋄ :Endif 
      :Else
         ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
@@ -66,7 +64,7 @@
     ⍝-------------------------------------------------------------------------------------------
     ⍝ Constructors...
     ⍝ New1: "Constructs a dictionary and updates*** with entries, defined either as individual key-value pairs,
-    ⍝        or by name from existing dictionaries. Alternatively, sets the default value."
+    ⍝        or by name from existing dictionaries. Optionally, sets the default value."
     ⍝ Uses update/import, which will handle duplicate keys (the last value quietly wins), and so on.
     ⍝ *** See update for conventions for <initial>.
     ∇ new1 struct
@@ -91,7 +89,6 @@
     ∇ {returning}←SET_ID
       ⎕DF returning ← ID←ID_PREFIX,⍕ID_COUNT ← 2147483647 | ID_COUNT + 1
     ∇
-
     ∇ destroy
       :Implements Destructor
     ∇
@@ -120,16 +117,16 @@
           :If ~0∊found←ix<≢keysF
               vals←valuesF[ix]                
           :ElseIf hasdefaultF
-             vals← found expandNonce valuesF[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [Special Backslash]
-              ((~found)/vals)←⊂defaultF                 ⍝ Add default values for slots just inserted.
-              vals⍴⍨←shape                              ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
+             vals← found expandFill0 valuesF[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [Special Backslash]
+              ((~found)/vals)←⊂defaultF                   ⍝ Add default values for slots just inserted.
+              vals⍴⍨←shape                                ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
           :Else
                THROW eHasNoDefault
           :EndIf
         ∇
         ∇ set args;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
-          keys←⊃args.Indexers ⋄ vals←args.NewValue
+          keys←⊃args.Indexers ⋄ vals←args.NewValue 
           importVecs keys vals
         ∇
     :EndProperty
@@ -162,7 +159,7 @@
           vals←keyIndex[keys]
       :ELSE 
           nd←~d←defined keys
-          vals← d expandNonce keyIndex[d/keys]  ⍝ See Note [Special Backslash] above
+          vals← d expandFill0 keyIndex[d/keys]  ⍝ See Note [Special Backslash] above
           (nd/vals)←⊂def
       :ENDIF
     ∇
@@ -286,12 +283,13 @@
   ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
   ⍝ (Local utility used in importVecs)
     ∇⍙Mirror2NS (keys vals delF)
-     ;mangleJ;mKeys;NoTrigger
+     ;Key2Name;mKeys;NoTrigger
      →0/⍨  (0=≢keys) ∨ ~×≢theNS   
-     mangleJ← (0∘(7162⌶))∘⍕ 
+     Key2Name← {⎕NULL≡⍵: '⍙⍙NULL⍙⍙'  ⋄ (0∘(7162⌶))∘⍕⍵ }
      NoTrigger←theNS.theUser.{1: _←2007 ⌶ ⍵}
      NoTrigger 1
-        mKeys←mangleJ¨keys
+        mKeys←{0:: ⍬ ⋄ Key2Name¨⍵}keys
+        (~×≢mKeys) THROW eKeyBadName
         :IF delF 
             theNS.theUser.⎕EX mKeys      
         :ELSE 
@@ -624,7 +622,9 @@
   ⍝    ns.theUser   - contains user variables and the trigger fn (⍙DICT_TRIGGER⍙)
   ⍝ 3. returns theNS.theUser
     ∇theUser←namespace
+      ;Key2Name 
       :Access Public
+      Key2Name← {⎕NULL≡⍵: '⍙⍙NULL⍙⍙'  ⋄ (0∘(7162⌶))∘⍕⍵ }
       :IF ×≢theNS 
            theUser←theNS.theUser 
       :ENDIF
@@ -635,7 +635,7 @@
         ⍝ If a key not a valid name, use ⎕JSON mangling (may not be very useful). If it is valid, mangle is a NOP.
         ⍝ Note the overhead and potential inconsistencies of converting numbers!
           :IF ×≢keysF   
-            mKeys← mangleJ¨ keysF
+            mKeys← Key2Name¨ keysF
             mKeys (theUser AssignVar)¨valuesF  
           :ENDIF
           theUser.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '⍙DICT_TRIGGER⍙'
@@ -655,18 +655,19 @@
     ⍝ namespace key '⍙457' ==> numeric 457, but 'X457' (or any valid name) remains as is.
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
     ∇⍙DICT_TRIGGER⍙ args
-       ;eTrigger;theDict;unmangleJ;key;numK;saveNS;val;valIn
+       ;eTrigger;theDict;Name2Key;key;numK;saveNS;val;valIn
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
       ⍝ Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!
-      theDict←##.theDict
-      unmangleJ←1∘(7162⌶)         ⍝ Convert JSON-format names to APL-format.
+      theDict←##.theDict  
+    ⍝ Name2Key: See "global" Name2Key definition in ∆DICT
+    ⍝   If "raw" var name is secret value '⍙⍙NULL⍙⍙'  treat as ⎕NULL
+      Name2Key←{ NULL←'⍙⍙NULL⍙⍙'  
+        NULL≡⍵: ⊂⎕NULL    
+        key← 1∘(7162⌶) ⍵
+        ⋄ ok val←⎕VFI key ⋄ 0∊ok: key ⋄ 1≠≢val: val ⋄ ⊃val 
+      }                  
       :TRAP 0
-           key←unmangleJ args.Name  ⍝ Set key from the variable name (args.Name)
-          :IF '⍙'=1↑args.Name     ⍝ Var name had been mangled to be valid...
-              numK←⎕VFI key      
-          :AndIf ~0∊⊃numK         ⍝ Is the name (unmangled) a simple scalar/vector of numbers?
-              key←⊃⌽numK            ⍝ Yes-- the key now has those number(s) in APL format...
-          :ENDIF     
+          key←Name2Key args.Name        
           valIn←⍎args.Name
           :SELECT ⍬⍴⎕NC 'valIn' 
               :CASELIST 3 4 ⋄ val← ⎕OR args.Name            
@@ -698,21 +699,21 @@
 
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
-    ⍝ ----------------------------------------------------------------------------------------
     ⍝ INTERNAL UTILITIES
     ⍝ ----------------------------------------------------------------------------------------
-
+    ⍝ ----------------------------------------------------------------------------------------
     ⍝ Note [Special Backslash]
-    ⍝ expandNonce: an operator that uses 0 as its fill item, rather than the first element.
-    ⍝    out ← bool expandNonce in          
-            ⍝ We use expand in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
-            ⍝ valuesF[...] may include namespaces or other items w/o a fill value. 
-            ⍝ If the first item in  ⍵, during an expand operation ⍺\⍵, contains such an item, a NONCE ERROR occurs,
-            ⍝ We resolve this using <expandNonce>, which uses a fill value of 0:
-            ⍝       vals←found expandNonce valuesF[found/ix]  
-    ⍝ TACIT version:  a expandNonce b, where expandNonce ← 1↓(1,⊣)⊢⍤\(0,⊢)    
-      expandNonce←{1↓(1,⍺)\ 0,⍵}          ⍝ TACIT VERSION: expandNonce ← 1↓(1,⊣)⊢⍤\0,⊢      ⍝ slightly slower than dfn version!
-      
+    ⍝ expandFill0:  ⍺:bool \ ⍵:in, which uses a fill of 0 for the first item. See discussion below.
+    ⍝    out ← bool expandFill0 in          
+    ⍝ Discussion: 
+    ⍝  ∘ We use expand in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
+    ⍝    valuesF[...] may include namespaces or other items w/o a fill value. 
+    ⍝  ∘ If the first item in  ⍵, during an expand operation ⍺\⍵, contains such an item, a NONCE ERROR occurs,
+    ⍝  ∘ We resolve this using <expandFill0>, which uses a fill value of 0:
+    ⍝    vals←found expandFill0 valuesF[found/ix]  
+    ⍝ Tacit Variant:    expandFill0 ← 1↓(1,⊣)⊢⍤\0,⊢      ⍝ a tad slower
+      expandFill0←{1↓(1,⍺)\ 0,⍵}    
+
     ∇ {status}←OPTIMIZE 
     ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is not usefully called).
     ⍝ While it is usually of no benefit to hash small key vectors of simple integers or characters,
@@ -721,31 +722,39 @@
       keysF←1500⌶keysF                                                               
     ∇
     
-    ⍝ THROW:    [cond:1] THROW (en message), where en and message are ⎕DMX fields EN and Message.
-    ⍝          Field EM is determined by EN.
-    ⍝          If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
-    ⍝          If cond is 0, returns null.
-    THROW←⎕SIGNAL {⍺←1 ⋄ e m←⍵ ⋄ ⍺: ⊂('EN' e)('Message'  m) ⋄ ⍬}
+    ⍝ THROW: "Throws an error if ⍺ is omitted or contains a 1; else a NOP."
+    ⍝   [cond:1] THROW (en message), 
+    ⍝   where en and message are ⎕DMX fields EN and Message.
+    ⍝   Field EM is determined by EN.
+    ⍝   If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
+    ⍝   If cond is 0, returns null.
+    THROW←⎕SIGNAL {⍺←1 ⋄ e m←⍵ ⋄ 1∊⍺: ⊂('EN' e)('Message'  m) ⋄ ⍬}
     
 ⍝⍝
 ⍝⍝ ∆JDICT function --- See HELP INFO BELOW
 ⍝⍝ =========================================================================================
 
+  ⍝ JSONsample: JSON demo case. To access:  x← Dict.JSONsample or   jd← ∆JDICT Dict.JSONsample
     :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
 
     ∇ result ← {minorOpt} ∆JDICT strJson
-      ;err;oJson5;keys;majorOpt;mangleJ;unmangleJ;ns;oNull;vals;⎕IO;⎕TRAP   
+      ;err;oJson5;keys;majorOpt;mangleJ;ns;oNull;vals;⎕IO;⎕TRAP   
       :Access Public Shared
-      unmangleJ←                 1∘(7162⌶)   ⍝ Convert APL key strings to JSON format
       mangleJ←                  (0∘(7162⌶))∘⍕ 
-      
+      Name2Key←{ 
+          ⎕←'<', ⍵, '>'
+          NULL←'⍙⍙NULL⍙⍙'  '⍙⍙9049⍙⍙9049⍙NULL⍙9049⍙⍙9049⍙'  ⍝ 2nd is mangled version of first...
+          NULL∊⍨⊂⍵: ⊂⎕NULL 
+          key← 1∘(7162⌶) ⍵
+          ok val←⎕VFI key ⋄ 0∊ok: key ⋄ 1≠≢val: val ⋄ ⊃val 
+      }  
       ⎕IO←0 ⋄ oNull oJson5 oJson3←('Null'⎕NULL)('Dialect' 'JSON5')('Dialect' 'JSON')
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
       err←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
     ⍝ Major opt (majorOpt) automatically set based on type of <json>.
     ⍝ If several namespaces or strings OR converts from string to namespaces, majorOpt=2.
     ⍝ If majorOpt=0, minor option is checked; otherwise ignored.
-      minorOpt←{⍵: 0 ⋄ minorOpt} 900⌶1    
+      minorOpt←{⍵: 0 ⋄ minorOpt} 900⌶1   
       ns majorOpt←strJson{
         badStrE←'At least one invalid ⎕JSON input string found in arg ⍵.'  
         badObjE←'At least one object in arg ⍵ not a JSON string or compatible APL namespace or dictionary.' 
@@ -759,24 +768,29 @@
         ⍵=9.2: ⎕NULL 0    ⍝ Object is a class instance; expected to be a dict.
         err badObjE
       }⎕NC⊂'strJson'
-
+    
       :Select majorOpt
       :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
           dict←∆DICT ⍬
+        ⍝ Name2Key (MASTER VERSION). 
+        ⍝ Changes? Be sure to update version used in ⍙DICT_TRIGGER⍙
+        ⍝   If "raw" var name is secret value '⍙⍙NULL⍙⍙', map onto ⎕NULL   
           ns dict∘{
               0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
-                ns dict←⍺ ⋄ itemA itemJ←⍵ (unmangleJ ⍵) ⋄ val←ns⍎itemA
-              2=ns.⎕NC itemA:_←itemJ dict. val
-                dict2←∆DICT ⍬ ⋄ ns2←val
-                _←itemJ dict.set1 dict2
-              1:_←ns2 dict2∘∇¨ns2.⎕NL-2.1 9.1
+              context dict←⍺ ⋄ varName←⍵ ⋄ val←context⍎varName
+              key←Name2Key varName    
+              2=context.⎕NC varName:_←key dict.set1 val
+            ⍝ varName points to a namespace, which is converted internally to a dictionary
+              dict2←∆DICT ⍬ ⋄ subtext←val
+              _←key dict.set1 dict2
+              1:_←subtext dict2∘∇¨subtext.⎕NL-2.1 9.1
           }¨ns.⎕NL-2.1 9.1
           result←dict  ⍝ Return a single dictionary
       :Else           ⍝ User passed a dictionary to convert
           (~minorOpt∊0 1 2) err 'Option ⍺ was invalid: Must be 0, 1, 2.'  
-          scan←{
+          Scan←{
               isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ ⎕THIS∊⊃⊃⎕CLASS ⍵} 
               ns←⍺⍺ ⋄ k v←⍺ ⍵
               ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
@@ -786,7 +800,7 @@
           dict←strJson
           :TRAP  0
               ns←⎕NS ''
-              (mangleJ¨ dict.keys) (ns scan)¨dict.vals
+              (mangleJ¨ dict.keys) (ns Scan)¨dict.vals
           :Else 
               err 'Dictionary ⍵ could not be converted to ⎕JSON.' 
           :EndTrap
@@ -1028,7 +1042,7 @@
 ⍝H     Return the value for keys in the dictionary, else default. 
 ⍝H     If <default> is omitted and a key is not found, returns the existing default.
 ⍝H
-⍝H (k1 k2 ... d.set v1 v2) ... OR (d.set1 (k1 v1)(k2 v2)...)
+⍝H (k1 k2 ... d.set v1 v2) ... OR (d.set (k1 v1)(k2 v2)...)
 ⍝H (k1 d.set1 v1) OR (d.set1 k1 v1)
 ⍝H     Set one or more items either with 
 ⍝H          a keylist and valuelist: k1 k2 ... ∇ v1 v2 ...
@@ -1092,6 +1106,12 @@
 ⍝H       Creates a namespace whose names are the dictionary keys and the values are the dictionary values.
 ⍝H       Changes to the dictionary will be reflected in the namespace and vice versa, from here on in.
 ⍝H       To halt updates and delete the namespace, specify d.noNamespace.
+⍝H   >>> WARNING:
+⍝H       When mirroring to a namespace, all keys must be either scalars or vectors, and either characters or numbers.
+⍝H       If a key is a numeric scalar 123, it will appear as "mangled" variable name ⍙123.
+⍝H       If mirroring, the conversion uses JSON name mangling to create valid variable names.
+⍝H       If a namespace variable appears to be a single scalar number, e.g. ⍙12345, it will be converted to 
+⍝H       a single scalar 12345; if a vector mangled as varname ⍙1⍙32⍙2⍙32⍙3, a vector 1 2 3.
 ⍝H   >>> Subsequent calls...
 ⍝H       Returns the currently active namespace reference, unless d.noNamespace has been specified.
 ⍝H       Even if the namespace name has been deleted, the namespace will continue to be updated and its
