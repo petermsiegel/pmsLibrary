@@ -3,7 +3,7 @@
 
 ⍝ Initialization of APL System Variables
 ⍝ Right now, ⎕CT, ⎕DCT, ⎕RL are set to be the same as in # at FIX time (when loaded)
-    (⎕IO ⎕ML ⎕PP)←0 1 34 ⋄ (⎕CT ⎕DCT ⎕RL)←#.(⎕CT ⎕DCT ⎕RL)   
+    ⎕IO ⎕ML ⎕PP ←0 1 34 ⋄ (⎕CT ⎕DCT ⎕RL)←##.(⎕CT ⎕DCT ⎕RL)   
  
 ⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
 ⍝ If exportSelection[n]=1, item [n] will be exported to ##
@@ -17,8 +17,9 @@
   ⍝ IDs:  Create Display form of form:
   ⍝       DictMMDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
   :Field Public         ID 
-  :Field Private Shared ID_COUNT←  0
-  :Field Private Shared ID_PREFIX←  ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
+  :Field Private Shared ID_COUNT←           0
+  :Field Private Shared ID_PREFIX←          ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
+  :Field Private Shared UTIL_PATH←          ⎕THIS.## 
 
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
@@ -48,12 +49,14 @@
     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
       :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]
       ns←⎕THIS
-    ∇
+    ∇ 
 
     ∇dict←{default} ∆DICT items_default      ⍝ Creates ⎕NEW Dict via cover function
+     ;_DICT_
     :Access Public Shared
      :TRAP 0
-        dict←(⊃⎕RSI).⎕NEW ⎕THIS items_default       ⍝ May set the dict.default via <items_default>
+        _DICT_ ← ⎕THIS ⍝  ⎕SE.⍙⍙.⍙.DictClass 
+        dict←(⊃⎕RSI,#).⎕NEW _DICT_ items_default       ⍝ May set the dict.default via <items_default>
         :IF ~900⌶1 ⋄ dict.default←default ⋄ :Endif      ⍝ An explicit <default> overrides any set in <items_default>
      :Else
         ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
@@ -71,7 +74,7 @@
       :Implements Constructor
       :Access Public
       :Trap 0
-          importObjs struct      
+          _importObjs struct      
           SET_ID
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
@@ -213,18 +216,18 @@
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
     ⍝         (e.g. one exported via dict1.export)
     ⍝ 
-    ⍝ importObjs ⍵: Internal utility to be called from top-level routines."
+    ⍝ _importObjs ⍵: Internal utility to be called from top-level routines."
     ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.           
-    ∇ {dict}←update initial;⎕TRAP
+    ∇ {dict}←update objectSpecs;⎕TRAP
       :Access Public
       :TRAP 0 
-          importObjs initial  
+          _importObjs objectSpecs  
       :Else
           THROW ⎕DMX.EN ((⎕UCS 10),⎕DMX.Message)
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ importObjs objects: used only internally.
+    ⍝ _importObjs objects: used only internally.
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
     ⍝ objects: 
     ⍝        (⍪keys vals [default]) OR (key1 val1)(key2 val2)(...) OR dictionary
@@ -234,10 +237,16 @@
     ⍝        it is assumed to be a default value instead.
     ⍝ Returns: NONE
     isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵} 
-    ∇ importObjs objects;k;v;o 
+    ∇ _importObjs objects;k;v;o 
       :If 0=≢objects                            ⍝ EMPTY?  NOP
-      :Elseif 0=⍴⍴objects                       ⍝ SCALAR? FAST PATH
-          defaultF hasdefaultF←(⊃objects) 1 
+      :ELSEIF 0=⍴⍴objects
+        :IF isDict objects
+           importVecs objects.export
+        :Elseif 9.1=⎕NC ⊂'objects'
+           importVecs (UTIL_PATH.∆JDICT objects).export
+        :Else 
+           defaultF hasdefaultF←(⊃objects) 1   ⍝ SCALAR? FAST PATH
+        :Endif 
       :Elseif 2=⍴⍴objects                       ⍝ COLUMN VECTOR KEYVEC/VALUEVEC? 
           importMx objects                      ⍝ ... FAST PATH
       :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
@@ -248,6 +257,8 @@
               :Elseif 2=≢o     ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
               :Elseif 1≠≢o     ⋄ THROW eBadUpdate                ⍝ Not Scalar. Error.
               :Elseif isDict o ⋄ importVecs o.export             ⍝ Import Dictionary
+              :ELSEif 9.1=⎕NC⊂,'o'
+                                 importVecs (UTIL_PATH.∆JDICT objects).export
               :Elseif 2∧.=≢¨o  ⋄ importVecs ↓⍉↑o                 ⍝
               :Else            ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
               :Endif 
@@ -311,7 +322,7 @@
     ∇
 
     ⍝ importMx: Imports ⍪keyvec valvec [default]
-    importMx←importVecs{2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
+    importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
     ⍝         Uses ⊃⊃⎕CLASS in case the object is from a class derived from Dict (as a base class).
@@ -343,10 +354,12 @@
     ⍝ If no items,   returns ⍬.
     :Property print,hprint,disp,hdisp
     :Access Public
-    ∇ r←get args;show;disp 
+    ∇ r←get args
+      ;show;disp;⎕PP   
       :If 0=≢keysF ⋄ r←⍬ ⋄ :Return ⋄ :EndIf
       disp←⎕SE.Dyalog.Utils.disp    
-      r←↑keysF valuesF  
+      r←↑keysF valuesF 
+      ⎕PP←34 
       :SELECT args.Name    
          :Case 'print'   ⋄ r←           ⍉r
          :Case 'disp'    ⋄ r← 0 1 disp  ⍉r 
@@ -453,13 +466,13 @@
     ∇ {newvals}←{∆} inc keys;add2;⎕TRAP 
       :Access Public
       ⎕TRAP←∆TRAP
-      add2← { nv←⍺+0 get ⍵ ⋄ nv⊣importVecs ⍵ nv }
+      _inc← { nv←⍺+0 ⍺⍺ ⍵ ⋄ nv⊣⍵ ⍵⍵  nv }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :TRAP 11 
           :IF (≢∪keys)=≢keys
-            newvals←∆ add2 keys
+            newvals←∆ (get _inc set) keys
           :Else 
-            newvals←∆ add2¨⊂¨keys
+            newvals←∆ (get1 _inc set1)¨ keys
           :Endif
       :Else
           THROW eBadInt
@@ -622,10 +635,12 @@
   ⍝    ns.theDict - points to the active dictionary instance
   ⍝    ns.theUser   - contains user variables and the trigger fn (⍙DICT_TRIGGER⍙)
   ⍝ 3. returns theNS.theUser
-    ∇theUser←namespace
-      ;Key2Name 
-      :Access Public
+   :Property namespace, namespaceN, namespaceC
+    :Access Public
+    ∇theUser←get args
+      ;ASIS;Key2Name 
       Key2Name←  0⍨7162⌶⍕             ⍝ JSON mangling
+      ASIS←⍕'namespaceC'≡args.Name
       :IF ×≢theNS 
            theUser←theNS.theUser 
       :ENDIF
@@ -637,16 +652,17 @@
             mKeys← Key2Name¨ keysF
             mKeys (theUser AssignVar)¨valuesF  
           :ENDIF
-          theUser.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '⍙DICT_TRIGGER⍙'
+          theUser.⎕FX '⍝ACTIVATE⍝' '__ASIS__' ⎕R ''  ASIS⊣ ⎕NR '⍙DICT_TRIGGER⍙'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
     ∇
+    :EndProperty
     
   ⍝ noNamespace: Returns (shyly): 1 if it deleted the namespace, 0 otherwise.
     ∇{deleted}←noNamespace
       :Access Public
-      deleted theNS←(×≢theNS) ⍬
+      (deleted theNS)←(×≢theNS) ⍬
     ∇
 
     ⍝ ⍙DICT_TRIGGER⍙: helper for d.namespace above ONLY.
@@ -659,8 +675,10 @@
       ⍝ Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!
       theDict←##.theDict  
     ⍝ Name2Key: Keep the same as "global" Name2Key definition in ∆DICT, copied here...
-      Name2Key←{  ⍝ JSON unmangling   
-        ok val←⎕VFI key←1∘(7162⌶) ⍵  ⋄ 0∊ok: key ⋄ 1≠≢val: val ⋄ ⊃val 
+    ⍝ ASIS=0: Treat imported keys that look like numeric scalars/vectors as APL numbers  
+      Name2Key←__ASIS__∘{  ⍝ Uses JSON unmangling: 
+        key←1∘(7162⌶) ⍵ ⋄ ⍺: ⍬⍴⍣(1=≢key)⊣key  
+        ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
       }                  
       :TRAP 0
           key←Name2Key args.Name        
@@ -734,11 +752,13 @@
     :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
 
     ∇ result ← {minorOpt} ∆JDICT strJson
-      ;err;oJson5;keys;majorOpt;Key2Name;Name2Key;ns;oNull;vals;⎕IO;⎕TRAP   
+      ;err;oJson5;keys;majorOpt;Key2Name;Name2Key;ns;oNull;vals;__ASIS__;⎕IO;⎕TRAP   
       :Access Public Shared
       Key2Name← 0⍨7162⌶⍕       ⍝ JSON mangling
-      Name2Key←{               ⍝ JSON unmangling
-          ok val←⎕VFI key←1∘(7162⌶) ⍵  ⋄ 0∊ok: key ⋄ 1≠≢val: val ⋄ ⊃val  ⍝ single # => disclose scalar
+      __ASIS__←0               ⍝ 0: Treat imported keys that look like numeric scalars/vectors as APL numbers 
+      Name2Key←__ASIS__∘{               ⍝ JSON unmangling
+          key←1∘(7162⌶) ⍵ ⋄ ⍺: ⍬⍴⍣(1=≢key)⊣key  
+          ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key  ⋄ 1≠≢val: val ⋄ ⊃val  ⍝ single # => disclose scalar
       }  
       ⎕IO←0 ⋄ oNull oJson5 oJson3←('Null'⎕NULL)('Dialect' 'JSON5')('Dialect' 'JSON')
       ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
@@ -765,14 +785,14 @@
       :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-          dict←∆DICT ⍬
+          dict←∆DICT ⍬   
           ns dict∘{
               0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
               context dict←⍺ ⋄ varName←⍵ ⋄ val←context⍎varName
               key←Name2Key varName    
               2=context.⎕NC varName:_←key dict.set1 val
             ⍝ varName points to a namespace, which is converted internally to a dictionary
-              dict2←∆DICT ⍬ ⋄ subtext←val
+              dict2←UTIL_PATH.∆DICT ⍬ ⋄ subtext←val
               _←key dict.set1 dict2
               1:_←subtext dict2∘∇¨subtext.⎕NL-2.1 9.1
           }¨ns.⎕NL-2.1 9.1
@@ -823,7 +843,7 @@
     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
       actual←⍬
       :FOR fn :IN list
-          ok←##.⎕FX '⎕THIS\b' ⎕R (⍕⎕THIS)⊣⎕NR fn  
+          ok←##.⎕FX '⎕THIS\b'  'UTIL_PATH' ⎕R (⍕⎕THIS)(⍕UTIL_PATH)⊣⎕NR fn  
           :IF 0=1↑0⍴ok
               ⎕←'EXPORT_GROUP: Unable to export fn "',fn,'". Error in ',fn,' line',ok
           :ENDIF
@@ -899,9 +919,12 @@
 ⍝H                   d.hprint                             ⍝ Show keys, values by rows (⍪d.print)
 ⍝H                   d.disp                               ⍝ Print by columns via dfns disp (variant of display) 
 ⍝H                   d.hdisp                              ⍝ Print by rows via dfns disp
+⍝H                   d.⎕CT, d.⎕DCT                        ⍝ Set or Get ⎕CT, ⎕DCT: affects key searches!
 ⍝H DELETE
-⍝H    b1 b2 b3 ←  [ignore←0] d.del keys                   ⍝ Delete items by specific key
-⍝H    b1 b2 b3 ←  [ignore←0] d.delbyindex indices         ⍝ Delete items by specific index
+⍝H    b1 b2 b3 ←  [ign←0] d.del keys                      ⍝ Delete items by specific key (ign: ignore missing keys)
+⍝H    b1 b2 b3 ←  [ign←0] d.delbyindex indices            ⍝ Delete items by specific index (ign: ignore missing keys)
+⍝H                   d.clear                              ⍝ Delete all items in the dictionary 
+⍝H                                                          (maintain defaults, namespace, etc.)
 ⍝H INC/DEC
 ⍝H    n1 n2 n3 ←  [incr←1] d.inc keys                     ⍝ Increment values for specific keys
 ⍝H    n1 n2 n3 ←  [decr←1] d.dec keys                     ⍝ Decrement values for specific keys
@@ -909,7 +932,7 @@
 ⍝H    (k1 v1)(k2 v2)... ←  d.popitem count                ⍝ Remove/return <count> items from end of dictionary.
 ⍝H    vals  ←              d.pop keys                     ⍝ Remove/return values for specific keys from dictionary.
 ⍝H MISC
-⍝H                  ns  ←  d.namespace                    ⍝ Create a namespace whose variables track dictionary entries and vice versa.
+⍝H                  ns  ←  d.namespace[C]                 ⍝ Create a namespace whose variables track dictionary entries and vice versa.
 ⍝H                                                        ⍝ Keys are mapped onto APL variable names via JSON name mangling (see below).
 ⍝H                                                        ⍝ Values allowed include ordinary (NC=2) variables, namespaces (NC=9), and
 ⍝H                                                        ⍝ object representations (⎕OR), which become fns or operators in the namespace.
@@ -1009,6 +1032,9 @@
 ⍝H d.clear
 ⍝H     Remove all items from the dictionary.
 ⍝H
+⍝H d.⎕CT, d.⎕DCT 
+⍝H     Impacts searches for numeric (⎕CT) or decimal float (⎕DCT) numbers among dictionary keys (see Dyalog ⍳).
+⍝H     d.⎕CT←1E¯4, old←d.⎕DCT, etc.
 ⍝H ------------------------------------------------
 ⍝H    DEALING WITH VALUE DEFAULTS
 ⍝H ------------------------------------------------
@@ -1124,8 +1150,8 @@
 ⍝H      will be used as their name (after JSON mangling). E.g. ⎕NULL has as its display form 
 ⍝H      [Null] and its (mangled) variable name ⍙⍙91⍙Null⍙93⍙ (encoding the brackets []).
 ⍝H    ∘ Any dictionary value can be represented in the namespace, including namespaces, class instances, etc.
-⍝H    ∘ Dictionary values that are object representations are a special case.
-⍝H      Namespace object values that are functions or operators are a special case.
+⍝H    ∘ Dictionary values that are object representations are a special case...
+⍝H      ...Namespace object values that are functions or operators are a special case.
 ⍝H      - Any dictionary value that is an object representation (⎕OR) will be automatically converted to its
 ⍝H        function or operator format when assigned to its namespace variable.
 ⍝H      - Any variable in the namespace assigned a value as a function or operator will have that value
