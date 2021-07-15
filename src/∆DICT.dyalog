@@ -308,63 +308,35 @@
      SuppressTrigger 0
     ∇
 
-  ⍝ set1NoMirror 
-  ⍝    key ⍺:Dict val
-  ⍝ Do set1 without mirroring key/value to namespace (if active)
-  ⍝ Used only in __DictTrigger__
-    ∇{val}←key set1NoMirror val;hideNS
-        :Access Public
-        hideNS theNS← theNS ⍬
-        ⋄ key set1 val   
-        theNS← hideNS
-    ∇
-
     ⍝ importMx: Imports ⍪keyvec valvec [default]
     importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
-    ∇{names}←{keysAsNumbers} importNS specs
-      ;classes;k;keys;nm;ns;vals;valIn   
-      ;Name2Key    
-      :Access Public  
-      ns classes←(⍬⍴specs)(1↓specs)
-      (9.1≠⎕NC⊂'ns')THROW 11 'Namespace specified is invalid'
-      keysAsNumbers← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'keysAsNumbers'
-      classes← classes {0≠≢⍺: ⍺ ⋄  ⍵ }2 3 4 9
-      (0∊classes∊2 3 4 9) THROW 11 'Invalid class specification'
-      Name2Key←keysAsNumbers∘{  ⍝ Uses JSON unmangling: 
-          key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
-          ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
-        }  
-      ⍝ Remove (ignore) names starting and ending with __.
+    ∇{names}←{keysAsNumbers} importNS ns_classes
+      ;classes;hideNS;names;ns;Name2Key;theNS    
+      :Access Public
+      keysAsNumbers← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'keysAsNumbers' 
+      
+      ns classes←(⍬⍴ns_classes)({0=≢⍵: 2 3 4 9 ⋄  ⍵ }1↓ns_classes)
+          (9.1≠⎕NC⊂'ns')       THROW 11 'Namespace specified is invalid'
+          (0∊classes∊2 3 4 9)  THROW 11 'Invalid class specification'
+    ⍝ Remove (ignore) names starting and ending with __.
       names←{⍵/⍨{b←'__'⍷⍵ ⋄ ⊃~(1↑b)∧1↑¯2↑b}¨⍵}ns.⎕NL -classes
       hideNS theNS← theNS ⍬   ⍝ Suppress any mapping onto the namespace
-      keys←vals←⍬
-      ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
-      ⍝ :TRAP 0
-        ⍝ kvPairs←{
-        ⍝     0:: THROW 11 'Unable to update key-value pair from namespace variable'
-        ⍝     k←Name2Key nm ⋄  valIn←ns⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
-        ⍝     case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
-        ⍝     THROW 11 'Value for Key "',(⍕k),'" cannot be represented in the dictionary'  
-        ⍝ }¨names
-      ⍝ import kvPairs
-      ⍝ :ELSE
-      ⍝     THROW ⎕DMX.(EN Message)
-      ⍝ :ENDTRAP
+    ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
       :TRAP 0
-          :FOR nm :in names
-              keys,←⊂k←Name2Key nm  
-              valIn←ns⍎nm ⊣ ⎕EX 'valIn' 
-              :SELECT ⍬⍴⎕NC 'valIn' 
-                  :CASELIST 3 4 ⋄ vals,← ⊂ns.⎕OR nm       
-                  :CASELIST 2 9 ⋄ vals,← ⊂valIn
-                  :ELSE ⋄  THROW 11 'Value for Key "',(⍕k),'" cannot be represented in the dictionary'
-              :ENDSELECT 
-          :ENDFOR
-          keys set vals
-      :Else   
-          THROW 11 'Unable to update key-value pair from namespace variable' 
-      :ENDTrap
+        Name2Key←keysAsNumbers∘{  ⍝ Uses JSON unmangling: 
+            key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
+            ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
+        }  
+        importVecs↓⍉↑{nm←⍵
+            0:: THROW 11 'Unable to update key-value pair from namespace variable'
+            k←Name2Key nm ⋄  valIn←ns⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
+            case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
+            THROW 11 'Value for Key "',(⍕k),'" cannot be represented in the dictionary'  
+        }¨names
+      :ELSE
+          THROW ⎕DMX.(EN Message)
+      :ENDTRAP
       theNS← hideNS       ⍝ Restore any mapping onto the namespace
     ∇ 
 
@@ -679,12 +651,12 @@
   ⍝    ns.theDict - points to the active dictionary instance
   ⍝    ns.theUser   - contains user variables and the trigger fn (__DictTrigger__)
   ⍝ 3. returns theNS.theUser
-   :Property namespace, namespaceN, namespaceC
+   :Property namespace, namespaceC, namespaceN
     :Access Public
     ∇theUser←get args
       ;keysAsNumbers;Key2Name 
       Key2Name←  0⍨7162⌶⍕             ⍝ JSON mangling
-      keysAsNumbers←⍕'namespaceC'≢args.Name
+      keysAsNumbers←⍕'namespaceN'≡args.Name
       :IF ×≢theNS 
            theUser←theNS.theUser 
       :ENDIF
@@ -958,7 +930,7 @@
 ⍝H    (k1 v1)(k2 v2)... ←  d.popitem count                ⍝ Remove/return <count> items from end of dictionary.
 ⍝H    vals  ←              d.pop keys                     ⍝ Remove/return values for specific keys from dictionary.
 ⍝H MISC
-⍝H                  ns  ←  d.namespace[C]                 ⍝ Create a namespace whose variables track dictionary entries and vice versa.
+⍝H                  ns  ←  d.namespace[[C|N]]             ⍝ Create a namespace whose variables track dictionary entries and vice versa.
 ⍝H                                                        ⍝ Keys are mapped onto APL variable names via JSON name mangling (see below).
 ⍝H                                                        ⍝ Values allowed include ordinary (NC=2) variables, namespaces (NC=9), and
 ⍝H                                                        ⍝ object representations (⎕OR), which become fns or operators in the namespace.
@@ -1148,17 +1120,33 @@
 ⍝H
 ⍝H =========================================================================================
 ⍝H    MAPPING DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
-⍝H    d.namespace   - returns a reference to the active private namespace, activating if not already so
+⍝H    d.namespaceC (alias d.namespace), d.namespaceN
+⍝H          - returns a reference to the active private namespace, activating if not already so.
+⍝H          - a key consisting of a numeric scalar 123 or vector 123 456 map onto ⍙123 or ⍙123⍙32⍙456
+⍝H          - an equiv. character scalar or vector maps onto the same variables ⍙123 or ⍙123⍙32⍙456.
+⍝H    WARNING: Consider not using namespace mapping for numeric keys (though they will "work") 
+⍝H             or for any character items except simple scalars or vectors.
+⍝H             GOOD KEYS  (⊂'test string') (⊂'3.14159')           ⍝ With d.namespaceC: char strings
+⍝H             OK KEYS    (3.14159) (25) (⊂10 20 30)              ⍝ With d.namespaceN: numeric scalars or vectors
+⍝H             POOR KEYS  (⊂'test' 'string')('10' '20')           ⍝ No matter what: char vec of strings 
+⍝H                        (⊂10 20 30)                             ⍝ With d.namespaceC this is a char string '10 20 30'
+⍝H             ERRORS     (⊂2 3⍴⍳6) (↑'cats' 'dogs')              ⍝ Generates a message: neither scalar nor vector
+⍝H    d.namespaceC  - namespace vars ⍙nnn (e.g. ⍙1) map onto character keys 'nnn' (e.g. '1')
+⍝H                  - ambiguously, keys 111 and '111' map onto same namespace variables!
+⍝H    d.namespaceN  - namespace vars ⍙nnn (e.g. ⍙1) map onto numeric keys nnn (e.g. 1).
+⍝H                  - ambiguously, keys 111 and '111' map onto same namespace variables!
 ⍝H    d.noNamespace - disconnects any active namespace from the dictionary
 ⍝H =========================================================================================
-⍝H namespace ← d.namespace   
-⍝H    Returns a reference to the actively mapped namespace, creating it if not created or if deleted.
+⍝H namespace ← d.namespace | d.namespaceC* | d.namespaceN        *d.namespace ≡ d.namespaceC
+⍝H    Returns a reference to an actively mapped namespace, creating it if not created or if deleted,
+⍝H    whose variables are the same as the keys (mapped via JSON name mangling) and whose values are
+⍝H    the same as the dictionary values, with one extension: values which are object representations are treated as their
+⍝H    equivalent function or operator in the namespace.
 ⍝H status    ← d.noNamespace
-⍝H    Returns 1 if it deleted* an active (created) mapped namespace; 0, if no namespace was active.
+⍝H    Returns 1 if it stops mirroring* an active (created) mapped namespace; 0, if no namespace was active.
 ⍝H    If the user keeps a separate copy of the namespace reference, it now stands on its own.
 ⍝H    The next call to d.namespace will create a new namespace and return it.
-⍝H    * More correctly, d.noNamespace doesn't delete the namespace; it simply disconnects it from the dictionary.
-⍝H      If the user hasn't saved a reference to it, it is deleted according to APL rules.
+⍝H    * If the user has not saved a separate instance of the namespace, then it is deleted by APL.
 ⍝H ------------
 ⍝H    ∘ d.namespace returns a reference to a namespace whose variable names correspond to
 ⍝H      dictionary keys and whose variable values correspond to dictionary values.
@@ -1168,8 +1156,12 @@
 ⍝H      We recommend keeping mapped keys as simple strings to avoid surprises or complexities of JSON name-handling.
 ⍝H      In general, keys must be one of these types:
 ⍝H           a) character scalars or vectors;
-⍝H           b) numeric scalars or vectors.
+⍝H           b) numeric scalars  
 ⍝H      On conversion from namespace variables to dictionary entries, 
+⍝H         for d.namespace or d.namespaceC (equivalent)
+⍝H           a name that maps onto a single character will be treated as a character scalar.
+⍝H           a name that maps onto a char. vector will be a character vector (string) key
+⍝H         for d.namespaceN 
 ⍝H           a name that maps onto a single number (scalar or vector) will be treated as a numeric scalar key;
 ⍝H           a name that maps onto a vector of 2 or more numbers will be treated as a numeric vector key.
 ⍝H      That is, while '127' and 127 as dictionary keys both map onto the same namespace value (⍙127)
@@ -1184,17 +1176,6 @@
 ⍝H        function or operator format when assigned to its namespace variable.
 ⍝H      - Any variable in the namespace assigned a value as a function or operator will have that value
 ⍝H        mapped onto the ⎕OR of that function or operator, when assigned to the dictionary entry.
-⍝H   NOTE: When dictionary keys are numbers...
-⍝H      - Converting keys that are numbers to namespace variables is likely to be very slow and unwieldy,
-⍝H        and may lead to surprises based on ⎕FR, ⎕CT, etc.
-⍝H        Internally the maximum printing precision (⎕PP 34) is used.
-⍝H           E.g. the value Pi (○1) has as its name ⍙3⍙46⍙141592653589793238462643383279503. 
-⍝H      - As mentioned above, a scalar key name and one that is a 1-element vector both map onto the same 
-⍝H        variable name. Both of these entries 
-⍝H            (123 '$')((,123) '£') 
-⍝H        will be treated as referring to the same namespace variable: ⍙123.
-⍝H        If you update dict[⊂,123], that will update ⍙123, as will updates to dict[123].
-⍝H        However any changes to ⍙123 will never affect dict[⊂,123].
 ⍝H
 ⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
