@@ -13,7 +13,7 @@
 ⍝ [2]    ∆JDICT 
   exportSelection← 1 1 1                     ⍝ Copy all EXPORT_LIST utilities to ## in each case...
   :Field Private Shared EXPORT_LIST←    exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
-  :Field Private Shared UTIL_PATH←  ⎕THIS.##       ⍝ UTIL_PATH points to the exported utility
+  :Field Private Shared DICT_CLASS←         ⎕THIS   ⍝ Utilities are exported to DICT_CLASS.## 
   
   ⍝ IDs:  Create Display form of form:
   ⍝       DictMMDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
@@ -33,28 +33,31 @@
     :Field Private theNS←                   ⍬        ⍝ If ×≢theNS, a mirrored namespace is created in method namespace.
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
     
-  ⍝ C. ERROR MESSAGES:  ⎕SIGNAL⊂('EN' 200)('EM' 'Main error')('Message' 'My error')
-    :Field Private Shared eBadUpdate←       11 '∆DICT: invalid right argument (⍵) on initialization or update.'
-    :Field Private Shared eBadDefault←      11 '∆DICT: hasdefault must be set to 1 (true) or 0 (false).'
-    :Field Private Shared eDelKeyMissing←   11 '∆DICT.del: at least one key was not found and ⍺:ignore≠1.'
-    :Field Private Shared eIndexRange←       3 '∆DICT.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
-    :Field Private Shared eKeyAlterAttempt← 11 '∆DICT.keys: item keys may not be altered.'
-    :Field Private Shared eHasNoDefault←     3 '∆DICT.index: key does not exist and no default was set.'
-    :Field Private Shared eHasNoDefaultD←   11 '∆DICT: no default has been set.'
-    :Field Private Shared eQueryDontSet←    11 '∆DICT: querydefault may not be set; Use Dict.(default or hasdefault).'
-    :Field Private Shared eBadInt←          11 '∆DICT.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
-    :Field Private Shared eKeyBadName←      11 '∆DICT.namespace: Unable to convert key to valid APL variable name'
+  ⍝ C. ERROR MESSAGES:  [en=11] 'Error Message'
+    :Field Private Shared eBadUpdate←       'Unable to update Dictionary due to invalid element in ⍵'
+    :Field Private Shared eBadClass←        'Invalid class specification' 
+    :Field Private Shared eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
+    :Field Private Shared eBadNS←           'Namespace specified is invalid'
+    :Field Private Shared eDelKeyMissing←   'd.del: at least one key was not found and ⍺:ignore≠1.'
+    :Field Private Shared eImport←          'd.import keys vals. Use dict.update for updating from other objects'
+    :Field Private Shared eIndexRange←       3 'd.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
+    :Field Private Shared eKeyAlterAttempt← 11 'd.keys: item keys may not be altered.'
+    :Field Private Shared eHasNoDefault←     3 'd.index: key does not exist and no default was set.'
+    :Field Private Shared eHasNoDefaultD←   11 'no default has been set.'
+    :Field Private Shared eQueryDontSet←    11 'querydefault may not be set; Use Dict.(default or hasdefault).'
+    :Field Private Shared eBadInt←          11 'd.(inc dec): increment (⍺) and value for each key in ⍵ must be numeric.'
+    :Field Private Shared eKeyBadName←      11 'd.namespace: Unable to convert key to valid APL variable name'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
       :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]  with ⎕THIS.## in the path!
-      ns←⎕THIS
+      ns←DICT_CLASS
     ∇ 
 
     ∇dict←{default} ∆DICT items_default      ⍝ Creates ⎕NEW Dict via cover function
     :Access Public Shared
      :TRAP 0
-        dict←(⊃⎕RSI,#).⎕NEW ⎕THIS items_default       ⍝ May set the dict.default via <items_default>
+        dict←(⊃⎕RSI,#).⎕NEW DICT_CLASS items_default       ⍝ May set the dict.default via <items_default>
         :IF ~900⌶1 ⋄ dict.default←default ⋄ :Endif      ⍝ An explicit <default> overrides any set in <items_default>
      :Else
         ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
@@ -188,10 +191,11 @@
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
       importVecs keys vals
     ∇
-    ∇{dict}←import (keys vals);⎕TRAP
+    ∇{dict}←import keys_vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      importVecs keys vals
+      (2≠≢keys_vals) THROW eImport
+      importVecs keys_vals
       dict←⎕THIS
     ∇
 
@@ -312,25 +316,27 @@
     importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ∇{names}←{keysAsNumbers} importNS ns_classes
-      ;classes;hideNS;names;ns;Name2Key;theNS    
+      ;classes;hideNS;names;Name2Key;ns;__IGNORE__
       :Access Public
+    ⍝ GLOBAL: theNS
+    ⍝ __IGNORE__: Names NOT to import from the namespace...
+      __IGNORE__←⊆'__DictTrigger__'
       keysAsNumbers← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'keysAsNumbers' 
-      
+      Name2Key←{  ⍝ Uses JSON unmangling: 
+          key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
+          ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
+      } 
       ns classes←(⍬⍴ns_classes)({0=≢⍵: 2 3 4 9 ⋄  ⍵ }1↓ns_classes)
-          (9.1≠⎕NC⊂'ns')       THROW 11 'Namespace specified is invalid'
-          (0∊classes∊2 3 4 9)  THROW 11 'Invalid class specification'
-    ⍝ Remove (ignore) names starting and ending with __.
-      names←{⍵/⍨{b←'__'⍷⍵ ⋄ ⊃~(1↑b)∧1↑¯2↑b}¨⍵}ns.⎕NL -classes
+           (9.1≠⎕NC⊂'ns')      THROW eBadNS
+          (0∊classes∊2 3 4 9)  THROW eBadClass
+    ⍝ Remove (ignore) names in  __IGNORE__
+      names←__IGNORE__{⍵/⍨⍺∘{(⊂⍵)(~∊)⍺}¨⍵}ns.⎕NL -classes
       hideNS theNS← theNS ⍬   ⍝ Suppress any mapping onto the namespace
     ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
-      :TRAP 0
-        Name2Key←keysAsNumbers∘{  ⍝ Uses JSON unmangling: 
-            key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
-            ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
-        }  
+      :TRAP 0 
         importVecs↓⍉↑{nm←⍵
-            0:: THROW 11 'Unable to update key-value pair from namespace variable'
-            k←Name2Key nm ⋄  valIn←ns⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
+            0:: THROW eBadUpdate 
+            k←keysAsNumbers∘Name2Key nm ⋄  valIn←ns⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
             case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
             THROW 11 'Value for Key "',(⍕k),'" cannot be represented in the dictionary'  
         }¨names
@@ -536,7 +542,7 @@
       :TRAP 0 
          b←ignore delbyindex ix
       :Else
-         THROW 11 ⎕DMX.Message   
+         THROW ⎕DMX.Message   
       :EndTrap
     ∇
 
@@ -635,13 +641,15 @@
   ⍝ Allows sorting externally by keys, values, or whatever, without losing any keys...
     ∇{dict}←reorder ix
      :Access Public
-      ix-←(⊃⎕RSI).⎕IO      ⍝ Adjust indices to reflect caller's index origin, if needbe
-      (ix[⍋ix]≢⍳≢keysF) THROW 11 'Dict.reorder: at least one index value is out of range, missing, or duplicated.'
+      ix-←(⊃⎕RSI).⎕IO      ⍝ Adjust indices to reflect caller's index origin, if need be
+      (ix[⍋ix]≢⍳≢keysF) THROW 'Dict.reorder: at least one index value is out of range, missing, or duplicated.'
       keysF ⌷⍨←⊂ix ⋄ valuesF ⌷⍨←⊂ix 
       OPTIMIZE ⋄ dict←⎕THIS
     ∇
 
-  ⍝ namespace: See documentation. Enables a namespace that 
+  ⍝ d.namespace, d.namespaceC; d.namespaceN
+  ⍝ namespace: See documentation for variants. 
+  ⍝ Enables a namespace that 
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
   ⍝ On first call (or first after noNamespace),
@@ -650,25 +658,28 @@
   ⍝ 2. creates 
   ⍝    ns.theDict - points to the active dictionary instance
   ⍝    ns.theUser   - contains user variables and the trigger fn (__DictTrigger__)
-  ⍝ 3. returns theNS.theUser
+  ⍝ 3. returns theNS.theUser (the part the user can manipulate directly)
+   optKeysAsNumbers←0
    :Property namespace, namespaceC, namespaceN
     :Access Public
     ∇theUser←get args
-      ;keysAsNumbers;Key2Name 
-      Key2Name←  0⍨7162⌶⍕             ⍝ JSON mangling
-      keysAsNumbers←⍕'namespaceN'≡args.Name
-      :IF ×≢theNS 
-           theUser←theNS.theUser 
+      ;newkan;Key2Name 
+      newkan←⍕'namespaceN'≡args.Name
+      :IF ×≢theNS                    ⍝ theNS already active. Return the sub-namespace visible to the caller.
+      :ANDIF newkan≡optKeysAsNumbers
+          theUser←theNS.theUser 
+          :RETURN
       :ENDIF
+      optKeysAsNumbers←newkan
+      Key2Name←  0⍨7162⌶⍕             ⍝ JSON mangling
       theNS←⎕NS ''  ⋄   theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '⎕NS@',ID
       theNS.theDict← ⎕THIS  
-      :TRAP 0  ⍝ 4 if rank error
-        ⍝ Load keys and values... 
+      :TRAP 0   
           :IF ×≢keysF   
-            mKeys← Key2Name¨ keysF
-            mKeys (theUser _AssignVar)¨valuesF  
-          :ENDIF
-          theUser.⎕FX '⍝ACTIVATE⍝' '__KEYSASNUMBERS__' ⎕R ''  keysAsNumbers⊣ ⎕NR '__DictTrigger__'
+              mKeys← Key2Name¨ keysF
+              mKeys (theUser _AssignVar)¨valuesF            ⍝ Load keys and values into theNS.theUser ... 
+          :ENDIF                                            ⍝ Activate trigger fn __DictTrigger__
+          theUser.⎕FX '⍝ACTIVATE⍝' '__KEYSASNUMBERS__' ⎕R ''  optKeysAsNumbers⊣ ⎕NR '__DictTrigger__'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
@@ -678,17 +689,29 @@
   ⍝ noNamespace: Returns (shyly): 1 if it deleted the namespace, 0 otherwise.
     ∇{deleted}←noNamespace
       :Access Public
-      (deleted theNS)←(×≢theNS) ⍬
+      (deleted theNS optKeysAsNumbers)←(×≢theNS) ⍬ 0
     ∇
 
     ⍝ __DictTrigger__: helper for d.namespace above ONLY.
     ⍝ Don't enable trigger here: it's copied/activated in subsidiary namespaces!
     ⍝ namespace key '⍙457' ==> numeric 457, but 'X457' (or any valid name) remains as is.
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
-    ∇__DictTrigger__ args
+    ⍝ Note: See importNS. It will not import '__DictTrigger__'.
+    ⍝ WARNING: Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!  
+    ∇__DictTrigger__ args ;Name2Key 
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      ⍝ Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!  
-      __KEYSASNUMBERS__ (##.theDict).importNS ⎕THIS 
+      Name2Key←__KEYSASNUMBERS__∘{  ⍝ Uses JSON unmangling: 
+        key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
+        ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
+      } 
+      :TRAP 0
+          ##.theDict.set1 {nm←⍵
+                k←Name2Key nm ⋄  valIn←⎕THIS⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
+                case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
+          }args.Name 
+      :Else 
+          11 ⎕SIGNAL⍨'∆DICT VALUE ERROR: Unable to import item from namespace'
+      :EndTrap
     ∇
 
     
@@ -718,16 +741,16 @@
     ⍝ ExpandFill0:  ⍺:bool \ ⍵:in, which uses a fill of 0 for the first item. See discussion below.
     ⍝    out ← bool ExpandFill0 in          
     ⍝ Discussion: 
-    ⍝  ∘ We use expand in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
-    ⍝    valuesF[...] may include namespaces or other items w/o a fill value. 
-    ⍝  ∘ If the first item in  ⍵, during an expand operation ⍺\⍵, contains such an item, a NONCE ERROR occurs,
-    ⍝  ∘ We resolve this using <ExpandFill0>, which uses a fill value of 0:
+    ⍝  ∘ We want to use expand \ in providing DEFAULT values for as yet unseen keys; it requires that ⍵ have a fill value.
+    ⍝    As valuesF is updated, it may include namespaces or other items that lack a fill value. 
+    ⍝  ∘ If, during an expand operation ⍺\valuesF, the first item contains such an item, a NONCE ERROR occurs,
+    ⍝  ∘ We resolve this using <ExpandFill0>, which ensures a fill value of 0:
     ⍝    vals←found ExpandFill0 valuesF[found/ix]  
     ⍝ Tacit Variant:    ExpandFill0 ← 1↓(1,⊣)⊢⍤\0,⊢      ⍝ a tad slower
       ExpandFill0←{1↓(1,⍺)\ 0,⍵}    
 
     ∇ {ok}←OPTIMIZE 
-    ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If valuesF changes, this is not usefully called).
+    ⍝ Set keysF to be hashed whenever keysF changed-- added or deleted. (If only valuesF changes, no use in calling this).
     ⍝ While it is usually of no benefit to hash small key vectors of simple integers or characters,
     ⍝ it takes about 25% longer to check datatypes and ~15% simply to check first whether keysF is already hashed. 
     ⍝ So we just hash keysF whenever it changes!
@@ -735,12 +758,14 @@
     ∇
     
     ⍝ THROW: "Throws an error if ⍺ is omitted or contains a 1; else a NOP."
-    ⍝   [cond:1] THROW (en message), 
-    ⍝   where en and message are ⎕DMX fields EN and Message.
-    ⍝   Field EM is determined by EN.
-    ⍝   If cond is omitted or 1, returns an alternate-format error msg suitable for ⎕SIGNAL.
-    ⍝   If cond is 0, returns null.
-    THROW←⎕SIGNAL {⍺←1 ⋄ e m←⍵ ⋄ 1∊⍺: ⊂('EN' e)('Message'  m) ⋄ ⍬}
+    ⍝ Syntax:
+    ⍝   [cond=1] THROW [en=11] message, 
+    ⍝   where en and message are of the form of ⎕DMX fields EN and Message.
+     _THROW← { ⍺←1 ⋄ 1(~∊)⍺: ⍬ ⋄ 1=≢⊆⍵: ⍺ ∇ 11 ⍵  
+              en msg←⍵ ⋄ em←'∆DICT ',('DOMAIN ' 'INDEX ' ''⊃⍨11 3⍳en),'ERROR'
+              ⊂('EN' en)('Message'  msg)('EM' em) 
+    }
+    THROW←⎕SIGNAL _THROW
     
 ⍝⍝
 ⍝⍝ ∆JDICT function --- See HELP INFO BELOW
@@ -754,7 +779,7 @@
       :Access Public Shared
       Key2Name← 0⍨7162⌶⍕            ⍝ JSON mangling
       keysAsNumbers←0               ⍝ 1: Treat imported keys that look like numeric scalars/vectors as APL numbers 
-      Name2Key←keysAsNumbers∘{      ⍝ JSON unmangling
+      Name2Key←{      ⍝ JSON unmangling
           key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
           ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key  ⋄ 1≠≢val: val ⋄ ⊃val  ⍝ single # => disclose scalar
       }  
@@ -783,14 +808,14 @@
       :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-          dict←UTIL_PATH.∆DICT ⍬   
+          dict←DICT_CLASS.##.∆DICT ⍬   
           ns dict∘{
               0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
               context dict←⍺ ⋄ varName←⍵ ⋄ val←context⍎varName
-              key←Name2Key varName    
+              key←keysAsNumbers∘Name2Key varName    
               2=context.⎕NC varName:_←key dict.set1 val
             ⍝ varName points to a namespace, which is converted internally to a dictionary
-              dict2←UTIL_PATH.∆DICT ⍬ ⋄ subtext←val
+              dict2←DICT_CLASS.##.∆DICT ⍬ ⋄ subtext←val
               _←key dict.set1 dict2
               1:_←subtext dict2∘∇¨subtext.⎕NL-2.1 9.1
           }¨ns.⎕NL-2.1 9.1
@@ -798,7 +823,7 @@
       :Else           ⍝ User passed a dictionary to convert
           (~minorOpt∊0 1 2) err 'Option ⍺ was invalid: Must be 0, 1, 2.'  
           Scan←{
-              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ ⎕THIS∊⊃⊃⎕CLASS ⍵} 
+              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ DICT_CLASS∊⊃⊃⎕CLASS ⍵} 
               ns←⍺⍺ ⋄ k v←⍺ ⍵
               ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
               _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
@@ -833,15 +858,20 @@
   ⍝         assigns the associated function, in place of the value.
   ⍝ Returns <name> shyly.
     _AssignVar←{
-        _←⍺⍺.⎕EX ⍺                               ⍝ <name> may exist with incompatible class (⎕NC).  
-        (1=≡⍵)∧0=⍴⍴⍵:(⍺⍺{⍺⍺∘⍎ ⍺,'←⍵⍵' ⋄ ⍵⍵}⍵)⍨⍺  ⍝ <val> is an ⎕OR. ⍵⍵: magically convert ⎕OR to function (⎕NC 3).  
-        1:_←             ⍺⍺∘⍎ ⍺,'←⍵'             ⍝ <val> is a value (⎕NC 2 or 9) that is not an ⎕OR. 
+        _←⍺⍺.⎕EX ⍺                               ⍝ Replace existing <name> even if incompatible class (⎕NC).  
+        (1=≡⍵)∧0=⍴⍴⍵:(⍺⍺{⍺⍺∘⍎ ⍺,'←⍵⍵' ⋄ ⍵⍵}⍵)⍨⍺  ⍝ <val> is an ⎕OR. ⍵⍵: magically convert ⎕OR to function/or (⎕NC∊3 4).  
+        1:_←             ⍺⍺∘⍎ ⍺,'←⍵'             ⍝ <val> is a value in ⎕NC=2 that is not an ⎕OR or ⎕NC=9. 
     }                                           
 
     ∇{list}←EXPORT_FUNCTIONS list;fn;ok
       actual←⍬
+      ⍝ Copy list of fns into parent namespace to this one...
+      ⍝ In functions to export, 
+      ⍝     use DICT_CLASS instead of ⎕THIS (⎕THIS will be treated as an alias for DICT_CLASS)
+      ⍝     use DICT_CLASS_## to refer to the namespace for the exported functions
+      ⍝ We also optimize DICT_CLASS.## to refer to the exported fns directory (where it's preferred to the class itself)
       :FOR fn :IN list
-          ok←##.⎕FX '⎕THIS\b'  'UTIL_PATH' ⎕R (⍕⎕THIS)(⍕UTIL_PATH)⊣⎕NR fn  
+          ok←##.⎕FX 'DICT_CLASS\.##' 'DICT_CLASS|⎕THIS' ⎕R (⍕DICT_CLASS.##)(⍕DICT_CLASS)⊣⎕NR fn  
           :IF 0=1↑0⍴ok
               ⎕←'EXPORT_GROUP: Unable to export fn "',fn,'". Error in ',fn,' line',ok
           :ENDIF
@@ -860,7 +890,7 @@
 ⍝H            Documented further below (see ∆JDICT).
 ⍝H
 ⍝H ∆DICT: Creating a dict, initializing items (key-value pairs), setting the default for missing values.
-⍝H TYPE       CODE                          ITEMS                                 DEFAULT VALUE
+⍝H TYPE       CODE                          ITEMS (key-value pairs)               DEFAULT VALUE
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H empty      a←∆DICT ⍬                     ⍝ None                                none
 ⍝H items      b←∆DICT (1 10)(2 20)(3 30)    ⍝ (1 10)(2 20)(3 30)                  none
@@ -1166,6 +1196,7 @@
 ⍝H           a name that maps onto a vector of 2 or more numbers will be treated as a numeric vector key.
 ⍝H      That is, while '127' and 127 as dictionary keys both map onto the same namespace value (⍙127)
 ⍝H      and that (JSON-generated) variable (here, ⍙127) will map only onto the numeric key (127).
+⍝H    ∘ Keys 
 ⍝H    ∘ Keys which are namespaces or ⎕NULL will not work as you might expect, since their display form
 ⍝H      will be used as their name (after JSON mangling). E.g. ⎕NULL has as its display form 
 ⍝H      [Null] and its (mangled) variable name ⍙⍙91⍙Null⍙93⍙ (encoding the brackets []).
@@ -1176,7 +1207,8 @@
 ⍝H        function or operator format when assigned to its namespace variable.
 ⍝H      - Any variable in the namespace assigned a value as a function or operator will have that value
 ⍝H        mapped onto the ⎕OR of that function or operator, when assigned to the dictionary entry.
-⍝H
+⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
+⍝H      It is never imported by d.namespace or d.importNS
 ⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
 ⍝H =========================================================================================
@@ -1289,10 +1321,10 @@
 ⍝H ⍝ Simple JSON test case! Generates 3 top-level dictionaries.
 ⍝H ⍝ Use DictClass object DictClass.JSONsample
 ⍝H  
-⍝H       ⎕←DictClass.JSONsample
+⍝H       ⎕←Dict.JSONsample
 ⍝H [{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", 
 ⍝H   "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]
-⍝H      ⎕←(d e f)← ∆JDICT  ⎕←DictClass.JSONsample
+⍝H      ⎕←(d e f)← ∆JDICT  ⎕←Dict.JSONsample
 ⍝H Dict[]  Dict[]  Dict[]         ⍝ 3 dictionaries
 ⍝H      1 ∆JDICT d e f
 ⍝H [                             
