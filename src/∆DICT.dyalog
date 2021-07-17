@@ -275,7 +275,7 @@
     ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
     ⍝ Returns: shy keys
     ∇ {k}←importVecs (k v)
-          ;ix;kp;old;oix;nk;nv;uniq     
+          ;ix;kp;old;oix;nk;nv;uniq    
       →0/⍨0=≢k                    ⍝      No keys/vals? Return now.
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
       old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
@@ -315,35 +315,19 @@
     ⍝ importMx: Imports ⍪keyvec valvec [default]
     importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
-    ∇{names}←{keysAsNumbers} importNS ns_classes
-      ;classes;hideNS;names;Name2Key;ns;__IGNORE__
+    ∇{names}←{preferNumericKeys} importNS ns_classes
+      ;classes;hideNS;names;ns;__IGNORE__
       :Access Public
-    ⍝ GLOBAL: theNS
     ⍝ __IGNORE__: Names NOT to import from the namespace...
       __IGNORE__←⊆'__DictTrigger__'
-      keysAsNumbers← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'keysAsNumbers' 
-      Name2Key←{  ⍝ Uses JSON unmangling: 
-          key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
-          ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
-      } 
+      preferNumericKeys← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'preferNumericKeys' 
       ns classes←(⍬⍴ns_classes)({0=≢⍵: 2 3 4 9 ⋄  ⍵ }1↓ns_classes)
-           (9.1≠⎕NC⊂'ns')      THROW eBadNS
-          (0∊classes∊2 3 4 9)  THROW eBadClass
+          (9.1≠⎕NC⊂'ns')      THROW eBadNS
+          (0∊classes∊2 3 4 9) THROW eBadClass
     ⍝ Remove (ignore) names in  __IGNORE__
       names←__IGNORE__{⍵/⍨⍺∘{(⊂⍵)(~∊)⍺}¨⍵}ns.⎕NL -classes
-      hideNS theNS← theNS ⍬   ⍝ Suppress any mapping onto the namespace
     ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
-      :TRAP 0 
-        importVecs↓⍉↑{nm←⍵
-            0:: THROW eBadUpdate 
-            k←keysAsNumbers∘Name2Key nm ⋄  valIn←ns⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
-            case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
-            THROW 11 'Value for Key "',(⍕k),'" cannot be represented in the dictionary'  
-        }¨names
-      :ELSE
-          THROW ⎕DMX.(EN Message)
-      :ENDTRAP
-      theNS← hideNS       ⍝ Restore any mapping onto the namespace
+      (ns preferNumericKeys) setKeysFromNames names
     ∇ 
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
@@ -659,27 +643,27 @@
   ⍝    ns.theDict - points to the active dictionary instance
   ⍝    ns.theUser   - contains user variables and the trigger fn (__DictTrigger__)
   ⍝ 3. returns theNS.theUser (the part the user can manipulate directly)
-   optKeysAsNumbers←0
    :Property namespace, namespaceC, namespaceN
     :Access Public
     ∇theUser←get args
-      ;newkan;Key2Name 
-      newkan←⍕'namespaceN'≡args.Name
-      :IF ×≢theNS                    ⍝ theNS already active. Return the sub-namespace visible to the caller.
-      :ANDIF newkan≡optKeysAsNumbers
+      ;names;newPref 
+      newPref←¯1↑args.Name            ⍝ C=char, N=numeric, or e=prior setting or default ('C'), if first call.
+      :IF ×≢theNS                     ⍝ theNS already active. Return the sub-namespace visible to the caller.
+      :ANDIF (newPref∊'CN')           ⍝ But only if the numeric key preference hasn't changed from last call.
+      :ANDIF (newPref='N')=theNS.preferNumericKeys
           theUser←theNS.theUser 
           :RETURN
       :ENDIF
-      optKeysAsNumbers←newkan
-      Key2Name←  0⍨7162⌶⍕             ⍝ JSON mangling
-      theNS←⎕NS ''  ⋄   theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '⎕NS@',ID
+      theNS←⎕NS '' 
+      theNS.preferNumericKeys←newPref='N'            ⍝ Save numeric keys preference...
+      theUser←theNS.theUser←theNS.⎕NS '' ⋄   theUser.⎕DF '⎕NS@',ID
       theNS.theDict← ⎕THIS  
       :TRAP 0   
           :IF ×≢keysF   
-              mKeys← Key2Name¨ keysF
-              mKeys (theUser _AssignVar)¨valuesF            ⍝ Load keys and values into theNS.theUser ... 
-          :ENDIF                                            ⍝ Activate trigger fn __DictTrigger__
-          theUser.⎕FX '⍝ACTIVATE⍝' '__KEYSASNUMBERS__' ⎕R ''  optKeysAsNumbers⊣ ⎕NR '__DictTrigger__'
+              names← (0⍨7162⌶⍕)¨ keysF                      ⍝ Convert Keys 2 Names via JSON mangling
+              names (theUser _AssignVar)¨valuesF            ⍝ In theNS.theUser, assign values to names.
+          :ENDIF                                            ⍝ ↓↓↓ Activate trigger fn __DictTrigger__
+          theUser.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__DictTrigger__'
       :ELSE
           THROW eKeyBadName
       :ENDTRAP
@@ -689,7 +673,7 @@
   ⍝ noNamespace: Returns (shyly): 1 if it deleted the namespace, 0 otherwise.
     ∇{deleted}←noNamespace
       :Access Public
-      (deleted theNS optKeysAsNumbers)←(×≢theNS) ⍬ 0
+      (deleted theNS)←(×≢theNS) ⍬ 
     ∇
 
     ⍝ __DictTrigger__: helper for d.namespace above ONLY.
@@ -698,20 +682,39 @@
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
     ⍝ Note: See importNS. It will not import '__DictTrigger__'.
     ⍝ WARNING: Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!  
-    ∇__DictTrigger__ args ;Name2Key 
+    ∇__DictTrigger__ args ;Name2Key;saveTheNS 
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      Name2Key←__KEYSASNUMBERS__∘{  ⍝ Uses JSON unmangling: 
-        key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
-        ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄ 1≠≢val: val ⋄ ⊃val 
+      (⎕THIS ##.preferNumericKeys) ##.theDict.setKeysFromNames  ⊆args.Name 
+    ∇
+
+    ∇ {dict}←keys_opts setKeysFromNames nameList
+      ;Name2Key;preferNK;saveTheNS;thisNS 
+      :Access Public
+        dict←⎕THIS 
+        :IF 1=≢keys_opts
+            thisNS preferNK←keys_opts 0
+        :Else 
+            thisNS preferNK←keys_opts
+        :ENDIF
+        Name2Key←preferNK∘{  ⍝ Uses JSON unmangling: 
+            key←1∘(7162⌶) ⍵ 
+            ~⍺: ⍬⍴⍣(1=≢key)⊣key  ⋄ ok val←⎕VFI key   
+            0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄  1≠≢val: val  ⋄ ⊃val 
       } 
-      :TRAP 0
-          ##.theDict.set1 {nm←⍵
-                k←Name2Key nm ⋄  valIn←⎕THIS⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
-                case∊3 4: k (ns.⎕OR nm)  ⋄  case∊2 9: k valIn
-          }args.Name 
-      :Else 
-          11 ⎕SIGNAL⍨'∆DICT VALUE ERROR: Unable to import item from namespace'
-      :EndTrap
+    ⍝ Suppress mapping namespace vars onto dict keys, only if ns is the actively mapped (triggered) namespace
+      saveTheNS←theNS ⋄ :IF thisNS.##≡theNS ⋄ theNS←⍬ ⋄ :ENDIF  
+          :TRAP 0  
+              importVecs↓⍉↑,thisNS∘{nm←⍵
+                    k←Name2Key nm ⋄  valIn←⍺⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
+                    case∊3 4: k (ns.⎕OR nm) 
+                    case∊2 9: k valIn
+              }¨nameList 
+          :Else 
+              theNS←saveTheNS
+              11 ⎕SIGNAL⍨'∆DICT VALUE ERROR: Unable to import item from namespace'
+          :EndTrap
+    ⍝ Restore mapping of namespace vars onto dict keys, if ns is the actively mapped (triggered) namespace
+      theNS←saveTheNS
     ∇
 
     
