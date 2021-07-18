@@ -30,7 +30,7 @@
     :Field Private hasdefaultF←             0
     :Field Private defaultF←                ''       ⍝ Default value (suppressed until hasdefaultF is 1)
   ⍝ theNS: see d.namespace, d.noNamespace
-    :Field Private theNS←                   ⍬        ⍝ If ×≢theNS, a mirrored namespace is created in method namespace.
+    :Field Private theNS←                   ⍬        ⍝ See d.namespace. If ×≢theNS, a mirrored namespace is active.
     :Field Private baseclassF←              ⊃⊃⎕CLASS ⎕THIS
     
   ⍝ C. ERROR MESSAGES:  [en=11] 'Error Message'
@@ -316,16 +316,16 @@
     importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ∇{names}←{preferNumericKeys} importNS ns_classes
-      ;classes;hideNS;names;ns;__IGNORE__
+      ;classes;hideNS;names;ns;IGNORE
       :Access Public
-    ⍝ __IGNORE__: Names NOT to import from the namespace...
-      __IGNORE__←⊆'__DictTrigger__'
+    ⍝ IGNORE: Names NOT to import from the namespace...
+      IGNORE←⊆'__DictTrigger__'
       preferNumericKeys← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'preferNumericKeys' 
       ns classes←(⍬⍴ns_classes)({0=≢⍵: 2 3 4 9 ⋄  ⍵ }1↓ns_classes)
           (9.1≠⎕NC⊂'ns')      THROW eBadNS
           (0∊classes∊2 3 4 9) THROW eBadClass
-    ⍝ Remove (ignore) names in  __IGNORE__
-      names←__IGNORE__{⍵/⍨⍺∘{(⊂⍵)(~∊)⍺}¨⍵}ns.⎕NL -classes
+    ⍝ Remove (ignore) names in  IGNORE
+      names←IGNORE{⍵/⍨⍺∘{(⊂⍵)(~∊)⍺}¨⍵}ns.⎕NL -classes
     ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
       (ns preferNumericKeys) setKeysFromNames names
     ∇ 
@@ -682,32 +682,37 @@
     ⍝ namespace key ''⍙0⍙32⍙1⍙32⍙2⍙32⍙3⍙32⍙4'  similarly ==> numeric 0 1 2 3 4
     ⍝ Note: See importNS. It will not import '__DictTrigger__'.
     ⍝ WARNING: Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!  
-    ∇__DictTrigger__ args ;Name2Key;saveTheNS 
+    ∇__DictTrigger__ args  
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
-      (⎕THIS ##.preferNumericKeys) ##.theDict.setKeysFromNames  ⊆args.Name 
+      :TRAP 0
+         (⎕THIS ##.preferNumericKeys) ##.theDict.setKeysFromNames  ⊆args.Name 
+      :Else 
+          ⎕SIGNAL  ⊂⎕DMX.(('EN' EN)('Message'  Message)('EM' ('∆DICT Namespace: ',EM))) 
+      :ENDTRAP
     ∇
 
     ∇ {dict}←keys_opts setKeysFromNames nameList
       ;Name2Key;preferNK;saveTheNS;thisNS 
       :Access Public
-        dict←⎕THIS 
-        :IF 1=≢keys_opts
-            thisNS preferNK←keys_opts 0
-        :Else 
-            thisNS preferNK←keys_opts
-        :ENDIF
-        Name2Key←preferNK∘{  ⍝ Uses JSON unmangling: 
-            key←1∘(7162⌶) ⍵ 
-            ~⍺: ⍬⍴⍣(1=≢key)⊣key  ⋄ ok val←⎕VFI key   
-            0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄  1≠≢val: val  ⋄ ⊃val 
+      dict←⎕THIS 
+      :IF 1=≢keys_opts
+          thisNS preferNK←keys_opts 0
+      :Else 
+          thisNS preferNK←keys_opts
+      :ENDIF
+      Name2Key←preferNK∘{  
+          key←1∘(7162⌶) ⍵       ⍝ Uses JSON unmangling
+          ~⍺: ⍬⍴⍣(1=≢key)⊣key  ⋄ ok val←⎕VFI key   
+          0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄  1≠≢val: val  ⋄ ⊃val 
       } 
     ⍝ Suppress mapping namespace vars onto dict keys, only if ns is the actively mapped (triggered) namespace
       saveTheNS←theNS ⋄ :IF thisNS.##≡theNS ⋄ theNS←⍬ ⋄ :ENDIF  
           :TRAP 0  
               importVecs↓⍉↑,thisNS∘{nm←⍵
-                    k←Name2Key nm ⋄  valIn←⍺⍎nm  ⋄  case←⍬⍴⎕NC 'valIn'
-                    case∊3 4: k (ns.⎕OR nm) 
-                    case∊2 9: k valIn
+                    k←Name2Key nm ⋄  valIn←⍺⍎nm  
+                    case←⍬⍴⎕NC 'valIn'
+                      case∊3 4: k (⍺.⎕OR nm)  
+                      case∊2 9: k valIn
               }¨nameList 
           :Else 
               theNS←saveTheNS
