@@ -96,6 +96,7 @@
     ∇
     ∇ destroy
       :Implements Destructor
+      setMirror ⎕NULL   ⍝ If there's any mirroring, remove it.
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -298,11 +299,10 @@
   ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
   ⍝ (Local utility used in importVecs)
     ∇⍙Mirror2NS (keys vals delF)
-     ;Key2Name;mKeys;SuppressTrigger
+     ;Key2Name;mKeys 
      :IF (0=≢keys) ⋄ :ORIF ~nsActive ⋄ :RETURN ⋄ :ENDIF   
      Key2Name← 0⍨7162⌶⍕   ⍝ JSON mangling
-     SuppressTrigger←theNS.theUser.{1: _←2007 ⌶ ⍵}
-     SuppressTrigger 1
+     theNS.theUser _SuppressTrigger 1
         mKeys←{0:: ⍬ ⋄ Key2Name¨⍵}keys
         (~×≢mKeys) THROW eKeyBadName
         :IF delF 
@@ -310,7 +310,7 @@
         :ELSE 
             mKeys (theNS.theUser _AssignVar)¨vals
         :ENDIF
-     SuppressTrigger 0
+      theNS.theUser _SuppressTrigger 0
     ∇
 
     ⍝ importMx: Imports ⍪keyvec valvec [default]
@@ -648,6 +648,7 @@
       ;names;newPref 
       :Access Public
     ⍝ preferNumericKeys:  1=yes, 0=no
+      (preferNumericKeys(~∊)0 1) THROW 'd.mirror: ⍵(preferNumericKeys) must be 1 or 0.'
       nsActive←1                      ⍝ Activate theNS, creating if necessary...
       :IF ×≢theNS                     ⍝ theNS exists. 
           theNS.preferNumericKeys←×preferNumericKeys 
@@ -668,20 +669,26 @@
           THROW eKeyBadName
       :ENDTRAP
     ∇
-    
-  ⍝ clearMirror: Returns (shyly): 1 if it deleted the (internal ref to the) namespace, 0 otherwise.
-    ∇{was}←clearMirror
-      :Access Public
-      was nsActive theNS←(×≢theNS) 0 ⍬
-    ∇
   
-  ⍝ setMirror: Turns mirroring on or off. Returns (shyly): 1 if nsActive had been 1, else 0.
+  ⍝ {was} ← setMirror [0 | 1 | ⎕NULL]
+  ⍝ setMirror: (0) Turns mirroring off, or (1) reestablishes it, 
+  ⍝        or (⎕NULL) disconnects the namespace and dictionary entirely. 
+  ⍝ Returns (shyly): 1 if nsActive had been 1, 0 if nsActive had been 0, or ⎕NULL if no namespace mirror is enabled.
     ∇{was}←setMirror flag
       :Access Public
-      :IF ~×≢theNS ⋄ :RETURN ⋄ :ENDIF
-      was nsActive←nsActive (×flag)
-      :IF was=nsActive ⋄ :RETURN ⋄ :ENDIF
-      theNS.theUser.{1: _←2007 ⌶ ⍵}~nsActive   ⍝ Suppress or re-enable trigger
+      :IF ~×≢theNS ⋄ was nsActive←⎕NULL 0 ⋄ :RETURN ⋄ :ENDIF
+      :Select ⍬⍴flag
+        :CASE ⎕NULL                                      ⍝ Terminate the connection
+          theNS.theUser _SuppressTrigger 1               ⍝ Suppress trigger...
+          theNS.⎕EX 'theDict' 'theUser.__DictTrigger__'  ⍝ Delete trigger fn and dict reference
+          was nsActive theNS←(×≢theNS) 0 ⍬
+        :CASELIST 0 1                                    ⍝ Suppress or re-enable mirroring
+          was nsActive←nsActive (×flag)
+          :IF was=nsActive ⋄ :RETURN ⋄ :ENDIF
+          theNS.theUser _SuppressTrigger ~nsActive       
+        :ELSE 
+          THROW 'd.setMirror: ⍵(flag) must be 0(on), 1(off), or ⎕NULL(terminate).'
+      :ENDSELECT 
     ∇
 
     ⍝ __DictTrigger__: helper for d.mirror[...] above ONLY.
@@ -731,7 +738,9 @@
       nsActive←saveState
     ∇
 
-    
+    ⍝ _SuppressTrigger: If ⍵=1, suppresses trigger for namespace ⍺. If ⍵=0, re-enables it.
+      _SuppressTrigger←{1: _←2007 ⍺.⌶ ⊢ ⍵}
+
   ⍝ Dict.help/Help/HELP  - Display help documentation window.
       DICT_HELP←⍬
     ∇ {h}←HELP;ln 
@@ -977,13 +986,11 @@
 ⍝H    (k1 v1)(k2 v2)... ←  d.popitem count                ⍝ Remove/return <count> items from end of dictionary.
 ⍝H    vals  ←              d.pop keys                     ⍝ Remove/return values for specific keys from dictionary.
 ⍝H MISC
-⍝H                  ns  ←  d.mirror[[C|N]]                ⍝ Create a namespace whose variables track dictionary entries and vice versa.
-⍝H                                                        ⍝ Keys are mapped onto APL variable names via JSON name mangling (see below).
-⍝H                                                        ⍝ Values allowed include ordinary (NC=2) variables, namespaces (NC=9), and
-⍝H                                                        ⍝ object representations (⎕OR), which become fns or operators in the namespace.
-⍝H                  d.mirrorClear                         ⍝ End connection of namespace to mirroring.
-⍝H                  d.mirrorOff                           ⍝ temporarily suspend updating mirror. Changes during this time
-⍝H                                                        ⍝ won't be reflected until d.mirror is called.
+⍝H                  ns  ←  d.mirror preferNumeric         ⍝ Create a namespace whose variables track dictionary entries and vice versa.
+⍝H                                                        ⍝ preferNumeric: If 1, namespace variables resolving to numeric strings are converted to numbers
+⍝H                  d.setMirror ⎕NULL                     ⍝ Disconnect the current namespace from the dictionary forever.
+⍝H                  d.setMirror 1                         ⍝ 1: Enable active mirroring, after previously disabling. 
+⍝H                  d.setMirror 0                         ⍝ 0: Disable active mirroring temporarily.
 ⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
@@ -1170,58 +1177,16 @@
 ⍝H
 ⍝H =========================================================================================
 ⍝H    MAPPING DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
-⍝H    d.mirrorC (alias d.mirror), d.mirrorN
-⍝H          - returns a reference to the active private namespace, activating if not already so.
-⍝H          - a key consisting of a numeric scalar 123 or vector 123 456 map onto ⍙123 or ⍙123⍙32⍙456
-⍝H          - an equiv. character scalar or vector maps onto the same variables ⍙123 or ⍙123⍙32⍙456.
-⍝H    WARNING: Consider not using namespace mapping for numeric keys (though they will "work") 
-⍝H             or for any character items except simple scalars or vectors.
-⍝H             GOOD KEYS  (⊂'test string') (⊂'3.14159')           ⍝ With d.namespaceC: char strings
-⍝H             OK KEYS    (3.14159) (25) (⊂10 20 30)              ⍝ With d.namespaceN: numeric scalars or vectors
-⍝H             POOR KEYS  (⊂'test' 'string')('10' '20')           ⍝ No matter what: char vec of strings 
-⍝H                        (⊂10 20 30)                             ⍝ With d.namespaceC this is a char string '10 20 30'
-⍝H             ERRORS     (⊂2 3⍴⍳6) (↑'cats' 'dogs')              ⍝ Generates a message: neither scalar nor vector
-⍝H    d.mirrorC     - namespace vars ⍙nnn (e.g. ⍙1) map onto character keys 'nnn' (e.g. '1')
-⍝H                  - ambiguously, keys 111 and '111' map onto same namespace variables!
-⍝H    d.mirrorN     - namespace vars ⍙nnn (e.g. ⍙1) map onto numeric keys nnn (e.g. 1).
-⍝H                  - ambiguously, keys 111 and '111' map onto same namespace variables!
-⍝H    d.mirrorOff   - temporarily stops mirroring. When d.mirror is called, intermediate items won't be reflected.
-⍝H    d.mirrorDel   - disconnects any active namespace from the dictionary
-⍝H =========================================================================================
-⍝H mirror ← d.mirror | d.mirrorC* | d.mirrorN        *d.mirror ≡ d.mirrorC
-⍝H    Returns a reference to an actively mapped namespace, creating it if not created or if deleted,
-⍝H    whose variables are the same as the keys (mapped via JSON name mangling) and whose values are
-⍝H    the same as the dictionary values, with one extension: values which are object representations are treated as their
-⍝H    equivalent function or operator in the namespace.
-⍝H status    ← d.namespaceDel
-⍝H    Returns 1 if it stops mirroring* an active (created) mapped namespace; 0, if no namespace was active.
-⍝H    If the user keeps a separate copy of the namespace reference, it now stands on its own.
-⍝H    The next call to d.mirror will create a new namespace and return it.
-⍝H    * If the user has not saved a separate instance of the namespace, then it is deleted by APL.
-⍝H ------------
-⍝H    ∘ d.mirror returns a reference to a namespace whose variable names correspond to
-⍝H      dictionary keys and whose variable values correspond to dictionary values.
-⍝H      The namespace is created, if not active, with all entries mapped onto variables in the namespace.
-⍝H      If an entry cannot be created, an error is signalled.
-⍝H    ∘ Keys are mapped onto variables using JSON name mangling of the stringified/display (⍕) form of the key.
-⍝H      We recommend keeping mapped keys as simple strings to avoid surprises or complexities of JSON name-handling.
-⍝H      In general, keys must be one of these types:
-⍝H           a) character scalars or vectors;
-⍝H           b) numeric scalars  
-⍝H      On conversion from namespace variables to dictionary entries, 
-⍝H         for d.mirror or d.mirrorC (equivalent)
-⍝H           a name that maps onto a single character will be treated as a character scalar.
-⍝H           a name that maps onto a char. vector will be a character vector (string) key
-⍝H         for d.mirrorN 
-⍝H           a name that maps onto a single number (scalar or vector) will be treated as a numeric scalar key;
-⍝H           a name that maps onto a vector of 2 or more numbers will be treated as a numeric vector key.
-⍝H      That is, while '127' and 127 as dictionary keys both map onto the same namespace value (⍙127)
-⍝H      and that (JSON-generated) variable (here, ⍙127) will map only onto the numeric key (127).
-⍝H    ∘ Keys 
-⍝H    ∘ Keys which are namespaces or ⎕NULL will not work as you might expect, since their display form
-⍝H      will be used as their name (after JSON mangling). E.g. ⎕NULL has as its display form 
-⍝H      [Null] and its (mangled) variable name ⍙⍙91⍙Null⍙93⍙ (encoding the brackets []).
-⍝H    ∘ Any dictionary value can be represented in the namespace, including namespaces, class instances, etc.
+⍝H    ns ← d.mirror [1|0]
+⍝H          - returns a reference to the active private namespace, activating it if not already so.
+⍝H          - Each key in a mirrored dictionary must be a char vector or scalar, or a numeric scalar or vector;
+⍝H            it will be rendered as a namespace variable (in ns) via JSON name mangling (see Dyalog I-beam 7162⌶).
+⍝H      1   - A namespace variable name that (after name demangling) is a numeric string will
+⍝H            map onto (be converted to) a dictionary key that is numeric.
+⍝H      0   - A namespace variable name that (after name demangling) is a numeric string will
+⍝H            map onto  a dictionary key that is a character string.
+⍝H      WARNING: A key may be a vector of character vectors, but its namespace variable name
+⍝H             will be mirrored back as a single vector with spaces in place of separate vectors. 
 ⍝H    ∘ Dictionary values that are object representations are a special case...
 ⍝H      ...Namespace object values that are functions or operators are a special case.
 ⍝H      - Any dictionary value that is an object representation (⎕OR) will be automatically converted to its
@@ -1230,6 +1195,19 @@
 ⍝H        mapped onto the ⎕OR of that function or operator, when assigned to the dictionary entry.
 ⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
 ⍝H      It is never imported by d.mirror or d.importNS
+⍝H ---------------------------------
+⍝H     was ← d.setMirror [1 | 0 | ⎕NULL]
+⍝H         0 
+⍝H            Temporarily disables the mirroring of a dictionary to a namespace and vice versa. 
+⍝H            Objects established during that time won't be updated, even when the mirroring
+⍝H            is re-enabled, but any subsequent changes (to those or new objects) will be reflected.
+⍝H         1
+⍝H            Restores the mirroring of a dictionary to a namespace and vice versa, if previously disabled.
+⍝H         ⎕NULL
+⍝H            Permanently severs the connection between the dictionary and the actively mirrored namespace.
+⍝H            If the user has maintained a copy of the namespace (e.g. saveNS← d.mirror 0),
+⍝H            its contents will reflect the most recent mirroring, but no further updates will occur.
+⍝H        
 ⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
 ⍝H =========================================================================================
