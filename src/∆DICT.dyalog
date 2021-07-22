@@ -12,15 +12,16 @@
 ⍝ [1]    ∆DICT   
 ⍝ [2]    ∆JDICT 
   exportSelection← 1 1 1                     ⍝ Copy all EXPORT_LIST utilities to ## in each case...
-  :Field Private Shared EXPORT_LIST←    exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
-  :Field Private Shared DICT_CLASS←         ⎕THIS   ⍝ Utilities are exported to DICT_CLASS.## 
+  :Field Private Shared EXPORT_LIST←       exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+  :Field Private Shared DICTCLASS←         ⎕THIS   ⍝ Utilities are exported to DICTCLASS.## 
   
   ⍝ IDs:  Create Display form of form:
   ⍝       DictMMDDHHMMSS.dd (digits from day, hour, ... sec, plus increment for each dict created).
-  :Field Public         ID 
+  ⍝ d.ID is the R/O instance method
+  :Field Private        idF 
   :Field Private Shared ID_COUNT←           0
   :Field Private Shared ID_PREFIX←          ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
-  :Field Private Shared baseclassF←         ⊃⊃⎕CLASS ⎕THIS
+  :Field Private Shared BASECLASS←          ⊃⊃⎕CLASS ⎕THIS
  
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
@@ -42,7 +43,7 @@
     :Field Private Shared eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
     :Field Private Shared eBadNS←           'Namespace specified is invalid'
     :Field Private Shared eDelKeyMissing←   'd.del: at least one key was not found and ⍺:ignore≠1.'
-    :Field Private Shared eImport←          'd.import keys vals. Use dict.update for updating from other objects'
+    :Field Private Shared eImport←          'd.import keys vals. Use d.update for updating from other objects'
     :Field Private Shared eIndexRange←       3 'd.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
     :Field Private Shared eKeyAlterAttempt← 'd.keys: item keys may not be altered.'
     :Field Private Shared eHasNoDefault←     3 'd.index: key does not exist and no default was set.'
@@ -58,13 +59,13 @@
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
       :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]  with ⎕THIS.## in the path!
-      ns←DICT_CLASS
+      ns←DICTCLASS
     ∇ 
 
     ∇dict←{default} ∆DICT items_default      ⍝ Creates ⎕NEW Dict via cover function
     :Access Public Shared
      :TRAP 0
-        dict←(⊃⎕RSI,#).⎕NEW DICT_CLASS items_default       ⍝ May set the dict.default via <items_default>
+        dict←(⊃⎕RSI,#).⎕NEW DICTCLASS items_default       ⍝ May set the dict.default via <items_default>
         :IF ~900⌶1 ⋄ dict.default←default ⋄ :Endif      ⍝ An explicit <default> overrides any set in <items_default>
      :Else
         ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
@@ -95,10 +96,10 @@
        SET_ID
     ∇
     ⍝ SET_ID: Set unique ID of this dictionary (for fast comparisons) of the form:
-    ⍝        ID:   'DICT:',<date-time prefix>,<counter>
-    ⍝ Sets the display form and returns the ID.
+    ⍝        idF:   'DICT:',<date-time prefix>,<counter>
+    ⍝ Sets the display form and returns the ID field idF, after incrementing the ID_COUNT.
     ∇ {returning}←SET_ID
-      ⎕DF returning ← ID←ID_PREFIX,⍕ID_COUNT ← 2147483647 | ID_COUNT + 1
+      ⎕DF returning ← idF←ID_PREFIX,⍕ID_COUNT ← 2147483647 | ID_COUNT + 1
     ∇
     ∇ destroy
       :Implements Destructor
@@ -111,6 +112,12 @@
     ⍝    (Methods of form Name; helper fns of form _Name)
     ⍝-------------------------------------------------------------------------------------------
    
+  ⍝ d.id: "Return the ID field, idF, (same as instance ⎕DF) for the current dictionary instance" 
+    ∇id←id
+     :Access Public
+     id←idF
+    ∇
+
     ⍝ keys2Vals: "Using standard vector indexing and assignment, set and get the value for each key. 
     ⍝           New entries are created automatically"
     ⍝ SETTING values for each key
@@ -246,31 +253,33 @@
     ⍝        If a scalar is passed which is not a dictionary, 
     ⍝        it is assumed to be a default value instead.
     ⍝ Returns: NONE
-    isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ baseclassF∊⊃⊃⎕CLASS ⍵} 
+    isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ BASECLASS∊⊃⊃⎕CLASS ⍵} 
     ∇ _importObjs objects;k;v;o 
       :If 0=≢objects                            ⍝ EMPTY?  NOP
       :ELSEIF 0=⍴⍴objects
         :IF isDict objects
            importVecs objects.export
         :Elseif 9.1=⎕NC ⊂'objects'
-            1 importNS objects
+            importNS objects
         :Else 
            defaultF hasdefaultF←(⊃objects) 1   ⍝ SCALAR? FAST PATH
         :Endif 
       :Elseif 2=⍴⍴objects                       ⍝ COLUMN VECTOR KEYVEC/VALUEVEC? 
           importMx objects                      ⍝ ... FAST PATH
-      :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS? FAST PATH
-          importVecs ↓⍉↑objects 
-      :Else   
+      :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS (ITEMS)? FAST PATH
+          importVecs ↓⍉↑objects                 ⍝ (k1 v1)(k2 v2)(k3 v3) => (k1 k2 k3)(v1 v2 v3)
+      :Else    
           :For o :in objects⊣k←v←⍬ 
-              :IF 2=⍴⍴o        ⋄ importMx o                      ⍝ MATRIX. Handle en masse
-              :Elseif 2=≢o     ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
-              :Elseif 1≠≢o     ⋄ THROW eBadUpdate                ⍝ Not Scalar. Error.
-              :Elseif isDict o ⋄ importVecs o.export             ⍝ Import Dictionary
-              :ELSEif 9.1=⎕NC⊂,'o'
-                                 1 importNS o
-              :Elseif 2∧.=≢¨o  ⋄ importVecs ↓⍉↑o                 ⍝
-              :Else            ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
+              :IF 2=⍴⍴o            ⋄ importMx o                      ⍝ MATRIX. Handle en masse
+              :Elseif 2=≢o         ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
+              :Elseif 1≠≢o
+                  :IF 2∧.=≢¨o      ⋄ importVecs  ↓⍉↑o 
+                  :Else   
+                    THROW eBadUpdate                ⍝ Not Scalar. Error.
+                  :ENDIF 
+              :Elseif isDict o     ⋄ importVecs o.export             ⍝ Import Dictionary
+              :ELSEif 9.1=⎕NC⊂,'o' ⋄  importNS o
+              :Else                ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
               :Endif 
           :EndFor
           :IF ×≢k  ⋄ importVecs k v ⋄ :Endif
@@ -693,7 +702,7 @@
       mirrorData←⎕NS '' 
       mirrorData.preferNumericKeys←preferNumericKeys            
       mirrorNS←mirrorData.mirrorNS←mirrorData.⎕NS '' 
-      mirrorNS.⎕DF '⎕NS@',ID
+      mirrorNS.⎕DF '⎕NS@',idF
       mirrorData.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
       :TRAP 0   
           :IF ×≢keysF   
@@ -871,14 +880,14 @@
       :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
           result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
       :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-          dict←DICT_CLASS.##.∆DICT ⍬   
+          dict←DICTCLASS.##.∆DICT ⍬   
           ns dict∘{
               0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
               context dict←⍺ ⋄ varName←⍵ ⋄ val←context⍎varName
               key←keysAsNumbers∘Name2Key varName    
               2=context.⎕NC varName:_←key dict.set1 val
             ⍝ varName points to a namespace, which is converted internally to a dictionary
-              dict2←DICT_CLASS.##.∆DICT ⍬ ⋄ subtext←val
+              dict2←DICTCLASS.##.∆DICT ⍬ ⋄ subtext←val
               _←key dict.set1 dict2
               1:_←subtext dict2∘∇¨subtext.⎕NL-2.1 9.1
           }¨ns.⎕NL-2.1 9.1
@@ -886,7 +895,7 @@
       :Else           ⍝ User passed a dictionary to convert
           (~minorOpt∊0 1 2) err 'Option ⍺ was invalid: Must be 0, 1, 2.'  
           Scan←{
-              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ DICT_CLASS∊⊃⊃⎕CLASS ⍵} 
+              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ DICTCLASS∊⊃⊃⎕CLASS ⍵} 
               ns←⍺⍺ ⋄ k v←⍺ ⍵
               ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
               _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
@@ -930,11 +939,11 @@
       actual←⍬
       ⍝ Copy list of fns into parent namespace to this one...
       ⍝ In functions to export, 
-      ⍝     use DICT_CLASS instead of ⎕THIS (⎕THIS will be treated as an alias for DICT_CLASS)
-      ⍝     use DICT_CLASS_## to refer to the namespace for the exported functions
-      ⍝ We also optimize DICT_CLASS.## to refer to the exported fns directory (where it's preferred to the class itself)
+      ⍝     use DICTCLASS instead of ⎕THIS (⎕THIS will be treated as an alias for DICTCLASS)
+      ⍝     use DICTCLASS.## to refer to the namespace for the exported functions
+      ⍝ We also optimize DICTCLASS.## to refer to the exported fns directory (where it's preferred to the class itself)
       :FOR fn :IN list
-          ok←##.⎕FX 'DICT_CLASS\.##' 'DICT_CLASS|⎕THIS' ⎕R (⍕DICT_CLASS.##)(⍕DICT_CLASS)⊣⎕NR fn  
+          ok←##.⎕FX '\QDICTCLASS.##\E' 'DICTCLASS|⎕THIS' ⎕R (⍕DICTCLASS.##)(⍕DICTCLASS)⊣⎕NR fn  
           :IF 0=1↑0⍴ok
               ⎕←'EXPORT_GROUP: Unable to export fn "',fn,'". Error in ',fn,' line',ok
           :ENDIF
@@ -999,8 +1008,9 @@
 ⍝H                   k1 d.set1 v1              ⍝*Set value for one key (see d.set)
 ⍝H                   keys d.set  vals          ⍝ Set values for keys
 ⍝H                   d.import keys vals        ⍝ Set values for arbitrary keys
+⍝H                   d.importNS ns             ⍝ Import items from namespace vars (⎕NC 2 3 4 9.1) (varnames → keys via JSON name rules)
 ⍝H                   d.update (k1 v1)(k2 v2)(k3 v3)...      ⍝ Set key-value pairs, new or old
-⍝H                   d.update dict1 (k1 v1) dict2 (k2 v2)   ⍝ Add dictionaries and key-value pairs to dict <d>
+⍝H                   d.update dict1 ns (k1 v1) dict2 (k2 v2)   ⍝ Add key-value pairs, dictionaries and namespace vars to the dictionary
 ⍝H                   d.sort                    ⍝ Set active order, sorting by ascending keys 
 ⍝H                   d.sortd                   ⍝ Set active order, sorting by descending keys
 ⍝H STATUS
@@ -1025,13 +1035,13 @@
 ⍝H    vals  ←              d.pop keys          ⍝ Remove/return values for specific keys from dictionary.
 ⍝H
 ⍝H MISC
-⍝H ns  ← preferNumeric  d.mirror 'NEW'         ⍝ Create a namespace whose variables track dictionary entries and vice versa.
+⍝H ns  ← preferNumeric  d.mirror 'NEW'         ⍝ Create a ns whose vars dynamically mirror dict entries and vice versa.
 ⍝H                                             ⍝ preferNumeric: If 1, namespace variables resolving to numeric strings 
 ⍝H                                             ⍝                are converted to numeric keys and vice versa.
-⍝H                      d.mirror 'DEL'         ⍝ * Delete (disconnect) the current namespace from the dictionary forever.
-⍝H                      d.mirror 'ON'          ⍝ * Enable active mirroring, after previously disabling. 
-⍝H                      d.mirror 'OFF'         ⍝ * Disable active mirroring temporarily.
-⍝H                                               * May only be used after d.mirror 'NEW' and d.mirror 'DEL'
+⍝H                      d.mirror 'DEL'         ⍝ * Permanently delete (disconnect) the current namespace from the dictionary.
+⍝H                      d.mirror 'ON'          ⍝ * Dynamically nable active mirroring, after previously disabling. 
+⍝H                      d.mirror 'OFF'         ⍝ * Dynamically isable active mirroring temporarily.
+⍝H                                               * May only be used after d.mirror 'NEW' (and before d.mirror 'DEL')
 ⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
