@@ -25,7 +25,7 @@
  
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
-    :Field Private ∆TRAP←                   0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
+    :Field Private  Shared ∆TRAP←           0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
   ⍝ B. Core dictionary fields
                    keysF←                   ⍬        ⍝ Non-field variable avoids Dyalog bugs with catenating/hashing.
     :Field Private valuesF←                 ⍬        ⍝ Always (≢keysF)≡(≢valuesF)
@@ -38,12 +38,12 @@
     :Field Private nsActiveF←               0        ⍝ 1 (active, 0 (inactive: temporarily or because no mirrorData)
     
   ⍝ C. ERROR MESSAGES:  [en=11] 'Error Message'
-    :Field Private Shared eBadUpdate←       'Unable to update Dictionary due to invalid element in ⍵'
+    :Field Private Shared eUpdtInvalid←     'Unable to update dictionary: invalid element in right arg.'
+    :Field Private Shared eUpdtMissingVals← 'Unable to update dictionary: values missing.'
     :Field Private Shared eBadClass←        'Invalid class specification' 
     :Field Private Shared eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
     :Field Private Shared eBadNS←           'Namespace specified is invalid'
     :Field Private Shared eDelKeyMissing←   'd.del: at least one key was not found and ⍺:ignore≠1.'
-    :Field Private Shared eImport←          'd.import keys vals. Use d.update for updating from other objects'
     :Field Private Shared eIndexRange←       3 'd.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
     :Field Private Shared eKeyAlterAttempt← 'd.keys: item keys may not be altered.'
     :Field Private Shared eHasNoDefault←     3 'd.index: key does not exist and no default was set.'
@@ -54,7 +54,7 @@
     :Field Private Shared eMirFlag←         'd.mirror: flag (⍵) must be one of NEW | ON | OFF | DEL.'
     :Field Private Shared eMirDel←          'd.mirror: No namespace mirror established (via d.mirror ''NEW'').'
     :Field Private Shared eMirNumKeys←      'd.mirror: preferNumericKeys (⍺), if present, must be 1 (ON) or 0 (OFF)'
-    :Field Private Shared eMirLogic←        'd._mirrorOpts LOGIC ERROR'
+    :Field Private Shared eMirLogic←        'd.mirror (_mirrorOpts) LOGIC ERROR'
 
   ⍝ General Local Names
     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
@@ -66,9 +66,9 @@
     :Access Public Shared
      :TRAP 0
         dict←(⊃⎕RSI,#).⎕NEW DICTCLASS items_default       ⍝ May set the dict.default via <items_default>
-        :IF ~900⌶1 ⋄ dict.default←default ⋄ :Endif      ⍝ An explicit <default> overrides any set in <items_default>
+        :IF ~900⌶1 ⋄ dict.default←default ⋄ :Endif        ⍝ An explicit <default> overrides any set in <items_default>
      :Else
-        ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' ('∆DICT ',EM)) ('Message' Message))
+        ⎕SIGNAL ⊂⎕DMX.(('EN' 11)('EM' EM) ('Message' Message))
      :EndTrap
     ∇
     
@@ -77,13 +77,13 @@
     ⍝ Constructors...
     ⍝ New1: "Constructs a dictionary and updates*** with entries, defined either as individual key-value pairs,
     ⍝        or by name from existing dictionaries. Optionally, sets the default value."
-    ⍝ Uses update/import, which will handle duplicate keys (the last value quietly wins), and so on.
-    ⍝ *** See update for conventions for <items_default>.
+    ⍝ Uses _import, which will handle duplicate keys (the last value quietly wins), and so on.
+    ⍝ *** See import for conventions for <items_default>.
     ∇ new1 struct
       :Implements Constructor
       :Access Public
       :Trap 0
-          _importObjs struct      
+          _import struct      
           SET_ID
       :Else  
           ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
@@ -147,7 +147,7 @@
         ∇ set args;keys;vals;⎕TRAP
           ⎕TRAP←∆TRAP
           keys←⊃args.Indexers ⋄ vals←args.NewValue 
-          importVecs keys vals
+          _importVecs keys vals
         ∇
     :EndProperty
 
@@ -195,25 +195,16 @@
     ∇
 
     ⍝ dict.set  --  Set keys ⍺ to values ⍵ OR set key value pairs: (k1:⍵11 v1:⍵12)(k2:⍵21 v2:⍵22)...
-    ⍝ dict.import-  Set keys to values ⍵
-    ⍝ --------      (See also dict.set1)
-    ⍝ {vals}←keys dict.set values
-    ⍝ {vals}←     dict.set (k v)(k v)...
-    ⍝ {dict}←     dict.import keys values    
+     ⍝ --------      (See also dict.set1)
+    ⍝ {vals}← keys dict.set values
+    ⍝ {vals}←      dict.set (key1 val1)(key2 val2)...(keyN valN)
     ∇ {vals}←{keys} set vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
-      importVecs keys vals
+      _importVecs keys vals
     ∇
-    ∇{dict}←import keys_vals;⎕TRAP
-      :Access Public
-      ⎕TRAP←∆TRAP
-      (2≠≢keys_vals) THROW eImport
-      importVecs keys_vals
-      dict←⎕THIS
-    ∇
-
+  
     ⍝ dict.set1  -- set single key ⍺ to value ⍵ OR set key value pair: (k1:⍵1 v1:⍵2)
     ⍝ ---------     (See also dict.set)
     ⍝ {val}←k1 dict.set1 v1    
@@ -222,29 +213,33 @@
       :Access Public
       ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ key val←val ⋄ :EndIf
-      importVecs ,∘⊂¨key val
+      _importVecs ,∘⊂¨key val
     ∇
 
-    ⍝ dict.update ⍵:  
-    ⍝ update data into dictionary and/or set default for values of missing keys.
+    ⍝ dict.import ⍵:   
+    ⍝ dict.import inserts items to the dictionary from objects of many types. 
+    ⍝ dict.import's main use is inserting items (key-value pairs) one by one:
+    ⍝    dict.import (key1 value1)(key2 value2)...(keyN valueN)
+    ⍝ or from a mixture of items, dictionaries, or namespaces in any order:
+    ⍝    dict.import (key1 value1) dict_1 ns_1 (key2 value2)...
     ⍝ Workhorse for adding objects to dictionaries: 
     ⍝           dictionaries, vectors of (keys values), and key-value pairs.
-    ⍝ Determines the argument types and calls importVecs as needed. 
+    ⍝ Determines the argument types and calls _importVecs as needed. 
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
     ⍝         (e.g. one exported via dict1.export)
     ⍝ 
-    ⍝ _importObjs ⍵: Internal utility to be called from top-level routines."
-    ⍝ update accepts either a SCALAR or VECTOR right argument ⍵.           
-    ∇ {dict}←update objectSpecs;⎕TRAP
+    ⍝ _import ⍵: Internal utility to be called from top-level routines."
+    ⍝ import accepts either a SCALAR or VECTOR right argument ⍵.           
+    ∇ {dict}←import objects;⎕TRAP
       :Access Public
       :TRAP 0 
-          _importObjs objectSpecs  
+          _import objects  
       :Else
-          THROW ⎕DMX.EN ((⎕UCS 10),⎕DMX.Message)
+          THROW ⎕DMX.(EN Message)
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ _importObjs objects: used only internally.
+    ⍝ _import objects: used only internally.
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
     ⍝ objects: 
     ⍝        (⍪keys vals [def]) OR (key1 val1)(key2 val2)(...) OR dictionary
@@ -253,45 +248,36 @@
     ⍝        If a scalar is passed which is not a dictionary, 
     ⍝        it is assumed to be a default value instead.
     ⍝ Returns: NONE
-    isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ BASECLASS∊⊃⊃⎕CLASS ⍵} 
-    ∇ _importObjs objects;k;v;o 
-      :If 0=≢objects                            ⍝ EMPTY?  NOP
-      :ELSEIF 0=⍴⍴objects
-        :IF isDict objects
-           importVecs objects.export
-        :Elseif 9.1=⎕NC ⊂'objects'
-            importNS objects
-        :Else 
-           defaultF hasdefaultF←(⊃objects) 1   ⍝ SCALAR? FAST PATH
-        :Endif 
-      :Elseif 2=⍴⍴objects                       ⍝ COLUMN VECTOR KEYVEC/VALUEVEC? 
-          importMx objects                      ⍝ ... FAST PATH
-      :Elseif 2∧.=≢¨objects                     ⍝ K-V PAIRS (ITEMS)? FAST PATH
-          importVecs ↓⍉↑objects                 ⍝ (k1 v1)(k2 v2)(k3 v3) => (k1 k2 k3)(v1 v2 v3)
-      :Else    
-          :For o :in objects⊣k←v←⍬ 
-              :IF 2=⍴⍴o            ⋄ importMx o                      ⍝ MATRIX. Handle en masse
-              :Elseif 2=≢o         ⋄ k v,←⊂¨o                        ⍝ K-V Pair. Collect 
-              :Elseif 1≠≢o
-                  :IF 2∧.=≢¨o      ⋄ importVecs  ↓⍉↑o 
-                  :Else   
-                    THROW eBadUpdate                ⍝ Not Scalar. Error.
-                  :ENDIF 
-              :Elseif isDict o     ⋄ importVecs o.export             ⍝ Import Dictionary
-              :ELSEif 9.1=⎕NC⊂,'o' ⋄  importNS o
-              :Else                ⋄ defaultF hasdefaultF←(⊃o) 1     ⍝ Set Defaults 
-              :Endif 
-          :EndFor
-          :IF ×≢k  ⋄ importVecs k v ⋄ :Endif
-      :Endif 
+      isDict← {9.2≠⎕NC ⊂,'⍵':0 ⋄ BASECLASS∊⊃⊃⎕CLASS ⍵} 
+      isNS←   {9.1=⎕NC ⊂,'⍵'}
+    ∇ _import objects;ix;o
+      objects←,⊆objects ⋄ ix←0
+      :WHILE ix<≢objects
+          o←ix⊃objects ⋄ ix+←1
+          :IF 2=⎕NC 'o'
+              :IF 2=⍴⍴o 
+                  _importTable o
+              :ELSEIF ix<≢objects ⍝ keyvec followed by valuevec
+                  o set (ix⊃objects) ⋄ ix+←1
+              :ELSE 
+                  ⎕SIGNAL eUpdtMissingVals
+              :ENDIF 
+          :ELSEIF isDict o 
+                o.keys set o.vals
+          :ELSEIF isNS o 
+                importNS o
+          :ELSE 
+                ⎕SIGNAL eUpdtInvalid
+          :ENDIF 
+      :ENDWHILE
     ∇
 
-    ⍝ {keys}←importVecs (keyVec valVec) 
+    ⍝ {keys}←_importVecs (keyVec valVec) 
     ⍝ keyVec must be present, but may be 0-len list [call is then a nop].
     ⍝ From vectors of keys and values, keyVec valVec, 
-    ⍝ updates instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
+    ⍝ imports instance vars keysF valuesF, then calls OPTIMIZE to be sure hashing enabled.
     ⍝ Returns: shy keys
-    ∇ {k}←importVecs (k v)
+    ∇ {k}←_importVecs (k v)
           ;ix;kp;old;oix;nk;nv;uniq    
       →0/⍨0=≢k                    ⍝      No keys/vals? Return now.
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
@@ -312,7 +298,7 @@
   ⍝ _mirror2NS
   ⍝    (void)← ∇ (keys vals delF=0|1)
   ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
-  ⍝ (Local utility used in importVecs)
+  ⍝ (Local utility used in _importVecs)
     ∇_mirror2NS (keys vals delF)
      ;Key2Name;mKeys 
      :IF (0=≢keys) ⋄ :ORIF ~nsActiveF ⋄ :RETURN ⋄ :ENDIF   
@@ -328,8 +314,8 @@
       mirrorData.mirrorNS _SuppressTrigger 0
     ∇
 
-    ⍝ importMx: Imports ⍪keyvec valvec [def]
-    importMx←importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eBadUpdate ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
+    ⍝ _importTable: Imports ⍪keyvec valuevec [def]
+    _importTable←_importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eUpdtInvalid ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ∇{names}←{preferNumericKeys} importNS ns_classes
       ;classes;hideNS;names;ns;IGNORE
@@ -402,7 +388,7 @@
     ⍝ keys|key:  "Get Keys by Index."
     ⍝     "For efficiency, returns the keysF vector, rather than one index element
     ⍝      at a time. Keys may be retrieved, but not set.
-    ⍝      In contrast, Values/Vals works element by element to allow direct updates (q.v.)."
+    ⍝      In contrast, Values/Vals works element by element to allow direct imports (q.v.)."
     ⍝ k ← d.keys              returns all Keys in entry order
     ⍝ k ← d.keys[ix1 ix2...]  returns zero or more keys by index (user origin).
     :Property keys,key
@@ -770,7 +756,7 @@
       saveState←nsActiveF 
       :IF thisNS.##≡mirrorData ⋄ nsActiveF←0 ⋄ :ENDIF  
           :TRAP 0  
-              importVecs↓⍉↑,thisNS∘{nm←⍵
+              _importVecs↓⍉↑,thisNS∘{nm←⍵
                     k←Name2Key nm ⋄  valIn←⍺⍎nm  
                     case←⍬⍴⎕NC 'valIn'
                       case∊3 4: k (⍺.⎕OR nm)  
@@ -970,10 +956,9 @@
 ⍝H lists+     d←⍬ ∆DICT ⍪(1 2 3)(10 20 30)  ⍝ (1 10)(2 20)(3 30)                  ⍬ (numeric null)
 ⍝H dict       e←∆DICT d (4 40)              ⍝ (1 10)(2 20)(3 30)  (4 40)          none
 ⍝H 
-⍝X Dict:      A utility fn that returns the full name of the dictionary class, often #.DictClass.
-⍝X            To enable, put [full path].Dict in your ⎕PATH (or specify full path to DictClass).
-⍝X            d←⎕NEW Dict            ⍝ Create a new, empty dictionary with no default values.
-⍝X            d←⎕NEW DictC (struct)   ⍝ Initialize dictionary with same call as for ∆DICT or d.update.
+⍝H Dict:      A utility fn that returns the full name of the dictionary class, often #.DictClass.
+⍝H            To enable, put [full path].Dict in your ⎕PATH (or specify full path to DictClass).
+⍝H            d←⎕NEW Dict             ⍝ Create a new, empty dictionary with no default values.
 ⍝H Hashes keys for efficiently searching and updating items in large dictionaries.
 ⍝H For HELP information, call 'Dict.HELP'.
 ⍝H
@@ -1005,12 +990,12 @@
 ⍝H    (k1 v1)(k2 v2)... ←  d.items[indices]    ⍝ Get all items in active (key) order
 ⍝H SET  
 ⍝H                   d[keys] ←  vals           ⍝ Set values for arbitrary keys.  For one key:  d[⊂key]←⊂val   
-⍝H                   k1 d.set1 v1              ⍝*Set value for one key (see d.set)
-⍝H                   keys d.set  vals          ⍝ Set values for keys
-⍝H                   d.import keys vals        ⍝ Set values for arbitrary keys
-⍝H                   d.importNS ns             ⍝ Import items from namespace vars (⎕NC 2 3 4 9.1) (varnames → keys via JSON name rules)
-⍝H                   d.update (k1 v1)(k2 v2)(k3 v3)...      ⍝ Set key-value pairs, new or old
-⍝H                   d.update dict1 ns (k1 v1) dict2 (k2 v2)   ⍝ Add key-value pairs, dictionaries and namespace vars to the dictionary
+⍝H                   k1 d.set1 v1              ⍝ Set value for one key (see d.set)
+⍝H                OR d.set1 k1 v1              ⍝ --DITTO--
+⍝H                   keys d.set  vals          ⍝ Set by vectors 
+⍝H                   d.set (k1 v1)(k2 v2)(...) ⍝ Set by pairs   
+⍝H                   keys d.set vecs           ⍝ Set by vectors...
+⍝H                   d.import obj1 [obj2 ...]  ⍝ Add items from dictionaries, namespaces, or via key and value vectors.
 ⍝H                   d.sort                    ⍝ Set active order, sorting by ascending keys 
 ⍝H                   d.sortd                   ⍝ Set active order, sorting by descending keys
 ⍝H STATUS
@@ -1042,6 +1027,7 @@
 ⍝H                      d.mirror 'ON'          ⍝ * Dynamically nable active mirroring, after previously disabling. 
 ⍝H                      d.mirror 'OFF'         ⍝ * Dynamically isable active mirroring temporarily.
 ⍝H                                               * May only be used after d.mirror 'NEW' (and before d.mirror 'DEL')
+⍝H                      d.mirror 'STATUS'      ⍝ Returns the current mirror status...
 ⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
@@ -1052,7 +1038,7 @@
 ⍝H
 ⍝H d← [def] ∆DICT objs
 ⍝H    Creates dictionary <d> with optional default <default> and calls 
-⍝H       d.update objs   ⍝ See below
+⍝H       d.import objs   ⍝ See below
 ⍝H    to set keys and values from key-value pairs, (keys values) vectors, and dictionaries.
 ⍝H
 ⍝H d←∆DICT ⊂default      OR    d←default ∆DICT ⍬
@@ -1177,34 +1163,20 @@
 ⍝H =========================================================================================
 ⍝H    BULK LOADING OF DICTIONARIES
 ⍝H =========================================================================================
-⍝H d.update  [obj1 | obj2 | obj3 | ⊂default] [obj1 | obj2 | obj3 | ⊂default] ...
+⍝H d.import  [namespace1 | dict1 | keyvec1 valuevec1 | table1] ...
 ⍝H    For dictionary d, sets keys and values from objs of various types or set value defaults:
-⍝H         ∘ ITEMS:     key-value pairs (each pair specified one at a time), 
-⍝H         ∘ DICTS:     dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
-⍝H         ∘ LISTS:     key-value lists (keys in one vector, values in another), and 
-⍝H         ∘ DEFAULTS:  defaults (must be a scalar or namespace-class, 
-⍝H                      as long as not a Dict
-⍝H    Any defaults are not loaded.
-⍝H    obj1:  (key1 val1)(key2 val2)...
-⍝H           objects passed as key-value pairs; keys and vals may be of any type...
-⍝H    obj2:  dict
-⍝H           A dict is an existing instance (scalar) of a DictClass object.   
-⍝H    obj3:  ⍪keys vals [def] 
-⍝H           keys and values are each scalars, structured in table form (as a column matrix).
-⍝H           The default, if present, may be any shape or nameclass.
-⍝H    default: any APL object of any shape (as long as not a dict), but must be enclosed to be recognized. 
-⍝H           Note: a default would normally be specified once. Those to the right take precedence.
-⍝H           E.g.  5   OR   ⊂'John'   OR  (⊂2 3⍴⍳6)  OR  (⊂'')   OR  (⊂⍬)  
-⍝H
-⍝H d ← d.import (k1 k2 ...) (v1 v2 ...)
-⍝H     Set one or more items from a K-V LIST (⍵1 ⍵2)
-⍝H         ⍵1: a vector of keys
-⍝H         ⍵2: a vector of values.
-⍝H     To set a single key-value pair (k1 v1), use e.g.:
-⍝H         k1 d.set1 v1 
-⍝H         d.import (,k1)(,v1)
+⍝H         ∘ DICT:      ∘  dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
+⍝H         ∘ NAMESPACE: ∘ imports variables and their values from the namespace,
+⍝H                         using JSON mangling (mapping from variable names to keys).
+⍝H                         For namespace <ns>, same as  0 importNS ns 
+⍝H                      ∘ See importNS and mirror for details. 
+⍝H         ∘ KEYS VECS  ∘ A pair of sequential items: a vector of keys, followed by a vector of values
+⍝H         ∘ TABLE      ∘ A single-column matrix in "table" format (mostly for utility use)  
+⍝H                        ⍪key_vec value_vec [default_scalar]
 ⍝H
 ⍝H d ← {preferNumericKeys} d.importNS ns
+⍝H     Use when numeric keys mapped to namespace variables are desired. 
+⍝H         If preferNumericKeys=0, simply use d.import ns 
 ⍝H     Imports items from variables in <ns>, from classes 2, 3, 4, and 9.
 ⍝H     Items in classes 3 and 4 are converted quietly to ⎕OR representation.
 ⍝H     Keys are converted to variables via JSON Mangling. 
@@ -1237,8 +1209,9 @@
 ⍝H
 ⍝H =========================================================================================
 ⍝H    MAPPING DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
-⍝H    ns ← [⍺] d.mirror NEW 
-⍝H    ns ← d.mirror  [DEL | ON | OFF]
+⍝H    ns ← [⍺] d.mirror 'NEW '
+⍝H    ns ← d.mirror  ['DEL' | 'ON' | 'OFF']
+⍝H    info←d.mirror 'status'
 ⍝H =========================================================================================
 ⍝H    ns ← preferNumericKeys d.mirror 'NEW'
 ⍝H          - returns a reference to the active private namespace, activating it if not already so.
@@ -1260,7 +1233,7 @@
 ⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
 ⍝H      It is never imported by d.mirror or d.importNS
 ⍝H ---------------------------------
-⍝H     ns  ← d.mirror 'OFF' | 'ON'  |  'DEL'
+⍝H     ns  ← d.mirror 'OFF' | 'ON'  |  'DEL' 
 ⍝H         Valid only for a mirror-enabled dictionary (d.mirror 'NEW'), which has not been disconnected (d.mirror 'DEL').
 ⍝H         Otherwise, an error is signaled.
 ⍝H         'OFF'
@@ -1276,6 +1249,8 @@
 ⍝H            If the user has maintained a copy of the namespace (e.g. saveNS← d.mirror 0),
 ⍝H            its contents will reflect the most recent mirroring, but no further updates will occur.
 ⍝H            Returns ⎕NULL.
+⍝H     info ← d.mirror 'STATUS'
+⍝H            Returns the current status of mirroring. May be called even if inactive.
 ⍝H        
 ⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
@@ -1313,7 +1288,7 @@
 ⍝H    Fancy Example
 ⍝H ------------------------------------------------
 ⍝H Reorganize a dictionary ordered by vals in descending order, rather than original entry or keys
-⍝H      OK       a←a.copy.clear.update a.items[⍒a.vals]
+⍝H      OK       a←a.copy.clear.import a.items[⍒a.vals]
 ⍝H      BETTER   a.reorder ⍒a.vals
 ⍝H ------------------------------------------------
 ⍝H    [NOTES]
