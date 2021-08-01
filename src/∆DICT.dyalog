@@ -6,13 +6,8 @@
     ⎕IO ⎕ML ⎕PP ←0 1 34 ⋄ (⎕CT ⎕DCT ⎕RL)←##.(⎕CT ⎕DCT ⎕RL)   
  
 ⍝ Export key utilities to the parent environment (hard-wiring ⎕THIS namespace)?
-⍝ If exportSelection[n]=1, item [n] will be exported to ##
-⍝  n     Is exported to ##
-⍝ [0]    Dict   
-⍝ [1]    ∆DICT   
-⍝ [2]    ∆JDICT 
-  exportSelection← 1 1 1                     ⍝ Copy all EXPORT_LIST utilities to ## in each case...
-  :Field Private Shared EXPORT_LIST←       exportSelection/ 'Dict' '∆DICT' '∆JDICT'   ⍝ See EXPORT_FUNCTIONS below
+⍝ [0]    Dict,     [1]    ∆DICT 
+ :Field Private Shared EXPORT_LIST←        'Dict' '∆DICT'     ⍝ See EXPORT_FUNCTIONS below
   :Field Private Shared DICTCLASS←         ⎕THIS   ⍝ Utilities are exported to DICTCLASS.## 
   
   ⍝ IDs:  Create Display form of form:
@@ -22,7 +17,7 @@
   :Field Private Shared ID_COUNT←           0
   :Field Private Shared ID_PREFIX←          ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
   :Field Private Shared BASECLASS←          ⊃⊃⎕CLASS ⎕THIS
- 
+  
   ⍝ Instance Fields and Related
   ⍝ A. TRAPPING
     :Field Private  Shared ∆TRAP←           0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
@@ -31,18 +26,17 @@
     :Field Private valuesF←                 ⍬        ⍝ Always (≢keysF)≡(≢valuesF)
     :Field Private hasdefaultF←             0
     :Field Private defaultF←                ''       ⍝ Default value (suppressed until hasdefaultF is 1)
-  ⍝ mirrorData: see d.namespace
-  ⍝ If mirrorData≡⎕NULL, no mirror is currently established.  (See d.mirror 'NEW' and d.mirror 'DEL').
-  ⍝ If established (d.mirror 'NEW'), it is mirroring if nsActive=1; else quiet.
-    :Field Private mirrorData←              ⎕NULL    
-    :Field Private nsActiveF←               0        ⍝ 1 (active, 0 (inactive: temporarily or because no mirrorData)
-    
+  ⍝ mirrorData: see d.mirror
+    :Field Private mirrorData←              ⎕NULL    ⍝ ⎕NULL (no mirror), namespace ref (active mirror)
+    :Field Private nsActiveF←               0        ⍝ 1 (active, 0 (inactive: temporarily or because no mirrorData)  
+  
   ⍝ C. ERROR MESSAGES:  [en=11] 'Error Message'
-    :Field Private Shared eUpdtInvalid←     'Unable to update dictionary: invalid element in right arg.'
-    :Field Private Shared eUpdtMissingVals← 'Unable to update dictionary: values missing.'
-    :Field Private Shared eBadClass←        'Invalid class specification' 
+    :Field Private Shared eImportBad←       'At least one object to import was invalid.'
+    :Field Private Shared eImportBad2←      eImportBad,' Did you mean (⊂key val)?'
+    :Field Private Shared eBadClass←        'Invalid class specification.' 
     :Field Private Shared eBadDefault←      'hasdefault must be set to 1 (true) or 0 (false).'
-    :Field Private Shared eBadNS←           'Namespace specified is invalid'
+    :Field Private Shared eBadNS←           'Namespace specified is invalid.'
+    :Field Private Shared eBadNSVar←        'Unable to import item from namespace. Invalid nameclass or subclass.'
     :Field Private Shared eDelKeyMissing←   'd.del: at least one key was not found and ⍺:ignore≠1.'
     :Field Private Shared eIndexRange←       3 'd.delbyindex: An index argument was not in range and ⍺:ignore≠1.'
     :Field Private Shared eKeyAlterAttempt← 'd.keys: item keys may not be altered.'
@@ -51,16 +45,14 @@
     :Field Private Shared eQueryDontSet←    'd.querydefault is read-only. Use set d.default and/or d.hasdefault.'
     :Field Private Shared eBadInt←          'd.inc/d.dec: increment (±⍺) and value for each key in ⍵ must be numeric.'
     :Field Private Shared eKeyBadName←      'd.namespace: Unable to convert key to valid APL variable name'
-    :Field Private Shared eMirFlag←         'd.mirror: flag (⍵) must be one of NEW | ON | OFF | DEL.'
-    :Field Private Shared eMirDel←          'd.mirror: No namespace mirror established (via d.mirror ''NEW'').'
+    :Field Private Shared eMirFlag←         'd.mirror: flag (⍵) must be one of CONNECT | ON | OFF | DISCONNECT.'
+    :Field Private Shared eMirDisc←          'd.mirror: No namespace mirror established (via d.mirror ''CONNECT'').'
     :Field Private Shared eMirNumKeys←      'd.mirror: preferNumericKeys (⍺), if present, must be 1 (ON) or 0 (OFF)'
     :Field Private Shared eMirLogic←        'd.mirror (_mirrorOpts) LOGIC ERROR'
+    :Field Private Shared eReorder←         'd.reorder: at least one index value is out of range, missing, or duplicated.'
+  
 
-  ⍝ General Local Names
-    ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
-      :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]  with ⎕THIS.## in the path!
-      ns←DICTCLASS
-    ∇ 
+  ⍝ External Utilities...
 
     ∇dict←{default} ∆DICT items_default      ⍝ Creates ⎕NEW Dict via cover function
     :Access Public Shared
@@ -72,6 +64,11 @@
      :EndTrap
     ∇
     
+     ∇ ns←Dict                      ⍝ Returns the dictionary class namespace. Searchable via ⎕PATH. 
+        :Access Public Shared        ⍝ Usage:  a←⎕NEW Dict [...]  with ⎕THIS.## in the path!
+        ns←DICTCLASS
+    ∇ 
+
     ⍝-------------------------------------------------------------------------------------------
     ⍝-------------------------------------------------------------------------------------------
     ⍝ Constructors...
@@ -86,7 +83,7 @@
           _import struct      
           SET_ID
       :Else  
-          ⎕SIGNAL ⎕DMX.((⊂'EN' EN)('EM' EM) ('Message' Message))
+          ⎕SIGNAL ⊂⎕DMX.(('EN' EN)('EM' EM) ('Message' Message))
       :EndTrap
     ∇
     ⍝ new0: "Constructs a dictionary w/ no initial entries and no default value for missing keys."
@@ -103,7 +100,7 @@
     ∇
     ∇ destroy
       :Implements Destructor
-      _mirrorOpts ¯1      ⍝ If there's any mirroring, remove it. 
+      ⍝ _mirrorOpts ¯1   ⍝ If there's any mirroring, remove it. 
     ∇
 
     ⍝-------------------------------------------------------------------------------------------
@@ -119,7 +116,7 @@
     ∇
 
     ⍝ keys2Vals: "Using standard vector indexing and assignment, set and get the value for each key. 
-    ⍝           New entries are created automatically"
+    ⍝             New entries are created automatically"
     ⍝ SETTING values for each key
     ⍝ dict[key1 key2...] ← val1 val2...
     ⍝
@@ -170,7 +167,7 @@
     
     ⍝ dict.get      Retrieve values for keys ⍵ with optional default value ⍺ for each missing key
     ⍝ --------      (See also dict.get1)
-    ⍝         dict.get keys   ⍝ -- all keys must exist or have a (class-basd) default
+    ⍝         dict.get keys   ⍝ -- all keys must exist or have a (class-based) default
     ⍝ default dict.get keys   ⍝ -- keys which don't exist are given the (fn-specified) default
     ∇ vals←{def} get keys;d;nd;⎕TRAP
       :Access Public
@@ -201,7 +198,7 @@
     ∇ {vals}←{keys} set vals;⎕TRAP
       :Access Public
       ⎕TRAP←∆TRAP
-      :If 900⌶1 ⋄ keys vals←↓⍉↑vals ⋄ :EndIf
+      :If 900⌶1 ⋄ keys vals←↓⍉↑,vals ⋄ :EndIf
       _importVecs keys vals
     ∇
   
@@ -216,30 +213,45 @@
       _importVecs ,∘⊂¨key val
     ∇
 
-    ⍝ dict.import ⍵:   
+    ⍝ dict.import ⍵ 
+    ⍝ [preferNK] dict.import ⍵:   
+    ⍝ ------------------------
     ⍝ dict.import inserts items to the dictionary from objects of many types. 
-    ⍝ dict.import's main use is inserting items (key-value pairs) one by one:
-    ⍝    dict.import (key1 value1)(key2 value2)...(keyN valueN)
-    ⍝ or from a mixture of items, dictionaries, or namespaces in any order:
-    ⍝    dict.import (key1 value1) dict_1 ns_1 (key2 value2)...
+    ⍝      1. If ⍵[N] contains a vector, it is treated as an "item" (a key-value pair) and must have two elements.
+    ⍝         e.g. (1 10) or ('John' 'Smith')
+    ⍝      2. ⍵[N] may be a dictionary to import (sans settings)
+    ⍝      3. ⍵[N] may be a namespace whose variables/values are to be imported
+    ⍝         ∘ In this case, if preferNK is set to 1, 
+    ⍝           variables of the form of a numeric scalar/vector (after JSON name conversion) will generate numeric keys
+    ⍝         ∘ By default, such variables are treated as numeric character strings (e.g. "12345" or "123.45")
+    ⍝      4. ⍵[N] may be a "table", i.e. a matrix of shape 2 1 or 3 1, 
+    ⍝         ∘ whose first "row" contains an (enclosed) list of keys
+    ⍝         ∘ whose second "row" contains an (enclosed) list of corresponding values
+    ⍝         ∘ whose third row, if present, contains the (enclosed) default for missing values  
+    ⍝         It's called a "table" format because it is typically generated via the table function "⍪", as in
+    ⍝            ⍪(⍳10)(○⍳10)('???')
+    ⍝          
     ⍝ Workhorse for adding objects to dictionaries: 
     ⍝           dictionaries, vectors of (keys values), and key-value pairs.
     ⍝ Determines the argument types and calls _importVecs as needed. 
     ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
     ⍝         (e.g. one exported via dict1.export)
     ⍝ 
-    ⍝ _import ⍵: Internal utility to be called from top-level routines."
+    ⍝ _import ⍵:  "Internal utility to be called from top-level routines."
     ⍝ import accepts either a SCALAR or VECTOR right argument ⍵.           
-    ∇ {dict}←import objects;⎕TRAP
+    ∇ {dict}←{preferNK} import objects;⎕TRAP
       :Access Public
+      :IF 900⌶1 ⋄ preferNK←0 ⋄ :ENDIF
       :TRAP 0 
-          _import objects  
+          preferNK _import objects  
       :Else
           THROW ⎕DMX.(EN Message)
       :EndTrap
       dict←⎕THIS
     ∇
-    ⍝ _import objects: used only internally.
+    ⍝ _import objects:            used only internally.
+    ⍝ {preferNK}_import objects:  relevant only with namespace objects (importNS)
+    ⍝  
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
     ⍝ objects: 
     ⍝        (⍪keys vals [def]) OR (key1 val1)(key2 val2)(...) OR dictionary
@@ -247,29 +259,39 @@
     ⍝ Special case:
     ⍝        If a scalar is passed which is not a dictionary, 
     ⍝        it is assumed to be a default value instead.
-    ⍝ Returns: NONE
-      isDict← {9.2≠⎕NC ⊂,'⍵':0 ⋄ BASECLASS∊⊃⊃⎕CLASS ⍵} 
+    ⍝ Returns: none
+      isDict← {9.2=⎕NC ⊂,'⍵': BASECLASS∊⊃⊃⎕CLASS ⍵ ⋄ 0} 
       isNS←   {9.1=⎕NC ⊂,'⍵'}
-    ∇ _import objects;ix;o
-      objects←,⊆objects ⋄ ix←0
-      :WHILE ix<≢objects
-          o←ix⊃objects ⋄ ix+←1
+    ∇ {preferNK} _import objects;o
+    ⍝ preferNK- used only for importNS; otherwise, ignored.
+      objects←,⊂⍣(⍬⍴2=⍴⍴objects)⊣objects 
+    ⍝ Fast path for ⍬ arg and for vectors of items...
+      :IF 0=≢objects
+          :RETURN
+      :ELSEIF 2∧.=≢¨objects         
+          _importVecs ↓⍉↑objects
+          :RETURN
+      :ENDIF 
+      :FOR o :IN objects   
           :IF 2=⎕NC 'o'
-              :IF 2=⍴⍴o 
-                  _importTable o
-              :ELSEIF ix<≢objects ⍝ keyvec followed by valuevec
-                  o set (ix⊃objects) ⋄ ix+←1
-              :ELSE 
-                  ⎕SIGNAL eUpdtMissingVals
-              :ENDIF 
+              :SELECT ⍴⍴o
+              :CASE ,1     ⍝ (k v)
+                  (2≠≢o) THROW eImportBad
+                  set1/o
+              :CASE ,2     ⍝ (⍪k v [def])
+                _importTable o
+              :ELSE        ⍝ error
+                THROW eImportBad eImportBad2⊃⍨2=≢objects
+              :ENDSELECT
           :ELSEIF isDict o 
                 o.keys set o.vals
           :ELSEIF isNS o 
-                importNS o
+                :IF 900⌶1 ⋄ preferNK←0 ⋄ :ENDIF
+                preferNK importNS o
           :ELSE 
-                ⎕SIGNAL eUpdtInvalid
+                ⎕SIGNAL eImportBad
           :ENDIF 
-      :ENDWHILE
+      :ENDFOR
     ∇
 
     ⍝ {keys}←_importVecs (keyVec valVec) 
@@ -283,39 +305,24 @@
       ix←keysF⍳k                  ⍝ I.   Process existing (old) keys
       old←ix<≢keysF               ⍝      Update old keys in place w/ new vals;
       valuesF[oix←old/ix]←old/v   ⍝      Duplicates? Keep only the last val for a given ix.
-      :IF nsActiveF ⋄ _mirror2NS (keysF[oix]) (valuesF[oix]) 0 ⋄ :ENDIF
+      :IF nsActiveF  
+          _mirror2NS (keysF[oix]) (valuesF[oix]) 0 
+      :ENDIF
       →0/⍨~0∊old                  ⍝      All old? No more to do; shy return.
       nk nv←k v/¨⍨⊂~old           ⍝ II.  Process new keys (which may include duplicates)
       uniq←⍳⍨nk                   ⍝      For duplicate keys,... 
       nv[uniq]←nv                 ⍝      ... "accept" last (rightmost) value
       kp←⊂uniq=⍳≢nk               ⍝      Keep: Create and enclose mask...
       nk nv←kp/¨nk nv             ⍝      ... of those to keep.
-      (keysF valuesF),← nk nv     ⍝ III. Update keys and values fields based on umask.
-      :IF nsActiveF ⋄ _mirror2NS nk nv 0 ⋄ :ENDIF
+      (keysF valuesF),← nk nv     ⍝ III. Add new keys and values fields  
+      :IF nsActiveF 
+          _mirror2NS nk nv 0 
+      :ENDIF
       OPTIMIZE                    ⍝      New entries: Update hash and shyly return.
-    ∇
-    
-  ⍝ _mirror2NS
-  ⍝    (void)← ∇ (keys vals delF=0|1)
-  ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
-  ⍝ (Local utility used in _importVecs)
-    ∇_mirror2NS (keys vals delF)
-     ;Key2Name;mKeys 
-     :IF (0=≢keys) ⋄ :ORIF ~nsActiveF ⋄ :RETURN ⋄ :ENDIF   
-     Key2Name← 0⍨7162⌶⍕   ⍝ JSON mangling
-     mirrorData.mirrorNS _SuppressTrigger 1
-        mKeys←{0:: ⍬ ⋄ Key2Name¨⍵}keys
-        (~×≢mKeys) THROW eKeyBadName
-        :IF delF 
-            mirrorData.mirrorNS.⎕EX mKeys      
-        :ELSE 
-            mKeys (mirrorData.mirrorNS _AssignVar)¨vals
-        :ENDIF
-      mirrorData.mirrorNS _SuppressTrigger 0
     ∇
 
     ⍝ _importTable: Imports ⍪keyvec valuevec [def]
-    _importTable←_importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eUpdtInvalid ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
+    _importTable←_importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eImportBad ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
 
     ∇{names}←{preferNumericKeys} importNS ns_classes
       ;classes;hideNS;names;ns;IGNORE
@@ -345,6 +352,15 @@
     ∇ (k v)←export
       :Access Public
       k v←keysF valuesF
+    ∇
+
+    ∇ eNS←exportNS; destroyFlag
+      :Access Public
+      nsActiveF←1                         
+      destroyFlag← mirrorData≡⎕NULL
+      eNS←⎕NS mirror 'CONNECT' 
+      eNS.⎕DF 'Exported@',idF
+       {}_mirrorOpts ⍣destroyFlag⊣¯1  
     ∇
 
     ⍝ items: "Returns ALL key-value pairs as a vector, one pair per vector element. ⍬ if none."
@@ -445,7 +461,7 @@
     :Access Public
         ∇ r←get args
           :Select args.Name
-          :Case 'default'      ⋄ :If ~hasdefaultF ⋄ THROW eHasNoDefaultD ⋄ :EndIf
+          :Case 'default'      ⋄ (~hasdefaultF) THROW eHasNoDefaultD  
                                  r←defaultF
           :Case 'hasdefault'   ⋄ r←hasdefaultF
           :Case 'querydefault' ⋄ r←hasdefaultF defaultF
@@ -456,7 +472,7 @@
           :Case 'default'
               defaultF hasdefaultF←args.NewValue 1
           :Case 'hasdefault'
-              :If ~0 1∊⍨⊂args.NewValue ⋄ THROW eBadDefault ⋄ :EndIf
+              eBadDefault THROW⍨ (~0 1∊⍨⊂args.NewValue) 
               hasdefaultF←⍬⍴args.NewValue   ⍝ defaultF unchanged...
           :Case 'querydefault'
               THROW eQueryDontSet
@@ -491,7 +507,7 @@
       :Access Public
        ⎕TRAP←∆TRAP
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
-      :IF 0≠1↑0⍴∆ ⋄ THROW eBadInt ⋄ :ENDIF 
+      (0≠1↑0⍴∆) THROW eBadInt  
       newval←(-∆)inc keys
     ∇
 
@@ -628,18 +644,18 @@
     ∇{dict}←reorder ix
      :Access Public
       ix-←(⊃⎕RSI).⎕IO      ⍝ Adjust indices to reflect caller's index origin, if need be
-      (ix[⍋ix]≢⍳≢keysF) THROW 'Dict.reorder: at least one index value is out of range, missing, or duplicated.'
+      eReorder  THROW⍨ ix[⍋ix]≢⍳≢keysF
       keysF ⌷⍨←⊂ix ⋄ valuesF ⌷⍨←⊂ix 
       OPTIMIZE ⋄ dict←⎕THIS
     ∇
 
   ⍝ d.mirror
-  ⍝ mirrorNS ← {preferNumericKeys:[0|1]} d.mirror [NEW | ON | OFF | DEL ]
+  ⍝ mirrorNS ← {preferNumericKeys:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
   ⍝ See documentation for details. 
   ⍝ Enables a namespace that 
   ⍝            replicates the dictionaries keys as variable names and
   ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
-  ⍝ A.  On first call with NEW option
+  ⍝ A.  On first call with CONNECT option
   ⍝     1. creates namespace <ns>, setting two fields
   ⍝           mirrorData - the namespace with mirror-related variables, and 
   ⍝           nsActiveF  - 1 when it's active, else 0.
@@ -648,83 +664,101 @@
   ⍝     2. creates 
   ⍝           ns.ourDict - points to the active dictionary instance
   ⍝           ns.mirrorNS   - contains user variables and the trigger fn (__DictTrigger__)
-  ⍝ B1. On subsequent calls with NEW option
-  ⍝     May change the preferNumericKeys(⍺), for future mirroring
+  ⍝ B1. On subsequent calls with CONNECT option
+  ⍝     May change the preferNumericKeys(⍺) setting, for future mirroring
   ⍝ B2. On subsequent calls, with
-  ⍝     ON            enables real-time mirroring of active namespace (created via NEW)
+  ⍝     ON            enables real-time mirroring of active namespace (created via CONNECT)
   ⍝     OFF           temporarily disables ...
-  ⍝     DEL           turns off mirroring and severs any connection with the mirroring namespace from NEW
+  ⍝     DISCONNECT           turns off mirroring and severs any connection with the mirroring namespace from CONNECT
   ⍝     STATUS        shows current mirroring status
   ⍝ RETURNS [shyly] in all cases:
   ⍝    the user-accessible mirror namespace (mirrorData.mirrorNS)
-    ∇{mirrorNS}←{preferNumericKeys} mirror flag ;opts 
+    ∇{mirrorNS}←{preferNumericKeys} mirror flag  
       :Access Public
-      :SELECT flag← ⎕C flag
-        :CASE 'status'    ⍝ status
-          mirrorNS←mirrorData{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~nsActiveF
-          :RETURN
-        :CASELIST opts←'del' 'off' 'on'     
-          (mirrorData≡⎕NULL) THROW eMirDel 
-          mirrorNS← _mirrorOpts ¯1+opts⍳⊂flag
-          :RETURN
-        :CASE 'new' 
-           ⍝ Continue below at NEW
-        :ELSE 
-          THROW eMirFlag 
+      :SELECT flag← 1 ⎕C flag
+          :CASE 'CONNECT' 
+            ⍝ Continue below at DO_CONNECT
+          :CASELIST 'ON' 'OFF' 'DISC' 'DISCONNECT'  
+            (mirrorData≡⎕NULL) THROW eMirDisc 
+            mirrorNS← _mirrorOpts 1-'ON' 'OFF'⍳⊂flag    ⍝ 1 0 ¯1
+            :RETURN
+          :CASE 'STATUS' 
+            mirrorNS←mirrorData{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~nsActiveF
+            :RETURN
+          :ELSE 
+            THROW eMirFlag 
       :ENDSELECT
-    NEW:
-    ⍝ preferNumericKeys:  1=yes, 0=no (default=0). Used only with flag 'NEW', otherwise ignored.
-      :IF 900⌶1 ⋄  preferNumericKeys←0
-      :ELSE     ⋄  (preferNumericKeys(~∊)0 1) THROW eMirNumKeys
-      :ENDIF 
-    ⍝ ACTIVATE THE MIRROR, IF REQUIRED.
-      nsActiveF←1                      ⍝ Activate mirrorData, creating if necessary...
-    ⍝ MIRROR ALREADY EXISTS
-      :IF mirrorData≢⎕NULL                     
-          mirrorData.preferNumericKeys←preferNumericKeys 
-          mirrorNS←mirrorData.mirrorNS 
-          :RETURN
-      :ENDIF
-      mirrorData←⎕NS '' 
-      mirrorData.preferNumericKeys←preferNumericKeys            
-      mirrorNS←mirrorData.mirrorNS←mirrorData.⎕NS '' 
-      mirrorNS.⎕DF '⎕NS@',idF
-      mirrorData.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
-      :TRAP 0   
-          :IF ×≢keysF   
-              names← (0⍨7162⌶⍕)¨ keysF                      ⍝ Convert Keys 2 Names via JSON mangling
-              names (mirrorNS _AssignVar)¨valuesF           ⍝ In mirrorData.mirrorNS, assign values to names.
-          :ENDIF                                            ⍝ ↓↓↓ Activate trigger fn __DictTrigger__
-          mirrorNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__DictTrigger__'
-      :ELSE
-          THROW eKeyBadName
-      :ENDTRAP
+    DO_CONNECT:
+      ⍝ preferNumericKeys:  1=yes, 0=no (default=0). Used only with flag 'CONNECT', otherwise ignored.
+        preferNumericKeys← {
+          900⌶1: 0 ⋄ pref←⎕OR ⍵  ⋄ pref∊0 1: pref  ⋄ THROW eMirNumKeys
+        }'preferNumericKeys'
+      ⍝ Set mirror flag to active, whether mirror is CONNECT or old.
+        nsActiveF←1                       
+      ⍝ MIRROR ALREADY EXISTS? Update preference and return the mirrorNS
+        :IF mirrorData≢⎕NULL                     
+            mirrorData.preferNumericKeys←preferNumericKeys 
+            mirrorNS←mirrorData.mirrorNS 
+            :RETURN
+        :ENDIF
+      ⍝ Connecting NEW mirror. Define mirror data, establish the namespace, mirror existing items to it, 
+      ⍝ then activate trigger, so namespace objects are mirrored back...
+        mirrorData←⎕NS '' 
+        mirrorData.preferNumericKeys←preferNumericKeys            
+        mirrorNS←mirrorData.mirrorNS←mirrorData.⎕NS '' 
+        mirrorNS.⎕DF 'Mirror@',idF
+        mirrorData.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
+        :TRAP 0   
+            :IF ×≢keysF   
+                names← (0⍨7162⌶⍕)¨ keysF                      ⍝ Convert Keys to Var Names via JSON rules
+                names (mirrorNS _AssignVar)¨valuesF           ⍝ Map dict(keys and values) ==> ns(vars and values)
+            :ENDIF                                            
+                                                              ⍝ ↓↓↓ Activate trigger fn __DictTrigger__
+            mirrorNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__DictTrigger__'
+        :ELSE
+            THROW eKeyBadName
+        :ENDTRAP
     ∇
-  
   ⍝ {mirrorNS} ← _mirrorOpts [1 | 0 | ¯1]
   ⍝ setMirror: (0:OFF) Turns mirroring off, or (1:ON) reestablishes it, 
-  ⍝        or (¯1:DEL) permanently disconnects the namespace and dictionary entirely, ending mirroring. 
+  ⍝        or (¯1:DISCONNECT) permanently disconnects the namespace and dictionary entirely, ending mirroring. 
   ⍝ Returns (shyly): the (active) mirror namespace. ⎕NULL, if none established.
   ⍝ HELPER FUNCTION for d.mirror (above)
     ∇{mirrorNS}←_mirrorOpts flag; was  
       :IF (mirrorData≡⎕NULL) ⋄ mirrorNS←⎕NULL ⋄ :RETURN ⋄ :ENDIF
-      (flag(~∊)1 0 ¯1) THROW eMirFlag
+      eMirFlag THROW⍨  flag(~∊)1 0 ¯1 
       :Select ⍬⍴flag
-        :CASE ¯1                                      ⍝ Terminate the connection
-          ⍝ Suppress trigger...
-            ⍝ mirrorData.mirrorNS _SuppressTrigger 1             
-          ⍝ Delete trigger fn and dict reference. (Avoid keeping ourDict reference live)
-            (0∊mirrorData.⎕EX 'ourDict' 'mirrorNS.__DictTrigger__') THROW eMirLogic
+        :CASE ¯1                                      
+          ⍝ Delete trigger fn (cancelling the trigger) and dict reference (to avoid keeping ourDict reference live)
+            eMirLogic THROW⍨ 0∊mirrorData.⎕EX 'ourDict' 'mirrorNS.__DictTrigger__' 
+            mirrorData.mirrorNS.⎕DF 'Exported@',idF
             nsActiveF mirrorData mirrorNS← 0 ⎕NULL ⎕NULL
-        :CASELIST 0 1                                    ⍝ Suppress (0) or re-enable (1) mirroring
+        :CASELIST 0 1                                 
             was nsActiveF mirrorNS←nsActiveF flag mirrorData.mirrorNS
-            :IF was=flag ⋄ :RETURN ⋄ :ENDIF
+            :IF was=flag ⋄ :RETURN ⋄ :ENDIF     ⍝ Same as before. Don't bother de/re-activating
             mirrorNS _SuppressTrigger ~nsActiveF       
         :ELSE 
             THROW eMirLogic
       :ENDSELECT 
     ∇
-   
+  ⍝ _mirror2NS
+  ⍝    (void)← ∇ (keys vals delF=0|1)
+  ⍝    If (delF=0), update values (vals) for keys; If (delF=1), delete keys (vals ignored)
+  ⍝ (Local utility used in _importVecs)
+    ∇_mirror2NS (keys vals delF)
+     ;Key2Name;mKeys 
+     :IF (0=≢keys) ⋄ :ORIF ~nsActiveF ⋄ :RETURN ⋄ :ENDIF   
+     Key2Name← 0⍨7162⌶⍕   ⍝ JSON mangling
+     mirrorData.mirrorNS _SuppressTrigger 1        ⍝ No triggering in mirror ns, while updating its variables
+        mKeys←{0:: ⍬ ⋄ Key2Name¨⍵}keys
+        (~×≢mKeys) THROW eKeyBadName
+        :IF delF 
+            mirrorData.mirrorNS.⎕EX mKeys      
+        :ELSE 
+            mKeys (mirrorData.mirrorNS _AssignVar)¨vals
+        :ENDIF
+      mirrorData.mirrorNS _SuppressTrigger 0       ⍝ Re-enable mirror ns trigger
+    ∇ 
     ⍝ __DictTrigger__: helper for d.mirror (q.v.).
     ⍝ Do not enable trigger here: it's copied/activated in mirror namespace only.
     ⍝ Note: See importNS. It will not import this object '__DictTrigger__' if found in the source namespace.
@@ -755,17 +789,20 @@
     ⍝ Suppress mapping namespace vars onto dict keys, only if ns is the actively mapped (triggered) namespace
       saveState←nsActiveF 
       :IF thisNS.##≡mirrorData ⋄ nsActiveF←0 ⋄ :ENDIF  
-          :TRAP 0  
-              _importVecs↓⍉↑,thisNS∘{nm←⍵
-                    k←Name2Key nm ⋄  valIn←⍺⍎nm  
-                    case←⍬⍴⎕NC 'valIn'
-                      case∊3 4: k (⍺.⎕OR nm)  
-                      case∊2 9: k valIn
-              }¨nameList 
-          :Else 
-              nsActiveF←saveState
-              11 ⎕SIGNAL⍨'∆DICT VALUE ERROR: Unable to import item from namespace'
-          :EndTrap
+      :TRAP 0 
+          :IF ×≢nameList  ⍝ An empty namelist is ok...
+            _importVecs↓⍉↑,thisNS∘{nm←⍵
+                  k←Name2Key nm 
+                  case←⍺.⎕NC nm 
+                  case∊3 4: k (⍺.⎕OR nm)  
+                  case∊2 9: k (⍺⍎nm)
+                  ∘ ∘ ∘   ⍝ THROW eBadNSVar
+            }¨nameList 
+          :ENDIF 
+      :Else 
+          nsActiveF←saveState
+          THROW eBadNSVar
+      :EndTrap
     ⍝ Restore mapping of namespace vars onto dict keys, if ns is the actively mapped (triggered) namespace
       nsActiveF←saveState
     ∇
@@ -825,82 +862,7 @@
     }
     THROW←⎕SIGNAL _THROW
     
-⍝⍝
-⍝⍝ ∆JDICT function --- See HELP INFO BELOW
-⍝⍝ =========================================================================================
-
-  ⍝ JSONsample: JSON demo case. To access:  x← Dict.JSONsample or   jd← ∆JDICT Dict.JSONsample
-    :Field Public  Shared JSONsample←'[{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]'
-
-    ∇ result ← {minorOpt} ∆JDICT strJson
-      ;err;oJson5;keys;majorOpt;Key2Name;Name2Key;ns;oNull;vals;keysAsNumbers;⎕IO;⎕TRAP   
-      :Access Public Shared
-      Key2Name← 0⍨7162⌶⍕            ⍝ JSON mangling
-      keysAsNumbers←0               ⍝ 1: Treat imported keys that look like numeric scalars/vectors as APL numbers 
-      Name2Key←{      ⍝ JSON unmangling
-          key←1∘(7162⌶) ⍵ ⋄ ~⍺: ⍬⍴⍣(1=≢key)⊣key  
-          ok val←⎕VFI key  ⋄ 0∊ok: ⍬⍴⍣(1=≢key)⊣key  ⋄ 1≠≢val: val ⋄ ⊃val  ⍝ single # => disclose scalar
-      }  
-      ⎕IO←0 ⋄ oNull oJson5 oJson3←('Null'⎕NULL)('Dialect' 'JSON5')('Dialect' 'JSON')
-      ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(((''∆JDICT: '',EM),Message,⍨'': ''/⍨0≠≢Message) EN)'
-      err←⎕SIGNAL {⍺←1 ⋄ ⍺: ⊂('EN' 11)('Message'  ⍵) ⋄ ⍬}
-    ⍝ Major opt (majorOpt) automatically set based on type of <json>.
-    ⍝ If several namespaces or strings OR converts from string to namespaces, majorOpt=2.
-    ⍝ If majorOpt=0, minor option is checked; otherwise ignored.
-      minorOpt←{⍵: 0 ⋄ minorOpt} 900⌶1   
-      ns majorOpt←strJson{
-        badStrE←'At least one invalid ⎕JSON input string found in arg ⍵.'  
-        badObjE←'At least one object in arg ⍵ not a JSON string or compatible APL namespace or dictionary.' 
-        0::  err badStrE
-        ⍵=2.1: strJson{
-          ⍵: ns (1+1<≢ns) ⊣ ns←⎕JSON ⍠ oNull oJson5⊣⍺   ⍝ Allow JSON5 on import.
-          1<≢⍺: ⍺ 2 
-          err badObjE
-        }0=80|⎕DR ⍺
-        ⍵=9.1: ⍺ 1
-        ⍵=9.2: ⎕NULL 0    ⍝ Object is a class instance; expected to be a dict.
-        err badObjE
-      }⎕NC⊂'strJson'
-    
-      :Select majorOpt
-      :Case 2      ⍝ several objects: JSON strings, namespaces, or dicts
-          result←minorOpt (⍎⊃⎕XSI)¨ns       ⍝ Call ∆JDICT on each object...
-      :Case 1      ⍝ ns from ⎕JSON obj or directly from user
-          dict←DICTCLASS.##.∆DICT ⍬   
-          ns dict∘{
-              0:: err 'Valid JSON object ⍵ could not be converted to dictionary.' 
-              context dict←⍺ ⋄ varName←⍵ ⋄ val←context⍎varName
-              key←keysAsNumbers∘Name2Key varName    
-              2=context.⎕NC varName:_←key dict.set1 val
-            ⍝ varName points to a namespace, which is converted internally to a dictionary
-              dict2←DICTCLASS.##.∆DICT ⍬ ⋄ subtext←val
-              _←key dict.set1 dict2
-              1:_←subtext dict2∘∇¨subtext.⎕NL-2.1 9.1
-          }¨ns.⎕NL-2.1 9.1
-          result←dict  ⍝ Return a single dictionary
-      :Else           ⍝ User passed a dictionary to convert
-          (~minorOpt∊0 1 2) err 'Option ⍺ was invalid: Must be 0, 1, 2.'  
-          Scan←{
-              isDict←{9.2≠⎕NC⊂,'⍵':0 ⋄ DICTCLASS∊⊃⊃⎕CLASS ⍵} 
-              ns←⍺⍺ ⋄ k v←⍺ ⍵
-              ~isDict v: _←k ns.{⍎⍺,'←⍵'}  v
-              _←k ns.{⍎⍺,'←⍵'} ns2←ns.⎕NS ''
-              1: ⍬⊣(Key2Name¨ v.keys)(ns2 ∇∇)¨v.vals
-          }
-          dict←strJson
-          :TRAP  0
-              ns←⎕NS ''
-              (Key2Name¨ dict.keys) (ns Scan)¨dict.vals
-          :Else 
-              err 'Dictionary ⍵ could not be converted to ⎕JSON.' 
-          :EndTrap
-        ⍝ Use a compact ⎕JSON format if minorOpt is 0.
-        ⍝ minorOpt∊0 1: result is a  JSON string 
-        ⍝ minorOpt=2:   result is a namespace.
-        ⍝ Always export (default) as JSON3 format.
-          result ← minorOpt{⍺=2: ⍵ ⋄ ⎕JSON ⍠ oNull oJson3('Compact' (⍺=0))⊣⍵ }ns
-      :EndSelect 
-    ∇
+ 
   ⍝ _AssignVar:    Assign to name in context <where> the value (std) or create as a function if the value is an ⎕OR.
   ⍝ name ←   name (where _AssignVar) val
   ⍝ Syntax:
@@ -942,10 +904,11 @@
 ⍝H            one key and one value, each an arbitrary shape and  
 ⍝H            in nameclass 2 or 9 (value or namespace-related).
 ⍝H
-⍝H ∆DICT:     Primary function for creating new dictionaries.
-⍝H            Documented immediately below.
-⍝H ∆JDICT:    Convert between dictionaries and {⎕JSON strings and/or ⎕JSON-compatible namespaces}.
-⍝H            Documented further below (see ∆JDICT).
+⍝H ∆DICT:     Primary function for creating new dictionaries ("hashes").
+⍝H            ∘ Accepts a variety of formats for initialization and for import/export.
+⍝H            ∘ JSON-generated namespaces can be used to initialize a dictionary or via d.import.
+⍝H              A dictionary can export a JSON-ready namespace via d.mirror 'EXPORT'
+⍝H            ∘ Documentation follows.
 ⍝H
 ⍝H ∆DICT: Creating a dict, initializing items (key-value pairs), setting the default for missing values.
 ⍝H TYPE       CODE                          ITEMS (key-value pairs)               DEFAULT VALUE
@@ -980,8 +943,11 @@
 ⍝H GET
 ⍝H    v1 v2 v3 ←           d[k1 k2 k3]         ⍝ Get value list by key list
 ⍝H    v1       ← [def] d.get1 k1               ⍝ Get a value disclosed by key (see d.get).
-⍝H    v1 v2 v3 ← [def] d.get  keys             ⍝ Get value list by key list, else default
-⍝H    keys vals ←          d.export            ⍝ Get key list followed by value list
+⍝H    v1 v2 v3 ← [def] d.get  keys             ⍝ Get value list by key list, else return <def> for each missing key,
+⍝H                                               if present, else the instance-level default (q.v.), if present.
+⍝H                                               If any key is missing and there's no default, an error is signaled.
+⍝H    keys vals ←          d.export            ⍝ Get key list followed by value list 
+⍝H    ns       ←           d.exportNS          ⍝ Export the dict items as variables in a namespace (see d.mirror).
 ⍝H    keys     ←           d.keys              ⍝ Get all keys in active order
 ⍝H    k1 k2 k3 ←           d.keys[indices]     ⍝ Get keys by index (position in active key order)
 ⍝H    vals     ←           d.vals              ⍝ Get all values in active (key) order
@@ -1020,15 +986,18 @@
 ⍝H    vals  ←              d.pop keys          ⍝ Remove/return values for specific keys from dictionary.
 ⍝H
 ⍝H MISC
-⍝H ns  ← preferNumeric  d.mirror 'NEW'         ⍝ Create a ns whose vars dynamically mirror dict entries and vice versa.
+⍝H ns  ← {preferNumeric} d.mirror 'CONNECT'        ⍝ Create a ns whose vars dynamically mirror dict entries and vice versa.
 ⍝H                                             ⍝ preferNumeric: If 1, namespace variables resolving to numeric strings 
 ⍝H                                             ⍝                are converted to numeric keys and vice versa.
-⍝H                      d.mirror 'DEL'         ⍝ * Permanently delete (disconnect) the current namespace from the dictionary.
-⍝H                      d.mirror 'ON'          ⍝ * Dynamically nable active mirroring, after previously disabling. 
-⍝H                      d.mirror 'OFF'         ⍝ * Dynamically isable active mirroring temporarily.
-⍝H                                               * May only be used after d.mirror 'NEW' (and before d.mirror 'DEL')
-⍝H                      d.mirror 'STATUS'      ⍝ Returns the current mirror status...
+⍝H                       d.mirror 'DISCONNECT'        ⍝ * Permanently delete (disconnect) the current namespace from the dictionary.
+⍝H                       d.mirror 'ON'         ⍝ * Dynamically nable active mirroring, after previously disabling. 
+⍝H                       d.mirror 'OFF'        ⍝ * Dynamically isable active mirroring temporarily.
+⍝H                                               * May only be used after d.mirror 'CONNECT' (and before d.mirror 'DISCONNECT')
+⍝H                       d.mirror 'STATUS'     ⍝ Returns the current mirror status...
 ⍝H
+⍝H ns ←   exportNS                             ⍝ Exports the items as variables as a namespace (see d.mirror).
+⍝H                                             ⍝ If mirroring is active, shares a copy of the current mirror
+⍝H⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
 ⍝H =========================================================================================
@@ -1038,17 +1007,14 @@
 ⍝H
 ⍝H d← [def] ∆DICT objs
 ⍝H    Creates dictionary <d> with optional default <default> and calls 
-⍝H       d.import objs   ⍝ See below
-⍝H    to set keys and values from key-value pairs, (keys values) vectors, and dictionaries.
+⍝H       d.import objs  
+⍝H    to set keys and values from key-value pairs, dictionaries, namespace variables, or "tables".
+⍝H    See d.import below.
 ⍝H
-⍝H d←∆DICT ⊂default      OR    d←default ∆DICT ⍬
-⍝H    default must be a simple scalar, like 5, or it must be enclosed.
-⍝H        e.g. ∆DICT 10         creates an empty dictionary with default value 10.
-⍝H             ∆DICT ⊂⍬         creates an empty dictionary with default value ⍬ (not ⊂⍬).
-⍝H             ∆DICT ⊂'Missing' creates an empty dictionary with default value 'Missing'.
+⍝H  d←default ∆DICT ⍬
+⍝H     Creates an empty dictionary with default <default>
 ⍝H
 ⍝H newDict ← d.copy             ⍝ Make a copy of dictionary <d> as <newDict>, including defaults.
-⍝H
 ⍝H
 ⍝H =========================================================================================
 ⍝H    SETTING/GETTING DICTIONARY ITEMS BY KEY
@@ -1163,16 +1129,17 @@
 ⍝H =========================================================================================
 ⍝H    BULK LOADING OF DICTIONARIES
 ⍝H =========================================================================================
-⍝H d.import  [namespace1 | dict1 | keyvec1 valuevec1 | table1] ...
+⍝H d.import  [ITEM | DICT | NAMESPACE | TABLE] ...
 ⍝H    For dictionary d, sets keys and values from objs of various types or set value defaults:
+⍝H         ∘ ITEM:      ∘  a (key value) pair: If just one, enclose it:  d.import (⊂1 10)
 ⍝H         ∘ DICT:      ∘  dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
 ⍝H         ∘ NAMESPACE: ∘ imports variables and their values from the namespace,
 ⍝H                         using JSON mangling (mapping from variable names to keys).
 ⍝H                         For namespace <ns>, same as  0 importNS ns 
 ⍝H                      ∘ See importNS and mirror for details. 
-⍝H         ∘ KEYS VECS  ∘ A pair of sequential items: a vector of keys, followed by a vector of values
-⍝H         ∘ TABLE      ∘ A single-column matrix in "table" format (mostly for utility use)  
-⍝H                        ⍪key_vec value_vec [default_scalar]
+⍝H         ∘ TABLE      ∘ A single-column matrix in "table" format to allow loading keys and values as vectors
+⍝H                        ⍪key_vec value_vec [default]
+⍝H         e.g. dict.import ⍪(⍳10)(○⍳10)  <==>  dict.import (0 (○0))(1 (○1))...(9 (○9))
 ⍝H
 ⍝H d ← {preferNumericKeys} d.importNS ns
 ⍝H     Use when numeric keys mapped to namespace variables are desired. 
@@ -1209,11 +1176,11 @@
 ⍝H
 ⍝H =========================================================================================
 ⍝H    MAPPING DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
-⍝H    ns ← [⍺] d.mirror 'NEW '
-⍝H    ns ← d.mirror  ['DEL' | 'ON' | 'OFF']
-⍝H    info←d.mirror 'status'
+⍝H    ns ← [⍺] d.mirror 'CONNECT '
+⍝H    ns ← d.mirror  ['DISCONNECT' | 'ON' | 'OFF']
+⍝H    info←d.mirror 'STATUS'
 ⍝H =========================================================================================
-⍝H    ns ← preferNumericKeys d.mirror 'NEW'
+⍝H    ns ← preferNumericKeys d.mirror 'CONNECT'
 ⍝H          - returns a reference to the active private namespace, activating it if not already so.
 ⍝H          - Each key in a mirrored dictionary must be a char vector or scalar, or a numeric scalar or vector;
 ⍝H            it will be rendered as a namespace variable (in ns) via JSON name mangling (see Dyalog I-beam 7162⌶).
@@ -1233,8 +1200,8 @@
 ⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
 ⍝H      It is never imported by d.mirror or d.importNS
 ⍝H ---------------------------------
-⍝H     ns  ← d.mirror 'OFF' | 'ON'  |  'DEL' 
-⍝H         Valid only for a mirror-enabled dictionary (d.mirror 'NEW'), which has not been disconnected (d.mirror 'DEL').
+⍝H     ns  ← d.mirror 'OFF' | 'ON'  |  'DISCONNECT' 
+⍝H         Valid only for a mirror-enabled dictionary (d.mirror 'CONNECT'), which has not been disconnected (d.mirror 'DISCONNECT').
 ⍝H         Otherwise, an error is signaled.
 ⍝H         'OFF'
 ⍝H            Temporarily disables the mirroring of a dictionary to a namespace and vice versa. 
@@ -1244,7 +1211,7 @@
 ⍝H         'ON'
 ⍝H            Restores the mirroring of a dictionary to a namespace and vice versa, if previously disabled.
 ⍝H            Returns the mirror namespace.
-⍝H         'DEL'
+⍝H         'DISCONNECT'
 ⍝H            Permanently severs the connection between the dictionary and the actively mirrored namespace.
 ⍝H            If the user has maintained a copy of the namespace (e.g. saveNS← d.mirror 0),
 ⍝H            its contents will reflect the most recent mirroring, but no further updates will occur.
@@ -1317,79 +1284,46 @@
 ⍝H   only the last value (v3) is kept.
 ⍝H
 ⍝H =========================================================================================
-⍝H    ∆JDICT function  for JSON <==> APL Namespaces and Dictionaries  
+⍝H Using ∆DICT directly with Dyalog ⎕JSON
 ⍝H =========================================================================================
-⍝H  {minorOpt} ∆JDICT fs
-⍝H   ∘ Converts between one or more JSON object defs or APL ns equivalents and the equivalent
-⍝H     DictClass dictionary (or vice versa).
-⍝H   ∘ Assumes that JSON null is mapped onto APL ⎕NULL and vice versa: minorOpt ('Null'⎕NULL).
-⍝H   ∘ The user can select either compact or non-compact JSON output; both are valid on input.
+⍝H Importing...   
+⍝H ======================================
+⍝H  ⍝ Allow JSON5 extensions; map JSON 'null' to Dyalog ⎕NULL 
+⍝H      jSTR← '{"10": 25, "20": [1, 2, 3], "abc\ndef": true, null: null}'
+⍝H      jNS←  ⎕JSON⍠('Null'⎕NULL)('Dialect' 'JSON5')⊢ jSTR
+⍝H      b←    ∆DICT jNS                ⍝ Imports the namespace...
+⍝H      b.hdisp
+⍝H ┌──────┬──┬─────┬──────┐
+⍝H │ Null │10│ 20  │ abc  │
+⍝H │      │  │     │ def  │
+⍝H ├──────┼──┼─────┼──────┤
+⍝H │      │  │     │┌────┐│
+⍝H │[Null]│25│1 2 3││true││
+⍝H │      │  │     │└────┘│
+⍝H └──────┴──┴─────┴──────┘
 ⍝H 
-⍝H  I. If argument <json> is a string or namespace,  
-⍝H    ∘ Convert a Json object string or its equivalent APL namespace
-⍝H      to dictionary. 
-⍝H    ∘ Keys will be in JSON (non-mangled) format.
-⍝H    ∘ If the JSON string refers to an array with multiple items 
-⍝H      or if multiple namespaces are presented, returns a vector of dictionaries;
-⍝H      Otherwise, returns a single dictionary.
-⍝H    ∘ If in namespace form, only objects of classes 2.1 and 9.1 are evaluated,
-⍝H      as expected for JSON.
-⍝H    ∘ Here, the {minorOpt} parameter is ignored.
-⍝H 
-⍝H  II. If argument <json> is a dictionary,  
-⍝H  A...if minorOpt is 0 (returns compact JSON); if 1 (returns non-compact JSON)
-⍝H  B...and if minorOpt is 2 (returns namespace) 
-⍝H    ∘ Names are mangled via JSON (APL) protocols, so APL variable names are valid.
-⍝H  
-⍝H  NOTE: inverses are only partial, since all JSON keys MUST be strings and
-⍝H        values must be those that ⎕JSON can deal with. Otherwise an error occurs.
-⍝H  EXAMPLE: 
-⍝H      d←∆JDICT '{"123": 5, "⍴5":1}'
-⍝H      d.table
-⍝H  123  5
-⍝H  ⍴5   1
-⍝H       n←2 ∆JDICT d
-⍝H       )cs n
-⍝H  #.[Namespace]
-⍝H       )vars
-⍝H  ⍙123    ⍙⍙9076⍙5      ⍝ From keys: "123"   "⍴5"   
-⍝H      ⍙123
-⍝H  5
-⍝H      ⍙⍙9076⍙5
-⍝H  1
-⍝H =========================================================================================
-⍝H    JSON EXAMPLES
-⍝H =========================================================================================
-⍝H
-⍝H ⍝ Simple JSON test case! Generates 3 top-level dictionaries.
-⍝H ⍝ Use DictClass object DictClass.JSONsample
-⍝H  
-⍝H       ⎕←Dict.JSONsample
-⍝H [{"id":"001", "name":"John Smith", "phone":"999-1212"},{"id":"002", "name":"Fred Flintstone", 
-⍝H   "phone":"254-5000"},{"id":"003","name":"Jack Sprat","phone":"NONE"}]
-⍝H      ⎕←(d e f)← ∆JDICT  ⎕←Dict.JSONsample
-⍝H Dict[]  Dict[]  Dict[]         ⍝ 3 dictionaries
-⍝H      1 ∆JDICT d e f
-⍝H [                             
-⍝H   {                           
-⍝H     "id": "001",              
-⍝H     "name": "John Smith",     
-⍝H     "phone": "999-1212"       
-⍝H   },                          
-⍝H   {                           
-⍝H     "id": "002",              
-⍝H     "name": "Fred Flintstone",
-⍝H     "phone": "254-5000"       
-⍝H   },                          
-⍝H   {                           
-⍝H     "id": "003",              
-⍝H     "name": "Jack Sprat",     
-⍝H     "phone": "NONE"           
-⍝H   }                           
-⍝H ]  
-⍝H     (d e f).table            ⍝   Show the contents of the 3 dictionaries
-⍝H  id     001           id     002                id     003         
-⍝H  name   John Smith    name   Fred Flintstone    name   Jack Sprat  
-⍝H  phone  999-1212      phone  254-5000           phone  NONE        
+⍝H ======================================
+⍝H Exporting...
+⍝H ======================================
+⍝H ⍝ Consider non-default options: ('HighRank' 'Split') and ('Compact' 0)        
+⍝H ⍝ as well as those above:       ('Null' ⎕NULL) ('Dialect' 'JSON5')
+⍝H      jOPTS←('Null'⎕NULL)('Compact' 0)('Dialect' 'JSON5')
+⍝H      ns←b.mirror 'EXPORT'       ⍝ Return a ns that mirrors the current dictionary
+⍝H      ⎕←1 ⎕JSON⍠ jOPTS⊣ns 
+⍝H  {        
+⍝H    null: null,          
+⍝H    "10": 25,        
+⍝H    "20": [          
+⍝H      1,             
+⍝H      2,             
+⍝H      3,             
+⍝H    ],               
+⍝H    "abc\ndef": true,
+⍝H  }     
+⍝H  ⍝ This is equivalent to the sequence just above:
+⍝H     ⎕←1 ⎕JSON⍠('Null'⎕NULL)('Compact' 0)('Dialect' 'JSON5')⊣b.mirror 'EXPORT'              
+⍝H  ⍝ This is the compact version...
+⍝H     ⎕←1 ⎕JSON⍠('Null'⎕NULL)('Compact' 1)('Dialect' 'JSON5')⊣b.mirror 'EXPORT'      
+⍝H  {null:null,"10":25,"20":[1,2,3],"abc\ndef":true}  
 ⍝H
 :EndClass
