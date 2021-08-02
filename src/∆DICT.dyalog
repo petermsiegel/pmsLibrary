@@ -216,7 +216,7 @@
     ⍝ dict.import ⍵ 
     ⍝ [preferNK] dict.import ⍵:   
     ⍝ ------------------------
-    ⍝ dict.import inserts items to the dictionary from objects of many types. 
+    ⍝ dict.import inserts items in the dictionary from (possibly complicated) scalar objects ⍵[N] of several types. 
     ⍝      1. If ⍵[N] contains a vector, it is treated as an "item" (a key-value pair) and must have two elements.
     ⍝         e.g. (1 10) or ('John' 'Smith')
     ⍝      2. ⍵[N] may be a dictionary to import (sans settings)
@@ -224,33 +224,25 @@
     ⍝         ∘ In this case, if preferNK is set to 1, 
     ⍝           variables of the form of a numeric scalar/vector (after JSON name conversion) will generate numeric keys
     ⍝         ∘ By default, such variables are treated as numeric character strings (e.g. "12345" or "123.45")
-    ⍝      4. ⍵[N] may be a "table", i.e. a matrix of shape 2 1 or 3 1, 
+    ⍝      4. ⍵[N] may be a "table", i.e. a matrix of shape 2 1 or 3 1, of the form (⍪keyList valList [default]) 
     ⍝         ∘ whose first "row" contains an (enclosed) list of keys
     ⍝         ∘ whose second "row" contains an (enclosed) list of corresponding values
     ⍝         ∘ whose third row, if present, contains the (enclosed) default for missing values  
     ⍝         It's called a "table" format because it is typically generated via the table function "⍪", as in
-    ⍝            ⍪(⍳10)(○⍳10)('???')
-    ⍝          
-    ⍝ Workhorse for adding objects to dictionaries: 
-    ⍝           dictionaries, vectors of (keys values), and key-value pairs.
-    ⍝ Determines the argument types and calls _importVecs as needed. 
-    ⍝   NOTE: Use dict.import to efficiently add a (key_vector value_vector) vector pair 
-    ⍝         (e.g. one exported via dict1.export)
-    ⍝ 
-    ⍝ _import ⍵:  "Internal utility to be called from top-level routines."
+    ⍝            ⍪(⍳10)(○⍳10)('???')   ==>   keyList←⍳10, valList←○⍳10, default←'???'
     ⍝ import accepts either a SCALAR or VECTOR right argument ⍵.           
     ∇ {dict}←{preferNK} import objects;⎕TRAP
       :Access Public
       :IF 900⌶1 ⋄ preferNK←0 ⋄ :ENDIF
       :TRAP 0 
-          preferNK _import objects  
+          preferNK _import objects         ⍝ _import:  See below.
       :Else
           THROW ⎕DMX.(EN Message)
       :EndTrap
       dict←⎕THIS
     ∇
     ⍝ _import objects:            used only internally.
-    ⍝ {preferNK}_import objects:  relevant only with namespace objects (importNS)
+    ⍝ {preferNK}_import objects:  relevant only with namespace objects (_importNS)
     ⍝  
     ⍝ Used in initialization of ∆DICTs or via ⎕NEW Dict...
     ⍝ objects: 
@@ -263,7 +255,7 @@
       isDict← {9.2=⎕NC ⊂,'⍵': BASECLASS∊⊃⊃⎕CLASS ⍵ ⋄ 0} 
       isNS←   {9.1=⎕NC ⊂,'⍵'}
     ∇ {preferNK} _import objects;o
-    ⍝ preferNK- used only for importNS; otherwise, ignored.
+    ⍝ preferNK- used only for _importNS; otherwise, ignored.
       objects←,⊂⍣(⍬⍴2=⍴⍴objects)⊣objects 
     ⍝ Fast path for ⍬ arg and for vectors of items...
       :IF 0=≢objects
@@ -279,15 +271,14 @@
                   (2≠≢o) THROW eImportBad
                   set1/o
               :CASE ,2     ⍝ (⍪k v [def])
-                _importTable o
+                  _importTable o
               :ELSE        ⍝ error
-                THROW eImportBad eImportBad2⊃⍨2=≢objects
+                  THROW eImportBad eImportBad2⊃⍨2=≢objects
               :ENDSELECT
           :ELSEIF isDict o 
                 o.keys set o.vals
           :ELSEIF isNS o 
-                :IF 900⌶1 ⋄ preferNK←0 ⋄ :ENDIF
-                preferNK importNS o
+                o _importNS ⍨ {⍵: 0 ⋄ preferNK}900⌶1
           :ELSE 
                 ⎕SIGNAL eImportBad
           :ENDIF 
@@ -323,20 +314,20 @@
 
     ⍝ _importTable: Imports ⍪keyvec valuevec [def]
     _importTable←_importVecs{ 2=≢⍵: ⍵ ⋄ 3≠≢⍵: THROW eImportBad ⋄ defaultF hasdefaultF⊢←(2⊃⍵) 1⋄ 2↑⍵}∘,
-
-    ∇{names}←{preferNumericKeys} importNS ns_classes
+    
+    ⍝ _importNS: See import method.
+    ∇{names}←{preferNK} _importNS ns_classes
       ;classes;hideNS;names;ns;IGNORE
-      :Access Public
     ⍝ IGNORE: Names NOT to import from the namespace...
       IGNORE←⊆'__DictTrigger__'
-      preferNumericKeys← 0 {900⌶1: ⍺ ⋄ ⎕OR ⍵  }'preferNumericKeys' 
+      preferNK←{⍵: 0 ⋄ preferNK  }900⌶1 
       ns classes←(⍬⍴ns_classes)({0=≢⍵: 2 3 4 9 ⋄  ⍵ }1↓ns_classes)
           (9.1≠⎕NC⊂'ns')      THROW eBadNS
           (0∊classes∊2 3 4 9) THROW eBadClass
     ⍝ Remove (ignore) names in  IGNORE
       names←IGNORE{⍵/⍨⍺∘{(⊂⍵)(~∊)⍺}¨⍵}ns.⎕NL -classes
     ⍝ ⍝⍝⍝ Replace keys, vals with kvPairs
-      (ns preferNumericKeys) setKeysFromNames names
+      (ns preferNK) setKeysFromNames names
     ∇ 
 
     ⍝ copy:  "Creates a copy of an object including its current settings (by copying fields).
@@ -650,7 +641,7 @@
     ∇
 
   ⍝ d.mirror
-  ⍝ mirrorNS ← {preferNumericKeys:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
+  ⍝ mirrorNS ← {preferNK:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
   ⍝ See documentation for details. 
   ⍝ Enables a namespace that 
   ⍝            replicates the dictionaries keys as variable names and
@@ -665,7 +656,7 @@
   ⍝           ns.ourDict - points to the active dictionary instance
   ⍝           ns.mirrorNS   - contains user variables and the trigger fn (__DictTrigger__)
   ⍝ B1. On subsequent calls with CONNECT option
-  ⍝     May change the preferNumericKeys(⍺) setting, for future mirroring
+  ⍝     May change the preferNK(⍺) setting, for future mirroring
   ⍝ B2. On subsequent calls, with
   ⍝     ON            enables real-time mirroring of active namespace (created via CONNECT)
   ⍝     OFF           temporarily disables ...
@@ -673,7 +664,7 @@
   ⍝     STATUS        shows current mirroring status
   ⍝ RETURNS [shyly] in all cases:
   ⍝    the user-accessible mirror namespace (mirrorData.mirrorNS)
-    ∇{mirrorNS}←{preferNumericKeys} mirror flag  
+    ∇{mirrorNS}←{preferNK} mirror flag  
       :Access Public
       :SELECT flag← 1 ⎕C flag
           :CASE 'CONNECT' 
@@ -689,22 +680,20 @@
             THROW eMirFlag 
       :ENDSELECT
     DO_CONNECT:
-      ⍝ preferNumericKeys:  1=yes, 0=no (default=0). Used only with flag 'CONNECT', otherwise ignored.
-        preferNumericKeys← {
-          900⌶1: 0 ⋄ pref←⎕OR ⍵  ⋄ pref∊0 1: pref  ⋄ THROW eMirNumKeys
-        }'preferNumericKeys'
+      ⍝ preferNK:  1=yes, 0=no (default=0). Used only with flag 'CONNECT', otherwise ignored.
+        preferNK← { ⍵: 0 ⋄ preferNK∊0 1: preferNK ⋄ THROW eMirNumKeys }900⌶1
       ⍝ Set mirror flag to active, whether mirror is CONNECT or old.
         nsActiveF←1                       
       ⍝ MIRROR ALREADY EXISTS? Update preference and return the mirrorNS
         :IF mirrorData≢⎕NULL                     
-            mirrorData.preferNumericKeys←preferNumericKeys 
+            mirrorData.preferNumericKeys←preferNK 
             mirrorNS←mirrorData.mirrorNS 
             :RETURN
         :ENDIF
       ⍝ Connecting NEW mirror. Define mirror data, establish the namespace, mirror existing items to it, 
       ⍝ then activate trigger, so namespace objects are mirrored back...
         mirrorData←⎕NS '' 
-        mirrorData.preferNumericKeys←preferNumericKeys            
+        mirrorData.preferNumericKeys←preferNK            
         mirrorNS←mirrorData.mirrorNS←mirrorData.⎕NS '' 
         mirrorNS.⎕DF 'Mirror@',idF
         mirrorData.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
@@ -761,7 +750,7 @@
     ∇ 
     ⍝ __DictTrigger__: helper for d.mirror (q.v.).
     ⍝ Do not enable trigger here: it's copied/activated in mirror namespace only.
-    ⍝ Note: See importNS. It will not import this object '__DictTrigger__' if found in the source namespace.
+    ⍝ Note: See _importNS. It will not import this object '__DictTrigger__' if found in the source namespace.
     ⍝ WARNING: Be sure all local variables are in fact local. Otherwise, you'll see an infinite loop!!!  
     ∇__DictTrigger__ args  
       ⍝ACTIVATE⍝ :Implements Trigger *             ⍝ Don't touch this line!
@@ -1129,28 +1118,25 @@
 ⍝H =========================================================================================
 ⍝H    BULK LOADING OF DICTIONARIES
 ⍝H =========================================================================================
-⍝H d.import  [ITEM | DICT | NAMESPACE | TABLE] ...
+⍝H d.import
+⍝H                   d.import [ITEM | DICT | NAMESPACE | TABLE] ...
+⍝H preferNumericKeys d.import [ITEM | DICT | NAMESPACE | TABLE]...
+⍝H preferNumerickeys (⍺): Only relevant when importing namespaces (NAMESPACE).
+⍝H 
 ⍝H    For dictionary d, sets keys and values from objs of various types or set value defaults:
 ⍝H         ∘ ITEM:      ∘  a (key value) pair: If just one, enclose it:  d.import (⊂1 10)
 ⍝H         ∘ DICT:      ∘  dictionaries (nameclass 9.2, with ⎕THIS∊⊃⊃⎕CLASS dict)
-⍝H         ∘ NAMESPACE: ∘ imports variables and their values from the namespace,
-⍝H                         using JSON mangling (mapping from variable names to keys).
-⍝H                         For namespace <ns>, same as  0 importNS ns 
-⍝H                      ∘ See importNS and mirror for details. 
+⍝H         ∘ NAMESPACE: ∘  Imports items from variables in <ns>, from classes 2, 3, 4, and 9.
+⍝H                         Items in classes 3 and 4 are converted quietly to ⎕OR representation.
+⍝H                      ∘  Keys are converted to variables via JSON Mangling. 
+⍝H                      ∘  preferNumericKeys(⍺, default: 0)
+⍝H                         If 1, prefer numeric keys when mirroring: convert numeric strings to/from numbers; 
+⍝H                         If 0, do not convert numeric strings; leave as character vectors.
+⍝H                         See d.mirror for more information.
+⍝H                      ∘ See mirror for details on JSON mapping. 
 ⍝H         ∘ TABLE      ∘ A single-column matrix in "table" format to allow loading keys and values as vectors
 ⍝H                        ⍪key_vec value_vec [default]
 ⍝H         e.g. dict.import ⍪(⍳10)(○⍳10)  <==>  dict.import (0 (○0))(1 (○1))...(9 (○9))
-⍝H
-⍝H d ← {preferNumericKeys} d.importNS ns
-⍝H     Use when numeric keys mapped to namespace variables are desired. 
-⍝H         If preferNumericKeys=0, simply use d.import ns 
-⍝H     Imports items from variables in <ns>, from classes 2, 3, 4, and 9.
-⍝H     Items in classes 3 and 4 are converted quietly to ⎕OR representation.
-⍝H     Keys are converted to variables via JSON Mangling. 
-⍝H     preferNumericKeys: 
-⍝H         if 1, prefer numeric keys when mirroring: convert numeric strings to/from numbers; 
-⍝H         if 0, do not convert numeric strings. [def]
-⍝H     See d.mirror for more information.
 ⍝H
 ⍝H keys vals ← d.export
 ⍝H     Returns a K-V LIST consisting of a vector of keys.
@@ -1198,7 +1184,7 @@
 ⍝H      - Any variable in the namespace assigned a value as a function or operator will map onto 
 ⍝H        a dictionary item whose value is the ⎕OR of that function or operator.
 ⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
-⍝H      It is never imported by d.mirror or d.importNS
+⍝H      It is never imported by d.mirror or d.import
 ⍝H ---------------------------------
 ⍝H     ns  ← d.mirror 'OFF' | 'ON'  |  'DISCONNECT' 
 ⍝H         Valid only for a mirror-enabled dictionary (d.mirror 'CONNECT'), which has not been disconnected (d.mirror 'DISCONNECT').
