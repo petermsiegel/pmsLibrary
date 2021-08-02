@@ -230,7 +230,7 @@
     ⍝         ∘ whose third row, if present, contains the (enclosed) default for missing values  
     ⍝         It's called a "table" format because it is typically generated via the table function "⍪", as in
     ⍝            ⍪(⍳10)(○⍳10)('???')   ==>   keyList←⍳10, valList←○⍳10, default←'???'
-    ⍝ import accepts either a SCALAR or VECTOR right argument ⍵.           
+    ⍝ import (actually _import) accepts either a SCALAR or VECTOR right argument ⍵.           
     ∇ {dict}←{preferNK} import objects;⎕TRAP
       :Access Public
       :IF 900⌶1 ⋄ preferNK←0 ⋄ :ENDIF
@@ -254,35 +254,36 @@
     ⍝ Returns: none
       isDict← {9.2=⎕NC ⊂,'⍵': BASECLASS∊⊃⊃⎕CLASS ⍵ ⋄ 0} 
       isNS←   {9.1=⎕NC ⊂,'⍵'}
-    ∇ {preferNK} _import objects;o
+    ∇ {preferNK} _import objects;o 
     ⍝ preferNK- used only for _importNS; otherwise, ignored.
-      objects←,⊂⍣(⍬⍴2=⍴⍴objects)⊣objects 
     ⍝ Fast path for ⍬ arg and for vectors of items...
       :IF 0=≢objects
-          :RETURN
-      :ELSEIF 2∧.=≢¨objects         
-          _importVecs ↓⍉↑objects
-          :RETURN
+      :Elseif 2=⍴⍴objects 
+           _importTable objects
+      :Elseif   2∧.=≢¨objects            ⍝ Fast path-- handle all ITEMS (k v pairs) at once. 
+      :Andif  ~2∊∊⍴∘⍴¨objects            ⍝ Ensure  all are items, with no 2-row TABLE (matrix)
+          _importVecs ↓⍉↑,objects
+      :Else  
+          :FOR o :IN ,objects           
+              :IF 2=⎕NC 'o'
+                  :SELECT ⍴⍴o
+                  :CASE ,1     ⍝ ITEM
+                      (2≠≢o) THROW eImportBad
+                      _importVecs ,∘⊂¨o   ⍝ set1/o
+                  :CASE ,2     ⍝ (⍪k v [def])
+                      _importTable o
+                  :ELSE        ⍝ error
+                      THROW eImportBad eImportBad2⊃⍨2=≢objects
+                  :ENDSELECT
+              :ELSEIF isDict o 
+                    _importVecs o.(keys vals)   ⍝ o.keys set o.vals
+              :ELSEIF isNS o 
+                    o _importNS ⍨ {⍵: 0 ⋄ preferNK}900⌶1
+              :ELSE 
+                    ⎕SIGNAL eImportBad
+              :ENDIF 
+          :ENDFOR
       :ENDIF 
-      :FOR o :IN objects   
-          :IF 2=⎕NC 'o'
-              :SELECT ⍴⍴o
-              :CASE ,1     ⍝ (k v)
-                  (2≠≢o) THROW eImportBad
-                  set1/o
-              :CASE ,2     ⍝ (⍪k v [def])
-                  _importTable o
-              :ELSE        ⍝ error
-                  THROW eImportBad eImportBad2⊃⍨2=≢objects
-              :ENDSELECT
-          :ELSEIF isDict o 
-                o.keys set o.vals
-          :ELSEIF isNS o 
-                o _importNS ⍨ {⍵: 0 ⋄ preferNK}900⌶1
-          :ELSE 
-                ⎕SIGNAL eImportBad
-          :ENDIF 
-      :ENDFOR
     ∇
 
     ⍝ {keys}←_importVecs (keyVec valVec) 
