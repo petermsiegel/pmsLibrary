@@ -37,7 +37,7 @@
     :Field Private Shared eKeyBadName←        'd.namespace: Unable to convert key to valid APL variable name'
     :Field Private Shared eMirFlag←           'd.mirror: flag (⍵) must be one of CONNECT | ON | OFF | DISCONNECT.'
     :Field Private Shared eMirDisc←           'd.mirror: No namespace mirror established (via d.mirror ''CONNECT'').'
-    :Field Private Shared eMirNumKeys←        'd.mirror: preferNumericKeys (⍺), if present, must be 1 (ON) or 0 (OFF)'
+    :Field Private Shared eMirNumKeys←        'd.mirror: left arg, if present, must be 1 (prefer numeric keys) or 0.'
     :Field Private Shared eMirLogic←          'd.mirror (⍙mirrorOpts) LOGIC ERROR'
     :Field Private Shared ePopItems←        3 'd.popItems: # items to remove from "end" of dictionary must be ≥0'
     :Field Private Shared eReorder←           'd.reorder: at least one index value is out of range, missing, or duplicated.'
@@ -53,9 +53,11 @@
     :Field Private øhasDefault←             0
     :Field Private ødefault←                ''       ⍝ Default value (suppressed until øhasDefault is 1)
   ⍝ C. Mirroring dictionary to a namespace
-  ⍝    ømirror: see d.mirror
+  ⍝    ømirror etc.: see d.preferNumericKeys, d.ns, d.mirror
     :Field Private ømirror←                 ⎕NULL    ⍝ ⎕NULL (no mirror), namespace ref (active mirror)
-    :Field Private ømirActive←              0        ⍝ 1 (active, 0 (inactive: temporarily or because no ømirror)  
+    :Field Private ømirPrefNK←              0        ⍝ 0 (var names map onto strings), 0 (...onto numbers, if feasible)
+    :Field Private ømirActive←              0        ⍝ 1 (active), 0 (inactive: temporarily or because no ømirror)  
+    :Field Private ømirId←                  0        ⍝ Increments on each new mirror namespace created
   ⍝-------------------------------------------------------------------------------------------
   ⍝ External (User-visible) Utilities...
   ⍝   In DICTCLASS and copied to ##.DICTCLASS 
@@ -368,10 +370,10 @@
     ∇ eNS←exportNS; destroyFlag
       :Access Public
       ømirActive←1                         
-      destroyFlag← ømirror≡⎕NULL
-      eNS←⎕NS mirror 'CONNECT' 
-      eNS.⎕DF 'Exported@',øid
-       {}⍙mirrorOpts ⍣destroyFlag⊣¯1  
+      destroyFlag← ømirror≡⎕NULL   ⍝ Check ømirror before mirror call...
+      eNS←⎕NS mirror 'CONNECT'     ⍝ mirror call: resets ømirror
+      eNS.⎕DF 'Exported.',(⍕ømirId),'@',øid
+      {}⍙mirrorOpts ⍣destroyFlag⊣¯1  
     ∇
 
   ⍝ d.items
@@ -679,7 +681,57 @@
       OPTIMIZE ⋄ dict←⎕THIS
     ∇
 
-  ⍝ d.mirror
+⍝-----------------------------------------------------------------------------------
+⍝ MIRRORING
+⍝      d.ns                           ⍝ returns a reference to the actively mapped namespace, creating if new.
+⍝      d.ns ← ⎕NULL/¯1, 1, 0          ⍝ d.ns←⎕NULL (or ¯1) "Disconnect" namespace at d.ns (next ref to d.ns creates a new namespace)
+⍝                                     ⍝ d.ns←1: mirror is actively mapping dict entries <=> namespace vars
+⍝                                     ⍝ d.ns←0: mirror is quiescent (connected but not actively mapping entries<=> vars)
+⍝      d.preferNumericKeys ←  1       ⍝ sets ømirPrefNK
+⍝      d.preferNumericKeys ←  0       ⍝ sets ømirPrefNK
+⍝      x← d.preferNumeric             ⍝ gets ømirPrefNK
+⍝ DEPRECATED: d.mirror
+⍝    1 d.mirror  'CONNect'            ⍝ ⍺=1: preferNumericKeys (when translating a d.ns variable to a dict. key)
+⍝    0 d.mirror  'Connect'            ⍝ ⍺=0: preferCharacterKeys (ditto)
+⍝      d.mirror  'DISConnect' | 'STATus' | 'ON' | 'OFF'
+⍝-----------------------------------------------------------------------------------
+  ⍝ d.ns
+    ⍝ Getting the value of d.ns  --- SEE BELOW
+    ⍝ Setting the value of d.ns  --- SEE BELOW 
+    :Property ns
+    :Access Public
+        ∇ mirrorNS←get args            
+          ømirPrefNK mirror 'CONNECT'   ⍝ Takes action based on both args...
+          mirrorNS←ømirror.mirrorNS 
+        ∇
+        ∇ set args;  ⎕TRAP
+          ⎕TRAP←∆TRAP  
+          :IF 1=≢args.NewValue
+          :AndIf args.NewValue∊1 0 ¯1 ⎕NULL    ⍝ Setting d.ns←⍵. ⍵ may be: 1 'ON', 0 'OFF', ¯1 or ⎕NULL 'DISCONNECT'
+                 ⍙mirrorOpts args.NewValue     ⍝ To set preferNumericKeys to ⍵, see d.preferNumericKeys←⍵
+          :Else  
+                THROW 'd.ns: Invalid assignment. Only ⎕NULL (or ¯1), 0, or 1 allowed.' 
+          :ENDIf
+        ∇
+    :EndProperty
+     ⍝ d.preferNumericKeys, alias: d.prefNK
+    ⍝ Getting the value of d.preferNumericKeys  --- SEE BELOW
+    ⍝ Setting the value of d.preferNumericKeys  --- SEE BELOW 
+    :Property preferNumericKeys,prefNK
+    :Access Public
+        ∇ pnk←get args 
+          pnk←ømirPrefNK
+        ∇
+        ∇ set args 
+          :IF 1=≢args.NewValue
+          :AndIf args.NewValue∊0 1
+              ømirPrefNK←⍬⍴args.NewValue
+          :Else 
+              THROW 'preferNumericKeys: value assigned must be 1 (true) or 0 (false).'
+          :EndIf                            
+        ∇
+    :EndProperty
+⍝ d.mirror
     ⍝ mirrorNS ← {preferNK:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
     ⍝ See documentation for details. 
     ⍝ Enables a namespace that 
@@ -703,72 +755,65 @@
     ⍝     STATUS        shows current mirroring status
     ⍝ RETURNS [shyly] in all cases:
     ⍝    the user-accessible mirror namespace (ømirror.mirrorNS), retrievable via d.ns
-    ∇{mirrorNS}←{preferNK} mirror flag  
+    ∇{mirrorNS}←{preferNK} mirror flag ;⎕TRAP 
       :Access Public
+      ⎕TRAP←∆TRAP
       :SELECT flag← 1 ⎕C flag
-          :CASELIST 'CONNECT' 'CONN'
-            ⍝ Continue below at DO_CONNECT
-          :CASELIST 'ON' 'OFF' 'DISCONNECT' 'DISC'
+        :CASELIST 'CONNECT' 'CONN' 
+            mirrorNS← ⍙mirrorConnect { ⍵: 0 ⋄ preferNK∊0 1: preferNK ⋄ THROW eMirNumKeys} 900⌶1
+        :CASELIST 'ON' 'OFF' 'DISCONNECT' 'DISC'
             (ømirror≡⎕NULL) THROW eMirDisc 
             flag←1-'ON' 'OFF'⍳⊂flag    ⍝ 1/ON 0/OFF ¯1/DISConnect
             mirrorNS← ⍙mirrorOpts flag
-            :RETURN
-          :CASELIST 'STATUS' 'STAT'
-            mirrorNS←ømirror{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~ømirActive
-            :RETURN
-          :ELSE 
+        :CASELIST 'STATUS' 'STAT'
+            mirrorNS← ømirror{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~ømirActive
+        :ELSE 
             THROW eMirFlag 
       :ENDSELECT
-    DO_CONNECT:
+    ∇
+    ∇  mirrorNS ← ⍙mirrorConnect preferNK 
       ⍝ preferNK:  1=yes, 0=no (default=0). Used only with flag 'CONNECT', otherwise ignored.
-        preferNK← { ⍵: 0 ⋄ preferNK∊0 1: preferNK ⋄ THROW eMirNumKeys }900⌶1
       ⍝ Set mirror flag to active, whether mirror is CONNECT or old.
         ømirActive←1                       
       ⍝ MIRROR ALREADY EXISTS? Update preference and return the mirrorNS
-        :IF ømirror≢⎕NULL                     
+        :IF ømirror≢⎕NULL
+            ⍝ 'existing mirror'
             ømirror.preferNumericKeys←preferNK 
-            mirrorNS←ømirror.mirrorNS 
-            :RETURN
+            mirrorNS←ømirror.mirrorNS                  
+        :ELSE  
+           ⍝ 'new mirror'
+          ⍝ Connecting NEW mirror. Define mirror data, establish the namespace, mirror existing items to it, 
+          ⍝ then activate trigger, so namespace objects are mirrored back...
+            ømirror←⎕NS '' 
+            ømirId+←1
+            ømirror.preferNumericKeys←preferNK            
+            mirrorNS←ømirror.mirrorNS←ømirror.⎕NS '' 
+            mirrorNS.⎕DF 'Mirror.',(⍕ømirId),'@',øid
+            ømirror.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
+            :TRAP 0   
+                :IF ×≢økeys   
+                    names← (0⍨7162⌶⍕)¨ økeys                      ⍝ Convert Keys to Var Names via JSON rules
+                    names (mirrorNS ⍙AssignVar)¨øvalues           ⍝ Map dict(keys and values) ==> ns(vars and values)
+                :ENDIF                                            ⍝ ↓↓↓ Activate trigger fn __DictTrigger__
+                mirrorNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__DictTrigger__'
+            :ELSE
+                THROW eKeyBadName
+            :ENDTRAP
         :ENDIF
-      ⍝ Connecting NEW mirror. Define mirror data, establish the namespace, mirror existing items to it, 
-      ⍝ then activate trigger, so namespace objects are mirrored back...
-        ømirror←⎕NS '' 
-        ømirror.preferNumericKeys←preferNK            
-        mirrorNS←ømirror.mirrorNS←ømirror.⎕NS '' 
-        mirrorNS.⎕DF 'Mirror@',øid
-        ømirror.ourDict← ⎕THIS                             ⍝ Point to the active dictionary
-        :TRAP 0   
-            :IF ×≢økeys   
-                names← (0⍨7162⌶⍕)¨ økeys                      ⍝ Convert Keys to Var Names via JSON rules
-                names (mirrorNS ⍙AssignVar)¨øvalues           ⍝ Map dict(keys and values) ==> ns(vars and values)
-            :ENDIF                                            
-                                                              ⍝ ↓↓↓ Activate trigger fn __DictTrigger__
-            mirrorNS.⎕FX '⍝ACTIVATE⍝' ⎕R '' ⊣ ⎕NR '__DictTrigger__'
-        :ELSE
-            THROW eKeyBadName
-        :ENDTRAP
     ∇
-    ∇mirrorNS  ← ns
-     :Access Public 
-      :IF ømirror≢⎕NULL                     
-          mirrorNS←ømirror.mirrorNS 
-      :ELSE 
-          THROW eMirDisc
-      :ENDIF 
-    ∇
-  ⍝ {mirrorNS} ← ⍙mirrorOpts [1 | 0 | ¯1]
+  ⍝ {mirrorNS} ← ⍙mirrorOpts [1 | 0 | ¯1/⎕NULL]
     ⍝ setMirror: (0:OFF) Turns mirroring off, or (1:ON) reestablishes it, 
-    ⍝        or (¯1:DISCONNECT) permanently disconnects the namespace and dictionary entirely, ending mirroring. 
+    ⍝        or (¯1/⎕NULL:DISCONNECT) permanently disconnects the namespace and dictionary entirely, ending mirroring. 
     ⍝ Returns (shyly): the (active) mirror namespace. ⎕NULL, if none established.
     ⍝ HELPER FUNCTION for d.mirror (above)
     ∇{mirrorNS}←⍙mirrorOpts flag; was  
       :IF (ømirror≡⎕NULL) ⋄ mirrorNS←⎕NULL ⋄ :RETURN ⋄ :ENDIF
-      eMirFlag THROW⍨  flag(~∊)1 0 ¯1 
+      eMirFlag THROW⍨  flag(~∊)1 0 ¯1 ⎕NULL 
       :Select ⍬⍴flag
-          :CASE ¯1                                      
+          :CASELIST ¯1 ⎕NULL                                   
             ⍝ Delete trigger fn (cancelling the trigger) and dict reference (to avoid keeping ourDict reference live)
               eMirLogic THROW⍨ 0∊ømirror.⎕EX 'ourDict' 'mirrorNS.__DictTrigger__' 
-              ømirror.mirrorNS.⎕DF 'Exported@',øid
+              ømirror.mirrorNS.⎕DF 'Exported.',(⍕ømirId),'@',øid
               ømirActive ømirror mirrorNS← 0 ⎕NULL ⎕NULL
           :CASELIST 0 1                                 
               was ømirActive mirrorNS←ømirActive flag ømirror.mirrorNS
@@ -892,7 +937,7 @@
   ⍝ setKeysFromNames              
     ⍝  Pseudo-internal: accessed from mirror namespace fn __DictTrigger__ and from d.importNS.
     ∇ {dict}←ns_opts setKeysFromNames nameList
-      ;Name2Key;preferNK;saveState;thisNS 
+      ;preferNK;saveState;thisNS 
       :Access Public
       dict←⎕THIS 
       :IF 1=≢ns_opts
@@ -900,18 +945,13 @@
       :Else 
           thisNS preferNK←ns_opts
       :ENDIF
-      Name2Key←preferNK∘{  
-          key←1∘(7162⌶) ⍵       ⍝ Uses JSON unmangling
-          ~⍺: ⍬⍴⍣(1=≢key)⊣key  ⋄ ok val←⎕VFI key   
-          0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄  1≠≢val: val  ⋄ ⊃val 
-      } 
     ⍝ Suppress mapping namespace vars onto dict keys, only if ns is the actively mapped (triggered) namespace
       saveState←ømirActive 
       :IF thisNS.##≡ømirror ⋄ ømirActive←0 ⋄ :ENDIF  
       :TRAP 0 
           :IF ×≢nameList  ⍝ An empty namelist is ok...
             ⍙importVecs↓⍉↑,thisNS∘{nm←⍵
-                  k←Name2Key nm 
+                  k←preferNK ⍙Name2Key nm 
                   case←⍺.⎕NC nm 
                   case∊3 4: k (⍺.⎕OR nm)  
                   case∊2 9: k (⍺⍎nm)
@@ -925,6 +965,13 @@
     ⍝ Restore mapping of namespace vars onto dict keys, if ns is the actively mapped (triggered) namespace
       ømirActive←saveState
     ∇
+  ⍝ See setKeysFromNames etc.
+  ⍝ ⍙Name2Key:    [⍺=1|0] ∇ name 
+    ⍙Name2Key←{  
+          key←1∘(7162⌶) ⍵       ⍝ ⍵ must be char vector. Uses JSON unmangling
+          ~⍺: ⍬⍴⍣(1=≢key)⊣key  ⋄ ok val←⎕VFI key   
+          0∊ok: ⍬⍴⍣(1=≢key)⊣key ⋄  1≠≢val: val  ⋄ ⊃val 
+    } 
   ⍝ ⍙SuppressTrigger: If ⍵=1, suppresses trigger for namespace ⍺. If ⍵=0, re-enables it.
     ⍙SuppressTrigger←{1: _←2007 ⍺.⌶ ⊢ ⍵}
 
@@ -1032,19 +1079,32 @@
 ⍝H    vals  ←              d.pop keys          ⍝ Remove and return values for specific keys from dictionary.
 ⍝H
 ⍝H MISC
-⍝H {ns}  ← {preferNumeric} d.mirror 'CONNECT'  ⍝ Create a ns whose vars dynamically mirror dict entries and vice versa.
-⍝H                                             ⍝ preferNumeric: If 1, namespace variables resolving to numeric strings 
-⍝H                                             ⍝                are converted to numeric keys and vice versa.
-⍝H                       d.mirror 'DISCONNECT' ⍝ * Permanently delete (disconnect) the current namespace from the dictionary.
-⍝H                       d.mirror 'ON'         ⍝ * Dynamically nable active mirroring, after previously disabling. 
-⍝H                       d.mirror 'OFF'        ⍝ * Dynamically isable active mirroring temporarily.
-⍝H                                             ⍝ * May only be used after d.mirror 'CONNECT' (and before d.mirror 'DISCONNECT')
-⍝H                       d.mirror 'STATUS'     ⍝ Returns the current mirror status...
-⍝H d.ns                                        ⍝ Returns the current mirror namespace (or throws an error)
-⍝H
+⍝H MIRRORING FROM DICTIONARY ENTRIES TO NAMESPACE VARIABLES
+⍝h {ns}  ← {preferNumeric} d.mirror 'CONNECT'  ⍝ Create a ns whose vars dynamically mirror dict entries and vice versa.
+⍝h                                             ⍝ preferNumeric: If 1, namespace variables resolving to numeric strings 
+⍝h                                             ⍝                are converted to numeric keys and vice versa.
+⍝h                       d.mirror 'DISCONNECT' ⍝ * Permanently delete (disconnect) the current namespace from the dictionary.
+⍝h                       d.mirror 'ON'         ⍝ * Dynamically nable active mirroring, after previously disabling. 
+⍝h                       d.mirror 'OFF'        ⍝ * Dynamically isable active mirroring temporarily.
+⍝h                                             ⍝ * May only be used after d.mirror 'CONNECT' (and before d.mirror 'DISCONNECT')
+⍝h                       d.mirror 'STATUS'     ⍝ Returns the current mirror status...
+⍝H d.ns                                        ⍝ On first call, creates a namespace whose variable names
+⍝H                                             ⍝ will be mirrors of the dictionaries keys and vice versa.
+⍝H                                             ⍝ The values will be identical, except that dictionary object
+⍝H                                             ⍝ representations (⎕OR) will be mapped onto fns / ops in the namespace and vice versa.
+⍝H d.ns ← ⎕NULL  (or ¯1)                       ⍝ "Disconnects" the current namespace (from prior d.ns calls).
+⍝H                                             ⍝ The next "get" of d.ns will create a new namespace
+⍝H d.ns ← 1 | 0                                ⍝ Temporarily turn mirroring off (0) or back on (1: default).
+⍝H d.preferNumericKeys ← [1 | 0]               ⍝ Manages "prefer numeric keys" for variable to namespace conversion.
+⍝H ALIAS: d.prefNK                             ⍝ The default is d.ns ← 0, numeric key conversions are NOT performed.
+⍝H    d.preferNumericKeys ← 1                  ⍝ ∘ Sets the preferred conversion mode to "prefer numeric keys" 
+⍝H                                             ⍝   for mirroring from namespace variable names.
+⍝H    d.preferNumericKeys ← 0                  ⍝ ∘ Sets the preferred conversion mode to the default
+⍝H                                             ⍝   where namespace variable names are kept as character strings
+⍝H                                             ⍝   even if they appear to be numeric strings.
 ⍝H ns ←   exportNS                             ⍝ Exports the items as variables as a namespace (see d.mirror).
 ⍝H                                             ⍝ If mirroring is active, shares a copy of the current mirror
-⍝H⍝H
+⍝H
 ⍝H =========================================================================================
 ⍝H    Dictionary CREATION
 ⍝H =========================================================================================
@@ -1219,22 +1279,50 @@
 ⍝H     it returns the default for each missing item.
 ⍝H
 ⍝H =========================================================================================
-⍝H    MAPPING (MIRRORING) DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
-⍝H    ns ← [⍺] d.mirror 'CONNECT '
-⍝H    ns ← d.mirror  ['DISCONNECT' | 'ON' | 'OFF']
-⍝H    info←d.mirror 'STATUS'
-⍝H =========================================================================================
-⍝H    {ns} ← [preferNumericKeys] d.mirror 'CONNECT'
-⍝H          - returns (shyly) a reference to the active private namespace, activating it if not already so.
-⍝H          - the namespace reference is also stored in d.ns, which may be referenced, but not directly set.
-⍝H          - Each key in a mirrored dictionary must be a char vector or scalar, or a numeric scalar or vector;
-⍝H            it will be rendered as a namespace variable (in ns) via JSON name mangling (see Dyalog I-beam 7162⌶).
-⍝H    preferNumericKeys ∊ 1, 0
-⍝H      1   - A namespace variable name that (after name demangling) is a numeric string will
-⍝H            map onto (be converted to) a dictionary key that is numeric.
-⍝H      0   - A namespace variable name that (after name demangling) is a numeric string will
-⍝H            map onto  a dictionary key that is a character string.
-⍝H      WARNING: A key may be a vector of character vectors, but its namespace variable name
+⍝H -----------------------------------
+⍝H    DICTIONARY MIRRORING 
+⍝H    d.ns    Dictionary mirroring
+⍝H -----------------------------------
+⍝H    ... MANIPULATING THE MIRROR NAMESPACE REFERENCE
+⍝H        ... ← d.ns,  d.ns.var←... ,etc.      
+⍝H        ∘ Returns the currently active mirror namespace, creating it if not already established.
+⍝H          d.ns.⎕NL 2     d.ns.myVar←'myVal'
+⍝H        ∘ Disconnect the current namespace from the mirror; the next call to get d.ns will create a new mirroring namespace.
+⍝H          This makes sense only if the name has been saved:   saveNS ← d.ns
+⍝H          d.ns ← ⎕NULL   
+⍝H          d.ns ← ¯1        Alias for d.ns ← ⎕NULL
+⍝H        ∘ Advanced: d.ns ← 0  ⍝ Don't map keys to ns vars or vice versa until d.ns is set again to 1. 
+⍝H                    d.ns ← 1  ⍝ Restore (or continue) mapping keys to ns vars and vice versa.  
+⍝H -----------------------------------
+⍝H    ... SETTING THE MIRROR NAMESPACE MAPPING MODE
+⍝H        d.preferNumericKeys ← [1 | 0 ]       
+⍝H        d.prefNK            ← [1 | 0 ] Alias for d.preferNumericKeys     
+⍝H        ∘ d.preferNumericKeys ← 1       Connects the mirror namespace, preferring numeric   keys. Creates the namespace if needed.
+⍝H        ∘ d.preferNumericKeys ← 0       Connects the mirror namespace, preferring character keys. Creates the namespace if needed.
+⍝H                                        DEFAULT
+⍝H -----------------------------------
+⍝H     ... EXAMPLES
+⍝H        ∘ Example 1:
+⍝H            d.default←'Whoops!'             ⍝ Clear feedback for undefined keys...
+⍝H            d.prefNK ← 1 ⋄ d.ns.⍙45 ← 90    ⍝ <== Prefer numeric keys when mapping from d.ns vars to d keys
+⍝H            d[45]                           ⍝ Numeric preferred, so ⍙45 should map to 45
+⍝H          90
+⍝H            d[⊂'45']                        ⍝ The default when char is preferred would be ⍙45 mapping to '45'...
+⍝H          Whoops!                           ⍝ ... Not in this case!
+⍝H        ∘ Example 2
+⍝H            d.keys
+⍝H         'fred' 'mary' 'jack'
+⍝H            d.ns.⎕NL 2                      ⍝ Displays current namespace variables, if mirror is connected.
+⍝H         fred  mary  jack
+⍝H            d.ns.fred←¯1  ⋄  ⎕←d[⊂'fred']   ⍝ Sets current namespace variable <fred> to 15. Mirrors to the dictionary.
+⍝H         ¯1
+⍝H            d[⊂'fred']←16 ⋄  ⎕←d.ns.fred    ⍝ Sets <fred> via the dictionary, reading via the namespace
+⍝H         16
+⍝H
+⍝H    -----
+⍝H    NOTES
+⍝H    -----
+⍝H    ∘ "BUGS": A key may be a vector of character vectors, but its namespace variable name
 ⍝H             will be mirrored back as a single vector with spaces in place of separate vectors. 
 ⍝H    ∘ Dictionary values that are object representations are a special case...
 ⍝H      ...Namespace object values that are functions or operators are a special case.
@@ -1243,32 +1331,53 @@
 ⍝H      - Any variable in the namespace assigned a value as a function or operator will map onto 
 ⍝H        a dictionary item whose value is the ⎕OR of that function or operator.
 ⍝H    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
-⍝H      It is never imported by d.mirror or d.import
-⍝H ---------------------------------
-⍝H    {ns} ← d.mirror 'OFF' | 'ON'  |  'DISCONNECT' 
-⍝H         Valid only for a mirror-enabled dictionary (d.mirror 'CONNECT'), which has not been disconnected (d.mirror 'DISCONNECT').
-⍝H         Otherwise, an error is signaled.
-⍝H         'OFF'
-⍝H            Temporarily disables the mirroring of a dictionary to a namespace and vice versa. 
-⍝H            Objects established during that time won't be updated, even when the mirroring
-⍝H            is re-enabled, but any subsequent changes (to those or new objects) will be reflected.
-⍝H            Returns the mirror namespace.
-⍝H         'ON'
-⍝H            Restores the mirroring of a dictionary to a namespace and vice versa, if previously disabled.
-⍝H            Returns the mirror namespace.
-⍝H         'DISCONNECT'
-⍝H            Permanently severs the connection between the dictionary and the actively mirrored namespace.
-⍝H            If the user has maintained a copy of the namespace (e.g. saveNS← d.mirror 0),
-⍝H            its contents will reflect the most recent mirroring, but no further updates will occur.
-⍝H            Returns ⎕NULL.
-⍝H     info ← d.mirror 'STATUS'
-⍝H            Returns the current status of mirroring. May be called even if inactive.
+⍝H      It is never imported automatically when mirroring (See d.ns) or importing (d.import)
 ⍝H
-⍝H     d.ns ⍝ Returns a reference to the current mirrored namespace (or throws an error).
-⍝H            d.ns.⎕NL 2                    ⍝ Displays current namespace variables, if mirror is connected.
-⍝H            d.ns.fred←15                  ⍝ Sets current namespace variable <fred> to 15. Mirrors to the dictionary.
-⍝H            d[⊂'fred']←16 ⋄  ⎕←d.ns.fred  ⍝ Sets <fred> via the dictionary, reading via the namespace
-⍝H        
+⍝h    MAPPING (MIRRORING) DICTIONARY ENTRIES TO AND FROM VARIABLES IN A PRIVATE NAMESPACE
+⍝h    ns ← [⍺] d.mirror 'CONNECT '
+⍝h    ns ← d.mirror  ['DISCONNECT' | 'ON' | 'OFF']
+⍝h    info←d.mirror 'STATUS'
+⍝h =========================================================================================
+⍝h    {ns} ← [preferNumericKeys] d.mirror 'CONNECT'
+⍝h          - returns (shyly) a reference to the active private namespace, activating it if not already so.
+⍝h          - the namespace reference is also stored in d.ns, which may be referenced, but not directly set.
+⍝h            e.g.    d.ns.⎕NL 2
+⍝h          - Each key in a mirrored dictionary must be a char vector or scalar, or a numeric scalar or vector;
+⍝h            it will be rendered as a namespace variable (in ns) via JSON name mangling (see Dyalog I-beam 7162⌶).
+⍝h    preferNumericKeys ∊ 1, 0
+⍝h      1   - A namespace variable name that (after name demangling) is a numeric string will
+⍝h            map onto (be converted to) a dictionary key that is numeric.
+⍝h      0   - A namespace variable name that (after name demangling) is a numeric string will
+⍝h            map onto  a dictionary key that is a character string.
+⍝h      WARNING: A key may be a vector of character vectors, but its namespace variable name
+⍝h             will be mirrored back as a single vector with spaces in place of separate vectors. 
+⍝h    ∘ Dictionary values that are object representations are a special case...
+⍝h      ...Namespace object values that are functions or operators are a special case.
+⍝h      - Any dictionary value that is an object representation (⎕OR) will be automatically converted to its
+⍝h        function or operator format when assigned to its namespace variable.
+⍝h      - Any variable in the namespace assigned a value as a function or operator will map onto 
+⍝h        a dictionary item whose value is the ⎕OR of that function or operator.
+⍝h    ∘ A special object '__DictTrigger__' (an APL trigger) may appear in the namespace. 
+⍝h      It is never imported by d.mirror or d.import
+⍝h ---------------------------------
+⍝h    {ns} ← d.mirror 'OFF' | 'ON'  |  'DISCONNECT' 
+⍝h         Valid only for a mirror-enabled dictionary (d.mirror 'CONNECT'), which has not been disconnected (d.mirror 'DISCONNECT').
+⍝h         Otherwise, an error is signaled.
+⍝h         'OFF'
+⍝h            Temporarily disables the mirroring of a dictionary to a namespace and vice versa. 
+⍝h            Objects established during that time won't be updated, even when the mirroring
+⍝h            is re-enabled, but any subsequent changes (to those or new objects) will be reflected.
+⍝h            Returns the mirror namespace.
+⍝h         'ON'
+⍝h            Restores the mirroring of a dictionary to a namespace and vice versa, if previously disabled.
+⍝h            Returns the mirror namespace.
+⍝h         'DISCONNECT'
+⍝h            Permanently severs the connection between the dictionary and the actively mirrored namespace.
+⍝h            If the user has maintained a copy of the namespace (e.g. saveNS← d.mirror 0),
+⍝h            its contents will reflect the most recent mirroring, but no further updates will occur.
+⍝h            Returns ⎕NULL.
+⍝h     info ← d.mirror 'STATUS'
+⍝h            Returns the current status of mirroring. May be called even if inactive.
 ⍝H =========================================================================================
 ⍝H    COUNTING OBJECTS AS KEYS
 ⍝H =========================================================================================
