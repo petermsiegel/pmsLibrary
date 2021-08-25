@@ -18,7 +18,7 @@
     :Field Private Shared sIdCount←           0
     :Field Private Shared sIdPrefix←          ,'<⎕DICT=>,6ZI2,<.>'⎕FMT⍉⍪(6↑¯2000)+¯1↓⎕TS
   ⍝ TRAPPING
-    :Field Private Shared ∆TRAP←            0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
+    :Field Private Shared sTrap←            0 'C' '⎕SIGNAL/⎕DMX.((EM,Message,⍨'': ''/⍨0≠≢Message) EN)'
   ⍝ ERROR MESSAGES:  [en=11] 'Error Message'   /eCamel/
     :Field Private Shared eImportBad←         'At least one object to import was invalid.'
     :Field Private Shared eImportBad2←        'At least one object to import was invalid. Did you mean (⊂key val)?'
@@ -38,6 +38,7 @@
     :Field Private Shared eMirDisc←           'd.mirror: No namespace mirror established (via d.mirror ''CONNECT'').'
     :Field Private Shared eMirNumKeys←        'd.mirror: left arg, if present, must be 1 (prefer numeric keys) or 0.'
     :Field Private Shared eMirLogic←          'd.mirror (⍙mirrorOpts) LOGIC ERROR'
+    :field Private Shared eNsInvalid←         'd.ns: Invalid assignment. Only ⎕NULL (or ¯1), 0, or 1 allowed.' 
     :Field Private Shared ePopItems←        3 'd.popItems: # items to remove from "end" of dictionary must be ≥0'
     :Field Private Shared eReorder←           'd.reorder: at least one index value is out of range, missing, or duplicated.'
   ⍝ ------------------------------------------------------------------------------------------
@@ -103,8 +104,9 @@
     ⍝ SET_ID: Set unique ID of this dictionary (for fast comparisons) of the form:
     ⍝        iId:   'DICT:',<date-time prefix>,<counter>
     ⍝ Sets the display form and returns the ID field iId, after incrementing the sIdCount.
-    ∇ {returning}←SET_ID
-      ⎕DF returning ← iId←sIdPrefix,⍕sIdCount ← 2147483647 | sIdCount + 1
+    ∇ {returning}←SET_ID ;MAXINT
+      MAXINT←2147483647
+      ⎕DF returning ← iId←sIdPrefix,⍕sIdCount ← MAXINT | sIdCount + 1
     ∇
     ∇ destroy
       :Implements Destructor
@@ -139,21 +141,24 @@
     :Property default keyed keys2Vals 
     :Access Public
         ∇ vals←get args;found;ix;shape;⎕TRAP
-          ⎕TRAP←∆TRAP
-          :If ⎕NULL≡⊃args.Indexers ⋄ vals←iValues ⋄ :Return ⋄  :EndIf
-          shape←⍴ix←iKeys⍳⊃args.Indexers  
-          :If ~0∊found←ix<≢iKeys
-              vals←iValues[ix]                
-          :ElseIf iHasDefault
-             vals← found ∆0EXPND iValues[found/ix]    ⍝ Insert slot(s) for values of new keys. See Note [∆0EXPND]
-              ((~found)/vals)←⊂iDefault                   ⍝ Add default values for slots just inserted.
-              vals⍴⍨←shape                                ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
-          :Else
-               THROW eHasNoDefault
+          ⎕TRAP←sTrap
+          :If ⎕NULL≡⊃args.Indexers 
+              vals←iValues 
+          :Else 
+              shape←⍴ix←iKeys⍳⊃args.Indexers  
+              :If ~0∊found←ix<≢iKeys
+                  vals←iValues[ix]                
+              :ElseIf iHasDefault
+                  vals← found ∆0EXPND iValues[found/ix]       ⍝ Insert slot(s) for values of new keys. See Note [∆0EXPND]
+                  ((~found)/vals)←⊂iDefault                   ⍝ Add default values for slots just inserted.
+                  vals⍴⍨←shape                                ⍝ Ensure vals is scalar, if the input parm args.Indexers is.
+              :Else
+                  THROW eHasNoDefault
+              :EndIf
           :EndIf
         ∇
         ∇ set args;keys;vals;⎕TRAP
-          ⎕TRAP←∆TRAP
+          ⎕TRAP←sTrap
           keys←⊃args.Indexers ⋄ vals←args.NewValue 
           ⍙importVecs keys vals
         ∇
@@ -169,7 +174,7 @@
     :Property keyed vals2Keys 
     :Access Public
         ∇ keys←get args;ix;⎕TRAP
-          ⎕TRAP←∆TRAP
+          ⎕TRAP←sTrap
           ix←{⎕NULL≡⍵: iValues ⋄ ⍵}⊃args.Indexers
           keys←{k ⍬⊃⍨0=≢k←iKeys/⍨iValues≡¨⊂⍵}¨ix   ⍝ Ensure 0-length ⍬ when vals missing.
           keys⍴⍨←⍴ix     ⍝ Ensure scalar index means scalar is returned.
@@ -185,7 +190,7 @@
     ⍝ default d.get keys   ⍝ -- keys which don't exist are given the (fn-specified) default
     ∇ vals←{def} get keys;d;nd;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       :IF 900⌶1 
           vals←keys2Vals[keys]
       :ELSE 
@@ -203,7 +208,7 @@
     ⍝         d.get1 key   ⍝ -- the key must exist or have a default
     ∇ val←{def} get1 key;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       :IF 900⌶1  ⋄ def←⊢ ⋄ :ENDIF
       val←⊃def get ⊂key
     ∇
@@ -215,19 +220,19 @@
     ⍝  {vals}←      d.set (key1 val1)(key2 val2)...(keyN valN)
     ∇ {vals}←{keys} set vals;⎕TRAP
         :Access Public
-        ⎕TRAP←∆TRAP
+        ⎕TRAP←sTrap
         :If 900⌶1 ⋄ keys vals←↓⍉↑,vals ⋄ :EndIf
         ⍙importVecs keys vals
     ∇
   
   ⍝ d.set1  
-    ⍝ "set single key ⍺ to value ⍵ OR set key value pair: (k1:⍵1 v1:⍵2)"
+    ⍝ "set single key ⍺ to value ⍵ OR set a single key value pair (⍺ ⍵)"
     ⍝  (See also d.set)
     ⍝  {val}←k1 d.set1 v1    
     ⍝  {val}←   d.set1 k1 v1    
     ∇ {val}←{key} set1 val;⎕TRAP
         :Access Public
-        ⎕TRAP←∆TRAP
+        ⎕TRAP←sTrap
         :If 900⌶1 ⋄ key val←val ⋄ :EndIf
         ⍙importVecs ,∘⊂¨key val
     ∇
@@ -369,8 +374,10 @@
     ∇ eNS←exportNS; destroyFlag
       :Access Public
       iMirActive←1                         
-      destroyFlag← iMirror≡⎕NULL   ⍝ Check iMirror before mirror call...
-      eNS←⎕NS mirror 'CONNECT'     ⍝ mirror call: resets iMirror
+      destroyFlag← iMirror≡⎕NULL   ⍝ Check iMirror before ⍙mirrorConnect call...
+    ⍝ Copy the mirror (creating if it doesn't exist)
+      eNS←(⊃⎕RSI).⎕NS 0 ⍙mirrorConnect ⎕NULL
+      eMirLogic THROW⍨ 0∊eNS.⎕EX '__DictTrigger__' 
       eNS.⎕DF 'Exported.',(⍕iMirId),'@',iId
       {}⍙mirrorOpts ⍣destroyFlag⊣¯1  
     ∇
@@ -504,7 +511,7 @@
     ⍝  NOTE: Assumes a default value of 0, for undefined keys, even with an instance default specified.
     ∇ {newvals}←{∆} inc keys;_inc_;⎕TRAP 
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       _inc_← { nv←⍺+0 ⍺⍺ ⍵ ⋄ nv⊣⍵ ⍵⍵ nv }
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       :TRAP 11 
@@ -520,7 +527,7 @@
   ⍝ d.dec - see d.inc
     ∇ {newval}←{∆} dec keys;⎕TRAP
       :Access Public
-       ⎕TRAP←∆TRAP
+       ⎕TRAP←sTrap
       :If 900⌶1 ⋄ ∆←1 ⋄ :EndIf
       (0≠1↑0⍴∆) THROW eBadInt  
       newval←(-∆)inc keys
@@ -541,7 +548,7 @@
     ⍝ Returns a vector of 1s and 0s: a 1 for each key kN deleted; else 0.
     ∇ {b}←{ignore} del keys;ix;∆;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf
       b←(≢iKeys)>ix←iKeys⍳keys
     ⍝ (Unless ignore=1) Signal error if not all k-v pairs exist
@@ -560,7 +567,7 @@
     ⍝
     ∇ {b}←{ignore} delByIndex ix;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       :If 900⌶1 ⋄ ignore←0 ⋄ :EndIf    
       b←ix{⍵:0=0(≢iKeys)⍸⍺ ⋄ 0⍴⍨≢⍺}×≢iKeys
       eIndexRange THROW⍨ (0∊b)∧~ignore            ⍝ At least 1 index out of range                     
@@ -595,7 +602,7 @@
     ⍝  "Clears the entire dictionary (i.e. deletes every key-value pair) and returns the dictionary."
     ∇ {dict}←clear ;⎕TRAP
         :Access Public
-        ⎕TRAP←∆TRAP
+        ⎕TRAP←sTrap
       ⍝ If mirror active, delete each var (<key) from mirror ns. 
       ⍝ Don't alter other vars separately established by user.
       ⍝ Leave mirror active!
@@ -618,7 +625,7 @@
     ⍝ If no pairs, returns simple ⍬.
     ∇ {poppedItems}←popItems count ;⎕TRAP
       :Access Public
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       (count<0) THROW ePopItems 
       count←-(≢iKeys)⌊count                               
       :If count=0                                          ⍝ Fast exit if nothing to pop
@@ -637,7 +644,7 @@
     ⍝ If a key does not exist, return its default, if specified (else an error, as for d.del)
     ∇{vals}←{default}pop keys;⎕TRAP 
       :Access Public 
-      ⎕TRAP←∆TRAP
+      ⎕TRAP←sTrap
       :If 900⌶1  
          vals←get keys ⋄ 0 del keys 
       :Else 
@@ -656,7 +663,7 @@
     :Property sort,sortA,sortD
     :Access Public
         ∇ dict←get args;ix;⎕TRAP
-          ⎕TRAP←∆TRAP
+          ⎕TRAP←sTrap
           :If 'd'=¯1↑args.Name   ⍝ sortD
               ix←⊂⍒iKeys
           :Else                  ⍝ sortA, sort
@@ -682,17 +689,23 @@
 
 ⍝-----------------------------------------------------------------------------------
 ⍝ MIRRORING
-⍝      d.ns                           ⍝ returns a reference to the actively mapped namespace, creating if new.
-⍝      d.ns ← ⎕NULL/¯1, 1, 0          ⍝ d.ns←⎕NULL (or ¯1) "Disconnect" namespace at d.ns (next ref to d.ns creates a new namespace)
-⍝                                     ⍝ d.ns←1: mirror is actively mapping dict entries <=> namespace vars
-⍝                                     ⍝ d.ns←0: mirror is quiescent (connected but not actively mapping entries<=> vars)
-⍝      d.preferNumericKeys ←  1       ⍝ sets iMirPrefNK
-⍝      d.preferNumericKeys ←  0       ⍝ sets iMirPrefNK
-⍝      x← d.preferNumeric             ⍝ gets iMirPrefNK
-⍝ DEPRECATED: d.mirror
-⍝    1 d.mirror  'CONNect'            ⍝ ⍺=1: preferNumericKeys (when translating a d.ns variable to a dict. key)
-⍝    0 d.mirror  'Connect'            ⍝ ⍺=0: preferCharacterKeys (ditto)
-⍝      d.mirror  'DISConnect' | 'STATus' | 'ON' | 'OFF'
+⍝  d.ns
+⍝  ¯¯¯¯
+⍝  get  d.ns                           Returns a reference to the actively mapped namespace, creating if new.
+⍝  set  d.ns ← ⎕NULL or ¯1             Disconnects d.ns namespace, such that a new d.ns is built from dict entries
+⍝  set  d.ns ← 1                       Mirror actively maps dict entries <=> namespace vars
+⍝  set  d.ns ← 0                       Mirror is quiescent (connected but not actively mapping entries<=> vars)
+⍝ 
+⍝  d.preferNumericKeys
+⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝  get d.preferNumericKeys            Returns current preference for translating d.ns names.
+⍝  set d.preferNumericKeys ←  1       Sets iMirPrefNK: prefer translating ns names as numeric, rather than nums as chars
+⍝  set d.preferNumericKeys ←  0       Sets iMirPrefNK: prefer leaving ns names as is
+⍝X
+⍝X DISABLED: d.mirror
+⍝X    1 d.mirror  'CONNect'            ⍝ ⍺=1: preferNumericKeys (when translating a d.ns variable to a dict. key)
+⍝X    0 d.mirror  'Connect'            ⍝ ⍺=0: preferCharacterKeys (ditto)
+⍝X      d.mirror  'DISConnect' | 'STATus' | 'ON' | 'OFF'
 ⍝-----------------------------------------------------------------------------------
   ⍝ d.ns
     ⍝ Getting the value of d.ns  --- SEE BELOW
@@ -700,16 +713,15 @@
     :Property ns
     :Access Public
         ∇ mirrorNS←get args            
-          iMirPrefNK mirror 'CONNECT'   ⍝ Takes action based on both args...
-          mirrorNS←iMirror.mirrorNS      
+          mirrorNS← ⍙mirrorConnect ⎕NULL   
         ∇
         ∇ set args;  ⎕TRAP
-          ⎕TRAP←∆TRAP  
+          ⎕TRAP←sTrap  
           :IF 1=≢args.NewValue
-          :AndIf args.NewValue∊1 0 ¯1 ⎕NULL    ⍝ Setting d.ns←⍵. ⍵ may be: 1 'ON', 0 'OFF', ¯1 or ⎕NULL 'DISCONNECT'
+          :AndIf args.NewValue∊1 0 ¯1 ⎕NULL    ⍝ Setting d.ns←⍵. ⍵ may be: 1; 0; ¯1 or ⎕NULL 
                  ⍙mirrorOpts args.NewValue     ⍝ To set preferNumericKeys to ⍵, see d.preferNumericKeys←⍵
           :Else  
-                THROW 'd.ns: Invalid assignment. Only ⎕NULL (or ¯1), 0, or 1 allowed.' 
+                THROW eNsInvalid
           :ENDIf
         ∇
     :EndProperty
@@ -730,60 +742,62 @@
           :EndIf                            
         ∇
     :EndProperty
-⍝ d.mirror
-    ⍝ mirrorNS ← {preferNK:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
-    ⍝ See documentation for details. 
-    ⍝ Enables a namespace that 
-    ⍝            replicates the dictionaries keys as variable names and
-    ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
-    ⍝ A.  On first call with CONNECT option
-    ⍝     1. creates namespace <ns>, setting two fields
-    ⍝           iMirror - the namespace with mirror-related variables, and 
-    ⍝           iMirActive  - 1 when it's active, else 0.
-    ⍝        as well as 
-    ⍝           iMirror.mirrorNS (the user-accessible mirrored namespace)
-    ⍝     2. creates 
-    ⍝           ns.ourDict - points to the active dictionary instance
-    ⍝           ns.mirrorNS   - contains user variables and the trigger fn (__DictTrigger__)
-    ⍝ B1. On subsequent calls with CONNECT option
-    ⍝     May change the preferNK(⍺) setting, for future mirroring
-    ⍝ B2. On subsequent calls, with
-    ⍝     ON            enables real-time mirroring of active namespace (created via CONNECT)
-    ⍝     OFF           temporarily disables ...
-    ⍝     DISCONNECT           turns off mirroring and severs any connection with the mirroring namespace from CONNECT
-    ⍝     STATUS        shows current mirroring status
-    ⍝ RETURNS [shyly] in all cases:
-    ⍝    the user-accessible mirror namespace (iMirror.mirrorNS), retrievable via d.ns
-    ∇{mirrorNS}←{preferNK} mirror flag ;⎕TRAP 
-      :Access Public
-      ⎕TRAP←∆TRAP
-      :SELECT flag← 1 ⎕C flag
-        :CASELIST 'CONNECT' 'CONN' 
-            mirrorNS← ⍙mirrorConnect { ⍵: 0 ⋄ preferNK∊0 1: preferNK ⋄ THROW eMirNumKeys} 900⌶1
-        :CASELIST 'ON' 'OFF' 'DISCONNECT' 'DISC'
-            (iMirror≡⎕NULL) THROW eMirDisc 
-            flag←1-'ON' 'OFF'⍳⊂flag    ⍝ 1/ON 0/OFF ¯1/DISConnect
-            mirrorNS← ⍙mirrorOpts flag
-        :CASELIST 'STATUS' 'STAT'
-            mirrorNS← iMirror{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~iMirActive
-        :ELSE 
-            THROW eMirFlag 
-      :ENDSELECT
-    ∇
-    ∇  mirrorNS ← ⍙mirrorConnect preferNK 
+⍝X⍝ d.mirror
+⍝X    ⍝ mirrorNS ← {preferNK:[0|1]} d.mirror [CONNECT | ON | OFF | DISCONNECT ]
+⍝X    ⍝ See documentation for details. 
+⍝X    ⍝ Enables a namespace that 
+⍝X    ⍝            replicates the dictionaries keys as variable names and
+⍝X    ⍝            whose values, if changed, are reflected on the fly in the dictionary itself.
+⍝X    ⍝ A.  On first call with CONNECT option
+⍝X    ⍝     1. creates namespace <ns>, setting two fields
+⍝X    ⍝           iMirror - the namespace with mirror-related variables, and 
+⍝X    ⍝           iMirActive  - 1 when it's active, else 0.
+⍝X    ⍝        as well as 
+⍝X    ⍝           iMirror.mirrorNS (the user-accessible mirrored namespace)
+⍝X    ⍝     2. creates 
+⍝X    ⍝           ns.ourDict - points to the active dictionary instance
+⍝X    ⍝           ns.mirrorNS   - contains user variables and the trigger fn (__DictTrigger__)
+⍝X    ⍝ B1. On subsequent calls with CONNECT option
+⍝X    ⍝     May change the preferNK(⍺) setting, for future mirroring
+⍝X    ⍝ B2. On subsequent calls, with
+⍝X    ⍝     ON            enables real-time mirroring of active namespace (created via CONNECT)
+⍝X    ⍝     OFF           temporarily disables ...
+⍝X    ⍝     DISCONNECT           turns off mirroring and severs any connection with the mirroring namespace from CONNECT
+⍝X    ⍝     STATUS        shows current mirroring status
+⍝X    ⍝ RETURNS [shyly] in all cases:
+⍝X    ⍝    the user-accessible mirror namespace (iMirror.mirrorNS), retrievable via d.ns
+⍝X    ∇{mirrorNS}←{preferNK} mirror flag ;⎕TRAP 
+⍝X      :Access Public
+⍝X      ⎕TRAP←sTrap
+⍝X      :SELECT flag← 1 ⎕C flag
+⍝X        :CASELIST 'CONNECT' 'CONN' 
+⍝X            mirrorNS← ⍙mirrorConnect { ⍵: 0 ⋄ preferNK∊0 1: preferNK ⋄ THROW eMirNumKeys} 900⌶1
+⍝X        :CASELIST 'ON' 'OFF' 'DISCONNECT' 'DISC'
+⍝X            (iMirror≡⎕NULL) THROW eMirDisc 
+⍝X            flag←1-'ON' 'OFF'⍳⊂flag    ⍝ 1/ON 0/OFF ¯1/DISConnect
+⍝X            mirrorNS← ⍙mirrorOpts flag
+⍝X        :CASELIST 'STATUS' 'STAT'
+⍝X            mirrorNS← iMirror{⍺≡⎕NULL: 'NONE' ⋄ (⍵/'IN'),'ACTIVE'}~iMirActive
+⍝X        :ELSE 
+⍝X            THROW eMirFlag 
+⍝X      :ENDSELECT
+⍝X    ∇
+    ∇  mirrorNS ← {activate} ⍙mirrorConnect preferNK 
       ⍝ preferNK:  1=yes, 0=no (default=0). Used only with flag 'CONNECT', otherwise ignored.
-      ⍝ Set mirror flag to active, whether mirror is CONNECT or old.
-        iMirActive←1                       
+      ⍝            ⎕NULL: use existing iMirPrefNK
+      ⍝ Unless activate is 0, set mirror flag to active, whether mirror is CONNECT or old.
+        :If ~900⌶1 ⋄ :AndIf activate ⋄ iMirActive←1 ⋄  :EndIf      
+      ⍝ If preferNK = ⎕NULL, use current iMirPrefNK              
+        preferNK ← (⎕NULL≡preferNK)⊃preferNK iMirPrefNK
       ⍝ MIRROR ALREADY EXISTS? Update preference and return the mirrorNS
         :IF iMirror≢⎕NULL
-            ⍝ 'existing mirror'
             iMirror.preferNumericKeys←preferNK 
             mirrorNS←iMirror.mirrorNS                  
         :ELSE  
            ⍝ 'new mirror'
           ⍝ Connecting NEW mirror. Define mirror data, establish the namespace, mirror existing items to it, 
           ⍝ then activate trigger, so namespace objects are mirrored back...
-            iMirror←⎕NS '' 
+            iMirror←(1⊃⎕RSI).⎕NS '' 
             iMirId+←1
             iMirror.preferNumericKeys←preferNK            
             mirrorNS←iMirror.(mirrorNS←⎕NS '') 
