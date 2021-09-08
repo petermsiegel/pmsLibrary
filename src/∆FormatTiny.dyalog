@@ -1,7 +1,7 @@
- result←∆F format_ømegas
+ result←∆F format_omegas
 ⍝ A basic APL-aware formatting function
  ;braceI;braceP;fields;format;GenBalanced;miscI;miscP;omegaN;pats;quoteI;quoteP
- ;simpleI;simpleP;spacerI;spacerP;ømegas;∆result;⍙FLD;__gbCtr
+ ;simpleI;simpleP;spacerI;spacerP;omegas;∆result;⍙FLD;__gbCtr
  ;⎕IO;⎕TRAP
 
  ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
@@ -39,13 +39,13 @@
  :EndSection ***** Utilities
 
  :Section ********* Initializations
-     :If 0=≢format_ømegas
+     :If 0=≢format_omegas
          'Help info goes here'
          :Return
      :EndIf
-     format_ømegas←⊆format_ømegas
-     format←⊃format_ømegas
-     ømegas←1↓format_ømegas
+     format_omegas←⊆format_omegas
+     format←⊃format_omegas
+     omegas←1↓format_omegas
 
      omegaN←0
      result←⎕FMT''
@@ -81,7 +81,7 @@
              }⍵
              Calr←⊃1↓⎕RSI
              0::⎕SIGNAL/⎕DMX.(EM EN)
-             ⍎'(Calr.',dfn,'ømegas)'
+             ⍎'(Calr.',dfn,'omegas)'
          }
          CASE←⍵.PatternNum∘=
          f0←⍵ ⍙FLD 0
