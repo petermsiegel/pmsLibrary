@@ -1,7 +1,9 @@
- result←∆F format_omegas
+ result←∆F format_ømegas
+
 ⍝ A basic APL-aware formatting function
- ;braceI;braceP;fields;format;GenBalanced;miscI;miscP;omegaN;pats;quoteI;quoteP
- ;simpleI;simpleP;spacerI;spacerP;omegas;∆result;⍙FLD;__gbCtr
+
+ ;braceI;braceP;fields;format;GenBalanced;miscI;miscP;omegaN;pats
+ ;simpleI;simpleP;spacerI;spacerP;ømegas;∆result;⍙FLD;__gbCtr
  ;⎕IO;⎕TRAP
 
  ⎕TRAP←0 'C' '⎕SIGNAL/⎕DMX.(EM EN)'
@@ -22,8 +24,8 @@
          N←⊂'GB',⍕__gbCtr ⋄ __gbCtr+←1
          _p←'(?x) (?<N> '                                            ⍝ Pattern <bal1>: N←'bal1' and L R←'{}'
          _p,←'L'                                                     ⍝ ∘ Match "{", then atomically 1 or more of:
-         _p,←'       (?> (?: \\.)+     | [^LR\\"'']+ '               ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
-         _p,←'         | (?: "[^"]*")+ | (?: ''[^'']*'')+ '          ⍝     ∘ QT anything QT  OR
+         _p,←'       (?> (?: \\.)+     | [^LR\\"]+ '                 ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
+         _p,←'         | (?: "[^"]*")+ '                             ⍝     ∘ QT anything QT  OR
          _p,←'         | (?&N)*'                                     ⍝     ∘ bal1 {...} recursively 0 or more times
          _p,←'       )+'                                             ⍝     ∘ Else submatch done. Finally,
          _p,←'R   )'                                                 ⍝ ∘ Match "}"
@@ -39,32 +41,32 @@
  :EndSection ***** Utilities
 
  :Section ********* Initializations
-     :If 0=≢format_omegas
-         'Help info goes here'
+     :If 0=≢format_ømegas
+         'Help info'
          :Return
      :EndIf
-     format_omegas←⊆format_omegas
-     format←⊃format_omegas
-     omegas←1↓format_omegas
+     format_ømegas←⊆format_ømegas
+     format←⊃format_ømegas
+     ømegas←1↓format_ømegas
 
      omegaN←0
      result←⎕FMT''
 
       ⍝  Main Patterns
      braceP←GenBalanced'{}'
-     quoteP←'(?:"[^"]*")+'
-     simpleP←'(\\.|[^"{⋄])+'
+     quoteP←'(?<!\\)(?:"[^"]*")+'
+     simpleP←'(\\.|[^{⋄])+'
      spacerP←'(?|\{(\h*)\}|⋄(\h*))'
      miscP←'.'
  :EndSection ***** Initializations
 
  :Section ********* Main
-     pats←simpleP spacerP quoteP braceP miscP
-     simpleI spacerI quoteI braceI miscI←⍳≢pats
+     pats←simpleP spacerP braceP miscP
+     simpleI spacerI braceI miscI←⍳≢pats
      {}pats ⎕R{
          NL←⎕UCS 13
          Escape←{
-             '(?<!\\)\\n' '(?<!\\)\\"' '\\(.*)'⎕R'\r' '"' '\1'⊣⍵
+             '(?<!\\)\\n' '\\([{}⋄])'⎕R'\r' '\1'⊣⍵
          }
          DQ2SQ←{
              DQ2←'""' ⋄ SQ←''''
@@ -73,21 +75,23 @@
              SQ,SQ,⍨str  ⍝ (1+str∊SQ)/str
          }
          DfnArg←{
-             dfn←quoteP'⍵(\d{1,2})' '⍵⍵'⎕R{
-                 CASE←⍵.PatternNum∘=
-                 CASE 0:DQ2SQ ⍵∘⍙FLD 0
-                 CASE 1:'(⍵⊃⍨⎕IO+',')',⍨⍵∘⍙FLD 1
-                 CASE 2:(omegaN+←1)⊢'(⍵⊃⍨⎕IO+',')',⍨⍕omegaN
+             omegaNumP←'⍵(\d{1,2})' ⋄ omega2P←'⍵⍵'
+             formatP←'(?<!\\)\$'
+             pats←quoteP formatP omegaNumP omega2P
+             quoteI formatI omegaNumI omega2I←⍳≢pats
+             dfn←pats ⎕R{CASE←⍵.PatternNum∘=
+                 CASE quoteI:DQ2SQ ⍵∘⍙FLD 0
+                 CASE formatI:' ⎕FMT '
+                 CASE omegaNumI:'(⍵⊃⍨⎕IO+',')',⍨⍵∘⍙FLD 1
+                 CASE omega2I:(omegaN+←1)⊢'(⍵⊃⍨⎕IO+',')',⍨⍕omegaN
              }⍵
              Calr←⊃1↓⎕RSI
-             0::⎕SIGNAL/⎕DMX.(EM EN)
-             ⍎'(Calr.',dfn,'omegas)'
+             0::⎕SIGNAL/⎕DMX.(EM EN)⊣⎕←↑⎕DMX.DM
+             ⍎'(Calr.',dfn,'ømegas)'
          }
-         CASE←⍵.PatternNum∘=
-         f0←⍵ ⍙FLD 0
+         CASE←⍵.PatternNum∘= ⋄ f0←⍵ ⍙FLD 0
          CASE simpleI:∆result Escape f0
          CASE spacerI:∆result ⍵ ⍙FLD 1
-         CASE quoteI:∆result DQ2SQ f0
          CASE braceI:∆result DfnArg f0
          CASE miscI:∆result ⍵ ⍙FLD 0
      }⊣⊆format
