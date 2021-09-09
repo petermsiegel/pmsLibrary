@@ -3,6 +3,7 @@ result←∆F format_omegas
 ⍝H     [⎕←] ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
 ⍝H Special symbols:
 ⍝H     {code}        APL Code Field. Accesses arguments ⍵0 (1st vector after formatting string), ⍵1, ⍵2, through ⍵N.
+⍝H          Within {code} sequence...
 ⍝H          ⍵N       Returns, for N an integer 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
 ⍝H          ⍵⍵       Returns the "next" vector in ⍵. By definition, 
 ⍝H                   ⍵⍵ is ⍵0 or 1 past the last field referenced via ⍵N (e.g. ⍵3).
@@ -11,8 +12,15 @@ result←∆F format_omegas
 ⍝H                   0: zero 1: one 3: three 4: four
 ⍝H          "..."    DQ strings are realized as SQ strings when code is executed.
 ⍝H          '        SQ (') characters are treated as ordinary characters, not quote characters.
-⍝H          $ ...    Equivalent to ⎕FMT; useful with a format string on the left:
-⍝H                   {"F12.10" $ *1}  ==>   {"F12.10" ⎕FMT *1}
+⍝H          $ ...    Alias for ⎕FMT, used with a format string on the left:
+⍝H                   Ex:
+⍝H                      ∆F 'Using $: {"F12.10" $ *1} <==> Using ⎕FMT: {"F12.10" ⎕FMT *1}'
+⍝H                   Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H          ⍝ ...    Comment within code sequence, terminated SOLELY by a ⋄ or } char outside DQ strings ("...").
+⍝H                   Ex:
+⍝H                      ∆F'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
+⍝H                   Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H     Outside {code} sequence...
 ⍝H     ⋄             Field separator. Any trailing blanks will separate the prior field from the next.
 ⍝H     { }           Field separator. Any internal blanks will separate the prior field from the next.
 ⍝H     \n            Returns a newline (actually an \r presented to APL ⎕FMT)
@@ -45,7 +53,7 @@ result←∆F format_omegas
          _p,←'L'                                          ⍝ ∘ Match "{", then atomically 1 or more of:
          _p,←'       (?> (?: \\.)+     | [^LR\\"]+ '      ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
          _p,←'         | (?: "[^"]*")+ '                  ⍝     ∘ QT anything QT  OR
-         _p,←'         | (?: ⍝ (?|(?: "[^"]*")+|[^⋄]+)*)' ⍝     ∘ Comments up to ⋄ (outside quotes) 
+         _p,←'         | (?: ⍝ (?|(?: "[^"]*")+|[^⋄}]+)*)' ⍝     ∘ Comments up to ⋄ (outside quotes) 
          _p,←'         | (?&N)*'                          ⍝     ∘ bal1 {...} recursively 0 or more times
          _p,←'       )+'                                  ⍝     ∘ Else submatch done. Finally,
          _p,←'R   )'                                      ⍝ ∘ Match "}"
@@ -75,7 +83,7 @@ result←∆F format_omegas
             omegaNumP← '⍵(\d{1,2})' 
             omega2P←   '⍵⍵'
             formatP←   '(?<!\\)\$'
-            commentP←  '(?x) (?:⍝ (?| (?:"[^"]*")+ | [^⋄]+)* )'
+            commentP←  '(?x) (?:⍝ (?| (?:"[^"]*")+ | [^⋄}]+)* )'
             pats←quoteP formatP omegaNumP omega2P commentP
             quoteI formatI omegaNumI omega2I commentI←⍳≢pats
             dfn←pats ⎕R{CASE←⍵.PatternNum∘=
