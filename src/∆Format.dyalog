@@ -1,5 +1,116 @@
 ∆F←{
-format_omegas←⍵
+   (⎕NS '').{ ⍝ Move us out of the user space...
+      0:: ⎕SIGNAL/⎕DMX.(EM EN)
+      ⎕IO←0
+      ⍝Section ********* Utilities
+          ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
+              def←'' ⋄ isN←0≠⍬⍴0⍴⍵
+              p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
+              B[O[p]+⍳L[p]]
+          }
+          __gbCtr←1     ⍝ Counter to ensure unique names (See pcre (?J)) option).
+          GenBalanced←{
+            ⍝ GenBalanced '()' or equiv. balanced delimiters...
+            ⍝ import: __gbCtr
+            ⍝ L is left brace, R is right brace, N is unique pattern name GB1, GB2. See __gbCtr
+              L R←⊂¨'\',¨⍵
+              N←⊂'GB',⍕__gbCtr ⋄ __gbCtr+←1
+              _p←'(?x) (?<N> '                                 ⍝ N←'GB1' [first call] and L R←'{}'
+              _p,←'L'                                          ⍝ ∘ Match "{", then atomically 1 or more of:
+              _p,←'       (?> (?: \\.)+     | [^LR\\"]+ '      ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
+              _p,←'         | (?: "[^"]*")+ '                  ⍝     ∘ QT anything QT  OR
+              _p,←'         | (?: ⍝ (?|(?: "[^"]*")+|[^⋄}]+)*)' ⍝     ∘ Comments up to ⋄ (outside quotes) 
+              _p,←'         | (?&N)*'                          ⍝     ∘ bal1 {...} recursively 0 or more times
+              _p,←'       )+'                                  ⍝     ∘ Else submatch done. Finally,
+              _p,←'R   )'                                      ⍝ ∘ Match "}"
+              ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p              ⍝ 'R'→R, 'L'→L, 'N'→N
+          }
+          ∆result←{
+              r←⎕FMT ⍵
+              h←(≢result)⌈≢r
+              result∘←(h↑result),[1]h↑r
+              ''
+          }
+          getOmega←{
+            omvec lit←⍺
+            (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
+            0∊ok: ⎕SIGNAL/('LOGIC error: ',lit,' is not a number.')3
+            (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('Index error accessing ⍵⍵/⍵',(⍕ix),'.') 3
+            omegaN∘←ix
+            ixstr
+            }
+            ⍝Section ********* Main Loop Utilities     
+              Escape←{
+                    '(?<!\\)\\n' '\\([{}⋄])'⎕R'\r' '\1'⊣⍵
+                }
+              DQ2SQ←{
+                  DQ2←'""' ⋄ SQ←''''
+                  SQ,SQ,⍨(~DQ2⍷str)/str←'(?<!\\)\\n' ⎕R '\r'⊣1↓¯1↓⍵ 
+              }
+              DfnField←{
+                  omegaNumP← '⍵(\d{1,2})' 
+                  omega2P←   '⍵⍵'
+                  formatP←   '(?<!\\)\$'
+                  commentP←  '(?x) (?:⍝ (?| (?:"[^"]*")+ | [^⋄}]+)* )'
+                  lhsSpaceP← '^\h+' 
+                  rhsSpaceP← '\h+$'
+                  pats←lhsSpaceP quoteP formatP omegaNumP omega2P commentP rhsSpaceP
+                  lhsSpaceI quoteI formatI omegaNumI omega2I commentI rhsSpaceI←⍳≢pats
+                  dfn←pats ⎕R{CASE←⍵.PatternNum∘=
+                      CASE quoteI:    DQ2SQ ⍵∘⍙FLD 0
+                      CASE formatI:   ' ⎕FMT '
+                      CASE omegaNumI: '(⍵⊃⍨⎕IO+',')',⍨ omegas (⍵⍙FLD 0) getOmega ⍵∘⍙FLD 1
+                      CASE omega2I:   '(⍵⊃⍨⎕IO+',')',⍨ omegas ('⍵⍵')    getOmega omegaN+1
+                      CASE commentI:  ' '            ⍝⊣⎕←'Comment seen: "','"',⍨⍵ ⍙FLD 0
+                  }⍵
+                  caller←⊃2↓⎕RSI
+                  0::⎕SIGNAL/⎕DMX.(EM EN)  ⍝⊣⎕←↑⎕DMX.DM
+                  ⍎'(caller.',dfn,'omegas)'
+              }
+            ⍝EndSection ***** Main Loop Utilities
+      ⍝EndSection ***** Utilities
+
+      ⍝Section ********* Initializations
+          format_omegas←⍵
+          0=≢format_omegas: {
+              help←'⍝H'{l←≢⍺⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵
+              ''⊣⎕ED 'help'
+          }⎕NR 0⊃⎕XSI
+          format_omegas←⊆format_omegas
+          format←⊃format_omegas
+          omegas←1↓format_omegas
+      
+          omegaN←¯1
+          result←⎕FMT''
+
+        ⍝  Main Patterns
+          dfnP←    (GenBalanced'{}'),'\h*'
+          quoteP←  '(?<!\\)(?:"[^"]*")+'
+          simpleP← '(\\.|[^{⋄])+'
+          spacerP← '(?|\{(\h*)\}(\h*)|⋄(\h*))'
+          miscP←   '.'
+      ⍝EndSection ***** Initializations
+
+      ⍝Section ********* Main
+          pats←simpleP spacerP dfnP miscP
+          simpleI spacerI dfnI miscI←⍳≢pats
+          _←pats ⎕R{    
+              CASE←⍵.PatternNum∘= ⋄ f0←⍵ ⍙FLD 0
+              CASE simpleI:{
+                _← ∆result Escape ⍵↓⍨-trail←+/∧\⌽⍵=' ' 
+                ∆result⍣(0<trail)⊣trail⍴' ' 
+              }f0
+              CASE spacerI:∆result ∊⍵ ⍙FLD¨ 1 2
+              CASE dfnI:{
+                _←∆result DfnField ⍵↓⍨-trail←+/∧\⌽⍵=' '
+                ∆result⍣(0<trail)⊣trail⍴' '  
+              }f0
+              CASE miscI:∆result ⍵ ⍙FLD 0
+          }⊣⊆format
+      result
+  }⍵
+ ⍝EndSection ***** Main
+
 ⍝H ∆F: A basic APL-aware formatting function (file: ∆Format.dyalog).
 ⍝H     [⎕←] ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
 ⍝H Formatting strings consist of text fields, code fields, and space fields. 
@@ -43,113 +154,4 @@ format_omegas←⍵
 ⍝H     \}            A literal } character.
 ⍝H    
 
- 0:: ⎕SIGNAL/⎕DMX.(EM EN)
- ⎕IO←0
-
- ⍝Section ********* Utilities
-     ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
-         def←'' ⋄ isN←0≠⍬⍴0⍴⍵
-         p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
-         B[O[p]+⍳L[p]]
-     }
-     __gbCtr←1     ⍝ Counter to ensure unique names (See pcre (?J)) option).
-     GenBalanced←{
-      ⍝ GenBalanced '()' or equiv. balanced delimiters...
-      ⍝ import: __gbCtr
-      ⍝ L is left brace, R is right brace, N is unique pattern name GB1, GB2. See __gbCtr
-         L R←⊂¨'\',¨⍵
-         N←⊂'GB',⍕__gbCtr ⋄ __gbCtr+←1
-         _p←'(?x) (?<N> '                                 ⍝ N←'GB1' [first call] and L R←'{}'
-         _p,←'L'                                          ⍝ ∘ Match "{", then atomically 1 or more of:
-         _p,←'       (?> (?: \\.)+     | [^LR\\"]+ '      ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
-         _p,←'         | (?: "[^"]*")+ '                  ⍝     ∘ QT anything QT  OR
-         _p,←'         | (?: ⍝ (?|(?: "[^"]*")+|[^⋄}]+)*)' ⍝     ∘ Comments up to ⋄ (outside quotes) 
-         _p,←'         | (?&N)*'                          ⍝     ∘ bal1 {...} recursively 0 or more times
-         _p,←'       )+'                                  ⍝     ∘ Else submatch done. Finally,
-         _p,←'R   )'                                      ⍝ ∘ Match "}"
-         ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p              ⍝ 'R'→R, 'L'→L, 'N'→N
-     }
-     ∆result←{
-         r←⎕FMT ⍵
-         h←(≢result)⌈≢r
-         result∘←(h↑result),[1]h↑r
-         ''
-     }
-     getOmega←{
-       omvec lit←⍺
-       (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
-       0∊ok: ⎕SIGNAL/('LOGIC error: ',lit,' is not a number.')3
-       (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('Index error: Not enough elements in ⍵ for ',lit,'.') 3
-       omegaN∘←ix
-       ixstr
-      }
-      ⍝Section ********* Main Loop Utilities     
-        Escape←{
-              '(?<!\\)\\n' '\\([{}⋄])'⎕R'\r' '\1'⊣⍵
-          }
-        DQ2SQ←{
-            DQ2←'""' ⋄ SQ←''''
-            SQ,SQ,⍨(~DQ2⍷str)/str←'(?<!\\)\\n' ⎕R '\r'⊣1↓¯1↓⍵ 
-        }
-        DfnField←{
-            omegaNumP← '⍵(\d{1,2})' 
-            omega2P←   '⍵⍵'
-            formatP←   '(?<!\\)\$'
-            commentP←  '(?x) (?:⍝ (?| (?:"[^"]*")+ | [^⋄}]+)* )'
-            lhsSpaceP← '^\h+' 
-            rhsSpaceP← '\h+$'
-            pats←lhsSpaceP quoteP formatP omegaNumP omega2P commentP rhsSpaceP
-            lhsSpaceI quoteI formatI omegaNumI omega2I commentI rhsSpaceI←⍳≢pats
-            dfn←pats ⎕R{CASE←⍵.PatternNum∘=
-                CASE quoteI:    DQ2SQ ⍵∘⍙FLD 0
-                CASE formatI:   ' ⎕FMT '
-                CASE omegaNumI: '(⍵⊃⍨⎕IO+',')',⍨ omegas (⍵⍙FLD 0) getOmega ⍵∘⍙FLD 1
-                CASE omega2I:   '(⍵⊃⍨⎕IO+',')',⍨ omegas ('⍵⍵')    getOmega omegaN+1
-                CASE commentI:  ' '            ⍝⊣⎕←'Comment seen: "','"',⍨⍵ ⍙FLD 0
-            }⍵
-            caller←⊃1↓⎕RSI
-            0::⎕SIGNAL/⎕DMX.(EM EN)  ⍝⊣⎕←↑⎕DMX.DM
-            ⍎'(caller.',dfn,'omegas)'
-        }
-      ⍝EndSection ***** Main Loop Utilities
- ⍝EndSection ***** Utilities
-
- ⍝Section ********* Initializations
-    0=≢format_omegas: {
-         help←'⍝H'{l←≢⍺⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵
-         ''⊣⎕ED 'help'
-    }⎕NR ⊃⎕XSI
-     format_omegas←⊆format_omegas
-     format←⊃format_omegas
-     omegas←1↓format_omegas
- 
-     omegaN←¯1
-     result←⎕FMT''
-
-  ⍝  Main Patterns
-     dfnP←    (GenBalanced'{}'),'\h*'
-     quoteP←  '(?<!\\)(?:"[^"]*")+'
-     simpleP← '(\\.|[^{⋄])+'
-     spacerP← '(?|\{(\h*)\}(\h*)|⋄(\h*))'
-     miscP←   '.'
- ⍝EndSection ***** Initializations
-
- ⍝Section ********* Main
-     pats←simpleP spacerP dfnP miscP
-     simpleI spacerI dfnI miscI←⍳≢pats
-     _←pats ⎕R{    
-         CASE←⍵.PatternNum∘= ⋄ f0←⍵ ⍙FLD 0
-         CASE simpleI:{
-           _← ∆result Escape ⍵↓⍨-trail←+/∧\⌽⍵=' ' 
-           ∆result⍣(0<trail)⊣trail⍴' ' 
-         }f0
-         CASE spacerI:∆result ∊⍵ ⍙FLD¨ 1 2
-         CASE dfnI:{
-           _←∆result DfnField ⍵↓⍨-trail←+/∧\⌽⍵=' '
-           ∆result⍣(0<trail)⊣trail⍴' '  
-         }f0
-         CASE miscI:∆result ⍵ ⍙FLD 0
-     }⊣⊆format
-result
- ⍝EndSection ***** Main
 }
