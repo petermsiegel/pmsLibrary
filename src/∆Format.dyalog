@@ -1,123 +1,130 @@
-∆F←{ 
-    0=≢⍵: { help←'⍝H'{l←≢⍺⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
+∆F←{  ⎕IO←0
+  ⍝ If ⍺ is omitted or null, ∆F returns a formatted string (always a matrix)...
+  ⍝ Otherwise, ∆F evaluates ⍺ as an ASSERTION...
+  ⍝    0∊⍺ (assertion fails):     ∆F prints error msg, returns 1; 
+  ⍝    else (assertion succeeds): ∆F returns 0 shyly.
+  0:: ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
+  ⍺←⎕NULL  
 
-      (⎕NS '').{ ⍝ Move us out of the user space...
-      0:: ⎕SIGNAL/⎕DMX.(EM EN)
-      
-      ⍝Section ********* Utilities
-          ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
-              def←'' ⋄ isN←0≠⍬⍴0⍴⍵
-              p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
-              B[O[p]+⍳L[p]]
-          }
-          __gbCtr←1     ⍝ Counter to ensure unique names (See pcre (?J)) option).
-          GenBalanced←{
-            ⍝ GenBalanced '()' or equiv. balanced delimiters...
-            ⍝ import: __gbCtr
-            ⍝ L is left brace, R is right brace, N is unique pattern name GB1, GB2. See __gbCtr
-              L R←⊂¨'\',¨⍵
-              N←⊂'GB',⍕__gbCtr ⋄ __gbCtr+←1
-              _p←'(?x) (?<N> '                                 ⍝ N←'GB1' [first call] and L R←'{}'
-              _p,←'L'                                          ⍝ ∘ Match "{", then atomically 1 or more of:
-              _p,←'       (?> (?: \\.)+     | [^LR\\"]+ '      ⍝     ∘ (\.)+ | [^{}\\''"]+ OR
-              _p,←'         | (?: "[^"]*")+ '                  ⍝     ∘ QT anything QT  OR
-              _p,←'         | (?: ⍝ (?|(?: "[^"]*")+|[^⋄}]+)*)' ⍝     ∘ Comments up to ⋄ (outside quotes) 
-              _p,←'         | (?&N)*'                          ⍝     ∘ bal1 {...} recursively 0 or more times
-              _p,←'       )+'                                  ⍝     ∘ Else submatch done. Finally,
-              _p,←'R   )'                                      ⍝ ∘ Match "}"
-              ∊N@('N'∘=)⊣∊L@('L'∘=)⊣∊R@('R'∘=)⊣_p              ⍝ 'R'→R, 'L'→L, 'N'→N
-          }
-          SetResult←{
-              0=≢⍵: ''          ⍝ Null ⍵ means nothing added to RESULT...
-              r← USER_SPACE.⎕FMT ⍵
-              h←(≢RESULT)⌈≢r
-              RESULT∘←(h↑RESULT),[1]h↑r
-              ''
-          }
-          GetOmega←{
-            omvec lit←⍺
-            (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
-            0∊ok: ⎕SIGNAL/('LOGIC error: ',lit,' is not a number.')3
-            (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('Index error accessing ⍵⍵/⍵',(⍕ix),'.') 3
-            OMEGA_IX∘←ix
-            ixstr
-            }
-            ⍝Section ********* Main Loop Utilities     
-              Escape←{
-                    '(?<!\\)\\n' '\\([{}⋄])'⎕R'\r' '\1'⊣⍵
-                }
-              DQ2SQ←{
-                  DQ2←'""' ⋄ SQ←''''
-                  SQ,SQ,⍨(~DQ2⍷str)/str←'(?<!\\)\\n' ⎕R '\r'⊣1↓¯1↓⍵ 
-              }
-              DfnField←{
-                  omDigP← '⍵(\d{1,2})' 
-                  om2P←   '⍵⍵'
-                  fmtP←   '(?<!\\)\$'
-                  comP←  '(?x) (?:⍝ (?| (?:"[^"]*")+ | [^⋄}]+)* )'
-                  noteP←     '[→➤]\h*\}$'    ⍝ Trailing → or ➤ (like Python =) creates note format: dfn_text➤ ⍎dfn
-                  pats←quoteP fmtP omDigP om2P comP noteP 
-                  quoteI fmtI omDigI om2I comI noteI ←⍳≢pats
-                  noteF←0
-                  dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-                      CASE quoteI: DQ2SQ f 0
-                      CASE fmtI:   ' ⎕FMT '
-                      CASE omDigI: '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  GetOmega f 1
-                      CASE om2I:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   GetOmega OMEGA_IX+1
-                      CASE comI:   ' '             
-                      CASE noteI:  '}'⊣ noteF∘←1
-                  }⍵
-                  0::⎕SIGNAL/⎕DMX.(EM EN)   
-                  res←⍎'(USER_SPACE.',dfn,'OMEGAS)'
-                  noteF: res⊣(SetResult '([→➤]) ?(\h*)$'⎕R '➤ \2'⊣1↓¯1↓⍵)          ⍝  '➤' is U+10148
-                  res 
-              }
-            ⍝EndSection ***** Main Loop Utilities
-      ⍝EndSection ***** Utilities
+  0≢⍵: ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
+    ⍝ Section ********* Utilities
+      ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
+          def←'' ⋄ isN←0≠⍬⍴0⍴⍵
+          p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
+          B[O[p]+⍳L[p]]
+      }
+      SetRESULT←{           ⍝ External: RESULT
+          0=≢⍵: ''          ⍝ Null ⍵: nothing is to be added to RESULT...
+          r← USER_SPACE.⎕FMT ⍵
+          h←(≢RESULT)⌈≢r
+          RESULT∘←(h↑RESULT),[1]h↑r
+          ''
+      }
+      GetOmega←{
+        omvec lit←⍺
+        (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
+        0∊ok: ⎕SIGNAL/('LOGIC error: ',lit,' is not a number.')3
+        (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('Index error accessing ⍵⍵/⍵',(⍕ix),'.') 3
+        OMEGA_IX∘←ix
+        ixstr
+      }
+    ⍝ Section ********* Main Loop Utilities     
+      EscapeText←   '(?<!\\)\\n' '\\([{}\\])' ⎕R'\r' '\1' 
+      EscapeDQ←     '\\\\n'      '\\n'        ⎕R 'n' '\r'
+      DQ2SQ←{ ⍝ Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+          DQ2←'""' ⋄ SQ←''''  
+          SQ,SQ,⍨(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
+      }
+      DfnField←{
+          omDigP← '⍵(\d{1,2})' 
+          om2P←   '⍵⍵'
+          dispP←  '(?<!\\)\${2,2}'
+          fmtP←   '(?<!\\)\$(?!\$)'
+          comP←   '⍝[^⋄}]+' 
+          noteP←  '[→➤]\h*\}$'    ⍝ Trailing → or ➤ (like Python =) creates note format: dfn_text➤ ⍎dfn
+          pats←quoteP dispP fmtP omDigP om2P comP noteP 
+                quoteI dispI fmtI omDigI om2I comI noteI ←⍳≢pats
+          noteF←0
+          dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
+              CASE quoteI: DQ2SQ f 0
+              CASE dispI:  ' ⎕SE.Dyalog.Utils.disp ' 
+              CASE fmtI:   ' ⎕FMT '
+              CASE omDigI: '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  GetOmega f 1
+              CASE om2I:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   GetOmega OMEGA_IX+1
+              CASE comI:   ' '             
+              CASE noteI:  '}'⊣ noteF∘←1
+          }⍵
+          0:: msg ⎕SIGNAL ⎕DMX.EN⊣ msg←'∆F ',⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
+          res←⍎'(USER_SPACE.',dfn,'OMEGAS)'
+          noteF: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' is U+10148
+          res 
+      }
+    ⍝ EndSection ***** Main Loop Utilities
+  ⍝ EndSection ***** Utilities
 
-      ⍝Section ********* Initializations
-        ⍝ Top-level Patterns
-          dfnP←    (GenBalanced'{}'),'\h*'
-          quoteP←  '(?<!\\)(?:"[^"]*")+'
-          simpleP← '(\\.|[^{⋄])+'
-          spacerP← '(?|\{(\h*)\}(\h*)|⋄(\h*))'
-          miscP←   '.'
-        ⍝ Basic Initializations
-          ⎕IO←0
-          USER_SPACE←⊃⌽⎕RSI
-          FORMAT←⊃⊆⍵
-          OMEGAS←1↓⊆⍵ 
-          OMEGA_IX←¯1
-          RESULT←⎕FMT''
-      ⍝EndSection ***** Initializations
+  ⍝ Section ********* Initializations
+    ⍝ Top-level Patterns  
+    ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
+      dfnP←    '(?<GB1>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&GB1)*)+\})\h*'
+      quoteP←  '(?<!\\)(?:"[^"]*")+'
+      simpleP← '(\\.|[^{])+'
+      spacerP← '\{(\h*)\}(\h*)'
+      miscP←   '.'
+    ⍝ Basic Initializations
+      USER_SPACE←⊃⌽⎕RSI
+      FORMAT←⊃⊆⍵
+      OMEGAS←1↓⊆⍵ 
+      OMEGA_IX←¯1
+      RESULT←⎕FMT''
+  ⍝ EndSection ***** Initializations
 
-      ⍝Section ********* Main
-          pats←simpleP spacerP dfnP miscP
-          simpleI spacerI dfnI miscI←⍳≢pats
-          _←pats ⎕R{    
-              ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-              CASE simpleI:''⊣{trail←-+/∧\⌽⍵=' ' 
-                SetResult¨ (Escape trail↓⍵)(trail↑⍵)
-                }f 0
-              CASE spacerI:SetResult ∊f¨ 1 2
-              CASE dfnI:''⊣{trail←-+/∧\⌽⍵=' '
-                SetResult¨(DfnField trail↓⍵)(trail↑⍵)
-              }f 0
-              CASE miscI: SetResult f 0
-          }⊣FORMAT
-      RESULT
-  }⍵
- ⍝EndSection ***** Main
+  ⍝ Section ********* Main
+      pats←simpleP spacerP dfnP miscP
+      simpleI spacerI dfnI miscI←⍳≢pats
+      _←pats ⎕R{    
+          ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+          CASE simpleI:''⊣{trail←-+/∧\⌽⍵=' ' 
+            SetRESULT¨ (EscapeText trail↓⍵)(trail↑⍵)  ⍝ Two fields text and sss in 'textsss' (given s, a space)
+            }f 0
+          CASE spacerI:SetRESULT ∊f¨ 1 2          ⍝ Include spaces xxx and yyy in {xxx}yyy
+          CASE dfnI:''⊣{trail←-+/∧\⌽⍵=' '
+            SetRESULT¨(DfnField trail↓⍵)(trail↑⍵)
+          }f 0
+          CASE miscI: SetRESULT f 0
+      }⊣FORMAT
+      ⍺≡⎕NULL:     RESULT
+      0∊⍺:     1⊣⎕←RESULT          
+              _←0
+}⍵
 
-⍝Section ***** HELP INFO
+⍝ Help...
+  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
+⍝ EndSection ***** Main
+
+⍝ Section ***** HELP INFO
 ⍝H ∆F: A basic APL-aware formatting function (file: ∆Format.dyalog).
-⍝H     [⎕←] ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
-⍝H Formatting strings consist of text fields, code fields, and space fields. 
+⍝H     [⎕←]  [option]  ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
+⍝H ∘ 'formatting_string
+⍝H   Formatting strings consist of text fields, code fields, and space fields. 
 ⍝H    ∘ Code fields are APL "dfns" surrounded by (unescaped) braces {}.
 ⍝H    ∘ Space fields consist of (unescaped) braces with 0 or more internal spaces.
 ⍝H    ∘ Text fields are everything else. A text field is terminated:
 ⍝H      ∘ At the end of the formatting string;
-⍝H      ∘ When an (unescaped) ⋄ symbol is encountered, or if a code or space field is encountered.
+⍝H      ∘ If a code or space field is encountered.
+⍝H ∘ ⍵0 ⍵1 ⍵2 ...
+⍝H   Each (complex or simple) scalar (⍵N) after the format string can be referenced in any {code} field, see below.
+⍝H   See ⍵N and ⍵⍵ below. 
+⍝H ∘ option (⍺) has three options. 
+⍝H   With option (a) below, ∆F is a simple format command.
+⍝H   With option (b) below, ∆F is an "assertion".
+⍝H   (a) If the <option> is omitted or is ⎕NULL, the resulting format string is returned.
+⍝H   (b) i. If the <option> contains any 0s, the resulting format string is printed (⎕←) and 1 is returned,
+⍝H          indicating the assertion (resulting in ⍺) failed.
+⍝H      ii. Otherwise, the format string is not generated and 0 is returned, 
+⍝H          indicating the assertion (resulting in ⍺) succeeded.
+⍝H          { ⍝ Prints message only if y>10.
+⍝H            (y≤10) ∆F 'Error: y≤{⍵⍵} ← {⍵⍵}x**2 + {⍵⍵}x + ⍵⍵' 10 3 5 9
+⍝H          }
 ⍝H 
 ⍝H Special symbols:
 ⍝H     Code Field: {code}
@@ -130,11 +137,17 @@
 ⍝H                   Ex:
 ⍝H                       ∆F '0: {⍵⍵} 1: {⍵⍵} 3: {⍵3} 4: {⍵⍵}' 'zero' 'one' 'two' 'three' 'four' 
 ⍝H                   0: zero 1: one 3: three 4: four
-⍝H          DQ characters: "..."
+⍝H          DQ strings: "..."
+⍝H                   DQ strings begin and end with double quotes, with (optional) doubled double quotes internally.
+⍝H                   They only appear within Code fields.
 ⍝H                   DQ strings are realized as SQ strings when code is executed.
-⍝H          SQ characters: '...'
-⍝H                   SQ (') characters are treated as ordinary characters, not quote characters.
-⍝H                   Do not use SQ characters to delimit code strings! Use DQ strings (above).
+⍝H                   DQ character in Code fields are escaped in the APL way, by doubling. "abc""def" ==>  'abc"def'
+⍝H                   \n in a DQ string results in a newline. \\n may be used to enter a backslash followed by 'n'.
+⍝H                   Warning: Do not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
+⍝H          SQ characters:  (')
+⍝H                   There are no SQ strings in Code Fields. See DQ strings.
+⍝H                   SQ (') characters are treated as ordinary characters within Code Fields, not quote characters.
+⍝H                   Do not use SQ characters to delimit code fields! Use DQ strings (above).
 ⍝H          $        Alias for ⎕FMT, used with a format string on the left:
 ⍝H                   Ex:
 ⍝H                       ∆F 'Using $: {"F12.10" $ *1} <==> Using ⎕FMT: {"F12.10" ⎕FMT *1}'
@@ -145,24 +158,32 @@
 ⍝H                   3.14159265359 
 ⍝H                       ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
 ⍝H                   3.141592653589793238462643383279503
-⍝H          ⍝        Begins a comment within code sequence, terminated SOLELY by: 
-⍝H                   a ⋄ or } character outside a DQ string ("...").
+⍝H          $$       Alias for display (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
+⍝H                   Ex:
+⍝H                       ∆F '\none {$$ 1 2 ("1" "2")} \ntwo'
+⍝H                       ┌→┬─┬──┐    
+⍝H                   one │1│2│12│ two
+⍝H                       └─┴─┴─→┘    
+⍝H          ⍝        Code-sequence comments...
+⍝H                   Begins a comment within code sequence, terminated SOLELY by: 
+⍝H                   a ⋄ or } character.
 ⍝H                   Ex:
 ⍝H                       ∆F'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
 ⍝H                   Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
-⍝H          →        A right arrow trailing a code sequence, just before (possible blanks and a) final right brace:
+⍝H          →        Self-documenting {code} expressions...
+⍝H                   A right arrow (→ or ➤) trailing a code sequence, just before (possible blanks and a) final right brace:
 ⍝H                   Creates two "fields," one with the code text as written, followed by the executed code.
+⍝H                   Ex:
+⍝H                        ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
+⍝H                   Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
 ⍝H     Space Field:  { }
 ⍝H                   Space field: contains 0 or more spaces, which are inserted into the formatted string.
 ⍝H     Text Field:   Everything else is a text field. These characters have special meaning
 ⍝H                   within a text field OR separate one text field from another.
-⍝H        ⋄          Field separator: separates text (and other) fields, one from the next. 
-⍝H                   Any trailing blanks will be interpreted as in space fields (above).
 ⍝H        \n         A new line within a text field or DQ string within a code field (
-⍝H                   Note: Actually represented as an \r given the behavior of APL ⎕FMT)
-⍝H        \⋄         A literal ⋄ character.
+⍝H                   Note: Actually represented as an \r U+0c given the behavior of APL ⎕FMT)
 ⍝H        \{         A literal { character.
 ⍝H        \}         A literal } character.
 ⍝H    
-⍝EndSection ***** Help Info
+⍝ EndSection ***** Help Info
 }
