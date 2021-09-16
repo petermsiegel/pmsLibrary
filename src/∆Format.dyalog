@@ -1,17 +1,22 @@
 ∆F←{  ⎕IO←0
-  ⍝ If ⍺ is omitted or null, ∆F returns a formatted string (always a matrix)...
-  ⍝ Otherwise, ∆F evaluates ⍺ as an ASSERTION...
-  ⍝    0∊⍺ (assertion fails):     ∆F prints error msg, returns 1; 
-  ⍝    else (assertion succeeds): ∆F returns 0 shyly.
-  0:: ⎕DMX.EM ⎕SIGNAL ⎕DMX.EN
-  ⍺←⎕NULL  
+  ⍝   If ... \ ∆F ...         Displays            Returns        Shy?   Remarks
+  ⍝   A.  ⍵ has 0 items       HELP INFO           ''             No     ...
+  ⍝   B.  default/⍺ is ⎕NULL  --                  formatted str  No     String Formatter
+  ⍝   C1. 0∊⍺                 formatted str       1              Yes    Assertion fails, so show message
+  ⍝   C2. otherwise           --                  0              Yes    Assertion succeeds, so go quietly
+  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN 
+  ⍺←⎕NULL 
 
-  0≢⍵: ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
+⍝ Help...
+  0≡≢⍵:  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
+⍝ Case C2 above. Don't format.
+  (⍺≢⎕NULL)∧(~0∊⍺): _←0      
+
+  ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
     ⍝ Section ********* Utilities
       ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
-          def←'' ⋄ isN←0≠⍬⍴0⍴⍵
-          p←N⍳∘⊂⍣isN⊣⍵ ⋄ 0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def
-          B[O[p]+⍳L[p]]
+          def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
+          0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
       }
       SetRESULT←{           ⍝ External: RESULT
           0=≢⍵: ''          ⍝ Null ⍵: nothing is to be added to RESULT...
@@ -20,43 +25,43 @@
           RESULT∘←(h↑RESULT),[1]h↑r
           ''
       }
-      GetOmega←{
+      OmSelect←{
         omvec lit←⍺
         (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
-        0∊ok: ⎕SIGNAL/('LOGIC error: ',lit,' is not a number.')3
-        (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('Index error accessing ⍵⍵/⍵',(⍕ix),'.') 3
-        OMEGA_IX∘←ix
+        0∊ok: ⎕SIGNAL/('∆F LOGIC error: ',lit,' is not a number.')3
+        (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('∆F Index error accessing ⍵',ixstr) 3 
+        OMEGA_CUR∘←ix
         ixstr
       }
     ⍝ Section ********* Main Loop Utilities     
-      EscapeText←   '(?<!\\)\\n' '\\([{}\\])' ⎕R'\r' '\1' 
-      EscapeDQ←     '\\\\n'      '\\n'        ⎕R 'n' '\r'
+      EscapeText←   '(?<!\\)\\n' '\\([{}\\])' ⎕R '\r' '\1' 
+      EscapeDQ←     '\\n'        '\\\\n'      ⎕R '\r' 'n' 
       DQ2SQ←{ ⍝ Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
           DQ2←'""' ⋄ SQ←''''  
           SQ,SQ,⍨(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
       }
       DfnField←{
-          omDigP← '⍵(\d{1,2})' 
-          om2P←   '⍵⍵'
-          dispP←  '(?<!\\)\${2,2}'
-          fmtP←   '(?<!\\)\$(?!\$)'
-          comP←   '⍝[^⋄}]+' 
-          noteP←  '[→➤]\h*\}$'    ⍝ Trailing → or ➤ (like Python =) creates note format: dfn_text➤ ⍎dfn
-          pats←quoteP dispP fmtP omDigP om2P comP noteP 
-                quoteI dispI fmtI omDigI om2I comI noteI ←⍳≢pats
-          noteF←0
+          omDigP←   '⍵(\d{1,2})' 
+          omPairP←  '⍵⍵'
+          dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
+          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT
+          comP←     '⍝[^⋄}]+' 
+          selfDocP← '[→➤]\h*\}$'    ⍝ Trailing → or ➤ (like Python =) creates selfDoc format: dfn_text➤ ⍎dfn
+          pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
+               quoteI dispI fmtI omDigI omPairI comI selfDocI← ⍳≢pats
+          selfDocB←0
           dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
               CASE quoteI: DQ2SQ f 0
-              CASE dispI:  ' ⎕SE.Dyalog.Utils.disp ' 
-              CASE fmtI:   ' ⎕FMT '
-              CASE omDigI: '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  GetOmega f 1
-              CASE om2I:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   GetOmega OMEGA_IX+1
-              CASE comI:   ' '             
-              CASE noteI:  '}'⊣ noteF∘←1
+              CASE dispI:    ' ⎕SE.Dyalog.Utils.disp ' 
+              CASE fmtI:     ' ⎕FMT '
+              CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
+              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1
+              CASE comI:     ' '             
+              CASE selfDocI: '}'⊣ selfDocB∘←1
           }⍵
-          0:: msg ⎕SIGNAL ⎕DMX.EN⊣ msg←'∆F ',⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
-          res←⍎'(USER_SPACE.',dfn,'OMEGAS)'
-          noteF: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' is U+10148
+          0:: msg ⎕SIGNAL ⎕DMX.EN⊣ msg←⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
+          res←⍎'USER_SPACE.',dfn,'OMEGAS'
+          selfDocB: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' aka U+10148
           res 
       }
     ⍝ EndSection ***** Main Loop Utilities
@@ -65,41 +70,41 @@
   ⍝ Section ********* Initializations
     ⍝ Top-level Patterns  
     ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
-      dfnP←    '(?<GB1>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&GB1)*)+\})\h*'
+      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})\h*'
       quoteP←  '(?<!\\)(?:"[^"]*")+'
       simpleP← '(\\.|[^{])+'
       spacerP← '\{(\h*)\}(\h*)'
-      miscP←   '.'
     ⍝ Basic Initializations
       USER_SPACE←⊃⌽⎕RSI
-      FORMAT←⊃⊆⍵
-      OMEGAS←1↓⊆⍵ 
-      OMEGA_IX←¯1
+    ⍝ ⊆⍵ expected to be:
+    ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵N, or as incremental ⍵⍵.
+      FORMAT←⊃⍵  
+      OMEGAS←1↓⍵          
+      OMEGA_CUR←¯1
       RESULT←⎕FMT''
+    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last line of a field propagated to all other lines?
+      TSP←0       
   ⍝ EndSection ***** Initializations
 
   ⍝ Section ********* Main
-      pats←simpleP spacerP dfnP miscP
-      simpleI spacerI dfnI miscI←⍳≢pats
+      Tsp←0∘({-+/∧\⌽' '=⍺}⍣TSP⍨)   ⍝ See TSP. Let ⍵@CV, with potentially trailing spaces. 
+      pats←simpleP spacerP dfnP
+           simpleI spacerI dfnI← ⍳≢pats
       _←pats ⎕R{    
-          ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-          CASE simpleI:''⊣{trail←-+/∧\⌽⍵=' ' 
+          ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD ⋄ 
+          CASE simpleI:''⊣{trail← Tsp ⍵    
             SetRESULT¨ (EscapeText trail↓⍵)(trail↑⍵)  ⍝ Two fields text and sss in 'textsss' (given s, a space)
-            }f 0
-          CASE spacerI:SetRESULT ∊f¨ 1 2          ⍝ Include spaces xxx and yyy in {xxx}yyy
-          CASE dfnI:''⊣{trail←-+/∧\⌽⍵=' '
+          }f 0
+          CASE spacerI:SetRESULT ∊f¨ 1 2              ⍝ Include spaces xxx and yyy in {xxx}yyy
+          CASE dfnI:''⊣{trail← Tsp ⍵      
             SetRESULT¨(DfnField trail↓⍵)(trail↑⍵)
           }f 0
-          CASE miscI: SetRESULT f 0
+          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣FORMAT
       ⍺≡⎕NULL:     RESULT
-      0∊⍺:     1⊣⎕←RESULT          
-              _←0
-}⍵
-
-⍝ Help...
-  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
-⍝ EndSection ***** Main
+               1⊣⎕←RESULT          
+  ⍝ EndSection ***** Main
+}⊆⍵
 
 ⍝ Section ***** HELP INFO
 ⍝H ∆F: A basic APL-aware formatting function (file: ∆Format.dyalog).
