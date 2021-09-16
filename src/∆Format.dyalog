@@ -36,17 +36,18 @@
     ⍝ Section ********* Main Loop Utilities     
       EscapeText←   '(?<!\\)\\n' '\\([{}\\])' ⎕R '\r' '\1' 
       EscapeDQ←     '\\n'        '\\\\n'      ⎕R '\r' 'n' 
-      DQ2SQ←{ ⍝ Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+    ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+      DQ2SQ←{ 
           DQ2←'""' ⋄ SQ←''''  
           SQ,SQ,⍨(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
       }
       DfnField←{
-          omDigP←   '⍵(\d{1,2})' 
-          omPairP←  '⍵⍵'
+          omDigP←   '⍵(\d{1,2})'      ⍝ ⍵1, ⍵2, etc.
+          omPairP←  '⍵⍵'              ⍝ ⍵⍵
           dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
           fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT
-          comP←     '⍝[^⋄}]+' 
-          selfDocP← '[→➤]\h*\}$'    ⍝ Trailing → or ➤ (like Python =) creates selfDoc format: dfn_text➤ ⍎dfn
+          comP←     '⍝[^⋄}]+'         ⍝ ⍝..⋄ or ⍝..}
+          selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
                quoteI dispI fmtI omDigI omPairI comI selfDocI← ⍳≢pats
           selfDocB←0
@@ -59,7 +60,7 @@
               CASE comI:     ' '             
               CASE selfDocI: '}'⊣ selfDocB∘←1
           }⍵
-          0:: msg ⎕SIGNAL ⎕DMX.EN⊣ msg←⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
+          0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
           res←⍎'USER_SPACE.',dfn,'OMEGAS'
           selfDocB: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' aka U+10148
           res 
@@ -68,22 +69,22 @@
   ⍝ EndSection ***** Utilities
 
   ⍝ Section ********* Initializations
+    ⍝ Basic Initializations
+        USER_SPACE←⊃⌽⎕RSI
+      ⍝ ⊆⍵ expected to be:
+      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵N, or as incremental ⍵⍵.
+        FORMAT←⊃⍵  
+        OMEGAS←1↓⍵          
+        OMEGA_CUR←¯1
+        RESULT←⎕FMT''
+      ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last line of a field propagated to all other lines?
+        TSP←0 
     ⍝ Top-level Patterns  
     ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
-      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})\h*'
+      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})',TSP/'h*'
       quoteP←  '(?<!\\)(?:"[^"]*")+'
       simpleP← '(\\.|[^{])+'
-      spacerP← '\{(\h*)\}(\h*)'
-    ⍝ Basic Initializations
-      USER_SPACE←⊃⌽⎕RSI
-    ⍝ ⊆⍵ expected to be:
-    ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵N, or as incremental ⍵⍵.
-      FORMAT←⊃⍵  
-      OMEGAS←1↓⍵          
-      OMEGA_CUR←¯1
-      RESULT←⎕FMT''
-    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last line of a field propagated to all other lines?
-      TSP←0       
+      spacerP← '\{(\h*)\}(\h*)'      
   ⍝ EndSection ***** Initializations
 
   ⍝ Section ********* Main
@@ -91,7 +92,7 @@
       pats←simpleP spacerP dfnP
            simpleI spacerI dfnI← ⍳≢pats
       _←pats ⎕R{    
-          ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD ⋄ 
+          ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
           CASE simpleI:''⊣{trail← Tsp ⍵    
             SetRESULT¨ (EscapeText trail↓⍵)(trail↑⍵)  ⍝ Two fields text and sss in 'textsss' (given s, a space)
           }f 0
@@ -107,88 +108,123 @@
 }⊆⍵
 
 ⍝ Section ***** HELP INFO
-⍝H ∆F: A basic APL-aware formatting function (file: ∆Format.dyalog).
-⍝H     [⎕←]  [option]  ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
-⍝H ∘ 'formatting_string
-⍝H   Formatting strings consist of text fields, code fields, and space fields. 
-⍝H    ∘ Code fields are APL "dfns" surrounded by (unescaped) braces {}.
-⍝H    ∘ Space fields consist of (unescaped) braces with 0 or more internal spaces.
-⍝H    ∘ Text fields are everything else. A text field is terminated:
-⍝H      ∘ At the end of the formatting string;
-⍝H      ∘ If a code or space field is encountered.
-⍝H ∘ ⍵0 ⍵1 ⍵2 ...
-⍝H   Each (complex or simple) scalar (⍵N) after the format string can be referenced in any {code} field, see below.
-⍝H   See ⍵N and ⍵⍵ below. 
-⍝H ∘ option (⍺) has three options. 
-⍝H   With option (a) below, ∆F is a simple format command.
-⍝H   With option (b) below, ∆F is an "assertion".
-⍝H   (a) If the <option> is omitted or is ⎕NULL, the resulting format string is returned.
-⍝H   (b) i. If the <option> contains any 0s, the resulting format string is printed (⎕←) and 1 is returned,
-⍝H          indicating the assertion (resulting in ⍺) failed.
-⍝H      ii. Otherwise, the format string is not generated and 0 is returned, 
-⍝H          indicating the assertion (resulting in ⍺) succeeded.
-⍝H          { ⍝ Prints message only if y>10.
-⍝H            (y≤10) ∆F 'Error: y≤{⍵⍵} ← {⍵⍵}x**2 + {⍵⍵}x + ⍵⍵' 10 3 5 9
-⍝H          }
+⍝H DESCRIPTION
+⍝H ¯¯¯¯¯¯¯¯¯¯¯
+⍝H ∆F: "A basic APL-aware formatting function (file: ∆Format.dyalog) using 3 field types-- 
+⍝H     a code field, a text field, and a space field-- each of which builds a  
+⍝H     character matrix (known as a field). Fields are concatenated from left to right, after 
+⍝H     extending each with blank rows needed to join together. 
+⍝H Returns: a character matrix of 1 or more rows and 0 or more columns."
+⍝H
+⍝H SIMPLE EXAMPLE
+⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
+⍝H         first← 'John'  'Mary'  'Ted'
+⍝H         last←  'Smith' 'Jones' 'Allen'
+⍝H         smoker← 0       0       1
+⍝H         ∆F'Status: {↑last}{⍪","⍴⍨≢last} {↑first}: {"nonsmoker" "smoker"[⍪smoker]}'
+⍝H     Status: Smith, John: nonsmoker
+⍝H             Jones, Mary  nonsmoker
+⍝H             Allen, Ted   smoker 
+⍝H     The FIELDS in this example are:
+⍝H     ⍝      7  FIELDS   
+⍝H     ⍝      1.......2......3............45.......6.7..............................
+⍝H     ⍝      Text....Code...Code.........TCode....T.Code...........................
+⍝H         ∆F'Status: {↑last}{⍪","⍴⍨≢last} {↑first}: {"nonsmoker" "smoker"[⍪smoker]}'
 ⍝H 
-⍝H Special symbols:
+⍝H SYNTAX
+⍝H ¯¯¯¯¯¯
+⍝H     [⎕←]  [option]  ∆F 'formatting_string' ⍵0 ⍵1 ⍵2 ...
+⍝H     ∘ 'formatting_string'
+⍝H       Formatting strings consist of text fields, code fields, and space fields. 
+⍝H       - Code fields are APL "dfns" surrounded by (unescaped) braces {}.
+⍝H       - Space fields consist of (unescaped) braces with 0 or more internal spaces.
+⍝H       - Text fields are everything else. A text field is terminated:
+⍝H         + At the end of the formatting string;
+⍝H         + If a code or space field is encountered.
+⍝H     ∘ ⍵0 ⍵1 ⍵2 ...
+⍝H       ⍵⍵
+⍝H       Each (complex or simple) scalar (⍵N) after the format string can be referenced 
+⍝H       in any {code} field, see below. See ⍵N and ⍵⍵ below. 
+⍝H     ∘ ⍺: option, ⍺, has three options. 
+⍝H       With option (A) below, ∆F is a simple format command.
+⍝H       With option (B) below, ∆F is an "assertion".
+⍝H       (A) If the <option> is omitted or is ⎕NULL, the resulting format string is returned.
+⍝H       (B) i. The assertion "fails" if ⍺ <option> contains any 0s, 
+⍝H              with the resulting format string printed (via ⎕) and 1 returned shyly.
+⍝H          ii. Otherwise, the assertion "succeeds," 
+⍝H              with no format string generated and 0 returned shyly.
+⍝H 
+⍝H FIELDS: Field Types and Associated Special symbols:
+⍝H ¯¯¯¯¯¯
 ⍝H     Code Field: {code}
-⍝H                   APL Code Field. Accesses arguments ⍵0 (1st vector after formatting string), ⍵1, ⍵2, through ⍵N.
-⍝H                   Trailing blanks will be interpreted as if a space field.
+⍝H                   ∘ APL Code Field. Accesses arguments ⍵0 (1st vector after formatting string), 
+⍝H                     ⍵1, ⍵2, through ⍵N.
+⍝H                   ∘ Trailing blanks will be interpreted as if a space field.
 ⍝H          Within a {code} field...
-⍝H          ⍵N       Returns, for N an integer 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
-⍝H          ⍵⍵       Returns the "next" vector in ⍵. By definition, 
-⍝H                   ⍵⍵ is ⍵0 or 1 past the last field referenced via ⍵N (e.g. ⍵3).
-⍝H                   Ex:
+⍝H          ⍵N       ∘ Returns, for N an integer 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
+⍝H          ⍵⍵       ∘ Returns the "next" vector in ⍵. By definition, 
+⍝H                     ⍵⍵ is ⍵0 or 1 past the last field referenced via ⍵N (e.g. ⍵3).
+⍝H                     Ex:
 ⍝H                       ∆F '0: {⍵⍵} 1: {⍵⍵} 3: {⍵3} 4: {⍵⍵}' 'zero' 'one' 'two' 'three' 'four' 
-⍝H                   0: zero 1: one 3: three 4: four
+⍝H                     0: zero 1: one 3: three 4: four
 ⍝H          DQ strings: "..."
-⍝H                   DQ strings begin and end with double quotes, with (optional) doubled double quotes internally.
-⍝H                   They only appear within Code fields.
-⍝H                   DQ strings are realized as SQ strings when code is executed.
-⍝H                   DQ character in Code fields are escaped in the APL way, by doubling. "abc""def" ==>  'abc"def'
-⍝H                   \n in a DQ string results in a newline. \\n may be used to enter a backslash followed by 'n'.
-⍝H                   Warning: Do not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
+⍝H                   ∘ DQ strings begin and end with double quotes, with (optional) 
+⍝H                     doubled double quotes internally. They only appear within Code fields.
+⍝H                   ∘ DQ strings are realized as SQ strings when code is executed.
+⍝H                   ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
+⍝H                     "abc""def" ==>  'abc"def'
+⍝H                   ∘ \n in a DQ string results in a newline. \\n may be used to enter a backslash 
+⍝H                     followed by 'n'.
+⍝H                   ∘ Warning: Do not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
 ⍝H          SQ characters:  (')
-⍝H                   There are no SQ strings in Code Fields. See DQ strings.
-⍝H                   SQ (') characters are treated as ordinary characters within Code Fields, not quote characters.
-⍝H                   Do not use SQ characters to delimit code fields! Use DQ strings (above).
-⍝H          $        Alias for ⎕FMT, used with a format string on the left:
-⍝H                   Ex:
+⍝H                   ∘ There are no SQ strings in Code Fields. See DQ strings.
+⍝H                   ∘ SQ (') characters are treated as ordinary characters within Code Fields, 
+⍝H                     not quote characters.
+⍝H                   ∘ Do not use SQ characters to delimit code fields! Use DQ strings (above).
+⍝H          $        ∘ Alias for ⎕FMT, used with a format string on the left:
+⍝H                   + Ex:
 ⍝H                       ∆F 'Using $: {"F12.10" $ *1} <==> Using ⎕FMT: {"F12.10" ⎕FMT *1}'
-⍝H                   Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
-⍝H                   Ex: 
+⍝H                     Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H                   + Ex: 
 ⍝H                       ⎕PP ⎕FR←12 645
 ⍝H                       ∆F '{$○1}'
-⍝H                   3.14159265359 
+⍝H                     3.14159265359 
 ⍝H                       ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
-⍝H                   3.141592653589793238462643383279503
-⍝H          $$       Alias for display (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
-⍝H                   Ex:
+⍝H                     3.141592653589793238462643383279503
+⍝H          $$       ∘ Alias for display (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
+⍝H                     Ex:
 ⍝H                       ∆F '\none {$$ 1 2 ("1" "2")} \ntwo'
-⍝H                       ┌→┬─┬──┐    
-⍝H                   one │1│2│12│ two
-⍝H                       └─┴─┴─→┘    
-⍝H          ⍝        Code-sequence comments...
-⍝H                   Begins a comment within code sequence, terminated SOLELY by: 
-⍝H                   a ⋄ or } character.
-⍝H                   Ex:
-⍝H                       ∆F'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
-⍝H                   Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
-⍝H          →        Self-documenting {code} expressions...
-⍝H                   A right arrow (→ or ➤) trailing a code sequence, just before (possible blanks and a) final right brace:
-⍝H                   Creates two "fields," one with the code text as written, followed by the executed code.
-⍝H                   Ex:
+⍝H                         ┌→┬─┬──┐    
+⍝H                     one │1│2│12│ two
+⍝H                         └─┴─┴─→┘    
+⍝H          ⍝        ∘ Code-sequence comments...
+⍝H                     Begins a comment within code sequence, terminated SOLELY by: 
+⍝H                     a ⋄ or } character.
+⍝H                     Ex:
+⍝H                       ∆F 'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
+⍝H                     Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H          →        ∘ Self-documenting {code} expressions...
+⍝H                   ∘ A right arrow (→ or ➤) trailing a code sequence, 
+⍝H                     just before (possible blanks and a) final right brace:
+⍝H                   ∘ Creates two "fields," one with the code text as written, followed by the executed code.
+⍝H                     Ex:
 ⍝H                        ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
-⍝H                   Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
+⍝H                     Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
 ⍝H     Space Field:  { }
-⍝H                   Space field: contains 0 or more spaces, which are inserted into the formatted string.
-⍝H     Text Field:   Everything else is a text field. These characters have special meaning
-⍝H                   within a text field OR separate one text field from another.
-⍝H        \n         A new line within a text field or DQ string within a code field (
-⍝H                   Note: Actually represented as an \r U+0c given the behavior of APL ⎕FMT)
-⍝H        \{         A literal { character.
-⍝H        \}         A literal } character.
+⍝H                   ∘ A Space field contains 0 or more spaces within braces; 
+⍝H                     these spaces are inserted into the formatted string.
+⍝H     Text Field:   ∘ Everything else is a text field. The following characters have special meaning
+⍝H                     within a text field:
+⍝H        \n         ∘ A newline within a text field or DQ string within a code field (see).
+⍝H                     Use newlines to build multiline text fields.
+⍝H                   ∘ Note: Actually represented as an \r (hex OC), consistent with APL ⎕FMT)
+⍝H        \{         ∘ A literal { character, which does NOT initiate a code field or space field.
+⍝H        \}         ∘ A literal } character, which does NOT end a code field or space field.
+⍝H        \\         ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
+⍝H                     The double backslash '\\' is required ONLY before one of the character n, {, or }, or
+⍝H                     to produce multiple contiguous backslashes:
+⍝H                         '\n' => newline    '\\n' => '\n'   
+⍝H                         '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
 ⍝H    
 ⍝ EndSection ***** Help Info
 }
