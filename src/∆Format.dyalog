@@ -14,8 +14,8 @@
 
   ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
     ⍝ Section ********* USER-SETTABLE FLAGS...
-    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a field propagated to all other lines?
-    ⍝      Current view: Set to 0. It's confusing; better to use Space Fields { } to add blanks.
+    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a text field propagated to all other lines?
+    ⍝      Current view: Leave as 0. It's confusing othewise; better to use Space Fields { } to add blanks.
       TSP←0 
     ⍝ End Section ***** USER-SETTABLE FLAGS...
 
@@ -39,7 +39,7 @@
         OMEGA_CUR∘←ix
         ixstr
       }
-    ⍝ Section ********* Main Loop Utilities     
+    ⍝ Section ********* Main Loop Functions    
       EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
       EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
@@ -48,10 +48,11 @@
           SQ,SQ,⍨(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
       }
       DfnField←{
-          omDigP←   '⍵(\d{1,2})'      ⍝ ⍵1, ⍵2, etc.
-          omPairP←  '⍵⍵'              ⍝ ⍵⍵
+          quoteP←  '(?<!\\)(?:"[^"]*")+'
           dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
           fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT
+          omDigP←   '⍵(\d{1,2})'      ⍝ ⍵1, ⍵2, ... ⍵99. We arbitrarily assume no more than directly indexable 99 elements...
+          omPairP←  '⍵⍵'              ⍝ ⍵⍵               We don't clip incremental indexing of ⍵ at 99. Go figure.
           comP←     '⍝[^⋄}]+'         ⍝ ⍝..⋄ or ⍝..}
           selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
@@ -62,7 +63,7 @@
               CASE dispI:    ' ⎕SE.Dyalog.Utils.disp ' 
               CASE fmtI:     ' ⎕FMT '
               CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
-              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1
+              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1   ⍝ ⍵⍵ could be clipped here vial 100|...
               CASE comI:     ' '             
               CASE selfDocI: '}'⊣ selfDocB∘←1
           }⍵
@@ -77,18 +78,17 @@
   ⍝ Section ********* Initializations
     ⍝ Basic Initializations
         USER_SPACE←⊃⌽⎕RSI
-      ⍝ ⊆⍵ expected to be:
-      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵N, or as incremental ⍵⍵.
+      ⍝ ⊆⍵ structure:
+      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵99, or as incremental ⍵⍵.
         FORMAT←⊃⍵  
         OMEGAS←1↓⍵          
         OMEGA_CUR←¯1
         RESULT←⎕FMT''
     ⍝ Top-level Patterns  
-    ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
-      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})',TSP/'h*'
-      quoteP←  '(?<!\\)(?:"[^"]*")+'
-      simpleP← '(\\.|[^{])+'
-      spacerP← '\{(\h*)\}(\h*)'      
+        simpleP← '(\\.|[^{])+'
+        spacerP← '\{(\h*)\}',TSP/'(\h*)' 
+      ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
+        dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})',TSP/'h*'
   ⍝ EndSection ***** Initializations
 
   ⍝ Section ********* Main
@@ -102,7 +102,7 @@
           }f 0
           CASE spacerI:SetRESULT ∊f¨ 1 2              ⍝ Include spaces xxx and yyy in {xxx}yyy
           CASE dfnI:''⊣{trail← Tsp ⍵      
-            SetRESULT¨(DfnField trail↓⍵)(trail↑⍵)
+            SetRESULT¨ (DfnField trail↓⍵)(trail↑⍵)
           }f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣FORMAT
@@ -118,6 +118,7 @@
 ⍝H     a code field, a text field, and a space field-- each of which builds a  
 ⍝H     character matrix (known as a field). Fields are concatenated from left to right, after 
 ⍝H     extending each with blank rows needed to join together. 
+⍝H     Code fields are executed left to right as well in the calling functions namespace.
 ⍝H Returns: a character matrix of 1 or more rows and 0 or more columns."
 ⍝H
 ⍝H SIMPLE EXAMPLE
@@ -185,10 +186,12 @@
 ⍝H                   ∘ SQ (') characters are treated as ordinary characters within Code Fields, 
 ⍝H                     not quote characters.
 ⍝H                   ∘ Do not use SQ characters to delimit code fields! Use DQ strings (above).
-⍝H          $        ∘ Alias for ⎕FMT, used with a format string on the left:
+⍝H          $        ∘ Alias for ⎕FMT, used with a format string on the left.
+⍝H                     Vector right args to $ are (as for ⎕FMT) treated as one-column arrays (V ==> ⍪V).
 ⍝H                   + Ex:
-⍝H                       ∆F 'Using $: {"F12.10" $ *1} <==> Using ⎕FMT: {"F12.10" ⎕FMT *1}'
-⍝H                     Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H                        ∆F 'Using $: {"⊂<⊃,F12.10,⊂>⊃" $ *1 2} <==> Using ⎕FMT: {"⊂<⊃,F12.10,⊂>⊃" ⎕FMT *1 2}'
+⍝H                     Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
+⍝H                              <7.3890560989>                  <7.3890560989>
 ⍝H                   + Ex: 
 ⍝H                       ⎕PP ⎕FR←12 645
 ⍝H                       ∆F '{$○1}'
