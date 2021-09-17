@@ -13,6 +13,12 @@
   (⍺≢⎕NULL)∧(~0∊⍺): _←0      
 
   ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
+    ⍝ Section ********* USER-SETTABLE FLAGS...
+    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a field propagated to all other lines?
+    ⍝      Current view: Set to 0. It's confusing; better to use Space Fields { } to add blanks.
+      TSP←0 
+    ⍝ End Section ***** USER-SETTABLE FLAGS...
+
     ⍝ Section ********* Utilities
       ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
           def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
@@ -34,8 +40,8 @@
         ixstr
       }
     ⍝ Section ********* Main Loop Utilities     
-      EscapeText←   '(?<!\\)\\n' '\\([{}\\])' ⎕R '\r' '\1' 
-      EscapeDQ←     '\\n'        '\\\\n'      ⎕R '\r' 'n' 
+      EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
+      EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
       DQ2SQ←{ 
           DQ2←'""' ⋄ SQ←''''  
@@ -77,8 +83,6 @@
         OMEGAS←1↓⍵          
         OMEGA_CUR←¯1
         RESULT←⎕FMT''
-      ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last line of a field propagated to all other lines?
-        TSP←0 
     ⍝ Top-level Patterns  
     ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
       dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})',TSP/'h*'
@@ -173,8 +177,8 @@
 ⍝H                   ∘ DQ strings are realized as SQ strings when code is executed.
 ⍝H                   ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
 ⍝H                     "abc""def" ==>  'abc"def'
-⍝H                   ∘ \n in a DQ string results in a newline. \\n may be used to enter a backslash 
-⍝H                     followed by 'n'.
+⍝H                   ∘ \⋄  is used to enter a "newline" into a DQ string.
+⍝H                     \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
 ⍝H                   ∘ Warning: Do not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
 ⍝H          SQ characters:  (')
 ⍝H                   ∘ There are no SQ strings in Code Fields. See DQ strings.
@@ -193,7 +197,7 @@
 ⍝H                     3.141592653589793238462643383279503
 ⍝H          $$       ∘ Alias for display (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
 ⍝H                     Ex:
-⍝H                       ∆F '\none {$$ 1 2 ("1" "2")} \ntwo'
+⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
 ⍝H                         ┌→┬─┬──┐    
 ⍝H                     one │1│2│12│ two
 ⍝H                         └─┴─┴─→┘    
@@ -215,15 +219,15 @@
 ⍝H                     these spaces are inserted into the formatted string.
 ⍝H     Text Field:   ∘ Everything else is a text field. The following characters have special meaning
 ⍝H                     within a text field:
-⍝H        \n         ∘ A newline within a text field or DQ string within a code field (see).
+⍝H        \⋄         ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
 ⍝H                     Use newlines to build multiline text fields.
-⍝H                   ∘ Note: Actually represented as an \r (hex OC), consistent with APL ⎕FMT)
+⍝H                   ∘ Note: A CR (⎕UCS 13; hex OC) in the text field is equivalent to \⋄.
 ⍝H        \{         ∘ A literal { character, which does NOT initiate a code field or space field.
 ⍝H        \}         ∘ A literal } character, which does NOT end a code field or space field.
 ⍝H        \\         ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
 ⍝H                     The double backslash '\\' is required ONLY before one of the character n, {, or }, or
 ⍝H                     to produce multiple contiguous backslashes:
-⍝H                         '\n' => newline    '\\n' => '\n'   
+⍝H                         '\⋄' => newline    '\\⋄' => '⋄'   
 ⍝H                         '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
 ⍝H    
 ⍝ EndSection ***** Help Info
