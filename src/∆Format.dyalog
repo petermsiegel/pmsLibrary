@@ -50,7 +50,7 @@
       DfnField←{
           quoteP←  '(?<!\\)(?:"[^"]*")+'
           dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
-          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT
+          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT or (if ⍺ numeric:) pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺)
           omDigP←   '⍵(\d{1,2})'      ⍝ ⍵1, ⍵2, ... ⍵99. We arbitrarily assume no more than directly indexable 99 elements...
           omPairP←  '⍵⍵'              ⍝ ⍵⍵               We don't clip incremental indexing of ⍵ at 99. Go figure.
           comP←     '⍝[^⋄}]+'         ⍝ ⍝..⋄ or ⍝..}
@@ -61,7 +61,8 @@
           dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
               CASE quoteI: DQ2SQ f 0
               CASE dispI:    ' ⎕SE.Dyalog.Utils.disp ' 
-              CASE fmtI:     ' ⎕FMT '
+            ⍝ fmtI: if ⍺ is numeric: pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺). OTHERWISE (1adic, 2adic): use ⎕FMT.
+              CASE fmtI:     '{⍺←⍕⋄0≠⊃0⍴⍺,1:⍺⎕FMT⍵⋄m←⎕FMT⍵⋄⍺=⌊⍺:⍺↑⍤1⊢m⋄w←⌊|⍺⋄∆←w-⍨⌊2÷⍨w-1↓⍴m⋄w↑⍤1⊢∆↑⍤1⊢m}'
               CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
               CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1   ⍝ ⍵⍵ could be clipped here vial 100|...
               CASE comI:     ' '             
@@ -186,8 +187,17 @@
 ⍝H                   ∘ SQ (') characters are treated as ordinary characters within Code Fields, 
 ⍝H                     not quote characters.
 ⍝H                   ∘ Do not use SQ characters to delimit code fields! Use DQ strings (above).
-⍝H          $        ∘ Alias for ⎕FMT, used with a format string on the left.
-⍝H                     Vector right args to $ are (as for ⎕FMT) treated as one-column arrays (V ==> ⍪V).
+⍝H          $        Format (⎕FMT) or Pad/Center
+⍝H                   ∘ $ denotes a special function, depending on its left arg.
+⍝H                     a.  "str"  $ value    =>   Executes dyadic 'str' ⎕FMT value*   
+⍝H                                                * If value is a vector, it is treated as a 1-column matrix, per ⎕FMT.
+⍝H                     b.         $ value    =>   Executes monadic ⎕FMT value
+⍝H                     c.   int   $ value    =>   Pads <⎕FMT value> 
+⍝H                                                  If int>0: adds spaces on the right;
+⍝H                                                  If int<0: adds spaces on the left.
+⍝H                                                Truncates  to width <int> if <|int> is less than ⊃⌽⍴value.
+⍝H                     d.   float $ value    =>   Centers <⎕FMT value> in the width <|float>.
+⍝H                                                Truncates if <|float> is less than ⊃⌽⍴value.                                  
 ⍝H                   + Ex:
 ⍝H                        ∆F 'Using $: {"⊂<⊃,F12.10,⊂>⊃" $ *1 2} <==> Using ⎕FMT: {"⊂<⊃,F12.10,⊂>⊃" ⎕FMT *1 2}'
 ⍝H                     Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
@@ -198,7 +208,13 @@
 ⍝H                     3.14159265359 
 ⍝H                       ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
 ⍝H                     3.141592653589793238462643383279503
-⍝H          $$       ∘ Alias for display (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
+⍝H                   + Ex:
+⍝H                       ⎕pp←6  ⍝ Ignored for dyadic ⎕FMT (as the example shows)
+⍝H                       ⍝     Pad     ⎕FMT              ⎕FMT             Pad
+⍝H                       ∆F '<{20.5 $ "F12.10" $ ○1}> <{"F12.10" $ ○1}> <{20.5 $ ○1}>'
+⍝H                     <    3.1415926536    > <3.1415926536> <       3.14159      >
+⍝H          $$       Display
+⍝H                   ∘ Alias for <display> (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
 ⍝H                     Ex:
 ⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
 ⍝H                         ┌→┬─┬──┐    
