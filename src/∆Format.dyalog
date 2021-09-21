@@ -1,10 +1,12 @@
-∆F←{  ⎕IO←0
+∆F←{   
   ⍝   If ... \ ∆F ...         Displays            Returns        Shy?   Remarks
   ⍝   A.  ⍵ has 0 items       HELP INFO           ''             No     ...
   ⍝   B.  default/⍺ is ⎕NULL  --                  formatted str  No     String Formatter
   ⍝   C1. 0∊⍺                 formatted str       1              Yes    Assertion fails, so show message
   ⍝   C2. otherwise           --                  0              Yes    Assertion succeeds, so go quietly
-  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN 
+ 
+  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  ⎕IO←0 
   ⍺←⎕NULL 
 
 ⍝ Help...
@@ -17,6 +19,7 @@
     ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a text field propagated to all other lines?
     ⍝      Current view: Leave as 0. It's confusing othewise; better to use Space Fields { } to add blanks.
       TSP←0 
+      DEBUG←1 
     ⍝ End Section ***** USER-SETTABLE FLAGS...
 
     ⍝ Section ********* Utilities
@@ -59,17 +62,17 @@
                quoteI dispI fmtI omDigI omPairI comI selfDocI← ⍳≢pats
           selfDocB←0
           dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-              CASE quoteI: DQ2SQ f 0
+              CASE quoteI:   DQ2SQ f 0
               CASE dispI:    ' ⎕SE.Dyalog.Utils.disp ' 
-            ⍝ fmtI: if ⍺ is numeric: pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺). OTHERWISE (1adic, 2adic): use ⎕FMT.
-              CASE fmtI:     '{⍺←⍕⋄0≠⊃0⍴⍺,1:⍺⎕FMT⍵⋄m←⎕FMT⍵⋄⍺=⌊⍺:⍺↑⍤1⊢m⋄w←⌊|⍺⋄∆←w-⍨⌊2÷⍨w-1↓⍴m⋄w↑⍤1⊢∆↑⍤1⊢m}'
+              CASE fmtI:     '(__LÎB__.FMTX)'                               ⍝ See below.
               CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
               CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1   ⍝ ⍵⍵ could be clipped here vial 100|...
               CASE comI:     ' '             
               CASE selfDocI: '}'⊣ selfDocB∘←1
           }⍵
-          0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn
-          res←⍎'USER_SPACE.',dfn,'OMEGAS'
+          0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn  
+        ⍝ Pass the main local namespace LÎB into the user space (as a local name and as ⍺). See Mapping of $.
+          res←⍎{⊢⎕←⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGAS' 
           selfDocB: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' aka U+10148
           res 
       }
@@ -79,12 +82,17 @@
   ⍝ Section ********* Initializations
     ⍝ Basic Initializations
         USER_SPACE←⊃⌽⎕RSI
+        LÎB←⎕THIS 
       ⍝ ⊆⍵ structure:
       ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵99, or as incremental ⍵⍵.
-        FORMAT←⊃⍵  
-        OMEGAS←1↓⍵          
-        OMEGA_CUR←¯1
-        RESULT←⎕FMT''
+        FORMAT←     ⊃⍵  
+        OMEGAS←     1↓⍵          
+        OMEGA_CUR←  ¯1
+        RESULT←     ⎕FMT''
+      ⍝ FMTX: Extended ⎕FMT that pads RHS (⍵) with spaces, if LHS (⍺) is numeric.
+      ⍝ See also pseudo-builtin function $.
+      ⍝ If ⍺ is numeric: pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺). OTHERWISE (1adic, 2adic): use ⎕FMT.
+        FMTX←{⍺←⍕⋄0≠⊃0⍴⍺,1:⍺⎕FMT⍵⋄m←⎕FMT⍵⋄⍺=⌊⍺:⍺↑⍤1⊢m⋄w←⌊|⍺⋄∆←w-⍨⌊2÷⍨w-1↓⍴m⋄w↑⍤1⊢∆↑⍤1⊢m}
     ⍝ Top-level Patterns  
         simpleP← '(\\.|[^{])+'
         spacerP← '\{(\h*)\}',TSP/'(\h*)' 
@@ -188,7 +196,8 @@
 ⍝H                     not quote characters.
 ⍝H                   ∘ Do not use SQ characters to delimit code fields! Use DQ strings (above).
 ⍝H          $        Format (⎕FMT) or Pad/Center
-⍝H                   ∘ $ denotes a special function, depending on its left arg.
+⍝H                   ∘ $ denotes a special function, depending on its left arg. 
+⍝H                     It may be used more than once in each Code Field call.
 ⍝H                     a.  "str"  $ value    =>   Executes dyadic 'str' ⎕FMT value*   
 ⍝H                                                * If value is a vector, it is treated as a 1-column matrix, per ⎕FMT.
 ⍝H                     b.         $ value    =>   Executes monadic ⎕FMT value
@@ -213,8 +222,25 @@
 ⍝H                       ⍝     Pad     ⎕FMT              ⎕FMT             Pad
 ⍝H                       ∆F '<{20.5 $ "F12.10" $ ○1}> <{"F12.10" $ ○1}> <{20.5 $ ○1}>'
 ⍝H                     <    3.1415926536    > <3.1415926536> <       3.14159      >
+⍝H                   + Ex:
+⍝H                       ∆F '<{30.2 $ "cats"}>'             ⍝ $ emits blanks
+⍝H                     <             cats             >
+⍝H                       ∆F '<{"_"@(" "∘=)⊣30.2 $ "cats"}>' ⍝ Replace blanks with "_".
+⍝H                     <_____________cats_____________> 
+⍝H                   + Ex: 
+⍝H                     ⍝ $ returns a matrix. @ handles transparently...
+⍝H                       ∆F'<{"_"@(" "∘=)⊣ 30.2 $ "F9.5" $ ○1 2 3}>'
+⍝H                     <_____________3.14159__________>
+⍝H                      _____________6.28319__________ 
+⍝H                      _____________9.42478__________ 
+⍝H                     ⍝ For ⎕R, convert the matrix to a vector of strings.
+⍝H                       ∆F'<{↑" "⎕R"_"↓30.2 $ "F9.5" $ ○1 2 3}>'
+⍝H                     <_____________3.14159__________>
+⍝H                      _____________6.28319__________ 
+⍝H                      _____________9.42478__________ 
+      
 ⍝H          $$       Display
-⍝H                   ∘ Alias for <display> (short form "disp"), viz. ⎕SE.Dyalog.Utils.disp 
+⍝H                   ∘ Alias for short display form, "disp," viz. ⎕SE.Dyalog.Utils.disp 
 ⍝H                     Ex:
 ⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
 ⍝H                         ┌→┬─┬──┐    
@@ -249,5 +275,11 @@
 ⍝H                         '\⋄' => newline    '\\⋄' => '⋄'   
 ⍝H                         '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
 ⍝H    
+⍝H +------------------+
+⍝H | Advanced/Obscure |
+⍝H +------------------+
+⍝H   The current ∆Format "library" (namespace) reference is passed as the LHS (⍺) argument of each Code Field dfn called.
+⍝H   Right now, you can call
+⍝H   ∘ ⍺.FMTX which includes standard ⎕FMT and padding ⍵ with spaces. See pseudo-builtin $ above.
 ⍝ EndSection ***** Help Info
 }
