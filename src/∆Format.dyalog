@@ -12,14 +12,14 @@
 ⍝ Help...
   0≡≢⍵:  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
 ⍝ Case C2 above. Don't format.
-  (⍺≢⎕NULL)∧(~0∊⍺): _←0      
+  (⎕NULL≠⊃⍺)∧(~0∊⍺): _←0      
 
   ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
     ⍝ Section ********* USER-SETTABLE FLAGS...
     ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a text field propagated to all other lines?
     ⍝      Current view: Leave as 0. It's confusing othewise; better to use Space Fields { } to add blanks.
       TSP←0 
-      DEBUG←1 
+      DEBUG←1=⊃⌽⍺
     ⍝ End Section ***** USER-SETTABLE FLAGS...
 
     ⍝ Section ********* Utilities
@@ -54,8 +54,8 @@
           quoteP←  '(?<!\\)(?:"[^"]*")+'
           dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
           fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT or (if ⍺ numeric:) pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺)
-          omDigP←   '⍵(\d{1,2})'      ⍝ ⍵1, ⍵2, ... ⍵99. We arbitrarily assume no more than directly indexable 99 elements...
-          omPairP←  '⍵⍵'              ⍝ ⍵⍵               We don't clip incremental indexing of ⍵ at 99. Go figure.
+          omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍵0, ⍵1, ... ⍵99. We arbitrarily assume no more than directly indexable 99 elements...
+          omPairP←  '⍹|⍵_'            ⍝ ⍹                We don't clip incremental indexing of ⍵ at 99. Go figure.
           comP←     '⍝[^⋄}]+'         ⍝ ⍝..⋄ or ⍝..}
           selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
@@ -66,13 +66,13 @@
               CASE dispI:    ' ⎕SE.Dyalog.Utils.disp ' 
               CASE fmtI:     '(__LÎB__.FMTX)'                               ⍝ See below.
               CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
-              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS '⍵⍵'   OmSelect OMEGA_CUR+1   ⍝ ⍵⍵ could be clipped here vial 100|...
+              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)   OmSelect OMEGA_CUR+1    
               CASE comI:     ' '             
               CASE selfDocI: '}'⊣ selfDocB∘←1
           }⍵
           0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn  
         ⍝ Pass the main local namespace LÎB into the user space (as a local name and as ⍺). See Mapping of $.
-          res←⍎{⊢⎕←⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGAS' 
+          res←⍎{⍵⊣⎕←'Evaluating: ',⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGAS' 
           selfDocB: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' aka U+10148
           res 
       }
@@ -84,7 +84,8 @@
         USER_SPACE←⊃⌽⎕RSI
         LÎB←⎕THIS 
       ⍝ ⊆⍵ structure:
-      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as ⍵0 ⍵1 ... ⍵99, or as incremental ⍵⍵.
+      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as 
+      ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.   (See code or documentation for aliases for ⍵N and ⍹.)
         FORMAT←     ⊃⍵  
         OMEGAS←     1↓⍵          
         OMEGA_CUR←  ¯1
@@ -115,8 +116,8 @@
           }f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣FORMAT
-      ⍺≡⎕NULL:     RESULT
-               1⊣⎕←RESULT          
+      ⎕NULL=⊃⍺:       RESULT
+                _←1⊣⎕←RESULT          
   ⍝ EndSection ***** Main
 }⊆⍵
 
@@ -156,9 +157,9 @@
 ⍝H         + At the end of the formatting string;
 ⍝H         + If a code or space field is encountered.
 ⍝H     ∘ ⍵0 ⍵1 ⍵2 ...
-⍝H       ⍵⍵
+⍝H       ⍹
 ⍝H       Each (complex or simple) scalar (⍵N) after the format string can be referenced 
-⍝H       in any {code} field, see below. See ⍵N and ⍵⍵ below. 
+⍝H       in any {code} field, see below. See ⍵N and ⍹ below. 
 ⍝H     ∘ ⍺: option, ⍺, has three options. 
 ⍝H       With option (A) below, ∆F is a simple format command.
 ⍝H       With option (B) below, ∆F is an "assertion".
@@ -176,10 +177,10 @@
 ⍝H                   ∘ Trailing blanks will be interpreted as if a space field.
 ⍝H          Within a {code} field...
 ⍝H          ⍵N       ∘ Returns, for N an integer 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
-⍝H          ⍵⍵       ∘ Returns the "next" vector in ⍵. By definition, 
-⍝H                     ⍵⍵ is ⍵0 or 1 past the last field referenced via ⍵N (e.g. ⍵3).
+⍝H          ⍹       ∘ Returns the "next" vector in ⍵. By definition, 
+⍝H                     ⍹ is ⍵0 or 1 past the last field referenced via ⍵N (e.g. ⍵3).
 ⍝H                     Ex:
-⍝H                       ∆F '0: {⍵⍵} 1: {⍵⍵} 3: {⍵3} 4: {⍵⍵}' 'zero' 'one' 'two' 'three' 'four' 
+⍝H                       ∆F '0: {⍹} 1: {⍹} 3: {⍵3} 4: {⍹}' 'zero' 'one' 'two' 'three' 'four' 
 ⍝H                     0: zero 1: one 3: three 4: four
 ⍝H          DQ strings: "..."
 ⍝H                   ∘ DQ strings begin and end with double quotes, with (optional) 
@@ -278,8 +279,9 @@
 ⍝H +------------------+
 ⍝H | Advanced/Obscure |
 ⍝H +------------------+
-⍝H   The current ∆Format "library" (namespace) reference is passed as the LHS (⍺) argument of each Code Field dfn called.
+⍝H ○ The current ∆Format "library" (namespace) reference is passed as the LHS (⍺) argument of each Code Field dfn called.
 ⍝H   Right now, you can call
 ⍝H   ∘ ⍺.FMTX which includes standard ⎕FMT and padding ⍵ with spaces. See pseudo-builtin $ above.
+⍝H ○ To DEBUG (limited info currently), specify LHS (⍺) as ⎕NULL 1.
 ⍝ EndSection ***** Help Info
 }
