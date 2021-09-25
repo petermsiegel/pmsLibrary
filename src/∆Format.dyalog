@@ -11,7 +11,7 @@
   ⎕IO←0 ⋄ ⍺←⎕NULL 
 
 ⍝ Help...
-  0≡≢⍵:  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
+  0≡≢⍵:  { help←'^⍝H( .*)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
 ⍝ Case C2 above. Don't format.
   (⎕NULL≠⊃⍺)∧(~0∊⍺): _←0      
 
@@ -25,7 +25,8 @@
           def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
           0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
       }
-      FIELDS_Append←{           ⍝ External: FIELDS
+      FIELDS_Append←{           
+        ⍝ EXTERN: (RW) FIELDS
           ⍺←''              ⍝
           0=≢⍵: ⍺           ⍝ Null ⍵: nothing is to be added to FIELDS...
           r← USER_SPACE.⎕FMT ⍵
@@ -33,13 +34,12 @@
           FIELDS∘←(h↑FIELDS),[1]h↑r
           ⍺
       }
-      OmSelect←{
-        omvec lit←⍺
-        (ok ix) ixstr ← {0=1↑0⍴⍵: (1 ⍵)(⍕⍵) ⋄ (⎕VFI ⍵) ⍵}⍵
-        0∊ok: ⎕SIGNAL/('∆F LOGIC error: ',lit,' is not a number.')3
-        (ix<0)∨ix≥≢omvec: ⎕SIGNAL/('∆F Index error accessing ⍵',ixstr) 3 
-        OMEGA_CUR∘←ix
-        ixstr
+      OMEGA_Pick←{         
+      ⍝ EXTERN: (R) OMEGA, (RW) OMEGA_CUR
+        ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
+        0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
+        (ix<0)∨ix≥≢OMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
+        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕OMEGA_CUR∘←ix
       }
     ⍝ Section ********* Main Loop Functions    
       EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
@@ -60,19 +60,19 @@
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
                quoteI dispI fmtI omDigI omPairI comI selfDocI← ⍳≢pats
           selfDocFlag←0
-          dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
+          dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
               CASE quoteI:    DQ2SQ f 0
               CASE dispI:    '(__LÎB__.DISP)' 
               CASE fmtI:     '(__LÎB__.FMTX)'                               
-              CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
-              CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)   OmSelect OMEGA_CUR+1    
+              CASE omDigI:    OMEGA_Pick f 1          
+              CASE omPairI:   OMEGA_Pick OMEGA_CUR+1  
               CASE comI:     ' '   ⍝ 1 space         
               CASE selfDocI: '}'⊣ selfDocFlag∘←1
               '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }⍵
           0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn  
         ⍝ Pass the main local namespace LÎB into the user space (as a local name and as ⍺). See Mapping of $.
-          res←⍎{⍵⊣⎕←'Evaluating: ',⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGAS' 
+          res←⍎{⍵⊣⎕←'Evaluating: ',⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGA' 
         ⍝ selfDoc?   '➤' is U+10148
           selfDocFlag: res FIELDS_Append '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
           res 
@@ -85,10 +85,9 @@
         USER_SPACE←⊃⌽⎕RSI
         LÎB←⎕THIS 
       ⍝ ⊆⍵ structure:
-      ⍝    FORMAT@str OMEGAS@V[], where OMEGAS are accessed as 
-      ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.   (See code or documentation for aliases for ⍵N and ⍹.)
-        FORMAT←     ⊃⍵  
-        OMEGAS←     ⍵          
+      ⍝    FORMAT@str OMEGA@V[], where OMEGA scalars (elements) are accessed as 
+      ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.   (See code or documentation for aliases for ⍵N and ⍹.
+        OMEGA←      ⍵     ⍝ The format string (FORMAT above) is ⊃OMEGA.       
         OMEGA_CUR←  0
         FIELDS←     ⎕FMT''
       ⍝ FMTX: Extended ⎕FMT that pads RHS (⍵) with spaces, if LHS (⍺) is numeric.
@@ -112,11 +111,11 @@
           CASE spacerI:    FIELDS_Append f 1  
           CASE dfnI:       FIELDS_Append DfnField f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-      }⊣FORMAT
+      }⊣⊃OMEGA     ⍝ Pass the format string only...
       ⎕NULL=⊃⍺:       FIELDS
              1: _←1⊣⎕←FIELDS          
   ⍝ EndSection ***** Main
-}⊆⍵
+},⊆⍵
 
 ⍝ Section ***** HELP INFO
 ⍝H DESCRIPTION
@@ -266,7 +265,7 @@
 ⍝H                     <_____________3.14159__________>
 ⍝H                      _____________6.28319__________ 
 ⍝H                      _____________9.42478__________ 
-      
+⍝H 
 ⍝H          $$       Display
 ⍝H                   ∘ Alias for short display form, "disp," viz. ⎕SE.Dyalog.Utils.disp 
 ⍝H                     Ex:
@@ -309,14 +308,16 @@
 ⍝H    
 ⍝H OBSCURE POINTS
 ⍝H ¯¯¯¯¯¯¯ ¯¯¯¯¯¯
-⍝H ○ The current ∆Format "library" (namespace) reference is passed as the LHS (⍺) argument of each Code Field dfn called.
-⍝H   Right now, the "library" includes
+⍝H ○ The current ∆Format "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
+⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX which includes standard ⎕FMT and padding ⍵ with spaces. See pseudo-builtin $ above.
 ⍝H   ∘ ⍺.DISP which calls the brief display function, ⎕SE.Dyalog.Utils.disp. See $$ above.
-⍝H ○ If you want "local" variables to use within a series of code fields (left to right), you can
-⍝H   use ⍺._ or any APL name prefixed with a single underscore (e.g. ⍺._test, ⍺._MyCode).
-⍝H   Other names could conflict with active ∆F names.
-⍝H        ∆F 'They are John {⍺._last←"Smith"} and Mary {⍺._last}'
-⍝H     They are John Smith and Mary Smith
+⍝H ○ If you want "local" variables to be consistent across a series of code fields (left to right), you can
+⍝H   use reserved local names in the library space. Those names must begin with 
+⍝H      ⍺._ followed by 0 or more valid APL variable name letters (e.g. a-z, A-Z, 0-9, or more underscores).
+⍝H   E.g. you might have a sequence like:
+⍝H        ∆F 'John {⍺._last←"Smith"} knows Mary {⍺._last}.'
+⍝H     John Smith knows Mary Smith.
+⍝H ○ Other names in the library may NOT be used.
 ⍝ EndSection ***** Help Info
 }
