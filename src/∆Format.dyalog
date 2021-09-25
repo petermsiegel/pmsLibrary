@@ -1,13 +1,14 @@
 ∆F←{   
-  ⍝   If ... \ ∆F ...         Displays            Returns        Shy?   Remarks
+  ⍝   If ↓↓↓ \ ∆F →→→         Displays            Returns        Shy?   Remarks
   ⍝   A.  ⍵ has 0 items       HELP INFO           ''             No     ...
-  ⍝   B.  default/⍺ is ⎕NULL  --                  formatted str  No     String Formatter
+  ⍝   B1. default             --                  formatted str  No     String Formatter
+  ⍝   B2. ⎕NULL [0]           --                  formatted str  No     String Formatter
+  ⍝   B3. ⎕NULL  1            DEBUG INFO          formatted str  No     String Formatter
   ⍝   C1. 0∊⍺                 formatted str       1              Yes    Assertion fails, so show message
   ⍝   C2. otherwise           --                  0              Yes    Assertion succeeds, so go quietly
  
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 
-  ⍺←⎕NULL 
+  ⎕IO←0 ⋄ ⍺←⎕NULL 
 
 ⍝ Help...
   0≡≢⍵:  { help←'⍝H'{l←≢⍺ ⋄ l↓¨((⊂⍺)≡¨l↑¨⍵)/⍵}⍵ ⋄ ''⊣⎕ED 'help'} ⎕NR 0⊃⎕XSI
@@ -16,9 +17,6 @@
 
   ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
     ⍝ Section ********* USER-SETTABLE FLAGS...
-    ⍝ TSP: Trailing space propagation: Are the trailing spaces of the last "line" of a text field propagated to all other lines?
-    ⍝      Current view: Leave as 0. It's confusing othewise; better to use Space Fields { } to add blanks.
-      TSP←0 
       DEBUG←1=⊃⌽⍺
     ⍝ End Section ***** USER-SETTABLE FLAGS...
 
@@ -27,12 +25,13 @@
           def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
           0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
       }
-      SetRESULT←{           ⍝ External: RESULT
-          0=≢⍵: ''          ⍝ Null ⍵: nothing is to be added to RESULT...
+      FIELDS_Append←{           ⍝ External: FIELDS
+          ⍺←''              ⍝
+          0=≢⍵: ⍺           ⍝ Null ⍵: nothing is to be added to FIELDS...
           r← USER_SPACE.⎕FMT ⍵
-          h←(≢RESULT)⌈≢r
-          RESULT∘←(h↑RESULT),[1]h↑r
-          ''
+          h←(≢FIELDS)⌈≢r
+          FIELDS∘←(h↑FIELDS),[1]h↑r
+          ⍺
       }
       OmSelect←{
         omvec lit←⍺
@@ -60,20 +59,22 @@
           selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP 
                quoteI dispI fmtI omDigI omPairI comI selfDocI← ⍳≢pats
-          selfDocB←0
+          selfDocFlag←0
           dfn←pats ⎕R{CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
               CASE quoteI:    DQ2SQ f 0
               CASE dispI:    '(__LÎB__.DISP)' 
-              CASE fmtI:     '(__LÎB__.FMTX)'                               ⍝ See below.
+              CASE fmtI:     '(__LÎB__.FMTX)'                               
               CASE omDigI:   '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)  OmSelect f 1
               CASE omPairI:  '(⍵⊃⍨⎕IO+',')',⍨ OMEGAS (f 0)   OmSelect OMEGA_CUR+1    
-              CASE comI:     ' '             
-              CASE selfDocI: '}'⊣ selfDocB∘←1
+              CASE comI:     ' '   ⍝ 1 space         
+              CASE selfDocI: '}'⊣ selfDocFlag∘←1
+              '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }⍵
           0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn  
         ⍝ Pass the main local namespace LÎB into the user space (as a local name and as ⍺). See Mapping of $.
           res←⍎{⍵⊣⎕←'Evaluating: ',⍵}⍣DEBUG⊣'LÎB USER_SPACE.{__LÎB__←⍺⋄⍺',dfn,'⍵}OMEGAS' 
-          selfDocB: res⊣(SetRESULT '[→➤](\h*)$'⎕R '➤\1'⊣1↓¯1↓⍵)          ⍝  '➤' aka U+10148
+        ⍝ selfDoc?   '➤' is U+10148
+          selfDocFlag: res FIELDS_Append '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
           res 
       }
     ⍝ EndSection ***** Main Loop Utilities
@@ -89,7 +90,7 @@
         FORMAT←     ⊃⍵  
         OMEGAS←     ⍵          
         OMEGA_CUR←  0
-        RESULT←     ⎕FMT''
+        FIELDS←     ⎕FMT''
       ⍝ FMTX: Extended ⎕FMT that pads RHS (⍵) with spaces, if LHS (⍺) is numeric.
       ⍝ See also pseudo-builtin function $.
       ⍝ If ⍺ is numeric: pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺). OTHERWISE (1adic, 2adic): use ⎕FMT.
@@ -97,50 +98,45 @@
         DISP← ⎕SE.Dyalog.Utils.disp 
     ⍝ Top-level Patterns  
         simpleP← '(\\.|[^{])+'
-        spacerP← '\{(\h*)\}',TSP/'(\h*)' 
+        spacerP← '\{(\h*)\}' 
       ⍝ dfnP: Don't try to understand dfnP-- it matches braces, ignoring DQ strings, comments, \ escapes.
-        dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})',TSP/'h*'
+        dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
   ⍝ EndSection ***** Initializations
 
   ⍝ Section ********* Main
-      Tsp←0∘({-+/∧\⌽' '=⍺}⍣TSP⍨)   ⍝ See TSP. Let ⍵@CV, with potentially trailing spaces. 
-      pats←simpleP spacerP dfnP
+       pats←simpleP spacerP dfnP
            simpleI spacerI dfnI← ⍳≢pats
       _←pats ⎕R{    
           ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-          CASE simpleI:''⊣{trail← Tsp ⍵    
-            SetRESULT¨ (EscapeText trail↓⍵)(trail↑⍵)  ⍝ Two fields text and sss in 'textsss' (given s, a space)
-          }f 0
-          CASE spacerI:SetRESULT ∊f¨ 1 2              ⍝ Include spaces xxx and yyy in {xxx}yyy
-          CASE dfnI:''⊣{trail← Tsp ⍵      
-            SetRESULT¨ (DfnField trail↓⍵)(trail↑⍵)
-          }f 0
+          CASE simpleI:    FIELDS_Append EscapeText f 0
+          CASE spacerI:    FIELDS_Append f 1  
+          CASE dfnI:       FIELDS_Append DfnField f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣FORMAT
-      ⎕NULL=⊃⍺:       RESULT
-             1: _←1⊣⎕←RESULT          
+      ⎕NULL=⊃⍺:       FIELDS
+             1: _←1⊣⎕←FIELDS          
   ⍝ EndSection ***** Main
 }⊆⍵
 
 ⍝ Section ***** HELP INFO
 ⍝H DESCRIPTION
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯
-⍝H ∆F: "A basic APL-aware formatting function (file: ∆Format.dyalog) containing
-⍝H      a format string, followed by 0 or more scalars of any type.
-⍝H      A format string uses any of 3 field types: 
-⍝H         text fields, code fieldd {code}, and space fields {  }
-⍝H      each of which builds a character matrix (known as a field). Fields are concatenated 
-⍝H      from left to right, after extending each with blank rows needed to join together."
+⍝H ∆F: "A basic APL-aware formatting function (file: ∆Format.dyalog) expecting in its right argument
+⍝H      a format string, followed by 0 or more scalars of any type (within the domain of ⎕FMT).
+⍝H      The format string uses any mixture of 3 field types: 
+⍝H         text fields, code fields {code}, and space fields {  }
+⍝H      each of which builds a character matrix (a field). Fields are concatenated 
+⍝H      from left to right, after extending each with blank rows needed to stitch together."
 ⍝H
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
 ⍝H         [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
 ⍝H         ⍺:  
-⍝H           Omitted           Return the result of formatting specified by format_string with any other scalars of ⍵.
-⍝H           ⎕NULL             Same as above.
-⍝H          ~0∊⍺               Treat as a successful assertion. Return shy 0 and ignore the format_string.
-⍝H           0∊⍺               Treat as a failed assertion. Print the result of formatting (⎕←...) and return shy 0.
-⍝H           ⎕NULL 1.          As for ⎕NULL case, but provide (terse) debugging info.
+⍝H           Omitted     Return the result of formatting specified by format_string with any other scalars of ⍵.
+⍝H           ⎕NULL       Same as above.
+⍝H          ~0∊⍺         Treat as a successful assertion. Return shy 0 and ignore the format_string.
+⍝H           0∊⍺         Treat as a failed assertion. Print the result of formatting (⎕←...) and return shy 0.
+⍝H           ⎕NULL 1     As for ⎕NULL case, but provide (terse) debugging info.
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
@@ -148,11 +144,12 @@
 ⍝H
 ⍝H      ∘ Code fields consist of any APL code (beyond simple spaces alone) between (unescaped) braces.
 ⍝H        Any code valid within a DFN is appropriate, as modified here:
-⍝H        - Code fields expect double-quotes (") only to create strings. 
-⍝H          They must match (double to place a double quote inside a string).
+⍝H        - Code fields use double-quotes (") to create strings, rather than single quotes. 
+⍝H          That is each double quotes must have a match. 
+⍝H          An internal double quote is formed two consecutive double quotes: 
+⍝H               ∆F '{"I can''t believe ""that"" is true!"}' 
+⍝H            I can't believe "that" is true! 
 ⍝H          Single quotes are treated as "ordinary" characters:  
-⍝H               ∆F '{"I can''t believe ""that"" is true!"}'
-⍝H          I can't believe "that" is true!
 ⍝H        - Multiple lines may be created via APL code (e.g.: ↑"one line" "2nd line") or, 
 ⍝H          within double quotes, via \⋄, the newline character. 
 ⍝H        - Code fields support $ as a shortcut for ⎕FMT (1- or 2-adic), for padding left or right, 
@@ -279,7 +276,8 @@
 ⍝H                         └─┴─┴─→┘    
 ⍝H          ⍝        ∘ Code-sequence comments...
 ⍝H                     Begins a comment within code sequence, terminated SOLELY by: 
-⍝H                     a ⋄ or } character.
+⍝H                     a ⋄ or } character. Within a comment, double quotes MUST be balanced.
+⍝H                     Do not use ⋄, \⋄, }, or \} within comments.
 ⍝H                     Ex:
 ⍝H                       ∆F 'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
 ⍝H                     Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
@@ -290,6 +288,9 @@
 ⍝H                     Ex:
 ⍝H                        ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
 ⍝H                     Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
+⍝H                   ∘ A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
+⍝H                        ∆F '{⍳3 ⍝ iota test ⋄ → }'
+⍝H                     ⍳3 ⍝ iota test ⋄ ➤ 0 1 2
 ⍝H     Space Field:  { }
 ⍝H                   ∘ A Space field contains 0 or more spaces within braces; 
 ⍝H                     these spaces are inserted into the formatted string as part of a separate 2D field.
@@ -301,7 +302,7 @@
 ⍝H        \{         ∘ A literal { character, which does NOT initiate a code field or space field.
 ⍝H        \}         ∘ A literal } character, which does NOT end a code field or space field.
 ⍝H        \\         ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
-⍝H                     The double backslash '\\' is required ONLY before one of the character n, {, or }, or
+⍝H                     The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
 ⍝H                     to produce multiple contiguous backslashes:
 ⍝H                         '\⋄' => newline    '\\⋄' => '⋄'   
 ⍝H                         '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
@@ -312,5 +313,10 @@
 ⍝H   Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX which includes standard ⎕FMT and padding ⍵ with spaces. See pseudo-builtin $ above.
 ⍝H   ∘ ⍺.DISP which calls the brief display function, ⎕SE.Dyalog.Utils.disp. See $$ above.
+⍝H ○ If you want "local" variables to use within a series of code fields (left to right), you can
+⍝H   use ⍺._ or any APL name prefixed with a single underscore (e.g. ⍺._test, ⍺._MyCode).
+⍝H   Other names could conflict with active ∆F names.
+⍝H        ∆F 'They are John {⍺._last←"Smith"} and Mary {⍺._last}'
+⍝H     They are John Smith and Mary Smith
 ⍝ EndSection ***** Help Info
 }
