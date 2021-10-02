@@ -94,23 +94,33 @@
         FIELDS←     ⎕FMT''
 
       ⍝ Library Routines (User-Accessible)
-        ⍝ ⍺.FMTX.  See $. 
-          FMTX←{ ⍝ ⍺.FMTX: Extended ⎕FMT. See ∆Format.dyalog.
-              ∆FMT←(⊃⌽⎕RSI).⎕FMT ⍝ Pick up caller env's ⎕FR and (for 1adic case) ⎕PP.
-            ⍝ RANK ERROR (⍺ is scalar, etc.), FORMAT ERROR (⍺ invalid for ⎕FMT)
-              4 7::⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ 1≡⍺ 1:∆FMT ⍵
-              srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-              new wid std←srcP ⎕R snkR⊢⊆,⍺
-              new≡'':⍺ ∆FMT ⍵ ⋄  obj←std{''≡⍺:∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
-            ⍝ If obj is wider than required, done!
-              wid←⊃⌽⎕VFI wid ⋄ wObj←⊃⌽⍴obj ⋄ wid≤wObj:obj 
-              new∊'LR':(¯1×⍣('R'=⊃new)⊢wid)↑⍤1⊢obj
-              wCtr←wid-⍨⌊2÷⍨wid-wObj ⋄ wid↑⍤1⊢wCtr↑⍤1⊢obj
-          }
-        ⍝ ⍺.DISP: See $$
-          DISP← ⎕SE.Dyalog.Utils.disp 
-        ⍝ ⍺.JOIN: See HELP info on library routines
-          JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+      ⍝ FMTX, DISP, JOIN
+      ⍝
+      ⍝ ⍺.FMTX.  See $. 
+        FMTX←{ 
+          ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+          ⍝ Template for ⍺:  
+          ⍝    ss [LCR] ss d+   OR   ss [LCR] ss d+ ss,ss std   OR   std 
+          ⍝ where ss means 0 or more spaces (per ⎕FMT itself); std refers to the usual left arg to ⎕FMT.  
+            ⍺←⊢
+            ∆FMT←USER_SPACE.⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP.
+          ⍝ 4 RANK ERROR (⍺ is not vector), 7 FORMAT ERROR (⍺ invalid type or specs for ⎕FMT)
+            4 7::⎕SIGNAL/⎕DMX.(EM EN) 
+            1≡⍺ 1:∆FMT ⍵
+            srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
+            xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
+            xtra≡'':⍺ ∆FMT ⍵ ⋄  obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
+            wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
+            wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
+            pad1←↑⍤1
+            xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
+            wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center
+            wReq pad1 wCtr pad1 obj                           ⍝ ...
+        }
+      ⍝ ⍺.DISP: See $$
+        DISP← ⎕SE.Dyalog.Utils.disp 
+      ⍝ ⍺.JOIN: See HELP info on library routines
+        JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
       
     ⍝ Top-level Patterns  
         simpleP← '(\\.|[^{])+'
@@ -157,7 +167,8 @@
 ⍝H           ⎕NULL 2     Prints a debugging version of the output:
 ⍝H                       - showing each field independently via display (⎕SE.Dyalog.Utils.disp) in the output.
 ⍝H                       - with each blank in the output replaced by a center dot (·).
-⍝H           ⎕NULL 3     Provides debugging info ⎕NULL 1 and ⎕NULL 2.
+⍝H           ⎕NULL 3     Provides debugging info ⎕NULL 1 and ⎕NULL 2
+⍝H                       See below (bottom) for debugging example...
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
@@ -173,9 +184,9 @@
 ⍝H          Single quotes are treated as "ordinary" characters (see details / exceptions below). 
 ⍝H        - Multiple lines may be created via APL code (e.g.: ↑"one line" "2nd line") or, 
 ⍝H          within double quotes, via \⋄, the newline character. 
-⍝H        - Code fields support $ as a shortcut for ⎕FMT (1- or 2-adic), for padding left or right, 
+⍝H        - Code fields support $ as a shortcut (pseudo-fn) for ⎕FMT (1- or 2-adic), for padding left or right, 
 ⍝H          or for centering a field.
-⍝H        - Code fields support $$ as a shortcut for the utility "disp" (brief-format boxed display).
+⍝H        - Code fields support $$ as a shortcut (pseudo-fn) for the utility "disp" (brief-format boxed display).
 ⍝H        - Code fields support 
 ⍝H          ∘ ⍹0, ⍹1,..., ⍹N to index the 0-th, 1-st,..., N-th scalar of the right argument (⍹0 is the format string) or 
 ⍝H          ∘ ⍹ alone, which selects the NEXT scalar or, on the first use of ⍹ or ⍹N, 
@@ -190,154 +201,189 @@
 ⍝H
 ⍝H SIMPLE EXAMPLE
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝H         ∆F'A format string {⍪⎕TS}{ }More stuff\⋄2nd line{ }1\⋄2\⋄three {⍪⍹1×⍹}' ⎕AI 5 'NOT USED'
+⍝H         ∆F'A format string {⍪3↑⎕TS}{ }More stuff\⋄2nd line{ }1\⋄2\⋄three {⍪⍹1×⍹ ⍝ ⎕AI×5}' ⎕AI 5 'NOT USED'
 ⍝H     A format string 2021 More stuff 1        2515
 ⍝H                        9 2nd line   2        5345
 ⍝H                       23            three 7167540
-⍝H                       12                  7032865
-⍝H                       38                         
-⍝H                       50                         
-⍝H                      526       
+⍝H                                           7032865      
 ⍝H 
 ⍝H FORMAT STRING FIELDS: Field Types and Associated Special symbols:
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯
 ⍝H     Code Field: {code}
-⍝H                   ∘ APL Code Field. Accesses arguments ⍵0 (1st vector AFTER formatting string), 
-⍝H                     ⍵1, ⍵2, through ⍵N (N is any 1- or 2-digit number 0..99).
-⍝H                     No blanks are inserted automatically before or after a Code Field. Do so explicitly,
-⍝H                     via explicit code (e.g. adding a " " string), a Space Field { }, or a Text Field.
-⍝H          Referring to ∆F explicit arguments...
-⍝H          ⍹N⎱     ∘ Returns, for N an integer or 1 or 2 digits, 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
-⍝H          ⍵N⎰       ⍵N is a convenient alias for ⍹N, e.g. ⍵9 ≡ ⍹9.
-⍝H                     Note: ⍹ or ⍵ must be  followed immediately by 1 or 2 digits w/o intervening spaces, etc.
-⍝H                           ⍹ 9 is (⍹ followed by a space and then the number 9), and 
-⍝H                           is interpreted as requesting the "next" word in ⍵ (see below).
-⍝H          ⍹ ⎱     ∘ Returns the "next" vector in ⍵. 
-⍝H          ⍵_⎰       By definition, ⍹ has the value of a word in the right arg, 
-⍝H                    if not followed immediately by 1 or 2 digits, specifically:
-⍝H                         -  the word immediately AFTER the last word referenced via ⍹N or ⍹ (e.g ⍹3 if the last was ⍹3); 
-⍝H                         -  ⍹1, the first word after the format string, if no field has been referenced yet via ⍹N or ⍹. 
-⍝H                     ⍵_ is a convenient alias for simple ⍹ (when you don't have the Unicode character ⍹ handy).
-⍝H                     Ex:          0th    1st    3rd     4th
-⍝H                          ∆F '0: {⍹} 1: {⍹} 3: {⍵3} 4: {⍹}' 'zero' 'one' 'two' 'three' 'four' 
-⍝H                       0: zero 1: one 3: three 4: four
-⍝H                     Ex:                           0 1 2 3
-⍝H                          ∆F 'All together:{ ∊" ",¨⍹ ⍹ ⍹ ⍹ }' 'zero' 'one' 'two' 'three' 'four' 
-⍝H                       All together: zero one two three   
-⍝H                     Ex:
-⍝H                       ⍝  Remember, using ⍹N "sets" the last field referenced to N, so the next  via ⍹ will be N+1.
-⍝H                                                   0 1 0  1
-⍝H                          ∆F 'Return again:{ ∊" ",¨⍹ ⍹ ⍹0 ⍹ }' 'zero' 'one' 'two' 'three' 'four' 
-⍝H                       Return again: zero one zero one  
-⍝H          DQ strings: "..."
-⍝H                   ∘ DQ strings begin and end with double quotes, with (optional) 
-⍝H                     doubled double quotes internally. They only appear within Code fields.
-⍝H                   ∘ DQ strings are realized as SQ strings when code is executed.
-⍝H                   ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
-⍝H                     "abc""def" ==>  'abc"def'
-⍝H                   ∘ \⋄  is used to enter a "newline" into a DQ string.
-⍝H                     \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
-⍝H                   ∘ Warning: Do not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
-⍝H          SQ characters:  (')
-⍝H                   ∘ Within Code fields, SQ (') characters are treated as ordinary characters, 
-⍝H                     not quote characters.
-⍝H                   ∘ If you do use SQ strings as delimiters, they must be doubled when entered by the user (as always). 
-⍝H                     As well, to use DQs within a SQ-delimited string, you must specify \" for each DQ desired.
-⍝H                           ∆F '{↑''ok'' ''but'' ''challenging''}'        ∆F '{↑''ok'' ''yet'' ''very \"awkward\"!''}'
-⍝H                        ok                                             ok
-⍝H                        but                                            yet     
-⍝H                        challenging!                                   very "awkward"!
-⍝H                     Much easier is: 
-⍝H                          ∆F '{↑"this" "is the" "easiest!"}'   ⍝ Exercise left to the reader ;-)!
-⍝H          Extended Format (extends dyadic ⎕FMT): $ pseudo-function
-⍝H                   ∘ $ denotes a special APL-format function, with extended parameters L, C, and R.
-⍝H                     $ may be used more than once in each Code Field.
-⍝H                     - Three additional string parameters are allowed ONLY at the beginning of a ⎕FMT left argument,
-⍝H                       in this paradigm:
-⍝H                       [LCR]ddd,...    OR  [LCR]ddd      OR    ...
-⍝H                            where  L means left-justify the right argument to $ 
-⍝H                                   C means center the right argument to $,
-⍝H                                   R means right-justify the right argument to $ 
-⍝H                                   ddd (1 or more digits) represent the MINIMUM width of the right argument
-⍝H                                   ... signifies standard ⎕FMT parameters, executed BEFORE justification 
-⍝H                                       (if present), according to the Dyalog ⎕FMT specifications.
-⍝H                     - If no L, C, or R is present at the beginning of the left argument to $,
-⍝H                       then $ functions as the default dyadic ⎕FMT only.
-⍝H                     - If there is no left argument to $, then the default monadic ⎕FMT is called.
-⍝H                     - Extra spaces before or after the prefix [LCR] or following comma are IGNORED. 
-⍝H                       This C cannot be confused with the C used as a "Comma decorator: "CF15.6" or "CI20" etc.      
-⍝H                   + Ex:
-⍝H                        ∆F 'Using $: {"⊂<⊃,F12.10,⊂>⊃" $ *1 2} <==> Using ⎕FMT: {"⊂<⊃,F12.10,⊂>⊃" ⎕FMT *1 2}'
-⍝H                     Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
-⍝H                              <7.3890560989>                  <7.3890560989>
-⍝H                   + Ex: 
-⍝H                       ⎕PP ⎕FR←12 645
-⍝H                       ∆F '{$○1}'
-⍝H                     3.14159265359 
-⍝H                       ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
-⍝H                     3.141592653589793238462643383279503
-⍝H                   + Ex:
-⍝H                       ⎕pp←6  ⍝ Ignored for dyadic ⎕FMT (as the example shows)
-⍝H                       ⍝     Pad     ⎕FMT              ⎕FMT             Pad
-⍝H                       ∆F '<{"C20,F12.10" $ ○1}> <{"F12.10" $ ○1}> <{"C20" $ ○1}>'
-⍝H                     <    3.1415926536    > <3.1415926536> <       3.14159      >
-⍝H                   + Ex:
-⍝H                       ∆F '<{"C30" $ "cats"}>'             ⍝ $ emits blanks
-⍝H                     <             cats             >
+⍝H        ∘ APL Code Field. Accesses arguments 0⊃⍵ (1st vector AFTER formatting string), 
+⍝H          1⊃⍵ via ⍹N and ⍹ (see below: N is any 1- or 2-digit number 0..99).
+⍝H          No blanks are inserted automatically before or after a Code Field. Do so explicitly,
+⍝H          via explicit code (e.g. adding a " " string), a Space Field { }, or a Text Field.
+⍝H        ∘ Code fields are executed in the calling function's namespace, with access to its
+⍝H          variables, functions, ⎕IO, ⎕FR, ⎕PP, etc.
+⍝H        ∘ Referring to ∆F explicit arguments in a Code field...
+⍝H          ⍹N⎱  ∘ Returns, for N an integer of 1 or 2 digits, 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
+⍝H          ⍵N⎰    - ⍵N is allowed as an alias for ⍹N, e.g. ⍵9 ≡ ⍹9, in case you don't have the Unicode character ⍹ handy.
+⍝H                  - ⍵1 is the first "appended" word, with ⍵0 reserved as the format string itself (see example below).
+⍝H                  - ⍹ or ⍵ must be  followed immediately by 1 or 2 digits w/o any intervening spaces.
+⍝H                    ⍹ 9 is (⍹ followed by a space and then the number 9), and 
+⍝H                    ⍹ is interpreted as requesting the "next" word in ⍵ (see below).
+⍝H          ⍹ ⎱  ∘ Returns the "next" vector in ⍵ (unless followed immediately by a number).
+⍝H          ⍵_⎰    By definition, ⍹ has the value of a word in the right arg, 
+⍝H                  if not followed immediately by 1 or 2 digits, specifically:
+⍝H                  -  the word immediately AFTER the last word referenced via ⍹N or ⍹ (e.g ⍹3 if the last was ⍹3); 
+⍝H                  -  ⍹1, the first word after the format string, if no field has been referenced yet via ⍹N or ⍹. 
+⍝H                     ⍵_ is a convenient alias for simple ⍹, in case you don't have the Unicode character ⍹ handy.
+⍝H                  Ex:          1st    2rd    4th     5th
+⍝H                       ∆F '1: {⍹} 2: {⍹} 4: {⍵4} 5: {⍹}'  'one' 'two' 'three' 'four' 'fifth'
+⍝H                    1: zero 2: one 4: three 5: fifth
+⍝H                  Ex:                           1 2 3 4
+⍝H                       ∆F 'All together:{ ∊" ",¨⍹ ⍹ ⍹ ⍹ }' 'one' 'two' 'three' 'four' 'extra' 
+⍝H                    All together: one two three four 
+⍝H                  Ex:
+⍝H                    ⍝  Remember, using ⍹N "sets" the last field referenced to N, so the next  via ⍹ will be N+1.
+⍝H                    ⍝                           1 2 1  2
+⍝H                       ∆F 'Return again:{ ∊" ",¨⍹ ⍹ ⍹1 ⍹ }'  'one' 'two' 'three' 'four' 
+⍝H                    Return again: one two one two 
+⍝H                  Ex: 
+⍝H                    ⍝ ⍹0 (or ⍵0) refers to the format string itself (the 0th string in ⎕IO=0)
+⍝H                      ∆F 'The format string:  {⍹0}'
+⍝H                    The format string:  The format string:  {⍹0}
+⍝H        ∘ DQ strings: "..."
+⍝H          ∘ DQ strings begin and end with double quotes, with (optional) 
+⍝H            doubled double quotes internally. They only appear within Code fields.
+⍝H          ∘ DQ strings are realized as SQ strings when code is executed.
+⍝H          ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
+⍝H            "abc""def" ==>  'abc"def'
+⍝H          ∘ \⋄  is used to enter a "newline" into a DQ string.
+⍝H            \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
+⍝H          ∘ Warning: You may not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
+⍝H        ∘ SQ characters:  (')
+⍝H          ∘ Within Code fields, SQ (') characters are treated as ordinary characters, 
+⍝H            not quote characters.
+⍝H          ∘ If you do use SQ strings as delimiters, they must be doubled when entered by the user (as always). 
+⍝H          ∘ Using DQs within a SQ-delimited string [not encouraged]:
+⍝H            As well, to use DQs within a SQ-delimited string, you must specify \" for each DQ desired.
+⍝H                ∆F '{↑''ok'' ''but'' ''challenging''}'        ∆F '{↑''ok'' ''yet'' ''very \"awkward\"!''}'
+⍝H              ok                                            ok
+⍝H              but                                           yet     
+⍝H              challenging!                                  very "awkward"!
+⍝H            Much easier is: 
+⍝H                ∆F '{↑"this" "is the" "easiest!"}' 
+⍝H              This 
+⍝H              is the
+⍝H              easiest!  
+⍝H          $ Extended Format (extends dyadic ⎕FMT): $ pseudo-function
+⍝H            ∘ $ denotes a special APL-format function, with extended parameters L, C, and R.
+⍝H              $ may be used more than once in each Code Field.
+⍝H              - Three additional string parameters are allowed ONLY at the beginning of the left argument,
+⍝H                in this paradigm:
+⍝H                           [LCR]ddd,std    OR  [LCR]ddd      OR    std
+⍝H                where ∘ L means left-justify the right argument to $ 
+⍝H                      ∘ C means center the right argument to $,
+⍝H                      ∘ R means right-justify the right argument to $ 
+⍝H                      ∘ ddd (1 or more digits) represent the MINIMUM width of the right argument
+⍝H                      ∘ std signifies standard ⎕FMT parameters, executed BEFORE justification specs 
+⍝H                        (if present), according to Dyalog's ⎕FMT specifications.
+⍝H              - If no L, C, or R is present at the beginning of the left argument to $,
+⍝H                then $ functions as the default dyadic ⎕FMT only.
+⍝H              - $ (via ⎕FMT) functions as if in the calling function's namespace;
+⍝H                this normally has impact for ⎕FR and (for monadic ⎕FMT) ⎕PP.
+⍝H              - If there is no left argument to $, then the default monadic ⎕FMT is called.
+⍝H              - Extra spaces before or after the prefix [LCR] or following comma are IGNORED. 
+⍝H                The use of L,C,R here cannot be confused with their uses in the ⎕FMT standard.       
+⍝H                + Ex:
+⍝H                     ∆F 'Using $: {"⊂<⊃,F12.10,⊂>⊃" $ *1 2} <==> Using ⎕FMT: {"⊂<⊃,F12.10,⊂>⊃" ⎕FMT *1 2}'
+⍝H                  Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
+⍝H                           <7.3890560989>                  <7.3890560989>
+⍝H                + Ex: 
+⍝H                    ⎕PP ⎕FR←12 645
+⍝H                    ∆F '{$○1}'
+⍝H                  3.14159265359 
+⍝H                    ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
+⍝H                  3.141592653589793238462643383279503
+⍝H                + Ex:
+⍝H                    ⎕pp←6  ⍝ Ignored for dyadic ⎕FMT (as the example shows)
+⍝H                    ⍝     Pad     ⎕FMT              ⎕FMT             Pad
+⍝H                    ∆F '<{"C20,F12.10" $ ○1}> <{"F12.10" $ ○1}> <{"C20" $ ○1}>'
+⍝H                  <    3.1415926536    > <3.1415926536> <       3.14159      >
+⍝H                + Ex:
+⍝H                    ∆F '<{"C30" $ "cats"}>'             ⍝ $ emits blanks
+⍝H                  <             cats             >
 ⍝H                       ∆F '<{"·"@(" "∘=)⊣"C30" $ "cats"}>' ⍝ Replace blanks with middle dot "·".
-⍝H                     <·············cats·············> 
-⍝H                   + Ex: 
-⍝H                     ⍝ $ returns a matrix. @ handles transparently...
-⍝H                       ∆F'<{"·"@(" "∘=)⊣ "C30,F9.5" $ ○1 2 3}>'
-⍝H                     <·············3.14159··········>
-⍝H                      ·············6.28319·········· 
-⍝H                      ·············9.42478·········· 
-⍝H                     ⍝ For ⎕R, convert the matrix to a vector of strings.
-⍝H                       ∆F'<{↑" "⎕R"·"↓"C30,F9.5" $ ○1 2 3}>'
-⍝H                     <·············3.14159··········>
-⍝H                      ·············6.28319·········· 
-⍝H                      ·············9.42478·········· 
+⍝H                  <·············cats·············> 
+⍝H                + Ex: 
+⍝H                  ⍝ $ returns a matrix. @ handles transparently...
+⍝H                    ∆F'<{"·"@(" "∘=)⊣ "C30,F9.5" $ ○1 2 3}>'
+⍝H                  <·············3.14159··········>
+⍝H                   ·············6.28319·········· 
+⍝H                   ·············9.42478·········· 
+⍝H                  ⍝ For ⎕R, convert the matrix to a vector of strings.
+⍝H                    ∆F'<{↑" "⎕R"·"↓"C30,F9.5" $ ○1 2 3}>'
+⍝H                  <·············3.14159··········>
+⍝H                   ·············6.28319·········· 
+⍝H                   ·············9.42478·········· 
 ⍝H 
-⍝H          $$       Display
-⍝H                   ∘ Alias for short display form, "disp," viz. ⎕SE.Dyalog.Utils.disp 
+⍝H          $$ Display
+⍝H             ∘ Alias for short display form, "disp," viz. ⎕SE.Dyalog.Utils.disp 
 ⍝H                     Ex:
 ⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
 ⍝H                         ┌→┬─┬──┐    
 ⍝H                     one │1│2│12│ two
 ⍝H                         └─┴─┴─→┘    
-⍝H          ⍝        ∘ Code-sequence comments...
-⍝H                     Begins a comment within code sequence, terminated SOLELY by: 
-⍝H                     a ⋄ or } character. Within a comment, double quotes MUST be balanced.
-⍝H                     Do not use ⋄, \⋄, }, or \} within comments.
-⍝H                     Ex:
-⍝H                       ∆F 'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
-⍝H                     Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
-⍝H          →        ∘ Self-documenting {code} expressions...
-⍝H                   ∘ A right arrow (→ or ➤) trailing a code sequence, 
-⍝H                     just before (possible blanks and a) final right brace:
-⍝H                   ∘ Creates two "fields," one with the code text as written, followed by the executed code.
-⍝H                     Ex:
-⍝H                        ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
-⍝H                     Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
-⍝H                   ∘ A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
-⍝H                        ∆F '{⍳3 ⍝ iota test ⋄ → }'
-⍝H                     ⍳3 ⍝ iota test ⋄ ➤ 0 1 2
+⍝H          ⍝ Code field comments...
+⍝H            - Begins a comment within code sequence, terminated SOLELY by: 
+⍝H             a ⋄ or } character. Within a comment, double quotes MUST be balanced.
+⍝H            - Do not use ⋄, \⋄, }, or \} within comments.
+⍝H              Ex:
+⍝H                  ∆F 'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
+⍝H                Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H          →  Self-documenting {code} expressions...
+⍝H             - A right arrow (→ or ➤) trailing a code sequence, 
+⍝H               just before (possible blanks and a) final right brace:
+⍝H             - Creates two "fields," one with the code text as written, followed by the executed code.
+⍝H                   ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
+⍝H                 Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
+⍝H             - A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
+⍝H                   ∆F '{⍳3 ⍝ iota test ⋄ → }'
+⍝H                 ⍳3 ⍝ iota test ⋄ ➤ 0 1 2
 ⍝H     Space Field:  { }
-⍝H                   ∘ A Space field contains 0 or more spaces within braces; 
-⍝H                     these spaces are inserted into the formatted string as a separate 2D field.
-⍝H     Text Field:   ∘ Everything else is a text field. The following characters have special meaning
-⍝H                     within a text field:
-⍝H        \⋄         ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
-⍝H                     Use newlines to build multiline text fields.
-⍝H                   ∘ Note: A CR (⎕UCS 13; hex OC) in the text field is equivalent to \⋄.
-⍝H        \{         ∘ A literal { character, which does NOT initiate a code field or space field.
-⍝H        \}         ∘ A literal } character, which does NOT end a code field or space field.
-⍝H        \\         ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
-⍝H                     The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
-⍝H                     to produce multiple contiguous backslashes:
-⍝H                         '\⋄' => newline    '\\⋄' => '⋄'   
-⍝H                         '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
+⍝H               A Space field consists of 0 or more spaces within braces; 
+⍝H               these spaces are inserted into the formatted string as a separate 2D field.
+⍝H               An empty Space Field {} may be used to separate  Text fields:
+⍝H               Ex. This example has three text fields, separated by (empty) Space Fields.  
+⍝H                     ∆F 'one\⋄two\⋄three{} and {}four\⋄five\⋄six'
+⍝H                   one   and four
+⍝H                   two       five
+⍝H                   three     six
+⍝H     Text Field:   
+⍝H               Everything else is a text field. The following characters have special meaning
+⍝H               within a text field:
+⍝H        \⋄     ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
+⍝H                 Use newlines to build multiline text fields.
+⍝H               ∘ Note: A CR (⎕UCS 13; hex OC) in the text field is equivalent to \⋄.
+⍝H        \{     ∘ A literal { character, which does NOT initiate a code field or space field.
+⍝H        \}     ∘ A literal } character, which does NOT end a code field or space field.
+⍝H        \\     ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
+⍝H                 The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
+⍝H                 to produce multiple contiguous backslashes:
+⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
+⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
+⍝H                 Note: \" is not recognized in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
 ⍝H    
+⍝H DEBUGGING EXAMPLE
+⍝H ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
+⍝H ○ This is a simple example shown first without debugging activated, then at debugging level 2.
+⍝H   ⍝ No debugging
+⍝H        Names←'John Smith' 'Mary Jones' 'Terry Hawk'
+⍝H        Locns←'NY' 'London' 'Paris'
+⍝H        ∆F 'Officers {↑Names} are in {↑Locns}'
+⍝H     Officers John Smith are in  NY   
+⍝H            Mary Jones         London                  
+⍝H            Terry Hawk         Paris  
+⍝H   ⍝ DEBUGGING LEVEL 2...                
+⍝H        ⎕NULL 3 ∆F 'Officers {↑Names} are in {Locns}'
+⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
+⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
+⍝H     └─────────┘│Mary·Jones│└────────┘│ London│
+⍝H                │Terry·Hawk│          │ Paris │                    
+⍝H                └──────────┘          └──── ──┘
+⍝H 
 ⍝H OBSCURE POINTS
 ⍝H ¯¯¯¯¯¯¯ ¯¯¯¯¯¯
 ⍝H ○ The current ∆F "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
