@@ -2,11 +2,11 @@
   ⍝   Modes A, B, C...
   ⍝   If ↓↓↓ \ ∆F →→→         Displays            Returns         Shy?   Remarks
   ⍝   A.  ⍵ has 0 items       HELP INFO           0               Yes    ...
-  ⍝   B1. ⍺: default          --                  formatted str   No     String Formatter
-  ⍝   B2. ⍺: ⎕NULL [0]        --                  formatted str   No     String Formatter
+  ⍝   B1. ⍺: default          N/A                 formatted str   No     String Formatter
+  ⍝   B2. ⍺: ⎕NULL [0]        N/A                 formatted str   No     String Formatter
   ⍝   B3. ⍺: ⎕NULL [1|2|3]    DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
   ⍝   C1. ~0∊⍺                formatted str       1               Yes    Assertion succeeds, so show message
-  ⍝   C2. otherwise           --                  0               Yes    Assertion fails, so go quietly
+  ⍝   C2. otherwise           N/A                 0               Yes    Assertion fails, so go quietly
  
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⍺←⎕NULL 
@@ -95,17 +95,10 @@
 
       ⍝ Library Routines (User-Accessible)
       ⍝ FMTX, DISP, JOIN
-      ⍝
-      ⍝ ⍺.FMTX.  See $. 
-        FMTX←{ 
-          ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
-          ⍝ Template for ⍺:  
-          ⍝    ss [LCR] ss d+   OR   ss [LCR] ss d+ ss,ss std   OR   std 
-          ⍝ where ss means 0 or more spaces (per ⎕FMT itself); std refers to the usual left arg to ⎕FMT.  
-            ⍺←⊢
+      ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+        FMTX←{ ⍺←⊢
             ∆FMT←USER_SPACE.⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP.
-          ⍝ 4 RANK ERROR (⍺ is not vector), 7 FORMAT ERROR (⍺ invalid type or specs for ⎕FMT)
-            4 7::⎕SIGNAL/⎕DMX.(EM EN) 
+            4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
             1≡⍺ 1:∆FMT ⍵
             srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
             xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
@@ -209,7 +202,9 @@
 ⍝H 
 ⍝H FORMAT STRING FIELDS: Field Types and Associated Special symbols:
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯
-⍝H     Code Field: {code}
+⍝H   +--------------------+
+⍝H   | Code Field: {code} |
+⍝H   +--------------------+
 ⍝H        ∘ APL Code Field. Accesses arguments 0⊃⍵ (1st vector AFTER formatting string), 
 ⍝H          1⊃⍵ via ⍹N and ⍹ (see below: N is any 1- or 2-digit number 0..99).
 ⍝H          No blanks are inserted automatically before or after a Code Field. Do so explicitly,
@@ -342,7 +337,10 @@
 ⍝H             - A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
 ⍝H                   ∆F '{⍳3 ⍝ iota test ⋄ → }'
 ⍝H                 ⍳3 ⍝ iota test ⋄ ➤ 0 1 2
-⍝H     Space Field:  { }
+⍝H
+⍝H   +------------------+
+⍝H   | Space Field: { } |
+⍝H   +------------------+
 ⍝H               A Space field consists of 0 or more spaces within braces; 
 ⍝H               these spaces are inserted into the formatted string as a separate 2D field.
 ⍝H               An empty Space Field {} may be used to separate  Text fields:
@@ -351,7 +349,9 @@
 ⍝H                   one   and four
 ⍝H                   two       five
 ⍝H                   three     six
-⍝H     Text Field:   
+⍝H   +-------------+
+⍝H   | Text Field  |
+⍝H   +-------------+  
 ⍝H               Everything else is a text field. The following characters have special meaning
 ⍝H               within a text field:
 ⍝H        \⋄     ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
