@@ -9,7 +9,7 @@
   ⍝   C2. otherwise           N/A                 0               Yes    Assertion fails, so go quietly
  
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⎕NULL 
+  ⎕IO←0 ⋄ ⍺←⎕NULL  
 
 ⍝ Help... Show HELP info and return shy 0.
   0≡≢⍵:  _←0⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
@@ -17,9 +17,10 @@
   (⎕NULL≠⊃⍺)∧(0∊⍺): _←0      
 
   ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
-    ⍝ Section ********* FLAGS for modes B1-3 above.
-      DBGLVL←  ⍬⍴ (⎕NULL=⊃⍺) × 1↑2↓0,⍺
-      DBGLVL(~∊)0 1 2 3: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: Valid Debug options (⍺): ⎕NULL [0 | 1 | 2 | 3]'
+    ⍝ Section ********* USER-SETTABLE FLAGS...
+    ⍝ DBGLVL is ⍺[1] (DOMAIN: 0 1 2 3), only if ⍺[0] is ⎕NULL.
+      DBGLVL← (⎕NULL=⊃⍺)⊃0 (⊂⊃2↓0,⍺)       
+      (DBGLVL)(~∊)⍳4: '∆F DOMAIN ERROR: Invalid debug option'⎕SIGNAL 11
     ⍝ End Section ***** USER-SETTABLE FLAGS...
 
     ⍝ Section ********* Utilities
@@ -32,7 +33,7 @@
           ⍺←''  ⋄  0=≢⍵: ⍺            
           rt ← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display⍣(DBGLVL∊2 3)⊢ USER_SPACE.⎕FMT ⍵
           ht←(≢FIELDS)⌈≢rt
-          FIELDS∘←(ht↑FIELDS),ht↑rt
+          FIELDS⊢←(ht↑FIELDS),ht↑rt
           ⍺
       }
       OMEGA_Pick←{         
@@ -53,10 +54,10 @@
           esqQP←    '\\"'
           quoteP←  '(?<!\\)(?:"[^"]*")+'
           dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
-          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT or (if ⍺ numeric:) pad left (⍺<0), right (⍺>0) or center (⍺≠⌊⍺)
-          omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍵0, ⍵1, ... ⍵99. We arbitrarily assume no more than 99 directly indexable elements...
-          omPairP←  '⍹|⍵_'            ⍝ ⍹                We don't clip incremental indexing of ⍵ at 99. Go figure.
-          comP←     '⍝[^⋄}]+'         ⍝ ⍝..⋄ or ⍝..}
+          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
+          omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+          omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
+          comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
           selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
           pats←quoteP dispP fmtP omDigP omPairP comP selfDocP esqQP  
                quoteI dispI fmtI omDigI omPairI comI selfDocI esqQI ← ⍳≢pats
@@ -117,7 +118,7 @@
       
     ⍝ Top-level Patterns  
         simpleP← '(\\.|[^{])+'
-        spacerP← '\{(\h*)\}' 
+        spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
       ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
         dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
   ⍝ EndSection ***** Initializations
@@ -128,7 +129,7 @@
       _←pats ⎕R{    
           ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
           CASE simpleI:    FIELDS_Append EscapeText f 0
-          CASE spacerI:    FIELDS_Append f 1  
+          CASE spacerI:    FIELDS_Append f 1    
           CASE dfnI:       FIELDS_Append DfnField f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣⊃OMEGA     ⍝ Pass the format string only...
@@ -148,6 +149,31 @@
 ⍝H      from left to right, after extending each with blank rows needed to stitch together.
 ⍝H      Inspired by (but different from) Python f-strings."
 ⍝H
+⍝H INTRODUCTORY EXAMPLES
+⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
+⍝H #1      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ }a mop?\⋄a pail of water.\⋄something!'
+⍝H     Jack went up the hill     to fetch a mop?         
+⍝H     and              mountain          a pail of water.
+⍝H     Jill             street            something!     
+⍝H
+⍝H #2      fname lname← 'john' 'smith'  ⋄  age←    34  
+⍝H         salBase←     45020           ⋄  salPct←  3.2        
+⍝H         cap1← {(1 ⎕C 1↑⍵),1↓⍵}
+⍝H         ∆F 'Employee {∊cap1¨fname lname} earns {"⊂$⊃,CF9.2"$salBase} and will earn {"⊂$⊃,CF9.2"$ salBase×1+salPct÷100} next year.'
+⍝H     Employee JohnSmith earns $45,020.00 and will earn $46,460.64 next year.     
+⍝H   
+⍝H #3      planet←   'Mercury' 'Venus'  'Earth'  'Mars'  'Jupiter'  'Saturn'  'Uranus'  'Neptune' 
+⍝H         radiusMi← 1516      3760.4   3958.8   2106.1  43441      36184     15759     15299
+⍝H         ∆F 'The planet {↑planet} has a radius of {"I5" $ radiusMi} mi. or {"I5" $ radiusMi×1.609344} km.'
+⍝H     The planet Mercury has a radius of  1516 mi. or  2440 km.
+⍝H                Venus                    3760         6052    
+⍝H                Earth                    3959         6371    
+⍝H                Mars                     2106         3389    
+⍝H                Jupiter                 43441        69912    
+⍝H                Saturn                  36184        58233    
+⍝H                Uranus                  15759        25362    
+⍝H                Neptune                 15299        24621            
+⍝H 
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
 ⍝H         [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
@@ -189,19 +215,30 @@
 ⍝H
 ⍝H      ∘ Space fields consist of 0 or more spaces between (unescaped) braces: { }
 ⍝H        They may be used to separate contiguous text fields or to add spaces between fields.
+⍝H        The spaces (if any) may be followed by a comment, consisting of a lamp '⍝' followed
+⍝H        by zero or more characters except closing braces '}'.
 ⍝H   
 ⍝H Returns: a character matrix of 1 or more rows and 0 or more columns."
 ⍝H
-⍝H SIMPLE EXAMPLE
-⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝H         ∆F'A format string {⍪3↑⎕TS}{ }More stuff\⋄2nd line{ }1\⋄2\⋄three {⍪⍹1×⍹ ⍝ ⎕AI×5}' ⎕AI 5 'NOT USED'
-⍝H     A format string 2021 More stuff 1        2515
-⍝H                        9 2nd line   2        5345
-⍝H                       23            three 7167540
-⍝H                                           7032865      
-⍝H 
 ⍝H FORMAT STRING FIELDS: Field Types and Associated Special symbols:
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯
+⍝H   +-------------+
+⍝H   | Text Field  |
+⍝H   +-------------+  
+⍝H   Everything outside of (unescaped) braces is in a Text field. 
+⍝H   The following characters have special meaning within a text field:
+⍝H        \⋄     ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
+⍝H                 Use newlines to build multiline text fields.
+⍝H               ∘ Note: A CR (⎕UCS 13; hex OC) in the text field is equivalent to \⋄.
+⍝H        \{     ∘ A literal { character, which does NOT initiate a code field or space field.
+⍝H        \}     ∘ A literal } character, which does NOT end a code field or space field.
+⍝H        \\     ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
+⍝H                 The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
+⍝H                 to produce multiple contiguous backslashes:
+⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
+⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
+⍝H                 Note: \" is not recognized in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
+⍝H 
 ⍝H   +--------------------+
 ⍝H   | Code Field: {code} |
 ⍝H   +--------------------+
@@ -244,7 +281,10 @@
 ⍝H            doubled double quotes internally. They only appear within Code fields.
 ⍝H          ∘ DQ strings are realized as SQ strings when code is executed.
 ⍝H          ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
-⍝H            "abc""def" ==>  'abc"def'
+⍝H                "abc""def" ==>  'abc"def'
+⍝H            Ex:
+⍝H                ∆F 'Date: {"Dddd ""the"" Doo ""of"" Mmmm YYYY."(1200⌶)1 ⎕DT⊂2021 10 2 }'
+⍝H              Date: Saturday the 2nd of October 2021. 
 ⍝H          ∘ \⋄  is used to enter a "newline" into a DQ string.
 ⍝H            \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
 ⍝H          ∘ Warning: You may not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
@@ -341,42 +381,28 @@
 ⍝H   +------------------+
 ⍝H   | Space Field: { } |
 ⍝H   +------------------+
-⍝H               A Space field consists of 0 or more spaces within braces; 
-⍝H               these spaces are inserted into the formatted string as a separate 2D field.
-⍝H               An empty Space Field {} may be used to separate  Text fields:
-⍝H               Ex. This example has three text fields, separated by (empty) Space Fields.  
-⍝H                     ∆F 'one\⋄two\⋄three{} and {}four\⋄five\⋄six'
-⍝H                   one   and four
-⍝H                   two       five
-⍝H                   three     six
-⍝H   +-------------+
-⍝H   | Text Field  |
-⍝H   +-------------+  
-⍝H               Everything else is a text field. The following characters have special meaning
-⍝H               within a text field:
-⍝H        \⋄     ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
-⍝H                 Use newlines to build multiline text fields.
-⍝H               ∘ Note: A CR (⎕UCS 13; hex OC) in the text field is equivalent to \⋄.
-⍝H        \{     ∘ A literal { character, which does NOT initiate a code field or space field.
-⍝H        \}     ∘ A literal } character, which does NOT end a code field or space field.
-⍝H        \\     ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
-⍝H                 The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
-⍝H                 to produce multiple contiguous backslashes:
-⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
-⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
-⍝H                 Note: \" is not recognized in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
+⍝H   A Space field consists of 0 or more spaces within braces; 
+⍝H   these spaces are inserted into the formatted string as a separate 2D field.
+⍝H   An empty Space Field {} may be used to separate  Text fields:
+⍝H   Ex. This example has three text fields, separated by (empty) Space Fields.  
+⍝H          ∆F 'one\⋄two\⋄three{} and {}four\⋄five\⋄six'
+⍝H       one   and four
+⍝H       two       five
+⍝H       three     six
+⍝H   Space fields may include a comment AFTER the defined spaces. It consists of a lamp ⍝ symbol followed
+⍝H   by any characters except a closing brace (escaped or not).
 ⍝H    
 ⍝H DEBUGGING EXAMPLE
 ⍝H ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝H ○ This is a simple example shown first without debugging activated, then at debugging level 2.
+⍝H ○ This is a simple example shown first without debugging activated, then at debugging level 3.
 ⍝H   ⍝ No debugging
 ⍝H        Names←'John Smith' 'Mary Jones' 'Terry Hawk'
 ⍝H        Locns←'NY' 'London' 'Paris'
 ⍝H        ∆F 'Officers {↑Names} are in {↑Locns}'
 ⍝H     Officers John Smith are in  NY   
-⍝H            Mary Jones         London                  
-⍝H            Terry Hawk         Paris  
-⍝H   ⍝ DEBUGGING LEVEL 2...                
+⍝H              Mary Jones         London                  
+⍝H              Terry Hawk         Paris  
+⍝H   ⍝ DEBUGGING LEVEL 3...                
 ⍝H        ⎕NULL 3 ∆F 'Officers {↑Names} are in {Locns}'
 ⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
 ⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
@@ -401,5 +427,21 @@
 ⍝H     John Smith knows Mary Smith.
 ⍝H  
 ⍝H ○ Other names in the library ought NOT be used.
+⍝H
+⍝H Some differences from Python F-strings
+⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
+⍝H ∘ Handles arbitrary array expressions, not just simple objects and strings (as Python does).
+⍝H ∘ Savvy about namespaces, defaulting to viewing the namespace from which ∆F is called.
+⍝H ∘ Feels like a nested array formatter for a nested array language.
+⍝H ∘ Easily accesses Dyalog ⎕FMT (via $), rather than using Python formatting.
+⍝H ∘ Easily accesses Dyalog "disp" (display) dfn (via $$) to show structure of formatted objects.
+⍝H ∘ Has simple extensions via $ for padding of 2D generated objects (left- and right-justified and centered).
+⍝H ∘ Works via easy-to-understand 2D "fields," built from left to right.
+⍝H ∘ Code fields can include error handling, as well as (for advanced users) local variables 
+⍝H   shared across several code fields.
+⍝H ∘ Includes a debugging mode to show the field structure of output and more.
+⍝H ∘ Has limited use of special characters {}, "", \⋄ for special functions creating the field types and so on.
+⍝H ∘ Can be executed unconditionally or only upon the success of an assertion.
+⍝H ∘ Rather slow, but that's only because it's a prototype (entirely analyzed at run time).
 ⍝ EndSection ***** Help Info
 }
