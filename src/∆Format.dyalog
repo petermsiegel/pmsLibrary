@@ -1,10 +1,10 @@
 ∆F←{   
   ⍝   Modes A, B, C...
-  ⍝   If ↓↓↓ \ ∆F →→→         Displays            Returns         Shy?   Remarks
+  ⍝   If ↓↓↓ \ then ∆F...     Displays            Returns         Shy?   Remarks
   ⍝   A.  ⍵ has 0 items       HELP INFO           0               Yes    ...
   ⍝   B1. ⍺: default          N/A                 formatted str   No     String Formatter
-  ⍝   B2. ⍺: ⎕NULL [0]        N/A                 formatted str   No     String Formatter
-  ⍝   B3. ⍺: ⎕NULL [1|2|3]    DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
+  ⍝   B2. ⍺: ⎕NULL 0          N/A                 formatted str   No     String Formatter
+  ⍝   B3. ⍺: ⎕NULL 1          DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
   ⍝   C1. ~0∊⍺                formatted str       1               Yes    Assertion succeeds, so show message
   ⍝   C2. otherwise           N/A                 0               Yes    Assertion fails, so go quietly
  
@@ -16,32 +16,34 @@
 ⍝ Case C2 above. Do nothing. Return shy0.
   (⎕NULL≠⊃⍺)∧(0∊⍺): _←0      
 
-  ⍺ (⎕NS '').{ ⍝ Move us out of the user space...
-    ⍝ Section ********* USER-SETTABLE FLAGS...
-    ⍝ DBGLVL is ⍺[1] (DOMAIN: 0 1 2 3), only if ⍺[0] is ⎕NULL.
-      DBGLVL← (⎕NULL=⊃⍺)⊃0 (⊂⊃2↓0,⍺)       
-      (DBGLVL)(~∊)⍳4: '∆F DOMAIN ERROR: Invalid debug option'⎕SIGNAL 11
-    ⍝ End Section ***** USER-SETTABLE FLAGS...
-
+  ⍺ (#.⎕NS '').{ ⍝ Move us to a private namespace in the # domain.
     ⍝ Section ********* Utilities
       ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
           def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
           0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
       }
-      FIELDS_Append←{           
-        ⍝ EXTERN: (RW) FIELDS
-          ⍺←''  ⋄  0=≢⍵: ⍺            
-          rt ← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display⍣(DBGLVL∊2 3)⊢ USER_SPACE.⎕FMT ⍵
-          ht←(≢FIELDS)⌈≢rt
-          FIELDS⊢←(ht↑FIELDS),ht↑rt
+      DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
+      Data2gFIELDS←{           
+        ⍝ EXTERN: (RW) gFIELDS
+          ⍺←''  ⋄  0=≢⍵: ⍺   
+          g←gFIELDS   
+          w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+        ⍝ See DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+          g w↑⍨←g⌈⍥≢w 
+          gFIELDS⊢←g,w 
           ⍺
       }
+      Code2gFIELDS←{ 
+         ⍺←''  ⋄  0=≢⍵: ⍺  
+         0∊⍴gFIELDS: ⍺⊣ gFIELDS∘←'(',⍵,')'
+                     ⍺⊣ gFIELDS∘← gFIELDS, '⍺.⍙(', ⍵, ')'
+      }
       OMEGA_Pick←{         
-      ⍝ EXTERN: (R) OMEGA, (RW) OMEGA_CUR
+      ⍝ EXTERN: (R) nOMEGA, (RW) gOMEGA_CUR
         ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
         0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-        (ix<0)∨ix≥≢OMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
-        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕OMEGA_CUR∘←ix
+        (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
+        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕gOMEGA_CUR∘←ix-COMPILE    ⍝ If "COMPILE", item ⍵0 is not selectable (index error)
       }
     ⍝ Section ********* Main Loop Functions    
       EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
@@ -51,76 +53,104 @@
           SQ,SQ,⍨(1+SQ=s)/s←(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
       }
       DfnField←{
-          esqQP←    '\\"'
+          escDQP←  '\\"'
           quoteP←  '(?<!\\)(?:"[^"]*")+'
-          dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.disp)
+          dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
           fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
           omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
           omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
           comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
           selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
-          pats←quoteP dispP fmtP omDigP omPairP comP selfDocP esqQP  
-               quoteI dispI fmtI omDigI omPairI comI selfDocI esqQI ← ⍳≢pats
+          pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
+               quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
           selfDocFlag←0
           dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
               CASE quoteI:    DQ2SQ f 0
-              CASE dispI:    ' __LÎB__.DISP ' 
-              CASE fmtI:     ' __LÎB__.FMTX '                               
+              CASE dispI:    ' ⍙FLÎB.DISP ' 
+              CASE fmtI:     ' ⍙FLÎB.FMTX '                               
               CASE omDigI:    OMEGA_Pick f 1          
-              CASE omPairI:   OMEGA_Pick OMEGA_CUR+1  
+              CASE omPairI:   OMEGA_Pick gOMEGA_CUR+1  
               CASE comI:     ' '   ⍝ 1 space         
               CASE selfDocI: '}'⊣ selfDocFlag∘←1
-              CASE esqQI:     '"'
+              CASE escDQI:   '"'
               '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }⍵
-          0:: ⎕DMX.EN ⎕SIGNAL⍨ ⎕DMX.(EM,':',(0≠≢Message)/' ',Message),' ',dfn  
-        ⍝ Pass the main local namespace LÎB into the user space (as a local name and as ⍺). See Mapping of $.
-          res←⍎{⍵⊣⎕←'Executing Code: ',⍵}⍣(DBGLVL∊1 3)⊣'LÎB USER_SPACE.{__LÎB__←⍺ ⋄ ⍺',dfn,'⍵ }OMEGA' 
+        ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
+          res←{
+            COMPILE: '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
+                    ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }gOMEGA'
+          }dfn 
         ⍝ selfDoc?   '➤' is U+10148
-          selfDocFlag: res FIELDS_Append '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+          selfDocFlag: res {COMPILE: ⍺ Code2gFIELDS REP ⍵ ⋄ ⍺ Data2gFIELDS ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
           res 
       }
     ⍝ EndSection ***** Main Loop Utilities
   ⍝ EndSection ***** Utilities
 
   ⍝ Section ********* Initializations
-    ⍝ Basic Initializations
-        USER_SPACE←⊃⌽⎕RSI
-        LÎB←⎕THIS 
-      ⍝ ⊆⍵ structure:
-      ⍝    FORMAT@str OMEGA@V[], where OMEGA scalars (elements) are accessed as 
-      ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.  See code or documentation for aliases for ⍵N and ⍹.
-        OMEGA←      ⍵     ⍝ The format string (FORMAT above) is ⊃OMEGA.       
-        OMEGA_CUR←  0     ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-        FIELDS←     ⎕FMT''
+    ⍝ User-Settable Options
+    ⍝ DEBUG is ⍺[1] (DOMAIN: 0 1), only if ⍺[0] is ⎕NULL.
+      DEBUG COMPILE← {   
+        ⎕NULL≠⊃⍺: 0 0  ⋄ o←⊂⊃2↓0,⍺ ⋄ (2≥≢⍺)∧o∊⍳4: o∊¨(1 3)(2 3) 
+        '∆F DOMAIN ERROR: Invalid debug option' ⎕SIGNAL 11
+      }⍨⍺
 
-      ⍝ Library Routines (User-Accessible)
-      ⍝ FMTX, DISP, JOIN
-      ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
-        FMTX←{ ⍺←⊢
-            ∆FMT←USER_SPACE.⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP.
-            4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
-            1≡⍺ 1:∆FMT ⍵
-            srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-            xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
-            xtra≡'':⍺ ∆FMT ⍵ ⋄  obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
-            wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
-            wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
-            pad1←↑⍤1
-            xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
-            wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center
-            wReq pad1 wCtr pad1 obj                           ⍝ ...
-        }
-      ⍝ ⍺.DISP: See $$
-        DISP← ⎕SE.Dyalog.Utils.disp 
-      ⍝ ⍺.JOIN: See HELP info on library routines
-        JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-      
+    ⍝ Basic Initializations
+      USER_SPACE←⊃⌽⎕RSI
+      ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'           
+    ⍝ ⊆⍵ structure:
+    ⍝    FORMAT@str gOMEGA@V[], where gOMEGA scalars (elements) are accessed as 
+    ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.  See code or documentation for aliases for ⍵N and ⍹.
+      gOMEGA←      ⍵     ⍝ The format string (⍹0) is ⊃gOMEGA.   
+      nOMEGA← COMPILE⊃ (≢⍵) 9999          ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA-- assume ok. 
+      gOMEGA_CUR←  0     ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+      gFIELDS←    1 0⍴' '
+
+    ⍝ Library Routines (User-Accessible)
+    ⍝ FMTX, DISP, JOIN
+    ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+      FMTX←{ ⍺←⊢
+          ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP.
+          4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
+          1≡⍺ 1:∆FMT ⍵
+          srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
+          xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
+          xtra≡'':⍺ ∆FMT ⍵ 
+          obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
+          wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
+          wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
+          pad1←↑⍤1
+          xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
+          wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center
+          wReq pad1 wCtr pad1 obj                           ⍝ ...
+      }
+    ⍝ ⍺.DISP: See $$
+      DISP← ⎕SE.Dyalog.Utils.display
+    ⍝ ⍺.JOIN: See HELP info on library routines
+      JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+
+      REP←{
+        ⍺←0 ⋄ SQ←''''  
+        sh←⍕⍴⍵ ⋄ o←(1+o=SQ)\o←,⍵ ⋄ r←sh,'⍴',SQ,SQ,⍨o
+        ⍺: '(',r,')' ⋄ r
+      }
+ 
+    _←{
+      ⍵: 0
+      ⎕←↑'>> LOADING RUNTIME LIB "⎕SE.⍙FLÎB"' '>> UTIL FNS ARE: JOIN, ⍙;  FMTX; DISP'
+      ⎕SE.⍙FLÎB←⎕SE.⎕NS ''
+      ⎕SE.⍙FLÎB.JOIN← JOIN
+      ⎕SE.⍙FLÎB.⍙← JOIN      ⍝ Short version of "join"
+      ⎕SE.⍙FLÎB.FMTX← FMTX
+      ⎕SE.⍙FLÎB.DISP← DISP
+      0
+    }9=⎕NC '⎕SE.⍙FLÎB'
+    
     ⍝ Top-level Patterns  
-        simpleP← '(\\.|[^{])+'
-        spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
-      ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
-        dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
+      simpleP← '(\\.|[^{])+'
+      spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
+    ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
+      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
   ⍝ EndSection ***** Initializations
 
   ⍝ Section ********* Main
@@ -128,26 +158,34 @@
            simpleI spacerI dfnI← ⍳≢pats
       _←pats ⎕R{    
           ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-          CASE simpleI:    FIELDS_Append EscapeText f 0
-          CASE spacerI:    FIELDS_Append f 1    
-          CASE dfnI:       FIELDS_Append DfnField f 0
-          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-      }⊣⊃OMEGA     ⍝ Pass the format string only...
-      ⎕NULL=⊃⍺:       FIELDS
-             1: _←1⊣⎕←FIELDS          
+          COMPILE: {
+            CASE simpleI:    Code2gFIELDS REP EscapeText f 0
+            CASE spacerI:    Code2gFIELDS ''' ''⍴⍨1 ',(⍕≢f 1) 
+            CASE dfnI:       Code2gFIELDS DfnField f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+          }0
+            CASE simpleI:    Data2gFIELDS EscapeText f 0
+            CASE spacerI:    Data2gFIELDS  f 1    
+            CASE dfnI:       Data2gFIELDS  DfnField f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+      }⊣⊃gOMEGA     ⍝ Pass the format string only...
+ ⍝    COMP_RUN: USER_SPACE⍎ '⎕SE.⍙FLÎB∘{',gFIELDS,'}⍵'     ⍝ Slower than building internally (COMPILE=0)
+      COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}'
+      ⎕NULL=⊃⍺:                          gFIELDS
+             1: _←1⊣                   ⎕←gFIELDS          
   ⍝ EndSection ***** Main
 },⊆⍵
 
 ⍝ Section ***** HELP INFO
 ⍝H DESCRIPTION
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯
-⍝H ∆F: "A basic APL-aware formatting function (file: ∆Format.dyalog) expecting in its right argument
+⍝H ∆F: "A basic APL-aware formatting function expecting in its right argument
 ⍝H      a format string, followed by 0 or more scalars of any type (within the domain of ⎕FMT).
-⍝H      The format string uses any mixture of 3 field types: 
+⍝H      The format string defines formatted output via fields of 3 types: 
 ⍝H         text fields, code fields {code}, and space fields {  }
 ⍝H      each of which builds a character matrix (a field). Fields are concatenated 
-⍝H      from left to right, after extending each with blank rows needed to stitch together.
-⍝H      Inspired by (but different from) Python f-strings."
+⍝H      from left to right, after extending each with blank rows required to stitch them together.
+⍝H      Reminiscent of Python F-strings, but reconceived for Dyalog APL."
 ⍝H
 ⍝H INTRODUCTORY EXAMPLES
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
@@ -159,64 +197,44 @@
 ⍝H #2      fname lname← 'john' 'smith'  ⋄  age←    34  
 ⍝H         salBase←     45020           ⋄  salPct←  3.2        
 ⍝H         cap1← {(1 ⎕C 1↑⍵),1↓⍵}
-⍝H         ∆F 'Employee {∊cap1¨fname lname} earns {"⊂$⊃,CF9.2"$salBase} and will earn {"⊂$⊃,CF9.2"$ salBase×1+salPct÷100} next year.'
-⍝H     Employee JohnSmith earns $45,020.00 and will earn $46,460.64 next year.     
+⍝H         ∆F 'Employee {cap1 fname} {cap1 lname} earns {"⊂$⊃,CF9.2"$salBase} and will earn {"⊂$⊃,CF9.2"$ salBase×1+salPct÷100} next year.'
+⍝H     Employee John Smith earns $45,020.00 and will earn $46,460.64 next year.     
 ⍝H   
 ⍝H #3      planet←   'Mercury' 'Venus'  'Earth'  'Mars'  'Jupiter'  'Saturn'  'Uranus'  'Neptune' 
 ⍝H         radiusMi← 1516      3760.4   3958.8   2106.1  43441      36184     15759     15299
-⍝H         ∆F 'The planet {↑planet} has a radius of {"I5" $ radiusMi} mi. or {"I5" $ radiusMi×1.609344} km.'
-⍝H     The planet Mercury has a radius of  1516 mi. or  2440 km.
-⍝H                Venus                    3760         6052    
-⍝H                Earth                    3959         6371    
-⍝H                Mars                     2106         3389    
-⍝H                Jupiter                 43441        69912    
-⍝H                Saturn                  36184        58233    
-⍝H                Uranus                  15759        25362    
-⍝H                Neptune                 15299        24621            
+⍝H         mi2Km←    ×∘1.609344
+⍝H         ∆F 'The planet {↑planet ⍝ No Pluto!} has a radius of {"I5,⊂ mi⊃" $ radiusMi} or {"I5,⊂ km⊃" $ mi2Km radiusMi}.'
+⍝H     The planet Mercury has a radius of  1516 mi or  2440 km.
+⍝H                Venus                    3760 mi     6052 km 
+⍝H                Earth                    3959 mi     6371 km 
+⍝H                Mars                     2106 mi     3389 km 
+⍝H                Jupiter                 43441 mi    69912 km 
+⍝H                Saturn                  36184 mi    58233 km 
+⍝H                Uranus                  15759 mi    25362 km 
+⍝H                Neptune                 15299 mi    24621 km               
 ⍝H 
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
 ⍝H         [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
 ⍝H         ⍺:  
 ⍝H           Omitted     Return the result of formatting specified by format_string with any other scalars of ⍵.
-⍝H           ⎕NULL       Same as above.
+⍝H           ⎕NULL [0]   Same as above.
 ⍝H          ~0∊⍺         Successful assertion. Print the formatted string and return shy 1.
 ⍝H           0∊⍺         Failed assertion. Do not format; return shy 0.
-⍝H           ⎕NULL 1     As for ⎕NULL case, but provide (terse) debugging info.
-⍝H           ⎕NULL 2     Prints a debugging version of the output:
-⍝H                       - showing each field independently via display (⎕SE.Dyalog.Utils.disp) in the output.
+⍝H           ⎕NULL 1     Prints a debugging version of the output:
+⍝H                       - showing each field independently via display (⎕SE.Dyalog.Utils.display) in the output.
 ⍝H                       - with each blank in the output replaced by a center dot (·).
-⍝H           ⎕NULL 3     Provides debugging info ⎕NULL 1 and ⎕NULL 2
-⍝H                       See below (bottom) for debugging example...
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
-⍝H      ∘ Text fields may have multiple lines, where \⋄ is a "newline" character, \{ and \} are (escaped) braces.
+⍝H      ∘ Text fields may represent multiple lines, where \⋄ is a "newline" character, \{ and \} are (escaped) braces.
+⍝H        Note: ⋄ is an ordinary character. { and } begin and end Code or Space fields, below.
 ⍝H
-⍝H      ∘ Code fields consist of any APL code (beyond simple spaces alone) between (unescaped) braces.
-⍝H        Any code valid within a DFN is appropriate, as modified here:
-⍝H        - Code fields use double-quotes (") to create strings, rather than single quotes. 
-⍝H          That is each double quotes must have a match. 
-⍝H          An internal double quote is entered as two consecutive double quotes: 
-⍝H               ∆F '{"I can''t believe ""that"" is true!"}' 
-⍝H            I can't believe "that" is true! 
-⍝H          Single quotes are treated as "ordinary" characters (see details / exceptions below). 
-⍝H        - Multiple lines may be created via APL code (e.g.: ↑"one line" "2nd line") or, 
-⍝H          within double quotes, via \⋄, the newline character. 
-⍝H        - Code fields support $ as a shortcut (pseudo-fn) for ⎕FMT (1- or 2-adic), for padding left or right, 
-⍝H          or for centering a field.
-⍝H        - Code fields support $$ as a shortcut (pseudo-fn) for the utility "disp" (brief-format boxed display).
-⍝H        - Code fields support 
-⍝H          ∘ ⍹0, ⍹1,..., ⍹N to index the 0-th, 1-st,..., N-th scalar of the right argument (⍹0 is the format string) or 
-⍝H          ∘ ⍹ alone, which selects the NEXT scalar or, on the first use of ⍹ or ⍹N, 
-⍝H            ⍹1 (the first argument AFTER the format string). 
-⍝H        - Code fields are executed left to right as well in the calling functions namespace.
-⍝H        - Special elements $, $$, ⍹, and ⍹N, may all be used in combination.
+⍝H      ∘ Code fields consist of any APL code between (unescaped) braces (beyond simple spaces [w/ optional comments] alone).
+⍝H        Any code valid within a DFN is appropriate, as modified below.
 ⍝H
 ⍝H      ∘ Space fields consist of 0 or more spaces between (unescaped) braces: { }
 ⍝H        They may be used to separate contiguous text fields or to add spaces between fields.
-⍝H        The spaces (if any) may be followed by a comment, consisting of a lamp '⍝' followed
-⍝H        by zero or more characters except closing braces '}'.
 ⍝H   
 ⍝H Returns: a character matrix of 1 or more rows and 0 or more columns."
 ⍝H
@@ -237,17 +255,19 @@
 ⍝H                 to produce multiple contiguous backslashes:
 ⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
 ⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
-⍝H                 Note: \" is not recognized in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
+⍝H                 Note: \" is ordinary text in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
 ⍝H 
 ⍝H   +--------------------+
 ⍝H   | Code Field: {code} |
 ⍝H   +--------------------+
-⍝H        ∘ APL Code Field. Accesses arguments 0⊃⍵ (1st vector AFTER formatting string), 
+⍝H        ∘ APL Code Field inserts the value of variables {myVar} into the output (formatted) string,
+⍝H          or evaluate sand inserts the value of the code specified following dfn conventions.
+⍝H          ∘ Code fields are executed in the calling function's namespace, with access to its
+⍝H            variables, functions, ⎕IO, ⎕FR, ⎕PP, etc.
+⍝H        ∘ Accesses ∆F right arguments:  0⊃⍵ (1st vector AFTER formatting string), 
 ⍝H          1⊃⍵ via ⍹N and ⍹ (see below: N is any 1- or 2-digit number 0..99).
 ⍝H          No blanks are inserted automatically before or after a Code Field. Do so explicitly,
 ⍝H          via explicit code (e.g. adding a " " string), a Space Field { }, or a Text Field.
-⍝H        ∘ Code fields are executed in the calling function's namespace, with access to its
-⍝H          variables, functions, ⎕IO, ⎕FR, ⎕PP, etc.
 ⍝H        ∘ Referring to ∆F explicit arguments in a Code field...
 ⍝H          ⍹N⎱  ∘ Returns, for N an integer of 1 or 2 digits, 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
 ⍝H          ⍵N⎰    - ⍵N is allowed as an alias for ⍹N, e.g. ⍵9 ≡ ⍹9, in case you don't have the Unicode character ⍹ handy.
@@ -276,40 +296,33 @@
 ⍝H                    ⍝ ⍹0 (or ⍵0) refers to the format string itself (the 0th string in ⎕IO=0)
 ⍝H                      ∆F 'The format string:  {⍹0}'
 ⍝H                    The format string:  The format string:  {⍹0}
+⍝H        ∘ The left arg (⍺) of a Code field refers to a namespace with library routines and local variables.
+⍝H          See Obscure Points below.
 ⍝H        ∘ DQ strings: "..."
+⍝H          Strings within Code Fields are DQ strings:
 ⍝H          ∘ DQ strings begin and end with double quotes, with (optional) 
 ⍝H            doubled double quotes internally. They only appear within Code fields.
 ⍝H          ∘ DQ strings are realized as SQ strings when code is executed.
 ⍝H          ∘ DQ character in Code fields are escaped in the APL way, by doubling. 
-⍝H                "abc""def" ==>  'abc"def'
-⍝H            Ex:
-⍝H                ∆F 'Date: {"Dddd ""the"" Doo ""of"" Mmmm YYYY."(1200⌶)1 ⎕DT⊂2021 10 2 }'
-⍝H              Date: Saturday the 2nd of October 2021. 
+⍝H              "abc""def" ==>  'abc"def'
+⍝H          Ex:
+⍝H              ∆F 'Date: {"Dddd ""the"" Doo ""of"" Mmmm YYYY."(1200⌶)1 ⎕DT⊂2021 10 2 }'
+⍝H            Date: Saturday the 2nd of October 2021. 
 ⍝H          ∘ \⋄  is used to enter a "newline" into a DQ string.
 ⍝H            \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
-⍝H          ∘ Warning: You may not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
+⍝H        ∘ Warning: You may not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
 ⍝H        ∘ SQ characters:  (')
 ⍝H          ∘ Within Code fields, SQ (') characters are treated as ordinary characters, 
 ⍝H            not quote characters.
-⍝H          ∘ If you do use SQ strings as delimiters, they must be doubled when entered by the user (as always). 
-⍝H          ∘ Using DQs within a SQ-delimited string [not encouraged]:
-⍝H            As well, to use DQs within a SQ-delimited string, you must specify \" for each DQ desired.
-⍝H                ∆F '{↑''ok'' ''but'' ''challenging''}'        ∆F '{↑''ok'' ''yet'' ''very \"awkward\"!''}'
-⍝H              ok                                            ok
-⍝H              but                                           yet     
-⍝H              challenging!                                  very "awkward"!
-⍝H            Much easier is: 
-⍝H                ∆F '{↑"this" "is the" "easiest!"}' 
-⍝H              This 
-⍝H              is the
-⍝H              easiest!  
+⍝H          ∘ If you insist on using SQ strings as delimiters, double them and watch out for confusion. 
+⍝H            Note: to use DQs within a SQ-delimited string, you must specify \" for each DQ desired.
 ⍝H          $ Extended Format (extends dyadic ⎕FMT): $ pseudo-function
-⍝H            ∘ $ denotes a special APL-format function, with extended parameters L, C, and R.
-⍝H              $ may be used more than once in each Code Field.
+⍝H            ∘ $ denotes a special APL "format" function, with extended parameters L, C, and R.
+⍝H              $ may be used more than once in each Code Field, following Dyalog's rules for ⎕FMT.
 ⍝H              - Three additional string parameters are allowed ONLY at the beginning of the left argument,
 ⍝H                in this paradigm:
 ⍝H                           [LCR]ddd,std    OR  [LCR]ddd      OR    std
-⍝H                where ∘ L means left-justify the right argument to $ 
+⍝H                where ∘ L means left-justify the right argument to $ (the arg may be of any type), 
 ⍝H                      ∘ C means center the right argument to $,
 ⍝H                      ∘ R means right-justify the right argument to $ 
 ⍝H                      ∘ ddd (1 or more digits) represent the MINIMUM width of the right argument
@@ -317,7 +330,7 @@
 ⍝H                        (if present), according to Dyalog's ⎕FMT specifications.
 ⍝H              - If no L, C, or R is present at the beginning of the left argument to $,
 ⍝H                then $ functions as the default dyadic ⎕FMT only.
-⍝H              - $ (via ⎕FMT) functions as if in the calling function's namespace;
+⍝H              - $ (via ⎕FMT) executes in the calling function's namespace;
 ⍝H                this normally has impact for ⎕FR and (for monadic ⎕FMT) ⎕PP.
 ⍝H              - If there is no left argument to $, then the default monadic ⎕FMT is called.
 ⍝H              - Extra spaces before or after the prefix [LCR] or following comma are IGNORED. 
@@ -355,7 +368,7 @@
 ⍝H                   ·············9.42478·········· 
 ⍝H 
 ⍝H          $$ Display
-⍝H             ∘ Alias for short display form, "disp," viz. ⎕SE.Dyalog.Utils.disp 
+⍝H             ∘ Alias for long display form, "display," viz. ⎕SE.Dyalog.Utils.display
 ⍝H                     Ex:
 ⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
 ⍝H                         ┌→┬─┬──┐    
@@ -375,15 +388,15 @@
 ⍝H                   ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
 ⍝H                 Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
 ⍝H             - A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
-⍝H                   ∆F '{⍳3 ⍝ iota test ⋄ → }'
-⍝H                 ⍳3 ⍝ iota test ⋄ ➤ 0 1 2
+⍝H                   ∆F '{⍳3 ⍝ iota test ⋄ → }'             ∆F '{⍳3 ⍝ iota test → }'  ⍝ → is eaten by comment
+⍝H                 ⍳3 ⍝ iota test ⋄ ➤ 0 1 2               0 1 2
 ⍝H
 ⍝H   +------------------+
 ⍝H   | Space Field: { } |
 ⍝H   +------------------+
 ⍝H   A Space field consists of 0 or more spaces within braces; 
 ⍝H   these spaces are inserted into the formatted string as a separate 2D field.
-⍝H   An empty Space Field {} may be used to separate  Text fields:
+⍝H   An empty Space Field {} may be used to separate Text fields w/o extra spaces.
 ⍝H   Ex. This example has three text fields, separated by (empty) Space Fields.  
 ⍝H          ∆F 'one\⋄two\⋄three{} and {}four\⋄five\⋄six'
 ⍝H       one   and four
@@ -391,6 +404,7 @@
 ⍝H       three     six
 ⍝H   Space fields may include a comment AFTER the defined spaces. It consists of a lamp ⍝ symbol followed
 ⍝H   by any characters except a closing brace (escaped or not).
+⍝H   The space field here inserts six spaces:   ∆F '<{      ⍝ Six spaces}>'  ==>   '<      >'
 ⍝H    
 ⍝H DEBUGGING EXAMPLE
 ⍝H ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
@@ -403,7 +417,7 @@
 ⍝H              Mary Jones         London                  
 ⍝H              Terry Hawk         Paris  
 ⍝H   ⍝ DEBUGGING LEVEL 3...                
-⍝H        ⎕NULL 3 ∆F 'Officers {↑Names} are in {Locns}'
+⍝H        ⎕NULL 1 ∆F 'Officers {↑Names} are in {Locns}'
 ⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
 ⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
 ⍝H     └─────────┘│Mary·Jones│└────────┘│ London│
@@ -415,33 +429,34 @@
 ⍝H ○ The current ∆F "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
 ⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX    - an extended ⎕FMT that can justify/center its right argument. See pseudo-builtin $ above.
-⍝H   ∘ ⍺.DISP    - Dyalog's brief display function, ⎕SE.Dyalog.Utils.disp. See pseudo-builtin $$ above.
+⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display. See pseudo-builtin $$ above.
 ⍝H   ∘ ⍺.JOIN    - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
+⍝H   ∘ ⍺.DEBUG   - 1 if DEBUG is set; otherwise 0. May be set (only to 0 or 1): '...{⍺.DEBUG←1 ⋄ RunCode Dataset}...'
 ⍝H  
-⍝H ○ If you want "local" variables to be consistent across a series of code fields (left to right), you can
-⍝H   use reserved local names in the library space. Those names must begin with 
-⍝H      ⍺._ followed by 0 or more valid APL variable name letters (e.g. a-z, A-Z, 0-9, or more underscores).
-⍝H   Valid names might be:  ⍺._, ⍺.__, ⍺._myExample, ⍺._MyExample, or ⍺._123.
+⍝H ○ If you want to use your own "local" objects across Code fields, simply use "library" names prefixed with ⍺._
+⍝H   (If you call subsequent functions, be sure to pass ⍺ in some format to those functions).
+⍝H   Valid object names might be:  
+⍝H        ⍺._, ⍺.__, ⍺._myExample, ⍺._MyFunction, or ⍺._123.
 ⍝H   E.g. you might have a sequence like:
 ⍝H        ∆F 'John {⍺._last←"Smith"} knows Mary {⍺._last}.'
 ⍝H     John Smith knows Mary Smith.
-⍝H  
-⍝H ○ Other names in the library ought NOT be used.
+⍝H ○ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
+⍝H   (Note: it is trivial to create a truly private namespace, but we didn't bother).
 ⍝H
 ⍝H Some differences from Python F-strings
 ⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
-⍝H ∘ Handles arbitrary array expressions, not just simple objects and strings (as Python does).
-⍝H ∘ Savvy about namespaces, defaulting to viewing the namespace from which ∆F is called.
-⍝H ∘ Feels like a nested array formatter for a nested array language.
-⍝H ∘ Easily accesses Dyalog ⎕FMT (via $), rather than using Python formatting.
-⍝H ∘ Easily accesses Dyalog "disp" (display) dfn (via $$) to show structure of formatted objects.
-⍝H ∘ Has simple extensions via $ for padding of 2D generated objects (left- and right-justified and centered).
+⍝H ∘ Handles arbitrary arrays and arbitrary APL expressions, not just simple objects and strings (as Python does).
 ⍝H ∘ Works via easy-to-understand 2D "fields," built from left to right.
+⍝H ∘ Savvy about namespaces, defaulting to viewing the namespace from which ∆F is called.
+⍝H ∘ Concisely accesses Dyalog ⎕FMT (via $), rather than using incompatible Python formatting.
+⍝H ∘ Has simple extensions to $ for padding 2D generated objects (left- and right-justified and centered).
+⍝H ∘ Easily accesses Dyalog "display"  dfn (via $$) to show structure of formatted objects under your control.
 ⍝H ∘ Code fields can include error handling, as well as (for advanced users) local variables 
 ⍝H   shared across several code fields.
-⍝H ∘ Includes a debugging mode to show the field structure of output and more.
-⍝H ∘ Has limited use of special characters {}, "", \⋄ for special functions creating the field types and so on.
-⍝H ∘ Can be executed unconditionally or only upon the success of an assertion.
+⍝H ∘ Includes a debugging mode to show the field structure of output.
+⍝H ∘ Has limited use of special characters {, }, ", \⋄ for special functions creating the field types and so on.
+⍝H   Avoids the hassle of too many exceptional characters in a format string.
+⍝H ∘ Can be executed unconditionally or only upon the success of an assertion (no 0∊⍺ in ⍺ ∆F ...).
 ⍝H ∘ Rather slow, but that's only because it's a prototype (entirely analyzed at run time).
 ⍝ EndSection ***** Help Info
 }
