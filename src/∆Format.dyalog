@@ -9,12 +9,12 @@
   ⍝   C2. otherwise           N/A                 0               Yes    Assertion fails, so go quietly
  
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⎕NULL  
+  ⎕IO←0 ⋄ ⍺←'DEFAULT'  
 
 ⍝ Help... Show HELP info and return shy 0.
   0≡≢⍵:  _←0⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
-⍝ Case C2 above. Do nothing. Return shy0.
-  (⎕NULL≠⊃⍺)∧(0∊⍺): _←0      
+⍝ Case C2 above. Do nothing. Return shy0. 
+  ⍺{⍵: 0∊⍺ ⋄ 0 }0=1↑0⍴∊⍺: _←0 
 
   ⍺ (#.⎕NS '').{ ⍝ Move us to a private namespace in the # domain.
     ⍝ Section ********* Utilities
@@ -89,12 +89,15 @@
 
   ⍝ Section ********* Initializations
     ⍝ User-Settable Options
-    ⍝ DEBUG is ⍺[1] (DOMAIN: 0 1), only if ⍺[0] is ⎕NULL.
-      DEBUG COMPILE← {   
-        ⎕NULL≠⊃⍺: 0 0  ⋄ o←⊂⊃2↓0,⍺ ⋄ (2≥≢⍺)∧o∊⍳4: o∊¨(1 3)(2 3) 
-        '∆F DOMAIN ERROR: Invalid debug option' ⎕SIGNAL 11
+    ⍝ NUMERIC1:  ⍺ is numeric, but containing no 0s
+    ⍝ DEBUG, COMPILE: See Documentation
+    ⍝ DEFAULT:   When ⍺ is omitted, it is set to this.
+       NUMERIC1 DEBUG COMPILE← { case←'DEBUG' 'COMPILE'  'DEFAULT'
+        0=≢⍺: 0 0 0 ⋄ 0=1↑0⍴∊⍺: 1 0 0 ⋄ opts←⊆⍺
+        opts(0∘∊∊) case: '∆F DOMAIN ERROR: Invalid debug option' ⎕SIGNAL 11
+        0,opts∊⍨2↑case
       }⍨⍺
-
+   
     ⍝ Basic Initializations
       USER_SPACE←⊃⌽⎕RSI
       ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'           
@@ -171,8 +174,8 @@
       }⊣⊃gOMEGA     ⍝ Pass the format string only...
  ⍝    COMP_RUN: USER_SPACE⍎ '⎕SE.⍙FLÎB∘{',gFIELDS,'}⍵'     ⍝ Slower than building internally (COMPILE=0)
       COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}'
-      ⎕NULL=⊃⍺:                          gFIELDS
-             1: _←1⊣                   ⎕←gFIELDS          
+      NUMERIC1 : _←1⊣                   ⎕←gFIELDS    
+      1:                                  gFIELDS      
   ⍝ EndSection ***** Main
 },⊆⍵
 
