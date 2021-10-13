@@ -1,20 +1,22 @@
 ∆F←{   
   ⍝   Modes A, B, C...
   ⍝   If ↓↓↓ \ then ∆F...     Displays            Returns         Shy?   Remarks
-  ⍝   A.  ⍵ has 0 items       HELP INFO           0               Yes    ...
-  ⍝   B1. ⍺: default          N/A                 formatted str   No     String Formatter
-  ⍝   B2. ⍺: ⎕NULL 0          N/A                 formatted str   No     String Formatter
-  ⍝   B3. ⍺: ⎕NULL 1          DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
+  ⍝   0.  ⍵ null  (Not a special case. Depends on ⍺)   
+  ⍝   A.  ⍺: 'help'           HELP INFO           0               Yes    ...
+  ⍝   B1. ⍺: ⍬ | 'default'    N/A                 formatted str   No     String Formatter
+  ⍝   B2. ⍺: 'debug'          DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
+  ⍝   B3: ⍺: 'compile'        --                  executable code        9-10x more efficient for repeat calls
+  ⍝                                               sequence y:       
+  ⍝                                               (⍎y)⍵1 ⍵2 ...
   ⍝   C1. ~0∊⍺                formatted str       1               Yes    Assertion succeeds, so show message
-  ⍝   C2. otherwise           N/A                 0               Yes    Assertion fails, so go quietly
+  ⍝   C2. 0∊⍺                 N/A                 0               Yes    Assertion fails, so go quietly
  
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←'DEFAULT'  
+  ⎕IO←0 ⋄ ⍺←⍬ ⍝ Same as 'Default'
 
-⍝ Help... Show HELP info and return shy 0.
-  0≡≢⍵:  _←0⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
+  0≡≢⍵:  1 1⍴' '
 ⍝ Case C2 above. Do nothing. Return shy0. 
-  ⍺{⍵: 0∊⍺ ⋄ 0 }0=1↑0⍴∊⍺: _←0 
+  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    ⍝ ASSERT_FALSE
 
   ⍺ (#.⎕NS '').{ ⍝ Move us to a private namespace in the # domain.
     ⍝ Section ********* Utilities
@@ -28,7 +30,6 @@
           ⍺←''  ⋄  0=≢⍵: ⍺   
           g←gFIELDS   
           w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
-        ⍝ See DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
           g w↑⍨←g⌈⍥≢w 
           gFIELDS⊢←g,w 
           ⍺
@@ -44,7 +45,18 @@
         0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
         (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
         ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕gOMEGA_CUR∘←ix-COMPILE    ⍝ If "COMPILE", item ⍵0 is not selectable (index error)
+      }    
+      LoadRuntimeLib←{
+        ~⍵: 0
+        ⎕←↑'>> LOADING RUNTIME LIB "⎕SE.⍙FLÎB"' '>> UTIL FNS ARE: JOIN, ⍙;  FMTX; DISP'
+        ⎕SE.⍙FLÎB←⎕SE.⎕NS ''
+        ⎕SE.⍙FLÎB.JOIN← JOIN
+        ⎕SE.⍙FLÎB.⍙← JOIN      ⍝ Short version of "join"
+        ⎕SE.⍙FLÎB.FMTX← FMTX
+        ⎕SE.⍙FLÎB.DISP← DISP
+        0
       }
+
     ⍝ Section ********* Main Loop Functions    
       EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
       EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
@@ -88,32 +100,31 @@
   ⍝ EndSection ***** Utilities
 
   ⍝ Section ********* Initializations
-    ⍝ User-Settable Options
-    ⍝ NUMERIC1:  ⍺ is numeric, but containing no 0s
-    ⍝ DEBUG, COMPILE: See Documentation
-    ⍝ DEFAULT:   When ⍺ is omitted, it is set to this.
-       NUMERIC1 DEBUG COMPILE← { case←'DEBUG' 'COMPILE'  'DEFAULT'
-        0=≢⍺: 0 0 0 ⋄ 0=1↑0⍴∊⍺: 1 0 0 ⋄ opts←⊆⍺
-        opts(0∘∊∊) case: '∆F DOMAIN ERROR: Invalid debug option' ⎕SIGNAL 11
-        0,opts∊⍨2↑case
-      }⍨⍺
-   
-    ⍝ Basic Initializations
-      USER_SPACE←⊃⌽⎕RSI
-      ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'           
-    ⍝ ⊆⍵ structure:
-    ⍝    FORMAT@str gOMEGA@V[], where gOMEGA scalars (elements) are accessed as 
-    ⍝      (a) ⍵0 ⍵1 ... ⍵99; or (b) incremental ⍹.  See code or documentation for aliases for ⍵N and ⍹.
-      gOMEGA←      ⍵     ⍝ The format string (⍹0) is ⊃gOMEGA.   
-      nOMEGA← COMPILE⊃ (≢⍵) 9999          ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA-- assume ok. 
-      gOMEGA_CUR←  0     ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-      gFIELDS←    1 0⍴' '
+    ⍝ SetOptions ⍺
+    ⍝ returns 3 booleans: ASSERT_TRUE DEBUG COMPILE
+    ⍝ given:
+    ⍝   ASSERT_TRUE:  ⍺ is numeric, but containing no 0s
+    ⍝   DEBUG, COMPILE: See Documentation
+    ⍝   DEFAULT:   When ⍺ is omitted, it is set to this.    
+      SetOptions ← { in←⍵   
+        0=≢in:    0 0 0  ⋄ 2|⎕DR in: 1 0 0 
+        opts←'debug' 'compile' 'help'  'default' ⋄ inCanon←⎕C⊆⍵
+        1∊bad←inCanon(~∊)opts: 11 ⎕SIGNAL⍨{Q←'"' ⋄ QC←⊂Q,', '
+          '∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊QC,⍨¨Q,¨bad/⊆⍵
+        }in  
+        0,inCanon∊⍨3↑opts
+      }
+      Help←{
+        ⍝ Help... Show HELP info and return ⍵
+        ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
+      }
 
     ⍝ Library Routines (User-Accessible)
     ⍝ FMTX, DISP, JOIN
     ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
       FMTX←{ ⍺←⊢
-          ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP.
+        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
+          ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
           4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
           1≡⍺ 1:∆FMT ⍵
           srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
@@ -124,39 +135,42 @@
           wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
           pad1←↑⍤1
           xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
-          wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center
-          wReq pad1 wCtr pad1 obj                           ⍝ ...
+          wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center 1
+          wReq pad1 wCtr pad1 obj                           ⍝ ...    2
       }
     ⍝ ⍺.DISP: See $$
       DISP← ⎕SE.Dyalog.Utils.display
     ⍝ ⍺.JOIN: See HELP info on library routines
       JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
 
-      REP←{
+      REP←{ ⍝ Representation of simple scalar or vector
         ⍺←0 ⋄ SQ←''''  
         sh←⍕⍴⍵ ⋄ o←(1+o=SQ)\o←,⍵ ⋄ r←sh,'⍴',SQ,SQ,⍨o
         ⍺: '(',r,')' ⋄ r
       }
- 
-    _←{
-      ⍵: 0
-      ⎕←↑'>> LOADING RUNTIME LIB "⎕SE.⍙FLÎB"' '>> UTIL FNS ARE: JOIN, ⍙;  FMTX; DISP'
-      ⎕SE.⍙FLÎB←⎕SE.⎕NS ''
-      ⎕SE.⍙FLÎB.JOIN← JOIN
-      ⎕SE.⍙FLÎB.⍙← JOIN      ⍝ Short version of "join"
-      ⎕SE.⍙FLÎB.FMTX← FMTX
-      ⎕SE.⍙FLÎB.DISP← DISP
-      0
-    }9=⎕NC '⎕SE.⍙FLÎB'
     
-    ⍝ Top-level Patterns  
+    ⍝ Top-level (CONSTANT) Patterns  
       simpleP← '(\\.|[^{])+'
       spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
     ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
       dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
   ⍝ EndSection ***** Initializations
 
-  ⍝ Section ********* Main
+  ⍝----------------------------------------⍝ 
+  ⍝ Section ******** EXECUTIVE   ********* ⍝
+  ⍝----------------------------------------⍝ 
+    ⍝ Basic Initializations
+      ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
+      HELP: _←Help ⍬
+      _←LoadRuntimeLib 9≠⎕NC '⎕SE.⍙FLÎB'
+      USER_SPACE←⊃⌽⎕RSI
+      ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'           
+    ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
+      gOMEGA←      ⍵                      ⍝ The format string (⍹0) is ⊃gOMEGA.   
+      nOMEGA← COMPILE⊃ (≢⍵) 9999          ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA-- assume ok. 
+      gOMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+      gFIELDS←    1 0⍴' '                 ⍝ Initialize global field (result) list.
+      
       pats←simpleP spacerP dfnP
            simpleI spacerI dfnI← ⍳≢pats
       _←pats ⎕R{    
@@ -174,9 +188,9 @@
       }⊣⊃gOMEGA     ⍝ Pass the format string only...
  ⍝    COMP_RUN: USER_SPACE⍎ '⎕SE.⍙FLÎB∘{',gFIELDS,'}⍵'     ⍝ Slower than building internally (COMPILE=0)
       COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}'
-      NUMERIC1 : _←1⊣                   ⎕←gFIELDS    
+      ASSERT_TRUE : _←1⊣                   ⎕←gFIELDS    
       1:                                  gFIELDS      
-  ⍝ EndSection ***** Main
+  ⍝ EndSection ***** EXECUTIVE
 },⊆⍵
 
 ⍝ Section ***** HELP INFO
