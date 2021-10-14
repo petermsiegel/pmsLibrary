@@ -1,5 +1,4 @@
 ∆F←{   
-  ⍝   Modes A, B, C...
   ⍝   If ↓↓↓ \ then ∆F...     Displays            Returns         Shy?   Remarks
   ⍝   0.  ⍵ null  (Not a special case. Depends on ⍺)   
   ⍝   A.  ⍺: 'help'           HELP INFO           0               Yes    ...
@@ -101,13 +100,14 @@
 
   ⍝ Section ********* Initializations
     ⍝ SetOptions ⍺
-    ⍝ returns 3 booleans: ASSERT_TRUE DEBUG COMPILE
+    ⍝ returns 3 booleans: ASSERT_TRUE DEBUG COMPILE HELP
     ⍝ given:
     ⍝   ASSERT_TRUE:  ⍺ is numeric, but containing no 0s
     ⍝   DEBUG, COMPILE: See Documentation
-    ⍝   DEFAULT:   When ⍺ is omitted, it is set to this.    
+    ⍝   DEFAULT:   When ⍺ is omitted, it is set to this.  
+    ⍝   HELP:      If 1, enters help mode (⎕ED).  
       SetOptions ← { in←⍵   
-        0=≢in:    0 0 0  ⋄ 2|⎕DR in: 1 0 0 
+        0=≢in:    0 0 0 0  ⋄ 2|⎕DR in: 1 0 0 0 
         opts←'debug' 'compile' 'help'  'default' ⋄ inCanon←⎕C⊆⍵
         1∊bad←inCanon(~∊)opts: 11 ⎕SIGNAL⍨{Q←'"' ⋄ QC←⊂Q,', '
           '∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊QC,⍨¨Q,¨bad/⊆⍵
@@ -143,9 +143,9 @@
     ⍝ ⍺.JOIN: See HELP info on library routines
       JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
 
-      REP←{ ⍝ Representation of simple scalar or vector
+      REP←{ ⍝ simple scalar or vector →→ simple matrix
         ⍺←0 ⋄ SQ←''''  
-        sh←⍕⍴⍵ ⋄ o←(1+o=SQ)\o←,⍵ ⋄ r←sh,'⍴',SQ,SQ,⍨o
+        sh←⍕1,⍴,⍵ ⋄ o←(1+o=SQ)\o←,⍵ ⋄ r←sh,'⍴',SQ,SQ,⍨o
         ⍺: '(',r,')' ⋄ r
       }
     
@@ -187,7 +187,7 @@
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣⊃gOMEGA     ⍝ Pass the format string only...
  ⍝    COMP_RUN: USER_SPACE⍎ '⎕SE.⍙FLÎB∘{',gFIELDS,'}⍵'     ⍝ Slower than building internally (COMPILE=0)
-      COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}'
+      COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}∘,'    ⍝ ∘, in case a simple scalar ⍵ is presented.
       ASSERT_TRUE : _←1⊣                   ⎕←gFIELDS    
       1:                                  gFIELDS      
   ⍝ EndSection ***** EXECUTIVE
@@ -232,15 +232,17 @@
 ⍝H 
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
-⍝H         [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
-⍝H         ⍺:  
-⍝H           Omitted     Return the result of formatting specified by format_string with any other scalars of ⍵.
-⍝H           ⎕NULL [0]   Same as above.
-⍝H          ~0∊⍺         Successful assertion. Print the formatted string and return shy 1.
-⍝H           0∊⍺         Failed assertion. Do not format; return shy 0.
-⍝H           ⎕NULL 1     Prints a debugging version of the output:
-⍝H                       - showing each field independently via display (⎕SE.Dyalog.Utils.display) in the output.
-⍝H                       - with each blank in the output replaced by a center dot (·).
+⍝H    [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
+⍝H     ⍺:  
+⍝H     If ⍺ is...     then ∆F...  Displays            Returns         Shy?   Remarks
+⍝H         'help'                 HELP INFO           0               Yes    ...
+⍝H         ⍬ | 'default'          N/A                 formatted str   No     String Formatter
+⍝H         'debug'                DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
+⍝H         'compile'              --                  executable code        9-10x more efficient for repeat calls
+⍝H                                                    sequence y:            Note: ⍺0 is unavailable (an error)
+⍝H                                                    (⍎y)⍵1 ⍵2 ...                if 'Compile' is set.
+⍝H         where ~0∊⍺             formatted str       1               Yes    Assertion succeeds, so show message
+⍝H         where 0∊⍺              N/A                 0               Yes    Assertion fails, so go quietly
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
