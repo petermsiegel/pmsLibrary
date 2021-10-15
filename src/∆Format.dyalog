@@ -1,51 +1,21 @@
-∆F←{   
-  ⍝   If ↓↓↓ \ then ∆F...     Displays            Returns         Shy?   Remarks
-  ⍝   0.  ⍵ null  (Not a special case. Depends on ⍺)   
-  ⍝   A.  ⍺: 'help'           HELP INFO           0               Yes    ...
-  ⍝   B1. ⍺: ⍬ | 'default'    N/A                 formatted str   No     String Formatter
-  ⍝   B2. ⍺: 'debug'          DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
-  ⍝   B3: ⍺: 'compile'        --                  executable code        9-10x more efficient for repeat calls
-  ⍝                                               sequence y:       
-  ⍝                                               (⍎y)⍵1 ⍵2 ...
-  ⍝   C1. ~0∊⍺                formatted str       1               Yes    Assertion succeeds, so show message
-  ⍝   C2. 0∊⍺                 N/A                 0               Yes    Assertion fails, so go quietly
- 
+∆F←{ ⍝ See SYNTAX under HELP INFORMATION (below) for arguments and call specifications.
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⍬ ⍝ Same as 'Default'
+  ⎕IO←0 ⋄ ⍺←⍬         ⍝ Same as 'Default'
 
-  0≡≢⍵:  1 1⍴' '
-⍝ Case C2 above. Do nothing. Return shy0. 
+  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg not a valid Format String'
+⍝ If ⍺ is an assertion (⍺ is numeric) and contains at least one 0 (is false), return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    ⍝ ASSERT_FALSE
 
-  ⍺ (#.⎕NS '').{ ⍝ Move us to a private namespace in the # domain.
-    ⍝ Section ********* Utilities
-      ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
-          def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
-          0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
-      }
-      DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
-      Data2gFIELDS←{           
-        ⍝ EXTERN: (RW) gFIELDS
-          ⍺←''  ⋄  0=≢⍵: ⍺   
-          g←gFIELDS   
-          w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
-          g w↑⍨←g⌈⍥≢w 
-          gFIELDS⊢←g,w 
-          ⍺
-      }
-      Code2gFIELDS←{ 
-         ⍺←''  ⋄  0=≢⍵: ⍺  
-         0∊⍴gFIELDS: ⍺⊣ gFIELDS∘←'(',⍵,')'
-                     ⍺⊣ gFIELDS∘← gFIELDS, '⍺.⍙(', ⍵, ')'
-      }
-      OMEGA_Pick←{         
-      ⍝ EXTERN: (R) nOMEGA, (RW) gOMEGA_CUR
-        ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
-        0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-        (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
-        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕gOMEGA_CUR∘←ix-COMPILE    ⍝ If "COMPILE", item ⍵0 is not selectable (index error)
-      }    
-      LoadRuntimeLib←{
+⍝ Otherwise, move us to a private namespace in the # domain.
+  ⍺ (#.⎕NS '').{  
+  ⍝ Section ********* SUPPORT FUNCTION DEFINITIONS
+  ⍝ General Functions
+    ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
+        def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
+        0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
+    }
+    DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
+    LoadRuntimeLib←{
         ~⍵: 0
         ⎕←↑'>> LOADING RUNTIME LIB "⎕SE.⍙FLÎB"' '>> UTIL FNS ARE: JOIN, ⍙;  FMTX; DISP'
         ⎕SE.⍙FLÎB←⎕SE.⎕NS ''
@@ -54,108 +24,126 @@
         ⎕SE.⍙FLÎB.FMTX← FMTX
         ⎕SE.⍙FLÎB.DISP← DISP
         0
-      }
-
-    ⍝ Section ********* Main Loop Functions    
-      EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
-      EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
-    ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-      DQ2SQ←{ DQ2←'""' ⋄ SQ←''''  
-          SQ,SQ,⍨(1+SQ=s)/s←(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ 
-      }
-      DfnField←{
-          escDQP←  '\\"'
-          quoteP←  '(?<!\\)(?:"[^"]*")+'
-          dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
-          fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
-          omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-          omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
-          comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
-          selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
-          pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
-               quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
-          selfDocFlag←0
-          dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-              CASE quoteI:    DQ2SQ f 0
-              CASE dispI:    ' ⍙FLÎB.DISP ' 
-              CASE fmtI:     ' ⍙FLÎB.FMTX '                               
-              CASE omDigI:    OMEGA_Pick f 1          
-              CASE omPairI:   OMEGA_Pick gOMEGA_CUR+1  
-              CASE comI:     ' '   ⍝ 1 space         
-              CASE selfDocI: '}'⊣ selfDocFlag∘←1
-              CASE escDQI:   '"'
-              '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-          }⍵
-        ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
-          res←{
-            COMPILE: '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
-                    ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }gOMEGA'
-          }dfn 
-        ⍝ selfDoc?   '➤' is U+10148
-          selfDocFlag: res {COMPILE: ⍺ Code2gFIELDS REP ⍵ ⋄ ⍺ Data2gFIELDS ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
-          res 
-      }
-    ⍝ EndSection ***** Main Loop Utilities
-  ⍝ EndSection ***** Utilities
-
-  ⍝ Section ********* Initializations
-    ⍝ SetOptions ⍺
-    ⍝ returns 3 booleans: ASSERT_TRUE DEBUG COMPILE HELP
-    ⍝ given:
-    ⍝   ASSERT_TRUE:  ⍺ is numeric, but containing no 0s
+    }
+  ⍝ SetOptions: Scans word ⍵ (from ⍺ passed by user) for options in (bound) ⍺
+    ⍝ Case is ignored and abbreviations are allowed.
+    ⍝ Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP
+    ⍝ where:
+    ⍝   ASSERT_TRUE:  ⍵ is numeric, but containing no 0s
     ⍝   DEBUG, COMPILE: See Documentation
     ⍝   DEFAULT:   When ⍺ is omitted, it is set to this.  
     ⍝   HELP:      If 1, enters help mode (⎕ED).  
-      SetOptions ← { in←⍵   
-        0=≢in:    0 0 0 0  ⋄ 2|⎕DR in: 1 0 0 0 
-        opts←'debug' 'compile' 'help'  'default' ⋄ inCanon←⎕C⊆⍵
-        1∊bad←inCanon(~∊)opts: 11 ⎕SIGNAL⍨{Q←'"' ⋄ QC←⊂Q,', '
-          '∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊QC,⍨¨Q,¨bad/⊆⍵
-        }in  
-        0,inCanon∊⍨3↑opts
-      }
-      Help←{
-        ⍝ Help... Show HELP info and return ⍵
-        ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
-      }
-
-    ⍝ Library Routines (User-Accessible)
+    ⍝ If none of the above is set, the DEFAULT is inferred.
+    SetOptions← 'debug' 'compile' 'help' 'default'∘{ 
+        0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵:1 0 0 0 
+        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂⍵}¨⎕C ⊆⍵
+        Whoops←{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵}
+        1∊bad←p≥≢⊆⍺:11 ⎕SIGNAL⍨bad Whoops ⍵
+        0,¯1↓1@p⊢4⍴0
+    }
+    Help←{
+      ⍝ Help... Show HELP info and return ⍵
+      ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
+    }
+  ⍝ Functions Manipulating "Globals": gFIELDS(RW), gOMEGA_CUR(RW), nOMEGA(W)
+    gFIELDS_Format←{           
+      ⍝ EXTERN: (RW) gFIELDS
+        ⍺←''  ⋄  0=≢⍵: ⍺   
+        g←gFIELDS   
+        w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+        g w↑⍨←g⌈⍥≢w 
+        gFIELDS⊢←g,w 
+        ⍺
+    }
+    gFIELDS_CodeGen←{ 
+        ⍺←''  ⋄  0=≢⍵: ⍺  
+        0∊⍴gFIELDS: ⍺⊣ gFIELDS∘←'(',⍵,')'
+                    ⍺⊣ gFIELDS∘← gFIELDS, '⍺.⍙(', ⍵, ')'
+    }
+    gOMEGA_Pick←{         
+    ⍝ EXTERN: (R) nOMEGA, (RW) gOMEGA_CUR
+      ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
+      0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
+      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
+      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕gOMEGA_CUR∘←ix         
+    }    
+  ⍝ Handling Escapes \⋄ etc.
+    EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
+    EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
+  ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+    DQ2SQ←{ DQ2←'""' ⋄ SQ←'''' ⋄ SQ,SQ,⍨(1+SQ=s)/s←(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
+  ⍝ SQuote: Return code for a simple char. vector from a char scalar or vector (doubling single quotes per APL) 
+    SQuote← {QT←'''' ⋄ QT,QT,⍨(⍵/⍨1+⍵=QT)}∘,
+  ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵
+    GenCode_String←{ r←(⍕1,⍴,⍵),'⍴',SQuote ⍵ ⋄ r }
+  ⍝ Generate code for the same # of spaces as the width (≢) of ⍵.
+    GenCode_Spaces←{('1 ',⍕≢⍵),'⍴'''''} 
+    DfnField←{
+        escDQP←  '\\"'
+        quoteP←  '(?<!\\)(?:"[^"]*")+'
+        dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
+        fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
+        omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+        omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
+        comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
+        selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
+        pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
+              quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
+        selfDocFlag←0
+        dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
+            CASE quoteI:    DQ2SQ f 0
+            CASE dispI:    ' ⍙FLÎB.DISP ' 
+            CASE fmtI:     ' ⍙FLÎB.FMTX '                               
+            CASE omDigI:    gOMEGA_Pick f 1          
+            CASE omPairI:   gOMEGA_Pick gOMEGA_CUR+1  
+            CASE comI:     ' '   ⍝ 1 space         
+            CASE selfDocI: '}'⊣ selfDocFlag∘←1
+            CASE escDQI:   '"'
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+        }⍵
+      ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
+        res←{
+          COMPILE: '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
+                  ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }gOMEGA'
+        }dfn 
+      ⍝ selfDoc?   '➤' is U+10148
+        selfDocFlag: res {COMPILE: ⍺ gFIELDS_CodeGen GenCode_String ⍵ ⋄ ⍺ gFIELDS_Format ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+        res 
+    }
+  ⍝ EndSection ***** SUPPORT FUNCTION DEFINITIONS
+ 
+  ⍝ SECTION ***** Library Routines (User-Accessible)
     ⍝ FMTX, DISP, JOIN
     ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
-      FMTX←{ ⍺←⊢
-        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-          ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
-          4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
-          1≡⍺ 1:∆FMT ⍵
-          srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-          xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
-          xtra≡'':⍺ ∆FMT ⍵ 
-          obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
-          wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
-          wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
-          pad1←↑⍤1
-          xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
-          wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center 1
-          wReq pad1 wCtr pad1 obj                           ⍝ ...    2
-      }
-    ⍝ ⍺.DISP: See $$
-      DISP← ⎕SE.Dyalog.Utils.display
-    ⍝ ⍺.JOIN: See HELP info on library routines
-      JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-
-      REP←{ ⍝ simple scalar or vector →→ simple matrix
-        ⍺←0 ⋄ SQ←''''  
-        sh←⍕1,⍴,⍵ ⋄ o←(1+o=SQ)\o←,⍵ ⋄ r←sh,'⍴',SQ,SQ,⍨o
-        ⍺: '(',r,')' ⋄ r
-      }
-    
-    ⍝ Top-level (CONSTANT) Patterns  
-      simpleP← '(\\.|[^{])+'
-      spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
-    ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
-      dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
-  ⍝ EndSection ***** Initializations
-
+    FMTX←{ ⍺←⊢
+      ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
+        ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
+        4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
+        1≡⍺ 1:∆FMT ⍵
+        srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
+        xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
+        xtra≡'':⍺ ∆FMT ⍵ 
+        obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
+        wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
+        wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
+        pad1←↑⍤1
+        xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
+        wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center 1
+        wReq pad1 wCtr pad1 obj                           ⍝ ...    2
+    }
+    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
+    DISP← ⎕SE.Dyalog.Utils.display
+    ⍝ ⍺.JOIN: Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
+    ⍝         "padding" the shorter object with blank rows. See HELP info on library routines
+    JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+  ⍝ END SECTION ***** LIBRARY ROUTINES
+   
+  ⍝ Top-level (CONSTANT) Patterns  
+    simpleP← '(\\.|[^{])+'
+    spacerP← '\{(\h*)(?:⍝[^}]*)?\}'    ⍝ We capture leading spaces, and allow and ignore trailing comments.
+  ⍝ dfnP: Don't try to understand dfnP-- it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
+    dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
+  
   ⍝----------------------------------------⍝ 
   ⍝ Section ******** EXECUTIVE   ********* ⍝
   ⍝----------------------------------------⍝ 
@@ -167,6 +155,7 @@
       ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'           
     ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
       gOMEGA←      ⍵                      ⍝ The format string (⍹0) is ⊃gOMEGA.   
+      gOMEGA0_QT←  SQuote ⊃⍵              ⍝ Format string 
       nOMEGA← COMPILE⊃ (≢⍵) 9999          ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA-- assume ok. 
       gOMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
       gFIELDS←    1 0⍴' '                 ⍝ Initialize global field (result) list.
@@ -176,20 +165,21 @@
       _←pats ⎕R{    
           ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
           COMPILE: {
-            CASE simpleI:    Code2gFIELDS REP EscapeText f 0
-            CASE spacerI:    Code2gFIELDS ''' ''⍴⍨1 ',(⍕≢f 1) 
-            CASE dfnI:       Code2gFIELDS DfnField f 0
+            CASE simpleI:    gFIELDS_CodeGen GenCode_String EscapeText f 0  
+            CASE spacerI:    gFIELDS_CodeGen GenCode_Spaces f 1
+            CASE dfnI:       gFIELDS_CodeGen DfnField    f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }0
-            CASE simpleI:    Data2gFIELDS EscapeText f 0
-            CASE spacerI:    Data2gFIELDS  f 1    
-            CASE dfnI:       Data2gFIELDS  DfnField f 0
+            CASE simpleI:    gFIELDS_Format EscapeText f 0
+            CASE spacerI:    gFIELDS_Format            f 1    
+            CASE dfnI:       gFIELDS_Format DfnField   f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⊣⊃gOMEGA     ⍝ Pass the format string only...
  ⍝    COMP_RUN: USER_SPACE⍎ '⎕SE.⍙FLÎB∘{',gFIELDS,'}⍵'     ⍝ Slower than building internally (COMPILE=0)
-      COMPILE:              '⎕SE.⍙FLÎB∘{',gFIELDS,'}∘,'    ⍝ ∘, in case a simple scalar ⍵ is presented.
-      ASSERT_TRUE : _←1⊣                   ⎕←gFIELDS    
-      1:                                  gFIELDS      
+ 
+      COMPILE:              '{⎕SE.⍙FLÎB∘{',gFIELDS,'}(⊂,',gOMEGA0_QT,'),⍵}'   ⍝ Insert ⍵0 (format string)
+      ASSERT_TRUE : _←1⊣                 ⎕←gFIELDS    
+      1:                                   gFIELDS      
   ⍝ EndSection ***** EXECUTIVE
 },⊆⍵
 
