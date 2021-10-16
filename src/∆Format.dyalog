@@ -73,16 +73,38 @@
   ⍝ Handling Escapes \⋄ etc.
     EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
     EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
+
+  ⍝+---------------------------------+⍝
+  ⍝ String Conversion Functions...   +⍝
+  ⍝+---------------------------------+⍝
   ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-    DQ2SQ←{ DQ2←'""' ⋄ SQ←'''' ⋄ SQ,SQ,⍨(1+SQ=s)/s←(~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
-  ⍝ SQuote: Return code for a simple char. vector from a char scalar or vector (doubling single quotes per APL) 
-    SQuote← {QT←'''' ⋄ QT,QT,⍨(⍵/⍨1+⍵=QT)}∘,
-  ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing ⎕UCS 13
-     GenCode_String←(⎕UCS 13)∘{⍺∊⍵: '↑',1↓∊' ',¨SQuote¨⍺(≠⊆⊢)⍵ ⋄ (⍕1,⍴⍵),'⍴',SQuote ⍵ }∘,
-    ⍝ Works, but if CRs in input, generates a 1-row mx with embedded CRs (to be processed by subsequent ⎕FMT).
-    ⍝   GenCode_String←{ (⍕1,⍴⍵),'⍴',SQuote ⍵ }∘,
+    DQ2SQ←{SQuote (~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
+  ⍝ SQuote: Return code for a simple char. string from a char scalar or vector.
+  ⍝         ⍺=1 (default): double internal SQs per APL;   ⍺=0: do not double...
+    SQuote← {⍺←1 ⋄ SQ,SQ,⍨{⍵/⍨1+⍵=SQ}⍣⍺⊢⍵ }∘,
+  ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CR
+  ⍝ ⍺=1: If a vector result, make a 1 row matrix; ⍺=0: leave as vector string.  ⍺ has no impact if string contains CR
+    Parens←{'(',')',⍨⍵}
+    CodeFromTextField←{ 
+       CR∊⍵: Parens '↑',1↓∊' ',¨SQuote¨CR(≠⊆⊢)⍵ 
+             Parens (⍕1,⍴⍵),'⍴',SQuote ⍵ 
+    }∘,
+    CodeFromDQString←{ s←0 SQuote 1↓¯1↓,⍵
+       ~CR∊⍵: s
+       Parens ∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢s
+    }
+  ⍝ This works...  
+      ⍝   CodeFromTextField←{ '(','),⍨(⍕1,⍴⍵),'⍴',SQuote ⍵ }∘,
+  ⍝ ... but if CRs in input, generates a 1-row mx with embedded CRs (to be processed by subsequent ⎕FMT).
   ⍝ Generate code for the same # of spaces as the width (≢) of ⍵.
-    GenCode_Spaces←{('1 ',⍕≢⍵),'⍴'''''} 
+    GenCode_Spaces←{(⍕1,≢⍵),'⍴',SQ2} 
+  ⍝+---------------------------------------------------+⍝
+  ⍝ Constants for String Conversion Functions above... +⍝
+  ⍝+---------------------------------------------------+⍝
+    SQ2← 2⍴SQ←'''' 
+    DQ2← 2⍴DQ←'"' 
+    CR←  ⎕UCS 13 
+
   ⍝ EndSection ***** SUPPORT FUNCTION DEFINITIONS
  
   ⍝ SECTION ***** Library Routines (User-Accessible)
@@ -114,10 +136,10 @@
   ⍝ DfnField: Once we have a Dfn sequence {...}, this decodes syntax within 
     DfnField←{
         pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
-              quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
+             quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
         selfDocFlag←0
         dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-            CASE quoteI:    DQ2SQ f 0
+            CASE quoteI:    CodeFromDQString⍣COMPILE⊢DQ2SQ f 0
             CASE dispI:    ' ⍙FLÎB.DISP ' 
             CASE fmtI:     ' ⍙FLÎB.FMTX '                               
             CASE omDigI:    gOMEGA_Pick f 1          
@@ -133,7 +155,7 @@
                   ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }gOMEGA'
         }dfn 
       ⍝ selfDoc?   '➤' is U+10148
-        selfDocFlag: res {COMPILE: ⍺ gRESULT_CodeGen GenCode_String ⍵ ⋄ ⍺ gRESULT_Format ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+        selfDocFlag: res {COMPILE: ⍺ gRESULT_CodeGen CodeFromTextField ⍵ ⋄ ⍺ gRESULT_Format ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
         res 
     }
 
@@ -152,7 +174,6 @@
     omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
     comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
     selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
-  
   ⍝----------------------------------------⍝ 
   ⍝ Section ******** EXECUTIVE   ********* ⍝
   ⍝----------------------------------------⍝ 
@@ -168,13 +189,13 @@
     nOMEGA←      COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA until runtime.
     gOMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
     gRESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
-    
+  
     pats←simpleP spacerP dfnP
          simpleI spacerI dfnI← ⍳≢pats
     _←pats ⎕R{    
         ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
         COMPILE: {
-          CASE simpleI:    gRESULT_CodeGen GenCode_String EscapeText f 0  
+          CASE simpleI:    gRESULT_CodeGen CodeFromTextField EscapeText f 0  
           CASE spacerI:    gRESULT_CodeGen GenCode_Spaces f 1
           CASE dfnI:       gRESULT_CodeGen DfnField  f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
