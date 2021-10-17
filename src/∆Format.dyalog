@@ -80,22 +80,21 @@
   ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
     DQ2SQ←{SQuote (~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
   ⍝ SQuote: Return code for a simple char. string from a char scalar or vector.
-  ⍝         ⍺=1 (default): double internal SQs per APL;   ⍺=0: do not double...
-    SQuote← {⍺←1 ⋄ SQ,SQ,⍨{⍵/⍨1+⍵=SQ}⍣⍺⊢⍵ }∘,
+  ⍝         1. ⍺=1 (default): double internal SQs per APL;   ⍺=0: do not double...
+  ⍝         2. Add SQ on either side!
+    SQuote←{  ⍺←1 ⋄  ⍺: SQ,SQ,⍨⍵/⍨1+⍵=SQ ⋄ SQ,SQ,⍨⍵ }∘,
   ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CR
   ⍝ ⍺=1: If a vector result, make a 1 row matrix; ⍺=0: leave as vector string.  ⍺ has no impact if string contains CR
     Parens←{'(',')',⍨⍵}
     CodeFromTextField←{ 
-       CR∊⍵: Parens '↑',1↓∊' ',¨SQuote¨CR(≠⊆⊢)⍵ 
-             Parens (⍕1,⍴⍵),'⍴',SQuote ⍵ 
+        CR∊⍵: Parens '↑,¨',1↓∊' ',¨SQuote¨CR(≠⊆⊢)⍵ 
+              Parens (⍕1,⍴⍵),'⍴',  SQuote ⍵ 
     }∘,
-    CodeFromDQString←{ s←0 SQuote 1↓¯1↓,⍵
-       ~CR∊⍵: s
-       Parens ∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢s
+    CodeFromDQString←{ 
+        s←0 SQuote 1↓¯1↓,⍵  ⍝ Remove DQs; add SQs (do not double SQs here).
+        ~CR∊⍵: s
+        Parens ∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢s  ⍝ This is not necessary, but keeps distracting raw CR out of the vector string.
     }
-  ⍝ This works...  
-      ⍝   CodeFromTextField←{ '(','),⍨(⍕1,⍴⍵),'⍴',SQuote ⍵ }∘,
-  ⍝ ... but if CRs in input, generates a 1-row mx with embedded CRs (to be processed by subsequent ⎕FMT).
   ⍝ Generate code for the same # of spaces as the width (≢) of ⍵.
     GenCode_Spaces←{(⍕1,≢⍵),'⍴',SQ2} 
   ⍝+---------------------------------------------------+⍝
