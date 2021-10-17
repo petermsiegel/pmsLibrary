@@ -85,16 +85,14 @@
     SQuote←{  ⍺←1 ⋄  ⍺: SQ,SQ,⍨⍵/⍨1+⍵=SQ ⋄ SQ,SQ,⍨⍵ }∘,
   ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CR
   ⍝ ⍺=1: If a vector result, make a 1 row matrix; ⍺=0: leave as vector string.  ⍺ has no impact if string contains CR
-    Parens←{'(',')',⍨⍵}
     CodeFromTextField←{ 
-        CR∊⍵: Parens '↑,¨',1↓∊' ',¨SQuote¨CR(≠⊆⊢)⍵ 
-              Parens (⍕1,⍴⍵),'⍴',  SQuote ⍵ 
+       ~CR∊⍵: (⍕1,⍴⍵),'⍴',SQuote ⍵ 
+       AnySc←{⍵⊣sc∨←1=≢⍵} ⋄ sc←0 
+       '↑',(sc/',¨'),1↓∊' '∘,∘SQuote∘AnySc¨CR(≠⊆⊢)⍵         ⍝ Singletons are 1-elem vectors
+            
     }∘,
-    CodeFromDQString←{ 
-        s←0 SQuote 1↓¯1↓,⍵  ⍝ Remove DQs; add SQs (do not double SQs here).
-        ~CR∊⍵: s
-        Parens ∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢s  ⍝ This is not necessary, but keeps distracting raw CR out of the vector string.
-    }
+    CodeFromDQString←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+
   ⍝ Generate code for the same # of spaces as the width (≢) of ⍵.
     GenCode_Spaces←{(⍕1,≢⍵),'⍴',SQ2} 
   ⍝+---------------------------------------------------+⍝
