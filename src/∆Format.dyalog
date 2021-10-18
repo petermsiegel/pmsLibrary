@@ -1,14 +1,16 @@
-∆F←{ ⍝ See SYNTAX under HELP INFORMATION (below) for arguments and call specifications.
+∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⍺←⍬         ⍝ Same as 'Default'
   0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg not a valid Format String'
-⍝ If ⍺ is an assertion (⍺ is numeric) and contains at least one 0 (is false), return immediately with shy 0 (false).
-  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    ⍝ ASSERT_FALSE
+⍝ If ⍺ is an assertion (⍺ is numeric) with at least one 0, it is false: return immediately with shy 0 (false).
+  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    
 
 ⍝ Otherwise, move us to a private namespace in the # domain.
   ⍺ (#.⎕NS '').{  
-  ⍝ Section ********* SUPPORT FUNCTION DEFINITIONS
+
+  ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS
   ⍝ General Functions
+    ⍝ ⍙FLD: Return ⎕R/⎕S regex field ⍵ (number or name), else ''.
     ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
         def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
         0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]] 
@@ -22,78 +24,75 @@
         ⎕SE.⍙FLÎB.⍙← JOIN      ⍝ Short version of "join"
         ⎕SE.⍙FLÎB.FMTX← FMTX
         ⎕SE.⍙FLÎB.DISP← DISP
-        0
+        1
     }
-  ⍝ SetOptions: Passed the options (user argument ⍺), which may have an assertion (boolean array) or option strings.
-    ⍝ If an assertion that is false (has at least one 0), it is already detected at the start of the fn (to be fast).
+  ⍝ SetOptions: Passed the options (in main argument ⍺), which may consist of
+    ⍝ (a) an assertion (boolean array) or (b) 0 or more option strings.
+    ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
     ⍝ Otherwise...   
-    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP
-    ⍝ where:
-    ⍝   ASSERT_TRUE:  ⍵ is numeric, but containing no 0s.
-    ⍝ and, for option strings, case is ignored and abbreviations are allowed:
-    ⍝   DEBUG (D):      Fields are displayed in boxes to see how they are formed. IGNORED if COMPILE=1.
-    ⍝   COMPILE (C):    Result is emitted as a string containing code c, 
-    ⍝                   such that (⍎c)⍵ will produce the same as the default result.
-    ⍝   HELP (H):       Enters help mode (⎕ED). Returns ⍬. 
-    ⍝   DEFAULT (DE):   Result is formatted as a char matrix and returned. The default.
-    ⍝ If none of the above is set, the DEFAULT is inferred from: (~DEBUG∨COMPILE∨HELP).
+    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP  
+    ⍝ For details, see HELP information below.
     SetOptions← 'debug' 'compile' 'help' 'default'∘{ 
-        0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵:1 0 0 0 
-        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵
+        0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
+        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' matches 'debug', not 'default'!
         Whoops←{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵}
         1∊bad←p≥≢⊆⍺:11 ⎕SIGNAL⍨bad Whoops ⍵
-        0,¯1↓1@p⊢4⍴0          ⍝ default is implicit,  not returned. It's (~debug∨compile∨help)
+        0,¯1↓1@p⊢4⍴0         ⍝ Omit explicit default flag: it is true iff ~DEBUG∨COMPILE∨HELP.   
     }
-    Help←{
-      ⍝ Help... Show HELP info and return ⍵
+    Help←{ ⍝ Help... Show HELP info and return ⍵
       ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
     }
-  ⍝ Functions Manipulating "Globals": gRESULT(RW), gOMEGA_CUR(RW), nOMEGA(W)
-    gRESULT_Format←{           
-      ⍝ EXTERN: (RW) gRESULT
+  ⍝ Functions Manipulating "Globals": RESULT(RW), OMEGA_CUR(RW), nOMEGA(W)
+    RESULT_Format←{  ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.       
+      ⍝ EXTERN: (RW) RESULT
         ⍺←''  ⋄  0=≢⍵: ⍺   
-        g←gRESULT   
+        g←RESULT   
         w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
         g w↑⍨←g⌈⍥≢w 
-        gRESULT⊢←g,w 
+        RESULT⊢←g,w 
         ⍺
     }
-    gRESULT_CodeGen←{ 
+    RESULT_GenCode←{  ⍝ Emit code to glue ⍵ to the RHS of RESULT, returning ⍺.
         ⍺←''  ⋄  0=≢⍵: ⍺  
-        0∊⍴gRESULT: ⍺⊣ gRESULT∘←'(',⍵,')'
-                    ⍺⊣ gRESULT∘← gRESULT, '⍺.⍙(', ⍵, ')'
+        0∊⍴RESULT: ⍺⊣ RESULT∘←'(',⍵,')'
+                   ⍺⊣ RESULT∘← RESULT, '⍺.⍙(', ⍵, ')'
     }
-    gOMEGA_Pick←{         
-    ⍝ EXTERN: (R) nOMEGA, (RW) gOMEGA_CUR
+    OMEGA_Pick←{  ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
+    ⍝ EXTERN: (R) nOMEGA, (RW) OMEGA_CUR
       ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
       0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
       (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
-      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕gOMEGA_CUR∘←ix         
+      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕OMEGA_CUR∘←ix    ⍝ Map onto active ⎕IO.      
     }    
-  ⍝ Handling Escapes \⋄ etc.
-    EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1' 
-    EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'  
+  ⍝ Handling escape sequences: \⋄, \{, etc. 
+    EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1'   ⍝ In a Text field
+    EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'    ⍝ In a DQ string in a Code field.
 
   ⍝+---------------------------------+⍝
   ⍝ String Conversion Functions...   +⍝
   ⍝+---------------------------------+⍝
   ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
     DQ2SQ←{SQuote (~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
-  ⍝ SQuote: Return code for a simple char. string from a char scalar or vector.
-  ⍝         1. ⍺=1 (default): double internal SQs per APL;   ⍺=0: do not double...
-  ⍝         2. Add SQ on either side!
-    SQuote←{  ⍺←1 ⋄  ⍺: SQ,SQ,⍨⍵/⍨1+⍵=SQ ⋄ SQ,SQ,⍨⍵ }∘,
-  ⍝ Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CR
-  ⍝ ⍺=1: If a vector result, make a 1 row matrix; ⍺=0: leave as vector string.  ⍺ has no impact if string contains CR
+  ⍝ SQuote: Return code for a simple char vector or scalar.
+  ⍝         Double internal SQs per APL, then add SQ on either side!
+    SQuote←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
+  ⍝ CodeFromTextField: 
+  ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
+  ⍝   If string contains no CR, returns code for a char matrix of shape (1 (≢⍵)).
+  ⍝   If string contains ≥1 CR, returns code for a char matrix with 1 row per string line.
+  ⍝   See note for CodeFromDQString (below).
     CodeFromTextField←{ 
        ~CR∊⍵: (⍕1,⍴⍵),'⍴',SQuote ⍵ 
-       AnySc←{⍵⊣sc∨←1=≢⍵} ⋄ sc←0 
-       '↑',(sc/',¨'),1↓∊' '∘,∘SQuote∘AnySc¨CR(≠⊆⊢)⍵         ⍝ Singletons are 1-elem vectors
-            
+       MxFromCRStr←' '∘,∘SQuote∘{⍵⊣sc∨←1=≢⍵} ⋄ sc←0 
+       '↑',(sc/',¨'),1↓∊MxFromCRStr¨CR(≠⊆⊢)⍵            ⍝ Singletons become 1-elem vectors         
     }∘,
+  ⍝ CodeFromDQString: 
+  ⍝   Note: If DQ strings contain CRs internally (from \⋄), they are ok as is in COMPILE mode, if executed directly.
+  ⍝   However, they can't be inserted into function text to be fixed.
+  ⍝   Solution: replace with explicit code to insert CR. Result will be a char vector.
     CodeFromDQString←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
-
-  ⍝ Generate code for the same # of spaces as the width (≢) of ⍵.
+  ⍝ GenCode_Spaces
+  ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
     GenCode_Spaces←{(⍕1,≢⍵),'⍴',SQ2} 
   ⍝+---------------------------------------------------+⍝
   ⍝ Constants for String Conversion Functions above... +⍝
@@ -101,8 +100,7 @@
     SQ2← 2⍴SQ←'''' 
     DQ2← 2⍴DQ←'"' 
     CR←  ⎕UCS 13 
-
-  ⍝ EndSection ***** SUPPORT FUNCTION DEFINITIONS
+  ⍝ ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS
  
   ⍝ SECTION ***** Library Routines (User-Accessible)
     ⍝ FMTX, DISP, JOIN
@@ -128,8 +126,9 @@
     ⍝ ⍺.JOIN: Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
     ⍝         "padding" the shorter object with blank rows. See HELP info on library routines
     JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-  ⍝ END SECTION ***** LIBRARY ROUTINES
+  ⍝ ENDSECTION ***** LIBRARY ROUTINES
 
+  ⍝ SECTION  ***** Dfn Field Scanning
   ⍝ DfnField: Once we have a Dfn sequence {...}, this decodes syntax within 
     DfnField←{
         pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
@@ -139,8 +138,8 @@
             CASE quoteI:    CodeFromDQString⍣COMPILE⊢DQ2SQ f 0
             CASE dispI:    ' ⍙FLÎB.DISP ' 
             CASE fmtI:     ' ⍙FLÎB.FMTX '                               
-            CASE omDigI:    gOMEGA_Pick f 1          
-            CASE omPairI:   gOMEGA_Pick gOMEGA_CUR+1  
+            CASE omDigI:    OMEGA_Pick f 1          
+            CASE omPairI:   OMEGA_Pick OMEGA_CUR+1  
             CASE comI:     ' '   ⍝ 1 space         
             CASE selfDocI: '}'⊣ selfDocFlag∘←1
             CASE escDQI:   '"'
@@ -149,14 +148,17 @@
       ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
         res←{
           COMPILE: '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
-                  ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }gOMEGA'
+                  ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ selfDoc?   '➤' is U+10148
-        selfDocFlag: res {COMPILE: ⍺ gRESULT_CodeGen CodeFromTextField ⍵ ⋄ ⍺ gRESULT_Format ⍵}'[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+        selfDocFlag: res {
+          COMPILE: ⍺ RESULT_GenCode CodeFromTextField ⍵ ⋄ ⍺ RESULT_Format ⍵
+        } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
         res 
     }
+  ⍝ ENDSECTION  ***** Dfn Field Scanning
 
-  ⍝ Top-level Patterns  
+  ⍝ SECTION ***** Top-level Patterns  
     simpleP← '(\\.|[^{])+'
     spacerP← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
     ⍝ dfnP: Don't try to understand dfnP-- 
@@ -171,9 +173,11 @@
     omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
     comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
     selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
-  ⍝----------------------------------------⍝ 
-  ⍝ Section ******** EXECUTIVE   ********* ⍝
-  ⍝----------------------------------------⍝ 
+  ⍝ ENDSECTION ***** Top-level Patterns 
+
+  ⍝----------------------------------⍝ 
+  ⍝ Section ***** EXECUTIVE   ****** ⍝
+  ⍝----------------------------------⍝ 
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
@@ -182,31 +186,31 @@
     ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'       
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
-    gOMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃gOMEGA. 
-    nOMEGA←      COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know gOMEGA or ≢gOMEGA until runtime.
-    gOMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-    gRESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
+    OMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
+    nOMEGA←      COMPILE⊃ (≢⍵) 9999    ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime.
+    OMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+    RESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
   
     pats←simpleP spacerP dfnP
          simpleI spacerI dfnI← ⍳≢pats
     _←pats ⎕R{    
         ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
         COMPILE: {
-          CASE simpleI:    gRESULT_CodeGen CodeFromTextField EscapeText f 0  
-          CASE spacerI:    gRESULT_CodeGen GenCode_Spaces f 1
-          CASE dfnI:       gRESULT_CodeGen DfnField  f 0
+          CASE simpleI:    RESULT_GenCode CodeFromTextField EscapeText f 0  
+          CASE spacerI:    RESULT_GenCode GenCode_Spaces f 1
+          CASE dfnI:       RESULT_GenCode DfnField  f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }0
-          CASE simpleI:    gRESULT_Format EscapeText f 0
-          CASE spacerI:    gRESULT_Format            f 1    
-          CASE dfnI:       gRESULT_Format DfnField   f 0
+          CASE simpleI:    RESULT_Format EscapeText f 0
+          CASE spacerI:    RESULT_Format            f 1    
+          CASE dfnI:       RESULT_Format DfnField   f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
     }⊣⊃⍵     ⍝ Pass the format string only...
 ⍝    COMPILE: Insert ⍵0 (format string) in code string format
-    COMPILE:              '{⎕SE.⍙FLÎB∘{',gRESULT,'}(⊂,',(SQuote ⊃⍵),'),⍵}'  
-    ASSERT_TRUE : _←1⊣                 ⎕←gRESULT    
-    1:                                   gRESULT      
-⍝ EndSection ***** EXECUTIVEx
+    COMPILE:              '{⎕SE.⍙FLÎB∘{',RESULT,'}(⊂,',(SQuote ⊃⍵),'),⍵}'  
+    ASSERT_TRUE : _←1⊣                 ⎕←RESULT    
+    1:                                   RESULT      
+⍝ ENDSECTION ***** EXECUTIVE
 },⊆⍵
 
 ⍝ Section ***** HELP INFO
@@ -248,17 +252,16 @@
 ⍝H 
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
-⍝H    [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
-⍝H     ⍺:  
-⍝H     If ⍺ is...     then ∆F...  Displays            Returns         Shy?   Remarks
-⍝H         'help'                 HELP INFO           0               Yes    ...
-⍝H         ⍬ | 'default'          N/A                 formatted str   No     String Formatter
-⍝H         'debug'                DEBUG INFO          formatted* str  No     String Formatter [(*) See HELP info]
-⍝H         'compile'              --                  executable code        9-10x more efficient for repeat calls
-⍝H                                                    sequence y:            Note: ⍺0 is unavailable (an error)
-⍝H                                                    (⍎y)⍵1 ⍵2 ...                if 'Compile' is set.
-⍝H         where ~0∊⍺             formatted str       1               Yes    Assertion succeeds, so show message
-⍝H         where 0∊⍺              N/A                 0               Yes    Assertion fails, so go quietly
+⍝H [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
+⍝H If ⍺ is...  \  then ∆F Displays     Returns                   Shy?   Remarks
+⍝H    OMITTED          N/A             formatted str             No     String Formatter.  
+⍝H    'default'        N/A             formatted str             No     Same as above (⍺ OMITTED).
+⍝H    'help'           HELP INFO       0                         Yes    Displays HELP via ⎕ED
+⍝H    'debug'          DEBUG INFO      formatted str             No     String Formatter with each field boxed.  
+⍝H    'compile'        --              executable code sequence  No     9-10x more efficient for repeat calls
+⍝H                                       y: (⍎y)⍵1 ⍵2 ...               ⍵0 (orig. fmt string) is added automatically.
+⍝H    ⍺: ~0∊⍺       formatted str      1                         Yes    Assertion succeeds: print formatted message.
+⍝H    ⍺:  0∊⍺       N/A                0                         Yes    Assertion fails: go quietly but FAST.
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
