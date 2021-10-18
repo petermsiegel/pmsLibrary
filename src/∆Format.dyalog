@@ -42,7 +42,7 @@
     Help←{ ⍝ Help... Show HELP info and return ⍵
       ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
     }
-  ⍝ Functions Manipulating "Globals": RESULT(RW), OMEGA_CUR(RW), nOMEGA(W)
+  ⍝ Functions Manipulating "Globals": RESULT(RW), curOMEGA(RW), nOMEGA(W)
     RESULT_Format←{  ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.       
       ⍝ EXTERN: (RW) RESULT
         ⍺←''  ⋄  0=≢⍵: ⍺   
@@ -58,11 +58,11 @@
                    ⍺⊣ RESULT∘← RESULT, '⍺.⍙(', ⍵, ')'
     }
     OMEGA_Pick←{  ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
-    ⍝ EXTERN: (R) nOMEGA, (RW) OMEGA_CUR
+    ⍝ EXTERN: (R) nOMEGA, (RW) curOMEGA
       ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
       0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
       (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
-      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕OMEGA_CUR∘←ix    ⍝ Map onto active ⎕IO.      
+      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
   ⍝ Handling escape sequences: \⋄, \{, etc. 
     EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1'   ⍝ In a Text field
@@ -139,7 +139,7 @@
             CASE dispI:    ' ⍙FLÎB.DISP ' 
             CASE fmtI:     ' ⍙FLÎB.FMTX '                               
             CASE omDigI:    OMEGA_Pick f 1          
-            CASE omPairI:   OMEGA_Pick OMEGA_CUR+1  
+            CASE omPairI:   OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ 1 space         
             CASE selfDocI: '}'⊣ selfDocFlag∘←1
             CASE escDQI:   '"'
@@ -147,8 +147,12 @@
         }⍵
       ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
         res←{
-          COMPILE: '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
-                  ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }OMEGA'
+          COMPILE:  '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
+        ⍝ Eye candy ;-)))
+          DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
+                        EM EN
+                    }⍬
+                    ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ selfDoc?   '➤' is U+10148
         selfDocFlag: res {
@@ -187,14 +191,13 @@
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
     OMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
-    nOMEGA←      COMPILE⊃ (≢⍵) 9999    ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime.
-    OMEGA_CUR←  0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+    nOMEGA←     COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
+    curOMEGA←   0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
     RESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
   
     pats←simpleP spacerP dfnP
          simpleI spacerI dfnI← ⍳≢pats
-    _←pats ⎕R{    
-        ⋄ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+    _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
         COMPILE: {
           CASE simpleI:    RESULT_GenCode CodeFromTextField EscapeText f 0  
           CASE spacerI:    RESULT_GenCode GenCode_Spaces f 1
@@ -205,11 +208,11 @@
           CASE spacerI:    RESULT_Format            f 1    
           CASE dfnI:       RESULT_Format DfnField   f 0
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-    }⊣⊃⍵     ⍝ Pass the format string only...
+    }⊣⊃OMEGA    ⍝ Pass the format string only...
 ⍝    COMPILE: Insert ⍵0 (format string) in code string format
-    COMPILE:              '{⎕SE.⍙FLÎB∘{',RESULT,'}(⊂,',(SQuote ⊃⍵),'),⍵}'  
-    ASSERT_TRUE : _←1⊣                 ⎕←RESULT    
-    1:                                   RESULT      
+    COMPILE:     '{⎕SE.⍙FLÎB∘{',RESULT,'}(⊂,',(SQuote ⊃⍵),'),⍵}'  
+    ASSERT_TRUE: _←1⊣         ⎕←RESULT    
+                                RESULT    ⍝ default.   
 ⍝ ENDSECTION ***** EXECUTIVE
 },⊆⍵
 
