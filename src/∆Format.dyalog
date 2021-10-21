@@ -20,12 +20,13 @@
     }
     DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
     LoadRuntimeLib←{  ⍝ ⍺: compile flag, ⍵: name of library to create (if need be)
-        ~⍺∧9≠⎕NC ⍵: 0  ⋄ ns←⍎⍵ ⎕NS '' 
-          ns.JOIN← JOIN ⋄  ns.⍙←    JOIN      ⍝ ⍙: alias to "join"
+        ~⍺∧9≠⎕NC ⍵: 0   ⋄ ns←⍎⍵ ⎕NS '' 
+          ns.CAT←  CAT  ⋄  ns.Ç←  Ç      ⍝ Ç: Equiv. to CAT⍨
           ns.FMTX← FMTX ⋄  ns.DISP← DISP
         ~DEBUG: 1
           ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
-          ⎕←'>> UTILITY FNS ARE: JOIN, ⍙;  FMTX; DISP'
+          ⎕←'>> UTILITY FNS ARE: CAT;  FMTX; DISP'
+          ⎕←'>> INTERNAL USE FNS ARE: Ç (equiv. to CAT⍨)'
         1
     }
     ⍝ SetOptions: Passed the options (in main argument ⍺), which may consist of
@@ -60,10 +61,11 @@
     }
     ⍝ Emit code equiv of RESULT_Format, returning ⍺. 
     ⍝ EXTERN: RESULT (RW) 
-    RESULT_GenCode←{  
+    ⍝ Strategy: Fields retrieved L-to-R are added on 
+    RESULT_GenCode←{   
         ⍺←''  ⋄  0=≢⍵: ⍺  
-        0∊⍴RESULT: ⍺⊣ RESULT∘←'(',⍵,')'
-                   ⍺⊣ RESULT∘← RESULT, '⍺.⍙(', ⍵, ')'
+        0∊⍴RESULT: ⍺⊣ RESULT∘← '(', ⍵, ')'
+                   ⍺⊣ RESULT∘← '(', ⍵, ')⍺.Ç', RESULT   
     }
     ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -117,7 +119,7 @@
   ⍝ ******************************************************************⍝
   ⍝ SECTION ***** Library Routines (Compile Mode and User-Accessible) ⍝
   ⍝ ******************************************************************⍝
-    ⍝ FMTX, DISP, JOIN
+    ⍝ FMTX, DISP, CAT
     ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢
       ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
@@ -137,9 +139,12 @@
     }
     ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
     DISP← ⎕SE.Dyalog.Utils.display
-    ⍝ ⍺.JOIN: Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
+    ⍝ ⍺.CAT: CATENATE FIELDS
+    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
     ⍝         "padding" the shorter object with blank rows. See HELP info on library routines
-    JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    ⍝ ⍺.Ç, defined as  CAT⍨: Reverse Catenate Fields [internal use only]
+    CAT← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    Ç←   { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ w,a }  
   ⍝ *********************************************************************⍝
   ⍝ ENDSECTION ***** Library Routines (Compile Mode and User-Accessible) ⍝
   ⍝ *********************************************************************⍝
@@ -164,8 +169,8 @@
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }⍵
       ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
-        res←{
-          COMPILE:   '⍺', ⍵ ,'⍵'    ⍝ '⍺∘{⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
+        res←{ 
+          COMPILE:  '⍺', ⍵ ,'⍵'   
         ⍝ Eye candy ;-)))
           DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
                         EM EN
@@ -231,19 +236,20 @@
             CASE spacerI:    RESULT_GenCode CodeFromSpaces        f 1 
             CASE codeI:      RESULT_GenCode                ScanCF f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
-        }⊣⊃⍵    ⍝ Pass the format string only...
-       '{(⍙FLÎB←⎕SE.⍙FLÎB){',RESULT,'}⍵,⍨⊂,',(SQuote ⊃⍵),'}'  
+        }⊣⊃OMEGA    ⍝ Pass the format string only...
+        0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
+       '{(⍙FLÎB←⎕SE.⍙FLÎB){',RESULT,'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'  
     }OMEGA
-    {
+  ⍝ ~COMPILE: { 
         _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
             CASE simpleI:    RESULT_Format      TFEsc  f 0
             CASE spacerI:    RESULT_Format             f 1    
             CASE codeI:      RESULT_Format      ScanCF f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-        }⊣⊃⍵    ⍝ Pass the format string only...
+        }⊣⊃OMEGA    ⍝ Pass the format string only...
         ASSERT_TRUE: _←1⊣    ⎕←RESULT    
                                RESULT    ⍝ default.   
-    }OMEGA
+  ⍝ }OMEGA
   ⍝*************************************⍝ 
   ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
   ⍝************************←←←**********⍝ 
@@ -509,7 +515,7 @@
 ⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX    - an extended ⎕FMT that can justify/center its right argument. See pseudo-builtin $ above.
 ⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display. See pseudo-builtin $$ above.
-⍝H   ∘ ⍺.JOIN    - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
+⍝H   ∘ ⍺.CAT     - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
 ⍝H  
 ⍝H ○ If you want to use your own "local" objects across Code fields, simply use "library" names prefixed with ⍺._
 ⍝H   (If you call subsequent functions, be sure to pass ⍺ in some format to those functions).
