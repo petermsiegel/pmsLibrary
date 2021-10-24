@@ -3,7 +3,7 @@
   ⎕IO←0 ⋄ ⍺←⍬         ⍝ Same as 'Default'
   0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg not a valid Format String'
 ⍝ If ⍺ is an assertion (⍺ is numeric) with at least one 0, it is false: return immediately with shy 0 (false).
-  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    
+  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 
 ⍝ Otherwise, move us to a private namespace in the # domain.
   ⍺ (#.⎕NS '').{  
@@ -33,14 +33,14 @@
     ⍝ (a) an assertion (boolean array) or (b) 0 or more option strings.
     ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
     ⍝ Otherwise...   
-    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP  
+    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
     ⍝ For details, see HELP information below.
-    SetOptions← 'debug' 'compile' 'help' 'default'∘{ 
+    SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
         0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
         p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' matches 'debug', not 'default'!
-        Whoops←{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵}
-        1∊bad←p≥≢⊆⍺:11 ⎕SIGNAL⍨bad Whoops ⍵
-        0,¯1↓1@p⊢4⍴0                         ⍝ Omit explicit default flag: it is true iff ~DEBUG∨COMPILE∨HELP.   
+        1(~∊)bad←p≥≢⊆⍺: 0,¯1↓1@p⊢0 0 0 0
+        Whoops←⎕SIGNAL∘11{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵} 
+        bad Whoops ⍵                       
     }
     Help←{ ⍝ Help... Show HELP info and return ⍵
       ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
@@ -51,21 +51,20 @@
     ⍝+-------------------------------------------------------------------------------+⍝
     ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
     ⍝ EXTERN: RESULT (RW) 
-    RESULT_Format←{ 
-        ⍺←''  ⋄  0=≢⍵: ⍺   
-        g←RESULT   
-        w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
-        g w↑⍨←g⌈⍥≢w 
-        RESULT⊢←g,w 
-        ⍺
+    RESULT_Immed←{ 
+        ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
+        rhs← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+        lhs rhs↑⍨←lhs⌈⍥≢rhs 
+        ⍺⊣ RESULT⊢←lhs,rhs
     }
-    ⍝ Emit code equiv of RESULT_Format, returning ⍺. 
+    ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
     ⍝ EXTERN: RESULT (RW) 
-    ⍝ Strategy: Fields retrieved L-to-R are added on 
-    RESULT_GenCode←{   
-        ⍺←''  ⋄  0=≢⍵: ⍺  
-        0∊⍴RESULT: ⍺⊣ RESULT∘← '(', ⍵, ')'
-                   ⍺⊣ RESULT∘← '(', ⍵, ')⍺.Ç', RESULT   
+    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, 
+    ⍝     we order code ⍺ ⍵ in reverse order (⍵ then ⍺), then reverse again on catenation at runtime 
+    ⍝     to maintain same logical L-to-R execution order and formatted appearance.
+    RESULT_Compile←{  
+        ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',⍵,')'   
+        ⍺⊣ RESULT ,⍨← lhs,'⍺.Ç'/⍨ ~0∊⍴RESULT    ⍝ Prefix lhs,'⍺.Ç' to RESULT (just lhs, if first time)
     }
     ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -92,11 +91,11 @@
     ⍝   If string contains no CR, returns code for a char matrix of shape (1 (≢⍵)).
     ⍝   If string contains ≥1 CR, returns code for a char matrix with 1 row per string line.
     ⍝   See note for CodeFromDQ (below).
-    CodeFromTF←{ 
-      ~CR∊⍵: (⍕1,⍴⍵),'⍴',SQuote ⍵ 
+    CodeFromTF←{ tf←,⍵ 
+      ~CR∊⍵: (⍕1,⍴⍵),'⍴',SQuote tf 
       MxFromCRStr←' '∘,∘SQuote∘{⍵⊣sc∨←1=≢⍵} ⋄ sc←0 
-      '↑',(sc/',¨'),1↓∊MxFromCRStr¨CR(≠⊆⊢)⍵            ⍝ Singletons become 1-elem vectors         
-    }∘,
+      '↑',(sc/',¨'),1↓∊MxFromCRStr¨CR(≠⊆⊢)tf            ⍝ Singletons become 1-elem vectors         
+    } 
     ⍝ CodeFromDQ (Double-Quoted String in Code field): 
     ⍝   Note: If DQ strings contain CRs internally (from \⋄), they are ok as is in COMPILE mode, if executed directly.
     ⍝   However, they can't be inserted into function text to be fixed.
@@ -159,8 +158,8 @@
         selfDocFlag←0
         dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
             CASE quoteI:   CodeFromDQ⍣ COMPILE⊢ DQ2SQ f 0
-            CASE dispI:    ' ⍙FLÎB.DISP ' 
-            CASE fmtI:     ' ⍙FLÎB.FMTX '                               
+            CASE dispI:    ' ⍙FⓁÎⒷ.DISP ' 
+            CASE fmtI:     ' ⍙FⓁÎⒷ.FMTX '                               
             CASE omDigI:   OMEGA_Pick f 1          
             CASE omPairI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -168,19 +167,19 @@
             CASE escDQI:   '"'
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }⍵
-      ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
+      ⍝ Pass the main local namespace ⍙FⓁÎⒷ into the user space (as a local name and as ⍺). See Mapping of $.
         res←{ 
           COMPILE:  '⍺', ⍵ ,'⍵'   
         ⍝ Eye candy ;-)))
           DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
                         EM EN
                     }⍬
-                    ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }OMEGA'
+                    ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ Self-documented code field?  { code → }  or { code ➤ }
       ⍝ Prettyprint variant of → is '➤' U+10148
         selfDocFlag: res {
-          COMPILE: ⍺ RESULT_GenCode CodeFromTF ⍵ ⋄ ⍺ RESULT_Format ⍵
+          COMPILE: ⍺ RESULT_Compile CodeFromTF ⍵ ⋄ ⍺ RESULT_Immed ⍵
         } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
         res 
     }
@@ -216,15 +215,15 @@
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
-    _←COMPILE LoadRuntimeLib '⎕SE.⍙FLÎB'
+    _←COMPILE LoadRuntimeLib '⎕SE.⍙FⓁÎⒷ'
     USER_SPACE←⊃⌽⎕RSI
-    ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'       
+    ⍙FⓁÎⒷ←⎕THIS⊣⎕DF '∆F[⍙FⓁÎⒷ]'       
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
     OMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
     nOMEGA←     COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
     curOMEGA←   0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-    RESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
+    RESULT←     ' '⍴⍨COMPILE↓1 0       ⍝ Initialize global RESULT (If COMPILE, ''; ELSE, 1 0⍴' ')
   
     pats←simpleP spacerP codeP
          simpleI spacerI codeI← ⍳≢pats
@@ -232,19 +231,19 @@
   ⍝          library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
     COMPILE: {
         _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-            CASE simpleI:    RESULT_GenCode CodeFromTF     TFEsc  f 0  
-            CASE spacerI:    RESULT_GenCode CodeFromSpaces        f 1 
-            CASE codeI:      RESULT_GenCode                ScanCF f 0
+            CASE simpleI:    RESULT_Compile CodeFromTF     TFEsc  f 0  
+            CASE spacerI:    RESULT_Compile CodeFromSpaces        f 1 
+            CASE codeI:      RESULT_Compile                ScanCF f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
-       '{(⍙FLÎB←⎕SE.⍙FLÎB){',RESULT,'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'  
+       '{(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',RESULT,'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'  
     }OMEGA
   ⍝ ~COMPILE: { 
         _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-            CASE simpleI:    RESULT_Format      TFEsc  f 0
-            CASE spacerI:    RESULT_Format             f 1    
-            CASE codeI:      RESULT_Format      ScanCF f 0
+            CASE simpleI:    RESULT_Immed      TFEsc  f 0
+            CASE spacerI:    RESULT_Immed             f 1    
+            CASE codeI:      RESULT_Immed      ScanCF f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         ASSERT_TRUE: _←1⊣    ⎕←RESULT    
@@ -346,7 +345,7 @@
 ⍝H        ∘ APL Code Field inserts the value of variables of any shape, e.g. {myVar}, directly into 
 ⍝H          the output (formatted) string, or evaluates and inserts the value of the code specified 
 ⍝H          following dfn syntax.
-⍝H          ∘ Code fields are executed in the calling function's namespace, with access to its
+⍝H          ∘ Code fields are executed in the calling function's namespace LEFT-TO-RIGHT, with access to its
 ⍝H            variables, functions, ⎕IO, ⎕FR, ⎕PP, etc.
 ⍝H        ∘ Accesses ∆F right arguments or even the format string itself.
 ⍝H          The first argument after the format string is ⍹1, the next ⍹2.
@@ -501,8 +500,8 @@
 ⍝H     Officers John Smith are in  NY   
 ⍝H              Mary Jones         London                  
 ⍝H              Terry Hawk         Paris  
-⍝H   ⍝ DEBUGGING LEVEL 3...                
-⍝H        ⎕NULL 1 ∆F 'Officers {↑Names} are in {Locns}'
+⍝H   ⍝ Debugging...                
+⍝H        'debug' ∆F 'Officers {↑Names} are in {↑Locns}'
 ⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
 ⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
 ⍝H     └─────────┘│Mary·Jones│└────────┘│ London│
@@ -517,6 +516,9 @@
 ⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display. See pseudo-builtin $$ above.
 ⍝H   ∘ ⍺.CAT     - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
 ⍝H  
+⍝H ○ Code strings are executed left-to-right as the string is scanned. Deal with it.
+⍝H   This is true in the default mode, as well as in 'compile' mode (see below).
+⍝H
 ⍝H ○ If you want to use your own "local" objects across Code fields, simply use "library" names prefixed with ⍺._
 ⍝H   (If you call subsequent functions, be sure to pass ⍺ in some format to those functions).
 ⍝H   Valid object names might be:  
@@ -524,8 +526,28 @@
 ⍝H   E.g. you might have a sequence like:
 ⍝H        ∆F 'John {⍺._last←"Smith"} knows Mary {⍺._last}.'
 ⍝H     John Smith knows Mary Smith.
-⍝H ○ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
-⍝H   (Note: it is trivial to create a truly private namespace, but we didn't bother).
+⍝H   ∘ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
+⍝H     (Note: it is trivial to create a truly private namespace, but we didn't bother).
+⍝H
+⍝H ○ For greater efficiency, when format strings are executed more than once, you can use 'compile' mode,
+⍝H   which can be an order of magnitude faster.
+⍝H   E.g. In place of  
+⍝H       ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 'Tuesday'
+⍝H   Try: 
+⍝H     ⍝ In header
+⍝H       f1←⍎'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.'    ⍝ 'com' or even 'c' can be used!
+⍝H       ...
+⍝H     ⍝ In body
+⍝H       f1 ⊂'Tuesday'
+⍝H     ⍝ Giving the same output...
+⍝H       On Tuesday, Officers John are in New York.
+⍝H                            Mary        Miami  
+⍝H    The code created here
+⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
+⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙FⓁÎⒷ):
+⍝H      {(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){(1 1⍴'.')⍺.Ç(⍺{↑Locns}⍵)⍺.Ç(1 8⍴' are in ')⍺.Ç(⍺{↑Names}⍵)
+⍝H          ⍺.Ç(1 11⍴', Officers ')⍺.Ç(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ç(1 3⍴'On ')}⍵,⍨⊂,'On {⍵1}, Officers {↑Names} are in {↑Locns}.'} 
+⍝H    Note: ⎕SE.⍙FⓁÎⒷ.Ç is a runtime utility for catenating fields executed right-to-left in the expected l-to-r order.
 ⍝H
 ⍝H Some differences from Python F-strings
 ⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
