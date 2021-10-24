@@ -62,9 +62,11 @@
     ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, 
     ⍝     we order code ⍺ ⍵ in reverse order (⍵ then ⍺), then reverse again on catenation at runtime 
     ⍝     to maintain same logical L-to-R execution order and formatted appearance.
+    ⍝ NB: We append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
+    ⍝     We reverse the entire assembled string just before returning to the caller.  
     RESULT_Compile←{  
         ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',⍵,')'   
-        ⍺⊣ RESULT ,⍨← lhs,'⍺.Ç'/⍨ ~0∊⍴RESULT    ⍝ Prefix lhs,'⍺.Ç' to RESULT (just lhs, if first time)
+        ⍺⊣ RESULT,← ⌽lhs,'⍺.Ç'/⍨ ~0=≢RESULT    ⍝ See NB. above.
     }
     ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -237,7 +239,8 @@
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
-       '{(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',RESULT,'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'  
+      ⍝ Put RESULT in L-to-R order. See RESULT_Compile
+       '{(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'   
     }OMEGA
   ⍝ ~COMPILE: { 
         _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
