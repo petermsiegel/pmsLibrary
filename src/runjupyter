@@ -1,1 +1,3 @@
+set echo
+cd /Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src
 jupyter-notebook --ip=0.0.0.0 --port=8080

@@ -1,8 +1,9 @@
 ∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⍬         ⍝ Same as 'Default'
-  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg not a valid Format String'
-⍝ If ⍺ is an assertion (⍺ is numeric) with at least one 0, it is false: return immediately with shy 0 (false).
+  ⎕IO←0 ⋄ ⍺←⍬         ⍝ ⍺≡⍬: Same as ⍺≡'Default'
+  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
+⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
+⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 
 ⍝ Otherwise, move us to a private namespace in the # domain.
@@ -16,17 +17,20 @@
     ⍝ ⍙FLD: Return ⎕R/⎕S regex field ⍵ (number or name), else ''.
     ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
         def←'' ⋄ isNm←0≠⊃0⍴⍵ ⋄ p←N⍳∘⊂⍣isNm⊣⍵ 
-        0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]]   ⍝ aka B⌷⍨+∘⍳/p⊃¨O L  
+        0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]]   
     }
     DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
-    LoadRuntimeLib←{  ⍝ ⍺: compile flag, ⍵: name of library to create (if need be)
-        ~⍺∧9≠⎕NC ⍵: 0   ⋄ ns←⍎⍵ ⎕NS '' 
-          ns.CAT←  CAT  ⋄  ns.Ç←  Ç      ⍝ Ç: Equiv. to CAT⍨
-          ns.FMTX← FMTX ⋄  ns.DISP← DISP
+  ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
+  ⍝   Returns 0 if 9=⎕NC ⍵; else 1. Sensitive to DEBUG.
+    LoadRuntimeLib←{  ⍝ ⍵: name of library to create (if need be)
+          9=⎕NC ⍵: 0    ⋄ ns←⍎⍵ ⎕NS '' 
+          ns.CAT←   CAT  ⋄ ns.Ⓒ←  Ⓒ      ⍝ Ⓒ: Equiv. to CAT⍨
+          ns.FMTX←  FMTX ⋄ ns.DISP← DISP
+          ns.Ⓓ←DebugDisplay
         ~DEBUG: 1
           ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
-          ⎕←'>> UTILITY FNS ARE: CAT;  FMTX; DISP'
-          ⎕←'>> INTERNAL USE FNS ARE: Ç (equiv. to CAT⍨)'
+          ⎕←'>> USER UTILITY FNS ARE:       CAT, FMTX, DISP'
+          ⎕←'>> INTERNAL USE ONLY FNS ARE:  Ⓒ (equiv. to CAT⍨), Ⓓ (DebugDisplay)'
         1
     }
     ⍝ SetOptions: Passed the options (in main argument ⍺), which may consist of
@@ -59,21 +63,19 @@
     }
     ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
     ⍝ EXTERN: RESULT (RW) 
-    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, 
-    ⍝     we order code ⍺ ⍵ in reverse order (⍵ then ⍺), then reverse again on catenation at runtime 
-    ⍝     to maintain same logical L-to-R execution order and formatted appearance.
-    ⍝ NB: We append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
-    ⍝     We reverse the entire assembled string just before returning to the caller.  
+    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
+    ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
+    ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
     RESULT_Compile←{  
-        ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',⍵,')'   
-        ⍺⊣ RESULT,← ⌽lhs,'⍺.Ç'/⍨ ~0=≢RESULT    ⍝ See NB. above.
+        ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵ 
+        ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
     }
     ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
     OMEGA_Pick←{  
       ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
       0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
+      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹ ',' is out of range.',⍨⍕ix
       ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
   ⍝ TFEsc (Text Field), DQEsc (Double-quoted string): handling escape sequences: \⋄, \{, etc. 
@@ -143,9 +145,9 @@
     ⍝ ⍺.CAT: CATENATE FIELDS
     ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
     ⍝         "padding" the shorter object with blank rows. See HELP info on library routines
-    ⍝ ⍺.Ç, defined as  CAT⍨: Reverse Catenate Fields [internal use only]
+    ⍝ ⍺.Ⓒ, defined as  CAT⍨: Reverse Catenate Fields [internal use only]
     CAT← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    Ç←   { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ w,a }  
+    Ⓒ←   { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ w,a }  
   ⍝ *********************************************************************⍝
   ⍝ ENDSECTION ***** Library Routines (Compile Mode and User-Accessible) ⍝
   ⍝ *********************************************************************⍝
@@ -217,15 +219,15 @@
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
-    _←COMPILE LoadRuntimeLib '⎕SE.⍙FⓁÎⒷ'
+    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙FⓁÎⒷ'
     USER_SPACE←⊃⌽⎕RSI
     ⍙FⓁÎⒷ←⎕THIS⊣⎕DF '∆F[⍙FⓁÎⒷ]'       
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
-    OMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
-    nOMEGA←     COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
-    curOMEGA←   0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-    RESULT←     ' '⍴⍨COMPILE↓1 0       ⍝ Initialize global RESULT (If COMPILE, ''; ELSE, 1 0⍴' ')
+    OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
+    nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
+    curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+    RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, ''; ELSE, 1 0⍴' ')
   
     pats←simpleP spacerP codeP
          simpleI spacerI codeI← ⍳≢pats
@@ -240,8 +242,8 @@
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
       ⍝ Put RESULT in L-to-R order. See RESULT_Compile
-       '{(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'}⍵,⍨⊂,',(SQuote ⊃OMEGA),'}'   
-    }OMEGA
+       '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',(SQuote ⊃OMEGA),'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
+    }⍬
   ⍝ ~COMPILE: { 
         _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
             CASE simpleI:    RESULT_Immed      TFEsc  f 0
@@ -251,7 +253,7 @@
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         ASSERT_TRUE: _←1⊣    ⎕←RESULT    
                                RESULT    ⍝ default.   
-  ⍝ }OMEGA
+  ⍝ }⍬
   ⍝*************************************⍝ 
   ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
   ⍝************************←←←**********⍝ 
@@ -548,9 +550,9 @@
 ⍝H    The code created here
 ⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
 ⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙FⓁÎⒷ):
-⍝H      {(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){(1 1⍴'.')⍺.Ç(⍺{↑Locns}⍵)⍺.Ç(1 8⍴' are in ')⍺.Ç(⍺{↑Names}⍵)
-⍝H          ⍺.Ç(1 11⍴', Officers ')⍺.Ç(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ç(1 3⍴'On ')}⍵,⍨⊂,'On {⍵1}, Officers {↑Names} are in {↑Locns}.'} 
-⍝H    Note: ⎕SE.⍙FⓁÎⒷ.Ç is a runtime utility for catenating fields executed right-to-left in the expected l-to-r order.
+⍝H      {(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)
+⍝H          ⍺.Ⓒ(1 11⍴', Officers ')⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')}⍵,⍨⊂,'On {⍵1}, Officers {↑Names} are in {↑Locns}.'} 
+⍝H    Note: ⎕SE.⍙FⓁÎⒷ.Ⓒ is a runtime utility for catenating fields executed right-to-left in the expected l-to-r order.
 ⍝H
 ⍝H Some differences from Python F-strings
 ⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
