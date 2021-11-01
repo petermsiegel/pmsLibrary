@@ -1,6 +1,6 @@
 ∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
-  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⍬         ⍝ ⍺≡⍬: Same as ⍺≡'Default'
+ ⍝ 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  ⎕IO←0 ⋄ ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
   0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
 ⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
 ⍝    return immediately with shy 0 (false).
@@ -24,11 +24,13 @@
        ~DEBUG: 1
           ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
           ⎕←'>> USER UTILITY FNS ARE:       CAT, FMTX ($), DISP ($$), DDISP'
-          ⎕←'>> INTERNAL USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP)'
+          ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP)'
         1
     }
-    ⍝ SetOptions: Passed the options (in main argument ⍺), which may consist of
-    ⍝ (a) an assertion (boolean array) or (b) 0 or more option strings.
+    ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
+    ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
+    ⍝ (b) 0 or more option strings (CVs).
+    ⍝ If omitted, it is treated as (b) '' ('default').
     ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
     ⍝ Otherwise...   
     ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
@@ -72,9 +74,16 @@
       (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹ ',' is out of range.',⍨⍕ix
       ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
-    ⍝ EscTF (Text Field), EscDQ (Double-quoted string): handling escape sequences: \⋄, \{, etc. 
-    EscTF←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1'   ⍝ In a Text field
-    EscDQ←   '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'    ⍝ In a DQ string in a Code field.
+    ⍝ EscTF (Escapes in Text fields)
+    ⍝ EscTF handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
+    ⍝                                    value:   \   CR   {   }    
+    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    EscTF←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
+    ⍝ EscDQ (Escapes in Double-quoted strings in Code fields)
+    ⍝ EscDQ handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+    ⍝                                    value:   \⋄  CR
+    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    EscDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
 
     ⍝+---------------------------------+⍝
     ⍝ String Conversion Functions...   +⍝
@@ -86,22 +95,20 @@
     GenSQStr←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
     ⍝ CodeFromTF (Text field): 
     ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
-    ⍝   If string contains no CR, returns code for a char matrix of shape (1 (≢⍵)).
-    ⍝   If string contains ≥1 CR, returns code for a char matrix with 1 row per string line.
-    ⍝   See note for CodeFromDQ (below).
-    CodeFromTF←{ text←,⍵ 
-        ~CR∊⍵: (⍕1,⍴text),'⍴',GenSQStr text 
-      ⍝ Generate an APL matrix from a CR String.
-      ⍝ If String contains all char scalars, convert them to 1-elem vectors so mix ↑ succeeds. 
-      ⍝ '\0' ⎕R '\0'⊆ ensures '\⋄\⋄abc\⋄'  maps onto  (↑ '' '' 'abc' ''). ('\0' could be anything).
-        ScalCheck←{⍵⊣ SC1∨←SC2∧←1=≢⍵} ⋄ SC1 SC2← 0 1 
-        '↑',(',¨'/⍨SC1∧SC2),1↓∊' '∘,∘GenSQStr∘ScalCheck¨'\0' ⎕R '\0' ⊆ text  
+    ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
+    ⍝   See note for CodeFromCV (below).
+    ⍝   Result is a char matrix.
+    CodeFromTF←{  
+        ~CR∊⍵: (⍕1,≢⍵),'⍴',GenSQStr ⍵    
+        '↑', (',¨'/⍨ ∧/1=≢¨ø), 1↓∊ ' '∘,∘GenSQStr¨ ø←'\a'⎕R''⊆⍵   
     } 
-    ⍝ CodeFromDQ (Double-Quoted String in Code field): 
-    ⍝   Note: If DQ strings contain CRs internally (from \⋄), they are ok as is in COMPILE mode, if executed directly.
-    ⍝   However, they can't be inserted into function text to be fixed.
-    ⍝   Solution: replace with explicit code to insert CR. Result will be a char vector.
-    CodeFromDQ←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+    ⍝ CodeFromCV ⍵
+    ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
+    ⍝ to format that can be executed at runtime.
+    ⍝    r@CV← CodeFromCV ⍵@CVcr
+    ⍝    ⍵  - Standard APL char vector with optional CRs
+    ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
+    CodeFromCV←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
     ⍝ CodeFromSF (Space field)
     ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
     CodeFromSF←{(⍕1,≢⍵),'⍴',SQ2} 
@@ -140,9 +147,10 @@
     }
     ⍝ ⍺.CAT: CATENATE FIELDS
     ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
-    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines
+    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
+    ⍝ Monadic case: Treat ⍺ as null array...
     ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
-    CAT← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    CAT← {⍺←⍬ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
     Ⓒ←   CAT⍨
   ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
     DISP← ⎕SE.Dyalog.Utils.display
@@ -162,7 +170,7 @@
              quoteI dispI fmtI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
       selfDocFlag←0
       dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-          CASE quoteI:   CodeFromDQ⍣ COMPILE⊢ DQ2SQ f 0
+          CASE quoteI:   CodeFromCV⍣ COMPILE⊢ DQ2SQ f 0
           CASE dispI:    ' ⍙FⓁÎⒷ.DISP ' 
           CASE fmtI:     ' ⍙FⓁÎⒷ.FMTX '                               
           CASE omIndxI:  OMEGA_Pick f 1          
@@ -192,10 +200,14 @@
   ⍝ ENDSECTION  ***** Code field Scanning ** ⍝
   ⍝ *****************************************⍝
 
-  ⍝ ***************************************⍝
-  ⍝ SECTION  *****   Top Level Patterns    ⍝
-  ⍝ ***************************************⍝
-    TFp← '(\\.|[^{])+'
+  ⍝ *******************************************⍝
+  ⍝ SECTION  *****   Top Level Patterns        ⍝
+  ⍝   TF   Text field                          ⍝
+  ⍝   SF   Space field                         ⍝
+  ⍝   CF   Code field                          ⍝
+  ⍝   DQ   Double-quoted string in Code field  ⍝
+  ⍝ *******************************************⍝
+    TFp← '(\\.|[^{\\]+)+'               
     SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
   ⍝ CFp: Don't try to understand this regex. OK, in brief, we match the pattern <P>: 
   ⍝ <P>: { THEN:  
@@ -244,12 +256,12 @@
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
-      ⍝ Put RESULT in L-to-R order. See RESULT_Compile
-       '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',(GenSQStr ⊃OMEGA),'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
+      ⍝ Put RESULT in L-to-R order. See RESULT_Compile    ⍝ 
+        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',(CodeFromCV GenSQStr ⊃OMEGA),'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
     }⍬ ⍝ END COMPILE
   ⍝ ~COMPILE:  
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-            CASE TFi:   RESULT_Immed EscTF  f 0
+            CASE TFi:   RESULT_Immed EscTF  f 0 
             CASE SFi:   RESULT_Immed        f 1    
             CASE CFi:   RESULT_Immed ScanCF f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
@@ -340,12 +352,11 @@
 ⍝H        \{     ∘ A literal { character, which does NOT initiate a code field or space field.
 ⍝H        \}     ∘ A literal } character, which does NOT end a code field or space field.
 ⍝H        \\     ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
-⍝H                 The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
+⍝H                 The double backslash '\\' is required ONLY before one of the character {, or }, or
 ⍝H                 to produce multiple contiguous backslashes:
-⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
+⍝H                     '\⋄' => newline    '\\⋄' => '\⋄'   
 ⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
-⍝H                 Note: \" is ordinary text in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
-⍝H 
+⍝H                 Otherwise, \\ is treated as an ordinary sequence of two backslashes (\\).
 ⍝H   +--------------------+
 ⍝H   | Code Field: {code} |
 ⍝H   +--------------------+
