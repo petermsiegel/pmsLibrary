@@ -1,108 +1,137 @@
-∆F←{ ⍝ Snapshot of ∆Format as of 2021 10 18
-⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
-  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←⍬         ⍝ Same as 'Default'
-  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg not a valid Format String'
-⍝ If ⍺ is an assertion (⍺ is numeric) with at least one 0, it is false: return immediately with shy 0 (false).
-  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0    
+∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
+ 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  ⎕IO←0 ⋄ ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
+  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
+⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
+⍝    return immediately with shy 0 (false).
+  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 
 ⍝ Otherwise, move us to a private namespace in the # domain.
   ⍺ (#.⎕NS '').{  
-
-  ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS
-  ⍝ General Functions
-    ⍝ ⍙FLD: Return ⎕R/⎕S regex field ⍵ (number or name), else ''.
-    ⍙FLD←{N O B L←⍺.(Names Offsets Block Lengths)
-        def←'' ⋄ isN←0≠⍬⍴0⍴⍵ ⋄ p←N⍳∘⊂⍣isN⊣⍵ 
-        0≠0(≢O)⍸p:def ⋄ ¯1=O[p]:def ⋄ B[O[p]+⍳L[p]]   ⍝ aka B⌷⍨+∘⍳/p⊃¨O L  
-    }
-    DebugDisplay← ('·'@(' '∘=))∘⎕SE.Dyalog.Utils.display
-    LoadRuntimeLib←{  ⍝ ⍺: compile flag, ⍵: name of library to create (if need be)
-        ~⍺∧9≠⎕NC ⍵: 0  ⋄ ns←⍎⍵ ⎕NS '' 
-        ⎕←'>> LOADING RUNTIME LIB "',nsNm,'"' 
-        ⎕← '>> UTIL FNS ARE: JOIN, ⍙;  FMTX; DISP'
-        ns.JOIN← JOIN ⋄  ns.⍙←    JOIN      ⍝ ⍙: alias to "join"
-        ns.FMTX← FMTX ⋄  ns.DISP← DISP
+  ⍝ ************************************************⍝
+  ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
+  ⍝ ************************************************⍝
+    ⍝+---------------------------------+⍝
+    ⍝ GENERAL FUNCTIONS          ...   +⍝
+    ⍝+---------------------------------+⍝
+    ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
+    ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
+  
+    ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
+    ⍝   Returns 0 if 9=⎕NC ⍵; else 1. Sensitive to DEBUG.
+    LoadRuntimeLib←{  ⍝ ⍵: name of library to create (if need be)
+          9=⎕NC ⍵: 0  ⋄  _←⍵ ⎕NS 'CAT' 'Ⓒ' 'FMTX' 'DISP' 'DDISP' 'Ⓓ'  
+       ~DEBUG: 1
+          ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
+          ⎕←'>> USER UTILITY FNS ARE:       CAT, FMTX ($), DISP ($$), DDISP'
+          ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP)'
         1
     }
-  ⍝ SetOptions: Passed the options (in main argument ⍺), which may consist of
-    ⍝ (a) an assertion (boolean array) or (b) 0 or more option strings.
+    ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
+    ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
+    ⍝ (b) 0 or more option strings (CVs).
+    ⍝ If omitted, it is treated as (b) '' ('default').
     ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
     ⍝ Otherwise...   
-    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP  
+    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
     ⍝ For details, see HELP information below.
-    SetOptions← 'debug' 'compile' 'help' 'default'∘{ 
+    SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
         0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
-        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' matches 'debug', not 'default'!
-        Whoops←{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵}
-        1∊bad←p≥≢⊆⍺:11 ⎕SIGNAL⍨bad Whoops ⍵
-        0,¯1↓1@p⊢4⍴0         ⍝ Omit explicit default flag: it is true iff ~DEBUG∨COMPILE∨HELP.   
+        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' or 'de' matches 'debug', not 'default'!
+        1(~∊)bad←p≥≢⊆⍺: 0,¯1↓1@p⊢0 0 0 0
+        Whoops←⎕SIGNAL∘11{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵} 
+        bad Whoops ⍵                       
     }
     Help←{ ⍝ Help... Show HELP info and return ⍵
       ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
     }
-  ⍝ Functions Manipulating "Globals": RESULT(RW), curOMEGA(RW), nOMEGA(W)
-    RESULT_Format←{  ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.       
-      ⍝ EXTERN: (RW) RESULT
-        ⍺←''  ⋄  0=≢⍵: ⍺   
-        g←RESULT   
-        w← DebugDisplay⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
-        g w↑⍨←g⌈⍥≢w 
-        RESULT⊢←g,w 
-        ⍺
+
+    ⍝+--------------------------------------------------------------------------------+⍝
+    ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
+    ⍝+--------------------------------------------------------------------------------+⍝
+    ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
+    ⍝ EXTERN: RESULT (RW) 
+    RESULT_Immed←{ 
+        ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
+        rhs← DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+        lhs rhs↑⍨←lhs⌈⍥≢rhs 
+        ⍺⊣ RESULT⊢←lhs,rhs
     }
-    RESULT_GenCode←{  ⍝ Emit code to glue ⍵ to the RHS of RESULT, returning ⍺.
-        ⍺←''  ⋄  0=≢⍵: ⍺  
-        0∊⍴RESULT: ⍺⊣ RESULT∘←'(',⍵,')'
-                   ⍺⊣ RESULT∘← RESULT, '⍺.⍙(', ⍵, ')'
+    ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
+    ⍝ EXTERN: RESULT (RW) 
+    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
+    ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
+    ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
+    RESULT_Compile←{  
+        ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
+        ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
     }
-    OMEGA_Pick←{  ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
-    ⍝ EXTERN: (R) nOMEGA, (RW) curOMEGA
+    ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
+    ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
+    OMEGA_Pick←{  
       ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
       0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹','is out of range.',⍨⍕ix
+      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹ ',' is out of range.',⍨⍕ix
       ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
-  ⍝ Handling escape sequences: \⋄, \{, etc. 
-    EscapeText←   '(?<!\\)\\⋄' '\\([{}\\])' ⎕R '\r' '\1'   ⍝ In a Text field
-    EscapeDQ←     '\\⋄'        '\\\\⋄'      ⎕R '\r' '⋄'    ⍝ In a DQ string in a Code field.
+    ⍝ EscTF (Escapes in Text fields)
+    ⍝ EscTF handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
+    ⍝                                    value:   \   CR   {   }    
+    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    EscTF←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
+    ⍝ EscDQ (Escapes in Double-quoted strings in Code fields)
+    ⍝ EscDQ handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+    ⍝                                    value:   \⋄  CR
+    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    EscDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
+    ⍝ ------------------------------------------------------------------------------------------
+    ⍝+----------------------------------+⍝
+    ⍝+ String Conversion Functions...   +⍝
+    ⍝+----------------------------------+⍝
+    ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+    DQ2SQ←        {GenSQStr (~DQ2⍷s)/s← EscDQ 1↓¯1↓⍵ }
+    ⍝ GenSQStr: Return code for a simple char vector or scalar.
+    ⍝         Double internal SQs per APL, then add SQ on either side!
+    GenSQStr←     { SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
+    GenSQStrList← {1↓∊ ' '∘,∘GenSQStr¨⍵}        ⍝ Generate quoted list for multiple SQ strings      
+    SplitCR←      {CR~⍨¨⍵⊂⍨1,CR=⍵}              ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
+    ⍝ WAS: 
+    ⍝    SplitCR←        {CR~⍨¨⍵⊂⍨(1+⊃ø),1↓ø←CR=⍵}  
+    ⍝    SplitCR←        {CR~⍨¨w⊆⍨1++\CR=w←⍵,⍨CR/⍨CR=⊃⍵ }   
+    ⍝ ------------------------------------------------------------------------------------------
+    ⍝ CodeFromTF (Text field): 
+    ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
+    ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
+    ⍝   See note for CodeFromCV (below).
+    ⍝   Result is a char matrix.
+    CodeFromTF←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',GenSQStr ⍵ ⋄ '↑', (',¨'/⍨ ∧/1=≢¨ø), GenSQStrList⊢ ø←SplitCR ⍵ } 
+    ⍝ ------------------------------------------------------------------------------------------
+    ⍝ CodeFromCV ⍵
+    ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
+    ⍝ to format that can be executed at runtime.
+    ⍝    r@CV← CodeFromCV ⍵@CVcr
+    ⍝    ⍵  - Standard APL char vector with optional CRs
+    ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
+    CodeFromCV←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+    ⍝ ------------------------------------------------------------------------------------------
+    ⍝ CodeFromSF (Space field)
+    ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
+    CodeFromSF←{(⍕1,≢⍵),'⍴',SQ2} 
 
-  ⍝+---------------------------------+⍝
-  ⍝ String Conversion Functions...   +⍝
-  ⍝+---------------------------------+⍝
-  ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-    DQ2SQ←{SQuote (~DQ2⍷s)/s← EscapeDQ 1↓¯1↓⍵ }
-  ⍝ SQuote: Return code for a simple char vector or scalar.
-  ⍝         Double internal SQs per APL, then add SQ on either side!
-    SQuote←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
-  ⍝ CodeFromTextField: 
-  ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
-  ⍝   If string contains no CR, returns code for a char matrix of shape (1 (≢⍵)).
-  ⍝   If string contains ≥1 CR, returns code for a char matrix with 1 row per string line.
-  ⍝   See note for CodeFromDQString (below).
-    CodeFromTextField←{ 
-       ~CR∊⍵: (⍕1,⍴⍵),'⍴',SQuote ⍵ 
-       MxFromCRStr←' '∘,∘SQuote∘{⍵⊣sc∨←1=≢⍵} ⋄ sc←0 
-       '↑',(sc/',¨'),1↓∊MxFromCRStr¨CR(≠⊆⊢)⍵            ⍝ Singletons become 1-elem vectors         
-    }∘,
-  ⍝ CodeFromDQString: 
-  ⍝   Note: If DQ strings contain CRs internally (from \⋄), they are ok as is in COMPILE mode, if executed directly.
-  ⍝   However, they can't be inserted into function text to be fixed.
-  ⍝   Solution: replace with explicit code to insert CR. Result will be a char vector.
-    CodeFromDQString←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
-  ⍝ GenCode_Spaces
-  ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
-    GenCode_Spaces←{(⍕1,≢⍵),'⍴',SQ2} 
-  ⍝+---------------------------------------------------+⍝
-  ⍝ Constants for String Conversion Functions above... +⍝
-  ⍝+---------------------------------------------------+⍝
+    ⍝+---------------------------------------------------+⍝
+    ⍝  Constants for String Conversion Functions above   +⍝
+    ⍝+---------------------------------------------------+⍝
     SQ2← 2⍴SQ←'''' 
     DQ2← 2⍴DQ←'"' 
     CR←  ⎕UCS 13 
-  ⍝ ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS
- 
-  ⍝ SECTION ***** Library Routines (User-Accessible)
-    ⍝ FMTX, DISP, JOIN
+  ⍝ *********************************************** ⍝
+  ⍝ ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS   ⍝
+  ⍝ *********************************************** ⍝
+  
+  ⍝ ****************************************************************************** ⍝
+  ⍝ SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)  ⍝
+  ⍝ ****************************************************************************** ⍝
+    ⍝ FMTX, DISP, CAT
     ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢
       ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
@@ -113,109 +142,146 @@
         xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
         xtra≡'':⍺ ∆FMT ⍵ 
         obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
-        wReq wObj←⊃∘⌽¨(⎕VFI wReq)(⍴obj) 
-        wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done!
+        wReq← 10⊥⎕D⍳wReq                                  ⍝  Same as (⊃⌽⎕VFI wReq) 
+        wObj← ⊃⌽⍴obj                     
+        wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done! We won't truncate.
         pad1←↑⍤1
         xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
-        wCtr←wReq-⍨⌈2÷⍨wReq-wObj                          ⍝ Center 1
+        wCtr←wReq-⍨⌊2÷⍨wReq-wObj                          ⍝ Center 1
         wReq pad1 wCtr pad1 obj                           ⍝ ...    2
     }
-    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
+    ⍝ ⍺.CAT: CATENATE FIELDS
+    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
+    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
+    ⍝ Monadic case: Treat ⍺ as null array...
+    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
+    CAT← {⍺←⍬ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    Ⓒ←   CAT⍨
+  ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
     DISP← ⎕SE.Dyalog.Utils.display
-    ⍝ ⍺.JOIN: Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
-    ⍝         "padding" the shorter object with blank rows. See HELP info on library routines
-    JOIN← { a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-  ⍝ ENDSECTION ***** LIBRARY ROUTINES
+  ⍝ DDISP, ⍺.Ⓓ: DISP with blanks repl. by middle dot (·), ⎕UCS 183.
+    Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
+  
+  ⍝ *********************************************************************⍝
+  ⍝ ENDSECTION ***** Library Routines (Compile Mode and User-Accessible) ⍝
+  ⍝ *********************************************************************⍝
 
-  ⍝ SECTION  ***** Dfn Field Scanning
-  ⍝ DfnField: Once we have a Dfn sequence {...}, this decodes syntax within 
-    DfnField←{
-        pats←quoteP dispP fmtP omDigP omPairP comP selfDocP escDQP  
-             quoteI dispI fmtI omDigI omPairI comI selfDocI escDQI ← ⍳≢pats
-        selfDocFlag←0
-        dfn←pats ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-            CASE quoteI:    CodeFromDQString⍣COMPILE⊢DQ2SQ f 0
-            CASE dispI:    ' ⍙FLÎB.DISP ' 
-            CASE fmtI:     ' ⍙FLÎB.FMTX '                               
-            CASE omDigI:    OMEGA_Pick f 1          
-            CASE omPairI:   OMEGA_Pick curOMEGA+1  
-            CASE comI:     ' '   ⍝ 1 space         
-            CASE selfDocI: '}'⊣ selfDocFlag∘←1
-            CASE escDQI:   '"'
-            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-        }⍵
-      ⍝ Pass the main local namespace ⍙FLÎB into the user space (as a local name and as ⍺). See Mapping of $.
-        res←{
-          COMPILE:  '⍺∘{⍙FLÎB←⍺ ⋄ ⍺', ⍵ ,'⍵ }⍵'    ⍝ ⍺: ⎕SE.⍙FLÎB
-        ⍝ Eye candy ;-)))
-          DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
-                        EM EN
-                    }⍬
-                    ⍎'⍙FLÎB∘USER_SPACE.{(⍙FLÎB←⍺)', ⍵ ,'⍵ }OMEGA'
-        }dfn 
-      ⍝ selfDoc?   '➤' is U+10148
-        selfDocFlag: res {
-          COMPILE: ⍺ RESULT_GenCode CodeFromTextField ⍵ ⋄ ⍺ RESULT_Format ⍵
-        } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
-        res 
+  ⍝ ***************************************⍝
+  ⍝ SECTION ****** Code field Scanning     ⍝
+  ⍝ ***************************************⍝
+  ⍝ ScanCF: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
+    ScanCF←{
+      patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP escDQP  
+             quoteI dispI fmtI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
+      selfDocFlag←0
+      dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
+          CASE quoteI:   CodeFromCV⍣ COMPILE⊢ DQ2SQ f 0
+          CASE dispI:    ' ⍙FⓁÎⒷ.DISP ' 
+          CASE fmtI:     ' ⍙FⓁÎⒷ.FMTX '                               
+          CASE omIndxI:  OMEGA_Pick f 1          
+          CASE omNextI:  OMEGA_Pick curOMEGA+1  
+          CASE comI:     ' '   ⍝ Comment → 1 space         
+          CASE selfDocI: '}'⊣ selfDocFlag∘←1
+          CASE escDQI:   '"'
+          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+      }⍵
+    ⍝ Pass the main local namespace ⍙FⓁÎⒷ into the user space (as a local name and as ⍺). See Mapping of $.
+      res←{ 
+        COMPILE:  '⍺', ⍵ ,'⍵'   
+      ⍝ Eye candy ;-)))
+        DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
+                      EM EN
+                  }⍬
+                  ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
+      }dfn 
+    ⍝ Self-documented code field?  { code → }  or { code ➤ }
+    ⍝ Prettyprint variant of → is '➤' U+10148
+      selfDocFlag: res {
+        COMPILE: ⍺ RESULT_Compile CodeFromTF ⍵ ⋄ ⍺ RESULT_Immed ⍵
+      } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+      res 
     }
-  ⍝ ENDSECTION  ***** Dfn Field Scanning
+  ⍝ *****************************************⍝
+  ⍝ ENDSECTION  ***** Code field Scanning ** ⍝
+  ⍝ *****************************************⍝
 
-  ⍝ SECTION ***** Top-level Patterns  
-    simpleP← '(\\.|[^{])+'
-    spacerP← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
-    ⍝ dfnP: Don't try to understand dfnP-- 
-    ⍝       it matches outer braces, ignoring DQ strings, other braces, comments, \ escapes.
-    dfnP←    '(?<B>\{(?>(?:\\.)+|[^\{\}\\"]+|(?:"[^"]*")+|(?:⍝(?|(?:"[^"]*")+|[^⋄}]+)*)|(?&B)*)+\})' 
-  ⍝ DfnField Patterns...
+  ⍝ *******************************************⍝
+  ⍝ SECTION  *****   Top Level Patterns        ⍝
+  ⍝   TF   Text field                          ⍝
+  ⍝   SF   Space field                         ⍝
+  ⍝   CF   Code field                          ⍝
+  ⍝   DQ   Double-quoted string in Code field  ⍝
+  ⍝ *******************************************⍝
+    TFp← '(\\.|[^{\\]+)+'               
+    SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
+  ⍝ CFp: Don't try to understand this regex. OK, in brief, we match the pattern <P>: 
+  ⍝ <P>: { THEN:  
+  ⍝      ≥1OF: 「ANY chars BUT {}"⍝\」 OR 「\ escapes」 OR 「"DQ Strings"」 OR 「⍝ comments」 OR 「RECURSE <P> ≥0 TIMES」 
+  ⍝      THEN: }
+    CFp←   '(?<P>\{(?>[^{}"⍝\\]+|(?:\\.)+|(?:"[^"]*")+|⍝[^⋄}]*|(?&P)*)+\})' 
+  ⍝ Code Field Patterns...
+  ⍝ Synonym of ⍹DD is ⍵DD. Synonym of lone ⍹ is ⍵_.   (DD: 1 or 2 digits).
     escDQP←  '\\"'
     quoteP←  '(?<!\\)(?:"[^"]*")+'
     dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
     fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
-    omDigP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-    omPairP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
+    omIndxP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+    omNextP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
     comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
     selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
-  ⍝ ENDSECTION ***** Top-level Patterns 
+  ⍝ ***************************************⍝
+  ⍝ ENDSECTION ***** Top Level Patterns ***⍝
+  ⍝ ***************************************⍝
 
-  ⍝----------------------------------⍝ 
-  ⍝ Section ***** EXECUTIVE   ****** ⍝
-  ⍝----------------------------------⍝ 
+  ⍝**********************************⍝ 
+  ⍝ SECTION *****  EXECUTIVE  ****** ⍝
+  ⍝**********************************⍝  
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
-    _←COMPILE LoadRuntimeLib '⎕SE.⍙FLÎB'
+    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙FⓁÎⒷ'
     USER_SPACE←⊃⌽⎕RSI
-    ⍙FLÎB←⎕THIS⊣⎕DF '∆F[⍙FLÎB]'       
+    ⍙FⓁÎⒷ←⎕THIS⊣⎕DF '∆F[⍙FⓁÎⒷ]'       
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
-    OMEGA←      ⍵                      ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
-    nOMEGA←     COMPILE⊃ (≢⍵) 9999     ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
-    curOMEGA←   0                      ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-    RESULT←     1 0⍴' '                ⍝ Initialize global result list of fields.
+    OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
+    nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
+    curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+    RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, ''; ELSE, 1 0⍴' ')
   
-    pats←simpleP spacerP dfnP
-         simpleI spacerI dfnI← ⍳≢pats
-    _←pats ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-        COMPILE: {
-          CASE simpleI:    RESULT_GenCode CodeFromTextField EscapeText f 0  
-          CASE spacerI:    RESULT_GenCode GenCode_Spaces f 1
-          CASE dfnI:       RESULT_GenCode DfnField  f 0
-          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-        }0
-          CASE simpleI:    RESULT_Format EscapeText f 0
-          CASE spacerI:    RESULT_Format            f 1    
-          CASE dfnI:       RESULT_Format DfnField   f 0
-          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-    }⊣⊃OMEGA    ⍝ Pass the format string only...
-⍝    COMPILE: Insert ⍵0 (format string) in code string format
-    COMPILE:     '{⎕SE.⍙FLÎB∘{',RESULT,'}(⊂,',(SQuote ⊃⍵),'),⍵}'  
-    ASSERT_TRUE: _←1⊣         ⎕←RESULT    
-                                RESULT    ⍝ default.   
-⍝ ENDSECTION ***** EXECUTIVE
+    patsMain←TFp SFp CFp
+             TFi SFi CFi← ⍳≢patsMain
+  ⍝ COMPILE: Build code string from:
+  ⍝          library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
+    COMPILE: {
+        _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+            CASE TFi:   RESULT_Compile CodeFromTF EscTF f 0  
+            CASE SFi:   RESULT_Compile CodeFromSF       f 1 
+            CASE CFi:   RESULT_Compile ScanCF           f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
+        }⊣⊃OMEGA    ⍝ Pass the format string only...
+        0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
+      ⍝ Put RESULT in L-to-R order. See RESULT_Compile    ⍝ 
+        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',(CodeFromCV GenSQStr ⊃OMEGA),'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
+    }⍬ ⍝ END COMPILE
+  ⍝ ~COMPILE:  
+        _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+            CASE TFi:   RESULT_Immed EscTF  f 0 
+            CASE SFi:   RESULT_Immed        f 1    
+            CASE CFi:   RESULT_Immed ScanCF f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+        }⊣⊃OMEGA    ⍝ Pass the format string only...
+        ASSERT_TRUE: _←1⊣    ⎕←RESULT    
+                               RESULT    ⍝ default.   
+    ⍝⍝ ⍝ END ~COMPILE
+  ⍝*************************************⍝ 
+  ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
+  ⍝************************←←←**********⍝ 
 },⊆⍵
 
-⍝ Section ***** HELP INFO
+⍝***********************************⍝ 
+⍝ SECTION *** HELP INFORMATION  ****⍝
+⍝***********************************⍝ 
 ⍝H DESCRIPTION
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯
 ⍝H ∆F: "A basic APL-aware formatting function expecting in its right argument
@@ -228,7 +294,7 @@
 ⍝H
 ⍝H INTRODUCTORY EXAMPLES
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
-⍝H #1      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ }a mop?\⋄a pail of water.\⋄something!'
+⍝H #1      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ ⍝ 1 space}a mop?\⋄a pail of water.\⋄something!'
 ⍝H     Jack went up the hill     to fetch a mop?         
 ⍝H     and              mountain          a pail of water.
 ⍝H     Jill             street            something!     
@@ -291,22 +357,24 @@
 ⍝H        \{     ∘ A literal { character, which does NOT initiate a code field or space field.
 ⍝H        \}     ∘ A literal } character, which does NOT end a code field or space field.
 ⍝H        \\     ∘ Within a text field, a single backslash character is normally treated as the usual APL backslash.
-⍝H                 The double backslash '\\' is required ONLY before one of the character ⋄, {, or }, or
+⍝H                 The double backslash '\\' is required ONLY before one of the character {, or }, or
 ⍝H                 to produce multiple contiguous backslashes:
-⍝H                     '\⋄' => newline    '\\⋄' => '⋄'   
+⍝H                     '\⋄' => newline    '\\⋄' => '\⋄'   
 ⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
-⍝H                 Note: \" is ordinary text in a text field (see "Code Fields, Using DQs in a SQ-delimited string").
-⍝H 
+⍝H                 Otherwise, \\ is treated as an ordinary sequence of two backslashes (\\).
 ⍝H   +--------------------+
 ⍝H   | Code Field: {code} |
 ⍝H   +--------------------+
-⍝H        ∘ APL Code Field inserts the value of variables {myVar} into the output (formatted) string,
-⍝H          or evaluate sand inserts the value of the code specified following dfn conventions.
-⍝H          ∘ Code fields are executed in the calling function's namespace, with access to its
+⍝H        Code Fields are anything between (unescaped) braces, as for an APL dfn.
+⍝H        ∘ APL Code Field inserts the value of variables of any shape, e.g. {myVar}, directly into 
+⍝H          the output (formatted) string, or evaluates and inserts the value of the code specified 
+⍝H          following dfn syntax.
+⍝H          ∘ Code fields are executed in the calling function's namespace LEFT-TO-RIGHT, with access to its
 ⍝H            variables, functions, ⎕IO, ⎕FR, ⎕PP, etc.
-⍝H        ∘ Accesses ∆F right arguments:  0⊃⍵ (1st vector AFTER formatting string), 
-⍝H          1⊃⍵ via ⍹N and ⍹ (see below: N is any 1- or 2-digit number 0..99).
-⍝H          No blanks are inserted automatically before or after a Code Field. Do so explicitly,
+⍝H        ∘ Accesses ∆F right arguments or even the format string itself.
+⍝H          The first argument after the format string is ⍹1, the next ⍹2.
+⍝H          The format string itself is ⍹0. 
+⍝H        ∘ No blanks are inserted automatically before or after a Code Field. Do so explicitly,
 ⍝H          via explicit code (e.g. adding a " " string), a Space Field { }, or a Text Field.
 ⍝H        ∘ Referring to ∆F explicit arguments in a Code field...
 ⍝H          ⍹N⎱  ∘ Returns, for N an integer of 1 or 2 digits, 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
@@ -323,7 +391,7 @@
 ⍝H                     ⍵_ is a convenient alias for simple ⍹, in case you don't have the Unicode character ⍹ handy.
 ⍝H                  Ex:          1st    2rd    4th     5th
 ⍝H                       ∆F '1: {⍹} 2: {⍹} 4: {⍵4} 5: {⍹}'  'one' 'two' 'three' 'four' 'fifth'
-⍝H                    1: zero 2: one 4: three 5: fifth
+⍝H                    1: one 2: two 4: four 5: fifth
 ⍝H                  Ex:                           1 2 3 4
 ⍝H                       ∆F 'All together:{ ∊" ",¨⍹ ⍹ ⍹ ⍹ }' 'one' 'two' 'three' 'four' 'extra' 
 ⍝H                    All together: one two three four 
@@ -456,8 +524,8 @@
 ⍝H     Officers John Smith are in  NY   
 ⍝H              Mary Jones         London                  
 ⍝H              Terry Hawk         Paris  
-⍝H   ⍝ DEBUGGING LEVEL 3...                
-⍝H        ⎕NULL 1 ∆F 'Officers {↑Names} are in {Locns}'
+⍝H   ⍝ Debugging...                
+⍝H        'debug' ∆F 'Officers {↑Names} are in {↑Locns}'
 ⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
 ⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
 ⍝H     └─────────┘│Mary·Jones│└────────┘│ London│
@@ -469,10 +537,13 @@
 ⍝H ○ The current ∆F "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
 ⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX    - an extended ⎕FMT that can justify/center its right argument. See pseudo-builtin $ above.
-⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display. See pseudo-builtin $$ above.
-⍝H   ∘ ⍺.JOIN    - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
-⍝H   ∘ ⍺.DEBUG   - 1 if DEBUG is set; otherwise 0. May be set (only to 0 or 1): '...{⍺.DEBUG←1 ⋄ RunCode Dataset}...'
+⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display.    See pseudo-builtin $$ above.
+⍝H   ∘ ⍺.DDISP   - Same as ⍺.DISP, but replaces blanks with middle dots (·), ⎕UCS 183.
+⍝H   ∘ ⍺.CAT     - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
 ⍝H  
+⍝H ○ Code strings are executed left-to-right as the string is scanned. Deal with it.
+⍝H   This is true in the default mode, as well as in 'compile' mode (see below).
+⍝H
 ⍝H ○ If you want to use your own "local" objects across Code fields, simply use "library" names prefixed with ⍺._
 ⍝H   (If you call subsequent functions, be sure to pass ⍺ in some format to those functions).
 ⍝H   Valid object names might be:  
@@ -480,8 +551,28 @@
 ⍝H   E.g. you might have a sequence like:
 ⍝H        ∆F 'John {⍺._last←"Smith"} knows Mary {⍺._last}.'
 ⍝H     John Smith knows Mary Smith.
-⍝H ○ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
-⍝H   (Note: it is trivial to create a truly private namespace, but we didn't bother).
+⍝H   ∘ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
+⍝H     (Note: it is trivial to create a truly private namespace, but we didn't bother).
+⍝H
+⍝H ○ For greater efficiency, when format strings are executed more than once, you can use 'compile' mode,
+⍝H   which can be an order of magnitude faster.
+⍝H   E.g. In place of  
+⍝H       ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 'Tuesday'
+⍝H   Try: 
+⍝H     ⍝ In header
+⍝H       f1←⍎'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.'    ⍝ 'com' or even 'c' can be used!
+⍝H       ...
+⍝H     ⍝ In body
+⍝H       f1 ⊂'Tuesday'
+⍝H     ⍝ Giving the same output...
+⍝H       On Tuesday, Officers John are in New York.
+⍝H                            Mary        Miami  
+⍝H    The code created here
+⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
+⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙FⓁÎⒷ):
+⍝H      {(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)
+⍝H          ⍺.Ⓒ(1 11⍴', Officers ')⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')}⍵,⍨⊂,'On {⍵1}, Officers {↑Names} are in {↑Locns}.'} 
+⍝H    Note: ⎕SE.⍙FⓁÎⒷ.Ⓒ is a runtime utility for catenating fields executed right-to-left in the expected l-to-r order.
 ⍝H
 ⍝H Some differences from Python F-strings
 ⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
@@ -498,5 +589,8 @@
 ⍝H   Avoids the hassle of too many exceptional characters in a format string.
 ⍝H ∘ Can be executed unconditionally or only upon the success of an assertion (no 0∊⍺ in ⍺ ∆F ...).
 ⍝H ∘ Rather slow, but that's only because it's a prototype (entirely analyzed at run time).
-⍝ EndSection ***** Help Info
+
+⍝************************************⍝ 
+⍝ ENDSECTION ***** HELP INFORMATION *⍝
+⍝************************************⍝ 
 }

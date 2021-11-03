@@ -1,5 +1,5 @@
 ∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
- ⍝ 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+ 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
   0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
 ⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
@@ -46,9 +46,9 @@
       ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
     }
 
-    ⍝+-------------------------------------------------------------------------------+⍝
-    ⍝ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
-    ⍝+-------------------------------------------------------------------------------+⍝
+    ⍝+--------------------------------------------------------------------------------+⍝
+    ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
+    ⍝+--------------------------------------------------------------------------------+⍝
     ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
     ⍝ EXTERN: RESULT (RW) 
     RESULT_Immed←{ 
@@ -84,24 +84,28 @@
     ⍝                                    value:   \⋄  CR
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
     EscDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
-
-    ⍝+---------------------------------+⍝
-    ⍝ String Conversion Functions...   +⍝
-    ⍝+---------------------------------+⍝
+    ⍝ ------------------------------------------------------------------------------------------
+    ⍝+----------------------------------+⍝
+    ⍝+ String Conversion Functions...   +⍝
+    ⍝+----------------------------------+⍝
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-    DQ2SQ←{GenSQStr (~DQ2⍷s)/s← EscDQ 1↓¯1↓⍵ }
+    DQ2SQ←        {GenSQStr (~DQ2⍷s)/s← EscDQ 1↓¯1↓⍵ }
     ⍝ GenSQStr: Return code for a simple char vector or scalar.
     ⍝         Double internal SQs per APL, then add SQ on either side!
-    GenSQStr←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
+    GenSQStr←     { SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
+    GenSQStrList← {1↓∊ ' '∘,∘GenSQStr¨⍵}        ⍝ Generate quoted list for multiple SQ strings      
+    SplitCR←      {CR~⍨¨⍵⊂⍨1,CR=⍵}              ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
+    ⍝ WAS: 
+    ⍝    SplitCR←        {CR~⍨¨⍵⊂⍨(1+⊃ø),1↓ø←CR=⍵}  
+    ⍝    SplitCR←        {CR~⍨¨w⊆⍨1++\CR=w←⍵,⍨CR/⍨CR=⊃⍵ }   
+    ⍝ ------------------------------------------------------------------------------------------
     ⍝ CodeFromTF (Text field): 
     ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
     ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
     ⍝   See note for CodeFromCV (below).
     ⍝   Result is a char matrix.
-    CodeFromTF←{  
-        ~CR∊⍵: (⍕1,≢⍵),'⍴',GenSQStr ⍵    
-        '↑', (',¨'/⍨ ∧/1=≢¨ø), 1↓∊ ' '∘,∘GenSQStr¨ ø←'\a'⎕R''⊆⍵   
-    } 
+    CodeFromTF←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',GenSQStr ⍵ ⋄ '↑', (',¨'/⍨ ∧/1=≢¨ø), GenSQStrList⊢ ø←SplitCR ⍵ } 
+    ⍝ ------------------------------------------------------------------------------------------
     ⍝ CodeFromCV ⍵
     ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
     ⍝ to format that can be executed at runtime.
@@ -109,19 +113,20 @@
     ⍝    ⍵  - Standard APL char vector with optional CRs
     ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
     CodeFromCV←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+    ⍝ ------------------------------------------------------------------------------------------
     ⍝ CodeFromSF (Space field)
     ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
     CodeFromSF←{(⍕1,≢⍵),'⍴',SQ2} 
 
     ⍝+---------------------------------------------------+⍝
-    ⍝ Constants for String Conversion Functions above... +⍝
+    ⍝  Constants for String Conversion Functions above   +⍝
     ⍝+---------------------------------------------------+⍝
     SQ2← 2⍴SQ←'''' 
     DQ2← 2⍴DQ←'"' 
     CR←  ⎕UCS 13 
-  ⍝ ************************************************⍝
+  ⍝ *********************************************** ⍝
   ⍝ ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS   ⍝
-  ⍝ ************************************************⍝
+  ⍝ *********************************************** ⍝
   
   ⍝ ****************************************************************************** ⍝
   ⍝ SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)  ⍝
