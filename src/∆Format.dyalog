@@ -74,49 +74,45 @@
       (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹ ',' is out of range.',⍨⍕ix
       ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
-    ⍝ EscTF (Escapes in Text fields)
-    ⍝ EscTF handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
+    ⍝ TFEsc (Escapes in Text fields)
+    ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
     ⍝                                    value:   \   CR   {   }    
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
-    EscTF←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
-    ⍝ EscDQ (Escapes in Double-quoted strings in Code fields)
-    ⍝ EscDQ handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+    TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
+    ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
+    ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
     ⍝                                    value:   \⋄  CR
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
-    EscDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
+    DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
     ⍝ ------------------------------------------------------------------------------------------
     ⍝+----------------------------------+⍝
     ⍝+ String Conversion Functions...   +⍝
     ⍝+----------------------------------+⍝
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-    DQ2SQ←        {GenSQStr (~DQ2⍷s)/s← EscDQ 1↓¯1↓⍵ }
-    ⍝ GenSQStr: Return code for a simple char vector or scalar.
-    ⍝         Double internal SQs per APL, then add SQ on either side!
-    GenSQStr←     { SQ,SQ,⍨⍵/⍨1+⍵=SQ }∘,
-    GenSQStrList← {1↓∊ ' '∘,∘GenSQStr¨⍵}        ⍝ Generate quoted list for multiple SQ strings      
-    SplitCR←      {CR~⍨¨⍵⊂⍨1,CR=⍵}              ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
-    ⍝ WAS: 
-    ⍝    SplitCR←        {CR~⍨¨⍵⊂⍨(1+⊃ø),1↓ø←CR=⍵}  
-    ⍝    SplitCR←        {CR~⍨¨w⊆⍨1++\CR=w←⍵,⍨CR/⍨CR=⊃⍵ }   
+    DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
+    ⍝ SQ2Code: Return code for one or more simple char strings
+    ⍝            Double internal SQs per APL, then add SQ on either side!
+    SQ2Code←    {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
+    SplitCR←      {¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
     ⍝ ------------------------------------------------------------------------------------------
-    ⍝ CodeFromTF (Text field): 
+    ⍝ TF2Code (Text field): 
     ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
     ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
-    ⍝   See note for CodeFromCV (below).
+    ⍝   See note for CRStr2Code (below).
     ⍝   Result is a char matrix.
-    CodeFromTF←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',GenSQStr ⍵ ⋄ '↑', (',¨'/⍨ ∧/1=≢¨ø), GenSQStrList⊢ ø←SplitCR ⍵ } 
+    TF2Code←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',SQ2Code ⍵ ⋄ '↑', (',¨' /⍨ 1∧.=≢¨ø), SQ2Code⊢ ø←SplitCR ⍵ } 
     ⍝ ------------------------------------------------------------------------------------------
-    ⍝ CodeFromCV ⍵
+    ⍝ CRStr2Code ⍵
     ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
     ⍝ to format that can be executed at runtime.
-    ⍝    r@CV← CodeFromCV ⍵@CVcr
+    ⍝    r@CV← CRStr2Code ⍵@CVcr
     ⍝    ⍵  - Standard APL char vector with optional CRs
     ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
-    CodeFromCV←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+    CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
     ⍝ ------------------------------------------------------------------------------------------
-    ⍝ CodeFromSF (Space field)
+    ⍝ SF2Code (Space field)
     ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
-    CodeFromSF←{(⍕1,≢⍵),'⍴',SQ2} 
+    SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
 
     ⍝+---------------------------------------------------+⍝
     ⍝  Constants for String Conversion Functions above   +⍝
@@ -169,20 +165,20 @@
   ⍝ ***************************************⍝
   ⍝ SECTION ****** Code field Scanning     ⍝
   ⍝ ***************************************⍝
-  ⍝ ScanCF: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
-    ScanCF←{
-      patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP escDQP  
-             quoteI dispI fmtI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
+  ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
+    CFScan←{
+      patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP DQEscP  
+             quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
       selfDocFlag←0
       dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-          CASE quoteI:   CodeFromCV⍣ COMPILE⊢ DQ2SQ f 0
+          CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
           CASE dispI:    ' ⍙FⓁÎⒷ.DISP ' 
           CASE fmtI:     ' ⍙FⓁÎⒷ.FMTX '                               
           CASE omIndxI:  OMEGA_Pick f 1          
           CASE omNextI:  OMEGA_Pick curOMEGA+1  
           CASE comI:     ' '   ⍝ Comment → 1 space         
           CASE selfDocI: '}'⊣ selfDocFlag∘←1
-          CASE escDQI:   '"'
+          CASE DQEscI:   '"'
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⍵
     ⍝ Pass the main local namespace ⍙FⓁÎⒷ into the user space (as a local name and as ⍺). See Mapping of $.
@@ -197,7 +193,7 @@
     ⍝ Self-documented code field?  { code → }  or { code ➤ }
     ⍝ Prettyprint variant of → is '➤' U+10148
       selfDocFlag: res {
-        COMPILE: ⍺ RESULT_Compile CodeFromTF ⍵ ⋄ ⍺ RESULT_Immed ⍵
+        COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
       } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
       res 
     }
@@ -221,7 +217,7 @@
     CFp←   '(?<P>\{(?>[^{}"⍝\\]+|(?:\\.)+|(?:"[^"]*")+|⍝[^⋄}]*|(?&P)*)+\})' 
   ⍝ Code Field Patterns...
   ⍝ Synonym of ⍹DD is ⍵DD. Synonym of lone ⍹ is ⍵_.   (DD: 1 or 2 digits).
-    escDQP←  '\\"'
+    DQEscP←  '\\"'
     quoteP←  '(?<!\\)(?:"[^"]*")+'
     dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
     fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
@@ -255,20 +251,22 @@
   ⍝          library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
     COMPILE: {
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-            CASE TFi:   RESULT_Compile CodeFromTF EscTF f 0  
-            CASE SFi:   RESULT_Compile CodeFromSF       f 1 
-            CASE CFi:   RESULT_Compile ScanCF           f 0
+            CASE TFi:   RESULT_Compile TF2Code TFEsc f 0  
+            CASE SFi:   RESULT_Compile SF2Code       f 1 
+            CASE CFi:   RESULT_Compile CFScan        f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
+      ⍝ Embed ⊃OMEGA -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
+          fmtStr←CRStr2Code SQ2Code ⊢ ⊃OMEGA
       ⍝ Put RESULT in L-to-R order. See RESULT_Compile    ⍝ 
-        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',(CodeFromCV GenSQStr ⊃OMEGA),'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
+        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',fmtStr,'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
     }⍬ ⍝ END COMPILE
   ⍝ ~COMPILE:  
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-            CASE TFi:   RESULT_Immed EscTF  f 0 
+            CASE TFi:   RESULT_Immed TFEsc  f 0 
             CASE SFi:   RESULT_Immed        f 1    
-            CASE CFi:   RESULT_Immed ScanCF f 0
+            CASE CFi:   RESULT_Immed CFScan f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }⊣⊃OMEGA    ⍝ Pass the format string only...
         ASSERT_TRUE: _←1⊣    ⎕←RESULT    
