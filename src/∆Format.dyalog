@@ -47,6 +47,7 @@
     }
 
     ⍝+--------------------------------------------------------------------------------+⍝
+    ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
     ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
     ⍝+--------------------------------------------------------------------------------+⍝
     ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
@@ -84,10 +85,9 @@
     ⍝                                    value:   \⋄  CR
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
     DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝+----------------------------------+⍝
-    ⍝+ String Conversion Functions...   +⍝
-    ⍝+----------------------------------+⍝
+    ⍝ +----------------------------------------------------------------------------+
+    ⍝ | String Conversion Functions...                                             |
+    ⍝ +----------------------------------------------------------------------------+
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
     DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
     ⍝ SQ2Code: Return code for one or more simple char strings
@@ -113,31 +113,31 @@
     ⍝ SF2Code (Space field)
     ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
     SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
-
-    ⍝+---------------------------------------------------+⍝
-    ⍝  Constants for String Conversion Functions above   +⍝
-    ⍝+---------------------------------------------------+⍝
+    ⍝ +---------------------------------------------------+
+    ⍝ | Constants for String Conversion Functions above   |
+    ⍝ +---------------------------------------------------+
     SQ2← 2⍴SQ←'''' 
     DQ2← 2⍴DQ←'"' 
     CR←  ⎕UCS 13 
-  ⍝ *********************************************** ⍝
-  ⍝ ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS   ⍝
-  ⍝ *********************************************** ⍝
-  
-  ⍝ ****************************************************************************** ⍝
-  ⍝ SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)  ⍝
-  ⍝ ****************************************************************************** ⍝
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
+  ⍝ +----------------------------------------------------------------------------+
+
+  ⍝ +-------------------------------------------------------------------------------------------+
+  ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
+  ⍝ +-------------------------------------------------------------------------------------------+    
     ⍝ FMTX, DISP, CAT
     ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢
+        ColChk←{⍪⍣(⊃1=⍴⍴⍵)⊢⍵}
       ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
         ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
         4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
-        1≡⍺ 1:∆FMT ⍵
+        1≡⍺ 1: ∆FMT ⍵
         srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
         xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
-        xtra≡'':⍺ ∆FMT ⍵ 
-        obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}⍵
+        xtra≡'':⍺  ∆FMT ColChk ⍵ 
+        obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}ColChk ⍵
         wReq← 10⊥⎕D⍳wReq                                  ⍝  Same as (⊃⌽⎕VFI wReq) 
         wObj← ⊃⌽⍴obj                     
         wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done! We won't truncate.
@@ -158,9 +158,9 @@
   ⍝ DDISP, ⍺.Ⓓ: DISP with blanks repl. by middle dot (·), ⎕UCS 183.
     Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
   
-  ⍝ *********************************************************************⍝
-  ⍝ ENDSECTION ***** Library Routines (Compile Mode and User-Accessible) ⍝
-  ⍝ *********************************************************************⍝
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
+  ⍝ +----------------------------------------------------------------------------+
 
   ⍝ ***************************************⍝
   ⍝ SECTION ****** Code field Scanning     ⍝
@@ -219,12 +219,12 @@
   ⍝ Synonym of ⍹DD is ⍵DD. Synonym of lone ⍹ is ⍵_.   (DD: 1 or 2 digits).
     DQEscP←  '\\"'
     quoteP←  '(?<!\\)(?:"[^"]*")+'
-    dispP←    '(?<!\\)\${2,2}'  ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
-    fmtP←     '(?<!\\)\$(?!\$)' ⍝ $  = ⎕FMT Extended (see doc.)
-    omIndxP←   '[⍹⍵](\d{1,2})'   ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-    omNextP←  '⍹|⍵_'            ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
-    comP←     '⍝[^⋄}]*'         ⍝ ⍝..⋄ or ⍝..}
-    selfDocP← '[→➤]\h*\}$'      ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
+    dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
+    fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
+    omIndxP←   '[⍹⍵](\d{1,2})'      ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+    omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
+    comP←     '⍝[^⋄}]*'             ⍝ ⍝..⋄ or ⍝..}
+    selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
   ⍝ ***************************************⍝
   ⍝ ENDSECTION ***** Top Level Patterns ***⍝
   ⍝ ***************************************⍝
@@ -241,9 +241,10 @@
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
     OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
+    OMEGA0←    ⊃⍵                      ⍝ ⍹0 (0⊃⍵): the format string.
     nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
     curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-    RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, ''; ELSE, 1 0⍴' ')
+    RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, 0⍴' ', i.e. ''; ELSE, 1 0⍴' ')
   
     patsMain←TFp SFp CFp
              TFi SFi CFi← ⍳≢patsMain
@@ -255,12 +256,12 @@
             CASE SFi:   RESULT_Compile SF2Code       f 1 
             CASE CFi:   RESULT_Compile CFScan        f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
-        }⊣⊃OMEGA    ⍝ Pass the format string only...
+        }⊣OMEGA0  ⍝ Pass the format string only...
         0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv.
-      ⍝ Embed ⊃OMEGA -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
-          fmtStr←CRStr2Code SQ2Code ⊢ ⊃OMEGA
-      ⍝ Put RESULT in L-to-R order. See RESULT_Compile    ⍝ 
-        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},(⊂',fmtStr,'),⊆ ⊂⍣(⊃1<⍴⍴⍵)⊢⍵}'
+      ⍝ Embed OMEGA0 -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
+          fmtStr←CRStr2Code SQ2Code ⊢ OMEGA0
+      ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
+        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},',fmtStr,',⍥⊆⍵}'
     }⍬ ⍝ END COMPILE
   ⍝ ~COMPILE:  
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
@@ -268,7 +269,7 @@
             CASE SFi:   RESULT_Immed        f 1    
             CASE CFi:   RESULT_Immed CFScan f 0
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-        }⊣⊃OMEGA    ⍝ Pass the format string only...
+        }⊣OMEGA0    ⍝ Pass the format string only...
         ASSERT_TRUE: _←1⊣    ⎕←RESULT    
                                RESULT    ⍝ default.   
     ⍝⍝ ⍝ END ~COMPILE
