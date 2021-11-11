@@ -1,24 +1,32 @@
-∆F←{ ⍝ See SYNTAX under HELP INFORMATION (far below) for arguments and call specifications.
+∆F←{ 
+⍝  [assertion | options] ∆F formatter 
+⍝ Description: "A basic APL-savvy formatting function reminiscent of Python F-Strings, 
+⍝         but with native dfn-based handling of arrays and output formats."
+⍝ Syntax: [assertion | options] ∆F format_string [arbitrary args]
+⍝ See:    SYNTAX under HELP INFORMATION (far below) for details or enter 'help' ∆F ''
+
  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
-  0≠80|⎕DR ⊃⊆⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
+  ⎕IO←0 ⋄ ⎕ML←1 
+  ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
+⍝ Verify 1st elem of ⍵ is the format string (a char vector). 
+  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
+
 ⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
-
 ⍝ Otherwise, move us to a private namespace in the # domain.
   ⍺ (#.⎕NS '').{  
   ⍝ ************************************************⍝
   ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
   ⍝ ************************************************⍝
-    ⍝+---------------------------------+⍝
-    ⍝ GENERAL FUNCTIONS          ...   +⍝
-    ⍝+---------------------------------+⍝
-    ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
+  ⍝+---------------------------------+⍝
+  ⍝ GENERAL FUNCTIONS          ...   +⍝
+  ⍝+---------------------------------+⍝
+  ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
     ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
   
-    ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
-    ⍝   Returns 0 if 9=⎕NC ⍵; else 1. Sensitive to DEBUG.
+  ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
+  ⍝   Returns 0 if 9=⎕NC ⍵; else 1. Sensitive to DEBUG.
     LoadRuntimeLib←{  ⍝ ⍵: name of library to create (if need be)
           9=⎕NC ⍵: 0  ⋄  _←⍵ ⎕NS 'CAT' 'Ⓒ' 'FMTX' 'DISP' 'DDISP' 'Ⓓ'  
        ~DEBUG: 1
@@ -27,14 +35,14 @@
           ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP)'
         1
     }
-    ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
-    ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
-    ⍝ (b) 0 or more option strings (CVs).
-    ⍝ If omitted, it is treated as (b) '' ('default').
-    ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
-    ⍝ Otherwise...   
-    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
-    ⍝ For details, see HELP information below.
+  ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
+  ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
+  ⍝ (b) 0 or more option strings (CVs).
+  ⍝ If omitted, it is treated as (b) '' ('default').
+  ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
+  ⍝ Otherwise...   
+  ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
+  ⍝ For details, see HELP information below.
     SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
         0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
         p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' or 'de' matches 'debug', not 'default'!
@@ -43,79 +51,79 @@
         bad Whoops ⍵                       
     }
     Help←{ ⍝ Help... Show HELP info and return ⍵
-      ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
+        ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
     }
 
-    ⍝+--------------------------------------------------------------------------------+⍝
-    ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
-    ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
-    ⍝+--------------------------------------------------------------------------------+⍝
-    ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
-    ⍝ EXTERN: RESULT (RW) 
+  ⍝+--------------------------------------------------------------------------------+⍝
+  ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
+  ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
+  ⍝+--------------------------------------------------------------------------------+⍝
+  ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
+  ⍝ EXTERN: RESULT (RW) 
     RESULT_Immed←{ 
         ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
         rhs← DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
         lhs rhs↑⍨←lhs⌈⍥≢rhs 
         ⍺⊣ RESULT⊢←lhs,rhs
     }
-    ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
-    ⍝ EXTERN: RESULT (RW) 
-    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
-    ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
-    ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
+  ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
+  ⍝ EXTERN: RESULT (RW) 
+  ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
+  ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
+  ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
     RESULT_Compile←{  
         ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
         ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
     }
-    ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
-    ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
+  ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
+  ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
     OMEGA_Pick←{  
-      ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
-      0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-      (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹ ',' is out of range.',⍨⍕ix
-      ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
+        ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
+        0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
+        (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹',' is out of range.',⍨⍕ix
+        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
     }    
-    ⍝ TFEsc (Escapes in Text fields)
-    ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
-    ⍝                                    value:   \   CR   {   }    
-    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+  ⍝ TFEsc (Escapes in Text fields)
+  ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
+  ⍝                                    value:   \   CR   {   }    
+  ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
     TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
-    ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
-    ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
-    ⍝                                    value:   \⋄  CR
-    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+  ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
+  ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+  ⍝                                    value:   \⋄  CR
+  ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
     DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ | String Conversion Functions...                                             |
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | String Conversion Functions...                                             |
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
     DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
-    ⍝ SQ2Code: Return code for one or more simple char strings
-    ⍝            Double internal SQs per APL, then add SQ on either side!
-    SQ2Code←    {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
-    SplitCR←      {¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ TF2Code (Text field): 
-    ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
-    ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
-    ⍝   See note for CRStr2Code (below).
-    ⍝   Result is a char matrix.
+  ⍝ SQ2Code: Return code for one or more simple char strings
+  ⍝          Double internal SQs per APL, then add SQ on either side!
+    SQ2Code←  {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
+    SplitCR←  {¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}                     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ TF2Code (Text field): 
+  ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
+  ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
+  ⍝   See note for CRStr2Code (below).
+  ⍝   Result is a char matrix.
     TF2Code←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',SQ2Code ⍵ ⋄ '↑', (',¨' /⍨ 1∧.=≢¨ø), SQ2Code⊢ ø←SplitCR ⍵ } 
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ CRStr2Code ⍵
-    ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
-    ⍝ to format that can be executed at runtime.
-    ⍝    r@CV← CRStr2Code ⍵@CVcr
-    ⍝    ⍵  - Standard APL char vector with optional CRs
-    ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ CRStr2Code ⍵
+  ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
+  ⍝ to format that can be executed at runtime.
+  ⍝    r@CV← CRStr2Code ⍵@CVcr
+  ⍝    ⍵  - Standard APL char vector with optional CRs
+  ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
     CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ SF2Code (Space field)
-    ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ SF2Code (Space field)
+  ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
     SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
-    ⍝ +---------------------------------------------------+
-    ⍝ | Constants for String Conversion Functions above   |
-    ⍝ +---------------------------------------------------+
+  ⍝ +---------------------------------------------------+
+  ⍝ | Constants for String Conversion Functions above   |
+  ⍝ +---------------------------------------------------+
     SQ2← 2⍴SQ←'''' 
     DQ2← 2⍴DQ←'"' 
     CR←  ⎕UCS 13 
@@ -126,36 +134,36 @@
   ⍝ +-------------------------------------------------------------------------------------------+
   ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
   ⍝ +-------------------------------------------------------------------------------------------+    
-    ⍝ FMTX, DISP, CAT
-    ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+  ⍝ FMTX, DISP, CAT
+  ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢
-        ColChk←{⍪⍣(⊃1=⍴⍴⍵)⊢⍵}
+        ColChk←{⍪⍣(⊃(1=|≡⍵)∧1=⍴⍴⍵)⊢⍵}                ⍝ If ⍺ is specified, treat vectors as column vectors
       ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-        ∆FMT←(⊃⌽⎕RSI).⎕FMT  ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
-        4 7::⎕SIGNAL/⎕DMX.(EM EN)     ⍝ RANK ERROR, FORMAT ERROR
+        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
+        4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
         1≡⍺ 1: ∆FMT ⍵
         srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-        xtra wReq std←srcP ⎕R snkR⊢⊆,⍺
-        xtra≡'':⍺  ∆FMT ColChk ⍵ 
-        obj←std{''≡⍺: ∆FMT ⍵ ⋄ ⍺ ∆FMT ⍵}ColChk ⍵
-        wReq← 10⊥⎕D⍳wReq                                  ⍝  Same as (⊃⌽⎕VFI wReq) 
-        wObj← ⊃⌽⍴obj                     
-        wReq ≤ wObj: obj                                  ⍝ If required width ≤ object width, done! We won't truncate.
+        xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
+        xtra≡'':⍺  ∆FMT ⍵                             ⍝ 1.  SO only? Let ⎕FMT handle column vectors
+        obj←std{''≡⍺: ∆FMT ColChk ⍵ ⋄ ⍺ ∆FMT ⍵}⍵      ⍝ 2a. XO only? We handle column vectors. 2b. Both XO and SO? As in 1.
+        wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Same as (⊃⌽⎕VFI wReq)               
+        wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
         pad1←↑⍤1
-        xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj         ⍝ Left, Right 
-        wCtr←wReq-⍨⌊2÷⍨wReq-wObj                          ⍝ Center 1
-        wReq pad1 wCtr pad1 obj                           ⍝ ...    2
+        xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
+        wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
+        wReq pad1 wCtr pad1 obj                       ⍝ ...    2
     }
-    ⍝ ⍺.CAT: CATENATE FIELDS
-    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenaing left to right,
-    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
-    ⍝ Monadic case: Treat ⍺ as null array...
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
-    CAT← {⍺←⍬ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+  ⍝ ⍺.CAT: CATENATE FIELDS
+  ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
+  ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
+  ⍝ Monadic case: Treat ⍺ as null array...
+    CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+  ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
     Ⓒ←   CAT⍨
   ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
     DISP← ⎕SE.Dyalog.Utils.display
-  ⍝ DDISP, ⍺.Ⓓ: DISP with blanks repl. by middle dot (·), ⎕UCS 183.
+  ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
+  ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
     Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
   
   ⍝ +----------------------------------------------------------------------------+
@@ -177,23 +185,26 @@
           CASE omIndxI:  OMEGA_Pick f 1          
           CASE omNextI:  OMEGA_Pick curOMEGA+1  
           CASE comI:     ' '   ⍝ Comment → 1 space         
-          CASE selfDocI: '}'⊣ selfDocFlag∘←1
+          CASE selfDocI: '}'⊣ selfDocFlag⊢←1
           CASE DQEscI:   '"'
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⍵
     ⍝ Pass the main local namespace ⍙FⓁÎⒷ into the user space (as a local name and as ⍺). See Mapping of $.
       res←{ 
-        COMPILE:  '⍺', ⍵ ,'⍵'   
-      ⍝ Eye candy ;-)))
-        DEBUG/0:: ⎕SIGNAL/⎕DMX.{ ⎕←↑(⊂'DEBUG: ',(⊃DM),' while executing expression'),{(6↑''),¯5↓33↓⍵}¨↓↑1↓DM
-                      EM EN
-                  }⍬
-                  ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
+          COMPILE:  '⍺', ⍵ ,'⍵'   
+        ⍝ Eye candy ;-)))
+          DEBUG/0:: ⎕SIGNAL/⎕DMX.{ 
+              m0← 'DEBUG: ',(⊃DM),' while executing expression'
+              m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM
+              m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
+              ⎕←↑m0 m1 m2 ⋄ EM EN
+          }⍬ ⍝                        33↓ ¯5↓
+          ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
       }dfn 
-    ⍝ Self-documented code field?  { code → }  or { code ➤ }
+    ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
     ⍝ Prettyprint variant of → is '➤' U+10148
       selfDocFlag: res {
-        COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
+          COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
       } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
       res 
     }
@@ -210,21 +221,23 @@
   ⍝ *******************************************⍝
     TFp← '(\\.|[^{\\]+)+'               
     SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
-  ⍝ CFp: Don't try to understand this regex. OK, in brief, we match the pattern <P>: 
-  ⍝ <P>: { THEN:  
-  ⍝      ≥1OF: 「ANY chars BUT {}"⍝\」 OR 「\ escapes」 OR 「"DQ Strings"」 OR 「⍝ comments」 OR 「RECURSE <P> ≥0 TIMES」 
-  ⍝      THEN: }
-    CFp←   '(?<P>\{(?>[^{}"⍝\\]+|(?:\\.)+|(?:"[^"]*")+|⍝[^⋄}]*|(?&P)*)+\})' 
+  ⍝ CFp: Don't try to understand this regex. 
+  ⍝ OK, in brief, we match the pattern <P>: 
+  ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
+  ⍝     ³「ANY chars BUT {}"⍝\」 OR ⁴「\ escapes」 OR ⁵「"DQ Strings"」 OR ⁶「⍝ comments」 OR ⁷「RECURSE <P> ≥0 TIMES」 
+  ⍝  THEN: ⁸「}」 
+  ⍝  I.e.              ¹  ²ᵃ  ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
+    CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
   ⍝ Code Field Patterns...
-  ⍝ Synonym of ⍹DD is ⍵DD. Synonym of lone ⍹ is ⍵_.   (DD: 1 or 2 digits).
-    DQEscP←  '\\"'
-    quoteP←  '(?<!\\)(?:"[^"]*")+'
+  ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
+    DQEscP←   '\\"'
+    quoteP←   '(?<!\\)(?:"[^"]*")+'
     dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
     fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
-    omIndxP←   '[⍹⍵](\d{1,2})'      ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-    omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.                 We don't clip incremental indexing of ⍵ at 99. Go figure.
+    omIndxP←  '[⍹⍵](\d{1,2})'       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+    omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.             NB: We don't bother clipping incremental indexing of ⍵ at 99.  
     comP←     '⍝[^⋄}]*'             ⍝ ⍝..⋄ or ⍝..}
-    selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self documenting code eval.
+    selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self-documenting code eval.
   ⍝ ***************************************⍝
   ⍝ ENDSECTION ***** Top Level Patterns ***⍝
   ⍝ ***************************************⍝
