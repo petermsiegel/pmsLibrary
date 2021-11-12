@@ -1,9 +1,31 @@
 ∆F←{ 
-⍝  [assertion | options] ∆F formatter 
-⍝ Description: "A basic APL-savvy formatting function reminiscent of Python F-Strings, 
-⍝         but with native dfn-based handling of arrays and output formats."
-⍝ Syntax: [assertion | options] ∆F format_string [arbitrary args]
-⍝ See:    SYNTAX under HELP INFORMATION (far below) for details or enter 'help' ∆F ''
+⍝H ∆F Formatting Utility
+⍝H ¯¯ ¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
+⍝H Descrption:
+⍝H   "A basic APL-savvy formatting function reminiscent of Python F-Strings. 
+⍝H    but with native dfn-based handling of arrays and output formats."
+⍝H Syntax: 
+⍝H   [assertion | options] ∆F format_string [arbitrary args]
+⍝H     assertion: 
+⍝H       ⍺ is a simple numeric arg only. "TRUE" unless there is a 0 in the left arg.
+⍝H       If TRUE, performs formatting. Otherwise, does nothing (and quickly).
+⍝H     options:
+⍝H       DEBUG | COMPILE | HELP | DEFAULT*         
+⍝H       ∘ DEBUG: Displays each field separately using dfns "DISPLAY"
+⍝H       ∘ COMPILE: Returns a code string that can be precomputed, 
+⍝H         rather than scanned on each execution. 
+⍝H         The compiled code can function as an assertion if ⍺ is numeric; otherwise ⍺ is ignored.
+⍝H       ∘ HELP: Displays HELP documentation
+⍝H       ∘ DEFAULT: Returns a formatted 2-D array according to the format_string specified.
+⍝H         ===========
+⍝H         * DEFAULT is assumed if ⍺ is omitted or ''. Options may be in either case and abbreviated.
+⍝H           The abbrev 'DE' or 'D' denotes DEBUG. 
+⍝H     format_string:
+⍝H       Contains the simple format "fields" that allow strings (text fields), code (code fields), and 
+⍝H       2-D spacing (space fields). Code fields accommodate a shorthand using
+⍝H         - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
+⍝H         - $$ to display fields or objects using dfns 'DISPLAY'.
+⍝  For more details. see HELP information at the bottom of ∆Format.dyalog (this file).
 
  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⎕ML←1 
@@ -56,9 +78,9 @@
 
   ⍝+--------------------------------------------------------------------------------+⍝
   ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
-  ⍝+ Functions Manipulating EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)  +⍝
+  ⍝+ Manipulating these EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)      +⍝
   ⍝+--------------------------------------------------------------------------------+⍝
-  ⍝ Glue ⍵ to the RHS of RESULT, returning ⍺.  
+  ⍝ RESULT_Immed: Glue RESULT,←⍵. Return ⍺ or '' 
   ⍝ EXTERN: RESULT (RW) 
     RESULT_Immed←{ 
         ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
@@ -66,7 +88,7 @@
         lhs rhs↑⍨←lhs⌈⍥≢rhs 
         ⍺⊣ RESULT⊢←lhs,rhs
     }
-  ⍝ Emit code equiv of RESULT_Immed, returning ⍺. 
+  ⍝ RESULT_Compile: Emit code equiv of RESULT_Immed, returning ⍺. 
   ⍝ EXTERN: RESULT (RW) 
   ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
   ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
@@ -75,7 +97,7 @@
         ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
         ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
     }
-  ⍝ Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
+  ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
   ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
     OMEGA_Pick←{  
         ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
@@ -195,8 +217,7 @@
         ⍝ Eye candy ;-)))
           DEBUG/0:: ⎕SIGNAL/⎕DMX.{ 
               m0← 'DEBUG: ',(⊃DM),' while executing expression'
-              m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM
-              m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
+              m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
               ⎕←↑m0 m1 m2 ⋄ EM EN
           }⍬ ⍝                        33↓ ¯5↓
           ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
@@ -276,7 +297,7 @@
       ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
         '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},',fmtStr,',⍥⊆⍵}'
     }⍬ ⍝ END COMPILE
-  ⍝ ~COMPILE:  
+  ⍝ ~COMPILE: ... 
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
             CASE TFi:   RESULT_Immed TFEsc  f 0 
             CASE SFi:   RESULT_Immed        f 1    
@@ -294,18 +315,23 @@
 ⍝***********************************⍝ 
 ⍝ SECTION *** HELP INFORMATION  ****⍝
 ⍝***********************************⍝ 
-⍝H DESCRIPTION
-⍝H ¯¯¯¯¯¯¯¯¯¯¯
-⍝H ∆F: "A basic APL-aware formatting function expecting in its right argument
-⍝H      a format string, followed by 0 or more scalars of any type (within the domain of ⎕FMT).
-⍝H      The format string defines formatted output via fields of 3 types: 
-⍝H         text fields, code fields {code}, and space fields {  }
-⍝H      each of which builds a character matrix (a field). Fields are concatenated 
-⍝H      from left to right, after extending each with blank rows required to stitch them together.
-⍝H      Reminiscent of Python F-strings, but reconceived for Dyalog APL."
+⍝ See SYNTAX and DESCRIPTION at TOP of ∆Format.dyalog.
 ⍝H
 ⍝H INTRODUCTORY EXAMPLES
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
+⍝H #0      oldPlanets←  ↑'Mercury' 'Venus'  'Earth'    'Mars'   'Jupiter'  'Saturn'  'Uranus'  'Neptune'  'Pluto'
+⍝H         mnemonics←   ↑'My'      'Very'   'Educated' 'Mother' 'Just'     'Served'  'Us'      'Nine'     'Pickles' 
+⍝H         ∆F 'To remember the planets: {oldPlanets}, just learn: {mnemonics}'
+⍝H     To remember the planets: Mercury, just learn:  My      
+⍝H                              Venus                 Very     
+⍝H                              Earth                 Educated 
+⍝H                              Mars                  Mother   
+⍝H                              Jupiter               Just     
+⍝H                              Saturn                Served   
+⍝H                              Uranus                Us       
+⍝H                              Neptune               Nine     
+⍝H                              Pluto                 Pickles 
+⍝H 
 ⍝H #1      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ ⍝ 1 space}a mop?\⋄a pail of water.\⋄something!'
 ⍝H     Jack went up the hill     to fetch a mop?         
 ⍝H     and              mountain          a pail of water.
