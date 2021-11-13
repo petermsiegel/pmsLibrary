@@ -49,12 +49,13 @@
   
   ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
   ⍝   Returns 0 if 9=⎕NC ⍵; else 1. Sensitive to DEBUG.
+  ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
     LoadRuntimeLib←{  ⍝ ⍵: name of library to create (if need be)
-          9=⎕NC ⍵: 0  ⋄  _←⍵ ⎕NS 'CAT' 'Ⓒ' 'FMTX' 'DISP' 'DDISP' 'Ⓓ'  
+          9=⎕NC ⍵: 0  ⋄  _←⍵ ⎕NS 'CAT' 'Ⓒ' 'FMTX' 'DISP' 'DDISP' 'Ⓓ' 'Ⓐ'  
        ~DEBUG: 1
           ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
           ⎕←'>> USER UTILITY FNS ARE:       CAT, FMTX ($), DISP ($$), DDISP'
-          ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP)'
+          ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓒ (CAT⍨), Ⓓ (DDISP), Ⓐ (RUN-TIME ARGS)'
         1
     }
   ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
@@ -187,6 +188,7 @@
   ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
   ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
     Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
+    Ⓐ←{0=≢⊃⍵:(⊂⍺),1↓⍵⋄⍵}
   
   ⍝ +----------------------------------------------------------------------------+
   ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
@@ -202,8 +204,8 @@
       selfDocFlag←0
       dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
           CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
-          CASE dispI:    ' ⍙FⓁÎⒷ.DISP ' 
-          CASE fmtI:     ' ⍙FⓁÎⒷ.FMTX '                               
+          CASE dispI:    ' ⍙Ⓕ.DISP ' 
+          CASE fmtI:     ' ⍙Ⓕ.FMTX '                               
           CASE omIndxI:  OMEGA_Pick f 1          
           CASE omNextI:  OMEGA_Pick curOMEGA+1  
           CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -211,7 +213,6 @@
           CASE DQEscI:   '"'
           '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
       }⍵
-    ⍝ Pass the main local namespace ⍙FⓁÎⒷ into the user space (as a local name and as ⍺). See Mapping of $.
       res←{ 
           COMPILE:  '⍺', ⍵ ,'⍵'   
         ⍝ Eye candy ;-)))
@@ -219,8 +220,10 @@
               m0← 'DEBUG: ',(⊃DM),' while executing expression'
               m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
               ⎕←↑m0 m1 m2 ⋄ EM EN
-          }⍬ ⍝                        33↓ ¯5↓
-          ⍎'⍙FⓁÎⒷ∘USER_SPACE.{(⍙FⓁÎⒷ←⍺)', ⍵ ,'⍵ }OMEGA'
+          }⍬ ⍝ 
+        ⍝ Pass the main local namespace ⍙ⒻⓁⒾⒷ into the user space 
+        ⍝ (as a local name ⍙Ⓕ and as ⍺). See $, $$.
+          ⍎'⍙ⒻⓁⒾⒷ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
       }dfn 
     ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
     ⍝ Prettyprint variant of → is '➤' U+10148
@@ -269,9 +272,9 @@
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
-    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙FⓁÎⒷ'
+    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙ⒻⓁⒾⒷ'
     USER_SPACE←⊃⌽⎕RSI
-    ⍙FⓁÎⒷ←⎕THIS⊣⎕DF '∆F[⍙FⓁÎⒷ]'       
+    ⍙ⒻⓁⒾⒷ←⎕THIS⊣⎕DF '∆F[⍙ⒻⓁⒾⒷ]'       
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
     OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
@@ -282,8 +285,9 @@
   
     patsMain←TFp SFp CFp
              TFi SFi CFi← ⍳≢patsMain
-  ⍝ COMPILE: Build code string from:
-  ⍝          library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
+  ⍝ COMPILE MODE: 
+  ⍝ Build code string from: 
+  ⍝   library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
     COMPILE: {
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
             CASE TFi:   RESULT_Compile TF2Code TFEsc f 0  
@@ -295,9 +299,11 @@
       ⍝ Embed OMEGA0 -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
           fmtStr←CRStr2Code SQ2Code ⊢ OMEGA0
       ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
-        '{⍺←1⋄0∊⍺:_←0⋄ (⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){',(⌽RESULT),'},',fmtStr,',⍥⊆⍵}'
+      ⍝ We require a dummy format string in ⍵.
+      ⍝ If that string is empty ('' or ⍬), ⍵0 will be original format string specified.
+        '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙ⒻⓁⒾⒷ⋄⍙Ⓕ{',(⌽RESULT),'},',fmtStr,'⍙Ⓕ.Ⓐ ⍵}'    
     }⍬ ⍝ END COMPILE
-  ⍝ ~COMPILE: ... 
+  ⍝ STANDARD MODE 
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
             CASE TFi:   RESULT_Immed TFEsc  f 0 
             CASE SFi:   RESULT_Immed        f 1    
@@ -319,55 +325,48 @@
 ⍝H
 ⍝H INTRODUCTORY EXAMPLES
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
-⍝H #0      oldPlanets←  ↑'Mercury' 'Venus'  'Earth'    'Mars'   'Jupiter'  'Saturn'  'Uranus'  'Neptune'  'Pluto'
+⍝H #1A
+⍝H         name←'Terry Smith' ⋄ age ← 34 ⋄ address← '123 Melbourne Lane' ⋄ minAge←35
+⍝H         (age<minAge) ∆F 'Warning: not eligible for discount: {name} of {address} is {age} (not yet age {minAge})'
+⍝H ➤   Warning: not eligible for discount: Terry Smith of 123 Melbourne Lane is 34 (not yet age 35)
+⍝H        name←'Nat Jones'    ⋄ age ← 35 ⋄ address← '321 Newton Court' ⋄ minAge←35
+⍝H        (age<minAge) ∆F 'Warning: not eligible for discount: {name} of {address} is {age} (not yet age {minAge})'
+⍝H     ⍝ ↑↑↑ Assertion (age<minAge) "fails," so ∆F prints nothing.   
+⍝H
+⍝H #1B     oldPlanets←  ↑'Mercury' 'Venus'  'Earth'    'Mars'   'Jupiter'  'Saturn'  'Uranus'  'Neptune'  'Pluto'
 ⍝H         mnemonics←   ↑'My'      'Very'   'Educated' 'Mother' 'Just'     'Served'  'Us'      'Nine'     'Pickles' 
 ⍝H         ∆F 'To remember the planets: {oldPlanets}, just learn: {mnemonics}'
-⍝H     To remember the planets: Mercury, just learn:  My      
+⍝H ➤   To remember the planets: Mercury, just learn:  My      
 ⍝H                              Venus                 Very     
 ⍝H                              Earth                 Educated 
-⍝H                              Mars                  Mother   
-⍝H                              Jupiter               Just     
-⍝H                              Saturn                Served   
-⍝H                              Uranus                Us       
+⍝H                              ...                   ... 
 ⍝H                              Neptune               Nine     
 ⍝H                              Pluto                 Pickles 
 ⍝H 
-⍝H #1      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ ⍝ 1 space}a mop?\⋄a pail of water.\⋄something!'
-⍝H     Jack went up the hill     to fetch a mop?         
-⍝H     and              mountain          a pail of water.
-⍝H     Jill             street            something!     
+⍝H #1C      ∆F 'Jack\⋄and\⋄Jill{} went up the {↑"hill" "mountain" "street" ⍝code} to fetch{ ⍝ 1 space}a mop?\⋄a pail of water.\⋄something!'
+⍝H ➤   Jack went up the hill     to fetch a mop?         
+⍝H ➤   and              mountain          a pail of water.
+⍝H ➤   Jill             street            something!     
 ⍝H
 ⍝H #2      fname lname← 'john' 'smith'  ⋄  age←    34  
 ⍝H         salBase←     45020           ⋄  salPct←  3.2        
-⍝H         cap1← {(1 ⎕C 1↑⍵),1↓⍵}
-⍝H         ∆F 'Employee {cap1 fname} {cap1 lname} earns {"⊂$⊃,CF9.2"$salBase} and will earn {"⊂$⊃,CF9.2"$ salBase×1+salPct÷100} next year.'
-⍝H     Employee John Smith earns $45,020.00 and will earn $46,460.64 next year.     
+⍝H         Cap1← {(1 ⎕C 1↑⍵),1↓⍵}
+⍝H         ∆F 'Employee {cap1 fname} {Cap1 lname} earns {"⊂$⊃,CF9.2"$salBase} and will earn {"⊂$⊃,CF9.2"$ salBase×1+salPct÷100} next year.'
+⍝H ➤   Employee John Smith earns $45,020.00 and will earn $46,460.64 next year.     
 ⍝H   
 ⍝H #3      planet←   'Mercury' 'Venus'  'Earth'  'Mars'  'Jupiter'  'Saturn'  'Uranus'  'Neptune' 
 ⍝H         radiusMi← 1516      3760.4   3958.8   2106.1  43441      36184     15759     15299
 ⍝H         mi2Km←    ×∘1.609344
 ⍝H         ∆F 'The planet {↑planet ⍝ No Pluto!} has a radius of {"I5,⊂ mi⊃" $ radiusMi} or {"I5,⊂ km⊃" $ mi2Km radiusMi}.'
-⍝H     The planet Mercury has a radius of  1516 mi or  2440 km.
-⍝H                Venus                    3760 mi     6052 km 
-⍝H                Earth                    3959 mi     6371 km 
-⍝H                Mars                     2106 mi     3389 km 
-⍝H                Jupiter                 43441 mi    69912 km 
-⍝H                Saturn                  36184 mi    58233 km 
-⍝H                Uranus                  15759 mi    25362 km 
-⍝H                Neptune                 15299 mi    24621 km               
+⍝H ➤   The planet Mercury has a radius of  1516 mi or  2440 km.
+⍝H ➤              Venus                    3760 mi     6052 km 
+⍝H ➤              Earth                    3959 mi     6371 km 
+⍝H ➤              Mars                     2106 mi     3389 km 
+⍝H ➤              Jupiter                 43441 mi    69912 km 
+⍝H ➤              Saturn                  36184 mi    58233 km 
+⍝H ➤              Uranus                  15759 mi    25362 km 
+⍝H ➤              Neptune                 15299 mi    24621 km               
 ⍝H 
-⍝H SYNTAX
-⍝H ¯¯¯¯¯¯
-⍝H [⍺] ∆F 'format_string' [scalar1 [scalar2 ... [scalarN]]]
-⍝H If ⍺ is...  \  then ∆F Displays     Returns                   Shy?   Remarks
-⍝H    OMITTED          N/A             formatted str             No     String Formatter.  
-⍝H    'default'        N/A             formatted str             No     Same as above (⍺ OMITTED).
-⍝H    'help'           HELP INFO       0                         Yes    Displays HELP via ⎕ED
-⍝H    'debug'          DEBUG INFO      formatted str             No     String Formatter with each field boxed.  
-⍝H    'compile'        --              executable code sequence  No     9-10x more efficient for repeat calls
-⍝H                                       y: (⍎y)⍵1 ⍵2 ...               ⍵0 (orig. fmt string) is added automatically.
-⍝H    ⍺: ~0∊⍺       formatted str      1                         Yes    Assertion succeeds: print formatted message.
-⍝H    ⍺:  0∊⍺       N/A                0                         Yes    Assertion fails: go quietly but FAST.
 ⍝H
 ⍝H FORMAT STRING DEFINITIONS
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
@@ -380,13 +379,12 @@
 ⍝H      ∘ Space fields consist of 0 or more spaces between (unescaped) braces: { }
 ⍝H        They may be used to separate contiguous text fields or to add spaces between fields.
 ⍝H   
-⍝H Returns: a character matrix of 1 or more rows and 0 or more columns."
 ⍝H
 ⍝H FORMAT STRING FIELDS: Field Types and Associated Special symbols:
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯
-⍝H   +-------------+
-⍝H   | Text Field  |
-⍝H   +-------------+  
+⍝H +-----------------+
+⍝H | TF: Text Fields |
+⍝H +-----------------+  
 ⍝H   Everything outside of (unescaped) braces is in a Text field. 
 ⍝H   The following characters have special meaning within a text field:
 ⍝H        \⋄     ∘ Inserts a newline within a text field (see also \⋄ in DQ string within a code field).
@@ -400,9 +398,9 @@
 ⍝H                     '\⋄' => newline    '\\⋄' => '\⋄'   
 ⍝H                     '\' => '\'         '\\'  => '\',     '\\\\' => '\\'
 ⍝H                 Otherwise, \\ is treated as an ordinary sequence of two backslashes (\\).
-⍝H   +--------------------+
-⍝H   | Code Field: {code} |
-⍝H   +--------------------+
+⍝H +-------------------------+
+⍝H | CF: Code Fields: {code} |
+⍝H +-------------------------+
 ⍝H        Code Fields are anything between (unescaped) braces, as for an APL dfn.
 ⍝H        ∘ APL Code Field inserts the value of variables of any shape, e.g. {myVar}, directly into 
 ⍝H          the output (formatted) string, or evaluates and inserts the value of the code specified 
@@ -414,7 +412,12 @@
 ⍝H          The format string itself is ⍹0. 
 ⍝H        ∘ No blanks are inserted automatically before or after a Code Field. Do so explicitly,
 ⍝H          via explicit code (e.g. adding a " " string), a Space Field { }, or a Text Field.
-⍝H        ∘ Referring to ∆F explicit arguments in a Code field...
+⍝H
+⍝H +---------------------------------------------------+
+⍝H | CF: Positional arguments (⍹1, ⍹) in a Code fields |
+⍝H | (Alt:  ⍵1, ⍵_)                                    |
+⍝H +---------------------------------------------------+
+⍝H        ∘ Referring to ∆F positional arguments in a Code field...
 ⍝H          ⍹N⎱  ∘ Returns, for N an integer of 1 or 2 digits, 0≤N≤99, a value of Nth vector of ⍵, i.e. (⍵⊃⍨N+⎕IO).
 ⍝H          ⍵N⎰    - ⍵N is allowed as an alias for ⍹N, e.g. ⍵9 ≡ ⍹9, in case you don't have the Unicode character ⍹ handy.
 ⍝H                  - ⍵1 is the first "appended" word, with ⍵0 reserved as the format string itself (see example below).
@@ -429,21 +432,24 @@
 ⍝H                     ⍵_ is a convenient alias for simple ⍹, in case you don't have the Unicode character ⍹ handy.
 ⍝H                  Ex:          1st    2rd    4th     5th
 ⍝H                       ∆F '1: {⍹} 2: {⍹} 4: {⍵4} 5: {⍹}'  'one' 'two' 'three' 'four' 'fifth'
-⍝H                    1: one 2: two 4: four 5: fifth
+⍝H ➤                  1: one 2: two 4: four 5: fifth
 ⍝H                  Ex:                           1 2 3 4
 ⍝H                       ∆F 'All together:{ ∊" ",¨⍹ ⍹ ⍹ ⍹ }' 'one' 'two' 'three' 'four' 'extra' 
-⍝H                    All together: one two three four 
+⍝H ➤                  All together: one two three four 
 ⍝H                  Ex:
 ⍝H                    ⍝  Remember, using ⍹N "sets" the last field referenced to N, so the next  via ⍹ will be N+1.
 ⍝H                    ⍝                           1 2 1  2
 ⍝H                       ∆F 'Return again:{ ∊" ",¨⍹ ⍹ ⍹1 ⍹ }'  'one' 'two' 'three' 'four' 
-⍝H                    Return again: one two one two 
+⍝H ➤                  Return again: one two one two 
 ⍝H                  Ex: 
 ⍝H                    ⍝ ⍹0 (or ⍵0) refers to the format string itself (the 0th string in ⎕IO=0)
 ⍝H                      ∆F 'The format string:  {⍹0}'
-⍝H                    The format string:  The format string:  {⍹0}
+⍝H ➤               The format string:  The format string:  {⍹0}
 ⍝H        ∘ The left arg (⍺) of a Code field refers to a namespace with library routines and local variables.
 ⍝H          See Obscure Points below.
+⍝H +------------------------------------------------+
+⍝H | CF: DQ (Double-Quoted) Strings in Code Fields  |
+⍝H +------------------------------------------------+
 ⍝H        ∘ DQ strings: "..."
 ⍝H          Strings within Code Fields are DQ strings:
 ⍝H          ∘ DQ strings begin and end with double quotes, with (optional) 
@@ -453,15 +459,21 @@
 ⍝H              "abc""def" ==>  'abc"def'
 ⍝H          Ex:
 ⍝H              ∆F 'Date: {"Dddd ""the"" Doo ""of"" Mmmm YYYY."(1200⌶)1 ⎕DT⊂2021 10 2 }'
-⍝H            Date: Saturday the 2nd of October 2021. 
+⍝H ➤          Date: Saturday the 2nd of October 2021. 
 ⍝H          ∘ \⋄  is used to enter a "newline" into a DQ string.
-⍝H            \\⋄ may be used to enter a backslash \ followed by '⋄': '\⋄'.
-⍝H        ∘ Warning: You may not use \" to escape a DQ within a DQ string! Use APL-style doubling ("abc""def").
-⍝H        ∘ SQ characters:  (')
+⍝H            \\⋄ may be used in a DQ string to enter a backslash \ followed by '⋄': '\⋄'.
+⍝H        ∘ In DQ Strings, use APL-style doubling to insert explicit double quotes:
+⍝H             "abc""def"
+⍝H          Do NOT use Perl-style \" to escape a DQ within a DQ string!  
+⍝H        ∘ SQ characters are ordinary characters in ∆F format strings:  (')
 ⍝H          ∘ Within Code fields, SQ (') characters are treated as ordinary characters, 
 ⍝H            not quote characters.
 ⍝H          ∘ If you insist on using SQ strings as delimiters, double them and watch out for confusion. 
 ⍝H            Note: to use DQs within a SQ-delimited string, you must specify \" for each DQ desired.
+⍝H +-----------------------------------------+
+⍝H | CF: Extended Formatting in Code fields  |
+⍝H |     Monadic and Dyadic $                |
+⍝H +-----------------------------------------+
 ⍝H          $ Extended Format (extends dyadic ⎕FMT): $ pseudo-function
 ⍝H            ∘ $ denotes a special APL "format" function, with extended parameters L, C, and R.
 ⍝H              $ may be used more than once in each Code Field, following Dyalog's rules for ⎕FMT.
@@ -483,95 +495,114 @@
 ⍝H                The use of L,C,R here cannot be confused with their uses in the ⎕FMT standard.       
 ⍝H                + Ex:
 ⍝H                     ∆F 'Using $: {"⊂<⊃,F12.10,⊂>⊃" $ *1 2} <==> Using ⎕FMT: {"⊂<⊃,F12.10,⊂>⊃" ⎕FMT *1 2}'
-⍝H                  Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
-⍝H                           <7.3890560989>                  <7.3890560989>
+⍝H ➤                Using $: <2.7182818285> <==> Using ⎕FMT: <2.7182818285>
+⍝H ➤                         <7.3890560989>                  <7.3890560989>
 ⍝H                + Ex: 
 ⍝H                    ⎕PP ⎕FR←12 645
 ⍝H                    ∆F '{$○1}'
-⍝H                  3.14159265359 
+⍝H ➤                3.14159265359 
 ⍝H                    ∆F '{ ⎕PP ⎕FR←34 1287 ⋄  $○1}'      ⍝ Equiv to: ∆F '{ ⎕PP ⎕FR←34 1287 ⋄ ⎕FMT ○1}' 
-⍝H                  3.141592653589793238462643383279503
+⍝H ➤                3.141592653589793238462643383279503
 ⍝H                + Ex:
 ⍝H                    ⎕pp←6  ⍝ Ignored for dyadic ⎕FMT (as the example shows)
 ⍝H                    ⍝     Pad     ⎕FMT              ⎕FMT             Pad
 ⍝H                    ∆F '<{"C20,F12.10" $ ○1}> <{"F12.10" $ ○1}> <{"C20" $ ○1}>'
-⍝H                  <    3.1415926536    > <3.1415926536> <       3.14159      >
+⍝H ➤                <    3.1415926536    > <3.1415926536> <       3.14159      >
 ⍝H                + Ex:
 ⍝H                    ∆F '<{"C30" $ "cats"}>'             ⍝ $ emits blanks
-⍝H                  <             cats             >
+⍝H ➤                <             cats             >
 ⍝H                       ∆F '<{"·"@(" "∘=)⊣"C30" $ "cats"}>' ⍝ Replace blanks with middle dot "·".
-⍝H                  <·············cats·············> 
+⍝H ➤                <·············cats·············> 
 ⍝H                + Ex: 
 ⍝H                  ⍝ $ returns a matrix. @ handles transparently...
 ⍝H                    ∆F'<{"·"@(" "∘=)⊣ "C30,F9.5" $ ○1 2 3}>'
-⍝H                  <·············3.14159··········>
-⍝H                   ·············6.28319·········· 
-⍝H                   ·············9.42478·········· 
+⍝H ➤                <·············3.14159··········>
+⍝H ➤                 ·············6.28319·········· 
+⍝H ➤                 ·············9.42478·········· 
 ⍝H                  ⍝ For ⎕R, convert the matrix to a vector of strings.
 ⍝H                    ∆F'<{↑" "⎕R"·"↓"C30,F9.5" $ ○1 2 3}>'
-⍝H                  <·············3.14159··········>
-⍝H                   ·············6.28319·········· 
-⍝H                   ·············9.42478·········· 
+⍝H ➤                <·············3.14159··········>
+⍝H ➤                 ·············6.28319·········· 
+⍝H ➤                 ·············9.42478·········· 
 ⍝H 
+⍝H +----------------------------------------+
+⍝H | CF: Displaying Objects in Code Fields  |
+⍝H |     Using Monadic $$                   |
+⍝H +----------------------------------------+
+
 ⍝H          $$ Display
 ⍝H             ∘ Alias for long display form, "display," viz. ⎕SE.Dyalog.Utils.display
 ⍝H                     Ex:
 ⍝H                       ∆F '\⋄one {$$ 1 2 ("1" "2")} \⋄two' 
-⍝H                         ┌→┬─┬──┐    
-⍝H                     one │1│2│12│ two
-⍝H                         └─┴─┴─→┘    
+⍝H ➤                       ┌→┬─┬──┐    
+⍝H ➤                   one │1│2│12│ two
+⍝H ➤                       └─┴─┴─→┘    
+⍝H
+⍝H +--------------------------------+
+⍝H | CF: ⍝ Comments in Code Fields  |
+⍝H +--------------------------------+
 ⍝H          ⍝ Code field comments...
-⍝H            - Begins a comment within code sequence, terminated SOLELY by: 
-⍝H             a ⋄ or } character. Within a comment, double quotes MUST be balanced.
-⍝H            - Do not use ⋄, \⋄, }, or \} within comments.
+⍝H            - Aa comment within code sequence begins with a lamp (⍝) and ends solely with a ⋄ or } character. 
+⍝H            - You may not use ⋄, \⋄, }, or \} within Code field comments.
 ⍝H              Ex:
 ⍝H                  ∆F 'Using $: {"F12.10" $ *1 ⍝ Dollar!} <==> Using ⎕FMT: {ok←"F12.10" ⎕FMT *1 ⍝ ⎕FMT! ⋄ ok}'
-⍝H                Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H ➤             Using $: 2.7182818285 <==> Using ⎕FMT: 2.7182818285
+⍝H +----------------------------------------------------+
+⍝H | CF: Self-Documenting Expressions in Code Fields    |
+⍝H |     (Akin to Python Self-Documenting Expressions)  |
+⍝H +----------------------------------------------------+
 ⍝H          →  Self-documenting {code} expressions...
 ⍝H             - A right arrow (→ or ➤) trailing a code sequence, 
 ⍝H               just before (possible blanks and a) final right brace:
 ⍝H             - Creates two "fields," one with the code text as written, followed by the executed code.
 ⍝H                   ∆F 'Pi is {○1→}'             ∆F 'Pi is {○1 → }'            ∆F 'Pi is {○1 ➤ }'
-⍝H                 Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
+⍝H ➤              Pi is ○1➤3.141592654         Pi is ○1 ➤ 3.141592654        Pi is ○1 ➤ 3.141592654
 ⍝H             - A self-documenting expression arrow MAY follow a comment, but only one terminated via a ⋄ character:
 ⍝H                   ∆F '{⍳3 ⍝ iota test ⋄ → }'             ∆F '{⍳3 ⍝ iota test → }'  ⍝ → is eaten by comment
-⍝H                 ⍳3 ⍝ iota test ⋄ ➤ 0 1 2               0 1 2
+⍝H ➤              ⍳3 ⍝ iota test ⋄ ➤ 0 1 2               0 1 2
 ⍝H
-⍝H   +------------------+
-⍝H   | Space Field: { } |
-⍝H   +------------------+
+⍝H +-----------------------+
+⍝H | SF: Space Fields: { } |
+⍝H +-----------------------+
 ⍝H   A Space field consists of 0 or more spaces within braces; 
 ⍝H   these spaces are inserted into the formatted string as a separate 2D field.
 ⍝H   An empty Space Field {} may be used to separate Text fields w/o extra spaces.
 ⍝H   Ex. This example has three text fields, separated by (empty) Space Fields.  
 ⍝H          ∆F 'one\⋄two\⋄three{} and {}four\⋄five\⋄six'
-⍝H       one   and four
-⍝H       two       five
-⍝H       three     six
+⍝H ➤     one   and four
+⍝H ➤     two       five
+⍝H ➤     three     six
+⍝H
+⍝H +--------------------------------+
+⍝H | SF: ⍝ Comments in Space Fields |
+⍝H +--------------------------------+
 ⍝H   Space fields may include a comment AFTER the defined spaces. It consists of a lamp ⍝ symbol followed
 ⍝H   by any characters except a closing brace (escaped or not).
 ⍝H   The space field here inserts six spaces:   ∆F '<{      ⍝ Six spaces}>'  ==>   '<      >'
-⍝H    
-⍝H DEBUGGING EXAMPLE
-⍝H ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
+⍝H   
+⍝H +----------------------+
+⍝H | A DEBUGGING EXAMPLE  |
+⍝H +----------------------+
 ⍝H ○ This is a simple example shown first without debugging activated, then at debugging level 3.
 ⍝H   ⍝ No debugging
 ⍝H        Names←'John Smith' 'Mary Jones' 'Terry Hawk'
 ⍝H        Locns←'NY' 'London' 'Paris'
 ⍝H        ∆F 'Officers {↑Names} are in {↑Locns}'
-⍝H     Officers John Smith are in  NY   
-⍝H              Mary Jones         London                  
-⍝H              Terry Hawk         Paris  
+⍝H ➤   Officers John Smith are in  NY   
+⍝H ➤            Mary Jones         London                  
+⍝H ➤            Terry Hawk         Paris  
 ⍝H   ⍝ Debugging...                
 ⍝H        'debug' ∆F 'Officers {↑Names} are in {↑Locns}'
-⍝H     ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
-⍝H     ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
-⍝H     └─────────┘│Mary·Jones│└────────┘│ London│
-⍝H                │Terry·Hawk│          │ Paris │                    
-⍝H                └──────────┘          └──── ──┘
+⍝H ➤   ┌→────────┐┌→─────────┐┌→───────┐┌→──────┐
+⍝H ➤   ↓Officers·│↓John·Smith│↓·are·in·│↓·NY   ·│
+⍝H ➤   └─────────┘│Mary·Jones│└────────┘│ London│
+⍝H ➤              │Terry·Hawk│          │ Paris │                    
+⍝H ➤              └──────────┘          └──── ──┘
 ⍝H 
-⍝H OBSCURE POINTS
-⍝H ¯¯¯¯¯¯¯ ¯¯¯¯¯¯
+⍝H +--------------------------------+
+⍝H | OBSCURE POINTS                 |
+⍝H | Things you might want to know  |
+⍝H +--------------------------------+
 ⍝H ○ The current ∆F "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
 ⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX    - an extended ⎕FMT that can justify/center its right argument. See pseudo-builtin $ above.
@@ -601,19 +632,20 @@
 ⍝H       f1←⍎'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.'    ⍝ 'com' or even 'c' can be used!
 ⍝H       ...
 ⍝H     ⍝ In body
-⍝H       f1 ⊂'Tuesday'
+⍝H       f1 '' 'Tuesday'
 ⍝H     ⍝ Giving the same output...
 ⍝H       On Tuesday, Officers John are in New York.
 ⍝H                            Mary        Miami  
 ⍝H    The code created here
 ⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
-⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙FⓁÎⒷ):
-⍝H      {(⍙FⓁÎⒷ←⎕SE.⍙FⓁÎⒷ){(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)
-⍝H          ⍺.Ⓒ(1 11⍴', Officers ')⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')}⍵,⍨⊂,'On {⍵1}, Officers {↑Names} are in {↑Locns}.'} 
-⍝H    Note: ⎕SE.⍙FⓁÎⒷ.Ⓒ is a runtime utility for catenating fields executed right-to-left in the expected l-to-r order.
+⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙ⒻⓁⒾⒷ):
+⍝H        ⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙ⒻⓁⒾⒷ⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)⍺.Ⓒ(1 11⍴', Officers ')
+⍝H        ⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')},'On {⍵1}, Officers {↑Names} are in {↑Locns}.'⍙Ⓕ.Ⓐ ⍵}
+⍝H    Note: Ⓒ and Ⓐ are runtime utilities in ⎕SE.⍙ⒻⓁⒾⒷ.
 ⍝H
-⍝H Some differences from Python F-strings
-⍝H ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯
+⍝H +----------------------------------------+
+⍝H | Some differences from Python F-strings |
+⍝H +----------------------------------------+
 ⍝H ∘ Handles arbitrary arrays and arbitrary APL expressions, not just simple objects and strings (as Python does).
 ⍝H ∘ Works via easy-to-understand 2D "fields," built from left to right.
 ⍝H ∘ Savvy about namespaces, defaulting to viewing the namespace from which ∆F is called.
