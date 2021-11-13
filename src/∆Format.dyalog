@@ -188,8 +188,8 @@
   ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
   ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
     Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
-    Ⓐ←{0=≢⊃⍵:(⊂⍺),1↓⍵⋄⍵}
-  
+    Ⓐ←{0=≢⊃⍵: (⊂⍺),1↓⍵ ⋄ ⍵}
+
   ⍝ +----------------------------------------------------------------------------+
   ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
   ⍝ +----------------------------------------------------------------------------+
@@ -221,9 +221,9 @@
               m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
               ⎕←↑m0 m1 m2 ⋄ EM EN
           }⍬ ⍝ 
-        ⍝ Pass the main local namespace ⍙ⒻⓁⒾⒷ into the user space 
+        ⍝ Pass the main local namespace ⍙Ⓕ into the user space 
         ⍝ (as a local name ⍙Ⓕ and as ⍺). See $, $$.
-          ⍎'⍙ⒻⓁⒾⒷ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
+          ⍎'⍙Ⓕ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
       }dfn 
     ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
     ⍝ Prettyprint variant of → is '➤' U+10148
@@ -272,9 +272,9 @@
   ⍝ Basic Initializations
     ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←Help ⍬
-    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙ⒻⓁⒾⒷ'
+    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙Ⓕ'
     USER_SPACE←⊃⌽⎕RSI
-    ⍙ⒻⓁⒾⒷ←⎕THIS⊣⎕DF '∆F[⍙ⒻⓁⒾⒷ]'       
+    ⍙Ⓕ←⎕THIS⊣⎕DF '⍙Ⓕ'         
   ⍝ Globals (externals) used within utility functions.    
   ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
     OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
@@ -301,7 +301,7 @@
       ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
       ⍝ We require a dummy format string in ⍵.
       ⍝ If that string is empty ('' or ⍬), ⍵0 will be original format string specified.
-        '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙ⒻⓁⒾⒷ⋄⍙Ⓕ{',(⌽RESULT),'},',fmtStr,'⍙Ⓕ.Ⓐ ⍵}'    
+        '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙Ⓕ⋄⍙Ⓕ{',(⌽RESULT),'},',fmtStr,'⍙Ⓕ.Ⓐ ⍵}'    
     }⍬ ⍝ END COMPILE
   ⍝ STANDARD MODE 
         _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
@@ -638,10 +638,10 @@
 ⍝H                            Mary        Miami  
 ⍝H    The code created here
 ⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
-⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙ⒻⓁⒾⒷ):
-⍝H        ⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙ⒻⓁⒾⒷ⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)⍺.Ⓒ(1 11⍴', Officers ')
+⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙Ⓕ):
+⍝H        ⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙Ⓕ⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)⍺.Ⓒ(1 11⍴', Officers ')
 ⍝H        ⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')},'On {⍵1}, Officers {↑Names} are in {↑Locns}.'⍙Ⓕ.Ⓐ ⍵}
-⍝H    Note: Ⓒ and Ⓐ are runtime utilities in ⎕SE.⍙ⒻⓁⒾⒷ.
+⍝H    Note: Ⓒ and Ⓐ are runtime utilities in ⎕SE.⍙Ⓕ.
 ⍝H
 ⍝H +----------------------------------------+
 ⍝H | Some differences from Python F-strings |
