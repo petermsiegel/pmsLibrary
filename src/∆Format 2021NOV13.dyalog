@@ -1,304 +1,4 @@
-∇ ∆F  ⍝ Kludge so 2 ⎕FIX ... is successful   
-∇
 ∆F←{ 
-⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
- 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
-  ⎕IO←0 ⋄ ⎕ML←1 
-  ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
-⍝ Verify 1st elem of ⍵ is the format string (a char vector). 
-  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
-
-⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
-⍝    return immediately with shy 0 (false).
-  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
-⍝ Otherwise, move us to a private namespace in the # domain.
-  ⍺ (#.⎕NS '').{  
-    ⍝ ************************************************⍝
-    ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
-    ⍝ ************************************************⍝
-    ⍝+---------------------------------+⍝
-    ⍝ GENERAL FUNCTIONS          ...   +⍝
-    ⍝+---------------------------------+⍝
-    ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
-      ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
-    ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
-    ⍝   Returns 0 if 9=⎕NC ⍵ (and ~DEBUG); else 1. Sensitive to DEBUG.
-    ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
-      LoadRuntimeLib←{  ⍝ ⍵: name of library to create
-          (~DEBUG)∧9=⎕NC ⍵: 0  
-          _←⍵ ⎕NS 'Ⓐ' 'Ⓒ'  'Ⓓ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
-        ~DEBUG: 1
-            ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
-            ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT, DISP ($$),    DDISP ($$ plus), FMTX ($)'
-            ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓐ (RUN-TIME ARGS), Ⓒ (CAT⍨),        Ⓓ (DDISP)'
-          1
-      }
-    ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
-    ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
-    ⍝ (b) 0 or more option strings (CVs).
-    ⍝ If omitted, it is treated as (b) '' ('default').
-    ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
-    ⍝ Otherwise...   
-    ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
-    ⍝ For details, see HELP information below.
-      SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
-          0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
-          p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' or 'de' matches 'debug', not 'default'!
-          1(~∊)bad←p≥≢⊆⍺: 0,¯1↓1@p⊢0 0 0 0
-          Whoops←⎕SIGNAL∘11{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵} 
-          bad Whoops ⍵                       
-      }
-      HelpCmd←{ ⍝ Help... Show HELP info and return ⍵
-          0:: '∆F: Help information not found where expected!' ⎕SIGNAL 911
-          _HELP_ ⍬
-      }
-    ⍝+--------------------------------------------------------------------------------+⍝
-    ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
-    ⍝+ Manipulating these EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)      +⍝
-    ⍝+--------------------------------------------------------------------------------+⍝
-    ⍝ RESULT_Immed: Glue RESULT,←⍵. Return ⍺ or '' 
-    ⍝ EXTERN: RESULT (RW) 
-      RESULT_Immed←{ 
-          ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
-          rhs← DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
-          lhs rhs↑⍨←lhs⌈⍥≢rhs 
-          ⍺⊣ RESULT⊢←lhs,rhs
-      }
-    ⍝ RESULT_Compile: Emit code equiv of RESULT_Immed, returning ⍺. 
-    ⍝ EXTERN: RESULT (RW) 
-    ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
-    ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
-    ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
-      RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
-          ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
-      }
-    ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
-    ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
-      OMEGA_Pick←{  
-          ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
-          0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
-          (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹',' is out of range.',⍨⍕ix
-          ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
-      }    
-    ⍝ TFEsc (Escapes in Text fields)
-    ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
-    ⍝                                    value:   \   CR   {   }    
-    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
-      TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
-    ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
-    ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
-    ⍝                                    value:   \⋄  CR
-    ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
-      DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ | String Conversion Functions...                                             |
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-      DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
-    ⍝ SQ2Code: Return code for one or more simple char strings
-    ⍝          Double internal SQs per APL, then add SQ on either side!
-      SQ2Code←  {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
-      SplitCR←  {¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}                     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ TF2Code (Text field): 
-    ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
-    ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
-    ⍝   See note for CRStr2Code (below).
-    ⍝   Result is a char matrix.
-      TF2Code←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',SQ2Code ⍵ ⋄ '↑', (',¨' /⍨ 1∧.=≢¨ø), SQ2Code⊢ ø←SplitCR ⍵ } 
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ CRStr2Code ⍵
-    ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
-    ⍝ to format that can be executed at runtime.
-    ⍝    r@CV← CRStr2Code ⍵@CVcr
-    ⍝    ⍵  - Standard APL char vector with optional CRs
-    ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
-      CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
-    ⍝ ------------------------------------------------------------------------------------------
-    ⍝ SF2Code (Space field)
-    ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
-      SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
-    ⍝ +---------------------------------------------------+
-    ⍝ | Constants for String Conversion Functions above   |
-    ⍝ +---------------------------------------------------+
-      SQ2← 2⍴SQ←'''' 
-      DQ2← 2⍴DQ←'"' 
-      CR←  ⎕UCS 13 
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
-    ⍝ +----------------------------------------------------------------------------+
-
-    ⍝ +-------------------------------------------------------------------------------------------+
-    ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
-    ⍝ +-------------------------------------------------------------------------------------------+    
-    ⍝ FMTX, DISP, CAT
-    ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
-      FMTX←{ ⍺←⊢
-          ColChk←{⍪⍣(⊃(1=|≡⍵)∧1=⍴⍴⍵)⊢⍵}                ⍝ If ⍺ is specified, treat vectors as column vectors
-        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-          ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
-          4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
-          1≡⍺ 1: ∆FMT ⍵
-          srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-          xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
-          xtra≡'':⍺  ∆FMT ⍵                             ⍝ 1.  SO only? Let ⎕FMT handle column vectors
-          obj←std{''≡⍺: ∆FMT ColChk ⍵ ⋄ ⍺ ∆FMT ⍵}⍵      ⍝ 2a. XO only? We handle column vectors. 2b. Both XO and SO? As in 1.
-          wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Same as (⊃⌽⎕VFI wReq)               
-          wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
-          pad1←↑⍤1
-          xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
-          wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
-          wReq pad1 wCtr pad1 obj                       ⍝ ...    2
-      }
-    ⍝ ⍺.CAT: CATENATE FIELDS
-    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
-    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
-    ⍝ Monadic case: Treat ⍺ as null array...
-      CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
-      Ⓒ←   CAT⍨
-    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
-      DISP← ⎕SE.Dyalog.Utils.display
-    ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
-    ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
-      Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
-      Ⓐ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺}
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
-    ⍝ +----------------------------------------------------------------------------+
-
-    ⍝ ***************************************⍝
-    ⍝ SECTION ****** Code field Scanning     ⍝
-    ⍝ ***************************************⍝
-    ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
-      CFScan←{
-        patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP DQEscP  
-              quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
-        selfDocFlag←0
-        dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
-            CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
-            CASE dispI:    ' ⍙Ⓕ.DISP ' 
-            CASE fmtI:     ' ⍙Ⓕ.FMTX '                               
-            CASE omIndxI:  OMEGA_Pick f 1          
-            CASE omNextI:  OMEGA_Pick curOMEGA+1  
-            CASE comI:     ' '   ⍝ Comment → 1 space         
-            CASE selfDocI: '}'⊣ selfDocFlag⊢←1
-            CASE DQEscI:   '"'
-            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-        }⍵
-        res←{ 
-            COMPILE:  '⍺', ⍵ ,'⍵'   
-          ⍝ Eye candy ;-)))
-            DEBUG/0:: ⎕SIGNAL/⎕DMX.{ 
-                m0← 'DEBUG: ',(⊃DM),' while executing expression'
-                m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
-                ⎕←↑m0 m1 m2 ⋄ EM EN
-            }⍬ ⍝ 
-          ⍝ Pass the main local namespace ⍙Ⓕ into the user space 
-          ⍝ (as a local name ⍙Ⓕ and as ⍺). See $, $$.
-            ⍎'⍙Ⓕ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
-        }dfn 
-      ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
-      ⍝ Prettyprint variant of → is '➤' U+10148
-        selfDocFlag: res {
-            COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
-        } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
-        res 
-      }
-    ⍝ *****************************************⍝
-    ⍝ ENDSECTION  ***** Code field Scanning ** ⍝
-    ⍝ *****************************************⍝
-
-    ⍝ *******************************************⍝
-    ⍝ SECTION  *****   Top Level Patterns        ⍝
-    ⍝   TF   Text field                          ⍝
-    ⍝   SF   Space field                         ⍝
-    ⍝   CF   Code field                          ⍝
-    ⍝   DQ   Double-quoted string in Code field  ⍝
-    ⍝ *******************************************⍝
-      TFp← '(\\.|[^{\\]+)+'               
-      SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
-    ⍝ CFp: Don't try to understand this regex. 
-    ⍝ OK, in brief, we match the pattern <P>: 
-    ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
-    ⍝     ³「ANY chars BUT {}"⍝\」 OR ⁴「\ escapes」 OR ⁵「"DQ Strings"」 OR ⁶「⍝ comments」 OR ⁷「RECURSE <P> ≥0 TIMES」 
-    ⍝  THEN: ⁸「}」 
-    ⍝  I.e.              ¹  ²ᵃ  ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
-      CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
-    ⍝ Code Field Patterns...
-    ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
-      DQEscP←   '\\"'
-      quoteP←   '(?<!\\)(?:"[^"]*")+'
-      dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
-      fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
-      omIndxP←  '[⍹⍵](\d{1,2})'       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-      omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.             NB: We don't bother clipping incremental indexing of ⍵ at 99.  
-      comP←     '⍝[^⋄}]*'             ⍝ ⍝..⋄ or ⍝..}
-      selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self-documenting code eval.
-    ⍝ ***************************************⍝
-    ⍝ ENDSECTION ***** Top Level Patterns ***⍝
-    ⍝ ***************************************⍝
-
-    ⍝**********************************⍝ 
-    ⍝ SECTION *****  EXECUTIVE  ****** ⍝
-    ⍝**********************************⍝  
-    ⍝ Basic Initializations
-      ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
-      _←HelpCmd ⍬
-      _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙Ⓕ'
-      USER_SPACE←⊃⌽⎕RSI
-      ⍙Ⓕ←⎕THIS⊣⎕DF '[∆F NS]'         
-    ⍝ Globals (externals) used within utility functions.    
-    ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
-      OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
-      OMEGA0←    ⊃⍵                      ⍝ ⍹0 (0⊃⍵): the format string.
-      nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
-      curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
-      RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, 0⍴' ', i.e. ''; ELSE, 1 0⍴' ')
-    
-      patsMain←TFp SFp CFp
-               TFi SFi CFi← ⍳≢patsMain
-    ⍝ COMPILE MODE: 
-    ⍝ Build code string from: 
-    ⍝   library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
-      COMPILE: {
-          _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-              CASE TFi:   RESULT_Compile TF2Code TFEsc f 0  
-              CASE SFi:   RESULT_Compile SF2Code       f 1 
-              CASE CFi:   RESULT_Compile CFScan        f 0
-              '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
-          }⊣OMEGA0  ⍝ Pass the format string only...
-          0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv. 
-        ⍝ Embed OMEGA0 -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
-            fmtStr←CRStr2Code SQ2Code ⊢ OMEGA0
-        ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
-        ⍝ We require a dummy format string in ⍵.
-        ⍝ If that string is empty ('' or ⍬), ⍵0 will be original format string specified.
-          '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ{',(⌽RESULT),'}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓐ',fmtStr,'}'    
-      }⍬ ⍝ END COMPILE
-    ⍝ STANDARD MODE 
-          _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-              CASE TFi:   RESULT_Immed TFEsc  f 0 
-              CASE SFi:   RESULT_Immed        f 1    
-              CASE CFi:   RESULT_Immed CFScan f 0
-              '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
-          }⊣OMEGA0    ⍝ Pass the format string only...
-          ASSERT_TRUE: _←1⊣    ⎕←RESULT    
-                                RESULT    ⍝ default.   
-      ⍝⍝ ⍝ END ~COMPILE
-    ⍝*************************************⍝ 
-    ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
-    ⍝************************←←←**********⍝ 
-  },⊆⍵
-}
-
-:Namespace ∆Format
-_HELP_←{
-     ''⊣⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR 0⊃⎕XSI 
-⍝***********************************⍝ 
-⍝ SECTION *** HELP INFORMATION  ****⍝
-⍝***********************************⍝ 
 ⍝H ∆F Formatting Utility
 ⍝H ¯¯ ¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
 ⍝H Descrption:
@@ -325,6 +25,304 @@ _HELP_←{
 ⍝H       2-D spacing (space fields). Code fields accommodate a shorthand using
 ⍝H         - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
 ⍝H         - $$ to display fields or objects using dfns 'DISPLAY'.
+⍝  For more details. see HELP information at the bottom of ∆Format.dyalog (this file).
+
+ 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  ⎕IO←0 ⋄ ⎕ML←1 
+  ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
+⍝ Verify 1st elem of ⍵ is the format string (a char vector). 
+  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
+
+⍝ If ⍺ is an assertion (all numeric), with at least one 0, the assertion is false: 
+⍝    return immediately with shy 0 (false).
+  ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
+⍝ Otherwise, move us to a private namespace in the # domain.
+  ⍺ (#.⎕NS '').{  
+  ⍝ ************************************************⍝
+  ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
+  ⍝ ************************************************⍝
+  ⍝+---------------------------------+⍝
+  ⍝ GENERAL FUNCTIONS          ...   +⍝
+  ⍝+---------------------------------+⍝
+  ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
+    ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
+  
+  ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
+  ⍝   Returns 0 if 9=⎕NC ⍵ (and ~DEBUG); else 1. Sensitive to DEBUG.
+  ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
+    LoadRuntimeLib←{  ⍝ ⍵: name of library to create
+        (~DEBUG)∧9=⎕NC ⍵: 0  
+        _←⍵ ⎕NS 'Ⓐ' 'Ⓒ'  'Ⓓ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
+       ~DEBUG: 1
+          ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
+          ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT, DISP ($$),    DDISP ($$ plus), FMTX ($)'
+          ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓐ (RUN-TIME ARGS), Ⓒ (CAT⍨),        Ⓓ (DDISP)'
+        1
+    }
+  ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
+  ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
+  ⍝ (b) 0 or more option strings (CVs).
+  ⍝ If omitted, it is treated as (b) '' ('default').
+  ⍝ If an assertion ⍺ is numeric and false (0∊⍺), it is already detected at the start of the fn (to be fast).
+  ⍝ Otherwise...   
+  ⍝   Returns 4 booleans: ASSERT_TRUE DEBUG COMPILE HELP    (DEFAULT is implict and not returned).
+  ⍝ For details, see HELP information below.
+    SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
+        0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
+        p←⍺∘{(⎕C(≢⍵)↑¨⎕C ⊆⍺)⍳⊂,⍵}¨⎕C ⊆⍵      ⍝ Allow abbrev. Note: 'd' or 'de' matches 'debug', not 'default'!
+        1(~∊)bad←p≥≢⊆⍺: 0,¯1↓1@p⊢0 0 0 0
+        Whoops←⎕SIGNAL∘11{'∆F DOMAIN ERROR: Invalid option(s): ',¯2↓∊(⊂'", '),⍨¨'"',¨⍺/⊆⍵} 
+        bad Whoops ⍵                       
+    }
+    Help←{ ⍝ Help... Show HELP info and return ⍵
+        ⍵⊣{ help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵ ⋄ ''⊣⎕ED 'help' } ⎕NR 0⊃⎕XSI
+    }
+
+  ⍝+--------------------------------------------------------------------------------+⍝
+  ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
+  ⍝+ Manipulating these EXTERNs (globals): RESULT(RW), curOMEGA(RW), nOMEGA(W)      +⍝
+  ⍝+--------------------------------------------------------------------------------+⍝
+  ⍝ RESULT_Immed: Glue RESULT,←⍵. Return ⍺ or '' 
+  ⍝ EXTERN: RESULT (RW) 
+    RESULT_Immed←{ 
+        ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
+        rhs← DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+        lhs rhs↑⍨←lhs⌈⍥≢rhs 
+        ⍺⊣ RESULT⊢←lhs,rhs
+    }
+  ⍝ RESULT_Compile: Emit code equiv of RESULT_Immed, returning ⍺. 
+  ⍝ EXTERN: RESULT (RW) 
+  ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
+  ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
+  ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
+    RESULT_Compile←{  
+        ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
+        ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
+    }
+  ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
+  ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
+    OMEGA_Pick←{  
+        ok ix ← {0=1↑0⍴⍵: 1 ⍵ ⋄ ⎕VFI ⍵ } ⍵
+        0∊ok:             3 ⎕SIGNAL⍨ '∆F LOGIC ERROR in ⍹ selection: ',' is not a number.',⍨⍕⍵
+        (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹',' is out of range.',⍨⍕ix
+        ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Map onto active ⎕IO.      
+    }    
+  ⍝ TFEsc (Escapes in Text fields)
+  ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
+  ⍝                                    value:   \   CR   {   }    
+  ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
+  ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
+  ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+  ⍝                                    value:   \⋄  CR
+  ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
+    DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | String Conversion Functions...                                             |
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
+    DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
+  ⍝ SQ2Code: Return code for one or more simple char strings
+  ⍝          Double internal SQs per APL, then add SQ on either side!
+    SQ2Code←  {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
+    SplitCR←  {¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}                     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line) 
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ TF2Code (Text field): 
+  ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
+  ⍝   Handle single-line case, as well as multiline cases: with scalars alone vs mixed scalars/vectors.
+  ⍝   See note for CRStr2Code (below).
+  ⍝   Result is a char matrix.
+    TF2Code←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',SQ2Code ⍵ ⋄ '↑', (',¨' /⍨ 1∧.=≢¨ø), SQ2Code⊢ ø←SplitCR ⍵ } 
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ CRStr2Code ⍵
+  ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, converting
+  ⍝ to format that can be executed at runtime.
+  ⍝    r@CV← CRStr2Code ⍵@CVcr
+  ⍝    ⍵  - Standard APL char vector with optional CRs
+  ⍝    r  - Expression  (Char vector) that evaluates to a char vector with the same appearance as ⍵.
+    CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+  ⍝ ------------------------------------------------------------------------------------------
+  ⍝ SF2Code (Space field)
+  ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
+    SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
+  ⍝ +---------------------------------------------------+
+  ⍝ | Constants for String Conversion Functions above   |
+  ⍝ +---------------------------------------------------+
+    SQ2← 2⍴SQ←'''' 
+    DQ2← 2⍴DQ←'"' 
+    CR←  ⎕UCS 13 
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
+  ⍝ +----------------------------------------------------------------------------+
+
+  ⍝ +-------------------------------------------------------------------------------------------+
+  ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
+  ⍝ +-------------------------------------------------------------------------------------------+    
+  ⍝ FMTX, DISP, CAT
+  ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+    FMTX←{ ⍺←⊢
+        ColChk←{⍪⍣(⊃(1=|≡⍵)∧1=⍴⍴⍵)⊢⍵}                ⍝ If ⍺ is specified, treat vectors as column vectors
+      ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
+        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
+        4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
+        1≡⍺ 1: ∆FMT ⍵
+        srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
+        xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
+        xtra≡'':⍺  ∆FMT ⍵                             ⍝ 1.  SO only? Let ⎕FMT handle column vectors
+        obj←std{''≡⍺: ∆FMT ColChk ⍵ ⋄ ⍺ ∆FMT ⍵}⍵      ⍝ 2a. XO only? We handle column vectors. 2b. Both XO and SO? As in 1.
+        wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Same as (⊃⌽⎕VFI wReq)               
+        wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
+        pad1←↑⍤1
+        xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
+        wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
+        wReq pad1 wCtr pad1 obj                       ⍝ ...    2
+    }
+  ⍝ ⍺.CAT: CATENATE FIELDS
+  ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
+  ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
+  ⍝ Monadic case: Treat ⍺ as null array...
+    CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+  ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
+    Ⓒ←   CAT⍨
+  ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
+    DISP← ⎕SE.Dyalog.Utils.display
+  ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
+  ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
+    Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
+    Ⓐ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺}
+
+  ⍝ +----------------------------------------------------------------------------+
+  ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
+  ⍝ +----------------------------------------------------------------------------+
+
+  ⍝ ***************************************⍝
+  ⍝ SECTION ****** Code field Scanning     ⍝
+  ⍝ ***************************************⍝
+  ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
+    CFScan←{
+      patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP DQEscP  
+             quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
+      selfDocFlag←0
+      dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
+          CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
+          CASE dispI:    ' ⍙Ⓕ.DISP ' 
+          CASE fmtI:     ' ⍙Ⓕ.FMTX '                               
+          CASE omIndxI:  OMEGA_Pick f 1          
+          CASE omNextI:  OMEGA_Pick curOMEGA+1  
+          CASE comI:     ' '   ⍝ Comment → 1 space         
+          CASE selfDocI: '}'⊣ selfDocFlag⊢←1
+          CASE DQEscI:   '"'
+          '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+      }⍵
+      res←{ 
+          COMPILE:  '⍺', ⍵ ,'⍵'   
+        ⍝ Eye candy ;-)))
+          DEBUG/0:: ⎕SIGNAL/⎕DMX.{ 
+              m0← 'DEBUG: ',(⊃DM),' while executing expression'
+              m1 m2← { (6↑''),¯5↓33↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
+              ⎕←↑m0 m1 m2 ⋄ EM EN
+          }⍬ ⍝ 
+        ⍝ Pass the main local namespace ⍙Ⓕ into the user space 
+        ⍝ (as a local name ⍙Ⓕ and as ⍺). See $, $$.
+          ⍎'⍙Ⓕ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
+      }dfn 
+    ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
+    ⍝ Prettyprint variant of → is '➤' U+10148
+      selfDocFlag: res {
+          COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
+      } '[→➤](\h*)$' ⎕R '➤\1'⊣1↓¯1↓⍵           
+      res 
+    }
+  ⍝ *****************************************⍝
+  ⍝ ENDSECTION  ***** Code field Scanning ** ⍝
+  ⍝ *****************************************⍝
+
+  ⍝ *******************************************⍝
+  ⍝ SECTION  *****   Top Level Patterns        ⍝
+  ⍝   TF   Text field                          ⍝
+  ⍝   SF   Space field                         ⍝
+  ⍝   CF   Code field                          ⍝
+  ⍝   DQ   Double-quoted string in Code field  ⍝
+  ⍝ *******************************************⍝
+    TFp← '(\\.|[^{\\]+)+'               
+    SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
+  ⍝ CFp: Don't try to understand this regex. 
+  ⍝ OK, in brief, we match the pattern <P>: 
+  ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
+  ⍝     ³「ANY chars BUT {}"⍝\」 OR ⁴「\ escapes」 OR ⁵「"DQ Strings"」 OR ⁶「⍝ comments」 OR ⁷「RECURSE <P> ≥0 TIMES」 
+  ⍝  THEN: ⁸「}」 
+  ⍝  I.e.              ¹  ²ᵃ  ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
+    CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
+  ⍝ Code Field Patterns...
+  ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
+    DQEscP←   '\\"'
+    quoteP←   '(?<!\\)(?:"[^"]*")+'
+    dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
+    fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
+    omIndxP←  '[⍹⍵](\d{1,2})'       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+    omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.             NB: We don't bother clipping incremental indexing of ⍵ at 99.  
+    comP←     '⍝[^⋄}]*'             ⍝ ⍝..⋄ or ⍝..}
+    selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self-documenting code eval.
+  ⍝ ***************************************⍝
+  ⍝ ENDSECTION ***** Top Level Patterns ***⍝
+  ⍝ ***************************************⍝
+
+  ⍝**********************************⍝ 
+  ⍝ SECTION *****  EXECUTIVE  ****** ⍝
+  ⍝**********************************⍝  
+  ⍝ Basic Initializations
+    ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
+    HELP: _←Help ⍬
+    _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙Ⓕ'
+    USER_SPACE←⊃⌽⎕RSI
+    ⍙Ⓕ←⎕THIS⊣⎕DF '[∆F NS]'         
+  ⍝ Globals (externals) used within utility functions.    
+  ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
+    OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
+    OMEGA0←    ⊃⍵                      ⍝ ⍹0 (0⊃⍵): the format string.
+    nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
+    curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
+    RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, 0⍴' ', i.e. ''; ELSE, 1 0⍴' ')
+  
+    patsMain←TFp SFp CFp
+             TFi SFi CFi← ⍳≢patsMain
+  ⍝ COMPILE MODE: 
+  ⍝ Build code string from: 
+  ⍝   library ns [in case used], RESULT (format string encoded), and ⍵0 (format string literal)  
+    COMPILE: {
+        _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+            CASE TFi:   RESULT_Compile TF2Code TFEsc f 0  
+            CASE SFi:   RESULT_Compile SF2Code       f 1 
+            CASE CFi:   RESULT_Compile CFScan        f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
+        }⊣OMEGA0  ⍝ Pass the format string only...
+        0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv. 
+      ⍝ Embed OMEGA0 -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
+          fmtStr←CRStr2Code SQ2Code ⊢ OMEGA0
+      ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
+      ⍝ We require a dummy format string in ⍵.
+      ⍝ If that string is empty ('' or ⍬), ⍵0 will be original format string specified.
+        '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ{',(⌽RESULT),'}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓐ',fmtStr,'}'    
+    }⍬ ⍝ END COMPILE
+  ⍝ STANDARD MODE 
+        _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
+            CASE TFi:   RESULT_Immed TFEsc  f 0 
+            CASE SFi:   RESULT_Immed        f 1    
+            CASE CFi:   RESULT_Immed CFScan f 0
+            '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
+        }⊣OMEGA0    ⍝ Pass the format string only...
+        ASSERT_TRUE: _←1⊣    ⎕←RESULT    
+                               RESULT    ⍝ default.   
+    ⍝⍝ ⍝ END ~COMPILE
+  ⍝*************************************⍝ 
+  ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
+  ⍝************************←←←**********⍝ 
+},⊆⍵
+
+⍝***********************************⍝ 
+⍝ SECTION *** HELP INFORMATION  ****⍝
+⍝***********************************⍝ 
+⍝ See SYNTAX and DESCRIPTION at TOP of ∆Format.dyalog.
 ⍝H
 ⍝H INTRODUCTORY EXAMPLES
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯
@@ -607,12 +605,11 @@ _HELP_←{
 ⍝H | Things you might want to know  |
 ⍝H +--------------------------------+
 ⍝H ○ The current ∆F "library" (active namespace) reference is passed as the LHS (⍺) argument of each 
-⍝H   Code Field dfn called. Right now, the "library" includes*
+⍝H   Code Field dfn called. Right now, the "library" includes
 ⍝H   ∘ ⍺.FMTX    - an extended ⎕FMT that can justify/center its right argument. See pseudo-builtin $ above.
 ⍝H   ∘ ⍺.DISP    - Dyalog's long display function, ⎕SE.Dyalog.Utils.display.    See pseudo-builtin $$ above.
 ⍝H   ∘ ⍺.DDISP   - Same as ⍺.DISP, but replaces blanks with middle dots (·), ⎕UCS 183.
 ⍝H   ∘ ⍺.CAT     - catenates two objects (formatted as 2-D arrays) left to right, padding with blank rows as necc.
-⍝H               * The library includes some ∆F internal functions. 
 ⍝H  
 ⍝H ○ Code strings are executed left-to-right as the string is scanned. Deal with it.
 ⍝H   This is true in the default mode, as well as in 'compile' mode (see below).
@@ -643,10 +640,9 @@ _HELP_←{
 ⍝H    The code created here
 ⍝H      code←'compile' ∆F 'On {⍵1}, Officers {↑Names} are in {↑Locns}.' 
 ⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙Ⓕ):
-⍝H        {⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)
-⍝H          ⍺.Ⓒ(1 11⍴', Officers ')⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(
-⍝H          1 3⍴'On ')}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓐ'On {⍵1}, Officers {↑Names} are in {↑Locns}.'}
-⍝H    Note: Ⓐ and Ⓒ are runtime utilities in ⎕SE.⍙Ⓕ.
+⍝H        ⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ←⎕SE.⍙Ⓕ⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)⍺.Ⓒ(1 11⍴', Officers ')
+⍝H        ⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(1 3⍴'On ')},'On {⍵1}, Officers {↑Names} are in {↑Locns}.'⍙Ⓕ.Ⓐ ⍵}
+⍝H    Note: Ⓒ and Ⓐ are runtime utilities in ⎕SE.⍙Ⓕ.
 ⍝H
 ⍝H +----------------------------------------+
 ⍝H | Some differences from Python F-strings |
@@ -669,5 +665,3 @@ _HELP_←{
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝
 ⍝************************************⍝ 
 }
-_←##.⎕EX '_'
-:EndNamespace
