@@ -24,7 +24,7 @@
       ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
     ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
     ⍝   Returns 0 if 9=⎕NC ⍵ (and ~DEBUG); else 1. Sensitive to DEBUG.
-    ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
+    ⍝   Private Names Use: ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
       LoadRuntimeLib←{  ⍝ ⍵: name of library to create
           (~DEBUG)∧9=⎕NC ⍵: 0  
           ref←⍎⍵ ⎕NS  'Ⓒ'  'ⒹⒹ' 'Ⓛ'  'Ⓡ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
