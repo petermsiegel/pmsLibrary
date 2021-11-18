@@ -27,7 +27,8 @@
     ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
       LoadRuntimeLib←{  ⍝ ⍵: name of library to create
           (~DEBUG)∧9=⎕NC ⍵: 0  
-          _←⍵ ⎕NS  'Ⓒ'  'ⒹⒹ' 'Ⓛ'  'Ⓡ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
+          ref←⍎⍵ ⎕NS  'Ⓒ'  'ⒹⒹ' 'Ⓛ'  'Ⓡ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
+          _←ref.⎕DF '[∆F NS]'
         ~DEBUG: 1
             ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
             ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT   DISP ($$)  DDISP ($$ plus)  FMTX ($)'
