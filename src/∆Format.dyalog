@@ -1,5 +1,6 @@
-∇ ∆F  ⍝ Kludge so 2 ⎕FIX ... is successful   
-∇
+:Namespace ∆Format
+ ⍝ Dummy. Replaced below
+:EndNamespace
 ∆F←{ 
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
@@ -26,11 +27,12 @@
     ⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
       LoadRuntimeLib←{  ⍝ ⍵: name of library to create
           (~DEBUG)∧9=⎕NC ⍵: 0  
-          _←⍵ ⎕NS 'Ⓐ' 'Ⓒ'  'Ⓓ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
+          _←⍵ ⎕NS  'Ⓒ'  'ⒹⒹ' 'Ⓛ'  'Ⓡ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
         ~DEBUG: 1
             ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
-            ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT, DISP ($$),    DDISP ($$ plus), FMTX ($)'
-            ⎕←'>> INTERNAL-USE ONLY FNS ARE:  Ⓐ (RUN-TIME ARGS), Ⓒ (CAT⍨),        Ⓓ (DDISP)'
+            ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT   DISP ($$)  DDISP ($$ plus)  FMTX ($)'
+            ⎕←'>> INTERNAL-USE ONLY FNS ARE: Ⓒ (CAT⍨)                 ⒹⒹ (DDISP/DEBUG FMTING)'
+            ⎕←'>>                            Ⓛ (LEFT ARG/ASSERTIONS)  Ⓡ  (RIGHT/RUN-TIME ARGS)'
           1
       }
     ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
@@ -70,7 +72,7 @@
     ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
     ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute ⍎).  
       RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.Ⓓ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
+          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.ⒹⒹ '/⍨DEBUG),⍵    ⍝ ⍺.Ⓓ is an alias to DDISP.
           ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT    ⍝ See NB. above.
       }
     ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
@@ -162,8 +164,13 @@
       DISP← ⎕SE.Dyalog.Utils.display
     ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
     ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
-      Ⓓ←DDISP← ('·'@(' '∘=))∘DISP
-      Ⓐ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺}
+      ⒹⒹ←DDISP← ('·'@(' '∘=))∘DISP
+    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
+    ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
+      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
+    ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
+    ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
+      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺}   
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
     ⍝ +----------------------------------------------------------------------------+
@@ -245,7 +252,7 @@
     ⍝**********************************⍝  
     ⍝ Basic Initializations
       ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
-      _←HelpCmd ⍬
+    HELP: _←HelpCmd ⍬
       _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙Ⓕ'
       USER_SPACE←⊃⌽⎕RSI
       ⍙Ⓕ←⎕THIS⊣⎕DF '[∆F NS]'         
@@ -273,9 +280,11 @@
         ⍝ Embed OMEGA0 -- the format string -- in the "compiled" code (accessible as ⍵0 or 0⊃⍵)
             fmtStr←CRStr2Code SQ2Code ⊢ OMEGA0
         ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
-        ⍝ We require a dummy format string in ⍵.
-        ⍝ If that string is empty ('' or ⍬), ⍵0 will be original format string specified.
-          '{⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ{',(⌽RESULT),'}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓐ',fmtStr,'}'    
+        ⍝ We require a dummy format string in ⊃⍵.
+        ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
+            res←'(⎕NS ⎕SE.⍙Ⓕ){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+        ⍝ res←'{⍺←''''⋄0∊⍺:_←0⋄⍺⍙Ⓕ.Ⓛ  ⍙Ⓕ{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓡ',fmtStr,'}'  
+           (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
           _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
@@ -284,7 +293,7 @@
               CASE CFi:   RESULT_Immed CFScan f 0
               '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }⊣OMEGA0    ⍝ Pass the format string only...
-          ASSERT_TRUE: _←1⊣    ⎕←RESULT    
+          ASSERT_TRUE: _←1⊣   ⎕←RESULT    
                                 RESULT    ⍝ default.   
       ⍝⍝ ⍝ END ~COMPILE
     ⍝*************************************⍝ 
@@ -295,7 +304,7 @@
 
 :Namespace ∆Format
 _HELP_←{
-     ''⊣⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR 0⊃⎕XSI 
+     ''⊣{⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR ⍵} 0⊃⎕XSI 
 ⍝***********************************⍝ 
 ⍝ SECTION *** HELP INFORMATION  ****⍝
 ⍝***********************************⍝ 
@@ -306,22 +315,24 @@ _HELP_←{
 ⍝H    but with native dfn-based handling of arrays and output formats."
 ⍝H Syntax: 
 ⍝H   [assertion | options] ∆F format_string [arbitrary args]
-⍝H     assertion: 
-⍝H       ⍺ is a simple numeric arg only. "TRUE" unless there is a 0 in the left arg.
-⍝H       If TRUE, performs formatting. Otherwise, does nothing (and quickly).
-⍝H     options:
+⍝H     ⍺/assertion: 
+⍝H       ⍺ must be a simple numeric array. "TRUE" unless there is a 0 in the left arg.
+⍝H       If TRUE, prints formatted result returning shy 1. Otherwise, does nothing, returning shy 0.
+⍝H     ⍺/options:
 ⍝H       DEBUG | COMPILE | HELP | DEFAULT*         
 ⍝H       ∘ DEBUG: Displays each field separately using dfns "DISPLAY"
-⍝H       ∘ COMPILE: Returns a code string that can be precomputed, 
+⍝H       ∘ COMPILE: Returns a code string that can be converted to a dfn (executed via ⍎), 
 ⍝H         rather than scanned on each execution. 
-⍝H         The compiled code can function as an assertion if ⍺ is numeric; otherwise ⍺ is ignored.
-⍝H       ∘ HELP: Displays HELP documentation
+⍝H         - The resulting dfn should have a dummy format ''. If a non-empty string, that
+⍝H           is treated as if the format string ⍵0.  
+⍝H         - If the resulting dfn is called with a left arg ⍺, it must be an assertion (numeric array) and handled as above.
+⍝H       ∘ HELP: Displays HELP documentation (⍵ ignored):   ∆F⍨'HELP'
 ⍝H       ∘ DEFAULT: Returns a formatted 2-D array according to the format_string specified.
 ⍝H         ===========
 ⍝H         * DEFAULT is assumed if ⍺ is omitted or ''. Options may be in either case and abbreviated.
 ⍝H           The abbrev 'DE' or 'D' denotes DEBUG. 
-⍝H     format_string:
-⍝H       Contains the simple format "fields" that allow strings (text fields), code (code fields), and 
+⍝H     ⍵/format_string:
+⍝H       Contains the simple format "fields" that include strings (text fields), code (code fields), and 
 ⍝H       2-D spacing (space fields). Code fields accommodate a shorthand using
 ⍝H         - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
 ⍝H         - $$ to display fields or objects using dfns 'DISPLAY'.
@@ -359,8 +370,8 @@ _HELP_←{
 ⍝H   
 ⍝H #3      planet←   'Mercury' 'Venus'  'Earth'  'Mars'  'Jupiter'  'Saturn'  'Uranus'  'Neptune' 
 ⍝H         radiusMi← 1516      3760.4   3958.8   2106.1  43441      36184     15759     15299
-⍝H         mi2Km←    ×∘1.609344
-⍝H         ∆F 'The planet {↑planet ⍝ No Pluto!} has a radius of {"I5,⊂ mi⊃" $ radiusMi} or {"I5,⊂ km⊃" $ mi2Km radiusMi}.'
+⍝H         Mi2Km←    ×∘1.609344
+⍝H         ∆F 'The planet {↑planet ⍝ No Pluto!} has a radius of {"I5,⊂ mi⊃" $ radiusMi} or {"I5,⊂ km⊃" $ Mi2Km radiusMi}.'
 ⍝H ➤   The planet Mercury has a radius of  1516 mi or  2440 km.
 ⍝H ➤              Venus                    3760 mi     6052 km 
 ⍝H ➤              Earth                    3959 mi     6371 km 
@@ -512,10 +523,14 @@ _HELP_←{
 ⍝H                    ∆F '<{"C20,F12.10" $ ○1}> <{"F12.10" $ ○1}> <{"C20" $ ○1}>'
 ⍝H ➤                <    3.1415926536    > <3.1415926536> <       3.14159      >
 ⍝H                + Ex:
-⍝H                    ∆F '<{"C30" $ "cats"}>'             ⍝ $ emits blanks
+⍝H                    ∆F '<{"C30" $ 1 4⍴"cats"}>'                ⍝ $ emits blanks. 1 4⍴-- ensure 1 row matrix per $/⎕FMT rules
 ⍝H ➤                <             cats             >
-⍝H                       ∆F '<{"·"@(" "∘=)⊣"C30" $ "cats"}>' ⍝ Replace blanks with middle dot "·".
+⍝H                       ∆F '<{"·"@(" "∘=)⊣"C30" $ 1 4⍴"cats"}>' ⍝ Replace blanks with middle dot "·".
 ⍝H ➤                <·············cats·············> 
+⍝H                      'deb'  ∆F '<{"C30" $ 1 4⍴"cats"}>'       ⍝ DEBUG will show each field (with middle dots)
+⍝H ➤                ┌→┐┌→─────────────────────────────┐┌→┐
+⍝H ➤                ↓<│↓·············cats·············│↓>│
+⍝H ➤                └─┘└──────────────────────────────┘└─┘
 ⍝H                + Ex: 
 ⍝H                  ⍝ $ returns a matrix. @ handles transparently...
 ⍝H                    ∆F'<{"·"@(" "∘=)⊣ "C30,F9.5" $ ○1 2 3}>'
@@ -621,9 +636,16 @@ _HELP_←{
 ⍝H   (If you call subsequent functions, be sure to pass ⍺ in some format to those functions).
 ⍝H   Valid object names might be:  
 ⍝H        ⍺._, ⍺.__, ⍺._myExample, ⍺._MyFunction, or ⍺._123.
-⍝H   E.g. you might have a sequence like:
+⍝H   E.g. you might have a sequence like this, where ⍺._last is set and used:
+⍝H                  ↓Set here                    ↓Used here
 ⍝H        ∆F 'John {⍺._last←"Smith"} knows Mary {⍺._last}.'
-⍝H     John Smith knows Mary Smith.
+⍝H ➤   John Smith knows Mary Smith.
+⍝H   Here's another example of passing a value (⍺._) from left to right...
+⍝                          ↓Set here     ↓Used here                ↓Used here
+⍝H       ∆F'{ "L2" $ ⍪⎕A↑⍨ ⍺._←3 }{ ⍪1+⍳ ⍺._ }{ "X1,F4.2" $ ⍪○1+⍳ ⍺._ }' 
+⍝H ➤   A 1 3.14
+⍝H ➤   B 2 6.28
+⍝H ➤   C 3 9.42
 ⍝H   ∘ Other objects in the namespace in ⍺ are used by ∆F and bad things will happen if you change them.
 ⍝H     (Note: it is trivial to create a truly private namespace, but we didn't bother).
 ⍝H
@@ -645,8 +667,8 @@ _HELP_←{
 ⍝H    looks like this (∆F creates a runtime library in namespace ⎕SE.⍙Ⓕ):
 ⍝H        {⍺←1⋄0∊⍺:_←0⋄⍙Ⓕ{(1 1⍴'.')⍺.Ⓒ(⍺{↑Locns}⍵)⍺.Ⓒ(1 8⍴' are in ')⍺.Ⓒ(⍺{↑Names}⍵)
 ⍝H          ⍺.Ⓒ(1 11⍴', Officers ')⍺.Ⓒ(⍺{(⍵⊃⍨⎕IO+1)}⍵)⍺.Ⓒ(
-⍝H          1 3⍴'On ')}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓐ'On {⍵1}, Officers {↑Names} are in {↑Locns}.'}
-⍝H    Note: Ⓐ and Ⓒ are runtime utilities in ⎕SE.⍙Ⓕ.
+⍝H          1 3⍴'On ')}⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓡ'On {⍵1}, Officers {↑Names} are in {↑Locns}.'}
+⍝H    Note: Ⓡ and Ⓒ are runtime utilities in ⎕SE.⍙Ⓕ.
 ⍝H
 ⍝H +----------------------------------------+
 ⍝H | Some differences from Python F-strings |
@@ -669,5 +691,4 @@ _HELP_←{
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝
 ⍝************************************⍝ 
 }
-_←##.⎕EX '_'
 :EndNamespace
