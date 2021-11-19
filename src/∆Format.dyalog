@@ -3,7 +3,7 @@
 :EndNamespace
 ∆F←{ 
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
- 0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⎕ML←1 
   ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
 ⍝ Verify 1st elem of ⍵ is the format string (a char vector). 
@@ -13,7 +13,7 @@
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 ⍝ Otherwise, move us to a private namespace in the # domain.
-  ⍺ (#.⎕NS '').{  
+  ⍺ (#.⎕NS ⎕THIS.∆Format.Lib).{  
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
@@ -22,20 +22,6 @@
     ⍝+---------------------------------+⍝
     ⍝ ⍙FLD ⍵: ⍵ a regex field number. Returns the text in that field, if it exists; else ''.
       ⍙FLD←{O B L←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢O)⍸⍵: '' ⋄ ¯1=O[⍵]: '' ⋄ B[O[⍵]+⍳L[⍵]] }
-    ⍝ LoadRuntimeLib: ⍵: name of library to create (if needed)
-    ⍝   Returns 0 if 9=⎕NC ⍵ (and ~DEBUG); else 1. Sensitive to DEBUG.
-    ⍝   Private Names Use: ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
-      LoadRuntimeLib←{  ⍝ ⍵: name of library to create
-          (~DEBUG)∧9=⎕NC ⍵: 0  
-          ref←⍎⍵ ⎕NS  'Ⓒ'  'ⒹⒹ' 'Ⓛ'  'Ⓡ' 'CAT' 'DISP' 'DDISP'  'FMTX' 
-          _←ref.⎕DF '[∆F NS]'
-        ~DEBUG: 1
-            ⎕←'>> LOADING RUNTIME SESSION LIBRARY "',⍵,'"' 
-            ⎕←'>> USER UTILITY FNS ARE (⍺.):  CAT   DISP ($$)  DDISP ($$ plus)  FMTX ($)'
-            ⎕←'>> INTERNAL-USE ONLY FNS ARE: Ⓒ (CAT⍨)                 ⒹⒹ (DDISP/DEBUG FMTING)'
-            ⎕←'>>                            Ⓛ (LEFT ARG/ASSERTIONS)  Ⓡ  (RIGHT/RUN-TIME ARGS)'
-          1
-      }
     ⍝ SetOptions: ∆F arg ⍺ is passed as SetOptions arg ⍵, which must be:
     ⍝ (a) an assertion (non-empty homogeneous numeric array) or 
     ⍝ (b) 0 or more option strings (CVs).
@@ -53,7 +39,7 @@
       }
       HelpCmd←{ ⍝ Help... Show HELP info and return ⍵
           0:: '∆F: Help information not found where expected!' ⎕SIGNAL 911
-          _HELP_ ⍬
+          ∆HelpLibRef._HELP_ ⍬
       }
     ⍝+--------------------------------------------------------------------------------+⍝
     ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
@@ -131,51 +117,6 @@
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
     ⍝ +----------------------------------------------------------------------------+
-
-    ⍝ +-------------------------------------------------------------------------------------------+
-    ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
-    ⍝ +-------------------------------------------------------------------------------------------+    
-    ⍝ FMTX, DISP, CAT
-    ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
-      FMTX←{ ⍺←⊢
-          ColChk←{⍪⍣(⊃(1=|≡⍵)∧1=⍴⍴⍵)⊢⍵}                ⍝ If ⍺ is specified, treat vectors as column vectors
-        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-          ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
-          4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
-          1≡⍺ 1: ∆FMT ⍵
-          srcP snkR←'^ *(?|([LCR]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
-          xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
-          xtra≡'':⍺  ∆FMT ⍵                             ⍝ 1.  SO only? Let ⎕FMT handle column vectors
-          obj←std{''≡⍺: ∆FMT ColChk ⍵ ⋄ ⍺ ∆FMT ⍵}⍵      ⍝ 2a. XO only? We handle column vectors. 2b. Both XO and SO? As in 1.
-          wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Same as (⊃⌽⎕VFI wReq)               
-          wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
-          pad1←↑⍤1
-          xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
-          wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
-          wReq pad1 wCtr pad1 obj                       ⍝ ...    2
-      }
-    ⍝ ⍺.CAT: CATENATE FIELDS
-    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
-    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
-    ⍝ Monadic case: Treat ⍺ as null array...
-      CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
-      Ⓒ←   CAT⍨
-    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
-      DISP← ⎕SE.Dyalog.Utils.display
-    ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
-    ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
-      ⒹⒹ←DDISP← ('·'@(' '∘=))∘DISP
-    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
-    ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
-      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
-    ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
-    ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
-      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺}   
-    ⍝ +----------------------------------------------------------------------------+
-    ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
-    ⍝ +----------------------------------------------------------------------------+
-
     ⍝ ***************************************⍝
     ⍝ SECTION ****** Code field Scanning     ⍝
     ⍝ ***************************************⍝
@@ -254,7 +195,6 @@
     ⍝ Basic Initializations
       ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
     HELP: _←HelpCmd ⍬
-      _←LoadRuntimeLib⍣COMPILE⊣ '⎕SE.⍙Ⓕ'
       USER_SPACE←⊃⌽⎕RSI
       ⍙Ⓕ←⎕THIS⊣⎕DF '[∆F NS]'         
     ⍝ Globals (externals) used within utility functions.    
@@ -264,7 +204,6 @@
       nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know OMEGA or ≢OMEGA until runtime, so treat as ~∞.
       curOMEGA←  0                       ⍝ "Next" ⍹ will always be ⍹1 or later. ⍹0 can only be accessed directly. 
       RESULT←    ' '⍴⍨COMPILE↓1 0        ⍝ Initialize global RESULT (If COMPILE, 0⍴' ', i.e. ''; ELSE, 1 0⍴' ')
-    
       patsMain←TFp SFp CFp
                TFi SFi CFi← ⍳≢patsMain
     ⍝ COMPILE MODE: 
@@ -283,9 +222,9 @@
         ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
-            res←'(⎕NS ⎕SE.⍙Ⓕ){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
-        ⍝ res←'{⍺←''''⋄0∊⍺:_←0⋄⍺⍙Ⓕ.Ⓛ  ⍙Ⓕ{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⎕SE.⍙Ⓕ).Ⓡ',fmtStr,'}'  
-           (⎕∘←)⍣DEBUG⊢res  
+        ⍝ ⍙Ⓕ ← ⍎∆FormatLibName (see details at namespace ∆Format.Lib below)
+            res←'(⎕NS ',∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+            (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
           _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
@@ -304,6 +243,62 @@
 }
 
 :Namespace ∆Format
+:Namespace Lib
+⍝ +-------------------------------------------------------------------------------------------+
+⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
+⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.DISP, ⍺.DDISP
+⍝ +-------------------------------------------------------------------------------------------+   
+  ⍝ ⎕THIS must be named namespace: 
+  ⍝    Extern ⍙Ⓕ←⍎∆FormatLibName, with 'COMPILE' option.
+    ∆FormatLibName←⍕⎕THIS         
+    ∆HelpLibRef←⎕THIS.##          ⍝  Used with HELP option
+  ⍝ FMTX, DISP, CAT
+  ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
+    FMTX←{ ⍺←⊢
+       ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
+        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
+        4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
+        1≡⍺ 1: ∆FMT ⍵
+        srcP snkR←'^ *(?|([LCRlcr]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
+        xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
+        noColV xtra←('lcr'∊⍨⊃xtra)(1 ⎕C xtra)         ⍝ If xtra∊l|c|r, set as L|C|R and set noColV←1
+      ⍝ If ⍺ is 0, treat simple vector as column vector. Else treat simple vector as 1-row matrix.
+        CoerceV←noColV∘{~(1=|≡⍵)∧1=⍴⍴⍵: ⍵ ⋄ ⍺: ⍉⍪⍵ ⋄ ⍪⍵}         
+        xtra≡'':⍺  ∆FMT CoerceV ⍵                    ⍝ 1.  SO only?  
+        obj←std{
+            ''≡⍺:   ∆FMT ⍵                           ⍝ 2a. XO only?  
+                  ⍺ ∆FMT ⍵                           ⍝ 2b. Both XO and SO? As in 1.
+        }CoerceV ⍵   
+        wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Faster than (⊃⌽⎕VFI wReq)               
+        wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
+        pad1←↑⍤1
+        xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
+        wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
+        wReq pad1 wCtr pad1 obj                       ⍝ ...    2
+    } 
+    ⍝ ⍺.CAT: CATENATE FIELDS
+    ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
+    ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
+    ⍝ Monadic case: Treat ⍺ as null array...
+      CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
+      Ⓒ←   CAT⍨
+    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
+      DISP← ⎕SE.Dyalog.Utils.display
+    ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
+    ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
+      ⒹⒹ←DDISP← ('·'@(' '∘=))∘DISP
+    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
+    ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
+      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
+    ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
+    ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
+      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
+⍝ +----------------------------------------------------------------------------+
+⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
+⍝ +----------------------------------------------------------------------------+
+ 
+:EndNamespace
 _HELP_←{
      ''⊣{⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR ⍵} 0⊃⎕XSI 
 ⍝***********************************⍝ 
@@ -495,9 +490,14 @@ _HELP_←{
 ⍝H              - Three additional string parameters are allowed ONLY at the beginning of the left argument,
 ⍝H                in this paradigm:
 ⍝H                           [LCR]ddd,std    OR  [LCR]ddd      OR    std
+⍝H                      OR   [lcr]ddd,std    OR  [lcr]ddd
 ⍝H                where ∘ L means left-justify the right argument to $ (the arg may be of any type), 
 ⍝H                      ∘ C means center the right argument to $,
 ⍝H                      ∘ R means right-justify the right argument to $ 
+⍝H                      ∘ With L,C,R, a simple vector right arg is treated as a column vector 
+⍝H                        (as is standard with dyadic ⎕FMT).
+⍝H                      ∘ l,c,r are treated as L,C,R except a simple vector right arg is treated as a 1-row matrix
+⍝H                        (a deviation from the standard for dyadic ⎕FMT).
 ⍝H                      ∘ ddd (1 or more digits) represent the MINIMUM width of the right argument
 ⍝H                      ∘ std signifies standard ⎕FMT parameters, executed BEFORE justification specs 
 ⍝H                        (if present), according to Dyalog's ⎕FMT specifications.
