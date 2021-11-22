@@ -1,5 +1,5 @@
 :Namespace ∆Format
- ⍝ Dummy. Replaced below
+ ⍝ Dummy. Replaced below  
 :EndNamespace
 ∆F←{ 
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
@@ -123,7 +123,7 @@
     ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
       CFScan←{
         patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP DQEscP  
-              quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
+               quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
         selfDocFlag←0
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
@@ -247,7 +247,8 @@
 :Namespace Lib
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
-⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.DISP, ⍺.DDISP
+⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.DISP, ⍺.DDISP, ⍺.QT
+⍝ | Internal Use:    ⍺.Ⓛ, Ⓡ, Ⓒ, ⒹⒹ
 ⍝ +-------------------------------------------------------------------------------------------+   
   ⍝ ⎕THIS must be named namespace: 
   ⍝    Extern ⍙Ⓕ←⍎∆FormatLibName, with 'COMPILE' option.
@@ -282,13 +283,20 @@
     ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
     ⍝ Monadic case: Treat ⍺ as null array...
       CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only
+    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
       Ⓒ←   CAT⍨
-    ⍝ ⍺.DISP: A synonym for Dyalog utility <display>. See $$
-      DISP← ⎕SE.Dyalog.Utils.display
+    ⍝ ⍺.DISP: A synonym for Dyalog utility <display> with optional ⍺. See $$
+    ⍝ Experimental: We allow 1 DISP ⍵ to be same as DDISP. 0 DISP ⍵ is original DISP.
+      DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
     ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
-    ⍝   DISP with blanks repl. by middle dot (·), ⎕UCS 183.
-      ⒹⒹ←DDISP← ('·'@(' '∘=))∘DISP
+    ⍝   DISP with blanks repl. by default by middle dot (·), ⎕UCS 183.
+    ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
+      ⒹⒹ← DDISP← {⍺←'·' ⋄ (⍺@(' '∘=))∘DISP ⍵}
+    ⍝ QT: Add quotes around each row of ⍵ formatted.
+    ⍝     The default quotes are '"'. 
+    ⍝     If the quotes are of length 2, the first is the opening quote and the 2nd the closing quote.
+    ⍝     If numeric, the quotes will be the unicode characters with those numeric codes.
+      QT←{ ⍺←'"' ⋄ 2|⎕DR ⍺: (⎕UCS ⍺) ∇ ⍵ ⋄  (⊃⍺),(⎕FMT ⍵),⊃⌽⍺}
     ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
       Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
@@ -343,7 +351,12 @@ _HELP_←{
 ⍝H       2-D spacing (space fields). Code fields accommodate a shorthand using
 ⍝H         - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
 ⍝H         - $$ to display fields or objects using dfns 'DISPLAY'.
+⍝H           If $$ has a left arg of 1, $$ replaces blanks with a middle dot (see ⍺.DISP and ⍺.DDISP).
 ⍝H
+⍝H  Library routines: ⍺.CAT (catenate and align L to R), 
+⍝H                    ⍺.DISP (display: ⍺:1 same as ⍺.DDISP), 
+⍝H                    ⍺.DDISP (display with middle dot: ⍺: alternative to middle dot), 
+⍝H                    ⍺.QT (add quotes: ⍺: '"'; 1-2 char or unicode integer)
 
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝

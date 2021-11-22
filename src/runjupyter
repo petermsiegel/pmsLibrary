@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set echo
 echo 'MOVING TO pmsLibrary SOURCE...'
 cd /Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src
