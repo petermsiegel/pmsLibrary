@@ -173,7 +173,7 @@
     ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
     ⍝     ³「ANY chars BUT {}"⍝\」 OR ⁴「\ escapes」 OR ⁵「"DQ Strings"」 OR ⁶「⍝ comments」 OR ⁷「RECURSE <P> ≥0 TIMES」 
     ⍝  THEN: ⁸「}」 
-    ⍝  I.e.              ¹  ²ᵃ   ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
+    ⍝  I.e.              ¹  ²ᵃ  ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
       CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
     ⍝ Code Field Patterns...
     ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
@@ -183,7 +183,7 @@
       fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
       omIndxP←  '[⍹⍵](\d{1,2})'       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
       omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.             NB: We don't bother clipping incremental indexing of ⍵ at 99.  
-      comP←     '⍝(?|\\⋄|[^⋄}])*'     ⍝ ⍝..⋄ or ⍝..}. We allow escaping ⋄, but there are PCRE problems doing so with { or }. 
+      comP←     '⍝[^⋄}]*'             ⍝ ⍝..⋄ or ⍝..}
       selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self-documenting code eval.
     ⍝ ***************************************⍝
     ⍝ ENDSECTION ***** Top Level Patterns ***⍝
