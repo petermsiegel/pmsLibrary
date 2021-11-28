@@ -1,8 +1,9 @@
 :Namespace ∆Format
- ⍝ Dummy. Replaced below  
+ ⍝ Dummy Namespace to make ⎕FIX happy. Replaced below  
 :EndNamespace
 ∆F←{ 
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
+⍝  A prototype for a Format string paradigm, like f-string in Python with APL-style exceptions..
   0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
   ⎕IO←0 ⋄ ⎕ML←1 
   ⍺←''         ⍝ ⍺≡'': Same as ⍺≡'Default'
@@ -176,15 +177,19 @@
     ⍝  I.e.              ¹  ²ᵃ   ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
       CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
     ⍝ Code Field Patterns...
-    ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
-      DQEscP←   '\\"'
+       DQEscP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'
       dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
       fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
-      omIndxP←  '[⍹⍵](\d{1,2})'       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-      omNextP←  '⍹|⍵_'                ⍝ ⍹ or ⍵_.             NB: We don't bother clipping incremental indexing of ⍵ at 99.  
-      comP←     '⍝(?|\\⋄|[^⋄}])*'     ⍝ ⍝..⋄ or ⍝..}. We allow escaping ⋄, but there are PCRE problems doing so with { or }. 
-      selfDocP← '[→➤]\h*\}$'          ⍝ Trailing → or ➤ (works like Python =). Self-documenting code eval.
+    ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
+      OM_SYN←1                        ⍝ If 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
+    ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+      omIndxP← (OM_SYN ⊃ '⍹'   '[⍹⍵]'), '(\d{1,2})'    
+    ⍝ ⍹ or ⍵_.                        ⍝ NB: We don't bother clipping incremental indexing of ⍵ at 99.   
+      omNextP←  OM_SYN ⊃ '⍹'   '⍹|⍵_'               
+      comP←     '⍝(?|\\⋄|[^⋄}])*'     ⍝ ⍝..⋄ or ⍝..}. We allow escaping ⋄, but there are PCRE problems doing so with { or }.
+    ⍝ Trailing → or ➤ in Code fields triggers self-documenting code.  Works like Python =.  
+      selfDocP← '[→➤]\h*\}$'         
     ⍝ ***************************************⍝
     ⍝ ENDSECTION ***** Top Level Patterns ***⍝
     ⍝ ***************************************⍝
