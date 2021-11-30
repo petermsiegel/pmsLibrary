@@ -76,16 +76,16 @@
     ⍝                                    value:   \   CR   {   }    
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
       TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
-    ⍝ DQEsc (Escapes in Double-quoted strings in Code fields)
-    ⍝ DQEsc handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
+    ⍝ escDQ (Escapes in Double-quoted strings in Code fields)
+    ⍝ escDQ handles all and only these escapes:  \\⋄  \⋄            Note: \\ otherwise has literal value \\
     ⍝                                    value:   \⋄  CR
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
-      DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
+      escDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | String Conversion Functions...                                             |
     ⍝ +----------------------------------------------------------------------------+
     ⍝ DQ2SQ: Convert DQ delimiters to SQ, convert doubled "" to single, and provide escapes for DQ strings...
-      DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← DQEsc 1↓¯1↓⍵ }
+      DQ2SQ←        {SQ2Code (~DQ2⍷s)/s← escDQ 1↓¯1↓⍵ }
     ⍝ SQ2Code: Return code for one or more simple char strings
     ⍝          Double internal SQs per APL, then add SQ on either side!
       SQ2Code←  {1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵}       ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
@@ -123,18 +123,17 @@
     ⍝ ***************************************⍝
     ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
       CFScan←{
-        patsCF←quoteP dispP fmtP omIndxP omNextP comP selfDocP DQEscP  
-               quoteI dispI fmtI omIndxI omNextI comI selfDocI DQEscI ← ⍳≢patsCF
+        patsCF←quoteP dollarP omIndxP omNextP comP selfDocP escDQP  
+               quoteI dollarI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
         selfDocFlag←0
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
-            CASE dispI:    ' ⍙Ⓕ.DISP ' 
-            CASE fmtI:     ' ⍙Ⓕ.FMTX '                               
+            CASE dollarI:  (¯1+≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.DISP '  ' ⍙Ⓕ.QT '     ⍝ $, $$, $$$                        
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
             CASE selfDocI: '}'⊣ selfDocFlag⊢←1
-            CASE DQEscI:   '"'
+            CASE escDQI:   '"'
             '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
         }⍵
         res←{ 
@@ -146,7 +145,7 @@
                 ⎕←↑m0 m1 m2 ⋄ EM EN
             }⍬ ⍝ 
           ⍝ Pass the main local namespace ⍙Ⓕ into the user space 
-          ⍝ (as a local name ⍙Ⓕ and as ⍺). See $, $$.
+          ⍝ (as a local name ⍙Ⓕ and as ⍺). See dollarP, dollarI.
             ⍎'⍙Ⓕ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
@@ -177,16 +176,18 @@
     ⍝  I.e.              ¹  ²ᵃ   ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
       CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
     ⍝ Code Field Patterns...
-       DQEscP←   '\\"'
+      escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'
-      dispP←    '(?<!\\)\${2,2}'      ⍝ $$ = display (⎕SE.Dyalog.Utils.display)
-      fmtP←     '(?<!\\)\$(?!\$)'     ⍝ $  = ⎕FMT Extended (see doc.)
+      dollarP←  '(?<!\\)\${1,3}'      ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
     ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
-      OM_SYN←1                        ⍝ If 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
-    ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
-      omIndxP← (OM_SYN ⊃ '⍹'   '[⍹⍵]'), '(\d{1,2})'    
-    ⍝ ⍹ or ⍵_.                        ⍝ NB: We don't bother clipping incremental indexing of ⍵ at 99.   
-      omNextP←  OM_SYN ⊃ '⍹'   '⍹|⍵_'               
+    ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
+    ⍝ :BEGIN OMEGA_ALIAS LOGIC
+      OMEGA_ALIAS←1                       
+      ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
+        omIndxP← (OMEGA_ALIAS ⊃ '⍹'   '[⍹⍵]'), '(\d{1,2})'    
+      ⍝ ⍹ or ⍵_.                        ⍝ NB: We don't bother clipping incremental indexing of ⍵ at 99.   
+        omNextP←  OMEGA_ALIAS ⊃ '⍹'   '⍹|⍵_'    
+    ⍝ :END OMEGA_ALIAS LOGIC            
       comP←     '⍝(?|\\⋄|[^⋄}])*'     ⍝ ⍝..⋄ or ⍝..}. We allow escaping ⋄, but there are PCRE problems doing so with { or }.
     ⍝ Trailing → or ➤ in Code fields triggers self-documenting code.  Works like Python =.  
       selfDocP← '[→➤]\h*\}$'         
@@ -301,13 +302,18 @@
     ⍝     The default quotes are '"'. 
     ⍝     If the quotes are of length 2, the first is the opening quote and the 2nd the closing quote.
     ⍝     If numeric, the quotes will be the unicode characters with those numeric codes.
-      QT←{ ⍺←'"' ⋄ 2|⎕DR ⍺: (⎕UCS ⍺) ∇ ⍵ ⋄  (⊃⍺),(⎕FMT ⍵),⊃⌽⍺}
+      QT←{  ⍺←'"' ⋄ 2|⎕DR ⍺: ⍵ ∇⍨ ⎕UCS ⍺  ⋄ ⎕IO←0 ⋄ B←+/(∧\' '∘=) 
+            q⌽R,⍨w⌽⍨-q←B⌽w←(-p)⌽L,w⌽⍨p←B⊢w←⎕FMT ⍵  ⊣ L R←2⍴⍺
+      }
     ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
       Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
     ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
     ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
       Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
+    ⍝ UNDER REVIEW:
+    ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
+      TITLE ← {1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢)⍵}   
 ⍝ +----------------------------------------------------------------------------+
 ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
 ⍝ +----------------------------------------------------------------------------+
@@ -320,9 +326,9 @@ _HELP_←{
        ⎕←'Showing limited HELP info...'
        ⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR ⍵
      } 0⊃⎕XSI 
-     { 0=⎕NEXISTS ⍵: ∘⊣⎕←'PDF HELP FILE "',⍵,'" DOES NOT EXIST.'
-       0:: ∘⊣⎕←'Unable to display pdf HELP file: ',⍵
-       ⎕SH 'open ',⍵   ⍝ OS/X
+     { 0=⎕NEXISTS ⍵: ∘⊣⎕←'HELP FILE "',⍵,'" DOES NOT EXIST.'
+       0:: ∘⊣⎕←'Unable to display HELP file: ',⍵
+       ⎕SH 'open ',⍵   ⍝ Mac-specific...
      } HELP_FI 
      
 ⍝***********************************⍝ 
@@ -362,6 +368,8 @@ _HELP_←{
 ⍝H                    ⍺.DISP (display: ⍺:1 same as ⍺.DDISP), 
 ⍝H                    ⍺.DDISP (display with middle dot: ⍺: alternative to middle dot), 
 ⍝H                    ⍺.QT (add quotes: ⍺: '"'; 1-2 char or unicode integer)
+⍝H            UNDER EVALUATION
+⍝H                    ⍺.TITLE (Displays string ⍵ in Title case, i.e. with first letter capitalized)
 
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝
