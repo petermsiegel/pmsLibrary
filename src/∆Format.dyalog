@@ -177,17 +177,18 @@
       CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
     ⍝ Code Field Patterns...
       escDQP←   '\\"'
-      quoteP←   '(?<!\\)(?:"[^"]*")+'
-      dollarP←  '(?<!\\)\${1,3}'      ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
-    ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
-    ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
-    ⍝ :BEGIN OMEGA_ALIAS LOGIC
+      quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
+   
+      dollarP←  '(?<!\\)\${1,3}'         ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
+    ⍝-- :BEGIN OMEGA_ALIAS LOGIC
+      ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
+      ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
       OMEGA_ALIAS←1                       
       ⍝ ⍹0, ⍹1, ... ⍹99 or ⍵0... We arbitrarily limit to 2 digits (0..99).
         omIndxP← (OMEGA_ALIAS ⊃ '⍹'   '[⍹⍵]'), '(\d{1,2})'    
       ⍝ ⍹ or ⍵_.                        ⍝ NB: We don't bother clipping incremental indexing of ⍵ at 99.   
         omNextP←  OMEGA_ALIAS ⊃ '⍹'   '⍹|⍵_'    
-    ⍝ :END OMEGA_ALIAS LOGIC            
+    ⍝-- :END OMEGA_ALIAS LOGIC            
       comP←     '⍝(?|\\⋄|[^⋄}])*'     ⍝ ⍝..⋄ or ⍝..}. We allow escaping ⋄, but there are PCRE problems doing so with { or }.
     ⍝ Trailing → or ➤ in Code fields triggers self-documenting code.  Works like Python =.  
       selfDocP← '[→➤]\h*\}$'         
