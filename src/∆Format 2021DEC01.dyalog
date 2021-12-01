@@ -14,7 +14,7 @@
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 ⍝ Otherwise, move us to a private namespace in the # domain.
-  ⍺ (#.⎕NS ⎕THIS.∆Format).{  
+  ⍺ (#.⎕NS ⎕THIS.∆Format.Lib).{  
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
@@ -50,7 +50,7 @@
     ⍝ EXTERN: RESULT (RW) 
       RESULT_Immed←{ 
           ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
-          rhs← Lib.DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+          rhs← DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
           lhs rhs↑⍨←lhs⌈⍥≢rhs 
           ⍺⊣ RESULT⊢←lhs,rhs
       }
@@ -145,8 +145,8 @@
                 ⎕←↑m0 m1 m2 ⋄ EM EN
             }⍬ ⍝ 
           ⍝ Pass the main local namespace ⍙Ⓕ into the user space 
-          ⍝ (as a local name ⍙Ⓕ and the lib as as ⍺). See dollarP, dollarI.
-            ⍎'⍙Ⓕ.Lib∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
+          ⍝ (as a local name ⍙Ⓕ and as ⍺). See dollarP, dollarI.
+            ⍎'⍙Ⓕ∘USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
       ⍝ Prettyprint variant of → is '➤' U+10148
@@ -204,7 +204,7 @@
       SELF_DOC_ARROW←'➤'   ⍝ For Self-Documenting Code: use a printable char here, e.g. → or '➤'
     HELP: _←HelpCmd ⍬
       USER_SPACE←⊃⌽⎕RSI
-      ⍙Ⓕ←⎕THIS⊣⎕DF  (⍕⎕THIS.##),'.[Format Namespace]'         
+      ⍙Ⓕ←⎕THIS⊣⎕DF '[∆F NS]'         
     ⍝ Globals (externals) used within utility functions.    
     ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
       OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. The format string (⍹0) is ⊃OMEGA. 
@@ -231,7 +231,7 @@
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
         ⍝ ⍙Ⓕ ← ⍎∆FormatLibName (see details at namespace ∆Format.Lib below)
-            res←'(⎕NS ',Lib.∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+            res←'(⎕NS ',∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -314,10 +314,7 @@
       Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
     ⍝ UNDER REVIEW:
     ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
-      TITLE←{
-          1<⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=≡⍵: ∇¨⍵
-          1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
-      } 
+      TITLE ← {1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢)⍵}   
 ⍝ +----------------------------------------------------------------------------+
 ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
 ⍝ +----------------------------------------------------------------------------+
@@ -373,7 +370,7 @@ _HELP_←{
 ⍝H                    ⍺.DDISP (display with middle dot: ⍺: alternative to middle dot), 
 ⍝H                    ⍺.QT (add quotes: ⍺: '"'; 1-2 char or unicode integer)
 ⍝H            UNDER EVALUATION
-⍝H                    ⍺.TITLE (Displays string ⍵ with each "word" in Title case, i.e. with first letter capitalized)
+⍝H                    ⍺.TITLE (Displays string ⍵ in Title case, i.e. with first letter capitalized)
 
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝

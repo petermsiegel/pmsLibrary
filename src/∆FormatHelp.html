@@ -14014,6 +14014,7 @@ a.anchor-link {
 </ul>
 </li>
 <li>Library Routines for Users</li>
+<li>∆F and Looping</li>
 <li>Assertions with ∆F</li>
 <li>∆F Syntax</li>
 </ul>
@@ -14030,7 +14031,7 @@ a.anchor-link {
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[66]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[144]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ⎕←  &#39;0. Our active directory is &#39;,⎕SH &#39;pwd&#39;</span>
@@ -14055,7 +14056,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[66]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[144]:</div>
 
 
 
@@ -14069,7 +14070,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[66]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[144]:</div>
 
 
 
@@ -14083,7 +14084,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[66]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[144]:</div>
 
 
 
@@ -14108,7 +14109,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[67]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[145]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">string</span>  <span class="kd">←</span> <span class="s1">&#39;This is a string&#39;</span>
@@ -14129,7 +14130,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[68]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[146]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;My string = &quot;{string}&quot;.  My numbers = {numbers}.&#39;</span>
@@ -14148,7 +14149,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[68]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[146]:</div>
 
 
 
@@ -14173,7 +14174,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[69]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[147]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{string → }.  {numbers → }&#39;</span>
@@ -14192,7 +14193,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[69]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[147]:</div>
 
 
 
@@ -14217,7 +14218,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[70]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[148]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This is a simple string.&#39;</span>
@@ -14236,7 +14237,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[70]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[148]:</div>
 
 
 
@@ -14260,7 +14261,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[71]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[149]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This\⋄is a\⋄multiline string.&#39;</span>
@@ -14279,7 +14280,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[71]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[149]:</div>
 
 
 
@@ -14307,7 +14308,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[72]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[150]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This is a diamond ⋄, an opening brace \{, a closing brace \}, and a backslash \\.&#39;</span>
@@ -14326,7 +14327,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[72]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[150]:</div>
 
 
 
@@ -14350,7 +14351,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[73]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[151]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;&quot;We can sum the numbers ⍵ via +\⍵&quot;&#39;</span>
@@ -14370,7 +14371,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[73]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[151]:</div>
 
 
 
@@ -14384,7 +14385,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[73]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[151]:</div>
 
 
 
@@ -14408,7 +14409,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[74]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[152]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">what</span><span class="kd">←</span>  <span class="s1">&#39;This&#39;</span>
@@ -14430,7 +14431,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[75]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[153]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{what} is a {type} {thing}.&#39;</span>
@@ -14449,7 +14450,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[75]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[153]:</div>
 
 
 
@@ -14482,7 +14483,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[76]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[154]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="s1">&#39;d&#39;</span> <span class="nv">∆F</span> <span class="s1">&#39;{what} is a {type} {thing}.&#39;</span>
@@ -14501,7 +14502,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[76]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[154]:</div>
 
 
 
@@ -14535,7 +14536,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[77]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[155]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ ?0  ⍝ A random number ⍵: 0&lt;⍵&lt;1 }&#39;</span>
@@ -14554,12 +14555,12 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[77]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[155]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.221099
+<span style="white-space:pre; font-family: monospace">0.10722
 </span>
 </div>
 
@@ -14578,7 +14579,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[78]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[156]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">nums</span><span class="kd">←</span>  <span class="o">⍪⍳</span><span class="m">3</span>
@@ -14601,7 +14602,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[78]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[156]:</div>
 
 
 
@@ -14634,7 +14635,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[79]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[157]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">what</span><span class="kd">←</span><span class="s1">&#39;This&#39;</span> <span class="s1">&#39;That&#39;</span> <span class="s1">&#39;The other thing&#39;</span>
@@ -14656,7 +14657,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[79]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[157]:</div>
 
 
 
@@ -14682,7 +14683,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[80]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[158]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">r</span><span class="kd">←</span><span class="m">1</span> <span class="m">2</span> <span class="m">5</span>    <span class="c1">⍝ radius  </span>
@@ -14703,7 +14704,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[80]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[158]:</div>
 
 
 
@@ -14729,7 +14730,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[81]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[159]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">ctr</span><span class="kd">←</span><span class="m">1</span>
@@ -14749,7 +14750,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[81]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[159]:</div>
 
 
 
@@ -14775,7 +14776,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[82]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[160]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝                     Row 1  Row 2                 Row 3...</span>
@@ -14795,7 +14796,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[82]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[160]:</div>
 
 
 
@@ -14824,10 +14825,10 @@ isn't it?
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[83]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[161]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Show Space Field comments...                           </span>
     <span class="nv">∆F</span> <span class="s1">&#39;{⍪1 2 3}{     ⍝ 5 spaces }{⍪○1 2 3}&#39;</span>     
 <span class="s1">&#39;d&#39;</span> <span class="nv">∆F</span> <span class="s1">&#39;{⍪1 2 3}{     ⍝ 5 spaces }{⍪○1 2 3}&#39;</span>
 </pre></div>
@@ -14845,7 +14846,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[83]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[161]:</div>
 
 
 
@@ -14861,7 +14862,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[83]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[161]:</div>
 
 
 
@@ -14888,7 +14889,7 @@ isn't it?
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[84]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[162]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...</span>
@@ -14909,7 +14910,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[84]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[162]:</div>
 
 
 
@@ -14923,7 +14924,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[84]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[162]:</div>
 
 
 
@@ -14954,7 +14955,7 @@ isn't it?
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[85]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[163]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...</span>
@@ -14975,7 +14976,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[85]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[163]:</div>
 
 
 
@@ -14992,7 +14993,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[85]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[163]:</div>
 
 
 
@@ -15021,7 +15022,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[86]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[164]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;1. \⋄2.\⋄3.{}Jane\⋄John\⋄Nancy&#39;</span>
@@ -15040,7 +15041,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[86]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[164]:</div>
 
 
 
@@ -15069,7 +15070,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[87]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[165]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{&quot;I1,⊂. ⊃&quot; $ 1+⍳3}Jane\⋄John\⋄Nancy&#39;</span>
@@ -15088,7 +15089,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[87]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[165]:</div>
 
 
 
@@ -15114,7 +15115,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[88]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[166]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;Multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳4} {&quot;F10.7&quot; $ ○1 2 3 4}&#39;</span>
@@ -15133,7 +15134,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[88]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[166]:</div>
 
 
 
@@ -15160,7 +15161,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[89]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[167]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="s1">&#39;d&#39;</span> <span class="nv">∆F</span> <span class="s1">&#39;Multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳4} {&quot;F10.7&quot; $ ○1 2 3 4}&#39;</span>
@@ -15179,7 +15180,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[89]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[167]:</div>
 
 
 
@@ -15208,7 +15209,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[90]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[168]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">OVER</span><span class="kd">←</span>  <span class="p">(</span><span class="o">⍪,</span><span class="na">⍥</span><span class="o">⊂</span><span class="p">)</span>                                     <span class="c1">⍝ A Helper Function</span>
@@ -15232,7 +15233,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[90]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[168]:</div>
 
 
 
@@ -15281,7 +15282,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[91]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[169]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{⍹1} multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳⍹1 } {&quot;F10.7&quot; $ ○ 1+⍳⍹1}&#39;</span>  <span class="m">3</span>  
@@ -15301,7 +15302,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[91]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[169]:</div>
 
 
 
@@ -15317,7 +15318,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[91]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[169]:</div>
 
 
 
@@ -15349,7 +15350,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[92]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[170]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝          ⍵1  ⍵2               ⍵3  ⍵4   ⍵1         ⍵2                  ⍵3         ⍵4</span>
@@ -15369,7 +15370,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[92]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[170]:</div>
 
 
 
@@ -15412,7 +15413,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[93]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[171]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">names</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;John&#39;</span> <span class="s1">&#39;Mary&#39;</span>
@@ -15433,7 +15434,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[93]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[171]:</div>
 
 
 
@@ -15448,7 +15449,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[93]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[171]:</div>
 
 
 
@@ -15475,7 +15476,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[94]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[172]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">cw25</span><span class="kd">←</span><span class="s1">&#39;   25 chars wide&#39;</span>
@@ -15498,7 +15499,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[94]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[172]:</div>
 
 
 
@@ -15545,7 +15546,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[95]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[173]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;For n∊1 2 3, nπ = { &quot;c0&quot; $ ○ ⍵1 }.   {&quot;I1,⊂π = ⊃&quot; $ ⍵1} { &quot;C0&quot; $ ○⍵1 }&#39;</span> <span class="p">(</span><span class="m">1</span> <span class="m">2</span> <span class="m">3</span><span class="p">)</span>
@@ -15564,7 +15565,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[95]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[173]:</div>
 
 
 
@@ -15590,7 +15591,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[96]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[174]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">MyString</span><span class="kd">←</span> <span class="s1">&#39;This is my string&#39;</span>
@@ -15611,14 +15612,14 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[96]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[174]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">&lt;MyString ➤ This is my string&gt;  &lt;3↑Today ➤ 2021 11 29&gt;.  &lt;"I4" $ 3↑Today  ➤  2021&gt;
-                                                                               11 
-                                                                               29 
+<span style="white-space:pre; font-family: monospace">&lt;MyString ➤ This is my string&gt;  &lt;3↑Today ➤ 2021 12 1&gt;.  &lt;"I4" $ 3↑Today  ➤  2021&gt;
+                                                                              12 
+                                                                               1 
 </span>
 </div>
 
@@ -15637,7 +15638,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[97]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[175]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39; {MyString⍳&quot;aeiou&quot; ⍝ Comments ok here ⋄  → } &#39;</span>
@@ -15656,7 +15657,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[97]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[175]:</div>
 
 
 
@@ -15680,7 +15681,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[98]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[176]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{⍺._PITimes←(○1)∘× ⋄ ⍺._PITimes 1} {⍺._PITimes 2}&#39;</span>
@@ -15699,7 +15700,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[98]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[176]:</div>
 
 
 
@@ -15717,7 +15718,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[99]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[177]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">oldFR</span><span class="kd">←</span><span class="m">645</span>  <span class="p">⋄</span> <span class="nv">oldPP</span><span class="kd">←</span><span class="nf">⎕PP</span>
@@ -15738,7 +15739,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[99]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[177]:</div>
 
 
 
@@ -15752,7 +15753,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[99]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[177]:</div>
 
 
 
@@ -15770,23 +15771,22 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="%E2%88%86F-for-assertions">&#8710;F for assertions<a class="anchor-link" href="#%E2%88%86F-for-assertions">&#182;</a></h2><p>Normally, ∆F returns the formatted text as a single formatted matrix (rank 2).
-<br>If the left argument (⍺) to ∆F is a homogeneous numeric array, it is viewed as an assertion.</p>
-<ul>
-<li>If the assertion contains <em>no numeric zeroes</em>, it is considered <strong>true</strong>. It <strong>prints</strong> the formatted text, returning a shy <em>1</em>. (It does <em>not</em> return the formatted text, as in <em>format</em> mode.)</li>
-<li>If the assertion contains one or more zeroes, it is considered <strong>false</strong>. It does nothing, quickly returning a shy <em>0</em>.</li>
-</ul>
+<h3 id="%E2%88%86F-and-Looping">&#8710;F and Looping<a class="anchor-link" href="#%E2%88%86F-and-Looping">&#182;</a></h3><p>While languages like Python might tend to examples with explicit loops like this:</p>
+<p><code>table = [4127, 4098, 7678]
+for num in table2:
+    print(f'{num:10}')</code></p>
+<p>APL can typically format an entire object in a single statement and in a readable format:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[100]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[178]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Here, (var&lt;100) is FALSE, so no ∆F string message is produced. 0 is returned.</span>
-  <span class="nv">var</span><span class="kd">←</span><span class="m">100</span>
-  <span class="vg">⎕</span><span class="kd">←</span><span class="p">(</span><span class="nv">var</span><span class="o">&lt;</span><span class="m">100</span><span class="p">)</span> <span class="nv">∆F</span> <span class="s1">&#39;Warning! Variable &quot;var&quot; is out of expected range: var={var}&#39;</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">table2</span><span class="kd">←</span> <span class="m">4127</span> <span class="m">4096</span> <span class="m">7678</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{&quot;[]&quot; ⍺.QT ⍪1+⍳≢⍵1}  {⍪⍵1}&#39;</span> <span class="nv">table2</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{⎕←⍺.⎕NL -⍳10}&#39;</span>
 </pre></div>
 
      </div>
@@ -15802,12 +15802,145 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[100]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[178]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0
+<span style="white-space:pre; font-family: monospace">[1]  4127
+[2]  4096
+[3]  7678
+</span>
+</div>
+
+</div>
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[178]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace"> CAT  DDISP  DISP  FMTX  QT  TITLE  ∆FormatLibName  ∆HelpLibRef  Ⓒ  ⒹⒹ  Ⓛ  Ⓡ 
+ CAT  DDISP  DISP  FMTX  QT  TITLE  ∆FormatLibName  ∆HelpLibRef  Ⓒ  ⒹⒹ  Ⓛ  Ⓡ 
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>Or, compare this Python example:</p>
+<p><code>print(f'Number Square Cube')
+for x in range(1, 11):
+     print(f'{x:2d} {x*x:3d} {x*x*x:4d}')</code></p>
+<p>and its APL equivalent below. <em>(Of course, a simple Dyalog ⎕FMT statement would work perfectly and concisely in this case!)</em></p>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[179]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">r1_10</span><span class="kd">←</span> <span class="m">1</span><span class="o">+⍳</span><span class="m">10</span>
+<span class="nv">Head</span><span class="kd">←</span><span class="s1">&#39;Number     Square     Cube&#39;</span>
+<span class="nv">Head</span> <span class="nv">OVER</span> <span class="nv">∆F</span>  <span class="s1">&#39;  {&quot;I2&quot; $ ⍵1}        {&quot;I3&quot; $ ⍵1*2}       {&quot;I4&quot; $ ⍵1*3}&#39;</span>  <span class="nv">r1_10</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[179]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace"> Number     Square     Cube 
+    1          1          1 
+    2          4          8 
+    3          9         27 
+    4         16         64 
+    5         25        125 
+    6         36        216 
+    7         49        343 
+    8         64        512 
+    9         81        729 
+   10        100       1000 
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>Keep this in mind as you read <strong><em>comparable</em></strong> examples from Python or Javascript. As for other examples, APL is likely to have a solution that is more intuitive that does not require explicit looping.</p>
+
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h2 id="%E2%88%86F-for-assertions">&#8710;F for assertions<a class="anchor-link" href="#%E2%88%86F-for-assertions">&#182;</a></h2><p>Normally, ∆F returns the formatted text as a single formatted matrix (rank 2).
+<br>If the left argument (⍺) to ∆F is a homogeneous numeric array, it is viewed as an assertion.</p>
+<ul>
+<li>If the assertion contains <em>no numeric zeroes</em>, it is considered <strong>true</strong>. It <strong>prints</strong> the formatted text, returning a shy <em>1</em>. (It does <em>not</em> return the formatted text, as in <em>format</em> mode.)</li>
+<li>If the assertion contains one or more zeroes, it is considered <strong>false</strong>. It does nothing, quickly returning a shy <em>0</em>.</li>
+</ul>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[180]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Here, (var&lt;100) is FALSE, so no ∆F string message is produced. 0 is returned.</span>
+  <span class="nv">var</span><span class="kd">←</span><span class="m">100</span>
+  <span class="nv">rc</span><span class="kd">←</span><span class="p">(</span><span class="nv">var</span><span class="o">&lt;</span><span class="m">100</span><span class="p">)</span> <span class="nv">∆F</span> <span class="s1">&#39;Warning! Variable &quot;var&quot; is out of expected range: var={var}&#39;</span>
+  <span class="s1">&#39;Assertion formatted (and printed) nothing and returned SHY&#39;</span><span class="o">,</span><span class="nv">rc</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[180]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">Assertion formatted (and printed) nothing and returned SHY 0
 </span>
 </div>
 
@@ -15820,14 +15953,14 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[101]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[181]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Now, the assertion (var&lt;100) is TRUE, so a ∆F string message is printed. 1 is returned.</span>
 <span class="c1">⍝ We&#39;ll show it explicitly, even though it is shy.</span>
   <span class="nv">var</span><span class="kd">←</span><span class="m">50</span>
   <span class="nv">rc</span><span class="kd">←</span><span class="p">(</span><span class="nv">var</span><span class="o">&lt;</span><span class="m">100</span><span class="p">)</span> <span class="nv">∆F</span> <span class="s1">&#39;Warning! Variable &quot;var&quot; is out of expected range: var={var}&#39;</span>
-  <span class="s1">&#39;∆F returned&#39;</span><span class="o">,</span><span class="nv">rc</span>
+  <span class="s1">&#39;∆F formatted and printed text (via ⎕←) and returned SHY&#39;</span><span class="o">,</span><span class="nv">rc</span>
 </pre></div>
 
      </div>
@@ -15843,7 +15976,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[101]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[181]:</div>
 
 
 
@@ -15857,12 +15990,12 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[101]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[181]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">∆F returned 1
+<span style="white-space:pre; font-family: monospace">∆F formatted and printed text (via ⎕←) and returned SHY 1
 </span>
 </div>
 
@@ -15892,16 +16025,19 @@ The library reference is passsed in ⍺. The routines are:</p>
       object left and/or right to add the quotes if required.   
       opts: opts includes either 1 or two characters or numbers. If one, it is used for both.
             If a number, it is the Unicode representation for the required character.
-            If opts is omitted, a double quote (") is assumed.
+            If opts is omitted, a double quote (") is assumed.     
 
 </code></pre>
-<p>FMTX, DISP, and DDISP are used in addition by ∆FMT at runtime, if the COMPILE option is used.</p>
-<h5 id="QT:-Surrounding-objects-with-quotes-or-other-single-or-paired-delimiters.">QT: Surrounding objects with quotes or other single or paired delimiters.<a class="anchor-link" href="#QT:-Surrounding-objects-with-quotes-or-other-single-or-paired-delimiters.">&#182;</a></h5>
+<p><font color='red'>**UNDER EVALUATION** </font></p>
+
+<pre><code>   ⍺.TITLE string      
+         Displays string with each "word" in title case, i.e. with its first letter capitalized.</code></pre>
+
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[112]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[182]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">guillemets</span><span class="kd">←</span> <span class="s1">&#39;«»&#39;</span>     <span class="c1">⍝ guillemets: French-style quotes!</span>
@@ -15922,7 +16058,7 @@ The library reference is passsed in ⍺. The routines are:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[112]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[182]:</div>
 
 
 
@@ -15942,10 +16078,10 @@ The library reference is passsed in ⍺. The routines are:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[107]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[183]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">animals</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;cats&#39;</span> <span class="s1">&#39;  rats&#39;</span>  <span class="s1">&#39;dogs  &#39;</span>        <span class="c1">⍝ Note blanks within each row of animals</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">animals</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;cats&#39;</span> <span class="s1">&#39;  rats&#39;</span>  <span class="s1">&#39;dogs  &#39;</span>        <span class="c1">⍝ Note arbitrary blanks within each row of animals</span>
 <span class="nv">∆F</span> <span class="s1">&#39;{animals  }       {  ⍺.QT animals  }     { &quot;&quot;&quot;&quot;,animals,&quot;&quot;&quot;&quot;}&#39;</span>
 </pre></div>
 
@@ -15962,7 +16098,7 @@ The library reference is passsed in ⍺. The routines are:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[107]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[183]:</div>
 
 
 
