@@ -125,10 +125,10 @@
       CFScan←{
         patsCF←quoteP dollarP omIndxP omNextP comP selfDocP escDQP  
                quoteI dollarI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
-        selfDocFlag←0
+        selfDocFlag←0 ⋄ invalidDollarE←'{''Invalid use of $''⎕SIGNAL 11}' 
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
-            CASE dollarI:  (¯1+≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.DISP '  ' ⍙Ⓕ.QT '     ⍝ $, $$, $$$                        
+            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.DISP '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$                       
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -179,7 +179,7 @@
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
    
-      dollarP←  '(?<!\\)\${1,3}'         ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
+      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
       ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
