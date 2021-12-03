@@ -1,6 +1,5 @@
 :Namespace ∆Format
- ⍝ Dummy Namespace to make ⎕FIX happy. Replaced below  
-:EndNamespace
+⍝ Note: ∆F will be "promoted" to ##.∆Format (see below).
 ∆F←{ 
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
 ⍝  A prototype for a Format string paradigm, like f-string in Python with APL-style exceptions..
@@ -40,7 +39,7 @@
       }
       HelpCmd←{ ⍝ Help... Show HELP info and return ⍵
           0:: '∆F: Help information not found where expected!' ⎕SIGNAL 911
-          ∆HelpLibRef._HELP_ ⍬
+          Lib.∆HelpLibRef._HELP_ ⍬
       }
     ⍝+--------------------------------------------------------------------------------+⍝
     ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
@@ -107,8 +106,14 @@
       CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
     ⍝ ------------------------------------------------------------------------------------------
     ⍝ SF2Code (Space field)
-    ⍝   Generate code for the same # of spaces as the width (≢) of ⍵.
-      SF2Code←{(⍕1,≢⍵),'⍴',SQ2} 
+    ⍝   Generate code for # of spaces passed as a string.
+      SF2Code←{ '1 ',⍵,'⍴',SQ2}∘⍕ 
+    ⍝ SFChoices (see pattern SFp):  
+    ⍝   Call: SFChoices f¨1 2.  
+    ⍝   f 1: 0 or more space chars. f 2: a string of 0 or more valid digits. Per SFp.
+    ⍝   Returns # of spaces (numeric): res ≥ 0
+    ⍝   We limit lengths (# spaces) to 99 via curried ⍺.
+      SFChoices←99∘{ ⍺≥len←{0=≢⍵: ≢⍺ ⋄ 10⊥⎕D⍳⍵}/⍵: len ⋄ ⎕SIGNAL/'∆F DOMAIN ERROR: Space Field Too Wide' 11 }     
     ⍝ +---------------------------------------------------+
     ⍝ | Constants for String Conversion Functions above   |
     ⍝ +---------------------------------------------------+
@@ -167,7 +172,11 @@
     ⍝   DQ   Double-quoted string in Code field  ⍝
     ⍝ *******************************************⍝
       TFp← '(\\.|[^{\\]+)+'               
-      SFp← '\{(\h*)(?:⍝[^}]*)?\}'      ⍝ We capture leading spaces, and allow and ignore trailing comments.
+    ⍝ SFp: We capture spaces in {...}, excluding comments. Experimentally allow :\d+: as well.
+    ⍝      Format:    { spaces [⍝com] }    OR   {  :digits[:]  }
+    ⍝      SFChoices converts digits to (digits⍴' '), if set. Else returns <spaces> spaces.
+    ⍝      We allow any # of digits, but disallow more than 3 in SFChoices.
+      SFp← '(?x) \{  (\h* (?::\h*(\d+)\h*:?\h*)? )  (?:⍝[^}]*)?  \}'   
     ⍝ CFp: Don't try to understand this regex. 
     ⍝ OK, in brief, we match the pattern <P>: 
     ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
@@ -220,8 +229,8 @@
       COMPILE: {
           _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
               CASE TFi:   RESULT_Compile TF2Code TFEsc f 0  
-              CASE SFi:   RESULT_Compile SF2Code       f 1 
-              CASE CFi:   RESULT_Compile CFScan        f 0
+              CASE SFi:   RESULT_Compile SF2Code SFChoices f¨1 2
+              CASE CFi:   RESULT_Compile CFScan        f 0  
               '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911 
           }⊣OMEGA0  ⍝ Pass the format string only...
           0∊⍴RESULT: '{1 0⍴''''}'   ⍝ Null format string => Return code equiv. 
@@ -236,9 +245,9 @@
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
           _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
-              CASE TFi:   RESULT_Immed TFEsc  f 0 
-              CASE SFi:   RESULT_Immed        f 1    
-              CASE CFi:   RESULT_Immed CFScan f 0
+              CASE TFi:   RESULT_Immed TFEsc          f 0 
+              CASE SFi:   RESULT_Immed ' '⍴⍨SFChoices f¨1 2  
+              CASE CFi:   RESULT_Immed CFScan         f 0
               '∆F LOGIC ERROR: UNREACHABLE STMT' ⎕SIGNAL 911
           }⊣OMEGA0    ⍝ Pass the format string only...
           ASSERT_TRUE: _←1⊣   ⎕←RESULT    
@@ -249,8 +258,10 @@
     ⍝************************←←←**********⍝ 
   },⊆⍵
 }
+⍝ "Promote ∆F" to ##.∆Format
+##.∆F←∆F
 
-:Namespace ∆Format
+⍝ Lib: peer Library used in runtime version (via "COMPILE" option (⍺)) 
 :Namespace Lib
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
@@ -265,7 +276,7 @@
   ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢
        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ Pick up caller's ⎕FR and (for 1adic case) ⎕PP. 
+        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ This still doesn't pick up local ⎕FR or ⎕PP set in a DFN. Dyalog bug???
         4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
         1≡⍺ 1: ∆FMT ⍵
         srcP snkR←'^ *(?|([LCRlcr]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
@@ -315,7 +326,7 @@
     ⍝ UNDER REVIEW:
     ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
       TITLE←{
-          1<⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=≡⍵: ∇¨⍵
+          2=⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=|≡⍵: ∇¨⍵
           1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
       } 
 ⍝ +----------------------------------------------------------------------------+
@@ -323,8 +334,9 @@
 ⍝ +----------------------------------------------------------------------------+
  
 :EndNamespace
+
 ⍝ HELP FILE and UTILITY...  Choose html or pdf based on convenience...
-HELP_FI←'./MyDyalogLibrary/pmsLibrary/src/∆FormatHelp.',⊃  'html' 'pdf'
+HELP_FI←'./MyDyalogLibrary/pmsLibrary/src/∆FormatHelp.',0 ⊃  'html' 'pdf'
 _HELP_←{
      0::''⊣{
        ⎕←'Showing limited HELP info...'
