@@ -284,9 +284,9 @@
   ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢ ⋄ ⎕IO←0  ⋄ WIDTH_MAX←999
        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
-        ∆FMT←(⊃⌽⎕RSI).⎕FMT                           ⍝ This still doesn't pick up >>local<< ⎕FR or ⎕PP set in a DFN. Dyalog bug???
-        4 7::⎕SIGNAL/⎕DMX.(EM EN)                    ⍝ RANK ERROR, FORMAT ERROR
-        1≡⍺ 1: ⎕FMT ⍵
+        ∆FMT←  ⎕FMT                                   ⍝  Even with (⊃⌽⎕RSI), this still doesn't pick up >>local<< ⎕FR or ⎕PP set in a DFN. Dyalog bug???
+        4 7::⎕SIGNAL/⎕DMX.(EM EN)                     ⍝ RANK ERROR, FORMAT ERROR
+        1≡⍺ 1: ∆FMT ⍵
         srcP snkR←'^ *(?|([LCRlcr]) *(\d+)[ ,]*|()() *)(.*)$' '\1\n\2\n\3\n'
         xtra wReq std←srcP ⎕R snkR⊢⊆,⍺                ⍝ Grab extra (XO) and standard (SO) ⎕FMT opts...
         noColV xtra←('lcr'∊⍨⊃xtra)(1 ⎕C xtra)         ⍝ If xtra∊l|c|r, set as L|C|R and set noColV←1
@@ -294,7 +294,7 @@
         CoerceV←noColV∘{~(1=|≡⍵)∧1=⍴⍴⍵: ⍵ ⋄ ⍺: ⍉⍪⍵ ⋄ ⍪⍵}         
         xtra≡'':⍺  ∆FMT CoerceV ⍵                     ⍝ 1.  SO only?  
         obj←std{
-            ''≡⍺:   ⎕FMT ⍵                            ⍝ 2a. XO only?  
+            ''≡⍺:   ∆FMT  ⍵                          ⍝ 2a. XO only?  
                   ⍺ ∆FMT ⍵                            ⍝ 2b. Both XO and SO? As in 1.
         }CoerceV ⍵   
         wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Faster than (⊃⌽⎕VFI wReq)  
