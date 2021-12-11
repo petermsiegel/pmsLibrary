@@ -13983,7 +13983,7 @@ a.anchor-link {
 <li>Getting Started</li>
 <li>∆F Fields<ul>
 <li>Text Fields are 2D<ul>
-<li>Newlines and Escapes: \⋄  \{  \}  \</li>
+<li>Newlines and other Escape Sequences: <code>\⋄</code> and <code>\{</code>  <code>\}</code>  <code>\</code></li>
 </ul>
 </li>
 <li>Code Fields: Basics<ul>
@@ -14025,22 +14025,22 @@ a.anchor-link {
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Let's be sure the file <strong>∆Format.dyalog</strong> is accessible and loaded. When fixed, it creates a single function <code>∆F</code>. And let's be sure the environment is set up. <strong><em>We'll assume an Index Origin (<code>⎕IO</code>) of <code>0</code> for this session.</em></strong></p>
+<p>Let's be sure the file <strong>∆Format.dyalog</strong> is accessible and loaded. When fixed, it creates a single function <code>∆F</code>. And let's be sure the environment is set up. <strong><em>We'll assume an Index Origin of 0 (<code>⎕IO←0</code>) for this session.</em></strong></p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[119]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ⎕←  &#39;0. Our active directory is &#39;,⎕SH &#39;pwd&#39;</span>
- <span class="s1">&#39;1. Does ∆Format.dyalog exist in this directory? &#39;</span><span class="o">,</span><span class="p">(</span><span class="nf">⎕NEXISTS</span> <span class="s1">&#39;∆Format.dyalog&#39;</span><span class="p">)</span><span class="o">⊃</span><span class="s1">&#39;No&#39;</span> <span class="s1">&#39;Yes&#39;</span>
- <span class="s1">&#39;2. Loading ∆Format.dyalog as:&#39;</span><span class="o">,</span><span class="p">(</span><span class="o">∪</span><span class="m">2</span> <span class="nf">⎕FIX</span> <span class="s1">&#39;file://∆Format.dyalog&#39;</span><span class="p">)</span>
- <span class="s1">&#39;3. ∆F utility now exists!&#39;</span> <span class="s1">&#39;3. Whoops!&#39;</span> <span class="o">⊃</span><span class="na">⍨</span><span class="m">3</span><span class="o">≠</span><span class="nf">⎕NC</span> <span class="s1">&#39;∆F&#39;</span>
+ <span class="s1">&#39;1. Does ∆Format.dyalog exist in this directory? &#39;</span><span class="o">,</span> <span class="s1">&#39;No&#39;</span> <span class="s1">&#39;Yes&#39;</span><span class="o">⊃</span><span class="na">⍨</span> <span class="nf">⎕NEXISTS</span> <span class="s1">&#39;∆Format.dyalog&#39;</span> 
+ <span class="s1">&#39;2. Loading ∆Format.dyalog as:&#39;</span><span class="o">,</span><span class="p">(</span><span class="m">2</span> <span class="nf">⎕FIX</span> <span class="s1">&#39;file://∆Format.dyalog&#39;</span><span class="p">)</span>
+ <span class="s1">&#39;3. &#39;</span><span class="o">,</span><span class="s1">&#39;∆F utility now exists!&#39;</span> <span class="s1">&#39;Whoops! No ∆F function.&#39;</span> <span class="o">⊃</span><span class="na">⍨</span><span class="m">3</span><span class="o">≠</span><span class="nf">⎕NC</span> <span class="s1">&#39;∆F&#39;</span>
 
 <span class="c1">⍝ Set the usual system vars to something reasonable...</span>
-  <span class="nf">⎕IO</span> <span class="kd">←</span> <span class="m">0</span> <span class="p">⋄</span> <span class="nf">⎕ML</span><span class="kd">←</span><span class="m">1</span> <span class="p">⋄</span> <span class="nf">⎕PP</span><span class="kd">←</span><span class="m">6</span> <span class="p">⋄</span> <span class="nf">⎕FR</span><span class="kd">←</span><span class="m">645</span>
+  <span class="nf">⎕IO</span><span class="kd">←</span> <span class="m">0</span> <span class="p">⋄</span> <span class="nf">⎕ML</span><span class="kd">←</span> <span class="m">1</span> <span class="p">⋄</span> <span class="nf">⎕PP</span><span class="kd">←</span> <span class="m">6</span> <span class="p">⋄</span> <span class="nf">⎕FR</span><span class="kd">←</span> <span class="m">645</span>
 </pre></div>
 
      </div>
@@ -14056,7 +14056,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[119]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[1]:</div>
 
 
 
@@ -14070,7 +14070,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[119]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[1]:</div>
 
 
 
@@ -14084,7 +14084,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[119]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[1]:</div>
 
 
 
@@ -14109,7 +14109,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[120]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">string</span>  <span class="kd">←</span> <span class="s1">&#39;This is a string&#39;</span>
@@ -14130,7 +14130,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[121]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;My string = &quot;{string}&quot;.  My numbers = {numbers}.&#39;</span>
@@ -14149,7 +14149,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[121]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[3]:</div>
 
 
 
@@ -14174,7 +14174,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[122]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{string → }.  {numbers → }&#39;</span>
@@ -14193,7 +14193,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[122]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[4]:</div>
 
 
 
@@ -14212,13 +14212,14 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>But, let's start at the <strong>beginning</strong>!</p>
-<h2 id="%E2%88%86F-Fields">&#8710;F Fields<a class="anchor-link" href="#%E2%88%86F-Fields">&#182;</a></h2><h3 id="Text-Fields-are-2D:-'A-simple-string'">Text Fields are 2D: <code>'A simple string'</code><a class="anchor-link" href="#Text-Fields-are-2D:-'A-simple-string'">&#182;</a></h3><p>The simplest possible format string-- we'll call it an <strong>∆F</strong> string-- consists of a simple <strong>Text</strong> field.</p>
+<h2>∆F Fields<br>Text Fields, Code Fields, and Space Fields</h2>
+<h3 id="Text-Fields:-'A-simple-string'">Text Fields: <code>'A simple string'</code><a class="anchor-link" href="#Text-Fields:-'A-simple-string'">&#182;</a></h3><p>The simplest possible format string-- we'll call it an <strong>∆F</strong> string-- consists of a simple <strong>Text</strong> field.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[123]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This is a simple string.&#39;</span>
@@ -14237,12 +14238,55 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[123]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[5]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
 <span style="white-space:pre; font-family: monospace">This is a simple string.
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h4 id="Text-Fields-are-2D">Text Fields are 2D<a class="anchor-link" href="#Text-Fields-are-2D">&#182;</a></h4><p>Like <code>⎕FMT</code>-formatted objects, text fields are always 2-dimensional (matrices).</p>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[6]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="o">⍴</span><span class="nv">∆F</span> <span class="s1">&#39;This is a simple string.&#39;</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[6]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">1 24
 </span>
 </div>
 
@@ -14261,7 +14305,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[124]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[7]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This\⋄is a\⋄multiline string.&#39;</span>
@@ -14280,7 +14324,7 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[124]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[7]:</div>
 
 
 
@@ -14308,7 +14352,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[125]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[8]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;This is a diamond ⋄, an opening brace \{, a closing brace \}, and a backslash \\.&#39;</span>
@@ -14327,7 +14371,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[125]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[8]:</div>
 
 
 
@@ -14351,7 +14395,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[126]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[9]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;&quot;We can sum the numbers ⍵ via +\⍵&quot;&#39;</span>
@@ -14371,7 +14415,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[126]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[9]:</div>
 
 
 
@@ -14385,7 +14429,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[126]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[9]:</div>
 
 
 
@@ -14409,7 +14453,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[127]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[10]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">what</span><span class="kd">←</span>  <span class="s1">&#39;This&#39;</span>
@@ -14431,7 +14475,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[128]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[11]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{what} is a {type} {thing}.&#39;</span>
@@ -14450,7 +14494,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[128]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[11]:</div>
 
 
 
@@ -14470,12 +14514,12 @@ multiline string.
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <h4 id="Knowing-Your-Fields">Knowing Your Fields<a class="anchor-link" href="#Knowing-Your-Fields">&#182;</a></h4><p>This ∆F string consists of six fields:</p>
 <ol>
-<li>a <strong>Code</strong> field <code>{what}</code>, which returns the value of the variable <code>what</code>; </li>
-<li>a <strong>Text</strong> field <code>" is a "</code>;</li>
-<li>another <strong>Code</strong> field <code>{type}</code>, returning the value of the variable <code>type</code>;</li>
-<li>a short <strong>Text</strong> field <code>" "</code>; </li>
-<li>a <strong>Code</strong> field <code>{thing}</code>, referencing <code>thing</code>; and finally,</li>
-<li>a final <strong>Text</strong> field <code>"."</code>.</li>
+<li>a <strong>Code</strong> Field <code>{what}</code>, which returns the value of the variable <code>what</code>; </li>
+<li>a <strong>Text</strong> Field <code>" is a "</code>;</li>
+<li>another <strong>Code</strong> Field <code>{type}</code>, returning the value of the variable <code>type</code>;</li>
+<li>a short <strong>Text</strong> Field <code>" "</code>; </li>
+<li>a <strong>Code</strong> Field <code>{thing}</code>, referencing <code>thing</code>; and finally,</li>
+<li>a final <strong>Text</strong> Field <code>"."</code>.</li>
 </ol>
 <h4 id="Debug-Mode:-'debug'-%E2%88%86F-...">Debug Mode: <code>'debug' &#8710;F ...</code><a class="anchor-link" href="#Debug-Mode:-'debug'-%E2%88%86F-...">&#182;</a></h4><p>We can show each of the fields more graphically using the <em>debug</em> option (abbreviated <em>d</em>), which places each field in a separate display box and marks each space in each field by a middle dot <code>·</code>.</p>
 
@@ -14483,7 +14527,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[129]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[12]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="s1">&#39;d&#39;</span> <span class="nv">∆F</span> <span class="s1">&#39;{what} is a {type} {thing}.&#39;</span>
@@ -14502,13 +14546,13 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[129]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[12]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→───┐┌→─────┐┌→─────┐┌→┐┌→─────┐┌→┐
-↓This│↓·is·a·│↓simple│↓·│↓string│↓.│
+<span style="white-space:pre; font-family: monospace">┌────┐┌──────┐┌──────┐┌─┐┌──────┐┌─┐
+│This││·is·a·││simple││·││string││.│
 └────┘└──────┘└──────┘└─┘└──────┘└─┘
 </span>
 </div>
@@ -14523,20 +14567,26 @@ multiline string.
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <h4 id="Code-Fields-Are-DFNS:-%E2%88%86F-'%7B%E2%8D%AA%E2%8D%B33%7D-%7B%E2%86%91%22Name%22-%22Addr%22-%22Phone%22%7D'">Code Fields Are DFNS: <code>&#8710;F '{&#9066;&#9075;3} {&#8593;"Name" "Addr" "Phone"}'</code><a class="anchor-link" href="#Code-Fields-Are-DFNS:-%E2%88%86F-'%7B%E2%8D%AA%E2%8D%B33%7D-%7B%E2%86%91%22Name%22-%22Addr%22-%22Phone%22%7D'">&#182;</a></h4><p>As shown above, in addition to <strong>Text</strong> fields, we can create executable <strong>Code</strong> fields, using braces {...}. A <strong>Code</strong> field with bare variable names is the simplest type of <strong>Code</strong> field.</p>
-<p><strong>Code</strong> fields can be generalized as dfns evaluated in the active (caller's) namespace. While each <strong>Code</strong> field is executed via ordinary APL rules (statements left-to-right and right-to-left within statements), <strong>Code</strong> fields within a <code>∆F</code> format string are themselves executed left-to-right:</p>
-
-<pre><code> the left-most Code field is executed first, then the one to its right, and so on.
-
-</code></pre>
+<p><strong>Code</strong> fields can be generalized as dfns evaluated in the active (caller's) namespace. While each <strong>Code</strong> field is executed via ordinary APL rules (statements left-to-right and right-to-left within statements), <strong>Code</strong> fields within a <strong>∆F</strong> format string are themselves executed left-to-right:</p>
+<ul>
+<li>the left-most Code field is executed first, then the one to its right, and so on.</li>
+</ul>
+<p>Each <strong>Code</strong> field has implicit arguments <code>⍵</code> and <code>⍺</code>:</p>
+<ul>
+<li>⍵ consists of all the arguments to the full <strong>∆F</strong>. These can be accessed individually 
+via ⍹0, ⍹1, etc (see below).</li>
+<li>⍺ is a reference to a special namespace with a small library and a place to share 
+temporary variables across <strong>Code</strong> fields (see below).</li>
+</ul>
 <p>Each <strong>Code</strong> field <em>must</em> return a value (perhaps a null string).</p>
-<h4 id="Code-Field-Comments:-%7B...-%E2%8D%9D...%7D">Code Field Comments: <code>{... &#9053;...}</code><a class="anchor-link" href="#Code-Field-Comments:-%7B...-%E2%8D%9D...%7D">&#182;</a></h4><p>A Code field may end with a comment, which starts with a lamp <code>⍝</code> and contain no braces or ⋄; it terminates just before a following lozenge <code>⋄</code> or closing brace <code>}</code>.</p>
+<h4 id="Code-Field-Comments:-%7B...-%E2%8D%9D...%7D">Code Field Comments: <code>{... &#9053;...}</code><a class="anchor-link" href="#Code-Field-Comments:-%7B...-%E2%8D%9D...%7D">&#182;</a></h4><p>A Code field may include one or more comments. Each comment starts with a lamp <code>⍝</code> and contain no braces or ⋄; it terminates just before a following diamond <code>⋄</code> or a closing brace <code>}</code>.</p>
 <p>For example:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[130]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[13]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ ?0  ⍝ A random number ⍵: 0&lt;⍵&lt;1 }&#39;</span>
@@ -14555,12 +14605,12 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[130]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[13]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.773367
+<span style="white-space:pre; font-family: monospace">0.391368
 </span>
 </div>
 
@@ -14579,7 +14629,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[131]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[14]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">nums</span><span class="kd">←</span>  <span class="o">⍪⍳</span><span class="m">3</span>
@@ -14602,7 +14652,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[131]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[14]:</div>
 
 
 
@@ -14635,7 +14685,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[132]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[15]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">what</span><span class="kd">←</span><span class="s1">&#39;This&#39;</span> <span class="s1">&#39;That&#39;</span> <span class="s1">&#39;The other thing&#39;</span>
@@ -14657,7 +14707,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[132]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[15]:</div>
 
 
 
@@ -14677,13 +14727,13 @@ multiline string.
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Code-Fields-for-Calculations">Code Fields for Calculations<a class="anchor-link" href="#Code-Fields-for-Calculations">&#182;</a></h4><p>As you have already seen, <code>∆F</code> <strong>Code</strong> fields can be used for arbitrary calculations:</p>
+<h4 id="Code-Fields-Support-Arbitrary-Calculations">Code Fields Support Arbitrary Calculations<a class="anchor-link" href="#Code-Fields-Support-Arbitrary-Calculations">&#182;</a></h4><p>As you have already seen, <code>∆F</code> <strong>Code</strong> fields can be used for arbitrary calculations:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[133]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[16]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">r</span><span class="kd">←</span><span class="m">1</span> <span class="m">2</span> <span class="m">5</span>    <span class="c1">⍝ radius  </span>
@@ -14704,7 +14754,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[133]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[16]:</div>
 
 
 
@@ -14730,7 +14780,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[134]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[17]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">ctr</span><span class="kd">←</span><span class="m">1</span>
@@ -14750,7 +14800,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[134]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[17]:</div>
 
 
 
@@ -14776,7 +14826,7 @@ multiline string.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[135]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[18]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝                     Row 1  Row 2                 Row 3...</span>
@@ -14796,7 +14846,7 @@ multiline string.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[135]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[18]:</div>
 
 
 
@@ -14818,14 +14868,14 @@ isn't it?
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <h3 id="Space-Fields:-%7B--%7D">Space Fields: <code>{  }</code><a class="anchor-link" href="#Space-Fields:-%7B--%7D">&#182;</a></h3><p>The third and last field type is a <strong>Space</strong> field, which looks just like an <em>empty</em> <b>Code</b> Field, containing only zero or more spaces between the braces <code>{</code> <code>}</code> and, optionally, a comment. A <strong>Space</strong> field forms a distinct field and is a good way to separate other sorts of fields, i.e. <strong>Text</strong> or <strong>Code</strong> fields.</p>
-<h4 id="Space-Field-Comments:-%7B--%E2%8D%9D...%7D">Space Field Comments: <code>{  &#9053;...}</code><a class="anchor-link" href="#Space-Field-Comments:-%7B--%E2%8D%9D...%7D">&#182;</a></h4><p>A <strong>Space</strong> field may include a comment, which starts with a lamp <code>⍝</code> and contains <strong><em>no</em></strong> braces; the comment ends just before the right brace <code>}</code> that ends the <strong>Space</strong> field.</p>
+<h4 id="Space-Field-Comments:-%7B--%E2%8D%9D...%7D">Space Field Comments: <code>{  &#9053;...}</code><a class="anchor-link" href="#Space-Field-Comments:-%7B--%E2%8D%9D...%7D">&#182;</a></h4><p>A <strong>Space</strong> field may include a comment, which starts with a lamp <code>⍝</code> and contains <strong><em>no</em></strong> braces; the comment ends just before the right brace <code>}</code> that terminates the <strong>Space</strong> field.</p>
 <p>For example:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[136]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[19]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Show Space Field comments...                           </span>
@@ -14846,7 +14896,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[136]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[19]:</div>
 
 
 
@@ -14862,13 +14912,13 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[136]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[19]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→┐┌→────┐┌→──────┐
-↓1│↓·····│↓3.14159│
+<span style="white-space:pre; font-family: monospace">┌─┐┌─────┐┌───────┐
+│1││·····││3.14159│
 │2│└─────┘│6.28319│
 │3│       │9.42478│
 └─┘       └───────┘
@@ -14889,7 +14939,7 @@ isn't it?
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[137]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[20]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...</span>
@@ -14910,7 +14960,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[137]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[20]:</div>
 
 
 
@@ -14924,13 +14974,13 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[137]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[20]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→──────┐┌→┐┌→──────┐
-↓This·is│↓·│↓a·test.│
+<span style="white-space:pre; font-family: monospace">┌───────┐┌─┐┌───────┐
+│This·is││·││a·test.│
 └───────┘└─┘└───────┘
 </span>
 </div>
@@ -14955,7 +15005,7 @@ isn't it?
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[138]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[21]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...</span>
@@ -14976,7 +15026,7 @@ isn't it?
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[138]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[21]:</div>
 
 
 
@@ -14993,13 +15043,13 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[138]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[21]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→────────┐┌→┐┌→───────┐
-↓This·····│↓·│↓This····│
+<span style="white-space:pre; font-family: monospace">┌─────────┐┌─┐┌────────┐
+│This·····││·││This····│
 │is·a·····│└─┘│is······│
 │multiline│   │as·well!│
 │field!···│   └────────┘
@@ -15022,7 +15072,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[139]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[22]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;1. \⋄2.\⋄3.{}Jane\⋄John\⋄Nancy&#39;</span>
@@ -15041,7 +15091,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[139]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[22]:</div>
 
 
 
@@ -15064,13 +15114,14 @@ field!
 <p>This is equivalent, with an explicit Space field of length 1.</p>
 
 <pre><code> ∆F '1.\⋄2.\⋄3.{ }Jane\⋄John\⋄Nancy'</code></pre>
-<h4 id="Space-Fields-with-explicit-width-counts:--%7B--:30:-%7D">Space Fields with explicit width counts:  <code>{  :30: }</code><a class="anchor-link" href="#Space-Fields-with-explicit-width-counts:--%7B--:30:-%7D">&#182;</a></h4><p>Sometimes it's a bit inconvenient to count out a field width or to specify a wide <strong>Space Field</strong>. If so, simply enter the desired number of spaces between colons inside the braces (possibly followed by a comment). Colons are intended to maintain brevity, while avoiding confusion with <strong>dfn</strong> syntax. Here we separate each <strong>Code Field</strong> by exactly five spaces:</p>
+<h4 id="Space-Fields-with-explicit-width-counts:--%7B--:30:-%7D">Space Fields with explicit width counts:  <code>{  :30: }</code><a class="anchor-link" href="#Space-Fields-with-explicit-width-counts:--%7B--:30:-%7D">&#182;</a></h4><p>Sometimes it's a bit inconvenient to count out a field width or to specify a wide <strong>Space Field</strong>. If so, rather than typing the actual spaces, simply enter inside the braces the desired number of spaces <strong><em>as an integer</em></strong> between two colons (possibly followed by a comment). The colons are  there to avoid confusion with <strong>dfn</strong> syntax. Each explicit width count must between <strong><em>0 and 999</em></strong>.</p>
+<p>Here we separate each <strong>Code Field</strong> by exactly five spaces, encoded <em>slightly</em> differently:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[140]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[23]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ ...         12345        Five         Still Five Spaces</span>
@@ -15091,7 +15142,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[140]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[23]:</div>
 
 
 
@@ -15106,13 +15157,13 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[140]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[23]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→┐┌→────┐┌→──────┐┌→────┐┌→──────┐┌→────┐┌→───────┐
-↓1│↓·····│↓3.14159│↓·····│↓2.71828│↓·····│↓·8.53973│
+<span style="white-space:pre; font-family: monospace">┌─┐┌─────┐┌───────┐┌─────┐┌───────┐┌─────┐┌────────┐
+│1││·····││3.14159││·····││2.71828││·····││·8.53973│
 │2│└─────┘│6.28319│└─────┘│7.38906│└─────┘│46.4268·│
 └─┘       └───────┘       └───────┘       └────────┘
 </span>
@@ -15127,16 +15178,16 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="(More-on)-Code-Fields:-Advanced-Topics">(More on) Code Fields: Advanced Topics<a class="anchor-link" href="#(More-on)-Code-Fields:-Advanced-Topics">&#182;</a></h3><h4 id="Pseudo-builtin-$-for-Detailed-Formatting">Pseudo-builtin <code>$</code> for Detailed Formatting<a class="anchor-link" href="#Pseudo-builtin-$-for-Detailed-Formatting">&#182;</a></h4><p>Here's how to do this more elegantly using the pseudo-builtin <code>$</code>, which is a nice way to use the Dyalog APL formatting utility <code>⎕FMT</code>.</p>
+<h3 id="(More-on)-Code-Fields:-Advanced-Topics">(More on) Code Fields: Advanced Topics<a class="anchor-link" href="#(More-on)-Code-Fields:-Advanced-Topics">&#182;</a></h3><h4 id="Pseudo-builtin-$-for-Detailed-Formatting">Pseudo-builtin <code>$</code> for Detailed Formatting<a class="anchor-link" href="#Pseudo-builtin-$-for-Detailed-Formatting">&#182;</a></h4><p>Dyalog APL has a built-in formatting utility <code>⎕FMT</code>, which may be old-fashioned but is rather essential for precise formatting of numerical data (and sometimes text data). To make <code>⎕FMT</code> and its standard parameters easier to use, we provide it as the pseudo-builtin <code>$</code>, with extensions described below. Here's a typical example, where the (optional) formatted left argument (⍺) is placed within a DQ string (as required with <code>∆F</code> <strong>Code</strong> Fields):</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[141]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[24]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{&quot;I1,⊂. ⊃&quot; $ 1+⍳3}Jane\⋄John\⋄Nancy&#39;</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ &quot;F8.6&quot; $ ?3⍴0  ⍝ Random Floats }  {&quot;ZI2,⊂/⊃,ZI2,⊂/⊃,ZI4&quot; $ ⍉⍪⎕TS[2 1 0] ⍝ a European Style Date}&#39;</span>
 </pre></div>
 
      </div>
@@ -15152,14 +15203,14 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[141]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[24]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">1. Jane 
-2. John 
-3. Nancy
+<span style="white-space:pre; font-family: monospace">0.742335  10/12/2021
+0.196002            
+0.215541            
 </span>
 </div>
 
@@ -15172,16 +15223,17 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Now, let's move on to a few more examples.</p>
+<p>Keep in mind that <code>$</code>, like <code>⎕FMT</code>, treats simple vectors as column vectors (1-column matrices) <strong><em>by default</em></strong>. (<strong>∆F</strong> has a way to override this default: see below.)</p>
+<p>Let's move on to another example with <code>⎕FMT</code> features you may have forgotten.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[142]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[25]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;Multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳4} {&quot;F10.7&quot; $ ○1 2 3 4}&#39;</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;Multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳4} {&quot;F10.7,⊂…⊃&quot; $ ○1 2 3 4}&#39;</span>
 </pre></div>
 
      </div>
@@ -15197,15 +15249,15 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[142]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[25]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">Multiples of pi: 1×π =  3.1415927
-                 2×π =  6.2831853
-                 3×π =  9.4247780
-                 4×π = 12.5663706
+<span style="white-space:pre; font-family: monospace">Multiples of pi: 1×π =  3.1415927…
+                 2×π =  6.2831853…
+                 3×π =  9.4247780…
+                 4×π = 12.5663706…
 </span>
 </div>
 
@@ -15224,7 +15276,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[143]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[26]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="s1">&#39;d&#39;</span> <span class="nv">∆F</span> <span class="s1">&#39;Multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳4} {&quot;F10.7&quot; $ ○1 2 3 4}&#39;</span>
@@ -15243,13 +15295,13 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[143]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[26]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→────────────────┐┌→────┐┌→┐┌→─────────┐
-↓Multiples·of·pi:·│↓1×π·=│↓·│↓·3.1415927│
+<span style="white-space:pre; font-family: monospace">┌─────────────────┐┌─────┐┌─┐┌──────────┐
+│Multiples·of·pi:·││1×π·=││·││·3.1415927│
 └─────────────────┘│2×π·=│└─┘│·6.2831853│
                    │3×π·=│   │·9.4247780│
                    │4×π·=│   │12.5663706│
@@ -15272,14 +15324,14 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[144]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[27]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">OVER</span><span class="kd">←</span>  <span class="p">(</span><span class="o">⍪,</span><span class="na">⍥</span><span class="o">⊂</span><span class="p">)</span>                                     <span class="c1">⍝ A Helper Function</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">OVER</span><span class="kd">←</span>  <span class="p">(</span><span class="o">⍪,</span><span class="na">⍥</span><span class="o">⊂</span><span class="p">)</span>                                        <span class="c1">⍝ A Helper Function</span>
 <span class="nv">boats</span><span class="kd">←</span> <span class="p">(</span><span class="o">↑</span><span class="s1">&#39;Nina&#39;</span> <span class="s1">&#39;Pinta&#39;</span> <span class="s1">&#39;Santa Maria&#39;</span><span class="p">)</span>  
 
-<span class="nv">title</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;Default (Spaces){}  With Middle Dots&#39;</span>
-<span class="nv">bfmt</span><span class="kd">←</span>  <span class="nv">∆F</span> <span class="s1">&#39; { $$ ⍵1}     { 1 $$ ⍵1 }&#39;</span> <span class="nv">boats</span>       <span class="c1">⍝ Hold on! We explain ⍵1 just below.</span>
+<span class="nv">title</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;Default (Spaces) { :7: } With Middle Dots&#39;</span>
+<span class="nv">bfmt</span><span class="kd">←</span>  <span class="nv">∆F</span> <span class="s1">&#39; { $$ ⍵1} {:10:} { 1 $$ ⍵1 }&#39;</span> <span class="nv">boats</span>       <span class="c1">⍝ Hold on! We explain ⍵1 just below.</span>
 <span class="nv">title</span> <span class="nv">OVER</span> <span class="nv">bfmt</span>
 </pre></div>
 
@@ -15296,17 +15348,17 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[144]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[27]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace"> Default (Spaces)  With Middle Dots 
-  ┌→──────────┐     ┌→──────────┐   
-  ↓Nina       │     ↓Nina·······│   
-  │Pinta      │     │Pinta······│   
-  │Santa Maria│     │Santa·Maria│   
-  └───────────┘     └───────────┘   
+<span style="white-space:pre; font-family: monospace"> Default (Spaces)         With Middle Dots 
+  ┌───────────┐            ┌───────────┐   
+  │Nina       │            │Nina·······│   
+  │Pinta      │            │Pinta······│   
+  │Santa Maria│            │Santa·Maria│   
+  └───────────┘            └───────────┘   
 </span>
 </div>
 
@@ -15345,7 +15397,7 @@ field!
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[145]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[28]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{⍹1} multiples of pi: {&quot;I1,⊂×π =⊃&quot; $ 1+⍳⍹1 } {&quot;F10.7&quot; $ ○ 1+⍳⍹1}&#39;</span>  <span class="m">3</span>  
@@ -15365,7 +15417,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[145]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[28]:</div>
 
 
 
@@ -15381,7 +15433,7 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[145]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[28]:</div>
 
 
 
@@ -15401,23 +15453,28 @@ field!
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>The symbol <code>⍹</code> used alone in a <strong>Code</strong> field will select the <em>next</em> argument in sequence:</p>
-
-<pre><code> - ⍹ means ⍹1 if this is the first use in any Code field of either an explicit ⍹N or bare ⍹, else 
- - ⍹ means ⍹N+1 if ⍹N was the most recently accessed: 
-    - For example, ⍹ references ⍹5 if ⍹4 was the most recently accessed, explicitly or implicitly. 
-
-</code></pre>
+<ul>
+<li>⍹ means ⍹1 if this is the first use in any Code field of either an explicit ⍹N or bare ⍹, else </li>
+<li>⍹ means ⍹N+1 if ⍹N was the most recently accessed: <ul>
+<li>For example, ⍹ references ⍹5 if ⍹4 was the most recently accessed, explicitly or implicitly. </li>
+</ul>
+</li>
+</ul>
 <p>This makes it easy to format a set of items:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[146]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[29]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝          ⍵1  ⍵2               ⍵3  ⍵4   ⍵1         ⍵2                  ⍵3         ⍵4</span>
-<span class="nv">∆F</span> <span class="s1">&#39;Rate: {⍹ $ ⍹}; cur. value: {⍹ $ ⍹}&#39;</span> <span class="s1">&#39;F5.2,⊂%⊃&#39;</span> <span class="p">(</span><span class="m">2.200</span> <span class="m">3.834</span> <span class="m">5.996</span><span class="p">)</span> <span class="s1">&#39;⊂£⊃,F7.2&#39;</span> <span class="p">(</span><span class="m">1000.23</span><span class="o">,</span> <span class="m">2250.19</span> <span class="m">2500.868</span><span class="p">)</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">w1F</span><span class="kd">←</span> <span class="s1">&#39;F4.2,⊂%⊃&#39;</span>
+<span class="nv">w2D</span><span class="kd">←</span> <span class="m">2.200</span> <span class="m">3.834</span> <span class="m">5.996</span>
+<span class="nv">w3F</span><span class="kd">←</span> <span class="s1">&#39;⊂£⊃,F7.2&#39;</span>
+<span class="nv">w4D</span><span class="kd">←</span> <span class="m">1000.23</span><span class="o">,</span> <span class="m">2250.19</span> <span class="m">2500.868</span>
+<span class="c1">⍝          ⍵1  ⍵2               ⍵3  ⍵4   ⍵1   ⍵2   ⍵3    ⍵4</span>
+<span class="nv">∆F</span> <span class="s1">&#39;Rate: {⍹ $ ⍹}; cur. value: {⍹ $ ⍹}&#39;</span>  <span class="nv">w1F</span>  <span class="nv">w2D</span>  <span class="nv">w3F</span>   <span class="nv">w4D</span>
 </pre></div>
 
      </div>
@@ -15433,14 +15490,14 @@ field!
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[146]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[29]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">Rate:  2.20%; cur. value: £1000.23
-       3.83%              £2250.19
-       6.00%              £2500.87
+<span style="white-space:pre; font-family: monospace">Rate: 2.20%; cur. value: £1000.23
+      3.83%              £2250.19
+      6.00%              £2500.87
 </span>
 </div>
 
@@ -15459,16 +15516,29 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Pseudo-Function-$:-Justification-and-Centering-Codes--L,-C,-R">Pseudo-Function <code>$</code>: Justification and Centering Codes  <em>L</em>, <em>C</em>, <em>R</em><a class="anchor-link" href="#Pseudo-Function-$:-Justification-and-Centering-Codes--L,-C,-R">&#182;</a></h4><p>The pseudo-function <code>$</code> has been extended with special codes for justifying or centering objects within a <strong>Code</strong> field.</p>
+<h4>Pseudo-Function <code>$</code>: Justification and Centering Codes  <em>L</em>, <em>C</em>, <em>R</em> <br>Vector Arg treated as Column Vector</h4>
+<p>The pseudo-function <code>$</code> has been extended with special codes for justifying or centering objects within a <strong>Code</strong> field. (Codes <em>l</em>, <em>c</em>, <em>r</em>— are discussed further below.)</p>
 
-<pre><code>VECTORS IN ⍵ TREATED AS COLUMN VECTORS
-   TYPE                   CODE    
-   left-justified text    Lnn        
-   centered text          Cnn     
-   right-justified text   Rnn 
-
-</code></pre>
-<p>The digits <code>nn</code>, a 1- or 2-digit number, indicates the minimum width of the field. If a field is already wider than <code>nn</code> characters, the field is left as is.
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<table align="left">
+    <caption><center>Codes <i>L, C, R</i></center></caption>
+<thead>
+    <tr><th>Justif.<br>Type</th><th>Col Vec<br>Preferred</th><th>Row Vec<br>Preferred</th></tr>
+</thead>
+<tbody>
+    <tr><td>left</td><td><b>L</b><i>nnn</i></td><td><b>l</b><i>nnn</i></td></tr>
+    <tr><td>center</td><td><b>C</b><i>nnn</i></td><td><b>c</b><i>nnn</i></td></tr>
+    <tr><td>right</td><td><b>R</b><i>nnn</i></td><td><b>r</b><i>nnn</i></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>The digits <code>nnn</code>, a 1- to 3-digit number, indicates the minimum width of the field. If a field is already wider than <code>nnn</code> characters, the field is left as is.
 These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  Only one special code may be used in each <code>$</code> call, but you may call <code>$</code> itself more than once) and that code must be the <em>first</em> or <em>only</em> code specified. If other (usually numerically-oriented) codes  follow, a comma must intervene (following the conventions of dyadic <code>⎕FMT</code>).</p>
 <p>Here, we <em>left-, center-</em>, and <em>right-</em>justify Names in the ∆F arguments.</p>
 
@@ -15476,7 +15546,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[147]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[30]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">names</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;John&#39;</span> <span class="s1">&#39;Mary&#39;</span>
@@ -15497,7 +15567,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[147]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[30]:</div>
 
 
 
@@ -15512,13 +15582,13 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[147]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[30]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">┌→┐┌→─────────┐┌→──┐┌→─────────┐┌→──┐┌→─────────┐┌→┐
-↓&lt;│↓John······│↓&gt;·&lt;│↓···John···│↓&gt;·&lt;│↓······John│↓&gt;│
+<span style="white-space:pre; font-family: monospace">┌─┐┌──────────┐┌───┐┌──────────┐┌───┐┌──────────┐┌─┐
+│&lt;││John······││&gt;·&lt;││···John···││&gt;·&lt;││······John││&gt;│
 └─┘│Mary······│└───┘│···Mary···│└───┘│······Mary│└─┘
    └──────────┘     └──────────┘     └──────────┘   
 </span>
@@ -15539,7 +15609,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[148]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[31]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">title</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;{    }Use ∆F Extension C25\⋄   25 chars wide{ :13: }Use ⎕FMT X6: 6+13+6=25\⋄    25 chars wide&#39;</span>
@@ -15560,15 +15630,15 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[148]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[31]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
 <span style="white-space:pre; font-family: monospace">     Use ∆F Extension C25             Use ⎕FMT X6: 6+13+6=25    
         25 chars wide                     25 chars wide         
- ┌→────────────────────────┐ versus ┌→────────────────────────┐ 
- ↓······006.283185307······│        ↓······006.283185307······│ 
+ ┌─────────────────────────┐ versus ┌─────────────────────────┐ 
+ │······006.283185307······│        │······006.283185307······│ 
  │······062.831853072······│        │······062.831853072······│ 
  │······942.477796077······│        │······942.477796077······│ 
  └─────────────────────────┘        └─────────────────────────┘ 
@@ -15585,16 +15655,28 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>Note also the use of the explicit digits in the <strong>Space</strong> field <code>{  :13:  }</code> to insert a significant set of spaces to separate the titles.</p>
-<h4>Pseudo-function <code>$</code>: Justification and Centering Codes <em>l</em>, <em>c</em>, <em>r</em>  <br>Vector arg treated as <em>1-Row Matrix</em> <strong>vs</strong> <em>Column Vector</em></h4>
-<p>Like standard ⎕FMT, <code>$</code> <em>by default</em> considers simple vectors in the code field as column vectors (as in the example above). This is true even for the extensions <code>L</code>, <code>C</code>, and <code>R</code>. However, you can override this, by specifying justification codes in lower case (<code>nn</code> is a 1- or 2-digit number):</p>
+<h4>Pseudo-function <code>$</code>: Justification and Centering Codes <em>l</em>, <em>c</em>, <em>r</em>  <br>Vector arg treated as <em>Row</em> Vector</h4>
+<p>Like standard ⎕FMT, <code>$</code> <em>by default</em> considers simple vectors in the code field as column vectors (as in the example above). This is true even for the extensions <code>L</code>, <code>C</code>, and <code>R</code>. However, you can override this, by specifying justification codes in lower case (<code>nnn</code> is a 1- to 3-digit number):</p>
 
-<pre><code>VECTORS IN ⍵ TREATED AS 1-ROW MATRICES 
-   TYPE                   CODE   
-   left-justified text    lnn      (lower-case "l") 
-   centered text          cnn     
-   right-justified text   rnn    
-
-</code></pre>
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<table align="left">
+     <caption><center>Codes <i>l, c, r</i></center></caption>
+<thead>
+    <tr><th>Justif.<br>Type</th><th>Col Vec<br>Preferred</th><th>Row Vec<br>Preferred</th></tr>
+</thead>
+<tbody>
+    <tr><td>left</td><td><b>L</b><i>nnn</i></td><td><b>l</b><i>nnn</i></td></tr>
+    <tr><td>center</td><td><b>C</b><i>nnn</i></td><td><b>c</b><i>nnn</i></td></tr>
+    <tr><td>right</td><td><b>R</b><i>nnn</i></td><td><b>r</b><i>nnn</i></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>If these are used, simple vectors in the code field used as arguments to <code>$</code> are treated as 1-row matrices instead.</p>
 <ul>
 <li>Right arguments that are not simple or are not a numeric or character vector are not impacted.</li>
@@ -15608,7 +15690,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[149]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[32]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;For n∊1 2 3, nπ = { &quot;c0&quot; $ ○ ⍵1 }.   {&quot;I1,⊂π = ⊃&quot; $ ⍵1} { &quot;C0&quot; $ ○⍵1 }&#39;</span> <span class="p">(</span><span class="m">1</span> <span class="m">2</span> <span class="m">3</span><span class="p">)</span>
@@ -15627,7 +15709,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[149]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[32]:</div>
 
 
 
@@ -15653,7 +15735,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[150]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[33]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">MyString</span><span class="kd">←</span> <span class="o">↑</span><span class="s1">&#39;This&#39;</span> <span class="s1">&#39;is my&#39;</span> <span class="s1">&#39;string&#39;</span>
@@ -15674,14 +15756,14 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[150]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[33]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
 <span style="white-space:pre; font-family: monospace">&lt;MyString ➤ This  &gt;  &lt; 3↑Today ➤ 2021&gt;.  &lt;"I4" $ 3↑Today  ➤  2021&gt;
             is my                  12                          12 
-            string                  2                           2 
+            string                 10                          10 
 </span>
 </div>
 
@@ -15694,17 +15776,17 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h5 id="Comments-in-Self-Documenting-Code-Fields">Comments in Self-Documenting Code Fields<a class="anchor-link" href="#Comments-in-Self-Documenting-Code-Fields">&#182;</a></h5><p><font color='green'> 
-Comments are are allowed in **Self-documenting Code Fields**, but must be terminated by a statement terminator `⋄` before the final right arrow, as in this example: </font></p>
+<p><font color='red'>**Warning:**</font> <strong>Jupyter Notebook</strong> seems to improperly format some APL output, including output from self-documenting <strong>Code</strong> fields. This does not occur in a Dyalog APL <strong>Ride</strong> session.</p>
+<h5 id="Comments-in-Self-Documenting-Code-Fields">Comments in Self-Documenting Code Fields<a class="anchor-link" href="#Comments-in-Self-Documenting-Code-Fields">&#182;</a></h5><p>Comments are allowed in <strong>Self-documenting Code Fields</strong>, but must be terminated by a diamond <code>⋄</code>; the final right arrow appears just before the right brace that closes the <strong>Code</strong> Field. For example:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[151]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[34]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39; {MyString⍳&quot;aeiou&quot; ⍝ Comments ok here ⋄  → } &#39;</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39; { ⎕AV ⍳&quot;aeiou&quot; ⍝ Find the &quot;vowels&quot; in ⎕AV ⋄  → }  &#39;</span>
 </pre></div>
 
      </div>
@@ -15720,15 +15802,15 @@ Comments are are allowed in **Self-documenting Code Fields**, but must be termin
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[34]:</div>
 
 
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr">
-<pre>∆F LENGTH ERROR
-      ∆F&#39; {MyString⍳&#34;aeiou&#34; ⍝ Comments ok here ⋄  → } &#39;
-      ∧
-</pre>
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">  ⎕AV ⍳"aeiou" ⍝ Find the "vowels" in ⎕AV ⋄  ➤ 17 21 25 31 37  
+</span>
 </div>
+
 </div>
 
 </div>
@@ -15738,16 +15820,24 @@ Comments are are allowed in **Self-documenting Code Fields**, but must be termin
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Code-Fields:--Namespace-%E2%8D%BA">Code Fields:  Namespace <code>&#9082;</code><a class="anchor-link" href="#Code-Fields:--Namespace-%E2%8D%BA">&#182;</a></h4><p>For <strong>Code</strong> fields, <strong>∆F</strong> passes a special namespace as the left argument <code>⍺</code>. That namespace contains support functions and variables for <strong>∆F</strong>. Names beginning with an underscore <code>_</code> (e.g. <code>_</code>, <code>__</code>, <code>_myVar</code>, ...) are reserved for the application user (you). One potential use is setting state that is maintained across all <strong>Code</strong> fields (left to right) during the execution of <strong>∆F</strong>, without cluttering the calling environment:</p>
+<h4 id="Code-Fields:--Left-argument-%E2%8D%BA-contains-special-namespace">Code Fields:  Left argument <code>&#9082;</code> contains special namespace<a class="anchor-link" href="#Code-Fields:--Left-argument-%E2%8D%BA-contains-special-namespace">&#182;</a></h4><p><strong>∆F</strong> passes a reference to a special namespace as the left argument <code>⍺</code> to each <strong>Code</strong> field. That namespace contains support functions and variables for <strong>∆F</strong>. Names <em>beginning</em> with any of the following letters</p>
+<ul>
+<li>an underscore, ⍙, or lower-case letters (<em>a-z plus</em>), </li>
+<li><em>i.e.</em> any of the following: _ ⍙ a b c d e f g h i j k l m n o p q r s t u v w x y z þ ã ì ð ò õ à á â ä å æ ç è é ê ë í î ï ñ ó ô ö ø ù ú û ü</li>
+</ul>
+<p>are reserved for the application user (you) to use in temporary functions, operators, or variables. One potential use is setting state that is maintained across all <strong>Code</strong> fields (left to right) during the execution of <strong>∆F</strong>, without cluttering the calling environment:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[152]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[35]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{⍺._PITimes←(○1)∘× ⋄ ⍺._PITimes 1} {⍺._PITimes 2}&#39;</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nf">⎕FR</span> <span class="nf">⎕PP</span><span class="kd">←</span> <span class="m">1287</span> <span class="m">34</span>
+    <span class="nv">PiSilly</span> <span class="kd">←</span><span class="kt">{</span> <span class="bp">⍺</span><span class="na">.</span><span class="nv">_PI</span><span class="kd">←</span> <span class="o">○</span> <span class="p">⋄</span> <span class="no">⍬</span> <span class="kt">}</span>
+    <span class="nv">∆F</span> <span class="s1">&#39;{ ⍺ PiSilly 10 }{ ⍺._PI 1 }&#39;</span> 
+<span class="nf">⎕FR</span> <span class="nf">⎕PP</span><span class="kd">←</span><span class="m">645</span> <span class="m">10</span>
 </pre></div>
 
      </div>
@@ -15763,65 +15853,12 @@ Comments are are allowed in **Self-documenting Code Fields**, but must be termin
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[152]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">3.14159 6.28319
-</span>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[153]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-     <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">oldFR</span> <span class="nv">oldPP</span><span class="kd">←</span> <span class="nf">⎕FR</span> <span class="nf">⎕PP</span>
-<span class="nv">∆F</span> <span class="s1">&#39;To 34 digits, Pi={⍺._sav←⎕FR ⎕PP⋄⎕FR ⎕PP∘←1287 34⋄&quot;&quot;}{ans←$ ○1 ⋄ ⎕FR ⎕PP∘←⍺._sav ⋄ ans}&#39;</span>
-<span class="nv">∆F</span> <span class="s1">&#39;Is ⎕FR still {oldFR}? {⍵1⊃&quot;No&quot; &quot;Yes&quot;}.  Is ⎕PP still {oldPP}? {⍵2⊃&quot;No&quot; &quot;Yes&quot;}.&#39;</span> <span class="p">(</span><span class="nv">oldFR</span><span class="o">=</span><span class="nf">⎕FR</span><span class="p">)(</span><span class="nv">oldPP</span><span class="o">=</span><span class="nf">⎕PP</span><span class="p">)</span>
-</pre></div>
-
-     </div>
-</div>
-</div>
-</div>
-
-<div class="jp-Cell-outputWrapper">
-
-
-<div class="jp-OutputArea jp-Cell-outputArea">
-
-<div class="jp-OutputArea-child">
-
-    
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[153]:</div>
-
-
-
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">To 34 digits, Pi=3.141592653589793238462643383279503
-</span>
-</div>
-
-</div>
-
-<div class="jp-OutputArea-child">
-
-    
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[153]:</div>
-
-
-
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">Is ⎕FR still 645? Yes.  Is ⎕PP still 6? Yes.
+<span style="white-space:pre; font-family: monospace">3.141592653589793238462643383279503
 </span>
 </div>
 
@@ -15834,8 +15871,9 @@ Comments are are allowed in **Self-documenting Code Fields**, but must be termin
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="%E2%88%86F-and-Looping">&#8710;F and Looping<a class="anchor-link" href="#%E2%88%86F-and-Looping">&#182;</a></h3><p>While languages like Python might tend to examples with explicit loops like this:</p>
-<p><code>table = [4127, 4098, 7678]
+<h3 id="%E2%88%86F-and-Looping">&#8710;F and Looping<a class="anchor-link" href="#%E2%88%86F-and-Looping">&#182;</a></h3><p>While languages like Python might tend to examples requiring explicit loops like this:</p>
+<p><code># Python ...
+table = [4127, 4098, 7678]
 for num in table2:
     print(f'{num:10}')</code></p>
 <p>APL can typically format an entire object in a single statement and in a readable format:</p>
@@ -15844,11 +15882,11 @@ for num in table2:
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[154]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[36]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">table2</span><span class="kd">←</span> <span class="m">4127</span> <span class="m">4096</span> <span class="m">7678</span>
-<span class="nv">∆F</span> <span class="s1">&#39;{&quot;[]&quot; ⍺.QT ⍪1+⍳≢⍵1}  {⍪⍵1}&#39;</span> <span class="nv">table2</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">table</span><span class="kd">←</span> <span class="m">4127</span> <span class="m">4096</span> <span class="m">7678</span>                            <span class="c1">⍝ Could be much bigger, of course...</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{&quot;[]&quot; ⍺.QT ⍪1+⍳≢⍵1}  {⍪⍵1}&#39;</span> <span class="nv">table</span>            <span class="c1">⍝ ⍺.QT defined below...</span>
 </pre></div>
 
      </div>
@@ -15864,7 +15902,7 @@ for num in table2:
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[154]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[36]:</div>
 
 
 
@@ -15885,7 +15923,8 @@ for num in table2:
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>Or, compare this Python example:</p>
-<p><code>print(f'Number Square Cube')
+<p><code># Python
+print(f'Number Square Cube')
 for x in range(1, 11):
      print(f'{x:2d} {x*x:3d} {x*x*x:4d}')</code></p>
 <p>and its APL equivalent below. <em>(Of course, a simple Dyalog ⎕FMT statement would work perfectly and concisely in this case!)</em></p>
@@ -15894,12 +15933,12 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[155]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[37]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">r1_10</span><span class="kd">←</span> <span class="m">1</span><span class="o">+⍳</span><span class="m">10</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">rangeV</span> <span class="kd">←</span> <span class="m">1</span><span class="o">+⍳</span><span class="m">10</span>
 <span class="nv">Head</span><span class="kd">←</span><span class="s1">&#39;Number     Square     Cube&#39;</span>
-<span class="nv">Head</span> <span class="nv">OVER</span> <span class="nv">∆F</span>  <span class="s1">&#39;  {&quot;I2&quot; $ ⍵1}        {&quot;I3&quot; $ ⍵1*2}       {&quot;I4&quot; $ ⍵1*3}&#39;</span>  <span class="nv">r1_10</span>
+<span class="nv">Head</span> <span class="nv">OVER</span> <span class="nv">∆F</span>  <span class="s1">&#39;  {&quot;I2&quot; $ ⍵1}        {&quot;I3&quot; $ ⍵1*2}       {&quot;I4&quot; $ ⍵1*3}&#39;</span>  <span class="nv">rangeV</span>
 </pre></div>
 
      </div>
@@ -15915,7 +15954,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[155]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[37]:</div>
 
 
 
@@ -15943,7 +15982,7 @@ for x in range(1, 11):
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Keep this in mind as you read <strong><em>comparable</em></strong> examples from Python or Javascript. As for other examples, APL is likely to have a solution that is more intuitive that does not require explicit looping.</p>
+<p>Keep n mind as you read examples from Python or Javascript that APL is likely to have more intuitive solutions that do not require explicit looping with <strong>∆F</strong>.</p>
 
 </div>
 </div>
@@ -15960,7 +15999,7 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[156]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[38]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Here, (var&lt;100) is FALSE, so no ∆F string message is produced. 0 is returned.</span>
@@ -15982,7 +16021,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[156]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[38]:</div>
 
 
 
@@ -16000,7 +16039,7 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[157]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[39]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Now, the assertion (var&lt;100) is TRUE, so a ∆F string message is printed. 1 is returned.</span>
@@ -16023,7 +16062,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[157]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[39]:</div>
 
 
 
@@ -16037,7 +16076,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[157]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[39]:</div>
 
 
 
@@ -16055,41 +16094,44 @@ for x in range(1, 11):
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="Library-Routines-for-Users">Library Routines for Users<a class="anchor-link" href="#Library-Routines-for-Users">&#182;</a></h2><p>In addition to <code>$</code> and <code>$$</code>, <strong>∆F</strong> provides access to several library routines for use in <em>Code</em> fields. 
-The library <em>reference</em> is passsed in <code>⍺</code>. The routines are:</p>
+<h2 id="Library-Routines-for-Users">Library Routines for Users<a class="anchor-link" href="#Library-Routines-for-Users">&#182;</a></h2><p>In addition to <code>$</code> and <code>$$</code>, <strong>∆F</strong> provides access to several library routines for use in <em>Code</em> fields. A <em>reference</em> to the library namespace is passsed in <code>⍺</code>. The routines are:</p>
 
 <pre><code>  [opts] ⍺.FMTX obj
      An extended ⎕FMT. Equivalent to $. See $ for details.
   ⍺.DISP obj
-      Display obj using dfns.DISPLAY. Equivalent to $$. See $$ for details.
+      Display obj using dfns.box. Equivalent to $$. See $$ for details.
   [opts] ⍺.DDISP obj
-      Display obj using dfns.DISPLAY, replacing blanks with a middle dot (·). 
+      Display obj using dfns.box, replacing blanks with a middle dot (·). 
       See also the 'DEBUG' option.
-      opts: If opts is specified, it must be a character scalar, which will replace blanks 
-        in the displayed right argument ⍵.
+      opts: If opts is specified, it must be a character scalar, which will 
+      replace blanks in the displayed right argument ⍵.
   [opts] ⍺.QT obj     
-      Place quotes around each line of obj (via ⎕FMT, if not already a matrix).
-      Quotes are placed as close as possible to non-blanks on left and right of each line of 
-      the object, extending it left and/or right to add the quotes if required.   
-      opts: opts includes either 1 or two characters or numbers. If one, it is used for both.
-        If a number, it is the Unicode representation for the required character.
-        If opts is omitted, a double quote (") is assumed.     
+      Place quotes as defined in &lt;opts&gt; around each line of &lt;obj&gt; 
+      (via ⎕FMT, if not already a matrix).
+      - Quotes are placed as close as possible to non-blanks on left and right of 
+      - each line of the object, extending it left and/or right to add the 
+        quotes if required.   
+      obj:  A string scalar, vector, matrix, or vector of vectors.
+      opts: opts includes either 1 or two characters or numbers. 
+      - If one, it is used for both.
+      - If a number, it is the Unicode representation for the required character.
+      - If opts is omitted, a double quote (") is assumed (⍺←'""').     
 
 </code></pre>
-<p><font color='purple'><strong><em>UNDER EVALUATION</em></strong>&lt;/ins&gt;</p>
+<p><font color='purple'>***UNDER EVALUATION***</font></p>
 
 <pre><code>   ⍺.TITLE string      
-         Displays string with each "word" in &lt;b&gt;Title Case&lt;/b&gt;, i.e. with each word's first 
-         letter capitalized.</code></pre>
+         Displays string with each "word" in Title Case, i.e. with each 
+         word's first letter capitalized.</code></pre>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[158]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[40]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">guillemets</span><span class="kd">←</span> <span class="s1">&#39;«»&#39;</span>     <span class="c1">⍝ guillemets: French-style quotes!</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">guillemets</span><span class="kd">←</span> <span class="s1">&#39;«»&#39;</span>             <span class="c1">⍝ guillemets: French-style quotes!</span>
 <span class="nv">gUnicode</span><span class="kd">←</span>   <span class="m">171</span> <span class="m">187</span>          <span class="c1">⍝ Unicode for «»</span>
 <span class="nv">∆F</span> <span class="s1">&#39;{⍺.QT ⍵1 ⍝ Default qts}     {guillemets ⍺.QT ⍵1}     {gUnicode ⍺.QT $ ⍵1}&#39;</span> <span class="p">(</span><span class="o">⍪</span><span class="m">100</span><span class="o">×⍳</span><span class="m">3</span><span class="p">)</span>
 </pre></div>
@@ -16107,7 +16149,7 @@ The library <em>reference</em> is passsed in <code>⍺</code>. The routines are:
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[158]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[40]:</div>
 
 
 
@@ -16127,11 +16169,11 @@ The library <em>reference</em> is passsed in <code>⍺</code>. The routines are:
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[159]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[41]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">animals</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;cats&#39;</span> <span class="s1">&#39;  rats&#39;</span>  <span class="s1">&#39;dogs  &#39;</span>        <span class="c1">⍝ Note arbitrary blanks within each row of animals</span>
-<span class="nv">∆F</span> <span class="s1">&#39;{animals  }       {  ⍺.QT animals  }     { &quot;&quot;&quot;&quot;,animals,&quot;&quot;&quot;&quot;}&#39;</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{animals  } {:10:} {  ⍺.QT animals  } {:10:} { &quot;&quot;&quot;&quot;,animals,&quot;&quot;&quot;&quot;}&#39;</span>
 </pre></div>
 
      </div>
@@ -16147,14 +16189,14 @@ The library <em>reference</em> is passsed in <code>⍺</code>. The routines are:
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[159]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[41]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">cats         "cats"       "cats  "
-  rats         "rats"     "  rats"
-dogs         "dogs"       "dogs  "
+<span style="white-space:pre; font-family: monospace">cats              "cats"              "cats  "
+  rats              "rats"            "  rats"
+dogs              "dogs"              "dogs  "
 </span>
 </div>
 
@@ -16167,16 +16209,17 @@ dogs         "dogs"       "dogs  "
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Here's a clever use of <code>⍺.QT</code>; unlike <code>"I2"</code> (a <strong>⎕FMT</strong> specification), <code>⍺.QT</code> automatically adjusts to the width of the numbers being formatted. (<strong>⎕FMT</strong> will insert asterisks (***), if the field width is insufficient.</p>
+<p>Here's a clever use of <code>⍺.QT</code>.</p>
+<p>Unlike <code>"I2"</code> (a <strong>⎕FMT</strong> specification), <code>⍺.QT</code> automatically adjusts to the width of the numbers being formatted. (<strong>⎕FMT</strong> will insert asterisks (***), if the field width is insufficient.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[160]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[42]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ &quot; .&quot; ⍺.QT ⍪⍵1} &lt;==&gt; { &quot;I2,⊂.⊃&quot; $ ⍵1}&#39;</span> <span class="p">(</span><span class="m">8</span> <span class="m">9</span> <span class="m">10</span><span class="p">)</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ &quot; .&quot; ⍺.QT ⍪⍵1}  { &quot;I2,⊂.⊃&quot; $ ⍵1}  { &quot;I3,⊂.⊃&quot; $ ⍵1}  &#39;</span> <span class="p">(</span><span class="m">98</span> <span class="m">99</span> <span class="m">100</span><span class="p">)</span>
 </pre></div>
 
      </div>
@@ -16192,14 +16235,14 @@ dogs         "dogs"       "dogs  "
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[160]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[42]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">  8. &lt;==&gt;  8.
-  9.       9.
- 10.      10.
+<span style="white-space:pre; font-family: monospace">  98.  98.   98.  
+  99.  99.   99.  
+ 100.  **.  100.  
 </span>
 </div>
 
@@ -16213,60 +16256,113 @@ dogs         "dogs"       "dogs  "
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <hr>
-<h2 id="%E2%88%86F-Syntax"><font color="red">&#8710;F Syntax</font><a class="anchor-link" href="#%E2%88%86F-Syntax">&#182;</a></h2>
-<pre><code>Syntax:  result ← [ [ assertion | options ] ]  ∆F  format_string  [ arbitrary args ]
+<h2 id="%E2%88%86F-Syntax">&#8710;F Syntax<a class="anchor-link" href="#%E2%88%86F-Syntax">&#182;</a></h2><p>Syntax:  <strong>result ← [ [ assertion | options ] ]  ∆F  format_string  [ arg1 [arg2 ...] ]</strong></p>
+<ul>
+<li><p><strong>assertion</strong> ⍺: a homogeneous numeric array.</p>
+<ul>
+<li>The assertion is "TRUE", unless it contains at least one 0.<ul>
+<li>If TRUE, <strong>∆F</strong> prints the formatted result and returns a shy 1. </li>
+<li>If FALSE, <strong>∆F</strong> does nothing, returning a shy 0.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>options</strong> ⍺: DEBUG | COMPILE | HELP | DEFAULT*</p>
+<ul>
+<li>DEBUG: Displays each field separately (via dfns "box")
+The abbrev 'DE' or 'D' denotes DEBUG. </li>
+<li>COMPILE: Returns a code string that can be converted to a dfn (executed via ⍎), 
+ rather than scanned on each execution. <ul>
+<li>See <strong>COMPILE option</strong> below.</li>
+</ul>
+</li>
+<li>HELP: Displays HELP documentation (⍵ ignored):  <code>∆F⍨'HELP'</code></li>
+<li><p>DEFAULT: Returns a formatted 2-D array according to the format_string 
+specified.</p>
+<ul>
+<li>If ⍺ is omitted or ⍺ is a null string <code>''</code>, option DEFAULT is assumed.</li>
+</ul>
+</li>
+<li>Options may be in either case and abbreviated.  </li>
+</ul>
+</li>
+<li><p><strong>format_string</strong>  <code>⍹0</code> (0⊃⍵)</p>
+<ul>
+<li><p>Contains the simple format "fields" that include strings (<strong>Text</strong> fields), 
+code (<strong>Code</strong> fields), and spacing (<strong>Space</strong> fields). 
+<br><strong>Code</strong> fields support a shorthand for manipulating objects using <strong>\$</strong>, <strong>\$\$</strong>, or <strong>\$\$\$</strong>:</p>
+<ul>
+<li><p><strong>$</strong> does numeric formatting (via <strong>⎕FMT</strong>), along with justification and centering;</p>
+</li>
+<li><p><strong>$$</strong> displays data using dfns <strong>DISPLAY</strong>;</p>
+</li>
+<li><p><strong>$$$</strong> adds quotes or other decorators around user data (see <strong>QT</strong> above).</p>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><p>arbitrary <strong>args</strong> <code>1↓⍵</code></p>
+<ul>
+<li>Optional arguments to be referenced in Code Fields. </li>
+<li><p>Shorthand in Code Fields</p>
+<ul>
+<li><strong>⍹0</strong> refers to <code>0⊃⍵</code>, the ∆F format string.</li>
+<li><strong>⍹1</strong> refers to <code>1⊃⍵</code>, the first "user" element.</li>
+<li><strong>⍹N</strong> refers to <code>N⊃⍵</code>, the Nth "user" element (where N is a 1- or 2-digit number)</li>
+<li><strong>⍹</strong>  by itself refers to the NEXT element, counting from left to right across all code fields.</li>
+</ul>
+</li>
+<li><p>Allowed synonym for <strong>⍹</strong>: You may use <code>⍵0</code> for <strong>⍹0</strong>, <code>⍵N</code> for <strong>⍹N</strong>, and <code>⍵_</code> for a <strong>⍹</strong> by itself.</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>result</strong></p>
+<ul>
+<li>For an assertion, result is either a shy 1 (TRUE) or 0 
+(FALSE, where <em>at least</em> one element of ⍺ was 0).</li>
+<li>The final formatted object is printed (via ⎕←) if the result is TRUE.</li>
+<li>Otherwise, if <code>DEFAULT</code> formatting is specified (<em>i.e.</em> the option <code>COMPILE</code> is not used), 
+result will be a matrix containing all the fields glued together.</li>
+<li><p>If the <code>COMPILE</code> option is specified, result will be a code string that 
+can be executed to produce the result either of an assertion (see above) 
+or the <code>DEFAULT</code> formatting. It may be executed immediately via <strong>⍎</strong> or converted 
+to a fn (via <strong>⍎</strong>) once and then called, e.g. in an implicit or explicit loop.</p>
 
-  ⍺/assertion: ⍺ must be a simple numeric array. "TRUE" unless there is a 0 in the left arg.
-     - If TRUE, prints formatted result returning shy 1. Otherwise, does nothing, returning shy 0.
-
-  ⍺/options: DEBUG | COMPILE | HELP | DEFAULT*         
-     - DEBUG: Displays each field separately using dfns "DISPLAY"
-       The abbrev 'DE' or 'D' denotes DEBUG. 
-     - COMPILE: Returns a code string that can be converted to a dfn (executed via ⍎), 
-        rather than scanned on each execution. 
-        - The resulting dfn should have a dummy format ''. If a non-empty string, that
-          is treated as if the format string ⍵0.  
-        - If the resulting dfn is called with a left arg ⍺, 
-          it must be an assertion (numeric array) and handled as above.
-     - HELP: Displays HELP documentation (⍵ ignored):   
-          ∆F⍨'HELP'
-     - DEFAULT: Returns a formatted 2-D array according to the format_string specified.
-
-      * If ⍺ is omitted or ⍺≡'', option DEFAULT is assumed.
-        Options may be in either case and abbreviated.  
-
-  format_string (0⊃⍵ in ⎕IO=0):
-     - Contains the simple format "fields" that include strings (text fields), code (code fields),  
-       and 2-D spacing (space fields). Code fields accommodate a shorthand using
-     - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
-     - $$ to display fields or objects using dfns 'DISPLAY'.
-
-  arbitrary args (1↓⍵):
-     - Optional arguments to be referenced in Code Fields. 
-     - Shorthand in Code Fields
-             ⍹0 refers to 0⊃⍵, the ∆F format string.
-             ⍹1 refers to 1⊃⍵, the first "user" element.
-             ⍹N refers to N⊃⍵, the Nth "user" element (where N is a 1- or 2-digit number)
-             ⍹  by itself refers to the NEXT element, counting from left to right across all code fields.
-     - Variant elements: You may use ⍵0 for ⍹0, ⍵N for ⍹N, and ⍵_ for a ⍹ by itself.
-       Example: {⍹ ⍹5 ⍹ ⍹1}  {⍹ ⍹10 ⍹}  is the same as  {⍹1 ⍹5 ⍹6 ⍹1} {⍹2 ⍹10 ⍹11}.
-
-  result:
-     - For an assertion, result is either a shy 1 (TRUE) or 0 (FALSE: at least one element of ⍺ was 0).
-       The final formatted object is printed (via ⎕←) if the result is TRUE.
-     - Otherwise, if DEFAULT formatting is specified (the option COMPILE is not used), result will be a matrix  
-       containing all the fields glued together.
-     - If the COMPILE option is specified, result will be a code string that can be executed to produce the
-       result either of an assertion (see above) or the DEFAULT formatting. It may be executed immediately  
-       via ⍎ or converted to a fn (via ⍎) once and then called, e.g. in an implicit or explicit loop. 
-           myFormat←  ⍎'COMPILE' ∆F '...Something relating to variable &lt;i&gt;...'
-           :FOR i :in ⍳ 1E4
-              myFormat '' elem1 elem2 ...
-           :ENDFOR
-     - When called, the first (or only) element of the right argument must be '' (a dummy ∆F format string) or
-       an alternate format string (which ∆F might manipulate).
-     - In general  
-             (⍎ 'COMPILE'... ∆F ⍹0) '' [⍹1 ... ] &lt;==&gt;  ('DEFAULT' ... ∆F ⍹0 [⍹1 ... ]</code></pre>
+<pre><code>myFormat←  ⍎'COMPILE' ∆F '...Make use of variable myVar ...'
+:FOR myVar :in CreateVars 1E4
+   myFormat '' elem1 elem2 ...
+:ENDFOR</code></pre>
+</li>
+</ul>
+</li>
+<li><p><strong>COMPILE option</strong>: Given a dfn generated via a call to <strong>∆F</strong> via the <strong>COMPILE</strong> option...</p>
+<ul>
+<li>The first (or only) element of its <strong>right</strong> argument <code>⍵</code> may be <ul>
+<li>a nullstring <code>''</code><ul>
+<li><em>i.e.</em> a <em>dummy</em> format string which will be ignored; the <em>original</em> format string presented at compile time will be available as <code>⍹0</code></li>
+</ul>
+</li>
+<li>an alternate format string specified at execution time <ul>
+<li>which will be available instead as <code>⍵0</code>.</li>
+</ul>
+</li>
+<li>In general: 
+  myFun← ⍎ 'compile' ∆F 'my code'
+  (myFun '' [⍹1 ... ])    ≡    ('default' ∆F 'my code' [⍹1 ... ])  </li>
+</ul>
+</li>
+<li>Its <strong>left</strong> argument <code>⍺</code> is omitted, unless the formatting dfn is an assertion. <ul>
+<li>If ⍺ is present, it must be an <strong>assertion</strong> (see above) with simple numeric data.</li>
+</ul>
+</li>
+</ul>
+<div class="alert alert-block alert-info">
+Note: <font color="purple"><b>∆F</b></font> is a <font color="red"><b><i>prototype</i></b></font>, depending heavily on regular expressions (via <b>⎕R</b> and <b>⎕S</b>, including some rather recursive patterns) so it's rather <font color="red"><b><i>slow</i></b></font>. <b>Compiled</b> <font color="purple"><b>∆F</b></font> strings (namely, associated <i><b>dfns</b></i> generated via the <i>compile</i> option) are several-fold faster than <b>standard</b> <font color="purple"><b>∆F</b></font> strings; they may be useful in loops or oft-repeated expressions. Nothing substitutes, however, for moving from a <font color="red"><b><i>prototype</i></b></font> version to <font color="red"><b><i>production</i></b></font> code.
+</div></li>
+</ul>
 
 </div>
 </div>

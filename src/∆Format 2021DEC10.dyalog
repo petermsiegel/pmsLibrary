@@ -17,7 +17,7 @@
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 ⍝ Otherwise, move us to a private namespace in the # domain.
-  ⍺ (#.⎕NS ∆Format).{  
+  ⍺ (#.⎕NS ⎕THIS.∆Format).{  
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
@@ -196,7 +196,7 @@
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
    
-      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = DISP, $$$ = QT  
+      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = DISP (⎕SE.Dyalog.Utils.display), $$$ = QT [under eval]
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
       ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
@@ -314,11 +314,9 @@
     ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
       Ⓒ←   CAT⍨
 
-    ⍝ ⍺.DISP: A boxing function with option ⍺. See $$
+    ⍝ ⍺.DISP: A synonym for Dyalog utility <display> with optional ⍺. See $$
     ⍝ Experimental: We allow 1 DISP ⍵ to be same as DDISP. 0 DISP ⍵ is original DISP.
-    ⍝    WAS: DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
-    ⍝    NOW: 
-      DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣box ⍵}
+      DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
     ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
     ⍝   DISP with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
@@ -345,32 +343,6 @@
           2=⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=|≡⍵: ∇¨⍵
           1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
       } 
-
-    ⍝ dfns.box
-    box←{                           ⍝ Box the simple text array ⍵.
-     (⎕IO ⎕ML)←1 3 ⋄ ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
-
-     ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
-     z←,[⍳⍴⍴⍵],[0.1]⍕⍵ ⋄ rh←⍴z                               ⍝ matricise
-                                                           ⍝ simple boxing? ↓
-     0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
-
-     (r c)←rh{∪⍺{(⍵∊0,⍳⍺)/⍵}⍵,(~¯1∊⍵)/0,⍺}¨2↑ar             ⍝ rows and columns
-     (rw cl)←rh{{⍵[⍋⍵]}⍵∪0,⍺}¨r c
-
-     (~(0,2⊃rh)∊c){                                         ⍝ draw left/right?
-         (↑⍺)↓[2](-2⊃⍺)↓[2]⍵[;⍋(⍳2⊃rh),cl]                  ⍝ rearrange columns
-     }(~(0,1⊃rh)∊r){                                        ⍝ draw top/bottom?
-         (↑⍺)↓[1](-2⊃⍺)↓[1]⍵[⍋(⍳1⊃rh),rw;]                  ⍝ rearrange rows
-     }{
-         (h w)←(⍴rw),⍴cl ⋄ q←h w⍴11⊃ch                      ⍝ size; special,
-         hz←(h,2⊃rh)⍴9⊃ch                                   ⍝  horizontal and
-         vr←(rh[1],w)⍴10⊃ch                                 ⍝  vertical lines
-         ∨/0∊¨⍴¨rw cl:(⍵⍪hz),vr⍪q                           ⍝ one direction only?
-         q[1;]←5⊃ch ⋄ q[;w]←6⊃ch ⋄ q[;1]←7⊃ch ⋄ q[h;]←8⊃ch  ⍝ end marks
-         q[1,h;1,w]←2 2⍴ch ⋄ (⍵⍪hz),vr⍪q                    ⍝ corners, add parts
-     }z
-   }
 ⍝ +----------------------------------------------------------------------------+
 ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
 ⍝ +----------------------------------------------------------------------------+
@@ -405,7 +377,7 @@ _HELP_←{
 ⍝H       If TRUE, prints formatted result returning shy 1. Otherwise, does nothing, returning shy 0.
 ⍝H     ⍺/options:
 ⍝H       DEBUG | COMPILE | HELP | DEFAULT*         
-⍝H       ∘ DEBUG: Displays each field separately using dfns "box"
+⍝H       ∘ DEBUG: Displays each field separately using dfns "DISPLAY"
 ⍝H       ∘ COMPILE: Returns a code string that can be converted to a dfn (executed via ⍎), 
 ⍝H         rather than scanned on each execution. 
 ⍝H         - The resulting dfn should have a dummy format ''. If a non-empty string, that
