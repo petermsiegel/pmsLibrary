@@ -7,12 +7,11 @@
 ⍝  
 ∆F←{  
 ⍝ Note: ∆F is "promoted" below to ##.∆Format...
-  0:: ('∆F ',⎕DMX.EM )⎕SIGNAL ⎕DMX.EN  
+  0:: ⎕DMX.EN ⎕SIGNAL⍨ '∆F ',⎕DMX.EM 
   ⎕IO←0 ⋄ ⎕ML←1 
   ⍺←''         ⍝ ⍺ ≡ '': Same as ⍺ ≡ 'Default'
-⍝ Verify 1st elem of ⍵ is the format string (a char vector). 
-  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: First Element of Right Arg (⊃⍵) not a valid Format String'
-
+⍝ Verify 1st elem of ⍵ is a character vector (possible Format string).
+  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: Format string not a simple character vector.'
 ⍝ If ⍺ is an assertion (2|⎕DR ⍺: all numeric) with at least one 0, the assertion is false: 
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
@@ -164,7 +163,8 @@
       ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
       ⍝ Prettyprint variant of → is '➤' U+10148
         selfDocFlag: res { 
-            COMPILE: ⍺ RESULT_Compile TF2Code ⍵ ⋄ ⍺ RESULT_Immed ⍵
+            COMPILE: ⍺ RESULT_Compile TF2Code ⍵ 
+                     ⍺ RESULT_Immed ⍵
         } '[→➤](\h*)$' ⎕R (SELF_DOC_ARROW,'\1')⊣1↓¯1↓⍵           
         res 
       }
@@ -180,11 +180,11 @@
     ⍝   DQ   Double-quoted string in Code field  ⍝
     ⍝ *******************************************⍝
       TFp← '(\\.|[^{\\]+)+'               
-    ⍝ SFp: We capture spaces in {...}, excluding comments. Experimentally allow :\d+: as well.
-    ⍝      Format:    { spaces [⍝com] }    OR   {  :digits[:]  }
+    ⍝ SFp: We capture spaces or /:\d+:/ in CFs, {...}, ignoring comments.
+    ⍝      Format:    { spaces [⍝com] }    OR   {  :digits[:]  [⍝com] }
     ⍝      SFChoices converts digits to (digits⍴' '), if set. Else returns <spaces> spaces.
     ⍝      We allow any # of digits, but disallow more than 3 in SFChoices.
-      SFp← '(?x) \{  (\h* (?::\h*(\d+)\h*:?\h*)? )  (?:⍝[^}]*)?  \}'   
+      SFp← '(?x) \{  (\h* (?: : \h*(\d+)\h* :? \h*)? )  (?: ⍝[^}]* )?  \}'   
     ⍝ CFp: Don't try to understand this regex. 
     ⍝ OK, in brief, we match the pattern <P>: 
     ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
@@ -195,7 +195,6 @@
     ⍝ Code Field Patterns...
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
-   
       dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = BOX, $$$ = QT  
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
@@ -223,7 +222,7 @@
       USER_SPACE←⊃⌽⎕RSI
       ⍙Ⓕ←⎕THIS⊣⎕DF  (⍕⎕THIS.##),'.[Format Namespace]'         
     ⍝ Globals (externals) used within utility functions.    
-    ⍝ Set up internal mirror of format string (⍹0) and its right args (⍹1, ⍹2, etc.)
+    ⍝ Save the right arg to ∆F (,⊆⍵), the format string (⍹0), and its right args (⍹1, ⍹2, etc.)
       OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. 
       OMEGA0←    ⊃⍵                      ⍝ ⍹0 (0⊃⍵): the format string.
       nOMEGA←    COMPILE⊃ (≢OMEGA) 9999  ⍝ If we're compiling, we don't know ≢OMEGA until runtime, so treat as ~∞.
@@ -252,6 +251,7 @@
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
+    ⍝ 1: {
           _←patsMain ⎕R{ CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD 
               CASE TFi:   RESULT_Immed TFEsc          f 0 
               CASE SFi:   RESULT_Immed ' '⍴⍨SFChoices f¨1 2  
@@ -260,7 +260,7 @@
           }⊣OMEGA0    ⍝ Pass the format string only...
           ASSERT_TRUE: _←1⊣   ⎕←RESULT    
                                 RESULT    ⍝ default.   
-      ⍝⍝ ⍝ END STANDARD MODE
+    ⍝ }⍬ ⍝ END STANDARD MODE
     ⍝*************************************⍝ 
     ⍝ ENDSECTION ***** EXECUTIVE   ****** ⍝
     ⍝************************←←←**********⍝ 
@@ -276,7 +276,7 @@
 ⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.BOX, ⍺.BBOX, ⍺.QT    
 ⍝ | Internal Use:    ⍙Ⓕ.(L, R, C, BB)
 ⍝ +-------------------------------------------------------------------------------------------+   
-  ⍝ ⎕THIS must be named namespace: 
+  ⍝ ⎕THIS must be a named namespace for ∆FormatLibName to work... 
   ⍝    Extern ⍙Ⓕ←⍎∆FormatLibName, with 'COMPILE' option.
     ∆FormatLibName←⍕⎕THIS         
     ∆HelpLibRef←⎕THIS.##          ⍝  Used with HELP option
@@ -299,7 +299,7 @@
         }CoerceV ⍵   
         wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Faster than (⊃⌽⎕VFI wReq)  
         wReq>WIDTH_MAX: 11 ⎕SIGNAL⍨{
-          'DOMAIN ERROR: Width in $ Specification Exceeds Maximum Allowed (',')',⍨⍕⍵
+          'DOMAIN ERROR: Width in $ Spec Exceeds Maximum Allowed (',')',⍨⍕⍵
         }WIDTH_MAX   
         wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
         pad1←↑⍤1
@@ -392,9 +392,9 @@ _HELP_←{
        ⎕SH 'open ',⍵   ⍝ Mac-specific...
      } HELP_FI 
      
-⍝***********************************⍝ 
-⍝ SECTION *** HELP INFORMATION  ****⍝
-⍝***********************************⍝ 
+⍝**********************************************⍝ 
+⍝ SECTION:   HELP INFORMATION (ABRIDGED)   ****⍝
+⍝**********************************************⍝ 
 ⍝H ∆F Formatting Utility
 ⍝H ¯¯ ¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
 ⍝H Descrption:
