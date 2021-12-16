@@ -54,7 +54,7 @@
     ⍝ EXTERN: RESULT (RW) 
       RESULT_Immed←{ 
           ⍺←''  ⋄  0=≢⍵: ⍺ ⋄ lhs←RESULT   
-          rhs← Lib.DDISP⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
+          rhs← Lib.BBOX⍣DEBUG ⊢ USER_SPACE.⎕FMT ⍵
           lhs rhs↑⍨←lhs⌈⍥≢rhs 
           ⍺⊣ RESULT⊢←lhs,rhs
       }
@@ -64,8 +64,8 @@
     ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
     ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute via ⍎).  
       RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.ⒹⒹ '/⍨DEBUG),⍵    
-          ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT     
+          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.BB '/⍨DEBUG),⍵    
+          ⍺⊣ RESULT,← ⌽lhs,'⍺.C'/⍨ ~0=≢RESULT     
       }
     ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -139,7 +139,7 @@
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD  
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
             ⋄ invalidDollarE←'{''Invalid use of $''⎕SIGNAL 11}'
-            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.DISP '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$                       
+            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$                       
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -196,7 +196,7 @@
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
    
-      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = DISP, $$$ = QT  
+      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = BOX, $$$ = QT  
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
       ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
@@ -248,7 +248,7 @@
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
         ⍝ ⍙Ⓕ ← ⍎∆FormatLibName (see details at namespace ∆Format.Lib below)
-            res←'(⎕NS ',Lib.∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+            res←'(⎕NS ',Lib.∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.L ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).R',fmtStr,'}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -273,8 +273,8 @@
 :Namespace Lib
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
-⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.DISP, ⍺.DDISP, ⍺.QT
-⍝ | Internal Use:    ⍺.Ⓛ, Ⓡ, Ⓒ, ⒹⒹ
+⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.BOX, ⍺.BBOX, ⍺.QT    
+⍝ | Internal Use:    ⍙Ⓕ.(L, R, C, BB)
 ⍝ +-------------------------------------------------------------------------------------------+   
   ⍝ ⎕THIS must be named namespace: 
   ⍝    Extern ⍙Ⓕ←⍎∆FormatLibName, with 'COMPILE' option.
@@ -298,7 +298,9 @@
                   ⍺ ∆FMT ⍵                            ⍝ 2b. Both XO and SO? As in 1.
         }CoerceV ⍵   
         wReq← 10⊥⎕D⍳wReq ⋄ wObj← ⊃⌽⍴obj               ⍝ Faster than (⊃⌽⎕VFI wReq)  
-        wReq>WIDTH_MAX: 11 ⎕SIGNAL⍨'DOMAIN ERROR: Width in $ Specification Exceeds Maximum Allowed (',')',⍨⍕WIDTH_MAX           
+        wReq>WIDTH_MAX: 11 ⎕SIGNAL⍨{
+          'DOMAIN ERROR: Width in $ Specification Exceeds Maximum Allowed (',')',⍨⍕⍵
+        }WIDTH_MAX   
         wReq ≤ wObj: obj                              ⍝ If required width ≤ object width, done! We won't truncate.
         pad1←↑⍤1
         xtra∊'LR': (¯1×⍣('R'=⊃xtra)⊢wReq)pad1 obj     ⍝ Left, Right 
@@ -311,18 +313,18 @@
     ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
     ⍝ Monadic case: Treat ⍺ as null array...
       CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
-      Ⓒ←   CAT⍨
+    ⍝ ⍺.C, alias for CAT⍨: Reverse Catenate Fields [internal use only]
+      C←   CAT⍨
 
-    ⍝ ⍺.DISP: A boxing function with option ⍺. See $$
-    ⍝ Experimental: We allow 1 DISP ⍵ to be same as DDISP. 0 DISP ⍵ is original DISP.
-    ⍝    WAS: DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
+    ⍝ ⍺.BOX: A boxing function with option ⍺. See $$
+    ⍝ Experimental: We allow 1 BOX ⍵ to be same as BBOX. 0 BOX ⍵ is original BOX.
+    ⍝    WAS: BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
     ⍝    NOW: 
-      DISP← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣box ⍵}
-    ⍝ DDISP  [user] and ⍺.Ⓓ [internal]: 
-    ⍝   DISP with blanks repl. by default by middle dot (·), ⎕UCS 183.
+      BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣DfnsBox ⍕⍵}
+    ⍝ BBOX  [user] and ⍺.B [internal]: 
+    ⍝   BOX with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
-      ⒹⒹ← DDISP← {⍺←'·' ⋄ (⍺@(' '∘=))∘DISP ⍵}
+      BB← BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣DfnsBox ⍕⍵}
 
     ⍝ QT: Add quotes around each row of ⍵ formatted.
     ⍝     The default quotes are '"'. 
@@ -332,26 +334,26 @@
             q⌽R,⍨w⌽⍨-q←B⌽w←(-p)⌽L,w⌽⍨p←B⊢w←⎕FMT ⍵  ⊣ L R←2⍴⍺
       }
 
-    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
+    ⍝ L: Process Left Arg of Compiled ∆F @ Runtime. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
-      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
-    ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
+      L←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
+    ⍝ R: Process Right Arg of Compiled ∆F @ Runtime.
     ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
-      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
+      R←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
 
-    ⍝ UNDER REVIEW: Kind of only used for demonstrations...
+    ⍝ UNDER REVIEW: Here only for demonstrations...
     ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
       TITLE←{
           2=⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=|≡⍵: ∇¨⍵
           1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
       } 
 
-    ⍝ dfns.box
-    box←{                           ⍝ Box the simple text array ⍵.
+    ⍝ dfns.box.
+    DfnsBox←{                           ⍝ Box the simple text array ⍵.
      (⎕IO ⎕ML)←1 3 ⋄ ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
-     ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar             ⍝ char set
-     z←,[⍳⍴⍴⍵],[0.1]⍕⍵ ⋄ rh←⍴z                               ⍝ matricise
+     ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar            ⍝ char set
+     z←,[⍳⍴⍴⍵],[0.1] ⍵ ⋄ rh←⍴z                             ⍝ matricise
                                                            ⍝ simple boxing? ↓
      0∊⍴∊2↑ar:{q←ch[9]⍪(ch[10],⍵,10⊃ch)⍪9⊃ch ⋄ q[1,↑⍴q;1,2⊃⍴q]←2 2⍴ch ⋄ q}z
 
@@ -405,7 +407,7 @@ _HELP_←{
 ⍝H       If TRUE, prints formatted result returning shy 1. Otherwise, does nothing, returning shy 0.
 ⍝H     ⍺/options:
 ⍝H       DEBUG | COMPILE | HELP | DEFAULT*         
-⍝H       ∘ DEBUG: Displays each field separately using dfns "box"
+⍝H       ∘ DEBUG: displays each field separately using dfns "box"
 ⍝H       ∘ COMPILE: Returns a code string that can be converted to a dfn (executed via ⍎), 
 ⍝H         rather than scanned on each execution. 
 ⍝H         - The resulting dfn should have a dummy format ''. If a non-empty string, that
@@ -420,15 +422,16 @@ _HELP_←{
 ⍝H       Contains the simple format "fields" that include strings (text fields), code (code fields), and 
 ⍝H       2-D spacing (space fields). Code fields accommodate a shorthand using
 ⍝H         - $ to do numeric formatting (via ⎕FMT) and justification and centering, as well as
-⍝H         - $$ to display fields or objects using dfns 'DISPLAY'.
-⍝H           If $$ has a left arg of 1, $$ replaces blanks with a middle dot (see ⍺.DISP and ⍺.DDISP).
+⍝H         - $$ to display fields or objects using dfns 'box'.
+⍝H           If $$ has a left arg of 1, $$ replaces blanks with a middle dot (see ⍺.BOX and ⍺.BBOX).
 ⍝H
-⍝H  Library routines: ⍺.CAT (catenate and align L to R), 
-⍝H                    ⍺.DISP (display: ⍺:1 same as ⍺.DDISP), 
-⍝H                    ⍺.DDISP (display with middle dot: ⍺: alternative to middle dot), 
-⍝H                    ⍺.QT (add quotes: ⍺: '"'; 1-2 char or unicode integer)
-⍝H            UNDER EVALUATION
-⍝H                    ⍺.TITLE (Displays string ⍵ with each "word" in Title case, i.e. with first letter capitalized)
+⍝H  Library routines: ⍺.CAT   catenate and top-align left (⍺) and right (⍵) args
+⍝H                    ⍺.BOX   display right arg (⍵) in a box. 
+⍝H                            If ⍺=1, same as monadic BBOX.
+⍝H                    ⍺.BBOX  display right arg (⍵) in a box with char ⍺ replacing blanks. 
+⍝H                            default ⍺: middle dot ('·')
+⍝H                    ⍺.QT    put quotes around word sequences in each row of ⍵. 
+⍝H                            ⍺: L/R quotes or unicode integers (default ⍺: '"')
 
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝

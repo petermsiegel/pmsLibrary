@@ -14610,7 +14610,7 @@ temporary variables across <strong>Code</strong> fields (see below).</li>
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.391368
+<span style="white-space:pre; font-family: monospace">0.193673
 </span>
 </div>
 
@@ -15208,9 +15208,9 @@ field!
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.742335  10/12/2021
-0.196002            
-0.215541            
+<span style="white-space:pre; font-family: monospace">0.921368  13/12/2021
+0.219363            
+0.936951            
 </span>
 </div>
 
@@ -15318,7 +15318,7 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Pseudo-Function-$$-for-a-Boxed-Display">Pseudo-Function $$ for a Boxed Display<a class="anchor-link" href="#Pseudo-Function-$$-for-a-Boxed-Display">&#182;</a></h4><p>If we want a <strong>Code</strong> field to be boxed in the regular output, we can use the pseudo-builtin display function <strong>\$\$</strong>. By default (no left argument or a left-argument of 0), no middle dots (·) appear with \$\$. If you want middle dots to appear in place of spaces, you must provide a left argument of 1.</p>
+<h4 id="Pseudo-Function-$$-for-a-Boxed-Display">Pseudo-Function $$ for a Boxed Display<a class="anchor-link" href="#Pseudo-Function-$$-for-a-Boxed-Display">&#182;</a></h4><p>If we want a <strong>Code</strong> field to be boxed in the regular output, we can use the pseudo-builtin function <strong>\$\$</strong>. By default (no left argument or a left-argument of 0), no middle dots (·) appear with \$\$. If you want middle dots to appear in place of spaces, you must provide a left argument of 1.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -15613,7 +15613,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">title</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;{    }Use ∆F Extension C25\⋄   25 chars wide{ :13: }Use ⎕FMT X6: 6+13+6=25\⋄    25 chars wide&#39;</span>
-<span class="nv">centr</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;{1$$&quot;C25,ZF13.9&quot; $ ⍵1 } versus {1$$&quot;X6,ZF13.9,X6&quot; $ ⍵1 }&#39;</span> <span class="p">(</span><span class="o">○</span><span class="m">2</span> <span class="m">20</span> <span class="m">300</span><span class="p">)</span>
+<span class="nv">centr</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;{1$$ &quot;C25,ZF13.9&quot; $ ⍵1 } versus {1$$ &quot;X6,ZF13.9,X6&quot; $ ⍵1 }&#39;</span> <span class="p">(</span><span class="o">○</span><span class="m">2</span> <span class="m">20</span> <span class="m">300</span><span class="p">)</span>
 <span class="nv">title</span> <span class="nv">OVER</span> <span class="nv">centr</span>
 </pre></div>
 
@@ -15763,7 +15763,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
 <span style="white-space:pre; font-family: monospace">&lt;MyString ➤ This  &gt;  &lt; 3↑Today ➤ 2021&gt;.  &lt;"I4" $ 3↑Today  ➤  2021&gt;
             is my                  12                          12 
-            string                 10                          10 
+            string                 13                          13 
 </span>
 </div>
 
@@ -16098,10 +16098,10 @@ for x in range(1, 11):
 
 <pre><code>  [opts] ⍺.FMTX obj
      An extended ⎕FMT. Equivalent to $. See $ for details.
-  ⍺.DISP obj
-      Display obj using dfns.box. Equivalent to $$. See $$ for details.
-  [opts] ⍺.DDISP obj
-      Display obj using dfns.box, replacing blanks with a middle dot (·). 
+  ⍺.BOX obj
+      Display obj in char form using dfns.box. Equivalent to $$. See $$ for details.
+  [opts] ⍺.BBOX obj
+      Display obj in char form using dfns.box, replacing blanks with a middle dot (·). 
       See also the 'DEBUG' option.
       opts: If opts is specified, it must be a character scalar, which will 
       replace blanks in the displayed right argument ⍵.
@@ -16334,7 +16334,7 @@ to a fn (via <strong>⍎</strong>) once and then called, e.g. in an implicit or 
 <pre><code>myFormat←  ⍎'COMPILE' ∆F '...Make use of variable myVar ...'
 :FOR myVar :in CreateVars 1E4
    myFormat '' elem1 elem2 ...
-:ENDFOR</code></pre>
+:ENDFOR  </code></pre>
 </li>
 </ul>
 </li>
