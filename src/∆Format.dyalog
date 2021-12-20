@@ -4,7 +4,9 @@
 ⍝                but with native dfn-based handling of arrays and precise formats based on extended ⎕FMT."
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
 ⍝  See ∆F⍨'help' for detailed Jupyter notebook output.
-⍝  
+⍝  To add: date-time handling X(1200⌶)Y
+⍝ Fix system vs user library...
+⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
 ∆F←{  
 ⍝ Note: ∆F is "promoted" below to ##.∆Format...
   0:: ⎕DMX.EN ⎕SIGNAL⍨ '∆F ',⎕DMX.EM 
@@ -43,7 +45,7 @@
       }
       HelpCmd←{ ⍝ Help... Show HELP info and return ⍵
           0:: '∆F: Help information not found where expected!' ⎕SIGNAL 911
-          Lib.∆HelpLibRef._HELP_ ⍵
+          Lib.ⒽelpLibRef._HELP_ ⍵
       }
     ⍝+--------------------------------------------------------------------------------+⍝
     ⍝+ RESULT_Immed, RESULT_Compile, OMEGA_Pick                                       +⍝
@@ -63,8 +65,8 @@
     ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
     ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute via ⍎).  
       RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.BB '/⍨DEBUG),⍵    
-          ⍺⊣ RESULT,← ⌽lhs,'⍺.C'/⍨ ~0=≢RESULT     
+          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.ⒷⒷ '/⍨DEBUG),⍵    
+          ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT     
       }
     ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -132,13 +134,17 @@
     ⍝ ***************************************⍝
     ⍝ CFScan: Once we have a Code (Dfn) field {...}, we decode the components within the braces. 
       CFScan←{
-        patsCF←quoteP dollarP omIndxP omNextP comP selfDocP escDQP  
-               quoteI dollarI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
+        patsCF←quoteP dollarP pctP omIndxP omNextP comP selfDocP escDQP  
+               quoteI dollarI pctI omIndxI omNextI comI selfDocI escDQI ← ⍳≢patsCF
         selfDocFlag←0 
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD  
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
-            ⋄ invalidDollarE←'{''Invalid use of $''⎕SIGNAL 11}'
-            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$                       
+            ⋄ invalidDollarE←'{''DOMAIN ERROR: Invalid use of $''⎕SIGNAL 11}'
+            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
+          ⍝ UNDER EVAL... 
+            ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'
+            ⋄ pctDfnCode←'{DT←⍺∘(1200⌶)1∘⎕DT ⋄ 1=≡⍵: ⊃DT⊂⍵ ⋄ DT∊¨⍵}'   ⍝ Put this in the library after evaluated
+            CASE pctI:     (1≠≢f 0)⊃pctDfnCode   invalidPctE                
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -196,6 +202,7 @@
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
       dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = BOX, $$$ = QT  
+      pctP←     '(?<!\\)\%{1,}'         ⍝ % = date format... 
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
       ⍝ If OMEGA_ALIAS is 0, ⍵ and ⍵_ are NOT synonyms for ⍹, omega underscore.
@@ -246,8 +253,8 @@
         ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
-        ⍝ ⍙Ⓕ ← ⍎∆FormatLibName (see details at namespace ∆Format.Lib below)
-            res←'(⎕NS ',Lib.∆FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.L ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).R',fmtStr,'}' 
+        ⍝ ⍙Ⓕ ← ⍎ⒻormatLibName (see details at namespace ∆Format.Lib below)
+            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -274,12 +281,12 @@
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
 ⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.BOX, ⍺.BBOX, ⍺.QT    
-⍝ | Internal Use:    ⍙Ⓕ.(L, R, C, BB)
+⍝ | Internal Use:    ⍙Ⓕ.(Ⓛ, Ⓡ, Ⓒ, ⒷⒷ)
 ⍝ +-------------------------------------------------------------------------------------------+   
-  ⍝ ⎕THIS must be a named namespace for ∆FormatLibName to work... 
-  ⍝    Extern ⍙Ⓕ←⍎∆FormatLibName, with 'COMPILE' option.
-    ∆FormatLibName←⍕⎕THIS         
-    ∆HelpLibRef←⎕THIS.##          ⍝  Used with HELP option
+  ⍝ ⎕THIS must be a named namespace for ⒻormatLibName to work... 
+  ⍝    Extern ⍙Ⓕ←⍎ⒻormatLibName, with 'COMPILE' option.
+    ⒻormatLibName←⍕⎕THIS         
+    ⒽelpLibRef←⎕THIS.##          ⍝  Used with HELP option
  
   ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢ ⋄ ⎕IO←0  ⋄ WIDTH_MAX←999
@@ -313,18 +320,18 @@
     ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
     ⍝ Monadic case: Treat ⍺ as null array...
       CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.C, alias for CAT⍨: Reverse Catenate Fields [internal use only]
-      C←   CAT⍨
+    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
+      Ⓒ←   CAT⍨
 
     ⍝ ⍺.BOX: A boxing function with option ⍺. See $$
     ⍝ Experimental: We allow 1 BOX ⍵ to be same as BBOX. 0 BOX ⍵ is original BOX.
     ⍝    WAS: BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
     ⍝    NOW: 
-      BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣DfnsBox ⍕⍵}
-    ⍝ BBOX  [user] and ⍺.B [internal]: 
+      BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣ⒹfnsBox ⍕⍵}
+    ⍝ BBOX  [user] and ⍺.Ⓑ [internal]: 
     ⍝   BOX with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
-      BB← BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣DfnsBox ⍕⍵}
+      ⒷⒷ← BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣ⒹfnsBox ⍕⍵}
 
     ⍝ QT: Add quotes around each row of ⍵ formatted.
     ⍝     The default quotes are '"'. 
@@ -334,12 +341,12 @@
             q⌽R,⍨w⌽⍨-q←B⌽w←(-p)⌽L,w⌽⍨p←B⊢w←⎕FMT ⍵  ⊣ L R←2⍴⍺
       }
 
-    ⍝ L: Process Left Arg of Compiled ∆F @ Runtime. 
+    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
-      L←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
-    ⍝ R: Process Right Arg of Compiled ∆F @ Runtime.
+      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
+    ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
     ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
-      R←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
+      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
 
     ⍝ UNDER REVIEW: Here only for demonstrations...
     ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
@@ -348,8 +355,8 @@
           1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
       } 
 
-    ⍝ dfns.box.
-    DfnsBox←{                           ⍝ Box the simple text array ⍵.
+    ⍝ dfns::box ==> ⒹfnsBox
+    ⒹfnsBox←{              ⍝ Box the simple text array ⍵.
      (⎕IO ⎕ML)←1 3 ⋄ ⍺←⍬ ⍬ 0 ⋄ ar←{⍵,(⍴⍵)↓⍬ ⍬ 0}{2>≡⍵:,⊂,⍵ ⋄ ⍵}⍺  ⍝ controls
 
      ch←{⍵:'++++++++-|+' ⋄ '┌┐└┘┬┤├┴─│┼'}1=3⊃ar            ⍝ char set
