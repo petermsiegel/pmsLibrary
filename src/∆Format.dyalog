@@ -6,7 +6,7 @@
 ⍝  See ∆F⍨'help' for detailed Jupyter notebook output.
 ⍝  To add: date-time handling X(1200⌶)Y
 ⍝ Fix system vs user library...
-⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ
+⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ      
 ∆F←{  
 ⍝ Note: ∆F is "promoted" below to ##.∆Format...
   0:: ⎕DMX.EN ⎕SIGNAL⍨ '∆F ',⎕DMX.EM 
@@ -140,11 +140,9 @@
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD  
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
             ⋄ invalidDollarE←'{''DOMAIN ERROR: Invalid use of $''⎕SIGNAL 11}'
-            CASE dollarI:  (1 2 3⍳≢f 0)⊃' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
-          ⍝ UNDER EVAL... 
+            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ ' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
             ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'
-            ⋄ pctDfnCode←'{DT←⍺∘(1200⌶)1∘⎕DT ⋄ 1=≡⍵: ⊃DT⊂⍵ ⋄ DT∊¨⍵}'   ⍝ Put this in the library after evaluated
-            CASE pctI:     (1≠≢f 0)⊃pctDfnCode   invalidPctE                
+            CASE pctI:     (1≠≢f 0)⊃ ' ⍙Ⓕ.DATETIME '   invalidPctE                
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -162,9 +160,9 @@
             }⍬ 
           ⍝ Mirror current vals of key sys vars from user space into ⍙Ⓕ.Lib (Code Field arg: ⍺).
           ⍝ Useful in case you do  ⍺.MY_FN ← ○  (where ○ will be executed in the ⍺ namespace).
-            ⍙Ⓕ.Lib.(⎕FR ⎕PP)← USER_SPACE.(⎕FR ⎕PP)           
+            ⍙Ⓕ.Lib.UserNs.(⎕FR ⎕PP)← USER_SPACE.(⎕FR ⎕PP)           
           ⍝ Pass the main local namespace name ⍙Ⓕ  **library** into the user space as ⍙Ⓕ and as ⍺.  See dollarP, dollarI.
-            ⍎'⍙Ⓕ.Lib USER_SPACE.{(⍙Ⓕ←⍺)', ⍵ ,'⍵ }OMEGA'
+            ⍎'⍙Ⓕ.Lib.UserNs USER_SPACE.{⍙Ⓕ←⍺.## ⋄ ⍺', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
       ⍝ Prettyprint variant of → is '➤' U+10148
@@ -227,7 +225,7 @@
       SELF_DOC_ARROW←'➤'   ⍝ For Self-Documenting Code: use a printable char here, e.g. → or '➤'
     HELP: _←HelpCmd ⍬
       USER_SPACE←⊃⌽⎕RSI
-      ⍙Ⓕ←⎕THIS⊣⎕DF  (⍕⎕THIS.##),'.[Format Namespace]'         
+      ⍙Ⓕ←⎕THIS      
     ⍝ Globals (externals) used within utility functions.    
     ⍝ Save the right arg to ∆F (,⊆⍵), the format string (⍹0), and its right args (⍹1, ⍹2, etc.)
       OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. 
@@ -254,7 +252,7 @@
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
         ⍝ ⍙Ⓕ ← ⍎ⒻormatLibName (see details at namespace ∆Format.Lib below)
-            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍺⍺.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+            res←'(⎕NS ',Lib.ⒻormatLibName,').UserNs{⍺←''''⋄0∊⍺:_←0⋄⍺ ⍙Ⓕ.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺.##).Ⓡ',fmtStr,'}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -278,6 +276,10 @@
 
 ⍝ Lib: peer Library used internally (standard path) and externally (compile option path)
 :Namespace Lib
+
+   :Namespace UserNs
+     ⎕DF '[∆F:UserNs]'
+   :EndNameSpace
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
 ⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.BOX, ⍺.BBOX, ⍺.QT    
@@ -332,6 +334,12 @@
     ⍝   BOX with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
       ⒷⒷ← BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣ⒹfnsBox ⍕⍵}
+
+    DATETIME←{ ⍝ ⎕IO←0
+        0∊0 ⎕DT ⍵:11 ⎕SIGNAL⍨'Argument must be valid Dyalog Time Numbers and/or enclosed Timestamps'
+        dt← ⍺(1200⌶)1 ⎕DT ⍵ 
+        0≠⍴⍴⍵: dt ⋄ ⊃dt   
+    }
 
     ⍝ QT: Add quotes around each row of ⍵ formatted.
     ⍝     The default quotes are '"'. 
