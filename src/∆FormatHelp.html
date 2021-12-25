@@ -13979,44 +13979,62 @@ a.anchor-link {
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="Outline">Outline<a class="anchor-link" href="#Outline">&#182;</a></h2><ul>
-<li>Getting Started</li>
-<li>∆F Fields<ul>
-<li>Text Fields are 2D<ul>
-<li>Newlines and other Escape Sequences: <code>\⋄</code> and <code>\{</code>  <code>\}</code>  <code>\</code></li>
+<h1 id="Table-of-Contents">Table of Contents<a class="anchor-link" href="#Table-of-Contents">&#182;</a></h1><ul>
+<li><a href="#Getting-Started">Getting Started</a></li>
+<li><a href="#∆F-Fields">∆F Fields: Text, Code, and Space Fields</a> <ul>
+<li><a href="#Text-Fields">Text Fields</a><ul>
+<li>Newlines and Escape Sequences: <code>\⋄</code> and <code>\{</code>  <code>\}</code>  <code>\</code></li>
 </ul>
 </li>
-<li>Code Fields: Basics<ul>
-<li>Simple Variables </li>
-<li>Code Fields Are DFNS<ul>
-<li>Performing calculations, etc.</li>
+<li><a href="#Code-Fields:-Basics">Code Fields: Basics</a><ul>
+<li>Simple Variables: <code>{var1} {var2}</code></li>
+<li>Debug Mode:  <code>'debug' ∆FMT ...</code></li>
+<li>Code Fields Are DFNS: <code>{ c+x×b+x×a }</code><ul>
+<li>Performing arbitrary calculations: <code>{¯1+2*31}</code></li>
 </ul>
 </li>
-<li>Debug Mode</li>
-<li>DQ Strings </li>
-<li>Escapes</li>
-<li>Comments</li>
-</ul>
-</li>
-<li>Space Fields<ul>
-<li>Comments</li>
-</ul>
-</li>
-<li>Code Fields: Advanced Topics<ul>
-<li>Pseudo-Builtin \$ for ⎕FMT formatting</li>
-<li>Pseudo-builtin $$ for a boxed display</li>
-<li>∆F arguments: ⍹0, ⍹, etc.</li>
-<li>Justification and Centering with <code>$</code>: Beyond ⎕FMT specifications.</li>
-<li>Self-documenting Code fields: <code>{code → }</code></li>
-<li>Pseudo-builtin <code>%</code> for formatting dates and times</li>
-<li>User-Accessible Code Field namespace ⍺</li>
+<li>Comments in Code Fields <code>{n*0.5 ⍝ sqrt(n)}</code></li>
+<li><a href="#DQ-Strings-Required-in-Code-Fields">Strings in Code Fields Require Double Quotes</a><ul>
+<li><code>{↑"line1" "line2"}</code></li>
+<li>Escapes in DQ Strings: <code>{"line1\⋄line2"}</code></li>
 </ul>
 </li>
 </ul>
 </li>
-<li>∆F and Looping</li>
-<li>Assertions with ∆F</li>
-<li>∆F Syntax</li>
+<li><a href="#Space-Fields">Space Fields</a><ul>
+<li>Basic Space Fields: <code>{   }</code> and <code>{}</code></li>
+<li>Comments in Space Fields: <code>{   ⍝ 3 spaces }</code></li>
+<li>Examples</li>
+<li>Why Space Fields</li>
+<li>Explicit Width Counts <code>{ :30: }</code> and <code>{ :30: ⍝ 30 spaces }</code></li>
+</ul>
+</li>
+<li><a href="#Code-Fields:-Advanced-Topics">Code Fields: Advanced Topics</a><ul>
+<li><a href="#Pseudobuiltin-\$-for-Detailed-Formatting">Pseudobuiltin &#36; for Detailed formatting</a></li>
+<li><a href="#Pseudobuiltin-\$\$-for-a-Boxed-Display">Pseudobuiltin &#36;&#36; for a Boxed Display</a> </li>
+<li><a href="#Shortcuts-for-Accessing-Elements-of-⍵">Shortcuts for Accessing Elements of ∆F Right-Argument ⍵</a><ul>
+<li>⍹0, ⍹1, ..., and ⍹ (and aliases ⍵0, ⍵1, ..., and ⍵_).</li>
+</ul>
+</li>
+<li><a href="#Justification-and-Centering-with-\$">Justification and Centering with &#36;</a><ul>
+<li>Specifiers <code>L</code>, <code>C</code>, <code>R</code>; <code>l</code>, <code>c</code>, <code>r</code></li>
+</ul>
+</li>
+<li><a href="#Self-Documenting-Code-Fields">Self-Documenting Code Fields</a> <ul>
+<li><code>{code → }</code></li>
+<li>With comments: <code>{code ... ⍝ comment ⋄ → }</code> </li>
+</ul>
+</li>
+<li><a href="#Pseudobuiltin-$$$-for-Adding-Quotes-or-Decorators">Pseudobuiltin &#36;&#36;&#36; for Adding Quotes or Decorators</a></li>
+<li><a href="#Pseudobuiltin-%-for-Formatting-Dates-and-Times">Pseudobuiltin % for Formatting Dates and Times</a></li>
+<li><a href="#Code-Fields:-Private-Namespace-⍺">Code Fields: Private Namespace ⍺</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#∆F-and-Looping">∆F and Looping</a></li>
+<li><a href="#Assertions-with-∆F">Assertions with ∆F</a></li>
+<li><a href="#∆F-Syntax-Summary">∆F Syntax Summary</a></li>
 </ul>
 <hr>
 <h2 id="Getting-Started">Getting Started<a class="anchor-link" href="#Getting-Started">&#182;</a></h2><p>Let's get started!</p>
@@ -14212,8 +14230,9 @@ Here are the vectors <code>string</code> and <code>numbers</code>:</p>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>But, let's start at the <strong>beginning</strong>!</p>
-<h2>∆F Fields<br>Text Fields, Code Fields, and Space Fields</h2>
-<h3 id="Text-Fields:-'A-simple-string'">Text Fields: <code>'A simple string'</code><a class="anchor-link" href="#Text-Fields:-'A-simple-string'">&#182;</a></h3><p>The simplest possible format string-- we'll call it an <strong>∆F</strong> string-- consists of a simple <strong>Text</strong> field.</p>
+<h2 id="%E2%88%86F-Fields">&#8710;F Fields<a class="anchor-link" href="#%E2%88%86F-Fields">&#182;</a></h2><p>Text Fields, Code Fields, and Space Fields</p>
+<h3 id="Text-Fields">Text Fields<a class="anchor-link" href="#Text-Fields">&#182;</a></h3><p><code>'A simple string'</code></p>
+<p>The simplest possible format string-- we'll call it an <strong>∆F</strong> string-- consists of a simple <strong>Text</strong> field.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -14610,7 +14629,7 @@ temporary variables across <strong>Code</strong> fields (see below).</li>
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.757942
+<span style="white-space:pre; font-family: monospace">0.608378
 </span>
 </div>
 
@@ -14818,7 +14837,7 @@ temporary variables across <strong>Code</strong> fields (see below).</li>
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="DQ-Strings-in-Code-Fields:-Use-%22These-Double-Quotes%22-not-'These-Single-Quotes'">DQ Strings in Code Fields: Use <code>"These Double Quotes"</code> <em>not</em> <code>'These Single Quotes'</code><a class="anchor-link" href="#DQ-Strings-in-Code-Fields:-Use-%22These-Double-Quotes%22-not-'These-Single-Quotes'">&#182;</a></h4><p>Within <strong>Code</strong> fields, strings <em>require</em> double quotes (<code>"</code>). These <strong>DQ strings</strong> <code>"like this one"</code> are used wherever single-quoted strings <code>'like this'</code> would be used in standard APL; single-quoted strings are <strong><em>not</em></strong> used in <code>∆F</code> <strong>strings</strong>. Single quotes <em>may</em> appear, most usually as literal characters, rather than to create strings.</p>
+<h3 id="DQ-Strings-Required-in-Code-Fields">DQ Strings Required in Code Fields<a class="anchor-link" href="#DQ-Strings-Required-in-Code-Fields">&#182;</a></h3><h4 id="DQ-Strings:--Use-%22Double-Quotes%22-not-'Single-Quotes'">DQ Strings:  Use <code>"Double Quotes"</code> <em>not</em> <code>'Single Quotes'</code><a class="anchor-link" href="#DQ-Strings:--Use-%22Double-Quotes%22-not-'Single-Quotes'">&#182;</a></h4><p>Within <strong>Code</strong> fields, strings <em>require</em> double quotes (<code>"</code>). These <strong>DQ strings</strong> <code>"like this one"</code> are used wherever single-quoted strings <code>'like this'</code> would be used in standard APL; single-quoted strings are <strong><em>not</em></strong> used in <code>∆F</code> <strong>strings</strong>. Single quotes <em>may</em> appear, most usually as literal characters, rather than to create strings.</p>
 <h4 id="DQ-Strings:-Escapes,-including--%5C%E2%8B%84...">DQ Strings: Escapes, including  <code>\&#8900;</code>...<a class="anchor-link" href="#DQ-Strings:-Escapes,-including--%5C%E2%8B%84...">&#182;</a></h4><p><strong>DQ Strings</strong> support the escaped sequences <code>\⋄</code> and <code>\\</code>. <code>\⋄</code> is a convenient way to enter newlines (actually ⎕UCS 13, the carriage return character) into linear strings (APL character vectors). When the <code>∆F</code> <em>string</em> is printed, newlines will create separate <em>rows</em> in the output matrix. <br>(Note: Unlike <strong>Text</strong> fields, <strong>DQ Strings</strong> in <strong>Code</strong> fields do not require or allow braces to be escaped: braces are ordinary characters inside <strong>DQ Strings</strong>.)</p>
 <p>To include an actual double quote within a <strong>DQ String</strong>, double the doublequote (<code>""</code>), just as one would for <em>single</em> quotes in standard APL strings. (As always, APL of course requires single quotes within character strings to be doubled on entry). Notice how the string below is a 3-row matrix, one row for each line of the <strong>DQ String</strong>.</p>
 
@@ -14867,7 +14886,7 @@ isn't it?
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="Space-Fields:-%7B--%7D">Space Fields: <code>{  }</code><a class="anchor-link" href="#Space-Fields:-%7B--%7D">&#182;</a></h3><p>The third and last field type is a <strong>Space</strong> field, which looks just like an <em>empty</em> <b>Code</b> Field, containing only zero or more spaces between the braces <code>{</code> <code>}</code> and, optionally, a comment. A <strong>Space</strong> field forms a distinct field and is a good way to separate other sorts of fields, i.e. <strong>Text</strong> or <strong>Code</strong> fields.</p>
+<h3 id="Space-Fields">Space Fields<a class="anchor-link" href="#Space-Fields">&#182;</a></h3><h4 id="%7B--%7D"><code>{  }</code><a class="anchor-link" href="#%7B--%7D">&#182;</a></h4><p>The third and last field type is a <strong>Space</strong> field, which looks just like an <em>empty</em> <b>Code</b> Field, containing only zero or more spaces between the braces <code>{</code> <code>}</code> and, optionally, a comment. A <strong>Space</strong> field forms a distinct field and is a good way to separate other sorts of fields, i.e. <strong>Text</strong> or <strong>Code</strong> fields.</p>
 <h4 id="Space-Field-Comments:-%7B--%E2%8D%9D...%7D">Space Field Comments: <code>{  &#9053;...}</code><a class="anchor-link" href="#Space-Field-Comments:-%7B--%E2%8D%9D...%7D">&#182;</a></h4><p>A <strong>Space</strong> field may include a comment, which starts with a lamp <code>⍝</code> and contains <strong><em>no</em></strong> braces; the comment ends just before the right brace <code>}</code> that terminates the <strong>Space</strong> field.</p>
 <p>For example:</p>
 
@@ -14994,7 +15013,7 @@ isn't it?
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>But why bother with space fields at all?</p>
+<h4 id="Why-Space-Fields?">Why Space Fields?<a class="anchor-link" href="#Why-Space-Fields?">&#182;</a></h4><p>But why bother with space fields at all?</p>
 <ul>
 <li>They are useful when separating one multiline strings or code field from the next; even a zero-width space field can separate two <strong>Text</strong> fields;  </li>
 <li>They ensure the expected amount of spacing when preceded or followed by text fields with lines of varying length.</li>
@@ -15178,7 +15197,7 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="(More-on)-Code-Fields:-Advanced-Topics">(More on) Code Fields: Advanced Topics<a class="anchor-link" href="#(More-on)-Code-Fields:-Advanced-Topics">&#182;</a></h3><h4 id="Pseudo-builtin-$-for-Detailed-Formatting">Pseudo-builtin <code>$</code> for Detailed Formatting<a class="anchor-link" href="#Pseudo-builtin-$-for-Detailed-Formatting">&#182;</a></h4><p>Dyalog APL has a built-in formatting utility <code>⎕FMT</code>, which may be old-fashioned but is rather essential for precise formatting of numerical data (and sometimes text data). To make <code>⎕FMT</code> and its standard parameters easier to use, we provide it as the pseudo-builtin <code>$</code>, with extensions described below. Here's a typical example, where the (optional) formatted left argument (⍺) is placed within a DQ string (as required with <code>∆F</code> <strong>Code</strong> Fields):</p>
+<h3 id="Code-Fields:-Advanced-Topics">Code Fields: Advanced Topics<a class="anchor-link" href="#Code-Fields:-Advanced-Topics">&#182;</a></h3><h3 id="Pseudobuiltin-$-for-Detailed-Formatting">Pseudobuiltin <code>$</code> for Detailed Formatting<a class="anchor-link" href="#Pseudobuiltin-$-for-Detailed-Formatting">&#182;</a></h3><p>Dyalog APL has a built-in formatting utility <code>⎕FMT</code>, which may be old-fashioned but is rather essential for precise formatting of numerical data (and sometimes text data). To make <code>⎕FMT</code> and its standard parameters easier to use, we provide it as the pseudo-builtin <code>$</code>, with extensions described below. Here's a typical example, where the (optional) formatted left argument (⍺) is placed within a DQ string (as required with <code>∆F</code> <strong>Code</strong> Fields):</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -15208,9 +15227,9 @@ field!
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">0.552346  23/12/2021
-0.514466            
-0.122884            
+<span style="white-space:pre; font-family: monospace">0.355052  25/12/2021
+0.125182            
+0.728645            
 </span>
 </div>
 
@@ -15318,7 +15337,7 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Pseudo-Function-$$-for-a-Boxed-Display">Pseudo-Function $$ for a Boxed Display<a class="anchor-link" href="#Pseudo-Function-$$-for-a-Boxed-Display">&#182;</a></h4><p>If we want a <strong>Code</strong> field to be boxed in the regular output, we can use the pseudo-builtin function <strong>\$\$</strong>. By default (no left argument or a left-argument of 0), no middle dots (·) appear with \$\$. If you want middle dots to appear in place of spaces, you must provide a left argument of 1.</p>
+<h3 id="Pseudobuiltin-%5C$$-for-a-Boxed-Display">Pseudobuiltin \$$ for a Boxed Display<a class="anchor-link" href="#Pseudobuiltin-%5C$$-for-a-Boxed-Display">&#182;</a></h3><p>If we want a <strong>Code</strong> field to be boxed in the regular output, we can use the pseudo-builtin function <strong>\$\$</strong>. By default (no left argument or a left-argument of 0), no middle dots (·) appear with \$\$. If you want middle dots to appear in place of spaces, you must provide a left argument of 1.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -15371,7 +15390,7 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="%E2%88%86F-Code-field-arguments:--%E2%8D%B90-...-%E2%8D%B999-and-%E2%8D%B9---(or-%E2%8D%B50-...-%E2%8D%B599-and-%E2%8D%B5_)">&#8710;F Code field arguments:  <code>&#9081;0</code> ... <code>&#9081;99</code> and <code>&#9081;</code>   (or <code>&#9077;0</code> ... <code>&#9077;99</code> and <code>&#9077;_</code>)<a class="anchor-link" href="#%E2%88%86F-Code-field-arguments:--%E2%8D%B90-...-%E2%8D%B999-and-%E2%8D%B9---(or-%E2%8D%B50-...-%E2%8D%B599-and-%E2%8D%B5_)">&#182;</a></h4><p><strong>∆F</strong> allows <strong>Code</strong> fields to access elements in its right argument, including the format string itself. Elements here refer to <strong>top level scalar objects</strong> in the right argument <code>⍵</code> to <strong>∆F</strong>, normalized to a nested form <code>⊆⍵</code>, ordered scalar by scalar (in ⎕IO=0) as (0⊃⍵) (1⊃⍵) (2⊃⍵) ... (N⊃⍵):</p>
+<h3 id="Shortcuts-for-Accessing-Elements-of-%E2%8D%B5">Shortcuts for Accessing Elements of &#9077;<a class="anchor-link" href="#Shortcuts-for-Accessing-Elements-of-%E2%8D%B5">&#182;</a></h3><h4 id="%E2%88%86F-Names-%E2%8D%B90-...-%E2%8D%B999-and-%E2%8D%B9---(or-%E2%8D%B50-...-%E2%8D%B599-and-%E2%8D%B5_)">&#8710;F Names <code>&#9081;0</code> ... <code>&#9081;99</code> and <code>&#9081;</code>   (or <code>&#9077;0</code> ... <code>&#9077;99</code> and <code>&#9077;_</code>)<a class="anchor-link" href="#%E2%88%86F-Names-%E2%8D%B90-...-%E2%8D%B999-and-%E2%8D%B9---(or-%E2%8D%B50-...-%E2%8D%B599-and-%E2%8D%B5_)">&#182;</a></h4><p><strong>∆F</strong> allows <strong>Code</strong> fields to access elements in its right argument, including the format string itself. Elements here refer to <strong>top level scalar objects</strong> in the right argument <code>⍵</code> to <strong>∆F</strong>, normalized to a nested form <code>⊆⍵</code>, ordered scalar by scalar (in ⎕IO=0) as (0⊃⍵) (1⊃⍵) (2⊃⍵) ... (N⊃⍵):</p>
 <ul>
 <li>The format string itself <code>(0⊃⍵)</code> is abbreviated as <code>⍹0</code>, <code>(1⊃⍵)</code> as <code>⍹1</code>, ..., (N⊃⍵) as <code>⍹N</code>.</li>
 <li>If a Code field refers to an element that does not exist, a runtime <code>INDEX ERROR</code> signal is generated as expected:
@@ -15510,13 +15529,13 @@ field!
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Note also that <code>⍹0</code> can never be selected via the lone <code>⍹</code> (as the <em>next</em> ⍵ argument), since the <em>last</em> index specified is never less than 0, so the <em>next</em> is never less than 1. In short, if you want <code>⍹0</code>, you type it explicitly!</p>
+<p>Note also that <code>⍹0</code> (the format string itself) can never be selected via the lone <code>⍹</code> (as the <em>next</em> ⍵ argument), since the <em>last</em> index specified is never less than 0, so the <em>next</em> is never less than 1. In short, if you want <code>⍹0</code>, you type it explicitly!</p>
 
 </div>
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4>Pseudo-Function <code>$</code>: Justification and Centering Codes  <em>L</em>, <em>C</em>, <em>R</em> <br>Vector Arg treated as Column Vector</h4>
+<h3 id="Justification-and-Centering-with-%5C$">Justification and Centering with \$<a class="anchor-link" href="#Justification-and-Centering-with-%5C$">&#182;</a></h3><h4>Pseudo-builtin <code>$</code>: Justification and Centering Codes  <em>L</em>, <em>C</em>, <em>R</em> <br>Vector Arg treated as Column Vector</h4>
 <p>The pseudo-function <code>$</code> has been extended with special codes for justifying or centering objects within a <strong>Code</strong> field. (Codes <em>l</em>, <em>c</em>, <em>r</em>— are discussed further below.)</p>
 
 </div>
@@ -15540,7 +15559,7 @@ field!
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>The digits <code>nnn</code>, a 1- to 3-digit number, indicates the minimum width of the field. If a field is already wider than <code>nnn</code> characters, the field is left as is.
 These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  Only one special code may be used in each <code>$</code> call, but you may call <code>$</code> itself more than once) and that code must be the <em>first</em> or <em>only</em> code specified. If other (usually numerically-oriented) codes  follow, a comma must intervene (following the conventions of dyadic <code>⎕FMT</code>).</p>
-<p>Here, we <em>left-, center-</em>, and <em>right-</em>justify Names in the ∆F arguments.</p>
+<p>Here, we <em>left-, center-</em>, and <em>right-</em> justify the variable <code>names</code> using ∆F justification/centering codes.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -15603,13 +15622,13 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Here, we format a couple of numeric fields, one centered automatically via $ code <code>C25</code> and the other manually via a <em>standard</em> <strong>⎕FMT</strong> code <code>X6</code>, which adds explicit spacing to build the same field width; both do the job:</p>
+<p>Here, we format a couple of numeric fields, one centered automatically via $ code <code>C25</code> and the other manually via a <em>standard</em> <strong>⎕FMT</strong> code <code>X6</code>, which adds explicit spacing to build the same field width. Both do the job:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[31]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[47]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">title</span><span class="kd">←</span> <span class="nv">∆F</span> <span class="s1">&#39;{    }Use ∆F Extension C25\⋄   25 chars wide{ :13: }Use ⎕FMT X6: 6+13+6=25\⋄    25 chars wide&#39;</span>
@@ -15630,7 +15649,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[31]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[47]:</div>
 
 
 
@@ -15655,7 +15674,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>Note also the use of the explicit digits in the <strong>Space</strong> field <code>{  :13:  }</code> to insert a significant set of spaces to separate the titles.</p>
-<h4>Pseudo-function <code>$</code>: Justification and Centering Codes <em>l</em>, <em>c</em>, <em>r</em>  <br>Vector arg treated as <em>Row</em> Vector</h4>
+<h4>Pseudo-builtin <code>$</code>: Justification and Centering Codes <em>l</em>, <em>c</em>, <em>r</em>  <br>Vector arg treated as <em>Row</em> Vector</h4>
 <p>Like standard ⎕FMT, <code>$</code> <em>by default</em> considers simple vectors in the code field as column vectors (as in the example above). This is true even for the extensions <code>L</code>, <code>C</code>, and <code>R</code>. However, you can override this, by specifying justification codes in lower case (<code>nnn</code> is a 1- to 3-digit number):</p>
 
 </div>
@@ -15729,7 +15748,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h4 id="Code-Fields:-Self-Documenting-Code-Fields-%7B-Code-%E2%86%92-%7D">Code Fields: Self-Documenting Code Fields <code>{ Code &#8594; }</code><a class="anchor-link" href="#Code-Fields:-Self-Documenting-Code-Fields-%7B-Code-%E2%86%92-%7D">&#182;</a></h4><p>As mentioned earlier, a <strong>Code</strong> Field can be made <strong>self-documenting</strong> by inserting a right arrow <code>→</code> just before the closing right brace.  In more detail, the entire code of the <strong>Code</strong> Field, including the right arrow <em>and</em> the spaces <em>before</em> and <em>after</em> it, will be included in the formatted output, followed by the executed code. For clarity,, the APL right arrow <code>→</code> is replaced by a special right arrow <code>➤</code>.</p>
+<h3 id="Self-Documenting-Code-Fields">Self-Documenting Code Fields<a class="anchor-link" href="#Self-Documenting-Code-Fields">&#182;</a></h3><h4 id="%7B-Code-%E2%86%92-%7D"><code>{ Code &#8594; }</code><a class="anchor-link" href="#%7B-Code-%E2%86%92-%7D">&#182;</a></h4><p>As mentioned earlier, a <strong>Code</strong> Field can be made <strong>self-documenting</strong> by inserting a right arrow <code>→</code> just before the closing right brace.  In more detail, the entire code of the <strong>Code</strong> Field, including the right arrow <em>and</em> the spaces <em>before</em> and <em>after</em> it, will be included in the formatted output, followed by the executed code. For clarity,, the APL right arrow <code>→</code> is replaced by a special right arrow <code>➤</code>.</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
@@ -15763,7 +15782,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
 <span style="white-space:pre; font-family: monospace">&lt;MyString ➤ This  &gt;  &lt; 3↑Today ➤ 2021&gt;.  &lt;"I4" $ 3↑Today  ➤  2021&gt;
             is my                  12                          12 
-            string                 23                          23 
+            string                 25                          25 
 </span>
 </div>
 
@@ -15820,7 +15839,139 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="Pseudofunction-%25:-Formatting-Timestamps,-Date-Numbers,-and-Timezone-Characters">Pseudofunction <code>%</code>: Formatting Timestamps, Date Numbers, and Timezone Characters<a class="anchor-link" href="#Pseudofunction-%25:-Formatting-Timestamps,-Date-Numbers,-and-Timezone-Characters">&#182;</a></h3><p>As Dyalog defines it, a <em>datetime</em> is a date and time of day represented by a timestamp, a date number, or a "military" timezone character. Dyalog APL provides two very expansive datetime functions, <code>⎕DT</code> and <code>(1200⌶)</code>, to manipulate datetimes. The <code>∆F</code> pseudofunction <code>%</code> uses these functions <em>behind the scenes</em> to provide a simple way to format one or more APL date-time specifications:</p>
+<h3 id="Pseudobuiltin-$$$-for-Adding-Quotes-or-Decorators">Pseudobuiltin <code>$$$</code> for Adding Quotes or Decorators<a class="anchor-link" href="#Pseudobuiltin-$$$-for-Adding-Quotes-or-Decorators">&#182;</a></h3>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[35]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">guillemets</span><span class="kd">←</span> <span class="s1">&#39;«»&#39;</span>             <span class="c1">⍝ guillemets: French-style quotes!</span>
+<span class="nv">gUnicode</span><span class="kd">←</span>   <span class="m">171</span> <span class="m">187</span>          <span class="c1">⍝ Unicode for «»</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{$$$ ⍵1 ⍝ Default qts}     {guillemets $$$ ⍵1}     {gUnicode $$$ $ ⍵1}&#39;</span> <span class="p">(</span><span class="o">⍪</span><span class="m">100</span><span class="o">×⍳</span><span class="m">3</span><span class="p">)</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">  "0"       «0»       «0»
+"100"     «100»     «100»
+"200"     «200»     «200»
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[36]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">animals</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;cats&#39;</span> <span class="s1">&#39;  rats&#39;</span>  <span class="s1">&#39;dogs  &#39;</span>        <span class="c1">⍝ Note arbitrary blanks within each row of animals</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{animals  } {:10:} { $$$ animals  } {:10:} { &quot;&quot;&quot;&quot;,animals,&quot;&quot;&quot;&quot;}&#39;</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[36]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">cats              "cats"              "cats  "
+  rats              "rats"            "  rats"
+dogs              "dogs"              "dogs  "
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>Here's a clever use of <code>$$$</code>.</p>
+<p>Unlike <code>"I2"</code> (a <strong>⎕FMT</strong> specification), <code>$$$</code> automatically adjusts to the width of the numbers being formatted. (<strong>⎕FMT</strong> will insert asterisks (***), if the field width is insufficient.</p>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[37]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ &quot; .&quot; $$$ ⍪⍵1}  { &quot;I2,⊂.⊃&quot; $ ⍵1}  { &quot;I3,⊂.⊃&quot; $ ⍵1}  &#39;</span> <span class="p">(</span><span class="m">98</span> <span class="m">99</span> <span class="m">100</span><span class="p">)</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[37]:</div>
+
+
+
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
+<span style="white-space:pre; font-family: monospace">  98.  98.   98.  
+  99.  99.   99.  
+ 100.  **.  100.  
+</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h3 id="Pseudobuiltin-%25-for-Formatting-Dates-and-Times">Pseudobuiltin <code>%</code> for Formatting Dates and Times<a class="anchor-link" href="#Pseudobuiltin-%25-for-Formatting-Dates-and-Times">&#182;</a></h3><p>As Dyalog defines it, a <em>datetime</em> is a date and time of day represented by a timestamp, a date number, or a "military" timezone character. Dyalog APL provides two very expansive datetime functions, <code>⎕DT</code> and <code>(1200⌶)</code>, to manipulate datetimes. The <code>∆F</code> pseudofunction <code>%</code> uses these functions <em>behind the scenes</em> to provide a simple way to format one or more APL date-time specifications:</p>
 <ul>
 <li><p>APL <strong>Timestamps</strong></p>
 <ul>
@@ -15845,7 +15996,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[35]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[48]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ t1 is a Timestamp in APL format</span>
@@ -15876,7 +16027,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[48]:</div>
 
 
 
@@ -15890,7 +16041,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[48]:</div>
 
 
 
@@ -15904,7 +16055,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[48]:</div>
 
 
 
@@ -15918,7 +16069,7 @@ These codes are valid with either <em>numeric</em> or <em>text</em> arguments.  
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[35]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[48]:</div>
 
 
 
@@ -15943,7 +16094,7 @@ They met at 6:05 PM on the  4th of Jul 1776.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[36]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[39]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Here we specify the current datetime in timezone Zulu, i.e. Greenwich Mean Time or UTC.</span>
@@ -15963,12 +16114,12 @@ They met at 6:05 PM on the  4th of Jul 1776.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[36]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[39]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">Product A Expired on 2021-12-23T22:17:15 UTC.
+<span style="white-space:pre; font-family: monospace">Product A Expired on 2021-12-25T17:05:14 UTC.
 </span>
 </div>
 
@@ -15986,7 +16137,7 @@ They met at 6:05 PM on the  4th of Jul 1776.
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[37]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[40]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">ndays</span><span class="kd">←</span> <span class="m">¯14</span>
@@ -16007,12 +16158,12 @@ They met at 6:05 PM on the  4th of Jul 1776.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[37]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[40]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">Product B Expired 14 Days Earlier, on: 2021-12-09T22:17:16 UTC.
+<span style="white-space:pre; font-family: monospace">Product B Expired 14 Days Earlier, on: 2021-12-11T17:05:14 UTC.
 </span>
 </div>
 
@@ -16025,24 +16176,16 @@ They met at 6:05 PM on the  4th of Jul 1776.
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="Code-Fields:--Left-argument-%E2%8D%BA-contains-special-namespace">Code Fields:  Left argument <code>&#9082;</code> contains special namespace<a class="anchor-link" href="#Code-Fields:--Left-argument-%E2%8D%BA-contains-special-namespace">&#182;</a></h3><p><strong>∆F</strong> passes a reference to a special namespace as the left argument <code>⍺</code> to each <strong>Code</strong> field. That namespace contains support functions and variables for <strong>∆F</strong>. Names <em>beginning</em> with any of the following letters</p>
-<ul>
-<li>an underscore, ⍙, or lower-case letters (<em>a-z plus</em>), </li>
-<li><em>i.e.</em> any of the following: _ ⍙ a b c d e f g h i j k l m n o p q r s t u v w x y z þ ã ì ð ò õ à á â ä å æ ç è é ê ë í î ï ñ ó ô ö ø ù ú û ü</li>
-</ul>
-<p>are reserved for the application user (you) to use in temporary functions, operators, or variables. One potential use is setting state that is maintained across all <strong>Code</strong> fields (left to right) during the execution of <strong>∆F</strong>, without cluttering the calling environment:</p>
+<h3 id="Code-Fields:-Private-Namespace-%E2%8D%BA">Code Fields: Private Namespace &#9082;<a class="anchor-link" href="#Code-Fields:-Private-Namespace-%E2%8D%BA">&#182;</a></h3><p><strong>∆F</strong> generates a special namespace, which is passes to each <strong>Code</strong> field as the left argument <code>⍺</code> . It allows the user to have functions or variables (e.g. state variables) that are available to all <strong>Code</strong> fields (left to right) during the execution of <strong>∆F</strong>, without cluttering the calling environment:</p>
 
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[38]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[41]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nf">⎕FR</span> <span class="nf">⎕PP</span><span class="kd">←</span> <span class="m">1287</span> <span class="m">34</span>
-    <span class="nv">PiSilly</span> <span class="kd">←</span><span class="kt">{</span> <span class="bp">⍺</span><span class="na">.</span><span class="nv">_PI</span><span class="kd">←</span> <span class="o">○</span> <span class="p">⋄</span> <span class="no">⍬</span> <span class="kt">}</span>
-    <span class="nv">∆F</span> <span class="s1">&#39;{ ⍺ PiSilly 10 }{ ⍺._PI 1 }&#39;</span> 
-<span class="nf">⎕FR</span> <span class="nf">⎕PP</span><span class="kd">←</span><span class="m">645</span> <span class="m">10</span>
+<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{⍬⊣⍺.RND←?3⍴⍵1}The winning numbers are {⍺.RND[0]}, {⍺.RND[1]}, and {⍺.RND[2]}.&#39;</span> <span class="m">1000</span>
 </pre></div>
 
      </div>
@@ -16058,12 +16201,12 @@ They met at 6:05 PM on the  4th of Jul 1776.
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[38]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[41]:</div>
 
 
 
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">3.141592653589793238462643383279503
+<span style="white-space:pre; font-family: monospace">The winning numbers are 255, 75, and 292.
 </span>
 </div>
 
@@ -16087,11 +16230,11 @@ for num in table2:
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[39]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[42]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">table</span><span class="kd">←</span> <span class="m">4127</span> <span class="m">4096</span> <span class="m">7678</span>                           <span class="c1">⍝ Could be much bigger, of course...</span>
-<span class="nv">∆F</span> <span class="s1">&#39;{&quot;[]&quot; $$$ ⍪1+⍳≢⍵1}  {⍪⍵1}&#39;</span> <span class="nv">table</span>            <span class="c1">⍝ $$$ defined below...</span>
+<span class="nv">∆F</span> <span class="s1">&#39;{&quot;[]&quot; $$$ ⍪1+⍳≢⍵1}  {⍪⍵1}&#39;</span> <span class="nv">table</span>            <span class="c1">⍝ $$$ defined above...</span>
 </pre></div>
 
      </div>
@@ -16107,7 +16250,7 @@ for num in table2:
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[39]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[42]:</div>
 
 
 
@@ -16138,7 +16281,7 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[40]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[43]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="nv">rangeV</span> <span class="kd">←</span> <span class="m">1</span><span class="o">+⍳</span><span class="m">10</span>
@@ -16159,7 +16302,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[40]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[43]:</div>
 
 
 
@@ -16187,13 +16330,13 @@ for x in range(1, 11):
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Keep n mind as you read examples from Python or Javascript that APL is likely to have more intuitive solutions that do not require explicit looping with <strong>∆F</strong>.</p>
+<p>Keep in mind as you read examples from Python or Javascript that APL is likely to have more intuitive solutions that do not require explicit looping with <strong>∆F</strong>.</p>
 
 </div>
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="%E2%88%86F-for-assertions">&#8710;F for assertions<a class="anchor-link" href="#%E2%88%86F-for-assertions">&#182;</a></h2><p>Normally, ∆F returns the formatted text as a single formatted matrix (rank 2).
+<h2 id="Assertions-with-%E2%88%86F">Assertions with &#8710;F<a class="anchor-link" href="#Assertions-with-%E2%88%86F">&#182;</a></h2><p>Normally, ∆F returns the formatted text as a single formatted matrix (rank 2).
 <br>If the left argument (⍺) to ∆F is a homogeneous numeric array, it is viewed as an assertion.</p>
 <ul>
 <li>If the assertion contains <em>no numeric zeroes</em>, it is considered <strong>true</strong>. It <strong>prints</strong> the formatted text, returning a shy <em>1</em>. (It does <em>not</em> return the formatted text, as in <em>format</em> mode.)</li>
@@ -16204,7 +16347,7 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[41]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[44]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Here, (var&lt;100) is FALSE, so no ∆F string message is produced. 0 is returned.</span>
@@ -16226,7 +16369,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[41]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[44]:</div>
 
 
 
@@ -16244,7 +16387,7 @@ for x in range(1, 11):
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[46]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[45]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
 <div class=" highlight hl-APL"><pre><span></span><span class="c1">⍝ Now, the assertion (var&lt;100) is TRUE, so a ∆F string message is printed. 1 is returned.</span>
@@ -16267,7 +16410,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[46]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[45]:</div>
 
 
 
@@ -16281,7 +16424,7 @@ for x in range(1, 11):
 <div class="jp-OutputArea-child">
 
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[46]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[45]:</div>
 
 
 
@@ -16299,140 +16442,8 @@ for x in range(1, 11):
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="Pseudofunction-$$$:-Adding-quotes-or-other-decorators-to-vectors-or-matrices">Pseudofunction <code>$$$</code>: Adding quotes or other decorators to vectors or matrices<a class="anchor-link" href="#Pseudofunction-$$$:-Adding-quotes-or-other-decorators-to-vectors-or-matrices">&#182;</a></h3>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[43]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-     <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">guillemets</span><span class="kd">←</span> <span class="s1">&#39;«»&#39;</span>             <span class="c1">⍝ guillemets: French-style quotes!</span>
-<span class="nv">gUnicode</span><span class="kd">←</span>   <span class="m">171</span> <span class="m">187</span>          <span class="c1">⍝ Unicode for «»</span>
-<span class="nv">∆F</span> <span class="s1">&#39;{$$$ ⍵1 ⍝ Default qts}     {guillemets $$$ ⍵1}     {gUnicode $$$ $ ⍵1}&#39;</span> <span class="p">(</span><span class="o">⍪</span><span class="m">100</span><span class="o">×⍳</span><span class="m">3</span><span class="p">)</span>
-</pre></div>
-
-     </div>
-</div>
-</div>
-</div>
-
-<div class="jp-Cell-outputWrapper">
-
-
-<div class="jp-OutputArea jp-Cell-outputArea">
-
-<div class="jp-OutputArea-child">
-
-    
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[43]:</div>
-
-
-
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">  "0"       «0»       «0»
-"100"     «100»     «100»
-"200"     «200»     «200»
-</span>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[44]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-     <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">animals</span><span class="kd">←</span><span class="o">↑</span><span class="s1">&#39;cats&#39;</span> <span class="s1">&#39;  rats&#39;</span>  <span class="s1">&#39;dogs  &#39;</span>        <span class="c1">⍝ Note arbitrary blanks within each row of animals</span>
-<span class="nv">∆F</span> <span class="s1">&#39;{animals  } {:10:} { $$$ animals  } {:10:} { &quot;&quot;&quot;&quot;,animals,&quot;&quot;&quot;&quot;}&#39;</span>
-</pre></div>
-
-     </div>
-</div>
-</div>
-</div>
-
-<div class="jp-Cell-outputWrapper">
-
-
-<div class="jp-OutputArea jp-Cell-outputArea">
-
-<div class="jp-OutputArea-child">
-
-    
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[44]:</div>
-
-
-
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">cats              "cats"              "cats  "
-  rats              "rats"            "  rats"
-dogs              "dogs"              "dogs  "
-</span>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Here's a clever use of <code>$$$</code>.</p>
-<p>Unlike <code>"I2"</code> (a <strong>⎕FMT</strong> specification), <code>$$$</code> automatically adjusts to the width of the numbers being formatted. (<strong>⎕FMT</strong> will insert asterisks (***), if the field width is insufficient.</p>
-
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[45]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-     <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-APL"><pre><span></span><span class="nv">∆F</span> <span class="s1">&#39;{ &quot; .&quot; $$$ ⍪⍵1}  { &quot;I2,⊂.⊃&quot; $ ⍵1}  { &quot;I3,⊂.⊃&quot; $ ⍵1}  &#39;</span> <span class="p">(</span><span class="m">98</span> <span class="m">99</span> <span class="m">100</span><span class="p">)</span>
-</pre></div>
-
-     </div>
-</div>
-</div>
-</div>
-
-<div class="jp-Cell-outputWrapper">
-
-
-<div class="jp-OutputArea jp-Cell-outputArea">
-
-<div class="jp-OutputArea-child">
-
-    
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[45]:</div>
-
-
-
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html">
-<span style="white-space:pre; font-family: monospace">  98.  98.   98.  
-  99.  99.   99.  
- 100.  **.  100.  
-</span>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <hr>
-<h2 id="%E2%88%86F-Syntax">&#8710;F Syntax<a class="anchor-link" href="#%E2%88%86F-Syntax">&#182;</a></h2><p>Syntax:  <strong>result ← [ [ assertion | options ] ]  ∆F  format_string  [ arg1 [arg2 ...] ]</strong></p>
+<h2 id="%E2%88%86F-Syntax-Summary">&#8710;F Syntax Summary<a class="anchor-link" href="#%E2%88%86F-Syntax-Summary">&#182;</a></h2><p>Syntax:  <strong>result ← [ [ assertion | options ] ]  ∆F  format_string  [ arg1 [arg2 ...] ]</strong></p>
 <ul>
 <li><p><strong>assertion</strong> ⍺: a homogeneous numeric array.</p>
 <ul>
@@ -16466,13 +16477,15 @@ specified.</p>
 <ul>
 <li><p>Contains the simple format "fields" that include strings (<strong>Text</strong> fields), 
 code (<strong>Code</strong> fields), and spacing (<strong>Space</strong> fields). 
-<br><strong>Code</strong> fields support a shorthand for manipulating objects using <strong>\$</strong>, <strong>\$\$</strong>, or <strong>\$\$\$</strong>:</p>
+<br><strong>Code</strong> fields support a shorthand for manipulating objects using <strong>\$</strong>, <strong>\$\$</strong>, <strong>\$\$\$</strong>, and <strong>\%</strong>:</p>
 <ul>
-<li><p><strong>$</strong> does numeric formatting (via <strong>⎕FMT</strong>), along with justification and centering;</p>
+<li><p><strong>$</strong> does numeric formatting via <strong>⎕FMT</strong>, along with justification and centering;</p>
 </li>
 <li><p><strong>$$</strong> displays data using dfns <strong>DISPLAY</strong>;</p>
 </li>
-<li><p><strong>$$$</strong> adds quotes or other decorators around user data (see <strong>QT</strong> above).</p>
+<li><p><strong>$$$</strong> adds quotes or other decorators around user data.</p>
+</li>
+<li><p><strong>%</strong> formats timestamps and date numbers using <strong>⎕DT</strong> and <strong>1200⌶</strong>.</p>
 </li>
 </ul>
 </li>
@@ -16486,7 +16499,7 @@ code (<strong>Code</strong> fields), and spacing (<strong>Space</strong> fields)
 <li><strong>⍹0</strong> refers to <code>0⊃⍵</code>, the ∆F format string.</li>
 <li><strong>⍹1</strong> refers to <code>1⊃⍵</code>, the first "user" element.</li>
 <li><strong>⍹N</strong> refers to <code>N⊃⍵</code>, the Nth "user" element (where N is a 1- or 2-digit number)</li>
-<li><strong>⍹</strong>  by itself refers to the NEXT element, counting from left to right across all code fields.</li>
+<li><strong>⍹</strong>  by itself refers to the element after the one most recently accessed across all code fields viewed from left to right. If no element has been accessed, <strong>⍹</strong> refers to <strong>⍹1</strong>.</li>
 </ul>
 </li>
 <li><p>Allowed synonym for <strong>⍹</strong>: You may use <code>⍵0</code> for <strong>⍹0</strong>, <code>⍵N</code> for <strong>⍹N</strong>, and <code>⍵_</code> for a <strong>⍹</strong> by itself.</p>
@@ -16540,6 +16553,11 @@ Note: <font color="purple"><b>∆F</b></font> is a <font color="red"><b><i>proto
 </div></li>
 </ul>
 
+</div>
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h3 id="Go-to-top"><a href="#&#8710;F-Strings-for-Formatting">Go to top</a><a class="anchor-link" href="#Go-to-top">&#182;</a></h3>
 </div>
 </div>
 </body>
