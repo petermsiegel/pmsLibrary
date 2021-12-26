@@ -65,8 +65,8 @@
     ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
     ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute via ⍎).  
       RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍺.ⒷⒷ '/⍨DEBUG),⍵    
-          ⍺⊣ RESULT,← ⌽lhs,'⍺.Ⓒ'/⍨ ~0=≢RESULT     
+          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍙Ⓕ.ⒷⒷ '/⍨DEBUG),⍵    
+          ⍺⊣ RESULT,← ⌽lhs,'⍙Ⓕ.Ⓒ⍨'/⍨ ~0=≢RESULT     
       }
     ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
@@ -140,9 +140,10 @@
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD  
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
             ⋄ invalidDollarE←'{''DOMAIN ERROR: Invalid use of $''⎕SIGNAL 11}'
-            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ ' ⍙Ⓕ.FMTX '   ' ⍙Ⓕ.BOX '  ' ⍙Ⓕ.QT '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
+          ⍝ We use short names for FMTX, BOX, QUOTE, (below) DateTime 
+            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ ' ⍙Ⓕ.Ⓕ '   ' ⍙Ⓕ.Ⓑ'  ' ⍙Ⓕ.Ⓠ '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
             ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'
-            CASE pctI:     (1≠≢f 0)⊃ ' ⍙Ⓕ.DATETIME '   invalidPctE                
+            CASE pctI:     (1≠≢f 0)⊃ ' ⍙Ⓕ.Ⓓ '   invalidPctE                
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -158,11 +159,11 @@
                 m1 m2← { (6↑''),¯7↓31↓⍵ }¨↓↑1↓DM ⋄ m1← '⍵⊃⍨⎕IO\+' ⎕R '⍹'⊢m1
                 ⎕←↑m0 m1 m2 ⋄ EM EN
             }⍬ 
-          ⍝ Mirror current vals of key sys vars from user space into ⍙Ⓕ.Lib (Code Field arg: ⍺).
+          ⍝ Mirror current vals of key sys vars from user space into HERE.Lib (Code Field arg: ⍺).
           ⍝ Useful in case you do  ⍺.MY_FN ← ○  (where ○ will be executed in the ⍺ namespace).
-            ⍙Ⓕ.Lib.UserNs.(⎕FR ⎕PP)← USER_SPACE.(⎕FR ⎕PP)           
-          ⍝ Pass the main local namespace name ⍙Ⓕ  **library** into the user space as ⍙Ⓕ and as ⍺.  See dollarP, dollarI.
-            ⍎'⍙Ⓕ.Lib.UserNs USER_SPACE.{⍙Ⓕ←⍺.## ⋄ ⍺', ⍵ ,'⍵ }OMEGA'
+            HERE.Lib.UserNs.(⎕FR ⎕PP)← USER_SPACE.(⎕FR ⎕PP)           
+          ⍝ Pass the (copied) User Namespace into the user space as ⍺≡⍙Ⓕ.UserNs.   
+            ⍎'HERE.Lib.UserNs USER_SPACE.{⍙Ⓕ←⍺.## ⋄ ⍺', ⍵ ,'⍵ }OMEGA'
         }dfn 
       ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
       ⍝ Prettyprint variant of → is '➤' U+10148
@@ -199,7 +200,7 @@
     ⍝ Code Field Patterns...
       escDQP←   '\\"'
       quoteP←   '(?<!\\)(?:"[^"]*")+'   ⍝ Should be RECURSIVE, handling backslash dq
-      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = BOX, $$$ = QT  
+      dollarP←  '(?<!\\)\${1,}'         ⍝ $ = FMTX, $$ = BOX, $$$ = QUOTE  
       pctP←     '(?<!\\)\%{1,}'         ⍝ % = date format... 
     ⍝-- :BEGIN OMEGA_ALIAS LOGIC
       ⍝ Synonym of ⍹DD is ⍵DD. Synonym of bare ⍹ is ⍵_.   (DD: 1 or 2 digits).
@@ -225,7 +226,7 @@
       SELF_DOC_ARROW←'➤'   ⍝ For Self-Documenting Code: use a printable char here, e.g. → or '➤'
     HELP: _←HelpCmd ⍬
       USER_SPACE←⊃⌽⎕RSI
-      ⍙Ⓕ←⎕THIS      
+      HERE←⎕THIS      
     ⍝ Globals (externals) used within utility functions.    
     ⍝ Save the right arg to ∆F (,⊆⍵), the format string (⍹0), and its right args (⍹1, ⍹2, etc.)
       OMEGA←     ⍵                       ⍝ Named to be visible at various scopes. 
@@ -251,8 +252,8 @@
         ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
-        ⍝ ⍙Ⓕ ← ⍎ⒻormatLibName (see details at namespace ∆Format.Lib below)
-            res←'(⎕NS ',Lib.ⒻormatLibName,').UserNs{⍺←''''⋄0∊⍺:_←0⋄⍺ ⍙Ⓕ.Ⓛ ⍺⍺{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺.##).Ⓡ',fmtStr,'}' 
+        ⍝ ⍙Ⓕ will point to the library "above" the usernamespace, stored at ⍺.
+            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍙Ⓕ.Ⓛ ⍺⍺.Ⓤ{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -276,17 +277,17 @@
 
 ⍝ Lib: peer Library used internally (standard path) and externally (compile option path)
 :Namespace Lib
-
-   :Namespace UserNs
-     ⎕DF '[∆F:UserNs]'
-   :EndNameSpace
+   ⎕IO←0
+  :Namespace UserNs
+    ⎕DF '[∆F:UserNs]'
+  :EndNameSpace
+  Ⓤ← UserNs   ⍝ Short form
 ⍝ +-------------------------------------------------------------------------------------------+
-⍝ | SECTION ***** Library Routines (Local Use, Compile Mode, and User-Accessible)             |
-⍝ | User Accessible: ⍺.FMTX, ⍺.CAT, ⍺.BOX, ⍺.BBOX, ⍺.QT    
-⍝ | Internal Use:    ⍙Ⓕ.(Ⓛ, Ⓡ, Ⓒ, ⒷⒷ)
+⍝ | SECTION ***** Library Routines (Local Use, Compile Mode)            
+⍝ | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE      )  
+⍝ | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ  Ⓛ Ⓡ  )
 ⍝ +-------------------------------------------------------------------------------------------+   
   ⍝ ⎕THIS must be a named namespace for ⒻormatLibName to work... 
-  ⍝    Extern ⍙Ⓕ←⍎ⒻormatLibName, with 'COMPILE' option.
     ⒻormatLibName←⍕⎕THIS         
     ⒽelpLibRef←⎕THIS.##          ⍝  Used with HELP option
  
@@ -316,52 +317,54 @@
         wCtr←wReq-⍨⌊2÷⍨wReq-wObj                      ⍝ Center 1
         wReq pad1 wCtr pad1 obj                       ⍝ ...    2
     } 
+    Ⓕ← FMTX
 
     ⍝ ⍺.CAT: CATENATE FIELDS
     ⍝ Return a matrix with ⍺ on left and ⍵ on right, first applying ⎕FMT to each and catenating left to right,
     ⍝ "padding" the shorter object with blank rows. See HELP info on library routines.
     ⍝ Monadic case: Treat ⍺ as null array...
-      CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
-    ⍝ ⍺.Ⓒ, alias for CAT⍨: Reverse Catenate Fields [internal use only]
-      Ⓒ←   CAT⍨
+    CAT← {0=≢⍺: ⎕FMT ⍵ ⋄ a w←⎕FMT¨⍺ ⍵ ⋄ a w↑⍨←a⌈⍥≢w ⋄ a,w }
+    Ⓒ← CAT
 
     ⍝ ⍺.BOX: A boxing function with option ⍺. See $$
     ⍝ Experimental: We allow 1 BOX ⍵ to be same as BBOX. 0 BOX ⍵ is original BOX.
     ⍝    WAS: BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣⎕SE.Dyalog.Utils.display ⍵}
     ⍝    NOW: 
-      BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣ⒹfnsBox ⍕⍵}
+    BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣ⒹfnsBox ⍕⍵}
+    Ⓑ← BOX
     ⍝ BBOX  [user] and ⍺.Ⓑ [internal]: 
     ⍝   BOX with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
-      ⒷⒷ← BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣ⒹfnsBox ⍕⍵}
+    BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣ⒹfnsBox ⍕⍵}
+    ⒷⒷ← BBOX
 
     DATETIME←{ ⍝ ⎕IO←0
-        0∊0 ⎕DT ⍵:11 ⎕SIGNAL⍨'Argument must be valid Dyalog Time Numbers and/or enclosed Timestamps'
+        ⍺←'%ISO%'             ⍝ Default: Display ISO Date
+        0:: ⎕SIGNAL/⎕DMX.(EM EN)
+        0=1↑0⍴⍺: ⍺ ⎕DT ⍵
+          domE← 'Argument ⍵ must contain valid Dyalog Time Numbers and/or enclosed Timestamps'
+        0∊0 ⎕DT ⍵: domE ⎕SIGNAL 11
         dt← ⍺(1200⌶)1 ⎕DT ⍵ 
         0≠⍴⍴⍵: dt ⋄ ⊃dt   
     }
+    Ⓓ← DATETIME
 
-    ⍝ QT: Add quotes around each row of ⍵ formatted.
+    ⍝ QUOTE: Add quotes around each row of ⍵ formatted.
     ⍝     The default quotes are '"'. 
     ⍝     If the quotes are of length 2, the first is the opening quote and the 2nd the closing quote.
     ⍝     If numeric, the quotes will be the unicode characters with those numeric codes.
-      QT←{  ⍺←'"' ⋄ 2|⎕DR ⍺: ⍵ ∇⍨ ⎕UCS ⍺  ⋄ ⎕IO←0 ⋄ B←+/(∧\' '∘=) 
+    QUOTE←{  ⍺←'"' ⋄ 2|⎕DR ⍺: ⍵ ∇⍨ ⎕UCS ⍺  ⋄ ⎕IO←0 ⋄ B←+/(∧\' '∘=) 
             q⌽R,⍨w⌽⍨-q←B⌽w←(-p)⌽L,w⌽⍨p←B⊢w←⎕FMT ⍵  ⊣ L R←2⍴⍺
       }
+    Ⓠ←QUOTE
 
     ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
-      Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}    
+    Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}
+
     ⍝ Ⓡ: Process Right Arg of Compiled ∆F @ Runtime.
     ⍝    Unless user format string is non-empty, insert actual format string from "compile" phase.
-      Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
-
-    ⍝ UNDER REVIEW: Here only for demonstrations...
-    ⍝ TITLE: Converts words in ⍵ to Title case (1st letter capitalized. All else forced to lower case)
-      TITLE←{
-          2=⍴⍴⍵: ∇⍤1⊣⍵ ⋄ 2=|≡⍵: ∇¨⍵
-          1↓∊' ',¨((1 ⎕C⊃∘⊢),(⎕C 1∘↓∘⊢))¨' '∘(≠⊆⊢),⍵
-      } 
+    Ⓡ←{0=≢⊃⍺: (⊂⍵),1↓⍺ ⋄ ⍺} 
 
     ⍝ dfns::box ==> ⒹfnsBox
     ⒹfnsBox←{              ⍝ Box the simple text array ⍵.
@@ -391,17 +394,16 @@
 ⍝ +----------------------------------------------------------------------------+
 ⍝ | ENDSECTION ***** Library Routines (Compile Mode and User-Accessible)       |
 ⍝ +----------------------------------------------------------------------------+
- 
 :EndNamespace
 
 ⍝ HELP FILE and UTILITY...  Choose html or pdf based on convenience...
 ⍝ NOTE: This is a hardwired kludge that should be fixed ;-)
-HELP_FI←'./MyDyalogLibrary/pmsLibrary/src/∆FormatHelp.',0 ⊃  'html' 'pdf'
+HELP_FI←'./MyDyalogLibrary/pmsLibrary/src/∆FormatHelp.htmlx'
 _HELP_←{
      0::⍵⊣{
        ⎕←'Showing limited HELP info...'
-       ⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⎕NR ⍵
-     } 0⊃⎕XSI 
+       ⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵
+     } ⎕NR '_HELP_'    ⍝ Or  ⎕SRC ⎕THIS
      { 0=⎕NEXISTS ⍵: ∘⊣⎕←'Help file "',⍵,'" does not exist.'
        0:: ∘⊣⎕←'Unable to display HELP file: ',⍵
        ⎕SH 'open ',⍵   ⍝ Mac-specific...
@@ -440,14 +442,21 @@ _HELP_←{
 ⍝H         - $$ to display fields or objects using dfns 'box'.
 ⍝H           If $$ has a left arg of 1, $$ replaces blanks with a middle dot (see ⍺.BOX and ⍺.BBOX).
 ⍝H
-⍝H  Library routines: ⍺.CAT   catenate and top-align left (⍺) and right (⍵) args
-⍝H                    ⍺.BOX   display right arg (⍵) in a box. 
-⍝H                            If ⍺=1, same as monadic BBOX.
-⍝H                    ⍺.BBOX  display right arg (⍵) in a box with char ⍺ replacing blanks. 
-⍝H                            default ⍺: middle dot ('·')
-⍝H                    ⍺.QT    put quotes around word sequences in each row of ⍵. 
-⍝H                            ⍺: L/R quotes or unicode integers (default ⍺: '"')
-
+⍝H  Internal Library routines Used in Compile or Immediate Mode
+⍝H  | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE -- --  UserNs)  
+⍝H  | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ  Ⓡ   Ⓤ     )
+⍝H  Pseudo Actual   Details
+⍝H  $      FMTX     [⍺] ⎕FMT ⍵ extended with pseudo-specifications L,R,C,l,r,c.
+⍝H  $$     BOX      Display right arg (⍵) in a box. 
+⍝H                  If ⍺=1, replaces spaces with a middle dot ('·'). See also BBOX.
+⍝H  none   BBOX     Display right arg (⍵) in a box with char ⍺ replacing blanks. 
+⍝H  $$$    QUOTE    Put quotes around word sequences in each row of ⍵. 
+⍝H                  ⍺: L/R quotes or unicode integers (default ⍺: '"')
+⍝H  %      DATETIME Formats APL timestamps (⊂⎕TS) or date numbers (1 ⎕DT ⊂⎕TS).
+⍝H  none   CAT      Catenate and top-align left (⍺) and right (⍵) args
+⍝H  none   Ⓛ        Compiled ∆F return-value processing
+⍝H  none   Ⓡ        Compiled ∆F right-argument processing
+⍝H  none   Ⓤ        Alias for UserNs internally...
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝
 ⍝************************************⍝ 
