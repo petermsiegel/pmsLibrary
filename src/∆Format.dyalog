@@ -4,9 +4,7 @@
 ⍝                but with native dfn-based handling of arrays and precise formats based on extended ⎕FMT."
 ⍝  For details, see HELP information at the bottom of ∆Format.dyalog (this file).
 ⍝  See ∆F⍨'help' for detailed Jupyter notebook output.
-⍝  To add: date-time handling X(1200⌶)Y
-⍝ Fix system vs user library...
-⍝   ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ      
+ 
 ∆F←{  
 ⍝ Note: ∆F is "promoted" below to ##.∆Format...
   0:: ⎕DMX.EN ⎕SIGNAL⍨ '∆F ',⎕DMX.EM 
@@ -22,6 +20,7 @@
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
+    
     ⍝+---------------------------------+⍝
     ⍝ GENERAL FUNCTIONS          ...   +⍝
     ⍝+---------------------------------+⍝
@@ -59,15 +58,17 @@
           lhs rhs↑⍨←lhs⌈⍥≢rhs 
           ⍺⊣ RESULT⊢←lhs,rhs
       }
+    
     ⍝ RESULT_Compile: Emit code equiv of RESULT_Immed, returning ⍺. 
     ⍝ EXTERN: RESULT (RW) 
     ⍝ Strategy: Since immediate formatting (RESULT_Immed) proceeds L-to-R, we replicate that in code generation:
     ⍝     ∘ we append ⍵ on right with characters reversed to have more efficient catenation (~10% for typical formats).
     ⍝     ∘ we reverse the entire assembled string and return it as a code string to the caller (ready to execute via ⍎).  
       RESULT_Compile←{  
-          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨('⍙Ⓕ.ⒷⒷ '/⍨DEBUG),⍵    
-          ⍺⊣ RESULT,← ⌽lhs,'⍙Ⓕ.Ⓒ⍨'/⍨ ~0=≢RESULT     
+          ⍺←''  ⋄  0=≢⍵: ⍺  ⋄ lhs←'(',')',⍨(DEBUG/BBOXcc),⍵    
+          ⍺⊣ RESULT,← ⌽lhs,CATCcc/⍨ ~0=≢RESULT     
       }
+    
     ⍝ OMEGA_Pick: Resolve user indexing of ⍹ (next ⍹N), ⍹0, ..., ⍹N or aliases ⍵_, ⍵0, ... ⍵N.       
     ⍝ EXTERN: nOMEGA (R), curOMEGA (RW) 
       OMEGA_Pick←{  
@@ -76,6 +77,7 @@
           (ix<0)∨ix≥nOMEGA: 3 ⎕SIGNAL⍨ '∆F INDEX ERROR: ⍹',' is out of range.',⍨⍕ix
           ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Select based on user's ⎕IO    
       }    
+    
     ⍝ TFEsc (Escapes in Text fields)
     ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
     ⍝                                    value:   \   CR   {   }    
@@ -86,6 +88,7 @@
     ⍝                                    value:   \⋄  CR
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
       escDQ←   '\\⋄'  '\\(\\⋄)'    ⎕R '\r' '\1'    ⍝ In a DQ string in a Code field.
+    
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | String Conversion Functions...                                             |
     ⍝ +----------------------------------------------------------------------------+
@@ -94,6 +97,7 @@
     ⍝ SQ2Code: Return code for one or more simple char strings
     ⍝          Double internal SQs per APL, then add SQ on either side!
       SQ2Code←  { 1↓∊ ' '∘,∘{ SQ,SQ,⍨⍵/⍨1+⍵=SQ }¨ ⊆⍵ }      ⍝ NB: ⍵ may have CRs in it. See CRStr2Code and TF2Code   
+    
     ⍝ ------------------------------------------------------------------------------------------
     ⍝ TF2Code (Text field): 
     ⍝   Generate code for a simple char matrix given a simple char scalar or vector ⍵, possibly containing CRs.
@@ -102,6 +106,7 @@
     ⍝   Result is a char matrix.
       TF2Code←   { ~CR∊⍵: (⍕1,≢⍵),'⍴',SQ2Code ⍵ ⋄ '↑', (',¨' /⍨ 1∧.=≢¨ø), SQ2Code⊢ ø←SplitCR ⍵ } 
       SplitCR←  { ¯1↓¨(1,0,⍨⍵=CR)⊂⍵,CR}                     ⍝ Break lines at CR boundaries simul'ng ⎕FMT (w/o padding each line)  
+    
     ⍝ ------------------------------------------------------------------------------------------
     ⍝ CRStr2Code ⍵
     ⍝ For string ⍵ in SQ form (DQ2SQ already applied), handle internal CRs, 
@@ -110,6 +115,7 @@
     ⍝    ⍵  - Standard APL char vector with optional CRs
     ⍝    r  - Expression  (char vector) that *evaluates* to a char vector with the same appearance as ⍵.
       CRStr2Code←{ ~CR∊⍵: ⍵ ⋄ '(',')',⍨∊(⊂SQ,',(⎕UCS 13),',SQ)@(CR∘=)⊢⍵ }
+    
     ⍝ ------------------------------------------------------------------------------------------
     ⍝ SF2Code (Space field)
     ⍝   Generate code for # of spaces passed as a string.
@@ -120,15 +126,31 @@
     ⍝   Returns # of spaces (numeric): res ≥ 0
     ⍝   We limit lengths (# spaces) to 999 (rather more than ever needed) via curried ⍺.
       SFChoices←999∘{ ⍺≥len←{0=≢⍵: ≢⍺ ⋄ 10⊥⎕D⍳⍵}/⍵: len ⋄ ⎕SIGNAL/'∆F DOMAIN ERROR: Space Field Too Wide' 11 }     
+    
     ⍝ +---------------------------------------------------+
     ⍝ | Constants for String Conversion Functions above   |
     ⍝ +---------------------------------------------------+
       SQ2← 2⍴SQ←'''' 
       DQ2← 2⍴DQ←'"' 
       CR←  ⎕UCS 13 
+
+    ⍝ +---------------------------------------------------+
+    ⍝ | Constants for Library Routines "Code" Strings...  |
+    ⍝ | cc: leading/trailing delim (blanks etc)           |
+    ⍝ | c:  no leading/trailing delim
+    ⍝ +---------------------------------------------------+
+    FMTXcc←     ' ⍙Ⓕ.Ⓕ '  ⍝ ...cc
+    CATCcc←     ' ⍙Ⓕ.Ⓒ⍨'  ⍝ CATC[ommuted] 
+    DATETIMEcc← ' ⍙Ⓕ.Ⓓ '
+    BOXcc←      ' ⍙Ⓕ.Ⓑ '
+    BBOXcc←     ' ⍙Ⓕ.ⒷⒷ '
+    QUOTEcc←    ' ⍙Ⓕ.Ⓠ '
+    LEFTc←       '⍙Ⓕ.Ⓛ'   ⍝ ...c
+    RIGHTc←      '⍙Ⓕ.Ⓡ'    
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
     ⍝ +----------------------------------------------------------------------------+
+    
     ⍝ ***************************************⍝
     ⍝ SECTION ****** Code field Scanning     ⍝
     ⍝ ***************************************⍝
@@ -141,9 +163,9 @@
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
             ⋄ invalidDollarE←'{''DOMAIN ERROR: Invalid use of $''⎕SIGNAL 11}'
           ⍝ We use short names for FMTX, BOX, QUOTE, (below) DateTime 
-            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ ' ⍙Ⓕ.Ⓕ '   ' ⍙Ⓕ.Ⓑ'  ' ⍙Ⓕ.Ⓠ '  invalidDollarE   ⍝ Valid: $, $$, $$$ 
+            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ FMTXcc BOXcc QUOTEcc  invalidDollarE   ⍝ Valid: $, $$, $$$ 
             ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'
-            CASE pctI:     (1≠≢f 0)⊃ ' ⍙Ⓕ.Ⓓ '   invalidPctE                
+            CASE pctI:     (1≠≢f 0)⊃ DATETIMEcc   invalidPctE                
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
             CASE comI:     ' '   ⍝ Comment → 1 space         
@@ -253,7 +275,7 @@
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
         ⍝ ⍙Ⓕ will point to the library "above" the usernamespace, stored at ⍺.
-            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺ ⍙Ⓕ.Ⓛ ⍺⍺.Ⓤ{ ',(⌽RESULT),' }⍵(⍙Ⓕ←⍺⍺).Ⓡ',fmtStr,'}' 
+            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺',LEFTc,'⍺⍺.Ⓤ{',(⌽RESULT),'}⍵',RIGHTc,fmtStr,'⊣⍙Ⓕ←⍺⍺}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -281,16 +303,17 @@
   :Namespace UserNs
     ⎕DF '[∆F:UserNs]'
   :EndNameSpace
-  Ⓤ← UserNs   ⍝ Short form
+  Ⓤ← UserNs   ⍝ Short form. Used in ⍺⍺.Ⓤ
+
 ⍝ +-------------------------------------------------------------------------------------------+
-⍝ | SECTION ***** Library Routines (Local Use, Compile Mode)            
-⍝ | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE      )  
-⍝ | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ  Ⓛ Ⓡ  )
-⍝ +-------------------------------------------------------------------------------------------+   
+⍝ | SECTION ***** Library Routines (Local Use, Compile Mode)                                  |    
+⍝ | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE      )                                         | 
+⍝ | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ Ⓡ  )                                         | 
+⍝ +------------------------        ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ         ------------------------+   
   ⍝ ⎕THIS must be a named namespace for ⒻormatLibName to work... 
     ⒻormatLibName←⍕⎕THIS         
     ⒽelpLibRef←⎕THIS.##          ⍝  Used with HELP option
- 
+
   ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢ ⋄ ⎕IO←0  ⋄ WIDTH_MAX←999
        ⍝ Bug: If ⎕FR is set LOCALLY in the code field (⎕FR←nnn), ∆FMT won't see it: it picks up whatever's in the caller.
@@ -332,12 +355,22 @@
     ⍝    NOW: 
     BOX← {⍺←0 ⋄  ('·'@(' '∘=))⍣(⊃⍺)⊣ⒹfnsBox ⍕⍵}
     Ⓑ← BOX
+    
     ⍝ BBOX  [user] and ⍺.Ⓑ [internal]: 
     ⍝   BOX with blanks repl. by default by middle dot (·), ⎕UCS 183.
     ⍝   If ⍺ is specified, it is used instead to replace blanks. It must be a scalar.
     BBOX← {⍺←'·' ⋄ ((⍕⍺)@(' '∘=))⊣ⒹfnsBox ⍕⍵}
     ⒷⒷ← BBOX
 
+  ⍝ DATETIME:  Handle Dyalog Timestamps and/or Time Numbers
+  ⍝    ⍺ DATETIME ⍵
+  ⍝ If ⍺ is a string, then does a (1200⌶) on elements of ⍵. 
+  ⍝         If an elem is a type 1 (Dyalog) Time Number, it is used directly
+  ⍝         If an elem is an enclosed Timestamp (⊂⎕TS), it is converted via 1 ⎕DT ⍵. Else must be type 1 Time Number
+  ⍝ If ⍺ is a numeric vector, ⍺ ⎕DT ⍵ is executed.
+  ⍝         ⍵ must be a valid enclosed Timestamp (⊂⎕TS), Time Number, or Timezone character ('Z' etc).
+  ⍝ If ⍺ is omitted, ⍺ is assumed to be '%ISO%'.
+  ⍝ See %
     DATETIME←{ ⍝ ⎕IO←0
         ⍺←'%ISO%'             ⍝ Default: Display ISO Date
         0:: ⎕SIGNAL/⎕DMX.(EM EN)
@@ -355,7 +388,7 @@
     ⍝     If numeric, the quotes will be the unicode characters with those numeric codes.
     QUOTE←{  ⍺←'"' ⋄ 2|⎕DR ⍺: ⍵ ∇⍨ ⎕UCS ⍺  ⋄ ⎕IO←0 ⋄ B←+/(∧\' '∘=) 
             q⌽R,⍨w⌽⍨-q←B⌽w←(-p)⌽L,w⌽⍨p←B⊢w←⎕FMT ⍵  ⊣ L R←2⍴⍺
-      }
+    }
     Ⓠ←QUOTE
 
     ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
