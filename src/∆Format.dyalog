@@ -139,14 +139,14 @@
     ⍝ | cc: leading/trailing delim (blanks etc)           |
     ⍝ | c:  no leading/trailing delim
     ⍝ +---------------------------------------------------+
-    FMTXcc←     ' ⍙Ⓕ.Ⓕ '  ⍝ ...cc
+    FMTXcc←     ' ⍙Ⓕ.Ⓕ'   ⍝ ...cc
     CATCcc←     ' ⍙Ⓕ.Ⓒ⍨'  ⍝ CATC[ommuted] 
     DATETIMEcc← ' ⍙Ⓕ.Ⓓ '
     BOXcc←      ' ⍙Ⓕ.Ⓑ '
     BBOXcc←     ' ⍙Ⓕ.ⒷⒷ '
     QUOTEcc←    ' ⍙Ⓕ.Ⓠ '
     LEFTc←       '⍙Ⓕ.Ⓛ'   ⍝ ...c
-    RIGHTc←      '⍙Ⓕ.Ⓡ'    
+    RIGHTc←      '⍙Ⓕ.Ⓡ'     
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
     ⍝ +----------------------------------------------------------------------------+
@@ -274,8 +274,13 @@
         ⍝ Put RESULT in L-to-R order. See RESULT_Compile     
         ⍝ We require a dummy format string in ⊃⍵.
         ⍝ If (⊃⍵) is empty ('' or ⍬), ⍵0 will be original format string specified.
-        ⍝ ⍙Ⓕ will point to the library "above" the usernamespace, stored at ⍺.
-            res←'(⎕NS ',Lib.ⒻormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺',LEFTc,'⍺⍺.Ⓤ{',(⌽RESULT),'}⍵',RIGHTc,fmtStr,'⊣⍙Ⓕ←⍺⍺}' 
+        ⍝ Here we emit code to:
+        ⍝   Copy the format library by name into a private namespace
+        ⍝   Pass that library in as ⍺⍺, which becomes ⍙Ⓕ, a "hidden" name used by ∆F at runtime.
+        ⍝   Pass ⍺⍺.Ⓤ, a reference to (the copied) private namespace, UserNs, visible as ⍺ within each Code Field dfn.
+        ⍝   Ⓤ, Ⓛ (in LEFTc), Ⓡ (in RIGHTc), are as compact as possible, in case the user wishes to inspect
+        ⍝   the compiled ∆F string. 
+            res←'(⎕NS ',Lib.FormatLibName,'){⍺←''''⋄0∊⍺:_←0⋄⍺',LEFTc,'⍺⍺.Ⓤ{',(⌽RESULT),'}⍵',RIGHTc,fmtStr,'⊣⍙Ⓕ←⍺⍺}' 
             (⎕∘←)⍣DEBUG⊢res  
       }⍬ ⍝ END COMPILE
     ⍝ STANDARD MODE 
@@ -308,11 +313,12 @@
 ⍝ +-------------------------------------------------------------------------------------------+
 ⍝ | SECTION ***** Library Routines (Local Use, Compile Mode)                                  |    
 ⍝ | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE      )                                         | 
-⍝ | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ Ⓡ  )                                         | 
+⍝ | Short Names: ⍙Ⓕ.(     Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ Ⓡ  )                                         | 
 ⍝ +------------------------        ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ         ------------------------+   
-  ⍝ ⎕THIS must be a named namespace for ⒻormatLibName to work... 
-    ⒻormatLibName←⍕⎕THIS         
-    ⒽelpLibRef←⎕THIS.##          ⍝  Used with HELP option
+  ⍝ ⎕THIS must be a named namespace for FormatLibName to succeed... 
+    FormatLibName←⍕⎕THIS 
+    ⎕DF '[∆F:FormatLib]'                ⍝ Set display form after getting formal name via ⍕⎕THIS        
+    ⒽelpLibRef←⎕THIS.##                 ⍝  Used with HELP option
 
   ⍝ ⍺.FMTX: Extended ⎕FMT. See doc for $ in ∆Format.dyalog.
     FMTX←{ ⍺←⊢ ⋄ ⎕IO←0  ⋄ WIDTH_MAX←999
@@ -477,7 +483,7 @@ _HELP_←{
 ⍝H
 ⍝H  Internal Library routines Used in Compile or Immediate Mode
 ⍝H  | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE -- --  UserNs)  
-⍝H  | Short Names: ⍙Ⓕ.(  Ⓕ    Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ  Ⓡ   Ⓤ     )
+⍝H  | Short Names: ⍙Ⓕ.(     Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ  Ⓡ   Ⓤ     )
 ⍝H  Pseudo Actual   Details
 ⍝H  $      FMTX     [⍺] ⎕FMT ⍵ extended with pseudo-specifications L,R,C,l,r,c.
 ⍝H  $$     BOX      Display right arg (⍵) in a box. 
