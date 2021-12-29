@@ -372,19 +372,26 @@
   ⍝    ⍺ DATETIME ⍵
   ⍝ If ⍺ is a string, then does a (1200⌶) on elements of ⍵. 
   ⍝         If an elem is a type 1 (Dyalog) Time Number, it is used directly
-  ⍝         If an elem is an enclosed Timestamp (⊂⎕TS), it is converted via 1 ⎕DT ⍵. Else must be type 1 Time Number
+  ⍝         If an elem is an enclosed Timestamp (⊂⎕TS), it is converted via 1 ⎕DT ⍵. Else must be type 1 Time Number.
+  ⍝         If an elem is of depth 2 (⊂⊂⎕TS) or greater, it is disclosed to depth one.
+  ⍝         This makes it easy to catenate sets of timestamps along with time numbers:
+  ⍝               ts1 ← ⊂⎕TS ⋄ ts2← ⊂2022 12 05 03 02 01 ⋄ tn← 1 ⎕DT "Z" 
+  ⍝               ⍺ (1200⌶) ts1 ts2 tn
   ⍝ If ⍺ is a numeric vector, ⍺ ⎕DT ⍵ is executed.
   ⍝         ⍵ must be a valid enclosed Timestamp (⊂⎕TS), Time Number, or Timezone character ('Z' etc).
   ⍝ If ⍺ is omitted, ⍺ is assumed to be '%ISO%'.
   ⍝ See %
     DATETIME←{ ⍝ ⎕IO←0
-        ⍺←'%ISO%'             ⍝ Default: Display ISO Date
-        0:: ⎕SIGNAL/⎕DMX.(EM EN)
-        0=1↑0⍴⍺: ⍺ ⎕DT ⍵
-          domE← 'Argument ⍵ must contain valid Dyalog Time Numbers and/or enclosed Timestamps'
-        0∊0 ⎕DT ⍵: domE ⎕SIGNAL 11
-        dt← ⍺(1200⌶)1 ⎕DT ⍵ 
-        0≠⍴⍴⍵: dt ⋄ ⊃dt   
+        ⍺←'%ISO%'              
+      ⍝ Timestamps enclosed twice or more are disclosed until depth 1. Depth 1 or 0 items are left as is.
+        ScaleTS←{⊃⍣(0⌈¯1+≡⍵)⊣⍵}¨
+        dt←ScaleTS dt
+      ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
+        0=1↑0⍴⍺:⍺ ⎕DT dt  
+        domE←'Argument ⍵ must contain valid Dyalog Time Numbers and/or enclosed Timestamps'
+        0∊0 ⎕DT dt:domE ⎕SIGNAL 11
+        dt←⍺(1200⌶)1 ⎕DT dt
+        0≠⍴⍴⍵:dt ⋄ ⊃dt
     }
     Ⓓ← DATETIME
 
@@ -397,7 +404,7 @@
     }
     Ⓠ←QUOTE
 
-    ⍝ Ⓛ: Process Left Arg of Compiled ∆F @ Runtime. 
+    ⍝ Ⓛ: Process Result of Compiled ∆F @ Runtime according to Left Arg ⍺. 
     ⍝    If ⍺ is numeric, print ⍵ and return shy 1. Else return non-shy ⍵.
     Ⓛ←{2|⎕DR ⍺:_←1⊣⎕←⍵ ⋄ ⍵}
 
@@ -436,21 +443,30 @@
 :EndNamespace
 
 ⍝ HELP FILE and UTILITY...  Choose html or pdf based on convenience...
-⍝ NOTE: This is a hardwired kludge that should be fixed ;-)
-HELP_FI←'./MyDyalogLibrary/pmsLibrary/src/∆FormatHelp.htmlx'
+⍝ NOTE: This is set to use Mac/Linux "open". Sorry about that.
+HELP_DIRS←'.' './MyDyalogLibrary/pmsLibrary/src'   
+HELP_FINAME← '∆FormatHelp.html'
 _HELP_←{
+     Search4← {
+         0=≢⍺: '' ⋄ fi←(⊃⍺),'/',⍵ 
+         1=⎕NEXISTS fi: fi ⋄ (1↓⍺) ∇ ⍵
+     }
      0::⍵⊣{
        ⎕←'Showing limited HELP info...'
-       ⎕ED 'help'⊣help←'^⍝H((?: .*)?)$' ⎕S '\1' ⊣⍵
+       ⎕ED 'help'⊣help←'^⍝H ?(.*)$' ⎕S '\1' ⊣⍵
      } ⎕NR '_HELP_'    ⍝ Or  ⎕SRC ⎕THIS
-     { 0=⎕NEXISTS ⍵: ∘⊣⎕←'Help file "',⍵,'" does not exist.'
+     { 0=≢⍵: ∘⊣⎕←'Help file "',⍵,'" does not exist.'
        0:: ∘⊣⎕←'Unable to display HELP file: ',⍵
-       ⎕SH 'open ',⍵   ⍝ Mac-specific...
-     } HELP_FI 
+       ⎕SH 'open ',⍵    
+     } HELP_DIRS Search4 HELP_FINAME
      
-⍝**********************************************⍝ 
-⍝ SECTION:   HELP INFORMATION (ABRIDGED)   ****⍝
-⍝**********************************************⍝ 
+⍝***********************************************⍝ 
+⍝ SECTION:   HELP INFORMATION (ABRIDGED)   *****⍝
+⍝H++++++++++++++++++++++++++++++++++÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷++++++++++++
+⍝H+   Only Limited HELP Is Available:                                             +
+⍝H+   You may be on a Windows Machine or ∆FormatHelp.html may not be availabe in  +
+⍝H+   the same directory as ∆Format.dyalog. Sorry about that!                     +
+⍝H+++++++++++++++++++++++++++++++++++++++++++÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷+++
 ⍝H ∆F Formatting Utility
 ⍝H ¯¯ ¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯
 ⍝H Descrption:
@@ -481,21 +497,27 @@ _HELP_←{
 ⍝H         - $$ to display fields or objects using dfns 'box'.
 ⍝H           If $$ has a left arg of 1, $$ replaces blanks with a middle dot (see ⍺.BOX and ⍺.BBOX).
 ⍝H
-⍝H  Internal Library routines Used in Compile or Immediate Mode
-⍝H  | Long  Names: ⍙Ⓕ.(  FMTX CAT BOX BBOX QUOTE -- --  UserNs)  
-⍝H  | Short Names: ⍙Ⓕ.(     Ⓒ   Ⓑ   ⒷⒷ   Ⓠ     Ⓛ  Ⓡ   Ⓤ     )
-⍝H  Pseudo Actual   Details
-⍝H  $      FMTX     [⍺] ⎕FMT ⍵ extended with pseudo-specifications L,R,C,l,r,c.
-⍝H  $$     BOX      Display right arg (⍵) in a box. 
-⍝H                  If ⍺=1, replaces spaces with a middle dot ('·'). See also BBOX.
-⍝H  none   BBOX     Display right arg (⍵) in a box with char ⍺ replacing blanks. 
-⍝H  $$$    QUOTE    Put quotes around word sequences in each row of ⍵. 
-⍝H                  ⍺: L/R quotes or unicode integers (default ⍺: '"')
-⍝H  %      DATETIME Formats APL timestamps (⊂⎕TS) or date numbers (1 ⎕DT ⊂⎕TS).
-⍝H  none   CAT      Catenate and top-align left (⍺) and right (⍵) args
-⍝H  none   Ⓛ        Compiled ∆F return-value processing
-⍝H  none   Ⓡ        Compiled ∆F right-argument processing
-⍝H  none   Ⓤ        Alias for UserNs internally...
+⍝H  FOR THE CURIOUS ONLY...
+⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝H  Internal Library routines Used in Compiled or Immediate Mode.
+⍝H  Short Names are Used in Compiled Code to Keep it Brief (for Human Readability).
+⍝H     Long  Names: ⍙Ⓕ.(  BOX BBOX CAT DATETIME FMTX --  QUOTE --  UserNs)  
+⍝H     Short Names: ⍙Ⓕ.(  Ⓑ   ⒷⒷ   Ⓒ   Ⓓ        Ⓕ    Ⓛ   Ⓠ     Ⓡ   Ⓤ     )
+⍝H  ------  ----------------------
+⍝H  Pseudo  Actual
+⍝H  Builtin Function Description
+⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝H  $$      BOX      Display right arg (⍵) in a box. 
+⍝H                   If ⍺=1, replaces spaces with a middle dot ('·'). See also BBOX.
+⍝H  none    BBOX     Display right arg (⍵) in a box with char ⍺ replacing blanks. 
+⍝H  none    CAT      Catenate and top-align left (⍺) and right (⍵) args
+⍝H  %       DATETIME Formats/converts APL timestamps or date numbers via (1200⌶) and ⎕DT.
+⍝H  $       FMTX     [⍺] ⎕FMT ⍵ extended with pseudocodes L,R,C,l,r,c.
+⍝H  none    Ⓛ        Compiled ∆F return-value processing
+⍝H  $$$     QUOTE    Put quotes or delimiters around word sequences in each row of ⍵. 
+⍝H                   ⍺: L/R quotes or unicode integers (default ⍺: '"')
+⍝H  none    Ⓡ        Compiled ∆F right-argument processing
+⍝H  none    Ⓤ        Alias for UserNs in compiled code...
 ⍝************************************⍝ 
 ⍝ ENDSECTION ***** HELP INFORMATION *⍝
 ⍝************************************⍝ 
