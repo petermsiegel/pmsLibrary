@@ -385,7 +385,7 @@
         ⍺←'%ISO%'              
       ⍝ Timestamps enclosed twice or more are disclosed until depth 1. Depth 1 or 0 items are left as is.
         ScaleTS←{⊃⍣(0⌈¯1+≡⍵)⊣⍵}¨
-        dt←ScaleTS dt
+        dt←ScaleTS ⍵
       ⍝ 0::⎕SIGNAL/⎕DMX.(EM EN)
         0=1↑0⍴⍺:⍺ ⎕DT dt  
         domE←'Argument ⍵ must contain valid Dyalog Time Numbers and/or enclosed Timestamps'
