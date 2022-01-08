@@ -1,5 +1,5 @@
 ﻿ ⍝ "Here document" Functions
- ⍝   ∆HERE           ... [ [ ⍠ B | ⍠C] | [⍠V | ⍠S] ]? 
+ ⍝   ∆HERE           ... [ [ ⍠B | ⍠C ] | [ ⍠V | ⍠S ] ]? 
  ⍝ 
  ⍝   Description:
  ⍝     ∆HERE -- a "fast" here-document selector with simple options
