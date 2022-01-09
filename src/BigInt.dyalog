@@ -1,42 +1,45 @@
 ﻿:NAMESPACE BigInt
 ⍝ FOR HELP information:
 ⍝ See 
-⍝        :SECTION HELP_INTRO   - cursory help info.
-⍝        :SECTION HELP         - detailed help.
+⍝        :SECTION HELP_INTRO   - cursory help info (just below).
+⍝        :SECTION HELP         - detailed help (bottom of this file).
 ⍝  or Call 
 ⍝         BI_HELP              - detailed help.
 
 :Section HELP_INTRO
-⍝  The BigInt Library
-⍝  ¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝  Built on dfns::nats, restructured for signed integers. Faster than dfns::big.
-⍝  For most uses, use routine BI.
-⍝
-⍝ Routines: 
-⍝        BI     [⍺]  +BI ⍵
-⍝               Does all the basic monadic and dyadic math operations: + - * etc.
-⍝               ⍺, ⍵:  any "scalar" big integer in internal (BigIntI) or external (BigIntE) formats.   
-⍝                    BigIntE:  A big integer string or (small) APL integer.
-⍝                       On input, BigIntE's may have embedded underscores (_) and '-' or '¯' as a negative prefix.
-⍝                    BigIntI:  A scalar result returned by most BII operations. See BII.
-⍝               Returns: a BigIntE normalized.
-⍝                    When returned, a BigIntE is normalized, with a leading ¯ if negative.
-⍝                    ⍕BI nnn:  Returns a BigIntE with underscores after every five digits starting from the right.
-⍝        BII    [⍺]  +BII ⍵
-⍝               Does all the operations, just like BI, except for return type.
-⍝               ⍺, ⍵:  Same as for BI.
-⍝               Returns: A BigIntI, a "normalized" scalar consisting of a signum (-1, 0, 1) and an integer vector.
-⍝        BIM    ⍺  ×BIM ⍵ ⊣ modulo 
-⍝               Does operation  m | ⍺ × ⍵ for big integers ⍺, ⍵, and integer m. 
-⍝               Returns: An external format BigIntE.
-⍝               Specifically:
-⍝                      ⍺ ×BIM m ⊣ ⍵   is the same as    m |BI ⍺ ×BII ⍵   (except faster and less likely to trigger a WS FULL)
-⍝               BIM is optimized for ops: × (mul) and * (pow) so far.  
-⍝               For other operations, calls modulo after performing <op>.
-⍝        BIC    Takes a standard APL-format mathematical expression without BI or BIC and inserts the BI calls.
-⍝               E.g.      BIC  '!500' is the same as  !BI 500
-⍝        BI_DC  A Big Integer Desk Calculator...
-⍝               To execute, call BI_DC (no args, no return value).
+  ⍝  The BigInt Library
+  ⍝  ¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
+  ⍝  Built on dfns::nats, restructured for signed integers. Faster than dfns::big.
+  ⍝  For most uses, use operator BI. It returns big integers in a string (external) format.
+  ⍝  Operator BII returns big integers in a more efficient internal format. 
+  ⍝  Both allow arguments in either the external (string) or internal formats.
+  ⍝  Strings may have underscores to separate runs of digits; negative numbers are prefixed by either ¯ or -.
+  ⍝
+  ⍝ Routines: 
+  ⍝        BI     [⍺]  +BI ⍵
+  ⍝               Does all the basic monadic and dyadic math operations: + - * etc.
+  ⍝               ⍺, ⍵:  any "scalar" big integer in internal (BigIntI) or external (BigIntE) formats.   
+  ⍝                    BigIntE:  A big integer string or (small) APL integer.
+  ⍝                       On input, BigIntE's may have embedded underscores (_) and '-' or '¯' as a negative prefix.
+  ⍝                    BigIntI:  A scalar result returned by most BII operations. See BII.
+  ⍝               Returns: a BigIntE normalized.
+  ⍝                    When returned, a BigIntE is normalized, with a leading ¯ if negative.
+  ⍝                    ⍕BI nnn:  Returns a BigIntE with underscores after every five digits starting from the right.
+  ⍝        BII    [⍺]  +BII ⍵
+  ⍝               Does all the operations, just like BI, except for return type.
+  ⍝               ⍺, ⍵:  Same as for BI.
+  ⍝               Returns: A BigIntI, a "normalized" scalar consisting of a signum (-1, 0, 1) and an integer vector.
+  ⍝        BIM    ⍺  ×BIM ⍵ ⊣ modulo 
+  ⍝               Does operation  m | ⍺ × ⍵ for big integers ⍺, ⍵, and integer m. 
+  ⍝               Returns: An external format BigIntE.
+  ⍝               Specifically:
+  ⍝                      ⍺ ×BIM m ⊣ ⍵   is the same as    m |BI ⍺ ×BII ⍵   (except faster and less likely to trigger a WS FULL)
+  ⍝               BIM is optimized for ops: × (mul) and * (pow) so far.  
+  ⍝               For other operations, calls modulo after performing <op>.
+  ⍝        BIC    Takes a standard APL-format mathematical expression without BI or BIC and inserts the BI calls.
+  ⍝               E.g.      BIC  '!500' is the same as  !BI 500
+  ⍝        BI_DC  A Big Integer Desk Calculator...
+  ⍝               To execute, call BI_DC (no args, no return value).
 :EndSection HELP_INTRO
 
 :Section BI
@@ -113,26 +116,25 @@
     ⍝ BI: Basic utility operator built on BII.
     ⍝     BIext ← ∇ ⍵:BIext
     ⍝     Returns BIext, an external string-format BigInteger object ("[¯]\d+").
-    ⍝ Note: BI_TEMPLATE is a "template" operator to be replaced, after substitutions, by operators BI and BII.
-    ⍝ Note: CEXPORT     is a  conditional "template" fn to be replaced by name "Export" in BI and null (no function) in BII.
+    ⍝ Note: _BIX_ is a "template" operator to be replaced, after substitutions, by operators BI and BII.
+    ⍝ Note: _EXP_     is a  conditional "template" fn to be replaced by name "Export" in BI and null (no function) in BII.
 
 ⍝ --------------------------------------------------------------------------------------------------
-⍝   DecodeCall: Handle operator name plus monadic vs dyadic plus operands like +⍨. (We treat +⍨⍨ etc. like +⍨)
-⍝   fnAtom monadFlag inverseFlag ←  ⍺ ⍺⍺ DecodeCall ⍵
+⍝   DecodeCall: Handle operator name plus monadic vs dyadic plus operands like +⍨ (or silly expr. like +⍨⍨).
+⍝   retVal ←  ⍺ ⍺⍺ DecodeCall ⍵
+⍝   retVal: fnAtom monadFlag inverseFlag
 ⍝          inverseFlag: 0 - no inverse (⍺÷⍵ or +⍵), 1 - regular inverse (⍵+⍺), 2 - selfie ( ⍵ + ⍵)
       DecodeCall←{⍺←⊢
           getOpName←{aa←⍺⍺ ⋄ 3=⎕NC'aa':∊⍕⎕CR'aa' ⋄ 1 ⎕C aa}
-          decode←{
-              atom←{1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}
-              monad name←⍺(atom ⍵~'⍨ ')
-              '⍨'∊⍵:name 0(1+monad)
-              name monad 0
+          Decode←{
+              fnAtom←  {1=≢⍵:⍬⍴⍵ ⋄ ⊂⍵}⍵~'⍨ ' 
+              2|+/'⍨'=⍵:  fnAtom 0 (1+⍺)  ⋄ fnAtom ⍺ 0  
           }
-          (1≡⍺ 1)decode ⍺⍺ getOpName ⍵
+          (1≡⍺ 1)Decode ⍺⍺ getOpName ⍵
       }
 
-    ⍝ BI_TEMPLATE is a template for ops BII and BI.
-      BI_TEMPLATE←{⍺←⊢
+    ⍝ _BIX_ is a template for ops BII and BI.
+      _BIX_←{⍺←⊢
           DEBUG↓0::⎕SIGNAL/⎕DMX.(EM EN)
           QT←''''
           fn monad inv←⍺(⍺⍺ DecodeCall)⍵
@@ -140,48 +142,48 @@
         ⍝ Monadic...
           monad:{                                
             ⍝ math
-              CASE'-':CEXPORT neg ⍵              ⍝     -⍵
-              CASE'+':CEXPORT Import ⍵           ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
-              CASE'|':CEXPORT abs ⍵              ⍝     |⍵
-              CASE'×':CEXPORT⊃Import ⍵           ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
-              CASE'÷':CEXPORT recip ⍵            ⍝     inverse     Why bother? Mostly 0!
+              CASE'-':_EXP_ neg ⍵              ⍝     -⍵
+              CASE'+':_EXP_ Import ⍵           ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
+              CASE'|':_EXP_ abs ⍵              ⍝     |⍵
+              CASE'×':_EXP_⊃Import ⍵           ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
+              CASE'÷':_EXP_ recip ⍵            ⍝     inverse     Why bother? Mostly 0!
             ⍝ Misc
-              CASE'<':CEXPORT dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1.
-              CASE'≤':CEXPORT dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
-              CASE'>':CEXPORT inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
-              CASE'≥':CEXPORT inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
-              CASE'!':CEXPORT fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
-              CASE'?':CEXPORT roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
-              CASE'⍎':ExportApl ⍵                ⍝     aplint      If in range, returns a std APL number; else error
-              CASE'⍕':Prettify Export ∆ ⍵        ⍝     pretty      Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
-              CASE'SQRT' '√':CEXPORT sqrt ⍵      ⍝     sqrt        See dyadic *0.5
-              CASE'⍳':⍳ReturnSmallAPLInt ⍵       ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
-              CASE'→':Import ⍵                   ⍝     internal    Return ⍵ in internal form.
+              CASE'<':_EXP_ dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1.
+              CASE'≤':_EXP_ dec ⍵              ⍝     decrement   I prefer <, but J prefers ≤
+              CASE'>':_EXP_ inc ⍵              ⍝     increment   Optimized for constant in ⍵+1. I
+              CASE'≥':_EXP_ inc ⍵              ⍝     increment   I prefer >, but J prefers ≥
+              CASE'!':_EXP_ fact ⍵             ⍝     factorial   For smallish integers ⍵≥0
+              CASE'?':_EXP_ roll ⍵             ⍝     roll        For int ⍵>0 (0 invalid: result would always truncate to 0)
+              CASE'⍎':ExportApl ⍵              ⍝     aplint      If in range, returns a std APL number; else error
+              CASE'⍕':Prettify Export Imp ⍵    ⍝     pretty      Returns a pretty BII string: - for ¯, and _ separator every 5 digits.
+              CASE'SQRT' '√':_EXP_ sqrt ⍵      ⍝     sqrt        See dyadic *0.5
+              CASE'⍳':⍳ReturnSmallAPLInt ⍵     ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
+              CASE'→':Import ⍵                 ⍝     internal    Return ⍵ in internal form.
             ⍝ Bit manipulation
-              CASE'⊥':CEXPORT BitsImport ⍵       ⍝     BitsImport  Convert bits to bigint
-              CASE'⊤':BitsExport ⍵               ⍝     BitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
-              CASE'~':CEXPORT BitsImport~BitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
-              CASE'⎕AT':GetBIAttribs ⍵           ⍝     ⎕AT         <num hands> <num bits> <num 1 bits>
-              Err eCANTDO1,QT,QT,⍨fn             ⍝     Not found.
+              CASE'⊥':_EXP_ BitsImport ⍵       ⍝     BitsImport  Convert bits to bigint
+              CASE'⊤':BitsExport ⍵             ⍝     BitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
+              CASE'~':_EXP_ BitsImport~BitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
+              CASE'⎕AT':GetBIAttribs ⍵         ⍝     ⎕AT         <num hands> <num bits> <num 1 bits>
+              Err eCANTDO1,QT,QT,⍨fn           ⍝     Not found.
           }⍵
       ⍝ Dyadic...
         ⍝ See discussion of ⍨ above...
           ⍺{
             ⍝ High Use: [Return BigInt]
-              CASE'+':CEXPORT ⍺ add ⍵
-              CASE'-':CEXPORT ⍺ sub ⍵
-              CASE'×':CEXPORT ⍺ mul ⍵
-              CASE'÷':CEXPORT ⍺ div ⍵                  ⍝ Integer divide: ⌊⍺÷⍵
-              CASE'*':CEXPORT ⍺ pow ⍵                  ⍝ Power / Roots I.    num *BI  ÷r
-              CASE'*∘÷' '*⊢÷':CEXPORT ⍵ root ⍺         ⍝         Roots II.   num *∘÷BI r
-              CASE'√' 'ROOT':CEXPORT ⍺ root ⍵          ⍝         Roots III.  r ('ROOT'BI) num
+              CASE'+':_EXP_ ⍺ add ⍵
+              CASE'-':_EXP_ ⍺ sub ⍵
+              CASE'×':_EXP_ ⍺ mul ⍵
+              CASE'÷':_EXP_ ⍺ div ⍵                  ⍝ Integer divide: ⌊⍺÷⍵
+              CASE'*':_EXP_ ⍺ pow ⍵                  ⍝ Power / Roots I.    num *BI  ÷r
+              CASE'*∘÷' '*⊢÷':_EXP_ ⍵ root ⍺         ⍝         Roots II.   num *∘÷BI r
+              CASE'√' 'ROOT':_EXP_ ⍺ root ⍵          ⍝         Roots III.  r ('ROOT'BI) num
      
         ⍝ ↑ ↓ Decimal shift (mul, div by 10*⍵)
         ⍝ ⌽   Binary shift  (mul, div by 2*⍵)
-              CASE'↑':CEXPORT ⍵ mul10Exp ⍺             ⍝  ⍵×10*⍺,   where ±⍺. Decimal shift.
-              CASE'↓':CEXPORT ⍵ mul10Exp-⍺             ⍝  ⍵×10*-⍺   where ±⍺. Decimal shift right (+) or left (-).
-              CASE'⌽':CEXPORT ⍵ mul2Exp ⍺              ⍝  ⍵×2*⍺     where ±⍺. Binary shift left (+) or right (-).
-              CASE'|':CEXPORT ⍺ rem ⍵                  ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
+              CASE'↑':_EXP_ ⍵ mul10Exp ⍺             ⍝  ⍵×10*⍺,   where ±⍺. Decimal shift.
+              CASE'↓':_EXP_ ⍵ mul10Exp-⍺             ⍝  ⍵×10*-⍺   where ±⍺. Decimal shift right (+) or left (-).
+              CASE'⌽':_EXP_ ⍵ mul2Exp ⍺              ⍝  ⍵×2*⍺     where ±⍺. Binary shift left (+) or right (-).
+              CASE'|':_EXP_ ⍺ rem ⍵                  ⍝ remainder: |   (⍺ | ⍵) <==> (⍵ modulo a)
         ⍝ Logical: [Return single boolean, 1∨0]
               CASE'<':⍺ lt ⍵
               CASE'≤':⍺ le ⍵
@@ -190,18 +192,18 @@
               CASE'>':⍺ gt ⍵
               CASE'≠':⍺ ne ⍵
         ⍝ Other fns
-              CASE'⌈':CEXPORT(∆ ⍺){⍺ ge ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌈ ⍵
-              CASE'⌊':CEXPORT(∆ ⍺){⍺ le ⍵:⍺ ⋄ ⍵}∆ ⍵     ⍝ ⍺ ⌊ ⍵
-              CASE'∨' 'GCD':CEXPORT ⍺ gcd ⍵             ⍝ ⍺∨⍵ as gcd.  NOT boolean or.
-              CASE'∧' 'LCM':CEXPORT ⍺ lcm ⍵             ⍝ ⍺∧⍵ as lcm.  NOT boolean and.
-              CASE'⍟':CEXPORT ⍺ log ⍵                   ⍝ ⍺ log ⍵
-              CASE'MOD':CEXPORT ⍵ rem ⍺                 ⍝ modulo:  Same as |⍨
-              CASE'SHIFTB':CEXPORT ⍺ mul2Exp ⍵          ⍝ Binary shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
-              CASE'SHIFTD':CEXPORT ⍺ mul10Exp ⍵         ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
-              CASE'DIVREM':CEXPORT¨⍺ divRem ⍵           ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
-              CASE'⍴':(ReturnSmallAPLInt ⍺)⍴⍵              ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
-              Err eCANTDO2,QT,QT,⍨fn                       ⍝ Not found!
-          }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵           ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
+              CASE'⌈':_EXP_(Imp ⍺){⍺ ge ⍵:⍺ ⋄ ⍵}Imp ⍵ ⍝ ⍺ ⌈ ⍵
+              CASE'⌊':_EXP_(Imp ⍺){⍺ le ⍵:⍺ ⋄ ⍵}Imp ⍵ ⍝ ⍺ ⌊ ⍵
+              CASE'∨' 'GCD':_EXP_ ⍺ gcd ⍵             ⍝ ⍺∨⍵ as gcd.  NOT boolean or.
+              CASE'∧' 'LCM':_EXP_ ⍺ lcm ⍵             ⍝ ⍺∧⍵ as lcm.  NOT boolean and.
+              CASE'⍟':_EXP_ ⍺ log ⍵                   ⍝ ⍺ log ⍵
+              CASE'MOD':_EXP_ ⍵ rem ⍺                 ⍝ modulo:  Same as |⍨
+              CASE'SHIFTB':_EXP_ ⍺ mul2Exp ⍵          ⍝ Binary shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
+              CASE'SHIFTD':_EXP_ ⍺ mul10Exp ⍵         ⍝ Decimal shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
+              CASE'DIVREM':_EXP_¨⍺ divRem ⍵           ⍝ Returns pair:  (⌊⍺÷⍵) (⍵|⍺)
+              CASE'⍴':(ReturnSmallAPLInt ⍺)⍴⍵         ⍝ Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
+              Err eCANTDO2,QT,QT,⍨fn                  ⍝ Not found!
+          }{2=inv:⍵ ⍺⍺ ⍵ ⋄ inv:⍵ ⍺⍺ ⍺ ⋄ ⍺ ⍺⍺ ⍵}⍵      ⍝ Handle ⍨.   inv ∊ 0 1 2 (0: not inv, 1: inv, 2: selfie)
       }
     ⍝ 
     ⍝  BIM:   Perform BI modulo <mod>.
@@ -215,22 +217,22 @@
           fn≡'*':  Export x (modulo modPow) y
                    mod|BI x(fn BII)y
       }
-    ⍝ Build BI and BII from BI_TEMPLATE.
-    ⍝ BI:   Change CEXPORT to "Export", BI_TEMPLATE to "BI".
-    ⍝ BII:  Change CEXPORT or CEXPORT¨ to "", BI_TEMPLATE to "BII".
-    ⎕FX'BI_TEMPLATE' 'CEXPORT'  ⎕R 'BI'  'Export'⊣⎕NR'BI_TEMPLATE'
-    ⎕FX'BI_TEMPLATE' 'CEXPORT¨?'⎕R 'BII' ''      ⊣⎕NR'BI_TEMPLATE'
-    ___←⎕EX 'BI_TEMPLATE'
+    ⍝ Build BI and BII from _BIX_.
+    ⍝ BI:   Change _EXP_ to "Export", _BIX_ to "BI".
+    ⍝ BII:  Change _EXP_ or _EXP_¨ to "", _BIX_ to "BII".
+    ⎕FX'_BIX_' '_EXP_'  ⎕R 'BI'  'Export'⊣⎕NR'_BIX_'
+    ⎕FX'_BIX_' '_EXP_¨?'⎕R 'BII' ''      ⊣⎕NR'_BIX_'
+    ___←⎕EX '_BIX_'
 
     :EndSection BI Executive
     ⍝ ----------------------------------------------------------------------------------------
 
     :Section BigInt internal structure
       ⍝ ============================================
-      ⍝ Import / ∆ - Import to internal bigInteger
+      ⍝ Import / Imp - Import to internal bigInteger
       ⍝ ============================================
-      ⍝  ⍺ ∆ ⍵  →→  (∆ ⍺)(∆ ⍵)
-      ⍝  ∆ ⍵
+      ⍝  ⍺ Imp ⍵  →→  (Imp ⍺)(Imp ⍵)
+      ⍝  Imp ⍵
       ⍝      from: 1) a BigInteger string,
       ⍝            2) an APL integer, or
       ⍝            3) an internal-format BigInteger (depth ¯2), passed through unchanged.
@@ -246,7 +248,7 @@
       ⍝ Output: BIint, i.e.  (sign (,ints)), where ints∧.<RX10
       ⍝
       ⍝ [⍺] Import ⍵
-      ⍝ [⍺] ∆ ⍵
+      ⍝ [⍺] Imp ⍵
       Import←{⍺←⊢
           1≢⍺ 1:(∇ ⍺)(∇ ⍵)
           ¯2=≡⍵:   ⍵             ⍝ Fast: BigInts (depth: ¯2) are of form:  [1|0|¯1] [int vector]
@@ -254,7 +256,7 @@
           type=3:ImportInt ⍵  ⋄ type=0:ImportStr ⍵ ⋄ type∊5 7:ImportFloat ⍵
           Err eIMPORT
       }
-      ∆←Import
+      Imp←Import
  
       ⍝ ImportInt:    ∇ ⍵:I[1]
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
@@ -270,7 +272,7 @@
       ⍝ If not, you must use big integer strings of any length (exponents are disallowed in BigInt strings).
       ⍝ Normally, ImportFloat is not called by the user, since BII and BI call it automatically.
       ⍝ Usage:
-      ⍝    (BI_LIB.∆  1E100)         ≡  bigInt.∆ '1',100⍴'0'   <==>  1
+      ⍝    (BI_LIB.Imp  1E100)         ≡  bigInt.Imp '1',100⍴'0'   <==>  1
       ImportFloat←{⎕FR←1287 ⍝ 1287: to handle large exponents
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(chkZ RX10⊥⍣¯1⊣|⍵)
           Err eIMPORT,⍕⍵
@@ -289,7 +291,7 @@
       ⍝ Returns a small APL integer!
       ⍝ Usage: so far, we only use it in BI/BII where we are passing data to an APL fn (⍳).
       ReturnSmallAPLInt←{
-          s w←∆ ⍵ ⋄ 1≠≢w:Err eSMALLRT ⋄ s×,w
+          s w←Imp ⍵ ⋄ 1≠≢w:Err eSMALLRT ⋄ s×,w
       }
     ⍝ ---------------------------------------------------------------------
     ⍝ Export: EXPORT a SCALAR BigInt to external "standard" bigInteger
@@ -303,12 +305,12 @@
      ⍝ rawCall fn_name
      ⍝ Converts core numeric function named to lower-overhead version.
      ⍝ From routine "add", creates "_add" with conversion code 
-     ⍝     (∆ ⍵) and (⍺ ∆ ⍵)
+     ⍝     (Imp ⍵) and (⍺ Imp ⍵)
      ⍝ removed. 
     ∇ {fnNmOut}←rawCall fnNm
         ;fnInP;fnOutA;inP;outA
       fnInP fnOutA←('\b',fnNm,'\b')('_',fnNm)
-      inP outA←(fnInP '←⍺ ∆ ⍵'  '←∆ ⍵' )(fnOutA '←⍺ ⍵'  '←⍵')
+      inP outA←(fnInP '←⍺ Imp ⍵'  '←Imp ⍵' )(fnOutA '←⍺ ⍵'  '←⍵')
       fnNmOut←⎕FX inP ⎕R outA ⍠('UCP' 1)⊣⎕NR fnNm
       :IF 0=1↑0⍴fnNmOut 
           Err 'rawCall: Error ⎕FXing variant of ',fnNm
@@ -332,22 +334,22 @@
 
     ⍝ neg[ate] / _neg[ate]
       neg←{                                ⍝ -
-          (sw w)←∆ ⍵
+          (sw w)←Imp ⍵
           (-sw)w
       }
     ⍝ sig[num], _signum
       sig←{                                ⍝ ×
-          (sw w)←∆ ⍵
+          (sw w)←Imp ⍵
           sw(|sw)
       }
     ⍝ abs: absolute value
       abs←{                                ⍝ |
-          (sw w)←∆ ⍵
+          (sw w)←Imp ⍵
           (|sw)w
       }
     ⍝ inc[rement]:                         ⍝ ⍵+1
       inc←{
-          (sw w)←∆ ⍵
+          (sw w)←Imp ⍵
           sw=0:1 ONE_D                     ⍝ ⍵=0? Return 1.
           sw=¯1:dlzNorm sw(⊃⌽_dec 1 w)    ⍝ ⍵<0? inc ⍵ becomes -(dec |⍵). dlzNorm handles 0.
           î←1+⊃⌽w                          ⍝ trial increment (most likely path)
@@ -356,7 +358,7 @@
       }
     ⍝ dec[rement]:                         ⍝ ⍵-1
       dec←{
-          (sw w)←∆ ⍵
+          (sw w)←Imp ⍵
           sw=0:¯1 ONE_D                    ⍝ ⍵ is zero? Return ¯1
           sw=¯1:dlzNorm sw(⊃⌽_inc 1 w)    ⍝ ⍵<0? dec ⍵  becomes  -(inc |⍵). dlzNorm handles 0.
                                            ⍝ If the last digit of w>0, w-1 can't underflow.
@@ -373,7 +375,7 @@
     ⍝    ⍵ ≤ NRX10:   We calculate r as a BigInt, while counting down ⍵ as an APL integer. Moderately fast.
     ⍝    Otherwise: We calculate entirely using BigInts for r and ⍵. Slowwwwww.
       fact←{                                ⍝ !⍵
-          sw w←∆ ⍵
+          sw w←Imp ⍵
           sw=0:ONE_BI                       ⍝ !0
           sw=¯1:Err eFACTOR                 ⍝ ⍵<0
           factBig←{
@@ -389,9 +391,9 @@
     ⍝ roll ⍵: Compute a random number between 0 and ⍵-1, given ⍵>0.
     ⍝    r:BIint ← ∇ ⍵:BIint   ⍵>0.
     ⍝ With inL the # of dec digits in ⍵, excluding any leading '0' digits...
-    ⍝ Proceed as shown here, where (Export ⍵) is "exported" BIext format; (∆ ⍵) is internal BIint format.
+    ⍝ Proceed as shown here, where (Export ⍵) is "exported" BIext format; (Imp ⍵) is internal BIint format.
       roll←{
-          sw w←∆ ⍵
+          sw w←Imp ⍵
           sw≠1:Err eBADRAND
           ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0 is optimal
           inL←≢Export sw w                          ⍝ ⍵: in Export form. in: ⍵ with leading 0's removed.
@@ -400,8 +402,8 @@
               ⍺←''                               ⍝ ...
               ⍵≤≢⍺:⍺ ⋄ (⍺,2↓⍕?0)∇ ⍵-⎕PP          ⍝ ... ⎕PP digits at a time.
           }inL                                   ⍝ res is then truncated to exactly inL digits
-          '0'=⊃res:∆ res                         ⍝ If leading 0, guaranteed (∆ res) < ⍵.
-          ⍵ rem ∆ res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
+          '0'=⊃res:Imp res                         ⍝ If leading 0, guaranteed (Imp res) < ⍵.
+          ⍵ rem Imp res                            ⍝ Otherwise, compute rem r: 0 ≤ r < ⍵.
       }
   ⍝⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝⍝  Bit Management Utilities
@@ -440,14 +442,14 @@
           dlzNorm sgn(2⊥⍉bits)         ⍝ Convert to bigint:  (sign) (integer array)
       }
       BitsExport←{
-          sw w←∆ ⍵
+          sw w←Imp ⍵
           sw=0:0,NRX2⍴0
           (sw=¯1),,⍉NRX2BASE⊤w
       }
 
     ⍝ GetBIAttribs: Returns    #Hands   #Bits*   #1-bits*         *=(in bit representations)
     ⍝        ≢bits is also  1 + 20 × #hands
-    GetBIAttribs←{hands←≢⊃⌽w←∆ ⍵ ⋄ bits←BitsExport w ⋄ hands (≢bits) (+/1=bits) }
+    GetBIAttribs←{hands←≢⊃⌽w←Imp ⍵ ⋄ bits←BitsExport w ⋄ hands (≢bits) (+/1=bits) }
 
 
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -511,7 +513,7 @@
 
     :Section BI Dyadic Functions/Operations
     ⍝     Does Arg Conversions   Requires BI-Internal Args   Details
-    ⍝     For general use          For sophisticated use  
+    ⍝     For general use          For INTERNAL use and library routine development 
     ⍝        slower                     faster         
     ⍝          add                       _add
     ⍝          sub                       _sub
@@ -531,7 +533,7 @@
 
   ⍝ dyad:    compute all supported dyadic functions
       add←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
           sa=sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5 + 10 or ¯5 + ¯10
@@ -539,7 +541,7 @@
           sa a _sub 1 w                       ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
       sub←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
@@ -547,7 +549,7 @@
           sa(nupZ-⌿dck a mix w)                ⍝ a≥w: 5-3 → +(5-3)
       }
       mul←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           0∊sa,sw:ZERO_BI
           TWO_D≡a:(sa×sw)(addU⍨w) ⋄ TWO_D≡w:(sa×sw)(addU⍨a)
           ONE_D≡a:(sa×sw)w ⋄ ONE_D≡w:(sa×sw)a
@@ -558,7 +560,7 @@
     ⍝ div: 
     ⍝ For special cases (except ⍺÷10), see divU.
       div←{ 
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           TEN_D≡w:  (sa×sw)a mul10Exp MINUS1_BI       ⍝ This can be hundreds of times faster than using divU.
           normFromSign(sa×sw)(⊃a divU w)
       }
@@ -566,7 +568,7 @@
     ⍝    (⍺ div ⍵)  and (⍺ mod ⍵)
     ⍝ For special cases, see divU.
       divRem←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           quot rem←a divU w
           (normFromSign(sa×sw)quot)(normFromSign sw rem)
       }
@@ -590,14 +592,14 @@
           0≠rt←decodeRoot ⍵:rt root ⍺
         ⍝ Not a root, so decode as usual
         ⍝ Special cases ⍺*2, ⍺*1, ⍺*0 handled in powU.
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           sa sw∨.=0 ¯1:ZERO_BI     ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a powU w
           sa≠¯1:1 p                ⍝ sa= 1 (can't be 0).
           0=2|⊃⌽w:1 p ⋄ ¯1 p       ⍝ ⍺ is neg, so result is pos. if ⍵ is even.
       }
       rem←{                        ⍝ remainder/residue. APL'S DEF: ⍺=base.
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           sw=0:ZERO_BI
           sa=0:sw w
           r←,a remU w              ⍝ remU is fast if a>w
@@ -618,7 +620,7 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
     ⍝ Very slow!
       mul2Exp←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           1≠≢w:Err eMUL10                         ⍝ ⍵ must be small integer.
           sa=0:0 ZERO_D                           ⍝ ⍺ is zero: return 0.
           sw=0:sa a                               ⍝ ⍵ is zero: ⍺ stays as is.
@@ -642,16 +644,16 @@
     ⍝  WARNING: THIS APPEARS TO RUN ABOUT 80% SLOWER THAN A SIMPLE MULTIPLY FOR MEDIUM AND LONG ⍺, unless ⍵ is long, e.g. 1000 digits.
     ⍝           It is however much faster for ⍺ div  10 or ⍺ divRem 10, which use  ⍺ mul10Exp ¯1
       mul10Exp←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           1≠≢w:Err eMUL10                          ⍝ ⍵ must be small integer.
           sa=0:ZERO_BI                             ⍝ ⍺ is zero: return 0.
           sw=0:sa a                                ⍝ ⍵ is zero: sa a returned.
           ustr←Export 1 a                          ⍝ ⍺ as unsigned string.
           ss←'¯'/⍨sa=¯1                            ⍝ sign as string
-          sw=1:∆ ss,ustr,w⍴'0'                     ⍝ sw= 1? shift right by appending zeroes.
+          sw=1:Imp ss,ustr,w⍴'0'                     ⍝ sw= 1? shift right by appending zeroes.
           ustr↓⍨←-w                                ⍝ sw=¯1? shift right by dec truncation
           0=≢ustr:ZERO_BI                          ⍝ No chars left? It's a zero
-          ∆ ss,ustr                                ⍝ Return in internal form...
+          Imp ss,ustr                                ⍝ Return in internal form...
       }
     shiftDecimal←mul10Exp                          ⍝ positive/left
     shiftD←mul10Exp
@@ -659,12 +661,12 @@
 
     ⍝ ∨ Greatest Common Divisor
       gcd←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           1(a gcdU w)
       }
     ⍝ ∧ Lowest Common Multiple
       lcm←{
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           (sa×sw)(a lcmU w)
       }
     rawCall¨ 'gcd' 'lcm'
@@ -674,7 +676,7 @@
       ∆TEMPLATE←{
         ⍝ ⍺ ∆TEMPLATE ⍵: emulates (⍺ ∆SYM ⍵)
         ⍝ ⍺, ⍵: BigIntegers
-          (sa a)(sw w)←⍺ ∆ ⍵
+          (sa a)(sw w)←⍺ Imp ⍵
           0∊sa sw:sa ∆SYM sw        ⍝ ⍺, ⍵, or both are 0
           sa≠sw:sa ∆SYM sw          ⍝ ⍺, ⍵ different signs
           sa=¯1:∆SYM cmp w mix a    ⍝ ⍺, ⍵ both neg
@@ -696,15 +698,14 @@
       log←{
         log10←{¯1+≢Export ⍵}
         log2←{⌊log2_10×log10 ⍵}      ⍝ Verify.  FIX ME!!!
-        ⍺←TEN_BI ⋄ B N←⍺ ∆ ⍵
+        ⍺←TEN_BI ⋄ B N←⍺ Imp ⍵
       ⍝ Hidden way to calculate  2 log N the slow mathematical way. VERY SLOW!
         MINUS1_BI≡B:ZERO_BI{⍵ le ONE_BI:⍺ ⋄ (inc ⍺)∇ ⍵ _div B}N⊣B←TWO_BI
         0≥⊃N:Err eLOG        ⍝ N ≤ 0
-        TEN_BI≡B:∆ log10 N
-        TWO_BI≡B:∆ log2 N    ⍝ Magical, but sometimes off by a digit (???)
+        TEN_BI≡B:Imp log10 N
+        TWO_BI≡B:Imp log2 N    ⍝ Magical, but sometimes off by a digit (???)
         ZERO_BI{⍵ _le ONE_BI:⍺ ⋄ (_inc ⍺)∇ ⍵ _div B}N   ⍝  0 {⍵ ≤ 1: ⍺  ⋄ (>⍺) ∇ ⍵ ÷ B} ⍵}
       }
-
 
     :EndSection BI Dyadic Operators/Functions
 
@@ -721,13 +722,13 @@
     ⍝ It is nominally faster at lengths around 75 digits.
     ⍝ Only for smaller a and b, the cost of 3 modulos instead of 1 predominates.
       modMul←{
-          (a b)m←(⍺ ∆ ⍵)(∆ ⍺⍺)
+          (a b)m←(⍺ Imp ⍵)(Imp ⍺⍺)
           m _rem(m _rem a)_mul(m _rem b)
       }
     ⍝ modPow -- a (m modPow) n -- from article by Roger Hui Aug 2020  
     ∇ z←a(m modPow)n;s;mmM
       ⍝ m|a*n  ==>   a (m modPow) n  
-      (a n)m←(a ∆ n)(∆ m)
+      (a n)m←(a Imp n)(Imp m)
       z←ONE_BI ⋄ s←m rem a
       mmM←m modMul 
       :While ZERO_BI lt n
@@ -834,7 +835,7 @@
  ⍝  Prettify: Add underscores every 5 digits; ⍺=0 (default): replace ¯ by - .
     Prettify←  {0:: ⍵ ⋄ ⍺←0 ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}
   ⍝ ExportApl:    Convert valid bigint ⍵ to APL, with error if exponent too large.
-    ExportApl←{ 0:: Err eBADRANGE ⋄  ⍎Export ∆ ⍵}
+    ExportApl←{ 0:: Err eBADRANGE ⋄  ⍎Export Imp ⍵}
 
     ⍝ dlzNorm ⍵:BIint  If ⊃⌽⍵ is zero after removing leading 0's,
     ⍝                   return canonical 0 (0 (,0)).
@@ -856,8 +857,6 @@
     dck←{(2 1+(≥cmp ⍵)⌽0 ¯1)⌿⍵}             ⍝ difference check.
     rep←{10⊥⍵{⍉⍵⍴(-×/⍵)↑⍺}(⌈(≢⍵)÷NRX10),NRX10}  ⍝ radix RX10 rep of number.
     cmp←{⍺⍺/,(<\≠⌿⍵)/⍵}                     ⍝ compare first different digit of ⍺ and ⍵.
-
-
     :Endsection Service Routines
 ⍝ --------------------------------------------------------------------------------------------------
     :Endsection Big Integers
@@ -1077,8 +1076,17 @@
     :Section Help
 ⍝H The BigInt Library
 ⍝H ¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝H   Built on dfns::nats, restructured for signed integers. Faster than dfns::big and less amenable to WS FULL.
-⍝H   Routine: BI, BII, BIM, BIC, BI_DC, and BI_HELP.
+⍝H  Built on dfns::nats, restructured for signed integers. Faster than dfns::big and less amenable to WS FULL.
+⍝H  Routine: BI, BII, BIM, BIC, BI_DC, and BI_HELP.
+⍝H  BI:    For most uses, use operator BI. It returns big integers in a string (external) format.
+⍝H  BII:   Operator BII returns big integers in a more efficient internal format (signum integer_vector). 
+⍝H  BIM:   BI with modulo argument; efficient for multiplication and exponentiation.
+⍝H  BIC:   See below.
+⍝H  BI_DC: A big integer desk calculator. Includes HELP information.
+⍝H  -----
+⍝H  All arguments may be in either the external (string) or internal formats.
+⍝H  Strings may have underscores to separate runs of digits; negative numbers are prefixed by either ¯ or -.
+⍝H
 ⍝H   Basic routine for most uses:  BI
 ⍝H
 ⍝H       BI     [⍺]  +BI ⍵
