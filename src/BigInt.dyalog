@@ -809,7 +809,7 @@
 
     :Section Service Routines
  ⍝  Prettify: Add underscores every 5 digits; ⍺=0 (default): replace ¯ by - .
-    Prettify←  {0:: ⍵ ⋄ ⍺←0 ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}
+    Prettify←  { ⍺←0 ⋄ 0:: ⍵ ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}
   ⍝ ExportApl:    Convert valid bigint ⍵ to APL, with error if exponent too large.
     ExportApl←{ 0:: Err eBADRANGE ⋄  ⍎Export Imp ⍵}
 
@@ -1014,17 +1014,20 @@
           caller←(1+⎕IO)⊃⎕RSI,#
           code←1 BIC exprIn
           :If verbose 
-              ⎕←'> ',code  
+              ⎕←'> ',⎕THIS{p←'\Q','.\E',⍨⍕⍺ ⋄ p ⎕R ''⊢⍵}code  
           :EndIf
           isShy←×≢('^\(?(\w+(\[[^]]*\])?)+\)?←'⎕S 1⍠'UCP' 1)⊣code~' '   ⍝ Kludge to see if code has an explicit result.
-          run←{⍵⍵:⍺⍎⍺⍺ ⋄ ⊢⎕←1∘Prettify⍣pretty⊣⍺⍎⍺⍺}                     ⍝ ⍎ needs ⍵ to have value lastResult
+          run←{ ⍝ ⍵ is set to lastResult, used in ⍺⍎⍺⍺
+               res←⍺⍎⍺⍺ 
+               2≠⎕NC 'res': 0⊣⎕←↑'VALUE ERROR' ('      ',exprIn) '      ∧ '   ⍝ Char str not returned!
+               ⍵⍵: res ⋄ ⊢⎕←1∘Prettify⍣pretty⊣res     
+          }                   
           lastResult←caller (code run isShy) lastResult
       :Else
            ⎕←{⎕IO←1
               dm0 dm1 dm2←⍵ 
               dm0↓⍨←1 
               (p↑dm1)←' '⊣ p←dm1⍳']' 
-              dm2,⍨←' '
               ↑ dm0 dm1 dm2
            }⎕DMX.DM
       :EndTrap
