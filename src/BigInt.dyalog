@@ -117,7 +117,7 @@
               CASE'-':_EXP_ neg ⍵              ⍝     -⍵
               CASE'+':_EXP_ Import ⍵           ⍝     canon: ensures ⍵ is valid. Returns in canonical form.
               CASE'|':_EXP_ abs ⍵              ⍝     |⍵
-              CASE'×':_EXP_⊃Import ⍵           ⍝     signum      Returns APL int (∊¯1 0 1), not BII.
+              CASE'×':_EXP_⊃Import ⍵           ⍝     signum      Returns BII now, not APL integer...
               CASE'÷':_EXP_ recip ⍵            ⍝     inverse     Why bother? Mostly 0!
             ⍝ Misc
               CASE'<':_EXP_ dec ⍵              ⍝     decrement   Optimized for constant in ⍵-1.
@@ -131,7 +131,7 @@
               CASE'SQRT' '√':_EXP_ sqrt ⍵      ⍝     sqrt        See dyadic *0.5
             ⍝ Convenient utilities in algorithms...
               CASE'⍳':⍳ReturnSmallAPLInt ⍵     ⍝     iota ⍵      Allow only small integers... Returns a set of APL integers
-              CASE'≢':≢(Export Imp ⍵)~'_¯-'    ⍝     ≢⍵          Return # digits in number
+              CASE'≢':≢(Export Imp ⍵)~'_¯-'    ⍝     ≢⍵          Return # digits in number as APL integer
             ⍝ "Export" the BI "Internal" Form, independent of whether a BI or BII call...
               CASE'→':Import ⍵                 ⍝     internal    Return ⍵ in internal form.
             ⍝ Bit manipulation
@@ -809,7 +809,7 @@
 
     :Section Service Routines
  ⍝  Prettify: Add underscores every 5 digits; ⍺=0 (default): replace ¯ by - .
-    Prettify←  { ⍺←0 ⋄ 0:: ⍵ ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=0: n ⋄ '-'@('¯'∘=) n}
+    Prettify←  { ⍺←0 ⋄ 0:: ⍵ ⋄ n← '(\d)(?=(\d{5})+$)' ⎕R '\1_'⊣⍵  ⋄  ⍺=1: n ⋄ '-'@('¯'∘=) n}
   ⍝ ExportApl:    Convert valid bigint ⍵ to APL, with error if exponent too large.
     ExportApl←{ 0:: Err eBADRANGE ⋄  ⍎Export Imp ⍵}
 
@@ -850,9 +850,8 @@
     ⎕FX 'ns←BI_LIB' 'ns←⎕THIS'    ⍝ Appears in ⎕PATH, for use by user utilities...
 
   ⍝ ∆F-- ⎕R/⎕S Regex utility-- returns field #n or ''
-    ∆F←{ ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ ∆F¨2 3
-        ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block)
-    }
+  ⍝ Returns Regex field ⍵N in ⎕R ⍵⍵ dfn. Format:  f2 f3←⍵ ∆F¨2 3
+    ∆F←{ ⍵=0:⍺.Match ⋄ ⍵≥≢⍺.Offsets:'' ⋄ ¯1=⍺.Offsets[⍵]:'' ⋄ ⍺.(Lengths[⍵]↑Offsets[⍵]↓Block) }
   ⍝¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯⍝
     ∇ {r}←BIC_LoadPats (fns_monad fns_dyad)
       ;actBiCallNoQ;actBiCallQ;actKeep;actKeepParen;actQuoted;lD;lM;p2Fancy;p2Funs1;p2Funs2
@@ -1025,7 +1024,7 @@
           lastResult←caller (code run isShy) lastResult
       :Else
            ⎕←{⎕IO←1
-              dm0 dm1 dm2←⍵ 
+              dm0 dm1 dm2←⍵  
               dm0↓⍨←1 
               (p↑dm1)←' '⊣ p←dm1⍳']' 
               ↑ dm0 dm1 dm2
@@ -1151,7 +1150,7 @@
 ⍝H           -BI  ⍵             negate
 ⍝H           +BI  ⍵             canonical (returns BI  ⍵ in standard form, however entered)
 ⍝H           |BI  ⍵             absolute value
-⍝H           ×BI  ⍵             signum
+⍝H           ×BI  ⍵             signum 
 ⍝H           ÷BI  ⍵             inverse (mostly useless)
 ⍝H           <BI  ⍵             decrement (alternate ≤). Optimized (wherever overflow/underflow do NOT occur).
 ⍝H           >BI  ⍵             increment (alternate ≥). Optimized (ditto).
