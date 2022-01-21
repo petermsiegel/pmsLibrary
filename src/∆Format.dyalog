@@ -139,14 +139,16 @@
     ⍝ | cc: leading/trailing delim (blanks etc)           |
     ⍝ | c:  no leading/trailing delim
     ⍝ +---------------------------------------------------+
-    FMTXcc←     ' ⍙Ⓕ.Ⓕ'   ⍝ ...cc
-    CATCcc←     ' ⍙Ⓕ.Ⓒ⍨'  ⍝ CATC[ommuted] 
-    DATETIMEcc← ' ⍙Ⓕ.Ⓓ '
-    BOXcc←      ' ⍙Ⓕ.Ⓑ '
-    BBOXcc←     ' ⍙Ⓕ.ⒷⒷ '
-    QUOTEcc←    ' ⍙Ⓕ.Ⓠ '
-    LEFTc←       '⍙Ⓕ.Ⓛ'   ⍝ ...c
-    RIGHTc←      '⍙Ⓕ.Ⓡ'     
+        SpL←' '∘,
+        Sp←SpL,∘' '
+    FMTXcc←     Sp'⍙Ⓕ.Ⓕ'    ⍝ ...cc
+    CATCcc←    SpL'⍙Ⓕ.Ⓒ⍨'   ⍝ CATC[ommuted] 
+    DATETIMEcc← Sp'⍙Ⓕ.Ⓓ'
+    BOXcc←      Sp'⍙Ⓕ.Ⓑ'
+    BBOXcc←     Sp'⍙Ⓕ.ⒷⒷ'
+    QUOTEcc←    Sp'⍙Ⓕ.Ⓠ'
+    LEFTc←        '⍙Ⓕ.Ⓛ'    ⍝ ...c
+    RIGHTc←       '⍙Ⓕ.Ⓡ'     
     ⍝ +----------------------------------------------------------------------------+
     ⍝ | ENDSECTION ***** SUPPORT FUNCTION DEFINITIONS                              |
     ⍝ +----------------------------------------------------------------------------+
@@ -187,12 +189,15 @@
           ⍝ Pass the (copied) User Namespace into the user space as ⍺≡⍙Ⓕ.UserNs.   
             ⍎'HERE.Lib.UserNs USER_SPACE.{⍙Ⓕ←⍺.## ⋄ ⍺', ⍵ ,'⍵ }OMEGA'
         }dfn 
-      ⍝ Self-documented code field?  { code → }  or { code ➤ }, where 0 or more spaces around → or ➤ are reflected in output.
-      ⍝ Prettyprint variant of → is '➤' U+10148
+      ⍝ Self-documented code field?  { code SELF_DOC_ARROW_IN}, 
+      ⍝ where 0 or more spaces around the arrow are reflected in output using SELF_DOC_ARROW_OUT.
+      ⍝ Prettyprint variant of → is set above: SELF_DOC_ARROW_IN/_OUT
+        AROWp←  '[','](\h*)$',⍨ SELF_DOC_ARROW_IN
+        AROWa←           '\1',⍨ SELF_DOC_ARROW_OUT 
         selfDocFlag: res { 
             COMPILE: ⍺ RESULT_Compile TF2Code ⍵ 
                      ⍺ RESULT_Immed ⍵
-        } '[→➤](\h*)$' ⎕R (SELF_DOC_ARROW,'\1')⊣1↓¯1↓⍵           
+        } AROWp ⎕R AROWa⊣1↓¯1↓⍵     
         res 
       }
     ⍝ *****************************************⍝
@@ -245,8 +250,13 @@
     ⍝**********************************⍝  
     ⍝ Basic Initializations
       ASSERT_TRUE DEBUG COMPILE HELP← SetOptions ⍺
-      SELF_DOC_ARROW←'➤'   ⍝ For Self-Documenting Code: use a printable char here, e.g. → or '➤'
     HELP: _←HelpCmd ⍬
+
+    ⍝ For Self-Documenting Code Arrows: use a printable right arrow here, e.g. 
+    ⍝      → (APL's right arrow)  ➤ 10148. We omit these, because APL doesn't align properly:  🡆 129094   🢂 129154    
+      SELF_DOC_ARROW_IN←  '→➤'     ⍝ List of 1 or more arrows 
+      SELF_DOC_ARROW_OUT← '➤'      ⍝ Exactly one arrow
+ 
       USER_SPACE←⊃⌽⎕RSI
       HERE←⎕THIS      
     ⍝ Globals (externals) used within utility functions.    
