@@ -1061,14 +1061,13 @@
       :EndTrap
     ∇
     BI_HEX←{  
-        eHEX←'BI: Conversion to hexadecimal only valid for non-negative Bigints'
         ⎕IO←0 ⋄ ∆DH←⎕D,'ABCDEF'
-        ¯1=×BI ⍵: eHEX ⎕SIGNAL 11
-        ''{ 
-            0=BI ⍵: '0x', ⍺ '0'⊃⍨0=≢⍺
-            dec rem←⍵('DivRem' BII)16
-            dec ∇⍨ ∆DH[⊃⌽rem],⍺
-        } ⍵
+        neg←'' '¯'⊃⍨¯1=⊃num←+BII ⍵
+        neg,''{ 
+            (,0)≡⍵: ⍺ '0'⊃⍨0=≢⍺
+            dec rem←⍵ DivU 16
+            dec ∇⍨ ∆DH[rem],⍺
+        } ⊃⌽num
     }
 
     :EndSection User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, BI_HEX
@@ -1213,8 +1212,8 @@
 ⍝H           ⊤BI  ⍵             bit-decode: converts BI to equivalent bits (returns boolean): see ⊥.
 ⍝H           ~BI  ⍵             flip: flip all the bits in big integer BI  ⍵, returning a big integer (not bits)
 ⍝H           ('HEX'BI) ⍵        hexadecimal: converts BigInt ⍵ into a hexadecimal-format numeric string:
-⍝H                                  ('HEX'BI)'4276993775' ==>  0xFEEDBEEF
-⍝H                              Hex strings have the prefix '0x' with digits 0-9 and A-F (upper case).
+⍝H                                  ('HEX'BI)'4276993775' ==>  FEEDBEEF
+⍝H                              Hex strings are generated from the digits 0-9 and A-F (upper case). No prefix is used.
 ⍝H           ⎕AT BI  ⍵          attributes: returns 3 integers: 
 ⍝H                                 <num hands> <num bits> <num 1 bits>
 ⍝H                                 hands: a BigInt consists of a sign num (¯1 0 1) and a vector of unsigned integers, 
