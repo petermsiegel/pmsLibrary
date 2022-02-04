@@ -284,7 +284,7 @@
 ⍝H    -SETpath    |  -NOSETpAth            | Update ⎕PATH on success
 ⍝H    -NOVerbose  |  -Verbose              | Provide details on search
 ⍝H    -NODebug    |  -Debug                | Provide debugging info when searching mem and file sys for objects.
-⍝H    -NOWarn     |  -Warn               | Warn when an unusual situation occurs.
+⍝H    -NOWarn     |  -Warn                 | Warn when an unusual situation occurs.
 ⍝H    -NOForce    |  -Force                | Update from disk even if objs found on ⎕PATH?
 ⍝H    -NoNF       |  -NFok                 | NOT FOUND? let the fn return ⎕NULL for missing objs, rather than ⎕SIGNALING.
 ⍝H 
@@ -293,7 +293,7 @@
 ⍝H    ∘ Default library name: ⍙⍙.⍙    (none, if -noPrefix).
 ⍝H    ∘ Defaults are indicated by an asterisk (*) above.
 ⍝H    ∘ For options, case is ignored. Options may appear as left arg or as first/leading right args.
-⍝H    ∘ Objects may be passed in one string ,separated by blanks, or as a vector of 1 or more strings (one per object).
+⍝H    ∘ Objects may be passed in one string, separated by blanks, or as a vector of 1 or more strings (one per object).
 ⍝H    ∘ Objects must be valid APL user names, simple or hierarchical (like.this); never system names (like ⎕THIS).
 ⍝H    ∘ If the first item in a vector of strings starts with a hyphen, that entire item will be treated as options,
 ⍝H      but only if there is no explicit left argument (options).

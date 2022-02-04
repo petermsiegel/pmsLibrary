@@ -35,7 +35,7 @@
   ⍝ FNS_MONADIC, FNS_DYADIC - these constants are required for BIC to function, so keep them complete!
   ⍝ The first vector in each constant has single-char symbols; the 2nd has multi-char symbols...
   ⍝             ↓single-char symbols     ↓multi-char names in upper case
-    FNS_MONADIC←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳≢'   ('SQRT' '⎕AT') 
+    FNS_MONADIC←'-+|×÷<>≤≥!?⊥⊤⍎→√~⍳≢'   ('SQRT' 'HEX' '⎕AT') 
   ⍝             ↓reg. fns           ↓boolean   ↓multi-symbol ↓<use upper case here>
     FNS_DYADIC←('+-×*÷⌊⌈|∨∧⌽↑↓√~⍟⍴','<≤=≥>≠') ('*∘÷' '*⊢÷'   'ROOT' 'SHIFTD' 'SHIFTB'  'DIVREM' 'MOD' 'GCD' 'LCM')
  
@@ -117,7 +117,7 @@
               CASE'-':_EXP_ Neg ⍵              ⍝     -⍵
               CASE'+':_EXP_ Imp ⍵              ⍝     canon:  (Returns ⍵ in canon form, ensuring it is valid)
               CASE'|':_EXP_ Abs ⍵              ⍝     |⍵
-              CASE'×':_EXP_⊃Imp ⍵              ⍝     ×⍵ (signum) Returns '1' '0' or '¯1'
+              CASE'×':⊃Imp ⍵                   ⍝     ×⍵ (signum) Returns APL ¯1, 0, or 1
               CASE'÷':_EXP_ Recip ⍵            ⍝     inverse     Why bother?  ÷⍵ is 0 for all ⍵ but 1, ¯1, and 0.
             ⍝ Misc
               CASE'<':_EXP_ Dec ⍵              ⍝     decrement   ⍵-1.  Fast unless about to overflow/underflow
@@ -138,6 +138,7 @@
               CASE'⊥':_EXP_ BitsImport ⍵       ⍝     BitsImport  Convert bits to bigint
               CASE'⊤':BitsExport ⍵             ⍝     BitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
               CASE'~':_EXP_ BitsImport~BitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
+              CASE'HEX': BI_HEX Imp ⍵          ⍝     Convert to external hex string...
               CASE'⎕AT':GetBIAttribs ⍵         ⍝     ⎕AT         Returns 3 integers based on internal form of Bigint ⍵:
                                                ⍝                      <num hands> <num bits> <num 1 bits>. See "hands".
             ⍝ NOT FOUND
@@ -934,7 +935,7 @@
     
   :EndSection Miscellaneous Utilities
 
-  :Section User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC
+  :Section User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, BI_HEX
    ⍝ BI_LIB      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, BI_LIB will be found without typing explicit path.
    ⍝ BI_DC   - desk calculator (self-documenting)
@@ -1058,31 +1059,22 @@
               ↑ dm0 dm1 dm2
            }⎕DMX.DM
       :EndTrap
-      ∇
+    ∇
+    BI_HEX←{  
+        eHEX←'BI: Conversion to hexadecimal only valid for non-negative Bigints'
+        ⎕IO←0 ⋄ ∆DH←⎕D,'ABCDEF'
+        ¯1=×BI ⍵: eHEX ⎕SIGNAL 11
+        ''{ 
+            0=BI ⍵: '0x', ⍺ '0'⊃⍨0=≢⍺
+            dec rem←⍵('DivRem' BII)16
+            dec ∇⍨ ∆DH[⊃⌽rem],⍺
+        } ⍵
+    }
 
-⍝ BI_HEX-- undocumented export. 
-⍝          Converts BigInt string to hexadecimal BigInt equivalent...
-  ∇ hex←BI_HEX dec;rem;DivU;∆DH;⎕IO
-      ⎕IO←0
-      ∆DH←⎕D,'ABCDEF'
-      
-      :If dec=BI 0
-          hex←'0'
-      :Else
-          hex←''
-          :While 0 <BI dec
-              dec rem←dec ('DivRem' BII) 16
-              hex,⍨←∆DH[⊃⌽rem]
-          :EndWhile
-      :EndIf
-      hex,⍨←'0X'
-  ∇
-  ##.⎕FX ⎕NR 'BI_HEX'
-
-    :EndSection User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC
+    :EndSection User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, BI_HEX
 
     :Section Bigint Namespace - Postamble
-    _NAMELIST_←'BI_LIB BI BII BIM BI_DC BIC BI_HELP'
+    _NAMELIST_←'BI_LIB BI BII BIM BI_DC BIC BI_HELP BI_HEX'
       ___←0 ⎕EXPORT ⎕NL 3 4
       ___←1 ⎕EXPORT {⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}  _NAMELIST_
       ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was "". Setting to "',(⍕⍺),'"'⋄ ⍵}⎕PATH
@@ -1130,6 +1122,8 @@
 ⍝H              E.g.      BIC  '!500' is the same as  !BI 500
 ⍝H       BI_DC  A Big Integer Desk Calculator...
 ⍝H              To execute, call BI_DC (no args, no return value).
+⍝H       BI_HEX Converts a BigInteger (any format) into a hexadecimal string of abitrary length.
+⍝H              See also 'HEX' operand:  ('HEX' BI) 
 ⍝H
 ⍝H Table of Contents
 ⍝H   Preamble
@@ -1199,7 +1193,7 @@
 ⍝H           -BI  ⍵             Negate
 ⍝H           +BI  ⍵             canonical (returns BI  ⍵ in standard form, however entered)
 ⍝H           |BI  ⍵             absolute value
-⍝H           ×BI  ⍵             signum ('-1', '0', '1') 
+⍝H           ×BI  ⍵             signum in APL format: ¯1, 0, 1
 ⍝H           ÷BI  ⍵             inverse (mostly useless)
 ⍝H           <BI  ⍵             decrement (alternate ≤). Optimized (wherever overflow/underflow do NOT occur).
 ⍝H           >BI  ⍵             increment (alternate ≥). Optimized (ditto).
@@ -1218,6 +1212,9 @@
 ⍝H           ⊥BI  ⍵             bit-encode: converts bits to equivalent BI: 1 sign bit, 20 bits per unsigned "hand"
 ⍝H           ⊤BI  ⍵             bit-decode: converts BI to equivalent bits (returns boolean): see ⊥.
 ⍝H           ~BI  ⍵             flip: flip all the bits in big integer BI  ⍵, returning a big integer (not bits)
+⍝H           ('HEX'BI) ⍵        hexadecimal: converts BigInt ⍵ into a hexadecimal-format numeric string:
+⍝H                                  ('HEX'BI)'4276993775' ==>  0xFEEDBEEF
+⍝H                              Hex strings have the prefix '0x' with digits 0-9 and A-F (upper case).
 ⍝H           ⎕AT BI  ⍵          attributes: returns 3 integers: 
 ⍝H                                 <num hands> <num bits> <num 1 bits>
 ⍝H                                 hands: a BigInt consists of a sign num (¯1 0 1) and a vector of unsigned integers, 
