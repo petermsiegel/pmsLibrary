@@ -135,9 +135,9 @@
             ⍝ "Export" the BI "Internal" Form, independent of whether a BI or BII call...
               CASE'→':Imp ⍵                    ⍝     internal    Return ⍵ in internal form, whether called in BI or BII.
             ⍝ Bit manipulation - EXPERIMENTAL...
-              CASE'⊥':_EXP_ BitsImport ⍵       ⍝     BitsImport  Convert bits to bigint
-              CASE'⊤':BitsExport ⍵             ⍝     BitsExport  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
-              CASE'~':_EXP_ BitsImport~BitsExport ⍵  ⍝  Reverses all the bits in a bigint (why?)
+              CASE'⊥':_EXP_ ImportBits ⍵       ⍝     ImportBits  Convert bits to bigint
+              CASE'⊤':ExportBits ⍵             ⍝     ExportBits  Convert bigint ⍵ to bits: sign bit followed by unsigned bit equiv to ⍵
+              CASE'~':_EXP_ ImportBits~ExportBits ⍵  ⍝  Reverses all the bits in a bigint (why?)
               CASE'HEX': BI_HEX Imp ⍵          ⍝     Convert to external hex string...
               CASE'⎕AT':GetBIAttribs ⍵         ⍝     ⎕AT         Returns 3 integers based on internal form of Bigint ⍵:
                                                ⍝                      <num hands> <num bits> <num 1 bits>. See "hands".
@@ -179,6 +179,7 @@
               CASE'SHIFTB':_EXP_ ⍺ Mul2Exp ⍵          ⍝ Binary Shift:  ⍺×2*⍵,  where ±⍵.   See also ⌽
               CASE'SHIFTD':_EXP_ ⍺ Mul10Exp ⍵         ⍝ Decimal Shift: ⍺×10*⍵, where ±⍵.   See also ↑ and ↓.
               CASE'DIVREM':_EXP_¨⍺ DivRem ⍵           ⍝ Returns pair calculated together:  (⌊⍺÷⍵) (⍵|⍺)
+              CASE'⊤':(ImportSmallAPLInt ⍺) ExportNewBase ⍵
             ⍝ Convenience non-Bigint operands for use in algorithms...
               CASE'⍴':(ImportSmallAPLInt ⍺)⍴⍵         ⍝ USEFUL??? Standard ⍴: Requires ⍺ in ⍺ ⍴ ⍵ to be in range of APL int.
             ⍝ NOT FOUND!
@@ -321,10 +322,10 @@
     ⍝     Dec                       
     ⍝     Fact                      
     ⍝     Roll                    
-    ⍝     BitsExport 
+    ⍝     ExportBits 
     ⍝     Root
     ⍝     GetBIAttribs
-    ⍝     BitsImport (requires ⍵ boolean vector)
+    ⍝     ImportBits (requires ⍵ boolean vector)
 
     ⍝ Neg[ate] / _Neg[ate]
       Neg←{                                ⍝ -
@@ -422,7 +423,7 @@
   ⍝⍝        That is, ¯1 is stored as (sign bit: 1) plus (data: 0 0 0 ... 0 1), not as all 1s (as expected for 2s-complement).
   ⍝⍝            ¯1 can be represented as   1 1    OR    1 0 1    OR    1 0 0 0 ... 0 1, etc.
   ⍝⍝  See  ⊥BI ⍵ OR 'BITSIN' BI ⍵ and  ⊤BI ⍵ OR 'BITSOUT' BI ⍵
-      BitsImport←{
+      ImportBits←{
         ⍝ Allow quoted args, as presented by BI_DC desk calculator
           ' '=1↑0⍴⍵:∇{ ~0∊⍵∊'01': ⍺⍺ '1'=⍵  ⋄ ∆ER eBOOL }⍵~' ' 
           0∊⍵∊0 1:∆ER eBOOL
@@ -435,7 +436,7 @@
           }bits
           dlzNorm sgn(2⊥⍉bits)         ⍝ Convert to bigint:  (sign) (integer array)
       }
-      BitsExport←{
+      ExportBits←{
           (sw w)← _IMP_ ⍵
           sw=0:0,NRX2⍴0
           (sw=¯1),,⍉NRX2BASE⊤w
@@ -443,8 +444,25 @@
 
     ⍝ GetBIAttribs: Returns    #Hands   #Bits*   #1-bits*         *=(in bit representations)
     ⍝        ≢bits is also  1 + 20 × #hands
-    GetBIAttribs←{hands←≢⊃⌽w←Imp ⍵ ⋄ bits←BitsExport w ⋄ hands (≢bits) (+/1=bits) }
+    GetBIAttribs←{hands←≢⊃⌽w←Imp ⍵ ⋄ bits←ExportBits w ⋄ hands (≢bits) (+/1=bits) }
 
+  ⍝ ExportNewBase: Base Output Conversion, including to bits.
+  ⍝ Digits for base output conversation go up to base 62, using 0..9,a..z,A..Z
+    ExportNewBase←{ alignBits←0  
+        ⎕IO←0 ⋄ ⍺←16 ⋄ base←⍺ ⋄   
+        (⍺<2)∨⍺>≢DIGITS_EXPANDED: 11 ⎕SIGNAL⍨'BI: ⊤/NEW_BASE base (⍺) must be between 2 and ',⍕≢DIGITS_EXPANDED
+        (sw w)←_IMP_ ⍵
+        dig←{ ⍺←''
+            ZERO_D≡⍵: ⍺ '0'⊃⍨0=≢⍺   
+            dec rem←⍵ DivU base
+            dec ∇⍨ DIGITS_EXPANDED[rem],⍺
+        }w
+        base≠2: dig,⍨'¯'/⍨sw=¯1 
+      ⍝ If alignBits, mantissa bits are multiples of NRX2 long, adding sign bit on left.
+        (⍕sw=¯1),alignBits{~⍺: ⍵  ⋄ ⍵↑⍨-NRX2×⌈NRX2÷⍨≢⍵ }dig 
+    }
+  ⍝ See ExportNewBase
+    DIGITS_EXPANDED←⎕D,(⎕C ⎕A),⎕A
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
     ⍝ Root: A fast integer nth Root.
@@ -935,7 +953,7 @@
     
   :EndSection Miscellaneous Utilities
 
-  :Section User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, BI_HEX
+  :Section User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, NEW_BASE
    ⍝ BI_LIB      - simple niladic fn, returns this bigint namespace #.BigInt
    ⍝           If ⎕PATH points to bigInt namespace, BI_LIB will be found without typing explicit path.
    ⍝ BI_DC   - desk calculator (self-documenting)
@@ -1060,20 +1078,13 @@
            }⎕DMX.DM
       :EndTrap
     ∇
-    BI_HEX←{  
-        ⎕IO←0 ⋄ ∆DH←⎕D,'ABCDEF'
-        neg←'' '¯'⊃⍨¯1=⊃num←+BII ⍵
-        neg,''{ 
-            (,0)≡⍵: ⍺ '0'⊃⍨0=≢⍺
-            dec rem←⍵ DivU 16
-            dec ∇⍨ ∆DH[rem],⍺
-        } ⊃⌽num
-    }
+    NEW_BASE←ExportNewBase
+    BI_HEX←NEW_BASE
 
-    :EndSection User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, BI_HEX
+    :EndSection User Utilities BI_LIB, BI_DC (desk calc), BIB, BIC, NEW_BASE
 
     :Section Bigint Namespace - Postamble
-    _NAMELIST_←'BI_LIB BI BII BIM BI_DC BIC BI_HELP BI_HEX'
+    _NAMELIST_←'BI_LIB BI BII BIM BI_DC BIC BI_HELP BI_HEX NEW_BASE'
       ___←0 ⎕EXPORT ⎕NL 3 4
       ___←1 ⎕EXPORT {⍵[⍋↑⍵]}{⍵⊆⍨' '≠⍵}  _NAMELIST_
       ⎕PATH←⎕THIS{0=≢⎕PATH:⍕⍺⊣⎕← '⎕PATH was "". Setting to "',(⍕⍺),'"'⋄ ⍵}⎕PATH
