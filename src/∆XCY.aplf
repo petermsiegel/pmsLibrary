@@ -1,0 +1,245 @@
+∆XCY←{
+  DEBUG←0
+⍝ ∆XCY: Copy one or more objects to a destination namespace, creating it as needed,
+⍝        optionally with a new name...
+⍝ Syntax:  options ∇ obj1 obj2 ... objN
+⍝          options:      DESTNS    ns, DEFWS   wsn, CALLNS ns, NF bool,  DEBUG bool
+⍝             defaults:        callNs,      'dfns',    callNs,       0,           0
+⍝                   where <ns> is a namespace name or reference, wsnm is a workspace name, bool is 0 or 0.
+⍝                   A lone <ns> scalar defaults to 'DESTNS' ns.
+⍝          objN:  A string of the form   '[wsn:] srcNm destNm'
+⍝                   wsn defaults to 'dfns' (the dfns workspace)
+⍝                   srcNm is the qualified name in the source workspace;
+⍝                   destNm is the qualified name in the destination namespace.
+⍝   E.g.   ∆XCY 'cmpx Time' 'notes.cmpx timeNotes' 
+⍝          - Returns:  #.Time  3    #.timeNotes  2  
+⍝          - Copies from dfns the fn 'cmpx' under the name 'Time'
+⍝            and the var 'notes.cmpx' under the name 'timeNotes' in the namespace from which ∆XCY was called.
+⍝   E.g.   ∆XCY 'cmpx timer.Time' 'notes.cmpx timer.timeNotes'
+⍝          - Returns: #.timer.Time  3    #.timer.timeNotes  2
+⍝          - Copies from dfns the fn 'cmpx' under the name 'Time'
+⍝            and the var 'notes.cmpx' under the name 'timeNotes' in the namespace CLR.timer, 
+⍝            where CLR is the namespace from which ∆XCY was called.
+⍝          - Synonym: ('DestNs' 'timer') ∆XCY 'cmpx Time' 'notes.cmpx timeNotes'
+
+⍝ Support Functions
+  ⍝ Functions below may read any of:
+  ⍝     g.(classIn destNm destNs destNs_ callNs_  qDestNm qSrcNm srcNm srcWs tempNs tempNs_ notFoundErr)
+  ⍝ Key to variables:
+  ⍝      ...Ns   Namespace string
+  ⍝      ...Ns_  Namespace reference
+  ⍝      ...Ws   A workspace name
+  ⍝      ...Nm   A variable name or names within a single string
+  ⍝      q...    A qualified name, i.e. consisting potentially of a namespace (e.g. n1.n2) followed by a simple name.
+  
+  ⍝ SplitLast: Split a qualified name into a namespace prefix and a simple name...
+  ⍝  For qualified name 'pre.f.ix.simple', splits namespace(s) prefix from name: ('pre.f.ix' 'simple')
+  ⍝  For name 'simple', return the name as is:  ('' 'simple')
+    SplitLast←{⍺←'.'  ⋄ (≢⍵)≤p←⍺⍳⍨⌽⍵: '' ⍵ ⋄ (⍵↓⍨-p+1)(⍵↑⍨-p)}
+  ⍝ SimpleNm: Returns the simple name (2nd elem) only of a qualified name (see SplitLast).    
+    SimpleNm←⊃∘⌽SplitLast
+  ⍝ ∆XCY ⍬ → GiveHelp (⍬) 
+  ⍝     Display ⍝H comments in an edit window.
+    GiveHelp←{ ⎕ED't'⊣t←↑'^ *⍝H(.*)'⎕S' \1'⊣⎕NR ⊃⎕XSI }
+  ⍝ DecodeOptions
+  ⍝     g ∇ options, where options: global ⍺
+    DecodeOptions←{
+        g←⍺
+        CASEdep←(|≡⍵)∘∊
+        ⋄ CASEdep 3:g∘∇¨⍵ ⋄ CASEdep 1 0:g.defDestNs∘←⍵ ⋄ ~CASEdep 2:∘∘∘
+        nm val←⍵
+      2:: 11 ⎕SIGNAL⍨'∆XCY DOMAIN ERROR: Invalid option: ',nm 
+          _NS_←{ 2=⎕NC '⍵': ⍵~' ' ⋄ ⍵ }  
+          _BOOL_←{
+              (,0)≡⍵: 0 ⋄ (,1)≡⍵: 1 
+              11 ⎕SIGNAL⍨'∆XCY DOMAIN ERROR: Invalid value for option "',nm,'"'
+          }∘,
+        CASEkey←(1∘⎕C nm)∘≡  
+        ⋄ CASEkey'DESTNS': g.defDestNs∘← _NS_ val  ⋄ CASEkey'CALLNS': g.callNs_∘←  val
+        ⋄ CASEkey'DEFWS':  g.defWs∘←     val~' '  ⋄ CASEkey'DEBUG':  g.DEBUG∘← _BOOL_ val
+        ⋄ CASEkey 'NF':    g.notFoundErr∘← _BOOL_ val
+        ∘∘∘  ⍝ ;-)
+    }
+  ⍝ SetDefDestNs
+  ⍝ Determine default destination namespace ref (obligatory) and name (possibly anonymous reference display form)
+  ⍝ Returns:  (ns_name)(_ns_ref)
+    SetDefDestNs←{g←⍵ ⋄ destNs←g.defDestNs
+        0=≢destNs: g.((⍕callNs_)callNs_) ⋄ nc←⎕NC'destNs' ⋄ 9=nc:(⍕destNs)destNs
+      0::11 ⎕SIGNAL⍨'∆XCY DOMAIN ERROR: The name "',(⍕destNs),'" is in use or not a valid name: ⎕NC ',⍕nc
+        IsTop←{'⎕SE'≡⍵: 1 ⋄ (,'#')≡,⍵}    ⍝ Incomplete... '##', '##.##' etc could refer to # or ⎕SE. 
+        IsTop destNs: destNs(⍎destNs) ⋄ 2≠nc:∘∘∘ 
+        0 2 9 (~∊⍨)g.callNs_.⎕NC destNs:∘∘∘  
+      0::destNs(g.callNs_⍎destNs)
+        destNs(⍎destNs g.callNs_.⎕NS'') 
+    }
+  ⍝ CopyEachObject- Scanning through ⍵
+  ⍝     (qualifiedDestName objectClass)  ← ⍺ ∇ object, where objects are global ⍵
+    CopyEachObject←{g←⍺ ⋄ g.rawObject←⍵
+      g.(srcWs qSrcNm qDestNm)← g.defWs ParseOmega ⍵
+      fromObjFlag g.destNm← SplitLast g.qDestNm
+      ⋄ SetDestNs←{ d d_←⍺ ⋄ 0=≢⍵: d d_ ⋄  ns←⍵ d_.⎕NS '' ⋄  ns (⍎ns) }
+      g.(destNs destNs_)←g.(defDestNs defDestNs_)SetDestNs fromObjFlag
+      g.srcNm←SimpleNm g.qSrcNm
+      g.destNm←{ ⍵:g.srcNm ⋄ SimpleNm g.destNm }0=≢g.destNm
+    ⍝ Get fully qualified qDestNm, which could include an anonymous namespace
+      g.qDestNm←g.destNs{0::⍺,⍵ ⋄ ⍵,⍨⍺ g.callNs_.⎕NS''}'.',g.destNm
+    ⍝ DEBUG? Show key vars...
+      _← 2 ShowVars g
+      ¯1∊⎕NC g.(qSrcNm destNm srcWs):∘∘∘
+      ⍙TEMPns←''   ⍝ Set scope for named temp ns
+      ok g.(tempNs tempNs_ classIn)←'⍙TEMPns' CpyWs2Temp g 
+     ⍝ Object not found?
+      (0=ok)∧g.notFoundErr: 912 ⎕SIGNAL⍨'∆XCY ERROR: Object not found: "',g.srcWs,':',g.qSrcNm,'"'
+      0=ok:⎕NULL 0         
+      g.classOut←   CpyTemp2Dest g
+      g.(classIn=classOut): g.(qDestNm classIn)   ⍝ Return the class of qDestNm
+      911 ⎕SIGNAL⍨'Logic ERROR: obj "',g.qDestNm,'" has unexpected class ',⍕g.classOut
+    }
+  ⍝ ParseOmega 
+  ⍝    (srcWs QualifiedSrcName QualifiedDestName) ← defaultWS ∇ omega, where omega: top-level ⍵
+    ParseOmega←{defWs omega←⍺ ⍵
+        srcWs obj← defWs{n←≢⍵ ⋄ 1=n: ⍺ (⊃⍵) ⋄ 2=n: ⍵ ⋄ ∘∘∘}':'(≠⊆⊢)omega
+        qSrcNm qDestNm←{n←≢⍵ ⋄ 1=n: nm (SimpleNm nm)⊣nm←⊃⍵ ⋄ 2=n: ⍵ ⋄ ∘∘∘}' '(≠⊆⊢)obj
+        srcWs qSrcNm qDestNm  
+    }
+  ⍝ ShowVars:  Shows key variables in namespace <g> if DEBUG≠0. 
+  ⍝            Stages 1 vs 2: vars that don't (do) change for specific objects.
+  ⍝ Syntax:    [stage: 1|2] ∇ g
+  ⍝ Returns:   debug value (0 or 1)
+    ShowVars←{ stage g←⍺ ⍵
+        ~g.DEBUG:0
+        Say←{w←34 ⋄ '  ',(w↑⍺,' '),⍕⍵}
+        stage=1: g.{ Display← {0=⍴⍴⍵: ⍕⍵ ⋄ ⎕SE.Dyalog.Utils.repObj {2=≢⍵: ⍕¨⍵ ⋄ ⍕⍵}¨⍵}
+            ⎕←'Raw Options:' Say Display rawOptions      
+            ⎕←'Default Destination Namespace:' Say defDestNs
+            ⎕←'Default Source Workspace:' Say defWs
+            ⎕←'Error on object not found?' Say notFoundErr
+            ⎕←'Namespace we were called from:' Say callNs_
+            ⎕←'Debug Mode?' Say 1    
+            ⋄  1
+        }(⍬)
+        stage=2: g.{ 
+            ⎕←25⍴'¯'  
+            ⎕←'Object Specification:' Say rawObject
+            ⎕←'Source Workspace:' Say srcWs
+            ⎕←'Input (Qualifed) Source Obj Name:' Say qSrcNm
+            ⎕←'Simple Source Obj Name:' Say srcNm
+            ⎕←'Simple Destination Name:' Say destNm
+            ⎕←'Fully Qualified Dest. Name:' Say qDestNm
+            ⎕←'Destination Namespace:' Say destNs
+            ⎕←'Change Obj Name?' Say (destNm≢srcNm)          
+            ⋄  1
+        }(⍬)
+    }
+  ⍝ CpyWs2Temp  -- get an object from the source ws to temp ns, since to change its name we need its nameclass and contents
+  ⍝       (okCode (fullTempNs fullTempNsRef actualClassOfNamePassedasDestNs) ) ← briefNamespace ∇ g
+    CpyWs2Temp←{
+        nsBrief g ←⍺ ⍵
+        nsFull_←⍎nsFull←nsBrief ⎕NS''
+      0:: {⍵.((EN=11)∧ENX=19): 11 ⎕SIGNAL⍨'DOMAIN ERROR: Workspace not found: ',g.srcWs ⋄  0}⎕DMX
+        _←g.qSrcNm nsFull_.⎕CY g.srcWs
+        actClass←nsFull_.⎕NC g.srcNm
+      ⍝ Sets/Returns: ok(1/0), tempNs, tempNs_ actClass
+        1 (nsFull nsFull_ actClass)
+    }
+  ⍝ CpyTemp2Dest   -- move an object, knowing its type, from temp ns to the user-requested ns, 
+  ⍝                   changing its name if requested
+  ⍝ classOut ← ∇ g
+    CpyTemp2Dest←{ g ← ⍵  
+        ⎕NC g.qDestNm⊣{cl←⍵
+            _←g.destNs_.⎕EX g.destNm
+            cl(~∊)3 4 9:g.destNm(g.destNs_{⍎'⍺⍺.',⍺,'←','⍵⍵.',⍵,' ⋄ 1' ⋄ ⍺⍺ ⍵⍵}g.tempNs_)g.srcNm
+          ⍝ cl 9:   Copy ns from temp, don't point to temp obj
+            cl=9:g.destNm g.destNs_.⎕NS g.tempNs_.⎕OR g.srcNm
+          ⍝ cl ∊3 4: Copy fn/op from temp. Clone Fn if (g.destNm≢g.srcNm).
+            ⋄ CloneFnOp←{g.destNm≡g.srcNm:⍵ ⋄ s←'\b\Q',⍺⍺,'\E\b' ⋄ c←⊂s ⎕R ⍵⍵⍠('UCP' 1)⊣⊃⍵ ⋄ c,1↓⍵}
+            g.destNs_.⎕FX(g.srcNm CloneFnOp g.destNm)g.tempNs_.⎕NR g.srcNm
+        }g.classIn
+    }
+
+⍝⍝ --------------------------------------------------------------- ⍝⍝
+⍝⍝ EXECUTIVE
+⍝⍝ --------------------------------------------------------------- ⍝⍝
+    ⍺←⍬  ⋄ ⎕IO←0 
+  ⍝ g: A set of "global" state objects...
+    g←⎕NS '' ⋄ g.DEBUG←DEBUG
+  0/⍨~DEBUG::⎕DMX.EN ⎕SIGNAL⍨'∆XCY ERROR: ',⎕DMX.EM
+    0=≢⍵:GiveHelp(⍬)
+  ⍝ Decode Options, after setting key defaults (DEBUG set above)
+    g.rawOptions←⍺ ⋄ g.defDestNs←# ⋄ g.callNs_←⊃⎕RSI ⋄ g.defWs←'dfns' ⋄ g.notFoundErr←0
+    _←g∘DecodeOptions(⍺)
+   ⍝ Determine default destination namespace ref (obligatory) and name (possibly anonymous reference display form)
+    g.(defDestNs defDestNs_)← SetDefDestNs g 
+    _←1 ShowVars g
+  ⍝ Scan each object specification in ⍵. 
+  ⍝ If an object is not found, we'll return a ⎕NULL for that object.
+    g∘CopyEachObject¨(⊆⍵)
+    
+⍝⍝ --------------------------------------------------------------- ⍝⍝
+⍝⍝ DOCUMENTATION
+⍝⍝ --------------------------------------------------------------- ⍝⍝
+ 
+⍝H ∆XCY: Copy one or more objects to a destination namespace, creating it as needed,
+⍝H        optionally with a new name...
+⍝H   Syntax:
+⍝H      nameReturned classReturned ← options ∆XCY obj1 [obj2 [obj3...]]
+⍝H   ⍵: obj1...: '[srcWs:] srcNm [destNm]'
+⍝H     srcWs     - the name of the workspace to copy from. Overrides 'defWs' option.
+⍝H     srcNm     - a possibly qualified name of an object in the source workspace [string]
+⍝H     destNm    - the new name for the object (if different from srcNm).
+⍝H               - If qualified (e.g. ns1.ns2.simple), places the object (simple) 
+⍝H                 in the namespace specified (ns1.ns2), within destNs (if specified), creating it if required.
+⍝H                 In other words, the destination namespace is constructed from:
+⍝H                     callNs.destNs.ns1.ns2 (see 'CALLNS' option, 'DESTNS' option). 
+⍝H   ----------
+⍝H     Example:
+⍝H         ∆XCY 'cmpx compare'      -- copies cmpx, giving it the name compare.
+⍝H     Example:
+⍝H         ∆XCY 'notes.disp ndisp'  -- copies notes.disp into the target ns with the name ndisp.
+⍝H                                      (otherwise, it might overwrite the function 'disp')
+⍝H
+⍝H   ⍺: Keyword Options*                       *=Case is ignored for options.  
+⍝H      DESTNS** DEFWS CALLNS NF  DEBUG       **=DESTNS is the default option if a scalar is presented.
+⍝H      ¯¯¯¯¯¯   ¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯  ¯¯¯¯¯
+⍝H      ('DESTNS' destNs) OR  destNs              Default: ('DESTNS' #)
+⍝H        -  the destination namespace, relative to the calling namespace (see ⍺: callerNs).
+⍝H           destNs is a reference or name (char vec).
+⍝H           ∘ May be # or ⎕SE.  Defaults to '#'.
+⍝H      destNs
+⍝H        -  A lone option is interpreted as ('destNs' destNs)
+⍝H      ('DEFWS'  defWs)                          Default: ('DEFWS' 'dfns')
+⍝H        -  the default source workspace name (char vec). If omitted, 'dfns' is assumed.
+⍝H           An object is copied from this workspace unless the object specification explicitly includes a 
+⍝H           source workspace (e.g. 'srcWs: srcNm destNm').
+⍝H      ('CALLNS' callNs)                         Default: ('CALLNS' (⊃⎕RSI))
+⍝H        -  the caller's namespace. If omitted, the actual caller's namespace is used.
+⍝H           callNs may be a namespace reference or name (char vec)
+⍝H      ('NF' 1)                                  Default: ('NF' 0)
+⍝H        -  action when an object is not found (NF). 
+⍝H           By default (NF is 0), (⎕NULL 0) is returned if an object is not found.
+⍝H           If NF is set to 1, an error is signalled with error code 912.     
+⍝H      ('DEBUG' [1|0])
+⍝H        -  Set DEBUG mode on (1) or off (0)
+⍝H   ----------
+⍝H      Example:
+⍝H           ('destNs' 'notes') ∆XCY 'notes.disp MyDisplay'
+⍝H           -- copies 'notes.disp' as 'notes.MyDisplay'
+⍝H      Example:
+⍝H           ∆XCY 'notes.disp MyDisplay'
+⍝H           -- copies 'notes.disp' as #.MyDisplay      (if ∆XCY called from #)
+⍝H
+⍝H   Returns (nameReturned [classReturned]) as a vector of vectors...
+⍝H     nameReturned:
+⍝H        The fully qualified name of the object as copied into the workspace.
+⍝H        (⎕NULL) if unable to find and copy said object.
+⍝H     classReturned:
+⍝H        The nameclass of the returned object.
+⍝H        (Set to 0 if nameReturned is ⎕NULL)
+⍝H   A quick way to validate that all objects were returned is to check for any classes returned as 0:
+⍝H         0∊⊃∘⌽¨ ∆XCY 'cmpzx jack' 'cmpx fred'
+⍝H       1
+⍝H   Alternatively, set option NF to 1 to ensure an error is signalled on the first missing object detected.
+⍝H        ('NF' 1) ∆XCY 'cmpzx jack' 'cmpx fred'
+⍝H       ∆XCY ERROR: Object not found: "dfns:#.cmpzx"
+
+ }
