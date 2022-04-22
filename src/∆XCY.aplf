@@ -1,5 +1,5 @@
-∆XCY←{
-  DEBUG←0
+∆XCY←{ 
+  ⎕IO←0 ⋄ DEBUG←0
 ⍝ ∆XCY: Copy one or more objects to a destination namespace, creating it as needed,
 ⍝        optionally with a new name...
 ⍝ Syntax:  options ∇ obj1 obj2 ... objN
@@ -29,43 +29,47 @@
 ⍝      ...Ns   Namespace string
 ⍝      ...Ns_  Namespace reference
 ⍝      ...Ws   A workspace name
-⍝      ...Nm   A variable name or names within a single string
-⍝      q...    A qualified name, i.e. consisting potentially of a namespace (e.g. n1.n2) followed by a simple name.
+⍝      ...Nm   An object (variable) name or names within a single string
+⍝      q...    A qualified name, 
+⍝              i.e. consisting potentially of a multi-part namespace (e.g. n1.n2) followed by a simple name.
   
-     SplitLast←{⍺←'.'  ⋄ (≢⍵)≤p←⍺⍳⍨⌽⍵: '' ⍵ ⋄ (⍵↓⍨-p+1)(⍵↑⍨-p)}
-  ⍝ ERR:   EN  [⍵1 [⍵2 [⍵3]]] ERR 'string ⍵1 "⍵2" <⍵3>'    ⍝ ⍵0 refers to the error number EN
+  ⍝ ⍙ERR:   EN  [⍵1 [⍵2 [⍵3]]] ⍙ERR 'string ⍵1 "⍵2" <⍵3>'    ⍝ ⍵0 refers to the error number EN
   ⍝        ⎕SIGNAL's error number <en> with error type based on <en>, replacing ⍵N with (N⊃⍺), where N∊0 1 2 3.
-    ERR←{ en←⊃⍺  ⋄ et←'SYNTAX'  'VALUE'  'DOMAIN' 'OPTION' 'LOGIC' 'UNKNOWN'⊃⍨2 6 11 13 911⍳en 
-      en ⎕SIGNAL⍨'∆XCY ',et,' ERROR: ','⍵0' '⍵1' '⍵2' '⍵3' '⍵\d+' ⎕R (⍕¨1⌽5↑'',⍥⊆⍺) ⊣⍵
+    ⍙ERR←{⍺←911 ⋄ pfx←'∆XCY '                          ⍝ 99: INTERNAL (LOGIC) ERROR; 911 or others: UNKNOWN ERROR
+      errN←⊃⍺ ⋄ errT←'SYNTAX'  'INDEX' 'VALUE' 'FORMAT' 'DOMAIN' 'OPTION' 'INTERNAL' 'UNKNOWN'⊃⍨2 3 6 7 11 13 99⍳errN
+      pats←  '⍵0' '⍵1' '⍵2' '⍵3' '⍵\d+' ⋄ xvals← ⍕¨1⌽(≢pats)↑'',⍥⊆⍺
+      errN ⎕SIGNAL⍨pfx,errT,' ERROR: ', pats ⎕R xvals ⊣⍵
     }
-  ⍝ SplitLast, SimpleNm:
-  ⍝   SplitLast: Split a qualified name into a namespace prefix and a simple name...
+    ⍙OR←{ ⍺⍺⊣⍵:1 ⋄ ⍵⍵⊣⍵ }
+    ⍙LTRIM← (+/∧\⍤⊢⍤=∘' ')↓⊢
+  ⍝ RSPLIT: Split a qualified name on its rightmost ⍺ ('.'), i.e. into a namespace prefix (null if no ⍺) and a simple name...
   ⍝     (prefix@S nm@S) ← ∇ qual_nm@S
-  ⍝     For qualified name 'pre.f.ix.simple', splits namespace(s) prefix from name: ('pre.f.ix' 'simple')
-  ⍝     For name 'simple', return the name as is:  ('' 'simple')
-  ⍝   SimpleNm: Returns the simple name (2nd elem) only of a qualified name (see SplitLast).    
+  ⍝     ∘ For qualified name 'pre.f.ix.simple', splits namespace(s) prefix from name: ('pre.f.ix' 'simple')
+  ⍝     ∘ For name 'simple', return the name as is:  ('' 'simple')
+    ⍙RSPLIT←{⍺←'.'  ⋄ (≢⍵)≤p←⍺⍳⍨⌽⍵: '' ⍵ ⋄ (⍵↓⍨-p+1)(⍵↑⍨-p)}
+  ⍝ SimpleNm: Returns the simple name (2nd elem) only of a qualified name (see ⍙RSPLIT).    
   ⍝     nm@S ← ∇ qual_nm@S
-    SimpleNm←⊃∘⌽SplitLast
+    SimpleNm←⊃∘⌽⍙RSPLIT
   ⍝ GiveHelp:  Executing ∆XCY ⍬ initiates GiveHelp (⍬) 
   ⍝     Display ⍝H comments in an edit window.
-    GiveHelp←{ ⎕ED't'⊣t←↑'^ *⍝H(.*)'⎕S' \1'⊣⎕NR ⊃⎕XSI }
-  ⍝ DecodeOptions
-  ⍝     g@NS ∇ options@VV, where options come from global ⍺
-    DecodeOptions←{
+    GiveHelp←{ ⎕ED'help'⊣help←↑'^ *⍝H(.*)'⎕S' \1'⊣⎕NR ⊃⎕XSI }
+  ⍝ DecodeOpts: Scan global ⍺ with list of items of form:
+  ⍝         ('NAME1' value1) or [for default] (NAMESPACEref or 'NAMESPACE')
+  ⍝ Syntax: g@NS ∇ options@VV, where options come from global ⍺
+    DecodeOpts←{
+        0=≢⍵: ⍬
         g←⍺
         CASEdep←(|≡⍵)∘∊
         ⋄ CASEdep 3: g∘∇¨⍵ ⋄ CASEdep 1 0: g∘∇ 'DESTNS' ⍵  ⋄ ~CASEdep 2:∘∘∘
         nm val←⍵
-      2:: 13 nm ERR 'Invalid option: "⍵1"' 
-          _NS_←{ nc←⎕NC '⍵' ⋄ nc=2: ⍵~' ' ⋄ nc=9: ⍵  ⋄ ⎕SIGNAL 2}  
-          _BOOL_←{
-              (,0)≡⍵: 0 ⋄ (,1)≡⍵: 1 
-              13 nm ERR 'Invalid value for option "⍵1"'
-          }∘,
-        CASEkey←(1∘⎕C nm)∘≡  
-        ⋄ CASEkey'DESTNS': g.defDestNs∘←  _NS_ val   ⋄ CASEkey'CALLNS': g.callNs_∘←  _NS_ val
-        ⋄ CASEkey'DEFWS':  g.defWs∘←      val~' '    ⋄ CASEkey'DEBUG':  g.DEBUG∘←    _BOOL_ val
-        ⋄ CASEkey 'NF':    g.nFMeansErr∘← _BOOL_ val
+      2:: 13 nm ⍙ERR 'Invalid value for option "⍵1"'
+          ⍙NS⍙←   { nc←⎕NC '⍵' ⋄ nc=9: ⍵  ⋄ {nc≠2} ⍙OR {0≠80|⎕DR ⍵} ⍙OR {0≠⎕NC ⍵}⍵: ∘∘∘  ⋄ ⍵~' ' }  
+          ⍙BOOL⍙← { (,0)≡⍵: 0 ⋄ (,1)≡⍵: 1 ⋄ ∘∘∘ }∘,
+        CASEkey←(⊂1∘⎕C nm)∘∊⊆ 
+        ⋄ CASEkey'DESTNS' 'DEST': g.defDestNs∘←  ⍙NS⍙ val   ⋄ CASEkey'CALLNS': g.callNs_∘←  ⍙NS⍙ val
+        ⋄ CASEkey'DEFWS' 'WS':    g.defWs∘←      val~' '    ⋄ CASEkey'DEBUG':  g.DEBUG∘←    ⍙BOOL⍙ val  
+        ⋄ CASEkey 'NF':    g.nFMeansErr∘← ⍙BOOL⍙ val
+      2:: 13 nm ⍙ERR 'Unknown option: "⍵1"' 
         ∘∘∘  ⍝ ;-)
     }
   ⍝ SetDefDestNs
@@ -74,7 +78,7 @@
     SetDefDestNs←{g←⍵ ⋄ destNs←g.defDestNs
         0=≢destNs: g.((⍕callNs_)callNs_) 
         nc←⎕NC'destNs'  
-      0::11 destNs ERR 'Cannot create namespace: "⍵1" is in use or is an invalid name'
+      0::11 destNs ⍙ERR 'Cannot create namespace: "⍵1" is in use or is an invalid name'
         9=nc:(⍕destNs)destNs 
       ⍝ If dstNs not a string, whoops.
         2≠nc: ∘∘∘  
@@ -82,46 +86,58 @@
         fullD ← g.callNs_∘{ 11:: ∘∘∘ ⋄ ⍎⍵ ⍺.⎕NS'' } destNs
         (⍕fullD)fullD  
     }
-  ⍝ CopyEachObject- Scanning through ⍵
+  ⍝ CpyEachObj- Scanning through ⍵
   ⍝     (qualifiedDestName objectClass)  ← ⍺ ∇ object, where objects are global ⍵
-    CopyEachObject←{g←⍺ ⋄ g.rawObject←⍵
-      g.(srcWs qSrcNm qDestNm)← g.defWs ParseOmega ⍵
-      fromObjFlag g.destNm← SplitLast g.qDestNm
-      ⋄ SetDestNs←{ d d_←⍺ ⋄ 0=≢⍵: d d_ ⋄  ns←⍵ d_.⎕NS '' ⋄  ns (⍎ns) }
-      g.(destNs destNs_)←g.(defDestNs defDestNs_)SetDestNs fromObjFlag
-      g.srcNm←SimpleNm g.qSrcNm
-      g.destNm←{ ⍵:g.srcNm ⋄ SimpleNm g.destNm }0=≢g.destNm
+    CpyEachObj←{g←⍺ ⋄ g.rawObj←⍵
+      g.(srcWs qSrcNm qDestNm)← g.defWs ParseObjSpec ⍵
+      fromObjFlag g.destNm← ⍙RSPLIT g.qDestNm
+      SetDestNs←{ d d_←⍺ ⋄ 0=≢⍵: d d_ ⋄  ns←⍵ d_.⎕NS '' ⋄  ns (⍎ns) }
+
+      g.(destNs destNs_)← g.(defDestNs defDestNs_)SetDestNs fromObjFlag
+      g.srcNm←   SimpleNm g.qSrcNm
+      g.destNm←  { ⍵:g.srcNm ⋄ SimpleNm g.destNm }0=≢g.destNm
+
     ⍝ Get fully qualified qDestNm, which could include an anonymous namespace
-      g.qDestNm←g.destNs{0::⍺,⍵ ⋄ ⍵,⍨⍺ g.callNs_.⎕NS''}'.',g.destNm
+      g.qDestNm← g.destNs{0::⍺,⍵ ⋄ ⍵,⍨⍺ g.callNs_.⎕NS''}'.',g.destNm
+
     ⍝ If g.DEBUG is set, show key vars...
       _← 2 ShowVars g
-      ¯1=⎕NC g.qSrcNm: 11 g.qSrcNm ERR 'Obj src name "⍵1" is invalid'     
+      ¯1=⎕NC g.qSrcNm: 11 g.qSrcNm ⍙ERR 'Obj src name "⍵1" is invalid'     
       ⍙TEMPns←''   ⍝ Set scope for named temp ns
+    ⍝ Copy from source ws to the staging (temp) local namesp.
       ok g.(tempNs tempNs_ classIn)←'⍙TEMPns' CpyWs2Temp g 
-     ⍝ Object not found?
-      g.nFMeansErr∧0=ok:  g.(11 qSrcNm srcWs) ERR'Obj "⍵1" not found in ws "⍵2"'
+     ⍝ Object not found? Keep going only if option ('NF' 0), the default.
+      g.nFMeansErr∧0=ok:  g.(11 qSrcNm srcWs) ⍙ERR'Obj "⍵1" not found in ws "⍵2"'
       0=ok:⎕NULL 0 
-      ¯1=⎕NC g.destNm: 11 g.destNm ERR 'Obj dest. name "⍵1" is invalid'         
+    ⍝ New object name not valid?
+      ¯1=⎕NC g.destNm: 11 g.destNm ⍙ERR 'Obj dest. name "⍵1" is invalid'  
+    ⍝ Copy obj, possibly with new name (destNm)       
       g.classOut←   CpyTemp2Dest g
-      g.(classIn=classOut): g.(qDestNm classIn)   ⍝ Return the class of qDestNm
-      g.(911 qDestNm classOut) ERR 'Obj "⍵1" has unexpected class ⍵2'
+    ⍝ If dest class checks out, return the object and class
+      g.(classIn=classOut): g.(qDestNm classIn)    
+    ⍝ Else, error
+      g.(99 qDestNm classOut) ⍙ERR 'Obj "⍵1" has unexpected class ⍵2'
     }
-  ⍝ ParseOmega 
-  ⍝    (srcWs QualifiedSrcName QualifiedDestName) ← defaultWS ∇ omega, where omega: top-level ⍵
-    ParseOmega←{defWs omega←⍺ ⍵
-        srcWs obj← defWs{n←≢⍵ ⋄ 1=n: ⍺ (⊃⍵) ⋄ 2=n: ⍵ ⋄ ∘∘∘}':'(≠⊆⊢)omega
-        qSrcNm qDestNm←{n←≢⍵ ⋄ 1=n: nm (SimpleNm nm)⊣nm←⊃⍵ ⋄ 2=n: ⍵ ⋄ ∘∘∘}' '(≠⊆⊢)obj
+  ⍝ ParseObjSpec 
+  ⍝    (srcWs QualifiedSrcName QualifiedDestName) ← defaultWS ∇ omega_each, 
+  ⍝           where omega_each represents each element of top-level ⍵
+    ParseObjSpec←{defWs omega←⍺ ⍵
+        srcWs obj← defWs{ n←≢⍵ ⋄ 1=n: ⍺ (⊃⍵) ⋄ 2=n: ⍵ ⋄ ∘∘∘ }':'(≠⊆⊢)omega,' ' 
+        qSrcNm qDestNm←{ n←≢⍵
+            1=n: nm (SimpleNm nm)⊣nm←⊃⍵ 
+            2=n: ⍵  ⋄ 2 omega ⍙ERR 'Invalid object: "⍵1"' 
+        }' '(≠⊆⊢)obj
         srcWs qSrcNm qDestNm  
     }
-  ⍝ ShowVars:  Shows key variables in namespace <g> if DEBUG≠0. 
+  ⍝ ShowVars:  Shows key variables in namespace <g> if g.DEBUG≠0. 
   ⍝            Stages 1 vs 2: vars that don't (do) change for specific objects.
   ⍝ Syntax:    [stage: 1|2] ∇ g
   ⍝ Returns:   debug value (0 or 1)
     ShowVars←{ stage g←⍺ ⍵
         ~g.DEBUG:0
-        Say←{w←34 ⋄ '  ',(w↑⍺,' '),{⍵↓⍨+/∧\⍵=' '}⍕⍵}
+        Say← {wid←34 ⋄ '  ',(wid↑⍺,' '),⍙LTRIM ⍕⍵}
         stage=1: g.{  
-            ⎕←'Raw Options:'                   Say rawOptions      
+            ⎕←'Raw Options:'                   Say rawOpts      
             ⎕←'Default Destination Namespace:' Say defDestNs
             ⎕←'Default Source Workspace:'      Say defWs
             ⎕←'Error on object not found?'     Say nFMeansErr
@@ -131,7 +147,7 @@
         }(⍬)
         stage=2: g.{
             ⎕←25⍴'¯'  
-            ⎕←'Object Specification:'             Say rawObject
+            ⎕←'Object Specification:'             Say rawObj
             ⎕←'Source Workspace:'                 Say srcWs
             ⎕←'Input (Qualifed) Source Obj Name:' Say qSrcNm
             ⎕←'Simple Source Obj Name:'           Say srcNm
@@ -149,9 +165,9 @@
         nsFull_←⍎nsFull←nsBrief ⎕NS''
       ⍝ If EN is 11 and ENX is 39, then the object was not found in the workspace specified.
       ⍝ If       11            19, then the ws wasn't found
-      0:: { ⍵∧.=11 39: 11 g.srcWs g.srcNm ERR 'Object "⍵2" not found in workspace "⍵1"'
-            ⍵∧.=11 19: 11 g.srcWs         ERR 'Workspace "⍵1" not found' 
-                      911 g.srcWs         ERR 'Warning: ⎕CY from "⍵1" failed for an unknown reason'
+      0:: { ⍵∧.=11 39: 11 g.srcWs g.srcNm ⍙ERR 'Object "⍵2" not found in workspace "⍵1"'
+            ⍵∧.=11 19: 11 g.srcWs         ⍙ERR 'Workspace "⍵1" not found' 
+                      99 g.srcWs         ⍙ERR 'Warning: ⎕CY from "⍵1" failed for an unknown reason'
       }⎕DMX.(EN ENX)
         _←g.qSrcNm nsFull_.⎕CY g.srcWs
         actClass←nsFull_.⎕NC g.srcNm
@@ -176,20 +192,20 @@
 ⍝⍝ --------------------------------------------------------------- ⍝⍝
 ⍝⍝ EXECUTIVE
 ⍝⍝ --------------------------------------------------------------- ⍝⍝
-    ⍺←⍬  ⋄ ⎕IO←0 
+    ⍺←⍬  
   ⍝ g: A set of "global" state objects...
     g←⎕NS '' ⋄ g.DEBUG←DEBUG
-  0/⍨~DEBUG::⎕DMX.EN ERR ''
+  0/⍨~DEBUG:: ⎕DMX.(99 EN EM (20↑1⊃DM))⍙ERR 'UNEXPECTED ⍵2 (en=⍵1) executing: "⍵3"...'
     0=≢⍵:GiveHelp(⍬)
   ⍝ Decode Options, after setting key defaults (DEBUG set above)
-    g.rawOptions←⍺ ⋄ g.defDestNs←# ⋄ g.callNs_←⊃⎕RSI ⋄ g.defWs←'dfns' ⋄ g.nFMeansErr←0
-    _←g∘DecodeOptions(⍺)
+    g.rawOpts←⍺ ⋄ g.defDestNs←# ⋄ g.callNs_←⊃⎕RSI ⋄ g.defWs←'dfns' ⋄ g.nFMeansErr←0
+    _←g∘DecodeOpts(⍺)
    ⍝ Determine default destination namespace ref (obligatory) and name (possibly anonymous reference display form)
     g.(defDestNs defDestNs_)← SetDefDestNs g 
     _←1 ShowVars g
   ⍝ Scan each object specification in ⍵. 
   ⍝ If an object is not found, we'll return a ⎕NULL for that object.
-    g∘CopyEachObject¨(⊆⍵)
+    g∘CpyEachObj¨(⊆⍵)
     
 ⍝⍝ --------------------------------------------------------------- ⍝⍝
 ⍝⍝ DOCUMENTATION
@@ -217,20 +233,20 @@
 ⍝H   ⍺: Keyword Options*                       *=Case is ignored for options.  
 ⍝H      DESTNS** DEFWS CALLNS NF  DEBUG       **=DESTNS is the default option if a scalar is presented.
 ⍝H      ¯¯¯¯¯¯   ¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯  ¯¯¯¯¯
-⍝H      ('DESTNS' destNs) OR  destNs              Default: ('DESTNS' #)
+⍝H      ('DESTNS' destNs) OR  destNs                    Default: ('DESTNS' #)
 ⍝H        -  the destination namespace, relative to the calling namespace (see ⍺: callerNs).
 ⍝H           destNs is a reference or name (char vec).
 ⍝H           ∘ May be # or ⎕SE.  Defaults to '#'.
 ⍝H      destNs
 ⍝H        -  A lone option is interpreted as ('destNs' destNs)
-⍝H      ('DEFWS'  defWs)                          Default: ('DEFWS' 'dfns')
+⍝H      ('DEFWS'  defWs);  Alias: ('WS' defWs)          Default: ('DEFWS' 'dfns')
 ⍝H        -  the default source workspace name (char vec). If omitted, 'dfns' is assumed.
 ⍝H           An object is copied from this workspace unless the object specification explicitly includes a 
 ⍝H           source workspace (e.g. 'srcWs: srcNm destNm').
-⍝H      ('CALLNS' callNs)                         Default: ('CALLNS' (⊃⎕RSI))
+⍝H      ('CALLNS' callNs)                               Default: ('CALLNS' (⊃⎕RSI))
 ⍝H        -  the caller's namespace. If omitted, the actual caller's namespace is used.
 ⍝H           callNs may be a namespace reference or name (char vec)
-⍝H      ('NF' 1)                                  Default: ('NF' 0)
+⍝H      ('NF' 1)                                        Default: ('NF' 0)
 ⍝H        -  action when an object is not found (NF). 
 ⍝H           By default (NF is 0), (⎕NULL 0) is returned if an object is not found.
 ⍝H           If NF is set to 1, an error is signalled with error code 912.     
@@ -255,7 +271,8 @@
 ⍝H         0∊⊃∘⌽¨ ∆XCY 'cmpzx jack' 'cmpx fred'
 ⍝H       1
 ⍝H   Alternatively, set option NF to 1 to ensure an error is signalled on the first missing object detected.
-⍝H        ('NF' 1) ∆XCY 'cmpzx jack' 'cmpx fred'
-⍝H       ∆XCY ERROR: Object not found: "dfns:#.cmpzx"
-
+⍝H         ('NF' 1) ∆XCY 'cmpzx jack' 'cmpx fred'
+⍝H       ∆XCY DOMAIN ERROR: Object "cmpzx" not found in workspace "dfns"
+⍝H      ('NF' 1)∆XCY'cmpzx jack' 'cmpx fred'
+⍝H              ∧
  }

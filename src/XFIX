@@ -1,0 +1,60 @@
+XFIX←{ ⍺←1
+  DEBUG←1
+  0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
+⍝ If ⍵ is a filename (char vector), get the file contents
+  1≥|≡⍵: ∇ ⊆⊃⎕NGET ⍵ 1
+⍝ ⍵ is (now or initially) a vector of lines (char vectors)
+  ⎕IO←0
+
+⍝ CONSTANTS
+  SQ DQ←'''"' 
+  NL←⎕UCS 10 
+  DQ2←DQ,DQ
+  QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
+  OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')
+
+⍝ FUNCTIONS 
+⍝ Utility Fns 
+⍝ Fld: Select a numbered field of ⎕R namespace
+  Fld← { o b l←⍺.(Offsets Block Lengths) 
+         0≠0(≢o)⍸⍵: '' ⋄ ¯1≠off←⍵⌷o: len↑off↓b ⊣ len←⍵⌷l ⋄ ''  
+  }
+  AddSQs← { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }                     ⍝ Add single quotes to each quoted string...
+  DQ2SQ←  { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }                      ⍝ Internal double quotes to single quotes 
+  Parens← '('∘,,∘')'
+⍝ Regexp Alignment Fns 
+⍝ AlignLeft: No Leading Blanks...
+  AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
+⍝ AlignMarg: Align with margin set in first full line
+  AlignMarg← {
+    isFirst margin skipNL1← 1 0 0
+    ⍝ Initial bare newline is ignored...
+    ⍝ Otherwise, we set left margin from first "full" line and align rest with that.
+      '\A(?=\n)' '\n( *)' ⎕R {
+          0=⍵.PatternNum: ''  ⊣ skipNL1⊢←1                   ⍝ We skip newline at <isFirst>
+          nsp← ≢⍵ Fld 1
+          isFirst: skipNL1↓NL ⊣ isFirst margin⊢← 0 nsp       ⍝ Set margin 
+          NL,' '⍴⍨0⌈margin-⍨nsp                              ⍝ Align with margin         
+      }⍠OPTS ⊢ ⍵ 
+  }
+  StripEndQs← 1↓¯1∘↓
+⍝ Strip trailing blanks from lines of multiline strings...
+  StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
+
+⍝ PATS, PAT INDICES
+⍝            sq str          dq str       comment    nl   all else 
+  mainPats← '(''[^'']*'')+' '("[^"]*")+' '⍝[^\n]*$' '\n' '[^''"⍝\n]+'
+  sqI dqI←   0               1
+
+⍝ MainAction 
+  MainAction← {
+      CASE←⍵.PatternNum∘∊
+      f0←⍵ Fld 0
+      CASE sqI:    Parens AddSQs AlignLeft StripTB       StripEndQs f0 
+      CASE dqI:    Parens AddSQs AlignMarg StripTB DQ2SQ StripEndQs f0
+    ⍝ ELSE ...
+      f0 
+  }
+  res←mainPats ⎕R MainAction ⍠OPTS⊣⍵
+  ⍺: 2 ⎕FIX res ⋄ res 
+}

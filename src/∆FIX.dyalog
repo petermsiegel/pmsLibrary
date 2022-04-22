@@ -790,10 +790,10 @@ VectorOfStrings←{2=|≡⍵: ⍵ ⋄ lead← 1++/∧\ part← ⍵=CR ⋄ (lead 
   }
   ⍝ END Experimental
 
-        mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHereC pHereNF pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
-                      iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHereC iHereNF iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
         MainScan←{ 
             MainScan1←{ 
+                mainScanPats← pSysDef pUCmd pDebug pTrpQ pDQPlus pDAQPlus pCom pSQ pDotsC pHere pTradFn pHereC pHereNF pNSEmpty pPtr pNumBase pNum pSink pMacDump pMacro pSymbol pAssignX  
+                iSysDef iUCmd iDebug iTrpQ iDQPlus iDAQPlus iCom iSQ iDotsC iHere iTradFn iHereC iHereNF iNSEmpty iPtr iNumBase iNum iSink iMacDump iMacro iSymbol iAssignX←⍳≢mainScanPats
                 macroSeen∘←0
                 mainScanPats ⎕R{  
                     ⋄ F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}

@@ -11,12 +11,13 @@
   ⎕IO←0 ⋄ ⎕ML←1 
   ⍺←''         ⍝ ⍺ ≡ '': Same as ⍺ ≡ 'Default'
 ⍝ Verify 1st elem of ⍵ is a character vector (possible Format string).
-  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: 11 ⎕SIGNAL⍨ '∆F DOMAIN ERROR: Format string not a simple character vector.'
+  (0≠80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⍵: ⎕SIGNAL/'∆F DOMAIN ERROR: Format string not a simple character vector.'  11
+ 
 ⍝ If ⍺ is an assertion (2|⎕DR ⍺: all numeric) with at least one 0, the assertion is false: 
 ⍝    return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
 ⍝ Otherwise, move us to a private namespace in the # domain.
-  ⍺ (#.⎕NS ∆Format).{  
+  ⍺ (#.⎕NS ⎕THIS).{  
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
@@ -33,7 +34,7 @@
     ⍝ If omitted, it is treated as (b) '' ('default').
     ⍝ If an assertion, it must be TRUE, since FALSE assertions are captured above, to be very fast (and do nothing).
     ⍝ Returns: Four Booleans
-    ⍝     ASSERT_TRUE DEBUG COMPILE HELP       (DEFAULT is implicitly TRUE iff these are NOT).
+    ⍝     ASSERT_TRUE DEBUG COMPILE HELP       (DEFAULT is by definition TRUE iff these are NOT).
       SetOptions← { ⍺←'debug' 'compile' 'help' 'default'
         ⍝ RETURNS: ASSERT_TRUE DEBUG COMPILE HELP
           0=≢⍵:0 0 0 0 ⋄ 2|⎕DR ⍵: 1 0 0 0 
@@ -78,9 +79,10 @@
           ('(⍵⊃⍨⎕IO+'∘,')',⍨⊢) ⍕curOMEGA∘←ix    ⍝ Select based on user's ⎕IO    
       }    
     
-    ⍝ TFEsc (Escapes in Text fields)
-    ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}    Note: This means \\⋄ => \⋄ via Regex rules.
-    ⍝                                    value:   \   CR   {   }    
+    ⍝ TFEsc (Escapes in Text fields)                              +---------------------------------------------------------+                                     
+    ⍝ TFEsc handles all and only these escapes:  \\   \⋄  \{  \}  | Note: This means \\⋄ represents \⋄ via Regex rules.     |
+    ⍝                                    value:   \   CR   {   }  |       since '\\' becomes '\' and then '⋄' is unchanged. |
+    ⍝                                                             +---------------------------------------------------------+
     ⍝ Other sequences of backslash followed by any other character have their ordinary literal values.
       TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R '\r' '\1'    ⍝ In a Text field
     ⍝ escDQ (Escapes in Double-quoted strings in Code fields)
@@ -164,9 +166,9 @@
         dfn←patsCF ⎕R {CASE←⍵.PatternNum∘= ⋄ f←⍵∘⍙FLD  
             CASE quoteI:   CRStr2Code⍣ COMPILE⊢ DQ2SQ f 0
             ⋄ invalidDollarE←'{''DOMAIN ERROR: Invalid use of $''⎕SIGNAL 11}'
-          ⍝ We use short names for FMTX, BOX, QUOTE, (below) DateTime 
-            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ FMTXcc BOXcc QUOTEcc  invalidDollarE   ⍝ Valid: $, $$, $$$ 
-            ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'
+          ⍝ We use short names for FMTX, BOX, QUOTE; also for DateTime (see below) 
+            CASE dollarI:  (1 2 3 ⍳≢f 0)⊃ FMTXcc BOXcc QUOTEcc  invalidDollarE   ⍝ Convert: $    $$   $$$ 
+            ⋄ invalidPctE←'{''DOMAIN ERROR: Invalid use of %''⎕SIGNAL 11}'       ⍝      to: fmt  box  quote
             CASE pctI:     (1≠≢f 0)⊃ DATETIMEcc   invalidPctE                
             CASE omIndxI:  OMEGA_Pick f 1          
             CASE omNextI:  OMEGA_Pick curOMEGA+1  
@@ -217,12 +219,20 @@
     ⍝      SFChoices converts digits to (digits⍴' '), if set. Else returns <spaces> spaces.
     ⍝      We allow any # of digits, but disallow more than 3 in SFChoices.
       SFp← '(?x) \{  (\h* (?: : \h*(\d+)\h* :? \h*)? )  (?: ⍝[^}]* )?  \}'   
-    ⍝ CFp: Don't try to understand this regex. 
-    ⍝ OK, in brief, we match the pattern <P>: 
-    ⍝  ¹「{」THEN  ²ᵃ ATOMICALLY AT LEAST ONE OF:  
-    ⍝     ³「ANY chars BUT {}"⍝\」 OR ⁴「\ escapes」 OR ⁵「"DQ Strings"」 OR ⁶「⍝ comments」 OR ⁷「RECURSE <P> ≥0 TIMES」 
-    ⍝  THEN: ⁸「}」 
-    ⍝  I.e.              ¹  ²ᵃ   ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
+    ⍝ CFp: Code Field regex pattern matches balanced braces outside quotes and comments.
+    ⍝      Don't try to understand this regex. 
+    ⍝ If you insist, we'll explain in brief:
+    ⍝  We match the pattern <P> as follows... 
+    ⍝    ¹「{」(opening brace) THEN  
+    ⍝    ²ᵃ ATOMICALLY AT LEAST ONE OF the following:  
+    ⍝       ³「ANY chars BUT {}"⍝\」 OR 
+    ⍝       ⁴「\ escapes」 OR 
+    ⍝       ⁵「"DQ Strings"」 OR 
+    ⍝       ⁶「⍝ comments」 OR 
+    ⍝       ⁷「RECURSE <P> ≥0 TIMES」 
+    ⍝    ²ᵇ Ending 1 or more atomic alternatives, THEN... 
+    ⍝    ⁸「}」 (closing brace) 
+    ⍝ CFp:               ¹  ²ᵃ   ³            ⁴          ⁵              ⁶         ⁷      ²ᵇ  ⁸
       CFp←   '(?x) (?<P> \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
     ⍝ Code Field Patterns...
       escDQP←   '\\"'

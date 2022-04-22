@@ -1,13 +1,18 @@
-﻿ Setup
- ⎕←'Setup routine is run at APL startup ...'
+﻿ Setup; libraries;lib;full
+
+libraries ← 'require' '∆FIX' '∆Format'
+⎕←'PMS Setup.dyalog routine loading libraries:', ∊⎕FMT libraries
 
 ⍝ BEGIN:   PMS 20181011
-⍝ We load up require into ⎕SE.
-⍝ Use ]require after launch to set ⎕PATH. Dyalog seems to clear ⎕PATH after this executes!
-  ⎕SE.SALT.Load'pmsLibrary/src/require -target=⎕SE'    ⍝ Removed (no effect) #.⎕PATH←'⎕SE'   
-  ⎕SE.SALT.Load'pmsLibrary/src/∆FIX -target=⎕SE'    ⍝ Removed (no effect) #.⎕PATH←'⎕SE'   
+  :FOR lib :IN libraries
+    full←'file:///Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src/',lib,'.dyalog'
+    ⍝ ⎕←' *** ',full
+    2 ⎕SE.⎕FIX full
+  :ENDFOR
+  
 ⍝ END:     PMS 20181011
 
-  ⎕←'⎕SE.SALT.Save''Setup '',⎕SE.SALTUtils.USERDIR,''MyUcmds\ -makedir'''
+⎕PATH←'⎕SE ⎕SE.∆Format ↑'
+⎕←'PATH: ',⎕PATH
 
-⍝)(!Setup!petermsiegel!2018 3 28 19 24 50 0!0
+⍝)(!setupP!petermsiegel!2018 3 28 19 24 50 0!0
