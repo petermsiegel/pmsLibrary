@@ -1,10 +1,12 @@
-XFIX←{ ⍺←1
+XFIX←{   
+  ⍺←1
   DEBUG←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
-⍝ If ⍵ is a filename (char vector), get the file contents
-  1≥|≡⍵: ∇ ⊆⊃⎕NGET ⍵ 1
+⍝ If ⍵ is a filename (char vector), process the file contents
+  1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET ⍵ 1
+  ⎕IO← 0
+  
 ⍝ ⍵ is (now or initially) a vector of lines (char vectors)
-  ⎕IO←0
 
 ⍝ CONSTANTS
   SQ DQ←'''"' 
@@ -13,7 +15,6 @@ XFIX←{ ⍺←1
   QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
   OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')
 
-⍝ FUNCTIONS 
 ⍝ Utility Fns 
 ⍝ Fld: Select a numbered field of ⎕R namespace
   Fld← { o b l←⍺.(Offsets Block Lengths) 
@@ -25,36 +26,46 @@ XFIX←{ ⍺←1
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
   AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
-⍝ AlignMarg: Align with margin set in first full line
+⍝ AlignMarg: In a multiline string, 
+⍝            align subseq lines with the margin in the first line, ignoring an initial bare newline.
   AlignMarg← {
     isFirst margin skipNL1← 1 0 0
     ⍝ Initial bare newline is ignored...
-    ⍝ Otherwise, we set left margin from first "full" line and align rest with that.
+    ⍝ Set left margin from first "full" line and align following with that.
       '\A(?=\n)' '\n( *)' ⎕R {
-          0=⍵.PatternNum: ''  ⊣ skipNL1⊢←1                   ⍝ We skip newline at <isFirst>
+          0=⍵.PatternNum: '' ⊣ skipNL1⊢←1                    ⍝ We skip newline at <isFirst>
           nsp← ≢⍵ Fld 1
           isFirst: skipNL1↓NL ⊣ isFirst margin⊢← 0 nsp       ⍝ Set margin 
           NL,' '⍴⍨0⌈margin-⍨nsp                              ⍝ Align with margin         
       }⍠OPTS ⊢ ⍵ 
   }
-  StripEndQs← 1↓¯1∘↓
+  Strip1LR← 1↓¯1↓⊢
 ⍝ Strip trailing blanks from lines of multiline strings...
   StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
-⍝ PATS, PAT INDICES
-⍝            sq str          dq str       comment    nl   all else 
-  mainPats← '(''[^'']*'')+' '("[^"]*")+' '⍝[^\n]*$' '\n' '[^''"⍝\n]+'
-  sqI dqI←   0               1
+⍝         sq str          dq str        comment    nl   all else 
+  pats← '(''[^'']*'')+' '("[^"]*")+'  '⍝[^\n]*$' '\n' '[^''"⍝\n]+'
+  ProcStrings← pats ⎕R { 
+        sqI dqI←   0 1  
+        CASE← ⍵.PatternNum∘∊
+        f0← ⍵ Fld 0
+        CASE sqI:  Parens AddSQs AlignLeft StripTB       Strip1LR f0 
+        CASE dqI:  Parens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
+      ⍝ ELSE...
+            f0 
+  } ⍠OPTS  
 
-⍝ MainAction 
-  MainAction← {
-      CASE←⍵.PatternNum∘∊
-      f0←⍵ Fld 0
-      CASE sqI:    Parens AddSQs AlignLeft StripTB       StripEndQs f0 
-      CASE dqI:    Parens AddSQs AlignMarg StripTB DQ2SQ StripEndQs f0
-    ⍝ ELSE ...
-      f0 
-  }
-  res←mainPats ⎕R MainAction ⍠OPTS⊣⍵
-  ⍺: 2 ⎕FIX res ⋄ res 
+  tempsN←0
+  ProcTemps← '(''[^'']*'')+' '([[{(⋄:\n]\h*)←'  '⎕T\b' ⎕R { 
+        CASE←⍵.PatternNum∘∊
+        CASE 0: ⍵ Fld 0
+        nm←'⍙tmp⍙' 
+        CASE 2: nm,⍕tempsN
+      ⍝ CASE 1:
+            tempsN+←1
+            (⍵ Fld 1),nm,(⍕tempsN),'←' 
+  } ⍠OPTS
+
+  res← ProcTemps ProcStrings ⍵
+  ×⍺: 2 ⎕FIX res ⋄ res 
 }
