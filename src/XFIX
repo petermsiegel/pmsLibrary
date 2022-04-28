@@ -1,4 +1,4 @@
-XFIX←{   
+﻿XFIX←{   
   ⍺←1
   DEBUG←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
@@ -56,14 +56,16 @@ XFIX←{
   } ⍠OPTS  
 
   tempsN←0
-  ProcTemps← '(''[^'']*'')+' '([[{(⋄:\n]\h*)←'  '⎕T\b' ⎕R { 
+  ProcTemps← '(''[^'']*'')+' '((?:[[{(⋄:\n]|^)\h*)←'  '⎕T\b' ⎕R { 
         CASE←⍵.PatternNum∘∊
         CASE 0: ⍵ Fld 0
-        nm←'⍙tmp⍙' 
-        CASE 2: nm,⍕tempsN
+        nm←'⍙T' 
+        Txt← ⍕   ⍝ Or ,'ZI3'∘FMT
+        Cyc← ⊢   ⍝ Or ... 1000∘| 
+        CASE 2: nm,Txt tempsN
       ⍝ CASE 1:
-            tempsN+←1
-            (⍵ Fld 1),nm,(⍕tempsN),'←' 
+            tempsN⊢←Cyc tempsN+1
+            (⍵ Fld 1),nm,(Txt tempsN),'←' 
   } ⍠OPTS
 
   res← ProcTemps ProcStrings ⍵
