@@ -43,9 +43,16 @@
 ⍝ Strip trailing blanks from lines of multiline strings...
   StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
-⍝         sq str          dq str        comment    nl   all else 
-  pats← '(''[^'']*'')+' '("[^"]*")+'  '⍝[^\n]*$' '\n' '[^''"⍝\n]+'
-  ProcStrings← pats ⎕R { 
+  sqP←   '(''[^'']*'')+'
+  dqP←   '("[^"]*")+' 
+  comP←  '⍝[^\n]*$'
+  nlP←   '\n'
+  elseP← '[^''"⍝\n]+'
+  sinkP← '((?:[[{(⋄:\n]|^)\h*)←' 
+  tempP← '⎕T\b'
+  keyWdP← '((¯?\d+[\.Ee¯\d]*)|\w(?<=\D)\w*)\h*→'
+
+  ProcStrings← sqP dqP comP nlP elseP ⎕R { 
         sqI dqI←   0 1  
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
@@ -56,16 +63,22 @@
   } ⍠OPTS  
 
   tempsN←0
-  ProcTemps← '(''[^'']*'')+' '((?:[[{(⋄:\n]|^)\h*)←'  '⎕T\b' ⎕R { 
+  ProcTemps← sqP sinkP tempP keyWdP  ⎕R { 
+        sqI sinkI tempI keyWdI←0 1 2 3
         CASE←⍵.PatternNum∘∊
-        CASE 0: ⍵ Fld 0
+        CASE sqI: ⍵ Fld 0
         nm←'⍙T' 
-        Txt← ⍕   ⍝ Or ,'ZI3'∘FMT
-        Cyc← ⊢   ⍝ Or ... 1000∘| 
-        CASE 2: nm,Txt tempsN
-      ⍝ CASE 1:
-            tempsN⊢←Cyc tempsN+1
-            (⍵ Fld 1),nm,(Txt tempsN),'←' 
+         CASE sinkI:{
+            f1← ⍵ Fld 1
+            tempsN⊢←⊢ tempsN+1
+            f1,nm,(⍕tempsN),'←' 
+        }⍵
+        CASE tempI: nm, ⍕tempsN
+        CASE keyWdI: {
+              f1 f2←⍵ Fld¨1 2
+              0≠≢f2: f1,'(,⍥⊂)'
+              SQ,(f1/⍨1+SQ=f1),SQ,'(,⍥⊂)'
+        }⍵
   } ⍠OPTS
 
   res← ProcTemps ProcStrings ⍵
