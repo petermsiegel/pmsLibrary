@@ -43,14 +43,25 @@
 ⍝ Strip trailing blanks from lines of multiline strings...
   StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
+⍝ Dictionary...
+  InitKeys←{ 
+      K←'Test' 'Test2'  '⎕ALPHA'
+      V←'''This is it''' '(⍳10)' '⍺'
+      K V 
+  }
+  GetKey←{ 
+       K V←⍺ ⋄ k←1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
+       p←K⍳⊂k  ⋄ p=≢K: ⍵ ⋄ p⊃V
+  }
+
   sqP←   '(''[^'']*'')+'
   dqP←   '("[^"]*")+' 
   comP←  '⍝[^\n]*$'
   nlP←   '\n'
   elseP← '[^''"⍝\n]+'
-  sinkP← '((?:[[{(⋄:\n]|^)\h*)←' 
+  sinkP← '((?:^|[[{(⋄:\n])\h*)←' 
   tempP← '⎕T\b'
-  keyWdP← '((¯?\d+[\.Ee¯\d]*)|\w(?<=\D)\w*)\h*→'
+  keyWdP← '((¯?\d+[\.Ee¯\d]*)|⎕?[\w∆⍙](?<=\D)[\w∆⍙]*)(\h*→)?'
 
   ProcStrings← sqP dqP comP nlP elseP ⎕R { 
         sqI dqI←   0 1  
@@ -63,24 +74,36 @@
   } ⍠OPTS  
 
   tempsN←0
-  ProcTemps← sqP sinkP tempP keyWdP  ⎕R { 
-        sqI sinkI tempI keyWdI←0 1 2 3
+  ProcTemps← sqP sinkP tempP keyWdP ⎕R { 
+        sqI sinkI tempI keyWdI← 0 1 2 3
         CASE←⍵.PatternNum∘∊
         CASE sqI: ⍵ Fld 0
         nm←'⍙T' 
-         CASE sinkI:{
+        CASE sinkI:{
             f1← ⍵ Fld 1
             tempsN⊢←⊢ tempsN+1
             f1,nm,(⍕tempsN),'←' 
         }⍵
         CASE tempI: nm, ⍕tempsN
         CASE keyWdI: {
-              f1 f2←⍵ Fld¨1 2
-              0≠≢f2: f1,'(,⍥⊂)'
-              SQ,(f1/⍨1+SQ=f1),SQ,'(,⍥⊂)'
+              f1 f2 f3←⍵ Fld¨1 2 3
+              isNum←    0≠≢f2 
+              hasArrow← 0≠≢f3 
+              ⎕←'f1="',f1,'" f2="',f2,'" f3="',f3,'"'
+              hasArrow: {
+                  isNum: f1,'(,⍥⊂)'
+                  SQ,(f1/⍨1+SQ=f1),SQ,'(,⍥⊂)'
+              }⍵
+              isNum: f1 
+            ⍝ Is a Keyword...
+              { 
+                ⎕←'Looking up "',⍵,'" in Dictionary'
+                DICT GetKey ⍵ 
+              }f1
         }⍵
   } ⍠OPTS
 
+  DICT←InitKeys ⍬ 
   res← ProcTemps ProcStrings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
