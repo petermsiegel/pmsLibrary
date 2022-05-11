@@ -1,6 +1,6 @@
 ﻿XFIX←{   
   ⍺←1
-  DEBUG←1
+  DEBUG←0
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
 ⍝ If ⍵ is a filename (char vector), process the file contents
   1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET ⍵ 1
@@ -10,19 +10,23 @@
 
 ⍝ CONSTANTS
   SQ DQ←'''"' 
-  NL←⎕UCS 10 
+  CR NL←⎕UCS 13 10 
   DQ2←DQ,DQ
   QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
-  OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')
+  OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ Utility Fns 
 ⍝ Fld: Select a numbered field of ⎕R namespace
   Fld← { o b l←⍺.(Offsets Block Lengths) 
          0≠0(≢o)⍸⍵: '' ⋄ ¯1≠off←⍵⌷o: len↑off↓b ⊣ len←⍵⌷l ⋄ ''  
   }
-  AddSQs← { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }                     ⍝ Add single quotes to each quoted string...
-  DQ2SQ←  { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }                      ⍝ Internal double quotes to single quotes 
-  Parens← '('∘,,∘')'
+  AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }           ⍝ Add single quotes to each quoted string...
+  DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
+  CondParens← { Parens⍣⍺⊣ ⍵ }
+  Parens←     ('('∘,,∘')')
+  DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}
+  HandleNL←   { '\\⋄' ⎕R '\n' ⊣⍵ }
+
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
   AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
@@ -44,40 +48,77 @@
   StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
 ⍝ Dictionary...
-  InitKeys←{ 
-      K←'Test' 'Test2'  '⎕ALPHA'
-      V←'''This is it''' '(⍳10)' '⍺'
-      K V 
+  ∆DICT←{ 
+      K V←⍵
+      Get←{ 
+          k1←1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
+          p←K⍳⊂k1  ⋄ p=≢K: ⍵ ⋄ p⊃V
+      }
+      Set←{ k1 v1←⍵
+          p←K⍳⊂k1
+          p=≢K: v1⊣K,←⊂k1 ⊣ V,←⊂v1
+          ⊢(p⊃V)←v1 
+      }
+      Del←{
+          p←K⍳⊂⍵
+          p=≢K: ⍵
+          q←p≠⍳≢K ⋄ K⊢←q/K ⋄ V⊢←q/V
+          ⍵
+      }
+      ⎕NS  'K' 'V' 'Get' 'Set' 'Del'
   }
-  GetKey←{ 
-       K V←⍺ ⋄ k←1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
-       p←K⍳⊂k  ⋄ p=≢K: ⍵ ⋄ p⊃V
-  }
-
-  sqP←   '(''[^'']*'')+'
-  dqP←   '("[^"]*")+' 
-  comP←  '⍝[^\n]*$'
-  nlP←   '\n'
-  elseP← '[^''"⍝\n]+'
-  sinkP← '((?:^|[[{(⋄:\n])\h*)←' 
-  tempP← '⎕T\b'
-  keyWdP← '((¯?\d+[\.Ee¯\d]*)|⎕?[\w∆⍙](?<=\D)[\w∆⍙]*)(\h*→)?'
+  
+  sqP←       '(''[^'']*'')+'
+  dqP←       '("[^"]*")+' 
+  comP←      '⍝[^\n]*$'
+  numP←      '¯?[\d\.][\d\.EeJj¯]*'  
+  nlP←       '\n'
+  elseP←     '[^''"⍝\n]+'
+  sinkP←     '((?:^|[[{(⋄:\n])\h*)←' 
+  tempP←     '⎕T\b'
+  _w←        '[\w∆⍙]'
+  _w0←       '[⎕\w∆⍙](?<![\d¯])'
+  _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
+  wordP←      Parens _wordP
+  quotWord1P← wordP,'\h*→'
+  quotWord2P← '`\h*(?|(?='')|',wordP ,')'
+  defP←       '^\h*:DEF(L?)\h+(\S+)\h?(.*)$'
+  undefP←     '^\h*:UNDEF\h+(\S+)\h*(.*)$'
 
   ProcStrings← sqP dqP comP nlP elseP ⎕R { 
         sqI dqI←   0 1  
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
-        CASE sqI:  Parens AddSQs AlignLeft StripTB       Strip1LR f0 
-        CASE dqI:  Parens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
+        CASE sqI:  (NL∊f0)∘CondParens AddSQs AlignLeft StripTB       Strip1LR f0
+        CASE dqI:  (NL∊f0)∘CondParens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
       ⍝ ELSE...
             f0 
   } ⍠OPTS  
 
+  ProcDefs←sqP comP numP defP undefP wordP  ⎕R {
+      sqI comI numI defI undefI wordI← 0 1 2 3 4 5
+      CASE← ⍵.PatternNum∘∊
+      f0 f1 f2 f3← ⍵ Fld¨ 0 1 2 3
+      CASE sqI comI numI: f0 
+      CASE defI:   {
+        ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ ':DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
+        isLit←(×≢f1)∨~×≢f3~' '
+        '⍝ ',f0 ⊣ DICT.Set f2  (HandleNL Parens∘DTB⍣isLit⊣ f3)
+      } ⍵
+      CASE undefI: { 
+        ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨':DEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
+        extra←×≢f2
+        extra: 11 ⎕SIGNAL⍨':UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
+        '⍝ ',f0 ⊣ DICT.Del f1 
+      } ⍵
+      CASE wordI:   DICT.Get f1 
+  } ⍠OPTS 
+
   tempsN←0
-  ProcTemps← sqP sinkP tempP keyWdP ⎕R { 
-        sqI sinkI tempI keyWdI← 0 1 2 3
+  ProcTemps← sqP comP numP sinkP tempP quotWord1P quotWord2P ⎕R { 
+        sqI comI numI sinkI tempI quotWord1I quotWord2I← 0 1 2 3 4 5 6
         CASE←⍵.PatternNum∘∊
-        CASE sqI: ⍵ Fld 0
+        CASE sqI comI numI: ⍵ Fld 0
         nm←'⍙T' 
         CASE sinkI:{
             f1← ⍵ Fld 1
@@ -85,25 +126,13 @@
             f1,nm,(⍕tempsN),'←' 
         }⍵
         CASE tempI: nm, ⍕tempsN
-        CASE keyWdI: {
-              f1 f2 f3←⍵ Fld¨1 2 3
-              isNum←    0≠≢f2 
-              hasArrow← 0≠≢f3 
-              ⎕←'f1="',f1,'" f2="',f2,'" f3="',f3,'"'
-              hasArrow: {
-                  isNum: f1,'(,⍥⊂)'
-                  SQ,(f1/⍨1+SQ=f1),SQ,'(,⍥⊂)'
-              }⍵
-              isNum: f1 
-            ⍝ Is a Keyword...
-              { 
-                ⎕←'Looking up "',⍵,'" in Dictionary'
-                DICT GetKey ⍵ 
-              }f1
+        CASE quotWord1I quotWord2I: (CASE quotWord1I){
+              f1← ⍵ Fld 1  
+              SQ,f1,SQ,⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
   } ⍠OPTS
 
-  DICT←InitKeys ⍬ 
-  res← ProcTemps ProcStrings ⍵
+  DICT←∆DICT ⍬ ⍬  
+  res← ProcTemps ProcDefs ProcStrings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
