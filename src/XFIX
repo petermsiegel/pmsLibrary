@@ -1,6 +1,6 @@
 ﻿XFIX←{   
   ⍺←1
-  DEBUG←0
+  DEBUG←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
 ⍝ If ⍵ is a filename (char vector), process the file contents
   1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET ⍵ 1
@@ -9,7 +9,7 @@
 ⍝ ⍵ is (now or initially) a vector of lines (char vectors)
 
 ⍝ CONSTANTS
-  SQ DQ←'''"' 
+  SQ DQ LP RP←'''"()' 
   CR NL←⎕UCS 13 10 
   DQ2←DQ,DQ
   QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
@@ -17,15 +17,21 @@
 
 ⍝ Utility Fns 
 ⍝ Fld: Select a numbered field of ⎕R namespace
-  Fld← { o b l←⍺.(Offsets Block Lengths) 
+  Fld← { 
+         o b l←⍺.(Offsets Block Lengths) 
          0≠0(≢o)⍸⍵: '' ⋄ ¯1≠off←⍵⌷o: len↑off↓b ⊣ len←⍵⌷l ⋄ ''  
   }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }           ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
-  CondParens← { Parens⍣⍺⊣ ⍵ }
-  Parens←     ('('∘,,∘')')
+  CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
+  CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵}
+  Parens←     (LP∘,,∘RP)
+  Quotes←     (SQ∘,,∘SQ)
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}
   HandleNL←   { '\\⋄' ⎕R '\n' ⊣⍵ }
+  Strip1LR← 1↓¯1↓⊢
+⍝ Strip trailing blanks from lines of multiline strings...
+  StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
@@ -43,9 +49,6 @@
           NL,' '⍴⍨0⌈margin-⍨nsp                              ⍝ Align with margin         
       }⍠OPTS ⊢ ⍵ 
   }
-  Strip1LR← 1↓¯1↓⊢
-⍝ Strip trailing blanks from lines of multiline strings...
-  StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
 ⍝ Dictionary...
   ∆DICT←{ 
@@ -73,26 +76,26 @@
   comP←      '⍝[^\n]*$'
   numP←      '¯?[\d\.][\d\.EeJj¯]*'  
   nlP←       '\n'
-  elseP←     '[^''"⍝\n]+'
+  miscP←     '[^''"⍝\n]+'
   sinkP←     '((?:^|[[{(⋄:\n])\h*)←' 
   tempP←     '⎕T\b'
   _w←        '[\w∆⍙]'
   _w0←       '[⎕\w∆⍙](?<![\d¯])'
   _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
   wordP←      Parens _wordP
-  quotWord1P← wordP,'\h*→'
+  quotWord1P← '(?|(?<='')|',wordP,')\h*→'
   quotWord2P← '`\h*(?|(?='')|',wordP ,')'
   defP←       '^\h*:DEF(L?)\h+(\S+)\h?(.*)$'
   undefP←     '^\h*:UNDEF\h+(\S+)\h*(.*)$'
 
-  ProcStrings← sqP dqP comP nlP elseP ⎕R { 
+  ProcStrings← sqP dqP comP nlP miscP ⎕R { 
         sqI dqI←   0 1  
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
         CASE sqI:  (NL∊f0)∘CondParens AddSQs AlignLeft StripTB       Strip1LR f0
         CASE dqI:  (NL∊f0)∘CondParens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
       ⍝ ELSE...
-            f0 
+        f0 
   } ⍠OPTS  
 
   ProcDefs←sqP comP numP defP undefP wordP  ⎕R {
@@ -102,7 +105,7 @@
       CASE sqI comI numI: f0 
       CASE defI:   {
         ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ ':DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
-        isLit←(×≢f1)∨~×≢f3~' '
+        isLit← ~(×≢f1)∨~×≢f3~' '
         '⍝ ',f0 ⊣ DICT.Set f2  (HandleNL Parens∘DTB⍣isLit⊣ f3)
       } ⍵
       CASE undefI: { 
@@ -111,8 +114,21 @@
         extra: 11 ⎕SIGNAL⍨':UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
         '⍝ ',f0 ⊣ DICT.Del f1 
       } ⍵
-      CASE wordI:   DICT.Get f1 
+      CASE wordI:   ProcWords f1   
   } ⍠OPTS 
+
+  ProcWords←{
+     count max←1 20
+     ProcWords2← sqP comP numP wordP ⎕R {
+       wordI← 3
+       ⍵.PatternNum≠wordI:  ⍵ Fld 0
+       old≡new← DICT.Get (old←⍵ Fld 1): new 
+       max≥count⊢←count+1: ProcWords2 new 
+       new ⊣ ⎕←'>> XFIX WARNING: Replacement loop ignored: ',old,' >> ',new 
+    } ⍠OPTS
+    new← DICT.Get ⍵ 
+    new≡⍵: ⍵  ⋄ ProcWords2 new 
+  }
 
   tempsN←0
   ProcTemps← sqP comP numP sinkP tempP quotWord1P quotWord2P ⎕R { 
@@ -127,12 +143,14 @@
         }⍵
         CASE tempI: nm, ⍕tempsN
         CASE quotWord1I quotWord2I: (CASE quotWord1I){
-              f1← ⍵ Fld 1  
-              SQ,f1,SQ,⍺⊃  ' ' '(,⍥⊂)' 
+              bare← 0≠≢f1← ⍵ Fld 1  
+              (bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
   } ⍠OPTS
 
-  DICT←∆DICT ⍬ ⍬  
+  ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
+  ∆MC←∆UC,∆LC
+  DICT←∆DICT  ('⎕LC'  '⎕UC' '⎕MC') (Quotes¨ ∆LC ∆UC ∆MC)
   res← ProcTemps ProcDefs ProcStrings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
