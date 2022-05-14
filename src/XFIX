@@ -24,7 +24,7 @@
   CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵ }
   CondEval←   { 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   Parens←     (LP∘,,∘RP)
-  Quotes←     (SQ∘,,∘SQ)
+  Quotes←     (SQ∘,,∘SQ){⍵/⍨1+SQ=⍵}
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}
   HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
   Strip1LR← 1↓¯1↓⊢
@@ -122,17 +122,19 @@
   ProcWords←{
       pwReplCount pwReplMax← 1 20
       pwErrCount  pwErrMax←  0  1
+
       _ProcWords← sqP comP numP wordP ⎕R {
-        Fld← {  o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠oo←⍵⌷o: ll↑oo↓b ⊣ ll←⍵⌷l ⋄ '' }
         wordI← 3
-        ⍝ ⎕←'ProcWords Evaluating "',(⍵ Fld 0),'"'
-        ⍵.PatternNum≠wordI:  ⍵ Fld 0
-        old≡new← DICT.Get (old←⍵ Fld 1): new 
-        pwReplMax≥pwReplCount⊢←pwReplCount+1: _ProcWords new 
-        {
-          pwErrMax<pwErrCount⊢←pwErrCount+1: new 
-          new⊣ ⎕←'>> XFIX WARNING: Replacement loop may not terminate: :DEFL ',old,' ',new 
-        } ⍬
+        ⍵.PatternNum≠wordI:  ⍵.Match
+        old≡new← DICT.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
+        pwReplCount+← 1
+        pwReplMax≥pwReplCount: _ProcWords new 
+        new {
+          pwErrCount+← 1
+          pwErrMax<pwErrCount: ⍺ 
+          ⎕←'>> XFIX WARNING: Replacement loop may not terminate: :DEFL ',⍵,' ',⍺
+          ⍺ 
+        } old 
       } ⍠OPTS
 
       _ProcWords ⍵
