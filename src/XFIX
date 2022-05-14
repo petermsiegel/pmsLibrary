@@ -17,18 +17,16 @@
 
 ⍝ Utility Fns 
 ⍝ Fld: Select a numbered field of ⎕R namespace
-  Fld← { 
-         o b l←⍺.(Offsets Block Lengths) 
-         0≠0(≢o)⍸⍵: '' ⋄ ¯1≠off←⍵⌷o: len↑off↓b ⊣ len←⍵⌷l ⋄ ''  
-  }
+  Fld← { o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠oo←⍵⌷o: ll↑oo↓b ⊣ ll←⍵⌷l ⋄ '' }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }           ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
-  CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵}
+  CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵ }
+  CondEval←   { 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   Parens←     (LP∘,,∘RP)
   Quotes←     (SQ∘,,∘SQ)
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}
-  HandleNL←   { '\\⋄' ⎕R '\n' ⊣⍵ }
+  HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
   Strip1LR← 1↓¯1↓⊢
 ⍝ Strip trailing blanks from lines of multiline strings...
   StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
@@ -83,9 +81,10 @@
   _w0←       '[⎕\w∆⍙](?<![\d¯])'
   _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
   wordP←      Parens _wordP
-  quotWord1P← '(?|(?<='')|',wordP,')\h*→'
-  quotWord2P← '`\h*(?|(?='')|',wordP ,')'
-  defP←       '^\h*:DEF(L?)\h+(\S+)\h?(.*)$'
+  qLP←        '(?|(?<='')|',wordP,')\h*→'
+  qRP←        '`\h*(?|(?='')|',wordP ,')'
+  qRErrP←     '`'    
+  defP←       '^\h*:DEF([ELQ]*)\h+(\S+)\h?(.*)$'
   undefP←     '^\h*:UNDEF\h+(\S+)\h*(.*)$'
 
   ProcStrings← sqP dqP comP nlP miscP ⎕R { 
@@ -98,41 +97,59 @@
         f0 
   } ⍠OPTS  
 
-  ProcDefs←sqP comP numP defP undefP wordP  ⎕R {
+  ProcMacros←sqP comP numP defP undefP wordP  ⎕R {
       sqI comI numI defI undefI wordI← 0 1 2 3 4 5
       CASE← ⍵.PatternNum∘∊
       f0 f1 f2 f3← ⍵ Fld¨ 0 1 2 3
       CASE sqI comI numI: f0 
       CASE defI:   {
-        ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ ':DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
-        isLit← ~(×≢f1)∨~×≢f3~' '
-        '⍝ ',f0 ⊣ DICT.Set f2  (HandleNL Parens∘DTB⍣isLit⊣ f3)
+          ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ ':DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
+          isNotNull←×≢f3~' '
+          isQuo←   ('Q'∊f1) 
+          isLit←  (('L'∊f1)∧isNotNull)∨isQuo
+          isEval←  ('E'∊f1)∧isNotNull
+           '⍝ ',f0 ⊣ DICT.Set f2  (HandleNL Parens∘DTB⍣(~isLit)⊣ isQuo CondQuotes isEval CondEval ProcWords f3)
       } ⍵
       CASE undefI: { 
-        ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨':DEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
-        extra←×≢f2
-        extra: 11 ⎕SIGNAL⍨':UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
-        '⍝ ',f0 ⊣ DICT.Del f1 
+          ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
+          extra←×≢f2
+          extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
+          '⍝ ',f0 ⊣ DICT.Del f1 
       } ⍵
       CASE wordI:   ProcWords f1   
   } ⍠OPTS 
 
   ProcWords←{
-     count max←1 20
-     ProcWords2← sqP comP numP wordP ⎕R {
-       wordI← 3
-       ⍵.PatternNum≠wordI:  ⍵ Fld 0
-       old≡new← DICT.Get (old←⍵ Fld 1): new 
-       max≥count⊢←count+1: ProcWords2 new 
-       new ⊣ ⎕←'>> XFIX WARNING: Replacement loop ignored: ',old,' >> ',new 
-    } ⍠OPTS
-    new← DICT.Get ⍵ 
-    new≡⍵: ⍵  ⋄ ProcWords2 new 
+      pwReplCount pwReplMax← 1 20
+      pwErrCount  pwErrMax←  0  1
+      _ProcWords← sqP comP numP wordP ⎕R {
+        Fld← {  o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠oo←⍵⌷o: ll↑oo↓b ⊣ ll←⍵⌷l ⋄ '' }
+        wordI← 3
+        ⍝ ⎕←'ProcWords Evaluating "',(⍵ Fld 0),'"'
+        ⍵.PatternNum≠wordI:  ⍵ Fld 0
+        old≡new← DICT.Get (old←⍵ Fld 1): new 
+        pwReplMax≥pwReplCount⊢←pwReplCount+1: _ProcWords new 
+        {
+          pwErrMax<pwErrCount⊢←pwErrCount+1: new 
+          new⊣ ⎕←'>> XFIX WARNING: Replacement loop may not terminate: :DEFL ',old,' ',new 
+        } ⍬
+      } ⍠OPTS
+
+      _ProcWords ⍵
   }
 
-  tempsN←0
-  ProcTemps← sqP comP numP sinkP tempP quotWord1P quotWord2P ⎕R { 
-        sqI comI numI sinkI tempI quotWord1I quotWord2I← 0 1 2 3 4 5 6
+⍝ procSpecials: 
+⍝ processes...
+⍝   Fns
+⍝    dyadic  quote left   →  
+⍝    monadic quote right  `
+⍝    monadic sink         ←
+⍝  system variable
+⍝    sink name            ⎕T 
+  tempsN←¯1
+  specialPList← sqP comP numP sinkP tempP qLP qRP qRErrP 
+  procSpecials← specialPList ⎕R { 
+        sqI comI numI sinkI tempI qLI qRI qRErrI ← ⍳≢specialPList
         CASE←⍵.PatternNum∘∊
         CASE sqI comI numI: ⍵ Fld 0
         nm←'⍙T' 
@@ -140,17 +157,21 @@
             f1← ⍵ Fld 1
             tempsN⊢←⊢ tempsN+1
             f1,nm,(⍕tempsN),'←' 
-        }⍵
-        CASE tempI: nm, ⍕tempsN
-        CASE quotWord1I quotWord2I: (CASE quotWord1I){
+        } ⍵
+        CASE tempI: {
+          tempsN<0: 11 ⎕SIGNAL⍨'XFIX SINK ERROR: Sink Name (⎕T) not yet in use'
+          nm, ⍕tempsN
+        } ⍬
+        CASE qLI qRI: (CASE qLI){
               bare← 0≠≢f1← ⍵ Fld 1  
-              (bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
+              (' '/⍨⍺),(bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
+        CASE qRErrI: 11 ⎕SIGNAL⍨'XFIX "QUOTE RIGHT" ERROR: Invalid use of `'
   } ⍠OPTS
 
   ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
   ∆MC←∆UC,∆LC
   DICT←∆DICT  ('⎕LC'  '⎕UC' '⎕MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  res← ProcTemps ProcDefs ProcStrings ⍵
+  res← procSpecials ProcMacros ProcStrings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
