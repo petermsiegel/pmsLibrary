@@ -18,18 +18,18 @@
 ⍝ Utility Fns 
 ⍝ Fld: Select a numbered field of ⎕R namespace
   Fld← { o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠oo←⍵⌷o: ll↑oo↓b ⊣ ll←⍵⌷l ⋄ '' }
-  AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵  }           ⍝ Add single quotes to each quoted string...
+  AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
   CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵ }
   CondEval←   { 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
-  Parens←     (LP∘,,∘RP)
-  Quotes←     (SQ∘,,∘SQ){⍵/⍨1+SQ=⍵}
-  DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}
+  Parens←      LP∘,,∘RP
+  Quotes←     (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
+  DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}    
   HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
-  Strip1LR← 1↓¯1↓⊢
+  Strip1LR←   1↓¯1↓⊢
 ⍝ Strip trailing blanks from lines of multiline strings...
-  StripTB← { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
+  StripTB←    { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
@@ -81,13 +81,13 @@
   _w0←       '[⎕\w∆⍙](?<![\d¯])'
   _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
   wordP←      Parens _wordP
-  qLP←        '(?|(?<='')|',wordP,')\h*→'
-  qRP←        '`\h*(?|(?='')|',wordP ,')'
-  qRErrP←     '`'    
+  quotLftP←   '(?|(?<='')|',wordP,')\h*→'
+  quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
+  quotRgtErrP←'`'    
   defP←       '^\h*:DEF([ELQ]*)\h+(\S+)\h?(.*)$'
   undefP←     '^\h*:UNDEF\h+(\S+)\h*(.*)$'
 
-  ProcStrings← sqP dqP comP nlP miscP ⎕R { 
+  Scan4Strings← sqP dqP comP nlP miscP ⎕R { 
         sqI dqI←   0 1  
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
@@ -97,50 +97,51 @@
         f0 
   } ⍠OPTS  
 
-  ProcMacros←sqP comP numP defP undefP wordP  ⎕R {
+  Scan4Macros←sqP comP numP defP undefP wordP  ⎕R {
       sqI comI numI defI undefI wordI← 0 1 2 3 4 5
       CASE← ⍵.PatternNum∘∊
-      f0 f1 f2 f3← ⍵ Fld¨ 0 1 2 3
+      f0← ⍵ Fld 0  
       CASE sqI comI numI: f0 
-      CASE defI:   {
-          ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ ':DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
-          isNotNull←×≢f3~' '
-          isQuo←   ('Q'∊f1) 
-          isLit←  (('L'∊f1)∧isNotNull)∨isQuo
-          isEval←  ('E'∊f1)∧isNotNull
-           '⍝ ',f0 ⊣ DICT.Set f2  (HandleNL Parens∘DTB⍣(~isLit)⊣ isQuo CondQuotes isEval CondEval ProcWords f3)
+      f1←⍵ Fld 1 
+      CASE wordI:  Scan4Words f1 
+      CASE defI:   { f2 f3← ⍵ Fld¨ 2 3
+          ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
+          hasVal←    ×≢f3~' '
+          isQuo←                      'Q'∊f1    ⍝ DEFQ and variants (mix of suffixes QLE)
+          isLit←     isQuo ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants        ...
+          isEval←            hasVal ∧ 'E'∊f1    ⍝ DEFE and variants        ...
+           '⍝ ',f0 ⊣ MACROS.Set f2 (HandleNL Parens∘DTB⍣(~isLit)⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)
       } ⍵
-      CASE undefI: { 
+      CASE undefI: { f2← ⍵ Fld 2
           ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
           extra←×≢f2
           extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
-          '⍝ ',f0 ⊣ DICT.Del f1 
+          '⍝ ',f0 ⊣ MACROS.Del f1 
       } ⍵
-      CASE wordI:   ProcWords f1   
   } ⍠OPTS 
 
-  ProcWords←{
-      pwReplCount pwReplMax← 1 20
-      pwErrCount  pwErrMax←  0  1
+  Scan4Words←{
+      swReplCount swReplMax← 1 20
+      swErrCount  swErrMax←  0  1
 
-      _ProcWords← sqP comP numP wordP ⎕R {
+      ProcWords← sqP comP numP wordP ⎕R {
         wordI← 3
-        ⍵.PatternNum≠wordI:  ⍵.Match
-        old≡new← DICT.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
-        pwReplCount+← 1
-        pwReplMax≥pwReplCount: _ProcWords new 
+        ⍵.PatternNum≠wordI:  ⍵.Match    
+        old≡new← MACROS.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
+        swReplCount+← 1
+        swReplMax≥swReplCount: ProcWords new 
         new {
-          pwErrCount+← 1
-          pwErrMax<pwErrCount: ⍺ 
-          ⎕←'>> XFIX WARNING: Replacement loop may not terminate: :DEFL ',⍵,' ',⍺
+          swErrCount+← 1
+          swErrMax<swErrCount: ⍺ 
+          ⎕←'>> XFIX MACRO WARNING: Replacement loop may not terminate: :DEFL ',⍵,' ',⍺
           ⍺ 
         } old 
       } ⍠OPTS
 
-      _ProcWords ⍵
+      ProcWords ⍵
   }
 
-⍝ procSpecials: 
+⍝ Scan4Specials: 
 ⍝ processes...
 ⍝   Fns
 ⍝    dyadic  quote left   →  
@@ -149,9 +150,9 @@
 ⍝  system variable
 ⍝    sink name            ⎕T 
   tempsN←¯1
-  specialPList← sqP comP numP sinkP tempP qLP qRP qRErrP 
-  procSpecials← specialPList ⎕R { 
-        sqI comI numI sinkI tempI qLI qRI qRErrI ← ⍳≢specialPList
+  specialPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP 
+  Scan4Specials← specialPList ⎕R { 
+        sqI comI numI sinkI tempI quotLftI quotRgtI quotRgtErrI ← ⍳≢specialPList
         CASE←⍵.PatternNum∘∊
         CASE sqI comI numI: ⍵ Fld 0
         nm←'⍙T' 
@@ -161,19 +162,49 @@
             f1,nm,(⍕tempsN),'←' 
         } ⍵
         CASE tempI: {
-          tempsN<0: 11 ⎕SIGNAL⍨'XFIX SINK ERROR: Sink Name (⎕T) not yet in use'
+          tempsN<0: 11 ⎕SIGNAL⍨'XFIX ⎕T ERROR: Premature use of ⎕T. No sink value  set.'
           nm, ⍕tempsN
         } ⍬
-        CASE qLI qRI: (CASE qLI){
+        CASE quotLftI quotRgtI: (CASE quotLftI){
               bare← 0≠≢f1← ⍵ Fld 1  
-              (' '/⍨⍺),(bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
+              Vec← {  3≠≢⍵: ⍵ ⋄ Parens ',',⍵ }
+              (' '/⍨⍺),(Vec bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
-        CASE qRErrI: 11 ⎕SIGNAL⍨'XFIX "QUOTE RIGHT" ERROR: Invalid use of `'
+        CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
+
+⍝ Semicolon disambiguation
+  Scan4Semicolons←{
+     LP RP LBk RBk LBc RBc QT Semi←'()[]{}'';'
+     stk←⍬                           ⍝ Stack shared across lines to keep track of dfns braces {}
+     str←''
+     ScanAllLines←{
+        str⊢← ⊃⍵   
+        0=≢⍵: ⍺ 
+        (⍺,⊂⍬ ∆ ⊃⍵) ∇ 1↓⍵ 
+     }
+     ∆←{   
+         0=≢⍵:⍺
+         f←⊃⍵
+         f=QT:⍺{
+             p←⍵⍳QT
+             p=≢⍵:11 ⎕SIGNAL⍨'Unmatched quotes in "',str,'"' 
+             (⍺,f,⍵↑⍨p+1) ∆  ⍵↓⍨p+1
+         }1↓⍵
+         f∊LP LBk LBc: (⍺,f) ∆  1↓⍵⊣ stk,←f
+         f∊RP RBk RBc: (⍺,f) ∆ 1↓⍵⊣ stk↓⍨←¯1
+         f=Semi:⍺{
+             LP=⊃⌽stk:(⍺,')(') ∆ ⍵   ⍝ Semicolons within parens treated specially...
+             (⍺,f)∆ ⍵                ⍝ Let APL handle semicolons otherwise
+         }1↓⍵
+         (⍺,f)∆ 1↓⍵
+     }
+     ⍬ ScanAllLines ⍵ 
+ }
 
   ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
   ∆MC←∆UC,∆LC
-  DICT←∆DICT  ('⎕LC'  '⎕UC' '⎕MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  res← procSpecials ProcMacros ProcStrings ⍵
+  MACROS←∆DICT  ('⎕LC'  '⎕UC' '⎕MC') (Quotes¨ ∆LC ∆UC ∆MC)
+  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }

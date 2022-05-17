@@ -1,0 +1,28 @@
+﻿ Nonce←{⍺←''
+     ⎕IO←0
+     LF←⎕UCS 13
+     LP RP LB RB LBc RBc QT Semi←'()[]{}'';'
+     stack←⍬
+
+     Scan←{
+         0=≢⍵:⍺
+         f←⊃⍵
+         f=QT:⍺{
+             p←⍵⍳QT
+             p=≢⍵:'Whoops: invalid quote'⎕SIGNAL 11
+             (⍺,⍵↑⍨p+1)Scan ⍵↓⍨p+1
+         }1↓⍵
+         f∊LP LB LBc:(⍺,f)Scan 1↓⍵⊣stack,←f
+         f∊RP RB RBc:(⍺,f)Scan 1↓⍵⊣stack↓⍨←¯1
+         f=Semi:⍺{
+             s←⊃⌽stack
+             s=LP:(⍺,',⍥⊂')Scan ⍵
+             s=LB:(⍺,f)Scan ⍵
+             semiE←'Whoops: invalid use of semicolon (outside parens and brackets)'
+             semiE ⎕SIGNAL 11
+         }1↓⍵
+         (⍺,f)Scan 1↓⍵
+     }
+     ⍺ Scan ⍵
+
+ }
