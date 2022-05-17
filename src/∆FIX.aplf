@@ -1,4 +1,4 @@
-﻿XFIX←{   
+﻿∆FIX←{   
   ⍺←1
   DEBUG←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
@@ -75,7 +75,7 @@
   numP←      '¯?[\d\.][\d\.EeJj¯]*'  
   nlP←       '\n'
   miscP←     '[^''"⍝\n]+'
-  sinkP←     '((?:^|[[{(⋄:\n])\h*)←' 
+  sinkP←     '((?:^|[[{(⋄:;\n])\h*)←' 
   tempP←     '⎕T\b'
   _w←        '[\w∆⍙]'
   _w0←       '[⎕\w∆⍙](?<![\d¯])'
