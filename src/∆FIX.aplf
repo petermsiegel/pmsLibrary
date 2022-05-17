@@ -173,33 +173,36 @@
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
 
-⍝ Semicolon disambiguation
+⍝ Semicolon disambiguation:   
+⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
   Scan4Semicolons←{
-     LP RP LBk RBk LBc RBc QT Semi←'()[]{}'';'
-     stk←⍬                           ⍝ Stack shared across lines to keep track of dfns braces {}
-     str←''
-     ScanAllLines←{
-        str⊢← ⊃⍵   
-        0=≢⍵: ⍺ 
-        (⍺,⊂⍬ ∆ ⊃⍵) ∇ 1↓⍵ 
+     LP RP LBk RBk LBc RBc SQ Semi←'()[]{}'';'
+   ⍝ Stack shared across lines to keep track of dfns braces {}
+     lines curL stack ⎕IO← ⍵ 0 ⍬ 0
+     ScanLn←{ 
+        ⍵≥≢lines: ⍺ 
+        curL⊢← ⍵
+        (⍺,⊂⍬ ScanCharAt ⍵⊃lines) ∇ ⍵+1
      }
-     ∆←{   
+     ScanCharAt←{   
          0=≢⍵:⍺
          f←⊃⍵
-         f=QT:⍺{
-             p←⍵⍳QT
-             p=≢⍵:11 ⎕SIGNAL⍨'Unmatched quotes in "',str,'"' 
-             (⍺,f,⍵↑⍨p+1) ∆  ⍵↓⍨p+1
+         f=SQ:⍺{
+             p←⍵⍳SQ
+             p=≢⍵:11 ⎕SIGNAL⍨'Unmatched quotes in "',(curL⊃lines),'"' 
+             (⍺,f,⍵↑⍨p+1) NextChar p↓⍵
          }1↓⍵
-         f∊LP LBk LBc: (⍺,f) ∆  1↓⍵⊣ stk,←f
-         f∊RP RBk RBc: (⍺,f) ∆ 1↓⍵⊣ stk↓⍨←¯1
+         f∊LP LBk LBc: (⍺,f) NextChar ⍵⊣ stack,←f
+         f∊RP RBk RBc: (⍺,f) NextChar ⍵⊣ stack↓⍨←¯1
          f=Semi:⍺{
-             LP=⊃⌽stk:(⍺,')(') ∆ ⍵   ⍝ Semicolons within parens treated specially...
-             (⍺,f)∆ ⍵                ⍝ Let APL handle semicolons otherwise
-         }1↓⍵
-         (⍺,f)∆ 1↓⍵
+             LP=⊃⌽stack:(⍺,')(') NextChar ⍵   ⍝ Semicolons within parens treated specially...
+             (⍺,f)NextChar ⍵                  ⍝ Let APL handle semicolons otherwise
+         }⍵
+         (⍺,f)NextChar ⍵
      }
-     ⍬ ScanAllLines ⍵ 
+     NextChar← ScanCharAt∘(1∘↓)
+
+     ⍬ ScanLn 0
  }
 
   ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
