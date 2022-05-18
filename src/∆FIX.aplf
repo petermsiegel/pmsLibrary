@@ -56,12 +56,14 @@
           p←K⍳⊂k1  ⋄ p=≢K: ⍵ ⋄ p⊃V
       }
       Set←{ k1 v1←⍵
+          k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: v1⊣K,←⊂k1 ⊣ V,←⊂v1
           ⊢(p⊃V)←v1 
       }
       Del←{
-          p←K⍳⊂⍵
+          k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
+          p←K⍳⊂k1
           p=≢K: ⍵
           q←p≠⍳≢K ⋄ K⊢←q/K ⋄ V⊢←q/V
           ⍵
@@ -176,38 +178,41 @@
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
   Scan4Semicolons←{
-     LP RP LBk RBk LBc RBc SQ Semi←'()[]{}'';'
-   ⍝ Stack shared across lines to keep track of dfns braces {}
-     lines curL stack ⎕IO← ⍵ 0 ⍬ 0
-     ScanLn←{ 
-        ⍵≥≢lines: ⍺ 
-        curL⊢← ⍵
-        (⍺,⊂⍬ ScanCharAt ⍵⊃lines) ∇ ⍵+1
+      LP RP LBk RBk LBc RBc SQ SP Semi←'()[]{}'' ;'
+    ⍝ Stack shared across lines to keep track of dfns braces {}
+      lines wholeLn stack ⎕IO← ⍵ '' ⍬ 0
+      ScanLn←{ 
+          ⍵≥≢lines: ⍺ 
+          wholeLn⊢← ⍵⊃lines
+          (⍺,⊂⍬ ScanCharAt ⍵ 0) ∇ ⍵+1
+      }
+      ScanCharAt←{
+          lnNum startCol←⍵
+          curLn←lnNum⊃lines 
+          startCol ≥ ≢curLn: ⍺ 
+          ch← startCol⊃curLn
+          ch∊SQ:⍺{
+              curLn ↓⍨← ⍵
+              endCol←curLn⍳ch
+              endCol=≢curLn:11 ⎕SIGNAL⍨'Unmatched quotes in "',wholeLn,'"' 
+              (⍺,ch,curLn↑⍨endCol+1) NextChar lnNum(⍵+endCol)
+          }startCol + 1 
+          ch∊LP LBk LBc: (⍺,ch) NextChar ⍵⊣ stack,←ch
+          ch∊RP RBk RBc: (⍺,ch) NextChar ⍵⊣ stack↓⍨←¯1
+          ch=Semi:⍺{
+              LP=⊃⌽stack:(⍺,')(') NextChar ⍵   ⍝ Semicolons within parens treated specially...
+              (⍺,ch)NextChar ⍵                  ⍝ Let APL handle semicolons otherwise
+          }⍵
+          ch=SP: (⍺,ch) NextChar ⍵+0 skip ⊣ skip← ¯1++/∧\SP=startCol↓curLn
+          (⍺,ch)NextChar ⍵
      }
-     ScanCharAt←{   
-         0=≢⍵:⍺
-         f←⊃⍵
-         f=SQ:⍺{
-             p←⍵⍳SQ
-             p=≢⍵:11 ⎕SIGNAL⍨'Unmatched quotes in "',(curL⊃lines),'"' 
-             (⍺,f,⍵↑⍨p+1) NextChar p↓⍵
-         }1↓⍵
-         f∊LP LBk LBc: (⍺,f) NextChar ⍵⊣ stack,←f
-         f∊RP RBk RBc: (⍺,f) NextChar ⍵⊣ stack↓⍨←¯1
-         f=Semi:⍺{
-             LP=⊃⌽stack:(⍺,')(') NextChar ⍵   ⍝ Semicolons within parens treated specially...
-             (⍺,f)NextChar ⍵                  ⍝ Let APL handle semicolons otherwise
-         }⍵
-         (⍺,f)NextChar ⍵
-     }
-     NextChar← ScanCharAt∘(1∘↓)
-
+     NextChar← ScanCharAt∘(0 1∘+)
      ⍬ ScanLn 0
- }
+  }
 
   ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
   ∆MC←∆UC,∆LC
-  MACROS←∆DICT  ('⎕LC'  '⎕UC' '⎕MC') (Quotes¨ ∆LC ∆UC ∆MC)
+  MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.lc' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
