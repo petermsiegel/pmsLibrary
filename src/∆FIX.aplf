@@ -1,6 +1,6 @@
 ﻿∆FIX←{   
   ⍺←1
-  DEBUG←1
+  DEBUG←0
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
 ⍝ If ⍵ is a filename (char vector), process the file contents
   1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET ⍵ 1
@@ -16,8 +16,8 @@
   OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ Utility Fns 
-⍝ Fld: Select a numbered field of ⎕R namespace
-  Fld← { o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠oo←⍵⌷o: ll↑oo↓b ⊣ ll←⍵⌷l ⋄ '' }
+⍝ Fld: Return value of numbered field of ⎕R namespace or '', if it is undefined.
+  Fld← { o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠wo←⍵⌷o: wl↑wo↓b ⊣ wl←⍵⌷l ⋄ '' }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
@@ -35,7 +35,23 @@
 ⍝ AlignLeft: No Leading Blanks...
   AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
 ⍝ AlignMarg: In a multiline string, 
-⍝            align subseq lines with the margin in the first line, ignoring an initial bare newline.
+⍝            - Ignore an initial bare line (one followed by zero or more blanks),
+⍝              but respect a non-bare line.
+⍝            - Each line after initial line are aligned to the first such line.
+⍝            - Final bare newline is NOT ignored.
+⍝ Example:
+⍝ ⍝   ↓←←←← left margin
+⍝     a←"
+⍝       one
+⍝       two
+⍝          three
+⍝       "  ⍝ done
+⍝     ↑0 ∆FIX 'a←"' '  one'  '  two'  '   three' '"  ⍝ done'
+⍝   a←('one' 'two' '   three' '')  ⍝ done
+⍝   ┌───┬───┬────────┬┐
+⍝   │one│two│   three││
+⍝   └───┴───┴────────┴┘
+
   AlignMarg← {
     isFirst margin skipNL1← 1 0 0
     ⍝ Initial bare newline is ignored...
@@ -70,11 +86,21 @@
       }
       ⎕NS  'K' 'V' 'Get' 'Set' 'Del'
   }
+⍝ GenBracePat '{}' etc.
+⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
+  GenBracePat←{
+        ⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
+        Lb Rb←⍵,⍨¨⊂'\\'                     
+        pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
+        'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
+  }  
   
-  sqP←       '(''[^'']*'')+'
-  dqP←       '("[^"]*")+' 
+  sqP←       '(''[^''\n]*'')+'         ⍝ SQ strings: \n ==> single-line quotes only.
+  dqP←       '("[^"]*")+'              ⍝ DQ strings: multi-line quotes allowed.
+⍝ qtErrP: For a bad quote, match (and report) only to end of current line, not end of multi-line object...
+  qtErrP← '[''"][^''"\n]+$'    
   comP←      '⍝[^\n]*$'
-  numP←      '¯?[\d\.][\d\.EeJj¯]*'  
+  numP←      '¯?[\d\.][\d\.EeJj¯]*'    ⍝ Permissive; APL to handle bad numbers. 
   nlP←       '\n'
   miscP←     '[^''"⍝\n]+'
   sinkP←     '((?:^|[[{(⋄:;\n])\h*)←' 
@@ -86,21 +112,29 @@
   quotLftP←   '(?|(?<='')|',wordP,')\h*→'
   quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
   quotRgtErrP←'`'    
-  defP←       '^\h*:DEF([ELQ]*)\h+(\S+)\h?(.*)$'
-  undefP←     '^\h*:UNDEF\h+(\S+)\h*(.*)$'
-
-  Scan4Strings← sqP dqP comP nlP miscP ⎕R { 
-        sqI dqI←   0 1  
+  defP←       '^\h*:DEF([ELQ]*)\h(?|([^←\n]+)←|([^\h\n←]+)\h)(.*)$'
+  undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
+  parenP←     GenBracePat '()'
+  brackP←     GenBracePat '[]'
+  declareP←   '^\h*:(?:DECLARE|DECL)\h([^←]+)←\h*((?:',parenP,'|',brackP,'|[^[({\n]+)*)$'
+ 
+  Scan4Strings← sqP dqP qtErrP comP nlP miscP ⎕R { 
+        sqI dqI qtErrI←   0 1 2  
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
-        CASE sqI:  (NL∊f0)∘CondParens AddSQs AlignLeft StripTB       Strip1LR f0
+        CASE sqI:  { qtE←'∆FIX QUOTE ERROR: Use doublequotes ("...") for multi-line strings:'
+            res← (ml←NL∊f0)∘CondParens AddSQs AlignLeft StripTB Strip1LR f0
+            ~ml: res ⋄ 11 ⎕SIGNAL⍨qtE,CR,'[Line] ',res 
+        } ⍬
         CASE dqI:  (NL∊f0)∘CondParens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
+        CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...'
       ⍝ ELSE...
         f0 
   } ⍠OPTS  
 
-  Scan4Macros←sqP comP numP defP undefP wordP  ⎕R {
-      sqI comI numI defI undefI wordI← 0 1 2 3 4 5
+  macroPList← sqP comP numP defP undefP declareP wordP 
+  Scan4Macros← macroPList ⎕R {
+      sqI comI numI defI undefI declareI wordI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0  
       CASE sqI comI numI: f0 
@@ -120,6 +154,12 @@
           extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
           '⍝ ',f0 ⊣ MACROS.Del f1 
       } ⍵
+      f2←⍵ Fld 2
+      CASE declareI:  { nbsp←⎕UCS 160
+        com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
+        scn← f1,'←',0 ⎕SE.Dyalog.Array.Deserialise  Scan4Words f2
+        com,CR,scn
+      } ⍵ 
   } ⍠OPTS 
 
   Scan4Words←{
@@ -177,42 +217,40 @@
 
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
-  Scan4Semicolons←{
-      LP RP LBk RBk LBc RBc SQ SP Semi←'()[]{}'' ;'
+  Scan4Semicolons←{ 
+      LP RP LBk RBk LBc RBc SQ SP SEMI DIAMOND←'()[]{}'' ;⋄'
     ⍝ Stack shared across lines to keep track of dfns braces {}
-      lines wholeLn stack ⎕IO← ⍵ '' ⍬ 0
-      ScanLn←{ 
-          ⍵≥≢lines: ⍺ 
-          wholeLn⊢← ⍵⊃lines
-          (⍺,⊂⍬ ScanCharAt ⍵ 0) ∇ ⍵+1
-      }
+      lines thisL stack ⎕IO← ⍵ '' ⍬ 0
+      ScanLn←{ ⍵≥≢lines: ⍺ ⋄ thisL⊢← ⍵⊃lines ⋄ (⍺,⊂⍬ ScanCharAt ⍵ 0) ∇ ⍵+1 }
       ScanCharAt←{
-          lnNum startCol←⍵
-          curLn←lnNum⊃lines 
-          startCol ≥ ≢curLn: ⍺ 
-          ch← startCol⊃curLn
+          startLix startCix← ⍵ 
+          startCix ≥ ≢thisL: ⍺ 
+          ch← startCix⊃thisL
           ch∊SQ:⍺{
-              curLn ↓⍨← ⍵
-              endCol←curLn⍳ch
-              endCol=≢curLn:11 ⎕SIGNAL⍨'Unmatched quotes in "',wholeLn,'"' 
-              (⍺,ch,curLn↑⍨endCol+1) NextChar lnNum(⍵+endCol)
-          }startCol + 1 
-          ch∊LP LBk LBc: (⍺,ch) NextChar ⍵⊣ stack,←ch
-          ch∊RP RBk RBc: (⍺,ch) NextChar ⍵⊣ stack↓⍨←¯1
-          ch=Semi:⍺{
-              LP=⊃⌽stack:(⍺,')(') NextChar ⍵   ⍝ Semicolons within parens treated specially...
-              (⍺,ch)NextChar ⍵                  ⍝ Let APL handle semicolons otherwise
-          }⍵
-          ch=SP: (⍺,ch) NextChar ⍵+0 skip ⊣ skip← ¯1++/∧\SP=startCol↓curLn
-          (⍺,ch)NextChar ⍵
+            ⍝ Search for closing quote. Adjust if not present (though other Scan4Strings will capture)...
+              endCix← ch⍳⍨curLC← ⍵↓thisL  
+              endCix+←  (≢curLC) > endCix
+              (⍺,ch,endCix↑curLC) NextCh startLix(⍵+endCix-1)  
+          }startCix + 1 
+          ch∊LP LBk LBc: (⍺,ch) NextCh ⍵⊣ stack,←ch
+          ch∊RP RBk RBc: (⍺,ch) NextCh ⍵⊣ stack↓⍨←¯1
+        ⍝ Directly inside parens, semicolons are treated specially...
+        ⍝ Otherwise, let APL handle semicolons.
+          ch∊SEMI DIAMOND: ⍺{ LP=⊃⌽stack:(⍺,')(') NextCh ⍵ ⋄ (⍺,ch)NextCh ⍵ }⍵
+          ch=SP: (⍺,ch) NextCh ⍵+0 (¯1++/∧\SP=startCix↓thisL)
+          (⍺,ch) NextCh ⍵
      }
-     NextChar← ScanCharAt∘(0 1∘+)
+     NextCh← ScanCharAt∘(0 1∘+)
      ⍬ ScanLn 0
   }
 
   ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
   ∆MC←∆UC,∆LC
-  MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.lc' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
+⍝ Set PREDEFINED MACROS (samples)
+⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
+  MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
+
+⍝ EXECUTIVFE: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings ⍵
   ×⍺: 2 ⎕FIX res ⋄ res 
 }
