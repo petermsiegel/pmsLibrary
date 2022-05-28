@@ -1,9 +1,14 @@
 ﻿∆FIX←{   
   ⍺←1
-  DEBUG←0
+  DEBUG←1 
+  ⍝ _←(DEBUG/283+⍳5) ⎕STOP ⊃⎕XSI
+⍝    SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
+⍝    SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
+  SQMULTI_ALLOW←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
 ⍝ If ⍵ is a filename (char vector), process the file contents
-  1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET ⍵ 1
+  FILE←'[TERM]'
+  1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET (FILE←⍵) 1
   ⎕IO← 0
   
 ⍝ ⍵ is (now or initially) a vector of lines (char vectors)
@@ -17,7 +22,7 @@
 
 ⍝ Utility Fns 
 ⍝ Fld: Return value of numbered field of ⎕R namespace or '', if it is undefined.
-  Fld← { o b l←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢o)⍸⍵: '' ⋄ ¯1≠wo←⍵⌷o: wl↑wo↓b ⊣ wl←⍵⌷l ⋄ '' }
+  Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
@@ -67,10 +72,13 @@
 ⍝ Dictionary...
   ∆DICT←{ 
       K V←⍵
+    ⍝ Get: Returns value in whatever type was stored
       Get←{ 
-          k1←1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
-          p←K⍳⊂k1  ⋄ p=≢K: ⍵ ⋄ p⊃V
+          ⍺←  ⎕NULL
+          k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
+          p←  K⍳⊂k1  ⋄ p=≢K: (⍺≡⎕NULL)⊃ ⍺ ⍵ ⋄ p⊃V
       }
+    ⍝ Set: Does NOT convert numeric values to string s
       Set←{ k1 v1←⍵
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
@@ -94,11 +102,11 @@
         pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
         'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
   }  
-  
-  sqP←       '(''[^''\n]*'')+'         ⍝ SQ strings: \n ==> single-line quotes only.
+⍝ SQ strings: 
+  sqP←        1⊃ '(''[^''\n]*'')+' '(''[^'']*'')+'         
   dqP←       '("[^"]*")+'              ⍝ DQ strings: multi-line quotes allowed.
 ⍝ qtErrP: For a bad quote, match (and report) only to end of current line, not end of multi-line object...
-  qtErrP← '[''"][^''"\n]+$'    
+  qtErrP←    '[''"][^''"\n]*$'    
   comP←      '⍝[^\n]*$'
   numP←      '¯?[\d\.][\d\.EeJj¯]*'    ⍝ Permissive; APL to handle bad numbers. 
   nlP←       '\n'
@@ -112,41 +120,59 @@
   quotLftP←   '(?|(?<='')|',wordP,')\h*→'
   quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
   quotRgtErrP←'`'    
+⍝ :DEF (with optional additive suffixes E, L, and/or Q)
+⍝   Allows :DEF name← value  AND   :DEF name value
+⍝   E: Execute, L: Literal, Q: Quote after E or L (or both)
   defP←       '^\h*:DEF([ELQ]*)\h(?|([^←\n]+)←|([^\h\n←]+)\h)(.*)$'
   undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←     GenBracePat '()'
   brackP←     GenBracePat '[]'
+⍝ :DECLare
+⍝ Allows only:   :DECLare name←value
   declareP←   '^\h*:(?:DECLARE|DECL)\h([^←]+)←\h*((?:',parenP,'|',brackP,'|[^[({\n]+)*)$'
+  fileP←'^\h*:FILE\h+(.*)$'
  
   Scan4Strings← sqP dqP qtErrP comP nlP miscP ⎕R { 
-        sqI dqI qtErrI←   0 1 2  
+        sqI dqI qtErrI←   0 1 2
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
-        CASE sqI:  { qtE←'∆FIX QUOTE ERROR: Use doublequotes ("...") for multi-line strings:'
-            res← (ml←NL∊f0)∘CondParens AddSQs AlignLeft StripTB Strip1LR f0
-            ~ml: res ⋄ 11 ⎕SIGNAL⍨qtE,CR,'[Line] ',res 
+      ⍝ SQ strings are by definition aligned LEFT and a bare quote on the first line starts the first quote line.
+      ⍝ See AlignLeft for details.
+        CASE sqI:  { 
+            multi←NL∊f0
+            res← multi∘CondParens AddSQs AlignLeft StripTB Strip1LR f0
+            SQMULTI_ALLOW ∨ ~multi: res 
+            qtE←'∆FIX QUOTE ERROR: Use doublequotes ("...") for multi-line strings:'
+            11 ⎕SIGNAL⍨qtE,CR,'[Line] ',res 
         } ⍬
+      ⍝ DQ strings are by definition aligned such that a bare first line of the quote is ignored, and
+      ⍝ each line is aligned with the first full line which establishes the left margin.
+      ⍝ See AlignMarg for details.
         CASE dqI:  (NL∊f0)∘CondParens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
-        CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...'
+        CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...' 
       ⍝ ELSE...
         f0 
   } ⍠OPTS  
 
-  macroPList← sqP comP numP defP undefP declareP wordP 
+  macroPList← sqP comP numP defP undefP declareP wordP nlP fileP
   Scan4Macros← macroPList ⎕R {
-      sqI comI numI defI undefI declareI wordI← ⍳≢macroPList
+      sqI comI numI defI undefI declareI wordI nlI fileI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
-      f0← ⍵ Fld 0  
+      f0← ⍵ Fld 0 
+      CASE fileI: ''⊣ MACROS.Set '__FILE__'  (FILE∘←⍵ Fld 1)
+    ⍝ __LINE__ dictionary value is an integer ≥1.
+      _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
       CASE sqI comI numI: f0 
       f1←⍵ Fld 1 
       CASE wordI:  Scan4Words f1 
+      CASE nlI:    f0           ⍝ Just needed to count __LINE__ 
       CASE defI:   { f2 f3← ⍵ Fld¨ 2 3
           ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
           hasVal←    ×≢f3~' '
           isQuo←                      'Q'∊f1    ⍝ DEFQ and variants (mix of suffixes QLE)
-          isLit←     isQuo ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants        ...
+          notLit←   ~isQuo ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants        ...
           isEval←            hasVal ∧ 'E'∊f1    ⍝ DEFE and variants        ...
-           '⍝ ',f0 ⊣ MACROS.Set f2 (HandleNL Parens∘DTB⍣(~isLit)⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)
+           '⍝ ',f0 ⊣ MACROS.Set f2 (HandleNL Parens∘DTB⍣notLit⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)
       } ⍵
       CASE undefI: { f2← ⍵ Fld 2
           ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
@@ -158,7 +184,7 @@
       CASE declareI:  { nbsp←⎕UCS 160
         com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
         scn← f1,'←',0 ⎕SE.Dyalog.Array.Deserialise  Scan4Words f2
-        com,CR,scn
+        com,NL,scn
       } ⍵ 
   } ⍠OPTS 
 
@@ -168,8 +194,10 @@
 
       ProcWords← sqP comP numP wordP ⎕R {
         wordI← 3
+
         ⍵.PatternNum≠wordI:  ⍵.Match    
-        old≡new← MACROS.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
+      ⍝ Convert numberic value to string...
+        old≡new← ⍕MACROS.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
         swReplCount+← 1
         swReplMax≥swReplCount: ProcWords new 
         new {
@@ -221,7 +249,7 @@
       LP RP LBk RBk LBc RBc SQ SP SEMI DIAMOND←'()[]{}'' ;⋄'
     ⍝ Stack shared across lines to keep track of dfns braces {}
       lines thisL stack ⎕IO← ⍵ '' ⍬ 0
-      ScanLn←{ ⍵≥≢lines: ⍺ ⋄ thisL⊢← ⍵⊃lines ⋄ (⍺,⊂⍬ ScanCharAt ⍵ 0) ∇ ⍵+1 }
+      ScanLn←{ ⍵≥≢lines: ⍺ ⋄ thisL⊢← ⍵⊃lines ⋄ (⍺,⊂'' ScanCharAt ⍵ 0) ∇ ⍵+1 }
       ScanCharAt←{
           startLix startCix← ⍵ 
           startCix ≥ ≢thisL: ⍺ 
@@ -237,20 +265,23 @@
         ⍝ Directly inside parens, semicolons are treated specially...
         ⍝ Otherwise, let APL handle semicolons.
           ch∊SEMI DIAMOND: ⍺{ LP=⊃⌽stack:(⍺,')(') NextCh ⍵ ⋄ (⍺,ch)NextCh ⍵ }⍵
-          ch=SP: (⍺,ch) NextCh ⍵+0 (¯1++/∧\SP=startCix↓thisL)
+          ch=SP: (⍺,ch) NextCh ⍵ + 0 (¯1++/∧\SP=startCix↓thisL)
           (⍺,ch) NextCh ⍵
      }
      NextCh← ScanCharAt∘(0 1∘+)
      ⍬ ScanLn 0
   }
 
-  ∆UC ∆LC← (⎕A,⎕Á)(⎕C⎕A,⎕Á)
-  ∆MC←∆UC,∆LC
-⍝ Set PREDEFINED MACROS (samples)
+⍝ Set PREDEFINED MACROS  
+⍝  __FILE__   Name of input file or '[TERM]'
+⍝  __LINE__   Current line number
+⍝  Miscellaneous: ⎕AL.LC, etc.
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
+  ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
   MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
+  _←MACROS.Set '__FILE__' FILE 
 
-⍝ EXECUTIVFE: Scan the input string ⍵ 
+⍝ EXECUTIVE: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings ⍵
-  ×⍺: 2 ⎕FIX res ⋄ res 
+  ×⍺: 2 (⊃1↓⎕RSI).⎕FIX res ⋄ res 
 }

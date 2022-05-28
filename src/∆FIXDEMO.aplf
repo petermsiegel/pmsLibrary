@@ -1,0 +1,22 @@
+﻿∆FIXDEMO←{   
+ 
+:DEFL COM←⍝ 
+⍝ CONSTANTS
+COM  SQ DQ LP RP←'''"()' 
+:DEF SQ←''''
+:DEF DQ←'"'
+:DEF LP←'('
+:DEF RP←')'
+COM  CR NL←⎕UCS 13 10 
+:DEFEQ CR←⎕UCS 13
+:DEFEQ NL←⎕UCS 10
+COM  DQ2←DQ,DQ
+:DEFEQ DQ2←DQ,DQ
+COM  QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
+:DEF QSEP←SQ,' ',SQ
+COM  OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
+:DEFL OPTS ←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
+
+
+
+}
