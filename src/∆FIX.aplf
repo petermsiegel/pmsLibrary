@@ -1,17 +1,22 @@
 ﻿∆FIX←{   
   ⍺←1
-  DEBUG←1 
+  DEBUG←1  ⋄   ⎕IO← 0   
   ⍝ _←(DEBUG/283+⍳5) ⎕STOP ⊃⎕XSI
 ⍝    SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
 ⍝    SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
   SQMULTI_ALLOW←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
-⍝ If ⍵ is a filename (char vector), process the file contents
-  FILE←'[TERM]'
-  1≥|≡⍵: ⍺ ∇ ⊆⊃⎕NGET (FILE←⍵) 1
-  ⎕IO← 0
+
+⍝ Include:
+⍝   If ⍵ is a filename (char vector), process the file contents.
+⍝   Otherwise, process the lines.
+⍝   Inserts pseudo-macro line:  ::FILE fname
+⍝ Returns a vector of lines (char vectors)
+  Include←{
+      1≥|≡⍵:  (⊂'::FILE ',⍵),⊆⊃⎕NGET ⍵ 1
+      ⍵
+  }
   
-⍝ ⍵ is (now or initially) a vector of lines (char vectors)
 
 ⍝ CONSTANTS
   SQ DQ LP RP←'''"()' 
@@ -73,10 +78,14 @@
   ∆DICT←{ 
       K V←⍵
     ⍝ Get: Returns value in whatever type was stored
+      NNULL←,⎕NULL     ⍝ See Get 
+    ⍝ Get:   [⍺: default] ∇ key
+    ⍝    ⎕NULL is a valid left arg. ,⎕NULL means "no left arg".
+    ⍝    Default for key is <key>, unless ⍺ is specified.
       Get←{ 
-          ⍺←  ⎕NULL
+          ⍺←  NNULL
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
-          p←  K⍳⊂k1  ⋄ p=≢K: (⍺≡⎕NULL)⊃ ⍺ ⍵ ⋄ p⊃V
+          p←  K⍳⊂k1  ⋄ p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ ⋄ p⊃V
       }
     ⍝ Set: Does NOT convert numeric values to string s
       Set←{ k1 v1←⍵
@@ -92,7 +101,7 @@
           q←p≠⍳≢K ⋄ K⊢←q/K ⋄ V⊢←q/V
           ⍵
       }
-      ⎕NS  'K' 'V' 'Get' 'Set' 'Del'
+      ⎕NS  'K' 'V' 'Get' 'Set' 'Del' 'NNULL'
   }
 ⍝ GenBracePat '{}' etc.
 ⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
@@ -130,7 +139,10 @@
 ⍝ :DECLare
 ⍝ Allows only:   :DECLare name←value
   declareP←   '^\h*:(?:DECLARE|DECL)\h([^←]+)←\h*((?:',parenP,'|',brackP,'|[^[({\n]+)*)$'
-  fileP←'^\h*:FILE\h+(.*)$'
+⍝ fileIdP matches 
+⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
+⍝ Final \n: consume the newline to skip __LINE__ increment below...
+  fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'   
  
   Scan4Strings← sqP dqP qtErrP comP nlP miscP ⎕R { 
         sqI dqI qtErrI←   0 1 2
@@ -154,12 +166,13 @@
         f0 
   } ⍠OPTS  
 
-  macroPList← sqP comP numP defP undefP declareP wordP nlP fileP
+  macroPList← sqP comP numP defP undefP declareP wordP nlP fileIdP
   Scan4Macros← macroPList ⎕R {
-      sqI comI numI defI undefI declareI wordI nlI fileI← ⍳≢macroPList
+      sqI comI numI defI undefI declareI wordI nlI fileIdI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
-      CASE fileI: ''⊣ MACROS.Set '__FILE__'  (FILE∘←⍵ Fld 1)
+    ⍝ fileId: Special internal directive that doesn't increase __LINE__
+      CASE fileIdI: ''⊣ MACROS.Set '__FILE__'  (⍵ Fld 1)
     ⍝ __LINE__ dictionary value is an integer ≥1.
       _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
       CASE sqI comI numI: f0 
@@ -279,9 +292,9 @@
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
   MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  _←MACROS.Set '__FILE__' FILE 
+  _←MACROS.Set '__FILE__' '[TERM]'
 
 ⍝ EXECUTIVE: Scan the input string ⍵ 
-  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings ⍵
+  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
   ×⍺: 2 (⊃1↓⎕RSI).⎕FIX res ⋄ res 
 }
