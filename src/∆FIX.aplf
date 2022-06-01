@@ -13,9 +13,29 @@
 ⍝   Inserts pseudo-macro line:  ::FILE fname
 ⍝ Returns a vector of lines (char vectors)
   Include←{
-      1≥|≡⍵:  (⊂'::FILE ',⍵),⊆⊃⎕NGET ⍵ 1
-      ⍵
+      ⍺←⍬
+      IncludeOnce←⍬
+      Scan←{
+         0=≢⍵: ⍺
+         w0←⊃⍵
+         inclFn← ×≢fn← includeP ⎕S '\1'⊣w0
+         inclFn: ⍺{ 
+           (⊂fn)∊IncludeOnce: (⍺,⊂w0) Scan 1↓⍵
+           (⍺,⊂'::FILE ',fn ) Scan ⊆⊃⎕NGET fn 1
+         }⍵
+         inclOnce← ×≢pragmaP  ⎕S 0⊣w0
+         inclOnce: (⍺,⊂'⍝ ',w0) Scan 1↓⍵ ⊣ IncludeOnce,←⊂fn  
+         (⍺,⊂w0) Scan 1↓⍵
+      }
+      isFn← 1≥|≡⍵
+      isFn:  ⍺{ fn←⍵
+        (⊂fn)∊IncludeOnce:  ⍺,⊂'⍝ Included: ',fn
+        (⍺,⊂'::FILE ',fn) Scan ⊆⊃⎕NGET fn 1
+      }⍵
+      ⍺ Scan ⍵
   }
+  includeP← '^\h*include\h(?|''([^''\n]+)''|"([^"\n]+)"|([^\h\n]+)).*$' 
+  pragmaP←  '^\h*pragma\h+once\h*$'
   
 
 ⍝ CONSTANTS
@@ -293,6 +313,7 @@
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
   MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
   _←MACROS.Set '__FILE__' '[TERM]'
+  INCLUDE←∆DICT ⍬ ⍬ 
 
 ⍝ EXECUTIVE: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
