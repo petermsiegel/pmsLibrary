@@ -1,6 +1,6 @@
 ﻿⍝ INCLUDED FILE jack.tmp
 :DEF MARY← 3
-⍝ :PRAGMA ONCE
+:PRAGMA ONCE
 ⎕←__FILE__,'[',(⍕__LINE__),']'
 2+MARY
 ⍝ End Included file jack.tmp

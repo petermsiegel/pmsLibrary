@@ -28,21 +28,16 @@
           w0←⊃⍵
           inclFn← ×≢fnVV← includeP ⎕S '\1'⊣w0
           inclFn: ⍺{ lns←⍺ ⋄ fn←⊃fnVV
-              (⊂fn)∊includeOnce: (lns,⊂w0) ScanLn 1↓⍵
-              (lns,⊂'::FILE ',fn ) ScanFi fn  
+              (⊂fn)∊includeOnce: (lns,⊂'⍝ ',w0,' (already)') ScanLn 1↓⍵
+              (lns,⊂'::FILE ',fn ) ScanLn (⍬ ScanFi fn),1↓⍵  
           }⍵
           inclFiOnce← ×≢pragmaP  ⎕S 0⊣w0
-          inclFiOnce: (⍺,⊂'⍝ ',w0) ScanLn 1↓⍵ ⊣ ⎕←'includeOnce 'includeOnce ⊣ includeOnce,←⊂⊃⌽curFis 
+          inclFiOnce: (⍺,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ includeOnce,←⊂⊃⌽curFis 
           (⍺,⊂w0) ScanLn 1↓⍵
       }
-    ScanInclude← { 
-          fn←⍵
-          (⊂fn)∊includeOnce:  ⍺,⊂'⍝ File already included: ',fn 
-          (⍺,⊂'::FILE ',fn) ScanFi fn  
-    }
     ⍝ Is ⍵ a simple filename? 
-    ⍝ If so, include it (ScanFi) unless it's already included and :PRAGMA ONCE seen.
-      1≥|≡⍵: ⍺ ScanInclude ⍵
+    ⍝ If so, include it (ScanFi)...
+      1≥|≡⍵: (⍺,⊂'::FILE ',⍵) ScanFi ⍵ 
     ⍝ If not, scan line by line
       ⍺ ScanLn ⍵
   }  
