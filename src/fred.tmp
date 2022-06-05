@@ -1,0 +1,9 @@
+﻿r←fred
+⍝ Included file fred.tmp
+:DEF jack← ⍳5
+:include jack.tmp
+⎕←"__FILE__",' ',__LINE__
+r←2 + jack
+:include jack.tmp
+⍝ hello
+⍝ End included file fred.tmp

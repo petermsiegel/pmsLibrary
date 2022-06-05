@@ -7,6 +7,7 @@
   SQMULTI_ALLOW←1
   0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
 
+⍝_←(DEBUG/16+⍳22) ⎕STOP ⊃⎕XSI
 ⍝ Include:
 ⍝   If ⍵ is a filename (char vector), process the file contents.
 ⍝   Otherwise, process the lines.
@@ -14,29 +15,40 @@
 ⍝ Returns a vector of lines (char vectors)
   Include←{
       ⍺←⍬
-      IncludeOnce←⍬
-      Scan←{
-         0=≢⍵: ⍺
-         w0←⊃⍵
-         inclFn← ×≢fn← includeP ⎕S '\1'⊣w0
-         inclFn: ⍺{ 
-           (⊂fn)∊IncludeOnce: (⍺,⊂w0) Scan 1↓⍵
-           (⍺,⊂'::FILE ',fn ) Scan ⊆⊃⎕NGET fn 1
-         }⍵
-         inclOnce← ×≢pragmaP  ⎕S 0⊣w0
-         inclOnce: (⍺,⊂'⍝ ',w0) Scan 1↓⍵ ⊣ IncludeOnce,←⊂fn  
-         (⍺,⊂w0) Scan 1↓⍵
+      includeOnce←⍬
+      curFis←⊂'[TERM]'
+      ScanFi←{
+        fn←⍵
+        curFis,← ⊂fn
+        ⍺ ScanLn ⊆⊃⎕NGET fn 1 
       }
-      isFn← 1≥|≡⍵
-      isFn:  ⍺{ fn←⍵
-        (⊂fn)∊IncludeOnce:  ⍺,⊂'⍝ Included: ',fn
-        (⍺,⊂'::FILE ',fn) Scan ⊆⊃⎕NGET fn 1
-      }⍵
-      ⍺ Scan ⍵
-  }
-  includeP← '^\h*include\h(?|''([^''\n]+)''|"([^"\n]+)"|([^\h\n]+)).*$' 
-  pragmaP←  '^\h*pragma\h+once\h*$'
-  
+      ScanLn←{
+          0=≢⍵: ⍺ ⊣ curFis↓⍨← ¯1
+          lns←⍺ 
+          w0←⊃⍵
+          inclFn← ×≢fnVV← includeP ⎕S '\1'⊣w0
+          inclFn: ⍺{ lns←⍺ ⋄ fn←⊃fnVV
+              (⊂fn)∊includeOnce: (lns,⊂w0) ScanLn 1↓⍵
+              (lns,⊂'::FILE ',fn ) ScanFi fn  
+          }⍵
+          inclFiOnce← ×≢pragmaP  ⎕S 0⊣w0
+          inclFiOnce: (⍺,⊂'⍝ ',w0) ScanLn 1↓⍵ ⊣ ⎕←'includeOnce 'includeOnce ⊣ includeOnce,←⊂⊃⌽curFis 
+          (⍺,⊂w0) ScanLn 1↓⍵
+      }
+    ScanInclude← { 
+          fn←⍵
+          (⊂fn)∊includeOnce:  ⍺,⊂'⍝ File already included: ',fn 
+          (⍺,⊂'::FILE ',fn) ScanFi fn  
+    }
+    ⍝ Is ⍵ a simple filename? 
+    ⍝ If so, include it (ScanFi) unless it's already included and :PRAGMA ONCE seen.
+      1≥|≡⍵: ⍺ ScanInclude ⍵
+    ⍝ If not, scan line by line
+      ⍺ ScanLn ⍵
+  }  
+  includeP← '(?i)^\h*:include\h+(?|''([^''\n]+)''|"([^"\n]+)"|([^\h\n]+))' 
+  pragmaP←  '(?i)^\h*:pragma\h+once\b'
+ 
 
 ⍝ CONSTANTS
   SQ DQ LP RP←'''"()' 
@@ -192,7 +204,7 @@
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
     ⍝ fileId: Special internal directive that doesn't increase __LINE__
-      CASE fileIdI: ''⊣ MACROS.Set '__FILE__'  (⍵ Fld 1)
+      CASE fileIdI: ''⊣ MACROS.Set '__FILE__'  (' ',' ',⍨Quotes ⍵ Fld 1)
     ⍝ __LINE__ dictionary value is an integer ≥1.
       _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
       CASE sqI comI numI: f0 
@@ -312,7 +324,7 @@
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
   MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  _←MACROS.Set '__FILE__' '[TERM]'
+  _←MACROS.Set '__FILE__'  (' ',' ',⍨Quotes'[TERM]')
   INCLUDE←∆DICT ⍬ ⍬ 
 
 ⍝ EXECUTIVE: Scan the input string ⍵ 
