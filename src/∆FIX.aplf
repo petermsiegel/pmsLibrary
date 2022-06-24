@@ -294,7 +294,8 @@
           notLit←   ~(isCom ∨ isQnR ∨ hasVal ∧ 'L'∊f1) ⍝ DEFL and variants         
           isEval←   hasVal ∧ ('E'∊f1) ∧ ~isR           ⍝ DEFE (Execute on initial macro evaluation)                                 
           isQR←     ('Q'∊f1)  ∧ isR                    ⍝ DEF[E]RQ
-          '⍝ ',f0 ⊣ MACROSg.Set f2 (HandleNL DoPars∘DTB⍣notLit⊣isQnR CondQuotes isEval CondEval Scan4Words f3)(isR×isR+isQR)
+          a← (HandleNL DoPars∘DTB⍣notLit⊣ isQnR CondQuotes isEval CondEval Scan4Words f3)(isR×isR+isQR)
+          '⍝ ',f0 ⊣ MACROSg.Set f2 a  
       } ⍵
       CASE undefI: { 
           f2← ⍵ Fld 2
