@@ -1,0 +1,13 @@
+﻿ find←{
+
+     fsp←2 ⎕NQ'.' 'GetEnvironment' 'FSPATH'
+     wsp←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'
+     p←fsp,':',wsp
+     dirs←∪':'(≠⊆⊢)p
+     fis←dirs,¨⊂'/',⍵
+     fnd←fis/⍨∊⎕NEXISTS¨fis
+     0=≢fnd:22 ⎕SIGNAL⍨'File "',⍵,' not found in search path!'
+
+     first←⊃fnd
+     first
+ }

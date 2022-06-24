@@ -1,0 +1,4 @@
+﻿PI←pi
+   PI←○1
+   :include <fred.tmp>
+⍝ done

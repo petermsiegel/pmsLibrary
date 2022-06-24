@@ -1,9 +1,20 @@
 ﻿r←fred
 ⍝ Included file fred.tmp
 :DEF jack← ⍳5
-:include jack.tmp
+:include "jack.tmp"
 ⎕←"__FILE__",' ',__LINE__
 r←2 + jack
-:include jack.tmp
+
+:DECL a←(
+    ned: ⍳5 
+    ed: "one
+         two
+         three" 
+    sam: ⌽⎕A
+)
+:include <jack.tmp>
 ⍝ hello
+
+⎕←a
+
 ⍝ End included file fred.tmp

@@ -1,51 +1,103 @@
 ﻿∆FIX←{   
-  ⍺←1
-  DEBUG←1  ⋄   ⎕IO← 0   
-  ⍝ _←(DEBUG/283+⍳5) ⎕STOP ⊃⎕XSI
-⍝    SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
-⍝    SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
+  ⍺←'' ⋄   ⎕IO← 0   
+  HERE← ⊃⎕RSI 
+⍝ Options: See HelpInfo for documentation
+  2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
+  FIX VERBOSE DEBUG PATH HELP←'fix' 'verbose' 'debug' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
+  VERBOSE∨← DEBUG 
+⍝ SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
+⍝ SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
   SQMULTI_ALLOW←1
-  0/⍨~DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN)
+  0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.(EM EN)
 
-⍝_←(DEBUG/16+⍳22) ⎕STOP ⊃⎕XSI
+⍝ Help...
+  HelpInfo←{ H←⍬
+      H,←⊂'  ∆FIX: Preprocess and optionally ⎕FIX code lines in a file or a vector of code lines.'
+      H,←⊂'  ∆FIX SYNTAX: [ option_string] ∆FIX [file-spec | vector-of-code-lines]'
+      H,←⊂'    option_string (a single string with one or more of these words with case ignored):'
+      H,←⊂'      FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.'
+      H,←⊂'      VERBOSE  Show some diagnostic information as ∆FIX preprocesses.'
+      H,←⊂'      DEBUG    Set VERBOSE to 1 and start debugging.'
+      H,←⊂'      PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.'
+      H,←⊂'      ?        Display this "help" information and shyly return ⍬.'
+      H,←⊂'  Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.'
+      H,←⊂'  Otherwise, specify'
+      H,←⊂'      ∘ without angled brackets <>, i.e. file-spec, or'
+      H,←⊂'      ∘ within quotes, ''file-spec'' or "filespec"'
+      H,←⊂'Directives...'
+      H,←⊂'  :INCLUDE [ file-spec | "file-spec" | <file-spec> ]'
+      H,←⊂'      ∘ file-spec OR "file-spec"'
+      H,←⊂'        Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")'
+      H,←⊂'      ∘ <file-spec>'
+      H,←⊂'        Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.'  
+      H,←⊂'  :DEF[L][E|X][Q] name[←]value-string'
+      H,←⊂'      ∘ L  literal'
+      H,←⊂'        Default is to replace name with value-string in parentheses.'
+      H,←⊂'        L suppresses the parentheses.'
+      H,←⊂'      ∘ E execute value-string when defined and store result as the replacement string.'
+      H,←⊂'      ∘ R (or ER) execute value-string each time when replaced.'
+      H,←⊂'      ∘ Q place result from :DEF[L][E] inside single quotes (expanding internal quotes).'
+      H,←⊂'  :DECLARE name←value'
+      H,←⊂'  :DECL name←value'
+      H,←⊂'       value: Dyalog APL "serial" value, possibly across multiple lines.'
+      H,←⊂'  :UNDEF name'
+      H,←⊂'       Remove any special value for name.'
+      ⍬⊣⎕ED 'H'
+  }
 ⍝ Include:
 ⍝   If ⍵ is a filename (char vector), process the file contents.
 ⍝   Otherwise, process the lines.
 ⍝   Inserts pseudo-macro line:  ::FILE fname
 ⍝ Returns a vector of lines (char vectors)
   Include←{
-      ⍺←⍬
-      includeOnce←⍬
-      curFis←⊂'[TERM]'
+      INCL_ONCE←⍬
+      CUR_INCLUDE_DIR←⊂∊⎕SH 'pwd'              ⍝ No terminating '/'
+      CUR_FILES←⊂'[TERM]'
+      LAST_INCLUDED_FI← '[NONE]'
       ScanFi←{
-        fn←⍵
-        curFis,← ⊂fn
-        ⍺ ScanLn ⊆⊃⎕NGET fn 1 
+          fn srch←⍵ 
+          fn←srch{
+            ⍺: (⊃⌽CUR_INCLUDE_DIR) NGetNameInPath ⍵ ⋄ ⍵
+          }fn
+          CUR_FILES,← ⊂fn
+          CUR_INCLUDE_DIR,←⊂{0=≢⍵: ⊃⌽CUR_INCLUDE_DIR ⋄ ⍵}¯1↓⊃⎕NPARTS fn    ⍝ No terminating '/'
+        22::  22 ⎕SIGNAL⍨ 'File "',fn,'" not found in current directory.'  
+          ⍺ ScanLn ⊆⊃⎕NGET fn 1  
       }
-      ScanLn←{
-          0=≢⍵: ⍺ ⊣ curFis↓⍨← ¯1
-          lns←⍺ 
+      ScanLn←{ 
+          lns←⍺
+          0=≢⍵: lns ⊣ CUR_FILES↓⍨← ¯1 ⊣ CUR_INCLUDE_DIR↓⍨← ¯1 ⊣ LAST_INCLUDED_FI⊢←⊃⌽CUR_FILES
           w0←⊃⍵
-          inclFn← ×≢fnVV← includeP ⎕S '\1'⊣w0
-          inclFn: ⍺{ lns←⍺ ⋄ fn←⊃fnVV
-              (⊂fn)∊includeOnce: (lns,⊂'⍝ ',w0,' (already)') ScanLn 1↓⍵
-              (lns,⊂'::FILE ',fn ) ScanLn (⍬ ScanFi fn),1↓⍵  
+        ⍝ ":INCLUDE file_spec" seen?
+          ×≢fnVV← includeP ⎕S '\1'⊣w0: { 
+              srch← 1↑⊃fnVV ⋄ fn← 1↓⊃fnVV
+              srch (~∊) SQ DQ '<': 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
+              srch←'<'=srch
+              (⊂fn)∊INCL_ONCE: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
+              (lns, ('⍝ ',w0,' → ',LAST_INCLUDED_FI) ('::FILE ',Quotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
           }⍵
-          inclFiOnce← ×≢pragmaP  ⎕S 0⊣w0
-          inclFiOnce: (⍺,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ includeOnce,←⊂⊃⌽curFis 
-          (⍺,⊂w0) ScanLn 1↓⍵
+        ⍝ ":PRAGMA ONCE" seen?
+          ×≢pragmaP  ⎕S 0⊣w0: (lns,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ INCL_ONCE,←⊂⊃⌽CUR_FILES 
+          (lns,⊂w0) ScanLn 1↓⍵
       }
     ⍝ Is ⍵ a simple filename? 
     ⍝ If so, include it (ScanFi)...
-      1≥|≡⍵: (⍺,⊂'::FILE ',⍵) ScanFi ⍵ 
+    ⍝ Pass on to next phase the name of the file via "::FILE name"
+    ⍝ If PATH is 1, will search the PATH (see NGetNameInPath)
+      1≥|≡⍵: (⊂'::FILE ',Quotes ⍵) ScanFi ⍵ PATH
     ⍝ If not, scan line by line
-      ⍺ ScanLn ⍵
+      ⍬ ScanLn ⍵
   }  
-  includeP← '(?i)^\h*:include\h+(?|''([^''\n]+)''|"([^"\n]+)"|([^\h\n]+))' 
-  pragmaP←  '(?i)^\h*:pragma\h+once\b'
+⍝ :INCLUDE [ file-spec | "file-spec" | <file-spec> ]
+⍝            [1a]        [1a]          [2]
+⍝ [1a/b]: file must be found in current directory or directory of "outer" included file.
+⍝ [1a]:   file spec may not contain blanks (see 1a and 2).  Either single or double quotes may be used.
+⍝ [2]:    file may be found in search path specified by FSPATH (PMS) or WSPATH (Dyalog)
+  includeP← '(?ix) ^\h* :include\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^\h\n]+)> | ([^\h\n]+) )' 
+⍝ :PRAGMA ONCE or :ONCE
+  pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
  
-
-⍝ CONSTANTS
+⍝ CONSTANTS 
   SQ DQ LP RP←'''"()' 
   CR NL←⎕UCS 13 10 
   DQ2←DQ,DQ
@@ -59,15 +111,29 @@
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
   CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵ }
-  CondEval←   { 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
+  CondEval←   HERE.{ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   Parens←      LP∘,,∘RP
+  Spaces←      ' '∘,,∘' '
   Quotes←     (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
+  DLB←        {⍵↓⍨ +/∧\ ⍵=' '}
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}    
   HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
   Strip1LR←   1↓¯1↓⊢
 ⍝ Strip trailing blanks from lines of multiline strings...
   StripTB←    { NL(~∊)⍵: ⍵ ⋄ ' *\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
 
+⍝ Find a file in the search path and read it in!
+⍝      ⍺: An obligatory directory to add at the START of the search path...
+  NGetNameInPath←{ 
+      fsp←2 ⎕NQ'.' 'GetEnvironment' 'FSPATH'   ⍝ PMS-specific
+      wsp←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'
+      dirs←∪':'(≠⊆⊢)⍺,':',fsp,':',wsp
+      fis←dirs,¨⊂'/',⍵       ⍝ Add terminating '/' here ONLY...
+      bad←0=≢fnd←fis/⍨∊⎕NEXISTS¨fis
+      VERBOSE∧bad: 22 ⎕SIGNAL⍨'File "',⍵,' not found in search path:',CR,'  ',∊⎕SH 'pwd'
+      bad:         22 ⎕SIGNAL⍨'File "',⍵,' not found in search path!'
+      ⊃fnd
+  }
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
   AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
@@ -103,7 +169,8 @@
 
 ⍝ Dictionary...
   ∆DICT←{ 
-      K V←⍵
+    ⍝ EXTERN: HERE
+      K V←⍵ ⋄ M←(≢K)⍴0
     ⍝ Get: Returns value in whatever type was stored
       NNULL←,⎕NULL     ⍝ See Get 
     ⍝ Get:   [⍺: default] ∇ key
@@ -112,28 +179,33 @@
       Get←{ 
           ⍺←  NNULL
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
-          p←  K⍳⊂k1  ⋄ p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ ⋄ p⊃V
+          p←  K⍳⊂k1  
+          p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
+          p⊃M: ##.{0:: '(∘∘ERR∘∘)' ⋄ ⍎⍵}p⊃V ⋄  p⊃V
       }
     ⍝ Set: Does NOT convert numeric values to string s
-      Set←{ k1 v1←⍵
+    ⍝      Set key value [is_macro=0]
+      Set←{ 
+          k1 v1 m1←3⍴⍵,0
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
-          p=≢K: v1⊣K,←⊂k1 ⊣ V,←⊂v1
-          ⊢(p⊃V)←v1 
+          p=≢K: v1⊣ K V M ,←⊂¨ k1 v1 m1      
+          (p⊃M)←m1 ⋄ ⊢(p⊃V)←v1      
       }
       Del←{
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: ⍵
-          q←p≠⍳≢K ⋄ K⊢←q/K ⋄ V⊢←q/V
+          q←p≠⍳≢K 
+          K V M /⍨←⊂ q
           ⍵
       }
-      ⎕NS  'K' 'V' 'Get' 'Set' 'Del' 'NNULL'
+      ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'
   }
 ⍝ GenBracePat '{}' etc.
 ⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
   GenBracePat←{
-        ⎕IO←0 ⋄ ⍺←⎕A[,⍉26⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺ a generated unique name based on ⍵
+        ⎕IO←0 ⋄ ⍺←⎕A[,⍉(≢⎕A)⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺: defaults to a generated unique name based on ⍵
         Lb Rb←⍵,⍨¨⊂'\\'                     
         pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
         'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
@@ -158,8 +230,11 @@
   quotRgtErrP←'`'    
 ⍝ :DEF (with optional additive suffixes E, L, and/or Q)
 ⍝   Allows :DEF name← value  AND   :DEF name value
-⍝   E: Execute, L: Literal, Q: Quote after E or L (or both)
-  defP←       '^\h*:DEF([ELQ]*)\h(?|([^←\n]+)←|([^\h\n←]+)\h)(.*)$'
+⍝   E: Evaluate on macro definition;
+⍝      L: Literal, Q: Quote after E or L (or both)
+⍝   R: Evaluate on each macro replacement...
+⍝      L, Q (as above)
+  defP←       '^\h*:DEF([LQER]*)\h(?|([^←\n]+)←|([^\h\n←]+)\h)(.*)$'
   undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←     GenBracePat '()'
   brackP←     GenBracePat '[]'
@@ -199,32 +274,37 @@
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
     ⍝ fileId: Special internal directive that doesn't increase __LINE__
-      CASE fileIdI: ''⊣ MACROS.Set '__FILE__'  (' ',' ',⍨Quotes ⍵ Fld 1)
+      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROSg.Set '__FILE__'  (Spaces Quotes ⍵ Fld 1)
     ⍝ __LINE__ dictionary value is an integer ≥1.
-      _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
+      _← MACROSg.Set '__LINE__'  ((+/NL=f0)+1 MACROSg.Get '__LINE__') 
       CASE sqI comI numI: f0 
       f1←⍵ Fld 1 
       CASE wordI:  Scan4Words f1 
       CASE nlI:    f0           ⍝ Just needed to count __LINE__ 
-      CASE defI:   { f2 f3← ⍵ Fld¨ 2 3
+      CASE defI:   { 
+          f2 f3← ⍵ Fld¨ 2 3
           ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
           hasVal←    ×≢f3~' '
-          isQuo←                      'Q'∊f1    ⍝ DEFQ and variants (mix of suffixes QLE)
-          notLit←   ~isQuo ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants        ...
-          isEval←            hasVal ∧ 'E'∊f1    ⍝ DEFE and variants        ...
-           '⍝ ',f0 ⊣ MACROS.Set f2 (HandleNL Parens∘DTB⍣notLit⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)
+          isQuo←    'Q'∊f1                            ⍝ DEFQ and variants (mix of suffixes QLE)
+          isCom←    '⍝'=⊃DLB f3                       ⍝ Is the item a comment? Don't put in parens
+          notLit←   ~isCom ∨ isQuo ∨ hasVal ∧ 'L'∊f1  ⍝ DEFL and variants         
+          isEval←   hasVal ∧ ('E'∊f1) ∧ 'R'(~∊)f1     ⍝ DEFE (Execute on initial macro evaluation)
+          isExec←   hasVal ∧ 'R'∊f1                   ⍝ DEFR or DEFER (Execute on each macro replacement)  
+          '⍝ ',f0 ⊣ MACROSg.Set f2 (HandleNL Parens∘DTB⍣notLit⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)isExec
       } ⍵
-      CASE undefI: { f2← ⍵ Fld 2
+      CASE undefI: { 
+          f2← ⍵ Fld 2
           ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
           extra←×≢f2
           extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
-          '⍝ ',f0 ⊣ MACROS.Del f1 
+          '⍝ ',f0 ⊣ MACROSg.Del f1 
       } ⍵
-      f2←⍵ Fld 2
-      CASE declareI:  { nbsp←⎕UCS 160
+      CASE declareI:  { 
+        f2←⍵ Fld 2
+        nbsp←⎕UCS 160   ⍝ non-breaking space--
         com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
-        scn← f1,'←',0 ⎕SE.Dyalog.Array.Deserialise  Scan4Words f2
-        com,NL,scn
+        scan← f1,'←',0 ⎕SE.Dyalog.Array.Deserialise  Scan4Words f2
+        com,NL,scan
       } ⍵ 
   } ⍠OPTS 
 
@@ -237,7 +317,7 @@
 
         ⍵.PatternNum≠wordI:  ⍵.Match    
       ⍝ Convert numberic value to string...
-        old≡new← ⍕MACROS.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
+        old≡new← ⍕MACROSg.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
         swReplCount+← 1
         swReplMax≥swReplCount: ProcWords new 
         new {
@@ -312,17 +392,24 @@
      ⍬ ScanLn 0
   }
 
-⍝ Set PREDEFINED MACROS  
+⍝ --------------------------------------------
+
+⍝ Executive: Preliminaries
+  _←(DEBUG/(⊃⎕LC)+⍳30) ⎕STOP ⊃⎕XSI
+
+  HELP: _←HelpInfo ⍬
+
+⍝ Executive: Initialize Predefined Macros
 ⍝  __FILE__   Name of input file or '[TERM]'
 ⍝  __LINE__   Current line number
 ⍝  Miscellaneous: ⎕AL.LC, etc.
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
-  MACROS←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  _←MACROS.Set '__FILE__'  (' ',' ',⍨Quotes'[TERM]')
-  INCLUDE←∆DICT ⍬ ⍬ 
+  MACROSg←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
+  _←MACROSg.Set '__FILE__'  (Spaces Quotes'[TERM]')
+  _←MACROSg.Set '__FLINE__' (Spaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
-⍝ EXECUTIVE: Scan the input string ⍵ 
+⍝ Executive Main: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
-  ×⍺: 2 (⊃1↓⎕RSI).⎕FIX res ⋄ res 
+  FIX: 2 HERE.⎕FIX res   ⋄ res 
 }
