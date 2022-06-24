@@ -169,8 +169,8 @@
 
 ⍝ Dictionary...
   ∆DICT←{ 
-    ⍝ EXTERN: HERE
-      K V←⍵ ⋄ M←(≢K)⍴0
+    ⍝ EXTERN:  pHERE
+      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-mode
     ⍝ Get: Returns value in whatever type was stored
       NNULL←,⎕NULL     ⍝ See Get 
       pHERE←⍕HERE
@@ -183,8 +183,11 @@
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
           p←  K⍳⊂k1  
           p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
-          ~×p⊃M: p⊃V  
-          (2=p⊃M){ SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕HERE⍎⍵ } p⊃V 
+          isP isQ isR←2 2 2⊤p⊃M
+          ~isR: p⊃V  
+          DoQ← { SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕HERE⍎⍵ }
+          DoP← '('∘,,∘')'
+          DoP⍣isP⊢ isQ DoQ p⊃V 
       }
     ⍝ Set: Does NOT convert numeric values to string s
     ⍝      Set key value [is_macro=0]
@@ -285,17 +288,19 @@
       CASE wordI:  Scan4Words f1 
       CASE nlI:    f0           ⍝ Just needed to count __LINE__ 
       CASE defI:   { 
-          f2 f3← ⍵ Fld¨ 2 3
-          ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
-          hasVal←    ×≢f3~' ' 
-          isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
-          isQnR←    ('Q'∊f1)  ∧~isR                    ⍝ DEFQ and variants (mix of suffixes QLE)  
-          isCom←    '⍝'=⊃DLB f3                        ⍝ Is the item a comment? Don't put in parens
-          notLit←   ~(isCom ∨ isQnR ∨ hasVal ∧ 'L'∊f1) ⍝ DEFL and variants         
-          isEval←   hasVal ∧ ('E'∊f1) ∧ ~isR           ⍝ DEFE (Execute on initial macro evaluation)                                 
-          isQR←     ('Q'∊f1)  ∧ isR                    ⍝ DEF[E]RQ
-          a← (HandleNL DoPars∘DTB⍣notLit⊣ isQnR CondQuotes isEval CondEval Scan4Words f3)(isR×isR+isQR)
-          '⍝ ',f0 ⊣ MACROSg.Set f2 a  
+          key rawV← ⍵ Fld¨ 2 3
+          ¯1=⎕NC key~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',key,'"',CR,'[Line] ',f0
+         ⍝ Flags based on paramaters DEF[LREQ] and contents of rawV
+            hasVal←    ×≢rawV~' ' 
+            isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
+            isQnR←    (~isR) ∧ 'Q'∊f1                    ⍝ DEFQ and variants (mix of suffixes QLE)  
+            isCom←    '⍝'=⊃DLB rawV                      ⍝ Is the item a comment? Don't put in parens
+            isLit←    isCom ∨ isQnR ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants         
+            isEval←   hasVal ∧ (~isR) ∧ 'E'∊f1           ⍝ DEFE (Execute on initial macro evaluation)                                 
+            isQR←     isR ∧ 'Q'∊f1                       ⍝ DEF[E]RQ
+          val← HandleNL DoPars∘DTB⍣(~isLit)⊣ isQnR CondQuotes isEval CondEval Scan4Words rawV
+          mode← isR+(2×isQR)+4×~isQR∨isLit 
+          '⍝ ',f0 ⊣ MACROSg.Set key val mode
       } ⍵
       CASE undefI: { 
           f2← ⍵ Fld 2
