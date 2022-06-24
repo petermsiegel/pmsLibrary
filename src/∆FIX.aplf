@@ -74,7 +74,7 @@
               srch (~∊) SQ DQ '<': 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
               srch←'<'=srch
               (⊂fn)∊INCL_ONCE: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
-              (lns, ('⍝ ',w0,' → ',LAST_INCLUDED_FI) ('::FILE ',Quotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
+              (lns, ('⍝ ',w0,' → ',LAST_INCLUDED_FI) ('::FILE ',DoQuotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
           }⍵
         ⍝ ":PRAGMA ONCE" seen?
           ×≢pragmaP  ⎕S 0⊣w0: (lns,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ INCL_ONCE,←⊂⊃⌽CUR_FILES 
@@ -84,7 +84,7 @@
     ⍝ If so, include it (ScanFi)...
     ⍝ Pass on to next phase the name of the file via "::FILE name"
     ⍝ If PATH is 1, will search the PATH (see NGetNameInPath)
-      1≥|≡⍵: (⊂'::FILE ',Quotes ⍵) ScanFi ⍵ PATH
+      1≥|≡⍵: (⊂'::FILE ',DoQuotes ⍵) ScanFi ⍵ PATH
     ⍝ If not, scan line by line
       ⍬ ScanLn ⍵
   }  
@@ -109,12 +109,12 @@
   Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
-  CondParens← { ⍺: Parens ⍵ ⋄ ⍵ }
-  CondQuotes← { ⍺: Quotes ⍵ ⋄ ⍵ }
+  CondParens← { ⍺: DoPars ⍵ ⋄ ⍵ }
+  CondQuotes← { ⍺: DoQuotes ⍵ ⋄ ⍵ }
   CondEval←   HERE.{ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
-  Parens←      LP∘,,∘RP
-  Spaces←      ' '∘,,∘' '
-  Quotes←     (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
+  DoPars←     LP∘,,∘RP
+  DoSpaces←   ' '∘,,∘' '
+  DoQuotes←   (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
   DLB←        {⍵↓⍨ +/∧\ ⍵=' '}
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}    
   HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
@@ -173,15 +173,18 @@
       K V←⍵ ⋄ M←(≢K)⍴0
     ⍝ Get: Returns value in whatever type was stored
       NNULL←,⎕NULL     ⍝ See Get 
+      pHERE←⍕HERE
     ⍝ Get:   [⍺: default] ∇ key
     ⍝    ⎕NULL is a valid left arg. ,⎕NULL means "no left arg".
     ⍝    Default for key is <key>, unless ⍺ is specified.
       Get←{ 
+          HERE←⍎pHERE
           ⍺←  NNULL
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
           p←  K⍳⊂k1  
           p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
-          p⊃M: ##.{0:: '(∘∘ERR∘∘)' ⋄ ⍎⍵}p⊃V ⋄  p⊃V
+          ~×p⊃M: p⊃V  
+          (2=p⊃M){ SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕HERE⍎⍵ } p⊃V 
       }
     ⍝ Set: Does NOT convert numeric values to string s
     ⍝      Set key value [is_macro=0]
@@ -199,8 +202,8 @@
           q←p≠⍳≢K 
           K V M /⍨←⊂ q
           ⍵
-      }
-      ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'
+      }   
+      ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'pHERE' 
   }
 ⍝ GenBracePat '{}' etc.
 ⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
@@ -224,7 +227,7 @@
   _w←        '[\w∆⍙]'
   _w0←       '[⎕\w∆⍙](?<![\d¯])'
   _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
-  wordP←      Parens _wordP
+  wordP←      DoPars _wordP
   quotLftP←   '(?|(?<='')|',wordP,')\h*→'
   quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
   quotRgtErrP←'`'    
@@ -274,7 +277,7 @@
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
     ⍝ fileId: Special internal directive that doesn't increase __LINE__
-      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROSg.Set '__FILE__'  (Spaces Quotes ⍵ Fld 1)
+      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROSg.Set '__FILE__'  (DoSpaces DoQuotes ⍵ Fld 1)
     ⍝ __LINE__ dictionary value is an integer ≥1.
       _← MACROSg.Set '__LINE__'  ((+/NL=f0)+1 MACROSg.Get '__LINE__') 
       CASE sqI comI numI: f0 
@@ -284,13 +287,14 @@
       CASE defI:   { 
           f2 f3← ⍵ Fld¨ 2 3
           ¯1=⎕NC f2~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',f2,'"',CR,'[Line] ',f0
-          hasVal←    ×≢f3~' '
-          isQuo←    'Q'∊f1                            ⍝ DEFQ and variants (mix of suffixes QLE)
-          isCom←    '⍝'=⊃DLB f3                       ⍝ Is the item a comment? Don't put in parens
-          notLit←   ~isCom ∨ isQuo ∨ hasVal ∧ 'L'∊f1  ⍝ DEFL and variants         
-          isEval←   hasVal ∧ ('E'∊f1) ∧ 'R'(~∊)f1     ⍝ DEFE (Execute on initial macro evaluation)
-          isExec←   hasVal ∧ 'R'∊f1                   ⍝ DEFR or DEFER (Execute on each macro replacement)  
-          '⍝ ',f0 ⊣ MACROSg.Set f2 (HandleNL Parens∘DTB⍣notLit⊣ isQuo CondQuotes isEval CondEval Scan4Words f3)isExec
+          hasVal←    ×≢f3~' ' 
+          isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
+          isQnR←    ('Q'∊f1)  ∧~isR                    ⍝ DEFQ and variants (mix of suffixes QLE)  
+          isCom←    '⍝'=⊃DLB f3                        ⍝ Is the item a comment? Don't put in parens
+          notLit←   ~(isCom ∨ isQnR ∨ hasVal ∧ 'L'∊f1) ⍝ DEFL and variants         
+          isEval←   hasVal ∧ ('E'∊f1) ∧ ~isR           ⍝ DEFE (Execute on initial macro evaluation)                                 
+          isQR←     ('Q'∊f1)  ∧ isR                    ⍝ DEF[E]RQ
+          '⍝ ',f0 ⊣ MACROSg.Set f2 (HandleNL DoPars∘DTB⍣notLit⊣isQnR CondQuotes isEval CondEval Scan4Words f3)(isR×isR+isQR)
       } ⍵
       CASE undefI: { 
           f2← ⍵ Fld 2
@@ -357,7 +361,7 @@
         } ⍬
         CASE quotLftI quotRgtI: (CASE quotLftI){
               bare← 0≠≢f1← ⍵ Fld 1  
-              Vec← {  3≠≢⍵: ⍵ ⋄ Parens ',',⍵ }
+              Vec← {  3≠≢⍵: ⍵ ⋄ DoPars ',',⍵ }
               (' '/⍨⍺),(Vec bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
@@ -405,9 +409,9 @@
 ⍝  Miscellaneous: ⎕AL.LC, etc.
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
-  MACROSg←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (Quotes¨ ∆LC ∆UC ∆MC)
-  _←MACROSg.Set '__FILE__'  (Spaces Quotes'[TERM]')
-  _←MACROSg.Set '__FLINE__' (Spaces '(__FILE__,''['',(⍕__LINE__),'']'')')
+  MACROSg←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (DoQuotes¨ ∆LC ∆UC ∆MC)
+  _←MACROSg.Set '__FILE__'  (DoSpaces DoQuotes'[TERM]')
+  _←MACROSg.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
 ⍝ Executive Main: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
