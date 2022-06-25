@@ -12,36 +12,49 @@
 
 ⍝ Help...
   HelpInfo←{ H←⍬
-      H,←⊂'  ∆FIX: Preprocess and optionally ⎕FIX code lines in a file or a vector of code lines.'
-      H,←⊂'  ∆FIX SYNTAX: [ option_string] ∆FIX [file-spec | vector-of-code-lines]'
-      H,←⊂'    option_string (a single string with one or more of these words with case ignored):'
-      H,←⊂'      FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.'
-      H,←⊂'      VERBOSE  Show some diagnostic information as ∆FIX preprocesses.'
-      H,←⊂'      DEBUG    Set VERBOSE to 1 and start debugging.'
-      H,←⊂'      PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.'
-      H,←⊂'      ?        Display this "help" information and shyly return ⍬.'
-      H,←⊂'  Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.'
-      H,←⊂'  Otherwise, specify'
-      H,←⊂'      ∘ without angled brackets <>, i.e. file-spec, or'
-      H,←⊂'      ∘ within quotes, ''file-spec'' or "filespec"'
+      H,←⊂'∆FIX: Preprocess and optionally ⎕FIX code lines in a file or a vector of code lines.'
+      H,←⊂'∆FIX SYNTAX: [ option_string] ∆FIX [file-spec | vector-of-code-lines]'
+      H,←⊂'  option_string (a single string with one or more of these words with case ignored):'
+      H,←⊂'  FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.'
+      H,←⊂'  VERBOSE  Show some diagnostic information as ∆FIX preprocesses.'
+      H,←⊂'  DEBUG    Set VERBOSE to 1 and start debugging.'
+      H,←⊂'  PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.'
+      H,←⊂'  ?        Display this "help" information and shyly return ⍬.'
+        H,←⊂'  '
+      H,←⊂'Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.'
+      H,←⊂'Otherwise, specify:'
+      H,←⊂'  ∘ without angled brackets <>, i.e. file-spec, or'
+      H,←⊂'  ∘ within quotes, ''file-spec'' or "filespec"'
+        H,←⊂'  '
       H,←⊂'Directives...'
-      H,←⊂'  :INCLUDE [ file-spec | "file-spec" | <file-spec> ]'
-      H,←⊂'      ∘ file-spec OR "file-spec"'
-      H,←⊂'        Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")'
-      H,←⊂'      ∘ <file-spec>'
-      H,←⊂'        Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.'  
-      H,←⊂'  :DEF[L][E|X][Q] name[←]value-string'
-      H,←⊂'      ∘ L  literal'
-      H,←⊂'        Default is to replace name with value-string in parentheses.'
-      H,←⊂'        L suppresses the parentheses.'
-      H,←⊂'      ∘ E execute value-string when defined and store result as the replacement string.'
-      H,←⊂'      ∘ R (or ER) execute value-string each time when replaced.'
-      H,←⊂'      ∘ Q place result from :DEF[L][E] inside single quotes (expanding internal quotes).'
-      H,←⊂'  :DECLARE name←value'
-      H,←⊂'  :DECL name←value'
-      H,←⊂'       value: Dyalog APL "serial" value, possibly across multiple lines.'
-      H,←⊂'  :UNDEF name'
-      H,←⊂'       Remove any special value for name.'
+        H,←⊂'  '
+      H,←⊂':INCLUDE [ file-spec | "file-spec" | <file-spec> ]'
+      H,←⊂' Insert the named file into the currently active sequence of lines (or character vectors),'
+      H,←⊂' possibly searching for the file within the active search path.'
+      H,←⊂' ∘ file-spec OR "file-spec"'
+      H,←⊂'   Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")'
+      H,←⊂' ∘ <file-spec>'
+      H,←⊂'   Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.'  
+        H,←⊂'  '
+      H,←⊂':DEF[L][E][R][Q] name[←]value-string'
+      H,←⊂' Replace the string <name> with value-string, possibly transformed, wherever the former is found.'
+      H,←⊂' ∘ Default'
+      H,←⊂'   Default is to replace name with value-string in parentheses.'
+      H,←⊂' ∘ L -  Literal, suppress the default surrounding parentheses.'
+      H,←⊂' ∘ E  - Execute value-string when defined and store result as the replacement string.'
+      H,←⊂'   By default (without R), execute exactly once.'
+      H,←⊂' ∘ R (or ER) - Execute value-string each time it replaces <name>.'
+      H,←⊂' ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).'
+      H,←⊂'   Just as for L, the default surrounding parentheses are suppressed.'
+        H,←⊂''
+      H,←⊂':DECLARE name←value'
+      H,←⊂':DECL name←value'
+      H,←⊂' Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.'
+      H,←⊂' More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.'
+      H,←⊂' ∘ value: Dyalog APL "serial" value, possibly across multiple lines.'
+        H,←⊂'  '
+      H,←⊂':UNDEF name'
+      H,←⊂' Remove any special value for name.'
       ⍬⊣⎕ED 'H'
   }
 ⍝ Include:
@@ -154,7 +167,6 @@
 ⍝   ┌───┬───┬────────┬┐
 ⍝   │one│two│   three││
 ⍝   └───┴───┴────────┴┘
-
   AlignMarg← {
     isFirst margin skipNL1← 1 0 0
     ⍝ Initial bare newline is ignored...
@@ -169,8 +181,8 @@
 
 ⍝ Dictionary...
   ∆DICT←{ 
-      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-modes[3]
-    ⍝ Get: Returns value in whatever type was stored
+      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-modes[3 items]
+    ⍝ Get: If item was stored as a number, it is not by default converted to a string (for internal use).
       NNULL←,⎕NULL     ⍝ See Get 
     ⍝ Get:   [⍺: default] ∇ key
     ⍝    ⎕NULL is a valid left arg. ,⎕NULL means "no left arg".
@@ -180,24 +192,24 @@
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
           p←  K⍳⊂k1  
           p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
-        ⍝ If ⊃p⊃M is 1, we'll jump to isR mode, evaluating modes isq and isL
-          ~⊃p⊃M: p⊃V           ⍝ 
-          isR isQ isL←p⊃M      ⍝ isR mode
-          DoQuo← isQ∘{ SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕##⍎⍵ }
-          DoPar← ('('∘,,∘')')⍣(~isL)
-          DoPar DoQuo p⊃V 
+        ⍝ If ⊃p⊃M is 0, isQ (quote) and notL (not literal) are ignored and may be omitted.
+          ~⊃p⊃M: p⊃V           
+          _ isQ notL←p⊃M  ⋄ HERE←##    
+        0:: '(∘∘ERR∘∘)'
+          DoPars⍣notL ⊢ DoQuotes⍣isQ ⊢ ⍕ HERE⍎ p⊃V 
       }
     ⍝ Set: 
-    ⍝      Set key value [is_macro=0]
+    ⍝      Set key value macro-modes, where macro-modes:  (1 [isQuote notLiteral]]) OR  (0 [rest ignored])
     ⍝ Note re <value>: Does NOT convert numeric values to string s. Num values used internally...
       Set←{ 
           k1 v1 m1←3⍴⍵,⊂0 0 0
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: v1⊣ K V M ,←⊂¨ k1 v1 m1      
-          (p⊃M)←m1 ⋄ ⊢(p⊃V)←v1      
+          (p⊃M)←m1 
+          ⊢(p⊃V)←v1      
       }
-      Del←{
+      Del←{ k1←⍵
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: ⍵
@@ -205,17 +217,20 @@
           K V M /⍨←⊂ q
           ⍵
       }  
-    ⍝ Double ⎕NS to ensure 1) we are child of <HERE>, and 2) can see and copy in this list of variables... 
-      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'    
+    ⍝ Double ⎕NS to ensure we 1) are child of <HERE>, and 2) can see and copy in this list of variables...
+      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'DoQuotes' 'DoPars' 
   }
 ⍝ GenBracePat '{}' etc.
-⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
+⍝ Returned pattern matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
   GenBracePat←{
         ⎕IO←0 ⋄ ⍺←⎕A[,⍉(≢⎕A)⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺: defaults to a generated unique name based on ⍵
         Lb Rb←⍵,⍨¨⊂'\\'                     
         pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
         'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
-  }  
+  } 
+⍝-------------------------------------------⍝ 
+⍝-----------  Patterns xxxxP  --------------⍝ 
+⍝-------------------------------------------⍝ 
 ⍝ SQ strings: 
   sqP←        1⊃ '(''[^''\n]*'')+' '(''[^'']*'')+'         
   dqP←       '("[^"]*")+'              ⍝ DQ strings: multi-line quotes allowed.
@@ -288,17 +303,18 @@
       CASE wordI:  Scan4Words f1 
       CASE nlI:    f0           ⍝ Just needed to count __LINE__ 
       CASE defI:   { 
-          key rawV← ⍵ Fld¨ 2 3
-          ¯1=⎕NC key~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',key,'"',CR,'[Line] ',f0
-         ⍝ Flags based on paramaters DEF[LREQ] and contents of rawV
-            hasVal←    ×≢rawV~' ' 
+          key rawVal← ⍵ Fld¨ 2 3
+        ¯1=⎕NC key~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',key,'"',CR,'[Line] ',f0
+          ⍝ Flags based on paramaters DEF[LREQ] and contents of rawVal
+            trimVal←  DLB rawVal
+            hasVal←   ×≢trimVal 
             isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
             isQ←      'Q'∊f1                             ⍝ DEFQ and variants (mix of suffixes QLE)  
-            isCom←    '⍝'=⊃DLB rawV                      ⍝ Is the item a comment? Don't put in parens
-            isLit←    isCom ∨ isQ ∨ hasVal ∧ 'L'∊f1      ⍝ DEFL and variants         
+            isCom←    '⍝'=⊃trimVal                       ⍝ Is the item a comment? Don't put in parens
+            notLit←  ~isCom ∨ isQ ∨ hasVal ∧ 'L'∊f1      ⍝ DEFL and variants         
             isEval←   hasVal ∧ (~isR) ∧ 'E'∊f1           ⍝ DEFE (Execute on initial macro evaluation)                                 
-            val← HandleNL DoPars∘DTB⍣(~isLit)⊣ (isQ∧~isR) CondQuotes isEval CondEval Scan4Words rawV
-          mode← isR isQ isLit
+          val← HandleNL DoPars∘DTB⍣notLit⊣ (isQ∧~isR) CondQuotes isEval CondEval Scan4Words rawVal
+          mode← isR isQ notLit
           '⍝ ',f0 ⊣ MACROSg.Set key val mode
       } ⍵
       CASE undefI: { 
