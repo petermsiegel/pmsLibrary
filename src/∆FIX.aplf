@@ -109,7 +109,7 @@
   Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
-  CondParens← { ⍺: DoPars ⍵ ⋄ ⍵ }
+  CondPars←   { ⍺: DoPars ⍵ ⋄ ⍵ }
   CondQuotes← { ⍺: DoQuotes ⍵ ⋄ ⍵ }
   CondEval←   HERE.{ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   DoPars←     LP∘,,∘RP
@@ -169,30 +169,29 @@
 
 ⍝ Dictionary...
   ∆DICT←{ 
-    ⍝ EXTERN:  pHERE
-      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-mode
+      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-modes[3]
     ⍝ Get: Returns value in whatever type was stored
       NNULL←,⎕NULL     ⍝ See Get 
-      pHERE←⍕HERE
     ⍝ Get:   [⍺: default] ∇ key
     ⍝    ⎕NULL is a valid left arg. ,⎕NULL means "no left arg".
     ⍝    Default for key is <key>, unless ⍺ is specified.
       Get←{ 
-          HERE←⍎pHERE
           ⍺←  NNULL
           k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
           p←  K⍳⊂k1  
           p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
-          isP isQ isR←2 2 2⊤p⊃M
-          ~isR: p⊃V  
-          DoQ← { SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕HERE⍎⍵ }
-          DoP← '('∘,,∘')'
-          DoP⍣isP⊢ isQ DoQ p⊃V 
+        ⍝ If ⊃p⊃M is 1, we'll jump to isR mode, evaluating modes isq and isL
+          ~⊃p⊃M: p⊃V           ⍝ 
+          isR isQ isL←p⊃M      ⍝ isR mode
+          DoQuo← isQ∘{ SQ←'''' ⋄ 0:: '(∘∘ERR∘∘)' ⋄  {SQ,SQ,⍨(⊢⊢⍤/⍨1+SQ∘=) ⍵}⍣⍺⊣ ⍕##⍎⍵ }
+          DoPar← ('('∘,,∘')')⍣(~isL)
+          DoPar DoQuo p⊃V 
       }
-    ⍝ Set: Does NOT convert numeric values to string s
+    ⍝ Set: 
     ⍝      Set key value [is_macro=0]
+    ⍝ Note re <value>: Does NOT convert numeric values to string s. Num values used internally...
       Set←{ 
-          k1 v1 m1←3⍴⍵,0
+          k1 v1 m1←3⍴⍵,⊂0 0 0
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: v1⊣ K V M ,←⊂¨ k1 v1 m1      
@@ -205,8 +204,9 @@
           q←p≠⍳≢K 
           K V M /⍨←⊂ q
           ⍵
-      }   
-      ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'pHERE' 
+      }  
+    ⍝ Double ⎕NS to ensure 1) we are child of <HERE>, and 2) can see and copy in this list of variables... 
+      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'    
   }
 ⍝ GenBracePat '{}' etc.
 ⍝ Matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
@@ -240,7 +240,7 @@
 ⍝      L: Literal, Q: Quote after E or L (or both)
 ⍝   R: Evaluate on each macro replacement...
 ⍝      L, Q (as above)
-  defP←       '^\h*:DEF([LQER]*)\h(?|([^←\n]+)←|([^\h\n←]+)\h)(.*)$'
+  defP←       '^\h*:DEF([LQER]*)\h(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
   undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←     GenBracePat '()'
   brackP←     GenBracePat '[]'
@@ -260,7 +260,7 @@
       ⍝ See AlignLeft for details.
         CASE sqI:  { 
             multi←NL∊f0
-            res← multi∘CondParens AddSQs AlignLeft StripTB Strip1LR f0
+            res← multi∘CondPars AddSQs AlignLeft StripTB Strip1LR f0
             SQMULTI_ALLOW ∨ ~multi: res 
             qtE←'∆FIX QUOTE ERROR: Use doublequotes ("...") for multi-line strings:'
             11 ⎕SIGNAL⍨qtE,CR,'[Line] ',res 
@@ -268,7 +268,7 @@
       ⍝ DQ strings are by definition aligned such that a bare first line of the quote is ignored, and
       ⍝ each line is aligned with the first full line which establishes the left margin.
       ⍝ See AlignMarg for details.
-        CASE dqI:  (NL∊f0)∘CondParens AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
+        CASE dqI:  (NL∊f0)∘CondPars AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
         CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...' 
       ⍝ ELSE...
         f0 
@@ -293,13 +293,12 @@
          ⍝ Flags based on paramaters DEF[LREQ] and contents of rawV
             hasVal←    ×≢rawV~' ' 
             isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
-            isQnR←    (~isR) ∧ 'Q'∊f1                    ⍝ DEFQ and variants (mix of suffixes QLE)  
+            isQ←      'Q'∊f1                             ⍝ DEFQ and variants (mix of suffixes QLE)  
             isCom←    '⍝'=⊃DLB rawV                      ⍝ Is the item a comment? Don't put in parens
-            isLit←    isCom ∨ isQnR ∨ hasVal ∧ 'L'∊f1    ⍝ DEFL and variants         
+            isLit←    isCom ∨ isQ ∨ hasVal ∧ 'L'∊f1      ⍝ DEFL and variants         
             isEval←   hasVal ∧ (~isR) ∧ 'E'∊f1           ⍝ DEFE (Execute on initial macro evaluation)                                 
-            isQR←     isR ∧ 'Q'∊f1                       ⍝ DEF[E]RQ
-          val← HandleNL DoPars∘DTB⍣(~isLit)⊣ isQnR CondQuotes isEval CondEval Scan4Words rawV
-          mode← isR+(2×isQR)+4×~isQR∨isLit 
+            val← HandleNL DoPars∘DTB⍣(~isLit)⊣ (isQ∧~isR) CondQuotes isEval CondEval Scan4Words rawV
+          mode← isR isQ isLit
           '⍝ ',f0 ⊣ MACROSg.Set key val mode
       } ⍵
       CASE undefI: { 
@@ -412,7 +411,7 @@
 ⍝ Executive: Initialize Predefined Macros
 ⍝  __FILE__   Name of input file or '[TERM]'
 ⍝  __LINE__   Current line number
-⍝  Miscellaneous: ⎕AL.LC, etc.
+⍝  Miscellaneous: ⎕AL.LC, etc. These are for 'demo' purposes to show how to predefine "needed" macros.
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
   MACROSg←∆DICT  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (DoQuotes¨ ∆LC ∆UC ∆MC)
