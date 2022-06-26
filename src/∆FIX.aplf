@@ -1,7 +1,7 @@
 ﻿∆FIX←{   
   ⍺←'' ⋄   ⎕IO← 0   
   HERE← ⊃⎕RSI 
-⍝ Options: See HelpInfo for documentation
+⍝ See HelpInfo for documentation
   2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
   FIX VERBOSE DEBUG PATH HELP←'fix' 'verbose' 'debug' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
   VERBOSE∨← DEBUG 
@@ -11,51 +11,54 @@
   0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.(EM EN)
 
 ⍝ Help...
-  HelpInfo←{ H←⍬
-      H,←⊂'∆FIX: Preprocess and optionally ⎕FIX code lines in a file or a vector of code lines.'
-      H,←⊂'∆FIX SYNTAX: [ option_string] ∆FIX [file-spec | vector-of-code-lines]'
-      H,←⊂'  option_string (a single string with one or more of these words with case ignored):'
-      H,←⊂'  FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.'
-      H,←⊂'  VERBOSE  Show some diagnostic information as ∆FIX preprocesses.'
-      H,←⊂'  DEBUG    Set VERBOSE to 1 and start debugging.'
-      H,←⊂'  PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.'
-      H,←⊂'  ?        Display this "help" information and shyly return ⍬.'
-        H,←⊂'  '
-      H,←⊂'Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.'
-      H,←⊂'Otherwise, specify:'
-      H,←⊂'  ∘ without angled brackets <>, i.e. file-spec, or'
-      H,←⊂'  ∘ within quotes, ''file-spec'' or "filespec"'
-        H,←⊂'  '
-      H,←⊂'Directives...'
-        H,←⊂'  '
-      H,←⊂':INCLUDE [ file-spec | "file-spec" | <file-spec> ]'
-      H,←⊂' Insert the named file into the currently active sequence of lines (or character vectors),'
-      H,←⊂' possibly searching for the file within the active search path.'
-      H,←⊂' ∘ file-spec OR "file-spec"'
-      H,←⊂'   Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")'
-      H,←⊂' ∘ <file-spec>'
-      H,←⊂'   Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.'  
-        H,←⊂'  '
-      H,←⊂':DEF[L][E][R][Q] name[←]value-string'
-      H,←⊂' Replace the string <name> with value-string, possibly transformed, wherever the former is found.'
-      H,←⊂' ∘ Default'
-      H,←⊂'   Default is to replace name with value-string in parentheses.'
-      H,←⊂' ∘ L -  Literal, suppress the default surrounding parentheses.'
-      H,←⊂' ∘ E  - Execute value-string when defined and store result as the replacement string.'
-      H,←⊂'   By default (without R), execute exactly once.'
-      H,←⊂' ∘ R (or ER) - Execute value-string each time it replaces <name>.'
-      H,←⊂' ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).'
-      H,←⊂'   Just as for L, the default surrounding parentheses are suppressed.'
-        H,←⊂''
-      H,←⊂':DECLARE name←value'
-      H,←⊂':DECL name←value'
-      H,←⊂' Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.'
-      H,←⊂' More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.'
-      H,←⊂' ∘ value: Dyalog APL "serial" value, possibly across multiple lines.'
-        H,←⊂'  '
-      H,←⊂':UNDEF name'
-      H,←⊂' Remove any special value for name.'
-      ⍬⊣⎕ED 'H'
+  HelpInfo←{  
+      H←'^\h*⍝H ?(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI
+      ⎕ED 'H'
+      ⍝H ∆FIX: Preprocess and optionally ⎕FIX code lines in one or more files or a vector of code lines.
+      ⍝H   Additional files added via :INCLUDE directives.
+      ⍝H ∆FIX SYNTAX:
+      ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
+      ⍝H   option_string (a single string with one or more of these words with case ignored):
+      ⍝H     FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.
+      ⍝H     VERBOSE  Show some diagnostic information as ∆FIX preprocesses.
+      ⍝H     DEBUG    Set VERBOSE to 1 and start debugging.
+      ⍝H     PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.
+      ⍝H     ?        Display this "help" information and shyly return ⍬.
+      ⍝H
+      ⍝H Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.
+      ⍝H Otherwise, specify:
+      ⍝H   ∘ without angled brackets <>, i.e. file-spec, or
+      ⍝H   ∘ within quotes, ''file-spec'' or "filespec"
+      ⍝H
+      ⍝H Directives...
+      ⍝H
+      ⍝H :INCLUDE [ file-spec | "file-spec" | <file-spec> ]
+      ⍝H  Insert the named file into the currently active sequence of lines (or character vectors),
+      ⍝H  possibly searching for the file within the active search path.
+      ⍝H  ∘ file-spec OR "file-spec"
+      ⍝H    Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")
+      ⍝H  ∘ <file-spec>
+      ⍝H    Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.
+      ⍝H
+      ⍝H :DEF[L][E][R][Q] name[←]value-string
+      ⍝H  Replace the string <name> with value-string, possibly transformed, wherever the former is found.
+      ⍝H  ∘ Default
+      ⍝H    Default is to replace name with value-string in parentheses.
+      ⍝H  ∘ L -  Literal, suppress the default surrounding parentheses.
+      ⍝H  ∘ E  - Execute value-string when defined and store result as the replacement string.
+      ⍝H    By default (without R), execute exactly once.
+      ⍝H  ∘ R (or ER) - Execute value-string each time it replaces <name>.
+      ⍝H  ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).
+      ⍝H    Just as for L, the default surrounding parentheses are suppressed.
+      ⍝H
+      ⍝H :UNDEF name
+      ⍝H  Remove any special value for name.
+      ⍝H
+      ⍝H :DECLARE name←value
+      ⍝H :DECL name←value
+      ⍝H  Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.
+      ⍝H  More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.
+      ⍝H  ∘ value: Dyalog APL "serial" value, possibly across multiple lines.
   }
 ⍝ Include:
 ⍝   If ⍵ is a filename (char vector), process the file contents.
@@ -262,9 +265,10 @@
 ⍝ :DECLare
 ⍝ Allows only:   :DECLare name←value
   declareP←   '^\h*:(?:DECLARE|DECL)\h([^←]+)←\h*((?:',parenP,'|',brackP,'|[^[({\n]+)*)$'
-⍝ fileIdP matches 
+⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
+⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
-⍝ Final \n: consume the newline to skip __LINE__ increment below...
+⍝ Note: Final \n consumes the newline in order to skip __LINE__ increment.
   fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'   
  
   Scan4Strings← sqP dqP qtErrP comP nlP miscP ⎕R { 
@@ -291,6 +295,7 @@
 
   macroPList← sqP comP numP defP undefP declareP wordP nlP fileIdP
   Scan4Macros← macroPList ⎕R {
+      SYS_DESERIALISE← 0∘⎕SE.Dyalog.Array.Deserialise
       sqI comI numI defI undefI declareI wordI nlI fileIdI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
@@ -328,7 +333,7 @@
         f2←⍵ Fld 2
         nbsp←⎕UCS 160   ⍝ non-breaking space--
         com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
-        scan← f1,'←',0 ⎕SE.Dyalog.Array.Deserialise  Scan4Words f2
+        scan← f1,'←',SYS_DESERIALISE  Scan4Words f2
         com,NL,scan
       } ⍵ 
   } ⍠OPTS 
