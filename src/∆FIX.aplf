@@ -14,75 +14,32 @@
   HelpInfo←{  
       H←'^\h*⍝H ?(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI
       ⎕ED 'H'
-      ⍝H ∆FIX: Preprocess and optionally ⎕FIX code lines in one or more files or a vector of code lines.
-      ⍝H   Additional files added via :INCLUDE directives.
-      ⍝H ∆FIX SYNTAX:
-      ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
-      ⍝H   option_string (a single string with one or more of these words with case ignored):
-      ⍝H     FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.
-      ⍝H     VERBOSE  Show some diagnostic information as ∆FIX preprocesses.
-      ⍝H     DEBUG    Set VERBOSE to 1 and start debugging.
-      ⍝H     PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.
-      ⍝H     ?        Display this "help" information and shyly return ⍬.
-      ⍝H
-      ⍝H Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.
-      ⍝H Otherwise, specify:
-      ⍝H   ∘ without angled brackets <>, i.e. file-spec, or
-      ⍝H   ∘ within quotes, ''file-spec'' or "filespec"
-      ⍝H
-      ⍝H Directives...
-      ⍝H
-      ⍝H :INCLUDE [ file-spec | "file-spec" | <file-spec> ]
-      ⍝H  Insert the named file into the currently active sequence of lines (or character vectors),
-      ⍝H  possibly searching for the file within the active search path.
-      ⍝H  ∘ file-spec OR "file-spec"
-      ⍝H    Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")
-      ⍝H  ∘ <file-spec>
-      ⍝H    Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.
-      ⍝H
-      ⍝H :DEF[L][E][R][Q] name[←]value-string
-      ⍝H  Replace the string <name> with value-string, possibly transformed, wherever the former is found.
-      ⍝H  ∘ Default
-      ⍝H    Default is to replace name with value-string in parentheses.
-      ⍝H  ∘ L -  Literal, suppress the default surrounding parentheses.
-      ⍝H  ∘ E  - Execute value-string when defined and store result as the replacement string.
-      ⍝H    By default (without R), execute exactly once.
-      ⍝H  ∘ R (or ER) - Execute value-string each time it replaces <name>.
-      ⍝H  ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).
-      ⍝H    Just as for L, the default surrounding parentheses are suppressed.
-      ⍝H
-      ⍝H :UNDEF name
-      ⍝H  Remove any special value for name.
-      ⍝H
-      ⍝H :DECLARE name←value
-      ⍝H :DECL name←value
-      ⍝H  Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.
-      ⍝H  More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.
-      ⍝H  ∘ value: Dyalog APL "serial" value, possibly across multiple lines.
+    ⍝ See help info, prefixed with ⍝H, at bottom of this file...
   }
 ⍝ Include:
 ⍝   If ⍵ is a filename (char vector), process the file contents.
 ⍝   Otherwise, process the lines.
 ⍝   Inserts pseudo-macro line:  ::FILE fname
 ⍝ Returns a vector of lines (char vectors)
+  PWD← ¯1↓⊃1 ⎕NPARTS ''         ⍝  Current working directory. Remove terminating '/' 
   Include←{
       INCL_ONCE←⍬
-      CUR_INCLUDE_DIR←⊂∊⎕SH 'pwd'              ⍝ No terminating '/'
-      CUR_FILES←⊂'[TERM]'
-      LAST_INCLUDED_FI← '[NONE]'
+      CUR_INCL_DIR←⊂PWD            
+      CUR_FIS←⊂'[TERM]'
+      LAST_INCL_FI← '[NONE]'
       ScanFi←{
           fn srch←⍵ 
           fn←srch{
-            ⍺: (⊃⌽CUR_INCLUDE_DIR) NGetNameInPath ⍵ ⋄ ⍵
+            ⍺: (⊃⌽CUR_INCL_DIR) NGetNameInPath ⍵ ⋄ ⍵
           }fn
-          CUR_FILES,← ⊂fn
-          CUR_INCLUDE_DIR,←⊂{0=≢⍵: ⊃⌽CUR_INCLUDE_DIR ⋄ ⍵}¯1↓⊃⎕NPARTS fn    ⍝ No terminating '/'
+          CUR_FIS,← ⊂fn
+          CUR_INCL_DIR,←⊂{0=≢⍵: ⊃⌽CUR_INCL_DIR ⋄ ⍵}¯1↓⊃1 ⎕NPARTS fn    ⍝ No terminating '/'
         22::  22 ⎕SIGNAL⍨ 'File "',fn,'" not found in current directory.'  
           ⍺ ScanLn ⊆⊃⎕NGET fn 1  
       }
       ScanLn←{ 
           lns←⍺
-          0=≢⍵: lns ⊣ CUR_FILES↓⍨← ¯1 ⊣ CUR_INCLUDE_DIR↓⍨← ¯1 ⊣ LAST_INCLUDED_FI⊢←⊃⌽CUR_FILES
+          0=≢⍵: lns ⊣ CUR_FIS↓⍨← ¯1 ⊣ CUR_INCL_DIR↓⍨← ¯1 ⊣ LAST_INCL_FI⊢←⊃⌽CUR_FIS
           w0←⊃⍵
         ⍝ ":INCLUDE file_spec" seen?
           ×≢fnVV← includeP ⎕S '\1'⊣w0: { 
@@ -90,10 +47,16 @@
               srch (~∊) SQ DQ '<': 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
               srch←'<'=srch
               (⊂fn)∊INCL_ONCE: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
-              (lns, ('⍝ ',w0,' → ',LAST_INCLUDED_FI) ('::FILE ',DoQuotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
+              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
+          }⍵
+           ×≢specs← libP ⎕S '\1'⊣w0: { 
+             specs←' ' (≠⊆⊢)⊃specs
+             2>≢specs: 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR (no objects specified): ',w0
+             lib objs←(0⊃specs)(1↓specs)
+            ( lns, (⊂'⍝ ',w0),objs CopySrc lib ) ScanLn 1↓⍵
           }⍵
         ⍝ ":PRAGMA ONCE" seen?
-          ×≢pragmaP  ⎕S 0⊣w0: (lns,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ INCL_ONCE,←⊂⊃⌽CUR_FILES 
+          ×≢pragmaP  ⎕S 0⊣w0: (lns,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ INCL_ONCE,←⊂⊃⌽CUR_FIS 
           (lns,⊂w0) ScanLn 1↓⍵
       }
     ⍝ Is ⍵ a simple filename? 
@@ -110,6 +73,9 @@
 ⍝ [1a]:   file spec may not contain blanks (see 1a and 2).  Either single or double quotes may be used.
 ⍝ [2]:    file may be found in search path specified by FSPATH (PMS) or WSPATH (Dyalog)
   includeP← '(?ix) ^\h* :include\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^\h\n]+)> | ([^\h\n]+) )' 
+⍝ :LIB [workspace_name] [obj1 [obj2 [...]]]
+  libP← '^\h*::LIB(?:RARY)?\h+((?:[\w\h]+))$' 
+
 ⍝ :PRAGMA ONCE or :ONCE
   pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
  
@@ -121,13 +87,43 @@
   OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ Utility Fns 
+⍝ CopySrc:  ⍺ CopySrc ⍵
+⍝ ⍵: A named accessible workspace (e.g. 'dfns')
+⍝ ⍺: One or more objects from ⍵, each as a char vector.
+⍝ ⍺ must be a data obj (⎕NC 2), a dfn/dop, a tradfn/tradop. Other objects are ignored.
+⍝ Returns: each object as an executable listing:
+⍝    ⎕NC 
+⍝    2:         name← val (with val as determined by ⎕SE.Dyalog.Utils.repObj)
+⍝    3.1 4.1:   ⎕FX rep ⎕NR val (rep is repObj above)
+⍝    3.2 4.2:   name← val
+⍝ E.g.    'cmpx' 'X' CopySrc 'dfns'
+ CopySrc←{
+     ⍺←⊢ ⋄ ns←⎕NS''
+     ∆CY←ns.{   
+       0:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ ⍺ ⎕CY ⍵
+     }
+     wsid←⍵
+     _←⍺ ∆CY wsid
+   ⍝ 0≠≢ns.⎕NL 2 3 4~⍨⍳10:'Sorry, we only handle fns, ops, and vars'⎕SIGNAL 11
+     ⊃,/wsid∘ns.{
+         Rep←⎕SE.Dyalog.Utils.repObj
+         nc←⎕NC⊂⍵
+        0:: 11 ⎕SIGNAL⍨'::LIB Directive Failed. Object "',⍵,'" cannot be properly represented in source (text) form.'
+         LN←⊂'    ⍝ ::LIB ',⍺,' ',⍵,' [',(⍕nc),']'
+         2=⌊nc:       LN,⊂⍵,    '←',    Rep ⍎⍵      ⍝ Variable (not all can be represented)
+         nc∊3.1 4.1:  LN,⊂⍵,'_src←⎕FX ',Rep ⎕NR ⍵   ⍝ Trad fn/op
+         nc∊3.2 4.2:  LN,                   ⎕NR ⍵   ⍝ Dfn/op
+         ⊂''             ⍝ Missing or ignored objects...
+     }¨ns.⎕NL-⍳10
+ }
+
 ⍝ Fld: Return value of numbered field of ⎕R namespace or '', if it is undefined.
   Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
   AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
   DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
   CondPars←   { ⍺: DoPars ⍵ ⋄ ⍵ }
   CondQuotes← { ⍺: DoQuotes ⍵ ⋄ ⍵ }
-  CondEval←   HERE.{ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
+  CondEval←   HERE.{⎕PP←34 ⋄ ⎕FR←1287 ⋄ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   DoPars←     LP∘,,∘RP
   DoSpaces←   ' '∘,,∘' '
   DoQuotes←   (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
@@ -199,10 +195,13 @@
           ~⊃p⊃M: p⊃V           
           _ isQ notL←p⊃M  ⋄ HERE←##    
         0:: '(∘∘ERR∘∘)'
+          ⎕PP←34 ⋄ ⎕FR←1287
           DoPars⍣notL ⊢ DoQuotes⍣isQ ⊢ ⍕ HERE⍎ p⊃V 
       }
     ⍝ Set: 
-    ⍝      Set key value macro-modes, where macro-modes:  (1 [isQuote notLiteral]]) OR  (0 [rest ignored])
+    ⍝      Set key value [macro-modes], where macro-modes is either:  
+    ⍝      ∘  (1 [isQuote notLiteral]])   
+    ⍝      ∘  (0 [rest ignored])        <== DEFAULT...
     ⍝ Note re <value>: Does NOT convert numeric values to string s. Num values used internally...
       Set←{ 
           k1 v1 m1←3⍴⍵,⊂0 0 0
@@ -212,7 +211,8 @@
           (p⊃M)←m1 
           ⊢(p⊃V)←v1      
       }
-      Del←{ k1←⍵
+      Del←{
+          k1←⍵
           k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
           p←K⍳⊂k1
           p=≢K: ⍵
@@ -258,7 +258,7 @@
 ⍝      L: Literal, Q: Quote after E or L (or both)
 ⍝   R: Evaluate on each macro replacement...
 ⍝      L, Q (as above)
-  defP←       '^\h*:DEF([LQER]*)\h(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
+  defP←       '^\h*:DEF([LQER]*)\h+(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
   undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←     GenBracePat '()'
   brackP←     GenBracePat '[]'
@@ -269,9 +269,9 @@
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
 ⍝ Note: Final \n consumes the newline in order to skip __LINE__ increment.
-  fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'   
+  fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'  
  
-  Scan4Strings← sqP dqP qtErrP comP nlP miscP ⎕R { 
+  Scan4Strings← sqP dqP qtErrP comP nlP miscP  ⎕R { 
         sqI dqI qtErrI←   0 1 2
         CASE← ⍵.PatternNum∘∊
         f0← ⍵ Fld 0
@@ -426,7 +426,7 @@
 
 ⍝ Executive: Preliminaries
   _←(DEBUG/(⊃⎕LC)+⍳30) ⎕STOP ⊃⎕XSI
-
+ DEBUG←1
   HELP: _←HelpInfo ⍬
 
 ⍝ Executive: Initialize Predefined Macros
@@ -442,4 +442,54 @@
 ⍝ Executive Main: Scan the input string ⍵ 
   res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
+
+
+  ⍝H ∆FIX: Preprocess APL code  or a vector of code lines or stored in a file,
+  ⍝H    altering the code based on simple directives (including the ability to insert text from (other) code files), 
+  ⍝H    either returning the transformed code or ⎕FIX-ing the result in the workspace. 
+  ⍝H Directives include: 
+  ⍝H   :INCLUDE [file], :DEF [name←value-string] and variants, :UNDEF [name], and :DECLARE [name←value].
+  ⍝H ∆FIX SYNTAX:
+  ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
+  ⍝H   option_string (a single string with one or more of these words with case ignored):
+  ⍝H     FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.
+  ⍝H     VERBOSE  Show some diagnostic information as ∆FIX preprocesses.
+  ⍝H     DEBUG    Set VERBOSE to 1 and start debugging.
+  ⍝H     PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.
+  ⍝H     ?        Display this "help" information and shyly return ⍬.
+  ⍝H
+  ⍝H Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.
+  ⍝H Otherwise, specify:
+  ⍝H   ∘ without angled brackets <>, i.e. file-spec, or
+  ⍝H   ∘ within quotes, ''file-spec'' or "filespec"
+  ⍝H
+  ⍝H Directives...
+  ⍝H
+  ⍝H :INCLUDE [ file-spec | "file-spec" | <file-spec> ]
+  ⍝H  Insert the named file into the currently active sequence of lines (or character vectors),
+  ⍝H  possibly searching for the file within the active search path.
+  ⍝H  ∘ file-spec OR "file-spec"
+  ⍝H    Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")
+  ⍝H  ∘ <file-spec>
+  ⍝H    Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.
+  ⍝H
+  ⍝H :DEF[L][E][R][Q] name[←]value-string
+  ⍝H  Replace the string <name> with value-string, possibly transformed, wherever the former is found.
+  ⍝H  ∘ Default
+  ⍝H    Default is to replace name with value-string in parentheses.
+  ⍝H  ∘ L -  Literal, suppress the default surrounding parentheses.
+  ⍝H  ∘ E  - Execute value-string when defined and store result as the replacement string.
+  ⍝H    By default (without R), execute exactly once.
+  ⍝H  ∘ R (or ER) - Execute value-string each time it replaces <name>.
+  ⍝H  ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).
+  ⍝H    Just as for L, the default surrounding parentheses are suppressed.
+  ⍝H
+  ⍝H :UNDEF name
+  ⍝H  Remove any special value for name.
+  ⍝H
+  ⍝H :DECLARE name←value
+  ⍝H :DECL name←value
+  ⍝H  Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.
+  ⍝H  More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.
+  ⍝H  ∘ value: Dyalog APL "serial" value, possibly across multiple lines.
 }
