@@ -8,7 +8,7 @@
 ⍝ SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
 ⍝ SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
   SQMULTI_ALLOW←1
-  0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.(EM EN)
+  0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.((EM,m/': ',Message) EN ⊣m←0≠≢Message)
 
 ⍝ Help...
   HelpInfo←{  
@@ -51,8 +51,8 @@
           }⍵
            ×≢specs← libP ⎕S '\1'⊣w0: { 
              specs←' ' (≠⊆⊢)⊃specs
-             2>≢specs: 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR (no objects specified): ',w0
-             lib objs←(0⊃specs)(1↓specs)
+             1≥≢specs: 11 ⎕SIGNAL⍨'∆FIX :LIB ERROR (ws and 1 or more obj names expected): ',w0
+            lib objs←(0⊃specs)(1↓specs)
             ( lns, (⊂'⍝ ',w0),objs CopySrc lib ) ScanLn 1↓⍵
           }⍵
         ⍝ ":PRAGMA ONCE" seen?
@@ -74,7 +74,7 @@
 ⍝ [2]:    file may be found in search path specified by FSPATH (PMS) or WSPATH (Dyalog)
   includeP← '(?ix) ^\h* :include\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^\h\n]+)> | ([^\h\n]+) )' 
 ⍝ :LIB [workspace_name] [obj1 [obj2 [...]]]
-  libP← '^\h*::LIB(?:RARY)?\h+((?:[\w\h]+))$' 
+  libP← '^\h*:LIB(?:RARY)?\b([^⍝\n]*)'   ⍝ Permissively grab args (0 or more) to allow better error msgs...
 
 ⍝ :PRAGMA ONCE or :ONCE
   pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
@@ -87,33 +87,34 @@
   OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ Utility Fns 
-⍝ CopySrc:  ⍺ CopySrc ⍵
-⍝ ⍵: A named accessible workspace (e.g. 'dfns')
-⍝ ⍺: One or more objects from ⍵, each as a char vector.
-⍝ ⍺ must be a data obj (⎕NC 2), a dfn/dop, a tradfn/tradop. Other objects are ignored.
+⍝ CopySrc: Returns the source text of one or more fns, ops, or data objects.
+⍝ See:     The :LIB directive...
+⍝ Syntax:  ⍺ CopySrc ⍵
+⍝   ⍵: A named accessible workspace (e.g. 'dfns')
+⍝   ⍺: One or more objects from ⍵, each as a char vector.
+⍝   ⍺ must be a data obj (⎕NC 2), a dfn/dop, a tradfn/tradop. Other objects are ignored.
 ⍝ Returns: each object as an executable listing:
-⍝    ⎕NC 
-⍝    2:         name← val (with val as determined by ⎕SE.Dyalog.Utils.repObj)
-⍝    3.1 4.1:   ⎕FX rep ⎕NR val (rep is repObj above)
-⍝    3.2 4.2:   name← val
-⍝ E.g.    'cmpx' 'X' CopySrc 'dfns'
+⍝    Type       ⎕NC        Method
+⍝    OBJ        2:         name← Repobj val       (where Repobj is ⎕SE.Dyalog.Utils.repObj)
+⍝    TRADFN/OP  3.1 4.1:   ⎕FX Repobj ⎕NR val  
+⍝    DFN/OP     3.2 4.2:   name← val
+⍝ E.g.    :LIB dfns cmpx X 
+⍝     ==> 'cmpx' 'X' CopySrc 'dfns'
  CopySrc←{
      ⍺←⊢ ⋄ ns←⎕NS''
-     ∆CY←ns.{   
-       0:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ ⍺ ⎕CY ⍵
-     }
+     ∆CY←ns.{ ⍺←⊢ ⋄ ⍺ ⎕CY ⍵ }
      wsid←⍵
      _←⍺ ∆CY wsid
-   ⍝ 0≠≢ns.⎕NL 2 3 4~⍨⍳10:'Sorry, we only handle fns, ops, and vars'⎕SIGNAL 11
+   ⍝ 0≠≢ns.⎕NL 2 3 4~⍨⍳10:'::LIB Directive Failed: 1 or more objects not fns, ops, or simple data vars.'⎕SIGNAL 11
      ⊃,/wsid∘ns.{
          Rep←⎕SE.Dyalog.Utils.repObj
          nc←⎕NC⊂⍵
-        0:: 11 ⎕SIGNAL⍨'::LIB Directive Failed. Object "',⍵,'" cannot be properly represented in source (text) form.'
-         LN←⊂'    ⍝ ::LIB ',⍺,' ',⍵,' [',(⍕nc),']'
+        0:: 11 ⎕SIGNAL⍨':LIB Directive Failed. Object "',⍵,'" cannot be properly represented in source (text) form.'
+         LN←⊂'⍝ *** :LIB ',⍺,' ',⍵,' [',(⍕nc),']'
          2=⌊nc:       LN,⊂⍵,    '←',    Rep ⍎⍵      ⍝ Variable (not all can be represented)
          nc∊3.1 4.1:  LN,⊂⍵,'_src←⎕FX ',Rep ⎕NR ⍵   ⍝ Trad fn/op
          nc∊3.2 4.2:  LN,                   ⎕NR ⍵   ⍝ Dfn/op
-         ⊂''             ⍝ Missing or ignored objects...
+         LN,⊂'⍝ ***   Not a fn or var. Ignored...'             ⍝ Ignored objects...
      }¨ns.⎕NL-⍳10
  }
 
@@ -295,7 +296,6 @@
 
   macroPList← sqP comP numP defP undefP declareP wordP nlP fileIdP
   Scan4Macros← macroPList ⎕R {
-      SYS_DESERIALISE← 0∘⎕SE.Dyalog.Array.Deserialise
       sqI comI numI defI undefI declareI wordI nlI fileIdI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
@@ -330,10 +330,12 @@
           '⍝ ',f0 ⊣ MACROSg.Del f1 
       } ⍵
       CASE declareI:  { 
+      ⎕← ':DECLARE is obsolete. DO NOT USE!!!'
+        D← 0∘⎕SE.Dyalog.Array.Deserialise
         f2←⍵ Fld 2
         nbsp←⎕UCS 160   ⍝ non-breaking space--
         com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
-        scan← f1,'←',SYS_DESERIALISE  Scan4Words f2
+        scan← f1,'←',D  Scan4Words f2
         com,NL,scan
       } ⍵ 
   } ⍠OPTS 
@@ -393,6 +395,18 @@
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
 
+⍝ Currently we allow Deserialization with parens and brackets ONLY on assignment
+  parenBrackP← '(←\h*)(',parenP,'|',brackP,')'
+  serialPList← parenBrackP sqP dqP comP 
+  Scan4Serial← serialPList ⎕R {
+      parenBrackI← 0
+      CASE←⍵.PatternNum∘∊
+      D←0∘⎕SE.Dyalog.Array.Deserialise
+    CASE parenBrackI:  (⍵ Fld 1),D ⍵ Fld 2  
+  ⍝ ELSE
+      ⍵ Fld 0      ⍝  skip quotes and comments...
+  } ⍠OPTS
+
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
   Scan4Semicolons←{ 
@@ -415,7 +429,8 @@
         ⍝ Directly inside parens, semicolons are treated specially...
         ⍝ Otherwise, let APL handle semicolons.
           ch∊SEMI DIAMOND: ⍺{ LP=⊃⌽stack:(⍺,')(') NextCh ⍵ ⋄ (⍺,ch)NextCh ⍵ }⍵
-          ch=SP: (⍺,ch) NextCh ⍵ + 0 (¯1++/∧\SP=startCix↓thisL)
+        ⍝ Optional: Remove leading blanks (decreases readability, but makes lines more compact)
+        ⍝    ch=SP: (⍺,ch) NextCh ⍵ + 0 (¯1++/∧\SP=startCix↓thisL)
           (⍺,ch) NextCh ⍵
      }
      NextCh← ScanCharAt∘(0 1∘+)
@@ -440,7 +455,7 @@
   _←MACROSg.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
 ⍝ Executive Main: Scan the input string ⍵ 
-  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include ⍵
+  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include Scan4Serial ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
 
 
@@ -448,7 +463,11 @@
   ⍝H    altering the code based on simple directives (including the ability to insert text from (other) code files), 
   ⍝H    either returning the transformed code or ⎕FIX-ing the result in the workspace. 
   ⍝H Directives include: 
-  ⍝H   :INCLUDE [file], :DEF [name←value-string] and variants, :UNDEF [name], and :DECLARE [name←value].
+  ⍝H   :INCLUDE [file] 
+  ⍝H   :LIB wsid obj1 [obj2 ...]
+  ⍝H   :DEF [name←value-string] and variants 
+  ⍝H   :UNDEF [name] 
+  ⍝H   :DECLARE [name←value]
   ⍝H ∆FIX SYNTAX:
   ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
   ⍝H   option_string (a single string with one or more of these words with case ignored):
@@ -484,6 +503,15 @@
   ⍝H  ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).
   ⍝H    Just as for L, the default surrounding parentheses are suppressed.
   ⍝H
+  ⍝H  :LIB wsid obj1 [obj2 ...],  where  (⎕NC 'objN')∊2 3 4
+  ⍝H  Copy the source text for objects (all in nameclasses 2 3 4) into the text stream
+  ⍝H  as if entered directly. 
+  ⍝H  ∘ Variables are assigned on a single (possibly long) line;
+  ⍝H  ∘ Dfns/dops are assigned as ordinarily established within fns or operators;
+  ⍝H  ∘ traditional fns and ops are assigned via ⎕FX, via a single (possibly long) 
+  ⍝H    vector of char vectors.
+  ⍝H  At least one object MUST be present.
+  ⍝H 
   ⍝H :UNDEF name
   ⍝H  Remove any special value for name.
   ⍝H
