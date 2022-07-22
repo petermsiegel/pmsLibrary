@@ -16,6 +16,7 @@
       ⎕ED 'H'
     ⍝ See help info, prefixed with ⍝H, at bottom of this file...
   }
+
 ⍝ Include:
 ⍝   If ⍵ is a filename (char vector), process the file contents.
 ⍝   Otherwise, process the lines.
@@ -147,6 +148,7 @@
       bad:         22 ⎕SIGNAL⍨'File "',⍵,' not found in search path!'
       ⊃fnd
   }
+
 ⍝ Regexp Alignment Fns 
 ⍝ AlignLeft: No Leading Blanks...
   AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
@@ -224,10 +226,13 @@
     ⍝ Double ⎕NS to ensure we 1) are child of <HERE>, and 2) can see and copy in this list of variables...
       HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'DoQuotes' 'DoPars' 
   }
+
 ⍝ GenBracePat '{}' etc.
 ⍝ Returned pattern matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
   GenBracePat←{
-        ⎕IO←0 ⋄ ⍺←⎕A[,⍉(≢⎕A)⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  ⍝ ⍺: defaults to a generated unique name based on ⍵
+        ⎕IO←0 
+      ⍝ ⍺: defaults to a generated unique name based on ⍵
+        ⍺←⎕A[,⍉(≢⎕A)⊥⍣¯1⊢ ⎕UCS ⍵] ⋄ Nm←⍺  
         Lb Rb←⍵,⍨¨⊂'\\'                     
         pM←'(?: (?J) (?<Nm> Lb  (?> [^LbRb''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&Nm)* )+ Rb))'~' '
         'Nm' 'Lb' 'Rb'⎕R Nm Lb Rb⊣pM
@@ -263,9 +268,7 @@
   undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←     GenBracePat '()'
   brackP←     GenBracePat '[]'
-⍝ :DECLare
-⍝ Allows only:   :DECLare name←value
-  declareP←   '^\h*:(?:DECLARE|DECL)\h([^←]+)←\h*((?:',parenP,'|',brackP,'|[^[({\n]+)*)$'
+  parenBrackP← '(←\h*)(',parenP,'|',brackP,')'
 ⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
@@ -294,9 +297,9 @@
         f0 
   } ⍠OPTS  
 
-  macroPList← sqP comP numP defP undefP declareP wordP nlP fileIdP
+  macroPList← sqP comP numP defP undefP wordP nlP fileIdP
   Scan4Macros← macroPList ⎕R {
-      sqI comI numI defI undefI declareI wordI nlI fileIdI← ⍳≢macroPList
+      sqI comI numI defI undefI wordI nlI fileIdI← ⍳≢macroPList
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
     ⍝ fileId: Special internal directive that doesn't increase __LINE__
@@ -329,15 +332,6 @@
           extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
           '⍝ ',f0 ⊣ MACROSg.Del f1 
       } ⍵
-      CASE declareI:  { 
-      ⎕← ':DECLARE is obsolete. DO NOT USE!!!'
-        D← 0∘⎕SE.Dyalog.Array.Deserialise
-        f2←⍵ Fld 2
-        nbsp←⎕UCS 160   ⍝ non-breaking space--
-        com← '\A' '\n' ⎕R '⍝ ' ('\n⍝',10⍴nbsp)⍠OPTS⊢f0
-        scan← f1,'←',D  Scan4Words f2
-        com,NL,scan
-      } ⍵ 
   } ⍠OPTS 
 
   Scan4Words←{
@@ -396,12 +390,15 @@
   } ⍠OPTS
 
 ⍝ Currently we allow Deserialization with parens and brackets ONLY on assignment
-  parenBrackP← '(←\h*)(',parenP,'|',brackP,')'
+⍝ I.e. we serialise 
+⍝        ← (anything)
+⍝        ← [anything]
+⍝ Deserialise may fail in certain cases. If so, we fall back to leaving the text as is...
   serialPList← parenBrackP sqP dqP comP 
   Scan4Serial← serialPList ⎕R {
-      parenBrackI← 0
+      parenBrackI← 0                    ⍝ Vs "other" [ELSE below]
       CASE←⍵.PatternNum∘∊
-      D←0∘⎕SE.Dyalog.Array.Deserialise
+      D←{0:: ⍵⊢⎕←'Scan4Serial: Deserialise failed on string "',⍵,'"' ⋄ 0∘⎕SE.Dyalog.Array.Deserialise ⍵}
     CASE parenBrackI:  (⍵ Fld 1),D ⍵ Fld 2  
   ⍝ ELSE
       ⍵ Fld 0      ⍝  skip quotes and comments...
@@ -467,7 +464,6 @@
   ⍝H   :LIB wsid obj1 [obj2 ...]
   ⍝H   :DEF [name←value-string] and variants 
   ⍝H   :UNDEF [name] 
-  ⍝H   :DECLARE [name←value]
   ⍝H ∆FIX SYNTAX:
   ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
   ⍝H   option_string (a single string with one or more of these words with case ignored):
@@ -515,9 +511,18 @@
   ⍝H :UNDEF name
   ⍝H  Remove any special value for name.
   ⍝H
-  ⍝H :DECLARE name←value
-  ⍝H :DECL name←value
+  ⍝H Other Constructs
+  ⍝H ¨¨¨¨¨ ¨¨¨¨¨¨¨¨¨¨
+  ⍝H Assign APL Serial Values to named expression
+  ⍝H   name← (value ⋄ value ...)              Assign one or more vector expressions
+  ⍝H   name← (key: value ⋄ key: value ...)    Assign to variables keyN in namespace <name>
+  ⍝H   name← ()                               Assign ⎕NS⍬
+  ⍝H   name← [value ⋄ value ...]              Assign array expression
+  ⍝H where ⋄ represents a statement end via ⋄ or a newline/carriage return.
   ⍝H  Assign the Dyalog APL "serial" (possibly multiline) value to the named variable.
   ⍝H  More precisely, insert a single-line version of the value string into the resulting stream of char. vectors.
   ⍝H  ∘ value: Dyalog APL "serial" value, possibly across multiple lines.
+  ⍝H Note: APL Serial Values (as envisioned) are not required to be assigned. 
+  ⍝H       We limit use here to assignments because of limitations in the syntax scanning 
+  ⍝H       here and in ⎕SE.Dyalog.Array.Deserialise.
 }
