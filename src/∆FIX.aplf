@@ -268,8 +268,6 @@
   undefP←       '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←       GenBracePat '()'
   brackP←       GenBracePat '[]'
-⍝ serialP: see fn Scan4Serial
-  serialP←     '(', parenP, '|', brackP, ')'
 ⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
@@ -395,25 +393,30 @@
 ⍝        ← (anything)
 ⍝        ← [anything]
 ⍝ Deserialise may fail in certain cases. If so, we fall back to leaving the text as is...
-  serialPList← serialP sqP dqP comP 
-  Scan4Serial← serialPList ⎕R {
-      serialI← 0                        ⍝ Vs "other" [ELSE below]
+  dSerPList← parenP brackP sqP dqP comP 
+  Scan4Serial← dSerPList ⎕R {
+      parenI brackI← 0 1                    
       CASE←⍵.PatternNum∘∊
       F0←⍵ Fld 0
-    ~CASE serialI:        F0            ⍝  skip quotes and comments...
-    ~_ScanKludge F0: F0            
-      D←{0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' ⋄ 0∘⎕SE.Dyalog.Array.Deserialise ⍵}
-      D ⍵ Fld 1  
+    CASE parenI: _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
+    CASE brackI: _Dser⍣(_SerKludge F0)⊣ F0  ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)
+      F0    
   } ⍠OPTS
-⍝ _ScanKludge ⍵: Return 1 if the scan has a "top level" '⋄' or newline.
-⍝ Required becaose ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
-  braceP←GenBracePat'{}'
-  scanPList←   sqP dqP comP braceP parenP brackP'\R'
-  scanAction←  out←  ''  ''  ''   ''     ''     ''    '⋄'
-  _ScanKludge←{
+  _Dser←{
+    0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
+    0∘⎕SE.Dyalog.Array.Deserialise ⍵
+  }
+⍝ _SerKludge ⍵: Return 1 
+⍝    if the scan of a [...] or (...) sequence has a "top level" '⋄' or newline
+⍝    or is empty.
+⍝ Required because ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
+  braceP←GenBracePat'{}'                         ⍝ Only used here...
+  serPList←   sqP parenP brackP braceP '\R'      ⍝ No dqP, must be already handled.
+  serAction←  ''  ''     ''     ''     '⋄'
+  _SerKludge←{
      opts← ('Mode' 'M')('ResultText' 'Simple')
-     '⋄'∊ scanPList ⎕R scanAction ⍠ opts⊢1↓¯1↓⍵
- }
+     '⋄'∊ serPList ⎕R serAction ⍠ opts⊢1↓¯1↓⍵
+  }
 
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
