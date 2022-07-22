@@ -268,6 +268,8 @@
   undefP←       '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
   parenP←       GenBracePat '()'
   brackP←       GenBracePat '[]'
+  braceP←       GenBracePat '{}'                         
+
 ⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
@@ -388,35 +390,33 @@
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
 
-⍝ Currently we allow Deserialization with parens and brackets ONLY on assignment
-⍝ I.e. we serialise 
-⍝        ← (anything)
-⍝        ← [anything]
+⍝ Support (and "Compile") Proposed Extended APL Array Specifications.
+⍝ Scan4Serial: Calls ⎕SE.Dyalog.Array.Deserialise when required expressions are detected...
 ⍝ Deserialise may fail in certain cases. If so, we fall back to leaving the text as is...
-  dSerPList← parenP brackP sqP dqP comP 
+  dSerPList← parenP brackP (DoPars sqP, '|', comP) 
   Scan4Serial← dSerPList ⎕R {
-      parenI brackI← 0 1                    
-      CASE←⍵.PatternNum∘∊
-      F0←⍵ Fld 0
-    CASE parenI: _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
-    CASE brackI: _Dser⍣(_SerKludge F0)⊣ F0  ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)
-      F0    
+        skipI brackI← 2 1                  
+        CASE←⍵.PatternNum∘∊
+        F0←⍵ Fld 0
+      CASE skipI:  F0  
+      CASE brackI: _Dser⍣(_IsMultiStmt F0)⊣ F0  ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)  
+    ⍝ ELSE paren expression
+                  _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
   } ⍠OPTS
   _Dser←{
-    0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
-    0∘⎕SE.Dyalog.Array.Deserialise ⍵
+      0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
+      0∘⎕SE.Dyalog.Array.Deserialise ⍵
   }
-⍝ _SerKludge ⍵: Return 1 
-⍝    if the scan of a [...] or (...) sequence has a "top level" '⋄' or newline
-⍝    or is empty.
-⍝ Required because ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
-  braceP←GenBracePat'{}'                         ⍝ Only used here...
-  serPList←   sqP parenP brackP braceP '\R'      ⍝ No dqP, must be already handled.
-  serAction←  ''  ''     ''     ''     '⋄'
-  _SerKludge←{
-     opts← ('Mode' 'M')('ResultText' 'Simple')
-     '⋄'∊ serPList ⎕R serAction ⍠ opts⊢1↓¯1↓⍵
-  }
+⍝ _IsMultiStmt ⍵: 
+⍝  Returns 1 
+⍝  ∘ If obj, a simple char vector inside matching parens or brackets, is 
+⍝    a Serial (extended format) code expression, e.g. of format:
+⍝        [...⋄...] OR (...⋄...) OR ( ) 
+⍝    where ⋄ is either a top-level '⋄' or newline
+⍝  ∘ Else returns 0
+⍝  Required because ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
+  isMultiPList← ( DoPars sqP,'|', parenP,'|', brackP,'|', braceP ) '\R'      ⍝ No dqP, must be already handled.
+  _IsMultiStmt← { '⋄'∊ isMultiPList ⎕R  '' '⋄' ⍠ ('Mode' 'M')⊢1↓¯1↓⍵ }
 
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
