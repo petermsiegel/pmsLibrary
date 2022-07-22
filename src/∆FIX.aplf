@@ -264,11 +264,12 @@
 ⍝      L: Literal, Q: Quote after E or L (or both)
 ⍝   R: Evaluate on each macro replacement...
 ⍝      L, Q (as above)
-  defP←       '^\h*:DEF([LQER]*)\h+(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
-  undefP←     '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
-  parenP←     GenBracePat '()'
-  brackP←     GenBracePat '[]'
-  parenBrackP← '(←\h*)(',parenP,'|',brackP,')'
+  defP←         '^\h*:DEF([LQER]*)\h+(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
+  undefP←       '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
+  parenP←       GenBracePat '()'
+  brackP←       GenBracePat '[]'
+⍝ serialP: see fn Scan4Serial
+  serialP←     '(', parenP, '|', brackP, ')'
 ⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
@@ -394,19 +395,30 @@
 ⍝        ← (anything)
 ⍝        ← [anything]
 ⍝ Deserialise may fail in certain cases. If so, we fall back to leaving the text as is...
-  serialPList← parenBrackP sqP dqP comP 
+  serialPList← serialP sqP dqP comP 
   Scan4Serial← serialPList ⎕R {
-      parenBrackI← 0                    ⍝ Vs "other" [ELSE below]
+      serialI← 0                        ⍝ Vs "other" [ELSE below]
       CASE←⍵.PatternNum∘∊
-      D←{0:: ⍵⊢⎕←'Scan4Serial: Deserialise failed on string "',⍵,'"' ⋄ 0∘⎕SE.Dyalog.Array.Deserialise ⍵}
-    CASE parenBrackI:  (⍵ Fld 1),D ⍵ Fld 2  
-  ⍝ ELSE
-      ⍵ Fld 0      ⍝  skip quotes and comments...
+      F0←⍵ Fld 0
+    ~CASE serialI:        F0            ⍝  skip quotes and comments...
+    ~_ScanKludge F0: F0            
+      D←{0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' ⋄ 0∘⎕SE.Dyalog.Array.Deserialise ⍵}
+      D ⍵ Fld 1  
   } ⍠OPTS
+⍝ _ScanKludge ⍵: Return 1 if the scan has a "top level" '⋄' or newline.
+⍝ Required becaose ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
+  braceP←GenBracePat'{}'
+  scanPList←   sqP dqP comP braceP parenP brackP'\R'
+  scanAction←  out←  ''  ''  ''   ''     ''     ''    '⋄'
+  _ScanKludge←{
+     opts← ('Mode' 'M')('ResultText' 'Simple')
+     '⋄'∊ scanPList ⎕R scanAction ⍠ opts⊢1↓¯1↓⍵
+ }
 
 ⍝ Semicolon disambiguation:   
 ⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
   Scan4Semicolons←{ 
+    ⎕←'Scan4Semicolons: Deprecated. Don''t use!!!'
       LP RP LBk RBk LBc RBc SQ SP SEMI DIAMOND←'()[]{}'' ;⋄'
     ⍝ Stack shared across lines to keep track of dfns braces {}
       lines thisL stack ⎕IO← ⍵ '' ⍬ 0
@@ -452,7 +464,8 @@
   _←MACROSg.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
 ⍝ Executive Main: Scan the input string ⍵ 
-  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include Scan4Serial ⍵
+⍝ Was:  res← Scan4Semicolons Scan4Specials Scan4Macros Scan4Strings Include Scan4Serial ⍵
+    res← Scan4Specials Scan4Macros Scan4Serial Scan4Strings Include  ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
 
 
