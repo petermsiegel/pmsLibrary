@@ -399,9 +399,13 @@
         CASE←⍵.PatternNum∘∊
         F0←⍵ Fld 0
       CASE skipI:  F0  
-      CASE brackI: _Dser⍣(_IsMultiStmt F0)⊣ F0  ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)  
+    ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)  
+      CASE brackI: {
+        ⍵:  _Dser F0
+        '[',']',⍨ Scan4Serial 1↓¯1↓F0 
+      } _IsMultiStmt F0
     ⍝ ELSE paren expression
-                  _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
+        _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
   } ⍠OPTS
   _Dser←{
       0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
