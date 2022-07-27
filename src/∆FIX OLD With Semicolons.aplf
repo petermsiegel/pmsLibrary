@@ -3,9 +3,8 @@
   HERE← ⊃⎕RSI 
 ⍝ See HelpInfo for documentation
   2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
-  FIX VERBOSE DEBUG __TRACE__ PATH HELP←'fix' 'verbose' 'debug' '__trace__' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
+  FIX VERBOSE DEBUG PATH HELP←'fix' 'verbose' 'debug' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
   VERBOSE∨← DEBUG 
-
 ⍝ SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
 ⍝ SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
   SQMULTI_ALLOW←1
@@ -278,10 +277,7 @@
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
 ⍝ Note: Final \n consumes the newline in order to skip __LINE__ increment.
   fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'  
-
-⍝ multiSkipP: See Scan4Serial
-  multiSkipP← sqP,'|', parenP,'|', brackP,'|', braceP    
-
+ 
   Scan4Strings← sqP dqP qtErrP comP nlP miscP  ⎕R { 
         sqI dqI qtErrI←   0 1 2
         CASE← ⍵.PatternNum∘∊
@@ -425,13 +421,45 @@
 ⍝    where ⋄ is either a top-level '⋄' or newline
 ⍝  ∘ Else returns 0
 ⍝  Required because ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
-⍝ No dqP, must be already handled.  
-  _IsMultiStmt← { '⋄' ∊ multiSkipP '\R' ⎕R  '' '⋄' ⍠ 'Mode' 'M'⊢1↓¯1↓⍵ }
+  isMultiPList← ( DoPars sqP,'|', parenP,'|', brackP,'|', braceP ) '\R'      ⍝ No dqP, must be already handled.
+  _IsMultiStmt← { '⋄'∊ isMultiPList ⎕R  '' '⋄' ⍠ ('Mode' 'M')⊢1↓¯1↓⍵ }
 
-⍝ --------------------------------------------------------------------------------------------
-⍝ --------------------------------------------------------------------------------------------
+⍝ Semicolon disambiguation:   
+⍝       (...;...) vs [...;...] vs bare ;, e.g. in tradfn headers.
+  Scan4Semicolons←{ 
+    ⎕←'Scan4Semicolons: Deprecated. Don''t use!!!'
+      LP RP LBk RBk LBc RBc SQ SP SEMI DIAMOND←'()[]{}'' ;⋄'
+    ⍝ Stack shared across lines to keep track of dfns braces {}
+      lines thisL stack ⎕IO← ⍵ '' ⍬ 0
+      ScanLn←{ ⍵≥≢lines: ⍺ ⋄ thisL⊢← ⍵⊃lines ⋄ (⍺,⊂'' ScanCharAt ⍵ 0) ∇ ⍵+1 }
+      ScanCharAt←{
+          startLix startCix← ⍵ 
+          startCix ≥ ≢thisL: ⍺ 
+          ch← startCix⊃thisL
+          ch∊SQ:⍺{
+            ⍝ Search for closing quote. Adjust if not present (though other Scan4Strings will capture)...
+              endCix← ch⍳⍨curLC← ⍵↓thisL  
+              endCix+←  (≢curLC) > endCix
+              (⍺,ch,endCix↑curLC) NextCh startLix(⍵+endCix-1)  
+          }startCix + 1 
+          ch∊LP LBk LBc: (⍺,ch) NextCh ⍵⊣ stack,←ch
+          ch∊RP RBk RBc: (⍺,ch) NextCh ⍵⊣ stack↓⍨←¯1
+        ⍝ Directly inside parens, semicolons are treated specially...
+        ⍝ Otherwise, let APL handle semicolons.
+          ch∊SEMI DIAMOND: ⍺{ LP=⊃⌽stack:(⍺,')(') NextCh ⍵ ⋄ (⍺,ch)NextCh ⍵ }⍵
+        ⍝ Optional: Remove leading blanks (decreases readability, but makes lines more compact)
+        ⍝    ch=SP: (⍺,ch) NextCh ⍵ + 0 (¯1++/∧\SP=startCix↓thisL)
+          (⍺,ch) NextCh ⍵
+     }
+     NextCh← ScanCharAt∘(0 1∘+)
+     ⍬ ScanLn 0
+  }
+
+⍝ --------------------------------------------
 
 ⍝ Executive: Preliminaries
+    _←(DEBUG/(⊃⎕LC)+⍳30) ⎕STOP ⊃⎕XSI
+    DEBUG←1
     HELP: _←HelpInfo ⍬
 
 ⍝ Executive: Initialize Predefined Macros
@@ -444,7 +472,6 @@
   _←MACROS.Set '__FILE__'  (DoSpaces DoQuotes'[TERM]')
   _←MACROS.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
-  DEBUG∧~__TRACE__: ('__TRACE__ ',⍺) (⍎⊃⎕XSI) ⍵⊣  (2 3+⊃⎕LC) ⎕STOP ⊃ ⎕XSI     
 ⍝ Executive Main: Scan the input string ⍵ 
     res← Scan4Specials Scan4Macros Scan4Serial Scan4Strings Include  ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
