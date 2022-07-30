@@ -1,7 +1,7 @@
 ﻿∆FIX←{   
   ⍺←'' ⋄   ⎕IO← 0   
-  HERE← ⊃⎕RSI 
-⍝ See HelpInfo for documentation
+  HERE ME← ⊃¨⎕RSI ⎕XSI 
+⍝ See HelpInfo for documentation.  (__TRACE__ is a hidden, internal option triggered by DEBUG)
   2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
   FIX VERBOSE DEBUG __TRACE__ PATH HELP←'fix' 'verbose' 'debug' '__trace__' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
   VERBOSE∨← DEBUG 
@@ -13,9 +13,15 @@
 
 ⍝ Help...
   HelpInfo←{  
-      H←'^\h*⍝H ?(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI
+      H←'^\h*⍝H ?(.*)' ⎕S '\1'⊣⎕NR ME
       ⎕ED 'H'
     ⍝ See help info, prefixed with ⍝H, at bottom of this file...
+  }
+
+⍝ DEBUG TRACE Mode
+  Trace ← { 
+      opts←'__TRACE__ ',⍺ 
+      (⍬ ⎕STOP ME) ⊢opts (⍎ME) ⍵⊣ (⍺⍺ ⎕STOP ME) 
   }
 
 ⍝ Include:
@@ -444,7 +450,7 @@
   _←MACROS.Set '__FILE__'  (DoSpaces DoQuotes'[TERM]')
   _←MACROS.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
-  DEBUG∧~__TRACE__: ('__TRACE__ ',⍺) (⍎⊃⎕XSI) ⍵⊣  (2 3+⊃⎕LC) ⎕STOP ⊃ ⎕XSI     
+  DEBUG∧~__TRACE__: ⍺ ((2 3+⊃⎕LC) Trace) ⍵  
 ⍝ Executive Main: Scan the input string ⍵ 
     res← Scan4Specials Scan4Macros Scan4Serial Scan4Strings Include  ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
