@@ -1,7 +1,15 @@
 ﻿∆FIX←{   
-  ⍺←'' ⋄   ⎕IO← 0   
+  ⍝ CONSTANTS 
+  ⎕IO← 0   
   HERE ME← ⊃¨⎕RSI ⎕XSI 
-⍝ See HelpInfo for documentation.  (__TRACE__ is a hidden, internal option triggered by DEBUG)
+  SQ DQ LP RP←'''"()' 
+  CR NL←⎕UCS 13 10 
+  DQ2← DQ,DQ
+  OPTS← ('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
+
+⍝ Options (⍺).  See HelpInfo (⍝H comments) for documentation
+  ⍺←'' 
+⍝ __TRACE__ is a hidden, internal option triggered by DEBUG
   2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
   FIX VERBOSE DEBUG __TRACE__ PATH HELP←'fix' 'verbose' 'debug' '__trace__' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
   VERBOSE∨← DEBUG 
@@ -61,7 +69,7 @@
               srch (~∊) SQ DQ '<': 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
               srch←'<'=srch
               (⊂fn)∊INCL_ONCE: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
-              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotes fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
+              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotesX fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
           }⍵
            ×≢specs← libP ⎕S '\1'⊣w0: { 
              specs←' ' (≠⊆⊢)⊃specs
@@ -77,23 +85,10 @@
     ⍝ If so, include it (ScanFi)...
     ⍝ Pass on to next phase the name of the file via "::FILE name"
     ⍝ If PATH is 1, will search the PATH (see NGetNameInPath)
-      1≥|≡⍵: (⊂'::FILE ',DoQuotes ⍵) ScanFi ⍵ PATH
+      1≥|≡⍵: (⊂'::FILE ',DoQuotesX ⍵) ScanFi ⍵ PATH
     ⍝ If not, scan line by line
       ⍬ ScanLn ⍵
   }  
-  
-⍝ :LIB [workspace_name] [obj1 [obj2 [...]]]
-  libP← '^\h*:LIB(?:RARY)?\b([^⍝\n]*)'   ⍝ Permissively grab args (0 or more) to allow better error msgs...
-
-⍝ :PRAGMA ONCE or :ONCE
-  pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
- 
-⍝ CONSTANTS 
-  SQ DQ LP RP←'''"()' 
-  CR NL←⎕UCS 13 10 
-  DQ2←DQ,DQ
-  QSEP←SQ,' ',SQ       ⍝ QSEP: Separates Two Quote Strings 
-  OPTS←('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ Utility Fns 
 ⍝ CopySrc: Returns the source text of one or more fns, ops, or data objects.
@@ -129,14 +124,15 @@
 
 ⍝ Fld: Return value of numbered field of ⎕R namespace or '', if it is undefined.
   Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
-  AddSQs←     { SQ,SQ,⍨∊(⊂QSEP)@(NL∘=)⊢⍵ }            ⍝ Add single quotes to each quoted string...
-  DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }            ⍝ Internal double quotes to single quotes 
+  S2VS←       { sep←⊂SQ,' ',SQ ⋄ DoQuotes ∊sep@(NL∘=)⊢⍵ }    ⍝ Convert <NL-separated SQ string> ==> <V of strings>.
+  DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }                   ⍝ Internal double quotes to single quotes 
   CondPars←   { ⍺: DoPars ⍵ ⋄ ⍵ }
-  CondQuotes← { ⍺: DoQuotes ⍵ ⋄ ⍵ }
+  CondQuotes← { ⍺: DoQuotesX ⍵ ⋄ ⍵ }
   CondEval←   HERE.{⎕PP←34 ⋄ ⎕FR←1287 ⋄ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
   DoPars←     LP∘,,∘RP
   DoSpaces←   ' '∘,,∘' '
-  DoQuotes←   (SQ∘,,∘SQ)(⊢⊢⍤/⍨1+SQ∘=)
+  DoQuotes←   SQ∘,,∘SQ
+  DoQuotesX←  DoQuotes(⊢⊢⍤/⍨1+SQ∘=)
   DLB←        {⍵↓⍨ +/∧\ ⍵=' '}
   DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}    
   HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
@@ -208,7 +204,7 @@
           _ isQ notL←p⊃M  ⋄ HERE←##    
         0:: '(∘∘ERR∘∘)'
           ⎕PP←34 ⋄ ⎕FR←1287
-          DoPars⍣notL ⊢ DoQuotes⍣isQ ⊢ ⍕ HERE⍎ p⊃V 
+          DoPars⍣notL ⊢ DoQuotesX⍣isQ ⊢ ⍕ HERE⍎ p⊃V 
       }
     ⍝ Set: 
     ⍝      Set key value [macro-modes], where macro-modes is either:  
@@ -233,7 +229,7 @@
           ⍵
       }  
     ⍝ Double ⎕NS to ensure we 1) are child of <HERE>, and 2) can see and copy in this list of variables...
-      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'DoQuotes' 'DoPars' 
+      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'DoQuotesX' 'DoPars' 
   }
 
 ⍝ GenBracePat '{}' etc.
@@ -266,7 +262,11 @@
   wordP←      DoPars _wordP
   quotLftP←   '(?|(?<='')|',wordP,')\h*→'
   quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
-  quotRgtErrP←'`'    
+  quotRgtErrP←'`'  
+  ⍝ :LIB [workspace_name] [obj1 [obj2 [...]]]
+  libP← '^\h*:LIB(?:RARY)?\b([^⍝\n]*)'   ⍝ Permissively grab args (0 or more) to allow better error msgs...
+⍝ :PRAGMA ONCE or :ONCE
+  pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
 ⍝ :DEF (with optional additive suffixes E, L, and/or Q)
 ⍝   Allows :DEF name← value  AND   :DEF name value
 ⍝   E: Evaluate on macro definition;
@@ -278,15 +278,14 @@
   parenP←       GenBracePat '()'
   brackP←       GenBracePat '[]'
   braceP←       GenBracePat '{}'                         
-
 ⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
 ⍝ It matches 
 ⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
 ⍝ Note: Final \n consumes the newline in order to skip __LINE__ increment.
   fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'  
-
-⍝ multiSkipP: See Scan4Serial
-  multiSkipP← sqP,'|', parenP,'|', brackP,'|', braceP    
+⍝ multiSkipP, simpleSkipP: See Scan4Serial
+  multiSkipP←   sqP, '|', parenP,'|', brackP,'|', braceP  
+  simpleSkipP←  sqP, '|', comP
 
   Scan4Strings← sqP dqP qtErrP comP nlP miscP  ⎕R { 
         sqI dqI qtErrI←   0 1 2
@@ -296,7 +295,7 @@
       ⍝ See AlignLeft for details.
         CASE sqI:  { 
             multi←NL∊f0
-            res← multi∘CondPars AddSQs AlignLeft StripTB Strip1LR f0
+            res← multi∘CondPars S2VS AlignLeft StripTB Strip1LR f0
             SQMULTI_ALLOW ∨ ~multi: res 
             qtE←'∆FIX QUOTE ERROR: Use doublequotes ("...") for multi-line strings:'
             11 ⎕SIGNAL⍨qtE,CR,'[Line] ',res 
@@ -304,7 +303,7 @@
       ⍝ DQ strings are by definition aligned such that a bare first line of the quote is ignored, and
       ⍝ each line is aligned with the first full line which establishes the left margin.
       ⍝ See AlignMarg for details.
-        CASE dqI:  (NL∊f0)∘CondPars AddSQs AlignMarg StripTB DQ2SQ Strip1LR f0
+        CASE dqI:  (NL∊f0)∘CondPars S2VS AlignMarg StripTB DQ2SQ Strip1LR f0
         CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...' 
       ⍝ ELSE...
         f0 
@@ -316,7 +315,7 @@
       CASE← ⍵.PatternNum∘∊
       f0← ⍵ Fld 0 
     ⍝ fileId: Special internal directive that doesn't increase __LINE__
-      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROS.Set '__FILE__'  (DoSpaces DoQuotes ⍵ Fld 1)
+      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROS.Set '__FILE__'  (DoSpaces DoQuotesX ⍵ Fld 1)
     ⍝ __LINE__ dictionary value is an integer ≥1.
       _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
       CASE sqI comI numI: f0 
@@ -404,35 +403,25 @@
 
 ⍝ Support (and "Compile") Proposed Extended APL Array Specifications.
 ⍝ Scan4Serial: Calls ⎕SE.Dyalog.Array.Deserialise when required expressions are detected...
-⍝ Deserialise may fail in certain cases. If so, we fall back to leaving the text as is...
-  dSerPList← parenP brackP (DoPars sqP, '|', comP) 
+⍝ Deserialise may fail in certain cases (since it's not really complete). If so, we fall back to leaving the text as is...
+  dSerPList← simpleSkipP parenP brackP 
   Scan4Serial← dSerPList ⎕R {
-        skipI brackI← 2 1                  
+        simpleSkipI← 0                 
         CASE←⍵.PatternNum∘∊
         F0←⍵ Fld 0
-      CASE skipI:  F0  
-    ⍝ Calls Deserialise only if special case (top-level '⋄' or NL)  
-      CASE brackI: {
-        ⍵:  _Dser F0
-        '[',']',⍨ Scan4Serial 1↓¯1↓F0 
-      } _IsMultiStmt F0
-    ⍝ ELSE paren expression
-        _Dser F0                   ⍝ Handles non-special cases and special cases, including ()
+      CASE simpleSkipI:  F0  
+    ⍝ ELSE: paren or bracket expression...
+        Scan4Serial {
+            0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
+            D← 0∘⎕SE.Dyalog.Array.Deserialise 
+            '('=1↑⍵: D ⍵
+            ⍝ This in part duplicates state known to Deserialise,  
+            ⍝ but avoids creating a shadow copy of Deserialise
+            multi← { '⋄' ∊ multiSkipP '\R' ⎕R  '' '⋄' ⍠ 'Mode' 'M'⊢1↓¯1↓⍵ } ⍵
+            multi: D ⍵
+            '[',']',⍨ ⍺⍺ 1↓¯1↓⍵
+        }⊢ F0 
   } ⍠OPTS
-  _Dser←{
-      0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
-      0∘⎕SE.Dyalog.Array.Deserialise ⍵
-  }
-⍝ _IsMultiStmt ⍵: 
-⍝  Returns 1 
-⍝  ∘ If obj, a simple char vector inside matching parens or brackets, is 
-⍝    a Serial (extended format) code expression, e.g. of format:
-⍝        [...⋄...] OR (...⋄...) OR ( ) 
-⍝    where ⋄ is either a top-level '⋄' or newline
-⍝  ∘ Else returns 0
-⍝  Required because ⎕SE.Dyalog.Array.Serialise treats any variant of [...] as a Serial code expression. 
-⍝ No dqP, must be already handled.  
-  _IsMultiStmt← { '⋄' ∊ multiSkipP '\R' ⎕R  '' '⋄' ⍠ 'Mode' 'M'⊢1↓¯1↓⍵ }
 
 ⍝ --------------------------------------------------------------------------------------------
 ⍝ --------------------------------------------------------------------------------------------
@@ -446,8 +435,8 @@
 ⍝  Miscellaneous: ⎕AL.LC, etc. These are for 'demo' purposes to show how to predefine "needed" macros.
 ⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
   ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
-  MACROS←DictNew  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (DoQuotes¨ ∆LC ∆UC ∆MC)
-  _←MACROS.Set '__FILE__'  (DoSpaces DoQuotes'[TERM]')
+  MACROS←DictNew  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (DoQuotesX¨ ∆LC ∆UC ∆MC)
+  _←MACROS.Set '__FILE__'  (DoSpaces DoQuotesX'[TERM]')
   _←MACROS.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
   DEBUG∧~__TRACE__: ⍺ ((2 3+⊃⎕LC) Trace) ⍵  
