@@ -7,17 +7,24 @@
   DQ2← DQ,DQ
   OPTS← ('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
-⍝ Options (⍺).  See HelpInfo (⍝H comments) for documentation
+⍝ OPTIONS (⍺).   
   ⍺←'' 
-⍝ __TRACE__ is a hidden, internal option triggered by DEBUG
+⍝ FIX:     ⎕FX after "compiling"; else, display the compiled object as a vector of char vectors.
+⍝ VERBOSE: Give extra info as msgs
+⍝ DEBUG:  Set VERBOSE and initiate a trace of ∆FIX at the start of the scan of object ⍵ (not earlier). See below...
+⍝ PATH:    Find initial file (if single vector right arg ⍵) in search path. Default, find in current dir.
+⍝ ?:       Provide HELP information (⍝H comments)
+⍝ Note: __TRACE__ is a hidden, internal option triggered by DEBUG
   2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
   FIX VERBOSE DEBUG __TRACE__ PATH HELP←'fix' 'verbose' 'debug' '__trace__' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
-  VERBOSE∨← DEBUG 
 
-⍝ SQMULTI_ALLOW=0:  Do not allow single-quote strings to extend over multiple lines.
-⍝ SQMULTI_ALLOW=1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
-  SQMULTI_ALLOW←1
+  VERBOSE∨← DEBUG 
   0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.((EM,m/': ',Message) EN ⊣m←0≠≢Message)
+
+⍝ SQMULTI_ALLOW (variable option)
+⍝   0:  Do not allow single-quote strings to extend over multiple lines.
+⍝   1:  As for double-quoted strings, allow single-quote strings to extend over multiple lines.
+  SQMULTI_ALLOW←1
 
 ⍝ Help...
   HelpInfo←{  
@@ -27,9 +34,9 @@
   }
 
 ⍝ DEBUG TRACE Mode
-  Trace ← { 
-      opts←'__TRACE__ ',⍺ 
-      (⍬ ⎕STOP ME) ⊢opts (⍎ME) ⍵⊣ (⍺⍺ ⎕STOP ME) 
+  Trace← { 
+      opts←'__TRACE__ ',⍺  
+      (⍬ ⎕STOP ME) ⊢opts (⍎ME) ⍵⊣ ⍺⍺ ⎕STOP ME 
   }
 
 ⍝ Include:
@@ -42,11 +49,9 @@
 ⍝ [1a/b]: file must be found in current directory or directory of "outer" included file.
 ⍝ [1a]:   file spec may not contain blanks (see 1a and 2).  Either single or double quotes may be used.
 ⍝ [2]:    file may be found in search path specified by FSPATH (PMS) or WSPATH (Dyalog)
-  includeP← '(?ix) ^\h* :include\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^\h\n]+)> | ([^\h\n]+) )' 
-  PWD← ¯1↓⊃1 ⎕NPARTS ''         ⍝  Current working directory. Remove terminating '/' 
   Include←{
       INCL_ONCE←⍬
-      CUR_INCL_DIR←⊂PWD            
+      CUR_INCL_DIR←⊂¯1↓⊃1 ⎕NPARTS ''      ⍝  Current working directory. Remove terminating '/'       
       CUR_FIS←⊂'[TERM]'
       LAST_INCL_FI← '[NONE]'
       ScanFi←{
@@ -64,12 +69,15 @@
           0=≢⍵: lns ⊣ CUR_FIS↓⍨← ¯1 ⊣ CUR_INCL_DIR↓⍨← ¯1 ⊣ LAST_INCL_FI⊢←⊃⌽CUR_FIS
           w0←⊃⍵
         ⍝ ":INCLUDE file_spec" seen?
+        ⍝    file_spec may be:   "..." OR '...', OR <...> OR ...
+        ⍝    This last case (...), where no quote or angled brackets are used, is permissive.
           ×≢fnVV← includeP ⎕S '\1'⊣w0: { 
-              srch← 1↑⊃fnVV ⋄ fn← 1↓⊃fnVV
-              srch (~∊) SQ DQ '<': 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
-              srch←'<'=srch
-              (⊂fn)∊INCL_ONCE: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
-              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotesX fn)) ScanLn (⍬ ScanFi fn srch),1↓⍵  
+              Q←'"''<' ⋄  srchFlg← 1↑⊃fnVV         
+              fi← (srchFlg∊Q)↓⊃fnVV  
+            ⍝ srch (~∊) Q: 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
+              srchFlg←'<'=srchFlg
+              INCL_ONCE∊⍨⊂fi: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
+              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotesX fi)) ScanLn (⍬ ScanFi fi srchFlg),1↓⍵  
           }⍵
            ×≢specs← libP ⎕S '\1'⊣w0: { 
              specs←' ' (≠⊆⊢)⊃specs
@@ -263,9 +271,14 @@
   quotLftP←   '(?|(?<='')|',wordP,')\h*→'
   quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
   quotRgtErrP←'`'  
-  ⍝ :LIB [workspace_name] [obj1 [obj2 [...]]]
+⍝ :INCLUDE lq file_spec rq  where lq is '"''<' and rq is '"''>' or permissively omitted.
+⍝ :INCL may be subsituted for :INCLUDE
+  includeP← '(?ix) ^\h* :incl(?:ude)?\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^\h\n]+)> | ([^\h\n]+) )'        
+⍝ :LIBRARY [workspace_name] [obj1 [obj2 [...]]]
+⍝ :LIB may be substituted for :INCLUDE
   libP← '^\h*:LIB(?:RARY)?\b([^⍝\n]*)'   ⍝ Permissively grab args (0 or more) to allow better error msgs...
-⍝ :PRAGMA ONCE or :ONCE
+⍝ :PRAGMA ONCE 
+⍝ :ONCE        (same as :PRAGMA ONCE)
   pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
 ⍝ :DEF (with optional additive suffixes E, L, and/or Q)
 ⍝   Allows :DEF name← value  AND   :DEF name value
@@ -439,7 +452,7 @@
   _←MACROS.Set '__FILE__'  (DoSpaces DoQuotesX'[TERM]')
   _←MACROS.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
 
-  DEBUG∧~__TRACE__: ⍺ ((2 3+⊃⎕LC) Trace) ⍵  
+  DEBUG∧~__TRACE__: ⍺ (_here Trace) ⍵ ⊣ _here←2 3+⊃⎕LC  
 ⍝ Executive Main: Scan the input string ⍵ 
     res← Scan4Specials Scan4Macros Scan4Serial Scan4Strings Include  ⍵
   FIX: 2 HERE.⎕FIX res   ⋄ res 
