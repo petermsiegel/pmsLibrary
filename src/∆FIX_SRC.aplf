@@ -2,9 +2,14 @@
   ⍝ CONSTANTS 
   ⎕IO← 0   
   HERE ME← ⊃¨⎕RSI ⎕XSI 
-  SQ DQ LP RP←'''"()' 
+⍝ SQ DQ LP RP←'''"()' 
+  :DEF SQ← ''''
+  :DEF DQ← '"'
+  :DEF LP← '('
+  :DEF RP← ')'
   CR NL←⎕UCS 13 10 
-  DQ2← DQ,DQ
+⍝ DQ2← DQ,DQ
+  :DEFEQ DQ2← DQ,DQ
   OPTS← ('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
 
 ⍝ OPTIONS (⍺).   
@@ -392,11 +397,9 @@
 ⍝ And this "system" variable
 ⍝    ⎕T    sink name (refers to implicit sink var which appears somewhere to its left)
   tempsN←¯1
-  forFunPList← '\⊤' '\⊥'   ⍝ For fun (experimental), enable monadic ⊤ to assume base 2.
-  builtinsPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP  
-  Scan4PseudoBuiltins← (builtinsPList,forFunPList) ⎕R { 
+  builtinsPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP 
+  Scan4PseudoBuiltins← builtinsPList ⎕R { 
         sqI comI numI sinkI tempI quotLeftI quotRgtI quotRgtErrI ← ⍳≢builtinsPList
-        forFun1 forFun2← (≢builtinsPList)+⍳≢forFunPList
         CASE←⍵.PatternNum∘∊
       ⍝ Skip...
         CASE sqI comI numI: ⍵ Fld 0
@@ -415,8 +418,6 @@
               Vec← {  3≠≢⍵: ⍵ ⋄ DoPars ',',⍵ }
               (' '/⍨⍺),(Vec bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
-        CASE forFun1: '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊤⍵ ⋄ 2⊥⍣¯1⊢⍵ }'~' '
-        CASE forFun2: '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊥⍵ ⋄ 2⊥⍵ }'~' '
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
 
