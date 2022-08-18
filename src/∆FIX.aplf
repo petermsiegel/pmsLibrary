@@ -392,11 +392,23 @@
 ⍝ And this "system" variable
 ⍝    ⎕T    sink name (refers to implicit sink var which appears somewhere to its left)
   tempsN←¯1
-  forFunPList← '\⊤' '\⊥'   ⍝ For fun (experimental), enable monadic ⊤ to assume base 2.
-  builtinsPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP  
-  Scan4PseudoBuiltins← (builtinsPList,forFunPList) ⎕R { 
-        sqI comI numI sinkI tempI quotLeftI quotRgtI quotRgtErrI ← ⍳≢builtinsPList
-        forFun1 forFun2← (≢builtinsPList)+⍳≢forFunPList
+⍝ forFun: Map single char. APL Pseudofunctions onto alternate code...
+⍝      ⊤
+⍝      ⊥
+⍝ 
+  forFun←{ 
+     ns←⎕NS ''
+     _← ⊂'⊤'  '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊤⍵ ⋄ 2⊥⍣¯1⊢⍵ }'  
+    _,← ⊂'⊥'  '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊥⍵ ⋄ 2⊥⍵ }'    
+    ns.(keys vals) ←  ↓⍉↑_ 
+    ns.Find← ns.{ p← keys⍳⍵ ⋄ p≥≢keys: ⍵ ⋄ p⊃vals }
+    ns.pat←    '[',(∊'\',¨ns.keys),']'
+    ns 
+  }⍬
+
+  builtinsPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP forFun.pat  
+  Scan4PseudoBuiltins← builtinsPList ⎕R { 
+        sqI comI numI sinkI tempI quotLeftI quotRgtI quotRgtErrI forFunI ← ⍳≢builtinsPList
         CASE←⍵.PatternNum∘∊
       ⍝ Skip...
         CASE sqI comI numI: ⍵ Fld 0
@@ -415,8 +427,7 @@
               Vec← {  3≠≢⍵: ⍵ ⋄ DoPars ',',⍵ }
               (' '/⍨⍺),(Vec bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
         }⍵
-        CASE forFun1: '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊤⍵ ⋄ 2⊥⍣¯1⊢⍵ }'~' '
-        CASE forFun2: '{⍺←⊢ ⋄ 1≢⍺ 1: ⍺⊥⍵ ⋄ 2⊥⍵ }'~' '
+        CASE forFunI:  forFun.Find ⍵ Fld 0 
         CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
   } ⍠OPTS
 

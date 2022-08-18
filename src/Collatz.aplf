@@ -1,0 +1,75 @@
+ Collatz←{⎕IO←0   ⍝ Use ⎕FR←1287 for big integers
+   ⍝ Collatz Conjecture tool...
+   ⍝ Syntax:
+   ⍝   RM ← Collatz CA
+   ⍝ Let CA(⍵) be a vector of Collatz numbers, each an integer (neg, 0, pos).
+   ⍝ - Starting with the initial number C0 as the current Cc,
+   ⍝   iterate the next such number Cn from Cc until Cn "terminates", returning R a vector of:
+   ⍝      [0] C0,
+   ⍝      [1] MAX (the Collatz number with the largest abs val.), and
+   ⍝      [2] TST (the total stopping time).
+   ⍝ Result(RM):
+   ⍝ - Mix the results from all such calculations (↑R) and top with a header row.
+   ⍝
+   ⍝ Collatz Numbers:
+   ⍝      Info:   https://en.wikipedia.org/wiki/Collatz_conjecture
+   ⍝      Video:  https://www.youtube.com/watch?v=094y1Z2wpJg
+   ⍝      Info:   https://tinyurl.com/5crz8rpw
+   ⍝
+   ⍝ Try Collatz 9663
+   ⍝
+   ⍝ ColEach details (below)
+   ⍝   For an initial Collatz number C0 (an APL scalar ⍵)
+   ⍝   - iteratively calculate the next Collatz number Cn from the current Cc:
+   ⍝               Cn←Cc÷2 if Cc is even, else Cn←1+3×Cc if Cc is odd.
+   ⍝   - until the series terminates at a value indicative of an infinite cycle:
+   ⍝     1 (cycle 4 2 1) for pos ints; 0 (for 0) or one of 3 cycles for neg ints.
+   ⍝   The conjecture is that the sequence terminates, no matter the initial C.
+   ⍝   If it doesn't, you get a Math Prize and the function runs down your battery.
+   ⍝   For each scalar C in ⍵, we calculate and return a matrix row with:
+   ⍝     0) C
+   ⍝     1) MAX, the maximum Cn seen before terminating, based on absolute value.
+   ⍝        (For C > 0, (⌈/Cx for all x) would do, but extended for neg. Cx).
+   ⍝     2) TST, the "total stopping time", i.e. total # iterations, 0 if immediate.
+   ⍝
+   ⍝ Warning: Be careful of large integers that can't be represented as 64-bit.
+   ⍝ At approx. ⍵>1E20, we need ⎕FR=1287
+   ⍝ Also, remember if you pass (1E15+⍳5) as ⍵ with ⎕FR=645, they will be the SAME number!
+
+   ⍝ Icing...
+     (0∊⍵=⌊⍵):11 ⎕SIGNAL⍨'Collatz numbers must be integers'
+     0::⎕DMX.{
+       ⍝ If 2|⍵ at guard doesn't return a boolean...
+         more←' with ⎕FR=',⍕⎕FR
+         11 9≡EN ENX:11 ⎕SIGNAL⍨'RANGE ERROR: Next Collatz N out of integer range',more
+       ⍝ Otherwise, who knows...
+         EN ⎕SIGNAL⍨EM,': ',Message
+     }⍬
+
+   ⍝ Cake...
+   ⍝ For C>0, count iterations until repeating cycle ending in 1 (actually 4..2..1)
+   ⍝ For C=0, until 0 (now)
+   ⍝ For C<0, until repeating cycles beginning/ending ¯1/¯2, ¯5/¯10, or ¯17/¯34
+     EndNow←∊∘1 0 ¯1 ¯5 ¯17
+     AC←<⍥|⊃,                             ⍝ Abs Ceiling: Return signed ⍵ if (|⍺)<(|⍵), else signed ⍺.
+
+     ColEach←↑{                           ⍝ Pedagogical Style-- performance improvements abound
+                                          ⍝ Initialize state array... C0, M=C0, TST=0
+         ⍺←⍵ ⍵ 0                          ⍝    To exclude initial value C0 from M, ⍺←C0 (×C0) 0
+         EndNow ⍵:⍺                       ⍝ Done?
+         c0 m t←⍺                         ⍝ Initial Collatz num, current max num, cur stopping time
+         2|⍵:c0(m AC cn)(t+1)∇ cn←1+3×⍵   ⍝   Odd? => Next Cn ← (3Cc+1)
+         c0(m AC cn)(t+1)∇ cn←⍵×0.5       ⍝   Even?=> Next Cn ← (Cc÷2)
+     }¨⍤,
+
+   ⍝ Decorations...
+     hdr←↑'C_in' 'Max_C' 'NumSteps',⍥⊂3⍴⊂10⍴'¯'
+
+   ⍝ Ingestion, Digestion...
+     res←ColEach ⍵
+
+   ⍝ ...and Out!
+     hdr⍪res
+
+⍝∇⍣§./Collatz.aplf§0§ 2022 8 17 17 22 52 619 §ëyOBt§0
+ }
