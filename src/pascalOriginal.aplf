@@ -1,0 +1,5 @@
+﻿ pascalOrig←{
+  ⍝  Original test version...
+     ⎕FR←1287 ⋄ ⎕IO←0
+     ⍉(⍳⍵)∘.!⍳⍵
+ }
