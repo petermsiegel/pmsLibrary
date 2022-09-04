@@ -31,12 +31,12 @@
   ⍝ other option(s)
   ⍝ calibrateO:  Default 1. If 0, don't run a calibration for calMaxMs ms and ignore showRawTimesOps.
     calibrateO←  1                   
-  
+    RunTrials←{}
   ⍝ Sets up (fixes) RunTrials, which runs in HOME env.
     SetRunTrials←{⍺←1 
         maxWallms←2000
         mi mw←⍕¨⍺ maxWallms
-        'RunTrials←{ _c_ _w_←⍺⍺ ⎕AI ⊣ ', ⍵, '⋄ ((∧/',mw,' ⍺>_w_ _c_))∨', mi, '>_i_←⍵+1:  ⍺ ∇ _i_ ⋄ _c_ _i_ }'
+        'RunTrials←{ _c_ _w_←⍺⍺ ⎕AI ⊣ ⍵⍵.{', ⍵, '}0⋄ ((∧/',mw,' ⍺>_w_ _c_))∨', mi, '>_i_←⍵+1:  ⍺ ∇ _i_ ⋄ _c_ _i_ }'
     }
 
   ⍝ Run calibration loop...
@@ -44,10 +44,10 @@
     calEachMs←calMaxMs{  
         ~calibrateO: 0 ⊣ ⎕←'*** Note: trials are uncalibrated.' 
         cal←⍵
-        _←HOME⍎ minTrialsO SetRunTrials cal
+        _← ⍎ minTrialsO SetRunTrials cal
 
         CumMs← (2↑1↓⎕AI)∘{⍺-⍨2↑1↓⍵}     ⍝ (1⊃⎕AI) CPU   Time
-        ∆ms← ÷/⍺ (CumMs HOME.RunTrials) 0
+        ∆ms← ÷/⍺ (CumMs RunTrials HOME) 0
         ∆ms   ⊣ ⎕←'>>> Calibration:',(2⍕1000×∆ms),' µs per iteration'
     }'0'
 
@@ -55,10 +55,10 @@
   ⍝ Returns and displays (fractional) seconds
     1: timeTotS←timeMaxMs{   
           testSnip⊢← ⍵                 ⍝ Set externally for error handling...
-          _← HOME⍎ minTrialsO SetRunTrials testSnip
+          _← ⍎ minTrialsO SetRunTrials testSnip
 
           CumMs← (2↑1↓⎕AI)∘{⍺-⍨2↑1↓⍵} 
-          timeRawMs← ÷/⍺ (CumMs HOME.RunTrials) 0
+          timeRawMs← ÷/⍺ (CumMs RunTrials HOME) 0
           ∆s←0.001×0⌈timeRawMs-calEachMs,⍨ 0/⍨ showRawTimesO∧0≠calEachMs
 
           ⎕←(8 ¯3⍕ ∆s),'sec',' ← ','"','"',⍨{⍵↑⍨(≢⍵)⌊20⌈⎕PW-20}testSnip
