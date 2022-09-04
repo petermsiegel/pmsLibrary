@@ -10,8 +10,10 @@
  say0 'Setting...'
  say1 '⎕IO ',⎕IO
  say1 '⎕PW ',⎕PW
+ say1 '⎕WA ',⎕WA
+ ⍝ say1 ('<⎕WA >,G⊂ZZZ,999,999,999⊃' ⎕FMT  ⎕WA)
 
-⍝ ∆REQ - require.dyalog bootstraps other objects in path WSPATH
+⍝ ∆req - require.dyalog bootstraps other objects in path WSPATH
  dir←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  reqFi←dir,'/require.dyalog'
 

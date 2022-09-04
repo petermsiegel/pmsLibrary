@@ -1,0 +1,67 @@
+﻿Time←{
+    HOME←⊃⎕RSI
+  ⍝ Time:    timingsS← [⍺] ∇ ⍵ 
+  ⍝ ⍵:  one or more test code snippets, each a char. string.
+  ⍝ ⍺: [0] Desired max test time in sec per test code (def: 0.5 sec)  
+  ⍝    [1] Desired calibration test time in sec (def: 0.1 sec)
+  ⍝    [2] showRawTimesO: Display (1: raw and) calibrated timings (def: calibrated only)
+  ⍝    [2] minTrialsO:    How many trials, no matter how long each takes (min: 1)
+
+  ⍝ Returns: calibrated timings in seconds for all snippets
+  ⍝ ⎕IO-independent, though documentation as if ⎕IO←0.
+
+  1000:: _←⍬ ⊣ ⎕←'Time aborted by user'⊣HOME.⎕EX 'RunTrials'
+    testSnip←'???'       ⍝ Replaced by currently executing snippet.
+ ⍝ 0:: _←⍬ ⊣ ⎕←'Time: ',⎕DMX.(⍕EM,EN),' executing "','"',⍨testSnip⊣HOME.⎕EX 'RunTrials'
+
+  ⍝ code snippets
+    snipList←⊆⍵
+  ⍝ options
+    ⍺←⍬ 
+  ⍝ ⍺-based options
+  ⍝ [0]×1000 timeMaxMs        1000×⍺[0] (see)
+  ⍝ [1]×1000 calMaxMs         1000×⍺[1] (see)  
+  ⍝ [2]      showRawTimesO  ⍺[2] (see). Raw timings shown if this is 1 AND calEachMs≠0 
+  ⍝ [3]      minTrialsO     ⍺[2] (see).
+    defaults←  0.5  0.1  0  1    ⍝ [0 1]: seconds; [2 3]: boolean   
+    conversn← 1000 1000  1  1    ⍝ →ms, →ms, none
+    SetOpts←  defaults∘(conversn{ ⍺⍺×o+⍺×0=o←⍵↑⍨≢⍺ })
+    timeMaxMs calMaxMs showRawTimesO minTrialsO← SetOpts ⍺ 
+
+  ⍝ other option(s)
+  ⍝ calibrateO:  Default 1. If 0, don't run a calibration for calMaxMs ms and ignore showRawTimesOps.
+    calibrateO←  1                   
+  
+  ⍝ Sets up (fixes) RunTrials, which runs in HOME env.
+    SetRunTrials←{⍺←1 
+        maxWallms←2000
+        mi mw←⍕¨⍺ maxWallms
+        'RunTrials←{ _c_ _w_←⍺⍺ ⎕AI ⊣ ', ⍵, '⋄ ((∧/',mw,' ⍺>_w_ _c_))∨', mi, '>_i_←⍵+1:  ⍺ ∇ _i_ ⋄ _c_ _i_ }'
+    }
+
+  ⍝ Run calibration loop...
+  ⍝ Returns ms 
+    calEachMs←calMaxMs{  
+        ~calibrateO: 0 ⊣ ⎕←'*** Note: trials are uncalibrated.' 
+        cal←⍵
+        _←HOME⍎ minTrialsO SetRunTrials cal
+
+        CumMs← (2↑1↓⎕AI)∘{⍺-⍨2↑1↓⍵}     ⍝ (1⊃⎕AI) CPU   Time
+        ∆ms← ÷/⍺ (CumMs HOME.RunTrials) 0
+        ∆ms   ⊣ ⎕←'>>> Calibration:',(2⍕1000×∆ms),' µs per iteration'
+    }'0'
+
+  ⍝ Run timing trials on each item in the list of code snippets.
+  ⍝ Returns and displays (fractional) seconds
+    1: timeTotS←timeMaxMs{   
+          testSnip⊢← ⍵                 ⍝ Set externally for error handling...
+          _← HOME⍎ minTrialsO SetRunTrials testSnip
+
+          CumMs← (2↑1↓⎕AI)∘{⍺-⍨2↑1↓⍵} 
+          timeRawMs← ÷/⍺ (CumMs HOME.RunTrials) 0
+          ∆s←0.001×0⌈timeRawMs-calEachMs,⍨ 0/⍨ showRawTimesO∧0≠calEachMs
+
+          ⎕←(8 ¯3⍕ ∆s),'sec',' ← ','"','"',⍨{⍵↑⍨(≢⍵)⌊20⌈⎕PW-20}testSnip
+          ⊃⌽∆s
+      }¨snipList
+}

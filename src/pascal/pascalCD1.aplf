@@ -1,0 +1,18 @@
+﻿ pascalCD←{
+⍝ Pascal's Triangle via convolution...
+⍝ For info/code on convolve, see notes.xtimes in ws "dfns".
+⍝
+⍝ triangle(c) ← pascalCD ndim(⍵)
+⍝    ndim: a pos. integer
+⍝    c:    array of shape (ndim ndim)
+⍝ pascalCD 10000: About 9.4 sec on Macbook Air 2020
+     ⎕IO←0 ⋄ ⎕FR←1287
+
+⍝ convo11:   {⌊ 1 1∘convolve ⍵}. Requires ⎕IO←0 
+     convo11←⌊1 1∘{+⌿(-⍳⍴⍺)⌽⍺∘.×⍵,0×1↓⍺}
+
+     c←⍵ ⍵⍴0
+     c[0;0]←val←1
+     c⊣{ ⍬⊣c[⍵;⍳1+⍵]←val⊢←convo11 val }¨1+⍳⍵-1
+
+ }

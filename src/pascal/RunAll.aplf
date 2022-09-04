@@ -1,0 +1,40 @@
+﻿ RunAll;_CMD;_FNLIST;_I;_N;_NOW;_X;_CAT;_T
+
+⍝ User space (extern)
+ _FNLIST←'Best' 'VM'
+ ITER←1 5 10 15 25 50 75 90 100 110 200 300 400 500 600 700 800 900 1000 2000 3000 5000 7000 8000 9000 10000 12000 13000 15000
+⍝ ITER←96 98 100 102 104 106 108
+ Best←VM←⍬
+ VS←÷⍨
+ LOG10←10∘⍟
+
+⍝ Private
+ _CMD←{
+     ⍺←⍬
+     0=≢⍺:_←⎕SE.UCMD ⍵ ⋄ 0=⎕NC ⍺:_←⎕SE.UCMD ⍵
+     1:_←1   ⍝ NOP
+ }
+ _CAT←{1:_←⍎⍺,',←⍵'}
+ _NOW←{,'ZI2,⊂:⊃,ZI2,⊂:⊃,ZI2'⎕FMT⍉⍪3↑3↓⍵}
+
+
+ {_←'pascalCD',⍵ ⋄ _ _CMD'load pascal/',_,'.aplf'}¨_FNLIST
+ 'TimeX'_CMD'load TimeX.aplf'
+
+ ⎕←'ITER:' ⋄ ITER
+ 'Are those the iterations you want? '
+ :If 'y'(~∊)⎕C⍞↓⍨≢⍞←'Continue? '
+     'OK. (Edit RunAll, then...) Run RunAll when ready' ⋄ →0
+ :EndIf
+
+ ⎕←'Work area is ',⍕⎕WA
+ ⎕←'BEGIN Timing Run ',_NOW ⎕TS
+ :For _I :In ITER
+     :For _N :In _FNLIST
+         _N _CAT _T←⍎TimeX'pascalCD',_N,' ',⍕_I
+     :EndFor
+ :EndFor
+ ⎕←'END Timing Run   ',_NOW ⎕TS
+
+ _CMD'plot (Best VS VM) (LOG10 ITER)'
+ 'Plot complete. Higher is better (>1: Best is faster than VM)'

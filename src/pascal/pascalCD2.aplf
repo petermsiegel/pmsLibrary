@@ -1,0 +1,21 @@
+﻿ pascalCD2←{
+⍝ Pascal's Triangle via convolution (Dfn version)
+⍝ For info/code on convolve, see notes.xtimes in ws "dfns".
+⍝ triangle(∆) ← pascalCD ndim(⍵)
+⍝    ndim: a pos. integer
+⍝    ∆:    array of shape (ndim ndim)
+⍝ pascalCD 10000: about 9.4 sec on my  my Macbook Air 2020
+
+     ⎕IO←0 ⋄ ⎕FR←1287
+⍝ convolve:  Requires ⎕IO←0
+     convolve←{+⌿(-⍳⍴⍺)⌽⍺∘.×⍵,0×1↓⍺}
+
+⍝ Set up the triangle ∆ and the power (⍣) "loop"
+     ∆←⍵ ⍵⍴0
+     r←¯1
+     CNext←{∆[r;⍳1+r⊣r+←1]←⌊1 1 convolve ⍵}
+
+   ⍝ Iterate: Each row based on convolution of the prior row
+     ∆⊣CNext⍣⍵⊣,1
+
+ }

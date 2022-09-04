@@ -1,0 +1,39 @@
+﻿ pascalCDVM←{
+⍝ Pascal's Triangle via convolution (Dfn version)
+⍝ With this method, the array is mixed ↑∆ at the end, which could mean
+⍝ a late failure: all data is calculated but there isn't space for both
+⍝ the vector of vectors ∆ and the matrix equivalent at one time.
+⍝
+⍝ triangle(∆) ← pascalCD ndim(⍵)
+⍝    ndim: a pos. integer
+⍝    ∆:    array of shape (ndim ndim)
+⍝ pascalCD 10000: about 9.4 sec on my  my Macbook Air 2020
+
+⍝ This is
+⍝     PMS's framework,
+⍝     V-M's version of the convolution (ConvPasc)
+⍝ with pedagogical tweaks from PMS to show featured steps
+⍝ Concise form:
+⍝  pascalVM← {
+⍝     ⎕IO ⎕ML←0 1 ⋄ ⎕FR←645 1287⊃⍨⍵>999
+⍝     ↑∆⊣ {⊃∆,←⊂(⌊2+/0,,∘0) ⍣ (⍵-1)⊣∆←1
+⍝  }
+
+     ⎕IO ⎕ML←0 1 ⋄ ⎕FR←645 1287⊃⍨⍵>999
+
+⍝ Convolve General Case (dfns see notes.xtimes): works without change
+⍝    Convolve← 1 1∘{+⌿(-⍳⍴⍺)⌽⍺∘.×⍵,0×1↓⍺}
+⍝ Simplified/Optimized for Pascal's T: from Veli-Matti:
+     ConvPascVM←⌊2+/0,,∘0
+
+⍝ Initialize the triangle ∆, starting with the 0-th row
+     ∆←1                           ⍝ Row 0, value 1
+
+⍝ Generate the rest of the rows (⍵-1 rows) of ∆... from the first row!
+
+⍝      ↑∆ ⊣ {⊃∆,← ⊂(⌊2+/0,,∘0) ⍵}⍣ (⍵-1)⊣ ∆
+⍝ Note 2: Slightly slower: ∆,∘⊂←ConvPasc ⍵
+     NextRow←{⊃∆,←⊂ConvPascVM ⍵}    ⍝ Generates row 1 from 0, 2 from 1, etc.
+     _←NextRow⍣(⍵-1)⊣∆              ⍝ Generate ALL ⍵-1 remaining rows
+     ↑∆                             ⍝ Mix and return as a ⍵ by ⍵ matrix.
+ }

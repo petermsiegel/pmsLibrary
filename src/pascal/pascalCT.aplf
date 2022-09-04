@@ -1,0 +1,18 @@
+﻿ ∆←pascalCT ndim
+ ;row;cur  ;Convolve ;⎕IO;⎕FR
+⍝ Pascal's Triangle via convolution. Tradfn Version
+⍝ For info/code on convolve, see notes.xtimes in ws "dfns".
+⍝ triangle(∆) ← pascalCT ndim(⍵)
+⍝    ndim: a pos. integer
+⍝    ∆:    array of shape (ndim ndim)
+⍝ pascalC 10000: about 9.5 sec on a Macbook Air 2020
+
+ ⎕IO ⎕FR←0 1287
+⍝ Convolve:        Requires ⎕IO←0
+⍝ Convolve← {+⌿(-⍳⍴⍺)⌽⍺∘.×⍵,0×1↓⍺}
+
+ ∆←ndim ndim⍴0
+ ∆[0;0]←cur←1
+ :For row :In 1+⍳ndim-1
+     ∆[row;⍳1+row]←cur←⌊1 1 Convolve cur
+ :End

@@ -1,0 +1,24 @@
+﻿ TimeX←{ ⍝ any ⎕IO
+     ⎕PP←34 
+     Ø←⎕NS''     ⍝ Keep conflicting varnames to minimum
+     2=|≡⍵: ⍵ ∇⍨¨ 25⌈2+⌈/≢¨⍵
+     ⍺←25⌈≢⍵                ⍝ If ⍵ padded with blanks left/right, we keep that width, removing leading blanks below.
+     Ø.T←{0=⎕NC ⍵:⍵ ⎕CY'dfns' ⋄ ⍵}'cmpx'
+
+     Ø.cmd←⍵↓⍨+/∧\⍵=' '
+
+     Ø.nmIn←(Ø.cmd↑⍨Ø.p←Ø.cmd⍳' ')
+     Ø.nmOut←'__',Ø.nmIn
+     
+     Ø.inP←'''[^'']*'''Ø.nmIn'\h*⍝.*$' '^\h*'
+     Ø.outP←'\0'Ø.nmOut'' ''
+
+     0=1↑0⍴⎕FX(0≠≢¨Ø.a)/Ø.a←Ø.inP ⎕R Ø.outP⊣⎕NR Ø.nmIn:'Whoops.'
+
+     Ø.T←⎕WA                         ⍝ Garbage collect...
+     Ø.res← cmpx Ø.(nmOut,p↓cmd)   ⍝ Compare!
+     Ø.T←⎕EX Ø.nmOut
+     ⎕←(⍺↑Ø.cmd)'==>'Ø.res
+
+     1:Ø.res←Ø.res
+ }
