@@ -1,60 +1,42 @@
 ﻿ {ok}←Setup ignore
- ;LIBS;bad;good;msg;reqFi;require;say0;say1
+ ;DIR;LIBS;UCMD;lib;libF;msg;_
+ ;Say0;Say1;SayE
 
  ⎕IO←⎕SE.⎕IO←0 ⋄ ⎕PW←120
+ UCMD← ⎕SE.UCMD
+
+ ⎕←'Setup: /Users/petermsiegel/MyDyalogLibrary/pmsLibrary/userCmds/Setup.dyalog'
+
+ ⍝ Library directory
+  DIR← '/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
+ ⍝ Session libraries
+  LIBS← '∆FIX.aplf' '∆SH.dyalog' '∆Format.dyalog'    
+
  ok←0
- say0←{ ⎕←⍵}
- say1←{⍺←1 ⋄ ⎕←(⍺⊃'!!! ' '    '),⍵}
 
- say0 'Running ',(⊃⎕SI),' from ',⎕SE.UCMD 'cd'
- say0 'Setting...'
- say1 '⎕IO ',⎕IO
- say1 '⎕PW ',⎕PW
- say1 '⎕WA ',⎕WA
- ⍝ say1 ('<⎕WA >,G⊂ZZZ,999,999,999⊃' ⎕FMT  ⎕WA)
+ Say0←{ 1: ⎕←⍵ }
+ Say1←{ 1: ⎕←'>>> ',⍵ }
+ SayE←{ 1: ⎕←'--- ','ERROR ',⍵ }
 
-⍝ ∆req - require.dyalog bootstraps other objects in path WSPATH
- dir←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
- reqFi←dir,'/require.dyalog'
+ Say0 'System Variables:'
+ Say1 '⎕IO',⎕IO,'    ','⎕PW',⎕PW,'    ','⎕WA',⎕WA
+ 
 
-⍝ load ¨siegel¨ load session  libraries...
- LIBS←'∆Format' '∆FIX' '∆SH'
+ {}UCMD'cd ',DIR
+ Say0 'Directory now...'
+ Say1 UCMD'cd' 
 
- {}⎕SE.UCMD'cd ',dir 
- say0 'Directory now...'
- say1 ⎕SE.UCMD'cd' 
-
- :Trap 0
-     msg←2 ⎕SE.⎕FIX'file://',reqFi
-     require←⎕SE.∆REQ
-     say1'User command "require" loaded into ⎕SE: ',∊msg
- :Else
-     0 say1'Failed to FIX user cmd "require" from ',reqFi
-     →0
- :EndTrap
-
- good←bad←⍬
+ msg←⍬
+ Say0 'Loading libraries...'
  :For lib :In LIBS
-     :Trap 0
-         require lib
-         good,←⊂lib
-     :Else
-         0 say1 'ERROR: ',⎕DMX.EM
-         bad,←⊂lib
-     :EndTrap
+         libF← (2+⌈/≢¨LIBS){t←'"','"',⍨⍵ ⋄ ⍺<≢t: t ⋄ ⍺↑t}lib
+         :TRAP 911 
+             UCMD '_←load -target=⎕SE ',lib
+             Say1 'Loaded  ',libF,' into ⎕SE'
+         :Else 
+             SayE 'Loading ',libF,' into ⎕SE'
+         :EndTrap
  :EndFor
 
- say0 'Loading core libraries into ⎕SE'
- :If ×≢good 
-        say1'Successful:  ',⍕good 
- :Else 
-      0 say1'Successful:   [none]'
- :EndIf
-
- :If ×≢bad  
-      0 say1'Unsuccessful:',⍕bad  
- :Else
-        say1'Unsuccessful: [none]'
- :EndIf
-
+ Say0 'Setup Complete'
  ok←1

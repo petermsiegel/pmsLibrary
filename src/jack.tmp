@@ -1,6 +1,0 @@
-﻿⍝ INCLUDED FILE jack.tmp
-:DEF MARY← 3
-:ONCE
-⎕←__FILE__,'[',(⍕__LINE__),']'
-2+MARY
-⍝ End Included file jack.tmp
