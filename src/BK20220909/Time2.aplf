@@ -1,0 +1,58 @@
+﻿ Time2 expr
+
+ ran←1⊃(repeat fn runfor)←splitRepeat⍕reparg←Args.repeat ⋄ (showai showresult)←∨\'ai' 'none'∊⊂Args.details
+ results←0(2+2×showai)⍴all←∨/Args.details∘≡¨1 'all' ⋄ detail←{⍵:⍺}∘all ⋄ tell←{⍵:⍺}∘(⍱/Args.details∘≡¨'none' 'ai')
+ :For exp :In (Args.compare⍲0≡Args.details)/Args.Arguments
+     tell''
+     tell⍕'* Benchmarking "',exp,'"',(reparg≢0)/', repeat=',reparg
+
+            ⍝ Find how long it takes to do it once:
+     dya←{2::1 ⋄ 85⌶⍵}'0' ⋄ {}⎕WA ⍝ max memory use
+     r←1 ⋄ ai←⎕AI ⋄ {}{85::r∘←0 ⋄ dya:1 cs.(85⌶)⍵ ⋄ cs.(85⌶)⍵}exp ⋄ ai←2↑1↓⎕AI-ai
+            ⍝ ai←⎕AI ⋄ r←{85::0 ⋄ dya:1 cs.(85⌶)⍵ ⋄ cs.(85⌶)⍵ ⋄ 1}exp ⋄ ai←2↑1↓⎕AI-ai ⍝ Is this valid to remove ∘←
+     detail'Test run took ',(⍕ai),' msecs'
+     minrun←512 64 8 1[⎕IO++/1 10 100<1↑ai] ⋄ eex←{1↓⍵⍴⍨⍺×⍴⍵}∘('⋄',(r/'{}'),exp)
+
+            ⍝ Have we already made the test?
+     :If (runfor≤1↓ai)∧repeat≤1 ⋄ ai←ai∘.×1 1 0 ⍝ make ⎕MON values same
+         detail'** Expression was only run once' ⋄ mondata←⍬
+
+     :ElseIf t←∧/cond←1<runfor,repeat ⍝ we have both # of times AND period
+         n←⍕⎕THIS ⋄ cond←1⌽cond,t
+         branch←'→2×⍳',↑,/cond/('(0<',n,'.cnt←',n,'.cnt-1)')('∧∨'[1+'⌈'∊fn])(n,'.n>⎕ai[2+⎕io]')
+         (n minrun)←defineFn minrun branch
+         cnt←⌈repeat÷minrun
+         2 3 ⎕MONITOR'f' ⋄ n←runfor+3⊃ai←⎕AI ⋄ f ⋄ ai←2↑1↓⎕AI-ai
+         ran←minrun×1⍴r←2 3↑0 1↓mondata←⎕MONITOR'f' ⋄ ai←⍉ai⍪0 1↓r
+
+     :ElseIf runfor>0  ⍝ run for a specified period
+                ⍝ Define temp fn to run until time limit, set monitor on it, and run it
+         (n minrun)←defineFn minrun,⊂'→2×⎕ai[2+⎕io]<',(⍕⎕THIS),'.n'
+         3 2 ⎕MONITOR'f' ⋄ n←runfor+3⊃ai←⎕AI ⋄ f ⋄ ai←2↑1↓⎕AI-ai
+         ran←minrun×1⍴r←2 3↑0 1↓mondata←⎕MONITOR'f' ⋄ ai←⍉ai⍪0 1↓r
+
+     :Else  ⍝ repeat a specific # times
+                ⍝ Create a fn that makes 2 sets of tests in blocks of minrun and remainder:
+         n←(⍕⎕THIS),'.n' ⋄ branch←'→2×⍳0<',n,'←',n,'-1'
+                 ⍝ Build a fn that will be used to perform the test
+         ran←×/((n cnt)minrun)←defineFn repeat branch
+         4 2 3 ⎕MONITOR'f' ⋄ ai←⎕AI ⋄ f ⋄ ai←2↑1↓⎕AI-ai
+         r←+⌿2 2 2⍴4 2↑0 2↓mondata←⎕MONITOR'f' ⋄ ai←⍉ai⍪r
+
+     :EndIf
+            ⍝ Show ⎕MONITOR info plus ⎕AI's and branch line info if details wanted
+     cap←'' '⎕AI' '(ms)' '[2]→line' ⋄ t←mondata≢⍬
+     tell(1 0 1 0∨all∧t)/cap⍪'CPU (avg):' 'Elapsed:',(n←ai÷ran)
+     detail'Effective repeat=',(⍕ran),t/', # expression on repeat line was ',⍕minrun
+     detail'⎕MONITOR data:'mondata
+     results⍪←,⍉n[;2,⍳showai]
+ :EndFor
+ r←showresult⌿results
+
+ :If Args.compare
+     :If 1<⍴Args.Arguments
+         r←0 1↓⍕⍪r''(cmpx Args.Arguments)
+     :Else
+         r←'** You need to supply more than one expression to be able to use -compare'
+     :EndIf
+ :EndIf

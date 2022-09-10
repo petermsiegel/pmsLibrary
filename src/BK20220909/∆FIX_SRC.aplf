@@ -1,0 +1,561 @@
+﻿∆FIX←{   
+  ⍝ CONSTANTS 
+  ⎕IO← 0   
+  HERE ME← ⊃¨⎕RSI ⎕XSI 
+⍝ SQ DQ LP RP←'''"()' 
+  :DEF SQ← ''''
+  :DEF DQ← '"'
+  :DEF LP← '('
+  :DEF RP← ')'
+  CR NL←⎕UCS 13 10 
+⍝ DQ2← DQ,DQ
+  :DEFEQ DQ2← DQ,DQ
+  OPTS← ('UCP' 1)('Mode' 'M')('EOL' 'LF')('IC' 1)
+
+⍝ OPTIONS (⍺).   
+  ⍺←'' 
+⍝  FIX:     ⎕FX after "compiling"; else, display the compiled object as a vector of char vectors.
+⍝  VERBOSE: Give extra info as msgs
+⍝  DEBUG:  Set VERBOSE and initiate a trace of ∆FIX at the start of the scan of object ⍵ (not earlier). See below...
+⍝  PATH:    Find initial file (if single vector right arg ⍵) in search path. Default, find in current dir.
+⍝  ?:       Provide HELP information (⍝H comments)
+⍝  Note: __TRACE__ is a hidden, internal option triggered by DEBUG
+  2≤|≡⍺: 11 ⎕SIGNAL⍨'∆FIX: Options (⍺) must be a single char vector or scalar. Use option "?" for more info.'
+  FIX VERBOSE DEBUG __TRACE__ PATH HELP←'fix' 'verbose' 'debug' '__trace__' 'path' '?' (1⍨∊⍷)¨ ⊂⎕C ⍺  
+
+  VERBOSE∨← DEBUG 
+  0/⍨~VERBOSE:: ⎕SIGNAL/⎕DMX.((EM,m/': ',Message) EN ⊣m←0≠≢Message)
+
+⍝ Help...
+  HelpInfo←{  
+      H←'^\h*⍝H ?(.*)' ⎕S '\1'⊣⎕NR ME
+      ⎕ED 'H'
+    ⍝ See help info, prefixed with ⍝H, at bottom of this file...
+  }
+
+⍝ DEBUG TRACE Mode
+  Trace← { 
+      opts←'__TRACE__ ',⍺  
+      (⍬ ⎕STOP ME) ⊢opts (⍎ME) ⍵⊣ ⍺⍺ ⎕STOP ME 
+  }
+
+⍝ Scan4Includes:
+⍝   If ⍵ is a filename (char vector), process the file contents.
+⍝   Otherwise, process the lines.
+⍝   Inserts pseudo-macro line:  ::FILE fname
+⍝ Returns a vector of lines (char vectors)
+⍝ :INCLUDE [ file-spec | "file-spec" | <file-spec> ]
+⍝            [1a]        [1a]          [2]
+⍝ [1a/b]: file must be found in current directory or directory of "outer" included file.
+⍝ [1a]:   file spec may not contain blanks (see 1a and 2).  Either single or double quotes may be used.
+⍝ [2]:    file may be found in search path specified by FSPATH (PMS) or WSPATH (Dyalog)
+  Scan4Includes←{
+      INCL_ONCE←⍬
+      CUR_INCL_DIR←⊂¯1↓⊃1 ⎕NPARTS ''      ⍝  Current working directory. Remove terminating '/'       
+      CUR_FIS←⊂'[TERM]'
+      LAST_INCL_FI← '[NONE]'
+      ScanFi←{
+          fn srch←⍵ 
+          fn←srch{
+            ⍺: (⊃⌽CUR_INCL_DIR) NGetNameInPath ⍵ ⋄ ⍵
+          }fn
+          CUR_FIS,← ⊂fn
+          CUR_INCL_DIR,←⊂{0=≢⍵: ⊃⌽CUR_INCL_DIR ⋄ ⍵}¯1↓⊃1 ⎕NPARTS fn    ⍝ No terminating '/'
+        22::  22 ⎕SIGNAL⍨ 'File "',fn,'" not found in current directory.'  
+          ⍺ ScanLn ⊆⊃⎕NGET fn 1  
+      }
+      ScanLn←{ 
+          lns←⍺
+          0=≢⍵: lns ⊣ CUR_FIS↓⍨← ¯1 ⊣ CUR_INCL_DIR↓⍨← ¯1 ⊣ LAST_INCL_FI⊢←⊃⌽CUR_FIS
+          w0←⊃⍵
+        ⍝ ":INCLUDE file_spec" seen?
+        ⍝    file_spec may be:   "..." OR '...', OR <...> OR ...
+        ⍝    This last case (...), where no quote or angled brackets are used, is permissive.
+          ×≢fnVV← includeP ⎕S '\1'⊣w0: { 
+              Q←'"''<' ⋄  srchFlg← 1↑⊃fnVV         
+              fi← (srchFlg∊Q)↓⊃fnVV  
+            ⍝ srch (~∊) Q: 11 ⎕SIGNAL⍨'∆FIX FORMAT ERROR: ',w0
+              srchFlg←'<'=srchFlg
+              INCL_ONCE∊⍨⊂fi: (lns,VERBOSE/⊂'⍝ [ONCE] ',w0) ScanLn 1↓⍵
+              (lns, ('⍝ ',w0,' → ',LAST_INCL_FI) ('::FILE ',DoQuotesX fi)) ScanLn (⍬ ScanFi fi srchFlg),1↓⍵  
+          }⍵
+           ×≢specs← libP ⎕S '\1'⊣w0: { 
+             specs←' ' (≠⊆⊢)⊃specs
+             1≥≢specs: 11 ⎕SIGNAL⍨'∆FIX :LIB ERROR (ws and 1 or more obj names expected): ',w0
+            lib objs←(0⊃specs)(1↓specs)
+            ( lns, (⊂'⍝ ',w0),objs CopySrc lib ) ScanLn 1↓⍵
+          }⍵
+        ⍝ ":PRAGMA ONCE" seen?
+          ×≢pragmaP  ⎕S 0⊣w0: (lns,⊂'⍝ ',w0) ScanLn 1↓⍵  ⊣ INCL_ONCE,←⊂⊃⌽CUR_FIS 
+          (lns,⊂w0) ScanLn 1↓⍵
+      }
+    ⍝ Is ⍵ a simple filename? 
+    ⍝ If so, include it (ScanFi)...
+    ⍝ Pass on to next phase the name of the file we are in via (hidden) directive "::FILE name"
+    ⍝ If PATH is 1, will search the PATH (see NGetNameInPath)
+      1≥|≡⍵: (⊂'::FILE ',DoQuotesX ⍵) ScanFi ⍵ PATH
+    ⍝ If not, scan line by line
+      ⍬ ScanLn ⍵
+  }  
+
+⍝ Utility Fns 
+⍝ CopySrc: Returns the source text of one or more fns, ops, or data objects.
+⍝ See:     The :LIB directive...
+⍝ Syntax:  ⍺ CopySrc ⍵
+⍝   ⍵: A named accessible workspace (e.g. 'dfns')
+⍝   ⍺: One or more objects from ⍵, each as a char vector.
+⍝   ⍺ must be a data obj (⎕NC 2), a dfn/dop, a tradfn/tradop. Other objects are ignored.
+⍝ Returns: each object as an executable listing:
+⍝    Type       ⎕NC        Method
+⍝    OBJ        2:         name← Repobj val       (where Repobj is ⎕SE.Dyalog.Utils.repObj)
+⍝    TRADFN/OP  3.1 4.1:   ⎕FX Repobj ⎕NR val  
+⍝    DFN/OP     3.2 4.2:   name← val
+⍝ E.g.    :LIB dfns cmpx X 
+⍝     ==> 'cmpx' 'X' CopySrc 'dfns'
+ CopySrc←{
+     ⍺←⊢ ⋄ ns←⎕NS''
+     ∆CY←ns.{ ⍺←⊢ ⋄ ⍺ ⎕CY ⍵ }
+     wsid←⍵
+     _←⍺ ∆CY wsid
+   ⍝ 0≠≢ns.⎕NL 2 3 4~⍨⍳10:'::LIB Directive Failed: 1 or more objects not fns, ops, or simple data vars.'⎕SIGNAL 11
+     ⊃,/wsid∘ns.{
+         Rep←⎕SE.Dyalog.Utils.repObj
+         nc←⎕NC⊂⍵
+        0:: 11 ⎕SIGNAL⍨':LIB Directive Failed. Object "',⍵,'" cannot be properly represented in source (text) form.'
+         LN←⊂'⍝ *** :LIB ',⍺,' ',⍵,' [',(⍕nc),']'
+         2=⌊nc:       LN,⊂⍵,    '←',    Rep ⍎⍵      ⍝ Variable (not all can be represented)
+         nc∊3.1 4.1:  LN,⊂⍵,'_src←⎕FX ',Rep ⎕NR ⍵   ⍝ Trad fn/op
+         nc∊3.2 4.2:  LN,                   ⎕NR ⍵   ⍝ Dfn/op
+         LN,⊂'⍝ ***   Not a fn or var. Ignored...'             ⍝ Ignored objects...
+     }¨ns.⎕NL-⍳10
+ }
+
+⍝ Fld: Return value of numbered field of ⎕R namespace or '', if it is undefined.
+  Fld← { fO fB fL←⍺.(Offsets Block Lengths) ⋄ 0≠0(≢fO)⍸⍵: '' ⋄ ¯1=wO←⍵⌷fO: ¯1 ⋄ (⍵⌷fL)↑wO↓fB }
+  S2VS←       { sep←⊂SQ,' ',SQ ⋄ DoQuotes ∊sep@(NL∘=)⊢⍵ }    ⍝ Convert <NL-separated SQ string> ==> <V of strings>.
+  DQ2SQ←      { {⍵/⍨DQ2(~⍷)⍵}(⍵/⍨1+SQ=⍵) }                   ⍝ Internal double quotes to single quotes 
+  CondPars←   { ⍺: DoPars ⍵ ⋄ ⍵ }
+  CondQuotes← { ⍺: DoQuotesX ⍵ ⋄ ⍵ }
+  CondEval←   HERE.{⎕PP←34 ⋄ ⎕FR←1287 ⋄ 0:: '' ⋄ ⍺: ⍕ ⍎⍵ ⋄ ⍵ }
+  DoPars←     LP∘,,∘RP
+  DoSpaces←   ' '∘,,∘' '
+  DoQuotes←   SQ∘,,∘SQ
+  DoQuotesX←  DoQuotes(⊢⊢⍤/⍨1+SQ∘=)
+  DLB←        {⍵↓⍨ +/∧\ ⍵=' '}
+  DTB←        {⍵↓⍨-+/∧\⌽⍵=' '}    
+  HandleNL←   { 2≤⍴⍴⍵: ∊∇¨(⎕FMT ⍵),NL  ⋄ '\\⋄' ⎕R '\n' ⊣⍵ }
+  Strip1LR←   1↓¯1↓⊢
+⍝ Strip trailing blanks from lines of multiline strings...
+  StripTB←    { NL(~∊)⍵: ⍵ ⋄ ' +\n'  ⎕R  '\n'  ⍠OPTS ⊢⍵ } 
+
+⍝ Find a file in the search path and read it in!
+⍝      ⍺: An obligatory directory to add at the START of the search path...
+  NGetNameInPath←{ 
+      fsp←2 ⎕NQ'.' 'GetEnvironment' 'FSPATH'   ⍝ PMS-specific
+      wsp←2 ⎕NQ'.' 'GetEnvironment' 'WSPATH'
+      dirs←∪':'(≠⊆⊢)⍺,':',fsp,':',wsp
+      fis←dirs,¨⊂'/',⍵       ⍝ Add terminating '/' here ONLY...
+      bad←0=≢fnd←fis/⍨∊⎕NEXISTS¨fis
+      VERBOSE∧bad: 22 ⎕SIGNAL⍨'File <',⍵,'> not found in search path:',CR,(6⍴' '),fsp,':',wsp
+      bad:         22 ⎕SIGNAL⍨'File <',⍵,'> not found in search path!'
+      ⊃fnd
+  }
+
+⍝ Regexp Alignment Fns 
+⍝ AlignLeft: No Leading Blanks...
+  AlignLeft←  '\n *' ⎕R '\n' ⍠OPTS
+
+⍝ AlignMarg: In a multiline string, 
+⍝            - Ignore an initial bare line (one followed by zero or more blanks),
+⍝              but respect a non-bare line.
+⍝            - Each line after initial line are aligned to the first such line.
+⍝            - Final bare newline is NOT ignored.
+⍝ Example:
+⍝ ⍝   ↓←←←← left margin
+⍝     a←"
+⍝       one
+⍝       two
+⍝          three
+⍝       "  ⍝ done
+⍝     ↑0 ∆FIX 'a←"' '  one'  '  two'  '   three' '"  ⍝ done'
+⍝   a←('one' 'two' '   three' '')  ⍝ done
+⍝   ┌───┬───┬────────┬┐
+⍝   │one│two│   three││
+⍝   └───┴───┴────────┴┘
+  AlignMarg← {
+    isFirst margin skipNL1← 1 0 0
+    ⍝ Initial bare newline is ignored, but final bare newline is respected (creating a blank line).
+    ⍝ Set left margin from first "full" line and align following with that.
+      '\A(?=\n)' '\n( *)' ⎕R {
+          0=⍵.PatternNum: '' ⊣ skipNL1⊢←1                    ⍝ We skip newline at <isFirst>
+          nsp← ≢⍵ Fld 1
+          isFirst: skipNL1↓NL ⊣ isFirst margin⊢← 0 nsp       ⍝ Set margin 
+          NL,' '⍴⍨0⌈margin-⍨nsp                              ⍝ Align with margin         
+      }⍠OPTS ⊢ ⍵ 
+  }
+
+⍝ Dictionary...
+  DictNew←{ 
+      K V←⍵ ⋄ M←(≢K)⍴0   ⍝ Keys Values Macro-modes[3 items]
+    ⍝ Get: If item was stored as a number, it is not by default converted to a string (for internal use).
+      NNULL←,⎕NULL     ⍝ See Get 
+    ⍝ Get:   [⍺: default] ∇ key
+    ⍝    ⎕NULL is a valid left arg. ,⎕NULL means "no left arg".
+    ⍝    Default for key is <key>, unless ⍺ is specified.
+      Get←{ 
+          ⍺←  NNULL
+          k1← 1 ⎕C⍣('⎕'=⍬⍴⍵)⊢⍵ 
+          p←  K⍳⊂k1  
+          p=≢K: (⍺≡NNULL)⊃ ⍺ ⍵ 
+        ⍝ If ⊃p⊃M is 0, isQ (quote) and notL (not literal) are ignored and may be omitted.
+          ~⊃p⊃M: p⊃V           
+          _ isQ notL←p⊃M  ⋄ HERE←##    
+        0:: '(∘∘ERR∘∘)'
+          ⎕PP←34 ⋄ ⎕FR←1287
+          DoPars⍣notL ⊢ DoQuotesX⍣isQ ⊢ ⍕ HERE⍎ p⊃V 
+      }
+    ⍝ Set: 
+    ⍝      Set key value [macro-modes], where macro-modes is either:  
+    ⍝      ∘  (1 [isQuote notLiteral]])   
+    ⍝      ∘  (0 [rest ignored])        <== DEFAULT...
+    ⍝ Note re <value>: Does NOT convert numeric values to string s. Num values used internally...
+      Set←{ 
+          k1 v1 m1←3⍴⍵,⊂0 0 0
+          k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
+          p←K⍳⊂k1
+          p=≢K: v1⊣ K V M ,←⊂¨ k1 v1 m1      
+          (p⊃M)←m1 
+          ⊢(p⊃V)←v1      
+      }
+      Del←{
+          k1←⍵
+          k1←1 ⎕C⍣('⎕'=⍬⍴k1)⊢k1 
+          p←K⍳⊂k1
+          p=≢K: ⍵
+          q←p≠⍳≢K 
+          K V M /⍨←⊂ q
+          ⍵
+      }  
+    ⍝ Double ⎕NS to ensure we 1) are child of <HERE>, and 2) can see and copy in this list of variables...
+      HERE.⎕NS ⎕NS  'K' 'V' 'M'  'Get' 'Set' 'Del' 'NNULL'  'DoQuotesX' 'DoPars' 
+  }
+
+⍝ GenBracePat:
+⍝       patName@S ∇ matchLeft@S1 matchRight@S1 
+⍝ e.g.  'BRACES' ∇ '{}'
+⍝ Returned pattern matches recursive balanced left and right "braces" passed as ⍵[0] and ⍵[1].
+  GenBracePat←{ ⎕IO←0 
+        ⍺←⎕A[,⍉(≢⎕A)⊥⍣¯1⊢ ⎕UCS ⍵]    ⍝ ⍺: defaults to a generated unique name based on ⍵
+        Nm (Lb Rb)← ⍺ ('\',¨⍵)                   
+        ∊'(?x)(?: (?J) (?<'Nm'> 'Lb' (?> [^'Lb Rb'''"⍝]+ | ⍝\N* | (?: "[^"]*")+  | (?:''[^'']*'')+ | (?&'Nm')* )+ 'Rb'))' 
+  } 
+⍝-------------------------------------------⍝ 
+⍝-----------  Patterns xxxxP  --------------⍝ 
+⍝-------------------------------------------⍝ 
+⍝ SQ strings: 
+  sqP←       '(''[^'']*'')+'           ⍝ SQ strings: now multi-line quotes allowed.
+  dqP←       '("[^"]*")+'              ⍝ DQ strings: multi-line quotes allowed.
+⍝ qtErrP: For a bad quote, match (and report) only to end of current line, not end of multi-line object...
+  qtErrP←    '[''"][^''"\n]*$'    
+  comP←      '⍝[^\n]*$'
+  numP←      '¯?[\d\.][\d\.EeJj¯]*'    ⍝ Permissive; APL to handle bad numbers. 
+  nlP←       '\n'
+  miscP←     '[^''"⍝\n]+'
+  sinkP←     '((?:^|[[{(⋄:;\n])\h*)←' 
+  tempP←     '⎕T\b'
+⍝ wordP: Pattern for APL var names, e.g.  Abc.∆EF.GHI, ⎕aBc.DeF, ABC.⎕DeF, AbC, etc.
+      _w←         '[\w∆⍙]'
+      _w0←       '[⎕\w∆⍙](?<![\d¯])'
+      _wordP←     _w0,_w,'*(?:\.',_w0,_w,'*)*'
+  wordP←      DoPars _wordP
+  quotLftP←   '(?|(?<='')|',wordP,')\h*→'
+  quotRgtP←   '`\h*(?|(?='')|',wordP ,')'
+  quotRgtErrP←'`'  
+⍝ :INCLUDE lq file_spec rq  where lq is '"''<' and rq is '"''>' or permissively omitted.
+⍝ :INCL may be subsituted for :INCLUDE      'file_spec'      "file_spec"   <file_spec>    file_spec junk
+  includeP← '(?ix) ^\h* :incl(?:ude)?\h+(?| (''[^''\n]+)'' | ("[^"\n]+)" | (<[^>\n]+?)> | ([^"''<\s]\S+)     )'        
+⍝ :LIBRARY [workspace_name] [obj1 [obj2 [...]]]
+⍝ :LIB may be substituted for :INCLUDE
+  libP← '^\h*:LIB(?:RARY)?\b([^⍝\n]*)'   ⍝ Permissively grab args (0 or more) to allow better error msgs...
+⍝ :PRAGMA ONCE 
+⍝ :ONCE        (same as :PRAGMA ONCE)
+  pragmaP←  '(?i)^\h*:(?:pragma\h+)?once\b'
+⍝ :DEF (with optional additive suffixes E, L, and/or Q)
+⍝   Allows :DEF name← value  AND   :DEF name value
+⍝   E: Evaluate on macro definition;
+⍝      L: Literal, Q: Quote after E or L (or both)
+⍝   R: Evaluate on each macro replacement...
+⍝      L, Q (as above)
+  defP←         '^\h*:DEF([LQER]*)\h+(?|([^←\n]+)←\h?+|([^\h\n←]+)\h)(.*)$'
+  undefP←       '^\h*:UNDEF\h+([^\s\n]+)\h*(.*)$'
+  parenP←       'PAR' GenBracePat '()'
+  brackP←       'BRK' GenBracePat '[]'
+  braceP←       'BRC' GenBracePat '{}'                         
+⍝ fileIdP is an internal "DIRECTIVE", so doesn't increment line number (__LINE__).
+⍝ It matches 
+⍝    ::FILE name   OR  ::FILE "name"   OR  ::FILE 'name'
+⍝ Note: Final \n consumes the newline in order to skip __LINE__ increment.
+  fileIdP←'^\h*::FILE\h+(?|''([^''\n]+)''|([^\h\n]+)).*\n'  
+⍝ multiSkipP, simpleSkipP: See Scan4SerialDefs
+  multiSkipP←   sqP, '|', parenP,'|', brackP,'|', braceP  
+  simpleSkipP←  sqP, '|', comP
+
+⍝ ----------------------- ⍝
+⍝ Scan4Strings            ⍝
+⍝ ------------------------⍝
+  Scan4Strings← sqP dqP qtErrP comP nlP miscP  ⎕R { 
+        sqI dqI qtErrI←   0 1 2
+        CASE← ⍵.PatternNum∘∊
+        f0← ⍵ Fld 0
+      ⍝ SQ strings are by definition aligned LEFT and a bare quote on the first line starts the first quote line.
+      ⍝ See AlignLeft for details.
+        CASE sqI:  { 
+            (NL∊f0)∘CondPars S2VS AlignLeft StripTB Strip1LR f0
+        } ⍬
+      ⍝ DQ strings are by definition aligned such that a bare first line of the quote is ignored, and
+      ⍝ each line is aligned with the first full line which establishes the left margin.
+      ⍝ See AlignMarg for details.
+        CASE dqI:  (NL∊f0)∘CondPars S2VS AlignMarg StripTB DQ2SQ Strip1LR f0
+        CASE qtErrI: 11 ⎕SIGNAL⍨'∆FIX QUOTE ERROR: No matching quote found:',CR,f0,'...' 
+      ⍝ ELSE...
+        f0 
+  } ⍠OPTS  
+
+⍝ ----------------------- ⍝
+⍝ Scan4SMacros            ⍝
+⍝ ------------------------⍝
+  macroPList← sqP comP numP defP undefP wordP nlP fileIdP
+  Scan4Macros← macroPList ⎕R {
+      sqI comI numI defI undefI wordI nlI fileIdI← ⍳≢macroPList
+      CASE← ⍵.PatternNum∘∊
+      f0← ⍵ Fld 0 
+    ⍝ fileId: Special internal directive that doesn't increase __LINE__
+      CASE fileIdI: (VERBOSE/'⍝DBG ',f0) ⊣ MACROS.Set '__FILE__'  (DoSpaces DoQuotesX ⍵ Fld 1)
+    ⍝ __LINE__ dictionary value is an integer ≥1.
+      _← MACROS.Set '__LINE__'  ((+/NL=f0)+1 MACROS.Get '__LINE__') 
+      CASE sqI comI numI: f0 
+      f1←⍵ Fld 1 
+      CASE wordI:  Scan4Words f1 
+      CASE nlI:    f0           ⍝ Just needed to count __LINE__ 
+      CASE defI:   { 
+          key rawVal← ⍵ Fld¨ 2 3
+        ¯1=⎕NC key~'⎕': 11 ⎕SIGNAL⍨ 'XFIX :DEF ERROR: Invalid object name: "',key,'"',CR,'[Line] ',f0
+          ⍝ Flags based on paramaters DEF[LREQ] and contents of rawVal
+            trimVal←  DLB rawVal
+            hasVal←   ×≢trimVal 
+            isR←      hasVal ∧ 'R'∊f1                    ⍝ DEFR or DEFER (Execute on each macro replacement)  
+            isQ←      'Q'∊f1                             ⍝ DEFQ and variants (mix of suffixes QLE)  
+            isCom←    '⍝'=⊃trimVal                       ⍝ Is the item a comment? Don't put in parens
+            notLit←  ~isCom ∨ isQ ∨ hasVal ∧ 'L'∊f1      ⍝ DEFL and variants         
+            isEval←   hasVal ∧ (~isR) ∧ 'E'∊f1           ⍝ DEFE (Execute on initial macro evaluation)                                 
+          val← HandleNL DoPars∘DTB⍣notLit⊣ (isQ∧~isR) CondQuotes isEval CondEval Scan4Words rawVal
+          mode← isR isQ notLit
+          '⍝ ',f0 ⊣ MACROS.Set key val mode
+      } ⍵
+      CASE undefI: { 
+          f2← ⍵ Fld 2
+          ¯1=⎕NC f1~'⎕': 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Invalid object name: "',f1,'"',CR,'[Line] ',f0
+          extra←×≢f2
+          extra: 11 ⎕SIGNAL⍨'XFIX :UNDEF ERROR: Trailing text not allowed: "',f2,'"',CR,'[Line] ',f0 
+          '⍝ ',f0 ⊣ MACROS.Del f1 
+      } ⍵
+  } ⍠OPTS 
+
+⍝ ----------------------- ⍝
+⍝ Scan4Words              ⍝
+⍝ ------------------------⍝
+  Scan4Words←{
+      swReplCount swReplMax← 1 20
+      swErrCount  swErrMax←  0  1
+
+      ProcWords← sqP comP numP wordP ⎕R {
+        wordI← 3
+
+        ⍵.PatternNum≠wordI:  ⍵.Match    
+      ⍝ Convert numberic value to string...
+        old≡new← ⍕MACROS.Get (old←⍵.(Lengths[1]↑Offsets[1]↓Block)): new 
+        swReplCount+← 1
+        swReplMax≥swReplCount: ProcWords new 
+        new {
+          swErrCount+← 1
+          swErrMax<swErrCount: ⍺ 
+          ⎕←'>> XFIX MACRO WARNING: Replacement loop may not terminate: :DEFL ',⍵,' ',⍺
+          ⍺ 
+        } old 
+      } ⍠OPTS
+
+      ProcWords ⍵
+  }
+
+⍝ ----------------------- ⍝
+⍝ Scan4PseudoBuiltins     ⍝
+⍝ ------------------------⍝
+⍝ processes these "built-in" functions...
+⍝    →     dyadic  quote left    
+⍝    `     monadic quote right   
+⍝    ←     monadic sink          
+⍝ And this "system" variable
+⍝    ⎕T    sink name (refers to implicit sink var which appears somewhere to its left)
+  tempsN←¯1
+  builtinsPList← sqP comP numP sinkP tempP quotLftP quotRgtP quotRgtErrP 
+  Scan4PseudoBuiltins← builtinsPList ⎕R { 
+        sqI comI numI sinkI tempI quotLeftI quotRgtI quotRgtErrI ← ⍳≢builtinsPList
+        CASE←⍵.PatternNum∘∊
+      ⍝ Skip...
+        CASE sqI comI numI: ⍵ Fld 0
+        nm←'⍙T' 
+        CASE sinkI:{
+            f1← ⍵ Fld 1
+            tempsN⊢←⊢ tempsN+1
+            f1,nm,(⍕tempsN),'←' 
+        } ⍵
+        CASE tempI: {
+          tempsN<0: 11 ⎕SIGNAL⍨'XFIX ⎕T ERROR: Premature use of ⎕T. No sink value  set.'
+          nm, ⍕tempsN
+        } ⍬
+        CASE quotLeftI quotRgtI: (CASE quotLftI){
+              bare← 0≠≢f1← ⍵ Fld 1  
+              Vec← {  3≠≢⍵: ⍵ ⋄ DoPars ',',⍵ }
+              (' '/⍨⍺),(Vec bare CondQuotes f1),⍺⊃  ' ' '(,⍥⊂)' 
+        }⍵
+        CASE quotRgtErrI: 11 ⎕SIGNAL⍨'XFIX ` ERROR: Invalid use of ` (Quote Right).'
+  } ⍠OPTS
+
+⍝ ----------------------- ⍝
+⍝ Scan4SerialDefs         ⍝
+⍝ ------------------------⍝
+⍝ Support (and "Compile") Proposed Extended APL Array Specifications.
+⍝ Calls ⎕SE.Dyalog.Array.Deserialise when required expressions are detected...
+⍝ Deserialise may fail in certain cases (since it's not really complete). If so, we fall back to leaving the text as is...
+  dSerPList← simpleSkipP parenP brackP 
+  Scan4SerialDefs← dSerPList ⎕R {
+        simpleSkipI← 0                 
+        CASE←⍵.PatternNum∘∊
+        F0←⍵ Fld 0
+      CASE simpleSkipI:  F0  
+    ⍝ ELSE: paren or bracket expression...
+        Scan4SerialDefs {
+            0:: ⍵⊣⎕←'∆FIX: Unable to parse serial code expression ',⍵,'"' 
+            Des← 0∘⎕SE.Dyalog.Array.Deserialise 
+            '('=1↑⍵: Des ⍵
+            ⍝ This in part duplicates state known to Deserialise,  
+            ⍝ but avoids creating a shadow copy of Deserialise
+            multi← { '⋄' ∊ multiSkipP '\R' ⎕R  '' '⋄' ⍠ 'Mode' 'M'⊢1↓¯1↓⍵ } ⍵
+            multi: Des ⍵
+            '[',']',⍨ ⍺⍺ 1↓¯1↓⍵
+        }⊢ F0 
+  } ⍠OPTS
+
+⍝ --------------------------------------------------------------------------------------------
+⍝ --------------------------------------------------------------------------------------------
+
+⍝ ------------------------ ⍝
+⍝ Executive: Preliminaries ⍝
+⍝ -------------------------⍝
+    HELP: _←HelpInfo ⍬
+
+⍝ Executive: Initialize Predefined Macros
+⍝  __FILE__   Name of input file or '[TERM]'
+⍝  __LINE__   Current line number (see Scan4Macros)
+⍝  Miscellaneous: ⎕AL.LC, etc. These are for 'demo' purposes to show how to predefine "needed" macros.
+⍝ Note: ⎕AL.LC includes ⎕al.lc (etc.) per definition of "system" macros (with ⎕ prefix).
+  ∆UC←⎕A,⎕Á ⋄ ∆LC← ⎕C ∆UC ⋄ ∆MC←∆UC,∆LC
+  MACROS←DictNew  ('⎕AL.LC'  '⎕AL.UC' '⎕AL.MC') (DoQuotesX¨ ∆LC ∆UC ∆MC)
+  _←MACROS.Set '__FILE__'  (DoSpaces DoQuotesX'[TERM]')   ⍝ No file until we start processing!
+  _←MACROS.Set '__FLINE__' (DoSpaces '(__FILE__,''['',(⍕__LINE__),'']'')')
+
+⍝ Set of Tracing if DEBUG is active...
+  DEBUG∧~__TRACE__: ⍺ (_here Trace) ⍵ ⊣ _here←3+⊃⎕LC  
+
+⍝ ----------------------- ⍝
+⍝ Executive: MAIN         ⍝
+⍝ ------------------------⍝
+⍝ Scan the input string ⍵ and fix if FIX=1
+  2 HERE.⎕FIX⍣FIX ⊢ Scan4PseudoBuiltins Scan4Macros Scan4SerialDefs Scan4Strings Scan4Includes  ⍵
+
+⍝ ----------------------- ⍝
+⍝ HELP INFORMATION        ⍝
+⍝ ------------------------⍝
+⍝ ( Prefix each HELP line with ⍝H )
+  ⍝H ∆FIX: Preprocess APL code  or a vector of code lines or stored in a file,
+  ⍝H    altering the code based on simple directives (including the ability to insert text from (other) code files), 
+  ⍝H    either returning the transformed code or ⎕FIX-ing the result in the workspace. 
+  ⍝H Directives include: 
+  ⍝H   :INCLUDE [file] 
+  ⍝H   :LIB wsid obj1 [obj2 ...]
+  ⍝H   :DEF [name←value-string] and variants 
+  ⍝H   :UNDEF [name] 
+  ⍝H ∆FIX SYNTAX:
+  ⍝H   [ option_string ] ∆FIX [file-spec | vector-of-code-lines]
+  ⍝H   option_string (a single string with one or more of these words with case ignored):
+  ⍝H     FIX      Run 2 ⎕FIX on the output. Otherwise, return the output as a vector of code lines.
+  ⍝H     VERBOSE  Show some diagnostic information as ∆FIX preprocesses.
+  ⍝H     DEBUG    Set VERBOSE to 1 and start debugging.
+  ⍝H     PATH     Find initial file (file-id) in search path, if not in current directory or fully specified.
+  ⍝H     ?        Display this "help" information and shyly return ⍬.
+  ⍝H
+  ⍝H Note: For :INCLUDEd files, <file-spec> searches current filepath, this dir (''.''), FSPATH, WSPATH.
+  ⍝H Otherwise, specify:
+  ⍝H   ∘ without angled brackets <>, i.e. file-spec, or
+  ⍝H   ∘ within quotes, "filespec" or 'file-spec' 
+  ⍝H
+  ⍝H Directives...
+  ⍝H
+  ⍝H :INCLUDE [ "file-spec" | 'file-spec' | <file-spec> ]
+  ⍝H  Insert the named file into the currently active sequence of lines (or character vectors),
+  ⍝H  possibly searching for the file within the active search path.
+  ⍝H  ∘ 'file-spec' OR "file-spec"
+  ⍝H    Find the file within the active :INCLUDE directory (same as filename on cmd line or ".")
+  ⍝H    If quotes are omitted, the next token (sequence w/o whitespace) is treated as if in quotes.
+  ⍝H  ∘ <file-spec>
+  ⍝H    Find the file in WSPATH (Dyalog) or FSPATH (PMS), if not found as if "file-spec" above.
+  ⍝H
+  ⍝H :DEF[L][E][R][Q] name[←]value-string
+  ⍝H  Replace the string <name> with value-string, possibly transformed, wherever the former is found.
+  ⍝H  ∘ Default
+  ⍝H    Default is to replace name with value-string in parentheses.
+  ⍝H  ∘ L -  Literal, suppress the default surrounding parentheses.
+  ⍝H  ∘ E  - Execute value-string when defined and store result as the replacement string.
+  ⍝H    By default (without R), execute exactly once.
+  ⍝H  ∘ R (or ER) - Execute value-string each time it replaces <name>.
+  ⍝H  ∘ Q-  Quote the result, place result inside single quotes (expanding internal quotes).
+  ⍝H    Just as for L, the default surrounding parentheses are suppressed.
+  ⍝H
+  ⍝H  :LIB wsid obj1 [obj2 ...],  where  (⎕NC 'objN')∊2 3 4
+  ⍝H  Copy the source text for objects (all in nameclasses 2 3 4) into the text stream
+  ⍝H  as if entered directly. 
+  ⍝H  ∘ Variables are assigned on a single (possibly long) line;
+  ⍝H  ∘ Dfns/dops are assigned as ordinarily established within fns or operators;
+  ⍝H  ∘ traditional fns and ops are assigned via ⎕FX, via a single (possibly long) 
+  ⍝H    vector of char vectors.
+  ⍝H  ∘ At least one object MUST be specified.
+  ⍝H  ∘ Objects outside nameclasses 2 3 4 will be validated (and copied), but will be ignored.
+  ⍝H    (:LIB can't detect their nameclass until they are copied into a private namespace and discarded).
+  ⍝H 
+  ⍝H :UNDEF name
+  ⍝H  Remove any special value for name.
+  ⍝H
+  ⍝H Other Constructs
+  ⍝H ¨¨¨¨¨ ¨¨¨¨¨¨¨¨¨¨
+  ⍝H Handling of SQ and DQ strings
+  ⍝H  - By default, SQ (ordinary) strings may extend over multiple lines.
+  ⍝H    All spacing at the beginning of lines is maintained as is.
+  ⍝H  - DQ (added) strings allow for internal single quotes without doubling; internal double quotes must be doubled.
+  ⍝H    Spacing at the beginning of lines after the first line are aligned, counting the spaces on the first line 
+  ⍝H    to determine the left margin for ALL lines (lines to the left of the margin are treated as at the margin).
+  ⍝H    ∘ If a DQ ends a line, that line will be discarded and the "first" DQ string line will be the next.
+  ⍝H      This allows all the lines including the first to be visually aligned when determining the margin:
+  ⍝H          mytext←↑"                  ==>   mytext←↑'This is line one' 'This is line two' '   and three'
+  ⍝H             This is line one        
+  ⍝H             This is line two
+  ⍝H                and three"
+  ⍝H
+  ⍝H Generate APL Serial Values  
+  ⍝H   (value ⋄ value ...)              Generate one or more vector expressions
+  ⍝H   (key: value ⋄ key: value ...)    Generate namespace with variable assignments specified.
+  ⍝H   ()                               Generate ⎕NS⍬
+  ⍝H   [value ⋄ value ...]              Generate array expression
+  ⍝H where ⋄ represents a statement end via ⋄ or a newline/carriage return.
+  ⍝H ∘ Create a code string that will assign the Dyalog APL value to the named variable at run time.
+  ⍝H ∘ value: Dyalog APL data value, dfn, or dop, consisting of 1 or more data or code lines.
+}

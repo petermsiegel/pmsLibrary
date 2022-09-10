@@ -1,0 +1,44 @@
+﻿  {∆R∆}←{∆LOOPMAX∆}Try ∆EL∆
+  ;∆L∆;∆CPUMAX∆;∆E∆;∆COR∆;∆CORPARMS∆;∆f∆;∆F∆;∆L∆;∆LOOPMAX∆;∆CPU∆;∆WALL∆;∆WALLMAX∆
+  ;∆CWTimeMs∆
+
+⍝ For Main Test Loop
+  ∆LOOPMAX∆←10{0=⎕NC ⍵:⍺ ⋄ ⎕OR ⍵}'∆LOOPMAX∆'
+  ∆CPUMAX∆ ∆WALLMAX∆←1000 1000 ⍝ ms
+
+⍝ For Correction Loop
+  ∆CLOOPMAX∆  ∆CCPUMAX∆ ∆CWALLMAX∆ ← 1E5      100     200 
+
+  ∆CWTimeMs∆←{2↑2↓,⎕MONITOR'∆F∆'}      ⍝ ∇ ⍬: Returns:  [0] CPU TIME (ms), [1] ELAPSED TIME (ms)'
+
+  {}⎕WA
+  ⎕FX'∆F∆' ''
+  1 ⎕MONITOR'∆F∆'
+
+  ∆L∆←0       
+  :REPEAT  
+      ∆F∆
+      ∆L∆+←1
+      ∆CPU∆ ∆WALL∆← ∆CWTimeMs∆ ⍬
+  :UNTIL ∆L∆     ≥ ∆CLOOPMAX∆
+  :ORIF  ∆CPU∆   ≥ ∆CCPUMAX∆
+  :OrIf  ∆WALL∆  ≥ ∆CWALLMAX∆
+  ∆COR∆←∆CPU∆÷∆L∆
+  ⍝ ⎕←'Correction ',(10 ¯2⍕1000×∆COR∆),'μsec over ',∆L∆,'loops'
+
+  ⎕←'Code      | CPU/Iter (s) | # Iter | Tot CPU (s)  | Tot Wall (s)'
+  :For ∆E∆ :In ⊆∆EL∆
+      {}⎕WA
+      ⎕FX'___←∆F∆'('___←',∆E∆)
+      1 ⎕MONITOR'∆F∆'
+      ∆L∆←0
+      :Repeat
+          ∆F∆
+          ∆L∆+←1
+          ∆CPU∆ ∆WALL∆← ∆CWTimeMs∆ ⍬
+      :Until (∆CPU∆>50)∧∆L∆≥∆LOOPMAX∆
+      :OrIf  ∆CPU∆  ≥ ∆CPUMAX∆  
+      :OrIf  ∆WALL∆ ≥ ∆WALLMAX∆
+
+      ⎕←(10↑∆E∆),'| ',(10 ¯3⍕ 0.001×0⌈∆COR∆-⍨∆CPU∆÷∆L∆),'   | ',(6 ¯2⍕∆L∆),' |  ',(6 ¯3⍕ 0.001×∆CPU∆),'      |  ',(6 ¯3⍕ 0.001×∆WALL∆) 
+  :EndFor

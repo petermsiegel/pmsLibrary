@@ -1,0 +1,8 @@
+﻿ r←{pick}CoinToss n;c;⎕IO
+ ⎕IO←0
+
+ pick←n⌊{0::1000 ⋄ pick}⍬
+
+ r←(+\?n⍴2)÷1+⍳n
+ c←?pick⍴n
+ r←r[c[⍋c]]

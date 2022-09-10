@@ -1,0 +1,54 @@
+﻿  SetMaxWS←{
+    ⍝ msg ← [confirm←1]  SetMaxWS  [ size@I | 'size[MG]' ]
+    ⍝ Updates <specFi> with new MAXWS.
+    ⍝ Edits sequence  <MAXWS: "ddd[GM]">
+ 
+    ⍝ Specification file
+      specFi←'/Users/petermsiegel/.dyalog/dyalog.182U64.dcfg'
+   
+    ⍝ Completion messages: ¯1 "err", 0 "no change", 1 "changed"
+      notFoundM←  ¯1 'Dyalog specification file not found.'
+      invalidM←   ¯1 'Error: MAXWS specification invalidly or missing from file.'
+      infoM←       0 'User requested information only. Reset canceled.'
+      noChangeM←   0 'Nothing is changing. Reset canceled.'
+      abandonE←    0 'Changes abandoned by user.'
+      completeE←   1 'Changes complete.'
+
+      ⍺←1    ⍝ confirm←[1|0]  To confirm whether to proceed, confirm=1. Else 0.
+    
+    ⍝ Read profile
+      ~⎕NEXISTS specFi: notFoundM ⊣⎕←'Spec file="','"',⍨specFi
+      profText←⊃⎕NGET specFi 0
+
+    ⍝ Decode curMax (MAXWS etc.)
+      curMax←' '~⍨'MAXWS:\h*"(\d+[GM]?)"'⎕S'\1'⍠1⊣profText
+      0=≢curMax: invalidM ⊣ ⎕←'Spec file="','"',⍨specFi
+      curMax,←'M'/⍨'MG'(~∊⍨)¯1↑curMax←1 ⎕C⍕⊃curMax
+      ⎕←'Spec fi max setting: ',(⍕curMax),'  Default max: 256M'
+      ⎕←'Session max setting: ',2 ⎕nq '#' 'GetEnvironment' 'MAXWS'  
+
+    ⍝ Normalize newMax expression
+      (⎕VFI ⍕⍵)≡,¨1 0: infoM  
+      0=≢newMax←1 ⎕C' '~⍨⍕⍵: infoM
+      newMax,←'M'/⍨'MG'(~∊⍨)¯1↑newMax
+
+    ⍝ Nothing changed? Bye.
+      curMax≡newMax: noChangeM
+
+    ⍝ Preparing to update profile...
+      ⎕←'Setting Max to: ',newMax
+      newProfText←'(MAXWS:\h*)"(.*)"'⎕R('\1"',newMax,'"')⊢profText
+   
+    ⍝ User ready to update?
+    ⍝ No? Bye.
+      ⍺{  
+          ⍺: 'y'≠⎕←⎕C 1↑' '~⍨⍞↓⍨≢⍞←'Ok? [no] ' ⋄ 0 
+      }⍬: abandonE
+
+    ⍝ Yes. Updating profile
+      _← (specFi,'_OLD') ⎕NCOPY⍠ ('IfExists' 'Replace')⊣ specFi
+      _← newProfText ⎕NPUT specFi 1
+      
+    ⍝ Done
+      completeE ⊣ ⎕← 'Prior specs now in "','"',⍨specFi,'_OLD'
+  }

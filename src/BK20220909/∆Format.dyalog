@@ -15,11 +15,8 @@
 ⍝ If ⍺ is an assertion (2|⎕DR ⍺: all numeric) with at least one 0, the assertion is false: 
 ⍝ then return immediately with shy 0 (false).
   ⍺{⍵: 0∊⍺ ⋄ 0 } 2|⎕DR ⍺: _←0      ⍝ 2|⎕DR ≡≡ isNumeric
-⍝⍝⍝⍝⍝⍝⍝ Otherwise, move us to a private namespace in the # domain.
-⍝⍝⍝⍝⍝⍝⍝  SUPPRESSED: WHY NEEDED???
-⍝⍝⍝⍝⍝⍝⍝     ⍺ (#.⎕NS ⎕THIS ''⊃⍨⎕THIS∊# ⎕SE).{ 
-⍝ NOW:
-  ⍺ { 
+⍝ Otherwise, move us to a private namespace in the # domain.
+  ⍺ (#.⎕NS ⎕THIS ''⊃⍨⎕THIS∊# ⎕SE).{  
     ⍝ ************************************************⍝
     ⍝ SECTION ********* SUPPORT FUNCTION DEFINITIONS  ⍝
     ⍝ ************************************************⍝
@@ -324,8 +321,9 @@
 }
 ⍝ "Promote ∆F" to ##.∆Format
  ##.∆F←⎕THIS.∆F
-⍝  Also, try to put this ns (if named) at the beginning of ##.⎕PATH, w/o duplication
- ##.⎕PATH {1↓∊' ',¨∪⍵,' '(≠⊆⊢)⍺}← ⊂⍕⎕THIS 
+⍝  Also, try to put this ns into ##.⎕PATH
+ ##.⎕PATH⊢←⎕THIS{ 1↓∊' ',¨∪(⊂⍕⍺),' '(≠⊆⊢)⍵}##.⎕PATH
+
 ⍝ Lib: peer Library used internally (standard path) and externally (compile option path)
 :Namespace Lib
    ⎕IO←0

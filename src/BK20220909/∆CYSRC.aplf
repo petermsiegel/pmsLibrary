@@ -1,0 +1,19 @@
+﻿ ∆CYSRC←{
+     ⍺←⊢ ⋄ ns←⎕NS''
+     ∆CY←ns.{⍺←⊢ ⋄ ⍺ ⎕CY ⍵}
+     0::⎕EM ⎕SIGNAL ⎕EN
+     _←⍺ ∆CY ⍵
+
+   ⍝ 0≠≢ns.⎕NL 2 3 4~⍨⍳10:'Sorry, we only handle fns, ops, and vars'⎕SIGNAL 11
+
+     ⊃,/ns.{
+         Rep←⎕SE.Dyalog.Utils.repObj
+         nc←⎕NC⊂⍵
+
+         2=⌊nc:⊂⍵,'←',Rep⍎⍵
+         nc∊3.2 4.2:⎕NR ⍵
+         nc∊3.1 4.1:⊂'⎕FX ',Rep ⎕NR ⍵
+         ⊂''             ⍝ Missing objects...
+     }¨ns.⎕NL-⍳10
+
+ }
