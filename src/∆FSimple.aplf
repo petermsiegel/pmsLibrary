@@ -7,29 +7,39 @@
       ⍝ Code for matrix self-aligning catenation function (Çæt)
         ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'
         ⍙⍙nm←   '⊃Çæt/ '
-      ⍝ Simple Stuff
+      ⍝ Simple Declarations
         SQ←'''' 
-      ⍝ Patterns for ProcessCode_SpaceField 
+      ⍝ Patterns for ProcCSFields 
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
         dolP←     '(?<!\\)\$'
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
-        comP←     '⍝[^}]+'           ⍝ comment (limited):  ⍝ up to just before closing }
-      ⍝ Patterns for Divide2Fields 
-        eosP←     '(?<!\\)⋄'
-        space1P←  '(?x) \{ (\s*)       (\s* (→\s*)? (⍝[^}]*|\s*)? ) \}'
-        space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝[^}]*|\s*)? ) \}'
-        braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
+        comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
+      
+      ⍝ Patterns ...
+      ⍝ {} w/o spaces is a null field, useful for separating Text Fields...
+        space0P←  '{}'                     
+        space1P←  '(?x) \{ (\s*)       (\s* (→\s*)? (⍝[^}⋄]*|\s*)? ) \}'
+        space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝[^}⋄]*|\s*)? ) \}'
+        braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
       ⍝ Misc Util
-        TrimR← {⍵↓⍨-+/∧\' '=⌽⍵}
-      ⍝ Main Fns
-        crAsis←  '\r' '\\⋄'⊃⍨⍺=¯1                      ⍝ Leave '\⋄' as is, if ⍺=¯1
-        TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ In a Text field
-        DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ In a DQ string in a Code field.
-        SQQot←     {SQ,SQ,⍨⍵/⍨1+SQ=⍵}
-        ProcessTextField←  SQQot  TFEsc 
-        ProcessCode_SpaceField←  {
+        TrimR← {⍺←' ' ⋄ ⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
+        RemNullFields← ⊢(/⍨)(0∘≠≢¨)  
+
+      ⍝ Main Processing Routines
+      ⍝ Setup...
+        ⋄ crAsis←  '\r'   '\\⋄'  ⊃⍨⍺=¯1                  ⍝ Leave '\⋄' as is, if ⍺=¯1
+        ⋄ TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ In a Text field
+        ⋄ DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ In a DQ string in a Code field.
+        ⋄ SQQot←     {' ',SQ,SQ,⍨⍵/⍨1+SQ=⍵}
+
+      ⍝ Process Text Fields
+        ProcTFields←  SQQot  TFEsc 
+        
+      ⍝ Process Code and Space Fields
+        ⋄ omegaInc←0
+        ProcCSFields←  {
             fld←  dqP sqP dolP omegaNP omega0P comP ⎕R {
                   Case← ⍵.PatternNum∘∊
                   Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
@@ -39,21 +49,22 @@
                   Case 3: '(⍵⊃⍨',(⍕⊃⌽⎕VFI Fld 1),')'
                   Case 4: '(⍵⊃⍨',(⍕omegaInc),')' ⊣ omegaInc+←1
                   Case 5: ''
-            } 1↓¯1↓⍵    ⍝ Remove {,}
-          ⍝ "Documentation mode" for Code and Space Fields!
-            '→'=¯1↑fld2←TrimR fld: (' ', SQQot ⍵,' ') (' ({',(¯1↓fld2),'}⍵)')
+            } 1↓¯1↓⍵    ⍝ Remove { and }
+          ⍝ Right arrow → sets "Documentation mode" for Code and Space Fields
+            tr← ' ⋄'TrimR fld   ⍝ We ignore trailing ⋄ and blanks when checking for a trailing → symbol
+            '→'= ¯1↑tr: (' ', SQQot ⍵,' ') (' ({',( ¯1↓tr ),'}⍵)')
             '({',fld,'}⍵)' 
         }
-        omegaInc←0
-        ProcessFields← {
-            '{'≠1↑⍵: ProcessTextField ⍵     
-                     ProcessCode_SpaceField   ⍵              
-        }
+      ⍝ Process all fields by type
+        ProcFieldsByType← { '{'≠1↑⍵: ProcTFields ⍵ ⋄  ProcCSFields   ⍵ }
+
       ⍝ Divide format string into fields, "converting" space fields to code fields
-        Divide2Fields← {⍵/⍨0≠≢¨⍵}(eosP space1P space2P braceP ⎕R '\r' '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r')
+        ⋄ divIn←   space0P   space1P          space2P            braceP 
+        ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r'
+        Div2Fields← RemNullFields divIn ⎕R divOut
         
-      ⍝  Executive
-      '{','}',⍨ ((⍺≠¯1)⊃ ⍙⍙nm ⍙⍙def),∊ ProcessFields¨ Divide2Fields ⊆⊃⍵
+      ⍝ Executive
+        '{','}',⍨ ((⍺≠¯1)⊃ ⍙⍙nm ⍙⍙def),∊ ProcFieldsByType¨ Div2Fields ⊆⊃⍵
     }⊆⍵ 
 }
  
