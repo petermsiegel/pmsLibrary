@@ -8,45 +8,49 @@
         ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'
         ⍙⍙nm←   '⊃Çæt/ '
       ⍝ Simple Stuff
-        SQ←'''' ⋄ SP←' '
-      ⍝ Patterns
+        SQ←'''' 
+      ⍝ Patterns for ProcessCode_SpaceField 
         dqP←      '(("[^"]*")+)' 
+        sqP←      '((''[^'']*'')+)' 
         dolP←     '(?<!\\)\$'
-        eosP←     '(?<!\\)⋄'
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
-        spaceP←   '\{\s*(:\d+:\s*)?\}'
+        comP←     '⍝[^}]+'           ⍝ comment (limited):  ⍝ up to just before closing }
+      ⍝ Patterns for Divide2Fields 
+        eosP←     '(?<!\\)⋄'
+        space1P←  '(?x) \{ (\s*)       (\s* (→\s*)? (⍝[^}]*|\s*)? ) \}'
+        space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝[^}]*|\s*)? ) \}'
         braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^⋄}]* | (?&P)* )+  \} )' 
-      ⍝ Fns
-        retCh← (⍺=¯1)⊃'\r' '\\⋄'                      ⍝ Skip '\⋄' processing, if ⍺=¯1
-        TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R retCh '\1'    ⍝ In a Text field
-        DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R retCh '\1'    ⍝ In a DQ string in a Code field.
+      ⍝ Misc Util
+        TrimR← {⍵↓⍨-+/∧\' '=⌽⍵}
+      ⍝ Main Fns
+        crAsis←  '\r' '\\⋄'⊃⍨⍺=¯1                      ⍝ Leave '\⋄' as is, if ⍺=¯1
+        TFEsc←   '\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ In a Text field
+        DQEsc←   '\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ In a DQ string in a Code field.
         SQQot←     {SQ,SQ,⍨⍵/⍨1+SQ=⍵}
         ProcessTextField←  SQQot  TFEsc 
-        ProcessSpaceField← { 
-             '('' ''⍴⍨',')',⍨ ⍵ 
-         } 
-        ProcessCodeField←  {
-            fld←  dqP dolP omegaNP omega0P ⎕R {
+        ProcessCode_SpaceField←  {
+            fld←  dqP sqP dolP omegaNP omega0P comP ⎕R {
                   Case← ⍵.PatternNum∘∊
                   Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                   Case 0: SQQot DQEsc 1↓¯1↓Fld 0
-                  Case 1: ' ⎕FMT '
-                  Case 2: '(⍵⊃⍨',(⍕⊃⌽⎕VFI Fld 1),')'
-                  Case 3: '(⍵⊃⍨',(⍕omegaInc),')' ⊣ omegaInc+←1
-            } 1↓¯1↓⍵
-            '→'∊⍨¯1↑fld2←{⍵↓⍨-ns←+/∧\' '=⌽⍵}fld: (' ', SQQot '{',fld,'} ') (' ({',(¯1↓fld2),'}⍵)')
+                  Case 1: Fld 0
+                  Case 2: ' ⎕FMT '
+                  Case 3: '(⍵⊃⍨',(⍕⊃⌽⎕VFI Fld 1),')'
+                  Case 4: '(⍵⊃⍨',(⍕omegaInc),')' ⊣ omegaInc+←1
+                  Case 5: ''
+            } 1↓¯1↓⍵    ⍝ Remove {,}
+          ⍝ "Documentation mode" for Code and Space Fields!
+            '→'=¯1↑fld2←TrimR fld: (' ', SQQot ⍵,' ') (' ({',(¯1↓fld2),'}⍵)')
             '({',fld,'}⍵)' 
         }
         omegaInc←0
         ProcessFields← {
             '{'≠1↑⍵: ProcessTextField ⍵     
-            raw2←' '~⍨raw←1↓¯1↓⍵             
-            0=≢raw2:     ProcessSpaceField  (⍕≢raw)  
-            ':'=1↑raw2:  ProcessSpaceField  raw2~':'
-                         ProcessCodeField   ⍵              
+                     ProcessCode_SpaceField   ⍵              
         }
-        Divide2Fields← {⍵/⍨0≠≢¨⍵}(eosP spaceP braceP ⎕R '\r' '\r\0\r' '\r\0\r')
+      ⍝ Divide format string into fields, "converting" space fields to code fields
+        Divide2Fields← {⍵/⍨0≠≢¨⍵}(eosP space1P space2P braceP ⎕R '\r' '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r')
         
       ⍝  Executive
       '{','}',⍨ ((⍺≠¯1)⊃ ⍙⍙nm ⍙⍙def),∊ ProcessFields¨ Divide2Fields ⊆⊃⍵
