@@ -66,8 +66,9 @@
         
       ⍝ Executive
         preamble←   ⍙⍙nm ⍙⍙def⊃⍨ ⍺≠¯1
-      ⍝ ('⍬'...). Dummy field ⍬ added if there's only one. Resolves cases with single field returning 0⍴⊂''.
-        '{','}',⍨ ∊ preamble, ('⍬'/⍨1=≢f),⍨ f←ProcFieldsByType¨ FString2Fields ⊆⊃⍵
+      ⍝ Postamble: Add dummy field if only one field. Resolves cases with single field returning 0⍴⊂''.
+        Postamble← {⍵,'⍬'/⍨1=≢⍵}
+        '{','}',⍨ ∊ preamble, Postamble ProcFieldsByType¨ FString2Fields ⊆⊃⍵
     }⊆⍵ 
 }
  
