@@ -10,8 +10,8 @@
  ⍝ Library directory
   DIR← '/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  ⍝ Session libraries
-  LIBS← '∆FIX.aplf' '∆SH.dyalog' '∆Format.dyalog'    
-
+  LIBS← '∆FIX.aplf' '∆SH.dyalog' '∆FSimple.aplf'    
+  #.⎕PATH,⍨←'⎕SE '
  ok←0
 
  Say0←{ 1: ⎕←⍵ }
@@ -20,6 +20,7 @@
 
  Say0 'System Variables:'
  Say1 '⎕IO',⎕IO,'    ','⎕PW',⎕PW,'    ','⎕WA',⎕WA
+ Say1 '#.⎕PATH ',#.⎕PATH
  
 
  {}UCMD'cd ',DIR
