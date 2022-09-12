@@ -1,4 +1,48 @@
-∆F←{ ⍝ Simple format string function
+∆F←{ ⍝ Simple format string function.
+     ⍝   ∆F 'format_string'  [⍵1 [⍵2 [... ⍵N]]]
+     ⍝ Works by creating 0 or more 2-D (Char Matrix) "fields," which are executed  
+     ⍝ left to right and assembled into a single matrix (with fields top-aligned).
+     ⍝ There are 3 types of fields: 
+     ⍝    Code Fields, Space Fields, and simple Text Fields.
+     ⍝
+     ⍝ 1. Code Fields
+     ⍝    Code Fields are essentially dfns and may contain any dfn code, including
+     ⍝    error handling. Each Code field has implicit right arguments:
+     ⍝       ⍹0, ⍹1, etc., depending on the number of scalars passed to ∆F.
+     ⍝       ⍹0: the format string itself. It may only be referenced explicitly.
+     ⍝       ⍹1: the first scalar after the format string. It must be present if referenced.
+     ⍝       ⍹N: the Nth scalar. Ditto.
+     ⍝       ⍹:  (no digits following)
+     ⍝           the "next" scalar, starting first with ⍵1 (NOT ⍵0).
+     ⍝        -  As an alternative, ⍵0, ⍵1, ..., ⍵N may be used.
+     ⍝        -  In place of ⍹, ⍵_ may be used. 
+     ⍝           (⍵ has its usual interpretation: all items ⍵0 ⍵1 ... ⍵N)
+     ⍝    {ccc} Code Field  
+     ⍝     ccc: any dfn code
+     ⍝        - Code ccc is executed and result is formatted via ⎕FMT.
+     ⍝        - \{ and \} do not indicate code fields (see Text Fields).
+     ⍝        - To enter quoted strings in code, use double quotes "like these":
+     ⍝             {⎕NC "fred"} is easier than {⎕NC ''fred''}
+     ⍝        - To include in a string, enter the APL way:
+     ⍝             "abc""def""ghi"  ==>   abc"def"ghi
+     ⍝        - $ is a special symbol for ⎕FMT to allow easy formatting:
+     ⍝              "F8.2" $ MyCode
+     ⍝ 2. Space Fields
+     ⍝    {sss|:nn:} Space Field 
+     ⍝     sss: 0 or more spaces, inserts spaces indicated
+     ⍝     nn   a positive number, inserts nn spaces
+     ⍝        - A 0-length space field {} is handy when separating Text Fields (see below).
+     ⍝ 3. Text Fields
+     ⍝    Everything else is a Text Field
+     ⍝     ...       Text Field
+     ⍝          Text fields may contain newlines as \⋄. Simple ⋄ is not special.
+     ⍝          To show \⋄, enter \\⋄.  To show { or }, enter \{ or \}. 
+     ⍝          In all other cases, simple \ is not special: +\ is simply +\.
+     ⍝        - Using {} to separate Text Fields.
+     ⍝            ∆F 'One\⋄two{}-Three\⋄-four'   vs    ∆F 'One\⋄two-Three\⋄-four'
+     ⍝          One-Three                            One
+     ⍝          two-four                             two-Three
+     ⍝                                               -four
     ⍺←1
     ⍺((⊃⎕RSI){ 
       ⍺≠1: ⍵ ⋄ 0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
