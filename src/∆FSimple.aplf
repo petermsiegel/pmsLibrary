@@ -1,66 +1,32 @@
-∆F←{ ⍝ Simple format string function.
-     ⍝   ∆F 'format_string'  [⍵1 [⍵2 [... ⍵N]]]
-     ⍝ Works by creating 0 or more 2-D (Char Matrix) "fields," which are executed  
-     ⍝ left to right and assembled into a single matrix (with fields top-aligned).
-     ⍝ There are 3 types of fields: 
-     ⍝    Code Fields, Space Fields, and simple Text Fields.
-     ⍝
-     ⍝ 1. Code Fields
-     ⍝    Code Fields are essentially dfns and may contain any dfn code, including
-     ⍝    error handling. Each Code field has implicit right arguments:
-     ⍝       ⍹0, ⍹1, etc., depending on the number of scalars passed to ∆F.
-     ⍝       ⍹0: the format string itself. It may only be referenced explicitly.
-     ⍝       ⍹1: the first scalar after the format string. It must be present if referenced.
-     ⍝       ⍹N: the Nth scalar. Ditto.
-     ⍝       ⍹:  (no digits following)
-     ⍝           the "next" scalar, starting first with ⍵1 (NOT ⍵0).
-     ⍝        -  As an alternative, ⍵0, ⍵1, ..., ⍵N may be used.
-     ⍝        -  In place of ⍹, ⍵_ may be used. 
-     ⍝           (⍵ has its usual interpretation: all items ⍵0 ⍵1 ... ⍵N)
-     ⍝    {ccc} Code Field  
-     ⍝     ccc: any dfn code
-     ⍝        - Code ccc is executed and result is formatted via ⎕FMT.
-     ⍝        - \{ and \} do not indicate code fields (see Text Fields).
-     ⍝        - To enter quoted strings in code, use double quotes "like these":
-     ⍝             {⎕NC "fred"} is easier than {⎕NC ''fred''}
-     ⍝        - To include in a string, enter the APL way:
-     ⍝             "abc""def""ghi"  ==>   abc"def"ghi
-     ⍝        - $ is a special symbol for ⎕FMT to allow easy formatting:
-     ⍝              "F8.2" $ MyCode
-     ⍝ 2. Space Fields
-     ⍝    {sss|:nn:} Space Field 
-     ⍝     sss: 0 or more spaces, inserts spaces indicated
-     ⍝     nn   a positive number, inserts nn spaces
-     ⍝        - A 0-length space field {} is handy when separating Text Fields (see below).
-     ⍝ 3. Text Fields
-     ⍝    Everything else is a Text Field
-     ⍝     ...       Text Field
-     ⍝          Text fields may contain newlines as \⋄. Simple ⋄ is not special.
-     ⍝          To show \⋄, enter \\⋄.  To show { or }, enter \{ or \}. 
-     ⍝          In all other cases, simple \ is not special: +\ is simply +\.
-     ⍝        - Using {} to separate Text Fields.
-     ⍝            ∆F 'One\⋄two{}-Three\⋄-four'   vs    ∆F 'One\⋄two-Three\⋄-four'
-     ⍝          One-Three                            One
-     ⍝          two-four                             two-Three
-     ⍝                                               -four
+∆F←{ 
+   ⍝ Simple format string function.
+   ⍝   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
+   ⍝ For help, execute 
+   ⍝   ∆F⍨'help'
+   ⍝ or see ⍝H comments at the bottom of this function.
+
     ⍺←1
+    'help'≡⍥⎕C⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
+    
     ⍺((⊃⎕RSI){ 
-      ⍺≠1: ⍵ ⋄ 0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
-      ⍺⍺⍎⍵,'⍵⍵'⊣⍵⍵ 
-    }(⊆⍵))⍺{
-      ⍝ Code for matrix self-aligning catenation function (Çæt)
-        ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'
-        ⍙⍙nm←   '⊃Çæt/'
+      ⍺≠1: ⍵⍵{ w0←{q,q,⍨⍵/⍨1+⍵=q←''''}⊃⍺  ⋄ '{',⍵,w0,',⍥⊆⍵}' }⍵
+    0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
+      ⍺⍺⍎⍵,'⍵⍵'⊣⍵⍵        ⍝ Execute in caller's namespace
+    }(,⊆⍵))⍺{
+      ⍝ Private environment...
+        ⎕IO ⎕ML←0 1
+      ⍝ Code for matrix self-aligning catenation function used above
+        ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' ⍝ Definition
+        ⍙⍙nm←   '⊃ⒸⒶⓉ/'                     ⍝ Symbolic name
       ⍝ Simple Declarations
         SQ←'''' 
-      ⍝ Patterns for ProcCSFields 
+      ⍝ Patterns for ProcCSF 
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
         dolP←     '(?<!\\)\$'
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
         comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
-      
       ⍝ PCRE Patterns ...
       ⍝ {} w/o spaces is a null field, useful for separating Text Fields...
         space0P←  '{}'                     
@@ -68,9 +34,9 @@
         space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝[^}⋄]*|\s*)? ) \}'
         braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
       ⍝ Misc Util
-        TrimR←         {⍺←' ' ⋄ ⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
-        RemNullFields← ⊢(/⍨)(0∘≠≢¨)  
-        SQQot←         {' ',SQ,SQ,⍨⍵/⍨1+SQ=⍵}
+        TrimR←     {⍺←' ' ⋄ ⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
+        RemNullF←  ⊢(/⍨)(0∘≠≢¨)  
+        SQQot←     {' ',SQ,SQ,⍨⍵/⍨1+SQ=⍵}
 
       ⍝ Main Processing Routines
       ⍝ Setup...
@@ -78,20 +44,20 @@
         TFEsc←    '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ Escapes in a Text field
         DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ Escapes in a DQ string in a Code field.
    
-      ⍝ Process Text Fields
-        ProcTFields←  SQQot  TFEsc 
+      ⍝ ProcTF.  Process Text Fields
+        ProcTF←  SQQot  TFEsc 
         
-      ⍝ Process Code and Space Fields
+      ⍝ ProcCSF. Process Code and Space Fields
         ⋄ omegaInc←0
-        ProcCSFields←  {
+        ProcCSF←  {
             fld←  dqP sqP dolP omegaNP omega0P comP ⎕R {
                   Case← ⍵.PatternNum∘∊
                   Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                   Case 0: SQQot DQEsc 1↓¯1↓Fld 0
                   Case 1: Fld 0
                   Case 2: ' ⎕FMT '
-                  Case 3: '(⍵⊃⍨',(⍕⊃⌽⎕VFI Fld 1),')'
-                  Case 4: '(⍵⊃⍨',(⍕omegaInc),')' ⊣ omegaInc+←1
+                  Case 3: '(⍵⊃⍨⎕IO+',(⍕⊃⌽⎕VFI Fld 1),')'
+                  Case 4: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
                   Case 5: ''
             } 1↓¯1↓⍵    ⍝ Remove { and }
           ⍝ Right arrow → sets "Documentation mode" for Code and Space Fields
@@ -100,19 +66,121 @@
             '({',fld,'}⍵)' 
         }
         
-      ⍝ Process all fields by type
-        ProcFieldsByType← { '{'≠1↑⍵: ProcTFields ⍵ ⋄  ProcCSFields   ⍵ }
+      ⍝ ProcAllF. Process all fields by type
+        ProcAllF← { '{'≠1↑⍵: ProcTF ⍵ ⋄  ProcCSF   ⍵ }¨
 
-      ⍝ Divide format string into fields, "converting" space fields to code fields
+      ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
         ⋄ divIn←   space0P   space1P          space2P            braceP 
         ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r'
-        FString2Fields← RemNullFields divIn ⎕R divOut
+        DivFmt2F← RemNullF divIn ⎕R divOut
         
       ⍝ Executive
-        preamble←   ⍙⍙nm ⍙⍙def⊃⍨ ⍺≠¯1
-      ⍝ Postamble: Add dummy field if only one field. Resolves cases with single field returning 0⍴⊂''.
-        Postamble← {⍵,'⍬'/⍨1=≢⍵}
-        '{','}',⍨ ∊ preamble, Postamble ProcFieldsByType¨ FString2Fields ⊆⊃⍵
-    }⊆⍵ 
+        Pre1←   (⍙⍙nm ⍙⍙def⊃⍨ ⍺≠¯1)∘,
+      ⍝ Preamble: Add dummy field if only one field. Resolves cases with single field returning 0⍴⊂''.
+        Pre2←   ⊢,⍨('⍬'∘(/⍨)1=≢∘⊢)
+        '{','}',⍨ ∊ Pre1 Pre2 ProcAllF DivFmt2F ⊆⊃⍵
+    }⊆⍵  
+
+     ⍝H Simple format string function.
+     ⍝H   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
+     ⍝H Returns 
+     ⍝H   ⍺=1       A char matrix based on the format string and subsequent values of ⍵
+     ⍝H   ⍺∊0 ¯1    A char vector, either an executable (⍺=0) or a pseudo-executable (⍺=¯1)
+     ⍝H   ⍺≡'help'  An empty char vec (''). See HELP
+     ⍝H 
+     ⍝H HELP
+     ⍝H ¯¯¯¯
+     ⍝H For help, enter
+     ⍝H   ∆F⍨'help'
+     ⍝H
+     ⍝H A. format_string (⍹0)
+     ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+     ⍝H Works by creating 0 or more 2-D (Char Matrix) "fields," which are executed  
+     ⍝H left to right and assembled into a single matrix (with fields top-aligned).
+     ⍝H There are 3 types of fields: 
+     ⍝H    Code Fields, Space Fields, and simple Text Fields.
+     ⍝H
+     ⍝H 1. Code Fields
+     ⍝H    Code Fields are essentially dfns and may contain any dfn code, including
+     ⍝H    error handling. Each Code field has implicit right arguments, those passed to ∆F when executed:
+     ⍝H       ⍹0, ⍹1, ... ⍵N, are the scalars in the right arg (⍵) passed to ∆F.
+     ⍝H       ⍹0: (0⊃⍵) the format string itself. It may only be referenced explicitly.
+     ⍝H       ⍹1: (1⊃⍵) the first scalar after the format string. 
+     ⍝H       ⍹N: (N⊃⍵) the Nth scalar. Ditto.
+     ⍝H       ⍹:  [⍹ with no digits immed following]
+     ⍝H           selects the "next" scalar to the right, starting AFTER the format string with ⍹1.
+     ⍝H        -  NB: the initial value is ⍹1, not ⍹0. (⍹0 must be referenced explicitly)
+     ⍝H        -  Easy to type alternatives:
+     ⍝H           FOR                    USE
+     ⍝H           ⍹0, ⍹1, ... ⍹N         ⍵0, ⍵1, ... ⍵N
+     ⍝H           bare ⍹                 ⍵_ 
+     ⍝H        ⍵  What about ⍵?
+     ⍝H           ⍵ itself has its normal dfn interpretation, i.e. the set of 0 or more scalars: ⍹0 ⍹1 ... ⍹N.
+     ⍝H    {ccc} Code Field  
+     ⍝H     ccc  any dfn code, including multiple stmts, guards, and error guards.
+     ⍝H        - Code ccc is executed and result is formatted via ⎕FMT.
+     ⍝H        - \{ and \} do not indicate code fields (see Text Fields).
+     ⍝H        - To enter quoted strings in code, use double quotes "like these":
+     ⍝H             {⎕NC "fred"} is easier than {⎕NC ''fred''}
+     ⍝H        - To include in a string, enter the APL way:
+     ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
+     ⍝H        - $ is a special symbol for ⎕FMT to allow easy formatting:
+     ⍝H              "F8.2" $ MyCode
+     ⍝H        - A Code Field may include limited comments, 
+     ⍝H              beginning with a '⍝' and terminated just before the next '⋄' or '}'.
+     ⍝H          Braces, statement ends (⋄) and (double) quotes are disallowed in Code Field comments.
+     ⍝H     {ccc →} A Self-documenting Code Field
+     ⍝H          A Code Field with a trailing right arrow (→) will generate two fields:
+     ⍝H          - the code itself in literal form, followed by its evaluated value:
+     ⍝H               ∆F'{⍪⍳⍵1 →} {⍪⍵2+⍳⍵1 →}' 2 3
+     ⍝H            {⍪⍳⍵1 →} 0 {⍪⍵2+⍳⍵1 →} 3
+     ⍝H                     1             4
+     ⍝H          - Extra blanks and comments are allowed within a Self-documenting Code Field.
+     ⍝H               ∆F'{⍪⍳⍵1 → ⍝ simple} {⍪⍵2+⍳⍵1 → ⍝ fancy}' 2 3
+     ⍝H            {⍪⍳⍵1 → ⍝ simple} 0 {⍪⍵2+⍳⍵1 → ⍝ fancy} 3
+     ⍝H                              1                     4
+     ⍝H
+     ⍝H 2. Space Fields
+     ⍝H    {sss | :nn:} Space Field 
+     ⍝H     sss  0 or more spaces, inserts spaces indicated
+     ⍝H     nn   a positive number, inserts nn spaces. 
+     ⍝H        - The colon prefix is required; the colon suffix is optional.
+     ⍝H        - An ill-formed Space Field will be handled as a Code Field, likely triggering an error.
+     ⍝H        - A 0-length space field {} is handy when separating adjacent Text Fields (see below).
+     ⍝H 3. Text Fields
+     ⍝H    Everything else is a Text Field
+     ⍝H     ...       Text Field
+     ⍝H          Text fields may contain newlines as \⋄. Simple ⋄ is not special.
+     ⍝H          To show \⋄, enter \\⋄.  To show { or }, enter \{ or \}. 
+     ⍝H          In all other cases, simple \ is not special: +\ is simply +\.
+     ⍝H        - Using {} to separate Text Fields.
+     ⍝H            ∆F 'One\⋄two{}-Three\⋄-four'   vs    ∆F 'One\⋄two-Three\⋄-four'
+     ⍝H          One-Three                            One
+     ⍝H          two-four                             two-Three
+     ⍝H                                               -four
+     ⍝H B. Elements of ⍵: ⍹0 ⍹1 ... ⍹N (⍵0 ⍵1 ... ⍵1)
+     ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+     ⍝H ⍹0 (⍵0) is the format string itself.
+     ⍝H ⍹1 ... ⍹N  (or ⍵1 ... ⍵N) are the rest of the scalars in the right arg (⍵) passed to ∆F.
+     ⍝
+     ⍝H C. ⍺ (default ⍺=1)
+     ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯ 
+     ⍝H For format string fs
+     ⍝H  ⍺=1  [1] ∆F fs ⍵1 ⍵2 ... ⍵N 
+     ⍝H       Execute the format string fs with any scalars ⍵1...⍵N to the right,
+     ⍝H       Returns: a char matrix with the requisite format.
+     ⍝H  ⍺=0  0 ∆F fs
+     ⍝H       Returns an executable X that when executed as 
+     ⍝H       ∘ (⍎X) ⍵1...⍵N, where the args ⍵1...⍵n will be combined with fs as:
+     ⍝H            (fs,⍥⊆⍵1...⍵N), i.e. ⍹0 is fs, the format string text originally passed to ∆F.
+     ⍝H         It will return results identical to (⍺ ∆F fs ⍹1 ⍹2 ... ⍹N
+     ⍝H       Returns: a char vector.
+     ⍝H  ⍺=¯1 ¯1 ∆F fs
+     ⍝H       Returns a pseudo-executable P, which is identical to X, except
+     ⍝H       ∘ the internally used catenation function is represented as the name ⒸⒶⓉ,
+     ⍝H       ∘ any newline chars (actually ⎕UCS 13, CR) are represented as \⋄, so they
+     ⍝H         don't create multiline output.
+     ⍝H       Returns: a char vector.
+     ⍝H
 }
  
