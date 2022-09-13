@@ -7,17 +7,22 @@
 
     ⍺←1
     'help'≡⍥⎕C⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
-    
+    ~1 0 ¯1∊⍨⊂⍺: 11 ⎕SIGNAL⍨ '∆F: Invalid option (⍺): ',⍕⍺
+
     ⍺((⊃⎕RSI){ 
-      ⍺≠1: ⍵⍵{ w0←{q,q,⍨⍵/⍨1+⍵=q←''''}⊃⍺  ⋄ '{',⍵,w0,',⍥⊆⍵}' }⍵
-    0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
-      ⍺⍺⍎⍵,'⍵⍵'⊣⍵⍵        ⍝ Execute in caller's namespace
+      0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
+      ⍝ ⍺=1:    Execute in caller's namespace
+        ⍺=1: ⍺⍺⍎⍵,'⍵⍵'⊣⍵⍵ 
+      ⍝ ⍺∊0 ¯1: Return executable string (0) or pseudo-executable(¯1)    
+        w0←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ←'''' }⊃⍵⍵  
+        '{',⍵,w0,',⍥⊆⍵}' 
     }(,⊆⍵))⍺{
-      ⍝ Private environment...
+      0:: ⎕SIGNAL/'∆F: Internal Error' 11⊣⎕←⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
         ⎕IO ⎕ML←0 1
       ⍝ Code for matrix self-aligning catenation function used above
-        ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' ⍝ Definition
-        ⍙⍙nm←   '⊃ⒸⒶⓉ/'                     ⍝ Symbolic name
+      ⍝ Right arg (⍵) is prefixed with null field (⍬) to handle sys and user fns returning single ⍬⍴⊂''.
+        ⍙⍙def ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/⍬ ' ⍝ Definition
+        ⍙⍙nm←   '⊃ⒸⒶⓉ/⍬ '                     ⍝ Symbolic name
       ⍝ Simple Declarations
         SQ←'''' 
       ⍝ Patterns for ProcCSF 
@@ -30,8 +35,8 @@
       ⍝ PCRE Patterns ...
       ⍝ {} w/o spaces is a null field, useful for separating Text Fields...
         space0P←  '{}'                     
-        space1P←  '(?x) \{ (\s*)       (\s* (→\s*)? (⍝[^}⋄]*|\s*)? ) \}'
-        space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝[^}⋄]*|\s*)? ) \}'
+        space1P←  '(?x) \{ (\s*)       (\s* (→\s*)? (⍝([^}⋄])*|\s*)? ) \}'
+        space2P←  '(?x) \{ \s*:(\d+):? (\s* (→\s*)? (⍝([^}⋄])*|\s*)? ) \}'
         braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
       ⍝ Misc Util
         TrimR←     {⍺←' ' ⋄ ⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
@@ -50,20 +55,21 @@
       ⍝ ProcCSF. Process Code and Space Fields
         ⋄ omegaInc←0
         ProcCSF←  {
-            fld←  dqP sqP dolP omegaNP omega0P comP ⎕R {
+            f←  dqP sqP dolP omegaNP omega0P comP ⎕R {
+                  dqI sqI dolI omegaNI omega0I comI←⍳6
                   Case← ⍵.PatternNum∘∊
                   Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                  Case 0: SQQot DQEsc 1↓¯1↓Fld 0
-                  Case 1: Fld 0
-                  Case 2: ' ⎕FMT '
-                  Case 3: '(⍵⊃⍨⎕IO+',(⍕⊃⌽⎕VFI Fld 1),')'
-                  Case 4: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
-                  Case 5: ''
-            } 1↓¯1↓⍵    ⍝ Remove { and }
-          ⍝ Right arrow → sets "Documentation mode" for Code and Space Fields
-            tr← ' ⋄'TrimR fld   ⍝ We ignore trailing ⋄ and blanks when checking for a trailing → symbol
-            '→'= ¯1↑tr: (' ', SQQot ⍵,' ') (' ({',( ¯1↓tr ),'}⍵)')
-            '({',fld,'}⍵)' 
+                  Case dqI:     SQQot DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
+                  Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
+                  Case dolI:    ' ⎕FMT '
+                  Case omegaNI: '(⍵⊃⍨⎕IO+',(⍕⊃⌽⎕VFI Fld 1),')'
+                  Case omega0I: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
+                  Case comI:    ''
+            } 1↓¯1↓⍵                                      ⍝ Remove { and }
+          ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
+            isDoc←'→'=¯1↑t← ' ⋄'TrimR f   
+            isDoc: (SQQot doc,' ')  (' ({', f, '}⍵)') ⊣ (doc f)← ⍵ (¯1↓t)
+            '({', f,'}⍵)' 
         }
         
       ⍝ ProcAllF. Process all fields by type
@@ -75,14 +81,12 @@
         DivFmt2F← RemNullF divIn ⎕R divOut
         
       ⍝ Executive
-        Pre1←   (⍙⍙nm ⍙⍙def⊃⍨ ⍺≠¯1)∘,
-      ⍝ Preamble: Add dummy field if only one field. Resolves cases with single field returning 0⍴⊂''.
-        Pre2←   ⊢,⍨('⍬'∘(/⍨)1=≢∘⊢)
-        '{','}',⍨ ∊ Pre1 Pre2 ProcAllF DivFmt2F ⊆⊃⍵
+        Pre←   (⍙⍙nm ⍙⍙def⊃⍨ ⍺≠¯1)∘,
+        '{','}',⍨ ∊ Pre ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
      ⍝H Simple format string function.
-     ⍝H   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
+     ⍝H   [⍺] ∆F 'format_string(⍹0)'  [⍹1 [⍹2 [... ⍹N]]]
      ⍝H Returns 
      ⍝H   ⍺=1       A char matrix based on the format string and subsequent values of ⍵
      ⍝H   ⍺∊0 ¯1    A char vector, either an executable (⍺=0) or a pseudo-executable (⍺=¯1)
@@ -101,8 +105,8 @@
      ⍝H    Code Fields, Space Fields, and simple Text Fields.
      ⍝H
      ⍝H 1. Code Fields
-     ⍝H    Code Fields are essentially dfns and may contain any dfn code, including
-     ⍝H    error handling. Each Code field has implicit right arguments, those passed to ∆F when executed:
+     ⍝H    Code Fields are essentially dfns and may contain any dfn code, including error handling. 
+     ⍝H    Each Code field has implicit right arguments, those passed to ∆F as ⍵ when executed:
      ⍝H       ⍹0, ⍹1, ... ⍵N, are the scalars in the right arg (⍵) passed to ∆F.
      ⍝H       ⍹0: (0⊃⍵) the format string itself. It may only be referenced explicitly.
      ⍝H       ⍹1: (1⊃⍵) the first scalar after the format string. 
@@ -115,7 +119,7 @@
      ⍝H           ⍹0, ⍹1, ... ⍹N         ⍵0, ⍵1, ... ⍵N
      ⍝H           bare ⍹                 ⍵_ 
      ⍝H        ⍵  What about ⍵?
-     ⍝H           ⍵ itself has its normal dfn interpretation, i.e. the set of 0 or more scalars: ⍹0 ⍹1 ... ⍹N.
+     ⍝H           ⍵ by itself has its normal dfn interpretation, i.e. the set of 0 or more scalars: ⍹0 ⍹1 ... ⍹N.
      ⍝H    {ccc} Code Field  
      ⍝H     ccc  any dfn code, including multiple stmts, guards, and error guards.
      ⍝H        - Code ccc is executed and result is formatted via ⎕FMT.
