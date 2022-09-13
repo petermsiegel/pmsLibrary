@@ -10,12 +10,12 @@
     ~1 0 ¯1∊⍨⊂⍺: 11 ⎕SIGNAL⍨ '∆F: Invalid option (⍺): ',⍕⍺
 
     ⍺((⊃⎕RSI){ 
-      0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
+      0:: ⎕SIGNAL/⎕DMX.((EM,(0≠≢Message)/': ',Message) EN)  
       ⍝ ⍺=1:    Execute in caller's namespace
-        ⍺=1: ⍺⍺⍎⍵,'⍵⍵'⊣⍵⍵ 
+        ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ ⍺∊0 ¯1: Return executable string (0) or pseudo-executable(¯1)    
-        w0←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ←'''' }⊃⍵⍵  
-        '{',⍵,w0,',⍥⊆⍵}' 
+        w0←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ←'''' }⊃⍵⍵    
+        '{',⍵,w0,',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
       0:: ⎕SIGNAL/'∆F: Internal Error' 11⊣⎕←⎕DMX.((EM,(0≠≢Message)/': ',Message) EN) 
         ⎕IO ⎕ML←0 1
