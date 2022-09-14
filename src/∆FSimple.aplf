@@ -1,29 +1,31 @@
 ∆F←{ 
-   ⍝ Simple format string function.
+   ⍝ Simple format string function (PROTOTYPE)
    ⍝   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
    ⍝ For help, execute 
    ⍝   ∆F⍨'help'
    ⍝ or see ⍝H comments at the bottom of this function.
 
     ⍺←1
-
     'help'≡⍥⎕C⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵:   ⎕SIGNAL⊂('EM' '∆F DOMAIN ERROR')  ('Message' 'Invalid format string')('EN' 11)
     ~1 0 ¯1∊⍨⊂⍺: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option (⍺): ',⍕⍺)('EN' 11 )
 
     ⍺((⊃⎕RSI){ 
+    ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
       0:: ⎕SIGNAL ⎕DMX.(⊂('Message' Message)('EN' EN)('EM' EM))
-      ⍝ ⍺=1:    Execute in caller's namespace
+      ⍝ ⍺=1:    Execute in caller namespace ⍺⍺
         ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ ⍺∊0 ¯1: Return executable string (0) or pseudo-executable(¯1)    
         w0←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ←'''' }⊃⍵⍵    
         '{',⍵,w0,',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
+    ⍝ Workhorse: passes back executable code as text
       0::    ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
-      ⍝ Code for matrix self-aligning catenation function used above
-        CATdef ← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' ⍝ Definition
-        CATnm←   '⊃ⒸⒶⓉ/'                     ⍝ Symbolic name
+      ⍝ Code for matrix self-aligning catenation function "CAT" used above
+      ⍝ Definition: converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
+        CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'    ⍝ Executable code
+        CATsym←  '⊃CAT/'                        ⍝ Symbolic name
       ⍝ Simple Declarations
         SQ←'''' 
       ⍝ Patterns for ProcCSF 
@@ -33,12 +35,16 @@
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
         comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
-      ⍝ PCRE Patterns ...
-      ⍝ {} w/o spaces is a null field, useful for separating Text Fields...
+      ⍝ Patterns for DivFmt2F
+      ⍝ Space Fields: [0] {} null; [1] {  } explicit spaces; [2] { :5: } numeric and { :⍵2: } special variables
         space0P←  '{}'                     
-        space1P←  '(?x) \{       ( \s*                  )         ((→\s*)? (⍝([^}⋄])*)?)  \}'     ⍝ sets \1 and \2
-        space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s*  ((→\s*)? (⍝([^}⋄])*)?)  \}'     ⍝ sets \1 and \2
-        braceP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
+        ⋄ selfDoc←'((→\s*)? (⍝([^}⋄])*)?)' ⍝ Self Documenting Code subpattern
+        space1P←  '(?x) \{       ( \s*                  )        ',selfDoc,' \}'     ⍝ sets \1 and \2
+        space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',selfDoc,' \}'     ⍝ sets \1 and \2
+      ⍝ codeP: Recursively matches balanced braces {} with 
+      ⍝        internal dfns, (limited) comments, double-quote strings, and escapes.
+        codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
+    
       ⍝ Misc Util
         TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
         RemNullF←  ⊢(/⍨)(0∘≠≢¨)  
@@ -74,17 +80,17 @@
         }
         
       ⍝ ProcAllF. Process all fields by type. 
-      ⍝ Pad with null fields as needed for catenation step (CATdef, CATnm above)
+      ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are presented (see CATdef above)
         PadF←      ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
-        ProcAllF←  (PadF) { '{'≠1↑⍵: ProcTF ⍵ ⋄  ProcCSF   ⍵ }¨
+        ProcAllF←  PadF { '{'≠1↑⍵: ProcTF ⍵ ⋄  ProcCSF   ⍵ }¨
 
       ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
-        ⋄ divIn←   space0P   space1P          space2P            braceP 
+        ⋄ divIn←   space0P   space1P          space2P            codeP 
         ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r'
         DivFmt2F← RemNullF divIn ⎕R divOut
         
       ⍝ Executive
-        AddPre←   (CATdef CATnm ⊃⍨ ⍺=¯1)∘, 
+        AddPre← (CATdef CATsym⊃⍨⍺=¯1)∘, 
         '{','}',⍨ ∊ AddPre ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
@@ -209,7 +215,7 @@
      ⍝H         1 ∆F fs ⍹1 ⍹2 ... ⍹N
      ⍝H ⍺=¯1  ¯1 ∆F fs
      ⍝H     ∘ Generates a pseudo-executable P, which is identical to X, except
-     ⍝H       - the internally used catenation function is abbreviated to the name ⒸⒶⓉ,
+     ⍝H       - the internally used catenation function is abbreviated to the symbolic function name CAT,
      ⍝H       - newline escapes \⋄ are maintained as \⋄, suppressing
      ⍝H         multiline output, so the pseudocode can be easily inspected.
      ⍝H     ∘ Returns: a char vector of pseudocode.
