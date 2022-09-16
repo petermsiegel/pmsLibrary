@@ -31,16 +31,16 @@
       ⍝ Patterns for ProcCSF 
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
-        dolP←     '(\${1,2})'        ⍝ Synonyms for $: ⎕FMT and $$: (boxed) display.
+        dolP←     '(\${1,2})'        ⍝ $ Shortcut: (ambivalent) ⎕FMT;  $$ Shortcut: (boxed) display.  
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
         comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
       ⍝ Patterns for DivFmt2F
       ⍝ Space Fields: [0] {} null; [1] {  } explicit spaces; [2] { :5: } numeric and { :⍵2: } special variables
-        space0P←  '{}'                     
-        ⋄ selfDoc←'((→\s*)? (⍝([^}⋄])*)?)' ⍝ Self Documenting Code subpattern
-        space1P←  '(?x) \{       ( \s*                  )        ',selfDoc,' \}'     ⍝ sets \1 and \2
-        space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',selfDoc,' \}'     ⍝ sets \1 and \2
+        space0P←  '{}'                       ⍝ Separates fields w/o generating code.    
+        ⋄ spExtras←'((→\s*)?(⍝([^}⋄])*)?)'   ⍝ Self Documenting Code and Comment subpatterns
+        space1P←  '(?x) \{       ( \s*                  )        ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (≢\1) blanks
+        space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (\1)⍴' '
       ⍝ codeP: Recursively matches balanced braces {} with 
       ⍝        internal dfns, (limited) comments, double-quote strings, and escapes.
         codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
@@ -76,13 +76,13 @@
             } 1↓¯1↓⍵                                      ⍝ Remove { and }
           ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
             isDoc←'→'=¯1↑t←  TrimR f   
-          ⍝ To add a blank here↓↓ after quoted doc on left, add a blank after the right arrow in the format string.
-            isDoc: (SQQot doc    )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
+          ⍝ To add a blank... ↓here in the output, place a blank after the right arrow in the format string.
+            isDoc: ( SQQot doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
             '({', f,'}⍵)' 
         }
         
       ⍝ ProcAllF. Process all fields by type. 
-      ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are presented (see CATdef above)
+      ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are present in output (see CATdef)
         PadF←      ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
         ProcAllF←  PadF { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
 
@@ -92,8 +92,8 @@
         DivFmt2F← RemNullF divIn ⎕R divOut
         
       ⍝ Executive
-        ⋄ AddPreamble← (CATdef CATsym⊃⍨¯1=⍺)∘, 
         ⋄ MakeDfn←     '{'∘,,∘'}'∘∊
+        ⋄ AddPreamble← (CATdef CATsym⊃⍨¯1=⍺)∘, 
         MakeDfn AddPreamble ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
@@ -103,7 +103,15 @@
      ⍝H   ⍺=1       A char matrix based on the format string and subsequent values of ⍵
      ⍝H   ⍺∊0 ¯1    A char vector, either an executable (⍺=0) or a pseudo-executable (⍺=¯1)
      ⍝H   ⍺≡'help'  An empty char vec (''). See HELP
-     ⍝H 
+     ⍝H Example:
+     ⍝H       cel←  20 12 23 ¯2
+     ⍝H       F←{32+9×5÷⍨⍵}
+     ⍝H       ∆F ' {⍪cel} Celsius is {"I2" $ ⍪F cel} in Fahrenheit'
+     ⍝H   20 Celsius is 68 in Fahrenheit
+     ⍝H   12            53              
+     ⍝H   23            73              
+     ⍝H   ¯2            28  
+     ⍝H  
      ⍝H HELP
      ⍝H ¯¯¯¯
      ⍝H For help, enter
