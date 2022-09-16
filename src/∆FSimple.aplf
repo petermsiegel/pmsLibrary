@@ -31,7 +31,7 @@
       ⍝ Patterns for ProcCSF 
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
-        dolP←     '(?<!\\)\$'
+        dolP←     '(\${1,2})'        ⍝ Synonyms for $: ⎕FMT and $$: (boxed) display.
         omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
         omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
         comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
@@ -52,7 +52,7 @@
 
       ⍝ Main Processing Routines
       ⍝ Setup...
-        ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨⍺=¯1                         ⍝ Leave '\⋄' as is, if ⍺=¯1
+        ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨¯1=⍺                         ⍝ Leave '\⋄' as is, if ⍺=¯1
         TFEsc←    '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ Escapes in a Text field
         DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ Escapes in a DQ string in a Code field.
    
@@ -68,21 +68,23 @@
                   Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                   Case dqI:     SQQot DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
                   Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
-                  Case dolI:    ' ⎕FMT '
+                ⍝ $: ⎕FMT, $$: (box) display
+                  Case dolI:    ' ⎕FMT ' Display ⊃⍨2=≢Fld 1 ⊣ Display← ' ⎕SE.Dyalog.Utils.display '
                   Case omegaNI: '(⍵⊃⍨⎕IO+',(⍕⊃⌽⎕VFI Fld 1),')'
                   Case omega0I: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
                   Case comI:    ''
             } 1↓¯1↓⍵                                      ⍝ Remove { and }
           ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
             isDoc←'→'=¯1↑t←  TrimR f   
-            isDoc: (SQQot doc,' ')  (' ({', f, '}⍵)') ⊣ (doc f)← ⍵ (¯1↓t)
+          ⍝ To add a blank here↓↓ after quoted doc on left, add a blank after the right arrow in the format string.
+            isDoc: (SQQot doc    )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
             '({', f,'}⍵)' 
         }
         
       ⍝ ProcAllF. Process all fields by type. 
       ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are presented (see CATdef above)
         PadF←      ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
-        ProcAllF←  PadF { '{'≠1↑⍵: ProcTF ⍵ ⋄  ProcCSF   ⍵ }¨
+        ProcAllF←  PadF { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
 
       ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
         ⋄ divIn←   space0P   space1P          space2P            codeP 
@@ -90,8 +92,9 @@
         DivFmt2F← RemNullF divIn ⎕R divOut
         
       ⍝ Executive
-        AddPre← (CATdef CATsym⊃⍨⍺=¯1)∘, 
-        '{','}',⍨ ∊ AddPre ProcAllF DivFmt2F ⊆⊃⍵
+        ⋄ AddPreamble← (CATdef CATsym⊃⍨¯1=⍺)∘, 
+        ⋄ MakeDfn←     '{'∘,,∘'}'∘∊
+        MakeDfn AddPreamble ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
      ⍝H Simple format string function.
@@ -143,20 +146,24 @@
      ⍝H        - To include in a string, enter the APL way:
      ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
      ⍝H        - $ is a special symbol for ⎕FMT to allow easy formatting:
-     ⍝H              "F8.2" $ MyCode
+     ⍝H             {"F8.2" $ MyCode...}
+     ⍝H        - $$ is a special symbol for the display function (DFNS ws), which causes code to be displayed in box format:
+     ⍝H             { $$ MyCode...} 
+     ⍝H        - $ and $$ may be combined, with at least one space between them:
+     ⍝H             { $$ "F8.2" $ MyCode}    ⍝ ← Formats then puts in a display box.
      ⍝H        - A Code Field may include limited comments, 
      ⍝H              beginning with a '⍝' and terminated just before the next '⋄' or '}'.
      ⍝H          Braces, statement ends (⋄) and (double) quotes are disallowed in Code Field comments.
      ⍝H     {ccc →} A Self-documenting Code Field
      ⍝H          A Code Field with a trailing right arrow (→) will generate two fields:
      ⍝H          - the code itself in literal form, followed by its evaluated value:
-     ⍝H               ∆F'{⍪⍳⍵1 →} {⍪⍵2+⍳⍵1 →}' 2 3
-     ⍝H            {⍪⍳⍵1 →} 0 {⍪⍵2+⍳⍵1 →} 3
-     ⍝H                     1             4
+     ⍝H               ∆F'A: {⍪⍳⍵1 →},  B: {⍪⍵2+⍳⍵1 →}' 2 3
+     ⍝H            A: ⍪⍳⍵1 → 0,  B: ⍪⍵2+⍳⍵1 → 3
+     ⍝H                      1                4
      ⍝H          - Extra blanks and comments are allowed within a Self-documenting Code Field.
-     ⍝H               ∆F'{⍪⍳⍵1 → ⍝ simple} {⍪⍵2+⍳⍵1 → ⍝ fancy}' 2 3
-     ⍝H            {⍪⍳⍵1 → ⍝ simple} 0 {⍪⍵2+⍳⍵1 → ⍝ fancy} 3
-     ⍝H                              1                     4
+     ⍝H               ∆F'{⍪⍳⍵1 → ⍝ simple}  {⍪⍵2+⍳⍵1 → ⍝ fancy}' 2 3
+     ⍝H            ⍪⍳⍵1 → ⍝ simple 0  ⍪⍵2+⍳⍵1 → ⍝ fancy 3
+     ⍝H                            1                   4
      ⍝H
      ⍝H 2. Space Fields
      ⍝H    {sss | :nn: | :⍹N:} Space Field   
