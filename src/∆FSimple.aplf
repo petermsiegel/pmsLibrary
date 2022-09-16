@@ -1,5 +1,5 @@
 ∆F←{ 
-   ⍝ Simple format string function (PROTOTYPE)
+   ⍝ Simple format string function (PROTOTYPE ONLY)
    ⍝   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
    ⍝ For help, execute 
    ⍝   ∆F⍨'help'
