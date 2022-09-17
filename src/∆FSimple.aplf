@@ -1,5 +1,5 @@
 ∆F←{ 
-   ⍝ Simple format string function (PROTOTYPE ONLY)
+   ⍝ Simple format string function (PROTOTYPE)
    ⍝   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
    ⍝ For help, execute 
    ⍝   ∆F⍨'help'
@@ -16,8 +16,8 @@
       ⍝ ⍺=1:    Execute in caller namespace ⍺⍺
         ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ ⍺∊0 ¯1: Return executable string (0) or pseudo-executable(¯1)    
-        w0←{ SQ,SQ,⍨⍵/⍨1+⍵=SQ←'''' }⊃⍵⍵    
-        '{',⍵,w0,',⍥⊆⍵}'   
+        EnSQ← ' '''∘,'''',⍨⊢(/⍨)1+''''∘=  
+        '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
     ⍝ Workhorse: passes back executable code as text
       0::    ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
@@ -47,8 +47,8 @@
     
       ⍝ Misc Util
         TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
-        RemNullF←  ⊢(/⍨)(0∘≠≢¨)  
-        SQQot←     {' ',SQ,SQ,⍨⍵/⍨1+SQ=⍵}
+        DelNullF←  ⊢(/⍨)(0∘≠≢¨)  
+        EnSQ← (' ',SQ)∘,SQ,⍨⊢(/⍨)1+SQ∘=  
 
       ⍝ Main Processing Routines
       ⍝ Setup...
@@ -57,16 +57,17 @@
         DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ Escapes in a DQ string in a Code field.
    
       ⍝ ProcTF.  Process Text Fields
-        ProcTF←  SQQot  TFEsc 
+        ProcTF←  EnSQ  TFEsc 
         
       ⍝ ProcCSF. Process Code and Space Fields
         ⋄ omegaInc←0
+        ⋄ csfIn← dqP sqP dolP omegaNP omega0P comP 
         ProcCSF←  {
-            f←  dqP sqP dolP omegaNP omega0P comP ⎕R {
-                  dqI sqI dolI omegaNI omega0I comI←⍳6
-                  Case← ⍵.PatternNum∘∊
-                  Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                  Case dqI:     SQQot DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
+            f←  csfIn ⎕R {
+                  ⋄ dqI sqI dolI omegaNI omega0I comI←⍳≢csfIn
+                  ⋄ Case← ⍵.PatternNum∘∊
+                  ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+                  Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
                   Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
                 ⍝ $: ⎕FMT, $$: (box) display
                   Case dolI:    ' ⎕FMT ' Display ⊃⍨2=≢Fld 1 ⊣ Display← ' ⎕SE.Dyalog.Utils.display '
@@ -77,19 +78,19 @@
           ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
             isDoc←'→'=¯1↑t←  TrimR f   
           ⍝ To add a blank... ↓here in the output, place a blank after the right arrow in the format string.
-            isDoc: ( SQQot doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
+            isDoc: ( EnSQ doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
             '({', f,'}⍵)' 
         }
         
       ⍝ ProcAllF. Process all fields by type. 
       ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are present in output (see CATdef)
-        PadF←      ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
-        ProcAllF←  PadF { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
+        Pad2F←     ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
+        ProcAllF←  Pad2F { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
 
       ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
-        ⋄ divIn←   space0P   space1P          space2P            codeP 
-        ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r' '\r\0\r'
-        DivFmt2F← RemNullF divIn ⎕R divOut
+        ⋄ divIn←   space0P   space1P          space2P             codeP 
+        ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r'  '\r\0\r'
+        DivFmt2F← DelNullF divIn ⎕R divOut
         
       ⍝ Executive
         ⋄ MakeDfn←     '{'∘,,∘'}'∘∊
@@ -97,20 +98,21 @@
         MakeDfn AddPreamble ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
-     ⍝H Simple format string function.
+     ⍝H Simple format string function (PROTOTYPE).
      ⍝H   [⍺] ∆F 'format_string(⍹0)'  [⍹1 [⍹2 [... ⍹N]]]
      ⍝H Returns 
      ⍝H   ⍺=1       A char matrix based on the format string and subsequent values of ⍵
      ⍝H   ⍺∊0 ¯1    A char vector, either an executable (⍺=0) or a pseudo-executable (⍺=¯1)
      ⍝H   ⍺≡'help'  An empty char vec (''). See HELP
      ⍝H Example:
-     ⍝H       cel←  20 12 23 ¯2
-     ⍝H       F←{32+9×5÷⍨⍵}
-     ⍝H       ∆F ' {⍪cel} Celsius is {"I2" $ ⍪F cel} in Fahrenheit'
-     ⍝H   20 Celsius is 68 in Fahrenheit
-     ⍝H   12            53              
-     ⍝H   23            73              
-     ⍝H   ¯2            28  
+     ⍝H       cel←  100 20 12 23 ¯2
+     ⍝H       F←    32+1.8∘× 
+     ⍝H       ∆F ' { ⍵1 $ ⍪cel } C = {⍵1 $ ⍪F cel} in F' 'I3,⊂°⊃'
+     ⍝H  100° Celsius is 212° in Fahrenheit
+     ⍝H   20°             68°              
+     ⍝H   12°             54°              
+     ⍝H   23°             73°              
+     ⍝H   ¯2°             28°   
      ⍝H  
      ⍝H HELP
      ⍝H ¯¯¯¯
@@ -235,5 +237,6 @@
      ⍝H         multiline output, so the pseudocode can be easily inspected.
      ⍝H     ∘ Returns: a char vector of pseudocode.
      ⍝H
+     ⍝H Note: As a prototype, ∆F is relatively slow, but serviceable enough.
 }
  
