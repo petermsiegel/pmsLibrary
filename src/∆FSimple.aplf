@@ -13,9 +13,9 @@
     ⍺((⊃⎕RSI){ 
     ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
       0:: ⎕SIGNAL ⎕DMX.(⊂('Message' Message)('EN' EN)('EM' EM))
-      ⍝ ⍺=1:    Execute in caller namespace ⍺⍺
+      ⍝ ⍺=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
         ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
-      ⍝ ⍺∊0 ¯1: Return executable string (0) or pseudo-executable(¯1)    
+      ⍝ ⍺∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← ' '''∘,'''',⍨⊢(/⍨)1+''''∘=  
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
@@ -24,8 +24,8 @@
         ⎕IO ⎕ML←0 1
       ⍝ Code for matrix self-aligning catenation function "CAT" used above
       ⍝ Definition: converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
-        CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'    ⍝ Executable code
-        CATsym←  '⊃CAT/'                        ⍝ Symbolic name
+        CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'    ⍝ Executable code (for ⍺∊0 1).
+        CATsym←  '⊃CAT/'                        ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       ⍝ Simple Declarations
         SQ←'''' 
       ⍝ Patterns for ProcCSF 
