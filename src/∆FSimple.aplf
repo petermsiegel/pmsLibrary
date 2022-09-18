@@ -20,7 +20,7 @@
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
     ⍝ Workhorse: passes back executable code as text
-      0::    ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
+      0::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
       ⍝ Code for matrix self-aligning catenation function "CAT" used above
       ⍝ Definition: converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
@@ -28,22 +28,6 @@
         CATsym←  '⊃CAT/'                        ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       ⍝ Simple Declarations
         SQ←'''' 
-      ⍝ Patterns for ProcCSF 
-        dqP←      '(("[^"]*")+)' 
-        sqP←      '((''[^'']*'')+)' 
-        dolP←     '(\${1,2})'        ⍝ $ Shortcut: (ambivalent) ⎕FMT;  $$ Shortcut: (boxed) display.  
-        omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
-        omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
-        comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
-      ⍝ Patterns for DivFmt2F
-      ⍝ Space Fields: [0] {} null; [1] {  } explicit spaces; [2] { :5: } numeric and { :⍵2: } special variables
-        space0P←  '{}'                       ⍝ Separates fields w/o generating code.    
-        ⋄ spExtras←'((→\s*)?(⍝([^}⋄])*)?)'   ⍝ Self Documenting Code and Comment subpatterns
-        space1P←  '(?x) \{       ( \s*                  )        ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (≢\1) blanks
-        space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (\1)⍴' '
-      ⍝ codeP: Recursively matches balanced braces {} with 
-      ⍝        internal dfns, (limited) comments, double-quote strings, and escapes.
-        codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
     
       ⍝ Misc Util
         TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
@@ -60,8 +44,14 @@
         ProcTF←  EnSQ  TFEsc 
         
       ⍝ ProcCSF. Process Code and Space Fields
-        ⋄ omegaInc←0
-        ⋄ csfIn← dqP sqP dolP omegaNP omega0P comP 
+          dqP←      '(("[^"]*")+)' 
+          sqP←      '((''[^'']*'')+)' 
+          dolP←     '(\${1,2})'        ⍝ $ Shortcut: (ambivalent) ⎕FMT;  $$ Shortcut: (boxed) display.  
+          omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
+          omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
+          comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
+          csfIn← dqP sqP dolP omegaNP omega0P comP 
+          omegaInc←0
         ProcCSF←  {
             f←  csfIn ⎕R {
                   ⋄ dqI sqI dolI omegaNI omega0I comI←⍳≢csfIn
@@ -71,7 +61,7 @@
                   Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
                 ⍝ $: ⎕FMT, $$: (box) display
                   Case dolI:    ' ⎕FMT ' Display ⊃⍨2=≢Fld 1 ⊣ Display← ' ⎕SE.Dyalog.Utils.display '
-                  Case omegaNI: '(⍵⊃⍨⎕IO+',(⍕⊃⌽⎕VFI Fld 1),')'
+                  Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨Fld 1
                   Case omega0I: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
                   Case comI:    ''
             } 1↓¯1↓⍵                                      ⍝ Remove { and }
@@ -88,8 +78,16 @@
         ProcAllF←  Pad2F { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
 
       ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
-        ⋄ divIn←   space0P   space1P          space2P             codeP 
-        ⋄ divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r'  '\r\0\r'
+        ⍝ Space Fields: [0] {} null; [1] {  } explicit spaces; [2] { :5: } numeric and { :⍵2: } special variables
+          space0P←  '{}'                       ⍝ Separates fields w/o generating code.    
+          ⋄ spExtras←'((→\s*)?(⍝([^}⋄])*)?)'   ⍝ Self Documenting Code and Comment subpatterns
+          space1P←  '(?x) \{       ( \s*                  )        ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (≢\1) blanks
+          space2P←  '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',spExtras,' \}'     ⍝ sets \1 and \2, gen. (\1)⍴' '
+        ⍝ codeP: Recursively matches balanced braces {} with 
+        ⍝        internal dfns, (limited) comments, double-quote strings, and escapes.
+          codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
+          divIn←   space0P   space1P          space2P             codeP 
+          divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r'  '\r\0\r'
         DivFmt2F← DelNullF divIn ⎕R divOut
         
       ⍝ Executive
