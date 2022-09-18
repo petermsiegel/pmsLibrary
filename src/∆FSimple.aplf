@@ -50,20 +50,21 @@
           omegaNP←  '[⍵⍹](\d+)'        ⍝ ⍹1, ⍹5, OR ⍵5, ⍵1.  ⍹0 or ⍵0 refers to the source Format string (0⊃⍵).
           omega0P←  '⍵_|⍹_?'           ⍝ ⍹ or ⍵_ means "next ⍹N". It always starts at ⍹1, i.e. skipping the source Format str.
           comP←     '⍝[^}⋄]+'          ⍝ comment (limited):  ⍝ up to just before stmt end ⋄ or closing }
-          csfIn← dqP sqP dolP omegaNP omega0P comP 
+          csfIn← dqP sqP comP dolP omegaNP omega0P 
           omegaInc←0
         ProcCSF←  {
             f←  csfIn ⎕R {
-                  ⋄ dqI sqI dolI omegaNI omega0I comI←⍳≢csfIn
-                  ⋄ Case← ⍵.PatternNum∘∊
-                  ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                  Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
-                  Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
-                ⍝ $: ⎕FMT, $$: (box) display
-                  Case dolI:    ' ⎕FMT ' Display ⊃⍨2=≢Fld 1 ⊣ Display← ' ⎕SE.Dyalog.Utils.display '
-                  Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨Fld 1
-                  Case omega0I: '(⍵⊃⍨⎕IO+',(⍕omegaInc),')' ⊣ omegaInc+←1
-                  Case comI:    ''
+                ⋄ Case← ⍵.PatternNum∘∊
+                ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+                dqI sqI comI dolI omegaNI omega0I←⍳≢csfIn
+                Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
+                Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
+                Case comI:    ''
+              ⍝ $: ⎕FMT, $$: (box) display
+                Case dolI:    ' ⎕FMT ' Display ⊃⍨2=≢Fld 1 ⊣ Display← ' ⎕SE.Dyalog.Utils.display '
+                Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨Fld 1
+                ⋄ omegaInc+←1
+                Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaInc 
             } 1↓¯1↓⍵                                      ⍝ Remove { and }
           ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
             isDoc←'→'=¯1↑t←  TrimR f   
