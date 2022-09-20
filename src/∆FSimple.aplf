@@ -7,16 +7,16 @@
 
     ⍺←1
     'help'≡⍥⎕C⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
-    ×80|⎕DR ⊃⊆⍵:   ⎕SIGNAL⊂('EM' '∆F DOMAIN ERROR')  ('Message' 'Invalid format string')('EN' 11)
+    ×80|⎕DR ⊃⊆⍵:   ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
     ~1 0 ¯1∊⍨⊂⍺: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option (⍺): ',⍕⍺)('EN' 11 )
 
     ⍺((⊃⎕RSI){ 
     ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
-      0:: ⎕SIGNAL ⎕DMX.(⊂('Message' Message)('EN' EN)('EM' EM))
+      0:: ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM' EM) )
       ⍝ ⍺=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
         ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ ⍺∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
-        EnSQ← ' '''∘,'''',⍨⊢(/⍨)1+''''∘=  
+        EnSQ← ' '''∘, '''',⍨⊢ (/⍨) 1 + ''''∘=  
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
     ⍝ Workhorse: passes back executable code as text
@@ -26,13 +26,9 @@
       ⍝ Definition: converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
         CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'    ⍝ Executable code (for ⍺∊0 1).
         CATsym←  '⊃CAT/'                        ⍝ Symbolic name, solely for code inspection (⍺=¯1).
-      ⍝ Simple Declarations
-        SQ←'''' 
     
       ⍝ Misc Util
-        TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
-        DelNullF←  ⊢(/⍨)(0∘≠≢¨)  
-        EnSQ← (' ',SQ)∘,SQ,⍨⊢(/⍨)1+SQ∘=  
+        EnSQ←      ' '''∘, '''',⍨⊢ (/⍨) 1 + ''''∘=  
 
       ⍝ Main Processing Routines
       ⍝ Setup...
@@ -44,6 +40,7 @@
         ProcTF←  EnSQ  TFEsc 
         
       ⍝ ProcCSF. Process Code and Space Fields
+          TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}
           dqP←      '(("[^"]*")+)' 
           sqP←      '((''[^'']*'')+)' 
           dolP←     '(\${1,2})'        ⍝ $ Shortcut: (ambivalent) ⎕FMT;  $$ Shortcut: (boxed) display.  
@@ -57,7 +54,7 @@
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
                 dqI sqI comI dolI omegaNI omega0I←⍳≢csfIn
-                Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0    ⍝ DQ String: Escapes applied
+                Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0     ⍝ DQ String: Escapes applied
                 Case sqI:     Fld 0                     ⍝ SQ String: No Escapes applied
                 Case comI:    ''
               ⍝ $: ⎕FMT, $$: (box) display
@@ -75,10 +72,11 @@
         
       ⍝ ProcAllF. Process all fields by type. 
       ⍝ Pad with 0, 1, or 2 null fields (as '⍬') to ensure at least two fields are present in output (see CATdef)
-        Pad2F←     ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
+        Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢     ⍝ ⊢,⍨ '⍬'⍴⍨ (0∘⌈ 2-≢)     
         ProcAllF←  Pad2F { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
 
       ⍝ DivFmt2F: Divide format string into fields, "converting" space fields to code fields
+          DelNullF←  ⊢(/⍨)0∘≠⍤≢¨  
         ⍝ Space Fields: [0] {} null; [1] {  } explicit spaces; [2] { :5: } numeric and { :⍵2: } special variables
           space0P←  '{}'                       ⍝ Separates fields w/o generating code.    
           ⋄ spExtras←'((→\s*)?(⍝([^}⋄])*)?)'   ⍝ Self Documenting Code and Comment subpatterns
@@ -92,8 +90,8 @@
         DivFmt2F← DelNullF divIn ⎕R divOut
         
       ⍝ Executive
-        ⋄ MakeDfn←     '{'∘,,∘'}'∘∊
-        ⋄ AddPreamble← (CATdef CATsym⊃⍨¯1=⍺)∘, 
+        ⋄ MakeDfn←     '{','}',⍨∊
+        ⋄ AddPreamble← (CATdef CATsym⊃⍨¯1=⍺),⊢ 
         MakeDfn AddPreamble ProcAllF DivFmt2F ⊆⊃⍵
     }⊆⍵  
 
@@ -104,14 +102,14 @@
      ⍝H   ⍺∊0 ¯1    A char vector, either an executable (⍺=0) or a pseudo-executable (⍺=¯1)
      ⍝H   ⍺≡'help'  An empty char vec (''). See HELP
      ⍝H Example:
-     ⍝H       cel←  100 20 12 23 ¯2
-     ⍝H       F←    32+1.8∘× 
-     ⍝H       ∆F ' { ⍵1 $ ⍪cel } C = {⍵1 $ ⍪F cel} in F' 'I3,⊂°⊃'
-     ⍝H  100° Celsius is 212° in Fahrenheit
-     ⍝H   20°             68°              
-     ⍝H   12°             54°              
-     ⍝H   23°             73°              
-     ⍝H   ¯2°             28°   
+     ⍝H       c←  100 20 12 23 ¯2
+     ⍝H       F←  32+1.8∘×
+     ⍝H       ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
+     ⍝H  100°C =  212°F
+     ⍝H   20°      68°              
+     ⍝H   12°      54°              
+     ⍝H   23°      73°              
+     ⍝H   ¯2°      28°   
      ⍝H  
      ⍝H HELP
      ⍝H ¯¯¯¯
