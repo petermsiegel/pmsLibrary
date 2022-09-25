@@ -117,28 +117,42 @@
   ⍝H   DEBUG=0      Display each field normally (as described below). Default.
   ⍝H   DEBUG=1      Display each field in a box in the style of dfns 'display'. Null fields are omitted.
   ⍝H
-  ⍝H Example 1:
+  ⍝H Example 1:  Text Fields and Code Fields {...} with simple variables.
   ⍝H       name←'John Jones' ⋄ addr←'1214 Maiden Ln'
   ⍝H       city←'Malden'     ⋄ state_prov←'MA'
   ⍝H       income←72000      ⋄  currency←'$'     ⋄ period←'year'
   ⍝H       ∆F '{name} lives on {addr} in {city}, {state_prov} and earns {currency}{income} per {period}.'
   ⍝H   John Jones lives on 1214 Maiden Ln in Malden, MA (USA) and earns $72000 per year.
   ⍝H 
-  ⍝H Example 2:
+  ⍝H Example 2: Self-documenting Expressions {...→} in Code Fields.
+  ⍝H     ⍝ Same definitions as above. (Extra space after → reflected in the output)
+  ⍝H       ∆F '{name→ } lives on {addr→ } in {city→ }.'
+  ⍝H   name→ John Jones lives on addr→ 1214 Maiden Ln in city→ Malden.
+  ⍝H
+  ⍝H Example 3: Calculations and Formatting ($, short for ⎕FMT) in Code Fields
   ⍝H       c←  100 20 12 23 ¯2
   ⍝H       F←  32+1.8∘×
+  ⍝H     ⍝ 3a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.
   ⍝H       ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
   ⍝H  100°C =  212°F
   ⍝H   20°      68°              
   ⍝H   12°      54°              
   ⍝H   23°      73°              
   ⍝H   ¯2°      28°  
+  ⍝H     ⍝ 3b: Format specification hard-wired in Code Field
+  ⍝H       ∆F '{ "I3,⊂°⊃" $ c }C = {  "F5.1,⊂°⊃" $ F c }F'  
+  ⍝H  100°C = 212.0°F
+  ⍝H   20°     68.0° 
+  ⍝H   12°     53.6° 
+  ⍝H   23°     73.4° 
+  ⍝H   ¯2°     28.4° 
   ⍝H
-  ⍝H Example 3: DEBUG (box display) option (1=⊃⌽⍺)
+  ⍝H Example 4: DEBUG (box display) option (1=⊃⌽⍺)
   ⍝H       1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  ⍝ Note: null (0-width) fields omitted from display.
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
   ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
+  ⍝H     ⍝ Without DEBUG option.
   ⍝H       ∆F 'one{}{}{ }two {"two"}{:0}{ }three' 
   ⍝H   one two two three
   ⍝H 
