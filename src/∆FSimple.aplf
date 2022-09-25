@@ -1,52 +1,53 @@
 ∆F←{ 
-  ⍝ Simple format string function (PROTOTYPE)
+   ⍝ Simple format string function (PROTOTYPE)
   ⍝   [⍺] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
   ⍝ For help, execute 
   ⍝   ∆F⍨'help'
   ⍝ or see ⍝H comments at the bottom of this function.
 
-    ⍺←1
-    'help'≡⍥⎕C⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
+    ⍺←1 0
+    'help'≡⍥⎕C⍕⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵: ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
-    ~1 0 ¯1∊⍨⊂⍺: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option (⍺): ',⍕⍺)('EN' 11 )
-
-    ⍺((⊃⎕RSI){ 
+    ~1 0 ¯1∊⍨⊃⍺: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option (⍺): ',⍕⍺)('EN' 11 )
+    
+    (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
       0:: ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM' EM) )
-      ⍝ ⍺=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
-        ⍺=1: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
-      ⍝ ⍺∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
-        EnSQ← ' '''∘, '''',⍨⊢ (/⍨) 1 + ''''∘=  
+      ⍝ (⊃⍺)=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
+        1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
+      ⍝ (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
+        EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
-      0::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
+      99::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
-
+        MODE DEBUG←2↑⍺
+        FMTnm DISPnm← '⎕FMT' '⎕SE.Dyalog.Utils.display' 
       ⍝ CATdef: Code for matrix self-aligning catenation function "CAT" used above
       ⍝ Converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
         CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
         CATsym←  '⊃CAT/'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       
       ⍝ Misc Util
-        EnSQ←      ' '''∘, '''',⍨⊢ (/⍨) 1 + ''''∘=  
+        EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
 
       ⍝ Main Processing Routines
       ⍝ ProcTF:   Process Text Fields
       ⍝ ProcCSF:  Process Code and Space Fields
         ⍝ Setup...
-        ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨¯1=⍺                         ⍝ If ⍺=¯1, leave '\⋄' as is.
+        ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨¯1=MODE                      ⍝ If ⍺=¯1, leave '\⋄' as is.
         TFEsc←    '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ See ProcTF:  Escapes in a Text field
         DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ See ProcCSF: Escapes in a DQ string in a Code field.
     
       ⍝ ProcTF.  Process Text Fields
-        ProcTF←  EnSQ  TFEsc 
+        ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
           
       ⍝ ProcCSF. Process Code and Space Fields
         ⋄ TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
         dolP←     '(\${1,2})'        ⍝ $ Shortcut: (1-,2-adic) ⎕FMT;  $$ Shortcut: (boxed) display.
-        dolCode←  ' ⎕FMT ' ' ⎕SE.Dyalog.Utils.display '  
+        dolCode←  ' ',¨' ',⍨¨FMTnm DISPnm
         omegaNP←  '[⍵⍹](\d+)'                                  ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                     ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
         comP←     '⍝[^}⋄]+'                                    ⍝ comment (limited pattern)
@@ -57,7 +58,7 @@
             f←  csfIn ⎕R {
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                Case dqI:     EnSQ DQEsc 1↓¯1↓Fld 0            ⍝ DQ String: Escapes applied
+                Case dqI:     ' ',EnSQ DQEsc 1↓¯1↓Fld 0            ⍝ DQ String: Escapes applied
                 Case sqI:     Fld 0                            ⍝ SQ String: No Escapes applied
                 Case comI:    ''
               ⍝ $: ⎕FMT, $$: (box) display
@@ -70,14 +71,16 @@
           ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
             ⋄ isDoc←'→'=¯1↑t←  TrimR f   
           ⍝ To add a blank... ↓here in the output, place a blank after the right arrow in the format string.
-            isDoc: ( EnSQ doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
+            isDoc: ( ' ',EnSQ doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
             '({', f,'}⍵)' 
         }
           
       ⍝ ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CATdef (which see).
-        ⋄  Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢       
-        ProcAllF←  Pad2F { '{'=1↑⍵:  ProcCSF ⍵  ⋄ ProcTF ⍵ }¨
+        ⋄  Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
+        ⋄  DbgDisp←{ ~DEBUG: ⍵ ⋄ '(',DISPnm,⍵,')' }               
+        ⋄  Scal2V←  '(,',')',⍨⊢                                 ⍝ Useful with display option
+        ProcAllF←  Pad2F DbgDisp∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ Scal2V⍣(DEBUG∧1=≢⍵)⊢ ProcTF  ⍵ }¨
 
       ⍝ DivFStr2F: Divide format string into fields, "converting" space fields to code fields
       ⍝ Returns: A set of fields, each as a char vec. 
@@ -94,23 +97,34 @@
         ⍝ codeP: Recursively matches balanced braces {}, handling DQ strings, escapes \{, limited comments, etc.
           codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
           divIn←   spaceNullP   space1P          space2P             codeP 
-          divOut←  '\r'      '\r{''\1''\2}\r' '\r{\1⍴'' ''\2}\r'  '\r\0\r'
+          divOut←  '\r'      '\r{,''\1''\2}\r' '\r{\1⍴'' ''\2}\r'  '\r\0\r'
         DivFStr2F← DelNullF divIn ⎕R divOut
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ (CATdef CATsym⊃⍨¯1=⍺), ∊ 
+        ⋄ AddPreamble← '{','}',⍨ (CATdef CATsym⊃⍨¯1=MODE), ∊ 
         AddPreamble  ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
   ⍝H Simple format string function (PROTOTYPE).
-  ⍝H   [⍺] ∆F 'format_string(⍹0)'  [⍹1 [⍹2 [... ⍹N]]]
+  ⍝H   [MODE=1 [DEBUG=0] | 'help'] ∆F 'format_string(⍹0)'  [⍹1 [⍹2 [... ⍹N]]]
   ⍝H Returns 
-  ⍝H   ⍺=1       A char matrix based on the format string and subsequent values of ⍵
-  ⍝H   ⍺=0       A char vector, representing an executable dfn in string form
+  ⍝H   MODE=1       A char matrix based on the format string and subsequent values of ⍵. Default
+  ⍝H                In this mode, all 2D fields are chained together, left to right.
+  ⍝H   MODE=0       A char vector, representing an executable dfn in string form
   ⍝H                (which can be established via MyFmtDfn← ⍎0 ∆F myFmtStr)
-  ⍝H   ⍺=¯1      A char vector representing pseudo-code (as a string)
-  ⍝H   ⍺≡'help'  An empty char vec (''). See HELP
+  ⍝H   MODE=¯1      A char vector representing pseudo-code (as a string)
+  ⍝H   ⍺≡'help'     An empty char vec (''). See HELP
+  ⍝H   DEBUG=0      Display each field normally (as described below). Default.
+  ⍝H   DEBUG=1      Display each field in a box in the style of dfns 'display'. Null fields are omitted.
+  ⍝H
   ⍝H Example 1:
+  ⍝H       name←'John Jones' ⋄ addr←'1214 Maiden Ln'
+  ⍝H       city←'Malden'     ⋄ state_prov←'MA'
+  ⍝H       income←72000      ⋄  currency←'$'     ⋄ period←'year'
+  ⍝H       ∆F '{name} lives on {addr} in {city}, {state_prov} and earns {currency}{income} per {period}.'
+  ⍝H   John Jones lives on 1214 Maiden Ln in Malden, MA (USA) and earns $72000 per year.
+  ⍝H 
+  ⍝H Example 2:
   ⍝H       c←  100 20 12 23 ¯2
   ⍝H       F←  32+1.8∘×
   ⍝H       ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
@@ -118,7 +132,15 @@
   ⍝H   20°      68°              
   ⍝H   12°      54°              
   ⍝H   23°      73°              
-  ⍝H   ¯2°      28°   
+  ⍝H   ¯2°      28°  
+  ⍝H
+  ⍝H Example 3: DEBUG (box display) option (1=1↑1↓⍺)
+  ⍝H       1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  ⍝ Note: null (0-width) fields omitted from display.
+  ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
+  ⍝H   │one││ ││two ││two││ ││three│
+  ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
+  ⍝H       ∆F 'one{}{}{ }two {"two"}{:0}{ }three' 
+  ⍝H   one two two three
   ⍝H 
   ⍝H HELP
   ⍝H ¯¯¯¯
@@ -323,4 +345,3 @@
   ⍝H              1 code field with (⍪⍵_), 2 space field (one 0-length).
   ⍝H
 }
- 
