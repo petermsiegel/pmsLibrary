@@ -134,7 +134,7 @@
   ⍝H   23°      73°              
   ⍝H   ¯2°      28°  
   ⍝H
-  ⍝H Example 3: DEBUG (box display) option (1=1↑1↓⍺)
+  ⍝H Example 3: DEBUG (box display) option (1=⊃⌽⍺)
   ⍝H       1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  ⍝ Note: null (0-width) fields omitted from display.
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
