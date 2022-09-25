@@ -13,9 +13,9 @@
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
       0:: ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM' EM) )
-      ⍝ (⊃⍺)=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
+      ⍝ If (⊃⍺)=1:    Execute ⍵ with rt arg ⍵⍵ in caller namespace ⍺⍺
         1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
-      ⍝ (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
+      ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))⍺{
@@ -79,8 +79,8 @@
       ⍝ Returns at least 2 fields (null ones if required), as required by CATdef (which see).
         ⋄  Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
         ⋄  DbgDisp←{ ~DEBUG: ⍵ ⋄ '(',DISPnm,⍵,')' }               
-        ⋄  Scal2V←  '(,',')',⍨⊢                                 ⍝ Useful with display option
-        ProcAllF←  Pad2F DbgDisp∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ Scal2V⍣(DEBUG∧1=≢⍵)⊢ ProcTF  ⍵ }¨
+        ⋄  Scal2V←  '(,',')',⍨⊢                                ⍝ Useful with DEBUG (box display) option
+        ProcAllF←  Pad2F DbgDisp∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←DEBUG∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
       ⍝ DivFStr2F: Divide format string into fields, "converting" space fields to code fields
       ⍝ Returns: A set of fields, each as a char vec. 
