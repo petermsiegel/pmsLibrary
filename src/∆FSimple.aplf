@@ -22,12 +22,17 @@
       99::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
         MODE DEBUG←2↑⍺
-        FMTnm DISPnm← '⎕FMT' '⎕SE.Dyalog.Utils.display' 
-      ⍝ CATdef: Code for matrix self-aligning catenation function "CAT" used above
+        FMTnm←  '⎕FMT' 
+        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙DÍ'⊃⍨¯1=MODE 
+      ⍝ HCdef: Code for matrix self-aligning catenation function "⍙HÇ" used above
       ⍝ Converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
-        CATdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
-        CATsym←  '⊃CAT/'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        HCdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
+        HCsym←  '⊃⍙HÇ/'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       
+      ⍝ Experimental...
+        VCdef←'(⊃⍪/)⍤{m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m(↑⍤¯1)⍵(↑⍤¯1⍨)-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
+        VCnm←' ⍙VÇ '
+
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
 
@@ -48,11 +53,14 @@
         sqP←      '((''[^'']*'')+)' 
         dolP←     '(\${1,2})'        ⍝ $ Shortcut: (1-,2-adic) ⎕FMT;  $$ Shortcut: (boxed) display.
         dolCode←  ' ',¨' ',⍨¨FMTnm DISPnm
+      ⍝ Experimental
+        pctP←     '(\%{1})'
+        pctCode←  VCdef VCnm⊃⍨¯1=MODE
         omegaNP←  '[⍵⍹](\d+)'                                  ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                     ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
         comP←     '⍝[^}⋄]+'                                    ⍝ comment (limited pattern)
-        csfIn← dqP sqP comP dolP omegaNP omega0P 
-        ⋄      dqI sqI comI dolI omegaNI omega0I←⍳≢csfIn
+        csfIn← dqP sqP comP dolP pctP omegaNP omega0P 
+        ⋄      dqI sqI comI dolI pctI omegaNI omega0I←⍳≢csfIn
         OMEGA∆←0
         ProcCSF←  {
             f←  csfIn ⎕R {
@@ -63,6 +71,7 @@
                 Case comI:    ''
               ⍝ $: ⎕FMT, $$: (box) display
                 Case dolI:    dolCode ⊃⍨ 2=≢Fld 1  
+                Case pctI:    pctCode
               ⍝ Getting ⍹N sets OMEGA∆←N and returns N⊃⍵ in code form.
                 Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨F1         ⊣  OMEGA∆⊢← ⊃⌽⎕VFI F1←Fld 1   
               ⍝ Getting ⍹ (⍵_) increments OMEGA∆ and returns OMEGA∆⊃⍵ in code form.            
@@ -76,7 +85,7 @@
         }
           
       ⍝ ProcAllF. Process all fields by type.
-      ⍝ Returns at least 2 fields (null ones if required), as required by CATdef (which see).
+      ⍝ Returns at least 2 fields (null ones if required), as required by HCdef (which see).
         ⋄  Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
         ⋄  DbgDisp←{ ~DEBUG: ⍵ ⋄ '(',DISPnm,⍵,')' }               
         ⋄  Scal2V←  '(,',')',⍨⊢                                ⍝ Useful with DEBUG (box display) option
@@ -101,7 +110,7 @@
         DivFStr2F← DelNullF divIn ⎕R divOut
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ (CATdef CATsym⊃⍨¯1=MODE), ∊ 
+        ⋄ AddPreamble← '{','}',⍨ (HCdef HCsym⊃⍨¯1=MODE), ∊ 
         AddPreamble  ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
@@ -164,7 +173,7 @@
   ⍝H A. The ∆F Format String (⍹0)
   ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝H The format_string is a character vector defining 0 or more 2-D (Char Matrix) "fields," 
-  ⍝H which are executed left to right and assembled into a single matrix (with fields top-aligned).
+  ⍝H which are executed right to left (as in APL) and assembled into a single matrix (with fields top-aligned).
   ⍝H
   ⍝H There are 3 types of fields generated: 
   ⍝H    1. Code Fields, 2. Space Fields, and 3. Text Fields.
@@ -286,7 +295,7 @@
   ⍝H [¯1]  ∆F PSEUDOCODE MODE
   ⍝H ⍺=¯1  ¯1 ∆F fs
   ⍝H     ∘ Generates a pseudo-executable P, which is identical to X, except
-  ⍝H       - the internally used catenation function is abbreviated to the symbolic function name CAT,
+  ⍝H       - the internally used catenation function is abbreviated to the symbolic function name ⍙HÇ,
   ⍝H       - newline escapes \⋄ are maintained as \⋄, suppressing
   ⍝H         multiline output, so the pseudocode can be easily inspected.
   ⍝H     ∘ Returns: a char vector of pseudocode.
@@ -322,7 +331,7 @@
   ⍝H                        NEXT+←1        ⍝ when ⍹ or ⍵_ seen
   ⍝H                   then '⍹_?|⍵_' is replaced by the code
   ⍝H                       (⍵⊃⍨ NEXT+⎕IO).
-  ⍝H        Code fields are scanned and executed left to right. Sorry, that's the way it is...
+  ⍝H        Code fields are scanned left to right, but executed right to left (APL-style). Sorry, that's the way it is...
   ⍝H 
   ⍝H    space_field → '{(\s*)}'   OR  '{\s*:(\d*):?\s*}'
   ⍝H        The first expression will insert a field of width (≢$1), where $1 is a set of spaces.

@@ -1,0 +1,15 @@
+﻿ r←prime n
+ ;⎕IO;⎕FR
+ ;m;pi;s;x
+⍝ Willans Formula
+ ⎕IO←1
+ ⎕FR←1287
+ pi←○1
+ r←1
+ :For m :In ⍳2*n
+     s←0
+     :For x :In ⍳m
+         s+←⌊2*⍨2○pi×(1+!x-1)÷x
+     :EndFor
+     r+←⌊(n÷s)*÷n
+ :EndFor

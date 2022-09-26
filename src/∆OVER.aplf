@@ -1,0 +1,7 @@
+∆OVER←{  ⍝ Vertically center and catenate two objects
+    VCat← (⊃⍪/)⍤{ 
+        mw← ⌈/aw bw← ⍺ ,⍥(⊃⌽⍤⍴) ⍵ 
+        aw bw{ ⍺=mw: ⍵ ⋄ mw(↑⍤¯1) ⍵(↑⍤¯1⍨)-⌊⍺+0.5×mw-⍺ }¨⍺ ⍵
+    }⍥⎕FMT
+    ⍺ VCat ⍵
+}
