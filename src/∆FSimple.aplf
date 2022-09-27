@@ -8,7 +8,7 @@
     ⍺←1 0
     'help'≡⍥⎕C⍕⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵: ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
-    ~1 0 ¯1∊⍨⊃⍺: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option (⍺): ',⍕⍺)('EN' 11 )
+    ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option/s (⍺): ',⍕⍺)('EN' 11 )
     
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator ∇∇: (⍺:Opts (⍺⍺:callerNS ∇∇ ⍵⍵:origOmega) ⍵:formatAsExecutableCode)
@@ -18,24 +18,28 @@
       ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
-    }(,⊆⍵))⍺{
+    }(,⊆⍵))(2↑⍺){
       99::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
-        MODE DEBUG←2↑⍺
-      
-        FMTnm←  '⎕FMT' 
-        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙Fbx'⊃⍨¯1=MODE 
+        MODE DEBUG← ⍺  
+     
       ⍝ HCdef: horizontal field catenation
-      ⍝ 1. Converts ⍺ and ⍵ to char matrices a and w, and
-      ⍝ 2. Catenates a to left of w, aligning shorter to the height of the taller matrix
-        HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
+      ⍝   Used only in the preamble in the ∆F output (see below).
+      ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
+      ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix
+        HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                  ⍝ Executable code (for ⍺∊0 1).
         HCnm←  '⊃⍙Fhc/'                                     ⍝ Symbolic name, solely for code inspection (⍺=¯1).
-      ⍝ VCDef: vertical field catenation [Experimental]
-      ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
-      ⍝ 2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
+      ⍝ $ (⎕FMT) shortcut (see below).
+        FMTnm←  '⎕FMT' 
+      ⍝ $$ (box display) shortcut (see below).
+        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙Fbx'⊃⍨¯1=MODE 
+      ⍝ % (vertical field catenation) shortcut (see below).
+      ⍝   VCDef: vertical field catenation [Experimental]
+      ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
+      ⍝   2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
       ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
         VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
-        VCnm←  '⍙Fvc '
+        VCnm←  '⍙Fvc '                                      ⍝ Symbolic name, solely for code inspection (⍺=¯1).
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -47,15 +51,13 @@
         ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨¯1=MODE                      ⍝ If ⍺=¯1, leave '\⋄' as is.
         TFEsc←    '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ See ProcTF:  Escapes in a Text field
         DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ See ProcCSF: Escapes in a DQ string in a Code field.
-    
-      ⍝ ProcTF.  Process Text Fields
+        ⍝ ProcTF.  Process Text Fields
         ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
-          
         ⍝ ProcCSF. Process Code and Space Fields
         ⋄ TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
-        ⍝ $ Shortcut: (1-,2-adic) ⎕FMT;  $$ Shortcut: (boxed) display.
+        ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
         dolP←     '(\${1,2})'        
         ⋄ dolCodeV←  ' ',¨' ',⍨¨FMTnm DISPnm
         ⍝ % Shortcut: Experimental
@@ -71,10 +73,10 @@
         ⋄        dqI sqI comI dolI pctI omegaNI omega0I←⍳≢csfIn
         OMEGA∆←0
         ProcCSF←  {
-            f←  csfIn ⎕R {
+            code←  csfIn ⎕R {
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                Case dqI:     ' ',EnSQ DQEsc 1↓¯1↓Fld 0            ⍝ DQ String: Escapes applied
+                Case dqI:     ' ',EnSQ DQEsc 1↓¯1↓Fld 0        ⍝ DQ String: Escapes applied
                 Case sqI:     Fld 0                            ⍝ SQ String: No Escapes applied
                 Case comI:    ''
               ⍝ $: ⍺ ⎕FMT ⍵, $$: (box) display: of ⍵ (⍺ ignored)
@@ -86,11 +88,13 @@
               ⍝ Getting ⍹ (⍵_) increments OMEGA∆ and returns OMEGA∆⊃⍵ in code form.            
                 Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕OMEGA∆    ⊣  OMEGA∆+← 1   
             } 1↓¯1↓⍵                                           ⍝ Remove { and }
-          ⍝ Right arrow → sets "Documentation mode" for this Code or Space Field
-            ⋄ isDoc←'→'=¯1↑t←  TrimR f   
-          ⍝ To add a blank... ↓here in the output, place a blank after the right arrow in the format string.
-            isDoc: ( ' ',EnSQ doc )  (' ({', f, '}⍵)') ⊣ (doc f)← (1↓¯1↓⍵) (¯1↓t)
-            '({', f,'}⍵)' 
+          ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
+            trim←  TrimR code   
+            '→'≠¯1↑trim:  '({', code,'}⍵)' 
+          ⍝ doc:  literal "code" entered, including → and blanks around →.
+          ⍝ flds: just the executable code sans →, blanks, and comments.
+            doc code← (1↓¯1↓⍵) (¯1↓trim)
+            ( ' ',EnSQ doc )  (' ({', code, '}⍵)')    
         }
           
       ⍝ ProcAllF. Process all fields by type.
