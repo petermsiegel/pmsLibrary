@@ -22,16 +22,20 @@
       99::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
         MODE DEBUG←2↑⍺
-        FMTnm←  '⎕FMT' 
-        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙DÍ'⊃⍨¯1=MODE 
-      ⍝ HCdef: Code for matrix self-aligning catenation function "⍙HÇ" used above
-      ⍝ Converts ⍺, ⍵ to char matrices, aligning to height of tallest matrix
-        HCdef←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
-        HCsym←  '⊃⍙HÇ/'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       
-      ⍝ Experimental...
-        VCdef←'(⊃⍪/)⍤{m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m(↑⍤¯1)⍵(↑⍤¯1⍨)-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
-        VCnm←' ⍙VÇ '
+        FMTnm←  '⎕FMT' 
+        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙Fbx'⊃⍨¯1=MODE 
+      ⍝ HCdef: horizontal field catenation
+      ⍝ 1. Converts ⍺ and ⍵ to char matrices a and w, and
+      ⍝ 2. Catenates a to left of w, aligning shorter to the height of the taller matrix
+        HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                   ⍝ Executable code (for ⍺∊0 1).
+        HCnm←  '⊃⍙Fhc/'                                     ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+      ⍝ VCDef: vertical field catenation [Experimental]
+      ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
+      ⍝ 2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
+      ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
+        VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
+        VCnm←  '⍙Fvc '
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -47,20 +51,24 @@
       ⍝ ProcTF.  Process Text Fields
         ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
           
-      ⍝ ProcCSF. Process Code and Space Fields
+        ⍝ ProcCSF. Process Code and Space Fields
         ⋄ TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
-        dolP←     '(\${1,2})'        ⍝ $ Shortcut: (1-,2-adic) ⎕FMT;  $$ Shortcut: (boxed) display.
-        dolCode←  ' ',¨' ',⍨¨FMTnm DISPnm
-      ⍝ Experimental
+        ⍝ $ Shortcut: (1-,2-adic) ⎕FMT;  $$ Shortcut: (boxed) display.
+        dolP←     '(\${1,2})'        
+        ⋄ dolCodeV←  ' ',¨' ',⍨¨FMTnm DISPnm
+        ⍝ % Shortcut: Experimental
         pctP←     '(\%{1})'
-        pctCode←  VCdef VCnm⊃⍨¯1=MODE
+        ⋄ pctCode←  VCdef VCnm⊃⍨¯1=MODE
+        ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
         omegaNP←  '[⍵⍹](\d+)'                                  ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                     ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
-        comP←     '⍝[^}⋄]+'                                    ⍝ comment (limited pattern)
-        csfIn← dqP sqP comP dolP pctP omegaNP omega0P 
-        ⋄      dqI sqI comI dolI pctI omegaNI omega0I←⍳≢csfIn
+        ⍝ ⍝ Comments: (limited pattern)
+        comP←     '⍝[^}⋄]+' 
+        ⍝                                   
+        ⋄ csfIn← dqP sqP comP dolP pctP omegaNP omega0P 
+        ⋄        dqI sqI comI dolI pctI omegaNI omega0I←⍳≢csfIn
         OMEGA∆←0
         ProcCSF←  {
             f←  csfIn ⎕R {
@@ -69,8 +77,9 @@
                 Case dqI:     ' ',EnSQ DQEsc 1↓¯1↓Fld 0            ⍝ DQ String: Escapes applied
                 Case sqI:     Fld 0                            ⍝ SQ String: No Escapes applied
                 Case comI:    ''
-              ⍝ $: ⎕FMT, $$: (box) display
-                Case dolI:    dolCode ⊃⍨ 2=≢Fld 1  
+              ⍝ $: ⍺ ⎕FMT ⍵, $$: (box) display: of ⍵ (⍺ ignored)
+                Case dolI:    dolCodeV ⊃⍨ 2=≢Fld 1  
+              ⍝ %: vertical centered catenation of ⍺ over ⍵
                 Case pctI:    pctCode
               ⍝ Getting ⍹N sets OMEGA∆←N and returns N⊃⍵ in code form.
                 Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨F1         ⊣  OMEGA∆⊢← ⊃⌽⎕VFI F1←Fld 1   
@@ -110,8 +119,8 @@
         DivFStr2F← DelNullF divIn ⎕R divOut
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ (HCdef HCsym⊃⍨¯1=MODE), ∊ 
-        AddPreamble  ProcAllF DivFStr2F ⊆⊃⍵
+        ⋄ AddPreamble← '{','}',⍨ (HCdef HCnm⊃⍨¯1=MODE), ∊ 
+        AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
   ⍝H Simple format string function (PROTOTYPE).
@@ -295,7 +304,7 @@
   ⍝H [¯1]  ∆F PSEUDOCODE MODE
   ⍝H ⍺=¯1  ¯1 ∆F fs
   ⍝H     ∘ Generates a pseudo-executable P, which is identical to X, except
-  ⍝H       - the internally used catenation function is abbreviated to the symbolic function name ⍙HÇ,
+  ⍝H       - the internally used catenation function is abbreviated to the symbolic function name ⍙Fhc,
   ⍝H       - newline escapes \⋄ are maintained as \⋄, suppressing
   ⍝H         multiline output, so the pseudocode can be easily inspected.
   ⍝H     ∘ Returns: a char vector of pseudocode.
