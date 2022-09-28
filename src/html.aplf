@@ -1,0 +1,7 @@
+﻿ html←{ ⍝ \{dddd} returns ⎕UCS dddd
+     ⎕IO←0
+     '\\\{\h*(\d+)(?:\h*-\h*(\d+))\h*\}'⎕R{
+         st et←⍵.{⍵>≢L←Lengths:'' ⋄ L[⍵]↑Offsets[⍵]↓Block}¨1 2
+         0=≢et:⎕UCS⊃∘⌽∘⎕VFI st ⋄ s e←⊃∘⌽∘⎕VFI¨st et ⋄ ⎕UCS s+(×∆)×⍳1+|∆←e-s
+     }⊢⍵
+ }

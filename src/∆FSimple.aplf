@@ -47,10 +47,19 @@
       ⍝ Main Processing Routines
       ⍝ ProcTF:   Process Text Fields
       ⍝ ProcCSF:  Process Code and Space Fields
-        ⍝ Setup...
-        ⋄ crAsis← '\r'   '\\⋄'  ⊃⍨¯1=MODE                      ⍝ If ⍺=¯1, leave '\⋄' as is.
-        TFEsc←    '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R crAsis '\1'    ⍝ See ProcTF:  Escapes in a Text field
-        DQEsc←    '(?<!\\)\\⋄'  '\\(\\⋄)'    ⎕R crAsis '\1'    ⍝ See ProcCSF: Escapes in a DQ string in a Code field.
+       ⍝ Text Field Escapes  
+        TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨¯1=MODE) '\1'  ⍝ See ProcTF:  Escapes in a Text field
+      ⍝ Code Field DQ String Escapes: See also ProcCSF. 
+        DQEsc←  '(?<!\\)\\⋄'  '\\(\\⋄)' '(\\{1,2})\{\h*(\d+)(?:\h*-\h*(\d+))?\h*\}'    ⎕R {
+              F←⍵.{3::'' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
+              Case← ⍵.PatternNum∘=
+              Case 0: (⎕UCS 13) '\\⋄'⊃⍨¯1=MODE  
+              Case 1: F 1 
+            ⍝ Case 2: Experimental: \{dddd} returns ⎕UCS dddd
+              2=≢F 1: 1↓F 0    ⍝ \\{ dd (-dd)? } => escaped, so no special meaning.
+              beg end← F¨2 3 
+              0=≢end:⎕UCS⊃∘⌽∘⎕VFI beg ⋄ bn en←⊃∘⌽∘⎕VFI¨beg end ⋄ ⎕UCS bn+(×∆)×⍳1+|∆←en-bn
+        } 
         ⍝ ProcTF.  Process Text Fields
         ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
         ⍝ ProcCSF. Process Code and Space Fields
@@ -161,14 +170,14 @@
   ⍝H   12°      54°              
   ⍝H   23°      73°              
   ⍝H   ¯2°      28°  
-  ⍝H     ⍝ 3b: Format specification hard-wired in Code Field
-  ⍝H       ∆F '{ "I3,⊂°⊃" $ c }C = {  "F5.1,⊂°⊃" $ F c }F'  
+  ⍝H     ⍝ 3b: Format specification hard-wired in Code Field. Note alternative way to enter '°' as unicode 176 (in decimal).
+  ⍝H       ∆F '{ "I3,⊂°⊃" $ c }C = {  "F5.1,⊂\{176}⊃" $ F c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
   ⍝H   12°     53.6° 
   ⍝H   23°     73.4° 
   ⍝H   ¯2°     28.4° 
-  ⍝H     ⍝ 3c: Variant on (3b) with % used to specify a header
+  ⍝H     ⍝ 3c: Variant on (3b) with % used to specify a header.
   ⍝H       ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ F c }'
   ⍝H  Celsius  Fahren.
   ⍝H   100°    212.0° 
@@ -226,11 +235,26 @@
   ⍝H           ⍵ by itself has its normal dfn interpretation, i.e. the set of 0 or more scalars: ⍹0 ⍹1 ... ⍹N.
   ⍝H    {ccc} Code Field  
   ⍝H     ccc  any dfn code, including multiple stmts, guards, and error guards.
-  ⍝H        ∘ Code ccc is executed and result is formatted via ⎕FMT.
+  ⍝H        ∘ Code ccc is executed and the result is formatted via ⎕FMT.
   ⍝H        ∘ \{ and \} do not indicate code fields (see Text Fields).
-  ⍝H        ∘ To enter quoted strings in code, use double quotes "like these":
+  ⍝H        ∘ To enter quoted strings in Code Fields, use double quotes "like these":
   ⍝H             {⎕NC "fred"} is easier than {⎕NC ''fred''}
-  ⍝H        ∘ To include in a string, enter the APL way:
+  ⍝H             There are a few "escapes" in a code field. Outside of these, backslashes (\) are as in std APL.
+  ⍝H                  \⋄         indicates a carriage return ("newline"). It is not replaced if MODE=¯1.
+  ⍝H                  \\⋄        indicates '\⋄'
+  ⍝H                  \{nnn}     indicates (⎕UCS nnn), where nnn consists of 1 or more digits (ok w/ lead/trail spaces).
+  ⍝H                  \{nnn-mmm} (no preceding backslash (\))
+  ⍝H                             indicates unicode chars from nnn to mmm inclusive, where mmm is as for nnn.
+  ⍝H                         Ex. ∆F '"{"\{97-109}...\{57-48}"}"' 
+  ⍝H                     ==>     "abcdefghijklm...9876543210"
+  ⍝H                     In DQ strings, "\⋄" is the same as "\{13}".
+  ⍝H                         Ex. ∆F '{"Dogs\⋄Cats"} vs {"Dogs\{13}Cats"}'
+  ⍝H                     ==>      Dogs vs Dogs
+  ⍝H                              Cats    Cats 
+  ⍝H                  \\{nnn-mmm} indicates the string \{nnn-mmm}, i.e. with the extra \ removed.
+  ⍝H                  Any other variant of \{...} is NOT treated as special: "\{123+⍳5}" ==> "\{123+⍳5}".
+  ⍝H             Note: Otherwise, \ is NOT special, i.e. is kept as is. "abc\def" => "abc\def", NOT "abcdef".
+  ⍝H        ∘ To include a double quote (") in a string, enter the APL way:
   ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
   ⍝H        ∘ $ is a special symbol for ⎕FMT to allow easy formatting:
   ⍝H             {"F8.2" $ MyCode...}
@@ -352,7 +376,8 @@
   ⍝H                        NEXT+←1        ⍝ when ⍹ or ⍵_ seen
   ⍝H                   then '⍹_?|⍵_' is replaced by the code
   ⍝H                       (⍵⊃⍨ NEXT+⎕IO).
-  ⍝H        Code fields are scanned left to right, but executed right to left (APL-style). Sorry, that's the way it is...
+  ⍝H        Code fields are scanned left to right with respect to ⍹0, ⍹, ⍵0, etc., 
+  ⍝H        but executed right to left (APL-style). Sorry, that's the way it is...
   ⍝H 
   ⍝H    space_field → '{(\s*)}'   OR  '{\s*:(\d*):?\s*}'
   ⍝H        The first expression will insert a field of width (≢$1), where $1 is a set of spaces.
