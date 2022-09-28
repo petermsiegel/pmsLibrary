@@ -38,8 +38,8 @@
       ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝   2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
       ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
-        VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
-        VCnm←  '⍙Fvc '                                      ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
+        VCnm←  '⍙Fvc'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -62,7 +62,7 @@
         ⋄ dolCodeV←  ' ',¨' ',⍨¨FMTnm DISPnm
         ⍝ % Shortcut: Experimental
         pctP←     '(\%{1})'
-        ⋄ pctCode←  VCdef VCnm⊃⍨¯1=MODE
+        ⋄ pctCode←  ' ',⍨VCdef VCnm⊃⍨¯1=MODE
         ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
         omegaNP←  '[⍵⍹](\d+)'                                  ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                     ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
@@ -154,7 +154,7 @@
   ⍝H Example 3: Calculations and Formatting ($, short for ⎕FMT) in Code Fields
   ⍝H       c←  100 20 12 23 ¯2
   ⍝H       F←  32+1.8∘×
-  ⍝H     ⍝ 3a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.
+  ⍝H     ⍝ 3a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵. (Degree sign (°): ⎕UCS 176)
   ⍝H       ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
   ⍝H  100°C =  212°F
   ⍝H   20°      68°              
@@ -168,6 +168,14 @@
   ⍝H   12°     53.6° 
   ⍝H   23°     73.4° 
   ⍝H   ¯2°     28.4° 
+  ⍝H     ⍝ 3c: Variant on (3b) with % used to specify a header
+  ⍝H       ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ F c }'
+  ⍝H  Celsius  Fahren.
+  ⍝H   100°    212.0° 
+  ⍝H    20°     68.0° 
+  ⍝H    12°     53.6° 
+  ⍝H    23°     73.4° 
+  ⍝H    ¯2°     28.4° 
   ⍝H
   ⍝H Example 4: DEBUG (box display) option (1=⊃⌽⍺)
   ⍝H       1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  ⍝ Note: null (0-width) fields omitted from display.
