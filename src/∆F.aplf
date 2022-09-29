@@ -19,7 +19,7 @@
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'   
     }(,⊆⍵))(2↑⍺){
-      99::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
+      0::  ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
         MODE DEBUG← ⍺  
      
@@ -28,50 +28,58 @@
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix
         HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                  ⍝ Executable code (for ⍺∊0 1).
-        HCnm←  '⊃⍙Fhc/'                                     ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        HCtok←  '⊃F⍙CAT/'                                    ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       ⍝ $ (⎕FMT) shortcut (see below).
-        FMTnm←  '⎕FMT' 
+        FMTtok←  ' ⎕FMT ' 
       ⍝ $$ (box display) shortcut (see below).
-        DISPnm←'⎕SE.Dyalog.Utils.display' '⍙Fbx'⊃⍨¯1=MODE 
+        DISPtok←'⎕SE.Dyalog.Utils.display ' ' F⍙BOX '⊃⍨¯1=MODE 
       ⍝ % (vertical field catenation) shortcut (see below).
       ⍝   VCDef: vertical field catenation [Experimental]
       ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝   2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
       ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
-        VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
-        VCnm←  '⍙Fvc'                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
+        VCtok← ' F⍙OVR '                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
 
-      ⍝ Main Processing Routines
-      ⍝ ProcTF:   Process Text Fields
-      ⍝ ProcCSF:  Process Code and Space Fields
-       ⍝ Text Field Escapes  
-        TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨¯1=MODE) '\1'  ⍝ See ProcTF:  Escapes in a Text field
-      ⍝ Code Field DQ String Escapes: See also ProcCSF. 
-        DQEsc←  '(?<!\\)\\⋄'  '\\(\\⋄)' '(\\{1,2})\{\h*(\d+)(?:\h*-\h*(\d+))?\h*\}'    ⎕R {
-              F←⍵.{3::'' ⋄ Lengths[⍵]↑Offsets[⍵]↓Block}
-              Case← ⍵.PatternNum∘=
-              Case 0: (⎕UCS 13) '\\⋄'⊃⍨¯1=MODE  
-              Case 1: F 1 
-            ⍝ Case 2: Experimental: \{dddd} returns ⎕UCS dddd
-              2=≢F 1: 1↓F 0    ⍝ \\{ dd (-dd)? } => escaped, so no special meaning.
-              beg end← F¨2 3 
-              0=≢end:⎕UCS⊃∘⌽∘⎕VFI beg ⋄ bn en←⊃∘⌽∘⎕VFI¨beg end ⋄ ⎕UCS bn+(×∆)×⍳1+|∆←en-bn
-        } 
-        ⍝ ProcTF.  Process Text Fields
+      ⍝ Main Processing Routines: 
+      ⍝ A. ProcTF   - Subprocess Text Fields
+      ⍝ B. ProcCSF  - Subprocess Code and Space Fields
+      ⍝ C. ProcAllF - Process All Fields
+      ⍝ D. DivFStr2F- Divide Format String to Fields
+      
+      ⍝ A. ProcTF -  Subprocess Text Fields
+      ⍝ Text Field Escapes  
+        TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨¯1=MODE) '\1'  
+      ⍝ ProcTF.  Process Text Fields
         ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
-        ⍝ ProcCSF. Process Code and Space Fields
-        ⋄ TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
+
+      ⍝ B. ProcCSF - Subprocess Code and Space Fields
+        ⍝ Code Field DQ String Escapes: See also ProcCSF. 
+        ⋄ esc1CrP←   '(?<!\\)\\⋄'
+        ⋄ esc2CrP←  '(?<!\\)\\⋄'
+        ⋄ ucsP←     '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'
+        DQEsc←  esc1CrP esc2CrP ucsP  ⎕R {
+              ⋄ esc1CrI esc2CrI ucsI← 0 1 2
+              F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+              Case← ⍵.PatternNum∘=
+              Case esc1CrI: CR '\\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13
+              Case esc2CrI: F 1 
+            ⍝ Case 2: Experimental: \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
+              2=≢F 1: 1↓F 0    ⍝ \\{mm[-nnn]} => No special meaning, return as is, omitting first backslash.
+              beg end← (⊃∘⌽⎕VFI)∘F¨2 3  ⋄ 0=≢end:⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+        } 
+        TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
         ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
-        dolP←     '(\${1,2})'        
-        ⋄ dolCodeV←  ' ',¨' ',⍨¨FMTnm DISPnm
+        dolP←     '\h*(\${1,2})\h*'        
+        ⋄ dolCodeV← FMTtok DISPtok
         ⍝ % Shortcut: Experimental
-        pctP←     '(\%{1})'
-        ⋄ pctCode←  ' ',⍨VCdef VCnm⊃⍨¯1=MODE
+        pctP←     '\h*(\%{1})\h*'
+        ⋄ pctCode←  VCdef  VCtok⊃⍨¯1=MODE
         ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
         omegaNP←  '[⍵⍹](\d+)'                                  ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                     ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
@@ -106,14 +114,14 @@
             ( ' ',EnSQ doc )  (' ({', code, '}⍵)')    
         }
           
-      ⍝ ProcAllF. Process all fields by type.
+      ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by HCdef (which see).
         ⋄  Pad2F←      ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
-        ⋄  DbgDisp←{ ~DEBUG: ⍵ ⋄ '(',DISPnm,⍵,')' }               
+        ⋄  DbgDisp←{ ~DEBUG: ⍵ ⋄ '(',DISPtok,⍵,')' }               
         ⋄  Scal2V←  '(,',')',⍨⊢                                ⍝ Useful with DEBUG (box display) option
         ProcAllF←  Pad2F DbgDisp∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←DEBUG∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
-      ⍝ DivFStr2F: Divide format string into fields, "converting" space fields to code fields
+      ⍝ D. DivFStr2F: Divide format string into fields (convert space fields to simple code fields)
       ⍝ Returns: A set of fields, each as a char vec. 
         ⍝ Null fields-- generated by 0-width Space Fields {} or 0-width Text Fields-- are suppressed.
           ⋄ DelNullF←  ⊢(/⍨)0∘≠⍤≢¨                             ⍝ Omit null fields before processing. 
@@ -132,7 +140,7 @@
         DivFStr2F← DelNullF divIn ⎕R divOut
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ (HCdef HCnm⊃⍨¯1=MODE), ∊ 
+        ⋄ AddPreamble← '{','}',⍨ (HCdef HCtok⊃⍨¯1=MODE), ∊ 
         AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 

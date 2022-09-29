@@ -10,7 +10,7 @@
  ⍝ Library directory
   DIR← '/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  ⍝ Session libraries
-  LIBS← '∆FIX.aplf' '∆SH.dyalog' '∆FSimple.aplf'    
+  LIBS← '∆FIX.aplf' '∆SH.dyalog' '∆F.aplf'    
   #.⎕PATH,⍨←'⎕SE '
  ok←0
 
