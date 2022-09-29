@@ -27,19 +27,19 @@
       ⍝   Used only in the preamble in the ∆F output (see below).
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix
-        HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                  ⍝ Executable code (for ⍺∊0 1).
-        HCtok←  '⊃F⍙CAT/'                                    ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        HCdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'                 ⍝ Executable code (for ⍺∊0 1).
+        HCtok←  '⊃⍙CHAIN/'                                 ⍝ Symbolic name, solely for code inspection (⍺=¯1).
       ⍝ $ (⎕FMT) shortcut (see below).
         FMTtok←  ' ⎕FMT ' 
       ⍝ $$ (box display) shortcut (see below).
-        DISPtok←'⎕SE.Dyalog.Utils.display ' ' F⍙BOX '⊃⍨¯1=MODE 
+        DISPtok←'⎕SE.Dyalog.Utils.display ' ' ⍙BOX '⊃⍨¯1=MODE 
       ⍝ % (vertical field catenation) shortcut (see below).
       ⍝   VCDef: vertical field catenation [Experimental]
       ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝   2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
       ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
         VCdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
-        VCtok← ' F⍙OVR '                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+        VCtok← ' ⍙OVER '                                       ⍝ Symbolic name, solely for code inspection (⍺=¯1).
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -58,20 +58,21 @@
 
       ⍝ B. ProcCSF - Subprocess Code and Space Fields
         ⍝ Code Field DQ String Escapes: See also ProcCSF. 
-        ⋄ esc1CrP←   '(?<!\\)\\⋄'
-        ⋄ esc2CrP←  '(?<!\\)\\⋄'
+        ⋄ esc1CrP←  '(?<!\\)\\⋄'
+        ⋄ esc2CrP←  '\\{2}⋄'
         ⋄ ucsP←     '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'
         DQEsc←  esc1CrP esc2CrP ucsP  ⎕R {
               ⋄ esc1CrI esc2CrI ucsI← 0 1 2
-              F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-              Case← ⍵.PatternNum∘=
-              Case esc1CrI: CR '\\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13
-              Case esc2CrI: F 1 
-            ⍝ Case 2: Experimental: \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
-              2=≢F 1: 1↓F 0    ⍝ \\{mm[-nnn]} => No special meaning, return as is, omitting first backslash.
+              F←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ Case← ⍵.PatternNum∘=
+              Case esc1CrI: CR '\\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
+              Case esc2CrI: 1↓F 0 
+            ⍝ Case 2: Experimental
+            ⍝ \\{mm[-nnn]}  returns as is, omitting first backslash. No special meaning...
+              2=≢F 1: 1↓F 0   
+            ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
               beg end← (⊃∘⌽⎕VFI)∘F¨2 3  ⋄ 0=≢end:⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
         } 
-        TrimR←     ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
+        TrimR←    {⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqP←      '(("[^"]*")+)' 
         sqP←      '((''[^'']*'')+)' 
         ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
@@ -106,7 +107,7 @@
                 Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕OMEGA∆    ⊣  OMEGA∆+← 1   
             } 1↓¯1↓⍵                                           ⍝ Remove { and }
           ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
-            trim←  TrimR code   
+            trim←  ' ⋄' TrimR code   
             '→'≠¯1↑trim:  '({', code,'}⍵)' 
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
@@ -146,27 +147,27 @@
 
   ⍝H Simple format string function (PROTOTYPE).
   ⍝H   [MODE=1 [DEBUG=0] | 'help'] ∆F 'format_string(⍹0)'  [⍹1 [⍹2 [... ⍹N]]]
-  ⍝H Returns 
+  ⍝H   ⍺            ∆F Returns 
   ⍝H   MODE=1       A char matrix based on the format string and subsequent values of ⍵. Default
   ⍝H                In this mode, all 2D fields are chained together, left to right.
   ⍝H   MODE=0       A char vector, representing an executable dfn in string form
   ⍝H                (which can be established via MyFmtDfn← ⍎0 ∆F myFmtStr)
-  ⍝H   MODE=¯1      A char vector representing pseudo-code (as a string)
+  ⍝H   MODE=¯1      A char vector representing the formatting as a pseudo-code string
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP
   ⍝H   DEBUG=0      Display each field normally (as described below). Default.
   ⍝H   DEBUG=1      Display each field in a box in the style of dfns 'display'. Null fields are omitted.
   ⍝H
   ⍝H Example 1:  Text Fields and Code Fields {...} with simple variables.
   ⍝H       name←'John Jones' ⋄ addr←'1214 Maiden Ln'
-  ⍝H       city←'Malden'     ⋄ state_prov←'MA'
+  ⍝H       city←'Malden'     ⋄ state_prov←'MA (USA)'
   ⍝H       income←72000      ⋄  currency←'$'     ⋄ period←'year'
-  ⍝H       ∆F '{name} lives on {addr} in {city}, {state_prov} and earns {currency}{income} per {period}.'
-  ⍝H   John Jones lives on 1214 Maiden Ln in Malden, MA (USA) and earns $72000 per year.
+  ⍝H       ∆F '{name} lives at {addr} in {city}, {state_prov} and earns {currency}{income} per {period}.'
+  ⍝H   John Jones lives at 1214 Maiden Ln in Malden, MA (USA) and earns $72000 per year.
   ⍝H 
   ⍝H Example 2: Self-documenting Expressions {...→} in Code Fields.
   ⍝H     ⍝ Same definitions as above. (Extra space after → reflected in the output)
-  ⍝H       ∆F '{name→ } lives on {addr→ } in {city→ }.'
-  ⍝H   name→ John Jones lives on addr→ 1214 Maiden Ln in city→ Malden.
+  ⍝H       ∆F '{name→ } lives at {addr→ } in {city→ }.'
+  ⍝H   name→ John Jones lives at addr→ 1214 Maiden Ln in city→ Malden.
   ⍝H
   ⍝H Example 3: Calculations and Formatting ($, short for ⎕FMT) in Code Fields
   ⍝H       c←  100 20 12 23 ¯2
@@ -178,7 +179,8 @@
   ⍝H   12°      54°              
   ⍝H   23°      73°              
   ⍝H   ¯2°      28°  
-  ⍝H     ⍝ 3b: Format specification hard-wired in Code Field. Note alternative way to enter '°' as unicode 176 (in decimal).
+  ⍝H     ⍝ 3b: Format specification hard-wired in Code Field. 
+  ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (in decimal).
   ⍝H       ∆F '{ "I3,⊂°⊃" $ c }C = {  "F5.1,⊂\{176}⊃" $ F c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
@@ -222,11 +224,11 @@
   ⍝H 
   ⍝H    Special Variables ⍹0,⍹, etc., used in Code Fields*
   ⍝H    ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯       * See also usage in Space Fields.
-  ⍝H       ⍹0, ⍹1, ... ⍵N, are the scalars in the right arg (⍵) passed to ∆F. 
+  ⍝H       ⍹0, ⍹1, ... ⍵N, denote the scalars in the right arg (⍵) passed to ∆F. 
   ⍝H       ⍹ is the glyph ⎕UCS 9081.
-  ⍝H       ⍹0: (0⊃⍵) the format string itself. It may only be referenced explicitly.
+  ⍝H       ⍹0: (0⊃⍵) the format string itself (0 given ⎕IO=0). It may only be referenced explicitly.
   ⍝H       ⍹1: (1⊃⍵) the first scalar after the format string. 
-  ⍝H       ⍹N: (N⊃⍵) the Nth scalar. Ditto.
+  ⍝H       ⍹N: (N⊃⍵) the Nth scalar after the format string.
   ⍝H       ⍹:  [⍹ with no digits immed following]
   ⍝H           selects the "next" scalar to the right, starting AFTER the format string with ⍹1.
   ⍝H        ∘  ⍹ is incremented by 1 for each use. 
@@ -239,31 +241,33 @@
   ⍝H           FOR                    USE
   ⍝H           ⍹0, ⍹1, ... ⍹N         ⍵0, ⍵1, ... ⍵N
   ⍝H           bare ⍹                 ⍵_ 
-  ⍝H        ⍵  What about ⍵?
+  ⍝H        ⍵  What about ⍵ (no numeric suffix or _)?
   ⍝H           ⍵ by itself has its normal dfn interpretation, i.e. the set of 0 or more scalars: ⍹0 ⍹1 ... ⍹N.
   ⍝H    {ccc} Code Field  
   ⍝H     ccc  any dfn code, including multiple stmts, guards, and error guards.
   ⍝H        ∘ Code ccc is executed and the result is formatted via ⎕FMT.
-  ⍝H        ∘ \{ and \} do not indicate code fields (see Text Fields).
+  ⍝H        ∘ \{ and \} (escaped with backslash (\)) do not start or end code fields (see Text Fields).
   ⍝H        ∘ To enter quoted strings in Code Fields, use double quotes "like these":
-  ⍝H             {⎕NC "fred"} is easier than {⎕NC ''fred''}
-  ⍝H             There are a few "escapes" in a code field. Outside of these, backslashes (\) are as in std APL.
-  ⍝H                  \⋄         indicates a carriage return ("newline"). It is not replaced if MODE=¯1.
-  ⍝H                  \\⋄        indicates '\⋄'
-  ⍝H                  \{nnn}     indicates (⎕UCS nnn), where nnn consists of 1 or more digits (ok w/ lead/trail spaces).
-  ⍝H                  \{nnn-mmm} (no preceding backslash (\))
-  ⍝H                             indicates unicode chars from nnn to mmm inclusive, where mmm is as for nnn.
-  ⍝H                         Ex. ∆F '"{"\{97-109}...\{57-48}"}"' 
-  ⍝H                     ==>     "abcdefghijklm...9876543210"
-  ⍝H                     In DQ strings, "\⋄" is the same as "\{13}".
-  ⍝H                         Ex. ∆F '{"Dogs\⋄Cats"} vs {"Dogs\{13}Cats"}'
-  ⍝H                     ==>      Dogs vs Dogs
-  ⍝H                              Cats    Cats 
-  ⍝H                  \\{nnn-mmm} indicates the string \{nnn-mmm}, i.e. with the extra \ removed.
-  ⍝H                  Any other variant of \{...} is NOT treated as special: "\{123+⍳5}" ==> "\{123+⍳5}".
-  ⍝H             Note: Otherwise, \ is NOT special, i.e. is kept as is. "abc\def" => "abc\def", NOT "abcdef".
-  ⍝H        ∘ To include a double quote (") in a string, enter the APL way:
+  ⍝H          - {⎕NC "fred"} is easier than {⎕NC ''fred''}
+  ⍝H          - In a code field, there are a few escape sequences within double-quoted strings ONLY. 
+  ⍝H            Outside of these, backslashes (\) are as in std APL.
+  ⍝H               \⋄         indicates a carriage return ("newline"). It is not replaced if MODE=¯1.
+  ⍝H               \\⋄        indicates '\⋄'
+  ⍝H               \{nnn}     indicates (⎕UCS nnn), where nnn consists of 1 or more digits (ok w/ lead/trail spaces).
+  ⍝H               \{nnn-mmm} (no preceding backslash (\))
+  ⍝H                          indicates unicode chars from nnn to mmm inclusive, where mmm is as for nnn.
+  ⍝H                  Ex. ∆F '"{"\{97-109}...\{57-48}"}"' 
+  ⍝H                  ==>     "abcdefghijklm...9876543210"
+  ⍝H               In DQ strings, "\⋄" is the same as "\{13}".
+  ⍝H                  Ex. ∆F '{"Dogs\⋄Cats"} vs {"Dogs\{13}Cats"}'
+  ⍝H                  ==>      Dogs vs Dogs
+  ⍝H                           Cats    Cats 
+  ⍝H               \\{nnn-mmm} indicates the string \{nnn-mmm}, i.e. with the extra \ removed.
+  ⍝H               Any other variant of \{...} is NOT treated as special: "\{123+⍳5}" ==> "\{123+⍳5}".
+  ⍝H          - Note: Otherwise, \ is NOT special, i.e. is kept as is. "abc\def" => "abc\def", NOT "abcdef".
+  ⍝H        ∘ To include a double quote (") within a double-quoted string, enter the APL way:
   ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
+  ⍝H        In a code field (outside strings)
   ⍝H        ∘ $ is a special symbol for ⎕FMT to allow easy formatting:
   ⍝H             {"F8.2" $ MyCode...}
   ⍝H        ∘ $$ is a special symbol for the display function (DFNS ws), which causes code to be displayed in box format:
@@ -271,18 +275,19 @@
   ⍝H        ∘ $$ and Dyadic $ used together may be useful:
   ⍝H             { $$ "F8.2" $ MyCode}    ⍝ ← Formats then puts in a display box.
   ⍝H        ∘ A Code Field may include limited comments, 
-  ⍝H              beginning with a '⍝' and terminated just before the next '⋄' or '}'.
-  ⍝H          Braces, statement ends (⋄) and (double) quotes are disallowed in Code Field comments.
+  ⍝H          beginning with a '⍝' and terminated just before the next '⋄' or '}' on the same line.
+  ⍝H          Braces, statement ends (⋄) and (double) quotes are not allowed in Code Field comments.
   ⍝H     {ccc →} A Self-documenting Code Field
   ⍝H        A Code Field with a trailing right arrow (→) will generate two fields:
   ⍝H        ∘ the code itself in literal form, followed by its evaluated value:
   ⍝H          ∆F'A: {⍪⍳⍵1 →},  B: {⍪⍵2+⍳⍵1 →}' 2 3
   ⍝H          A: ⍪⍳⍵1 → 0,  B: ⍪⍵2+⍳⍵1 → 3
   ⍝H                    1                4
-  ⍝H        ∘ Extra blanks and comments are allowed within a Self-documenting Code Field.
+  ⍝H        ∘ Extra blanks and comments are allowed within a Self-documenting Code Field and
+  ⍝H          will appear in the output.
   ⍝H             ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
   ⍝H          ⎕IO=0. ⍪⍳⍵1 → ⍝ SIMPLE 0  ⍪⍵2+⍳⍵1 → ⍝ FANCY 3
-  ⍝H                                   1                    4
+  ⍝H                                 1                    4
   ⍝H
   ⍝H 2. Space Fields
   ⍝H    {sss | :nn: | :⍹N:} Space Field   
@@ -294,6 +299,7 @@
   ⍝H     ∘ The colon prefix is required;  the colon suffix is optional.
   ⍝H     ∘ An ill-formed Space Field will be handled as a Code Field, likely triggering an error.
   ⍝H     ∘ Only one Special Variable is allowed (i.e. ⍹5 or ⍹, but not ⍹4+⍹5, etc.)
+  ⍝H
   ⍝H     A 0-length Space Field {} is handy when separating adjacent Text Fields (see below).
   ⍝H
   ⍝H 3. Text Fields
@@ -366,6 +372,9 @@
   ⍝H          Escapes in Double Quote Character Vectors in code_fields; see text_field/Escapes below): 
   ⍝H               A carriage return may be entered as \⋄. 
   ⍝H               A \⋄ sequence may be entered as \\⋄ 
+  ⍝H               The sequence \{mmm[-nnn]} is treated specially, unless preceded by a second \,
+  ⍝H                   where mmm and nnn are sequences of digits.
+  ⍝H               The sequence \\{mmm[-nnn]} is treated as literal text \{mmm[-nnn}. 
   ⍝H               A \ is otherwise not special and \\ will be treated as two backslashes.
   ⍝H          Outside of char vectors (i.e. in code only), these sequences are special:
   ⍝H                   '[⍵⍹](\d+)'  AND  '⍹_?|⍵_'
