@@ -272,14 +272,14 @@
   ⍝H       ⍹N: (N⊃⍵) the Nth scalar after the format string, N one or more digits.
   ⍝H       ⍹:  [⍹ with no digits immed following]
   ⍝H           selects the "next" scalar to the right, starting AFTER the format string with ⍹1.
-  ⍝H        ∘  ⍹ is incremented by 1 for each use. 
-  ⍝H        ∘  ⍹ is reset after each use of ⍹N from left to right in Code Fields in the format string:  
+  ⍝H        ∘  The counter for ⍹ is incremented by 1 just before each use. 
+  ⍝H        ∘  The counter for ⍹ is set after each use of ⍹N from left to right in Code Fields in the format string:  
   ⍝H           * If  ⍹N is used in a Code Field, the next ⍹ is ⍹N+1;
   ⍝H           * If more than one  expression ⍹N, ⍹P, ⍹Q appears in any Code Field, 
-  ⍝H             the rightmost determines the next ⍹ (here ⍹Q+1).
-  ⍝H        ∘  NB: the initial value of ⍹ is ⍹1, not ⍹0. (⍹0 must be referenced explicitly).
-  ⍝H        ∘  Easy to type alternatives to using the glyph '⍹' :
-  ⍝H           FOR                    USE
+  ⍝H             the one just before the ⍹ on the left determines its next value (here ⍹Q+1).
+  ⍝H        ∘  NB: the initial value of ⍹ is ⍹1, never ⍹0. (⍹0 may only be referenced explicitly).
+  ⍝H        ∘  There are easy to type alternatives to using the glyph '⍹' :
+  ⍝H           IN PLACE OF            USE
   ⍝H           ⍹0, ⍹1, ... ⍹N         ⍵0, ⍵1, ... ⍵N     e.g. ⍹5×⍹6 ≡ ⍵5×⍵6
   ⍝H           bare ⍹                 ⍵_                 e.g. ⍹+1   ≡ ⍵_+1
   ⍝H        ⍵  What about ⍵ (without any numeric suffix or _)?
@@ -402,9 +402,11 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H B. ∆F Options:  ⍺[0] (default ⍺[0]=1)  MODE Option
   ⍝H                 ⍺[1] (default ⍺[1]=0)  DEBUG (BOX) Option
+  ⍝H                 ⍺=⍬                    ∆F FORMATTING SKIPPED
+  ⍝H                 ⍺='help'               Show HELP information
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H B1. ∆F has three modes, determined by ⍺[0]= 1, 0, or ¯1.
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H B1. ∆F has three modes[*], determined by ⍺[0]= 1, 0, or ¯1.
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨       * Ignored if ⍺=⍬ or ⍺='help'
   ⍝H ⍺[0]  MODE Option
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H [1]   ∆F IMMEDIATE MODE
@@ -438,11 +440,6 @@
   ⍝H         multiline output, so the pseudocode can be easily inspected.
   ⍝H     ∘ Returns: a char vector of pseudocode.
   ⍝H
-  ⍝H [¯1] ∆F FORMATTING SUPPRESSED
-  ⍝H ⍺≡⍬        ⍬ ∆F fs
-  ⍝H      Skip formatting right argument and immediately return a shy result of (1 0⍴' ').
-  ⍝H      Useful when a format stmt ∆F is to be ignored (esp. useful in a Tradfn).
-  ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H B2. ∆F has a DEBUG Option that puts each field into a display box
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
@@ -458,6 +455,18 @@
   ⍝H       not shown at all in the output.
   ⍝H     ∘ DEBUG/BOX mode is useful for verifying the expected output format
   ⍝H       is achieved for each input field. 
+  ⍝H
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ 
+  ⍝H B3. Simple Options for ⍺
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H ⍺:   ∆F FORMATTING SUPPRESSED
+  ⍝H ⍺≡⍬      ⍬ ∆F fs
+  ⍝H      Skip formatting right argument and immediately return a shy result of (1 0⍴' ').
+  ⍝H      Useful when a format stmt ∆F is to be ignored (esp. useful in a Tradfn).
+  ⍝H 
+  ⍝H ⍺:   Show HELP information
+  ⍝H         'help' ∆F ''  OR ∆F⍨'help'
+  ⍝H      Show this HELP information in an ⎕ED editor session, then return ''.
   ⍝H 
   ⍝H PERFORMANCE
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨
@@ -469,7 +478,7 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H      ⍝ In a TRADFN                      ⍝ In a DFN
   ⍝H        Fmt1← ⍎0 ∆F '{...}...{}...{}'      Fmt1← ⍎0 ∆F '{...}...{}...{}' 
-  ⍝H        :FOR i :IN ⍳Whatever               { 0=⍵: _←⍺
+  ⍝H        :FOR i :IN ⍳Whatever               _←{ 0=⍵: _←⍺
   ⍝H             ... do stuff ...                  ... do stuff ...
   ⍝H             Fmt1 arg1 arg2 ...                ⎕←Fmt1 arg1 arg2 ⋄ ⍺ ∇ ⍵-1
   ⍝H        :ENDFOR                            }⍨ Whatever
@@ -479,8 +488,8 @@
   ⍝H                                 COMPILE → CODE STR → DFN → RUN    Rel. Timings
   ⍝H      ∆F fmt ⍵1 ⍵2 ...     100%  |<==========================>|    ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
   ⍝H CS←  0 ∆F fmt              85%  |<==============>|                ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-  ⍝H DFN← ⍎CS                    4%                   |<===>|          ⎕
-  ⍝H DFN ⍵1 ⍵2 ...              11%                         |<===>|    ⎕⎕⎕
+  ⍝H DFN← ⍎CS                    4%                   |<=>|            ⎕
+  ⍝H DFN ⍵1 ⍵2 ...              11%                       |<=====>|    ⎕⎕⎕
   ⍝H -----------
   ⍝H [*] Test had six fields, exhibiting a range of field types. 
   ⍝H     ∆F strings are typically small in size and number.
