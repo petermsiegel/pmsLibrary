@@ -2,7 +2,7 @@
    ⍝ Simple format string function (PROTOTYPE)
   ⍝   [⍺←MODE DEBUG←1 0] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
   ⍝ For help, execute 
-  ⍝   ∆F⍨'help'
+  ⍝   ∆F⍨'help' 
   ⍝ or see ⍝H comments at the bottom of this function.
 
     ⍺←1 0
