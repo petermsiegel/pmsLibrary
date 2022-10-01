@@ -158,11 +158,11 @@
 
   ⍝H ∆F: Simple format string function in an APL style based on 2D text, variables and code, 
   ⍝H     and space fields, with shortcuts for numeric formatting, titles, and more. 
-  ⍝H     Inspired, but not based on, by F Strings in Python.
+  ⍝H     Inspired by, but divergent from, F Strings in Python.
   ⍝H …………………………………………………………………………………………………………………………………………………………………………………………………………
   ⍝H Syntax:  options ∆F format_string args
-  ⍝H      format_string: A string containing variables, code, and text to display a mixture 
-  ⍝H                     of APL objects easily.
+  ⍝H      format_string: A string containing variables, code, text and formatting  
+  ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
   ⍝H      options:       [ [MODE=1|0|¯1] [DEBUG=0|1]  | 'help' | ⍬ ]
@@ -187,19 +187,19 @@
   ⍝H Example 1a:  Text Fields and Code Fields {...} with simple variables.
   ⍝H        names←  ↑'John Jones'  'Mary Smith'
   ⍝H        addr←   ↑'1214 Maiden Ln'  '24 Hersham Rd'
-  ⍝H        ∆F 'Name: { names }  Addr: { addr }'
+  ⍝H ⎕      ∆F 'Name: { names }  Addr: { addr }'
   ⍝H     Name: John Jones  Addr: 1214 Maiden Ln
   ⍝H           Mary Smith        24 Hersham Rd 
   ⍝H 
   ⍝H Example 1b: Self-documenting code expressions {...→} in Code Fields.
   ⍝H     ⍝ Same definitions as above. 
-  ⍝H        ∆F '{names→}  {addr→}'
+  ⍝H ⎕      ∆F '{names→}  {addr→}'
   ⍝H     names→John Jones   addr→1214 Maiden Ln  
   ⍝H           Mary Smith        24 Hersham Rd 
   ⍝H
   ⍝H Example 1c: Titles (using the OVER shortcut %)
   ⍝H     ⍝ Same definitions as above. Char strings in {code} use double quotes like "this!". 
-  ⍝H        ∆F '{"Name" % names}  {"Address" % addr}'
+  ⍝H ⎕      ∆F '{"Name" % names}  {"Address" % addr}'
   ⍝H        Name        Address    
   ⍝H     John Jones  1214 Maiden Ln
   ⍝H     Mary Smith  24 Hersham Rd 
@@ -208,7 +208,7 @@
   ⍝H       c←  100 20 12 23 ¯2
   ⍝H       F←  32+1.8∘×
   ⍝H     ⍝ 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵. (Degree sign (°): ⎕UCS 176)
-  ⍝H       ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
+  ⍝H ⎕     ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
   ⍝H  100°C =  212°F
   ⍝H   20°      68°              
   ⍝H   12°      54°              
@@ -217,7 +217,7 @@
   ⍝H
   ⍝H     ⍝ 2b: Format specification hard-wired in Code Field. 
   ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (in decimal).
-  ⍝H       ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
+  ⍝H ⎕     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
   ⍝H   12°     53.6° 
@@ -225,7 +225,7 @@
   ⍝H   ¯2°     28.4° 
   ⍝H 
   ⍝H     ⍝ 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.
-  ⍝H       ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ (32+1.8∘×) c }'
+  ⍝H ⎕     ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ (32+1.8∘×) c }'
   ⍝H  Celsius  Fahren.
   ⍝H   100°    212.0° 
   ⍝H    20°     68.0° 
@@ -236,18 +236,18 @@
   ⍝H Example 3: DEBUG(/BOX) display option (1=⊃⌽⍺)
   ⍝H     ⍝ Displays each field in its own "box" (ignoring null (0-width) fields)
   ⍝H     ⍝ Field:  1..⍬ ⍬  2 3...  4..   ⍬   5 6....
-  ⍝H       1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
+  ⍝H ⎕     1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
   ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
   ⍝H     ⍝ Without DEBUG option.
-  ⍝H       ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F ...
+  ⍝H ⎕     ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F ...
   ⍝H   one two two three
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H HELP
   ⍝H ¨¨¨¨
-  ⍝H For help, enter
-  ⍝H   ∆F⍨'help'
+  ⍝H For help, enter  
+  ⍝H   ∆F⍨'help'   OR  'help' ∆F ''  ⍝ in any case.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H A. The ∆F Format String (⍹0)
   ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -258,8 +258,8 @@
   ⍝H There are 3 types of fields generated: 
   ⍝H    1. Code Fields, 2. Space Fields, and 3. Text Fields.
   ⍝H
-  ⍝H 1. Code Fields
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H A1. Code Fields: { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ Area_Cir radii }
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Code Fields are dfns and may contain any dfn code, including error handling. 
   ⍝H    Each Code field has implicit right arguments, namely everything passed to ∆F as ⍵ when executed.
   ⍝H 
@@ -291,7 +291,7 @@
   ⍝H     ccc  any dfn code, including multiple stmts, guards, and error guards.
   ⍝H        ∘ A left brace '{' begins a code field, which is terminated by a balancing right brace '}'.
   ⍝H        ∘ Code ccc is executed and the result is formatted via ⎕FMT.
-  ⍝H        ∘ \{ and \}, i.e. braces escaped with backslash (\), do not start a code field. 
+  ⍝H        ∘ \{ and \}, i.e. braces escaped with backslash (\), do NOT start a code field. 
   ⍝H          They are simple '{' and '}'.
   ⍝H        ∘ To enter quoted strings in Code Fields, use double quotes "like these":
   ⍝H          - {⎕NC "fred"} is easier than {⎕NC ''fred''}
@@ -299,21 +299,24 @@
   ⍝H            Outside of these cases, backslashes (\) are, as in std APL, not special.
   ⍝H               \⋄         indicates a carriage return (⎕UCS 13). It is left as is if MODE=¯1.
   ⍝H               \\⋄        indicates chars '\⋄'
-  ⍝H               \{nnn}     indicates (⎕UCS nnn), where nnn consists of 1 or more digits 
-  ⍝H                          (leading and trailing spaces are ignored).
-  ⍝H               \{nnn-ppp} (w/o a 2nd preceding backslash) indicates unicode chars from nnn to ppp
-  ⍝H                          inclusive, where nnn,ppp are 1 or more digits
-  ⍝H                  Ex. ∆F '"{"\{97-109}...\{57-48}"}"' 
-  ⍝H                  ==>     "abcdefghijklm...9876543210"
-  ⍝H               In DQ strings, "\⋄" is the same as "\{13}".
-  ⍝H                  Ex. ∆F '{"Dogs\⋄Cats"} vs {"Dogs\{13}Cats"}'
-  ⍝H                  ==>      Dogs vs Dogs
-  ⍝H                           Cats    Cats 
-  ⍝H               \\{nnn-mmm} (with a 2nd preceding backslash)
-  ⍝H                           indicates the string \{nnn-mmm}, i.e. APL text with the extra \ removed.
+  ⍝H               \{nnn}     indicates* (⎕UCS nnn), where nnn consists of 1 or more digits 
+  ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
+  ⍝H               \{nnn-ppp} indicates* unicode chars from nnn to ppp
+  ⍝H                          inclusive, where nnn,ppp are 1 or more digits  
+  ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
+  ⍝H               \\{nnn}  OR  \\{nnn-mmm}
+  ⍝H                     indicates literal string  \{nnn} OR \{nnn-mmm}, i.e. APL text with the extra \ removed.
   ⍝H               Any other variant of \{...} or backslash within strings is kept as ordinary tet:               
   ⍝H                           "\{123+⍳5}" ==> "\{123+⍳5}"   (unchanged, including \);
   ⍝H                           "abc\def"   ==> "abc\def"     (unchanged, including \).
+  ⍝H             Examples
+  ⍝H             ¨¨¨¨¨¨¨¨
+  ⍝H  ⎕               ∆F '"{"\{97-109}...\{57-48}"}"' 
+  ⍝H              "abcdefghijklm...9876543210"
+  ⍝H                ⍝ In DQ strings, "\⋄" is the same as "\{13}".
+  ⍝H  ⎕               ∆F '{"Dogs\⋄Cats"} same as {"Dogs\{13}Cats"}'
+  ⍝H              Dogs same as Dogs
+  ⍝H              Cats         Cats 
   ⍝H        ∘ To include a double quote (") within a double-quoted string, double it the APL way:
   ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
   ⍝H        In a code field (outside strings)
@@ -343,12 +346,12 @@
   ⍝H                    1                4
   ⍝H        ∘ Extra blanks and comments are allowed within a Self-documenting Code Field and
   ⍝H          will appear in the output.
-  ⍝H             ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
+  ⍝H ⎕           ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
   ⍝H          ⎕IO=0. ⍪⍳⍵1 → ⍝ SIMPLE 0  ⍪⍵2+⍳⍵1 → ⍝ FANCY 3
   ⍝H                                 1                    4
   ⍝H
-  ⍝H 2. Space Fields
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H A2. Space Fields: {  }  OR { :10: }
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Space fields look like Code Fields, except they contain  
   ⍝H         ∘ only 0 or more spaces, or
   ⍝H         ∘ :nn:, i.e. a colon, 0 or more digits, followed by a colon
@@ -368,8 +371,8 @@
   ⍝H
   ⍝H     A 0-width Space Field {} is handy as a separator between multiline Text Fields (q.v.).
   ⍝H
-  ⍝H 3. Text Fields
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H A3. Text Fields:  Any\⋄multiline\⋄text 
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Everything else is a Text Field. Variable names, etc., in text field are just text.
   ⍝H    ∘ Text fields may contain newlines entered as \⋄. Simple ⋄ is not special.
   ⍝H    ∘ To show literal \⋄, enter \\⋄.  
@@ -379,7 +382,7 @@
   ⍝H      {} is a 0-width Space Field (see 2. Space Fields above).
   ⍝H      EXAMPLE: 
   ⍝H        Compare these two cases, the first with {} separating 2 multiline Text Fields:
-  ⍝H           ∆F 'One\⋄two{}-Three\⋄-four'  vs    ∆F 'One\⋄two-Three\⋄-four' 
+  ⍝H ⎕         ∆F 'One\⋄two{}-Three\⋄-four'  vs    ∆F 'One\⋄two-Three\⋄-four' 
   ⍝H        One-Three                           One
   ⍝H        two-four                            two-Three
   ⍝H                                            -four
@@ -396,7 +399,7 @@
   ⍝H    B: 255                                B: 255
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                         ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    ⍝ Use APL for base conversions        # Base conversions are built in
-  ⍝H      ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7           f'{7:b}'
+  ⍝H ⎕    ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7           f'{7:b}'
   ⍝H    "111"                                 '111'
   ⍝H 
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
