@@ -6,7 +6,7 @@
   ⍝ or see ⍝H comments at the bottom of this function.
 
     ⍺←1 0
-    ⍬≡⍺:          _←1 0⍴''                        ⍝ Skip processing ⍵, return shy result.
+    ⍬≡⍺:          _←1 0⍴''                         ⍝ Skip processing ⍵, return shy result.
     'help'≡⍥⎕C⍕⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵:  ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
     ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option/s (⍺): ',⍕⍺)('EN' 11 )
