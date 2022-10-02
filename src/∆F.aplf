@@ -28,23 +28,24 @@
       ⍝ Note pseudonames ⍙CHAIN, ⍙BOX, and ⍙OVER. These are not executed and only serve to show
       ⍝ what's happening when MODE option ¯1 is used.
 
-      ⍝ CHAINdef/tok (⍙CHAIN): horizontal field catenation
-      ⍝   Used only in the preamble code as part of the generated output code (see below).
+      ⍝ ⍺ CodSel ⍵- Code Select per Mode
+      ⍝ ⍺: code string, ⍵: symbolic representation of the code string
+      ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Pad with blanks if needed.
+        CodSel← {PIN←' '⍴⍨~⍤∊∘'⎕{}()/' ⋄ (PIN⊃c),c,PIN⊃⌽c← ⍺ ⍵ ⊃⍨¯1=MODE} 
+      ⍝ CHAINSCAN, CHAIN (% shortcut): catenate fields ⍺ and ⍵ horizontally
+      ⍝   Used in the preamble code emitted and with shortcut %%.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
-      ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix
-        CHAINdef← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/'               ⍝ Executable code (for ⍺∊0 1).
-        CHAINtok←  '⊃⍙CHAIN/'                               ⍝ Symbolic name, solely for code inspection (⍺=¯1).
-      ⍝ $ (⎕FMT) shortcut (see below).
-        FMTtok←  ' ⎕FMT ' 
-      ⍝ $$ (⍙BOX: box display) shortcut (see below).
-        BOXtok←'⎕SE.Dyalog.Utils.display ' ' ⍙BOX '⊃⍨¯1=MODE 
-      ⍝ % (⍙OVER: vertical field catenation) shortcut (see below).
-      ⍝   OVERDef/tok: vertical field catenation  ("⍺ OVER ⍵ [OVER z]")
+      ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
+        CHAINcod←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
+        CHAINSCANcod← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
+      ⍝ ⎕FMT ($ shortcut) (see below).
+        FMTcod←  '⎕FMT ' 
+      ⍝ BOX ($ shortcut): Generate a boxed display of ⍵
+        BOXcod←  '⎕SE.Dyalog.Utils.display' CodSel '⍙BOX'  
+      ⍝ OVER ($ shortcut): catenate padded and centered fields vertically.
       ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
-      ⍝   2. Catenates a over w, centering and padding the narrow to the width of the wider matrix.
-      ⍝ We insert it in place for each use (ugh) to avoid having to create/manage/name a library fn.
-        OVERdef← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT '
-        OVERtok← ' ⍙OVER '                                  ⍝ Symbolic name, solely for code inspection (⍺=¯1).
+      ⍝   2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
+        OVERcod← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT' CodSel '⍙OVER'
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -83,10 +84,10 @@
         sqP←      '((''[^'']*'')+)' 
         ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
         dolP←     '\h*(\${1,2})\h*'        
-        ⋄ dolCodeV← FMTtok BOXtok
+        ⋄ dolCodeV← FMTcod BOXcod
         ⍝ % Shortcut: Experimental
-        pctP←     '\h*(\%{1})\h*'
-        ⋄ pctCode←  OVERdef  OVERtok⊃⍨¯1=MODE
+        pctP←     '\h*(\%{1,2})\h*'
+        ⋄ pctCodeV←  OVERcod CHAINcod
         ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
         omegaNP←  '[⍵⍹](\d+)'                              ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                 ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
@@ -105,8 +106,8 @@
                 Case comI:    ''
               ⍝ $: ⍺ ⎕FMT ⍵, $$: (box) display: of ⍵ (⍺ ignored)
                 Case dolI:    dolCodeV ⊃⍨ 2=≢Fld 1  
-              ⍝ %: vertical centered catenation of ⍺ over ⍵
-                Case pctI:    pctCode
+              ⍝ %: ⍺ OVER ⍵, $$: ⍺ CHAIN ⍵
+                Case pctI:    pctCodeV ⊃⍨ 2=≢Fld 1
               ⍝ Getting ⍹N sets ∆OMEGA←N and returns N⊃⍵ in code form.
                 Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨F1         ⊣  ∆OMEGA⊢← ⊃⌽⎕VFI F1←Fld 1   
               ⍝ Getting ⍹ (⍵_) increments ∆OMEGA and returns ∆OMEGA⊃⍵ in code form.            
@@ -124,7 +125,7 @@
       ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CHAINdef (which see).
         ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
-        ⋄  DbgBox← { ~DEBUG: ⍵ ⋄ '(',BOXtok,⍵,')' }               
+        ⋄  DbgBox← { ~DEBUG: ⍵ ⋄ '(',BOXcod,⍵,')' }               
         ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with DEBUG (box display) option
         ProcAllF←  Pad2F DbgBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←DEBUG∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
@@ -152,7 +153,7 @@
         DivFStr2F← DelNullF divPats ⎕R divRepl
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ (CHAINdef CHAINtok⊃⍨¯1=MODE), ∊ 
+        ⋄ AddPreamble← '{','}',⍨ CHAINSCANcod, ∊ 
         AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
@@ -322,17 +323,20 @@
   ⍝H        In a code field (outside strings)
   ⍝H        ∘ $ is a special symbol for ⎕FMT to allow easy formatting (using the dyadic variant):
   ⍝H             {"F8.2" $ MyCode...}       ⍝ Same as {"F8.2" ⎕FMT MyCode...}
-  ⍝H        ∘ $$ is a special symbol for the display function (from the DFNS ws), which 
+  ⍝H        ∘ $$ (BOX) is a special symbol for the display function (from the DFNS ws), which 
   ⍝H          causes code to be displayed in a box:
   ⍝H             { $$ MyCode...} 
   ⍝H        ∘ $$ and Dyadic $ used together may be useful:
   ⍝H             { $$ "F8.2" $ MyCode}    ⍝ $ Formats MyCode then $$ puts in a box.
-  ⍝H        ∘ % is a special symbol for placing one ⎕FMT-able object "over" another, each centered/padded.
+  ⍝H        ∘ % (OVER) is a special symbol for placing one ⎕FMT-able object "over" another, each centered/padded.
   ⍝H          - Each object is converted to a char. array (if not already), padding if necessary, 
   ⍝H            then the left (⍺) is catenated OVER the right (⍵).
   ⍝H          - The % (OVER) option is useful for titles or for building hierarchical displays without
   ⍝H            doing all the gluing yourself.
   ⍝H          - See the example(s) above.
+  ⍝H        ∘ %% (CHAIN) is a special symbol for placing one ⎕FMT-able object to the left of another.
+  ⍝H          The objects are not centered, but simply catenated (CHAINed) together.
+  ⍝H          CHAIN is also used to build the ∆F formatted object from all the fields (see MODE=¯1). 
   ⍝H        ∘ A Code Field may include limited comments (even though on a single line), 
   ⍝H          beginning with a '⍝' and terminated just before the next '⋄' or '}' on the same line.
   ⍝H          Braces {} (escaped or not), statement ends (⋄) and (double) quotes are 
