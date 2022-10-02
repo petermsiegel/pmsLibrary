@@ -4,18 +4,17 @@
   ⍝ For help, execute 
   ⍝   ∆F⍨'help' 
   ⍝ or see ⍝H comments at the bottom of this function.
-
     ⍺←1 0
-    ⍬≡⍺:          _←1 0⍴''                         ⍝ Skip processing ⍵, return shy result.
+    ⍬≡⍺:          _←1 0⍴''                         
     'help'≡⍥⎕C⍕⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵:  ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
     ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option/s (⍺): ',⍕⍺)('EN' 11 )
     
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
-    ⍝    ⍺⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
+    ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
       0:: ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM',⍥⊂'∆F ',EM)  )
-      ⍝ If (⊃⍺)=1: execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
+      ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
         1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -30,8 +29,8 @@
 
       ⍝ ⍺ CodSel ⍵- Code Select per Mode
       ⍝ ⍺: code string, ⍵: symbolic representation of the code string
-      ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Pad with blanks if needed.
-        CodSel← {PIN←' '⍴⍨~⍤∊∘'⎕{}()/' ⋄ (PIN⊃c),c,PIN⊃⌽c← ⍺ ⍵ ⊃⍨¯1=MODE} 
+      ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Code is padded with blanks as needed.
+        CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨¯1=MODE ⋄   } 
       ⍝ CHAINSCAN, CHAIN (% shortcut): catenate fields ⍺ and ⍵ horizontally
       ⍝   Used in the preamble code emitted and with shortcut %%.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
