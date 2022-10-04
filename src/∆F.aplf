@@ -1,6 +1,9 @@
 ∆F←{ 
-   ⍝ Simple format string function (PROTOTYPE)
-  ⍝   [⍺←MODE DEBUG←1 0] ∆F 'format_string'  [⍹1 [⍹2 [... ⍹N]]]
+  ⍝ Simple format string function in APL style, inspired by Python F-strings.
+  ⍝ Syntax: [opts] ∆F format_string  args
+  ⍝        format_string: char vector with formatting specifications
+  ⍝        args: arguments accessible in format_string: ⍹1=1st arg (⎕IO independent)
+  ⍝        opts: [⍺←MODE DEBUG←1 0 | 'help' | ⍬]
   ⍝ For help, execute 
   ⍝   ∆F⍨'help' 
   ⍝ or see ⍝H comments at the bottom of this function.
@@ -30,21 +33,23 @@
       ⍝ ⍺ CodSel ⍵- Code Select per Mode
       ⍝ ⍺: code string, ⍵: symbolic representation of the code string
       ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Code is padded with blanks as needed.
-        CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨¯1=MODE ⋄   } 
-      ⍝ CHAINSCAN, CHAIN (% shortcut): catenate fields ⍺ and ⍵ horizontally
-      ⍝   Used in the preamble code emitted and with shortcut %%.
+        CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⊃⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨¯1=MODE  } 
+      ⍝ CHAINSCAN (preamble code), CHAIN (%% shortcut): Pad/Catenate horizontally objs ⍺ and ⍵.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
         CHAINcod←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
         CHAINSCANcod← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
-      ⍝ ⎕FMT ($ shortcut) (see below).
+      ⍝ ⎕FMT ($ shortcut): for use of dyadic ⎕FMT.
         FMTcod←  '⎕FMT ' 
       ⍝ BOX ($ shortcut): Generate a boxed display of ⍵
-        BOXcod←  '⎕SE.Dyalog.Utils.display' CodSel '⍙BOX'  
-      ⍝ OVER ($ shortcut): catenate padded and centered fields vertically.
-      ⍝   1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
-      ⍝   2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
-        OVERcod← '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT' CodSel '⍙OVER'
+        dis←'⎕SE.Dyalog.Utils.display'
+        3≠⎕NC dis: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',dis,'" not found.'
+        BOXcod←  dis CodSel '⍙BOX'  
+      ⍝ OVER ($ shortcut): Pad/Center/Catenate vertically objs ⍺ and ⍵.
+      ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
+      ⍝ 2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
+        ovr←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
+        OVERcod← ovr CodSel '⍙OVER'
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -165,7 +170,7 @@
   ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
-  ⍝H      options:       [ [MODE=1|0|¯1] [DEBUG=0|1]  | 'help' | ⍬ ]
+  ⍝H      options:       [ [MODE=1|0|¯1] [DEBUG/BOX=0|1]  | 'help' | ⍬ ]
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   options      ∆F Returns 
   ⍝H > MODE=1       A char matrix based on the format string and subsequent values of ⍵. 
@@ -175,8 +180,8 @@
   ⍝H   MODE=¯1      A char vector representing the formatting as a pseudo-code string,  
   ⍝H                suitable for inspection, debugging, etc.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H > DEBUG=0      Each field is displayed normally (and returned per MODE). (Default).
-  ⍝H   DEBUG=1      Each field  will be displayed in a 2D box (and returned per MODE). 
+  ⍝H > DEBUG/BOX=0  Each field is displayed normally (and returned per MODE). (Default).
+  ⍝H   DEBUG/BOX=1  Each field  will be displayed in a 2D box (and returned per MODE). 
   ⍝H                0-width fields are omitted.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
@@ -216,7 +221,7 @@
   ⍝H   ¯2°      28°  
   ⍝H
   ⍝H     ⍝ 2b: Format specification hard-wired in Code Field. 
-  ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (in decimal).
+  ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (decimal).
   ⍝H ⎕     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
@@ -233,21 +238,21 @@
   ⍝H    23°     73.4° 
   ⍝H    ¯2°     28.4° 
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H Example 3: DEBUG(/BOX) display option (1=⊃⌽⍺)
+  ⍝H Example 3: DEBUG/BOX display option (1=⊃⌽⍺)
   ⍝H     ⍝ Displays each field in its own "box" (ignoring null (0-width) fields)
   ⍝H     ⍝ Field:  1..⍬ ⍬  2 3...  4..   ⍬   5 6....
   ⍝H ⎕     1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
   ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
-  ⍝H     ⍝ Without DEBUG option.
+  ⍝H     ⍝ Without DEBUG/BOX option.
   ⍝H ⎕     ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F ...
   ⍝H   one two two three
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H HELP
   ⍝H ¨¨¨¨
   ⍝H For help, enter  
-  ⍝H   ∆F⍨'help'   OR  'help' ∆F ''  ⍝ in any case.
+  ⍝H   ∆F⍨'help'   OR  'help' ∆F ''  
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H A. The ∆F Format String (⍹0)
   ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -258,13 +263,15 @@
   ⍝H There are 3 types of fields generated: 
   ⍝H    1. Code Fields, 2. Space Fields, and 3. Text Fields.
   ⍝H
-  ⍝H A1. Code Fields: { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ Area_Cir radii }
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H A1. Code Fields: 
+  ⍝H        radii← 12 2.3 19
+  ⍝H ⎕      ∆F ' { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ radii,⍤¯1⊣ (Area_Cir radii) }' 
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Code Fields are dfns and may contain any dfn code, including error handling. 
   ⍝H    Each Code field has implicit right arguments, namely everything passed to ∆F as ⍵ when executed.
   ⍝H 
   ⍝H    Special Variables ⍹0,⍹, etc., used in Code Fields*
-  ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  * See also usage in Space Fields.
+  ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  * Alias ⍵0, ⍵_, etc. See also usage in Space Fields.
   ⍝H       ⍹0, ⍹1, ... ⍵N, denote the scalars in the right arg (⍵) passed to ∆F. 
   ⍝H       ⍹ is the glyph ⎕UCS 9081.
   ⍝H       ⍹0: (0⊃⍵) the format string itself (⎕IO=0).  
@@ -322,8 +329,8 @@
   ⍝H        In a code field (outside strings)
   ⍝H        ∘ $ is a special symbol for ⎕FMT to allow easy formatting (using the dyadic variant):
   ⍝H             {"F8.2" $ MyCode...}       ⍝ Same as {"F8.2" ⎕FMT MyCode...}
-  ⍝H        ∘ $$ (BOX) is a special symbol for the display function (from the DFNS ws), which 
-  ⍝H          causes code to be displayed in a box:
+  ⍝H        ∘ $$ (BOX) is a special symbol for the display function (see the DFNS ws), which 
+  ⍝H          formats objects in a box:
   ⍝H             { $$ MyCode...} 
   ⍝H        ∘ $$ and Dyadic $ used together may be useful:
   ⍝H             { $$ "F8.2" $ MyCode}    ⍝ $ Formats MyCode then $$ puts in a box.
@@ -353,7 +360,8 @@
   ⍝H          ⎕IO=0. ⍪⍳⍵1 → ⍝ SIMPLE 0  ⍪⍵2+⍳⍵1 → ⍝ FANCY 3
   ⍝H                                 1                    4
   ⍝H
-  ⍝H A2. Space Fields: {  }  OR { :10: }
+  ⍝H A2. Space Fields: 
+  ⍝H     {  }  OR { :10: }
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Space fields look like Code Fields, except they contain  
   ⍝H         ∘ only 0 or more spaces, or
@@ -374,8 +382,9 @@
   ⍝H
   ⍝H     A 0-width Space Field {} is handy as a separator between multiline Text Fields (q.v.).
   ⍝H
-  ⍝H A3. Text Fields:  Any\⋄multiline\⋄text 
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H A3. Text Fields:  
+  ⍝H     ∆F 'Any\⋄multiline\⋄text{}Next field!' 
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Everything else is a Text Field. Variable names, etc., in text field are just text.
   ⍝H    ∘ Text fields may contain newlines entered as \⋄. Simple ⋄ is not special.
   ⍝H    ∘ To show literal \⋄, enter \\⋄.  
@@ -392,22 +401,29 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H Differences from Python
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H    ∆F-style                              Python
-  ⍝H    ¨¨¨¨¨¨¨¨                              ¨¨¨¨¨¨    
-  ⍝H    ⍝ Build annotations left to right   # Build annotations row by row
-  ⍝H      RGB←  123 145 255                   R = 123 ; G = 145 ; B = 255
-  ⍝H      ∆F 'R:\⋄G:\⋄B:{ }{"I3"$ RGB}'       print((f'R: {R}\nG: {G}\nB: {B}'));
-  ⍝H    R: 123                                R: 123
-  ⍝H    G: 145                                G: 145
-  ⍝H    B: 255                                B: 255
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                         ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H    ⍝ Use APL for base conversions        # Base conversions are built in
-  ⍝H ⎕    ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7           f'{7:b}'
-  ⍝H    "111"                                 '111'
-  ⍝H 
+  ⍝H    ∆F APL-style                             Python
+  ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨                             ¨¨¨¨¨¨    
+  ⍝H    ⍝ Build fields all at once L to R        # Build annotations row by row
+  ⍝H      RGB←  123 145 255                      R = 123 ; G = 145 ; B = 255
+  ⍝H ⎕    ∆F 'R:\⋄G:\⋄B:{ }{⍪RGB}'               print((f'R: {R}\nG: {G}\nB: {B}'))
+  ⍝H    R: 123                                   R: 123
+  ⍝H    G: 145                                   G: 145
+  ⍝H    B: 255                                   B: 255
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                            ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H    ⍝ Use APL for base conversions         # Base conversions are built in
+  ⍝H ⎕    ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7              f'{7:b}'
+  ⍝H    "111"                                    '111'
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                            ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H    ⍝ Formatting Floats old-fashioned?     # Similar approach, different conventions
+  ⍝H      x← 20.123                              x = 20.123
+  ⍝H ⎕    ∆F'{"F8.5"$x}' ⍝ User calcs width      print(f'{x:0<8}')   # User calcs width
+  ⍝H    20.12300                                 20.12300
+  ⍝H ⎕    ∆F '{5⍕x}'     ⍝ APL calcs width       print(f'{x:.5f}')   # Python calcs width
+  ⍝H    20.12300                                 20.12300
+  ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H B. ∆F Options:  ⍺[0] (default ⍺[0]=1)  MODE Option
-  ⍝H                 ⍺[1] (default ⍺[1]=0)  DEBUG (BOX) Option
+  ⍝H                 ⍺[1] (default ⍺[1]=0)  DEBUG/BOX Option
   ⍝H                 ⍺=⍬                    ∆F FORMATTING SKIPPED
   ⍝H                 ⍺='help'               Show HELP information
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
@@ -447,14 +463,14 @@
   ⍝H     ∘ Returns: a char vector of pseudocode.
   ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H B2. ∆F has a DEBUG Option that puts each field into a display box
+  ⍝H B2. ∆F has a DEBUG/BOX Option that puts each field into a display box
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H ⍺[1]  DEBUG (BOX) Option
+  ⍝H ⍺[1]  DEBUG/BOX (BOX) Option
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H ⍺[1]=0 DEFAULT (NOBOX) Setting
   ⍝H     ∘ Output displayed normally, without extra boxing.
   ⍝H 
-  ⍝H ⍺[1]=1 DEBUG (BOX) Setting
+  ⍝H ⍺[1]=1 DEBUG/BOX Setting
   ⍝H     ∘ Output is displayed with each field shown within its own box, 
   ⍝H       whether a text, space, or code field.
   ⍝H     ∘ Any null fields generated (0-width) are suppressed, i.e. 
@@ -462,16 +478,23 @@
   ⍝H     ∘ DEBUG/BOX mode is useful for verifying the expected output format
   ⍝H       is achieved for each input field. 
   ⍝H
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ 
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ 
   ⍝H B3. Simple Options for ⍺
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H ⍺:   ∆F FORMATTING SUPPRESSED
   ⍝H ⍺≡⍬      ⍬ ∆F fs
-  ⍝H      Skip formatting right argument and immediately return a shy result of (1 0⍴' ').
+  ⍝H      Immediately return a shy result of (1 0⍴' '), ignoring right argument.
   ⍝H      Useful when a format stmt ∆F is to be ignored (esp. useful in a Tradfn).
-  ⍝H 
+  ⍝H            VOLTAGE CURRENT FREQ← Initialize ⍬
+  ⍝H            :FOR STEP :IN 1+⍳ITERATIONS  ⍝ ⎕IO=0
+  ⍝H               VOLTAGE CURRENT FREQ← CalcNextStep VOLTAGE CURRENT FREQ 
+  ⍝H             ⍝ Show results on STEP 100 200 etc.
+  ⍝H ⎕             (1/⍨0=100|STEP) ∆F '[{STEP}] Key Vars: {VOLTAGE→}V, {CURRENT→}A, {FREQ→}Hz.'
+  ⍝H            :ENDFOR
+  ⍝H         [100] Key Vars: VOLTAGE→240V, CURRENT→20A, FREQ→50Hz.
+  ⍝H -----------------------------
   ⍝H ⍺:   Show HELP information
-  ⍝H         'help' ∆F ''  OR ∆F⍨'help'
+  ⍝H ⎕        'help' ∆F ''  OR ∆F⍨'help'
   ⍝H      Show this HELP information in an ⎕ED editor session, then return ''.
   ⍝H 
   ⍝H PERFORMANCE
@@ -483,7 +506,7 @@
   ⍝H EXAMPLE OF CODE GEN MODE (0 ∆F ...)
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H      ⍝ In a TRADFN                      ⍝ In a DFN
-  ⍝H        Fmt1← ⍎0 ∆F '{...}...{}...{}'      Fmt1← ⍎0 ∆F '{...}...{}...{}' 
+  ⍝H ⎕      Fmt1← ⍎0 ∆F '{...}...{}...{}'      Fmt1← ⍎0 ∆F '{...}...{}...{}' 
   ⍝H        :FOR i :IN ⍳Whatever               _←{ 0=⍵: _←⍺
   ⍝H             ... do stuff ...                  ... do stuff ...
   ⍝H             Fmt1 arg1 arg2 ...                ⎕←Fmt1 arg1 arg2 ⋄ ⍺ ∇ ⍵-1
