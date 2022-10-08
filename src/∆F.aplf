@@ -16,12 +16,14 @@
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
     ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
-      0:: ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM',⍥⊂'∆F ',EM)  )
+      1000:: ⎕←'∆F ',⎕DMX.EM
+      0::    ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM',⍥⊂'∆F ',EM) )
       ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
         1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
-        '{',⍵,(EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
+        trap← '1000::⎕←''∆F '',⎕DMX.EM⋄0::⎕SIGNAL⊂⎕DMX.((''Message''Message)(''EN''EN)(''EM'',⍥⊂''∆F '',EM))⋄'
+        '{', (trap/⍨ 0=⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))(2↑⍺){
 
       0:: ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
@@ -119,8 +121,8 @@
             } 1↓¯1↓⍵                                           ⍝ Remove { and }
           ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
           ⍝ ↓ EXPERIMENTAL:  Allow trailing ↓ to be self-documenting, but using OVER.
-            trim←  ' ⋄' TrimR code   
-           '→↓'(~∊⍨)self←¯1↑trim:  '({', code,'}⍵)' 
+            trim← ' ⋄' TrimR code   
+            '→↓'(~∊⍨)self←¯1↑trim:  '({', code,'}⍵)' 
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
             doc code← (' ',EnSQ 1↓¯1↓⍵) (' ({','}⍵)',⍨¯1↓trim)
@@ -349,13 +351,24 @@
   ⍝H          beginning with a '⍝' and terminated just before the next '⋄' or '}' on the same line.
   ⍝H          Braces {} (escaped or not), statement ends (⋄) and (double) quotes are 
   ⍝H          not allowed in Code Field comments.
-  ⍝H     {ccc →} A Self-documenting Code Field
-  ⍝H        A Code Field with a trailing right arrow (→) will generate two fields:
-  ⍝H        ∘ the code itself in literal form (incl. spaces and [limited] comments), 
-  ⍝H          followed by its evaluated value:
-  ⍝H          ∆F'A: {⍪⍳⍵1 → },  B: {⍪⍵2+⍳⍵1 → }' 2 3
-  ⍝H          A: ⍪⍳⍵1 → 0,  B: ⍪⍵2+⍳⍵1 → 3
+  ⍝H     Self-Documenting Code Fields
+  ⍝H       a. HORIZONTAL →
+  ⍝H       {ccc →} A Self-documenting Horizontal Code Field
+  ⍝H          A Code Field with a trailing right arrow (→) will generate two fields:
+  ⍝H          ∘ the code itself in literal form (incl. spaces and [limited] comments), 
+  ⍝H            followed by its evaluated value:
+  ⍝H              ∆F'A: {⍪⍳⍵1 → },  B: {⍪⍵2+⍳⍵1 → }' 2 3
+  ⍝H            A: ⍪⍳⍵1 → 0,  B: ⍪⍵2+⍳⍵1 → 3
   ⍝H                    1                4
+  ⍝H       b. VERTICAL ↓ (EXPERIMENTAL OPTION)
+  ⍝H       {ccc ↑} A Self-documenting Vertical Code Field
+  ⍝H          A Code Field with a trailing down arrow (↓) will generate a field with...
+  ⍝H          ∘ the code itself in literal form (incl. spaces and [limited] comments), 
+  ⍝H            OVER its evaluated value (as if the %% shortcut was used):
+  ⍝H              ∆F'A: {⍪⍳⍵1 ↓},  B: {⍪⍵2+⍳⍵1 ↓ }' 2 3
+  ⍝H            A: ⍪⍳⍵1 ↓,  B: ⍪⍵2+⍳⍵1 ↓ 
+  ⍝H                 0             3     
+  ⍝H                 1             4  
   ⍝H        ∘ Extra blanks and comments are allowed within a Self-documenting Code Field and
   ⍝H          will appear in the output.
   ⍝H ⎕           ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
