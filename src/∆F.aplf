@@ -3,13 +3,13 @@
   ⍝ Syntax: [opts] ∆F format_string  args
   ⍝        format_string: char vector with formatting specifications
   ⍝        args: arguments accessible in format_string: ⍹1=1st arg (⎕IO independent)
-  ⍝        opts: [⍺←MODE DEBUG←1 0 | 'help' | ⍬]
+  ⍝        opts: [⍺←MODE BOX←1 0 | 'help' | ⍬]
   ⍝ For help, execute 
   ⍝   ∆F⍨'help' 
   ⍝ or see ⍝H comments at the bottom of this function.
     ⍺←1 0
     ⍬≡⍺:          _←1 0⍴''                         
-    'help'≡⍥⎕C⍕⍺: ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
+    'help'≡⍥⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
     ×80|⎕DR ⊃⊆⍵:  ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
     ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option/s (⍺): ',⍕⍺)('EN' 11 )
     
@@ -26,7 +26,7 @@
 
       0:: ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
         ⎕IO ⎕ML←0 1
-        MODE DEBUG← ⍺  
+        MODE BOX← ⍺  
       ⍝ Note pseudonames ⍙CHAIN, ⍙BOX, and ⍙OVER. These are not executed and only serve to show
       ⍝ what's happening when MODE option ¯1 is used.
 
@@ -118,20 +118,22 @@
                 Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕∆OMEGA    ⊣  ∆OMEGA+← 1   
             } 1↓¯1↓⍵                                           ⍝ Remove { and }
           ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
+          ⍝ ↓ EXPERIMENTAL:  Allow trailing ↓ to be self-documenting, but using OVER.
             trim←  ' ⋄' TrimR code   
-            '→'≠¯1↑trim:  '({', code,'}⍵)' 
+           '→↓'(~∊⍨)self←¯1↑trim:  '({', code,'}⍵)' 
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
-            doc code← (1↓¯1↓⍵) (¯1↓trim)
-            ( ' ',EnSQ doc )  (' ({', code, '}⍵)')    
+            doc code← (' ',EnSQ 1↓¯1↓⍵) (' ({','}⍵)',⍨¯1↓trim)
+            self='↓': '(',')',⍨ doc, OVERcod, code     ⍝ EXPERIMENTAL...
+            doc, code    
         }
           
       ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CHAINdef (which see).
         ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
-        ⋄  DbgBox← { ~DEBUG: ⍵ ⋄ '(',BOXcod,⍵,')' }               
-        ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with DEBUG (box display) option
-        ProcAllF←  Pad2F DbgBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←DEBUG∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
+        ⋄  DbgBox← { ~BOX: ⍵ ⋄ '(',BOXcod,⍵,')' }               
+        ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with BOX (box display) option
+        ProcAllF←  Pad2F DbgBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←BOX∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
       ⍝ D. DivFStr2F: Divide format string into fields (convert space fields to simple code fields)
       ⍝ Returns: A set of fields, each as a char vec. 
@@ -170,7 +172,7 @@
   ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
-  ⍝H      options:       [ [MODE=1|0|¯1] [DEBUG/BOX=0|1]  | 'help' | ⍬ ]
+  ⍝H      options:       [ [MODE=1|0|¯1] [BOX=0|1]  | 'help' | ⍬ ]
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   options      ∆F Returns 
   ⍝H > MODE=1       A char matrix based on the format string and subsequent values of ⍵. 
@@ -180,8 +182,8 @@
   ⍝H   MODE=¯1      A char vector representing the formatting as a pseudo-code string,  
   ⍝H                suitable for inspection, debugging, etc.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H > DEBUG/BOX=0  Each field is displayed normally (and returned per MODE). (Default).
-  ⍝H   DEBUG/BOX=1  Each field  will be displayed in a 2D box (and returned per MODE). 
+  ⍝H > BOX=0        Each field is displayed normally (and returned per MODE). (Default).
+  ⍝H   BOX=1        Each field  will be displayed in a 2D box (and returned per MODE). 
   ⍝H                0-width fields are omitted.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
@@ -238,14 +240,14 @@
   ⍝H    23°     73.4° 
   ⍝H    ¯2°     28.4° 
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H Example 3: DEBUG/BOX display option (1=⊃⌽⍺)
+  ⍝H Example 3: BOX display option (1=⊃⌽⍺)
   ⍝H     ⍝ Displays each field in its own "box" (ignoring null (0-width) fields)
   ⍝H     ⍝ Field:  1..⍬ ⍬  2 3...  4..   ⍬   5 6....
   ⍝H ⎕     1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
   ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
-  ⍝H     ⍝ Without DEBUG/BOX option.
+  ⍝H     ⍝ Without BOX option.
   ⍝H ⎕     ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F ...
   ⍝H   one two two three
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
@@ -423,7 +425,7 @@
   ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H B. ∆F Options:  ⍺[0] (default ⍺[0]=1)  MODE Option
-  ⍝H                 ⍺[1] (default ⍺[1]=0)  DEBUG/BOX Option
+  ⍝H                 ⍺[1] (default ⍺[1]=0)  BOX Option
   ⍝H                 ⍺=⍬                    ∆F FORMATTING SKIPPED
   ⍝H                 ⍺='help'               Show HELP information
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
@@ -463,19 +465,19 @@
   ⍝H     ∘ Returns: a char vector of pseudocode.
   ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H B2. ∆F has a DEBUG/BOX Option that puts each field into a display box
+  ⍝H B2. ∆F has a BOX Option that puts each field into a display box
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  ⍝H ⍺[1]  DEBUG/BOX (BOX) Option
+  ⍝H ⍺[1]  BOX Option
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H ⍺[1]=0 DEFAULT (NOBOX) Setting
   ⍝H     ∘ Output displayed normally, without extra boxing.
   ⍝H 
-  ⍝H ⍺[1]=1 DEBUG/BOX Setting
+  ⍝H ⍺[1]=1 BOX Setting
   ⍝H     ∘ Output is displayed with each field shown within its own box, 
   ⍝H       whether a text, space, or code field.
   ⍝H     ∘ Any null fields generated (0-width) are suppressed, i.e. 
   ⍝H       not shown at all in the output.
-  ⍝H     ∘ DEBUG/BOX mode is useful for verifying the expected output format
+  ⍝H     ∘ BOX mode is useful for verifying the expected output format
   ⍝H       is achieved for each input field. 
   ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ 
