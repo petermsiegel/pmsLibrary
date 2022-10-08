@@ -16,14 +16,14 @@
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
     ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
-      1000:: ⎕←'∆F ',⎕DMX.EM
-      0::    ⎕SIGNAL⊂ ⎕DMX.( ('Message' Message) ('EN' EN) ('EM',⍥⊂'∆F ',EM) )
+      0 1000::⎕SIGNAL⊂⎕DMX.('Message' 'EN' 'EM',⍥⊂¨Message(999⌊EN)('∆F ',EM)) 
       ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
         1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
-        trap← '1000::⎕←''∆F '',⎕DMX.EM⋄0::⎕SIGNAL⊂⎕DMX.((''Message''Message)(''EN''EN)(''EM'',⍥⊂''∆F '',EM))⋄'
-        '{', (trap/⍨ 0=⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
+      ⍝ If PseudoCode Mode (¯1=⊃⍺O), omit error handling. 
+        TRAPc← '0 1000::⎕SIGNAL⊂⎕DMX.(''Message'' ''EN'' ''EM'',⍥⊂¨Message(999⌊EN)(''∆F '',EM))⋄'
+        '{', (TRAPc/⍨ ¯1≠⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))(2↑⍺){
 
       0:: ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
@@ -39,19 +39,19 @@
       ⍝ CHAINSCAN (preamble code), CHAIN (%% shortcut): Pad/Catenate horizontally objs ⍺ and ⍵.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
-        CHAINcod←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
-        CHAINSCANcod← '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
+        CHAINc←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
+        CHAINSCANc←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
       ⍝ ⎕FMT ($ shortcut): for use of dyadic ⎕FMT.
-        FMTcod←  '⎕FMT ' 
+        FMTc←  '⎕FMT ' 
       ⍝ BOX ($ shortcut): Generate a boxed display of ⍵
         dis←'⎕SE.Dyalog.Utils.display'
         3≠⎕NC dis: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',dis,'" not found.'
-        BOXcod←  dis CodSel '⍙BOX'  
+        BOXc←  dis CodSel '⍙BOX'  
       ⍝ OVER ($ shortcut): Pad/Center/Catenate vertically objs ⍺ and ⍵.
       ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝ 2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
         ovr←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
-        OVERcod← ovr CodSel '⍙OVER'
+        OVERc← ovr CodSel '⍙OVER'
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -90,10 +90,10 @@
         sqP←      '((''[^'']*'')+)' 
         ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
         dolP←     '\h*(\${1,2})\h*'        
-        ⋄ dolCodeV← FMTcod BOXcod
+        ⋄ dolCodeV← FMTc BOXc
         ⍝ % Shortcut: Experimental
         pctP←     '\h*(\%{1,2})\h*'
-        ⋄ pctCodeV←  OVERcod CHAINcod
+        ⋄ pctCodeV←  OVERc CHAINc
         ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
         omegaNP←  '[⍵⍹](\d+)'                              ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
         omega0P←  '⍵_|⍹_?'                                 ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
@@ -126,14 +126,14 @@
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
             doc code← (' ',EnSQ 1↓¯1↓⍵) (' ({','}⍵)',⍨¯1↓trim)
-            self='↓': '(',')',⍨ doc, OVERcod, code     ⍝ EXPERIMENTAL...
+            self='↓': '(',')',⍨ doc, OVERc, code     ⍝ EXPERIMENTAL...
             doc, code    
         }
           
       ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CHAINdef (which see).
         ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
-        ⋄  DbgBox← { ~BOX: ⍵ ⋄ '(',BOXcod,⍵,')' }               
+        ⋄  DbgBox← { ~BOX: ⍵ ⋄ '(',BOXc,⍵,')' }               
         ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with BOX (box display) option
         ProcAllF←  Pad2F DbgBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←BOX∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
@@ -161,7 +161,7 @@
         DivFStr2F← DelNullF divPats ⎕R divRepl
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ CHAINSCANcod, ∊ 
+        ⋄ AddPreamble← '{','}',⍨ CHAINSCANc, ∊ 
         AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
