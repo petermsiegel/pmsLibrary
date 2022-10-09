@@ -145,13 +145,13 @@
         ⍝ spaceNullP: {} or {:0:} ==> generates no code.
           spaceNullP← '(?x) \{ (?: \h* : 0* :? \h* )? \}'      ⍝ Null Space Field: Separates fields. 
           spaceNullR← '\r'  
-          ⋄ spExtras←'(⍝[^}⋄]*[^}]*)?'                         ⍝ Comments and trailing stmts are ignored...
-        ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces.  
+          ⋄ spExtras←'((→\s*)?(⍝([^}⋄])*)?)'                   ⍝ Self Documenting Code and Comment subpatterns
+        ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces. Also generates spExtras if used.
           space1P← '(?x) \{       ( \s*                  )        ',spExtras,' \}'    
-          space1R← '\r{,''\1''}\r' 
-        ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.            
+          space1R← '\r{,''\1''\2}\r' 
+        ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.           Also generates spExtras if used.
           space2P← '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',spExtras,' \}'     
-          space2R← '\r{\1⍴'' ''}\r' 
+          space2R← '\r{\1⍴'' ''\2}\r' 
         ⍝ codeP: Recursively matches balanced braces {}, handling DQ strings, escapes \{, limited comments, etc.
           codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
           codeR←   '\r\0\r'
