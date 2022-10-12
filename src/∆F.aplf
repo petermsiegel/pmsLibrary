@@ -8,22 +8,22 @@
   ⍝   ∆F⍨'help' 
   ⍝ or see ⍝H comments at the bottom of this function.
     ⍺←1 0
-    ⍬≡⍺:          _←1 0⍴''                         
-    'help'≡⍥⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
-    ×80|⎕DR ⊃⊆⍵:  ⎕SIGNAL⊂ ('EM' '∆F DOMAIN ERROR') ('Message' 'Invalid format string') ('EN' 11)
-    ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0: ⎕SIGNAL⊂('Message' ,⍥⊂'Invalid option/s (⍺): ',⍕⍺)('EN' 11 )
+    ⍬≡⍺: _←1 0⍴''                         
+    'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
+    (×80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⊆⍵:  ⎕SIGNAL⊂ ('EN' 11)('EM' '∆F DOMAIN ERROR')('Message' 'Invalid f-string') 
+    ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0:  ⎕SIGNAL⊂ ('EN' 11)('EM' '∆F DOMAIN ERROR')('Message',⍥⊂'Invalid option: ',⍕⍺)
     
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
     ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
-      0 1000::⎕SIGNAL⊂⎕DMX.('Message' 'EN' 'EM',⍥⊂¨Message(999⌊EN)('∆F ',EM)) 
+      0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
       ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
         1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
       ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
       ⍝ If PseudoCode Mode (¯1=⊃⍺O), omit error handling. 
-        TRAPc← '0 1000::⎕SIGNAL⊂⎕DMX.(''Message'' ''EN'' ''EM'',⍥⊂¨Message(999⌊EN)(''∆F '',EM))⋄'
-        '{', (TRAPc/⍨ ¯1≠⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
+        ERRc← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄'
+        '{', (ERRc/⍨ ¯1≠⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))(2↑⍺){
 
       0:: ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
@@ -39,7 +39,7 @@
       ⍝ CHAINSCAN (preamble code), CHAIN (%% shortcut): Pad/Catenate horizontally objs ⍺ and ⍵.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
-        CHAINc←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
+        CHAINc←       '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
         CHAINSCANc←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
       ⍝ ⎕FMT ($ shortcut): for use of dyadic ⎕FMT.
         FMTc←  '⎕FMT ' 
@@ -70,24 +70,27 @@
 
       ⍝ B. ProcCSF - Subprocess Code and Space Fields
         ⍝ Code Field DQ String Escapes: See also ProcCSF. 
+        dq2P←     '"{2}'        ⍝ "" => "
         esc2CrP←  '\\{2}⋄'
         esc1CrP←  '\\{1}⋄'
         unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'
-        ⋄ dqEscPats← esc2CrP esc1CrP unicodeP
-        ⋄            esc2CrI esc1CrI unicodeI← ⍳≢dqEscPats
-        DQEsc←  dqEscPats  ⎕R {
+        ⋄ dqStrEscPats← dq2P esc2CrP esc1CrP unicodeP
+        ⋄               dq2I esc2CrI esc1CrI unicodeI← ⍳≢dqStrEscPats
+        DQStrEsc←  dqStrEscPats  ⎕R {
               Case← ⍵.PatternNum∘∊
               Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+              Case dq2I:    '"'
               Case esc1CrI: CR '\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
               Case esc2CrI: 1↓Fld 0 
             ⍝ Case unicodeI: Experimental
               2=≢Fld 1: 1↓Fld 0                          ⍝ If prefixed w/ 2 backslashes, return match with just one.
             ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
-              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 ⋄ 0=≢end:⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
+              0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
         } 
         TrimR←    {⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
-        dqP←      '(("[^"]*")+)' 
-        sqP←      '((''[^'']*'')+)' 
+        dqStrP←      '(("[^"]*")+)' 
+        sqStrP←      '((''[^'']*'')+)' 
         ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
         dolP←     '\h*(\${1,2})\h*'        
         ⋄ dolCodeV← FMTc BOXc
@@ -100,15 +103,15 @@
         ⍝ ⍝ Comments: (limited pattern)
         comP←     '⍝[^}⋄]+' 
         ⍝                                   
-        ⋄ csfPats← dqP sqP comP dolP pctP omegaNP omega0P 
-        ⋄          dqI sqI comI dolI pctI omegaNI omega0I←⍳≢csfPats
+        ⋄ csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P 
+        ⋄          dqStrI sqStrI comI dolI pctI omegaNI omega0I←⍳≢csfPats
         ∆OMEGA←0
         ProcCSF←  {
             code←  csfPats ⎕R {
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                Case dqI:     ' ',EnSQ DQEsc 1↓¯1↓Fld 0        ⍝ DQ String: Escapes applied
-                Case sqI:     Fld 0                            ⍝ SQ String: No Escapes applied
+                Case dqStrI:  ' ',EnSQ DQStrEsc 1↓¯1↓Fld 0        ⍝ DQ String: Escapes applied
+                Case sqStrI:  Fld 0                                 ⍝ SQ String: No Escapes applied
                 Case comI:    ''
               ⍝ $: ⍺ ⎕FMT ⍵, $$: (box) display: of ⍵ (⍺ ignored)
                 Case dolI:    dolCodeV ⊃⍨ 2=≢Fld 1  
@@ -126,16 +129,17 @@
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
             doc code← (' ',EnSQ 1↓¯1↓⍵) (' ({','}⍵)',⍨¯1↓trim)
-            self='↓': '(',')',⍨ doc, OVERc, code     ⍝ EXPERIMENTAL...
+            self='↓': '(',')',⍨ doc, OVERc, code     ⍝ EXPERIMENTAL…
             doc, code    
         }
           
       ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CHAINdef (which see).
-        ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢    
-        ⋄  DbgBox← { ~BOX: ⍵ ⋄ '(',BOXc,⍵,')' }               
+        ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
+        ⋄  SP2CDc←'(''·''@('' ''∘=))'                         ⍝ Spaces to Center Dots
+        ⋄  BoxMode← { ~BOX: ⍵ ⋄ '(', SP2CDc, BOXc,⍵,')' }               
         ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with BOX (box display) option
-        ProcAllF←  Pad2F DbgBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←BOX∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
+        ProcAllF←  Pad2F BoxMode∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←BOX∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
       ⍝ D. DivFStr2F: Divide format string into fields (convert space fields to simple code fields)
       ⍝ Returns: A set of fields, each as a char vec. 
@@ -144,13 +148,12 @@
         ⍝ Space Fields handled before Code Fields: simpler, non-recursive patterns.
         ⍝ spaceNullP: {} or {:0:} ==> generates no code.
           spaceNullP← '(?x) \{ (?: \h* : 0* :? \h* )? \}'      ⍝ Null Space Field: Separates fields. 
-          spaceNullR← '\r'  
-          ⋄ spExtras←'(⍝[^}⋄]*[^}]*)?'                         ⍝ Comments and trailing stmts are ignored...
-        ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces.  
-          space1P← '(?x) \{       ( \s*                  )        ',spExtras,' \}'    
+          spaceNullR← '\r'                             
+        ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces. Comments are ignored up to closing } 
+          space1P← '(?x) \{       ( \s*                  )        (?:⍝[^}]*)? \}'    
           space1R← '\r{,''\1''}\r' 
-        ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.            
-          space2P← '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* ',spExtras,' \}'     
+        ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.           Comments are ignored up to closing }   
+          space2P← '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* (?:⍝[^}]*)? \}'     
           space2R← '\r{\1⍴'' ''}\r' 
         ⍝ codeP: Recursively matches balanced braces {}, handling DQ strings, escapes \{, limited comments, etc.
           codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
@@ -186,29 +189,29 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H > BOX=0        Each field is displayed normally (and returned per MODE). (Default).
   ⍝H   BOX=1        Each field  will be displayed in a 2D box (and returned per MODE). 
-  ⍝H                0-width fields are omitted.
+  ⍝H                Blanks will be replaced by a center dot (·) in the output. 0-width fields are omitted.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
   ⍝H   ⍺≡⍬          A shy char matrix (1 0⍴' '). Right arg ⍵ is ignored. No formatting is done.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H EXAMPLES
   ⍝H ¨¨¨¨¨¨¨¨
-  ⍝H Example 1a:  Text Fields and Code Fields {...} with simple variables.
+  ⍝H Example 1a:  Text Fields and Code Fields {…} with simple variables.
   ⍝H        names←  ↑'John Jones'  'Mary Smith'
   ⍝H        addr←   ↑'1214 Maiden Ln'  '24 Hersham Rd'
-  ⍝H ⎕      ∆F 'Name: { names }  Addr: { addr }'
+  ⍝H …      ∆F 'Name: { names }  Addr: { addr }'
   ⍝H     Name: John Jones  Addr: 1214 Maiden Ln
   ⍝H           Mary Smith        24 Hersham Rd 
   ⍝H 
-  ⍝H Example 1b: Self-documenting code expressions {...→} in Code Fields.
+  ⍝H Example 1b: Self-documenting code expressions {…→} in Code Fields.
   ⍝H     ⍝ Same definitions as above. 
-  ⍝H ⎕      ∆F '{names→}  {addr→}'
+  ⍝H …      ∆F '{names→}  {addr→}'
   ⍝H     names→John Jones   addr→1214 Maiden Ln  
   ⍝H           Mary Smith        24 Hersham Rd 
   ⍝H
   ⍝H Example 1c: Titles (using the OVER shortcut %)
   ⍝H     ⍝ Same definitions as above. Char strings in {code} use double quotes like "this!". 
-  ⍝H ⎕      ∆F '{"Name" % names}  {"Address" % addr}'
+  ⍝H …      ∆F '{"Name" % names}  {"Address" % addr}'
   ⍝H        Name        Address    
   ⍝H     John Jones  1214 Maiden Ln
   ⍝H     Mary Smith  24 Hersham Rd 
@@ -217,7 +220,7 @@
   ⍝H       c←  100 20 12 23 ¯2
   ⍝H       F←  32+1.8∘×
   ⍝H     ⍝ 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵. (Degree sign (°): ⎕UCS 176)
-  ⍝H ⎕     ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
+  ⍝H …     ∆F '{ ⍵1 $ c }C = { ⍵1 $ F c }F' 'I3,⊂°⊃'   ⍝ Result is a 5-row 15-col char matrix.
   ⍝H  100°C =  212°F
   ⍝H   20°      68°              
   ⍝H   12°      54°              
@@ -226,7 +229,7 @@
   ⍝H
   ⍝H     ⍝ 2b: Format specification hard-wired in Code Field. 
   ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (decimal).
-  ⍝H ⎕     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
+  ⍝H …     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
   ⍝H   12°     53.6° 
@@ -234,7 +237,7 @@
   ⍝H   ¯2°     28.4° 
   ⍝H 
   ⍝H     ⍝ 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.
-  ⍝H ⎕     ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ (32+1.8∘×) c }'
+  ⍝H …     ∆F'{"Celsius" % "I3,⊂°⊃" $ c }  { "Fahren." % "F5.1,⊂°⊃" $ (32+1.8∘×) c }'
   ⍝H  Celsius  Fahren.
   ⍝H   100°    212.0° 
   ⍝H    20°     68.0° 
@@ -244,13 +247,13 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H Example 3: BOX display option (1=⊃⌽⍺)
   ⍝H     ⍝ Displays each field in its own "box" (ignoring null (0-width) fields)
-  ⍝H     ⍝ Field:  1..⍬ ⍬  2 3...  4..   ⍬   5 6....
-  ⍝H ⎕     1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
+  ⍝H     ⍝ Field:  1..⍬ ⍬  2 3…  4..   ⍬   5 6….
+  ⍝H …     1 1 ∆F 'one{}{}{ }two {"two"}{:0}{ }three'  
   ⍝H   ┌→──┐┌→┐┌→───┐┌→──┐┌→┐┌→────┐
   ⍝H   │one││ ││two ││two││ ││three│
   ⍝H   └───┘└─┘└────┘└───┘└─┘└─────┘
   ⍝H     ⍝ Without BOX option.
-  ⍝H ⎕     ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F ...
+  ⍝H …     ∆F 'one{}{}{ }two {"two"}{:0}{ }three'   ⍝ Or: 1 0 ∆F …
   ⍝H   one two two three
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H HELP
@@ -269,14 +272,14 @@
   ⍝H
   ⍝H A1. Code Fields: 
   ⍝H        radii← 12 2.3 19
-  ⍝H ⎕      ∆F ' { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ radii,⍤¯1⊣ (Area_Cir radii) }' 
+  ⍝H …      ∆F ' { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ radii,⍤¯1⊣ (Area_Cir radii) }' 
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Code Fields are dfns and may contain any dfn code, including error handling. 
   ⍝H    Each Code field has implicit right arguments, namely everything passed to ∆F as ⍵ when executed.
   ⍝H 
   ⍝H    Special Variables ⍹0,⍹, etc., used in Code Fields*
   ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  * Alias ⍵0, ⍵_, etc. See also usage in Space Fields.
-  ⍝H       ⍹0, ⍹1, ... ⍵N, denote the scalars in the right arg (⍵) passed to ∆F. 
+  ⍝H       ⍹0, ⍹1, … ⍵N, denote the scalars in the right arg (⍵) passed to ∆F. 
   ⍝H       ⍹ is the glyph ⎕UCS 9081.
   ⍝H       ⍹0: (0⊃⍵) the format string itself (⎕IO=0).  
   ⍝H       ⍹1: (1⊃⍵) the first scalar after the format string. 
@@ -291,11 +294,11 @@
   ⍝H        ∘  NB: the initial value of ⍹ is ⍹1, never ⍹0. (⍹0 may only be referenced explicitly).
   ⍝H        ∘  There are easy to type alternatives to using the glyph '⍹' :
   ⍝H           IN PLACE OF            USE
-  ⍝H           ⍹0, ⍹1, ... ⍹N         ⍵0, ⍵1, ... ⍵N     e.g. ⍹5×⍹6 ≡ ⍵5×⍵6
+  ⍝H           ⍹0, ⍹1, … ⍹N         ⍵0, ⍵1, … ⍵N     e.g. ⍹5×⍹6 ≡ ⍵5×⍵6
   ⍝H           bare ⍹                 ⍵_                 e.g. ⍹+1   ≡ ⍵_+1
   ⍝H        ⍵  What about ⍵ (without any numeric suffix or _)?
   ⍝H           ⍵ by itself is not special, indicating the entire right arg to ∆F (when executed);
-  ⍝H           it consists of the scalars ⍹0 ⍹1 ... ⍹N.
+  ⍝H           it consists of the scalars ⍹0 ⍹1 … ⍹N.
   ⍝H 
   ⍝H    {ccc} Code Field Syntax and Quoted Strings
   ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  
@@ -317,25 +320,25 @@
   ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
   ⍝H               \\{nnn}  OR  \\{nnn-mmm}
   ⍝H                     indicates literal string  \{nnn} OR \{nnn-mmm}, i.e. APL text with the extra \ removed.
-  ⍝H               Any other variant of \{...} or backslash within strings is kept as ordinary tet:               
+  ⍝H               Any other variant of \{…} or backslash within strings is kept as ordinary tet:               
   ⍝H                           "\{123+⍳5}" ==> "\{123+⍳5}"   (unchanged, including \);
   ⍝H                           "abc\def"   ==> "abc\def"     (unchanged, including \).
   ⍝H             Examples
   ⍝H             ¨¨¨¨¨¨¨¨
-  ⍝H  ⎕               ∆F '"{"\{97-109}...\{57-48}"}"' 
-  ⍝H              "abcdefghijklm...9876543210"
+  ⍝H …                ∆F '"{"\{97-109}…\{57-48}"}"' 
+  ⍝H              "abcdefghijklm…9876543210"
   ⍝H                ⍝ In DQ strings, "\⋄" is the same as "\{13}".
-  ⍝H  ⎕               ∆F '{"Dogs\⋄Cats"} same as {"Dogs\{13}Cats"}'
+  ⍝H …                ∆F '{"Dogs\⋄Cats"} same as {"Dogs\{13}Cats"}'
   ⍝H              Dogs same as Dogs
   ⍝H              Cats         Cats 
   ⍝H        ∘ To include a double quote (") within a double-quoted string, double it the APL way:
   ⍝H             "abc""def""ghi"  ==>   abc"def"ghi
   ⍝H        In a code field (outside strings)
   ⍝H        ∘ $ is a special symbol for ⎕FMT to allow easy formatting (using the dyadic variant):
-  ⍝H             {"F8.2" $ MyCode...}       ⍝ Same as {"F8.2" ⎕FMT MyCode...}
+  ⍝H             {"F8.2" $ MyCode…}       ⍝ Same as {"F8.2" ⎕FMT MyCode…}
   ⍝H        ∘ $$ (BOX) is a special symbol for the display function (see the DFNS ws), which 
   ⍝H          formats objects in a box:
-  ⍝H             { $$ MyCode...} 
+  ⍝H             { $$ MyCode…} 
   ⍝H        ∘ $$ and Dyadic $ used together may be useful:
   ⍝H             { $$ "F8.2" $ MyCode}    ⍝ $ Formats MyCode then $$ puts in a box.
   ⍝H        ∘ % (OVER) is a special symbol for placing one ⎕FMT-able object "over" another, each centered/padded.
@@ -362,16 +365,18 @@
   ⍝H                      1                4
   ⍝H       b. VERTICAL ↓ (EXPERIMENTAL OPTION)
   ⍝H       {ccc ↑} A Self-documenting Vertical Code Field
-  ⍝H          A Code Field with a trailing down arrow (↓) will generate a field with...
+  ⍝H          A Code Field with a trailing down arrow (↓) will generate a field with…
   ⍝H          ∘ the code itself in literal form (incl. spaces and [limited] comments), 
   ⍝H            OVER its evaluated value (as if the %% shortcut was used):
-  ⍝H              ∆F'A: {⍪⍳⍵1 ↓},  B: {⍪⍵2+⍳⍵1 ↓ }' 2 3
-  ⍝H            A: ⍪⍳⍵1 ↓,  B: ⍪⍵2+⍳⍵1 ↓ 
-  ⍝H                 0             3     
-  ⍝H                 1             4  
+  ⍝H               Name←↑'John' 'Mary'
+  ⍝H               Age← ⍪ 34     27
+  ⍝H               ∆F'{Name↓} {Age↓}'
+  ⍝H            Name↓ Age↓
+  ⍝H            John   34 
+  ⍝H            Mary   27 
   ⍝H        ∘ Extra blanks and comments are allowed within a Self-documenting Code Field and
   ⍝H          will appear in the output.
-  ⍝H ⎕           ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
+  ⍝H …           ∆F'⎕IO={⎕IO}. {⍪⍳⍵1 → ⍝ SIMPLE }  {⍪⍵2+⍳⍵1 → ⍝ FANCY }' 2 3
   ⍝H          ⎕IO=0. ⍪⍳⍵1 → ⍝ SIMPLE 0  ⍪⍵2+⍳⍵1 → ⍝ FANCY 3
   ⍝H                                 1                    4
   ⍝H
@@ -409,7 +414,7 @@
   ⍝H      {} is a 0-width Space Field (see 2. Space Fields above).
   ⍝H      EXAMPLE: 
   ⍝H        Compare these two cases, the first with {} separating 2 multiline Text Fields:
-  ⍝H ⎕         ∆F 'One\⋄two{}-Three\⋄-four'  vs    ∆F 'One\⋄two-Three\⋄-four' 
+  ⍝H …         ∆F 'One\⋄two{}-Three\⋄-four'  vs    ∆F 'One\⋄two-Three\⋄-four' 
   ⍝H        One-Three                           One
   ⍝H        two-four                            two-Three
   ⍝H                                            -four
@@ -420,20 +425,20 @@
   ⍝H    ¨¨¨¨¨¨¨¨¨¨¨¨                             ¨¨¨¨¨¨    
   ⍝H    ⍝ Build fields all at once L to R        # Build annotations row by row
   ⍝H      RGB←  123 145 255                      R = 123 ; G = 145 ; B = 255
-  ⍝H ⎕    ∆F 'R:\⋄G:\⋄B:{ }{⍪RGB}'               print((f'R: {R}\nG: {G}\nB: {B}'))
+  ⍝H …    ∆F 'R:\⋄G:\⋄B:{ }{⍪RGB}'               print((f'R: {R}\nG: {G}\nB: {B}'))
   ⍝H    R: 123                                   R: 123
   ⍝H    G: 145                                   G: 145
   ⍝H    B: 255                                   B: 255
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                            ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    ⍝ Use APL for base conversions         # Base conversions are built in
-  ⍝H ⎕    ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7              f'{7:b}'
+  ⍝H …    ∆F '"{"01"[2⊥⍣¯1⊢⍵1]}"' 7              f'{7:b}'
   ⍝H    "111"                                    '111'
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨                            ¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    ⍝ Formatting Floats old-fashioned?     # Similar approach, different conventions
   ⍝H      x← 20.123                              x = 20.123
-  ⍝H ⎕    ∆F'{"F8.5"$x}' ⍝ User calcs width      print(f'{x:0<8}')   # User calcs width
+  ⍝H …    ∆F'{"F8.5"$x}' ⍝ User calcs width      print(f'{x:0<8}')   # User calcs width
   ⍝H    20.12300                                 20.12300
-  ⍝H ⎕    ∆F '{5⍕x}'     ⍝ APL calcs width       print(f'{x:.5f}')   # Python calcs width
+  ⍝H …    ∆F '{5⍕x}'     ⍝ APL calcs width       print(f'{x:.5f}')   # Python calcs width
   ⍝H    20.12300                                 20.12300
   ⍝H
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
@@ -447,8 +452,8 @@
   ⍝H ⍺[0]  MODE Option
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H [1]   ∆F IMMEDIATE MODE
-  ⍝H ⍺[0]=1     1 ∆F fs ⍵1 ⍵2 ... ⍵N          ⍝ ⍺=1 is the default
-  ⍝H     ∘ Executes the format string fs, implicitly passing any scalars ⍵1...⍵N to 
+  ⍝H ⍺[0]=1     1 ∆F fs ⍵1 ⍵2 … ⍵N          ⍝ ⍺=1 is the default
+  ⍝H     ∘ Executes the format string fs, implicitly passing any scalars ⍵1…⍵N to 
   ⍝H       the right as arguments.
   ⍝H     ∘ Note: Variables and settings seen are those of the CALLING environment 
   ⍝H       where ∆F is executed.
@@ -458,16 +463,16 @@
   ⍝H ⍺[0]=0     0 ∆F fs
   ⍝H     ∘ Generates a code string CS that can be executed (without repeatedly calling ∆F 
   ⍝H       to reparse fs) as 
-  ⍝H         (⍎CS) ⍵1 ⍵2 ... ⍵N   or   Dfn←⍎C                ⍝ (⍎CS) or Dfn is an executable dfn...
-  ⍝H                                   Dfn ⍵1 ⍵2 ... ⍵N
-  ⍝H       where the args ⍵1...⍵n will be combined at EXECUTION time with fs as (fs,⍥⊆⍵1...⍵N), 
-  ⍝H         where fs, the format string text originally passed to ∆F, is automatically 
-  ⍝H         assigned to ⍹0, as expected.
+  ⍝H         (⍎CS) ⍵1 ⍵2 … ⍵N   or     Dfn←⍎C                ⍝ (⍎CS) or Dfn is an executable dfn…
+  ⍝H                                   Dfn ⍵1 ⍵2 … ⍵N
+  ⍝H       where the args ⍵1…⍵n will be combined at EXECUTION time with fs as (fs,⍥⊆⍵1…⍵N), 
+  ⍝H       where fs, the format string text originally passed to ∆F, is automatically 
+  ⍝H       assigned to ⍹0, as expected.
   ⍝H     ∘ Note: Variable and fn names in Code Fields are resolved in the calling environment 
   ⍝H         when (⍎C) is executed; a different namespace "ns" may be specified via (ns⍎C), 
   ⍝H         a standard feature of execute (⍎).
   ⍝H     ∘ Returns: a char vector representing an executable dfn with results identical to 
-  ⍝H         1 ∆F fs ⍹1 ⍹2 ... ⍹N
+  ⍝H         1 ∆F fs ⍹1 ⍹2 … ⍹N
   ⍝H
   ⍝H [¯1]  ∆F PSEUDOCODE MODE
   ⍝H ⍺[0]=¯1    ¯1 ∆F fs
@@ -504,12 +509,12 @@
   ⍝H            :FOR STEP :IN 1+⍳ITERATIONS  ⍝ ⎕IO=0
   ⍝H               VOLTAGE CURRENT FREQ← CalcNextStep VOLTAGE CURRENT FREQ 
   ⍝H             ⍝ Show results on STEP 100 200 etc.
-  ⍝H ⎕             (1/⍨0=100|STEP) ∆F '[{STEP}] Key Vars: {VOLTAGE→}V, {CURRENT→}A, {FREQ→}Hz.'
+  ⍝H …             (1/⍨0=100|STEP) ∆F '[{STEP}] Key Vars: {VOLTAGE→}V, {CURRENT→}A, {FREQ→}Hz.'
   ⍝H            :ENDFOR
   ⍝H         [100] Key Vars: VOLTAGE→240V, CURRENT→20A, FREQ→50Hz.
   ⍝H -----------------------------
   ⍝H ⍺:   Show HELP information
-  ⍝H ⎕        'help' ∆F ''  OR ∆F⍨'help'
+  ⍝H …        'help' ∆F ''  OR ∆F⍨'help'
   ⍝H      Show this HELP information in an ⎕ED editor session, then return ''.
   ⍝H 
   ⍝H PERFORMANCE
@@ -518,22 +523,22 @@
   ⍝H but serviceable enough. Where important, e.g. in loops, you may wish to
   ⍝H scan (compile) the format string before the loop and then run the resulting dfn (here: Fmt1):
   ⍝H
-  ⍝H EXAMPLE OF CODE GEN MODE (0 ∆F ...)
+  ⍝H EXAMPLE OF CODE GEN MODE (0 ∆F …)
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H      ⍝ In a TRADFN                      ⍝ In a DFN
-  ⍝H ⎕      Fmt1← ⍎0 ∆F '{...}...{}...{}'      Fmt1← ⍎0 ∆F '{...}...{}...{}' 
+  ⍝H …      Fmt1← ⍎0 ∆F '{…}…{}…{}'            Fmt1← ⍎0 ∆F '{…}…{}…{}' 
   ⍝H        :FOR i :IN ⍳Whatever               _←{ 0=⍵: _←⍺
-  ⍝H             ... do stuff ...                  ... do stuff ...
-  ⍝H             Fmt1 arg1 arg2 ...                ⎕←Fmt1 arg1 arg2 ⋄ ⍺ ∇ ⍵-1
+  ⍝H             … do stuff …                    … do stuff …
+  ⍝H             Fmt1 arg1 arg2 …                ⎕←Fmt1 arg1 arg2 ⋄ ⍺ ∇ ⍵-1
   ⍝H        :ENDFOR                            }⍨ Whatever
   ⍝H
   ⍝H Tentative Relative ∆F Timings* of Immediate Mode vs Code Gen (Compiled) Mode
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H                                 COMPILE → CODE STR → DFN → RUN    Rel. Timings
-  ⍝H      ∆F fmt ⍵1 ⍵2 ...     100%  |<==========================>|    ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+  ⍝H      ∆F fmt ⍵1 ⍵2 …       100%  |<==========================>|    ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
   ⍝H CS←  0 ∆F fmt              85%  |<==============>|                ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
   ⍝H DFN← ⍎CS                    4%                   |<=>|            ⎕
-  ⍝H DFN ⍵1 ⍵2 ...              11%                       |<=====>|    ⎕⎕⎕
+  ⍝H DFN ⍵1 ⍵2 …                11%                       |<=====>|    ⎕⎕⎕
   ⍝H -----------
   ⍝H [*] Test had six fields, exhibiting a range of field types. 
   ⍝H     ∆F strings are typically small in size and number.
