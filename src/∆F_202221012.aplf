@@ -1,16 +1,18 @@
 ∆F←{ 
-  ⍝ Simple formatting function in APL style, inspired by Python f-strings.
-  ⍝ Syntax: [opts] ∆F f-string  args
-  ⍝        f-string: char vector with formatting specifications
-  ⍝        args: arguments visible to f-string code expressions 
-  ⍝              ⍹1=1st arg after f-string (⎕IO independent)
+  ⍝ Simple format string function in APL style, inspired by Python F-strings.
+  ⍝ Syntax: [opts] ∆F format_string  args
+  ⍝        format_string: char vector with formatting specifications
+  ⍝        args: arguments accessible in format_string: ⍹1=1st arg (⎕IO independent)
   ⍝        opts: [⍺←MODE BOX←1 0 | 'help' | ⍬]
   ⍝ For help, execute 
-  ⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
+  ⍝   ∆F⍨'help' 
+  ⍝ or see ⍝H comments at the bottom of this function.
     ⍺←1 0
-    ⍬≡⍺: _←1 0⍴'' 
-    'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-     
+    ⍬≡⍺: _←1 0⍴''                         
+    'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI
+    (×80|⎕DR ⊃⊆⍵)∨1<⍴⍴⊃⊆⍵:  ⎕SIGNAL⊂ ('EN' 11)('EM' '∆F DOMAIN ERROR')('Message' 'Invalid f-string') 
+    ⍲/(2↑⍺)∊¨1 0 ¯1,⍥⊂1 0:  ⎕SIGNAL⊂ ('EN' 11)('EM' '∆F DOMAIN ERROR')('Message',⍥⊂'Invalid option: ',⍕⍺)
+    
     (2↑⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
     ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
@@ -22,31 +24,21 @@
       ⍝ If PseudoCode Mode (¯1=⊃⍺O), omit error handling. 
         ERRc← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄'
         '{', (ERRc/⍨ ¯1≠⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
-    }(,⊆⍵))⍺{
+    }(,⊆⍵))(2↑⍺){
 
-      ⍝ Error Handling...
-        Err←     ⊂'EN' 'EM' 'Message',⍥⊂¨⊢
-        optE←    Err 11 '∆F DOMAIN ERROR' 'Invalid option'
-        fStrE←   Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
-        InternE← Err 11 '∆F INTERNAL ERROR',(⊣,⊢,⍨': '/⍨(0∘≠⍤≢⊢))/
-        ((2<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺: ⎕SIGNAL optE                      ⍝ options:  correct shape, etc?
-        ⍲/(¯1 0 1)(1 0)∊⍨¨2↑⍺:    ⎕SIGNAL optE                      ⍝ options:  correct values?
-        ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:    ⎕SIGNAL fStrE                     ⍝ f-string: correct rank and type?  
-      ⍝ Catch unexpected errors here...     
-      0::                         ⎕SIGNAL InternE ⎕DMX.(EM Message) ⍝ Internal error: show orig EM, Message 
+      0:: ⎕SIGNAL ⎕DMX.(⊂('EM' '∆F INTERNAL ERROR')('Message',⍥⊂EM{⍺,⍵,⍨': '/⍨0≠≢⍵}Message)('EN' 11))
+        ⎕IO ⎕ML←0 1
+        MODE BOX← ⍺  
+      ⍝ Note pseudonames ⍙CHAIN, ⍙BOX, and ⍙OVER. These are not executed and only serve to show
+      ⍝ what's happening when MODE option ¯1 is used.
 
-        ⎕IO ⎕ML←  0 1
-        MODE BOX← 2↑⍺  
- 
-      ⍝ ⍺ CodSel ⍵- (internal util) Code Select per Mode
+      ⍝ ⍺ CodSel ⍵- Code Select per Mode
       ⍝ ⍺: code string, ⍵: symbolic representation of the code string
       ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Code is padded with blanks as needed.
         CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⊃⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨¯1=MODE  } 
-      
       ⍝ CHAINSCAN (preamble code), CHAIN (%% shortcut): Pad/Catenate horizontally objs ⍺ and ⍵.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
-      ⍝ Names ⍙CHAIN, ⍙BOX, and ⍙OVER are used for pseudocode (non-executable) code (MODE=¯1).
         CHAINc←       '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
         CHAINSCANc←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
       ⍝ ⎕FMT ($ shortcut): for use of dyadic ⎕FMT.
@@ -58,8 +50,8 @@
       ⍝ OVER ($ shortcut): Pad/Center/Catenate vertically objs ⍺ and ⍵.
       ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝ 2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
-        overT←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
-        OVERc← overT CodSel '⍙OVER'
+        ovrT←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
+        OVERc← ovrT CodSel '⍙OVER'
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -74,27 +66,27 @@
       ⍝ Text Field Escapes  
         TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨¯1=MODE) '\1'  
       ⍝ ProcTF.  Process Text Fields
-        ProcTF← (' ',⊢)EnSQ⍤TFEsc 
+        ProcTF←   (' ',⊢)EnSQ⍤TFEsc 
 
       ⍝ B. ProcCSF - Subprocess Code and Space Fields
         ⍝ Code Field DQ String Escapes: See also ProcCSF. 
-        dqDqP←    '"{2}'        ⍝ ""  => "
-        eeDmdP←   '\\{2}⋄'      ⍝ \\⋄ => \⋄
-        eDmdP←    '\\{1}⋄'      ⍝ \⋄  => \r
-        unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
-        ⋄ dqStrEscPats← dqDqP eeDmdP eDmdP unicodeP
-        ⋄               dqDqI eeDmdI eDmdI unicodeI← ⍳≢dqStrEscPats
+        dq2P←     '"{2}'        ⍝ "" => "
+        esc2CrP←  '\\{2}⋄'
+        esc1CrP←  '\\{1}⋄'
+        unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'
+        ⋄ dqStrEscPats← dq2P esc2CrP esc1CrP unicodeP
+        ⋄               dq2I esc2CrI esc1CrI unicodeI← ⍳≢dqStrEscPats
         DQStrEsc←  dqStrEscPats  ⎕R {
-            Case← ⍵.PatternNum∘∊
-            Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-            Case dqDqI:    '"'
-            Case eDmdI:  CR '\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
-            Case eeDmdI: 1↓Fld 0 
-          ⍝ Case unicodeI: Experimental
-            2=≢Fld 1: 1↓Fld 0        ⍝ If prefixed w/ 2 backslashes, return match with just one.
-          ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
-            beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
-            0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+              Case← ⍵.PatternNum∘∊
+              Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+              Case dq2I:    '"'
+              Case esc1CrI: CR '\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
+              Case esc2CrI: 1↓Fld 0 
+            ⍝ Case unicodeI: Experimental
+              2=≢Fld 1: 1↓Fld 0                          ⍝ If prefixed w/ 2 backslashes, return match with just one.
+            ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
+              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
+              0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
         } 
         TrimR←    {⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
         dqStrP←      '(("[^"]*")+)' 
@@ -118,7 +110,7 @@
             code←  csfPats ⎕R {
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-                Case dqStrI:  ' ',EnSQ DQStrEsc 1↓¯1↓Fld 0          ⍝ DQ String: Escapes applied
+                Case dqStrI:  ' ',EnSQ DQStrEsc 1↓¯1↓Fld 0        ⍝ DQ String: Escapes applied
                 Case sqStrI:  Fld 0                                 ⍝ SQ String: No Escapes applied
                 Case comI:    ''
               ⍝ $: ⍺ ⎕FMT ⍵, $$: (box) display: of ⍵ (⍺ ignored)
@@ -180,8 +172,8 @@
   ⍝H     and space fields, with shortcuts for numeric formatting, titles, and more. 
   ⍝H     Inspired by, but divergent from, F Strings in Python.
   ⍝H …………………………………………………………………………………………………………………………………………………………………………………………………………
-  ⍝H Syntax:  options ∆F f-string args
-  ⍝H      f-string:      A string containing variables, code, text and formatting  
+  ⍝H Syntax:  options ∆F format_string args
+  ⍝H      format_string: A string containing variables, code, text and formatting  
   ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
@@ -271,7 +263,7 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H A. The ∆F Format String (⍹0)
   ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-  ⍝H The f-string is a character vector defining 0 or more 2-D (char matrix) "fields," 
+  ⍝H The format_string is a character vector defining 0 or more 2-D (char matrix) "fields," 
   ⍝H which are executed right to left (as in APL) and assembled into a single matrix 
   ⍝H (with fields top-aligned). Its contents are in "shortcut" variable ⍹0.
   ⍝H
