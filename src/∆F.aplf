@@ -7,36 +7,37 @@
   ⍝        opts: [⍺←MODE BOX←1 0 | 'help' | ⍬]
   ⍝ For help, execute 
   ⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
-    ⍺←1 0
+    ⍺←1 0 0
     ⍬≡⍺: _←1 0⍴'' 
     'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
      
-    (2↑⍺)((⊃⎕RSI){ 
+    (⊃⍺)((⊃⎕RSI){ 
     ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
-    ⍝    ⍺: options, ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
+    ⍝    ⍺: MODE (⊃⍺), ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
       0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
       ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
-        1=⊃⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
-      ⍝ Else (⊃⍺)∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
+        1=⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
+      ⍝ Else ⍺∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
       ⍝ If PseudoCode Mode (¯1=⊃⍺O), omit error handling. 
         ERRc← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄'
-        '{', (ERRc/⍨ ¯1≠⊃⍺), ⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
+        '{', (ERRc/⍨ ¯1≠⍺),⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))⍺{
-
       ⍝ Error Handling...
-        Err←     ⊂'EN' 'EM' 'Message',⍥⊂¨⊢
-        optE←    Err 11 '∆F DOMAIN ERROR' 'Invalid option'
-        fStrE←   Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
-        InternE← Err 11 '∆F INTERNAL ERROR',(⊣,⊢,⍨': '/⍨(0∘≠⍤≢⊢))/
-        ((2<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺: ⎕SIGNAL optE                      ⍝ options:  correct shape, etc?
-        ⍲/(¯1 0 1)(1 0)∊⍨¨2↑⍺:    ⎕SIGNAL optE                      ⍝ options:  correct values?
-        ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:    ⎕SIGNAL fStrE                     ⍝ f-string: correct rank and type?  
+        NO←≢optChoices← (¯1 0 1)(1 0)(1 0)
+        Err←        ⊂'EN' 'EM' 'Message',⍥⊂¨⊢
+        optE←       Err 11 '∆F DOMAIN ERROR' 'Invalid option'
+        fStrE←      Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
+        InternE←    Err 11 '∆F INTERNAL ERROR',(⊣,⊢,⍨': '/⍨(0∘≠⍤≢⊢))/
+        ((NO<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺: ⎕SIGNAL optE                      ⍝ options:  correct shape, etc?
+        ~∧/optChoices∊⍨¨NO↑⍺:      ⎕SIGNAL optE                      ⍝ options:  correct values?
+        ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:     ⎕SIGNAL fStrE                     ⍝ f-string: correct rank and type?  
       ⍝ Catch unexpected errors here...     
       0::                         ⎕SIGNAL InternE ⎕DMX.(EM Message) ⍝ Internal error: show orig EM, Message 
 
         ⎕IO ⎕ML←  0 1
-        MODE BOX← 2↑⍺  
+        MODE BOX SHARED_NS← NO↑⍺  ⍝ SHARED_NS: Experimental ONLY: 
+                                 ⍝           If 1, we pass a common private namespace to each Code Field.
  
       ⍝ ⍺ CodSel ⍵- (internal util) Code Select per Mode
       ⍝ ⍺: code string, ⍵: symbolic representation of the code string
@@ -87,7 +88,7 @@
         DQStrEsc←  dqStrEscPats  ⎕R {
             Case← ⍵.PatternNum∘∊
             Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-            Case dqDqI:    '"'
+            Case dqDqI:  '"'
             Case eDmdI:  CR '\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
             Case eeDmdI: 1↓Fld 0 
           ⍝ Case unicodeI: Experimental
@@ -133,10 +134,10 @@
           ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
           ⍝ ↓ EXPERIMENTAL:  Allow trailing ↓ to be self-documenting, but using OVER.
             trim← ' ⋄' TrimR code   
-            '→↓'(~∊⍨)self←¯1↑trim:  '({', code,'}⍵)' 
+            '→↓'(~∊⍨)self←¯1↑trim:  '(',(SHARED_NS/'⍺'),'{', code,'}⍵)' 
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
-            doc code← (' ',EnSQ 1↓¯1↓⍵) (' ({','}⍵)',⍨¯1↓trim)
+            doc code← (' ',EnSQ 1↓¯1↓⍵) (' (',(SHARED_NS/'⍺'),'{','}⍵)',⍨¯1↓trim)
             self='↓': '(',')',⍨ doc, OVERc, code     ⍝ EXPERIMENTAL…
             doc, code    
         }
@@ -172,7 +173,7 @@
         DivFStr2F← DelNullF divPats ⎕R divRepl
           
       ⍝ Executive 
-        ⋄ AddPreamble← '{','}',⍨ CHAINSCANc, ∊ 
+        ⋄ AddPreamble← (SHARED_NS/'(⎕NS⍬)') ,'{','}',⍨ CHAINSCANc, ∊ 
         AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
