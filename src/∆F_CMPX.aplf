@@ -1,0 +1,20 @@
+﻿ ∆F_CMPX
+ ;cmpx
+ ;small
+ ;med
+ ;large
+ ;∆S;∆s
+ ;l;s1;s2;s3;s4;s234;data
+
+ {}'cmpx'⎕CY'dfns'
+
+ small←'xx{⍪⍳3}yyy{⍳2 2}{"F7.5"$?3⍴0}l1\⋄l2\⋄l3{⍵_⍴⍵_}zzz'
+
+
+ ∆s←0 ∆F small
+ ∆S←⍎∆s
+ data←,¨2 3
+ s1 s2 s3 s4←10000×⍎∘cmpx¨'∆F small,⍥⊆ data' '⊢∆s←0 ∆F small' '⍎''∆S←⍎∆s⋄0''' '∆S data '
+ s234←s2+s3+s4
+ l←↑'1 ∆F 0 ' 'Separate' '0 ∆F 0 ' '⍎...   ' '∆S data'
+ (l,s1 s234 s2 s3 s4),(2⍕⍪100×s234 s234 s2 s3 s4÷s234)

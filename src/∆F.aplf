@@ -1,66 +1,79 @@
 ∆F←{ 
-  ⍝ Simple formatting function in APL style, inspired by Python f-strings.
-  ⍝ Syntax: [opts] ∆F f-string  args
-  ⍝        f-string: char vector with formatting specifications
-  ⍝        args: arguments visible to f-string code expressions 
-  ⍝              ⍹1=1st arg after f-string (⎕IO independent)
-  ⍝        opts: [⍺←MODE BOX←1 0 | 'help' | ⍬]
-  ⍝ For help, execute 
-  ⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
+⍝ Simple formatting function in APL style, inspired by Python f-strings.
+⍝ Syntax: [opts] ∆F f-string  args
+⍝        f-string: char vector with formatting specifications
+⍝        args: arguments visible to f-string code expressions 
+⍝              ⍹1=1st arg after f-string (⎕IO independent)
+⍝        opts: [MODE BOX NS←1 0 0 | 'help' | ⍬]
+⍝ For help, execute 
+⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
+⍝ For error handling, 
+⍝   see B. F-string Processing Function
     ⍺←1 0 0
     ⍬≡⍺: _←1 0⍴'' 
-    'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-     
+    'help'≡⎕C⍕⍺: 1 0⍴''⊣⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI   
+    
     (⊃⍺)((⊃⎕RSI){ 
-    ⍝ Anonymous operator: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
-    ⍝    ⍺: MODE (⊃⍺), ⍺⍺: caller namespace, ⍵⍵: original ⍵, ⍵: format stmt as executable code
+    ⍝ A. F-string Executive Operator: either execute the code generated or return it as a string.
+    ⍝    Syntax: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
+    ⍝      ⍺:  MODE only, ⍺⍺: caller namespace
+    ⍝      ⍵⍵: original ⍵, 
+    ⍝      ⍵:  format stmt as executable code
       0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
-      ⍝ If (1=⊃⍺), execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
+      ⍝ If immediate Mode, 
+      ⍝   Execute ⍵ (format str=>code) with rt arg ⍵⍵ (caller's ⍵) in caller namespace ⍺⍺
         1=⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵
-      ⍝ Else ⍺∊0 ¯1: Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
+      ⍝ Else not immediate mode: 
+      ⍝   Return executable string (⍺=0) or pseudo-executable(⍺=¯1), passing orig. fmt str ⍵0   
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
       ⍝ If PseudoCode Mode (¯1=⊃⍺O), omit error handling. 
         ERRc← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄'
         '{', (ERRc/⍨ ¯1≠⍺),⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))⍺{
-      ⍝ Error Handling...
-        NO←≢optChoices← (¯1 0 1)(1 0)(1 0)
-        Err←        ⊂'EN' 'EM' 'Message',⍥⊂¨⊢
-        optE←       Err 11 '∆F DOMAIN ERROR' 'Invalid option'
-        fStrE←      Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
-        InternE←    Err 11 '∆F INTERNAL ERROR',(⊣,⊢,⍨': '/⍨(0∘≠⍤≢⊢))/
-        ((NO<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺: ⎕SIGNAL optE                      ⍝ options:  correct shape, etc?
-        ~∧/optChoices∊⍨¨NO↑⍺:      ⎕SIGNAL optE                      ⍝ options:  correct values?
-        ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:     ⎕SIGNAL fStrE                     ⍝ f-string: correct rank and type?  
-      ⍝ Catch unexpected errors here...     
-      0::                         ⎕SIGNAL InternE ⎕DMX.(EM Message) ⍝ Internal error: show orig EM, Message 
-
+    ⍝ B. F-string processing Function
+    ⍝    Syntax:  ⍺ ∇ ⍵   (⍺ as from caller; ⍵← ⊆⍵ from caller).
         ⎕IO ⎕ML←  0 1
-        MODE BOX SHARED_NS← NO↑⍺  ⍝ SHARED_NS: Experimental ONLY: 
-                                 ⍝           If 1, we pass a common private namespace to each Code Field.
+      ⍝ Option (⍺) specifications.
+        cntO←≢domainO← (¯1 0 1)(1 0)(1 0)
+      ⍝ Error Handling...
+        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢   
+        ((cntO<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:  ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+        ~∧/domainO∊⍨¨cntO↑⍺:          ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+        ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:        ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
+      ⍝ Catch unexpected errors here...  (Expected user errors are trapped in the operator at A. above) 
+      0::  ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
+      ⍝ Options (⍺)
+        modeO boxO nsO← cntO↑⍺       
+        isL2R←   modeO≠¯1      ⍝ Execute CODE fields from leftmost to rightmost (still R2L within a field)
+        isPseudo←modeO=¯1      ⍝ PSEUDO Mode: we show a concise symbolic version of helper functions...
  
-      ⍝ ⍺ CodSel ⍵- (internal util) Code Select per Mode
+      ⍝ Define Code Selections based on Mode (PSEUDO or not)
+      ⍝ ⍺ CodSel ⍵- (internal util) Code Select based on Mode
       ⍝ ⍺: code string, ⍵: symbolic representation of the code string
-      ⍝ Returns: (symbolic rep) if MODE=¯1, else code string. Code is padded with blanks as needed.
-        CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⊃⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨¯1=MODE  } 
-      
+      ⍝ Returns: If Pseudo MODE: a symbolic representation; Else code string. Pad if required.
+        CodSel← { l, c, r⊣ l r←(' '/⍨~⍤∊∘'⊃⎕{}()/')¨(⊃,⊃∘⌽)c← ⍺ ⍵ ⊃⍨isPseudo  } 
       ⍝ CHAINSCAN (preamble code), CHAIN (%% shortcut): Pad/Catenate horizontally objs ⍺ and ⍵.
       ⍝   1. Converts ⍺ and ⍵ to char matrices a and w, and
       ⍝   2. Catenates a to left of w, aligning shorter to the height of the taller matrix.
-      ⍝ Names ⍙CHAIN, ⍙BOX, and ⍙OVER are used for pseudocode (non-executable) code (MODE=¯1).
-        CHAINc←       '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'  CodSel  '⍙CHAIN' 
-        CHAINSCANc←  '⊃{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT/' CodSel '⊃⍙CHAIN/'
+      ⍝ Names ⍙CHAIN, ⍙BOX, and ⍙OVER are pseudocode (non-executable) stand-ins in PSEUDO mode.
+          ⋄ CHAINt←      '{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'
+        CHAINc←       CHAINt   CodSel  '⍙CHAIN' 
+          ⋄ CHAINSCANt←  '⊃',CHAINt,'/','⌽'/⍨isL2R
+        CHAINSCANc←   CHAINSCANt CodSel '⊃⍙CHAIN/' 
       ⍝ ⎕FMT ($ shortcut): for use of dyadic ⎕FMT.
         FMTc←  '⎕FMT ' 
       ⍝ BOX ($ shortcut): Generate a boxed display of ⍵
-        boxNm←'⎕SE.Dyalog.Utils.display'
-        3≠⎕NC boxNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',boxNm,'" not found.'
-        BOXc←  boxNm CodSel '⍙BOX'  
+      ⍝ BOXOPTc (BOX=1) : Func (in string form) applied to ALL fields, if BOX=1
+          ⋄ BOXnm←'⎕SE.Dyalog.Utils.display'
+          ⋄ 3≠⎕NC BOXnm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',BOXnm,'" not found.'
+        BOXc←  BOXnm CodSel '⍙BOX'  
+          ⋄ SP2CDc←'(''·''@('' ''=⊢))'/⍨isL2R               ⍝ Spaces to Center Dots
+        BOXOPTc←  (SP2CDc,BOXnm) CodSel '⍙BOXOPTc'          ⍝ BOX=1
       ⍝ OVER ($ shortcut): Pad/Center/Catenate vertically objs ⍺ and ⍵.
       ⍝ 1. Converts ⍺, ⍵ to char matrices a and w (as needed), and 
       ⍝ 2. Catenates a over w, centering and padding the narrower matrix to the width of the wider.
-        overT←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
-        OVERc← overT CodSel '⍙OVER'
+          ⋄ OVERt←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'
+        OVERc← OVERt CodSel '⍙OVER'
 
       ⍝ Misc Util
         EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
@@ -72,49 +85,49 @@
       ⍝ D. DivFStr2F- Divide Format String to Fields
       
       ⍝ A. ProcTF -  Subprocess Text Fields
-      ⍝ Text Field Escapes  
-        TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨¯1=MODE) '\1'  
+        ⍝ Text Field Escapes  
+          TFEsc← '(?<!\\)\\⋄'  '\\([{}\\])' ⎕R ('\r' '\\⋄' ⊃⍨isPseudo) '\1'  
       ⍝ ProcTF.  Process Text Fields
         ProcTF← (' ',⊢)EnSQ⍤TFEsc 
 
       ⍝ B. ProcCSF - Subprocess Code and Space Fields
         ⍝ Code Field DQ String Escapes: See also ProcCSF. 
-        dqDqP←    '"{2}'        ⍝ ""  => "
-        eeDmdP←   '\\{2}⋄'      ⍝ \\⋄ => \⋄
-        eDmdP←    '\\{1}⋄'      ⍝ \⋄  => \r
-        unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
-        ⋄ dqStrEscPats← dqDqP eeDmdP eDmdP unicodeP
-        ⋄               dqDqI eeDmdI eDmdI unicodeI← ⍳≢dqStrEscPats
-        DQStrEsc←  dqStrEscPats  ⎕R {
-            Case← ⍵.PatternNum∘∊
-            Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-            Case dqDqI:  '"'
-            Case eDmdI:  CR '\⋄'⊃⍨¯1=MODE   ⊣ CR←⎕UCS 13 
-            Case eeDmdI: 1↓Fld 0 
-          ⍝ Case unicodeI: Experimental
-            2=≢Fld 1: 1↓Fld 0        ⍝ If prefixed w/ 2 backslashes, return match with just one.
-          ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
-            beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
-            0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
-        } 
-        TrimR←    {⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
-        dqStrP←      '(("[^"]*")+)' 
-        sqStrP←      '((''[^'']*'')+)' 
-        ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
-        dolP←     '\h*(\${1,2})\h*'        
-        ⋄ dolCodeV← FMTc BOXc
-        ⍝ % Shortcut: Experimental
-        pctP←     '\h*(\%{1,2})\h*'
-        ⋄ pctCodeV←  OVERc CHAINc
-        ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
-        omegaNP←  '[⍵⍹](\d+)'                              ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
-        omega0P←  '⍵_|⍹_?'                                 ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
-        ⍝ ⍝ Comments: (limited pattern)
-        comP←     '⍝[^}⋄]+' 
-        ⍝                                   
-        ⋄ csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P 
-        ⋄          dqStrI sqStrI comI dolI pctI omegaNI omega0I←⍳≢csfPats
-        ∆OMEGA←0
+          dqDqP←    '"{2}'        ⍝ ""  => "
+          eeDmdP←   '\\{2}⋄'      ⍝ \\⋄ => \⋄
+          eDmdP←    '\\{1}⋄'      ⍝ \⋄  => \r
+          unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
+          ⋄ dqStrEscPats← dqDqP eeDmdP eDmdP unicodeP
+          ⋄               dqDqI eeDmdI eDmdI unicodeI← ⍳≢dqStrEscPats
+          DQStrEsc←  dqStrEscPats  ⎕R {
+              Case← ⍵.PatternNum∘∊
+              Fld←⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+              Case dqDqI:  '"'
+              Case eDmdI:  CR '\⋄'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
+              Case eeDmdI: 1↓Fld 0 
+            ⍝ Case unicodeI: Experimental
+              2=≢Fld 1: 1↓Fld 0        ⍝ If prefixed w/ 2 backslashes, return match with just one.
+            ⍝  \{mmm[-nnn]} returns ⎕UCS list in range mmm to nnn incl. (ascending or descending)
+              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
+              0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+          } 
+          TrimR←    {⍵↓⍨-+/∧\⍺∊⍨⌽⍵}    
+          dqStrP←      '(("[^"]*")+)' 
+          sqStrP←      '((''[^'']*'')+)' 
+          ⍝ $ and $$ shortcuts.  $: (1-,2-adic) ⎕FMT;  $$: (boxed) display.
+          dolP←     '\h*(\${1,2})\h*'        
+          ⋄ dolCodeV← FMTc BOXc
+          ⍝ % Shortcut: Experimental
+          pctP←     '\h*(\%{1,2})\h*'
+          ⋄ pctCodeV←  OVERc CHAINc
+          ⍝ ⍹ Shortcut: ⍹N, ⍵N, ⍹, ⍵_
+          omegaNP←  '[⍵⍹](\d+)'                              ⍝ ⍹N refers to the source Format string (N⊃⍵), for N a set of digits.
+          omega0P←  '⍵_|⍹_?'                                 ⍝ ⍹ or ⍵_ means "next ⍹N". Starts at N=1.
+          ⍝ ⍝ Comments: (limited pattern)
+          comP←     '⍝[^}⋄]+' 
+          ⍝                                   
+          ⋄ csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P 
+          ⋄          dqStrI sqStrI comI dolI pctI omegaNI omega0I←⍳≢csfPats
+          ∆OMEGA←0
         ProcCSF←  {
             code←  csfPats ⎕R {
                 ⋄ Case← ⍵.PatternNum∘∊
@@ -127,53 +140,51 @@
               ⍝ %: ⍺ OVER ⍵, $$: ⍺ CHAIN ⍵
                 Case pctI:    pctCodeV ⊃⍨ 2=≢Fld 1
               ⍝ Getting ⍹N sets ∆OMEGA←N and returns N⊃⍵ in code form.
-                Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨F1         ⊣  ∆OMEGA⊢← ⊃⌽⎕VFI F1←Fld 1   
+                Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1         ⊣  ∆OMEGA⊢← ⊃⌽⎕VFI f1←Fld 1   
               ⍝ Getting ⍹ (⍵_) increments ∆OMEGA and returns ∆OMEGA⊃⍵ in code form.            
                 Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕∆OMEGA    ⊣  ∆OMEGA+← 1   
             } 1↓¯1↓⍵                                           ⍝ Remove { and }
           ⍝ Self-documenting mode: Trailing right arrow → makes this a self-documenting code field.
           ⍝ ↓ EXPERIMENTAL:  Allow trailing ↓ to be self-documenting, but using OVER.
             trim← ' ⋄' TrimR code   
-            '→↓'(~∊⍨)self←¯1↑trim:  '(',(SHARED_NS/'⍺'),'{', code,'}⍵)' 
+            '→↓'(~∊⍨)self←¯1↑trim:  '(',(nsO/'⍺'),'{', code,'}⍵)' 
           ⍝ doc:  literal "code" entered, including → and blanks around →.
           ⍝ flds: just the executable code sans →, blanks, and comments.
-            doc code← (' ',EnSQ 1↓¯1↓⍵) (' (',(SHARED_NS/'⍺'),'{','}⍵)',⍨¯1↓trim)
+            doc code← (' ',EnSQ 1↓¯1↓⍵) (' (',(nsO/'⍺'),'{','}⍵)',⍨¯1↓trim)
             self='↓': '(',')',⍨ doc, OVERc, code     ⍝ EXPERIMENTAL…
             doc, code    
         }
           
       ⍝ C. ProcAllF. Process all fields by type.
       ⍝ Returns at least 2 fields (null ones if required), as required by CHAINdef (which see).
-        ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
-        ⋄  SP2CDc←'(''·''@('' ''∘=))'                         ⍝ Spaces to Center Dots
-        ⋄  BoxMode← { ~BOX: ⍵ ⋄ '(', SP2CDc, BOXc,⍵,')' }               
-        ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with BOX (box display) option
-        ProcAllF←  Pad2F BoxMode∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←BOX∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
+          ⋄  Pad2F←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
+          ⋄  CondBox← { ~boxO: ⍵ ⋄ '(', BOXOPTc, ⍵,')' }        ⍝ If boxO=1, put ⍵ in a box!             
+          ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with boxO (box display) option
+        ProcAllF←  Pad2F CondBox∘{ '{'=1↑⍵:  ProcCSF ⍵  ⋄ sc←boxO∧1=≢⍵ ⋄ Scal2V⍣ sc⊢ ProcTF  ⍵ }¨
 
       ⍝ D. DivFStr2F: Divide format string into fields (convert space fields to simple code fields)
       ⍝ Returns: A set of fields, each as a char vec. 
-        ⍝ Null fields-- generated by 0-width Space Fields {} or 0-width Text Fields-- are suppressed.
-          ⋄ DelNullF←  ⊢(/⍨)0∘≠⍤≢¨                             ⍝ Omit null fields before processing. 
-        ⍝ Space Fields handled before Code Fields: simpler, non-recursive patterns.
-        ⍝ spaceNullP: {} or {:0:} ==> generates no code.
-          spaceNullP← '(?x) \{ (?: \h* : 0* :? \h* )? \}'      ⍝ Null Space Field: Separates fields. 
-          spaceNullR← '\r'                             
-        ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces. Comments are ignored up to closing } 
-          space1P← '(?x) \{       ( \s*                  )        (?:⍝[^}]*)? \}'    
-          space1R← '\r{,''\1''}\r' 
-        ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.           Comments are ignored up to closing }   
-          space2P← '(?x) \{ \s* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \s* (?:⍝[^}]*)? \}'     
-          space2R← '\r{\1⍴'' ''}\r' 
-        ⍝ codeP: Recursively matches balanced braces {}, handling DQ strings, escapes \{, limited comments, etc.
-          codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
-          codeR←   '\r\0\r'
-      ⍝ Put it all together
-        ⋄ divPats←  spaceNullP space1P space2P codeP 
-        ⋄ divRepl←  spaceNullR space1R space2R codeR
-        DivFStr2F← DelNullF divPats ⎕R divRepl
+          ⍝ Space Fields handled before Code Fields: simpler, non-recursive patterns. Simple Comments ignored.
+          ⍝ spaceNullP: {} or {:0:} ==> generates no code.
+            spaceNullP← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'       
+            spaceNullR← '\r'                             
+          ⍝ space1P: {     } ==>  'ssss', ssss is 1 or more spaces.  
+            space1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'    
+            space1R← '\r{,''\1''}\r' 
+          ⍝ space2P: { :n: } ==>  (' '⍴⍨nn), nn=# spaces.            
+            space2P← '(?x) \{ \h* : ( \d+ | [⍵⍹](?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'     
+            space2R← '\r{\1⍴'' ''}\r' 
+          ⍝ codeP: Recursively matches balanced braces {}, handling DQ strings, escapes \{, limited comments, etc.
+            codeP←   '(?x) (?<P> (?<!\\) \{ (?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+  \} )' 
+            codeR←   '\r\0\r'
+          ⍝ All together: divide into fields by type (patterns→replacements) then remove null fields
+            divPats←  spaceNullP space1P space2P codeP 
+            divRepl←  spaceNullR space1R space2R codeR
+            ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                             ⍝ Remove Null Fields
+        DivFStr2F← RemoveNullF divPats ⎕R divRepl
           
-      ⍝ Executive 
-        ⋄ AddPreamble← (SHARED_NS/'(⎕NS⍬)') ,'{','}',⍨ CHAINSCANc, ∊ 
+      ⍝ Executive: Divide f-string into fields, process each field into code, add preamble code, then pass on!
+        ⋄ AddPreamble← (nsO/'(⎕NS⍬)') ,'{','}',⍨ CHAINSCANc,(∊⌽⍣isL2R)
         AddPreamble ProcAllF DivFStr2F ⊆⊃⍵
     }⊆⍵  
 
@@ -186,11 +197,11 @@
   ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
-  ⍝H      options:       [ [MODE=1|0|¯1] [BOX=0|1]  | 'help' | ⍬ ]
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H      options:       [ [MODE=1|0|¯1] [ [BOX=0|1] [ [NS=0|1] ] ] | 'help' | ⍬ ]
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   options      ∆F Returns 
   ⍝H > MODE=1       A char matrix based on the format string and subsequent values of ⍵. 
-  ⍝H                (Default mode). In this mode, 2D fields are "chained" together, right to left.
+  ⍝H                (Default mode). In this mode, 2D fields are "chained" together 
   ⍝H   MODE=0       A char vector, representing an executable dfn in string form
   ⍝H                (which can be established via MyFmtDfn← ⍎0 ∆F myFmtStr)
   ⍝H   MODE=¯1      A char vector representing the formatting as a pseudo-code string,  
@@ -199,6 +210,9 @@
   ⍝H > BOX=0        Each field is displayed normally (and returned per MODE). (Default).
   ⍝H   BOX=1        Each field  will be displayed in a 2D box (and returned per MODE). 
   ⍝H                Blanks will be replaced by a center dot (·) in the output. 0-width fields are omitted.
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H > NS=0         Code fields have no private NS passed as ⍺. (Default).
+  ⍝H   NS=1         A private NS shared among all Code Fields will be passed as ⍺.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
   ⍝H   ⍺≡⍬          A shy char matrix (1 0⍴' '). Right arg ⍵ is ignored. No formatting is done.
@@ -273,7 +287,7 @@
   ⍝H A. The ∆F Format String (⍹0)
   ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
   ⍝H The f-string is a character vector defining 0 or more 2-D (char matrix) "fields," 
-  ⍝H which are executed right to left (as in APL) and assembled into a single matrix 
+  ⍝H which are executed like separate statements-- left to right-- and assembled into a single matrix 
   ⍝H (with fields top-aligned). Its contents are in "shortcut" variable ⍹0.
   ⍝H
   ⍝H There are 3 types of fields generated: 
@@ -284,6 +298,7 @@
   ⍝H …      ∆F ' { Area_Cir←{○⍵×⍵} ⋄ "F8.2" $ radii,⍤¯1⊣ (Area_Cir radii) }' 
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H    Code Fields are dfns and may contain any dfn code, including error handling. 
+  ⍝H    Internally, each code field is executed right-to-left, as in APL.
   ⍝H    Each Code field has implicit right arguments, namely everything passed to ∆F as ⍵ when executed.
   ⍝H 
   ⍝H    Special Variables ⍹0,⍹, etc., used in Code Fields*
@@ -544,10 +559,10 @@
   ⍝H Tentative Relative ∆F Timings* of Immediate Mode vs Code Gen (Compiled) Mode
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H                                 COMPILE → CODE STR → DFN → RUN    Rel. Timings
-  ⍝H      ∆F fmt ⍵1 ⍵2 …       100%  |<==========================>|    ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-  ⍝H CS←  0 ∆F fmt              85%  |<==============>|                ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-  ⍝H DFN← ⍎CS                    4%                   |<=>|            ⎕
-  ⍝H DFN ⍵1 ⍵2 …                11%                       |<=====>|    ⎕⎕⎕
+  ⍝H      ∆F fmt ⍵1 ⍵2 …    100%    |<==========================>|    ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+  ⍝H CS←  0 ∆F fmt           85.7%  |<==============>|                ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+  ⍝H DFN← ⍎CS                 4.3%                   |<=>|            ⎕
+  ⍝H DFN ⍵1 ⍵2 …             10.0%                       |<=====>|    ⎕⎕⎕
   ⍝H -----------
   ⍝H [*] Test had six fields, exhibiting a range of field types. 
   ⍝H     ∆F strings are typically small in size and number.
