@@ -1,20 +1,39 @@
 ﻿ ∆F_CMPX
- ;cmpx
- ;small
- ;med
- ;large
+ ;cases
+ ;cmpx;Compare_us
+ ;empty;fstring;small
+ ;data
  ;∆S;∆s
- ;l;s1;s2;s3;s4;s234;data
+ ;l;m1;m0xr;m0;ex;rn;cum;xr
 
  {}'cmpx'⎕CY'dfns'
+ Compare_us←{1000000×⍎∘cmpx ⍵}¨
+ empty←''
+ small←'first\⋄str{ }{⍪⍳3} {⍳2 2} {"F7.5"$?3⍴0}{ }line1\⋄line2\⋄line3{:1:}{⍵_⍴⍵_} {⍵_} last'
+ data←(,2)(,3)(⍪?0 0)
 
- small←'xx{⍪⍳3}yyy{⍳2 2}{"F7.5"$?3⍴0}l1\⋄l2\⋄l3{⍵_⍴⍵_}zzz'
-
-
- ∆s←0 ∆F small
- ∆S←⍎∆s
- data←,¨2 3
- s1 s2 s3 s4←10000×⍎∘cmpx¨'∆F small,⍥⊆ data' '⊢∆s←0 ∆F small' '⍎''∆S←⍎∆s⋄0''' '∆S data '
- s234←s2+s3+s4
- l←↑'1 ∆F 0 ' 'Separate' '0 ∆F 0 ' '⍎...   ' '∆S data'
- (l,s1 s234 s2 s3 s4),(2⍕⍪100×s234 s234 s2 s3 s4÷s234)
+ :For fstring :In empty small
+     cases←'∆F fstring,⍥⊆ data' '(⍎∆s)data' '(⍎0 ∆F fstring)data' '∆s←0 ∆F fstring' '{∆S←⍎⍵⋄0}∆s' '∆S ,⍥⊆data'
+     ⎕←60⍴'¨'
+     ⎕←'∆F fstring ⍥⊆ data'
+     ⎕←'   fstring: ''',fstring,''''
+     ⎕←'   data:    'data
+     ∆F fstring,⍥⊆data
+     ⎕←'   KEY'
+     ⎕←'   ¯¯¯'
+     ⎕←'   MODE 1:            1 ∆F f d'
+     ⎕←'   MODE 0: a. CODEGEN code←0 ∆F f'
+     ⎕←'           b. EXEC    dfn←⍎code'
+     ⎕←'           c. RUN     dfn d'
+     ⎕←30⍴'¯'
+     ⎕←'Begin benchmark...'
+     ∆s←0 ∆F fstring
+     ∆S←⍎∆s
+     m1 xr m0xr m0 ex rn←Compare_us cases
+     cum←m0+ex+rn
+     l←'MODE 1' 'MODE 0b,0c only' 'MODE 0a,0b,0c'
+     l,←'Cum of: 0a+0b+0c' 'MODE 0a' 'MODE 0b' 'MODE 0c'
+     l←' ',↑l
+     (l,'I6,⊂ us⊃'⎕FMT m1 xr m0xr cum m0 ex rn),('F6.1,⊂%⊃'⎕FMT 100×m1 xr m0xr cum m0 ex rn÷cum)
+     ⎕←''
+ :EndFor
