@@ -169,9 +169,9 @@
           ⋄  CondBox← { ~boxOpt: ⍵ ⋄ '(', boxModeC, ⍵,')' }     ⍝ If boxOpt=1, put ⍵ in a box!             
           ⋄  Scal2V← '(,',')',⍨⊢                                ⍝ Useful with boxOpt (box display) option
           ⋄  PfxCS← _ PfxS← ⎕UCS 0 1                            ⍝ See DivFStr2Flds for use of ⎕UCS 0/1: \x{0} \x{1}
-        ProcAllFlds←  Pad2Flds CondBox∘{
-            PfxCS∊⍨⊃⍵:  (PfxS=⊃⍵)  ProcCSFlds  1↓⍵  
-            Scal2V⍣ (boxOpt∧1=≢⍵)⊢ ProcTxtFlds ⍵
+        ProcAllFlds←  Pad2Flds CondBox∘{ p←⊃⍵
+            p∊PfxCS: (p=PfxS)       ProcCSFlds 1↓⍵  
+            Scal2V⍣  (boxOpt∧1=≢⍵)⊢ ProcTxtFlds  ⍵
         }¨
 
       ⍝ D. DivFStr2Flds: Divide format string into fields (convert space fields to simple code fields)
