@@ -50,13 +50,12 @@
   
   ⍝ IIA. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
-        cntØS←≢domainØS← (¯1 0 1)(1 0)(1 0)             ⍝ Option (⍺) specifications.
+        cntØS←≢domainØS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications.
 
-        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                  ⍝ Error Handling...
+        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ Error Handling: ⍺, ⍵ 
         ((cntØS<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:  ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
         ~∧/domainØS∊⍨¨cntØS↑⍺:         ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
         ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:         ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
-
                                                        ⍝ Unexpected Errors...
       0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
    
@@ -82,14 +81,14 @@
         chainFoldC← '⊃⍙CHAIN/' Sel'⊃',_c,'/','⌽'/⍨isL2R    ⍝ ⊃⍙CHAIN/ (preamble code)       
   
   ⍝ IIB. Processing Tokenized Fields
-  ⍝   IIB 0. (Setup / Shared Defs)
-  ⍝   IIB 1. ProcTF       - Process Text Fields
-  ⍝   IIB 2.              - Process Code and Space Fields
-  ⍝      IIB 2a. DQStrEsc    - Process Code Field DQ String Escapes 
-  ⍝      IIB 2b: ProcCSF     - Process Code/Space Fields
-  ⍝   IIB 3. ProcFlds     - Process All Fields    
+  ⍝   IIB(0). (Setup / Shared Defs)
+  ⍝   IIB(1). ProcTF       - Process Text Fields
+  ⍝   IIB(2).              - Process Code and Space Fields
+  ⍝      IIB(2a). DQStrEsc    - Process Code Field DQ String Escapes 
+  ⍝      IIB(2b): ProcCSF     - Process Code/Space Fields
+  ⍝   IIB(3). ProcFlds     - Process All Fields    
         
-      ⍝ IIB. (Setup / Shared Defs)
+      ⍝ IIB(0). (Setup / Shared Defs)
         ⍝ Miscellany
           EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=               ⍝ Double SQs in ⍵ and wrap ⍵ in SQs.
         ⍝ Field Tests: Test for combined CSF (Code/Space Fields) and SF (Space Fields)  
@@ -101,14 +100,14 @@
           TagSF← '\r\x{1}','\r',⍨⊢                     ⍝ SF: ⎕UCS 1
           TagCF← '\r\x{0}','\r',⍨⊢                     ⍝ CF: ⎕UCS 0
 
-      ⍝ IIB 1. ProcTF -  Process Text Fields
-          ptfP←  '(?<!\\)\\⋄'  '\\([{}\\])'
-          ptfR←  ('\r' '\\⋄' ⊃⍨isPseudo) '\1'  
-        ProcTF← (' ',⊢)EnSQ⍤(ptfP ⎕R ptfR)             
+      ⍝ IIB(1). ProcTF -  Process Text Fields
+          tfeP←  '(?<!\\)\\⋄'  '\\([{}\\])'
+          tfeR←  ('\r' '\\⋄' ⊃⍨isPseudo) '\1'  
+        ProcTF← (' ',⊢)EnSQ⍤(tfeP ⎕R tfeR)             
 
-      ⍝ IIB 2. Process Code and Space Fields
+      ⍝ IIB(2). Process Code and Space Fields
    
-        ⍝ IIB 2a. DQStrEsc - Process Code Field DQ String Escapes [see "Case dqStrI"]  
+      ⍝ IIB(2a). DQStrEsc - Process Code Field DQ String Escapes [see "Case dqStrI"]  
           dq2P←     '"{2}'                             ⍝ ""  => "
           e2DmdP←   '\\{2}⋄'                           ⍝ \\⋄ => \⋄
           e1DmdP←   '\\{1}⋄'                           ⍝ \⋄  => \r
@@ -126,7 +125,7 @@
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
               0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
           } 
-        ⍝ IIB 2b. ProcCSF -  Process Code/Space Fields
+      ⍝ IIB(2b). ProcCSF -  Process Code/Space Fields
           dqStrP←   '(("[^"]*")+)'                     ⍝ "..." 
           sqStrP←   '((''[^'']*'')+)'                  ⍝ '...' Should this exist or are single quotes not special?
           dolP←     '\h*(\${1,2})\h*'                  ⍝ $ and $$ shortcuts.   
@@ -152,7 +151,7 @@
                 Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1         ⊣  omegaG⊢← ⊃⌽⎕VFI f1←Fld 1              
                 Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaG    ⊣  omegaG+← 1   
             } ⍵                                          
-            parensOnly: '(',')',⍨code                  ⍝ Return a code str with no refs to external ⍺, ⍵, ...
+            parensOnly: '(',')',⍨code                  ⍝ Return: (code) w/o ref to ⍺, ⍵, ...
             _sfx←¯1↑trim← ' ⋄' {⍵↓⍨-+/∧\⍺∊⍨⌽⍵} code    ⍝ Is it self-documenting mode?  
             '→↓'(~∊⍨)_sfx:  '(',(nsØ/'⍺'),'{', code,'}⍵)' ⍝ No.   Return: (⍺{code}⍵)
             _d _c← (' ',EnSQ 1↓¯1↓⍵) (' (',(nsØ/'⍺'),'{','}⍵)',⍨¯1↓trim)
@@ -160,7 +159,7 @@
             _d, _c                                     ⍝ suffix →   Return: ('code')(⍺{code}⍵)
         }
           
-      ⍝ IIB 3. ProcFlds. Process all fields by type, set by Tok2Flds below.                      
+      ⍝ IIB(3). ProcFlds. Process all fields by type, set by Tok2Flds below.                      
       ⍝ Returns at least 2 fields (Pad2Flds), as required by CHAINdef (which see).
           Pad2Flds←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
           CondBox← {                                   ⍝ If boxØ=1, put ⍵ in a box!   
