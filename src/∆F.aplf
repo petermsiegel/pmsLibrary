@@ -8,7 +8,7 @@
 ⍝ For help, execute 
 ⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
 ⍝ For internal error handling, 
-⍝   See II. F-string Processing Function (IIA. Setup).
+⍝   See I. F-string Processing Function (I.A. Setup).
 
 ⍝ Metaconventions Used
 ⍝   Name Templates: FnName; varName; ⍙PSEUDOSYSOBJ 
@@ -23,7 +23,7 @@
     
     (⊃⍺)((⊃⎕RSI){ 
 
-  ⍝ I. F-string Exec. Operator: 
+  ⍝ Phase II. F-string Exec. Operator: 
   ⍝    MODE=1  Execute executable in caller NS, return formatted mx result
   ⍝    0       Return executable string 
   ⍝   ¯1       Return Pseudo-code string
@@ -34,25 +34,25 @@
     0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
         1=⍺: ⍺⍺⍎⍵,'⍵⍵'  ⊣⍵⍵                             ⍝ ← MODE=1     IMMEDIATE Mode 
                                                         ⍝ ↓ MODE∊0 ¯1  CODE GEN / PSEUDO-CODE
-        EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=
+        q←'''' ⋄ EnSQ← q,q,⍨⊢(/⍨)1+q∘=
         errHandleC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄'
         '{', (errHandleC/⍨ ¯1≠⍺),⍵, (EnSQ ⊃⍵⍵),',⍥⊆⍵}'  
 
     }(,⊆⍵))⍺{
   
-  ⍝ II.  F-string Processing Function
+  ⍝ Phase I.  F-string Processing Function
   ⍝      Returns executable based on input f-string to anon dfn "I. (F-string Exec. Operator)"
   ⍝      Syntax:  ⍺ ∇ ⍵   (⍺ as from caller; ⍵ is ⊆⍵ from caller).
-  ⍝   IIA. Setup
-  ⍝   IIB. Processing Tokenized Fields
-  ⍝   IIC. Tokenizing F-string to Fields
-  ⍝   IID. Executive
+  ⍝   I.A. Setup
+  ⍝   I.B. Processing Tokenized Fields
+  ⍝   I.C. Tokenizing F-string to Fields
+  ⍝   I.D. Executive
   
-  ⍝ IIA. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
+  ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
         cntØS←≢domainØS← (¯1 0 1)(1 0)(1 0)             ⍝ Option (⍺) specifications.
 
-        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                  ⍝ Error Handling...
+        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                  ⍝ ⍺/⍵ Error Handling...
         ((cntØS<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:  ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
         ~∧/domainØS∊⍨¨cntØS↑⍺:         ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
         ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:         ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
@@ -63,12 +63,12 @@
         modeØ boxØ nsØ← cntØS↑⍺                        ⍝ Option Flags (⍺)   
         isL2R←   modeØ≠¯1                              ⍝ isL2R: Execute Code Fields L2R
         isPseudo←modeØ=¯1                              ⍝ isPseudo: PSEUDO-CODE Mode
-                                                    
+        
+                                                       ⍝ Select Shortcut vs Full Code Strings  
         Sel←{                                          ⍝ ⍺ Shortcut ⍵- (internal util)
             S←' '/⍨(~∊)∘'⊃⎕{}()/ '⍤⊃                   ⍝ Ensure needed spaces at edges
             (S,⊢,S⍤⌽)isPseudo⊃⍵ ⍺
         }
-                                                       ⍝ Select Shortcut or Full Code Strings  
         fmtC←  '⎕FMT '                                 ⍝ ⎕FMT    $                                       
         ⋄ _bxNm←'⎕SE.Dyalog.Utils.display'             ⍝ ⍙BOX   $$
         ⋄ 3≠⎕NC _bxNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',_bxNm,'" not found.'
@@ -76,22 +76,23 @@
         ⋄ _dotsC←'(''·''@('' ''=⊢))'/⍨~isPseudo  
         boxModeC←  '⍙BOXM' Sel _dotsC,_bxNm            ⍝ ⍙BOXM (box mode (1⌷⍺)=1)                                                                                      
         overC←     '⍙OVER' Sel {⍵                      ⍝ ⍙OVER   %     
-        }'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/a b←⍺,⍥(⊃⌽⍤⍴)⍵⋄a b{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+0.5×m-⍺}¨⍺⍵}⍥⎕FMT'  
-        ⋄ _c←'{⊃,/⍺ ⍵↑⍨¨⌈⍥≢/⍺ ⍵}⍥⎕FMT'                                              
-        chainC←      '⍙CHAIN'  Sel    _c               ⍝ ⍙CHAIN %%
-        chainFoldC← '⊃⍙CHAIN/' Sel'⊃',_c,'/','⌽'/⍨isL2R    ⍝ ⊃⍙CHAIN/ (preamble code)       
+        }'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT' 
+         
+        ⋄ _c←'{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT'                                              
+        chainC←      '⍙CHAIN' Sel    _c                ⍝ ⍙CHAIN %%
+        chainFoldC← '⊃⍙CHAIN/'Sel'⊃',_c,'/','⌽'/⍨isL2R ⍝ ⊃⍙CHAIN/ (preamble code)       
   
-  ⍝ IIB. Processing Tokenized Fields
-  ⍝   IIB 0. (Setup / Shared Defs)
-  ⍝   IIB 1. ProcTF       - Process Text Fields
-  ⍝   IIB 2.              - Process Code and Space Fields
-  ⍝      IIB 2a. DQStrEsc    - Process Code Field DQ String Escapes 
-  ⍝      IIB 2b: ProcCSF     - Process Code/Space Fields
-  ⍝   IIB 3. ProcFlds     - Process All Fields    
+  ⍝ I.B. Processing Tokenized Fields
+  ⍝   I.B.0. (Setup / Shared Defs)
+  ⍝   I.B.1. ProcTF       - Process Text Fields
+  ⍝   I.B.2.              - Process Code and Space Fields
+  ⍝      I.B.2a. DQStrEsc    - Process Code Field DQ String Escapes 
+  ⍝      I.B.2b: ProcCSF     - Process Code/Space Fields
+  ⍝   I.B.3. ProcFlds     - Process All Fields    
         
-      ⍝ IIB. (Setup / Shared Defs)
+      ⍝ I.B. (Setup / Shared Defs)
         ⍝ Miscellany
-          EnSQ← '''','''',⍨⊢(/⍨)1+''''∘=               ⍝ Double SQs in ⍵ and wrap ⍵ in SQs.
+          q←'''' ⋄ EnSQ← q,q,⍨⊢(/⍨)1+q∘=               ⍝ Double the SQs in ⍵ and wrap ⍵ in SQs.
         ⍝ Field Tests: Test for combined CSF (Code/Space Fields) and SF (Space Fields)  
           IsCSF← ⊃∊∘(⎕UCS 0 1)  ⍝   \x{0} or \x{1}     ⍝ See TagTF/SF/CF and Tok2Flds below.
           IsSF←  ⊃=∘(⎕UCS 1)    ⍝   \x{1}   
@@ -101,14 +102,14 @@
           TagSF← '\r\x{1}','\r',⍨⊢                     ⍝ SF: ⎕UCS 1
           TagCF← '\r\x{0}','\r',⍨⊢                     ⍝ CF: ⎕UCS 0
 
-      ⍝ IIB 1. ProcTF -  Process Text Fields
+      ⍝ I.B.1. ProcTF -  Process Text Fields
           ptfP←  '(?<!\\)\\⋄'  '\\([{}\\])'
           ptfR←  ('\r' '\\⋄' ⊃⍨isPseudo) '\1'  
         ProcTF← (' ',⊢)EnSQ⍤(ptfP ⎕R ptfR)             
 
-      ⍝ IIB 2. Process Code and Space Fields
+      ⍝ I.B.2. Process Code and Space Fields
    
-        ⍝ IIB 2a. DQStrEsc - Process Code Field DQ String Escapes [see "Case dqStrI"]  
+        ⍝ I.B.2a. DQStrEsc - Process Code Field DQ String Escapes [see "Case dqStrI"]  
           dq2P←     '"{2}'                             ⍝ ""  => "
           e2DmdP←   '\\{2}⋄'                           ⍝ \\⋄ => \⋄
           e1DmdP←   '\\{1}⋄'                           ⍝ \⋄  => \r
@@ -126,7 +127,7 @@
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
               0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
           } 
-        ⍝ IIB 2b. ProcCSF -  Process Code/Space Fields
+        ⍝ I.B.2b. ProcCSF -  Process Code/Space Fields
           dqStrP←   '(("[^"]*")+)'                     ⍝ "..." 
           sqStrP←   '((''[^'']*'')+)'                  ⍝ '...' Should this exist or are single quotes not special?
           dolP←     '\h*(\${1,2})\h*'                  ⍝ $ and $$ shortcuts.   
@@ -160,7 +161,7 @@
             _d, _c                                     ⍝ suffix →   Return: ('code')(⍺{code}⍵)
         }
           
-      ⍝ IIB 3. ProcFlds. Process all fields by type, set by Tok2Flds below.                      
+      ⍝ I.B.3. ProcFlds. Process all fields by type, set by Tok2Flds below.                      
       ⍝ Returns at least 2 fields (Pad2Flds), as required by CHAINdef (which see).
           Pad2Flds←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
           CondBox← {                                   ⍝ If boxØ=1, put ⍵ in a box!   
@@ -172,7 +173,7 @@
             ⍵ ScalTS2V⍣ boxØ⊢ ProcTF ⍵                 ⍝ if boxØ, treat scalar text flds as vector.
         }¨
 
-  ⍝ IIC. Tokenizing F-String to Fields
+  ⍝ I.C. Tokenizing F-String to Fields
   ⍝     Tok2Flds     - Tokenize (Divide) Format String to Fields
   ⍝     Returns: A set of fields, each as a char vec. Any strings not tagged here default to a Text Field.                                              
           sfNullP← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'       
@@ -188,7 +189,7 @@
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
         Tok2Flds← RemoveNullF tokPV ⎕R tokRV
 
-  ⍝ IID. Executive: Put it all together
+  ⍝ I.D. Executive: Put it all together
         ⋄ AddPreamble← (nsØ/'(⎕NS⍬)') ,'{','}',⍨ chainFoldC,(∊⌽⍣isL2R)
         AddPreamble ProcFlds Tok2Flds ⊆⊃⍵
         
