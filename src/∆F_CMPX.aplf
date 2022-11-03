@@ -5,6 +5,9 @@
  ;data
  ;∆S;∆s
  ;l;m1;m0xr;m0;ex;rn;cum;xr
+ ;⎕PW
+
+ ⎕PW←77
 
  {}'cmpx'⎕CY'dfns'
  Compare_us←{1000000×⍎∘cmpx ⍵}¨
@@ -31,7 +34,9 @@
      ⎕←'   MODE 0: a. CODEGEN code←0 ∆F f'
      ⎕←'           b. EXEC    dfn←⍎code'
      ⎕←'           c. RUN     dfn d'
-     ⎕←30⍴'¯'
+     ⎕←'Code output: '
+     ⎕←¯1 ∆F fstring
+     ⎕←50⍴'¯_∘'
      ⎕←'Begin benchmark...'
      ∆s←0 ∆F fstring
      ∆S←⍎∆s
