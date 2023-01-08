@@ -37,8 +37,12 @@
   ⍝      ⍵⍵:  orig. ⍵              ⍵:  executable based on input f-string
 
     0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
-      1=⍺: (⍺⍺⊃⎕RSI)⍎⍵,'⍵⍵'  ⊣⍵⍵                               ⍝ ← MODE=1     IMMEDIATE Mode 
-                                                        ⍝ ↓ MODE∊0 ¯1  CODE GEN / PSEUDO-CODE
+    ⍝ ← MODE=1     IMMEDIATE Mode 
+      1=⍺: ({ ⎕IO ⎕ML←0 1  
+            (⍵>0) ∧ ⍵<≢R←⎕RSI: ⍵⊃R   
+            ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid option (⍺[4] index error on ⎕RSI)' 11  
+      }⍺⍺+1)⍎⍵,'⍵⍵' ⊣⍵⍵                 
+    ⍝ ↓ MODE∊0 ¯1  CODE GEN / PSEUDO-CODE
         errC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
         qtArgs← (q,q,⍨⊢(/⍨)1+q∘=) ⊃⍵⍵ ⊣ q←''''
         '{', (errC/⍨ 0≤⍺), ⍵, qtArgs,',⍥⊆⍵}'  
@@ -54,10 +58,10 @@
   
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
-        cntOptS←≢domainOptS← (¯1 0 1)(1 0)(1 0)(⍳¯1+≢⎕RSI)  ⍝ Option (⍺) specifications.
+        cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications.
         Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
-      ((cntOptS<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺: ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
-      ~∧/domainOptS∊⍨¨cntOptS↑⍺:      ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+      ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+      ~∧/dOS∊⍨¨⍺↑⍨cOS:                ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
       ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:          ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
                                                        ⍝ Unexpected Errors...
       0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
