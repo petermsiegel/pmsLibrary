@@ -6,7 +6,9 @@
 ⍝              ⍹1=1st arg after f-string (⎕IO independent)
 ⍝        opts: [MODE BOX NS←1 0 0 | 'help' | ⍬]
 ⍝ For help, execute 
-⍝   ∆F⍨'help' ... or see ⍝H comments at the bottom of this function.
+⍝   ∆F⍨'help' ... or see ⍝H "HELP" comments at the bottom of this function.
+⍝ See help PDF at:
+⍝   https://drive.google.com/file/d/1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq/view
 ⍝ For internal error handling, 
 ⍝   See I. F-string Processing Function (I.A. Setup).
 
@@ -37,12 +39,11 @@
   ⍝      ⍵⍵:  orig. ⍵              ⍵:  executable based on input f-string
 
     0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
-    ⍝ ← MODE=1     IMMEDIATE Mode 
-      1=⍺: ({ ⎕IO ⎕ML←0 1  
-            (⍵>0) ∧ ⍵<≢R←⎕RSI: ⍵⊃R   
-            ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid option (⍺[4] index error on ⎕RSI)' 11  
-      }⍺⍺+1)⍎⍵,'⍵⍵' ⊣⍵⍵                 
-    ⍝ ↓ MODE∊0 ¯1  CODE GEN / PSEUDO-CODE
+    ⍝ ← MODE=1  (IMMEDIATE Mode)  
+      (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵  
+      (1=⍺) ∧ 9=⎕NC'⍺⍺': ⍺⍺      ⍎⍵,'⍵⍵' ⊣⍵⍵     
+       1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid option (caller NS)' 11  
+    ⍝ ↓ MODE∊0 (CODE GEN) ¯1  (PSEUDO-CODE)
         errC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
         qtArgs← (q,q,⍨⊢(/⍨)1+q∘=) ⊃⍵⍵ ⊣ q←''''
         '{', (errC/⍨ 0≤⍺), ⍵, qtArgs,',⍥⊆⍵}'  
@@ -58,7 +59,7 @@
   
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
-        cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications.
+        cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 4⊃⍺ here.
         Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
       ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
       ~∧/dOS∊⍨¨⍺↑⍨cOS:                ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
@@ -71,10 +72,11 @@
         isPseudo← modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode
         
       ⍝ SC: Select Code Shortcut vs Full Code Strings (⍁XX are faux system functions for pseudocode only)  
+      ⍝     ⍺ (shortcut), ⍺⍺ (full code string), ⍵ (flag: 1 means choose shortcut, 0 choose code string)
         SC← {                                          ⍝ Syntax: ⍺:short {⍺⍺:full} ∇ ⍵:isPseudo 
-            S←  ' '/⍨(~∊)∘'⊃⎕⍁{}()/ '∘⊃                ⍝   Ensure needed spaces at edges
+            S←  ' '/⍨(~∊)∘'⊃⎕⍁{}()/ '∘⊃                ⍝   Ensure needed spaces at edges bef/after these chars
             ES← S,⊢,S∘⌽                                ⍝   ES: Add required Edge Spaces
-          ⍵: ES ⍺ ⋄ ES ⍺⍺ 0
+          ⍵:ES ⍺ ⋄ ES ⍺⍺ 0
         }
         fmtC←       ' ⎕FMT '                 ⍝-------> ⍝ ⎕FMT    $    
             _bxNm←'⎕SE.Dyalog.Utils.display'                                   
@@ -95,7 +97,7 @@
             '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/', '⌽'/⍨isL2R  
         }   SC isPseudo         
   
-  ⍝ I.B. Processing Tokenized Fields
+  ⍝ I.B. Process Tokenized Fields
   ⍝   I.B.0. (Setup / Shared Defs)
   ⍝   I.B.1. ProcTF       - Process Text Fields
   ⍝   I.B.2.              - Process Code and Space Fields
@@ -217,8 +219,8 @@
   ⍝H                     specifications to display a mixture of APL objects easily.
   ⍝H      args:          O or more "arguments" that can be easily used to incorporate 
   ⍝H                     on-the-fly values into the format string.
-  ⍝H      options:       [ [MODE=1|0|¯1] [ [BOX=0|1] [ [NS=0|1] ] ] | 'help' | ⍬ ]
-  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H      options:       [ [MODE=1|0|¯1] [ [BOX=0|1] [ [NS=0|1]  [ [EXECNS=callerNs|nsRef] ]]] | 'help' | ⍬ ]
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨↑¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   options      ∆F Returns 
   ⍝H > MODE=1       [IMMEDIATE] A char matrix based on the format string and subsequent values of ⍵. 
   ⍝H                (Default mode). In this mode, 2D fields are "chained" together 
@@ -233,6 +235,9 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H > NS=0         Code fields have no private NS passed as ⍺. (Default).
   ⍝H   NS=1         A private NS shared among all Code Fields will be passed as ⍺.
+  ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
+  ⍝H > EXECNS=callerNs  Code Fields are executed in the ns from which ∆F was called (0 may be used to signify it).
+  ⍝H   EXECNS=nsref     Code fields are executed in namespace <nsref>, which must be a valid namespace reference.
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
   ⍝H   ⍺≡⍬          A shy char matrix (1 0⍴' '). Right arg ⍵ is ignored. No formatting is done.
