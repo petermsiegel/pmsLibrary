@@ -69,33 +69,21 @@
    
         modeOpt boxOpt nsOpt← 3↑⍺                      ⍝ Option Flags (⍺)   
         isL2R←    modeOpt≥0                            ⍝ isL2R: Execute Code Fields L2R
-        isPseudo← modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode
-        
-      ⍝ SC: Select Code Shortcut vs Full Code Strings (⍁XX are faux system functions for pseudocode only)  
-      ⍝     ⍺ (shortcut), ⍺⍺ (full code string), ⍵ (flag: 1 means choose shortcut, 0 choose code string)
-        SC← {                                          ⍝ Syntax: ⍺:short {⍺⍺:full} ∇ ⍵:isPseudo 
-            S←  ' '/⍨(~∊)∘'⊃⎕⍁{}()/ '∘⊃                ⍝   Ensure needed spaces at edges bef/after these chars
-            ES← S,⊢,S∘⌽                                ⍝   ES: Add required Edge Spaces
-          ⍵:ES ⍺ ⋄ ES ⍺⍺ 0
-        }
-        fmtC←       ' ⎕FMT '                 ⍝-------> ⍝ ⎕FMT    $    
-            _bxNm←'⎕SE.Dyalog.Utils.display'                                   
-        boxFnC←      '⍁BOX'  {               ⍝-------> ⍝ ⍁BOX   $$     ('⍁' for pseudo-sys fn)        
-          3≠⎕NC _bxNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',_bxNm,'" not found.'
-            _bxNm
-        }   SC isPseudo            
-        boxModeC←    '⍁BOXM' {               ⍝-------> ⍝ ⍁BOXM box mode, active when (1⌷⍺)=1)   
-            _bxNm,⍨ '(''·''@('' ''=⊢))'/⍨ ~isPseudo    ⍝ Change ' ' => '·'  ⍝ middle dot
-        }   SC isPseudo                                                                                 
-        overC←       '⍁OVER' {               ⍝-------> ⍝ ⍁OVER   %  (vertical join, centers fields)     
-            '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT'    
-        }   SC isPseudo                                                   
-        chainC←      '⍁CHAIN' {              ⍝-------> ⍝ ⍁CHAIN %% (horizontal join, does NOT center fields)   
-            '{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT'           
-        }   SC isPseudo               
-        chainFoldC← '⊃⍁CHAIN/' {             ⍝-------> ⍝ ⊃⍁CHAIN/ (preamble code: chains all fields)  
-            '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/', '⌽'/⍨isL2R  
-        }   SC isPseudo         
+        isPseudo← modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode   
+
+        fmtC boxFnC boxModeC overC chainC chainFoldC← {
+          ⍝ Note padding with blanks, where code not otherwise prefixed or suffixed with non-alph chars
+          isPseudo:  ' ⎕FMT '   '  ⍁BOX '    ' ⍁BOXM '  ' ⍁OVER ' ' ⍁CHAIN ' '⊃⍁CHAIN/'
+            _bxFnNm← ⍵
+            3≠⎕NC _bxFnNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',_bxFnNm,'" not found.'
+              _←⊂  ' ⎕FMT '
+              _,←⊂ ' ',_bxFnNm,' ' 
+              _,←⊂ '(''·''@('' ''=⊢))',_bxFnNm,' '
+              _,←⊂ '(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT '  
+              _,←⊂ '{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT '  
+              _,←⊂ '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/', isL2R/'⌽'    
+              _
+        } '⎕SE.Dyalog.Utils.display'
   
   ⍝ I.B. Process Tokenized Fields
   ⍝   I.B.0. (Setup / Shared Defs)
