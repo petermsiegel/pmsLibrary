@@ -66,7 +66,7 @@
       ~∧/dOS∊⍨¨⍺↑⍨cOS:                ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
       ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:          ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
                                                        ⍝ ↓ Unexpected Errors...
-   ⍝   0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
+      0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
    
         modeOpt boxOpt nsOpt← 3↑⍺                      ⍝ Option Flags (⍺)   
         isPseudo← ⍬⍴modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode   
@@ -204,7 +204,6 @@
   ⍝ I.D. Executive: Put it all together
         ⋄ AddPreamble← (nsOpt/'(⎕NS⍬)') ,'{','}',⍨ chainFoldC,(∊⌽⍣ (~isPseudo))
         AddPreamble ProcFlds Tok2Flds ⊆⊃⍵
-        
     }⊆⍵  
 
   ⍝… INTERNAL HELP DOCUMENTATION STARTS HERE ………………………………………………………………………………………………………………………………………
