@@ -71,23 +71,22 @@
         modeOpt boxOpt nsOpt← 3↑⍺                      ⍝ Option Flags (⍺)   
         isPseudo← ⍬⍴modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode   
 
-        SetCodeV←{
-          ⍝ codeVars6← _bxFnNm ∇ isPseudo
+        SetCodeVars←{ isPs bxFnNm← ⍵
+          ⍝ codeVars6←  ∇ isPseudo bxFnNm 
           ⍝ Note required padding with blanks, where code not otherwise prefixed or suffixed with non-alph sep chars
-          ⍝ ⍁... means a pseudo-system fn.
-          ⍵:  ' ⎕FMT '   '  ⍁BOX '    ' ⍁BOXM '  ' ⍁OVER ' ' ⍁CHAIN ' '⊃⍁CHAIN/'
-            _bxFnNm← ⍺
-            3≠⎕NC _bxFnNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',_bxFnNm,'" not found.'
+          ⍝ ⍁... means a pseudo-system fn. Just for show.
+          isPs:  ' ⎕FMT '   '  ⍁BOX '    ' ⍁BOXM '  ' ⍁OVER ' ' ⍁CHAIN ' '⊃⍁CHAIN/'
+            3≠⎕NC bxFnNm: 6 ⎕SIGNAL⍨'∆F VALUE ERROR: Utility "',bxFnNm,'" not found.'
               _← ⊂  ' ⎕FMT '                                ⍝ ⎕FMT:     Format obj ⍵
-              _,←⊂ ' ',_bxFnNm,' '                          ⍝ ⍁BOX:     Box obj ⍵
-              _,←⊂ '(''·''@('' ''=⊢))',_bxFnNm,' '          ⍝ ⍁BOXM:    Box obj ⍵ and replace spaces with middle dots
+              _,←⊂ ' ',bxFnNm,' '                           ⍝ ⍁BOX:     Box obj ⍵
+              _,←⊂ '(''·''@('' ''=⊢))',bxFnNm,' '           ⍝ ⍁BOXM:    Box obj ⍵ and replace spaces with middle dots
                 _oC←'(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT '
               _,←⊂ _oC                                      ⍝ ⍁OVER:    Place matrix-⍺ over matrix-⍵
               _,←⊂  '{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT '                ⍝ ⍁CHAIN:   Chain matrix-⍺ to left of matrix ⍵
-              _,←⊂ '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/','⌽'↓⍨isPseudo ⍝ ⊃⍁CHAIN/: Chain together list of matrices-⍵ left to right
+              _,←⊂ '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/⌽'               ⍝ ⊃⍁CHAIN/: Chain together list of matrices-⍵ left to right
               _
         } 
-        fmtC boxFnC boxModeC overC chainC chainFoldC← '⎕SE.Dyalog.Utils.display' SetCodeV isPseudo
+        fmtC boxFnC boxModeC overC chainC chainFoldC← SetCodeVars isPseudo '⎕SE.Dyalog.Utils.display' 
   
   ⍝ I.B. Process Tokenized Fields
   ⍝   I.B.0. Setup / Shared Defs, e.g. define IsCSF (what's a code or space field), IsSF (what's a space field)

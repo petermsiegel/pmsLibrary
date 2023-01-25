@@ -2,6 +2,10 @@
  ;C2F
  ;RGB;Who;addr;c;hdrC;hdrF;names;x
  ;errsG;tripG
+ ;⎕PW;⎕IO;⎕ML
+
+
+⎕PW ⎕IO ⎕ML←100 0 1
 
  errsG←0
  RUN←{CR←⎕UCS 13
@@ -139,21 +143,21 @@
  RUN'⍝ APL                                 # Python'
  RUN'⍝ Build fields all at once L to R     # Build annotations row by row'
  RUN' RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
- RUN'∆F''R:\⋄G:\⋄B:{ }{⍪RGB}''          ⍝    print((f''R :{R}\nG :{G}\nB :{B}''))'
- RUN'⍝ R: 123                              ⍝  R: 123'
- RUN'⍝ G: 145                              ⍝  G: 145'
- RUN'⍝ B: 255                              ⍝  B: 255'
+ RUN'∆F''R:\⋄G:\⋄B:{ }{⍪RGB}''          ⍝    print((f''R: {R}\nG: {G}\nB: {B}''))'
+ RUN'⍝ R: 123                              ⍝  R: 123    # Python'
+ RUN'⍝ G: 145                              ⍝  G: 145    # Python'
+ RUN'⍝ B: 255                              ⍝  B: 255    # Python'   
  RUN''
  RUN'⍝ Use APL for base conversions, etc.  # Base conversions are built in'
- RUN'∆F''"{"01"[2⊥⍣¯1⊢⍵1]}"'' 7         ⍝     f''{7:b}'''
- RUN'⍝ "111"                               ⍝  111 '
+ RUN'∆F ''''''{"11"[2⊥⍣¯1⊢⍵1]}'''''' 7 '             ⍝     f''{7:b}'''
+ RUN'⍝ ''111''                                 ⍝ ''111''        # Python'
  RUN''
  RUN'⍝ Formatting Floats old-fashioned?    # Similar approach, different conventions'
  RUN' x←20.123                           ⍝     x = 20.123'
  RUN'∆F''{"F8.5"$x}'' ⍝ Usr calcs width ⍝     print(f''{x:0<8}'')   # User calcs width'
- RUN'⍝ 20.12300                            ⍝  20.12300'
+ RUN'⍝ 20.12300                            ⍝  20.12300   # Python'
  RUN'∆F''{5⍕x}''      ⍝ APL calcs width ⍝     print(f''{x:0.5 f}'')   # Python calcs width'
- RUN'⍝  20.12300                           ⍝  20.12300'
+ RUN'⍝  20.12300                           ⍝  20.12300   # Python'
  RUN''
 
  77⍴'*='
