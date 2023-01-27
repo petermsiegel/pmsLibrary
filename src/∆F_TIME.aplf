@@ -1,0 +1,43 @@
+﻿ {loop}∆F_TIME expr
+ ;cmpx;e1;e2;orig;oT;oT2;comp;cSum;cT;cT2;res
+ ;Q
+ ;⎕IO
+
+ ⎕IO←0
+ Q←{q←'''' ⋄ q,q,⍨(1+⍵=q)/⍵}
+
+ :If 0=⎕NC'loop'
+     loop←1 10 100 1000
+ :EndIf
+
+ 'cmpx'⎕CY'dfns'
+
+ ⎕←'expr: '(Q⊃expr)(1↓expr)
+ ⎕←'Original:    ⎕←      ∆F expr'
+ ⎕←'Components: '
+ ⎕←' 1. compile  phase1← 0 ∆F expr'
+ ⎕←' 2. eval     phase2← ⍎phase1'
+ ⎕←' 3. run      ⎕←      phase2 (1↓expr)'
+ ⎕←'-----------------------------------'
+ ⎕←' timing...'
+ e1←0 ∆F(⊃expr)
+ e2←⍎e1
+
+ res←⍎∘cmpx¨'∆F expr' '0 ∆F expr' '{_←⍎e1 ⋄ 0}expr' 'e2 (1↓expr)'
+ orig←0⊃res
+ cSum←+/comp←1↓res
+ ⎕←'∆F expr (orig)         '(0⍕1000000×orig),' microseconds'
+ ⎕←'∆F expr (+/components) '(0⍕1000000×cSum),' microseconds'
+ oT←100×comp÷orig
+ ⎕←'∆F %orig total         '(0⍕oT),'% Total=',(0⍕+/oT),'%'
+ cT←100×comp÷cSum
+ ⎕←'∆F %components         '(0⍕cT),'% Total=',(0⍕+/cT),'%   Sanity check: must be 100%'
+
+ ⎕SHADOW'l'
+ :For l :In loop
+     ⎕←''
+     ⎕←'Over ',(⍕l),' loops...'
+     ⎕←'  Original:    '(⍕oT2←1000000×l×orig),' microsec'
+     ⎕←'  Component:   '(⍕cT2←1000000×comp[0]++/l×comp[1 2]),' microsec'
+     ⎕←'  Efficiency:  '(0⍕100×cT2÷⍨oT2),'%'
+ :EndFor

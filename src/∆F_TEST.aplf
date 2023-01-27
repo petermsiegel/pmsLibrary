@@ -1,164 +1,192 @@
-﻿ ∆F_TEST eachSec;RUN
+﻿ ∆F_TEST eachSec
+ ;RUN;BEGIN;LET;SAY
  ;C2F
  ;RGB;Who;addr;c;hdrC;hdrF;names;x
  ;errsG;tripG
  ;⎕PW;⎕IO;⎕ML
 
 
-⎕PW ⎕IO ⎕ML←100 0 1
+ ⎕PW ⎕IO ⎕ML←100 0 1
 
  errsG←0
+ ⎕FX'BEGIN' 'RUN ⍬'
+ ⎕FX'LET IT' 'RUN IT'
+ ⎕FX'SAY IT' 'RUN IT'
+
  RUN←{CR←⎕UCS 13
      pre←CR,30⍴'-*'
      exp←'>>> Expected Answer >>>'
      err←'>>> Expected Answer >>>'
      fmt←CR,'   '
-
      0::_←⎕DL 0.5⊣⎕←↑3⍴⊂err⊣errsG+←1
      ('⍝'=⊃)⍵~' ':⎕←⍵↓⍨(2×'⍝ '≡2↑⍵)
-     (0=≢)⍵~' ':_←0⊣⎕←pre
+     0=≢⍵:_←0⊣⎕←pre ⋄ (0=≢)⍵~' ':_←0⊣⎕←pre
      isF←×≢'∆F'⎕S 0⊢⍵
      ⎕←(isF/fmt),⍵ ⋄ ⎕←⍎⍵
      isF:⎕←exp⊣⎕DL eachSec
      1:_←⎕DL eachSec
  }
 
- RUN''
- RUN' names←↑''John Jones'' ''Mary Smith'' '
- RUN' addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
- RUN''
- RUN'⍝ Example 1a:  Text and Code Fields "chained" together horizontally.'
+ BEGIN
+ LET' names←↑''John Jones'' ''Mary Smith'' '
+ LET' addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
+
+ BEGIN
+ SAY'⍝ Example 1a:  Text and Code Fields "chained" together horizontally.'
  RUN'∆F''Name: {names}  Addr:{addr}'''
- RUN'⍝ Name: John Jones  Addr: 1214 Maiden Ln'
- RUN'⍝       Mary Smith        24 Hersham Rd'
- RUN''
- RUN'⍝ Example 1b:  Self-documenting code expressions {...→} in Code Fields.'
+ SAY'⍝ Name: John Jones  Addr: 1214 Maiden Ln'
+ SAY'⍝       Mary Smith        24 Hersham Rd'
+
+ BEGIN
+ SAY'⍝ Example 1b:  Self-documenting code expressions {...→} in Code Fields.'
  RUN'∆F''{names→}  {addr→}'''
- RUN'⍝ names→John Jones  addr→ 1214 Maiden Ln'
- RUN'⍝       Mary Smith        24 Hersham Rd'
- RUN''
- RUN'⍝ Example 1c:  Titles (using the OVER shortcut %).'
- RUN'⍝ Note that strings in Code Fields {code} use double quotes like "this!".'
+ SAY'⍝ names→John Jones  addr→ 1214 Maiden Ln'
+ SAY'⍝       Mary Smith        24 Hersham Rd'
+
+ BEGIN
+ SAY'⍝ Example 1c:  Titles (using the OVER shortcut %).'
+ SAY'⍝ Note that strings in Code Fields {code} use double quotes like "this!".'
  RUN'∆F''{"Name" %names}  {"Address" %addr}'''
- RUN'⍝    Name        Address'
- RUN'⍝ John Jones   1214 Maiden Ln'
- RUN'⍝ Mary Smith   24 Hersham Rd'
- RUN''
- RUN'⍝ Example 1d: Adding a calculated field with line numbers (and one "null" title).'
- RUN'⍝    ↓ Null Title               ⊢→→       Same as (1c)        ←←⊣'
+ SAY'⍝    Name        Address'
+ SAY'⍝ John Jones   1214 Maiden Ln'
+ SAY'⍝ Mary Smith   24 Hersham Rd'
+
+ BEGIN
+ SAY'⍝ Example 1d: Adding a calculated field with line numbers (and one "null" title).'
+ SAY'⍝    ↓ Null Title               ⊢→→       Same as (1c)        ←←⊣'
  RUN'∆F''{⍬ %"I1,⊂.⊃"$1+⍳≢names}{"Name" %names}  {"Address" %addr}'''
- RUN'⍝      Name        Address'
- RUN'⍝ 1. John Jones  1214 Maiden Ln'
- RUN'⍝ 2. Mary Smith  24 Hersham Rd'
- RUN''
- RUN'⍝ Example 2:  Calculations and Formatting in Code Fields ($ is a shortcut for ⎕FMT).'
- RUN'⍝ Assume these declarations:'
- RUN' c←100 20 12 23 ¯2'
- RUN' C2F←32+1.8∘×           ⍝ Celsius to Fahr.'
- RUN''
- RUN'⍝ Example 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.'
- RUN'⍝ (Degree sign (°): ⎕UCS 176)  Result is a 5-row 15-col char matrix.'
+ SAY'⍝      Name        Address'
+ SAY'⍝ 1. John Jones  1214 Maiden Ln'
+ SAY'⍝ 2. Mary Smith  24 Hersham Rd'
+
+ BEGIN
+ SAY'⍝ Example 2:  Calculations and Formatting in Code Fields ($ is a shortcut for ⎕FMT).'
+ SAY'⍝ Assume these declarations:'
+ LET' c←100 20 12 23 ¯2'
+ LET' C2F←32+1.8∘×           ⍝ Celsius to Fahr.'
+
+ BEGIN
+ SAY'⍝ Example 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.'
+ SAY'⍝ (Degree sign (°): ⎕UCS 176)  Result is a 5-row 15-col char matrix.'
  RUN'∆F''{⍵1 $ c}C = {⍵1 $ C2F c}F'' ''I3,⊂°⊃'''
- RUN'⍝ 100°C = 212°F'
- RUN'⍝  20°     68°'
- RUN'⍝  12°     54°'
- RUN'⍝  23°     73°'
- RUN'⍝  ¯2°     28°'
- RUN''
- RUN'⍝ Example 2b: Format specification hard-wired in Code Field.'
- RUN'⍝ Note alternative way to enter degree sign ''°'' as Unicode 176: "\{176}".'
+ SAY'⍝ 100°C = 212°F'
+ SAY'⍝  20°     68°'
+ SAY'⍝  12°     54°'
+ SAY'⍝  23°     73°'
+ SAY'⍝  ¯2°     28°'
+
+ BEGIN
+ SAY'⍝ Example 2b: Format specification hard-wired in Code Field.'
+ SAY'⍝ Note alternative way to enter degree sign ''°'' as Unicode 176: "\{176}".'
  RUN'∆F''{"I3,⊂°⊃"$ c}C = {"F5.1,⊂\{176}⊃"$ C2F c}F'''
- RUN'⍝ 100°C = 212.0°F'
- RUN'⍝  20°     68.0°'
- RUN'⍝  12°     53.6°'
- RUN'⍝  23°     73.4°'
- RUN'⍝  ¯2°     28.4°'
- RUN''
- RUN'⍝ Example 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.'
- RUN' hdrC←''Celsius'''
- RUN' hdrF←''Fahren.'''
+ SAY'⍝ 100°C = 212.0°F'
+ SAY'⍝  20°     68.0°'
+ SAY'⍝  12°     53.6°'
+ SAY'⍝  23°     73.4°'
+ SAY'⍝  ¯2°     28.4°'
+
+ BEGIN
+ SAY'⍝ Example 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.'
+ LET' hdrC←''Celsius'''
+ LET' hdrF←''Fahren.'''
  RUN'∆F''{hdrC %"I3,⊂°⊃"$c}  {hdrF%"F5.1,⊂°⊃"$C2F c}'''
- RUN'⍝ Celsius  Fahren.'
- RUN'⍝  100°    212.0°'
- RUN'⍝   20°     68.0°'
- RUN'⍝   12°     53.6°'
- RUN'⍝   23°     73.4°'
- RUN'⍝   ¯2°     28.4°'
- RUN''
- RUN'⍝ Example 3a: BOX display option (1=⊃⌽⍺).'
- RUN'⍝ Displays each field in its own "box" (ignoring null (0-width) fields)'
+ SAY'⍝ Celsius  Fahren.'
+ SAY'⍝  100°    212.0°'
+ SAY'⍝   20°     68.0°'
+ SAY'⍝   12°     53.6°'
+ SAY'⍝   23°     73.4°'
+ SAY'⍝   ¯2°     28.4°'
+
+ BEGIN
+ SAY'⍝ Example 3a: BOX display option (1=⊃⌽⍺).'
+ SAY'⍝ Displays each field in its own "box" (ignoring null (0-width) fields)'
  RUN'1 1 ∆F''one{}{}{ }two  {"three"}{:3}four.'''
- RUN'⍝ ┌→──┐┌→┐┌→────┐┌→────┐┌→──┐┌→────┐'
- RUN'⍝ │one││·││two··││three││···││four.│'
- RUN'⍝ └───┘└─┘└─────┘└─────┘└───┘└─────┘'
- RUN''
- RUN'⍝ Example 3b: (3a) without the BOX option (0=⊃⌽⍺).'
+ SAY'⍝ ┌→──┐┌→┐┌→────┐┌→────┐┌→──┐┌→────┐'
+ SAY'⍝ │one││·││two··││three││···││four.│'
+ SAY'⍝ └───┘└─┘└─────┘└─────┘└───┘└─────┘'
+
+ BEGIN
+ SAY'⍝ Example 3b: (3a) without the BOX option (0=⊃⌽⍺).'
  RUN'∆F''one{}{}{ }two  {"three"}{:3}four.'''  ⍝ Or: 1 0 ∆F ...'
- RUN'⍝ one two  three   four.'
- RUN''
- RUN'⍝ Example 4a: Use of ⍹ to reference the next scalar in right argument ⍵.'
- RUN'⍝   ⍝             ⍹1≡1⊃⍵       ⍹2≡2⊃⍵                (⎕IO←0)'
+ SAY'⍝ one two  three   four.'
+
+ BEGIN
+ SAY'⍝ Example 4a: Use of ⍹ to reference the next scalar in right argument ⍵.'
+ SAY'⍝   ⍝             ⍹1≡1⊃⍵       ⍹2≡2⊃⍵                (⎕IO←0)'
  RUN'∆F''{"Name" %⍹} {"Addr"%⍹}'' ''J. Smith'' '' 24 Broad Ln'' '
- RUN'⍝   Name         Addr'
- RUN'⍝ J. Smith  24 Broad Ln'
- RUN''
- RUN'⍝ Example 4b: Interaction of ⍹N and simple ⍹.'
+ SAY'⍝   Name         Addr'
+ SAY'⍝ J. Smith  24 Broad Ln'
+
+ BEGIN
+ SAY'⍝ Example 4b: Interaction of ⍹N and simple ⍹.'
  RUN'∆F''{⍹5 ⍹} {⍹3 ⍹} {⍹1 ⍹}'' 1 2 3 4 5 6 '
- RUN'⍝ 5 6 3 4 1 2'
+ SAY'⍝ 5 6 3 4 1 2'
+
  RUN'∆F''πr²={pi←○1 ⋄ r←2 ⋄ pi×r×2}'''
- RUN'⍝ πr²=12.56637061'
+ SAY'⍝ πr²=12.56637061'
+
  RUN'∆F''π={"F10.8"$○1}!'''
- RUN'⍝ π=3.14159265!'
+ SAY'⍝ π=3.14159265!'
+
  RUN'∆F'' 1 SP="{}",5 SP="{:5:}"'''
- RUN'⍝  1 SP="",5 SP="     "'
+ SAY'⍝  1 SP="",5 SP="     "'
+
  RUN'∆F''This is a\⋄three-line\⋄field!'''
- RUN'⍝ This is a'
- RUN'⍝ three-line'
- RUN'⍝ field!'
- RUN''
+ SAY'⍝ This is a'
+ SAY'⍝ three-line'
+ SAY'⍝ field!'
+
+ BEGIN
  RUN'∆F''<{"\{97-108}...\{57-48}"}>'''
- RUN'⍝ <abcdefghijkl...9876543210>'
- RUN''
- RUN' Who←↑''Mary'' ''Captain'''
+ SAY'⍝ <abcdefghijkl...9876543210>'
+
+ BEGIN
+ LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{ }{Who}'''
- RUN'⍝ Name: Mary'
- RUN'⍝ Rank: Captain'
- RUN''
+ SAY'⍝ Name: Mary'
+ SAY'⍝ Rank: Captain'
+
+ BEGIN
  RUN' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{} {Who}'''
- RUN'⍝ Name: Mary'
- RUN'⍝ Rank: Captain'
- RUN''
- RUN' Who←↑''Mary'' ''Captain'''
+ SAY'⍝ Name: Mary'
+ SAY'⍝ Rank: Captain'
+
+ BEGIN
+ LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:5:}{Who}'''
- RUN'⍝ Name:     Mary'
- RUN'⍝ Rank:     Captain'
- RUN''
- RUN' Who←↑''Mary'' ''Captain'''
+ SAY'⍝ Name:     Mary'
+ SAY'⍝ Rank:     Captain'
+
+ BEGIN
+ LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:⍵1:}{Who}'' 5 '
- RUN'⍝ Name:     Mary'
- RUN'⍝ Rank:     Captain'
- RUN''
- RUN'⍝ APL vs Python!'
- RUN'⍝ APL                                 # Python'
- RUN'⍝ Build fields all at once L to R     # Build annotations row by row'
- RUN' RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
+ SAY'⍝ Name:     Mary'
+ SAY'⍝ Rank:     Captain'
+
+ BEGIN
+ SAY'⍝ APL vs Python!'
+ SAY'⍝ APL                                 # Python'
+ SAY'⍝ Build fields all at once L to R     # Build annotations row by row'
+ LET' RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
  RUN'∆F''R:\⋄G:\⋄B:{ }{⍪RGB}''          ⍝    print((f''R: {R}\nG: {G}\nB: {B}''))'
- RUN'⍝ R: 123                              ⍝  R: 123    # Python'
- RUN'⍝ G: 145                              ⍝  G: 145    # Python'
- RUN'⍝ B: 255                              ⍝  B: 255    # Python'   
- RUN''
- RUN'⍝ Use APL for base conversions, etc.  # Base conversions are built in'
+ SAY'⍝ R: 123                              ⍝  R: 123    # Python'
+ SAY'⍝ G: 145                              ⍝  G: 145    # Python'
+ SAY'⍝ B: 255                              ⍝  B: 255    # Python'
+
+ BEGIN
+ SAY'⍝ Use APL for base conversions, etc.  # Base conversions are built in'
  RUN'∆F ''''''{"11"[2⊥⍣¯1⊢⍵1]}'''''' 7 '             ⍝     f''{7:b}'''
- RUN'⍝ ''111''                                 ⍝ ''111''        # Python'
- RUN''
- RUN'⍝ Formatting Floats old-fashioned?    # Similar approach, different conventions'
- RUN' x←20.123                           ⍝     x = 20.123'
+ SAY'⍝ ''111''                                 ⍝ ''111''        # Python'
+
+ BEGIN
+ SAY'⍝ Formatting Floats old-fashioned?    # Similar approach, different conventions'
+ LET' x←20.123                           ⍝     x = 20.123'
  RUN'∆F''{"F8.5"$x}'' ⍝ Usr calcs width ⍝     print(f''{x:0<8}'')   # User calcs width'
- RUN'⍝ 20.12300                            ⍝  20.12300   # Python'
+ SAY'⍝ 20.12300                            ⍝  20.12300   # Python'
  RUN'∆F''{5⍕x}''      ⍝ APL calcs width ⍝     print(f''{x:0.5 f}'')   # Python calcs width'
- RUN'⍝  20.12300                           ⍝  20.12300   # Python'
- RUN''
+ SAY'⍝  20.12300                           ⍝  20.12300   # Python'
+
 
  77⍴'*='
  :If 0=errsG

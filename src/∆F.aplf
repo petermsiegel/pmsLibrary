@@ -338,6 +338,11 @@
   ⍝H           * If more than one  expression ⍹N, ⍹P, ⍹Q appears in any Code Field, 
   ⍝H             the one just before the ⍹ on the left determines its next value (here ⍹Q+1).
   ⍝H        ∘  NB: the initial value of ⍹ is ⍹1, never ⍹0. (⍹0 may only be referenced explicitly).
+  ⍝H        ∘  ⍹'s index is set at "compile" time, scanning LEFT to RIGHT (not RIGHT to LEFT as for stmt execution):
+  ⍝H           Thus 
+  ⍝H              ∆F '{⍹ ⍹ ⍹} and {⍹ ⍹ ⍹}' 1 2 'three' 4 'five' 6 
+  ⍝H           returns 
+  ⍝H              1 2 three and 4 five 6
   ⍝H        ∘  There are easy to type alternatives to using the glyph '⍹' :
   ⍝H           IN PLACE OF            USE
   ⍝H           ⍹0, ⍹1, … ⍹N         ⍵0, ⍵1, … ⍵N     e.g. ⍹5×⍹6 ≡ ⍵5×⍵6
