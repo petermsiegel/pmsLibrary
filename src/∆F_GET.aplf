@@ -1,0 +1,24 @@
+﻿ ret←∆F_GET
+ ;helpType;from;to;nm;ns;Q;source;targetNs;tO;XNs
+ ;⎕IO;⎕ML
+
+ ⎕IO ⎕ML←0
+
+⍝ Key options...
+ source←'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
+ targetNs←'⎕SE'
+ helpType←'INTERNALHELP'  ⍝ Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
+
+ :Trap 0
+     Q←'''' ⋄ XNs←⍎⌽∘(⊢↓⍨1+'.'⍳⍨⊢)∘⌽
+
+     tO←(0<≢targetNs)/'-target=',targetNs,' '
+     from←Q,'DYALOGHELP',Q ⋄ to←Q,helpType,Q
+
+     nm←⎕SE.UCMD'get ',tO,source
+     ns←XNs nm
+     ns.⎕FX(from ⎕R to⍠('ML' ¯1)('Mode' 'D'))⎕NR nm
+     ret←0('Created ',nm)
+ :Else
+     ret←911('Unable to load ',source)
+ :EndTrap

@@ -21,11 +21,11 @@
 
     ⍺←1 0 0 0
   ⍬≡⍺: _←1 0⍴'' 
- 'help'≡⍺: 1 0⍴''⊣ 'DYALOG' {     
+ 'help'≡⍺: 1 0⍴''⊣ 'DYALOGHELP' {     
     2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵ ⊣⎕←⎕EN
       hUrl← '"https://drive.google.com/file/d/', '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq', '/view?usp=sharing"'  
-      'MACOS'≡⍺:   ⎕CMD 'open ', hUrl
-      'DYALOG'≡⍺:  '∆F HELP' (3500⌶) ('<a href=', hUrl, '><H1>DISPLAY WEB HELP HERE</H1></a>')  
+      'MACOSHELP'≡⍺:   ⎕CMD 'open ', hUrl
+      'DYALOGHELP'≡⍺:  '∆F HELP' (3500⌶) ('<a href=', hUrl, '><H1>DISPLAY WEB HELP HERE</H1></a>')  
       ∘∘∘default∘∘∘             
     }⊃⎕XSI 
 
