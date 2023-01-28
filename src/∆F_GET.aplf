@@ -7,12 +7,16 @@ ret← {
       sourceUrl←   'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
       targetNs←    '⎕SE'  ⍝ Or ⍕⊃⎕RSI for namespace ∆F_GET called from.
     ⍝ User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
-      helpType←    'MINTERNALHELP'  
+      helpType←    'INTERNALHELP'  
 
       (from to)←(Q,'DYALOGHELP',Q)(Q,helpType,Q←'''')
       replOpts←('ML' ¯1)('Mode' 'D')
       targetOpt←(×≢targetNs)/'-target=',targetNs,' '
 
+      ⎕←'sourceUrl: ',sourceUrl
+      ⎕←'targetNs:  ',targetNs
+      ⎕←'helpType:  ',helpType
+      
       nm← ⎕SE.UCMD'get ', targetOpt, sourceUrl   ⍝ ]nm←get ...
       nm← (⍎targetNs).⎕FX(from ⎕R to ⍠replOpts) ⎕NR nm
       0('Created ',nm)
