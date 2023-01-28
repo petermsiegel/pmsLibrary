@@ -1,28 +1,19 @@
-﻿ ret←∆F_GET
- ;helpType;nm;source;targetNs
- ;⎕IO;⎕ML
+﻿ret←∆F_GET
+ret← {
+      ⎕IO ⎕ML←0 1
+    0::  ⎕EN('Unable to get/process/fix ',sourceUrl)
 
- ⎕IO ⎕ML←0
+    ⍝ Key user options...
+      sourceUrl←   'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
+      targetNs←    '⎕SE'  ⍝ Or ⍕⊃⎕RSI for namespace ∆F_GET called from.
+    ⍝ User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
+      helpType←    'AINTERNALHELP'  
 
-⍝ Key options...
- source←'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
- targetNs←'⎕SE'
- helpType←'DYALOGHELPx'  ⍝ Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
+      (from to)←(Q,'DYALOGHELP',Q)(Q,helpType,Q←'''')
+      replOpts←('ML' ¯1)('Mode' 'D')
+      targetOpt←(×≢targetNs)/'-target=',targetNs,' '
 
- :Trap 0
-     nm←targetNs helpType{
-         (t h)←⍺ ⋄ s←⍵
-         Q←''''
-         XNs←⍎⌽∘(⊢↓⍨1+'.'⍳⍨⊢)∘⌽
-         (from to)←(Q,'DYALOGHELP',Q)(Q,h,Q)
-         opts←('ML' ¯1)('Mode' 'D')
-         targ←(0<≢targetNs)/'-target=',t,' '
-
-         nm←⎕SE.UCMD'get ',targ,s   ⍝ ]nm←get ...
-         ns←XNs nm
-         ns.⎕FX(from ⎕R to⍠opts)⎕NR nm
-     }source
-     ret←0('Created ',nm)
- :Else
-     ret←911('Unable to load ',source)
- :EndTrap
+      nm← ⎕SE.UCMD'get ', targetOpt, sourceUrl   ⍝ ]nm←get ...
+      nm← (⍎targetNs).⎕FX(from ⎕R to ⍠replOpts) ⎕NR nm
+      0('Created ',nm)
+} ⍬
