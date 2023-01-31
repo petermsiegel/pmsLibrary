@@ -13,7 +13,7 @@
 ⍝   See I. F-string Processing Function (I.A. Setup).
 
 ⍝ Metaconventions Used Here...
-⍝   Name Templates: FnName; varName; ⍙PSEUDO_SYS_OBJ; _tempVar; _TempFn...
+⍝   Name Templates: FnName; varName; ⍙PSEUDO_SYS_OBJ; _tempVar; _TempFn  
 ⍝   Class Suffixes: P=regexp pattern; R=regexp result; G=Global (within this fn); I=small int const.; 
 ⍝                   C=code str; Opt=option; OptS=option spec; Nm=obj namestring;
 ⍝   Other Abbrev:   TF=Text Field; CF=Code Field; SF=Space Field; CSF=Code or Space Field;
@@ -25,8 +25,8 @@
     2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵  
       hUrl← '"https://drive.google.com/file/d/', '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq', '/view?usp=sharing"'  
       'MACOSHELP'  =⍥⊃ ⍺:   ⎕CMD 'open ', hUrl
-      'DYALOGHELP' =⍥⊃ ⍺: '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',hUrl,''' />') 
-      ∘😀😀'INTERNALHELP'😀😀∘  ⍝ Default and on error       
+      'DYALOGHELP' =⍥⊃ ⍺:  '∆F HELP' (3500⌶) ('<a href=', hUrl, '><H1>CLICK HERE FOR ∆F HELP!</H1></a>')  
+      ∘∘∘'INTERNALHELP'∘∘∘  ⍝ Default and on error       
     }⊃⎕XSI 
 
   ⍝ Phase II. F-string Exec. Operator: 
@@ -39,9 +39,9 @@
   ⍝      ⍵⍵:  orig. ⍵              ⍵:  executable based on input f-string
 
     (⊃⍺)((⊃3↓⍺){    ⍝ ⍺⍺ ← (3⊃⍺) if (4=≢⍺), else 0.  [⎕IO←0]
-     0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
+    0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
     ⍝ MODE=1  (immediate execution)  
-      (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵    
+      (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵  
       (1=⍺) ∧ 9=⎕NC'⍺⍺': ⍺⍺      ⍎⍵,'⍵⍵' ⊣⍵⍵     
        1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid option (caller NS)' 11  
     ⍝ MODE∊0 ¯1    (generate and return code string; generate pseudo-code)
@@ -69,7 +69,7 @@
       0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
    
         modeOpt boxOpt nsOpt← 3↑⍺                      ⍝ Option Flags (⍺)   
-        isPseudo← ⍬⍴modeOpt<0                          ⍝ isPseudo: PSEUDO-CODE Mode   
+        isPseudo← ⍬⍴modeOpt<0                            ⍝ isPseudo: PSEUDO-CODE Mode   
 
         SetCodeVars←{ isPs bxFnNm← ⍵
           ⍝ codeVars6←  ∇ isPseudo bxFnNm 
@@ -235,7 +235,6 @@
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H > EXECNS=callerNs  Code Fields are executed in the ns from which ∆F was called (0 may be used to signify it).
   ⍝H   EXECNS=nsref     Code fields are executed in namespace <nsref>, which must be a valid namespace reference.
-  ⍝H                    This option is IGNORED if MODE≠1, since execution is left to the user (for Mode=0).
   ⍝H ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   ⍝H   ⍺≡'help'     An empty char vec (''). See HELP.
   ⍝H   ⍺≡⍬          A shy char matrix (1 0⍴' '). Right arg ⍵ is ignored. No formatting is done.

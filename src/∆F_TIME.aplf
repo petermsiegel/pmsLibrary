@@ -1,43 +1,78 @@
 ﻿ {loop}∆F_TIME expr
- ;cmpx;e1;e2;orig;oT;oT2;comp;cSum;cT;cT2;res
- ;Q
- ;⎕IO
+     ;SHOWLOOP;⎕IO
+    ;code;phasesOverSum;phasesSummed;iterXPhases;e1;e2;expressions;atomic;pOverA;iterXAtomic
+    ;phases;phasesSum;phasesTogether;rest;result;speedup
+    ;cmpx;EnQ;Micro;Pct;Time
 
- ⎕IO←0
- Q←{q←'''' ⋄ q,q,⍨(1+⍵=q)/⍵}
+  ⎕IO←0
+  SHOWLOOP←1
 
- :If 0=⎕NC'loop'
-     loop←1 10 100 1000
- :EndIf
+  EnQ←{q←'''' ⋄ q,q,⍨(1+⍵=q)/⍵}
+  Micro←{1=≢⍵: (6 0⍕1000000×⍵),' µs' ⋄ ∊' ',¨∇¨⍵}
+  Pct←  {1=≢⍵: (3 0⍕    100×⍵),'%' ⋄ ∊' ',¨∇¨⍵}
 
- 'cmpx'⎕CY'dfns'
+  expressions←'∆F expr' '⊢e1←0 ∆F expr' 'e2←⍎e1' 'e2 rest' '(⍎0 ∆F expr)rest'
+  :If PATH1←0
+      Time←{⍬⍴⎕SE.UCMD'runtime ',(EnQ ⍵),' -repeat=5s⌊10000 -details=none'}
+  :Else
+      ⋄ 'cmpx'⎕CY'dfns'
+      Time←{⍎∘cmpx'0 ⊣{',⍵,' ⋄ 0}0 '}
+  :EndIf
 
- ⎕←'expr: '(Q⊃expr)(1↓expr)
- ⎕←'Original:    ⎕←      ∆F expr'
- ⎕←'Components: '
- ⎕←' 1. compile  phase1← 0 ∆F expr'
- ⎕←' 2. eval     phase2← ⍎phase1'
- ⎕←' 3. run      ⎕←      phase2 (1↓expr)'
- ⎕←'-----------------------------------'
- ⎕←' timing...'
- e1←0 ∆F(⊃expr)
- e2←⍎e1
+  :If 0=⎕NC'loop'
+      loop←1 10 100 1000
+  :EndIf
 
- res←⍎∘cmpx¨'∆F expr' '0 ∆F expr' '{_←⍎e1 ⋄ 0}expr' 'e2 (1↓expr)'
- orig←0⊃res
- cSum←+/comp←1↓res
- ⎕←'∆F expr (orig)         '(0⍕1000000×orig),' microseconds'
- ⎕←'∆F expr (+/components) '(0⍕1000000×cSum),' microseconds'
- oT←100×comp÷orig
- ⎕←'∆F %orig total         '(0⍕oT),'% Total=',(0⍕+/oT),'%'
- cT←100×comp÷cSum
- ⎕←'∆F %components         '(0⍕cT),'% Total=',(0⍕+/cT),'%   Sanity check: must be 100%'
+  :If 0=≢expr ⋄ :ORIF 0≡expr 
+      expr←'1\⋄2{"X1,F6.4" $ ○⍪2 1}{:1}10\⋄20{ }{ "test\⋄more" % (⍪⍳3) % "F6.4" $ ○1 2}' 0
+  :EndIf
 
- ⎕SHADOW'l'
- :For l :In loop
-     ⎕←''
-     ⎕←'Over ',(⍕l),' loops...'
-     ⎕←'  Original:    '(⍕oT2←1000000×l×orig),' microsec'
-     ⎕←'  Component:   '(⍕cT2←1000000×comp[0]++/l×comp[1 2]),' microsec'
-     ⎕←'  Efficiency:  '(0⍕100×cT2÷⍨oT2),'%'
- :EndFor
+  ⎕←66⍴'⊢-⊣-'
+  ⎕←'SHOWLOOP is ',⍕SHOWLOOP
+  ⎕← '   ',(SHOWLOOP⊃ 'DO NOT show' 'Show'),' loop speedups (when ∆F compile is outside loop)'
+  ⎕←'Expression evaluated:'
+  ⎕← '  ',(EnQ⊃expr)(1↓expr)
+  ⎕←'Atomic:            ⎕←      ∆F expr'
+  ⎕←'Phases Together:   ⎕←     (⍎0 ∆F expr) (1↓expr)'
+  ⎕←'Phases Separately: '
+  ⎕←' phase1. compile   phase1← 0 ∆F expr'
+  ⎕←' phase2. eval      phase2← ⍎phase1'
+  ⎕←' phase3. run       ⎕←      phase2 (1↓expr)'
+  ⎕←'-----------------------------------'
+  ⎕←' timing...'
+
+  e1←0 ∆F expr
+  e2←⍎e1
+  rest←1↓expr
+
+  result←Time¨expressions
+
+  atomic←result[0]
+  phasesSum←+/phases←result[1 2 3]
+  phasesTogether←result[4]
+
+  ⎕←'Atomic (∆F expr)                ',Micro atomic 
+  ⎕←'Phases Together (⍎0 ∆F expr)... ',Micro phasesTogether 
+  ⎕←'Phases Individually  Summed     ',(Micro phasesSum), '  Individually: ',Micro phases
+    pOverA←phases÷atomic
+  ⎕←'Phased vs Atomic Pct             ',(,Pct pOverA),', Total=',Pct +/pOverA  
+    phasesOverSum←phases÷phasesSum
+    phasesSummed←+/phasesOverSum
+  ⎕←'Phased: Each vs Total Pct        ',(,Pct phasesOverSum),', Total=',(Pct phasesSummed)
+  :IF 1<|100×phasesSummed-1   ⍝ Verify within 1%
+      'Whoops: phases %ages should sum to 100%: actual=',Pct phasesSummed
+  :ENDIF
+
+  :IF SHOWLOOP 
+      ⎕SHADOW'iter' 
+      :For iter :In loop
+          ⎕←''
+          ⎕←'Atomic vs Phased (compile outside loop) over ',(⍕iter),' iterations...'
+            iterXAtomic← iter×atomic
+          ⎕←'  Atomic:           ',(Micro iterXAtomic) 
+            iterXPhases←phases[0]++/iter×phases[1 2]
+          ⎕←'  Phased:           ',(Micro iterXPhases) 
+            speedup← iterXAtomic÷iterXPhases
+          ⎕←'  Phased Speedup:  ',(1⍕speedup),' times'
+      :EndFor
+  :ENDIF 

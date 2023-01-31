@@ -1,15 +1,29 @@
-﻿ret←∆F_GET
+﻿ret←∆F_GET helpType
+
+⍝ helpType: User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
+  :IF 0=≢helpType ⋄ :ORIF 0≡helpType
+      helpType←    'INTERNALHELP' 
+  :Else 
+      :SELECT ⎕C ⍬⍴helpType
+          :CASE 'i' ⋄ helpType←'INTERNALHELP'
+          :CASE 'd' ⋄ helpType←'DYALOGHELP'
+          :CASE 'm' ⋄ helpType←'MACOSHELP'
+          :ELSE     ⋄ 11 ⎕SIGNAL⍨'∆F_GET helpType, where helpType is ''[INTERNALHELP | DYALOGHELP | MACOSHELP]'''
+      :ENDSELECT 
+  :ENDIF
+
 ret← {
       ⎕IO ⎕ML←0 1
-    0::  ⎕EN('Unable to get/process/fix ',sourceUrl)
+    0::  ⎕EN ('Unable to get or process or fix ',sourceUrl)
 
     ⍝ Key user options...
       sourceUrl←   'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
-      targetNs←    '⎕SE'  ⍝ Or ⍕⊃⎕RSI for namespace ∆F_GET called from.
-    ⍝ User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
-      helpType←    'INTERNALHELP'  
+      targetNs←    '⎕SE'              ⍝ (⍕⊃⎕RSI) will place ∆F in ns from which ∆F_GET is called.
+    ⍝ helpType: User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
+      helpType←    ⍵
 
-      (from to)←(Q,'DYALOGHELP',Q)(Q,helpType,Q←'''')
+      EnQ← ''''∘,,∘''''
+      (from to)←  EnQ¨ 'DYALOGHELP' helpType
       replOpts←('ML' ¯1)('Mode' 'D')
       targetOpt←(×≢targetNs)/'-target=',targetNs,' '
 
@@ -18,6 +32,6 @@ ret← {
       ⎕←'helpType:  ',helpType
       
       nm← ⎕SE.UCMD'get ', targetOpt, sourceUrl   ⍝ ]nm←get ...
-      nm← (⍎targetNs).⎕FX(from ⎕R to ⍠replOpts) ⎕NR nm
-      0('Created ',nm)
-} ⍬
+      _←  (⍎targetNs).⎕FX (from ⎕R to ⍠replOpts) ⎕NR nm
+      0 ('Created ',nm)
+} helpType
