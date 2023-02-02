@@ -1,37 +1,28 @@
-﻿ret←∆F_GET helpType
+﻿∆F_GET←{
+  ⍝ ∆F_GET: (rc msg)← [targetNsNm] ∇ helpType
+  ⍝              Retrieve ∆F.aplf from github, set requested help type.
+  ⍝ ⍵: helpType: whether help info is generated within ∆F or retrieved and 
+  ⍝              shown via Dyalog or MacOS services.
+  ⍝              Options: ['I[NTERNALHELP]'  | 'D[YALOGHELP]' | 'M[ACOSHELP]' ]      
+  ⍝              Default (if 0=≢helpType): 'INTERNALHELP'
+  ⍝ ⍺: targetNsNm: Where to place ∆F (as a char vec)
+  ⍝              Default: '#' 
+  ⍝ Returns return code (rc) and status message 
+  ⍝      Success:  0 ('Created full_fn_nm')
+  ⍝      Failure:  errno errmsg
+  ⍝ Safe choice: ∆F_GET 'I' which displays help info inside ∆F itself.
 
-⍝ helpType: User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
-  :IF 0=≢helpType ⋄ :ORIF 0≡helpType
-      helpType←    'INTERNALHELP' 
-  :Else 
-      :SELECT ⎕C ⍬⍴helpType
-          :CASE 'i' ⋄ helpType←'INTERNALHELP'
-          :CASE 'd' ⋄ helpType←'DYALOGHELP'
-          :CASE 'm' ⋄ helpType←'MACOSHELP'
-          :ELSE     ⋄ 11 ⎕SIGNAL⍨'∆F_GET helpType, where helpType is ''[INTERNALHELP | DYALOGHELP | MACOSHELP]'''
-      :ENDSELECT 
-  :ENDIF
+  ⍝ sourceUrl:   Must be defined here! 
+    sourceUrl←   'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
+    ⎕IO ⎕ML←0 1 ⋄ Qt←''''∘,,∘''''
+    ⍺←          '#'                                        ⍝ ⍺ => targetNsNm 
 
-ret← {
-      ⎕IO ⎕ML←0 1
-    0::  ⎕EN ('Unable to get or process or fix ',sourceUrl)
-
-    ⍝ Key user options...
-      sourceUrl←   'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'
-      targetNs←    '⎕SE'              ⍝ (⍕⊃⎕RSI) will place ∆F in ns from which ∆F_GET is called.
-    ⍝ helpType: User opt: HELP: Three choices: ⊣'DYALOGHELP', 'MACOSHELP', 'INTERNALHELP' (Default)
-      helpType←    ⍵
-
-      EnQ← ''''∘,,∘''''
-      (from to)←  EnQ¨ 'DYALOGHELP' helpType
-      replOpts←('ML' ¯1)('Mode' 'D')
-      targetOpt←(×≢targetNs)/'-target=',targetNs,' '
-
-      ⎕←'sourceUrl: ',sourceUrl
-      ⎕←'targetNs:  ',targetNs
-      ⎕←'helpType:  ',helpType
-      
-      nm← ⎕SE.UCMD'get ', targetOpt, sourceUrl   ⍝ ]nm←get ...
-      _←  (⍎targetNs).⎕FX (from ⎕R to ⍠replOpts) ⎕NR nm
-      0 ('Created ',nm)
-} helpType
+  0::  ⎕EN,⊂'Error retrieving or processing ',sourceUrl
+    helpTp←  'DYALOGHELP' 'MACOSHELP' 'INTERNALHELP'
+    helpSel←  Qt helpTp ⊃⍨ hIx←'DM'⍳⊃⍵                     ⍝ Default/On error: fall back to 'INTERNALHELP'
+    targetNsNm←  ⍺                                         ⍝ targetNsNm: Set via ⍺ (default set above)
+    nm← ⎕SE.UCMD'get -target=',targetNsNm,' ', sourceUrl   ⍝ ]nm← get ...   
+ hIx=0: 0,⊂'Created ',nm                                   ⍝ 'DYALOGHELP': ⎕R redundant.
+    _←  (⍎targetNsNm).⎕FX ('''DYALOGHELP''' ⎕R  helpSel ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR nm
+    0, ⊂'Created ',nm 
+}  
