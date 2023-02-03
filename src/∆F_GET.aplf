@@ -3,14 +3,14 @@
   ⍝ Import ∆F from GITHUB with requisite ¨help type¨.
   
     sourceUrl← 'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' ⍝ Must be defined here! 
-    helpTypes← 'DYALOGHELP' 'MACOSHELP' 'INTERNALHELP'          ⍝ User selects as D, M, I (anything else matches I).
+    origHT←⊃ helpTypes← 'RIDEHELP' 'MACOSHELP' 'INTERNALHELP'          ⍝ User selects as R, M, I (anything else matches I).
     ⎕IO ⎕ML←0 1 ⋄ QT←'''' ⋄ NLSP←(⎕UCS 13),5⍴' ' 
     ⍺← '#' ⋄ targetNsNm←  ⍕⍺                                    ⍝ ⍺: targetNsNm: Default: '#'  
-    helpSel← helpTypes ⊃⍨ hIx←'DM'⍳⊃⍵                           ⍝ ⍵: helpSel. 2 ← 'I' is default.                                            
+    helpSel← helpTypes ⊃⍨ hIx←'RM'⍳⊃⍵                           ⍝ ⍵: helpSel. 2 ← 'I' is default.                                            
   0::  ⎕EN,⊂'Error retrieving ',sourceUrl,NLSP,'Target ns: ',targetNsNm 
     fnNm← ⎕SE.UCMD'get -target=',targetNsNm,' ', sourceUrl      ⍝ ]nm← get ...   
   hIx=0: 0,⊂'Created ',fnNm,' with help type ',helpSel          ⍝ 'DYALOGHELP': ⎕R redundant.
   0::  ⎕EN,⊂'Created ',fnNm,NLSP,'Error setting requested help type.'
-    fxNm← (⍎targetNsNm).⎕FX ('''DYALOGHELP''' ⎕R  (QT,QT,⍨helpSel) ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR fnNm
+    fxNm← (⍎targetNsNm).⎕FX ((QT,QT,⍨origHT) ⎕R  (QT,QT,⍨helpSel) ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR fnNm
     0≠1↑0⍴fxNm: 0, ⊂'Created ',fnNm,' with help type ',helpSel ⋄ ∘ERR∘
 }  
