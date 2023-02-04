@@ -26,9 +26,10 @@
     2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵  
     ⍝ Google Drive URL...
       helpUrl← '"https://drive.google.com/file/d/', '/view?usp=sharing"',⍨ '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq'
-    ⍝ Send URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
-      'HELP:RIDE'≡⍺: '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
-      ∘😀😀'HELP:BASIC'😀😀∘  ⍝ Default and on error       
+    ⍝ 'HELP:RIDE': Send URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
+      'R'∊⍺:  '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
+    ⍝ 'HELP:BASIC':  Gather help info in this function by default and on error       
+      ∘😀😀∘   
     }⊃⎕XSI 
 
   ⍝ Phase II. F-string Exec. Operator: 
