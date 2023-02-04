@@ -1,16 +1,17 @@
-﻿∆F_GET←{
-  ⍝ ([retc|⎕EN] retmsg)←  [⍺:targetNsNm←'#']  ∆F_GET  [⍵:helpSelection|''≡'INTERNALHELP']
+﻿retc←∆F_GET
+  retc←{
+  ⍝ ([retc|⎕EN] retmsg)←  ∆F_GET  
   ⍝ Import ∆F from GITHUB with requisite ¨help type¨.
-  
-    sourceUrl← 'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' ⍝ Must be defined here! 
-    origHT←⊃ helpTypes← 'RIDEHELP' 'MACOSHELP' 'INTERNALHELP'          ⍝ User selects as R, M, I (anything else matches I).
+    helpType←   'HELP:BASIC' {0=≢⍵~' ':⍺⋄⍵}⍞↓⍨≢ ⍞←'Help type: HELP:BASIC or HELP:RIDE? [HELP:BASIC] '
+    targetNsNm← '#'          {0=≢⍵~' ':⍺⋄⍵}⍞↓⍨≢ ⍞←'Target namespace? [#]'
+    sourceUrl← ⍵    
+     
     ⎕IO ⎕ML←0 1 ⋄ QT←'''' ⋄ NLSP←(⎕UCS 13),5⍴' ' 
-    ⍺← '#' ⋄ targetNsNm←  ⍕⍺                                    ⍝ ⍺: targetNsNm: Default: '#'  
-    helpSel← helpTypes ⊃⍨ hIx←'RM'⍳⊃⍵                           ⍝ ⍵: helpSel. 2 ← 'I' is default.                                            
+
   0::  ⎕EN,⊂'Error retrieving ',sourceUrl,NLSP,'Target ns: ',targetNsNm 
-    fnNm← ⎕SE.UCMD'get -target=',targetNsNm,' ', sourceUrl      ⍝ ]nm← get ...   
-  hIx=0: 0,⊂'Created ',fnNm,' with help type ',helpSel          ⍝ 'DYALOGHELP': ⎕R redundant.
+    fnNm← ⎕SE.UCMD'get -target=',targetNsNm,' ', sourceUrl        ⍝ ]nm← get ...   
+  'HELP:RIDE'≡⍵: 0,⊂'Created ',fnNm,' with help type ',helpType          ⍝ 'HELP:RIDE': ⎕R redundant.
   0::  ⎕EN,⊂'Created ',fnNm,NLSP,'Error setting requested help type.'
-    fxNm← (⍎targetNsNm).⎕FX ((QT,QT,⍨origHT) ⎕R  (QT,QT,⍨helpSel) ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR fnNm
-    0≠1↑0⍴fxNm: 0, ⊂'Created ',fnNm,' with help type ',helpSel ⋄ ∘ERR∘
-}  
+    fxNm← (⍎targetNsNm).⎕FX ((QT,QT,⍨origHT) ⎕R  (QT,QT,⍨helpType) ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR fnNm
+    0≠1↑0⍴fxNm: 0, ⊂'Created ',fnNm,' with help type ',⍵ ⋄ ∘ERR∘
+}  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' ⍝ Must be defined here!  

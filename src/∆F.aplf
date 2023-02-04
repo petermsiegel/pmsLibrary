@@ -21,14 +21,14 @@
 
     ⍺←1 0 0 0
   ⍬≡⍺: _←1 0⍴'' 
- 'help'≡⎕C ⍺: 1 0⍴''⊣ 'RIDEHELP' {   
+⍝ HELP:   Use 1) External URL and Ride for HELP vs 2) Basic Help generated internally
+ 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP:RIDE' {     
     2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵  
     ⍝ Google Drive URL...
       helpUrl← '"https://drive.google.com/file/d/', '/view?usp=sharing"',⍨ '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq'
-      'MACOSHELP'=⍥⊃ ⍺:   ⎕CMD 'open ', helpUrl
-    ⍝ Send URL to Dyalog Ride 
-      'RIDEHELP' =⍥⊃ ⍺: '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
-      ∘😀😀'INTERNALHELP'😀😀∘  ⍝ Default and on error       
+    ⍝ Send URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
+      'HELP:RIDE'≡⍺: '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
+      ∘😀😀'HELP:BASIC'😀😀∘  ⍝ Default and on error       
     }⊃⎕XSI 
 
   ⍝ Phase II. F-string Exec. Operator: 
