@@ -4,13 +4,13 @@
 ⍝        f-string: char vector with formatting specifications
 ⍝        args: arguments visible to f-string code expressions 
 ⍝              ⍹1=1st arg after f-string (⎕IO independent)
-⍝        opts: [MODE BOX NS←1 0 0 | 'help' | ⍬]
-⍝ For help, execute 
+⍝        opts: [MODE BOX NS EXECNS←[1 [0 [0 [0]]]] | 'help'* | ⍬]  
+⍝ For help, execute                                             *=Any case
 ⍝   ∆F⍨'help' ... or see ⍝H "HELP" comments at the bottom of this function.
 ⍝ See help PDF at:
 ⍝   https://drive.google.com/file/d/1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq/view
 ⍝ For internal error handling, 
-⍝   See I. F-string Processing Function (I.A. Setup).
+⍝   See I. F-string Processing Function (I.A. Setup), below.
 
 ⍝ Metaconventions Used Here...
 ⍝   Name Templates: FnName; varName; ⍙PSEUDO_SYS_OBJ; _tempVar; _TempFn...
@@ -22,38 +22,38 @@
     ⍺←1 0 0 0
   ⍬≡⍺: _←1 0⍴'' 
 ⍝ HELP:   Use 1) External URL and Ride for HELP vs 2) Basic Help generated internally
- 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP:RIDE' {     
+ 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP:RIDE' {    ⍝ Be sure 'HELP:RIDE' here is first instance!!!  
     2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵  
     ⍝ Google Drive URL...
       helpUrl← '"https://drive.google.com/file/d/', '/view?usp=sharing"',⍨ '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq'
     ⍝ 'HELP:RIDE': Send URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
       'R'∊⍺:  '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
     ⍝ 'HELP:BASIC':  Gather help info in this function by default and on error       
-      ∘😀😀∘   
+      ∘😀😀∘  ⍝ Go to 2:: above 
     }⊃⎕XSI 
 
-  ⍝ Phase II. F-string Exec. Operator: 
+  ⍝ Phase II. F-string Code Execution Operator: 
   ⍝    MODE
-  ⍝    1   Execute executable in caller NS, Return formatted mx result
-  ⍝    0   Generate executable string,      Return it
-  ⍝   ¯1   Generate Pseudo-code string      Return it
+  ⍝    1   Execute executable immediately,  then return formatted matrix result.
+  ⍝    0   Package executable code string,  then return it.
+  ⍝   ¯1   Package pseudocode string,       then return it.
   ⍝    Syntax: ⍺ (⍺⍺ ∇∇ ⍵⍵) ⍵
-  ⍝      ⍺:   MODE  (orig. ⊃⍺)    ⍺⍺:  offset in ⎕RSI to caller namespace (default: 0)
+  ⍝      ⍺:   MODE  (orig. ⊃⍺)    ⍺⍺:  execution namespace ref (default 0 means the caller ns)
   ⍝      ⍵⍵:  orig. ⍵              ⍵:  executable based on input f-string
 
     (⊃⍺)((⊃3↓⍺){    ⍝ ⍺⍺ ← (3⊃⍺) if (4=≢⍺), else 0.  [⎕IO←0]
      0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
-    ⍝ MODE=1  (immediate execution)  
-      (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵    
-      (1=⍺) ∧ 9=⎕NC'⍺⍺': ⍺⍺      ⍎⍵,'⍵⍵' ⊣⍵⍵     
-       1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid option (caller NS)' 11  
-    ⍝ MODE∊0 ¯1    (generate and return code string; generate pseudo-code)
+    ⍝ MODE=1  (immediate execution: execute)  
+      (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵           ⍝ Default namespace 
+      (1=⍺) ∧ 9.1=⎕NC⊂'⍺⍺': ⍺⍺   ⍎⍵,'⍵⍵' ⊣⍵⍵           ⍝ User-specified namespace
+       1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid execution namespace' 11  
+    ⍝ MODE∊0 ¯1  (prepend error code to executable code; wrap executable or pseudocode in fn call)
         errC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
         WrapSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{', (errC/⍨ 0≤⍺), ⍵, (WrapSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))⍺{ 
 
-  ⍝ Phase I.  F-string Processing Function
+  ⍝ Phase I.  F-string Processing ("Compilation") Function
   ⍝      Returns executable based on input f-string to anon dfn "I. (F-string Exec. Operator)"
   ⍝      Syntax:  ⍺ ∇ ⍵   (⍺ as from caller; ⍵ is ⊆⍵ from caller).
   ⍝   I.A. Setup

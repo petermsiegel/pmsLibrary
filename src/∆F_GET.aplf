@@ -1,17 +1,31 @@
-﻿retc←∆F_GET
-  retc←{
-    ⎕IO ⎕ML←0 1 ⋄ QT←'''' ⋄ NLSP←(⎕UCS 13),5⍴' ' 
-    hBasic hRide←'HELP:BASIC' 'HELP:RIDE' 
-  ⍝ ([retc|⎕EN] retmsg)←  ∆F_GET  
-  ⍝ Import ∆F from GITHUB with requisite ¨help type¨.
-    hType←      hBasic hRide {'R'∊⍵:⊃⌽⍺ ⋄ ⊃⍺} 1⎕C⍞↓⍨≢ ⍞←'Help type: BASIC(B) or RIDE(R)? [B] '
-    targetNsNm← '#'          {0=≢⍵~' ':⍺⋄⍵ }     ⍞↓⍨≢ ⍞←'Target namespace? [#] '
-    sourceUrl←  ⍵    
+﻿retc←∆F_GET ;srcFi
+⍝ ([retc|⎕EN] retmsg)←  ∆F_GET  
+⍝ Import ∆F from GITHUB with requisite ¨help type¨.  
+⍝ Prompts for (1) help type: (B)asic-- help inside ∆F itself; (R)ide-- help displayed via URL.
+⍝             (2) target namespace: where to locate ∆F.
 
-  0::  ⎕EN,⊂'Error retrieving ',sourceUrl,NLSP,'Target ns: ',targetNsNm 
-    fnNm← ⎕SE.UCMD'get -target=',targetNsNm,' ', sourceUrl        ⍝ ]nm← get ...   
-  hRide≡⍵: 0,⊂'Created ',fnNm,' with help type ',hType          ⍝ 'HELP:RIDE': ⎕R redundant.
-  0::  ⎕EN,⊂'Created ',fnNm,NLSP,'Error setting requested help type.'
-    fxNm← (⍎targetNsNm).⎕FX ((QT,QT,⍨hRide) ⎕R  (QT,QT,⍨hType) ⍠ ('ML' ¯1)('Mode' 'D')) ⎕NR fnNm
-    0≠1↑0⍴fxNm: 0, ⊂'Created ',fnNm,' with help type ',hType ⋄ ∘ERR∘
-}  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' ⍝ Must be defined here!  
+⍝ Source file: must be defined here!  
+  srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' 
+  retc←{
+
+    ⎕IO ⎕ML←0 1 ⋄ NlSp←(⎕UCS 13),5⍴' ' 
+
+  ⍝ Prompts
+    ⎕←'Prompting for (1) help type (Basic or Ride-based) and (2) target namespace (for ∆F)'
+    hSel hSelNm←     {'R'∊⍵: 1 'RIDE' ⋄ 0 'BASIC'} 1⎕C⍞↓⍨≢ ⍞← 'Help type: BASIC(B) or RIDE(R)? [B] '
+    targNsNm←    '#' {0=≢⍵~' ':⍺ ⋄ ⍵}                 ⍞↓⍨≢ ⍞← 'Target namespace? [#] '
+    ⎕←'Note: For help using ∆F, enter ',targNsNm,'.∆F⍨''help'''
+ 
+    srcUrl←       ⍵    
+
+  0::  ⎕EN,⊂'Error retrieving ',srcUrl,NlSp,'Target ns: ',targNsNm 
+    fnNm← ⎕SE.UCMD'get -target=',targNsNm,' ', srcUrl             ⍝ ]nm← get ...   
+  hSel:   0,⊂'Created ',fnNm,' with help type ',hSelNm            ⍝ 'HELP:RIDE': ⎕R redundant.
+
+  0::  ⎕EN,⊂'Created ',fnNm,NlSp,'Error setting help type: ',hSelNm
+    SetHelp ← 'HELP:RIDE' ⎕R  'HELP:BASIC' ⍠ ('ML' ¯1)('Mode' 'D')
+    fixNm← (⍎targNsNm).⎕FX SetHelp ⎕NR fnNm
+    0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',hSelNm
+    ∘😀ERR😀∘
+
+  } srcFi
