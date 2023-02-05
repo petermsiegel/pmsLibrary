@@ -7,7 +7,6 @@
 ⍝ Source file: must be defined here!  
   srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' 
   retc←{
-
     ⎕IO ⎕ML←0 1 ⋄ NlSp←(⎕UCS 13),5⍴' ' 
 
   ⍝ Prompts
@@ -20,10 +19,10 @@
 
   0::  ⎕EN,⊂'Error retrieving ',srcUrl,NlSp,'Target ns: ',targNsNm 
     fnNm← ⎕SE.UCMD'get -target=',targNsNm,' ', srcUrl             ⍝ ]nm← get ...   
-  hSel:   0,⊂'Created ',fnNm,' with help type ',hSelNm            ⍝ 'HELP:RIDE': ⎕R redundant.
+  hSel:   0,⊂'Created ',fnNm,' with help type ',hSelNm            ⍝ 'HELP=_RIDE_': ⎕R redundant.
 
   0::  ⎕EN,⊂'Created ',fnNm,NlSp,'Error setting help type: ',hSelNm
-    SetHelp ← 'HELP:RIDE' ⎕R  'HELP:BASIC' ⍠ ('ML' ¯1)('Mode' 'D')
+    SetHelp ← 'HELP=_RIDE_' ⎕R  'HELP=_BASIC_' ⍠ ('ML' ¯1)('Mode' 'D')
     fixNm← (⍎targNsNm).⎕FX SetHelp ⎕NR fnNm
     0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',hSelNm
     ∘😀ERR😀∘

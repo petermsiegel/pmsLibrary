@@ -22,14 +22,12 @@
     ⍺←1 0 0 0
   ⍬≡⍺: _←1 0⍴'' 
 ⍝ HELP:   Use 1) External URL and Ride for HELP vs 2) Basic Help generated internally
- 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP:RIDE' {    ⍝ Be sure 'HELP:RIDE' here is first instance!!!  
-    2::  ⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵  
-    ⍝ Google Drive URL...
+ 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP=_RIDE_' {   ⍝ Don't move this keyword 'HELP=_RIDE_' 
+    ⍝ 'HELP:BASIC' (default):  Gather help info in this function (marked '⍝H')  
+      'HELP=_RIDE_'≢⍺:⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵    
+    ⍝ 'HELP=_RIDE_': Send helpfile URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
       helpUrl← '"https://drive.google.com/file/d/', '/view?usp=sharing"',⍨ '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq'
-    ⍝ 'HELP:RIDE': Send URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
-      'R'∊⍺:  '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
-    ⍝ 'HELP:BASIC':  Gather help info in this function by default and on error       
-      ∘😀😀∘  ⍝ Go to 2:: above 
+      '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
     }⊃⎕XSI 
 
   ⍝ Phase II. F-string Code Execution Operator: 
