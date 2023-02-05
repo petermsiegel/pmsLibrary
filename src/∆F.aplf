@@ -22,10 +22,10 @@
     ⍺←1 0 0 0
   ⍬≡⍺: _←1 0⍴'' 
 ⍝ HELP:   Use 1) External URL and Ride for HELP vs 2) Basic Help generated internally
- 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP=_RIDE_' {   ⍝ Don't move this keyword 'HELP=_RIDE_' 
-    ⍝ 'HELP:BASIC' (default):  Gather help info in this function (marked '⍝H')  
-      'HELP=_RIDE_'≢⍺:⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵    
-    ⍝ 'HELP=_RIDE_': Send helpfile URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
+ 'help'≡⎕C ⍺: 1 0⍴''⊣ 'HELP.RIDE' {   ⍝ Don't move this keyword 'HELP.RIDE' 
+    ⍝ 'HELP.BASIC' (default):  Gather help info in this function (marked '⍝H')  
+      'HELP.RIDE'≢⍺:⎕ED 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍵    
+    ⍝ 'HELP.RIDE': Send helpfile URL to Dyalog Ride.  <meta...> displays the requested URL immediately... 
       helpUrl← '"https://drive.google.com/file/d/', '/view?usp=sharing"',⍨ '1x82YiNDTHlw0uMFgcElIRSFfK_PnLeOq'
       '∆F HELP' (3500⌶) ('<meta http-equiv="Refresh" content=''0; url=',helpUrl,''' />') 
     }⊃⎕XSI 
