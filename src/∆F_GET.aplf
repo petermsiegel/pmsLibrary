@@ -26,5 +26,5 @@
     fixNm← (⍎targNsNm).⎕FX SetHelp ⎕NR fnNm
     0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',hSelNm
     ∘😀ERR😀∘
-
+    
   } srcFi
