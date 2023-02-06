@@ -22,7 +22,7 @@
   hSel:   0,⊂'Created ',fnNm,' with help type ',hSelNm            ⍝ 'HELP=_RIDE_': ⎕R redundant.
 
   0::  ⎕EN,⊂'Created ',fnNm,NlSp,'Error setting help type: ',hSelNm
-    SetHelp ← '(HELP_RIDE←1)' ⎕R '(HELP_RIDE←0)' ⍠ ('ML' ¯1)('Mode' 'D')('Regex' 0)
+    SetHelp ← '\(HELP_RIDE *← *1\)' ⎕R '(HELP_RIDE←0)' ⍠ ('ML' ¯1)('Mode' 'D') 
     fixNm← (⍎targNsNm).⎕FX SetHelp ⎕NR fnNm
     0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',hSelNm
     ∘😀ERR😀∘
