@@ -7,26 +7,22 @@
 ⍝ Source file: must be defined here!  
   srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' 
   retc←{
-      ⎕IO ⎕ML←0 1 ⋄ NlSp5←(⎕UCS 13),5⍴' ' 
-
-  ⍝ Prompts
-      ⎕← 'Prompting for (1) help type (Basic or Ride-based) and (2) target namespace (for ∆F)'
+      ⎕IO ⎕ML←0 1 ⋄ Nl Pad←(⎕UCS 13) (5⍴' ') 
+      srcUrl←       ⍵    
+⍝ Prompts
+      ⍞← 'Prompting for',Nl
+      ⍞←  Pad,'(1) help type (Basic or Ride-based), and',Nl
+      ⍞←  Pad,'(2) target namespace (for ∆F)',Nl
       isR helpTp←  {'R'∊⍵: 1 'RIDE' ⋄ 0 'BASIC'} 1⎕C⍞↓⍨≢ ⍞← 'Help type: BASIC(B) or RIDE(R)? [B] '
       targNs←  '#' {0=≢⍵~' ':⍺ ⋄ ⍵}                 ⍞↓⍨≢ ⍞← 'Target namespace? [#] '
       ⎕← 'Note: For help using ∆F, enter ',targNs,'.∆F⍨''help'''
- 
-      srcUrl←       ⍵    
-
-  0:: ⎕EN,⊂'Error retrieving ',srcUrl,NlSp5,'Target ns: ',targNs 
+⍝ Retrieve using ]GET
+  0:: ⎕EN,⊂'Error retrieving ',srcUrl,Nl,Pad,'Target ns: ',targNs,Nl,Pad,'Help type: ',helpTp 
       fnNm← ⎕SE.UCMD'get -target=',targNs,' ', srcUrl             ⍝ ]nm← get ...   
-
+⍝ Process help type (as needed)
   isR:   0,⊂'Created ',fnNm,' with help type ',helpTp             
-
-  0:: ⎕EN,⊂'Created ',fnNm,NlSp5,'Error setting help type: ',helpTp
       SetHelp ← '\(HELP_RIDE *← *1\)' ⎕R '(HELP_RIDE←0)' ⍠ ('ML' ¯1)('Mode' 'D') 
       fixNm← (⍎targNs).⎕FX SetHelp ⎕NR fnNm
-
   0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',helpTp
       ∘😀ERR😀∘
-    
   } srcFi
