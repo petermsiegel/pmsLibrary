@@ -1,0 +1,33 @@
+﻿retc←∆F_GET ;srcFi
+⍝ ([retc|⎕EN] retmsg)←  ∆F_GET  
+⍝ Import ∆F from GITHUB with requisite ¨help type¨.  
+⍝ Prompts for (1) help type: (B)asic-- help inside ∆F itself; (R)ide-- help displayed via URL.
+⍝             (2) target namespace: where to locate ∆F.
+
+⍝ Source file: must be defined here!  
+  srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' 
+  ⎕←'⍝------------------------------------------------------------------------'
+  ⎕←'⍝ Execute the following code to get ∆F.aplf into the current namespace.'
+  ⎕←'⍝ If you want another namespace, change ⎕THIS in the statement below to the desired namespace.'
+  ⎕←'⍝ E.g.:    _NS_← ⎕SE  ⍝ would change destination to the session namespace ⎕SE'
+  ⎕←''
+  ⎕←'  _NS_←⎕THIS'
+  ⎕←'  ]get -target=_NS_ ',srcFi
+  ⎕←''
+  ⎕←'⍝ By default, ∆F uses RIDE to display an external URL-encoded helpfile'
+  ⎕←'⍝ If that''s ok, you are DONE. Go to "cleanup" below...'
+  ⎕←'⍝------------------------------------------------------------------------'
+  ⎕←'⍝ Optionally...'
+  ⎕←'⍝ If you want to use a built-in text helpfile, enter the following...'
+  ⎕←''
+  ⎕←'  _SetHelp_ ← ''\(HELP_RIDE *← *1\)'' ⎕R ''(HELP_RIDE←0)'' ⍠ (''ML'' ¯1)(''Mode'' ''D'')'
+  ⎕←'  ⊢{⍵.⎕FX _SetHelp_ ⍵.⎕NR ''∆F''} _NS_  '
+  ⎕←''
+  ⎕←'⍝ If the response is ∆F, then let''s cleanup'
+  ⎕←'⍝ +-----------+'
+  ⎕←'⍝ +  Cleanup  +'
+  ⎕←'⍝ +-----------+'
+  ⎕←'  ⎕EX ''_SetHelp_'' ''_NS_'''
+  ⎕←'⍝ ALL DONE NOW!!!'
+  ⎕←'⍝------------------------------------------------------------------------'
+
