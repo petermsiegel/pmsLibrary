@@ -1,4 +1,4 @@
-﻿retc←∆F_GET ;srcFi
+﻿retc←∆F_GET targNs;srcFi
 ⍝ ([retc|⎕EN] retmsg)←  ∆F_GET  
 ⍝ Import ∆F from GITHUB with requisite ¨help type¨.  
 ⍝ Prompts for (1) help type: (B)asic-- help inside ∆F itself; (R)ide-- help displayed via URL.
@@ -7,25 +7,11 @@
 ⍝         (failure):  ⎕EN, ⊂'Error retrieving <srcUrl>\n  Target ns: <targNs>\n  Help type: <RIDE|BASIC>'
 
 ⍝ Source file: must be defined here!  
-  srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf' 
-  retc←{
-      ⎕IO ⎕ML←0 1 ⋄ Nl Pad←(⎕UCS 13) (5⍴' ') 
-      srcUrl←       ⍵    
-⍝ Info...
-      ⎕← 'Prompting for'
-      ⎕←  Pad,'(1) help type (Basic or Ride-based), and' 
-      ⎕←  Pad,'(2) target namespace (for ∆F)' 
-⍝ Prompts
-      isR helpTp←  {'R'∊⍵: 1 'RIDE' ⋄ 0 'BASIC'} 1⎕C⍞↓⍨≢ ⍞← 'Help type: BASIC(B) or RIDE(R)? [B] '
-      targNs←  '#' {0=≢⍵~' ':⍺ ⋄ ⍵}                 ⍞↓⍨≢ ⍞← 'Target namespace? [#] '
-      ⎕← 'Note: For help using ∆F, enter ',targNs,'.∆F⍨''help'''
+  srcFi←  'https://github.com/petermsiegel/pmsLibrary/blob/master/src/∆F.aplf'  
+  :IF 0=≢targNs
+       targNs← '#'
+  :Endif 
 ⍝ Retrieve using ]GET
-  0:: ⎕EN,⊂'Error retrieving ',srcUrl,Nl,Pad,'Target ns: ',targNs,Nl,Pad,'Help type: ',helpTp 
-      fnNm← ⎕SE.UCMD'get -target=',targNs,' ', srcUrl             ⍝ ]nm← get ...   
-⍝ Process help type (as needed)
-  isR:   0,⊂'Created ',fnNm,' with help type ',helpTp             
-      SetHelp ← '\(HELP_RIDE *← *1\b' ⎕R '(HELP_RIDE←0' ⍠ ('ML' ¯1)('Mode' 'D') 
-      fixNm← (⍎targNs).⎕FX SetHelp ⎕NR fnNm
-  0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',helpTp
-      ∘😀ERR😀∘
-  } srcFi
+      fnNm← ⎕SE.UCMD'get -target=',(⍕targNs),' ', srcFi            
+⍝ Return
+     0,⊂'Created ',fnNm    
