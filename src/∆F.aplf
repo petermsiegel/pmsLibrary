@@ -13,9 +13,9 @@
 ⍝   See I. F-string Processing Function (I.A. Setup), below.
 
 ⍝ Metaconventions Used Here...
-⍝   Name Templates: FnName; varName; ⍙PSEUDO_SYS_OBJ; _tempVar; _TempFn...
-⍝   Class Suffixes: P=regexp pattern; R=regexp result; G=Global (within this fn); I=small int const.; 
-⍝                   C=code str; Opt=option; OptS=option spec; Nm=obj namestring;
+⍝   Name Templates: FnName; varName; _tempVar; _TempFn...
+⍝   Class Suffixes: _P=regexp pattern; _R=regexp result; _G=Global (within this fn); _I=small int const.; 
+⍝                   _C=code str; _Opt=option; _OptS=option spec; _Nm=obj namestring;
 ⍝   Other Abbrev:   TF=Text Field; CF=Code Field; SF=Space Field; CSF=Code or Space Field;
 ⍝                   DQ=double quotes or DQ strings; SQ=single quotes...
 
@@ -63,6 +63,7 @@
   
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
+        honorUnicodeEsc← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
         cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 3⊃⍺ here.
         Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
       ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
@@ -122,19 +123,23 @@
    
         ⍝ I.B.2a. Process Code Field Double-Quoted String Escapes[see "Case dqStrI"]  
         ⍝   DQStrEsc 
+        ⍝ Note: honorUnicodeEsc set at "I.A. Fn Setup" near top... (Experimental)
+        ⍝       If 0, unicode escapes are simply ignored (left as is).
+        ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
           dq2P←     '"{2}'                                         ⍝ ""  => "
           e2DmdP←   '\\{2}⋄'                                       ⍝ \\⋄ => \⋄
           e1DmdP←   '\\{1}⋄'                                       ⍝ \⋄  => \r   (carriage return)
           unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'  ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
           dqStrEscPats← dq2P e2DmdP e1DmdP unicodeP
                         dq2I e2DmdI e1DmdI unicodeI← ⍳≢dqStrEscPats
-          DQStrEsc←  dqStrEscPats  ⎕R {
+          DQStrEsc←  (dqStrEscPats↓⍨-~honorUnicodeEsc)  ⎕R {
               ⋄ Case← ⍵.PatternNum∘∊
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
             Case dq2I:  '"'
             Case e2DmdI: 1↓Fld 0 
             Case e1DmdI: CR '\⋄'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
-          ⍝ Case unicodeI:  
+            ~honorUnicodeEsc: ''⊣⎕←'∆F LOGIC ERROR [honorUnicodeEsc]'
+          ⍝ Case unicodeI: Never reached if honorUnicodeEsc=0 
             2=≢Fld 1: 1↓Fld 0      
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
             0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
