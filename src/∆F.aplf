@@ -1,6 +1,6 @@
 ∆F←{ 
 ⍝ Simple formatting  function in APL style, inspired by Python f-strings.
-⍝ Syntax: [opts] ∆F f-string  args
+⍝ Syntax: [opts] ∆F f-string  args 
 ⍝        f-string: char vector with formatting specifications
 ⍝        args: arguments visible to f-string code expressions 
 ⍝              ⍹1=1st arg after f-string (⎕IO independent)
