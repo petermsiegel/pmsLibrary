@@ -24,7 +24,7 @@
       fnNm← ⎕SE.UCMD'get -target=',targNs,' ', srcUrl             ⍝ ]nm← get ...   
 ⍝ Process help type (as needed)
   isR:   0,⊂'Created ',fnNm,' with help type ',helpTp             
-      SetHelp ← '\(HELP_RIDE *← *1\)' ⎕R '(HELP_RIDE←0)' ⍠ ('ML' ¯1)('Mode' 'D') 
+      SetHelp ← '\(HELP_RIDE *← *1\b' ⎕R '(HELP_RIDE←0' ⍠ ('ML' ¯1)('Mode' 'D') 
       fixNm← (⍎targNs).⎕FX SetHelp ⎕NR fnNm
   0≠1↑0⍴fixNm: 0, ⊂'Created ',fnNm,' with help type ',helpTp
       ∘😀ERR😀∘
