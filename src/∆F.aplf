@@ -13,7 +13,7 @@
 ⍝   See I. F-string Processing Function (I.A. Setup), below.
 
 ⍝ Metaconventions Used Here...
-⍝   Name Templates: FnName; varName; _tempVar; _TempFn...
+⍝   Name Templates: FnName; varName; _tempVar; _TempFn; CONSTANT_PARAMETER; ...
 ⍝   Class Suffixes: _P=regexp pattern; _R=regexp result; _G=Global (within this fn); _I=small int const.; 
 ⍝                   _C=code str; _Opt=option; _OptS=option spec; _Nm=obj namestring;
 ⍝   Other Abbrev:   TF=Text Field; CF=Code Field; SF=Space Field; CSF=Code or Space Field;
@@ -45,7 +45,7 @@
      0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
     ⍝ MODE=1  (immediate execution: execute)  
       (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵           ⍝ Default namespace 
-      (1=⍺) ∧ 9.1=⎕NC⊂'⍺⍺': ⍺⍺   ⍎⍵,'⍵⍵' ⊣⍵⍵           ⍝ User-specified namespace
+      (1=⍺) ∧ 9.1 9.2∊⍨⎕NC⊂'⍺⍺': ⍺⍺   ⍎⍵,'⍵⍵' ⊣⍵⍵      ⍝ 9.1: user-specified namespace; 9.2 for ⎕SE or # via quirk of ⍺⍺ 
        1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid execution namespace' 11  
     ⍝ MODE∊0 ¯1  (prepend error code to executable code; wrap executable or pseudocode in fn call)
         errC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
@@ -63,7 +63,10 @@
   
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
-        honorUnicodeEsc← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
+      ⍝ CONSTANT FLAGS...
+        UCS_ESC_ENABLED← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
+        SQ_SPECIAL_IN_CF←1                             ⍝ Are SQ in code fields special (balanced) or "just" chars?
+
         cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 3⊃⍺ here.
         Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
       ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
@@ -123,23 +126,26 @@
    
         ⍝ I.B.2a. Process Code Field Double-Quoted String Escapes[see "Case dqStrI"]  
         ⍝   DQStrEsc 
-        ⍝ Note: honorUnicodeEsc set at "I.A. Fn Setup" near top... (Experimental)
+        ⍝ Note: UCS_ESC_ENABLED set at "I.A. Fn Setup" near top... (Experimental)
         ⍝       If 0, unicode escapes are simply ignored (left as is).
         ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
           dq2P←     '"{2}'                                         ⍝ ""  => "
           e2DmdP←   '\\{2}⋄'                                       ⍝ \\⋄ => \⋄
           e1DmdP←   '\\{1}⋄'                                       ⍝ \⋄  => \r   (carriage return)
-          unicodeP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'  ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
-          dqStrEscPats← dq2P e2DmdP e1DmdP unicodeP
-                        dq2I e2DmdI e1DmdI unicodeI← ⍳≢dqStrEscPats
-          DQStrEsc←  (dqStrEscPats↓⍨-~honorUnicodeEsc)  ⎕R {
+          ucsEscP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
+          dqStrEscPats← dq2P e2DmdP e1DmdP ucsEscP
+                        dq2I e2DmdI e1DmdI ucsEscI← ⍳≢dqStrEscPats
+
+          dqStrEscPats↓⍨← -~UCS_ESC_ENABLED
+
+          DQStrEsc←  dqStrEscPats  ⎕R {
               ⋄ Case← ⍵.PatternNum∘∊
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
             Case dq2I:  '"'
             Case e2DmdI: 1↓Fld 0 
             Case e1DmdI: CR '\⋄'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
-            ~honorUnicodeEsc: ''⊣⎕←'∆F LOGIC ERROR [honorUnicodeEsc]'
-          ⍝ Case unicodeI: Never reached if honorUnicodeEsc=0 
+            ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED]' ⍝ Should never be reached if ~UCS_ESC_ENABLED
+          ⍝ Case ucsEscI: Never reached if ~UCS_ESC_ENABLED
             2=≢Fld 1: 1↓Fld 0      
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
             0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
@@ -156,8 +162,12 @@
           omegaNP←  '[⍵⍹](\d+)'                        ⍝ ⍹N, ⍵N        
           omega0P←  '⍵_|⍹_?'                           ⍝ ⍹ ⍵_
           comP←     '⍝[^}⋄]+'                          ⍝ Comments: (limited pattern)                         
-          csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P 
-                   dqStrI sqStrI comI dolI pctI omegaNI omega0I←⍳≢csfPats
+        ⍝ SQ_SPECIAL_IN_CF requires SQ strings to be balanced in code fields 
+          csfPats← dqStrP comP dolP pctP omegaNP omega0P sqStrP 
+                   dqStrI comI dolI pctI omegaNI omega0I sqStrI ←⍳≢csfPats
+
+          csfPats↓⍨← -~SQ_SPECIAL_IN_CF
+          
           omegaG←0
         ProcCSF←  WrapPrn {                            ⍝ Parens around each result!
             parensOnly←⍺
@@ -165,21 +175,22 @@
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
               Case dqStrI: ' ',WrapSQ DQStrEsc 1↓¯1↓Fld 0  ⍝ DQ String: Escapes applied
-              Case sqStrI: Fld 0                       ⍝ SQ String: No Escapes applied
               Case comI:   ''                          ⍝ Ignore comments...
               Case dolI:   dolCodeV⊃⍨ 2=≢Fld 1         ⍝ $/$$: ⎕FMT/BOX
               Case pctI:   pctCodeV⊃⍨ 2=≢Fld 1         ⍝ %,%%: OVER/CHAIN
               Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1       ⊣  omegaG⊢← ⊃⌽⎕VFI f1←Fld 1              
               Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaG  ⊣  omegaG+← 1   
+            ⍝ Not reached unless SQ_SPECIAL_IN_CF=1
+              Case sqStrI: ' ',Fld 0                   ⍝ SQ String: No Escapes applied. Not: WrapSQ 1↓¯1↓Fld 0        
             } ⍵                                          
           parensOnly: code                             ⍝ Return a code str with no refs to ⍺, ⍵, ...
             _Decor←('⍺'/⍨nsOpt)∘,'{',,∘'}⍵'            ⍝ Code str decorations: ⍺{...}⍵
-            _Trim← ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}                ⍝ _Trim: Remove trailing ' ⋄'
-            sfx←¯1↑trm← _Trim code                     ⍝ _sfx: last (non-trailing) char
-            notSD← ~sfx∊'→↓'                           ⍝ Does _sfx mean self-documenting code?                          
-          notSD: _Decor code                           ⍝  - NO:  Return the code
-            jDC← chainC overC⊃⍨ sfx='↓'                ⍝  + YES: Join doc+code via CHAIN or OVER.
-            (WrapSQ ⍵), jDC, _Decor ¯1↓trm             ⍝         with quoted doc and trimmed code 
+            _Trim← ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}                ⍝ _Trim:       Remove trailing ' ⋄'
+            sfx←¯1↑trm← _Trim code                     ⍝ sfx:         Last (non-trailing) char
+            notSD← ~sfx∊'→↓'                           ⍝ sfx ∊ '→↓'?  we have self-documenting code.                         
+          notSD: _Decor code                           ⍝    If NO:    Return the code
+            jDC← chainC overC⊃⍨ sfx='↓'                ⍝    If YES:   Join doc+code via CHAIN or OVER.
+            (WrapSQ ⍵), jDC, _Decor ¯1↓trm             ⍝              with quoted doc and trimmed code 
         }
           
       ⍝ I.B.3. Process all fields by type, set by Tok2Flds below.  
@@ -200,9 +211,15 @@
           sf1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'    
           ⋄ sf1R←    TagTF '\1'                        ⍝ {' '}  Constant quoted Space Field => (' ')
           sf2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'     
-          ⋄ sf2R←    TagSF '\1⍴'''''                   ⍝ {:nn:} Numeric/⍵N Space Field      => (nn⍴'') etc.                              
-          cfP← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+          ⋄ sf2R←    TagSF '\1⍴'''''                   ⍝ {:nn:} Numeric/⍵N Space Field      => (nn⍴'') etc.   
+        ⍝ cfP: match a code field {...}. Space fields are handled via sf1P and sf2P 
+        ⍝   Option 1: Only include dq strings inside                       
+          ⋄ cfP1← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"⍝\\]+   | (?:\\.)+ | (?:"[^"]*")+                   | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+        ⍝   Option 2: Allow matching single quotes as alternate to double quotes...
+          ⋄ cfP2← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+          cfP← SQ_SPECIAL_IN_CF⊃ cfP1 cfP2
           ⋄ cfR←     TagCF '\2'                        ⍝ {code} Code Field                  => ([⍺]{code}⍵)
+  
           tokPV←  sfNullP sf1P sf2P cfP 
           tokRV←  sfNullR sf1R sf2R cfR
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
@@ -213,7 +230,7 @@
         AddPreamble ProcFlds Tok2Flds ⊆⊃⍵
     }⊆⍵  
 
-  ⍝… INTERNAL HELP DOCUMENTATION STARTS HERE ………………………………………………………………………………………………………………………………………
+  ⍝………………………………………………………………… INTERNAL HELP DOCUMENTATION STARTS HERE ……………………………………………………………………………
   ⍝H ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  
   ⍝H ∆F: Simple format string function in an APL style based on 2D text, variables and code, 
   ⍝H     and space fields, with shortcuts for numeric formatting, titles, and more. 

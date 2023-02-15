@@ -1,19 +1,20 @@
 ﻿ ∆F_TEST eachSec
- ;RUN;BEGIN;LET;SAY
- ;C2F
+ ;RUN;DONE;EXPECT;LET;SAY
  ;RGB;Who;addr;c;hdrC;hdrF;names;x
- ;errsG;tripG
+ ;errsG;expectG;resultG;tripG
  ;⎕PW;⎕IO;⎕ML
 
 
  ⎕PW ⎕IO ⎕ML←100 0 1
 
  errsG←0
- ⎕FX'BEGIN' 'RUN ⍬'
- ⎕FX'LET IT' 'RUN IT'
- ⎕FX'SAY IT' 'RUN IT'
+ expectG←resultG←⍬
+ ⎕FX'LET IT' '⎕←IT' '⍎IT'
+ ⎕FX'SAY IT' '⎕←IT'
+ ⎕FX'EXPECT IT' 'expectG,←⊂IT' '⎕←IT'
 
  RUN←{CR←⎕UCS 13
+     expectG∘←resultG∘←⍬
      pre←CR,30⍴'-*'
      exp←'>>> Expected Answer >>>'
      err←'>>> Expected Answer >>>'
@@ -22,171 +23,181 @@
      ('⍝'=⊃)⍵~' ':⎕←⍵↓⍨(2×'⍝ '≡2↑⍵)
      0=≢⍵:_←0⊣⎕←pre ⋄ (0=≢)⍵~' ':_←0⊣⎕←pre
      isF←×≢'∆F'⎕S 0⊢⍵
-     ⎕←(isF/fmt),⍵ ⋄ ⎕←⍎⍵
+     ⎕←(isF/fmt),⍵
+     ⎕←resultG∘←⍎⍵
      isF:⎕←exp⊣⎕DL eachSec
      1:_←⎕DL eachSec
  }
+ ⎕FX'DONE' '⎕←''--- NO MATCH'' ''+++ MATCH''⊃⍨resultG≡↑expectG' '⎕←⍬' 'resultG←expectG←⍬'
 
- BEGIN
  LET' names←↑''John Jones'' ''Mary Smith'' '
  LET' addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
 
- BEGIN
  SAY'⍝ Example 1a:  Text and Code Fields "chained" together horizontally.'
  RUN'∆F''Name: {names}  Addr:{addr}'''
- SAY'⍝ Name: John Jones  Addr: 1214 Maiden Ln'
- SAY'⍝       Mary Smith        24 Hersham Rd'
+ EXPECT'Name: John Jones  Addr: 1214 Maiden Ln'
+ EXPECT'      Mary Smith        24 Hersham Rd'
+ DONE
 
- BEGIN
  SAY'⍝ Example 1b:  Self-documenting code expressions {...→} in Code Fields.'
  RUN'∆F''{names→}  {addr→}'''
- SAY'⍝ names→John Jones  addr→ 1214 Maiden Ln'
- SAY'⍝       Mary Smith        24 Hersham Rd'
+ EXPECT'names→John Jones  addr→ 1214 Maiden Ln'
+ EXPECT'      Mary Smith        24 Hersham Rd'
+ DONE
 
- BEGIN
+
  SAY'⍝ Example 1c:  Titles (using the OVER shortcut %).'
  SAY'⍝ Note that strings in Code Fields {code} use double quotes like "this!".'
  RUN'∆F''{"Name" %names}  {"Address" %addr}'''
- SAY'⍝    Name        Address'
- SAY'⍝ John Jones   1214 Maiden Ln'
- SAY'⍝ Mary Smith   24 Hersham Rd'
+ EXPECT'   Name        Address'
+ EXPECT'John Jones   1214 Maiden Ln'
+ EXPECT'Mary Smith   24 Hersham Rd'
+ DONE
 
- BEGIN
+
  SAY'⍝ Example 1d: Adding a calculated field with line numbers (and one "null" title).'
  SAY'⍝    ↓ Null Title               ⊢→→       Same as (1c)        ←←⊣'
  RUN'∆F''{⍬ %"I1,⊂.⊃"$1+⍳≢names}{"Name" %names}  {"Address" %addr}'''
- SAY'⍝      Name        Address'
- SAY'⍝ 1. John Jones  1214 Maiden Ln'
- SAY'⍝ 2. Mary Smith  24 Hersham Rd'
+ EXPECT'     Name        Address'
+ EXPECT'1. John Jones  1214 Maiden Ln'
+ EXPECT'2. Mary Smith  24 Hersham Rd'
+ DONE
 
- BEGIN
+
  SAY'⍝ Example 2:  Calculations and Formatting in Code Fields ($ is a shortcut for ⎕FMT).'
  SAY'⍝ Assume these declarations:'
  LET' c←100 20 12 23 ¯2'
  LET' C2F←32+1.8∘×           ⍝ Celsius to Fahr.'
 
- BEGIN
  SAY'⍝ Example 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.'
  SAY'⍝ (Degree sign (°): ⎕UCS 176)  Result is a 5-row 15-col char matrix.'
  RUN'∆F''{⍵1 $ c}C = {⍵1 $ C2F c}F'' ''I3,⊂°⊃'''
- SAY'⍝ 100°C = 212°F'
- SAY'⍝  20°     68°'
- SAY'⍝  12°     54°'
- SAY'⍝  23°     73°'
- SAY'⍝  ¯2°     28°'
+ EXPECT'100°C = 212°F'
+ EXPECT' 20°     68°'
+ EXPECT' 12°     54°'
+ EXPECT' 23°     73°'
+ EXPECT' ¯2°     28°'
+ DONE
 
- BEGIN
  SAY'⍝ Example 2b: Format specification hard-wired in Code Field.'
  SAY'⍝ Note alternative way to enter degree sign ''°'' as Unicode 176: "\{176}".'
  RUN'∆F''{"I3,⊂°⊃"$ c}C = {"F5.1,⊂\{176}⊃"$ C2F c}F'''
- SAY'⍝ 100°C = 212.0°F'
- SAY'⍝  20°     68.0°'
- SAY'⍝  12°     53.6°'
- SAY'⍝  23°     73.4°'
- SAY'⍝  ¯2°     28.4°'
+ EXPECT'100°C = 212.0°F'
+ EXPECT' 20°     68.0°'
+ EXPECT' 12°     53.6°'
+ EXPECT' 23°     73.4°'
+ EXPECT' ¯2°     28.4°'
+ DONE
 
- BEGIN
  SAY'⍝ Example 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.'
  LET' hdrC←''Celsius'''
  LET' hdrF←''Fahren.'''
  RUN'∆F''{hdrC %"I3,⊂°⊃"$c}  {hdrF%"F5.1,⊂°⊃"$C2F c}'''
- SAY'⍝ Celsius  Fahren.'
- SAY'⍝  100°    212.0°'
- SAY'⍝   20°     68.0°'
- SAY'⍝   12°     53.6°'
- SAY'⍝   23°     73.4°'
- SAY'⍝   ¯2°     28.4°'
+ EXPECT'Celsius  Fahren.'
+ EXPECT' 100°    212.0°'
+ EXPECT'  20°     68.0°'
+ EXPECT'  12°     53.6°'
+ EXPECT'  23°     73.4°'
+ EXPECT'  ¯2°     28.4°'
+ DONE
 
- BEGIN
  SAY'⍝ Example 3a: BOX display option (1=⊃⌽⍺).'
  SAY'⍝ Displays each field in its own "box" (ignoring null (0-width) fields)'
  RUN'1 1 ∆F''one{}{}{ }two  {"three"}{:3}four.'''
- SAY'⍝ ┌→──┐┌→┐┌→────┐┌→────┐┌→──┐┌→────┐'
- SAY'⍝ │one││·││two··││three││···││four.│'
- SAY'⍝ └───┘└─┘└─────┘└─────┘└───┘└─────┘'
+ EXPECT'┌→──┐┌→┐┌→────┐┌→────┐┌→──┐┌→────┐'
+ EXPECT'│one││·││two··││three││···││four.│'
+ EXPECT'└───┘└─┘└─────┘└─────┘└───┘└─────┘'
+ DONE
 
- BEGIN
  SAY'⍝ Example 3b: (3a) without the BOX option (0=⊃⌽⍺).'
  RUN'∆F''one{}{}{ }two  {"three"}{:3}four.'''  ⍝ Or: 1 0 ∆F ...'
- SAY'⍝ one two  three   four.'
+ EXPECT'one two  three   four.'
+ DONE
 
- BEGIN
  SAY'⍝ Example 4a: Use of ⍹ to reference the next scalar in right argument ⍵.'
  SAY'⍝   ⍝             ⍹1≡1⊃⍵       ⍹2≡2⊃⍵                (⎕IO←0)'
  RUN'∆F''{"Name" %⍹} {"Addr"%⍹}'' ''J. Smith'' '' 24 Broad Ln'' '
- SAY'⍝   Name         Addr'
- SAY'⍝ J. Smith  24 Broad Ln'
+ EXPECT'  Name         Addr'
+ EXPECT'J. Smith  24 Broad Ln'
+ DONE
 
- BEGIN
  SAY'⍝ Example 4b: Interaction of ⍹N and simple ⍹.'
  RUN'∆F''{⍹5 ⍹} {⍹3 ⍹} {⍹1 ⍹}'' 1 2 3 4 5 6 '
- SAY'⍝ 5 6 3 4 1 2'
+ EXPECT'5 6 3 4 1 2'
+ DONE
+
 
  RUN'∆F''πr²={pi←○1 ⋄ r←2 ⋄ pi×r×2}'''
- SAY'⍝ πr²=12.56637061'
+ EXPECT'πr²=12.56637061'
+ DONE
 
  RUN'∆F''π={"F10.8"$○1}!'''
- SAY'⍝ π=3.14159265!'
+ EXPECT'π=3.14159265!'
+ DONE
 
  RUN'∆F'' 1 SP="{}",5 SP="{:5:}"'''
- SAY'⍝  1 SP="",5 SP="     "'
+ EXPECT'1 SP="",5 SP="     "'
+ DONE
 
  RUN'∆F''This is a\⋄three-line\⋄field!'''
- SAY'⍝ This is a'
- SAY'⍝ three-line'
- SAY'⍝ field!'
+ EXPECT'This is a'
+ EXPECT'three-line'
+ EXPECT'field!'
+ DONE
 
- BEGIN
  RUN'∆F''<{"\{97-108}...\{57-48}"}>'''
- SAY'⍝ <abcdefghijkl...9876543210>'
+ EXPECT'<abcdefghijkl...9876543210>'
+ DONE
+ DONE
 
- BEGIN
  LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{ }{Who}'''
- SAY'⍝ Name: Mary'
- SAY'⍝ Rank: Captain'
+ EXPECT'Name: Mary'
+ EXPECT'Rank: Captain'
+ DONE
 
- BEGIN
- RUN' Who←↑''Mary'' ''Captain'''
+ LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{} {Who}'''
- SAY'⍝ Name: Mary'
- SAY'⍝ Rank: Captain'
+ EXPECT'Name: Mary'
+ EXPECT'Rank: Captain'
+ DONE
 
- BEGIN
  LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:5:}{Who}'''
- SAY'⍝ Name:     Mary'
- SAY'⍝ Rank:     Captain'
+ EXPECT'Name:     Mary'
+ EXPECT'Rank:     Captain'
+ DONE
 
- BEGIN
  LET' Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:⍵1:}{Who}'' 5 '
- SAY'⍝ Name:     Mary'
- SAY'⍝ Rank:     Captain'
+ EXPECT'Name:     Mary'
+ EXPECT'Rank:     Captain'
+ DONE
 
- BEGIN
  SAY'⍝ APL vs Python!'
  SAY'⍝ APL                                 # Python'
  SAY'⍝ Build fields all at once L to R     # Build annotations row by row'
  LET' RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
  RUN'∆F''R:\⋄G:\⋄B:{ }{⍪RGB}''          ⍝    print((f''R: {R}\nG: {G}\nB: {B}''))'
- SAY'⍝ R: 123                              ⍝  R: 123    # Python'
- SAY'⍝ G: 145                              ⍝  G: 145    # Python'
- SAY'⍝ B: 255                              ⍝  B: 255    # Python'
+ EXPECT'R: 123' ⍝  R: 123    # Python'
+ EXPECT'G: 145' ⍝  G: 145    # Python'
+ EXPECT'B: 255' ⍝  B: 255    # Python'
+ DONE
 
- BEGIN
  SAY'⍝ Use APL for base conversions, etc.  # Base conversions are built in'
- RUN'∆F ''''''{"11"[2⊥⍣¯1⊢⍵1]}'''''' 7 '             ⍝     f''{7:b}'''
- SAY'⍝ ''111''                                 ⍝ ''111''        # Python'
+ RUN'∆F ''''''{"11"[2⊥⍣¯1⊢⍵1]}'''''' 7 '         ⍝     f''{7:b}'''
+ EXPECT'''111'''                                 ⍝ ''111''        # Python'
+ DONE
 
- BEGIN
  SAY'⍝ Formatting Floats old-fashioned?    # Similar approach, different conventions'
- LET' x←20.123                           ⍝     x = 20.123'
- RUN'∆F''{"F8.5"$x}'' ⍝ Usr calcs width ⍝     print(f''{x:0<8}'')   # User calcs width'
- SAY'⍝ 20.12300                            ⍝  20.12300   # Python'
- RUN'∆F''{5⍕x}''      ⍝ APL calcs width ⍝     print(f''{x:0.5 f}'')   # Python calcs width'
- SAY'⍝  20.12300                           ⍝  20.12300   # Python'
+ LET' x←20.123'                           ⍝     x = 20.123'
+ RUN'∆F''{"F8.5"$x}'''   ⍝ Usr calcs width ⍝     print(f''{x:0<8}'')   # User calcs width'
+ EXPECT'20.12300'                            ⍝  20.12300   # Python'
+ DONE
 
+ RUN'∆F''{5⍕x}'''⍝ APL calcs width ⍝     print(f''{x:0.5 f}'')   # Python calcs width'
+ EXPECT' 20.12300'                      ⍝  20.12300   # Python'
+ DONE
 
  77⍴'*='
  :If 0=errsG
