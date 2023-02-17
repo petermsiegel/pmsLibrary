@@ -64,9 +64,10 @@
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
       ⍝ CONSTANT FLAGS... 
-      ⍝ UCS_ESC_ENABLED: Supports DQ-string \{ddd} and \{ddd-eee}, where ddd, eee are 1 or more digits.
         UCS_ESC_ENABLED← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
-  
+      ⍝ SQ_SPECIAL_IN_CF: When 0, odd things occur with parsing code fields. So probably should be locked in.
+        SQ_SPECIAL_IN_CF←1                             ⍝ Are SQ in code fields special (balanced) or "just" chars?
+
         cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 3⊃⍺ here.
         Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
       ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
@@ -132,7 +133,7 @@
           dq2P←     '"{2}'                                         ⍝ ""  => "
           e2DmdP←   '\\{2}⋄'                                       ⍝ \\⋄ => \⋄
           e1DmdP←   '\\{1}⋄'                                       ⍝ \⋄  => \r   (carriage return)
-          ucsEscP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{ddd-eee}, \{ddd}, \\{anything else}
+          ucsEscP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{nnn-mmm}, \{nnn}, \\{anything else}
           dqStrEscPats← dq2P e2DmdP e1DmdP ucsEscP
                         dq2I e2DmdI e1DmdI ucsEscI← ⍳≢dqStrEscPats
 
@@ -143,10 +144,9 @@
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
             Case dq2I:  '"'
             Case e2DmdI: 1↓Fld 0 
-            Case e1DmdI: CR '␍'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
-          ⍝ Should never be reached unless UCS_ESC_ENABLED
-            ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 
-          ⍝ Case ucsEscI 
+            Case e1DmdI: CR '\⋄'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
+            ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED]' ⍝ Should never be reached if ~UCS_ESC_ENABLED
+          ⍝ Case ucsEscI: Never reached if ~UCS_ESC_ENABLED
             2=≢Fld 1: 1↓Fld 0      
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
             0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
@@ -154,17 +154,20 @@
         ⍝ I.B.2b. Process Code and Space Fields
         ⍝   ProcCSF
         ⍝   - Returns executable code
-          dqStrP←   '(?:"[^"]*")+'                     ⍝ "...". Escapes honored.
-          sqStrP←   '(?:''[^'']*'')+'                  ⍝ '...'. Escapes ignored (not honored).
-          comP←     '⍝[^}⋄]*'                          ⍝ Comments: (limited pattern)                         
+          dqStrP←   '(("[^"]*")+)'                     ⍝ "..." 
+          sqStrP←   '((''[^'']*'')+)'                  ⍝ '...' Should this exist or are single quotes not special?
           dolP←     '\h*(\${1,2})\h*'                  ⍝ $ and $$ shortcuts.   
           ⋄ dolCodeV← fmtC boxFnC
           pctP←     '\h*(\%{1,2})\h*'                  ⍝ % and %% shortcuts
           ⋄ pctCodeV←  overC chainC
           omegaNP←  '[⍵⍹](\d+)'                        ⍝ ⍹N, ⍵N        
           omega0P←  '⍵_|⍹_?'                           ⍝ ⍹ ⍵_
-          csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P
-                   dqStrI sqStrI comI dolI pctI omegaNI omega0I ←⍳≢csfPats
+          comP←     '⍝[^}⋄]+'                          ⍝ Comments: (limited pattern)                         
+        ⍝ SQ_SPECIAL_IN_CF requires SQ strings to be balanced in code fields 
+          csfPats← dqStrP comP dolP pctP omegaNP omega0P sqStrP 
+                   dqStrI comI dolI pctI omegaNI omega0I sqStrI ←⍳≢csfPats
+
+          csfPats↓⍨← -~SQ_SPECIAL_IN_CF
           
           omegaG←0
         ProcCSF←  WrapPrn {                            ⍝ Parens around each result!
@@ -173,13 +176,13 @@
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
               Case dqStrI: ' ',WrapSQ DQStrEsc 1↓¯1↓Fld 0  ⍝ DQ String: Escapes applied
-              Case sqStrI: ' ',Fld 0                   ⍝ SQ String: No Escapes applied. Not: WrapSQ 1↓¯1↓Fld 0        
               Case comI:   ''                          ⍝ Ignore comments...
               Case dolI:   dolCodeV⊃⍨ 2=≢Fld 1         ⍝ $/$$: ⎕FMT/BOX
               Case pctI:   pctCodeV⊃⍨ 2=≢Fld 1         ⍝ %,%%: OVER/CHAIN
               Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1       ⊣  omegaG⊢← ⊃⌽⎕VFI f1←Fld 1              
               Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaG  ⊣  omegaG+← 1   
-              ○○ LOGIC ERROR: NOT REACHABLE ○○
+            ⍝ Not reached unless SQ_SPECIAL_IN_CF=1
+              Case sqStrI: ' ',Fld 0                   ⍝ SQ String: No Escapes applied. Not: WrapSQ 1↓¯1↓Fld 0        
             } ⍵                                          
           parensOnly: code                             ⍝ Return a code str with no refs to ⍺, ⍵, ...
             _Decor←('⍺'/⍨nsOpt)∘,'{',,∘'}⍵'            ⍝ Code str decorations: ⍺{...}⍵
@@ -210,8 +213,12 @@
           ⋄ sf1R←    TagTF '\1'                        ⍝ {' '}  Constant quoted Space Field => (' ')
           sf2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'     
           ⋄ sf2R←    TagSF '\1⍴'''''                   ⍝ {:nn:} Numeric/⍵N Space Field      => (nn⍴'') etc.   
-        ⍝ cfP: match a code field {...}.  
-          cfP← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+        ⍝ cfP: match a code field {...}. Space fields are handled via sf1P and sf2P 
+        ⍝   Option 1: Only include dq strings inside                       
+          ⋄ cfP1← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"⍝\\]+   | (?:\\.)+ | (?:"[^"]*")+                   | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+        ⍝   Option 2: Allow matching single quotes as alternate to double quotes...
+          ⋄ cfP2← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+          cfP← SQ_SPECIAL_IN_CF⊃ cfP1 cfP2
           ⋄ cfR←     TagCF '\2'                        ⍝ {code} Code Field                  => ([⍺]{code}⍵)
   
           tokPV←  sfNullP sf1P sf2P cfP 
@@ -382,18 +389,18 @@
   ⍝H          - {⎕NC "fred"} is easier than {⎕NC ''fred''}
   ⍝H          - In a code field, there are a few escape sequences within double-quoted strings ONLY. 
   ⍝H            Outside of these cases, backslashes (\) are, as in std APL, not special.
-  ⍝H               \⋄         indicates a carriage return (⎕UCS 13). It is returned as a visible CR (␍) if MODE=¯1.
+  ⍝H               \⋄         indicates a carriage return (⎕UCS 13). It is left as is if MODE=¯1.
   ⍝H               \\⋄        indicates chars '\⋄'
-  ⍝H               \{ddd}     indicates* (⎕UCS ddd), where ddd consists of 1 or more digits 
+  ⍝H               \{nnn}     indicates* (⎕UCS nnn), where nnn consists of 1 or more digits 
   ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
-  ⍝H               \{ddd-eee} indicates* unicode chars from ddd to eee
-  ⍝H                          inclusive, where ddd, eee are 1 or more digits  
+  ⍝H               \{nnn-ppp} indicates* unicode chars from nnn to ppp
+  ⍝H                          inclusive, where nnn,ppp are 1 or more digits  
   ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
-  ⍝H               \\{ddd}  OR  \\{ddd-eee}
-  ⍝H                     indicates literal string  \{ddd} OR \{ddd-eee}, i.e. APL text with the extra \ removed.
+  ⍝H               \\{nnn}  OR  \\{nnn-mmm}
+  ⍝H                     indicates literal string  \{nnn} OR \{nnn-mmm}, i.e. APL text with the extra \ removed.
   ⍝H               Any other variant of \{…} or backslash within strings is kept as ordinary tet:               
-  ⍝H                           "\{123+⍳5}" ==> "\{123+⍳5}"   -- unchanged, including backslash (\).
-  ⍝H                           "abc\def"   ==> "abc\def"     -- unchanged, including backslash (\).
+  ⍝H                           "\{123+⍳5}" ==> "\{123+⍳5}"   (unchanged, including \);
+  ⍝H                           "abc\def"   ==> "abc\def"     (unchanged, including \).
   ⍝H             Examples
   ⍝H             ¨¨¨¨¨¨¨¨
   ⍝H …                ∆F '"{"\{97-109}…\{57-48}"}"' 
