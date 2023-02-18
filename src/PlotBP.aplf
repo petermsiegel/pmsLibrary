@@ -1,0 +1,20 @@
+﻿ {r}←PlotBP addPulse
+ ;SYSTOLIC;DIASTOLIC;PULSE;DATE
+
+⍝ PlotBP 0   - plot SYSTOLIC and DIASTOLIC
+⍝        1     add  PULSE to plot
+
+ b←⊂10.6 123 72 70
+ b,←⊂11.8 111 66 62
+ b,←⊂12.4 122 66 62
+ b,←⊂12.7 128 74 62
+ b,←⊂13.7 119 70 59
+ b,←⊂13.9 98 56 61
+ b,←⊂14.6 126 76 78
+ b,←⊂16.7 117 72 67
+ b,←⊂17.8 122 70 71
+
+ DATE SYSTOLIC DIASTOLIC PULSE←↓⍉↑b
+ r←DATE SYSTOLIC DIASTOLIC PULSE
+
+ ⎕SE.UCMD'plot (SYSTOLIC DIASTOLIC',(addPulse/' PULSE'),') DATE'

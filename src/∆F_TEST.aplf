@@ -1,13 +1,14 @@
 ﻿ ∆F_TEST eachSec
  ;RUN;DONE;EXPECT;LET;SAY
  ;RGB;Who;addr;c;hdrC;hdrF;names;x
- ;errsG;expectG;resultG;tripG
+ ;errsG;expectG;matchG;resultG;tripG
  ;⎕PW;⎕IO;⎕ML
 
 
  ⎕PW ⎕IO ⎕ML←100 0 1
 
  errsG←0
+ matchG←0 0
  expectG←resultG←⍬
  ⎕FX'LET IT' '⎕←IT' '⍎IT'
  ⎕FX'SAY IT' '⎕←IT'
@@ -28,7 +29,7 @@
      isF:⎕←exp⊣⎕DL eachSec
      1:_←⎕DL eachSec
  }
- ⎕FX'DONE' '⎕←''--- NO MATCH'' ''+++ MATCH''⊃⍨resultG≡↑expectG' '⎕←⍬' 'resultG←expectG←⍬'
+ ⎕FX'DONE;m' 'm←resultG≡↑expectG' 'matchG+←1,~m' '⎕←m⊃''--- NO MATCH'' ''+++ MATCH''' '⎕←⍬' 'resultG←expectG←⍬'
 
  LET' names←↑''John Jones'' ''Mary Smith'' '
  LET' addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
@@ -49,7 +50,7 @@
  SAY'⍝ Example 1c:  Titles (using the OVER shortcut %).'
  SAY'⍝ Note that strings in Code Fields {code} use double quotes like "this!".'
  RUN'∆F''{"Name" %names}  {"Address" %addr}'''
- EXPECT'   Name        Address'
+ EXPECT'   Name         Address'
  EXPECT'John Jones   1214 Maiden Ln'
  EXPECT'Mary Smith   24 Hersham Rd'
  DONE
@@ -57,10 +58,10 @@
 
  SAY'⍝ Example 1d: Adding a calculated field with line numbers (and one "null" title).'
  SAY'⍝    ↓ Null Title               ⊢→→       Same as (1c)        ←←⊣'
- RUN'∆F''{⍬ %"I1,⊂.⊃"$1+⍳≢names}{"Name" %names}  {"Address" %addr}'''
- EXPECT'     Name        Address'
- EXPECT'1. John Jones  1214 Maiden Ln'
- EXPECT'2. Mary Smith  24 Hersham Rd'
+ RUN'∆F''{⍬ %"I1,⊂.⊃"$1+⍳≢names} {"Name" %names}  {"Address" %addr}'''
+ EXPECT'      Name         Address'
+ EXPECT'1. John Jones   1214 Maiden Ln'
+ EXPECT'2. Mary Smith   24 Hersham Rd'
  DONE
 
 
@@ -117,7 +118,7 @@
  SAY'⍝ Example 4a: Use of ⍹ to reference the next scalar in right argument ⍵.'
  SAY'⍝   ⍝             ⍹1≡1⊃⍵       ⍹2≡2⊃⍵                (⎕IO←0)'
  RUN'∆F''{"Name" %⍹} {"Addr"%⍹}'' ''J. Smith'' '' 24 Broad Ln'' '
- EXPECT'  Name         Addr'
+ EXPECT'  Name       Addr'
  EXPECT'J. Smith  24 Broad Ln'
  DONE
 
@@ -136,7 +137,7 @@
  DONE
 
  RUN'∆F'' 1 SP="{}",5 SP="{:5:}"'''
- EXPECT'1 SP="",5 SP="     "'
+ EXPECT' 1 SP="",5 SP="     "'
  DONE
 
  RUN'∆F''This is a\⋄three-line\⋄field!'''
@@ -200,8 +201,13 @@
  DONE
 
  77⍴'*='
- :If 0=errsG
-     'NO ERRORS!'
+ :If (=/matchG)
+     'ALL MATCHES SUCCEEDED'
  :Else
-     'ERRORS: ',errsG
+     (⊃⌽matchG),' MATCHES FAILED OUT OF ',(⊃matchG),'TOTAL'
+ :EndIf
+ :If 0=errsG
+     'NO EVALUATIONS FAILED (NO ⍎ERRORS)!'
+ :Else
+     errsG,' EVALUATIONS FAILED (⍎ ERRORS)'
  :EndIf

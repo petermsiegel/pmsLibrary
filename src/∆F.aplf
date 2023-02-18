@@ -68,12 +68,12 @@
         UCS_ESC_ENABLED← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
   
         cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 3⊃⍺ here.
-        Err← ⊂'EN' 'EM' 'Message',⍥⊂¨⊢                 ⍝ ⍺/⍵ Error Handling...
-      ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
-      ~∧/dOS∊⍨¨⍺↑⍨cOS:                ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
-      ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:          ⎕SIGNAL Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
+        Err← ⎕SIGNAL⍤⊂'EN' 'EM' 'Message',⍥⊂¨⊢         ⍝ Error Handling...
+      ((cOS1<≢)∨(1<⍴∘⍴)∨(1<|∘≡))⍺:    Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+      ~∧/dOS∊⍨¨⍺↑⍨cOS:                Err 11 '∆F DOMAIN ERROR' 'Invalid option'            
+      ((1<⍴∘⍴)∨(×80|⎕DR))⊃⍵:          Err 11 '∆F DOMAIN ERROR' 'Invalid f-string'
                                                        ⍝ ↓ Unexpected Errors...
-      0:: ⎕SIGNAL Err 11 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
+      0:: Err 911 '∆F INTERNAL ERROR', {⍺,⍵,⍨': '/⍨0≠≢⍵}/ ⎕DMX.(EM Message)  
    
         modeOpt boxOpt nsOpt← 3↑⍺                      ⍝ Option Flags (⍺)   
         isPseudo← ⍬⍴modeOpt<0                          ⍝ isPseudo: PSEUDO-CODE Mode   
@@ -116,10 +116,14 @@
           TagSF← '\r\x{1}','\r',⍨⊢                     ⍝ SF: ⎕UCS 1
           TagCF← '\r\x{0}','\r',⍨⊢                     ⍝ CF: ⎕UCS 0
 
+        ⍝ CR on output (APL text, ⎕R replacement string)
+          ⋄ CRout←   isPseudo⊃ (⎕UCS 13) '␍'
+          ⋄ CRout∆R← isPseudo⊃ '\r'      '␍'  
+
       ⍝ I.B.1. Process Text Fields
       ⍝   ProcTF   
           ptfP←  '(?<!\\)\\⋄'  '\\([{}\\])'
-          ptfR←  ('\r' '\\⋄' ⊃⍨isPseudo) '\1'  
+          ptfR←  CRout∆R '\1'  
         ProcTF← (' ',⊢)WrapSQ⍤(ptfP ⎕R ptfR)             
 
       ⍝ I.B.2. Process Code and Space Fields
@@ -137,13 +141,12 @@
                         dq2I e2DmdI e1DmdI ucsEscI← ⍳≢dqStrEscPats
 
           dqStrEscPats↓⍨← -~UCS_ESC_ENABLED
-
           DQStrEsc←  dqStrEscPats  ⎕R {
               ⋄ Case← ⍵.PatternNum∘∊
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
             Case dq2I:  '"'
             Case e2DmdI: 1↓Fld 0 
-            Case e1DmdI: CR '␍'⊃⍨isPseudo   ⊣ CR←⎕UCS 13 
+            Case e1DmdI: CRout  
           ⍝ Should never be reached unless UCS_ESC_ENABLED
             ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 
           ⍝ Case ucsEscI 
@@ -203,7 +206,9 @@
 
   ⍝ I.C. Tokenizing F-String to Fields (space fields [3 subtypes]; code fields; all else as text fields)
   ⍝      Tok2Flds    
-  ⍝      - Returns: A set of fields, each as a char vec. Any strings not tagged here default to a Text Field.                                              
+  ⍝      - Returns: A set of fields, each as a char vec. Any strings not tagged here default to a Text Field.  
+          tokFastP←'(?x) [^\\{]+ | \\[{}]?'            ⍝ Skip \{, \}; otherwise, single \.
+          ⋄ tokFastR← '\0'                                          
           sfNullP← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'       
           ⋄ sfNullR← TagTF ''                          ⍝ {}     Null Space Field            => ('')                             
           sf1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'    
@@ -214,8 +219,8 @@
           cfP← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
           ⋄ cfR←     TagCF '\2'                        ⍝ {code} Code Field                  => ([⍺]{code}⍵)
   
-          tokPV←  sfNullP sf1P sf2P cfP 
-          tokRV←  sfNullR sf1R sf2R cfR
+          tokPV←  tokFastP sfNullP sf1P sf2P cfP 
+          tokRV←  tokFastR sfNullR sf1R sf2R cfR
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
         Tok2Flds← RemoveNullF tokPV ⎕R tokRV
 
