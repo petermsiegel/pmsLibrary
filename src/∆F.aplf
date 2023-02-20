@@ -42,13 +42,13 @@
   ⍝      ⍵⍵:  orig. ⍵              ⍵:  executable based on input f-string
 
     (⊃⍺)((⊃3↓⍺){    ⍝ ⍺⍺ ← (3⊃⍺) if (4=≢⍺), else 0.  [⎕IO←0]
-     0 1000::⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
+    0 1000:: ⎕SIGNAL⊂⎕DMX.('EN' 'EM' 'Message',⍥⊂¨(999⌊EN)('∆F ',EM)Message) 
     ⍝ MODE=1  (immediate execution: execute)  
       (1=⍺) ∧ 0=⍺⍺:      (⊃⎕RSI) ⍎⍵,'⍵⍵' ⊣⍵⍵           ⍝ Default namespace 
       (1=⍺) ∧ 9.1 9.2∊⍨⎕NC⊂'⍺⍺': ⍺⍺   ⍎⍵,'⍵⍵' ⊣⍵⍵      ⍝ 9.1: user-specified namespace; 9.2 for ⎕SE or # via quirk of ⍺⍺ 
        1=⍺:              ⎕SIGNAL/'∆F DOMAIN ERROR: Invalid execution namespace' 11  
     ⍝ MODE∊0 ¯1  (prepend error code to executable code; wrap executable or pseudocode in fn call)
-        errC← '0 1000::⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
+        errC← '0 1000:: ⎕SIGNAL⊂⎕DMX.(''EN'' ''EM'' ''Message'',⍥⊂¨(999⌊EN)(''∆F '',EM)Message)⋄' 
         WrapSQ← '''','''',⍨⊢(/⍨)1+''''∘=
         '{', (errC/⍨ 0≤⍺), ⍵, (WrapSQ ⊃⍵⍵),',⍥⊆⍵}'  
     }(,⊆⍵))⍺{ 
@@ -64,7 +64,9 @@
   ⍝ I.A. Fn Setup: Error Handling, Option Flags, Shortcut/Option Code Strings
         ⎕IO ⎕ML←  0 1
       ⍝ CONSTANT FLAGS... 
-      ⍝ UCS_ESC_ENABLED: Supports DQ-string \{ddd} and \{ddd-eee}, where ddd, eee are 1 or more digits.
+      ⍝ UCS_ESC_ENABLED: Unicode Escape String 
+      ⍝    Supports DQ-string \u{ddd} OR \U{ddd} and \u{ddd-eee} or \U{ddd-eee}, 
+      ⍝    where ddd, eee are 1 or more decimal digits.
         UCS_ESC_ENABLED← 1                             ⍝ Experimental. May be 1 or 0. See dfn DQStrEsc below.
   
         cOS1←1+cOS←≢dOS← (¯1 0 1)(1 0)(1 0)            ⍝ Option (⍺) specifications. We don't validate 3⊃⍺ here.
@@ -100,7 +102,7 @@
   ⍝   I.B.1. ProcTF       - Process Text Fields
   ⍝   I.B.2.              - Process Code and Space Fields
   ⍝      I.B.2a. DQStrEsc    - Process Code Field DQ String Escapes 
-  ⍝      I.B.2b: ProcCSF     - Process Code/Space Fields
+  ⍝      I.B.2b: ProcCSf     - Process Code/Space Fields
   ⍝   I.B.3. ProcFlds     - Process All Fields    
         
       ⍝ I.B.0 (Setup / Shared Defs)
@@ -111,20 +113,27 @@
           IsCSF← ⊃∊∘(⎕UCS 0 1)  ⍝   \x{0} or \x{1}     ⍝ See TagTF/SF/CF and Tok2Flds below.
           IsSF←  ⊃=∘(⎕UCS 1)    ⍝   \x{1}   
         ⍝ Fields Tags: Tag (⎕R result) field string ⍵ and append with field boundaries... 
-        ⍝ ... as a Text (TF), Space (SF), or Code Field (CF).               
-          TagTF← '\r',     '\r',⍨⊢                     ⍝ TF: empty tag
-          TagSF← '\r\x{1}','\r',⍨⊢                     ⍝ SF: ⎕UCS 1
-          TagCF← '\r\x{0}','\r',⍨⊢                     ⍝ CF: ⎕UCS 0
+        ⍝ ... as a Text (TF), Space (SF), or Code Field (CF).    
+          CR X0 X1← ⎕UCS 13 0 1           
+          TagTF←  CR,    CR,⍨⊢                     ⍝ TF: empty tag
+          TagSF← (CR,X1),CR,⍨⊢                     ⍝ SF: ⎕UCS 1
+          TagCF← (CR,X0),CR,⍨⊢                     ⍝ CF: ⎕UCS 0
 
-        ⍝ CR on output (APL text, ⎕R replacement string)
-          ⋄ CRout←   isPseudo⊃ (⎕UCS 13) '␍'
-          ⋄ CRout∆R← isPseudo⊃ '\r'      '␍'  
-
+        ⍝ CR on output (APL text)
+          ⋄ CRout←   isPseudo⊃ CR '␍'
+  
       ⍝ I.B.1. Process Text Fields
       ⍝   ProcTF   
-          ptfP←  '(?<!\\)\\⋄'  '\\([{}\\])'
-          ptfR←  CRout∆R '\1'  
-        ProcTF← (' ',⊢)WrapSQ⍤(ptfP ⎕R ptfR)             
+        eDmdP←    '(\\+)⋄'  
+        eOtherP←  '(\\+)([{}\\])'
+        pTFPats← eDmdP eOtherP
+        ProcTF← (' ',⊢)WrapSQ⍤(pTFPats ⎕R {
+          eDmdI eOtherI← ⍳≢pTFPats
+          ⋄ Case← ⍵.PatternNum∘∊
+          ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
+          Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
+          ('\'⍴⍨⌊2÷⍨≢F1),F2 ⊣  F1 F2←Fld¨1 2
+        })             
 
       ⍝ I.B.2. Process Code and Space Fields
    
@@ -134,28 +143,25 @@
         ⍝       If 0, unicode escapes are simply ignored (left as is).
         ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
           dq2P←     '"{2}'                                         ⍝ ""  => "
-          e2DmdP←   '\\{2}⋄'                                       ⍝ \\⋄ => \⋄
-          e1DmdP←   '\\{1}⋄'                                       ⍝ \⋄  => \r   (carriage return)
-          ucsEscP← '(\\{1,2})\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'   ⍝ \{ddd-eee}, \{ddd}, \\{anything else}
-          dqStrEscPats← dq2P e2DmdP e1DmdP ucsEscP
-                        dq2I e2DmdI e1DmdI ucsEscI← ⍳≢dqStrEscPats
-
-          dqStrEscPats↓⍨← -~UCS_ESC_ENABLED
-          DQStrEsc←  dqStrEscPats  ⎕R {
-              ⋄ Case← ⍵.PatternNum∘∊
-              ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
+          eDmdP←    '(\\+)⋄'                                       ⍝ \\⋄ => \⋄, \⋄ => CRout
+          ucsEscP←  '(\\+)[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'  ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
+          dqStrEscPats← dq2P eDmdP ucsEscP
+          dqStrEscPatsAlt← dqStrEscPats↓⍨ -~UCS_ESC_ENABLED
+          DQStrEsc←  dqStrEscPatsAlt  ⎕R {
+            dq2I eDmdI ucsEscI← ⍳≢dqStrEscPats
+            ⋄ Case← ⍵.PatternNum∘∊
+            ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
             Case dq2I:  '"'
-            Case e2DmdI: 1↓Fld 0 
-            Case e1DmdI: CRout  
+            Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
           ⍝ Should never be reached unless UCS_ESC_ENABLED
             ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 
-          ⍝ Case ucsEscI 
-            2=≢Fld 1: 1↓Fld 0      
-              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 
-            0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+          ⍝ Case ucsEscI     
+              ~2|≢Fld 1: 1↓Fld 0
+              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 ⋄ bk←1↓Fld 1 
+            0=≢end: bk,⎕UCS beg ⋄ bk,⎕UCS beg+(×∆)×⍳1+|∆←end-beg
           } 
         ⍝ I.B.2b. Process Code and Space Fields
-        ⍝   ProcCSF
+        ⍝   ProcCSf
         ⍝   - Returns executable code
           dqStrP←   '(?:"[^"]*")+'                     ⍝ "...". Escapes honored.
           sqStrP←   '(?:''[^'']*'')+'                  ⍝ '...'. Escapes ignored (not honored).
@@ -167,12 +173,12 @@
           omegaNP←  '[⍵⍹](\d+)'                        ⍝ ⍹N, ⍵N        
           omega0P←  '⍵_|⍹_?'                           ⍝ ⍹ ⍵_
           csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P
-                   dqStrI sqStrI comI dolI pctI omegaNI omega0I ←⍳≢csfPats
           
           omegaG←0
-        ProcCSF←  WrapPrn {                            ⍝ Parens around each result!
+        ProcCSf←  WrapPrn {                            ⍝ Parens around each result!
             parensOnly←⍺
             code← csfPats ⎕R {
+              dqStrI sqStrI comI dolI pctI omegaNI omega0I ←⍳≢csfPats
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
               Case dqStrI: ' ',WrapSQ DQStrEsc 1↓¯1↓Fld 0  ⍝ DQ String: Escapes applied
@@ -201,36 +207,44 @@
           CondBox← (WrapPrn boxModeC,⊢)⍣boxOpt         ⍝ If boxmode, put ⍵ in a box!
           CondSV←  (WrapPrn (','/⍨1=≢⍤⊣),1↓⊢)⍣boxOpt   ⍝ If boxmode, treat scalar ⍵ as vector for boxing
         ProcFlds← Pad2Flds CondBox∘{ 
-            IsCSF ⍵: (IsSF ⍵) ProcCSF 1↓⍵ ⋄ ⍵ CondSV ProcTF ⍵  ⍝ IsCSF: Is it a CF or SF?  IsSF: Is it a SF?
+            IsCSF ⍵: (IsSF ⍵) ProcCSf 1↓⍵ ⋄ ⍵ CondSV ProcTF ⍵  ⍝ IsCSF: Is it a CF or SF?  IsSF: Is it a SF?
         }¨
 
   ⍝ I.C. Tokenizing F-String to Fields (space fields [3 subtypes]; code fields; all else as text fields)
   ⍝      Tok2Flds    
   ⍝      - Returns: A set of fields, each as a char vec. Any strings not tagged here default to a Text Field.  
-          tokFastP←'(?x) [^\\{]+ | \\[{}]?'            ⍝ Skip \{, \}; otherwise, single \.
-          ⋄ tokFastR← '\0'                                          
-          sfNullP← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'       
-          ⋄ sfNullR← TagTF ''                          ⍝ {}     Null Space Field            => ('')                             
-          sf1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'    
-          ⋄ sf1R←    TagTF '\1'                        ⍝ {' '}  Constant quoted Space Field => (' ')
-          sf2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'     
-          ⋄ sf2R←    TagSF '\1⍴'''''                   ⍝ {:nn:} Numeric/⍵N Space Field      => (nn⍴'') etc.   
-        ⍝ cfP: match a code field {...}.  
-          cfP← '(?x) (?<P> (?<!\\) \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
-          ⋄ cfR←     TagCF '\2'                        ⍝ {code} Code Field                  => ([⍺]{code}⍵)
+          tokTFP←  '(?x)  (?> [^\\{}]+ | \\{2}+ | \\{1}[⋄{}] | \\{1} )+ '                 ⍝ Text Fields                                      
+          tokSF0P← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'                        ⍝ Space Fields {}  
+          tokSF1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'                                       ⍝ Space Fields {  }
+          tokSF2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'  ⍝ Space Fields {:5:} {:⍵2:}    
+        ⍝ Match code fields, including sundry recursive and quoted internals              ⍝ Code Fields
+          tokCFP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | '
+          tokCFP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
   
-          tokPV←  tokFastP sfNullP sf1P sf2P cfP 
-          tokRV←  tokFastR sfNullR sf1R sf2R cfR
+          tokPV←  tokTFP tokSF0P tokSF1P tokSF2P tokCFP 
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
-        Tok2Flds← RemoveNullF tokPV ⎕R tokRV
-
-  ⍝ I.D. Executive: Put it all together
+        Tok2Flds← RemoveNullF tokPV ⎕R {
+            tokTFI tokSF0I tokSF1I tokSF2I tokCFI←⍳≢tokPV
+            ⋄ Case← ⍵.PatternNum∘∊
+            ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
+            Case tokTFI:  Fld 0
+            Case tokSF0I: TagTF ''
+            Case tokSF1I: TagTF Fld 1
+            Case tokSF2I: TagSF '(', f1, '⍴'''')' ⊣ f1← Fld 1
+            Case tokCFI:  TagCF Fld 2
+        }
+  ⍝+-------------------------------------+⍝
+  ⍝+ I.D. Executive: Put it all together +⍝
+  ⍝+-------------------------------------+⍝
         ⋄ AddPreamble← (nsOpt/'(⎕NS⍬)') ,'{','}',⍨ chainFoldC,(∊⌽⍣ (~isPseudo))
         AddPreamble ProcFlds Tok2Flds ⊆⊃⍵
     }⊆⍵  
 
   ⍝………………………………………………………………… INTERNAL HELP DOCUMENTATION STARTS HERE ……………………………………………………………………………
-  ⍝H ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  ∆F  
+  ⍝H+---------------------+
+  ⍝H+        ∆F           +
+  ⍝H+---------------------+
+  ⍝H
   ⍝H ∆F: Simple format string function in an APL style based on 2D text, variables and code, 
   ⍝H     and space fields, with shortcuts for numeric formatting, titles, and more. 
   ⍝H     Inspired by, but divergent from, F Strings in Python.
@@ -299,7 +313,7 @@
   ⍝H
   ⍝H     ⍝ 2b: Format specification hard-wired in Code Field. 
   ⍝H     ⍝     Note alternative way to enter '°' as unicode 176 (decimal).
-  ⍝H …     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\{176}⊃" $ (32+1.8∘×) c }F'  
+  ⍝H …     ∆F '{ "I3,⊂°⊃" $ c }C = { "F5.1,⊂\u{176}⊃" $ (32+1.8∘×) c }F'  
   ⍝H  100°C = 212.0°F
   ⍝H   20°     68.0° 
   ⍝H   12°     53.6° 
@@ -389,22 +403,22 @@
   ⍝H            Outside of these cases, backslashes (\) are, as in std APL, not special.
   ⍝H               \⋄         indicates a carriage return (⎕UCS 13). It is returned as a visible CR (␍) if MODE=¯1.
   ⍝H               \\⋄        indicates chars '\⋄'
-  ⍝H               \{ddd}     indicates* (⎕UCS ddd), where ddd consists of 1 or more digits 
+  ⍝H               \u{ddd}     indicates* (⎕UCS ddd), where ddd consists of 1 or more digits 
   ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
-  ⍝H               \{ddd-eee} indicates* unicode chars from ddd to eee
+  ⍝H               \u{ddd-eee} indicates* unicode chars from ddd to eee
   ⍝H                          inclusive, where ddd, eee are 1 or more digits  
   ⍝H                                     (*) W/o a 2nd preceding backslash; leading/trailing spaces ok. 
-  ⍝H               \\{ddd}  OR  \\{ddd-eee}
-  ⍝H                     indicates literal string  \{ddd} OR \{ddd-eee}, i.e. APL text with the extra \ removed.
-  ⍝H               Any other variant of \{…} or backslash within strings is kept as ordinary tet:               
-  ⍝H                           "\{123+⍳5}" ==> "\{123+⍳5}"   -- unchanged, including backslash (\).
-  ⍝H                           "abc\def"   ==> "abc\def"     -- unchanged, including backslash (\).
+  ⍝H               \\u{ddd}  OR  \\u{ddd-eee}
+  ⍝H                     indicates literal string  \u{ddd} OR \u{ddd-eee}, i.e. APL text with the extra \ removed.
+  ⍝H               Any other variant of \u{…} or backslash within strings is kept as ordinary tet:               
+  ⍝H                           "\u{123+⍳5}" ==> "\u{123+⍳5}"   -- unchanged, including backslash (\).
+  ⍝H                           "abc\def"    ==> "abc\def"      -- unchanged, including backslash (\).
   ⍝H             Examples
   ⍝H             ¨¨¨¨¨¨¨¨
-  ⍝H …                ∆F '"{"\{97-109}…\{57-48}"}"' 
+  ⍝H …                ∆F '"{"\u{97-109}…\u{57-48}"}"' 
   ⍝H              "abcdefghijklm…9876543210"
-  ⍝H                ⍝ In DQ strings, "\⋄" is the same as "\{13}".
-  ⍝H …                ∆F '{"Dogs\⋄Cats"} same as {"Dogs\{13}Cats"}'
+  ⍝H                ⍝ In DQ strings, "\⋄" is the same as "\u{13}".
+  ⍝H …                ∆F '{"Dogs\⋄Cats"} same as {"Dogs\u{13}Cats"}'
   ⍝H              Dogs same as Dogs
   ⍝H              Cats         Cats 
   ⍝H        ∘ To include a double quote (") within a double-quoted string, double it the APL way:

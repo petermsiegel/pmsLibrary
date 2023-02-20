@@ -1,38 +1,63 @@
 ﻿ ∆F_TEST eachSec
- ;RUN;DONE;EXPECT;LET;SAY
- ;RGB;Who;addr;c;hdrC;hdrF;names;x
- ;errsG;expectG;matchG;resultG;tripG
+ ;RUN;DONE;END;EXPECT;LET;SAY
+ ;RGB;Who;addr;c;hdrC;hdrF;names;x;_
+ ;countG;errsG;expectG;matchG;resultG;tripG
  ;⎕PW;⎕IO;⎕ML
 
 
  ⎕PW ⎕IO ⎕ML←100 0 1
-
  errsG←0
  matchG←0 0
  expectG←resultG←⍬
- ⎕FX'LET IT' '⎕←IT' '⍎IT'
+ countG←0
+
+ ⎕FX'LET IT' '⎕←''>    '',IT' '⍎IT'
  ⎕FX'SAY IT' '⎕←IT'
  ⎕FX'EXPECT IT' 'expectG,←⊂IT' '⎕←IT'
 
  RUN←{CR←⎕UCS 13
      expectG∘←resultG∘←⍬
-     pre←CR,30⍴'-*'
-     exp←'>>> Expected Answer >>>'
-     err←'>>> Expected Answer >>>'
-     fmt←CR,'   '
-     0::_←⎕DL 0.5⊣⎕←↑3⍴⊂err⊣errsG+←1
-     ('⍝'=⊃)⍵~' ':⎕←⍵↓⍨(2×'⍝ '≡2↑⍵)
-     0=≢⍵:_←0⊣⎕←pre ⋄ (0=≢)⍵~' ':_←0⊣⎕←pre
-     isF←×≢'∆F'⎕S 0⊢⍵
-     ⎕←(isF/fmt),⍵
+     countG+←1
+     expected←'>>> Expected Answer >>>'
+     fmt←('[',']',⍨⍕countG),' '
+
+     ⎕←fmt,⍵
+     0::_←⎕DL 0.5⊣⎕←↑3⍴⊂expected⊣errsG+←1
+
      ⎕←resultG∘←⍎⍵
-     isF:⎕←exp⊣⎕DL eachSec
+     ⎕←expected
      1:_←⎕DL eachSec
  }
- ⎕FX'DONE;m' 'm←resultG≡↑expectG' 'matchG+←1,~m' '⎕←m⊃''--- NO MATCH'' ''+++ MATCH''' '⎕←⍬' 'resultG←expectG←⍬'
 
- LET' names←↑''John Jones'' ''Mary Smith'' '
- LET' addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
+ _←'DONE' ';noM' 'noM←resultG≢↑expectG' 'matchG+←1,noM'
+ _,←':IF noM ⋄ ''--- NO MATCH'' ⋄ ⎕DL 1.5' ':ELSE' '''+++ MATCH''⋄:ENDIF'
+ _,←'⎕←⍬' 'resultG←expectG←⍬'
+ ⎕FX _
+
+ END←{
+     ⎕←77⍴'*='
+     ⎕←'There were ',(⍕⊃matchG),' ∆F Strings evaluated.'
+     ⎕←{
+         0=⊃⌽⍵:'ALL ACTUAL ∆F RESULTS MATCH EXPECTED RESULTS.'
+         (⊃⌽⍵),' ∆F RESULT(S) FAILED TO MATCH EXPECTED RESULT(S) ',(⍕100×÷/⌽⍵),'%'
+     }matchG
+     _←{
+         0≠⍵:⎕←⍵,' ∆F EXPRESSION EVALUATIONS FAILED.' ⋄ ''
+     }errsG
+ }
+
+
+ ⍝ --------------------------------------------------------------
+
+ SAY'⍝ This has single and double backslashes before }'
+ RUN'∆F''AB\⋄CD\{ONE}\\{⍳2}DONE{⍳2 2}'''
+ EXPECT'AB      0 1DONE 0 0  0 1 '
+ EXPECT'CD{ONE}\        1 0  1 1 '
+ DONE
+
+
+ LET'names←↑''John Jones'' ''Mary Smith'' '
+ LET'addr←↑'' 1214 Maiden Ln'' '' 24 Hersham Rd'' '
 
  SAY'⍝ Example 1a:  Text and Code Fields "chained" together horizontally.'
  RUN'∆F''Name: {names}  Addr:{addr}'''
@@ -67,8 +92,8 @@
 
  SAY'⍝ Example 2:  Calculations and Formatting in Code Fields ($ is a shortcut for ⎕FMT).'
  SAY'⍝ Assume these declarations:'
- LET' c←100 20 12 23 ¯2'
- LET' C2F←32+1.8∘×           ⍝ Celsius to Fahr.'
+ LET'c←100 20 12 23 ¯2'
+ LET'C2F←32+1.8∘×           ⍝ Celsius to Fahr.'
 
  SAY'⍝ Example 2a: Format specification as an argument ⍵1, i.e. (1+⎕IO)⊃⍵.'
  SAY'⍝ (Degree sign (°): ⎕UCS 176)  Result is a 5-row 15-col char matrix.'
@@ -81,8 +106,8 @@
  DONE
 
  SAY'⍝ Example 2b: Format specification hard-wired in Code Field.'
- SAY'⍝ Note alternative way to enter degree sign ''°'' as Unicode 176: "\{176}".'
- RUN'∆F''{"I3,⊂°⊃"$ c}C = {"F5.1,⊂\{176}⊃"$ C2F c}F'''
+ SAY'⍝ Note alternative way to enter degree sign ''°'' as Unicode 176: "\u{176}".'
+ RUN'∆F''{"I3,⊂°⊃"$ c}C = {"F5.1,⊂\u{176}⊃"$ C2F c}F'''
  EXPECT'100°C = 212.0°F'
  EXPECT' 20°     68.0°'
  EXPECT' 12°     53.6°'
@@ -91,8 +116,8 @@
  DONE
 
  SAY'⍝ Example 2c: Variant on (2b) with a header for each Code field using the % (OVER) shortcut.'
- LET' hdrC←''Celsius'''
- LET' hdrF←''Fahren.'''
+ LET'hdrC←''Celsius'''
+ LET'hdrF←''Fahren.'''
  RUN'∆F''{hdrC %"I3,⊂°⊃"$c}  {hdrF%"F5.1,⊂°⊃"$C2F c}'''
  EXPECT'Celsius  Fahren.'
  EXPECT' 100°    212.0°'
@@ -146,30 +171,29 @@
  EXPECT'field!'
  DONE
 
- RUN'∆F''<{"\{97-108}...\{57-48}"}>'''
+ RUN'∆F''<{"\U{97-108}...\U{57-48}"}>'''
  EXPECT'<abcdefghijkl...9876543210>'
  DONE
- DONE
 
- LET' Who←↑''Mary'' ''Captain'''
+ LET'Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{ }{Who}'''
  EXPECT'Name: Mary'
  EXPECT'Rank: Captain'
  DONE
 
- LET' Who←↑''Mary'' ''Captain'''
+ LET'Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{} {Who}'''
  EXPECT'Name: Mary'
  EXPECT'Rank: Captain'
  DONE
 
- LET' Who←↑''Mary'' ''Captain'''
+ LET'Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:5:}{Who}'''
  EXPECT'Name:     Mary'
  EXPECT'Rank:     Captain'
  DONE
 
- LET' Who←↑''Mary'' ''Captain'''
+ LET'Who←↑''Mary'' ''Captain'''
  RUN'∆F''Name:\⋄Rank:{:⍵1:}{Who}'' 5 '
  EXPECT'Name:     Mary'
  EXPECT'Rank:     Captain'
@@ -178,7 +202,7 @@
  SAY'⍝ APL vs Python!'
  SAY'⍝ APL                                 # Python'
  SAY'⍝ Build fields all at once L to R     # Build annotations row by row'
- LET' RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
+ LET'RGB←123 145 255                    ⍝    R = 123 ; G = 145 ; B = 255'
  RUN'∆F''R:\⋄G:\⋄B:{ }{⍪RGB}''          ⍝    print((f''R: {R}\nG: {G}\nB: {B}''))'
  EXPECT'R: 123' ⍝  R: 123    # Python'
  EXPECT'G: 145' ⍝  G: 145    # Python'
@@ -191,7 +215,7 @@
  DONE
 
  SAY'⍝ Formatting Floats old-fashioned?    # Similar approach, different conventions'
- LET' x←20.123'                           ⍝     x = 20.123'
+ LET'x←20.123'                           ⍝     x = 20.123'
  RUN'∆F''{"F8.5"$x}'''   ⍝ Usr calcs width ⍝     print(f''{x:0<8}'')   # User calcs width'
  EXPECT'20.12300'                            ⍝  20.12300   # Python'
  DONE
@@ -200,14 +224,4 @@
  EXPECT' 20.12300'                      ⍝  20.12300   # Python'
  DONE
 
- 77⍴'*='
- :If (=/matchG)
-     'ALL MATCHES SUCCEEDED'
- :Else
-     (⊃⌽matchG),' MATCHES FAILED OUT OF ',(⊃matchG),'TOTAL'
- :EndIf
- :If 0=errsG
-     'NO EVALUATIONS FAILED (NO ⍎ERRORS)!'
- :Else
-     errsG,' EVALUATIONS FAILED (⍎ ERRORS)'
- :EndIf
+ END 0
