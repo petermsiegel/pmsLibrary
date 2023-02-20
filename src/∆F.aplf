@@ -126,17 +126,7 @@
       ⍝   ProcTF                            
       ⍝        \ is special if and only if:
       ⍝           just before ⋄.               \⋄  => CR
-      ⍝           just before {, }, or \.      \{  => }      \} => },  \\ => \.
-        ⍝ eDmdP←    '(\\+)⋄'                   
-        ⍝ eOtherP←  '(\\+)([{}\\])'           
-        ⍝ pTFPats← eDmdP eOtherP
-        ⍝ ProcTF← (' ',⊢)WrapSQ⍤(pTFPats ⎕R {
-        ⍝   eDmdI eOtherI← ⍳≢pTFPats
-        ⍝   ⋄ Case← ⍵.PatternNum∘∊
-        ⍝   ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-        ⍝   Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
-        ⍝   ('\'⍴⍨⌊2÷⍨≢F1),F2 ⊣  F1 F2←Fld¨1 2
-        ⍝ })   
+      ⍝           just before {, }, or \.      \{  => }      \} => },  \\ => \
           ProcTF← (' ',⊢)WrapSQ⍤ ( '\\([{}])' '\\{2}(?=[{}⋄])' '\\⋄'  ⎕R '\1' '\\' CRout )           
 
       ⍝ I.B.2. Process Code and Space Fields
