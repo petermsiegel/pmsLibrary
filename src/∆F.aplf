@@ -147,19 +147,17 @@
         ⍝       If 0, unicode escapes are simply ignored (left as is).
         ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
           dq2P←     '"{2}'                                        ⍝ ""  => "
-          esc2DmdP← '\\{2}⋄'                                      ⍝ \\⋄ => ⋄
-          esc1DmdP← '\\⋄'                                         ⍝ \⋄  =>  CRout
+          escDmdP←  '(\\{1,2})⋄'                                  ⍝ \\⋄ => ⋄,  \⋄  =>  CRout
           escUCSP←  '\\[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'    ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
           esc2P←    '\\{2}'                                       ⍝ \\  =>  \\   (no change)
-          dqStrEscPats← dq2P esc2DmdP esc1DmdP escUCSP esc2P 
+          dqStrEscPats← dq2P escDmdP escUCSP esc2P 
           dqStrEscPatsAlt← dqStrEscPats↓⍨ -~UCS_ESC_ENABLED
           DQStrEsc←  dqStrEscPatsAlt  ⎕R {
-              dq2I esc2DmdI esc1DmdI escUCSI esc2I ← ⍳≢dqStrEscPats
+              dq2I escDmdI escUCSI esc2I ← ⍳≢dqStrEscPats
               ⋄ Case← ⍵.PatternNum∘∊
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
               Case dq2I:     '"'
-              Case esc2DmdI: '\⋄'
-              Case esc1DmdI: CRout
+              Case escDmdI:  CRout '\⋄' ⊃⍨ 2=≢Fld 1
               Case esc2I:    Fld 0 
             ⍝ Should never be reached unless UCS_ESC_ENABLED
             ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 

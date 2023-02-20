@@ -17,6 +17,7 @@
  b,←⊂220216.7 117 72 67
  b,←⊂220217.8 122 70 71
  b,←⊂220218.8 122 72 71
+ b,←⊂220219.9 122 71 62
 
  Mean←+/÷≢
 
@@ -26,7 +27,16 @@
  HDR←⊂¨'YYMMDD.tod' 'SYS' 'DIA' 'MEAN_S' 'MEAN_D' 'HEART_BPM'
  ret←HDR,¨DATE SYSTOL DIASTOL HEART_BPM MEAN_SYSTOL MEAN_DIASTOL
 
- ⎕←'BP Mean:   ',(⌊⊃MEAN_SYSTOL),'/',(⌊⊃MEAN_DIASTOL),'  Max:',(⌈/SYSTOL),'/',(⌈/DIASTOL)
- ⎕←'❤ BPM Mean: ',(⌊Mean HEART_BPM),'       Max: ',⌈/HEART_BPM
+ ⎕←{
+     _←'BP Mean:   ',(⌊⊃MEAN_SYSTOL),'/',(⌊⊃MEAN_DIASTOL)
+     _,←'  Max:',(⌈/SYSTOL),'/',(⌈/DIASTOL)
+     _,←' Min:',(⌊/SYSTOL),'/',(⌊/DIASTOL)
+     _
+ }0
+ ⎕←{
+     _←'❤ BPM Mean: ',(⌊Mean HEART_BPM)
+     _,←'       Max: ',(⌈/HEART_BPM),'      Min:',(⌊/HEART_BPM)
+     _
+ }0
 
  ⎕SE.UCMD'plot (SYSTOL DIASTOL',(' HEART_BPM'/⍨type∊1 3),(' MEAN_SYSTOL MEAN_DIASTOL'/⍨type∊2 3),') DATE'
