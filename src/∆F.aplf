@@ -123,17 +123,21 @@
           ⋄ CRout←   isPseudo⊃ CR '␍'
   
       ⍝ I.B.1. Process Text Fields
-      ⍝   ProcTF   
-        eDmdP←    '(\\+)⋄'  
-        eOtherP←  '(\\+)([{}\\])'
-        pTFPats← eDmdP eOtherP
-        ProcTF← (' ',⊢)WrapSQ⍤(pTFPats ⎕R {
-          eDmdI eOtherI← ⍳≢pTFPats
-          ⋄ Case← ⍵.PatternNum∘∊
-          ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-          Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
-          ('\'⍴⍨⌊2÷⍨≢F1),F2 ⊣  F1 F2←Fld¨1 2
-        })             
+      ⍝   ProcTF                            
+      ⍝        \ is special if and only if:
+      ⍝           just before ⋄.               \⋄  => CR
+      ⍝           just before {, }, or \.      \{  => }      \} => },  \\ => \.
+        ⍝ eDmdP←    '(\\+)⋄'                   
+        ⍝ eOtherP←  '(\\+)([{}\\])'           
+        ⍝ pTFPats← eDmdP eOtherP
+        ⍝ ProcTF← (' ',⊢)WrapSQ⍤(pTFPats ⎕R {
+        ⍝   eDmdI eOtherI← ⍳≢pTFPats
+        ⍝   ⋄ Case← ⍵.PatternNum∘∊
+        ⍝   ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
+        ⍝   Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
+        ⍝   ('\'⍴⍨⌊2÷⍨≢F1),F2 ⊣  F1 F2←Fld¨1 2
+        ⍝ })   
+          ProcTF← (' ',⊢)WrapSQ⍤ ( '\\([\\{}])' '\\⋄'  ⎕R '\1' CRout )           
 
       ⍝ I.B.2. Process Code and Space Fields
    
@@ -212,14 +216,13 @@
 
   ⍝ I.C. Tokenizing F-String to Fields (space fields [3 subtypes]; code fields; all else as text fields)
   ⍝      Tok2Flds    
-  ⍝      - Returns: A set of fields, each as a char vec. Any strings not tagged here default to a Text Field.  
-          tokTFP←  '(?x)  (?> [^\\{}]+ | \\{2}+ | \\{1}[⋄{}] | \\{1} )+ '                 ⍝ Text Fields                                      
+  ⍝      - Returns: A set of fields, each as a char vec.  
+          tokTFP←  '(?x)  (?> [^\\{}]+ | \\{2}+ | \\{1}[⋄{}]? )+ '                        ⍝ Text Fields                                      
           tokSF0P← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'                        ⍝ Space Fields {}  
           tokSF1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'                                       ⍝ Space Fields {  }
           tokSF2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'  ⍝ Space Fields {:5:} {:⍵2:}    
-        ⍝ Match code fields, including sundry recursive and quoted internals              ⍝ Code Fields
-          tokCFP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | '
-          tokCFP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+          tokCFP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | '                       ⍝ Code Fields  
+          tokCFP,←      '(?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
   
           tokPV←  tokTFP tokSF0P tokSF1P tokSF2P tokCFP 
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
