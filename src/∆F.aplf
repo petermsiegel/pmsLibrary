@@ -137,7 +137,7 @@
         ⍝   Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
         ⍝   ('\'⍴⍨⌊2÷⍨≢F1),F2 ⊣  F1 F2←Fld¨1 2
         ⍝ })   
-          ProcTF← (' ',⊢)WrapSQ⍤ ( '\\([\\{}])' '\\⋄'  ⎕R '\1' CRout )           
+          ProcTF← (' ',⊢)WrapSQ⍤ ( '\\([{}])' '\\{2}(?=[{}⋄])' '\\⋄'  ⎕R '\1' '\\' CRout )           
 
       ⍝ I.B.2. Process Code and Space Fields
    
@@ -146,23 +146,26 @@
         ⍝ Note: UCS_ESC_ENABLED set at "I.A. Fn Setup" near top... (Experimental)
         ⍝       If 0, unicode escapes are simply ignored (left as is).
         ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
-          dq2P←     '"{2}'                                         ⍝ ""  => "
-          eDmdP←    '(\\+)⋄'                                       ⍝ \\⋄ => \⋄, \⋄ => CRout
-          ucsEscP←  '(\\+)[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'  ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
-          dqStrEscPats← dq2P eDmdP ucsEscP
+          dq2P←     '"{2}'                                        ⍝ ""  => "
+          esc2DmdP← '\\{2}⋄'                                      ⍝ \\⋄ => ⋄
+          esc1DmdP← '\\⋄'                                         ⍝ \⋄  =>  CRout
+          escUCSP←  '\\[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'    ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
+          esc2P←    '\\{2}'                                       ⍝ \\  =>  \\   (no change)
+          dqStrEscPats← dq2P esc2DmdP esc1DmdP escUCSP esc2P 
           dqStrEscPatsAlt← dqStrEscPats↓⍨ -~UCS_ESC_ENABLED
           DQStrEsc←  dqStrEscPatsAlt  ⎕R {
-            dq2I eDmdI ucsEscI← ⍳≢dqStrEscPats
-            ⋄ Case← ⍵.PatternNum∘∊
-            ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-            Case dq2I:  '"'
-            Case eDmdI: ('\'⍴⍨⌊nS÷2),CRout/⍨2|nS←≢Fld 1 
-          ⍝ Should never be reached unless UCS_ESC_ENABLED
+              dq2I esc2DmdI esc1DmdI escUCSI esc2I ← ⍳≢dqStrEscPats
+              ⋄ Case← ⍵.PatternNum∘∊
+              ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
+              Case dq2I:     '"'
+              Case esc2DmdI: '\⋄'
+              Case esc1DmdI: CRout
+              Case esc2I:    Fld 0 
+            ⍝ Should never be reached unless UCS_ESC_ENABLED
             ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 
-          ⍝ Case ucsEscI     
-              ~2|≢Fld 1: 1↓Fld 0
-              beg end← ⊃∘⌽∘⎕VFI∘Fld¨2 3 ⋄ bk←1↓Fld 1 
-            0=≢end: bk,⎕UCS beg ⋄ bk,⎕UCS beg+(×∆)×⍳1+|∆←end-beg
+            ⍝ Case escUCSI    
+              beg end← ⊃∘⌽∘⎕VFI∘Fld¨1 2
+            0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
           } 
         ⍝ I.B.2b. Process Code and Space Fields
         ⍝   ProcCSf

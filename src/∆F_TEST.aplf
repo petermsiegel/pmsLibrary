@@ -51,8 +51,8 @@
 
  SAY'⍝ This has single and double backslashes before }'
  RUN'∆F''AB\⋄CD\{ONE}\\{⍳2}DONE{⍳2 2}'''
- EXPECT'AB      0 1DONE 0 0  0 1 '
- EXPECT'CD{ONE}\        1 0  1 1 '
+ EXPECT'AB       0 1DONE 0 0  0 1 '
+ EXPECT'CD{ONE}\\        1 0  1 1 '
  DONE
 
 
