@@ -1,10 +1,11 @@
 ﻿ ∆F_TEST eachSec
- ;RUN;DONE;END;EXPECT;LET;SAY
+ ;CR;RUN;DONE;END;EXPECT;LET;SAY
  ;RGB;Who;addr;c;hdrC;hdrF;names;x;_
  ;countG;errsG;expectG;matchG;resultG;tripG
  ;⎕PW;⎕IO;⎕ML
 
 
+ CR←⎕UCS 13
  ⎕PW ⎕IO ⎕ML←100 0 1
  errsG←0
  matchG←0 0
@@ -15,7 +16,7 @@
  ⎕FX'SAY IT' '⎕←IT'
  ⎕FX'EXPECT IT' 'expectG,←⊂IT' '⎕←IT'
 
- RUN←{CR←⎕UCS 13
+ RUN←{
      expectG∘←resultG∘←⍬
      countG+←1
      expected←'>>> Expected Answer >>>'
@@ -37,13 +38,19 @@
  END←{
      ⎕←77⍴'*='
      ⎕←'There were ',(⍕⊃matchG),' ∆F Strings evaluated.'
+     ok←1
      ⎕←{
          0=⊃⌽⍵:'ALL ACTUAL ∆F RESULTS MATCH EXPECTED RESULTS.'
+         ok⊢←0
          (⊃⌽⍵),' ∆F RESULT(S) FAILED TO MATCH EXPECTED RESULT(S) ',(⍕100×÷/⌽⍵),'%'
      }matchG
      _←{
-         0≠⍵:⎕←⍵,' ∆F EXPRESSION EVALUATIONS FAILED.' ⋄ ''
+         0=⍵:''
+         ok⊢←0
+         ⎕←⍵,' ∆F EXPRESSION EVALUATIONS FAILED.',failure
      }errsG
+     ok:⎕←∊3⍴⊂CR,69⍴'SUCCESS SUCCESS SUCCESS'
+     ⎕←∊3⍴⊂CR,69⍴'FAILURE FAILURE FAILURE'
  }
 
 

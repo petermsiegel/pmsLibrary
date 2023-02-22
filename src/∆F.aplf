@@ -107,17 +107,17 @@
         
       ⍝ I.B.0 (Setup / Shared Defs)
         ⍝ Miscellany
-          WrapSQ←  '''','''',⍨⊢(/⍨)1+''''∘=            ⍝ Double the SQs in ⍵ and wrap ⍵ in SQs.
-          WrapPrn← '(',')',⍨⊢                          ⍝ Wrap ⍵ in parens.
+          WrapSQ←  '''','''',⍨⊢(/⍨)1+''''∘=                 ⍝ Double the SQs in ⍵ and wrap ⍵ in SQs.
+          WrapParen← '(',')',⍨⊢                             ⍝ Wrap ⍵ in parens.
         ⍝ Field Tests: Test for combined CSF (Code/Space Fields) and SF (Space Fields)  
-          IsCSF← ⊃∊∘(⎕UCS 0 1)  ⍝   \x{0} or \x{1}     ⍝ See TagTF/SF/CF and Tok2Flds below.
-          IsSF←  ⊃=∘(⎕UCS 1)    ⍝   \x{1}   
+          IsCSF←(∊∘(⎕UCS 1 0))⊃  ⍝   \x{0} or \x{1}         ⍝ See TagTF/SF/CF and Tok2Flds below.
+          IsSF← (∊∘(⎕UCS 1))⊃    ⍝   \x{1}   
         ⍝ Fields Tags: Tag (⎕R result) field string ⍵ and append with field boundaries... 
         ⍝ ... as a Text (TF), Space (SF), or Code Field (CF).    
           CR X0 X1← ⎕UCS 13 0 1           
-          TagTF←  CR,    CR,⍨⊢                     ⍝ TF: empty tag
-          TagSF← (CR,X1),CR,⍨⊢                     ⍝ SF: ⎕UCS 1
-          TagCF← (CR,X0),CR,⍨⊢                     ⍝ CF: ⎕UCS 0
+          TagTF←  CR,    CR,⍨⊢                              ⍝ TF: empty tag
+          TagSF← (CR,X1),CR,⍨⊢                              ⍝ SF: ⎕UCS 1
+          TagCF← (CR,X0),CR,⍨⊢                              ⍝ CF: ⎕UCS 0
 
         ⍝ CR on output (APL text)
           ⋄ CRout←   isPseudo⊃ CR '␍'
@@ -136,71 +136,70 @@
         ⍝ Note: UCS_ESC_ENABLED set at "I.A. Fn Setup" near top... (Experimental)
         ⍝       If 0, unicode escapes are simply ignored (left as is).
         ⍝       If 1, they are converted to unicode vectors "\{aaa-bbb}" or scalars "\{aaa}" as indicated.
-          dq2P←     '"{2}'                                        ⍝ ""  => "
-          escDmdP←  '(\\{1,2})⋄'                                  ⍝ \\⋄ => ⋄,  \⋄  =>  CRout
-          escUCSP←  '\\[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'    ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
-          esc2P←    '\\{2}'                                       ⍝ \\  =>  \\   (no change)
-          dqStrEscPats← dq2P escDmdP escUCSP esc2P 
-          dqStrEscPatsAlt← dqStrEscPats↓⍨ -~UCS_ESC_ENABLED
-          DQStrEsc←  dqStrEscPatsAlt  ⎕R {
-              dq2I escDmdI escUCSI esc2I ← ⍳≢dqStrEscPats
+          dq_dq2P←    '"{2}'                                      ⍝ ""  => "
+          dq_escDmdP← '(\\{1,2})⋄'                                ⍝ \\⋄ => ⋄,  \⋄  =>  CRout
+          dq_escUCSP← '\\[uU]\{\h*(\d+)(?|\h*-\h*(\d+)|())\h*\}'  ⍝ \U{ddd-eee}, \U{ddd}, \\U{anything else}; \u...
+          dq_esc2P←   '\\{2}'                                     ⍝ \\  =>  \\   (no change)
+          dq_Pats← dq_dq2P dq_escDmdP dq_escUCSP dq_esc2P 
+                   dq_dq2I dq_escDmdI dq_escUCSI dq_esc2I← ⍳≢dq_Pats  
+          dq_PatsAlt← dq_Pats↓⍨ -~UCS_ESC_ENABLED
+          DQStrEsc←  dq_PatsAlt  ⎕R {
               ⋄ Case← ⍵.PatternNum∘∊
               ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-              Case dq2I:     '"'
-              Case escDmdI:  CRout '\⋄' ⊃⍨ 2=≢Fld 1
-              Case esc2I:    Fld 0 
+              Case dq_dq2I:     '"'
+              Case dq_escDmdI:  CRout '\⋄' ⊃⍨ 2=≢Fld 1
+              Case dq_esc2I:    Fld 0 
             ⍝ Should never be reached unless UCS_ESC_ENABLED
             ~UCS_ESC_ENABLED: ''⊣⎕←'∆F LOGIC ERROR [UCS_ESC_ENABLED=0]' 
-            ⍝ Case escUCSI    
+            ⍝ Case dq_escUCSI    
               beg end← ⊃∘⌽∘⎕VFI∘Fld¨1 2
             0=≢end: ⎕UCS beg ⋄ ⎕UCS beg+(×∆)×⍳1+|∆←end-beg
           } 
         ⍝ I.B.2b. Process Code and Space Fields
         ⍝   ProcCSf
         ⍝   - Returns executable code
-          dqStrP←   '(?:"[^"]*")+'                     ⍝ "...". Escapes honored.
-          sqStrP←   '(?:''[^'']*'')+'                  ⍝ '...'. Escapes ignored (not honored).
-          comP←     '⍝[^}⋄]*'                          ⍝ Comments: (limited pattern)                         
-          dolP←     '\h*(\${1,2})\h*'                  ⍝ $ and $$ shortcuts.   
+          csf_dqStrP←   '(?:"[^"]*")+'                     ⍝ "...". Escapes honored.
+          csf_sqStrP←   '(?:''[^'']*'')+'                  ⍝ '...'. Escapes ignored (not honored).
+          csf_comP←     '⍝[^}⋄]*'                          ⍝ Comments: (limited pattern)                         
+          csf_dolP←     '\h*(\${1,2})\h*'                  ⍝ $ and $$ shortcuts.   
           ⋄ dolCodeV← fmtC boxFnC
-          pctP←     '\h*(\%{1,2})\h*'                  ⍝ % and %% shortcuts
+          csf_pctP←     '\h*(\%{1,2})\h*'                  ⍝ % and %% shortcuts
           ⋄ pctCodeV←  overC chainC
-          omegaNP←  '[⍵⍹](\d+)'                        ⍝ ⍹N, ⍵N        
-          omega0P←  '⍵_|⍹_?'                           ⍝ ⍹ ⍵_
-          csfPats← dqStrP sqStrP comP dolP pctP omegaNP omega0P
-          
+          csf_omegaNP←  '[⍵⍹](\d+)'                        ⍝ ⍹N, ⍵N        
+          csf_omega0P←  '⍵_|⍹_?'                           ⍝ ⍹ ⍵_
+          csf_Pats← csf_dqStrP csf_sqStrP csf_comP csf_dolP csf_pctP csf_omegaNP csf_omega0P   
+                   csf_dqStrI csf_sqStrI csf_comI csf_dolI csf_pctI csf_omegaNI csf_omega0I← ⍳≢csf_Pats  
           omegaG←0
-        ProcCSf←  WrapPrn {                            ⍝ Parens around each result!
+        ProcCSf←  WrapParen {                             ⍝ Parens around each result!
             parensOnly←⍺
-            code← csfPats ⎕R {
-              dqStrI sqStrI comI dolI pctI omegaNI omega0I ←⍳≢csfPats
+            code← csf_Pats ⎕R {  
                 ⋄ Case← ⍵.PatternNum∘∊
                 ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-              Case dqStrI: ' ',WrapSQ DQStrEsc 1↓¯1↓Fld 0  ⍝ DQ String: Escapes applied
-              Case sqStrI: ' ',Fld 0                   ⍝ SQ String: No Escapes applied. Not: WrapSQ 1↓¯1↓Fld 0        
-              Case comI:   ''                          ⍝ Ignore comments...
-              Case dolI:   dolCodeV⊃⍨ 2=≢Fld 1         ⍝ $/$$: ⎕FMT/BOX
-              Case pctI:   pctCodeV⊃⍨ 2=≢Fld 1         ⍝ %,%%: OVER/CHAIN
-              Case omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1       ⊣  omegaG⊢← ⊃⌽⎕VFI f1←Fld 1              
-              Case omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaG  ⊣  omegaG+← 1   
+              Case csf_dqStrI: ' ',WrapSQ DQStrEsc 1↓¯1↓Fld 0  ⍝ DQ String: Escapes applied
+              Case csf_sqStrI: ' ',Fld 0                   ⍝ SQ String: No Escapes applied. Not: WrapSQ 1↓¯1↓Fld 0        
+              Case csf_comI:   ''                          ⍝ Ignore comments...
+              Case csf_dolI:   dolCodeV⊃⍨ 2=≢Fld 1         ⍝ $/$$: ⎕FMT/BOX
+              Case csf_pctI:   pctCodeV⊃⍨ 2=≢Fld 1         ⍝ %,%%: OVER/CHAIN
+              Case csf_omegaNI: '(⍵⊃⍨⎕IO+',')',⍨f1       ⊣  omegaG⊢← ⊃⌽⎕VFI f1←Fld 1              
+              Case csf_omega0I: '(⍵⊃⍨⎕IO+',')',⍨⍕omegaG  ⊣  omegaG+← 1   
               ○○ LOGIC ERROR: NOT REACHABLE ○○
             } ⍵                                          
-          parensOnly: code                             ⍝ Return a code str with no refs to ⍺, ⍵, ...
-            _Decor←('⍺'/⍨nsOpt)∘,'{',,∘'}⍵'            ⍝ Code str decorations: ⍺{...}⍵
-            _Trim← ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}                ⍝ _Trim:       Remove trailing ' ⋄'
-            sfx←¯1↑trm← _Trim code                     ⍝ sfx:         Last (non-trailing) char
-            notSD← ~sfx∊'→↓'                           ⍝ sfx ∊ '→↓'?  we have self-documenting code.                         
-          notSD: _Decor code                           ⍝    If NO:    Return the code
-            jDC← chainC overC⊃⍨ sfx='↓'                ⍝    If YES:   Join doc+code via CHAIN or OVER.
-            (WrapSQ ⍵), jDC, _Decor ¯1↓trm             ⍝              with quoted doc and trimmed code 
+          parensOnly: code                               ⍝ Return a code str with no refs to ⍺, ⍵, ...
+            _Decor←('⍺'/⍨nsOpt)∘,'{',,∘'}⍵'              ⍝ Code str decorations: ⍺{...}⍵
+            _Trim← ' ⋄'∘{⍵↓⍨-+/∧\⍺∊⍨⌽⍵}                  ⍝ _Trim:       Remove trailing ' ⋄'
+            sfx←¯1↑trm← _Trim code                       ⍝ sfx:         Last (non-trailing) char
+            notSD← ~sfx∊'→↓'                             ⍝ sfx ∊ '→↓'?  we have self-documenting code.                         
+          notSD: _Decor code                             ⍝    If NO:    Return the code
+            jDC← chainC overC⊃⍨ sfx='↓'                  ⍝    If YES:   Join doc+code via CHAIN or OVER.
+            (WrapSQ ⍵), jDC, _Decor ¯1↓trm               ⍝              with quoted doc and trimmed code 
         }
           
       ⍝ I.B.3. Process all fields by type, set by Tok2Flds below.  
       ⍝   ProcFlds                  
       ⍝   - Returns at least 2 fields (Pad2Flds), as required by CHAINdef (which see).
           Pad2Flds←  ⊢,⍨ '⍬'⍴⍨ 0⌈ 2-≢  
-          CondBox← (WrapPrn boxModeC,⊢)⍣boxOpt         ⍝ If boxmode, put ⍵ in a box!
-          CondSV←  (WrapPrn (','/⍨1=≢⍤⊣),1↓⊢)⍣boxOpt   ⍝ If boxmode, treat scalar ⍵ as vector for boxing
+          CondBox← (WrapParen boxModeC,⊢)⍣boxOpt        ⍝ If boxmode, put ⍵ in a box!
+          CondSV←  (WrapParen (','/⍨1=≢⍤⊣),1↓⊢)⍣boxOpt  ⍝ If boxmode, treat scalar ⍵ as vector for boxing
         ProcFlds← Pad2Flds CondBox∘{ 
             IsCSF ⍵: (IsSF ⍵) ProcCSf 1↓⍵ ⋄ ⍵ CondSV ProcTF ⍵  ⍝ IsCSF: Is it a CF or SF?  IsSF: Is it a SF?
         }¨
@@ -208,24 +207,24 @@
   ⍝ I.C. Tokenizing F-String to Fields (space fields [3 subtypes]; code fields; all else as text fields)
   ⍝      Tok2Flds    
   ⍝      - Returns: A set of fields, each as a char vec.  
-          tokTFP←  '(?x)  (?> [^\\{}]+ | \\{2}+ | \\{1}[⋄{}]? )+ '                        ⍝ Text Fields                                      
-          tokSF0P← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'                        ⍝ Space Fields {}  
-          tokSF1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'                                       ⍝ Space Fields {  }
-          tokSF2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'  ⍝ Space Fields {:5:} {:⍵2:}    
-          tokCFP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | '                       ⍝ Code Fields  
-          tokCFP,←      '(?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
+          tf_TFP←  '(?x)  (?> [^\\{}]+ | \\{2}+ | \\{1}[⋄{}]? )+ '                        ⍝ Text Fields                                      
+          tf_SF0P← '(?x) \{ (?: \h* : 0* :? \h* )? (?:⍝[^}]*)? \}'                        ⍝ Space Fields {}  
+          tf_SF1P← '(?x) \{ ( \h* ) (?:⍝[^}]*)? \}'                                       ⍝ Space Fields {  }
+          tf_SF2P← '(?x) \{ \h* : ( \d+ | ⍹ \d*  | ⍵ (?:\d+|_)? ) :? \h* (?:⍝[^}]*)? \}'  ⍝ Space Fields {:5:} {:⍵2:}    
+          tf_CFP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝\\]+ | (?:\\.)+ | '                       ⍝ Code Fields  
+          tf_CFP,←      '(?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝[^}⋄]* | (?&P)* )+)  \} )' 
   
-          tokPV←  tokTFP tokSF0P tokSF1P tokSF2P tokCFP 
+          tf_PV←  tf_TFP tf_SF0P tf_SF1P tf_SF2P tf_CFP 
+                  tf_TFI tf_SF0I tf_SF1I tf_SF2I tf_CFI← ⍳≢tf_PV
           ⋄ RemoveNullF←  ⊢(/⍨)0∘≠⍤≢¨                
-        Tok2Flds← RemoveNullF tokPV ⎕R {
-            tokTFI tokSF0I tokSF1I tokSF2I tokCFI←⍳≢tokPV
+        Tok2Flds← RemoveNullF tf_PV ⎕R {
             ⋄ Case← ⍵.PatternNum∘∊
             ⋄ Fld←  ⍵.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)
-            Case tokTFI:  Fld 0
-            Case tokSF0I: TagTF ''
-            Case tokSF1I: TagTF Fld 1
-            Case tokSF2I: TagSF '(', f1, '⍴'''')' ⊣ f1← Fld 1
-            Case tokCFI:  TagCF Fld 2
+            Case tf_TFI:  Fld 0
+            Case tf_SF0I: TagTF ''
+            Case tf_SF1I: TagTF Fld 1
+            Case tf_SF2I: TagSF '(', f1, '⍴'''')' ⊣ f1← Fld 1
+            Case tf_CFI:  TagCF Fld 2
         }
   ⍝+-------------------------------------+⍝
   ⍝+ I.D. Executive: Put it all together +⍝

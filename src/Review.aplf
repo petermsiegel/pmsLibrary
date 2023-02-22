@@ -1,0 +1,101 @@
+Review name 
+ ;i;lineNum;def;defD;defP;defs;obj;uses;use;useD
+ ;Dict
+ ;⎕IO
+
+⎕IO←0
+
+Dict←{ ⎕IO ⎕ML←0 1
+  ⍝ d ← Dict keyList valList
+     kk vv←⍵
+     ns←⎕NS''
+     ns.Dict←∇
+     ns.Cat←{ ⍝ v← d.Cat k v
+         k v←⍵
+        (≢Keys)>p←Keys⍳⊂k: _←(p⊃Vals),←v
+        1: _←v ⊣(Keys Vals),←,∘⊂¨k v  
+     }
+     _←ns.⎕FX 'ns2←Copy' 'ns2←Dict Keys Vals'
+     ns.Get←{ ⍺←'' ⋄ k←⍵
+      (≢Keys)>p←Keys⍳⊂k: p⊃Vals ⋄ ⍺
+     }
+     _←ns.⎕FX 'i←Items' 'i←↓⍉↑Keys Vals'
+     ns.Set←{ ⍝ v← d.Cat k v
+         k v←⍵
+        (≢Keys)>p←Keys⍳⊂k: _←(p⊃Vals)←v
+        1: _←v ⊣ (Keys Vals),←,∘⊂¨k v  
+     }
+     ns.SortBy←{ 
+      ⍝ d← [newNs|d] d.Sort sort_fields
+      ⍝ Sorts into newNs (default: d itself) 
+      ⍝ If sort_fields is empty, uses d.Keys. (Alternative: ⎕C d.Keys)
+         ⍺←⎕THIS ⋄ 0=≢⍵: ⍺ ∇ Keys
+         ⎕THIS≠⍺: _←(Dict Keys Vals) ∇ ⍵    ⍝ Copy! 
+         ix← ⍋⍵ ⋄ ⍺.Keys← Keys[ix] ⋄ ⍺.Vals←Vals[ix] 
+         1:_←⍺
+     }
+    _←ns.⎕FX 'SortIP'  'SortBy Keys'
+     ns.(Keys Vals)←kk vv 
+     1:_← ns
+ }
+
+ Pad←{ str←⍕⍵ ⋄ ⍺←10 ⋄ ⍺<≢str: ⍵ ⋄ str↑⍨-⍺ }
+
+:IF ~3 4∊⍨⎕NC name 
+    11 ⎕SIGNAL⍨ 'Review: argument "',name,'" must be the name of a function or operator.' 
+:ENDIF 
+
+defP← '(?x) (?: \( \h* )? ( :? [\w#⎕∆⍙\.]+ ( \h+ [\w#⎕∆⍙\.]+ )* ) (\h* \))? \h* ←'
+useP←             '(?x)   ( :? [\w#⎕∆⍙\.]+ ( \h+ [\w#⎕∆⍙\.]+ )* )'
+skipP←  '^\h*[⍝;].*'
+comP←  '⍝.*'
+qtP←   '(''[^'']*'')+'
+Clean← skipP  qtP comP ⎕R '' '' ''
+
+obj←  Clean ⎕NR name 
+defs← defP ⎕S '\1' ⍠('UCP' 1) ⊣  obj
+
+defD←Dict ⍬ ⍬
+useD←Dict ⍬ ⍬
+
+Skip← {(⊃⍵)∊':',⎕D}
+
+:FOR lineNum def :ineach (⍳≢defs) defs
+     ⎕←'def: ',lineNum,' "',def,'"'
+     :IF 0<≢def~' '
+        {
+          Skip ⍵: _←'' 
+          defD.Cat ⍵ lineNum
+        }¨' '(≠⊆⊢)def
+     :ENDIF
+:ENDFOR 
+ 
+uses← useP ⎕S '\1' ⍠('UCP' 1) ⊣  defP ⎕R ' '   ⍠('UCP' 1) ⊣ obj
+
+:FOR lineNum use :ineach (⍳≢uses) uses
+     :IF 0<≢use~' '
+        {
+        Skip ⍵: _←'' 
+        useD.Cat ⍵ lineNum
+      }¨' '(≠⊆⊢)use
+     :ENDIF
+:ENDFOR 
+
+⎕←'Defs...'
+⍝ 'Total Names Defined: ',≢defD.Keys
+⍝ defD.SortBy defD.Keys
+
+:IF 0 
+    :FOR i :in ⍳≢defD.Keys
+        :IF 1=≢i⊃defD.Vals ⋄ :Continue ⋄ :ENDIF 
+        ⎕←(Pad i⊃defD.Keys),' ',∊⎕FMT i⊃defD.Vals 
+    :ENDFOR
+:ENDIF 
+
+'Total Names Used: ',≢useD.Keys
+ useD.SortBy ⎕C useD.Keys
+
+:FOR i :in ⍳≢useD.Keys
+     ⎕←(13 Pad i⊃useD.Keys),' ',(4 Pad ⊃'' defD.Get i⊃useD.Keys),' > ',∊⎕FMT i⊃useD.Vals 
+:ENDFOR
+
