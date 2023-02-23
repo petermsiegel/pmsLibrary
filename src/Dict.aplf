@@ -15,9 +15,19 @@ Dict←{
   ⍝H For Help, do Dict 'Help' OR, if d is a dictionary, d.Help.
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
+  ⍝H Creating Objects:       d←Dict     d.Copy
+  ⍝H Setting and Getting:    d.Set      d.Get    d.default[←...]
+  ⍝H Sorting Values:         d.SortBy   d.SortIP 
+  ⍝H Modifying Values:       d.ApplyTo  d.Cat    
+  ⍝H Deleting K-V Pairs:     d.Del
+  ⍝H Displaying All          d.Keys    d.Vals    d.Items
+  ⍝H 
     ⎕IO ⎕ML←0 1 
-    d←⎕NS''
+    d←⎕NS'' ⋄ _←d.⎕DF (⍕⎕THIS),'.[Dict]'
     ⍺← ⍬
+
+  ⍝ _S: (Internal) Treat scalar keys as 1-elem vectors (else, do nothing)
+    d._S← {,⍣(⊃0=⍴⍴⍵)⊣ ⍵}    ⍝ Singletons => Vectors
 
   ⍝H newVal ← [⍺] op d.ApplyTo key
   ⍝H   (no ⍺) Does: key← op key
@@ -39,20 +49,20 @@ Dict←{
     d.Cat←{ 
       0=⎕NC '⍺': _← ∇/⍵
       k v←⍺ ⍵
-      (≢Keys)>p←Keys⍳⊂k: _←p⊃Vals ⊣ (p⊃Vals) ,← ⊂v
-      1: _←v ⊣(Keys Vals),←,∘⊂¨k (⊂v)  
+      (≢_keys)>p←_keys⍳⊂k: _←p⊃_vals ⊣ (p⊃_vals) ,← ⊂v
+      1: _←v ⊣(_keys _vals),←,∘⊂¨k (⊂v)  
     }
 
   ⍝H d2 ← d.Copy
   ⍝H   Returns a complete, independent copy (clone) of dictionary d.
   ⍝H
-    _←d.⎕FX 'd2←Copy' 'd2←Default Dict Keys Vals'
+    _←d.⎕FX 'd2←Copy'  'd2←default Dict _keys _vals'
 
   ⍝H [1|0] ← d.Defined key
   ⍝H   Returns 1 if <key> is defined, else 0.
   ⍝H
     d.Defined←{ k←⍵
-       (≢Keys)>Keys⍳⊂k
+       (≢_keys)>_keys⍳⊂k
     }
 
   ⍝H [1|0] ← [force] d.Del key
@@ -60,9 +70,9 @@ Dict←{
   ⍝H   If not, returns 0 (not found) IF force is 1.
   ⍝H   Otherwise, signals an error (⎕EN=3 Index Error).
   ⍝H
-    d.Del←{ k←⍵ ⋄ ⍺←0
-      (≢Keys)>p←Keys⍳⊂k: 1⊣ (Keys Vals) /⍨← ⊂ p≠⍳≢Keys
-      ⍺: 0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Unable to delete missing key'
+    d.Del← d.Delete← { k←_S ⍵ ⋄ ⍺←0
+      (≢_keys)>p←_keys⍳⊂k: 1⊣ (_keys _vals) /⍨← ⊂ p≠⍳≢_keys
+      ⍺: 0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Unable to delete missing key (requires ⍺=1)'
     }
 
   ⍝H val ← [curDefault] d.Get key
@@ -70,9 +80,9 @@ Dict←{
   ⍝H   Otherwise, returns curDefault (if curDefault is defined), 
   ⍝H   Else Default defined when the dictionary was created (⍬ if not explicitly specified by the user).
   ⍝H
-    d.Get←{  k←⍵
-    (≢Keys)>p←Keys⍳⊂k: p⊃Vals 
-    0=⎕NC '⍺': Default ⋄ ⍺
+    d.Get←{  k←_S ⍵ 
+    (≢_keys)>p←_keys⍳⊂k: p⊃_vals 
+    0=⎕NC '⍺': default ⋄ ⍺
     }
 
   ⍝H d.Help
@@ -84,7 +94,7 @@ Dict←{
   ⍝H i ← d.Items
   ⍝H   Returns all the keys and their values as key-value pairs.
   ⍝H
-    _←d.⎕FX 'i←Items' 'i←↓⍉↑Keys Vals'
+    _←d.⎕FX 'i←Items' 'i←↓⍉↑_keys _vals'
 
   ⍝H val ← d.Set key val    OR:   val← key d.Set val
   ⍝H   Sets value for key key to value val. 
@@ -92,45 +102,52 @@ Dict←{
   ⍝H
     d.Set←{  
       0=⎕NC '⍺': _← ∇/⍵
-      k v←⍺ ⍵
-      (≢Keys)>p←Keys⍳⊂k: _←(p⊃Vals)←v
-      1: _←v ⊣ (Keys Vals),←,∘⊂¨k v  
+      k v←⍺ ⍵ ⋄ k←_S k  
+      (≢_keys)>p←_keys⍳⊂k: _←(p⊃_vals)←⊂v
+      1: _←v ⊣ (_keys _vals),←,∘⊂¨k v  
     }
 
-  ⍝H newD← [newD|d] d.SortBy sortFields
-  ⍝H   Sorts into dictionary newD, created via newD←Dict ... (default: d itself) 
-  ⍝H   If sortFields is empty, uses d.Keys. (Alternative: ⎕C d.Keys)
-  ⍝H   Otherwise, (≢sortFields) MUST≡ (d.Keys).
-  ⍝H
+  ⍝H {newD}← [newD|d] d.SortBy sortFields
+  ⍝H   Shyly sorts into dictionary newD, created via newD←Dict ... (default: d itself) 
+  ⍝H   If sortFields is empty, uses d.keys. (Alternative: ⎕C d.keys)
+  ⍝H   Otherwise, (≢sortFields) MUST≡ (d.keys).
+  ⍝H   Examples:   
+  ⍝H     newD← (Dict ⍬) d.SortBy ⍬   - Sorts d by keys into newD (d unchanged)
+  ⍝H     d.SortBy ⍬                  - Sorts d by keys, updating d
+  ⍝H     d.SortBy d.vals             - Sorts d by Values, updating d
+  ⍝H     newD← d.(Copy SortBy vals)  - Sorts d by Values, into newD
     d.SortBy←{ 
         ⍺←⎕THIS 
-        0=≢fields: ⍺ ∇ Keys
-        ix← ⍋⍵ ⋄ ⍺.Keys← Keys[ix] ⋄ ⍺.Vals←Vals[ix] 
+        0=≢⍵: _←⍺ ∇ keys
+        ix← ⍋⍵ ⋄ ⍺._keys← _keys[ix] ⋄ ⍺._vals←_vals[ix] 
         1: _←⍺
     }
 
   ⍝H {d} ← d.SortIP
   ⍝H   Sorts dictionary <d> in place. Returns shy <d>.
   ⍝H
-    _←d.⎕FX '{d}←SortIP'  'd←SortBy Keys'
+    _←d.⎕FX '{d}←SortIP'  'd←SortBy _keys'
 
   ⍝H kk ← d.Keys (R/O)
   ⍝H   Returns the list of keys
-  ⍝H     Note: Keys is a local variable. Don't change it directly!
   ⍝H
+  _← d.⎕FX 'kk← Keys' 'kk←_keys'
 
   ⍝H vv ← d.Vals (R/O)
   ⍝H   Returns the list of values
-  ⍝H     Note: Vals is a local variable. Don't change it directly!
   ⍝H
+  _← d.⎕FX 'vv← Vals' 'vv←_vals'
 
-  ⍝H vv ← d.Default (R/W)
-  ⍝H   Returns the Default value (when a key is not found)
-  ⍝H     Note: Default is a local variable. If can have any data value.
+  ⍝H   d.default 
+  ⍝H      Returns the default value (when a key is not found)
+  ⍝H   d.default← <any data value>
+  ⍝H     Sets the default value to use when keys are missing.
+  ⍝H     Note: Do not expunge d.default. Bad things will happen!
   ⍝H
 
     d.Dict←∇
-    'Help'≡⍥⎕C ⍵: d.Help
-    d.(Default (Keys Vals) )← ⍺ (⊆⍵)  
+    'help'≡⎕C ⍵: d.Help
+    k v←⊆⍵ 
+    d.(default (_keys _vals) )← ⍺ ((,¨k) v)  
     d
  }
