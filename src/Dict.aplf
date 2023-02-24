@@ -15,12 +15,14 @@ Dict←{
   ⍝H For Help, do Dict 'Help' OR, if d is a dictionary, d.Help.
   ⍝H ---------------------------------------------------------------------------------
   ⍝H
-  ⍝H Creating Objects:       d←Dict     d.Copy
-  ⍝H Setting and Getting:    d.Set      d.Get    d.default[←...]
-  ⍝H Sorting Values:         d.SortBy   d.SortIP 
-  ⍝H Modifying Values:       d.ApplyTo  d.Cat    
-  ⍝H Deleting K-V Pairs:     d.Del
-  ⍝H Displaying All          d.Keys    d.Vals    d.Items
+  ⍝H Basic: 
+  ⍝H    Creating Objects:       d←Dict     d.Copy
+  ⍝H    Setting and Getting:    d.Set      d.Get       d.default[←...]
+  ⍝H    Sorting Values:         d.SortBy   d.SortIP 
+  ⍝H    Deleting K-V Pairs:     d.Del
+  ⍝H    Displaying All          d.Keys     d.Vals      d.Items
+  ⍝H Advanced:
+  ⍝H   Modifying Values:        d.Augment, d.AugmentR  d.Cat    
   ⍝H 
     ⎕IO ⎕ML←0 1 
     d←⎕NS'' ⋄ _←d.⎕DF (⍕⎕THIS),'.[Dict]'
@@ -29,29 +31,12 @@ Dict←{
   ⍝ _S: (Internal) Treat scalar keys as 1-elem vectors (else, do nothing)
     d._S← {,⍣(⊃0=⍴⍴⍵)⊣ ⍵}    ⍝ Singletons => Vectors
 
-  ⍝H newVal ← [⍺] op d.ApplyTo key
-  ⍝H   (no ⍺) Does: key← op key
-  ⍝H   (w/ ⍺) Does: key← ⍺ op key
-  ⍝H   Shyly returns new value
-  ⍝H   E.g.   newVal← 1 + d.ApplyTo 'fred'  OR   
-  ⍝H          newVal← 1∘+ d.ApplyTo 'fred'
-  ⍝H
-    d.ApplyTo←{ ⍺←⊢ 
-      0:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'Dict: ',EM)('EN' EN)('Message' Message))
-      1: _←⍵ Set ⍺ ⍺⍺ Get ⍵
-    }
+  ⍝ _Err: (Internal) Error Signaller
+    d._Err← ⎕SIGNAL {⊂⎕DMX.(('EM',⍥⊂'Dict: ',EM ⍵⊃⍨0≠≢⍵)('EN',⍥⊂ EN 11⊃⍨0≠≢⍵)('Message' Message))}
 
-  ⍝H {v} ←   d.Cat k v   OR   {v} ← k d.Cat v
-  ⍝H   Catenates <v> to the end of the prior value at key <k>. 
-  ⍝H   If none, sets the value to <v>.
-  ⍝H   Shyly returns the new value.
-  ⍝H
-    d.Cat←{ 
-      0=⎕NC '⍺': _← ∇/⍵
-      k v←⍺ ⍵
-      (≢_keys)>p←_keys⍳⊂k: _←p⊃_vals ⊣ (p⊃_vals) ,← ⊂v
-      1: _←v ⊣(_keys _vals),←,∘⊂¨k (⊂v)  
-    }
+  ⍝H ======================================
+  ⍝H =======        BASIC        ==========
+  ⍝H ======================================
 
   ⍝H d2 ← d.Copy
   ⍝H   Returns a complete, independent copy (clone) of dictionary d.
@@ -66,23 +51,28 @@ Dict←{
     }
 
   ⍝H [1|0] ← [force] d.Del key
-  ⍝H   Deletes entry for key <key>, if it exists. Returns 1 (deleted).
-  ⍝H   If not, returns 0 (not found) IF force is 1.
-  ⍝H   Otherwise, signals an error (⎕EN=3 Index Error).
+  ⍝H   Deletes entry for key <key>, if it exists. returning shy 1 (deleted).
+  ⍝H   If not, 
+  ⍝H      if force=1: returns shy 0 (not found);
+  ⍝H      otherwise (force=0): signals an error (⎕EN=3 Index Error).
   ⍝H
     d.Del← d.Delete← { k←_S ⍵ ⋄ ⍺←0
-      (≢_keys)>p←_keys⍳⊂k: 1⊣ (_keys _vals) /⍨← ⊂ p≠⍳≢_keys
-      ⍺: 0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Unable to delete missing key (requires ⍺=1)'
+      (≢_keys)>p←_keys⍳⊂k: _←1⊣ (_keys _vals) /⍨← ⊂ p≠⍳≢_keys
+      ⍺: _←0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Unable to delete missing key (requires ⍺=1)'
     }
 
   ⍝H val ← [curDefault] d.Get key
-  ⍝H   Returns val, if defined.
-  ⍝H   Otherwise, returns curDefault (if curDefault is defined), 
-  ⍝H   Else Default defined when the dictionary was created (⍬ if not explicitly specified by the user).
+  ⍝H   Returns 
+  ⍝H   - the value <val> for <key>, if <key> defined.
+  ⍝H   - Otherwise, returns a default as specified here:
+  ⍝H     The default is curDefault, if curDefault defined, 
+  ⍝H   - Otherwise, the default is that defined when the dictionary was 
+  ⍝H     created via d←Dict... 
+  ⍝H     - If not explicitly specified by the user, the default is ⍬.
   ⍝H
     d.Get←{  k←_S ⍵ 
-    (≢_keys)>p←_keys⍳⊂k: p⊃_vals 
-    0=⎕NC '⍺': default ⋄ ⍺
+      (≢_keys)>p←_keys⍳⊂k: p⊃_vals 
+      0=⎕NC '⍺': default ⋄ ⍺
     }
 
   ⍝H d.Help
@@ -96,15 +86,15 @@ Dict←{
   ⍝H
     _←d.⎕FX 'i←Items' 'i←↓⍉↑_keys _vals'
 
-  ⍝H val ← d.Set key val    OR:   val← key d.Set val
+  ⍝H {val} ← d.Set key val    OR:   {val}← key d.Set val
   ⍝H   Sets value for key key to value val. 
   ⍝H   If it exists, it is overwritten.
   ⍝H
     d.Set←{  
       0=⎕NC '⍺': _← ∇/⍵
       k v←⍺ ⍵ ⋄ k←_S k  
-      (≢_keys)>p←_keys⍳⊂k: _←(p⊃_vals)←⊂v
-      1: _←v ⊣ (_keys _vals),←,∘⊂¨k v  
+      (≢_keys)>p←_keys⍳⊂k: _←(p⊃_vals)←v
+      1: _←v ⊣ (_keys _vals),← ⊂¨k v  
     }
 
   ⍝H {newD}← [newD|d] d.SortBy sortFields
@@ -116,6 +106,7 @@ Dict←{
   ⍝H     d.SortBy ⍬                  - Sorts d by keys, updating d
   ⍝H     d.SortBy d.vals             - Sorts d by Values, updating d
   ⍝H     newD← d.(Copy SortBy vals)  - Sorts d by Values, into newD
+  ⍝H 
     d.SortBy←{ 
         ⍺←⎕THIS 
         0=≢⍵: _←⍺ ∇ keys
@@ -138,12 +129,89 @@ Dict←{
   ⍝H
   _← d.⎕FX 'vv← Vals' 'vv←_vals'
 
-  ⍝H   d.default 
-  ⍝H      Returns the default value (when a key is not found)
+  ⍝H   d.default [variable]
+  ⍝H   Returns the current default value (when a key is not found)
+  ⍝H 
   ⍝H   d.default← <any data value>
   ⍝H     Sets the default value to use when keys are missing.
-  ⍝H     Note: Do not expunge d.default. Bad things will happen!
+  ⍝H  
+  ⍝H   Note: Do not expunge d.default. Bad things will happen!
+  ⍝H   Note: Normally set via Dict:
+  ⍝H     Pi← ⎕NULL Dict ('one' 'two' 'three') (○1 2 3)
   ⍝H
+
+  ⍝H ======================================
+  ⍝H =======    ADVANCED         ==========
+  ⍝H ======================================
+  ⍝H Augment:
+  ⍝H   newVal ← [⍺] op d.Augment key        
+  ⍝H     (no ⍺) Does: Set key op Get key
+  ⍝H     (w/ ⍺) Does: Set key ⍺ op Get key
+  ⍝H   Shyly returns the new value
+  ⍝H -------------------------------------
+  ⍝H  ∘ Example: Dictionary <counter>
+  ⍝H    Increment a counter (initially 0) named 'jack' to 1
+  ⍝H      counter← 0 Dict ⍬               ⍝ Set defaults to 0
+  ⍝H      1 + counter.Augment 'jack'      ⍝ Sets entry jack to 0+1 => 1
+  ⍝H      1 + counter.Augment 'jack'      ⍝ Sets entry jack to 1+1 => 2 
+  ⍝H 
+    d.Augment←{ ⍺←⊢ 
+      0:: _Err ⍬
+      1: _←⍵ Set ⍺ ⍺⍺ Get ⍵
+    }
+
+  ⍝H AugmentR:
+  ⍝H   newVal ← [⍺] op d.Augment key        
+  ⍝H     (no ⍺) Does: ERROR
+  ⍝H     (w/ ⍺) Does: Set key (Get key) op ⍺
+  ⍝H   Shyly returns the new value
+  ⍝H -------------------------------------
+  ⍝H  ∘ Example: Division
+  ⍝H    Divide a parameter 'parm' by 2
+  ⍝H       d← 0 Dict ⍬               ⍝ Set defaults to 0
+  ⍝H      'parm'  d.Set 512
+  ⍝H      2 ÷ d.AugmentR 'parm'      ⍝ Sets 'parm' to 512÷2, i.e. 256
+  ⍝H      2 ÷ d.AugmentR 'parm'      ⍝ Sets 'parm' to 256÷2, i.e. 128
+  ⍝H   Same as:  2  ÷⍨d.Augment 'parm'
+  ⍝H   or even:  0.5 ×d.Augment 'parm'
+  ⍝H
+    d.AugmentR←{ ⍺←⊢ 
+      0:: _Err ⍬
+      0=⎕NC '⍺': _Err 'Augment requires left arg (⍺)'
+      1: _←⍵ Set (Get ⍵) ⍺⍺ ⍺
+    }
+
+  ⍝H Cat
+  ⍝H    newVal← item d.Cat key 
+  ⍝H Treats the value for <key> as a list (vector of vectors) and a
+  ⍝H appends <item> itself to that list.
+  ⍝H    Shyly returns the new value.
+  ⍝H ----------------------------------------------
+  ⍝H ∘ Example: Create a dictionary of word list:
+  ⍝H   d← Dict ⍬
+  ⍝H   'un'  d.Cat 'one'   ⍝ Creates the list:  un            of 1 item
+  ⍝H   'une' d.Cat 'one'   ⍝                    un   une      of 2 items
+  ⍝H   '1'   d.Cat 'one'   ⍝                    un   une   1  of 3 items
+  ⍝H   
+  ⍝H Note: Usually, the default value is ⍬, i.e.
+  ⍝H   d← ⍬ Dict ⍬    ⍝ or: d ← Dict ⍬   
+  ⍝H Note: d.Cat is equiv. to ,∘⊂ AugmentR
+  ⍝H  
+    d.Cat←{  
+      0:: _Err ⍬
+      1:_← ⍵ Set (Get ⍵),⊂⍺
+    }
+
+  ⍝H CatL
+  ⍝H   newVal← item d.CatL key
+  ⍝H Same as Cat, except prepends  the value <item> to the existing list (vector of vectors) which
+  ⍝H constitute the value for <key>.
+  ⍝H Note: d.CatL is equivalent to ,⍨∘⊂ d.AugmentR 
+  ⍝H  
+    d.CatL←{  
+      0:: _Err ⍬
+      1:_← ⍵ Set (Get ⍵),⍨⊂⍺
+    }
 
     d.Dict←∇
     'help'≡⎕C ⍵: d.Help

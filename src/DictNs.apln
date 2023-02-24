@@ -1,0 +1,177 @@
+  :Namespace Dict 
+  ⍝H ---------------------------------------------------------------------------------
+  ⍝H ----------------------------------------+
+  ⍝H    Dict: A small Dictionary utility     |
+  ⍝H ----------------------------------------+
+  ⍝H [a] d ← [default] Dict keyList valList
+  ⍝H [b] d←  [default] Dict ⍬ 
+  ⍝H 
+  ⍝H Returns a dictionary namespace <d>, setting
+  ⍝H        [a]  its keys to keyList and values to valList, if <keyList valList> is presented;
+  ⍝H        [b]  no initial keys or values, if ⍬.
+  ⍝H   If <default> is defined, that will be used as the default value for Get (etc) for missing keys.
+  ⍝H   If not, ⍬ is used as the default value.
+  ⍝H
+  ⍝H For Help, do Dict 'Help' OR, if d is a dictionary, d.Help.
+  ⍝H ---------------------------------------------------------------------------------
+  ⍝H
+  ⍝H Creating Objects:       d←Dict.New  d.Copy
+  ⍝H Setting and Getting:    d.Set       d.Get    d.default[←...]
+  ⍝H Sorting Values:         d.SortBy    d.SortIP 
+  ⍝H Modifying Values:       d.ApplyTo   d.Cat    
+  ⍝H Deleting K-V Pairs:     d.Del
+  ⍝H Displaying All          d.Keys      d.Vals    d.Items
+  ⍝H 
+    ⎕IO ⎕ML←0 1 
+    DictType←'Dict.[Dict]'
+
+    New←{
+      'help'≡⎕C ⍵: Help ⋄ 
+      d←⎕NS ⎕THIS ⋄ _←d.⎕DF DictType 
+      ⍺← ⍬ 
+      k v←⊆⍵
+      d.default← ⍺
+      d._keys←  ,¨k
+      d._vals←  v
+      d
+    }
+
+  ⍝ _S: (Internal Utility) Treat scalar keys as 1-elem vectors (else, do nothing)
+    _S← {,⍣(⊃0=⍴⍴⍵)⊣ ⍵}    ⍝ Singletons => Vectors
+
+  ⍝H newVal ← [⍺] op d.ApplyTo key
+  ⍝H   (no ⍺) Does: key← op key
+  ⍝H   (w/ ⍺) Does: key← ⍺ op key
+  ⍝H   Shyly returns new value
+  ⍝H   E.g.   newVal← 1 + d.ApplyTo 'fred'  OR   
+  ⍝H          newVal← 1∘+ d.ApplyTo 'fred'
+  ⍝H
+    ApplyTo←{ ⍺←⊢ 
+      0:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'Dict: ',EM)('EN' EN)('Message' Message))
+      1: _←⍵ Set ⍺ ⍺⍺ Get ⍵
+    }
+
+  ⍝H {v} ←   d.Cat k v   OR   {v} ← k d.Cat v
+  ⍝H   Catenates <v> to the end of the prior value at key <k>. 
+  ⍝H   If none, sets the value to <v>.
+  ⍝H   Shyly returns the new value.
+  ⍝H
+    Cat←{ 
+      0=⎕NC '⍺': _← ∇/⍵
+      k v←⍺ ⍵
+      (≢_keys)>p←_keys⍳⊂k: _←p⊃_vals ⊣ (p⊃_vals) ,← ⊂v
+      1: _←v ⊣(_keys _vals),←,∘⊂¨k (⊂v)  
+    }
+
+  ⍝H d2 ← d.Copy
+  ⍝H   Returns a complete, independent copy (clone) of dictionary d.
+  ⍝H
+    ∇d2←Copy
+    d2←default New _keys _vals
+    ∇
+
+  ⍝H [1|0] ← d.Defined key
+  ⍝H   Returns 1 if <key> is defined, else 0.
+  ⍝H
+    Defined←{ k←⍵
+        (≢_keys)>_keys⍳⊂k
+    }
+
+  ⍝H [1|0] ← [force] d.Del key
+  ⍝H   Deletes entry for key <key>, if it exists. returning shy 1 (deleted).
+  ⍝H   If not, 
+  ⍝H      if force=1: returns shy 0 (not found);
+  ⍝H      otherwise (force=0): signals an error (⎕EN=3 Index Error).
+  ⍝H
+    Delete← { k←_S ⍵ ⋄ ⍺←0
+      (≢_keys)>p←_keys⍳⊂k: _←1⊣ (_keys _vals) /⍨← ⊂ p≠⍳≢_keys
+      ⍺: _←0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Unable to delete missing key (requires ⍺=1)'
+    }
+    Del←Delete
+
+  ⍝H val ← [curDefault] d.Get key
+  ⍝H   Returns val, if defined.
+  ⍝H   Otherwise, returns curDefault (if curDefault is defined), 
+  ⍝H   Else Default defined when the dictionary was created (⍬ if not explicitly specified by the user).
+  ⍝H
+    Get←{  k←_S ⍵ 
+      (≢_keys)>p←_keys⍳⊂k: p⊃_vals 
+      0=⎕NC '⍺': default ⋄ ⍺
+    }
+
+  ⍝H d.Help
+  ⍝H   Provides this helpful information.
+  ⍝H   Alternatively, execute:   Dict 'Help'
+  ⍝H
+    ∇ Help
+      ;_help
+      _help←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕SRC ⎕THIS
+      ⎕ED '_help'
+    ∇
+
+  ⍝H i ← d.Items
+  ⍝H   Returns all the keys and their values as key-value pairs.
+  ⍝H
+    ∇i←Items
+      i←↓⍉↑_keys _vals
+    ∇
+
+  ⍝H {val} ← d.Set key val    OR:   {val}← key d.Set val
+  ⍝H   Sets value for key key to value val. 
+  ⍝H   If it exists, it is overwritten.
+  ⍝H
+    Set←{  
+      0=⎕NC '⍺': _← ∇/⍵
+      k v←⍺ ⍵ ⋄ k←_S k  
+      (≢_keys)>p←_keys⍳⊂k: _←(p⊃_vals)←⊂v
+      1: _←v ⊣ (_keys _vals),← ⊂¨k v  
+    }
+
+  ⍝H {newD}← [newD|d] d.SortBy sortFields
+  ⍝H   Shyly sorts into dictionary newD, created via newD←Dict ... (default: d itself) 
+  ⍝H   If sortFields is empty, uses d.keys. (Alternative: ⎕C d.keys)
+  ⍝H   Otherwise, (≢sortFields) MUST≡ (d.keys).
+  ⍝H   Examples:   
+  ⍝H     newD← (Dict.New ⍬) d.SortBy ⍬ - Sorts d by keys into newD (d unchanged)
+  ⍝H     d.SortBy ⍬                    - Sorts d by keys, updating d
+  ⍝H     d.SortBy d.vals               - Sorts d by Values, updating d
+  ⍝H     newD← d.(Copy SortBy vals)    - Sorts d by Values, into newD
+  ⍝H 
+    SortBy←{ 
+        ⍺←⎕THIS 
+        0=≢⍵: _←⍺ ∇ keys
+        ix← ⍋⍵ ⋄ ⍺._keys← _keys[ix] ⋄ ⍺._vals←_vals[ix] 
+        1: _←⍺
+    }
+
+  ⍝H {d} ← d.SortIP
+  ⍝H   Sorts dictionary <d> in place. Returns shy <d>.
+  ⍝H
+    ∇{d}←SortIP
+      d←SortBy _keys
+    ∇
+
+  ⍝H kk ← d.Keys (R/O)
+  ⍝H   Returns the list of keys
+  ⍝H
+    ∇kk← Keys 
+    kk←_keys
+    ∇
+
+  ⍝H vv ← d.Vals (R/O)
+  ⍝H   Returns the list of values
+  ⍝H
+  ∇vv← Vals 
+    vv←_vals
+    ∇
+
+  ⍝H d.default [variable]
+  ⍝H   Returns the default value (when a key is not found)
+  ⍝H d.default← <any data value>
+  ⍝H   Sets the default value to use when keys are missing.
+  ⍝H   Note: Do not expunge d.default. Bad things will happen!
+  ⍝H
+  ⍝ See New for program info on d.default
+
+    
+  :EndNamespace
