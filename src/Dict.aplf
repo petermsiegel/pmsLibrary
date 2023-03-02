@@ -51,7 +51,13 @@ Dict← {
   ⍝H [1|0]← d.Defined key
   ⍝H Returns 1 if <key> is defined, else 0.
   ⍝H
-    d.Defined←{ (≢keysG)>keysG⍳⊂⍵ }
+    d.Defined← { (≢keysG)> keysG⍳ ⊂⍵ }
+  ⍝H d.DefinedX
+  ⍝H [1|0]← d.DefinedX keys
+  ⍝H Returns 1 for each key k in <keys> which is defined;
+  ⍝H returns 0 for each otherwise.
+  ⍝H
+    d.DefinedX←{ (≢keysG)> keysG⍳  ⍵ }
 
   ⍝H d.Del (or d.Delete)
   ⍝H [1|0]← [quiet] d.Del key
@@ -79,7 +85,7 @@ Dict← {
           ⍺← 0 ⋄ kk← ⍵  
           f← (≢keysG)> p← keysG⍳ kk
         (0∊f)∧~⍺: _Err 'Dict.DelX One or more keys not found (⍺:quiet option not selected).'
-          (keysG valsG) /⍨← ⊂0@ (f/p)⊣ 1⍴⍨ ≢keysG
+          (keysG valsG) /⍨← ⊂0@ (f/ p)⊣ 1⍴⍨ ≢keysG
         1: _←f 
     }
 
@@ -94,9 +100,8 @@ Dict← {
   ⍝H If not explicitly specified by the user, the fundamental default (Default) is ⍬.
   ⍝H
     d.Get←{ 
-        ⍺← ⊢ ⋄ k← ⍵ 
-      (≢keysG)>p←keysG⍳⊂k: p⊃valsG 
-      0≡⍺ 0: Default ⋄ ⍺
+        ⍺← Default ⋄ k← ⍵ 
+      (≢keysG)>p← keysG⍳ ⊂k: p⊃ valsG ⋄ ⍺
     }
 
   ⍝H d.GetX
@@ -118,7 +123,7 @@ Dict← {
       (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
         r← ⍺⍴⍨ ≢kk                              ⍝ Prepopulate result with default
       ~1∊ f: r                                  ⍝ No keys found: fast return
-       valsG[ f/p ]@ (f/⍳≢r)⊣ r                 ⍝ Enter values for existing keys
+       valsG[ f/ p ]@ (f/ ⍳≢r)⊣ r               ⍝ Enter values for existing keys
     }
 
   ⍝H d.Help
