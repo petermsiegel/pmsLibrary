@@ -1,8 +1,19 @@
 ﻿ Nil←{
-   ⍝ rc ← [ns] dfn Nil name
-   ⍝ - Creates a niladic function <name> that, when called, will return <dfn ⍬>.
-   ⍝ - Places <name> in the namespace <ns> or, if ⍺ is omitted, the namespace Nil was called from.
-   ⍝ - Nil returns 1 if successful, else 0.
-     ⍺←⊃⎕RSI ⋄ ⍙←⍺⍺ ⋄ call←(⊂'⍙←',⍵),⎕NR'⍙' ⋄ (⊃⌽call),←'⍬'
-     1:_←0≠⊃0⍴⍺.⎕FX call
+   ⍝ Nil: See doc below
+     3.2≠⎕NC ⊂'⍺⍺': 11 ⎕SIGNAL⍨(⍕⊃⎕SI),' DOMAIN ERROR: LEFT OPERAND NOT A DFN' 
+     ⍺←⊃⎕RSI ⋄ _ñîL←⍺⍺ 
+     fn←(⊂'_ñîL←',⍵),⎕NR'_ñîL' ⋄ (⊃⌽fn),←'⍬'
+     1:_←0≠⊃0⍴⍺.⎕FX fn 
+
+   ⍝ Nil: "Converts" a dfn (⍺⍺) into an executable niladic tradfn ⍵.
+   ⍝    rc ← [ns] dfn Nil name
+   ⍝ Creates a niladic (trad) function that, when called, will 
+   ⍝ execute and return the explicit result from the call:
+   ⍝    dfn ⍬   ⍝ dfn: ⍺⍺
+   ⍝ "converting" the dfn code to a niladic tradfn.
+   ⍝
+   ⍝ name: the name of the desired niladic function.
+   ⍝ dfn:  a dfn in code or ⎕OR form passed as the left operand (⍺⍺) (⎕NC must be 3.2).
+   ⍝ ns:   the namespace in which to ⎕FX <name>, defaulting to
+   ⍝       the namespace from which Nil was called. 
  }

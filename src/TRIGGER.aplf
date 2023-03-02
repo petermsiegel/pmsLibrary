@@ -1,0 +1,13 @@
+﻿ TRIGGER name
+ ;nm
+
+ :Implements TRIGGER A
+ nm←name.Name
+ ⎕←'Trigger TRIGGER triggered on ',nm
+ :If 0=name.⎕NC'OldValue'
+     'OK to set name ',nm
+ :ElseIf name.OldValue≡name.NewValue
+     'OK to reset name ',nm,' to same value'
+ :Else
+     'Invalid to reset name ',nm
+ :EndIf

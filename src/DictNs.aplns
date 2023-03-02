@@ -33,9 +33,7 @@ Dict← {
     d←(calr←⊃⎕RSI).⎕NS''  ⋄ _←d.⎕DF (⍕calr),'.[Dict]'
   
   ⍝ _Err: (Internal) Error Signaller
-    d._Err← ⎕SIGNAL {
-      ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
-    }
+    d._Err← ⎕SIGNAL {⊂⎕DMX.(('EM' ('Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' (EN 11⊃⍨EN∨0≠≢⍵))('Message' Message))}
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -45,13 +43,13 @@ Dict← {
   ⍝H d2← d.Copy
   ⍝H   Returns a complete, independent copy (clone) of dictionary d.
   ⍝H
-    _←d.⎕FX 'd2←Copy'  'd2←Default Dict keysG valsG'
+    _←d.⎕FX 'd2←Copy'  'd2←Default Dict _keys _vals'
 
   ⍝H d.Defined
   ⍝H [1|0]← d.Defined key
   ⍝H Returns 1 if <key> is defined, else 0.
   ⍝H
-    d.Defined←{ (≢keysG)>keysG⍳⊂⍵ }
+    d.Defined←{ (≢_keys)>_keys⍳⊂⍵ }
 
   ⍝H d.Del (or d.Delete)
   ⍝H [1|0]← [quiet] d.Del key
@@ -64,23 +62,9 @@ Dict← {
   ⍝H          signals an error (⎕EN=3 Index Error).
   ⍝H
     d.Del← d.Delete← { 
-          ⍺← 0 ⋄ k← ⍵ ⋄ p←keysG⍳⊂k   ⍝ ⊂b⊣ b[p]←0 ⊣ b←1⍴⍨ ≢keysG
-      (≢keysG)> p: _←1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
+          ⍺← 0 ⋄ k← ⍵ 
+      (≢_keys)>p←_keys⍳⊂k: _←1⊣ (_keys _vals) /⍨← ⊂ p≠⍳≢_keys
       ⍺: _←0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Key Not Found (⍺:quiet option not selected).'
-    }
-
-  ⍝H d.DelX (or d.DeleteX)
-  ⍝H [1|0]← [quiet] d.DelX keys
-  ⍝H   For each key k in <keys>, if k exists, 
-  ⍝H      deletes the entry (key value pair) and returns a 1 (deleted).
-  ⍝H   If it does not, but quiet=1, returns 0.
-  ⍝H   Else signals an Index Error (⎕EN=3)
-      d.DelX← d.DeleteX← { 
-          ⍺← 0 ⋄ kk← ⍵  
-          f← (≢keysG)> p← keysG⍳ kk
-        (0∊f)∧~⍺: _Err 'Dict.DelX One or more keys not found (⍺:quiet option not selected).'
-          (keysG valsG) /⍨← ⊂0@ (f/p)⊣ 1⍴⍨ ≢keysG
-        1: _←f 
     }
 
   ⍝H d.Get
@@ -94,31 +78,9 @@ Dict← {
   ⍝H If not explicitly specified by the user, the fundamental default (Default) is ⍬.
   ⍝H
     d.Get←{ 
-        ⍺← ⊢ ⋄ k← ⍵ 
-      (≢keysG)>p←keysG⍳⊂k: p⊃valsG 
+          ⍺← ⊢ ⋄ k← ⍵ 
+      (≢_keys)>p←_keys⍳⊂k: p⊃_vals 
       0≡⍺ 0: Default ⋄ ⍺
-    }
-
-  ⍝H d.GetX
-  ⍝H val← [nonceDefaults] d.GetX keys
-  ⍝H     Logically equivalent to: [nonceDefaults] d.Get¨ keys
-  ⍝H Returns: 
-  ⍝H   - a vector containing the value <val> for each key in <keys>, if <key> defined.
-  ⍝H   - Otherwise, returns a default as specified here:
-  ⍝H     - The default is nonceDefaults, if nonceDefaults defined, 
-  ⍝H     - Otherwise, the default is that defined when the dictionary was 
-  ⍝H       created via d←Dict... 
-  ⍝H     - nonceDefaults must have length 1 or the same length as <keys>
-  ⍝H If not explicitly specified by the user, the "default" default (Default) is ⍬.
-  ⍝H
-    d.GetX←{
-        kk← ⍵ ⋄ p← keysG⍳kk  ⋄ f← p< ≢keysG
-      ~0∊ f: valsG[ p ]                         ⍝ All keys found: fast return
-        ⍺← ⊂Default                             ⍝ Enclose default (⍺) if implicit only.
-      (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
-        r← ⍺⍴⍨ ≢kk                              ⍝ Prepopulate result with default
-      ~1∊ f: r                                  ⍝ No keys found: fast return
-       valsG[ f/p ]@ (f/⍳≢r)⊣ r                 ⍝ Enter values for existing keys
     }
 
   ⍝H d.Help
@@ -132,7 +94,7 @@ Dict← {
   ⍝H i← d.Items
   ⍝H Returns all the keys and their values as key-value pairs.
   ⍝H
-    _←d.⎕FX 'i←Items' 'i←↓⍉↑keysG valsG'
+    _←d.⎕FX 'i←Items' 'i←↓⍉↑_keys _vals'
 
   ⍝H d.Set
   ⍝H {val}← d.Set key val    OR:   {val}← key d.Set val
@@ -146,21 +108,8 @@ Dict← {
   ⍝H
     d.Set←{  
           ⍺←⊢ ⋄ k v←⍺ ⍵
-      (≢keysG)>p← keysG⍳⊂k: _← (p⊃valsG)←v  
-      1: _←v ⊣ (keysG valsG),← (⊂k) (⊂v)  
-    }
-
-  ⍝H d.SetX
-  ⍝H {vals}← d.SetX keys vals    OR:   {vals}← keys d.Set vals
-  ⍝H   Sets values for keys <keys> to <vals>.
-  ⍝H Shyly returns the values <vals> just set. 
-    d.SetX←{  
-        ⍺←⊢ ⋄ kk vv←⍺ ⍵
-        p← keysG⍳ kk ⋄ f← p< ≢keysG
-      ~0∊f: _← valsG[p]← vv
-      ~1∊f: _← vv⊣ (keysG valsG),← kk vv
-        valsG[ f/p ]← f/vv
-      1: _← vv⊣ keysG valsG,← (⊂~f)/¨ kk vv 
+      (≢_keys)>p← _keys⍳⊂k: _← (p⊃_vals)←v  
+      1: _←v ⊣ (_keys _vals),← (⊂k) (⊂v)  
     }
 
   ⍝H SortBy
@@ -181,10 +130,10 @@ Dict← {
   ⍝H   dict← d.(Copy SortBy Vals)  - Sorts d by Values into dict (d unchanged). dict takes on d's default value.
   ⍝H 
     d.SortBy←{ 
-        ⍺←⎕THIS ⋄ flds← ⍵ keysG⊃⍨ 0=≢⍵
-        keysG ≢⍥≢ flds: _Err 'SortBy: Sort field array (⍵) has incorrect number of elements.'
-        ⍺.(keysG valsG)←keysG valsG    ⍝ this does nothing if ⍺ and ⎕THIS are the same...
-        ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋ flds
+        ⍺←⎕THIS ⋄ flds← ⍵ _keys⊃⍨ 0=≢⍵
+        _keys ≢⍥≢ flds: _Err 'SortBy: Sort field array (⍵) has incorrect number of elements.'
+        ⍺.(_keys _vals)←_keys _vals    ⍝ this does nothing if ⍺ and ⎕THIS are the same...
+        ⍺.(_keys _vals)⌷⍨← ⊂⊂⍋ flds
       1: _←⍺
     }
 
@@ -192,19 +141,19 @@ Dict← {
   ⍝H {d}← d.SortIP
   ⍝H   Sorts dictionary <d> in place in ascending order. Returns shy <d>.
   ⍝H
-    _←d.⎕FX '{d}←SortIP'  'd←SortBy keysG'
+    _←d.⎕FX '{d}←SortIP'  'd←SortBy _keys'
 
   ⍝H d.Keys
   ⍝H kk← d.Keys (R/O)
   ⍝H Returns the list of keys
   ⍝H
-  _← d.⎕FX 'kk← Keys' 'kk←keysG'
+  _← d.⎕FX 'kk← Keys' 'kk←_keys'
 
   ⍝H d.Vals
   ⍝H vv← d.Vals (R/O)
   ⍝H Returns the list of values
   ⍝H
-  _← d.⎕FX 'vv← Vals' 'vv←valsG'
+  _← d.⎕FX 'vv← Vals' 'vv←_vals'
 
   ⍝H d.Default  (namespace variable)
   ⍝H ...← d.Default
@@ -269,6 +218,6 @@ Dict← {
   'help'≡⎕C ⍵: d.Help
   (2≠≢⍵)∧⍬≢⍵:  d._Err 'DOMAIN ERROR. (See Dict.Help)'
       k v← ,¨⊆ ⍵ 
-      d.(Default (keysG valsG) )← ⍺  (k v)  
+      d.(Default (_keys _vals) )← ⍺  (k v)  
       d
  }
