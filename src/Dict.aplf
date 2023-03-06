@@ -49,9 +49,6 @@ Dict← {
     d._Err← ⎕SIGNAL { 
       ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
     }
-  ⍝ _Hashing: (Internal) Hashes keysG, passing through ("returning") its right arg...
-  ⍝      r← _Hashing r
-    d._Hashing← {keysG∘←1500⌶keysG ⋄ 1: _← ⍵ }       
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -93,7 +90,7 @@ Dict← {
   ⍝H         otherwise (quiet=0): 
   ⍝H            signals an error (⎕EN=3 Index Error).
   ⍝H
-    d.Del← d._Hashing { 
+    d.Del←  { 
           ⍺← 0 ⋄ p←keysG⍳⊂k← ⍵    
       p< ≢keysG: _← 1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
       ⍺: _← 0  ⋄ 3 _Err 'Key not found'
@@ -110,7 +107,7 @@ Dict← {
   ⍝H Otherwise, deletes each key found (returning a 1) and ignores the others (returning a 0).
   ⍝H See d.Del for details.
   ⍝H  
-    d.DelX←  d._Hashing { 
+    d.DelX←   { 
           ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ ff← pp< ≢keysG 
         (0∊ff)∧~⍺: 3 _Err 'Key(s) not found'
           (keysG valsG) /⍨← ⊂0@ (ff/ pp)⊣ 1⍴⍨ ≢keysG
@@ -126,7 +123,7 @@ Dict← {
   ⍝H             [quiet=0] an error is signalled if any indices are outside the range  [0..(¯1+≢d.Keys)]. 
   ⍝H                       shy 1 for each item deleted.
   ⍝H 
-    d.DelI←  d._Hashing {  
+    d.DelI←   {  
         0:: _Err ⍬
           ⍺←0 ⋄ ff← 0= (0, ≢keysG)⍸ pp← ⍵
         (0∊ff)∧~⍺:  3 _Err 'Index Error'
@@ -175,6 +172,14 @@ Dict← {
   ⍝H 
     _← d.⎕FX 'curDef← GetDef' 'curDef← defaultG'
 
+  ⍝H d.Hash
+  ⍝H {ok←1}← d.Hash
+  ⍝H   Ensures the keys are hashed for quick access. 
+  ⍝H   Typically doesn't seem to improve performance much.
+  ⍝H   Returns shy 1
+  ⍝H
+    _← d.⎕FX '{r}← Hash' 'r←1⊣ keysG∘←1500⌶keysG'
+
   ⍝H d.Help
   ⍝H   Provides this helpful information.
   ⍝H   Alternatively, execute:   Dict 'Help'
@@ -199,7 +204,7 @@ Dict← {
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set¨ v1 v2 v3
   ⍝H
-    d.Set← d._Hashing {   
+    d.Set←  {   
           ⍺←⊢ ⋄ k v←⍺ ⍵
       (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
       1: _←  v ⊣ (keysG valsG),← (⊂k) (⊂v)  
@@ -214,7 +219,7 @@ Dict← {
   ⍝H ∘ Handy: To set entries specified as items (key value pairs):
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H 
-    d.SetX← d._Hashing {  
+    d.SetX←  {  
         ⍺←⊢ ⋄ kk vv←⍺ ⍵
       0:: _Err ⍬
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
@@ -341,5 +346,5 @@ Dict← {
     (k v)← ,¨⊆ ⍵ 
     k ≢⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
     d.( defaultG keysG valsG )← ⍺ k v 
-    d._Hashing d 
+    d 
  }
