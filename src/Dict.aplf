@@ -6,21 +6,24 @@ Dict← {
   ⍝H --------------------------------------------------------+
   ⍝H [a] d← [default←⍬] Dict keyList valList   where vectors (keyList ≡⍥≢ valList)
   ⍝H                         ↓⍉↑ kv1 kv2 ...   where kvN is an "item" (a key-value pair), 
-  ⍝H                                           e.g. ('name' 'Terry Dactyl')
+  ⍝H                                           e.g. ('name' 'Terry Dactyl') or ((○1) (⍳ 2 3))
   ⍝H [b] d← [default←⍬] Dict ⍬ ⍬               generates a dictionary with empty lists of keys and values
   ⍝H                         ⍬                 shortcut for: Dict ⍬ ⍬
+  ⍝H [c] Dict 'Help'                           shares this help information (see also Methods below)
+  ⍝H
+  ⍝H For cases [a] and [b]:
   ⍝H   Returns a dictionary namespace <d> containing an ordered list of items (the order is determined
   ⍝H   by the order of creation) and a set of service functions.
   ⍝H   ○ The dictionary may be initialized via a key list and a corresponding value list (each the same length)
   ⍝H     or remain empty, pending additions via Set, SetX, etc.
   ⍝H   ○ If <default> is defined, that will be used as the default value for Get (etc) for missing keys.
-  ⍝H     If not, ⍬ is used as the default value.  (See variable d.defaultG).
+  ⍝H     If not, ⍬ is used as the "default" default value.  (See variable d.defaultG).
   ⍝H   ○ A useful default for counters is 0.
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H                                         
+  ⍝H Dictionary "Methods"                                       
   ⍝H Basic:                       
-  ⍝H    Creating Dictionaries:   d←Dict     d.Copy
+  ⍝H    Creating Dictionaries:   [d.]Dict   d.Copy
   ⍝H    Setting and Getting: 
   ⍝H       [Single Item]         d.Set      d.Get      
   ⍝H       [Items]               d.SetX     d.GetX 
@@ -43,9 +46,12 @@ Dict← {
     d←(calr←⊃⎕RSI).⎕NS''  ⋄ _←d.⎕DF (⍕calr),'.[Dict]'
   
   ⍝ _Err: (Internal) Error Signaller
-    d._Err← ⎕SIGNAL {
+    d._Err← ⎕SIGNAL { 
       ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
     }
+  ⍝ _Hashing: (Internal) Hashes keysG, passing through ("returning") its right arg...
+  ⍝      r← _Hashing r
+    d._Hashing← {keysG∘←1500⌶keysG ⋄ 1: _← ⍵ }       
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -87,10 +93,10 @@ Dict← {
   ⍝H         otherwise (quiet=0): 
   ⍝H            signals an error (⎕EN=3 Index Error).
   ⍝H
-    d.Del← { 
-          ⍺← 0 ⋄ k← ⍵ ⋄ p←keysG⍳⊂k    
-      (≢keysG)> p: _←1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
-      ⍺: _←0  ⋄ 3 ⎕SIGNAL⍨'Dict.Del: Key Not Found (⍺:quiet option not selected).'
+    d.Del← d._Hashing { 
+          ⍺← 0 ⋄ p←keysG⍳⊂k← ⍵    
+      p< ≢keysG: _← 1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
+      ⍺: _← 0  ⋄ 3 _Err 'Key not found'
     }
 
   ⍝H d.DelX  
@@ -104,11 +110,11 @@ Dict← {
   ⍝H Otherwise, deletes each key found (returning a 1) and ignores the others (returning a 0).
   ⍝H See d.Del for details.
   ⍝H  
-    d.DelX←  { 
-          ⍺← 0 ⋄ kk← ⍵ ⋄ f← (≢keysG)> p← keysG⍳ kk
-        (0∊f)∧~⍺: 3 _Err 'Key(s) not found'
-          (keysG valsG) /⍨← ⊂0@ (f/ p)⊣ 1⍴⍨ ≢keysG
-        1: _←f 
+    d.DelX←  d._Hashing { 
+          ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ ff← pp< ≢keysG 
+        (0∊ff)∧~⍺: 3 _Err 'Key(s) not found'
+          (keysG valsG) /⍨← ⊂0@ (ff/ pp)⊣ 1⍴⍨ ≢keysG
+        1: _← ff 
     }
 
   ⍝H d.DelI  
@@ -120,12 +126,12 @@ Dict← {
   ⍝H             [quiet=0] an error is signalled if any indices are outside the range  [0..(¯1+≢d.Keys)]. 
   ⍝H                       shy 1 for each item deleted.
   ⍝H 
-    d.DelI←  {  
+    d.DelI←  d._Hashing {  
         0:: _Err ⍬
-          ⍺←0 ⋄ f← 0= ⍵⍸⍨ 0,≢keysG
-        (0∊f)∧~⍺:  3 _Err 'Index Error'
-          (keysG valsG) /⍨← ⊂0@ (f/⍵)⊣ 1⍴⍨ ≢keysG
-        1: _←f
+          ⍺←0 ⋄ ff← 0= (0, ≢keysG)⍸ pp← ⍵
+        (0∊ff)∧~⍺:  3 _Err 'Index Error'
+          (keysG valsG) /⍨← ⊂0@ (ff/pp)⊣ 1⍴⍨ ≢keysG
+        1: _← f
     }
 
   ⍝H d.Get
@@ -136,8 +142,8 @@ Dict← {
   ⍝H     - Otherwise, the default <def> (which itself defaults to def← GetDef).
   ⍝H
     d.Get←{ 
-        ⍺← defaultG ⋄ k← ⍵ 
-      (≢keysG)>p← keysG⍳ ⊂k: p⊃ valsG ⋄ ⍺
+        ⍺← defaultG ⋄ p← keysG⍳ ⊂k← ⍵ 
+      p< ≢keysG: p⊃ valsG ⋄ ⍺
     }
 
   ⍝H d.GetX
@@ -153,7 +159,7 @@ Dict← {
   ⍝H If not explicitly specified by the user, the "default" default (defaultG) is ⍬.
   ⍝H
     d.GetX←{
-        kk← ⍵ ⋄ pp← keysG⍳ kk  ⋄ ff← pp< ≢keysG
+        pp← keysG⍳ kk← ⍵  ⋄ ff← pp< ≢keysG
       ~0∊ ff: valsG[ pp ]                            ⍝ All keys found: fast return
         ⍺← ⊂defaultG                                  
       (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
@@ -164,8 +170,8 @@ Dict← {
 
   ⍝H d.GetDef   
   ⍝H curDef← d.GetDef
-  ⍝H   Gets the default value.
-  ⍝H   Returns the current default value (for use when a key is not found)
+  ⍝H   Gets the current default value.
+  ⍝H   Returns the default value (used for an item's value when a key is not found)
   ⍝H 
     _← d.⎕FX 'curDef← GetDef' 'curDef← defaultG'
 
@@ -193,10 +199,10 @@ Dict← {
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set¨ v1 v2 v3
   ⍝H
-    d.Set←{  
+    d.Set← d._Hashing {   
           ⍺←⊢ ⋄ k v←⍺ ⍵
-      (≢keysG)>p← keysG⍳⊂k: _← (p⊃valsG)←v  
-      1: _←v ⊣ (keysG valsG),← (⊂k) (⊂v)  
+      (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
+      1: _←  v ⊣ (keysG valsG),← (⊂k) (⊂v)  
     }
 
   ⍝H d.SetX
@@ -208,7 +214,7 @@ Dict← {
   ⍝H ∘ Handy: To set entries specified as items (key value pairs):
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H 
-    d.SetX←{  
+    d.SetX← d._Hashing {  
         ⍺←⊢ ⋄ kk vv←⍺ ⍵
       0:: _Err ⍬
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
@@ -249,10 +255,10 @@ Dict← {
   ⍝H 
     d.SortBy←{ 
         ⍺←⎕THIS ⋄ flds← ⍵ keysG⊃⍨ 0=≢⍵
-        keysG ≢⍥≢ flds: _Err 'SortBy: Sort field array (⍵) has incorrect length.'
-        ⍺.(keysG valsG)←keysG valsG    ⍝ this does nothing if ⍺ and ⎕THIS are the same...
-        ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋ flds
-      1: _←⍺
+        keysG ≢⍥≢ flds: _Err 'SortBy: Sort field has incorrect length.'
+        ⍺.(keysG valsG)← keysG valsG    ⍝ this does nothing if ⍺ and ⎕THIS are the same...
+        ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋flds
+      1: _←⍺._Hashing ⍺
     }
 
   ⍝H d.Keys
@@ -328,10 +334,12 @@ Dict← {
 
   ⍝ Executive 
     ⍺← ⍬
+    
     d.Dict← ∇
   'help'≡⎕C ⍵: d.Help
-  (2≠≢⍵)∧⍬≢⍵:  d._Err 'DOMAIN ERROR. (See Dict.Help)'
-    k v← ,¨⊆ ⍵ 
-    d.(defaultG keysG valsG )← ⍺ k v
-    d
+  (2≠≢⍵)∧⍬≢⍵:  d._Err 'DOMAIN ERROR (See Dict.Help)'
+    (k v)← ,¨⊆ ⍵ 
+    k ≢⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
+    d.( defaultG keysG valsG )← ⍺ k v 
+    d._Hashing d 
  }
