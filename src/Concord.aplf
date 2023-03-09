@@ -1,19 +1,20 @@
    Concord file
 
-    ; Dict
-    ; WORD_LEN; LINE_LEN; LNUM_LEN; LNumFmt; MAX_WIDTH
-    ; CHAR_STD; CHAR_BOLD
-    ; lNum; lNums; lNumField; len; line; lines; match; offset; word; wordRaw; rec; recs
+    ; Dict; Highlight; LineFmt; LNumFmt; Skip; WordList; WordFmt
+    ; CHAR_STD; CHAR_BOLD; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
+    ; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; word; wordRaw
     ; wCurL; w2Line; wFreq 
-    ; Highlight; Skip; WordList
-    ; ⎕PW; ⎕IO
+    ; ⎕IO; ⎕PW
 
   ⍝ Demo text...
     {}⎕SE.UCMD 'load Dict.aplf'
     :IF 0=≢file 
        :IF 0=⎕NC '#.SHAKESPEARE'
-           ⎕SE.UCMD 'get https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt'
-           #.SHAKESPEARE← (⎕UCS 10)(≠⊆⊢) 1000↑13006↓#.⍙t8⍙46⍙shakespeare
+           {
+            #.SHAKESPEARE← (⎕UCS 10)(≠⊆⊢) 5000↑13006↓⎕OR _←⎕SE.UCMD 'get ',⍵
+            ⎕←'Loaded #.SHAKESPEARE'
+            1: _←⎕EX _
+           }'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt'
        :ENDIF
        file← #.SHAKESPEARE
     :ENDIF 

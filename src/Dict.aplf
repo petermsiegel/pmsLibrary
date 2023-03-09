@@ -25,34 +25,50 @@ Dict← {
   ⍝H     (unless a temporary default is specified: see Get, GetX).
   ⍝H     If no left arg (⍺) is specified, ⍬ is used as the "default" default value.   
   ⍝H     See SetDef, GetDef.
+  ⍝H   ○ A key may be repeated during initialization. If so, the rightmost value for that key is retained.
   ⍝H   ○ A useful default for counters is 0, for strings: '' or ⍬, for lists: ⍬.
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
-  ⍝H Dictionary "Methods"             o: any obj (as a key, value or default)                
-  ⍝H                                 oo: a list of objects (or ⊂o, if a single object)
-  ⍝H                                 kk: a sortable list of objects: (≢kk) ≡ (≢d.Keys)
-  ⍝H                                 ii: 1 or more indices (offsets), ii∊ ⍳≢d.Keys
+  ⍝H Dictionary "Methods"        k: a key               kk: 1 (enclosed) or more keys          
+  ⍝H                             v: a value             vv: 1 (enclosed) or more values
+  ⍝H                             a:  arbitrary data     aa: any (enclosed) list of arbitrary data
+  ⍝H                             b:  Boolean value      bb: Boolean values
+  ⍝H                             ss: a sortable list of objects: (≢ss) ≡ (≢d.Keys)
+  ⍝H                             i:  an index           ii: 1 or more indices (key locations)
   ⍝H Basic:                     
-  ⍝H    Creating Dictionaries:   o [d.]Dict oo oo    d.Copy
+  ⍝H    Creating Dictionaries:   newD← v [d.]Dict kk vv 
+  ⍝H       [Cloning Dict d]      newD← d.Copy
   ⍝H    Setting and Getting: 
-  ⍝H       [Single Item]         d.Set  o  o         d.Get    o      
-  ⍝H       [Items]               d.SetX oo           d.GetX   oo  
-  ⍝H       [ReturnsIndices]                          d.GetIX  oo 
-  ⍝H       [Default Values]      d.SetDef o          d.GetDef 
-  ⍝H    Sorting Items:           d.SortBy kk  
+  ⍝H       [Single Item]         v←  d.Set  k  v        v←  d.Get    k      
+  ⍝H       [Items]               vv← d.SetX kk vv       vv← d.GetX   kk  
+  ⍝H       [Indices]                                    i←  d.Find   k 
+  ⍝H                                                    ii← d.FindX  kk
+  ⍝H       [Default Values]      old← d.SetDef v        v←  d.GetDef 
+  ⍝H    Validating Items
+  ⍝H                             b←  d.HasKey k                         
+  ⍝H                             bb← d.HasKeys kk                          
+  ⍝H    Sorting Items:           newD← [newD←d] d.SortBy ss            If newD not specified as ⍺, newD←d
   ⍝H    Deleting Items:          
-  ⍝H       [Single Item by Key]  d.Del   o
-  ⍝H       [Items by Key]        d.DelX  oo
-  ⍝H       [Items by Index]      d.DelIX ii                       ⎕IO=0
-  ⍝H    Displaying All           d.Keys              d.Vals      
-  ⍝H       [Items]               d.Items
+  ⍝H       [Single Item by Key]  b←  [b]  d.Del   k
+  ⍝H       [Items by Key]        bb← [bb] d.DelX  kk
+  ⍝H       [Items by Index]      bb← [b]  d.DelI  ii                   ⎕IO=0
+  ⍝H       [All]                 nk← d.Clear                           nk: Returns former number of keys
+  ⍝H    Displaying All           
+  ⍝H       [Keys]                kk← d.Keys              
+  ⍝H       [Vals]                vv← d.Vals      
+  ⍝H       [Items]               kv← d.Items                           kv: Returns key-value pairs
+  ⍝H       [Number of Items]    num← d.Size 
+  ⍝H       [Synonym]            num← d.Tally
   ⍝H Advanced:
-  ⍝H   Modifying Values:         o  (op d.Do) o      o  d.Cat  o   
-  ⍝H                             oo (op d.DoX)o      oo d.CatX oo
-  ⍝H   Hashing (automatic: no functions/methods)
-  ⍝H
-  ⍝H For Help:   Dict 'Help' 
-  ⍝H             d.Help, if d is a dictionary.
+  ⍝H    Modifying Values:         
+  ⍝H       [Apply <op a>]        new← k  (op d.Do)  a     
+  ⍝H                             new← kk (op d.DoX) aa   
+  ⍝H       [Catenate <a>]        new← k  d.Cat  a   
+  ⍝H                             new← kk d.CatX aa
+  ⍝H   Hashing [See "Hashing" below]
+  ⍝H      [Automatic; no functions/methods]
+  ⍝H For Help:                   Dict 'Help' 
+  ⍝H                             d.Help 
   ⍝H 
     ⎕IO ⎕ML←0 1 
     d←(calr←⊃⎕RSI).⎕NS''  ⋄ _←d.⎕DF (⍕calr),'.[Dict]'
@@ -71,35 +87,22 @@ Dict← {
   ⍝H =======        BASIC        ==========
   ⍝H ======================================
 
+  ⍝H d.Clear
+  ⍝H   {nK}← d.Clear'
+  ⍝H Delete all the items in the dictionary, shyly returning the (prior) number of items in the dictionary.
+  ⍝H (Does not affect the default value)
+  ⍝H
+     _←d.⎕FX '{nK}←Clear' 'nK←≢keysG' 'keysG←valsG←⍬'
+
   ⍝H d.Copy
   ⍝H d2← d.Copy
   ⍝H   Returns a complete, independent copy (clone) of dictionary d.
+  ⍝H   (Keys, values, and the default value are copied).
   ⍝H
   ⍝ Note: Substantially (>50%) faster than calling d.Copy2, defined as:
   ⍝      _←d.⎕FX 'd2←Copy2'  'd2←⎕NS ⎕THIS'
     _←d.⎕FX 'd2←Copy'  'd2←defaultG Dict keysG valsG'
-    _←d.⎕FX 'd2←Copy2'  'd2←⎕NS d'
     
-  ⍝H d.Defined
-  ⍝H [1|0]← d.Defined key
-  ⍝H key: an object of any shape
-  ⍝H   Returns 1 if <key> is defined, else 0.
-  ⍝H -----
-  ⍝H See Note at DefinedX.
-  ⍝H
-    d.Defined← { (≢keysG)> keysG⍳ ⊂⍵ }
-
-  ⍝H d.DefinedX
-  ⍝H [ [1|0]... ]← d.DefinedX keys
-  ⍝H   Returns 1 for each key k in <keys> which is defined;
-  ⍝H   Returns 0 for each otherwise.
-  ⍝H -----
-  ⍝H Note: It is (~2-3 times) faster to use ∊ in place of Defined/X:
-  ⍝H    :IF (⊂'cats') ∊ d.Keys ⋄ ... 
-  ⍝H    :IF 1∊ 'cats' 'dogs' 'mice' ∊ d.Keys ⋄ ... 
-  ⍝H
-    d.DefinedX← { (≢keysG)> keysG⍳  ⍵ }
-
   ⍝H d.Del  (Delete-by-Key)
   ⍝H  {[1|0]}← [quiet←0] d.Del key
   ⍝H  key:   an object of any shape
@@ -143,8 +146,8 @@ Dict← {
         1: _← ff 
     }
 
-  ⍝H d.DelIX  (Delete-by-Indices)
-  ⍝H {[1|0]}←  [quiet←0] d.DelIX indices  (⎕IO=0)
+  ⍝H d.DelI   (Delete-by-Indices)
+  ⍝H {[1|0]}←  [quiet←0] d.DelI indices  (⎕IO=0)
   ⍝H    indices: indices for items, where index 0 is the first.
   ⍝H    quiet:   scalar 1 or 0.
   ⍝H Deletes items (key-value pairs) by index. 
@@ -155,14 +158,35 @@ Dict← {
   ⍝H     a 1 for each index in range, whose associated item is deleted, and 
   ⍝H     a 0 for each index not in range and ignored. 
   ⍝H 
-    d.DelIX←  d._Rehash {  
+    d.DelI←  d._Rehash {  
         0:: _Err ⍬
           ⍺←0 ⋄ ff← 0= (0, ≢keysG)⍸ pp← ⍵
         (0∊ff)∧~⍺:  3 _Err 'Index Error'
           (keysG valsG) /⍨← ⊂0@ (ff/pp)⊣ 1⍴⍨ ≢keysG
         1: _← f
     }
+    d.DelIX← d.DelI 
 
+  ⍝H d.Find, FindX (Find Keys) / Extended)
+  ⍝H index←    [force←0] d.Find  key
+  ⍝H indices←  [force←0] d.FindX keys
+  ⍝H    Returns the indices for the keys found (⎕IO=0). 
+  ⍝H    For those not found:
+  ⍝H      If force=1, returns ≢d.Keys for each missing key.
+  ⍝H      If force=0 (default), signals an error (⎕EN=3).
+  ⍝H    Note: This returns indices by keys!
+  ⍝H       To return keys or values for specific indices, simply use d.Keys / d.Vals  
+  ⍝H          d.Keys[ i1 i2 ... ]
+  ⍝H          d.Vals[ i1 i2 ... ]
+  ⍝H
+     d.FindX←{ ⍺←0 
+         pp← keysG⍳ ⍵ 
+      ⍺: pp 
+      1∊ pp= ≢keysG: 3 _Err 'Key(s) not found'
+         pp                                                
+    }
+    d.Find← d.FindX⊂
+ 
   ⍝H d.Get (Get-Value)
   ⍝H val← [def← GetDef] d.Get key
   ⍝H Retrieves the specified key or <def> if not found.
@@ -197,31 +221,32 @@ Dict← {
        valsG[ ff/ pp ]@ (ff/ ⍳≢rr)⊣ rr               ⍝ Enter values for existing keys
     }
 
-  ⍝H d.GetI, GetIX (Get-Index (by Keys) / Extended)
-  ⍝H indices←  [force←0] d.GetIX keys
-  ⍝H    Returns the indices for the keys found (⎕IO=0). 
-  ⍝H    For those not found:
-  ⍝H      If force=1, returns ≢d.Keys for each missing key.
-  ⍝H      If force=0 (default), signals an error (⎕EN=3).
-  ⍝H    Note: This returns indices by keys!
-  ⍝H       To return keys or values for specific indices, simply use d.Keys / d.Vals  
-  ⍝H          d.Keys[ i1 i2 ... ]
-  ⍝H          d.Vals[ i1 i2 ... ]
-  ⍝H
-     d.GetIX←{ ⍺←0 
-         pp← keysG⍳ ⍵ 
-      ⍺: pp 
-      1∊ pp= ≢keysG: 3 _Err 'Key(s) not found'
-         pp                                                
-    }
-    d.GetI← d.GetIX⊂
-
   ⍝H d.GetDef   
   ⍝H curDef← d.GetDef
   ⍝H   Gets the current default value.
   ⍝H   Returns the default value (used for an item's value when a key is not found)
   ⍝H 
     _← d.⎕FX 'curDef← GetDef' 'curDef← defaultG'
+
+  ⍝H d.HasKey
+  ⍝H [1|0]← d.HasKey key
+  ⍝H key: an object of any shape
+  ⍝H   Returns 1 if <key> is defined, else 0.
+  ⍝H -----
+  ⍝H See Note at HasKeys.
+  ⍝H
+    d.HasKey← { keysG∊⍨ ⊂⍵ }
+
+  ⍝H d.HasKeys
+  ⍝H [ [1|0]... ]← d.HasKeys keys
+  ⍝H   Returns 1 for each key k in <keys> which is defined;
+  ⍝H   Returns 0 for each otherwise.
+  ⍝H -----
+  ⍝H Note: It is (~2-3 times) faster to use ∊ in place of HasKey/s
+  ⍝H    :IF (⊂'cats') ∊ d.Keys ⋄ ... 
+  ⍝H    :IF 1∊ 'cats' 'dogs' 'mice' ∊ d.Keys ⋄ ... 
+  ⍝H
+    d.HasKeys← { ⍵∊ keysG }
 
   ⍝H d.Help
   ⍝H   Provides this helpful information.
@@ -235,6 +260,12 @@ Dict← {
   ⍝H   Returns all the keys and their values as key-value pairs.
   ⍝H
     _←d.⎕FX 'i←Items' 'i←↓⍉↑keysG valsG'
+
+  ⍝H d.Keys
+  ⍝H kk← d.Keys (R/O)
+  ⍝H Returns the list of keys
+  ⍝H
+  _← d.⎕FX 'kk← Keys' 'kk←keysG'
 
   ⍝H d.Set
   ⍝H {val}← d.Set key val    OR:   {val}← key d.Set val
@@ -258,16 +289,17 @@ Dict← {
   ⍝H {vals}← d.SetX keys vals    OR:   {vals}← keys d.Set vals
   ⍝H   Sets values for keys <keys> to <vals>.
   ⍝H   <vals> may be a single scalar, in which case all the keys <keys> will be set to that value.
+  ⍝H ∘ If a key is repeated, the LAST value set is stored.
   ⍝H Shyly returns the values <vals> passed (a single scalar if specified).
   ⍝H -----------
   ⍝H ∘ Handy: To set entries specified as items (key value pairs):
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H 
     d.SetX←  {  
-    ⍝ keysG and valsG are carefully incremented SEPARATELY 
-    ⍝ so that key hashing is maintained. 
-    ⍝ This will break it:  (keysG valsG),← kk vv
-        ⍺←⊢ ⋄ kk vv←⍺ ⍵
+  ⍝  keysG and valsG are SEPARATELY modified so that key hashing is maintained. 
+  ⍝  This will break hashing:  (keysG valsG),← kk vv
+        ⍺←⊢ ⋄ kk vv←⍺ ⍵ 
+        kk vv /⍨← ⊂⌽≠⌽kk 
       0:: _Err ⍬
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
       ~0∊ff: _← valsG[ pp ]← vv
@@ -315,11 +347,12 @@ Dict← {
       1: _← ⍺
     }
 
-  ⍝H d.Keys
-  ⍝H kk← d.Keys (R/O)
-  ⍝H Returns the list of keys
-  ⍝H
-  _← d.⎕FX 'kk← Keys' 'kk←keysG'
+  ⍝H d.Size  OR d.Tally
+  ⍝H n← d.Size  
+  ⍝H n← d.Tally
+  ⍝H Returns the number of items in the dictionary
+  _← d.⎕FX 'n← Size' 'n← ≢keysG'
+  _← d.⎕FX 'n← Tally' 'n← ≢keysG'
 
   ⍝H d.Vals
   ⍝H vv← d.Vals (R/O)
@@ -405,10 +438,15 @@ Dict← {
     ⍺← ⍬
     
     d.Dict← ∇
-  'help'≡⎕C ⍵: d.Help
-  (2≠≢⍵)∧⍬≢⍵:  d._Err 'DOMAIN ERROR (See Dict.Help)'
+  'help'≡⎕C ⍵: d.Help  
+  0=≢⍵: d⊣ d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
+  2≠≢⍵:  d._Err 'DOMAIN ERROR (See Dict.Help)'
     (k v)← ,¨⊆ ⍵ 
-    k ≢⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-    d.( defaultG keysG valsG )← ⍺ k v  
+  k ≠⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
+  0=≢k: d⊣ d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
+
+  ⍝ If a key is repeated, the LAST corresponding value is retained.
+    (k v)/⍨← ⊂⌽≠⌽k
+    d.( defaultG keysG valsG )← ⍺ k v
     d._Rehash d                        ⍝ Establish hashing...
  }
