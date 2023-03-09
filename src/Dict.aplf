@@ -84,6 +84,8 @@ Dict← {
   ⍝H [1|0]← d.Defined key
   ⍝H key: an object of any shape
   ⍝H   Returns 1 if <key> is defined, else 0.
+  ⍝H -----
+  ⍝H See Note at DefinedX.
   ⍝H
     d.Defined← { (≢keysG)> keysG⍳ ⊂⍵ }
 
@@ -91,6 +93,10 @@ Dict← {
   ⍝H [ [1|0]... ]← d.DefinedX keys
   ⍝H   Returns 1 for each key k in <keys> which is defined;
   ⍝H   Returns 0 for each otherwise.
+  ⍝H -----
+  ⍝H Note: It is (~2-3 times) faster to use ∊ in place of Defined/X:
+  ⍝H    :IF (⊂'cats') ∊ d.Keys ⋄ ... 
+  ⍝H    :IF 1∊ 'cats' 'dogs' 'mice' ∊ d.Keys ⋄ ... 
   ⍝H
     d.DefinedX← { (≢keysG)> keysG⍳  ⍵ }
 
