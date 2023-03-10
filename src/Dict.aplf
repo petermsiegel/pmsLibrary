@@ -292,11 +292,17 @@ Dict← {
   ⍝H ∘ Handy: To set entries specified as items (key value pairs):
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H 
+    d._Set2Last←{ 
+          kk vv←  ⍵
+          kk≡∪kk: kk vv
+          kr vr← (⊂⌽≠⌽kk)/¨ kk vv  
+          kl vl← (⊂≠kk)  /¨ kk vv 
+          (kl)(vr[kl⍳ kr])
+      }
     d.SetX←  {  
   ⍝  keysG and valsG are SEPARATELY modified so that key hashing is maintained. 
   ⍝  This shortcut will break hashing:  (keysG valsG),← kk vv
-        ⍺←⊢ ⋄ kk vv←⍺ ⍵ 
-        kk vv /⍨← ⊂⌽≠⌽kk 
+        ⍺←⊢  ⋄ kk vv← _Set2Last ⍺ ⍵
       0:: _Err ⍬
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
       ~0∊ff: _← valsG[ pp ]← vv
@@ -435,13 +441,10 @@ Dict← {
       d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
   0=≢⍵: d 
   2≠≢⍵:  3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-      (k v)← ,¨⊆ ⍵ 
-  k ≠⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-  0=≢k: d
+      (kk vv)← ,¨⊆ ⍵ 
+  kk ≠⍥≢ vv: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
+  0=≢kk: d
   ⍝ If a key is repeated, the LAST corresponding value is retained.
-      k2 v2← (⊂⌽≠⌽k)/¨ k v 
-  k1 v1← (⊂≠k)/¨ k v 
-      p←k1⍳k2
-      d.( keysG valsG )← (k1)(v2[p])
+      d.( keysG valsG )← d._Set2Last kk vv
       d._Rehash d                        ⍝ Establish hashing...
  }
