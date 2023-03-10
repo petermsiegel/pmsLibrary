@@ -56,14 +56,14 @@ Dict← {
   ⍝H    Displaying All           
   ⍝H       [Keys]                kk← d.Keys              
   ⍝H       [Vals]                vv← d.Vals      
-  ⍝H       [Items]               kv← d.Items                           kv: Returns key-value pairs
-  ⍝H       [Number of Items]    num← d.Tally 
+  ⍝H       [Items]               kv← d.Items                           kv:  Returns key-value pairs
+  ⍝H       [Number of Items]    num← d.Tally                           num: Non-neg integer
   ⍝H Advanced:
   ⍝H    Modifying Values:         
-  ⍝H       [Apply <op a>]        new← k  (op d.Do)  a     
-  ⍝H                             new← kk (op d.DoX) aa   
-  ⍝H       [Catenate <a>]        new← k  d.Cat  a   
-  ⍝H                             new← kk d.CatX aa
+  ⍝H       [Apply <op a>]        new← k  (op d.Do)  a                  new: Result of applying <op a> to the value at <k>
+  ⍝H                             new← kk (op d.DoX) aa                 "
+  ⍝H       [Catenate <a>]        new← k  d.Cat  a                      "
+  ⍝H                             new← kk d.CatX aa                     "
   ⍝H   Hashing [See "Hashing" below]
   ⍝H      [Automatic; no functions/methods]
   ⍝H For Help:                   Dict 'Help' 
@@ -118,7 +118,7 @@ Dict← {
   ⍝H       signals an error (⎕EN=3 Index Error).
   ⍝H
     d.Del← d._Rehash { 
-          ⍺← 0 ⋄ p←keysG⍳⊂k← ⍵    
+          ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵    
       p< ≢keysG: _← 1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
       ⍺: _← 0  ⋄ 3 _Err 'Key not found'
     }
@@ -161,6 +161,7 @@ Dict← {
           (keysG valsG) /⍨← ⊂0@ (ff/pp)⊣ 1⍴⍨ ≢keysG
         1: _← f
     }
+  ⍝H d.DelIX: (Same as d.DelI)
     d.DelIX← d.DelI 
 
   ⍝H d.Find, FindX (Find Keys) / Extended)
@@ -214,7 +215,7 @@ Dict← {
       (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
         rr← ⍺⍴⍨ ≢kk                                  ⍝ Prepopulate result with default
       ~1∊ ff: rr                                     ⍝ No keys found: fast return
-       valsG[ ff/ pp ]@ (ff/ ⍳≢rr)⊣ rr               ⍝ Enter values for existing keys
+       valsG[ ff/ pp ]@ (⍸ff)⊣ rr               ⍝ Enter values for existing keys
     }
 
   ⍝H d.GetDef   
@@ -293,7 +294,7 @@ Dict← {
   ⍝H 
     d.SetX←  {  
   ⍝  keysG and valsG are SEPARATELY modified so that key hashing is maintained. 
-  ⍝  This will break hashing:  (keysG valsG),← kk vv
+  ⍝  This shortcut will break hashing:  (keysG valsG),← kk vv
         ⍺←⊢ ⋄ kk vv←⍺ ⍵ 
         kk vv /⍨← ⊂⌽≠⌽kk 
       0:: _Err ⍬
@@ -428,18 +429,19 @@ Dict← {
   ⍝H
 
   ⍝ Executive 
-    ⍺← ⍬
-    
-    d.Dict← ∇
+      ⍺← ⍬
+      d.Dict← ∇
   'help'≡⎕C ⍵: d.Help  
-  0=≢⍵: d⊣ d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
-  2≠≢⍵:  d._Err 'DOMAIN ERROR (See Dict.Help)'
-    (k v)← ,¨⊆ ⍵ 
+      d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
+  0=≢⍵: d 
+  2≠≢⍵:  3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
+      (k v)← ,¨⊆ ⍵ 
   k ≠⍥≢ v: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-  0=≢k: d⊣ d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
-
+  0=≢k: d
   ⍝ If a key is repeated, the LAST corresponding value is retained.
-    (k v)/⍨← ⊂⌽≠⌽k
-    d.( defaultG keysG valsG )← ⍺ k v
-    d._Rehash d                        ⍝ Establish hashing...
+      k2 v2← (⊂⌽≠⌽k)/¨ k v 
+  k1 v1← (⊂≠k)/¨ k v 
+      p←k1⍳k2
+      d.( keysG valsG )← (k1)(v2[p])
+      d._Rehash d                        ⍝ Establish hashing...
  }
