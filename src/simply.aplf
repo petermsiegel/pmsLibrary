@@ -1,0 +1,7 @@
+﻿ simply←{
+     k v←⍵
+     k≡ku←∪k:k v
+     nb←~b←≠k
+     v2←(nb/v)@(ku⍳nb/k)⊢b/v
+     k2 v2
+ }

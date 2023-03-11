@@ -25,7 +25,10 @@ Dict← {
   ⍝H     (unless a temporary default is specified: see Get, GetX).
   ⍝H     If no left arg (⍺) is specified, ⍬ is used as the "default" default value.   
   ⍝H     See SetDef, GetDef.
-  ⍝H   ○ A key may be repeated during initialization. If so, the rightmost value for that key is retained.
+  ⍝H   ○ Each key in a dictionary is unique. 
+  ⍝H     If a key is repeated during initialization, the rightmost value is retained for that key.
+  ⍝H     At the same time, new keys are entered into the dictionary left to right as expected.
+  ⍝H     Note that SetX and Set (q.v.) work the very same way, retaining the rightmost value.
   ⍝H   ○ A useful default for counters is 0, for strings: '' or ⍬, for lists: ⍬.
   ⍝H
   ⍝H ---------------------------------------------------------------------------------
@@ -43,21 +46,21 @@ Dict← {
   ⍝H       [Items]               vv← d.SetX kk vv       vv← d.GetX   kk  
   ⍝H       [Indices]                                    i←  d.Find   k 
   ⍝H                                                    ii← d.FindX  kk
-  ⍝H       [Default Values]      old← d.SetDef v        v←  d.GetDef 
+  ⍝H       [Default Values]      old← d.SetDef a        a←  d.GetDef 
   ⍝H    Validating Items
-  ⍝H                             b←  d.HasKey k                         
-  ⍝H                             bb← d.HasKeys kk                          
+  ⍝H                             b←  d.HasKey k                        Faster: (⊂k)∊ d.Keys 
+  ⍝H                             bb← d.HasKeys kk                      Faster: kk∊ d.Keys           
   ⍝H    Sorting Items:           newD← [newD←d] d.SortBy ss            If newD not specified as ⍺, newD←d
   ⍝H    Deleting Items:          
   ⍝H       [Single Item by Key]  b←  [b]  d.Del   k
   ⍝H       [Items by Key]        bb← [bb] d.DelX  kk
   ⍝H       [Items by Index]      bb← [b]  d.DelI  ii                   ⎕IO=0
-  ⍝H       [All]                 nk← d.Clear                           nk: Returns former number of keys
+  ⍝H       [All]                old← d.Clear                           old: Returns former number of keys
   ⍝H    Displaying All           
   ⍝H       [Keys]                kk← d.Keys              
   ⍝H       [Vals]                vv← d.Vals      
   ⍝H       [Items]               kv← d.Items                           kv:  Returns key-value pairs
-  ⍝H       [Number of Items]    num← d.Tally                           num: Non-neg integer
+  ⍝H       [Number of Items]    nni← d.Tally                           nni: Non-neg integer
   ⍝H Advanced:
   ⍝H    Modifying Values:         
   ⍝H       [Apply <op a>]        new← k  (op d.Do)  a                  new: Result of applying <op a> to the value at <k>
@@ -81,6 +84,10 @@ Dict← {
   ⍝          Used when keysG has non-incremental changes:
   ⍝              dict creation, item deletion, dictionary sorting.
     d._Rehash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
+
+  ⍝  _NKL: Ensures (N)ew keys are registered in order L to R and unique,
+  ⍝        (K)eeping the (L)ast [rightmost] value for each key.
+    d._NKL← { kk vv←⍵ ⋄ k2 v2←,⊂[0]kk{⍺ ⍵}⌸vv ⋄ (⊃¨k2)(⊃∘⌽¨v2) }
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -286,23 +293,18 @@ Dict← {
   ⍝H   {vals}← d.SetX keys vals    OR:   {vals}← keys d.Set vals
   ⍝H Sets values for keys <keys> to <vals>.
   ⍝H   <vals> may be a single scalar, in which case all the keys <keys> will be set to that value.
-  ⍝H ∘ If a key is repeated, the LAST value set is stored.
+  ⍝H ∘ If a key is repeated, the LAST value set is retained, as expected.
   ⍝H Shyly returns the values <vals> passed (a single scalar if specified).
   ⍝H -----------
   ⍝H ∘ Handy: To set entries specified as items (key value pairs):
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
-  ⍝H 
-    d._Set2Last←{ 
-          kk vv←  ⍵
-          kk≡∪kk: kk vv
-          kr vr← (⊂⌽≠⌽kk)/¨ kk vv  
-          kl vl← (⊂≠kk)  /¨ kk vv 
-          (kl)(vr[kl⍳ kr])
-      }
+  ⍝H  
+
     d.SetX←  {  
   ⍝  keysG and valsG are SEPARATELY modified so that key hashing is maintained. 
   ⍝  This shortcut will break hashing:  (keysG valsG),← kk vv
-        ⍺←⊢  ⋄ kk vv← _Set2Last ⍺ ⍵
+  ⍝  _NKL: Ensures NEW keys are registered L to R, yet the rightmost VALUE is kept (if ⍺=0, default)
+        ⍺←⊢  ⋄ kk vv← _NKL ⍺ ⍵
       0:: _Err ⍬
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
       ~0∊ff: _← valsG[ pp ]← vv
@@ -444,7 +446,7 @@ Dict← {
       (kk vv)← ,¨⊆ ⍵ 
   kk ≠⍥≢ vv: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
   0=≢kk: d
-  ⍝ If a key is repeated, the LAST corresponding value is retained.
-      d.( keysG valsG )← d._Set2Last kk vv
+    ⍝ _NKL: Ensures keys are registered L to R, but if ⍺=0, the rightmost value is kept
+      d.( keysG valsG )←  d._NKL kk vv
       d._Rehash d                        ⍝ Establish hashing...
  }
