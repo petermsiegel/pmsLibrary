@@ -38,24 +38,25 @@ Dict← {
   ⍝H                             b:  Boolean value      bb: Boolean values
   ⍝H                             ss: a sortable list of objects: (≢ss) ≡ (≢d.Keys)
   ⍝H                             i:  an index           ii: 1 or more indices (key locations)
+  ⍝H                             *   shy return value
   ⍝H Basic:                     
   ⍝H    Creating Dictionaries:   newD← v [d.]Dict kk vv 
   ⍝H       [Cloning Dict d]      newD← d.Copy
   ⍝H    Setting and Getting: 
-  ⍝H       [Single Item]         v←  d.Set  k  v        v←  d.Get    k      
-  ⍝H       [Items]               vv← d.SetX kk vv       vv← d.GetX   kk  
+  ⍝H       [Single Item]        v*←  d.Set  k  v        v←  d.Get    k      
+  ⍝H       [Items]              vv*← d.SetX kk vv       vv← d.GetX   kk  
   ⍝H       [Indices]                                    i←  d.Find   k 
   ⍝H                                                    ii← d.FindX  kk
-  ⍝H       [Default Values]      old← d.SetDef a        a←  d.GetDef 
+  ⍝H       [Default Values]     old*← d.SetDef a        a←  d.GetDef 
   ⍝H    Validating Items
   ⍝H                             b←  d.HasKey k                        Faster: (⊂k)∊ d.Keys 
   ⍝H                             bb← d.HasKeys kk                      Faster: kk∊ d.Keys           
-  ⍝H    Sorting Items:           newD← [newD←d] d.SortBy ss            If newD not specified as ⍺, newD←d
+  ⍝H    Sorting Items:        newD*← [newD←d] d.SortBy ss              If newD not specified as ⍺, newD←d
   ⍝H    Deleting Items:          
-  ⍝H       [Single Item by Key]  b←  [b]  d.Del   k
-  ⍝H       [Items by Key]        bb← [bb] d.DelX  kk
-  ⍝H       [Items by Index]      bb← [b]  d.DelI  ii                   ⎕IO=0
-  ⍝H       [All]                old← d.Clear                           old: Returns former number of keys
+  ⍝H       [Single Item by Key] b*←  [b]  d.Del   k
+  ⍝H       [Items by Key]       bb*← [bb] d.DelX  kk
+  ⍝H       [Items by Index]     bb*← [b]  d.DelI  ii                   ⎕IO=0
+  ⍝H       [All]               old*← d.Clear                           old: Returns former number of keys
   ⍝H    Displaying All           
   ⍝H       [Keys]                kk← d.Keys              
   ⍝H       [Vals]                vv← d.Vals      
@@ -83,11 +84,11 @@ Dict← {
   ⍝ _Rehash: (Internal) hashes keysG and shyly returns right arg (⍵).
   ⍝          Used when keysG has non-incremental changes:
   ⍝              dict creation, item deletion, dictionary sorting.
+  ⍝ Note: We use every time with SetX, because of issues with catenating to an empty vector...
     d._Rehash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
 
-  ⍝  _NKL: Ensures (N)ew keys are registered in order L to R and unique,
-  ⍝        (K)eeping the (L)ast [rightmost] value for each key.
-    d._NKL← { kk vv←⍵ ⋄ k2 v2←,⊂[0]kk{⍺ ⍵}⌸vv ⋄ (⊃¨k2)(⊃∘⌽¨v2) }
+  ⍝ Keep only to validate hash logic...
+    d._Validate← { ×1(1500⌶)keysG: _←⍵ ⋄ 'Dict: Logic Error. Hash not established' ⎕SIGNAL 999  }
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -95,10 +96,11 @@ Dict← {
 
   ⍝H d.Clear
   ⍝H   {nK}← d.Clear'
-  ⍝H Delete all the items in the dictionary, shyly returning the (prior) number of items in the dictionary.
+  ⍝H Delete all the items in the dictionary, 
+  ⍝H    shyly returning the number of items in the dictionary before clearing.
   ⍝H (Does not affect the default value)
   ⍝H
-     _←d.⎕FX '{nK}←Clear' 'nK←≢keysG' 'keysG←valsG←⍬'
+     _←d.⎕FX '{nK}←Clear'  'nK← ≢keysG ⋄ keysG← valsG← ⍬'   
 
   ⍝H d.Copy
   ⍝H   d2← d.Copy
@@ -166,7 +168,7 @@ Dict← {
           ⍺←0 ⋄ ff← 0= (0, ≢keysG)⍸ pp← ⍵
         (0∊ff)∧~⍺:  3 _Err 'Index Error'
           (keysG valsG) /⍨← ⊂0@ (ff/pp)⊣ 1⍴⍨ ≢keysG
-        1: _← f
+        1: _← ff
     }
   ⍝H d.DelIX: (Same as d.DelI)
     d.DelIX← d.DelI 
@@ -199,7 +201,7 @@ Dict← {
   ⍝H - Otherwise, the "default" is returned.
   ⍝H
     d.Get←{ 
-        ⍺← defaultG ⋄ p← keysG⍳ ⊂k← ⍵ 
+        ⍺← defaultG ⋄ p← keysG⍳ ⊂k← _Validate ⍵ 
       p< ≢keysG: p⊃ valsG ⋄ ⍺
     }
 
@@ -216,7 +218,7 @@ Dict← {
   ⍝H If not explicitly specified by the user, the default is the "default" default.
   ⍝H
     d.GetX←{
-        pp← keysG⍳ kk← ⍵  ⋄ ff← pp< ≢keysG
+        pp← keysG⍳ kk←  _Validate ⍵  ⋄ ff← pp< ≢keysG
       ~0∊ ff: valsG[ pp ]                            ⍝ All keys found: fast return
         ⍺← ⊂defaultG                                  
       (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
@@ -282,8 +284,9 @@ Dict← {
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set¨ v1 v2 v3
   ⍝H
-    d.Set←  {   
-          ⍺←⊢ ⋄ k v←⍺ ⍵
+    d.Set← d._Validate {   
+          ⍺←⊢ ⋄ k v←⍺ ⍵ 
+      0=≢keysG: _Rehash (keysG,← ,⊂k) ⊣ valsG,← ,⊂k
       (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
       keysG,← ⊂k ⋄ valsG,← ⊂v 
       1: _←  v  
@@ -300,19 +303,23 @@ Dict← {
   ⍝H    d.SetX ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H  
 
-    d.SetX←  {  
-  ⍝  keysG and valsG are SEPARATELY modified so that key hashing is maintained. 
-  ⍝  This shortcut will break hashing:  (keysG valsG),← kk vv
-  ⍝  _NKL: Ensures NEW keys are registered L to R, yet the rightmost VALUE is kept (if ⍺=0, default)
-        ⍺←⊢  ⋄ kk vv← _NKL ⍺ ⍵
+    d.SetX←  d._Validate {  
+  ⍝  keysG and valsG are SEPARATELY modified so that the hashtable for keysG is maintained.
+  ⍝  This fails when catenating to an empty keysG, so a _Rehash is done in that case.
+        ⍺←⊢  ⋄ kk vv←,¨⍺ ⍵ 
+      kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
+  ⍝  Allow duplicate keys: 
+  ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
+        kk vv← ↓⊃∘⌽¨⍉ kk {⍺⍵} ⌸ vv 
       0:: _Err ⍬
+      0=≢keysG: _← _Rehash vv ⊣ (keysG,← kk) ⊣ valsG,← vv  
         pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
       ~0∊ff: _← valsG[ pp ]← vv
-      ~1∊ff: _← vv⊣ keysG,← kk ⊣ valsG,← vv
+      ~1∊ff: _← vv ⊣ (keysG,← kk) ⊣ valsG,← vv  
         valsG[ ff/ pp ]← ff/ vv
         nkk nvv← kk vv /⍨¨ ⊂~ff
         keysG,← nkk ⋄ valsG,← nvv
-      1: _← vv
+      1: _←  vv
     }
 
   ⍝H d.SetDef
@@ -442,11 +449,12 @@ Dict← {
   'help'≡⎕C ⍵: d.Help  
       d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
   0=≢⍵: d 
-  2≠≢⍵:  3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-      (kk vv)← ,¨⊆ ⍵ 
-  kk ≠⍥≢ vv: 3 d._Err 'LENGTH ERROR: Number of Keys and Values Differ'
-  0=≢kk: d
-    ⍝ _NKL: Ensures keys are registered L to R, but if ⍺=0, the rightmost value is kept
-      d.( keysG valsG )←  d._NKL kk vv
-      d._Rehash d                        ⍝ Establish hashing...
+  2≠≢⍵:  3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
+      (kk vv)← ,¨⍵ 
+  kk ≠⍥≢ vv: 3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
+  0=≢kk: d 
+     ⍝ Allow duplicate keys: 
+     ⍝ Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
+      d.( keysG valsG )←  ↓⊃∘⌽¨⍉ kk {⍺⍵} ⌸ vv
+      d._Rehash d                               ⍝ Establish key hashing...
  }
