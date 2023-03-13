@@ -82,15 +82,15 @@
     }
   ⍝  Allow duplicate keys: 
   ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
-  ⍝  d._Register← { ⍺=⍥≢kk←∪⍺:⍺ ⍵ ⋄ kk (⍺{⊃⌽⍵}⌸⍵) }                   ⍝ +328% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-  ⍝  d._Register← { ⍺=⍥≢kk←∪⍺:⍺ ⍵ ⋄ kk (⍵@(kk⍳k)⊢⍬⍴⍨≢kk)  }           ⍝  +60% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
-     d._Register← { ⍺=⍥≢kk←∪⍺:⍺ ⍵ ⋄ vv←(≢kk)⍴0 ⋄ vv[kk⍳⍺]←⍵ ⋄ kk vv } ⍝    0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕   
+  ⍝  d._NewKVb← { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uk (⍺{⊃⌽⍵}⌸⍵) }                   ⍝ +328% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+  ⍝  d._NewKVa← { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uk (⍵@(uk⍳⍺)⊢uk    )  }           ⍝  +60% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
+     d._NewKV←  { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv }  ⍝    0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕   
       
-  ⍝ _Rehash: (Internal) hashes keysG and shyly returns right arg (⍵).
+  ⍝ _Hash: (Internal) hashes keysG and shyly returns right arg (⍵).
   ⍝          Used when keysG has mostly non-incremental changes:
   ⍝              dict creation, item deletion, dictionary sorting, appending to null vector.
   ⍝ Note: We use every time with SetX, because of issues with catenating to an empty vector...
-    d._Rehash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
+    d._Hash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
 
   ⍝ Keep only to validate hash logic...
     d._Validate← { ×1(1500⌶)keysG: _←⍵ ⋄ 'Dict: Logic Error. Hash not established' ⎕SIGNAL 999  }
@@ -129,7 +129,7 @@
   ⍝H    Otherwise (quiet=0): 
   ⍝H       signals an error (⎕EN=3 Index Error).
   ⍝H
-    d.Del← d._Rehash { 
+    d.Del← d._Hash { 
           ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵    
       p< ≢keysG: _← 1⊣ (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG
       ⍺: _← 0  ⋄ 3 _Err 'Key not found'
@@ -148,11 +148,11 @@
   ⍝H     a 0 for each key not found and ignored.
   ⍝H See d.Del for details.
   ⍝H  
-    d.DelX← d._Rehash { 
-          ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ ff← pp< ≢keysG 
-        (0∊ff)∧~⍺: 3 _Err 'Key(s) not found'
-          (keysG valsG) /⍨← ⊂0@ (ff/ pp)⊣ 1⍴⍨ ≢keysG
-        1: _← ff 
+    d.DelX← d._Hash { 
+          ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
+        (0∊om)∧~⍺: 3 _Err 'Key(s) not found'
+          (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG
+        1: _← om 
     }
 
   ⍝H d.DelI   (Delete-by-Indices)
@@ -166,12 +166,12 @@
   ⍝H     a 1 for each index in range, whose associated item is deleted, and 
   ⍝H     a 0 for each index not in range and ignored. 
   ⍝H 
-    d.DelI←  d._Rehash {  
+    d.DelI←  d._Hash {  
         0:: _Err ⍬
-          ⍺←0 ⋄ ff← 0= (0, ≢keysG)⍸ pp← ⍵
-        (0∊ff)∧~⍺:  3 _Err 'Index Error'
-          (keysG valsG) /⍨← ⊂0@ (ff/pp)⊣ 1⍴⍨ ≢keysG
-        1: _← ff
+          ⍺←0 ⋄ om← 0= (0, ≢keysG)⍸ pp← ⍵
+        (0∊om)∧~⍺:  3 _Err 'Index Error'
+          (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
+        1: _← om
     }
 
   ⍝H d.Find, FindX (Find Keys) / Extended)
@@ -219,13 +219,13 @@
   ⍝H If not explicitly specified by the user, the default is the "default" default.
   ⍝H
     d.GetX←{
-        pp← keysG⍳ kk←  _Validate ⍵  ⋄ ff← pp< ≢keysG
-      ~0∊ ff: valsG[ pp ]                            ⍝ All keys found: fast return
+        pp← keysG⍳ kk←  _Validate ⍵  ⋄ om← pp< ≢keysG
+      ~0∊ om: valsG[ pp ]                            ⍝ All keys found: fast return
         ⍺← ⊂defaultG                                  
       (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'Length Error: Mismatched left and right argument lengths'
         rr← ⍺⍴⍨ ≢kk                                  ⍝ Prepopulate result with default
-      ~1∊ ff: rr                                     ⍝ No keys found: fast return
-       valsG[ ff/ pp ]@ (⍸ff)⊣ rr               ⍝ Enter values for existing keys
+      ~1∊ om: rr                                     ⍝ No keys found: fast return
+       valsG[ om/ pp ]@ (⍸om)⊣ rr               ⍝ Enter values for existing keys
     }
 
   ⍝H d.GetDef   
@@ -287,7 +287,7 @@
   ⍝H
     d.Set← d._Validate {   
           ⍺←⊢ ⋄ k v←⍺ ⍵ 
-      0=≢keysG: _← v ⊣ _Rehash valsG,← ,⊂v ⊣ keysG,← ,⊂k
+      0=≢keysG: _← _Hash v ⊣ valsG,← ,⊂v ⊣ keysG,← ,⊂k
       (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
           keysG,← ⊂k ⋄ valsG,← ⊂v 
       1: _←  v  
@@ -306,21 +306,23 @@
 
     d.SetX←  d._Validate {  
   ⍝  keysG and valsG are SEPARATELY modified so that the hashtable for keysG is maintained.
-  ⍝  This fails when catenating to an empty keysG, so a _Rehash is done in that case.
+  ⍝  This fails when catenating to an empty keysG, so a _Hash is done in that case after catenating.
           ⍺←⊢ ⋄ kk vv←,¨⍺ ⍵ 
       kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
+      0= ≢kk: _← ⍬
   ⍝  Allow duplicate keys: 
   ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
-      0:: _Err ⍬
-      0=≢keysG: valsG,← _Rehash vv ⊣ (keysG,← kk)  ⊣ kk vv← kk _Register vv
-          pp← keysG⍳ kk ⋄ ff← pp< ≢keysG
-      ~0∊ff: valsG[ pp ]← vv                                       ⍝ Only existing keys
-      ~1∊ff: valsG,← vv ⊣ (keysG,← kk) ⊣kk vv← kk _Register vv     ⍝ Only new keys
-          valsG[ ff/ pp ]← ff/ vv                                  ⍝ Mixed: Update existing first
-          nkk nvv← kk vv /⍨¨ ⊂~ff
-          kk vv← (ff/kk) _Register (ff/vv)
-          valsG,← nvv ⋄ keysG,← nkk                                ⍝ Mixed: Update new
-      1: _←  vv
+      0:: _Err ⍬                                                     ⍝   Empty Dict.  Update Keys. Add New Keys.
+      0=≢keysG: _← _Hash {                                           ⍝ A.    +             -            +
+          nk nv←⍵ ⋄ keysG,← nk ⋄ valsG,← nv ⋄ nv
+      }   kk _NewKV vv 
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG         ⍝ om: old key mask  ⍝    ...     Scan Existing Keys     ...
+      ~0∊om: valsG[ pp ]← vv                                         ⍝ B.    -             +            -
+      ~1∊om: _← nv ⊣ valsG,← nv⊣  (keysG,← nk)⊣ nk nv← kk _NewKV vv  ⍝ C.    -             -            +
+          valsG[ om/ pp ]← ov←om/ vv             ⍝ ov: old vals      ⍝ D.    -             +            +
+          nk nv← ⊃_NewKV/ (⊂~om)/¨ kk vv         ⍝ nv: new vals
+          valsG,← nv ⋄ keysG,← nk                                    
+      1: _←  ov, nv                                                 
     }
 
   ⍝H d.SetDef
@@ -352,12 +354,12 @@
   ⍝H   newD← (Dict ⍬) d.SortBy ⍬   - Sorts d by keys. newD has ⍬ as default.   
   ⍝H   newD← d.(Copy SortBy Vals)  - Sorts d by values. newD takes on d's default value.
   ⍝H 
-    d.SortBy← d._Rehash { 
+    d.SortBy← d._Validate  { 
         ⍺←⎕THIS ⋄ flds← ⍵ keysG⊃⍨ 0=≢⍵
         keysG ≢⍥≢ flds: _Err 'SortBy: Sort field has incorrect length.'
         ⍺.(keysG valsG)← keysG valsG    ⍝ this does nothing if ⍺ and ⎕THIS are the same...
         ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋flds
-      1: _← ⍺
+      1: _← ⍺._Hash ⍺
     }
 
   ⍝H d.Tally
@@ -450,12 +452,7 @@
   'help'≡⎕C ⍵: d.Help  
       d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
   0=≢⍵: d 
-  2≠≢⍵:  3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
-      (kk vv)← ,¨⍵ 
-  kk ≠⍥≢ vv: 3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
-  0=≢kk: d 
-    ⍝ Allow duplicate keys: 
-    ⍝    Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
-    ⍝ Establish key hashing...
-      d._Rehash d ⊣ d.( keysG valsG )←  kk d._Register vv                                       
+  2≠≢⍵: 3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
+⍝ Load items (key-value pairs)
+        d ⊣   d.SetX/ ,¨⍵                                    
  }
