@@ -84,7 +84,7 @@
   ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
   ⍝  d._NewKVb← { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uk (⍺{⊃⌽⍵}⌸⍵) }                   ⍝ +328% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
   ⍝  d._NewKVa← { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uk (⍵@(uk⍳⍺)⊢uk    )  }           ⍝  +60% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
-     d._NewKV←  { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv }  ⍝    0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕   
+  ⍝  d._NewKV←  { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv }  ⍝    0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕   
       
   ⍝ _Hash: (Internal) hashes keysG and shyly returns right arg (⍵).
   ⍝          Used when keysG has mostly non-incremental changes:
@@ -313,16 +313,17 @@
   ⍝  Allow duplicate keys: 
   ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
       0:: _Err ⍬                                                     ⍝   Empty Dict.  Update Keys. Add New Keys.
-      0=≢keysG: _← _Hash {                                           ⍝ A.    +             -            +
-          nk nv←⍵ ⋄ keysG,← nk ⋄ valsG,← nv ⋄ nv
-      }   kk _NewKV vv 
+          AllNew← {                                                    
+              nk nv←⍺ { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv } ⍵ 
+              keysG,← nk ⋄ valsG,← nv ⋄ keysG∘← 1500⌶keysG ⋄ nv  
+          } 
+      0=≢keysG: _← kk AllNew vv                                      ⍝ A.    +             -            +
           pp← keysG⍳ kk ⋄ om← pp< ≢keysG         ⍝ om: old key mask  ⍝    ...     Scan Existing Keys     ...
       ~0∊om: valsG[ pp ]← vv                                         ⍝ B.    -             +            -
-      ~1∊om: _← nv ⊣ valsG,← nv⊣  (keysG,← nk)⊣ nk nv← kk _NewKV vv  ⍝ C.    -             -            +
+      ~1∊om: _← kk AllNew vv                                         ⍝ C.    -             -            +
           valsG[ om/ pp ]← ov←om/ vv             ⍝ ov: old vals      ⍝ D.    -             +            +
-          nk nv← ⊃_NewKV/ (⊂~om)/¨ kk vv         ⍝ nv: new vals
-          valsG,← nv ⋄ keysG,← nk                                    
-      1: _←  ov, nv                                                 
+          nk nv← (⊂~om)/¨ kk vv                  ⍝ nv: new vals      ⍝ ↓
+      1:  _←  ov, (nk AllNew nv)                                     ⍝ ↓                                          
     }
 
   ⍝H d.SetDef
