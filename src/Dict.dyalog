@@ -87,9 +87,9 @@
   ⍝  d._NewKV←  { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv }  ⍝    0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕   
       
   ⍝ _Hash: (Internal) hashes keysG and shyly returns right arg (⍵).
-  ⍝          Used when keysG has mostly non-incremental changes:
-  ⍝              dict creation, item deletion, dictionary sorting, appending to null vector.
-  ⍝ Note: We use every time with SetX, because of issues with catenating to an empty vector...
+  ⍝        Used with: 
+  ⍝             dict creation, item deletion, dictionary sorting, appending to null vector.
+  ⍝        SetX handles hashes directly.
     d._Hash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
 
   ⍝ Keep only to validate hash logic...
@@ -305,25 +305,24 @@
   ⍝H  
 
     d.SetX←  d._Validate {  
-  ⍝  keysG and valsG are SEPARATELY modified so that the hashtable for keysG is maintained.
-  ⍝  This fails when catenating to an empty keysG, so a _Hash is done in that case after catenating.
           ⍺←⊢ ⋄ kk vv←,¨⍺ ⍵ 
       kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
       0= ≢kk: _← ⍬
-  ⍝  Allow duplicate keys: 
-  ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value
-      0:: _Err ⍬                                                     ⍝   Empty Dict.  Update Keys. Add New Keys.
-          AllNew← {                                                    
-              nk nv←⍺ { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv } ⍵ 
-              keysG,← nk ⋄ valsG,← nv ⋄ keysG∘← 1500⌶keysG ⋄ nv  
-          } 
-      0=≢keysG: _← kk AllNew vv                                      ⍝ A.    +             -            +
-          pp← keysG⍳ kk ⋄ om← pp< ≢keysG         ⍝ om: old key mask  ⍝    ...     Scan Existing Keys     ...
-      ~0∊om: valsG[ pp ]← vv                                         ⍝ B.    -             +            -
-      ~1∊om: _← kk AllNew vv                                         ⍝ C.    -             -            +
-          valsG[ om/ pp ]← ov←om/ vv             ⍝ ov: old vals      ⍝ D.    -             +            +
+      0:: _Err ⍬     
+      ⍝  Allow duplicate keys: 
+      ⍝  Ensure each key is registered in order L to R exactly once, but keeping the rightmost associated value                                               
+          _SetNew← { ⍝ ⍺= keys(kk), ⍵= vals(vv), returns rightmost new vals                                                
+              nk nv← ⍺ { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv } ⍵ 
+              keysG,← nk  ⋄ valsG,← nv  
+              ×1(1500⌶)keysG: nv ⋄ keysG∘← 1500⌶keysG ⋄ nv 
+          }                                                          ⍝  Empty Dict? | Update Keys | Add New Keys.
+      0=≢keysG: _← kk _SetNew vv                                     ⍝ A.    +             -            +
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG         ⍝ om: old key mask  ⍝      ...       Scan "Old" Keys  ...
+      ~0∊om: valsG[ pp ]← vv                     ⍝ ← All old keys    ⍝ B.    -             +            -
+      ~1∊om: _← kk _SetNew vv                    ⍝ ← All new keys    ⍝ C.    -             -            +
+          ov← valsG[ om/ pp ]← om/ vv            ⍝ ov: old vals      ⍝ D.    -             +            +
           nk nv← (⊂~om)/¨ kk vv                  ⍝ nv: new vals      ⍝ ↓
-      1:  _←  ov, (nk AllNew nv)                                     ⍝ ↓                                          
+      1:  _←  ov, nk _SetNew nv                                      ⍝ ↓                                          
     }
 
   ⍝H d.SetDef
@@ -455,5 +454,5 @@
   0=≢⍵: d 
   2≠≢⍵: 3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'
 ⍝ Load items (key-value pairs)
-        d ⊣   d.SetX/ ,¨⍵                                    
+        d ⊣ d.SetX ,¨⍵                                    
  }
