@@ -93,7 +93,9 @@
     d._Hash← { keysG∘←1500⌶keysG ⋄ 1: _←⍵ }
 
   ⍝ Keep only to validate hash logic...
-    d._Validate← { ×1(1500⌶)keysG: _←⍵ ⋄ 'Dict: Logic Error. Hash not established' ⎕SIGNAL 999  }
+    d._Validate← { 
+      0=≢keysG: _←⍵ ⋄ ×1(1500⌶)keysG: _←⍵ ⋄ 'Dict: Logic Error. Hash not established' ⎕SIGNAL 999  
+    }
 
   ⍝H ======================================
   ⍝H =======        BASIC        ==========
@@ -179,7 +181,7 @@
   ⍝H   indices←  [force←0] d.FindX keys
   ⍝H Returns the indices for the keys found (⎕IO=0). 
   ⍝H   For those not found:
-  ⍝H     If force=1, returns ≢d.Keys for each missing key.
+  ⍝H     If force=1, returns (≢d.Keys) for each missing key; present keys are in range [0 .. ≢d.Keys-1]
   ⍝H     If force=0 (default), signals an error (⎕EN=3).
   ⍝H Note: This returns indices by keys!
   ⍝H   To return keys or values for specific indices, simply use d.Keys / d.Vals  
