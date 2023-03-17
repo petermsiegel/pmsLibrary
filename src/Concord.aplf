@@ -1,23 +1,22 @@
-   Concord file
+   Concord text
 
-    ; Dict; Highlight; LineFmt; LNumFmt; Skip; WordList; WordFmt
+    ; ⎕IO; ⎕PW
+    ; ∆DICT; Highlight; LineFmt; LNumFmt; Skip; Trim; WordList; WordFmt
     ; CHAR_STD; CHAR_BOLD; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
     ; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; word; wordRaw
     ; wCurL; w2Line; wFreq 
-    ; ⎕IO; ⎕PW
+
+    {}⎕SE.UCMD 'load  ∆DICT'
 
   ⍝ Demo text...
-    {}⎕SE.UCMD 'load Dict.aplf'
-    :IF 0=≢file 
-       :IF 0=⎕NC '#.SHAKESPEARE'
-           {
+    text← text {
+        0≠≢⍺: ⍺
+        0≠⎕NC '#.SHAKESPEARE': #.SHAKESPEARE 
+        0:: 911 ⎕SIGNAL⍨'Something bad happened' 
             #.SHAKESPEARE← (⎕UCS 10)(≠⊆⊢) 5000↑13006↓⎕OR _←⎕SE.UCMD 'get ',⍵
             ⎕←'Loaded #.SHAKESPEARE'
-            1: _←⎕EX _
-           }'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt'
-       :ENDIF
-       file← #.SHAKESPEARE
-    :ENDIF 
+            #.SHAKESPEARE
+    }'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt' 
 
     ⎕IO←0
     ⎕PW← MAX_WIDTH← 120
@@ -25,42 +24,45 @@
     LNUM_LEN ← 4  
     LNumFmt← (⍕LNUM_LEN)∘{,⍵ ⎕FMT⍨ 'ZI',⍺}
 
+    Trim← {⍵↓⍨+/∧\' '=⍵}
+    
     WordList←{
-        '([:⎕]?[\w_∆⍙]+(?:''[st])?)' ⎕S 0 1⊣⍵
+        '([:⎕]?[\w_∆⍙]+(?:''[\w_∆⍙]+)?)' ⎕S 0 1⊣⍵
     }
     
     Highlight←{ 
       line wordRaw←⍺ ⍵
       Repl←{ w←⍵ ⋄ B←⍵∊CHAR_STD ⋄ (B/w)←CHAR_BOLD[CHAR_STD⍳B/w] ⋄ w}
-      ('(?<![⎕:])\b',wordRaw,'\b') ⎕R {Repl ⍵.Lengths[0]↑⍵.Offsets[0]↓⍵.Block}   ⍠1 ⊣ line
+      ('(?<![⎕:])\b',wordRaw,'\b') ⎕R {Repl ⍵.Lengths[0]↑⍵.Offsets[0]↓⍵.Block}   ⍠1 ⊣ Trim line
     }
        CHAR_STD←     ⎕A,⎕C⎕A 
        CHAR_BOLD←    ⎕UCS (⎕UCS '𝐀')+⍳52
 
-    Skip← ∊∘(⎕D,'⎕:') 
+    Skip← ∊∘(⎕D,'⎕:')⊃ 
 
-    wFreq←   0 Dict ⍬         ⍝ Word frequencies
-    w2Line←  ⍬ Dict ⍬         ⍝ Word to lNum and lines
+    wFreq←   0 ∆DICT ⍬         ⍝ Word frequencies
+    w2Line←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
     
     lNum←0 
     ⎕← 'Source text' 
     LINE_LEN← MAX_WIDTH - LNUM_LEN + 3
-    :FOR line :IN file
-         lNum+←1 ⋄ thisLine← 0 Dict ⍬
-         wCurL←⍬
+    :FOR line :IN text
+         lNum+←1  
 
          ⎕← (LNumFmt lNum), ' | ',(LINE_LEN↑ line)
          
+        wCurL←⍬
         :For offset len :IN  WordList line
             wordRaw←len↑ offset↓ line
             word← ⎕C wordRaw 
-            :IF Skip ⊃wordRaw ⋄ :Continue ⋄ :ENDIF 
+            :IF Skip word ⋄ :Continue ⋄ :ENDIF 
             wCurL,← ⊂word wordRaw 
-            word +wFreq.Do 1
+            word +wFreq.Do1 1
         :EndFor
-      ⍝ For each line, highlight all appearances of the word at the same time.
-        :For word wordRaw :IN wCurL/⍨ ≠⊃¨wCurL     ⍝ Suppress repeats...
-            word w2Line.Cat lNum (line Highlight wordRaw)
+      ⍝ For each word in this line, highlight all appearances of that word simultaneously.
+      ⍝ To do that, we process repeat appearances (ignoring case) with the first.
+        :For word wordRaw :IN wCurL/⍨ ≠⊃¨wCurL      
+            word w2Line.Cat1 lNum (line Highlight wordRaw)
         :EndFor 
     :ENDFOR 
     ⎕←''
@@ -71,12 +73,11 @@
     WordFmt← WORD_LEN∘↑
     LineFmt← LINE_LEN∘↑
 
-    w2Line.    (SortBy  Keys)
-
     ⎕←'Word Frequencies and Lines'
+    w2Line.(SortBy Keys)
     :FOR word recs :IN w2Line.Items
          lNums← ∪⊃¨recs 
-         ⎕← (WordFmt word), ' ', ('[',']',⍨⍕wFreq.Get word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
+         ⎕← (WordFmt word), ' ', ('[',']',⍨⍕wFreq.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
     :ENDFOR    
     ⎕←''
 

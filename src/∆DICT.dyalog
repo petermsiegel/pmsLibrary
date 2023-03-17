@@ -129,7 +129,7 @@
   ⍝H   (Keys, values, and the default value are copied).
   ⍝H 
   ⍝  Calling ∆DICT to clone is faster than (⎕NS ⎕THIS) for smallish ≢keysG...
-     _←d.⎕FX 'd2←Copy'  ':IF 300<≢keysG ⋄ d2← ⎕NS ⎕THIS ⋄ :ELSE ⋄ d2←defaultG ∆DICT keysG valsG ⋄ :ENDIF'
+     _←d.⎕FX 'd2←Copy'  ':IF 300≤≢keysG ⋄ d2← ⎕NS ⎕THIS ⋄ :ELSE ⋄ d2←defaultG ∆DICT keysG valsG ⋄ :ENDIF'
 
   ⍝H d.Del1  (Delete one item by Key)
   ⍝H   {[1|0]}← [quiet←0] d.Del key
@@ -422,7 +422,7 @@
   ⍝H                                                   │└─┴────┴───┘│
   ⍝H                                                   └────────────┘
   ⍝H
-    d.Cat1←  { 0:: _Err ⍬ ⋄ 1: _← ⍺ Set1 (Get ⍺),⊂⍵     }  
+    d.Cat1←  { 0:: _Err ⍬ ⋄ 1: _← ⍺ Set1 (Get1 ⍺),⊂⍵     }  
 
   ⍝H d.Cat
   ⍝H   {newVals}← keys d.CatX items
@@ -443,7 +443,7 @@
   ⍝H     'jack' +counter.Do1 2               ⍝ Sets entry jack to 1+2  => 3
   ⍝H     'jack' *counter.Do1 2               ⍝ Sets entry jack to 3*2  => 9...
   ⍝H 
-    d.Do1←  { 0:: _Err ⍬ ⋄ 1: _←⍺ Set (Get  ⍺) ⍺⍺  ⍵ }
+    d.Do1←  { 0:: _Err ⍬ ⋄ 1: _←⍺ Set1 (Get1  ⍺) ⍺⍺  ⍵ }
     
   ⍝H d.Do
   ⍝H   {newVals}← keys (op d.Do) vals       ⍝  key=⍺, op=⍺⍺, val=⍵
