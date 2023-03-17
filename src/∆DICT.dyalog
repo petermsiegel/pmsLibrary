@@ -326,8 +326,10 @@
   ⍝H    d.Set ↓⍉↑(k1 v1)(k2 v2)....
   ⍝H  
     d.Set←  d.⍙ {  
-          ⍺←⊢ ⋄ kv←⍺ ⍵
-      1=≢kv: ∇ ↓⍉↑⊃kv ⋄ kk vv←,¨kv
+          ⍺←⊢ ⋄ nargs← ≢kv←⍺ ⍵
+      1=nargs: ∇ ↓⍉↑⊃kv 
+      2≠nargs: 11 _Err 'DOMAIN ERROR: Invalid arguments'
+          kk vv←,¨kv
       kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
       0= ≢kk: _← ⍬
       0:: _Err ⍬     
@@ -469,8 +471,5 @@
       d.∆DICT← ∇
   'help'≡⎕C ⍵: d.Help  
       d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
-  0= ≢⍵: d 
-⍝ Load items (key-value pairs)
-  2≥ ≢⍵: d ⊣ d.Set ⍵                      
-      3 d._Err 'LENGTH ERROR: Keys and Values Differ in Length'             
+  0= ≢⍵: d ⋄ d ⊣ d.Set ⍵                                
  }
