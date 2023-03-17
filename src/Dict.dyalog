@@ -1,7 +1,7 @@
-﻿Dict← { 
+﻿∆Dict← { 
   ⍝H 
   ⍝H ┌───────────────────────────────────────────────────────────────┐
-  ⍝H │   Dict: An Ordered Dictionary utility                         │
+  ⍝H │   ∆Dict: An Ordered Dictionary utility                         │
   ⍝H │         Keys and values may have any shape and type           │
   ⍝H │         The keys are hashed for performance (see Hashing)     │
   ⍝H │         The dictionary maintains items in order of creation*  │
@@ -9,12 +9,12 @@
   ⍝H │ * Or as sorted (see SortBy).                                  │
   ⍝H └───────────────────────────────────────────────────────────────┘
   ⍝H
-  ⍝H [a] d← [default←⍬] Dict keyList valList   where vectors (keyList ≡⍥≢ valList)
+  ⍝H [a] d← [default←⍬] ∆Dict keyList valList   where vectors (keyList ≡⍥≢ valList)
   ⍝H                         ↓⍉↑ kv1 kv2 ...   where kvN is an "item" (a key-value pair), 
   ⍝H                                           e.g. ('name' 'Terry Dactyl') or ((○1) (⍳ 2 3))
-  ⍝H [b] d← [default←⍬] Dict ⍬ ⍬               generates a dictionary with empty lists of keys and values
-  ⍝H                         ⍬                 shortcut for: Dict ⍬ ⍬
-  ⍝H [c] Dict 'Help'                           shares this help information (see also Methods below)
+  ⍝H [b] d← [default←⍬] ∆Dict ⍬ ⍬               generates a dictionary with empty lists of keys and values
+  ⍝H                         ⍬                 shortcut for: ∆Dict ⍬ ⍬
+  ⍝H [c] ∆Dict 'Help'                           shares this help information (see also Methods below)
   ⍝H
   ⍝H For cases [a] and [b]:
   ⍝H   Returns a dictionary namespace <d> containing a hashed, ordered list of items and a set of service functions.
@@ -40,7 +40,7 @@
   ⍝H                             i:  an index           ii: 1 or more indices (key locations)
   ⍝H                             *   shy return value
   ⍝H Basic:                     
-  ⍝H    Creating Dictionaries:   newD← v [d.]Dict kk vv 
+  ⍝H    Creating Dictionaries:   newD← v [d.]∆Dict kk vv 
   ⍝H       [Cloning Dict d]      newD← d.Copy
   ⍝H    Setting and Getting: 
   ⍝H       [Single Item]        v*←  d.Set1 k  v        v←  d.Get1   k      
@@ -70,11 +70,11 @@
   ⍝H                             new← kk d.Cat  aa                     "
   ⍝H   Hashing [See "Hashing" below]
   ⍝H      [Automatic; no functions/methods]
-  ⍝H For Help:                   Dict 'Help' 
+  ⍝H For Help:                   ∆Dict 'Help' 
   ⍝H                             d.Help 
   ⍝H 
     ⎕IO ⎕ML←0 1 
-    d←(calr←⊃⎕RSI).⎕NS''  ⋄ _←d.⎕DF (⍕calr),'.[Dict]'
+    d←(calr←⊃⎕RSI).⎕NS''  ⋄ _←d.⎕DF (⍕calr),'.[∆Dict]'
   
   ⍝  ======================================
   ⍝  =======   Internal Utils    ==========
@@ -82,7 +82,7 @@
 
   ⍝ _Err: (Internal) Error Signaller
     d._Err← ⎕SIGNAL { 
-      ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
+      ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('∆Dict: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
     }
       
   ⍝ ⍙: "Validate"
@@ -90,7 +90,7 @@
   ⍝ Checks that hashing is on for keysG or signals a logic error.
   ⍝ Returns shy ⍵
     d.⍙← { 
-      0=≢keysG: _←⍵ ⋄ ×1(1500⌶)keysG: _←⍵ ⋄ 'Dict: Logic Error. Hash not established for keysG' ⎕SIGNAL 999  
+      0=≢keysG: _←⍵ ⋄ ×1(1500⌶)keysG: _←⍵ ⋄ '∆Dict: Logic Error. Hash not established for keysG' ⎕SIGNAL 999  
     }
 
   ⍝ _SetNew (Internal). 
@@ -127,8 +127,8 @@
   ⍝H Returns a complete, independent copy (clone) of dictionary d.
   ⍝H   (Keys, values, and the default value are copied).
   ⍝H 
-  ⍝  Calling Dict to clone is faster than (⎕NS ⎕THIS) for smallish ≢keysG...
-     _←d.⎕FX 'd2←Copy'  ':IF 300<≢keysG ⋄ d2← ⎕NS ⎕THIS ⋄ :ELSE ⋄ d2←defaultG Dict keysG valsG ⋄ :ENDIF'
+  ⍝  Calling ∆Dict to clone is faster than (⎕NS ⎕THIS) for smallish ≢keysG...
+     _←d.⎕FX 'd2←Copy'  ':IF 300<≢keysG ⋄ d2← ⎕NS ⎕THIS ⋄ :ELSE ⋄ d2←defaultG ∆Dict keysG valsG ⋄ :ENDIF'
 
   ⍝H d.Del1  (Delete one item by Key)
   ⍝H   {[1|0]}← [quiet←0] d.Del key
@@ -235,7 +235,7 @@
   ⍝H       - defs must be conformable with keys.
   ⍝H If not explicitly specified by the user, the default is the "default" default [*].
   ⍝H -----------------------
-  ⍝H * Default default: From left-arg (⍺) of d← ... Dict ... or an explicit d.SetDef....
+  ⍝H * Default default: From left-arg (⍺) of d← ... ∆Dict ... or an explicit d.SetDef....
   ⍝H
     d.Get← {
         pp← keysG⍳ kk←   ⍵  ⋄ fm← pp< ≢keysG
@@ -276,11 +276,11 @@
 
   ⍝H d.Help
   ⍝H   Provides this helpful information.
-  ⍝H   Alternatively, execute:   Dict 'Help'
+  ⍝H   Alternatively, execute:   ∆Dict 'Help'
   ⍝H Returns: nothing
   ⍝H
     _←d.⎕FX 'Help' '_Help ⍬'
-    d._Help←{0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR 'Dict': 'No help available' ⋄ ⎕ED '_h'}
+    d._Help←{0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆Dict': 'No help available' ⋄ ⎕ED '_h'}
 
   ⍝H d.Items
   ⍝H   i← d.Items
@@ -345,7 +345,7 @@
   ⍝H Shyly returns the old default.
   ⍝H Note: the default is typically set when the dictionary is created:
   ⍝H     myfault← ...
-  ⍝H     d← myDefault Dict ⍬ 
+  ⍝H     d← myDefault ∆Dict ⍬ 
   ⍝H  
     d.SetDef←{ 1: _← (defaultG⊢← ⍵)⊢ defaultG }
 
@@ -353,7 +353,7 @@
   ⍝H   {theDict} ← [theDict←d] d.SortBy sortFields sortField
   ⍝H      sortField: a list of vectors, with the same length as d.Keys 
   ⍝H        If ⍬,    d.Keys is used.
-  ⍝H      theDict:   a reference to a dictionary (created via Dict or d.Copy).
+  ⍝H      theDict:   a reference to a dictionary (created via ∆Dict or d.Copy).
   ⍝H                 If omitted or a reference to <d> itself, sorts in place, rather than making a copy.
   ⍝H If sortField is empty, sorts using d.keys. 
   ⍝H   Otherwise, if (≢sortField)≢(d.keys), an error is signaled.
@@ -365,7 +365,7 @@
   ⍝H     d.(SortBy ⎕C Keys)          - Sorts d by keys, ignoring case  
   ⍝H     d.(SortBy ⌽Vals)            - Sorts d by values in descending order  
   ⍝H ∘ SORT INTO NEW DICTIONARY (ORIGINAL UNCHANGED)
-  ⍝H     newD← (Dict ⍬) d.SortBy ⍬   - Sorts d by keys. newD has ⍬ as default.   
+  ⍝H     newD← (∆Dict ⍬) d.SortBy ⍬   - Sorts d by keys. newD has ⍬ as default.   
   ⍝H     newD← d.(Copy SortBy Vals)  - Sorts d by values. newD takes on d's default value.
   ⍝H 
     d.SortBy←  d.⍙ { 
@@ -401,14 +401,14 @@
   ⍝H Note: If the entry for <key> doesn't exist, the default default of ⍬ is most suitable.
   ⍝H ----------------------------------------------
   ⍝H ∘ Example: Create a dictionary of word lists:
-  ⍝H     french← Dict ⍬
+  ⍝H     french← ∆Dict ⍬
   ⍝H   Let's create list 'one'  in our dictionary <french> and append to it:
   ⍝H                                  | Before exec'n   |  After exec'n
   ⍝H     'one' french.Cat1 'un'   ==> | ⍬               |   un             
   ⍝H     'one' french.Cat1 'une'  ==> | ⊂'un            |   un  une       
   ⍝H     'one' french.Cat1 '1'    ==> | 'un' 'une'      |   un  une  1    
   ⍝H ∘ Example: Add a list of items to wordlist 'french'            
-  ⍝H   french← Dict ⍬                                  french2← Dict ⍬                             
+  ⍝H   french← ∆Dict ⍬                                  french2← ∆Dict ⍬                             
   ⍝H ⍝ Appends three items to list, one at a time.   ⍝ This appends one item containing 3 elements!
   ⍝H   ('two'french.Cat1)¨ '2' 'deux' 'dos'            'two' french.Cat1 '2' 'deux' 'dos'     
   ⍝H    french.Get1 'two'                              french2.Get1'two'
@@ -434,7 +434,7 @@
   ⍝H Shyly returns: the new value
   ⍝H ∘ Example: Dictionary <counter>
   ⍝H   Increment a counter (initially 0) named 'jack' to 1
-  ⍝H      counter← 0 Dict ⍬                  ⍝ Set defaults to 0
+  ⍝H      counter← 0 ∆Dict ⍬                  ⍝ Set defaults to 0
   ⍝H     'jack' +counter.Do1 1               ⍝ Sets entry jack to 0+1  => 1
   ⍝H     'jack' +counter.Do1 2               ⍝ Sets entry jack to 1+2  => 3
   ⍝H     'jack' *counter.Do1 2               ⍝ Sets entry jack to 3*2  => 9...
@@ -454,7 +454,7 @@
   ⍝H There are no hashing methods/functions; hashing is done automatically.
   ⍝H Performance improvements range from 3x on up for char. array searches (⍳ in Get/X).
   ⍝H Hashing is done automatically:
-  ⍝H - When the array is created (d← Dict...)
+  ⍝H - When the array is created (d← ∆Dict...)
   ⍝H - After deleting items (d.Del/X, d.DelI/X)
   ⍝H - After sorting (d.SortBy)
   ⍝H Advanced: To check status of hashing for dictionary d:
@@ -464,7 +464,7 @@
 
   ⍝ Executive 
       ⍺← ⍬
-      d.Dict← ∇
+      d.∆Dict← ∇
   'help'≡⎕C ⍵: d.Help  
       d.( defaultG keysG valsG )← ⍺ ⍬ ⍬
   0=≢⍵: d 
