@@ -57,6 +57,9 @@
   ⍝H       [Single Item by Key] b*←  [b]  d.Del1  k
   ⍝H       [Items by Key]       bb*← [bb] d.Del   kk
   ⍝H       [Items by Index]     bb*← [b]  d.DelI  ii                   ⎕IO=0
+  ⍝H    [Last N items in Dict]   kv← [up_to←0] PopItems N              Efficiently pops (returns and removes
+  ⍝H                                                                   (⍺=0: exactly, ⍺=1: up to) N items...
+  ⍝H       [Last item in Dict]   kv← PopItem                           Efficiently returns and removes last item in dict.
   ⍝H       [All]               old*← d.Clear                           old: Returns former number of keys
   ⍝H    Displaying All           
   ⍝H       [Keys]                kk← d.Keys              
@@ -284,10 +287,10 @@
     d._Help←{0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': 'No help available' ⋄ ⎕ED '_h'}
 
   ⍝H d.Items
-  ⍝H   i← d.Items
+  ⍝H   ii← d.Items
   ⍝H Returns all the keys and their values as key-value pairs.
   ⍝H
-    _←d.⎕FX 'i←Items' 'i←↓⍉↑keysG valsG'
+    _←d.⎕FX 'ii←Items' 'ii←↓⍉↑keysG valsG'
 
   ⍝H d.Keys
   ⍝H   kk← d.Keys (R/O)
@@ -295,6 +298,33 @@
   ⍝H
   _← d.⎕FX 'kk← Keys' 'kk←keysG'
 
+  ⍝H ii← [up_to← 0] d.PopItems n
+  ⍝H ○ Deletes and returns (up_to=0: EXACTLY; up_to=1: UP TO) <n> most recently added items from
+  ⍝H   the dictionary.  Items returns are based on the order of addition 
+  ⍝H   (or the LAST items in the currently sorted order if SortBy is used).
+  ⍝H   If up_to=1 and no items are in the dictionary, ⍬ is returned.
+  ⍝H ○ If there are insufficient items AND up_to=0, an INDEX ERROR is triggered.
+  ⍝H Note:  d.PopItem is equiv. to (⊃d.PopItems 1).
+  ⍝H 
+
+  ⍝ n: desired number, a: actual (n⌊t, if n>t AND ⍺=1), t: keysG tally
+  d.PopItems←{ 
+      ⍺←0 ⋄ n←⍵ 
+      (~⍺)∧ n> t← ≢keysG: 3 _Err 'INDEX ERROR: Insufficient items in dictionary'
+      ii← ↓⍉↑keysG valsG↑⍨¨ a← -n⌊t 
+      keysG ↓⍨← a ⋄ valsG ↓⍨← a ⋄ 
+      0=≢ii: ⍬ ⋄ ii
+  }
+
+  ⍝H  i← d.PopItem
+  ⍝H ○ Deletes and returns exactly one item from the dictionary, if there is at least one item.
+  ⍝H ○ If not, an INDEX error is triggered. 
+  ⍝H The item <i> is disclosed, so the key is (⊃i) and the value is (⊃⌽i). See d.PopItems.
+  ⍝H
+  _← d.⎕FX 'i← PopItem' ':Trap 3 ⋄ i←_PopItem ⍬ ⋄ :Else ⋄ _Err ⍬ ⋄ :EndTrap'
+  d._PopItem← { 0= ≢keysG: 3 _Err 'INDEX ERROR: Dictionary is empty'
+        i← ⊃∘⌽¨keysG valsG ⋄ keysG ↓⍨← ¯1 ⋄ valsG ↓⍨← ¯1 ⋄ i 
+  }
   ⍝H d.Set1
   ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
   ⍝H   Sets value for one key to value val. 
