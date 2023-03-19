@@ -1,10 +1,10 @@
-   Concord text
+﻿   Concord text
 
     ; ⎕IO; ⎕PW
     ; ∆DICT; Highlight; LineFmt; LNumFmt; Skip; Trim; WordList; WordFmt
     ; CHAR_STD; CHAR_BOLD; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
     ; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; word; wordRaw
-    ; wCurL; w2Line; wFreq 
+    ; wCurL; wFreq; wRecs
 
     {}⎕SE.UCMD 'load  ∆DICT'
 
@@ -19,7 +19,7 @@
     }'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt' 
 
     ⎕IO←0
-    ⎕PW← MAX_WIDTH← 120
+    ⎕PW← MAX_WIDTH← 160
 
     LNUM_LEN ← 4  
     LNumFmt← (⍕LNUM_LEN)∘{,⍵ ⎕FMT⍨ 'ZI',⍺}
@@ -35,13 +35,13 @@
       Repl←{ w←⍵ ⋄ B←⍵∊CHAR_STD ⋄ (B/w)←CHAR_BOLD[CHAR_STD⍳B/w] ⋄ w}
       ('(?<![⎕:])\b',wordRaw,'\b') ⎕R {Repl ⍵.Lengths[0]↑⍵.Offsets[0]↓⍵.Block}   ⍠1 ⊣ Trim line
     }
-       CHAR_STD←     ⎕A,⎕C⎕A 
-       CHAR_BOLD←    ⎕UCS (⎕UCS '𝐀')+⍳52
+   CHAR_STD←     ⎕A,⎕C⎕A 
+   CHAR_BOLD←    ⎕UCS (⎕UCS '𝐀')+⍳52
 
-    Skip← ∊∘(⎕D,'⎕:')⊃ 
+    Skip← ∊∘(⎕D,'⎕:')⊃         ⍝ Words starting with ⎕ or : are APL special vars: ignore.
 
     wFreq←   0 ∆DICT ⍬         ⍝ Word frequencies
-    w2Line←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
+    wRecs←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
     
     lNum←0 
     ⎕← 'Source text' 
@@ -62,7 +62,7 @@
       ⍝ For each word in this line, highlight all appearances of that word simultaneously.
       ⍝ To do that, we process repeat appearances (ignoring case) with the first.
         :For word wordRaw :IN wCurL/⍨ ≠⊃¨wCurL      
-            word w2Line.Cat1 lNum (line Highlight wordRaw)
+            word wRecs.Cat1 lNum (line Highlight wordRaw)
         :EndFor 
     :ENDFOR 
     ⎕←''
@@ -74,17 +74,16 @@
     LineFmt← LINE_LEN∘↑
 
     ⎕←'Word Frequencies and Lines'
-    w2Line.(SortBy Keys)
-    :FOR word recs :IN w2Line.Items
+    wRecs.(SortBy Keys)
+    :FOR word recs :IN wRecs.Items
          lNums← ∪⊃¨recs 
          ⎕← (WordFmt word), ' ', ('[',']',⍨⍕wFreq.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
     :ENDFOR    
     ⎕←''
 
     ⎕←'Concordance'
-    :FOR word recs :IN  w2Line.Items
+    :FOR word recs :IN  wRecs.Items
          :FOR lNum line :IN recs
             ⎕← (LNumFmt lNum), ' | ', (WordFmt word), ' | ', (LineFmt line)
          :ENDFOR 
     :ENDFOR
-

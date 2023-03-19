@@ -1,80 +1,85 @@
 ﻿∆DICT← { 
   ⍝H 
-  ⍝H ┌───────────────────────────────────────────────────────────────┐
-  ⍝H │   ∆DICT: An Ordered Dictionary utility                         │
-  ⍝H │         Keys and values may have any shape and type           │
-  ⍝H │         The keys are hashed for performance (see Hashing)     │
-  ⍝H │         The dictionary maintains items in order of creation*  │
-  ⍝H ├───────────────────────────────────────────────────────────────┤
-  ⍝H │ * Or as sorted (see SortBy).                                  │
-  ⍝H └───────────────────────────────────────────────────────────────┘
+  ⍝H ┌─────────────────────────────────────────────────────────────────┐
+  ⍝H │   ∆DICT: An Ordered Dictionary utility                          │
+  ⍝H │         Keys and values may have any shape and type.            │
+  ⍝H │         The keys are hashed for performance (see Hashing).      │
+  ⍝H │         The dictionary maintains items in order of creation.*   │
+  ⍝H ├─────────────────────────────────────────────────────────────────┤
+  ⍝H │ * Or as sorted (see SortBy).                                    │
+  ⍝H └─────────────────────────────────────────────────────────────────┘
   ⍝H
-  ⍝H [a] d← [default←⍬] ∆DICT kList vList        where vectors of keys and values: kList ≡⍥≢ vList
-  ⍝H                          ⊂(k1 v1)(k2 v2)... where kvN is an "item" (a key-value pair), 
-  ⍝H                                             e.g. ('name' 'Terry Dactyl') or ((○1) (⍳ 2 3))
+  ⍝H [a] d← [default←⍬] ∆DICT kk vv              where vectors of keys and values: kList ≡⍥≢ vList
+  ⍝H                                             ('key1' 'key2') ((○1)(○?1000))
+  ⍝H                          ⊂kv1 kv2...        where kvN is an "item" (a key-value pair), 
+  ⍝H                                             ('key1' (○1)) ('key2' (○?1000))
   ⍝H [b] d← [default←⍬] ∆DICT ⍬                  generates an empty dictionary (with default value ⍬)
+  ⍝H
+  ⍝H Returns a dictionary namespace <d> containing a hashed, ordered list of items and a set of service functions.
+  ⍝H The default value is set to ⍬. A useful default value for counters is 0.
+  ⍝H
   ⍝H [c] ∆DICT 'Help'                            shares this help information (see also Methods below)
   ⍝H
-  ⍝H For cases [a] and [b]:
-  ⍝H   Returns a dictionary namespace <d> containing a hashed, ordered list of items and a set of service functions.
-  ⍝H   ○ The dictionary may be initialized via a key list and a corresponding value list (each the same length)
-  ⍝H     or remain empty, pending additions via Set1, Set, etc.;
-  ⍝H   ○ Items are maintained in the order in which they were created or sorted (changing values has no effect);
-  ⍝H   ○ If a default is specified, it will be returned  as the "placeholder" values for missing keys
-  ⍝H     (unless a temporary default is specified: see Get1, Get).
-  ⍝H     If no left arg (⍺) is specified, ⍬ is used as the "default" default value.   
-  ⍝H     See SetDef, GetDef.
-  ⍝H   ○ Each key in a dictionary is unique. 
-  ⍝H     If a key is repeated during initialization, the rightmost value is retained for that key.
-  ⍝H     At the same time, new keys are entered into the dictionary left to right as expected.
-  ⍝H     Note that Set and Set1 (q.v.) work the very same way, retaining the rightmost value.
-  ⍝H   ○ A useful default for counters is 0, for strings: '' or ⍬, for lists: ⍬.
-  ⍝H
-  ⍝H ---------------------------------------------------------------------------------
-  ⍝H Dictionary "Methods"        k: a key               kk: 1 (enclosed) or more keys          
-  ⍝H                             v: a value             vv: 1 (enclosed) or more values
-  ⍝H                             a:  arbitrary data     aa: any (enclosed) list of arbitrary data
-  ⍝H                             b:  Boolean value      bb: Boolean values
-  ⍝H                             ss: a sortable list of objects: (≢ss) ≡ (≢d.Keys)
-  ⍝H                             i:  an index           ii: 1 or more indices (key locations)
-  ⍝H                             *   shy return value
-  ⍝H Basic:                     
-  ⍝H    Creating Dictionaries: newD← [v] [d.]∆DICT kk vv 
-  ⍝H                                 [v] [d.]∆DICT (⊂k1 v1)(k2 v2)...
-  ⍝H                                 [v] [d.]∆DICT ⍬
-  ⍝H       [Cloning Dict d]      newD← d.Copy
+  ⍝H --------------------- 
+  ⍝H Dictionary "Methods" 
+  ⍝H ---------------------    ┌────────────────────────────────────────────────────────────────────┐
+  ⍝H                          │  k: a key               kk: 1 (enclosed) or more keys              │
+  ⍝H                          │  v: a value             vv: 1 (enclosed) or more values            │
+  ⍝H  │                       |                         kv: 1 (enclosed) or more items (k-v pairs) │
+  ⍝H                          │  a:  arbitrary data     aa: any (enclosed) list of arbitrary data  │
+  ⍝H                          │  b:  Boolean value      bb: Boolean values                         │
+  ⍝H                          │                         ss: sortable keys                          │
+  ⍝H                          │  i:  an index           ii: 1 or more indices (key locations)      │
+  ⍝H                          │  n:  a non-neg integer                                             │
+  ⍝H                          │  {xx}←   shy return value                                          │
+  ⍝H                          └────────────────────────────────────────────────────────────────────┘
+  ⍝H Basic Methods                    
+  ⍝H    Creating Dictionaries: newD← [v] [d.]∆DICT kk vv                  
+  ⍝H                                 [v] [d.]∆DICT ⊂kv kv  
+  ⍝H                                 [v] [d.]∆DICT ⍬                      
+  ⍝H       [Cloning]            newD← d.Copy
   ⍝H    Setting and Getting: 
-  ⍝H       [Single Item]        v*←  d.Set1 k  v        v←  d.Get1   k      
-  ⍝H       [Items]              vv*← d.Set  kk vv       vv← d.Get    kk  
-  ⍝H       [Indices]                                    i←  d.Find1  k 
-  ⍝H                                                    ii← d.Find   kk
-  ⍝H       [Default Values]    old*← d.SetDef a         a←  d.GetDef 
-  ⍝H    Validating Items
-  ⍝H                             b←  d.HasKey k                        Faster: (⊂k)∊ d.Keys 
-  ⍝H                             bb← d.HasKeys kk                      Faster: kk∊ d.Keys           
-  ⍝H    Sorting Items:        newD*← [newD←d] d.SortBy ss              If newD not specified as ⍺, newD←d
+  ⍝H       [Items]              {vv}← d.Set  kk vv      vv← d.Get    kk  
+  ⍝H       [Single Item]        {v}←  d.Set1 k  v       v←  d.Get1   k      
+  ⍝H       [Indices]                                    ii← d.Find   kk   
+  ⍝H                                                    i←  d.Find1  k 
+  ⍝H       [Exporting and Importing vars from namespaces as items]
+  ⍝H                {ns}← [ns←⎕NS ''] d.Export kk        
+  ⍝H                                                  {kk}← d.Import ns1 [ns2...]
+  ⍝H       [Default Values]  {{old}}← d.SetDef a        a←  d.GetDef 
+  ⍝H    Popping Values By Key 
+  ⍝H    ∘  Getting and Simultaneously Deleting Items by Key
+  ⍝H                                         vv←  [default] d.Pop kk                
+  ⍝H                                         v←   [default] d.Pop1 k                
+  ⍝H    Popping Most Recent (Last-in-order) Items
+  ⍝H    ∘  Getting and Simultaneously Deleting Last Items (most recently added or last in SortBy order).
+  ⍝H       [Last N items]                                kv←   [⍺←0] PopItems N                  
+  ⍝H       [Last item]                                (⊃kv)←   PopItem                             
+  ⍝H    Validating Items          (Good Option)         (Faster Option)
+  ⍝H                              bb← d.HasKeys kk      bb← kk∊ d.Keys                           
+  ⍝H                              b←  d.HasKey k        b← (⊂k)∊ d.Keys                                                                     
+  ⍝H    Sorting Items:        
+  ⍝H                {newD}← [newD←d] d.SortBy ss              
   ⍝H    Deleting Items:          
-  ⍝H       [Single Item by Key] b*←  [b]  d.Del1  k
-  ⍝H       [Items by Key]       bb*← [bb] d.Del   kk
-  ⍝H       [Items by Index]     bb*← [b]  d.DelI  ii                   ⎕IO=0
-  ⍝H    [Last N items in Dict]   kv← [up_to←0] PopItems N              Efficiently pops (returns and removes
-  ⍝H                                                                   (⍺=0: exactly, ⍺=1: up to) N items...
-  ⍝H       [Last item in Dict]   kv← PopItem                           Efficiently returns and removes last item in dict.
-  ⍝H       [All]               old*← d.Clear                           old: Returns former number of keys
-  ⍝H    Displaying All           
-  ⍝H       [Keys]                kk← d.Keys              
-  ⍝H       [Vals]                vv← d.Vals      
-  ⍝H       [Items]               kv← d.Items                           kv:  Returns key-value pairs
-  ⍝H       [Number of Items]    nni← d.Tally                           nni: Non-neg integer
-  ⍝H Advanced:
+  ⍝H       [Items by Key]       {bb}← [bb] d.Del   kk
+  ⍝H       [Single Item by Key] {b}←  [b]  d.Del1  k
+  ⍝H       [Items by Index]     {bb}← [b]  d.DelI  ii                  ⎕IO=0
+  ⍝H       [All]                {n}←  d.Clear                           
+  ⍝H    Returning Dictionary Components          
+  ⍝H       [Keys]                      kk← d.Keys                             
+  ⍝H       [Vals]                      vv← d.Vals                             
+  ⍝H       [Items]                     kv← d.Items                           
+  ⍝H       [Number of Items]           n←  d.Tally                           
+  ⍝H Advanced Methods:
   ⍝H    Modifying Values:         
-  ⍝H       [Apply <op a>]        new← k  (op d.Do1)  a                 new: Result of applying <op a> to the value at <k>
-  ⍝H                             new← kk (op d.Do  ) aa                "
-  ⍝H       [Catenate <a>]        new← k  d.Cat1 a                      "
-  ⍝H                             new← kk d.Cat  aa                     "
-  ⍝H   Hashing [See "Hashing" below]
-  ⍝H      [Automatic; no functions/methods]
-  ⍝H For Help:                   ∆DICT 'Help' 
+  ⍝H       [Apply <op a>]       vv← kk (op d.Do  ) aa                 Perform (op aa) on value of <kk>: vv← vv op¨ aa
+  ⍝H                            v←  k  (op d.Do1)  a                  Ditto: v← v op a 
+  ⍝H       [Catenate <a>]           vv← kk d.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa      
+  ⍝H                                v←  k  d.Cat1 a                   Ditto: v←v,⊂aa
+  ⍝H Hashing: 
+  ⍝H      [Automatic; no functions/methods. See "Hashing" below.]
+  ⍝H Help Info:
+  ⍝H                             ∆DICT 'Help' 
   ⍝H                             d.Help 
   ⍝H 
     ⎕IO ⎕ML←0 1 
@@ -86,15 +91,17 @@
 
   ⍝ _Err: (Internal) Error Signaller
     d._Err← ⎕SIGNAL { 
-      ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('∆DICT: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' Message))
+      ⍺← ⎕DMX.(11 EN⊃⍨(×EN)∧0=≢⍵)  ⋄ ⊂⎕DMX.(('EM' ('∆DICT: ',EM ⍵⊃⍨0≠≢⍵))('EN' ⍺)('Message' (Message/⍨0≠≢⍵)))
     }
       
   ⍝ ⍙: "Validate"
-  ⍝ Useful solely to validate hash logic... Remove any calls to ⍙ once testing is complete.
+  ⍝ Useful solely to validate hash logic... 
   ⍝ Checks that hashing is on for keysG or signals a logic error.
-  ⍝ Returns shy ⍵
-    d.⍙← { 
-      0=≢keysG: _←⍵ ⋄ ×1(1500⌶)keysG: _←⍵ ⋄ '∆DICT: Logic Error. Hash not established for keysG' ⎕SIGNAL 999  
+  ⍝ ⍙   returns shy ⍵.
+  ⍝ 1∘⍙ returns ⍵.
+  ⍝ >>> Remove any calls to ⍙ once testing is complete. <<<
+    d.⍙← { ⍺←0 ⋄ ⍺: 0 ∇ ⍵ ⋄ 0=≢keysG: _←⍵ ⋄ ×1(1500⌶)keysG: _←⍵ 
+        '∆DICT: Logic Error. Hash not established for keysG' ⎕SIGNAL 999  
     }
 
   ⍝ _SetNew (Internal). 
@@ -107,10 +114,10 @@
   ⍝  ○ the first (leftmost) appearance of each key in order is associated 
   ⍝    with the last (rightmost) value assigned, consistent with the semantics for existing keys with new values.
   ⍝  ○ that Set produces the same behavior as Set1¨ 
-  ⍝  See Set.
-    d._SetNew← {                                              
-          nk nv← ⍺ { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv } ⍵    ⍝ Faster than using ⌸ (key) function!
-          keysG,← nk  ⋄ valsG,← nv  
+  ⍝  LKRV: Respect leftmost key appearance, rightmost value. Faster than using ⌸ (key) function!   
+    d._SetNew← {   
+          LKRV← { ⍺=⍥≢uk←∪⍺: ⍺⍵ ⋄ uv←0⍴⍨≢uk ⋄ uv[uk⍳⍺]←⍵ ⋄ uk uv }                                       
+          nk nv← ⍺ LKRV ⍵ ⋄ keysG,← nk  ⋄ valsG,← nv  
           ×1(1500⌶)keysG: nv ⋄ keysG∘← 1500⌶keysG ⋄ nv 
     }  
 
@@ -119,10 +126,10 @@
   ⍝H ======================================
 
   ⍝H d.Clear
-  ⍝H   {nK}← d.Clear'
+  ⍝H   {n}← d.Clear
   ⍝H Delete all the items in the dictionary, 
-  ⍝H    shyly returning the number of items in the dictionary before clearing.
-  ⍝H (Does not affect the default value)
+  ⍝H    shyly returning the number of items <n> in the dictionary before clearing.
+  ⍝H (Does not affect the default value: defaultG)
   ⍝H
      _←d.⎕FX '{nK}←Clear'  'nK← ≢keysG ⋄ keysG← valsG← ⍬'   
 
@@ -146,10 +153,10 @@
   ⍝H    0, if the key does not exist (quiet=1).
   ⍝H 
     d.Del1←  d.⍙ { 
-          ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵ ⋄ nf← p=≢keysG  
+        ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵ ⋄ nf← p=≢keysG  
       nf∧⍺: _←0 ⋄ nf: 3 _Err 'Key not found'
-      (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG 
-      keysG∘←1500⌶keysG
+        (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG 
+        keysG∘←1500⌶keysG
       1: _← 1 
     }
 
@@ -167,11 +174,11 @@
   ⍝H      a 0 for each key not found and ignored (quiet=1).
   ⍝H  
     d.Del←  d.⍙ { 
-          ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ fm← pp< ≢keysG 
-        (0∊fm)∧~⍺: 3 _Err 'Key(s) not found'
-          (keysG valsG) /⍨← ⊂0@ (fm/ pp)⊣ 1⍴⍨ ≢keysG 
-          keysG∘←1500⌶keysG 
-        1: _← fm 
+        ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ fm← pp< ≢keysG 
+      (0∊fm)∧~⍺: 3 _Err 'Key(s) not found'
+        (keysG valsG) /⍨← ⊂0@ (fm/ pp)⊣ 1⍴⍨ ≢keysG 
+        keysG∘←1500⌶keysG 
+      1: _← fm 
     }
 
   ⍝H d.DelI   (Delete-by-Indices)
@@ -186,12 +193,12 @@
   ⍝H     a 0 for each index not in range and ignored. 
   ⍝H 
     d.DelI←  d.⍙ {  
-        0:: _Err ⍬
-            ⍺← 0 ⋄ pp← ⍵ ⋄ fm← 0= ⍵⍸ ⍨0, ≢keysG
-        (0∊fm)∧~⍺:  3 _Err 'Index Error'
-            (keysG valsG) /⍨← ⊂0@ (fm/pp)⊣ 1⍴⍨ ≢keysG
-            keysG∘←1500⌶keysG 
-        1: _← fm
+      0:: _Err ⍬
+        ⍺← 0 ⋄ pp← ⍵ ⋄ fm← 0= ⍵⍸ ⍨0, ≢keysG
+      (0∊fm)∧~⍺:  3 _Err 'Index Error'
+        (keysG valsG) /⍨← ⊂0@ (fm/pp)⊣ 1⍴⍨ ≢keysG
+        keysG∘←1500⌶keysG 
+      1: _← fm
     }
 
   ⍝H d.Find1  (Find 1 Key), 
@@ -208,10 +215,10 @@
   ⍝H     d.Vals[ i1 i2 ... ]
   ⍝H
      d.Find← { ⍺←0 
-         pp← keysG⍳ ⍵ 
+        pp← keysG⍳ ⍵ 
       ⍺: pp 
       1∊ pp= ≢keysG: 3 _Err 'Key(s) not found'
-         pp                                                
+        pp                                                
     }
     d.Find1← d.Find⊂
  
@@ -286,6 +293,40 @@
     _←d.⎕FX 'Help' '_Help ⍬'
     d._Help←{0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': 'No help available' ⋄ ⎕ED '_h'}
 
+  ⍝H {kk}← d.Import ns1 [ns2...]
+  ⍝H    Import all vars from one or more namespaces <ns1>, etc. as keys, along with their values.
+  ⍝H    If a key appears more than once, the last value seen is stored.
+  ⍝H    Names are automatically "demangled"  via JSON rules when converted to keys.
+  ⍝H Shyly returns (unique) keys for items (variables) imported.
+  ⍝H
+    d.Import←{ Demangle← 1∘(7162⌶) 
+    ⍝ 0:: _Err ⍬
+      1: _←∪⊃,/ { 
+        9≠⎕NC '⍵': 11 _Err 'DOMAIN ERROR: Invalid namespace(s)' 
+        0=≢vars← ⍵.⎕NL ¯2: ⍬ ⋄ keys← Demangle¨ vars
+          keys⊣ keys Set ⍵.⎕OR¨vars
+      }¨ ⍵
+    }
+  ⍝H {ns←} [ns] d.Export kk
+  ⍝H  - Export dictionary entries to namespace <ns> (a new ns, if omitted) 
+  ⍝H    given a list of 0 or more keys <kk>.
+  ⍝H  - Keys are automatically "mangled" via JSON rules when converted to variable names.
+  ⍝H Returns the (existing or new) namespace.
+  ⍝H ∘ If any keys don't exist, they are exported with the default.
+  ⍝H ∘ If any variables already exist, their values are overwritten.
+  ⍝H ∘ Finally, if any keys cannot be converted to valid variable names, a DOMAIN ERROR is signaled.
+  ⍝H   Numbers are not automatically converted to their text form (since the key 1 and '1' are different!).
+  ⍝H 
+  ⍝H Example:   ns←   a.Export 'var1' 'var2'         -- Export just var1 and var2 to new namespace <ns>
+  ⍝H            a.Set ('var1' 'NEW1')('var2' 'NEW2') -- Update vals of var1 and var2
+  ⍝H            ns←ns a.Export a.Keys~ns.⎕NL ¯2      -- Export everything new to <ns>. Keep old vals for var1 and var2
+  ⍝H            
+    d.Export←{ ⍺← ns⊣(ns←⎕NS '').⎕DF '∆DICT[Export]' 
+        kk← ⍵ ⋄ Mangle← 0∘(7162⌶) ⋄ SetNsVar← ⍺{ ⍺⍺.⍎ ⍺,'←⍵' }
+      0:: _Err ⍬
+      1: _←⍺ ⊣ _←(Mangle¨ kk) SetNsVar¨ Get kk
+    }
+
   ⍝H d.Items
   ⍝H   ii← d.Items
   ⍝H Returns all the keys and their values as key-value pairs.
@@ -298,66 +339,79 @@
   ⍝H
   _← d.⎕FX 'kk← Keys' 'kk←keysG'
 
-  ⍝H ii← [up_to← 0] d.PopItems n
-  ⍝H ○ Deletes and returns (up_to=0: EXACTLY; up_to=1: UP TO) <n> most recently added items from
-  ⍝H   the dictionary.  Items returns are based on the order of addition 
-  ⍝H   (or the LAST items in the currently sorted order if SortBy is used).
-  ⍝H   If up_to=1 and no items are in the dictionary, ⍬ is returned.
-  ⍝H ○ If there are insufficient items AND up_to=0, an INDEX ERROR is triggered.
-  ⍝H Note:  d.PopItem is equiv. to (⊃d.PopItems 1).
+  ⍝H d.Pop 
+  ⍝H    vv← [default] d.Pop kk
+  ⍝H    Pops and returns the values/defaults of the keys.
+  ⍝H Returns the values of the keys found and defaults for those missing, deleting those found.
+  ⍝H
+  d.Pop← { ⍺← defaultG
+       kk← ⍵
+      0:: _Err ⍬
+       ii← 1 Find kk ⋄ fm← ii<≢keysG
+       vv← (≢kk)⍴ ⊂⍺
+       ( fm/ vv )← valsG[ fm/ ii ]  
+       vv⊣ 1 DelI fm/ ii            ⍝ Delete actual keys.
+  }
+  ⍝H d.Pop1
+  ⍝H   v← [default] d.Pop1 k
+  ⍝H   Pops and returns the value/default of the key.
+  ⍝H Returns the value of the key <k> (or its default) and deletes the entry.
+  ⍝H
+  d.Pop1← { ⍺←defaultG
+    ⊃ ⍺ Pop ⊂⍵
+  }
+
+  ⍝H d.PopItems
+  ⍝H   kv← [up_to← 0] d.PopItems n
+  ⍝H   Pop and return last N items from the dictionary.
+  ⍝H   ○ Pops and returns (up_to=0: EXACTLY; up_to=1: UP TO) <n> items (key-value pairs) from the dictionary;
+  ⍝H     the items popped are efficiently deleted. 
+  ⍝H   ○ Items returned are the most recently added or, if the dictionary has been sorted, the last <n> items. 
+  ⍝H   ○ If up_to=1 and there are fewer than n items in the dictionary, the remaining items are returned.
+  ⍝H   ○ If up_to=1 and no items are in the dictionary, ⍬ is returned.
+  ⍝H   ○ If there are insufficient items AND up_to=0, an INDEX ERROR is triggered.
   ⍝H 
 
   ⍝ n: desired number, a: actual (n⌊t, if n>t AND ⍺=1), t: keysG tally
-  d.PopItems←{ 
+  d.PopItems← 1∘d.⍙ { 
+    0:: _Err 'DOMAIN ERROR'
       ⍺←0 ⋄ n←⍵ 
+      n≠⌊n: _Err 'DOMAIN ERROR'
       (~⍺)∧ n> t← ≢keysG: 3 _Err 'INDEX ERROR: Insufficient items in dictionary'
-      ii← ↓⍉↑keysG valsG↑⍨¨ a← -n⌊t 
-      keysG ↓⍨← a ⋄ valsG ↓⍨← a ⋄ 
+      ii← ↓⍉↑ keysG valsG↑⍨¨ a← -n⌊t 
+      keysG↓⍨← a ⋄ valsG↓⍨← a ⋄ keysG∘←1500⌶keysG
       0=≢ii: ⍬ ⋄ ii
   }
 
-  ⍝H  i← d.PopItem
+  ⍝H d.PopItem 
+  ⍝H   item← d.PopItem
+  ⍝H Pops and returns the last item from the dictionary.
   ⍝H ○ Deletes and returns exactly one item from the dictionary, if there is at least one item.
   ⍝H ○ If not, an INDEX error is triggered. 
-  ⍝H The item <i> is disclosed, so the key is (⊃i) and the value is (⊃⌽i). See d.PopItems.
+  ⍝H The item <i> is disclosed, so the key is (⊃i) and the value is (⊃⌽i).  
+  ⍝H Note:  d.PopItem is equiv. to (⊃d.PopItems 1). See d.PopItems.
   ⍝H
   _← d.⎕FX 'i← PopItem' ':Trap 3 ⋄ i←_PopItem ⍬ ⋄ :Else ⋄ _Err ⍬ ⋄ :EndTrap'
-  d._PopItem← { 0= ≢keysG: 3 _Err 'INDEX ERROR: Dictionary is empty'
-        i← ⊃∘⌽¨keysG valsG ⋄ keysG ↓⍨← ¯1 ⋄ valsG ↓⍨← ¯1 ⋄ i 
+  d._PopItem← 1∘d.⍙ { 
+        0= ≢keysG: 3 _Err 'INDEX ERROR: Dictionary is empty'
+        i← ⊃∘⌽¨keysG valsG 
+        keysG ↓⍨← ¯1 ⋄ valsG ↓⍨← ¯1 ⋄ keysG∘←1500⌶keysG 
+        i 
   }
-  ⍝H d.Set1
-  ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
-  ⍝H   Sets value for one key to value val. 
-  ⍝H If it exists, it is overwritten.
-  ⍝H Shyly returns the value <val> just set.
-  ⍝H ------------
-  ⍝H ∘ Handy: Set entries specified as items (kN vN):
-  ⍝H   d.Set1¨ (k1 v1)(k2 v2)...
-  ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
-  ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
-  ⍝H
-    d.Set1←  d.⍙ {   
-          ⍺←⊢ ⋄ k v←⍺ ⍵ 
-      0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ,⊂v ⊣ keysG,← ,⊂k
-      (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
-          keysG,← ⊂k ⋄ valsG,← ⊂v 
-      ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG 
-      1: _← v
-    }
 
   ⍝H d.Set
-  ⍝H   {vals}← d.Set keys vals    OR:   {vals}← keys d.Set vals
-  ⍝H Sets values for keys <keys> to <vals>.
-  ⍝H ∘ The number of keys and values must be the same.
-  ⍝H ∘ If a key is repeated, the LAST value set is retained, as expected.
-  ⍝H Shyly returns the values <vals> passed.
-  ⍝H -----------
-  ⍝H ∘ Handy: To set entries specified as items (key value pairs):
-  ⍝H    d.Set ↓⍉↑(k1 v1)(k2 v2)....
+  ⍝H * Using separate keys and values
+  ⍝H     {vals}← d.Set keys vals    OR:   {vals}← keys d.Set vals
+  ⍝H   Sets values for keys <keys> to <vals>.
+  ⍝H   ∘ The number of keys and values must be the same.
+  ⍝H   ∘ If a key is repeated, the LAST value set is retained, as expected.
+  ⍝H * Using key-value pairs (items)
+  ⍝H    {vals}← d.Set ⊂kv1 kv2...
+  ⍝H (In both cases) shyly returns the values <vals> passed.
   ⍝H  
     d.Set←  d.⍙ {  
           ⍺←⊢ ⋄ nargs← ≢kv←⍺ ⍵
-      1=nargs: ∇ ↓⍉↑⊃kv 
+      1=nargs: ∇ ↓⍉↑⊃kv   
       2≠nargs: 11 _Err 'DOMAIN ERROR: Invalid arguments'
           kk vv←,¨kv
       kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
@@ -373,6 +427,26 @@
       1:  _←  ov, nk _SetNew nv             ⍝   "     Add  new keys     ⍝ ↓                                          
     }
 
+  ⍝H d.Set1  
+  ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
+  ⍝H   Sets value for one key to value val. 
+  ⍝H   If it exists, it is overwritten.
+  ⍝H Shyly returns the value <val> just set.
+  ⍝H ------------
+  ⍝H ∘ Handy: Set entries specified as items (kN vN):
+  ⍝H   d.Set1¨ (k1 v1)(k2 v2)...
+  ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
+  ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
+  ⍝H
+    d.Set1←  d.⍙ {   
+          ⍺←⊢ ⋄ k v←⍺ ⍵ 
+      0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ,⊂v ⊣ keysG,← ,⊂k
+      (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
+          keysG,← ⊂k ⋄ valsG,← ⊂v 
+      ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG 
+      1: _← v
+    }
+    
   ⍝H d.SetDef
   ⍝H   {oldDef}← d.SetDef newDef
   ⍝H Sets the default value to use when keys are absent from the dictionary.
@@ -384,13 +458,14 @@
     d.SetDef←{ 1: _← (defaultG⊢← ⍵)⊢ defaultG }
 
   ⍝H d.SortBy
-  ⍝H   {theDict} ← [theDict←d] d.SortBy sortFields sortField
-  ⍝H      sortField: a list of vectors, with the same length as d.Keys 
+  ⍝H Sorts a dictionary in place or into another dictionary ordered via a sort vector (default: d.Keys).
+  ⍝H   {theDict} ← [theDict←d] d.SortBy sortVec 
+  ⍝H      sortVec:   a list of vectors, with the same length as d.Keys 
   ⍝H        If ⍬,    d.Keys is used.
   ⍝H      theDict:   a reference to a dictionary (created via ∆DICT or d.Copy).
   ⍝H                 If omitted or a reference to <d> itself, sorts in place, rather than making a copy.
-  ⍝H If sortField is empty, sorts using d.keys. 
-  ⍝H   Otherwise, if (≢sortField)≢(d.keys), an error is signaled.
+  ⍝H If sortVecis empty, sorts using d.keys. 
+  ⍝H   Otherwise, if (≢sortVec)≢(d.keys), an error is signaled.
   ⍝H Shyly returns theDict (by default: d).
   ⍝H Examples: 
   ⍝H ∘ SORT IN PLACE
@@ -399,14 +474,14 @@
   ⍝H     d.(SortBy ⎕C Keys)          - Sorts d by keys, ignoring case  
   ⍝H     d.(SortBy ⌽Vals)            - Sorts d by values in descending order  
   ⍝H ∘ SORT INTO NEW DICTIONARY (ORIGINAL UNCHANGED)
-  ⍝H     newD← (∆DICT ⍬) d.SortBy ⍬   - Sorts d by keys. newD has ⍬ as default.   
+  ⍝H     newD← (∆DICT ⍬) d.SortBy ⍬  - Sorts d by keys. newD has ⍬ as default.   
   ⍝H     newD← d.(Copy SortBy Vals)  - Sorts d by values. newD takes on d's default value.
   ⍝H 
     d.SortBy←  d.⍙ { 
-        ⍺←⎕THIS ⋄ flds← ⍵ keysG⊃⍨ 0=≢⍵
-        keysG ≢⍥≢ flds: _Err 'SortBy: Sort field has incorrect length.'
+        ⍺←⎕THIS ⋄ sf← ⍵ keysG⊃⍨ 0=≢⍵
+        keysG ≢⍥≢ sf: _Err 'SortBy: Sort field has incorrect length.'
         ⍺.(keysG valsG)← keysG valsG    ⍝ This essentially does nothing if ⍺ and ⎕THIS are the same...
-        ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋flds
+        ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋sf
         ⍺.(keysG∘←1500⌶keysG) 
       1: _←  ⍺
     }
@@ -485,11 +560,11 @@
 
   ⍝H Hashing  
   ⍝H Hashing ensures that searching of dictionary keys is as fast as possible.
-  ⍝H There are no hashing methods/functions; hashing is done automatically.
+  ⍝H There are no user-accessible hashing methods; hashing is done automatically.
   ⍝H Performance improvements range from 3x on up for char. array searches (⍳ in Get/X).
-  ⍝H Hashing is done automatically:
+  ⍝H Hashing takes place:
   ⍝H - When the array is created (d← ∆DICT...)
-  ⍝H - After deleting items (d.Del/X, d.DelI/X)
+  ⍝H - Whenever items are deleted (d.Del/X, d.DelI/X, and so on)
   ⍝H - After sorting (d.SortBy)
   ⍝H Advanced: To check status of hashing for dictionary d:
   ⍝H        r← 1(1500⌶)d.Keys 
