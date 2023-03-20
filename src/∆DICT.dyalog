@@ -509,7 +509,8 @@
 
   ⍝H d.Tally
   ⍝H   n← d.Tally
-  ⍝H   Returns the number of items in the dictionary
+  ⍝H Returns the number of items in the dictionary
+  ⍝H 
   _← d.⎕FX 'n← Tally' 'n← ≢keysG'
 
   ⍝H d.Vals
@@ -540,7 +541,7 @@
   ⍝H ∘ Example: Add a list of items to wordlist 'french'            
   ⍝H   french← ∆DICT ⍬                                  french2← ∆DICT ⍬                             
   ⍝H ⍝ Appends three items to list, one at a time.   ⍝ This appends one item containing 3 elements!
-  ⍝H   ('two'french.Cat1)¨ '2' 'deux' 'dos'            'two' french.Cat1 '2' 'deux' 'dos'     
+  ⍝H   ('two'french.Cat1)¨ '2' 'deux' 'dos'            'two' french2.Cat1 '2' 'deux' 'dos'     
   ⍝H    french.Get1 'two'                              french2.Get1'two'
   ⍝H    ┌─┬────┬───┐                                   ┌────────────┐
   ⍝H    │2│deux│dos│                                   │┌─┬────┬───┐│
@@ -575,7 +576,7 @@
   ⍝H   {newVals}← keys (op d.Do) vals       ⍝  key=⍺, op=⍺⍺, val=⍵
   ⍝H   Performs:    newVals← keys Set (Get keys) op¨ ⍵   
   ⍝H Shyly returns: newVals
-  ⍝H See d.Do for details, examples
+  ⍝H See d.Do1 for examples
   ⍝H
    d.Do← {0:: _Err ⍬ ⋄ 1: _← ⍺ (⍺⍺ Do1)¨ ⍵ }
 
