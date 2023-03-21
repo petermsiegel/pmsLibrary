@@ -32,11 +32,12 @@
     
     Highlight←{ 
       line wordRaw←⍺ ⍵
-      Repl←{ w←⍵ ⋄ B←⍵∊CHAR_STD ⋄ (B/w)←CHAR_BOLD[CHAR_STD⍳B/w] ⋄ w}
+      Repl←{ w←⍵ ⋄ B←⍵∊CHAR_STD ⋄ (B/w)←CHAR_EMPHASIS[CHAR_STD⍳B/w] ⋄ w}
       ('(?<![⎕:])\b',wordRaw,'\b') ⎕R {Repl ⍵.Lengths[0]↑⍵.Offsets[0]↓⍵.Block}   ⍠1 ⊣ Trim line
     }
-   CHAR_STD←     ⎕A,⎕C⎕A 
-   CHAR_BOLD←    ⎕UCS (⎕UCS '𝐀')+⍳52
+  ⍝ BOLD, BOLD_ITAL are SANS fonts-- since they appear to line up better...
+   CHAR_STD← ⎕A,⎕C⎕A  ⋄ CHAR_BOLD← ⎕UCS (⎕UCS '𝗔')+⍳52 ⋄ CHAR_BOLD_ITAL←  ⎕UCS(⎕UCS '𝘼')+⍳52
+   CHAR_EMPHASIS← 1⊃ CHAR_BOLD CHAR_BOLD_ITAL
 
     Skip← ∊∘(⎕D,'⎕:')⊃         ⍝ Words starting with ⎕ or : are APL special vars: ignore.
 

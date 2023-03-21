@@ -24,25 +24,25 @@
   ⍝H
   ⍝H [c] ∆DICT 'Help'                            shares this help information (see also Methods below)
   ⍝H
-  ⍝H ┌──────────────────────────┐
-  ⍝H │   𝐃𝐢𝐜𝐭𝐢𝐨𝐧𝐚𝐫𝐲 𝐌𝐞𝐭𝐡𝐨𝐝𝐬       │
-  ⍝H └──────────────────────────┘
+  ⍝H ┌──────────────────────┐
+  ⍝H │   𝐃𝐢𝐜𝐭𝐢𝐨𝐧𝐚𝐫𝐲 𝐌𝐞𝐭𝐡𝐨𝐝𝐬   │
+  ⍝H └──────────────────────┘
   ⍝H ┌──────────────────────────────   KEY   ────────────────────────────────┐
   ⍝H │   𝐝.𝑴𝒆𝒕𝒉𝒐𝒅: 𝒅 is a dict created via d←∆DICT or d← d0.Copy             │
-  ⍝H │            𝑴𝒆𝒕𝒉𝒐𝒅: see 𝒎𝒆𝒕𝒉𝒐𝒅𝒔 below                                  │
-  ⍝H │   𝒌: a (disclosed) key     𝒌𝒌: 1 (enclosed) or more keys              │
-  ⍝H │   𝒗: a (disclosed) value   𝒗𝒗: 1 (enclosed) or more values            │
+  ⍝H │            𝑴𝒆𝒕𝒉𝒐𝒅: see 𝒎𝒆𝒕𝒉𝒐𝒅𝒔 below                                   │
+  ⍝H │   𝒌𝒌: a (disclosed) key    𝒌𝒌: 1 (enclosed) or more keys              │
+  ⍝H │   𝒗: a (disclosed) value   𝒗𝒗: 1 (enclosed) or more values             │
   ⍝H | ⊃𝒌𝒗: a disclosed item      𝒌𝒗: 1 (enclosed) or more items (k-v pairs) │
   ⍝H │   𝒂:  arbitrary data       𝒂𝒂: any (enclosed) list of arbitrary data  │
   ⍝H │   𝒃:  Boolean value        𝒃𝒃: Boolean values                         │
-  ⍝H │                            𝒔𝒔: sortable keys                          │
-  ⍝H │   𝒊:  an index              𝒊𝒊: 1 or more indices (key locations)      │
+  ⍝H │                            𝒔𝒔: sortable keys                           │
+  ⍝H │   𝒊:  an index              𝒊𝒊: 1 or more indices (key locations)       │
   ⍝H │   𝒏:  a non-neg integer                                               │
   ⍝H │   {𝒙𝒙}←   shy return value                                            │
   ⍝H └───────────────────────────────────────────────────────────────────────┘
-  ⍝H ┌────────────────────────┐
-  ⍝H │   𝗕𝗮𝘀𝗶𝗰 𝗠𝗲𝘁𝗵𝗼𝗱𝘀          │
-  ⍝H └────────────────────────┘                   
+  ⍝H ┌─────────────────┐
+  ⍝H │   𝗕𝗮𝘀𝗶𝗰 𝗠𝗲𝘁𝗵𝗼𝗱𝘀   │
+  ⍝H └─────────────────┘                   
   ⍝H    Creating Dictionaries: newD← [v] [d.]∆DICT kk vv                  
   ⍝H                                 [v] [d.]∆DICT ⊂kv kv  
   ⍝H                                 [v] [d.]∆DICT ⍬                      
@@ -80,18 +80,18 @@
   ⍝H       [Items]                     kv← d.Items                           
   ⍝H       [Number of Items]           n←  d.Tally                           
   ⍝H
-  ⍝H ┌────────────────────────┐
-  ⍝H │    𝐀𝐝𝐯𝐚𝐧𝐜𝐞𝐝 𝐌𝐞𝐭𝐡𝐨𝐝𝐬     │
-  ⍝H └────────────────────────┘    
+  ⍝H ┌────────────────────┐
+  ⍝H │   𝗔𝗱𝘃𝗮𝗻𝗰𝗲𝗱 𝗠𝗲𝘁𝗵𝗼𝗱𝘀     │
+  ⍝H └────────────────────┘    
   ⍝H    Modifying Values:         
   ⍝H       [Apply <op a>]       vv← kk (op d.Do  ) aa                 Perform (op aa) on value of <kk>: vv← vv op¨ aa
   ⍝H                            v←  k  (op d.Do1)  a                  Ditto: v← v op a 
   ⍝H       [Catenate <a>]           vv← kk d.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa      
   ⍝H                                v←  k  d.Cat1 a                   Ditto: v←v,⊂aa
   ⍝H
-  ⍝H ┌────────────────────────┐
-  ⍝H │     𝐎𝐭𝐡𝐞𝐫 𝐈𝐧𝐟𝐨          │
-  ⍝H └────────────────────────┘    
+  ⍝H ┌───────────────┐
+  ⍝H │   𝐎𝐭𝐡𝐞𝐫 𝐈𝐧𝐟𝐨    │
+  ⍝H └───────────────┘    
   ⍝H Hashing:
   ⍝H     See "Hashing" below.
   ⍝H Help Info:
@@ -220,18 +220,6 @@
     }
     d.Find1← d.Find⊂
  
-  ⍝H d.Get1 (Get by Single Key)
-  ⍝H val← [def← GetDef] d.Get1 key
-  ⍝H   Retrieves the specified key or <def> if not found.
-  ⍝H Returns: 
-  ⍝H - the value <val> for <key>, if <key> defined.
-  ⍝H - Otherwise, the "default" is returned.
-  ⍝H
-    d.Get1← { 
-        ⍺← defaultG ⋄ p← keysG⍳ ⊂k←  ⍵ 
-      p< ≢keysG: p⊃ valsG ⋄ ⍺
-    }
-
   ⍝H d.Get (Get-Values by Keys)
   ⍝H  val← [defs← GetDef] d.Get keys
   ⍝H      defs: vector of defaults;  defs must be conformable to keys.
@@ -256,21 +244,24 @@
        valsG[ om/ pp ]@ (⍸om)⊣ rr               ⍝ Enter values for existing keys
     }
 
+  ⍝H d.Get1 (Get by Single Key)
+  ⍝H val← [def← GetDef] d.Get1 key
+  ⍝H   Retrieves the specified key or <def> if not found.
+  ⍝H Returns: 
+  ⍝H - the value <val> for <key>, if <key> defined.
+  ⍝H - Otherwise, the "default" is returned.
+  ⍝H
+    d.Get1← { 
+        ⍺← defaultG ⋄ p← keysG⍳ ⊂k←  ⍵ 
+      p< ≢keysG: p⊃ valsG ⋄ ⍺
+    }
+
   ⍝H d.GetDef   
   ⍝H   curDef← d.GetDef
   ⍝H   Gets the current default value.
   ⍝H Returns the default value (used for an item's value when a key is not found)
   ⍝H 
     _← d.⎕FX 'curDef← GetDef' 'curDef← defaultG'
-
-  ⍝H d.HasKey
-  ⍝H   [1|0]← d.HasKey key
-  ⍝H     key: an object of any shape
-  ⍝H   Returns 1 if <key> is defined, else 0.
-  ⍝H -----
-  ⍝H See Note at HasKeys.
-  ⍝H
-    d.HasKey← { ⍵∊ keysG }⊂
 
   ⍝H d.HasKeys
   ⍝H   [ [1|0]... ]← d.HasKeys keys
@@ -282,6 +273,16 @@
   ⍝H    :IF 1∊ 'cats' 'dogs' 'mice' ∊ d.Keys ⋄ ... 
   ⍝H
     d.HasKeys← { ⍵∊ keysG }
+    
+  ⍝H d.HasKey
+  ⍝H   [1|0]← d.HasKey key
+  ⍝H     key: an object of any shape
+  ⍝H   Returns 1 if <key> is defined, else 0.
+  ⍝H -----
+  ⍝H See Note at HasKeys.
+  ⍝H
+    d.HasKey← { ⍵∊ keysG }⊂
+
 
   ⍝H d.Help
   ⍝H   Provides this helpful information.
@@ -297,16 +298,16 @@
   ⍝H    keys: 
   ⍝H    ○ If not present, all vars found are imported.
   ⍝H    ○ Otherwise, keys must be 1 or more char vectors or scalars;
-  ⍝H      char scalars keys are quietly converted to vectors.
+  ⍝H      char scalars keys are quietly converted to char vectors.
   ⍝H      Only those keys will be imported from ANY namespace listed.
-  ⍝H      ∘ If a variable appears in more than one namespace listed, the last value seen is stored.
-  ⍝H      ∘ Var names are automatically "demangled"  via JSON rules when converted to keys.
-  ⍝H      ∘ 1-char variable names (after demangling) will be imported as (1-char) vector keys, 
-  ⍝H        even if originally exported from a 1-char key.
+  ⍝H ∘ If a variable appears in more than one namespace listed, the last value seen is stored.
+  ⍝H ∘ Var names are automatically "demangled"  via JSON rules when converted to keys.
+  ⍝H ∘ 1-char variable names (after demangling) will be imported as (1-char) vector keys, 
+  ⍝H   even if originally exported from a 1-char key.
   ⍝H Shyly returns (unique) keys for items (variables) imported.
   ⍝H
     d.Import←{ Demangle← 1∘(7162⌶) ⋄ Mangle← 0∘(7162⌶) 
-      0:: _Err 'Invalid list of keys to import'
+      0:: _Err 'DOMAIN ERROR: Invalid key name(s)'
       ⍝  If kf=0, import keys <kk>. kk: list of keys to import.
          kf← ⊃2=⎕NC '⍺' ⋄ ⍺←⍬ ⋄ kk←(Mangle¨⍣kf⊢,¨⍺)  
       0:: _Err ⍬  
@@ -420,34 +421,25 @@
   ⍝H    {vals}← d.Set ⊂kv1 kv2...
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
+ 
     d.Set←  d.⍙ {  
           ⍺←⊢ ⋄ nargs← ≢kv←⍺ ⍵
       1=nargs: ∇ ↓⍉↑⊃kv   
       2≠nargs: 11 _Err 'DOMAIN ERROR: Invalid arguments'
           kk vv←,¨kv
-      kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length'
+      kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
       0= ≢kk: _← ⍬
       0:: _Err ⍬     
-    ⍝  Handle duplicate new keys. Handles empty keys (kk).   See _SetNew
-          pp← keysG⍳ kk ⋄ om← pp< ≢keysG    ⍝ Handle 3 cases:     
-      ~0∊om: valsG[ pp ]← vv                ⍝ 1. All old keys              
-      ~1∊om: _← kk _SetNew vv               ⍝ 2. All new keys              
-          ov← valsG[ om/ pp ]← om/ vv       ⍝ 3. Mixed keys: Update values of old keys.    
-          NewM← (~om)/⊢                     ⍝                Mask to select new keys and values       
-      1:  _←  vv⊣ kk _SetNew⍥NewM vv        ⍝                Add new keys and new values                                       
+    ⍝  Handle duplicate new and old keys, an empty hash, etc.. 
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
+      ~0∊om: valsG[ pp ]← vv                ⍝ 1. All Old Keys?            
+          vv2← valsG[ om/ pp ]← om/ vv      ⍝ 2. Mixed Old and New Keys? (No gain from sequestering further) 
+            Reg← { nv←0↑⍨ ≢nk← ∪⍺ ⋄ nv[nk⍳⍺]←⍵ ⋄ keysG,←nk ⋄  valsG,← nv }
+            New← (~om)/⊢
+          vv2,← kk Reg⍥New vv  
+      ×1(1500⌶)keysG: _← vv2 ⋄ keysG∘← 1500⌶keysG ⋄ 1: _← vv2 
     }
-    ⍝ _SetNew (Internal). 
-    ⍝    nv← kk _SetNew vv
-    ⍝    kk: keys, vv: values
-    ⍝    Adds unique keys to keysG in order of appearance (leftmost first).
-    ⍝    Adds to valsG the the rightmost (or only) value for each key, ordered by key.
-    ⍝    Returns nv= rightmost value for each key presented 
-    d._SetNew← {  nv←0↑⍨ ≢nk← ∪⍺ ⋄ nv[nk⍳⍺]←⍵   
-        keysG,←nk ⋄  valsG,← nv 
-        ×1(1500⌶)keysG: nv ⋄ keysG∘← 1500⌶keysG ⋄ nv 
-    } 
    
-
   ⍝H d.Set1  
   ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
   ⍝H   Sets value for one key to value val. 
@@ -459,13 +451,10 @@
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
   ⍝H
-    d.Set1←  d.⍙ {   
-          ⍺←⊢ ⋄ k v←⍺ ⍵ 
+    d.Set1←  d.⍙ { ⍺←⊢ ⋄ k v←⍺ ⍵ 
       0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ,⊂v ⊣ keysG,← ,⊂k
-      (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v  
-          keysG,← ⊂k ⋄ valsG,← ⊂v 
-      ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG 
-      1: _← v
+      (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄  keysG,← ⊂k ⋄ valsG,← ⊂v 
+      ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ 1: _← v
     }
     
   ⍝H d.SetDef
@@ -485,8 +474,10 @@
   ⍝H        If ⍬,    d.Keys is used.
   ⍝H      theDict:   a reference to a dictionary (created via ∆DICT or d.Copy).
   ⍝H                 If omitted or a reference to <d> itself, sorts in place, rather than making a copy.
-  ⍝H If sortVecis empty, sorts using d.keys. 
-  ⍝H   Otherwise, if (≢sortVec)≢(d.keys), an error is signaled.
+  ⍝H If sortVec is empty, 
+  ⍝H   sorts using d.Keys. 
+  ⍝H Otherwise, 
+  ⍝Huses sortVec as the sort field; if (≢sortVec)≢(d.keys), an error is signaled.
   ⍝H Shyly returns theDict (by default: d).
   ⍝H Examples: 
   ⍝H ∘ SORT IN PLACE
@@ -523,13 +514,16 @@
   ⍝H │   Advanced Methods     │
   ⍝H └────────────────────────┘  
   ⍝H
-  ⍝H d.Cat1 
-  ⍝H   {newVal}← key d.Cat1 item
+  ⍝H d.Cat1   [operator: ⍺⍺ d.Cat1 ⍵]
+  ⍝H   {newVal}← key d.Cat1 val
   ⍝H   Treats the existing value for one <key> as a list (vector of vectors) and 
   ⍝H   appends <item> itself to the end of that list, conceptually:
-  ⍝H       value← value,⊂item
+  ⍝H       value← value,⊂val
   ⍝H Shyly returns the new value.
-  ⍝H Note: If the entry for <key> doesn't exist, the default default of ⍬ is most suitable.
+  ⍝H ∘ Note: If the entry for <key> doesn't exist, the default default of ⍬ is most suitable.
+  ⍝H ∘ Note that Cat1 is an operator, allowing 1 or more values (⍵) for each key (⍺⍺) using each (¨),
+  ⍝H   as in this example reproduced from below:
+  ⍝H      ('two'french.Cat1)¨ '2' 'deux' 'II' 
   ⍝H ----------------------------------------------
   ⍝H ∘ Example: Create a dictionary of word lists:
   ⍝H     french← ∆DICT ⍬
@@ -541,23 +535,40 @@
   ⍝H ∘ Example: Add a list of items to wordlist 'french'            
   ⍝H   french← ∆DICT ⍬                                  french2← ∆DICT ⍬                             
   ⍝H ⍝ Appends three items to list, one at a time.   ⍝ This appends one item containing 3 elements!
-  ⍝H   ('two'french.Cat1)¨ '2' 'deux' 'dos'            'two' french2.Cat1 '2' 'deux' 'dos'     
+  ⍝H   ('two'french.Cat1)¨ '2' 'deux' 'II'            'two' french2.Cat1 '2' 'deux' 'II'     
   ⍝H    french.Get1 'two'                              french2.Get1'two'
-  ⍝H    ┌─┬────┬───┐                                   ┌────────────┐
-  ⍝H    │2│deux│dos│                                   │┌─┬────┬───┐│
-  ⍝H    └─┴────┴───┘                                   ││2│deux│dos││
-  ⍝H                                                   │└─┴────┴───┘│
-  ⍝H                                                   └────────────┘
+  ⍝H    ┌─┬────┬──┐                                    ┌───────────┐
+  ⍝H    │2│deux│II│                                    │┌─┬────┬──┐│
+  ⍝H    └─┴────┴──┘                                    ││2│deux│II││
+  ⍝H                                                   │└─┴────┴──┘│
+  ⍝H                                                   └───────────┘
   ⍝H
-    d.Cat1←  { 0:: _Err ⍬ ⋄ 1: _← ⍺ Set1 (Get1 ⍺),⊂⍵     }  
+    d.Cat1←  { 0:: _Err ⍬ ⋄ 1: _← ⍺⍺ Set1 (Get1 ⍺⍺),⊂⍵     }  
 
-  ⍝H d.Cat
-  ⍝H   {newVals}← keys d.Cat items
+  ⍝H d.Cat   
+  ⍝H   {newVals}← keys d.Cat vals
   ⍝H   Equiv. to:  
-  ⍝H    {newVals}← keys d.Cat1¨ items
-  ⍝H See d.Cat1 for more.
+  ⍝H    {newVals}← { keys {(⍺ Cat1) ⍵}¨vals}
+  ⍝H Unlike <Cat1>, Cat is a function, typically used with several (keys/⍺) and values (⍵).
+  ⍝H Shyly returns the new values for each key.
+  ⍝H ---------
+  ⍝H Examples:
+  ⍝H                 french← ∆DICT ⍬
+  ⍝H      'two' 'two' 'two' french.Cat '2' 'deux' 'II'
+  ⍝H       french.Get1 'two'
+  ⍝H ┌─┬────┬──┐
+  ⍝H │2│deux│II│
+  ⍝H └─┴────┴──┘
+  ⍝H                 french← ∆DICT ⍬
+  ⍝H        (⊂'two') french.Cat '2' 'deux' 'II'
+  ⍝H        french.Get1 'two'
+  ⍝H ┌─┬────┬──┐
+  ⍝H │2│deux│II│
+  ⍝H └─┴────┴──┘
   ⍝H
-    d.Cat← d.Cat1¨
+  ⍝H See Cat1 for more.
+  ⍝H
+    d.Cat← { ⍺ {⍺ Cat1 ⍵}¨⍵}
 
   ⍝H d.Do1
   ⍝H   {newVal}← key (op d.Do1) val       ⍝  key=⍺, op=⍺⍺, val=⍵
