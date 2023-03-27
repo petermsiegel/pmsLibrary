@@ -135,14 +135,11 @@
   ⍝  ======================================
 
   ⍝ _Err: (Internal) Error Signaller
-  _DispErr← {  
-      ⍺⍺ ⎕DMX.{ 
-          _EN←  11 EN⊃⍨(×EN)∧0=≢⍵ ⋄ _EM←  (⍺,⍵) EM⊃⍨ 0=≢⍵  ⋄ _MSG← Message/⍨0=≢⍵  
-          ⊂('EN' _EN)('EM' _EM)('Message'  _MSG)  
-      } ⍵
-  }
-  _Err← ⎕SIGNAL '∆DICT: ' _DispErr
-      
+  _GenEM← { ⍺←⊢  
+    ⍺ ⎕DMX.{ ⍺← 11 EN⊃⍨ 0≠≢⍵ ⋄ ⊂'EN' 'EM' 'Message',⍥⊆¨ ⍺ (EM ('∆DICT: ',⍵)⊃⍨0≠≢⍵) (Message/⍨0=≢⍵) } ⍵ 
+  }   
+  _Err←  ⎕SIGNAL _GenEM
+
   ⍝ ⍙: "Validate"
   ⍝ Useful solely to validate hash logic... 
   ⍝ Checks that hashing is on for keysG or signals a logic error.
