@@ -120,12 +120,12 @@
   ∆DICTns←  ⎕THIS             
  
 ⍝ Primary Function ∆DICT
-  ∆DICT← {   
-        d←(calr←⊃⎕RSI).⎕NS ∆DICTns  ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]' 
-        ⍺← ⍬ ⋄ d.defaultG ← ⍺ 
+  ∆DICT← { 
+        d←(calr←⊃⎕RSI).⎕NS ∆DICTns  
     'help'≡⎕C ⍵: d.Help  
     0:: d._Err ⍬
-    0= ≢⍵: d ⋄ d ⊣ d.Set ⍵ 
+        ⍺← ⍬  ⋄ d.defaultG ← ⍺ ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]' 
+        0= ≢⍵: d ⋄ d ⊣ d.Set ⍵ 
   }
 ⍝ Copy the dict utility ∆DICT into ##.
   ##.∆DICT←  ∆DICT   
@@ -134,11 +134,10 @@
   ⍝  =======   Internal Utils    ==========
   ⍝  ======================================
 
-  ⍝ _Err: (Internal) Error Signaller
-  _GenEM← { ⍺←⊢  
-    ⍺ ⎕DMX.{ ⍺← 11 EN⊃⍨ 0≠≢⍵ ⋄ ⊂'EN' 'EM' 'Message',⍥⊆¨ ⍺ (EM ('∆DICT: ',⍵)⊃⍨0≠≢⍵) (Message/⍨0=≢⍵) } ⍵ 
-  }   
-  _Err←  ⎕SIGNAL _GenEM
+  ⍝ _Err: (Internal) Error Signaller. 
+  ⍝      [⍺←11] _Err msg   Signals error '∆DICT: msg' with EN=⍺
+  ⍝             _Err ⍬     Passes along the already signalled error msg
+  _Err← ⎕SIGNAL {⍺←11 ⋄ ⊂'EN' 'EM' 'Message',⍥⊂¨ ⎕DMX.(EN EM Message) (⍺ ('∆DICT: ',⍵) '')⊃⍨ ×≢⍵}
 
   ⍝ ⍙: "Validate"
   ⍝ Useful solely to validate hash logic... 
@@ -268,7 +267,7 @@
   ⍝H * Default default: From left-arg (⍺) of d← ... ∆DICT ... or an explicit d.SetDef....
   ⍝H
   Get← {             
-      pp← keysG⍳ kk← ⍵ ⋄ ~0∊ fm← pp< ≢keysG: valsG[ pp ]         ⍝ All keys found: fast return                      
+      ~0∊ fm← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]         ⍝ All keys found: fast return                      
       ⍺← ⊂defaultG                                  
     (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'LENGTH ERROR: Mismatched left and right argument lengths'
       rr← ⍺⍴⍨ ≢kk                                                ⍝ Prepopulate result vector with defaults
@@ -283,7 +282,7 @@
   ⍝H - the value <val> for <key>, if <key> defined.
   ⍝H - Otherwise, the default is returned.
   ⍝H
-    Get1← { p← keysG⍳ ⊂⍵ ⋄ p< ≢keysG: p⊃ valsG ⋄ ⍺← defaultG ⋄ ⍺ }
+    Get1← { (≢keysG)> p← keysG⍳ ⊂⍵: p⊃ valsG ⋄ ⍺← defaultG ⋄ ⍺ }
 
   ⍝H d.GetDef   
   ⍝H   curDef← d.GetDef
@@ -471,9 +470,11 @@
   ⍝  0:: _Err ⍬   
   ⍝  Handle duplicate new and old keys, an empty hash, etc.. 
         pp← keysG⍳ kk ⋄ fm← pp< ≢keysG   
-    ~0∊fm: valsG[ pp ]← vv                ⍝ 1. All Old Keys?            
-        valsG[ fm/ pp ]← fm/ vv           ⍝ 2. Mixed Old and New Keys? (No perf. gain from breaking down further) 
-        _← (nm/ kk) { nv← 0↑⍨ ≢unk← ∪⍺ ⋄ nv[unk⍳ ⍺]← ⍵ ⋄ keysG,← unk ⋄  valsG,← nv } (vv/⍨ nm← ~fm)
+    ~0∊fm: valsG[ pp ]← vv                ⍝ 1. All Old Keys            
+        valsG[ fm/ pp ]← fm/ vv           ⍝ 2. Some or all New Keys
+        _← (nm/ kk) { 
+          nv← 0↑⍨ ≢unk← ∪⍺ ⋄ nv[unk⍳ ⍺]← ⍵ ⋄ keysG,← unk ⋄  ⊢valsG,← nv 
+        } (vv/⍨ nm← ~fm)
     ×1(1500⌶)keysG: _← vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _← vv
   }
    
