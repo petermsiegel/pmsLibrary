@@ -56,8 +56,11 @@
   ⍝H       [Cloning]            newD← 𝒅.Copy
   ⍝H
   ⍝H    Setting and Getting: 
-  ⍝H       [Items]              {vv}← 𝒅.Set  kk vv      vv← 𝒅.Get    kk  
-  ⍝H       [Single Item]        {v}←  𝒅.Set1 k  v       v←  𝒅.Get1   k      
+  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv    vv← 𝒅.Get    kk  
+  ⍝H                          {vv}←  kk 𝒅.Set  vv 
+  ⍝H       [New Items]       {vv}←     𝒅.CSet kk vv 
+  ⍝H                          {vv}←  kk 𝒅.CSet vv 
+  ⍝H       [Single Item]       {v}←     𝒅.Set1 k  v     v←  𝒅.Get1   k    
   ⍝H       [Indices]                                    ii← 𝒅.Find   kk   
   ⍝H                                                    i←  𝒅.Find1  k 
   ⍝H       [Exporting and Importing vars from namespaces as items]
@@ -171,6 +174,20 @@
     d2← ⎕NS ⎕THIS 
   ∇
 
+  ⍝H d.CSet "Conditionally Set Values for Keys"
+  ⍝H Retrieve values for keys already defined, setting only new keys to the values specified.
+  ⍝H   val←  keys CSet potentialValues
+  ⍝H   val←       CSet keys potentialValues    ⍝ Alt syntax
+  ⍝H Returns the now actual values of all the keys 
+  ⍝H (the new ones now entered in the dictionary with values specified).
+  ⍝H 
+  ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
+  ⍝H Note 2: Not (yet) optimized for performance.
+  ⍝H
+    CSet← { 0:: _Err ⍬ ⋄ 3:: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
+            ⍺←⊢ ⋄ kk vv←⍺ ⍵ ⋄ nm←~om←HasKeys kk ⋄ (om/vv)←Get om/kk ⋄ vv ⊣ (nm/kk) Set nm/vv  
+    }
+
   ⍝H d.Del1  (Delete one item by Key)
   ⍝H   {[1|0]}← [quiet←0] d.Del key
   ⍝H   key:   an object of any shape
@@ -267,7 +284,7 @@
   ⍝H * Default default: From left-arg (⍺) of d← ... ∆DICT ... or an explicit d.SetDef....
   ⍝H
   Get← {             
-      ~0∊ fm← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]         ⍝ All keys found: fast return                      
+      ~0∊ fm← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
       ⍺← ⊂defaultG                                  
     (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'LENGTH ERROR: Mismatched left and right argument lengths'
       rr← ⍺⍴⍨ ≢kk                                                ⍝ Prepopulate result vector with defaults
