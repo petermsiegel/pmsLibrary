@@ -39,6 +39,7 @@
   ⍝H │            𝑴𝒆𝒕𝒉𝒐𝒅: see 𝒎𝒆𝒕𝒉𝒐𝒅𝒔 below                                   │
   ⍝H │   𝒌𝒌: a (disclosed) key    𝒌𝒌: 1 (enclosed) or more keys              │
   ⍝H │   𝒗: a (disclosed) value   𝒗𝒗: 1 (enclosed) or more values             │
+  ⍝H │                            𝒗𝒗*: If (⊂v), scalar extension applies     │          
   ⍝H │ ⊃𝒌𝒗: a disclosed item      𝒌𝒗: 1 (enclosed) or more items (k-v pairs) │
   ⍝H │   𝒂:  arbitrary data       𝒂𝒂: any (enclosed) list of arbitrary data  │
   ⍝H │   𝒃:  Boolean value        𝒃𝒃: Boolean values                         │
@@ -56,10 +57,11 @@
   ⍝H       [Cloning]            newD← 𝒅.Copy
   ⍝H
   ⍝H    Setting and Getting: 
-  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv    vv← 𝒅.Get    kk  
-  ⍝H                          {vv}←  kk 𝒅.Set  vv 
-  ⍝H       [New Items]       {vv}←     𝒅.CSet kk vv 
-  ⍝H                          {vv}←  kk 𝒅.CSet vv 
+  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*  vv← 𝒅.Get    kk  
+  ⍝H                          {vv}←  kk 𝒅.Set  vv* 
+  ⍝H                          {vv}←     d.Set  ⊂kv
+  ⍝H       [New Items]        {vv}←     𝒅.SetC kk vv* 
+  ⍝H                          {vv}←  kk 𝒅.SetC vv* 
   ⍝H       [Single Item]       {v}←     𝒅.Set1 k  v     v←  𝒅.Get1   k    
   ⍝H       [Indices]                                    ii← 𝒅.Find   kk   
   ⍝H                                                    i←  𝒅.Find1  k 
@@ -174,20 +176,6 @@
     d2← ⎕NS ⎕THIS 
   ∇
 
-  ⍝H d.CSet "Conditionally Set Values for Keys"
-  ⍝H Retrieve values for keys already defined, setting only new keys to the values specified.
-  ⍝H   val←  keys CSet potentialValues
-  ⍝H   val←       CSet keys potentialValues    ⍝ Alt syntax
-  ⍝H Returns the now actual values of all the keys 
-  ⍝H (the new ones now entered in the dictionary with values specified).
-  ⍝H 
-  ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
-  ⍝H Note 2: Not (yet) optimized for performance.
-  ⍝H
-    CSet← { 0:: _Err ⍬ ⋄ 3:: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
-            ⍺←⊢ ⋄ kk vv←⍺ ⍵ ⋄ nm←~om←HasKeys kk ⋄ (om/vv)←Get om/kk ⋄ vv ⊣ (nm/kk) Set nm/vv  
-    }
-
   ⍝H d.Del1  (Delete one item by Key)
   ⍝H   {[1|0]}← [quiet←0] d.Del key
   ⍝H   key:   an object of any shape
@@ -221,11 +209,11 @@
   ⍝H      a 0 for each key not found and ignored (quiet=1).
   ⍝H  
   Del←   { 
-      ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ fm← pp< ≢keysG 
-    (0∊fm)∧~⍺: 3 _Err 'INDEX ERROR: Key(s) not found'
-      (keysG valsG) /⍨← ⊂0@ (fm/ pp)⊣ 1⍴⍨ ≢keysG 
+      ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
+    (0∊om)∧~⍺: 3 _Err 'INDEX ERROR: Key(s) not found'
+      (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG 
       keysG∘←1500⌶keysG 
-    1: _← fm 
+    1: _← om 
   }
 
   ⍝H d.DelI   (Delete-by-Indices)
@@ -241,11 +229,11 @@
   ⍝H 
   DelI←   {  
     0:: _Err ⍬
-      ⍺← 0 ⋄ pp← ⍵ ⋄ fm← 0= ⍵⍸ ⍨0, ≢keysG
-    (0∊fm)∧~⍺:  3 _Err 'INDEX ERROR'
-      (keysG valsG) /⍨← ⊂0@ (fm/pp)⊣ 1⍴⍨ ≢keysG
+      ⍺← 0 ⋄ pp← ⍵ ⋄ om← 0= ⍵⍸ ⍨0, ≢keysG
+    (0∊om)∧~⍺:  3 _Err 'INDEX ERROR'
+      (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
       keysG∘←1500⌶keysG 
-    1: _← fm
+    1: _← om
   }
 
   ⍝H d.Find1  (Find 1 Key), 
@@ -284,12 +272,12 @@
   ⍝H * Default default: From left-arg (⍺) of d← ... ∆DICT ... or an explicit d.SetDef....
   ⍝H
   Get← {             
-      ~0∊ fm← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
+      ~0∊ om← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
       ⍺← ⊂defaultG                                  
     (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'LENGTH ERROR: Mismatched left and right argument lengths'
       rr← ⍺⍴⍨ ≢kk                                                ⍝ Prepopulate result vector with defaults
-    ~1∊ fm: rr                                                   ⍝ No keys found: just return defaults
-      valsG[ fm/ pp ]@ (⍸fm)⊣ rr                                 ⍝ Now, add in values for keys found
+    ~1∊ om: rr                                                   ⍝ No keys found: just return defaults
+      valsG[ om/ pp ]@ (⍸om)⊣ rr                                 ⍝ Now, add in values for keys found
   }
 
   ⍝H d.Get1 (Get value for a Single (Disclosed) Key)
@@ -415,10 +403,10 @@
   Pop← { ⍺← defaultG
        kk← ⍵
       0:: _Err ⍬
-       ii← 1 Find kk ⋄ fm← ii<≢keysG
+       ii← 1 Find kk ⋄ om← ii<≢keysG
        vv← (≢kk)⍴ ⊂⍺
-       ( fm/ vv )← valsG[ fm/ ii ]  
-       vv⊣ 1 DelI fm/ ii            ⍝ Delete existing keys.
+       ( om/ vv )← valsG[ om/ ii ]  
+       vv⊣ 1 DelI om/ ii            ⍝ Delete existing keys.
   }
 
   ⍝H d.Pop1
@@ -469,7 +457,8 @@
 
   ⍝H d.Set
   ⍝H * Using separate keys and values
-  ⍝H     {vals}← d.Set keys vals    OR:   {vals}← keys d.Set vals
+  ⍝H     {vals}←      d.Set keys [ vals | ⊂val]    OR:   
+  ⍝H     {vals}← keys d.Set [ vals | ⊂val]
   ⍝H   Sets values for keys <keys> to <vals>.
   ⍝H   ∘ The number of keys and values must be the same.
   ⍝H   ∘ If a key is repeated, the LAST value set is retained, as expected.
@@ -478,22 +467,39 @@
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
   Set←   {  
-        ⍺←⊢ ⋄ nargs← ≢#.KV∘←kv←⍺ ⍵  
-        nargs← ≢kv← (↓∘⍉↑∘⊃)⍣(1=≢kv)⊢kv
-    2≠nargs: 11 _Err 'DOMAIN ERROR: Invalid arguments'
-        kk vv←,¨kv 
-    kk ≢⍥≢ vv: 3 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
+        ⍺←⊢ ⋄ kkvv← ⍺ ⍵ ⋄ kkvv← (↓∘⍉↑∘⊃)⍣ (1=≢kkvv)⊢ kkvv
+    2≠ ≢kkvv: 11 _Err 'DOMAIN ERROR: Invalid arguments'
+        kk vv←,¨kkvv  ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
+    kk ≠⍥≢ vv: 5 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
     0= ≢kk: _← ⍬
   ⍝  0:: _Err ⍬   
   ⍝  Handle duplicate new and old keys, an empty hash, etc.. 
-        pp← keysG⍳ kk ⋄ fm← pp< ≢keysG   
-    ~0∊fm: valsG[ pp ]← vv                ⍝ 1. All Old Keys            
-        valsG[ fm/ pp ]← fm/ vv           ⍝ 2. Some or all New Keys
+        pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
+    ~0∊om: valsG[ pp ]← vv                ⍝ 1. All Old Keys            
+        valsG[ om/ pp ]← om/ vv           ⍝ 2. Some or all New Keys
         _← (nm/ kk) { 
           nv← 0↑⍨ ≢unk← ∪⍺ ⋄ nv[unk⍳ ⍺]← ⍵ ⋄ keysG,← unk ⋄  ⊢valsG,← nv 
-        } (vv/⍨ nm← ~fm)
+        } (vv/⍨ nm← ~om)
     ×1(1500⌶)keysG: _← vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _← vv
   }
+
+  ⍝H d.SetC "Conditionally Set Values for Keys"
+  ⍝H Retrieve values for keys already defined, setting only new keys to the values specified.
+  ⍝H   {val}←  keys SetC      [ potentialValues | ⊂potentialValue ]
+  ⍝H   {val}←       SetC keys [ potentialValues | ⊂potentialValue ]    ⍝ Alt syntax
+  ⍝H Returns the now actual values of all the keys 
+  ⍝H (the new ones now entered in the dictionary with values specified).
+  ⍝H 
+  ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
+  ⍝H Note 2: Not (yet) fully optimized for performance.
+  ⍝H
+    SetC← { ⍺←⊢ ⋄  2≠ ≢kkvv←⍺ ⍵: 11 _Err 'DOMAIN ERROR: Invalid arguments'
+            kk vv← ,¨kkvv ⋄ ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
+            kk ≠⍥≢ vv: 5 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
+            nm←~om← (≢keysG)>pp←keysG⍳kk 
+            (om/vv)← valsG[ om/ pp ] ⋄ 1: _← vv ⊣ (nm/kk) Set nm/vv  
+    }
+
    
   ⍝H d.Set1  
   ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
@@ -668,4 +674,3 @@
   ⍝H r=2: active, r=1: established; r=0: not in use.
   ⍝H
   :EndNamespace
- 
