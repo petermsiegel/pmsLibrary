@@ -122,7 +122,17 @@
  
 ⍝ Global Parameters
   defaultG← keysG← valsG← ⍬
-  ∆DICTns←  ⎕THIS             
+  ∆DICTns←  ⎕THIS  
+
+  errKVLen← 5 'LENGTH ERROR: Keys and Values Differ in Length' 
+  errDom←  11 'DOMAIN ERROR: Invalid arguments'  
+  errKNF←   3 'INDEX ERROR: Key(s) not found'  
+  errKI←    3 'INDEX ERROR: Key Index not found'   
+  errBadK← 11 'DOMAIN ERROR: Invalid key name(s)'
+  errBadNs←11 'DOMAIN ERROR: Invalid namespace(s)' 
+  errEmpty← 3 'INDEX ERROR: Dictionary is empty'
+  errInsuf← 3 'INDEX ERROR: Insufficient items in dictionary'
+  errSort←  5 'LENGTH ERROR: Sort field has incorrect length.'
  
 ⍝ Primary Function ∆DICT
   ∆DICT← { 
@@ -189,7 +199,7 @@
   ⍝H 
   Del1←   { 
         ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵ ⋄ nf← p=≢keysG  
-    nf∧⍺: _←0 ⋄ nf: 3 _Err 'INDEX ERROR: Key not found'
+    nf∧⍺: _←0 ⋄ nf: _Err/ errKNF
         (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG 
         keysG∘←1500⌶keysG
     1: _← 1 
@@ -210,7 +220,7 @@
   ⍝H  
   Del←   { 
       ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
-    (0∊om)∧~⍺: 3 _Err 'INDEX ERROR: Key(s) not found'
+    (0∊om)∧~⍺: _Err/ errKNF
       (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG 
       keysG∘←1500⌶keysG 
     1: _← om 
@@ -230,7 +240,7 @@
   DelI←   {  
     0:: _Err ⍬
       ⍺← 0 ⋄ pp← ⍵ ⋄ om← 0= ⍵⍸ ⍨0, ≢keysG
-    (0∊om)∧~⍺:  3 _Err 'INDEX ERROR'
+    (0∊om)∧~⍺:  _Err/ errKI
       (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
       keysG∘←1500⌶keysG 
     1: _← om
@@ -252,7 +262,7 @@
   Find← { ⍺←0 
         pp← keysG⍳ ⍵ 
     ⍺: pp 
-    1∊ pp= ≢keysG: 3 _Err 'Key(s) not found'
+    1∊ pp= ≢keysG: _Err/ errKNF
         pp                                                
   }
   Find1← Find⊂
@@ -274,7 +284,7 @@
   Get← {             
       ~0∊ om← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
       ⍺← ⊂defaultG                                  
-    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: 5 _Err 'LENGTH ERROR: Mismatched left and right argument lengths'
+    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: _Err/ errKVLen
       rr← ⍺⍴⍨ ≢kk                                                ⍝ Prepopulate result vector with defaults
     ~1∊ om: rr                                                   ⍝ No keys found: just return defaults
       valsG[ om/ pp ]@ (⍸om)⊣ rr                                 ⍝ Now, add in values for keys found
@@ -345,12 +355,12 @@
   ⍝H   even if originally exported from a (1-char) scalar key.
   ⍝H
   Import←{ Demangle← 1∘(7162⌶) ⋄ Mangle← 0∘(7162⌶) 
-    0:: _Err 'DOMAIN ERROR: Invalid key name(s)'
+    0:: _Err/ errBadK
     ⍝  If kf=0, import keys <kk>. kk: list of keys to import.
         kf← ⊃2=⎕NC '⍺' ⋄ ⍺←⍬ ⋄ kk←(Mangle¨⍣kf⊢,¨⍺)  
     0:: _Err ⍬  
     1: _←∪⊃,/ ⍺∘{ 
-      9≠⎕NC '⍵': 11 _Err 'DOMAIN ERROR: Invalid namespace(s)' 
+      9≠⎕NC '⍵':  _Err/ errBadNs
       0=≢vars← kk∩⍣kf⊢⍵.⎕NL ¯2: ⍬ ⋄ keys← Demangle¨ vars
         keys⊣ keys Set ⍵.⎕OR¨vars
     }¨ ⍵
@@ -430,10 +440,10 @@
   ⍝H 
   ⍝ n: desired number, a: actual (n⌊t, if n>t AND ⍺=1), t: keysG tally
   PopItems← { 
-    0:: _Err 'DOMAIN ERROR'
+    0:: _Err/ errDom
       ⍺←0 ⋄ n←⍵ 
       n≠⌊n: ∘∘∘
-      (~⍺)∧ n> t← ≢keysG: 3 _Err 'INDEX ERROR: Insufficient items in dictionary'
+      (~⍺)∧ n> t← ≢keysG: _Err/ errInsuf
       ii← ↓⍉↑ keysG valsG↑⍨¨ a← -n⌊t 
       (keysG valsG)↓⍨← a ⋄ keysG∘←1500⌶keysG
       0=≢ii: ⍬ ⋄ ii
@@ -450,7 +460,7 @@
   ⍝H        See d.PopItems.
   ⍝H
   ∇ i← PopItem
-   :If 0=≢keysG ⋄ 3 _Err 'INDEX ERROR: Dictionary is empty' ⋄ :EndIf
+   :If 0=≢keysG ⋄ _Err/ errEmpty ⋄ :EndIf
     i←  ⊃∘⌽¨keysG valsG 
     (keysG valsG)↓⍨← ¯1 ⋄ keysG∘←1500⌶keysG 
   ∇
@@ -466,22 +476,25 @@
   ⍝H    {vals}← d.Set ⊂kv1 kv2...
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
-  Set←   {  
-        ⍺←⊢ ⋄ kkvv← ⍺ ⍵ ⋄ kkvv← (↓∘⍉↑∘⊃)⍣ (1=≢kkvv)⊢ kkvv
-    2≠ ≢kkvv: 11 _Err 'DOMAIN ERROR: Invalid arguments'
-        kk vv←,¨kkvv  ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
-    kk ≠⍥≢ vv: 5 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
-    0= ≢kk: _← ⍬
-  ⍝  0:: _Err ⍬   
+  Set← { ⍺←⊢  
+    0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: en _Err em ⋄ 0= ≢kk: _← ⍬
   ⍝  Handle duplicate new and old keys, an empty hash, etc.. 
         pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
-    ~0∊om: valsG[ pp ]← vv                ⍝ 1. All Old Keys            
-        valsG[ om/ pp ]← om/ vv           ⍝ 2. Some or all New Keys
-        _← (nm/ kk) { 
-          nv← 0↑⍨ ≢unk← ∪⍺ ⋄ nv[unk⍳ ⍺]← ⍵ ⋄ keysG,← unk ⋄  ⊢valsG,← nv 
-        } (vv/⍨ nm← ~om)
-    ×1(1500⌶)keysG: _← vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _← vv
+    ~0∊om: valsG[ pp ]← vv                
+        valsG[ om/ pp ]← om/ vv ⋄ 1: _← kk ((~om) _SetNewOnly) vv
   }
+  ⍝ Utilities for Set and SetC
+    _SetArgs←{  
+          kkvv← ⍵ ⋄ kkvv← (↓∘⍉↑∘⊃)⍣ (1=≢kkvv)⊢ kkvv
+      2≠ ≢kkvv:  errDom, 0 0
+          kk vv←,¨kkvv  ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
+      kk ≠⍥≢ vv: errKVLen, 0 0
+          0 '' kk vv
+    }
+    _SetNewOnly←{     
+            keysG,← unk← ∪nk← ⍺⍺/⍺ ⋄  valsG,← (⍺⍺/⍵)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk
+            ×1(1500⌶)keysG: ⍵ ⋄ keysG∘← 1500⌶keysG ⋄ ⍵
+    }
 
   ⍝H d.SetC "Conditionally Set Values for Keys"
   ⍝H Retrieve values for keys already defined, setting only new keys to the values specified.
@@ -491,16 +504,13 @@
   ⍝H (the new ones now entered in the dictionary with values specified).
   ⍝H 
   ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
-  ⍝H Note 2: Not (yet) fully optimized for performance.
   ⍝H
-    SetC← { ⍺←⊢ ⋄  2≠ ≢kkvv←⍺ ⍵: 11 _Err 'DOMAIN ERROR: Invalid arguments'
-            kk vv← ,¨kkvv ⋄ ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
-            kk ≠⍥≢ vv: 5 _Err 'LENGTH ERROR: Keys and Values Differ in Length' 
-            nm←~om← (≢keysG)>pp←keysG⍳kk 
-            (om/vv)← valsG[ om/ pp ] ⋄ 1: _← vv ⊣ (nm/kk) Set nm/vv  
+    SetC← { ⍺←⊢ 
+      0≠⊃en em kk vv← _SetArgs ⍺ ⍵: en _Err em
+          nm←~om← (≢keysG)>pp←keysG⍳kk ⋄ (om/vv)← valsG[ om/ pp ] 
+      1∊nm: _← kk (nm _SetNewOnly) vv ⋄ vv
     }
 
-   
   ⍝H d.Set1  
   ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
   ⍝H   Sets value for one key to value val. 
@@ -552,7 +562,7 @@
   ⍝H 
   SortBy←   { 
       ⍺←⎕THIS ⋄ sf← ⍵ keysG⊃⍨ 0=≢⍵
-      keysG ≢⍥≢ sf: _Err 'SortBy: Sort field has incorrect length.'
+      keysG ≢⍥≢ sf: _Err/ errSort
       ⍺.(keysG valsG)← keysG valsG    ⍝ This essentially does nothing if ⍺ and ⎕THIS are the same...
       ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋sf
       ⍺.(keysG∘←1500⌶keysG) 
