@@ -140,7 +140,7 @@
     'help'≡⎕C ⍵: d.Help  
     0:: d._Err ⍬
         ⍺← ⍬  ⋄ d.defaultG ← ⍺ ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]' 
-        0= ≢⍵: d ⋄ d ⊣ d.Set ⍵ 
+    0= ≢⍵: d ⋄ d ⊣ d.Set ⍵ 
   }
 ⍝ Copy the dict utility ∆DICT into ##.
   ##.∆DICT←  ∆DICT   
@@ -485,9 +485,8 @@
   }
   ⍝ Utilities for Set and SetC
     _SetArgs←{  
-          kkvv← ⍵ ⋄ kkvv← (↓∘⍉↑∘⊃)⍣ (1=≢kkvv)⊢ kkvv
-      2≠ ≢kkvv:  errDom, 0 0
-          kk vv←,¨kkvv  ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
+      2≠ ≢kkvv← ,¨ (↓∘⍉↑∘⊃)⍣ (1=≢⍵)⊢ ⍵: errDom, 0 0
+          kk vv← kkvv ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
       kk ≠⍥≢ vv: errKVLen, 0 0
           0 '' kk vv
     }
@@ -506,7 +505,7 @@
   ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
   ⍝H
     SetC← { ⍺←⊢ 
-      0≠⊃en em kk vv← _SetArgs ⍺ ⍵: en _Err em
+      0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: en _Err em
           nm←~om← (≢keysG)>pp←keysG⍳kk ⋄ (om/vv)← valsG[ om/ pp ] 
       1∊nm: _← kk (nm _SetNewOnly) vv ⋄ vv
     }
