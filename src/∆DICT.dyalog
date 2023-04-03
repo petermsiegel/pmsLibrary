@@ -138,16 +138,15 @@
   ∆DICT← { 
         d←(calr←⊃⎕RSI).⎕NS ∆DICTns  
     'help'≡⎕C ⍵: d.Help  
-    0:: d._Err ⍬
         ⍺← ⍬  ⋄ d.defaultG ← ⍺ ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]' 
-    0= ≢⍵: d ⋄ d ⊣ d.Set ⍵ 
+        0=≢⍵: d ⋄ 0:: d._Err ⍬ ⋄ d⊣ d.Set ⍵
   }
 ⍝ Copy the dict utility ∆DICT into ##.
   ##.∆DICT←  ∆DICT   
 
-  ⍝  ======================================
-  ⍝  =======   Internal Utils    ==========
-  ⍝  ======================================
+  ⍝  ==============================================
+  ⍝  =======   General Internal Utils    ==========
+  ⍝  ==============================================
 
   ⍝ _Err: (Internal) Error Signaller. 
   ⍝      [⍺←11] _Err msg   Signals error '∆DICT: msg' with EN=⍺
@@ -467,52 +466,76 @@
 
   ⍝H d.Set
   ⍝H * Using separate keys and values
-  ⍝H     {vals}←      d.Set keys [ vals | ⊂val]    OR:   
-  ⍝H     {vals}← keys d.Set [ vals | ⊂val]
-  ⍝H   Sets values for keys <keys> to <vals>.
-  ⍝H   ∘ The number of keys and values must be the same.
-  ⍝H   ∘ If a key is repeated, the LAST value set is retained, as expected.
-  ⍝H * Using key-value pairs (items)
+  ⍝H    {vals}←      d.Set keys [ vals | ⊂val]    OR:   
+  ⍝H    {vals}← keys d.Set [ vals | ⊂val]         OR:
   ⍝H    {vals}← d.Set ⊂kv1 kv2...
+  ⍝H A. Sets values for keys <keys> to <vals>.
+  ⍝H    ∘ The number of keys and values must be the same.
+  ⍝H    ∘ If a key is repeated, the LAST value set is retained, as expected.
+  ⍝H B. Handles enclosed key-value pairs (items)
+  ⍝H    ∘ Converts to key and value vectors. Then treated as in A. above. 
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
-  Set← { ⍺←⊢  
-    0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: en _Err em ⋄ 0= ≢kk: _← ⍬
-  ⍝  Handle duplicate new and old keys, an empty hash, etc.. 
-        pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
-    ~0∊om: valsG[ pp ]← vv                
-        valsG[ om/ pp ]← om/ vv ⋄ 1: _← kk ((~om) _SetNewOnly) vv
+  Set←{ ⍺←⊢
+      0≠en⊣ en em kk vv← _SetA ⍺ ⍵: _Err/en em ⍝ ⋄ 0= ≢kk: _←vv 
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
+      ~0∊ om: valsG[ pp ]← vv ⋄ valsG[ om/ pp ]← om/ vv
+      1: vv← kk ((~om) _SetN) vv
   }
-  ⍝ Utilities for Set and SetC
-    _SetArgs←{  
-      2≠ ≢kkvv← ,¨ (↓∘⍉↑∘⊃)⍣ (1=≢⍵)⊢ ⍵: errDom, 0 0
-          kk vv← kkvv ⋄ vv← (≢kk)⍴⍣ (1=≢vv)⊢ vv
-      kk ≠⍥≢ vv: errKVLen, 0 0
-          0 '' kk vv
-    }
-    _SetNewOnly←{     
-            keysG,← unk← ∪nk← ⍺⍺/⍺ ⋄  valsG,← (⍺⍺/⍵)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk
-            ×1(1500⌶)keysG: ⍵ ⋄ keysG∘← 1500⌶keysG ⋄ ⍵
-    }
 
   ⍝H d.SetC "Conditionally Set Values for Keys"
-  ⍝H Retrieve values for keys already defined, setting only new keys to the values specified.
+  ⍝H Retrieve existing values for keys already defined, setting only new keys to the values specified.
   ⍝H   {val}←  keys SetC      [ potentialValues | ⊂potentialValue ]
   ⍝H   {val}←       SetC keys [ potentialValues | ⊂potentialValue ]    ⍝ Alt syntax
-  ⍝H Returns the now actual values of all the keys 
-  ⍝H (the new ones now entered in the dictionary with values specified).
+  ⍝H   potentialValue/s: 
+  ⍝H     the value/s to use for keys not already in dictionary;
+  ⍝H     existing keys are not affected.
+  ⍝H Shyly returns the 𝙖𝙘𝙩𝙪𝙖𝙡 values of all the keys (whether existing or new).
   ⍝H 
   ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
   ⍝H
+  ⍝ See _SetA and _SetN above
     SetC← { ⍺←⊢ 
-      0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: en _Err em
-          nm←~om← (≢keysG)>pp←keysG⍳kk ⋄ (om/vv)← valsG[ om/ pp ] 
-      1∊nm: _← kk (nm _SetNewOnly) vv ⋄ vv
+      0≠en⊣ en em kk vv← _SetA ⍺ ⍵: _Err/en em ⍝ ⋄ 0= ≢kk: vv←vv
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG 
+      ~0∊ om: vv← valsG[ pp ] ⋄ (om/ vv)← valsG[ om/ pp ]  
+      1: vv← kk ((~om) _SetN) vv  
     }
+   
+  ⍝  =====================================================
+  ⍝  ======  Utilities for Set and SetC             ======
+  ⍝  ====== _SetA - prep args: kv vectors, → _SetP ======
+  ⍝  ====== _SetP - prep key-value pairs           ======
+  ⍝  ====== _SetN - set new entries, handle dups   ======
+  ⍝  =====================================================
+    ⍝ _SetA/_SetP:  ⍵: either key and value vectors (kk vv) or key-value pairs(⊂kv). 
+    ⍝ In the first case, vv may be a singleton (1=≢vv) which will be conformed to (the length of) kk.
+    ⍝ The fastest path: kk vv, where (≢kk)≡(≢vv); 2nd fastest: conform vv to kk, if 1=≢vv.
+    ⍝ Otherwise, process ⍵ as a set of pairs (items) enclosed, else a domain error. 
+    ⍝ Returns:  EN EM kk vv. If EN=0, kk and vv are well-formed; otherwise, only EN and EM are used.
+      _SetA←  { 
+        2≠≢⍵:           _SetP ⍵                ⍝ Key-value pairs
+                        kk vv←,¨⍵              ⍝ Key and value vectors
+        kk =⍥≢ vv:      0 '', kk vv            ⍝ Keys and value lengths match
+        1=≢vv:          0 '', kk (vv⍴⍨≢kk)     ⍝ Scalar extension
+                        errKVLen↑⍨4            ⍝ Length error!
+      }
+      _SetP← (errDom↑⍨4)∘{ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ ⋄ 0 '', ,¨kkvv }
+    ⍝ _SetN:  ⍺ (⍺⍺ ∇)⍵
+    ⍝     ⍺: kk; ⍺⍺: new key mask; ⍵: vv
+    ⍝ Handles duplicate new and old keys, ensuring
+    ⍝   a) new keys are entered L to R, b) the last (rightmost) value is kept 
+    ⍝   (consonant with APL assignment processing).
+    ⍝ Returns: vv (unchanged). 
+    ⍝ Updates keysG and valsG with new keys and values as a side effect.
+      _SetN←{     
+          valsG,← (⍺⍺/⍵)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← ⍺⍺/⍺ 
+          ×1(1500⌶)keysG: ⍵ ⋄ keysG∘← 1500⌶keysG ⋄ ⍵
+      }
 
   ⍝H d.Set1  
-  ⍝H   {val}← d.Set1 key val    OR:   {val}← key d.Set1 val
-  ⍝H   Sets value for one key to value val. 
+  ⍝H   {val}← d.Set1 k v    OR:   {val}← k d.Set1 v
+  ⍝H   Sets value for key <k> to <v>. 
   ⍝H   If it exists, it is overwritten.
   ⍝H Shyly returns the value <val> just set.
   ⍝H ------------
@@ -521,8 +544,8 @@
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
   ⍝H
-  Set1←   { ⍺←⊢ ⋄ k v←⍺ ⍵ 
-    0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ,⊂v ⊣ keysG,← ,⊂k  
+  Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: _Err/ errDom ⋄ k v←kv
+    0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
     (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄ valsG,← ⊂v ⋄ keysG,← ⊂k 
     ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ 1: _← v
   }
@@ -650,7 +673,7 @@
   ⍝H Shyly returns: the new value
   ⍝H ∘ Example: Dictionary <counter>
   ⍝H   Increment a counter (initially 0) named 'jack' to 1
-  ⍝H      counter← 0 ∆DICT ⍬                  ⍝ Set defaults to 0
+  ⍝H      counter← 0 ∆DICT ⍬                 ⍝ Set defaults to 0
   ⍝H     'jack' +counter.Do1 1               ⍝ Sets entry jack to 0+1  => 1
   ⍝H     'jack' +counter.Do1 2               ⍝ Sets entry jack to 1+2  => 3
   ⍝H     'jack' *counter.Do1 2               ⍝ Sets entry jack to 3*2  => 9...
