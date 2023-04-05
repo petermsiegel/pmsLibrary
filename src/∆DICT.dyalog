@@ -136,16 +136,18 @@
   ⍝   _Err: (Internal) error Signaller. 
   ⍝          [⍺←11] _Err msg   Signals error '∆DICT: msg' with EN=⍺
   ⍝                 _Err ⍬     Passes along the already signalled error msg
-      _Err← ⎕SIGNAL {⍺←11 ⋄ ⊂'EN' 'EM' 'Message',⍥⊂¨ ⎕DMX.(EN EM Message) (⍺ ('∆DICT: ',⍵) '')⊃⍨ ×≢⍵}
-      _kvLenÉ←  5 'LENGTH ERROR: Keys and Values Differ in Length' 
-      _domÉ←   11 'DOMAIN ERROR: Invalid arguments'  
-      _keyNFé←  3 'INDEX ERROR: Key(s) not found'  
-      _keyIxÉ←  3 'INDEX ERROR: Key Index not found'   
-      _badKé←  11 'DOMAIN ERROR: Invalid key name(s)'
-      _badNsÉ← 11 'DOMAIN ERROR: Invalid namespace(s)' 
-      _emptyÉ←  3 'INDEX ERROR: Dictionary is empty'
-      _insufÉ←  3 'INDEX ERROR: Insufficient items in dictionary'
-      _sortÉ←   5 'LENGTH ERROR: Sort field has incorrect length.' 
+    _Err← ⎕SIGNAL {⍺←11 ⋄ ⊂'EN' 'EM' 'Message',⍥⊂¨ ⎕DMX.(EN EM Message) (⍺ ('∆DICT: ',⍵) '')⊃⍨ ×≢⍵}
+:Namespace e
+    kvLen←  5 'LENGTH ERROR: Keys and Values Differ in Length' 
+    dom←   11 'DOMAIN ERROR: Invalid arguments'  
+    keyNF←  3 'INDEX ERROR: Key(s) not found'     
+    keyIx←  3 'INDEX ERROR: Key Index not found'   
+    badK←  11 'DOMAIN ERROR: Invalid key name(s)'
+    badNs← 11 'DOMAIN ERROR: Invalid namespace(s)' 
+    empty←  3 'INDEX ERROR: Dictionary is empty'
+    insuf←  3 'INDEX ERROR: Insufficient items in dictionary'
+    sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
+:EndNamespace
 
 
   ⍝  ==============================================
@@ -187,7 +189,7 @@
   ⍝H 
   Del1← { 
         ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵ ⋄ nf← p=≢keysG  
-    nf∧⍺: _←0 ⋄ nf: _Err/ _keyNFé
+    nf∧⍺: _←0 ⋄ nf: _Err/ e.keyNF
         (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG 
         keysG∘←1500⌶keysG
     1: _← 1 
@@ -208,7 +210,7 @@
   ⍝H  
   Del← { 
       ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
-    (0∊om)∧~⍺: _Err/ _keyNFé
+    (0∊om)∧~⍺: _Err/ e.keyNF
       (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG 
       keysG∘←1500⌶keysG 
     1: _← om 
@@ -228,7 +230,7 @@
   DelI← {  
     0:: _Err ⍬
       ⍺← 0 ⋄ pp← ⍵ ⋄ om← 0= ⍵⍸ ⍨0, ≢keysG
-    (0∊om)∧~⍺:  _Err/ _keyIxÉ
+    (0∊om)∧~⍺:  _Err/ e.keyIx
       (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
       keysG∘←1500⌶keysG 
     1: _← om
@@ -250,7 +252,7 @@
   Find← { ⍺←0 
         pp← keysG⍳ ⍵ 
     ⍺: pp 
-    1∊ pp= ≢keysG: _Err/ _keyNFé
+    1∊ pp= ≢keysG: _Err/ e.keyNF
         pp                                                
   }
   Find1← Find⊂
@@ -271,11 +273,11 @@
   ⍝H
   Get← {             
       ~0∊ om← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
-      ⍺← ⊂defaultG                                  
-    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: _Err/_kvLenÉ
-      rr← ⍺⍴⍨ ≢kk                                                ⍝ Prepopulate result vector with defaults
+        ⍺← ⊂defaultG                                  
+    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: _Err/e.kvLen
+        rr← ⍺⍴⍨ ≢kk                                              ⍝ Prepopulate result vector with defaults
     ~1∊ om: rr                                                   ⍝ No keys found: just return defaults
-      valsG[ om/ pp ]@ (⍸om)⊣ rr                                 ⍝ Now, add in values for keys found
+        valsG[ om/ pp ]@ (⍸om)⊣ rr                               ⍝ Now, add in values for keys found
   }
 
   ⍝H d.Get1 (Get value for a Single (Disclosed) Key)
@@ -342,12 +344,12 @@
   ⍝H   even if originally exported from a (1-char) scalar key.
   ⍝H
   Import← { Demangle← 1∘(7162⌶) ⋄ Mangle← 0∘(7162⌶) 
-    0:: _Err/ _badKé
+    0:: _Err/ e.badK
     ⍝  If kf=0, import keys <kk>. kk: list of keys to import.
         kf← ⊃2=⎕NC '⍺' ⋄ ⍺←⍬ ⋄ kk←(Mangle¨⍣kf⊢,¨⍺)  
     0:: _Err ⍬  
     1: _←∪⊃,/ ⍺∘{ 
-      9≠⎕NC '⍵':  _Err/ _badNsÉ
+      9≠⎕NC '⍵':  _Err/ e.badNs
       0=≢vars← kk∩⍣kf⊢⍵.⎕NL ¯2: ⍬ ⋄ keys← Demangle¨ vars
         keys⊣ keys Set ⍵.⎕OR¨vars
     }¨ ⍵
@@ -427,10 +429,10 @@
   ⍝H 
   ⍝ n: desired number, a: actual (n⌊t, if n>t AND ⍺=1), t: keysG tally
   PopItems← { 
-    0:: _Err/ _domÉ
+    0:: _Err/ e.dom
       ⍺←0 ⋄ n←⍵ 
       n≠⌊n: ∘∘∘
-      (~⍺)∧ n> t← ≢keysG: _Err/ _insufÉ
+      (~⍺)∧ n> t← ≢keysG: _Err/ e.insuf
       ii← ↓⍉↑ keysG valsG↑⍨¨ a← -n⌊t 
       (keysG valsG)↓⍨← a ⋄ keysG∘←1500⌶keysG
       0=≢ii: ⍬ ⋄ ii
@@ -447,33 +449,39 @@
   ⍝H        See d.PopItems.
   ⍝H
   ∇ i← PopItem
-   :If 0=≢keysG ⋄ _Err/ _emptyÉ ⋄ :EndIf
+   :If 0=≢keysG ⋄ _Err/ e.empty ⋄ :EndIf
     i←  ⊃∘⌽¨keysG valsG 
     (keysG valsG)↓⍨← ¯1 ⋄ keysG∘←1500⌶keysG 
   ∇
 
   ⍝H d.Set "Set a Value for each of one or more keys"
   ⍝H * Using separate keys and values
-  ⍝H    {vals}←      d.Set keys [ vals | ⊂val]    OR:   
-  ⍝H    {vals}← keys d.Set [ vals | ⊂val]         OR:
-  ⍝H    {vals}← d.Set ⊂kv1 kv2...
+  ⍝H A.  {vals}←      d.Set keys [ vals | ⊂val ]   OR:   
+  ⍝H     {vals}← keys d.Set      [ vals | ⊂val ]   OR:
+  ⍝H B.  {vals}←      d.Set ⊂kv1 kv2...
+  ⍝H ∘∘∘∘∘∘∘∘∘∘∘∘
   ⍝H A. Sets values for keys <keys> to <vals>.
-  ⍝H    ∘ The number of keys and values must be the same.
-  ⍝H    ∘ If a key is repeated, the LAST value set is retained, as expected.
+  ⍝H    ∘ The number of keys and values must be the same or (1=≢values)
+  ⍝H    ∘ Old keys always retain their order.
+  ⍝H    ∘ New keys are entered in the dict left to right.
+  ⍝H    ∘ If a key is repeated, the LAST value set is retained, consistent with APL assignment and old key updates.
   ⍝H B. Handles enclosed key-value pairs (items)
   ⍝H    ∘ Converts to key and value vectors. Then treated as in A. above. 
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
-  ⍝  See _SetArgs _SetPairs _SetNew
-  Set←{ ⍺←⊢
-      0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: _Err/en em ⍝ ⋄ 0= ≢kk: _←vv 
-          pp← keysG⍳ kk ⋄ om← pp< ≢keysG   
+  ⍝  See also _SetArgs. 
+   Set←{ ⍺←⊢  
+      0≠en⊣ (en em) (kk vv) ← _SetArgs ⍺ ⍵: _Err/en em  
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG                    
       ~0∊ om: valsG[ pp ]← vv ⋄ valsG[ om/ pp ]← om/ vv
-      1: vv← kk ((~om) _SetNew) vv
-  }
+    ⍝ Update new keys shown via the bit mask (~om).
+         valsG,← (nm/vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm←~om)/kk 
+      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
+    }
 
   ⍝H d.SetC "Conditionally Set a value for each new key, i.e. each not in the dictionary"
   ⍝H Retrieve existing values for keys already defined, setting only new keys to the values specified.
+  ⍝H (See notes at d.Set.)
   ⍝H   {val}←  keys SetC      [ potentialValues | ⊂potentialValue ]
   ⍝H   {val}←       SetC keys [ potentialValues | ⊂potentialValue ]    ⍝ Alt syntax
   ⍝H   potentialValue/s: 
@@ -483,43 +491,37 @@
   ⍝H 
   ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
   ⍝H
-  ⍝ See _SetArgs and _SetNew below
+  ⍝ See _SetArgs below
     SetC← { ⍺←⊢ 
-      0≠en⊣ en em kk vv← _SetArgs ⍺ ⍵: _Err/en em  
+      0≠en⊣ (en em) (kk vv) ← _SetArgs ⍺ ⍵: _Err/en em  
           pp← keysG⍳ kk ⋄ om← pp< ≢keysG 
       ~0∊ om: vv← valsG[ pp ] ⋄ (om/ vv)← valsG[ om/ pp ]  
-      1: vv← kk ((~om) _SetNew) vv  
+    ⍝ Update new keys.   
+          valsG,← (nm/vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm←~om)/,kk 
+      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
     }
    
-  ⍝  =====================================================================
-  ⍝  ======  Utilities for Set and SetC                             ======
-  ⍝  ====== _SetArgs - prep args: kv vectors, call _SetPairs        ======
-  ⍝  ====== _SetPairs - prep key-value pairs                        ======
-  ⍝  ====== _SetNew - register new entries, handle dup entries      ======
-  ⍝  =====================================================================
-    ⍝ _SetArgs/_SetPairs:  ⍵: either key and value vectors (kk vv) or key-value pairs(⊂kv). 
+  ⍝  ========================================================
+  ⍝  ======  Utility for Set and SetC                  ======
+  ⍝  ====== _SetArgs - prep args: conform kk and vv    ======
+  ⍝  ======                       convert ⊂kv pairs    ======
+  ⍝  ========================================================
+    ⍝ _SetArgs:  ⍵: either key and value vectors (kk vv) or key-value pairs(⊂kv). 
     ⍝ In the first case, vv may be a singleton (1=≢vv) which will be conformed to (the length of) kk.
     ⍝ The fastest path: kk vv, where (≢kk)≡(≢vv); 2nd fastest: conform vv to kk, if 1=≢vv.
-    ⍝ Otherwise, process ⍵ as a set of pairs (items) enclosed, else a domain error. 
-    ⍝ Returns:  EN EM kk vv. If EN=0, kk and vv are well-formed; otherwise, only EN and EM are used.
-      _SetArgs←  { 
-        2≠≢⍵:           _SetPairs ⍵            ⍝ Key-value pairs
-                        kk vv←,¨⍵              ⍝ Key and value vectors
-        kk =⍥≢ vv:      0 '', kk vv            ⍝ Keys and value lengths match
-        1=≢vv:          0 '', kk (vv⍴⍨≢kk)     ⍝ Scalar extension
-                        _kvLenÉ↑⍨4             ⍝ Length error!
+    ⍝ Otherwise, process ⍵ as a set of pairs (items) enclosed, returns a non-zero EN.
+    ⍝ Returns:  (EN EM)(kk vv) if EN=0.     (EM is ignored).
+    ⍝           ⊂EN EM         otherwise.   (EN is EN, the error number; EM is the error message; kk vv are ignored).
+      _SetArgs←  { ok← 0 ''                                                          
+        2≠≢⍵:      {                      ⍝ Not length 2? Key-value pairs or error
+                      ⍺← ⊂e.dom ⋄ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ ⋄ ok (,¨kkvv) 
+                   } ⍵           
+                   kk vv←,¨⍵              ⍝ Key and value vectors
+        kk =⍥≢ vv: ok (kk vv)             ⍝ Keys and value lengths match [FAST PATH]
+        1=≢vv:     ok (kk (vv⍴⍨≢kk))      ⍝ Scalar extension
+                   ⊂e.kvLen             ⍝ Length error!
       }
-      _SetPairs← (_domÉ↑⍨4)∘{ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ ⋄ 0 '', ,¨kkvv }
-
-    ⍝ _SetNew:  ⍺ (⍺⍺ ∇)⍵
-    ⍝     ⍺: kk; ⍺⍺: new key mask; ⍵: vv
-    ⍝ Handles duplicate new and old keys, ensuring
-    ⍝   a) new keys are entered L to R, b) the last (rightmost) value is kept 
-    ⍝   (consonant with APL assignment processing).
-    ⍝ Returns: vv (unchanged). 
-    ⍝ Updates keysG and valsG with new keys and values as a side effect.
-      _SetNew←{valsG,← (⍺⍺/⍵)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← ⍺⍺/,⍺ ⋄ ×1(1500⌶)keysG: ⍵ ⋄ (keysG∘← 1500⌶keysG) ⋄ ⍵ }
-
+  
   ⍝H d.Set1  
   ⍝H   {val}← d.Set1 k v    OR:   {val}← k d.Set1 v
   ⍝H   Sets value for key <k> to <v>. 
@@ -531,7 +533,7 @@
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
   ⍝H
-  Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: _Err/ _domÉ ⋄ k v←kv
+  Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: _Err/ e.dom ⋄ k v←kv
     0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
     (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄ valsG,← ⊂v ⋄ keysG,← ⊂k 
     ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ 1: _← v
@@ -571,7 +573,7 @@
   ⍝H 
   SortBy←   { 
       ⍺←⎕THIS ⋄ sf← ⍵ keysG⊃⍨ 0=≢⍵
-      keysG ≢⍥≢ sf: _Err/ _sortÉ
+      keysG ≢⍥≢ sf: _Err/ e.sort
       ⍺.(keysG valsG)← keysG valsG    ⍝ This essentially does nothing if ⍺ and ⎕THIS are the same...
       ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋sf
       ⍺.(keysG∘←1500⌶keysG) 
