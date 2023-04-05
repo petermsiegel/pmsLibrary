@@ -1,9 +1,9 @@
-﻿   Concord text
+﻿   {output}← Concord text
 
     ; ⎕IO; ⎕PW
-    ; ∆DICT; Highlight; LineFmt; LNumFmt; Skip; Trim; WordList; WordFmt
+    ; ∆DICT; Highlight; LineFmt; LNumFmt; Skip; Trim; Write; WordList; WordFmt
     ; CHAR_STD; CHAR_BOLD; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
-    ; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; word; wordRaw
+    ; count; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; word; wordRaw
     ; wCurL; wFreq; wRecs
 
     {}⎕SE.UCMD 'load  ∆DICT'
@@ -25,6 +25,9 @@
     LNumFmt← (⍕LNUM_LEN)∘{,⍵ ⎕FMT⍨ 'ZI',⍺}
 
     Trim← {⍵↓⍨+/∧\' '=⍵}
+
+    Write←{ count +← 1 ⋄ output,←⊂⍕⍵ } ⋄ output← ⍬ ⋄ count← 0
+    Write '***** CONCORDANCE BEGUN AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT ⊂⎕TS
     
     WordList←{
         '([:⎕]?[\w_∆⍙]+(?:''[\w_∆⍙]+)?)' ⎕S 0 1⊣⍵
@@ -45,12 +48,12 @@
     wRecs←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
     
     lNum←0 
-    ⎕← 'Source text' 
+    Write 'Source text' 
     LINE_LEN← MAX_WIDTH - LNUM_LEN + 3
     :FOR line :IN text
          lNum+←1  
 
-         ⎕← (LNumFmt lNum), ' | ',(LINE_LEN↑ line)
+         Write (LNumFmt lNum), ' | ',(LINE_LEN↑ line)
          
         wCurL←⍬
         :For offset len :IN  WordList line
@@ -66,7 +69,7 @@
             word wRecs.Cat1 lNum (line Highlight wordRaw)
         :EndFor 
     :ENDFOR 
-    ⎕←''
+    Write ''
 
     WORD_LEN← ⌈/≢¨wFreq.Keys
     LINE_LEN← MAX_WIDTH- (LNUM_LEN + WORD_LEN + 2×3)   ⍝ 3 per ' | '
@@ -74,17 +77,22 @@
     WordFmt← WORD_LEN∘↑
     LineFmt← LINE_LEN∘↑
 
-    ⎕←'Word Frequencies and Lines'
+    Write 'Word Frequencies and Lines'
     wRecs.(SortBy Keys)
     :FOR word recs :IN wRecs.Items
          lNums← ∪⊃¨recs 
-         ⎕← (WordFmt word), ' ', ('[',']',⍨⍕wFreq.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
+         Write (WordFmt word), ' ', ('[',']',⍨⍕wFreq.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
     :ENDFOR    
-    ⎕←''
+    Write ''
 
-    ⎕←'Concordance'
+    Write 'Concordance'
     :FOR word recs :IN  wRecs.Items
          :FOR lNum line :IN recs
-            ⎕← (LNumFmt lNum), ' | ', (WordFmt word), ' | ', (LineFmt line)
+            Write (LNumFmt lNum), ' | ', (WordFmt word), ' | ', (LineFmt line)
          :ENDFOR 
     :ENDFOR
+    Write ''
+    Write '***** CONCORDANCE COMPLETE AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT ⊂⎕TS
+    Write '***** ',count,'lines written.'
+
+    ⎕ED 'output'
