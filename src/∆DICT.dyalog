@@ -119,10 +119,11 @@
 
 ⍝ Primary Function ∆DICT
   ∆DICT← { 
+    'AllowSimple'≡⍵: ⊢(∆DICT ⍬).AllowSimple  
         d←(calr←⊃⎕RSI).⎕NS ∆DICTns 
     'help'≡⎕C ⍵: d.Help  
         ⍺← ⍬  ⋄ d.defaultG ← ⍺  ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]'   ⍝  'I4,5ZI2,ZI3'⎕FMT 1 7⍴⎕TS
-        0=≢⍵: d ⋄ 0:: d._Err ⍬ ⋄ d⊣ d.Set ⍵
+        0=≢⍵: d ⋄ 0:: d.e.Err ⍬ ⋄ d⊣ d.Set ⍵
   }
 ⍝ Point ##.∆DICT here...
   ##.∆DICT←  ∆DICT  
@@ -131,28 +132,6 @@
   ⎕IO ⎕ML←0 1 
   defaultG← keysG← valsG← ⍬
   ∆DICTns←  ⎕THIS
-
-
-  ⍝   _Err: (Internal) error Signaller. 
-  ⍝          [⍺←11] _Err msg   Signals error '∆DICT: msg' with EN=⍺
-  ⍝                 _Err ⍬     Passes along the already signalled error msg
-    _Err← ⎕SIGNAL {⍺←11 ⋄ ⊂'EN' 'EM' 'Message',⍥⊂¨ ⎕DMX.(EN EM Message) (⍺ ('∆DICT: ',⍵) '')⊃⍨ ×≢⍵}
-:Namespace e
-    kvLen←  5 'LENGTH ERROR: Keys and Values Differ in Length' 
-    dom←   11 'DOMAIN ERROR: Invalid arguments'  
-    keyNF←  3 'INDEX ERROR: Key(s) not found'     
-    keyIx←  3 'INDEX ERROR: Key Index not found'   
-    badK←  11 'DOMAIN ERROR: Invalid key name(s)'
-    badNs← 11 'DOMAIN ERROR: Invalid namespace(s)' 
-    empty←  3 'INDEX ERROR: Dictionary is empty'
-    insuf←  3 'INDEX ERROR: Insufficient items in dictionary'
-    sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
-:EndNamespace
-
-
-  ⍝  ==============================================
-  ⍝  =======   General Internal Utils    ==========
-  ⍝  ==============================================
 
   ⍝H ┌────────────────────────┐
   ⍝H │   BASIC METHODS        │
@@ -189,7 +168,7 @@
   ⍝H 
   Del1← { 
         ⍺← 0 ⋄ p← keysG⍳ ⊂k← ⍵ ⋄ nf← p=≢keysG  
-    nf∧⍺: _←0 ⋄ nf: _Err/ e.keyNF
+    nf∧⍺: _←0 ⋄ nf: e.(Err/ keyNF)
         (keysG valsG) /⍨← ⊂ 0@ p⊢ 1⍴⍨ ≢keysG 
         keysG∘←1500⌶keysG
     1: _← 1 
@@ -210,7 +189,7 @@
   ⍝H  
   Del← { 
       ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
-    (0∊om)∧~⍺: _Err/ e.keyNF
+    (0∊om)∧~⍺: e.(Err/ keyNF)
       (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG 
       keysG∘←1500⌶keysG 
     1: _← om 
@@ -228,18 +207,18 @@
   ⍝H     a 0 for each index not in range and ignored. 
   ⍝H 
   DelI← {  
-    0:: _Err ⍬
+    0:: e.Err ⍬
       ⍺← 0 ⋄ pp← ⍵ ⋄ om← 0= ⍵⍸ ⍨0, ≢keysG
-    (0∊om)∧~⍺:  _Err/ e.keyIx
+    (0∊om)∧~⍺:  e.(Err/ keyIx)
       (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
       keysG∘←1500⌶keysG 
     1: _← om
   }
 
-  ⍝H d.Find1  (Find 1 Key), 
   ⍝H d.Find   (Find Keys)
-  ⍝H   index←    [force←0] d.Find  key
-  ⍝H   indices←  [force←0] d.FindX keys
+  ⍝H d.Find1  (Find 1 Key)
+  ⍝H   indices←  [force←0] d.Find keys
+  ⍝H   index←    [force←0] d.Find1  key
   ⍝H Returns the indices for the keys found (⎕IO=0). 
   ⍝H   For those not found:
   ⍝H     If force=1, returns (≢d.Keys) for each missing key; present keys are in range [0 .. ≢d.Keys-1]
@@ -252,13 +231,13 @@
   Find← { ⍺←0 
         pp← keysG⍳ ⍵ 
     ⍺: pp 
-    1∊ pp= ≢keysG: _Err/ e.keyNF
+    1∊ pp= ≢keysG: e.(Err/ keyNF)
         pp                                                
   }
   Find1← Find⊂
  
-  ⍝H d.Get (Get-Values by Keys)
-  ⍝H  val← [defs← GetDef] d.Get keys
+  ⍝H  d.Get: "Get Values by Keys"
+  ⍝H  vals← [defs← GetDef] d.Get keys
   ⍝H      defs: vector of defaults;  defs must be conformable to keys.
   ⍝H      keys: vector of keys
   ⍝H   Logically equivalent to: [defs] d.Get1¨ keys
@@ -272,22 +251,22 @@
   ⍝H * Default default: From left-arg (⍺) of d← ... ∆DICT ... or an explicit d.SetDef....
   ⍝H
   Get← {             
-      ~0∊ om← (≢keysG)>pp← keysG⍳ kk← ⍵: valsG[ pp ]             ⍝ All keys found: fast return                      
+      ~0∊ om← (≢keysG)>pp← keysG⍳ kk← u.AtomE ⍵: valsG[ pp ]        ⍝ All keys found: fast return                      
         ⍺← ⊂defaultG                                  
-    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: _Err/e.kvLen
+    (1≠ ≢⍺) ∧ kk ≠⍥≢ ⍺: e.(Err/ kvLen)
         rr← ⍺⍴⍨ ≢kk                                              ⍝ Prepopulate result vector with defaults
     ~1∊ om: rr                                                   ⍝ No keys found: just return defaults
         valsG[ om/ pp ]@ (⍸om)⊣ rr                               ⍝ Now, add in values for keys found
   }
 
-  ⍝H d.Get1 (Get value for a Single (Disclosed) Key)
+  ⍝H d.Get1: "Get value for a Single (Disclosed) Key"
   ⍝H val← [def← GetDef] d.Get1 key
   ⍝H   Retrieves the specified key or <def> if not found.
   ⍝H Returns: 
   ⍝H - the value <val> for <key>, if <key> defined.
   ⍝H - Otherwise, the default is returned.
   ⍝H
-    Get1← { (≢keysG)> p← keysG⍳ ⊂⍵: p⊃ valsG ⋄ ⍺← defaultG ⋄ ⍺ }
+    Get1← { (≢keysG)> p← keysG⍳ ⊂u.Atom ⍵: p⊃ valsG ⋄ ⍺← defaultG ⋄ ⍺ }
 
   ⍝H d.GetDef   
   ⍝H   curDef← d.GetDef
@@ -316,7 +295,7 @@
   ⍝H -----
   ⍝H See Note at HasKeys.
   ⍝H
-  HasKey← { ⍵∊ keysG }⊂
+  HasKey← HasKeys⊂
 
   ⍝H d.Help
   ⍝H   Provides this helpful information.
@@ -343,17 +322,18 @@
   ⍝H ∘ 1-char variable names (after demangling) will be imported as (1-char) vector keys, 
   ⍝H   even if originally exported from a (1-char) scalar key.
   ⍝H
-  Import← { Demangle← 1∘(7162⌶) ⋄ Mangle← 0∘(7162⌶) 
-    0:: _Err/ e.badK
+  Import← {  
+    0:: e.(Err/ badK)
     ⍝  If kf=0, import keys <kk>. kk: list of keys to import.
-        kf← ⊃2=⎕NC '⍺' ⋄ ⍺←⍬ ⋄ kk←(Mangle¨⍣kf⊢,¨⍺)  
-    0:: _Err ⍬  
+        kf← ⊃2=⎕NC '⍺' ⋄ ⍺←⍬ ⋄ kk←(u.Mangle¨⍣kf⊢,¨⍺)  
+    0:: e.Err ⍬  
     1: _←∪⊃,/ ⍺∘{ 
-      9≠⎕NC '⍵':  _Err/ e.badNs
-      0=≢vars← kk∩⍣kf⊢⍵.⎕NL ¯2: ⍬ ⋄ keys← Demangle¨ vars
+      9≠⎕NC '⍵':  e.(Err/ badNs)
+      0=≢vars← kk∩⍣kf⊢⍵.⎕NL ¯2: ⍬ ⋄ keys← u.Demangle¨ vars
         keys⊣ keys Set ⍵.⎕OR¨vars
     }¨ ⍵
   }
+
 
   ⍝H {ns←} [ns] d.Export kk "Write each key specified to the namespace indicated as a variable with its value."
   ⍝H  - Export dictionary entries to namespace <ns> (a new ns, if omitted) 
@@ -372,10 +352,10 @@
   ⍝H            ns←ns a.Export a.Keys~ns.⎕NL ¯2      -- Export everything new to <ns>. Keep old vals for var1 and var2
   ⍝H            
   Export← { ⍺← ns⊣(ns←⎕NS '').⎕DF '∆DICT[Export]' 
-        kk← ⍵ ⋄ Mangle← 0∘(7162⌶) 
-    0:: _Err ⍬
+        kk← ⍵  
+    0:: e.Err ⍬
         SetNsVar← ⍺{ ⍺⍺.⍎ ⍺,'←⍵' }
-    1: _←⍺ ⊣ _←(Mangle¨ kk) SetNsVar¨ Get kk
+    1: _←⍺ ⊣ _←(u.Mangle¨ kk) SetNsVar¨ Get kk
   }
 
   ⍝H d.Items "The list of items, where an item is a single 2-element vector with a key and its corresponding value.
@@ -400,8 +380,8 @@
   ⍝H Returns the values of the keys found and defaults for those missing, deleting those found.
   ⍝H
   Pop← { ⍺← defaultG
-       kk← ⍵
-      0:: _Err ⍬
+       kk← u.AtomE ⍵
+      0:: e.Err ⍬
        ii← 1 Find kk ⋄ om← ii<≢keysG
        vv← (≢kk)⍴ ⊂⍺
        ( om/ vv )← valsG[ om/ ii ]  
@@ -413,9 +393,7 @@
   ⍝H   Pops and returns the value/default of the key.
   ⍝H Returns the value of the key <k> (or its default) and deletes the entry.
   ⍝H
-  Pop1← { ⍺←defaultG
-    ⊃ ⍺ Pop ⊂⍵
-  }
+  Pop1← { ⍺←defaultG ⋄ ⊃ ⍺ Pop ⊂u.Atom ⍵ }
 
   ⍝H d.PopItems "Return (up to) the last N items from the dictionary, simultaneously deleting them."
   ⍝H   kv← [up_to← 0] d.PopItems n
@@ -429,10 +407,10 @@
   ⍝H 
   ⍝ n: desired number, a: actual (n⌊t, if n>t AND ⍺=1), t: keysG tally
   PopItems← { 
-    0:: _Err/ e.dom
+    0:: e.(Err/ dom)
       ⍺←0 ⋄ n←⍵ 
       n≠⌊n: ∘∘∘
-      (~⍺)∧ n> t← ≢keysG: _Err/ e.insuf
+      (~⍺)∧ n> t← ≢keysG: e.(Err/ insuf)
       ii← ↓⍉↑ keysG valsG↑⍨¨ a← -n⌊t 
       (keysG valsG)↓⍨← a ⋄ keysG∘←1500⌶keysG
       0=≢ii: ⍬ ⋄ ii
@@ -449,7 +427,7 @@
   ⍝H        See d.PopItems.
   ⍝H
   ∇ i← PopItem
-   :If 0=≢keysG ⋄ _Err/ e.empty ⋄ :EndIf
+   :If 0=≢keysG ⋄ (e.Err/ empty) ⋄ :EndIf
     i←  ⊃∘⌽¨keysG valsG 
     (keysG valsG)↓⍨← ¯1 ⋄ keysG∘←1500⌶keysG 
   ∇
@@ -469,14 +447,14 @@
   ⍝H    ∘ Converts to key and value vectors. Then treated as in A. above. 
   ⍝H (In both cases) shyly returns all the values <vals> passed (even duplicates).
   ⍝H  
-  ⍝  See also _SetArgs. 
+  ⍝  See also u.SetArgs. 
    Set←{ ⍺←⊢  
-      0≠en⊣ (en em) (kk vv) ← _SetArgs ⍺ ⍵: _Err/en em  
+      0≠en⊣ (en em) (kk vv) ← u.SetArgs ⍺ ⍵: e.Err/en em  
           pp← keysG⍳ kk ⋄ om← pp< ≢keysG                    
       ~0∊ om: valsG[ pp ]← vv ⋄ valsG[ om/ pp ]← om/ vv
     ⍝ Update new keys shown via the bit mask (~om).
-         valsG,← (nm/vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm←~om)/kk 
-      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
+         valsG,← (nm/ vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm← ~om)/kk 
+      ×1(1500⌶)keysG: _←vv ⋄ ⎕←'Rehashing...' ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
     }
 
   ⍝H d.SetC "Conditionally Set a value for each new key, i.e. each not in the dictionary"
@@ -491,36 +469,16 @@
   ⍝H 
   ⍝H Note 1: Like "setdefault" in Python, but w/o confusion with SetDef here.
   ⍝H
-  ⍝ See _SetArgs below
+  ⍝ See u.SetArgs below
     SetC← { ⍺←⊢ 
-      0≠en⊣ (en em) (kk vv) ← _SetArgs ⍺ ⍵: _Err/en em  
-          pp← keysG⍳ kk ⋄ om← pp< ≢keysG 
-      ~0∊ om: vv← valsG[ pp ] ⋄ (om/ vv)← valsG[ om/ pp ]  
-    ⍝ Update new keys.   
-          valsG,← (nm/vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm←~om)/,kk 
-      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
+      0≠en⊣ (en em) (kk vv) ← u.SetArgs ⍺ ⍵: e.Err/en em                        ⍝ Same as Set
+          pp← keysG⍳ kk ⋄ om← pp< ≢keysG                                      ⍝ Same as Set
+      ~0∊ om: vv← valsG[ pp ] ⋄ (om/ vv)← valsG[ om/ pp ]              ⍝ <==   "Inverse" of Set
+     ⍝ Update new keys shown via the bit mask (~om).                          ⍝ Same as Set
+          valsG,← (nm/ vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm← ~om)/,kk   ⍝ Same as Set
+      ×1(1500⌶)keysG: _←vv ⋄ ⎕←'Rehashing...' ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv                     ⍝ Same as Set
     }
    
-  ⍝  ========================================================
-  ⍝  ======  Utility for Set and SetC                  ======
-  ⍝  ====== _SetArgs - prep args: conform kk and vv    ======
-  ⍝  ======                       convert ⊂kv pairs    ======
-  ⍝  ========================================================
-    ⍝ _SetArgs:  ⍵: either key and value vectors (kk vv) or key-value pairs(⊂kv). 
-    ⍝ In the first case, vv may be a singleton (1=≢vv) which will be conformed to (the length of) kk.
-    ⍝ The fastest path: kk vv, where (≢kk)≡(≢vv); 2nd fastest: conform vv to kk, if 1=≢vv.
-    ⍝ Otherwise, process ⍵ as a set of pairs (items) enclosed, returns a non-zero EN.
-    ⍝ Returns:  (EN EM)(kk vv) if EN=0.     (EM is ignored).
-    ⍝           ⊂EN EM         otherwise.   (EN is EN, the error number; EM is the error message; kk vv are ignored).
-      _SetArgs←  { ok← 0 ''                                                          
-        2≠≢⍵:      {                      ⍝ Not length 2? Key-value pairs or error
-                      ⍺← ⊂e.dom ⋄ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ ⋄ ok (,¨kkvv) 
-                   } ⍵           
-                   kk vv←,¨⍵              ⍝ Key and value vectors
-        kk =⍥≢ vv: ok (kk vv)             ⍝ Keys and value lengths match [FAST PATH]
-        1=≢vv:     ok (kk (vv⍴⍨≢kk))      ⍝ Scalar extension
-                   ⊂e.kvLen             ⍝ Length error!
-      }
   
   ⍝H d.Set1  
   ⍝H   {val}← d.Set1 k v    OR:   {val}← k d.Set1 v
@@ -533,10 +491,10 @@
   ⍝H ∘ Handy: Set entries specified as separate lists (k1 k2 k3) and (v1 v2 v3)
   ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
   ⍝H
-  Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: _Err/ e.dom ⋄ k v←kv
+  Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: e.(Err/ dom) ⋄ k v← kv  ⋄ k← u.Atom k 
     0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
     (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄ valsG,← ⊂v ⋄ keysG,← ⊂k 
-    ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ 1: _← v
+    ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ ⎕← 'Rehashing...' ⋄ 1: _← v
   }
     
   ⍝H d.SetDef
@@ -573,7 +531,7 @@
   ⍝H 
   SortBy←   { 
       ⍺←⎕THIS ⋄ sf← ⍵ keysG⊃⍨ 0=≢⍵
-      keysG ≢⍥≢ sf: _Err/ e.sort
+      keysG ≢⍥≢ sf: e.(Err/ sort)
       ⍺.(keysG valsG)← keysG valsG    ⍝ This essentially does nothing if ⍺ and ⎕THIS are the same...
       ⍺.(keysG valsG)⌷⍨← ⊂⊂⍋sf
       ⍺.(keysG∘←1500⌶keysG) 
@@ -600,6 +558,31 @@
   ⍝H │   Advanced Methods     │
   ⍝H └────────────────────────┘  
   ⍝H
+  ⍝H d.Cat   
+  ⍝H   {newVals}← keys d.Cat vals
+  ⍝H   Equiv. to:  
+  ⍝H    {newVals}← { keys {(⍺ Cat1) ⍵}¨vals}
+  ⍝H Unlike <Cat1>, Cat is a function, typically used with several (keys/⍺) and values (⍵).
+  ⍝H Shyly returns the new values for each key.
+  ⍝H ---------
+  ⍝H Examples:
+  ⍝H                 french← ∆DICT ⍬
+  ⍝H      'two' 'two' 'two' french.Cat '2' 'deux' 'II'
+  ⍝H       french.Get1 'two'
+  ⍝H ┌─┬────┬──┐
+  ⍝H │2│deux│II│
+  ⍝H └─┴────┴──┘
+  ⍝H                 french← ∆DICT ⍬
+  ⍝H        (⊂'two') french.Cat '2' 'deux' 'II'
+  ⍝H        french.Get1 'two'
+  ⍝H ┌─┬────┬──┐
+  ⍝H │2│deux│II│
+  ⍝H └─┴────┴──┘
+  ⍝H
+  ⍝H See Cat1 for more.
+  ⍝H
+  Cat← { ⍺ {⍺ Cat1 ⍵}¨⍵}
+
   ⍝H d.Cat1   [operator: ⍺⍺ d.Cat1 ⍵]
   ⍝H   {newVal}← key d.Cat1 val
   ⍝H   Treats the existing value for one <key> as a list (vector of vectors) and 
@@ -629,32 +612,15 @@
   ⍝H                                                   │└─┴────┴──┘│
   ⍝H                                                   └───────────┘
   ⍝H
-  Cat1←  { 0:: _Err ⍬ ⋄ 1: _← ⍺⍺ Set1 (Get1 ⍺⍺),⊂⍵     }  
+  Cat1←  { 0:: e.Err ⍬ ⋄ 1: _← ⍺⍺ Set1 (Get1 ⍺⍺),⊂⍵     }  
 
-  ⍝H d.Cat   
-  ⍝H   {newVals}← keys d.Cat vals
-  ⍝H   Equiv. to:  
-  ⍝H    {newVals}← { keys {(⍺ Cat1) ⍵}¨vals}
-  ⍝H Unlike <Cat1>, Cat is a function, typically used with several (keys/⍺) and values (⍵).
-  ⍝H Shyly returns the new values for each key.
-  ⍝H ---------
-  ⍝H Examples:
-  ⍝H                 french← ∆DICT ⍬
-  ⍝H      'two' 'two' 'two' french.Cat '2' 'deux' 'II'
-  ⍝H       french.Get1 'two'
-  ⍝H ┌─┬────┬──┐
-  ⍝H │2│deux│II│
-  ⍝H └─┴────┴──┘
-  ⍝H                 french← ∆DICT ⍬
-  ⍝H        (⊂'two') french.Cat '2' 'deux' 'II'
-  ⍝H        french.Get1 'two'
-  ⍝H ┌─┬────┬──┐
-  ⍝H │2│deux│II│
-  ⍝H └─┴────┴──┘
+  ⍝H d.Do
+  ⍝H   {newVals}← keys (op d.Do) vals       ⍝  key=⍺, op=⍺⍺, val=⍵
+  ⍝H   Performs:    newVals← keys Set (Get keys) op¨ ⍵   
+  ⍝H Shyly returns: newVals
+  ⍝H See d.Do1 for examples
   ⍝H
-  ⍝H See Cat1 for more.
-  ⍝H
-  Cat← { ⍺ {⍺ Cat1 ⍵}¨⍵}
+  Do← {0:: e.Err ⍬ ⋄ 1: _← ⍺ (⍺⍺ Do1)¨ ⍵ }
 
   ⍝H d.Do1
   ⍝H   {newVal}← key (op d.Do1) val       ⍝  key=⍺, op=⍺⍺, val=⍵
@@ -667,31 +633,79 @@
   ⍝H     'jack' +counter.Do1 2               ⍝ Sets entry jack to 1+2  => 3
   ⍝H     'jack' *counter.Do1 2               ⍝ Sets entry jack to 3*2  => 9...
   ⍝H 
-  Do1←  { 0:: _Err ⍬ ⋄ 1: _←⍺ Set1 (Get1  ⍺) ⍺⍺  ⍵ }
+  Do1←  { 0:: e.Err ⍬ ⋄ 1: _←⍺ Set1 (Get1 ⍺) ⍺⍺  ⍵ }
     
-  ⍝H d.Do
-  ⍝H   {newVals}← keys (op d.Do) vals       ⍝  key=⍺, op=⍺⍺, val=⍵
-  ⍝H   Performs:    newVals← keys Set (Get keys) op¨ ⍵   
-  ⍝H Shyly returns: newVals
-  ⍝H See d.Do1 for examples
-  ⍝H
-  Do← {0:: _Err ⍬ ⋄ 1: _← ⍺ (⍺⍺ Do1)¨ ⍵ }
-
   ⍝H ┌────────────────────────┐
   ⍝H │   HASHING              │
   ⍝H └────────────────────────┘  
   ⍝H Hashing  
   ⍝H Hashing ensures that searching of dictionary keys is as fast as possible.
   ⍝H There are no user-accessible hashing methods; hashing is done automatically.
-  ⍝H Performance improvements range from 3x on up for char. array searches (⍳ in Get/X).
+  ⍝H Performance improvements range from 3x on up for char. array searches (⍳ in Get/1).
   ⍝H Hashing takes place:
   ⍝H - When the array is created (d← ∆DICT...) ;
   ⍝H - When new keys are added, when required; 
-  ⍝H - Whenever items are deleted (d.Del/X, d.DelI/X, and so on);
+  ⍝H - Whenever items are deleted (d.Del/1/I), and so on);
   ⍝H - After sorting (d.SortBy).
   ⍝H ----------------------------
   ⍝H Advanced: To check status of hashing for dictionary d:
   ⍝H        r← 1(1500⌶)d.Keys 
   ⍝H r=2: active, r=1: established; r=0: not in use.
   ⍝H
-  :EndNamespace  
+
+  ⍝  ======================================
+  ⍝  =======   Error Handling    ==========
+  ⍝  ======================================
+  :Namespace e
+    ⍝   e.Err: (Internal) error Signaller. 
+    ⍝          [⍺←11] e.Err msg   Signals error '∆DICT: msg' with EN=⍺
+    ⍝                 e.Err ⍬     Passes along the already signalled error msg
+    Err← ⎕SIGNAL {⍺←11 ⋄ ⊂'EN' 'EM' 'Message',⍥⊂¨ ⎕DMX.(EN EM Message) (⍺ ('∆DICT: ',⍵) '')⊃⍨ ×≢⍵}
+  
+    kvLen←  5 'LENGTH ERROR: Keys and Values Differ in Length and Values not a scalar' 
+    dom←   11 'DOMAIN ERROR: Invalid arguments'  
+    keyNF←  3 'INDEX ERROR: Key(s) not found'     
+    keyIx←  3 'INDEX ERROR: Key Index not found'   
+    badK←  11 'DOMAIN ERROR: Invalid key name(s)'
+    badNs← 11 'DOMAIN ERROR: Invalid namespace(s)' 
+    empty←  3 'INDEX ERROR: Dictionary is empty'
+    insuf←  3 'INDEX ERROR: Insufficient items in dictionary'
+    sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
+  :EndNamespace
+
+   ∇  {d}← AllowSimple
+      u.Atom← ⊢ ⋄ u.AtomE← ⊢
+      d← ⎕THIS 
+   ∇ 
+  ⍝  ==========================================
+  ⍝  =======   Internal Utilities    ==========
+  ⍝  ==========================================
+  :Namespace u
+    Demangle← 1∘(7162⌶) 
+    Mangle←   0∘(7162⌶) 
+    Atom←     {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ AtomE← Atom¨
+    ⍝  ========================================================
+    ⍝  ====== SetArgs - prep args: conform kk and vv     ======
+    ⍝  ======                      convert ⊂kv pairs     ======
+    ⍝  ====== See: Set and SetC                          ======
+    ⍝  ========================================================
+    ⍝ SetArgs:  ⍵: either key and value vectors (kk vv) or key-value pairs(⊂kv). 
+    ⍝ In the first case, vv may be a singleton (1=≢vv) which will be conformed to (the length of) kk.
+    ⍝ The fastest path: kk vv, where (≢kk)≡(≢vv); 2nd fastest: conform vv to kk, if 1=≢vv.
+    ⍝ Otherwise, process ⍵ as a set of pairs (items) enclosed, returns a non-zero EN.
+    ⍝ Returns:  (EN EM)(kk vv) if EN=0.     (EM is ignored).
+    ⍝           ⊂EN EM         otherwise.   (EN is EN, the error number; EM is the error message; kk vv are ignored).
+    SetArgs←  { ok← 0 ''                                                        
+      2≠≢⍵:       {                     ⍝ Not length 2? Key-value pairs or error
+                    ⍺← ⊂e.dom ⋄ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ 
+                    kk vv←,¨ kkvv
+                    ok ((AtomE kk)vv)
+                  } ⍵           
+                  kk vv← ,¨⍵                 ⍝ Key and value vectors
+      kk =⍥≢ vv:  ok ((AtomE kk) vv )        ⍝ Keys and value lengths match [FAST PATH]
+      1=≢vv:      ok ((AtomE kk) (vv⍴⍨≢kk))  ⍝ Scalar extension
+                  ⊂e.kvLen                   ⍝ Length error!
+    }
+  :EndNamespace 
+
+:EndNamespace  
