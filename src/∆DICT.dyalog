@@ -119,7 +119,7 @@
 
 ⍝ Primary Function ∆DICT
   ∆DICT← { 
-    'AllowSimple'≡⍵: ⊢(∆DICT ⍬).AllowSimple  
+    'AllowSimple'≡⍵: ⊢(∆DICT ⍬).AllowSimple 1  
         d←(calr←⊃⎕RSI).⎕NS ∆DICTns 
     'help'≡⎕C ⍵: d.Help  
         ⍺← ⍬  ⋄ d.defaultG ← ⍺  ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]'   ⍝  'I4,5ZI2,ZI3'⎕FMT 1 7⍴⎕TS
@@ -673,17 +673,23 @@
     sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
   :EndNamespace
 
-   ∇  {d}← AllowSimple
-      u.Atom← ⊢ ⋄ u.AtomE← ⊢
-      d← ⎕THIS 
-   ∇ 
+  ∇ {d}← AllowSimple on
+    :IF on=1 ⋄  u.Atom← ⊢ ⋄ u.AtomE← ⊢
+    :ELSE    ⋄  u.Atom←  {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ u.AtomE←{,¨@(⍸0=≡¨⍵)⊢⍵}
+    :ENDIF 
+    d← ∆DICTns 
+  ∇ 
+   
   ⍝  ==========================================
   ⍝  =======   Internal Utilities    ==========
   ⍝  ==========================================
   :Namespace u
     Demangle← 1∘(7162⌶) 
     Mangle←   0∘(7162⌶) 
-    Atom←     {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ AtomE← Atom¨
+⍝  Atom: 
+⍝   Defined in AllowSimple.
+    ##.AllowSimple 0 
+
     ⍝  ========================================================
     ⍝  ====== SetArgs - prep args: conform kk and vv     ======
     ⍝  ======                      convert ⊂kv pairs     ======
@@ -696,13 +702,13 @@
     ⍝ Returns:  (EN EM)(kk vv) if EN=0.     (EM is ignored).
     ⍝           ⊂EN EM         otherwise.   (EN is EN, the error number; EM is the error message; kk vv are ignored).
     SetArgs←  { ok← 0 ''                                                        
-      2≠≢⍵:       {                     ⍝ Not length 2? Key-value pairs or error
+      2≠≢⍵:       {                          ⍝ Not length 2? Key-value pairs or error
                     ⍺← ⊂e.dom ⋄ 1≠≢⍵: ⍺ ⋄ 2≠ ≢kkvv← ↓⍉↑⊃ ⍵: ⍺ ⋄ ≠⍥≢/ kkvv: ⍺ 
-                    kk vv←,¨ kkvv
+                    kk vv← kkvv              ⍝ Pairs ==> valid key and value vectors
                     ok ((AtomE kk)vv)
                   } ⍵           
-                  kk vv← ,¨⍵                 ⍝ Key and value vectors
-      kk =⍥≢ vv:  ok ((AtomE kk) vv )        ⍝ Keys and value lengths match [FAST PATH]
+                  kk vv← ⍵                   ⍝ Key and value vectors
+      kk =⍥≢ vv:  ok ((AtomE kk) vv )        ⍝ Keys and value lengths match [MOST COMMON PATH]
       1=≢vv:      ok ((AtomE kk) (vv⍴⍨≢kk))  ⍝ Scalar extension
                   ⊂e.kvLen                   ⍝ Length error!
     }
