@@ -118,15 +118,23 @@
   ⍝H 
 
 ⍝ Primary Function ∆DICT
-  ∆DICT← { 
-    'AllowSimple'≡⍵: ⊢(∆DICT ⍬).AllowSimple 1  
+  ∆DICT← {  ⍝ simple scalars ('X') and 1-elem simple vectors (,'X') are distinct
+    'MergeSimple'≡⍵: ⊢(∆DICT ⍬).MergeSimple 1    ⍝ simple scalars are treated as 1-elem vectors
         d←(calr←⊃⎕RSI).⎕NS ∆DICTns 
     'help'≡⎕C ⍵: d.Help  
         ⍺← ⍬  ⋄ d.defaultG ← ⍺  ⋄ _←d.⎕DF (⍕calr),'.[∆DICT]'   ⍝  'I4,5ZI2,ZI3'⎕FMT 1 7⍴⎕TS
         0=≢⍵: d ⋄ 0:: d.e.Err ⍬ ⋄ d⊣ d.Set ⍵
   }
+  ⍝ ∆DICTms← {  
+  ⍝       d← ((calr←⊃⎕RSI).⎕NS ∆DICTns).MergeSimple 1 
+  ⍝   'help'≡⎕C ⍵: d.Help  
+  ⍝       ⍺← ⍬  ⋄ d.defaultG ← ⍺  ⋄ _←d.⎕DF (⍕calr),'.[∆DICTms]'   ⍝  'I4,5ZI2,ZI3'⎕FMT 1 7⍴⎕TS
+  ⍝       0=≢⍵: d ⋄ 0:: d.e.Err ⍬ ⋄ d⊣ d.Set ⍵
+  ⍝ }
+
 ⍝ Point ##.∆DICT here...
-  ##.∆DICT←  ∆DICT  
+  ##.∆DICT←   ∆DICT  
+ ⍝ ##.∆DICTms← ∆DICTms
 
 ⍝ Global Parameters
   ⎕IO ⎕ML←0 1 
@@ -673,9 +681,13 @@
     sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
   :EndNamespace
 
-  ∇ {d}← AllowSimple on
-    :IF on=1 ⋄  u.Atom← ⊢ ⋄ u.AtomE← ⊢
-    :ELSE    ⋄  u.Atom←  {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ u.AtomE←{,¨@(⍸0=≡¨⍵)⊢⍵}
+⍝ MergeSimple- If 1, treat simple scalars as 1-element vectors.
+⍝   So that 'X' d.Set <value>   <==>  (,'X') d.Set <value>
+⍝   Dramatically decreases the need for rehashing...
+⍝ 
+  ∇ {d}← MergeSimple on
+    :IF on  ⋄  u.Atom←  {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ u.AtomE←{,¨@(⍸0=≡¨⍵)⊢⍵}
+    :ELSE   ⋄  u.Atom← ⊢                ⋄ u.AtomE← ⊢
     :ENDIF 
     d← ∆DICTns 
   ∇ 
@@ -687,8 +699,8 @@
     Demangle← 1∘(7162⌶) 
     Mangle←   0∘(7162⌶) 
 ⍝  Atom: 
-⍝   Defined in AllowSimple.
-    ##.AllowSimple 0 
+⍝   Re/Defined in MergeSimple.
+    Atom← ⊢ ⋄ AtomE← ⊢
 
     ⍝  ========================================================
     ⍝  ====== SetArgs - prep args: conform kk and vv     ======
@@ -713,5 +725,4 @@
                   ⊂e.kvLen                   ⍝ Length error!
     }
   :EndNamespace 
-
 :EndNamespace  
