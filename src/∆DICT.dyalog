@@ -138,7 +138,7 @@
 
 ⍝ Global Parameters
   ⎕IO ⎕ML←0 1 
-  defaultG← keysG← valsG← ⍬
+  keysG← 1500⌶ valsG← defaultG←  ⍬  
   ∆DICTns←  ⎕THIS
 
   ⍝H ┌────────────────────────┐
@@ -151,7 +151,7 @@
   ⍝H (Does not affect the default value: defaultG)
   ⍝H
   ∇ {nK}←Clear 
-    nK← ≢keysG ⋄ keysG← valsG← ⍬
+    nK← ≢keysG ⋄ keysG∘← 1500⌶valsG∘← ⍬
   ∇   
 
   ⍝H d.Copy
@@ -199,7 +199,7 @@
       ⍺← 0 ⋄ pp← keysG⍳ kk← ⍵ ⋄ om← pp< ≢keysG 
     (0∊om)∧~⍺: e.(Err/ keyNF)
       (keysG valsG) /⍨← ⊂0@ (om/ pp)⊣ 1⍴⍨ ≢keysG 
-      keysG∘←1500⌶keysG 
+      keysG∘← 1500⌶keysG 
     1: _← om 
   }
 
@@ -219,7 +219,7 @@
       ⍺← 0 ⋄ pp← ⍵ ⋄ om← 0= ⍵⍸ ⍨0, ≢keysG
     (0∊om)∧~⍺:  e.(Err/ keyIx)
       (keysG valsG) /⍨← ⊂0@ (om/pp)⊣ 1⍴⍨ ≢keysG
-      keysG∘←1500⌶keysG 
+      keysG∘← 1500⌶keysG 
     1: _← om
   }
 
@@ -382,7 +382,7 @@
     kk←keysG
   ∇
 
-  ⍝H d.Pop "Return the value  (or default) of each of 0 or more keys, simultaneously deleting it."
+  ⍝H d.Pop "Return the value  (or default) of each of 0 or more keys, simultaneously deleting them."
   ⍝H    vv← [default] d.Pop kk
   ⍝H    Pops and returns the values/defaults of the keys.
   ⍝H Returns the values of the keys found and defaults for those missing, deleting those found.
@@ -420,7 +420,7 @@
       n≠⌊n: ∘∘∘
       (~⍺)∧ n> t← ≢keysG: e.(Err/ insuf)
       ii← ↓⍉↑ keysG valsG↑⍨¨ a← -n⌊t 
-      (keysG valsG)↓⍨← a ⋄ keysG∘←1500⌶keysG
+      (keysG valsG)↓⍨← a ⋄ keysG∘← 1500⌶keysG
       0=≢ii: ⍬ ⋄ ii
   }
 
@@ -437,7 +437,7 @@
   ∇ i← PopItem
    :If 0=≢keysG ⋄ (e.Err/ empty) ⋄ :EndIf
     i←  ⊃∘⌽¨keysG valsG 
-    (keysG valsG)↓⍨← ¯1 ⋄ keysG∘←1500⌶keysG 
+    (keysG valsG)↓⍨← ¯1 ⋄ keysG∘← 1500⌶keysG 
   ∇
 
   ⍝H d.Set "Set a Value for each of one or more keys"
@@ -462,7 +462,7 @@
       ~0∊ om: valsG[ pp ]← vv ⋄ valsG[ om/ pp ]← om/ vv
     ⍝ Update new keys shown via the bit mask (~om).
          valsG,← (nm/ vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm← ~om)/kk 
-      ×1(1500⌶)keysG: _←vv ⋄ ⎕←'Rehashing...' ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
+      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv  
     }
 
   ⍝H d.SetC "Conditionally Set a value for each new key, i.e. each not in the dictionary"
@@ -484,7 +484,7 @@
       ~0∊ om: vv← valsG[ pp ] ⋄ (om/ vv)← valsG[ om/ pp ]              ⍝ <==   "Inverse" of Set
      ⍝ Update new keys shown via the bit mask (~om).                          ⍝ Same as Set
           valsG,← (nm/ vv)@ (unk⍳ nk)⊢ 0↑⍨ ≢unk← keysG,← ∪nk← (nm← ~om)/,kk   ⍝ Same as Set
-      ×1(1500⌶)keysG: _←vv ⋄ ⎕←'Rehashing...' ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv                     ⍝ Same as Set
+      ×1(1500⌶)keysG: _←vv ⋄ keysG∘← 1500⌶keysG ⋄ 1: _←vv                     ⍝ Same as Set
     }
    
   
@@ -500,9 +500,9 @@
   ⍝H   k1 k2 k3 d.Set1¨ v1 v2 v3
   ⍝H
   Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: e.(Err/ dom) ⋄ k v← kv  ⋄ k← u.Atom k 
-    0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
+    ⍝ 0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
     (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄ valsG,← ⊂v ⋄ keysG,← ⊂k 
-    ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ ⎕← 'Rehashing...' ⋄ 1: _← v
+    ×1(1500⌶)keysG: _←v ⋄ keysG∘←1500⌶keysG ⋄ 1: _← v
   }
     
   ⍝H d.SetDef
@@ -681,10 +681,25 @@
     sort←   5 'LENGTH ERROR: Sort field has incorrect length.' 
   :EndNamespace
 
-⍝ MergeSimple- If 1, treat simple scalars as 1-element vectors.
-⍝   So that 'X' d.Set <value>   <==>  (,'X') d.Set <value>
-⍝   Dramatically decreases the need for rehashing...
-⍝ 
+⍝H MergeSimple: Allows simple scalars to be treated as 1-element vectors. This accommodates a limitation
+⍝H of APLs that treat simple scalars as simple ('unboxed'), even in mixed vectors of character and numeric
+⍝H scalars and/or enclosed objects. 
+⍝H    {d}← d.MergeSimple switch
+⍝H         switch=1: Convert simple scalars (1, 'X') to 1-elem vectors (,1)(,'X').
+⍝H         switch=0: Treats simple scalars as completely distinct from 1-elem vectors.
+⍝H  If 1, dramatically decreases the need for rehashing at some cost in performance of Set, SetC, Set1.
+⍝H        ∘ Set, SetC, Set1 require no rehashing, even if new keys are ADDED,  
+⍝H          no matter what the contents of each key.
+⍝H  If 0, then behaviour depends on the most recent elements.
+⍝H        ∘ If all elements are simple scalars of one type (either all character or all numeric), 
+⍝H          performance is very fast!
+⍝H        ∘ If there are mixed simple scalar keys (SSKs) and/or SSKs and non-SSKs 
+⍝H          (keys that are not simple scalars), then 
+⍝H          - if the most recent key ADDED is a SSK,
+⍝H            the keys will be rehashed upon each subsequent SSK addition (not if only the value(s) change).
+⍝H          - if the most recent key ADDED is a non-SSK, then 
+⍝H            the keys will be rehashed then, but NOT upon subsequent additions of non-SSE.
+⍝H        
   ∇ {d}← MergeSimple on
     :IF on  ⋄  u.Atom←  {0≠≡⍵: ⍵ ⋄ ,⍵ } ⋄ u.AtomE←{,¨@(⍸0=≡¨⍵)⊢⍵}
     :ELSE   ⋄  u.Atom← ⊢                ⋄ u.AtomE← ⊢
