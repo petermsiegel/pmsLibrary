@@ -1,74 +1,95 @@
 HashTest
-  ;C;Old;New
-  ;v;cc;nn;_t
-  ;FORCE
+  ;FORCE; I; D; L; T ; V; X 
 
 :TRAP 1000
       FORCE←1
-      :IF FORCE∨~×⎕SE.⎕NC '∆DICT0' 
-          UCMD 'LOAD -target=⎕SE ∆DICT0'
-      :ENDIF 
       :IF FORCE∨~×⎕SE.⎕NC '∆DICT' 
           UCMD 'LOAD -target=⎕SE ∆DICT'
+      :ENDIF 
+      :IF FORCE∨~×⎕SE.⎕NC '∆TDICT' 
+          UCMD 'LOAD -target=⎕SE ∆TDICT'
       :ENDIF 
       :IF ~×⎕NC 'cmpx'
         'cmpx' ⎕CY 'dfns'
       :ENDIF 
 
-      Old←∆DICT0
-      New←∆DICT
-
-      C←{⍺←1 ⋄ (⍕¨⍵?⌊⍺×⍵)(○⍳⍵)}
-      N←{⍺←1 ⋄ (⍵?⌊⍺×⍵)(○⍳⍵)}
-
-      ⎕SHADOW 'TEST1' 'TEST2' 'TEST3' 'TEST4'
-      TEST1←TEST2←TEST3←0
-      TEST4←1 
-
-       ⎕←'>>> Create Empty Dicts.'
-      :IF TEST1 
-          cmpx ⌽'Old ⍬' 'New ⍬'
+      :IF KEEP←0
+          cmpx 'D←∆DICT ⍬'   'T←∆TDICT ⍬'
+          :FOR L :IN  1 100 1000 100000
+              X← (⍳L)(○⍳L)
+              ⎕←'X←(⍳L)(○⍳L): ',⍕L
+              cmpx ⎕←'D←∆DICT X' 'T←∆TDICT X'
+          :ENDFOR 
+          :FOR L :IN  50 100 1000  
+              X← (⍕¨⍳L)(○⍳L)
+              ⍞←'X←(⍕¨⍳L)(○⍳L): ',L
+              cmpx ⎕←'D←∆DICT X' 'T←∆TDICT X'
+          :ENDFOR 
       :ENDIF 
-      ⎕←' '
 
-      ⎕← '>>> Create Dicts. with items' 
-      :IF TEST2
-      :FOR _t :IN (1.1 N¨10 50 100 500 1000)(1.1 C¨10 50 100 500 1000)
-        :FOR v :IN _t
-            ⎕← '    Arr. Size= ',(≢⊃v),' Type= ',(0=⊃0⍴⊃⊃v)⊃'Character' 'Numeric'
-            cmpx ⌽'Old v' 'New v'
-        :EndFor 
-      :EndFor 
-      :ENDIF
-      ⎕←' '
+      ⎕←↑⊂'NUM KEYS'
+      X← (⍳500)(○⍳500)
+      ⎕←'X← (⍳500)(○⍳500)'
+      ⎕←'D←∆DICT X ⋄ T←∆TDICT X  '
+      D←∆DICT X ⋄ T←∆TDICT X  
+      :FOR L :IN  50 100 1000  
+          :FOR K :IN 1 2 5×L
+            V←○L⍴K
+            ⎕←'KN: ?L⍴K, where ','L=',L,' K=',K
+            KN← ?L⍴K
+            D.Set KN V ⋄ T.Set KN V
+            ⍝ cmpx ⎕←'D.Set KN V' 'T.Set KN V' 
+            cmpx ⎕←'D.Get KN V' 'T.Get KN V'     
+          :ENDFOR
+      :ENDFOR
 
-      ⎕← '>>> Set items'
-      :IF TEST3
-      :FOR _t :IN (1.1 N¨10 50 100 500 1000)(1.1 C¨10 50 100 500 1000)
-        :FOR v :IN _t
-            ⎕← '    Arr. Size= ',(≢⊃v),' Type= ',(0=⊃0⍴⊃⊃v)⊃'Character' 'Numeric'
-            o←0 Old ⍬ ⋄ n←0 New ⍬
-            cmpx⌽ 'o.Set v'  'n.Set v'
-        :EndFor 
-      :EndFor 
-      :ENDIF
-      ⎕←' '
+      ⎕←↑⊂'CHAR KEYS'
+      X← (⍕¨⍳500)(○⍳500)
+      ⎕←'X← (⍕¨⍳500)(○⍳500)'
+      D←∆DICT X ⋄ T←∆TDICT X  
+      ⎕←'D←∆DICT X ⋄ T←∆TDICT X  '
+      :FOR L :IN  50 100 1000  
+          :FOR K :IN 1 2 5×L
+            V←○L⍴K
+            ⎕←'KT: ⍕¨?L⍴K, where ','L=',L,' K=',K
+            KT← ⍕¨?L⍴K
+            D.Set KT V ⋄ T.Set KT V
+            ⍝ cmpx ⎕←'D.Set KT V' 'T.Set KT V' 
+            cmpx ⎕←'D.Get KT V' 'T.Get KT V'     
+          :ENDFOR
+      :ENDFOR
 
-      ⎕← '>>> Get Mixed (50:50) items'
-      :IF TEST4  
-      :FOR _t :IN (1.1 N¨10 50 100 500 1000)(1.1 C¨10 50 100 500 1000)
-        :FOR v :IN _t
-            ⎕← '    Arr. Size= ',(≢⊃v),' Type= ',(0=⊃0⍴⊃⊃v)⊃'Character' 'Numeric'
-            o←0 Old ⍬ ⋄ n←0 New ⍬
-            o.Set v ⋄ n.Set v 
-            v←(v,≢v)[(≢v)⌊?(≢v)⍴2×≢v]    ⍝ Random selection about 50% from the existing <v>
-            cmpx⌽ 'o.Get v'  'n.Get v'
-        :EndFor 
-      :EndFor 
-      :ENDIF
+       :IF KEEP←0 
+          ⎕←↑2⍴⊂'Numeric keys'
+          X← (⍳500)(○⍳500)
+          D←∆DICT X ⋄ T←∆TDICT X  
+          :FOR L :IN   50 100 1000 
+              :FOR K :IN 1 2 5×L
+                  ⎕←'KN: (?L⍴K),   where L=',L,' K=',K
+                  V←○L⍴K ⋄ KN←?L⍴K   
+                  cmpx ⎕←'KN D.Set1¨(V)' 'KN T.Set1¨(V)'    
+                  cmpx ⎕←'D.Get KN' 'T.Get KN'     
+              :ENDFOR
+          :ENDFOR
+
+          ⎕←↑2⍴⊂'Character keys'
+          X← (⍕¨⍳500)(○⍳500)
+          D←∆DICT X ⋄ T←∆TDICT X  
+          :FOR L :IN   50 100 1000 
+              :FOR K :IN 1 2 5×L
+                  ⎕←'KT: (⍕¨?L⍴K), where L=',L,' K=',K
+                  V←○L⍴K ⋄ KT← ⍕¨KN
+                  cmpx ⎕←'KT D.Set1¨(V)' 'KT T.Set1¨(V)'     
+                  cmpx ⎕←'D.Get KT' 'T.Get KT' 
+              :ENDFOR
+          :ENDFOR
+      :ENDIF 
+
+
 :ELSE 
       ⎕←'HashTest terminated by user...'
 :ENdTrap 
+'Done'
       
 
 

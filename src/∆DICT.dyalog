@@ -480,7 +480,7 @@
   d.Set1←   { ⍺←⊢ ⋄ 2≠≢kv←⍺ ⍵: e_Err/ e_domain ⋄ k v← kv  ⋄ k← u_Atom k 
     ⍝ 0=≢keysG: _← v ⊣ (keysG∘←1500⌶keysG) ⊣ valsG,← ⊂v ⊣ keysG,← ⊂k  
     (≢keysG)> p← keysG⍳ ⊂k: _← (p⊃ valsG)← v ⋄ valsG,← ⊂v ⋄ keysG,← ⊂k 
-    ×1(1500⌶) keysG: _← v ⋄ ⎕←'Rehash...' ⋄ keysG∘← 1500⌶ keysG ⋄ 1: _← v
+    ×1(1500⌶) keysG: _← v  ⋄ keysG∘← 1500⌶ keysG ⋄ 1: _← v
   }
     
   ⍝H d.SetDef
