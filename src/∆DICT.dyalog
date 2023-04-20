@@ -4,11 +4,7 @@
   ⍝  Load via   ]LOAD ∆DICT 
   ⍝      or    ⊢ 2 ⎕FIX 'file://∆DICT.dyalog'
   ⍝  See HELP info (⍝H prefix) below.
-
-    ⍙H← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': ⎕←'No help available' ⋄ ⎕ED '_h'} 
-    ⍙D← ⎕SIGNAL{⊂'EN' 'Message' ,⍥⊂¨11 'See ∆DICT ''help'''} 
-
-    ⍺← ⍬ ⋄ ⎕IO ⎕ML← 0 1 ⋄ 'help'≡⎕C⍵: ⍙H ⍬ ⋄ (⍵≢⍬)∧2>|≡⍵: ⍙D⍬
+  
     ns← (hom← ⊃⎕RSI).⎕NS⍬ ⋄ _← ns.⎕DF (⍕hom),'.[Dictionary]' 
     
     ns.Cat1← {0::⍙E⍬⋄ 1: _← ⍺⍺ Set1 (Get1 ⍺⍺),  ⊂⍵ }  
@@ -32,32 +28,41 @@
               1: V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
     }
 
-  ⍝ SetC: Identical to Set, except sets values only for new keys. (New values for existing keys IGNORED).
+  ⍝ SetC (Set Conditionally): 
+  ⍝ Identical to Set, except sets values only for new keys. (New values for existing keys IGNORED).
     ns.SetC← { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k 
-               ~0∊ m: v← V[ p ] ⋄ (m/ v)← V[ m/ p ]      ⍝ "Inverse" of Set
+               ~0∊ m: v← V[ p ] ⋄ (m/ v)← V[ m/ p ]                     ⍝ "Inverse" of Set
                1: V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m    
     }
    
     ns.SortBy←   { 
-          ⍺←⎕THIS ⋄ sf← ⍵ K⊃⍨ 0=≢⍵ ⋄ K ≢⍥≢ sf: 5⍙E'Length Error; sort keys are of improper length'
-          ⍺.(K V)← K V ⋄ ⍺.(K V)⌷⍨← ⊂⊂⍋sf ⋄ ⍺.(K← 1500⌶K) ⋄ 1: _←  ⍺
+          ⍺←⎕THIS ⋄ sk← ⍵ K⊃⍨ 0=≢⍵ ⋄ K ≢⍥≢ sk: 5⍙E'LENGTH ERROR: Sort keys are wrong length'
+          ⍺.(K V)← K V ⋄ ⍺.(K V)⌷⍨← ⊂⊂⍋sk ⋄ ⍺.(K← 1500⌶K) ⋄ 1: _←  ⍺
     }
 
   ⍝ Internal Hash utility- used AFTER K is updated.
     ns.⍙H← { ×1(1500⌶)K: ⍵ ⋄ ⍵⊣ K∘← 1500⌶K }    ⍝  Passes thru any args 
-  ⍝ Internal Error handling
+  ⍝ Internal Error Handling (Methods)
     ns.⍙E← ⎕SIGNAL/ ('∆DICT: '{0=≢⍵:⎕DMX.((⍺⍺,EM)EN)⋄⍺←11⋄(⍺⍺,⍵)⍺ })
-  
+  ⍝ Internal Error Handling (Main Fn)
+    ⍙D← ⎕SIGNAL{⊂'EN' 'Message' ,⍥⊂¨11 'See ∆DICT ''help'''} 
+  ⍝ Internal Help Routine
+    ⍙H← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': ⎕←'No help available' ⋄ ⎕ED '_h'} 
+
   ⍝ Niladic User Methods
   ⍝   Not shy: Keys, Vals, Default, Copy
-    _Keys←  '_← Keys' '_←K'
-    _Vals←  '_← Vals' '_←V'
-    _Def←   '_← Default' '_←D'
-    _Copy←  '_← Copy' '_←⎕NS ⎕THIS'
-  ⍝   Shy: Clear
-    _Clear← '{_}← Clear' '_←⍙H ⎕THIS⊣ K←V←⍬'
-    _← ns.⎕FX¨ _Keys _Vals _Def _Copy _Clear  
+  ⍝       Shy: Clear
+    nil←  ⊂'_←   Keys' '_←K'    
+    nil,← ⊂'_←   Vals' '_←V' 
+    nil,← ⊂'_←   Default' '_←D' 
+    nil,← ⊂'_←   Copy' '_←⎕NS ⎕THIS'
+    nil,← ⊂'{_}← Clear' '_←⍙H ⎕THIS⊣ K←V←⍬'
+    _←  ns.⎕FX¨ nil
 
+  ⍝ ┌───────────────┐
+  ⍝ │ Executive ;-) │
+  ⍝ └───────────────┘
+    ⍺← ⍬ ⋄ ⎕IO ⎕ML← 0 1 ⋄ 'help'≡⎕C⍵: ⍙H⍬ ⋄ 2≠≢⍵: ⍙D⍬
     ns.(D K V)←⍺ ⍬ ⍬  ⋄ 0=≢⍵: ns ⋄ ns⊣ ns.Set ⍵
 
   ⍝H────────────────────────────────────────────────────────────────────────────────────
@@ -97,7 +102,6 @@
   ⍝H │   𝒂:  arbitrary data       𝒂𝒂: any (enclosed) list of arbitrary data  │
   ⍝H │   𝒃:  Boolean value        𝒃𝒃: Boolean values                         │
   ⍝H │                            𝒔𝒔: sortable keys                           │
-  ⍝H │   𝒏:  a non-neg integer                                               │
   ⍝H │   {𝒙𝒙}←   shy return value                                            │
   ⍝H └───────────────────────────────────────────────────────────────────────┘
   ⍝H ┌─────────────────┐
@@ -107,55 +111,65 @@
   ⍝H                                  [v] [𝒅.]∆DICT ⍬                      
   ⍝H       [Cloning]            newD←      𝒅.Copy
   ⍝H
-  ⍝H    Setting and Getting: 
-  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*     vv← [defaults] 𝒅.Get kk  
+  ⍝H    Setting:
+  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*     
   ⍝H                          {vv}←  kk 𝒅.Set  vv* 
-  ⍝H       [Single Item]       {v}←     𝒅.Set1 k  v        v←  [default] 𝒅.Get1 k    
-  ⍝H       [Update New Items only, leaving old items as is]      
+  ⍝H       [Single Item]       {v}←     𝒅.Set1 k  v       
+  ⍝H       ["Conditionally": Update New Items only, leaving old items as is]      
   ⍝H                          {vv}←     𝒅.SetC kk vv*               
-  ⍝H                          {vv}←  kk 𝒅.SetC vv*                    
+  ⍝H                          {vv}←  kk 𝒅.SetC vv*     
+  ⍝H 
+  ⍝H    Getting:
+  ⍝H       [Items]       vv← [defaults] 𝒅.Get kk  
+  ⍝H       [Single Item]  v←  [default] 𝒅.Get1 k                   
   ⍝H  
   ⍝H    Validating Items               (Good Option)      (Faster Option)      (Fastest Option)
   ⍝H                                bb← 𝒅.HasKeys kk      bb←   kk∊ 𝒅.Keys      bb←   kk∊ 𝒅.K                          
   ⍝H                                 b← 𝒅.HasKey k         b← (⊂k)∊ 𝒅.Keys       b← (⊂k)∊ 𝒅.K   
   ⍝H                                                                   
   ⍝H    Sorting Items:        
-  ⍝H                      {newD}← [newD←d] 𝒅.SortBy ss  
+  ⍝H                      {newD}← [newD←d] 𝒅.SortBy ss          Resorts the dictionary. Required: ss ≡⍥≢ d.Keys
+  ⍝H                                       𝒅.(SortBy ⎕C Keys)   Sort dict <d> in place by keys, ignoring case.
   ⍝H            
   ⍝H    Deleting Items:          
-  ⍝H       [Items by Key]       {bb}← [bb] 𝒅.Del   kk                 If 0∊bb, disallow deleting non-existent keys
-  ⍝H       [Single Item by Key] {b}←  [b]  𝒅.Del1  k                  If 0=bb, --ditto--
+  ⍝H       [Items by Key]       {bb}← [bb] 𝒅.Del   kk           If 0∊bb, disallow deleting non-existent keys
+  ⍝H       [Single Item by Key] {b}←  [b]  𝒅.Del1  k            If 0=bb, --ditto--
   ⍝H       [All]                {n}←       𝒅.Clear         
   ⍝H                  
   ⍝H    Returning Dictionary Components          
-  ⍝H       [Keys]                     kk←  𝒅.Keys                             
-  ⍝H       [Vals]                     vv←  𝒅.Vals   
+  ⍝H       [Keys]                     kk←  𝒅.Keys  or  𝒅.K                            
+  ⍝H       [Vals]                     vv←  𝒅.Vals  or  𝒅.V
   ⍝H       [Items]                 items←  𝒅.(↓⍉↑ Keys Vals)                                                  
-  ⍝H       [Number of Items]           n← ≢𝒅.Keys  
-  ⍝H       [Overall default value]   def←  𝒅.Default                 Return the current default for missing values
+  ⍝H       [Number of Items]           n← ≢𝒅.Keys  or ≢𝒅.K
+  ⍝H       [Overall default value]   def←  𝒅.Default            Return the current default for missing values
   ⍝H
   ⍝H ┌────────────────────┐
   ⍝H │   𝗔𝗱𝘃𝗮𝗻𝗰𝗲𝗱 𝗠𝗲𝘁𝗵𝗼𝗱𝘀     │
   ⍝H └────────────────────┘    
   ⍝H    Modifying Values:         
-  ⍝H       [Apply <op a>]       vv← kk (op 𝒅.Do  ) aa                 Perform (op aa) on value of <kk>: vv← vv op¨ aa
-  ⍝H                            v←  k  (op 𝒅.Do1)  a                  Ditto: v← v op a 
-  ⍝H       [Catenate <a>]           vv← kk 𝒅.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa      
+  ⍝H       [Apply <op a>]       vv← kk (op 𝒅.Do)  aa                  Perform (op aa) on value of <kk>: vv← vv op¨ aa
+  ⍝H                                                                  Equiv: kk d.Set (d.Get kk) op¨ aa
+  ⍝H                            v←  k  (op 𝒅.Do1) a                   Ditto: v← v op a 
+  ⍝H       [Catenate <a>]           vv← kk 𝒅.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa   
+  ⍝H                                                                  Equiv: kk d.Set (d.Get kk),∘⊂¨ ⍺⍺   
   ⍝H                                v←  k  𝒅.Cat1 a                   Ditto: v←v,⊂aa
   ⍝H
   ⍝H ┌───────────────┐
   ⍝H │   𝐎𝐭𝐡𝐞𝐫 𝐈𝐧𝐟𝐨    │
   ⍝H └───────────────┘    
   ⍝H Hashing:
-  ⍝H ∘ Keys are hashed when a dictionary is created.
-  ⍝H ∘ Keys are rehashed, if needed, after each Set, Set1. This is necessary only when
+  ⍝H ∘ Keys are hashed when a non-empty dictionary is created.
+  ⍝H ∘ Keys are rehashed, if needed, after each Set or Set1. This is necessary only when
   ⍝H   new keys are added. Rehashing is never necessary when values are altered for existing keys.
   ⍝H ∘ For a dictionary with mixed scalars and non-scalar keys, when the most recently added key is a scalar
-  ⍝H   the dictionary will require rehashing.
-  ⍝H ∘ For a dictionary with one of: 
-  ⍝H       simple char scalars, simple numeric scalars, or non-scalar keys,
-  ⍝H   rehashing will NOT be required if an object of the same type is added. This is a "feature" of Dyalog APL.
-  ⍝H Help Info:
+  ⍝H   the dictionary will require rehashing.  This is a Dyalog APL "feature".
+  ⍝H ∘ For a dictionary containing only items of the same storage class:
+  ⍝H      - simple char scalars, 
+  ⍝H      - simple numeric scalars, or 
+  ⍝H      - non-scalar keys,
+  ⍝H   rehashing will NOT be required when adding one or more objects of the same class. Yay!
+  ⍝H ∘ Rehashing is also done when items are deleted or the dictionary is sorted.
+  ⍝H Help Info (this info):
   ⍝H    ∆DICT 'Help' 
   ⍝H
 }
