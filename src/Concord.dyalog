@@ -2,7 +2,8 @@
 
     ; ⎕IO; ⎕PW
     ; ∆DICT; Highlight; LineFmt; LNumFmt; Skip; Trim; Write; WordList; WordFmt
-    ; CHAR_STD; CHAR_BOLD; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
+    ; CHAR_STD; CHAR_BOLD; CHAR_BOLD_ITAL; CHAR_EMPHASIS
+    ; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
     ; count; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; timerNs; word; wordRaw
     ; wCurL; wFreq_d; wRecs_d
 
@@ -15,8 +16,8 @@
         0≠≢⍺: ⍺
         0≠⎕NC '#.SHAKESPEARE': #.SHAKESPEARE 
         0:: 911 ⎕SIGNAL⍨'Something bad happened' 
-            #.SHAKESPEARE← (⎕UCS 10)(≠⊆⊢) 5000↑13006↓⎕OR _←⎕SE.UCMD 'get ',⍵
-            ⎕←'Loaded #.SHAKESPEARE'
+            #.SHAKESPEARE← (⎕UCS 10)(≠⊆⊢) 5000↑13006↓ ⎕OR _t_←⎕SE.UCMD 'get ',⍵
+            ⎕←'Loaded #.SHAKESPEARE' ⊣⎕EX _t_
             #.SHAKESPEARE
     }'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt' 
 
@@ -38,7 +39,7 @@
     
     Highlight←{ 
       line wordRaw←⍺ ⍵
-      Repl←{ w←⍵ ⋄ B←⍵∊CHAR_STD ⋄ (B/w)←CHAR_EMPHASIS[CHAR_STD⍳B/w] ⋄ w}
+      Repl←{ w←⍵ ⋄ B←w∊CHAR_STD ⋄ (B/w)←CHAR_EMPHASIS[CHAR_STD⍳B/w] ⋄ w }
       ('(?<![⎕:])\b',wordRaw,'\b') ⎕R {Repl ⍵.Lengths[0]↑⍵.Offsets[0]↓⍵.Block}   ⍠1 ⊣ Trim line
     }
   ⍝ BOLD, BOLD_ITAL are SANS fonts-- since they appear to line up better...
