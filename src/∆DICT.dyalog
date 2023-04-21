@@ -21,7 +21,7 @@
       _← ⎕FX'_←   Default' '_←D' 
 
       Del∘←  { ⍺← 0 ⋄ n← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ n> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ n⍴1 ⋄ 61⍙E'Key(s) not found' } 
-      Del1∘← Del∘⊂
+      Del1∘←  Del∘⊂
 
       Do1∘←  {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺)⍺⍺  ⍵ }
       Do∘←   {0::⍙E⍬⋄ 1: _← ⍺ (⍺⍺ Do1)¨ ⍵ }
@@ -34,9 +34,15 @@
 
       _← ⎕FX'_← Items' '_← ↓⍉↑K V' 
       _← ⎕FX'_← Keys' '_← K'  
-
-      Pop∘←  { ok←0≠⎕NC'⍺' ⋄ ⍺←⊂D ⋄ v← ⍺ Get ⍵ ⋄ ok∧⍺≡⍥≢⍵: v⊣ 1 Del ⍵ ⋄ 0::⍙E⍬⋄ v⊣ 0 Del ⍵ }         ⍝ Not optimized...
-      Pop1∘← ⊃∘Pop⍤⊂
+    
+    ⍝ Pop: Optimized...
+      Pop∘←  { 
+        ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
+            ⍺← ⍬ ⋄ ⍺≠⍥≢⍵: 61⍙E'Key(s) not found' 
+            r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r 
+            v← V[ m/ p ]@ (⍸m)⊣ r ⋄ ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
+      }
+      Pop1∘← ⊃ Pop⍥⊂
      
       Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: V,∘⊂←  ⍙H v }
       Set∘←  { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k 
@@ -140,10 +146,10 @@
   ⍝H    Getting:
   ⍝H       [Items]       vv← [defaults*] 𝒅.Get kk  
   ⍝H       [Single Item]  v←   [default] 𝒅.Get1 k     
-  ⍝H                                   * For 𝗚𝗲𝘁, scalar extension is allowed for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.              
+  ⍝H                                   * For 𝗚𝗲𝘁, scalar extension is supported for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.              
   ⍝H  
-  ⍝H    Popping (Getting/Deleting): 
-  ⍝H       [Items]       vv← [defaults†] 𝒅.Pop kk          Returns values, deleting entries.
+  ⍝H    Popping (Getting and then Deleting): 
+  ⍝H       [Items]       vv← [defaults†] 𝒅.Pop kk           
   ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k    
   ⍝H                                  † Unlike 𝗚𝗲𝘁, 𝗣𝗼𝗽 requires explicit defaults (⍺) for missing entries. 
   ⍝H                                    Scalar extension does 𝗻𝗼𝘁 apply.        
