@@ -20,14 +20,17 @@
       _← ⎕FX'_←   Copy' '_←⎕NS ⎕THIS'
       _← ⎕FX'_←   Default' '_←D' 
 
-      Del∘←  { ⍺← 0 ⋄ n← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ n> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ n⍴1 ⋄ 61⍙E'Key(s) not found' } 
+      Del∘←  { ⍺← 0 ⋄ n← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ n> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ n⍴1 ⋄ ⍙E 61 } 
       Del1∘←  Del∘⊂
 
-      Do1∘←  {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺)⍺⍺  ⍵ }
-      Do∘←   {0::⍙E⍬⋄ 1: _← ⍺ (⍺⍺ Do1)¨ ⍵ }
+      Do∘←  {0::⍙E⍬⋄ 1: _← ⍺ Set  (Get  ⍺)⍺⍺¨ ⍵ }     ⍝ Do is Atomic. If ⍺⍺¨ fails, Do will not update ⍺.
+      Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺)⍺⍺  ⍵ }
           
       Get1∘← { (≢K)> p← K⍳ ⊂⍵: p⊃ V ⋄ ⍺← D ⋄ ⍺ }
-      Get∘←  { ~0∊ m← (≢K)>p← K⍳ k← ⍵: V[ p ] ⋄ ⍺← ⊂D ⋄ r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r ⋄ V[ m/ p ]@ (⍸m)⊣ r }
+      Get∘←  {  NonC← (1≠≢⍤⊣)∧(≠⍥≢)
+                ~0∊ m← (≢K)>p← K⍳ k← ⍵: V[ p ] ⋄ ⍺← ⊂D ⋄ ⍺ NonC k: ⍙E 5
+                r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r ⋄ V[ m/ p ]@ (⍸m)⊣ r 
+      }
       
       HasKeys∘← { K∊⍨ ⍵ } 
       HasKey∘←  HasKeys⊂  
@@ -36,48 +39,56 @@
       _← ⎕FX'_← Keys' '_← K'  
     
     ⍝ Pop: Optimized...
-      Pop∘←  { 
-        ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
-            ⍺← ⍬ ⋄ ⍺≠⍥≢⍵: 61⍙E'Key(s) not found' 
-            r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r 
-            v← V[ m/ p ]@ (⍸m)⊣ r ⋄ ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
+      Pop∘←  {  NonC← (1≠≢⍤⊣)∧(≠⍥≢)
+                ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
+                ⍺← ⊢ ⋄ 0≡⍺0: ⍙E 61 ⋄ ⍺ NonC k: ⍙E 5
+                r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r 
+                v← V[ m/ p ]@ (⍸m)⊣ r ⋄ ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
       }
       Pop1∘← ⊃ Pop⍥⊂
      
       Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: V,∘⊂←  ⍙H v }
-      Set∘←  { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k 
-                    ~0∊ m: V[ p ]← v ⋄ V[ m/ p ]← m/ v  
-                    1: V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
+      Set∘←  { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k  
+                    ~0∊ m: V[ p ]← v ⋄  v←  (≢k)⍴⍣(1=≢v)⊢v
+                     V[ m/ p ]← m/ v ⋄ (nm/v)← V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
+                    1: _←v 
       }
-      SetC∘← { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k 
-                    ~0∊ m: v← V[ p ] ⋄ (m/ v)← V[ m/ p ]                     ⍝ "Inverse" of Set
-                    1: V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m    
+      SetC∘← { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k  
+                    ~0∊ m: v← V[ p ] ⋄  v← (≢k)⍴⍣(1=≢v)⊢v
+                    (m/ v)← V[ m/ p ] ⋄ (nm/ v)← V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
+                     1: _←v 
       }
-        
+
       SortBy∘← { 
-                ⍺←⎕THIS ⋄ sk← ⍵ K⊃⍨ 0=≢⍵ ⋄ K ≢⍥≢ sk: 5⍙E'LENGTH ERROR: Sort keys are wrong length'
+                ⍺←⎕THIS ⋄ sk← ⍵ K⊃⍨ 0=≢⍵ ⋄ sk ≠⍥≢ K: ⍙E 5
                 ⍺.(K V)← K V ⋄ ⍺.(K V)⌷⍨← ⊂⊂⍋sk ⋄ ⍺.(K← 1500⌶K) ⋄ 1: _←  ⍺
       }
 
       _← ⎕FX'_← Vals' '_←V' 
 
     ⍝ Runtime Dict-Internal Utilities: ⍙H, ⍙E
-      ⍝ Hash in methods: used AFTER K is updated.
-        ⍙H∘← { ×1(1500⌶)K: ⍵ ⋄ ⍵⊣ K∘← 1500⌶K }    ⍝  Returns ⍵
-      ⍝ Error Handling in methods 
-        ⍙E∘← ⎕SIGNAL/ ('∆DICT: '{0=≢⍵:⎕DMX.((⍺⍺,EM)EN)⋄⍺←11⋄(⍺⍺,⍵)⍺ })
- 
-    ⍝ Creation-time Main Fn-internal Utilities: Help, DomE
+      ⍝ Hash in methods: used AFTER K is updated (returning ⍵ unchanged).
+        ⍙H∘← { ×1(1500⌶)K: ⍵ ⋄ ⍵⊣ K∘← 1500⌶K }     
+      ⍝ Error Handling in methods. Passes on signals (0=≢⍵) or generates them (⍺=EN, ⍵=EM; ⍵=5 special case).
+        ⍙E∘←  ⎕SIGNAL/ '∆DICT '{ 
+          0=≢⍵: ⎕DMX.((⍺⍺,EM)EN) 
+              e← ⊂ 'DOMAIN ERROR. See ∆DICT ''help''.' 
+              e,←⊂ 'LENGTH ERROR'
+              e,←⊂ 'KEY ERROR: Key(s) not found' 
+              e,←⊂ 'Unknown error!'
+              ⍵,⍨ ⊂⍺⍺, e⊃⍨ 11 5 61⍳ ⍵
+        }
+    
+    ⍝ Creation-time Main Fn-internal Utilities: ⍙Hlp, DomE
       ⍝ Help Display in lieu of Dict Creation
-        Help← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI: ⎕←'No help available' ⋄ ⎕ED '_h'} 
-      ⍝ Domain Error at Dict Creation
-        DomE← ⎕SIGNAL{⊂'EN' 'Message' ,⍥⊂¨11 'See ∆DICT ''help'''} 
-
-    ⍝ ┌───────────────┐
-    ⍝ │ Executive ;-) │
-    ⍝ └───────────────┘
-      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡⎕C⍵: Help⍬ ⋄ _← ⎕DF '.[Dictionary]',⍨⊃⎕NSI  
-      (D K V)∘←⍺ ⍬ ⍬ ⋄ ⍬(⍬ ⍬)∊⍨⊂⍵: ⎕THIS ⋄ 2≠≢⍵: DomE⍬ ⋄ ⎕THIS⊣ Set ⍵
+        ⍙Help← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI: ⎕←'Whoops! No help available' ⋄ ⎕ED '_h'} 
+   
+    ⍝ ┌──────────────────────────────────────────────────┐
+    ⍝ │                  Executive ;-)                   │
+    ⍝ │ Conformability of keys and values handled at Set.│
+    ⍝ └──────────────────────────────────────────────────┘
+      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡⎕C⍵: ⍙Help⍬ ⋄ _← ⎕DF '.[Dictionary]',⍨⊃⎕NSI  
+      (D K V)∘←⍺ ⍬ ⍬ ⋄ ⍬(⍬ ⍬)∊⍨⊂⍵: ⎕THIS ⋄ (2≠≢⍵)∨1≠⍴⍴⍵: ⍙E 11 ⋄ ⎕THIS⊣ Set ⍵ 
     } ⍵
 
 
@@ -149,9 +160,9 @@
   ⍝H                                   * For 𝗚𝗲𝘁, scalar extension is supported for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.              
   ⍝H  
   ⍝H    Popping (Getting and then Deleting): 
-  ⍝H       [Items]       vv← [defaults†] 𝒅.Pop kk           
+  ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk           
   ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k    
-  ⍝H                                  † Unlike 𝗚𝗲𝘁, 𝗣𝗼𝗽 requires explicit defaults (⍺) for missing entries. 
+  ⍝H                                  * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 allows scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.  
   ⍝H                                    Scalar extension does 𝗻𝗼𝘁 apply.        
   ⍝H  
   ⍝H    Do Keys Exist?              (Good Option)         (Faster Option)       (Fastest Option)
@@ -160,7 +171,7 @@
   ⍝H                                                                   
   ⍝H    Sorting Items via Sort Keys (sk):        
   ⍝H                      {newD}← [newD←d] 𝒅.SortBy sk          Resorts the dictionary. Required: sk ≡⍥≢ d.Keys (unless 0=≢sk)
-  ⍝H                        ...   [newD←d] 𝒅.SortBy ⍬           If 0=≢sk (⍵), equiv to:  [newD←d] 𝒅.(SortBy Keys)
+  ⍝H                        ...   [newD←d] 𝒅.SortBy ⍬           If 0=≢sk (⍵), sk is treated as 𝒅.Keys: [newD←d] 𝒅.(SortBy Keys)  
   ⍝H                        ...            𝒅.(SortBy ⎕C Keys)   Sort dict 𝒅 in place by keys, ignoring case.
   ⍝H                       newD←  (𝒅.Copy) 𝒅.(SortBy Vals)      Sort dict 𝒅 in order by values into a new dictionary newD.
   ⍝H            
@@ -193,19 +204,19 @@
   ⍝H └───────────────┘    
   ⍝H Hashing:
   ⍝H ∘ Keys are hashed when a non-empty dictionary is created.
-  ⍝H ∘ Keys are rehashed, if needed, after each Set or Set1 that includes new keys.
+  ⍝H ∘ Keys are rehashed, if needed, after each 𝗦𝗲𝘁 or 𝗦𝗲𝘁1 that includes new keys.
   ⍝H   Rehashing is never necessary when values are altered for existing keys.
   ⍝H ∘ For a dictionary with mixed scalars and non-scalar keys, 
   ⍝H   when the most recently added key is a scalar the dictionary will require rehashing.  
-  ⍝H   This is a Dyalog APL "feature."
+  ⍝H   This is a Dyalog APL 𝙛𝙚𝙖𝙩𝙪𝙧𝙚.
   ⍝H ∘ For a dictionary containing only items of the same storage class:
   ⍝H      - all simple char scalars,                    'a' 'B' '⍴'
   ⍝H      - all simple numeric scalars, or              1 2 3.1J2E24
-  ⍝H      - all non-scalar keys,                        'ted' (,0J1) (⍳2 2) (,'⍴')
+  ⍝H      - all non-scalar objects                      'ted' (,0J1) (⍳2 2) (,'⍴')
   ⍝H   rehashing will NOT be required when adding one or more objects of that same class. Yay!
   ⍝H ∘ Rehashing occurs when items are deleted or the dictionary is sorted. Duh!
-  ⍝H   If (Del kk) is used, the rehashing occurs ONCE, no matter how many keys are in kk.
-  ⍝H   If (Del1¨kk) is used, then it occurs once for each scalar key in kk.
+  ⍝H   If 𝗗𝗲𝗹 𝗸𝗸  is used, the rehashing occurs 𝗼𝗻𝗰𝗲, no matter how many keys are in 𝗸𝗸.
+  ⍝H   If 𝗗𝗲𝗹1¨𝗸𝗸 is used, then it occurs 𝗼𝗻𝗰𝗲 for each scalar key in 𝗸𝗸 (i.e. for each call to 𝗗𝗲𝗹1)
   ⍝H Help Info (this info):
   ⍝H    ∆DICT 'Help' 
   ⍝H
