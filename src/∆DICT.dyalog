@@ -23,13 +23,14 @@
       Del∘←  { ⍺← 0 ⋄ n← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ n> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ n⍴1 ⋄ ⍙E 61 } 
       Del1∘←  Del∘⊂
 
-      Do∘←  {0::⍙E⍬⋄ 1: _← ⍺ Set  (Get  ⍺)⍺⍺¨ ⍵ }     ⍝ Do is Atomic. If ⍺⍺¨ fails, Do will not update ⍺.
-      Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺)⍺⍺  ⍵ }
+      Do∘← {0::⍙E⍬⋄ 1: _← ⍺ Set  (Get  ⍺) ⍺⍺  ⍵ }         ⍝ Do is Atomic. If ⍺⍺¨ fails, Do will not update ⍺.
+    ⍝ DoF∘←{0::⍙E⍬⋄ 1: _←  V[K⍳⍺]← (⍺ SetC  ⊂D) ⍺⍺  ⍵ }   ⍝ Non-atomic (SetC creates missing items). 2-80% faster than Do.
+      Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺) ⍺⍺  ⍵ }
           
       Get1∘← { (≢K)> p← K⍳ ⊂⍵: p⊃ V ⋄ ⍺← D ⋄ ⍺ }
-      Get∘←  {  NonC← (1≠≢⍤⊣)∧(≠⍥≢)
-                ~0∊ m← (≢K)>p← K⍳ k← ⍵: V[ p ] ⋄ ⍺← ⊂D ⋄ ⍺ NonC k: ⍙E 5
-                r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r ⋄ V[ m/ p ]@ (⍸m)⊣ r 
+      Get∘←  {  
+        ~0∊ m← (≢K)>p← K⍳ k← ⍵: V[ p ] ⋄ ⍺← ⊂D ⋄ v← (≢k)⍴⍣ (1=≢⍺)⊢ ⍺   
+        v ≠⍥≢ k: ⍙E 5 ⋄ ~1∊ m: v ⋄ V[ m/ p ]@ (⍸m)⊣ v 
       }
       
       HasKeys∘← { K∊⍨ ⍵ } 
@@ -39,29 +40,52 @@
       _← ⎕FX'_← Keys' '_← K'  
     
     ⍝ Pop: Optimized...
-      Pop∘←  {  NonC← (1≠≢⍤⊣)∧(≠⍥≢)
-                ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
-                ⍺← ⊢ ⋄ 0≡⍺0: ⍙E 61 ⋄ ⍺ NonC k: ⍙E 5
-                r← ⍺⍴⍨ ≢k ⋄ ~1∊ m: r 
-                v← V[ m/ p ]@ (⍸m)⊣ r ⋄ ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
+      Pop∘←  {  
+        ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
+            ⍺← ⊢ ⋄ 0≡⍺0: ⍙E 61 ⋄ v← (≢k)⍴⍣ (1=≢⍺)⊢ ⍺  
+        v ≠⍥≢ k: ⍙E 5 ⋄ ~1∊ m: v  ⋄ v← V[ m/ p ]@ (⍸m)⊣ v 
+            ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
       }
       Pop1∘← ⊃ Pop⍥⊂
      
       Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: V,∘⊂←  ⍙H v }
-      Set∘←  { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k  
-                    ~0∊ m: V[ p ]← v ⋄  v←  (≢k)⍴⍣(1=≢v)⊢v
-                     V[ m/ p ]← m/ v ⋄ (nm/v)← V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
-                    1: _←v 
+    ⍝ Set: Stores values for all keys, maintaining ordering of old keys vs new, and
+    ⍝      within new keys. For duplicated keys, the **rightmost** value is kept.
+    ⍝ See Help Info below. Ordering consistent with scalar equivalent (Set1 or Set¨).
+    ⍝ Returns: The actual values set.
+    ⍝ ────────────────────────────
+    ⍝ [0] Let k′ represent each unique key passed in, where only the first (leftmost) key (∪k) is kept.
+    ⍝ [1] For each such key k′, keep only the last (rightmost) associated v′ passed in.
+    ⍝ [2] For each k′ in K ("old" key), replace v′ with the element of V associated with k′. (Return if no new keys).
+    ⍝ [3] Append new keys k′ to K and values v′ to V.   
+    ⍝ [4] Return v as adjusted above (hash if needed).
+      Set∘←  {    
+        0::⍙E⍬⋄ ⍺←⊢ ⋄  k0 v0← ⍺ ⍵ ⋄ k← k0/⍨ mk← ≠k0               ⍝ [0]
+            v← mk/ v0@ (k⍳ k0)⊢ v0                                ⍝ [1]
+        ~0∊ mo← (≢K)> p← K⍳ k: V[ p ]← v                          ⍝ [2,4]
+            V[ mo/ p ]← mo/ v                                     ⍝ [2]
+            mn← ~mo ⋄  K,← mn/ k ⋄ V,← mn/v ⋄ 1: v←  ⍙H v         ⍝ [3] ⋄ [4]
       }
-      SetC∘← { 0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ m← (≢K)> p← K⍳ k  
-                    ~0∊ m: v← V[ p ] ⋄  v← (≢k)⍴⍣(1=≢v)⊢v
-                    (m/ v)← V[ m/ p ] ⋄ (nm/ v)← V,← ⍙H (nm/ v)@ (ü⍳ ñ)⊢ 0⍴⍨ ≢K,← ü← ∪ñ← k/⍨ nm← ~m  
-                     1: _←v 
+    ⍝ SetC: Like Set, but only stores values (L to R) for new keys, leaving "old" values untouched.
+    ⍝       For duplicated keys, the **leftmost** value is kept.
+    ⍝ See Help Info below. Ordering consistent with scalar equivalent (SetC¨).
+    ⍝ Returns the actual values set (for new keys) or already in the dictionary (for old keys).
+    ⍝ ──────────────────────────── 
+    ⍝ [0] Let k′ represent each unique key passed in, where only the first (leftmost) key (∪k) is kept in k.
+    ⍝ [1] For each key k′, keep only the first v′ passed in that is associated with k′, i.e. (v/⍨ ≠k).
+    ⍝ [2] For each k′ in K ("old" key), replace v′ with the corresponding value v′ from V.
+    ⍝ [3] Append new keys k′ to K and values v′ to V. 
+    ⍝ [4] Return v as adjusted above (hash if needed).
+      SetC∘← {  
+        0::⍙E⍬⋄ ⍺←⊢ ⋄ k0 v0← ⍺ ⍵ ⋄ k← k0/⍨ mk← ≠k0                ⍝ [0]
+        ~0∊ mo← (≢K)> p← K⍳ k: v← V[ p ]                          ⍝ [1,2,4]
+            v← V[ mo/ p ]@ (⍸mo)⊣ mk/ v0                          ⍝ [1,2]
+            mn← ~mo  ⋄ K,← mn/ k ⋄  V,← mn/ v ⋄ 1: v← ⍙H v        ⍝ [3] ⋄ [4]
       }
 
       SortBy∘← { 
-                ⍺←⎕THIS ⋄ sk← ⍵ K⊃⍨ 0=≢⍵ ⋄ sk ≠⍥≢ K: ⍙E 5
-                ⍺.(K V)← K V ⋄ ⍺.(K V)⌷⍨← ⊂⊂⍋sk ⋄ ⍺.(K← 1500⌶K) ⋄ 1: _←  ⍺
+        ⍺←⎕THIS ⋄ sk← ⍵ K⊃⍨ 0=≢⍵ ⋄ sk ≠⍥≢ K: ⍙E 5
+        ⍺.(K V)← K V ⋄ ⍺.(K V)⌷⍨← ⊂⊂⍋sk ⋄ ⍺.(K← 1500⌶K) ⋄ 1: _←  ⍺
       }
 
       _← ⎕FX'_← Vals' '_←V' 
@@ -147,12 +171,35 @@
   ⍝H       [Cloning]            newD←      𝒅.Copy
   ⍝H
   ⍝H    Setting:
-  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*     
-  ⍝H                          {vv}←  kk 𝒅.Set  vv* 
+  ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*                         See Duplicate Keys
+  ⍝H                          {vv}←  kk 𝒅.Set  vv*                             "      "      "
   ⍝H       [Single Item]       {v}←     𝒅.Set1 k  v       
   ⍝H       ["Conditionally": Update New Items only, leaving old items as is]      
-  ⍝H                          {vv}←     𝒅.SetC kk vv*               
-  ⍝H                          {vv}←  kk 𝒅.SetC vv*     
+  ⍝H                          {vv}←     𝒅.SetC kk vv*                         See Duplicate Keys
+  ⍝H                          {vv}←  kk 𝒅.SetC vv*                             "      "      "
+  ⍝H ┌───────────────────────────────────────────────  Duplicate Keys ───────────────────────────────────────┐
+  ⍝H │  ∘ Each new key is entered in the dictionary from left to right,                                      │
+  ⍝H │    independent of whether a new or old (existing) key or whether repeated in the Set or SetC call.    │
+  ⍝H │  ∘ To have consistent semantics with scalar execution (for Set: Set1, Set¨; for SetC: SetC¨):         │
+  ⍝H │    Set:                                                                                               │
+  ⍝H │      ─ retains the rightmost (most recent) value for each key, old or new;                            │
+  ⍝H │      ─ returns the actual value stored for each unique key, new or old.                               │
+  ⍝H │    SetC:                                                                                              │
+  ⍝H │      ─ retains the existing (old) value for each old key, ignoring any new values;                    │
+  ⍝H │      ─ retains the leftmost ("oldest") value for each new key;                                        │
+  ⍝H │      ─ returns the actual value stored for each unique key, new or old.                               │
+  ⍝H └───────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  
+  ⍝H     Duplicate keys: Each new key is entered in the dictionary from left to right,
+  ⍝H         independent of whether a new or old (existing) key or whether repeated in the Set or SetC call.
+  ⍝H         To have consistent semantics with scalar execution (for Set: Set1, Set¨; for SetC: SetC¨):
+  ⍝H         Set:
+  ⍝H           retains the rightmost (most recent) value for each key, old or new;
+  ⍝H           returns the actual value stored for each unique key, new or old.
+  ⍝H         SetC: 
+  ⍝H           retains the existing (old) value for each old key, ignoring any new values;
+  ⍝H           retains the leftmost ("oldest") value for each new key; 
+  ⍝H           returns the actual value stored for each unique key, new or old.
   ⍝H 
   ⍝H    Getting:
   ⍝H       [Items]       vv← [defaults*] 𝒅.Get kk  
@@ -192,8 +239,9 @@
   ⍝H │   𝗔𝗱𝘃𝗮𝗻𝗰𝗲𝗱 𝗠𝗲𝘁𝗵𝗼𝗱𝘀     │
   ⍝H └────────────────────┘    
   ⍝H    Modifying Values:         
-  ⍝H       [Apply <op a>]       vv← kk (op 𝒅.Do)  aa                  Perform (op aa) on value of <kk>: vv← vv op¨ aa
-  ⍝H                                                                  Equiv: kk d.Set (d.Get kk) op¨ aa
+  ⍝H       [Apply <𝗼𝗽 a>]       vv← kk (op 𝒅.Do)  aa                  Performs (vv op aa), where vv are the 
+  ⍝H                                                                    values for keys kk.  𝒅.Do is atomic.
+  ⍝H                                                                  𝗼𝗽 must be a scalar function supporting vector args.                                                              
   ⍝H                            v←  k  (op 𝒅.Do1) a                   Ditto: v← v op a 
   ⍝H       [Catenate <a>]           vv← kk 𝒅.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa   
   ⍝H                                                                  Equiv: kk d.Set (d.Get kk),∘⊂¨ ⍺⍺   
