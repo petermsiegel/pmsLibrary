@@ -28,7 +28,7 @@
       Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺) ⍺⍺  ⍵ }
           
       Get1∘← { (≢K)> p← K⍳ ⊂⍵: p⊃ V ⋄ ⍺← D ⋄ ⍺ }
-      Get∘←  {  
+      Get∘←  {   
         ~0∊ m← (≢K)>p← K⍳ k← ⍵: V[ p ] ⋄ ⍺← ⊂D ⋄ v← (≢k)⍴⍣ (1=≢⍺)⊢ ⍺   
         v ≠⍥≢ k: ⍙E 5 ⋄ ~1∊ m: v ⋄ V[ m/ p ]@ (⍸m)⊣ v 
       }
@@ -48,39 +48,31 @@
       }
       Pop1∘← ⊃ Pop⍥⊂
      
-      Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: V,∘⊂←  ⍙H v }
+      Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: _← ⍙H v ⊣ V,∘⊂← v }
     ⍝ Set: Stores values for all keys, maintaining ordering of old keys vs new, and
     ⍝      within new keys. For duplicated keys, the **rightmost** value is kept.
-    ⍝ See Help Info below. Ordering consistent with scalar equivalent (Set1 or Set¨).
-    ⍝ Returns: The actual values set.
+    ⍝      Ordering and return values consistent with scalar equivalent (Set1 or Set¨).
+    ⍝ Returns: The original values passed (for consistency with Set1).
+    ⍝ See Help Info below.
     ⍝ ────────────────────────────
-    ⍝ [0] Let k′ represent each unique key passed in, where only the first (leftmost) key (∪k) is kept.
-    ⍝ [1] For each such key k′, keep only the last (rightmost) associated v′ passed in.
-    ⍝ [2] For each k′ in K ("old" key), replace v′ with the element of V associated with k′. (Return if no new keys).
-    ⍝ [3] Append new keys k′ to K and values v′ to V.   
-    ⍝ [4] Return v as adjusted above (hash if needed).
       Set∘←  {    
-        0::⍙E⍬⋄ ⍺←⊢ ⋄  k0 v0← ⍺ ⍵ ⋄ k← k0/⍨ mk← ≠k0               ⍝ [0]
-            v← mk/ v0@ (k⍳ k0)⊢ v0                                ⍝ [1]
-        ~0∊ mo← (≢K)> p← K⍳ k: V[ p ]← v                          ⍝ [2,4]
-            V[ mo/ p ]← mo/ v                                     ⍝ [2]
-            mn← ~mo ⋄  K,← mn/ k ⋄ V,← mn/v ⋄ 1: v←  ⍙H v         ⍝ [3] ⋄ [4]
+        90::⍙E⍬⋄ ⍺←⊢ ⋄  k vin← ⍺ ⍵                
+            v←  vin@ (k⍳ k)⊢ vin                                
+        ~0∊ mo← (≢K)> p← K⍳ k: _← vin ⊣ V[ p ]← v                  
+            V[ mo/ p ]← mo/ v ⋄  mn← ~mo
+            K,← (mk← ≠kn)/ kn← mn/ k ⋄ V,← mk/mn/ v ⋄ 1: _← ⍙H vin             
       }
+  
     ⍝ SetC: Like Set, but only stores values (L to R) for new keys, leaving "old" values untouched.
     ⍝       For duplicated keys, the **leftmost** value is kept.
-    ⍝ See Help Info below. Ordering consistent with scalar equivalent (SetC¨).
-    ⍝ Returns the actual values set (for new keys) or already in the dictionary (for old keys).
+    ⍝       Ordering and return values consistent with scalar equivalent (SetC¨).
+    ⍝ Returns the (first) actual values set (for new keys) or from the dictionary (for existing keys).
+    ⍝ See Help Info below. 
     ⍝ ──────────────────────────── 
-    ⍝ [0] Let k′ represent each unique key passed in, where only the first (leftmost) key (∪k) is kept in k.
-    ⍝ [1] For each key k′, keep only the first v′ passed in that is associated with k′, i.e. (v/⍨ ≠k).
-    ⍝ [2] For each k′ in K ("old" key), replace v′ with the corresponding value v′ from V.
-    ⍝ [3] Append new keys k′ to K and values v′ to V. 
-    ⍝ [4] Return v as adjusted above (hash if needed).
-      SetC∘← {  
-        0::⍙E⍬⋄ ⍺←⊢ ⋄ k0 v0← ⍺ ⍵ ⋄ k← k0/⍨ mk← ≠k0                ⍝ [0]
-        ~0∊ mo← (≢K)> p← K⍳ k: v← V[ p ]                          ⍝ [1,2,4]
-            v← V[ mo/ p ]@ (⍸mo)⊣ mk/ v0                          ⍝ [1,2]
-            mn← ~mo  ⋄ K,← mn/ k ⋄  V,← mn/ v ⋄ 1: v← ⍙H v        ⍝ [3] ⋄ [4]
+      SetC∘← {   
+        0::⍙E⍬⋄ ⍺←⊢ ⋄ k v← ⍺ ⍵                                     
+        ~0∊ mo← (≢K)> p← K⍳ k: v← V[ p ] ⋄ v← V[ mo/ p ]@ (⍸mo)⊣ ,v ⋄ mn←~ mo 
+        K,← (mk← ≠kn)/ kn← mn/ k ⋄ V,← mk/ mn/ v ⋄ 1: _← ⍙H (⍴k)⍴v[⍳⍨,k]                 
       }
 
       SortBy∘← { 
@@ -183,11 +175,11 @@
   ⍝H │  ∘ To have consistent semantics with scalar execution (for Set: Set1, Set¨; for SetC: SetC¨):         │
   ⍝H │    Set:                                                                                               │
   ⍝H │      ─ retains the rightmost (most recent) value for each key, old or new;                            │
-  ⍝H │      ─ returns the actual value stored for each unique key, new or old.                               │
+  ⍝H │      ─ returns the original values passed.                                                            │
   ⍝H │    SetC:                                                                                              │
   ⍝H │      ─ retains the existing (old) value for each old key, ignoring any new values;                    │
   ⍝H │      ─ retains the leftmost ("oldest") value for each new key;                                        │
-  ⍝H │      ─ returns the actual value stored for each unique key, new or old.                               │
+  ⍝H │      ─ returns the actual (/existing) value stored for each new (/existing) key                       │
   ⍝H └───────────────────────────────────────────────────────────────────────────────────────────────────────┘
   
   ⍝H     Duplicate keys: Each new key is entered in the dictionary from left to right,
