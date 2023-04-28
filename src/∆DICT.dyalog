@@ -103,6 +103,7 @@
       ⍝ Help Display in lieu of Dict Creation
         ⍙Help← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI: ⎕←'Whoops! No help available' ⋄ ⎕ED '_h'} 
    
+        ∆DICT∘← ⍎⊃⎕XSI   ⍝ Point local d.∆DICT to the active dictionary...
     ⍝ ┌───────────────────────────────────────────────────┐
     ⍝ │                  Executive ;-)                    │
     ⍝ │ Conformability of keys and values handled at Set. │
