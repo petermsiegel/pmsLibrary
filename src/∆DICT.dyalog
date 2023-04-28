@@ -6,7 +6,7 @@
   ⍝  └────────────────────────────────────────────────────────────────────┘
   ⍝  Note: HELP doc <== comments (above/below) prefixed with '⍝H'
 
-    ⍺←  ⍬ ⋄ dictNs← (⊃⎕RSI).⎕NS⍬
+    ⍺←  ⍬ ⋄ dictNs← (⊃⎕RSI).⎕NS⍬ ⋄ dictNs.∆DICT← ∇  ⍝ Point dictNs.∆DICT to myself...
   ⍝ Move efficiently to dictionary namespace to copy in methods and dictionary elements.
     ⍺ dictNs.{   
 
@@ -103,12 +103,11 @@
       ⍝ Help Display in lieu of Dict Creation
         ⍙Help← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI: ⎕←'Whoops! No help available' ⋄ ⎕ED '_h'} 
    
-        ∆DICT∘← ⍎⊃⎕XSI   ⍝ Point local d.∆DICT to the active dictionary...
     ⍝ ┌───────────────────────────────────────────────────┐
     ⍝ │                  Executive ;-)                    │
     ⍝ │ Conformability of keys and values handled at Set. │
     ⍝ └───────────────────────────────────────────────────┘
-      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡⎕C⍵: ⍙Help⍬ ⋄ _← ⎕DF '.[Dictionary]',⍨⊃⎕NSI  
+      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡⎕C⍵: ⍙Help⍬ ⋄ _← ⎕DF '.[Dictionary]',⍨⊃⎕NSI
       (D K V)∘←⍺ ⍬ ⍬ ⋄ ⍬(⍬ ⍬)∊⍨⊂⍵: ⎕THIS ⋄ (2≠≢⍵)∨1≠⍴⍴⍵: ⍙E 11 ⋄ ⎕THIS⊣ Set ⍵ 
     } ⍵
 
@@ -191,10 +190,10 @@
   ⍝H       [Values]       vv← [defaults*] 𝒅.Get kk  
   ⍝H       [Single Value]  v←   [default] 𝒅.Get1 k     
   ⍝H                                   * For 𝗚𝗲𝘁, scalar extension is supported for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.              
-  ⍝H  
-  ⍝H    Popping (Getting and then Deleting): 
-  ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk           
-  ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k    
+  ⍝H    
+  ⍝H    Popping (Getting and then Deleting):                  If 𝐧𝐨 default is specified...
+  ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk             ... 𝗮𝐧𝗱 if any key in kk not found, an error is signaled.      
+  ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k             ... 𝗮𝐧𝗱 if key k is not found, an error is signaled.
   ⍝H                                  * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 allows scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.  
   ⍝H                                    Scalar extension does 𝗻𝗼𝘁 apply.        
   ⍝H  
