@@ -31,7 +31,8 @@
 
     timerNs← 10 ⎕DT 'J'
     Write←{ count +← 1 ⋄ output,←⊂⍕⍵ } ⋄ output← ⍬ ⋄ count← 0
-    Write '***** CONCORDANCE BEGUN AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT ⊂⎕TS
+    ⎕←Write '***** CONCORDANCE START AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT ⊂⎕TS
+   
     
     WordList←{
         '([:⎕]?[\w_∆⍙]+(?:''[\w_∆⍙]+)?)' ⎕S 0 1⊣⍵
@@ -96,8 +97,8 @@
          :ENDFOR 
     :ENDFOR
     Write ''
-    Write '***** CONCORDANCE COMPLETE AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT 'J'
-    Write '*****',count,'lines written.'
-    Write '***** Elapsed time: ',(1E4÷⍨⌊1E4×1E¯9×timerNs -⍨ 10 ⎕DT 'J'),'sec'
+    ⎕←Write '***** CONCORDANCE END   AT ', ⊃'%ISO%'(1200⌶) 1 ⎕DT 'J'
+    ⎕←Write '*****',count,'lines written.'
+    ⎕←Write '***** Elapsed time: ',(1E4÷⍨⌊1E4×1E¯9×timerNs -⍨ 10 ⎕DT 'J'),'sec'
 
     ⎕ED 'output'
