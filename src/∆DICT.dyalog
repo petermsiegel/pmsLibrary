@@ -4,11 +4,10 @@
   ⍝  │                   See HELP INFORMATION BELOW.                      │
   ⍝  │     HELP doc <== comments (above/below) prefixed with '⍝H'         │
   ⍝  └────────────────────────────────────────────────────────────────────┘
-  ⍝  Note: HELP doc <== comments (above/below) prefixed with '⍝H'
-
-    ⍺←  ⍬ ⋄ dictNs← (⊃⎕RSI).⎕NS⍬ ⋄ dictNs.∆DICT← ∇  ⍝ Point dictNs.∆DICT → ⎕THIS.∆DICT
-  ⍝ Move efficiently to dictionary namespace to copy in methods and dictionary elements.
-    ⍺ dictNs.{   
+  
+    ⍺← ⍬  
+  ⍝ Create dictionary namespace and move into it to copy in methods and dictionary elements.
+    ⍺ ∇ ((⊃⎕RSI).⎕NS⍬).{   
 
     ⍝ METHODS IN ALPHABETICAL ORDER...
 
@@ -20,7 +19,7 @@
       _← ⎕FX'_←   Copy' '_←⎕NS ⎕THIS'
       _← ⎕FX'_←   Default' '_←D' 
 
-      Del∘←  { ⍺← 0 ⋄ n← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ n> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ n⍴1 ⋄ ⍙E 61 } 
+      Del∘←  { ⍺← 0 ⋄ nK← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ nK> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ nK⍴1 ⋄ ⍙E 61 } 
       Del1∘←  Del∘⊂
 
       Do∘←  {0::⍙E⍬⋄ 1: _← ⍺ Set  (Get  ⍺) ⍺⍺  ⍵ }         ⍝ Do is Atomic. If ⍺⍺ fails, Do will not update ⍺.
@@ -40,27 +39,18 @@
       _← ⎕FX'_← Keys' '_← K'  
     
     ⍝ Pop: Optimized...
-      Pop∘←  {  
-        ~0∊ m← (n← ≢K)>p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ n⍴ 1 ⊣ v← V[ p ] 
+      Pop∘←  { nK←≢K 
+        ~0∊ m← nK> p← K⍳ k← ⍵:  ⍙H v⊣ (K V) /⍨← ⊂0@ p⊣ nK⍴ 1 ⊣ v← V[ p ] 
             ⍺← ⊢ ⋄ 0≡⍺0: ⍙E 61 ⋄ v← (≢k)⍴⍣ (1=≢⍺)⊢ ⍺  
         v ≠⍥≢ k: ⍙E 5 ⋄ ~1∊ m: v  ⋄ v← V[ m/ p ]@ (⍸m)⊣ v 
-            ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ n⍴ 1 
+            ⍙H v⊣ (K V) /⍨← ⊂0@ (m/ p)⊣ nK⍴ 1 
       }
       Pop1∘← ⊃ Pop⍥⊂
      
     ⍝ Set/1: 
-    ⍝ Stores values for all keys, maintaining ordering of old keys vs new, and within new keys,
-    ⍝ i.e. setting an old key to a new value does NOT change its dictionary position, only its value.
-    ⍝ For repeated keys, the **rightmost** value is kept, consistent with scalar equivs: Set1 or Set¨.
-    ⍝    Shyly returns: All the original input values passed (for consistency with Set1 and Set¨).
-    ⍝ See Help Info below.
+    ⍝ Stores the value for each key, maintaining existing ordering of existing keys.
     ⍝ ────────────────────────────
     ⍝ vî: input values; mo: mask of "old" keys; mu: mask of unique new keys.
-      SetOldDelete∘←  {    
-        0::⍙E⍬⋄ ⍺←⊢ ⋄  k vî← ⍺ ⍵ ⋄  v← vî@ (k⍳⍨,k)⊢ vî← (≢k)⍴⍣ (1= ≢vî)⊢ vî    ⍝ v: contains only rt-most vals.                          
-        ~0∊ mo← (≢K)> p← K⍳ k: _← vî⊣ V[ p ]← v ⋄ V[ mo/ p ]← mo/ v            ⍝ V[...]← most recent OLD vals
-            mu← (~mo)∧≠k ⋄ K,← mu/ k ⋄ V,← mu/ v ⋄ 1: _← ⍙H vî                 ⍝ V,← most recent NEW vals
-      }
       Set∘←  {    
         0::⍙E⍬⋄ ⍺←⊢ ⋄  k vî← ⍺ ⍵ ⋄  v← (≢k)⍴⍣ (1= ≢vî)⊢ vî                                              
         ~0∊ mo← (≢K)> p← K⍳ k: _← vî⊣ V[ p ]← v ⋄ V[ mo/ p ]← mo/ v            ⍝ V<old>← v<old>
@@ -69,12 +59,8 @@
       Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: _← ⍙H v ⊣ V,∘⊂← v }
   
     ⍝ SetC/SetC1: "Set Conditionally"
-    ⍝ Like Set/1, but only stores values (L-to-R) for new keys, leaving values for existing keys untouched.
-    ⍝ If a new key is repeated, only the **leftmost** value is kept. (For old keys, all new values are ignored).
-    ⍝ Shyly returns: 
-    ⍝ ∘ for new keys: the first (L-to-R) actual values set;  
-    ⍝ ∘ for existing keys: the current dictionary values (unchanged).
-    ⍝ See Help Info below.  Cf. Python method: dict.setdefault().
+    ⍝ Like Set/1, but only stores a value for the first occurrence of a new key.
+    ⍝ See Help Info below.  Like Python method setdefault().
     ⍝ ──────────────────────────── 
     ⍝ mo: mask of "old" keys; mu: mask of unique new keys.
       SetC∘← {   
@@ -91,30 +77,36 @@
 
       _← ⎕FX'_← Vals' '_←V' 
 
-    ⍝ Runtime Dict-Internal Utilities: ⍙H, ⍙E
-    ⍝ ⍙H: Hash Utility (for use in methods): used AFTER K is updated (returning ⍵ unchanged).
+    ⍝ ⎕THIS.∆DICT: A user- and internally-accessible method, for d.∆DICT 'Help', etc.
+      ∆DICT∘← ⍺⍺ 
+
+    ⍝ Runtime Dict-Internal (Non-user) Utilities: ⍙H, ⍙E
+    ⍝ ⍙H: Hash Utility: use in methods after K is updated, ensuring K is hashed. 
+    ⍝ Passes on ⍵ unchanged.
       ⍙H∘← { ×1(1500⌶)K: ⍵ ⋄ ⍵⊣ K∘← 1500⌶K }     
-    ⍝ Error Handling in methods. Passes on signals (0=≢⍵) or generates them (⍺=EN, ⍵=EM; ⍵=5 special case).
+    ⍝ Error Handling in methods: ⍙E ⍵
+    ⍝ Passes on signals (⍵≡ ⍬) or generates them (⍵∊ 11 5 61).
       ⍙E∘←  ⎕SIGNAL/ '∆DICT '{ 
         0=≢⍵: ⎕DMX.((⍺⍺,EM)EN) 
             en← 11 5 61
-            em← ⊂ 'DOMAIN ERROR. See ∆DICT ''help''.' 
-            em,←⊂ 'LENGTH ERROR'
-            em,←⊂ 'KEY ERROR: Key(s) not found' 
-            em,←⊂ 'Unknown error!'
-        ⍵,⍨ ⊂⍺⍺, em⊃⍨ en⍳ ⍵
+            em← ⊂ 'DOMAIN ERROR. See ∆DICT ''help''.'   ⍝ 11
+            em,←⊂ 'LENGTH ERROR'                        ⍝  5
+            em,←⊂ 'KEY ERROR: Key(s) not found'         ⍝ 61
+            em,←⊂ 'Unknown error!'                      ⍝ anything else
+        ⍵,⍨ ⊂⍺⍺, em⊃⍨ en⍳ ⊂⍵
       }
     
     ⍝ Creation-time Main Fn-internal Utility 
     ⍝ ⍙Help: Help Display in lieu of Dict Creation
       ⍙Help← {0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': ⎕←'Whoops! No help available' ⋄ ⎕ED '_h'} 
    
-    ⍝ ┌───────────────────────────────────────────────────┐
-    ⍝ │                  Executive ;-)                    │
-    ⍝ │ Conformability of keys and values handled at Set. │
-    ⍝ └───────────────────────────────────────────────────┘
-      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡⎕C⍵: ⍙Help⍬ ⋄ _← ⎕DF '.[Dictionary]',⍨⊃⎕NSI
-      (D K V)∘←⍺ ⍬ ⍬ ⋄ ⍬(⍬ ⍬)∊⍨⊂⍵: ⎕THIS ⋄ (2≠≢⍵)∨1≠⍴⍴⍵: ⍙E 11 ⋄ ⎕THIS⊣ Set ⍵ 
+    ⍝ ┌───────────────────────────────────────────────────────────┐
+    ⍝ │ Executive ;-)                                             │
+    ⍝ │ [⍺]: D[←⍬];  ⍵: K V or ⍬ or 'Help'                        │
+    ⍝ │ Conformability of keys (K) and values (V) handled at Set. │
+    ⍝ └───────────────────────────────────────────────────────────┘
+      ⎕IO ⎕ML∘← 0 1 ⋄ 'help'≡ ⎕C ⍵: ⍙Help⍬ ⋄ _← ⎕DF ']',⍨ '.[Dictionary',⍨ ⊃⎕NSI
+      (D K V)∘← ⍺ ⍬ ⍬ ⋄ ⍬(⍬ ⍬)∊⍨ ⊂⍵: ⎕THIS ⋄ (2≠≢⍵)∨1≠⍴⍴⍵: ⍙E 11 ⋄ ⎕THIS⊣ Set ⍵ 
     } ⍵
 
   ⍝H ┌────────────────────────────────────────────────────────────────────┐
@@ -123,9 +115,10 @@
   ⍝H │   ○ The keys are hashed for performance (see Hashing).             │
   ⍝H │   ○ The dictionary maintains items in order of creation            │
   ⍝H │     or as sorted (see SortBy).                                     │
-  ⍝H │   ○ Novel methods include ops Do/Do1 and Cat/Cat1 (see below).     │
+  ⍝H │   ○ Novel methods include  op Do/Do1  and  Cat/Cat1 (see below).   │
   ⍝H │      keys← 'NYT' 'TOL' ⋄ news← 0 ∆DICT ⍬                           │
   ⍝H │      keys +news.Do 1        ⍝ ==> keys news.Set 1+ news.Get keys   │
+  ⍝H │      'TOL +news.Do1 1       ⍝ ==> keys news.Set 1+ news.Get keys   │
   ⍝H ├────────────────────────────────────────────────────────────────────┤   
   ⍝H │   Function:  ∆DICT                                                 │
   ⍝H │   Load via   ]LOAD ∆DICT                                           │
@@ -145,7 +138,7 @@
   ⍝H Returns a dictionary namespace 𝒅 containing a hashed, ordered list of items and a set of service functions.
   ⍝H The default value is set to ⍬. A useful default value for counters is 0.
   ⍝H
-  ⍝H [c] ∆DICT 'Help'                            shares this help information
+  ⍝H [c] [𝒅.]∆DICT 'Help'                        shares this help information (the case of keyword 'Help' is ignored).
   ⍝H
   ⍝H ┌──────────────────────┐
   ⍝H │   𝐃𝐢𝐜𝐭𝐢𝐨𝐧𝐚𝐫𝐲 𝐌𝐞𝐭𝐡𝐨𝐝𝐬   │
@@ -166,9 +159,9 @@
   ⍝H ┌─────────────────┐
   ⍝H │   𝗕𝗮𝘀𝗶𝗰 𝗠𝗲𝘁𝗵𝗼𝗱𝘀   │
   ⍝H └─────────────────┘                   
-  ⍝H    Creating Dictionaries:  newD← [def] [𝒅.]∆DICT kk vv*                  def is the default (any type or shape).   
-  ⍝H                                  [def] [𝒅.]∆DICT ⍬                      
-  ⍝H       [Cloning]            newD←        𝒅.Copy
+  ⍝H    Creating Dictionaries:  newD← [def] [𝒅.]∆DICT kk vv*                  def is the default val (any type or shape).   
+  ⍝H                                  [def] [𝒅.]∆DICT ⍬                       def defaults to ⍬.
+  ⍝H       [Cloning]            newD←        𝒅.Copy                           copies keys, values, and default.
   ⍝H
   ⍝H    Setting:
   ⍝H       [Items]            {vv}←     𝒅.Set  kk vv*                         See Duplicate Keys
@@ -179,17 +172,17 @@
   ⍝H                          {vv}←  kk 𝒅.SetC vv*                             "      "      "
   ⍝H ┌───────────────────────────────────────────────  Duplicate Keys ───────────────────────────────────────┐
   ⍝H │  𝗦𝗲𝘁 and 𝗦𝗲𝘁C simulate the logic of 𝗦𝗲𝘁1 and 𝗦𝗲𝘁𝗖¨, while performing much faster (~3-10x).                  │
-  ⍝H │  ∘ Each new key is entered in the dictionary from left to right,                                      │
-  ⍝H │    independent of whether a new or old (existing) key or whether repeated in the 𝗦𝗲𝘁 or 𝗦𝗲𝘁𝗖 call.       │
-  ⍝H │  ∘ To have consistent semantics with scalar execution (for Set: Set1, Set¨; for 𝗦𝗲𝘁𝗖: 𝗦𝗲𝘁𝗖¨):            │
+  ⍝H │  ∘ Each new key is entered in the dictionary from left to right-- existing (old) keys ordering        │
+  ⍝H │    is not affected-- regardless of whether repeated in the 𝗦𝗲𝘁 or 𝗦𝗲𝘁𝗖 call.                             │
+  ⍝H │  ∘ To have consistent semantics with scalar execution (for 𝗦𝗲𝘁: 𝗦𝗲𝘁1, 𝗦𝗲𝘁¨; for 𝗦𝗲𝘁𝗖: 𝗦𝗲𝘁𝗖1, 𝗦𝗲𝘁𝗖¨):                   │
   ⍝H │    𝗦𝗲𝘁:                                                                                                    │
   ⍝H │      ─ retains the rightmost (most recent) value for each key, old or new;                            │
   ⍝H │      ─ returns the original values passed (L-to-R), consistent with Set1.                             │
   ⍝H │    𝗦𝗲𝘁𝗖:                                                                                                   │
   ⍝H │      ─ for each existing key, retains the existing dictionary value, ignoring any new values;         │
-  ⍝H │      ─ for each new key, sets as its value the leftmost value passed in.                              │
+  ⍝H │      ─ for each new key, sets as its value the leftmost value passed in.                                   │
   ⍝H │      ─ returns the existing or newly stored value for each key, existing or new.                      │
-  ⍝H │      ─ is a variety of 𝗚𝗲𝘁, as well as 𝗦𝗲𝘁, returning useful state info for the dictionary.            │
+  ⍝H │      ─ like 𝗚𝗲𝘁 returns the (now) current values for the keys specified.                                                │
   ⍝H └───────────────────────────────────────────────────────────────────────────────────────────────────────┘
   ⍝H 
   ⍝H    Getting:
@@ -200,8 +193,7 @@
   ⍝H    Popping (Getting and then Deleting):                  If 𝐧𝐨 default is explicitly specified...
   ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk             ... 𝗮𝐧𝗱 if any key in kk not found, an error is signaled.      
   ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k             ... 𝗮𝐧𝗱 if key k is not found, an error is signaled.
-  ⍝H                                  * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 allows scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.  
-  ⍝H                                    Scalar extension does 𝗻𝗼𝘁 apply.        
+  ⍝H                                  * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 supports scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.         
   ⍝H  
   ⍝H    Do Keys Exist?              (Good Option)         (Faster Option)       (Fastest Option)
   ⍝H                                bb← 𝒅.HasKeys kk      bb←   kk∊ 𝒅.Keys      bb←   kk∊ 𝒅.K                          
@@ -257,6 +249,6 @@
   ⍝H   If 𝗗𝗲𝗹 𝗸𝗸  is used, the rehashing occurs 𝗼𝗻𝗰𝗲, no matter how many keys are in 𝗸𝗸.
   ⍝H   If 𝗗𝗲𝗹1¨𝗸𝗸 is used, then it occurs 𝗼𝗻𝗰𝗲 for each scalar key in 𝗸𝗸 (i.e. for each call to 𝗗𝗲𝗹1)
   ⍝H Help Info (this info):
-  ⍝H    ∆DICT 'Help' 
+  ⍝H    [𝒅.]∆DICT 'Help' 
   ⍝H
 }
