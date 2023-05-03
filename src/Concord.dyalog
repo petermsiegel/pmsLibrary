@@ -5,7 +5,7 @@
     ; CHAR_STD; CHAR_BOLD; CHAR_BOLD_ITAL; CHAR_EMPHASIS
     ; WORD_LEN; LINE_LEN; LNUM_LEN; MAX_WIDTH
     ; count; len; line; lines; lNum; lNums; lNumField; match; offset; rec; recs; timerNs; word; wordRaw
-    ; wCurL; wFreq_d; wRecs_d
+    ; wCurL; wFreqD; wRecsD
 
     {}⎕SE.UCMD 'load  ∆DICT'
  
@@ -49,8 +49,8 @@
 
     Skip← ∊∘(⎕D,'⎕:')⊃         ⍝ Words starting with ⎕ or : are APL special vars: ignore.
 
-    wFreq_d←  0 ∆DICT ⍬         ⍝ Word frequencies
-    wRecs_d←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
+    wFreqD←  0 ∆DICT ⍬         ⍝ Word frequencies
+    wRecsD←  ⍬ ∆DICT ⍬         ⍝ Word to lNum and lines
     
     lNum←0 
     Write 'Source text' 
@@ -66,32 +66,32 @@
             word← ⎕C⍣ignoreCase⊢ wordRaw 
             :IF Skip word ⋄ :Continue ⋄ :ENDIF 
             wCurL,← ⊂word wordRaw 
-            word +wFreq_d.Do1 1
+            word +wFreqD.Do1 1
         :EndFor
       ⍝ For each word in this line, highlight all appearances of that word simultaneously.
       ⍝ To do that, we process repeat appearances (ignoring case) with the first.
         :For word wordRaw :IN wCurL/⍨ ≠⊃¨wCurL      
-            word wRecs_d.Cat1 lNum (line Highlight wordRaw)
+            word wRecsD.Cat1 lNum (line Highlight wordRaw)
         :EndFor 
     :ENDFOR 
     Write ''
 
-    WORD_LEN← ⌈/≢¨wFreq_d.Keys
+    WORD_LEN← ⌈/≢¨wFreqD.Keys
     LINE_LEN← MAX_WIDTH- (LNUM_LEN + WORD_LEN + 2×3)   ⍝ 3 per ' | '
     
     WordFmt← WORD_LEN∘↑
     LineFmt← LINE_LEN∘↑
 
     Write 'Word Frequencies and Lines'
-    wRecs_d.(SortBy ⎕C Keys)        ⍝ Ignore case when sorting, even if globally set to 0.
-    :FOR word recs :IN wRecs_d.Items
+    wRecsD.(SortBy ⎕C Keys)        ⍝ Ignore case when sorting, even if globally set to 0.
+    :FOR word recs :IN wRecsD.Items
          lNums← ∪⊃¨recs 
-         Write (WordFmt word), ' ', ('[',']',⍨⍕wFreq_d.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
+         Write (WordFmt word), ' ', ('[',']',⍨⍕wFreqD.Get1 word),' ', 2↓∊(⊂', '),∘ ⍕ ¨lNums 
     :ENDFOR    
     Write ''
 
     Write 'Concordance'
-    :FOR word recs :IN  wRecs_d.Items
+    :FOR word recs :IN  wRecsD.Items
          :FOR lNum line :IN recs
             Write (LNumFmt lNum), ' | ', (WordFmt word), ' | ', (LineFmt line)
          :ENDFOR 
