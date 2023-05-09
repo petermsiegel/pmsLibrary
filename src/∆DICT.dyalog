@@ -12,11 +12,11 @@
   ⍝H ├────────────────────────────────────────────────────────────────────┤
   ⍝H │         "METHODS" (FNS and OPS) IN ALPHABETICAL ORDER...           │
   ⍝H ├────────────────────────────────────────────────────────────────────┤  
-  ⍝H │  Cat²/1ᵒᵖⁱ  Clear⁰  Copy⁰  Default⁰, D  Del/1²  Do/1ᵒᵖ²  Get/1²      │
-  ⍝H │  HasKey/sⁱ  Items⁰, I⁰     Keys⁰, K⁰    Pop/1ⁱ  Set/1²  SetC/1²    │
-  ⍝H │  SortBy²    Vals⁰,  V⁰                                             │
+  ⍝H │  Cat²/1ᵒᵖⁱ Clear⁰     Copy⁰    Default⁰, D  Del/1²    Do/1ᵒᵖ² Export²    │
+  ⍝H │  Get/1²    HasKey/sⁱ  Import²  Items⁰, I⁰   Keys⁰, K⁰      Pop/1ⁱ      │
+  ⍝H │  Set/1²     SetC/1²   SortBy²  Vals⁰,  V⁰                                                        │
   ⍝H ├────────────────────────────────────────────────────────────────────┤  
-  ⍝H │  ⁱmonadic, ²dyadic, ⁰niladic, ᵒᵖoperator(+ⁱmon, +²dyad)              │
+  ⍝H │  ⁱmonadic, ²dyadic, ⁰niladic, ᵒᵖoperator(+ⁱmon, +²dyad)                       │
   ⍝H ├────────────────────────────────────────────────────────────────────┤
 
     ⍝ Fn Cat and Op Cat1
@@ -37,15 +37,15 @@
       Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺) ⍺⍺  ⍵ }
 
     ⍝ Export: 
-    ⍝ foundKeys← [force2Var←0] d.Export destNs [whichKeys← K]
+    ⍝ foundKeys← [force2Var←0] d.Export destNs [whichKeys← K | key1 key2...]
       Export∘← {   
             ⍺← 0 ⋄ f← ⍺ ⋄ dst←⊃⍵ ⋄ wk← 1↓⍵  
         9.1≠⎕NC ⊂'dst': ⍙E'NS NM BAD' 
-            (fK fV)← { 0=≢⍵: K V ⋄ fK,⍥⊂ Get⊢ fK←⍵/⍨ ⍵∊ K } wk 
-        0= ≢fO← { 0=≢⍵: ⍬ ⋄ 0:: ⍙E'VAR NM BAD' ⋄ 0∘(7162⌶)¨ ⍵ } fK: _←⍬ 
-        f:  _← fK⊣ fV {dst⍎ ⍵,'←⍺'}¨ fO⊣ dst.⎕EX fO 
+            (fk fv)← { 0=≢⍵: K V ⋄ fk,⍥⊂ Get⊢ fk←⍵/⍨ ⍵∊ K } wk 
+        0= ≢fO← { 0=≢⍵: ⍬ ⋄ 0:: ⍙E'VAR NM BAD' ⋄ 0∘(7162⌶)¨ ⍵ } fk: _←⍬ 
+        f:  _← fk⊣ fv {dst⍎ ⍵,'←⍺'}¨ fO⊣ dst.⎕EX fO 
             ok← ~0∊ 0 2∊⍨ dst.⎕NC ↑fO
-        ok: _← fK⊣ fV {dst⍎ ⍵,'←⍺'}¨ fO ⋄ ⍙E'VAR NM IN USE'
+        ok: _← fk⊣ fv {dst⍎ ⍵,'←⍺'}¨ fO ⋄ ⍙E'VAR NM IN USE'
       }
  
       Get∘←  {
@@ -60,20 +60,20 @@
       _← ⎕FX'_← I'     '_← ↓⍉↑K V' 
 
     ⍝ Import: 
-    ⍝ foundKeys← [forceSet←0] d.Import srcNs [whichVars← <all>]
+    ⍝ foundKeys← [forceSet←0] d.Import srcNs [whichKeys← <all> | key1 key2...]
     ⍝     forceSet:  If 1, update existing keys as well as creating new key-value pairs; 0: error if updating existing
     ⍝     srcNs:     Namespace to import key-value pairs from. Vars will be "demangled" by JSON rules.
-    ⍝     whichVars: names of variables to import (if omitted: all in the namespace)
+    ⍝     whichKeys: names of keys to import from (possibly mangled) ns vars (if omitted: all in the namespace)
     ⍝  Returns:
     ⍝     foundKeys: ...
       Import∘← {  
-            ⍺← 0 ⋄ f← ⍺ ⋄ src← ⊃⍵ ⋄  wv← 1↓⍵
+            ⍺← 0 ⋄ f← ⍺ ⋄ src← ⊃⍵ ⋄  wk← 1↓⍵
         9.1≠ ⎕NC ⊂'src': ⍙E'NS NM BAD'              
-        0= ≢fO← { 11:: ⍙E'VAR NM BAD' ⋄ fO← src.⎕NL ¯2 ⋄ 0≠≢⍵: fO∩  0∘(7162⌶)¨ ⍵ ⋄ fO } wv: _← ⍬ 
-            fK← 1∘(7162⌶)¨ fO ⋄ fV← src.⎕OR¨  fO  
-        f:  _← fK⊣ fK Set fV 
-        1∊ fK∊ K:  ⍙E'KEY EXISTS' 
-            _← fK⊣ fK Set fV  
+        0= ≢fO← { 11:: ⍙E'VAR NM BAD' ⋄ fO← src.⎕NL ¯2 ⋄ 0≠≢⍵: fO∩ 0∘(7162⌶)¨ ⍵ ⋄ fO } wk: _← ⍬ 
+            fk← 1∘(7162⌶)¨ fO ⋄ fv← src.⎕OR¨  fO  
+        f:  _← fk⊣ fk Set fv 
+        1∊ fk∊ K:  ⍙E'KEY EXISTS' 
+            _← fk⊣ fk Set fv  
       }
       
       _← ⎕FX'_← Items' '_← ↓⍉↑K V' 
@@ -244,14 +244,14 @@
   ⍝H       [Single Value]  v←   [default] 𝒅.Get1 k     
   ⍝H                                   * For 𝗚𝗲𝘁, scalar extension is supported for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.              
   ⍝H    
-  ⍝H    Popping (Getting and then Deleting):                  If 𝐧𝐨 default is explicitly specified...
-  ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk             ... 𝗮𝐧𝗱 if any key in kk not found, an error is signaled.      
-  ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k             ... 𝗮𝐧𝗱 if key k is not found, an error is signaled.
-  ⍝H                                  * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 supports scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.         
+  ⍝H    Popping (Getting and then Deleting):                      If 𝐧𝐨 default is explicitly specified...
+  ⍝H       [Items]       vv← [defaults*] 𝒅.Pop kk                 ... 𝗮𝐧𝗱 if any key in kk not found, an error is signaled.      
+  ⍝H       [Single Item]  v←   [default] 𝒅.Pop1 k                 ... 𝗮𝐧𝗱 if key k is not found, an error is signaled.
+  ⍝H                                                              * Like 𝗚𝗲𝘁, 𝗣𝗼𝗽 supports scalar extension for 𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀.         
   ⍝H  
-  ⍝H    Do Keys Exist?              (Good Option)         (Faster Option)       (Fastest Option)
-  ⍝H                                bb← 𝒅.HasKeys kk      bb←   kk∊ 𝒅.Keys      bb←   kk∊ 𝒅.K                          
-  ⍝H                                 b← 𝒅.HasKey  k        b← (⊂k)∊ 𝒅.Keys       b← (⊂k)∊ 𝒅.K   
+  ⍝H    Do Keys Exist?    (Good Option)         (Faster Option)       (Fastest Option)
+  ⍝H                      bb← 𝒅.HasKeys kk      bb←   kk∊ 𝒅.Keys      bb←   kk∊ 𝒅.K                          
+  ⍝H                       b← 𝒅.HasKey  k        b← (⊂k)∊ 𝒅.Keys       b← (⊂k)∊ 𝒅.K   
   ⍝H                                                                   
   ⍝H    Sorting Items via Sort Keys (sk):        
   ⍝H                      {newD}← [newD←d] 𝒅.SortBy sk          Resorts the dictionary. Required: sk ≡⍥≢ d.Keys (unless 0=≢sk)
@@ -260,8 +260,8 @@
   ⍝H                       newD←  (𝒅.Copy) 𝒅.(SortBy Vals)      Sort dict 𝒅 in order by values into a new dictionary newD.
   ⍝H            
   ⍝H    Deleting Items:          
-  ⍝H       [Items by Key]       {bb}← [bb] 𝒅.Del   kk               If 0∊bb, disallow deleting non-existent keys
-  ⍝H       [Single Item by Key] {b}←  [b]  𝒅.Del1  k                If 0=bb, --ditto--
+  ⍝H       [Items by Key]       {bb}← [bb] 𝒅.Del   kk                If 0∊bb, disallow deleting non-existent keys
+  ⍝H       [Single Item by Key] {b}←  [b]  𝒅.Del1  k                 If 0=bb, --ditto--
   ⍝H       [All]                {n}←       𝒅.Clear         
   ⍝H                  
   ⍝H    Returning Dictionary Components          
@@ -275,17 +275,25 @@
   ⍝H ┌────────────────────┐                                          ──────────────────
   ⍝H │   𝗔𝗱𝘃𝗮𝗻𝗰𝗲𝗱 𝗠𝗲𝘁𝗵𝗼𝗱𝘀        │                                          ** (default set when the dict. was created).
   ⍝H └────────────────────┘    
+  ⍝H    Exporting from/Importing to namespaces  
+  ⍝H         [Keys must be simple strings, converted to/from APL names via JSON "mangling," Dyalog I-beam (7162⌶).]
+  ⍝H                           kk← [force] 𝒅.Export ns [ kk ]        Returns keys exported   
+  ⍝H                                force: Overwrite vars in fn/op classes
+  ⍝H                                ns:    A valid namespace ref              
+  ⍝H                           kk← [force] 𝒅.Import ns [ kk ]        Returns keys imported
+  ⍝H                                force: Overwrite existing keys
+  ⍝H                                ns:    A valid namespace ref  
   ⍝H    Modifying Values:         
-  ⍝H       [Apply <𝗼𝗽 a>]       vv← kk (op 𝒅.Do)  aa                  Performs (vv op aa), where vv are the 
+  ⍝H       [Apply <𝗼𝗽 a>]       vv← kk (op 𝒅.Do)  aa                 Performs (vv op aa), where vv are the 
   ⍝H                                                                    values for keys kk.  𝒅.Do is atomic.
-  ⍝H                                                                  𝗼𝗽 must be a scalar function supporting vector args.                                                              
-  ⍝H                            v←  k  (op 𝒅.Do1) a                   Ditto: v← v op a 
-  ⍝H       [Catenate <a>]           vv← kk 𝒅.Cat  aa                  Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa   
-  ⍝H                                                                  Equiv: kk d.Set (d.Get kk),∘⊂¨ ⍺⍺   
-  ⍝H             Operator:          v←  k  𝒅.Cat1 a                   Ditto: v←v,⊂aa
+  ⍝H                                                                 𝗼𝗽 must be a scalar function supporting vector args.                                                              
+  ⍝H                            v←  k  (op 𝒅.Do1) a                  Ditto: v← v op a 
+  ⍝H       [Catenate <a>]           vv← kk 𝒅.Cat  aa                 Concat <aa> to value of <kk>: vv← vv,∘⊂¨aa   
+  ⍝H                                                                 Equiv: kk d.Set (d.Get kk),∘⊂¨ ⍺⍺   
+  ⍝H             Operator:          v←  k  𝒅.Cat1 a                  Ditto: v←v,⊂aa
   ⍝H                                                                  
   ⍝H ┌────────────────────────────────      Cat1, Cat        ─────────────────────────────────┐
-  ⍝H │  While Cat is a regular dyadic fn, Cat1 is an operator, allowing:                      │  
+  ⍝H │  While Cat is a regular dyadic fn, Cat1 is an operator, making repeat ops easy.        │  
   ⍝H │    'item' d.Cat1¨ 'this' 'that'       ⍝ Same as: ('item' d.Cat1)¨ 'this' 'that'           │
   ⍝H │  as equiv. to                                                                              │
   ⍝H │    (⊂'item') d.Cat 'this' 'that'                                                       │     
@@ -297,11 +305,10 @@
   ⍝H │  │└────┴────┘│                                                                         │
   ⍝H │  └───────────┘                                                                         │                                                 
   ⍝H └────────────────────────────────────────────────────────────────────────────────────────┘
-
-  ⍝H ┌───────────────┐
-  ⍝H │   𝐎𝐭𝐡𝐞𝐫 𝐈𝐧𝐟𝐨    │
-  ⍝H └───────────────┘    
-  ⍝H Hashing:
+  ⍝H  
+  ⍝H ┌──────────────────────┐
+  ⍝H │  Other Info: HASHING │
+  ⍝H └──────────────────────┘  
   ⍝H ∘ Keys are hashed when a non-empty dictionary is created.
   ⍝H ∘ Keys are rehashed, if needed, after each 𝗦𝗲𝘁 or 𝗦𝗲𝘁1 that includes new keys.
   ⍝H   Rehashing is never necessary when values are altered for existing keys.
@@ -316,17 +323,24 @@
   ⍝H ∘ Rehashing occurs when items are deleted or the dictionary is sorted. Duh!
   ⍝H   If 𝗗𝗲𝗹 𝗸𝗸  is used, the rehashing occurs 𝗼𝗻𝗰𝗲, no matter how many keys are in 𝗸𝗸.
   ⍝H   If 𝗗𝗲𝗹1¨𝗸𝗸 is used, then it occurs 𝗼𝗻𝗰𝗲 for each scalar key in 𝗸𝗸 (i.e. for each call to 𝗗𝗲𝗹1)
+  ⍝H
+  ⍝H ┌───────────────────┐
+  ⍝H │ Other Info: HELP  │
+  ⍝H └───────────────────┘
   ⍝H Help Info (this info):
   ⍝H    [𝒅.]∆DICT 'Help' 
   ⍝H
-  ⍝H ┌─────────────────    Python Equivalents    ──────────────────┐
-  ⍝H │  Cat        Clear          Copy      Default/D    Do/1      │
-  ⍝H │  ---        clear()        copy()    ---          ---       │
-  ⍝H │                                                             │
-  ⍝H │  Get/1      ∊, HasKey/s   Items/I    Keys/K       Pop/1     │
-  ⍝H │  get(), []  in            items()    keys()       pop()     │
-  ⍝H │                                                             │
-  ⍝H │  Set/1      SetC/1        SortBy     Vals/V                 │
-  ⍝H │  []         setdefault()             values()               │
-  ⍝H └─────────────────────────────────────────────────────────────┘
+  ⍝H ┌────────────────────────────┐
+  ⍝H │ Other Info: Python Equiv.  │
+  ⍝H └────────────────────────────┘
+  ⍝H ┌───────────────   ∆DICT / Python Equiv.   ─────────────────┐
+  ⍝H │  Cat      Clear        Copy         Default/D  Do/1       │
+  ⍝H │  ---      clear()      Copy()       ---        ---        │
+  ⍝H │                                                           │
+  ⍝H │  Export   Get/1        ∊, HasKey/s  Import     Items/I    │
+  ⍝H │   ---     get(), []    in            ---      items()     │
+  ⍝H │                                                           │
+  ⍝H │  Keys/K  Pop/1  Set/1  SetC/1       SortBy     Vals/V     │
+  ⍝H │  keys()  pop() []=     setdefault()  ---       values()   │
+  ⍝H └───────────────────────────────────────────────────────────┘
 }
