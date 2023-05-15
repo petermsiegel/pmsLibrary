@@ -14,7 +14,7 @@
   ⍝H ├────────────────────────────────────────────────────────────────────┤  
   ⍝H │  Cat²/1ᵒᵖⁱ Clear⁰     Copy⁰    Default⁰, D  Del/1²    Do/1ᵒᵖ² Export²    │
   ⍝H │  Get/1²    HasKey/sⁱ  Import²  Items⁰, I⁰   Keys⁰, K⁰      Pop/1ⁱ      │
-  ⍝H │  Set/1²     SetC/1²   SortBy²  Vals⁰,  V⁰                                                        │
+  ⍝H │  Set/1²    SetC/1²    SortBy²  Vals⁰,  V⁰                                                        │
   ⍝H ├────────────────────────────────────────────────────────────────────┤  
   ⍝H │  ⁱmonadic, ²dyadic, ⁰niladic, ᵒᵖoperator(+ⁱmon, +²dyad)                       │
   ⍝H ├────────────────────────────────────────────────────────────────────┤
@@ -24,8 +24,8 @@
       Cat1∘← { 0::⍙E⍬⋄ 1: _← ⍺⍺ Set1 (Get1 ⍺⍺),  ⊂⍵ }  
            
     ⍝ Niladic fns here and below...     
-      _← ⎕FX'{_}← Clear' '_← ⎕THIS⊣ K←V←⍬'
-      _← ⎕FX'_←   Copy' '_←⎕NS ⎕THIS'
+      _← ⎕FX'{_}← Clear'   '_← ⎕THIS⊣ K←V←⍬'
+      _← ⎕FX'_←   Copy'    '_←⎕NS ⎕THIS'
       _← ⎕FX'_←   Default' '_←D' 
 
       Del∘←  { ⍺← 0 ⋄ nK← ≢K ⋄ ⍺∨ p=⍥≢ fp← p/⍨ nK> p← K⍳ ⍵: _← ⍙H 1⊣ (K V) /⍨← ⊂0@ fp⊣ nK⍴1 ⋄ ⍙E'KEY NF' } 
@@ -36,16 +36,15 @@
     ⍝ DoNA∘← {0::⍙E⍬⋄ 1: _← V[K⍳⍺]← (⍺ SetC  ⊂D) ⍺⍺ ⍵ }  ⍝ Non-atomic (SetC instantiates missing items). 2%-80% faster than Do.
       Do1∘← {0::⍙E⍬⋄ 1: _← ⍺ Set1 (Get1 ⍺) ⍺⍺  ⍵ }
 
-    ⍝ Export: 
-    ⍝ foundKeys← [force2Var←0] d.Export destNs [whichKeys← K | key1 key2...]
-      Export∘← {   
-            ⍺← 0 ⋄ f← ⍺ ⋄ dst←⊃⍵ ⋄ wk← 1↓⍵  
-        9.1≠⎕NC ⊂'dst': ⍙E'NS NM BAD' 
-            (fk fv)← { 0=≢⍵: K V ⋄ fk,⍥⊂ Get⊢ fk←⍵/⍨ ⍵∊ K } wk 
-        0= ≢fO← { 0=≢⍵: ⍬ ⋄ 0:: ⍙E'VAR NM BAD' ⋄ 0∘(7162⌶)¨ ⍵ } fk: _←⍬ 
-        f:  _← fk⊣ fv {dst⍎ ⍵,'←⍺'}¨ fO⊣ dst.⎕EX fO 
-            ok← ~0∊ 0 2∊⍨ dst.⎕NC ↑fO
-        ok: _← fk⊣ fv {dst⍎ ⍵,'←⍺'}¨ fO ⋄ ⍙E'VAR NM IN USE'
+    ⍝ Exporting from/Importing to namespaces  
+    ⍝    kk← ns [force←0] 𝒅.Export kk [← Keys, if ⍬]       ⍝ If kk=⍬, kk←K. Returns actual keys exported   
+      Export∘← { 
+            DIn←  { 0=≢⍵: K V ⋄ ⍵,⍥⊂ Get ⍵ }
+            D2A←  { 0=≢⍵: ⍬ ⋄ 0:: ⍙E'APL NM BAD' ⋄ 0∘(7162⌶)¨ ⍵ }
+            AOut← { dst⍎ ⍺,'←⍵' }¨
+        0:: ⍙E⍬ ⋄ dst f← 2↑ ⍺,0 ⋄  wk← ⍵ ⋄ 9.1≠⎕NC ⊂'dst': ⍙E'NS REF BAD' 
+            (fk fv)← DIn wk ⋄ 0= ≢fa← D2A fk: _←⍬ 
+        f:  _← fk⊣ fa AOut fv⊣ dst.⎕EX fa ⋄ ~0∊ 0 2∊⍨ dst.⎕NC ↑fa: _← fk⊣ fa AOut fv ⋄ ⍙E'VAR NM IN USE'
       }
  
       Get∘←  {
@@ -60,20 +59,13 @@
       _← ⎕FX'_← I'     '_← ↓⍉↑K V' 
 
     ⍝ Import: 
-    ⍝ foundKeys← [forceSet←0] d.Import srcNs [whichKeys← <all> | key1 key2...]
-    ⍝     forceSet:  If 1, update existing keys as well as creating new key-value pairs; 0: error if updating existing
-    ⍝     srcNs:     Namespace to import key-value pairs from. Vars will be "demangled" by JSON rules.
-    ⍝     whichKeys: names of keys to import from (possibly mangled) ns vars (if omitted: all in the namespace)
-    ⍝  Returns:
-    ⍝     foundKeys: ...
-      Import∘← {  
-            ⍺← 0 ⋄ f← ⍺ ⋄ src← ⊃⍵ ⋄  wk← 1↓⍵
-        9.1≠ ⎕NC ⊂'src': ⍙E'NS NM BAD'              
-        0= ≢fO← { 11:: ⍙E'VAR NM BAD' ⋄ fO← src.⎕NL ¯2 ⋄ 0≠≢⍵: fO∩ 0∘(7162⌶)¨ ⍵ ⋄ fO } wk: _← ⍬ 
-            fk← 1∘(7162⌶)¨ fO ⋄ fv← src.⎕OR¨  fO  
-        f:  _← fk⊣ fk Set fv 
-        1∊ fk∊ K:  ⍙E'KEY EXISTS' 
-            _← fk⊣ fk Set fv  
+    ⍝    kk← ns [force←0] 𝒅.Import kk [ ←𝐴𝑙𝑙, if ⍬ ]         ⍝ Returns actual keys imported   
+      Import∘← { 
+            AIn← { 11:: ⍙E'APL NM BAD' ⋄ fa← src.⎕NL ¯2 ⋄ 0≠≢⍵: fa∩ 0∘(7162⌶)¨ ⍵ ⋄ fa }
+            A2D← 1∘(7162⌶)¨,⍥⊂src.⎕OR¨
+        0:: ⍙E⍬ ⋄ src f← 2↑⍺,0 ⋄ wk← ⍵ ⋄ 9.1≠ ⎕NC ⊂'src': ⍙E'NS REF BAD'              
+        0= ≢fa← AIn wk: _← ⍬ ⋄ fk fv← A2D fa 
+        f: _← fk⊣ fk Set fv ⋄ ~1∊ fk∊ K: _← fk⊣ fk Set fv ⋄ ⍙E'KEY EXISTS'    
       }
       
       _← ⎕FX'_← Items' '_← ↓⍉↑K V' 
@@ -100,7 +92,7 @@
       Set1∘← { ⍺←⊢ ⋄ k v← ⍺ ⍵ ⋄ (≢K)> p← K⍳ ⊂k: (p⊃ V)← v ⋄ K,∘⊂← k ⋄ 1: _← ⍙H v ⊣ V,∘⊂← v }
     
     ⍝ SetC/SetC1: "Set Conditionally"
-    ⍝ Like Set/1, but only stores a value for the first occurrence of a new key.
+    ⍝ Like Set/1, but only stores a value for each undefined key (once defined, SetC will not update it).
     ⍝ See Help Info below.  Like Python method setdefault().
     ⍝ ──────────────────────────── 
     ⍝ mo: mask of "old" keys; mu: mask of *unique* new keys.
@@ -115,7 +107,7 @@
 
       _← ⎕FX'_← Vals' '_←V' 
 
-    ⍝ ⎕THIS.∆DICT: A user- and internally-accessible method, for d.∆DICT 'Help', etc.
+    ⍝ ⎕THIS.∆DICT: A user- and internally-accessible method, required for d.∆DICT 'Help', etc.
       ∆DICT∘← ⍺⍺ 
     
     ⍝ ┌────────────────────────────────────────────────────┐
@@ -129,17 +121,17 @@
       ⍙C∘← { 1=≢⍵: (≢⍺)⍴ ⍵ ⋄ ⍺ ≠⍥≢ ⍵: ⍙E'LEN' ⋄ ⍵ }
       ⍙H∘← { ×1(1500⌶)K: ⍵ ⋄ ⍵⊣ K∘← 1500⌶K }     
       ⍙E∘←  ⎕SIGNAL/ '∆DICT '{ 
-        0=≢⍵: ⎕DMX.((⍺⍺,EM)EN)                                  ⍝ 0:: ⍙E⍬
-            e←  ⊂ 11 'DOMAIN ERROR. See ∆DICT ''help''.'           'DOMAIN' 
-            e,← ⊂ 11 'DOMAIN ERROR. Obj not a namespace'           'NS NM BAD'
-            e,← ⊂ 11 'DOMAIN ERROR. Conflict in name use'          'VAR NM IN USE'
-            e,← ⊂ 11 'LENGTH ERROR'                                'LEN'
-            e,← ⊂  5 'KEY ERROR. Key(s) not found'                 'KEY NF'
-            e,← ⊂  3 'KEY ERROR. Key(s) already exist'             'KEY EXISTS' 
-            e,← ⊂ 11 'KEY ERROR. Could not convert to APL varname' 'VAR NM BAD'
-            e,← ⊂911 'Unknown error!'                              'UNKNOWN'
-            e← ↑e ⋄  p← (¯1+≢e)⌊ e[;2]⍳ ⊂⍵
-        e[p;0],⍨ ⊂⍺⍺, e⊃⍨⊂p 1
+        0=≢⍵: ⎕DMX.((⍺⍺,EM)EN)                                    ⍝ 0:: ⍙E⍬
+            e ← ⊂  3 'KEY ERROR. Key(s) not found'                 'KEYNF'
+            e,← ⊂  5 'LENGTH ERROR'                                'LEN'
+            e,← ⊂ 11 'DOMAIN ERROR. See ∆DICT ''help''.'           'DOMAIN' 
+            e,← ⊂ 11 'DOMAIN ERROR. Invalid namespace ref'         'NSREFBAD'
+            e,← ⊂ 11 'DOMAIN ERROR. Conflict in name use'          'VARNMINUSE'
+            e,← ⊂ 11 'DOMAIN ERROR. Invalid APL name'              'APLNMBAD'
+            e,← ⊂ 63 'KEY ERROR. Key(s) already exist'             'KEYEXISTS' 
+            e,← ⊂911 'UNKNOWN ERROR'                               'UNKNOWN'
+            e← ↑e ⋄  p← (¯1+≢e)⌊ e[;2]⍳ ⊂⍵~' '    ⍝ ⍵'s spaces are ignored!
+        e[p;0],⍨ ⊂⍺⍺, ⊃e[p;1]
       }
     
     ⍝ ┌──────────────────────────────────────────┐
@@ -170,9 +162,15 @@
   ⍝H │   ○ The dictionary maintains items in order of creation            │
   ⍝H │     or as sorted (see SortBy).                                     │
   ⍝H │   ○ Novel methods include  op Do/Do1  and  Cat/Cat1 (see below).   │
-  ⍝H │      keys← 'NYT' 'TOL' ⋄ news← 0 ∆DICT ⍬                           │
-  ⍝H │      keys +news.Do 1        ⍝ ==> keys news.Set 1+ news.Get keys   │
-  ⍝H │      'TOL +news.Do1 1       ⍝ ==> keys news.Set 1+ news.Get keys   │
+  ⍝H │      keys← 'NYT' 'TOL'                                             │
+  ⍝H │      news← 0 ∆DICT ⍬    ⍝ All entries have default value 0         │
+  ⍝H │      keys +news.Do  1   ⍝ 1 <== keys news.Set  1+ news.Get keys    │
+  ⍝H │      'TOL'+news.Do1 1   ⍝ 2 <== 'TOL'news.Set1 1+ news.Get1'TOL'   │
+  ⍝H │    ┌───────┬───────┐                                               │
+  ⍝H │    │┌───┬─┐│┌───┬─┐│                                               │
+  ⍝H │    ││NYT│1│││TOL│2││                                               │
+  ⍝H │    │└───┴─┘│└───┴─┘│                                               │
+  ⍝H │    └───────┴───────┘                                               │
   ⍝H ├────────────────────────────────────────────────────────────────────┤   
   ⍝H │   Function:  ∆DICT                                                 │
   ⍝H │   Load via   ]LOAD ∆DICT                                           │
@@ -183,16 +181,17 @@
   ⍝H │   𝐃𝐢𝐜𝐭𝐢𝐨𝐧𝐚𝐫𝐲 𝐂𝐫𝐞𝐚𝐭𝐢𝐨𝐧                                              │
   ⍝H └─────────────────────────────────────────────────────────────────┘
   ⍝H 
-  ⍝H [a] d← [default←⍬] ∆DICT kk vv              where vectors of keys and values: kk ≡⍥≢ vv
-  ⍝H                                             ('key1' 'key2') ((○1)(○?1000))
-  ⍝H                          ↓⍉↑kv1 kv2...      where kvN is an "item" (a key-value pair), 
-  ⍝H                                             ('key1' (○1)) ('key2' (○?1000))
-  ⍝H [b] d← [default←⍬] ∆DICT ⍬                  generates an empty dictionary (with default value ⍬)
+  ⍝H [a]  d← [default←⍬] ∆DICT kk vv              where vectors of keys kk and values vv, such that: kk ≡⍥≢ vv.
+  ⍝H      e.g.           ∆DICT ('key1' 'key2') ((○1)(○?1000))
+  ⍝H [or] d← [default←⍬] ∆DICT ↓⍉↑⍝               starting with key-value pairs
+  ⍝H      e.g.           ∆DICT ↓⍉↑('John' 'Smith')('Mary' 'Jones')   
+  ⍝H [b]  d← [default←⍬] ∆DICT ⍬                  generates an empty dictionary (with default value ⍬)
   ⍝H
-  ⍝H Returns a dictionary namespace 𝒅 containing a hashed, ordered list of items and a set of service functions.
-  ⍝H The default value is set to ⍬. A useful default value for counters is 0.
+  ⍝H [a], [b] return a dictionary namespace 𝒅 containing a hashed, ordered list of items and a set of service functions.
+  ⍝H The default value is set to ⍬. A useful default value for counters is 0. 
+  ⍝H The method 𝒅.Get allows an ad hoc default to used in place of the dictionary-wide default.
   ⍝H
-  ⍝H [c] [𝒅.]∆DICT 'Help'                        shares this help information (the case of keyword 'Help' is ignored).
+  ⍝H [c]  [𝒅.]∆DICT 'Help'                        shares this help information (the case of keyword 'Help' is ignored).
   ⍝H
   ⍝H ┌──────────────────────┐
   ⍝H │   𝐃𝐢𝐜𝐭𝐢𝐨𝐧𝐚𝐫𝐲 𝐌𝐞𝐭𝐡𝐨𝐝𝐬   │
@@ -203,8 +202,7 @@
   ⍝H │   𝒌: a (disclosed) key     𝒌𝒌: 1 (enclosed) or more keys                 │
   ⍝H │   𝒗: a (disclosed) value   𝒗𝒗: 1 (enclosed) or more values                │
   ⍝H │                           𝒗𝒗*: If (⊂v), scalar extension applies            │   
-  ⍝H │                       𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀*: Scalar extension 𝗱𝗼𝗲𝘀 apply                │     
-  ⍝H │                       𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀†: Scalar extension 𝗱𝗼𝗲𝘀 𝗻𝗼𝘁 apply            │     
+  ⍝H │                       𝗱𝗲𝗳𝗮𝘂𝗹𝘁𝘀*: Scalar extension 𝗱𝗼𝗲𝘀 apply                │        
   ⍝H │   𝒂:  arbitrary data       𝒂𝒂: any (enclosed) list of arbitrary data      │
   ⍝H │   𝒃:  Boolean value        𝒃𝒃: Boolean values                          │
   ⍝H │                            𝒔𝒔: sortable keys                           │
@@ -277,12 +275,17 @@
   ⍝H └────────────────────┘    
   ⍝H    Exporting from/Importing to namespaces  
   ⍝H         [Keys must be simple strings, converted to/from APL names via JSON "mangling," Dyalog I-beam (7162⌶).]
-  ⍝H                           kk← [force] 𝒅.Export ns [ kk ]        Returns keys exported   
-  ⍝H                                force: Overwrite vars in fn/op classes
-  ⍝H                                ns:    A valid namespace ref              
-  ⍝H                           kk← [force] 𝒅.Import ns [ kk ]        Returns keys imported
-  ⍝H                                force: Overwrite existing keys
+  ⍝H                  kk← ns [force←0] 𝒅.Export kk [← Keys, if ⍬ ]         Returns actual keys exported   
+  ⍝H                                force: Overwriting vars in fn/op classes allowed (else error)                                    
+  ⍝H                                ns:    A valid namespace ref     
+  ⍝H                                kk:    keys to export to ns (if omitted: all keys in dictionary). 
+  ⍝H                                       If a key is specified, but not in the dictionary, it is exported with the
+  ⍝H                                       default value (if consistent with <force> and available APL names).
+  ⍝H                  kk← ns [force←0] 𝒅.Import [ kk← 𝐴𝑙𝑙, if ⍬ ]           Returns actual keys imported
+  ⍝H                                force: Overwriting existing keys allowed (else error)                                    
   ⍝H                                ns:    A valid namespace ref  
+  ⍝H                                kk:    sequence of keys to import (if omitted: all vars in ns 
+  ⍝H                                       are imported as key-val pairs, if <force> allows).
   ⍝H    Modifying Values:         
   ⍝H       [Apply <𝗼𝗽 a>]       vv← kk (op 𝒅.Do)  aa                 Performs (vv op aa), where vv are the 
   ⍝H                                                                    values for keys kk.  𝒅.Do is atomic.
@@ -295,9 +298,9 @@
   ⍝H ┌────────────────────────────────      Cat1, Cat        ─────────────────────────────────┐
   ⍝H │  While Cat is a regular dyadic fn, Cat1 is an operator, making repeat ops easy.        │  
   ⍝H │    'item' d.Cat1¨ 'this' 'that'       ⍝ Same as: ('item' d.Cat1)¨ 'this' 'that'           │
-  ⍝H │  as equiv. to                                                                              │
+  ⍝H │  This is equiv. to                                                                         │
   ⍝H │    (⊂'item') d.Cat 'this' 'that'                                                       │     
-  ⍝H │  catenating two items ('this' and 'that) in turn as shown here:                        │
+  ⍝H │  Each catenates two items ('this' and 'that) to the existing (default) value ⍬.        │
   ⍝H │    d.Get1'item'                                                                        │
   ⍝H │  ┌───────────┐                                                                         │
   ⍝H │  │┌────┬────┐│                                                                         │
@@ -333,14 +336,17 @@
   ⍝H ┌────────────────────────────┐
   ⍝H │ Other Info: Python Equiv.  │
   ⍝H └────────────────────────────┘
-  ⍝H ┌───────────────   ∆DICT / Python Equiv.   ─────────────────┐
-  ⍝H │  Cat      Clear        Copy         Default/D  Do/1       │
-  ⍝H │  ---      clear()      Copy()       ---        ---        │
-  ⍝H │                                                           │
-  ⍝H │  Export   Get/1        ∊, HasKey/s  Import     Items/I    │
-  ⍝H │   ---     get(), []    in            ---      items()     │
-  ⍝H │                                                           │
-  ⍝H │  Keys/K  Pop/1  Set/1  SetC/1       SortBy     Vals/V     │
-  ⍝H │  keys()  pop() []=     setdefault()  ---       values()   │
-  ⍝H └───────────────────────────────────────────────────────────┘
+  ⍝H ┌────────────────────   ∆DICT / Python Equiv.   ─────────────────┐
+  ⍝H ∆  Cat       Clear       Copy      Default/D   Do/1    Export    ∆
+  ⍝H │  ***       clear()     copy()       ***      ***      ***      │
+  ⍝H │                                                                │
+  ⍝H ∆  Get/1     ∊,HasKey/s  Import    Items/I     Keys/K  Pop/1     ∆
+  ⍝H │  get(),[]  in           ***      items()     keys()  pop()     │
+  ⍝H │                                                                │
+  ⍝H ∆  Set/1                 SetC/1                SortBy  Vals/V    ∆
+  ⍝H │  []=,update(),         setdefault()           ***    values()  │
+  ⍝H │  fromkeys()                                                    │
+  ⍝H ├────────────────────────────────────────────────────────────────┤   
+  ⍝H │  *** => Supported in Python via other means!                   │
+  ⍝H └────────────────────────────────────────────────────────────────┘
 }
