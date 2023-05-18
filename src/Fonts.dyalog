@@ -67,7 +67,7 @@
         rF← ⍺⍺
         ⍺← 0 0 ⋄ 0=≢⍺: ⍵ ⋄ mode style← 2↑⍺
         mode=0: { rF[  lenFont| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
-        fontNum← ⎕UCS fontStyles⊃⍨ style (¯1+mode) 
+        fontNum←  ⎕UCS fontStyles⊃⍨ style (¯1+mode) 
         thisFont← ⎕UCS fontNum+ ⍳lenFont   
         { thisFont[ rF⍳ ⍵ ] } @ ( ⍸⍵∊ rF )⊢ ⍵
     }
@@ -149,7 +149,7 @@
             sans← '_'=⍬⍴Fld 1                              ⍝ sans shift (1) or serif (0)?
             nshift sans MapStdF Fld 3  
       } 
-      ⊢lines← ConvertShifts ConvertSupSub ⍵ 
+      ⊣ ConvertShifts ConvertSupSub ⍵   
     }                    
  
     DeVV← { ⊃⍣(1=≢⍵)⊢⍵ }                                 ⍝ If one string, convert to simple vector
