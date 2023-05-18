@@ -1,5 +1,5 @@
 ﻿Fonts←{ 
-  ⍝ Fonts:   
+  ⍝ Fonts:    
   ⍝   A silly fn that maps unicode alphabetic characters onto unicode-specific alternate
   ⍝   modes (italics, bold, bold italics) and fonts (serif, sans serif, and monospace), using
   ⍝   shift "quotes" consisting of asterisks (*), underscores (_), and backticks (`), 
@@ -55,7 +55,8 @@
     ss0_uni← ⎕UCS '⁰₀'                                     ⍝ Unicode for superscript/subscript 0 (8304 8320).  
  
   ⍝ MapF:
-  ⍝   string2← [⍺← mode style] (refFont ∇) string1 
+  ⍝   string2← [⍺← mode style] (font ∇) string1 
+  ⍝       ⍺⍺:   "Font" to convert (52 letters)
   ⍝       ⍺:    (mode←0),(style←0)
   ⍝       0=≢⍺: Return string1
   ⍝         mode:   0=normalize, i.e. revert shifted chars to the standard ⎕A font.
@@ -63,13 +64,14 @@
   ⍝         style:  0=use serif font, 1=use sans serif font, 2=use monospace font
   ⍝   Returns string2: string1 with chars mapped per mode above and serif/sans serif/monospace fonts   
     MapF←{ 
-        refFont← stdFont
+        rF← ⍺⍺
         ⍺← 0 0 ⋄ 0=≢⍺: ⍵ ⋄ mode style← 2↑⍺
-        mode=0: { refFont[  lenFont| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
+        mode=0: { rF[  lenFont| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
         fontNum← ⎕UCS fontStyles⊃⍨ style (¯1+mode) 
         thisFont← ⎕UCS fontNum+ ⍳lenFont   
-        { thisFont[ refFont⍳ ⍵ ] } @ ( ⍸⍵∊ refFont )⊢ ⍵
+        { thisFont[ rF⍳ ⍵ ] } @ ( ⍸⍵∊ rF )⊢ ⍵
     }
+    MapStdF← stdFont MapF
 
   ⍝ Invert: 
   ⍝    Transform strings mapped onto Unicode fonts back to one with regular alphabetic text 
@@ -105,7 +107,7 @@
                 Fld← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block}  
                 FlipSp← ⊢(↓,⍥⊂↑)⍨ (-+/⍤(∧\ ' '=⌽))       ⍝ Put closing shift BEFORE trailing spaces
                 f0 trail← FlipSp Fld 0  
-                trail,⍨ shift, shift,⍨ MapF f0 
+                trail,⍨ shift, shift,⍨ MapStdF f0 
               }⊢lines
             }¨fV
         } 
@@ -141,13 +143,13 @@
             escI litI monoI boldItalI boldItal italI← ⍳6
             Fld ← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block }
         Case escI litI: Fld 1                              ⍝ escapes, literals
-        Case monoI:   1 2 MapF Fld 2                    ⍝ monospace (2)
+        Case monoI:   1 2 MapStdF Fld 2                    ⍝ monospace (2)
       ⍝ Else...
             nshift← 6-⍵.PatternNum                         ⍝ # of shift symbols (1=ital, 2=bold, 3=bold ital)                  
             sans← '_'=⍬⍴Fld 1                              ⍝ sans shift (1) or serif (0)?
-            nshift sans MapF Fld 3  
+            nshift sans MapStdF Fld 3  
       } 
-      ConvertShifts ConvertSupSub ⍵ 
+      ⊢lines← ConvertShifts ConvertSupSub ⍵ 
     }                    
  
     DeVV← { ⊃⍣(1=≢⍵)⊢⍵ }                                 ⍝ If one string, convert to simple vector
@@ -155,6 +157,6 @@
   ⍝ EXECUTIVE...
     ¯1=action: DeVV Invert  ⊆⍵
      0=action: DeVV Convert ⊆⍵                          
-     1=action: DeVV Convert MapF¨ ⊆⍵                  ⍝ action? Map alt fonts to std BEFORE processing.
+     1=action: DeVV Convert MapStdF¨ ⊆⍵                  ⍝ action? Map alt fonts to std BEFORE processing.
      ⎕SIGNAL 11
 }
