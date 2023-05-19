@@ -53,7 +53,6 @@
     stdFontLen← ≢stdFont
     altFonts← (1500⌶) ∊⎕UCS (⎕UCS ∊fontStyles) ∘.+ ⍳52     ⍝ shifted fonts: UC,LC contiguous
     ss0_uni← ⎕UCS '⁰₀'                                     ⍝ Unicode for superscript/subscript 0 (8304 8320).  
-    LetterAnyP←  { '[',']',⍨ ⎕UCS (stdFont⍳⍵)+⎕UCS ∊fontStyles }
   
   ⍝ MapF:
   ⍝   string2← [⍺← mode style] (font ∇) string1 
@@ -119,16 +118,16 @@
         RestoreShifts RestoreMisc ⍵
     }   
 
-  ⍝ Convert:
+  ⍝ ScanFields:
   ⍝    Convert fonts, superscripts, etc., based on shifts and prefixes.
-  ⍝    See ConvertSupSub, ConvertShifts
+  ⍝    See Scan4SupSub, Scan4Shifts
   ⍝ strings← ∇ strings
   ⍝ 
-    Convert← {
+    ScanFields← {
       ⍺← stdFont ⋄ curF← ⍺
-    ⍝ ConvertSupSub: Prefixes for numeric superscripts ^123, ∧123 and subscripts ∨123 inside or outside shifts.
+    ⍝ Scan4SupSub: Prefixes for numeric superscripts ^123, ∧123 and subscripts ∨123 inside or outside shifts.
       sSPV← '\\([\^∧∨])' '([\^∧∨])([0-9]+)'                ⍝ ^∧ can be confused. Both are allowed as superscript prefixes.
-      ConvertSupSub← sSPV ⎕R {
+      Scan4SupSub← sSPV ⎕R {
         ⍝ Import: ss0_uni  
           Fld← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block}  
         ⍵.PatternNum=0: Fld 1                              ⍝ Escaped: Skip
@@ -136,7 +135,7 @@
           ∊⎕UCS ucs0+ ⎕D⍳ Fld 2                            ⍝ Map from ⎕D to super or subscript range
       }
 
-    ⍝ ConvertShifts: Select mode and font based on the shift using asterisks, underscores, and back ticks (see above).
+    ⍝ Scan4Shifts: Select mode and font based on the shift using asterisks, underscores, and back ticks (see above).
       escP←  '(?<!\\)\\([*_`])'                            ⍝ escape shift
       litP←  '(\*{4,}|_{4,}|`{2,})'                        ⍝ shift literals
       monoP← '(`)((\\`|.)*?)`'                             ⍝ monospace shift
@@ -144,7 +143,7 @@
           '(([*_])\2{','})((\\\2|.)*?)\1',⍨⍕¯1+⍵ 
       }¨3 2 1     
       shiftPV←  escP litP monoP boldItalP boldP italP             
-      ConvertShifts← shiftPV ⎕R {
+      Scan4Shifts← shiftPV ⎕R {
             Case← ⍵.PatternNum∘∊
             escI litI monoI boldItalI boldI italI← ⍳6
             Fld ← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block }
@@ -154,19 +153,19 @@
             nshift← 6-⍵.PatternNum                         ⍝ # of shift symbols (1=ital, 2=bold, 3=bold ital)                  
             sans← '_'=⍬⍴Fld 1                              ⍝ sans shift (1) or serif (0)?
           ⍝ Recursive, but not additive, shift detection
-            (GetF nshift sans) Convert nshift sans (curF MapF) Fld 3  
+            (GetF nshift sans) ScanFields nshift sans (curF MapF) Fld 3  
       } 
 
-      ⊣ ConvertShifts ConvertSupSub ⍵   
+      ⊣ Scan4Shifts Scan4SupSub ⍵   
     }   
-    ConvertLast← { nP← LetterAnyP 'n' ⋄ NL← ⎕UCS 10 ⋄ '\\{2}' ('\\(',nP,')')  ⎕R '\\'  NL⊣ ⍵ }
-    ConvertAll← ConvertLast Convert
+    ScanNL← '\\{2}' '\\n' ⎕R '\\' '\n'
+    ScanAll← ScanFields  ScanNL
   
     DeVV← { ⊃⍣(1=≢⍵)⊢⍵ }                                 ⍝ If one string, convert to simple vector
 
   ⍝ EXECUTIVE...
     ¯1=action: DeVV Invert  ⊆⍵
-     0=action: DeVV ConvertAll ⊆⍵                          
-     1=action: DeVV ConvertAll MapStdF¨ ⊆⍵      ⍝ action? Map alt fonts to std BEFORE processing.
+     0=action: DeVV ScanAll ⊆⍵                          
+     1=action: DeVV ScanAll MapStdF¨ ⊆⍵      ⍝ action? Map alt fonts to std BEFORE processing.
      ⎕SIGNAL 11
 }
