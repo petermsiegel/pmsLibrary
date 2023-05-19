@@ -53,8 +53,8 @@
     stdFontLen← ≢stdFont
     altFonts← (1500⌶) ∊⎕UCS (⎕UCS ∊fontStyles) ∘.+ ⍳52     ⍝ shifted fonts: UC,LC contiguous
     ss0_uni← ⎕UCS '⁰₀'                                     ⍝ Unicode for superscript/subscript 0 (8304 8320).  
-    NL← ⎕UCS 10
- 
+    LetterAnyP←  { '[',']',⍨ ⎕UCS (stdFont⍳⍵)+⎕UCS ∊fontStyles }
+  
   ⍝ MapF:
   ⍝   string2← [⍺← mode style] (font ∇) string1 
   ⍝       ⍺⍺:   "Font" to convert (52 letters)
@@ -71,6 +71,7 @@
         sinkF← GetF mode style   
         { sinkF[ srcF⍳ ⍵ ] } @ ( ⍸⍵∊ srcF )⊢ ⍵
     }
+    MapStdF← stdFont MapF 
     GetF←{ 
         mode style← ⍵
         a_uni←  ⎕UCS fontStyles⊃⍨ style (mode-1) 
@@ -111,12 +112,12 @@
                 Fld← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block}  
                 FlipSp← ⊢(↓,⍥⊂↑)⍨ (-+/⍤(∧\ ' '=⌽))       ⍝ Put closing shift BEFORE trailing spaces
                 f0 trail← FlipSp Fld 0  
-                trail,⍨ shift, shift,⍨ (stdFont MapF) f0 
+                trail,⍨ shift, shift,⍨ MapStdF f0 
               }⊢lines
             }¨fV
         } 
         RestoreShifts RestoreMisc ⍵
-    }     
+    }   
 
   ⍝ Convert:
   ⍝    Convert fonts, superscripts, etc., based on shifts and prefixes.
@@ -136,7 +137,7 @@
       }
 
     ⍝ ConvertShifts: Select mode and font based on the shift using asterisks, underscores, and back ticks (see above).
-      escP←  '(?<!\\)\\([*_`\\n])'                         ⍝ escape shift
+      escP←  '(?<!\\)\\([*_`])'                            ⍝ escape shift
       litP←  '(\*{4,}|_{4,}|`{2,})'                        ⍝ shift literals
       monoP← '(`)((\\`|.)*?)`'                             ⍝ monospace shift
       boldItalP boldP italP← {                             ⍝ multiple shifts ***, ___, etc.
@@ -147,8 +148,7 @@
             Case← ⍵.PatternNum∘∊
             escI litI monoI boldItalI boldI italI← ⍳6
             Fld ← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block }
-        Case escI: NL f⊃⍨'n'⍳⍥,f←Fld 1                      ⍝ escapes
-        Case litI: Fld 1                                   ⍝ literals
+        Case escI litI: Fld 1                              ⍝ escapes, literals
         Case monoI:   1 2 (curF MapF) Fld 2                ⍝ monospace (2)
       ⍝ Else...
             nshift← 6-⍵.PatternNum                         ⍝ # of shift symbols (1=ital, 2=bold, 3=bold ital)                  
@@ -156,14 +156,17 @@
           ⍝ Recursive, but not additive, shift detection
             (GetF nshift sans) Convert nshift sans (curF MapF) Fld 3  
       } 
+
       ⊣ ConvertShifts ConvertSupSub ⍵   
-    }                    
- 
+    }   
+    ConvertLast← { nP← LetterAnyP 'n' ⋄ NL← ⎕UCS 10 ⋄ '\\{2}' ('\\(',nP,')')  ⎕R '\\'  NL⊣ ⍵ }
+    ConvertAll← ConvertLast Convert
+  
     DeVV← { ⊃⍣(1=≢⍵)⊢⍵ }                                 ⍝ If one string, convert to simple vector
 
   ⍝ EXECUTIVE...
     ¯1=action: DeVV Invert  ⊆⍵
-     0=action: DeVV Convert ⊆⍵                          
-     1=action: DeVV Convert (stdFont MapF)¨ ⊆⍵                  ⍝ action? Map alt fonts to std BEFORE processing.
+     0=action: DeVV ConvertAll ⊆⍵                          
+     1=action: DeVV ConvertAll MapStdF¨ ⊆⍵      ⍝ action? Map alt fonts to std BEFORE processing.
      ⎕SIGNAL 11
 }
