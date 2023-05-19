@@ -50,7 +50,7 @@
     fontStyles← ,¨'𝐴𝐀𝑨' '𝘈𝗔𝘼' '𝙰' 
     shiftStyles← '*' '**' '***' '_' '__' '___' '`' 
     stdFont← (1500⌶) ⎕A,⎕C ⎕A                              ⍝ std font:      UC,LC not contiguous 
-    lenFont← ≢stdFont
+    stdFontLen← ≢stdFont
     altFonts← (1500⌶) ∊⎕UCS (⎕UCS ∊fontStyles) ∘.+ ⍳52     ⍝ shifted fonts: UC,LC contiguous
     ss0_uni← ⎕UCS '⁰₀'                                     ⍝ Unicode for superscript/subscript 0 (8304 8320).  
  
@@ -63,15 +63,14 @@
   ⍝                 1=italics,  2=bold,  3=bold italics,             
   ⍝         style:  0=use serif font, 1=use sans serif font, 2=use monospace font
   ⍝   Returns string2: string1 with chars mapped per mode above and serif/sans serif/monospace fonts   
-    MapF←{ 
-        rF← ⍺⍺
+    MapStdF←{ 
+        srcF← stdFont
         ⍺← 0 0 ⋄ 0=≢⍺: ⍵ ⋄ mode style← 2↑⍺
-        mode=0: { rF[  lenFont| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
-        fontNum←  ⎕UCS fontStyles⊃⍨ style (¯1+mode) 
-        thisFont← ⎕UCS fontNum+ ⍳lenFont   
-        { thisFont[ rF⍳ ⍵ ] } @ ( ⍸⍵∊ rF )⊢ ⍵
+        mode=0: { srcF[  stdFontLen| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
+        a_uni←  ⎕UCS fontStyles⊃⍨ style (¯1+mode) 
+        sinkF← ⎕UCS a_uni+ ⍳stdFontLen   
+        { sinkF[ srcF⍳ ⍵ ] } @ ( ⍸⍵∊ srcF )⊢ ⍵
     }
-    MapStdF← stdFont MapF
 
   ⍝ Invert: 
   ⍝    Transform strings mapped onto Unicode fonts back to one with regular alphabetic text 
@@ -140,7 +139,7 @@
       shiftPV←  escP litP monoP boldItalP boldP italP             
       ConvertShifts← shiftPV ⎕R {
             Case← ⍵.PatternNum∘∊
-            escI litI monoI boldItalI boldItal italI← ⍳6
+            escI litI monoI boldItalI boldI italI← ⍳6
             Fld ← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block }
         Case escI litI: Fld 1                              ⍝ escapes, literals
         Case monoI:   1 2 MapStdF Fld 2                    ⍝ monospace (2)
