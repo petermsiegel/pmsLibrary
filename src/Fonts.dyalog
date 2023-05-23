@@ -49,14 +49,13 @@
 
     fontStyles← ,¨'𝐴𝐀𝑨' '𝘈𝗔𝘼' '𝙰' 
     shiftStyles← '*' '**' '***' '_' '__' '___' '`' 
+    shiftUS←  '``'                                         ⍝ underscores handled separately
+    US←       ⎕UCS 818                                     ⍝ See MapF, RestoreUS
     stdFont← (1500⌶) ⎕A,⎕C ⎕A                              ⍝ std font:      UC,LC not contiguous 
     stdFontLen← ≢stdFont
     altFonts← (1500⌶) ∊⎕UCS (⎕UCS ∊fontStyles) ∘.+ ⍳52     ⍝ shifted fonts: UC,LC contiguous
-    zeroSS_dec←  ⎕UCS '⁰₀'                                 ⍝ Unicode for superscript/subscript 0 (8304 8320).  
-  ⍝ underscore related...
-    shiftUS←  '``'   
-    US←       ⎕UCS 818
-
+    ZERO_ss_dec←  ⎕UCS '⁰₀'                                 ⍝ Unicode for superscript/subscript 0 (8304 8320).  
+ 
   ⍝ MapF:
   ⍝   string2← [⍺← mode style] (font ∇) string1 
   ⍝       ⍺⍺:   "Font" to convert (52 letters)
@@ -70,7 +69,7 @@
       ⍝ Imports: US
         srcF← ⍺⍺
         ⍺← 0 0 0 ⋄ 0=≢⍺: ⍵ ⋄ mode style under← 3↑⍺
-        under:  ∊⍵,¨US 
+        under:  ∊⍵,¨US                                      ⍝ A unicode underscore directly follows each symbol
         mode=0: { srcF[  stdFontLen| altFonts⍳ ⍵ ] }@ ( ⍸⍵∊ altFonts )⊣ ⍵
         sinkF← GetF mode style   
         { sinkF[ srcF⍳ ⍵ ] } @ ( ⍸⍵∊ srcF )⊢ ⍵
@@ -88,24 +87,24 @@
   ⍝    strings← ∇ strings
   ⍝
     Invert←{   
-      ⍝ Import: zeroSS_dec 
+      ⍝ Import: ZERO_ss_dec 
         ⋄  lit4P←   '[\*_]{4,}' 
         ⋄  lit2P←   '`{2,}' 
         ⋄  escP←    '[*_`]' 
-        ⋄  superP←  '[',sa,'-',sz,']+' ⊣ sa sz← ⎕UCS zeroSS_dec[0]+ 0 9
-        ⋄  subP←    '[',sa,'-',sz,']+' ⊣ sa sz← ⎕UCS zeroSS_dec[1]+ 0 9
+        ⋄  superP←  '[',sa,'-',sz,']+' ⊣ sa sz← ⎕UCS ZERO_ss_dec[0]+ 0 9
+        ⋄  subP←    '[',sa,'-',sz,']+' ⊣ sa sz← ⎕UCS ZERO_ss_dec[1]+ 0 9
         RestoreMisc← lit4P lit2P escP superP subP ⎕R {
             lit4I lit2I escI superI subI← 0 1 2 3 4
             Fld←   ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block} 
             PCase← ⍵.PatternNum∘∊
             PCase lit4I lit2I: Fld 0
             PCase escI:    '\',Fld 0
-            PCase superI:  '^', ⎕D[ (zeroSS_dec[0]+ ⍳9)⍳ ⎕UCS Fld 0 ] ⍝ map superscript digits to ⎕D
-            PCase subI:    '∨', ⎕D[ (zeroSS_dec[1]+ ⍳9)⍳ ⎕UCS Fld 0 ] ⍝ map subscript     "     " " 
+            PCase superI:  '^', ⎕D[ (ZERO_ss_dec[0]+ ⍳9)⍳ ⎕UCS Fld 0 ] ⍝ map superscript digits to ⎕D
+            PCase subI:    '∨', ⎕D[ (ZERO_ss_dec[1]+ ⍳9)⍳ ⎕UCS Fld 0 ] ⍝ map subscript     "     " " 
         }         
 
-            D2H← (⎕D,'ABCDEF')⌷⍨∘⊂16∘⊥⍣¯1   
-        RestoreUnder← ( '(.\x{', '})+',⍨  D2H ⎕UCS US ) ⎕R {  shiftUS (⊣,⊢,⊣) ⍵.Match~ US }  
+        ⋄  D2H← (⎕D,'ABCDEF')⌷⍨∘⊂16∘⊥⍣¯1                 ⍝ pcre patterns like hexadecimal unicode!
+        RestoreUS← ( '(.\x{', '})+',⍨  D2H ⎕UCS US ) ⎕R {  shiftUS (⊣,⊢,⊣) ⍵.Match~ US }  
 
         RestoreShifts← shiftStyles (∊fontStyles)∘ { 
             (sV fV) lines← ⍺ ⍵
@@ -124,7 +123,7 @@
               }⊢lines
             }¨fV
         } 
-        RestoreUnder RestoreShifts RestoreMisc ⍵
+        RestoreUS RestoreShifts RestoreMisc ⍵
     }   
 
   ⍝ ScanLines:
@@ -132,24 +131,25 @@
   ⍝    See Scan4SupSub, Scan4Shifts
   ⍝ strings← ∇ strings   ⍝  
   ⍝ 
-    _ShiftGen← { 
+    SG← {                                                 ⍝ SG: Generate Shift Sequences
       '(?x) ( ([', ⍵, ']) \2{','}) ((\\\2|.)*) \1 (?!\2)',⍨⍕¯1+⍺ 
-    }
-      escP←  '(?x) (?| (?<!\\)\\([*_`]) | (?<=\s)([*_`])(?=\s))'         ⍝ escape shift
-      litP←  '(\*{4,}|_{4,}|`{3,})'                        ⍝ shift literals
-      underP←  2 _ShiftGen '`'                             ⍝ underscores, ignores mode!
-      monoP←   1 _ShiftGen '`'                             ⍝ monospace shift
-      boldItalP boldP italP← 3 2 1 _ShiftGen¨ ⊂'_*'     
+    } 
+      escP←   '(?x) (?| (?<!\\)\\([*_`]) '                 ⍝ escape shift
+      escP,←         '| (?<=\s)([*_`])(?=\s))'
+      litP←   '(\*{4,}|_{4,}|`{3,})'                       ⍝ shift literals
+      underP←  2 SG '`'                                    ⍝ underscores, ignores mode!
+      monoP←   1 SG '`'                                    ⍝ monospace shift
+      boldItalP boldP italP← 3 2 1 SG¨⊂ '_*'     
 
     ScanLines← {
       ⍺← stdFont ⋄ curF← ⍺
     ⍝ Scan4SupSub: Prefixes for numeric superscripts ^123, ∧123 and subscripts ∨123 inside or outside shifts.
       sSPV← '\\([\^∧∨])' '([\^∧∨])([0-9]+)'                ⍝ ^∧ can be confused. Both are allowed as superscript prefixes.
       Scan4SupSub← sSPV ⎕R {
-        ⍝ Import: zeroSS_dec  
+        ⍝ Import: ZERO_ss_dec  
           Fld← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block}  
         ⍵.PatternNum=0: Fld 1                              ⍝ Escaped: Skip
-          ucs0← zeroSS_dec[0 0 1]/⍨ '^∧∨'= ⊃Fld 1             ⍝ Select unicode starting at super/sub-script 0
+          ucs0← ZERO_ss_dec[0 0 1]/⍨ '^∧∨'= ⊃Fld 1             ⍝ Select unicode starting at super/sub-script 0
           ∊⎕UCS ucs0+ ⎕D⍳ Fld 2                            ⍝ Map from ⎕D to super or subscript range
       }
 
