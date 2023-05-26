@@ -131,12 +131,12 @@
   ⍝    See Scan4SupSub, Scan4Shifts
   ⍝ strings← ∇ strings   ⍝  
   ⍝ 
-    SG← {                                                 ⍝ SG: Generate Shift Sequences
-      '(?x) ( ([', ⍵, ']) \2{','}) ((\\\2|.)*) \1 (?!\2)',⍨⍕¯1+⍺ 
+    SG← { ⍝ 1 2         2        1                         ⍝ SG: Generate Shift Sequences
+      '(?x) ( ([', ⍵, ']) \2{','}) ((\\\2|.)*?) \1',⍨⍕¯1+⍺   ⍝  (?!\2)
     } 
       escP←   '(?x) (?| (?<!\\)\\([*_`]) '                 ⍝ escape shift
-      escP,←         '| (?<=\s)([*_`])(?=\s))'
-      litP←   '(\*{4,}|_{4,}|`{3,})'                       ⍝ shift literals
+      escP,←         '| (?<=\h)([*_`]+)(?=\h) )'           ⍝ ...
+      litP←   '(?x) ( \*{4,} | _{4,} | `{3,} )'            ⍝ shift literals
       underP←  2 SG '`'                                    ⍝ underscores, ignores mode!
       monoP←   1 SG '`'                                    ⍝ monospace shift
       boldItalP boldP italP← 3 2 1 SG¨⊂ '_*'     
@@ -144,7 +144,7 @@
     ScanLines← {
       ⍺← stdFont ⋄ curF← ⍺
     ⍝ Scan4SupSub: Prefixes for numeric superscripts ^123, ∧123 and subscripts ∨123 inside or outside shifts.
-      sSPV← '\\([\^∧∨])' '([\^∧∨])([0-9]+)'                ⍝ ^∧ can be confused. Both are allowed as superscript prefixes.
+      sSPV← '(?x) \\ ([\^∧∨])' '([\^∧∨]) ([0-9]+)'         ⍝ ^∧ can be confused. Both are allowed as superscript prefixes.
       Scan4SupSub← sSPV ⎕R {
         ⍝ Import: ZERO_ss_dec  
           Fld← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Block}  
