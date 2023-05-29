@@ -14,14 +14,14 @@
   ⍺←1 0 '`' ⋄ ⍬≡⍺: _←1 0⍴'' ⋄ 'help'≡⍥⎕C⍺: ⎕←'No help available yet'
 
   (⊃⍺)∘( (⊃⎕RSI) {                                               ⍝ No variable pollution allowed (at least until after ⍎)
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
-    1=⍺: ⍺⍺⍎⍵ ⋄ 0=⍺: ⍵ ⋄ 1: ⍵                                    ⍝ ⍵ contains a ⍵⍵, with the original (input) format string  
-    ⍵⍵                                                                                
+      0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+      1=⍺: ⍺⍺⍎⍵ ⋄ 0=⍺: ⍵ ⋄ 1: ⍵                                  ⍝ ⍵ contains a ⍵⍵, with the original (input) format string  
+      ⍵⍵                                                                                
   }⍵)⍺∘{        
 
-    99:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
   
-        (m b)e←(2↑⍺)(⊃⌽'`',2↓⍺)                                  ⍝ m: mode flag, b: box flag, e: escape char.
+        (m b)e←(2↑⍺)(⊃⌽'`',2↓⍺)                                  ⍝ m: mode flag, b: box flag, e: escape char (unescaped)
         fmt← ⊃⊆⍵
 
         omegaIx← 0                                               ⍝ supports absolute and positional ⍵ feature: ⍵3, ⍹3; `⍵, ⍹ 
@@ -36,27 +36,30 @@
         sq← '''' 
         dq2← dq dq←'"'
       
-        ee←   '\', e                                             ⍝ ⎕R-ready (escaped) escape char.  
-        es←   ee,  '[{}⋄⍵',ee,']'                                ⍝ escape sequences
-        escP← ee, '([{}⋄⍵',ee,'])'                               ⍝ escape pattern
-        nlP← ee, '⋄'                                             ⍝ newline pattern (→ nl)
+        ee←   '\', e                                             ⍝ ee: ⎕R-ready escaped escape char.  
+        es←   ee,  '[{}⋄⍵',ee,']'                                ⍝ es: escape sequences
+        eP←   ee, '([{}⋄⍵',ee,'])'                               ⍝ eP: escape pattern. F1 is the escaped char.
+        nP←   ee, '⋄'                                            ⍝ nP: newline pattern (→ nl)
       
-        sqP←     '(''[^'']*'')+'
+        sqP←     '(''[^'']*'')+'                    
         dqP←     '("[^"]*")+'
-        fmtP←    '\$\s?'
-        omP←     '(?|[⍵⍹](\d+)|',ee,'⍵()|⍹())'                   ⍝ absolute: ⍵3, ⍹3; positional: `⍵, ⍹ 
-        comP←    '⍝([^{}⋄',ee,']+|', es,')*'
+        fmtP←    '\$\s?'                                         ⍝ fmtP: match $ as alias to ⎕FMT
+        omP←     '(?|[⍵⍹](\d+)|',ee,'⍵()|⍹())'                   ⍝ omP: ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ 
+        cmP←     '⍝([^{}⋄',ee,']+|', es,')*'                     ⍝ cmP: limited comment pattern
 
-        tP← '((', es,'?|[^{',ee,']+)+)'
-        s0P← '\{(\h*:\h*0*\h*(:\h*)?)?\}'                        ⍝ Null space field: {} or { :0: }
-        s1P← '(?x) \{ (\h*) \}'                                  ⍝ {     }, {}, etc.
-        s2P← '(?x) \{  \h* :\h*   (\d+)   (\h*:)? \h* \}'        ⍝ { :3: }, etc.
-        sOmP← '(?x) \{  \h* :\h*',  omP, ' (\h*:)? \h* \}'       ⍝ { :⍵4: }, { :⍹4: }, { :`⍵: }, { :⍹: }, etc.
-        cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ee,']+ | (?:', es,')+  | '
+        tP← '((', es,'?|[^{',ee,']+)+)'                          ⍝ tP: text field pattern
+                                                                 ⍝ s0P, etc: space field patterns
+        s0P← '\{(\h*:\h*0*\h*(:\h*)?)?\}'                        ⍝   null space field: {} or { :0: }
+        sEP← '(?x) \{ (\h*) \}'                                  ⍝   space by example: {     }, {}, etc.
+        sNP← '(?x) \{  \h* :\h*   (\d+)   (\h*:)? \h* \}'        ⍝   space by number { :3: }, etc.
+        sOmP← '(?x) \{  \h* :\h*',  omP, ' (\h*:)? \h* \}'       ⍝   space by ⍵ argument (see omP above)
+                                                                 ⍝ cP: code field pattern
+        cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ee,']+ | (?:', es,')+  | ' 
         cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝([^}⋄',ee,']* |', es,')* | (?&P)* )+)  \} )' 
 
         P←    '('∘,,∘')'                                         ⍝ Parenthesize
         N←    ,∘nl                                               ⍝ Append a newline
+        S←    ,∘' '                                              ⍝ Append a space
         F←    {⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}                  ⍝ ⎕R fields
         EnQ←  { ⍺←sq ⋄ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺=⍵ }                        ⍝ Convert generic string to sq string
         UnDQ← { t/⍨ ~dq2⍷ t← 1↓¯1↓ ⍵ }                           ⍝ Unconvert dq string to generic string
@@ -66,20 +69,21 @@
         }  
 
         Text← {                                                  ⍝ Process Text fields
-            1=≢⍵:   ' ',⍨ EnQ ∊⍵                                 ⍝ vec or scalar? output as is. Otherwise, mix!
+            1=≢⍵:   S      EnQ ∊⍵                                ⍝ vec or scalar? Output as is. Otherwise, mix!
             1=⊃⌽⍴⍵: P '⍪', EnQ ∊⍵                                ⍝ 1 col matrix
-            P '↑', 1↓ ∊ ' '∘,∘EnQ⍤Dtb¨↓ ⍵                             
-        } (⎕FMT nlP escP ⎕R nl '\1')
+                    P (⍕⍴⍵),'⍴', EnQ ∊⍵                          ⍝ General case: ⎕ML-independent version!
+                  ⍝ P '↑', 1↓ ∊ ' '∘,∘EnQ⍤Dtb¨↓ ⍵                ⍝ General case: ⎕ML∊0 1 in calling env!...  
+        } (⎕FMT nP eP ⎕R nl '\1')
         Code←{                                                   ⍝ Process Code fields
           ⍝ :extern omegaIx, ...P 
-            patV← sqP dqP fmtP omP comP
+            patV← sqP dqP fmtP omP cmP
                   sqI dqI fmtI omI comI← ⍳≢patV
             t←  patV ⎕R {
                 C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
                 C sqI:  Text 1↓¯1↓ F 0 
                 C dqI:  Text UnDQ  F 0  
                 C fmtI: '⎕FMT '                                  ⍝ "..." $ ... ==> '...' ⎕FMT ...
-                C omI:  '(⍵⊃⍨⎕IO+', f1, ')' ⊣ f1← Om F 1         ⍝ Handle ⍵dd, ⍹, etc. in code expressions
+                C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← Om F 1             ⍝ Handle ⍵dd, ⍹, etc. in code expressions
                 C comI: ' '                                      ⍝ Limited comments in code fields
             } ⍵ 
             '{', '}⍵',⍨ t 
@@ -89,7 +93,7 @@
             0=⍵: s  ⋄ (⍕⍵),'⍴',s                                 ⍝ Handle {...} and { :dd: }
         }
                                                                  ⍝ Perform main scan of format string
-        patV← tP s0P s1P s2P sOmP cP 
+        patV← tP s0P sEP sNP sOmP cP 
               tI s0I s1I s2I sOmI cI←⍳≢ patV   
         code← patV  ⎕R {
             C← ⍵.PatternNum∘= ⋄ F←  ⍵∘F 
@@ -101,10 +105,10 @@
             C cI:   N P   Code   F 2                             ⍝ Code field
         } ⊆fmt 
 
-    ¯1=m: (⊂preamble),   code,  ⊂'}(⊂', (EnQ fmt), '),⍥⊂⍵'       ⍝ ¯1: Each field a separate char vec L to R
-       c←   preamble, (∊⌽code), '⍬'/⍨1≥≢code                     ⍝ '⍬': Ensure at least 2 fields needed for preamble
-    0=m: '{{', c, '}(⊂',(EnQ fmt),'),⍵}'                         ⍝  0: Generate code executable ⍎ as string (R to L)
+    ¯1=m: '{',(⊂preamble), code,  ⊂'}(⊂', (EnQ fmt), '),⍥⊂⍵'     ⍝ ¯1: Each field a separate char vec L to R
+       c←  preamble, (∊⌽code), '⍬'/⍨ 1≥≢code                     ⍝ '⍬': Ensure at least 2 fields; needed for preamble
+     0=m: '{{', c, '}(⊂',(EnQ fmt),'),⍵}'                        ⍝  0: Generate code executable ⍎ as string (R to L)
       '{',  c, '},⊆⍵⍵'                                           ⍝  1: Execute code in caller env (R to L)
     
-  } ⍵
+    } ⍵
 }
