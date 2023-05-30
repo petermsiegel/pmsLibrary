@@ -20,22 +20,24 @@
       omIx← 0                                                    ⍝ omIx supports absolute and positional ⍵ feature: ⍵3, ⍹3; `⍵, ⍹ 
       pre←     '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/⌽'  '⍁CHAIN/' ⊃⍨ mo<0     ⍝ pre  set preamble code based on options mo and bo
       pre,← bo/'⎕SE.Dyalog.Utils.display¨' '⍁BOX¨'   ⊃⍨ mo<0
-      alV← ('⎕FMT ' '⍙ÔVR ' )('⎕FMT ' '⍁OVR ')⊃⍨ mo<0
-      alPre← '⍙ÔVR←(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT⋄ '
-      alF←   0
 
+      aK←  ,¨'$' '%'                                             ⍝ aK Alias input (k̲eys)  
+      aV←   '⎕FMT ' '⍙ÔVR '                                      ⍝ aV Alias v̲alue for each key
+      aPre← '⍙ÔVR←(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT⋄ '
+      aF←   0
+   
       nl← ⎕UCS 13
       sq2← sq,sq← '''' 
       dq←  '"'
-      ee←  '\', eo                                               ⍝ ee  ⎕R-ready escaped escape char.  
-      es←  ee,  '[{}⋄⍵',ee,']'                                   ⍝ es  escape sequences
+      ee←  '\', eo                                               ⍝ ee  ⎕R-ready e̲scaped e̲scape char.  
+      es←  ee,  '[{}⋄⍵',ee,']'                                   ⍝ es  e̲scape s̲equences
 
     ⍝ ......                                                     ⍝ Basic patterns (for ⎕R)
-      eP←   ee, '([{}⋄⍵',ee,'])'                                 ⍝ eP   escape pattern. F1 is the escaped char.
+      eP←   ee, '([{}⋄⍵',ee,'])'                                 ⍝ eP   e̲scape pattern. F1 is the escaped char.
       nP←   ee, '⋄'                                              ⍝ nP   newline pattern (→ nl)
       sqP←  '(''[^'']*'')+'                    
       dqP←  '("[^"]*")+'
-      alP← '([%$])\s?'                                        ⍝ alP  match $ (alias to ⎕FMT) or % ("over")
+      aliasP← '([%$])\s?'                                        ⍝ aliasP  match $ (alias to ⎕FMT) or % ("over")
       omP←  '(?|',ee,'?[⍵⍹](\d+)|',ee,'⍵()|',ee,'?⍹())'          ⍝ omP   ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (permissive)
       cmP←  '⍝([^{}⋄',ee,']+|', es,')*'                          ⍝ cmP   limited comment pattern
 
@@ -52,6 +54,8 @@
       cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ee,']+ | (?:', es,')+  | ' 
       cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝([^}⋄',ee,']* |', es,')* | (?&P)* )+)  \} )' 
    
+      AG← aV∘{ ~⍵: 0⊃⍺ ⋄ mo<0: 1⊃⍺ ⋄ 1⊃⍺⊣ aF⊢← 1 }aK⍳⊂           ⍝ AG: Get value for alias key '$' or '%'
+      AP← { aF/ aPre }                                           ⍝ Select alias preamble based on aF 
       F←  {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}   ⍝ F Select a ⎕R F̲ield
       N←  ,∘nl                                                   ⍝ N Append a N̲ewline
       O←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}           ⍝ O O̲mega ⍵-feature, including positional vars.
@@ -68,13 +72,13 @@
                                                           ⍝ ***  ⍝   Process fields: TF, CF, SF 
       TF← N T        ⍝ ......                                    ⍝   Process Text fields (adding newline)
       CF← N P⍤ {     ⍝ ......                                    ⍝   Process Code fields (adding parens and newline)
-          patV← sqP dqP alP omP cmP
-                sqI dqI alI omI comI← ⍳≢patV
+          patV← sqP dqP aliasP omP cmP
+                sqI dqI aliasI omI comI← ⍳≢patV
           t←  patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
               C sqI:  T 1↓¯1↓ F 0 
-              C dqI:  T U  F 0  
-              C alI: alV⊃⍨ alF∨← '%'=F 1                         ⍝   "..." $ ... ==> '...' ⎕FMT ...
+              C dqI:  T U  F 0          
+              C aliasI: AG F 1                                   ⍝   "..." $ ... ==> '...' ⎕FMT ...
               C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← O F 1                ⍝   Handle ⍵dd, ⍹, etc. in code field expressions
               C comI: ' '                                        ⍝   Limited comments in code fields
           } ⍵ 
@@ -98,7 +102,7 @@
                   sn SF F 1                                      ⍝   Space field (sn∊1 2 3)
       } ⊆fmt 
  
-           pre,⍨← alPre/⍨ alF∧mo≥0 
+           pre,⍨← AP⍬
     ¯1=mo: (⊂'{',pre),   code,  ⊂'}(⊂', (Q fmt), '),⍥⊂⍵'  ⍝   ¯1: Each field a separate char vec L to R
            c←    pre, (∊⌽code), '⍬'/⍨ 1≥≢code             ⍝   '⍬': Ensure at least 2 fields; 2 needed for pre
      0=mo: '{{', c, '}(⊂',(Q fmt),'),⍵}'                         ⍝    0: Generate code executable ⍎ as string (R to L)
@@ -142,6 +146,7 @@
 ⍝H
 ⍝H There are 3 types of fields generated: 
 ⍝H    1. Code Fields, 2. Space Fields, and 3. Text Fields.
+⍝H 
 ⍝H 1. Code fields:   { any APL code }
 ⍝H 2. Space fields:  {   }, { :5: }  { :⍹: } { :⍹1: }
 ⍝H 3. Text fields:   any text, with `{ for {, `} for }, `⋄ for newlines, `⍵ for simple ⍹, `` for `.
