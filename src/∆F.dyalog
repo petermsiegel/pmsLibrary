@@ -37,6 +37,7 @@
     ⍝ ......                                                     ⍝ Basic patterns (for ⎕R)
       eP←   esc                                                  ⍝ eP   e̲scape pattern. F1 is the escaped char.
       nP←   ec, '⋄'                                              ⍝ nP   newline pattern (→ nl)
+      oP←   ec, '⍵'                                              ⍝ oP   esc ⍵ → ⍹
       sqP←  '(''[^'']*'')+'                    
       dqP←  '("[^"]*")+'
       aliasP← '([%$])\s?'                                        ⍝ aliasP  match $ (alias to ⎕FMT) or % ("over")
@@ -67,7 +68,7 @@
            1=≢⍵:              S q                                ⍝   vec or scalar? Output as is. Otherwise, mix!
            1=⊃⌽⍴⍵:       P '⍪', q                                ⍝   1 col matrix
                    P (⍕⍴⍵),'⍴', q                                ⍝   General case: ⎕ML-independent version!
-      }⍤(⎕FMT nP eP ⎕R nl '\1')                                  ⍝   Preprocess `⋄, `{, `}, etc.
+      }⍤(⎕FMT nP oP eP ⎕R nl '⍹' '\1')                           ⍝   Preprocess `⋄, `⍵, `{, `}, etc.
       U←  dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                              ⍝ U U̲nconvert dq string to generic string
 
                                                           ⍝ ***  ⍝   Process fields: TF, CF, SF 
