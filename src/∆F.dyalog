@@ -12,37 +12,39 @@
       ⍵⍵                                                                                
   }⍵)⍺∘{        
 
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    90:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
   
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo  mode option, bo: box option, eo: escape char (unescaped)
       fmt← ⊃⊆⍵
+      omIx← 0                                                    ⍝ omIx   supports absolute and positional ⍵ feature: ⍵3, ⍹3; `⍵, ⍹ 
 
-      omIx← 0                                                    ⍝ omIx supports absolute and positional ⍵ feature: ⍵3, ⍹3; `⍵, ⍹ 
-      pre←     '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/⌽'  '⍁CHAIN/' ⊃⍨ mo<0     ⍝ pre  set preamble code based on options mo and bo
-      pre,← bo/'⎕SE.Dyalog.Utils.display¨' '⍁BOX¨'   ⊃⍨ mo<0
-
-      aK←  ,¨'$' '%'                                             ⍝ aK Alias input (k̲eys)  
-      aV←   '⎕FMT ' '⍙ÔVR '                                      ⍝ aV Alias v̲alue for each key
-      aPre← '⍙ÔVR←(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄m T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT⋄ '
-      aF←   0
+      hdrDef←     '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/⌽'  '⍙ⒸⒽⒶⒾⓃ/' ⊃⍨ mo<0  ⍝ hdrDef set preamble code based on options mo and bo
+      hdrDef,← bo/'⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0  ⍝ Use symbolic def if mode is ¯1 (show pseudocode)
+                                                                 ⍝ Aliases: $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
+      aKeys←  ,¨'$' '%'                                          ⍝ aKeys Alias input (k̲eys)  
+      aVals←   '⎕FMT ' '⍙ⓄⓋⓇ '                                   ⍝ aVals Alias v̲alue for each key
+      ovrDef← '⍙ⓄⓋⓇ←(⊃⍪/)⍤{T←↑⍤¯1⋄m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄w{⍺=m:⍵⋄'     ⍝ ⍙ⓄⓋⓇ code def
+      ovrDef,←                   'm T⍵T⍨-⌊⍺+2÷⍨m-⍺}¨⍺⍵}⍥⎕FMT⋄ ' 
+      ovrF←   0                                                  ⍝ ovrF: 1 to emit ovrDef (see Set preamble) 
    
       nl← ⎕UCS 13
       sq2← sq,sq← '''' 
       dq←  '"'
-      ee←  '\', eo                                               ⍝ ee  ⎕R-ready e̲scaped e̲scape char.  
-      es←  ee,  '[{}⋄⍵',ee,']'                                   ⍝ es  e̲scape s̲equences
+      ec←  '\', eo                                               ⍝ ec  ⎕R-ready e̲scape c̲har.  
+      es←  ec,  '[{}⋄⍵⍹',ec,']'                                  ⍝ es  e̲scape s̲equence
+      esc← ec, '([{}⋄⍵⍹',ec,'])'                                 ⍝ esc e̲scape s̲equence c̲aptured
 
     ⍝ ......                                                     ⍝ Basic patterns (for ⎕R)
-      eP←   ee, '([{}⋄⍵',ee,'])'                                 ⍝ eP   e̲scape pattern. F1 is the escaped char.
-      nP←   ee, '⋄'                                              ⍝ nP   newline pattern (→ nl)
+      eP←   esc                                                  ⍝ eP   e̲scape pattern. F1 is the escaped char.
+      nP←   ec, '⋄'                                              ⍝ nP   newline pattern (→ nl)
       sqP←  '(''[^'']*'')+'                    
       dqP←  '("[^"]*")+'
       aliasP← '([%$])\s?'                                        ⍝ aliasP  match $ (alias to ⎕FMT) or % ("over")
-      omP←  '(?|',ee,'?[⍵⍹](\d+)|',ee,'⍵()|',ee,'?⍹())'          ⍝ omP   ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (permissive)
-      cmP←  '⍝([^{}⋄',ee,']+|', es,')*'                          ⍝ cmP   limited comment pattern
+      omP←   ec,'?[⍵⍹](\d*)'                                     ⍝ omP   ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (permissive)
+      cmP←  '⍝([^{}⋄',ec,']+|', es,')*'                          ⍝ cmP   limited comment pattern
 
      ⍝ ......                                                    ⍝ tP: text field pattern
-      tP←   '((', es,'?|[^{',ee,']+)+)'                          
+      tP←   '((', es,'?|[^{',ec,']+)+)'                          
 
      ⍝ ......                                                    ⍝ s0P, etc: space field patterns
       hb he← '\h*:\h*' '(?:\h*:)?\h*'                                                                   
@@ -51,11 +53,10 @@
       s3P← '\{',hb,omP,,he,'\}'
      
     ⍝ ......                                                     ⍝ cP: code field pattern
-      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ee,']+ | (?:', es,')+  | ' 
-      cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝([^}⋄',ee,']* |', es,')* | (?&P)* )+)  \} )' 
+      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ec,']+ | (?:', es,')+  | ' 
+      cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ⍝([^}⋄',ec,']* |', es,')* | (?&P)* )+)  \} )' 
    
-      AG← aV∘{ ~⍵: 0⊃⍺ ⋄ mo<0: 1⊃⍺ ⋄ 1⊃⍺⊣ aF⊢← 1 }aK⍳⊂           ⍝ AG: Get value for alias key '$' or '%'
-      AP← { aF/ aPre }                                           ⍝ Select alias preamble based on aF 
+      AG← aVals∘{ ~⍵: 0⊃⍺ ⋄ mo<0: 1⊃⍺ ⋄ 1⊃⍺⊣ ovrF⊢← 1 }aKeys⍳⊂   ⍝ AG: Get value for alias key '$' or '%'
       F←  {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}   ⍝ F Select a ⎕R F̲ield
       N←  ,∘nl                                                   ⍝ N Append a N̲ewline
       O←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}           ⍝ O O̲mega ⍵-feature, including positional vars.
@@ -78,19 +79,19 @@
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
               C sqI:  T 1↓¯1↓ F 0 
               C dqI:  T U  F 0          
-              C aliasI: AG F 1                                   ⍝   "..." $ ... ==> '...' ⎕FMT ...
+              C aliasI: AG F 1                                   ⍝   $ => ⎕FMT, % => ⍙ÔVR (display over)
               C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← O F 1                ⍝   Handle ⍵dd, ⍹, etc. in code field expressions
               C comI: ' '                                        ⍝   Limited comments in code fields
           } ⍵ 
           '{', '}⍵',⍨ t 
       }               
       SF← {          ⍝ ......                                    ⍝   Process Space fields 
-           C1 C3← ⍺=1 3                                 ⍝ Case   
-           C3:            N P sq2,'⍴⍨⍵⊃⍨⎕IO+',O ⍵       ⍝ ⍺=3    ⍝   { :⍵3: } etc.    
-           C1∧0=≢⍵:       ''                            ⍝ ⍺=1    ⍝   {}                     => Null field
-           C1:            N P (⍕≢⍵),'⍴',sq2             ⍝ ⍺=1    ⍝   {  }
-           '0'∧.=⍵:       ''                            ⍝ ⍺=2    ⍝   { :0: }, { :: }, etc.  => Null field
-                          N P ⍵,'⍴',sq2                 ⍝ ⍺=2    ⍝   { :5: }            
+           C← ⍺∘=                              ⍝ Case   
+           C 3:           N P sq2,'⍴⍨⍵⊃⍨⎕IO+',O ⍵        ⍝ ⍺=3   ⍝   { :⍵3: } etc.    
+          (C 1)∧0=≢⍵:     ''                             ⍝ ⍺=1   ⍝   {}                     => Null field
+           C 1:           N P (⍕≢⍵),'⍴',sq2              ⍝ ⍺=1   ⍝   {  }
+           '0'∧.=⍵:       ''                             ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.  => Null field
+                          N P ⍵,'⍴',sq2                  ⍝ ⍺=2   ⍝   { :5: }            
       }
     ⍝ ......                                                     ⍝ Perform main scan of format string
       patV← tP s1P s2P s3P cP 
@@ -102,11 +103,11 @@
                   sn SF F 1                                      ⍝   Space field (sn∊1 2 3)
       } ⊆fmt 
  
-           pre,⍨← AP⍬
-    ¯1=mo: (⊂'{',pre),   code,  ⊂'}(⊂', (Q fmt), '),⍥⊂⍵'  ⍝   ¯1: Each field a separate char vec L to R
-           c←    pre, (∊⌽code), '⍬'/⍨ 1≥≢code             ⍝   '⍬': Ensure at least 2 fields; 2 needed for pre
-     0=mo: '{{', c, '}(⊂',(Q fmt),'),⍵}'                         ⍝    0: Generate code executable ⍎ as string (R to L)
-           '{',  c, '},⊆⍵⍵'                                      ⍝    1: Execute code in caller env (R to L)
+            p← hdrDef,⍨ ovrF/ ovrDef                             ⍝ Set preamble from header def and ⍙ÔVR def (if used)
+    ¯1=mo: (⊂'{',p), code,  ⊂'}(⊂', (Q fmt), '),⍥⊂⍵'             ⍝ ¯1: Each field a separate char vec L to R
+            p,← (∊⌽code), '⍬'/⍨ 1≥≢code                          ⍝  ⍬: Ensure at least 2 fields; 2 needed for Chain
+     0=mo: '{{', p, '}(⊂',(Q fmt),'),⍵}'                         ⍝  0: Generate code executable ⍎ as string (R to L)
+           '{',  p, '},⊆⍵⍵'                                      ⍝  1: Execute code in caller env (R to L)
   
     } ⍵
 
