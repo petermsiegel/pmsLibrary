@@ -23,10 +23,10 @@
     ⍝ Shortcuts...$ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)        ⍝ sc__ shortcut items. 
       scSyms←  ,¨'$' '%'                                         ⍝ See scP below    ⍝ scSyms  shortcut symbols
       scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode code for each symbol
-      scInUse←  0
       scDefs← '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                 ⍝ scDefs Definitions for shortcut(s) required 
-      scDefs,←   'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}'   ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
-      scDefs← scDefs '⍙ⓄⓋⓇ←{...}' ⊃⍨ mo<0                        ⍝ "placeholder" def(s)
+      scDefs,←   'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}⋄'  ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
+      scDefs← scDefs '⍙ⓄⓋⓇ←{...}⋄' ⊃⍨ mo<0                       ⍝ "placeholder" def(s)
+      scDefsOut← 0
    
       nl← ⎕UCS 13
       lb rb← '{}' 
@@ -60,42 +60,44 @@
       cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ',cmP,' | (?&P)* )+)  \} )' 
    
       F←  {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}   ⍝ F  Select a ⎕R F̲ield
-      G← { hdrCode,⍨ scInUse/scDefs,'⋄'}                         ⍝ G  G̲enerate the full preamble    
-      N←  ,∘nl                                                   ⍝ N  Append a N̲ewline
-      O←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}           ⍝ O  O̲mega ⍵-feature, including positional vars.
+      GP← { hdrCode,⍨ scDefsOut/scDefs }                         ⍝ GP G̲enerate full preamble from header and shortcut code   
+      Nl←  ,∘nl                                                  ⍝ N  Append a N̲ewline
+      Om←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ O  O̲mega ⍵-feature, including positional vars.
       P←  '('∘,,∘')'                                             ⍝ P  P̲arenthesize
-      Q←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                               ⍝ Q  Convert generic string to sq-Q̲uoted string
-      S←  ,∘' '                                                  ⍝ S  Append a S̲pace 
-      T← { q← Q ∊⍵                                               ⍝ T  Process T̲ext in strings and text fields
-           1=≢⍵:              S q                                ⍝    vec or scalar? Output as is. Otherwise, mix!
+      Pd← '⍬'/⍨((0=≢⍤⊃)+(1∘≥≢))                                  ⍝ Pd Pad code if needed to ≥2 fields (for ⍙ⒸⒽⒶⒾⓃ/)
+      Qt←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Qt Convert generic string to sq-Q̲uoted string
+      Sp←  ,∘' '                                                 ⍝ Sp Append a S̲pace 
+      Tx← { q← Qt ∊⍵                                             ⍝ Tx Process T̲ext in strings and text fields
+           1=≢⍵:             Sp q                                ⍝    vec or scalar? Output as is. Otherwise, mix!
            1=⊃⌽⍴⍵:       P '⍪', q                                ⍝    1 col matrix
                    P (⍕⍴⍵),'⍴', q                                ⍝    General case: ⎕ML-independent version!
       }⍤(⎕FMT mapPV ⎕R mapRV)                                    ⍝    Preprocess `⋄, `⍵, `{, `}, etc.
-      U←  dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                              ⍝ U  U̲nconvert dq string to generic string
-      V← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                  ⍝ V  Get V̲alue for shortcut '$' or '%'
+      UD←  dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                             ⍝ UD U̲nconvert dq string to generic string
+      SV← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                 ⍝ SV Lookup code V̲alue for shortcut '$' or '%'
  
                                                           ⍝ ***  ⍝   Process fields: TF, CF, SF 
-      TF← N T        ⍝ ......                             ⍝ TF   ⍝   Process Text fields (adding newline)
-      CF← N P⍤ {     ⍝ ......                             ⍝ CF   ⍝   Process Code fields (adding parens and newline)
+      TF← Nl Tx        ⍝ ......                           ⍝ TF   ⍝   Process Text fields (adding newline)
+      CF← Nl P⍤ {     ⍝ ......                            ⍝ CF   ⍝   Process Code fields (adding parens and newline)
           patV← sqP dqP scP omP cmP
                 sqI dqI scI omI cmI← ⍳≢patV
           t←  patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
-              C sqI:  T 1↓¯1↓ F 0 
-              C dqI:  T U  F 0          
-              C scI:  V f1 ⊣ scInUse⊢← '%'=f1←F 1                ⍝   $ => ⎕FMT, % => ⍙ÔVR (display over)
-              C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← O F 1                ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
+              C sqI:  Tx 1↓¯1↓ F 0 
+              C dqI:  Tx UD  F 0          
+              C scI:  SV f1 ⊣ scDefsOut⊢← '%'=f1←F 1             ⍝   $ => ⎕FMT, % => ⍙ÔVR (display over)
+              C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← Om F 1               ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
               C cmI: ' '       ⍝ Or '⋄'?                         ⍝   Limited comments in code fields
           } ⍵ 
           '{', t, '}⍵'
       }               
       SF← { nullField←''                                 ⍝ SF  ⍝   Process Space fields 
-           C← ⍺∘=                                        ⍝ Case   
-           C 3:           N P sq2,'⍴⍨⍵⊃⍨⎕IO+',O ⍵        ⍝ ⍺=3   ⍝   { :⍵3: } etc.    
+           C← ⍺∘=                                        ⍝ Case  
+           C 4:  ⎕SIGNAL⊂'EN' 'Message',⍥⊂¨ 2,⊂ 'Invalid use of "',⍵,'"'
+           C 3:           Nl P sq2,'⍴⍨⍵⊃⍨⎕IO+',Om ⍵      ⍝ ⍺=3   ⍝   { :⍵3: } etc.    
           (C 1)∧0=≢⍵:     nullField                      ⍝ ⍺=1   ⍝   {}                      
-           C 1:           N P (⍕≢⍵),'⍴',sq2              ⍝ ⍺=1   ⍝   {  }
+           C 1:           Nl P (⍕≢⍵),'⍴',sq2             ⍝ ⍺=1   ⍝   {  }
            '0'∧.=⍵:       nullField                      ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.   
-                          N P ⍵,'⍴',sq2                  ⍝ ⍺=2   ⍝   { :5: }            
+                          Nl P ⍵,'⍴',sq2                 ⍝ ⍺=2   ⍝   { :5: }            
       }
     ⍝ ......                                                     ⍝ Perform main scan of format string
       patV← tP s1P s2P s3P cP 
@@ -104,15 +106,16 @@
           C← (sn← ⍵.PatternNum)∘∊ ⋄ F← ⍵∘F  
           C tI:      TF F 1                                      ⍝   Text  field
           C cI:      CF F 2                                      ⍝   Code  field
-          ⋄ 1∊(eo,'⍹')⍷ f0←F 0:  11  ⎕SIGNAL⍨  'Invalid sequence in space field: ',f0
-                  sn SF F 1                                      ⍝   Space field (sn∊1 2 3)
-      } ⊆fmt 
+                     SFok← ~1∊(_←eo,'⍹')⍷ F 0                    ⍝   Flag `⍹
+          SFok:   sn SF F 1                                      ⍝   Space field (sn∊1 2 3)
+                   4 SF _                             
+      } ⊆,fmt 
  
-            p← G⍬                                                ⍝ Generate preamble from header def and ⍙ÔVR def (if used)
-    ¯1=mo: (⊂lb,p), code,  ⊂rb,'(⊂', (Q fmt), '),⍥⊂⍵'            ⍝ ¯1: Each field a separate char vec L to R
-            c← (∊⌽code), '⍬'/⍨ 1≥ ≢code                          ⍝  ⍬: Ensure at least 2 fields; 2 needed for Chain
-     0=mo: lb,lb, p, c, rb,'(⊂',(Q fmt),'),⍵',rb                 ⍝  0: Generate code executable ⍎ as string (R to L)
-              lb, p, c, rb,',⊆⍵⍵'                                ⍝  1: Execute code in caller env (R to L)
+               fmtC← P '⊂', Qt fmt                               ⍝ fmt string as code
+    ¯1=mo: (⊂lb, GP⍬), code, (Pd code), ⊂rb, fmtC, ',⍥⊂⍵'        ⍝ ¯1: Each field a separate char vec L to R
+               codeS← (lb, GP⍬), (∊⌽code), (Pd code), rb           
+     0=mo: lb, codeS, fmtC,',⍵', rb                              ⍝  0: Generate code executable ⍎ as string (R to L)
+               codeS, ',⊆⍵⍵'                                     ⍝  1: Execute code in caller env (R to L)
     } ⍵
 
 ⍝H Syntax: 
