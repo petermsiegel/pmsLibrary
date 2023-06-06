@@ -1,15 +1,20 @@
 ﻿∆F← { 
-⍝H ∆F: Simple formatting  function in APL style, inspired by Python f-strings.
+⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝! For documentation, see ⍝H comments below.
 
   ⎕IO ⎕ML←0 1
 
-  ⍺←1 0 '`' ⋄ ⍬≡⍺: _←1 0⍴'' ⋄ 'help'≡⍥⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
+  ⍺←1 0 '`'                                                      ⍝ ⍺: [mode←1 box←0 escCh←'`' | ⍬ | 'help']
+  ⍬≡⍺: _←1 0⍴'' 
+  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
 
-  (⊃⍺)∘( (⊃⎕RSI) {                                               ⍝ No variable pollution allowed (at least until after ⍎)
+  (⊃⍺)∘( (⊃⎕RSI) {                                               ⍝ No variable pollution allowed until '1=⍺:'
     0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
-    1=⍺: ⍺⍺⍎⍵ ⋄ 0=⍺: ⍵ ⋄ 1: ⍵                                    ⍝ ⍵ contains a ⍵⍵, with the original (input) format string  
-      ⍵⍵                                                                                
+    1=⍺: ⍺⍺⍎⍵                                                    ⍝ In ⍵, the original (input) format string is passed as '⍵⍵'
+    0=⍺: ⍵                                             
+   ¯1=⍺: ⍵    
+   ¯2=⍺: ⎕SE.Dyalog.Utils.disp∘⍪ ⍵ 
+    ⍵⍵ ∘∘∘ declare ⍵⍵ ∘∘∘                                                                                
   }⍵)⍺∘{        
 
     0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
@@ -17,63 +22,62 @@
       fmt← ⊃⊆⍵                                                   ⍝ fmt: our format string
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: escape char (unescaped)
       omIx← 0                                                    ⍝ omIx: "global" counter for positional omega ⍹ (see)
-    ⍝ Basic header
-      hdrCode←     '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/⌽'  '⍙ⒸⒽⒶⒾⓃ/' ⊃⍨ mo<0 ⍝ hdrCode set preamble code based on options mo and bo
-      hdrCode,← bo/'⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0 ⍝ Use symbolic def if mode is ¯1 (show pseudocode)
+    ⍝ Basic preamble
+      _pPre←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/'   '⍙ⒸⒽⒶⒾⓃ/' ⊃⍨ mo<0    ⍝ Core preamble     (actual / symbolic: mo=¯1)
+      _pDef←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0    ⍝ Opt'l definitions (actual / symbolic: mo=¯1)
+      preCode←  _pPre, bo/ _pDef                                 ⍝ Full preamble, w/ defs if bo=1
     ⍝ Shortcuts...$ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)        ⍝ sc__ shortcut items. 
-      scSyms←  ,¨'$' '%'                                         ⍝ See scP below    ⍝ scSyms  shortcut symbols
+      scSyms←   ,¨'$' '%'                                        ⍝ See scP below    ⍝ scSyms  shortcut symbols
       scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode code for each symbol
-      scDefs← '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                 ⍝ scDefs Definitions for shortcut(s) required 
-      scDefs,←   'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}⋄'  ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
-      scDefs← scDefs '⍙ⓄⓋⓇ←{...}⋄' ⊃⍨ mo<0                       ⍝ "placeholder" def(s)
+      _ovrD←   '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                ⍝ scDefs Definitions for shortcut(s) required 
+      _ovrD,←  'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}⋄'    ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
+      scDefs←  _ovrD '⍙ⓄⓋⓇ←{...}⋄' ⊃⍨ mo<0                       ⍝ Select actual vs symbolic definition
       scDefsOut← 0
    
+    ⍝ Pattern Building Blocks
       nl← ⎕UCS 13
-      lb rb← '{}' 
+      lb rb← '{}'    
       sq2← sq,sq← '''' 
       dq←  '"'
-      ec←  '\', eo                                               ⍝ ec:   ⎕R-ready e̲scape c̲har.  
-      esT←  ec,'[{}⋄',  ec,']'                                   ⍝ esT:  e̲scape s̲equence in T̲ext fields, incl. quotes  
-      esCC← ec,'[{}⋄⍵⍹',ec,']'                                   ⍝ esCC: e̲scape s̲equence in Ⓒode (cP) and Ⓒomments (cmP) 
+      _e←  '\', eo                                               ⍝ _e:  ⎕R-ready e̲scape c̲har.  
+      _eT← _e,'[{}⋄',  _e,']'                                    ⍝ _eT: e̲scape s̲equence in T̲ext fields, incl. quotes  
+      _eC← _e,'[{}⋄⍵⍹',_e,']'                                    ⍝ _eC: e̲scape s̲equence in Ⓒode (cP) and Ⓒomments (cmP) 
 
-    ⍝ ......                                                     ⍝ Basic patterns (for ⎕R)
-      mapPV← ec ,¨⍥⊆ '⋄'  ('([{}⋄',ec,'])')                      ⍝ In text: `⋄ => nl, `{ => {, etc. 
-      mapRV←          nl  '\1'
-
+    ⍝ Basic Patterns                                             ⍝  
+      mapPV←   (_e,'⋄') (_e,'([{}⋄',_e,'])')                     ⍝ Escapes in Text Fields:
+      mapRV←   nl       '\1'                                     ⍝     `⋄ => nl, `{ => {, etc. 
+    
       sqP←  '(''[^'']*'')+'                    
       dqP←  '("[^"]*")+'
-      scP←  '([%$])\s?'                                          ⍝ scP:  match one $ or %. See scSyms/scCode above.
-      omP←  '(?:',ec,'⍵|',ec,'?[⍹])(\d*)'                        ⍝ omP:   ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
-      cmP←  '⍝(?:[^{}⋄',ec,']+|', esCC,'?)*'                     ⍝ cmP:  limited comment pattern
+      scP←  '([%$])\s*'                                          ⍝ scP:  match one $ or %. See scSyms/scCode above.
+      omP←  '(?:',_e,'⍵|',_e,'?[⍹])(\d*)'                        ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
+      cmP←  '⍝(?:[^{}⋄',_e,']+|', _eC,'?)*'                      ⍝ cmP:  Comments end with any of '⋄{}'
 
-     ⍝ ......                                                    ⍝ tP: text field pattern
-      tP←   '((', esT,'?|[^{',ec,']+)+)'                          
+     ⍝ Patterns for Text Fields                                  ⍝ tP: Text Field pattern
+      tP←   '((', _eT,'?|[^{',_e,']+)+)'                          
 
-     ⍝ ......                                                    ⍝ s0P, etc: space field patterns
-      hb he← '\h*:\h*' '(?:\h*:)?\h*'                                                                   
+     ⍝ Patterns for Space Fields                                 ⍝ s[1-3]P: Space Field patterns                                 
       s1P← '\{(\h*)\}' 
-      s2P← '\{',hb,'(\d*)',he,'\}'
-      s3P← '\{',hb, omP, he,'\}'
+      s2P← '\{',lc,'(\d*)',rc,'\}'  ⊣  lc rc← '\h*:\h*' '(?:\h*:)?\h*'  
+      s3P← '\{',lc, omP, rc,'\}'
      
-    ⍝ ......                                                     ⍝ cP: code field pattern
-      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',ec,']+ | (?:', esCC,'?)+  | ' 
+    ⍝ Patterns for Code Fields                                   ⍝ cP: Code Field pattern
+      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',_e,']+ | (?:', _eC,'?)+  | ' 
       cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ',cmP,' | (?&P)* )+)  \} )' 
    
-      F←  {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}   ⍝ F  Select a ⎕R F̲ield
-      GP← { hdrCode,⍨ scDefsOut/scDefs }                         ⍝ GP G̲enerate full preamble from header and shortcut code   
-      Nl←  ,∘nl                                                  ⍝ N  Append a N̲ewline
-      Om←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ O  O̲mega ⍵-feature, including positional vars.
-      P←  '('∘,,∘')'                                             ⍝ P  P̲arenthesize
-      Pd← '⍬'/⍨((0=≢⍤⊃)+(1∘≥≢))                                  ⍝ Pd Pad code if needed to ≥2 fields (for ⍙ⒸⒽⒶⒾⓃ/)
-      Qt←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Qt Convert generic string to sq-Q̲uoted string
-      Sp←  ,∘' '                                                 ⍝ Sp Append a S̲pace 
-      Tx← { q← Qt ∊⍵                                             ⍝ Tx Process T̲ext in strings and text fields
-           1=≢⍵:             Sp q                                ⍝    vec or scalar? Output as is. Otherwise, mix!
-           1=⊃⌽⍴⍵:       P '⍪', q                                ⍝    1 col matrix
-                   P (⍕⍴⍵),'⍴', q                                ⍝    General case: ⎕ML-independent version!
-      }⍤(⎕FMT mapPV ⎕R mapRV)                                    ⍝    Preprocess `⋄, `⍵, `{, `}, etc.
-      UD←  dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                             ⍝ UD U̲nconvert dq string to generic string
-      SV← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                 ⍝ SV Lookup code V̲alue for shortcut '$' or '%'
+    ⍝ Actions
+      D2S← dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                             ⍝ D2S D̲Q string to generic S̲tring
+      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F   Select a ⎕R F̲ield
+      Gen← { (preCode,'⌽'),⍨ scDefsOut/scDefs }                  ⍝ Gen G̲enerate preamble from header & shortcut code  
+      Nl←  ,∘nl                                                  ⍝ N   Append a N̲ewline
+      Om←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ O   O̲mega ⍵-feature, including positional vars.
+      P←  '(', ,∘')'                                             ⍝ P   P̲arenthesize
+      Qt←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Qt  Convert generic string to sq-Q̲uoted string
+      Pad← ⊢,('⍬'/⍨((0=≢⍤⊃)+(1∘≥≢)))                             ⍝ Pad Conditionally pad fields (to ≥2)  
+      Sp←  ,∘' '                                                 ⍝ Sp  Append a S̲pace 
+                                                                 ⍝ Tx  Process T̲ext in strings and text fields              
+      Tx←  { 1=≢⍵: Sp Qt ∊⍵ ⋄  P (⍕⍴⍵), '⍴', Qt ∊⍵ }(⎕FMT mapPV ⎕R mapRV)    
+      S2C← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ S2C S̲hortcut to C̲ode value: '$' or '%'
  
                                                           ⍝ ***  ⍝   Process fields: TF, CF, SF 
       TF← Nl Tx        ⍝ ......                           ⍝ TF   ⍝   Process Text fields (adding newline)
@@ -83,41 +87,43 @@
           t←  patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
               C sqI:  Tx 1↓¯1↓ F 0 
-              C dqI:  Tx UD  F 0          
-              C scI:  SV f1 ⊣ scDefsOut⊢← '%'=f1←F 1             ⍝   $ => ⎕FMT, % => ⍙ÔVR (display over)
+              C dqI:  Tx D2S  F 0          
+              C scI:  S2C f1 ⊣ scDefsOut⊢← '%'=f1←F 1            ⍝   $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
               C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← Om F 1               ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
               C cmI: ' '       ⍝ Or '⋄'?                         ⍝   Limited comments in code fields
           } ⍵ 
           '{', t, '}⍵'
       }               
-      SF← { nullField←''                                 ⍝ SF  ⍝   Process Space fields 
+      SF← { nullF←''                                     ⍝ SF    ⍝   Process Space fields 
            C← ⍺∘=                                        ⍝ Case  
-           C 4:  ⎕SIGNAL⊂'EN' 'Message',⍥⊂¨ 2,⊂ 'Invalid use of "',⍵,'"'
            C 3:           Nl P sq2,'⍴⍨⍵⊃⍨⎕IO+',Om ⍵      ⍝ ⍺=3   ⍝   { :⍵3: } etc.    
-          (C 1)∧0=≢⍵:     nullField                      ⍝ ⍺=1   ⍝   {}                      
+          (C 1)∧0=≢⍵:     nullF                      ⍝ ⍺=1   ⍝   {}                      
            C 1:           Nl P (⍕≢⍵),'⍴',sq2             ⍝ ⍺=1   ⍝   {  }
-           '0'∧.=⍵:       nullField                      ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.   
+           '0'∧.=⍵:       nullF                      ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.   
                           Nl P ⍵,'⍴',sq2                 ⍝ ⍺=2   ⍝   { :5: }            
       }
-    ⍝ ......                                                     ⍝ Perform main scan of format string
+    ⍝ fmt => [TF | CF |SF]*                                      ⍝ Break format string into 3 field types!
       patV← tP s1P s2P s3P cP 
             tI _   _   _   cI←⍳≢ patV  
       code← patV  ⎕R {
           C← (sn← ⍵.PatternNum)∘∊ ⋄ F← ⍵∘F  
           C tI:      TF F 1                                      ⍝   Text  field
           C cI:      CF F 2                                      ⍝   Code  field
-                     SFok← ~1∊(_←eo,'⍹')⍷ F 0                    ⍝   Flag `⍹
-          SFok:   sn SF F 1                                      ⍝   Space field (sn∊1 2 3)
-                   4 SF _                             
+                 sn  SF F 1                                      ⍝   Space field (sn∊1 2 3)                             
       } ⊆,fmt 
  
-               fmtC← P '⊂', Qt fmt                               ⍝ fmt string as code
-    ¯1=mo: (⊂lb, GP⍬), code, (Pd code), ⊂rb, fmtC, ',⍥⊂⍵'        ⍝ ¯1: Each field a separate char vec L to R
-               codeS← (lb, GP⍬), (∊⌽code), (Pd code), rb           
-     0=mo: lb, codeS, fmtC,',⍵', rb                              ⍝  0: Generate code executable ⍎ as string (R to L)
-               codeS, ',⊆⍵⍵'                                     ⍝  1: Execute code in caller env (R to L)
+     0>mo: (⊂lb, Gen⍬),(⌽Pad code), ⊂rb,(P '⊂', Qt fmt) ,',⍥⊂⍵'  ⍝ ¯1/¯2: Each field a separate char vec L to R
+               _c← (lb, Gen⍬), (∊⌽Pad code), rb           
+     0=mo: lb, _c, (P '⊂', Qt fmt) ,',⍵', rb                     ⍝  0: Generate code executable ⍎ as string (R to L)
+     1=mo:     _c, ',⊆⍵⍵'                                        ⍝  1: Execute code in caller env (R to L)
     } ⍵
 
+⍝H ∆F Utility Function
+⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
+⍝H     2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
+⍝H     titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize 
+⍝H     the display of vector and multidimensional objects using building blocks that already exist in 
+⍝H     the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
 ⍝H Syntax: 
 ⍝H     [mode←1 box←0 escCh←'`' | ⍬ | 'help'] ∆F f-string  args 
 ⍝H 
@@ -128,17 +134,25 @@
 ⍝H     ⍺← 1 0 '`' 
 ⍝H        mode:  1= generate code, execute, and display result [default]
 ⍝H               0= emit code you can execute via ⍎ . The format string is available as ⍹0.
-⍝H              ¯1= generate pseudo code with each field a separate character vector.
-⍝H               Tip: Use ]box on and ⍪¯1 ∆F ... to see how fields are assembled and executed.
+⍝H                  Note that fields are emitted right-to-left, then assembled in reverse order (ending up l-to-r).
+⍝H              ¯1= generate pseudo code right-to-left with each field a separate character vector.
+⍝H                  (For pedagogical or debugging purposes).
+⍝H              ¯2= same as for mode=¯1, except displaying fields boxed in table (⍪) form.
+⍝H              Tip: Use ¯2 ∆F ... to see the code generated for the fields you specify.
+⍝H        -------
 ⍝H        box:   1= display each field in a box (display from dfns).
 ⍝H               0= display each field simply [default]
+⍝H        -------
 ⍝H        escCh: used to ensure or suppress special behavior.
 ⍝H               default is '`'. Common alternative is '\'.
 ⍝H               Suppresses special behavior of {, }, `.
 ⍝H               Enables special behavior of `⋄ and `⍵.
+⍝H        -------
 ⍝H        ⍬:     causes ∆F to do nothing, returning shy
 ⍝H                 1 0⍴''
+⍝H        -------
 ⍝H         'help': shows this help information.
+⍝H        -------
 ⍝H    Returns: Per mode above:
 ⍝H       [1]  formatted output (shown below in examples) 
 ⍝H       [0]  code which will create that output, or
@@ -147,14 +161,9 @@
 ⍝H       1 0⍴''
 ⍝H
 ⍝H The f-string is a character vector defining 0 or more 2-D (char matrix) "fields," 
-⍝H which are executed as if separate statements-- left to right[*]-- and assembled into a single matrix 
-⍝H (with fields top-aligned). Its contents are in "shortcut" variable ⍹0.
-⍝H                _____________
-⍝H                * Internally, the code is assembled right to left and executed as one expression, 
-⍝H                  then the output complex scalars are concatenated in reverse order!
-⍝H                  To see the output "fields" in sequence, try: 
-⍝H                      ]box on
-⍝H                      ⍪¯1 ∆F ...
+⍝H which are executed as if separate statements (the left-most field "executed" first)
+⍝H and assembled into a single matrix (with fields top-aligned). 
+⍝H Its contents are in "shortcut" variable ⍹0.
 ⍝H
 ⍝H There are 3 types of fields generated: 
 ⍝H    1. Code Fields, 2. Space Fields, and 3. Text Fields.
@@ -200,9 +209,16 @@
 ⍝H ⍎             ∆F '{ ⍹1 × ○2 ⍝ ⍹1 is r in 2×pi×r }' 5
 ⍝H ⎕        31.41592654       
 ⍝H 
-⍝H 2. Space fields:  {}, {   }, { :5: }  { :⍹: } { :⍹1: } { :`⍵: } { :`⍵1: }  
+⍝H 2. Space fields:  {}, {   }, { :5: }  { :⍹1: } { :⍹: } { :`⍵: } { :`⍵1: }  
+⍝H     # spaces      0     3       5       1⊃⍵    next ⍵    next ⍵    1⊃⍵
 ⍝H    a. By example: a brace with 0 or more blanks, representing the # of blanks on output.
-⍝H       a1. Null Fields: brace with 0 blanks is a Null Space Field, useful for separating OTHER fields.
+⍝H       a1. Braces with 1 or more blanks separate other fields.
+⍝H           1 blank: { }, 2 blanks: {  }, etc.
+⍝H       a2. Null Fields: brace with 0 blanks is a Null Space Field, useful for separating OTHER fields.
+⍝H       ∘ Examples of space fields (with multiline text fields-- see below):
+⍝H ⍎           ∆F 'a`⋄cow{}a`⋄bell'            ∆F 'a`⋄cow{ }a`⋄bell'
+⍝H ⎕        a  a                            a   a
+⍝H ⎕        cowbell                         cow bell
 ⍝H    b. By number: a number between colons (the trailing colon is optional) indicates the # of blanks on output.
 ⍝H          { :5: }    <== 5 blanks on output!
 ⍝H    c. By ⍹-expression: an expression ⍹2 between colons (:⍹2:) means
@@ -215,12 +231,26 @@
 ⍝H ⎕         1
 ⍝H     ∘ Comments are NOT allowed in space fields.
 ⍝H 
-⍝H 3. Text fields: any APL text at all, with 
-⍝H       `{ for {, `} for }, `⋄ for newlines. 
-⍝H    single quotes must be doubled as usual for APL strings. Double quotes have no special status.
+⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char):
+⍝H    `{ is a literal {
+⍝H    `} is a literal }
+⍝H     } by itself starts a new code field
+⍝H     } by itself ends a code field
+⍝H    `⋄ stands for a newline character (⎕UCS 13).
+⍝H     ⋄ has no special meaning, unless preceded by the current escape character (`).
+⍝H     ` before {, }, or ⋄ must be doubled to have its literal meaning (`` ==> `)
+⍝H     ` before other characters has no special meaning (i.e. no need to double it).
+⍝H    Single quotes must be doubled as usual within APL strings. 
+⍝H    Double quotes have no special status in a text field (but see Code Fields).
 ⍝H    ⍹ and `⍵ have no special status in text fields (they are left as is).
 ⍝H
 ⍝H For help, execute                                             
 ⍝H   ∆F⍨'help' ... or see ⍝H "HELP" comments at the bottom of function ∆F.
 ⍝H 
+⍝H Note: fields are not actually evaluted separately, but within a single code string.
+⍝H   In practice, this means fields are ordered right to left, formatted individually, and then
+⍝H   "glued" together in reverse order, so the results appears left-to-right as expected!
+⍝H   Try ¯2 ∆F ... to see pseudocode showing how your code is structured.
+⍝H   0 ∆F ... shows the actual code to be executed, as a compact and efficient string.
+⍝H
 }
