@@ -9,15 +9,15 @@
   'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
 
   (⊃⍺)∘( (⊃⎕RSI) {                                               ⍝ No variable pollution allowed until '1=⍺:'
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
-    1=⍺: ⍺⍺⍎⍵                                                    ⍝ In ⍵, the original (input) format string is passed as '⍵⍵'
+    90:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    1=⍺: ⍺⍺⍎⍵                                                    ⍝ 1=⍺: original (⊆⍵) is passed as ⍵⍵ in the code str
     0=⍺: ⍵                                             
    ¯1=⍺: ⍵    
    ¯2=⍺: ⎕SE.Dyalog.Utils.disp∘⍪ ⍵ 
     ⍵⍵ ∘∘∘ declare ⍵⍵ ∘∘∘                                                                                
-  }⍵)⍺∘{        
+  }(⊆⍵))⍺∘{        
 
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    90:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
   
       fmt← ⊃⊆⍵                                                   ⍝ fmt: our format string
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: escape char (unescaped)
@@ -44,8 +44,8 @@
       _eC← _e,'[{}⋄⍵⍹',_e,']'                                    ⍝ _eC: e̲scape s̲equence in Ⓒode (cP) and Ⓒomments (cmP) 
 
     ⍝ Basic Patterns                                             ⍝  
-      mapPV←   (_e,'⋄') (_e,'([{}⋄',_e,'])')                     ⍝ Escapes in Text Fields:
-      mapRV←   nl       '\1'                                     ⍝     `⋄ => nl, `{ => {, etc. 
+      txPV←  (_e,'⋄') (_e,'([{}⋄',_e,'])')                       ⍝ Escapes in Text Fields:
+      txRV←  nl       '\1'                                       ⍝     `⋄ => nl, `{ => {, etc. 
     
       sqP←  '(''[^'']*'')+'                    
       dqP←  '("[^"]*")+'
@@ -64,58 +64,60 @@
     ⍝ Patterns for Code Fields                                   ⍝ cP: Code Field pattern
       cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',_e,']+ | (?:', _eC,'?)+  | ' 
       cP,← '     (?:"[^"]*")+ | (?:''[^'']*'')+ | ',cmP,' | (?&P)* )+)  \} )' 
-   
+      cFP← '(?x: \{ \h* (',dqP,') \h* \} )'                      ⍝ Fast match for {"dq string"}
+
     ⍝ Actions
       D2S← dq∘{ ⍵/⍨ ~⍵⍷⍨ ⍺,⍺ }1↓¯1↓⊢                             ⍝ D2S D̲Q string to generic S̲tring
       F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F   Select a ⎕R F̲ield
-      Gen← { (preCode,'⌽'),⍨ scDefsOut/scDefs }                  ⍝ Gen G̲enerate preamble from header & shortcut code  
       Nl←  ,∘nl                                                  ⍝ N   Append a N̲ewline
       Om←  {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ O   O̲mega ⍵-feature, including positional vars.
       P←  '(', ,∘')'                                             ⍝ P   P̲arenthesize
-      Qt←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Qt  Convert generic string to sq-Q̲uoted string
       Pad← ⊢,('⍬'/⍨((0=≢⍤⊃)+(1∘≥≢)))                             ⍝ Pad Conditionally pad fields (to ≥2)  
-      Sp←  ,∘' '                                                 ⍝ Sp  Append a S̲pace 
-                                                                 ⍝ Tx  Process T̲ext in strings and text fields              
-      Tx←  { 1=≢⍵: Sp Qt ∊⍵ ⋄  P (⍕⍴⍵), '⍴', Qt ∊⍵ }(⎕FMT mapPV ⎕R mapRV)    
+      Pre← { (preCode,'⌽'),⍨ scDefsOut/scDefs }                  ⍝ Pre G̲enerate preamble from header & shortcut code  
+      Qt←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Qt  Convert generic string to sq-Q̲uoted string
+      Sp←  ,∘' '                                                 ⍝ Sp  Append a S̲pace                                                         
+      Tx←  {1=≢⍵: Sp Qt ∊⍵ ⋄ P(⍕⍴⍵),'⍴',Qt ∊⍵}∘⎕FMT txPV ⎕R txRV ⍝ Tx  Process T̲ext in strings and text fields  
       S2C← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ S2C S̲hortcut to C̲ode value: '$' or '%'
  
-                                                          ⍝ ***  ⍝   Process fields: TF, CF, SF 
+    ⍝ Field Processing Fns: TF- text, CF- code, SF- space 
       TF← Nl Tx        ⍝ ......                           ⍝ TF   ⍝   Process Text fields (adding newline)
       CF← Nl P⍤ {     ⍝ ......                            ⍝ CF   ⍝   Process Code fields (adding parens and newline)
           patV← sqP dqP scP omP cmP
                 sqI dqI scI omI cmI← ⍳≢patV
-          t←  patV ⎕R {
+          tx← patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
               C sqI:  Tx 1↓¯1↓ F 0 
               C dqI:  Tx D2S  F 0          
               C scI:  S2C f1 ⊣ scDefsOut⊢← '%'=f1←F 1            ⍝   $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
-              C omI:  P '⍵⊃⍨⎕IO+', f1 ⊣ f1← Om F 1               ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
-              C cmI: ' '       ⍝ Or '⋄'?                         ⍝   Limited comments in code fields
+              C omI:  P '⍵⊃⍨⎕IO+', Om F 1                        ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
+              C cmI: ' '                                         ⍝   Limited comments in code fields
           } ⍵ 
-          '{', t, '}⍵'
+          '{', tx, '}⍵'
       }               
       SF← { nullF←''                                     ⍝ SF    ⍝   Process Space fields 
            C← ⍺∘=                                        ⍝ Case  
            C 3:           Nl P sq2,'⍴⍨⍵⊃⍨⎕IO+',Om ⍵      ⍝ ⍺=3   ⍝   { :⍵3: } etc.    
-          (C 1)∧0=≢⍵:     nullF                      ⍝ ⍺=1   ⍝   {}                      
+          (C 1)∧0=≢⍵:     nullF                          ⍝ ⍺=1   ⍝   {}                      
            C 1:           Nl P (⍕≢⍵),'⍴',sq2             ⍝ ⍺=1   ⍝   {  }
-           '0'∧.=⍵:       nullF                      ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.   
+           '0'∧.=⍵:       nullF                          ⍝ ⍺=2   ⍝   { :0: }, { :: }, etc.   
                           Nl P ⍵,'⍴',sq2                 ⍝ ⍺=2   ⍝   { :5: }            
       }
     ⍝ fmt => [TF | CF |SF]*                                      ⍝ Break format string into 3 field types!
-      patV← tP s1P s2P s3P cP 
-            tI _   _   _   cI←⍳≢ patV  
+      patV← tP s1P s2P s3P cFP cP 
+            tI _   _   _   cFI cI←⍳≢ patV  
       code← patV  ⎕R {
           C← (sn← ⍵.PatternNum)∘∊ ⋄ F← ⍵∘F  
           C tI:      TF F 1                                      ⍝   Text  field
+          C cFI:     TF D2S  F 1                                 ⍝   Code DQ Field: Fast match (see cFP)
           C cI:      CF F 2                                      ⍝   Code  field
                  sn  SF F 1                                      ⍝   Space field (sn∊1 2 3)                             
       } ⊆,fmt 
- 
-     0>mo: (⊂lb, Gen⍬),(⌽Pad code), ⊂rb,(P '⊂', Qt fmt) ,',⍥⊂⍵'  ⍝ ¯1/¯2: Each field a separate char vec L to R
-               _c← (lb, Gen⍬), (∊⌽Pad code), rb           
-     0=mo: lb, _c, (P '⊂', Qt fmt) ,',⍵', rb                     ⍝  0: Generate code executable ⍎ as string (R to L)
-     1=mo:     _c, ',⊆⍵⍵'                                        ⍝  1: Execute code in caller env (R to L)
+
+            _c← (⊂lb, Pre⍬), (⌽Pad code)  
+      1=mo:     ∊_c,  rb,     ',⍵⍵'                              ⍝  1: Execute code in caller env (R to L)
+            _f← P '⊂', Qt fmt                                    ⍝  fmt string ==> code representation
+      0=mo: ∊lb, _c,  rb, _f, ',⍵', rb                           ⍝  0: Generate code executable ⍎ as string (R to L)
+      0>mo:      _c, ⊂rb, _f, ',⍥⊂⍵'                             ⍝ ¯1/¯2: Each field a separate char vec L to R                   
     } ⍵
 
 ⍝H ∆F Utility Function
