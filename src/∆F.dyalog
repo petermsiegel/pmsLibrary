@@ -47,8 +47,7 @@
       txPV←  (_e,'⋄') (_e,'([{}⋄',_e,'])')                       ⍝ Escapes in Text Fields:
       txRV←  nl       '\1'                                       ⍝     `⋄ => nl, `{ => {, etc. 
     
-      _qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
-      qP←   '(',_qP,')'                                          ⍝ qP:   match "..." or '...' 
+      qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
       scP←  '([%$])\s*'                                          ⍝ scP:  match one $ or %. See scSyms/scCode above.
       omP←  '(?:',_e,'⍵|',_e,'?[⍹])(\d*)'                        ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
       cmP←  '⍝(?:[^{}⋄',_e,']+|', _eC,'?)*'                      ⍝ cmP:  Comments end with any of '⋄{}'
@@ -62,8 +61,8 @@
       s3P← '\{',lc, omP, rc,'\}'
      
     ⍝ Patterns for Code Fields                                   ⍝ cP: Code Field pattern
-      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',_e,']+ | (?:', _eC,'?)+ |', _qP,' | ',cmP,' | (?&P)* )+)  \} )' 
-      cFP← '(?x: \{ \h* (', _qP, ') \h* \} )'                    ⍝ Fast match for {"dq string" or 'sq string'}
+      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',_e,']+ | (?:', _eC,'?)+ |', qP,' | ',cmP,' | (?&P)* )+)  \} )' 
+      cFP← '(?x: \{ \h* (', qP, ') \h* \} )'                     ⍝ Fast match for {"dq string" or 'sq string'}
 
     ⍝ Actions
       F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F   Select a ⎕R F̲ield
@@ -72,13 +71,13 @@
       P←  '(', ,∘')'                                             ⍝ P   P̲arenthesize
       Pad← ⊢,('⍬'/⍨((0=≢⍤⊃)+(1∘≥≢)))                             ⍝ Pad Conditionally pad fields (to ≥2)  
       Pre← { (preCode,'⌽'),⍨ scDefsOut/scDefs }                  ⍝ Pre G̲enerate preamble from header & shortcut code  
-      Q2S← {sq=⊃⍵: 1↓¯1↓⍵ ⋄ s/⍨ ~dq2⍷s←1↓¯1↓⍵ }                  ⍝ Q2S Single or double Q̲uoted string to generic S̲tring
-      S2Q←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                             ⍝ S2Q Convert generic string to sq-Q̲uoted string
+      Q2T← {sq=⊃⍵: 1↓¯1↓⍵ ⋄ s/⍨ ~dq2⍷s←1↓¯1↓⍵ }                  ⍝ Q2T Single or double Q̲uoted string to generic T̲ext
       ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC S̲hortcut to C̲ode value: '$' or '%'
       Sp←  ,∘' '                                                 ⍝ Sp  Append a S̲pace                                                         
-      Tx←  {1=≢⍵: Sp S2Q ∊⍵ ⋄ P(⍕⍴⍵),'⍴',S2Q ∊⍵}∘⎕FMT txPV ⎕R txRV ⍝ Tx  Process T̲ext in strings and text fields  
+      Tx←  {1=≢⍵: Sp T2Q ∊⍵ ⋄ P(⍕⍴⍵),'⍴',T2Q ∊⍵}∘⎕FMT txPV ⎕R txRV ⍝ Tx  Process T̲ext in strings and text fields  
       Tr←  25∘{⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3}                          ⍝ Tr  Trunc. str >⍺ chars, adding '...'
- 
+      T2Q←  sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                             ⍝ T2Q Convert generic T̲ext to sq-Q̲uoted string
+   
     ⍝ Field Processing Fns: TF- text, CF- code, SF- space 
       TF← Nl Tx        ⍝ ......                           ⍝ TF   ⍝   Process Text fields (adding newline)
       CF← Nl P⍤ {     ⍝ ......                            ⍝ CF   ⍝   Process Code fields (adding parens and newline)
@@ -86,7 +85,7 @@
                 qI scI omI cmI← ⍳≢patV
           tx← patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F
-              C qI:   Tx Q2S F 0        
+              C qI:   Tx Q2T F 0        
               C scI:  ScC f1 ⊣ scDefsOut⊢← '%'=f1←F 1            ⍝   $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
               C omI:  P '⍵⊃⍨⎕IO+', Om F 1                        ⍝   Handle ⍹dd, ⍹, etc. in code field expressions
               C cmI: ' '                                         ⍝   Limited comments in code fields
@@ -107,14 +106,14 @@
       code← patV  ⎕R {
           C← (sn← ⍵.PatternNum)∘∊ ⋄ F← ⍵∘F  
           C tI:      TF F 1                                      ⍝   Text  field
-          C cFI:     TF Q2S F 1                                  ⍝   Code DQ/SQ Field: Fast match {"Like this"}
+          C cFI:     TF Q2T F 1                                  ⍝   Code DQ/SQ Field: Fast match {"Like this"}
           C cI:      CF F 2                                      ⍝   Code  field
                  sn  SF F 1                                      ⍝   Space field (sn∊1 2 3)                             
       } ⊆,fmt 
 
               _c← (⊂(lb/⍨1+1≠mo), Pre⍬), (⌽Pad code)             ⍝  Executed R-to-L, then reassembled orig L-to-R
       1=mo:  ∊_c,  rb, ',⍵⍵'                                     ⍝  1: Execute code in caller env: ⍵⍵ contains <orig ⍵>  
-              _c, ⊂rb, '⍵,⍨', ('⊂', S2Q fmt), rb                  ⍝  0,¯1,¯2: Pass back code and <fmt> as fields               
+              _c, ⊂rb, '⍵,⍨', ('⊂', T2Q fmt), rb                  ⍝  0,¯1,¯2: Pass back code and <fmt> as fields               
     } ⍵
 
 ⍝H ∆F Utility Function
