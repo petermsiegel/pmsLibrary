@@ -19,24 +19,27 @@
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: user escape char (not escaped for pcre/⎕R)
       omIx← 0                                                    ⍝ omIx: "global" counter for positional omega ⍹ (see)
     ⍝ Basic preamble (actual code / symbolic)
-      _pPre←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/'   '⍙ⒸⒽⒶⒾⓃ/' ⊃⍨ mo<0    ⍝ Core preamble     (actual / symbolic: mo<0)
-      _pDef←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0    ⍝ Opt'l definitions (actual / symbolic: mo<0)
-      preCode←  _pPre, bo/ _pDef                                 ⍝ Full preamble, w/ defs if bo=1
+    ⍝ ⍙ⒸⒽⓃ aligns and catenates arrays ⍺ and ⍵, left to right
+      _chn←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/'   '⍙ⒸⒽⓃ/' ⊃⍨ mo<0       ⍝ Core preamble     (actual / symbolic: mo<0)
+      _box←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0     ⍝ Opt'l definitions (actual / symbolic: mo<0)
+      preCode←  _chn, bo/ _box                                   ⍝ Full preamble, w/ defs if bo=1
     ⍝ Shortcut pseudofns: $ → ⎕FMT, % → ⍙ÔVR ("display over")    ⍝  
       scSyms←   ,¨'$' '%'                                        ⍝ scSyms:  shortcut symbols
-      scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode: code for each symbol
-      _ovrD←   '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                ⍝ scDefs: Definitions for shortcut(s) required 
-      _ovrD,←  'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}⋄'    ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
-      scDefs←  _ovrD '⍙ⓄⓋⓇ←{...}⋄' ⊃⍨ mo<0                       ⍝ scDefs: Select actual vs symbolic definition
+    ⍝ ⍙ⓄⓋⓇ aligns, centers, and catenates array ⍺ over ⍵
+      scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode: code for each symbol $ and %
+    ⍝  _ovr←   '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                 ⍝ scDefs: Definitions for shortcut(s) required 
+    ⍝  _ovr,←  'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}'      ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
+      _o← '{⍺←⍬⋄⊃⍪/(-⌊2÷⍨m-w)⌽¨∆↑⍤¯1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨∆←⎕FMT¨⍺⍵}'    ⍝ ⍙ⓄⓋⓇ: See %
+      scDefs← '⍙ⓄⓋⓇ←', _o '{...}' ⊃⍨ mo<0                        ⍝ scDefs: Definition for ∆F-defined fn ⍙ⓄⓋⓇ
       scDefsOut← 0                                               ⍝ Only if 1, will definitions will be output.
     ⍝ (Regular Expression) Pattern Building Blocks
       nl← ⎕UCS 13
       lb rb← '{}'    
       sq2← sq,sq← '''' 
       dq2← dq,dq← '"'
-      e←  '\', eo                                               ⍝ e:  ⎕R-ready e̲scape c̲har.  
-      eT← e,'[{}⋄',  e,']'                                      ⍝ eT: e̲scape sequence in T̲ext fields, incl. quotes  
-      eC← e,'[{}⋄⍵⍹',e,']'                                      ⍝ eC: e̲scape sequence in Ⓒode (cP) and Comments (cmP) 
+      e←  '\', eo                                                ⍝ e:  ⎕R-ready e̲scape c̲har.  
+      eT← e,'[{}⋄',  e,']'                                       ⍝ eT: e̲scape sequence in T̲ext fields, incl. quotes  
+      eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cP) and Comments (cmP) 
     ⍝ Common Patterns
       qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
       scP←  '([%$])\s*'                                          ⍝ scP:  match a shortcut "fn": $ or %. 
@@ -59,10 +62,10 @@
       Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome  O̲mega ⍵-feature, including positional vars.
       Par← '(', ,∘')'                                            ⍝ Par  P̲arenthesize
       ÇPad← ⊢,('⍬'/⍨((0=≢⍤⊃)+(1∘≥≢)))                            ⍝ ÇPad Cond'lly pad fields (to ≥2)  
-      Pre← { (preCode,'⌽'),⍨ scDefsOut/scDefs }                  ⍝ Pre  G̲enerate preamble from header & shortcut code  
+      Pre← { (preCode,'⌽'),⍨ scDefsOut/scDefs,'⋄' }              ⍝ Pre  G̲enerate preamble from header & shortcut code  
       Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T  Single- or Double-Q̲uoted string to generic T̲ext
       ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC  S̲hortcut to C̲ode value: '$' or '%'
-      STE← tenP tecP ⎕R nl '\1'                                  ⍝ STE  In quoted S̲trings and T̲ext Fields, process Escapes 
+      STE← tenP tecP ⎕R nl '\1'                                  ⍝ STE  In quoted S̲trings and T̲ext Fields, process Ⓔscapes 
       STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵}∘⎕FMT       ⍝ STF  In quoted S̲trings and T̲ext Fields, F̲ormat (poss. multiline) text
       ÇTru← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)               ⍝ ÇTru Cond'lly trunc. str >⍺ chars, adding '...'
       T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q  Convert generic T̲ext to sq-Q̲uoted string
