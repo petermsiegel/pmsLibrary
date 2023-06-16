@@ -18,42 +18,38 @@
       fmtS← ⊃⊆⍵                                                  ⍝ fmtS: our format string
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: user escape char (not escaped for pcre/⎕R)
       omIx← 0                                                    ⍝ omIx: "global" counter for positional omega ⍹ (see)
-    ⍝ Basic preamble (actual code / symbolic)
-    ⍝ ⍙ⒸⒽⓃ aligns and catenates arrays ⍺ and ⍵, left to right
-      _chn←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/'   '⍙ⒸⒽⓃ/' ⊃⍨ mo<0       ⍝ Core preamble     (actual / symbolic: mo<0)
-      _box←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'   ⊃⍨ mo<0     ⍝ Opt'l definitions (actual / symbolic: mo<0)
-      preCode←  _chn, bo/ _box                                   ⍝ Full preamble, w/ defs if bo=1
-    ⍝ Shortcut pseudofns: $ → ⎕FMT, % → ⍙ÔVR ("display over")    ⍝  
+    ⍝ preCode, preDefs: Core preamble code and fmt-dependent definitions  
+      _chn←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/'   '⍙ⒸⒽⓃ/' ⊃⍨ mo<0       ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
+      _box←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨' ⊃⍨ mo<0       ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
+      preCode←  _chn, bo/ _box                                    
+       _ovr← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'   ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+      preDefs← '⍙ⓄⓋⓇ←', _ovr '{...}' ⊃⍨ mo<0                     ⍝ preDefs: Definition for ∆F-defined fn ⍙ⓄⓋⓇ
+      preDefsOut← 0                                              ⍝ If % not used in fmtS, ⍙ⓄⓋⓇ won't be defined or used.
+    ⍝ Shortcut pseudofns: symbols mapped to code                 ⍝  
       scSyms←   ,¨'$' '%'                                        ⍝ scSyms:  shortcut symbols
-    ⍝ ⍙ⓄⓋⓇ aligns, centers, and catenates array ⍺ over ⍵
       scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode: code for each symbol $ and %
-    ⍝  _ovr←   '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/⍺{m←⌈/w←⍺,⍥(⊃⌽⍤⍴)⍵⋄'                 ⍝ scDefs: Definitions for shortcut(s) required 
-    ⍝  _ovr,←  'w{⍺=m:⍵⋄m↑⍤¯1⊢⍵↑⍤¯1⍨-⌊⍺+2÷⍨m-⍺}¨⍺ ⍵}⍥⎕FMT⍵}'      ⍝ ⎕FMT: APL, ⍙ⓄⓋⓇ: included here.
-      _o← '{⍺←⍬⋄⊃⍪/(-⌊2÷⍨m-w)⌽¨∆↑⍤¯1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨∆←⎕FMT¨⍺⍵}'    ⍝ ⍙ⓄⓋⓇ: See %
-      scDefs← '⍙ⓄⓋⓇ←', _o '{...}' ⊃⍨ mo<0                        ⍝ scDefs: Definition for ∆F-defined fn ⍙ⓄⓋⓇ
-      scDefsOut← 0                                               ⍝ Only if 1, will definitions will be output.
-    ⍝ (Regular Expression) Pattern Building Blocks
+    ⍝ Simple constants
       nl← ⎕UCS 13
       lb rb← '{}'    
       sq2← sq,sq← '''' 
       dq2← dq,dq← '"'
+    ⍝ Core Regex Patterns
       e←  '\', eo                                                ⍝ e:  ⎕R-ready e̲scape c̲har.  
       eT← e,'[{}⋄',  e,']'                                       ⍝ eT: e̲scape sequence in T̲ext fields, incl. quotes  
       eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cP) and Comments (cmP) 
-    ⍝ Common Patterns
       qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
       scP←  '([%$])\s*'                                          ⍝ scP:  match a shortcut "fn": $ or %. 
       omP←  '(?:',e,'⍵|',e,'?[⍹])(\d*)'                          ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
       cmP←  '⍝(?:[^{}⋄',e,']+|', eC,'?)*'                        ⍝ cmP:  Comments end with any of '⋄{}'
-    ⍝ Major Patterns for Text Fields and Quoted Strings (in Code Fields)                                 
+    ⍝ TF+: Major Patterns for Text Fields + Quoted Strings (CF)                                
       tP←   '((',eT,'?|[^{',e,']+)+)'                            ⍝ tP: Text Field pattern                                            
       tenP←  e,'⋄'                                               ⍝ tenP: [text] escape + newline
       tecP←  e,'([{}⋄',e,'])'                                    ⍝ teeP: [text] escape + char
-    ⍝ Major Patterns for Space Fields                            ⍝ s1P...: Space Field patterns                                 
+    ⍝ SF: Major Patterns for Space Fields                        ⍝ s1P...: Space Field patterns                                 
       s1P← '\{(\h*)\}' 
       s2P← '\{',_l,'(\d*)',_r,'\}' ⊣ _l _r← '\h*:\h*' '(?:\h*:)?\h*'  
       s3P← '\{',_l,omP,_r,'\}'
-    ⍝ Major Patterns for Code Fields                             ⍝ cP: Code Field pattern
+    ⍝ CF: Major Patterns for Code Fields                         ⍝ cP: Code Field pattern
       cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
       cQP← '(?x: \{ \h* (',qP,') \h* \} )'                       ⍝ Fast match for {"dq string" or 'sq string'}
     ⍝ Actions
@@ -62,22 +58,22 @@
       Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome  O̲mega ⍵-feature, including positional vars.
       Par← '(', ,∘')'                                            ⍝ Par  P̲arenthesize
       ÇPad← ⊢,('⍬'/⍨((0=≢⍤⊃)+(1∘≥≢)))                            ⍝ ÇPad Cond'lly pad fields (to ≥2)  
-      Pre← { (preCode,'⌽'),⍨ scDefsOut/scDefs,'⋄' }              ⍝ Pre  G̲enerate preamble from header & shortcut code  
+      Pre← { (preCode,'⌽'),⍨ preDefsOut/preDefs,'⋄' }            ⍝ Pre  G̲enerate preamble from header & shortcut code  
       Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T  Single- or Double-Q̲uoted string to generic T̲ext
       ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC  S̲hortcut to C̲ode value: '$' or '%'
-      STE← tenP tecP ⎕R nl '\1'                                  ⍝ STE  In quoted S̲trings and T̲ext Fields, process Ⓔscapes 
-      STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵}∘⎕FMT       ⍝ STF  In quoted S̲trings and T̲ext Fields, F̲ormat (poss. multiline) text
+      STF← ⎕FMT tenP tecP ⎕R nl '\1'                             ⍝ STF  In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
+      STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵} STF        ⍝ ...  (poss. multiline) text and convert to (poss. reshaped) SQ string
       ÇTru← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)               ⍝ ÇTru Cond'lly trunc. str >⍺ chars, adding '...'
       T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q  Convert generic T̲ext to sq-Q̲uoted string
-    ⍝ Processing Fields of text TF, code CF, and space SF
-      TF← ANl STF⍤STE                                     ⍝ TF   ⍝ Process Text fields (adding newline)
+    ⍝ TF, CF, SF: Processing Fields of text, code, and spaces
+      TF← ANl STF                                         ⍝ TF   ⍝ Process Text fields (adding newline)
       CF← ANl Par⍤{                                       ⍝ CF   ⍝ Process Code fields (adding parens and newline)
           patV← qP scP omP cmP
                 qI scI omI cmI← ⍳≢patV
           tx← patV ⎕R {
               C← ⍵.PatternNum∘= ⋄ F← ⍵∘F   
-              C qI:   STF STE Q2T F 0                            ⍝ Proc escapes, format text   
-              C scI:  ScC f1 ⊣ scDefsOut∨← '%'=f1←F 1            ⍝ $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
+              C qI:   STF Q2T F 0                                ⍝ Proc escapes, format text   
+              C scI:  ScC f1 ⊣ preDefsOut∨← '%'=f1←F 1           ⍝ $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
               C omI:  Par '⍵⊃⍨⎕IO+', Ome F 1                     ⍝ Handle ⍹dd, ⍹, etc. in code field expressions
               C cmI: ' '                                         ⍝ Limited comments in code fields
           } ⍵ 
