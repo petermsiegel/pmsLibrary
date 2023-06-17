@@ -53,11 +53,10 @@
     ⍝ CF: Major Patterns for Code Fields                         ⍝ cP: Code Field pattern
       cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
       cQP← '(?x: \{ \h* (',qP,') \h* \} )'                       ⍝ Fast match for {"dq string" or 'sq string'}
-    ⍝ Actions
+    ⍝ Building Block Actions
       ANl← ,∘nl                                                  ⍝ ANl  Append a N̲ewline
-      ÇPad← { f, '⍬⊂'↑⍨ -(0= ≢⊃f)+ 1≥ ≢f← ⍵/⍨ 0∨.≠ ≢¨⍵ }         ⍝ ÇPad Ensure proper output fields 
-      ÇTru← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)               ⍝ ÇTru Cond'lly trunc. str >⍺ chars, adding '...'
       F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F    Select a ⎕R pat match F̲ield
+      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF  F̲ormat O̲utput F̲ields 
       Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome  O̲mega ⍵-feature, including positional vars.
       Par← '(', ,∘')'                                            ⍝ Par  P̲arenthesize
       Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre  G̲enerate preamble from header & shortcut code  
@@ -65,6 +64,7 @@
       ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC  S̲hortcut to C̲ode value: '$' or '%'
       STF← ⎕FMT tenP tecP ⎕R nl '\1'                             ⍝ STF  In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
       STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵} STF        ⍝ ...  (poss. multiline) text and convert to (poss. reshaped) SQ string
+      Trunc← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)              ⍝ Trunc Cond'lly trunc. str >⍺ chars, adding '...'      
       T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q  Convert generic T̲ext to sq-Q̲uoted string
     ⍝ TF, CF, SF: Processing Fields of text, code, and spaces
       TF← ANl STF                                         ⍝ TF   ⍝ Process Text fields (adding newline)
@@ -97,10 +97,11 @@
           C cQI:     TF Q2T F 1                                  ⍝ Code Field Simple Quote Fast match {"Like this"}
           C cI:      CF F 2                                      ⍝ General Code  field
                   sn SF F 1                                      ⍝ Space field (sn∊1 2 3)                             
-      }⊆                       
-      cs← (⊂(lb/⍨1+1≠mo), Pre⍬), ⌽ÇPad MatchTCS fmtS             ⍝ Prepare code str for execution or display
+      }⊆        
+      #.T∘←MatchTCS fmtS               
+      cs← (⊂(lb/⍨1+1≠mo), Pre⍬), ⌽FOF MatchTCS fmtS             ⍝ Prepare code str for execution or display
       1=mo:  ∊cs,  rb, ',⍵⍵'                                     ⍝ 1: Execute code in caller env: ⍵⍵ contains <orig ⍵>  
-              cs, ⊂rb, '⍵,⍨', ('⊂', T2Q ÇTru fmtS), rb           ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
+              cs, ⊂rb, '⍵,⍨', ('⊂', T2Q Trunc fmtS), rb           ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
   } ⍵
 
 ⍝H ∆F Utility Function
