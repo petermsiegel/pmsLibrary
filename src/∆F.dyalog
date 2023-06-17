@@ -53,13 +53,13 @@
     ⍝ CF: Major Patterns for Code Fields                         ⍝ cP: Code Field pattern
       cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
       cQP← '(?x: \{ \h* (',qP,') \h* \} )'                       ⍝ Fast match for {"dq string" or 'sq string'}
-    ⍝ Building Block Actions
+    ⍝ Mini-Tasks
       ANl← ,∘nl                                                  ⍝ ANl  Append a N̲ewline
-      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F    Select a ⎕R pat match F̲ield
-      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF  F̲ormat O̲utput F̲ields 
+      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F    Select a ⎕R pat match (regex) F̲ield
+      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF  F̲ormat O̲utput F̲ields- (adds null field if necc.) 
       Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome  O̲mega ⍵-feature, including positional vars.
       Par← '(', ,∘')'                                            ⍝ Par  P̲arenthesize
-      Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre  G̲enerate preamble from header & shortcut code  
+      Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre  Generate P̲reamble from header & shortcut code  
       Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T  Single- or Double-Q̲uoted string to generic T̲ext
       ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC  S̲hortcut to C̲ode value: '$' or '%'
       STF← ⎕FMT tenP tecP ⎕R nl '\1'                             ⍝ STF  In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
@@ -97,11 +97,10 @@
           C cQI:     TF Q2T F 1                                  ⍝ Code Field Simple Quote Fast match {"Like this"}
           C cI:      CF F 2                                      ⍝ General Code  field
                   sn SF F 1                                      ⍝ Space field (sn∊1 2 3)                             
-      }⊆        
-      #.T∘←MatchTCS fmtS               
-      cs← (⊂(lb/⍨1+1≠mo), Pre⍬), ⌽FOF MatchTCS fmtS             ⍝ Prepare code str for execution or display
+      }⍠('ResultText' 'Nested')                                  
+      cs← (⊂(lb/⍨1+1≠mo), Pre⍬), ⌽FOF MatchTCS fmtS              ⍝ Prepare code str for execution or display
       1=mo:  ∊cs,  rb, ',⍵⍵'                                     ⍝ 1: Execute code in caller env: ⍵⍵ contains <orig ⍵>  
-              cs, ⊂rb, '⍵,⍨', ('⊂', T2Q Trunc fmtS), rb           ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
+              cs, ⊂rb, '⍵,⍨', ('⊂', T2Q Trunc fmtS), rb          ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
   } ⍵
 
 ⍝H ∆F Utility Function
@@ -192,15 +191,20 @@
 ⍝H        This has the same output as the following, using % ("Over", shown in pseudo/code as ⍙ⓄⓋⓇ)
 ⍝H ⍎               ∆F '{ "This is" % " a cat" % " ¯ ¯¯¯" }'
 ⍝H     c. Shortcuts (aliases): 
-⍝H          $  Equivalent to ⎕FMT. For sanity, use with a left argument in double quotes:
+⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
 ⍝H ⍎               ∆F '{ "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
 ⍝H ⎕           <0.47805>
 ⍝H ⎕           <0.46475>
-⍝H          %  Internal function ⍺ ⍙ⓄⓋⓇ ⍵, which prints object ⍺ centered over object ⍵.
+⍝H          %  % prints object ⍺ centered over object ⍵ (itself centered, if the narrower obj.).
 ⍝H ⍎               ∆F '{ "Random Nums" % "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
 ⍝H ⎕           Random Nums
-⍝H ⎕           <0.43528> 
-⍝H ⎕           <0.61564> 
+⍝H ⎕            <0.43528> 
+⍝H ⎕            <0.61564> 
+⍝H          %  % may also be used monadically to insert a blank line above your output:
+⍝H ⍎               ∆F '{⎕DL `⍵ }{%⎕DL `⍵ }{%%⎕DL `⍵ }' 0.1  0.2 0.3
+⍝H ⎕           0.107371                          ⍝ ⎕DL 0.1                        
+⍝H ⎕                   0.204216                  ⍝ ⎕DL 0.2   
+⍝H ⎕                           0.300909          ⍝ ⎕DL 0.3
 ⍝H      d. Limited comments: 
 ⍝H         ∘ Comments in code fields may consist of any characters besides (unescaped)
 ⍝H            }, ⋄, and {.
