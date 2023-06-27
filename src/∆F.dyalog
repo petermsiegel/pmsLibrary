@@ -6,24 +6,28 @@
   ⍺←1  0  '`'                                                    
   ⍬≡⍺: _←1 0⍴'' 
   'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-⍝ Stage II - Given mode (⊃⍺) etc., execute, return, or display code string from Stage I  
+
+⍝ BEGIN Stage II - 
+⍝ Execute, return, or display code string from Stage I  
   (⊃⍺)∘( (⊃⎕RSI) {  
     0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
     1=⍺: ⍺⍺⍎⍵  ⋄   0=⍺: ∊⍵                                                 
    ¯1=⍺: ⍵     ⋄  ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪ ⍵  ⋄ ∘∘∘ declare ⍵⍵ ∘∘∘                                                                                
   }(⊆⍵))⍺∘{        
-⍝ Stage I - Process format string to code string and pass to Stage II
+⍝ END Stage II 
+
+⍝ BEGIN Stage I - 
+⍝ Process format string to code string and pass to Stage II
     0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
     ⍝ Option specs
       fmtS← ⊃⊆⍵                                                  ⍝ fmtS: our format string
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: user escape char (not escaped for pcre/⎕R)
       omIx← 0                                                    ⍝ omIx: "global" counter for positional omega ⍹ (see)
     ⍝ preCode, preDefs: Core preamble code and fmt-dependent definitions  
-    ⍝  _chn←    '⊃{⊃,/⍺⍵↑⍨¨⌈⍥≢/⍺⍵}⍥⎕FMT/' '⍙ⒸⒽⓃ/'  ⊃⍨ mo<0       ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
-      _chn←    '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨' ⊃⍨ mo<0      ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
-      _box←    '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'  ⊃⍨ mo<0      ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
-      preCode←  '⌽',⍨ _chn, bo/ _box                                    
-      _ovr←    '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}' ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+        _chn←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨' ⊃⍨ mo<0    ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
+        _box← bo/ '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨' ⊃⍨ mo<0    ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
+      preCode← _chn, _box, '⌽'                                    
+        _ovr← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
       preDefs← '⍙ⓄⓋⓇ←', _ovr '{...}' ⊃⍨ mo<0                     ⍝ preDefs: Definition for ∆F-defined fn ⍙ⓄⓋⓇ
       preDefsOut← 0                                              ⍝ If % not used in fmtS, ⍙ⓄⓋⓇ won't be defined or used.
     ⍝ Shortcut pseudofns: symbols mapped to code                 ⍝  
@@ -34,10 +38,11 @@
       lb rb← '{}'    
       sq2← sq,sq← '''' 
       dq2← dq,dq← '"'
+      mOpts← 'ResultText' 'Nested'                               ⍝ mOpts ⎕R options. See MatchTCS
     ⍝ Core Regex Patterns
       e←  '\', eo                                                ⍝ e:  ⎕R-ready e̲scape c̲har.  
       eT← e,'[{}⋄',  e,']'                                       ⍝ eT: e̲scape sequence in T̲ext fields, incl. quotes  
-      eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cP) and Comments (cmP) 
+      eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cGP) and Comments (cmP) 
       qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
       scP←  '([%$])\s*'                                          ⍝ scP:  match a shortcut "fn": $ or %. 
       omP←  '(?:',e,'⍵|',e,'?[⍹])(\d*)'                          ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
@@ -47,25 +52,25 @@
       tenP←  e,'⋄'                                               ⍝ tenP: [text] escape + newline
       tecP←  e,'([{}⋄',e,'])'                                    ⍝ teeP: [text] escape + char
     ⍝ SF: Major Patterns for Space Fields                        ⍝ s1P...: Space Field patterns                                 
-      s1P← '\{(\h*)\}' 
-      s2P← '\{',_l,'(\d*)',_r,'\}' ⊣ _l _r← '\h*:\h*' '(?:\h*:)?\h*'  
-      s3P← '\{',_l,omP,_r,'\}'
-    ⍝ CF: Major Patterns for Code Fields                         ⍝ cP: Code Field pattern
-      cP←  '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
+      s1P← '\{(\h*)\}'                                           ⍝ {     }
+      s2P← '\{',_l,'(\d*)',_r,'\}' ⊣ _l _r← '\h*:\h*' '(?:\h*:)?\h*'  ⍝ { :5: } 
+      s3P← '\{',_l,omP,_r,'\}'                                   ⍝ { :⍹5: }
+    ⍝ CF: Major Patterns for Code Fields                         ⍝ cGP: Code Field general pattern
+      cGP← '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
       cQP← '(?x: \{ \h* (',qP,') \h* \} )'                       ⍝ Fast match for {"dq string" or 'sq string'}
     ⍝ Mini-Tasks
-      ANl← ,∘nl                                                  ⍝ ANl  Append a N̲ewline
-      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F    Select a ⎕R pat match (regex) F̲ield
-      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF  F̲ormat O̲utput F̲ields- (adds null field if necc.) 
-      Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome  O̲mega ⍵-feature, including positional vars.
-      Par← '(', ,∘')'                                            ⍝ Par  P̲arenthesize
-      Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre  Generate P̲reamble from header & shortcut code  
-      Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T  Single- or Double-Q̲uoted string to generic T̲ext
-      ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC  S̲hortcut to C̲ode value: '$' or '%'
-      STF← ⎕FMT tenP tecP ⎕R nl '\1'                             ⍝ STF  In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
-      STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵} STF        ⍝ ...  (poss. multiline) text and convert to (poss. reshaped) SQ string
+      ANl← ,∘nl                                                  ⍝ ANl   Append a N̲ewline
+      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F     Select a ⎕R pat match (regex) F̲ield
+      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF   F̲ormat O̲utput F̲ields- (adds null field if necc.) 
+      Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome   O̲mega ⍵-feature, including positional vars.
+      Par← '(', ,∘')'                                            ⍝ Par   P̲arenthesize
+      Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre   Generate P̲reamble from header & shortcut code  
+      Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T   Single- or Double-Q̲uoted string to generic T̲ext
+      ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC   S̲hortcut to C̲ode value: '$' or '%'
+      _STF← ⎕FMT tenP tecP ⎕R nl '\1'                            ⍝ STF   In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
+      STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵} _STF       ⍝ ...   (poss. multiline) text and convert to (poss. reshaped) SQ string
       Trunc← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)              ⍝ Trunc Cond'lly trunc. str >⍺ chars, adding '...'      
-      T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q  Convert generic T̲ext to sq-Q̲uoted string
+      T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q   Convert generic T̲ext to sq-Q̲uoted string
     ⍝ TF, CF, SF: Processing Fields of text, code, and spaces
       TF← ANl STF                                         ⍝ TF   ⍝ Process Text fields (adding newline)
       CF← ANl Par⍤{                                       ⍝ CF   ⍝ Process Code fields (adding parens and newline)
@@ -81,27 +86,28 @@
           '{', tx, '}⍵'
       }               
       SF← {nullF←''                                      ⍝ SF    ⍝ Process Space fields 
-           C← ⍺∘=                                         
+           C← ⍺∘=                                        ⍝ Case per ⍺
            C 3:           ANl Par sq2,'⍴⍨⍵⊃⍨⎕IO+',Ome ⍵  ⍝ ⍺=3   ⍝ { :⍵3: } etc.    
           (C 1)∧0=≢⍵:     nullF                          ⍝ ⍺=1   ⍝ {}                      
            C 1:           ANl Par (⍕≢⍵),'⍴',sq2          ⍝ ⍺=1   ⍝ {  }
            '0'∧.=⍵:       nullF                          ⍝ ⍺=2   ⍝ { :0: }, { :00: }, etc., AND { :: } 
                           ANl Par ⍵,'⍴',sq2              ⍝ ⍺=2   ⍝ { :5: }            
       }  
-    ⍝ Stage I Master Process: input format string => code string, passed to Stage II                                                     
-      patV← tP s1P s2P s3P cQP cP                                
-            tI _   _   _   cQI cI←⍳≢ patV  
+    ⍝ Stage I Main Process: input format string => code string, passed to Stage II                                                     
+      patV← tP s1P s2P s3P cQP cGP                                
+            tI _   _   _   cQI cGI←⍳≢ patV  
       MatchTCS←patV ⎕R { sn← ⍵.PatternNum                                         
           C← sn∘∊ ⋄ F← ⍵∘F  
           C tI:      TF F 1                                      ⍝ Text  field
           C cQI:     TF Q2T F 1                                  ⍝ Code Field Simple Quote Fast match {"Like this"}
-          C cI:      CF F 2                                      ⍝ General Code  field
+          C cGI:     CF F 2                                      ⍝ General Code  field
                   sn SF F 1                                      ⍝ Space field (sn∊1 2 3)                             
-      }⍠('ResultText' 'Nested')                                  
-      cs← (⊂(lb/⍨1+1≠mo), Pre⍬), ⌽FOF MatchTCS fmtS              ⍝ Prepare code str for execution or display
+      } ⍠mOpts                                  
+      cs← ( ⊂( lb/⍨1+1≠mo ), Pre⍬ ), ⌽FOF MatchTCS fmtS          ⍝ Prepare code str for execution or display
       1=mo:  ∊cs,  rb, ',⍵⍵'                                     ⍝ 1: Execute code in caller env: ⍵⍵ contains <orig ⍵>  
-              cs, ⊂rb, '⍵,⍨', ('⊂', T2Q Trunc fmtS), rb          ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
+              cs, ⊂rb, '⍵,⍨ ⊂', (T2Q Trunc fmtS), rb             ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
   } ⍵
+⍝ END Stage I 
 
 ⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
