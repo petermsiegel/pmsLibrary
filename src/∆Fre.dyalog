@@ -1,158 +1,115 @@
-﻿∆F←{
-  ⍺←1 0 '`'
-  0=≢⍺: 1 0⍴''
- 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  (⊃⍺) ((⊃⎕RSI){
-    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
-      1=⍺:  ⍺⍺⍎ ⍵                                            ⍝ ⍵ string includes original ⍵ as ⍵⍵ 
-     ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪⍵
-           ⍵    
-      ∘∘unreachable∘∘ ⍵⍵ 
-  }(⊆⍵))⍺{
-  90:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
-    (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)
-    fmtS←⊃⊆⍵
-      _chn←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨' ⊃⍨ mo<0    ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
-      _box← bo/ '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨' ⊃⍨ mo<0    ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
-    preCode← _chn, _box, '⌽'                                    
-      _ovr← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
-    runDefs← '⍙ⓄⓋⓇ←', _ovr '{...}⋄' ⊃⍨ mo<0                     ⍝ runtime defs, if required 
+﻿∆Fre← { 
+⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
+⍝! For documentation, see ⍝H comments below.
+  ⎕IO ⎕ML←0 1
+⍝ Main options (⍺): <mo mode, bo box, eo escape char OR ⍬ OR 'help'>                                    
+  ⍺←1  0  '`'                                                    
+  ⍬≡⍺: _←1 0⍴'' 
+  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
 
-    omIx←0                                                     ⍝ See SplitOm
-    inclRun←0
+⍝ BEGIN Stage II - 
+⍝ Execute, return, or display code string from Stage I  
+  (⊃⍺)∘( (⊃⎕RSI) {  
+    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    1=⍺: ⍺⍺⍎⍵  ⋄   0=⍺: ∊⍵                                                 
+   ¯1=⍺: ⍵     ⋄  ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪ ⍵  ⋄ ∘∘∘ declare ⍵⍵ ∘∘∘                                                                                
+  }(⊆⍵))⍺∘{        
+⍝ END Stage II 
 
-  ⍝ '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                        ⍝ ⍹: omega underbar                              
-    sq dq eos cm cln lb rb fmt ovr om omU← '''"⋄⍝:{}$%⍵⍹'  
-    sp← ' '
-    nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
-    impCF←  sq dq cm cln lb rb fmt ovr om omU esc              ⍝ stuff you need to eval 1 by 1
-    impTF←               lb rb                esc    
+⍝ BEGIN Stage I - 
+⍝ Process format string to code string and pass to Stage II
+    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    ⍝ Option specs
+      fmtS← ⊃⊆⍵                                                  ⍝ fmtS: our format string
+      (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: user escape char (not escaped for pcre/⎕R)
+      omIx← 0                                                    ⍝ omIx: "global" counter for positional omega ⍹ (see)
+    ⍝ preCode, preDefs: Core preamble code and fmt-dependent definitions  
+        _chn←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨' ⊃⍨ mo<0    ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
+        _box← bo/ '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨' ⊃⍨ mo<0    ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
+      preCode← _chn, _box, '⌽'                                    
+        _ovr← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+      preDefs← '⍙ⓄⓋⓇ←', _ovr '{...}' ⊃⍨ mo<0                     ⍝ preDefs: Definition for ∆F-defined fn ⍙ⓄⓋⓇ
+      preDefsOut← 0                                              ⍝ If % not used in fmtS, ⍙ⓄⓋⓇ won't be defined or used.
+    ⍝ Shortcut pseudofns: symbols mapped to code                 ⍝  
+      scSyms←   ,¨'$' '%'                                        ⍝ scSyms:  shortcut symbols
+      scCode←   '⎕FMT ' '⍙ⓄⓋⓇ '                                  ⍝ scCode: code for each symbol $ and %
+    ⍝ Simple constants
+      nl← ⎕UCS 13
+      lb rb← '{}'    
+      sq2← sq,sq← '''' 
+      dq2← dq,dq← '"'
+      mOpts← 'ResultText' 'Nested'                               ⍝ mOpts ⎕R options. See MatchTCS
+    ⍝ Core Regex Patterns
+      e←  '\', eo                                                ⍝ e:  ⎕R-ready e̲scape c̲har.  
+      eT← e,'[{}⋄',  e,']'                                       ⍝ eT: e̲scape sequence in T̲ext fields, incl. quotes  
+      eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cGP) and Comments (cmP) 
+      qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
+      scP←  '([%$])\s*'                                          ⍝ scP:  match a shortcut "fn": $ or %. 
+      omP←  '(?:',e,'⍵|',e,'?[⍹])(\d*)'                          ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
+      cmP←  '⍝(?:[^{}⋄',e,']+|', eC,'?)*'                        ⍝ cmP:  Comments end with any of '⋄{}'
+    ⍝ TF+: Major Patterns for Text Fields + Quoted Strings (CF)                                
+      tP←   '((',eT,'?|[^{',e,']+)+)'                            ⍝ tP: Text Field pattern                                            
+      tenP←  e,'⋄'                                               ⍝ tenP: [text] escape + newline
+      tecP←  e,'([{}⋄',e,'])'                                    ⍝ teeP: [text] escape + char
+    ⍝ SF: Major Patterns for Space Fields                        ⍝ s1P...: Space Field patterns                                 
+      s1P← '\{(\h*)\}'                                           ⍝ {     }
+      s2P← '\{',_l,'(\d*)',_r,'\}' ⊣ _l _r← '\h*:\h*' '(?:\h*:)?\h*'  ⍝ { :5: } 
+      s3P← '\{',_l,omP,_r,'\}'                                   ⍝ { :⍹5: }
+    ⍝ CF: Major Patterns for Code Fields                         ⍝ cGP: Code Field general pattern
+      cGP← '(?x) (?<P> \{ ((?>  [^{}"''⍝',e,']+ | (?:',eC,'?)+ |',qP,' | ',cmP,' | (?&P)* )+)  \} )' 
+      cQP← '(?x: \{ \h* (',qP,') \h* \} )'                       ⍝ Fast match for {"dq string" or 'sq string'}
+    ⍝ Mini-Tasks
+      ANl← ,∘nl                                                  ⍝ ANl   Append a N̲ewline
+      F←   {⍵≥≢⍺.Lengths: '' ⋄ ⍺.(⌷∘Lengths↑Block↓⍨⌷∘Offsets)⍵}  ⍝ F     Select a ⎕R pat match (regex) F̲ield
+      FOF← { 1<≢⍵: ⍵ ⋄ 0=≢⊃⍵: ⊂'⊂⍬'⋄ ⊂'⊂',⊃⍵ }                   ⍝ FOF   F̲ormat O̲utput F̲ields- (adds null field if necc.) 
+      Ome← {0≠≢⍵: ⍵⊣ omIx⊢← ⊃⌽⎕VFI ⍵ ⋄ ⍕omIx⊣ omIx+← 1}          ⍝ Ome   O̲mega ⍵-feature, including positional vars.
+      Par← '(', ,∘')'                                            ⍝ Par   P̲arenthesize
+      Pre← { preCode,⍨ preDefsOut/preDefs,'⋄' }                  ⍝ Pre   Generate P̲reamble from header & shortcut code  
+      Q2T← ⊢{ dq≠⊃⍺: ⍵ ⋄ ⍵/⍨ ~dq2⍷ ⍵ }1↓¯1↓⊢                     ⍝ Q2T   Single- or Double-Q̲uoted string to generic T̲ext
+      ScC← scCode∘{ ⍵⊃⍺ }scSyms⍳⊂                                ⍝ ScC   S̲hortcut to C̲ode value: '$' or '%'
+      _STF← ⎕FMT tenP tecP ⎕R nl '\1'                            ⍝ STF   In quoted S̲trings and T̲ext Fields, process escapes, F̲ormat ...
+      STF← {1=≢⍵: ' ',⍨ T2Q ∊⍵ ⋄ Par(⍕⍴⍵),'⍴',T2Q ∊⍵} _STF       ⍝ ...   (poss. multiline) text and convert to (poss. reshaped) SQ string
+      Trunc← 25∘{ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨⍺-3 }⍣ (mo<0)              ⍝ Trunc Cond'lly trunc. str >⍺ chars, adding '...'      
+      T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ T2Q   Convert generic T̲ext to sq-Q̲uoted string
+    ⍝ TF, CF, SF: Processing Fields of text, code, and spaces
+      TF← ANl STF                                         ⍝ TF   ⍝ Process Text fields (adding newline)
+      CF← ANl Par⍤{                                       ⍝ CF   ⍝ Process Code fields (adding parens and newline)
+          patV← qP scP omP cmP
+                qI scI omI cmI← ⍳≢patV
+          tx← patV ⎕R {
+              C← ⍵.PatternNum∘= ⋄ F← ⍵∘F   
+              C qI:   STF Q2T F 0                                ⍝ Proc escapes, format text   
+              C scI:  ScC f1 ⊣ preDefsOut∨← '%'=f1←F 1           ⍝ $ => ⎕FMT, % => ⍙ÔVR (display ⍺ over ⍵)
+              C omI:  Par '⍵⊃⍨⎕IO+', Ome F 1                     ⍝ Handle ⍹dd, ⍹, etc. in code field expressions
+              C cmI: ' '                                         ⍝ Limited comments in code fields
+          } ⍵ 
+          '{', tx, '}⍵'
+      }               
+      SF← {nullF←''                                      ⍝ SF    ⍝ Process Space fields 
+           C← ⍺∘=                                        ⍝ Case per ⍺
+           C 3:           ANl Par sq2,'⍴⍨⍵⊃⍨⎕IO+',Ome ⍵  ⍝ ⍺=3   ⍝ { :⍵3: } etc.    
+          (C 1)∧0=≢⍵:     nullF                          ⍝ ⍺=1   ⍝ {}                      
+           C 1:           ANl Par (⍕≢⍵),'⍴',sq2          ⍝ ⍺=1   ⍝ {  }
+           '0'∧.=⍵:       nullF                          ⍝ ⍺=2   ⍝ { :0: }, { :00: }, etc., AND { :: } 
+                          ANl Par ⍵,'⍴',sq2              ⍝ ⍺=2   ⍝ { :5: }            
+      }  
+    ⍝ Stage I Main Process: input format string => code string, passed to Stage II                                                     
+      patV← tP s1P s2P s3P cQP cGP                                
+            tI _   _   _   cQI cGI←⍳≢ patV  
+      MatchTCS←patV ⎕R { sn← ⍵.PatternNum                                         
+          C← sn∘∊ ⋄ F← ⍵∘F  
+          C tI:      TF F 1                                      ⍝ Text  field
+          C cQI:     TF Q2T F 1                                  ⍝ Code Field Simple Quote Fast match {"Like this"}
+          C cGI:     CF F 2                                      ⍝ General Code  field
+                  sn SF F 1                                      ⍝ Space field (sn∊1 2 3)                             
+      } ⍠mOpts                                  
+      cs← ( ⊂( lb/⍨1+1≠mo ), Pre⍬ ), ⌽FOF MatchTCS fmtS          ⍝ Prepare code str for execution or display
+      1=mo:  ∊cs,  rb, ',⍵⍵'                                     ⍝ 1: Execute code in caller env: ⍵⍵ contains <orig ⍵>  
+              cs, ⊂rb, '⍵,⍨ ⊂', (T2Q Trunc fmtS), rb             ⍝ 0,¯1,¯2: Pass back code and <fmtS> as fields               
+  } ⍵
+⍝ END Stage I 
 
-    Match←   ∊⍨   
-    NMatch← ~∊⍨
-    LenLB←  { +/∧\' '= ⍵ }
-    SkipLB← { ⍵↓⍨  +/∧\ ' '= ⍵ }
-    SkipTB← { ⍵↓⍨ -+/∧\⌽' '= ⍵ }
-    SkipCm← ⊃∘⌽{ ⍝ For now, we're ignoring the comment itself.
-      cm≠⊃⍵: '' ⍵ 
-      cm{
-        0=≢⍵: ⍺ ⍵ 
-        ⍵ Case lb rb eos: ⍺ ⍵ 
-        ⍵ NotCase esc: (⍺, ⊃⍵) ∇ 1↓⍵
-          w1← 1↓⍵
-        w1 Case lb rb eos: (⍺, 2↑⍵) ∇ 1↓w1
-          (⍺, ⊃⍵)∇ w1 
-      }1↓⍵
-    }
-    Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 } 
-    GetQt←{   
-      ~sq dq∊⍨⊃⍵: '' ⍵
-      qt← ⊃⍵
-      ''{
-        0=≢⍵: (Qt2Cod ⍺) (SkipLB ⍵ )
-          w1← 1↓⍵
-        qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 1↓w1
-        qt  Match  ⊃⍵:  (Qt2Cod ⍺) (SkipLB w1)
-        esc NMatch ⊃⍵: (⍺, ⊃⍵)  ∇ 1↓⍵
-        eos Match ⊃w1: (⍺, nl)  ∇ 1↓w1
-        esc Match ⊃w1:  s ⍺ (∇ ProcEsc inQt) 1↓w1   
-          (⍺,⊃⍵)∇ w1 
-      }1↓⍵
-    }
-    SplitNot← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
-    T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Text to Quote String 
-    Qt2Cod←{ 
-        Q← {⍵/⍨ 1+⍵=sq}
-        sq sp←''' ' ⋄ useMix←0
-        r← ⎕FMT Q ⍵
-      1=≢r: sp,sq,(∊r),sq,sp 
-      useMix: '(↑',(¯1↓∊sq,¨(SkipTB¨↓r),¨⊂sq sp),')'   
-        '(',(sq,sq,⍨∊r),'⍴⍨',(⍕⍴r),')'
-    }
-    ProcEsc← { w1← 1↓⍵
-      eos Match ⊃⍵:       (⍺, nl         )⍺⍺ w1
-      esc Match ⊃⍵:       (⍺, ⊃⍵         )⍺⍺ w1
-      lb rb Match ⊃⍵:     (⍺, e, ⊃⍵      )⍺⍺ w1 ⊣ e← esc/⍨ inQt=⍵⍵ 
-      inCF≠⍵⍵:            (⍺, esc, ⊃⍵    )⍺⍺ w1 
-      om omU NMatch ⊃⍵:   (⍺, esc, ⊃⍵    )⍺⍺ w1 
-                          (⍺, '(', o, ')')⍺⍺ w  ⊣ o w← SplitOm w1                   
-    } ⋄ inQt inTF inCF← 0 1 2
-    SplitOm← {
-      dig← ⍵↑⍨+/∧\⍵∊⎕D 
-      0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipLB ⍵     )  ⊣ omIx+← 1
-              ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipLB ⍵↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
-    }
-  ⍝ Major Fns 
-    TF←{
-      0=≢⍵: ''
-      tf w← ''{
-        0=≢⍵:       ⍺ ⍵
-        ×≢⊃t w← impTF SplitNot ⍵: (⍺, t) ∇ w                  ⍝ Fast skip of "unimportant" chars!
-        sp Match ⊃⍵:  (⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
-        lb Match ⊃⍵:   ⍺ ⍵
-        esc Match ⊃⍵:  ⍺ (∇ ProcEsc inTF) 1↓⍵   
-                    (⍺, ⊃⍵)  ∇ 1↓⍵
-      } ⍵
-      (Qt2Cod tf) w
-    }
-    CF←{
-      0=≢⍵: '' ⍵ 
-      lb NMatch ⊃⍵: '' ⍵
-      brks← 0
-      r w←''{
-          0=≢⍵: ⍺ ⍵                                            ⍝ Terminate
-          ×≢⊃t w← impCF SplitNot ⍵: (⍺, t) ∇ w                 ⍝ Fast skip of "unimportant" chars!
-          sp Match ⊃⍵: (⍺, 1↑⍵)∇ ⍵↓⍨ p← LenLB ⍵
-          lb Match ⊃⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brks+← 1 
-          rb Match ⊃⍵: ⍺ ∇{ brks-← 1 ⋄ w1← 1↓⍵
-            brks≤0: (⍺, ⊃⍵) w1                                 ⍝ Terminate! 
-            (⍺, ⊃⍵) ⍺⍺ w1                      
-          } ⍵
-          sq dq Match ⊃⍵:   (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
-              w1← 1↓⍵ 
-          fmt Match ⊃⍵:     (⍺, ' ⎕FMT '    ) ∇ SkipLB w1
-          ovr Match ⊃⍵:     (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipLB w1 ⊣ inclRun∘← 1
-          omU Match ⊃⍵:     (⍺, '(', o, ')' ) ∇ w ⊣ o w← SplitOm w1
-          esc Match ⊃⍵:      ⍺ (∇ ProcEsc inCF) w1    
-          cm Match ⊃⍵:       ⍺                ∇ SkipCm ⍵
-                            (⍺, ⊃⍵          ) ∇ w1 
-      } SkipLB 1↓⍵
-      ('({', r, '⍵)') w 
-    }
-    SplitSF← {  
-      lb NMatch ⊃⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
-        w← SkipCm ⍵↓⍨1+p← LenLB 1↓⍵
-      cln rb NMatch ⊃w: 0 '' ⍵ 
-      isRB← rb Match ⊃w
-          w1← 1↓w 
-      isRB∧ 0=p: 1 '' w1  
-          sCod← '(''''⍴⍨'
-      isRB:  1 (sCod,(⍕p),')')  w1
-          Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
-      omU om Match ⊃w1:                     1 (sCod, o,')') (Skip2EOS w)  ⊣ o w← SplitOm w1     
-      (esc Match ⊃w1) ∧ om omU Match ⊃1↓w1: 1 (sCod, o,')') (Skip2EOS w)  ⊣ o w← SplitOm 2↓w1      
-         ok num← {⎕VFI ⍵↑⍨ ⍵(⌊/⍳) cln rb} w1
-      1≢⍥, ok: 0 '' ⍵                                          ⍝ Fail if not exactly 1 valid number
-      num=0:   1 '' (Skip2EOS w1)                              ⍝ If 0-length space field, field is null.
-        1 (sCod,(⍕num),')')  (Skip2EOS w1) 
-    }
-
-    Main←{
-      0=≢⍵: ⍺  
-      lb NMatch ⊃⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
-        isSF sf w←SplitSF ⍵
-      isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf 
-        cf w← CF ⍵ 
-        w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf 
-    }
-    code← ⌽⍬ Main fmtS
-
-    pre←   preCode,⍨ runDefs/⍨ inclRun 
-    1=mo: '{',  pre, (∊code), '}⍵⍵'
-    0=mo: '{{', pre, (∊code), '}', (T2Q fmtS),',⊆⍵}'
-        (⊂'{{', pre),  code, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
-  }⍵
-  ⍝H ∆F Utility Function
+⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
 ⍝H     2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
 ⍝H     titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize 
@@ -312,5 +269,4 @@
 ⍝H   Try ¯2 ∆F ... to see pseudocode showing how your code is structured. Runtime defs are shown abridged.
 ⍝H   0 ∆F ... shows the actual code to be executed, with all runtime definitions spelled out in full!
 ⍝H
-
 }
