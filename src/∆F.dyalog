@@ -12,30 +12,26 @@
       ∘∘unreachable∘∘ ⍵⍵ 
   }(⊆⍵))⍺{
   0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
-    (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)
-    fmtS←⊃⊆⍵
-    irt←0
-    omIx←0                                                     ⍝ See SplitOm 
-
-⍝ CONSTANT VARS 
+ 
+⍝ CONSTANTS
     chnCod←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨'            ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
     boxCod←     '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'            ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
                                                                ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod← (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
   ⍝ '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                        ⍝ ⍹: omega underbar                              
-    sq dq eos cm cln lb rb fmt ovr om omU← '''"⋄⍝:{}$%⍵⍹'  
+    sq dq eos cm cln lb rb fmt ovr om omU← '''"⋄⍝:{}$%⍵⍹'      ⍝ Note: esc (see) is user-defined
     sp← ' '
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
-    impCF←  sq dq cm cln lb rb fmt ovr om omU                  ⍝ See SplitNot, where <esc> is added.
-    impTF←               lb rb                                 ⍝ Ditto
-  ⍝ END CONSTANT VARS
+    cfUntil←  sq dq cm cln lb rb fmt ovr om omU                ⍝ Add var <esc> at main segment below
+    tfUntil←               lb rb                               ⍝ Ditto
+  ⍝ END CONSTANTS
 
     Match←   ∊⍨                                                ⍝ Is (⊃⍵) ∊    ⍺?
     NMatch← ~∊⍨                                                ⍝ Is (⊃⍵) (~∊) ⍺?
     LenLB←  { +/∧\ ' '= ⍵ }
     SkipLB← { ⍵↓⍨  +/∧\  ' '= ⍵ }
     SkipTB← { ⍵↓⍨ -+/∧\ ⌽' '= ⍵ }
-    SkipCm← {  
+    SpanCmP← {  
         cm≠⊃⍵: ⍵ 
         {
           0=≢⍵: ⍵                                              ⍝ Return
@@ -62,11 +58,10 @@
             (⍺,⊃⍵)∇ w1 
         }1↓⍵
     }
-    SplitNot← { 0=p← +/∧\~⍵∊ ⍺,esc: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
+    BreakP← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
     T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Text to Quote String 
-    Qt2Cod←{ 
+    Qt2Cod←{ useMix←0                                          ⍝ 0: Use ⎕ML-independent '⍴'
         Q← {⍵/⍨ 1+⍵=sq}
-        sq sp←''' ' ⋄ useMix←0
         r← ⎕FMT Q ⍵
       1=≢r: sp,sq,(∊r),sq,sp 
       useMix: Par '↑',¯1↓∊sq,¨(SkipTB¨↓r),¨ ⊂sq sp   
@@ -90,7 +85,7 @@
       0=≢⍵: ''
       tf w← ''{
         0=≢⍵:       ⍺ ⍵
-        ×≢⊃t w← impTF∘SplitNot ⍵: (⍺, t) ∇ w                   ⍝ Fast skip of "unimportant" chars!
+        ×≢⊃t w← tfUntil∘BreakP ⍵: (⍺, t) ∇ w                 ⍝ Fast process chars not in ⍺!
         sp Match⊃⍵: (⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
         lb Match⊃⍵:  ⍺ ⍵
         esc Match⊃⍵: ⍺ (∇ ProcEsc inTF) 1↓⍵   
@@ -104,7 +99,7 @@
       brakCt← 0
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate
-          ×≢⊃t w← impCF∘SplitNot ⍵: (⍺, t) ∇ w                 ⍝ Fast skip of "unimportant" chars!
+          ×≢⊃t w← cfUntil∘BreakP ⍵: (⍺, t) ∇ w               ⍝ Fast process chars not in ⍺!
           sp Match⊃⍵: (⍺, 1↑⍵)∇ ⍵↓⍨ p← LenLB ⍵
           lb Match⊃⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brakCt+← 1 
           rb Match⊃⍵: ⍺ ∇{ brakCt-← 1 ⋄ w1← 1↓⍵
@@ -117,45 +112,58 @@
           ovr Match⊃⍵:     (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipLB w1 ⊣ irt∘← 1
           omU Match⊃⍵:     (⍺, Par o       ) ∇ w ⊣ o w← SplitOm w1
           esc Match⊃⍵:      ⍺ (∇ ProcEsc inCF) w1    
-          cm  Match⊃⍵:      ⍺                ∇ SkipCm ⍵
+          cm  Match⊃⍵:      ⍺                ∇ SpanCmP ⍵
                            (⍺, ⊃⍵          ) ∇ w1 
       } SkipLB 1↓⍵
       (Par r, '⍵' ) w 
     }
     SplitSF← {                                                 ⍝ SplitSF: Space Fields
+      spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time 
+      sCod← sq,sq,'⍴⍨'
+      SCommon← {
+         ⍺= 0:     1 ''                  (Skip2EOS ⍵)          ⍝ If 0-len SF, field => null.
+         ⍺≤ spMax: 1 (Par sq,(⍺⍴ sp),sq) (Skip2EOS ⍵)
+                   1 (Par sCod, ⍕⍺ )     (Skip2EOS ⍵) 
+      }
+      Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
+
       lb NMatch⊃⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
-        w0← SkipCm ⍵↓⍨1+p← LenLB 1↓⍵
+        w0← SpanCmP ⍵↓⍨1+p← LenLB 1↓⍵
       cln rb NMatch⊃w0: 0 '' ⍵                                 ⍝ Ill-formed SF => bad CF
-      isRB← rb Match⊃w0
-          w1← 1↓w0 
-      isRB∧ 0=p: 1 '' w1                                       ⍝ If 0-len SF, field => null.
-          sCod← sq,sq,'⍴⍨'
-      isRB:  1 (Par sCod, ⍕p)  w1
-          Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
-          w1← SkipLB w1                                        ⍝ : nnn : <=> :nnn:
+      rb Match⊃w0: p SCommon w0 
+          w1← SkipLB 1↓w0                                       ⍝ : nnn : <=> :nnn:
       omU om Match⊃w1:                    1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm w1     
       (esc Match⊃w1) ∧ om omU Match⊃1↓w1: 1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm 2↓w1      
          ok num← ⎕VFI w1↑⍨ +/∧\w1∊ ⎕D 
       1≢⍥, ok: 0 '' ⍵                                          ⍝ Fail if not exactly 1 valid number
-      num=0:   1 '' (Skip2EOS w1)                              ⍝ If 0-len SF, field => null.
-        1 (Par sCod, ⍕num ) (Skip2EOS w1) 
+         num SCommon w1
+    }
+    ScanFmtS← {
+      ⍬{
+        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺   
+        lb NMatch⊃⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
+              isSF sf w←SplitSF ⍵
+        isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf 
+              cf w← CF ⍵ 
+              w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf 
+      }⍵
+    }
+    BuildCodeS← {
+      pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
+      1=mo: '{',  pfx, (∊⍵), '}⍵⍵'
+      0=mo: '{{', pfx, (∊⍵), '}', (T2Q fmtS),',⊆⍵}'
+          (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
     }
 
-    Main← ⌽{
-      0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺   
-      lb NMatch⊃⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
-            isSF sf w←SplitSF ⍵
-      isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf 
-            cf w← CF ⍵ 
-            w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf 
-    }
-   
-    code← ⍬ Main fmtS
-    pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
+⍝⍝⍝ MAIN 
+    (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)
+    fmtS←⊃⊆⍵                                                   ⍝ The format string (⍹0)
+    irt←0                                                      ⍝ See CF
+    omIx←0                                                     ⍝ See SplitOm 
+    cfUntil tfUntil,← esc
 
-    1=mo: '{',  pfx, (∊code), '}⍵⍵'
-    0=mo: '{{', pfx, (∊code), '}', (T2Q fmtS),',⊆⍵}'
-        (⊂'{{', pfx),  code, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
+    BuildCodeS ⌽ ScanFmtS fmtS
+
   }⍵
 ⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
