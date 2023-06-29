@@ -2,7 +2,7 @@
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝! For documentation, see ⍝H comments below.
   ⍺←1 0 '`'
-  0=≢⍺: 1 0⍴''
+  0∊≢¨⍺ ⍵: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
   (⊃⍺) ((⊃⎕RSI){
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
@@ -14,55 +14,55 @@
   0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
     (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)
     fmtS←⊃⊆⍵
-      _chn←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨' ⊃⍨ mo<0    ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
-      _box← bo/ '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨' ⊃⍨ mo<0    ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
-    preCode← _chn, _box, '⌽'                                    
-      _ovr← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
-    runTimeDefs← '⍙ⓄⓋⓇ←', _ovr '{...}⋄' ⊃⍨ mo<0                ⍝ include only if ⍙ⓄⓋⓇ used... 
+    irt←0
+    omIx←0                                                     ⍝ See SplitOm 
 
-    omIx←0                                                     ⍝ See SplitOm
-    inclRunTime←0
-
+⍝ CONSTANT VARS 
+    chnCod←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨'            ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
+    boxCod←     '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'            ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
+                                                               ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+    ovrCod← (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
   ⍝ '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                        ⍝ ⍹: omega underbar                              
     sq dq eos cm cln lb rb fmt ovr om omU← '''"⋄⍝:{}$%⍵⍹'  
     sp← ' '
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
-    impCF←  sq dq cm cln lb rb fmt ovr om omU esc              ⍝ stuff you need to eval 1 by 1
-    impTF←               lb rb                esc    
+    impCF←  sq dq cm cln lb rb fmt ovr om omU                  ⍝ See SplitNot, where <esc> is added.
+    impTF←               lb rb                                 ⍝ Ditto
+  ⍝ END CONSTANT VARS
 
-    Match←   ∊⍨∘⊃                                              ⍝ Is (⊃⍵) ∊    ⍺?
-    NMatch← ~∊⍨∘⊃                                              ⍝ Is (⊃⍵) (~∊) ⍺?
-    LenLB←  { +/∧\' '= ⍵ }
-    SkipLB← { ⍵↓⍨  +/∧\ ' '= ⍵ }
-    SkipTB← { ⍵↓⍨ -+/∧\⌽' '= ⍵ }
+    Match←   ∊⍨                                                ⍝ Is (⊃⍵) ∊    ⍺?
+    NMatch← ~∊⍨                                                ⍝ Is (⊃⍵) (~∊) ⍺?
+    LenLB←  { +/∧\ ' '= ⍵ }
+    SkipLB← { ⍵↓⍨  +/∧\  ' '= ⍵ }
+    SkipTB← { ⍵↓⍨ -+/∧\ ⌽' '= ⍵ }
     SkipCm← {  
-      cm≠⊃⍵: ⍵ 
-      {
-        0=≢⍵: ⍵                                                ⍝ Return
-        lb rb eos Match ⍵: ⍵                                   ⍝ Return
-        esc NMatch ⍵: ∇ 1↓⍵
-            w1← 1↓⍵
-          lb rb eos Match w1: ∇ 1↓w1
-            ∇ w1 
-      }1↓⍵
+        cm≠⊃⍵: ⍵ 
+        {
+          0=≢⍵: ⍵                                              ⍝ Return
+          lb rb eos Match⊃⍵: ⍵                                 ⍝ Return
+          esc NMatch⊃⍵: ∇ 1↓⍵
+              w1← 1↓⍵
+            lb rb eos Match⊃w1: ∇ 1↓w1
+              ∇ w1 
+        }1↓⍵
     }
     Par← '(',,∘')'
     Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 } 
     GetQt←{   
-      ~sq dq∊⍨⊃⍵: '' ⍵
-      qt← ⊃⍵
-      ''{
-        0=≢⍵: (Qt2Cod ⍺) (SkipLB ⍵ )                           ⍝ Return
-          w1← 1↓⍵
-        qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 1↓w1
-        qt  Match  ⍵: (Qt2Cod ⍺) (SkipLB w1)                   ⍝ Return
-        esc NMatch ⍵: (⍺, ⊃⍵)  ∇ 1↓⍵
-        eos Match w1: (⍺, nl)  ∇ 1↓w1
-        esc Match w1:  s ⍺ (∇ ProcEsc inQt) 1↓w1   
-          (⍺,⊃⍵)∇ w1 
-      }1↓⍵
+        ~sq dq∊⍨⊃⍵: '' ⍵
+        qt← ⊃⍵
+        ''{
+          0=≢⍵: (Qt2Cod ⍺) (SkipLB ⍵ )                         ⍝ Return
+            w1← 1↓⍵
+          qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 1↓w1
+          qt  Match⊃⍵: (Qt2Cod ⍺) (SkipLB w1)                  ⍝ Return
+          esc NMatch⊃⍵: (⍺, ⊃⍵)  ∇ 1↓⍵
+          eos Match⊃w1: (⍺, nl)  ∇ 1↓w1
+          esc Match⊃w1:  s ⍺ (∇ ProcEsc inQt) 1↓w1   
+            (⍺,⊃⍵)∇ w1 
+        }1↓⍵
     }
-    SplitNot← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
+    SplitNot← { 0=p← +/∧\~⍵∊ ⍺,esc: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
     T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Text to Quote String 
     Qt2Cod←{ 
         Q← {⍵/⍨ 1+⍵=sq}
@@ -73,11 +73,11 @@
         Par (sq,sq,⍨∊r),'⍴⍨', ⍕⍴r
     }
     ProcEsc← { w1← 1↓⍵
-      eos Match ⍵:       (⍺, nl       )⍺⍺ w1
-      esc Match ⍵:       (⍺, ⊃⍵       )⍺⍺ w1
-      lb rb Match ⍵:     (⍺, e, ⊃⍵    )⍺⍺ w1 ⊣ e← esc/⍨ inQt=⍵⍵ 
+      eos Match⊃⍵:       (⍺, nl       )⍺⍺ w1
+      esc Match⊃⍵:       (⍺, ⊃⍵       )⍺⍺ w1
+      lb rb Match⊃⍵:     (⍺, e, ⊃⍵    )⍺⍺ w1 ⊣ e← esc/⍨ inQt=⍵⍵ 
       inCF≠⍵⍵:           (⍺, esc, ⊃⍵  )⍺⍺ w1 
-      om omU NMatch ⍵:   (⍺, esc, ⊃⍵  )⍺⍺ w1 
+      om omU NMatch⊃⍵:   (⍺, esc, ⊃⍵  )⍺⍺ w1 
                          (⍺, Par o    )⍺⍺ w  ⊣ o w← SplitOm w1                   
     } ⋄ inQt inTF inCF← 0 1 2
     SplitOm← {
@@ -86,75 +86,76 @@
               ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipLB ⍵↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
   ⍝ Major Fns 
-    TF←{
+    TF←{                                                       ⍝ TF: Text Fields
       0=≢⍵: ''
       tf w← ''{
         0=≢⍵:       ⍺ ⍵
         ×≢⊃t w← impTF∘SplitNot ⍵: (⍺, t) ∇ w                   ⍝ Fast skip of "unimportant" chars!
-        sp Match ⍵:  (⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
-        lb Match ⍵:   ⍺ ⍵
-        esc Match ⍵:  ⍺ (∇ ProcEsc inTF) 1↓⍵   
+        sp Match⊃⍵: (⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
+        lb Match⊃⍵:  ⍺ ⍵
+        esc Match⊃⍵: ⍺ (∇ ProcEsc inTF) 1↓⍵   
                     (⍺, ⊃⍵)  ∇ 1↓⍵
       } ⍵
       (Qt2Cod tf) w
     }
-    CF←{
+    CF←{                                                       ⍝ CF: Code Fields
       0=≢⍵: '' ⍵ 
-      lb NMatch ⍵: '' ⍵
+      lb NMatch⊃⍵: '' ⍵
       brakCt← 0
-      r w←''{
+      r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate
           ×≢⊃t w← impCF∘SplitNot ⍵: (⍺, t) ∇ w                 ⍝ Fast skip of "unimportant" chars!
-          sp Match ⍵: (⍺, 1↑⍵)∇ ⍵↓⍨ p← LenLB ⍵
-          lb Match ⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brakCt+← 1 
-          rb Match ⍵: ⍺ ∇{ brakCt-← 1 ⋄ w1← 1↓⍵
+          sp Match⊃⍵: (⍺, 1↑⍵)∇ ⍵↓⍨ p← LenLB ⍵
+          lb Match⊃⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brakCt+← 1 
+          rb Match⊃⍵: ⍺ ∇{ brakCt-← 1 ⋄ w1← 1↓⍵
             brakCt≤0: (⍺, ⊃⍵) w1                               ⍝ Terminate! 
             (⍺, ⊃⍵) ⍺⍺ w1                      
           } ⍵
-          sq dq Match ⍵:   (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
+          sq dq Match⊃⍵:   (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
               w1← 1↓⍵ 
-          fmt Match ⍵:     (⍺, ' ⎕FMT '    ) ∇ SkipLB w1
-          ovr Match ⍵:     (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipLB w1 ⊣ inclRunTime∘← 1
-          omU Match ⍵:     (⍺, Par o       ) ∇ w ⊣ o w← SplitOm w1
-          esc Match ⍵:      ⍺ (∇ ProcEsc inCF) w1    
-          cm Match ⍵:       ⍺                ∇ SkipCm ⍵
-                            (⍺, ⊃⍵          ) ∇ w1 
+          fmt Match⊃⍵:     (⍺, ' ⎕FMT '    ) ∇ SkipLB w1
+          ovr Match⊃⍵:     (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipLB w1 ⊣ irt∘← 1
+          omU Match⊃⍵:     (⍺, Par o       ) ∇ w ⊣ o w← SplitOm w1
+          esc Match⊃⍵:      ⍺ (∇ ProcEsc inCF) w1    
+          cm  Match⊃⍵:      ⍺                ∇ SkipCm ⍵
+                           (⍺, ⊃⍵          ) ∇ w1 
       } SkipLB 1↓⍵
-      ('({', r, '⍵)') w 
+      (Par r, '⍵' ) w 
     }
-    SplitSF← {  
-      lb NMatch ⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
-        w← SkipCm ⍵↓⍨1+p← LenLB 1↓⍵
-      cln rb NMatch w: 0 '' ⍵ 
-      isRB← rb Match w
-          w1← 1↓w 
-      isRB∧ 0=p: 1 '' w1  
+    SplitSF← {                                                 ⍝ SplitSF: Space Fields
+      lb NMatch⊃⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
+        w0← SkipCm ⍵↓⍨1+p← LenLB 1↓⍵
+      cln rb NMatch⊃w0: 0 '' ⍵                                 ⍝ Ill-formed SF => bad CF
+      isRB← rb Match⊃w0
+          w1← 1↓w0 
+      isRB∧ 0=p: 1 '' w1                                       ⍝ If 0-len SF, field => null.
           sCod← sq,sq,'⍴⍨'
       isRB:  1 (Par sCod, ⍕p)  w1
           Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
           w1← SkipLB w1                                        ⍝ : nnn : <=> :nnn:
-      omU om Match w1:                    1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm w1     
-      (esc Match w1) ∧ om omU Match 1↓w1: 1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm 2↓w1      
+      omU om Match⊃w1:                    1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm w1     
+      (esc Match⊃w1) ∧ om omU Match⊃1↓w1: 1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm 2↓w1      
          ok num← ⎕VFI w1↑⍨ +/∧\w1∊ ⎕D 
       1≢⍥, ok: 0 '' ⍵                                          ⍝ Fail if not exactly 1 valid number
-      num=0:   1 '' (Skip2EOS w1)                              ⍝ If 0-length space field, field is null.
+      num=0:   1 '' (Skip2EOS w1)                              ⍝ If 0-len SF, field => null.
         1 (Par sCod, ⍕num ) (Skip2EOS w1) 
     }
 
-    Main←⌽ {
+    Main← ⌽{
       0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺   
-      lb NMatch ⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
+      lb NMatch⊃⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
             isSF sf w←SplitSF ⍵
       isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf 
             cf w← CF ⍵ 
             w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf 
     }
+   
     code← ⍬ Main fmtS
+    pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
 
-    pre←   preCode,⍨ runTimeDefs/⍨ inclRunTime 
-    1=mo: '{',  pre, (∊code), '}⍵⍵'
-    0=mo: '{{', pre, (∊code), '}', (T2Q fmtS),',⊆⍵}'
-        (⊂'{{', pre),  code, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
+    1=mo: '{',  pfx, (∊code), '}⍵⍵'
+    0=mo: '{{', pfx, (∊code), '}', (T2Q fmtS),',⊆⍵}'
+        (⊂'{{', pfx),  code, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
   }⍵
 ⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
