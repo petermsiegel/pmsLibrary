@@ -1,20 +1,23 @@
 ﻿∆F←{
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝! For documentation, see ⍝H comments below.
+⍝ ⍺ OPTIONS
   ⍺←1 0 '`'
-  0∊≢¨⍺ ⍵: 1 0⍴''
+  0=≢⍺: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
+0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+⍝ ---------------------------
+⍝ STAGE II: Execute/Display code from Stage I
   (⊃⍺) ((⊃⎕RSI){
-    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
-      1=⍺:  ⍺⍺⍎ ⍵                                            ⍝ ⍵ string includes original ⍵ as ⍵⍵ 
-     ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪⍵
-           ⍵    
+      1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵ ⋄ ⍵
       ∘∘unreachable∘∘ ⍵⍵ 
+⍝ ---------------------------
+⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
   }(⊆⍵))⍺{
-  0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('∆F ',EM))('EN' EN)('Message' Message))
- 
-⍝ CONSTANTS
-    chnCod←     '{⊃,/⍵↑⍨¨⌈/≢¨⍵}⎕FMT¨'       '⍙ⒸⒽⓃ¨'            ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
+⍝ --------------------------- 
+⍝ CONSTANTS     
+⍝                                                          
+    chnCod←     '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'       '⍙ⒸⒽⓃ¨'            ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
     boxCod←     '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'            ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
                                                                ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod← (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
@@ -22,17 +25,19 @@
     sq dq eos cm cln lb rb fmt ovr om omU← '''"⋄⍝:{}$%⍵⍹'      ⍝ Note: esc (see) is user-defined
     sp← ' '
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
-    cfUntil←  sq dq cm cln lb rb fmt ovr om omU                ⍝ Add var <esc> at main segment below
-    tfUntil←               lb rb                               ⍝ Ditto
-  ⍝ END CONSTANTS
-
-    Match←   ∊⍨                                                ⍝ Is (⊃⍵) ∊    ⍺?
-    NMatch← ~∊⍨                                                ⍝ Is (⊃⍵) (~∊) ⍺?
+    _cfBrk←  sq dq cm lb rb fmt ovr om omU                     ⍝ See var cfBrk 
+    _tfBrk←           lb rb                                    ⍝ See var tfBrk
+    inQt inTF inCF← 0 1 2                                      ⍝ See ProcEsc
+⍝ ---------------------------
+⍝ SUPPORT FNS
+    Match←   ∊⍨                                                ⍝ Is (⍵) ∊    ⍺?
+    NMatch← ~∊⍨                                                ⍝ Is (⍵) (~∊) ⍺?
     LenLB←  { +/∧\ ' '= ⍵ }
-    SkipLB← { ⍵↓⍨  +/∧\  ' '= ⍵ }
-    SkipTB← { ⍵↓⍨ -+/∧\ ⌽' '= ⍵ }
-    SpanCmP← {  
-        cm≠⊃⍵: ⍵ 
+    SpanSP← { ⍵↓⍨  +/∧\  ' '= ⍵ }
+    TrimSP← { ⍵↓⍨ -+/∧\ ⌽' '= ⍵ }
+    SpanCm← {  ⍺←0                                    
+        w← SpanSP⍣⍺⊣ ⍵   ⍝ If ⍺=1, first skip any leading blanks
+        cm≠⊃w: w 
         {
           0=≢⍵: ⍵                                              ⍝ Return
           lb rb eos Match⊃⍵: ⍵                                 ⍝ Return
@@ -40,7 +45,7 @@
               w1← 1↓⍵
             lb rb eos Match⊃w1: ∇ 1↓w1
               ∇ w1 
-        }1↓⍵
+        }1↓w
     }
     Par← '(',,∘')'
     Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 } 
@@ -48,23 +53,22 @@
         ~sq dq∊⍨⊃⍵: '' ⍵
         qt← ⊃⍵
         ''{
-          0=≢⍵: (Qt2Cod ⍺) (SkipLB ⍵ )                         ⍝ Return
+          0=≢⍵: (Qt2Cod ⍺) (SpanSP ⍵ )                         ⍝ Return
             w1← 1↓⍵
           qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 1↓w1
-          qt  Match⊃⍵: (Qt2Cod ⍺) (SkipLB w1)                  ⍝ Return
+          qt  Match⊃⍵: (Qt2Cod ⍺) (SpanSP w1)                  ⍝ Return
           esc NMatch⊃⍵: (⍺, ⊃⍵)  ∇ 1↓⍵
           eos Match⊃w1: (⍺, nl)  ∇ 1↓w1
           esc Match⊃w1:  s ⍺ (∇ ProcEsc inQt) 1↓w1   
             (⍺,⊃⍵)∇ w1 
         }1↓⍵
     }
-    BreakP← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
+    Break← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
     T2Q← sq∘{ ⍺, ⍺,⍨ ⍵/⍨ 1+⍺= ⍵ }                              ⍝ Text to Quote String 
     Qt2Cod←{ useMix←0                                          ⍝ 0: Use ⎕ML-independent '⍴'
-        Q← {⍵/⍨ 1+⍵=sq}
-        r← ⎕FMT Q ⍵
+        r← ⎕FMT {⍵/⍨ 1+⍵=sq} ⍵
       1=≢r: sp,sq,(∊r),sq,sp 
-      useMix: Par '↑',¯1↓∊sq,¨(SkipTB¨↓r),¨ ⊂sq sp   
+      useMix: Par '↑',¯1↓∊sq,¨(TrimSP¨↓r),¨ ⊂sq sp   
         Par (sq,sq,⍨∊r),'⍴⍨', ⍕⍴r
     }
     ProcEsc← { w1← 1↓⍵
@@ -73,97 +77,107 @@
       lb rb Match⊃⍵:     (⍺, e, ⊃⍵    )⍺⍺ w1 ⊣ e← esc/⍨ inQt=⍵⍵ 
       inCF≠⍵⍵:           (⍺, esc, ⊃⍵  )⍺⍺ w1 
       om omU NMatch⊃⍵:   (⍺, esc, ⊃⍵  )⍺⍺ w1 
-                         (⍺, Par o    )⍺⍺ w  ⊣ o w← SplitOm w1                   
-    } ⋄ inQt inTF inCF← 0 1 2
-    SplitOm← {
-      dig← ⍵↑⍨+/∧\⍵∊⎕D 
-      0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipLB ⍵     )  ⊣ omIx+← 1
-              ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipLB ⍵↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
+                          (⍺, Par o    )⍺⍺ w  ⊣ o w← SplitOm w1                   
+    } 
+    SplitOm← {                                                 ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
+      dig← ⍵↑⍨+/∧\⍵∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
+      0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SpanSP ⍵     )  ⊣ omIx+← 1
+              ('⍵⊃⍨⎕IO+',(⍕omIx)) (SpanSP ⍵↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
-  ⍝ Major Fns 
+⍝ ---------------------------
+⍝ Major Field Fns: TF, CF, and SFQ 
     TF←{                                                       ⍝ TF: Text Fields
       0=≢⍵: ''
       tf w← ''{
         0=≢⍵:       ⍺ ⍵
-        ×≢⊃t w← tfUntil∘BreakP ⍵: (⍺, t) ∇ w                 ⍝ Fast process chars not in ⍺!
-        sp Match⊃⍵: (⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
-        lb Match⊃⍵:  ⍺ ⍵
+        t w← tfBrk Break ⍵ ⋄ ×≢t: (⍺, t) ∇ w                   ⍝ Fast process chars not in ⍺!
+        sp  Match⊃⍵:(⍺, p↑⍵)∇ p↓⍵ ⊣ p← LenLB ⍵
         esc Match⊃⍵: ⍺ (∇ ProcEsc inTF) 1↓⍵   
+        lb  Match⊃⍵: ⍺ ⍵
                     (⍺, ⊃⍵)  ∇ 1↓⍵
       } ⍵
       (Qt2Cod tf) w
     }
     CF←{                                                       ⍝ CF: Code Fields
       0=≢⍵: '' ⍵ 
-      lb NMatch⊃⍵: '' ⍵
-      brakCt← 0
+      ⍝ lb NMatch⊃⍵: '' ⍵
+      brkLvl← 0
+      special← sq dq fmt ovr omU esc cm
       r w←'{'{
-          0=≢⍵: ⍺ ⍵                                            ⍝ Terminate
-          ×≢⊃t w← cfUntil∘BreakP ⍵: (⍺, t) ∇ w               ⍝ Fast process chars not in ⍺!
+          0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Imbalanced brace: APL handles
+          t w← cfBrk Break ⍵ ⋄ ×≢t: (⍺, t) ∇ w                 ⍝ Fast process chars not in ⍺!
           sp Match⊃⍵: (⍺, 1↑⍵)∇ ⍵↓⍨ p← LenLB ⍵
-          lb Match⊃⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brakCt+← 1 
-          rb Match⊃⍵: ⍺ ∇{ brakCt-← 1 ⋄ w1← 1↓⍵
-            brakCt≤0: (⍺, ⊃⍵) w1                               ⍝ Terminate! 
+          lb Match⊃⍵: (⍺, ⊃⍵) ∇ 1↓ ⍵⊣ brkLvl+← 1 
+          rb Match⊃⍵: ⍺ ∇{ brkLvl-← 1 ⋄ w1← 1↓⍵
+            brkLvl≤0: (⍺, ⊃⍵) w1                               ⍝ Terminate! 
             (⍺, ⊃⍵) ⍺⍺ w1                      
           } ⍵
-          sq dq Match⊃⍵:   (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
+          sq dq Match⊃⍵:    (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
               w1← 1↓⍵ 
-          fmt Match⊃⍵:     (⍺, ' ⎕FMT '    ) ∇ SkipLB w1
-          ovr Match⊃⍵:     (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipLB w1 ⊣ irt∘← 1
-          omU Match⊃⍵:     (⍺, Par o       ) ∇ w ⊣ o w← SplitOm w1
-          esc Match⊃⍵:      ⍺ (∇ ProcEsc inCF) w1    
-          cm  Match⊃⍵:      ⍺                ∇ SpanCmP ⍵
-                           (⍺, ⊃⍵          ) ∇ w1 
-      } SkipLB 1↓⍵
+          esc Match⊃⍵:       ⍺ (∇ ProcEsc inCF) 1↓⍵   
+          fmt Match⊃⍵:      (⍺, ' ⎕FMT '    ) ∇ SpanSP w1
+          ovr Match⊃⍵:      (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SpanSP w1 ⊣ irt∘← 1
+          omU Match⊃⍵:      (⍺, Par o       ) ∇ w ⊣ o w← SplitOm w1 
+          cm  Match⊃⍵:       ⍺                ∇ SpanCm ⍵
+              ⎕SIGNAL 'LOGIC ERROR: UNREACHABLE!' ⍝  (⍺, ⊃⍵          ) ∇ w1 
+      } SpanSP 1↓⍵
       (Par r, '⍵' ) w 
     }
-    SplitSF← {                                                 ⍝ SplitSF: Space Fields
-      spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time 
-      sCod← sq,sq,'⍴⍨'
-      SCommon← {
-         ⍺= 0:     1 ''                  (Skip2EOS ⍵)          ⍝ If 0-len SF, field => null.
-         ⍺≤ spMax: 1 (Par sq,(⍺⍴ sp),sq) (Skip2EOS ⍵)
-                   1 (Par sCod, ⍕⍺ )     (Skip2EOS ⍵) 
-      }
-      Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
-
-      lb NMatch⊃⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
-        w0← SpanCmP ⍵↓⍨1+p← LenLB 1↓⍵
-      cln rb NMatch⊃w0: 0 '' ⍵                                 ⍝ Ill-formed SF => bad CF
-      rb Match⊃w0: p SCommon w0 
-          w1← SkipLB 1↓w0                                       ⍝ : nnn : <=> :nnn:
+        spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time 
+        sCod← sq,sq,'⍴⍨'
+        SCommon← {
+          ⍺= 0:     1      ''             (Skip2EOS ⍵)          ⍝ If 0-len SF, field => null.
+          ⍺≤ spMax: 1 (Par sq,(⍺⍴ sp),sq) (Skip2EOS ⍵)
+                    1 (Par sCod, ⍕⍺ )     (Skip2EOS ⍵) 
+        }
+        Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
+    SFQ← {                                                      ⍝ SFQ: Test for and proc. Space Fields
+      ⍝ lb NMatch⊃⍵: 11 ⎕SIGNAL⍨ 'Logic error!' ⍝ 0 '' ⍵
+      rb Match ⊃w0← 1↓⍵: 0 SCommon w0                           ⍝ Fast path: {}
+      rb Match ⊃w0← w0↓⍨ p← LenLB w0: p SCommon w0              ⍝ Fast path: {  }
+      cln rb NMatch ⊃w0← SpanCm w0: 0 '' ⍵                      ⍝ Ill-formed SF => bad CF
+      rb Match⊃w0: p SCommon w0                                 ⍝ Fast path: {  ⍝...}
+          w1← SpanSP 1↓w0                                       ⍝ : nnn : <=> :nnn:
+      cln Match ⊃w1: {                                          ⍝ Allow degenerate {::}  {:: ⍝...} 
+          rb Match ⊃w← 1 SpanCm 1↓w1: 0 SCommon w ⋄ 0 '' ⍵
+      } ⍵
+      rb Match ⊃1 SpanCm w1: 0 SCommon w1                      ⍝ Allow degenerate { : } { : ⍝...}
       omU om Match⊃w1:                    1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm w1     
       (esc Match⊃w1) ∧ om omU Match⊃1↓w1: 1 (Par sCod, o) (Skip2EOS w)  ⊣ o w← SplitOm 2↓w1      
          ok num← ⎕VFI w1↑⍨ +/∧\w1∊ ⎕D 
       1≢⍥, ok: 0 '' ⍵                                          ⍝ Fail if not exactly 1 valid number
          num SCommon w1
     }
-    ScanFmtS← {
-      ⍬{
-        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺   
-        lb NMatch⊃⍵: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵ 
-              isSF sf w←SplitSF ⍵
-        isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf 
-              cf w← CF ⍵ 
-              w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf 
-      }⍵
+⍝ ---------------------------
+⍝ Primary Executive Fns:  Analyse, Assemble 
+    Analyse← {                                                 ⍝ Convert <fmtS> to executable fields
+      ×≢ff←⍬{                                                   
+        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺                            ⍝ Done: return field (enclosed str.)
+              isTF← lb NMatch⊃⍵                                ⍝ TF?
+        isTF: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵                 ⍝ Is TF. Proc TF and next
+              isSF sf w←SFQ ⍵                                  ⍝ SF or CF?
+        isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf                              ⍝ Is SF. Proc SF and next
+              w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf ⊣ cf w← CF ⍵                 ⍝ Is CF. Proc CF and next
+      }⍵: ff ⋄ ⊂'⊂⍬'                                           ⍝ Handle 0 fields (edge case)
     }
-    BuildCodeS← {
-      pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
+    Assemble← {                                                ⍝ Assemble code + needed defs 
+            pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
       1=mo: '{',  pfx, (∊⍵), '}⍵⍵'
       0=mo: '{{', pfx, (∊⍵), '}', (T2Q fmtS),',⊆⍵}'
           (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
-    }
-
-⍝⍝⍝ MAIN 
-    (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)
-    fmtS←⊃⊆⍵                                                   ⍝ The format string (⍹0)
-    irt←0                                                      ⍝ See CF
-    omIx←0                                                     ⍝ See SplitOm 
-    cfUntil tfUntil,← esc
-
-    BuildCodeS ⌽ ScanFmtS fmtS
-
+    } ⌽
+⍝ ---------------------------
+⍝⍝⍝ Options and Variables
+    (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                               ⍝ Set options 
+    esc∊lb sp cm: ⎕SIGNAL ⊂('EM',⍥⊂'∆F Invalid escape char "',esc,'"')('EN' 11)
+    fmtS←⊃⊆⍵                                                   ⍝ fmtS: The format string (⍹0)
+((0≠80|⎕DR)∨(2≤⍴∘⍴))fmtS: ⍎'⎕SIGNAL 11'                        ⍝ Only simple char vec/scalars allowed
+    irt←0                                                      ⍝ irt: include runtime code? See CF
+    omIx←0                                                     ⍝ omIx: omega index. See SplitOm 
+    cfBrk tfBrk← _cfBrk _tfBrk,¨ esc                           ⍝ Add var <esc> to ⍺-list for Break. 
+⍝ ---------------------------
+⍝⍝⍝ Run STAGE I: Process format string and pass resulting string/s to STAGE II
+    Assemble Analyse fmtS                                     
   }⍵
 ⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
@@ -299,13 +313,13 @@
 ⍝H ⍎            a b c← (∆F'{:5:}') (∆F'{:⍹1:}' 5) (∆F'{:`⍵1:}' 5)
 ⍝H ⍎            (a≡b)∧(b≡c)
 ⍝H ⎕         1
-⍝H     ∘ Comments are NOT allowed in space fields.
+⍝H     ∘ Comments are allowed in space fields.
 ⍝H 
 ⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char).
 ⍝H    (If you change the escape character, e.g. to '\', make the appropriate changes in the narrative below).
 ⍝H    `{ is a literal {
 ⍝H    `} is a literal }
-⍝H     } by itself starts a new code field
+⍝H     { by itself starts a new code field
 ⍝H     } by itself ends a code field
 ⍝H    `⋄ stands for a newline character (⎕UCS 13).
 ⍝H     ⋄ has no special meaning, unless preceded by the current escape character (`).
