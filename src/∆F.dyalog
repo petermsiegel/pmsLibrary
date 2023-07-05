@@ -5,7 +5,7 @@
   ⍺←1 0 '`'
   0=≢⍺: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 ⍝ ---------------------------
 ⍝ STAGE II: Execute/Display code from Stage I
   (⊃⍺) ((⊃⎕RSI){
@@ -36,20 +36,19 @@
     Match←   ∊⍨                                                ⍝ Is (⍵) ∊    ⍺?
     NMatch← ~∊⍨                                                ⍝ Is (⍵) (~∊) ⍺?
     LenSp←  { +/∧\ ' '= ⍵ }
-    SkipC←  { 0=≢⍺: ⍵ ⋄ ⍵↓⍨ +/∧\ ⍵∊ ⍺ }
-    SkipSp← { ⍵↓⍨  +/∧\ ⍵= ' '}
-    TrimSp← { ⍵↓⍨ -+/∧\ ⌽' '= ⍵ }
-    SkipCm← {  ⍺←''                                    
-        w← ⍺ SkipC ⍵   ⍝ If ⍺ is specified, first skip any leading blanks
-        cm≠⊃w: w 
+    Skip←   { ⍵↓⍨  +/∧\ ⍵∊ ⍺ }
+    SkipSp← { ⍵↓⍨  +/∧\ ⍵= ' ' }
+    TrimSp← { ⍵↓⍨ -+/∧\ ⌽⍵=' ' }
+    SkipCm← {                                      
+        cm≠⊃⍵: ⍵ 
         {
           0=≢⍵: ⍵                                              ⍝ Return
           lb rb eos Match⊃⍵: ⍵                                 ⍝ Return
           esc NMatch⊃⍵: ∇ 1↓⍵
               w← 1↓⍵
-            lb rb eos Match⊃w: ∇ 1↓w
+          lb rb eos Match⊃w: ∇ 1↓w
               ∇ w 
-        }1↓w
+        }1↓⍵
     }
     Par← '(',,∘')'
     Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 } 
@@ -125,30 +124,33 @@
       } SkipSp 1↓⍵
       (Par r, '⍵' ) w 
     }
+        sfAnchor←''                                              ⍝ See SFQ
         spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time 
         sCod← sq,sq,'⍴⍨'
         SCommon← { ⍝ ⍺: length of space field or (¯1) failure (invalid or not a SF)
-          ⍺=¯1:     0       ''            (Skip2EOS ⍵)          ⍝ Failure
+        902::       0       ''             sfAnchor
+            Skip2EOS← { rb Match ⊃w←SkipCm cln sp Skip 1↓⍵: 1↓w ⋄ Ê 902} 
+          ⍺=¯1:     0       ''             sfAnchor             ⍝ Failure
           ⍺= 0:     1       ''            (Skip2EOS ⍵)          ⍝ If 0-len SF, field => null.
           ⍺≤ spMax: 1 (Par sq,(⍺⍴ sp),sq) (Skip2EOS ⍵)
                     1 (Par sCod, ⍕⍺ )     (Skip2EOS ⍵) 
         }
-        SFail← ¯1∘SCommon  ⍝ Either error or valid code field (CF)
-        Skip2EOS← { ⍵↓⍨ 1+ ⍵⍳ rb } 
-    SFQ← {                ⍝ SFQ: Test for and proc. Space Fields
+        SFail← ¯1∘SCommon                                      ⍝ Not a SF. Cld be a CF
+   SFQ← {                                                      ⍝ SFQ: Query/process SF
+          sfAnchor⊢← 1↓⍵                                       ⍝ Remember starting ⍵: for Error Handling
           p← LenSp 1↓⍵
-      rb Match ⊃w← ⍵↓⍨ 1+p: p SCommon w             ⍝ Fast path: {}
+      rb Match ⊃w← ⍵↓⍨ 1+p: p SCommon w                        ⍝ Fast path: {}
           w← SkipCm w 
-      cln rb NMatch ⊃w:              SFail ⍵                   ⍝ Not { } or { :... }? See if CF
-      rb Match ⊃w:                   p SCommon t       ⍝ Fast path: {  ⍝...}    
-          w← ': ' SkipCm 1↓w 
-      rb Match ⊃w:      0 SCommon w               ⍝ Allow degenerate { : } { : ⍝...}
+      cln rb NMatch ⊃w:     SFail ⍵                            ⍝ Not { } or { :... }? See if CF
+      rb Match ⊃w:          p SCommon t                        ⍝ Fast path: {  ⍝...}    
+          w← SkipCm ': ' Skip 1↓w 
+      rb Match ⊃w:          0 SCommon w                        ⍝ Allow degenerate { : } { : ⍝...}
           e← esc Match ⊃w 
-      omU om Match ⊃e↓w:             1 (Par sCod, o) (Skip2EOS w) ⊣ o w← GetOmIx w↓⍨1+e      
-      e:                             SFail ⍵
-          ok num← ⎕VFI w↑⍨ +/∧\w∊ ⎕D 
+      omU om Match ⊃e↓w:    1 (Par sCod, o) (Skip2EOS w) ⊣ o w← GetOmIx w↓⍨1+e      
+      e:                    SFail ⍵
+          ok num← ⎕VFI w↑⍨ p←+/∧\w∊ ⎕D 
       1≢⍥, ok: SFail ⍵                                         ⍝ Not exactly 1 valid number
-          num SCommon w
+          num SCommon w↓⍨ p-1
     }
 ⍝ ---------------------------
 ⍝ Primary Executive Fns:  Analyse, Assemble 
