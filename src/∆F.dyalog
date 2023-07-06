@@ -18,9 +18,9 @@
 ⍝ CONSTANTS     
 ⍝               
     ⎕io ⎕ml←0 1                                           
-    optÊ← ⊂'EN'11,⍥⊂'Message' 'Invalid option (escape char)'   ⍝ Error msgs
-    logÊ← ⊂'EN'99,⍥⊂'EM' 'LOGIC ERROR: UNREACHABLE'
-    domÊ← ⊂⊂'EN'11
+    optÊ←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (escape char)' ⍝ Error msgs
+    logicÊ← ⊂'EN'99,⍥⊂'EM' 'LOGIC ERROR: UNREACHABLE'
+    domÊ←  ⊂⊂'EN'11
     chnCod← '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'       '⍙ⒸⒽⓃ¨'                ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
     boxCod← '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'                ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
                                                                ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
@@ -79,13 +79,14 @@
       esc Match⊃⍵:       (⍺, ⊃⍵       )⍺⍺ w
       lb rb Match⊃⍵:     (⍺, e, ⊃⍵    )⍺⍺ w ⊣ e← esc/⍨ inQt=⍵⍵ 
       inCF≠⍵⍵:           (⍺, esc, ⊃⍵  )⍺⍺ w 
-      om omU NMatch⊃⍵:   (⍺, esc, ⊃⍵  )⍺⍺ w 
-                          (⍺, Par o    )⍺⍺ w  ⊣ o w← GetOmIx w                   
+      ⊃_ o w← OmIxQ ⍵:   (⍺, Par o    )⍺⍺ w   
+                         (⍺, esc, ⊃⍵  )⍺⍺ w                 
     } 
-    GetOmIx← {                                                 ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
-      dig← ⍵↑⍨+/∧\⍵∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
-      0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp ⍵     )  ⊣ omIx+← 1
-              ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp ⍵↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
+    OmIxQ← { ⍺← omU om                                         ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
+      ⍺ NMatch ⊃⍵: 0 '' ⍵  ⋄ w← 1↓⍵  
+      dig← w↑⍨+/∧\w∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
+      0=≢dig: 1 ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w     )  ⊣ omIx+← 1
+              1 ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
 ⍝ ---------------------------
 ⍝ Major Field Fns: TF, CF, and SFQ 
@@ -97,7 +98,7 @@
         t w← fast Break ⍵ ⋄ ×≢t: (⍺, t) ∇ w                    ⍝ Fast process chars not matched below.
         lb  Match⊃⍵:  ⍺ ⍵
         esc Match⊃⍵:  ⍺ (∇ ProcEsc inTF) 1↓⍵   
-            Ê logÊ       
+            Ê logicÊ       
       } ⍵
       (Qt2Cod tf) w
     }
@@ -114,43 +115,38 @@
             (⍺, ⊃⍵) ⍺⍺ w                      
           } ⍵
           sq dq Match⊃⍵:    (⍺, q           ) ∇ w⊣ q w← GetQt ⍵
-              w← 1↓⍵ 
           esc Match⊃⍵:       ⍺ (∇ ProcEsc inCF) 1↓⍵   
-          fmt Match⊃⍵:      (⍺, ' ⎕FMT '    ) ∇ SkipSp w
-          ovr Match⊃⍵:      (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipSp w ⊣ irt∘← 1
-          omU Match⊃⍵:      (⍺, Par o       ) ∇ w ⊣ o w← GetOmIx w 
+          fmt Match⊃⍵:      (⍺, ' ⎕FMT '    ) ∇ SkipSp 1↓⍵
+          ovr Match⊃⍵:      (⍺, ' ⍙ⓄⓋⓇ '    ) ∇ SkipSp 1↓⍵ ⊣ irt∘← 1          
+          ⊃_ o w←  OmIxQ ⍵: (⍺, Par o       ) ∇ w  
           cm  Match⊃⍵:       ⍺                ∇ SkipCm ⍵
-              Ê logÊ              
+              Ê logicÊ              
       } SkipSp 1↓⍵
       (Par r, '⍵' ) w 
     }
-        sfAnchor←''                                              ⍝ See SFQ
-        spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time 
+        spMax← 5                                               ⍝ If >spMax spaces, generate at run-time 
         sCod← sq,sq,'⍴⍨'
-        SCommon← { ⍝ ⍺: length of space field or (¯1) failure (invalid or not a SF)
-        902::       0       ''             sfAnchor
-            Skip2EOS← { rb Match ⊃w←SkipCm cln sp Skip 1↓⍵: 1↓w ⋄ Ê 902} 
-          ⍺=¯1:     0       ''             sfAnchor             ⍝ Failure
-          ⍺= 0:     1       ''            (Skip2EOS ⍵)          ⍝ If 0-len SF, field => null.
-          ⍺≤ spMax: 1 (Par sq,(⍺⍴ sp),sq) (Skip2EOS ⍵)
-                    1 (Par sCod, ⍕⍺ )     (Skip2EOS ⍵) 
+        Skip2EOS← { rb Match ⊃w← cln sp Skip ⍵: 1↓w ⋄ Ê logicÊ } 
+        SCommon← { ⍝ ⍺: length of space field (≥0)
+            ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
+            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par sq,sq,⍨ ⍺⍴ sp
+                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
         }
-        SFail← ¯1∘SCommon                                      ⍝ Not a SF. Cld be a CF
-   SFQ← {                                                      ⍝ SFQ: Query/process SF
-          sfAnchor⊢← 1↓⍵                                       ⍝ Remember starting ⍵: for Error Handling
-          p← LenSp 1↓⍵
-      rb Match ⊃w← ⍵↓⍨ 1+p: p SCommon w                        ⍝ Fast path: {}
-          w← SkipCm w 
-      cln rb NMatch ⊃w:     SFail ⍵                            ⍝ Not { } or { :... }? See if CF
-      rb Match ⊃w:          p SCommon t                        ⍝ Fast path: {  ⍝...}    
-          w← SkipCm ': ' Skip 1↓w 
-      rb Match ⊃w:          0 SCommon w                        ⍝ Allow degenerate { : } { : ⍝...}
-          e← esc Match ⊃w 
-      omU om Match ⊃e↓w:    1 (Par sCod, o) (Skip2EOS w) ⊣ o w← GetOmIx w↓⍨1+e      
-      e:                    SFail ⍵
+    SFQ← {  ⍝ Comments not supported                           ⍝ SFQ: Query/process SF
+          tryCF ← 0 '' (startW← 1↓⍵)
+          w← startW↓⍨ p← LenSp startW 
+      rb Match ⊃w:          p SCommon w                        ⍝ Fast path: {}
+      cln NMatch ⊃w:        tryCF                              ⍝ Not { } or { :... }? See if CF
+          w← cln sp Skip 1↓w 
+      rb Match ⊃w:          0 SCommon w                        ⍝ Allow degenerate { : } { :: }
+          e← esc Match ⊃w                                      ⍝ esc ⍵ <==> ⍵
+      ⊃_ o w← OmIxQ e↓w:    1 (Par sCod, o) (Skip2EOS w)    
+      e:                    tryCF           
           ok num← ⎕VFI w↑⍨ p←+/∧\w∊ ⎕D 
-      1≢⍥, ok: SFail ⍵                                         ⍝ Not exactly 1 valid number
-          num SCommon w↓⍨ p-1
+      1≢⍥, ok:              tryCF                              ⍝ Not exactly 1 valid number
+          w← cln sp Skip p↓ w 
+      rb Match ⊃w:          num SCommon w 
+                            tryCF                
     }
 ⍝ ---------------------------
 ⍝ Primary Executive Fns:  Analyse, Assemble 
@@ -167,8 +163,8 @@
     Assemble← {                                                ⍝ Assemble code + needed defs 
             pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
       1=mo: '{',  pfx, (∊⍵), '}⍵⍵'
-      0=mo: '{{', pfx, (∊⍵), '}', (T2Q fmtS),',⊆⍵}'
-          (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fmtS),',⊆⍵}⍵'
+      0=mo: '{{', pfx, (∊⍵), '}', (T2Q fmtS),',⍥⊆⍵}'
+          (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fmtS),',⍥⊆⍵}⍵'
     } ⌽
 ⍝ ---------------------------
 ⍝⍝⍝ Options and Variables
@@ -177,7 +173,7 @@
     fmtS←⊃⊆⍵                                                   ⍝ fmtS: The format string (⍹0)
 ((0≠80|⎕DR)∨(2≤⍴∘⍴))fmtS: Ê domÊ                               ⍝ Only simple char vec/scalars allowed
     irt←0                                                      ⍝ irt: include runtime code? See CF
-    omIx←0                                                     ⍝ omIx: omega index. See GetOmIx 
+    omIx←0                                                     ⍝ omIx: omega index. See OmIxQ 
  ⍝ ---------------------------
 ⍝⍝⍝ Run STAGE I: Process format string and pass resulting string/s to STAGE II
     Assemble  Analyse fmtS                                     
@@ -316,7 +312,7 @@
 ⍝H ⍎            a b c← (∆F'{:5:}') (∆F'{:⍹1:}' 5) (∆F'{:`⍵1:}' 5)
 ⍝H ⍎            (a≡b)∧(b≡c)
 ⍝H ⎕         1
-⍝H     ∘ Comments are allowed in space fields.
+⍝H     ∘ Comments are NOT allowed in space fields.
 ⍝H 
 ⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char).
 ⍝H    (If you change the escape character, e.g. to '\', make the appropriate changes in the narrative below).
