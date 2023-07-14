@@ -10,7 +10,7 @@
 ⍝ BEGIN Stage II - 
 ⍝ Execute, return, or display code string from Stage I  
   (⊃⍺)∘( (⊃⎕RSI) {  
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    90:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
     1=⍺: ⍺⍺⍎⍵  ⋄   0=⍺: ∊⍵                                                 
    ¯1=⍺: ⍵     ⋄  ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪ ⍵  ⋄ ∘∘∘ declare ⍵⍵ ∘∘∘                                                                                
   }(⊆⍵))⍺∘{        
@@ -18,7 +18,7 @@
 
 ⍝ BEGIN Stage I - 
 ⍝ Process format string to code string and pass to Stage II
-    0:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
+    90:: ⎕SIGNAL ⊂ ⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message) 
     ⍝ Option specs
       fmtS← ⊃⊆⍵                                                  ⍝ fmtS: our format string
       (mo bo)eo←(2↑⍺)(⊃⌽'`',2↓⍺)                                 ⍝ mo: mode option, bo: box option, eo: user escape char (not escaped for pcre/⎕R)
@@ -45,7 +45,7 @@
       eC← e,'[{}⋄⍵⍹',e,']'                                       ⍝ eC: e̲scape sequence in Ⓒode (cGP) and Comments (cmP) 
       qP←  '(?:''[^'']*'')+|(?:"[^"]*")+' 
       scP←  '([%$])\s*'                                          ⍝ scP:  match a shortcut "fn": $ or %. 
-      omP←  '(?:',e,'⍵|',e,'?[⍹])(\d*)'                          ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
+      omP←  '(?:',e,'⍵|',e,'?[⍹⍵])(\d*)'                         ⍝ omP:  ⍵ (omega) patterns: ⍵3, ⍹3; `⍵, ⍹ (see SF)
       cmP←  '⍝(?:[^{}⋄',e,']+|', eC,'?)*'                        ⍝ cmP:  Comments end with any of '⋄{}'
     ⍝ TF+: Major Patterns for Text Fields + Quoted Strings (CF)                                
       tP←   '((',eT,'?|[^{',e,']+)+)'                            ⍝ tP: Text Field pattern                                            

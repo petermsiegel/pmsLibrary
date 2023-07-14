@@ -1,21 +1,8 @@
-﻿∆F←{
+:namespace ∆FLib
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝! For documentation, see ⍝H comments below.
-⍝ ⍺ OPTIONS
-  ⍺←1 0 '`'
-  0=≢⍺: 1 0⍴''
- 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
-⍝ ---------------------------
-⍝ STAGE II: Execute/Display code from Stage I
-  (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator
-      1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵ ⋄ ⍵
-      ∘∘unreachable∘∘ ⍵⍵ 
-⍝ ---------------------------
-⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
-  }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
-⍝ --------------------------- 
-⍝ CONSTANTS     
+⍝ ------------------------------------------------------
+⍝ CONSTANTS (no Variables like esc (escape char) here)    
 ⍝               
     ⎕io ⎕ml←0 1                                           
     opt0Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (mode)'       ⍝ Error msgs
@@ -176,7 +163,8 @@
               isSF sf w←SF ⍵                                   ⍝ SF? Else CF.
         isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf                              ⍝ Is SF. Proc SF and next
               w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf ⊣ cf w← CF ⍵                 ⍝ Is CF. Proc CF and next
-      }fStr: ⌽ff ⋄ ⊂'⊂⍬'                                       ⍝ Handle 0 fields (edge case)
+      }fStr: ⌽ff 
+             ⊂'⊂⍬'                                             ⍝ Handle 0 fields (edge case)
     }
     Assemble← {                                                ⍝ Assemble code + needed defs 
           pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
@@ -184,22 +172,45 @@
       0=mo: '{{', pfx, (∊⍵), '}', (T2Q fStr),',⍥⊆⍵}'
           (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fStr),',⍥⊆⍵}⍵'
     } 
-⍝ ---------------------------
-⍝⍝⍝ MAIN: 
-⍝   Options and Variables
-      (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                             ⍝ Set/validate options 
-      fStr←⊃⊆⍵                                                 ⍝ fStr: The format string (⍹0)
-    (Sim⍲Chr) fStr:   Ê fStrÊ                                  ⍝ Only simple char vec/scalars allowed
-    mo(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
-    bo(~∊) 0 1:       Ê opt1Ê
-    esc∊ lb sp cm:    Ê opt2Ê                                  ⍝ Invalid escape char?  
-      irt←0                                                    ⍝ irt: include runtime code? See CF
-      omIx←0                                                   ⍝ omIx: omega index. See MOm 
-⍝ ---------------------------
-⍝⍝⍝ MAIN:
-⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    Assemble Analyse ⍬                                     
-  }⍵
+    Main← Assemble Analyse
+  ⍝ _Shadowing: 
+  ⍝  Run Main while shadowing indicated variables, allowing ∆F to run safely in multiple threads.
+    ∇ code← (Main _Shadowing)  (fStr mo bo esc irt omIx)
+      code← Main ⍬
+    ∇
+  ⍝ ∆F: User Executable Function
+      ∆F←{
+      ⍝ ⍺ OPTIONS
+      ⍺←1 0 '`'
+      0=≢⍺: 1 0⍴''
+      'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕SRC ⎕THIS ⍝ ⎕NR ⊃⎕XSI  
+      0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+      (⊃⍺) ((⊃⎕RSI){ 
+      ⍝ STAGE II: Execute/Display code from Stage I
+      ⍝ ---------------------------
+          1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵ ⋄ ⍵
+          ∘∘unreachable∘∘ ⍵⍵ 
+      }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+      ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
+      ⍝ ---------------------------
+      ⍝ Define Options and Variables (fStr; mo bo esc irt omIx)
+          (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                               ⍝ Set/validate options 
+          fStr←⊃⊆⍵                                                   ⍝ fStr: The format string (⍹0)
+          irt←0                                                      ⍝ irt: include runtime code? See CF
+          omIx←0                                                     ⍝ omIx: omega index. See MOm        
+      ⍝ Validate Options
+        (Sim⍲Chr) fStr:   Ê fStrÊ                                    ⍝ Only simple char vec/scalars allowed
+        mo(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
+        bo(~∊) 0 1:       Ê opt1Ê
+        esc∊ lb sp cm:    Ê opt2Ê                                    ⍝ Invalid escape char?   
+      ⍝ Execute STAGE I
+      ⍝ ∘ Execute Main (Assemble and Analyse), shadowing vars fStr, etc., 
+      ⍝ ∘ Pass results to Stage II
+          Main _Shadowing fStr mo bo esc irt omIx                                   
+    }⍵
+  }
+  ⎕SE⍎'∆FX← {⍺←⊢⋄⍺',(⍕⎕THIS),'.∆F ⍵}' 
+
 ⍝ Help information follows (⍝H prefix)
 ⍝H ∆F Utility Function
 ⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
@@ -370,5 +381,4 @@
 ⍝H   Try ¯2 ∆F ... to see pseudocode showing how your code is structured. Runtime defs are shown abridged.
 ⍝H   0 ∆F ... shows the actual code to be executed, with all runtime definitions spelled out in full!
 ⍝H
-
-}
+:EndNamespace ⍝ ∆FLib
