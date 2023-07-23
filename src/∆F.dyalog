@@ -17,12 +17,12 @@
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
 ⍝               
-    ⎕io ⎕ml←0 1                                           
-    opt0Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (mode)'       ⍝ Error msgs
-    opt1Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (box)'
-    opt2Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (escape char)'
-    logicÊ←  ⊂'EN'99,⍥⊂'EM' 'LOGIC ERROR: UNREACHABLE'
-    fStrÊ←   ⊂'EN'11,⍥⊂'Message' 'Invalid right arg (f-string)'
+    ⎕io ⎕ml←0 1                                
+    logicÊ←  'EM'      'LOGIC ERROR: UNREACHABLE'              ⍝ Error msgs
+    opt0Ê←   'Message' 'Invalid option (mode)'     
+    opt1Ê←   'Message' 'Invalid option (box)'
+    opt2Ê←   'Message' 'Invalid option (escape char)'
+    fStrÊ←   'Message' 'Invalid right arg (f-string)'
   ⍝ ...Cod:  We'll emit ...[0] when mo<0, [1] otherwise.
   ⍝ ovrCod:  definition is emitted if % (shortcut for ⍙ⓄⓋⓇ) is used.
     chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'       '⍙ⒸⒽⓃ¨'               ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
@@ -36,7 +36,7 @@
     inQt inTF inCF← 0 1 2                                      ⍝ See MEsc. 
 ⍝ ---------------------------
 ⍝ SUPPORT FNS
-    Ê←   {⍎'⎕SIGNAL⍵'}                                         ⍝ Error in its own "capsule"
+    Ê←   {⍺←'EN' 11 ⋄ ⍎'⎕SIGNAL ⊂⍺,⍥⊂⍵'}                       ⍝ Error in its own "capsule"
     String← (2>⍴∘⍴)∧(0=80|⎕DR)                                 ⍝ Scal-Vec and Char only 
  ⍝ Match, Non-match, Match Quoted String, etc.
     M←  ⊃∊      ⍝   More "work", but faster than (∊⍨∘⊃)⍨       ⍝ Is (⊃⍺) ∊ ⍵?                                  ⍝ Is (⊃⍺) ∊    ⍵?
@@ -62,7 +62,7 @@
               ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
     MEsc← { env← ⍵⍵ 
-      ⍵ NM esc:       Ê logicÊ                                 ⍝D DEBUG ONLY
+      ⍵ NM esc:       Ê logicÊ                            ⍝D DEBUG ONLY
       w← 1↓⍵                                                   ⍝ Skip past esc   
       w M eos:       (⍺, nl      )⍺⍺ 1↓w
       w M esc:       (⍺, ⊃⍵      )⍺⍺ 1↓w
@@ -200,11 +200,12 @@
   }⍵
 ⍝ Help information follows (⍝H prefix)
 ⍝H ∆F Utility Function
-⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
-⍝H     2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
-⍝H     titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize 
-⍝H     the display of vector and multidimensional objects using building blocks that already exist in 
-⍝H     the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
+⍝H ∆F Utility Function
+⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
+⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
+⍝H    titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
+⍝H    display of vector and multidimensional objects using building blocks (like ⎕FMT) that already exist
+⍝H    in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
 ⍝H Quick example:
 ⍝H ⍎      ∆F 'The current temp is{1⍕⍪1↓⍵}°C or{1⍕⍪32+(9÷5)×1↓⍵}°F.' 20 30 40 50
 ⍝H ⎕   The current temp is 20.0°C or  68.0°F.

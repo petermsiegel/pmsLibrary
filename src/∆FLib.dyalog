@@ -205,15 +205,16 @@
           Main _Shadowing fStr mo bo esc irt omIx                                   
     }⍵
   }
-  ⎕SE⍎'∆FX← {⍺←⊢⋄⍺',(⍕⎕THIS),'.∆F ⍵}' 
+  ⎕SE⍎'∆FL← {⍺←⊢⋄⍺',(⍕⎕THIS),'.∆F ⍵}' 
+  ⎕←'Created "⎕SE.∆FL" as alias for "',(⍕⎕THIS),'.∆F"'
 
 ⍝ Help information follows (⍝H prefix)
 ⍝H ∆F Utility Function
-⍝H     ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
-⍝H     2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
-⍝H     titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize 
-⍝H     the display of vector and multidimensional objects using building blocks that already exist in 
-⍝H     the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
+⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
+⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
+⍝H    titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
+⍝H    display of vector and multidimensional objects using building blocks (like ⎕FMT) that already exist
+⍝H    in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
 ⍝H Quick example:
 ⍝H ⍎      ∆F 'The current temp is{1⍕⍪1↓⍵}°C or{1⍕⍪32+(9÷5)×1↓⍵}°F.' 20 30 40 50
 ⍝H ⎕   The current temp is 20.0°C or  68.0°F.
