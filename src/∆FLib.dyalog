@@ -4,57 +4,60 @@
 ⍝ ------------------------------------------------------
 ⍝ CONSTANTS (no Variables like esc (escape char) here)    
 ⍝               
-    ⎕io ⎕ml←0 1                                           
-    opt0Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (mode)'       ⍝ Error msgs
-    opt1Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (box)'
-    opt2Ê←   ⊂'EN'11,⍥⊂'Message' 'Invalid option (escape char)'
-    logicÊ←  ⊂'EN'99,⍥⊂'EM' 'LOGIC ERROR: UNREACHABLE'
-    fStrÊ←   ⊂'EN'11,⍥⊂'Message' 'Invalid right arg (f-string)'
+    ⎕io ⎕ml←0 1                        
+  ⍝ ...Ê: Error messages. See Ê below.                   
+    opt0Ê← ('Message' 'Invalid option (mode)')       ('EN' 11) 
+    opt1Ê← ('Message' 'Invalid option (box)')        ('EN' 11)        
+    opt2Ê← ('Message' 'Invalid option (escape char)')('EN' 11) 
+    fStrÊ← ('Message' 'Invalid right arg (f-string)')('EN' 11) 
+    logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99)    
+  ⍝ ...Cod:  We'll select ...[0] when mod<0, [1] otherwise.
     chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'       '⍙ⒸⒽⓃ¨'               ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
     boxCod←  '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
-                                                               ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+  ⍝ ovrCod: See ovr and irt (include runtime code) logic       ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
   ⍝ ␠  '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                     ⍝ ⍹: omega underbar                              
-    sp sq dq eos cm cln lb rb fmt ovr om omU← ' ''"⋄⍝:{}$%⍵⍹'       
+    sp sq dq eos cm cln lb rb fmt ovr om omU← ' ''"⋄⍝:{}$%⍵⍹'  ⍝ Constants, unlike ¨esc¨        
     clnsp← cln sp
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
     inQt inTF inCF← 0 1 2                                      ⍝ See MEsc
 ⍝ ---------------------------
 ⍝ SUPPORT FNS
-    Ê←   {⍎'⎕SIGNAL⍵'}                                         ⍝ Error in its own "capsule"
+    Ê← { ⍎'⎕SIGNAL⊂⍵' }                                        ⍝ Error in its own "capsule"
     String← (2>⍴∘⍴)∧(0=80|⎕DR)                                 ⍝ Scal-Vec and Char only 
 ⍝ Match, Non-match, Match Quoted String, etc.
     M←  ⊃∊       ⍝ More "work", but faster than (∊⍨∘⊃)⍨        ⍝ Is (⊃⍺) ∊ ⍵?
     NM← ~M                                                     ⍝ Not M
     MQS←{   
-        ⍵ NM sq dq:  Ê logicÊ     ⍝D DEBUG only                ⍝ Requires (⊃⍵)∊sq dq
+        ⍵ NM sq dq:  Ê logÊ       ⍝D DEBUG only                ⍝ Requires (⊃⍵)∊sq dq
         qt← ⊃⍵
         ''{
           0=≢⍵: (QS2Cod ⍺) (SkipSp ⍵ )                         ⍝ → RETURN
+          qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 2↓⍵                             ⍝ qt-qt? (internal quote char)
+          ⍵  M qt:  (QS2Cod ⍺) (SkipSp 1↓⍵)                    ⍝ qt? → RETURN
+          ⍵ NM esc: (⍺, ⊃⍵)  ∇ 1↓⍵                             ⍝ Not escaped char? Process.
             w← 1↓⍵
-          qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 1↓w                             ⍝ qt-qt (inside qt...qt)
-          ⍵  M qt:  (QS2Cod ⍺) (SkipSp w)                      ⍝ → RETURN
-          ⍵ NM esc: (⍺, ⊃⍵)  ∇ 1↓⍵                             ⍝ Not esc? Next
-          w  M eos: (⍺, nl)  ∇ 1↓w                             ⍝ esc+ ⋄
-          w  M esc:  s ⍺ (∇ MEsc inQt) w                       ⍝ esc+  esc 
-            (⍺,⊃⍵)∇ w                                          ⍝ esc+  anything else
+          w  M eos: (⍺, nl)  ∇ 1↓w                             ⍝ esc + ⋄
+          w  M esc:  s ⍺ (∇ MEsc inQt) w                       ⍝ esc + esc 
+            (⍺,⊃⍵)∇ w                                          ⍝ esc+ anything else
         }1↓⍵
+
     }
-    MOm← {                                                     ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
+    MOmega← {                                                  ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
       ⍵ NM omU om: '' ⍵  ⋄ w← 1↓⍵                              ⍝ Not ⍹0 etc? Return ('' ⍵)
       dig← w↑⍨+/∧\w∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
       0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w     )  ⊣ omIx+← 1
               ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
     MEsc← { env← ⍵⍵ 
-      ⍵ NM esc:       Ê logicÊ                                 ⍝D DEBUG ONLY
+      ⍵ NM esc:       Ê logÊ                                   ⍝D DEBUG ONLY
       w← 1↓⍵                                                   ⍝ Skip past esc   
       w M eos:       (⍺, nl      )⍺⍺ 1↓w
       w M esc:       (⍺, ⊃⍵      )⍺⍺ 1↓w
         e← esc/⍨ inQt=env 
       w M lb rb:     (⍺, e, ⊃⍵   )⍺⍺ 1↓w 
       inCF≠env:      (⍺, esc, ⊃⍵ )⍺⍺ 1↓w                       ⍝ inSF, inQt? → RETURN
-          o w← MOm w                                           ⍝ ↓↓↓ inCF only
+          o w← MOmega w                                           ⍝ ↓↓↓ inCF only
       ×≢o:           (⍺, Par o   )⍺⍺ w      
                      (⍺, esc, ⊃⍵ )⍺⍺ 1↓w                                          
     } 
@@ -72,9 +75,9 @@
               ∇ w                                              ⍝ Keep other char after esc  
         }1↓⍵
     }
- ⍝ Break: Skip s, ≥0 leading chars NOT in ⍺, returning <s, <rest of str>>
- ⍝        If no leading chars NOT in ⍺, return (⍵ ''); if all, return ('' ⍵). 
-    Break← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
+ ⍝ Brk: Break past s, 0 or more leading chars NOT in ⍵, returning (s  <rest of str>)
+ ⍝      If ALL leading chars in ⍺, return (⍵ ''); if none, return ('' ⍵). 
+   Brk← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
   ⍝ Miscellaneous
     Par← '(',,∘')'
     Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }                ⍝ For DEBUG modes.
@@ -90,24 +93,24 @@
   ⍝ TF: Text Fields
     TF← {                                                      ⍝ TF: Text Fields
       0=≢⍵: ''
-      fast←  lb esc                                            ⍝ Proc. as much of ⍵ not ∊fast                
+      FastBrk← lb esc ∘Brk                                          
       tf w← ''{
         0=≢⍵: ⍺ ⍵
-        t w← fast∘Break ⍵ ⋄ ×≢t: (⍺, t) ∇ w                    ⍝ Fast process chars not matched below.
+        t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                       ⍝ Fast process chars not matched below.
         ⍵ M lb:   ⍺ ⍵
         ⍵ M esc:  ⍺ (∇ MEsc inTF) ⍵   
-            Ê logicÊ       
+            Ê logÊ         
       } ⍵
       (QS2Cod tf) w
     }
   ⍝ CF: Code Fields
     CF← {                                                      ⍝ CF: Code Fields
       0=≢⍵: '' ⍵ 
-      fast← lb rb sq dq esc fmt ovr omU cm                     ⍝ Proc as much of ⍵ not ∊fast          
+      FastBrk← lb rb sq dq esc fmt ovr omU cm ∘Brk             ⍝ Proc as much of ⍵ not ∊fast          
       brcLvl← 1                                                ⍝ Brace {} depth
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
-          t w← fast∘Break ⍵ ⋄ ×≢t: (⍺, t) ∇ w                  ⍝ Fast process chars not matched below
+          t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
           ⍵ M lb: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
           ⍵ M rb: ⍺ ∇{ brcLvl-← 1  
             brcLvl≤0: (⍺, ⊃⍵) (1↓⍵)                            ⍝ Terminate! 
@@ -117,10 +120,10 @@
           ⍵ M esc:      ⍺ (∇ MEsc inCF) ⍵   
           ⍵ M fmt:     (⍺,' ⎕FMT '↓⍨sp=⊃⌽⍺ ) ∇ SkipSp 1↓⍵
           ⍵ M ovr:     (⍺,' ⍙ⓄⓋⓇ '↓⍨sp=⊃⌽⍺ ) ∇ SkipSp 1↓⍵ ⊣ irt∘← 1 
-            o w← MOm ⍵         
+            o w← MOmega ⍵         
           0=≢o:        (⍺, Par o       ) ∇ w  
           ⍵ M cm:       ⍺                ∇ SkipCm ⍵
-              Ê logicÊ              
+              Ê logÊ                
       } SkipSp 1↓⍵
       (Par r, '⍵' ) w 
     }
@@ -130,24 +133,24 @@
         Skip2EOS← { w M rb ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
         SCommon← { ⍝ ⍺: length of space field (≥0)
             ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
-            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par sq,sq,⍨ ⍺⍴ sp
-                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
+            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ box∧1=⍺), sq,sq,⍨ ⍺⍴ sp
+                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺  
         }
-    SFQ← {                                                     ⍝ SFQ: Query/process SF
-        notSF ← 0 '' (startW← 1↓⍵)
-        w← startW↓⍨ p← sp Len startW                           ⍝ Grab leading blanks
+    SFQ← {  startW← 1↓⍵                                        ⍝ SFQ: Query/process SF
+        tryCF ← 0 '' ⍵
+        w← ⍵↓⍨ 1+ p← sp Len 1↓⍵                                ⍝ Grab leading blanks
       w  M rb:         p SCommon w                             ⍝ Fast path: {}
-      w NM cln:        notSF                                   ⍝ Not { } or { :... }? See if CF
+      w NM cln:        tryCF                                   ⍝ Not { } or { :...[:] }? See if CF
         w← SkipCS 1↓w 
       w  M rb:         0 SCommon w                             ⍝ Allow degenerate { : } { :: }                                      
-        o w← MOm w↓⍨e← w M esc                                 ⍝ esc ⍵ <==> ⍵
+        o w← MOmega w↓⍨e← w M esc                              ⍝ esc ⍵ <==> ⍵
       ×≢o:             1 (Par sCod, o) (Skip2EOS w)    
-      e:               notSF           
+      e:               tryCF           
         ok num← ⎕VFI w↑⍨ p← ⎕D Len w  
-      1≢⍥, ok:         notSF                                   ⍝ Not exactly 1 valid number
+      1≢⍥, ok:         tryCF                                   ⍝ Not exactly 1 valid number
         w← SkipCS p↓ w 
       w M rb:          num SCommon w 
-                       notSF                
+                       tryCF                
     }
 ⍝ ---------------------------
 ⍝ Primary Executive Fns:  Analyse, Assemble 
@@ -163,15 +166,15 @@
              ⊂'⊂⍬'                                             ⍝ Handle 0 fields (edge case)
     }
     Assemble← {                                                ⍝ Assemble code + needed defs 
-          pfx←  '⌽',⍨ ∊ irt 1 bo/ ovrCod chnCod boxCod ⊃⍨¨ mo<0 
-      1=mo: '{',  pfx, (∊⍵), '}⍵⍵'
-      0=mo: '{{', pfx, (∊⍵), '}', (T2Q fStr),',⍥⊆⍵}'
+          pfx←  '⌽',⍨ ∊ irt 1 box/ ovrCod chnCod boxCod ⊃⍨¨ mod<0 
+      1=mod: '{',  pfx, (∊⍵), '}⍵⍵'
+      0=mod: '{{', pfx, (∊⍵), '}', (T2Q fStr),',⍥⊆⍵}'
           (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fStr),',⍥⊆⍵}⍵'
     } 
     Main← Assemble Analyse
   ⍝ _Shadowing: 
   ⍝  Run Main while shadowing indicated variables, allowing ∆F to run safely in multiple threads.
-    ∇ code← (Main _Shadowing)  (fStr mo bo esc irt omIx)
+    ∇ code← (Main _Shadowing)  (fStr mod box esc irt omIx)
       code← Main ⍬
     ∇
   ⍝ ∆F: User Executable Function
@@ -186,23 +189,23 @@
       ⍝ ---------------------------
           1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵ ⋄ ⍵
           ∘∘unreachable∘∘ ⍵⍵ 
-      }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+      }(⊆⍵))⍺{                                                       ⍝ ⊆⍵: original f-string
       ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
       ⍝ ---------------------------
-      ⍝ Define Options and Variables (fStr mo bo esc irt omIx)
-          (mo bo) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                               ⍝ Set/validate options 
+      ⍝ Define Options and Variables (fStr mod box esc irt omIx)
+          (mod box) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                             ⍝ Set/validate options 
           fStr←⊃⊆⍵                                                   ⍝ fStr: The format string (⍹0)
           irt←0                                                      ⍝ irt: include runtime code? See CF
-          omIx←0                                                     ⍝ omIx: omega index. See MOm        
+          omIx←0                                                     ⍝ omIx: omega index. See MOmega        
       ⍝ Validate Options
-        ~String fStr:     Ê fStrÊ                                    ⍝ Only simple char vec/scalars allowed
-        mo(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
-        bo(~∊) 0 1:       Ê opt1Ê
-        esc∊ lb sp cm:    Ê opt2Ê                                    ⍝ Invalid escape char?   
+        ~String fStr:      Ê fStrÊ                                   ⍝ Only simple char vec/scalars allowed
+        mod(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
+        box(~∊) 0 1:       Ê opt1Ê
+        esc∊ lb sp cm:     Ê opt2Ê                                   ⍝ Invalid escape char?   
       ⍝ Execute STAGE I
       ⍝ ∘ Execute Main (Assemble and Analyse), shadowing vars fStr, etc., 
       ⍝ ∘ Pass results to Stage II
-          Main _Shadowing fStr mo bo esc irt omIx                                   
+          Main _Shadowing fStr mod box esc irt omIx                                   
     }⍵
   }
   ⎕SE⍎'∆FL← {⍺←⊢⋄⍺',(⍕⎕THIS),'.∆F ⍵}' 
