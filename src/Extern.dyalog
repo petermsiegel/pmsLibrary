@@ -31,12 +31,10 @@
         qtP_t←   '(''[^'']*'')+' 
         comP_t←  '⍝.*'
         xNmP_t←      '[\p{L}_∆⍙#⍺⍵⎕][\p{L}\p{N}_∆⍙#⍺⍵⎕]*'                 
-        longNmP_t←   xNmP_t,'(\h*\.\h*',xNmP_t,')*'                ⍝ aaa.bbb, but spaces around '.'
-          _← '(?x) (?<P> \( ((?>  [^()''\n\r]+ | '                
-        balParP_t← _, '(?: (?:''[^'']*'')+ | (?&P)* )+) ) \) )'    ⍝ balanced parens...
-          _← '(?x) (?<B> \{ ((?>  [^{}'']+ | '                   
-        dfnBdyP_t← _, '(?: (?:''[^'']*'')+ | (?&B)* )+) ) \} )'    ⍝ dfn body {...}
-    skipP← qtP_t, '|', comP_t, '|', dfnBdyP_t, '|\.\h*', balParP_t
+        longNmP_t←   xNmP_t,'(\h*\.\h*',xNmP_t,')*'                ⍝ aaa.bbb, but spaces around '.'              
+        balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'          ⍝ balanced parens - single line
+        dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'            ⍝ dfn body - multiline ok
+    skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '|\.\h*', balParP_t
     tokenP← ':', simpNmP, '|', longNmP_t
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
   ⍝ Key Utilities
@@ -44,32 +42,38 @@
     SkipNm← { f←⊃⍵ ⋄ ~f∊ '⎕#:': 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
     Sort←   { ⍵[⍋⎕C⍣ foldCase ⊢⍵] } 
     FmtIntern← {  
-      iNmsPerLn { ⊂'  ', ∊ ⍵,⍨¨ ⊂'; ' } {
+      intPL { ⊂'  ', ∊ ⍵,⍨¨ ⊂'; ' } {
         0=≢⍵: ⍬ ⋄ ⍺<≢⍵: (⍺⍺ ⍺↑⍵), ⍺ ∇ ⍺↓⍵ ⋄ ⍺⍺ ⍵
       } ⍵  
     } Sort
-    Warn←{ ~⍺: ⍬ ⋄ ⍬⊣ ⎕←'Warning: ', ⍵}
-    UpdateExt←{ f1 f2← ⍵ ⋄ e← '; '~⍨¨ ' '(≠⊆⊢) f1 
-      _← (1∊ e∊ internNms) Warn '":EXTERN ',f1,'" overrides prior :INTERN declaration'
-      internNms~← externNms,← e
+    UpdateExt←{ f1 f2← ⍵ ⋄ e← ' ;'((~∊⍨)⊆⊢) f1
+      declaredInt~← declaredExt,← e {
+        '":EXTERN',(∊' ',¨⍺),'" overrides prior :INTERN declaration'
+      } WarningIf  e∊ declaredInt
       keepOrig/ '  ⍝ :Extern ', f1, f2
     }
-    UpdateInt←{ ⍺←1 ⋄ f1 f2← ⍵ ⋄ e← '; '~⍨¨ ' '(≠⊆⊢) f1
-        _← (1∊ e∊ externNms) Warn '":INTERN ',f1,'" overrides prior :EXTERN declaration'
-        externNms~← internNms,← e
-    ⍺:  keepOrig/ '  ⍝ :Intern ', f1, f2
+    UpdateInt←{ ⍺←1 ⋄ f1 f2← ⍵ ⋄ e← ' ;'((~∊⍨)⊆⊢) f1
+        declaredExt~← declaredInt,← e {
+          ':INTERN',(∊' ',¨⍺),'" overrides prior :EXTERN declaration' 
+        } WarningIf e∊ declaredExt
+      ⍺:keepOrig/ '  ⍝ :Intern ', f1, f2
         keepOrig/ '  ⍝ ; ', f1, f2 
     }
+    WarningIf← { ~1∊ ⍵: ⍺ ⋄ ⍺⊣ ⎕←'Warning: ', ⍺ ⍺⍺ ⍬}
 
   ⍝ EXECUTIVE...
-    ⍺←1 10
-  ⍝ keepOrig:   Keep original declarations of externals and internals (locals)
-  ⍝ iNmsPerLn:  # of internals to print on each line. (The default if ≤0 or omitted)
-  ⍝ foldCase:   0 (sort UC before lc before ⎕SYS); else 1 (sort UC and lc together before ⎕SYS)
-    defIPL←  10 
-    returnType foldCase iNmsPerLn ← 3↑ ⍺
-    keepOrig← returnType>0
-    iNmsPerLn← iNmsPerLn 10 ⊃⍨ 0≥ iNmsPerLn
+    defIntPL← 10 
+    ⍺←1 0 defIntPL
+  ⍝ ⍺...
+  ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
+  ⍝                   0   Omit original declarations
+  ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
+  ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
+  ⍝ [2] → intPL:      # of internals to print on each line. 
+  ⍝                   defIntPL* by default or if ⍺[2]≤0
+    keepOrig foldCase intPL ← 3↑ ⍺
+    keepOrig← keepOrig>0
+    intPL←    intPL defIntPL ⊃⍨ 0≥ intPL
 
   ⍝ If ⍵ is a vec of (char) vecs, assume ⎕NR of tradfn/op; else assume it's a tradfn/op name
     ValidateArgs← {  
@@ -86,15 +90,15 @@
           ¯1≠ ⎕NC shortNm: lines shortNm 
           'Object must represent a tradfn/op' ⎕SIGNAL 11  
     }
-    fnBody me← ValidateArgs ⍵
+    fnBody fnNm← ValidateArgs ⍵
  
   ⍝ Break header up into arg declarations, local declarations, comment
     hArg hLoc hCm← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃fnBody
     hdrNms← simpNmP ⎕S '\0'⊣ hArg
     hdrOut← ⊂hArg,(' ⍝ '/⍨0≠≢hLoc), hLoc, hCm
-    internNms←   ' '~⍨¨ ';' (≠⊆⊢) 1↓ hLoc 
-    externNms←   ⍬
-    explicitNms← ⍬
+    declaredInt←   ' '~⍨¨ ';' (≠⊆⊢) 1↓ hLoc 
+    declaredExt←   ⍬
+    nmsInCode← ⍬
   
     patterns← extP intP locP skipP tokenP 
               extI intI locI skipI tokenI← ⍳≢patterns
@@ -110,16 +114,16 @@
       ⍝ Ignore :directives and system names that can't be localised...
         Case tokenI: {
           SkipNm ⍵:  ⍵         
-          ⊢explicitNms,∘⊂← FirstNm ⍵ 
+          ⊢nmsInCode,∘⊂← FirstNm ⍵ 
         } m 
         ∘∘∘ Unreachable ∘∘∘
     } ⍠∆ROpts⊣ 1↓ fnBody
 
-    externNms←  ∪  externNms 
-    internNms←  ∪( internNms ∪ explicitNms~ hdrNms~ ⊂me)  ⍝ ~externNms 
-    internDecl← FmtIntern internNms
-  ¯1=⊃⍺: Sort¨externNms internNms 
-    hdrOut, internDecl, tail
+    declaredExt←  ∪ declaredExt 
+    declaredInt←  ∪ declaredInt ∪ (nmsInCode~ hdrNms~ ⊂fnNm)~ declaredExt 
+    declareLoc←  FmtIntern declaredInt
+  ¯1=⊃⍺: Sort¨declaredExt declaredInt 
+    hdrOut, declareLoc, tail
 
 ⍝H 
 ⍝H Extern
