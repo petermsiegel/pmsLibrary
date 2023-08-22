@@ -37,44 +37,29 @@
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '|\.\h*', balParP_t
     tokenP← ':', simpNmP, '|', longNmP_t
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
-  ⍝ Key Utilities
+  ⍝ Basic Utilities
     FirstNm←  { ⍵↑⍨⍵⍳'.'},
     SkipNm← { f←⊃⍵ ⋄ ~f∊ '⎕#:': 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
     Sort←   { ⍵[⍋⎕C⍣ foldCase ⊢⍵] } 
-    FmtIntern← {  
-      intPL { ⊂'  ', ∊ ⍵,⍨¨ ⊂'; ' } {
+    Split←  ' ;'∘((~∊⍨)⊆⊢)
+    WarningIf← { ~1∊ ⍵: ⍺ ⋄ ⍺⊣ ⎕←'Warning: ', ⍺ ⍺⍺ ⍬ }
+  ⍝ Major Functions
+    FmtInt← {  
+      intPL { ⊂'    ', ∊ ⍵,⍨¨ ⊂'; ' } {
         0=≢⍵: ⍬ ⋄ ⍺<≢⍵: (⍺⍺ ⍺↑⍵), ⍺ ∇ ⍺↓⍵ ⋄ ⍺⍺ ⍵
       } ⍵  
     } Sort
-    UpdateExt←{ f1 f2← ⍵ ⋄ e← ' ;'((~∊⍨)⊆⊢) f1
-      declaredInt~← declaredExt,← e {
-        '":EXTERN',(∊' ',¨⍺),'" overrides prior :INTERN declaration'
-      } WarningIf  e∊ declaredInt
-      keepOrig/ '  ⍝ :Extern ', f1, f2
+    UpdateExt←{ f1 f2← ⍵ ⋄ e← Split  f1
+      ExtW←{ '":EXTERN',(∊' ',¨⍺),'" overrides prior :INTERN declaration' }
+      declaredInt~← declaredExt,← e ExtW WarningIf  e∊ declaredInt
+      keepOrig/ '    ⍝ :Extern ', f1, f2
     }
-    UpdateInt←{ ⍺←1 ⋄ f1 f2← ⍵ ⋄ e← ' ;'((~∊⍨)⊆⊢) f1
-        declaredExt~← declaredInt,← e {
-          ':INTERN',(∊' ',¨⍺),'" overrides prior :EXTERN declaration' 
-        } WarningIf e∊ declaredExt
-      ⍺:keepOrig/ '  ⍝ :Intern ', f1, f2
-        keepOrig/ '  ⍝ ; ', f1, f2 
+    UpdateInt←{ ⍺←1 ⋄ f1 f2← ⍵ ⋄ e←  Split  f1
+      IntW←{ '":INTERN',(∊' ',¨⍺),'" overrides prior :EXTERN declaration' }  
+      declaredExt~← declaredInt,← e IntW WarningIf e∊ declaredExt
+    ⍺:keepOrig/ '    ⍝ :Intern ', f1, f2
+      keepOrig/ '    ⍝ ; ', f1, f2 
     }
-    WarningIf← { ~1∊ ⍵: ⍺ ⋄ ⍺⊣ ⎕←'Warning: ', ⍺ ⍺⍺ ⍬}
-
-  ⍝ EXECUTIVE...
-    defIntPL← 10 
-    ⍺←1 0 defIntPL
-  ⍝ ⍺...
-  ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
-  ⍝                   0   Omit original declarations
-  ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
-  ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
-  ⍝ [2] → intPL:      # of internals to print on each line. 
-  ⍝                   defIntPL* by default or if ⍺[2]≤0
-    keepOrig foldCase intPL ← 3↑ ⍺
-    keepOrig← keepOrig>0
-    intPL←    intPL defIntPL ⊃⍨ 0≥ intPL
-
   ⍝ If ⍵ is a vec of (char) vecs, assume ⎕NR of tradfn/op; else assume it's a tradfn/op name
     ValidateArgs← {  
           lines← ⊆⍵ 
@@ -90,19 +75,34 @@
           ¯1≠ ⎕NC shortNm: lines shortNm 
           'Object must represent a tradfn/op' ⎕SIGNAL 11  
     }
+ 
+  ⍝ EXECUTIVE...
+    defIntPL← 10 
+    ⍺←1 0 defIntPL
+  ⍝ ⍺...
+  ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
+  ⍝                   0   Omit original declarations
+  ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
+  ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
+  ⍝ [2] → intPL:      # of internals to print on each line. 
+  ⍝                   defIntPL* by default or if ⍺[2]≤0
+    keepOrig foldCase intPL ← 3↑ ⍺
+    keepOrig← keepOrig>0
+    intPL←    intPL defIntPL ⊃⍨ 0≥ intPL
+
     fnBody fnNm← ValidateArgs ⍵
  
   ⍝ Break header up into arg declarations, local declarations, comment
     hArg hLoc hCm← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃fnBody
     hdrNms← simpNmP ⎕S '\0'⊣ hArg
-    hdrOut← ⊂hArg,(' ⍝ '/⍨0≠≢hLoc), hLoc, hCm
-    declaredInt←   ' '~⍨¨ ';' (≠⊆⊢) 1↓ hLoc 
+    hdrOut← ⊂hArg,('  ⍝ '/⍨0≠≢hLoc), hLoc, hCm
+    declaredInt←   Split 1↓ hLoc  
     declaredExt←   ⍬
     nmsInCode← ⍬
   
-    patterns← extP intP locP skipP tokenP 
-              extI intI locI skipI tokenI← ⍳≢patterns
-    tail← patterns ⎕R {   
+    scanPats← extP intP locP skipP tokenP 
+              extI intI locI skipI tokenI← ⍳≢scanPats
+    ScanTradFn← scanPats ⎕R {   
         Case← ⍵.PatternNum∘∊ 
         F←    ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
         m←    ⍵.Match
@@ -110,18 +110,18 @@
         Case intI:    UpdateInt F¨1 2                              ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                              ⍝ ; nm; nm; ...      [⍝ com]
         Case  skipI:  m                                            ⍝ Skip comments, quotes, {...}, ns.(...)
-      ⍝ Case tokenI:  ⍝ variable names (including system ⎕names and :directives)
-      ⍝ Ignore :directives and system names that can't be localised...
+      ⍝ tokens: variable names (including system ⎕names and :directives)
         Case tokenI: {
           SkipNm ⍵:  ⍵         
           ⊢nmsInCode,∘⊂← FirstNm ⍵ 
         } m 
         ∘∘∘ Unreachable ∘∘∘
-    } ⍠∆ROpts⊣ 1↓ fnBody
+    } ⍠∆ROpts
 
-    declaredExt←  ∪ declaredExt 
-    declaredInt←  ∪ declaredInt ∪ (nmsInCode~ hdrNms~ ⊂fnNm)~ declaredExt 
-    declareLoc←  FmtIntern declaredInt
+    tail← ScanTradFn 1↓ fnBody
+    declaredExt← ∪ declaredExt 
+    declaredInt← ∪ declaredInt ∪ (nmsInCode~ hdrNms~ ⊂fnNm)~ declaredExt 
+    declareLoc←  FmtInt declaredInt
   ¯1=⊃⍺: Sort¨declaredExt declaredInt 
     hdrOut, declareLoc, tail
 
