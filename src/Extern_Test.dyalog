@@ -21,6 +21,14 @@
  :If 0=⎕NC'tell'
      tell←0
  :EndIf
+ :With test1
+     one
+     two
+     :With one
+         test
+     :EndWith
+ :End
+
 ⍝ Spice keeps track of the commands in the Spice folder
  :For t :In files
      :Trap DEBUG↓0
