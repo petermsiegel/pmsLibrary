@@ -6,10 +6,13 @@
 ⍝    in the program.
 
 ⍝    res← opts ∇ [ nm | codeStr ]
-⍝         opts: [1 0 ¯1][1 0][int←10]
-⍝         nm: simple or complex (qualified) name of tradfn/op
-⍝         codeStr: vector of char vectors
-⍝    res: Vector of char vectors OR pair of vectors of char vectors
+⍝    nm | codeStr:
+⍝       nm: (char vector) simple or complex (qualified) name of tradfn/op
+⍝       codeStr: (vector of char vectors) lines of proper tradfn/op
+⍝    opts: result type, fold case, locals per line (see ⍝H comments below)
+⍝    res: (Based on result type)
+⍝       (vector of char vectors) lines of tradfn/op  OR 
+⍝       (pair of vectors of char vectors) list of externals, list of internals
 ⍝  
 ⍝   See ⍝H (HELP) Info below...
 
@@ -25,7 +28,7 @@
     intP←  '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Intern nm nm
     locP←  '(?x)  ^ \h* ; \h* ([^⍝\n]*) (.*\n)'                    ⍝ ;nm;nm  (APL's "intern")
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
-    ⍝ Build up skipP and tradNmP 
+    ⍝ Build up skipP, tradNmP, and (further below) withP 
         qtP_t←     '(''[^'']*'')+'   
         comP_t←    '⍝.*'
         xNmP_t←    '[\p{L}_∆⍙#⍺⍵⎕][\p{L}\p{N}_∆⍙#⍺⍵⎕]*'            ⍝ user/sys/special          
@@ -33,22 +36,18 @@
         balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'          ⍝ balanced parens - single line
         dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'            ⍝ dfn body - multiline ok
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
-    tradNmP← ':', simpNmP, '|', longNmP_t                           ⍝ Directive or complex name
+    tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
-  ⍝ :WITH processing 
+  ⍝ :WITH processing: withP, dirP, endP 
   ⍝  ∘ Track...
-  ⍝    :WITH, 
-  ⍝    other directives with :END/:UNTIL stmts, and 
-  ⍝    :ENDxxx/:UNTIL statements
-  ⍝  ∘ For withP,  field 1 is the name in    :With  name[.name2...]  ⍝ Ref
-  ⍝    but an empty string in                :With 'name[.name2...]' ⍝ Name string
-    withP← '(?xi) :With\b\s*(',longNmP_t,'?)' ⋄ inWith← dirDepth← 0 
+  ⍝    :WITH, other directives with :END/:UNTIL stmts, and :ENDxxx/:UNTIL statements themselves
+    withP← '(?xi) :With\b\s*(',longNmP_t,'?)'                      ⍝ See: inWith, dirDepth
     dirP←  '(?xi) :(?|If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
     endP←  '(?xi) :(?:End\w*|Until)'                               ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
 ⍝ Define Basic Utilities
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
-    SkipNm←     { f←⊃⍵ ⋄ ~f∊ '⎕#:': 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
+    SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
     Sort←       { ⍵[ ⍋⎕C⍣ foldCase ⊢⍵ ] }                          ⍝ Sys Vars to upper case...
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
@@ -68,23 +67,20 @@
     ⍺:keepOrig/ '    ⍝ :Intern ', f1, f2
       keepOrig/ '    ⍝ ; ', f1, f2 
     }
-    ValidateArgs← {   
+    ValidateArgs← { 
+          err← 'Invalid object name' 'Can''t find object' 'Object must be a tradfn/op' 
         ⍝ [A] ⍵ is name of tradfn/op
-          myLns← ⊆⍵ 
-          1=≢myLns: ( {0:: ¯1 ⋄ ⎕NC ⊂,⍵}⍵ ){       
-            3.1 4.1∊⍨ ⍺: (⎕NR ⍵) (⌽nm↑⍨ '.'⍳⍨ nm←⌽⍵)               ⍝ Tradfn, Tradop
-            err← 'Invalid object name' 'Unknown object' 'Object must be a tradfn/op' 
-            11 ⎕SIGNAL⍨ err⊃⍨ ¯1 0⍳⍺
-          } ⍵                                                      ⍝ ⍵: name of APL object
+          1= ≢⊆⍵: { nc← ⎕NC ⊂,⍵
+            3.1 4.1∊⍨ nc: (⎕NR ⍵) (⌽nm↑⍨ '.'⍳⍨ nm←⌽⍵) ⋄ 11 ⎕SIGNAL⍨ err⊃⍨ ¯1 0⍳nc
+          } ⍵                                                      
         ⍝ [B] ⍵ is ⎕NR of tradfn/op 
-        ⍝ Returns the actual trad object name from the tradfn/op header, '' for dfn/op
-        0:: 'Invalid object representation' ⎕SIGNAL 11
-          myNm← ⊃{( ∪∊⊆⍨( 1⌷ key )[ (2⌷ key←⍉201⌶⍬)⍳ ⊂'MINI_FNAME' ]∊⍨∘∊200⌶ )'',⍨⍥⊂ ⊃⍵ } myLns
-          ¯1≠ ⎕NC myNm: myLns myNm 
-          'Invalid object representation' ⎕SIGNAL 11  
+              myNm← (ns←⎕NS ⍬).⎕FX ⍵
+            ' '≠ ⊃0⍴myNm: 'Invalid object format' ⎕SIGNAL 11
+              nc← ns.⎕NC ⊂,myNm
+            3.1 4.1∊⍨ nc: ⍵ myNm ⋄ 11 ⎕SIGNAL⍨ err⊃⍨ ¯1 0⍳nc  
     }
 ⍝ Begin Executive...
-⍝ ∘ Parse Options---
+⍝ ∘ Parse ⍺-Options---
     defIntPL← 10 
     ⍺←1 0 defIntPL
   ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
@@ -96,22 +92,24 @@
     keepOrig foldCase intPL ← 3↑ ⍺
     keepOrig← keepOrig>0
     intPL←    intPL defIntPL ⊃⍨ 0≥ intPL
-⍝ ∘ Validate/Parse Args---
+⍝ ∘ Validate/Parse ⍵-Args---
     myTxt myNm← ValidateArgs ⍵
 ⍝ ∘ Parse Fn/Op Header---
-  ⍝    hA: arg names, hL: optl local declarations, hC: optl comment
+  ⍝   hA: Arg names, hL: optl Local declarations, hC: optl Comment
       hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
     hdrNms← ' ←{}()'((~∊⍨)⊆⊢) hA
   ¯1∊⎕NC hdrNms: 'Invalid names in fn/op header' ⎕SIGNAL 11
       hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
     hdrOut← ⊂hA, hL2, hC                
-⍝ ∘ Declare Database---  of declared internal, external names, and names found in body of fn/op 
+⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hL
     declaredExt←   ⍬
     foundNms←      ⍬
+⍝ ∘ Init :With-related State Vars
+    inWith← dirDepth← 0 
 ⍝ ∘ Prepare to Scan trad fn/op
-    scanPats← extP intP locP skipP withP dirP tradNmP endP  
-              extI intI locI skipI withI dirI tradNmI endI← ⍳≢scanPats
+    scanPats← extP intP locP skipP withP dirP endP tradNmP   
+              extI intI locI skipI withI dirI endI tradNmI← ⍳≢scanPats
     ScanTradFn← scanPats ⎕R {   
         Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
         Case extI:    UpdateExt F¨1 2                              ⍝ :EXTERN nm nm ...  [⍝ com]
@@ -127,14 +125,14 @@
       ⍝ ∘  Register <name1> as a body name, iff this is not a :With embedded in another :With
         Case withI:  F 0⊣  inWith∘← 1 ⊣ {inWith∨ 0=≢⍵: ⍬ ⋄ ⊢foundNms,∘⊂← FirstNm ⍵} F 1
       ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
-        Case endI:   F 0⊣  inWith∘← 0< dirDepth⊣ dirDepth-← inWith
+        Case endI:   F 0⊣  inWith∘← 0< dirDepth⊣ dirDepth← 0⌈ dirDepth - inWith
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
 ⍝ ∘ Scan function sans header
     tail← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
-    totalInt← ∪ declaredInt∪ foundNms~ declaredExt∪ hdrNms~ ⊂myNm 
+    totalInt←    ∪ declaredInt∪ foundNms~ declaredExt∪ hdrNms~ ⊂myNm 
   ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
     hdrOut, (FmtInt totalInt), tail
 
@@ -143,8 +141,8 @@
 ⍝H ¯¯¯¯¯¯ 
 ⍝H Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
 ⍝H for all variables not explicitly external (non-local). Adds directives
-⍝H :Extern and :Intern, as well as supporting local declarations (;nm1;nm2...) anywhere
-⍝H in the program.
+⍝H :Extern and :Intern, as well as supporting (legacy) local declarations (;nm1;nm2...) anywhere
+⍝H in the program. Handles variable names in :WITH constructs.
 ⍝H 
 ⍝H res← opts ∇ [ nm | codeStr ]
 ⍝H 
@@ -198,17 +196,11 @@
 ⍝H    to declare external (non-local) variables.
 ⍝H    ∘ This is needed to ensure an external (non-local)name (per above) is not 
 ⍝H      automatically localized.
-⍝H  EXPERIMENTAL: Handle :WITH constructs, i.e. treating any name within the scope
+⍝H  Handles :WITH constructs, i.e. treating any name within the scope
 ⍝H     of a :WITH statement as defaulting to :EXTERN automatically (unless declared otherwise). 
 ⍝H   ∘ May require :EXTERN statements for class 9 variable names which are local
 ⍝H     to the function but not visible initialized...
-⍝H XNote: Extern is not aware of ":With" constructs; that is, names within the scope of
-⍝H X   a ":With" will be incorrectly assumed to be local. This in general WON'T CAUSE
-⍝H X   ANY ISSUES, because Dyalog will evaluate the associated "global" variables  
-⍝H X   with respect to the explicit ":With" variable  and the extra local declarations 
-⍝H X   will have no effect. 
-⍝H X ∘ If you find this aesthetically displeasing, you can declare the affected variables 
-⍝H X   as external.
-⍝H X ∘ Local variables within the scope of the ":With" will automatically 
-⍝H X   be localized as expected. (See Dyalog rules for the :With directive).
+⍝H  Warns if names are declared both as :EXTERN and :INTERN.
+⍝H  Bugs: Does not notice ⎕SHADOW variables, but will assume names not declared as :Extern
+⍝H        are internal by default.
  }

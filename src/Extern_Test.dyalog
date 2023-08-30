@@ -1,9 +1,11 @@
 ﻿ (cmddir list)←{tell}TRADFN1 names;ignore_me;me_too;⎕FR
 ⍝ "TEST/DEMO" function for Extern utility (PMS)
-⍝ ∘ This is: Dyalog ⎕SE.SaltUtils.GetUCMDList
+⍝ As edited, ths function can't be usefully (or even successfully) run
+⍝ 
+⍝ ∘ This is originally: Dyalog ⎕SE.SaltUtils.GetUCMDList
 ⍝   with locals (internals) not declared and with externals declared.
-⍝ ∘ Retrieve the list of all Spice commands
-⍝ ORIGINAL LOCALS: ;folder;nc;ns;show1;t;b;gn;cn;files
+
+⍝ ORIGINAL LOCALS are: ;folder;nc;ns;show1;t;b;gn;cn;files
  :Extern ClassFolder splitOn PATHDEL BootPath DEBUG CR lCase findMinLen FS PATHDEL
  :Extern ⎕IO
  :If show1←326∊⎕DR names
@@ -21,11 +23,14 @@
  :If 0=⎕NC'tell'
      tell←0
  :EndIf
- :With test1
-     one
-     two
-     :With one
-         test
+⍝ This part added to test ":With"
+⍝ <localNs> should be automatically identified as :Local
+⍝ However, ignore1 and ignore2 should be ignored (neither local nor extern)
+ :With localNs← ⎕NS ⍬
+     ignore1← ⎕NS ⍬
+     ignore2← ignore1.⎕NS ⍬
+     :With ignore2
+         date← ⎕TS
      :EndWith
  :End
 
