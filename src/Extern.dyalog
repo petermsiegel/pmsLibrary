@@ -1,25 +1,18 @@
 ﻿ Extern←{ 
-⍝  Extern:
+⍝  Extern: 
+⍝  [1] [opts] ∇ [fnNm@CV | codeStr@CVV]    
 ⍝    Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
 ⍝    for all variables not explicitly external (non-local). Adds directives
 ⍝    :Extern and :Intern, as well as supporting local declarations (;nm1;nm2...) anywhere
 ⍝    in the program.
-
-⍝    res← opts ∇ [ nm | codeStr ]
-⍝    nm | codeStr:
-⍝       nm: (char vector) simple or complex (qualified) name of tradfn/op
-⍝       codeStr: (vector of char vectors) lines of proper tradfn/op
-⍝    opts: result type, fold case, locals per line (see ⍝H comments below)
-⍝    res: (Based on result type)
-⍝       (vector of char vectors) lines of tradfn/op  OR 
-⍝       (pair of vectors of char vectors) list of externals, list of internals
-⍝  
-⍝   See ⍝H (HELP) Info below...
+⍝  [2] ∇⍨'help'
+⍝    See ⍝H (HELP) Info below...
 
     ⎕IO ⎕ML←0 1 
-  0=≢⍵: ⊢⎕ED '_'⊣_←'^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⎕←⊃⎕XSI              ⍝ Display Help 
-  90:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM' 'Extern: Logic Error!') ('Message' Message) )
+  0:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
 ⍝ Define Variables
+  ⍝ error messages 
+    missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
   ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
     localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
     localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'  
@@ -38,12 +31,10 @@
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
-  ⍝ :WITH processing: withP, dirP, endP 
-  ⍝  ∘ Track...
-  ⍝    :WITH, other directives with :END/:UNTIL stmts, and :ENDxxx/:UNTIL statements themselves
+  ⍝ :WITH processing: withP (:With), dirP (:If, etc.), endP (:End and :Until) 
     withP← '(?xi) :With\b\s*(',longNmP_t,'?)'                      ⍝ See: inWith, dirDepth
-    dirP←  '(?xi) :(?|If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
-    endP←  '(?xi) :(?:End\w*|Until)'                               ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
+    dirP←  '(?xi) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
+    endP←  '(?xi) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
 ⍝ Define Basic Utilities
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
@@ -59,7 +50,7 @@
       intPL { ⊂'    ', ∊ ⍵,⍨¨ ⊂'; ' } { 0=≢⍵: ⍬ ⋄ ⍺<≢⍵: (⍺⍺ ⍺↑⍵), ⍺ ∇ ⍺↓⍵ ⋄ ⍺⍺ ⍵ } ⍵  
     } Sort
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
-      declaredInt~← declaredExt,← e (0 UWarnIf)  e∊ declaredInt
+      declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
       keepOrig/ '    ⍝ :Extern ', f1, f2
     }
     UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
@@ -68,38 +59,36 @@
       keepOrig/ '    ⍝ ; ', f1, f2 
     }
     ValidateArgs← { 
-          err← 'Invalid object name' 'Can''t find object' 'Object must be a tradfn/op' 
-        ⍝ [A] ⍵ is name of tradfn/op
-          1= ≢⊆⍵: { nc← ⎕NC ⊂,⍵
-            3.1 4.1∊⍨ nc: (⎕NR ⍵) (⌽nm↑⍨ '.'⍳⍨ nm←⌽⍵) ⋄ 11 ⎕SIGNAL⍨ err⊃⍨ ¯1 0⍳nc
-          } ⍵                                                      
-        ⍝ [B] ⍵ is ⎕NR of tradfn/op 
-              myNm← (ns←⎕NS ⍬).⎕FX ⍵
-            ' '≠ ⊃0⍴myNm: 'Invalid object format' ⎕SIGNAL 11
-              nc← ns.⎕NC ⊂,myNm
-            3.1 4.1∊⍨ nc: ⍵ myNm ⋄ 11 ⎕SIGNAL⍨ err⊃⍨ ¯1 0⍳nc  
+      0::  ⎕SIGNAL missingE
+        args nc← {
+          1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ ⍵ is a name
+                 (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ ⍵ is a fn/op body
+        }⍵ 
+      nc∊ 3.1 4.1: args ⋄ ∘∘err∘∘  
     }
 ⍝ Begin Executive...
 ⍝ ∘ Parse ⍺-Options---
     defIntPL← 10 
     ⍺←1 0 defIntPL
+  ⍝ ∘ Help? (Extern⍨'help')
+    'help'≡⍺: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
+    0=≢⍵:     ⎕SIGNAL missingE
   ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
   ⍝                   0   Omit original declarations
   ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
   ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
   ⍝ [2] → intPL:      # of internals to print on each line. 
   ⍝                   defIntPL* by default or if ⍺[2]≤0
-    keepOrig foldCase intPL ← 3↑ ⍺
+    keepOrig foldCase intPL← 3↑ ⍺
     keepOrig← keepOrig>0
-    intPL←    intPL defIntPL ⊃⍨ 0≥ intPL
+    intPL←    intPL defIntPL⊃⍨ 0≥ intPL
 ⍝ ∘ Validate/Parse ⍵-Args---
     myTxt myNm← ValidateArgs ⍵
 ⍝ ∘ Parse Fn/Op Header---
   ⍝   hA: Arg names, hL: optl Local declarations, hC: optl Comment
       hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
-    hdrNms← ' ←{}()'((~∊⍨)⊆⊢) hA
-  ¯1∊⎕NC hdrNms: 'Invalid names in fn/op header' ⎕SIGNAL 11
-      hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
+    hdrNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
+    hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
     hdrOut← ⊂hA, hL2, hC                
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hL
@@ -125,7 +114,7 @@
       ⍝ ∘  Register <name1> as a body name, iff this is not a :With embedded in another :With
         Case withI:  F 0⊣  inWith∘← 1 ⊣ {inWith∨ 0=≢⍵: ⍬ ⋄ ⊢foundNms,∘⊂← FirstNm ⍵} F 1
       ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
-        Case endI:   F 0⊣  inWith∘← 0< dirDepth⊣ dirDepth← 0⌈ dirDepth - inWith
+        Case endI:   F 0⊣  inWith∘← 0< dirDepth← 0⌈ dirDepth - inWith
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
 ⍝ ∘ Scan function sans header
@@ -139,13 +128,28 @@
 ⍝H 
 ⍝H Extern
 ⍝H ¯¯¯¯¯¯ 
-⍝H Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
-⍝H for all variables not explicitly external (non-local). Adds directives
-⍝H :Extern and :Intern, as well as supporting (legacy) local declarations (;nm1;nm2...) anywhere
-⍝H in the program. Handles variable names in :WITH constructs.
+⍝H   Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
+⍝H   for all names not explicitly external (non-local). Adds directives
+⍝H   :Extern and :Intern, as well as supporting local declarations (;nm1;nm2...) anywhere
+⍝H   in the program.  
+⍝H   ∘ Handles name.(other names etc.) and embedded dfns correctly.
+⍝H   ∘ Does NOT check how names are USED. 
+⍝H   ∘ Ignores variables that appear only within :WITH clauses.
+⍝H
+⍝H   res← opts ∇ [ nm | codeStr ]
+⍝H
+⍝H   nm | codeStr:
+⍝H      nm: (char vector) simple or complex (qualified) name of tradfn/op
+⍝H      codeStr: (vector of char vectors) lines of proper tradfn/op
+⍝H   opts: result type, fold case, locals per line (see ⍝H comments below)
+⍝H   res: (Based on result type)
+⍝H      (vector of char vectors) lines of tradfn/op  OR 
+⍝H      (pair of vectors of char vectors) list of externals, list of internals
+⍝H 
+⍝H   For help:  
+⍝H      ∇⍨ 'help'        (OR  'help'∇ ⍬)
 ⍝H 
 ⍝H res← opts ∇ [ nm | codeStr ]
-⍝H 
 ⍝H      nm: Name of tradfn or tradop (may be a simple or a complex name:  
 ⍝H          simple: ThisFn,   complex:  #.myNs.MyFn, myNs.MyFn
 ⍝H      codeStr: lines of code of a tradfn or tradop
