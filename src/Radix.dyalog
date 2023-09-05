@@ -5,24 +5,24 @@
   ⎕←'>>> Exporting RadixSort'
   RadixSort←{
       CountingSort←{
-          Accumulate← { size ix←  ⍵   
-            ix≥ size: +\ countA
-              countA[ inA SELECT ix place ] +← 1 
-              ∇ size (ix+1)
-          }
-          SortByPlace← { ix←  ⍵  
-              ⍵<0: outA  
+           AccumulateV← { size← ⍵  
+            where← place SELECTV ⍳size
+            +\cntA ⊣ {cntA[ ⍵ ] +← 1}¨where
+           }
+         SortByPlace← {  
+              { ix← ⍵ ⋄ ⍵<0: outA  
                 sel← inA SELECT ix place
-                outA[ countA[ sel ]- 1 ]← inA[ ix ]
-                countA[ sel ]-← 1
+                outA[ cntA[ sel ]- 1 ]← inA[ ix ]
+                cntA[ sel ]-← 1
                  ∇ ix- 1
+              }⍵-1
           }
           place←   ⍵
-          inA←     ⍺ 
-          outA←    size⍴0
-          countA←  base⍴0 
-          countA←  Accumulate size 0
-                   SortByPlace size-1
+          inA←   ⍺ 
+          outA←  size⍴0
+          cntA←  base⍴0 
+          cntA←  AccumulateV size
+                 SortByPlace size  
       } ⍝ End CountingSort
       
       CountingByPlace←{ ⍝ ⍵= place (start with 1s and move up a base at a time (⍵×base))
@@ -30,8 +30,10 @@
           (⍺ CountingSort ⍵) ∇ ⍵× base
       }
       IDIV← ⌊÷
-      SELECT← { in← ⍺ ⋄ ix pl← ⍵ ⋄ base| ⍺[ix] IDIV pl }
-      base← 256 
+      SELECT← { in← ⍺ ⋄ ix pl← ⍵ ⋄ base| in[ix] IDIV pl }
+      SELECTV← { place ixx←⍺ ⍵ ⋄ base| inputA[ ixx ] IDIV place }
+      base← 2048  ⍝ 256 ⍝ 2048
+      ⎕← 'base' base 
     
   ⍝ Go!
     3 11(~∊⍨) 80|⎕DR ⍵: ⎕SIGNAL ⊂('EN' 11)('Message' 'Radix only sorts integers.')
@@ -45,7 +47,7 @@
   } ⍝ End RadixSort
 
     :IF 0=≢data
-       data←  121 432 564 23 1 45 788
+       data←  121 ¯232 432 564 ¯233 23 1 233 45 788
     :EndIf
     title←  ↑'Data' 'Sorted',¨ ':'
     :TRAP 11
