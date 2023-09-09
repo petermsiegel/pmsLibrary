@@ -1,62 +1,70 @@
-∇ Radix data
-  ; title; sorted; ctl
+Radix 
+  ; dataV; title; sorted; ctl; cmpx
 ⍝ Does demo and exports <RadixSort>
 ⍝ Python alg:  https://www.programiz.com/dsa/radix-sort#google_vignette
-  ⎕←'>>> Exporting RadixSort'
-  RadixSort←{
-      CountingSort←{
-           AccumulateV← { size← ⍵  
-            where← place SELECTV ⍳size
-            +\cntA ⊣ {cntA[ ⍵ ] +← 1}¨where
-           }
-         SortByPlace← {  
-              { ix← ⍵ ⋄ ⍵<0: outA  
-                sel← inA SELECT ix place
-                outA[ cntA[ sel ]- 1 ]← inA[ ix ]
-                cntA[ sel ]-← 1
-                 ∇ ix- 1
-              }⍵-1
-          }
-          place←   ⍵
-          inA←   ⍺ 
-          outA←  size⍴0
-          cntA←  base⍴0 
-          cntA←  AccumulateV size
-                 SortByPlace size  
-      } ⍝ End CountingSort
-      
-      CountingByPlace←{ ⍝ ⍵= place (start with 1s and move up a base at a time (⍵×base))
-        0≥ max_element IDIV ⍵: ⍺
-          (⍺ CountingSort ⍵) ∇ ⍵× base
-      }
-      IDIV← ⌊÷
-      SELECT← { in← ⍺ ⋄ ix pl← ⍵ ⋄ base| in[ix] IDIV pl }
-      SELECTV← { place ixx←⍺ ⍵ ⋄ base| inputA[ ixx ] IDIV place }
-      base← 2048  ⍝ 256 ⍝ 2048
-      ⎕← 'base' base 
-    
-  ⍝ Go!
-    3 11(~∊⍨) 80|⎕DR ⍵: ⎕SIGNAL ⊂('EN' 11)('Message' 'Radix only sorts integers.')
-      inputA← ⍵ 
-      size← ≢inputA
-      max_element← ⌈/inputA
-      sorted← inputA CountingByPlace 1
-  ⍝ If any neg numbers, one more pass
-      lo← sorted<0
-    1∊lo: (sorted/⍨ lo), sorted/⍨ ~lo ⋄ sorted
-  } ⍝ End RadixSort
+  ⎕←'>>> Exporting RadixSort to active namespace.'
+  'cmpx'  ⎕CY 'dfns'
+⍝ Based on Radix Sort in C++ Programming
+RadixSort← { ⍝  outputV@IV ← ∇ arrayV 
+    DIV← ⌊÷
+    CountingSort←{   
+        CountScan←{  
+          place← ⍵
+          countV[]←0
+          (≢arrayV){                                 ⍝ ⍵≥⍺: termination value
+            ⍵≥⍺: place⊣ countV[]← +\countV 
+              countV[ base| arrayV[ ⍵ ] DIV place]+←1 
+              ⍺ ∇ ⍵+1
+          }0
+        }
+        OutScan← {  
+          place← ⍵      
+          {⍵<0: outV                        
+            sel← base| arrayV[⍵] DIV place
+            outV[ countV[ sel ]- 1]← arrayV[⍵]
+            countV[ sel ]-← 1
+            ∇ ⍵- 1 
+          } ¯1+ ≢arrayV                     
+        }
+        place arrayV← ⍺ ⍵
+        OutScan CountScan place
+    }   ⍝ End CountingSort
+    CountByPlace←{ 
+      { 0≥ max DIV ⍵: outV 
+          arrayV∘← ⍵ CountingSort arrayV
+          ∇ ⍵ × base  
+      } 1 
+    } 
+        
+    base← 4096                                          ⍝ Base should be multiple of 256 
+    arrayV←,⍵ 
+    max← ⌈/ |arrayV
+    outV←  arrayV
+    countV← base⍴0 
+    arrayV← CountByPlace ⍬
+    lt0← arrayV<0 
+    (lt0/ arrayV), arrayV/⍨ ~lt0                        ⍝ One more pass for negative nums
+} ⍝ End RadixSort
 
-    :IF 0=≢data
-       data←  121 ¯232 432 564 ¯233 23 1 233 45 788
-    :EndIf
+    dataV←  121 ¯232 432 564 2432342 0 ¯233 23 1 233 45 788 ¯2432341 32444
     title←  ↑'Data' 'Sorted',¨ ':'
-    :TRAP 11
-        sorted← RadixSort data 
+    :TRAP 1000
+        sorted← RadixSort dataV 
+        ctl←    dataV[ ⍋dataV ]
+        ⎕←title, ↑dataV sorted 
+        :IF sorted≡ ctl
+          ⎕←'Successful sort. Timing test (dfns::cmp) next.'
+        :ELSE
+          ⎕←'Whoops. Data sorted incorrectly. Timing test aborted.'
+          :Return 
+        :ENDIF 
+        ⎕SHADOW 'test' 'testS'
+        :FOR testS :IN '1E3' '1E4' '1E5'  
+            ⍞← '* Let dataV← ¯50+{ ⍵? 10+⍵ } ',testS
+            test← ⊃⌽⎕VFI testS
+            dataV← ¯50+test?10+test
+            cmpx 'dataV[⍋dataV]' 'RadixSort dataV' 
+        :ENDFOR 
     :ELSE 
-        ⎕SIGNAL ⊂⎕DMX.(('EM' EM) ('EN' EN) ('Message' Message))
+         ⎕←'*** Interrupted. Bye'
     :ENDTRAP 
-    ctl←    data[ ⍋data ]
-    ⎕←title, ↑data sorted 
-    :IF sorted≢ ctl
-       ⎕←'Whoops. Data sorted incorrectly'
-    :ENDIF 
