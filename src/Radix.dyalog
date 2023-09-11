@@ -1,49 +1,30 @@
 Radix 
   ; dataV; title; sorted; ctl; cmpx
 ⍝ Does demo and exports <RadixSort>
-⍝ Python alg:  https://www.programiz.com/dsa/radix-sort#google_vignette
+⍝ Based on Radix Sort in C++ Programming
   ⎕←'>>> Exporting RadixSort to active namespace.'
   'cmpx'  ⎕CY 'dfns'
-⍝ Based on Radix Sort in C++ Programming
-RadixSort← { ⍝  outputV@IV ← ∇ arrayV 
+RadixSort← {  
+  ⍝ For efficiency, externs: place, base, inV, cntV, outV
     DIV← ⌊÷
-    CountingSort←{   
-        CountScan←{  
-          place← ⍵
-          countV[]←0
-          (≢arrayV){                                 ⍝ ⍵≥⍺: termination value
-            ⍵≥⍺: place⊣ countV[]← +\countV 
-              countV[ base| arrayV[ ⍵ ] DIV place]+←1 
-              ⍺ ∇ ⍵+1
-          }0
-        }
-        OutScan← {  
-          place← ⍵      
-          {⍵<0: outV                        
-            sel← base| arrayV[⍵] DIV place
-            outV[ countV[ sel ]- 1]← arrayV[⍵]
-            countV[ sel ]-← 1
-            ∇ ⍵- 1 
-          } ¯1+ ≢arrayV                     
-        }
-        place arrayV← ⍺ ⍵
-        OutScan CountScan place
-    }   ⍝ End CountingSort
-    CountByPlace←{ 
-      { 0≥ max DIV ⍵: outV 
-          arrayV∘← ⍵ CountingSort arrayV
-          ∇ ⍵ × base  
-      } 1 
-    } 
-        
-    base← 4096                                          ⍝ Base should be multiple of 256 
-    arrayV←,⍵ 
-    max← ⌈/ |arrayV
-    outV←  arrayV
-    countV← base⍴0 
-    arrayV← CountByPlace ⍬
-    lt0← arrayV<0 
-    (lt0/ arrayV), arrayV/⍨ ~lt0                        ⍝ One more pass for negative nums
+    CSortByPlace←{ 
+        IX← {base| ⍵ DIV place}   
+        place← ⍵ 
+        cntV[]←0 ⋄ n← ≢inV
+        _← { ⍵≥n: cntV⊢← +\cntV 
+                  cntV[ IX inV[⍵] ]+←1 
+                  ∇ ⍵+ 1
+        }0     
+        { ⍵<0: inV⊢← outV ⋄ aw← inV[⍵] ⋄ sel← IX aw 
+               outV[ cntV[ sel ]← cntV[ sel ]- 1 ]← aw 
+               ∇ ⍵- 1 
+        } ¯1+ ≢inV                    
+    }   ⍝ End CSortByPlace  
+    ⍺← 256
+    cntV← 0⍴⍨ base← ⍺                                      ⍝ Base should be multiple of 256 
+    max← ⌈/ |outV← inV←,⍵ 
+    _← { CSortByPlace ⍵ }¨ base* ⍳⌈base⍟max 
+    (lt0/ inV), inV/⍨ ~lt0← inV<0                   ⍝ One more pass for negative nums
 } ⍝ End RadixSort
 
     dataV←  121 ¯232 432 564 2432342 0 ¯233 23 1 233 45 788 ¯2432341 32444
