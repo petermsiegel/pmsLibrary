@@ -15,7 +15,7 @@
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
   ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
     localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
-    localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'  
+    localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
   ⍝ Regex patterns 
     extP←  '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Extern nm nm
     intP←  '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Intern nm nm
@@ -40,15 +40,14 @@
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
     Sort←       { ⍵[ ⍋⎕C⍣ foldCase ⊢⍵ ] }                          ⍝ Sys Vars to upper case...
+    SplitLoc←   { ⍺←10⌈⎕PW-4 ⋄ ⍺≥≢⍵:⊂⍵ ⋄ 0≥p← ⍺-1+';'⍳⍨⌽⍺↑⍵: (⍺+1)∇ ⍵ ⋄ (⊂p↑ ⍵),⍺ ∇ p↓⍵ }
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':Extern' ':Intern' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
 ⍝ Define Major Functions
-    FmtInt← {  
-      intPL { ⊂'    ', ∊ ⍵,⍨¨ ⊂'; ' } { 0=≢⍵: ⍬ ⋄ ⍺<≢⍵: (⍺⍺ ⍺↑⍵), ⍺ ∇ ⍺↓⍵ ⋄ ⍺⍺ ⍵ } ⍵  
-    } Sort
+    FmtInt← {  (⊂'    '),¨ ⍺ SplitLoc ∊⍵,⍨¨ ⊂'; '} Sort
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
       declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
       keepOrig/ '    ⍝ :Extern ', f1, f2
@@ -58,7 +57,23 @@
     ⍺:keepOrig/ '    ⍝ :Intern ', f1, f2
       keepOrig/ '    ⍝ ; ', f1, f2 
     }
+    ParseOpts←{
+      defColWid← ⍺ 
+    ⍝ ∘ Help? (Extern⍨'help')
+      'help'≡⍵: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
+      ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
+      ⍝                   0   Omit original declarations
+      ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
+      ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
+      ⍝ [2] → colWid:   col width for printing internal "declarations"  
+      ⍝                   (width of widest line)by default or if ⍺[2]≤0
+        k foldCase i← 3↑ ⍵
+        keepOrig← k>0
+        colWid← i defColWid⊃⍨ 0≥ i
+        keepOrig foldCase colWid
+    }
     ValidateArgs← { 
+      0=≢⍵: ⎕SIGNAL missingE
       0::  ⎕SIGNAL missingE
         args nc← {
           1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ ⍵ is a name
@@ -66,37 +81,7 @@
         }⍵ 
       nc∊ 3.1 4.1: args ⋄ ∘∘err∘∘  
     }
-⍝ Begin Executive...
-⍝ ∘ Parse ⍺-Options---
-    defIntPL← 10 
-    ⍺←1 0 defIntPL
-  ⍝ ∘ Help? (Extern⍨'help')
-    'help'≡⍺: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
-    0=≢⍵:     ⎕SIGNAL missingE
-  ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
-  ⍝                   0   Omit original declarations
-  ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
-  ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
-  ⍝ [2] → intPL:      # of internals to print on each line. 
-  ⍝                   defIntPL* by default or if ⍺[2]≤0
-    keepOrig foldCase intPL← 3↑ ⍺
-    keepOrig← keepOrig>0
-    intPL←    intPL defIntPL⊃⍨ 0≥ intPL
-⍝ ∘ Validate/Parse ⍵-Args---
-    myTxt myNm← ValidateArgs ⍵
-⍝ ∘ Parse Fn/Op Header---
-  ⍝   hA: Arg names, hL: optl Local declarations, hC: optl Comment
-      hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
-    hdrNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
-    hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
-    hdrOut← ⊂hA, hL2, hC                
-⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
-    declaredInt←   SplitNms 1↓ hL
-    declaredExt←   ⍬
-    foundNms←      ⍬
-⍝ ∘ Init :With-related State Vars
-    inWith← dirDepth← 0 
-⍝ ∘ Prepare to Scan trad fn/op
+  ⍝ Code to Scan trad fn/op
     scanPats← extP intP locP skipP withP dirP endP tradNmP   
               extI intI locI skipI withI dirI endI tradNmI← ⍳≢scanPats
     ScanTradFn← scanPats ⎕R {   
@@ -117,13 +102,36 @@
         Case endI:   F 0⊣  inWith∘← 0< dirDepth← 0⌈ dirDepth - inWith
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
+
+⍝ ===============================================================================
+⍝ ===============================================================================
+⍝ Begin Executive...
+⍝ ∘ Parse and Validate ⍵-Args---
+    myTxt myNm← ValidateArgs ⍵
+⍝ ∘ Parse ⍺-Options 
+    ⍺←1 0 0
+    keepOrig foldCase colWid← (⌈/≢¨myTxt) ParseOpts ⍺
+
+⍝ ∘ Parse Fn/Op Header---
+    ⍝ hA: Arg names, hL: optl Local declarations, hC: optl Comment
+    ⍝     Maximal Pattern:  {name1}← {a} (l Opt r) w ; l1; l2 ⍝ comment
+      hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
+    hdrNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
+    hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
+    hdrOut← ⊂hA, hL2, hC                
+⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
+    declaredInt←   SplitNms 1↓ hL
+    declaredExt←   ⍬
+    foundNms←      ⍬
+⍝ ∘ Init :With-related State Vars
+    inWith← dirDepth← 0 
 ⍝ ∘ Scan function sans header
     tail← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
     totalInt←    ∪ declaredInt∪ foundNms~ declaredExt∪ hdrNms~ ⊂myNm 
   ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
-    hdrOut, (FmtInt totalInt), tail
+    hdrOut, (colWid FmtInt totalInt), tail
 
 ⍝H 
 ⍝H Extern
@@ -159,8 +167,9 @@
 ⍝H              Show as comments:
 ⍝H              ∘ the original :Extern or :Intern directives 
 ⍝H              ∘ the original traditional local declarations (;nm1;nm2...)/ 
-⍝H           0: Like opt[0]=1, but 
-⍝H              ∘ remove original directives and declarations.
+⍝H           0: Return the tradfn or tradop code with explicit locals (via ;nm1;nm2...)
+⍝               Show as comments: the original :Extern or :Intern directives 
+⍝H              Remove (don't show): original traditional local declarations.
 ⍝H          ¯1: Simply list all the externals and internals as two character vectors of vectors, e.g.
 ⍝H              ┌─────────────┬───────────────────────────────────────────────────────────┐
 ⍝H              │┌───────┬───┐│┌─┬─┬─┬──────┬────┬────┬────┬──────┬──────┬─────┬───┬─────┐│

@@ -10,5 +10,5 @@
   :EndFor
 ⍝ Any negative numbers? One more round for the sign.
   :If 1∊lt0←dV<0
-    dV←(lt0/dV),dV/⍨~lt0
+    dV← (lt0/ dV), dV/⍨~lt0
   :EndIf
