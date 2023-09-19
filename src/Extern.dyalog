@@ -9,7 +9,7 @@
 ⍝    See ⍝H (HELP) Info below...
 
     ⎕IO ⎕ML←0 1 
-  0:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
+  90:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
 ⍝ Define Variables
   ⍝ error messages 
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
@@ -39,15 +39,21 @@
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
-    Sort←       { ⍵[ ⍋⎕C⍣ foldCase ⊢⍵ ] }                          ⍝ Sys Vars to upper case...
-    SplitLoc←   { ⍺←10⌈⎕PW-4 ⋄ ⍺≥≢⍵:⊂⍵ ⋄ 0≥p← ⍺-1+';'⍳⍨⌽⍺↑⍵: (⍺+1)∇ ⍵ ⋄ (⊂p↑ ⍵),⍺ ∇ p↓⍵ }
+    Sort←       { ⍵[ ⍋⎕C⍣ foldCase ⊢⍵~¨⊂'∆⍙_' ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':Extern' ':Intern' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
 ⍝ Define Major Functions
-    FmtInt← {  (⊂'    '),¨ ⍺ SplitLoc ∊⍵,⍨¨ ⊂'; '} Sort
+    FmtInt← {
+        F2← { ⍺←colWid ⋄ l1 l2← ≢¨t1 t2←'    '  '; '  
+          W←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺≥ l1+ (n× l2)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
+          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂t1, ∊ln,⍨¨ ⊂t2) ∇ ⍵↓⍨ ≢ln← W ⍵ }⍵
+        }
+        LUS← {⍺← ⊃¨⍵~¨⊂'⍙∆_' ⋄ u s←(⍺∊⎕A,⎕Á) (⍺='⎕') ⋄ (u⍱s) u s/¨ ⊂⍵ }   
+        ⊃,/F2¨ LUS Sort ⍵
+    } 
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
       declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
       keepOrig/ '    ⍝ :Extern ', f1, f2
@@ -131,7 +137,7 @@
     declaredExt← ∪ declaredExt 
     totalInt←    ∪ declaredInt∪ foundNms~ declaredExt∪ hdrNms~ ⊂myNm 
   ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
-    hdrOut, (colWid FmtInt totalInt), tail
+    hdrOut, (FmtInt totalInt), tail
 
 ⍝H 
 ⍝H Extern
@@ -182,10 +188,10 @@
 ⍝H                 Upper Case < Lower case < System Vars
 ⍝H              If 1, sort upper case and lower case vars together:
 ⍝H                 User Vars (fold case) < System Vars 
-⍝H      opts[2]: How many locals per line in the resulting local declarations (;nm1;nm2).
-⍝H              The default is 10 per line. Locals are sorted-- 
-⍝H                 upper case names, lower case names, system names
-⍝H              If opt[2] is ≤0, the default of 10 is assumed.
+⍝H      opts[2]: Max width of each resulting local declarations line (;nm1;nm2).
+⍝H              The default is the width of the largest line in the function shared
+⍝H              Names are sorted:  upper case names, lower case names, system names
+⍝H              If opt[2] is ≤0, the default is assumed.
 ⍝H      res: 
 ⍝H        opt[0]∊1 0: the revised code of the presented tradfn or tradop, with:
 ⍝H        ∘ All simple variables without an :Extern assumed to be local. 
