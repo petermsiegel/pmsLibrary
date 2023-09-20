@@ -7,9 +7,9 @@
 ⍝    in the program.
 ⍝  [2] ∇⍨'help'
 ⍝    See ⍝H (HELP) Info below...
+    DEBUG ⎕IO ⎕ML←0 0 1 
+  0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
 
-    ⎕IO ⎕ML←0 1 
-  0:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
 ⍝ Define Variables
   ⍝ error messages 
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
@@ -37,18 +37,27 @@
     withP← '(?xi) :With\b\s*(',longNmP_t,'?)'                      ⍝ See: inWith, dirDepth
     dirP←  '(?xi) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
     endP←  '(?xi) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
+
 ⍝ Define Basic Utilities
-    FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
+    FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
+    Help←       { (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI }   
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
-    SortWeird←  { ~ignoreWeirdO: ⍵ ⋄ ⍵~¨⊂weird }                    ⍝ see ignoreWeirdO below
+    SortWeird←  { ~ignoreWeirdO: ⍵ ⋄ ⍵~¨⊂weird }                   ⍝ see ignoreWeirdO below
     Sort←       { ⍵[ ⍋⎕C⍣(~multiCaseO) ⊢SortWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':Extern' ':Intern' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
+
 ⍝ Define Major Functions
+⍝   FmtInt
+⍝   UpdateExt
+⍝   UpdateInt
+⍝   ParseOpts
+⍝   ParseArgs
+⍝   ScanTradFn
     FmtInt← ⊃,/⍤{
       ⍝ Grab as many local names as possible that fit in the (column) width specified
         margL sepL← ≢¨ margT sepT← '    '  '; ' 
@@ -90,7 +99,7 @@
         wid← wid defWidth⊃⍨ 0≥ wid
         kpOrig (~mergC) wid ignW
     }
-    ValidateArgs← { 
+    ParseArgs← { 
       0=≢⍵: ⎕SIGNAL missingE
       0::  ⎕SIGNAL missingE
         args nc← {
@@ -99,7 +108,15 @@
         }⍵ 
       nc∊ 3.1 4.1: args ⋄ ∘∘err∘∘  
     }
-  ⍝ Code to Scan trad fn/op
+    ParseFnHdr←{ kpLoc pgmT←⍺ ⍵
+      ⍝ hA: Arg names, hL: optl Local declarations, hC: optl Comment
+      ⍝     Maximal Pattern:  {name1}← {a} (l Opt r) w ; l1; l2 ⍝ comment
+      hA hLoc hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃ pgmT
+      hNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
+      hL2← kpLoc/ ('  ⍝ '/⍨0≠ ≢hLoc), hLoc                       ⍝ Local vars on header line
+      hOut← ⊂hA, hL2, hC       
+      hOut hNms hLoc
+    }
     scanPats← extP intP locP skipP withP dirP endP tradNmP   
               extI intI locI skipI withI dirI endI tradNmI← ⍳≢scanPats
     ScanTradFn← scanPats ⎕R {   
@@ -125,21 +142,16 @@
 ⍝ ===============================================================================
 ⍝ Begin Executive...
 ⍝ ∘ Help? (Extern⍨'help')
-  'help'≡⍵: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
+  'help'≡⍵: _← Help⍬
 ⍝ ∘ Parse and Validate ⍵-Args---
-    myTxt myNm← ValidateArgs ⍵
-⍝ ∘ Parse ⍺-Options 
+    myTxt myNm← ParseArgs ⍵
+⍝ ∘ Parse ⍺-Options, passing length of longest line to ParseOpts 
     ⍺←1 0 0 1
     keepOrigO multiCaseO widthO ignoreWeirdO← (⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
-    ⍝ hA: Arg names, hL: optl Local declarations, hC: optl Comment
-    ⍝     Maximal Pattern:  {name1}← {a} (l Opt r) w ; l1; l2 ⍝ comment
-      hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
-    hdrNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
-    hL2← keepOrigO/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
-    hdrOut← ⊂hA, hL2, hC                
+    hdrOut hdrNms hLoc← keepOrigO ParseFnHdr myTxt         
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
-    declaredInt←   SplitNms 1↓ hL
+    declaredInt←   SplitNms 1↓ hLoc
     declaredExt←   ⍬
     foundNms←      ⍬
 ⍝ ∘ Init :With-related State Vars

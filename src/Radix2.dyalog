@@ -6,8 +6,8 @@
 ⍝ base: Could be 10, multiples/powers of 256 (1 byte), or even 1+⌈/|arrV (max)
  :If 900⌶0 ⋄ base←512 ⋄ :EndIf
 
- aTEST ATEST _TEST _test
- ∆D←∆ALPHA←_C←_ALPHA←⍙B←⍙ALPHA←MONKEY←ALPHA←_test←⎕A
+ ⍝ :INTERN aTEST ATEST _TEST _test
+ ⍝ :INTERN ∆D ∆ALPHA _C _ALPHA ⍙B ⍙ALPHA MONKEY ALPHA _test ⎕A
 
  outV←arrV←,arrV
  :For place :In ,base*⍳⌈base⍟⌈/|arrV    ⍝ Sort only as many places as needed
