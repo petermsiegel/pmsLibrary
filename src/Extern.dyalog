@@ -16,7 +16,7 @@
   ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
     localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
     localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
-  ⍝ Characters to ignore when ignoreWeirdO←1
+  ⍝ Characters to ignore with ignoreWeird option (ignoreWeirdO←1)
     weird← '∆⍙_'
   ⍝ Regex patterns 
     extP←  '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Extern nm nm
@@ -60,10 +60,10 @@
 ⍝   ScanTradFn
     FmtInt← ⊃,/⍤{
       ⍝ Grab as many local names as possible that fit in the (column) width specified
-        margL sepL← ≢¨ margT sepT← '    '  '; ' 
-        GrabLns← widthO∘{  
-          Grab1←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺> margL + (n× sepL)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
-          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂margT, ∊ln,⍨¨ ⊂sepT) ∇ ⍵↓⍨ ≢ln← Grab1 ⍵ }⍵
+        margT sepT← '    ' '; ' 
+        GrabLns← (0⌈widthO- ≢margT)∘{ 
+          Grab1←⍺∘{ 1≥ ≢⍵: ⍵ ⋄  ⍺> +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
+          ⍬ { 0=≢⍵:⍺ ⋄ (⍺, ⊂margT, ∊ln) ∇ ⍵↓⍨ ≢ln← Grab1 ⍵ } sepT,¨⍥⊆⍵
         }¨
       ⍝ Organize into (lower_and_other, upper_case, system_case) based on initial letter 
       ⍝ (by default ignoring initial ∆, ⍙, _)
@@ -194,13 +194,13 @@
 ⍝H      codeStr: lines of code of a tradfn or tradop
 ⍝H      opts: result type, fold case, locals per line, sort∆⍙_
 ⍝H      opts[0]: What result is desired?
-⍝H           1: Return the tradfn or tradop code with explicit locals (via ;nm1;nm2...)
-⍝H              Show as comments:
-⍝H              ∘ the original :Extern or :Intern directives 
+⍝H           1: Return the tradfn or tradop code with explicit locals ( ;nm1;nm2...) shown:
+⍝H              Show as comments
+⍝H              ∘ the original :Extern or :Intern directives; and
 ⍝H              ∘ the original traditional local declarations (;nm1;nm2...)/ 
-⍝H           0: Return the tradfn or tradop code with explicit locals (via ;nm1;nm2...)
+⍝H           0: Return the tradfn or tradop code w/o original explicit locals ( ;nm1;nm2...):
 ⍝H              Show as comments: 
-⍝H              ∘ the original :Extern or :Intern directives 
+⍝H              ∘ the original :Extern or :Intern directives; however, 
 ⍝H              Remove (don't show): 
 ⍝H              ∘ the original traditional local declarations.
 ⍝H          ¯1: Simply list all the externals and internals as two character vectors of vectors, e.g.
@@ -209,13 +209,13 @@
 ⍝H              ││Outside│⎕ML│││A│B│I│Inside│Tidy│Trad│glop│local3│local4│three│⎕IO│⎕TRAP││
 ⍝H              │└───────┴───┘│└─┴─┴─┴──────┴────┴────┴────┴──────┴──────┴─────┴───┴─────┘│
 ⍝H              └─────────────┴───────────────────────────────────────────────────────────┘
-⍝H          Variables (for all 3 options) are sorted into order per opts[1] below. 
+⍝H              Externals and internals are each sorted in unicode (⍋⍵) order.
 ⍝H      opts[1]: fold case option (default 0)
 ⍝H              If 0 (default), sort variables in declaration in order 
 ⍝H              and start each group on separate lines (each, if present, taking 1 or more lines):
-⍝H                 Lower case lines
-⍝H                 Upper Case lines
-⍝H                 System Vars lines
+⍝H                 Lower case locals (internals), e.g. dog, ⍙dog, etc.
+⍝H                 Upper Case locals (internals), e.g. Cat, ∆Cat, etc.
+⍝H                 System Var locals (internals), i.e. starting with ⎕ (⎕IO, etc.)
 ⍝H              e.g.
 ⍝H                 ; aI; aTEST; base; cntV; f; ix; lt0         ⍝ lc
 ⍝H                 ; mapV; outV; place; _test                  ⍝ opt[3]=1: _test sorted as 'test'
@@ -233,14 +233,16 @@
 ⍝H              The default is the width of the largest line in the function shared
 ⍝H              Names are sorted:  upper case names, lower case names, system names
 ⍝H              If opt[2] is ≤0, the default is assumed.
-⍝H      opts[3]: For local "declarations" on output...
-⍝H               For sorting purposes, do we treat initial ∆, ⍙, and _ normally?
-⍝H               ∘ If 1 (default), we ignore INITIAL ∆, ⍙, and _ when categorizing names into
+⍝H      opts[3]: "Ignore weird" option: 
+⍝H               If 1 (default), classifies names beginning with ∆, ⍙ or _ 
+⍝H               according to their 2nd letter (e.g. ⍙test is classified as if "test"), etc.
+⍝H               Specifically, if opts[3] is...
+⍝H               ∘ ... 1 (default), we ignore INITIAL ∆, ⍙, and _ when categorizing names into
 ⍝H                 declaration groups, using the next letter instead (e.g. _Test is categorized as 
 ⍝H                 as starting with a capital letter (T)). 
 ⍝H               e.g.
 ⍝H                 (For an example, see opts[1] above). 
-⍝H               ∘ If 0, we categorise ∆, ⍙, and _ as lower-case letters and
+⍝H               ∘ ... 0, we categorise ∆, ⍙, and _ as lower-case letters and
 ⍝H                 sort them in their natural order.
 ⍝H               e.g.
 ⍝H                 ; _ALPHA; _C; _TEST; _test; aI
