@@ -16,7 +16,7 @@
   ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
     localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
     localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
-  ⍝ Characters to ignore when ignoreWeird←1
+  ⍝ Characters to ignore when ignoreWeirdO←1
     weird← '∆⍙_'
   ⍝ Regex patterns 
     extP←  '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Extern nm nm
@@ -41,8 +41,8 @@
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
-    SortWeird←  { ~ignoreWeird: ⍵ ⋄ ⍵~¨⊂weird }                    ⍝ see ignoreWeird below
-    Sort←       { ⍵[ ⍋⎕C⍣(~multiCase) ⊢SortWeird ⍵ ] }                           
+    SortWeird←  { ~ignoreWeirdO: ⍵ ⋄ ⍵~¨⊂weird }                    ⍝ see ignoreWeirdO below
+    Sort←       { ⍵[ ⍋⎕C⍣(~multiCaseO) ⊢SortWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':Extern' ':Intern' 
@@ -51,28 +51,28 @@
 ⍝ Define Major Functions
     FmtInt← ⊃,/⍤{
       ⍝ Grab as many local names as possible that fit in the (column) width specified
-        GrabLns← { 
-          ⍺←width ⋄ l1 l2← ≢¨t1 t2←'    '  '; ' 
-          Grab1←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺> l1+ (n× l2)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
-          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂t1, ∊ln,⍨¨ ⊂t2) ∇ ⍵↓⍨ ≢ln← Grab1 ⍵ }⍵
+        margL sepL← ≢¨ margT sepT← '    '  '; ' 
+        GrabLns← widthO∘{  
+          Grab1←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺> margL + (n× sepL)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
+          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂margT, ∊ln,⍨¨ ⊂sepT) ∇ ⍵↓⍨ ≢ln← Grab1 ⍵ }⍵
         }¨
       ⍝ Organize into (lower_and_other, upper_case, system_case) based on initial letter 
       ⍝ (by default ignoring initial ∆, ⍙, _)
-        ForCases← { 
-            cases← (⎕A,⎕Á) '⎕' 
-          multiCase: (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← cases∊¨⍨ ⊂⊃¨SortWeird ⍵ 
+        cases← (⎕A,⎕Á) '⎕' 
+        ForCases← {   
+          multiCaseO: (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← cases∊¨⍨ ⊂⊃¨SortWeird ⍵ 
             (⊂⍵)/⍨¨(~s),⍥⊆ s← '⎕'∊⍨ SortWeird ⍵
         } 
         GrabLns ForCases Sort ⍵
     } 
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
       declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
-      keepOrig/ '    ⍝ :Extern ', f1, f2
+      keepOrigO/ '    ⍝ :Extern ', f1, f2
     }
     UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
       declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
-    ⍺:keepOrig/ '    ⍝ :Intern ', f1, f2
-      keepOrig/ '    ⍝ ; ', f1, f2 
+    ⍺:keepOrigO/ '    ⍝ :Intern ', f1, f2
+      keepOrigO/ '    ⍝ ; ', f1, f2 
     }
     ParseOpts←{
       defWidth← ⍺ 
@@ -130,13 +130,13 @@
     myTxt myNm← ValidateArgs ⍵
 ⍝ ∘ Parse ⍺-Options 
     ⍺←1 0 0 1
-    keepOrig multiCase width ignoreWeird← (⌈/≢¨myTxt) ParseOpts ⍺  
+    keepOrigO multiCaseO widthO ignoreWeirdO← (⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
     ⍝ hA: Arg names, hL: optl Local declarations, hC: optl Comment
     ⍝     Maximal Pattern:  {name1}← {a} (l Opt r) w ; l1; l2 ⍝ comment
       hA hL hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃myTxt
     hdrNms← ' ←{}()' ((~∊⍨)⊆⊢) hA
-    hL2← keepOrig/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
+    hL2← keepOrigO/ ('  ⍝ '/⍨0≠ ≢hL), hL                          ⍝ Local vars on header line
     hdrOut← ⊂hA, hL2, hC                
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hL
