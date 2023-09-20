@@ -9,13 +9,15 @@
 ⍝    See ⍝H (HELP) Info below...
 
     ⎕IO ⎕ML←0 1 
-  90:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
+  0:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Extern: ',EM)('Message' 'Logic Error!'))
 ⍝ Define Variables
   ⍝ error messages 
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
   ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
     localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
     localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
+  ⍝ Characters to ignore when ignoreWeird←1
+    weird← '∆⍙_'
   ⍝ Regex patterns 
     extP←  '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Extern nm nm
     intP←  '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝\n]*) (.*\n)' ⍝ :Intern nm nm
@@ -39,20 +41,29 @@
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
-    Sort←       { ⍵[ ⍋⎕C⍣ foldCase ⊢⍵~¨⊂'∆⍙_' ] }                           
+    SortWeird←  { ~ignoreWeird: ⍵ ⋄ ⍵~¨⊂weird }                    ⍝ see ignoreWeird below
+    Sort←       { ⍵[ ⍋⎕C⍣(~multiCase) ⊢SortWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':Extern' ':Intern' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
 ⍝ Define Major Functions
-    FmtInt← {
-        F2← { ⍺←colWid ⋄ l1 l2← ≢¨t1 t2←'    '  '; '  
-          W←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺≥ l1+ (n× l2)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
-          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂t1, ∊ln,⍨¨ ⊂t2) ∇ ⍵↓⍨ ≢ln← W ⍵ }⍵
-        }
-        LUS← {⍺← ⊃¨⍵~¨⊂'⍙∆_' ⋄ u s←(⍺∊⎕A,⎕Á) (⍺='⎕') ⋄ (u⍱s) u s/¨ ⊂⍵ }   
-        ⊃,/F2¨ LUS Sort ⍵
+    FmtInt← ⊃,/⍤{
+      ⍝ Grab as many local names as possible that fit in the (column) width specified
+        GrabLns← { 
+          ⍺←width ⋄ l1 l2← ≢¨t1 t2←'    '  '; ' 
+          Grab1←⍺∘{ 1≥ n←≢⍵: ⍵ ⋄  ⍺> l1+ (n× l2)+ +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
+          ⍬{ 0=≢⍵:⍺ ⋄ (⍺, ⊂t1, ∊ln,⍨¨ ⊂t2) ∇ ⍵↓⍨ ≢ln← Grab1 ⍵ }⍵
+        }¨
+      ⍝ Organize into (lower_and_other, upper_case, system_case) based on initial letter 
+      ⍝ (by default ignoring initial ∆, ⍙, _)
+        ForCases← { 
+            cases← (⎕A,⎕Á) '⎕' 
+          multiCase: (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← cases∊¨⍨ ⊂⊃¨SortWeird ⍵ 
+            (⊂⍵)/⍨¨(~s),⍥⊆ s← '⎕'∊⍨ SortWeird ⍵
+        } 
+        GrabLns ForCases Sort ⍵
     } 
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
       declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
@@ -64,19 +75,20 @@
       keepOrig/ '    ⍝ ; ', f1, f2 
     }
     ParseOpts←{
-      defColWid← ⍺ 
-    ⍝ ∘ Help? (Extern⍨'help')
-      'help'≡⍵: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
+      defWidth← ⍺ 
       ⍝ [0] → keepOrig:   1*  Pass thru original declarations of externals and internals as comments
       ⍝                   0   Omit original declarations
-      ⍝ [1] → foldCase:   1   Sort order: {Fold Upper and lower case} > sys vars (⎕IO...)
-      ⍝                   0*  Sort order: Upper case > Lower case > sys vars (⎕IO...)
-      ⍝ [2] → colWid:   col width for printing internal "declarations"  
+      ⍝ [1] → mergeCases: 1   Sort/line order: {Fold Upper and lower case} > sys vars (⎕IO...)
+      ⍝                   0*  Sort/line order: Upper case > Lower case > sys vars (⎕IO...)
+      ⍝ [2] → width:      col width for printing internal "declarations"  
       ⍝                   (width of widest line)by default or if ⍺[2]≤0
-        k foldCase i← 3↑ ⍵
-        keepOrig← k>0
-        colWid← i defColWid⊃⍨ 0≥ i
-        keepOrig foldCase colWid
+      ⍝ [3] → ignoreWeird  1*  When sorting into cases, ignore initial ∆⍙_ chars.
+      ⍝                    0   When sorting into cases, respect ∆⍙_ as ordinary initial chars.
+      1>≢⍵: ⍺ ∇ 1 0 0 1
+      4>≢⍵: ⍺ ∇ (3↑⍵),1
+        kpOrig mergC wid ignW← 4↑⍵ 
+        wid← wid defWidth⊃⍨ 0≥ wid
+        kpOrig (~mergC) wid ignW
     }
     ValidateArgs← { 
       0=≢⍵: ⎕SIGNAL missingE
@@ -112,12 +124,13 @@
 ⍝ ===============================================================================
 ⍝ ===============================================================================
 ⍝ Begin Executive...
+⍝ ∘ Help? (Extern⍨'help')
+  'help'≡⍵: _← (⎕ED '_')⊢ _← '^ *⍝H ?(.*)' ⎕S ' \1'⊢⎕NR ⊃⎕XSI     ⍝ Display Help 
 ⍝ ∘ Parse and Validate ⍵-Args---
     myTxt myNm← ValidateArgs ⍵
 ⍝ ∘ Parse ⍺-Options 
-    ⍺←1 0 0
-    keepOrig foldCase colWid← (⌈/≢¨myTxt) ParseOpts ⍺
-
+    ⍺←1 0 0 1
+    keepOrig multiCase width ignoreWeird← (⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
     ⍝ hA: Arg names, hL: optl Local declarations, hC: optl Comment
     ⍝     Maximal Pattern:  {name1}← {a} (l Opt r) w ; l1; l2 ⍝ comment
@@ -163,19 +176,21 @@
 ⍝H   For help:  
 ⍝H      ∇⍨ 'help'        (OR  'help'∇ ⍬)
 ⍝H 
-⍝H res← opts ∇ [ nm | codeStr ]
+⍝H result← opts ∇ [ nm | codeStr ]
 ⍝H      nm: Name of tradfn or tradop (may be a simple or a complex name:  
 ⍝H          simple: ThisFn,   complex:  #.myNs.MyFn, myNs.MyFn
 ⍝H      codeStr: lines of code of a tradfn or tradop
-⍝H      opts: result type, fold case, locals per line
+⍝H      opts: result type, fold case, locals per line, sort∆⍙_
 ⍝H      opts[0]: What result is desired?
 ⍝H           1: Return the tradfn or tradop code with explicit locals (via ;nm1;nm2...)
 ⍝H              Show as comments:
 ⍝H              ∘ the original :Extern or :Intern directives 
 ⍝H              ∘ the original traditional local declarations (;nm1;nm2...)/ 
 ⍝H           0: Return the tradfn or tradop code with explicit locals (via ;nm1;nm2...)
-⍝               Show as comments: the original :Extern or :Intern directives 
-⍝H              Remove (don't show): original traditional local declarations.
+⍝H              Show as comments: 
+⍝H              ∘ the original :Extern or :Intern directives 
+⍝H              Remove (don't show): 
+⍝H              ∘ the original traditional local declarations.
 ⍝H          ¯1: Simply list all the externals and internals as two character vectors of vectors, e.g.
 ⍝H              ┌─────────────┬───────────────────────────────────────────────────────────┐
 ⍝H              │┌───────┬───┐│┌─┬─┬─┬──────┬────┬────┬────┬──────┬──────┬─────┬───┬─────┐│
@@ -184,15 +199,45 @@
 ⍝H              └─────────────┴───────────────────────────────────────────────────────────┘
 ⍝H          Variables (for all 3 options) are sorted into order per opts[1] below. 
 ⍝H      opts[1]: fold case option (default 0)
-⍝H              If 0 (default), sort variables in declaration in order:
-⍝H                 Upper Case < Lower case < System Vars
-⍝H              If 1, sort upper case and lower case vars together:
-⍝H                 User Vars (fold case) < System Vars 
+⍝H              If 0 (default), sort variables in declaration in order 
+⍝H              and start each group on separate lines (each, if present, taking 1 or more lines):
+⍝H                 Lower case lines
+⍝H                 Upper Case lines
+⍝H                 System Vars lines
+⍝H              e.g.
+⍝H                 ; aI; aTEST; base; cntV; f; ix; lt0         ⍝ lc
+⍝H                 ; mapV; outV; place; _test                  ⍝ opt[3]=1: _test sorted as 'test'
+⍝H                 ; ∆ALPHA; _ALPHA; ⍙ALPHA; ALPHA             ⍝ uc        ∆ALPHA sorted as 'ALPHA'
+⍝H                 ; ATEST; ⍙B; _C; ∆D; MONKEY; _TEST
+⍝H                 ; ⎕IO; ⎕ML                                  ⍝ sys names
+⍝H              If 1, sort everything in one group with case ignored:
+⍝H              e.g.
+⍝H                 ; aI; ∆ALPHA; _ALPHA; ⍙ALPHA; ALPHA         ⍝ a's and A's together
+⍝H                 ; aTEST; ATEST; ⍙B; base; _C; cntV
+⍝H                 ; ∆D; f; ix; lt0; mapV; MONKEY
+⍝H                 ; outV; place; _TEST; _test; ⎕IO            ⍝ sys names (⎕...) at end
+⍝H                 ; ⎕ML
 ⍝H      opts[2]: Max width of each resulting local declarations line (;nm1;nm2).
 ⍝H              The default is the width of the largest line in the function shared
 ⍝H              Names are sorted:  upper case names, lower case names, system names
 ⍝H              If opt[2] is ≤0, the default is assumed.
-⍝H      res: 
+⍝H      opts[3]: For local "declarations" on output...
+⍝H               For sorting purposes, do we treat initial ∆, ⍙, and _ normally?
+⍝H               ∘ If 1 (default), we ignore INITIAL ∆, ⍙, and _ when categorizing names into
+⍝H                 declaration groups, using the next letter instead (e.g. _Test is categorized as 
+⍝H                 as starting with a capital letter (T)). 
+⍝H               e.g.
+⍝H                 (For an example, see opts[1] above). 
+⍝H               ∘ If 0, we categorise ∆, ⍙, and _ as lower-case letters and
+⍝H                 sort them in their natural order.
+⍝H               e.g.
+⍝H                 ; _ALPHA; _C; _TEST; _test; aI
+⍝H                 ; ALPHA; aTEST; ATEST; base; cntV
+⍝H                 ; f; ix; lt0; mapV; MONKEY; outV
+⍝H                 ; place; ∆ALPHA; ∆D; ⍙ALPHA; ⍙B
+⍝H                 ; ⎕IO; ⎕ML
+⍝H  
+⍝H      result:
 ⍝H        opt[0]∊1 0: the revised code of the presented tradfn or tradop, with:
 ⍝H        ∘ All simple variables without an :Extern assumed to be local. 
 ⍝H        ∘ Complex variables are assumed to be External
