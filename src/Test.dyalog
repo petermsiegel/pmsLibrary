@@ -1,7 +1,12 @@
-﻿ arrV←{base}Radix2 arrV
- ;aI;base;cntV;f;ix;lt0;mapV;outV;place
- ;⎕IO;⎕ML
+﻿ arrV←{base}Test arrV;top0;top1
+ ;was;wasee
 
+ A B C D E F G H I J L K L M N O P Q R S T U V W X Y Z
+ a b c d e f g h i j k l m n o p q r s
+ ⎕A ⎕B ⎕C
+ _A _a _B _b ∆C ∆c ⍙C ⍙c
+
+ :EXTERN J K L m n o
  ⎕IO ⎕ML←0 1
 ⍝ base: Could be 10, multiples/powers of 256 (1 byte), or even 1+⌈/|arrV (max)
  :If 900⌶0 ⋄ base←512 ⋄ :EndIf
