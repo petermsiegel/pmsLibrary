@@ -45,7 +45,7 @@
     SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
   ⍝ When ignoring weird chars, we append at end AFTER a space so A comes before _A etc.
   ⍝ See weirdSpecialO below
-    OrderWeird← { ~weirdSpecialO: ⍵ ⋄ ~1∊weird∊⍵: ⍵ ⋄ (⍵~ weird),' ', ⍵ }¨ 
+    OrderWeird← { ~weirdSpecialO: ⍵ ⋄ ~1∊weird∊⍵: ⍵ ⋄  ⍵,⍨ ' ',⍨ ⍵~weird }¨ 
     Sort←       { ⍵[ ⍋⎕C⍣ foldCaseO ⊢ OrderWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
