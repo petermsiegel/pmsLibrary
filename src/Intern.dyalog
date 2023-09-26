@@ -32,6 +32,7 @@
       balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'            ⍝ balanced parens - single line
       dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
+    eosP← '\n?$|⋄'
     extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n?)' ⍝ [⍝]:EXTERN nm nm
     intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝\n]*) (.*\n?)' ⍝ [⍝]:INTERN nm nm
     locP← '(?x)  ^ \h* ; \h* ([^⍝\n]*) (.*\n)'                     ⍝    ;nm;nm  (APL's "intern")
@@ -40,14 +41,8 @@
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
-  ⍝ :WITH processing
-    withChoice←     1
-  ⍝ withChoice= 0 | 1    Handle this pattern
-  ⍝             Y | Y    :WITH  name1[.name2...]     => name1 -> internal
-  ⍝             N | Y    :WITH 'name1[.name2...]'    => name1 -> internal
-    withP1← '(?ix) :With\b \h*     (',longNmP_t,')'                 ⍝ See: inWith, dirDepth
-    withP2← '(?ix) :With\b \h* (?| (',longNmP_t,') | ''([^'']+)'' )'⍝ See: inWith, dirDepth
-    withP←  withP1 withP2⊃⍨ withChoice
+  ⍝ :WITH processing. 
+    withP←  '(?ix) :With\b \h*'                     ⍝ See: inWith, dirDepth
   ⍝ dirP: other directives with :END statements
     dirP←  '(?ix) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
     endP←  '(?ix) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
@@ -55,7 +50,7 @@
 ⍝ Define Basic Utilities
     CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
-    Help←       { (⎕ED '_')⊢ _← ('^ *⍝H(?:\h',(withChoice/'|1'),')(.*)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI }  
+    Help← { ⎕ED '_'⊣ _← ('^\h*⍝H(?|(?:\h|[0-',⍵,'])(.*)|()$)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI }⍕  
   ⍝ Returns 1 for all simple names EXCEPT #, ##, or ⎕SE. Does not handle complex names.
     NonRoot←    ~∊⍥,∘'#' '##' '⎕SE'
   ⍝ When ignoring weird chars, we append at end AFTER a space so A comes before _A etc.
@@ -130,10 +125,11 @@
       hOut← ⊂hA, hL2, hC       
       hOut hNms hLoc
     }
-    scanPats← extP intP locP nsP skipP withP dirP endP tradNmP     
-              extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
+    scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
+              eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
     ScanTradFn← scanPats ⎕R {   
         Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+        Case eosI:  F 0⊣ {enteringWith: inWith enteringWith⊢← 1 0 ⋄ ⍬} ⍬ 
         Case extI:    UpdateExt F¨1 2                            ⍝ :EXTERN nm nm ...  [⍝ com]
         Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
@@ -145,9 +141,9 @@
         Case dirI:   F 0⊣ dirDepth+← inWith 
       ⍝ :With name1[.name2...]  OR  :With 'name1[.name2...]' 
       ⍝ ∘  Register local <name1> iff this :With is not embedded within the scope of another :With
-        Case withI:  F 0⊣  inWith∘← 1 ⊣ {inWith∨ 0=≢⍵: ⍬ ⋄ ⊢foundNms,∘⊂← FirstNm ⍵} F 1
+        Case withI:  F 0⊣  enteringWith∘← ~inWith
       ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
-        Case endI:   F 0⊣  inWith∘← 0< dirDepth← 0⌈ dirDepth - inWith
+        Case endI:   F 0⊣  inWith∘← 0< dirDepth⊢← 0⌈ dirDepth - inWith
       ⍝ Sequence "'name1.name2' ⎕NS...": register local <name1> 
         Case nsI:    F 0⊣  foundNms,∘⊂← FirstNm ⊢F 1
         ∘∘∘ Unreachable ∘∘∘
@@ -157,7 +153,7 @@
 ⍝ === Begin Executive ===========================================================
 ⍝ ===============================================================================
 ⍝ ∘ Help? (Intern⍨'help')
-  'help'≡⍥⎕C⍵: _← Help⍬
+  'help'≡⍥⎕C⍵: _← Help 0
 ⍝ ∘ Parse and Validate ⍵-Args---
     myTxt myNm← ParseArgs ⍵
 ⍝ ∘ Parse ⍺-Options, passing length of longest line to ParseOpts 
@@ -170,7 +166,7 @@
     declaredExt←   ⍬
     foundNms←      ⍬
 ⍝ ∘ Init :With-related State Vars
-    inWith← dirDepth← 0 
+    enteringWith← inWith← dirDepth← 0 
 ⍝ ∘ Scan function sans header
     tail← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
@@ -184,7 +180,7 @@
 ⍝ === END PROGRAM ===============================================================
 ⍝ ===============================================================================
 
-⍝H 
+⍝H
 ⍝H               ┌─────────────────────────────────┐
 ⍝H Internalise:  │ result← opts ∇ [ nm | codeStr ] │
 ⍝H               └─────────────────────────────────┘
@@ -350,29 +346,28 @@
 ⍝H     to declare local variables.
 ⍝H     ∘ These are only needed for names not otherwise visible to the Intern function.
 ⍝H     ∘ Those that are visible will be declared as :INTERN automatically.
-⍝H    ○ Optionally, use stmts of the form   
+⍝H   ○ Optionally, use stmts of the form   
 ⍝H       ;nm1;nm2 
 ⍝H      anywhere in the program (not preceded by a comment lamp '⍝') 
 ⍝H      as a variant for :INTERN statements.
-⍝H    ○ Use 
+⍝H   ○ Use 
 ⍝H       [⍝ ]:EXTERN nm1 nm2 ... 
 ⍝H       to declare external (non-local) variables.
 ⍝H     ∘ This is needed to ensure an external (non-local)name (per above) is not 
 ⍝H       automatically localized.
-⍝H    Handles :WITH constructs, i.e. ignoring (not localizing) any name within the scope
+⍝H   Handles :WITH constructs, i.e. ignoring (not localizing) any name within the scope
 ⍝H     of a :WITH statement.  
-⍝H    ∘ May require :EXTERN statements for class 9 variable names which are local
+⍝H     ∘ May require :EXTERN statements for class 9 variable names which are local
 ⍝H      to the function but not visibly initialized...
 ⍝H
-⍝H    Warns if names are declared as both :EXTERN and :INTERN.
+⍝H   Warns if names are declared as both :EXTERN and :INTERN.
 ⍝H   
-⍝H    EXPERIMENTAL FEATURE:
-⍝H    ∘ Internalise will recognize a simple quoted string in this context: 
-⍝H           to the left of ⎕NS,                            'name1.name2' ⎕NS ...
-⍝H1          to the right of :WITH,                         :WITH 'name1.name2'
+⍝H   EXPERIMENTAL FEATURE:
+⍝H   ∘ Internalise will recognize a simple quoted string in this context: 
+⍝H      -    to the left of ⎕NS,                    e.g.    'name1.name2' ⎕NS ...
 ⍝H      and generate an appropriate :INTERN for the FIRST name in that fstring.
-⍝H    Bugs: Does not notice ⎕SHADOW variables, but will assume names not declared as :EXTERN
-⍝H    are internal by default.
-⍝H        ⎕SHADOW 'myNs' 'localPW'      ⍝ Redundant. myNs and localPW are local by default.
-⍝H        myNs← ⎕NS⍬ ⋄ localPW← ⎕PW 
+⍝H   Bugs: Does not notice ⎕SHADOW variables, but will assume names not declared as :EXTERN
+⍝H         are internal by default.
+⍝H        ⎕SHADOW 'myNs' 'localPW'      ⍝ Redundant declaration of locals.
+⍝H        myNs← ⎕NS⍬ ⋄ localPW← ⎕PW     ⍝ myNs, localPW are local by default!!!
  }
