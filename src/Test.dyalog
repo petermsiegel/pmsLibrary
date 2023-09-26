@@ -11,6 +11,15 @@
 ⍝ base: Could be 10, multiples/powers of 256 (1 byte), or even 1+⌈/|arrV (max)
  :If 900⌶0 ⋄ base←512 ⋄ :EndIf
 
+ 'Auto_Internal_NS'⎕NS ⍬
+
+  :WITH 'TestAlpha.beta'
+       gamma←⍳5
+  :ENDWITH
+  :WITH '#.IGNORE_ME.beta'
+       gamma←⍳5
+  :ENDWITH
+  
  ⍝ :INTERN aTEST ATEST _TEST _test
  ⍝ :INTERN ∆D ∆ALPHA _C _ALPHA ⍙B ⍙ALPHA MONKEY ALPHA _test ⎕A
  ⍝ :EXTERN myExternal; philately_external
