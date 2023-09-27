@@ -32,11 +32,12 @@
       balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'            ⍝ balanced parens - single line
       dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
-    eosP←  '$|⋄' ⍝ '\n?$|⋄'
-      endP_t← '(⍝.*\n?$|\n?$|⋄)'
-    extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:EXTERN nm nm
-    intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:INTERN nm nm
-    locP← '(?x)  ^ \h* ; \h* ([^⍝\n]*) (.*\n)'                     ⍝    ;nm;nm  (APL's "intern")
+    eosP←  '$|⋄'  
+      rosP_t ← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                         ⍝ ros -> rest of stmt
+    extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ',rosP_t           ⍝ [⍝]:EXTERN nm nm
+    intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ',rosP_t           ⍝ [⍝]:INTERN nm nm
+      rolP_t←  '([^⍝\n]*) ((?:⍝.*)?\n)'                            ⍝ rol -> rest of line
+    locP← '(?x)  ^ \h* ; \h* ',rolP_t                              ⍝ ;nm;nm  (APL's "intern")
     nsP←  '(?ix) '' ([^'']+) '' \h* ⎕NS (?!\h*⍨)'                  ⍝ '...' ⎕NS, but not '...' ⎕NS⍨
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
@@ -92,8 +93,8 @@
     UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
     1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
       declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
-    ⍺:(keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2
-      (keepOrigØ≥2)/ '    ⍝ ; ', f1, f2 
+    ⍺: (keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2
+       (keepOrigØ≥2)/ '    ⍝ ; ',       f1, f2 
     }
 ⍝          ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
 ⍝    opts: │  keepOrigØ   │foldCaseØ │   weirdSpecialØ    │              widthØ              │
@@ -169,8 +170,8 @@
     nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
     withState← 2⍴ dirDepth← 0 
-⍝ ∘ Scan function sans header
-    tail← ScanTradFn 1↓ myTxt
+⍝ ∘ Scan function sans header with "extra" line that's removed after processing.
+    tail← ¯1↓ScanTradFn 1↓ myTxt,⊂' '
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
     nmReg/⍨←  ~Immutable¨ nmReg                                    ⍝ Ignore names that are by def immutable                  
