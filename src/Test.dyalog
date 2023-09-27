@@ -3,25 +3,32 @@
 
  A B C D E F G H I J L K L M N O P Q R S T U V W X Y Z
  a b c d e f g h i j k l m n o p q r s
- ⎕A ⎕B ⎕C
+ ⎕IO
  _A _a _B _b ∆C ∆c ⍙C ⍙c
 
- :EXTERN J K L m n o
+ :EXTERN J K L m n o IGNORE_ME ⋄ :Intern _THIS_IS _INTERNAL_  ⍝ Ignore all this
+
  ⎕IO ⎕ML←0 1
+ IGNORE_ME←10
 ⍝ base: Could be 10, multiples/powers of 256 (1 byte), or even 1+⌈/|arrV (max)
  :If 900⌶0 ⋄ base←512 ⋄ :EndIf
 
  'Auto_Internal_NS'⎕NS ⍬
+ ⎕DOG←3
 
-  :WITH 'TestAlpha.beta'
-       gamma←⍳5
-  :ENDWITH
-  :WITH '#.IGNORE_ME.beta'
-       gamma←⍳5
-  :ENDWITH
-  
- ⍝ :INTERN aTEST ATEST _TEST _test
- ⍝ :INTERN ∆D ∆ALPHA _C _ALPHA ⍙B ⍙ALPHA MONKEY ALPHA _test ⎕A
+ :With TestAlpha.beta
+     :With fred
+         :With mary
+             gamma←⍳5
+         :EndWith
+     :End
+ :EndWith
+ :With '#.IGNORE_ME.beta'
+     gamma←⍳5
+ :EndWith
+
+ :INTERN aTEST ATEST _TEST _test
+ ⍝ :INTERN ∆D ∆ALPHA _C _ALPHA ⍙B ⍙ALPHA MONKEY ALPHA _test ⎕ML
  ⍝ :EXTERN myExternal; philately_external
  myExternal←philately_external←philately_internal←⍬
 

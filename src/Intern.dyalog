@@ -19,9 +19,9 @@
 ⍝ Define Variables
   ⍝ error messages 
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
-  ⍝ localizable system names (https://course.dyalog.com/Quad%20names/)
-    localizable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
-    localizable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
+  ⍝ mutable system names (https://course.dyalog.com/Quad%20names/)
+    mutable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
+    mutable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
   ⍝ Characters to ignore (for sorting/grouping only). See options.
     weirdChars← '∆⍙_'
   ⍝ Regex subpatterns for nsP, skipP, tradNmP, and withP 
@@ -33,8 +33,9 @@
       dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
     eosP← '\n?$|⋄'
-    extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝\n]*) (.*\n?)' ⍝ [⍝]:EXTERN nm nm
-    intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝\n]*) (.*\n?)' ⍝ [⍝]:INTERN nm nm
+      endP_t← '(⍝.*\n?$|\n?$|⋄)'
+    extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:EXTERN nm nm
+    intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:INTERN nm nm
     locP← '(?x)  ^ \h* ; \h* ([^⍝\n]*) (.*\n)'                     ⍝    ;nm;nm  (APL's "intern")
     nsP←  '(?ix) '' ([^'']+) '' \h* ⎕NS (?!\h*⍨)'                  ⍝ '...' ⎕NS, but not '...' ⎕NS⍨
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
@@ -42,21 +43,19 @@
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
   ⍝ :WITH processing. 
-    withP←  '(?ix) :With\b \h*'                     ⍝ See: inWith, dirDepth
+    withP←  '(?ix) :With\b '                        ⍝ See: withPhaseI, withPhaseII, dirDepth
   ⍝ dirP: other directives with :END statements
     dirP←  '(?ix) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
     endP←  '(?ix) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
 
 ⍝ Define Basic Utilities
-    CanBeLocal← ∊∘localizable                                      ⍝ (Auto-hashed)
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     Help← { ⎕ED '_'⊣ _← ('^\h*⍝H(?|(?:\h|[0-',⍵,'])(.*)|()$)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI }⍕  
   ⍝ Returns 1 for all simple names EXCEPT #, ##, or ⎕SE. Does not handle complex names.
-    NonRoot←    ~∊⍥,∘'#' '##' '⎕SE'
   ⍝ When ignoring weird chars, we append at end AFTER a space so A comes before _A etc.
   ⍝ See weirdSpecialØ below
     OrderWeird← { ~weirdSpecialØ: ⍵ ⋄ ~1∊ weirdChars∊ ⍵: ⍵ ⋄  ⍵,⍨ ' ',⍨ ⍵~ weirdChars }¨ 
-    SkipNm←     { ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~CanBeLocal ⊂⍵ ⋄ 1 }
+    Immutable←  (∊∘mutable){ ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~⍺⍺ 1∘⎕C⊂⍵ ⋄ 1 }
     Sort←       { ⍵[ ⍋⎕C⍣ foldCaseØ ⊢ OrderWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
@@ -87,10 +86,11 @@
         GrabLns ForCases Sort ⍵
     } 
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
-      declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
+     declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
       (keepOrigØ≥1)/ '    ⍝ :Extern ', f1, f2
     }
     UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
+    1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
       declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
     ⍺:(keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2
       (keepOrigØ≥2)/ '    ⍝ ; ', f1, f2 
@@ -109,11 +109,11 @@
       opts
     }
     ParseArgs← { 
-      0=≢⍵: ⎕SIGNAL missingE ⋄ 0::   ⎕SIGNAL missingE
+      0=≢⍵: ⎕SIGNAL missingE ⋄ 0/⍨ ~DEBUG::   ⎕SIGNAL missingE
         args nc← {
           1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ ⍵ is a name
                  (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ ⍵ is a fn/op body
-        }⍵ 
+        }#.TEMP∘←⍵ 
       nc∊ 3.1 4.1: args ⋄ ∘∘err∘∘  
     }
     ParseFnHdr←{ kpOrigLoc pgm← ⍺ ⍵ ⋄ splitAny← (~∊⍨)⊆⊢
@@ -125,27 +125,29 @@
       hOut← ⊂hA, hL2, hC       
       hOut hNms hLoc
     }
-    scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
-              eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
-    ScanTradFn← scanPats ⎕R {   
-        Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-        Case eosI:  F 0⊣ {enteringWith: inWith enteringWith⊢← 1 0 ⋄ ⍬} ⍬ 
+    RegNm← { withPhaseII: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
+      scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
+                eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
+    ScanTradFn← scanPats ⎕R {  
+          Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
+          F0← F 0 
+        Case eosI:  F0⊣ {withPhaseI: withPhaseI withPhaseII⊢← 0 1 ⋄ ⍬} ⍬ 
         Case extI:    UpdateExt F¨1 2                            ⍝ :EXTERN nm nm ...  [⍝ com]
         Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
-        Case skipI:   F 0                                        ⍝ Skip comments, quotes, {...}, ns.(...)
+        Case skipI: F0                                           ⍝ Skip comments, quotes, {...}, ns.(...)
       ⍝ (fn/op) names: variable names, including system ⎕names and :directives
-      ⍝  ∘ Ignore (skip) names within :With statements
-        Case tradNmI:  { inWith: ⍵ ⋄ SkipNm ⍵: ⍵ ⋄  ⊢foundNms,∘⊂← FirstNm ⍵ } F 0
+      ⍝  ∘ Ignore (skip) names within scope of :With directives or if non-mutable sysvar names.
+        Case tradNmI: F0⊣ RegNm F0
       ⍝ Track directives only within the scope of :With
-        Case dirI:   F 0⊣ dirDepth+← inWith 
-      ⍝ :With name1[.name2...]  OR  :With 'name1[.name2...]' 
-      ⍝ ∘  Register local <name1> iff this :With is not embedded within the scope of another :With
-        Case withI:  F 0⊣  enteringWith∘← ~inWith
+        Case dirI:    F0⊣  dirDepth+← withPhaseII 
       ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
-        Case endI:   F 0⊣  inWith∘← 0< dirDepth⊢← 0⌈ dirDepth - inWith
+        Case endI:    F0⊣  withPhaseII∘← 0< dirDepth⊢← 0⌈ dirDepth- withPhaseII 
       ⍝ Sequence "'name1.name2' ⎕NS...": register local <name1> 
-        Case nsI:    F 0⊣  foundNms,∘⊂← FirstNm ⊢F 1
+        Case nsI:     F0⊣  RegNm F 1
+      ⍝ :With name1[.name2...]   
+      ⍝ ∘  Register local <name1> iff this :With is not embedded within the scope of another :With
+        Case withI:   F0⊣  withPhaseI⊢← ~withPhaseII⊣ dirDepth+← withPhaseII
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
 
@@ -164,16 +166,16 @@
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hLoc
     declaredExt←   ⍬
-    foundNms←      ⍬
+    nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
-    enteringWith← inWith← dirDepth← 0 
+    withPhaseI← withPhaseII← dirDepth← 0 
 ⍝ ∘ Scan function sans header
     tail← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
-    foundNms/⍨←  NonRoot foundNms                                ⍝ Omit simple names #, ##, and ⎕SE
-    totalInt←    ∪declaredInt∪ foundNms~ declaredExt∪ hdrNms~ ⊂myNm 
-  ¯1=⊃⍺: Sort¨ declaredExt totalInt                              ⍝ Return (externals internals)
+    nmReg/⍨←  ~Immutable¨ nmReg                                    ⍝ Ignore names that are by def immutable                  
+    totalInt← ∪declaredInt∪ nmReg~ declaredExt∪ hdrNms~ ⊂myNm 
+  ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
     hdrOut, (FmtInt totalInt), tail
 
 ⍝ ===============================================================================
