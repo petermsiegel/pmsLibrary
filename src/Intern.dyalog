@@ -32,7 +32,7 @@
       balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'            ⍝ balanced parens - single line
       dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
-    eosP← '\n?$|⋄'
+    eosP←  '$|⋄' ⍝ '\n?$|⋄'
       endP_t← '(⍝.*\n?$|\n?$|⋄)'
     extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:EXTERN nm nm
     intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ([^⍝⋄\n]*)',endP_t ⍝ [⍝]:INTERN nm nm
@@ -43,7 +43,7 @@
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
     hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
   ⍝ :WITH processing. 
-    withP←  '(?ix) :With\b '                        ⍝ See: withPhaseI, withPhaseII, dirDepth
+    withP←  '(?ix) :With\b '                        ⍝ See: withState, dirDepth
   ⍝ dirP: other directives with :END statements
     dirP←  '(?ix) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
     endP←  '(?ix) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
@@ -125,13 +125,13 @@
       hOut← ⊂hA, hL2, hC       
       hOut hNms hLoc
     }
-    RegNm← { withPhaseII: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
+    RegNm← { withState[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
       scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
                 eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
     ScanTradFn← scanPats ⎕R {  
           Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
           F0← F 0 
-        Case eosI:  F0⊣ {withPhaseI: withPhaseI withPhaseII⊢← 0 1 ⋄ ⍬} ⍬ 
+        Case eosI:  F0⊣ {withState[0]: withState[]← 0 1 ⋄ ⍬} ⍬ 
         Case extI:    UpdateExt F¨1 2                            ⍝ :EXTERN nm nm ...  [⍝ com]
         Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
@@ -140,14 +140,14 @@
       ⍝  ∘ Ignore (skip) names within scope of :With directives or if non-mutable sysvar names.
         Case tradNmI: F0⊣ RegNm F0
       ⍝ Track directives only within the scope of :With
-        Case dirI:    F0⊣  dirDepth+← withPhaseII 
+        Case dirI:    F0⊣  dirDepth+← withState[1] 
       ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
-        Case endI:    F0⊣  withPhaseII∘← 0< dirDepth⊢← 0⌈ dirDepth- withPhaseII 
+        Case endI:    F0⊣  withState[1]← 0< dirDepth⊢← 0⌈ dirDepth- withState[1] 
       ⍝ Sequence "'name1.name2' ⎕NS...": register local <name1> 
         Case nsI:     F0⊣  RegNm F 1
       ⍝ :With name1[.name2...]   
       ⍝ ∘  Register local <name1> iff this :With is not embedded within the scope of another :With
-        Case withI:   F0⊣  withPhaseI⊢← ~withPhaseII⊣ dirDepth+← withPhaseII
+        Case withI:   F0⊣  withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
 
@@ -168,7 +168,7 @@
     declaredExt←   ⍬
     nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
-    withPhaseI← withPhaseII← dirDepth← 0 
+    withState← 2⍴ dirDepth← 0 
 ⍝ ∘ Scan function sans header
     tail← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
