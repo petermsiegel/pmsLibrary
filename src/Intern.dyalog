@@ -1,5 +1,5 @@
-﻿ Internalise←{ 
-⍝  Internalise: 
+﻿ Intern←{ 
+⍝  Intern: 
 ⍝  [1] [opts] ∇ [fnNm@CV | codeStr@CVV]    
 ⍝    Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
 ⍝    for all variables not explicitly external (non-local). Supports directives
@@ -14,7 +14,7 @@
 ⍝ HELP: See ⍝H (HELP) info below.
 
     DEBUG ⎕IO ⎕ML←1 0 1 
-  0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Internalise: ',EM)('Message' 'Logic Error!'))
+  0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Intern: ',EM)('Message' 'Logic Error!'))
 
 ⍝ Define Variables
   ⍝ error messages 
@@ -25,30 +25,28 @@
   ⍝ Characters to ignore (for sorting/grouping only). See options.
     weirdChars← '∆⍙_'
   ⍝ Regex subpatterns for nsP, skipP, tradNmP, and withP 
-      qtP_t←     '(''[^'']*'')+'   
-      comP_t←    '⍝.*'
-      xNmP_t←    '[\p{L}_∆⍙#⍺⍵⎕][\p{L}\p{N}_∆⍙#⍺⍵⎕]*'              ⍝ user/sys/special          
-      longNmP_t← '(?:',xNmP_t,'(?:\h*\.\h*',xNmP_t,')*)'           ⍝ complex name; spaces around '.' ok             
       balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'            ⍝ balanced parens - single line
-      dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
-  ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
-    eosP←  '$|⋄'  
-      rosP_t← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                          ⍝ ros -> rest of stmt
-    extP← '(?ix) \h* (?:⍝ \h*)? :EXTERN\b \h*',rosP_t              ⍝ [⍝]:EXTERN nm nm
-    intP← '(?ix) \h* (?:⍝ \h*)? :INTERN\b \h*',rosP_t              ⍝ [⍝]:INTERN nm nm
+      comP_t←    '⍝.*'
+      dfnP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'                 ⍝ dfn body - multiline ok
+      ⋄ xNmP_t←    '[\p{L}_∆⍙#⍺⍵⎕][\p{L}\p{N}_∆⍙#⍺⍵⎕]*'            ⍝ user/sys/special          
+      longNmP_t← '(?:',xNmP_t,'(?:\h*\.\h*',xNmP_t,')*)'           ⍝ complex name; spaces around '.' ok             
+      qtP_t←     '(''[^'']*'')+'   
       rolP_t←  '([^⍝\n]*) ((?:⍝.*)?\n)'                            ⍝ rol -> rest of line
+      rosP_t← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                          ⍝ ros -> rest of stmt
+  ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
+    dirP←  '(?ix) : (?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ Directives w/ :END, omitting :With
+    endP←  '(?ix) : (?: End\w*|Until)'                             ⍝ :End[xxx] | :Until (matches :While | :Repeat)
+    eosP←  '$|⋄'  
+    extP← '(?ix) \h* (?:⍝ \h*)? :EXTERN\b \h*',rosP_t              ⍝ [⍝]:EXTERN nm nm
+    hdrP←  '(?x) ( [^;⍝]+ ) ( ;[^⍝]* | ) ( ⍝.* | )'                ⍝ Parse hdr into 3 parts
+    intP← '(?ix) \h* (?:⍝ \h*)? :INTERN\b \h*',rosP_t              ⍝ [⍝]:INTERN nm nm
     locP← '(?x)  ^ \h* ; \h* ',rolP_t                              ⍝ ;nm;nm  (APL's "intern")
     nsP←  '(?ix) '' ([^'']+) '' \h* ⎕NS (?!\h*⍨)'                  ⍝ '...' ⎕NS, but not '...' ⎕NS⍨
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
-    skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
+    skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnP_t, '| \.\h*', balParP_t
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
-    hdrP←  '(?x) ( [^;⍝]+ ) ( ;[^⍝]* | ) ( ⍝.* | )'                ⍝ Parse hdr into 3 parts
-  ⍝ :WITH processing. 
-    withP←  '(?ix) :WITH\b '                        ⍝ See: withState, dirDepth
-  ⍝ dirP: other directives with :END statements
-    dirP←  '(?ix) : (?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
-    endP←  '(?ix) : (?: End\w*|Until)'                             ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
-
+    withP←  '(?ix) :WITH\b '                                       ⍝ :WITH processing, See: withState, dirDepth
+  
 ⍝ Define Basic Utilities
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     Help← { ⎕ED '_'⊣ _← ('^\h*⍝H(?|(?:\h|[0-',⍵,'])(.*)|()$)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI }⍕  
@@ -147,7 +145,7 @@
         Case nsI:     F0⊣  RegisterNm F 1
         Case withI:   F0⊣  withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
         ∘∘∘ Unreachable ∘∘∘
-    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF') 
+    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')  ⍝ Mode M needed for dfnP_t and eosP
  
 ⍝ ===============================================================================
 ⍝ === Begin Executive ===========================================================
@@ -158,7 +156,7 @@
     myTxt myNm← ParseArgs ⍵
 ⍝ ∘ Parse ⍺-Options, passing length of longest line to ParseOpts 
     ⍺← ⍬  
-    keepOrigØ foldCaseØ weirdSpecialØ widthØ ← (⌈/≢¨myTxt) ParseOpts ⍺  
+    keepOrigØ foldCaseØ weirdSpecialØ widthØ ← (⎕PW⌊ ⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
     fnHdr hdrNms hLoc← keepOrigØ ParseFnHdr myTxt         
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
@@ -180,9 +178,9 @@
 ⍝ ===============================================================================
 
 ⍝H
-⍝H               ┌─────────────────────────────────┐
-⍝H Internalise:  │ result← opts ∇ [ nm | codeStr ] │
-⍝H               └─────────────────────────────────┘
+⍝H          ┌─────────────────────────────────┐
+⍝H Intern:  │ result← opts ∇ [ nm | codeStr ] │
+⍝H          └─────────────────────────────────┘
 ⍝H
 ⍝H OVERVIEW
 ⍝H ¯¯¯¯¯¯¯¯
@@ -252,7 +250,7 @@
 ⍝H         ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
 ⍝H   opts: │ result type  │fold case │ignore weird chars │ max width of locals declaration  │
 ⍝H         │              │          │  (when sorting)   │                                  │
-⍝H         │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │       ≢(longest line)**          │
+⍝H         │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │       ≢(longest line⌊⎕PW)**      │
 ⍝H         └──────────────┴──────────┴───────────────────┴──────────────────────────────────┘
 ⍝H            *=default                                         **=default or if 0
 ⍝H ----------------------------------------------------------------------------
@@ -321,7 +319,7 @@
 ⍝H                 ; ⎕IO; ⎕ML
 ⍝H      opts[3]: Max width of each resulting local declarations line (;nm1;nm2).
 ⍝H      >>>     The default (if omitted or specified as 0) is:
-⍝H                  the width of the longest line in the fn/op passed.
+⍝H                  the width of the longest line in the fn/op passed or ⎕PW, whichever is smaller
 ⍝H              Generated local names are by default output this way:  
 ⍝H                  lower case names + newline + upper case names + newline + system names
 ⍝H              If opt[3] is ≤0, the default is assumed.
@@ -362,7 +360,7 @@
 ⍝H   Warns if names are declared as both :EXTERN and :INTERN.
 ⍝H   
 ⍝H   EXPERIMENTAL FEATURE:
-⍝H   ∘ Internalise will recognize a simple quoted string in this context: 
+⍝H   ∘ Intern will recognize a simple quoted string in this context: 
 ⍝H      -    to the left of ⎕NS,                    e.g.    'name1.name2' ⎕NS ...
 ⍝H      and generate an appropriate :INTERN for the FIRST name in that fstring.
 ⍝H   Bugs: Does not notice ⎕SHADOW variables, but will assume names not declared as :EXTERN
