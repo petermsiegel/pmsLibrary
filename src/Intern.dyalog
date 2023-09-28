@@ -33,21 +33,21 @@
       dfnBdyP_t← '\{(?:[^{}'']+|''[^'']*''|(?R))*+\}'              ⍝ dfn body - multiline ok
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
     eosP←  '$|⋄'  
-      rosP_t ← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                         ⍝ ros -> rest of stmt
-    extP← '(?ix) ^ \h* (?:⍝ \h*)? :extern\b \h* ',rosP_t           ⍝ [⍝]:EXTERN nm nm
-    intP← '(?ix) ^ \h* (?:⍝ \h*)? :intern\b \h* ',rosP_t           ⍝ [⍝]:INTERN nm nm
+      rosP_t← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                          ⍝ ros -> rest of stmt
+    extP← '(?ix) \h* (?:⍝ \h*)? :EXTERN\b \h*',rosP_t              ⍝ [⍝]:EXTERN nm nm
+    intP← '(?ix) \h* (?:⍝ \h*)? :INTERN\b \h*',rosP_t              ⍝ [⍝]:INTERN nm nm
       rolP_t←  '([^⍝\n]*) ((?:⍝.*)?\n)'                            ⍝ rol -> rest of line
     locP← '(?x)  ^ \h* ; \h* ',rolP_t                              ⍝ ;nm;nm  (APL's "intern")
     nsP←  '(?ix) '' ([^'']+) '' \h* ⎕NS (?!\h*⍨)'                  ⍝ '...' ⎕NS, but not '...' ⎕NS⍨
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnBdyP_t, '| \.\h*', balParP_t
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
-    hdrP←  '(?x) ([^;⍝]+) ( (?:;[^⍝]*)? ) ( (?:⍝.*)? )'
+    hdrP←  '(?x) ( [^;⍝]+ ) ( ;[^⍝]* | ) ( ⍝.* | )'                ⍝ Parse hdr into 3 parts
   ⍝ :WITH processing. 
-    withP←  '(?ix) :With\b '                        ⍝ See: withState, dirDepth
+    withP←  '(?ix) :WITH\b '                        ⍝ See: withState, dirDepth
   ⍝ dirP: other directives with :END statements
-    dirP←  '(?ix) :(?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
-    endP←  '(?ix) :(?: End\w*|Until)'                              ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
+    dirP←  '(?ix) : (?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ :With omitted
+    endP←  '(?ix) : (?: End\w*|Until)'                             ⍝ :End (with any suffix) or :Until (matching :While or :Repeat)
 
 ⍝ Define Basic Utilities
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
@@ -88,13 +88,13 @@
     } 
     UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
      declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
-      (keepOrigØ≥1)/ '    ⍝ :Extern ', f1, f2
+      (keepOrigØ≥1)/ '    ⍝ :Extern ', f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10
     }
     UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
     1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
       declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
-    ⍺: (keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2
-       (keepOrigØ≥2)/ '    ⍝ ; ',       f1, f2 
+    ⍺: (keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10
+       (keepOrigØ≥2)/ '    ⍝ ; ',       f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10 
     }
 ⍝          ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
 ⍝    opts: │  keepOrigØ   │foldCaseØ │   weirdSpecialØ    │              widthØ              │
@@ -111,24 +111,28 @@
     }
     ParseArgs← { 
       0=≢⍵: ⎕SIGNAL missingE ⋄ 0/⍨ ~DEBUG::   ⎕SIGNAL missingE
-        args nc← {
+        (myTxt myNm) nc← {
           1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ ⍵ is a name
                  (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ ⍵ is a fn/op body
         }#.TEMP∘←⍵ 
-      nc∊ 3.1 4.1: args ⋄ ∘∘err∘∘  
+      ⍝ To avoid ⎕R '\n?' edge case, add explicit newline to the last input line
+        (⊃⌽myTxt),← ⎕UCS 10     
+      nc∊ 3.1 4.1: myTxt myNm ⋄ ∘∘err∘∘  
     }
     ParseFnHdr←{ kpOrigLoc pgm← ⍺ ⍵ ⋄ splitAny← (~∊⍨)⊆⊢
       ⍝ hA: Arg names, hLoc: optl Local declarations, hC: optl Comment
       ⍝     Maximal Pattern:  {r}← {a} (l Opt r) w ; l1; l2 ⍝ comment
-      hA hLoc hC← 3↑ hdrP ⎕R '\1\n\2\n\3'⊣ ⊂⊃ pgm
+      hA hLoc hC←  hdrP ⎕R '\1\n\2\n\3\n'⊣ ⊂⊃ pgm  
       hNms← ' ←{}()' splitAny hA
       hL2← (kpOrigLoc≥2)/ ('  ⍝ '/⍨0≠ ≢hLoc), hLoc               ⍝ Local vars on header line
-      hOut← ⊂hA, hL2, hC       
+      hOut← ⊂hA, hL2, hC     
       hOut hNms hLoc
     }
-    RegNm← { withState[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
+    RegisterNm← { withState[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
       scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
                 eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
+  ⍝ ∘ Scan function sans header
+  ⍝   (We add extra line at end so every line ends in a newline)
     ScanTradFn← scanPats ⎕R {  
           Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
           F0← F 0 
@@ -137,21 +141,14 @@
         Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
         Case skipI: F0                                           ⍝ Skip comments, quotes, {...}, ns.(...)
-      ⍝ (fn/op) names: variable names, including system ⎕names and :directives
-      ⍝  ∘ Ignore (skip) names within scope of :With directives or if non-mutable sysvar names.
-        Case tradNmI: F0⊣ RegNm F0
-      ⍝ Track directives only within the scope of :With
+        Case tradNmI: F0⊣ RegisterNm F0
         Case dirI:    F0⊣  dirDepth+← withState[1] 
-      ⍝ Track ':END...' only if we're within the scope of 1 or more :WITH statements.
         Case endI:    F0⊣  withState[1]← 0< dirDepth⊢← 0⌈ dirDepth- withState[1] 
-      ⍝ Sequence "'name1.name2' ⎕NS...": register local <name1> 
-        Case nsI:     F0⊣  RegNm F 1
-      ⍝ :With name1[.name2...]   
-      ⍝ ∘  Register local <name1> iff this :With is not embedded within the scope of another :With
+        Case nsI:     F0⊣  RegisterNm F 1
         Case withI:   F0⊣  withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
         ∘∘∘ Unreachable ∘∘∘
-    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')
-
+    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF') 
+ 
 ⍝ ===============================================================================
 ⍝ === Begin Executive ===========================================================
 ⍝ ===============================================================================
@@ -163,21 +160,20 @@
     ⍺← ⍬  
     keepOrigØ foldCaseØ weirdSpecialØ widthØ ← (⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
-    hdrOut hdrNms hLoc← keepOrigØ ParseFnHdr myTxt         
+    fnHdr hdrNms hLoc← keepOrigØ ParseFnHdr myTxt         
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hLoc
     declaredExt←   ⍬
     nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
     withState← 2⍴ dirDepth← 0 
-⍝ ∘ Scan function sans header with "extra" line that's removed after processing.
-    tail← ¯1↓ScanTradFn 1↓ myTxt,⊂' '
+    fnBody← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
     nmReg/⍨←  ~Immutable¨ nmReg                                    ⍝ Ignore names that are by def immutable                  
     totalInt← ∪declaredInt∪ nmReg~ declaredExt∪ hdrNms~ ⊂myNm 
   ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
-    hdrOut, (FmtInt totalInt), tail
+    fnHdr, (FmtInt totalInt), fnBody
 
 ⍝ ===============================================================================
 ⍝ === END PROGRAM ===============================================================

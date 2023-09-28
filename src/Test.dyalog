@@ -7,6 +7,7 @@
  _A _a _B _b ∆C ∆c ⍙C ⍙c
 
  :EXTERN J K L m n o IGNORE_ME ⋄ :Intern _THIS_IS _INTERNAL_  ⍝ Ignore all this
+ ;hello
 
  ⎕IO ⎕ML←0 1
  IGNORE_ME←10
