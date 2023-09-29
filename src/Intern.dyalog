@@ -133,17 +133,18 @@
   ⍝   (We add extra line at end so every line ends in a newline)
     ScanTradFn← scanPats ⎕R {  
           Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
-          F0← F 0 
-        Case eosI:  F0⊣ {withState[0]: withState[]← 0 1 ⋄ ⍬} ⍬ 
+          F0← ⍵.Match 
+        withState[0]∧Case eosI: F0⊣ withState[]← 0 1
+        Case eosI:    F0 
         Case extI:    UpdateExt F¨1 2                            ⍝ :EXTERN nm nm ...  [⍝ com]
         Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
-        Case skipI: F0                                           ⍝ Skip comments, quotes, {...}, ns.(...)
+        Case skipI:   F0                                         ⍝ Skip comments, quotes, {...}, ns.(...)
         Case tradNmI: F0⊣ RegisterNm F0
-        Case dirI:    F0⊣  dirDepth+← withState[1] 
-        Case endI:    F0⊣  withState[1]← 0< dirDepth⊢← 0⌈ dirDepth- withState[1] 
-        Case nsI:     F0⊣  RegisterNm F 1
-        Case withI:   F0⊣  withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
+        Case dirI:    F0⊣ dirDepth+← withState[1] 
+        Case endI:    F0⊣ withState[1]← 0< dirDepth⊢← 0⌈ dirDepth- withState[1] 
+        Case nsI:     F0⊣ RegisterNm F 1
+        Case withI:   F0⊣ withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')  ⍝ Mode M needed for dfnP_t and eosP
  
