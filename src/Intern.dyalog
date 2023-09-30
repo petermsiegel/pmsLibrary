@@ -13,17 +13,19 @@
 ⍝    Displays HELP info
 ⍝ HELP: See ⍝H (HELP) info below.
 
-    DEBUG ⎕IO ⎕ML←1 0 1 
+    DEBUG ⎕IO ⎕ML←0 0 1 
   0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Intern: ',EM)('Message' 'Logic Error!'))
 
-⍝ Define Variables
+⍝ Define Constants
   ⍝ error messages 
     missingE← ⊂('EN' 11)('Message' 'Invalid or missing tradfn/op. Use option ''help'' for help')
+    badOptsE← ⊂('EN' 11)('Message' 'Invalid or superfluous option(s)')
   ⍝ mutable system names (https://course.dyalog.com/Quad%20names/)
     mutable←  '⎕AVU' '⎕CT' '⎕DCT' '⎕DIV' '⎕FR' '⎕IO'   '⎕LX'    '⎕ML'   '⎕PATH'  
     mutable,← '⎕PP'  '⎕PW' '⎕RL'  '⎕RTL' '⎕SM' '⎕TRAP' '⎕USING' '⎕WSID' '⎕WX'
-  ⍝ Characters to ignore (for sorting/grouping only). See options.
-    weirdChars← '∆⍙_'
+  ⍝ miscellany
+    weirdChs← '∆⍙_'                                                ⍝ See OrderWeird and user options
+    NL← ⎕UCS 10
   ⍝ Regex subpatterns for nsP, skipP, tradNmP, and withP 
       balParP_t← '\((?:[^()''\n]+|''[^'']*''|(?R))*+\)'            ⍝ balanced parens - single line
       comP_t←    '⍝.*'
@@ -32,33 +34,35 @@
       longNmP_t← '(?:',xNmP_t,'(?:\h*\.\h*',xNmP_t,')*)'           ⍝ complex name; spaces around '.' ok             
       qtP_t←     '(''[^'']*'')+'   
       rolP_t←  '([^⍝\n]*) ((?:⍝.*)?\n)'                            ⍝ rol -> rest of line
-      rosP_t← '([^⋄⍝\n]*) (⋄|(?:⍝.*)?\n)'                          ⍝ ros -> rest of stmt
+      rosP_t← '([^⋄\n⍝]*) (?| () [⋄\n] | ( ⍝.* ) \n )'             ⍝ ros -> rest of stmt
   ⍝ Regex patterns (ext=external decl, int=internal decl, loc=local (internal) decl).
     dirP←  '(?ix) : (?: If|While|Repeat|For|Select|Trap|Hold|Disposable)' ⍝ Directives w/ :END, omitting :With
     endP←  '(?ix) : (?: End\w*|Until)'                             ⍝ :End[xxx] | :Until (matches :While | :Repeat)
     eosP←  '$|⋄'  
     extP← '(?ix) \h* (?:⍝ \h*)? :EXTERN\b \h*',rosP_t              ⍝ [⍝]:EXTERN nm nm
-    hdrP←  '(?x) ( [^;⍝]+ ) ( ;[^⍝]* | ) ( ⍝.* | )'                ⍝ Parse hdr into 3 parts
+    hdrP← '(?x) ( [^;⍝]+ ) ( ;[^⍝]* | ) ( ⍝.* | )'                 ⍝ Parse hdr into 3 parts
     intP← '(?ix) \h* (?:⍝ \h*)? :INTERN\b \h*',rosP_t              ⍝ [⍝]:INTERN nm nm
     locP← '(?x)  ^ \h* ; \h* ',rolP_t                              ⍝ ;nm;nm  (APL's "intern")
     nsP←  '(?ix) '' ([^'']+) '' \h* ⎕NS (?!\h*⍨)'                  ⍝ '...' ⎕NS, but not '...' ⎕NS⍨
     simpNmP←  '[\p{L}_∆⍙][\p{L}\p{N}_∆⍙]*'                         ⍝ simple user name
     skipP← '(?x) ',qtP_t, '|', comP_t, '|', dfnP_t, '| \.\h*', balParP_t
     tradNmP← ':', simpNmP, '|', longNmP_t                          ⍝ Directive or complex name
-    withP←  '(?ix) :WITH\b '                                       ⍝ :WITH processing, See: withState, dirDepth
+    withP←  '(?ix) :WITH\b '                                       ⍝ :WITH processing, See: withFlg, dirDepth
   
 ⍝ Define Basic Utilities
     FirstNm←    ⊢↑⍨⍳∘'.'⍤,                                         ⍝ In 'aa.bb.cc', 'aa' could be local
     Help← { ⎕ED '_'⊣ _← ('^\h*⍝H(?|(?:\h|[0-',⍵,'])(.*)|()$)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI }⍕  
   ⍝ Returns 1 for all simple names EXCEPT #, ##, or ⎕SE. Does not handle complex names.
   ⍝ When ignoring weird chars, we append at end AFTER a space so A comes before _A etc.
-  ⍝ See weirdSpecialØ below
-    OrderWeird← { ~weirdSpecialØ: ⍵ ⋄ ~1∊ weirdChars∊ ⍵: ⍵ ⋄  ⍵,⍨ ' ',⍨ ⍵~ weirdChars }¨ 
+  ⍝ See weirdØ below
+    OrderWeird← { ~weirdØ: ⍵ ⋄ ~1∊ weirdChs∊ ⍵: ⍵ ⋄  ⍵,⍨ ' ',⍨ ⍵~ weirdChs }¨ 
     Immutable←  (∊∘mutable){ ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~⍺⍺ 1∘⎕C⊂⍵ ⋄ 1 }
-    Sort←       { ⍵[ ⍋⎕C⍣ foldCaseØ ⊢ OrderWeird ⍵ ] }                           
+  ⍝ Register mutable names unless within the scope of a :WITH statement.
+    RegisterNm← { withFlg[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
+    Sort←       { ⍵[ ⍋⎕C⍣ ⍺ ⊢ OrderWeird ⍵ ] }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
     UWarnIf←    { 
-        ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽':EXTERN' ':INTERN' 
+        ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽ ':EXTERN' ':INTERN' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
 
@@ -70,7 +74,7 @@
 ⍝   ParseArgs - Parse ⍵ and return list of lines AND nameclass.
 ⍝   ParseFnHdr- Parse fn header, returning fn header names, local vars in header, comments
 ⍝   ScanTradFn- (The workhorse:) Parse user fn/op, looking for :EXTERN, :INTERN, etc.
-    FmtInt← ⊃,/⍤{
+    FmtInt← ⊃,/⍤{ fØ← ⍺
         pfx sep← '    ' '; ' 
         GrabLns← (0⌈ widthØ- ≢pfx)∘{ 
           Grab1←⍺∘{ 1≥ ≢⍵: ⍵ ⋄  ⍺> +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
@@ -78,75 +82,68 @@
         }¨
       ⍝ Organize into (lower_and_other, upper_case, system_case) based on initial letter 
       ⍝ (by default ignoring initial ∆, ⍙, _)
-        cases← (⎕A,⎕Á) '⎕' 
-        ForCases← {   
-          foldCaseØ:   ⊂⍵ ⋄ (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← cases∊¨⍨ ⊂⊃¨OrderWeird ⍵ 
+        ForCases← ((⎕A,⎕Á) '⎕')∘{   
+          fØ:   ⊂⍵ ⋄ (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← ⍺∊¨⍨ ⊂⊃¨OrderWeird ⍵ 
         } 
-        GrabLns ForCases Sort ⍵
+        GrabLns ForCases fØ∘Sort ⍵
     } 
-    UpdateExt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
-     declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
-      (keepOrigØ≥1)/ '    ⍝ :Extern ', f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10
+    UpdateExt←{ kØ (f1 f2)← ⍺ ⍵ ⋄ e← SplitNms  f1 
+        declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
+        (kØ≥1)/ '    ⍝ :Extern ', f1, f2, NL 
     }
-    UpdateInt←{ f1 f2← ⍵ ⋄ e← SplitNms  f1
-    1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
-      declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
-    ⍺: (keepOrigØ≥1)/ '    ⍝ :Intern ', f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10
-       (keepOrigØ≥2)/ '    ⍝ ; ',       f1, f2,('⋄'=⊃⌽f2)/⎕UCS 10 
+    UpdateInt←{ (kØ isI)(f1 f2)← ⍺ ⍵ ⋄ e← SplitNms  f1
+      1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
+        declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
+      isI: (kØ≥1)/ '    ⍝ :Intern ', f1, f2, NL 
+           (kØ≥2)/ '    ⍝ ; ',       f1, f2, NL
     }
-⍝          ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
-⍝    opts: │  keepOrigØ   │foldCaseØ │   weirdSpecialØ    │              widthØ              │
-⍝          │ result type  │fold case │ignore weird chars │ max width of locals declaration  │
-⍝          │              │          │  (when sorting)   │                                  │
-⍝          │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │       ≢(longest line)**          │
-⍝          └──────────────┴──────────┴───────────────────┴──────────────────────────────────┘
-⍝             *=default                                  **=default or if 0
+⍝    opts:   resultØ  foldØ  weirdØ   widthØ  
+⍝            2,1*,0,¯1  1,0*   1*,0     0*,>0
     ParseOpts←{
-      def← 1 0 1 0 ⋄ defWid← ⍺         
-      (t/opts)← def/⍨ t←⎕NULL= opts← 1↓5↑⎕NULL, ⍵                ⍝ For omitted options, use defaults def
-      opts[ wI/⍨ 0≥ opts[ wI ] ]← defWid ⊣ wI← 3                 ⍝ If width≤0, default to defWid
-      opts
+        def← 1 0 1 0 ⋄ defWid← ⍺  
+      def<⍥≢⍵: ⎕SIGNAL badOptsE       
+        (t/opts)← def/⍨ t←⎕NULL= opts← 1↓5↑⎕NULL, ⍵              ⍝ For omitted options, use defaults def
+        opts[ wI/⍨ 0≥ opts[ wI ] ]← defWid ⊣ wI← 3               ⍝ If width≤0, default to ⍺/defWid
+      0∊(¯1 0 1 2)(0 1)(0 1)∊⍨¨ 3↑opts: ⎕SIGNAL badOptsE
+        opts
     }
     ParseArgs← { 
       0=≢⍵: ⎕SIGNAL missingE ⋄ 0/⍨ ~DEBUG::   ⎕SIGNAL missingE
-        (myTxt myNm) nc← {
-          1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ ⍵ is a name
-                 (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ ⍵ is a fn/op body
-        }#.TEMP∘←⍵ 
-      ⍝ To avoid ⎕R '\n?' edge case, add explicit newline to the last input line
-        (⊃⌽myTxt),← ⎕UCS 10     
+        (myTxt myNm) nc← { ⍝ Case 1: ⍵ is a name; Case 2: ⍵ is a fn/op body
+          1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ Case 1
+                 (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ Case 2
+        }⍵ 
+        (⊃⌽myTxt),← NL    ⍝ Ensure last line ends in NL like all others.
       nc∊ 3.1 4.1: myTxt myNm ⋄ ∘∘err∘∘  
     }
-    ParseFnHdr←{ kpOrigLoc pgm← ⍺ ⍵ ⋄ splitAny← (~∊⍨)⊆⊢
+    ParseFnHdr← { kØ pgm← ⍺ ⍵ ⋄ SplitAny← (~∊⍨)⊆⊢
       ⍝ hA: Arg names, hLoc: optl Local declarations, hC: optl Comment
       ⍝     Maximal Pattern:  {r}← {a} (l Opt r) w ; l1; l2 ⍝ comment
       hA hLoc hC←  hdrP ⎕R '\1\n\2\n\3\n'⊣ ⊂⊃ pgm  
-      hNms← ' ←{}()' splitAny hA
-      hL2← (kpOrigLoc≥2)/ ('  ⍝ '/⍨0≠ ≢hLoc), hLoc               ⍝ Local vars on header line
+      hNms← ' ←{}()' SplitAny hA
+      hL2←  (kØ≥2)/ (' ⍝ '/⍨ 0≠ ≢hLoc), hLoc                    ⍝ Local vars on header line
+      hC←   ('  '/⍨ (0=≢hL2)∧ 0≠ ≢hC), hC
       hOut← ⊂hA, hL2, hC     
       hOut hNms hLoc
     }
-    RegisterNm← { withState[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
       scanPats← eosP extP intP locP nsP skipP withP dirP endP tradNmP     
                 eosI extI intI locI nsI skipI withI dirI endI tradNmI← ⍳≢scanPats
-  ⍝ ∘ Scan function sans header
-  ⍝   (We add extra line at end so every line ends in a newline)
     ScanTradFn← scanPats ⎕R {  
           Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
           F0← ⍵.Match 
-        withState[0]∧Case eosI: F0⊣ withState[]← 0 1
-        Case eosI:    F0 
-        Case extI:    UpdateExt F¨1 2                            ⍝ :EXTERN nm nm ...  [⍝ com]
-        Case intI:  1 UpdateInt F¨1 2                            ⍝ :INTERN nm nm ...  [⍝ com]
-        Case locI:  0 UpdateInt F¨1 2                            ⍝ ; nm; nm; ...      [⍝ com]
+        withFlg[0]∧Case eosI: F0⊣ withFlg[]← 0 1
+        Case eosI:    F0  ⍝ kØ isI
+        Case extI:    resultØ   UpdateExt F¨1 2                  ⍝ :EXTERN nm nm ...  [⍝ com]
+        Case intI:    resultØ 1 UpdateInt F¨1 2                  ⍝ :INTERN nm nm ...  [⍝ com]
+        Case locI:    resultØ 0 UpdateInt F¨1 2                  ⍝ ; nm; nm; ...      [⍝ com]
         Case skipI:   F0                                         ⍝ Skip comments, quotes, {...}, ns.(...)
         Case tradNmI: F0⊣ RegisterNm F0
-        Case dirI:    F0⊣ dirDepth+← withState[1] 
-        Case endI:    F0⊣ withState[1]← 0< dirDepth⊢← 0⌈ dirDepth- withState[1] 
+        Case dirI:    F0⊣ dirDepth+← withFlg[1] 
+        Case endI:    F0⊣ withFlg[1]← 0< dirDepth⊢← 0⌈ dirDepth- withFlg[1] 
         Case nsI:     F0⊣ RegisterNm F 1
-        Case withI:   F0⊣ withState[0]← ~withState[1]⊣ dirDepth+← withState[1]
+        Case withI:   F0⊣ withFlg[0]← ~withFlg[1]⊣ dirDepth+← withFlg[1]
         ∘∘∘ Unreachable ∘∘∘
-    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')  ⍝ Mode M needed for dfnP_t and eosP
+    }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')               ⍝ Mode M needed for dfnP_t and eosP
  
 ⍝ ===============================================================================
 ⍝ === Begin Executive ===========================================================
@@ -155,24 +152,24 @@
   'help'≡⍥⎕C⍵: _← Help 0
 ⍝ ∘ Parse and Validate ⍵-Args---
     myTxt myNm← ParseArgs ⍵
-⍝ ∘ Parse ⍺-Options, passing length of longest line to ParseOpts 
+⍝ ∘ Parse ⍺-Options, passing length of longest line (but not >⎕PW) to ParseOpts 
     ⍺← ⍬  
-    keepOrigØ foldCaseØ weirdSpecialØ widthØ ← (⎕PW⌊ ⌈/≢¨myTxt) ParseOpts ⍺  
+    resultØ foldØ weirdØ widthØ ← (⎕PW⌊ ⌈/≢¨myTxt) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
-    fnHdr hdrNms hLoc← keepOrigØ ParseFnHdr myTxt         
+    fnHdr hdrNms hLoc← resultØ ParseFnHdr myTxt         
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hLoc
     declaredExt←   ⍬
     nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
-    withState← 2⍴ dirDepth← 0 
+    withFlg← 2⍴ dirDepth← 0 
     fnBody← ScanTradFn 1↓ myTxt
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
-    nmReg/⍨←  ~Immutable¨ nmReg                                    ⍝ Ignore names that are by def immutable                  
+    nmReg/⍨←  ~Immutable¨ nmReg                                  ⍝ Ignore names that are by def immutable                  
     totalInt← ∪declaredInt∪ nmReg~ declaredExt∪ hdrNms~ ⊂myNm 
-  ¯1=⊃⍺: Sort¨ declaredExt totalInt                                ⍝ Return (externals internals)
-    fnHdr, (FmtInt totalInt), fnBody
+  ¯1=resultØ: foldØ∘Sort¨ declaredExt totalInt                        ⍝ Return (externals internals)
+    fnHdr, (foldØ FmtInt totalInt), fnBody
 
 ⍝ ===============================================================================
 ⍝ === END PROGRAM ===============================================================
@@ -251,7 +248,7 @@
 ⍝H         ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
 ⍝H   opts: │ result type  │fold case │ignore weird chars │ max width of locals declaration  │
 ⍝H         │              │          │  (when sorting)   │                                  │
-⍝H         │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │       ≢(longest line⌊⎕PW)**      │
+⍝H         │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │    ((≢longest_line) ⌊ ⎕PW) **    │
 ⍝H         └──────────────┴──────────┴───────────────────┴──────────────────────────────────┘
 ⍝H            *=default                                         **=default or if 0
 ⍝H ----------------------------------------------------------------------------

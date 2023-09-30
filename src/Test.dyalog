@@ -1,4 +1,4 @@
-﻿ arrV←{base}Test arrV;top0;top1
+﻿ arrV←{base}Test arrV;top0;top1        ⍝ Comment
  ;was;wasee
 
  A B C D E F G H I J L K L M N O P Q R S T U V W X Y Z
