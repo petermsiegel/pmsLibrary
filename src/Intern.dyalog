@@ -13,7 +13,7 @@
 ⍝    Displays HELP info
 ⍝ HELP: See ⍝H (HELP) info below.
 
-    DEBUG ⎕IO ⎕ML←0 0 1 
+    DEBUG ⎕IO ⎕ML←1 0 1 
   0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Intern: ',EM)('Message' 'Logic Error!'))
 
 ⍝ Define Constants
@@ -59,9 +59,9 @@
     Immutable←  (∊∘mutable){ ~'⎕#:'∊⍨ f← ⊃⍵: 0 ⋄  f∊ '⎕': ~⍺⍺ 1∘⎕C⊂⍵ ⋄ 1 }
   ⍝ Register mutable names unless within the scope of a :WITH statement.
     RegisterNm← { withFlg[1]: ⍬ ⋄ f← FirstNm ⍵ ⋄ Immutable f: ⍬ ⋄ ⍬ ⊣ nmReg,∘⊂← f }
-    Sort←       { ⍵[ ⍋⎕C⍣ ⍺ ⊢ OrderWeird ⍵ ] }                           
+    Sort←       { ×⍺: ⍵[ ⍋⎕C⍣ (⍺=1) ⊢ OrderWeird ⍵ ] ⋄ ⍵ }                           
     SplitNms←   { '⎕'∊⍨ ⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }¨ ' ;'∘((~∊⍨)⊆⊢)
-    UWarnIf←    { 
+    DeclareCheck←    { 
         ~1∊ ⍵: ⍺ ⋄ l r← ⍺⍺⌽ ':EXTERN' ':INTERN' 
         ⍺⊣ ⎕←'Warning: "',l,(∊' ',¨⍵/ ⍺),'" conflicts with prior ',r,' declaration'
     }
@@ -74,7 +74,7 @@
 ⍝   ParseArgs - Parse ⍵ and return list of lines AND nameclass.
 ⍝   ParseFnHdr- Parse fn header, returning fn header names, local vars in header, comments
 ⍝   ScanTradFn- (The workhorse:) Parse user fn/op, looking for :EXTERN, :INTERN, etc.
-    FmtInt← ⊃,/⍤{ fØ← ⍺
+    FmtInt← ⊃,/⍤{ sØ← ⍺  ⍝ ⍺: sortØ
         pfx sep← '    ' '; ' 
         GrabLns← (0⌈ widthØ- ≢pfx)∘{ 
           Grab1←⍺∘{ 1≥ ≢⍵: ⍵ ⋄  ⍺> +/≢¨⍵: ⍵ ⋄ ⍺ ∇ ¯1↓⍵ } 
@@ -83,45 +83,48 @@
       ⍝ Organize into (lower_and_other, upper_case, system_case) based on initial letter 
       ⍝ (by default ignoring initial ∆, ⍙, _)
         ForCases← ((⎕A,⎕Á) '⎕')∘{   
-          fØ:   ⊂⍵ ⋄ (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← ⍺∊¨⍨ ⊂⊃¨OrderWeird ⍵ 
+          sØ≠2:   ⊂⍵ ⋄ (⊂⍵)/⍨¨ (u⍱s),⍥⊆ u s← ⍺∊¨⍨ ⊂⊃¨OrderWeird ⍵ 
         } 
-        GrabLns ForCases fØ∘Sort ⍵
+        GrabLns ForCases sØ∘Sort ⍵
     } 
-    UpdateExt←{ kØ (f1 f2)← ⍺ ⍵ ⋄ e← SplitNms  f1 
-        declaredInt~← declaredExt,← e (0 UWarnIf) e∊ declaredInt
-        (kØ≥1)/ '    ⍝ :Extern ', f1, f2, NL 
+    UpdateExt←{ 
+        rØ (f1 f2)← ⍺ ⍵ ⋄ nms← SplitNms  f1                         ⍝ rØ: resultØ
+        declaredInt~← declaredExt,← nms (0 DeclareCheck) nms∊ declaredInt
+        (rØ≥1)/ '    ⍝ :Extern ', f1, f2, NL 
     }
-    UpdateInt←{ (kØ isI)(f1 f2)← ⍺ ⍵ ⋄ e← SplitNms  f1
-      1∊ b← Immutable¨ e: 11 ⎕SIGNAL⍨'These reserved names cannot be localized:',∊' ',¨e/⍨ b
-        declaredExt~← declaredInt,← e (1 UWarnIf) e∊ declaredExt
-      isI: (kØ≥1)/ '    ⍝ :Intern ', f1, f2, NL 
-           (kØ≥2)/ '    ⍝ ; ',       f1, f2, NL
+    UpdateInt←'Reserved or invalid names cannot be localized:'{ 
+        (rØ isI)(f1 f2)← ⍺ ⍵ ⋄ nms← SplitNms  f1                    ⍝ rØ: resultØ
+      1∊ b← Immutable¨ nms: 11 ⎕SIGNAL⍨ ⍺⍺, ∊' ',¨nm/⍨ b
+        declaredExt~← declaredInt,← nms (1 DeclareCheck) nms∊ declaredExt
+      isI: (rØ≥1)/ '    ⍝ :Intern ', f1, f2, NL 
+           (rØ≥2)/ '    ⍝ ; ',       f1, f2, NL
     }
-⍝    opts:   resultØ  foldØ  weirdØ   widthØ  
-⍝            2,1*,0,¯1  1,0*   1*,0     0*,>0
+⍝    opts:   resultØ    sortØ   weirdØ   widthØ  
+⍝            2,1*,0,¯1  2*,1,0  1*,0     0*,>0
     ParseOpts←{
-        def← 1 0 1 0 ⋄ defWid← ⍺  
+        def← 1 2 1 0 ⋄ defWid← ⍺  
+        valid3← (¯1 0 1 2)(0 1 2)(0 1)
       def<⍥≢⍵: ⎕SIGNAL badOptsE       
         (t/opts)← def/⍨ t←⎕NULL= opts← 1↓5↑⎕NULL, ⍵              ⍝ For omitted options, use defaults def
         opts[ wI/⍨ 0≥ opts[ wI ] ]← defWid ⊣ wI← 3               ⍝ If width≤0, default to ⍺/defWid
-      0∊(¯1 0 1 2)(0 1)(0 1)∊⍨¨ 3↑opts: ⎕SIGNAL badOptsE
+      0∊ valid3∊⍨¨ 3↑opts: ⎕SIGNAL badOptsE
         opts
     }
     ParseArgs← { 
       0=≢⍵: ⎕SIGNAL missingE ⋄ 0/⍨ ~DEBUG::   ⎕SIGNAL missingE
-        (myTxt myNm) nc← { ⍝ Case 1: ⍵ is a name; Case 2: ⍵ is a fn/op body
+        (myLns myNm) nc← { ⍝ Case 1: ⍵ is a name; Case 2: ⍵ is a fn/op body
           1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ Case 1
                  (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ Case 2
         }⍵ 
-        (⊃⌽myTxt),← NL    ⍝ Ensure last line ends in NL like all others.
-      nc∊ 3.1 4.1: myTxt myNm ⋄ ∘∘err∘∘  
+        (⊃⌽myLns),← NL    ⍝ Ensure last line ends in NL like all others.
+      nc∊ 3.1 4.1: myLns myNm ⋄ ∘∘err∘∘  
     }
-    ParseFnHdr← { kØ pgm← ⍺ ⍵ ⋄ SplitAny← (~∊⍨)⊆⊢
+    ParseFnHdr← { rØ pgm← ⍺ ⍵ ⋄ SplitAny← (~∊⍨)⊆⊢
       ⍝ hA: Arg names, hLoc: optl Local declarations, hC: optl Comment
       ⍝     Maximal Pattern:  {r}← {a} (l Opt r) w ; l1; l2 ⍝ comment
       hA hLoc hC←  hdrP ⎕R '\1\n\2\n\3\n'⊣ ⊂⊃ pgm  
       hNms← ' ←{}()' SplitAny hA
-      hL2←  (kØ≥2)/ (' ⍝ '/⍨ 0≠ ≢hLoc), hLoc                    ⍝ Local vars on header line
+      hL2←  (rØ≥2)/ (' ⍝ '/⍨ 0≠ ≢hLoc), hLoc                    ⍝ Local vars on header line
       hC←   ('  '/⍨ (0=≢hL2)∧ 0≠ ≢hC), hC
       hOut← ⊂hA, hL2, hC     
       hOut hNms hLoc
@@ -132,7 +135,7 @@
           Case← ⍵.PatternNum∘∊ ⋄ F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block}
           F0← ⍵.Match 
         withFlg[0]∧Case eosI: F0⊣ withFlg[]← 0 1
-        Case eosI:    F0  ⍝ kØ isI
+        Case eosI:    F0  ⍝ rØ isI
         Case extI:    resultØ   UpdateExt F¨1 2                  ⍝ :EXTERN nm nm ...  [⍝ com]
         Case intI:    resultØ 1 UpdateInt F¨1 2                  ⍝ :INTERN nm nm ...  [⍝ com]
         Case locI:    resultØ 0 UpdateInt F¨1 2                  ⍝ ; nm; nm; ...      [⍝ com]
@@ -140,7 +143,7 @@
         Case tradNmI: F0⊣ RegisterNm F0
         Case dirI:    F0⊣ dirDepth+← withFlg[1] 
         Case endI:    F0⊣ withFlg[1]← 0< dirDepth⊢← 0⌈ dirDepth- withFlg[1] 
-        Case nsI:     F0⊣ RegisterNm F 1
+        Case nsI:     F0⊣ RegisterNm F 1 
         Case withI:   F0⊣ withFlg[0]← ~withFlg[1]⊣ dirDepth+← withFlg[1]
         ∘∘∘ Unreachable ∘∘∘
     }⍠ ('UCP' 1)('Mode' 'M')('NEOL' 1)('EOL' 'LF')               ⍝ Mode M needed for dfnP_t and eosP
@@ -151,25 +154,25 @@
 ⍝ ∘ Help? (Intern⍨'help')
   'help'≡⍥⎕C⍵: _← Help 0
 ⍝ ∘ Parse and Validate ⍵-Args---
-    myTxt myNm← ParseArgs ⍵
+    myLns myNm← ParseArgs ⍵
 ⍝ ∘ Parse ⍺-Options, passing length of longest line (but not >⎕PW) to ParseOpts 
     ⍺← ⍬  
-    resultØ foldØ weirdØ widthØ ← (⎕PW⌊ ⌈/≢¨myTxt) ParseOpts ⍺  
+    resultØ sortØ weirdØ widthØ ← (⎕PW⌊ ⌈/≢¨myLns) ParseOpts ⍺  
 ⍝ ∘ Parse Fn/Op Header---
-    fnHdr hdrNms hLoc← resultØ ParseFnHdr myTxt         
+    fnHdr hdrNms hLoc← resultØ ParseFnHdr myLns         
 ⍝ ∘ Init Database of declared internal, external names, and names found in body of fn/op 
     declaredInt←   SplitNms 1↓ hLoc
     declaredExt←   ⍬
     nmReg←      ⍬
 ⍝ ∘ Init :With-related State Vars
     withFlg← 2⍴ dirDepth← 0 
-    fnBody← ScanTradFn 1↓ myTxt
+    fnBody← ScanTradFn 1↓ myLns
 ⍝ ∘ Prepare and return result
     declaredExt← ∪ declaredExt 
-    nmReg/⍨←  ~Immutable¨ nmReg                                  ⍝ Ignore names that are by def immutable                  
+
     totalInt← ∪declaredInt∪ nmReg~ declaredExt∪ hdrNms~ ⊂myNm 
-  ¯1=resultØ: foldØ∘Sort¨ declaredExt totalInt                        ⍝ Return (externals internals)
-    fnHdr, (foldØ FmtInt totalInt), fnBody
+  ¯1=resultØ: sortØ∘Sort¨ declaredExt totalInt                        ⍝ Return (externals internals)
+    fnHdr, (sortØ FmtInt totalInt), fnBody
 
 ⍝ ===============================================================================
 ⍝ === END PROGRAM ===============================================================
@@ -188,14 +191,16 @@
 ⍝H   a program line.
 ⍝H   :∘ :Extern statements declare variables that are not internal (not local):
 ⍝H      :EXTERN myExtern1 MyExternFn ⎕PW   OR    ⍝ :EXTERN myExtern1 MyExternFn ⎕PW
+⍝H      ∘∘ Variables in an :EXTERN stmt may be separated by one or more spaces and/or semicolons.
 ⍝H   ∘ Normally, all other variables within the scope of the tradfn will be  
 ⍝H     considered local so THEY NEED NOT BE DECLARED, but you may explicitly 
 ⍝H     declare variables as local via the :INTERN statement:
-⍝H      :INTERN internal1; ⎕IO            OR     ⍝ :INTERN internal1; ⎕IO
+⍝H      :INTERN internal1 ⎕IO            OR     ⍝ :INTERN internal1 ⎕IO
+⍝H      ∘∘ Variables in an :EXTERN stmt may be separated by one or more spaces and/or semicolons.
 ⍝H   ∘ As a nod to legacy, we allow internal statements in an APL local variable
 ⍝H     style (beginning a line ANYWHERE in the code outside a comment):
 ⍝H      ; internal1; ⎕IO       
-⍝H   ∘ An :INTERN (or ;...) declaration would be required for internal items used within
+⍝H   ∘ An :INTERN (or ;...) declaration isrequired for internal items used within
 ⍝H     quotes-- see myNs below-- or used within dfn bodies, if they are treated as globals
 ⍝H     (externals), as for "count" here.
 ⍝H      :INTERN myNs              :INTERN count
@@ -245,11 +250,11 @@
 ⍝H   nm | codeStr:
 ⍝H      nm: (char vector) simple or complex (qualified) name of tradfn/op (traditional only).
 ⍝H      codeStr: (vector of char vectors) lines of proper tradfn/op (ditto).
-⍝H         ┌──────────────┬──────────┬───────────────────┬──────────────────────────────────┐
-⍝H   opts: │ result type  │fold case │ignore weird chars │ max width of locals declaration  │
-⍝H         │              │          │  (when sorting)   │                                  │
-⍝H         │ 2, 1*, 0, ¯1 │  1, 0*   │      1*, 0        │    ((≢longest_line) ⌊ ⎕PW) **    │
-⍝H         └──────────────┴──────────┴───────────────────┴──────────────────────────────────┘
+⍝H         ┌──────────────┬──────────┬────────────────────┬──────────────────────────────────┐
+⍝H   opts: │ result type  │   sort   │ demote weird chars │ max width of locals declaration  │
+⍝H         │              │          │   (when sorting)   │                                  │
+⍝H         │ 2, 1*, 0, ¯1 │ 2*, 1, 0 │       1*, 0        │    ((≢longest_line) ⌊ ⎕PW) **    │
+⍝H         └──────────────┴──────────┴────────────────────┴──────────────────────────────────┘
 ⍝H            *=default                                         **=default or if 0
 ⍝H ----------------------------------------------------------------------------
 ⍝H 
@@ -261,52 +266,56 @@
 ⍝H 
 ⍝H   Options for ⍺
 ⍝H   ¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝H            ┌───────────┬─────────┬───────────────────┬─────────────────────────────────┐
-⍝H      opts: │result type│fold case│ignore weird chars │ max width of locals declaration │
-⍝H            └───────────┴─────────┴───────────────────┴─────────────────────────────────┘
+⍝H            ┌───────────┬──────────┬───────────────────┬─────────────────────────────────┐
+⍝H      opts: │result type│   sort   │demote weird chars │ max width of locals declaration │
+⍝H            └───────────┴──────────┴───────────────────┴─────────────────────────────────┘
 ⍝H      opts[0]: What result is desired?
-⍝H           2, 1, 0: Return the tradfn or tradop code...
-⍝H             2: Show as comments
+⍝H            2, 1, 0: Return the tradfn or tradop code...
+⍝H            2: Show as comments
 ⍝H                 ∘ both the original :EXTERN and :INTERN directives; and
 ⍝H                 ∘ the original traditional (legacy) local declarations (;nm1;nm2...)/ 
-⍝H      >>>    1: (DEFAULT) Show as comments: 
+⍝H      >>>   1: (DEFAULT) Show as comments: 
 ⍝H                 ∘ both the original :EXTERN and :INTERN directives; however, 
 ⍝H                Remove (don't show): 
 ⍝H                 ∘ the original traditional (legacy) local declarations.
-⍝H             0: Remove (don't show): 
+⍝H            0: Remove (don't show): 
 ⍝H                ∘ both the original :EXTERN and :INTERN directives; however, 
 ⍝H                ∘ the original traditional (legacy) local declarations.
-⍝H          ¯1: Simply list all the externals and internals as two character vectors of vectors, e.g.
+⍝H           ¯1: Simply list all the externals and internals as two character vectors of vectors, e.g.
 ⍝H              ┌─────────────┬───────────────────────────────────────────────────────────┐
 ⍝H              │┌───────┬───┐│┌─┬─┬─┬──────┬────┬────┬────┬──────┬──────┬─────┬───┬─────┐│
 ⍝H              ││Outside│⎕ML│││A│B│I│Inside│Tidy│Trad│glop│local3│local4│three│⎕IO│⎕TRAP││
 ⍝H              │└───────┴───┘│└─┴─┴─┴──────┴────┴────┴────┴──────┴──────┴─────┴───┴─────┘│
 ⍝H              └─────────────┴───────────────────────────────────────────────────────────┘
 ⍝H              Externals and internals are each sorted in unicode (⍋⍵) order.
-⍝H      opts[1]: fold upper and lower case in output (legacy) locals declarations...
-⍝H      >>>   ∘ If 0 (default), sort and display variables in order:
-⍝H                 Lower case locals (internals), e.g. dog, ⍙dog, etc.
-⍝H                 Upper Case locals (internals), e.g. Cat, ∆Cat, etc.
-⍝H                 System Var locals (internals), i.e. starting with ⎕ (⎕IO, etc.)
+⍝H      opts[1]: sort 
+⍝H      >>>   2: (default) sort and display variables in this order:
+⍝H                 All lower-case locals (internals), e.g. dog, ⍙dog, etc.
+⍝H                 All upper-case locals (internals), e.g. Cat, ∆Cat, etc.
+⍝H                 All system var locals (internals), i.e. starting with ⎕ (⎕IO, etc.)
 ⍝H              e.g.
 ⍝H                 ; aI; aTEST; base; cntV; f; ix; lt0         ⍝ lc
 ⍝H                 ; mapV; outV; place; _test                  ⍝ opt[3]=1: _test sorted as 'test'
 ⍝H                 ; ∆ALPHA; _ALPHA; ⍙ALPHA; ALPHA             ⍝ uc        ∆ALPHA sorted as 'ALPHA'
 ⍝H                 ; ATEST; ⍙B; _C; ∆D; MONKEY; _TEST
 ⍝H                 ; ⎕IO; ⎕ML                                  ⍝ sys names
-⍝H            ∘ If 1, sort everything in as single list (with case ignored):
+⍝H            1: sort everything in as single list (with case ignored):
 ⍝H              e.g.
 ⍝H                 ; aI; ∆ALPHA; _ALPHA; ⍙ALPHA; ALPHA         ⍝ a's and A's together
 ⍝H                 ; aTEST; ATEST; ⍙B; base; _C; cntV
 ⍝H                 ; ∆D; f; ix; lt0; mapV; MONKEY
 ⍝H                 ; outV; place; _TEST; _test; ⎕IO            ⍝ sys names (⎕...) at end
 ⍝H                 ; ⎕ML
-⍝H      opts[2]: Ignore "weird" chars "∆⍙_" in output (legacy) local "declarations"... 
-⍝H      >>>   ∘ If 1 (default), sorts/classifies names containing with ∆, ⍙ or _ 
-⍝H              as if these special characters were ignored (actually, as in a 2ndary sort field). 
+⍝H            0: don't sort. List everything in the order first seen
+⍝H              (whether declared or used in code)
+⍝H      opts[2]: Demote "weird" chars "∆⍙_" in output (legacy) local "declarations"
+⍝H               for the purposes of sorting and classification: 
+⍝H      >>>   ∘ If 1 (default), treats ∆, ⍙ or _ in object names as if
+⍝H              within a 2ndary sort field: 
 ⍝H              * For an example, see opts[1] above. 
 ⍝H                 ∘ '∆Cats_dogs' is actually sorted as if 'Catsdogs ∆Cats_dogs'
 ⍝H                 ∘ 'Cats∆_dogs' is actually sorted as if 'Catsdogs Cats∆_dogs'
+⍝H              See opts[1] (Sort) above for examples.
 ⍝H            ∘ If 0, we sort/classify ∆, ⍙, and _ as lower-case letters and
 ⍝H              sort them in their natural order.
 ⍝H              e.g.
