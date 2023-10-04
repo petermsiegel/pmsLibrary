@@ -5,7 +5,7 @@
   ⍺←1 0 '`'
   0=≢⍺: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  90 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 ⍝ ---------------------------
 ⍝ STAGE II: Execute/Display code from Stage I
   (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ contains executable atom '⍵⍵'
@@ -140,15 +140,30 @@
       (Par r, '⍵' ) w 
     }
   ⍝ SFQ: Space Fields
-        spMax← 5                                               ⍝ If >spMax spaces, generate at run-time 
-        sCod← sq,sq,'⍴⍨'
+  ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
+  ⍝   F1:    ddd |  ddd | '' | ddd | '    '                                           ⍝ If >spMax spaces, generate at run-time 
         Skip2EOS← { w M rb ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
         SCommon← { ⍝ ⍺: length of space field (≥0)
             ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
             ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ box∧1=⍺), sq,sq,⍨ ⍺⍴ sp
                       1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
         }
-    SFQ← {                                                     ⍝ SFQ: Query/process SF
+    SFQ← 1∘{ ⍺: SFQ_RE ⍵ ⋄ SFQ_Orig ⍵ }
+    c cOpt← '\h*:\h*'  '\h*(?::\h*)?'
+    sfP← '(?x) ^ \{ (?| ()(\h*) |',c,'`? ([⍵⍹]) (\d*)',cOpt,'|',c,'()(\d*)',cOpt,') \}'
+    SFQ_RE← { sCod← sq,sq,'⍴⍨' ⋄  spMax← 5    
+      ⍝                                     1      2        1 2        1 2
+      0= ≢m←  sfP ⎕S ' \0⍠ \1⍠ \2⍠'⊣ ⊂⍵: 0 '' ⍵  
+      F0 F1 F2← 1↓¨'⍠'(≠⊆⊢)⊃m ⋄ rest← ⍵↓⍨≢F0
+      isOm← '⍵⍹'∊⍨ ⊃F1 ⋄ isDig← ' '≠ ⊃F2
+      isOm∧ ~isDig: 1 ('(',')',⍨sCod,'⍵⊃⍨⎕IO+',⍕omIx) rest  ⊣ omIx+← 1
+      isOm:         1 ('(⍵⊃⍨',')',⍨F2)                rest
+      isDig:        1 ('(',')',⍨sCod,F2)              rest
+      0=≢ F2:       1 ''                              rest
+      spMax≥≢F2:    1 ('''',F2,'''')                  rest
+                    1 ('(',')',⍨sCod,⍕≢F2)            rest 
+    }
+    SFQ_Orig← { sCod← sq,sq,'⍴⍨' ⋄ spMax← 5                    ⍝ SFQ: Query/process SF
         tryCF ← 0 '' ⍵
         w← ⍵↓⍨ 1+ p← sp Len 1↓⍵                                ⍝ Grab leading blanks
       w  M rb:         p SCommon w                             ⍝ Fast path: {}
