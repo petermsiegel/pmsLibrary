@@ -149,20 +149,27 @@
                       1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
         }
     SFQ← 1∘{ ⍺: SFQ_RE ⍵ ⋄ SFQ_Orig ⍵ }
-    c cOpt← '\h*:\h*'  '\h*(?::\h*)?'
-    sfP← '(?x) ^ \{ (?| ()(\h*) |',c,'`? ([⍵⍹]) (\d*)',cOpt,'|',c,'()(\d*)',cOpt,') \}'
-    SFQ_RE← { sCod← sq,sq,'⍴⍨' ⋄  spMax← 5    
-      ⍝                                     1      2        1 2        1 2
-      0= ≢m←  sfP ⎕S ' \0⍠ \1⍠ \2⍠'⊣ ⊂⍵: 0 '' ⍵  
-      F0 F1 F2← 1↓¨'⍠'(≠⊆⊢)⊃m ⋄ rest← ⍵↓⍨≢F0
-      isOm← '⍵⍹'∊⍨ ⊃F1 ⋄ isDig← ' '≠ ⊃F2
-      isOm∧ ~isDig: 1 ('(',')',⍨sCod,'⍵⊃⍨⎕IO+',⍕omIx) rest  ⊣ omIx+← 1
-      isOm:         1 ('(⍵⊃⍨',')',⍨F2)                rest
-      isDig:        1 ('(',')',⍨sCod,F2)              rest
-      0=≢ F2:       1 ''                              rest
-      spMax≥≢F2:    1 ('''',F2,'''')                  rest
-                    1 ('(',')',⍨sCod,⍕≢F2)            rest 
+    sfP← '^\{(\h*)\}' '^\{\h*:\h*(\d*)(?:\h*:)?\h*\}' '^\{\h*:\h*`?[⍵⍹](\d*)(?:\h*:)?\h*\}'
+    SFQ_RE← { 
+        sCod← sq,sq,'⍴⍨' ⋄  spMax← 5  ⋄ match←'' ⋄ skipFlag←1
+        rest← sfP ⎕R { C← ⍵.PatternNum∘= ⋄ f1← ⍵.(Lengths[1]↑Offsets[1]↓Block)
+            skipFlag∘← 0
+            C 0: ''⊣  match∘← (0=≢f1){  
+              ⍺: '' ⋄  ⍵: '''',f1,'''' ⋄ '(',')',⍨sCod,⍕≢f1
+            } spMax≥≢f1 
+            C 1: ''⊣  match∘← (0=≢i1){ 
+              ⍺: '' ⋄ ⍵: '''',(i1⍴ ' '),'''' ⋄ '(',')',⍨sCod,f1
+            } spMax≥ i1← ⊃⌽⎕VFI f1
+            C 2: ''⊣  match∘← { 
+              ⍵: '(', ')',⍨ sCod, '⍵⊃⍨⎕IO+', ⍕omIx⊣ omIx+← 1 
+                 '(⍵⊃⍨' ,')',⍨ f1⊣ ⍕omIx∘← ⊃⌽⎕VFI f1
+            }0=≢f1 
+            ∘∘∘⎕←'unreachable'
+        }⍵
+      skipFlag: 0 '' ⍵
+        1 match rest 
     }
+    
     SFQ_Orig← { sCod← sq,sq,'⍴⍨' ⋄ spMax← 5                    ⍝ SFQ: Query/process SF
         tryCF ← 0 '' ⍵
         w← ⍵↓⍨ 1+ p← sp Len 1↓⍵                                ⍝ Grab leading blanks
