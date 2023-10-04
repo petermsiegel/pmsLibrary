@@ -141,36 +141,38 @@
     }
   ⍝ SFQ: Space Fields
   ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
-  ⍝   F1:    ddd |  ddd | '' | ddd | '    '                                           ⍝ If >spMax spaces, generate at run-time 
-        Skip2EOS← { w M rb ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
-        SCommon← { ⍝ ⍺: length of space field (≥0)
-            ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
-            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ box∧1=⍺), sq,sq,⍨ ⍺⍴ sp
-                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
-        }
-    SFQ← 1∘{ ⍺: SFQ_RE ⍵ ⋄ SFQ_Orig ⍵ }
-    sfP← '^\{(\h*)\}' '^\{\h*:\h*(\d*)(?:\h*:)?\h*\}' '^\{\h*:\h*`?[⍵⍹](\d*)(?:\h*:)?\h*\}'
-    SFQ_RE← { 
-        sCod← sq,sq,'⍴⍨' ⋄  spMax← 5  ⋄ match←'' ⋄ skipFlag←1
+  ⍝   F1:    ddd |  ddd | '' | ddd | '    '      
+    SFQ← 0∘{ ⍺: SFQ_RE ⍵ ⋄ SFQ_APL ⍵ }
+    sCod← sq,sq,'⍴⍨' ⋄ spMax← 5 ⍝ If >spMax spaces, generate at run-time             
+  ⍝ SFQ Option 1: SFQ_RE
+    ⋄ sfP← '^\{(\h*)\}' '^\{\h*:\h*(\d*)(?:\h*:)?\h*\}' '^\{\h*:\h*`?[⍵⍹](\d*)(?:\h*:)?\h*\}'
+    SFQ_RE← {   ⍝ If >spMax spaces, generate at run-time 
+        match←'' ⋄ skipFlag←1
         rest← sfP ⎕R { C← ⍵.PatternNum∘= ⋄ f1← ⍵.(Lengths[1]↑Offsets[1]↓Block)
             skipFlag∘← 0
             C 0: ''⊣  match∘← (0=≢f1){  
               ⍺: '' ⋄  ⍵: '''',f1,'''' ⋄ '(',')',⍨sCod,⍕≢f1
             } spMax≥≢f1 
             C 1: ''⊣  match∘← (0=≢i1){ 
-              ⍺: '' ⋄ ⍵: '''',(i1⍴ ' '),'''' ⋄ '(',')',⍨sCod,f1
+              ⍺: '' ⋄ ⍵: '''',(i1⍴ ' '),'''' ⋄ '(',')',⍨ sCod,f1
             } spMax≥ i1← ⊃⌽⎕VFI f1
             C 2: ''⊣  match∘← { 
               ⍵: '(', ')',⍨ sCod, '⍵⊃⍨⎕IO+', ⍕omIx⊣ omIx+← 1 
-                 '(⍵⊃⍨' ,')',⍨ f1⊣ ⍕omIx∘← ⊃⌽⎕VFI f1
+                 '(', ')',⍨ sCod, '⍵⊃⍨⎕IO+', f1⊣ ⍕omIx∘← ⊃⌽⎕VFI f1
             }0=≢f1 
             ∘∘∘⎕←'unreachable'
         }⍵
       skipFlag: 0 '' ⍵
         1 match rest 
     }
-    
-    SFQ_Orig← { sCod← sq,sq,'⍴⍨' ⋄ spMax← 5                    ⍝ SFQ: Query/process SF
+  ⍝ SFQ Option 2: SFQ_APL
+    ⋄ Skip2EOS← { w M rb ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
+    ⋄ SCommon← { ⍝ ⍺: length of space field (≥0)
+            ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
+            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ box∧1=⍺), sq,sq,⍨ ⍺⍴ sp
+                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
+      }
+    SFQ_APL← {          
         tryCF ← 0 '' ⍵
         w← ⍵↓⍨ 1+ p← sp Len 1↓⍵                                ⍝ Grab leading blanks
       w  M rb:         p SCommon w                             ⍝ Fast path: {}
