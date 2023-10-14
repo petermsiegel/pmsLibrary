@@ -119,7 +119,7 @@
     }
   ⍝ CF: Code Fields
     CF← {                                                      ⍝ CF: Code Fields
-      selfDoc←''
+      selfDoc←''  
       0=≢⍵: '' ⍵ 
       FastBrk← lb rb sq dq fmt ovr omU cm esc ra ∘Brk          ⍝ Proc as much of ⍵ not ∊fast          
       brcLvl← 1                                                ⍝ Brace {} depth
@@ -204,8 +204,8 @@
 ⍝ ---------------------------
 ⍝ Primary Executive Fns:  Analyse, Assemble 
     Analyse← {                                                 ⍝ Convert <fStr> to executable fields
-      ×≢ff←⍬{                                                   
-        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (1=≢⍺)⊢ ⍺                            ⍝ Done: →RETURN field (enclosed str.)
+      ×≢ff←⍬{  
+        0=≢⍵: '⍬'{⊂⍺,⍨⊃⍵}⍣ (1=≢⍺)⊢ ⍺                           ⍝ Done: →RETURN field (enclosed str.)
               isTF← ⍵ NM lb                                    ⍝ TF?
         isTF: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵                 ⍝ Is TF. Proc TF and next
               isSF sf w←SFQ ⍵                                  ⍝ SF? Else CF.
@@ -344,6 +344,8 @@
 ⍝H ⍎               ∆F '1. {⍪⍳2→}, 2. {⍪⍳2 → }.'
 ⍝H ⎕           1. ⍪⍳2→0, 2. ⍪⍳2 → 0. 
 ⍝H ⎕                  1           1 
+⍝H         Bugs/Features: Self-doc code expressions show the code as it will be executed, so
+⍝H           double-quotes, shortcuts (see below) will already be resolved.
 ⍝H     d. Shortcuts (aliases): 
 ⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
 ⍝H ⍎               ∆F '{ "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
