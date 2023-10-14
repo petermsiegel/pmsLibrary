@@ -5,7 +5,7 @@
   ⍺←1 0 '`'
   0=≢⍺: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  90 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 ⍝ ---------------------------
 ⍝ STAGE II: Execute/Display code from Stage I
   (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ contains executable atom '⍵⍵'
@@ -25,12 +25,13 @@
     fStrÊ← ('Message' 'Invalid right arg (f-string)')('EN' 11) 
     logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99)    
   ⍝ ...Cod:  We'll select ...[0] when mod<0, [1] otherwise.
-    chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'       '⍙ⒸⒽⓃ¨'               ⍝ ⍙ⒸⒽⓃ¨ aligns & catenates arrays 
+    chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨' '⍙ⒸⒽⓃ'                      ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
     boxCod←  '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
   ⍝ ovrCod: See ovr and irt (include runtime code) logic       ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
   ⍝ ␠  '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                     ⍝ ⍹: omega underbar                              
-    sp sq dq eos cm cln lb rb fmt ovr om omU← ' ''"⋄⍝:{}$%⍵⍹'  ⍝ Constants, unlike ¨esc¨    
+    sp sq dq eos cm cln lb rb fmt ovr om omU ra← ' ''"⋄⍝:{}$%⍵⍹→'  ⍝ Constants, unlike ¨esc¨    
+    lp rp← '()'
     clnsp← cln sp 
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
     inQt inTF inCF← 0 1 2                                      ⍝ See MEsc. 
@@ -92,8 +93,9 @@
     Brk← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
   ⍝ Miscellaneous
     Par← '(',,∘')'
-    Trunc← { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }                ⍝ For DEBUG modes.
-    Len←  { +/∧\ ⍵∊ ⍺ }
+    Trunc←  { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }               ⍝ For DEBUG modes.
+    Span←   { +/∧\ ⍵∊ ⍺ }
+    SpanSp← ' '∘Span
     T2Q← { sq, sq,⍨ ⍵/⍨ 1+sq= ⍵ }                              ⍝ Text to Executable Quote String 
     QS2Cod←{                                                   ⍝ Outputs ⎕ML-independent code
         r← ⎕FMT r/⍨ 1+sq= r←⍵      ⍝ Handle internal SQs       ⍝   Use ⎕FMT to handle newlines
@@ -117,12 +119,22 @@
     }
   ⍝ CF: Code Fields
     CF← {                                                      ⍝ CF: Code Fields
+      selfDoc←''
       0=≢⍵: '' ⍵ 
-      FastBrk← lb rb sq dq fmt ovr omU cm esc ∘Brk           ⍝ Proc as much of ⍵ not ∊fast          
+      FastBrk← lb rb sq dq fmt ovr omU cm esc ra ∘Brk          ⍝ Proc as much of ⍵ not ∊fast          
       brcLvl← 1                                                ⍝ Brace {} depth
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
           t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
+        ⍝ Experimental: Handle xxx → (like Python xxx=)
+        ⍝     xxx →   becomes    'xxx →',⊂ ({xxx}⍵)
+        ⍝     ⍳10→    becomes    '⍳10→',⊂ ({⍳10}⍵)
+        ⍝ Respects spaces before and after →.
+          ⍵ M ra: ⍺ ∇{   
+            rb≠1↑ suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵: Ê fStrÊ
+            selfDoc⊢← T2Q (1↓⍺), ra, p⍴ sp  
+           1: ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
+          }⍵
           ⍵ M lb: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
           ⍵ M rb: ⍺ ∇{ brcLvl-← 1  
             brcLvl≤0: (⍺, ⊃⍵) (1↓⍵)                            ⍝ Terminate! 
@@ -137,7 +149,8 @@
           ⍵ M cm:       ⍺                ∇ SkipCm ⍵
               Ê logÊ              
       } SkipSp 1↓⍵
-      (Par r, '⍵' ) w 
+      0=≢selfDoc: (Par r, '⍵' ) w 
+      ((Par r, '⍵'), (Par selfDoc)) w    
     }
   ⍝ SFQ: Space Fields
   ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
@@ -174,7 +187,7 @@
       }
     SFQ_APL← {          
         tryCF ← 0 '' ⍵
-        w← ⍵↓⍨ 1+ p← sp Len 1↓⍵                                ⍝ Grab leading blanks
+        w← ⍵↓⍨ 1+ p←   SpanSp 1↓⍵                                ⍝ Grab leading blanks
       w  M rb:         p SCommon w                             ⍝ Fast path: {}
       w NM cln:        tryCF                                   ⍝ Not { } or { :...[:] }? See if CF
         w← SkipCS 1↓w 
@@ -182,7 +195,7 @@
         o w← MOmega w↓⍨e← w M esc                              ⍝ esc ⍵ <==> ⍵
       ×≢o:             1 (Par sCod, o) (Skip2EOS w)    
       e:               tryCF           
-        ok num← ⎕VFI w↑⍨ p←⎕D Len w 
+        ok num← ⎕VFI w↑⍨ p←⎕D Span w 
       1≢⍥, ok:         tryCF                                   ⍝ Not exactly 1 valid number
         w← SkipCS p↓ w 
       w M rb:          num SCommon w 
@@ -322,7 +335,16 @@
 ⍝H ⎕            ¯ ¯¯¯ 
 ⍝H        This has the same output as the following, using % ("Over", shown in pseudo/code as ⍙ⓄⓋⓇ)
 ⍝H ⍎               ∆F '{ "This is" % " a cat" % " ¯ ¯¯¯" }'
-⍝H     c. Shortcuts (aliases): 
+⍝H     c. Self-documenting Code Expressions
+⍝H          →  If a code expression {...} ends with a right arrow (→) preceded and/or followed by
+⍝H             0 or more spaces, it is treated as a self-documenting code expression.
+⍝H             That is, its value (on execution) will be preceded by the text of the code
+⍝H             expression. That text will be followed by that same right arrow and spaces
+⍝H             as input:
+⍝H ⍎               ∆F '1. {⍪⍳2→}, 2. {⍪⍳2 → }.'
+⍝H ⎕           1. ⍪⍳2→0, 2. ⍪⍳2 → 0. 
+⍝H ⎕                  1           1 
+⍝H     d. Shortcuts (aliases): 
 ⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
 ⍝H ⍎               ∆F '{ "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
 ⍝H ⎕           <0.47805>

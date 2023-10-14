@@ -16,8 +16,20 @@ AddSF1← spMax∘{
     ⍵> ⍺: LP, RP,⍨  '⍴''''',⍨ (⍕⍵)
     LP, RP,⍨ QT, QT,⍨ ⍕⍵⍴''
 }
-AddSF2←{ p←⍵ 
-    '(''[Not implemented yet]'')'
+AddSF2←{ 
+    badE← 'Invalid Space Field' 11
+    Skip← { ⍵↓⍨ +/∧\ ⍵∊ ⍺} 
+    Span← { ⍵↑⍨ +/∧\ ⍵∊ ⍺} 
+
+    ok n← ⎕VFI ⎕D Span ⍵
+    ⊃ok: AddSF1 n 
+    str← ' `' Skip ⍵
+    '⍵⍹'∊⍨ ⊃str: { 
+      ok num← ⎕VFI ⎕D Span ⍵ 
+      ⊃ok: '(',')',⍨ '''''⍴⍨⍵⊃⍨⎕IO+',⍕omIx⊢←num  
+      '(',')',⍨ '''''⍴⍨⍵⊃⍨⎕IO+',⍕omIx ⊣ omIx+← 1 
+    } 1↓str 
+    ⎕SIGNAL/badE 
 }
 Escape←{  Case← ⍵∘=
   Case '⋄': QT,SP,QT ⊣ nDrop⊢← 2 ⊣ multiTS+←1
@@ -27,6 +39,7 @@ Escape←{  Case← ⍵∘=
             '\' 
 }
 
+omIx←0 
 csLvl← 0
 nDrop←0 
 strOut← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨'
@@ -48,8 +61,9 @@ strTS← '' ⋄ multiTS←0
                 nDrop← 2+p
             :ELSEIF ':'= ch
                 strOut,← AddTF ⍬
-                strOut,← AddSF2 p 
-                nDrop← q+ 1+'}'⍳⍨ strIn↓⍨ q← 2+p 
+                close← q+ 1+ r← '}'⍳⍨ strIn↓⍨ q← 2+p 
+                strOut,← AddSF2 r↑ strIn↓⍨ 2+p  
+                nDrop← close  
             :ELSE 
                 strOut,← '({'  
                 csLvl← 1
