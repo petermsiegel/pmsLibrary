@@ -30,7 +30,7 @@
   ⍝ ovrCod: See ovr and irt (include runtime code) logic       ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
   ⍝ ␠  '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                     ⍝ ⍹: omega underbar                              
-    sp sq dq eos cm cln lb rb fmt ovr om omU ra← ' ''"⋄⍝:{}$%⍵⍹→'  ⍝ Constants, unlike ¨esc¨    
+    sp sq dq eos cm cln lb rb fmt ovr om omU ra da← ' ''"⋄⍝:{}$%⍵⍹→↓'  ⍝ Constants, unlike ¨esc¨    
     lp rp← '()'
     clnsp← cln sp 
     nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
@@ -119,22 +119,14 @@
     }
   ⍝ CF: Code Fields
     CF← {                                                      ⍝ CF: Code Fields
-      selfDoc←''  
+      sdStr sdOvr←'' 0  
       0=≢⍵: '' ⍵ 
-      FastBrk← lb rb sq dq fmt ovr omU cm esc ra ∘Brk          ⍝ Proc as much of ⍵ not ∊fast          
+      FastBrk← lb rb sq dq fmt ovr omU cm esc ra da ∘Brk          ⍝ Proc as much of ⍵ not ∊fast          
       brcLvl← 1                                                ⍝ Brace {} depth
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
           t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
-        ⍝ Experimental: Handle xxx → (like Python xxx=)
-        ⍝     xxx →   becomes    'xxx →',⊂ ({xxx}⍵)
-        ⍝     ⍳10→    becomes    '⍳10→',⊂ ({⍳10}⍵)
-        ⍝ Respects spaces before and after →.
-          ⍵ M ra: ⍺ ∇{   
-            rb≠1↑ suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵: Ê fStrÊ
-            selfDoc⊢← T2Q (1↓⍺), ra, p⍴ sp  
-           1: ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
-          }⍵
+  
           ⍵ M lb: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
           ⍵ M rb: ⍺ ∇{ brcLvl-← 1  
             brcLvl≤0: (⍺, ⊃⍵) (1↓⍵)                            ⍝ Terminate! 
@@ -143,14 +135,29 @@
           ⍵ M sq dq:   (⍺, q           ) ∇ w⊣ q w← MQS ⍵
           ⍵ M esc:      ⍺ (∇ MEsc inCF) ⍵   
           ⍵ M fmt:     (⍺,' ⎕FMT '↓⍨sp=⊃⌽⍺ ) ∇ SkipSp 1↓⍵
-          ⍵ M ovr:     (⍺,' ⍙ⓄⓋⓇ '↓⍨sp=⊃⌽⍺ ) ∇ SkipSp 1↓⍵ ⊣ irt∘← 1 
-            o w← MOmega ⍵         
-          0=≢o:        (⍺, Par o       ) ∇ w  
-          ⍵ M cm:       ⍺                ∇ SkipCm ⍵
-              Ê logÊ              
-      } SkipSp 1↓⍵
-      0=≢selfDoc: (Par r, '⍵' ) w 
-      ((Par r, '⍵'), (Par selfDoc)) w    
+          ⍵ M ovr:     ⍺ ∇ {
+            suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
+            suf NM rb cm: (⍺,' ⍙ⓄⓋⓇ '↓⍨sp=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ SkipSp 1↓⍵
+          ⍝ Self-documenting code expressions (VERTICAL SELF-DOC EXPR '%')
+            sdStr⊢← T2Q (1↓⍺), (⊃⍵), p⍴ sp 
+            sdOvr⊢← 1 
+            ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
+          } ⍵ 
+        ⍝ Self-documenting code expressions (HORIZONTAL SELF-DOC EXPR '→')
+          ⍵ M ra: ⍺ ∇ {  
+            suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
+            suf NM rb cm: Ê fStrÊ
+              sdStr⊢← T2Q (1↓⍺), (⊃⍵), p⍴ sp                                          
+             ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
+          } ⍵  
+          ⍵ M cm:            ⍺            ∇ SkipCm ⍵ 
+          o w← MOmega ⍵       
+          ×≢o : (⍺, Par o ) ∇ w  
+            Ê logÊ              
+      } SkipSp 1↓⍵ 
+      0= ≢sdStr:   (Par r, '⍵') w   
+      sdOvr: (Par sdStr, '⍙ⓄⓋⓇ', (Par r, '⍵')  ) w ⊣ irt∨← sdOvr 
+             ((Par r, '⍵'), sp, sdStr          ) w ⊣ sdOff⊢← 0  
     }
   ⍝ SFQ: Space Fields
   ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
@@ -205,7 +212,7 @@
 ⍝ Primary Executive Fns:  Analyse, Assemble 
     Analyse← {                                                 ⍝ Convert <fStr> to executable fields
       ×≢ff←⍬{  
-        0=≢⍵: '⍬'{⊂⍺,⍨⊃⍵}⍣ (1=≢⍺)⊢ ⍺                           ⍝ Done: →RETURN field (enclosed str.)
+        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (sdOff∧1=≢⍺)⊢ ⍺                      ⍝ Done: →RETURN field (enclosed str.)
               isTF← ⍵ NM lb                                    ⍝ TF?
         isTF: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵                 ⍝ Is TF. Proc TF and next
               isSF sf w←SFQ ⍵                                  ⍝ SF? Else CF.
@@ -230,6 +237,7 @@
     esc∊ lb sp cm:     Ê opt2Ê                                 ⍝ Invalid escape char?  
       irt←0                                                    ⍝ irt: include runtime code? See CF
       omIx←0                                                   ⍝ omIx: omega index. See MOmega 
+      sdOff←1                                                  ⍝ See self-documenting code expressions
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
@@ -335,17 +343,32 @@
 ⍝H ⎕            ¯ ¯¯¯ 
 ⍝H        This has the same output as the following, using % ("Over", shown in pseudo/code as ⍙ⓄⓋⓇ)
 ⍝H ⍎               ∆F '{ "This is" % " a cat" % " ¯ ¯¯¯" }'
-⍝H     c. Self-documenting Code Expressions
-⍝H          →  If a code expression {...} ends with a right arrow (→) preceded and/or followed by
-⍝H             0 or more spaces, it is treated as a self-documenting code expression.
+⍝H     c. Self-Documenting Code Expressions
+⍝H          →  Horizontal Self-Documenting Expressions
+⍝H             If a code expression {...} ends with a right arrow (→) preceded and/or followed by
+⍝H             0 or more spaces (and an optional comment), it is treated as a horizontal 
+⍝H             self-documenting code expression.
 ⍝H             That is, its value (on execution) will be preceded by the text of the code
 ⍝H             expression. That text will be followed by that same right arrow and spaces
 ⍝H             as input:
 ⍝H ⍎               ∆F '1. {⍪⍳2→}, 2. {⍪⍳2 → }.'
 ⍝H ⎕           1. ⍪⍳2→0, 2. ⍪⍳2 → 0. 
 ⍝H ⎕                  1           1 
+⍝H          %  Vertical Self-Documenting Expressions
+⍝H             If a code expression {...} ends with a pct sign (%) preceded and/or followed by
+⍝H             0 or more spaces (and optional comment), it is treated as a vertical 
+⍝H             self-documenting code expression.
+⍝H             That is, the text of the code expression will be placed above the value of the
+⍝H             executed code as a "title". The title text will include that same 
+⍝H             percent sign and any preceding or following spaces:
+⍝H ⍎              ∆F '1. {⍪⍳2%}, 2. {⍪⍳2 % }.'
+⍝H ⎕           1. ⍪⍳2%, 2. ⍪⍳2 % .
+⍝H ⎕               0         0    
+⍝H ⎕               1         1 
 ⍝H         Bugs/Features: Self-doc code expressions show the code as it will be executed, so
 ⍝H           double-quotes, shortcuts (see below) will already be resolved.
+⍝H           Comments are not displayed as part of self-documenting code expressions.
+⍝H         Compare Python self-documenting expressions {...=}
 ⍝H     d. Shortcuts (aliases): 
 ⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
 ⍝H ⍎               ∆F '{ "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
