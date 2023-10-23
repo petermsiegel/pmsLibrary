@@ -5,238 +5,231 @@
   ⍺←1 0 '`'
   0=≢⍺: 1 0⍴''
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  0 1003/⍨ 1:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 ⍝ ---------------------------
-⍝ STAGE II: Execute/Display code from Stage I
   (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ contains executable atom '⍵⍵'
+⍝ STAGE II: Execute/Display code from Stage I
       1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵  
       ∘∘unreachable∘∘ ⍵⍵ 
 ⍝ ---------------------------
-⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
   }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
 ⍝               
     ⎕io ⎕ml←0 1                  
-  ⍝ ...Ê: Error messages. See Ê below.               
+  ⍝ ...Ê: Error messages/dfn. See Ê below.               
     opt0Ê← ('Message' 'Invalid option (mode)')       ('EN' 11) 
     opt1Ê← ('Message' 'Invalid option (box)')        ('EN' 11)        
     opt2Ê← ('Message' 'Invalid option (escape char)')('EN' 11) 
     fStrÊ← ('Message' 'Invalid right arg (f-string)')('EN' 11) 
-    logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99)    
-  ⍝ ...Cod:  We'll select ...[0] when mod<0, [1] otherwise.
-    chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨' '⍙ⒸⒽⓃ'                      ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
-    boxCod←  '⎕SE.Dyalog.Utils.display¨' '⍙ⒷⓄⓍ¨'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display 
-  ⍝ ovrCod: See ovr and irt (include runtime code) logic       ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+    logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99) 
+    BrkÊ← logÊ∘{  ⍝ => logÊ only, once changes are unlikely.
+      _← '" not in "FastBrk", but has no local logic!'
+      ⍺,⊂'Message' ('Pfx "',(⊃⍵),_)
+    }
+      
+  ⍝ ...Cod:  Two choices presented: Actual code (if modO≥0) and pseudo-code (otherwise).
+    chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT' '⍙ⒸⒽⓃ'                       ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
+    boxCod←  '∘⎕SE.Dyalog.Utils.display' '∘⍙ⒷⓄⓍ'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display (boxO=1)
+  ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
-  ⍝ ␠  '  "  ⋄   ⍝  :   {  }  $   %   ⍵  ⍹                     ⍝ ⍹: omega underbar                              
-    sp sq dq eos cm cln lb rb fmt ovr om omU ra da← ' ''"⋄⍝:{}$%⍵⍹→↓'  ⍝ Constants, unlike ¨esc¨    
-    lp rp← '()'
-    clnsp← cln sp 
-    nl← ⎕UCS 13                                                ⍝ newline: carriage return [sic!]
-    inQt inTF inCF← 0 1 2                                      ⍝ See MEsc. 
+  ⍝ Constants ...C
+  ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝ Constants. See also escO option.
+    spÇ sqÇ dqÇ eosÇ cmÇ clnÇ← ' ''"⋄⍝:'                     
+  ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝ Constants.
+    lbÇ rbÇ fmtÇ ovrÇ omÇ omUÇ raÇ← '{}$%⍵⍹→'                  
+    nlÇ← ⎕UCS 13                                               ⍝ newline: carriage return [sic!]
+    inQt inTF inCF← 0 1 2                                      ⍝ See ProcEscs. 
 ⍝ ---------------------------
 ⍝ SUPPORT FNS
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"
     String← (2>⍴∘⍴)∧(0=80|⎕DR)                                 ⍝ Scal-Vec and Char only 
  ⍝ Match, Non-match, Match Quoted String, etc.
-    M←  ⊃∊      ⍝ Approx same perf. as  (∊⍨∘⊃)⍨                ⍝ Is (⊃⍺) ∊ ⍵?                                  ⍝ Is (⊃⍺) ∊    ⍵?
-    NM← ~M                                                     ⍝ Is (⊃⍺) (~∊) ⍵?
-    MQS←{       ⍝ Match (dbl- or single-)quoted string ⍵, with starting quote symbol ⊃⍵ 
-        ⍵ NM sq dq:  Ê logÊ     ⍝D DEBUG only                  ⍝ Requires (⊃⍵)∊sq dq
+    Any←  ⊃∊      ⍝ Approx same perf. as  (∊⍨∘⊃)⍨              ⍝ Is (⊃⍺) ∊ ⍵?                                  ⍝ Is (⊃⍺) ∊    ⍵?
+    NotAny← ~Any                                               ⍝ Is (⊃⍺) (~∊) ⍵?
+    AnyQS←{       ⍝ Match (dbl- or single-)quoted string ⍵, with starting quote symbol ⊃⍵ 
+      ⍝ ⍵ NotAny sqÇ dqÇ:  Ê logÊ     ⍝ Be sure ((⊃⍵)∊sqÇ dqÇ) is confirmed in caller. 
         qt← ⊃⍵
         ''{
           0=≢⍵: (QS2Cod ⍺) (SkipSp ⍵ )                         ⍝ → RETURN
           qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 2↓⍵                             ⍝ qt-qt? (internal quote char)
-          ⍵  M qt:  (QS2Cod ⍺) (SkipSp 1↓⍵)                    ⍝ qt? → RETURN
-          ⍵ NM esc: (⍺, ⊃⍵)  ∇ 1↓⍵                             ⍝ Not escaped char? Process.
+          ⍵  Any qt:  (QS2Cod ⍺) (SkipSp 1↓⍵)                  ⍝ qt? → RETURN
+          ⍵ NotAny escO: (⍺, ⊃⍵)  ∇ 1↓⍵                        ⍝ Not escaped char? Process.
             w← 1↓⍵
-          w  M eos: (⍺, nl)  ∇ 1↓w                             ⍝ esc + ⋄
-          w  M esc:  s ⍺ (∇ MEsc inQt) w                       ⍝ esc + esc 
-            (⍺,⊃⍵)∇ w                                          ⍝ esc+ anything else
+          w  Any eosÇ: (⍺, nlÇ)  ∇ 1↓w                         ⍝ escO + ⋄
+          w  Any escO:  s ⍺ (∇ ProcEscs inQt) w                ⍝ escO + escO 
+            (⍺,⊃⍵)∇ w                                          ⍝ escO+ anything else
         }1↓⍵
     }
-    MOmega← {                                                  ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etc.
-      ⍵ NM omU om: '' ⍵  ⋄ w← 1↓⍵                              ⍝ Not ⍹0 etc? Return ('' ⍵)
+    AnyOmega← {                                                ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etÇ.
+      ⍵ NotAny omUÇ omÇ: '' ⍵  ⋄ w← 1↓⍵                        ⍝ Not ⍹0 etc? Return ('' ⍵)
       dig← w↑⍨+/∧\w∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
       0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w     )  ⊣ omIx+← 1
               ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
-    MEsc← { env← ⍵⍵ 
-      ⍵ NM esc:      Ê logÊ                                    ⍝ DEBUG ONLY
-      w← 1↓⍵                                                   ⍝ Skip past esc   
-      w M eos:       (⍺, nl      )⍺⍺ 1↓w
-      w M esc:       (⍺, ⊃⍵      )⍺⍺ 1↓w
-        e← esc/⍨ inQt=env 
-      w M lb rb:     (⍺, e, ⊃⍵   )⍺⍺ 1↓w 
-      inCF≠env:      (⍺, esc, ⊃⍵ )⍺⍺ 1↓w                       ⍝ inSF, inQt? → RETURN
-          o w← MOmega w                                        ⍝ ↓↓↓ inCF only
+    ProcEscs← { env← ⍵⍵    ⍝  env∊ inCf inQt inTF
+      ⍵ NotAny escO:    Ê logÊ                                 ⍝ DEBUG ONLY
+      w← 1↓⍵                                                   ⍝ Skip past escO   
+      w Any eosÇ:    (⍺, nlÇ      )⍺⍺ 1↓w
+      w Any escO:    (⍺, ⊃⍵      )⍺⍺ 1↓w
+        e← escO/⍨ inQt=env 
+      w Any lbÇ rbÇ: (⍺, e, ⊃⍵   )⍺⍺ 1↓w 
+      inCF≠env:      (⍺, escO, ⊃⍵ )⍺⍺ 1↓w                      ⍝ inSF, inQt? → RETURN
+          o w← AnyOmega w                                      ⍝ ↓↓↓ inCF only
       ×≢o:           (⍺, Par o   )⍺⍺ w      
-                     (⍺, esc, ⊃⍵ )⍺⍺ 1↓w                                          
+                     (⍺, escO, ⊃⍵ )⍺⍺ 1↓w                                          
     } 
 ⍝ Skip__: Skip (and ignore) leading char, chars, or patterns.  ⍝ Skip leading...
-    SkipSp← { ⍵↓⍨  +/∧\ ⍵= sp }                                ⍝ ... spaces
-    SkipCS← { ⍵↓⍨  +/∧\ ⍵∊ clnsp }                             ⍝ ... runs of (cln sp)
+    SkipSp← { ⍵↓⍨  +/∧\ ⍵= spÇ }                               ⍝ ... spaces
+    SkipCS← { ⍵↓⍨  +/∧\ ⍵∊ clnÇ spÇ }                          ⍝ ... runs of (clnÇ spÇ)
     SkipCm← {                                                  ⍝ ... '⍝' and subseq. comment
-        cm≠⊃⍵: ⍵ 
+        cmÇ≠⊃⍵: ⍵ 
         {
           0=≢⍵: ⍵                                              ⍝ → RETURN
-          ⍵  M rb eos: ⍵                                       ⍝ → RETURN
-          ⍵ NM esc: ∇ 1↓⍵
-              w← 1↓⍵                                           ⍝ Check 1 past esc
-          w  M rb eos: ∇ 1↓w                                   ⍝ Ignore rb|eos after esc 
-              ∇ w                                              ⍝ Keep other char after esc  
+          ⍵    Any rbÇ eosÇ: ⍵                                 ⍝ → RETURN
+          ⍵ NotAny escO: ∇ 1↓⍵
+              w← 1↓⍵                                           ⍝ Check 1 past escO
+          w    Any rbÇ eosÇ: ∇ 1↓w                             ⍝ Ignore rbÇ|eosÇ after escO 
+              ∇ w                                              ⍝ Keep other char after escO  
         }1↓⍵
     }
-⍝ Brk: Break past s, 0 or more leading chars NOT in ⍵, returning (s  <rest of str>)
-⍝      If ALL leading chars in ⍺, return (⍵ ''); if none, return ('' ⍵). 
+  ⍝ Brk: Break past s, 0 or more leading chars NOT in ⍵, 
+  ⍝      returning:   (s  <rest of str>)
+  ⍝      If ALL leading chars are in ⍺, return (⍵ ''); if none, return ('' ⍵). 
     Brk← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
   ⍝ Miscellaneous
     Par← '(',,∘')'
     Trunc←  { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }               ⍝ For DEBUG modes.
+  ⍝ Span: Return # leading chars of ⍵ in ⍺.
     Span←   { +/∧\ ⍵∊ ⍺ }
     SpanSp← ' '∘Span
-    T2Q← { sq, sq,⍨ ⍵/⍨ 1+sq= ⍵ }                              ⍝ Text to Executable Quote String 
+    T2QS← { sqÇ, sqÇ,⍨ ⍵/⍨ 1+sqÇ= ⍵ }                          ⍝ Text to Executable Quote String 
     QS2Cod←{                                                   ⍝ Outputs ⎕ML-independent code
-        r← ⎕FMT r/⍨ 1+sq= r←⍵      ⍝ Handle internal SQs       ⍝   Use ⎕FMT to handle newlines
-      1=≢r: sp,sq,(∊r),sq,sp                                   ⍝   Single row (i.e. no newlines)
-        Par (sq,sq,⍨∊r),'⍴⍨', ⍕⍴r                              ⍝   Multiple rows. Add SQs...
+        r← ⎕FMT r/⍨ 1+sqÇ= r←⍵      ⍝ Handles internal SQs     ⍝   Use ⎕FMT to handle newlines
+      1=≢r: spÇ,sqÇ,(∊r),sqÇ,spÇ                               ⍝   Single row (i.e. no newlines)
+        Par (sqÇ,sqÇ,⍨∊r),'⍴⍨', ⍕⍴r                            ⍝   Multiple rows. Add SQs...
     }
 ⍝ ---------------------------
 ⍝ Major Field Fns: TF, CF, and SF 
-  ⍝ TF: Text Fields
+  ⍝ TF: Text Fields   
+  ⍝     Returns: (code rest)
     TF← {                                                      ⍝ TF: Text Fields
       0=≢⍵: ''
-      FastBrk← lb esc ∘Brk                                                 
+      FastBrk← lbÇ escO ∘Brk                                             
       tf w← ''{
         0=≢⍵: ⍺ ⍵
-        t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                      ⍝ Fast process chars not matched below.
-        ⍵ M lb:   ⍺ ⍵
-        ⍵ M esc:  ⍺ (∇ MEsc inTF) ⍵   
-            Ê logÊ       
+        ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                       ⍝ Fast process chars not matched below.
+        ⍵ Any lbÇ:   ⍺ ⍵
+        ⍵ Any escO:  ⍺ (∇ ProcEscs inTF) ⍵  
+           Ê BrkÊ ⍵      
       } ⍵
       (QS2Cod tf) w
-    }
+    } ⍝ End TF
   ⍝ CF: Code Fields
+  ⍝     Returns: (code rest)
     CF← {                                                      ⍝ CF: Code Fields
-      sdStr sdOvr←'' 0  
+      sdStr sdOvr← '' 0                                        ⍝ See also, sdOff← 1
       0=≢⍵: '' ⍵ 
-      FastBrk← lb rb sq dq fmt ovr omU cm esc ra da ∘Brk          ⍝ Proc as much of ⍵ not ∊fast          
+      FastBrk← lbÇ rbÇ sqÇ dqÇ escO fmtÇ ovrÇ omUÇ cmÇ raÇ ∘Brk ⍝ Proc as much of ⍵ not matched.          
       brcLvl← 1                                                ⍝ Brace {} depth
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
-          t w← FastBrk ⍵ ⋄ ×≢t: (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
+          ⍵ Any spÇ: (⍺, p↑⍵) ∇ p↓⍵ ⊣ p← SpanSp ⍵              ⍝ This is for aesthetics only...
+          ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
   
-          ⍵ M lb: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
-          ⍵ M rb: ⍺ ∇{ brcLvl-← 1  
+          ⍵ Any lbÇ: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
+          ⍵ Any rbÇ: ⍺ ∇{ brcLvl-← 1  
             brcLvl≤0: (⍺, ⊃⍵) (1↓⍵)                            ⍝ Terminate! 
             (⍺, ⊃⍵) ⍺⍺ (1↓⍵)                     
           } ⍵
-          ⍵ M sq dq:   (⍺, q           ) ∇ w⊣ q w← MQS ⍵
-          ⍵ M esc:      ⍺ (∇ MEsc inCF) ⍵   
-          ⍵ M fmt:     (⍺,' ⎕FMT '↓⍨sp=⊃⌽⍺ ) ∇ SkipSp 1↓⍵
-          ⍵ M ovr:     ⍺ ∇ {
+          ⍵ Any sqÇ dqÇ: (⍺, q) ∇ w⊣ q w← AnyQS ⍵
+          ⍵ Any escO:     ⍺ (∇ ProcEscs inCF) ⍵   
+          ⍵ Any fmtÇ:    (⍺,' ⎕FMT '↓⍨spÇ=⊃⌽⍺) ∇ SkipSp 1↓⍵
+        ⍝ {...%} Self-documenting code expressions (VERTICAL SELF-DOC EXPR '%')
+          ⍵ Any ovrÇ:    ⍺ ∇ {
             suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
-            suf NM rb cm: (⍺,' ⍙ⓄⓋⓇ '↓⍨sp=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ SkipSp 1↓⍵
-          ⍝ Self-documenting code expressions (VERTICAL SELF-DOC EXPR '%')
-            sdStr⊢← T2Q (1↓⍺), (⊃⍵), p⍴ sp 
+          suf NotAny rbÇ cmÇ: (⍺,' ⍙ⓄⓋⓇ '↓⍨spÇ=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ SkipSp 1↓⍵
+            sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ 
             sdOvr⊢← 1 
             ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
           } ⍵ 
-        ⍝ Self-documenting code expressions (HORIZONTAL SELF-DOC EXPR '→')
-          ⍵ M ra: ⍺ ∇ {  
+        ⍝ {...→} Self-documenting code expressions (HORIZONTAL SELF-DOC EXPR '→')
+          ⍵ Any raÇ:      ⍺ ∇ {  
             suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
-            suf NM rb cm: Ê fStrÊ
-              sdStr⊢← T2Q (1↓⍺), (⊃⍵), p⍴ sp                                          
+            suf NotAny rbÇ cmÇ: Ê fStrÊ
+              sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ                                          
              ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
           } ⍵  
-          ⍵ M cm:            ⍺            ∇ SkipCm ⍵ 
-          o w← MOmega ⍵       
+          ⍵ Any cmÇ: ⍺ ∇ SkipCm ⍵ 
+          o w← AnyOmega ⍵       
           ×≢o : (⍺, Par o ) ∇ w  
-            Ê logÊ              
-      } SkipSp 1↓⍵ 
+            Ê BrkÊ ⍵     
+      } SkipSp⍣0⊢ 1↓⍵            ⍝ ⍣0 - ignore SkipSp for aesthetic reasons.
       0= ≢sdStr:   (Par r, '⍵') w   
       sdOvr: (Par sdStr, '⍙ⓄⓋⓇ', (Par r, '⍵')  ) w ⊣ irt∨← sdOvr 
-             ((Par r, '⍵'), sp, sdStr          ) w ⊣ sdOff⊢← 0  
-    }
-  ⍝ SFQ: Space Fields
+             ((Par r, '⍵'), spÇ, sdStr          ) w ⊣ sdOff⊢← 0  
+    } ⍝ End CF
+  ⍝ SF: Space Fields
+  ⍝ Returns:  (isSF code rest)
   ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
-  ⍝   F1:    ddd |  ddd | '' | ddd | '    '      
-    SFQ← 0∘{ ⍺: SFQ_RE ⍵ ⋄ SFQ_APL ⍵ }
-    sCod← sq,sq,'⍴⍨' ⋄ spMax← 5 ⍝ If >spMax spaces, generate at run-time             
-  ⍝ SFQ Option 1: SFQ_RE
-    ⋄ sfP← '^\{(\h*)\}' '^\{\h*:\h*(\d*)(?:\h*:)?\h*\}' '^\{\h*:\h*`?[⍵⍹](\d*)(?:\h*:)?\h*\}'
-    SFQ_RE← {   ⍝ If >spMax spaces, generate at run-time 
-        match←'' ⋄ skipFlag←1
-        rest← sfP ⎕R { C← ⍵.PatternNum∘= ⋄ f1← ⍵.(Lengths[1]↑Offsets[1]↓Block)
-            skipFlag∘← 0
-            C 0: ''⊣  match∘← (0=≢f1){  
-              ⍺: '' ⋄  ⍵: '''',f1,'''' ⋄ '(',')',⍨sCod,⍕≢f1
-            } spMax≥≢f1 
-            C 1: ''⊣  match∘← (0=≢i1){ 
-              ⍺: '' ⋄ ⍵: '''',(i1⍴ ' '),'''' ⋄ '(',')',⍨ sCod,f1
-            } spMax≥ i1← ⊃⌽⎕VFI f1
-            C 2: ''⊣  match∘← { 
-              ⍵: '(', ')',⍨ sCod, '⍵⊃⍨⎕IO+', ⍕omIx⊣ omIx+← 1 
-                 '(', ')',⍨ sCod, '⍵⊃⍨⎕IO+', f1⊣ ⍕omIx∘← ⊃⌽⎕VFI f1
-            }0=≢f1 
-            ∘∘∘⎕←'unreachable'
-        }⍵
-      skipFlag: 0 '' ⍵
-        1 match rest 
-    }
-  ⍝ SFQ Option 2: SFQ_APL
-    ⋄ Skip2EOS← { w M rb ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
+  ⍝   F1:    ddd |  ddd | '' | ddd | '    '    
+  ⍝    isSF:   1 if ⍵ starts a Space Field   |  0 otherwise: if 0, ⍵ starts a Code Field.
+  ⍝    code:   code for Space Field          |  ''
+  ⍝    rest:   text after Space Field        |  ⍵
+    ⋄ sCod← sqÇ,sqÇ,'⍴⍨' 
+    ⋄ spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time  
+    ⋄ Skip2EOS← { w Any rbÇ ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
     ⋄ SCommon← { ⍝ ⍺: length of space field (≥0)
             ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
-            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ box∧1=⍺), sq,sq,⍨ ⍺⍴ sp
+            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ boxO∧1=⍺), sqÇ,sqÇ,⍨ ⍺⍴ spÇ
                       1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
       }
-    SFQ_APL← {          
-        tryCF ← 0 '' ⍵
-        w← ⍵↓⍨ 1+ p←   SpanSp 1↓⍵                                ⍝ Grab leading blanks
-      w  M rb:         p SCommon w                             ⍝ Fast path: {}
-      w NM cln:        tryCF                                   ⍝ Not { } or { :...[:] }? See if CF
+    SF← {          
+        isCF ← 0 '' ⍵
+        w← ⍵↓⍨ 1+ p←   SpanSp 1↓⍵                              ⍝ Grab leading blanks
+      w  Any rbÇ:       p SCommon w                            ⍝ Fast path: {}
+      w NotAny clnÇ:  isCF                                     ⍝ Not { } or { :...[:] }? See if CF
         w← SkipCS 1↓w 
-      w  M rb:         0 SCommon w                             ⍝ Allow degenerate { : } { :: }                                      
-        o w← MOmega w↓⍨e← w M esc                              ⍝ esc ⍵ <==> ⍵
+      w  Any rbÇ:       0 SCommon w                            ⍝ Allow degenerate { : } { :: }                                      
+        o w← AnyOmega w↓⍨e← w Any escO                         ⍝ escO ⍵ <==> ⍵
       ×≢o:             1 (Par sCod, o) (Skip2EOS w)    
-      e:               tryCF           
+      e:               isCF           
         ok num← ⎕VFI w↑⍨ p←⎕D Span w 
-      1≢⍥, ok:         tryCF                                   ⍝ Not exactly 1 valid number
+      1≢⍥, ok:         isCF                                    ⍝ Not exactly 1 valid number
         w← SkipCS p↓ w 
-      w M rb:          num SCommon w 
-                       tryCF                
-    }
+      w Any rbÇ:        num SCommon w 
+                       isCF                
+    } ⍝ End SF
 ⍝ ---------------------------
 ⍝ Primary Executive Fns:  Analyse, Assemble 
     Analyse← {                                                 ⍝ Convert <fStr> to executable fields
       ×≢ff←⍬{  
         0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (sdOff∧1=≢⍺)⊢ ⍺                      ⍝ Done: →RETURN field (enclosed str.)
-              isTF← ⍵ NM lb                                    ⍝ TF?
+              isTF← ⍵ NotAny lbÇ                                ⍝ TF?
         isTF: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵                 ⍝ Is TF. Proc TF and next
-              isSF sf w←SFQ ⍵                                  ⍝ SF? Else CF.
+              isSF sf w←SF ⍵                                   ⍝ SF? Else CF.
         isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf                              ⍝ Is SF. Proc SF and next
               w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf ⊣ cf w← CF ⍵                 ⍝ Is CF. Proc CF and next
       }fStr: ⌽ff ⋄ ⊂'⊂⍬'                                       ⍝ Handle 0 fields (edge case)
     }
     Assemble← {                                                ⍝ Assemble code + needed defs 
-          pfx←  '⌽',⍨ ∊ irt 1 box/ ovrCod chnCod boxCod ⊃⍨¨ mod<0 
-      1=mod: '{',  pfx, (∊⍵), '}⍵⍵'
-      0=mod: '{{', pfx, (∊⍵), '}', (T2Q fStr),',⍥⊆⍵}'
-          (⊂'{{', pfx),  ⍵, ⊂'}', (T2Q 25∘Trunc fStr),',⍥⊆⍵}⍵'
+          pfx← '¨⌽',⍨ ∊ irt 1 boxO/ ovrCod chnCod boxCod ⊃⍨¨ modO<0 
+      1=modO: '{',  pfx, (∊⍵), '}⍵⍵'
+      0=modO: '{{', pfx, (∊⍵), '}', (T2QS fStr),',⍥⊆⍵}'
+          (⊂'{{', pfx),  ⍵, ⊂'}', (T2QS 25∘Trunc fStr),',⍥⊆⍵}⍵'
     } 
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN: 
 ⍝   Options and Variables (non-constants)
-      (mod box) esc←(2↑⍺)(⊃'`',⍨2↓⍺)                           ⍝ Set/validate options 
+      (modO boxO) escO←(2↑⍺)(⊃'`',⍨2↓⍺)                        ⍝ Set/validate options 
       fStr←⊃⊆⍵                                                 ⍝ fStr: The format string (⍹0)
     ~String fStr:      Ê fStrÊ                                 ⍝       Must be simple char vec/scalars 
-    mod(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
-    box(~∊) 0 1:       Ê opt1Ê
-    esc∊ lb sp cm:     Ê opt2Ê                                 ⍝ Invalid escape char?  
+    modO(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
+    boxO(~∊) 0 1:       Ê opt1Ê
+    escO∊ lbÇ spÇ cmÇ:     Ê opt2Ê                                ⍝ Invalid escape char?  
       irt←0                                                    ⍝ irt: include runtime code? See CF
-      omIx←0                                                   ⍝ omIx: omega index. See MOmega 
+      omIx←0                                                   ⍝ omIx: omega index. See AnyOmega 
       sdOff←1                                                  ⍝ See self-documenting code expressions
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
@@ -344,7 +337,8 @@
 ⍝H        This has the same output as the following, using % ("Over", shown in pseudo/code as ⍙ⓄⓋⓇ)
 ⍝H ⍎               ∆F '{ "This is" % " a cat" % " ¯ ¯¯¯" }'
 ⍝H     c. Self-Documenting Code Expressions
-⍝H          →  Horizontal Self-Documenting Expressions
+⍝H      1.Horizontal Self-Documenting Expressions
+⍝H        { code → }    OR   { code → ⍝ cm }
 ⍝H             If a code expression {...} ends with a right arrow (→) preceded and/or followed by
 ⍝H             0 or more spaces (and an optional comment), it is treated as a horizontal 
 ⍝H             self-documenting code expression.
@@ -354,7 +348,8 @@
 ⍝H ⍎               ∆F '1. {⍪⍳2→}, 2. {⍪⍳2 → }.'
 ⍝H ⎕           1. ⍪⍳2→0, 2. ⍪⍳2 → 0. 
 ⍝H ⎕                  1           1 
-⍝H          %  Vertical Self-Documenting Expressions
+⍝H        2.Vertical Self-Documenting Expressions
+⍝H          { code % }    OR   { code % ⍝ cm }
 ⍝H             If a code expression {...} ends with a pct sign (%) preceded and/or followed by
 ⍝H             0 or more spaces (and optional comment), it is treated as a vertical 
 ⍝H             self-documenting code expression.
@@ -369,7 +364,7 @@
 ⍝H           double-quotes, shortcuts (see below) will already be resolved.
 ⍝H           Comments are not displayed as part of self-documenting code expressions.
 ⍝H         Compare Python self-documenting expressions {...=}
-⍝H     d. Shortcuts (aliases): 
+⍝H     d. Shortcuts (prefixes or infixes [monadic or dyadic pseudo-fns]): 
 ⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
 ⍝H ⍎               ∆F '{ "⎕<⎕,F7.5,⎕>⎕" $ ?0 0}'
 ⍝H ⎕           <0.47805>
@@ -384,7 +379,8 @@
 ⍝H ⎕           0.107371                          ⍝ ⎕DL 0.1                        
 ⍝H ⎕                   0.204216                  ⍝ ⎕DL 0.2   
 ⍝H ⎕                           0.300909          ⍝ ⎕DL 0.3
-⍝H      d. Limited comments in Code Fields: 
+⍝H         ∘ See also the use of → and % as suffixes for Self-Documenting Code (above)>
+⍝H      e. Limited comments in Code Fields: 
 ⍝H         ∘ Comments in code fields may consist of any characters besides (unescaped)
 ⍝H            } or ⋄.
 ⍝H         ∘ Escaped chars `}, `⋄ (and anything else) are allowed (and safely ignored).
@@ -395,9 +391,10 @@
 ⍝H ⍎             ∆F '{ ⍹1 × ○2 ⍝ ⍹1 is r in 2×pi×r }' 5
 ⍝H ⎕        31.41592654       
 ⍝H 
-⍝H 2. Space fields:  {}, {   }, { :5: }  { :⍹1: } { :⍹: } { :`⍵: } { :`⍵1: }  
-⍝H     # spaces      0     3       5       1⊃⍵    next ⍵    next ⍵    1⊃⍵
-⍝H    a. By example: a brace with 0 or more blanks, representing the # of blanks on output.
+⍝H 2. Space Fields (SF)  
+⍝H                {}, {   }, { :5: }, { :⍹1: } { :⍹: }, or aliases { :`⍵1: } { :`⍵: }  
+⍝H     # spaces   0     3       5       1⊃⍵     next ⍵                1⊃⍵     next ⍵    
+⍝H    a. SF By Example: a brace with 0 or more blanks, representing the # of blanks on output.
 ⍝H       a1. Braces with 1 or more blanks separate other fields.
 ⍝H           1 blank: { }, 2 blanks: {  }, etc.
 ⍝H       a2. Null Fields: brace with 0 blanks is a Null Space Field, useful for separating OTHER fields.
@@ -405,9 +402,9 @@
 ⍝H ⍎           ∆F 'a`⋄cow{}a`⋄bell'            ∆F 'a`⋄cow{ }a`⋄bell'
 ⍝H ⎕        a  a                            a   a
 ⍝H ⎕        cowbell                         cow bell
-⍝H    b. By number: a number between colons (the trailing colon is optional) indicates the # of blanks on output.
+⍝H    b. By Number: a number between colons (the trailing colon is optional) indicates the # of blanks on output.
 ⍝H          { :5: }    <== 5 blanks on output!
-⍝H    c. By ⍹-expression: an expression ⍹2 between colons (:⍹2:) means
+⍝H    c. By ⍹-Expression: an expression ⍹2 between colons (:⍹2:) means
 ⍝H          take the value of (⎕IO+2⊃⍵) as the # of blanks on output.
 ⍝H       An expression of simple ⍹ between colons (:⍹:) means: 
 ⍝H          increase the index of the last ⍵ expression to the left (or (⎕IO+1⊃⍨⍵) as the # of blanks on output.
@@ -416,6 +413,7 @@
 ⍝H ⍎            (a≡b)∧(b≡c)
 ⍝H ⎕         1
 ⍝H     ∘ Comments are NOT allowed in space fields.
+⍝H     ∘ Self-documenting Space Fields do NOT exist.
 ⍝H 
 ⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char).
 ⍝H    (If you change the escape character, e.g. to '\', make the appropriate changes in the narrative below).

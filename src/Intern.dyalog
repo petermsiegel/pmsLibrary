@@ -1,6 +1,6 @@
 ﻿ Intern←{ 
 ⍝  Intern: 
-⍝  [1] [opts] ∇ [fnNm@CV | codeStr@CVV]    
+⍝  [1] [opts] ∇ [fnNm@CV | file://fileID@CV | codeStr@CVV]    
 ⍝    Scan tradfns and tradopts and generate local variable declarations (;nm1;nm2...)
 ⍝    for all variables not explicitly external (non-local). Supports directives
 ⍝       [⍝]:EXTERN - declaring external (non-local) names
@@ -13,7 +13,7 @@
 ⍝    Displays HELP info
 ⍝ HELP: See ⍝H (HELP) info below.
 
-    DEBUG ⎕IO ⎕ML←1 0 1 
+    DEBUG ⎕IO ⎕ML←0 0 1 
   0/⍨ ~DEBUG:: ⎕SIGNAL ⊂⎕DMX.( ('EN' EN) ('EM',⍥⊂'Intern: ',EM)('Message' 'Logic Error!'))
 
 ⍝ Define Constants
@@ -110,14 +110,26 @@
       0∊ valid3∊⍨¨ 3↑opts: ⎕SIGNAL badOptsE
         opts
     }
-    ParseArgs← { 
-      0=≢⍵: ⎕SIGNAL missingE ⋄ 0/⍨ ~DEBUG::   ⎕SIGNAL missingE
-        (myLns myNm) nc← { ⍝ Case 1: ⍵ is a name; Case 2: ⍵ is a fn/op body
-          1=≢⊆⍵: ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI  ⍝ Case 1
-                 (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)        ⊣ ns← ⎕NS ⍬  ⍝ Case 2
+    ParseArgs← {  
+      ⍝  Returns: (lines name) rc:
+      ⍝         rc is 0, if error, else the nameclass of <name>.
+      ⍝ 
+      0=≢⍵:        (⍬ ⍬) 0
+      0/⍨ ~DEBUG:: (⍬ ⍬) 0
+        (myLns myNm) nc← { 
+          VV2Fn← { ns← ⎕NS ⍬ ⋄ (⍵ myNm ) (ns.⎕NC ⊂,myNm←ns.⎕FX ⍵)  }
+          ⍝ Case 1: ⍵ is a name 
+          1=≢⊆⍵: {      
+            ⍝ Case 1a: ⍵ is a filename prefixed by 'file://'
+              p≡⍥⎕C ⍵↑⍨ nP← ≢p←'file://': VV2Fn ⊃⎕NGET (nP↓ ⍵) 1
+            ⍝ Case 1b: ⍵ is a function name (simple or prefixed)
+                ((⎕NR ⍵ ) (⌽r↑⍨ '.'⍳⍨ r←⌽⍵)) (ns.⎕NC ⊂,⍵) ⊣ ns← ⊃⎕RSI
+          } ⍵  
+          ⍝ Case 2: ⍵ is a fn/op body (vector of char vectors, i.e. multi-line)
+            VV2Fn ⍵ 
         }⍵ 
-        (⊃⌽myLns),← NL    ⍝ Ensure last line ends in NL like all others.
-      nc∊ 3.1 4.1: myLns myNm ⋄ ∘∘err∘∘  
+        0=≢myLns: (⍬ ⍬) 0 ⋄ (⊃⌽myLns),← NL    ⍝ Ensure last line ends in NL like all others.
+        (myLns myNm) nc 
     }
     ParseFnHdr← { rØ pgm← ⍺ ⍵ ⋄ SplitAny← (~∊⍨)⊆⊢
       ⍝ hA: Arg names, hLoc: optl Local declarations, hC: optl Comment
@@ -154,7 +166,8 @@
 ⍝ ∘ Help? (Intern⍨'help')
   'help'≡⍥⎕C⍵: _← Help 0
 ⍝ ∘ Parse and Validate ⍵-Args---
-    myLns myNm← ParseArgs ⍵
+    (myLns myNm) nc← ParseArgs ⍵
+     nc (~∊) 3.1 4.1: ⎕SIGNAL missingE  
 ⍝ ∘ Parse ⍺-Options, passing length of longest line (but not >⎕PW) to ParseOpts 
     ⍺← ⍬  
     resultØ sortØ weirdØ widthØ ← (⎕PW⌊ ⌈/≢¨myLns) ParseOpts ⍺  
@@ -179,9 +192,9 @@
 ⍝ ===============================================================================
 
 ⍝H
-⍝H          ┌─────────────────────────────────┐
-⍝H Intern:  │ result← opts ∇ [ nm | codeStr ] │
-⍝H          └─────────────────────────────────┘
+⍝H          ┌─────────────────────────────────────────────────┐
+⍝H Intern:  │ result← opts ∇ [ nm | file://fileID | codeStr ] │
+⍝H          └─────────────────────────────────────────────────┘
 ⍝H
 ⍝H OVERVIEW
 ⍝H ¯¯¯¯¯¯¯¯
@@ -243,13 +256,16 @@
 ⍝H
 ⍝H SYNTAX
 ⍝H ¯¯¯¯¯¯
-⍝H ┌─────────────────────────────────┐
-⍝H │ result← opts ∇ [ nm | codeStr ] │
-⍝H └─────────────────────────────────┘
+⍝H ┌─────────────────────────────────────────────────┐
+⍝H │ result← opts ∇ [ nm | file://fileID | codeStr ] │
+⍝H └─────────────────────────────────────────────────┘
 ⍝H
-⍝H   nm | codeStr:
+⍝H   nm | file://fileID | codeStr:
 ⍝H      nm: (char vector) simple or complex (qualified) name of tradfn/op (traditional only).
-⍝H      codeStr: (vector of char vectors) lines of proper tradfn/op (ditto).
+⍝H      fileID: (char vector) identifier of a file containing a single tradfn or tradop.
+⍝H         * The ACTUAL name of the fn/op will be gleaned from the header.
+⍝H      codeStr: (vector of char vectors) lines of proper tradfn/op* (ditto).
+⍝H         * The ACTUAL name of the tradfn/op will be gleaned from the header.
 ⍝H         ┌──────────────┬──────────┬────────────────────┬──────────────────────────────────┐
 ⍝H   opts: │ result type  │   sort   │ demote weird chars │ max width of locals declaration  │
 ⍝H         │              │          │   (when sorting)   │                                  │

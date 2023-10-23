@@ -1,0 +1,3 @@
+﻿ r←Fred
+ alpha
+ beta
