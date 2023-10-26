@@ -1,5 +1,6 @@
-﻿ arrV←{base}Test arrV;top0;top1        ⍝ Comment
- ;was;wasee
+﻿
+
+⍝ ::DEF IGNORE_ME← 10
 
  A B C D E F G H I J L K L M N O P Q R S T U V W X Y Z
  a b c d e f g h i j k l m n o p q r s
@@ -10,7 +11,7 @@
  ;hello
 
  ⎕IO ⎕ML←0 1
- IGNORE_ME←10
+ ⎕← IGNORE_ME
 ⍝ base: Could be 10, multiples/powers of 256 (1 byte), or even 1+⌈/|arrV (max)
  :If 900⌶0 ⋄ base←512 ⋄ :EndIf
 
