@@ -1,51 +1,39 @@
-lnsOut← Macros lnsIn
-    ; _; ans; badDirI; badDirP; badEndÊ; badOptsE; cmI; cmP; condG; continueG; continueP
-    ; copyI; copyP; defI; defP; elI; elifDI; elifI; elifNI; endIfI; endIfP; ifCondI
-    ; ifCondL; ifCondP; ifDI; ifI; ifMapL; ifNI; includeI; includeP; keysV; lineNum
-    ; lnStartI; lnStartP; logicÊ; missingE; myLns; myNm; nc; nlC; nmI; nmP; nmP1_t; pats
-    ; privNs; qtsI; qtsP; skipG; undefI; undefP; valsV
-    ; BadCpyÊ; BadDirÊ; BadFileÊ; BadNmÊ; BadValÊ; Canon; Cm; Cm1; Continue; Copy; DEBUG
-    ; Dir; Exists; Get; IfCond; IfSkip_And_NotDir; Include; Match; ParseArgs; ProcLns
-    ; Set; Show; Sub; Truthy; Undef
-    ; ⎕IO; ⎕ML
+lnsOut← Macros lnsIn  
 
-    DEBUG←0
+:With ⎕Ns⍬ 
+    DEBUG←1
     ⎕IO ⎕ML←0 1
     nlC← ⎕UCS 13 
   ⍝ error messages 
-    badEndÊ←   ⊂('EN' 11)('Message' 'Unmatched ::End directive')
-    badOptsE←  ⊂('EN' 11)('Message' 'Invalid or superfluous option(s) (⍺)')
+    cpySyntxÊ← ⊂('EN' 11)('Message' '::COPY argument syntax— "::Copy ws: name1 ..."')
+    endSyntxÊ←   ⊂('EN' 11)('Message' '::End directive doesn''t match anything')
+    optionsÊ←  ⊂('EN' 11)('Message' 'Option(s) ⍺ are invalid or superfluous')
     logicÊ←    ⊂('EN' 11)('Message' 'Macros: Internal logic error!')
     missingE←  ⊂('EN' 11)('Message' 'Invalid argument (⍵): Invalid or missing function or op')
   ⍝ error fns
-    BadCpyÊ←  {⊂('EN' 11)('Message' ('::COPY Could not find fn(s)/op(s): ',⍵)) }
-    BadDirÊ←  {⊂('EN' 11)('Message' ('Invalid macro directive "','"',⍨ ⍵)) }
-    BadFileÊ← {⊂('EN' 11)('Message' ('Invalid/Missing file: ''','''',⍨ ⍵)) }
-    BadNmÊ←   {⊂('EN' 11)('Message' ('Invalid macro name "','"',⍨ ⍵)) }
-    BadValÊ←  {⊂('EN' 11)('Message' ('::DEFE failed evaluating expression "','"',⍨ ⍵)) }
+    CpyNFndÊ←  {⊂('EN' 11)('Message' ('::COPY Could not find fn(s)/op(s): ',⍵)) }
+    UnknDirÊ←  {⊂('EN' 11)('Message' ('Invalid macro directive "','"',⍨ ⍵)) }
+    FileÊ← {⊂('EN' 11)('Message' ('Invalid/Missing file: ''','''',⍨ ⍵)) }
+    MacroÊ←   {⊂('EN' 11)('Message' ('Invalid macro name "','"',⍨ ⍵)) }
+    EvalÊ←  {⊂('EN' 11)('Message' ('::DEFE failed evaluating expression "','"',⍨ ⍵)) }
  
     :Trap 0/⍨ ~DEBUG  
       TrimL← {⍵↓⍨ +/∧\ ⍵=' '}
       IfSkip_And_NotDir← { ⍺: '::'≢ 2↑ TrimL ⍵ ⋄ 0}
       Copy←{
-          ~':'∊⍵:'Copy: argument syntax: dir: name1 [name2 [...]]'⎕SIGNAL 11
-          dir names←':'(≠⊆⊢)⍵
-          dir~← ' ' ⋄ names←' '(≠⊆⊢)names
-          ns←⎕NS ⍬
-        11:: ⎕SIGNAL BadCpyÊ ⍵
-          _←names ns.⎕CY dir 
-          ⊃,/ns.(⎕NR¨⎕NL-3 4)
+        ~':'∊⍵: ⎕SIGNAL cpySyntxÊ
+          dir names←':'(≠⊆⊢)⍵ ⋄ dir~← ' ' ⋄ names←' '(≠⊆⊢)names
+        11:: ⎕SIGNAL CpyNFndÊ ⍵
+          _←names (ns←⎕NS⍬).⎕CY dir ⋄ ⊃,/ns.(⎕NR¨⎕NL-3 4)
       }
       Include←{ sysDir← './'
-         fi← (sysDir/⍨ '<'=⊃⍵), fi← {'<"'∊⍨ ⊃⍵: 1↓¯1↓⍵ ⋄ ⍵}⍵
-        0:: ⎕SIGNAL BadFileÊ fi
-         ⊃⎕NGET fi 1 
+          fi← (sysDir/⍨ '<'=⊃⍵), fi← {'<"'∊⍨ ⊃⍵: 1↓¯1↓⍵ ⋄ ⍵}⍵
+        0:: ⎕SIGNAL FileÊ fi ⋄ ⊃⎕NGET fi 1 
       }
       ParseArgs← {  
         ⍝  Returns: (lines name) rc:
         ⍝         rc is 0, if error, else the nameclass of <name>.
         ⍝ 
-          nlC← ⎕UCS 13
         0=≢⍵:        (⍬ ⍬) 0
         0/⍨ ~DEBUG:: (⍬ ⍬) 0
         (myLns myNm) nc← { 
@@ -69,31 +57,31 @@ lnsOut← Macros lnsIn
       valsV← ⍬
     ⍝ Canon: If ⍺=0, ignore invalid non-sys names...
       Canon← { '⎕'=⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }
-      Exec← {0:: ⎕SIGNAL BadValÊ ⍵ ⋄ ⍕privNs⍎⍵ }
       Set← {  
-          Parens← '('∘,,∘')'
-          QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+⍵=qt }
-          opts← ⎕C⍺⍺
           ⍺← ⊢
           k v←⍺ (⍵, ⍺/⍨0=≢⍵)
-          vC← Parens⍣ ('p'∊ opts)⊢ QTs⍣ ('q'∊ opts)⊢ Exec⍣ ('e'∊ opts)⊢  ⍕v
-        (p←keysV⍳ ⊂kC← Canon k) ≥ ≢keysV: keysV,← ⊂kC ⊣ valsV,← ⊂vC
+          vC← ⍺⍺ Eval v
+          p←keysV⍳ ⊂kC← Canon k
+        p≥ ≢keysV: keysV,← ⊂kC ⊣ valsV,← ⊂vC
         1: (p⊃ valsV)← vC  
       }
-      Eval← {  
-          Parens← '('∘,,∘')'
-          QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+⍵=qt }
-          opts← ⎕C⍺⍺
-          val← ⍵ 
-          valC← ⎕FMT Parens⍣ ('p'∊ opts)⊢ QTs⍣ ('q'∊ opts)⊢ Exec ('e'∊ opts)⊢  ⍕val
-        0∊ ⍴valC: ''
-           ∊ nlC, valC
+      ToLinear← { 0∊ ⍴mx←⎕FMT ⍵: '' ⋄ 1=≢mx: ∊mx ⋄ ⎕SE.Dyalog.Array.Serialise ⍵}
+      Eval← {  ⍺←0  
+          ⋄ Parens← '('∘,,∘')'
+          ⋄ QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+qt=⍵ }
+          ⋄ Exec← {0:: ⎕SIGNAL EvalÊ ⍵ ⋄ privNs⍎⍵ }
+          e p q← 'epq'∊ ⎕C⍺⍺
+          0∊⍴res← Parens⍣p⊣ QTs⍣q⊣ ToLinear⍣e⊣ Exec⍣e⊣ ⍵: ''
+          ⍺: ∊nlC, res ⋄ res
       }
       Undef←{  
           (p← keysV⍳ ⊂kC← Canon ⍵)≥ ≢keysV: 0
           1⊣ keysV⊢← keysV/⍨ q ⊣ valsV⊢← valsV/⍨ q← p≠ ⍳≢keysV 
       }
-      Get←    { (p← keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV: p⊃ valsV ⋄ ⍵ }
+      Get← { ⍺←0
+        res← { (p← keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV: p⊃ valsV ⋄ ⍵ } ⍵
+        ⍺: ToLinear res  ⋄ res 
+      }
       Exists← {  (  keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV }
     ⍝ Truthy: A "sort-of" true as in Python
     ⍝   Returns 1: For any array that is not of length 0  
@@ -117,7 +105,7 @@ lnsOut← Macros lnsIn
     ⍝   E: Evaluate the expression in a private namespace
     ⍝   Q: Add quotes to the expression (after evaluating)
     ⍝   P: Add parens around the final expression (after evaluating)
-      defP←    Dir'def ([QEP]*) \h+ (',nmP,') (?: \h*←++ \h | \h++) (.*) $' 
+      defP←    Dir'def ([QEP]*) \h+ (',nmP,') (?: \h* ← \h? | \h+)?+ (.*) $' 
     ⍝ ::EVAL[QEP] expr
     ⍝   Evaluates <expr> in a private namespace and includes the result in the output.
     ⍝   Side effects in the private namespace will be available to later expressions.
@@ -129,9 +117,9 @@ lnsOut← Macros lnsIn
     ⍝ ifCondP: f1: if, elif, etc. f2: argument (left and right trimmed) 
       ifCondP← Dir'(?| ((?:el(?:se))?\h?if\h*(?:ndef|def|)) \h+ (.*?) \h* | (else)\b())$'
       endIfP←  Dir'end(?:if)? \h* () $'
-      badDirP← Dir'.*$'
-      pats←   nmP qtsP defP evalP undefP copyP includeP ifCondP endIfP badDirP cmP  
-              nmI qtsI defI evalI undefI copyI includeI ifCondI endIfI badDirI cmI ← ⍳≢pats
+      unknDirP← Dir'.*$'
+      pats←   nmP qtsP defP evalP undefP copyP includeP ifCondP endIfP cmP unknDirP   
+              nmI qtsI defI evalI undefI copyI includeI ifCondI endIfI cmI unknDirI← ⍳≢pats
       lineNum←0
 
       continueP← '(?:\.{2,3}|…)\h*((?:⍝.*)?)\n'   ⍝ 2-3 dots OR ellipses Unicode char.
@@ -145,7 +133,7 @@ lnsOut← Macros lnsIn
       ifCondL← (,'if' 'elseif' 'elif' ∘., '' 'def' 'ndef'), ⊂'else'
       ifMapL← 0 1 2 3 4 5 3 4 5 6
       ifI ifDI ifNI elifI elifDI elifNI elI← 0 1 2 3 4 5 6
-      IfCond← ans←'⍝'∘,{   
+      IfCond← '⍝'∘,{   
            IF_TRIGGERED IF_READY IF_SKIP← 2 1 ¯1  ⍝ 0= IF_INACTIVE
            f0 (f1 f2)← ⍵ ⋄ p← ifCondL⍳ ⊂' '~⍨⎕C f1 ⋄ C← (p⊃ ifMapL)∘∊
         (≢ifCondL)= p : ⎕SIGNAL logicÊ
@@ -160,7 +148,7 @@ lnsOut← Macros lnsIn
           (skipG⊃ '+-'), f0 
       }  
 
-      Sub←  nmP qtsP cmP ⎕R { f0← ⍵.Match ⋄ ⍵.PatternNum= 0: Get f0 ⋄ f0 }  
+      Sub←  nmP qtsP cmP ⎕R { f0← ⍵.Match ⋄ ⍵.PatternNum= 0: 1 Get f0 ⋄ f0 }  
 
       privNs← ⎕NS⍬ 
       condG← ,0  ⋄ skipG←0 
@@ -169,12 +157,12 @@ lnsOut← Macros lnsIn
           ⍝ extern: linesG
             ∆F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ C←  ⍵.PatternNum∘∊
             f0← ⍵.Match
-            C endIfI:  '⍝+', f0 ⊣ skipG⊢← 2| |⊃⌽condG ⊣ condG↓⍨← ¯1 ⊣ ⎕SIGNAL⍣(1≥≢condG)⊢badEndÊ
+            C endIfI:  '⍝+', f0 ⊣ skipG⊢← 2| |⊃⌽condG ⊣ condG↓⍨← ¯1 ⊣ ⎕SIGNAL⍣(1≥≢condG)⊢endSyntxÊ
             C ifCondI: IfCond f0 (∆F¨1 2)
             C qtsI cmI: f0 
-            C nmI:  Get f0
+            C nmI:  1 Get f0
             C defI: Cm f0⊣ f2 (f1 Set)  Sub f3 ⊣ f1 f2 f3← ∆F¨1 2 3 
-            C evalI: Cm f0,   (f1 Eval) Sub f2 ⊣ f1 f2←    ∆F¨1 2 
+            C evalI: Cm f0,  1 ((f1,'e') Eval) Sub f2 ⊣ f1 f2←    ∆F¨1 2 
             C undefI: Cm f0⊣ Undef ∆F 1 
             C copyI:  { f1 f2← ∆F¨1 2 ⋄ lns← Copy f2
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
@@ -184,7 +172,8 @@ lnsOut← Macros lnsIn
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
               Cm f0, ∊nlC,¨ lns
             } ⍵
-            ⎕SIGNAL BadDirÊ f0
+            C unknDirI: ⎕SIGNAL UnknDirÊ f0
+            ⎕SIGNAL logicÊ
         }⍠('UCP' 1)
           0=≢ ⍵: ⍺  
           curG← ⊃⍵ ⋄ linesG← 1↓⍵  
@@ -194,7 +183,7 @@ lnsOut← Macros lnsIn
 
       (myLns myNm) nc← ParseArgs lnsIn
       lnsOut← (1↑myLns), ProcLns Continue 1↓myLns
-
     :Else 
       ⎕SIGNAL ⊂⎕DMX.('EN' 'EM' 'Message',⍥⊆¨EN EM Message)
     :EndTrap
+:EndWith
