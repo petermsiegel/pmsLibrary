@@ -19,6 +19,8 @@ lnsOut← Macros lnsIn
   EvalÊ←  {⊂('EN' 11)('Message' ('::DEFE failed evaluating expression "','"',⍨ ⍵)) }
  
 ⍝ Small Support Functions
+  QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+qt=⍵ }
+  Parens← '('∘,,∘')'
   IfNotDirective← { '::'≢ 2↑TrimL ⍵ }
   TrimL← {⍵↓⍨ +/∧\ ⍵=' '}
   ⍝ Copy in as text from_ws: obj1 [obj2...]
@@ -39,6 +41,11 @@ lnsOut← Macros lnsIn
         fi← (sysDir/⍨ '<'=⊃⍵), fi← {'<"'∊⍨ ⊃⍵: 1↓¯1↓⍵ ⋄ ⍵}⍵
       0:: ⎕SIGNAL FileÊ fi ⋄ ⊃⎕NGET fi 1 
   }
+  ⍝ Truthy: A "sort-of" true as in Python
+  ⍝   Returns 1: For any array that is not of length 0  
+  ⍝              that is not singleton (∊⍵) 0 or ⎕NULL
+  ⍝   Returns 0: Otherwise 
+    Truthy← { r←⍴s←∊⍵ ⋄ 1≠r:0≠r ⋄ s(~∊)0 ⎕NULL }
 
 ⍝ Major functions
   ⍝ Parse the arguments to Macros from ⍵.
@@ -64,58 +71,48 @@ lnsOut← Macros lnsIn
       3 4(~∊⍨) ⌊nc:  ⎕SIGNAL missingE  
         (myLns myNm) nc 
     }
-  ⍝ Manage macro (::DEF) dictionaries
-    keysV← ⍬
-    valsV← ⍬
-  ⍝ I. Dictionary Support Fns 
-    ⍝ Canon: Names starting with ⎕ are silently uppercase.
-      Canon← { '⎕'=⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }
-    ⍝ ToLinear: If a value is multiline, return its Serialise-d definition
-      deserCod← '⎕SE.Dyalog.Array.Deserialise'
-      Ser1←    1∘⎕SE.Dyalog.Array.Serialise 
-      QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+qt=⍵ }
-      Parens← '('∘,,∘')'
-      ToLinear← { 0∊ ⍴mx←⎕FMT ⍵: '' ⋄ 1=≢mx: ∊mx ⋄ Parens deserCod,' ',QTs Ser1 ⍵ }
-    ⍝ Truthy: A "sort-of" true as in Python
-    ⍝   Returns 1: For any array that is not of length 0  
-    ⍝              that is not singleton (∊⍵) 0 or ⎕NULL
-    ⍝   Returns 0: Otherwise 
-      Truthy← { r←⍴s←∊⍵ ⋄ 1≠r:0≠r ⋄ s(~∊)0 ⎕NULL }
-  ⍝ II. (Major) Dictionary Routines
-  ⍝ Set: k Set v   OR  Set k v
-    Set← {  
-        ⍺← ⊢
-        k v←⍺ (⍵, ⍺/⍨0=≢⍵)
-        vC← ⍺⍺ Eval v
-        p←keysV⍳ ⊂kC← Canon k
-      p≥ ≢keysV: keysV,← ⊂kC ⊣ valsV,← ⊂vC
-      1: (p⊃ valsV)← vC  
-    }
-  ⍝ Eval: Eval v
-  ⍝   ⍺=1: Ensure in linear char. form. Else ⍺=2: leave as is.
-    Eval← {  ⍺←0  
-        ⋄ Exec← { Ex← 85 privNs.⌶ ⋄ 0:: ⎕SIGNAL EvalÊ ⍵ ⋄ 85:: '' ⋄ 1 Ex ⍵ }
-        e p q← 'epq'∊ ⎕C⍺⍺
-        res← Parens⍣p⊣ QTs⍣q⊣ ToLinear⍣(p∨q∨⍺)⊣ raw← Exec⍣e⊣ ⍵
-      0∊⍴raw: ''
-      ⍺: ∊nlC, res  ⋄ res
-    }
-  ⍝ Undef:  Undef k
-    Undef←{  
-        (p← keysV⍳ ⊂kC← Canon ⍵)≥ ≢keysV: 0
-        1⊣ keysV⊢← keysV/⍨ q ⊣ valsV⊢← valsV/⍨ q← p≠ ⍳≢keysV 
-    }
-  ⍝ Get:  Get k. If it does not exist, return k itself.
-  ⍝ If ⍺, ensures result is a linearized char vector. Else returns in char (⍕) format.
-    Get← { ⍺←0
-      res← { (p← keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV: p⊃ valsV ⋄ ⍵ } ⍵
-      ⍺: ToLinear res  ⋄ res 
-    }
-  ⍝ Exist: Exists k. Returns 1 if k is defined.
-    Exists← {  (  keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV }
-  ⍝ ShowAll: ShowAll ⍬ lists all keys and values.
-    ShowAll←   { #.(keysV valsV)←keysV valsV
-      ⍬⊣ keysV{ ⎕←((8⌈≢_)↑ _←'"','"',⍨⍺),' → "' ⍵ '"' }¨0∘Get¨keysV }
+  ⍝ Macro (::DEF) dictionaries- declarations, fns, ops
+    keysV← valsV← ⍬
+    ⍝ I. Dictionary Support Fns 
+      ⍝ Canon: Names starting with ⎕ are silently uppercase.
+        Canon← { '⎕'=⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }
+      ⍝ ToLinear: If a value is multiline, return its Serialise-d definition
+        Encode←  ⎕SE.Dyalog.Array.(0∘Deserialise 1∘Serialise) 
+        ToLinear← { 0∊ ⍴mx←⎕FMT ⍵: '' ⋄ 1=≢mx: ∊mx ⋄ Encode ⍵ }
+    ⍝ II. (Major) Dictionary Routines
+    ⍝ A. Set: k Set v   OR  Set k v
+      Set← {  
+          ⍺← ⊢
+          k v←⍺ (⍵, ⍺/⍨0=≢⍵)
+          vC← ⍺⍺ Eval v
+          p←keysV⍳ ⊂kC← Canon k
+        p≥ ≢keysV: keysV,← ⊂kC ⊣ valsV,← ⊂vC
+        1: (p⊃ valsV)← vC  
+      }
+    ⍝ B. Eval: Eval v
+    ⍝   ⍺=1: Ensure in linear char. form. Else ⍺=2: leave as is.
+      Eval← {  ⍺←0  
+          ⋄ Exec← { Ex← 85 privNs.⌶ ⋄ 0:: ⎕SIGNAL EvalÊ ⍵ ⋄ 85:: '' ⋄ 1 Ex ⍵ }
+          e p q← 'epq'∊ ⎕C⍺⍺
+          res← Parens⍣p⊣ QTs⍣q⊣ ToLinear⍣(p∨q∨⍺)⊣ raw← Exec⍣e⊣ ⍵
+        0∊⍴raw: ''
+        ⍺: ∊nlC, res  ⋄ res
+      }
+    ⍝ C. Undef:  Undef k
+      Undef←{  
+          (p← keysV⍳ ⊂kC← Canon ⍵)≥ ≢keysV: 0
+          1⊣ keysV⊢← keysV/⍨ q ⊣ valsV⊢← valsV/⍨ q← p≠ ⍳≢keysV 
+      }
+    ⍝ D. Get:  Get k. If it does not exist, return k itself.
+    ⍝ If ⍺, ensures result is a linearized char vector. Else returns in char (⍕) format.
+      Get← { ⍺←0
+        res← { (p← keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV: p⊃ valsV ⋄ ⍵ } ⍵
+        ⍺: ToLinear res  ⋄ res 
+      }
+    ⍝ E. Exist: Exists k. Returns 1 if k is defined.
+      Exists← {  (  keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV }
+    ⍝ F. ShowAll: ShowAll ⍬ lists all keys and values.
+      ShowAll← { ''⊣ keysV{ ⎕←1↓⍤1⊢⎕FMT(('> ',(8⌈≢_)↑ _←'"','"',⍨⍺),' → "') ⍵ '"' }¨0∘Get¨keysV }
  
   ⍝ Command parser (PCRE-based)
     ⍝ I. Support Fns
@@ -146,7 +143,7 @@ lnsOut← Macros lnsIn
       ⍝ ifCondP: f1: if, elif, etc. f2: argument (left and right trimmed) 
       ifCondP← Dir'(?| ((?:el(?:se))?\h?if\h*(?:ndef|def|)) \h+ (.*?) \h* | (else)\b())$'
       endIfP←  Dir'end(?:if)? \h* () $'
-      showP←   Dir'show(?:defs)?\h*$'
+      showP←   Dir'show(?:defs)? \h* $'
       unknDirP← Dir'.*$'
       pats←   nmP qtsP defP evalP undefP copyP includeP ifCondP endIfP showP cmP unknDirP   
               nmI qtsI defI evalI undefI copyI includeI ifCondI endIfI showI cmI unknDirI← ⍳≢pats
@@ -202,7 +199,7 @@ lnsOut← Macros lnsIn
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
               Cm f0, ∊nlC,¨ lns
             } ⍵
-            C showI: ''⊣ ShowAll ⍬
+            C showI: Cm f0, ShowAll ⍬
             C unknDirI: ⎕SIGNAL UnknDirÊ f0
             ⎕SIGNAL logicÊ
         }⍠('UCP' 1)
