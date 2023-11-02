@@ -1,8 +1,12 @@
-lnsOut← Macros lnsIn  
+lnsOut← {opts} Macros lnsIn  
 
-:With ⎕Ns⍬ ⋄  DEBUG←0 ⋄ :Trap 0/⍨ ~DEBUG
-    ⎕IO ⎕ML←0 1
-    nlC← ⎕UCS 13 
+⍝ Use :With to avoid all those annoying variable declarations...
+:With ⎕NS⍬ ⋄  DEBUG←0 ⋄ :Trap 0/⍨ ~DEBUG
+  ⎕IO ⎕ML←0 1
+  nlC← ⎕UCS 13 
+  :IF ~900⌶1 ⋄ :ANDIF opts≡⍥⎕C 'help'
+        ⎕ED '_'⊣ _← ('^\h*⍝H ?(.*)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI ⋄ :RETURN 
+  :ENDIF 
 
 ⍝ error messages 
   cpyNoWsÊ←  ⊂('EN' 11)('Message' '::COPY argument syntax— "::Copy ws: name1 ..."')
@@ -21,6 +25,10 @@ lnsOut← Macros lnsIn
 ⍝ Small Support Functions
   QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+qt=⍵ }
   Parens← '('∘,,∘')'
+  ⍝ Exec runs all ::DEFE (and ::EVAL) stmts in a sandbox available to later such stmts.
+  ⍝ If ⍺=1, require an explicit result!
+  sandboxNs← ⎕NS⍬
+  Exec← (sandboxNs){ ⍺←0 ⋄ 0:: ⎕SIGNAL EvalÊ ⍵ ⋄ 85:: '' ⋄ 1 (85⍺⍺.⌶) ⍵,⍨ ⍺/'⊢' }
   IfNotDirective← { '::'≢ 2↑TrimL ⍵ }
   TrimL← {⍵↓⍨ +/∧\ ⍵=' '}
   ⍝ Copy in as text from_ws: obj1 [obj2...]
@@ -37,19 +45,20 @@ lnsOut← Macros lnsIn
   ⍝    in the system path, or
   ⍝    in the user directory
   ⍝ On error, signals fileÊ
-    Include←{ sysDir← './'
+  Include←{ 
+        DYALOG← 2 ⎕NQ'.' 'GetEnvironment' 'DYALOG'
+        sysDir←  DYALOG, '/SALT/spice'
         fi← (sysDir/⍨ '<'=⊃⍵), fi← {'<"'∊⍨ ⊃⍵: 1↓¯1↓⍵ ⋄ ⍵}⍵
       0:: ⎕SIGNAL FileÊ fi ⋄ ⊃⎕NGET fi 1 
   }
   ⍝ Truthy: A "sort-of" true as in Python
   ⍝   Returns 1: For any array that is not of length 0  
-  ⍝              that is not singleton (∊⍵) 0 or ⎕NULL
+  ⍝              and that is not singleton (∊⍵) 0 or ⎕NULL
   ⍝   Returns 0: Otherwise 
-    Truthy← { r←⍴s←∊⍵ ⋄ 1≠r:0≠r ⋄ s(~∊)0 ⎕NULL }
-
+  Truthy← { r←⍴s←∊⍵ ⋄ 1≠r: 0≠r ⋄ s(~∊)0 ⎕NULL }
 ⍝ Major functions
   ⍝ Parse the arguments to Macros from ⍵.
-    ParseArgs← {  
+  ParseArgs← {  
       ⍝  Returns: (lines name) rc:
       ⍝         rc is 0, if error, else the nameclass of <name>.
       ⍝ 
@@ -70,54 +79,71 @@ lnsOut← Macros lnsIn
       0=≢myLns: (⍬ ⍬) 0   
       3 4(~∊⍨) ⌊nc:  ⎕SIGNAL missingE  
         (myLns myNm) nc 
-    }
-  ⍝ Macro (::DEF) dictionaries- declarations, fns, ops
+  }
+  :Section defs dictionary
+  ⍝ defs...: Macro (::DEF) dictionaries- declarations, fns, ops
     keysV← valsV← ⍬
     ⍝ I. Dictionary Support Fns 
-      ⍝ Canon: Names starting with ⎕ are silently uppercase.
-        Canon← { '⎕'=⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }
-      ⍝ ToLinear: If a value is multiline, return its Serialise-d definition
-        Encode←  ⎕SE.Dyalog.Array.(0∘Deserialise 1∘Serialise) 
-        ToLinear← { 0∊ ⍴mx←⎕FMT ⍵: '' ⋄ 1=≢mx: ∊mx ⋄ Encode ⍵ }
+      ⍝ Canon: Names starting with ⎕ are stored in uppercase.
+      Canon← { '⎕'=⊃⍵: 1 ⎕C ⍵ ⋄ ⍵ }
+      ⍝ ToLinear: If a value is multiline, return a canonical linear definition
+      AsCode←  ⎕SE.Dyalog.Array.(0∘Deserialise 1∘Serialise) 
+      ToLinear← { 0∊ ⍴mx←⎕FMT ⍵: '' ⋄ 1=≢mx: ∊mx ⋄ AsCode ⍵ }
     ⍝ II. (Major) Dictionary Routines
-    ⍝ A. Set: k Set v   OR  Set k v
-      Set← {  
-          ⍺← ⊢
-          k v←⍺ (⍵, ⍺/⍨0=≢⍵)
-          vC← ⍺⍺ Eval v
-          p←keysV⍳ ⊂kC← Canon k
-        p≥ ≢keysV: keysV,← ⊂kC ⊣ valsV,← ⊂vC
-        1: (p⊃ valsV)← vC  
-      }
-    ⍝ B. Eval: Eval v
-    ⍝   ⍺=1: Ensure in linear char. form. Else ⍺=2: leave as is.
-      Eval← {  ⍺←0  
-          ⋄ Exec← { Ex← 85 privNs.⌶ ⋄ 0:: ⎕SIGNAL EvalÊ ⍵ ⋄ 85:: '' ⋄ 1 Ex ⍵ }
-          e p q← 'epq'∊ ⎕C⍺⍺
-          res← Parens⍣p⊣ QTs⍣q⊣ ToLinear⍣(p∨q∨⍺)⊣ raw← Exec⍣e⊣ ⍵
-        0∊⍴raw: ''
-        ⍺: ∊nlC, res  ⋄ res
-      }
-    ⍝ C. Undef:  Undef k
-      Undef←{  
-          (p← keysV⍳ ⊂kC← Canon ⍵)≥ ≢keysV: 0
-          1⊣ keysV⊢← keysV/⍨ q ⊣ valsV⊢← valsV/⍨ q← p≠ ⍳≢keysV 
-      }
-    ⍝ D. Get:  Get k. If it does not exist, return k itself.
+    ⍝ A. DictSet: k (opts DictSet) v   OR  (opts DictSet) k v
+    ⍝    Define kC, as k normalized. 
+    ⍝    If v is '', then v← kC. vC is v formatted/evaluated per opts.
+    ⍝    opts: See DictEval ([0] Execute, [1] Add Parens, [2] Add Quotes)
+    ⍝    Returns vC.
+        ⍝ sysV←  '⎕PATH' '⎕SM' '⎕TRAP' '⎕PP' '⎕FR' '⎕PW'
+        ⍝ sysV,← '⎕USING' '⎕AVU' '⎕IO' '⎕RL' '⎕CT'
+        ⍝ sysV,← 'WSID' '⎕LX' '⎕RTL' '⎕WX' '⎕DCT' '⎕ML' '⎕DIV'
+        ⍝ IsSysV← ∊∘sysV
+        ⍝ DictSet← {  
+        ⍝     Mirror2Sandbox← {  
+        ⍝       kC2← IsSysV {'⎕'≠⊃⍵: ⍵ ⋄ ⍺⍺ ⊂⍵: ⍵ ⋄ '⍙',1↓⍵ } ⍺
+        ⍝       sandboxNs⍎kC2,'←⍵'
+        ⍝     }
+        ⍺← ⊢ ⋄ k v←⍺ ⍵ 
+        kC← Canon k ⋄ vC← (⍺⍺ DictEval) v kC⊃⍨ 0=≢v  
+        p←keysV⍳ ⊂kC  ⍝ ⋄  _← kC Mirror2Sandbox vC
+      p≥ ≢keysV: valsV ,∘⊂← vC ⊣ keysV,∘⊂← kC  
+      1:        (p⊃ valsV)← vC  
+    }
+    ⍝ B. DictEval: DictEval v
+    ⍝   ⍺=1: Require an explicit result, if ⍺⍺[0]=1. 
+    ⍝   ⍺=0: Do not require an explicit result. 
+    ⍝        Start (non-null) result on a new line.
+    ⍝   ⍺⍺:  [0] Execute (e), [1] Add parens (p), [2] Add quotes (q)
+    DictEval← { ⍺←1 ⋄ e p q← 'epq'∊ ⎕C ⍺⍺
+        res← Parens⍣p⊣ QTs⍣q⊣ ToLinear⍣(p∨q∨~⍺)⊣ raw← ⍺∘Exec⍣e⊣ ⍵
+      0∊⍴raw: '' ⋄ res,⍨ nlC/⍨ ~⍺
+    }
+    ⍝ C. DictUndef:  DictUndef k
+    DictUndef←{  
+        (p← keysV⍳ ⊂kC← Canon ⍵)≥ ≢keysV: 0
+        1⊣ keysV⊢← keysV/⍨ q ⊣ valsV⊢← valsV/⍨ q← p≠ ⍳≢keysV 
+    }
+    ⍝ D. DictGet:  DictGet k. If it does not exist, return k itself.
     ⍝ If ⍺, ensures result is a linearized char vector. Else returns in char (⍕) format.
-      Get← { ⍺←0
-        res← { (p← keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV: p⊃ valsV ⋄ ⍵ } ⍵
-        ⍺: ToLinear res  ⋄ res 
-      }
-    ⍝ E. Exist: Exists k. Returns 1 if k is defined.
-      Exists← {  (  keysV⍳ ⊂kC← Canon ⍵ )< ≢keysV }
-    ⍝ F. ShowAll: ShowAll ⍬ lists all keys and values.
-      ShowAll← { ''⊣ keysV{ ⎕←1↓⍤1⊢⎕FMT(('> ',(8⌈≢_)↑ _←'"','"',⍨⍺),' → "') ⍵ '"' }¨0∘Get¨keysV }
- 
+    DictGet← { ⍺←0 ⋄ p← keysV⍳ ⊂kC← Canon ⍵ 
+      val← { p< ≢keysV: p⊃ valsV ⋄ ⍵ } kC
+      ⍺: ToLinear val  ⋄ val 
+    }
+    ⍝ E. Exist: DictExists k. Returns 1 if k is defined.
+    DictExists← {  ( keysV⍳ ⊂Canon ⍵ )< ≢keysV }
+    ⍝ F. DictShow: DictShow ⍬ lists all keys and values.
+    DictShow← { 
+      kk← { 0=≢⍵: keysV ⋄ ' ' (≠⊆⊢) ⍵ }⍵ ⋄ vv← 0∘DictGet¨kk
+      ''⊣ kk{ ⎕←1↓⍤1⊢⎕FMT(('> ',(12⌈≢_)↑ _←'"','"',⍨⍺),'→') ⍵ }¨vv
+    }
+  :EndSection ⍝ defs dictionary
+
+  :Section Command Parser
   ⍝ Command parser (PCRE-based)
     ⍝ I. Support Fns
-      ⋄ Cm←  '⍝ '∘, ⋄ Cm1← '⍝'∘,
-      ⋄ Dir← '(?xi) ^ \h*  ::'∘,     ⍝ Preamble for directives...
+      ⋄ Cm←  '⍝ '∘,                  ⍝ Comment prefix in ⎕R output.
+      ⋄ Dir← '(?xi) ^ \h*  ::'∘,     ⍝ Preamble for directives in Regex patterns.
     ⍝ Regex Patterns
       nmP1_t←  '[\pL_∆⍙][\w_∆⍙]*'
       nmP←     '(?<!\.)⎕?',nmP1_t,'(?:\.',nmP1_t,')?(?!\.)' 
@@ -135,21 +161,20 @@ lnsOut← Macros lnsIn
       ⍝ ::EVAL[QEP] expr
       ⍝   Evaluates <expr> in a private namespace and includes the result in the output.
       ⍝   Side effects in the private namespace will be available to later expressions.
-      ⍝   Q, P (as above). E implicit in Eval, so ignored.
+      ⍝   Q, P (as above). E is obligatory, so added automatically.
       evalP←   Dir'eval ([QEP]*)\h*(.*) $'   
       undefP←  Dir'undef \s+ (',nmP,') .* $'
-      copyP←   Dir'copy((?:RAW|RA|R)?) \h+ ([^:]+:.*) $'
-      includeP←Dir'include((?:RAW|RA|R)?) \h+ ("[^"]+"|<[^>]+>|[^ ]+) \h* $'
+      copyP←   Dir'copy((?:RAW|R)?) \h+ ([^:]+:.*) $'
+      includeP←Dir'include((?:RAW|R)?) \h+ ("[^"]+"|<[^>]+>|[^ ]+) \h* $'
       ⍝ ifCondP: f1: if, elif, etc. f2: argument (left and right trimmed) 
       ifCondP← Dir'(?| ((?:el(?:se))?\h?if\h*(?:ndef|def|)) \h+ (.*?) \h* | (else)\b())$'
       endIfP←  Dir'end(?:if)? \h* () $'
-      showP←   Dir'show(?:defs)? \h* $'
+      showP←   Dir'show(?:defs)? \h* (.*) $'
       unknDirP← Dir'.*$'
       pats←   nmP qtsP defP evalP undefP copyP includeP ifCondP endIfP showP cmP unknDirP   
               nmI qtsI defI evalI undefI copyI includeI ifCondI endIfI showI cmI unknDirI← ⍳≢pats
-      lineNum←0
 
-      continueP← '(?:\.{2,3}|…)\h*((?:⍝.*)?)\n'   ⍝ 2-3 dots OR ellipses Unicode char.
+      continueP← '\h*(?:\.{2,3}|…)\h*((?:⍝.*)?)\n'   ⍝ 2-3 dots OR ellipses Unicode char.
       continueG← ⍬
       Continue←qtsP cmP continueP '\n?$' ⎕R {  
           ∆F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ C←  ⍵.PatternNum∘∊
@@ -166,17 +191,17 @@ lnsOut← Macros lnsIn
         (≢ifCondL)= p : ⎕SIGNAL logicÊ
         condG,← (C ifI ifDI ifNI)/0
         (⊃⌽condG)← (⊃⌽condG){ Q← ⊃∘ifNotYetTrue_skip ifIsTrue_keep
-          C ifI:  Q Truthy privNs⍎Sub ⍵ ⋄ C ifDI:  Q Exists ⍵ ⋄ C ifNI: Q ~Exists ⍵
+          C ifI:  Q Truthy Exec NmSub ⍵ ⋄ C ifDI:  Q DictExists ⍵ ⋄ C ifNI: Q ~DictExists ⍵
           ifNotYetTrue_skip≠ ⍺: ifPastTrueBlock_skip  
-          C elifI: Q Truthy privNs⍎Sub ⍵ ⋄ C elifDI: Q Exists ⍵ ⋄ C elifNI: Q ~Exists ⍵
+          C elifI: Q Truthy Exec NmSub ⍵ ⋄ C elifDI: Q DictExists ⍵ ⋄ C elifNI: Q ~DictExists ⍵
           C elI:   ifIsTrue_keep     
         } f2 
-          skipG⊢←  2| ⊃⌽condG ⋄ (skipG⊃ '+-'), f0 
+          f0,⍨ '+-'⊃⍨ skipG ⊣ skipG⊢←  2| ⊃⌽condG 
+      }  
+      NmSub←  nmP qtsP cmP ⎕R { 
+        f0← ⍵.Match ⋄ ⍵.PatternNum= 0: 1 DictGet f0 ⋄ f0 
       }  
 
-      Sub←  nmP qtsP cmP ⎕R { f0← ⍵.Match ⋄ ⍵.PatternNum= 0: 1 Get f0 ⋄ f0 }  
-
-      privNs← ⎕NS⍬ 
       condG← ,ifNotActive_keep ⋄ skipG←0 
       ProcLns← ⍬∘{
         Match← pats ⎕R { 
@@ -185,12 +210,12 @@ lnsOut← Macros lnsIn
             f0← ⍵.Match
             C endIfI:  '⍝+', f0 ⊣ skipG⊢← 2| ⊃⌽condG ⊣ condG↓⍨← ¯1 ⊣ ⎕SIGNAL⍣(1≥≢condG)⊢endSyntxÊ
             C ifCondI: IfCond f0 (∆F¨1 2)
-            skipG: '⍝-',f0
+          skipG: '⍝-',f0
             C qtsI cmI: f0 
-            C nmI:  1 Get f0
-            C defI: Cm f0⊣ f2 (f1 Set)  Sub f3 ⊣ f1 f2 f3← ∆F¨1 2 3 
-            C evalI: Cm f0,  1 ((f1,'e') Eval) Sub f2 ⊣ f1 f2←    ∆F¨1 2 
-            C undefI: Cm f0⊣ Undef ∆F 1 
+            C nmI:  1 DictGet f0
+            C defI: Cm f0⊣ f2 ((f1) DictSet)  NmSub f3 ⊣ f1 f2 f3← ∆F¨1 2 3 
+            C evalI: Cm f0,  0 ((f1,'e') DictEval) NmSub f2 ⊣ f1 f2←    ∆F¨1 2 
+            C undefI: Cm f0⊣ DictUndef ∆F 1 
             C copyI:  { f1 f2← ∆F¨1 2 ⋄ lns← Copy f2
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
               Cm f0, ∊nlC,¨ lns
@@ -199,19 +224,68 @@ lnsOut← Macros lnsIn
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
               Cm f0, ∊nlC,¨ lns
             } ⍵
-            C showI: Cm f0, ShowAll ⍬
+            C showI: Cm f0, DictShow ∆F 1
             C unknDirI: ⎕SIGNAL UnknDirÊ f0
-            ⎕SIGNAL logicÊ
+          ⎕SIGNAL logicÊ
         }⍠('UCP' 1)
           0=≢ ⍵: ⍺  
-          curG← ⊃⍵ ⋄ linesG← 1↓⍵ 
-        ~skipG: linesG ∇⍨ ⍺,⊂ Match curG  
-         IfNotDirective curG:  linesG ∇⍨ ⍺,⊂ '⍝-',curG
-         linesG ∇⍨ ⍺,⊂ Match curG 
+            curG← ⊃⍵ ⋄ linesG← 1↓⍵ 
+          ~skipG: linesG ∇⍨ ⍺,⊂ Match curG  
+          IfNotDirective curG:  linesG ∇⍨ ⍺,⊂ '⍝-',curG
+            linesG ∇⍨ ⍺,⊂ Match curG 
       }
+  :EndSection Command Parser
 
       (myLns myNm) nc← ParseArgs lnsIn
       lnsOut← (1↑myLns), ProcLns Continue 1↓myLns
 :Else 
     ⎕SIGNAL ⊂⎕DMX.('EN' 'EM' 'Message',⍥⊆¨EN EM Message)
 :EndTrap ⋄ :EndWith
+
+⍝H Macros - 
+⍝H    A C-preprocessor-like macro processor for Dyalog functions and operators.
+⍝H Syntax:
+⍝H    fn_lines← [opts] Macros [ fn_lines | fn_name | file://file_name ]
+⍝H      opts: 'help' (if specified, the right arg is ignored)
+⍝H      fn_lines           2 or more lines of a fn/op to preprocess
+⍝H      fn_name            the name of an APL fn/op (including any ns spec)
+⍝H      file://file_name  the name of a file containing one or more APL objects.
+⍝H
+⍝H Directives (case is ignored on directive names; "␢" represents an optional space.
+⍝H    ::DEF[PQE] name← val     Defines name as having the value <val>, possibly transformed:
+⍝H                             E-- after executing in a private namespace.
+⍝H                             P-- adding parens on the outside.
+⍝H                             Q-- after adding quotes on the outside, doubling internal quotes.
+⍝H                             If val is omitted, name has the value of null
+⍝H    ::DEF[PQE] name [val]    If val is omitted, it is name by default
+⍝H    ::UNDEF name
+⍝H    ::IF expression          If expression is "truthy," the block is executed 
+⍝H                             (truthy: true if more than 1 elem or, if 1 elem, neither 0 nor ⎕NULL)
+⍝H                             IF/ELSEIF/ENDIF sequences may be nested.
+⍝H    ::IF[␢DEF|␢NDEF] name    If name is (is not) defined, the block is executed.
+⍝H                             ::IF, ::IFDEF, ::IF DEF, etc. are allowed. 
+⍝H                             Note: "␢" stands in for an opt'l space character.
+⍝H    ::ELSE␢IF[␢DEF|␢NDEF]... As for ::IF above.  ::ELSEIF, ::ELSE IF, etc. are allowed.
+⍝H    ::ELIF[␢DEF|␢NDEF]...    Same as ELSEIF
+⍝H    ::ELSE                   The block is executed if no IF or ELSEIF has executed.
+⍝H    ::END[IF]                Marks the end of an IF sequence.
+⍝H    name used in user code   A defined name found in user code is replaced by its value 
+⍝H                             as defined (via DEF or its variants).
+⍝H                             Names beginning with ⎕ are treated and matched as if upper case.
+⍝H                             Names must be simple, containing no dots (namespace elements).
+⍝H    ::EVAL code              Evaluates the code in a private NS (shared across calls).
+⍝H                             Displays the result simply in the output if a single line.
+⍝H                             Displays a code version in the output, if not a single line.
+⍝H    ::COPY ws: obj1 ...      Copies obj1 etc. from workspace ws as code in text form,
+⍝H                             after scanning for Macros directives.
+⍝H    ::COPY[R|RAW]            Like Copy, but does not evaluate via Macros.
+⍝H    ::INCLUDE [<fi> | "fi"]  Copies in everything in the file specified into the output stream,
+⍝H                             after scanning for Macros directives.
+⍝H                             <fi> looks in the "system" directory, "fi" in the user dir.
+⍝H    ::INCLUDE[R|RAW]         Like ::INCLUDE, but does not evaliate via Macros.
+⍝H    ::SHOW                   Lists in the session (not output stream) values of defined names.
+⍝H    … Continuation lines     Macros allows any line (user code or directive) to be continued.
+⍝H    ...  OR                  Continuations are indicated via ellpsis (... .. or …)
+⍝H    ..   OR                  at the end of a line before any comments.
+⍝H    …                        Any ellipsis (plus newline) is replaced by a single space.
+⍝H                             '…' is ⎕UCS 8230.
