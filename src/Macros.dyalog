@@ -1,9 +1,11 @@
-lnsOut← {opts} Macros lnsIn  
+lnsOut← {opts} Macros lnsIn
 
 ⍝ Use :With to avoid all those annoying variable declarations...
-:With ⎕NS⍬ ⋄  DEBUG←0 ⋄ :Trap 0/⍨ ~DEBUG
+:With ⎕NS⍬ ⋄  DEBUG←1 ⋄ :Trap 0/⍨ ~DEBUG
   ⎕IO ⎕ML←0 1
-  nlC← ⎕UCS 13 
+  nlC← ⎕UCS 13
+  qtC← ''''
+
   :IF ~900⌶1 ⋄ :ANDIF opts≡⍥⎕C 'help'
         ⎕ED '_'⊣ _← ('^\h*⍝H ?(.*)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI ⋄ :RETURN 
   :ENDIF 
@@ -23,14 +25,14 @@ lnsOut← {opts} Macros lnsIn
   EvalÊ←  {⊂('EN' 11)('Message' ('::DEFE failed evaluating expression "','"',⍨ ⍵)) }
  
 ⍝ Small Support Functions
-  QTs← {qt←'''' ⋄ (qt∘,,∘qt)⍵/⍨ 1+qt=⍵ }
+  QTs← {(qtC∘,,∘qtC)⍵/⍨ 1+qtC=⍵ }
   Parens← '('∘,,∘')'
   ⍝ Exec runs all ::DEFE (and ::EVAL) stmts in a sandbox available to later such stmts.
   ⍝ If ⍺=1, require an explicit result!
   sandboxNs← ⎕NS⍬
   Exec← (sandboxNs){ ⍺←0 ⋄ 0:: ⎕SIGNAL EvalÊ ⍵ ⋄ 85:: '' ⋄ 1 (85⍺⍺.⌶) ⍵,⍨ ⍺/'⊢' }
   IfNotDirective← { '::'≢ 2↑TrimL ⍵ }
-  TrimL← {⍵↓⍨ +/∧\ ⍵=' '}
+  TrimL← {⍵↓⍨ +/∧\ ⍵=' '} ⋄ TrimR← ⌽∘TrimL∘⌽
   ⍝ Copy in as text from_ws: obj1 [obj2...]
   ⍝ copy objects obj1 [obj2...] from APL workspace from_ws
   ⍝ Signals cpyNoWsÊ if no ws named or CpyNFndÊ if any object is not copied.
@@ -99,11 +101,11 @@ lnsOut← {opts} Macros lnsIn
         ⍝ sysV,← '⎕USING' '⎕AVU' '⎕IO' '⎕RL' '⎕CT'
         ⍝ sysV,← 'WSID' '⎕LX' '⎕RTL' '⎕WX' '⎕DCT' '⎕ML' '⎕DIV'
         ⍝ IsSysV← ∊∘sysV
-        ⍝ DictSet← {  
-        ⍝     Mirror2Sandbox← {  
-        ⍝       kC2← IsSysV {'⎕'≠⊃⍵: ⍵ ⋄ ⍺⍺ ⊂⍵: ⍵ ⋄ '⍙',1↓⍵ } ⍺
-        ⍝       sandboxNs⍎kC2,'←⍵'
-        ⍝     }
+        ⍝ Mirror2Sandbox← {  
+        ⍝   kC2← IsSysV {'⎕'≠⊃⍵: ⍵ ⋄ ⍺⍺ ⊂⍵: ⍵ ⋄ '⍙',1↓⍵ } ⍺
+        ⍝   sandboxNs⍎kC2,'←⍵'
+        ⍝ }
+      DictSet← {  
         ⍺← ⊢ ⋄ k v←⍺ ⍵ 
         kC← Canon k ⋄ vC← (⍺⍺ DictEval) v kC⊃⍨ 0=≢v  
         p←keysV⍳ ⊂kC  ⍝ ⋄  _← kC Mirror2Sandbox vC
@@ -173,14 +175,32 @@ lnsOut← {opts} Macros lnsIn
       unknDirP← Dir'.*$'
       pats←   nmP qtsP defP evalP undefP copyP includeP ifCondP endIfP showP cmP unknDirP   
               nmI qtsI defI evalI undefI copyI includeI ifCondI endIfI showI cmI unknDirI← ⍳≢pats
-
-      continueP← '\h*(?:\.{2,3}|…)\h*((?:⍝.*)?)\n'   ⍝ 2-3 dots OR ellipses Unicode char.
+    ⍝ Continuations: 2-3 dots OR ellipses Unicode char. Special: ➤, →→ - see Pipes
+      continueP← '\h*(?:\.{2,3}|…)\h*((?:⍝.*)?)\n' 
+      pipeEndP←     '(?|\h*(?:➤|→→)\h*((?:⍝.*)?)\n|\n\h*(?:➤|→→)())' 
       continueG← ⍬
-      Continue←qtsP cmP continueP '\n?$' ⎕R {  
+      bigRA← '➤'   ⍝ 1048...
+      Continuations←qtsP cmP continueP pipeEndP '\n?$' ⎕R {  
           ∆F← ⍵.{Lengths[⍵]↑Offsets[⍵]↓Block} ⋄ C←  ⍵.PatternNum∘∊
           C 0 1: ∆F 0 ⋄ C 2: ' ' ⊣ continueG,← ⊂∆F 1
-          (continueG⊢← ⍬)⊢ (∊' ',¨ continueG), ∆F 0
+          C 3:   ' ',bigRA,' '⊣ continueG,← ⊂∆F 1 
+          (continueG⊢← ⍬)⊢ (∊' ',¨continueG/⍨0≠≢continueG), ∆F 0
       }⍠('UCP' 1)('Mode' 'M')('EOL' 'LF')
+  :Section Pipes
+    ⍝ Handle "Pipes" ➤ or typographical alias →→
+      Pipes←{  
+        '➤→' (∧/~⍤∊) ⍵: ⍵ 
+          pipeP← '(?:➤|→→)' ⋄ cmStr←''   
+          pats← qtsP cmP pipeP,¨ ⊂'\h*'
+          qtsI cmI pipeI← ⍳≢pats
+          sects← pats ⎕R {   
+             f0← ⍵.Match ⋄ IsQ IsC← ⍵.PatternNum=qtsI cmI
+             IsQ: f0 ⋄ IsC: ''⊣ cmStr,← f0, ' '/⍨ 0≠ ≢cmStr ⋄ nlC
+          }⊆⍵
+          sects← TrimR¨sects 
+          (1↓cmStr),⍨ ∊(¯1↑sects),⌽'(',¨')',⍨¨ ¯1↓sects 
+      }¨
+  :EndSection Pipes
 
       ifCondL← (,'if'    'elseif' 'elif' ∘., '' 'def' 'ndef'), ⊂'else'
       ifMapL←    0 1 2    3 4 5   3 4 5                           6
@@ -214,7 +234,7 @@ lnsOut← {opts} Macros lnsIn
             C qtsI cmI: f0 
             C nmI:  1 DictGet f0
             C defI: Cm f0⊣ f2 ((f1) DictSet)  NmSub f3 ⊣ f1 f2 f3← ∆F¨1 2 3 
-            C evalI: Cm f0,  0 ((f1,'e') DictEval) NmSub f2 ⊣ f1 f2←    ∆F¨1 2 
+            C evalI: Cm f0,  0 ((f1,'e') DictEval) NmSub f2 ⊣ f1 f2← ∆F¨1 2⊣ ⎕←'** ::eval deprecated' 
             C undefI: Cm f0⊣ DictUndef ∆F 1 
             C copyI:  { f1 f2← ∆F¨1 2 ⋄ lns← Copy f2
               0=≢f1: Cm f0 ⊣ linesG,⍨← lns
@@ -237,7 +257,7 @@ lnsOut← {opts} Macros lnsIn
   :EndSection Command Parser
 
       (myLns myNm) nc← ParseArgs lnsIn
-      lnsOut← (1↑myLns), ProcLns Continue 1↓myLns
+      lnsOut← (1↑myLns), ProcLns Pipes Continuations 1↓myLns
 :Else 
     ⎕SIGNAL ⊂⎕DMX.('EN' 'EM' 'Message',⍥⊆¨EN EM Message)
 :EndTrap ⋄ :EndWith
