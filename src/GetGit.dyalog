@@ -4,6 +4,7 @@
     ⍝ Return the text of ...
     ⍝   a)  file on local disk (file://),
     ⍝   b)  object in a local workspace (ws://ws fn)  (e.g. ws://dfns cmpx X)
+    ⍝       in an executable form:  objName← value
     ⍝   c1) text on a web page (http:// or https:// not followed by github.com or //raw.github...
     ⍝   c2) a github text file (also http:// or https://, but followed by
     ⍝       a sequence starting with github.com/ or raw.githubusercontent.com/
@@ -17,16 +18,17 @@
 
   6 11 22::⎕SIGNAL⊂⎕DMX.(('Message'Message)('EM'EM)('EN'EN))
     filespec← ⍵
-    fiPfx httpsPfx httpPfx wsPfx←'file://' 'https://' 'http://' 'ws://'
-    IsFi isHTTPS isHTTP isWS←1∊¨(⊂filespec)⍷⍨¨fiPfx httpsPfx httpPfx wsPfx 
+    fiPfx httpsPfx httpPfx wsPfx objPfx←'file://' 'https://' 'http://' 'ws://' 'obj://'
+    isFi isHTTPS isHTTP isWS isObj←1∊¨(⊂filespec)⍷⍨¨fiPfx httpsPfx httpPfx wsPfx objPfx 
     gitHdrs←'//github.com/' '//raw.githubusercontent.com/'
     APLObj← 1∘(~∊)'://'∘⍷
-    GetObj← {
+    GetObj← { ∆THERE← ⊃⎕RSI
           nc←⎕NC ⍵
         ¯1 0∊⍨nc:   ⎕SIGNAL⊂('Message' 'Invalid or missing APL object')('EN' 11)
-        3 4∊⍨⎕NC ⍵: ⎕NR ⍵
+        3 4∊⍨⎕NC ⍵: ∆THERE.⎕NR ⍵
         0::         ⎕SIGNAL⊂('Message' 'Unable to get value of APL object')('EN' 11)
-          ⎕OR ⍵
+        ⍝ Get an executable form of the value of object ⍵
+          ⍵,'←',⎕SE.Dyalog.Array.(0∘Deserialise 1∘Serialise)∆THERE.⍎ ⍵
     }
     GetFromWs←{
           SplitA← {' '(≠⊆⊢)⍵}
@@ -52,7 +54,8 @@
     }
 
     APLObj filespec: GetObj filespec
-    IsFi:            ⊃⎕NGET(filespec↓⍨≢fiPfx)1
+    isObj:           GetObj filespec↓⍨ ≢objPfx
+    isFi:            ⊃⎕NGET(filespec↓⍨ ≢fiPfx)1
     isWS:            GetFromWs filespec
     isHTTPS⍱isHTTP:  ⎕SIGNAL⊂('EN' 11)('Message' 'Unrecognized file specification prefix')
     ⍝ http:... or https:... could be standard http or github texts
