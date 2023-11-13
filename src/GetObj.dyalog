@@ -13,15 +13,16 @@
   ⍝       file on local disk,
   ⍝   b1) http://filedesc or https://filedesc  
   ⍝       text on a web page 
-  ⍝   b2) https://github.com/... or https://raw.githubusercontent.com/... or
-  ⍝        http://github.com/... or  http://raw.githubusercontent.com/...
-  ⍝       Github files will be processed as if the git: prefix (b3) was applied,
-  ⍝       but http:// is allowed, not just https://.
-  ⍝   b3) git://userid/directory/.../obj.type OR git://github.com/... or git://raw.git... 
-  ⍝       a github text file.
-  ⍝       The prefix '//raw.githubusercontent.com' will be added automatically.
+  ⍝   b2) https://github.com/... or https://raw.githubusercontent.com/... 
+  ⍝       an explicitly named github file  
+  ⍝       Fully specified files will be processed as in b3) below.
+  ⍝       If http: prefix is specified for a github file, it will be passed as is.
+  ⍝   b3) git://userid/directory/.../obj.type OR as in b2) above:
+  ⍝       a github text file specifying at a minimum the full user directory and file path,
+  ⍝       optionally omitting the github site specification (see b2 above).
+  ⍝       The prefix '//raw.githubusercontent.com' will be added automatically if needed.
   ⍝       If the file is encoded (a "blob"), it will be decoded for you. 
-  ⍝       git:// will be replaced by https:// prefix for the transaction.
+  ⍝       The prefix git: will ALWAYS be replaced by https: for the transaction.
   ⍝   c)  ws://ws obj1 [obj2...]
   ⍝       object(s) to be copied from a local workspace 'ws'
   ⍝            e.g. ws://dfns cmpx X
@@ -29,10 +30,9 @@
   ⍝       Returns 1 or more objects, o, in executable form.
   ⍝          Objects returned as described for: d) APL object(s)
   ⍝       autodisclose may apply.
-  ⍝   d)  obj://obj1 [obj2...] or  
-  ⍝       (with no prefix) obj1 [obj2...]
+  ⍝   d)  obj://obj1 [obj2...] or  (with no prefix) obj1 [obj2...]
   ⍝       APL object(s) in the currently active user namespace.
-  ⍝       Returns 1 or more (enclosed) objects, o, in executable form.
+  ⍝       Returns 1 or more (enclosed) objects in executable form.
   ⍝       * Non-fns will be in the form name←(...value...) per Dyalog 0∘Deserialise format 
   ⍝       * Dfns/ops are returned in ordinary ⎕NR format
   ⍝       * Tradfns/ops are returned in ⎕NR format with a prefixed and suffixed ∇
@@ -51,11 +51,12 @@
       autoDisclose← 1↑⍺
     6 11 22::⎕SIGNAL⊂⎕DMX.(('Message'Message)('EM'EM)('EN'EN))
       filespec← ⍵
-      fiPfx httpsPfx httpPfx gitPfx wsPfx objPfx←'file://' 'https://' 'http://'  'git://' 'ws://' 'obj://'
-      isFi isHTTPS isHTTP isGit isWS isObj←1∊¨(⊂filespec)⍷⍨¨fiPfx httpsPfx httpPfx  gitPfx wsPfx objPfx
+      pfxList← 'file://' 'https://' 'http://'  'git://' 'ws://' 'obj://'
+      fiPfx httpsPfx httpPfx gitPfx wsPfx objPfx← pfxList
+      isFi isHttps   isHttp  isGit  isWs  isObj←  1∊¨(⊂filespec)⍷⍨¨ pfxList
       gitHdrs←'//github.com/' '//raw.githubusercontent.com/'
-      APLObj←1∘(~∊) '://'∘⍷
-      Split←' '∘(≠⊆⊢),                   ⍝ Trailing comma (,) ensures valid split of a single char.
+      IsObj←1∘(~∊) '://'∘⍷
+      Split←' '∘(≠⊆⊢),                  
       AD← { ~autoDisclose: ⍵ ⋄ ⊃⍣ (1=≢⍵)⊢ ⍵ }
       GetObj←{ 
           ⍝ Return dfns/ops, tradfns/ops, and variables differently
@@ -80,10 +81,11 @@
           ws oV← (⊃ws_oS) (1↓ ws_oS)
           ns∘GetObj∘BareNm¨ oV ⊣ oV (ns← ⎕NS ⍬).⎕CY ws
       }
-      GetFromURL←{ ⍺←0  ⍝ If 1, the obj is a git obj. 
-          11:: ⎕SIGNAL ⊂⎕DMX.{e←'EN' 'EM',⍥⊂¨ EN EM ⋄ et← ⊃⊃⌽⎕VFI ¯3↑Message
+      GetFromHttp←{ 
+          ⍺←0  ⍝ If 1, the obj is a git obj w/o 'raw.git...' prefix.
+        11:: ⎕SIGNAL ⊂⎕DMX.{e←'EN' 'EM',⍥⊂¨ EN EM ⋄ et← ⊃⊃⌽⎕VFI ¯3↑Message
             et∊ 6 22: e, ⊂'Message' 'URL not found' ⋄ e, ⊂'Message'Message
-          }⍬
+        }⍬
           DQ← '"'∘, ,∘'"'
           GetFromGit← {BOM←⎕UCS 65279   ⍝ BOM: As xlated to "invalid Unicode" char per UTF-8.
               UTF8In← 'UTF-8'∘⎕UCS∘⎕UCS
@@ -98,17 +100,17 @@
               0=≢r: ⎕SIGNAL emptyÊ
               r⊣ (0⊃r)← (0⊃r)↓⍨ BOM= ⊃⊃r   ⍝ Remove any BOM from 1st record.
           }
-          ⍺: GetFromGit ⍵
-          1∊ ∊gitHdrs⍷¨ ⊂⍵: GetFromGit ⍵
+        ⍺: GetFromGit ⍵
+        1∊ ∊gitHdrs⍷¨ ⊂⍵: GetFromGit ⍵
           ⎕SH 'Curl ', DQ ⍵
       }
 
-      APLObj filespec: AD GetObj¨ Split filespec
+      IsObj filespec:  AD GetObj¨ Split filespec
       isObj:           AD GetObj¨ Split filespec↓⍨≢objPfx
-      isFi:                 ⊃⎕NGET  (filespec↓⍨ ≢fiPfx)1
-      isWS:            AD GetFromWs  filespec↓⍨ ≢wsPfx
+      isFi:                    ⊃⎕NGET  (filespec↓⍨ ≢fiPfx)1
+      isWs:            AD GetFromWs     filespec↓⍨ ≢wsPfx
           ⋄ pfxÊ←⊂('EN' 11)('Message' 'Unrecognized file specification prefix')
-      isGit: 1 GetFromURL filespec
-      isHTTPS⍱ isHTTP: ⎕SIGNAL pfxÊ
-          GetFromURL filespec     ⍝ std http/s or github text files
+      isGit: 1 GetFromHttp filespec
+      isHttps⍱ isHttp: ⎕SIGNAL pfxÊ
+          GetFromHttp filespec     ⍝ std http/s or github text files
  }
