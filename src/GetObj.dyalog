@@ -15,7 +15,13 @@
   ⍝       text on a web page 
   ⍝   b2) https://github.com/... or https://raw.githubusercontent.com/... or
   ⍝        http://github.com/... or  http://raw.githubusercontent.com/...
-  ⍝       a github text file 
+  ⍝       Github files will be processed as if the git: prefix (b3) was applied,
+  ⍝       but http:// is allowed, not just https://.
+  ⍝   b3) git://userid/directory/.../obj.type OR git://github.com/... or git://raw.git... 
+  ⍝       a github text file.
+  ⍝       The prefix '//raw.githubusercontent.com' will be added automatically.
+  ⍝       If the file is encoded (a "blob"), it will be decoded for you. 
+  ⍝       git:// will be replaced by https:// prefix for the transaction.
   ⍝   c)  ws://ws obj1 [obj2...]
   ⍝       object(s) to be copied from a local workspace 'ws'
   ⍝            e.g. ws://dfns cmpx X
@@ -66,7 +72,7 @@
           ⍝ enclose as VV to align with fns/ops above. Coded vals will always be vectors.
             ⊂⍵,'←',⎕SE.Dyalog.Array.(0∘Deserialise 1∘Serialise)⍺.⍎⍵  ⍝ Form nm←(...)
       }
-      GetFromWs←{
+      GetFromWs←{ 
           ⋄ wsObjNmÊ← ⊂('EN' 11)('Message' 'Missing ws or object names')
           BareNm← {⍵↑⍨ -'.'⍳⍨ r← ⌽⍵ }
           ws_oS← Split ⍵
@@ -74,7 +80,7 @@
           ws oV← (⊃ws_oS) (1↓ ws_oS)
           ns∘GetObj∘BareNm¨ oV ⊣ oV (ns← ⎕NS ⍬).⎕CY ws
       }
-      GetFromURL←{ ⍺←0 
+      GetFromURL←{ ⍺←0  ⍝ If 1, the obj is a git obj. 
           11:: ⎕SIGNAL ⊂⎕DMX.{e←'EN' 'EM',⍥⊂¨ EN EM ⋄ et← ⊃⊃⌽⎕VFI ¯3↑Message
             et∊ 6 22: e, ⊂'Message' 'URL not found' ⋄ e, ⊂'Message'Message
           }⍬
@@ -86,9 +92,8 @@
                 Deblob← '//github.com/' '/blob/' ⎕R '//raw.githubusercontent.com/' '/'       
                 1∊ '/blob/'⍷ ⍵: Deblob gitTxt ⋄ ⍵
               } gitTxt
-              ⎕←'⍵=' (DQ ⍵)' gitTxt=' (DQ gitTxt)
               ⍝ Curl --fail: Treat '404 Not Found' as a signaled error.
-              r←UTF8In¨ ⎕SH ⎕←'Curl --fail ', DQ gitTxt
+              r←UTF8In¨ ⎕SH 'Curl --fail ', DQ gitTxt
               ⋄ emptyÊ← ⊂('EN' 11)('Message' 'URL not found. Empty record returned')
               0=≢r: ⎕SIGNAL emptyÊ
               r⊣ (0⊃r)← (0⊃r)↓⍨ BOM= ⊃⊃r   ⍝ Remove any BOM from 1st record.
