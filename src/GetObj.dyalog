@@ -4,12 +4,13 @@
     'help'≡⍥⎕C ⍺: ⎕ED '_'⊣ _← ('^\h*⍝H ?(.*)') ⎕S ' \1'⊢⎕NR ⊃⎕XSI 
       
       defaultOpts← ('autoDisclose' 0)('multiReq' 0)('debug' 0)('AnyProtocol' 0)('emptyResult' 1)
-      GetOpts← { minLen←4 ⋄ Keys← ⊃¨ ⋄ Vals← ⊃∘⌽¨ ⋄ valsD← Vals⊢ d← ⍺ 
+      GetOpts← { Vals← ⊃∘⌽¨ ⋄ KeyPfx← ⎕C 4∘↑⍤⊃¨
+          valsD← Vals (d← ⍺) 
         0:: 11 ⎕SIGNAL⍨ 'Option format is invalid'
-        2|80|⎕DR ⍵: ⍵, valsD↓⍨ ≢⍵                      ⍝ By position
-           p← d ⍳⍥(⎕C minLen∘↑¨⍤Keys) u←⊂⍣ (2≥|≡⍵)⊢ ⍵  ⍝ By (minLen pfx of each) keyword                   
+        2|80|⎕DR ⍵: ⍵, valsD↓⍨ ≢⍵                       ⍝ By position
+          p← d ⍳⍥KeyPfx (u← ⊂⍣ (2≥|≡⍵)⊢ ⍵)              ⍝ By keyword prefix                 
         ~1∊ bad← p= ≢d: (Vals u)@ p⊣ valsD
-          11 ⎕SIGNAL⍨ 'Invalid option(s):',∊' ',¨ bad/Keys u
+          11 ⎕SIGNAL⍨ 'Invalid option(s):',∊' ',¨ bad/ ⊃¨u
       }
       autoDiscÔ multiReqÔ debugÔ anyProtÔ emptyResOkÔ← defaultOpts GetOpts ⍺
 

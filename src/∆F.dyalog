@@ -1,16 +1,19 @@
 ﻿∆F←{
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
-⍝! For documentation, see ⍝H comments below.
-⍝ ⍺ OPTIONS
+⍝! For documentation, 
+⍝!   see ⍝H comments below.
+⍝ ⍺ OPTIONS:  
+⍝   [mode←1 generate and execute] [box←0 don't box each item] [escCh←'`' escape char]
   ⍺←1 0 '`'
-  0=≢⍺: 1 0⍴''
+⍝ Fast Path: Make this ∆F call a nop?
+  0=≢⍺: 1 0⍴''                                                 
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
   0 1003/⍨ 1:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 ⍝ ---------------------------
-  (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ contains executable atom '⍵⍵'
+  (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ will contain executable atom '⍵⍵'
 ⍝ STAGE II: Execute/Display code from Stage I
       1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵  
-      ∘∘unreachable∘∘ ⍵⍵ 
+      ∘∘unreachable∘∘ ⍵⍵                                       ⍝ Tell APL about ⍵⍵ for ⍺⍺⍎ ⍵ above
 ⍝ ---------------------------
   }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
@@ -18,28 +21,24 @@
 ⍝ CONSTANTS     
 ⍝               
     ⎕io ⎕ml←0 1                  
-  ⍝ ...Ê: Error messages/dfn. See Ê below.               
+  ⍝ ...Ê: Error messages/dfn. See Ê below.
     opt0Ê← ('Message' 'Invalid option (mode)')       ('EN' 11) 
-    opt1Ê← ('Message' 'Invalid option (box)')        ('EN' 11)        
+    opt1Ê← ('Message' 'Invalid option (box)')        ('EN' 11) 
     opt2Ê← ('Message' 'Invalid option (escape char)')('EN' 11) 
     fStrÊ← ('Message' 'Invalid right arg (f-string)')('EN' 11) 
     logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99) 
-    BrkÊ← logÊ∘{  ⍝ => logÊ only, once changes are unlikely.
-      _← '" not in "FastBrk", but has no local logic!'
-      ⍺,⊂'Message' ('Pfx "',(⊃⍵),_)
-    }
       
-  ⍝ ...Cod:  Two choices presented: Actual code (if modO≥0) and pseudo-code (otherwise).
+  ⍝ ...Cod:  Two choices presented: Actual code (if modÔ≥0) and pseudo-code (otherwise).
     chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT' '⍙ⒸⒽⓃ'                       ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
-    boxCod←  '∘⎕SE.Dyalog.Utils.display' '∘⍙ⒷⓄⓍ'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display (boxO=1)
+    boxCod←  '∘⎕SE.Dyalog.Utils.display' '∘⍙ⒷⓄⓍ'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display (boxÔ=1)
   ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
-  ⍝ Constants ...C
-  ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝ Constants. See also escO option.
+  ⍝ ..Ç: Constants.
+  ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escÔ option.
     spÇ sqÇ dqÇ eosÇ cmÇ clnÇ← ' ''"⋄⍝:'                     
-  ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝ Constants.
+  ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝2 Constants.
     lbÇ rbÇ fmtÇ ovrÇ omÇ omUÇ raÇ← '{}$%⍵⍹→'                  
-    nlÇ← ⎕UCS 13                                               ⍝ newline: carriage return [sic!]
+    nlÇ← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
     inQt inTF inCF← 0 1 2                                      ⍝ See ProcEscs. 
 ⍝ ---------------------------
 ⍝ SUPPORT FNS
@@ -52,63 +51,61 @@
       ⍝ ⍵ NotAny sqÇ dqÇ:  Ê logÊ     ⍝ Be sure ((⊃⍵)∊sqÇ dqÇ) is confirmed in caller. 
         qt← ⊃⍵
         ''{
-          0=≢⍵: (QS2Cod ⍺) (SkipSp ⍵ )                         ⍝ → RETURN
+          0=≢⍵: (QS2Cod ⍺) (Skip ⍵ )                         ⍝ → RETURN
           qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 2↓⍵                             ⍝ qt-qt? (internal quote char)
-          ⍵  Any qt:  (QS2Cod ⍺) (SkipSp 1↓⍵)                  ⍝ qt? → RETURN
-          ⍵ NotAny escO: (⍺, ⊃⍵)  ∇ 1↓⍵                        ⍝ Not escaped char? Process.
+          ⍵  Any qt:  (QS2Cod ⍺) (Skip 1↓⍵)                  ⍝ qt? → RETURN
+          ⍵ NotAny escÔ: (⍺, ⊃⍵)  ∇ 1↓⍵                        ⍝ Not escaped char? Process.
             w← 1↓⍵
-          w  Any eosÇ: (⍺, nlÇ)  ∇ 1↓w                         ⍝ escO + ⋄
-          w  Any escO:  s ⍺ (∇ ProcEscs inQt) w                ⍝ escO + escO 
-            (⍺,⊃⍵)∇ w                                          ⍝ escO+ anything else
+          w  Any eosÇ: (⍺, nlÇ)  ∇ 1↓w                         ⍝ escÔ + ⋄
+          w  Any escÔ:  s ⍺ (∇ ProcEscs inQt) w                ⍝ escÔ + escÔ 
+            (⍺,⊃⍵)∇ w                                          ⍝ escÔ+ anything else
         }1↓⍵
     }
     AnyOmega← {                                                ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etÇ.
       ⍵ NotAny omUÇ omÇ: '' ⍵  ⋄ w← 1↓⍵                        ⍝ Not ⍹0 etc? Return ('' ⍵)
-      dig← w↑⍨+/∧\w∊⎕D                                         ⍝ We're pointing right after ⍹/⍵ 
-      0=≢dig: ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w     )  ⊣ omIx+← 1
-              ('⍵⊃⍨⎕IO+',(⍕omIx)) (SkipSp w↓⍨≢dig) ⊣ omIx⊢← ⊃⌽⎕VFI dig  
+      dig← w↑⍨ ⎕D Span w                                       ⍝ We're pointing right after ⍹/⍵ 
+      0=≢dig: ('⍵⊃⍨⎕IO+',⍕omIx) (Skip w     )  ⊣ omIx+← 1
+              ('⍵⊃⍨⎕IO+',⍕omIx) (Skip w↓⍨ ≢dig)⊣ omIx⊢← ⊃⌽⎕VFI dig  
     }
     ProcEscs← { env← ⍵⍵    ⍝  env∊ inCf inQt inTF
-      ⍵ NotAny escO:    Ê logÊ                                 ⍝ DEBUG ONLY
-      w← 1↓⍵                                                   ⍝ Skip past escO   
-      w Any eosÇ:    (⍺, nlÇ      )⍺⍺ 1↓w
-      w Any escO:    (⍺, ⊃⍵      )⍺⍺ 1↓w
-        e← escO/⍨ inQt=env 
+      ⍵ NotAny escÔ: Ê logÊ                                    ⍝ DEBUG ONLY
+      w← 1↓⍵                                                   ⍝ Skip past escÔ   
+      w Any eosÇ:    (⍺, nlÇ     )⍺⍺ 1↓w
+      w Any escÔ:    (⍺, ⊃⍵      )⍺⍺ 1↓w
+        e← escÔ/⍨ inQt=env 
       w Any lbÇ rbÇ: (⍺, e, ⊃⍵   )⍺⍺ 1↓w 
-      inCF≠env:      (⍺, escO, ⊃⍵ )⍺⍺ 1↓w                      ⍝ inSF, inQt? → RETURN
+      inCF≠env:      (⍺, escÔ, ⊃⍵)⍺⍺ 1↓w                       ⍝ inSF, inQt? → RETURN
           o w← AnyOmega w                                      ⍝ ↓↓↓ inCF only
       ×≢o:           (⍺, Par o   )⍺⍺ w      
-                     (⍺, escO, ⊃⍵ )⍺⍺ 1↓w                                          
+                     (⍺, escÔ, ⊃⍵)⍺⍺ 1↓w                                          
     } 
+  ⍝ Miscellaneous
+    Par← '(',,∘')'
+    Trunc←  { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }               ⍝ For DEBUG modes.
+    T2QS← { sqÇ, sqÇ,⍨ ⍵/⍨ 1+sqÇ= ⍵ }                          ⍝ Text to Executable Quote String 
+    QS2Cod←{                                                   ⍝ Outputs ⎕ML-independent code
+        r← ⎕FMT r/⍨ 1+sqÇ= r←⍵                                 ⍝ Handles embedded SQs and newlines
+      1=≢r: spÇ,sqÇ,(∊r),sqÇ,spÇ                               ⍝   Single row (i.e. no newlines)
+        Par (sqÇ,sqÇ,⍨∊r),'⍴⍨', ⍕⍴r                            ⍝   Multiple rows. Add SQs...
+    }
+⍝ Brk: Break past chars <s>, 0 or more leading chars NOT in ⍵, 
+⍝      returning:   (s ,  <rest of str>)
+⍝      If ALL leading chars are in ⍺, return (⍵ ''); if none, return ('' ⍵). 
+    Brk← { 0=p← +/∧\ ~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
+    Span← { ⍺←spÇ ⋄ +/∧\ ⍵∊ ⍺ }                                ⍝ Count of leading <⍺> chars in ⍵
 ⍝ Skip__: Skip (and ignore) leading char, chars, or patterns.  ⍝ Skip leading...
-    SkipSp← { ⍵↓⍨  +/∧\ ⍵= spÇ }                               ⍝ ... spaces
-    SkipCS← { ⍵↓⍨  +/∧\ ⍵∊ clnÇ spÇ }                          ⍝ ... runs of (clnÇ spÇ)
+    Skip← Span↓⊢                                               ⍝ Skip: {⍵↓⍨ Span ⍵}
+    SkipColSp← (clnÇ,spÇ)∘Skip                                 ⍝ ... runs of (clnÇ spÇ)
     SkipCm← {                                                  ⍝ ... '⍝' and subseq. comment
         cmÇ≠⊃⍵: ⍵ 
         {
           0=≢⍵: ⍵                                              ⍝ → RETURN
-          ⍵    Any rbÇ eosÇ: ⍵                                 ⍝ → RETURN
-          ⍵ NotAny escO: ∇ 1↓⍵
-              w← 1↓⍵                                           ⍝ Check 1 past escO
-          w    Any rbÇ eosÇ: ∇ 1↓w                             ⍝ Ignore rbÇ|eosÇ after escO 
-              ∇ w                                              ⍝ Keep other char after escO  
+          ⍵ Any rbÇ eosÇ: ⍵                                    ⍝ → RETURN
+          ⍵ NotAny escÔ: ∇ 1↓⍵
+            w← 1↓⍵                                             ⍝ Check 1 past escÔ
+          w Any rbÇ eosÇ: ∇ 1↓w                                ⍝ Ignore rbÇ|eosÇ after escÔ 
+            ∇ w                                                ⍝ Keep other char after escÔ  
         }1↓⍵
-    }
-  ⍝ Brk: Break past s, 0 or more leading chars NOT in ⍵, 
-  ⍝      returning:   (s  <rest of str>)
-  ⍝      If ALL leading chars are in ⍺, return (⍵ ''); if none, return ('' ⍵). 
-    Brk← { 0=p← +/∧\~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
-  ⍝ Miscellaneous
-    Par← '(',,∘')'
-    Trunc←  { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }               ⍝ For DEBUG modes.
-  ⍝ Span: Return # leading chars of ⍵ in ⍺.
-    Span←   { +/∧\ ⍵∊ ⍺ }
-    SpanSp← ' '∘Span
-    T2QS← { sqÇ, sqÇ,⍨ ⍵/⍨ 1+sqÇ= ⍵ }                          ⍝ Text to Executable Quote String 
-    QS2Cod←{                                                   ⍝ Outputs ⎕ML-independent code
-        r← ⎕FMT r/⍨ 1+sqÇ= r←⍵      ⍝ Handles internal SQs     ⍝   Use ⎕FMT to handle newlines
-      1=≢r: spÇ,sqÇ,(∊r),sqÇ,spÇ                               ⍝   Single row (i.e. no newlines)
-        Par (sqÇ,sqÇ,⍨∊r),'⍴⍨', ⍕⍴r                            ⍝   Multiple rows. Add SQs...
     }
 ⍝ ---------------------------
 ⍝ Major Field Fns: TF, CF, and SF 
@@ -116,13 +113,13 @@
   ⍝     Returns: (code rest)
     TF← {                                                      ⍝ TF: Text Fields
       0=≢⍵: ''
-      FastBrk← lbÇ escO ∘Brk                                             
+      FastBrk← lbÇ escÔ ∘Brk                                             
       tf w← ''{
         0=≢⍵: ⍺ ⍵
         ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                       ⍝ Fast process chars not matched below.
         ⍵ Any lbÇ:   ⍺ ⍵
-        ⍵ Any escO:  ⍺ (∇ ProcEscs inTF) ⍵  
-           Ê BrkÊ ⍵      
+        ⍵ Any escÔ:  ⍺ (∇ ProcEscs inTF) ⍵  
+           Ê logÊ     
       } ⍵
       (QS2Cod tf) w
     } ⍝ End TF
@@ -131,11 +128,11 @@
     CF← {                                                      ⍝ CF: Code Fields
       sdStr sdOvr← '' 0                                        ⍝ See also, sdOff← 1
       0=≢⍵: '' ⍵ 
-      FastBrk← lbÇ rbÇ sqÇ dqÇ escO fmtÇ ovrÇ omUÇ cmÇ raÇ ∘Brk ⍝ Proc as much of ⍵ not matched.          
+      FastBrk← lbÇ rbÇ sqÇ dqÇ escÔ fmtÇ ovrÇ omUÇ cmÇ raÇ ∘Brk ⍝ Proc as much of ⍵ not matched.          
       brcLvl← 1                                                ⍝ Brace {} depth
       r w←'{'{
           0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
-          ⍵ Any spÇ: (⍺, p↑⍵) ∇ p↓⍵ ⊣ p← SpanSp ⍵              ⍝ This is for aesthetics only...
+          ⍵ Any spÇ: (⍺, p↑⍵) ∇ ⍵↓⍨ p← Span ⍵                  ⍝ This is for aesthetics only...
           ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
   
           ⍵ Any lbÇ: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
@@ -144,34 +141,36 @@
             (⍺, ⊃⍵) ⍺⍺ (1↓⍵)                     
           } ⍵
           ⍵ Any sqÇ dqÇ: (⍺, q) ∇ w⊣ q w← AnyQS ⍵
-          ⍵ Any escO:     ⍺ (∇ ProcEscs inCF) ⍵   
-          ⍵ Any fmtÇ:    (⍺,' ⎕FMT '↓⍨spÇ=⊃⌽⍺) ∇ SkipSp 1↓⍵
+          ⍵ Any escÔ:     ⍺ (∇ ProcEscs inCF) ⍵   
+          ⍵ Any fmtÇ:    (⍺,' ⎕FMT '↓⍨spÇ=⊃⌽⍺) ∇ Skip 1↓⍵
         ⍝ {...%} Self-documenting code expressions (VERTICAL SELF-DOC EXPR '%')
           ⍵ Any ovrÇ:    ⍺ ∇ {
-            suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
-          suf NotAny rbÇ cmÇ: (⍺,' ⍙ⓄⓋⓇ '↓⍨spÇ=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ SkipSp 1↓⍵
+            suf← ⍵↓⍨ 1+ p← Span 1↓⍵
+          suf NotAny rbÇ cmÇ: (⍺,' ⍙ⓄⓋⓇ '↓⍨spÇ=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ Skip 1↓⍵
             sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ 
             sdOvr⊢← 1 
-            ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
+            ((1↑⍺),(Skip 1↓⍺)) ⍺⍺ suf
           } ⍵ 
         ⍝ {...→} Self-documenting code expressions (HORIZONTAL SELF-DOC EXPR '→')
           ⍵ Any raÇ:      ⍺ ∇ {  
-            suf← ⍵↓⍨ 1+ p← SpanSp 1↓⍵
+            suf← ⍵↓⍨ 1+ p← Span 1↓⍵
             suf NotAny rbÇ cmÇ: Ê fStrÊ
               sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ                                          
-             ((1↑⍺),(SkipSp 1↓⍺)) ⍺⍺ suf
+             ((1↑⍺),(Skip 1↓⍺)) ⍺⍺ suf
           } ⍵  
           ⍵ Any cmÇ: ⍺ ∇ SkipCm ⍵ 
           o w← AnyOmega ⍵       
           ×≢o : (⍺, Par o ) ∇ w  
-            Ê BrkÊ ⍵     
-      } SkipSp⍣0⊢ 1↓⍵            ⍝ ⍣0 - ignore SkipSp for aesthetic reasons.
+            Ê logÊ    
+      } Skip⍣0⊢ 1↓⍵            ⍝ ⍣0 - ignore Skip for aesthetic reasons.
       0= ≢sdStr:   (Par r, '⍵') w   
       sdOvr: (Par sdStr, '⍙ⓄⓋⓇ', (Par r, '⍵')  ) w ⊣ irt∨← sdOvr 
              ((Par r, '⍵'), spÇ, sdStr          ) w ⊣ sdOff⊢← 0  
     } ⍝ End CF
   ⍝ SF: Space Fields
-  ⍝ Returns:  (isSF code rest)
+  ⍝ Returns:  (isSF code rest).
+  ⍝ If ~isSF, then by definition a code field (CF), possibly one with syntactic errors.
+  ⍝
   ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
   ⍝   F1:    ddd |  ddd | '' | ddd | '    '    
   ⍝    isSF:   1 if ⍵ starts a Space Field   |  0 otherwise: if 0, ⍵ starts a Code Field.
@@ -179,25 +178,25 @@
   ⍝    rest:   text after Space Field        |  ⍵
     ⋄ sCod← sqÇ,sqÇ,'⍴⍨' 
     ⋄ spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time  
-    ⋄ Skip2EOS← { w Any rbÇ ⊣ w← SkipCS ⍵: 1↓w ⋄ Ê fStrÊ } 
+    ⋄ Skip2EOS← { w Any rbÇ ⊣ w← SkipColSp ⍵: 1↓w ⋄ Ê fStrÊ } 
     ⋄ SCommon← { ⍝ ⍺: length of space field (≥0)
             ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
-            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ boxO∧1=⍺), sqÇ,sqÇ,⍨ ⍺⍴ spÇ
+            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ boxÔ∧1=⍺), sqÇ,sqÇ,⍨ ⍺⍴ spÇ
                       1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
       }
     SF← {          
         isCF ← 0 '' ⍵
-        w← ⍵↓⍨ 1+ p←   SpanSp 1↓⍵                              ⍝ Grab leading blanks
+        w← ⍵↓⍨ 1+ p←   Span 1↓⍵                                ⍝ Grab leading blanks
       w  Any rbÇ:       p SCommon w                            ⍝ Fast path: {}
       w NotAny clnÇ:  isCF                                     ⍝ Not { } or { :...[:] }? See if CF
-        w← SkipCS 1↓w 
+        w← SkipColSp 1↓w 
       w  Any rbÇ:       0 SCommon w                            ⍝ Allow degenerate { : } { :: }                                      
-        o w← AnyOmega w↓⍨e← w Any escO                         ⍝ escO ⍵ <==> ⍵
+        o w← AnyOmega w↓⍨e← w Any escÔ                         ⍝ escÔ ⍵ <==> ⍵
       ×≢o:             1 (Par sCod, o) (Skip2EOS w)    
       e:               isCF           
         ok num← ⎕VFI w↑⍨ p←⎕D Span w 
       1≢⍥, ok:         isCF                                    ⍝ Not exactly 1 valid number
-        w← SkipCS p↓ w 
+        w← SkipColSp p↓ w 
       w Any rbÇ:        num SCommon w 
                        isCF                
     } ⍝ End SF
@@ -214,20 +213,20 @@
       }fStr: ⌽ff ⋄ ⊂'⊂⍬'                                       ⍝ Handle 0 fields (edge case)
     }
     Assemble← {                                                ⍝ Assemble code + needed defs 
-          pfx← '¨⌽',⍨ ∊ irt 1 boxO/ ovrCod chnCod boxCod ⊃⍨¨ modO<0 
-      1=modO: '{',  pfx, (∊⍵), '}⍵⍵'
-      0=modO: '{{', pfx, (∊⍵), '}', (T2QS fStr),',⍥⊆⍵}'
+          pfx← '¨⌽',⍨ ∊ irt 1 boxÔ/ ovrCod chnCod boxCod ⊃⍨¨ modÔ<0 
+      1=modÔ: '{',  pfx, (∊⍵), '}⍵⍵'
+      0=modÔ: '{{', pfx, (∊⍵), '}', (T2QS fStr),',⍥⊆⍵}'
           (⊂'{{', pfx),  ⍵, ⊂'}', (T2QS 25∘Trunc fStr),',⍥⊆⍵}⍵'
     } 
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN: 
 ⍝   Options and Variables (non-constants)
-      (modO boxO) escO←(2↑⍺)(⊃'`',⍨2↓⍺)                        ⍝ Set/validate options 
+      (modÔ boxÔ) escÔ←(2↑⍺)(⊃'`',⍨2↓⍺)                        ⍝ Set/validate options 
       fStr←⊃⊆⍵                                                 ⍝ fStr: The format string (⍹0)
     ~String fStr:      Ê fStrÊ                                 ⍝       Must be simple char vec/scalars 
-    modO(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
-    boxO(~∊) 0 1:       Ê opt1Ê
-    escO∊ lbÇ spÇ cmÇ:     Ê opt2Ê                                ⍝ Invalid escape char?  
+    modÔ(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
+    boxÔ(~∊) 0 1:       Ê opt1Ê
+    escÔ∊ lbÇ spÇ cmÇ:     Ê opt2Ê                                ⍝ Invalid escape char?  
       irt←0                                                    ⍝ irt: include runtime code? See CF
       omIx←0                                                   ⍝ omIx: omega index. See AnyOmega 
       sdOff←1                                                  ⍝ See self-documenting code expressions

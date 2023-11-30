@@ -139,7 +139,10 @@
     ⍝ ├──────────────────────────────────────────┤  
     ⍝ │ ⍙Help - Display Help Info (returns '')   │
     ⍝ └──────────────────────────────────────────┘
-       ⍙Help← { 0=≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣⎕NR '∆DICT': _← 0⍴ ⎕←'Whoops! No help available' ⋄ 1: _← ⎕ED '_h' } 
+      ⍙Help← { 
+          ×≢_h←'^\h*⍝H(.*)' ⎕S '\1'⊣ ⎕NR '∆DICT': ⍬⊣ ⎕ED '_h' 
+          11 ⎕SIGNAL⍨ '∆DICT: Whoops! No help available'
+      } 
 
     ⍝ ┌───────────────────────────────────────────────────────────┐
     ⍝ │                       Executive ;-)                       │
