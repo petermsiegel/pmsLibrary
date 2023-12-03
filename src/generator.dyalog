@@ -36,7 +36,7 @@
             _← ⎕DF genName ⋄ ⎕TNAME← genName
             _← ⎕TPUT fromGen                      ⍝ All vars are set. Tell user                        
             result∘← ⎕THIS ⍺⍺ ⍵
-            genStatus=¯1: ⍙Cleanup& ⍬
+            genStatus=¯1: ⍙Cleanup ⍬
             genStatus∘← 1 ⊣ ⎕DF genName,' [terminated]'
             1: _←result
         }& ⍵
@@ -49,7 +49,7 @@
   DEBUG← ##.DEBUG
   Blab← { DEBUG: ⍺⊣ ⎕← ⍵ ⋄ ⍺ }
   genStatus←0
-  STOP_MSG STOP_SIGNAL← 'GENERATOR STOP SIGNAL' 901
+  GEN_ENDMSG GEN_ENDSIGNAL← 'GENERATOR STOP SIGNAL' 901
   ∇ r←Done  ⍝ goes in user or generator
     r← 0≠ genStatus
   ∇
@@ -61,7 +61,7 @@
       0≠ genStatus: ('Generator ',(genName),' no longer active')  ⎕SIGNAL 911
       code msg← ⊃⎕TGET toGen
       code∊ 0 1: _← msg⊣ 0 ⍵ ⎕TPUT fromGen
-      STOP_MSG ⎕SIGNAL STOP_SIGNAL
+      GEN_ENDMSG ⎕SIGNAL GEN_ENDSIGNAL
   }
 ⍝  r←Next  Returns next message (no rc) from generator
  ∇ r←Next  ⍝ user only
@@ -69,16 +69,16 @@
     :ELSE   ⋄ ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ EM EN Message)
     :Endtrap
 ∇
-⍝  [0: std send | 1: send now | ¯1: send quit (signal 901) request msg] Send value
+⍝  [0: std send | 1: send now | ¯1: send "end generator" (signal 901) request msg] Send value
 ⍝  Returns rc and msg
  Send←  { ⍝ user only
         ⍺← 0
     0::  ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ EM EN Message)
     ⎕TID= genId: 'Next/Send not valid in generator code' ⎕SIGNAL 11 
-    1≠≢⍺: 'Domain Error: ⍺ must be 0 (default), 1 (send now), or ¯1 (abort)' ⎕SIGNAL 11
+    1≠≢⍺: 'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
     0≠ genStatus: ('Generator ',(genName),' no longer active') ⎕SIGNAL 901 911⊃⍨ genStatus=¯1
     ⍺= 0: _← ⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen  
-          Now← {saveV ⎕TPUT saveT ⊣ ⍺ ⍵ ⎕TPUT toGen ⊣ saveV← ⎕TGET saveT← ⎕TPOOL∩toGen}
+        Now← {saveV ⎕TPUT saveT ⊣ ⍺ ⍵ ⎕TPUT toGen ⊣ saveV← ⎕TGET saveT← ⎕TPOOL∩toGen}
     ⍺= 1: _← ⊃⎕TGET fromGen ⊣ ⍺ Now ⍵
     ⍺=¯1: _← ⊃0.001 ⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen ⊣ ⍺ Now ⍵
  }
@@ -94,24 +94,29 @@
   :IF ⎕TID= genId  ⍝ generator
       901 ⎕SIGNAL⍨ 'Generator is terminating.'  
   :ELSE
-    :TRAP 0    ⋄ r← 'Generator ',(⍕⎕TID),' terminated' ⊣ ⊃⌽¯1 Send ⎕NULL ⋄ ⍙Cleanup ⍬
-    :CASE 901  ⋄ r← ⎕DMX.EM 
-    :ELSE      ⋄ ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ EM EN Message)
+    :TRAP 0    
+        r← 'Generator ',(⍕⎕TID),' terminated' ⊣ ⊃⌽¯1 Send ⎕NULL ⋄ ⍙Cleanup ⍬
+    :CASE 901  
+        r← ⎕DMX.EM 
+    :ELSE 
+        ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ EM EN Message)
     :ENDTRAP
   :ENDIF 
 ∇ 
 ⍙Cleanup← { 
-    genStatus⊢← ¯1  
-    _← 1 ⎕TGET ⎕TPOOL∩toGen,fromGen
-    _← ⎕DF genName,' [terminated]'
-    1: _←⍬⊣ ⎕TKILL genId Blab 'Cleanup: Generator process',genId,' terminated' 
+        genStatus⊢← ¯1  
+        _← 1 ⎕TGET ⎕TPOOL∩toGen,fromGen
+        _← ⎕DF genName,' [terminated]'
+    1:  _← { _← ⎕DL 0.010
+        ⎕TKILL genId Blab 'Cleanup: Generator process',genId,' terminated' 
+    }& 0 
 }
 ⍙⍙Error← { 
-    _← ⍙Cleanup& genId Blab ↑(⊂'Gen: '),¨⎕DMX.DM 
+    _← ⍙Cleanup genId Blab ↑(⊂'Gen: '),¨⎕DMX.DM 
     ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ ('Generator: ',EM) EN Message)
 }
 ⍙Error← ⎕SIGNAL ⍙⍙Error
-⍙Interrupt← ⎕SIGNAL {⊂'EM' 'EN' ,⍥⊂¨ 'Generator was interrupted' 911⊣ ⍙Cleanup& ⍬ }
+⍙Interrupt← ⎕SIGNAL {⊂'EM' 'EN' ,⍥⊂¨ ('Generator ',(⍕genId),' was interrupted') 911⊣ ⍙Cleanup ⍬ }
   
 :EndNamespace
 
