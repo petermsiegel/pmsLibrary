@@ -2,26 +2,29 @@
 ⍝!  For description/help, see function ∘help∘ below.
 ⍝
 ⍝ Example:  Return ndig of random digits (imagining this is very timeconsuming!)
-⍝  RandG←{
-⍝      901:: 'RandG done'
-⍝      ndig big ⎕PP←⍵(2*31)34
-⍝      R←⍺.Yield{ndig>≢⍵:∇ ⍵,⍕?big ⋄ ⍵↑⍨-ndig}
-⍝      {∇ R ⍬}⍬  ⍝ This will go forever until an x.Abort
-⍝  }
-⍝  x← RandG Gen 50
-⍝  x.Next
+∇ Demo
+ ⎕← '⍝ ',32⍴'*'
+ ⎕←'⍝ Select and Run the following...'
+ ⎕← 'RandG←{ ⍝ Sample generator'
+ ⎕← '    901:: ''RandG done. This is the return value...'''
+ ⎕← '    ndig big ⎕PP←⍵(2*31)34'
+ ⎕← '    R←⍺.Yield{ndig>≢⍵:∇ ⍵,⍕?big ⋄ ⍵↑⍨-ndig}'
+ ⎕← '    {∇ R ⍬}⍬  ⍝ This will go forever until an x.Return or ¯1 x.Send ''Msg'''
+ ⎕← '}'
+ ⎕←' x← RandG Gen 50'
+ ⎕←' x.Next'
 ⍝ 436588767634532532412342568766785235435754643
-⍝  x.Next
+ ⎕←' x.Next'
 ⍝ 9033...
 ⍝ ... many days later
-⍝ x.Abort
+ ⎕←' ⊢x.Return'
+ ⎕← '⍝ ',32⍴'*'
+∇ 
   
 ⍝ CLASS SHARED CONSTANTS  (*) All class constants are replicated to clones
   ⎕IO ⎕ML←0 1
   DEBUG← 0
-  INIT_TIMEOUT← 2     ⍝ Wait <INIT_TIMEOUT> seconds for generator preamble to startup and handshake
-  END_TIMEOUT← 0.010  ⍝ Wait after notifying generator that an GEN_END Signal has been requested
-  GENEND_EM GENEND_EN← 'GENERATOR STOP SIGNAL' 901
+  GENSTOP_EM GENSTOP_EN GENFAIL_EN← 'GENERATOR STOP SIGNAL' 901 911
 
 ⍝ CLASS-ONLY SHARED VARIABLES  
   tokMin tokMax tokCur tokEach← 0
@@ -40,9 +43,9 @@
       }tCur 
   }
 
- Gen← { ⍺←0 ⋄ genNs← ⎕NS genLib  ⍝ Localize genNs
+ Gen← { ⍺←0 ⋄ genNs∘← ⎕NS genLib  ⍝ Localize genNs
         genNs.(genNs DEBUG)← genNs ⍺ 
-        0/⍨ ~DEBUG::  genNs.⍙GenErr ⍬ ⋄ 1000:: ⍙GenInterrupt ⍬
+        0::  genNs.⍙GenErr⍬ ⋄ 1000:: ⍙GenInterrupt⍬
         genNs.(toGen fromGen)← threadDefaults ⍙TReserve 0
         genNs.genId← ⍺⍺ genNs.{  
           0:: ⍙GenErr ⍬ ⋄ 1000:: ⍙GenInterrupt ⍬
@@ -52,22 +55,29 @@
           ⍝ ↓↓↓↓↓↓ RUN THE GENERATOR ↓↓↓↓↓↓ ⍝                      
             ⎕THIS.result← ⎕THIS ⍺⍺ ⍵   
           ⍝ ↑↑↑↑↑↑ ↑↑↑ ↑↑↑ ↑↑↑↑↑↑↑↑↑ ↑↑↑↑↑↑ ⍝ 
-            genStatus=¯1: ⍙Cleanup ⍬
+           ⍝ genStatus=¯1: ⍙GenErr⍬
             genStatus⊢← 1 ⊣ ⎕DF genName,' [terminated]'
-            1: _←result
+            1: _←⎕THIS.result
         }& ⍵
         genNs←genNs  ⍝ Why is this necessary? Dyalog bug?!?!
-        0= ≢INIT_TIMEOUT ⎕TGET genNs.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
+        0= ≢ genNs.INIT_WAIT ⎕TGET genNs.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
         genNs 
   }
   ##.Gen← ⎕THIS.Gen
 
 :Namespace genLib
+  
   DEBUG← ##.DEBUG
-  ⍙Blab← { ⍺←⍬ ⋄ DEBUG: ⍺⊣ ⎕← ⍵ ⋄ ⍺ }
+⍝ INIT_WAIT: wait <INIT_WAIT> seconds for generator preamble to startup and handshake
+⍝ stopWait: wait after notifying generator that an GENSTOP_EN Signal has been requested
+⍝ See SetStopWait above
+  INIT_WAIT← 2
+  stopWait←  0.010   ⍝ See SetStopWait
+  genStatus genId error← 0 ⎕NULL ⎕NULL 
+
+  SetStopWait← stopWait∘{ stopWait⊢← ⍵ ⍺⊃⍨ 0=≢⍵ }
   ⍙Me←   {'Generator thread ',(⍕genId),' ',⍵}
 
-  genStatus genId error← 0 ⎕NULL ⎕NULL 
   ∇ r←Done  ⍝ goes in user or generator
     r← 0≠ genStatus
   ∇
@@ -81,8 +91,8 @@
       0≠ genStatus: (⍙Me 'has terminated')  ⎕SIGNAL 911
         code msgIn← ⊃timeout ⎕TGET toGen
       code=0:   _← msgIn⊣ 0 ⍵ ⎕TPUT fromGen
-      code>0:   (⍕msgIn) ⎕SIGNAL code
-      code=¯1:  ⎕SIGNAL/ ##.(GENEND_EM GENEND_EN)
+      code>0:   (⍕msgIn) ⎕SIGNAL code 
+      code=¯1:  ##.(GENSTOP_EM ⎕SIGNAL GENSTOP_EN)
   }
 ⍝  r←Next  Returns next message (no rc) from generator
  ∇ r←Next  ⍝ user only
@@ -90,52 +100,63 @@
     :ELSE   ⋄ ⍙ErrDmx⍬
     :Endtrap
 ∇
-⍝  [0: std send | 1: send now | ¯1: send "end generator" (signal 901) request msg] Send value
+⍝  ⍺ Send ⍵
+⍝  ⍺?
+⍝    0: std send 
+⍝   >0: send signal ⍺ to generator 
+⍝   ¯1: send "end generator" (signal 901), returning "result" if present.
 ⍝  Returns rc and msg
   Send← { ⍝ user only
         ⍺← 0 ⋄ code msg← ⍺ ⍵
     0::  ⍙ErrDmx⍬
     ⎕TID= genId: 'Next/Send not valid in generator code' ⎕SIGNAL 11 
     1≠≢⍺:     'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
-    0≠ genStatus: (⍙Me 'has terminated') ⎕SIGNAL 901 911⊃⍨ genStatus=¯1
+    (0≠ genStatus)∨ genId (~∊) ⎕TNUMS: (⍙Me 'terminated') ⎕SIGNAL ##.GENFAIL_EN
     code= 0: _← ⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen  
-    code>0:  _← ⊃##.END_TIMEOUT ⎕TGET fromGen ⊣ code ⍙Urgent msg
-    code=¯1: _← ⊃##.END_TIMEOUT ⎕TGET fromGen ⊣ code ⍙Urgent msg
+        _← ⎕TGET ⎕TPOOL∩fromGen⊣ code ⍙TPutFirst msg
+    0≠⎕NC 'result': _← result ⋄ 1: _← ⎕NULL 
  }
-⍝ ⍙Urgent: Send msg ahead of all others. internal only
-  ⍙Urgent← {((⍺ ⍵),saveV) ⎕TPUT (toGen, saveT) ⊣ saveV← ⎕TGET saveT← ⎕TPOOL∩toGen}
+⍝ ⍙TPutFirst: Send msg ahead of all others. Internal only
+  ⍙TPutFirst← { V← ⎕TGET T← ⎕TPOOL∩toGen ⋄ ((⍺ ⍵),V) ⎕TPUT (toGen, T)}
 
-⍝ r←Peek   
+⍝ r← MsgAvail   
 ⍝    1 if there is a message waiting for me (user or generator)
 ⍝    Typically useful only in generator, 
 ⍝    e.g. waiting for user "Next" cmd before doing a Yield
-∇ r←Peek  ⍝ goes in user OR generator 
+∇ r← MsgAvail  ⍝ goes in user OR generator 
   :IF 0≠ genStatus ⋄ r←0
   :Else ⋄ r← ⎕TPOOL∊⍨ fromGen toGen⊃⍨ ⎕TID= genId
   :Endif 
 ∇
-⍝ Return: Forces an abort of the generator
+⍝ Return: Signals the generator to stop (via ⎕SIGNAL GENSTOP_EN), 
+⍝             returning the generator's result as ¨result¨.
+⍝         If it doesn't return normally (trapping the signal) within stopWait seconds,
+⍝            ¨result¯ will be undefined.
 ∇ {r}← Return ⍝ user or generator
   :IF ⎕TID= genId  ⍝ generator
-      901 ⎕SIGNAL⍨ ⍙Me 'is terminating'  
-  :ELSE
-    :TRAP 0   ⋄ ¯1 Send ⎕NULL ⋄ ⍙Cleanup ⍬
-    :CASE 901 ⋄  
-    :ELSE     ⋄ ⍙ErrDmx ⍬
-    :ENDTRAP
-    r← result 
-  :ENDIF 
+      ##.GENSTOP_EN ⎕SIGNAL⍨ ⍙Me 'is terminating' 
+      :RETURN
+  :ENDIF  
+  :TRAP 0   
+  ¯1 Send ⎕NULL ⋄ ⍙Cleanup ⍬
+  :CASE ##.GENSTOP_EN 
+      ⍝ all good  
+  :ELSE     
+      ⍙ErrDmx ⍬
+  :ENDTRAP
+  r← { 2= ⎕NC ⍵: ⎕OR ⍵ ⋄ ⎕NULL } 'result'
 ∇ 
 ⍙Cleanup← { 
-      genStatus⊢← ¯1  
       _← 1 ⎕TGET ⎕TPOOL∩toGen,fromGen ⋄ _← ⎕DF genName,' [terminated]'
-    genId∊⎕TNUMS: _← ⎕THIS.{ ⎕TKILL genId ⍙Blab ⍙Me 'terminated' ⊣ ⎕DL ##.END_TIMEOUT }& 0 
-    1: _← ⍙Blab ⍙Me 'has terminated'
+      TK← ⎕THIS.{ ⎕TKILL genId ⊣ ⎕DL stopWait }
+      _← ⍙Blab ⍙Me 'terminated' 
+    genId∊⎕TNUMS: TK& genStatus⊢← ¯1 ⋄ 1: genStatus⊢←  1 
 }
-⍙⍙ErrDmx← { ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ ('Generator: ',EM) EN Message) }
-⍙GenErr← ⎕SIGNAL { ⍙⍙ErrDmx ⊣ ⍙Cleanup ⍙Blab ⊢error∘←  ↑(⊂'Gen: '),¨⎕DMX.DM }
-⍙ErrDmx← ⎕SIGNAL  ⍙⍙ErrDmx  
+⍙⍙Dmx← { ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ ('Generator: ',EM) EN Message) }
+⍙GenErr← ⎕SIGNAL { ⍙⍙Dmx ⊣ ⍙Cleanup ⍙Blab ⊢error∘←  ↑(⊂'Gen: '),¨⎕DMX.DM }
+⍙ErrDmx← ⎕SIGNAL  ⍙⍙Dmx  
 ⍙GenInterrupt← ⎕SIGNAL {⊂'EM' 'EN' ,⍥⊂¨ (⍙Me 'was interrupted') 911⊣ ⍙Cleanup ⍬ }
+⍙Blab← { ⍺←⍬ ⋄ DEBUG: ⍺⊣ ⎕← ⍵ ⋄ ⍺ }
   
 :EndNamespace
 
