@@ -2,33 +2,32 @@
 ⍝!  For description/help, see function ∘help∘ below.
 ⍝!  For a demo, see Demo below.
 ⍝ 
-
- Gen← { ⍺←0 ⋄ gÑ.gÑ∘← gÑ∘← ⎕NS genLib ⋄ gÑ.debug← ⍺ 
-      0::  uÑ.Error ⋄ 1000:: uÑ.Interrupt⍬  
-        gÑ.(toGen fromGen) tokÑ.cur∘← tokÑ.(ReserveToks cur) 
-        gÑ.genId← ⍺⍺ gÑ.{  
-          0:: uÑ.Error ⍬ ⋄ 1000:: uÑ.Interrupt ⍬
-            genName⊢← 'Gen[tid=',(⍕⎕TID),', toGen=',(⍕toGen),']' 
-            _← ⎕DF genName ⋄ ⎕TNAME← genName
-            _← ⎕TPUT fromGen                      ⍝ All vars are set. Tell user  
-          ⍝ ↓↓↓↓↓↓  RUN THE GENERATOR ↓↓↓↓↓↓ ⍝   
-          ⍝ ↓↓↓↓↓↓ Returning ¨result¨ ↓↓↓↓↓↓ ⍝                  
-            ⎕THIS.result← ⎕THIS ⍺⍺ ⍵   
-          ⍝ ↑↑↑↑↑↑ ↑↑↑ ↑↑↑ ↑↑↑↑↑↑↑↑↑ ↑↑↑↑↑↑ ⍝ 
-            _← ⎕DF genName,' [terminated]'
-            1: _←⎕THIS.result
-        }& ⍵
-        gÑ←gÑ  ⍝ Why is this necessary? Dyalog bug?!?!
-      0= ≢gÑ.INIT_WAIT ⎕TGET gÑ.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
-        gÑ 
+ Gen← { 
+      ⍺←0 ⋄ gÑ.gÑ← gÑ∘← ⎕NS genLib ⋄ gÑ.(debug em en)← ⍺ 'Abnormal termination' ¯1
+      gÑ.(toGen fromGen) tokÑ.cur∘← tokÑ.(ReserveToks cur) 
+      gÑ.genId← ⍺⍺ gÑ.{  
+        0:: uÑ.Error ⍬ ⋄ 1000:: uÑ.Interrupt ⍬ 
+          _← ⎕DF ⎕TNAME← genName⊢← 'Gen[tid=',(⍕⎕TID),', toGen=',(⍕toGen),']' 
+          _← ⎕TPUT fromGen    ⍝ Tell the generator it may start: all vars are set. 
+        ⍝    RUN THE GENERATOR (⍺⍺) →→→                   ↓↓↓↓↓↓↓↓↓↓ ⍝   
+        ⍝    ↓↓↓↓↓↓↓↓↓↓↓↓ ←←← RETURNING ⎕THIS.result      ↓↓↓↓↓↓↓↓↓↓ ⍝ 
+                ⎕THIS.result← ⎕THIS ⍺⍺ ⍵ 
+                em en⊢← 'Normal termination' 0 ⊣ ⎕DF genName,' [terminated, status=0]'  
+          1: _← ⎕THIS.result 
+        ⍝       ¯¯¯¯¯¯¯¯¯¯¯¯                            
+      }& ⍵
+      gÑ←gÑ  ⍝ Why is this necessary? Dyalog bug?!?!
+    0= ≢gÑ.INIT_WAIT ⎕TGET gÑ.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
+      gÑ 
   }
   ##.Gen← ⎕THIS.Gen
 
 :Namespace genLib
 ⍝ Const for Generator Objects (cloned)
   ⎕IO ⎕ML←0 1
-  GENSTOP_EM GENSTOP_EN← 'GENERATOR STOP SIGNAL' 901 
-  GENFAIL_EM GENFAIL_EN← 'GENERATOR FAILURE SIGNAL'  911
+  GENSTOP← 'Generator signalled STOP ITERATION'    901 
+  STOP← ⊃⌽ GENSTOP
+  GENFAIL← 'Generator has terminated: FAILURE' 911
 ⍝ INIT_WAIT: wait <INIT_WAIT> seconds for generator preamble to startup and handshake
   INIT_WAIT← 2 ⋄ CLEANUP_WAIT← 5
 ⍝ End Const
@@ -36,9 +35,9 @@
 ⍝ Vars for Generator Objects (cloned)
 ⍝ stopWait: wait after notifying generator that an GENSTOP_EN Signal has been requested
 ⍝ See SetStopWait above
-  debug stopWait← 0 0.005 
+  debug stopWait waitCount← 0 0.005 25 
 ⍝ gÑ: Defined in cloned Generator namespace
-  toGen← fromGen← genName← gÑ← genId← result← error← ⎕NULL 
+  toGen← fromGen← genName← gÑ← genId← result← ⎕NULL 
 ⍝ End Vars
 
 ⍝ User "Methods"
@@ -46,9 +45,7 @@
   ∇ r←Active  ⍝ goes in user (in generator, always 1)
     r← genId ∊ ⎕TNUMS
   ∇
-  ∇ r←Inactive  ⍝ goes in user (in generator, always 0)
-    r← genId (~∊) ⎕TNUMS
-  ∇
+
 ⍝ code in_msg← [timeout← infinite] Yield out_msg
   Yield← {  ⍝ Generator only
         ⍺← ⊢ ⋄ timeout← ⍺
@@ -56,8 +53,8 @@
           code msgIn← ⊃timeout ⎕TGET toGen
       code=0:   _← msgIn⊣ 0 ⍵ ⎕TPUT fromGen
       code>0:   (⍕msgIn) ⎕SIGNAL code 
-      code=¯1:  GENSTOP_EM ⎕SIGNAL GENSTOP_EN  ⍝ STOP
-      code<¯1:  GENFAIL_EM ⎕SIGNAL GENFAIL_EN  ⍝ FAIL
+      code=¯1:  ⎕SIGNAL/ GENSTOP  ⍝ STOP
+      code<¯1:  ⎕SIGNAL/ GENFAIL  ⍝ FAIL
           'Yield: Invalid left arg' ⎕SIGNAL 11
   }
 ⍝  r←Next  Returns next message from generator.
@@ -69,8 +66,10 @@
 ⍝  ⍺ Send ⍵
 ⍝  ⍺ is...?
 ⍝    0: std send 
-⍝   >0: send signal ⍺ to generator 
-⍝   ¯1: send "end generator" (signal 901), returning "result" if present.
+⍝   ≠0: Yield will interpret messages based on ⍺:
+⍝   >0: Yield will locally (in generator) issue (⍕⍵) ⎕SIGNAL ⍺
+⍝   ¯1: Yield will issue ⎕SIGNAL/ GENSTOP
+⍝  <¯1: Yield will issue ⎕SIGNAL/ GENFAIL
 ⍝  If code=0,
 ⍝    returns output from generator, if code=0.
 ⍝  If generator has already terminated, 
@@ -82,7 +81,11 @@
     0::  uÑ.SigDmx⍬
     ⎕TID= genId: 'Next/Send not valid in generator code' ⎕SIGNAL 11 
     1≠≢⍺:        'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
-    genId(~∊) ⎕TNUMS: (uÑ.TermMsg 0) ⎕SIGNAL GENFAIL_EN 
+    genId(~∊) ⎕TNUMS: ⎕SIGNAL/{
+        en=¯1:      GENFAIL 
+        en∊ 0 STOP: GENSTOP⊣em en⊢← GENFAIL 
+                    em en 
+    } ⍵ 
     code= 0: _← ⊃⌽⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen 
       _← code uÑ.TPutFirst msg 
       _← ⎕TGET ⎕TPOOL∩fromGen
@@ -91,36 +94,22 @@
 
 ⍝ Return: Signals the generator to stop (via ⎕SIGNAL GENSTOP_EN), 
 ⍝             returning the generator's result as ¨result¨.
-⍝         If it doesn't return normally (trapping the signal) within stopWait seconds,
+⍝         If it doesn't return normally (trapping the signal) within waitCount×stopWait seconds,
 ⍝            ¨result¯ will be undefined.
-∇ {r}← Return ⍝ user or generator
-   ;_
-  :IF ⎕TID= genId  ⍝ generator
-       GENSTOP_EM ⎕SIGNAL GENSTOP_EN 
-  :ENDIF  
-  :TRAP 0   
-      _← ¯1 Send ⎕NULL  
-  :ELSE     
-      uÑ.SigDmx ⍬
-  :ENDTRAP
-  r← uÑ.(AwaitResult Cleanup 0) 
+∇ r← Return ;_ ⍝ user or generator
+  :IF ⎕TID= genId ⋄  ⎕SIGNAL/ GENSTOP ⋄ :ENDIF ⍝ generator 
+  :TRAP 0 ⋄ r← ¯1 Send ⎕NULL ⋄ :ELSE ⋄ uÑ.SigDmx ⍬ ⋄ :ENDTRAP
+  r← uÑ.(AwaitResult Cleanup 0) ⊣ em en← GENFAIL
 ∇ 
-∇ r← Quit ⍝ user or generator
-   ;_
-  :IF ⎕TID= genId  ⍝ generator
-       GENSTOP_EM ⎕SIGNAL GENSTOP_EN 
-  :ENDIF  
-  :TRAP 0 
-      r← ¯2 Send ⎕NULL
-  :ELSE    
-      r←uÑ.(Dmx Cleanup 0)
-  :ENDTRAP
+∇ r← Quit ;_ ⍝ user or generator
+  :IF ⎕TID= genId ⋄ ⎕SIGNAL/ GENSTOP ⋄ :ENDIF      ⍝ generator 
+  :TRAP 0 ⋄ r← ¯2 Send ⎕NULL ⋄ :ELSE ⋄ r←uÑ.(Dmx Cleanup 0) ⋄ :ENDTRAP
 ∇ 
 
 ⍝ Internal Utilities
   :Namespace uÑ
       ⍙Blab← ##.{ ⍺←⍬ ⋄ debug: ⍺⊣ ⎕← ⍵ ⋄ ⍺ }
-      Dmx← { ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨ ('Generator: ',EM) EN Message) }
+      Dmx← { ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message EM) }
       Cleanup← { 
           _← 1 ⎕TGET ⎕TPOOL∩##.(toGen,fromGen) ⋄ _← ##.(⎕DF genName,' [terminated]')
           TK← { ⎕TKILL ##.genId ⊣ ⎕DL ##.CLEANUP_WAIT }
@@ -131,9 +120,9 @@
     TPutFirst← ##.{ V← ⎕TGET T← ⎕TPOOL∩ toGen ⋄ ((⍺ ⍵),V) ⎕TPUT (toGen, T)}
   ⍝ AwaitResult:  ⍺⍺ ∇ ⍵⍵⊢ ⍬
   ⍝     ⍺⍺: 'result' ⋄ ⍵⍵: # tries (e.g. 3), each with a delay of stopWait÷⍵⍵.
-    AwaitResult← 'result'##.{⍺←⍵⍵⋄⍺≤0:⎕NULL⋄⎕NULL≢ ⍙←⎕OR⍺⍺: ⍙⋄1:⍵∇⍨⍺-1⊣⎕DL stopWait÷⍵⍵}3
-    Error← ⎕SIGNAL { Dmx ⊣ Cleanup 0 ⍙Blab ⊢##.error∘←  ↑(⊂'Gen: '),¨⎕DMX.DM }
-    Interrupt← ⎕SIGNAL {⊂'EM' 'EN' ,⍥⊂¨ (TermMsg 2) 911⊣ Cleanup 2 }
+    AwaitResult← 'result'##.{⍺←⍵⍵⋄⍺≤0:⎕NULL⋄⎕NULL≢ ⍙←⎕OR⍺⍺: ⍙⋄1:⍵∇⍨⍺-1⊣⎕DL stopWait}##.waitCount
+    Error← ⎕SIGNAL { Dmx ⊣ Cleanup 0 }
+    Interrupt← ⎕SIGNAL {##.(em en)⊢← (TermMsg 2) 911 ⋄ ⊂'EM' 'EN' ,⍥⊂¨ ##.(em en)⊣ Cleanup 2 }
     SigDmx← ⎕SIGNAL Dmx  
       termMsgs← 'has been terminated' 'terminating' 'was interrupted' 'LOGIC ERROR!'
     TermMsg← termMsgs∘ ##.{'Generator thread ',(⍕genId),' ', ⍺⊃⍨ 0⌈3⌊⍵}
@@ -162,36 +151,115 @@
 :EndNamespace ⍝ tokÑ
 
 :Section Examples
-⍝ Demo (Example):  Return ndig of random digits (imagining this is very timeconsuming!)
+⍝ Demo will create two generators: ShakespeareG and RandG
   ∇ Demo
-    ; ndig; x
-
+    ⎕←'Shakespeare is a generator that returns a ''paragraph'' from Shakespeare''s works.'
+    ⎕←'  s← ShakespeareG Gen 2 999'
+    ⎕←'To see a demonstration, type (with no arguments):'
+    ⎕←'  Shake'
+    ⎕←'Hit return after each text prompt starting with "*****"'
+    ⎕←''
+    ShakespeareG← {   ⎕io←0 ⋄ offset←194 ⋄ NL2← 2⍴ NL← ⎕UCS 10
+      urlText← 'https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt' 
+      0::  ⎕←'Done'⊣ ⎕DMX.(⎕←↑DM⊣ ⎕← EN EM)
+        ⎕←'Reading large textfile from url:'
+        ⎕←'  ',urlText
+      ⍝ Prime the pump by retrieving the text file 
+      ⍝ and performing initial processing...
+        lines← ⎕SH 'Curl --fail ',urlText             ⍝ Reading in text file from URL
+        lines↓⍨← 3+ ⍸'THE SONNETS'⍷⍥⊆ lines           ⍝ Skip past first header...
+        zeroes2← 1,⍨ 0 0⍷≢¨lines                      ⍝ 1 if a pair of blank lines
+        ⎕←'There are',(≢lines),'total text lines in our Shakespeare file'
+        
+        defSL← 2↑ (2 25↓⍨-0⌈≢⍵), ⍵                   ⍝ Get short and long paragraph parameters first
+        t← ⍺.Yield ⍬  
+        short long← 2↑(defSL↓⍨-0⌈≢t),t 
+        (short=0)∨short≥long: 'Invalid parameters!' ⎕SIGNAL 11
+         ⎕←'We are ignoring paragraphs with',short,'or fewer lines...'
+         ⎕←'We will subdivide paragraphs with',long,'or more lines'
+     
+        bye1← '*** Parting is such sweet sorrow,'  
+        bye2← '*** that I shall say good night till it be morrow.'
+        Divvy← {0=l← long⌊ ≢⍵: ⍬ ⋄ ⍺ ∇ l↓ ⍵⊣ ⍺.Yield ↑l↑ ⍵} ⍝ Subdivide long paragraphs
+      ⍝ Prepare for incremental processing, i.e. of a single "paragraph"
+        ⍺{
+          ⍺.STOP::  ↑bye1 bye2
+            p z2←⍵                                     ⍝ p=start posn, z2=remaining zeroes
+          0=≢z2: t⊣ ⍺.Yield t← '*** Shakespeare ran out of things to say!'
+          0=≢p⊃lines: ⍺ ∇ (p+1)(1↓z2)                  ⍝ Skip blank lines
+            n2← 2+ n← z2⍳1                             ⍝ Find next paragraph (pair of blank lines)
+          short≥ n: ⍺ ∇ (p+ n2) (n2↓ z2)               ⍝ Skip short paragraphs 
+            _← ⍺ Divvy lines[p+ ⍳n]                    ⍝ Send back a paragraph (divided if needed)
+            ⍺ ∇ (p+ n2) (n2↓ z2)                       ⍝ Move past paragraph and blank lines
+        }0 zeroes2
+    }
+    ##.ShakespeareG← ShakespeareG
+    ⎕←''
+    ⎕←'RandG is  sample generator that can return random numbers of very large sizes as text strings.'
+    ⎕←'By default, RandG starts with 34-character random numbers for each ⍺.Next'
+    ⎕←'  r← RandG Gen⍬' 
+    ⎕←'To retrieve a random number of the current length, do'
+    ⎕←'  r.Next' 
+    ⎕←'To change the length to 50 (retrieving the already generated value), do' 
+    ⎕←'  ⊢r.Send 50'
+    ⎕←'then'
+    ⎕←'  r.Next'
+    ⎕←'Terminate with'
+    ⎕←'  r.Return'
+    ⎕←'(which shows the # of random numbers returned).' 
     RandG←{ ⍝ Sample generator'
         big ⎕PP ndig nrequests←(2*31)34 34 0
-      901:: nrequests    ⍝ Return value 
-        Exec← ⍺.Yield{ ndig>≢⍵:∇ ⍵,⍕?big ⋄ ⍵↑⍨-ndig}
-        Rcv←{ nrequests+←1 ⋄ ⎕NULL≡⍵: ⍵ ⋄ ⊢ndig⊢←⍵ 34⊃⍨0=⍵} 
-        {∇ Rcv Exec ⍬}⍬  ⍝ This will go forever until an x.Return or ¯1 x.Send 'Msg'
-  }
-  'SUPPRESSED' ⋄ :RETURN
-    ⎕←⎕VR 'Demo'
-    'Demo' ⎕TRACE⍨  (⊃⎕LC)+1+⍳100
-    x← RandG Gen⍬
-    '>>> Getting value based on default ndig'
-    x.Next 
-    :For ndig :in 50 25 10
-        ⊢x.Send ndig   ⍝ 34 digits for the requested random #s
-        '>>> Requested new ndigits:', ndig
-        x.Next
-    :EndFor
-    x.Next 
-  ⍝ ... many days later
-    '>>> Asking RandG to return ¨nrequests¨ (the # of requests)'
-    'x.Return: We processed',x.Return,'requests'
-    '>>> DEMO COMPLETE!'
-  ∇ 
-  ##.⎕FX ⎕CR 'Demo'
-  ⎕← (⍕##.⎕THIS),'.Demo installed.'
+        ⎕←'RandG starting with',ndig,'digits per request (Next)'
+      ⍺.STOP:: nrequests    ⍝ Return value 
+        Exec← ⍺.Yield{ ndig> ≢⍵: ∇ ⍵, ⍕?big ⋄ ⍵↑⍨ -ndig}
+        Rcv←{ nrequests+← 1 ⋄ ⎕NULL≡ ⍵: ⍵ ⋄ ⊢ndig⊢← ⍵ 34⊃⍨ 0=⍵} 
+        {∇ Rcv Exec ⍬} ⍬  ⍝ This will go forever until an x.Return or ¯1 x.Send 'Msg'
+    }
+    ⎕←'Created fn Shake to demonstrate ShakespeareG Gen⍬'
+  ∇
+  ∇  Shake
+    ;s;Ask; Say
+
+    Say←{ ⍺←0 ⋄          ⎕←(⍺/⎕UCS 13), '***** ',⍵}
+    Ask←{ ⍺←1 ⋄  1: _←⍞⊣ ⍞←(⍺/⎕UCS 13), '***** ',⍵,' ' }
+
+    Ask'Start Generator'
+    '      s← Shakespeare Gen ⍬'
+    s←ShakespeareG Gen 0
+    1 Say 'Tell (Send) the generator'
+    Say '∘ the smallest paragraph to keep and'
+    Say '∘ the largest par. fragment to display on each ¨Next¨'
+    0 Ask 'Ready?'
+
+    r← (2+?5) (10×1+?4)
+    '      s.Send',r
+    s.Send r
+
+    Ask'Skip a random # of paragraphs between 1 and 100'
+    '      {}{0⍴s.Next}¨ ⍳ ⎕← 1+ ?100'
+    {}{0⍴s.Next}¨ ⍳⎕← 1+?100
+    '>>> Done'
+
+    Ask'Read two paragraph sections'
+    '      s.Next ⋄ s.Next'
+    s.Next ⋄ ⎕←'*****' ⋄ s.Next
+    Ask'Skip 100 paragraphs'
+    '      {}{0⍴s.Next}¨100⍴0'
+    {}{0⍴s.Next}¨100⍴0
+    '>>> Done'
+
+    Ask'Read two paragraph sections'
+    '      s.Next ⋄ s.Next'
+    s.Next ⋄ ⎕←'*****' ⋄ s.Next
+
+    Ask'Return'
+    '      s.Return'
+    s.Return
+    ''
+    '***** Bye!'
+ ∇
+  _← ##.⎕FX ⎕NR 'Demo'
+   _← ##.⎕FX ⎕NR 'Shake'
 :EndSection ⍝ Examples
 
 :Section Help
