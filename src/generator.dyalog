@@ -3,7 +3,7 @@
 ⍝!  For a demo, see Demo below.
 ⍝ 
  Gen← { 
-      ⍺←0 ⋄ gÑ.gÑ← gÑ∘← ⎕NS genLib ⋄ gÑ.(debug em en)← ⍺ 'Abnormal termination' ¯1
+      ⍺←0 ⋄ gÑ.gÑ← gÑ∘← ⎕NS genLib ⋄ gÑ.(debug em en)← ⍺ 'Generator Active' gÑ.OK
       gÑ.(toGen fromGen) tokÑ.cur∘← tokÑ.(ReserveToks cur) 
       gÑ.genId← ⍺⍺ gÑ.{  
         0:: uÑ.Error ⍬ ⋄ 1000:: uÑ.Interrupt ⍬ 
@@ -11,8 +11,8 @@
           _← ⎕TPUT fromGen    ⍝ Tell the generator it may start: all vars are set. 
         ⍝    RUN THE GENERATOR (⍺⍺) →→→                   ↓↓↓↓↓↓↓↓↓↓ ⍝   
         ⍝    ↓↓↓↓↓↓↓↓↓↓↓↓ ←←← RETURNING ⎕THIS.result      ↓↓↓↓↓↓↓↓↓↓ ⍝ 
-                ⎕THIS.result← ⎕THIS ⍺⍺ ⍵ 
-                em en⊢← 'Normal termination' 0 ⊣ ⎕DF genName,' [terminated, status=0]'  
+                result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1  
+                em en⊢← 'Generator Terminated Normally' OK ⊣ ⎕DF genName,' [returned]'  
           1: _← ⎕THIS.result 
         ⍝       ¯¯¯¯¯¯¯¯¯¯¯¯                            
       }& ⍵
@@ -25,25 +25,29 @@
 :Namespace genLib
 ⍝ Const for Generator Objects (cloned)
   ⎕IO ⎕ML←0 1
-  GENSTOP← 'Generator signalled STOP ITERATION'    901 
-  STOP← ⊃⌽ GENSTOP
-  GENFAIL← 'Generator has terminated: FAILURE' 911
-⍝ INIT_WAIT: wait <INIT_WAIT> seconds for generator preamble to startup and handshake
-  INIT_WAIT← 2 ⋄ CLEANUP_WAIT← 5
+  STOP← ⊃⌽GENSTOP← 'Generator signalled STOP ITERATION'    901 
+  FAIL← ⊃⌽GENFAIL← 'Generator has TERMINATED' 911
+  OK←   0
+⍝ INIT_WAIT: (max) wait <INIT_WAIT> seconds for generator preamble to startup and handshake
+  INIT_WAIT←    2 ⍝ sec
+  CLEANUP_WAIT← 5 ⍝ sec
 ⍝ End Const
 
 ⍝ Vars for Generator Objects (cloned)
 ⍝ stopWait: wait after notifying generator that an GENSTOP_EN Signal has been requested
 ⍝ See SetStopWait above
-  debug stopWait waitCount← 0 0.005 25 
+  debug stopWait waitCount← 0 0.005 100 
 ⍝ gÑ: Defined in cloned Generator namespace
-  toGen← fromGen← genName← gÑ← genId← result← ⎕NULL 
+  toGen← fromGen← genName← gÑ← genId← result← ⎕NULL ⋄ resultSet←0
 ⍝ End Vars
 
 ⍝ User "Methods"
   SetStopWait← stopWait∘{ stopWait⊢← ⍵ ⍺⊃⍨ 0=≢⍵ }
   ∇ r←Active  ⍝ goes in user (in generator, always 1)
-    r← genId ∊ ⎕TNUMS
+    r← ~Eof
+  ∇
+  ∇ e← Eof
+    e← genId (~∊) ⎕TNUMS 
   ∇
 
 ⍝ code in_msg← [timeout← infinite] Yield out_msg
@@ -77,34 +81,50 @@
 ⍝  Otherwise, prioritizes its message to the generator, and
 ⍝    returns result, if available, else ⎕NULL.
   Send← { ⍝ user only
-        ⍺← 0 ⋄ code msg← ⍺ ⍵
+        ⍺← 0 0 ⋄ (code noErr)← 2↑⍺ ⋄ msg← ⍵
+        Sig← ⎕SIGNAL/⍣(~noErr)
     0::  uÑ.SigDmx⍬
-    ⎕TID= genId: 'Next/Send not valid in generator code' ⎕SIGNAL 11 
-    1≠≢⍺:        'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
-    genId(~∊) ⎕TNUMS: ⎕SIGNAL/{
-        en=¯1:      GENFAIL 
-        en∊ 0 STOP: GENSTOP⊣em en⊢← GENFAIL 
-                    em en 
-    } ⍵ 
-    code= 0: _← ⊃⌽⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen 
-      _← code uÑ.TPutFirst msg 
-      _← ⎕TGET ⎕TPOOL∩fromGen
-    1: _← uÑ.AwaitResult⍬ 
+      case← (~IsGen)(~Eof)(en= 0)(code≡ 0)
+    ∧/case: _← ⊃⌽⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen 
+    0≠ ⊃0⍴code: 'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
+    ~0⌷case:    'Next/Send not valid in generator code' ⎕SIGNAL 11 
+    ~1⌷case: _← Sig {
+        en=911:        GENFAIL 
+        en∨.= OK STOP: GENSTOP⊣em en⊢← GENFAIL 
+                       em en 
+    }⍬ 
+    ~2⌷case: _← Sig em en
+        _← ⎕TGET ⎕TPOOL∩fromGen ⊣ code uÑ.TPutFirst msg  
+    1:  _← uÑ.AwaitResult⍬ 
  }
+
 
 ⍝ Return: Signals the generator to stop (via ⎕SIGNAL GENSTOP_EN), 
 ⍝             returning the generator's result as ¨result¨.
 ⍝         If it doesn't return normally (trapping the signal) within waitCount×stopWait seconds,
 ⍝            ¨result¯ will be undefined.
-∇ r← Return ;_ ⍝ user or generator
-  :IF ⎕TID= genId ⋄  ⎕SIGNAL/ GENSTOP ⋄ :ENDIF ⍝ generator 
-  :TRAP 0 ⋄ r← ¯1 Send ⎕NULL ⋄ :ELSE ⋄ uÑ.SigDmx ⍬ ⋄ :ENDTRAP
-  r← uÑ.(AwaitResult Cleanup 0) ⊣ em en← GENFAIL
+∇ r← Return    ⍝ user or generator
+  :IF IsGen ⋄  ⎕SIGNAL/ GENSTOP ⋄ :ENDIF ⍝ generator 
+  :IF Eof 
+    :IF  resultSet ⋄ :Andif en∊ 0 STOP 
+         r← result  
+    :Else 
+         ⎕SIGNAL/em en
+    :EndIf
+  :Else 
+    r← ¯1 Send ⎕NULL  
+    r← uÑ.(AwaitResult Cleanup 0)  
+  :Endif 
 ∇ 
-∇ r← Quit ;_ ⍝ user or generator
-  :IF ⎕TID= genId ⋄ ⎕SIGNAL/ GENSTOP ⋄ :ENDIF      ⍝ generator 
-  :TRAP 0 ⋄ r← ¯2 Send ⎕NULL ⋄ :ELSE ⋄ r←uÑ.(Dmx Cleanup 0) ⋄ :ENDTRAP
+∇ {r}← Quit   ⍝ user or generator
+  :IF IsGen    ⋄ ⎕SIGNAL/ GENSTOP        ⍝ generator 
+  :ELSEIF ~Eof ⋄ _← ¯1 Send ⎕NULL ⋄  r← 'GENERATOR REQUESTED TO TERMINATE' 0
+  :ELSE        ⋄ ⎕SIGNAL/GENFAIL
+  :ENDIF 
 ∇ 
+∇ r← IsGen
+  r← genId= ⎕TID
+∇
 
 ⍝ Internal Utilities
   :Namespace uÑ
@@ -113,14 +133,14 @@
       Cleanup← { 
           _← 1 ⎕TGET ⎕TPOOL∩##.(toGen,fromGen) ⋄ _← ##.(⎕DF genName,' [terminated]')
           TK← { ⎕TKILL ##.genId ⊣ ⎕DL ##.CLEANUP_WAIT }
-        ##.genId∊⎕TNUMS: TK&  0 ⍙Blab TermMsg ⊃1 2⊃⍨ ⍵=2
-        1:                    0 ⍙Blab TermMsg ⊃0 2⊃⍨ ⍵=2
+        ~##.Eof: TK& 0 ⍙Blab⊢ em← TermMsg ⊃1 2⊃⍨ ⍵=2 ⊣ en← ##.FAIL
+        1:           0 ⍙Blab⊢ em← TermMsg ⊃0 2⊃⍨ ⍵=2 ⊣ en← ##.STOP
       }
   ⍝ TPutFirst: Send msg ahead of all others. Internal only
-    TPutFirst← ##.{ V← ⎕TGET T← ⎕TPOOL∩ toGen ⋄ ((⍺ ⍵),V) ⎕TPUT (toGen, T)}
+    TPutFirst← ##.{ V← ⎕TGET T← ⎕TPOOL∩ toGen ⋄ ((⍺ ⍵),V) ⎕TPUT (toGen, T) }
   ⍝ AwaitResult:  ⍺⍺ ∇ ⍵⍵⊢ ⍬
   ⍝     ⍺⍺: 'result' ⋄ ⍵⍵: # tries (e.g. 3), each with a delay of stopWait÷⍵⍵.
-    AwaitResult← 'result'##.{⍺←⍵⍵⋄⍺≤0:⎕NULL⋄⎕NULL≢ ⍙←⎕OR⍺⍺: ⍙⋄1:⍵∇⍨⍺-1⊣⎕DL stopWait}##.waitCount
+    AwaitResult← ##.waitCount ##.{⍺⍺≤0:⎕NULL⋄ resultSet: result⋄1: (⍺⍺-1)∇∇⍵⊣⎕DL stopWait}
     Error← ⎕SIGNAL { Dmx ⊣ Cleanup 0 }
     Interrupt← ⎕SIGNAL {##.(em en)⊢← (TermMsg 2) 911 ⋄ ⊂'EM' 'EN' ,⍥⊂¨ ##.(em en)⊣ Cleanup 2 }
     SigDmx← ⎕SIGNAL Dmx  
