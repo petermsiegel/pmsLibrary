@@ -1,7 +1,9 @@
 ﻿:namespace Generator
 ⍝!  For description/help, see function ∘help∘ below.
-⍝!  For a demo, see Demo below.
+⍝!  For examples, see Demo below.
 ⍝ 
+⍝   gÑ: generator namespace instance, copied in from genLib
+⍝   uÑ: generator utilities
  Gen← { 
       ⍺←0 ⋄ gÑ.gÑ← gÑ∘← ⎕NS genLib ⋄ gÑ.(debug em en)← ⍺ 'Generator Active' gÑ.OK
       gÑ.(toGen fromGen) tokÑ.cur∘← tokÑ.(ReserveToks cur) 
@@ -13,8 +15,8 @@
         ⍝    ↓↓↓↓↓↓↓↓↓↓↓↓ ←←← RETURNING ⎕THIS.result      ↓↓↓↓↓↓↓↓↓↓ ⍝ 
                 result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1  
                 em en⊢← 'Generator Terminated Normally' OK ⊣ ⎕DF genName,' [returned]'  
-          1: _← ⎕THIS.result 
-        ⍝       ¯¯¯¯¯¯¯¯¯¯¯¯                            
+          1: _← result
+        ⍝       ¯¯¯¯¯¯                         
       }& ⍵
       gÑ←gÑ  ⍝ Why is this necessary? Dyalog bug?!?!
     0= ≢gÑ.INIT_WAIT ⎕TGET gÑ.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
@@ -26,18 +28,31 @@
 ⍝ Const for Generator Objects (cloned)
   ⎕IO ⎕ML←0 1
   STOP← ⊃⌽GENSTOP← 'Generator signalled STOP ITERATION'    901 
+  SEND_STOP SEND_FAIL← ¯1 ¯2
   FAIL← ⊃⌽GENFAIL← 'Generator has TERMINATED' 911
+         GEN_ONLY← 'Function only valid in generator code' 11 
+        USER_ONLY← 'Function not valid in generator code' 11
   OK←   0
 ⍝ INIT_WAIT: (max) wait <INIT_WAIT> seconds for generator preamble to startup and handshake
+⍝ CLEANUP_WAIT: (max) wait after a generator termination (GENFAIL) is requested before
+⍝            the generator is actually terminated (⎕TKILL)
   INIT_WAIT←    2 ⍝ sec
   CLEANUP_WAIT← 5 ⍝ sec
 ⍝ End Const
 
-⍝ Vars for Generator Objects (cloned)
-⍝ stopWait: wait after notifying generator that an GENSTOP_EN Signal has been requested
-⍝ See SetStopWait above
-  debug stopWait waitCount← 0 0.005 100 
-⍝ gÑ: Defined in cloned Generator namespace
+⍝ Vars for Generator Objects (to be cloned into gÑ)
+⍝ debug:     from ⍺ in Gen call. 0 by default.
+⍝ stopWait:  wait after a GENSTOP signal to wait before checking if result is available.
+⍝            Will wait up to (stopWait×waitCount) seconds, typically 10 ms.
+⍝ waitCount: See stopWait. Total tries to get result after signalling generator to STOP
+⍝            its iterations.
+  debug stopWait waitCount← 0 0.005 20 
+⍝ result:    whatever the user generator returned (or ⎕NULL). If set, resultSet←1
+⍝ genId:     the clone's thread # (set in Gen)
+⍝ gñ:        cloned generator namespace instance (from genLib)
+⍝ genName:   a descriptive name for the generator and thread, when initiated.
+⍝ fromGen, toGen: 
+⍝            the tokens used for synchronizing the generator...
   toGen← fromGen← genName← gÑ← genId← result← ⎕NULL ⋄ resultSet←0
 ⍝ End Vars
 
@@ -50,59 +65,75 @@
     e← genId (~∊) ⎕TNUMS 
   ∇
 
-⍝ code in_msg← [timeout← infinite] Yield out_msg
+⍝ Yield  (Generator) Wait for a code and msg <msgIn> and send a msg <msgOut> to the user.
+⍝    For typical Yield expressions, code←0 and msgIn←⎕NULL, indicating a request for data only.
+⍝ code msgIn← [timeout← infinite] ∇ msgOut
+⍝ 1. Wait up to <timeout> seconds (default: infinite) for a code and
+⍝    message <msgIn> from the user. 
+⍝ 2. If the code is 0, send the msg <msgOut> to the user and return <msgIn>.
+⍝    If the code>0, execute (⍕msgIn) ⎕SIGNAL code in the generator.
+⍝    Code ⍺.STOP and ⍺.FAIL may be generated via codes ¯1 and ¯2 respectively.
+⍝    If the code=¯1, ⎕SIGNAL GENSTOP (901), "stop iterations of generator."
+⍝    If the code=¯2, ⎕SIGNAL GENFAIL (911), "tell the generator to terminate itself asap." 
   Yield← {  ⍝ Generator only
         ⍺← ⊢ ⋄ timeout← ⍺
-      ⎕TID≠ genId: 'Yield only valid in generator code' ⎕SIGNAL 11 
+      ⎕TID≠ genId: ⎕SIGNAL/ GEN_ONLY
           code msgIn← ⊃timeout ⎕TGET toGen
       code=0:   _← msgIn⊣ 0 ⍵ ⎕TPUT fromGen
       code>0:   (⍕msgIn) ⎕SIGNAL code 
-      code=¯1:  ⎕SIGNAL/ GENSTOP  ⍝ STOP
-      code<¯1:  ⎕SIGNAL/ GENFAIL  ⍝ FAIL
+      code=SEND_STOP:  ⎕SIGNAL/ GENSTOP  ⍝ STOP
+      code=SEND_FAIL:  ⎕SIGNAL/ GENFAIL  ⍝ FAIL
           'Yield: Invalid left arg' ⎕SIGNAL 11
   }
-⍝  r←Next  Returns next message from generator.
+
+⍝  Next (in user code)  Returns next message from generator.
+⍝  r← ∇
+⍝  Sends a ⎕NULL msg to the generator, returning a (hopefully useful) message from the generator.
+⍝  If the generator expects a contentful message, use Send.
+⍝  r← Next
  ∇ r←Next  ⍝ user only
     :TRAP 0 ⋄ r←Send ⎕NULL
     :ELSE   ⋄ uÑ.SigDmx⍬
     :Endtrap
 ∇
-⍝  ⍺ Send ⍵
-⍝  ⍺ is...?
-⍝    0: std send 
-⍝   ≠0: Yield will interpret messages based on ⍺:
-⍝   >0: Yield will locally (in generator) issue (⍕⍵) ⎕SIGNAL ⍺
-⍝   ¯1: Yield will issue ⎕SIGNAL/ GENSTOP
-⍝  <¯1: Yield will issue ⎕SIGNAL/ GENFAIL
-⍝  If code=0,
-⍝    returns output from generator, if code=0.
-⍝  If generator has already terminated, 
-⍝    signals an error message in the user (caller of Send).
-⍝  Otherwise, prioritizes its message to the generator, and
-⍝    returns result, if available, else ⎕NULL.
+⍝  Send (in user code) Send a message to the generator and receive a message (msgIn) in return. 
+⍝  msgIn← [code←0] ∇ msgOut
+⍝  If code=0 and the generator is active, 
+⍝    sends a message to the generator, receiving a messaging in return.
+⍝    Otherwise, 
+⍝    ∘ if the generator (or user) has issued an error code <⍺.en>,
+⍝      then the Send fails with error message ⍺.em and error code ⍺.en,
+⍝    ∘ if the generator has terminated, signal an error:
+⍝      (GENSTOP if the generator has just terminated successfully;
+⍝       GENFAIL otherwise).
+⍝  Else, if code is non-zero and the generator is active, 
+⍝      issue as a priority (first) message to the generator the pair (code, tomsg) 
+⍝      tnen wait for the generator to terminate, returning its result (also ⍺.result).
   Send← { ⍝ user only
-        ⍺← 0 0 ⋄ (code noErr)← 2↑⍺ ⋄ msg← ⍵
-        Sig← ⎕SIGNAL/⍣(~noErr)
+        ⍺← 0 ⋄ code← ⍺ ⋄ msgOut← ⍵
     0::  uÑ.SigDmx⍬
-      case← (~IsGen)(~Eof)(en= 0)(code≡ 0)
-    ∧/case: _← ⊃⌽⊃⎕TGET fromGen ⊣ 0 ⍵ ⎕TPUT toGen 
-    0≠ ⊃0⍴code: 'Domain Error: Send option (⍺) is invalid' ⎕SIGNAL 11
-    ~0⌷case:    'Next/Send not valid in generator code' ⎕SIGNAL 11 
-    ~1⌷case: _← Sig {
+      0≠ ⊃0⍴code: 'Domain Error: Send left arg (code) must be an int scalar' ⎕SIGNAL 11
+      fast← ∧/~(isGen← IsGen)(isEof← Eof)(nzEn← en≠ 0)(code≢ 0)
+    fast: msgIn← ⊃⌽⊃⎕TGET fromGen ⊣ 0 msgOut ⎕TPUT toGen      
+    isGen:    ⎕SIGNAL/ USER_ONLY
+    isEof: _← ⎕SIGNAL/ {
         en=911:        GENFAIL 
-        en∨.= OK STOP: GENSTOP⊣em en⊢← GENFAIL 
+        en∨.= OK STOP: GENSTOP⊣em en⊢← GENFAIL  ⋄
                        em en 
     }⍬ 
-    ~2⌷case: _← Sig em en
-        _← ⎕TGET ⎕TPOOL∩fromGen ⊣ code uÑ.TPutFirst msg  
-    1:  _← uÑ.AwaitResult⍬ 
+    nzEn: _← ⎕SIGNAL/ em en
+  ⍝ code≢0?
+    1:   _← uÑ.AwaitResult⍬ ⊣ ⎕TGET ⎕TPOOL∩fromGen ⊣ code uÑ.TPutFirst msgOut   
  }
 
-
-⍝ Return: Signals the generator to stop (via ⎕SIGNAL GENSTOP_EN), 
-⍝             returning the generator's result as ¨result¨.
-⍝         If it doesn't return normally (trapping the signal) within waitCount×stopWait seconds,
-⍝            ¨result¯ will be undefined.
+⍝ Return  (generator or user) Signals the generator to stop (via ⎕SIGNAL/ GENSTOP), 
+⍝         returning the generator's result as ¨result¨.
+⍝ r← ∇
+⍝         If Return traps the GENSTOP signal, returning normally within waitCount×stopWait seconds,
+⍝         then
+⍝         ∘ resultSet=1 and result will be whatever the generator function returned;
+⍝         otherwise, 
+⍝         ∘ ¨result¯ will be ⎕NULL and resultSet←0.  
 ∇ r← Return    ⍝ user or generator
   :IF IsGen ⋄  ⎕SIGNAL/ GENSTOP ⋄ :ENDIF ⍝ generator 
   :IF Eof 
@@ -112,13 +143,13 @@
          ⎕SIGNAL/em en
     :EndIf
   :Else 
-    r← ¯1 Send ⎕NULL  
+    r← SEND_STOP Send ⎕NULL  
     r← uÑ.(AwaitResult Cleanup 0)  
   :Endif 
 ∇ 
 ∇ {r}← Quit   ⍝ user or generator
   :IF IsGen    ⋄ ⎕SIGNAL/ GENSTOP        ⍝ generator 
-  :ELSEIF ~Eof ⋄ _← ¯1 Send ⎕NULL ⋄  r← 'GENERATOR REQUESTED TO TERMINATE' 0
+  :ELSEIF ~Eof ⋄ _← SEND_STOP Send ⎕NULL ⋄  r← 'GENERATOR REQUESTED TO TERMINATE' 0
   :ELSE        ⋄ ⎕SIGNAL/GENFAIL
   :ENDIF 
 ∇ 
@@ -128,21 +159,21 @@
 
 ⍝ Internal Utilities
   :Namespace uÑ
+      FAIL STOP← ##.(FAIL STOP)
       ⍙Blab← ##.{ ⍺←⍬ ⋄ debug: ⍺⊣ ⎕← ⍵ ⋄ ⍺ }
       Dmx← { ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message EM) }
       Cleanup← { 
           _← 1 ⎕TGET ⎕TPOOL∩##.(toGen,fromGen) ⋄ _← ##.(⎕DF genName,' [terminated]')
           TK← { ⎕TKILL ##.genId ⊣ ⎕DL ##.CLEANUP_WAIT }
-        ~##.Eof: TK& 0 ⍙Blab⊢ em← TermMsg ⊃1 2⊃⍨ ⍵=2 ⊣ en← ##.FAIL
-        1:           0 ⍙Blab⊢ em← TermMsg ⊃0 2⊃⍨ ⍵=2 ⊣ en← ##.STOP
+        ~##.Eof: TK& 0 ⍙Blab⊢ em← TermMsg ⊃1 2⊃⍨ ⍵=2 ⊣ en← FAIL
+        1:           0 ⍙Blab⊢ em← TermMsg ⊃0 2⊃⍨ ⍵=2 ⊣ en← STOP
       }
   ⍝ TPutFirst: Send msg ahead of all others. Internal only
     TPutFirst← ##.{ V← ⎕TGET T← ⎕TPOOL∩ toGen ⋄ ((⍺ ⍵),V) ⎕TPUT (toGen, T) }
-  ⍝ AwaitResult:  ⍺⍺ ∇ ⍵⍵⊢ ⍬
-  ⍝     ⍺⍺: 'result' ⋄ ⍵⍵: # tries (e.g. 3), each with a delay of stopWait÷⍵⍵.
-    AwaitResult← ##.waitCount ##.{⍺⍺≤0:⎕NULL⋄ resultSet: result⋄1: (⍺⍺-1)∇∇⍵⊣⎕DL stopWait}
+  ⍝ AwaitResult:  ⍺⍺ ∇ ⍬
+    AwaitResult← ##.waitCount ##.{⍺⍺≤0: ⎕NULL ⋄ resultSet: result⋄1: (⍺⍺-1)∇∇⍵⊣⎕DL stopWait}
     Error← ⎕SIGNAL { Dmx ⊣ Cleanup 0 }
-    Interrupt← ⎕SIGNAL {##.(em en)⊢← (TermMsg 2) 911 ⋄ ⊂'EM' 'EN' ,⍥⊂¨ ##.(em en)⊣ Cleanup 2 }
+    Interrupt← ⎕SIGNAL {##.(em en)⊢← (TermMsg 2) FAIL ⋄ ⊂'EM' 'EN' ,⍥⊂¨ ##.(em en)⊣ Cleanup 2 }
     SigDmx← ⎕SIGNAL Dmx  
       termMsgs← 'has been terminated' 'terminating' 'was interrupted' 'LOGIC ERROR!'
     TermMsg← termMsgs∘ ##.{'Generator thread ',(⍕genId),' ', ⍺⊃⍨ 0⌈3⌊⍵}
@@ -186,10 +217,16 @@
         ⎕←'  ',urlText
       ⍝ Prime the pump by retrieving the text file 
       ⍝ and performing initial processing...
-        lines← ⎕SH 'Curl --fail ',urlText             ⍝ Reading in text file from URL
-        lines↓⍨← 3+ ⍸'THE SONNETS'⍷⍥⊆ lines           ⍝ Skip past first header...
+        FindFirst← ⊃⍸⍤⍷⍨
+        NoCom← '(?s)<<.*?>>' ⎕R ''⍠('Mode' 'M')       ⍝ Remove <<...>> comments
+        wa←⎕WA 
+        lines← NoCom ⎕SH 'Curl --fail ',urlText       ⍝ Reading in text file from URL
+        lines↓⍨← 3+ lines FindFirst ⊂'THE SONNETS'     ⍝ Skip past first header...
         zeroes2← 1,⍨ 0 0⍷≢¨lines                      ⍝ 1 if a pair of blank lines
+        wa← 1⍕ 1E6÷⍨ wa- ⎕WA  
+
         ⎕←'There are',(≢lines),'total text lines in our Shakespeare file'
+        ⎕←'The text file and metadata take up',wa,' MB...'
         
         defSL← 2↑ (2 25↓⍨-0⌈≢⍵), ⍵                   ⍝ Get short and long paragraph parameters first
         t← ⍺.Yield ⍬  
