@@ -43,25 +43,20 @@
 ⍝H ===========================
 ⍝H FUNCTIONS FOR USER ONLY
 ⍝H ===========================
- Gen← { 
-      ⍺←0 ⋄ gNs∘← ⎕NS genLib ⋄ gNs.(gNs dbgG)← gNs ⍺ 
+ Gen← { ⍺←0 
+      gNs∘← ⎕NS genLib ⋄ gNs.(gNs dbgG)← gNs ⍺ 
       gNs.(toGen fromGen)← tokNs.(ReserveToks curG)
       gNs.genId← ⍺⍺ gNs.{  
-        0::    ErrorK 'Generator Error'⊣     SendSig GENFAIL⊣⎕←'Error0'
-        1000:: InterruptK 'Generator Error'⊣ SendSig GENFAIL 
-        901::    ErrorK 'Generator Error'⊣   SendSig GENSTOP⊣⎕←'Error901'
-          _← ⎕DF ⎕TNAME← genName⊢← 'Gen[tid=',(⍕⎕TID),', toGen=',(⍕toGen),']' 
-          _← ⎕TPUT fromGen    ⍝ Tell the initiating thread that the generator is running!
-        ⍝↓↓↓↓ RUN THE GENERATOR    (↓↓↓↓↓↓↓↓↓↓)  
-                result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1  
-        ⍝↑↑↑↑ PREPARE TO RETURN ¨result¨
-                _← DMsg'Generator Terminated Normally'  ⊣ ⎕DF genName,' [returned]' 
-                SendSig GENSTOP
-          1: _← result
-        ⍝       ¯¯¯¯¯¯                         
+        0::    1 ErrorK   'Generator Error'  
+        1000:: InterruptK 'Generator Interrupt' 
+        STOP:: 0 ErrorK   'Generator Stopped'  
+            _← ⎕DF ⎕TNAME← genName⊢← 'Gen[tid=',(⍕⎕TID),', toGen=',(⍕toGen),']' 
+            _← ⎕TPUT fromGen                              ⍝ Tell initiating thread we're ready
+            result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1             ⍝ Run the generator
+            _← SendSig DMsg'Generator Terminating Normally'⊣ ⎕DF genName,' [returned]' 
+        1: _← result ⊣ SetGenTerm 1                       ⍝ Return the result      
       }& ⍵
-      ⍝ DELETED... gNs←gNs  ⍝ Why is this necessary? Dyalog bug?!?!
-    0= ≢gNs.INIT_WAIT ⎕TGET gNs.fromGen: 11 ⎕SIGNAL⍨'Generator did not start up properly!'
+    0= ≢gNs.INIT_WAIT ⎕TGET gNs.fromGen: 'Generator did not start up properly!' ⎕SIGNAL 11
       gNs 
   }
   ##.Gen← ⎕THIS.Gen
@@ -74,7 +69,6 @@
   GENFAIL←  ⊂'EM' 'EN',⍥⊂¨'Generator has TERMINATED' FAIL
   GENONLY←  ⊂'EM' 'EN',⍥⊂¨'Function only valid in generator code' 11 
   USERONLY← ⊂'EM' 'EN',⍥⊂¨'Function not valid in generator code' 11
-  OK←   0
 ⍝ INIT_WAIT: (max) wait <INIT_WAIT> seconds for generator preamble to startup and handshake
 ⍝ CLEANUP_WAIT: (max) wait after a generator termination (GENFAIL) is requested before
 ⍝            the generator is actually terminated (⎕TKILL)
@@ -91,28 +85,32 @@
   ⍝            its iterations. After each stop, wait stopWait÷waitCount seconds.
     stopWaitEach waitCount← 0.005 20 
     dbgG stopWait← 0 (stopWaitEach×waitCount)
-    genActive genActiveErr← 1 ⎕NULL 
+    genDead← 0    ⍝ If 1, the generator has terminated
   ⍝ result:    whatever the user generator returned (or ⎕NULL). If set, resultSet←1
   ⍝ genId:     the clone's thread # (set in Gen)
   ⍝ gNs:       cloned generator namespace instance (from genLib)
   ⍝ genName:   a descriptive name for the generator and thread, when initiated.
   ⍝ fromGen, toGen: 
   ⍝            the tokens used for synchronizing the generator...
-    toGen← fromGen← genName← gNs← genId← result← ⎕NULL ⋄ resultSet genActive←0 1  
+    toGen← fromGen← genName← gNs← genId← ⎕NULL 
+    result resultSet← ⎕NULL 0 
 ⍝ End genLib Vars
 
 ⍝ User "Methods"
   SetStopWait← stopWait∘{ stopWait⊢← ⍵ ⍺⊃⍨ 0=≢⍵ ⋄ stopWaitEach⊢← stopWait÷waitCount }
   ∇ r←Active  ⍝ use in user code (valid in generator, but always 1)
-    r← ~GenGone
+    r← ~GenDead
   ∇
-⍝H  GenGone (User only)
+⍝H  GenDead (User only)
 ⍝H    Determine if generator thread is still active
 ⍝H  Syntax: r← ∇
-⍝H    Returns 1 if the generator is still active; else 0
+⍝H    Returns 0 if the generator is still active; else 1
 ⍝H 
-  ∇ e← GenGone
-    e← genId (~∊) ⎕TNUMS 
+  ∇ e← GenDead
+    :If ~genDead  
+      genDead← genId (~∊) ⎕TNUMS 
+    :EndIf 
+    e← genDead 
   ∇
 
 ⍝H  Next (in user code)  
@@ -124,7 +122,7 @@
 ⍝H
  ∇ r←Next  ⍝ user only
     :TRAP 0 ⋄ r←Send ⎕NULL
-    :ELSE   ⋄ ⎕SIGNAL Dmx⍬
+    :ELSE   ⋄ ⎕SIGNAL 0 Dmx⍬
     :Endtrap
 ∇
 
@@ -134,24 +132,24 @@
 ⍝H    isSig=1: Send a signal to the generator as the next queued message and return ⎕NULL.
 ⍝H      
   Send← { ⍝ user only
-      ⍺← 0 ⋄ sigOut msgOut← ⍺ ⍵ 
+      ⍺← 0 ⋄ sigOutFlag msgOut← ⍺ ⍵ 
     0::  ⎕SIGNAL Dmx⍬
-      sigOut SendRaw msgOut  
+      sigOutFlag _SendRaw msgOut  
  }
- SendSig←  {1SendRaw⍵} 
- SendRaw←{ sigOut msgOut← ⍺ ⍵
-    SendDone← { genActive: _← ⍵ ⋄ ⎕SIGNAL genActiveErr } ⍝ Shy return...
-    ~genActive: ⎕SIGNAL genActiveErr 
-    GenGone:    ⎕SIGNAL GENSTOP 
+ SendSig← { 1 _SendRaw ⍵}
+ _SendRaw←{ 
+      sigOutFlag msgOut← ⍺ ⍵
+    GenDead:    ⎕SIGNAL GENSTOP 
       to from← IsGen⌽ toGen fromGen
-    sigOut: { 
+    sigOutFlag: { 
         _← ⎕TGET ⎕TPOOL∩to 
-        _← sigOut msgOut ⎕TPUT to 
-        SendDone ⎕NULL 
+        _← sigOutFlag msgOut ⎕TPUT to 
+      GenDead: ⎕SIGNAL GENSTOP 
+        1: _← msgOut
     } ⍬  
-      sigIn msgIn← ⊃⎕TGET from ⊣ sigOut msgOut ⎕TPUT to  
-    sigIn: ⎕SIGNAL msgIn  
-      SendDone msgIn 
+      sigInFlag msgIn← ⊃⎕TGET from ⊣ sigOutFlag msgOut ⎕TPUT to  
+    sigInFlag: ⎕SIGNAL msgIn  
+      msgIn               
  }
 
   
@@ -171,30 +169,36 @@
 ⍝H
 ∇ r← Return    ⍝ user or generator
   :If IsGen ⋄  ⎕SIGNAL GENSTOP ⋄ :EndIf ⍝ generator 
-  :If ~genActive ⋄ ⎕SIGNAL genActiveErr ⋄ :EndIf
-  :If GenGone
-    :IF resultSet ⋄ r← result
-    :Else ⋄ ⎕SIGNAL GENSTOP
-    :EndIf 
-  :Else 
-    SetErr GENSTOP 
-    SendSig GENSTOP 
-    r← AwaitResult
-  :Endif 
+  :TRAP 0
+    :If GenDead
+      :IF resultSet ⋄ r← result
+      :Else ⋄ ⎕SIGNAL GENSTOP
+      :EndIf 
+    :Else 
+      SendSig SetGenTerm 0 
+      r← AwaitResult
+    :Endif 
+  :Else
+     ⎕SIGNAL Dmx⍬
+  :EndTrap 
 ∇ 
 
 ⍝H  Quit:  (User or Generator)
 ⍝H    Terminate the generator immediately
 ⍝H  Syntax: r← ∇
 ⍝H  Returns: 
-⍝H    In User: 1 if we terminated the generator, 0 if already terminated
+⍝H    In User:
+⍝H       If the generator is not dead, terminate it and return 1.
+⍝H       Else return 0.
 ⍝H    In Generator: Issues a GENFAIL signal to itself, rather than returning.
 ⍝H
 ∇ {r}← Quit   ⍝ user or generator 
-  :IF IsGen ⋄ ⎕SIGNAL GENFAIL ⋄ :ENDIF 
-  :IF r← ~GenGone  
-      GenKill DMsg 'Killing generator',genId,'in',CLEANUP_WAIT,'sec'
-  :EndIf
+    :IF IsGen ⋄ ⎕SIGNAL GENFAIL DMsg 'Generator is terminating now' ⋄ :ENDIF
+    :IF r← ~GenDead  
+      :TRAP 0 
+        GenKill DMsg 'Killing generator',genId,'in',CLEANUP_WAIT,'sec'
+      :EndTrap
+    :EndIf
 ∇ 
 ⍝H  IsGen:  (User or Generator) 
 ⍝H     Returns 1 if in the generator; else 0.
@@ -204,12 +208,12 @@
   r← genId= ⎕TID
 ∇
 
-⍝H  HasMsg (user or generator)
+⍝H  MsgWaiting (user or generator)
 ⍝H    Check if there is a message waiting for me.
 ⍝H  Syntax: r← ∇
 ⍝H  Returns 1 if there is a message waiting for me, else 0.
 ⍝H
-∇ r← HasMsg
+∇ r← MsgWaiting
   IsGen: toGen  ∊ ⎕TPOOL
          fromGen∊ ⎕TPOOL
 ∇
@@ -233,27 +237,30 @@
 ⍝H
   Yield← {  ⍝ Generator only
         ⍺← ⊢ ⋄ timeout←⍺ ⋄  msgOut← ⍵
-    ~genActive:    ⎕SIGNAL genActiveErr             ⍝ See if generator active before ⎕TGET
+    GenDead:       ⎕SIGNAL GENSTOP                  ⍝ See if generator active before ⎕TGET
     ⎕TID≠ genId:   ⎕SIGNAL GENONLY
         r← timeout ⎕TGET toGen  
     0=≢r: 11 ⎕SIGNAL⍨ 'Yield: No message was received (timeout)'   
         isSig msgIn← ⊃r                             ⍝ Get the code and msgIn from user
-    ~genActive:    ⎕SIGNAL genActiveErr             ⍝ See if generator active after ⎕TGET
+    GenDead:       ⎕SIGNAL GENSTOP                  ⍝ See if generator active after ⎕TGET
     isSig:         ⎕SIGNAL msgIn 
     1:             _← msgIn⊣ 0 msgOut ⎕TPUT fromGen  
    }
 
  :Section utilities
-    DMsg← { ⍺←⍵ ⋄ dbgG∧0≠≢⍵: _← ⍺⊣ ⎕← ⍵ ⋄ 1: _←⍺ }
-    Dmx← { ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message EM) }
-    GenKill← {  
-        _← ⎕DL 0⊣ 0 ⎕TPUT toGen    
-        _← ⎕TGET ⎕TPOOL∩(toGen,fromGen)  
+    DMsg← { ⍺←⍵ ⋄ dbgG∧0≠≢⍵: _← ⍺⊣ ⎕← 'Gen: ',⍵ ⋄ 1: _←⍺ }
+    Dmx← { ⍺←1 ⋄ ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message ((⍺/'Gen: '),EM)) }
+    ∇ {r}← SetGenTerm fail  
+       r← GENSTOP GENFAIL⊃⍨ fail
+       genDead← 1
+    ∇
+    GenKill← {  ⍺←0 
+        _K←  {⎕TGET ⎕TPOOL∩(toGen,fromGen)⊣ ⎕TKILL ⍵⊣  ⎕DL CLEANUP_WAIT}
+        _← ⎕DL 0⊣ 0 ⎕TPUT toGen ⋄ _← ⎕TGET ⎕TPOOL∩(toGen,fromGen)  
         _← ⎕DF genName,' [terminated]' 
-      genId∊ ⎕TNUMS: SetErr GENSTOP⊣ {⎕TKILL ⍵⊣  ⎕DL CLEANUP_WAIT}& genId 
-        SetErr GENSTOP 
+      genId∊ ⎕TNUMS: SendSig SetGenTerm ⍺⊣ _K & genId 
+        SendSig SetGenTerm ⍺ 
     }
-    SetErr← { genActive←0 ⋄ genActiveErr← ⍵}
    ⍝ AwaitResult: (no args)
    ⍝ Reads global resultSet and waits up to stopWait sec,
    ⍝    returning r←result 
@@ -261,15 +268,15 @@
     ∇r← AwaitResult; wc  
       wc←  waitCount  
       :While (wc>0)∧ ~resultSet   
-          :IF ~genActive ⋄ ⎕SIGNAL genActiveErr ⋄ :ENDIF 
+          :IF GenDead ⋄ ⎕SIGNAL GENSTOP ⋄ :ENDIF 
           ⎕DL stopWaitEach ⋄ wc-← 1 
       :EndWhile
       r← result 
     ∇
-    ErrorK← ⎕SIGNAL { Dmx ⊣ GenKill DMsg ⍵ }
+    ErrorK← ⎕SIGNAL { Dmx ⊣ ⍺ GenKill DMsg ⍵ }
     _IK← {
        _← GenKill ⍬ DMsg ⍵ 
-       ⊂⎕DMX.(('EM' 'Generator: INTERRUPT ',⍕EN)('EN' 999)('Message' EM))
+       ⊂⎕DMX.(('EM' 'Gen: INTERRUPT ',⍕EN)('EN' 999)('Message' EM))
     } 
     InterruptK← ⎕SIGNAL _IK 
   :EndSection utilities 
@@ -310,6 +317,15 @@
 :Section Examples
 ⍝ Demo will create two generators: ShakespeareG and RandG
   ∇ Demo
+    ⎕←'TrueRand gets the next of a "truly" random number from random.org'
+    ⎕←'Not built yet'
+    ⎕←'t← TrueRand Generator 0'
+    TrueRand←{ ⍝ num≤10000
+      ⎕←urlText←'https://www.random.org/integers/?num=10000&min=1&max=1000000000&col=1&base=10&format=plain&rnd=new'
+      0::  ⎕←'Done'⊣ ⎕DMX.(⎕←↑DM⊣ ⎕← EN EM)
+      1: nums← ⎕SH 'Curl --fail ',urlText  
+    }
+    ⎕←''
     ⎕←'Shakespeare is a generator that returns a ''paragraph'' from Shakespeare''s works.'
     ⎕←'  s← ShakespeareG Gen 2 999'
     ⎕←'To see a demonstration, type (with no arguments):'
