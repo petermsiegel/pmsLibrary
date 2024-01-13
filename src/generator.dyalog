@@ -14,7 +14,7 @@
 ⍝H   ∘ The original approach was to use classes entirely, with comparable problems. Instead we use a namespace
 ⍝H     structure to emulate class instances without any destructor. It works.
 ⍝H
-⍝H   In the generator, ⍺ will be a namespace with Yield, Quit, etc.
+⍝H   In the generator, ⍺ will be a namespace with Yield, Terminate, etc.
 ⍝H Syntax: result← [⍺←0] ⍺⍺ Gen ⍵
 ⍝H         ⍺⍺: the generator
 ⍝H          ⍵: the arg to the generator
@@ -38,7 +38,7 @@
 ⍝H     ⍝ 3rd: returns gen.result in ¨r¨ if the generator has stopped promptly
 ⍝H            else returns ⎕NULL, with gen.resultSet=0
 ⍝H   To tell the generator <gen> to stop iterating:
-⍝H     r← gen.Quit            ⍝ Issues: SENDSTOP Send ⎕NULL  
+⍝H     r← gen.Terminate            ⍝ Issues: SENDSTOP Send ⎕NULL  
 ⍝H
 ⍝H ===========================
 ⍝H FUNCTIONS FOR USER ONLY
@@ -47,15 +47,12 @@
       gNs∘← ⎕NS genLib ⋄ gNs.(gNs dbgG)← gNs ⍺ 
       gNs.(toGen fromGen)← tokNs.(ReserveToks curG)
       gNs.genId← ⍺⍺ gNs.{  
-        0::    ⎕SIGNAL Dmx ⍬ ⍝          DMsg 'Gen failure #2 em=',⎕DMX.EM  
-        FAIL:: ⎕SIGNAL ErrorK  GENFAIL  DMsg 'Gen failure #1 em=',⎕DMX.EM 
-        1000:: ⎕SIGNAL ErrorK  GENINTER DMsg 'Gen interrupt em=',⎕DMX.EM 
-        STOP:: ⎕SIGNAL ErrorK  GENSTOP  DMsg 'Gen STOP em=',⎕DMX.EM 
+        0::    ⎕SIGNAL 1∘Dmx⍬          
+        FAIL STOP 1000:: ⎕SIGNAL ErrorK ⎕DMX 
             _← ⎕DF ⎕TNAME← genName⊢← 'Gen[tid=',(⍕⎕TID),', toGen=',(⍕toGen),']' 
-            _← ⎕TPUT fromGen                              ⍝ Tell initiating thread we're ready
-            ___← (⎕THIS ⍺⍺ ⍵) 1             ⍝ Run the generator
-            result resultSet⊢← ___
-            _← SendSig DMsg GENNORM_EM⊣ ⎕DF genName,' [returned]' 
+            _← ⎕TPUT fromGen                              ⍝ Tell initiating thread we're ready          
+            result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1              ⍝ Run the generator
+            _← DMsg GENNORM_EM⊣ ⎕DF genName,' [returned]' 
         1: _← result ⊣ SetGenTerm GENSTOP                 ⍝ Return the result      
       }& ⍵
     0= ≢gNs.INIT_WAIT ⎕TGET gNs.fromGen:  ⎕SIGNAL GENBADSTART
@@ -67,13 +64,13 @@
 ⍝ Const for Generator Objects (cloned)
   ⎕IO ⎕ML←0 1
   STOP FAIL INTER← 901 911 999
-  GENSTOP←  ⊂'EM' 'EN',⍥⊂¨'Generator signalled STOP ITERATION' STOP 
-  GENFAIL←  ⊂'EM' 'EN',⍥⊂¨'Generator has failed' FAIL
-  GENINTER←  ⊂'EM' 'EN',⍥⊂¨'Generator was interrupted' INTER
+  GENSTOP←     ⊂'EM' 'EN',⍥⊂¨'Generator signalled STOP ITERATION' STOP 
+  GENFAIL←     ⊂'EM' 'EN',⍥⊂¨'Generator has failed' FAIL
+  GENINTER←    ⊂'EM' 'EN',⍥⊂¨'Generator was interrupted' INTER
   GENBADSTART← ⊂'EM' 'EN',⍥⊂¨'Generator did not start up properly' 11
+  GENONLY←     ⊂'EM' 'EN',⍥⊂¨'Function only valid in generator code' 11 
+  USERONLY←    ⊂'EM' 'EN',⍥⊂¨'Function not valid in generator code' 11
   GENNORM_EM←  'Generator terminated normally'
-  GENONLY←  ⊂'EM' 'EN',⍥⊂¨'Function only valid in generator code' 11 
-  USERONLY← ⊂'EM' 'EN',⍥⊂¨'Function not valid in generator code' 11
 ⍝ INIT_WAIT: (max) wait <INIT_WAIT> seconds for generator preamble to startup and handshake
 ⍝ CLEANUP_WAIT: (max) wait after a generator termination (GENFAIL) is requested before
 ⍝            the generator is actually terminated (⎕TKILL)
@@ -103,17 +100,17 @@
 
 ⍝ User "Methods"
   SetStopWait← stopWait∘{ stopWait⊢← ⍵ ⍺⊃⍨ 0=≢⍵ ⋄ stopWaitEach⊢← stopWait÷waitCount }
-  ∇ r←Active  ⍝ use in user code (valid in generator, but always 1)
-    r← ~GenDead
+  ∇ b←Active  ⍝ use in user code (valid in generator, but always 1)
+    b← ~GenDead 
   ∇
 ⍝H  GenDead (User only)
 ⍝H    Determine if generator thread is still active
 ⍝H  Syntax: r← ∇
 ⍝H    Returns 0 if the generator is still active; else 1
 ⍝H 
-  ∇ e← GenDead
-    :If ~e← genDead  
-      e← genDead← genId (~∊) ⎕TNUMS 
+  ∇ b← GenDead
+    :If ~b← genDead  
+      b← genDead← genId (~∊) ⎕TNUMS 
     :EndIf 
   ∇
 
@@ -124,11 +121,11 @@
 ⍝H    If the generator expects a contentful message, use Send.
 ⍝H    ¨r← Next¨ is equiv. to ¨⊢Send ⎕NULL¨
 ⍝H
- ∇ r←Next  ⍝ user only
+  ∇ r←Next  ⍝ user only
     :TRAP 0 ⋄ r←Send ⎕NULL
-    :ELSE   ⋄ ⎕SIGNAL 0 Dmx⍬
+    :ELSE   ⋄ ⎕SIGNAL 0∘Dmx⍬
     :Endtrap
-∇
+  ∇
 
 ⍝H  Send (in user code) 
 ⍝H  Syntax: {msgIn}← [isSig←0] ∇ msgOut
@@ -137,10 +134,10 @@
 ⍝H      
   Send← { ⍝ user only
       ⍺← 0 ⋄ sigOutFlag msgOut← ⍺ ⍵ 
-    0::  ⎕SIGNAL Dmx⍬
+    0::  ⎕SIGNAL 0∘Dmx⍬
       sigOutFlag _SendRaw msgOut  
  }
- SendSig← { 0::  ⎕SIGNAL Dmx⍬ ⋄ 1 _SendRaw ⍵}
+ SendSig← { 0::  ⎕SIGNAL 0∘Dmx⍬ ⋄ 1 _SendRaw ⍵}
  _SendRaw←{ 
       sigOutFlag msgOut← ⍺ ⍵
     GenDead:    ⎕SIGNAL GENSTOP 
@@ -185,11 +182,13 @@
           wc-← 1 
       :EndWhile
     :EndTrap 
+    ⎕←'Return: do we need 2nd trap?'
+    :Trap 990 ⋄ Cleanup⍬ ⋄ :EndTrap 
     r← result 
   :Endif 
 ∇ 
 
-⍝H  Quit:  (User or Generator)
+⍝H  Terminate:  (User or Generator)
 ⍝H    Terminate the generator immediately
 ⍝H  Syntax: r← ∇
 ⍝H  Returns: 
@@ -198,23 +197,23 @@
 ⍝H       Else return 0.
 ⍝H    In Generator: Issues a GENFAIL signal to itself, rather than returning.
 ⍝H
-∇ {r}← Quit   ⍝ user or generator 
-    :IF IsGen ⋄ ⎕SIGNAL GENFAIL DMsg 'Generator is processing a FAILURE signal' ⋄ :ENDIF
+∇ {r}← Terminate   ⍝ user or generator 
+    :IF IsGen ⋄ ⎕SIGNAL GENFAIL DMsg '[Gen] Processing a FAILURE signal' ⋄ :ENDIF
     :IF r← ~GenDead  
       :TRAP 0 
-        SendSig GENFAIL DMsg 'Sending generator a FAILURE signal'
-        GenKill DMsg 'Terminating generator',genId,'in',CLEANUP_WAIT,'sec'
+        SendSig GENFAIL DMsg '[Usr] Sending generator a FAILURE signal'
+        GENFAIL Cleanup DMsg '[Usr] Terminating generator',genId,'in',CLEANUP_WAIT,'sec'
       :EndTrap
     :EndIf
 ∇ 
 ∇ {r}← Stop 
   :IF IsGen 
-      ⎕SIGNAL GENSTOP DMsg 'Generator is processing a STOP ITERATION signal'  
+      ⎕SIGNAL GENSTOP DMsg '[Gen] Processing a STOP ITERATION signal'  
   :ElseIf r← ~GenDead  
     :TRAP 0 
-      SendSig GENSTOP DMsg 'Sending generator a STOP ITERATION signal' 
+      SendSig GENSTOP DMsg '[Usr] Sending generator a STOP ITERATION signal' 
     :Else 
-      ⎕SIGNAL 0Dmx⍬ 
+      ⎕SIGNAL 0∘Dmx⍬ 
     :EndTrap
   :EndIf
 ∇
@@ -245,7 +244,7 @@
 ⍝H    For typical Yield expressions, timeout is omitted and code and msgIn are ignored,
 ⍝H    indicating we are sharing data only!
 ⍝H         _← Yield my_next_result
-⍝H    In such a case, an infinitely-running generator might be terminated via a Quit function.
+⍝H    In such a case, an infinitely-running generator might be terminated via a Terminate function.
 ⍝H  Syntax:  msgIn← [timeout← infinite] ∇ msgOut
 ⍝H    1. Wait up to <timeout> seconds (default: infinite) for a code and
 ⍝H      message <msgIn> from the user. 
@@ -266,20 +265,19 @@
    }
 
  :Section utilities
-    DMsg← { ⍺←⍵ ⋄ dbgG∧0≠≢⍵: _← ⍺⊣ ⎕← 'Gen: ',⍵ ⋄ 1: _←⍺ }
+    DMsg← { ⍺←⍵ ⋄ dbgG∧0≠≢⍵: _← ⍺⊣ ⎕← 'Gen (Dbg): ',⍵ ⋄ 1: _←⍺ }
     Dmx← { ⍺←1 ⋄ ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message ((⍺/'Gen: '),EM)) }
     ∇ {errSpec}← SetGenTerm errSpec
        genDead← 1
     ∇
-    GenKill← {  ⍺← GENSTOP
-        _K←  {⎕TGET ⎕TPOOL∩(toGen,fromGen)⊣ ⎕TKILL ⍵⊣  ⎕DL CLEANUP_WAIT}
+    Cleanup← {  ⍺← GENSTOP
         _← ⎕DL 0⊣ 0 ⎕TPUT toGen 
         _← ⎕TGET ⎕TPOOL∩(toGen,fromGen)  
-        _← ⎕DF genName,' [terminated]' 
-      genId∊ ⎕TNUMS: SendSig SetGenTerm ⍺⊣ _K & genId 
-        SendSig SetGenTerm ⍺ 
-    }
-    ErrorK← { ⍵⊣ ⍵ GenKill DMsg 0 1⊃⊃⍵  } 
+        _← ⎕DF genName,' [terminated]'
+      IsGen: _←0 ⋄ ~genId∊ ⎕TNUMS: _← 0  
+      1:     _←1⊣ { ⎕TGET ⎕TPOOL∩(toGen,fromGen)⊣ ⎕TKILL ⍵⊣ ⎕DL CLEANUP_WAIT }& genId 
+     }
+    ErrorK← { err← ⊂'EM' 'EN' 'Message',⍥⊂¨⎕DMX.(EM EN Message) ⋄ err⊣ err Cleanup DMsg ⎕DMX.EM  } 
   :EndSection utilities 
 
 :EndNamespace ⍝ gNs
@@ -311,7 +309,7 @@
         new (cur+nEach) 
       }cur 
       curG⊢← cur 
-      new ##.gNs.DMsg 'ReserveToks tokens',new 
+      new ##.gNs.DMsg '[Gen] ReserveToks tokens:',new 
   }
 :EndNamespace ⍝ tokNs
 
