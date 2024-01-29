@@ -4,9 +4,9 @@
   ⍝
       gen←⍺ 
       Cleanup← {0=⎕NC ⍵: ⍬ ⋄ ⎕NUNTIE ⎕OR ⍵}      ⍝ Do nothing unless var. ⍵ is defined...
-
-      0:: ⎕DMX.(EM ⎕SIGNAL EN) ⊣  Cleanup 'randFile' 
-      gen.STOP:: 0⊣ ⎕← 'Done [STOP ITERATION]!' ⊣  Cleanup 'randFile' 
+      _count←0 
+      0:: ⎕DMX.(EM ⎕SIGNAL EN)⊣  Cleanup 'randFile' 
+      gen.STOP:: 'Done [STOP ITERATION]!' _count ⊣  Cleanup 'randFile' 
       digSig← 'nDigits (# of digits requested) must be ≥0 (0=STOP)'  11 
 
       ⎕IO ⎕PP←0 34
@@ -17,15 +17,15 @@
           fmt←83    ⍝  83: 1-byte integer (we'll map it onto single digits inefficiently)
           bS← 4096  ⍝  ≥1K digits as bytes
           fN nD← ⍺ ⍵
-          nD≤ ≢bufG: out⊣ bufG∘← nD↓ bufG⊣ out←nD↑ bufG⊣ ⍞←' Yielding', nD, 'Digits...'
+          nD≤ ≢bufG: out⊣ bufG∘← nD↓ bufG⊣ out←nD↑ bufG⊣ ⍞←'Yielding', nD, 'Digits... '
           bufG,← t← ⎕D[ 10|⎕NREAD fN fmt bS ¯1]
           0= ≢t: 'Unable to retrieve any entropy!'⎕SIGNAL 911
-          ⍞←'Received entropy of',(≢t),'dig.'
+          ⍞←'Received entropy of',(≢t),'dig. '
           fN ∇ nD 
       }
       YieldLoop← { 
           fN nD← ⍺ ⍵ 
-          in←gen.Yield fN GetDig nD  
+          in←gen.Yield fN GetDig nD ⋄ _count+← 1 
           0< nD← nD RcvDig in: fN ∇ nD ⋄ 0
       }
 
@@ -35,5 +35,5 @@
 
       nDig← randFile YieldLoop nDig  
       _← Cleanup 'randFile' 
-      'Done! [FN RETURN]'
+      'Done! [FN RETURN]' _count 
   }
