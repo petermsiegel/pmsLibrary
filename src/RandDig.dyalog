@@ -17,7 +17,7 @@
           fmt←83    ⍝  83: 1-byte integer (we'll map it onto single digits inefficiently)
           bS← 4096  ⍝  ≥1K digits as bytes
           fN nD← ⍺ ⍵
-          nD≤ ≢bufG: out⊣ bufG∘← nD↓ bufG⊣ out←nD↑ bufG⊣ ⍞←'Yielding', nD, 'Digits... '
+          nD≤ ≢bufG: out⊣ bufG∘← nD↓ bufG⊣ out←nD↑ bufG ⍝ ⊣⍞←'Yielding', nD, 'Digits... '
           bufG,← t← ⎕D[ 10|⎕NREAD fN fmt bS ¯1]
           0= ≢t: 'Unable to retrieve any entropy!'⎕SIGNAL 911
           ⍞←'Received entropy of',(≢t),'dig. '
