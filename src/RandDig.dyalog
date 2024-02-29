@@ -6,13 +6,13 @@
       Cleanup← {0=⎕NC ⍵: ⍬ ⋄ ⎕NUNTIE ⎕OR ⍵}      ⍝ Do nothing unless var. ⍵ is defined...
       _count←0 
       0:: ⎕DMX.(EM ⎕SIGNAL EN)⊣  Cleanup 'randFile' 
-      gen.STOP:: 'Done [STOP ITERATION]!' _count ⊣  Cleanup 'randFile' 
-      digSig← 'nDigits (# of digits requested) must be ≥0 (0=STOP)'  11 
+      gen.STOP:: 'RandDig complete:', _count,'#s generated' ⊣  Cleanup 'randFile' 
+      SIG_NDIGITS← 'nDigits (# of digits requested) must be ≥0 (0=STOP)'  901 
 
       ⎕IO ⎕PP←0 34
     ⍝ RcvDig: If user sends a new nDig (non-⎕NULL send) as ⍵, validate and return it; 
     ⍝         else return ⍺.
-      RcvDig← { ⍵≡⎕NULL: ⍺ ⋄ (0≠⊃0⍴⍵)∨1≠≢⍵: ⎕SIGNAL/digSig ⋄ ⍵≥0: ⍵ ⋄ ⎕SIGNAL/digSig  }
+      RcvDig← { ⍵≡⎕NULL: ⍺ ⋄ (0≠⊃0⍴⍵)∨1≠≢⍵: ⎕SIGNAL/SIG_NDIGITS ⋄ ⍵≥0: ⍵ ⋄ ⎕SIGNAL/SIG_NDIGITS  }
       GetDig←{
           fmt←83    ⍝  83: 1-byte integer (we'll map it onto single digits inefficiently)
           bS← 4096  ⍝  ≥1K digits as bytes
@@ -29,7 +29,7 @@
           0< nD← nD RcvDig in: fN ∇ nD ⋄ 0
       }
 
-      0= nDig← 50 RcvDig ⍵: ⎕SIGNAL gen.STOPsig
+      0= nDig← 50 RcvDig ⍵: ⎕SIGNAL/SIG_NDIGITS
       bufG←''
       randFile← '/dev/random' ⎕NTIE 0
 

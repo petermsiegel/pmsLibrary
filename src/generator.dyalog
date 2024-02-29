@@ -5,10 +5,11 @@
 
 ⍝H 
 ⍝H Gen: 
-⍝H   Executes a generator ⍺⍺ with argument ⍵.
+⍝H   Executes a Python-style* generator (iterator function) 
+⍝H        * https://wiki.python.org/moin/Generators
 ⍝H Quick Syntax:
 ⍝H         genNs← myGen Gen omega 
-⍝H   Emulates a Python-like generator (iterator function) using Dyalog tokens and threads.
+⍝H   Emulates a Python-like generator <mygen> using Dyalog tokens and threads.
 ⍝H         Calls myGen with right arg omega and left arg (⍺) a namespace.
 ⍝H
 ⍝H   In the generator, ⍺ is the namespace with generator and user functions and variables:
@@ -18,6 +19,50 @@
 ⍝H          ⍵: the arg to the generator
 ⍝H          ⍺: debug←⍺, default 0
 ⍝H
+⍝H =============================================================
+⍝H (Naively) Simple APL Example
+⍝H ============================
+⍝H   ⍝ APL: Define a generator that yields items one at a time
+⍝H   ⍝      Pretend that generating integers is a complex or slow process...
+⍝H   ⍝ FirstN: Generates the "next" integer (starts with ⍵, ending with infinity).
+⍝H     FirstN← {⍺ ∇ ⍵+1⊣ ⍺.Yield ⍵} Gen 1      ⍝ Start with integer 1
+⍝H     +/FirstN.NextN 1000                     ⍝ Add up the integers 1 to 1000
+⍝H   500500
+⍝H
+⍝H Slightly Fancier Code
+⍝H (stop when FirstN.Return is called) 
+⍝H ===================================
+⍝H     FirstN← {             ⍝ User generator
+⍝H          ⍺.STOP:: ⍵       ⍝ If Return is issued, stop and return current ⍵
+⍝H          _← ⍺.Yield ⍵     ⍝ Wait for <Next> request and return ⍵
+⍝H          ⍺ ∇ ⍵+1          ⍝ Calculate next result (⍵+1)
+⍝H     } Gen 1               ⍝ Call generator with right arg (⍵): 1
+⍝H   ⍝ ==> Or in concise form:
+⍝H   ⍝ ==> FirstN← {⍺.STOP:: ⍵ ⋄ ⍺ ∇ ⍵+1⊣ ⍺.Yield ⍵} Gen 1
+⍝H     +/FirstN.NextN 1000
+⍝H   500500
+⍝H     First.Return                             ⍝ Tell Generator goodbye 
+⍝H   1001                                       ⍝ It terminates, returning latest integer (⍵)
+⍝H     First.Next                               ⍝ Gen has exited; there is no "Next" now.
+⍝H   Generator signalled STOP ITERATION
+⍝H     FirstN.Next
+⍝H     ∧
+⍝H  
+⍝H Python Original
+⍝H ===============
+⍝H   # Python: a generator that yields items instead of returning a list
+⍝H   def firstn(count):
+⍝H       cur  = 1
+⍝H       while cur <= count:
+⍝H           yield cur
+⍝H           cur += 1
+⍝H   print( sum(firstn(1000)) )
+⍝H   500500
+⍝H
+⍝H =============================================================
+⍝H =============================================================
+⍝H Usage
+⍝H =====
 ⍝H In the generator code:
 ⍝H   To accept requests to stop iterating (e.g. to return a useful value), trap the STOP code:
 ⍝H      { ⍺.STOP:: return_value ⋄ _← ⍺.Yield my_data ... }
@@ -26,14 +71,14 @@
 ⍝H   To note that debug has been set, use ⍺.debug:
 ⍝H      { ... ⋄ _← {⍺.debug: ⎕←'say this' ⋄ ⍬}⍬ ⋄ ... }
 ⍝H   To signal the generator has failed:
-⍝H      { ... ⋄ ⎕SIGNAL ⍺.SIGFAIL ⋄ ... }
+⍝H      { ... ⋄ ⎕SIGNAL ⍺.FAIL_SIG ⋄ ... }
 ⍝H
 ⍝H In the user code:
 ⍝H   To await a normal return from the generator
 ⍝H     r← gen.Return    
 ⍝H     ⍝ 1st: issues a STOP to the generator 
 ⍝H     ⍝ 2nd: waits some time for the generator to stop
-⍝H     ⍝ 3rd: returns gen.result in ¨r¨ if the generator has stopped promptly
+⍝H     ⍝ 3rd: returns gen.result in <r> if the generator has stopped promptly
 ⍝H            else returns ⎕NULL, with gen.resultSet=0
 ⍝H   To tell the generator <gen> to stop iterating:
 ⍝H     r← gen.Terminate            ⍝ Issues: SENDSTOP Send ⎕NULL  
@@ -42,28 +87,29 @@
 ⍝H FUNCTIONS FOR USER ONLY
 ⍝H ===========================
   Gen← { ⍺←0 
-      0:: ⎕SIGNAL/⎕DMX.(EM EN)  
+    0:: ⎕SIGNAL/⎕DMX.(EM EN)  
     ⍝ gNs: generator namespace instance, copied in from genLib
       gNs← ⎕NS genLib                   
-      gNs.((toGen fromGen)← tokNs.ReserveToks ⍺)
-      gNs.genId← ⍺ (⍺⍺ gNs.{   
-        0::         ⎕SIGNAL 1∘uNs.Dmx⍬⊣ ⍺ tokNs.FreeToks toGen fromGen 
-        FAIL STOP:: ⎕SIGNAL uNs.ErrorK ⎕DMX.EM 
-          ⍝ Initialise
-            debug← ⍺ ⋄ _← uNs.SetGenNm ⎕TID toGen fromGen  
-          ⍝ Start the user's generator...
-          ⍝ ... after signalling the user we're starting up
-            result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1 ⊣ ⎕TPUT fromGen               
-          ⍝ Prepare to return normally
-            _← ⎕DF genName,' [returned]'     ⋄ _← uNs.DMsg MSGNORMAL 
-            _← debug tokNs.FreeToks toGen fromGen  ⋄ _← uNs.SetGenTerm SIGSTOP  
-          ⍝ Return the result
+      gNs.(toGen fromGen)← ReserveToks ⍺
+    ⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝
+      gNs.genId← ⍺ (⍺⍺ gNs.{ debug←⍺  
+      ⍝ ⍙GenErr will differentiate errors STOP and FAIL from other errors
+        0:: ⎕SIGNAL ⍙GenErr ⎕DMX 
+      ⍝ Initialise
+          _← ⍙SetGenName ⎕TID toGen fromGen  
+      ⍝ Start the user's generator (⍺⍺) passing this namespace (as ⍺) and caller's ⍵,
+      ⍝ ... after signalling the user (⎕TPUT) we've started up.
+          result resultSet⊢← (⎕THIS ⍺⍺ ⍵) 1 ⊣ ⎕TPUT fromGen               
+      ⍝ Prepare to return normally
+          _← debug ⎕THIS ⍙Prepare2Return toGen fromGen  
+      ⍝ Return the result
         1:  _← result                                       
       })& ⍵ 
+    ⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝
     ⍝ Await msg to proceed from generator (above) & Return...
     ⍝ gNs← gNs: Deal with Dyalog bug??? 
       (gNs←gNs).(fromGen≡ INITWAIT_SEC ⎕TGET fromGen): gNs 
-      ⎕SIGNAL gNs.SIGBADSTART                           ⍝ Gen never msg'd us. => Error.
+      ⎕SIGNAL gNs.BADSTART_SIG                           ⍝ Gen never msg'd us. => Error.
   }
   ##.Gen←  ⎕THIS.Gen
 
@@ -71,20 +117,20 @@
 ⍝ ========================================================================================= ⍝
 ⍝ Constants for Generator Objects (cloned)
   STOP FAIL← 901 911   
-  SIGSTOP←      ⊂'EM' 'EN',⍥⊂¨'Generator signalled STOP ITERATION' STOP 
-  SIGFAIL←      ⊂'EM' 'EN',⍥⊂¨'Generator has failed' FAIL
-  SIGBADSTART←  ⊂'EM' 'EN',⍥⊂¨'Generator did not start up properly' 11
-  SIGGENONLY←   ⊂'EM' 'EN',⍥⊂¨'Function only valid in generator code' 11 
-  MSGNORMAL←    'Generator returned normally' 
-⍝ INITWAIT_SEC:    (max) wait <INITWAIT_SEC> seconds for generator preamble to startup and handshake
-⍝ CLEANUPWAIT_SEC: (max) wait after a generator termination (SIGFAIL) is requested before
-⍝                 the generator is actually terminated (⎕TKILL)
+  STOP_SIG←      ⊂'EM' 'EN',⍥⊂¨'Generator signalled STOP ITERATION' STOP 
+  FAIL_SIG←      ⊂'EM' 'EN',⍥⊂¨'Generator has failed' FAIL
+  BADSTART_SIG←  ⊂'EM' 'EN',⍥⊂¨'Generator did not start up properly' 11
+  GENONLY_SIG←   ⊂'EM' 'EN',⍥⊂¨'Function only valid in generator code' 11 
+  NORMAL_MSG←    'Generator returned normally' 
+⍝ INITWAIT_SEC:     wait up to ~ sec for generator preamble to startup and handshake
+⍝ CLEANUPWAIT_SEC:  wait up to ~ sec after a generator termination (FAIL_SIG) is 
+⍝                   requested before the generator is actually terminated (⎕TKILL)
+⍝ RETURNWAIT_SEC_DEF: Default return wait in milliseconds. See returnWaitSec
+⍝ RETURNWAIT_TRIES: See returnWaitSec. Total tries to get result after signalling generator to STOP
+⍝                   its iterations. After each stop, wait returnWaitSec÷RETURNWAIT_TRIES sec.
   INITWAIT_SEC←    1 ⍝ sec
   CLEANUPWAIT_SEC← 1 ⍝ sec
-⍝ Default return wait in milliseconds. See returnWaitMs
-  RETURNWAITMS_DEF← 100
-⍝ RETURNWAIT_TRIES: See returnWaitMs. Total tries to get result after signalling generator to STOP
-⍝            its iterations. After each stop, wait returnWaitMs÷RETURNWAIT_TRIES ms.
+  RETURNWAIT_SEC_DEF← 0.1
   RETURNWAIT_TRIES← 20 
 ⍝ End Const
 ⍝ ========================================================================================= ⍝
@@ -92,44 +138,44 @@
 ⍝ ========================================================================================= ⍝
 ⍝ Vars for Generator Objects (to be cloned into gNs)
 ⍝ Begin genLib vars
-  ⍝ debug:     from ⍺ in Gen call. 0 by default.
+  ⍝ debug:      from ⍺ in Gen call. 0 by default.
+  ⍝ returnWaitSec: wait after a STOP_SIG signal to wait before checking if result is available.
+  ⍝             will wait up to returnWaitSec sec, perhaps 0.1 sec. See <SetReturnWaitSec>.
+  ⍝ genDead:    if 1, the generator has terminated
+  ⍝ result:     whatever the user generator returned (or ⎕NULL). 
+  ⍝ resultSet:  if result is set, resultSet←1
+  ⍝ genId:      the clone's thread # (set in Gen)
+  ⍝ genName:    a descriptive name for the generator and thread, when initiated.
+  ⍝ fromGen, toGen: the tokens used for synchronizing the generator...
     debug← 0
-  ⍝ returnWaitMs:  wait after a SIGSTOP signal to wait before checking if result is available.
-  ⍝            Will wait up to returnWaitMs ms, perhaps 100 ms.
-  ⍝            RETURNWAIT_TRIES (see Constants above).
-    returnWaitMs← RETURNWAITMS_DEF  
-    returnWaitSecEach← 0.001× returnWaitMs÷ RETURNWAIT_TRIES 
-
-    genDead← 0        ⍝ If 1, the generator has terminated
-  ⍝ result:    whatever the user generator returned (or ⎕NULL). If set, resultSet←1
-  ⍝ genId:     the clone's thread # (set in Gen)
-  ⍝ genName:   a descriptive name for the generator and thread, when initiated.
-  ⍝ fromGen, toGen: 
-  ⍝            the tokens used for synchronizing the generator...
-    toGen← fromGen← genName← genId← ⎕NULL 
+    returnWaitSec← RETURNWAIT_SEC_DEF  
+    returnWaitSecEach← returnWaitSec÷ RETURNWAIT_TRIES 
+    genDead← 0  
     result resultSet← ⎕NULL 0 
+    toGen← fromGen← genName← genId← ⎕NULL 
 ⍝ End genLib Vars
 ⍝ ========================================================================================= ⍝
 
 ⍝ ========================================================================================= ⍝
 ⍝H User "Methods"
 ⍝H --------------
-⍝H  SetReturnWaitMs  
-⍝H    Sets amount of time to wait in seconds in a g.Return call 
+⍝H  SetReturnWaitSec
+⍝H    In a Return method call, sets amount of time to wait in (float) sec
 ⍝H    for the generator to return a value, where resultSet← 1. 
 ⍝H    If it times out, ⎕NULL is returned, and resultSet← 0.
-⍝H  Syntax: ∇ SetReturnWaitMs
-⍝H      SetReturnWaitMs ⍬   - Sets returnWaitMs to its default value
-⍝H      SetReturnWaitMs num - Sets returnWaitMs to <num> ms
-⍝H    ∘ Returns: Prior returnWaitMs value (not the default value, unless the prior as well).
+⍝H  Syntax:  was← SetReturnWaitSec nnn
+⍝H      SetReturnWaitSec ⍬   - (⍬: zilde) Sets returnWaitSec to its default value
+⍝H      SetReturnWaitSec num - Sets returnWaitSec to <nnn> sec
+⍝H    ∘ Returns: Prior returnWaitSec value (not the default value; see RETURNWAIT_SEC_DEF).
 ⍝H 
-  SetReturnWaitMs← { was← returnWaitMs ⋄ returnWaitMs⊢← ⍵ RETURNWAITMS_DEF⊃⍨ 0=≢⍵  
-    returnWaitSecEach⊢← 0.001× returnWaitMs÷ RETURNWAIT_TRIES 
-     1: _← was 
+  SetReturnWaitSec← { was← returnWaitSec 
+      returnWaitSec⊢← ⍵ RETURNWAIT_SEC_DEF⊃⍨ 0=≢⍵  
+      returnWaitSecEach⊢← returnWaitSec÷ RETURNWAIT_TRIES 
+    1: _← was 
   }
  
 ⍝H  GenDead (User only)
-⍝H    Determine if generator thread is still active
+⍝H    Determine if generator thread is still active (0) or terminated (1)
 ⍝H  Syntax: b← ∇
 ⍝H    Returns 0 if the generator is still active; else 1.
 ⍝H 
@@ -137,7 +183,7 @@
     :If ~b← genDead ⋄ b← genDead← genId (~∊) ⎕TNUMS ⋄ :EndIf 
   ∇
 ⍝H GenActive
-⍝H   Used in user code to determine if generator is active.
+⍝H   Used in user code to determine if generator is active (1) or terminated (0).
 ⍝H   In the generator, can be 0 if genDead←1, but it hasn't terminated yet.
 ⍝H Syntax: b← ∇
 ⍝H 
@@ -151,11 +197,11 @@
 ⍝H  ∘ Sends a ⎕NULL msg to the generator, returning a (hopefully useful) message from the generator.
 ⍝H  ∘ If the generator expects a contentful message, use Send.
 ⍝H  ∘ If an error occurs during the transaction, a signal is generated locally, reporting the error.
-⍝H  ∘ The code ¨r← Next¨ is equiv. to ¨⊢Send ⎕NULL¨
+⍝H  ∘ The code <r← Next> is equiv. to <⊢Send ⎕NULL>     
 ⍝H 
   ∇ r←Next   
     :Trap 0 ⋄ r←Send ⎕NULL
-    :Else   ⋄ ⎕SIGNAL 0∘uNs.Dmx⍬
+    :Else   ⋄ ⎕SIGNAL ⍙EMsg ⎕DMX 
     :Endtrap
   ∇
 ⍝H  NextN  (in user code)  
@@ -165,7 +211,7 @@
 ⍝H  ∘ If the generator expects to receive a specific message besides ⎕NULL, use Send.
 ⍝H  ∘ If an error occurs during any transaction, a signal is generated locally, reporting the error.
 ⍝H
-  NextN← { 0:: ⎕SIGNAL 0∘uNs.Dmx⍬ ⋄ { Send ⎕NULL }¨⍳⍵ }
+  NextN← { 0:: ⎕SIGNAL ⍙EMsg ⎕DMX ⋄ ⊢{ Send ⎕NULL }¨⍳⍵ }
 
 ⍝H  Send (in user code) 
 ⍝H  Syntax: {msgIn}← [isSig←0] ∇ msgOut
@@ -174,7 +220,7 @@
 ⍝H      
   Send← { ⍝ user only
       ⍺← 0 ⋄ sigOutFlag msgOut← ⍺ ⍵ 
-    0::  ⎕SIGNAL 0∘uNs.Dmx⍬
+    0::  ⎕SIGNAL ⍙EMsg ⎕DMX 
       1: _← sigOutFlag SendRaw msgOut  
   }
 ⍝H  SendSig (in gen or user code) 
@@ -184,7 +230,7 @@
 ⍝H    - signals a local <signalIn>, if we received a signal from the other party.
 ⍝H    Otherwise, returns any message <msgIn> received.
 ⍝H 
- SendSig← { 0:: ⎕SIGNAL 0∘uNs.Dmx⍬ ⋄ 1 SendRaw ⍵}
+ SendSig← { 0:: ⎕SIGNAL ⍙EMsg ⎕DMX ⋄ 1 SendRaw ⍵}
 ⍝H  SendRaw (in gen or user code) 
 ⍝H  Syntax: {msgIn}←  <sigOutFlag> ∇ <msg | signal>
 ⍝H    Sends a message (if sigOutFlag=0) or signal (if sigOutFlag=1)
@@ -195,12 +241,12 @@
 ⍝H 
   SendRaw←{ 
       sigOutFlag msgOut← ⍺ ⍵
-    GenDead:    ⎕SIGNAL SIGSTOP 
+    GenDead:    ⎕SIGNAL STOP_SIG 
       to from← IsGen⌽ toGen fromGen
     sigOutFlag: { 
         _← ⎕TGET ⎕TPOOL∩to 
         _← sigOutFlag msgOut ⎕TPUT to 
-      GenDead: ⎕SIGNAL SIGSTOP 
+      GenDead: ⎕SIGNAL STOP_SIG 
         1: _← msgOut
     } ⍬  
       sigInFlag msgIn← ⊃⎕TGET from ⊣ sigOutFlag msgOut ⎕TPUT to  
@@ -214,11 +260,11 @@
 ⍝H ============================
 ⍝H 
 ⍝H  Return  (User or Generator) 
-⍝H    Signals the generator to stop (via ⎕SIGNAL/ SIGSTOP), 
-⍝H    returning the generator's result as ¨result¨ after waiting <returnWaitMs>
-⍝H    If the generator HAS (already) stopped, returns result quietly.
+⍝H    Signals the generator to stop (Error number is ⍺.STOP) via ⎕SIGNAL STOP_SIG, 
+⍝H    returning the generator's result as <result> after waiting UP TO <returnWaitMs>.
+⍝H    If the generator HAS (already) stopped, returns <result> quietly.
 ⍝H  Syntax: r← ∇
-⍝H          If Return traps the SIGSTOP signal, 
+⍝H          If Return traps the STOP_SIG signal, 
 ⍝H          returning normally within RETURNWAIT_TRIES×returnWaitMs ms, then
 ⍝H          ∘ ⍺.resultSet=1* and ⍺.result will be whatever the generator function returned; 
 ⍝H          otherwise, 
@@ -227,39 +273,41 @@
 ⍝H                          * ⍺ is the generator namespace returned from operator Gen.
 ⍝H 
 ∇ r← Return    ⍝ user or generator
-  ;tries 
-  :If IsGen ⋄  ⎕SIGNAL SIGSTOP  ⍝ generator 
+  :If IsGen ⋄ ⎕SIGNAL STOP_SIG ⋄ :EndIf 
+  r← ReturnWait returnWaitSec 
+∇ 
+∇ r← {noStopSig} ReturnWait nSec    ⍝ user or generator 
+  :If IsGen ⋄  ⎕SIGNAL STOP_SIG   
   :ElseIf GenDead ⋄ r← result 
   :Else 
     :Trap STOP 
-      SendSig uNs.SetGenTerm SIGSTOP 
-      tries←  RETURNWAIT_TRIES  
-      :While (tries>0)∧ (~resultSet) ⋄ :AndIf ~GenDead    
-          ⎕DL returnWaitSecEach 
-          tries-← 1 
+      :If 900⌶0 ⋄ :OrIf noStopSig ⋄ SendSig ⍙SetGenDead ⋄ :EndIf  
+      :While  (nSec≤ 0)⍱ resultSet⍱ GenDead    
+          nSec-← ⎕DL returnWaitSecEach  
       :EndWhile
     :EndTrap 
-    uNs.Cleanup⍬  
+    ⍙CleanAll⍬  
     r← result 
   :EndIf 
 ∇ 
+
 ⍝H  Terminate:  (User or Generator)
-⍝H    Terminate the generator immediately, with a SIGFAIL signal as required.
+⍝H    Terminate the generator immediately, with a FAIL_SIG signal as required.
 ⍝H  Syntax: r← ∇
 ⍝H  Returns: 
 ⍝H    In User:
 ⍝H       If the generator is not dead, terminate it and return 1.
 ⍝H       Else return 0.
-⍝H    In Generator: Issues a SIGFAIL signal to itself, rather than returning.
+⍝H    In Generator: Issues a FAIL_SIG signal to itself, rather than returning.
 ⍝H
 ∇ {r}← Terminate   ⍝ user or generator 
-  :If IsGen ⋄ ⎕SIGNAL SIGFAIL uNs.DMsg '[Gen] Processing a FAILURE signal'  
+  :If IsGen ⋄ ⎕SIGNAL FAIL_SIG ⍙DTell '[Gen] Processing a FAILURE signal'  
   :ElseIf r← ~GenDead  
     :Trap 0 
-      SendSig SIGFAIL uNs.DMsg '[Usr] Sending generator a FAILURE signal'
-      uNs.Cleanup uNs.DMsg '[Usr] Terminating generator',genId,'in',CLEANUPWAIT_SEC,'sec'
+      SendSig FAIL_SIG ⍙DTell '[Usr] Sending generator a FAILURE signal'
+      ⍙CleanAll ⍙DTell '[Usr] Terminating generator',genId,'in',CLEANUPWAIT_SEC,'sec'
     :Else 
-      ⎕SIGNAL 0∘uNs.Dmx⍬ 
+      ⎕SIGNAL ⍙EMsg ⎕DMX  
     :EndTrap
   :EndIf
 ∇ 
@@ -298,84 +346,89 @@
 ⍝H       otherwise, does a *LOCAL* ⎕SIGNAL msgIn.
 ⍝H
   Yield← {  ⍝ Generator only
-    ⎕TID≠ genId:   ⎕SIGNAL SIGGENONLY
+    ⎕TID≠ genId:   ⎕SIGNAL GENONLY_SIG
         ⍺← ⊢ ⋄ timeout←⍺ ⋄  msgOut← ⍵
-    GenDead:       ⎕SIGNAL SIGSTOP                  ⍝ See if generator active before ⎕TGET
+    GenDead:       ⎕SIGNAL STOP_SIG                  ⍝ See if generator active before ⎕TGET
         r← timeout ⎕TGET toGen  
     0=≢r: 11 ⎕SIGNAL⍨ 'Yield: No message was received (timeout)'   
-        isSig msgIn← ⊃r                           ⍝ Get the code and msgIn from user
-    GenDead:       ⎕SIGNAL SIGSTOP                  ⍝ See if generator active after ⎕TGET
+        isSig msgIn← ⊃r                             ⍝ Get the code and msgIn from user
+    GenDead:       ⎕SIGNAL STOP_SIG                  ⍝ See if generator active after ⎕TGET
     isSig:         ⎕SIGNAL msgIn 
     1:             _← msgIn⊣ 0 msgOut ⎕TPUT fromGen  
   }
 
-  :Section Generator utilities ⍝ (uNs)  
-    :Namespace uNs
-      SetGenNm←##.{ ⎕DF ⎕TNAME← genName⊢←'Gen[thread:',t,', tokens:[',gf,', ',g2,']]'⊣ t gf g2←⍵}⍕¨
-      DMsg← { ⍺←⍵ ⋄ ##.debug∧0≠≢⍵: _← ⍺⊣ ⎕← 'Gen (debug): ',⍵ ⋄ 1: _←⍺ }
-      Dmx← { ⍺←1 ⋄ ⎕DMX.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message ((⍺/'Gen: '),EM)) }
-      ∇ {errSpec}← SetGenTerm errSpec
-        ##.genDead← 1
-      ∇
-      Cleanup← {  
-            _← ⎕DL 0⊣ 0 ⎕TPUT ##.toGen 
-            _← ⎕TGET ⎕TPOOL∩##.(toGen,fromGen)  
-            _← ##.(debug tokNs.FreeToks toGen fromGen⊣ ⎕DF genName,' [terminated]') 
-        ##.IsGen: _←0 ⋄ ~##.genId∊ ⎕TNUMS: _← 0  
-        1:        _←1⊣ ##.{ 
-                      ⎕TGET ⎕TPOOL∩(toGen,fromGen)⊣ ⎕TKILL ⍵⊣ ⎕DL CLEANUPWAIT_SEC 
-                  }& ##.genId 
-      }        
-      ErrorK← { 0 Dmx ⍬⊣ Cleanup DMsg ⍵ } 
-    :EndNamespace ⍝ uNs
-  :EndSection Generator utilities ⍝ uNs 
+  :Section Generator utilities  
+    ⍙SetGenName← { ⎕DF ⎕TNAME← genName⊢←'Gen[thread:',t,', tokens:[',gf,', ',g2,']]'⊣ t gf g2←⍵}⍕¨
+    ⍙DTell← { ⍺←⍵ ⋄ debug∧0≠≢⍵: _← ⍺⊣ ⎕← 'Gen (debug): ',⍵ ⋄ 1: _←⍺ }
+    ⍙Prepare2Return←{ (dbg this) (toGen fromGen)←⍺ ⍵
+      _← this.⎕DF genName,' [returned]'
+      _← ⍙DTell NORMAL_MSG 
+      _← dbg ##.FreeToks toGen fromGen  ⋄ _← ⍙SetGenDead 
+    }
+    ⍙EMsg← { ⍺←0 ⋄ ⍵.(⊂'EN' 'Message' 'EM',⍥⊂¨ EN Message ((⍺/'Gen: '),EM)) }
+    ∇ {errSpec}← ⍙SetGenDead 
+      errSpec← STOP_SIG 
+      genDead← 1
+    ∇
+    ⍙CleanToks← {debug ##.FreeToks toGen fromGen⊣ ⎕DF genName,' [terminated]'}
+    ⍙CleanAll← {  
+          _← ⎕DL 0⊣ 0 ⎕TPUT toGen 
+          _← ⎕TGET ⎕TPOOL∩(toGen,fromGen)  
+          _← ⍙CleanToks⍬
+      IsGen: _←0 ⋄ ~genId∊ ⎕TNUMS: _← 0  
+      1:        _←1⊣ { 
+                    ⎕TGET ⎕TPOOL∩(toGen,fromGen)⊣ ⎕TKILL ⍵⊣ ⎕DL CLEANUPWAIT_SEC 
+                }& genId 
+    }        
+    ⍙GenErr← { ⍵.EN∊ (FAIL STOP): 0 ⍙EMsg ⍵⊣ ⍙CleanAll ⍙DTell ⍵.EM ⋄  1 ⍙EMsg ⍵⊣ ⍙CleanToks⍬ }
+  :EndSection Generator utilities  
+:EndNamespace ⍝ genLib
 
   :Section tokNs  ⍝ Token Management
-    :Namespace tokNs
     ⍝ TOK_BASE:    The start of the token range we manage
     ⍝ TOK_PER_GEN: How many tokens per generator
     ⍝ TOK_COUNT:   How many tokens in the range we manage
-      TOK_BASE TOK_PER_GEN← 103741824 2  
+      TOK_BASE TOK_PER_GEN← 103741853 2      ⍝ A big-enough (prime) number: 103741853
       TOK_COUNT← 1000× TOK_PER_GEN 
-    ⍝ tokCurBase:  What is the start of the free positions in the range we manage
-    ⍝ * We will only allocate tokens if we don't see them active in tokActive  
+    ⍝ tokNextG:  What is the start of the free positions in the range we manage
+    ⍝ * We will only allocate tokens if we don't see them active in tokActiveG  
     ⍝   Otherwise, we'll skip those tokens.
     ⍝ * Once we exhaust our <TOK_COUNT> tokens, we start at <TOK_BASE> again.  
     ⍝   Dyalog's new token allocation scheme will avoid collisions with other apps.
     ⍝   If TOK_COUNT is 10,000, that means we can have 5,000 active generators...
-      tokCurBase← TOK_BASE 
-      tokActive← ⍬
-    ⍝ ReserveToks: ReserveToks a pair of contiguous threadids from a range of "reserved" thread ids.
+      tokNextG← TOK_BASE 
+      tokActiveG← ⍬
+    ⍝ ReserveToks: ReserveToks a pair of contiguous tokens from a range of "reserved" tokens.
     ⍝ Returns the new set of tokens
-      ∇ newPair← ReserveToks debug   ⍝ Internal use only 
+      ∇ newSet← ReserveToks debug   ⍝ Internal use only 
         :Hold 'Generator_Tokens' 
-          newPair newFreeStart← {  
-            ⍺←0 ⋄ tries← ⍺  
-            tries≥ TOK_COUNT: 11 ⎕SIGNAL⍨ TOK_PER_GEN { tg (tb tc)← ⍺ ⍵ 
-              'Gen: Can''t acquire ',(⍕tg),' tokens in range [',(⍕tb),',',(⍕tb+tc-1),']'
-            } TOK_BASE TOK_COUNT
-            free← TOK_BASE+ TOK_COUNT| |TOK_BASE- ⍵⌈TOK_BASE
-            ∨/tokActive∊⍨ new← free+ ⍳TOK_PER_GEN: ⊃∇/ tries free+ 1 TOK_PER_GEN  
-            new (free+TOK_PER_GEN) 
-          }tokCurBase 
-          tokActive,←  newPair ⋄ tokCurBase⊢← newFreeStart 
-          :If debug ⋄ ⎕← '[Gen] Reserved tokens',newPair ⋄ :EndIf 
+          new1 newSet newFreeStart← {  
+              ⍺←0 ⋄ tries← ⍺  
+              tries≥ TOK_COUNT: 11 ⎕SIGNAL⍨  { tg tb tc← ⍵ 
+                'Gen: Can''t acquire ',(⍕tg),' tokens in range [',(⍕tb),',',(⍕tb+tc-1),']'
+              } TOK_PER_GEN TOK_BASE TOK_COUNT
+            new1← TOK_BASE+ TOK_COUNT| ⍵- TOK_BASE
+            new1∊ tokActiveG: ⊃∇/ tries new1+ 1 TOK_PER_GEN  
+            new1 (new1+ ⍳TOK_PER_GEN) (new1+ TOK_PER_GEN) 
+          } tokNextG⌈TOK_BASE
+        ⍝ Store only the first (lowest) token in the tokActiveG list.
+          tokActiveG,←  new1 ⋄ tokNextG⊢← newFreeStart 
         :EndHold
+        :If debug ⋄ ⎕← '[Gen] Reserved tokens',newSet ⋄ :EndIf 
       ∇
-    ⍝ Free tokens, updating tokActive as needed...
-      ∇ toks← {debug} FreeToks toks  
-        :IF 0= ⎕NC 'debug' ⋄ debug←0 ⋄ :ENDIF  
+    ⍝ Free tokens, updating tokActiveG as needed...
+    ⍝ We only store the lower(-est) of the tokens in the tokActiveG list.
+      ∇ toks← {debug} FreeToks toks ; lo   
+        :IF 900⌶0 ⋄ debug←0 ⋄ :ENDIF
+        lo← ⌊/toks   
         :Hold 'Generator_Tokens'
-          :If ∨/toks∊ tokActive   
-              tokActive~← toks 
-            :If debug ⋄ ⎕← '[Gen] Freed tokens',toks ⋄ :EndIf
+          :If lo∊ tokActiveG   
+              tokActiveG~← lo
+              :If debug ⋄ ⎕← '[Gen] Freed tokens',toks ⋄ :EndIf
           :EndIf 
         :EndHold
       ∇
-    :EndNamespace ⍝ tokNs
   :EndSection tokNs ⍝ Token Management 
-  
-:EndNamespace ⍝ genLib
 
 ⍝-------------------------------------------------------------------------------------------⍝
 ⍝-------------------------------------------------------------------------------------------⍝
@@ -482,7 +535,7 @@
         s←ShakespeareG Gen 0
         1 Say 'Tell (Send) the generator'
         Say '∘ the smallest paragraph to keep and'
-        Say '∘ the largest par. fragment to display on each ¨Next¨'
+        Say '∘ the largest par. fragment to display on each <Next>'
         0 Ask 'Ready'
 
         r← (2+?5) (10×1+?4)
