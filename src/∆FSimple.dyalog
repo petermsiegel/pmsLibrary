@@ -45,6 +45,11 @@
   ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝2 Constants.
     lbC rbC fmtC ovrC omC omUC raC← '{}$%⍵⍹→'                  
     nlC← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
+  ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
+    ovrCod←  ⊂'⍙OVR←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'   
+ 
+⍝ SUPPORT FNS
+    Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
     Cat← { ⍬⊣ field,← ⍵ }
     EndField←{
         ⍺←1
@@ -59,76 +64,74 @@
         fields,← ⊂field 
         ⍵⊣ field⊢←'' 
     }
-
-    TopNext←{
+⍝ Main Processing...
+    ScanNext←{
        0=≢⍵: fields⊣ EndField ⍬
        ch← ⊃⍵ 
-       escÔ= ch: ProcEsc 1↓⍵
-       lbC = ch: ProcCodOrSp 1↓⍵
-       TopNext 1↓⍵⊣ Cat ch 
+       escÔ= ch: ScanEsc 1↓⍵
+       lbC = ch: ScanCodOrSp 1↓⍵
+       ScanNext 1↓⍵⊣ Cat ch 
     }
-    Process← TopNext 
-
-    ProcEsc←{
+    Executive← ScanNext 
+    ScanEsc←{
        ch← ⊃⍵
-       eosC= ch: TopNext 1↓⍵⊣ Cat nlC 
-       escÔ lbC rbC eosC∊⍨ ch: TopNext 1↓⍵ ⊣ Cat ch 
-       TopNext 1↓⍵ ⊣ Cat escÔ, ch 
+       eosC= ch: ScanNext 1↓⍵⊣ Cat nlC 
+       escÔ lbC rbC eosC∊⍨ ch: ScanNext 1↓⍵ ⊣ Cat ch 
+       ScanNext 1↓⍵ ⊣ Cat escÔ, ch 
     }
-    ProcCodOrSp←{
+    ScanCodOrSp←{
       _← EndField ⍬
       p←+/∧\' '=⍵ ⋄ isSp← rbC= 1↑ p↓⍵ 
-      isSp∧ p=0: TopNext EndField 1↓⍵ 
-      isSp: TopNext 0 EndField ⍵↓⍨ 1+p ⊣ Cat  '(',')',⍨sqC,sqC,'⍴⍨',⍕p
-      1 ProcCod ⍵ 
+      isSp∧ p=0: ScanNext EndField 1↓⍵ 
+      isSp: ScanNext 0 EndField ⍵↓⍨ 1+p ⊣ Cat  '(',')',⍨sqC,sqC,'⍴⍨',⍕p
+      1 ScanCod ⍵ 
     }
-    ProcCod←{
-      ProcStr←{  
-          ProcEsc← { ch← ⊃⍵ 
-            eosC= ch: StrNext 1↓⍵ ⊣ Cat nlC  
-            escÔ lbC rbC∊⍨ ch: StrNext 1↓⍵⊣ Cat ch  
-              StrNext 1↓⍵⊣ Cat escÔ, ch  
-          }
-          ProcEndQt← { ch← ⊃⍵
-            ch≠ myQt: CodNext ⍵⊣ Cat sqC 
-              StrNext 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
-          }
- 
-        0= ≢⍵: Ê qStrÊ
-          myQt← ⍺ ⋄ ch← ⊃⍵   
-          StrNext← myQt∘∇ 
-          
-        ch= myQt:  ProcEndQt 1↓⍵
-        ch= sqC:  StrNext 1↓⍵⊣ Cat 2⍴ ch 
-        ch=escÔ:  ProcEsc 1↓⍵ 
-          StrNext 1↓⍵⊣ Cat ch 
-      } ⍝ ProcStr
-      ProcEsc← { ch← ⊃⍵ 
-        escÔ lbC rbC∊⍨ ch: CodNext 1↓⍵⊣ Cat ch  
-        omC omUC∊⍨ ch: ProcOm 1↓⍵ 
-          CodNext 1↓⍵⊣ Cat escÔ, ch  
-      }
-      ProcOm←{  
-        p←+/∧\⍵∊ ⎕D
-        0≠p: CodNext p↓⍵⊣ Cat '(⍵⌷⍨⎕IO+',pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI (⎕←pW← p↑⍵)
-             omCtr+← 1 ⋄ CodNext ⍵⊣ Cat '(⍵⌷⍨⎕IO+',(⍕omCtr),')'
-      }
+    ScanCod←{
+        ScanStr←{  
+            StrEsc← { ch← ⊃⍵ 
+              eosC= ch: StrNext 1↓⍵ ⊣ Cat nlC  
+              escÔ lbC rbC∊⍨ ch: StrNext 1↓⍵⊣ Cat ch  
+                StrNext 1↓⍵⊣ Cat escÔ, ch  
+            }
+            ProcEndQt← { ch← ⊃⍵
+              ch≠ myQt: CodNext ⍵⊣ Cat sqC 
+                StrNext 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
+            }
+  
+          0= ≢⍵: Ê qStrÊ
+            myQt← ⍺ ⋄ ch← ⊃⍵   
+            StrNext← myQt∘∇ 
+          ch= myQt:  ProcEndQt 1↓⍵
+          ch= sqC:  StrNext 1↓⍵⊣ Cat 2⍴ ch 
+          ch=escÔ:  StrEsc 1↓⍵ 
+            StrNext 1↓⍵⊣ Cat ch 
+        } ⍝ ScanStr
+        ScanCodEsc← { ch← ⊃⍵ 
+          escÔ lbC rbC∊⍨ ch: CodNext 1↓⍵⊣ Cat ch  
+          omC omUC∊⍨ ch: ScanCodOm 1↓⍵ 
+            CodNext 1↓⍵⊣ Cat escÔ, ch  
+        }
+        ScanCodOm←{  
+          p←+/∧\⍵∊ ⎕D
+          0=p: omCtr+← 1 ⋄ CodNext ⍵⊣ Cat '(⍵⌷⍨⎕IO+',(⍕omCtr),')'
+              CodNext p↓⍵⊣ Cat '(⍵⌷⍨⎕IO+',pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI (⎕←pW← p↑⍵)
+        }
 
-      CodNext← ⍺∘ProcCod 
-      0= ≢⍵: Ê brcÊ           ⍝  TopNext EndField ⍵  
-      ch← ⊃⍵
-      ⍺≤0: TopNext 0 EndField ⍵⊣ field⊢← '({','⍵)',⍨field
-      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) ProcCod 1↓⍵ ⊣ Cat ch 
-      sqC dqC∊⍨ ch: ch ProcStr 1↓⍵⊣ Cat sqC
-      escÔ=ch:      ProcEsc 1↓⍵ 
-      omUC= ch:     ProcOm  1↓⍵
+      ⍝ ScanCod Executive  
+        CodNext← ⍺∘ScanCod 
+      0= ≢⍵: Ê brcÊ           
+        ch← ⊃⍵
+      ⍺≤0: ScanNext 0 EndField ⍵⊣ field⊢← '({','⍵)',⍨field
+      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) ScanCod 1↓⍵ ⊣ Cat ch 
+      sqC dqC∊⍨ ch: ch ScanStr 1↓⍵⊣ Cat sqC
+      escÔ=ch:      ScanCodEsc 1↓⍵ 
+      omUC= ch:     ScanCodOm  1↓⍵
       fmtC= ch:     CodNext 1↓⍵ ⊣ Cat ' ⎕FMT '
-      CodNext 1↓⍵ ⊣ Cat ch 
-    }
+      ovrC= ch:     CodNext 1↓⍵ ⊣ Cat ' ⍙OVR'⊣ includeOvr⊢←1 
+        CodNext 1↓⍵ ⊣ Cat ch 
+    } ⍝ ScanCod
     
 ⍝ ---------------------------
-⍝ SUPPORT FNS
-    Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN: 
 ⍝   Options and Variables (non-constants)
@@ -141,8 +144,8 @@
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    fields field omCtr← ⍬ '' 0
-    Process fStr                       
+    fields field omCtr includeOvr← ⍬ '' 0 0 
+    (ovrCod/⍨ includeOvr∧0≤ ⊃⍺),⍨Executive fStr                       
   }⍵
 
 }
