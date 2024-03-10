@@ -18,9 +18,12 @@
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-         ⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
-      1=⍺: ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨(⌽⊆⍺⍺⍎'{',(∊⌽⊃⌽⍵),'}⍵⍵')     
-      0=⍺: ∊'{{',(⊃⍵),'⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽',(∊⌽⊃⌽⍵),'}',({ s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃⍵⍵),',⍥⊆⍵}'
+         ⍙ⓄⓋⓇ← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
+         ⍙ⒸⒽⓃ← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
+      1=⍺: ⍙ⒸⒽⓃ ⎕← ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
+          pre← '⍙ⒸⒽⓃ←{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⋄' 
+          pre,← (⊃⍵)/ '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' 
+      0=⍺: ∊'{{',pre,'⍙ⒸⒽⓃ ',(∊⌽⊃⌽⍵),'}',({ s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp⍪ ⊃⌽⍵ 
         ∘∘unreachable∘∘ ⍵⍵    ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
@@ -52,7 +55,7 @@
  
 ⍝ SUPPORT FNS
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
-    Cat← { ⍬⊣ field,← ⍵ }
+    Cat← { ⍺←⍵ ⋄ literal field ,← ⍺ ⍵ ⋄ ⍬  }
     EndField←{
         ⍺←1
         CondQts← {
@@ -62,14 +65,13 @@
         } 
         SplitStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍺∧⍵=sqC }
       0=≢field: ⍵ 
-        field⊢← ⍺ CondQts ⍺ SplitStr field 
-        fields,← ⊂field 
-        ⍵⊣ field⊢←'' 
+        fields,← ⊂⍺ CondQts ⍺ SplitStr field  
+        ⍵⊣ field literal⊢← ⊂'' 
     }
 ⍝ Main Processing...
-    preamble← ⍬
+    opts2← 0
     ScanNext←{
-       0=≢⍵: preamble fields ⊣ EndField ⍬    ⍝ <== RETURN from EXECUTIVE
+       0=≢⍵: opts2 fields ⊣ EndField ⍬    ⍝ <== RETURN from EXECUTIVE
        ch← ⊃⍵ 
        escO= ch: ScanEsc 1↓⍵
        lbC = ch: ScanCodOrSp 1↓⍵
@@ -84,10 +86,10 @@
     }
     ScanCodOrSp←{
       _← EndField ⍬
-      p←+/∧\' '=⍵ ⋄ isSp← rbC= 1↑ p↓⍵ 
-      isSp∧ p=0: ScanNext EndField 1↓⍵ 
-      isSp: ScanNext 0 EndField ⍵↓⍨ 1+p ⊣ Cat  '(',')',⍨sqC,sqC,'⍴⍨',⍕p
-      1 ScanCod p↓⍵ 
+      p←+/∧\' '=⍵ ⋄ isSpF← rbC= 1↑ p↓⍵ 
+      isSpF∧ p=0: ScanNext EndField 1↓⍵ 
+      isSpF: ScanNext 0 EndField ⍵↓⍨ 1+p ⊣ Cat  '(',')',⍨sqC,sqC,'⍴⍨',⍕p
+      1 ScanCod ⍵ ⍝ ⍵ ⍝ p↓⍵    
     }
     ScanCod←{
         ScanStr←{  
@@ -119,6 +121,15 @@
           0<p: CodNext p↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← p↑⍵
                omCtr+← 1 ⋄ CodNext ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
         }
+        CodSpecial← { brLvl ch←⍺ 
+            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ p←+/∧\⍵= spC
+            opts2∨← o← ch=ovrC ⋄ lch← o⊃'⇉' '⇊'
+          isInfx: CodNext ⍵⊣ ch Cat (o⊃ch ' ⍙ⓄⓋⓇ ') 
+            literal,← lch, p↑⍵  
+            pre←   '(⍙ⒸⒽⓃ'  '(' ⊃⍨ o
+            f← ⊂pre,(sqC,sqC,⍨ literal/⍨ 1+ literal=sqC),(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',field,'}⍵))'  
+            ScanNext ⍵↓⍨ p+1⊣ fields,← f ⊣ field literal⊢←⊂'' 
+        }
 
       ⍝ ScanCod Executive  
         CodNext← ⍺∘ScanCod 
@@ -127,18 +138,12 @@
       ⍺≤0: ScanNext 0 EndField ⍵⊣ field⊢← '({','⍵)',⍨field
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) ScanCod 1↓⍵ ⊣ Cat ch 
       sqC dqC∊⍨ ch: ch ScanStr 1↓⍵⊣ Cat sqC
-      spC=  ch:     CodNext p↓⍵⊣ Cat spC⊣ p← +/∧\⍵= spC 
-      escO= ch:     ScanCodEsc 1↓⍵ 
-      omUC= ch:     ScanCodOm  1↓⍵
-      fmtC= ch:     CodNext 1↓⍵ ⊣ Cat ' ⎕FMT '
-      ovrC raC∊⍨ ch: CodNext 1↓⍵⊣ ⍺{ 
-            typ2← (1=⍺)∧ rbC= ⊃⍵↓⍨ p←+/∧\⍵= spC
-            preamble⊢← preamble ovrCod⊃⍨ o←ch=ovrC 
-          ~typ2: CodNext 1↓⍵⊣ Cat (o⊃ch ' ⍙ⓄⓋⓇ ') 
-            f← ⊂'((',(sqC,sqC,⍨ field/⍨ 1+field=sqC),')',(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',field,'}⍵))'  
-            ScanNext p↓⍵⊣ fields,← f ⊣ field⊢←'' 
-      }1↓⍵ 
-                    CodNext 1↓⍵ ⊣ Cat ch 
+      spC=  ch:      CodNext p↓⍵⊣ (p↑⍵) Cat spC⊣ p← +/∧\⍵= spC 
+      escO= ch:      ScanCodEsc 1↓⍵ 
+      omUC= ch:      ScanCodOm  1↓⍵
+      fmtC= ch:      CodNext 1↓⍵ ⊣ ch Cat ' ⎕FMT '
+      ovrC raC∊⍨ ch: ⍺ ch CodSpecial 1↓⍵ 
+                     CodNext 1↓⍵ ⊣ Cat ch 
     } ⍝ End ScanCod
     
 ⍝ ---------------------------
@@ -154,7 +159,7 @@
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    fields field omCtr ← ⍬ '' 0  
+    fields field literal omCtr ← ⍬ '' '' 0  
     Executive fStr                     
   }⍵
 
