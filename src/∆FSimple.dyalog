@@ -20,7 +20,7 @@
 ⍝ STAGE II: Execute/Display code from Stage I
          ⍙ⓄⓋⓇ← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
          ⍙ⒸⒽⓃ← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
-      1=⍺: ⍙ⒸⒽⓃ ⎕← ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
+      1=⍺: ⍙ⒸⒽⓃ ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
           pre← '⍙ⒸⒽⓃ←{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⋄' 
           pre,← (⊃⍵)/ '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' 
       0=⍺: ∊'{{',pre,'⍙ⒸⒽⓃ ',(∊⌽⊃⌽⍵),'}',({ s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃⍵⍵),',⍥⊆⍵}'
@@ -48,7 +48,7 @@
   ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escO option.
     spC sqC dqC eosC cmC clnC← ' ''"⋄⍝:'                     
   ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝2 Constants.
-    lbC rbC fmtC ovrC omC omUC raC← '{}$%⍵⍹→'                  
+    lbC rbC fmtC ovrC dnC omC omUC raC← '{}$%↓⍵⍹→'                  
     nlC← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
   ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
     ovrCod←  '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'   
@@ -121,11 +121,13 @@
           0<p: CodNext p↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← p↑⍵
                omCtr+← 1 ⋄ CodNext ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
         }
+
+        arrowsUnicode← '▶' '▼'
         CodSpecial← { brLvl ch←⍺ 
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ p←+/∧\⍵= spC
-            opts2∨← o← ch=ovrC ⋄ lch← o⊃'⇉' '⇊'
-          isInfx: CodNext ⍵⊣ ch Cat (o⊃ch ' ⍙ⓄⓋⓇ ') 
-            literal,← lch, p↑⍵  
+            opts2∨← o← ch≠ raC 
+          isInfx: CodNext ⍵⊣ ch Cat (ch ' ⍙ⓄⓋⓇ '⊃⍨ ch= ovrC) 
+            lch← arrowsUnicode⊃⍨ o ⋄ literal,← lch, p↑⍵  
             pre←   '(⍙ⒸⒽⓃ'  '(' ⊃⍨ o
             f← ⊂pre,(sqC,sqC,⍨ literal/⍨ 1+ literal=sqC),(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',field,'}⍵))'  
             ScanNext ⍵↓⍨ p+1⊣ fields,← f ⊣ field literal⊢←⊂'' 
@@ -142,7 +144,7 @@
       escO= ch:      ScanCodEsc 1↓⍵ 
       omUC= ch:      ScanCodOm  1↓⍵
       fmtC= ch:      CodNext 1↓⍵ ⊣ ch Cat ' ⎕FMT '
-      ovrC raC∊⍨ ch: ⍺ ch CodSpecial 1↓⍵ 
+      raC ovrC dnC∊⍨ ch: ⍺ ch CodSpecial 1↓⍵ 
                      CodNext 1↓⍵ ⊣ Cat ch 
     } ⍝ End ScanCod
     
