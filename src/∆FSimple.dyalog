@@ -10,25 +10,26 @@
 ⍝H *** NO OTHER HELP AVAILABLE ***
 
   ⍺←1 0 '`'
-⍝ Fast Path: Make this ∆F call a nop?
+⍝ Fast Path: Make this ∆F call a nop? 
   0=≢⍺: 1 0⍴''                                                 
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  1/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  0/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-         ⍙ⓄⓋⓇ← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
-         ⍙ⒸⒽⓃ← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
+        ⍙ⓄⓋⓇ← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
+        ⍙ⒸⒽⓃ← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
       1=⍺: ⍙ⒸⒽⓃ ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
-          pre← '⍙ⒸⒽⓃ←{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⋄' 
-          pre,← (⊃⍵)/ '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' 
-      0=⍺: ∊'{{',pre,'⍙ⒸⒽⓃ ',(∊⌽⊃⌽⍵),'}',({ s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃⍵⍵),',⍥⊆⍵}'
+        pre← '⍙ⒸⒽⓃ←{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⋄' 
+        pre,← (⊃⍵)/ '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' 
+        Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
+      0=⍺: ∊'{{',pre,'⍙ⒸⒽⓃ ',(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp⍪ ⊃⌽⍵ 
-        ∘∘unreachable∘∘ ⍵⍵    ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
+        ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
 ⍝ ---------------------------
-  }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+  }(,⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
@@ -47,106 +48,112 @@
   ⍝ ..C: Constants.
   ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escO option.
     spC sqC dqC eosC cmC clnC← ' ''"⋄⍝:'                     
-  ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝2 Constants.
+  ⍝ {   }   $    %    ↓   ⍵   ⍹    →                           ⍝2 Constants.
     lbC rbC fmtC ovrC dnC omC omUC raC← '{}$%↓⍵⍹→'                  
     nlC← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
-  ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
-    ovrCod←  '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'   
- 
+    sdArrows← '▶' '▼'                                          ⍝4 for self-documenting strings
 ⍝ SUPPORT FNS
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
-    Cat← { ⍺←⍵ ⋄ literal field ,← ⍺ ⍵ ⋄ ⍬  }
-    EndField←{
+    NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
+    EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
+⍝ 
+    _ScanEsc_← { ch← ⊃⍵  
+        eosC= ch: ⍺⍺ 1↓⍵ ⊣ F_Cat nlC  
+        escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵⊣ F_Cat ch  
+        ⍵⍵∧ omC omUC∊⍨ ch:⍺⍺ _Omega 1↓⍵ 
+          ⍺⍺ 1↓⍵⊣ F_Cat escO, ch  
+      0: ⍵⍵ 
+    }
+  ⍝ _Omega:   _Next _Omega ⍵ 
+    _Omega←{ wx← '⍵⌷⍨⎕IO+'
+        nDig← ⎕D NSpan ⍵
+      0<nDig: ⍺⍺ nDig↓⍵⊣ F_Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
+        omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ F_Cat '(',wx,')',⍨ ⍕omCtr        
+    }
+  ⍝ F_: Managing output flds
+    F_Cat← { ⍺←⍵ ⋄ fld_lit fld ,← ⍺ ⍵ ⋄ ⍬  }
+    F_Done←{
         ⍺←1
-        CondQts← {
+        CondQtsE← {
           ~⍺: ∊⍵
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
           1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
         } 
-        SplitStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍺∧⍵=sqC }
-      0=≢field: ⍵ 
-        fields,← ⊂⍺ CondQts ⍺ SplitStr field  
-        ⍵⊣ field literal⊢← ⊂'' 
+        SplitQStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍺∧⍵=sqC }
+      0=≢fld: ⍵ 
+        flds,← ⊂⍺ CondQtsE ⍺ SplitQStr fld  
+        ⍵⊣ fld fld_lit⊢← ⊂'' 
     }
+    F_Clear← { (fld fld_lit⊢← ⊂'')⊢fld }
 ⍝ Main Processing...
-    opts2← 0
-    ScanNext←{
-       0=≢⍵: opts2 fields ⊣ EndField ⍬    ⍝ <== RETURN from EXECUTIVE
+⍝ T_: Text Fields (default):   '...'
+    T_Next←{
+       0=≢⍵: opts2 flds ⊣ F_Done ⍬    ⍝ <== RETURN from EXECUTIVE
        ch← ⊃⍵ 
-       escO= ch: ScanEsc 1↓⍵
-       lbC = ch: ScanCodOrSp 1↓⍵
-       ScanNext 1↓⍵⊣ Cat ch 
+       escO= ch: T_Esc 1↓⍵
+       lbC = ch: C_or_Sp_Scan 1↓⍵
+       T_Next 1↓⍵⊣ F_Cat ch 
     }
-    Executive← ScanNext 
-    ScanEsc←{
-       ch← ⊃⍵
-       eosC= ch: ScanNext 1↓⍵⊣ Cat nlC 
-       escO lbC rbC eosC∊⍨ ch: ScanNext 1↓⍵ ⊣ Cat ch 
-       ScanNext 1↓⍵ ⊣ Cat escO, ch 
+    Executive← T_Next 
+  ⍝ T_Esc: Escapes within text sequences:  `⋄ ``  `{ `} 
+    T_Esc← T_Next _ScanEsc_ 0 
+  ⍝ C_or_Sp_: Code or Space fields  { code }  or {  } 
+    C_or_Sp_Scan←{
+        _← F_Done ⍬
+        isSpF← rbC= 1↑ ⍵↓⍨ nSp←NSpan ⍵  
+      isSpF∧ nSp=0: T_Next F_Done 1↓⍵ 
+      isSpF: T_Next 0 F_Done ⍵↓⍨ 1+nSp ⊣ F_Cat  '(', '⍴'''')',⍨ ⍕nSp 
+        1 C_Scan ⍵  
     }
-    ScanCodOrSp←{
-      _← EndField ⍬
-      p←+/∧\' '=⍵ ⋄ isSpF← rbC= 1↑ p↓⍵ 
-      isSpF∧ p=0: ScanNext EndField 1↓⍵ 
-      isSpF: ScanNext 0 EndField ⍵↓⍨ 1+p ⊣ Cat  '(',')',⍨sqC,sqC,'⍴⍨',⍕p
-      1 ScanCod ⍵ ⍝ ⍵ ⍝ p↓⍵    
-    }
-    ScanCod←{
-        ScanStr←{  
-            StrEsc← { ch← ⊃⍵ 
-              eosC= ch: StrNext 1↓⍵ ⊣ Cat nlC  
-              escO lbC rbC∊⍨ ch: StrNext 1↓⍵⊣ Cat ch  
-                StrNext 1↓⍵⊣ Cat escO, ch  
+  ⍝ C_: Code Fields { code }
+    C_Scan←{
+      ⍝ C_S: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
+        C_S_Scan←{  
+            C_S_EndQt← { ch← ⊃⍵
+              ch≠ myQt: C_Next ⍵⊣ F_Cat sqC 
+                C_S_Next 1↓⍵⊣ F_Cat ch⍴⍨1+ch=sqC 
             }
-            ProcEndQt← { ch← ⊃⍵
-              ch≠ myQt: CodNext ⍵⊣ Cat sqC 
-                StrNext 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
-            }
-  
           0= ≢⍵: Ê qStrÊ
             myQt← ⍺ ⋄ ch← ⊃⍵   
-            StrNext← myQt∘∇ 
-          ch= myQt:  ProcEndQt 1↓⍵
-          ch= sqC:  StrNext 1↓⍵⊣ Cat 2⍴ ch 
-          ch=escO:  StrEsc 1↓⍵ 
-            StrNext 1↓⍵⊣ Cat ch 
-        } ⍝ ScanStr
-        ScanCodEsc← { ch← ⊃⍵ 
-          escO lbC rbC∊⍨ ch: CodNext 1↓⍵⊣ Cat ch  
-          omC omUC∊⍨ ch: ScanCodOm 1↓⍵ 
-            CodNext 1↓⍵⊣ Cat escO, ch  
-        }
-        ScanCodOm←{ wx← '⍵⌷⍨⎕IO+'
-          p←+/∧\⍵∊ ⎕D
-          0<p: CodNext p↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← p↑⍵
-               omCtr+← 1 ⋄ CodNext ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
-        }
+            C_S_Next← myQt∘∇ 
+          ⍝ C_S_Esc: Escapes within code strings `⋄ `` `{ `}
+            C_S_Esc← C_S_Next _ScanEsc_ 0
 
-        arrowsUnicode← '▶' '▼'
-        CodSpecial← { brLvl ch←⍺ 
-            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ p←+/∧\⍵= spC
+          ch= myQt:  C_S_EndQt 1↓⍵
+          ch= sqC:  C_S_Next 1↓⍵⊣ F_Cat 2⍴ ch 
+          ch=escO:  C_S_Esc 1↓⍵ 
+            C_S_Next 1↓⍵⊣ F_Cat ch 
+        } ⍝ C_S_Scan
+      ⍝ _Omega: Code Omega Sequence (only outside quotes)  ⍹[ddd]? `⍵[ddd]? `⍹[ddd]?
+      ⍝ See _Omega above 
+      ⍝ C_SelfDoc: Code Self-documenting expressions; { ... →} and { ... %} plus { ... ↓}.
+        C_SelfDoc← { brLvl ch←⍺ 
+            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
             opts2∨← o← ch≠ raC 
-          isInfx: CodNext ⍵⊣ ch Cat (ch ' ⍙ⓄⓋⓇ '⊃⍨ ch= ovrC) 
-            lch← arrowsUnicode⊃⍨ o ⋄ literal,← lch, p↑⍵  
+          isInfx: C_Next ⍵⊣ ch F_Cat (ch ' ⍙ⓄⓋⓇ '⊃⍨ ch= ovrC) 
+            lch← sdArrows⊃⍨ o ⋄ fld_lit,← lch, nSp↑⍵  
             pre←   '(⍙ⒸⒽⓃ'  '(' ⊃⍨ o
-            f← ⊂pre,(sqC,sqC,⍨ literal/⍨ 1+ literal=sqC),(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',field,'}⍵))'  
-            ScanNext ⍵↓⍨ p+1⊣ fields,← f ⊣ field literal⊢←⊂'' 
+            f← ⊂pre,(EnQt fld_lit),(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',fld,'}⍵))'  
+            T_Next ⍵↓⍨ nSp+1⊣ flds,← f ⊣ F_Clear⍬
         }
 
-      ⍝ ScanCod Executive  
-        CodNext← ⍺∘ScanCod 
+      ⍝ C_Scan Executive  
+        C_Next← ⍺∘C_Scan 
+      ⍝ C_Esc: Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
+        C_Esc← C_Next _ScanEsc_ 1
+
+      ⍺≤0: T_Next 0 F_Done ⍵⊣ fld⊢← '({','⍵)',⍨fld
       0= ≢⍵: Ê brcÊ           
         ch← ⊃⍵
-      ⍺≤0: ScanNext 0 EndField ⍵⊣ field⊢← '({','⍵)',⍨field
-      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) ScanCod 1↓⍵ ⊣ Cat ch 
-      sqC dqC∊⍨ ch: ch ScanStr 1↓⍵⊣ Cat sqC
-      spC=  ch:      CodNext p↓⍵⊣ (p↑⍵) Cat spC⊣ p← +/∧\⍵= spC 
-      escO= ch:      ScanCodEsc 1↓⍵ 
-      omUC= ch:      ScanCodOm  1↓⍵
-      fmtC= ch:      CodNext 1↓⍵ ⊣ ch Cat ' ⎕FMT '
-      raC ovrC dnC∊⍨ ch: ⍺ ch CodSpecial 1↓⍵ 
-                     CodNext 1↓⍵ ⊣ Cat ch 
-    } ⍝ End ScanCod
+      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) C_Scan 1↓⍵ ⊣ F_Cat ch 
+      sqC dqC∊⍨ ch: ch C_S_Scan 1↓⍵⊣ F_Cat sqC
+      spC=  ch:      C_Next nSp↓⍵⊣ (nSp↑⍵) F_Cat spC⊣ nSp← NSpan ⍵
+      escO= ch:      C_Esc 1↓⍵ 
+      omUC= ch:      C_Next _Omega  1↓⍵
+      fmtC= ch:      C_Next 1↓⍵ ⊣ ch F_Cat ' ⎕FMT '
+      raC ovrC dnC∊⍨ ch: ⍺ ch C_SelfDoc 1↓⍵ 
+                     C_Next 1↓⍵ ⊣ F_Cat ch 
+    } ⍝ End C_Scan
     
 ⍝ ---------------------------
 ⍝ ---------------------------
@@ -161,7 +168,7 @@
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    fields field literal omCtr ← ⍬ '' '' 0  
+    flds fld fld_lit opts2 omCtr ← ⍬ '' '' 0 0  
     Executive fStr                     
   }⍵
 
