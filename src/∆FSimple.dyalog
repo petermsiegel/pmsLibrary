@@ -2,7 +2,7 @@
 ⍝H 
 ⍝H ∆F: Very simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝H     [opts] ∆F fmt_str
-
+⍝ 
 ⍝H ⍺ OPTIONS:   modeO boxO escO 
 ⍝H   modeO←1   generate and execute
 ⍝H   boxO←0    [NOT IMPLEMENTED. Leave at 0] don't box each item 
@@ -12,19 +12,15 @@
   ⍺←1 0 '`'
 ⍝ Fast Path: Make this ∆F call a nop? 
   0=≢⍺: 1 0⍴''                                                 
- 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  0/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+ 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1  
+  1/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-        ⍙ⓄⓋⓇ← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵} 
-        ⍙ⒸⒽⓃ← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
-      1=⍺: ⍙ⒸⒽⓃ ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
-        pre← '⍙ⒸⒽⓃ←{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⋄' 
-        pre,← (⊃⍵)/ '⍙ⓄⓋⓇ←{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄' 
+      1=⍺: {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵} ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
         Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
-      0=⍺: ∊'{{',pre,'⍙ⒸⒽⓃ ',(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
+      0=⍺: ∊'{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵} ',(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp⍪ ⊃⌽⍵ 
         ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
@@ -56,14 +52,13 @@
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
     NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
     EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
-⍝ 
+⍝   _ScanEsc_:    [ T_Next | C_Next | C_S_Next ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵  
-        eosC= ch: ⍺⍺ 1↓⍵ ⊣ F_Cat nlC  
-        escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵⊣ F_Cat ch  
-        ⍵⍵∧ omC omUC∊⍨ ch:⍺⍺ _Omega 1↓⍵ 
-          ⍺⍺ 1↓⍵⊣ F_Cat escO, ch  
-      0: ⍵⍵ 
-    }
+      eosC= ch:          ⍺⍺ 1↓⍵ ⊣ F_Cat nlC  
+      escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵ ⊣ F_Cat ch 
+      ⍵⍵∧ omC omUC∊⍨ ch: ⍺⍺ _Omega 1↓⍵       ⍝ ⍵⍵=1: Only valid with ⍺⍺ <=> C_S_Next 
+        ⍺⍺ 1↓⍵⊣ F_Cat escO, ch  
+    }  
   ⍝ _Omega:   _Next _Omega ⍵ 
     _Omega←{ wx← '⍵⌷⍨⎕IO+'
         nDig← ⎕D NSpan ⍵
@@ -88,15 +83,14 @@
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
     T_Next←{
-       0=≢⍵: opts2 flds ⊣ F_Done ⍬    ⍝ <== RETURN from EXECUTIVE
-       ch← ⊃⍵ 
-       escO= ch: T_Esc 1↓⍵
-       lbC = ch: C_or_Sp_Scan 1↓⍵
-       T_Next 1↓⍵⊣ F_Cat ch 
+        0=≢⍵: opts2 flds ⊣ F_Done ⍬    ⍝ <== RETURN from EXECUTIVE
+        ch← ⊃⍵ 
+      ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
+        escO= ch: (T_Next _ScanEsc_ 0) 1↓⍵
+        lbC = ch: C_or_Sp_Scan 1↓⍵
+        T_Next 1↓⍵⊣ F_Cat ch 
     }
     Executive← T_Next 
-  ⍝ T_Esc: Escapes within text sequences:  `⋄ ``  `{ `} 
-    T_Esc← T_Next _ScanEsc_ 0 
   ⍝ C_or_Sp_: Code or Space fields  { code }  or {  } 
     C_or_Sp_Scan←{
         _← F_Done ⍬
@@ -116,12 +110,11 @@
           0= ≢⍵: Ê qStrÊ
             myQt← ⍺ ⋄ ch← ⊃⍵   
             C_S_Next← myQt∘∇ 
-          ⍝ C_S_Esc: Escapes within code strings `⋄ `` `{ `}
-            C_S_Esc← C_S_Next _ScanEsc_ 0
-
+ 
           ch= myQt:  C_S_EndQt 1↓⍵
           ch= sqC:  C_S_Next 1↓⍵⊣ F_Cat 2⍴ ch 
-          ch=escO:  C_S_Esc 1↓⍵ 
+                ⍝   Escapes within code strings `⋄ `` `{ `}
+          ch=escO:  (C_S_Next _ScanEsc_ 0) 1↓⍵ 
             C_S_Next 1↓⍵⊣ F_Cat ch 
         } ⍝ C_S_Scan
       ⍝ _Omega: Code Omega Sequence (only outside quotes)  ⍹[ddd]? `⍵[ddd]? `⍹[ddd]?
@@ -130,17 +123,14 @@
         C_SelfDoc← { brLvl ch←⍺ 
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
             opts2∨← o← ch≠ raC 
-          isInfx: C_Next ⍵⊣ ch F_Cat (ch ' ⍙ⓄⓋⓇ '⊃⍨ ch= ovrC) 
+          isInfx: C_Next ⍵⊣ ch F_Cat (ch ovrCod⊃⍨ ch= ovrC) 
             lch← sdArrows⊃⍨ o ⋄ fld_lit,← lch, nSp↑⍵  
-            pre←   '(⍙ⒸⒽⓃ'  '(' ⊃⍨ o
-            f← ⊂pre,(EnQt fld_lit),(o⊃'' ' ⍙ⓄⓋⓇ ' ),'({',fld,'}⍵))'  
+            f← ⊂'(',(o⊃ catCod ''),(EnQt fld_lit),(o⊃'' ovrCod ),'({',fld,'}⍵))'  
             T_Next ⍵↓⍨ nSp+1⊣ flds,← f ⊣ F_Clear⍬
         }
 
       ⍝ C_Scan Executive  
         C_Next← ⍺∘C_Scan 
-      ⍝ C_Esc: Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
-        C_Esc← C_Next _ScanEsc_ 1
 
       ⍺≤0: T_Next 0 F_Done ⍵⊣ fld⊢← '({','⍵)',⍨fld
       0= ≢⍵: Ê brcÊ           
@@ -148,7 +138,8 @@
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) C_Scan 1↓⍵ ⊣ F_Cat ch 
       sqC dqC∊⍨ ch: ch C_S_Scan 1↓⍵⊣ F_Cat sqC
       spC=  ch:      C_Next nSp↓⍵⊣ (nSp↑⍵) F_Cat spC⊣ nSp← NSpan ⍵
-      escO= ch:      C_Esc 1↓⍵ 
+                  ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
+      escO= ch:      (C_Next _ScanEsc_ 1) 1↓⍵ 
       omUC= ch:      C_Next _Omega  1↓⍵
       fmtC= ch:      C_Next 1↓⍵ ⊣ ch F_Cat ' ⎕FMT '
       raC ovrC dnC∊⍨ ch: ⍺ ch C_SelfDoc 1↓⍵ 
@@ -168,8 +159,16 @@
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
+    oC← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
+    cC← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}'
+    libType← 0> ⊃⍺
+    ⍝ libType← useLib{ 
+    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oC ⋄ ⎕SE.⍙.ⒸⒶⓉ←⍎cC ⋄ ⍵  
+    ⍝ } libType   
+    ovrCod← oC ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
+    catCod← cC ' ⍙ⒸⒶⓉ ' ' ⎕SE.⍙.ⒸⒶⓉ '⊃⍨ libType 
     flds fld fld_lit opts2 omCtr ← ⍬ '' '' 0 0  
-    Executive fStr                     
+    Executive fStr                      
   }⍵
 
 }
