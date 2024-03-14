@@ -13,15 +13,14 @@
 ⍝ Fast Path: Make this ∆F call a nop? 
   0=≢⍺: 1 0⍴''                                                 
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1  
-  0/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  1/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
       1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
         Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
-        bx←  '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
-        pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT',bx,'¨⌽⍵} '
+        pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
       0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp⍪ ⊃⌽⍵ 
@@ -54,6 +53,7 @@
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
     NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
     EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
+
 ⍝   _ScanEsc_:    [ TF_Next | CF_Next | CF_Str_Next ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵  
       eosC= ch:          ⍺⍺ 1↓⍵ ⊣ Cat nlC  
@@ -63,44 +63,50 @@
         ⍺⍺ 1↓⍵⊣ Cat escO, ch  
     }  
   ⍝ _Omega:   _Next _Omega ⍵ 
+    omCtr← 0 
     _Omega←{ wx← '⍵⌷⍨⎕IO+'
         nDig← ⎕D NSpan ⍵
       0<nDig: ⍺⍺ nDig↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
         omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
     }
-  ⍝ F_: Managing output flds
-    Cat← { ⍺←⍵ ⋄ verbatim subfld,← ⍺ ⍵ ⋄ ⍬  }
+  ⍝ "Global" accumulators for output fields
+    fldsG fldG substrG selfdocG← ⍬ '' '' '' 
+  ⍝ Managing output fldsG
+    Cat← { ⍺←⍵ ⋄ selfdocG substrG,← ⍺ ⍵ ⋄ ⍬  }
+  ⍝ Code Field
     CF_Done← {  
-      fld⊢← '({',fld, '⍵)'⊣ Sub_Done ⍵ 
-      flds,← ⊂fld 
+      fldsG,← ⊂'({',fldG, '⍵)'⊣ String_Done ⍵ 
       ⍬⊣ Fld_Clr⍬
     }
+  ⍝ Text or Space Field
     Fld_Done←{
-        _← Sub_Done ⍵
-      0=≢fld: ⍬ 
-        flds,← ⊂fld
+      0=≢fldG⊣ String_Done ⍵: ⍬ 
+        fldsG,← ⊂fldG
         ⍬⊣ Fld_Clr⍬
     }
-    Sub_Done←{  
-        0= ≢subfld: ⍬
+    TF_Done← Fld_Done
+    SF_Done← Fld_Done
+  ⍝ A quoted substr of a Code Field or an entire Text Field string
+    String_Done←{  
+        0= ≢substrG: ⍬
         CondQtsE← {
           ~⍺: ∊⍵
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
           1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
         } 
         SplitQStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍺∧⍵=sqC }
-        fld,← ⍵ CondQtsE ⍵ SplitQStr subfld
-        ⍬⊣ subfld⊢← ⍬
+        fldG,← ⍵ CondQtsE ⍵ SplitQStr substrG
+        ⍬⊣ substrG⊢← ⍬
     }
-    Fld_Clr← { (fld subfld verbatim⊢← ⊂'')⊢fld }
+    Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
     TF_Next←{
-        0=≢⍵: opts2 flds ⊣ Fld_Done 1    ⍝ <== RETURN from EXECUTIVE
+        0=≢⍵: opts2 fldsG ⊣ TF_Done 1    ⍝ <== RETURN from EXECUTIVE
         ch← ⊃⍵ 
       ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
         escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
-        lbC = ch: CSF_Scan 1↓⍵⊣ Fld_Done 1 
+        lbC = ch: CSF_Scan 1↓⍵⊣ TF_Done 1 
         TF_Next 1↓⍵⊣ Cat ch 
     }
     Executive← TF_Next 
@@ -108,7 +114,7 @@
     CSF_Scan←{
         isSpF← rbC= 1↑ ⍵↓⍨ nSp←NSpan ⍵  
       isSpF∧ nSp=0: TF_Next 1↓⍵                                ⍝ {}
-      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ Fld_Done 0⊣ Cat  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
+      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_Done 0⊣ Cat  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
         1 CF_Scan ⍵                                            ⍝ { code }
     }
   ⍝ C_: Code Fields { code }
@@ -116,7 +122,7 @@
       ⍝ C_S: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
         CF_StrScan←{  
             CF_Str_EndQt← { ch← ⊃⍵
-              ch≠ myQt: CF_Next ⍵⊣ Sub_Done 1
+              ch≠ myQt: CF_Next ⍵⊣ String_Done 1
                 CF_Str_Next 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
             }
           0= ≢⍵: Ê qStrÊ
@@ -135,10 +141,11 @@
         CF_SelfDoc← { brLvl ch←⍺ 
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
             (⊃opts2)∨← o← ch≠ raC 
-          isInfx: CF_Next ⍵⊣ ch Cat (ch ovrCod⊃⍨ ch= ovrC) 
-            lch← sdArrows⊃⍨ o ⋄ verbatim,← lch, nSp↑⍵  
-            f← ⊂'(',(o⊃ catCod ''),(EnQt verbatim),(o⊃'' ovrCod ),'({',(fld⊣ Sub_Done 0),'}⍵))' 
-            TF_Next ⍵↓⍨ nSp+1⊣ flds,← f⊣ Fld_Clr ⍬ 
+          isInfx: CF_Next ⍵⊣ ch Cat (ch OVRcod⊃⍨ ch= ovrC) 
+            _← String_Done 0 
+            lch← sdArrows⊃⍨ o ⋄ selfdocG,← lch, nSp↑⍵  
+            f← ⊂'(',(o⊃ CHNcod ''),(EnQt selfdocG),(o⊃'' OVRcod ),'({',fldG,'}⍵))' 
+            TF_Next ⍵↓⍨ nSp+1⊣ fldsG,← f⊣ Fld_Clr ⍬ 
         }
 
       ⍝ CF_Scan Executive  
@@ -148,11 +155,12 @@
       0= ≢⍵: Ê brcÊ           
         ch← ⊃⍵
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ Cat ch 
-      sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ Sub_Done 0 
+      sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ String_Done 0 
       spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) Cat spC⊣ nSp← NSpan ⍵
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
       omUC= ch:      (CF_Next _Omega)  1↓⍵
+    ⍝ fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch Cat BOXcod
       fmtC= ch:      CF_Next 1↓⍵ ⊣ ch Cat ' ⎕FMT '
       raC ovrC dnC∊⍨ ch: ⍺ ch CF_SelfDoc 1↓⍵ 
                      CF_Next 1↓⍵ ⊣ Cat ch 
@@ -175,11 +183,12 @@
     cC← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
     libType← 0> ⊃⍺
     ⍝ libType← useLib{ 
-    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oC ⋄ ⎕SE.⍙.ⒸⒶⓉ←⍎cC ⋄ ⍵  
+    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oC ⋄ ⎕SE.⍙.ⒸⒽⓃ←⍎cC ⋄ ⍵  
     ⍝ } libType   
-    ovrCod← oC ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
-    catCod← cC ' ⍙ⒸⒶⓉ ' ' ⎕SE.⍙.ⒸⒶⓉ '⊃⍨ libType    
-    flds fld subfld verbatim opts2 omCtr ← ⍬ '' '' '' (0 boxO) 0  
+    OVRcod← oC ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
+    CHNcod← cC ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
+    BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
+    opts2←  (0 boxO)   
     Executive fStr                      
   }⍵
 
@@ -246,7 +255,7 @@
 ⍝H   which are executed as if separate statements (the left-most field "executed" first)
 ⍝H   and assembled into a single matrix (with fields displayed left-to-right, top-aligned, 
 ⍝H   and padded with blank rows as required). 
-⍝H ○ The f-string is available to Code Fields (below) verbatim as (0⌷⍵), 
+⍝H ○ The f-string is available to Code Fields (below) selfdocG as (0⌷⍵), 
 ⍝H   or the shortcut" variable ⍹0 or, equivalently, `⍵0. See Omega Expressions below.
 ⍝H
 ⍝H There are 3 types of fields generated: 
