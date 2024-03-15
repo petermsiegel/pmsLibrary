@@ -18,9 +18,9 @@
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-      1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⊆ ⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
+      1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽(⊂⍬),⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
         Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
-        pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
+        pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽','⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
       0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪⊃⌽⍵ 
@@ -46,7 +46,7 @@
   ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escO option.
     spC sqC dqC eosC cmC clnC← ' ''"⋄⍝:'                     
   ⍝ {   }   $    %    ↓   ⍵   ⍹    →                           ⍝2 Constants.
-    lbC rbC fmtC ovrC dnC omC omUC raC← '{}$%↓⍵⍹→'                  
+    lbC rbC lpC rpC fmtC ovrC dnC omC omUC raC← '{}()$%↓⍵⍹→'                  
     nlC← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
     sdArrows← '▶' '▼'                                          ⍝4 for self-documenting strings
 ⍝ SUPPORT FNS
@@ -76,27 +76,28 @@
     Cat← { ⍺←⍵ ⋄ selfdocG substrG,← ⍺ ⍵ ⋄ ⍬  }
   ⍝ Code Field
     CF_Done← {  
-      fldsG,← ⊂'({',fldG, '⍵)'⊣ String_Done ⍵ 
+      fldsG,← ⊂'({',fldG, '⍵)'⊣ Str_Done ⍵ 
       ⍬⊣ Fld_Clr⍬
     }
   ⍝ Text or Space Field
     Fld_Done←{
-      0=≢fldG⊣ String_Done ⍵: ⍬ 
+      0=≢fldG⊣ Str_Done ⍵: ⍬ 
         fldsG,← ⊂fldG
         ⍬⊣ Fld_Clr⍬
     }
     TF_Done← Fld_Done
     SF_Done← Fld_Done
   ⍝ A quoted substr of a Code Field or an entire Text Field string
-    String_Done←{  
-        0= ≢substrG: ⍬
+    Str_Done←{  
+        0=⍵: ⍬⊣ substrG⊢← ⍬ ⊣ fldG,← (0≠≢substrG)⊢substrG 
+        0= ≢substrG: ⍬ ⊣ fldG,← '(',')',⍨ 2⍴sqC  
         CondQtsE← {
-          ~⍺: ∊⍵
+            1=≢⊃⍵: ⊂'''','''',⍨⊃⍵ 
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
           1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
         } 
-        SplitQStr←{ ⍺: nlC(≠⊆⊢) ⍵/⍨1+⍵=sqC ⋄ ⊂⍵ }
-        fldG,← ⍵ CondQtsE ⍵ SplitQStr substrG
+        SplitQStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍵=sqC }
+        fldG,← CondQtsE SplitQStr substrG
         ⍬⊣ substrG⊢← ⍬
     }
     Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
@@ -123,7 +124,7 @@
       ⍝ C_S: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
         CF_StrScan←{  
             CF_Str_EndQt← { ch← ⊃⍵
-              ch≠ myQt: CF_Next ⍵⊣ String_Done 1
+              ch≠ myQt: CF_Next ⍵⊣ Str_Done 1
                 CF_Str_Next 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
             }
           0= ≢⍵: Ê qStrÊ
@@ -143,7 +144,7 @@
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
             (⊃opts2)∨← o← ch≠ raC 
           isInfx: CF_Next ⍵⊣ ch Cat (ch OVRcod⊃⍨ ch= ovrC) 
-            _← String_Done 0 
+            _← Str_Done 0 
             selfdocG,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
             f← ⊂'(',(o⊃ CHNcod ''),(EnQt selfdocG),(o⊃'' OVRcod ),'({',fldG,'}⍵))' 
             TF_Next ⍵↓⍨ nSp+1⊣ fldsG,← f⊣ Fld_Clr ⍬ 
@@ -156,7 +157,9 @@
       0= ≢⍵: Ê brcÊ           
         ch← ⊃⍵
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ Cat ch 
-      sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ String_Done 0 
+        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← NSpan ⍵: CF_Next ⍵⊣ Cat ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ Cat '(⎕NS⍬)' }
+      lpC=  ch: ch NsCheck 1↓⍵
+      sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ Str_Done 0 
       spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) Cat spC⊣ nSp← NSpan ⍵
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
