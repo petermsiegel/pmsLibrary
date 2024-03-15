@@ -5,7 +5,7 @@
 ⍝ 
 ⍝H ⍺ OPTIONS:   modeO boxO escO 
 ⍝H      modeO←1   1: generate and execute function on arg. ⍵, 0: generate function 
-⍝H      boxO←0    0: don't box, 1: box each item 
+⍝H      boxO←0    0: don't box, 1: box each field 
 ⍝H      escO←'`'  escape char
 ⍝H
 
@@ -23,7 +23,7 @@
         pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
       0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ⊃⌽⍵ 
-     ¯2=⍺: ⎕SE.Dyalog.Utils.disp⍪ ⊃⌽⍵ 
+     ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪⊃⌽⍵ 
         ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
 ⍝ ---------------------------
   }(,⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
@@ -69,6 +69,7 @@
       0<nDig: ⍺⍺ nDig↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
         omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
     }
+
   ⍝ "Global" accumulators for output fields
     fldsG fldG substrG selfdocG← ⍬ '' '' '' 
   ⍝ Managing output fldsG
@@ -94,7 +95,7 @@
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
           1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
         } 
-        SplitQStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍺∧⍵=sqC }
+        SplitQStr←{ ⍺: nlC(≠⊆⊢) ⍵/⍨1+⍵=sqC ⋄ ⊂⍵ }
         fldG,← ⍵ CondQtsE ⍵ SplitQStr substrG
         ⍬⊣ substrG⊢← ⍬
     }
@@ -143,7 +144,7 @@
             (⊃opts2)∨← o← ch≠ raC 
           isInfx: CF_Next ⍵⊣ ch Cat (ch OVRcod⊃⍨ ch= ovrC) 
             _← String_Done 0 
-            lch← sdArrows⊃⍨ o ⋄ selfdocG,← lch, nSp↑⍵  
+            selfdocG,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
             f← ⊂'(',(o⊃ CHNcod ''),(EnQt selfdocG),(o⊃'' OVRcod ),'({',fldG,'}⍵))' 
             TF_Next ⍵↓⍨ nSp+1⊣ fldsG,← f⊣ Fld_Clr ⍬ 
         }
@@ -160,8 +161,8 @@
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
       omUC= ch:      (CF_Next _Omega)  1↓⍵
-    ⍝ fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch Cat BOXcod
-      fmtC= ch:      CF_Next 1↓⍵ ⊣ ch Cat ' ⎕FMT '
+      fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch Cat BOXcod
+      fmtC= ch:      CF_Next 1↓⍵ ⊣ ch    Cat FMTcod
       raC ovrC dnC∊⍨ ch: ⍺ ch CF_SelfDoc 1↓⍵ 
                      CF_Next 1↓⍵ ⊣ Cat ch 
     } ⍝ End CF_Scan
@@ -188,6 +189,7 @@
     OVRcod← oC ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
     CHNcod← cC ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
     BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
+    FMTcod← ' ⎕FMT '
     opts2←  (0 boxO)   
     Executive fStr                      
   }⍵
