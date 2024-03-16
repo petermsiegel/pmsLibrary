@@ -18,12 +18,12 @@
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-      1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽(⊂⍬),⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
+      1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
         Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
         pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽','⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
       0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
-     ¯1=⍺: ⊃⌽⍵ 
-     ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪⊃⌽⍵ 
+     ¯1=⍺: ¯1↓⊃⌽⍵ 
+     ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪¯1↓⊃⌽⍵ 
         ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
 ⍝ ---------------------------
   }(,⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
@@ -71,12 +71,13 @@
     }
 
   ⍝ "Global" accumulators for output fields
-    fldsG fldG substrG selfdocG← ⍬ '' '' '' 
+    fldsG fldG substrG selfdocG substrExists← ⍬ '' '' '' 0
   ⍝ Managing output fldsG
-    Cat← { ⍺←⍵ ⋄ selfdocG substrG,← ⍺ ⍵ ⋄ ⍬  }
+    CatText← { ⍺←⍵ ⋄ substrG,← ⍵ ⋄  substrExists⊢← 1 ⋄ ⍬  }
+    CatCode← { ⍺←⍵ ⋄ selfdocG fldG,← ⍺ ⍵ ⋄ ⍬  }
   ⍝ Code Field
     CF_Done← {  
-      fldsG,← ⊂'({',fldG, '⍵)'⊣ Str_Done ⍵ 
+      fldsG,← ⊂'({',fldG, '⍵)'⊣ Str_Done 0 
       ⍬⊣ Fld_Clr⍬
     }
   ⍝ Text or Space Field
@@ -89,10 +90,12 @@
     SF_Done← Fld_Done
   ⍝ A quoted substr of a Code Field or an entire Text Field string
     Str_Done←{  
+        ~substrExists: ⍬
+        substrExists⊢← 0
         0=⍵: ⍬⊣ substrG⊢← ⍬ ⊣ fldG,← (0≠≢substrG)⊢substrG 
         0= ≢substrG: ⍬ ⊣ fldG,← '(',')',⍨ 2⍴sqC  
         CondQtsE← {
-            1=≢⊃⍵: ⊂'''','''',⍨⊃⍵ 
+            1=≢⊃⍵: ⊂'''',''' ',⍨⊃⍵ 
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
           1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
         } 
@@ -104,19 +107,19 @@
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
     TF_Next←{
-        0=≢⍵: opts2 fldsG ⊣ TF_Done 1    ⍝ <== RETURN from EXECUTIVE
+        0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_Done 1    ⍝ <== RETURN from EXECUTIVE
         ch← ⊃⍵ 
       ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
         escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
         lbC = ch: CSF_Scan 1↓⍵⊣ TF_Done 1 
-        TF_Next 1↓⍵⊣ Cat ch 
+        TF_Next 1↓⍵⊣ CatText ch 
     }
     Executive← TF_Next 
   ⍝ CSF_: Code or Space fields  { code }  or {  } 
     CSF_Scan←{
         isSpF← rbC= 1↑ ⍵↓⍨ nSp←NSpan ⍵  
-      isSpF∧ nSp=0: TF_Next 1↓⍵                                ⍝ {}
-      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_Done 0⊣ Cat  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
+      isSpF∧ nSp=0: TF_Next 1↓⍵                                  ⍝ {}
+      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
         1 CF_Scan ⍵                                            ⍝ { code }
     }
   ⍝ C_: Code Fields { code }
@@ -125,17 +128,17 @@
         CF_StrScan←{  
             CF_Str_EndQt← { ch← ⊃⍵
               ch≠ myQt: CF_Next ⍵⊣ Str_Done 1
-                CF_Str_Next 1↓⍵⊣ Cat ch⍴⍨1+ch=sqC 
+                CF_Str_Next 1↓⍵⊣ CatText ch⍴⍨1+ch=sqC 
             }
           0= ≢⍵: Ê qStrÊ
             myQt← ⍺ ⋄ ch← ⊃⍵   
             CF_Str_Next← myQt∘∇ 
  
           ch= myQt:  CF_Str_EndQt 1↓⍵
-          ch= sqC:  CF_Str_Next 1↓⍵⊣ Cat 2⍴ ch 
+          ch= sqC:  CF_Str_Next 1↓⍵⊣ CatText 2⍴ ch 
                 ⍝   Escapes within code strings `⋄ `` `{ `}
           ch=escO:  (CF_Str_Next _ScanEsc_ 0) 1↓⍵ 
-            CF_Str_Next 1↓⍵⊣ Cat ch 
+            CF_Str_Next 1↓⍵⊣ CatText ch 
         } ⍝ CF_StrScan
       ⍝ _Omega: Code Omega Sequence (only outside quotes)  ⍹[ddd]? `⍵[ddd]? `⍹[ddd]?
       ⍝ See _Omega above 
@@ -143,7 +146,7 @@
         CF_SelfDoc← { brLvl ch←⍺ 
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
             (⊃opts2)∨← o← ch≠ raC 
-          isInfx: CF_Next ⍵⊣ ch Cat (ch OVRcod⊃⍨ ch= ovrC) 
+          isInfx: CF_Next ⍵⊣ ch CatCode (ch OVRcod⊃⍨ ch= ovrC) 
             _← Str_Done 0 
             selfdocG,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
             f← ⊂'(',(o⊃ CHNcod ''),(EnQt selfdocG),(o⊃'' OVRcod ),'({',fldG,'}⍵))' 
@@ -156,18 +159,18 @@
       ⍺≤0: TF_Next ⍵⊣ CF_Done 0
       0= ≢⍵: Ê brcÊ           
         ch← ⊃⍵
-      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ Cat ch 
-        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← NSpan ⍵: CF_Next ⍵⊣ Cat ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ Cat '(⎕NS⍬)' }
+      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ CatCode ch 
+        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← NSpan ⍵: CF_Next ⍵⊣ CatCode ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ CatCode '(⎕NS⍬)' }
       lpC=  ch: ch NsCheck 1↓⍵
       sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ Str_Done 0 
-      spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) Cat spC⊣ nSp← NSpan ⍵
+      spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) CatCode spC⊣ nSp← NSpan ⍵
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
       omUC= ch:      (CF_Next _Omega)  1↓⍵
-      fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch Cat BOXcod
-      fmtC= ch:      CF_Next 1↓⍵ ⊣ ch    Cat FMTcod
+      fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch CatCode BOXcod
+      fmtC= ch:      CF_Next 1↓⍵ ⊣ ch    CatCode FMTcod
       raC ovrC dnC∊⍨ ch: ⍺ ch CF_SelfDoc 1↓⍵ 
-                     CF_Next 1↓⍵ ⊣ Cat ch 
+                     CF_Next 1↓⍵ ⊣ CatCode ch 
     } ⍝ End CF_Scan
     
 ⍝ ---------------------------
