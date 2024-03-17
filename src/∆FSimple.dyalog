@@ -13,7 +13,7 @@
 ⍝ Fast Path: Make this ∆F call a nop? 
   0=≢⍺: 1 0⍴''                                                 
  'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1  
-  1/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+  0/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
 
 ⍝ ---------------------------
   (⊃⍺) ((⊃⎕RSI){ 
@@ -54,13 +54,13 @@
     NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
     EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
 
-⍝   _ScanEsc_:    [ TF_Next | CF_Next | CF_Str_Next ] ∇∇ [0 | 1 | 0] ⍵
-    _ScanEsc_← { ch← ⊃⍵  
-      eosC= ch:          ⍺⍺ 1↓⍵ ⊣ Cat nlC  
-    ⍝  eosC= ch:          ⍺⍺ 1↓⍵ ⊣ Cat sqC,spC,sqC 
-      escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵ ⊣ Cat ch 
-      ⍵⍵∧ omC omUC∊⍨ ch: ⍺⍺ _Omega 1↓⍵       ⍝ ⍵⍵=1: Only valid with ⍺⍺ <=> CF_Str_Next 
-        ⍺⍺ 1↓⍵⊣ Cat escO, ch  
+⍝   _ScanEsc_:    [ TF_Next | CF_Next | CF_StrNext ] ∇∇ [0 | 1 | 0] ⍵
+    _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
+      eosC= ch:          ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
+    ⍝  eosC= ch:         ⍺⍺ 1↓⍵ ⊣ isCF Cat sqC,spC,sqC 
+      escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵ ⊣ isCF Cat ch 
+      isCF∧ omC omUC∊⍨ ch: ⍺⍺ _Omega 1↓⍵       ⍝ ⍵⍵=1: Only valid with ⍺⍺ <=> CF_StrNext 
+        ⍺⍺ 1↓⍵⊣ isCF Cat escO, ch  
     }  
   ⍝ _Omega:   _Next _Omega ⍵ 
     omCtr← 0 
@@ -71,47 +71,53 @@
     }
 
   ⍝ "Global" accumulators for output fields
-    fldsG fldG substrG selfdocG substrExists← ⍬ '' '' '' 0
+    fldsG fldG substrG selfdocG substrActive← ⍬ '' '' '' 0
   ⍝ Managing output fldsG
-    CatText← { ⍺←⍵ ⋄ substrG,← ⍵ ⋄  substrExists⊢← 1 ⋄ ⍬  }
+    CatText← { ⍺←⍵ ⋄ substrG,← ⍵ ⋄  substrActive⊢← 1 ⋄ ⍬  }
     CatCode← { ⍺←⍵ ⋄ selfdocG fldG,← ⍺ ⍵ ⋄ ⍬  }
-  ⍝ Code Field
+    Cat←     { ⍺: CatCode ⍵ ⋄ CatText ⍵ }
+  ⍝ Code Field Done
     CF_Done← {  
-      fldsG,← ⊂'({',fldG, '⍵)'⊣ Str_Done 0 
+      _← Str_Done 0 
+      fldsG,← ⊂'({',fldG, '⍵)'
       ⍬⊣ Fld_Clr⍬
     }
-  ⍝ Text or Space Field
-    Fld_Done←{
-      0=≢fldG⊣ Str_Done ⍵: ⍬ 
+  ⍝ Text Field Done
+    TF_Done←{ 
+        _← Str_Done⍬
+      0=≢fldG: ⍬ 
         fldsG,← ⊂fldG
         ⍬⊣ Fld_Clr⍬
     }
-    TF_Done← Fld_Done
-    SF_Done← Fld_Done
-  ⍝ A quoted substr of a Code Field or an entire Text Field string
+  ⍝ A quoted substr ("...") of a Code Field or an entire Text Field string
+  ⍝ strVectors:   If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
+  ⍝               If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
+    strVectors←1  ⍝  1:  "ab`⋄cd" => "(↑'ab' 'cd')
+                  ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
     Str_Done←{  
-        ~substrExists: ⍬
-        substrExists⊢← 0
-        0=⍵: ⍬⊣ substrG⊢← ⍬ ⊣ fldG,← (0≠≢substrG)⊢substrG 
-        0= ≢substrG: ⍬ ⊣ fldG,← '(',')',⍨ 2⍴sqC  
-        CondQtsE← {
-            1=≢⊃⍵: ⊂'''',''' ',⍨⊃⍵ 
+        ~substrActive: ⍬ ⋄ substrActive⊢← 0
+        EnQt1← ∊{
+            1=≢⍵: ⊂'''',''' ',⍨⊃⍵ 
             lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
-          1<≢⍵: '(↑,¨',')',⍨,lns ⋄ lns  
+          1<≢⍵: '(↑,¨',')',⍨,lns 
+            lns  
+        }⍤{ '.*' ⎕R '\0'⊣⊂⍵ } 
+        EnQt0← ∊{
+          (1=≢⍵)∨nlC(~∊)⍵: ⊂'''', ''' ',⍨ ⍵ 
+            ⊂'(''',''')',⍨ ('\r' ⎕R ''',(⎕UCS 13),''')⍠'Mode' 'M'⊣⊂⍵  
         } 
-        SplitQStr←{ nlC(≠⊆⊢) ⍵/⍨1+⍵=sqC }
-        fldG,← CondQtsE SplitQStr substrG
+        fldG,← EnQt1⍣ strVectors⊢ EnQt0⍣ (~strVectors)⊢ substrG
         ⍬⊣ substrG⊢← ⍬
     }
     Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
     TF_Next←{
-        0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_Done 1    ⍝ <== RETURN from EXECUTIVE
+        0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_Done⍬    ⍝ <== RETURN from EXECUTIVE
         ch← ⊃⍵ 
       ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
         escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
-        lbC = ch: CSF_Scan 1↓⍵⊣ TF_Done 1 
+        lbC = ch: CSF_Scan 1↓⍵⊣ TF_Done⍬ 
         TF_Next 1↓⍵⊣ CatText ch 
     }
     Executive← TF_Next 
@@ -122,24 +128,25 @@
       isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
         1 CF_Scan ⍵                                            ⍝ { code }
     }
-  ⍝ C_: Code Fields { code }
+  ⍝ CF_: Code Fields { code }
     CF_Scan←{
-      ⍝ C_S: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
-        CF_StrScan←{  
-            CF_Str_EndQt← { ch← ⊃⍵
-              ch≠ myQt: CF_Next ⍵⊣ Str_Done 1
-                CF_Str_Next 1↓⍵⊣ CatText ch⍴⍨1+ch=sqC 
-            }
-          0= ≢⍵: Ê qStrÊ
-            myQt← ⍺ ⋄ ch← ⊃⍵   
-            CF_Str_Next← myQt∘∇ 
- 
-          ch= myQt:  CF_Str_EndQt 1↓⍵
-          ch= sqC:  CF_Str_Next 1↓⍵⊣ CatText 2⍴ ch 
-                ⍝   Escapes within code strings `⋄ `` `{ `}
-          ch=escO:  (CF_Str_Next _ScanEsc_ 0) 1↓⍵ 
-            CF_Str_Next 1↓⍵⊣ CatText ch 
-        } ⍝ CF_StrScan
+      ⍝ CF_StrMain: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
+        CF_StrMain←{   
+          CF_StrNext← ⍺∘{  
+              CF_StrMyQt← { ch← ⊃⍵
+                ch≠ myQt: CF_Next ⍵⊣ Str_Done⍬
+                  CF_StrNext 1↓⍵⊣ CatText ch⍴⍨1+ch=sqC 
+              }
+              0= ≢⍵: Ê qStrÊ
+              myQt← ⍺ ⋄ ch← ⊃⍵   
+            ch= myQt:  CF_StrMyQt 1↓⍵
+            ch= sqC:  CF_StrNext 1↓⍵⊣ CatText 2⍴ ch 
+                  ⍝   Escapes within code strings `⋄ `` `{ `}
+            ch=escO:  (CF_StrNext _ScanEsc_ 0) 1↓⍵ 
+              CF_StrNext 1↓⍵⊣ CatText ch 
+          } ⍝ CF_StrNext
+          1 0≡⍺=2↑⍵: CF_Next 1↓⍵⊣ CatCode ''''' ' ⋄ CF_StrNext ⍵
+        } ⍝ CF_StrMain
       ⍝ _Omega: Code Omega Sequence (only outside quotes)  ⍹[ddd]? `⍵[ddd]? `⍹[ddd]?
       ⍝ See _Omega above 
       ⍝ CF_SelfDoc: Code Self-documenting expressions; { ... →} and { ... %} plus { ... ↓}.
@@ -155,14 +162,13 @@
 
       ⍝ CF_Scan Executive  
         CF_Next← ⍺∘CF_Scan 
-
-      ⍺≤0: TF_Next ⍵⊣ CF_Done 0
+      ⍺≤0: TF_Next ⍵⊣ CF_Done⍬
       0= ≢⍵: Ê brcÊ           
         ch← ⊃⍵
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ CatCode ch 
         NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← NSpan ⍵: CF_Next ⍵⊣ CatCode ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ CatCode '(⎕NS⍬)' }
       lpC=  ch: ch NsCheck 1↓⍵
-      sqC dqC∊⍨ ch: ch CF_StrScan 1↓⍵⊣ Str_Done 0 
+      sqC dqC∊⍨ ch: ch CF_StrMain 1↓⍵   ⍝  Str_Done 0 
       spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) CatCode spC⊣ nSp← NSpan ⍵
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
@@ -196,7 +202,9 @@
     CHNcod← cC ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
     BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
     FMTcod← ' ⎕FMT '
-    opts2←  (0 boxO)   
+  ⍝ strVectors: If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
+  ⍝             If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
+    opts2 strVectors←  (0 boxO) 0  
     Executive fStr                      
   }⍵
 
@@ -205,7 +213,7 @@
 ⍝H ∆F Utility Function
 ⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
 ⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
-⍝H    titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
+⍝H    titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
 ⍝H    display of vector and multidimensional objects using building blocks (like ⎕FMT) that already exist
 ⍝H    in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
 ⍝H Quick example:
