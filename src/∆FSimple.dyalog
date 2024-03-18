@@ -19,9 +19,9 @@
   (⊃⍺) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
       1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
-        Enqt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
+        EnQt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
         pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽','⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
-      0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(Enqt⊃⍵⍵),',⍥⊆⍵}'
+      0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(EnQt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ¯1↓⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪¯1↓⊃⌽⍵ 
         ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
@@ -53,7 +53,21 @@
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
     NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
     EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
-
+    QtLines←{
+        AddQS← ''''∘,,∘''' '
+      ⍺=¯1: AddQS ⍵
+        Split← 1↓¨,⊂⍨1,=
+        AddP←  '('∘,,∘')'
+      ⍺= 1: ∊{
+            AddMx← '↑,¨'∘, 
+            nlC(~∊) ⍵ : AddQS ⍵ ⋄ AddP AddMx ∊AddQS¨ nlC Split ⍵
+        } ⍵
+      ⍺= 0: ∊{ 
+            AddNL←  { (-1+ ≢n)↓ 1↓ ∊ ⍵,¨ ⊂n← '(⎕UCS 13)'}
+            AddQCEach← {(⊂','''),¨ ⍵,¨ ⊂''',' }
+            nlC(~∊)⍵: AddQS ⍵ ⋄  AddP AddNL AddQCEach nlC Split ⍵ 
+        }⍵ 
+    }
 ⍝   _ScanEsc_:    [ TF_Next | CF_Next | CF_StrNext ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
       eosC= ch:          ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
@@ -66,21 +80,22 @@
     omCtr← 0 
     _Omega←{ wx← '⍵⌷⍨⎕IO+'
         nDig← ⎕D NSpan ⍵
-      0<nDig: ⍺⍺ nDig↓⍵⊣ Cat '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
-        omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ Cat '(',wx,')',⍨ ⍕omCtr        
+      0<nDig: ⍺⍺ nDig↓⍵⊣ CatCode '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
+        omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ CatCode '(',wx,')',⍨ ⍕omCtr        
     }
 
   ⍝ "Global" accumulators for output fields
-    fldsG fldG substrG selfdocG substrActive← ⍬ '' '' '' 0
+    fldsG fldG substrG selfdocG substrActive← ⍬ '' '' '' 1
   ⍝ Managing output fldsG
     CatText← { ⍺←⍵ ⋄ substrG,← ⍵ ⋄  substrActive⊢← 1 ⋄ ⍬  }
     CatCode← { ⍺←⍵ ⋄ selfdocG fldG,← ⍺ ⍵ ⋄ ⍬  }
     Cat←     { ⍺: CatCode ⍵ ⋄ CatText ⍵ }
   ⍝ Code Field Done
-    CF_Done← {  
-      _← Str_Done 0 
-      fldsG,← ⊂'({',fldG, '⍵)'
-      ⍬⊣ Fld_Clr⍬
+    CF_Done← { 
+        _← Str_Done 0 
+      0=≢fldG: ⍬
+        fldsG,← ⊂'({',fldG, '⍵)'
+        ⍬⊣ Fld_Clr⍬
     }
   ⍝ Text Field Done
     TF_Done←{ 
@@ -89,6 +104,8 @@
         fldsG,← ⊂fldG
         ⍬⊣ Fld_Clr⍬
     }
+    SF_Done← TF_Done 
+
   ⍝ A quoted substr ("...") of a Code Field or an entire Text Field string
   ⍝ strVectors:   If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
   ⍝               If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
@@ -96,19 +113,10 @@
                   ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
     Str_Done←{  
         ~substrActive: ⍬ ⋄ substrActive⊢← 0
-        EnQt1← ∊{
-            1=≢⍵: ⊂'''',''' ',⍨⊃⍵ 
-            lns← ∊' ',⍨¨sqC,¨sqC,⍨¨⍵
-          1<≢⍵: '(↑,¨',')',⍨,lns 
-            lns  
-        }⍤{ '.*' ⎕R '\0'⊣⊂⍵ } 
-        EnQt0← ∊{
-          (1=≢⍵)∨nlC(~∊)⍵: ⊂'''', ''' ',⍨ ⍵ 
-            ⊂'(''',''')',⍨ ('\r' ⎕R ''',(⎕UCS 13),''')⍠'Mode' 'M'⊣⊂⍵  
-        } 
-        fldG,← EnQt1⍣ strVectors⊢ EnQt0⍣ (~strVectors)⊢ substrG
+        fldG,← strVectors QtLines substrG
         ⍬⊣ substrG⊢← ⍬
     }
+
     Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
@@ -125,7 +133,7 @@
     CSF_Scan←{
         isSpF← rbC= 1↑ ⍵↓⍨ nSp←NSpan ⍵  
       isSpF∧ nSp=0: TF_Next 1↓⍵                                  ⍝ {}
-      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
+      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_Done CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
         1 CF_Scan ⍵                                            ⍝ { code }
     }
   ⍝ CF_: Code Fields { code }
@@ -204,7 +212,7 @@
     FMTcod← ' ⎕FMT '
   ⍝ strVectors: If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
   ⍝             If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
-    opts2 strVectors←  (0 boxO) 0  
+    opts2 strVectors←  (0 boxO) (-1= ⊃⍺ )
     Executive fStr                      
   }⍵
 
