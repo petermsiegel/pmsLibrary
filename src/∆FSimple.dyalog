@@ -1,4 +1,4 @@
-﻿∆F←{
+﻿∆F← {⍙ⒶⓁ } ∆Fs ⍙ⓄⓂ
 ⍝H 
 ⍝H ∆F: Very simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝H     [opts] ∆F fmt_str
@@ -8,25 +8,29 @@
 ⍝H      boxO←0    0: don't box, 1: box each field 
 ⍝H      escO←'`'  escape char
 ⍝H
-
-  ⍺←1 0 '`'
+:TRAP 990 
+  :IF 900⌶⍬ ⋄ ⍙ⒶⓁ← 1 0 '`' ⋄ :ENDIF 
 ⍝ Fast Path: Make this ∆F call a nop? 
-  0=≢⍺: 1 0⍴''                                                 
- 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1  
-  0/ 0 1003:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
-
+  :IF 0=≢⍙ⒶⓁ 
+       ∆F← 1 0⍴'' ⋄ :RETURN  
+  :ELSEIF 'help'≡⎕C ⍙ⒶⓁ 
+       ∆F← ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1 
+       :RETURN  
+  :ENDIF 
+ 
 ⍝ ---------------------------
-  (⊃⍺) ((⊃⎕RSI){ 
+  ⍙ⓄⓂ← (⊃⍙ⒶⓁ) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
       1=⍺:  (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
         EnQt← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}
-        pre← '{{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽','⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
+        sig← '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F RUNTIME '',EM)))'
+        pre← '{',sig,'⋄{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⌽','⍵} ',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
       0=⍺: ∊ pre,(∊⌽⊃⌽⍵),'}',(EnQt⊃⍵⍵),',⍥⊆⍵}'
      ¯1=⍺: ¯1↓⊃⌽⍵ 
      ¯2=⍺: ⎕SE.Dyalog.Utils.disp ⍪¯1↓⊃⌽⍵ 
         ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
 ⍝ ---------------------------
-  }(,⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+  }(,⊆⍙ⓄⓂ))⍙ⒶⓁ {                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
@@ -51,22 +55,24 @@
     sdArrows← '▶' '▼'                                          ⍝4 for self-documenting strings
 ⍝ SUPPORT FNS
     Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
-    NSpan← { ⍺←spC ⋄ +/∧\⍵∊ ⍺}                                 ⍝ How many leading <⍺←spC> in ⍵?
-    EnQt← { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                          ⍝ Put str in quotes by APL rules
+    Span←  +/∧\⍤∊      ⍝ { +/∧\⍺∊ ⍵}                           ⍝ How many leading ⍵ in ⍺?
+    Break← +/∧\⍤(~∊)   ⍝ { +/∧\⍺(~∊) ⍵}
+    EnQt←  { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                         ⍝ Put str in quotes by APL rules
     QtLines←{
-        AddQS← ''''∘,,∘''' '
-      ⍺=¯1: AddQS ⍵
+        QtSp← ''''∘,,∘''' '
+      ⍺∊  0  1: QtSp ⍵
+      ⍺∊ ¯1 ¯2: QtSp '␍'@(nlC∘=)⊢⍵ ⍝ t⊣((t=nlC)/t)←'␍'⊣t←⍵ 
         Split← 1↓¨,⊂⍨1,=
-        AddP←  '('∘,,∘')'
-      ⍺= 1: ∊{
-            AddMx← '↑,¨'∘, 
-            nlC(~∊) ⍵ : AddQS ⍵ ⋄ AddP AddMx ∊AddQS¨ nlC Split ⍵
-        } ⍵
-      ⍺= 0: ∊{ 
-            AddNL←  { (-1+ ≢n)↓ 1↓ ∊ ⍵,¨ ⊂n← '(⎕UCS 13)'}
-            AddQCEach← {(⊂','''),¨ ⍵,¨ ⊂''',' }
-            nlC(~∊)⍵: AddQS ⍵ ⋄  AddP AddNL AddQCEach nlC Split ⍵ 
-        }⍵ 
+        Par←  '('∘,,∘')'
+      ⍝ ⍺= 1: ∊{
+      ⍝       Mix← '↑,¨'∘, 
+      ⍝       nlC(~∊) ⍵ : QtSp ⍵ ⋄ Par Mix ∊QtSp¨ nlC Split ⍵
+      ⍝   }⍵
+        ∊{ 
+            NL13←  { (-1+ ≢n)↓ 1↓ ∊ ⍵,¨ ⊂n← '(⎕UCS 13)'}
+            ComQt← (⊂','''),¨,¨∘(⊂''',')
+            nlC(~∊)⍵: QtSp ⍵ ⋄  Par NL13 ComQt nlC Split ⍵ 
+        }⍵  
     }
 ⍝   _ScanEsc_:    [ TF_Next | CF_Next | CF_StrNext ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
@@ -79,7 +85,7 @@
   ⍝ _Omega:   _Next _Omega ⍵ 
     omCtr← 0 
     _Omega←{ wx← '⍵⌷⍨⎕IO+'
-        nDig← ⎕D NSpan ⍵
+        nDig← ⍵ Span ⎕D 
       0<nDig: ⍺⍺ nDig↓⍵⊣ CatCode '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
         omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ CatCode '(',wx,')',⍨ ⍕omCtr        
     }
@@ -107,8 +113,7 @@
     SF_Done← TF_Done 
 
   ⍝ A quoted substr ("...") of a Code Field or an entire Text Field string
-  ⍝ strVectors:   If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
-  ⍝               If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
+  ⍝ strVectors:   See QtLines
     strVectors←1  ⍝  1:  "ab`⋄cd" => "(↑'ab' 'cd')
                   ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
     Str_Done←{  
@@ -122,8 +127,9 @@
 ⍝ T_: Text Fields (default):   '...'
     TF_Next←{
         0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_Done⍬    ⍝ <== RETURN from EXECUTIVE
-        ch← ⊃⍵ 
       ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
+        ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatText p↑⍵ 
+          ch← ⊃⍵ 
         escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
         lbC = ch: CSF_Scan 1↓⍵⊣ TF_Done⍬ 
         TF_Next 1↓⍵⊣ CatText ch 
@@ -131,13 +137,13 @@
     Executive← TF_Next 
   ⍝ CSF_: Code or Space fields  { code }  or {  } 
     CSF_Scan←{
-        isSpF← rbC= 1↑ ⍵↓⍨ nSp←NSpan ⍵  
+        isSpF← rbC= 1↑ ⍵↓⍨ nSp←⍵ Span ' '  
       isSpF∧ nSp=0: TF_Next 1↓⍵                                  ⍝ {}
       isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_Done CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
         1 CF_Scan ⍵                                            ⍝ { code }
     }
   ⍝ CF_: Code Fields { code }
-    CF_Scan←{
+   CF_Scan←{
       ⍝ CF_StrMain: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
         CF_StrMain←{   
           CF_StrNext← ⍺∘{  
@@ -146,6 +152,7 @@
                   CF_StrNext 1↓⍵⊣ CatText ch⍴⍨1+ch=sqC 
               }
               0= ≢⍵: Ê qStrÊ
+            ×p←  ⍵ Break ⍺ sqC escO: CF_StrNext p↓ ⍵⊣ CatText p↑⍵ 
               myQt← ⍺ ⋄ ch← ⊃⍵   
             ch= myQt:  CF_StrMyQt 1↓⍵
             ch= sqC:  CF_StrNext 1↓⍵⊣ CatText 2⍴ ch 
@@ -159,7 +166,7 @@
       ⍝ See _Omega above 
       ⍝ CF_SelfDoc: Code Self-documenting expressions; { ... →} and { ... %} plus { ... ↓}.
         CF_SelfDoc← { brLvl ch←⍺ 
-            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← NSpan ⍵
+            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← ⍵ Span ' '
             (⊃opts2)∨← o← ch≠ raC 
           isInfx: CF_Next ⍵⊣ ch CatCode (ch OVRcod⊃⍨ ch= ovrC) 
             _← Str_Done 0 
@@ -171,13 +178,15 @@
       ⍝ CF_Scan Executive  
         CF_Next← ⍺∘CF_Scan 
       ⍺≤0: TF_Next ⍵⊣ CF_Done⍬
-      0= ≢⍵: Ê brcÊ           
-        ch← ⊃⍵
+      0= ≢⍵: Ê brcÊ  
+    ⍝             breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
+      ×p← ⍵ Break breakCFChars: CF_Next p↓ ⍵⊣ CatCode p↑⍵          
+        ch← ⊃⍵  
       lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Scan 1↓⍵ ⊣ CatCode ch 
-        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← NSpan ⍵: CF_Next ⍵⊣ CatCode ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ CatCode '(⎕NS⍬)' }
+        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← ⍵ Span ' ': CF_Next ⍵⊣ CatCode ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ CatCode '(⎕NS⍬)' }
       lpC=  ch: ch NsCheck 1↓⍵
       sqC dqC∊⍨ ch: ch CF_StrMain 1↓⍵   ⍝  Str_Done 0 
-      spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) CatCode spC⊣ nSp← NSpan ⍵
+      spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) CatCode spC⊣ nSp← ⍵ Span ' '
                   ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
       escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
       omUC= ch:      (CF_Next _Omega)  1↓⍵
@@ -200,21 +209,33 @@
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    oC← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
-    cC← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
+    oCod← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
+    cCod← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
     libType← 0> ⊃⍺
     ⍝ libType← useLib{ 
-    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oC ⋄ ⎕SE.⍙.ⒸⒽⓃ←⍎cC ⋄ ⍵  
+    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oCod ⋄ ⎕SE.⍙.ⒸⒽⓃ←⍎cCod ⋄ ⍵  
     ⍝ } libType   
-    OVRcod← oC ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
-    CHNcod← cC ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
+    OVRcod← oCod ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
+    CHNcod← cCod ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
     BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
     FMTcod← ' ⎕FMT '
-  ⍝ strVectors: If 1, a string with `⋄ (newlines) is treated as a vector of character vectors.
-  ⍝             If 0, it is treated as an APL char vector with embedded CR (⎕UCS 13) chars.
-    opts2 strVectors←  (0 boxO) (-1= ⊃⍺ )
+    breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
+  ⍝ strVectors: See QtLines
+    opts2 strVectors←  (0 boxO) (⊃⍺)
     Executive fStr                      
-  }⍵
+  } ⍙ⓄⓂ 
+  
+
+  :IF 0= ⊃⍙ⒶⓁ  
+      ∆F← (⊃⎕RSI)⍎⍙ⓄⓂ
+  :ELSE 
+      ∆F← ⍙ⓄⓂ  
+  :ENDIF 
+  :RETURN 
+:ELSE 
+   ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+:ENDTRAP 
+:Return 
 
 ⍝ Help information follows (⍝H prefix)
 ⍝H ∆F Utility Function
@@ -418,4 +439,4 @@
 ⍝H   Try ¯2 ∆F ... to see pseudocode showing how your code is structured. Runtime defs are shown abridged.
 ⍝H   0 ∆F ... shows the actual code to be executed, with all runtime definitions spelled out in full!
 ⍝H
-}
+ 
