@@ -1,21 +1,48 @@
-﻿∆F←{
+﻿∆F⍙ⓄⓊⓉ← {∆F⍙ⒶⓁ } ∆F ∆F⍙ⓄⓂ
+⍝H 
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
-⍝! For documentation, 
-⍝!   see ⍝H comments below.
-⍝ ⍺ OPTIONS:  
-⍝   [mode←1 generate and execute] [box←0 don't box each item] [escCh←'`' escape char]
-  ⍺←1 0 '`'
-⍝ Fast Path: Make this ∆F call a nop?
-  0=≢⍺: 1 0⍴''                                                 
- 'help'≡⎕C⍺: ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⎕XSI  
-  0 1003/⍨ 1:: ⎕SIGNAL ⊂⎕DMX.(('EM',⍥⊂'∆F ',EM)('Message' Message),⊂'EN',⍥⊂ EN 999⊃⍨1000≤EN)
+⍝H     [opts] ∆F fmt_str
+⍝ 
+⍝H ⍺ OPTIONS:   modeO boxO escO 
+⍝H      modeO←1   1: generate and execute F-string formatting on argument ⍵
+⍝H                0: generate and return a "precompiled" F-string function ready
+⍝H                   for execution with user arguments. Useful where the F-string
+⍝H                   may be called repeatedly. 
+⍝H               ¯1: return a pseudo-code version of the formatted f-string, 
+⍝H                   with each field a separate (APL) string.
+⍝H               ¯2: as for modeO=¯1, returns a pseudo-code version, except 
+⍝H                   boxed (using dfn "disp") and with fields in table (⍪) form.
+⍝H      boxO←0    0: don't box each field, 
+⍝H                1: box each field on output 
+⍝H      escO←'`'  escape char; by default '`'.
+⍝H                Escape sequences include 
+⍝H                      `⋄ (newline), 
+⍝H                      `{ (literal left brace), 
+⍝H                      `⍵ (equiv. to ⍹): `⍵5 (or: ⍹5) selects (5⌷⍵) with implicit ⎕IO=0, and 
+⍝H                      `` (escape itself, useful just before a non-escaped left brace.
+⍝H                The escape represents itself when used otherwise.
+⍝H
+:IF 900⌶⍬ 
+    ∆F⍙ⒶⓁ← 1 0 '`'                       ⍝ Fast Path: Make this ∆F call a nop?  
+:ELSEIF 0=≢∆F⍙ⒶⓁ 
+    ∆F⍙ⓄⓊⓉ← 1 0⍴'' ⋄ :RETURN               ⍝ Default ⍺
+:ELSEIF 'help'≡⎕C ∆F⍙ⒶⓁ                  ⍝ Help...
+    ∆F⍙ⓄⓊⓉ← ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1 
+    :RETURN  
+:ENDIF 
+:TRAP 0    
 ⍝ ---------------------------
-  (⊃⍺) ((⊃⎕RSI){ ⍝ dyadic operator: ⍺=1 (mode 1): ⍵ will contain executable atom '⍵⍵'
+  ∆F⍙ⓄⓂ← (⊃∆F⍙ⒶⓁ) ((⊃⎕RSI){ 
 ⍝ STAGE II: Execute/Display code from Stage I
-      1=⍺:  ⍺⍺⍎ ⍵ ⋄ ¯2≠⍺: ⍵ ⋄ ⎕SE.Dyalog.Utils.disp ⍪⍵  
-      ∘∘unreachable∘∘ ⍵⍵                                       ⍝ Tell APL about ⍵⍵ for ⍺⍺⍎ ⍵ above
+      1=⍺: (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
+      0>⍺: ⎕SE.Dyalog.Utils.disp ⍪⍣(¯2=⍺)⊢ (⊂'⍙ⒷⓄⓍ '),¨⍣(⊃⌽⊃⍵)⊣¯1↓⊃⌽⍵ 
+        sig← '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))'
+        pre← '⋄{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵}',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
+        fstr← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃ ⍵⍵
+      0=⍺: ∊ '{', sig, pre, (∊⌽⊃⌽⍵), '}',fstr, ',⍥⊆⍵}'
+        ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
 ⍝ ---------------------------
-  }(⊆⍵))⍺{                                                     ⍝ ⊆⍵: original f-string
+  }(,⊆∆F⍙ⓄⓂ))∆F⍙ⒶⓁ{                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
@@ -26,221 +53,195 @@
     opt1Ê← ('Message' 'Invalid option (box)')        ('EN' 11) 
     opt2Ê← ('Message' 'Invalid option (escape char)')('EN' 11) 
     fStrÊ← ('Message' 'Invalid right arg (f-string)')('EN' 11) 
+    qStrÊ← ('Message' 'No closing quote found for string')('EN' 11)
+    brcÊ←  ('Message' 'No closing brace "}" found for code field')('EN' 11)
     logÊ←  ('EM'      'LOGIC ERROR: UNREACHABLE')    ('EN' 99) 
       
-  ⍝ ...Cod:  Two choices presented: Actual code (if modÔ≥0) and pseudo-code (otherwise).
-    chnCod←  '⊃,/((⌈/≢¨)↑¨⊢)⎕FMT' '⍙ⒸⒽⓃ'                       ⍝ ⍙ⒸⒽⓃ aligns & catenates arrays 
-    boxCod←  '∘⎕SE.Dyalog.Utils.display' '∘⍙ⒷⓄⓍ'               ⍝ ⍙ⒷⓄⓍ¨ calls dfns.display (boxÔ=1)
-  ⍝ ovrCod: See ovrÇ (%) and irt (include runtime code) logic  ⍝ ⍙ⓄⓋⓇ aligns, centers, & catenates arrays
-    ovrCod←  (⊂'⍙ⓄⓋⓇ←'),¨ '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄'  '{...}⋄' 
-  ⍝ ..Ç: Constants.
-  ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escÔ option.
-    spÇ sqÇ dqÇ eosÇ cmÇ clnÇ← ' ''"⋄⍝:'                     
-  ⍝ {   }   $    %    ⍵   ⍹    →                               ⍝2 Constants.
-    lbÇ rbÇ fmtÇ ovrÇ omÇ omUÇ raÇ← '{}$%⍵⍹→'                  
-    nlÇ← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
-    inQt inTF inCF← 0 1 2                                      ⍝ See ProcEscs. 
-⍝ ---------------------------
+  ⍝ ...Cod:  Two choices presented: Actual code (if modO≥0) and pseudo-code (otherwise).
+  ⍝ ..C: Constants.
+  ⍝ ␠   '   "   ⋄     ⍝  :                                     ⍝1 Constants. See also escO option.
+    spC sqC dqC eosC cmC clnC← ' ''"⋄⍝:'                     
+  ⍝ {   }   $    %    ↓   ⍵   ⍹    →                           ⍝2 Constants.
+    lbC rbC lpC rpC fmtC ovrC dnC omC omUC raC← '{}()$%↓⍵⍹→'                  
+    nlC← ⎕UCS 13                                               ⍝3 newline: carriage return [sic!]
+    sdArrows← '▶' '▼'                                          ⍝4 for self-documenting strings
 ⍝ SUPPORT FNS
-    Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"
-    String← (2>⍴∘⍴)∧(0=80|⎕DR)                                 ⍝ Scal-Vec and Char only 
- ⍝ Match, Non-match, Match Quoted String, etc.
-    Any←  ⊃∊      ⍝ Approx same perf. as  (∊⍨∘⊃)⍨              ⍝ Is (⊃⍺) ∊ ⍵?                                  ⍝ Is (⊃⍺) ∊    ⍵?
-    NotAny← ~Any                                               ⍝ Is (⊃⍺) (~∊) ⍵?
-    AnyQS←{       ⍝ Match (dbl- or single-)quoted string ⍵, with starting quote symbol ⊃⍵ 
-      ⍝ ⍵ NotAny sqÇ dqÇ:  Ê logÊ     ⍝ Be sure ((⊃⍵)∊sqÇ dqÇ) is confirmed in caller. 
-        qt← ⊃⍵
-        ''{
-          0=≢⍵: (QS2Cod ⍺) (Skip ⍵ )                         ⍝ → RETURN
-          qt∧.∊⍨ 2↑⍵: (⍺,qt) ∇ 2↓⍵                             ⍝ qt-qt? (internal quote char)
-          ⍵  Any qt:  (QS2Cod ⍺) (Skip 1↓⍵)                  ⍝ qt? → RETURN
-          ⍵ NotAny escÔ: (⍺, ⊃⍵)  ∇ 1↓⍵                        ⍝ Not escaped char? Process.
-            w← 1↓⍵
-          w  Any eosÇ: (⍺, nlÇ)  ∇ 1↓w                         ⍝ escÔ + ⋄
-          w  Any escÔ:  s ⍺ (∇ ProcEscs inQt) w                ⍝ escÔ + escÔ 
-            (⍺,⊃⍵)∇ w                                          ⍝ escÔ+ anything else
-        }1↓⍵
+    Ê← {⍎'⎕SIGNAL⊂⍵' }                                         ⍝ Error signalled in its own "capsule"    
+    Span←  +/∧\⍤∊      ⍝ { +/∧\⍺∊ ⍵}                           ⍝ How many leading ⍵ in ⍺?
+    Break← +/∧\⍤(~∊)   ⍝ { +/∧\⍺(~∊) ⍵}
+    EnQt←  { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                         ⍝ Put str in quotes by APL rules
+    QtLines←{
+        QtSp← ''''∘,,∘''' '
+      ⍺∊  0  1: QtSp ⍵
+      ⍺∊ ¯1 ¯2: QtSp '␍'@ (nlC∘=)⊢ ⍵  
+        Ê logÊ 
     }
-    AnyOmega← {                                                ⍝ Handle ⍹1, ⍹, `⍵1, `⍵1, etÇ.
-      ⍵ NotAny omUÇ omÇ: '' ⍵  ⋄ w← 1↓⍵                        ⍝ Not ⍹0 etc? Return ('' ⍵)
-      dig← w↑⍨ ⎕D Span w                                       ⍝ We're pointing right after ⍹/⍵ 
-      0=≢dig: ('⍵⊃⍨⎕IO+',⍕omIx) (Skip w     )  ⊣ omIx+← 1
-              ('⍵⊃⍨⎕IO+',⍕omIx) (Skip w↓⍨ ≢dig)⊣ omIx⊢← ⊃⌽⎕VFI dig  
+⍝   _ScanEsc_:    [ TF_Next | CF_Next | CFStr_Next ] ∇∇ [0 | 1 | 0] ⍵
+    _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
+      eosC= ch:          ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
+    ⍝  eosC= ch:         ⍺⍺ 1↓⍵ ⊣ isCF Cat sqC,spC,sqC 
+      escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵ ⊣ isCF Cat ch 
+      isCF∧ omC omUC∊⍨ ch: ⍺⍺ _Omega 1↓⍵       ⍝ ⍵⍵=1: Only valid with ⍺⍺ <=> CFStr_Next 
+        ⍺⍺ 1↓⍵⊣ isCF Cat escO, ch  
+    }  
+  ⍝ _Omega:   _Next _Omega ⍵ 
+    omCtr← 0 
+    _Omega←{ wx← '⍵⌷⍨⎕IO+'
+        nDig← ⍵ Span ⎕D 
+      0<nDig: ⍺⍺ nDig↓⍵⊣ CatCode '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
+        omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ CatCode '(',wx,')',⍨ ⍕omCtr        
     }
-    ProcEscs← { env← ⍵⍵    ⍝  env∊ inCf inQt inTF
-      ⍵ NotAny escÔ: Ê logÊ                                    ⍝ DEBUG ONLY
-      w← 1↓⍵                                                   ⍝ Skip past escÔ   
-      w Any eosÇ:    (⍺, nlÇ     )⍺⍺ 1↓w
-      w Any escÔ:    (⍺, ⊃⍵      )⍺⍺ 1↓w
-        e← escÔ/⍨ inQt=env 
-      w Any lbÇ rbÇ: (⍺, e, ⊃⍵   )⍺⍺ 1↓w 
-      inCF≠env:      (⍺, escÔ, ⊃⍵)⍺⍺ 1↓w                       ⍝ inSF, inQt? → RETURN
-          o w← AnyOmega w                                      ⍝ ↓↓↓ inCF only
-      ×≢o:           (⍺, Par o   )⍺⍺ w      
-                     (⍺, escÔ, ⊃⍵)⍺⍺ 1↓w                                          
-    } 
-  ⍝ Miscellaneous
-    Par← '(',,∘')'
-    Trunc←  { ⍺←50 ⋄ ⍺≥≢⍵: ⍵ ⋄ '...',⍨⍵↑⍨0⌈⍺-4 }               ⍝ For DEBUG modes.
-    T2QS← { sqÇ, sqÇ,⍨ ⍵/⍨ 1+sqÇ= ⍵ }                          ⍝ Text to Executable Quote String 
-    QS2Cod←{                                                   ⍝ Outputs ⎕ML-independent code
-        r← ⎕FMT r/⍨ 1+sqÇ= r←⍵                                 ⍝ Handles embedded SQs and newlines
-      1=≢r: spÇ,sqÇ,(∊r),sqÇ,spÇ                               ⍝   Single row (i.e. no newlines)
-        Par (sqÇ,sqÇ,⍨∊r),'⍴⍨', ⍕⍴r                            ⍝   Multiple rows. Add SQs...
+
+  ⍝ "Global" accumulators for output fields
+    fldsG fldG substrG selfdocG substrActive← ⍬ '' '' '' 1
+  ⍝ Managing output fldsG
+    CatText← { ⍺←⍵ ⋄ substrG,← ⍵ ⋄  substrActive⊢← 1 ⋄ ⍬  }
+    CatCode← { ⍺←⍵ ⋄ selfdocG fldG,← ⍺ ⍵ ⋄ ⍬  }
+    Cat←     { ⍺: CatCode ⍵ ⋄ CatText ⍵ }
+  ⍝ Code Field Done
+    CF_End← { 
+        _← Str_End 0 
+      0=≢fldG: ⍬
+        fldsG,← ⊂'({',fldG, '⍵)'
+        ⍬⊣ Fld_Clr⍬
     }
-⍝ Brk: Break past chars <s>, 0 or more leading chars NOT in ⍵, 
-⍝      returning:   (s ,  <rest of str>)
-⍝      If ALL leading chars are in ⍺, return (⍵ ''); if none, return ('' ⍵). 
-    Brk← { 0=p← +/∧\ ~⍵∊ ⍺: '' ⍵ ⋄ ( p↑⍵ ) (p↓⍵) }
-    Span← { ⍺←spÇ ⋄ +/∧\ ⍵∊ ⍺ }                                ⍝ Count of leading <⍺> chars in ⍵
-⍝ Skip__: Skip (and ignore) leading char, chars, or patterns.  ⍝ Skip leading...
-    Skip← Span↓⊢                                               ⍝ Skip: {⍵↓⍨ Span ⍵}
-    SkipColSp← (clnÇ,spÇ)∘Skip                                 ⍝ ... runs of (clnÇ spÇ)
-    SkipCm← {                                                  ⍝ ... '⍝' and subseq. comment
-        cmÇ≠⊃⍵: ⍵ 
-        {
-          0=≢⍵: ⍵                                              ⍝ → RETURN
-          ⍵ Any rbÇ eosÇ: ⍵                                    ⍝ → RETURN
-          ⍵ NotAny escÔ: ∇ 1↓⍵
-            w← 1↓⍵                                             ⍝ Check 1 past escÔ
-          w Any rbÇ eosÇ: ∇ 1↓w                                ⍝ Ignore rbÇ|eosÇ after escÔ 
-            ∇ w                                                ⍝ Keep other char after escÔ  
-        }1↓⍵
+  ⍝ Text Field Done
+    TF_End←{ 
+        _← Str_End⍬
+      0=≢fldG: ⍬ 
+        fldsG,← ⊂fldG
+        ⍬⊣ Fld_Clr⍬
     }
+    SF_End← TF_End 
+
+  ⍝ A quoted substr ("...") of a Code Field or an entire Text Field string
+  ⍝ strVectors:   See QtLines
+    strVectors←1  ⍝  1:  "ab`⋄cd" => "(↑'ab' 'cd')
+                  ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
+    Str_End←{  
+        ~substrActive: ⍬ ⋄ substrActive⊢← 0
+        fldG,← strVectors QtLines substrG
+        ⍬⊣ substrG⊢← ⍬
+    }
+    Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
+⍝ Main Processing...
+⍝ T_: Text Fields (default):   '...'
+    TF_Next←{
+        0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
+      ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
+        ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatText p↑⍵ 
+          ch← ⊃⍵ 
+        escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
+        lbC = ch: CF_SF_Start 1↓⍵⊣ TF_End⍬ 
+        TF_Next 1↓⍵⊣ CatText ch 
+    }
+    Executive← TF_Next 
+  ⍝ CF_SF_: Code or Space fields  { code }  or {  } 
+    CF_SF_Start←{
+        isSpF← rbC= 1↑ ⍵↓⍨ nSp←⍵ Span ' '  
+      isSpF∧ nSp=0: TF_Next 1↓⍵                                            ⍝ {}
+      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_End CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
+        1 CF_Start ⍵                                                       ⍝ { code }
+    }
+  ⍝ CF_: Code Fields { code }
+    CF_Start←{
+      ⍝ CFStr_Start: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
+        CFStr_Start←{   
+          CFStr_Next← ⍺∘{  
+              CFStr_MyQt← { ch← ⊃⍵
+                ch≠ myQt: CF_Next ⍵⊣ Str_End⍬
+                  CFStr_Next 1↓⍵⊣ CatText ch⍴⍨1+ch=sqC 
+              }
+              0= ≢⍵: Ê qStrÊ
+            ×p←  ⍵ Break ⍺ sqC escO: CFStr_Next p↓ ⍵⊣ CatText p↑⍵ 
+              myQt← ⍺ ⋄ ch← ⊃⍵   
+            ch= myQt: CFStr_MyQt 1↓⍵
+            ch= sqC:  CFStr_Next 1↓⍵⊣ CatText 2⍴ ch 
+                  ⍝   Escapes within code strings `⋄ `` `{ `}
+            ch=escO:  (CFStr_Next _ScanEsc_ 0) 1↓⍵ 
+              Ê logÊ    ⍝ CFStr_Next 1↓⍵⊣ CatText ch 
+          } ⍝ CFStr_Next
+          1 0≡⍺=2↑⍵: CF_Next 1↓⍵⊣ CatCode ''''' ' ⋄ CFStr_Next ⍵
+        } ⍝ CFStr_Start
+      ⍝ _Omega: Code Omega Sequence (only outside quotes)  ⍹[ddd]? `⍵[ddd]? `⍹[ddd]?
+      ⍝ See _Omega above 
+      ⍝ CF_SelfDoc: Code Self-documenting expressions; { ... →} and { ... %} plus { ... ↓}.
+        CF_SelfDoc← { brLvl ch←⍺ 
+            isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← ⍵ Span ' '
+            (⊃opts2)∨← o← ch≠ raC 
+          isInfx: CF_Next ⍵⊣ ch CatCode (ch OVRcod⊃⍨ ch= ovrC) 
+            _← Str_End 0 
+            selfdocG,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
+            f← ⊂'(',(o⊃ CHNcod ''),(EnQt selfdocG),(o⊃'' OVRcod ),'({',fldG,'}⍵))' 
+            TF_Next ⍵↓⍨ nSp+1⊣ fldsG,← f⊣ Fld_Clr ⍬ 
+        }
+
+      ⍝ CF_Start Executive  
+        CF_Next← ⍺∘CF_Start 
+      ⍺≤0: TF_Next ⍵⊣ CF_End⍬
+      0= ≢⍵: Ê brcÊ  
+    ⍝             breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
+      ×p← ⍵ Break breakCFChars: CF_Next p↓ ⍵⊣ CatCode p↑⍵          
+        ch← ⊃⍵  
+      lbC rbC∊⍨ ch: (⍺+-/ch= lbC rbC) CF_Start 1↓⍵ ⊣ CatCode ch 
+        NsCheck←{ rpC≠ ⊃⍵↓⍨ nSp← ⍵ Span ' ': CF_Next ⍵⊣ CatCode ⍺ ⋄ CF_Next ⍵↓⍨ nSp+1⊣ CatCode '(⎕NS⍬)' }
+      lpC=  ch: ch NsCheck 1↓⍵
+      sqC dqC∊⍨ ch: ch CFStr_Start 1↓⍵   ⍝  Str_End 0 
+      spC=  ch:      CF_Next nSp↓⍵⊣ (nSp↑⍵) CatCode spC⊣ nSp← ⍵ Span ' '
+                  ⍝  Code Escape Sequence  `` `{ `} `⍵[ddd]? `⍹[ddd]?
+      escO= ch:      (CF_Next _ScanEsc_ 1) 1↓⍵ 
+      omUC= ch:      (CF_Next _Omega)  1↓⍵
+      fmtC∧.= 2↑⍵:   CF_Next 2↓⍵ ⊣ ch ch CatCode BOXcod
+      fmtC= ch:      CF_Next 1↓⍵ ⊣ ch    CatCode FMTcod
+      raC ovrC dnC∊⍨ ch: ⍺ ch CF_SelfDoc 1↓⍵                 ⍝ → % ↓
+                     Ê logÊ  ⍝ CF_Next 1↓⍵ ⊣ CatCode ch 
+    } ⍝ End CF_Start
+    
 ⍝ ---------------------------
-⍝ Major Field Fns: TF, CF, and SF 
-  ⍝ TF: Text Fields   
-  ⍝     Returns: (code rest)
-    TF← {                                                      ⍝ TF: Text Fields
-      0=≢⍵: ''
-      FastBrk← lbÇ escÔ ∘Brk                                             
-      tf w← ''{
-        0=≢⍵: ⍺ ⍵
-        ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                       ⍝ Fast process chars not matched below.
-        ⍵ Any lbÇ:   ⍺ ⍵
-        ⍵ Any escÔ:  ⍺ (∇ ProcEscs inTF) ⍵  
-           Ê logÊ     
-      } ⍵
-      (QS2Cod tf) w
-    } ⍝ End TF
-  ⍝ CF: Code Fields
-  ⍝     Returns: (code rest)
-    CF← {                                                      ⍝ CF: Code Fields
-      sdStr sdOvr← '' 0                                        ⍝ See also, sdOff← 1
-      0=≢⍵: '' ⍵ 
-      FastBrk← lbÇ rbÇ sqÇ dqÇ escÔ fmtÇ ovrÇ omUÇ cmÇ raÇ ∘Brk ⍝ Proc as much of ⍵ not matched.          
-      brcLvl← 1                                                ⍝ Brace {} depth
-      r w←'{'{
-          0=≢⍵: ⍺ ⍵                                            ⍝ Terminate. Missing closing brace? APL handles
-          ⍵ Any spÇ: (⍺, p↑⍵) ∇ ⍵↓⍨ p← Span ⍵                  ⍝ This is for aesthetics only...
-          ×≢t⊣ t w← FastBrk ⍵ : (⍺, t) ∇ w                     ⍝ Fast process chars not matched below
-  
-          ⍵ Any lbÇ: (⍺, ⊃⍵) ∇ 1↓⍵ ⊣ brcLvl+← 1 
-          ⍵ Any rbÇ: ⍺ ∇{ brcLvl-← 1  
-            brcLvl≤0: (⍺, ⊃⍵) (1↓⍵)                            ⍝ Terminate! 
-            (⍺, ⊃⍵) ⍺⍺ (1↓⍵)                     
-          } ⍵
-          ⍵ Any sqÇ dqÇ: (⍺, q) ∇ w⊣ q w← AnyQS ⍵
-          ⍵ Any escÔ:     ⍺ (∇ ProcEscs inCF) ⍵   
-          ⍵ Any fmtÇ:    (⍺,' ⎕FMT '↓⍨spÇ=⊃⌽⍺) ∇ Skip 1↓⍵
-        ⍝ {...%} Self-documenting code expressions (VERTICAL SELF-DOC EXPR '%')
-          ⍵ Any ovrÇ:    ⍺ ∇ {
-            suf← ⍵↓⍨ 1+ p← Span 1↓⍵
-          suf NotAny rbÇ cmÇ: (⍺,' ⍙ⓄⓋⓇ '↓⍨spÇ=⊃⌽⍺ ) ⍺⍺ suf ⊣ irt∘← 1  ⍝ Skip 1↓⍵
-            sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ 
-            sdOvr⊢← 1 
-            ((1↑⍺),(Skip 1↓⍺)) ⍺⍺ suf
-          } ⍵ 
-        ⍝ {...→} Self-documenting code expressions (HORIZONTAL SELF-DOC EXPR '→')
-          ⍵ Any raÇ:      ⍺ ∇ {  
-            suf← ⍵↓⍨ 1+ p← Span 1↓⍵
-            suf NotAny rbÇ cmÇ: Ê fStrÊ
-              sdStr⊢← T2QS (1↓⍺), (⊃⍵), p⍴ spÇ                                          
-             ((1↑⍺),(Skip 1↓⍺)) ⍺⍺ suf
-          } ⍵  
-          ⍵ Any cmÇ: ⍺ ∇ SkipCm ⍵ 
-          o w← AnyOmega ⍵       
-          ×≢o : (⍺, Par o ) ∇ w  
-            Ê logÊ    
-      } Skip⍣0⊢ 1↓⍵            ⍝ ⍣0 - ignore Skip for aesthetic reasons.
-      0= ≢sdStr:   (Par r, '⍵') w   
-      sdOvr: (Par sdStr, '⍙ⓄⓋⓇ', (Par r, '⍵')  ) w ⊣ irt∨← sdOvr 
-             ((Par r, '⍵'), spÇ, sdStr          ) w ⊣ sdOff⊢← 0  
-    } ⍝ End CF
-  ⍝ SF: Space Fields
-  ⍝ Returns:  (isSF code rest).
-  ⍝ If ~isSF, then by definition a code field (CF), possibly one with syntactic errors.
-  ⍝
-  ⍝   F0: `?⍵ddd | ⍹ddd | ⍹  | ddd | '    '
-  ⍝   F1:    ddd |  ddd | '' | ddd | '    '    
-  ⍝    isSF:   1 if ⍵ starts a Space Field   |  0 otherwise: if 0, ⍵ starts a Code Field.
-  ⍝    code:   code for Space Field          |  ''
-  ⍝    rest:   text after Space Field        |  ⍵
-    ⋄ sCod← sqÇ,sqÇ,'⍴⍨' 
-    ⋄ spMax← 5                                                 ⍝ If >spMax spaces, generate at run-time  
-    ⋄ Skip2EOS← { w Any rbÇ ⊣ w← SkipColSp ⍵: 1↓w ⋄ Ê fStrÊ } 
-    ⋄ SCommon← { ⍝ ⍺: length of space field (≥0)
-            ⍺= 0:     1 '' (Skip2EOS ⍵)                        ⍝ If 0-len SF, field => null.
-            ⍺≤ spMax: 1 s  (Skip2EOS ⍵) ⊣ s← Par (','/⍨ boxÔ∧1=⍺), sqÇ,sqÇ,⍨ ⍺⍴ spÇ
-                      1 s  (Skip2EOS ⍵) ⊣ s← Par sCod, ⍕⍺ 
-      }
-    SF← {          
-        isCF ← 0 '' ⍵
-        w← ⍵↓⍨ 1+ p←   Span 1↓⍵                                ⍝ Grab leading blanks
-      w  Any rbÇ:       p SCommon w                            ⍝ Fast path: {}
-      w NotAny clnÇ:  isCF                                     ⍝ Not { } or { :...[:] }? See if CF
-        w← SkipColSp 1↓w 
-      w  Any rbÇ:       0 SCommon w                            ⍝ Allow degenerate { : } { :: }                                      
-        o w← AnyOmega w↓⍨e← w Any escÔ                         ⍝ escÔ ⍵ <==> ⍵
-      ×≢o:             1 (Par sCod, o) (Skip2EOS w)    
-      e:               isCF           
-        ok num← ⎕VFI w↑⍨ p←⎕D Span w 
-      1≢⍥, ok:         isCF                                    ⍝ Not exactly 1 valid number
-        w← SkipColSp p↓ w 
-      w Any rbÇ:        num SCommon w 
-                       isCF                
-    } ⍝ End SF
-⍝ ---------------------------
-⍝ Primary Executive Fns:  Analyse, Assemble 
-    Analyse← {                                                 ⍝ Convert <fStr> to executable fields
-      ×≢ff←⍬{  
-        0=≢⍵: '⊂'{⊂⍺,⊃⍵}⍣ (sdOff∧1=≢⍺)⊢ ⍺                      ⍝ Done: →RETURN field (enclosed str.)
-              isTF← ⍵ NotAny lbÇ                                ⍝ TF?
-        isTF: w ∇⍨ ⍺, ⊂⍣(×≢tf)⊢ tf ⊣tf w← TF ⍵                 ⍝ Is TF. Proc TF and next
-              isSF sf w←SF ⍵                                   ⍝ SF? Else CF.
-        isSF: w ∇⍨ ⍺, ⊂⍣(×≢sf)⊢sf                              ⍝ Is SF. Proc SF and next
-              w ∇⍨ ⍺, ⊂⍣(×≢cf)⊢cf ⊣ cf w← CF ⍵                 ⍝ Is CF. Proc CF and next
-      }fStr: ⌽ff ⋄ ⊂'⊂⍬'                                       ⍝ Handle 0 fields (edge case)
-    }
-    Assemble← {                                                ⍝ Assemble code + needed defs 
-          pfx← '¨⌽',⍨ ∊ irt 1 boxÔ/ ovrCod chnCod boxCod ⊃⍨¨ modÔ<0 
-      1=modÔ: '{',  pfx, (∊⍵), '}⍵⍵'
-      0=modÔ: '{{', pfx, (∊⍵), '}', (T2QS fStr),',⍥⊆⍵}'
-          (⊂'{{', pfx),  ⍵, ⊂'}', (T2QS 25∘Trunc fStr),',⍥⊆⍵}⍵'
-    } 
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN: 
 ⍝   Options and Variables (non-constants)
-      (modÔ boxÔ) escÔ←(2↑⍺)(⊃'`',⍨2↓⍺)                        ⍝ Set/validate options 
+      (modO boxO) escO←(2↑⍺)(⊃'`',⍨2↓⍺)                        ⍝ Set/validate options 
       fStr←⊃⊆⍵                                                 ⍝ fStr: The format string (⍹0)
-    ~String fStr:      Ê fStrÊ                                 ⍝       Must be simple char vec/scalars 
-    modÔ(~∊) ¯2 ¯1 0 1: Ê opt0Ê                               
-    boxÔ(~∊) 0 1:       Ê opt1Ê
-    escÔ∊ lbÇ spÇ cmÇ:     Ê opt2Ê                                ⍝ Invalid escape char?  
-      irt←0                                                    ⍝ irt: include runtime code? See CF
-      omIx←0                                                   ⍝ omIx: omega index. See AnyOmega 
-      sdOff←1                                                  ⍝ See self-documenting code expressions
+    ((2>⍴∘⍴)⍱(0=80|⎕DR))fStr: Ê fStrÊ                          ⍝       Must be simple char vec/scalars 
+    modO(~∊) ¯2 ¯1 0 1:       Ê opt0Ê                               
+    boxO(~∊) 0 1:             Ê opt1Ê   
+    escO∊ lbC spC cmC:        Ê opt2Ê                          ⍝ Invalid escape char?  
 ⍝ ---------------------------
 ⍝⍝⍝ MAIN:
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    Assemble Analyse ⍬                                     
-  }⍵
+    oCod← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
+    cCod← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
+    libType← 0> ⊃⍺
+    ⍝ libType← useLib{ 
+    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oCod ⋄ ⎕SE.⍙.ⒸⒽⓃ←⍎cCod ⋄ ⍵  
+    ⍝ } libType   
+    OVRcod← oCod ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
+    CHNcod← cCod ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
+    BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
+    FMTcod← ' ⎕FMT '
+    breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
+  ⍝ strVectors: See QtLines
+    opts2 strVectors←  (0 boxO) (⊃⍺)
+    Executive fStr                      
+  } ∆F⍙ⓄⓂ 
+  
+  :IF 0≠ ⊃∆F⍙ⒶⓁ  
+      ∆F⍙ⓄⓊⓉ← ∆F⍙ⓄⓂ  
+  :ELSE 
+      ∆F⍙ⓄⓊⓉ← ∆F⍙ⓄⓂ⍎⍨ ⊃⎕RSI 
+  :ENDIF 
+:ELSE 
+   ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊆¨ ('∆F ',EM) (EN 999⊃⍨1000≤EN) Message )
+:ENDTRAP 
+:Return 
+
 ⍝ Help information follows (⍝H prefix)
 ⍝H ∆F Utility Function
 ⍝H ∆F Utility Function
 ⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
 ⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
-⍝H    titles, and more. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
+⍝H    titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
 ⍝H    display of vector and multidimensional objects using building blocks (like ⎕FMT) that already exist
 ⍝H    in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
 ⍝H Quick example:
@@ -259,17 +260,19 @@
 ⍝H     ⍺← 1 0 '`'   = mode box escCh
 ⍝H        mode:  1= generate code, execute, and display result [default].
 ⍝H                  Fields are executed left to right, as if APL statements separated by ⋄.
-⍝H               0= emit code you can execute or convert to a dfn via ⍎, e.g. dfn←⍎0 ∆F '...'. 
+⍝H               0= emit a dfn that will format output identical to mode=1, 
+⍝H                  "precompiled" based on the f-string presented;
+⍝H                  fields will be executed from left to right to fit ∆F syntax; 
 ⍝H              ¯1= generate pseudo code right-to-left with each field a separate character vector.
 ⍝H                  (For pedagogical or debugging purposes).
 ⍝H              ¯2= same as for mode=¯1, except displaying fields boxed in table (⍪) form.
 ⍝H                  (For pedagogical or debugging purposes).
 ⍝H                  Tip: Use ¯2 ∆F "..." to see the code generated for the fields you specify.
-⍝H              Note for modes 0, ¯1, ¯2: 
-⍝H                 L-to-R code fields appear in reverse order (right-to-left),
-⍝H                 but will always display left-to-right (i.e., in modes 0 1).
+⍝H              Note: For mode=0, the fields will be generated and executed in reverse order,
+⍝H                 but displayed in left-to-right order consistent with ∆F syntax
+⍝H                 as if separate fields were statements of a Dyalog dfn separated by ⋄.
 ⍝H        -------
-⍝H        box:   1= display each field in a box ("display" from dfns).
+⍝H        box:   1= display each field in a box ("disp" from dfns).
 ⍝H               0= display each field as is [default].
 ⍝H        -------
 ⍝H        escCh: escape character, used to ensure or suppress special behavior.
@@ -286,11 +289,11 @@
 ⍝H         'help': shows this help information.
 ⍝H        -------
 ⍝H    Returns: Per mode above (see mode)
-⍝H       [1]  A matrix.
-⍝H       [0]  A char vector (executable)
-⍝H       [¯1] vector of char. vectors
-⍝H       [¯2] A matrix (raveled, box vector of char. vectors)
-⍝H    or, if ⍺≡⍬:
+⍝H       [ 1]  A (possibly one-line or 0-line) matrix.
+⍝H       [ 0]  A dfn expecting a right argument of 0 or more objects. 
+⍝H       [¯1]  vector of char. vectors
+⍝H       [¯2]  A matrix (raveled, box vector of char. vectors)
+⍝H    or, if ⍺≡⍬, returns:
 ⍝H       1 0⍴''
 ⍝H
 ⍝H The f-string
@@ -298,7 +301,7 @@
 ⍝H   which are executed as if separate statements (the left-most field "executed" first)
 ⍝H   and assembled into a single matrix (with fields displayed left-to-right, top-aligned, 
 ⍝H   and padded with blank rows as required). 
-⍝H ○ The f-string is available to Code Fields (below) verbatim as (0⌷⍵), 
+⍝H ○ The f-string is available to Code Fields (below) selfdocG as (0⌷⍵), 
 ⍝H   or the shortcut" variable ⍹0 or, equivalently, `⍵0. See Omega Expressions below.
 ⍝H
 ⍝H There are 3 types of fields generated: 
@@ -337,31 +340,31 @@
 ⍝H ⍎               ∆F '{ "This is" % " a cat" % " ¯ ¯¯¯" }'
 ⍝H     c. Self-Documenting Code Expressions
 ⍝H      1.Horizontal Self-Documenting Expressions
-⍝H        { code → }    OR   { code → ⍝ cm }
-⍝H             If a code expression {...} ends with a right arrow (→) preceded and/or followed by
-⍝H             0 or more spaces (and an optional comment), it is treated as a horizontal 
-⍝H             self-documenting code expression.
+⍝H        { code → }      ==>     'code' ▶ executed_code
+⍝H             If a code expression {...} ends with a right arrow (→),
+⍝H             possibly followed by spaces, it is treated as a horizontal 
+⍝H             self-documenting code expression. 
+⍝H             ∘ All spaces before and after the right arrow are significant!
 ⍝H             That is, its value (on execution) will be preceded by the text of the code
-⍝H             expression. That text will be followed by that same right arrow and spaces
+⍝H             expression. That text will be followed by a special right arrow (▶) and spaces
 ⍝H             as input:
 ⍝H ⍎               ∆F '1. {⍪⍳2→}, 2. {⍪⍳2 → }.'
-⍝H ⎕           1. ⍪⍳2→0, 2. ⍪⍳2 → 0. 
+⍝H ⎕           1. ⍪⍳2▶0, 2. ⍪⍳2 ▶ 0. 
 ⍝H ⎕                  1           1 
 ⍝H        2.Vertical Self-Documenting Expressions
-⍝H          { code % }    OR   { code % ⍝ cm }
-⍝H             If a code expression {...} ends with a pct sign (%) preceded and/or followed by
-⍝H             0 or more spaces (and optional comment), it is treated as a vertical 
+⍝H          { code % }    OR   { code ↓ }    ==>   'code'  ▼
+⍝∆                                                executed_code
+⍝H             If a code expression {...} ends with a pct sign (%) or down arrow (↓)
+⍝H             (possibly followed by spaces), it is treated as a vertical 
 ⍝H             self-documenting code expression.
+⍝H           ∘ All spaces before and after the right arrow are significant!
 ⍝H             That is, the text of the code expression will be placed above the value of the
-⍝H             executed code as a "title". The title text will include that same 
-⍝H             percent sign and any preceding or following spaces:
+⍝H             executed code as a "title". A special down arrow (▼) is used within
+⍝H             the self-documenting expression on output.    
 ⍝H ⍎              ∆F '1. {⍪⍳2%}, 2. {⍪⍳2 % }.'
-⍝H ⎕           1. ⍪⍳2%, 2. ⍪⍳2 % .
+⍝H ⎕           1. ⍪⍳2▼, 2. ⍪⍳2 ▼ .
 ⍝H ⎕               0         0    
 ⍝H ⎕               1         1 
-⍝H         Bugs/Features: Self-doc code expressions show the code as it will be executed, so
-⍝H           double-quotes, shortcuts (see below) will already be resolved.
-⍝H           Comments are not displayed as part of self-documenting code expressions.
 ⍝H         Compare Python self-documenting expressions {...=}
 ⍝H     d. Shortcuts (prefixes or infixes [monadic or dyadic pseudo-fns]): 
 ⍝H          $  $ is equiv. to ⎕FMT. For sanity, use with a left argument in double quotes:
@@ -378,22 +381,16 @@
 ⍝H ⎕           0.107371                          ⍝ ⎕DL 0.1                        
 ⍝H ⎕                   0.204216                  ⍝ ⎕DL 0.2   
 ⍝H ⎕                           0.300909          ⍝ ⎕DL 0.3
-⍝H         ∘ See also the use of → and % as suffixes for Self-Documenting Code (above)>
-⍝H      e. Limited comments in Code Fields: 
-⍝H         ∘ Comments in code fields may consist of any characters besides (unescaped)
-⍝H            } or ⋄.
-⍝H         ∘ Escaped chars `}, `⋄ (and anything else) are allowed (and safely ignored).
-⍝H         ∘ A comment field is terminated just before these (unescaped) characters:
-⍝H           } or ⋄.  ( '{' is not special within a comment. )
-⍝H         ∘ A simple escape character is ok in a comment clause (see 2 prior bullets).
-⍝H         Example:
-⍝H ⍎             ∆F '{ ⍹1 × ○2 ⍝ ⍹1 is r in 2×pi×r }' 5
-⍝H ⎕        31.41592654       
+⍝H         ∘ See also the use of → and % as suffixes for Self-Documenting Code (above)>    
 ⍝H 
 ⍝H 2. Space Fields (SF)  
-⍝H                {}, {   }, { :5: }, { :⍹1: } { :⍹: }, or aliases { :`⍵1: } { :`⍵: }  
-⍝H     # spaces   0     3       5       1⊃⍵     next ⍵                1⊃⍵     next ⍵    
-⍝H    a. SF By Example: a brace with 0 or more blanks, representing the # of blanks on output.
+⍝H                {}, {   } 
+⍝H     # spaces   0     3       
+⍝H    Space fields consist of a left brace, 0 or more spaces, followed by a right brace.
+⍝H    The number of spaces will be displayed on output.
+⍝H    ∘ Space fields have the intended side effect of ending any prior text field.
+⍝H    ∘ A null field, a space field with no included spaces, is used to end a prior text 
+⍝H      field w/o introducing any spaces into the output. 
 ⍝H       a1. Braces with 1 or more blanks separate other fields.
 ⍝H           1 blank: { }, 2 blanks: {  }, etc.
 ⍝H       a2. Null Fields: brace with 0 blanks is a Null Space Field, useful for separating OTHER fields.
@@ -401,17 +398,6 @@
 ⍝H ⍎           ∆F 'a`⋄cow{}a`⋄bell'            ∆F 'a`⋄cow{ }a`⋄bell'
 ⍝H ⎕        a  a                            a   a
 ⍝H ⎕        cowbell                         cow bell
-⍝H    b. By Number: a number between colons (the trailing colon is optional) indicates the # of blanks on output.
-⍝H          { :5: }    <== 5 blanks on output!
-⍝H    c. By ⍹-Expression: an expression ⍹2 between colons (:⍹2:) means
-⍝H          take the value of (⎕IO+2⊃⍵) as the # of blanks on output.
-⍝H       An expression of simple ⍹ between colons (:⍹:) means: 
-⍝H          increase the index of the last ⍵ expression to the left (or (⎕IO+1⊃⍨⍵) as the # of blanks on output.
-⍝H       These parenthesized expressions are the same in this context:
-⍝H ⍎            a b c← (∆F'{:5:}') (∆F'{:⍹1:}' 5) (∆F'{:`⍵1:}' 5)
-⍝H ⍎            (a≡b)∧(b≡c)
-⍝H ⎕         1
-⍝H     ∘ Comments are NOT allowed in space fields.
 ⍝H     ∘ Self-documenting Space Fields do NOT exist.
 ⍝H 
 ⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char).
@@ -431,11 +417,4 @@
 ⍝H For help, execute                                             
 ⍝H   ∆F⍨'help' ... or see ⍝H "HELP" comments at the bottom of function ∆F.
 ⍝H 
-⍝H Note: fields are not actually evaluated separately, but within a single code string.
-⍝H   In practice, this means fields are generated right to left, formatted individually, and then
-⍝H   "glued" together in reverse order, so the results appears left-to-right as expected!
-⍝H   Try ¯2 ∆F ... to see pseudocode showing how your code is structured. Runtime defs are shown abridged.
-⍝H   0 ∆F ... shows the actual code to be executed, with all runtime definitions spelled out in full!
-⍝H
-
-}
+ 
