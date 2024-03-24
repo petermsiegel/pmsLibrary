@@ -3,13 +3,14 @@
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
 ⍝H     [opts← 1 0 '`' ] ∆F fmt_str
 ⍝ 
-⍝ Uses outermost tradfn to allow for returning an active dfn, given option 0.
-⍝ Be sure the outer tradfn is ⎕ML and ⎕IO independent (watch ⌷, ⊃)
-:IF 900⌶⍬ 
-    ∆F⍙ⒶⓁ← 1 0 '`'                       ⍝ Fast Path: Make this ∆F call a nop?  
-:ELSEIF 0=≢∆F⍙ⒶⓁ 
-    ∆F⍙ⓄⓊⓉ← 1 0⍴'' ⋄ :RETURN             ⍝ Default ⍺
-:ELSEIF 'help'≡⎕C ∆F⍙ⒶⓁ                  ⍝ Help...
+⍝ ∘ Uses outermost tradfn to allow for returning an active dfn, given option 0.
+⍝ ∘ Be sure the outer tradfn is ⎕ML and ⎕IO independent (watch ⌷, ⊃) 
+⍝   and has no visible local variables for (1=⊃⍺)
+:IF 900⌶⍬                                ⍝ Default ⍺
+    ∆F⍙ⒶⓁ← 1 0 '`'
+:ELSEIF 0=≢∆F⍙ⒶⓁ                         ⍝ ⍬ ∆F... ==> fast return "nop"
+    ∆F⍙ⓄⓊⓉ← 1 0⍴'' ⋄ :RETURN 
+:ELSEIF 'help'≡⎕C ∆F⍙ⒶⓁ                  ⍝ help...
     ∆F⍙ⓄⓊⓉ← ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍬⍴⍵⎕XSI  
     :RETURN  
 :ENDIF 
@@ -23,11 +24,11 @@
 ⍝     ⊃⌽⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors (strings)   
        bxO outFlds←⍵ 
       0>⍺:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=⍺)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ bxO⊣ ¯1↓ outFlds 
-        postC← '{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵}',⍨ bxO/'∘⎕SE.Dyalog.Utils.display' 
-      1=⍺:  postC, '}⍵',⍨ ∊⌽ outFlds   
-        runtmC←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
-        fmtInQts← { s,s,⍨ ⍵/⍨ 1+⍵= s←''''} ⊃⍺⍺
-      0=⍺: '{', runtmC, postC, (∊⌽ outFlds), '}', fmtInQts, ',⍥⊆⍵}'
+        showCd← '{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵}',⍨ bxO/'∘⎕SE.Dyalog.Utils.display' 
+      1=⍺:  showCd, '}⍵',⍨ ∊⌽ outFlds   
+        errCd←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
+        fmtStr← { s,s,⍨ ⍵/⍨ 1+⍵= s←''''} ⊃⍺⍺
+      0=⍺: '{', errCd, showCd, (∊⌽ outFlds), '}', fmtStr, ',⍥⊆⍵}'
         'LOGIC ERROR' ⎕SIGNAL 911          
 ⍝ ---------------------------
   })∆F⍙ⒶⓁ{                                                     ⍝ ⊆⍵: original f-string
@@ -58,12 +59,8 @@
     Span←  +/∧\⍤∊      ⍝ { +/∧\⍺∊ ⍵}                           ⍝ How many leading ⍵ in ⍺?
     Break← +/∧\⍤(~∊)   ⍝ { +/∧\⍺(~∊) ⍵}
     EnQt←  { sqC,sqC,⍨ ⍵/⍨ 1+ sqC= ⍵ }                         ⍝ Put str in quotes by APL rules
-    QtLines←{
-        QtSp← ''''∘,,∘''' '
-      ⍺∊  0  1: QtSp ⍵
-      ⍺∊ ¯1 ¯2: QtSp '␍'@ (nlC∘=)⊢ ⍵  
-        Ê logÊ 
-    }
+    QtSp←  ''''∘,,∘''' '
+    QtLines← { ⍺: QtSp ⍵ ⋄ QtSp '␍'@ (nlC∘=)⊢ ⍵ }
 ⍝   _ScanEsc_:    [ TF_Next | CF_Next | CFStr_Next ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
       isCF< eosC= ch: ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
@@ -103,20 +100,20 @@
     SF_End← TF_End 
 
   ⍝ A quoted substr ("...") of a Code Field or an entire Text Field string
-  ⍝ strVectors:   See QtLines
-    strVectors←1  ⍝  1:  "ab`⋄cd" => "(↑'ab' 'cd')
-                  ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
+  ⍝ mode01:   See QtLines
+  ⍝  1:  "ab`⋄cd" => "('ab\rcd') ⍝ Where \r is an actual (⎕UCS 13) char.
+  ⍝  0:  "ab`⋄cd" => "(↑'ab␍cd') ⍝ Where ␍ is the Unicode symbol '␍'.
     Str_End←{  
         ~substrActive: ⍬ ⋄ substrActive⊢← 0
         0=≢substrG: ⍬
-        fldG,← strVectors QtLines substrG
+        fldG,← mode01 QtLines substrG
         ⍬⊣ substrG⊢← ⍬
     }
     Fld_Clr← { ⍬⊣ fldG substrG selfdocG⊢← ⊂'' }
 ⍝ Main Processing...
 ⍝ T_: Text Fields (default):   '...'
     TF_Next←{
-        0=≢⍵: opts2 (fldsG,⊂'⍬') ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
+        0=≢⍵: boxO (fldsG,⊂'⍬') ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
       ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
         ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatText p↑⍵ 
           ch← ⊃⍵ 
@@ -127,11 +124,12 @@
     Executive← TF_Next 
   ⍝ CF_SF_: Code or Space fields  { code }  or {  } 
     CF_SF_Start←{
-        isSpF← rbC= 1↑ ⍵↓⍨ nSp←⍵ Span ' '  
-      isSpF∧ nSp=0: TF_Next 1↓⍵                                            ⍝ {}
-      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣ SF_End CatCode  '(', '⍴'''')',⍨ ⍕nSp      ⍝ {  }
-        1 CF_Start ⍵                                                       ⍝ { code }
+        isSpF← rbC= 1↑ ⍵↓⍨ nSp←⍵ Span ' '                                            
+      isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣  SFCod nSp                       ⍝ {} and {  }
+        1 CF_Start ⍵                                              ⍝ { code }
     }
+  ⍝ SFCod: Space Field code gen; see CF_SF_Start
+    SFCod← SF_End∘CatCode { ⍵=0: ⍬ ⋄ ⍵>5: ⍺⍺ '(', '⍴'''')',⍨ ⍕⍵ ⋄ ⍺⍺ QtSp ⍵⍴spC }
   ⍝ CF_: Code Fields { code }
     CF_Start←{
       ⍝ CFStr_Start: Code String Subfields  { ... "xxx" ...} or { ... '...' ...}
@@ -197,27 +195,23 @@
     boxO(~∊) 0 1:             Ê opt1Ê   
     escO∊ lbC spC cmC:        Ê opt2Ê                          ⍝ Invalid escape char?  
 ⍝ ---------------------------
-⍝⍝⍝ MAIN:
+⍝⍝⍝ MAIN: 
 ⍝   Run STAGE I: Process format string and pass resulting string/s to STAGE II
-    oCod← '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
-    cCod← '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
-    libType← 0> ⊃⍺
-    ⍝ libType← useLib{ 
-    ⍝   ⍺=0: ⍵ ⋄ 0≠⎕SE.⎕NC '⍙': ⍵ ⋄ ⎕SE.⍙← ⎕SE.⎕NS⍬ ⋄ ⎕SE.⍙.ⓄⓋⓇ←⍎oCod ⋄ ⎕SE.⍙.ⒸⒽⓃ←⍎cCod ⋄ ⍵  
-    ⍝ } libType   
-    OVRcod← oCod ' ⍙ⓄⓋⓇ ' ' ⎕SE.⍙.ⓄⓋⓇ '⊃⍨ libType 
-    CHNcod← cCod ' ⍙ⒸⒽⓃ ' ' ⎕SE.⍙.ⒸⒽⓃ '⊃⍨ libType  
-    BOXcod← ' ⎕SE.Dyalog.Utils.disp ' ' ⍙ⒷⓄⓍ '⊃⍨ 2| libType 
+    oC← ' ⍙ⓄⓋⓇ ' '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
+    cC← ' ⍙ⒸⒽⓃ ' '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
+    bC← ' ⍙ⒷⓄⓍ ' ' ⎕SE.Dyalog.Utils.disp '
+    mode01← 0≤ ⊃⍺   ⍝ 1 for mode∊0 1; literal CR chars (⎕UCS 13) to be used in place of `⋄ escapes.
+    OVRcod CHNcod BOXcod← mode01⊃¨ oC cC bC 
     FMTcod← ' ⎕FMT '
     breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
-  ⍝ strVectors: See QtLines
-    opts2 strVectors←  boxO (⊃⍺)
     Executive fStr                      
   } ∆F⍙ⓄⓂ 
   
   :SELECT ⍬⍴∆F⍙ⒶⓁ  
-     :CASE 1 
-        ∆F⍙ⓄⓊⓉ←  ⍬⍴{⍺⍎⍨ ⍬⍴ ¯1↑⎕RSI}/(⎕SHADOW'∆F⍙ⓄⓂ' '∆F⍙ⒶⓁ' '∆F⍙ⓉⒺⓂⓅ')⊢∆F⍙ⓉⒺⓂⓅ ∆F⍙ⓄⓂ  
+     :CASE 1   
+        ∆F⍙ⓄⓊⓉ← ⍬⍴{
+          ⍺⍎⍨ ⍬⍴ ¯1↑⎕RSI
+        }/(⎕SHADOW'∆F⍙ⓄⓂ ∆F⍙ⒶⓁ ∆F⍙ⓉⒺⓂⓅ')⊢∆F⍙ⓉⒺⓂⓅ ∆F⍙ⓄⓂ  
      :CASE 0 
         ∆F⍙ⓄⓊⓉ← ∆F⍙ⓉⒺⓂⓅ⍎⍨ ⍬⍴ ¯1↑⎕RSI 
   :ELSE 
