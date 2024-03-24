@@ -1,48 +1,36 @@
-﻿∆F⍙ⓄⓊⓉ← {∆F⍙ⒶⓁ } ∆F ∆F⍙ⓄⓂ
+﻿∆F⍙ⓄⓊⓉ← {∆F⍙ⒶⓁ} ∆F ∆F⍙ⓄⓂ ; ∆F⍙ⓉⒺⓂⓅ
 ⍝H 
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
-⍝H     [opts] ∆F fmt_str
+⍝H     [opts← 1 0 '`' ] ∆F fmt_str
 ⍝ 
-⍝H ⍺ OPTIONS:   modeO boxO escO 
-⍝H      modeO←1   1: generate and execute F-string formatting on argument ⍵
-⍝H                0: generate and return a "precompiled" F-string function ready
-⍝H                   for execution with user arguments. Useful where the F-string
-⍝H                   may be called repeatedly. 
-⍝H               ¯1: return a pseudo-code version of the formatted f-string, 
-⍝H                   with each field a separate (APL) string.
-⍝H               ¯2: as for modeO=¯1, returns a pseudo-code version, except 
-⍝H                   boxed (using dfn "disp") and with fields in table (⍪) form.
-⍝H      boxO←0    0: don't box each field, 
-⍝H                1: box each field on output 
-⍝H      escO←'`'  escape char; by default '`'.
-⍝H                Escape sequences include 
-⍝H                      `⋄ (newline), 
-⍝H                      `{ (literal left brace), 
-⍝H                      `⍵ (equiv. to ⍹): `⍵5 (or: ⍹5) selects (5⌷⍵) with implicit ⎕IO=0, and 
-⍝H                      `` (escape itself, useful just before a non-escaped left brace.
-⍝H                The escape represents itself when used otherwise.
-⍝H
+⍝ Uses outermost tradfn to allow for returning an active dfn, given option 0.
+⍝ Be sure the outer tradfn is ⎕ML and ⎕IO independent (watch ⌷, ⊃)
 :IF 900⌶⍬ 
     ∆F⍙ⒶⓁ← 1 0 '`'                       ⍝ Fast Path: Make this ∆F call a nop?  
 :ELSEIF 0=≢∆F⍙ⒶⓁ 
-    ∆F⍙ⓄⓊⓉ← 1 0⍴'' ⋄ :RETURN               ⍝ Default ⍺
+    ∆F⍙ⓄⓊⓉ← 1 0⍴'' ⋄ :RETURN             ⍝ Default ⍺
 :ELSEIF 'help'≡⎕C ∆F⍙ⒶⓁ                  ⍝ Help...
-    ∆F⍙ⓄⓊⓉ← ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ∊⊃⎕XSI⊣⎕io ⎕ml←0 1 
+    ∆F⍙ⓄⓊⓉ← ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⍬⍴⍵⎕XSI  
     :RETURN  
 :ENDIF 
-:TRAP 0    
+:TRAP ⍬    
 ⍝ ---------------------------
-  ∆F⍙ⓄⓂ← (⊃∆F⍙ⒶⓁ) ((⊃⎕RSI){ 
-⍝ STAGE II: Execute/Display code from Stage I
-      1=⍺: (⎕SE.Dyalog.Utils.display⍣(⊃⌽⊃⍵)){⊃,/((⌈/≢¨)↑¨⊢)⎕FMT∘⍺⍺¨⍵} ⌽⍺⍺⍎'{', (∊⌽⊃⌽⍵), '}⍵⍵' 
-      0>⍺: ⎕SE.Dyalog.Utils.disp ⍪⍣(¯2=⍺)⊢ (⊂'⍙ⒷⓄⓍ '),¨⍣(⊃⌽⊃⍵)⊣¯1↓⊃⌽⍵ 
-        sig← '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))'
-        pre← '⋄{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵}',⍨ '∘⎕SE.Dyalog.Utils.display'/⍨ ⊃⌽⊃⍵
-        fstr← { s,s,⍨ ⍵/⍨ 1+⍵=s←''''}⊃ ⍵⍵
-      0=⍺: ∊ '{', sig, pre, (∊⌽⊃⌽⍵), '}',fstr, ',⍥⊆⍵}'
-        ⍵⍵⊣ ⎕SIGNAL/ 'LOGIC ERROR' 911   ⍝ ⍵⍵: Enable ⍵⍵, used in case (1=⍺) above.
+  ∆F⍙ⓉⒺⓂⓅ← (⍬⍴∆F⍙ⒶⓁ) ((,⊆∆F⍙ⓄⓂ){ ⎕IO ⎕ML←0 1       
+⍝ STAGE II: Execute/Display code from Stage I  (Stage II is a dyadic operator)
+⍝     ⍺    is the first (default) option shared by the user
+⍝     ⍺⍺   is the original (user) right arg (⍵); ⊃⍺⍺ is the original format string.
+⍝     ⊃⍵   is the global boxO flag.
+⍝     ⊃⌽⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors (strings)   
+       bxO outFlds←⍵ 
+      0>⍺:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=⍺)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ bxO⊣ ¯1↓ outFlds 
+        postC← '{{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT','¨⌽⍵}',⍨ bxO/'∘⎕SE.Dyalog.Utils.display' 
+      1=⍺:  postC, '}⍵',⍨ ∊⌽ outFlds   
+        runtmC←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
+        fmtInQts← { s,s,⍨ ⍵/⍨ 1+⍵= s←''''} ⊃⍺⍺
+      0=⍺: '{', runtmC, postC, (∊⌽ outFlds), '}', fmtInQts, ',⍥⊆⍵}'
+        'LOGIC ERROR' ⎕SIGNAL 911          
 ⍝ ---------------------------
-  }(,⊆∆F⍙ⓄⓂ))∆F⍙ⒶⓁ{                                                     ⍝ ⊆⍵: original f-string
+  })∆F⍙ⒶⓁ{                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE I: Analyse fmt string, pass code equivalent to Stage II above to execute or display
 ⍝ --------------------------- 
 ⍝ CONSTANTS     
@@ -78,7 +66,7 @@
     }
 ⍝   _ScanEsc_:    [ TF_Next | CF_Next | CFStr_Next ] ∇∇ [0 | 1 | 0] ⍵
     _ScanEsc_← { ch← ⊃⍵ ⋄ isCF←⍵⍵  
-      eosC= ch:          ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
+      isCF< eosC= ch: ⍺⍺ 1↓⍵ ⊣ isCF Cat nlC  
     ⍝  eosC= ch:         ⍺⍺ 1↓⍵ ⊣ isCF Cat sqC,spC,sqC 
       escO lbC rbC∊⍨ ch: ⍺⍺ 1↓⍵ ⊣ isCF Cat ch 
       isCF∧ omC omUC∊⍨ ch: ⍺⍺ _Omega 1↓⍵       ⍝ ⍵⍵=1: Only valid with ⍺⍺ <=> CFStr_Next 
@@ -120,6 +108,7 @@
                   ⍝  0:  "ab`⋄cd" => "(↑'ab',(⎕UCS 13),'cd')
     Str_End←{  
         ~substrActive: ⍬ ⋄ substrActive⊢← 0
+        0=≢substrG: ⍬
         fldG,← strVectors QtLines substrG
         ⍬⊣ substrG⊢← ⍬
     }
@@ -168,7 +157,7 @@
       ⍝ CF_SelfDoc: Code Self-documenting expressions; { ... →} and { ... %} plus { ... ↓}.
         CF_SelfDoc← { brLvl ch←⍺ 
             isInfx← (1=brLvl)⍲ rbC= ⊃⍵↓⍨ nSp← ⍵ Span ' '
-            (⊃opts2)∨← o← ch≠ raC 
+            o← ch≠ raC  
           isInfx: CF_Next ⍵⊣ ch CatCode (ch OVRcod⊃⍨ ch= ovrC) 
             _← Str_End 0 
             selfdocG,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
@@ -222,23 +211,46 @@
     FMTcod← ' ⎕FMT '
     breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC
   ⍝ strVectors: See QtLines
-    opts2 strVectors←  (0 boxO) (⊃⍺)
+    opts2 strVectors←  boxO (⊃⍺)
     Executive fStr                      
   } ∆F⍙ⓄⓂ 
   
-  :IF 0≠ ⊃∆F⍙ⒶⓁ  
-      ∆F⍙ⓄⓊⓉ← ∆F⍙ⓄⓂ  
+  :SELECT ⍬⍴∆F⍙ⒶⓁ  
+     :CASE 1 
+        ∆F⍙ⓄⓊⓉ←  ⍬⍴{⍺⍎⍨ ⍬⍴ ¯1↑⎕RSI}/(⎕SHADOW'∆F⍙ⓄⓂ' '∆F⍙ⒶⓁ' '∆F⍙ⓉⒺⓂⓅ')⊢∆F⍙ⓉⒺⓂⓅ ∆F⍙ⓄⓂ  
+     :CASE 0 
+        ∆F⍙ⓄⓊⓉ← ∆F⍙ⓉⒺⓂⓅ⍎⍨ ⍬⍴ ¯1↑⎕RSI 
   :ELSE 
-      ∆F⍙ⓄⓊⓉ← ∆F⍙ⓄⓂ⍎⍨ ⊃⎕RSI 
-  :ENDIF 
+        ∆F⍙ⓄⓊⓉ← ∆F⍙ⓉⒺⓂⓅ  
+  :ENDSELECT
 :ELSE 
-   ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊆¨ ('∆F ',EM) (EN 999⊃⍨1000≤EN) Message )
+   ⎕SIGNAL ⎕DMX.{ ⊂ 'EM' 'EN' 'Message',⍥⊆¨ ('∆F ',EM) (EN 999⌷⍨ ⎕IO+1000≤EN) Message }⍬
 :ENDTRAP 
 :Return 
 
-⍝ Help information follows (⍝H prefix)
+⍝ Additional help information follows (⍝H prefix)
+⍝H ⍺ OPTIONS:   modeO boxO escO 
+⍝H      modeO←1   1: generate and execute F-string formatting on argument ⍵
+⍝H                0: generate and return a "precompiled" F-string function ready
+⍝H                   for execution with user arguments. Useful where the F-string
+⍝H                   may be called repeatedly. 
+⍝H               ¯1: return a pseudo-code version of the formatted f-string, 
+⍝H                   with each field a separate (APL) string.
+⍝H               ¯2: as for modeO=¯1, returns a pseudo-code version, except 
+⍝H                   boxed (using dfn "disp") and with fields in table (⍪) form.
+⍝H      boxO←0    0: don't box each field, 
+⍝H                1: box each field on output 
+⍝H      escO←'`'  escape char; by default '`'.
+⍝H                Escape sequences include 
+⍝H                      `⋄ (newline), 
+⍝H                      `{ (literal left brace), 
+⍝H                      `⍵ (equiv. to ⍹): `⍵5 (or: ⍹5) selects (5⌷⍵) with implicit ⎕IO=0, and 
+⍝H                      `` (escape itself, useful just before a non-escaped left brace.
+⍝H                The escape represents itself when used otherwise.
+⍝H
+⍝H ---------------------------------------------------------------------------------------
 ⍝H ∆F Utility Function
-⍝H ∆F Utility Function
+⍝H -------------------
 ⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
 ⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
 ⍝H    titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
