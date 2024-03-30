@@ -19,24 +19,25 @@
     ∆F⍙ⓇⓇ← {⎕ML←1 ⋄ ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵}⎕XSI  
     :RETURN
 :ENDIF 
-:TRAP 0  
+:TRAP 0/0  
 ⍝ ---------------------------
-  ∆F⍙Ⓒ← (⍬⍴∆F⍙Ⓛ) { ⎕IO ⎕ML←0 1       
+  ∆F⍙Ⓒ←  { ⎕IO ⎕ML←0 1       
 ⍝ STAGE 2: Prepare executable code from Stage 1
 ⍝     ⍺    is the mode flag, the first option shared by the user (default: mode=1)
-⍝     0⊃⍵  is the global boxO flag (default 0)
-⍝     1⊃⍵  is the fstring passed by the user (0-th elem of user's ⍵) 
-⍝     2⊃⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors 
-        boxO nsFlag fStr outFF←⍵ 
-      0>⍺:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=⍺)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ boxO⊣ ¯1↓ outFF
+⍝     0⊃⍵  is the global modO flag (default 1)
+⍝     1⊃⍵  is the global boxO flag (default 0)
+⍝     2⊃⍵  is the fstring passed by the user (0-th elem of user's ⍵) 
+⍝     3⊃⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors 
+        modO boxO nsFlag fStr outFF←⍵ 
+      0>modO:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=modO)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ boxO⊣ ¯1↓ outFF
       ⍝ Inject a namespace shared across all code fields. Add a global box if boxO=1.
         nsCd← nsFlag/ '⍺←#.⎕NS⍬⋄⎕IO←⎕IO⊣⍺.⎕DF''#.[∆F ns]''⋄'  
         bxCd← boxO/   '∘⎕SE.Dyalog.Utils.display' 
         showCd← '{⎕ML←1⋄', nsCd, '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT', bxCd, '¨⌽⍵}' 
-      1=⍺: showCd, '}⍵',⍨ ∊⌽ outFF   
+      1=modO: showCd, '}⍵',⍨ ∊ ⌽ outFF  
         errCd←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
         fQt← ''''{ ⍺, ⍺,⍨ ⍵/⍨ 1+ ⍵= ⍺} fStr
-      0=⍺: '{', errCd, showCd, (∊⌽ outFF), '}', fQt, ',⍥⊆⍵}'
+      0=modO: '{', errCd, showCd, (∊⌽ outFF), '}', fQt, ',⍥⊆⍵}'
         'LOGIC ERROR' ⎕SIGNAL 911          
 ⍝ ---------------------------
   }∆F⍙Ⓛ{                                                     ⍝ ⊆⍵: original f-string
@@ -127,7 +128,7 @@
   ⍝ ∘ Recursively process the next text fields char, 
   ⍝   starting a CF or SF if bare left brace { is seen. 
     TF_Next←{
-      0=≢⍵: boxO nsFlag fStr (allFlds,⊂'⍬') ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
+      0=≢⍵: allFlds,⊂'⍬' ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
     ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
       ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatT p↑⍵ 
         ch← ⊃⍵ 
@@ -222,16 +223,17 @@
 ⍝⍝⍝ BOXcod for boxing individual objects.
     oC← ' ⍙ⓄⓋⓇ ' '{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'
     cC← ' ⍙ⒸⒽⓃ ' '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}' 
-    bC← ' ⍙ⒷⓄⓍ ' ' ⎕SE.Dyalog.Utils.disp '
+    bC← ' ⍙ⒷⓄⓍ ' ' ⎕SE.Dyalog.Utils.display '
   ⍝ mode01: 1 if mode∊ 0 1; handles CR, LF and `⋄ escapes.
-    mode01← 0≤ ⊃⍺   
+    mode01← 0≤ modO   
     nsFlag← 0                  ⍝ 0 unless ⍺ is seen in top level of at least 1 Code Field
     OVRcod CHNcod BOXcod← mode01⊃¨ oC cC bC 
     FMTcod← ' ⎕FMT '
     breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC alC 
 ⍝⍝⍝ Executive 1c) Process format string, mapping each "field" into its own char vector,
 ⍝⍝⍝ and pass resulting char. vectors to STAGE 2.
-    Executive fStr    
+    fOut← Executive fStr 
+    modO boxO nsFlag fStr fOut     
 
   } ∆F⍙Ⓡ 
   
