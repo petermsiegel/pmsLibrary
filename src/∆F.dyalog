@@ -12,32 +12,34 @@
 ⍝   and has no visible local variables for (1=⊃⍺)
 :IF 900⌶⍬                                ⍝ Default ⍺
     ∆F⍙Ⓛ← 1 0 '`'
-:ELSEIF 0=≢∆F⍙Ⓛ                          ⍝ ⍬ ∆F... ==> fast return "nop"
+:ELSEIF 0= ≢∆F⍙Ⓛ                         ⍝ ⍬ ∆F... ==> fast return "nop"
     ∆F⍙ⓇⓇ← 1 0⍴'' 
     :RETURN 
 :ELSEIF 'help'≡⎕C ∆F⍙Ⓛ                   ⍝ help...
     ∆F⍙ⓇⓇ← {⎕ML←1 ⋄ ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵}⎕XSI  
     :RETURN
 :ENDIF 
-:TRAP 0/0  
+:TRAP 0
 ⍝ ---------------------------
-  ∆F⍙Ⓒ←  { ⎕IO ⎕ML←0 1       
+  ∆F⍙Ⓒ←  { 
+      ⎕IO ⎕ML←0 1       
 ⍝ STAGE 2: Prepare executable code from Stage 1
 ⍝     ⍺    is the mode flag, the first option shared by the user (default: mode=1)
 ⍝     0⊃⍵  is the global modO flag (default 1)
 ⍝     1⊃⍵  is the global boxO flag (default 0)
 ⍝     2⊃⍵  is the fstring passed by the user (0-th elem of user's ⍵) 
 ⍝     3⊃⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors 
-        modO boxO nsFlag fStr outFF←⍵ 
-      0>modO:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=modO)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ boxO⊣ ¯1↓ outFF
+        modO boxO nsFlag fStr outFF←⍵    
+      0>modO:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=modO)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ boxO⊣ outFF
       ⍝ Inject a namespace shared across all code fields. Add a global box if boxO=1.
-        nsCd← nsFlag/ '⍺←#.⎕NS⍬⋄⎕IO←⎕IO⊣⍺.⎕DF''#.[∆F ns]''⋄'  
-        bxCd← boxO/   '∘⎕SE.Dyalog.Utils.display' 
-        showCd← '{⎕ML←1⋄', nsCd, '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT', bxCd, '¨⌽⍵}' 
-      1=modO: showCd, '}⍵',⍨ ∊ ⌽ outFF  
-        errCd←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
+        nsCod← nsFlag/ '⍺←#.⎕NS⍬⋄⎕IO←⎕IO⊣⍺.⎕DF''#.[∆F ns]''⋄'  
+        bxCod← boxO/   '∘⎕SE.Dyalog.Utils.display' 
+        if1← '⊂'/⍨ 1=≢outFF  
+        showCod← '{⎕ML←1⋄', nsCod, '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT', bxCod, '¨⌽⍵}',if1  
+      1=modO: showCod, '}⍵',⍨ ∊ ⌽ outFF  
+        errCod←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
         fQt← ''''{ ⍺, ⍺,⍨ ⍵/⍨ 1+ ⍵= ⍺} fStr
-      0=modO: '{', errCd, showCd, (∊⌽ outFF), '}', fQt, ',⍥⊆⍵}'
+      0=modO: '{', errCod, showCod, (∊⌽ outFF), '}', fQt, ',⍥⊆⍵}'
         'LOGIC ERROR' ⎕SIGNAL 911          
 ⍝ ---------------------------
   }∆F⍙Ⓛ{                                                     ⍝ ⊆⍵: original f-string
@@ -128,15 +130,14 @@
   ⍝ ∘ Recursively process the next text fields char, 
   ⍝   starting a CF or SF if bare left brace { is seen. 
     TF_Next←{
-      0=≢⍵: allFlds,⊂'⍬' ⊣ TF_End⍬    ⍝ <== RETURN from EXECUTIVE
+      0=≢⍵: allFlds  ⊣ TF_End⍬                ⍝ RETURN
     ⍝ Escapes within text sequences:  `⋄ ``  `{ `} 
       ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatT p↑⍵ 
         ch← ⊃⍵ 
       escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
       lbC = ch: CF_SF_Start 1↓⍵⊣ TF_End⍬ 
       TF_Next 1↓⍵⊣ CatT ch 
-    } ⍝ End TF_Next
-    Executive← TF_Next 
+    } ⍝ End TF_Next 
   ⍝ CF_SF_: Code or Space fields  { code }  or {  } 
   ⍝   If a space field, process in its entirety at SF_Cod
   ⍝   If a code field, head off to CF_Start.
@@ -176,8 +177,9 @@
           isInfx: CF_Next ⍵⊣ ch CatC (ch OVRcod⊃⍨ ch= ovrC) 
             _← Str_End 0 
             theSelfD,←  (nSp↑⍵),⍨ sdArrows⊃⍨ o  
-            f← ⊂'(',(o⊃ CHNcod ''),(EnQt theSelfD),(o⊃'' OVRcod ),'(',(nsFlag/'⍺'),'{',theFld,'}⍵))' 
-            TF_Next ⍵↓⍨ nSp+1⊣ allFlds,← f⊣ Fld_Clr ⍬ 
+            ⋄ f2←  '(',(nsFlag/'⍺'),'{',theFld,'}⍵))'
+            ⋄ f1←  '(',(o⊃ CHNcod ''),(EnQt theSelfD),(o⊃'' OVRcod)
+            TF_Next ⍵↓⍨ nSp+1⊣ allFlds,← ⊂f1, f2⊣ Fld_Clr ⍬ 
         } ⍝ End CF_SelfDoc
 
     ⍝ ================= ⍝
@@ -232,8 +234,7 @@
     breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC alC 
 ⍝⍝⍝ Executive 1c) Process format string, mapping each "field" into its own char vector,
 ⍝⍝⍝ and pass resulting char. vectors to STAGE 2.
-    fOut← Executive fStr 
-    modO boxO nsFlag fStr fOut     
+    modO boxO nsFlag fStr, ⊂{  0=≢⍵: ⊂'⍬' ⋄  TF_Next ⍵ } fStr   
 
   } ∆F⍙Ⓡ 
   
