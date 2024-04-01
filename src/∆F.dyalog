@@ -1,7 +1,7 @@
 ﻿∆F⍙ⓇⓇ← {∆F⍙Ⓛ} ∆F ∆F⍙Ⓡ ; ∆F⍙Ⓒ
 ⍝H 
 ⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
-⍝H     [ opts← [1*|0]    [0*|1]    ['`'*]    ] ∆F fmt_str
+⍝H     [ opts← [1*|0]    [0*|1]    ['`'*]    ] ∆F fmt_str [obj1 [obj2 [...]]]
 ⍝H       opts:  mode       box     escapeChar                *=default
 ⍝H
 ⍝  ∆F⍙Ⓛ options,  ∆F⍙Ⓡ format string, ∆F⍙Ⓒ "compiled" code equivalent to ∆F⍙Ⓡ
@@ -10,16 +10,17 @@
 ⍝ ∘ Uses outermost tradfn to allow for returning a live dfn (mode 0).
 ⍝ ∘ Be sure the outer tradfn is ⎕ML and ⎕IO independent (watch ⌷, ⊃) 
 ⍝   and has no visible local variables for (1=⊃⍺)
-:IF 900⌶⍬                                ⍝ Default ⍺
+:If 900⌶⍬                                ⍝ Default ⍺
     ∆F⍙Ⓛ← 1 0 '`'
-:ELSEIF 0= ≢∆F⍙Ⓛ                         ⍝ ⍬ ∆F... ==> fast return "nop"
+:Elseif 0= ≢∆F⍙Ⓛ                         ⍝ ⍬ ∆F... ==> fast return "nop"
     ∆F⍙ⓇⓇ← 1 0⍴'' 
-    :RETURN 
-:ELSEIF 'help'≡⎕C ∆F⍙Ⓛ                   ⍝ help...
+    :Return 
+:Elseif 'help'≡⎕C ∆F⍙Ⓛ                   ⍝ help...
     ∆F⍙ⓇⓇ← {⎕ML←1 ⋄ ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵}⎕XSI  
-    :RETURN
-:ENDIF 
-:TRAP 0
+    :Return
+:Endif 
+∆F⍙Ⓡ← ,⊆∆F⍙Ⓡ
+:Trap 0
 ⍝ ---------------------------
   ∆F⍙Ⓒ←  { 
       ⎕IO ⎕ML←0 1       
@@ -31,16 +32,14 @@
 ⍝     3⊃⍵  is the "compiled" formatted fields in L-to-R order, a vector of char vectors 
         modO boxO nsFlag fStr outFF←⍵    
       0>modO:  ⎕SE.Dyalog.Utils.disp∘⍪⍣ (¯2=modO)⊢ '⍙ⒷⓄⓍ ',¨⍥⊆⍣ boxO⊣ outFF
-      ⍝ Inject a namespace shared across all code fields. Add a global box if boxO=1.
-        nsCod← nsFlag/ '⍺←#.⎕NS⍬⋄⎕IO←⎕IO⊣⍺.⎕DF''#.[∆F ns]''⋄'  
-        bxCod← boxO/   '∘⎕SE.Dyalog.Utils.display' 
-        if1← '⊂'/⍨ 1=≢outFF  
-        showCod← '{⎕ML←1⋄', nsCod, '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT', bxCod, '¨⌽⍵}',if1  
-      1=modO: showCod, '}⍵',⍨ ∊ ⌽ outFF  
+        nsCod← nsFlag/ '⍺←#.⎕NS⍬⋄⎕IO←⎕IO⊣⍺.⎕DF''#.[∆F ns]''⋄'     ⍝ Declare ⍺←⎕NS⍬ if ⍺ referenced in CFs. 
+        bxCod← boxO/   '∘⎕SE.Dyalog.Utils.display'                ⍝ Add a global box?
+        showCod← '{⎕ML←1⋄', nsCod, '{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT', bxCod, '¨⌽⍵}', '⊂'/⍨ 1=≢outFF   
+      1=modO: showCod, '}⍵',⍨ ∊⌽outFF  
         errCod←  '0:: ⎕SIGNAL ⊂(''Message'' ''EN'' ''EM'',⍥⊂¨⎕DMX.(Message EN (''∆F Runtime '',EM)))⋄'
         fQt← ''''{ ⍺, ⍺,⍨ ⍵/⍨ 1+ ⍵= ⍺} fStr
       0=modO: '{', errCod, showCod, (∊⌽ outFF), '}', fQt, ',⍥⊆⍵}'
-        'LOGIC ERROR' ⎕SIGNAL 911          
+        ⎕SIGNAL/ 'LOGIC ERROR: UNREACHABLE' 99         
 ⍝ ---------------------------
   }∆F⍙Ⓛ{                                                     ⍝ ⊆⍵: original f-string
 ⍝ STAGE 1: Analyse fmt string, pass code strings to Stage 2 above to prepare for execution
@@ -86,7 +85,7 @@
   ⍝  XX_Next: any of TF_Next, SF_Next, etc. 
   ⍝ Handle omega expressions:  `⍵, ⍹ with or w/o trailing digits
     omCtr← 0 
-    _Omega←{ wx← '⍵⌷⍨⎕IO+'
+    _Omega←{ wx← '⍵⊃⍨⎕IO+'
         nDig← ⍵ Span ⎕D 
       0<nDig: ⍺⍺ nDig↓⍵⊣ CatC '(',wx,pW,')'⊣ omCtr⊢← ⊃⌽⎕VFI pW← nDig↑⍵
         omCtr+← 1 ⋄ ⍺⍺ ⍵⊣ CatC '(',wx,')',⍨ ⍕omCtr        
@@ -236,22 +235,22 @@
 ⍝⍝⍝ and pass resulting char. vectors to STAGE 2.
     modO boxO nsFlag fStr, ⊂{  0=≢⍵: ⊂'⍬' ⋄  TF_Next ⍵ } fStr   
 
-  } ∆F⍙Ⓡ 
+  } ∆F⍙Ⓡ
   
-  :SELECT ⍬⍴ ∆F⍙Ⓛ  
-    :CASE 1   
+  :Select ⍬⍴ ∆F⍙Ⓛ  
+    :Case 1   
       ⍝ ○ We delete (or shadow) the local names (after retrieving their values) 
       ⍝   so ⎕NL in the caller namespace won't include them (if it happens to contain ∆F also).
         ∆F⍙ⓇⓇ← ∆F⍙Ⓒ{ ⍺⍎⍨ ⍬⍴ ¯1↑⎕RSI⊣ ⎕EX 'ⓁⓇⒸ',⍨¨ ⊂'∆F⍙' }∆F⍙Ⓡ    ⍝ Execute and format
-    :CASE 0    
+    :Case 0    
         ∆F⍙ⓇⓇ← ∆F⍙Ⓒ⍎⍨ ⍬⍴ ¯1↑⎕RSI                                  ⍝ Generate a formatting dfn!
-    :ELSE 
+    :Else
         ∆F⍙ⓇⓇ← ∆F⍙Ⓒ  
-  :ENDSELECT
-:ELSE 
+  :Endselect
+:Else
    ⎕SIGNAL ⎕DMX.{ ⊂ 'EM' 'EN' 'Message',⍥⊆¨ ('∆F ',EM) (EN 999⌷⍨ ⎕IO+1000≤EN) Message }⍬
-:ENDTRAP 
-:Return 
+:Endtrap 
+:Return
 
 ⍝ Additional help information follows (⍝H prefix)
 ⍝H ⍺ OPTIONS:   mode box escChar 
