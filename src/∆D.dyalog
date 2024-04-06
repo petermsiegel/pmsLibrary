@@ -1,161 +1,153 @@
 ﻿:Namespace ∆DClass
-
-⎕IO ⎕ML←0 1   
-⍝ ∆D: Create from items (key-value pairs)       
-∆D←{ ⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)...) 
- 'help'≡⎕C⍵: _← Help 
- 0=⎕NC'⍺':   ⎕NEW Dict (,⊂⍵)       ⍝ ⍺: Dict value default (none if omitted)
-             ⎕NEW Dict (⍵ ⍺ 1)      ⍝ Pass items (key-value pairs)  
-}
-⍝ ∆DL: Create from lists: keylist and vallist
-∆DL←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
- 'help'≡⎕C⍵: _← Help ⋄ 2≠≢⍵: ⎕SIGNAL 11 
- 0=⎕NC'⍺':   ⎕NEW Dict (⍵)           
-             ⎕NEW Dict (⍵,⍺ 1)       
-}
-##.∆D←  ⎕THIS.∆D 
-##.∆DL← ⎕THIS.∆DL 
-
-∇ {ok}← Help
-  ok← (⎕NEW Dict).Help
-∇
-
-:Class Dict
-  :Field Private  KEYS←       ⍬
-  :Field Private  VALS←       ⍬
-  :Field Private  DEFAULT
-  :Field Private  HAS_DEFAULT← 0  
-⍝ Err: Internal helper. Usage:  Err n. Ignored if ⍵ is ⍬.
-  Err← ⎕SIGNAL {0=≢⍵: ⍬ ⋄ ⊂⎕←('EM' ('∆D ',⎕EM ⊃⍵)) ('EN' ⍵) }
-
-⍝H d← ∆D ⍬
-⍝H d← ∆D (k1 v1)(k2 v2)...
-⍝H d← default ∆D ...
-⍝H ∘ Create a dictionary with entries (items) (k1 v1)(k2 v2)....
+⍝H ∆D, ∆DL, ∆DK -                "Create and Manage a Dictionary"
+⍝H Create a dictionary whose entries are in a fixed order based on order of creation
+⍝H (oldest first).  Adding new values for existing keys does not change their order.
+⍝H Keys and Values may be of any type. 
+⍝H 
+⍝H d← ∆D ⍬                       "Dictionary from Items (Key-Value Pairs)"
+⍝H d← ∆D (k1 v1)(k2 v2)…
+⍝H d← default ∆D (⍬ | (k1 v1)…)
+⍝H ∘ Create a dictionary with entries (items) (k1 v1)(k2 v2)….
+⍝H ∘ If no items arespecified, an empty dictionary is created.
 ⍝H ∘ If no default is specified, then querying the values of keys that do not exist
 ⍝H   will cause an INDEX ERROR to be generated.
 ⍝H 
-⍝H ├────────────────────────────────────────────────────────────────────┤
-⍝H │         "METHODS" (FNS and OPS) IN ALPHABETICAL ORDER...           │
-⍝H ├────────────────────────────────────────────────────────────────────┤  
-⍝H │  d[kk]     d[kk]←vv    d.Clear       d.Copy d2   d.Default         │
-⍝H │  d.Def[kk] d.Del kk    d.DelIx⁰[ii]  d.Help      d.Import kk vv    │
-⍝H │  d.Items   d.Keys      d.HasDefault  d.HasDefault←[1|0]            │
-⍝H │  d.Pop n   d.Valsⁱ[ii] d.Valsⁱ[ii]←vv                              │
-⍝H ├────────────────────────────────────────────────────────────────────┤ 
-⍝H │  ⁰DelIx: ⎕IO=0, ⁱVals: Indices in Index Origin (⎕IO) of caller     │  
-⍝H │  kk: list of keys, vv: list of vals, ii: list of indices           │    
-⍝H ├────────────────────────────────────────────────────────────────────┤
+⍝H d← ∆DL ⍬ ⍬                    "Dictionary from a KeyList and ValueList"
+⍝H d← ∆DL (k1 k2…)(v1 v2…)
+⍝H d← default ∆D …
+⍝H ∘ Create a dictionary from a list of keys and corresponding values.
+⍝H ∘ The list of keys and the corresponding list of values must be identical. 
+⍝H   Both may be empty, resulting in an empty dictionary.
+⍝H ∘ If no default is specified, then querying the values of keys that do not exist
+⍝H   will cause an INDEX ERROR to be generated.
+⍝H
+⍝H d← default ∆DK k1 k2…         "Dictionary from a KeyList and Initial Value"
+⍝H
+⍝H ∘ Create a dictionary from a list of keys and assign each the initial value ¨default¨.
+⍝H ∘ A default must be specified (it will continue as the default for queries of the dictionary).
+⍝H ∘ This form is equivalent to 
+⍝H     d← default {nK←≢⍵ ⋄ ⍺ ∆DL ⍵ (nK⍴⊂⍺) } k1 k2….
+⍝H
+⍝  *** See additional HELP info below ***
+
+⎕IO ⎕ML←0 1   
+⍙Sig← ⎕SIGNAL {⊂⎕DMX.(('EM' EM) ('EN' EN) ('Message' Message))} 
+
+⍝ ∆D: Create from items (key-value pairs)       
+∆D←{ ⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)…) 
+    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    0=⎕NC'⍺': ⎕NEW Dict (,⊂⍵)        ⍝ See MakeI
+              ⎕NEW Dict (⍵ ⍺ 1)      ⍝ See MakeID 
+}
+
+⍝ ∆DL: Create from lists: keylist and vallist
+∆DL←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
+    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+     2≠≢⍵: '∆DL DOMAIN ERROR: unexpected right arg' ⎕SIGNAL 11 
+    0=⎕NC'⍺': ⎕NEW Dict (⍵)          ⍝ See MakeKV   
+              ⎕NEW Dict (⍵,⍺ 1)      ⍝ See MakeKVD
+}
+
+⍝ ∆DK: Create a dictionary from a list of keys with the value ⍺.
+∆DK←{ ⍝ ⍺: default (required), ⍵: keylist 
+    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help   
+    0=⎕NC'⍺': ⎕SIGNAL/'∆DK DOMAIN ERROR: missing left arg (default)' 11  
+              vals← (≢⍵)⍴ ⊂⍺                 
+              ⎕NEW Dict ((⍵ vals),⍺ 1)  ⍝ See MakeKVD
+}
+##.∆D←  ⎕THIS.∆D 
+##.∆DL← ⎕THIS.∆DL 
+##.∆DK← ⎕THIS.∆DK
+
+∇ {ok}← Help; t
+  ok← ⎕ED 't'⊣ t← '^\h*⍝H ?(.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
+∇
+
+:Class Dict
+⍝H ├─────────────────────────────────────────────────────────────────────────┤
+⍝H │                 "METHODS"  IN ALPHABETICAL ORDER…                       │
+⍝H ├─────────────────────────────────────────────────────────────────────────┤  
+⍝H │  d[kk],d[]       d[kk]← vv    d.Clear    d2← d.Copy   d.Default         │
+⍝H │  d.Default←any   d.Def[kk]    d.ⁱDel kk  d.⁲DelIx[ii] d.DelIx[]         │ 
+⍝H │  d.Get kk        d.HasDefault d.HasDefault←[1|0]      d.Help            │
+⍝H │  d.Import kk vv  d.Items      d.Keys     d.Pop n      d.⁲Vals[ii]       │     
+⍝H │  d.⁲Vals[ii]← vv                                                        │
+⍝H ├─────────────────────────────────────────────────────────────────────────┤ 
+⍝H │  kk: list of keys, vv: list of vals, ii: list of indices, any: any val. │  
+⍝H ├─────────────────────────────────────────────────────────────────────────┤ 
+⍝H │  ⁱ Del: If a left arg is present and 1, all keys MUST exist.            │
+⍝H │  ⁲ DelIx, Vals: Uses Index Origin (⎕IO) of caller as expected.          │     
+⍝H ├─────────────────────────────────────────────────────────────────────────┤
+⍝H 
+  :Field Private  KEYS←        ⍬
+  :Field Private  VALS←        ⍬
+  :Field Private  DEFAULT
+  :Field Private  HAS_DEFAULT← 0  
+⍝ ⍙E: Internal helper. Usage:  ⍙E n. 
+⍝     ⍺: Message (default: ''), ⍵: Error #. 
+⍝     No error if ⍵ is ⍬.
+  ⍙E← ⎕SIGNAL {0=≢⍵: ⍬ ⋄ ⍺←'' ⋄ ⊂⎕DMX.('EM' ('∆D ',⎕EM ⊃⍵)) ('EN' ⍵) ('Message' ⍺) }
+⍝ ⍙I2KV: Convert items (key-val pairs) to lists of keys and values.
+⍝          If just one item is presented, it must be enclosed…
+  ⍙I2KV← { 0=≢⍵: ⍬ ⍬ ⋄ 2=≢t← ,¨(↓∘⍉↑∘,) ⍵: t ⋄ ⎕SIGNAL 11 }
 
   ∇ makeFill                     ⍝ Create an empty dict with no defaults
   :Implements constructor 
   :Access Public 
   ∇ 
-  ∇ makeII (ii)                  ⍝ Create from Items 
+  ∇ MakeI (ii)                  ⍝ Create from Items 
   :Implements constructor
     :Access Public
-    KEYS VALS← II2KKVV ii 
+    :Trap 11 
+        KEYS VALS← ⍙I2KV ii 
+    :Else 
+        'A list of items is required' ⍙E 11 
+    :EndTrap
   ∇
-  ∇ makeKKVV (kk vv)             ⍝ Create from Keylist Valuelist 
+  ∇ makeKV (kk vv)             ⍝ Create from Keylist Valuelist 
   :Implements constructor
     :Access Public
     KEYS VALS← ,¨kk vv 
   ∇
-  ∇ makeIID (ii d h)             ⍝ Create from Items and Default
+  ∇ MakeID (ii d h)             ⍝ Create from Items and Default
   :Implements constructor
     :Access Public
-    KEYS VALS← II2KKVV ii 
+    :Trap 11 
+       KEYS VALS← ⍙I2KV ii 
+    :Else 
+       'A list of items is required' ⍙E 11 
+    :EndTrap
     DEFAULT HAS_DEFAULT← d h
   ∇
-  ∇ makeKKVVD (kk vv d h)        ⍝ Create from Keylist Valuelist and Default 
+  ∇ makeKVD (kk vv d h)        ⍝ Create from Keylist Valuelist and Default 
   :Implements constructor
     :Access Public
     KEYS VALS←  ,¨kk vv 
     DEFAULT HAS_DEFAULT← d h
   ∇
 
-⍝ II2KKVV: Convert items (key-val pairs) to lists of keys and values.
-⍝          If just one item is presented, enclose and run again.
-  II2KKVV← { ∆← ,¨(↓∘⍉↑∘,) ⋄ 2=≢t← ∆ ⍵: t ⋄ ∆ ⊂⍵  }
-
-⍝H d.Help
-⍝H Provide help information.
-⍝H 
-  ∇ {ok}← Help; t 
-  :Access Public Shared
-    ok← ⎕ED 't'⊣ t← '^\h*⍝H ?(.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
-  ∇
-
-⍝H d.Import keylist vallist 
-⍝H Add new (or existing) entries via lists of keys and values.
-⍝H This is equivalent to d[ keylist ]← vallist
-⍝H This is an alternative to entering them as pairs at dictionary creation.
-⍝H 
-  ∇ {vv}← Import (kk vv)
-    :Access Public
-    ValuesByKey[kk] ← vv 
-  ∇
-
-  ⍝H d2← d.Copy
-  ⍝H Make a copy of the Keys, Vals, and Default of dictionary d.
-  ⍝H 
-  ∇ d2← Copy
-    :Access Public 
-    :If HAS_DEFAULT 
-         d2← ⎕NEW Dict (KEYS VALS DEFAULT HAS_DEFAULT)
-    :Else  
-         d2← ⎕NEW Dict (KEYS VALS) 
-    :Endif 
-  ∇
-
-⍝H kk← d.Keys
-⍝H Retrieve all the keys of the dictionary. (Keys are read-only)
-⍝H 
-  :Property Simple Keys 
-  :Access Public
-    ∇ kk←Get
-      kk← KEYS  
-    ∇
-  :EndProperty
-
-  ⍝ For Vals, see "ValsByIx, Vals" below
-
-⍝H ii← d.Items
-⍝H Retrieve all the items of the dictionary as key-value pairs. (Items are read-only)
-⍝H 
-    :Property Simple Items,Item  
-    :Access Public
-      ∇ ii← Get
-        ii← ↓⍉↑ KEYS VALS
-      ∇
-    :EndProperty
-
-⍝H d[k1 k2 ...], 
-⍝H d[k1 k2 ...]← v1 v2 ...
+⍝H d[k1 k2 …], 
+⍝H d[k1 k2 …]← v1 v2 …
 ⍝H d[]
 ⍝H Retrieve or set specific values of the dictionary by key.
 ⍝H You can also retrieve all values via d[]. See also d.Values[]
 ⍝H 
+  missKeyEM← 'At least 1 key is missing and no default is active'
   :Property Default Keyed ValuesByKey 
   :Access Public
     ∇ r←get args; ii; kk; new; old 
-      ⍝ ⎕←'args' args ' ⊃args.Indexers' (⊃args.Indexers)
       :If ⎕NULL≡ kk← ⊃args.Indexers 
-          r← VALS   
+          r← VALS                            ⍝ Grab all values if d[] is specified.
       :Else 
-        ii← KEYS⍳ kk
-        :If 0∊ old← ii≠ ≢KEYS   
-            Err 3/⍨ ~HAS_DEFAULT
-          ⍝ r← (⊂DEFAULT)@ (⍸new)⊣ 0⍴⍨ ≢kk 
-            r← (≢kk)⍴ ⊂DEFAULT 
-            :If 0∊ new  
-                r[ ⍸old ]← VALS[ ii/⍨ old ]
-              ⍝  r← VALS[ old/ii ]@ (⍸old← ~new)⊣ r 
-            :Endif 
-        :Else 
-            r← VALS[ ii ]
-        :Endif 
-        r← ⊂⍣ (0= ⊃⍴⍴kk)⊢ r
+          ii← KEYS⍳ kk
+          :If 0∊ old← ii≠ ≢KEYS   
+              missKeyEM ⍙E 3/⍨ ~HAS_DEFAULT
+              r← (≢kk)⍴ ⊂DEFAULT 
+              r[ ⍸old ]← VALS[ old/ ii ]
+          :Else 
+              r← VALS[ ii ]
+          :Endif 
+          r← ⊂⍣ (0= ⊃⍴⍴kk)⊢ r                  ⍝ Tweak if kk is a scalar
       :Endif  
     ∇
     ∇ set args; ii; kk; old; new 
@@ -168,129 +160,28 @@
     ∇
   :EndProperty
 
-⍝H d.Def[k1 k2 ...], 
-⍝H Returns a 1 for each key kN defined in Keys and a 0 otherwise.
-⍝H 
-  :Property Keyed Defined, Def 
-  :Access Public
-    ∇ bb←get args; bb; kk 
-      :If ⎕NULL≡ kk← ⊃args.Indexers 
-           Err 11 
-      :Else 
-        bb← (≢KEYS)≠ KEYS⍳ kk
-        bb← ⊂⍣ (0= ⊃⍴⍴kk)⊢ bb
-      :Endif  
+  ⍝H {r}← d.Clear
+  ⍝H Remove all entries (keys and values) from the dictionary.
+  ⍝H Do not change any default value (Default).
+  ⍝H Shyly returns the # of entries deleted.
+  ⍝H 
+    ∇{r}← Clear 
+      :Access Public 
+      r← ≢KEYS 
+      KEYS←VALS← ⍬
     ∇
-  :EndProperty
 
-⍝H d.Vals[ ix1 ix2 ...], 
-⍝H d.Vals[ ix1 ix2...]← val1 val2...
-⍝H d.Vals[]
-⍝H Retrieve or set specific values in the dictionary by index.
-⍝H You may also retrieve all the values via d.Vals[]. See also d[].
-⍝H 
-  :Property Numbered ValsByIx, ValsIx, Vals  
-  :Access Public
-    ∇ r←get args; ii 
-      :If ⎕NULL≡ ii← ⊃args.Indexers 
-          r← VALS
-      :Else   
-        Err 3/⍨ 0∊ ii< ≢KEYS 
-        r← VALS[ii]
-        ⍝r← ⊂⍣ (0=⊃⍴⍴ii)⊢ r 
-      :EndIf 
-    ∇
-    ∇ set args; ii 
-      ii← ⊃args.Indexers 
-      Err 3/⍨ 0∊ ii< ≢KEYS 
-      VALS[ ii ]← args.NewValue 
-    ∇
-    ∇ r←Shape
-      r← ⍴KEYS 
-    ∇
-  :EndProperty
-
-
-⍝H d.Del k1 k2...
-⍝H Delete items in the dictionary by key.
-⍝H Returns 1 for each item in range, else 0.
-⍝H If all items must exist, use d.Validate first.
-⍝H 
-    ∇ r←Del kk; ii; old 
-       :Access Public
-      :If 0=≢kk 
-          r←⍬
-      :ELse 
-          ii← KEYS⍳ kk 
-          KEYS VALS/⍨← ⊂~(⍳≢KEYS)∊ ii/⍨ old← ii≠ ≢KEYS  
-          r← old⍴⍨ ⍴kk
-      :EndIf 
-    ∇
-  ⍝ DelByKey: Alias for Del 
-    ∇ r←DelByKey kk 
-       :Access Public
-       r← Del kk
-    ∇
-    
-⍝H d.DelIx[i1 i2...]  ⎕IO=0 
-⍝H Delete items in the dictionary by index.  
-⍝H Returns 1 for each item that was deleted, else 0 (item not found).
-⍝H 
-  :Property Keyed DelByIndex, DelIx 
-  :Access Public
-    ∇ r←Get args; ii; old 
-      ii← ⊃args.Indexers 
-      Err 11/⍨ ⎕NULL≡⊃args.Indexers
-      old← ii≠ ≢KEYS
-      KEYS VALS/⍨← ⊂~(⍳≢KEYS)∊ old/ii 
-      r← old⍴⍨ ⍴ii
-    ∇
-  :EndProperty
-
-⍝H r← d.Validate[k1 k2...]
-⍝H Validate that all keys specified are in the dictionary, returning 1 for each.
-⍝H (If no keys are specified, does nothing and returns ⍬.
-⍝H Signals a VALUE ERROR otherwise.
-⍝H
-  :Property Keyed Validate, Valid   
-  :Access Public
-    ∇ r←Get args; kk 
-      :If  ⎕NULL≡ kk←⊃args.Indexers
-           r← ⍬
-      :Else 
-           Err 6/⍨ 1∊ (≢KEYS)= KEYS⍳ kk 
-          r← 1⍴⍨ ⍴kk  
-      :EndIf 
-    ∇
-  :EndProperty
-
-⍝H {r}← d.Clear
-⍝H Remove all entries (keys and values) from the dictionary.
-⍝H Shyly returns the # of entries deleted.
-⍝H 
-   ∇{r}← Clear 
-     :Access Public 
-     r← ≢KEYS 
-     KEYS←VALS← ⍬
-   ∇
-
-⍝H {r}← d.Pop n
-⍝H Remove and shyly return the last <n> entries from the dictionary.
-⍝H n: a single non-negative integer. 
-⍝H If n exceeds the # of entries, the actual entries are returned (no padding is done).
-⍝H 
-   ∇{r}← Pop n; m  
-     :Access Public 
-     ⎕ERR 6/⍨ n<0 
-     m← - n⌊ ≢KEYS 
-     :Trap 0 
-        r← ↓⍉↑KEYS VALS↑⍨¨ m 
-        KEYS VALS ↓⍨← m 
-        :If 0= ≢r ⋄ r← ⍬ ⋄ :EndIf 
-     :Else 
-        ⎕ERR ⊂'EM' 'EN' 'Message',⍥⊂⍨ ⎕DMD.(EM EN Message)
-     :EndTrap 
-   ∇
+  ⍝H d2← d.Copy
+  ⍝H Make a copy of the Keys, Vals, and Default of dictionary d.
+  ⍝H 
+  ∇ d2← Copy
+    :Access Public 
+    :If HAS_DEFAULT 
+         d2← ⎕NEW Dict (KEYS VALS DEFAULT HAS_DEFAULT)
+    :Else  
+         d2← ⎕NEW Dict (KEYS VALS) 
+    :Endif 
+  ∇
 
 ⍝H d.Default
 ⍝H d.Default← any_value 
@@ -309,6 +200,87 @@
     ∇
   :EndProperty 
 
+⍝H d.Def[k1 k2 …], 
+⍝H Returns a 1 for each key (k1, etc.) defined in Keys and a 0 otherwise.
+⍝H 
+  :Property Keyed Defined, Def 
+  :Access Public
+    ∇ bb←get args; bb; kk 
+      :If ⎕NULL≡ kk← ⊃args.Indexers 
+        ⍙E 11 
+      :Else 
+        bb← (≢KEYS)≠ KEYS⍳ kk
+        bb← ⊂⍣ (0= ⊃⍴⍴kk)⊢ bb
+      :Endif  
+    ∇
+  :EndProperty
+
+⍝H [0] d.Del k1 k2…     ⍝ Missing keys are ignored.
+⍝H  1  d.Del k1 k2…     ⍝ Missing keys are not allowed.
+⍝H Delete items from the dictionary by key.
+⍝H ∘ Returns 1 for each item in range, else 0.
+⍝H ∘ If the left arg is present and 1, all items MUST exist.
+    delMissE←   'Attempting to delete a missing item with REQUIRED option specified'
+    ∇ r← {required} Del kk; ii; old; nK 
+       :Access Public
+      :If 0=≢kk 
+          r←⍬
+      :ELse 
+          nK← ≢KEYS ⋄ old← nK≠ ii← KEYS⍳ kk  
+          :If 0∊ old ⋄ :AndIf ~900⌶⍬ ⋄ :AndIf required 
+              delMissE ⍙E 3 
+          :EndIf 
+          KEYS VALS/⍨← ⊂~(⍳nK)∊ old/ ii
+          r← old⍴⍨ ⍴kk
+      :EndIf 
+    ∇
+  ⍝ DelByKey: Alias for Del 
+    ∇ r←DelByKey kk 
+       :Access Public
+       r← Del kk
+    ∇
+    
+⍝H d.DelIx[i1 i2…]   
+⍝H d.DelIx[] simply does a clear, returning 1s for each item…
+⍝H Delete items in the dictionary by index (caller's ⎕IO).  
+⍝H Returns 1 for each item that was deleted, else 0 (item not found).
+⍝H 
+  :Property Keyed DelByIndex, DelIx 
+  :Access Public
+    ∇ r←Get args; ii; old; nK  
+      :If ⎕NULL≡ ii← ⊃args.Indexers 
+          r← 1⍴⍨ Clear  
+      :Else 
+          ii-← (⊃⎕RSI).⎕IO                    ⍝ Adjust for caller's ⎕IO 
+          KEYS VALS/⍨← ⊂~(⍳nK)∊ ii/⍨ old← ii< nK← ≢KEYS
+          r← old⍴⍨ ⍴ii
+      :Endif 
+    ∇
+  :EndProperty
+
+⍝H v1 v2…← d.Get k1 k2…
+⍝H v1 v2…← default d.Get k1 k2…
+⍝H Retrieve values for one or more keys. 
+⍝H ∘ If a default is not specified, all keys must be currently defined (else Index Error)
+⍝H   unless a global DEFAULT has been set (e.g. when the dictionary was created). 
+⍝H ∘ If a default is specified, it will be used for all keys not in the dictionary,
+⍝H   independent of any global default value set.
+⍝H 
+∇ vv← {default} Get kk; nD; ii; old 
+  :Access Public
+  ii← KEYS⍳ kk
+  :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
+      default nD← DEFAULT 0
+  :ENDIF 
+  :If 0∊ old← ii≠ ≢KEYS   
+      missKeyEM ⍙E 3/⍨ nD 
+      vv← (≢kk)⍴ ⊂default 
+      vv[ ⍸old ]← VALS[ old/ii ]
+  :Else 
+      vv← VALS[ ii ]
+  :Endif 
+∇
+
 ⍝H d.HasDefault 
 ⍝H d.HasDefault← [1|0]
 ⍝H Retrieve or set the current Default status. 
@@ -323,13 +295,98 @@
       r← HAS_DEFAULT 
     ∇
     ∇ set def; d   
-      ⎕ERR 11/⍨ 0 1 (~∊⍨) d← def.NewValue 
+      ⍙E 11/⍨ 0 1 (~∊⍨) d← def.NewValue 
       :IF d 
         '∆D: Default HAS NO VALUE' ⎕SIGNAL {0:: ⍵ ⋄ ⍬⊣ DEFAULT} 6
       :EndIf 
       HAS_DEFAULT← d 
     ∇
   :EndProperty 
+
+⍝H d.Help
+⍝H Provide help information.
+⍝H 
+  ∇ {ok}← Help
+  :Access Public Shared
+    ok← ##.Help 
+  ∇
+
+⍝H d.Import keylist vallist 
+⍝H Add new (or existing) entries via lists of keys and values.
+⍝H This is equivalent to d[ keylist ]← vallist
+⍝H 
+  ∇ {vv}← Import (kk vv)
+    :Access Public
+    ValuesByKey[kk] ← vv 
+  ∇
+
+
+⍝H ii← d.Items
+⍝H Retrieve all the items of the dictionary as key-value pairs. (Items are read-only)
+⍝H 
+    :Property Simple Items,Item  
+    :Access Public
+      ∇ ii← Get
+        :If 0=≢KEYS ⋄ ii← ⍬
+        :Else ⋄ ii← ↓⍉↑ KEYS VALS
+        :EndIf 
+      ∇
+    :EndProperty
+
+⍝H kk← d.Keys
+⍝H Retrieve all the keys of the dictionary. (Keys are read-only)
+⍝H 
+  :Property Simple Keys 
+  :Access Public
+    ∇ kk←Get
+      kk← KEYS  
+    ∇
+  :EndProperty
+
+⍝H {r}← d.Pop n
+⍝H Remove and shyly return the last <n> entries from the dictionary.
+⍝H n: a single non-negative integer. 
+⍝H If n exceeds the # of entries, the actual entries are returned (no padding is done).
+⍝H 
+  ∇{r}← Pop n; m  
+    :Access Public 
+    ⍙E 6/⍨ n<0 
+    m← - n⌊ ≢KEYS 
+    :Trap 0 
+        r← ↓⍉↑KEYS VALS↑⍨¨ m 
+        KEYS VALS ↓⍨← m 
+        :If 0= ≢r ⋄ r← ⍬ ⋄ :EndIf 
+    :Else 
+        ##.⍙Sig⍬
+    :EndTrap 
+  ∇
+
+⍝H d.Vals[ ix1 ix2 …], 
+⍝H d.Vals[ ix1 ix2…]← val1 val2…
+⍝H d.Vals[]
+⍝H Also: ValsIx[…]
+⍝H Retrieve or set specific values in the dictionary by index (caller's ⎕IO).
+⍝H You may also retrieve ALL the values using d.Vals[] or simply d[].
+⍝H 
+  :Property Numbered ValsByIx, ValsIx, Vals  
+  :Access Public
+    ∇ r←get args; ii
+      :If ⎕NULL≡ ii← ⊃args.Indexers 
+          r← VALS
+      :Else   
+          ⍙E 3/⍨ 0∊ ii< ≢KEYS 
+          r← VALS[ii]
+      :EndIf 
+    ∇
+    ∇ set args; ii
+      ii← ⊃args.Indexers 
+      ⍙E 3/⍨ 0∊ ii< ≢KEYS 
+      VALS[ii]← args.NewValue 
+    ∇
+    ∇ r←Shape
+      r← ⍴KEYS 
+    ∇
+  :EndProperty
 
 :EndClass
 
