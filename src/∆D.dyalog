@@ -36,16 +36,16 @@
 ⍝ ∆D: Create from items (key-value pairs)       
 ∆D←{ ⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)…) 
     0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-    0=⎕NC'⍺': ⎕NEW Dict (,⊂⍵)        ⍝ See MakeI
-              ⎕NEW Dict (⍵ ⍺ 1)      ⍝ See MakeID 
+    0=⎕NC'⍺': ⎕NEW Dict (⍵ ⎕NULL 0)        ⍝ See MakeI  
+              ⎕NEW Dict (⍵ ⍺ 1)           
 }
 
 ⍝ ∆DL: Create from lists: keylist and vallist
 ∆DL←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
     0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
      2≠≢⍵: '∆DL DOMAIN ERROR: unexpected right arg' ⎕SIGNAL 11 
-    0=⎕NC'⍺': ⎕NEW Dict (⍵)          ⍝ See MakeKV   
-              ⎕NEW Dict (⍵,⍺ 1)      ⍝ See MakeKVD
+    0=⎕NC'⍺': ⎕NEW Dict (⍵, ⎕NULL 0)       ⍝ See MakeL   
+              ⎕NEW Dict (⍵, ⍺ 1)              
 }
 
 ⍝ ∆DK: Create a dictionary from a list of keys with the value ⍺.
@@ -53,7 +53,7 @@
     0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help   
     0=⎕NC'⍺': ⎕SIGNAL/'∆DK DOMAIN ERROR: missing left arg (default)' 11  
               vals← (≢⍵)⍴ ⊂⍺                 
-              ⎕NEW Dict ((⍵ vals),⍺ 1)  ⍝ See MakeKVD
+              ⎕NEW Dict ((⍵ vals),⍺ 1)      ⍝ See MakeL
 }
 ##.∆D←  ⎕THIS.∆D 
 ##.∆DL← ⎕THIS.∆DL 
@@ -95,35 +95,22 @@
   :Implements constructor 
   :Access Public 
   ∇ 
-  ∇ MakeI (ii)                  ⍝ Create from Items 
+  ∇ MakeI (ii d h)             ⍝ Create from Items and opt'l Default
+    ;kk; vv
   :Implements constructor
     :Access Public
     :Trap 11 
-        KEYS VALS← ⍙I2KV ii 
-    :Else 
-        'A list of items is required' ⍙E 11 
-    :EndTrap
-  ∇
-  ∇ makeKV (kk vv)             ⍝ Create from Keylist Valuelist 
-  :Implements constructor
-    :Access Public
-    KEYS VALS← ,¨kk vv 
-  ∇
-  ∇ MakeID (ii d h)             ⍝ Create from Items and Default
-  :Implements constructor
-    :Access Public
-    :Trap 11 
-       KEYS VALS← ⍙I2KV ii 
+       kk vv← ⍙I2KV ii ⋄ ValuesByKey[kk]←vv 
     :Else 
        'A list of items is required' ⍙E 11 
     :EndTrap
-    DEFAULT HAS_DEFAULT← d h
+    :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
   ∇
-  ∇ makeKVD (kk vv d h)        ⍝ Create from Keylist Valuelist and Default 
+  ∇ makeL (kk vv d h)        ⍝ Create from Keylist Valuelist and opt'l Default 
   :Implements constructor
     :Access Public
-    KEYS VALS←  ,¨kk vv 
-    DEFAULT HAS_DEFAULT← d h
+    ValuesByKey[kk]←vv  
+    :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
   ∇
 
 ⍝H d[k1 k2 …], 
@@ -150,13 +137,10 @@
           r← ⊂⍣ (0= ⊃⍴⍴kk)⊢ r                  ⍝ Tweak if kk is a scalar
       :Endif  
     ∇
-    ∇ set args; ii; kk; old; new 
-      ii← KEYS⍳ kk← ⊃args.Indexers 
-      old← ~new← ii= ≢KEYS 
-      VALS[ old/ii ]← old/ args.NewValue
-      :If 1∊ new 
-          KEYS VALS,← (⊂new)/¨ kk args.NewValue 
-      :EndIf 
+    ∇ set args; ii; kk; vv; o; n; kn; vn  
+      ii← KEYS⍳ kk← ⊃args.Indexers ⋄ vv← args.NewValue 
+      VALS,← 0⍴⍨ ≢KEYS,← ∪kn← kk/⍨ n← ~o← ii≠ ≢KEYS    
+      VALS[ (o/ii), KEYS⍳ kn]←  (o/vv), n/vv  
     ∇
   :EndProperty
 
