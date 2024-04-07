@@ -31,18 +31,18 @@
 ⍝  *** See additional HELP info below ***
 
 ⎕IO ⎕ML←0 1   
-⍙Sig← ⎕SIGNAL {⊂⎕DMX.(('EM' EM) ('EN' EN) ('Message' Message))} 
+⍙Sig← ⎕SIGNAL {⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message' Message))} 
 
 ⍝ ∆D: Create from items (key-value pairs)       
 ∆D←{ ⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)…) 
-    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    0:: '' ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
     0=⎕NC'⍺': ⎕NEW Dict (⍵ ⎕NULL 0)        ⍝ See MakeI  
               ⎕NEW Dict (⍵ ⍺ 1)           
 }
 
 ⍝ ∆DL: Create from lists: keylist and vallist
 ∆DL←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
-    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    0:: 'L'⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
      2≠≢⍵: '∆DL DOMAIN ERROR: unexpected right arg' ⎕SIGNAL 11 
     0=⎕NC'⍺': ⎕NEW Dict (⍵, ⎕NULL 0)       ⍝ See MakeL   
               ⎕NEW Dict (⍵, ⍺ 1)              
@@ -50,7 +50,7 @@
 
 ⍝ ∆DK: Create a dictionary from a list of keys with the value ⍺.
 ∆DK←{ ⍝ ⍺: default (required), ⍵: keylist 
-    0:: ⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help   
+    0:: 'K'⍙Sig⍬ ⋄ 'help'≡⎕C⍵: _← Help   
     0=⎕NC'⍺': ⎕SIGNAL/'∆DK DOMAIN ERROR: missing left arg (default)' 11  
               vals← (≢⍵)⍴ ⊂⍺                 
               ⎕NEW Dict ((⍵ vals),⍺ 1)      ⍝ See MakeL
@@ -91,25 +91,30 @@
 ⍝          If just one item is presented, it must be enclosed…
   ⍙I2KV← { 0=≢⍵: ⍬ ⍬ ⋄ 2=≢t← ,¨(↓∘⍉↑∘,) ⍵: t ⋄ ⎕SIGNAL 11 }
 
-  ∇ makeFill                     ⍝ Create an empty dict with no defaults
+  ∇ makeFill                   ⍝ Create an empty dict with no defaults
   :Implements constructor 
   :Access Public 
   ∇ 
-  ∇ MakeI (ii d h)             ⍝ Create from Items and opt'l Default
-    ;kk; vv
+  ∇ MakeI (ii d h)             ⍝ Create dict from Items and opt'l Default
+    ;kk; vv                    ⍝ If h (HAS_DEFAULT)=0, the DEFAULT is NOT set.
   :Implements constructor
     :Access Public
     :Trap 11 
-       kk vv← ⍙I2KV ii ⋄ ValuesByKey[kk]←vv 
+       kk vv← ⍙I2KV ii 
     :Else 
        'A list of items is required' ⍙E 11 
     :EndTrap
+    ValuesByKey[kk]←vv 
     :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
   ∇
-  ∇ makeL (kk vv d h)        ⍝ Create from Keylist Valuelist and opt'l Default 
-  :Implements constructor
+  ∇ makeL (kk vv d h)        ⍝ Create dict from Keylist Valuelist and opt'l Default 
+  :Implements constructor    ⍝ If h (HAS_DEFAULT)=0, the DEFAULT is NOT set.
     :Access Public
-    ValuesByKey[kk]←vv  
+    :Trap 11
+        ValuesByKey[kk]←vv  
+    :Else
+        ⍙E 11
+    :EndTrap 
     :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
   ∇
 
@@ -122,49 +127,53 @@
   missKeyEM← 'At least 1 key is missing and no default is active'
   :Property Default Keyed ValuesByKey 
   :Access Public
-    ∇ r←get args; ii; kk; new; old 
+    ∇ v←get args; ii; kk; new; old 
       :If ⎕NULL≡ kk← ⊃args.Indexers 
-          r← VALS                            ⍝ Grab all values if d[] is specified.
+          v← VALS                            ⍝ Grab all values if d[] is specified.
       :Else 
           ii← KEYS⍳ kk
-          :If 0∊ old← ii≠ ≢KEYS   
-              missKeyEM ⍙E 3/⍨ ~HAS_DEFAULT
-              r← (≢kk)⍴ ⊂DEFAULT 
-              r[ ⍸old ]← VALS[ old/ ii ]
-          :Else 
-              r← VALS[ ii ]
+          :If ~0∊ old← ii≠ ≢KEYS             ⍝ All keys old? 
+               v← VALS[ ii ]                 ⍝ ... Just update VALS
+          :Else                              ⍝ Some old and some new keys.
+              missKeyEM ⍙E 3/⍨ ~HAS_DEFAULT  ⍝ ... error unless we have a DEFAULT;
+              v← (≢kk)⍴ ⊂DEFAULT             ⍝ ... where new, return DEFAULT;
+              v[ ⍸old ]← VALS[ old/ ii ]     ⍝ ... where old, return existing value.
           :Endif 
-          r← ⊂⍣ (0= ⊃⍴⍴kk)⊢ r                  ⍝ Tweak if kk is a scalar
+          v← ⊂⍣ (0= ⊃⍴⍴kk)⊢ v                 ⍝ Tweak if kk is a scalar
       :Endif  
     ∇
-    ∇ set args; ii; kk; vv; o; n; kn; vn  
-      ii← KEYS⍳ kk← ⊃args.Indexers ⋄ vv← args.NewValue 
-      VALS,← 0⍴⍨ ≢KEYS,← ∪kn← kk/⍨ n← ~o← ii≠ ≢KEYS    
-      VALS[ (o/ii), KEYS⍳ kn]←  (o/vv), n/vv  
+    ∇ set args; ii; kk; knu; kt; o; vv
+      'No keys specified' ⍙E 11/⍨ ⎕NULL≡ kt← ⊃args.Indexers 
+      ii← KEYS⍳ kk← ,kt                        ⍝ Locate keys in KEYS
+      vv← ,args.NewValue  
+      :If ~0∊ o← ii≠ ≢KEYS 
+          VALS[ ii ]← vv                       ⍝ All keys exist, update VALS L-to-R 
+      :Else                                    ⍝ Update old and new items L-to-R as expected for indexing
+          VALS[ o/ii ]← o/vv                   ⍝ Update VALS for existing KEYS (poss. duplicates)
+          knu← (~o)∧ ≠kk                       ⍝ Locate 1st copy of each new key
+          KEYS,← knu/ kk                       ⍝ Add each new key to KEYS once (take first)  
+          VALS,← knu/ vv@ (kk⍳ kk)⊢ vv         ⍝ Add one val for each key (take last for each key)  
+      :EndIf 
     ∇
   :EndProperty
 
-  ⍝H {r}← d.Clear
+  ⍝H {n}← d.Clear
   ⍝H Remove all entries (keys and values) from the dictionary.
   ⍝H Do not change any default value (Default).
   ⍝H Shyly returns the # of entries deleted.
   ⍝H 
-    ∇{r}← Clear 
+    ∇{n}← Clear 
       :Access Public 
-      r← ≢KEYS 
-      KEYS←VALS← ⍬
+      n← ≢KEYS ⋄ KEYS←VALS← ⍬
     ∇
 
   ⍝H d2← d.Copy
   ⍝H Make a copy of the Keys, Vals, and Default of dictionary d.
   ⍝H 
-  ∇ d2← Copy
+  ∇ d2← Copy; df 
     :Access Public 
-    :If HAS_DEFAULT 
-         d2← ⎕NEW Dict (KEYS VALS DEFAULT HAS_DEFAULT)
-    :Else  
-         d2← ⎕NEW Dict (KEYS VALS) 
-    :Endif 
+    df← {⍵: DEFAULT ⋄ ⎕NULL}HAS_DEFAULT
+    d2← ⎕NEW Dict (KEYS VALS df HAS_DEFAULT) 
   ∇
 
 ⍝H d.Default
@@ -175,69 +184,66 @@
 ⍝H 
   :Property Simple Default
   :Access Public
-    ∇ r←get 
-      '∆D: Default not set or not active' ⎕SIGNAL 6/⍨ ~HAS_DEFAULT 
-      r← DEFAULT 
+    ∇ d←get 
+      'Default not set or not active' ⍙E 6/⍨ ~HAS_DEFAULT 
+      d← DEFAULT 
     ∇
     ∇ set def  
       HAS_DEFAULT DEFAULT← 1 def.NewValue 
     ∇
   :EndProperty 
 
-⍝H d.Def[k1 k2 …], 
+⍝H d.Def[k1 k2 …]     "Are keys defined in Keys?"
 ⍝H Returns a 1 for each key (k1, etc.) defined in Keys and a 0 otherwise.
 ⍝H 
   :Property Keyed Defined, Def 
   :Access Public
-    ∇ bb←get args; bb; kk 
-      :If ⎕NULL≡ kk← ⊃args.Indexers 
-        ⍙E 11 
-      :Else 
-        bb← (≢KEYS)≠ KEYS⍳ kk
-        bb← ⊂⍣ (0= ⊃⍴⍴kk)⊢ bb
-      :Endif  
+    ∇ b←get args; kk 
+      'No keys specified' ⍙E 11/⍨  ⎕NULL≡ kk← ⊃args.Indexers 
+      b← ⊂⍣ (0= ⊃⍴⍴kk)⊢ (≢KEYS)≠ KEYS⍳ kk 
     ∇
   :EndProperty
 
-⍝H [0] d.Del k1 k2…     ⍝ Missing keys are ignored.
+⍝H [0] d.Del k1 k2…     ⍝ Missing keys are allowed, but ignored.
 ⍝H  1  d.Del k1 k2…     ⍝ Missing keys are not allowed.
 ⍝H Delete items from the dictionary by key.
-⍝H ∘ Returns 1 for each item in range, else 0.
+⍝H ∘ Returns 1 for each item found and deleted, else 0.
 ⍝H ∘ If the left arg is present and 1, all items MUST exist.
-    delMissE←   'Attempting to delete a missing item with REQUIRED option specified'
-    ∇ r← {required} Del kk; ii; old; nK 
+    delMissE←   'Required keys were not found'
+    ∇ b← {required} Del kk; ii; old; nK 
        :Access Public
       :If 0=≢kk 
-          r←⍬
+          b←⍬
       :ELse 
           nK← ≢KEYS ⋄ old← nK≠ ii← KEYS⍳ kk  
-          :If 0∊ old ⋄ :AndIf ~900⌶⍬ ⋄ :AndIf required 
-              delMissE ⍙E 3 
+          :If 0∊ old ⋄ :AndIf ~900⌶⍬ ⋄ :AndIf required    ⍝ If required is set,
+              delMissE ⍙E 3                               ⍝ ... missing keys aren't allowed
           :EndIf 
-          KEYS VALS/⍨← ⊂~(⍳nK)∊ old/ ii
-          r← old⍴⍨ ⍴kk
+          KEYS VALS/⍨← ⊂~(⍳nK)∊ old/ ii                   ⍝ Delete keys and vals requested.
+          b← old⍴⍨ ⍴kk                                    ⍝ If a scalar key, return a scalar bool.
       :EndIf 
     ∇
   ⍝ DelByKey: Alias for Del 
-    ∇ r←DelByKey kk 
+    ∇ b←DelByKey kk 
        :Access Public
-       r← Del kk
+       b← Del kk
     ∇
     
-⍝H d.DelIx[i1 i2…]   
-⍝H d.DelIx[] simply does a clear, returning 1s for each item…
+⍝H d.DelIx[i1 i2…]  
+⍝H d,DelIx[] 
 ⍝H Delete items in the dictionary by index (caller's ⎕IO).  
 ⍝H Returns 1 for each item that was deleted, else 0 (item not found).
+⍝H Note: d.DelIx[] simply executes a Clear, returning 1 for every item…
 ⍝H 
   :Property Keyed DelByIndex, DelIx 
   :Access Public
-    ∇ r←Get args; ii; old; nK  
+    ∇ b←Get args; ii; old; nK  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
-          r← 1⍴⍨ Clear  
+          b← 1⍴⍨ Clear  
       :Else 
           ii-← (⊃⎕RSI).⎕IO                    ⍝ Adjust for caller's ⎕IO 
           KEYS VALS/⍨← ⊂~(⍳nK)∊ ii/⍨ old← ii< nK← ≢KEYS
-          r← old⍴⍨ ⍴ii
+          b← old⍴⍨ ⍴ii
       :Endif 
     ∇
   :EndProperty
@@ -268,21 +274,21 @@
 ⍝H d.HasDefault 
 ⍝H d.HasDefault← [1|0]
 ⍝H Retrieve or set the current Default status. 
-⍝H - If you set HasDefault to 1, the prior default (if any) is restored;
-⍝H   if no default exists at that time, HasDefault remains 0 and a VALUE ERROR is generated. 
-⍝H - If you set HasDefault to 0, any attempt to access an item that doesn't exist
-⍝H   will cause a VALUE ERROR to be signalled, until you reset HasDefault to 1.
+⍝H - If you set HasDefault to 1, 
+⍝H   the prior default (if any) is restored;
+⍝H   ∘ If no default exists, HasDefault remains 0 and a VALUE ERROR is generated. 
+⍝H - If you set HasDefault to 0, 
+⍝H   any attempt to access an item that doesn't exist will cause a VALUE ERROR to 
+⍝H   be signalled, until you reset HasDefault to 1.
 ⍝H 
   :Property Simple HasDefault 
   :Access Public
-    ∇ r←get 
-      r← HAS_DEFAULT 
+    ∇ b←get 
+      b← HAS_DEFAULT 
     ∇
     ∇ set def; d   
       ⍙E 11/⍨ 0 1 (~∊⍨) d← def.NewValue 
-      :IF d 
-        '∆D: Default HAS NO VALUE' ⎕SIGNAL {0:: ⍵ ⋄ ⍬⊣ DEFAULT} 6
-      :EndIf 
+      'Default has no value' ⍙E 6/⍨ {~⍵: 0 ⋄ 0:: 1 ⋄ 0⊣DEFAULT}d
       HAS_DEFAULT← d 
     ∇
   :EndProperty 
@@ -327,19 +333,19 @@
     ∇
   :EndProperty
 
-⍝H {r}← d.Pop n
+⍝H {e}← d.Pop n
 ⍝H Remove and shyly return the last <n> entries from the dictionary.
 ⍝H n: a single non-negative integer. 
 ⍝H If n exceeds the # of entries, the actual entries are returned (no padding is done).
 ⍝H 
-  ∇{r}← Pop n; m  
+  ∇{e}← Pop n; m  
     :Access Public 
     ⍙E 6/⍨ n<0 
     m← - n⌊ ≢KEYS 
     :Trap 0 
-        r← ↓⍉↑KEYS VALS↑⍨¨ m 
+        e← ↓⍉↑KEYS VALS↑⍨¨ m 
         KEYS VALS ↓⍨← m 
-        :If 0= ≢r ⋄ r← ⍬ ⋄ :EndIf 
+        :If 0= ≢e ⋄ e← ⍬ ⋄ :EndIf 
     :Else 
         ##.⍙Sig⍬
     :EndTrap 
@@ -354,12 +360,12 @@
 ⍝H 
   :Property Numbered ValsByIx, ValsIx, Vals  
   :Access Public
-    ∇ r←get args; ii
+    ∇ v←get args; ii
       :If ⎕NULL≡ ii← ⊃args.Indexers 
-          r← VALS
+          v← VALS
       :Else   
           ⍙E 3/⍨ 0∊ ii< ≢KEYS 
-          r← VALS[ii]
+          v← VALS[ii]
       :EndIf 
     ∇
     ∇ set args; ii
@@ -367,8 +373,8 @@
       ⍙E 3/⍨ 0∊ ii< ≢KEYS 
       VALS[ii]← args.NewValue 
     ∇
-    ∇ r←Shape
-      r← ⍴KEYS 
+    ∇ s←Shape
+      s← ⍴KEYS 
     ∇
   :EndProperty
 
