@@ -156,30 +156,26 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     ∇
   ⍝ ValuesByKey "set" function
   ⍝ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯
-  ⍝ Timing of Algorithms 
-  ⍝   A: separate existing and new keys so existing keys are searched once, new keys twice.
-  ⍝   B: new keys are merged with existing, so all keys are searched twice.
-   ⍝ Timings:
-  ⍝      N  A(µs)  B(µs)   Faster
-  ⍝     10   74    71   B by  4%   BBBB
-  ⍝    100   79    77   B by  3%   BBB
-  ⍝   1000  100   110   A by 10%   AAAAAAAAAA
-  ⍝  10000  290   410   A by 41%   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-  ⍝ 100000 2000  3000   A by 55%   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    ∇ set args; kk; n; nk; pp; uk; vv 
+  ⍝ Algorithms, where Ne is the # of existing keys and ∪Nn, the # of unique new keys.
+  ⍝     A: separate existing and new keys.    O( Ne + Nn) 
+  ⍝     B: new keys are merged with existing. O(2Ne + Nn)
+  ⍝ B is slightly faster for <<O(500); they break even at ~O(500); and A much faster for ≥O(1000). 
+  ⍝ N<<500  B slightly faster than A.
+  ⍝ N ~500  A and B same performance.
+  ⍝ N>>500  A substantially faster than B.
+    ∇ set args; kk; e; n; nk; pp; uk; vv 
       kk← ⊃args.Indexers ⋄ vv← args.NewValue   
-      em.noKeys ErrIf  ⎕NULL≡ kk 
-      vv← args.NewValue  
-      :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk 
-          VALS[ pp ]← vv      
-      :Else ⍝ *** Alg A *** 
-          KEYS,← uk← ∪nk← n/ kk 
-          VALS,←  (n/ vv)@ (uk⍳ nk)⊢ vv↑⍨ ≢uk 
-      :EndIf 
-    ⍝ :Else ⍝ *** Alg B ***    
+      ⋄ em.noKeys ErrIf  ⎕NULL≡ kk  
+      :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk        ⍝ First search of ALL keys for new and existing
+          VALS[ pp ]← vv                      ⍝ If all old, we're done
+      :Else⍝If 1                              ⍝ *** Alg A *** 
+          VALS[ e/pp ]← vv/⍨ e← ~n 
+          KEYS,← uk← ∪nk← n/ kk              
+          VALS,← (n/ vv)@ (uk⍳ nk)⊢ 0↑⍨ ≢uk   ⍝ search ONLY unique new keys for new keys
+    ⍝ :Else                                   ⍝ *** Alg B ***    
     ⍝     VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk  
-    ⍝     VALS[ KEYS⍳ kk ]← args.NewValue     ⍝ recalculate KEYS⍳ kk for new keys.
-    ⍝ :EndIf 
+    ⍝     VALS[ KEYS⍳ kk ]← vv                ⍝ search ALL keys for new and existing keys.
+      :EndIf 
     ∇ 
   :EndProperty
 
