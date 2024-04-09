@@ -122,39 +122,53 @@
 ⍝H d[k1 k2 …]← v1 v2 …
 ⍝H d[]
 ⍝H Retrieve or set specific values of the dictionary by key.
-⍝H You can also retrieve all values via d[]. See also d.Values[]
+⍝H You can also retrieve all values via d[]. 
+⍝H See also 
+⍝H    d.Vals[]              ⍝ Retrieve values by Index
+⍝H    d.Get, and d.Get1.    ⍝ Retrieve values by key with an optional ad hoc default.
 ⍝H 
-  missKeyEM← 'At least 1 key is missing and no default is active'
+  missKeyEM← 'Key(s) not found and no default is active'
   :Property Default Keyed ValuesByKey 
   :Access Public
-    ∇ v←get args; ii; kk; new; old 
+    ∇ vv←get args; ii; kk; e 
       :If ⎕NULL≡ kk← ⊃args.Indexers 
-          v← VALS                            ⍝ Grab all values if d[] is specified.
+          vv← VALS                            ⍝ Grab all values if d[] is specified.
       :Else 
           ii← KEYS⍳ kk
-          :If ~0∊ old← ii≠ ≢KEYS             ⍝ All keys old? 
-               v← VALS[ ii ]                 ⍝ ... Just update VALS
+          :If ~0∊ e← ii≠ ≢KEYS               ⍝ All keys old? 
+               vv← VALS[ ii ]                ⍝ … Just grab existing values.
           :Else                              ⍝ Some old and some new keys.
-              missKeyEM ⍙E 3/⍨ ~HAS_DEFAULT  ⍝ ... error unless we have a DEFAULT;
-              v← (≢kk)⍴ ⊂DEFAULT             ⍝ ... where new, return DEFAULT;
-              v[ ⍸old ]← VALS[ old/ ii ]     ⍝ ... where old, return existing value.
+              missKeyEM ⍙E 3/⍨ ~HAS_DEFAULT  ⍝ … error unless we have a DEFAULT;
+              vv← (≢kk)⍴ ⊂DEFAULT            ⍝ … where new, return DEFAULT;
+              vv[ ⍸e ]← VALS[ e/ ii ]        ⍝ … where old, return existing value.
           :Endif 
-          v← ⊂⍣ (0= ⊃⍴⍴kk)⊢ v                 ⍝ Tweak if kk is a scalar
+          vv← ⊂⍣ (0= ⊃⍴⍴kk)⊢ vv              ⍝ If kk is a scalar, return vv as a scalar.
       :Endif  
     ∇
-    ∇ set args; ii; kk; knu; kt; o; vv
-      'No keys specified' ⍙E 11/⍨ ⎕NULL≡ kt← ⊃args.Indexers 
-      ii← KEYS⍳ kk← ,kt                        ⍝ Locate keys in KEYS
-      vv← ,args.NewValue  
-      :If ~0∊ o← ii≠ ≢KEYS 
-          VALS[ ii ]← vv                       ⍝ All keys exist, update VALS L-to-R 
-      :Else                                    ⍝ Update old and new items L-to-R as expected for indexing
-          VALS[ o/ii ]← o/vv                   ⍝ Update VALS for existing KEYS (poss. duplicates)
-          knu← (~o)∧ ≠kk                       ⍝ Locate 1st copy of each new key
-          KEYS,← knu/ kk                       ⍝ Add each new key to KEYS once (take first)  
-          VALS,← knu/ vv@ (kk⍳ kk)⊢ vv         ⍝ Add one val for each key (take last for each key)  
+  ⍝ Timing of Algorithms 
+  ⍝   A: separate existing and new keys so existing keys are searched once, new keys twice.
+  ⍝   B: new keys are merged with existing, so all keys are searched twice.
+   ⍝ Timings:
+  ⍝      N  A(ms)  B(ms)   Faster
+  ⍝     10  0.074  0.071   B by  4%   BBBB
+  ⍝    100  0.079  0.077   B by  3%   BBB
+  ⍝   1000  0.1    0.11    A by 10%   AAAAAAAAAA
+  ⍝  10000  0.29   0.41    A by 41%   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  ⍝ 100000  2      3.1     A by 55%   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    ∇ set args; kk; n; nk; pp; uk; vv   
+      'No keys were specified' ⍙E 11/⍨ ⎕NULL≡ kk← ⊃args.Indexers
+      vv← args.NewValue  
+      :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk 
+          VALS[ pp ]← vv      
+      :Else ⍝ *** Alg A *** 
+          KEYS,← uk← ∪nk← n/ kk 
+          VALS,←  (n/ vv)@ (uk⍳ nk)⊢ vv↑⍨ ≢uk 
       :EndIf 
-    ∇
+    ⍝ :Else ⍝ *** Alg B ***    
+    ⍝     VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk  
+    ⍝     VALS[ KEYS⍳ kk ]← args.NewValue     ⍝ recalculate KEYS⍳ kk for new keys.
+    ⍝ :EndIf 
+    ∇ 
   :EndProperty
 
   ⍝H {n}← d.Clear
@@ -210,17 +224,17 @@
 ⍝H ∘ Returns 1 for each item found and deleted, else 0.
 ⍝H ∘ If the left arg is present and 1, all items MUST exist.
     delMissE←   'Required keys were not found'
-    ∇ b← {required} Del kk; ii; old; nK 
+    ∇ b← {required} Del kk; ii; e; nK 
        :Access Public
       :If 0=≢kk 
           b←⍬
       :ELse 
-          nK← ≢KEYS ⋄ old← nK≠ ii← KEYS⍳ kk  
-          :If 0∊ old ⋄ :AndIf ~900⌶⍬ ⋄ :AndIf required    ⍝ If required is set,
-              delMissE ⍙E 3                               ⍝ ... missing keys aren't allowed
+          nK← ≢KEYS ⋄ e← nK≠ ii← KEYS⍳ kk  
+          :If 0∊ e ⋄ :AndIf ~900⌶⍬ ⋄ :AndIf required    ⍝ If required is set,
+              delMissE ⍙E 3                             ⍝ … missing keys aren't allowed
           :EndIf 
-          KEYS VALS/⍨← ⊂~(⍳nK)∊ old/ ii                   ⍝ Delete keys and vals requested.
-          b← old⍴⍨ ⍴kk                                    ⍝ If a scalar key, return a scalar bool.
+          KEYS VALS/⍨← ⊂~(⍳nK)∊ e/ ii                   ⍝ Delete keys and vals requested.
+          b← e⍴⍨ ⍴kk                                    ⍝ If a scalar key, return a scalar bool.
       :EndIf 
     ∇
   ⍝ DelByKey: Alias for Del 
@@ -237,13 +251,13 @@
 ⍝H 
   :Property Keyed DelByIndex, DelIx 
   :Access Public
-    ∇ b←Get args; ii; old; nK  
+    ∇ b←Get args; ii; e; nK  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
           b← 1⍴⍨ Clear  
       :Else 
           ii-← (⊃⎕RSI).⎕IO                    ⍝ Adjust for caller's ⎕IO 
-          KEYS VALS/⍨← ⊂~(⍳nK)∊ ii/⍨ old← ii< nK← ≢KEYS
-          b← old⍴⍨ ⍴ii
+          KEYS VALS/⍨← ⊂~(⍳nK)∊ ii/⍨ e← ii< nK← ≢KEYS
+          b← e⍴⍨ ⍴ii
       :Endif 
     ∇
   :EndProperty
@@ -255,21 +269,42 @@
 ⍝H   unless a global DEFAULT has been set (e.g. when the dictionary was created). 
 ⍝H ∘ If a default is specified, it will be used for all keys not in the dictionary,
 ⍝H   independent of any global default value set.
+⍝H ---------------
+⍝H Note: Like d[xxx] (above), except allows a temporary default either when the dictionary
+⍝H       otherwise lacks one or when the general default is not appropriate.
 ⍝H 
-∇ vv← {default} Get kk; nD; ii; old 
+∇ vv← {default} Get kk; nD; ii; e 
   :Access Public
   ii← KEYS⍳ kk
-  :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
-      default nD← DEFAULT 0
-  :ENDIF 
-  :If 0∊ old← ii≠ ≢KEYS   
+  :If 0∊ e← ii≠ ≢KEYS 
+      :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
+          default nD← DEFAULT 0
+      :ENDIF   
       missKeyEM ⍙E 3/⍨ nD 
       vv← (≢kk)⍴ ⊂default 
-      vv[ ⍸old ]← VALS[ old/ii ]
+      vv[ ⍸e ]← VALS[ e/ii ]
   :Else 
       vv← VALS[ ii ]
   :Endif 
 ∇
+⍝H v1← [default] d.Get1 k1
+⍝H Like d.Get, but retrieves the value* for exactly one key*. *= key/value not enclosed.
+⍝H    d.Get1 'myKey' <==>  ⊃d.Get ⊂'myKey'
+⍝H *** See note for d.Get.
+⍝H
+∇ v1← {default} Get1 k1; i 
+  :Access Public  
+  i← KEYS⍳ ⊂k1
+  :IF i≠ ≢KEYS 
+      v1← VALS[i]
+  :ELSE
+      :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
+          default nD← DEFAULT 0
+      :ENDIF
+        'Key not found and no default is active' ⍙E 3/⍨ nD 
+        v1← default
+  :ENDIF 
+∇ 
 
 ⍝H d.HasDefault 
 ⍝H d.HasDefault← [1|0]
