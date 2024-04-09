@@ -83,12 +83,14 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   :Field Private  DEFAULT
   :Field Private  HAS_DEFAULT← 0  
 ⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be ''.
-  :Field Private itemsBadEM←  11 'A list of items is required'
-  :Field Private keyNFndEM←    3 'Key(s) not found and no default is active'
-  :Field Private noKeysEM←    11 'No keys were specified'
-  :Field Private noDefEM←      6 'Default not set or active'
-  :Field Private delLeftEM←   11 'Invalid left arg to Del'
-  :Field Private reqKNFndEM←   3 'Required keys not found'
+  :Namespace em 
+      itemsBad←  11 'A list of items (key-value pairs) is required'
+      keyNFnd←    3 'Key(s) not found and no default is active'
+      noKeys←    11 'No keys were specified'
+      noDef←      6 'Default not set or active'
+      delLeft←   11 'Left arg to Del is invalid'
+      reqKNFnd←   3 'A required keys not found'
+  :EndNamespace
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
 ⍝     ⍺: Message (default: ''), ⍵: Error #. 
@@ -110,7 +112,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     :Trap 11 
        kk vv← I2KV ii 
     :Else 
-        itemsBadEM ErrIf 1 
+        em.itemsBad ErrIf 1 
     :EndTrap
     ValuesByKey[kk]←vv 
     :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
@@ -145,7 +147,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
           :If ~0∊ e← ii≠ ≢KEYS               ⍝ All keys old? 
                vv← VALS[ ii ]                ⍝ … Just grab existing values.
           :Else                              ⍝ Some old and some new keys.
-              keyNFndEM ErrIf ~HAS_DEFAULT    ⍝ … error unless we have a DEFAULT;
+              em.keyNFnd ErrIf ~HAS_DEFAULT    ⍝ … error unless we have a DEFAULT;
               vv← (≢kk)⍴ ⊂DEFAULT            ⍝ … where new, return DEFAULT;
               vv[ ⍸e ]← VALS[ e/ ii ]        ⍝ … where old, return existing value.
           :Endif 
@@ -166,7 +168,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   ⍝ 100000 2000  3000   A by 55%   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     ∇ set args; kk; n; nk; pp; uk; vv 
       kk← ⊃args.Indexers ⋄ vv← args.NewValue   
-      noKeysEM ErrIf  ⎕NULL≡ kk 
+      em.noKeys ErrIf  ⎕NULL≡ kk 
       vv← args.NewValue  
       :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk 
           VALS[ pp ]← vv      
@@ -209,7 +211,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      noDefEM ErrIf ~HAS_DEFAULT 
+      em.noDef ErrIf ~HAS_DEFAULT 
       d← DEFAULT 
     ∇
     ∇ set def  
@@ -223,7 +225,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   :Property Keyed Defined, Def 
   :Access Public
     ∇ b←get args; kk 
-      noKeysEM ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
+      em.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
       b← ⊂⍣ (0= ⊃⍴⍴kk)⊢ (≢KEYS)≠ KEYS⍳ kk 
     ∇
   :EndProperty
@@ -239,9 +241,9 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
           b←⍬
       :ELse 
           nK← ≢KEYS ⋄ e← nK≠ ii← KEYS⍳ kk  
-          :If 0∊ e ⋄ :AndIf ~900⌶⍬ ⋄ delLeftEM ErrIf ~required∊0 1
+          :If 0∊ e ⋄ :AndIf ~900⌶⍬ ⋄ em.delLeft ErrIf ~required∊0 1
           :AndIf required                               ⍝ If required is set,
-              reqKNFndEM ErrIf 1                          ⍝ … missing keys aren't allowed
+              em.reqKNFnd ErrIf 1                          ⍝ … missing keys aren't allowed
           :EndIf 
           KEYS VALS/⍨← ⊂~(⍳nK)∊ e/ ii                   ⍝ Delete keys and vals requested.
           b← e⍴⍨ ⍴kk                                    ⍝ If a scalar key, return a scalar bool.
@@ -290,7 +292,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
       :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
           default nD← DEFAULT 0
       :ENDIF   
-      keyNFndEM ErrIf nD 
+      em.keyNFnd ErrIf nD 
       vv← (≢kk)⍴ ⊂default 
       vv[ ⍸e ]← VALS[ e/ii ]
   :Else 
@@ -311,7 +313,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
       :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
           default nD← DEFAULT 0
       :ENDIF
-        keyNFndEM ErrIf nD 
+        em.keyNFnd ErrIf nD 
         v1← default
   :ENDIF 
 ∇ 
@@ -333,7 +335,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     ∇
     ∇ set def; d   
        11 ''ErrIf 0 1 (~∊⍨) d← def.NewValue 
-       noDefEM ErrIf {~⍵: 0 ⋄ 0:: 1 ⋄ 0⊣DEFAULT}d  ⍝ ⎕NC'DEFAULT' always returns 2!
+       em.noDef ErrIf {~⍵: 0 ⋄ 0:: 1 ⋄ 0⊣DEFAULT}d  ⍝ ⎕NC'DEFAULT' always returns 2!
       HAS_DEFAULT← d 
     ∇
   :EndProperty 
