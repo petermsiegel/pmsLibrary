@@ -159,22 +159,20 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   ⍝ Algorithms, where Ne is the # of existing keys and ∪Nn, the # of unique new keys.
   ⍝     A: separate existing and new keys.    O( Ne + Nn) 
   ⍝     B: new keys are merged with existing. O(2Ne + Nn)
-  ⍝ B is slightly faster for <<O(500); they break even at ~O(500); and A much faster for ≥O(1000). 
-  ⍝ N<<500  B slightly faster than A.
-  ⍝ N ~500  A and B same performance.
-  ⍝ N>>500  A substantially faster than B.
-    ∇ set args; kk; e; n; nk; pp; uk; vv 
+  ⍝ These algorithm are very close
+    ∇ set args; kk; vv; n; pp 
+      ⍝ ; e; nk; uk  ⍝ Alg A only
       kk← ⊃args.Indexers ⋄ vv← args.NewValue   
       ⋄ em.noKeys ErrIf  ⎕NULL≡ kk  
       :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk        ⍝ First search of ALL keys for new and existing
           VALS[ pp ]← vv                      ⍝ If all old, we're done
-      :Else⍝If 1                              ⍝ *** Alg A *** 
-          VALS[ e/pp ]← vv/⍨ e← ~n 
-          KEYS,← uk← ∪nk← n/ kk              
-          VALS,← (n/ vv)@ (uk⍳ nk)⊢ 0↑⍨ ≢uk   ⍝ search ONLY unique new keys for new keys
-    ⍝ :Else                                   ⍝ *** Alg B ***    
-    ⍝     VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk  
-    ⍝     VALS[ KEYS⍳ kk ]← vv                ⍝ search ALL keys for new and existing keys.
+    ⍝ :Else   ⍝ *** Alg A *** 
+    ⍝     VALS[ e/pp ]← vv/⍨ e← ~n 
+    ⍝     KEYS,← uk← ∪nk← n/ kk              
+    ⍝     VALS,← (n/ vv)@ (uk⍳ nk)⊢ 0↑⍨ ≢uk   ⍝ search ONLY unique new keys for new keys
+      :Else   ⍝ *** Alg B ***    
+          VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk  
+          VALS[ KEYS⍳ kk ]← vv                ⍝ search ALL keys for new and existing keys.
       :EndIf 
     ∇ 
   :EndProperty
