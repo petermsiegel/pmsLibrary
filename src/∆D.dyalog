@@ -1,20 +1,20 @@
 ﻿:Namespace ∆DClass
-⍝H ∆D, ∆DLists, ∆DInit -                "Create and Manage a Dictionary"
-⍝H Create a dictionary whose entries are in a fixed order based on order of creation
+⍝H ∆D, ∆DL, ∆DInit -                "Create and Manage a Dictionary"
+⍝H Create a dictionary whose items are in a fixed order based on order of creation
 ⍝H (oldest first).  Adding new values for existing keys does not change their order.
 ⍝H Keys and Values may be of any type. 
 ⍝H 
 ⍝H d← ∆D ⍬                       "Dictionary from Items (Key-Value Pairs)"
 ⍝H d← ∆D (k1 v1)(k2 v2)…
 ⍝H d← default ∆D (⍬ | (k1 v1)…)
-⍝H ∘ Create a dictionary with entries (items) (k1 v1)(k2 v2)….
-⍝H ∘ If no items arespecified, an empty dictionary is created.
+⍝H ∘ Create a dictionary with items (k1 v1)(k2 v2)….
+⍝H ∘ If no items are specified, an empty dictionary is created.
 ⍝H ∘ If no default is specified, then querying the values of keys that do not exist
 ⍝H   will cause an INDEX ERROR to be generated.
 ⍝H 
-⍝H d← ∆DLists ⍬ ⍬                "Dictionary from a KeyList and ValueList"
-⍝H d← ∆DLists (k1 k2…)(v1 v2…)
-⍝H d← default ∆D …
+⍝H d← ∆DL ⍬ ⍬                "Dictionary from a KeyList and ValueList"
+⍝H d← ∆DL (k1 k2…)(v1 v2…)
+⍝H d← default ∆DL …
 ⍝H ∘ Create a dictionary from a list of keys and corresponding values.
 ⍝H ∘ The list of keys and the corresponding list of values must be identical. 
 ⍝H   Both may be empty, resulting in an empty dictionary.
@@ -25,12 +25,12 @@
 ⍝H ∘ Create a dictionary from a list of keys and assign each the initial value ¨default¨.
 ⍝H ∘ A default must be specified (it will continue as the default for queries of the dictionary).
 ⍝H ∘ This form is equivalent to 
-⍝H     d← default {nK←≢⍵ ⋄ ⍺ ∆DLists ⍵ (nK⍴⊂⍺) } k1 k2….
+⍝H     d← default {nK←≢⍵ ⋄ ⍺ ∆DL ⍵ (nK⍴⊂⍺) } k1 k2….
 ⍝H
 ⍝  *** See additional HELP info below ***
 
 ⎕IO ⎕ML←0 1   
-TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message' Message))} 
+TrapSig← ⎕SIGNAL { ⍺←'' ⋄ ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message' Message))} 
 
 ⍝ ∆D: Create from items (key-value pairs)       
 ∆D←{ ⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)…) 
@@ -39,23 +39,23 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
               ⎕NEW Dict (⍵ ⍺ 1)           
 }
 
-⍝ ∆DLists: Create from two lists: keylist and vallist
-∆DLists←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
-    0:: 'Lists'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-     2≠≢⍵: '∆DLists DOMAIN ERROR: unexpected right arg' ⎕SIGNAL 11 
+⍝ ∆DL: Create from two lists: keylist and vallist
+∆DL←{ ⍝ ⍺: default (optional), ⍵: keylist, vallist 
+    0:: 'L'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+     2≠≢⍵: '∆DL DOMAIN ERROR: unexpected right arg' ⎕SIGNAL 11 
     0=⎕NC'⍺': ⎕NEW Dict (⍵, ⎕NULL 0)       ⍝ See MakeL   
               ⎕NEW Dict (⍵, ⍺ 1)              
 }
 
 ⍝ ∆DInit: Create a dictionary from a list of keys with the SAME initial value ⍺.
-∆DInit←{ ⍝ ⍺: default (required), ⍵: keylist 
+∆DInit←{ ⍝ ⍺: initial value (required), ⍵: keylist 
     0:: 'Init'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help   
     0=⎕NC'⍺': ⎕SIGNAL/'∆DInit DOMAIN ERROR: missing left arg (default)' 11  
               vals← (≢⍵)⍴ ⊂⍺                 
               ⎕NEW Dict ((⍵ vals),⍺ 1)      ⍝ See MakeL
 }
 ##.∆D←  ⎕THIS.∆D 
-##.∆DLists← ⎕THIS.∆DLists 
+##.∆DL← ⎕THIS.∆DL 
 ##.∆DInit← ⎕THIS.∆DInit
 
 ∇ {ok}← Help; t
@@ -78,18 +78,19 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
 ⍝H │  ⁲ DelIx, Vals: Uses Index Origin (⎕IO) of caller as expected.          │     
 ⍝H ├─────────────────────────────────────────────────────────────────────────┤
 ⍝H 
-  :Field Private  KEYS←        ⍬
+                  KEYS←        ⍬   ⍝ Avoid Field, since it seems to disrupt hashing!
   :Field Private  VALS←        ⍬
   :Field Private  DEFAULT
   :Field Private  HAS_DEFAULT← 0  
+  :Field Private  HASH_SET←    0   ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
 ⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be ''.
-  :Namespace em 
-      itemsBad←  11 'A list of items (key-value pairs) is required'
-      keyNFnd←    3 'Key(s) not found and no default is active'
-      noKeys←    11 'No keys were specified'
-      noDef←      6 'Default not set or active'
-      delLeft←   11 'Left arg to Del is invalid'
-      reqKNFnd←   3 'A required keys not found'
+  :Namespace error ⍝ em message
+      itemsBad←    11 'A list of items (key-value pairs) is required'
+      keyNFnd←      3 'Key(s) not found and no default is active'
+      noKeys←      11 'No keys were specified'
+      noDef←        6 'Default not set or active'
+      delLeft←     11 'Left arg to Del is invalid'
+      delIxBad←     3 'Keys not found (nothing deleted)'
   :EndNamespace
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
@@ -112,7 +113,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     :Trap 11 
        kk vv← I2KV ii 
     :Else 
-        em.itemsBad ErrIf 1 
+        error.itemsBad ErrIf 1 
     :EndTrap
     ValuesByKey[kk]←vv 
     :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
@@ -139,48 +140,44 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
 ⍝H 
   :Property Default Keyed ValuesByKey 
   :Access Public
-    ∇ vv←get args; ii; kk; e 
+    ∇ vv←get args; ii; kk; bb 
       :If ⎕NULL≡ kk← ⊃args.Indexers 
           vv← VALS                            ⍝ Grab all values if d[] is specified.
       :Else 
           ii← KEYS⍳ kk
-          :If ~0∊ e← ii≠ ≢KEYS               ⍝ All keys old? 
-               vv← VALS[ ii ]                ⍝ … Just grab existing values.
-          :Else                              ⍝ Some old and some new keys.
-              em.keyNFnd ErrIf ~HAS_DEFAULT    ⍝ … error unless we have a DEFAULT;
-              vv← (≢kk)⍴ ⊂DEFAULT            ⍝ … where new, return DEFAULT;
-              vv[ ⍸e ]← VALS[ e/ ii ]        ⍝ … where old, return existing value.
+          :If ~0∊ bb← ii≠ ≢KEYS               ⍝ All keys old? 
+               vv← VALS[ ii ]                 ⍝ … Just grab existing values.
+          :Else                               ⍝ Some old and some new keys.
+              error.keyNFnd ErrIf ~HAS_DEFAULT   ⍝ … error unless we have a DEFAULT;
+              vv← (≢kk)⍴ ⊂DEFAULT             ⍝ … where new, return DEFAULT;
+              vv[ ⍸bb ]← VALS[ bb/ ii ]       ⍝ … where old, return existing value.
           :Endif 
-          vv← ⊂⍣ (0= ⊃⍴⍴kk)⊢ vv              ⍝ If kk is a scalar, return vv as a scalar.
+          vv← ⊂⍣ (0= ⊃⍴⍴kk)⊢ vv               ⍝ If kk is a scalar, return vv as a scalar.
       :Endif  
     ∇
   ⍝ ValuesByKey "set" function
-  ⍝ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯
-  ⍝ Algorithms, where Ne is the # of existing keys and ∪Nn, the # of unique new keys.
-  ⍝     A: separate existing and new keys.    O( Ne + Nn) 
-  ⍝     B: new keys are merged with existing. O(2Ne + Nn)
-  ⍝ These algorithm are very close
-    ∇ set args; kk; vv; n; pp 
-      ⍝ ; e; nk; uk  ⍝ Alg A only
-      kk← ⊃args.Indexers ⋄ vv← args.NewValue   
-      ⋄ em.noKeys ErrIf  ⎕NULL≡ kk  
-      :If ~1∊ n← (≢KEYS)= pp← KEYS⍳ kk        ⍝ First search of ALL keys for new and existing
-          VALS[ pp ]← vv                      ⍝ If all old, we're done
-    ⍝ :Else   ⍝ *** Alg A *** 
-    ⍝     VALS[ e/pp ]← vv/⍨ e← ~n 
-    ⍝     KEYS,← uk← ∪nk← n/ kk              
-    ⍝     VALS,← (n/ vv)@ (uk⍳ nk)⊢ 0↑⍨ ≢uk   ⍝ search ONLY unique new keys for new keys
-      :Else   ⍝ *** Alg B ***    
-          VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk  
-          VALS[ KEYS⍳ kk ]← vv                ⍝ search ALL keys for new and existing keys.
+  ⍝ Note 1: Regarding which values to use when there are duplicate keys being set:
+  ⍝   we add new keys keeping the leftmost duplicate (as expected for dict ordering);
+  ⍝   we add new values keeping the rightmost duplicate (consistent with APL indexing).
+  ⍝ Note 2: If we find new keys, we search all keys twice, rather than simply searching new keys
+  ⍝   for duplicates. While the performance impact is nil when keys are hashed, there
+  ⍝   may be a performance penalty on larger dictionaries otherwise.
+    ∇ set args; kk; n; pp; vv  
+      kk← ⊃args.Indexers 
+      vv←  args.NewValue   
+          error.noKeys ErrIf  ⎕NULL≡ kk  ⍝ d[]← ... NOT ALLOWED.
+      :If 1∊ n← (≢KEYS)= pp← KEYS⍳ kk  ⍝ If no new keys, skip to updating VALS
+          VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk    ⍝ Add new unique keys and placeholders (0) for new vals (see Note 1)
+          pp← KEYS⍳ kk                 ⍝ Search again for all keys (see Note 2 above)
       :EndIf 
+      VALS[ pp ]← vv                   ⍝ Update existing and new vals (see Note 1)
     ∇ 
   :EndProperty
 
   ⍝H {n}← d.Clear
-  ⍝H Remove all entries (keys and values) from the dictionary.
+  ⍝H Remove all items (keys and values) from the dictionary.
   ⍝H Do not change any default value (Default).
-  ⍝H Shyly returns the # of entries deleted.
+  ⍝H Shyly returns the # of items deleted.
   ⍝H 
     ∇{n}← Clear 
       :Access Public 
@@ -189,23 +186,25 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
 
   ⍝H d2← d.Copy
   ⍝H Make a copy of the Keys, Vals, and Default of dictionary d.
+  ⍝H Also if d.Hash is active, d2.Hash will be as well.
   ⍝H 
   ∇ d2← Copy; df 
     :Access Public 
     df← {⍵: DEFAULT ⋄ ⎕NULL}HAS_DEFAULT
     d2← ⎕NEW Dict (KEYS VALS df HAS_DEFAULT) 
+    :IF HASH_SET ⋄ d2.Hash ⋄ :Endif  
   ∇
 
 ⍝H d.Default
 ⍝H d.Default← any_value 
-⍝H Retrieve or set/redefine the default value for missing dictionary entries
+⍝H Retrieve or set/redefine the default value for missing dictionary items
 ⍝H (those requested by key that do not exist).
 ⍝H If you set a default, HasDefault is automatically set to 1.
 ⍝H 
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      em.noDef ErrIf ~HAS_DEFAULT 
+      error.noDef ErrIf ~HAS_DEFAULT 
       d← DEFAULT 
     ∇
     ∇ set def  
@@ -219,54 +218,79 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   :Property Keyed Defined, Def 
   :Access Public
     ∇ b←get args; kk 
-      em.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
+      error.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
       b← ⊂⍣ (0= ⊃⍴⍴kk)⊢ (≢KEYS)≠ KEYS⍳ kk 
     ∇
   :EndProperty
 
-⍝H [0] d.Del k1 k2…     ⍝ Missing keys are allowed, but ignored.
-⍝H  1  d.Del k1 k2…     ⍝ Missing keys are not allowed.
+⍝H bb← [0] d.Del k1 k2…     ⍝ Missing keys are allowed, but ignored.
+⍝H bb←  1  d.Del k1 k2…     ⍝ Missing keys are not allowed.
 ⍝H Delete items from the dictionary by key.
-⍝H ∘ Returns 1 for each item found and deleted, else 0.
+⍝H ∘ Duplicate keys allowed.
+⍝H ∘ Returns 1 for each entry found and deleted, else 0.
 ⍝H ∘ If the left arg is present and 1, all items MUST exist.
-    ∇ b← {required} Del kk; ii; e; nK 
+⍝ Del: Alias for DelByKey 
+    ∇ bb←{required} Del kk 
+       :Access Public
+       :IF 900⌶⍬ ⋄ required← 0 ⋄ :Endif 
+        bb← required DelByKey kk 
+    ∇
+    ∇ {bb}← {required} DelByKey kk; ii; ei; nK; err; msg  
        :Access Public
       :If 0=≢kk 
-          b←⍬
-      :ELse 
-          nK← ≢KEYS ⋄ e← nK≠ ii← KEYS⍳ kk  
-          :If 0∊ e ⋄ :AndIf ~900⌶⍬ ⋄ em.delLeft ErrIf ~required∊0 1
-          :AndIf required                               ⍝ If required is set,
-              em.reqKNFnd ErrIf 1                          ⍝ … missing keys aren't allowed
+          bb←⍬
+      :Else 
+          nK← ≢KEYS ⋄ ei← ii/⍨ bb← nK≠ ii← KEYS⍳ kk     
+          :If 0∊ bb ⋄ :AndIf ~900⌶⍬ 
+              error.delLeft  ErrIf ~required∊0 1
+              error.delIxBad ErrIf required             
           :EndIf 
-          KEYS VALS/⍨← ⊂~(⍳nK)∊ e/ ii                   ⍝ Delete keys and vals requested.
-          b← e⍴⍨ ⍴kk                                    ⍝ If a scalar key, return a scalar bool.
+          :IF ×≢ei 
+              ErrIf⍨/ err msg← 0 DelIxHelper ∪ei      
+          :EndIf 
+          bb⍴⍨← ⍴kk     ⍝ If a scalar input key, return a scalar result.
       :EndIf 
     ∇
-  ⍝ DelByKey: Alias for Del 
-    ∇ b←DelByKey kk 
-       :Access Public
-       b← Del kk
-    ∇
     
-⍝H d.DelIx[i1 i2…]  
-⍝H d,DelIx[] 
-⍝H Delete items in the dictionary by index (caller's ⎕IO).  
-⍝H Returns 1 for each item that was deleted, else 0 (item not found).
-⍝H Note: d.DelIx[] simply executes a Clear, returning 1 for every item…
+⍝H items← d.DelIx[i1 i2…]      ⍝ Entries at [i1 i2…] 
+⍝H items← d,DelIx[]            ⍝ All items
+⍝H   Delete items in the dictionary by index, which must exist (using caller's ⎕IO).  
+⍝H   Duplicate items ok.
+⍝H   Returns the now deleted items.
 ⍝H 
   :Property Keyed DelByIndex, DelIx 
   :Access Public
-    ∇ b←Get args; ii; e; nK  
+    ∇ items←Get args; ii; ei; nK  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
-          b← 1⍴⍨ Clear  
+          items← ↓⍉↑ KEYS VALS ⋄ Clear ⋄ HashIfSet   
       :Else 
-          ii-← (⊃⎕RSI).⎕IO                    ⍝ Adjust for caller's ⎕IO 
-          KEYS VALS/⍨← ⊂~(⍳nK)∊ ii/⍨ e← ii< nK← ≢KEYS
-          b← e⍴⍨ ⍴ii
+          err items← 1 DelIxHelper ii-(⊃⎕RSI).⎕IO 
+          items ErrIf err   
       :Endif 
+      items← ⊂⍣ (0=⊃⍴⍴ii)⊣ items               ⍝ If input arg is a scalar, then ensure return val is as well.
     ∇
   :EndProperty
+
+  ⍝ items← DelIxHelper ii 
+  ⍝   Delete items for indices specified (which must exist); duplicate items ok.
+  ⍝ On success:
+  ⍝   ∘ If ⍺=1: returns:   0 (the items deleted). 
+  ⍝   ∘ If ⍺=0: returns:   0 ⍬.   
+  ⍝ If an index error occurs: 
+  ⍝   ∘ returns (1 error_info).  
+  ⍝ Note: if all items to delete are in a block at the end of the keys,
+  ⍝       hashing will be maintained automatically (if set).     
+  ⍝                   Internal use only.
+    DelIxHelper←{ ii← ⍵   
+      3:: 1 error.delIxBad    
+        Update← { nK← ≢KEYS 
+            tb← ∧/ ii∊ nK-⌽1+ ⍳nui← ≢∪ii   ⍝ tb: trailing block   
+          tb: ⍵⊣ KEYS VALS↓⍨← ⊂-nui 
+            KEYS VALS/⍨← ~⊂ii∊⍨ ⍳nK ⋄ ⍵⊣ HashIfSet 
+        } 
+      ⍺: Update 0 (↓⍉↑ KEYS VALS⌷⍨¨ ⊂⊂⍵)  ⍝ Any index error takes place BEFORE the update
+         Update 0 ⍬  
+    }
 
 ⍝H v1 v2…← d.Get k1 k2…
 ⍝H v1 v2…← default d.Get k1 k2…
@@ -279,16 +303,16 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
 ⍝H Note: Like d[xxx] (above), except allows a temporary default either when the dictionary
 ⍝H       otherwise lacks one or when the general default is not appropriate.
 ⍝H 
-∇ vv← {default} Get kk; nD; ii; e 
+∇ vv← {default} Get kk; nD; ii; bb 
   :Access Public
   ii← KEYS⍳ kk
-  :If 0∊ e← ii≠ ≢KEYS 
+  :If 0∊ bb← ii≠ ≢KEYS 
       :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
           default nD← DEFAULT 0
       :ENDIF   
-      em.keyNFnd ErrIf nD 
+      error.keyNFnd ErrIf nD 
       vv← (≢kk)⍴ ⊂default 
-      vv[ ⍸e ]← VALS[ e/ii ]
+      vv[ ⍸bb ]← VALS[ bb/ii ]
   :Else 
       vv← VALS[ ii ]
   :Endif 
@@ -307,7 +331,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
       :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
           default nD← DEFAULT 0
       :ENDIF
-        em.keyNFnd ErrIf nD 
+        error.keyNFnd ErrIf nD 
         v1← default
   :ENDIF 
 ∇ 
@@ -329,11 +353,33 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     ∇
     ∇ set def; d   
        11 ''ErrIf 0 1 (~∊⍨) d← def.NewValue 
-       em.noDef ErrIf {~⍵: 0 ⋄ 0:: 1 ⋄ 0⊣DEFAULT}d  ⍝ ⎕NC'DEFAULT' always returns 2!
+       error.noDef ErrIf {~⍵: 0 ⋄ 0:: 1 ⋄ 0⊣DEFAULT}d  ⍝ ⎕NC'DEFAULT' always returns 2!
       HAS_DEFAULT← d 
     ∇
   :EndProperty 
 
+⍝H was← d.Hash 
+⍝H Set the flag HASH_SET to 1 and mark the vector KEYS as a Dyalog hashtable, 
+⍝H so it can be searched faster. This creates some overhead, but searches of (large) 
+⍝H key vectors can be done in O(1) time, rather than O(N).
+⍝H When set, hashing is established immediately and redone when a delete takes place.
+⍝H 
+⍝H Returns the prior hash status:
+⍝H    0: not hashed, 1: hashed but not used, 2: hashed and used. 
+⍝H 
+  ∇ {was}← Hash
+    :Access Public
+    HASH_SET← 1 ⋄ was← 1(1500⌶)KEYS ⋄ KEYS← 1500⌶KEYS  
+  ∇
+  ∇ {h}← HashIfSet
+    :Access Private
+    :IF HASH_SET ⋄ :ANDIF 0=1(1500⌶)KEYS 
+        h←1 ⋄ KEYS← 1500⌶KEYS 
+    :Else 
+        h←0 
+    :EndIf
+  ∇ 
+ 
 ⍝H d.Help
 ⍝H Provide help information.
 ⍝H 
@@ -343,7 +389,7 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
   ∇
 
 ⍝H d.Import keylist vallist 
-⍝H Add new (or existing) entries via lists of keys and values.
+⍝H Add new (or existing) items via lists of keys and values.
 ⍝H This is equivalent to d[ keylist ]← vallist
 ⍝H 
   ∇ {vv}← Import (kk vv)
@@ -374,19 +420,18 @@ TrapSig← ⎕SIGNAL { ⊂⎕DMX.(('EM' ('∆D',⍺,' ',EM)) ('EN' EN) ('Message
     ∇
   :EndProperty
 
-⍝H {e}← d.Pop n
-⍝H Remove and shyly return the last <n> entries from the dictionary.
+⍝H items← d.Pop n
+⍝H Remove and shyly return the last <n> items from the dictionary.
 ⍝H n: a single non-negative integer. 
-⍝H If n exceeds the # of entries, the actual entries are returned (no padding is done).
+⍝H If n exceeds the # of items, the actual items are returned (no padding is done).
 ⍝H 
-  ∇{e}← Pop n; m  
+  ∇{items}← Pop n; bb; bb  
     :Access Public 
     6 '' ErrIf n<0 
-    m← - n⌊ ≢KEYS 
     :Trap 0 
-        e← ↓⍉↑KEYS VALS↑⍨¨ m 
-        KEYS VALS ↓⍨← m 
-        :If 0= ≢e ⋄ e← ⍬ ⋄ :EndIf 
+        items← ↓⍉↑ KEYS VALS↑⍨¨ bb← ⊂- n⌊ ≢KEYS  
+        KEYS VALS↓⍨← bb    ⋄  HashIfSet      
+        :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
     :Else 
         ##.TrapSig⍬
     :EndTrap 
