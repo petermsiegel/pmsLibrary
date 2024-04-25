@@ -71,15 +71,15 @@ TrapSig← ⎕SIGNAL _TS
 ⍝          or from a list and a scalar: keylist (scalar_value)
 ∆DL←{
     hd← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆DL'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-  2≠≢⍵: ⎕SIGNAL/'∆DL DOMAIN ERROR: unexpected right arg' 11 
+  2≠≢⍵: ⎕SIGNAL/'∆DL DOMAIN ERROR: invalid right arg shape' 11 
     ⎕NEW Dict (⍵, ⍺ hd Dict.AUTOHASH)            
 }
 
 ⍝ ∆DX: See description above.
 ∆DX← { 
     hd← 2= ⎕NC'⍺' ⋄ ⍺← ⎕NULL ⋄ 0:: '∆DX'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-    (i l n h)ok← 'ILNH' (∊ ,⍥⊂ ∊⍨) ⊃¨⍺⍺  ⍝ Items, Lists, Nohash, Hash
-    (i∧l)∨(n∧h)∨0∊ok: ⎕SIGNAL/ '∆DX DOMAIN ERROR: unknown or conflicting options' 11
+    (i l n h)ilnh← 'ILNH' (∊ ,⍥⊂ ∊⍨) ⊃¨⍺⍺  ⍝ Items*|Lists, Nohash*|Hash
+    (i∧l)∨(n∧h)∨0∊ilnh: ⎕SIGNAL/ '∆DX DOMAIN ERROR: unknown or conflicting options' 11
   l: ⎕NEW Dict (⍵, ⍺ hd h) ⋄ ⎕NEW Dict (⍵ ⍺ hd h) 
 } 
 
@@ -103,101 +103,80 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H │  d.Get kk       d.Get1 k       d.HasDefault  d.HasDefault←[1|0]  d.Hash      │
 ⍝H │  d.Help         d.Import kkvv  d.⁲Items[ii]  d.⁲Keys[…]          d.Pop n     │     
 ⍝H │  d.⁲Vals[ii]    d.⁲Vals[ii]←vv                                               │
+⍝H │  New:           vv← nums d.AddTo kk                                          │
 ⍝H ├─────────────────────┬──────────────────────┬─────────────────────────────────┤ 
 ⍝H │  kk: list of keys   │  vv: list of vals    │   ii: list of indices           │  
-⍝H │  kkvv: kk vv        │  any: any val.       │                                 │  
+⍝H │  kkvv: kk vv        │  any: any val.       │   nums: 1 or more numbers       │  
 ⍝H ├─────────────────────┴──────────────────────┴─────────────────────────────────┤ 
 ⍝H │  ⁱ Del: If a left arg is present and 1, all keys MUST exist.                 │
 ⍝H │  ⁲ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing  │     
 ⍝H └──────────────────────────────────────────────────────────────────────────────┘
 ⍝H 
-  :Field Public Shared AUTOHASH← 1   ⍝ If 1, ∆D and ∆DL will automatically hash new dictionaries.
-                  KEYS←        ⍬   ⍝ Avoid Field, since it seems to disrupt hashing!
-  :Field Private  VALS←        ⍬
-               ⍝  DEFAULT          ⍝ Avoid Field so ⎕NC 'DEFAULT' is 0 when undefined
-  :Field Private  HAS_DEFAULT← 0  
-  :Field Private  HASH_SET←    0   ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
-⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be ''.
+  :Field PUBLIC SHARED DBG←0           ⍝ 1 to debug
+  :Field Public Shared AUTOHASH← 1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
+                  KEYS←          ⍬     ⍝ Avoid Field, since it seems to disrupt hashing!
+  :Field Private  VALS←          ⍬
+  :Field Private  DEF_VAL←       ⎕NULL ⍝ ⎕NULL (placeholder) is ignored if DEF_STATUS=def.NONE.
+  :Field Private  DEF_STATUS←    0     ⍝ 0 - no def, ¯1 - def set but inactive, 1 - def active 
+  :Field Private  HASH_SET←      0     ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
+⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be a null string ('').
   :Namespace error ⍝ em message
-      itemsBad←    11 'A list of items (key-value pairs) is required (enclose if just one)'
-      keyNotFnd←    3 'Key(s) not found and no default is active'
-      noKeys←      11 'No keys were specified'
-      noDef←        6 'Default not set or active'
+      badPopArg←   11 'Pop right arg must be non-neg integer scalar'
       delLeftBad←  11 'Left arg to Del is invalid'
       delKeyBad←    3 'Key(s) not found (nothing deleted)'
-      delIxBad←     3 'Nothing deleted'
+      delIxBad←     3 'Nothing deleted'      
+      itemsBad←    11 'A list of items (key-value pairs) is required (enclose if just one)'
+      keyNotFnd←    3 'Key(s) not found and no default is active'
       mismatch←     5 'Mismatched left and right argument shapes'
+      noKeys←      11 'No keys were specified'
+      noDef←        6 'Default not set or active'
   :EndNamespace
+  :Namespace def
+      ACTIVE←       1
+      QUIESCED←    ¯1
+      NONE←         0
+  :EndNamespace 
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
 ⍝     ⍺: Message (default: ''), ⍵: Error #. 
 ⍝     No error if ⍵ is ⍬.
   ErrIf← ⎕SIGNAL {~⍵: ⍬ ⋄ e m← ⍺ ⋄ ⊂('EM' ('∆D ',⎕EM e)) ('EN' e) ('Message' m) }
+⍝ Dbg:    { debug_action_on_⍵ } Dbg ⍵
+  Dbg← { ~DBG: _←⍬ ⋄ 1: ⎕← ⍺⍺ ⍵}
 
   ∇ makeFill                   ⍝ Create an empty dict with no defaults
-  :Implements constructor 
-  :Access Public 
+    :Implements constructor 
+    :Access Public 
   ∇ 
 
   ∇ MakeI (ii d hd hash)             ⍝ Create dict from Items and opt'l Default
-    ;kk; vv; kkvv                    ⍝ If hd (HAS_DEFAULT)=0, the DEFAULT is NOT set.
+    ;kk; vv; kkvv                    ⍝ If hd (DEF_STATUS)=0, the DEF_VAL is NOT set.
     :Implements constructor
     :Access Public
     :If 0= ≢ii 
         ⍝ no values
     :Elseif 2=≢kkvv← ,¨(↓∘⍉↑∘,) ii
         kk vv← kkvv 
-        ValuesByKey[kk]←vv 
+        ValsByKey[kk]←vv 
     :Else 
         error.itemsBad ErrIf 1 
     :EndIf  
-    :IF HAS_DEFAULT← hd ⋄ DEFAULT← d ⋄ :Endif 
+    DEF_VAL DEF_STATUS ← d hd 
     :IF hash ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
 ∇
-  ∇ makeL (kk vv d h hash)     ⍝ Create dict from Keylist Valuelist and opt'l Default  
-    :Implements constructor    ⍝ If h (HAS_DEFAULT)=0, the DEFAULT is NOT set.
+  ∇ makeL (kk vv d hd hash)     ⍝ Create dict from Keylist Valuelist and opt'l Default  
+    :Implements constructor    ⍝ If h=0, the DEF_VAL is NOT set.
     :Access Public
     :Trap 11
         :If 1=≢vv ⋄ vv⍴⍨← ⍴kk ⋄ :EndIf    ⍝ Conform vv to kk, if vv is a singleton.
-        ValuesByKey[kk]←vv  
+        ValsByKey[kk]←vv  
     :Else
         11 '' ErrIf 0
     :EndTrap 
-    :IF HAS_DEFAULT← h ⋄ DEFAULT← d ⋄ :Endif 
+    DEF_VAL DEF_STATUS← d hd 
     :IF hash ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
   ∇
 
-⍝H {res}← counts d.AddTo kk
-⍝H   kk:     1 or more keys, which (a) may be duplicated and (b) may be new to d.
-⍝H   counts: numbers to add to d[kk], either a single number or (≢kk) numbers.
-⍝H Adds all corresponding counts to d[kk], where kk may be repeated.
-⍝H --------------- 
-⍝H ∘ If d.Keys[k] does not exist for k, a key in kk, d[k] will initialize to 0,
-⍝H   as if 0 were the default value for Keys.
-⍝H ∘ Same as Keys[kk]← Keys[kk]+ counts, but accumulating all counts for a specific key.
-⍝H ∘ Shyly returns the new values at Keys[kk].
-⍝H 
-  ∇ {res}← counts AddTo kk; tot; p; e; n  
-    :Access Public
-    :Trap 0 
-        kk counts←kk Conform counts                         
-        kk tot←  ↓⍉↑{⍺ (+/counts[⍵])}⌸kk 
-        n← ~e← (≢KEYS)> p← KEYS⍳ kk
-        res← tot + VALS[e/ p]@ (⍸e)⊢ 0⍴⍨ ≢kk
-        VALS[e/ p]← e/ res                     ⍝ Update existing...
-        VALS,←      n/ res                     ⍝ Add new...
-        KEYS,←      n/ kk   
-    :Else 
-       '∆D'##.TrapSig⍬
-    :EndTrap 
-  ∇
-⍝ l r← l Conform r
-⍝ If l and r are either the same length or singletons,
-⍝ make both vectors of the same length as the return value.
-  Conform← {
-    ⍺=⍥≢⍵: ⍺ ⍵ ⋄ 1=≢⍺:  (⍺⍴⍨ ⍴⍵)⍵ ⋄ 1=≢⍵:  ⍺(⍵⍴⍨ ⍴⍺)
-    error.mismatch ErrIf 1 
-  }
 
 ⍝H d[k1 k2 …], 
 ⍝H d[k1 k2 …]← v1 v2 …
@@ -208,43 +187,63 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H    d.Vals[]              ⍝ Retrieve values by Index
 ⍝H    d.Get, and d.Get1.    ⍝ Retrieve values by key with an optional ad hoc default.
 ⍝H 
-  :Property Default Keyed ValuesByKey 
+  :Property Default Keyed ValsByKey 
   :Access Public
-    ∇ vv←get args; ii; kk; bb 
+    ∇ vv←get args; ii; kk; old 
       :If ⎕NULL≡ kk← ⊃args.Indexers 
           vv← VALS                            ⍝ Grab all values if d[] is specified.
       :Else 
-          ii← KEYS⍳ kk
-          :If ~0∊ bb← ii≠ ≢KEYS               ⍝ All keys old? 
-               vv← VALS[ ii ]                 ⍝ … Just grab existing values.
+          old← (≢KEYS)≠ ii← KEYS⍳ kk
+          :If ~0∊ old                         ⍝ All keys old? 
+              vv← VALS[ ii ]                  ⍝ … Just grab existing values.
           :Else                               ⍝ Some old and some new keys.
-              error.keyNotFnd ErrIf ~HAS_DEFAULT   ⍝ … error unless we have a DEFAULT;
-            ⍝ >40% slower: vv← VALS[bb/ii]@(⍸bb)⊣ (≢kk)⍴⊂DEFAULT
-              vv← (≢kk)⍴ ⊂DEFAULT             ⍝ … where new, return DEFAULT;
-              vv[ ⍸bb ]← VALS[ bb/ ii ]       ⍝ … where old, return existing value.
+              ⋄ error.keyNotFnd ErrIf def.ACTIVE≠DEF_STATUS  ⍝ … error unless we have a DEF_VAL;
+              vv← (≢kk)⍴ ⊂DEF_VAL             ⍝ … where new, return DEF_VAL;
+              vv[ ⍸old ]← VALS[ old/ ii ]     ⍝ … where old, return existing value.
           :Endif 
-          vv← ⊂⍣ (0= ⊃⍴⍴kk)⊢ vv               ⍝ If kk is a scalar, return vv as a scalar.
       :Endif  
     ∇
-  ⍝ ValuesByKey "set" function
-  ⍝ Note 1: Regarding which values to use when there are duplicate keys being set:
+  ⍝ ValsByKey "set" function
+  ⍝ Note: Regarding which values to use when there are duplicate keys being set:
   ⍝   we add new keys keeping the leftmost duplicate (as expected for dict ordering);
   ⍝   we add new values keeping the rightmost duplicate (consistent with APL indexing).
-  ⍝ Note 2: If we find new keys, we search all keys twice, rather than simply searching new keys
-  ⍝   for duplicates. While the performance impact is nil when keys are hashed, there
-  ⍝   may be a performance penalty on larger dictionaries otherwise.
-    ∇ set args; kk; n; pp; vv  
-      kk← ⊃args.Indexers 
-      vv←  args.NewValue   
-      error.noKeys ErrIf ⎕NULL≡ kk     ⍝ d[]← ... NOT ALLOWED.
-      pp← KEYS⍳ kk                     ⍝ Search for keys, existing and new.
-      :If 1∊ n← (≢KEYS)= pp            ⍝ New keys?
-          VALS,← 0⍴⍨ ≢KEYS,← ∪n/ kk    ⍝ ...Add new unique keys and new value placeholders
-          pp← KEYS⍳ kk                 ⍝ ...Recalculate where keys found (see Note 2 above)
+    ∇ set args; kk; ii; new; vv; nKEYS   
+      kk← ⊃args.Indexers ⋄ vv← args.NewValue 
+      ⋄ error.noKeys ErrIf ⎕NULL≡ kk           ⍝ d[]← ... NOT ALLOWED.
+      nKEYS← ≢KEYS    
+      :IF 1∊ new← nKEYS= ii← KEYS⍳ kk 
+          VALS,← 0⍴⍨ ≢ukk← KEYS,← ∪nkk← new/ kk   
+          (new/ ii)← nKEYS + ukk⍳ nkk 
       :EndIf 
-      VALS[ pp ]← vv                   ⍝ Update existing and new vals (see Note 1)
+      VALS[ ii ]← vv 
     ∇ 
   :EndProperty
+
+⍝H {res}← counts d.AddTo kk
+⍝H   kk:     1 or more keys, which (a) may be duplicated and (b) may be new to d.
+⍝H   counts: numbers to add to d[kk], either a single number or (≢kk) numbers.
+⍝H Adds all corresponding counts to d[kk], where kk may be repeated.
+⍝H --------------- 
+⍝H ∘ If d.Keys[k] does not exist for k, a key in kk, d[k] will initialize to 0,
+⍝H   as if 0 were the default value for new entries.
+⍝H ∘ Same as Keys[kk]+← Keys[kk] (if it worked), accumulating ALL counts for a specific key,
+⍝H   except for defaults and the handling of new values.
+⍝H ∘ Shyly returns the new values at Keys[kk].
+⍝H 
+  ∇ {res}← counts AddTo kk; ii; new; nkk; ukk; nKEYS   
+    :Access Public
+    :Trap 0 
+        nKEYS← ≢KEYS 
+        :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
+            VALS,← 0⍴⍨ ≢ukk← KEYS,← ∪nkk← new/ kk    ⍝ Initialize new values to 0  
+            (new/ ii)← nKEYS+ ukk⍳ nkk 
+        :EndIf 
+        VALS[ ii ]+← counts
+        res← VALS[ ii ]    
+    :Else 
+       '∆D'##.TrapSig⍬
+    :EndTrap 
+  ∇
 
   ⍝H {n}← d.Clear
   ⍝H Remove all items (keys and values) from the dictionary.
@@ -262,8 +261,7 @@ TrapSig← ⎕SIGNAL _TS
   ⍝H 
   ∇ d2← Copy; def  
     :Access Public 
-    def← {0=⎕NC ⍵: ⎕NULL ⋄ ⎕OR ⍵} 'DEFAULT'
-    d2← ⎕NEW Dict (KEYS VALS def HAS_DEFAULT HASH_SET)  
+    d2← ⎕NEW Dict (KEYS VALS DEF_VAL DEF_STATUS HASH_SET)  
     d2.⎕DF ⍕⎕THIS 
   ∇
 
@@ -276,26 +274,26 @@ TrapSig← ⎕SIGNAL _TS
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      error.noDef ErrIf ~HAS_DEFAULT 
-      d← DEFAULT 
+      ⋄ error.noDef ErrIf def.ACTIVE≠ DEF_STATUS 
+      d← DEF_VAL 
     ∇
-    ∇ set def  
-      HAS_DEFAULT DEFAULT← 1 def.NewValue 
+    ∇ set new  
+      DEF_STATUS DEF_VAL← def.ACTIVE new.NewValue 
     ∇
   :EndProperty 
 
-⍝H d.Def[k1 k2 …]     "Are keys defined in Keys?"
+⍝H bb← d.Def[k1 k2 …]     "Are keys defined in Keys?"
 ⍝H Returns a 1 for each key (k1, etc.) defined in Keys and a 0 otherwise.
 ⍝H 
   :Property Keyed Defined, Def 
   :Access Public
-    ∇ b←get args; kk 
-      error.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
-      b← ⊂⍣ (0= ⊃⍴⍴kk)⊢ (≢KEYS)≠ KEYS⍳ kk 
+    ∇ bb←get args; kk 
+      ⋄ error.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
+      bb← ⊂⍣ (0= ⊃⍴⍴kk)⊢ (≢KEYS)≠ KEYS⍳ kk 
     ∇
   :EndProperty
 
-⍝H d.Del: Delete items by keyword (k1 k2…)
+⍝H bb← d.Del: Delete items by keyword (k1 k2…)
 ⍝H bb← [required←0*] d.Del k1 k2…     ⍝ If missing keys are seen, they are ignored.
 ⍝H bb← [required←1]  d.Del k1 k2…     ⍝ If missing key are seen, an error is signaled.
 ⍝H Delete items from the dictionary by key.
@@ -307,7 +305,8 @@ TrapSig← ⎕SIGNAL _TS
     ∇ bb←{required} DelByKey kk 
        :Access Public
        :Trap 0
-          bb← kk Del⍨ {⍵: 0 ⋄ required}900⌶⍬ 
+           required← {⍵: 0 ⋄ required }900⌶⍬
+           bb← required  Del kk
        :Else
           ⎕SIGNAL⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨EM EN Message)
        :EndTrap 
@@ -319,8 +318,8 @@ TrapSig← ⎕SIGNAL _TS
       :Else 
           bb← (≢KEYS)≠ ii← KEYS⍳ kk     
           :If 0∊ bb ⋄ :AndIf ~900⌶⍬ 
-              error.delLeftBad  ErrIf ~required∊0 1
-              error.delKeyBad   ErrIf required             
+              error.delLeftBad ErrIf required(~∊) 0 1
+              error.delKeyBad  ErrIf required             
           :EndIf 
           :IF 1∊ bb                         
               ErrIf/ 0 ⍙DelIx ∪bb/ ii     ⍝ Delete...
@@ -345,7 +344,7 @@ TrapSig← ⎕SIGNAL _TS
           items← Items ⋄ Clear   
       :Else 
           items err← 1 ⍙DelIx ii-(⊃⎕RSI).⎕IO   ⍝ Adjust for caller's ⎕IO   
-          items ErrIf err  
+          ⋄ items ErrIf err  
       :Endif 
     ∇
   :EndProperty
@@ -375,44 +374,44 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H v1 v2…← default d.Get k1 k2…    
 ⍝H Retrieve values for one or more keys. 
 ⍝H ∘ If a default is not specified, all keys must be currently defined (else Index Error)
-⍝H   unless a global DEFAULT has been set (e.g. when the dictionary was created). 
+⍝H   unless a global default has been set (e.g. when the dictionary was created). 
 ⍝H ∘ If a default is specified, it will be used for all keys not in the dictionary,
 ⍝H   independent of any global default value set.
 ⍝H ---------------
 ⍝H Note: Like d[xxx] (above), except allows a temporary default either when the dictionary
 ⍝H       otherwise lacks one or when the general default is not appropriate.
 ⍝H 
-∇ vv← {default} Get kk; nD; ii; bb 
+∇ vv← {tempDef} Get kk; noDef; ii; bb 
   :Access Public
   ii← KEYS⍳ kk
-  :If 0∊ bb← ii≠ ≢KEYS 
-      :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT   ⍝ If 'default' isn't set, use DEFAULT (if set).
-          default nD← DEFAULT 0            ⍝ Else, there's no default to use.
+  :If 0∊ bb← ii≠ ≢KEYS                         ⍝ If 'tempDef' isn't set, use DEF_VAL (if set).
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.ACTIVE= DEF_STATUS   
+          tempDef noDef← DEF_VAL def.NONE      ⍝ Else, there's no tempDef to use.
       :ENDIF   
-      error.keyNotFnd ErrIf nD 
-      vv← (≢kk)⍴ ⊂default 
-      vv[ ⍸bb ]← VALS[ bb/ii ]
+      ⋄ error.keyNotFnd ErrIf noDef 
+      vv← (≢kk)⍴ ⊂tempDef                      ⍝ vv: assume default for each;
+      vv[ ⍸bb ]← VALS[ bb/ii ]                 ⍝     use "old" values where defined. 
   :Else 
       vv← VALS[ ii ]
   :Endif 
 ∇
-⍝H v1← [default] d.Get1 k1          ⍝ One key (present a value, returns a value)
+⍝H v1← [tempDef] d.Get1 k1          ⍝ One key (present a value, returns a value)
 ⍝H Like d.Get, but retrieves the value* for exactly one key*. 
 ⍝H    d.Get1 'myKey' <==>  ⊃d.Get ⊂'myKey'                    
 ⍝H Note: [*] Neither the key passed nor the return value is enclosed.
 ⍝H    See also the note at d.Get (above).
 ⍝H
-∇ v1← {default} Get1 k1; i1 
+∇ v1← {tempDef} Get1 k1; i1; noDef  
   :Access Public  
   i1← KEYS⍳ ⊂k1
-  :IF i≠ ≢KEYS 
-      v1← VALS[i1]
+  :IF i1≠ ≢KEYS 
+      v1← i1⊃ VALS 
   :ELSE
-      :IF nD← 900⌶⍬ ⋄ :ANDIF HAS_DEFAULT 
-          default nD← DEFAULT 0
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.ACTIVE= DEF_STATUS 
+          tempDef noDef← DEF_VAL 0
       :ENDIF
-        error.keyNotFnd ErrIf nD 
-        v1← default
+        ⋄ error.keyNotFnd ErrIf noDef 
+        v1← tempDef
   :ENDIF 
 ∇ 
 
@@ -429,12 +428,16 @@ TrapSig← ⎕SIGNAL _TS
   :Property Simple HasDefault 
   :Access Public
     ∇ b←get 
-      b← HAS_DEFAULT 
+      b← def.ACTIVE= DEF_STATUS 
     ∇
-    ∇ set def; d   
-       11 ''ErrIf 0 1 (~∊⍨) d← def.NewValue 
-       error.noDef ErrIf {~⍵: 0 ⋄ 2≠ ⎕NC 'DEFAULT'}d   
-      HAS_DEFAULT← d 
+    ∇ set new; d   
+       11 ''ErrIf 0 1 (~∊⍨) d← new.NewValue 
+       :If d 
+          error.noDef ErrIf def.NONE= DEF_STATUS 
+          DEF_STATUS← def.ACTIVE 
+       :Else 
+          DEF_STATUS×← def.QUIESCED
+       :EndIf 
     ∇
   :EndProperty 
 
@@ -450,6 +453,10 @@ TrapSig← ⎕SIGNAL _TS
     :Access Public
     HASH_SET← 1 ⋄ was← 1(1500⌶)KEYS ⋄ KEYS← 1500⌶KEYS  
     ⎕DF  '∆D=[Dict+hash]' 
+  ∇
+  ∇ status← HashStatus
+    :Access Public
+    status← 'HASH IS ',(HASH_SET⊃'OFF' 'ON'),', STATUS is', (1(1500⌶)KEYS)
   ∇
   
   ∇ {h}← HashIfSet
@@ -477,7 +484,7 @@ TrapSig← ⎕SIGNAL _TS
   ∇ {vv}← Import (kk vv)
     :Access Public
     :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ :EndIf 
-    ValuesByKey[kk] ← vv 
+    ValsByKey[kk] ← vv 
   ∇
 
 ⍝H ii← d.Items[]
@@ -511,8 +518,9 @@ TrapSig← ⎕SIGNAL _TS
   :EndProperty
 
 ⍝H items← d.Pop n
-⍝H Remove and shyly return the last <n> items from the dictionary.
-⍝H n: a single non-negative integer. 
+⍝H Remove and shyly return the last <n> items from the dictionary;
+⍝H if no items to return, returns ⍬.
+⍝H   n: a single non-negative integer. 
 ⍝H If n exceeds the # of items, the actual items are returned (no padding is done).
 ⍝H 
   ∇{items}← Pop n; p
@@ -523,10 +531,10 @@ TrapSig← ⎕SIGNAL _TS
       KEYS VALS↓⍨← p ⋄ HashIfSet      
       :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
     :Else
-      11 'Pop right arg must be non-neg integer scalar' ErrIf 1  
+      error.badPopArg ErrIf 1  
     :EndTrap 
   ∇
-
+ 
 ⍝H d.Vals[ ix1 ix2 …], 
 ⍝H d.Vals[ ix1 ix2…]← val1 val2…
 ⍝H d.Vals[]
@@ -540,13 +548,13 @@ TrapSig← ⎕SIGNAL _TS
       :If ⎕NULL≡ ii← ⊃args.Indexers 
           v← VALS
       :Else   
-          3 ''ErrIf 0∊ ii< ≢KEYS 
+          ⋄ 3 ''ErrIf 0∊ ii< ≢KEYS 
           v← VALS[ii]
       :EndIf 
     ∇
     ∇ set args; ii
       ii← ⊃args.Indexers 
-      3 '' ErrIf 0∊ ii< ≢KEYS 
+      ⋄ 3 '' ErrIf 0∊ ii< ≢KEYS 
       VALS[ii]← args.NewValue 
     ∇
     ∇ s←Shape
