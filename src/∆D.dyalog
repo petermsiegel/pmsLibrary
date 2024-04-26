@@ -4,7 +4,7 @@
 ⍝H (oldest first).  Adding new values for existing keys does not change their order.
 ⍝H Keys and Values may be of any type. 
 ⍝H 
-⍝H ∆D "Dictionary from Items (Key-Value Pairs)"
+⍝H ∆D "Dictionary from  (Key-Value Pairs)"
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H d← [default] ∆D ⍬              
 ⍝H d← [default] ∆D (k1 v1)(k2 v2)…
@@ -61,26 +61,29 @@ _TS← { ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨('^(∆D\w? )?'⎕R(⍺,' ')⊢E
 TrapSig← ⎕SIGNAL _TS 
 
 ⍝ ∆D: Create from items (key-value pairs)   
-⍝ ⍺: default (optional), ⍵: itemlist (i.e. (k1 v1)(k2 v2)…)     
+⍝ dict← [default] ∇ (k1 v1)(k2 v2)…
 ∆D←{ 
-  hd←2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆D' TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-  ⎕NEW Dict (⍵ ⍺ hd Dict.AUTOHASH)           
+  dFlag←2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆D' TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+  ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
 }
 
 ⍝ ∆DL: Create from two lists: keylist and valuelist
 ⍝          or from a list and a scalar: keylist (scalar_value)
+⍝ dict← [default] ∇ keylist valuelist
 ∆DL←{
-    hd← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆DL'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆DL'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
   2≠≢⍵: ⎕SIGNAL/'∆DL DOMAIN ERROR: invalid right arg shape' 11 
-    ⎕NEW Dict (⍵, ⍺ hd Dict.AUTOHASH)            
+    ⎕NEW Dict (⍵, ⍺ dFlag Dict.AUTOHASH)            
 }
 
 ⍝ ∆DX: See description above.
+⍝ dict← [default] (opts ∇) ((k1 v1)(k2 v2)… | keylist valueList)
+⍝    opts: 'Items'|'Lists', 'Nohash'|'Hash') or  (SQt I|L N|H SQt)
 ∆DX← { 
-    hd← 2= ⎕NC'⍺' ⋄ ⍺← ⎕NULL ⋄ 0:: '∆DX'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    dFlag← 2= ⎕NC'⍺' ⋄ ⍺← ⎕NULL ⋄ 0:: '∆DX'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
     (i l n h)ilnh← 'ILNH' (∊ ,⍥⊂ ∊⍨) ⊃¨⍺⍺  ⍝ Items*|Lists, Nohash*|Hash
     (i∧l)∨(n∧h)∨0∊ilnh: ⎕SIGNAL/ '∆DX DOMAIN ERROR: unknown or conflicting options' 11
-  l: ⎕NEW Dict (⍵, ⍺ hd h) ⋄ ⎕NEW Dict (⍵ ⍺ hd h) 
+  l: ⎕NEW Dict (⍵, ⍺ dFlag h) ⋄ ⎕NEW Dict (⍵ ⍺ dFlag h) 
 } 
 
 ##.∆D←  ⎕THIS.∆D 
@@ -112,13 +115,6 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H │  ⁲ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing  │     
 ⍝H └──────────────────────────────────────────────────────────────────────────────┘
 ⍝H 
-  :Field PUBLIC SHARED DBG←0           ⍝ 1 to debug
-  :Field Public Shared AUTOHASH← 1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
-                  KEYS←          ⍬     ⍝ Avoid Field, since it seems to disrupt hashing!
-  :Field Private  VALS←          ⍬
-  :Field Private  DEF_VAL←       ⎕NULL ⍝ ⎕NULL (placeholder) is ignored if DEF_STATUS=def.NONE.
-  :Field Private  DEF_STATUS←    0     ⍝ 0 - no def, ¯1 - def set but inactive, 1 - def active 
-  :Field Private  HASH_SET←      0     ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
 ⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be a null string ('').
   :Namespace error ⍝ em message
       badPopArg←   11 'Pop right arg must be non-neg integer scalar'
@@ -131,11 +127,19 @@ TrapSig← ⎕SIGNAL _TS
       noKeys←      11 'No keys were specified'
       noDef←        6 'Default not set or active'
   :EndNamespace
-  :Namespace def
-      ACTIVE←       1
-      QUIESCED←    ¯1
-      NONE←         0
+  :Namespace def  ⍝ Default states.
+      active←       1
+      quiesced←    ¯1
+      none←         0
   :EndNamespace 
+⍝ 
+  :Field PUBLIC SHARED DBG←0           ⍝ 1 to debug
+  :Field Public Shared AUTOHASH← 1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
+                  KEYS←          ⍬     ⍝ Avoid Field, since it seems to disrupt hashing!
+  :Field Private  VALS←          ⍬
+  :Field Private  DEF_VAL←       ⎕NULL ⍝ Placeholder: ignored if DEF_STATUS=def.none.
+  :Field Private  DEF_STATUS←    def.none  ⍝ See namespace <def>
+  :Field Private  HASH_SET←      0     ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
 ⍝     ⍺: Message (default: ''), ⍵: Error #. 
@@ -144,13 +148,13 @@ TrapSig← ⎕SIGNAL _TS
 ⍝ Dbg:    { debug_action_on_⍵ } Dbg ⍵
   Dbg← { ~DBG: _←⍬ ⋄ 1: ⎕← ⍺⍺ ⍵}
 
-  ∇ makeFill                   ⍝ Create an empty dict with no defaults
+  ∇ makeFill                   ⍝ Create an empty dict with no DEF_VAL 
     :Implements constructor 
     :Access Public 
   ∇ 
 
-  ∇ MakeI (ii d hd hash)             ⍝ Create dict from Items and opt'l Default
-    ;kk; vv; kkvv                    ⍝ If hd (DEF_STATUS)=0, the DEF_VAL is NOT set.
+  ∇ MakeI (ii dVal dFlag hFlag)      ⍝ Create dict from Items and opt'l Default
+    ;kk; vv; kkvv                   
     :Implements constructor
     :Access Public
     :If 0= ≢ii 
@@ -161,10 +165,10 @@ TrapSig← ⎕SIGNAL _TS
     :Else 
         error.itemsBad ErrIf 1 
     :EndIf  
-    DEF_VAL DEF_STATUS ← d hd 
-    :IF hash ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
+    DEF_VAL DEF_STATUS ← dVal dFlag 
+    :IF hFlag ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
 ∇
-  ∇ makeL (kk vv d hd hash)     ⍝ Create dict from Keylist Valuelist and opt'l Default  
+  ∇ makeL (kk vv dVal dFlag hFlag)     ⍝ Create dict from Keylist Valuelist and opt'l Default  
     :Implements constructor    ⍝ If h=0, the DEF_VAL is NOT set.
     :Access Public
     :Trap 11
@@ -173,8 +177,8 @@ TrapSig← ⎕SIGNAL _TS
     :Else
         11 '' ErrIf 0
     :EndTrap 
-    DEF_VAL DEF_STATUS← d hd 
-    :IF hash ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
+    DEF_VAL DEF_STATUS← dVal dFlag 
+    :IF hFlag ⋄ Hash  ⋄ :Else ⋄ ⎕DF '∆D=[Dict]' ⋄ :Endif 
   ∇
 
 
@@ -197,7 +201,7 @@ TrapSig← ⎕SIGNAL _TS
           :If ~0∊ old                         ⍝ All keys old? 
               vv← VALS[ ii ]                  ⍝ … Just grab existing values.
           :Else                               ⍝ Some old and some new keys.
-              ⋄ error.keyNotFnd ErrIf def.ACTIVE≠DEF_STATUS  ⍝ … error unless we have a DEF_VAL;
+              ⋄ error.keyNotFnd ErrIf def.active≠DEF_STATUS  ⍝ … error unless we have a DEF_VAL;
               vv← (≢kk)⍴ ⊂DEF_VAL             ⍝ … where new, return DEF_VAL;
               vv[ ⍸old ]← VALS[ old/ ii ]     ⍝ … where old, return existing value.
           :Endif 
@@ -274,11 +278,11 @@ TrapSig← ⎕SIGNAL _TS
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      ⋄ error.noDef ErrIf def.ACTIVE≠ DEF_STATUS 
+      ⋄ error.noDef ErrIf def.active≠ DEF_STATUS 
       d← DEF_VAL 
     ∇
     ∇ set new  
-      DEF_STATUS DEF_VAL← def.ACTIVE new.NewValue 
+      DEF_STATUS DEF_VAL← def.active new.NewValue 
     ∇
   :EndProperty 
 
@@ -341,7 +345,7 @@ TrapSig← ⎕SIGNAL _TS
   :Access Public
     ∇ items←Get args; ii; ei; nK  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
-          items← Items ⋄ Clear   
+          items← Items[] ⋄ Clear   
       :Else 
           items err← 1 ⍙DelIx ii-(⊃⎕RSI).⎕IO   ⍝ Adjust for caller's ⎕IO   
           ⋄ items ErrIf err  
@@ -385,8 +389,8 @@ TrapSig← ⎕SIGNAL _TS
   :Access Public
   ii← KEYS⍳ kk
   :If 0∊ bb← ii≠ ≢KEYS                         ⍝ If 'tempDef' isn't set, use DEF_VAL (if set).
-      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.ACTIVE= DEF_STATUS   
-          tempDef noDef← DEF_VAL def.NONE      ⍝ Else, there's no tempDef to use.
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.active= DEF_STATUS   
+          tempDef noDef← DEF_VAL def.none      ⍝ Else, there's no tempDef to use.
       :ENDIF   
       ⋄ error.keyNotFnd ErrIf noDef 
       vv← (≢kk)⍴ ⊂tempDef                      ⍝ vv: assume default for each;
@@ -407,7 +411,7 @@ TrapSig← ⎕SIGNAL _TS
   :IF i1≠ ≢KEYS 
       v1← i1⊃ VALS 
   :ELSE
-      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.ACTIVE= DEF_STATUS 
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.active= DEF_STATUS 
           tempDef noDef← DEF_VAL 0
       :ENDIF
         ⋄ error.keyNotFnd ErrIf noDef 
@@ -428,15 +432,15 @@ TrapSig← ⎕SIGNAL _TS
   :Property Simple HasDefault 
   :Access Public
     ∇ b←get 
-      b← def.ACTIVE= DEF_STATUS 
+      b← def.active= DEF_STATUS 
     ∇
     ∇ set new; d   
        11 ''ErrIf 0 1 (~∊⍨) d← new.NewValue 
        :If d 
-          error.noDef ErrIf def.NONE= DEF_STATUS 
-          DEF_STATUS← def.ACTIVE 
+          error.noDef ErrIf def.none= DEF_STATUS 
+          DEF_STATUS← def.active 
        :Else 
-          DEF_STATUS×← def.QUIESCED
+          DEF_STATUS×← def.quiesced
        :EndIf 
     ∇
   :EndProperty 
@@ -487,12 +491,26 @@ TrapSig← ⎕SIGNAL _TS
     ValsByKey[kk] ← vv 
   ∇
 
-⍝H ii← d.Items[]
-⍝H ii← d.Items[ii] 
-⍝H Retrieve ALL or selected items of the dictionary as key-value pairs. 
+⍝H (a)  items← d.Items                 Caller ⎕IO is honored.
+⍝H Retrieve all items of the dictionary as key-value pairs. 
+⍝H Note: All items are generated on the fly, so d.Items[ii] can be inefficient for
+⍝H       large dictionaries. See d.ItemsIx[ii].
 ⍝H (Items are read-only)
 ⍝H 
-  :Property Keyed Items,Item 
+  :Property Simple Items,Item 
+  :Access Public 
+    ∇ items← Get
+      items← ↓⍉↑KEYS VALS
+    ∇
+  :EndProperty
+
+⍝H (a)  items← d.ItemsIx[ ii ]          Caller ⎕IO is honored.
+⍝H Retrieve selected items of the dictionary by index as key-value pairs. 
+⍝H Note: All items are generated on the fly, so d.ItemsIx[ ii ] is a more efficient 
+⍝H       way to gather select items from a large dictionary than d.Items[ ii ].
+⍝H (Items are read-only)
+⍝H 
+ :Property Keyed ItemsByIndex,ItemsIx 
   :Access Public
     ∇ items←Get args; ii; ei; nK  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
