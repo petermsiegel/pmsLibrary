@@ -14,7 +14,8 @@
 ⍝H   will cause an INDEX ERROR to be generated.
 ⍝H ∘ If AUTOHASH←1 in the ∆D.Dict namespace (default),
 ⍝H   d.Hash will be applied at dictionary creation.
-⍝H   AUTOHASH is currently $AUTOHASH.
+⍝H   Currently, AUTOHASH←$AUTOHASH 
+⍝H ==========
 ⍝H Note: ∆D 'help' will display this help information.
 ⍝H   
 ⍝H ∆DL "Dictionary from a KeyList and ValueList"
@@ -28,9 +29,10 @@
 ⍝H ∘ Both may be empty, resulting in an empty dictionary.
 ⍝H ∘ If no default is specified, then querying the values of keys that do not exist
 ⍝H   will cause an INDEX ERROR to be generated.
-⍝H ∘ If AUTOHASH←1 in the ∆D.Dict namespace (default),
+⍝H ∘ If AUTOHASH=1 in the ∆D.Dict namespace (default),
 ⍝H   d.Hash will be applied at dictionary creation.
-⍝H   AUTOHASH is currently $AUTOHASH.
+⍝H   Currently, AUTOHASH←$AUTOHASH 
+⍝H ==========
 ⍝H Note: ∆DL'help' will display this help information.
 ⍝H
 ⍝H ∆DX "Dictionaries with options"  [∆DX is an operator]
@@ -93,32 +95,34 @@ TrapSig← ⎕SIGNAL _TS
 ⍝ Provide help information. See also Dict.Help.
 ∇ {ok}← Help; t; R; S 
   R← '\$AUTOHASH'   ⎕R (⍕Dict.AUTOHASH)
-  S← '^\h*⍝H ?(.*)' ⎕S '\1'
+  S← '^\h*⍝H\h?(.*)' ⎕S '\1'
   ok← ⎕ED 't'⊣ t← R S ⊣ ⎕SRC ⎕THIS 
 ∇
  
 :Class Dict
-⍝H ┌──────────────────────────────────────────────────────────────────────────────┐
-⍝H │                 "METHODS"  IN ALPHABETICAL ORDER…                            │
-⍝H ├──────────────────────────────────────────────────────────────────────────────┤  
-⍝H │  d[kk],d[]      d[kk]← vv      d.Clear       d2← d.Copy          d.Default   │
-⍝H │  d.Default←any  d.Def[kk]      d.ⁱDel kk     d.⁲DelIx[ii]        d.DelIx[]   │ 
-⍝H │  d.Get kk       d.Get1 k       d.HasDefault  d.HasDefault←[1|0]  d.Hash      │
-⍝H │  d.Help         d.Import kkvv  d.⁲Items[ii]  d.⁲Keys[…]          d.Pop n     │     
-⍝H │  d.⁲Vals[ii]    d.⁲Vals[ii]←vv                                               │
-⍝H │  New:           vv← nums d.AddTo kk                                          │
-⍝H ├─────────────────────┬──────────────────────┬─────────────────────────────────┤ 
-⍝H │  kk: list of keys   │  vv: list of vals    │   ii: list of indices           │  
-⍝H │  kkvv: kk vv        │  any: any val.       │   nums: 1 or more numbers       │  
-⍝H ├─────────────────────┴──────────────────────┴─────────────────────────────────┤ 
-⍝H │  ⁱ Del: If a left arg is present and 1, all keys MUST exist.                 │
-⍝H │  ⁲ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing  │     
-⍝H └──────────────────────────────────────────────────────────────────────────────┘
+⍝H ┌───────────────────────────────────────────────────────────────────────────────┐
+⍝H │                 "METHODS"  IN ALPHABETICAL ORDER…                             │
+⍝H ├───────────────────────────────────────────────────────────────────────────────┤  
+⍝H │  d[kk],d[]     d[kk]← vv    vv← [nums] d.AddTo kk  d.Default  d.Default←any   │
+⍝H │  d.Def[kk]     d.ⁱDel kk    d.⁲DelIx[ii]           d.DelIx[]  d.Default←any   │ 
+⍝H │  vv← d.Get kk  d.Get1 k │   d.HasDefault  d.HasDefault←[1|0]  d.Help          │
+⍝H │  d.⁲Items[ii]  d.⁲Keys[…]   d.Pop n       d.⁲Vals[ii]         d.⁲Vals[ii]←vv  │
+⍝H ├───────────────────────────────────────────────────────────────────────────────┤ 
+⍝H │  {d}← d.Clear  {d}← d.Hash  {d}← d.Import kkvv                                │
+⍝H │  d2←  d.Copy   d2 ← d.⁳Sort [1|¯1|0]                                          │
+⍝H ├─────────────────────┬──────────────────────┬──────────────────────────────────┤ 
+⍝H │  kk: list of keys   │  vv: list of vals    │   ii: list of indices            │  
+⍝H │  kkvv: kk vv        │  any: any val.       │   nums: 1 or more numbers        │  
+⍝H ├─────────────────────┴──────────────────────┴──────────────────────────────────┤ 
+⍝H │  ⁱ Del: If a left arg is present and 1, all keys MUST exist.                  │
+⍝H │  ⁲ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing   │   
+⍝H │  ⁳ Sort: n is: 1=ascending, ¯1=descending, 0=no change.                       │     
+⍝H └───────────────────────────────────────────────────────────────────────────────┘
 ⍝H 
 ⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be a null string ('').
   :Namespace error ⍝ em message
-      badPopArg←   11 'Pop right arg must be non-neg integer scalar'
-      delLeftBad←  11 'Left arg to Del is invalid'
+      badRightArg← 11 'Method right arg is invalid'
+      badLeftArg←  11 'Method left arg is invalid'
       delKeyBad←    3 'Key(s) not found (nothing deleted)'
       delIxBad←     3 'Nothing deleted'      
       itemsBad←    11 'A list of items (key-value pairs) is required (enclose if just one)'
@@ -223,19 +227,21 @@ TrapSig← ⎕SIGNAL _TS
     ∇ 
   :EndProperty
 
-⍝H {res}← counts d.AddTo kk
+⍝H {res}← counts|1 d.AddTo kk
 ⍝H   kk:     1 or more keys, which (a) may be duplicated and (b) may be new to d.
 ⍝H   counts: numbers to add to d[kk], either a single number or (≢kk) numbers.
+⍝H           Defaults to 1, if omitted.
 ⍝H Adds all corresponding counts to d[kk], where kk may be repeated.
 ⍝H --------------- 
 ⍝H ∘ If d.Keys[k] does not exist for k, a key in kk, d[k] will initialize to 0,
-⍝H   as if 0 were the default value for new entries.
+⍝H   before any addition, as if 0 were the default value for new entries.
 ⍝H ∘ Same as Keys[kk]+← Keys[kk] (if it worked), accumulating ALL counts for a specific key,
 ⍝H   except for defaults and the handling of new values.
 ⍝H ∘ Shyly returns the new values at Keys[kk].
 ⍝H 
-  ∇ {res}← counts AddTo kk; ii; new; nkk; ukk; nKEYS   
+  ∇ {res}← {counts} AddTo kk; ii; new; nkk; ukk; nKEYS   
     :Access Public
+    :IF 900⌶⍬ ⋄ counts← 1 ⋄ :EndIf 
     :Trap 0 
         nKEYS← ≢KEYS 
         :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
@@ -249,14 +255,14 @@ TrapSig← ⎕SIGNAL _TS
     :EndTrap 
   ∇
 
-  ⍝H {n}← d.Clear
+  ⍝H {d}← d.Clear
   ⍝H Remove all items (keys and values) from the dictionary.
   ⍝H Do not change any default value (Default).
-  ⍝H Shyly returns the # of items deleted.
+  ⍝H Shyly returns the dictionary.
   ⍝H 
-    ∇{n}← Clear 
+    ∇{d}← Clear 
       :Access Public 
-      n← ≢KEYS ⋄ KEYS←VALS← ⍬ ⋄ HashIfSet 
+      d← ⎕THIS ⋄ KEYS←VALS← ⍬ ⋄ HashIfSet 
     ∇
 
   ⍝H d2← d.Copy
@@ -322,7 +328,7 @@ TrapSig← ⎕SIGNAL _TS
       :Else 
           bb← (≢KEYS)≠ ii← KEYS⍳ kk     
           :If 0∊ bb ⋄ :AndIf ~900⌶⍬ 
-              error.delLeftBad ErrIf required(~∊) 0 1
+              error.badLeftArg ErrIf required(~∊) 0 1
               error.delKeyBad  ErrIf required             
           :EndIf 
           :IF 1∊ bb                         
@@ -370,7 +376,7 @@ TrapSig← ⎕SIGNAL _TS
     ⍝ If all items are in a contig. trailing block, remove via ↓⍨←, which preserves any hashing.   
       1(~∊) bb↓⍨ blok: ret 0⊣ KEYS↓⍨← VALS↓⍨← blok  
         ⍝ Remove items to delete by indexing (depends on ix errors being caught above)
-          KEYS/⍨← VALS/⍨← ~bb        
+          KEYS/⍨← VALS/⍨← ~bb                  ⍝ Assign separately to maintain any hashing of KEYS      
           ret 0 ⊣ HashIfSet   
     }
 
@@ -445,7 +451,7 @@ TrapSig← ⎕SIGNAL _TS
     ∇
   :EndProperty 
 
-⍝H was← d.Hash 
+⍝H {d}← d.Hash 
 ⍝H Returns the prior hash status:
 ⍝H    0: not hashed, 1: hashing active but no search yet, 2: hashed and searched. 
 ⍝H Set the flag HASH_SET to 1 and mark the vector KEYS as a Dyalog hashtable, 
@@ -453,10 +459,9 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H key vectors can be done in O(1) time, rather than O(N).
 ⍝H When set, hashing is established immediately and redone when a delete takes place.
 ⍝H 
-  ∇ {was}← Hash
+  ∇ {d}← Hash
     :Access Public
-    HASH_SET← 1 ⋄ was← 1(1500⌶)KEYS ⋄ KEYS← 1500⌶KEYS  
-    ⎕DF  '∆D=[Dict+hash]' 
+    d← ⎕THIS ⋄ HASH_SET← 1 ⋄ KEYS← 1500⌶KEYS ⋄ ⎕DF  '∆D=[Dict+hash]' 
   ∇
   ∇ status← HashStatus
     :Access Public
@@ -481,14 +486,20 @@ TrapSig← ⎕SIGNAL _TS
     ok← ##.Help 
   ∇
 
-⍝H d.Import keylist vallist 
+⍝H {d}← d.Import keylist vallist 
 ⍝H Add new (or existing) items via lists of keys and values.
 ⍝H This is equivalent to d[ keylist ]← vallist
+⍝H If the dictionary is empty, Import simply sets the KEYS and VALS to the input args. 
 ⍝H 
-  ∇ {vv}← Import (kk vv)
+  ∇ {d}← Import (kk vv)
     :Access Public
-    :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ :EndIf 
-    ValsByKey[kk] ← vv 
+    :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ Else ⋄ error.mismatch ErrIf kk≠⍥≢vv ⋄ :EndIf  
+    d← ⎕THIS 
+    :IF 0=≢KEYS 
+        KEYS,← kk ⋄ VALS,← vv 
+    :Else 
+        ValsByKey[kk] ← vv 
+    :EndIf 
   ∇
 
 ⍝H (a)  items← d.Items                 Caller ⎕IO is honored.
@@ -549,14 +560,32 @@ TrapSig← ⎕SIGNAL _TS
       KEYS VALS↓⍨← p ⋄ HashIfSet      
       :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
     :Else
-      error.badPopArg ErrIf 1  
+      error.badRightArg ErrIf 1  
     :EndTrap 
   ∇
+
+⍝H d2← d.Sort order
+⍝H Create a copy of a dictionary and sort by Keys into (order=1) ascending,
+⍝H (order=¯1) descending, or (order=0) the current order.
+⍝H Returns the new dictionary d2.
+⍝H 
+  ∇ {d2}← Sort order; ii 
+    :Access Public 
+    d2← ⎕THIS.Copy 
+    :Select order
+       :CASE 1 ⋄ ii← ⍋KEYS
+       :CASE¯1 ⋄ ii← ⍒KEYS
+       :CASE 0 ⋄ :RETURN   ⍝ Return copy of original dict.
+       :Else   ⋄ error.badRightArg ErrIf 1  
+    :EndSelect
+    d2.Clear.Import KEYS VALS⌷⍨¨ ⊂⊂ii  
+  ∇  
  
 ⍝H d.Vals[ ix1 ix2 …], 
 ⍝H d.Vals[ ix1 ix2…]← val1 val2…
-⍝H d.Vals[]
-⍝H Also: ValsIx[…]
+⍝H d.Vals                     ⍝ Retrieve all vals 
+⍝H d.Vals← val1 val2…         ⍝ Obscure, but valid, if (≢val1 val2…)≡≢d.Vals
+⍝H Synonym: d.ValsIx, d.ValsByIx
 ⍝H Retrieve or set specific values in the dictionary by index (caller's ⎕IO).
 ⍝H You may also retrieve ALL the values using d.Vals[] or simply d[].
 ⍝H 
