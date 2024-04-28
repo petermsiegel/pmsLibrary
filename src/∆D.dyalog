@@ -205,10 +205,11 @@ TrapSig← ⎕SIGNAL _TS
           :If ~0∊ old                         ⍝ All keys old? 
               vv← VALS[ ii ]                  ⍝ … Just grab existing values.
           :Else                               ⍝ Some old and some new keys.
-              ⋄ error.keyNotFnd ErrIf def.active≠DEF_STATUS  ⍝ … error unless we have a DEF_VAL;
+              ⋄ error.keyNotFnd ErrIf DEF_STATUS≠ def.active  ⍝ … error unless we have a DEF_VAL;
               vv← (≢kk)⍴ ⊂DEF_VAL             ⍝ … where new, return DEF_VAL;
               vv[ ⍸old ]← VALS[ old/ ii ]     ⍝ … where old, return existing value.
           :Endif 
+          vv ⍴⍨← ⍴kk 
       :Endif  
     ∇
   ⍝ ValsByKey "set" function
@@ -284,7 +285,7 @@ TrapSig← ⎕SIGNAL _TS
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      ⋄ error.noDef ErrIf def.active≠ DEF_STATUS 
+      ⋄ error.noDef ErrIf DEF_STATUS≠ def.active
       d← DEF_VAL 
     ∇
     ∇ set new  
@@ -395,7 +396,7 @@ TrapSig← ⎕SIGNAL _TS
   :Access Public
   ii← KEYS⍳ kk
   :If 0∊ bb← ii≠ ≢KEYS                         ⍝ If 'tempDef' isn't set, use DEF_VAL (if set).
-      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.active= DEF_STATUS   
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF DEF_STATUS= def.active   
           tempDef noDef← DEF_VAL def.none      ⍝ Else, there's no tempDef to use.
       :ENDIF   
       ⋄ error.keyNotFnd ErrIf noDef 
@@ -417,7 +418,7 @@ TrapSig← ⎕SIGNAL _TS
   :IF i1≠ ≢KEYS 
       v1← i1⊃ VALS 
   :ELSE
-      :IF noDef← 900⌶⍬ ⋄ :ANDIF def.active= DEF_STATUS 
+      :IF noDef← 900⌶⍬ ⋄ :ANDIF DEF_STATUS= def.active
           tempDef noDef← DEF_VAL 0
       :ENDIF
         ⋄ error.keyNotFnd ErrIf noDef 
