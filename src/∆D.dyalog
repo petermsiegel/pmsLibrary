@@ -59,13 +59,13 @@
 ⍝  *** See additional HELP info below ***
 
 ⎕IO ⎕ML←0 1  
-_TS← { ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨('^(∆D\w? )?'⎕R(⍺,' ')⊢EM) EN  Message) } 
+_TS← { ⍺←'' ⋄ ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨('^(∆D\w? )?'⎕R('∆D',⍺,' ')⊢EM) EN  Message) } 
 TrapSig← ⎕SIGNAL _TS 
 
 ⍝ ∆D: Create from items (key-value pairs)   
 ⍝ dict← [default] ∇ (k1 v1)(k2 v2)…
 ∆D←{ 
-  dFlag←2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆D' TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+  dFlag←2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
   ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
 }
 
@@ -73,7 +73,7 @@ TrapSig← ⎕SIGNAL _TS
 ⍝          or from a list and a scalar: keylist (scalar_value)
 ⍝ dict← [default] ∇ keylist valuelist
 ∆DL←{
-    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: '∆DL'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: 'L'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
   2≠≢⍵: ⎕SIGNAL/'∆DL DOMAIN ERROR: invalid right arg shape' 11 
     ⎕NEW Dict (⍵, ⍺ dFlag Dict.AUTOHASH)            
 }
@@ -82,7 +82,7 @@ TrapSig← ⎕SIGNAL _TS
 ⍝ dict← [default] (opts ∇) ((k1 v1)(k2 v2)… | keylist valueList)
 ⍝    opts: 'Items'|'Lists', 'Nohash'|'Hash') or  (SQt I|L N|H SQt)
 ∆DX← { 
-    dFlag← 2= ⎕NC'⍺' ⋄ ⍺← ⎕NULL ⋄ 0:: '∆DX'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
+    dFlag← 2= ⎕NC'⍺' ⋄ ⍺← ⎕NULL ⋄ 0:: 'X'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
     (i l n h)ilnh← 'ILNH' (∊ ,⍥⊂ ∊⍨) ⊃¨⍺⍺  ⍝ Items*|Lists, Nohash*|Hash
     (i∧l)∨(n∧h)∨0∊ilnh: ⎕SIGNAL/ '∆DX DOMAIN ERROR: unknown or conflicting options' 11
   l: ⎕NEW Dict (⍵, ⍺ dFlag h) ⋄ ⎕NEW Dict (⍵ ⍺ dFlag h) 
@@ -101,22 +101,25 @@ TrapSig← ⎕SIGNAL _TS
  
 :Class Dict
 ⍝H ┌───────────────────────────────────────────────────────────────────────────────┐
-⍝H │                 "METHODS"  IN ALPHABETICAL ORDER…                             │
-⍝H ├───────────────────────────────────────────────────────────────────────────────┤  
-⍝H │  d[kk],d[]     d[kk]← vv    vv← [nums] d.AddTo kk  d.Default  d.Default←any   │
-⍝H │  d.Def[kk]     d.ⁱDel kk    d.⁲DelIx[ii]           d.DelIx[]  d.Default←any   │ 
-⍝H │  vv← d.Get kk  d.Get1 k │   d.HasDefault  d.HasDefault←[1|0]  d.Help          │
-⍝H │  d.⁲Items[ii]  d.⁲Keys[…]   d.Pop n       d.⁲Vals[ii]         d.⁲Vals[ii]←vv  │
-⍝H ├───────────────────────────────────────────────────────────────────────────────┤ 
-⍝H │  {d}← d.Clear  {d}← d.Hash  {d}← d.Import kkvv                                │
-⍝H │  d2←  d.Copy   d2 ← d.⁳Sort [1|¯1|0]                                          │
-⍝H ├─────────────────────┬──────────────────────┬──────────────────────────────────┤ 
-⍝H │  kk: list of keys   │  vv: list of vals    │   ii: list of indices            │  
-⍝H │  kkvv: kk vv        │  any: any val.       │   nums: 1 or more numbers        │  
-⍝H ├─────────────────────┴──────────────────────┴──────────────────────────────────┤ 
-⍝H │  ⁱ Del: If a left arg is present and 1, all keys MUST exist.                  │
-⍝H │  ⁲ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing   │   
-⍝H │  ⁳ Sort: n is: 1=ascending, ¯1=descending, 0=no change.                       │     
+⍝H │                 "METHODS" of dictionary d IN ALPHABETICAL ORDER…              │
+⍝H ├─ Returning elements or info ──────────────────────────────────────────────────┤  
+⍝H │  d[kk],d[]         d[kk]← vv     vv← [nums]    d.AddTo kk  d.ⁱDef[kk]         │
+⍝H │  d.ⁱDefault[←any]  d.⁲Del kk     d.⁳DelIx[ii]  d.DelIx[]   vv← {tdef} d.Get kk│ 
+⍝H │  d.Get1 k          d.HasDefault[←[1|0]]        d.Help      d.⁳Items[ii]       │
+⍝H │  d.⁳Keys[…]        d.Pop n       d.⁳Vals[ii]   d.⁳Vals[ii]←vv                 │
+⍝H ├─ Returning dictionaries ──────────────────────────────────────────────────────┤ 
+⍝H │  {d}← d.Clear      {d}← d.Hash                {d}← d.Import kkvv              │
+⍝H │  d2←  d.Copy       d2←  {any} d.FromKeys kk   d2← {fold} d.⁴Sort order        │
+⍝H ├─ Abbrev. used above ──┬──────────────────────┬────────────────────────────────┤ 
+⍝H │  kk: list of keys     │  vv: list of vals    │   ii: list of indices          │  
+⍝H │  kkvv: kk vv          │  any: any val.       │   nums: 1 or more numbers      │  
+⍝H ├─ Footnotes ───────────┴──────────────────────┴────────────────────────────────┤ 
+⍝H │  ⁱ Def vs Default: "Is item defined?" vs. "(get/set) value for default"       │
+⍝H │  ⁲ Del: If a left arg is present and 1, all keys MUST exist.                  │
+⍝H │  ⁳ DelIx, Items, Keys, Vals: Use Index Origin (⎕IO) of caller when indexing   │   
+⍝H │  ⁴ Sort: order is: 1=ascending, ¯1=descending, 0=leave as is                  │    
+⍝H │  ⁴       fold: 0 (default): case is respected,                                │
+⍝H │  ⁴             1 (fold):    (virtually) fold case of keys when sorting (⎕C)   │
 ⍝H └───────────────────────────────────────────────────────────────────────────────┘
 ⍝H 
 ⍝ Error Msgs: Format: [EN@I Message@CV], where Message may be a null string ('').
@@ -155,6 +158,7 @@ TrapSig← ⎕SIGNAL _TS
   ∇ makeFill                   ⍝ Create an empty dict with no DEF_VAL 
     :Implements constructor 
     :Access Public 
+    ⎕DF '∆D=[Dict]'
   ∇ 
 
   ∇ MakeI (ii dVal dFlag hFlag)      ⍝ Create dict from Items and opt'l Default
@@ -252,7 +256,7 @@ TrapSig← ⎕SIGNAL _TS
         VALS[ ii ]+← counts
         res← VALS[ ii ]    
     :Else 
-       '∆D'##.TrapSig⍬
+       ##.TrapSig⍬
     :EndTrap 
   ∇
 
@@ -381,6 +385,21 @@ TrapSig← ⎕SIGNAL _TS
           ret 0 ⊣ HashIfSet   
     }
 
+⍝H  d2← {tempDef} d.FromKeys kk
+⍝H  Returns a new dictionary including the items from d which contain the keys kk.
+⍝H  Missing keys generate an Index Error (Keys not found) unless a default has been set,
+⍝H  either as a dict-wide default or via tempDef, the left argument to d.FromKeys.
+⍝H 
+∇ d2← {tempDef} FromKeys kk 
+  :Access Public 
+  :If 900⌶⍬ ⋄ tempDef← ⊢ ⋄ :EndIf 
+  :Trap ⊃error.keyNotFnd
+      d2← Copy.Clear.Import kk (tempDef Get kk)
+  :Else 
+      ##.TrapSig⍬
+  :EndTrap  
+∇
+
 ⍝H v1 v2…← d.Get k1 k2…             ⍝ One or more keys (present a list, returns a list)
 ⍝H v1 v2…← default d.Get k1 k2…    
 ⍝H Retrieve values for one or more keys. 
@@ -487,15 +506,16 @@ TrapSig← ⎕SIGNAL _TS
     ok← ##.Help 
   ∇
 
-⍝H {d}← d.Import keylist vallist 
-⍝H Add new (or existing) items via lists of keys and values.
-⍝H This is equivalent to d[ keylist ]← vallist
+⍝H {d}←  d.Import keylist vallist 
+⍝H This is equivalent to d[ keylist ]← vallist.
+⍝H To clear the existing keylist vallist, do 
+⍝H    d.Clear.Import keylist vallist  
 ⍝H If the dictionary is empty, Import simply sets the KEYS and VALS to the input args. 
 ⍝H 
-  ∇ {d}← Import (kk vv)
+  ∇ {d}←  Import (kk vv)
     :Access Public
-    :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ Else ⋄ error.mismatch ErrIf kk≠⍥≢vv ⋄ :EndIf  
     d← ⎕THIS 
+    :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ Else ⋄ error.mismatch ErrIf kk≠⍥≢vv ⋄ :EndIf   
     :IF 0=≢KEYS 
         KEYS,← kk ⋄ VALS,← vv 
     :Else 
@@ -547,6 +567,14 @@ TrapSig← ⎕SIGNAL _TS
     ∇
   :EndProperty
 
+⍝H d2← d.New
+⍝H Make a new dictionary w/o assumptions on hash, default, etc.
+⍝H 
+  ∇ d2← New; def  
+    :Access Public 
+    d2← ⎕NEW Dict   
+  ∇
+
 ⍝H items← d.Pop n
 ⍝H Remove and shyly return the last <n> items from the dictionary;
 ⍝H if no items to return, returns ⍬.
@@ -565,18 +593,29 @@ TrapSig← ⎕SIGNAL _TS
     :EndTrap 
   ∇
 
-⍝H d2← d.Sort order
-⍝H Create a copy of a dictionary and sort by Keys into (order=1) ascending,
-⍝H (order=¯1) descending, or (order=0) the current order.
+⍝H d2← {fold} d.Sort order
+⍝H Create a copy of a dictionary and sort by Keys into order: 
+⍝H  order= 1: ascending, 
+⍝H  order=¯1: descending, or 
+⍝H  order= 0: the current order.
+⍝H Apply folding if there is a left argument of 1:
+⍝H   case= 0: (default): case is respected,
+⍝H   case= 1: fold (⎕C) each key when sorting (does not affect actual dict keys)
 ⍝H Returns the new dictionary d2.
 ⍝H 
-  ∇ {d2}← Sort order; ii 
+  ∇ {d2}← {case} Sort order; ii; CF  
     :Access Public 
-    d2← ⎕THIS.Copy 
+    d2← ⎕THIS.Copy
+    :IF 900⌶⍬ ⋄ case← 0 ⋄ :EndIf 
+    :Select case 
+      :Case 1 ⋄ CF← ⎕C 
+      :Case 0 ⋄ CF← ⊢
+      :Else   ⋄ error.badLeftArg ErrIf 1  
+    :EndSelect
     :Select order
-       :CASE 1 ⋄ ii← ⍋KEYS
-       :CASE¯1 ⋄ ii← ⍒KEYS
-       :CASE 0 ⋄ :RETURN   ⍝ Return copy of original dict.
+       :Case 1 ⋄ ii←  ⍋ CF KEYS
+       :Case¯1 ⋄ ii←  ⍒ CF KEYS
+       :Case 0 ⋄ :Return       ⍝ Return copy of new dict d2 as is
        :Else   ⋄ error.badRightArg ErrIf 1  
     :EndSelect
     d2.Clear.Import KEYS VALS⌷⍨¨ ⊂⊂ii  
