@@ -5,13 +5,15 @@
  ⎕IO←⎕SE.⎕IO←0 ⋄ ⎕PW←120
  UCMD←⎕SE.UCMD
 
- ⎕←'Setup: /Users/petermsiegel/MyDyalogLibrary/pmsLibrary/userCmds/Setup.dyalog'
+ ⎕←'To update, do:'
+ ⎕←'⍝    ]file.edit /Users/petermsiegel/MyDyalogLibrary/pmsLibrary/userCmds/Setup.dyalog' 
+ ⎕←'⍝    ⎕SH ''/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/userCmds/updateMyUcmds'''
 
  ⍝ Library directory
  DIR←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  ⍝ Session libraries
  LIBS←'∆SH' '∆F' '∆D'
- #.⎕PATH,⍨←'⎕SE '
+ #.⎕PATH,⍨←'⎕SE ⎕SE.∆DClass'
  ok←0
 
  Say0←{1:⎕←⍵}
