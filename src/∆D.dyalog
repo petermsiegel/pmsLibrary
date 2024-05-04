@@ -89,13 +89,13 @@ TrapSig← ⎕SIGNAL _TS
   l: ⎕NEW Dict (⍵, ⍺ dFlag h) ⋄ ⎕NEW Dict (⍵ ⍺ dFlag h) 
 } 
 
-##.⎕PATH← {t←⍕⎕THIS ⋄ t,' ',('(\h*\Q',t,'\E)*\h*$')⎕R ''⊣⍵}##.⎕PATH
+##.⎕PATH← (⍕⎕THIS){⍺,' ',('(\h*\Q',⍺,'\E)*\h*$')⎕R ''⊣⍵}##.⎕PATH
 
 ⍝ Provide help information. See also Dict.Help.
-∇ {ok}← Help; t; R; S 
-  R← '\$AUTOHASH'   ⎕R (⍕Dict.AUTOHASH)
+∇ {help}← Help;  R; S 
+  R← '\$AUTOHASH'    ⎕R (⍕Dict.AUTOHASH)
   S← '^\h*⍝H\h?(.*)' ⎕S ' \1'
-  ok← ⎕ED 't'⊣ t← R S ⊣ ⎕SRC ⎕THIS 
+  help← ⎕ED 'help'⊣ help← R S ⊣ ⎕SRC ⎕THIS 
 ∇
  
 :Class Dict
@@ -105,12 +105,14 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H │  vv←d[kk]  d[kk]←vv  vv←d[]          d.ⁱDef[kk]   d.⁲DelIx[ii]  d.DelIx[]        │
 ⍝H │  d.⁲Items[ii]        d.⁲ItemsIx[ii]  d.⁲Keys[ii]  d.⁲Vals[ii]   d.⁲Vals[ii]←vv   │ 
 ⍝H ├─ Simple methods returning elements or info ──────────────────────────────────────┤  
-⍝H │  d.AddTo kk         any←d.ⁱDefault    d.ⁱDefault←any   d.⁳Del kk                 │
-⍝H │  vv←{tdef}d.Get kk  v←{tdef}d.Get1 k  n← d.HasDefault  d.HasDefault←[1|0]        │
-⍝H │  d.HashStatus       d.Help            d.Pop  n         d.Tally kk                │
+⍝H │  any←d.ⁱDefault    d.ⁱDefault←any    d.⁳Del kk           vv←{tdef}d.Get kk       │
+⍝H │  v←{tdef}d.Get1 k  n← d.HasDefault   d.HasDefault←[1|0]  d.HashStatus            │
+⍝H │  d.Help            {items}← d.Pop n   {vv}← d.Tally kk                           │
 ⍝H ├─ Returning dictionaries ─────────────────────────────────────────────────────────┤ 
 ⍝H │  Same dict:  {d}←d.Clear  {d}←d.[No]Hash  {d}←d.Import items  {d}←d.ImportL kkvv │      
 ⍝H │  New dict:    d2←d.Copy      d2←{tdef}d.FromKeys kk   d2← d.FromIx ii            │
+⍝H ├─ Experimental (temporary)────────────────────────────────────────────────────────┤ 
+⍝H │  ii← {default} d.Index kk    vv← {default} GetSet kk                                                                   │
 ⍝H ├─ Abbrev. used above ─┬─────────────────────────────┬─────────────────────────────┤ 
 ⍝H │    kk: list of keys  │    vv: list of vals         │    ii: list of indices      │  
 ⍝H │     k: disclosed key │     v: disclosed val        │    ii: list of indices      │  
@@ -224,7 +226,7 @@ TrapSig← ⎕SIGNAL _TS
               vv← (≢kk)⍴ ⊂DEF_VAL             ⍝ … where new, return DEF_VAL;
               vv[ ⍸old ]← VALS[ old/ ii ]     ⍝ … where old, return existing value.
           :Endif 
-          vv ⍴⍨← ⍴kk 
+          vv ⍴⍨← ⍴kk                          ⍝ If kk is a scalar, we must return a scalar!
       :Endif  
     ∇
   ⍝ ValsByKey "set" function
@@ -235,72 +237,15 @@ TrapSig← ⎕SIGNAL _TS
       kk← ⊃args.Indexers 
       vv← args.NewValue 
       ⋄ error.noKeys ErrIf ⎕NULL≡ kk           ⍝ d[]← … NOT ALLOWED.
-      kk vv← ↓⍉{ ⍺, vv[⊃⌽⍵] }⌸ kk              ⍝ Handle new keys and their values 
-      nKEYS← ≢KEYS    
-      :IF 1∊ new← nKEYS= ii← KEYS⍳ kk          
-        VALS,← 0⍴⍨ ≢KEYS,← nkk← new/kk         ⍝ Add placeholder for new vals 
-        (new/ ii)← nKEYS + ⍳⍨nkk               ⍝ Add new key locations
+      kk vv← ↓⍉{ ⍺, vv[⊃⌽⍵] }⌸ kk              ⍝ Handles duplicate and new keys.
+      nKEYS← ≢KEYS  
+      :IF 1∊ new← nKEYS= ii← KEYS⍳ kk          ⍝ New Keys…
+          VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk      ⍝ Add placeholder for each new val 
+          (new/ ii)← nKEYS+ ⍳⍨nkk              ⍝ Add new key indices
       :EndIf 
-      VALS[ ii ]← vv                           ⍝ Update values 
+      VALS[ ii ]← vv                           ⍝ Update all values, replacing any placeholders 
     ∇ 
   :EndProperty
-
-⍝H {res}← {counts|1} d.AddTo kk
-⍝H   kk:     1 or more keys, which (a) may be duplicated and (b) may be new to d.
-⍝H   counts: numbers to add to d[kk], either a single number or (≢kk) numbers.
-⍝H           Defaults to 1, if omitted.
-⍝H Adds all corresponding counts to d[kk], where kk may be repeated.
-⍝H --------------- 
-⍝H ∘ If d.Keys[k] does not exist for k, a key in kk, d[k] will initialize to 0,
-⍝H   before any addition, as if 0 were the default value for new entries.
-⍝H ∘ Same as Keys[kk]+← Keys[kk] (not allowed [as of 202405] for duplicate keys in kk), 
-⍝H   accumulating ALL counts for a specific key, except for defaults and the handling 
-⍝H   of new values.
-⍝H ∘ Shyly returns the new values at Keys[kk].
-⍝H 
-  ∇ {res}← {counts} AddTo kk; ii; new; nkk; ukk; nKEYS   
-    :Access Public
-    :IF 900⌶⍬ ⋄ counts← 1 ⋄ :EndIf 
-    :Trap 0 
-        nKEYS← ≢KEYS 
-        kk vv← ↓⍉{ ⍺, vv[⊃⌽⍵] }⌸ kk    
-        :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
-            VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk          ⍝ Initialize  new values to 0  
-            (new/ ii)← nKEYS+ ⍳⍨ nkk                 ⍝ Identify new key indices
-        :EndIf 
-        VALS[ ii ]+← counts                          ⍝ Update values left to right
-        res← VALS[ ii ]                              ⍝ Return final values to all
-    :Else 
-       ##.TrapSig⍬
-    :EndTrap 
-  ∇
-⍝H d.Tally    Count the # of instances of each key passed, incrementing the key's value by that count.
-⍝H {res}← d.Tally kk
-⍝H   kk:     1 or more keys, which (a) may be duplicates in any order and (b) may be new to d.
-⍝H ∘ Counts how many times each key ¨k¨ is present in kk and adds that count to the existing
-⍝H   value of d[k]. 
-⍝H ∘ Returns: Shyly returns the final updated (aggregate) tally for each key.
-⍝H   * (If keys are duplicated, the final tally will be the same for each duplicate)
-⍝H ∘ If d[k] does not yet exist, the count becomes the new value of d[k]
-⍝H   (as if the prior value had been 0), irrespective of any default for the dict.
-⍝H ∘ If d[k] exists and is not numeric, a VALUE ERROR occours.
-⍝H 
-  ∇ {res}← Tally kk; ii; new; nkk; tally; nKEYS   
-    :Access Public
-    :IF 900⌶⍬ ⋄ counts← 1 ⋄ :EndIf 
-    kk tally← ↓⍉{ ⍺, ≢⍵ }⌸ kk
-    :Trap 0 
-        nKEYS← ≢KEYS 
-        :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
-            VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk       ⍝ Initialize  new values to 0  
-            (new/ ii)← nKEYS+ ⍳⍨nkk                
-        :EndIf 
-        VALS[ ii ]+← tally                        ⍝ Update values left to right
-        res← VALS[ ii ]    
-    :Else 
-       ##.TrapSig⍬
-    :EndTrap 
-  ∇
 
   ⍝H {d}← d.Clear
   ⍝H Remove all items (keys and values) from the dictionary,
@@ -653,6 +598,53 @@ TrapSig← ⎕SIGNAL _TS
     ValsByKey[kk] ← vv        ⍝ Handle old, new, and duplicate keys
   ∇
 
+⍝H d.Index    [experimental]
+⍝H ii← {default} d.Index kk
+⍝H ∘ If there's a default:
+⍝H   Return the indices of items for all the keys specified, including those that are new.
+⍝H   (New items are added with value ¨default¨).
+⍝H ∘ If there is no default:
+⍝H   Returns the indices of keys specified, if all exist.
+⍝H   Signals an INDEX error, if any keys do not already exist.
+⍝H ∘ Useful for multiple, efficient manipulations of the same items.
+⍝H * Similar to Python "setdefault" method, which returns the value of a single existing item 
+⍝H   with the specified key or a single new item, with the default value specified, after 
+⍝H   inserting the item. 
+⍝H   * To match this simple Python example,
+⍝H        x = empl.setdefault("start_date", "today")
+⍝H     do:
+⍝H        x←  empl.Vals[ 'today' empl.Index 'start_date' ]
+⍝H 
+⍝H vv← {default} GetSet kk
+⍝H     Returns the values for all keys kk. If any keys are new, either
+⍝H     a) If default is defined:  set values for the new keys to default before returning;
+⍝H     b) If default is NOT defined: signal an INDEX ERROR.
+⍝H 
+  ∇ vv← {default} GetSet kk 
+    :Access Public
+    :IF 900⌶⍬ ⋄ default← ⊢ ⋄ :EndIf 
+    :Trap 0 
+        vv← VALS[ default Index kk ]
+    :Else 
+        ##.TrapSig⍬
+    :EndTrap 
+  ∇
+  ∇ ii← {default} Index kk ; ii; new; nkk; nKEYS; ukk    
+    :Access Public
+    :Trap 0 
+        nKEYS← ≢KEYS 
+        :If 1∊ new← nKEYS= ii← KEYS⍳ kk  
+            error.keyNotFnd ErrIf 900⌶⍬
+            ukk← ∪nkk← new/kk  
+            (new/ ii)← nKEYS+ ukk⍳ nkk 
+            KEYS,← ukk         
+            VALS,← (≢ukk)⍴ ⊂default 
+        :EndIf   
+    :Else 
+        ##.TrapSig⍬
+    :EndTrap 
+  ∇
+
 ⍝H items← d.Items                 Caller ⎕IO is honored.
 ⍝H Retrieve all items of the dictionary as key-value pairs. 
 ⍝H Note: All items are generated on the fly, so d.Items[ii] can be inefficient for
@@ -711,7 +703,7 @@ TrapSig← ⎕SIGNAL _TS
   ∇
 
 ⍝H d.Pop    Remove and return a contiguous selection of the most recent items in the dictionary.
-⍝H items← d.Pop n
+⍝H {items}← d.Pop n
 ⍝H Remove and shyly return the last <n> items from the dictionary;
 ⍝H if no items to return, returns ⍬.
 ⍝H   n: a single non-negative integer. 
@@ -726,6 +718,33 @@ TrapSig← ⎕SIGNAL _TS
       :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
     :Else
       error.badRightArg ErrIf 1  
+    :EndTrap 
+  ∇
+
+⍝H d.Tally    Count the # of instances of each key passed, incrementing the key's value by that count.
+⍝H {res}← d.Tally kk
+⍝H   kk:  1 or more keys, which (a) may be duplicates in any order and (b) may be new to d.
+⍝H ∘ Counts how many times each key ¨k¨ is present in kk and adds that count to the existing
+⍝H   value of d[k], or 0, if new. 
+⍝H ∘ Returns: Shyly returns the final updated (aggregate) tally for each key.
+⍝H   * (If keys are duplicated, the final tally will be the same for each duplicate)
+⍝H ∘ If d[k] does not yet exist, the count becomes the new value of d[k]
+⍝H   (as if the prior value had been 0), ignoring any default for the dict.
+⍝H ∘ If d[k] exists and is not numeric, a VALUE ERROR occours.
+⍝H 
+  ∇ {res}← Tally kk; ii; new; nkk; freq; nKEYS   
+    :Access Public
+    kk freq← ↓⍉{ ⍺, ≢⍵ }⌸ kk                     ⍝ Determine (unique) keys and freq.
+    :Trap 0 
+        nKEYS← ≢KEYS 
+        :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
+            VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk       ⍝ Initialize  new values to 0  
+            (new/ ii)← nKEYS+ ⍳⍨nkk                
+        :EndIf 
+        VALS[ ii ]+← freq                        ⍝ Update values left to right
+        res← VALS[ ii ]    
+    :Else 
+       ##.TrapSig⍬
     :EndTrap 
   ∇
  
