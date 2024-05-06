@@ -60,12 +60,16 @@
 ⍝  *** See additional HELP info throughout the class below ***
 
 ⎕IO ⎕ML←0 1  
+⍝ OBSOLETE Insert this at the start of path, removing any PRIOR references...
+⍝ OBSOLETE ##.⎕PATH← (⍕⎕THIS){⍺,' ',('\h*\Q',⍺,'\E\h*')⎕R ' '⊣⍵}##.⎕PATH
+
 _TS← { ⍺←'' ⋄ ⊂⎕DMX.('EM' 'EN' 'Message',⍥⊂¨('^(∆D\w? )?'⎕R('∆D',⍺,' ')⊢EM) EN  Message) } 
 TrapSig← ⎕SIGNAL _TS 
 
 ⍝ ∆D: Create from items (key-value pairs: (k1 v1)(k2 v2)…)   
 ⍝ dict← [default] ∇ items
-∆D←{ 
+##.∆D←⍎'{⍺←⊢⋄ns←',(⍕⎕THIS),'⋄0::ns.TrapSig⍬⋄⍺ns.⍙D⍵}'
+⍙D←{ 
   dFlag←2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
   ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
 }
@@ -73,10 +77,11 @@ TrapSig← ⎕SIGNAL _TS
 ⍝ ∆DL: Create from two lists: keylist and valuelist
 ⍝          or from a list and a scalar: keylist (scalar_value)
 ⍝ dict← [default] ∇ keylist valuelist
-∆DL←{
+##.∆DL←⍎'{⍺←⊢⋄ns←',(⍕⎕THIS),'⋄0::ns.TrapSig⍬⋄⍺ns.⍙DL⍵}'
+⍙DL←{ Err← ⎕SIGNAL {⊂('EM' '∆DL DOMAIN ERROR: invalid right arg shape')('EN' 11)} 
     dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 0:: 'L'TrapSig⍬ ⋄ 'help'≡⎕C⍵: _← Help 
-  2≠≢⍵: ⎕SIGNAL/'∆DL DOMAIN ERROR: invalid right arg shape' 11 
-    ⎕NEW Dict (⍵, ⍺ dFlag Dict.AUTOHASH)            
+  2≠≢⍵: Err⍬ ⋄ (⊃=⍥≢/⍵)⍱ 1=≢⊃⌽⍵: Err⍬  
+    ⎕NEW Dict (⍵, ⍺ dFlag Dict.AUTOHASH)             
 }
 
 ⍝ ∆DX: See description above.
@@ -88,8 +93,6 @@ TrapSig← ⎕SIGNAL _TS
     (i∧l)∨(n∧h)∨0∊ilnh: ⎕SIGNAL/ '∆DX DOMAIN ERROR: unknown or conflicting options' 11
   l: ⎕NEW Dict (⍵, ⍺ dFlag h) ⋄ ⎕NEW Dict (⍵ ⍺ dFlag h) 
 } 
-
-##.⎕PATH← (⍕⎕THIS){⍺,' ',('(\h*\Q',⍺,'\E)*\h*$')⎕R ''⊣⍵}##.⎕PATH
 
 ⍝ Provide help information. See also Dict.Help.
 ∇ {help}← Help;  R; S 
@@ -197,12 +200,8 @@ TrapSig← ⎕SIGNAL _TS
   ∇ makeLists5 (kk vv dVal dFlag hFlag)     ⍝ Create dict from Keylist Valuelist and opt'l Default  
     :Implements constructor    ⍝ If h=0, the DEF_VAL is NOT set.
     :Access Public
-    :Trap 11
-        :If 1=≢vv ⋄ vv⍴⍨← ⍴kk ⋄ :EndIf    ⍝ Conform vv to kk, if vv is a singleton.
-        ValsByKey[kk]←vv  
-    :Else
-        11 '' ErrIf 0
-    :EndTrap 
+    :If 1=≢vv ⋄ vv⍴⍨← ⍴kk ⋄ :EndIf    ⍝ Conform vv to kk, if vv is a singleton.
+    ValsByKey[kk]←vv  
     DEF_VAL DEF_STATUS← dVal dFlag 
     :IF hFlag ⋄ Hash ⋄ :Endif 
     ⎕DF '∆D[Dict+list',(dFlag/'+default'),(hFlag/'+hash'),']' 
