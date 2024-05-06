@@ -153,13 +153,18 @@ TrapSig← ⎕SIGNAL _TS
       quiesced←    ¯1
       none←         0
   :EndNamespace 
+⍝ Traps within methods, utilities
+  :Namespace trap
+      index←       3 'E' '##.TrapSig⍬' 
+      domain←     11 'E' '##.TrapSig⍬' 
+  :EndNamespace
 ⍝ 
-  :Field Public Shared AUTOHASH← 1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
-                  KEYS←          ⍬     ⍝ Avoid Field, since it seems to disrupt hashing!
-  :Field Private  VALS←          ⍬
+  :Field Public Shared AUTOHASH←     1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
+                  KEYS←              ⍬     ⍝ Avoid Field, since it seems to disrupt hashing!
+  :Field Private  VALS←              ⍬
   :Field Private  DEF_VAL←       ⎕NULL ⍝ Placeholder: ignored if DEF_STATUS=def.none.
-  :Field Private  DEF_STATUS←    def.none  ⍝ See namespace <def>
-  :Field Private  HASH_SET←      0     ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
+  :Field Private  DEF_STATUS← def.none  ⍝ See namespace <def>
+  :Field Private  HASH_SET←          0     ⍝ If 1, set hash where required. See d.Hash, internal HashIfSet
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
 ⍝     ⍺: Message (default: ''), ⍵: Error #. 
@@ -234,8 +239,8 @@ TrapSig← ⎕SIGNAL _TS
   ⍝   we add new keys keeping the leftmost duplicate (as expected for dict ordering);
   ⍝   we add new values keeping the rightmost duplicate value (consistent with APL indexing).
     ∇ set args; kk; ii; new; vv; nKEYS   
-      kk← ⊃args.Indexers 
-      vv← args.NewValue 
+      kk← ,⊃args.Indexers 
+      vv← ,args.NewValue 
       ⋄ error.noKeys ErrIf ⎕NULL≡ kk           ⍝ d[]← … NOT ALLOWED.
       kk vv← ↓⍉{ ⍺, vv[⊃⌽⍵] }⌸ kk              ⍝ Handles duplicate and new keys.
       nKEYS← ≢KEYS  
@@ -389,14 +394,11 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H   b←a.(FromKeys Keys[⍋|  Keys])  ⍝ Sort numeric keys in ascending order by absolute value
 ⍝H See also: d.FromIx
 ⍝H 
-∇ d2← {tempDef} FromKeys kk 
+∇ d2← {tempDef} FromKeys kk; ⎕TRAP  
   :Access Public 
+  ⎕TRAP← trap.index          ⍝ Error number expected: 3 (⊃error.keyNotFnd)
   :If 900⌶⍬ ⋄ tempDef← ⊢ ⋄ :EndIf 
-  :Trap ⊃error.keyNotFnd
-      d2← Copy.Clear.ImportL kk (tempDef Get kk)
-  :Else 
-      ##.TrapSig⍬
-  :EndTrap  
+  d2← Copy.Clear.ImportL kk (tempDef Get kk)
 ∇
 
 ⍝H d.FromIx:    Create a new dictionary from the indices specified (which must be in range).
@@ -418,13 +420,10 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H See also: d.FromKeys. 
 ⍝H   d.FromIx is typically up to 10% faster than d.FromKeys across a range of dictionary sizes.
 ⍝H 
-∇ d2← FromIx ii
+∇ d2← FromIx ii; ⎕TRAP 
   :Access Public 
-  :Trap 3
-      d2← Copy.Clear.ImportL KEYS VALS⌷⍨¨⊂⊂∪ii 
-  :Else 
-      ##.TrapSig⍬
-  :EndTrap  
+  ⎕TRAP← trap.index 
+  d2← Copy.Clear.ImportL KEYS VALS⌷⍨¨⊂⊂∪ii 
 ∇
 
 ⍝H d.Get:   Retrieve values for one or more keys.
@@ -620,30 +619,29 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H     a) If default is defined:  set values for the new keys to default before returning;
 ⍝H     b) If default is NOT defined: signal an INDEX ERROR.
 ⍝H 
-  ∇ vv← {default} GetSet kk 
+  ∇ vv← {default} GetSet kk; ⎕TRAP  
     :Access Public
+    ⎕TRAP← trap.index 
     :IF 900⌶⍬ ⋄ default← ⊢ ⋄ :EndIf 
-    :Trap 0 
-        vv← VALS[ default Index kk ]
-    :Else 
-        ##.TrapSig⍬
-    :EndTrap 
+    vv← VALS⌷⍨  ⊂default _Index kk 
   ∇
-  ∇ ii← {default} Index kk ; ii; new; nkk; nKEYS; ukk    
+  ∇ ii← {default} Index kk; ⎕TRAP   
     :Access Public
-    :Trap 0 
-        nKEYS← ≢KEYS 
-        :If 1∊ new← nKEYS= ii← KEYS⍳ kk  
-            error.keyNotFnd ErrIf 900⌶⍬
-            ukk← ∪nkk← new/kk  
-            (new/ ii)← nKEYS+ ukk⍳ nkk 
-            KEYS,← ukk         
-            VALS,← (≢ukk)⍴ ⊂default 
-        :EndIf   
-    :Else 
-        ##.TrapSig⍬
-    :EndTrap 
+    ⎕TRAP← trap.index 
+    :IF 900⌶⍬ ⋄ default← ⊢ ⋄ :EndIf 
+    ii← default  _Index kk  
   ∇
+  _Index←{ 
+      noalph← 0=⎕NC '⍺'
+      nKEYS← ≢KEYS
+    1(~∊) new← nKEYS= ii← KEYS⍳ ⍵: ii 
+    noalph: error.keyNotFnd ErrIf 1 
+      ukk← ∪nkk← new/kk  
+      (new/ ii)← nKEYS+ ukk⍳ nkk 
+      KEYS,← ukk         
+      VALS,← (≢ukk)⍴ ⊂⍺
+      ii 
+  }
 
 ⍝H items← d.Items                 Caller ⎕IO is honored.
 ⍝H Retrieve all items of the dictionary as key-value pairs. 
@@ -666,15 +664,12 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H 
  :Property Keyed ItemsByIndex,ItemsIx 
   :Access Public
-    ∇ items←Get args; ii; ei; nK  
+    ∇ items← Get args; ii;⎕TRAP 
+      ⎕TRAP← trap.index  
       :If ⎕NULL≡ ii← ⊃args.Indexers 
-        :IF 0= ≢KEYS ⋄ items← ⍬
-        :Else        ⋄ items← ↓⍉↑KEYS VALS 
-        :EndIf    
+         items← { 0= ⍵: ⍬ ⋄ ↓⍉↑KEYS VALS } ≢KEYS 
       :Else 
-        :TRAP 3 ⋄ items← ↓⍉↑KEYS VALS⌷⍨¨ ⊂⊂ii-(⊃⎕RSI).⎕IO  
-        :Else   ⋄ 3 '' ErrIf 1
-        :EndTrap 
+        items← ↓⍉↑KEYS VALS⌷⍨¨ ⊂⊂ii-(⊃⎕RSI).⎕IO  
       :Endif 
     ∇
   :EndProperty
@@ -702,23 +697,20 @@ TrapSig← ⎕SIGNAL _TS
     d2← ⎕NEW Dict   
   ∇
 
-⍝H d.Pop    Remove and return a contiguous selection of the most recent items in the dictionary.
+⍝H d.Pop    Remove and return a contiguous selection of ¨n¨ of the most 
+⍝H          recent items in the dictionary (n, a positive integer).
 ⍝H {items}← d.Pop n
 ⍝H Remove and shyly return the last <n> items from the dictionary;
 ⍝H if no items to return, returns ⍬.
 ⍝H   n: a single non-negative integer. 
 ⍝H If n exceeds the # of items, the actual items are returned (no padding is done).
 ⍝H 
-  ∇{items}← Pop n; p
-    :Access Public 
-    :Trap 0   ⍝ n must be integer singleton n≥0
-      :IF n<0 ⋄ ∘∘error∘∘ ⋄ :EndIf 
-      items← ↓⍉↑ KEYS VALS↑⍨¨ p← - n⌊ ≢KEYS  
-      KEYS↓⍨← VALS↓⍨← p                          ⍝ Keep any hashing for KEYS intact   
-      :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
-    :Else
-      error.badRightArg ErrIf 1  
-    :EndTrap 
+  ∇{items}← Pop n; p; ⎕TRAP 
+    :Access Public     
+    ⎕TRAP← trap.domain ⋄ ⎕SIGNAL 11/⍨ n<0      ⍝ Catch Pop ¯1 etc here.
+    items← ↓⍉↑ KEYS VALS↑⍨¨ p← - n⌊ ≢KEYS      ⍝ Other domain errors caught here
+    KEYS↓⍨← VALS↓⍨← p                          ⍝ Keep any hashing for KEYS intact   
+    :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
   ∇
 
 ⍝H d.Tally    Count the # of instances of each key passed, incrementing the key's value by that count.
@@ -730,22 +722,19 @@ TrapSig← ⎕SIGNAL _TS
 ⍝H   * (If keys are duplicated, the final tally will be the same for each duplicate)
 ⍝H ∘ If d[k] does not yet exist, the count becomes the new value of d[k]
 ⍝H   (as if the prior value had been 0), ignoring any default for the dict.
-⍝H ∘ If d[k] exists and is not numeric, a VALUE ERROR occours.
+⍝H ∘ If d[k] exists and is not numeric, a DOMAIN ERROR occurs.
 ⍝H 
-  ∇ {res}← Tally kk; ii; new; nkk; freq; nKEYS   
+  ∇ {res}← Tally kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
     :Access Public
-    kk freq← ↓⍉{ ⍺, ≢⍵ }⌸ kk                     ⍝ Determine (unique) keys and freq.
-    :Trap 0 
-        nKEYS← ≢KEYS 
-        :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
-            VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk       ⍝ Initialize  new values to 0  
-            (new/ ii)← nKEYS+ ⍳⍨nkk                
-        :EndIf 
-        VALS[ ii ]+← freq                        ⍝ Update values left to right
-        res← VALS[ ii ]    
-    :Else 
-       ##.TrapSig⍬
-    :EndTrap 
+    ⎕TRAP← trap.domain
+    kk freq← ↓⍉{ ⍺, ≢⍵ }⌸ ,kk                ⍝ Determine (unique) keys and freq.
+    nKEYS← ≢KEYS 
+    :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
+        VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk       ⍝ Initialize  new values to 0  
+        (new/ ii)← nKEYS+ ⍳⍨nkk                
+    :EndIf 
+    VALS[ ii ]+← freq                         ⍝ Update values left to right
+    res← VALS[ ii ]    
   ∇
  
 ⍝H d.Vals     Retrieve values by index (via caller's ⎕IO)
