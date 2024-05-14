@@ -2,6 +2,46 @@
 ⍝H
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H 
+⍝H Example...
+⍝H-
+⍝H  ⍝   Create dictionary
+⍝H      a←∆D('Italy' 'Naples')('United States' 'Washington, DC')('United Kingdom' 'London')
+⍝H  ⍝   Correct one item
+⍝H      a[⊂'Italy']←⊂'Rome'
+⍝H-
+⍝H  ⍝   Add two items
+⍝H      a['France' 'Antarctica']←'Paris' 'Penguins'
+⍝H-
+⍝H  ⍝   How many?
+⍝H     'We have',(≢a.Keys),'items'
+⍝H  We have 5 items
+⍝H-
+⍝H  ⍝   Display all items
+⍝H      'Items'
+⍝H      ↑a.Items
+⍝H  Items
+⍝H   Italy           Rome           
+⍝H   United States   Washington, DC 
+⍝H   United Kingdom  London         
+⍝H   France          Paris          
+⍝H   Antarctica      Penguins       
+⍝H-
+⍝H  ⍝   Remove invalid item 'Antarctica'
+⍝H      a.Del⊂'Antarctica'
+⍝H-
+⍝H  ⍝   Sort items by keys in ascending order ("back" into dictionary a)
+⍝H      a←a.(FromIx ⍋Keys)
+⍝H-
+⍝H  ⍝   Display sorted items
+⍝H      'Sorted items'
+⍝H      ↑a.Items
+⍝H  Sorted items
+⍝H   France          Paris          
+⍝H   Italy           Rome           
+⍝H   United Kingdom  London         
+⍝H   United States   Washington, DC 
+⍝H 
+⍝H
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
 ⍝H    as well as supporting services in namespace ∆DClass.
@@ -57,7 +97,7 @@
 ⍝H   That is, Dyalog hashing will be turned on for Key searches and will be re-established
 ⍝H   within methods that might require the hash table Dyalog maintains to be rebuilt
 ⍝H   (e.g. deletions of non-trailing entries). 
-⍝H   ∘ Dictionaries derived from those with hashing will automatically have hashing turned on.  
+⍝H   ∘ See Copy for hashing attributes.
 ⍝H   ∘ For even moderate-sized dictionaries, having the keys hashed improves performance significantly.
 ⍝H   ∘ This feature is enabled if the class variable AUTOHASH is 1. It is currently $AUTOHASH.
 ⍝H   ∘ See d.Hash and d.NoHash.
@@ -94,38 +134,36 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝ Provide help information. See also Dict.Help.
 ∇ {help}← Help;  R; S; ⎕PW
   ⎕PW←100
-  R← '\$AUTOHASH' '^\h*$'    ⎕R (⍕Dict.AUTOHASH) (100⍴'═')
+  R← '\$AUTOHASH' '^\h*$' '^\h?-\h*$' ⎕R (⍕Dict.AUTOHASH) ('\r ',⍨' ',100⍴'═') ' '
   S← '^\h*⍝H\h?(.*)' ⎕S ' \1'
   help← ⎕ED 'help'⊣ help← R S ⊣ ⎕SRC ⎕THIS 
 ∇
  
 :Class Dict
 ⍝H ┌──────────────────────────────────────────────────────────────────────────────────┐
-⍝H │                Methods of class ∆D.Dict in alphabetica order by type…            │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
+⍝H │                Methods of class ∆D.Dict in alphabetical order by type…           │
+⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H │              Keyed (Index) Methods returning elements or info                    │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  vv←d[kk]  d[kk]←vv  vv←d[]          d.ⁱᵃDef[kk]  d.⁲DelIx[ii]  d.DelIx[]        │
-⍝H │  d.⁲Items[ii]        d.⁲ItemsIx[ii]  d.⁲Keys[ii]  d.⁲Vals[ii]   d.⁲Vals[ii]←vv   │ 
+⍝H │  vv←d[kk]  d[kk]←vv  vv←d[]      d.ⁱᵃDefined[kk]  d.⁲DelIx[ii]  d.DelIx[]        │
+⍝H │  d.⁲Items[ii]        d.ⁱᵃHas[kk] d.⁲ItemsIx[ii]   d.⁲Keys[ii]   d.⁲Vals[ii]      │ 
+⍝H │  d.⁲Vals[ii]←vv                                                                  │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │                Function-like methods returning elements or info                  │  
+⍝H │                Standard methods returning elements or info                       │  
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  any←d.ⁱᵇDefault    d.ⁱᵇDefault←any   d.⁳Del kk         b← d.Equal d2            │
-⍝H │  vv←{tdef}d.Get kk  v←{tdef}d.Get1 k  n← d.HasDefault   d.HasDefault←[1|0]       │
-⍝H │  d.HashStatus       d.Help            {items}← d.Pop n  {vv}← d.Tally kk         │
+⍝H │  any←d.ⁱᵇDefault      d.ⁱᵇDefault←any     d.⁳Del kk             b← d.Equal d2    │
+⍝H │  vv←{tdef}d.Get kk    v←{tdef}d.Get1 k    vv← {tdef} GetSet kk  n← d.HasDefault  │
+⍝H │  n← d.HasDefault      d.HasDefault←[1|0]  d.HashStatus          d.Help           │
+⍝H │  ii←{tdef}d.Index kk  {items}← d.Pop n    {vv}←{n}d.Tally kk                     │
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │                      Methods returning dictionaries                              │ 
+⍝H │                Standard Methods returning dictionaries                           │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  Same dict:                                                                      │  
+⍝H │  Same dict (updated):                                                            │  
 ⍝H │   {d}←d.Clear         {d}←d.[No]Hash           {d}←d.Import items                │  
 ⍝H │   {d}←d.ImportL kkvv  {d}←{json}d.ImportN ns   {ns}←d.ExportN ns                 │      
 ⍝H │  New dict:                                                                       │
-⍝H │    d2←d.Copy           d2←{tdef}d.FromKeys kk    d2← d.FromIx ii                 │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │                      Experimental (under consideration)                          │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  ii← {default} d.Index kk    vv← {default} GetSet kk                             │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
+⍝H │    d2←d.Copy           d2←{tdef}d.FromKeys kk    d2←d.FromIx ii                  │
+⍝H ├──────────────────────────────────────────────────────────────────────────────────┤                       │
 ⍝H │                         Abbreviations used above                                 │
 ⍝H ├──────────────────────┬─────────────────────────────┬─────────────────────────────┤
 ⍝H │    kk: list of keys  │    vv: list of vals         │    ii: list of indices      │  
@@ -136,25 +174,25 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ├──────────────────────┴─────────────────────────────┴─────────────────────────────┤
 ⍝H │                                    Notes                                         │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  ⁱᵃDef: Is item defined?                                                         │
+⍝H │  ⁱᵃDefined, Has (synonyms): Are the keys defined in the dictionary?              │
+⍝H │    Does the dictionary have the associated items?                                │
 ⍝H │  ⁱᵇDefault: define/query the default value for new (missing) keys.               │
-⍝H │  ⁲ DelIx, Index, Items:            Each uses the Index Origin                    │ 
-⍝H │    ItemsIx, Keys, Vals:            (⎕IO) of caller.                              │   
+⍝H │  ⁲ DelIx, Index, Items:  each uses the Index Origin (⎕IO) of caller.             │ 
+⍝H │    ItemsIx, Keys, Vals:  each uses the Index Origin (⎕IO) of caller.             │   
 ⍝H │  ⁳ Del: If a left arg is present and 1, all keys MUST exist.                     │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
-⍝H │      What Python methods or fns are roughly comparable (even if scalar)?         │
+⍝H │      What Python methods or fns are roughly comparable (even if scalar)?*        │
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  clear                  copy             fromkeys         del  get               │
-⍝H │  has_key [d.Def]        items            keys             len  popitem [d.Pop 1] │
+⍝H │  has_key [d.Has]        items            keys             len  popitem [d.Pop 1] │
 ⍝H │  setdefault [d.GetSet]  values [d.Vals]  update [d.Import]                       │
 ⍝H │  dict[key], 𝘪.𝘦. 𝘪𝘯𝘥𝘦𝘹𝘪𝘯𝘨 𝘥𝘪𝘤𝘵𝘪𝘰𝘯𝘢𝘳𝘺 𝘣𝘺 𝘬𝘦𝘺 𝘦𝘵𝘤.                                          │
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                                     Notes                                        │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  * ∆D equivalents that are comparable are in UpperCamelCase like this: FromKeys. │  
-⍝H │  * Where names are different (beyond case), the ∆D equivalents are shown         │    
-⍝H │    in brackets.                                                                  │    
+⍝H │  * Where not obvious, comparable ∆D equivalents are in brackets in               │  
+⍝H │    UpperCamelCase like this:  [d.GetSet].                                        │    
 ⍝H └──────────────────────────────────────────────────────────────────────────────────┘
 ⍝H 
  
@@ -169,14 +207,14 @@ Trap← ⎕SIGNAL ⍙T2
       badNs←         11 'Invalid namespace reference'  
       keyNotFnd←      3 'Key(s) not found and no default is active'
       mismatch←       5 'Number of keys and values must match or conform'
-      noDeflt←        6 'Default not set or active'
+      noDefault←      6 'Default not set or active'
       noKeys←        11 'No keys were specified'
   :EndNamespace
 ⍝ Default states for d.Default
   :Namespace def   
-      active←       1
-      quiesced←    ¯1
-      none←         0
+      active←       1       ⍝ Default has a value and is active
+      quiesced←    ¯1       ⍝ Default had a value, but is inactive
+      none←         0       ⍝ Default didn't have a value AND is inactive
   :EndNamespace 
 ⍝ Traps within methods, utilities
   :Namespace trap
@@ -185,10 +223,10 @@ Trap← ⎕SIGNAL ⍙T2
   :EndNamespace
 ⍝ 
   :Field Public Shared AUTOHASH←     1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
-                  KEYS←              ⍬     ⍝ Avoid Field, since it disrupts hashing (in 19.0)!
+                  KEYS←              ⍬     ⍝ Avoid Field, since it disrupts hashing (still in 19.0)!
   :Field Private  VALS←              ⍬
-  :Field Private  DEFAULT_V←       ⎕NULL ⍝ Placeholder: ignored if DEFAULT_S=def.none.
-  :Field Private  DEFAULT_S← def.none  ⍝ See namespace <def>
+  :Field Private  DEFAULT_V←       ⎕NULL   ⍝ Placeholder: ignored if DEFAULT_S=def.none.
+  :Field Private  DEFAULT_S← def.none      ⍝ See namespace <def> for default states.
   :Field Private  HASH_SET←          0     ⍝ If 1, set hash where required. See d.Hash, internal CheckRehash
  
 ⍝ ErrIf: Internal helper. Usage:  en msg ErrIf bool 
@@ -289,7 +327,7 @@ Trap← ⎕SIGNAL ⍙T2
     ∇
 
   ⍝H d.Copy:  Make a copy of dictionary d, including the Keys and Vals, as well as the 
-  ⍝H          default and hash settings.
+  ⍝H          existing default and hash settings.
   ⍝H d2← d.Copy
   ⍝H 
   ∇ d2← Copy; def  
@@ -298,11 +336,11 @@ Trap← ⎕SIGNAL ⍙T2
     d2.⎕DF ⍕⎕THIS 
   ∇
 
-⍝H d.Def:  "Are keys k1 k2…  defined in Keys?"
-⍝H bb← d.Def[k1 k2…]        
+⍝H d.Has, d.Defined:  "Are keys k1 k2…  defined in Keys?"
+⍝H bb← d.Has[k1 k2…]        
 ⍝H Returns a 1 for each key (k1, etc.) defined in Keys and a 0 otherwise.
 ⍝H 
-  :Property Keyed Defined, Def 
+  :Property Keyed Defined, Has 
   :Access Public
     ∇ bb←get args; kk 
       ⋄ error.noKeys ErrIf ⎕NULL≡ kk← ⊃args.Indexers 
@@ -319,7 +357,7 @@ Trap← ⎕SIGNAL ⍙T2
   :Property Simple Default
   :Access Public
     ∇ d←get 
-      ⋄ error.noDeflt ErrIf DEFAULT_S≠ def.active
+      ⋄ error.noDefault ErrIf DEFAULT_S≠ def.active
       d← DEFAULT_V 
     ∇
     ∇ set new  
@@ -463,14 +501,14 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H       default value either when the dictionary otherwise lacks a default or when the   
 ⍝H       general default is not appropriate in this case.
 ⍝H 
-∇ vv← {tempDef} Get kk; noDeflt; ii; bb 
+∇ vv← {tempDef} Get kk; noDefault; ii; bb 
   :Access Public
   ii← KEYS⍳ kk
   :If 0∊ bb← ii≠ ≢KEYS                         ⍝ If 'tempDef' isn't set, use DEFAULT_V (if set).
-      :If noDeflt← 900⌶⍬ ⋄ :AndIf DEFAULT_S= def.active   
-          tempDef noDeflt← DEFAULT_V def.none      ⍝ Else, there's no tempDef to use.
+      :If noDefault← 900⌶⍬ ⋄ :AndIf DEFAULT_S= def.active   
+          tempDef noDefault← DEFAULT_V def.none      ⍝ Else, there's no tempDef to use.
       :EndIf    
-      ⋄ error.keyNotFnd ErrIf noDeflt 
+      ⋄ error.keyNotFnd ErrIf noDefault 
       vv← (≢kk)⍴ ⊂tempDef                      ⍝ vv: assume default for each;
       vv[ ⍸bb ]← VALS[ bb/ii ]                 ⍝     use "old" values where defined. 
   :Else 
@@ -510,7 +548,7 @@ Trap← ⎕SIGNAL ⍙T2
     ∇ set new; d   
        :If 1≠≢d← new.NewValue :OrIf d (~∊) 0 1 ⋄ 11 ''ErrIf 1 ⋄ :EndIf 
        :If d 
-          ⋄ error.noDeflt ErrIf def.none= DEFAULT_S 
+          ⋄ error.noDefault ErrIf def.none= DEFAULT_S 
           DEFAULT_S← def.active 
        :Else 
           DEFAULT_S×← def.quiesced
@@ -677,14 +715,15 @@ Trap← ⎕SIGNAL ⍙T2
     :Access Public
     ⎕TRAP← trap.index 
     :IF 900⌶⍬ ⋄ default← ⊢ ⋄ :EndIf 
-    vv← VALS⌷⍨  ⊂default _Index kk 
+    vv← VALS⌷⍨  ⊂default _Index kk        ⍝ Local ⎕IO only.
   ∇
 
-⍝H d.Index: Select items by key and return their indices (user's ⎕IO).    [experimental]
+⍝H d.Index: Select items by key and return their indices (respecting caller's ⎕IO).  
 ⍝H ii← {default} d.Index kk
 ⍝H ∘ If there's a default:
 ⍝H   ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝H   Return the indices of items for all the keys specified, including those that are new.
+⍝H   Return the indices of items for all the keys specified, including those are 
+⍝H   newly added (if any). The caller's ⎕IO is respected.
 ⍝H   (New items are added permanently to the dictionary with value ¨default¨).
 ⍝H ∘ If there is no default:
 ⍝H   ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -702,11 +741,16 @@ Trap← ⎕SIGNAL ⍙T2
     :IF 900⌶⍬ ⋄ default← ⊢ ⋄ :EndIf 
     ii←  (⊃⎕RSI).⎕IO+ default _Index kk 
   ∇
-  _Index←{ 
-      noalph← 0=⎕NC '⍺'
+⍝ _Index:  Returns indices where keys <kk> are located. If <default> is specified,
+⍝          adds new keys with <default> as value; otherwise signals an index error.
+⍝          Uses the internal ⎕IO (0) only. 
+⍝ ii← {default} _Index k1 [k2…]   
+⍝ See methods d.Index, d.GetSet.
+  _Index←{   
+      noD← 0=⎕NC '⍺'
       nKEYS← ≢KEYS
     1(~∊) new← nKEYS= ii← KEYS⍳ ⍵: ii 
-    noalph: error.keyNotFnd ErrIf 1 
+    noD: error.keyNotFnd ErrIf 1 
       ukk← ∪nkk← new/kk  
       (new/ ii)← nKEYS+ ukk⍳ nkk 
       KEYS,← ukk         
@@ -785,37 +829,43 @@ Trap← ⎕SIGNAL ⍙T2
     :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
   ∇
 
-⍝H d.Tally    Count the # of instances of each key passed, incrementing the key's value by that count.
-⍝H {res}← d.Tally kk
-⍝H   kk:  1 or more keys, which (a) may be duplicates in any order and (b) may be new to d.
-⍝H ∘ Counts how many times each key ¨k¨ is present in kk and adds that count to the existing
-⍝H   value of d[k], or 0, if new. 
+⍝H d.Tally    Count the # of instances of each key passed, incrementing the key's value 
+⍝H            by that count (optionally applying a weight besides +1).
+⍝H {res}← {weight} d.Tally kk
+⍝H   kk:  1 or more keys, which 
+⍝H        (a) may include duplicates in any order and 
+⍝H        (b) may be new to d 
+⍝H   weight: (defaults to 1) How much to weight each increment.
+⍝H        If weight=1 (default), increment the value by 1 for each key found.
+⍝H        If weight=¯1, decrement the value by 1 for each key found.
+⍝H ∘ Counts how many times each key ¨k¨ is present in kk and adds that (possibly weighted) 
+⍝H   count to the existing value of d[k], or, if new, the value 0.  
 ⍝H ∘ Returns: Shyly returns the final updated (aggregate) tally for each key.
-⍝H   * (If keys are duplicated, the final tally will be the same for each duplicate)
-⍝H ∘ If d[k] does not yet exist, the count becomes the new value of d[k]
-⍝H   (as if the prior value had been 0), ignoring any default for the dict.
-⍝H ∘ If d[k] exists and is not numeric, a DOMAIN ERROR occurs.
-⍝H 
-  ∇ {res}← Tally kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
+⍝H   * (If keys are duplicated, the final tally will be the same for each duplicate,
+⍝H     i.e. the tallies returned are NOT incremental).
+⍝H ∘ If d[k] exists, but is not numeric, a DOMAIN ERROR occurs.
+⍝H   d[k] may be any numeric array; the tally is added to each element by APL rules.
+  ∇ {res}← {weight} Tally kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
     :Access Public
     ⎕TRAP← trap.domain
+    :If 900⌶⍬ ⋄ weight← 1 ⋄ :EndIf  
     kk freq← ↓⍉{ ⍺, ≢⍵ }⌸ ,kk                ⍝ Determine (unique) keys and freq.
     nKEYS← ≢KEYS 
     :If 1∊ new← nKEYS= ii← KEYS⍳ kk   
         VALS,← 0⍴⍨ ≢KEYS,← nkk← new/ kk       ⍝ Initialize  new values to 0  
         (new/ ii)← nKEYS+ ⍳⍨nkk                
     :EndIf 
-    VALS[ ii ]+← freq                         ⍝ Update values left to right
+    VALS[ ii ]+← freq× weight                 ⍝ Update values left to right
     res← VALS[ ii ]    
   ∇
  
-⍝H d.Vals     Retrieve/Set values by index (via caller's ⎕IO)
+⍝H d.Vals     Retrieve/Set values of items by index (respecting caller's ⎕IO)
 ⍝H d.Vals[ ix1 ix2 …], 
 ⍝H d.Vals[ ix1 ix2…]← val1 val2…
 ⍝H d.Vals                     ⍝ Retrieve all vals 
 ⍝H d.Vals← val1 val2…         ⍝ Obscure, but valid, if (≢val1 val2…)≡≢d.Vals
 ⍝H Synonym: d.ValsIx, d.ValsByIx
-⍝H Retrieve or set specific values in the dictionary by index (caller's ⎕IO).
+⍝H Retrieve or set specific values in the dictionary by index (respecting caller's ⎕IO).
 ⍝H You may also retrieve ALL the values using d.Vals[] or simply d[].
 ⍝H 
   :Property Numbered ValsIx, Vals  
