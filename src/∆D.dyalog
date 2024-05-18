@@ -1,7 +1,9 @@
 ﻿:Namespace ∆DClass
-⍝ ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
+⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H=
-⍝H 
+⍝H *** For an example, type:
+⍝H         $THIS.EXAMPLE
+⍝H=
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
 ⍝H    as well as supporting services in namespace ∆DClass.
@@ -102,12 +104,11 @@ Trap← ⎕SIGNAL ⍙T2
 ∇ {help}← Help;  P; R; S 
     S← '^\h*⍝H ?(.*)$' ⎕S '\1'                 ⍝ Grab only lines starting with /\h*⍝H/.
   ⍝ Sep Lvl:            ⍝H= 1,  ⍝H-- 2,    ⍝H- lvl 3
-    ⋄ rIn← '\$AUTOHASH' '^= *$' '^-{2} *$' '^- *$' 
-    ⋄ rOut← (⍕Dict.AUTOHASH),⍥⊆ 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
+    ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^- *$' 
+    ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH),⍥⊆ 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
     R← rIn ⎕R rOut                             ⍝ Format Special Items
     P← ' '∘,¨                                  ⍝ Prepend blanks to result
-    help←EXAMPLE 
-  help← ⎕ED 'help'⊣ help,← P R S⊣ ⎕SRC ⎕THIS
+  help← ⎕ED 'help'⊣ help← P R S⊣ ⎕SRC ⎕THIS
 ∇
  
 :Class Dict
@@ -932,5 +933,6 @@ Trap← ⎕SIGNAL ⍙T2
     SEP⍬
     COM'Sort all items by Value (works for values in the domain of ⍋)'
     EXE'↑a.(FromIx ⍋Vals).Items'
+    ll← ⎕ED 'll' 
   ∇ 
 :EndNamespace
