@@ -17,7 +17,7 @@
 ⍝H ∘ Keys and Values may be of nameclasses:
 ⍝H      2 (variables incl. ⎕OR objects), 9.1 (namespaces), 9.2 (class instances),
 ⍝H   Note: Keys in class 9 or those that are ⎕OR objects are not in the domain of 
-⍝H      methods like Equal (uses ⍋) or Tally.
+⍝H      methods like Equal (uses ⍋) or Count.
 ⍝H ∘ Sorted Order: To create a dictionary with keys in sorted order (or sorted by
 ⍝H   other criteria), use the FromIx or FromKey methods.
 ⍝H ∘ The FromIx and FromKeys methods are available to (among other things)
@@ -84,7 +84,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝ Create path-accessible version in ##
 ##.∆D← ∆CR '{⍺←⊢⋄0::ñs.Trap⍬⋄⍺ñs.∆D⍵}'
 ∆D←{ 
-  dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help          
+  dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← ⍬⊣Help      
   ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
 }
 
@@ -94,7 +94,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝ Create path-accessible version in ##
 ##.∆DL← ∆CR '{⍺←⊢⋄0::"L"ñs.Trap⍬⋄⍺ñs.∆DL⍵}' 
 ∆DL←{  
-    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
+    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← ⍬⊣Help     
     kkvv← ⍵ (⍬ ⍬)⊃⍨ 0=≢⍵
   2=≢kkvv:  ⎕NEW Dict (kkvv, ⍺ dFlag Dict.AUTOHASH)  
     ⎕SIGNAL ⊂'EN' 'Message',⍥⊂¨ Dict.error.badKVLists            
@@ -108,7 +108,9 @@ Trap← ⎕SIGNAL ⍙T2
     ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH),⍥⊆ 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
     R← rIn ⎕R rOut                             ⍝ Format Special Items
     P← ' '∘,¨                                  ⍝ Prepend blanks to result
-  help← ⎕ED 'help'⊣ help← P R S⊣ ⎕SRC ⎕THIS
+    help← P R S⊣ ⎕SRC ⎕THIS
+    help← EXAMPLE,4↓help 
+    _←⎕ED 'help' 
 ∇
  
 :Class Dict
@@ -118,15 +120,16 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H │              Keyed (Index) Methods returning elements or info                    │ 
 ⍝H │          {𝗡𝗼𝘁𝗲 𝗦𝘆𝗻𝘁𝗮𝘅: 𝗱.𝙈𝙈𝙈[𝗸𝗸], 𝗱.𝙈𝙈𝙈[𝗶𝗶]; 𝗱.𝙈𝙈𝙈[] 𝗽𝗿𝗼𝗰𝗲𝘀𝘀𝗲𝘀 𝗮𝗹𝗹 𝗶𝘁𝗲𝗺𝘀}             │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  vv←d[kk]      d[kk]←vv        d.ⁱDefined[kk]  d.⁲DelIx[ii]  d.ⁱHas[kk]          │
-⍝H │  d.⁲Items[ii]  d.⁲Vals[ii]     d.⁲Vals[ii]←vv                                    │ 
+⍝H │  vv←d[kk]       d[kk]←vv            bb←d.ⁱDefined[kk]  items←d.⁲DelIx[ii]        │
+⍝H │  bb←d.ⁱHas[kk]  items←d.⁲Items[ii]                                               │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                Standard methods returning elements or info                       │  
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  any←d.⁳Default       d.⁳Default←any      bb←{b}d.⁴Del kk       b← d.Equal d2    │
-⍝H │  vv←{tdef}d.Get kk    v←{tdef}d.Get1 k    vv← {tdef} GetSet kk  n← d.HasDefault  │
-⍝H │  n← d.HasDefault      d.HasDefault←[1|0]  d.HashStatus          d.Help           │
-⍝H │  ii←{tdef}d.Index kk  kk← d.⁲Keys         {items}←d.Pop n     {vv}←{n}d.Tally kk │ 
+⍝H │  {vv}←{n}d.Count  kk any←d.⁳Default    d.⁳Default←any      bb←{b}d.⁴Del kk       │
+⍝H │  b← d.Equal d2    vv←{tdef}d.Get kk    v←{tdef}d.Get1 k    vv← {tdef} GetSet kk  │
+⍝H │  n← d.HasDefault  n← d.HasDefault      d.HasDefault←[1|0]  d.HashStatus          │
+⍝H │  d.Help           ii←{tdef}d.Index kk  kk← d.⁲Keys         {items}←d.Pop n       │ 
+⍝H │  n←d.Tally        vals←d.⁲Vals                                                   │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                Standard Methods returning dictionaries                           │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
@@ -151,10 +154,12 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ├──────────────────────┴─────────────────────────────┴─────────────────────────────┤
 ⍝H │                                    Notes                                         │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  ⁱᵃDefined, Has (synonyms): Are the keys defined in the dictionary?              │
+⍝H │  ⁱᵃDefined, Has: (synonyms) Are the keys defined in the dictionary?              │
 ⍝H │    Does the dictionary have the associated items?                                │
-⍝H │  ⁲ DelIx, FromIx, Index:   each uses the Index Origin (⎕IO) of caller.           │ 
-⍝H │    Items, Keys, Vals:      each uses the Index Origin (⎕IO) of caller.           │  
+⍝H │  ⁲ DelIx, FromIx, Index:   Each uses the Index Origin (⎕IO) of caller.           │ 
+⍝H │    Items, Keys, Vals:      Each uses the Index Origin (⎕IO) of caller.           │ 
+⍝H │    * Keys, Vals are fast, returning the read-only source array unchanged.        │ 
+⍝H │    * Items[ii] is calculated on the fly, index by index.                         │  
 ⍝H │  ⁳ Default: define/query the default value for new (missing) keys.               │
 ⍝H │  ⁴ Del: If a left arg is present and 1, all keys MUST exist.                     │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
@@ -258,7 +263,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   d[k1 k2 …]← v1 v2 …
 ⍝H   d[] 
 ⍝H See also 
-⍝H    d.Vals[]              ⍝ Retrieve values by Index
+⍝H    d.Vals                ⍝ Retrieve values by Index
 ⍝H    d.Get, and d.Get1.    ⍝ Retrieve values by key with an optional ad hoc default.
 ⍝H=
 ⍝H
@@ -472,7 +477,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   b←a.(FromIx ⍋   Keys)          ⍝ Sort by key in ascending order.
 ⍝H   b←a.(FromIx ⍒   Keys)          ⍝ Sort by key in descending order
 ⍝H   b←a.(FromIx ⍋   Vals)          ⍝ Sort by value(!!) in ascending order.
-⍝H   b←a.(FromIx (5⌊≢Keys)↑⍒ Keys)  ⍝ Sort by key in descending order and keep the top 5 (if poss.).
+⍝H   b←a.(FromIx (5⌊Count)↑⍒ Keys)  ⍝ Sort by key in descending order and keep the top 5 (if poss.).
 ⍝H   b←a.(FromIx ⍋⎕C Keys)          ⍝ Sort by folded keys in ascending order
 ⍝H   b←a.(FromIx ⍋|  Keys)          ⍝ Sort numeric keys in ascending order by absolute value
 ⍝H See also: d.FromKeys. 
@@ -794,25 +799,20 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   kk← d.Keys
 ⍝H=
 ⍝H
-  :Property Simple Keys 
+∇ kk←Keys 
   :Access Public
-    ∇ kk←Get
-      kk← KEYS  
-    ∇
-  :EndProperty
+  kk← KEYS  
+∇
 
-⍝H d.KeysVals: Retrieve all the keys and vals of the dictionary.  
-⍝H   kk vv← d.KeysVals
-⍝H ∘ The keys and values are read-only. 
-⍝H ∘ This operation is very fast. 
+
+⍝H d.Tally: Return the # of Keys or Vals or Items.
+⍝H   n← d.Tally
 ⍝H=
 ⍝H
-  :Property Simple KeysVals 
-  :Access Public
-    ∇ kkvv←Get
-      kkvv← KEYS VALS  
-    ∇
-  :EndProperty
+∇ n← Tally 
+  :Access Public 
+  n← ≢KEYS 
+∇
 
 ⍝H d.New: Make a new dictionary that is completely pristine: no entries, default, or hashing.
 ⍝H   d2← d.New
@@ -845,9 +845,9 @@ Trap← ⎕SIGNAL ⍙T2
     :If 0= ≢items ⋄ items← ⍬ ⋄ :EndIf 
   ∇
 
-⍝H d.Tally  Count the # of instances of each key passed, incrementing the key's value 
+⍝H d.Count  Count the # of instances of each key passed, incrementing the key's value 
 ⍝H          by that count (optionally applying a weight besides +1).
-⍝H   {res}← {weight} d.Tally kk
+⍝H   {res}← {weight} d.Count kk
 ⍝H   kk:  1 or more keys, which 
 ⍝H        (a) may include duplicates in any order and 
 ⍝H        (b) may be new to d 
@@ -863,7 +863,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   d[k] may be any numeric array; the tally is added to each element by APL rules.
 ⍝H=
 ⍝H 
-  ∇ {res}← {weight} Tally kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
+  ∇ {res}← {weight} Count kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
     :Access Public
     ⎕TRAP← trap.domain
     :If 900⌶⍬ ⋄ weight← 1 ⋄ :EndIf  
@@ -880,59 +880,65 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Vals:     Retrieve/Set values of items by index (respecting caller's ⎕IO)
 ⍝H d.Vals[ ix1 ix2 …].
 ⍝H (Read-only: It is not possible to set a value by index)
+⍝H Synonym: ValsIx 
 ⍝H=
 ⍝H
-  :Property Simple Vals 
-  :Access Public
-    ∇ v← Get 
-      v← VALS
-    ∇
-  :EndProperty
+  ∇ v← Vals 
+   :Access Public
+    v← VALS
+  ∇
+  ∇ v← ValsIx 
+   :Access Public
+    v← VALS
+  ∇
 
 :EndClass
-  ∇ ll← EXAMPLE ;a; s; BIG; C; EXE;  QT; SAY; SEP; UCMD   
-      s← 3⍴' ' ⋄ QT← '"'⎕R'''' ⋄  UCMD← {ll,←⊂s,s,']',⍵ ⋄ ll,←⊂s,⎕SE.UCMD ⍵}
-      BIG← {1: ll,←⊂100⍴'═'}
-      SAY← {1: ll,←⊂ ⍵ }
-      COM← {1: ll,←⊂s,'⍝  ',QT ⍵} 
-      EXE← { w← QT ⍵ ⋄ ll,←⊂s,s,w ⋄ 0=⍴⍴x←⍎w: _←⍬ ⋄ 1: ll,←(⊂s),¨↓⎕SE.UCMD 'disp x' } 
-      SEP← {1: ll,←⊂s,70⍴'─'} ⋄ 
-      ll← ⍬
-  BIG⍬
-  SAY'∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"'
-  BIG⍬
-  SAY'   Example...'
-  BIG⍬ 
-  
-    UCMD'box on -fns=on' 
+  ∇ {ll}← EXAMPLE;a; s; save; C; EXE;  HDR; QT; RULE; BOX 
+    s← 3⍴' ' 
+    QT← '"'⎕R'''' 
+    BOX← {ll,←⊂s,s,']','box ',⍵ ⋄ 1: _←4↓res⊣ ll,←⊂s,res←⎕SE.UCMD 'box ',⍵}
+    RULE← {1=⍵: ll,←⊂100⍴'═' ⋄ ll,←⊂s,70⍴'─'}
+    HDR← {1: ll,←⊂⍵ }
+    COM← {1: ll,←⊂s,'⍝  ',QT ⍵} 
+    EXE← { w← QT ⍵ ⋄ ll,←⊂s,s,w ⋄ 0=⍴⍴x←⍎w: _←⍬ ⋄ 1: ll,←(⊂s),¨↓⎕SE.UCMD 'disp x' } 
+    ll← ⍬
+  ⍝ Preamble 
+    RULE 1
+    HDR'∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"'
+    RULE 1
+    HDR'   Example...'
+    RULE 1 
+  ⍝ Main example
+    save← BOX'on -fns=on' 
     COM'Create dictionary'
     EXE'a←∆D("Italy" "Naples")("United States" "Washington, DC")("United Kingdom" "London")'
-    SEP⍬
+    RULE 2
     COM 'Correct one item'
     EXE'a[⊂"Italy"]←⊂"Rome"'
-    SEP⍬
+    RULE 2
     COM  'Add two items (one is silly-- we"ll clean up later)'
     EXE'a["France" "Antarctica"]←"Paris" "Penguin City"'
-    SEP⍬
-    COM'How many items or keys or values (≢Keys is the idiom)?'
-    EXE'"We have",(≢a.Keys),"items"'
-    SEP⍬
+    RULE 2
+    COM'How many items or keys or values (a.Tally is the idiom)?'
+    EXE'"We have",a.Tally,"items"'
+    RULE 2
     COM'Display all items'
     EXE'"Items"'
     EXE'↑a.Items'
-    SEP⍬
+    RULE 2
     COM'Remove invalid item "Antarctica"'
     EXE'a.Del⊂"Antarctica"'
-    SEP⍬
+    RULE 2
     COM'Sort items by keys in ascending order ("back" into dictionary a)'
     EXE'a←a.(FromIx ⍋Keys)'
-    SEP⍬
+    RULE 2
     COM'Display sorted items'
     EXE'"Sorted items"'
     EXE'↑a.Items'
-    SEP⍬
+    RULE 2
     COM'Sort all items by Value (works for values in the domain of ⍋)'
     EXE'↑a.(FromIx ⍋Vals).Items'
-    ll← ⎕ED 'll' 
+    ll ↓⍨← ¯2⊣ BOX save 
+    HDR s 
   ∇ 
 :EndNamespace
