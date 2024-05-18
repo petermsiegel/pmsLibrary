@@ -1,68 +1,5 @@
 ﻿:Namespace ∆DClass
-⍝H=
-⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
-⍝H=
-⍝H Example...
-⍝H      ]box on 
-⍝H  ⍝   Create dictionary
-⍝H      a←∆D('Italy' 'Naples')('United States' 'Washington, DC')('United Kingdom' 'London')
-⍝H  ⍝   Correct one item
-⍝H      a[⊂'Italy']←⊂'Rome'
-⍝H 
-⍝H  ⍝   Add two items (one is silly-- we'll clean up later)
-⍝H      a['France' 'Antarctica']←'Paris' 'Penguin City'
-⍝H 
-⍝H  ⍝   How many items or keys or values (≢Keys is the idiom)?
-⍝H      'We have',(≢a.Keys),'items'
-⍝H  We have 5 items
-⍝H 
-⍝H  ⍝   Display all items
-⍝H      'Items'
-⍝H      ↑a.Items
-⍝H  Items
-⍝H  ┌──────────────┬──────────────┐
-⍝H  │Italy         │Rome          │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │United States │Washington, DC│
-⍝H  ├──────────────┼──────────────┤
-⍝H  │United Kingdom│London        │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │France        │Paris         │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │Antarctica    │Penguin City  │
-⍝H  └──────────────┴──────────────┘      
-⍝H 
-⍝H  ⍝   Remove invalid item 'Antarctica'
-⍝H      a.Del⊂'Antarctica'
-⍝H 
-⍝H  ⍝   Sort items by keys in ascending order ("back" into dictionary a)
-⍝H      a←a.(FromIx ⍋Keys)
-⍝H 
-⍝H  ⍝   Display sorted items
-⍝H      'Sorted items'
-⍝H      ↑a.Items
-⍝H  Sorted items
-⍝H  ┌──────────────┬──────────────┐
-⍝H  │France        │Paris         │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │Italy         │Rome          │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │United Kingdom│London        │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │United States │Washington, DC│
-⍝H  └──────────────┴──────────────┘
-⍝H
-⍝H  ⍝   Sort all items by Value (works for values in the domain of ⍋)
-⍝H      ↑a.(FromIx ⍋Vals).Items
-⍝H  ┌──────────────┬──────────────┐
-⍝H  │United Kingdom│London        │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │France        │Paris         │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │Italy         │Rome          │
-⍝H  ├──────────────┼──────────────┤
-⍝H  │United States │Washington, DC│
-⍝H  └──────────────┴──────────────┘
+⍝ ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H=
 ⍝H 
 ⍝H ]load [-target ns] ∆D   
@@ -138,11 +75,12 @@
 ⎕IO ⎕ML←0 1  
 ⍙T2← { ⍺←'' ⋄ ⊂⎕DMX.('EN' 'Message' 'EM',⍥⊂¨ EN Message,⊂ '^(∆D\w? )?'⎕R('∆D',⍺,' ')⊢EM)} 
 Trap← ⎕SIGNAL ⍙T2
+∆CR← ⍎'ñs' '"' ⎕R (⍕⎕THIS)'''' 
 
 ⍝ ##.∆D: Create from items (key-value pairs: (k1 v1)(k2 v2)…)   
 ⍝ dict← [default] ∇ items
 ⍝ Create path-accessible version in ##
-##.∆D← ⍎'ñ' ⎕R (⍕⎕THIS) ⊣ '{⍺←⊢⋄0::ñ.Trap⍬⋄⍺ñ.∆D⍵}'
+##.∆D← ∆CR '{⍺←⊢⋄0::ñs.Trap⍬⋄⍺ñs.∆D⍵}'
 ∆D←{ 
   dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help          
   ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
@@ -152,7 +90,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝          or from a list and a scalar: keylist (scalar_value)
 ⍝ dict← [default] ∇ keylist valuelist
 ⍝ Create path-accessible version in ##
-##.∆DL← ⍎'ñ' ⎕R (⍕⎕THIS)⊣ '{⍺←⊢⋄0::''L''ñ.Trap⍬⋄⍺ñ.∆DL⍵}' 
+##.∆DL← ∆CR '{⍺←⊢⋄0::"L"ñs.Trap⍬⋄⍺ñs.∆DL⍵}' 
 ∆DL←{  
     dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
     kkvv← ⍵ (⍬ ⍬)⊃⍨ 0=≢⍵
@@ -168,7 +106,8 @@ Trap← ⎕SIGNAL ⍙T2
     ⋄ rOut← (⍕Dict.AUTOHASH),⍥⊆ 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
     R← rIn ⎕R rOut                             ⍝ Format Special Items
     P← ' '∘,¨                                  ⍝ Prepend blanks to result
-  help← ⎕ED 'help'⊣ help← P R S⊣ ⎕SRC ⎕THIS
+    help←EXAMPLE 
+  help← ⎕ED 'help'⊣ help,← P R S⊣ ⎕SRC ⎕THIS
 ∇
  
 :Class Dict
@@ -176,25 +115,25 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H │                Methods of class ∆D.Dict in alphabetical order by type…           │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H │              Keyed (Index) Methods returning elements or info                    │ 
+⍝H │          {𝗡𝗼𝘁𝗲 𝗦𝘆𝗻𝘁𝗮𝘅: 𝗱.𝙈𝙈𝙈[𝗸𝗸], 𝗱.𝙈𝙈𝙈[𝗶𝗶]; 𝗱.𝙈𝙈𝙈[] 𝗽𝗿𝗼𝗰𝗲𝘀𝘀𝗲𝘀 𝗮𝗹𝗹 𝗶𝘁𝗲𝗺𝘀}             │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  vv←d[kk]  d[kk]←vv  vv←d[]        d.ⁱDefined[kk]   d.⁲DelIx[ii]  d.DelIx[]      │
-⍝H │  d.ⁱHas[kk]          d.⁲Items[ii]  d.⁲ItemsIx[ii]   d.⁲Keys[ii]   d.⁲Vals[ii]    │ 
-⍝H │  d.⁲Vals[ii]←vv                                                                  │ 
+⍝H │  vv←d[kk]      d[kk]←vv        d.ⁱDefined[kk]  d.⁲DelIx[ii]  d.ⁱHas[kk]          │
+⍝H │  d.⁲Items[ii]  d.⁲Vals[ii]     d.⁲Vals[ii]←vv                                    │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                Standard methods returning elements or info                       │  
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  any←d.⁳Default       d.⁳Default←any      bb←{b}d.⁴Del kk       b← d.Equal d2    │
 ⍝H │  vv←{tdef}d.Get kk    v←{tdef}d.Get1 k    vv← {tdef} GetSet kk  n← d.HasDefault  │
 ⍝H │  n← d.HasDefault      d.HasDefault←[1|0]  d.HashStatus          d.Help           │
-⍝H │  ii←{tdef}d.Index kk  {items}← d.Pop n    {vv}←{n}d.Tally kk                     │
+⍝H │  ii←{tdef}d.Index kk  kk← d.⁲Keys         {items}←d.Pop n     {vv}←{n}d.Tally kk │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                Standard Methods returning dictionaries                           │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  Same dict (updated):                                                            │  
 ⍝H │   {d}←d.Clear          {d}←d.[No]Hash                                            │  
-⍝H │   {d}←d.Import items  {d}←d.ImportL kkvv  {d}←{json}d.ImportN ns                 │      
+⍝H │   {d}←d.Import items   {d}←d.ImportL kkvv       {d}←{json}d.ImportN ns           │      
 ⍝H │  New dict:                                                                       │
-⍝H │    d2←d.Copy   d2←{tdef}d.FromKeys kk  d2←d.FromIx ii   d2←d.New                 │
+⍝H │   d2←d.Copy            d2←{tdef}d.FromKeys kk   d2←d.FromIx ii   d2←d.New        │
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │                            Miscellaneous Methods                                 │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
@@ -213,19 +152,19 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  ⁱᵃDefined, Has (synonyms): Are the keys defined in the dictionary?              │
 ⍝H │    Does the dictionary have the associated items?                                │
-⍝H │  ⁲ DelIx, FromIx, Index, Items:  each uses the Index Origin (⎕IO) of caller.     │ 
-⍝H │    ItemsIx, Keys, Vals:          each uses the Index Origin (⎕IO) of caller.     │  
+⍝H │  ⁲ DelIx, FromIx, Index:   each uses the Index Origin (⎕IO) of caller.           │ 
+⍝H │    Items, Keys, Vals:      each uses the Index Origin (⎕IO) of caller.           │  
 ⍝H │  ⁳ Default: define/query the default value for new (missing) keys.               │
 ⍝H │  ⁴ Del: If a left arg is present and 1, all keys MUST exist.                     │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H │      What Python methods or fns are roughly comparable (even if scalar)?*        │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
-⍝H │  clear                  copy             fromkeys         del  get               │
-⍝H │  has_key [d.Has]        items            keys             len  popitem [d.Pop 1] │
-⍝H │  setdefault [d.GetSet]  values [d.Vals]  update [d.Import]                       │
-⍝H │  dict[key], i.e. indexing by Key, etc.                                           │
-⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
+⍝H ├────────────────────────┬─────────────────┬──────────┬────────┬───────────────────┤
+⍝H │  clear                 │ copy            │ fromkeys │ del    │ get               │
+⍝H │  has_key [d.Has]       │ items           │ keys     │ len    │ popitem [d.Pop 1] │
+⍝H │  setdefault [d.GetSet] │ values [d.Vals] │ update [d.Import] │                   │
+⍝H │  𝑑[key], i.e. indexing by key, etc.      │                   │                   │
+⍝H ├──────────────────────────────────────────┴───────────────────┴───────────────────┤
 ⍝H │                                     Notes                                        │ 
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  * Where not obvious, comparable ∆D equivalents are in brackets in               │  
@@ -256,10 +195,10 @@ Trap← ⎕SIGNAL ⍙T2
   :EndNamespace 
 ⍝ Traps within methods, utilities
   :Namespace trap
-      _← (,⍥⊆)∘'E' '##.Trap⍬' 
-      domain←       _ 11    
-      index←        _  3     
-      index_domain← _  3 11
+      Ø← (,⍥⊆)∘'E' '##.Trap⍬' 
+      domain←       Ø 11    
+      index←        Ø  3     
+      index_domain← Ø  3 11
   :EndNamespace
 ⍝ 
   :Field Public Shared AUTOHASH←     1     ⍝ If 1, ∆D and ∆DL will enable hashing for new dicts
@@ -830,39 +769,23 @@ Trap← ⎕SIGNAL ⍙T2
       ii 
   }
 
-⍝H d.Items: Retrieve all items of the dictionary as key-value pairs. 
-⍝H   items← d.Items                 Caller ⎕IO is honored.
-⍝H Note: All items are generated on the fly, so d.Items[ii] can be inefficient for
-⍝H       large dictionaries. See d.ItemsIx[ii].
-⍝H (Items are read-only)
-⍝H=
-⍝H
-  :Property Simple Items 
-  :Access Public 
-    ∇ items← Get
-      items← ↓⍉↑KEYS VALS
-      :If 0=≢items ⋄ items← ⍬ ⋄ :EndIf 
-    ∇
-  :EndProperty
-
 ⍝H d.Items: retrieve selected items of the dictionary by index as key-value pairs. 
-⍝H   items← d.ItemsIx[ ii ]          Caller ⎕IO is honored.
-⍝H   items← d.ItemsIx[    ]                -ditto-
-⍝H Note: All items are generated on the fly, so d.ItemsIx[ ii ] is a more efficient 
-⍝H       way to gather select items from a large dictionary than d.Items[ ii ].
+⍝H   items← d.Items[ ii ]   Retrieve items with indices ii.           Caller ⎕IO is honored.
+⍝H   items← d.Items         Retrieve all items (in order by index).           -ditto-
+⍝H Note: All items are generated on the fly, so use ≢d.Keys to get # of Items,
+⍝H       rather than ≢d.Items.
 ⍝H (Items are read-only)
+⍝H Synonym: d.ItemsIx
 ⍝H=
 ⍝H
- :Property Keyed ItemsIx 
+ :Property Numbered Items,ItemsIx   
   :Access Public
-    ∇ items← Get args; ii;⎕TRAP 
-      ⎕TRAP← trap.index  
-      :If ⎕NULL≡ ii← ⊃args.Indexers 
-         items← ↓⍉↑KEYS VALS 
-      :Else 
-        items← ↓⍉↑KEYS VALS⌷⍨¨ ⊂⊂ii-(⊃⎕RSI).⎕IO  
-      :Endif 
-      :If 0=≢items ⋄ items← ⍬ ⋄ :EndIf 
+    ∇ items← Get args; i 
+      i← args.Indexers  
+      items← ⊂KEYS[i],VALS[i]
+    ∇
+    ∇ s←Shape
+      s← ⍴KEYS 
     ∇
   :EndProperty
 
@@ -874,6 +797,19 @@ Trap← ⎕SIGNAL ⍙T2
   :Access Public
     ∇ kk←Get
       kk← KEYS  
+    ∇
+  :EndProperty
+
+⍝H d.KeysVals: Retrieve all the keys and vals of the dictionary.  
+⍝H   kk vv← d.KeysVals
+⍝H ∘ The keys and values are read-only. 
+⍝H ∘ This operation is very fast. 
+⍝H=
+⍝H
+  :Property Simple KeysVals 
+  :Access Public
+    ∇ kkvv←Get
+      kkvv← KEYS VALS  
     ∇
   :EndProperty
 
@@ -941,34 +877,60 @@ Trap← ⎕SIGNAL ⍙T2
   ∇
  
 ⍝H d.Vals:     Retrieve/Set values of items by index (respecting caller's ⎕IO)
-⍝H d.Vals[ ix1 ix2 …], 
-⍝H d.Vals[ ix1 ix2…]← val1 val2…
-⍝H d.Vals                     ⍝ Retrieve all vals 
-⍝H d.Vals← val1 val2…         ⍝ Obscure, but valid, if (≢val1 val2…)≡≢d.Vals
-⍝H Synonym: d.ValsIx, d.ValsByIx
-⍝H Retrieve or set specific values in the dictionary by index (respecting caller's ⎕IO).
-⍝H You may also retrieve ALL the values using d.Vals[] or simply d[].
+⍝H d.Vals[ ix1 ix2 …].
+⍝H (Read-only: It is not possible to set a value by index)
 ⍝H=
 ⍝H
-  :Property Numbered ValsIx, Vals  
+  :Property Simple Vals 
   :Access Public
-    ∇ v←get args; ii
-      :If ⎕NULL≡ ii← ⊃args.Indexers 
-          v← VALS
-      :Else   
-          ⋄ 3 ''ErrIf ii(0∘∊<) ≢KEYS 
-          v← VALS[ii]
-      :EndIf 
-    ∇
-    ∇ set args; ii
-      ii← ⊃args.Indexers 
-      ⋄ 3 '' ErrIf ii(0∘∊<) ≢KEYS 
-      VALS[ii]← args.NewValue 
-    ∇
-    ∇ s←Shape
-      s← ⍴KEYS 
+    ∇ v← Get 
+      v← VALS
     ∇
   :EndProperty
 
 :EndClass
+  ∇ ll← EXAMPLE ;a; s; BIG; C; EXE;  QT; SAY; SEP; UCMD   
+      s← 3⍴' ' ⋄ QT← '"'⎕R'''' ⋄  UCMD← {ll,←⊂s,s,']',⍵ ⋄ ll,←⊂s,⎕SE.UCMD ⍵}
+      BIG← {1: ll,←⊂100⍴'═'}
+      SAY← {1: ll,←⊂ ⍵ }
+      COM← {1: ll,←⊂s,'⍝  ',QT ⍵} 
+      EXE← { w← QT ⍵ ⋄ ll,←⊂s,s,w ⋄ 0=⍴⍴x←⍎w: _←⍬ ⋄ 1: ll,←(⊂s),¨↓⎕SE.UCMD 'disp x' } 
+      SEP← {1: ll,←⊂s,70⍴'─'} ⋄ 
+      ll← ⍬
+  BIG⍬
+  SAY'∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"'
+  BIG⍬
+  SAY'   Example...'
+  BIG⍬ 
+  
+    UCMD'box on -fns=on' 
+    COM'Create dictionary'
+    EXE'a←∆D("Italy" "Naples")("United States" "Washington, DC")("United Kingdom" "London")'
+    SEP⍬
+    COM 'Correct one item'
+    EXE'a[⊂"Italy"]←⊂"Rome"'
+    SEP⍬
+    COM  'Add two items (one is silly-- we"ll clean up later)'
+    EXE'a["France" "Antarctica"]←"Paris" "Penguin City"'
+    SEP⍬
+    COM'How many items or keys or values (≢Keys is the idiom)?'
+    EXE'"We have",(≢a.Keys),"items"'
+    SEP⍬
+    COM'Display all items'
+    EXE'"Items"'
+    EXE'↑a.Items'
+    SEP⍬
+    COM'Remove invalid item "Antarctica"'
+    EXE'a.Del⊂"Antarctica"'
+    SEP⍬
+    COM'Sort items by keys in ascending order ("back" into dictionary a)'
+    EXE'a←a.(FromIx ⍋Keys)'
+    SEP⍬
+    COM'Display sorted items'
+    EXE'"Sorted items"'
+    EXE'↑a.Items'
+    SEP⍬
+    COM'Sort all items by Value (works for values in the domain of ⍋)'
+    EXE'↑a.(FromIx ⍋Vals).Items'
+  ∇ 
 :EndNamespace
