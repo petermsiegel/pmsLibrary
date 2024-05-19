@@ -1,8 +1,44 @@
 ﻿:Namespace ∆DClass
+⍝  ∆D, ∆DL - an Ordered, Hashed Dictionary
+⍝  For Help Information and Example, 
+⍝      see :Section Help Information and Example Processing and Display
+⍝  Help info is encoded via ⍝H, Example info via ⍝E.
+⍝H=
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H=
 ⍝H *** For an example, type:
 ⍝H         $THIS.Example
+  ⍝EH   Example...
+  ⍝E-
+  ⍝E⍝ Create dictionary
+  ⍝E⍎ dict←∆D('Italy' 'Naples')('United States' 'Washington, DC')('United Kingdom' 'London')
+  ⍝E-
+  ⍝E⍝ Correct one item
+  ⍝E⍎ dict[⊂'Italy']←⊂'Rome'
+  ⍝E-
+  ⍝E⍝ Add two items (one is silly-- we'll clean up later)
+  ⍝E⍎ dict['France' 'Antarctica']←'Paris' 'Penguin City'
+  ⍝E-
+  ⍝E⍝ How many items or keys or values (dict.Tally is the idiom)?
+  ⍝E⍎ 'We have',dict.Tally,'items'
+  ⍝E-
+  ⍝E⍝ Display all items
+  ⍝E⍎ 'Items'
+  ⍝E⍎ ↑dict.Items
+  ⍝E-
+  ⍝E⍝ Remove invalid item 'Antarctica'
+  ⍝E⍎ dict.Del⊂'Antarctica'
+  ⍝E-
+  ⍝E⍝ Sort items by keys in ascending order ('back' into dictionary dict)
+  ⍝E⍎ dict←dict.(FromIx ⍋Keys)
+  ⍝E-
+  ⍝E⍝ Display sorted items
+  ⍝E⍎ 'Sorted items'
+  ⍝E⍎ ↑dict.Items
+  ⍝E-
+  ⍝E⍝ Sort all items by Value (works for values in the domain of ⍋)
+  ⍝E⍎ ↑dict.(FromIx ⍋Vals).Items
+  ⍝E-
 ⍝H=
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
@@ -99,18 +135,7 @@ Trap← ⎕SIGNAL ⍙T2
   2=≢kkvv:  ⎕NEW Dict (kkvv, ⍺ dFlag Dict.AUTOHASH)  
     ⎕SIGNAL ⊂'EN' 'Message',⍥⊂¨ Dict.error.badKVLists            
 }
-
-⍝ Provide help information. See also Dict.Help.
-∇ {help}← Help;  P; R; S 
-    S← '^\h*⍝H ?(.*)$' ⎕S '\1'                 ⍝ Grab only lines starting with /\h*⍝H/.
-  ⍝                       Sep Lvl: ⍝H= 1,  ⍝H-- 2,    ⍝H- lvl 3
-    ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^-{1} *$' 
-    ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH), 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
-    R← rIn ⎕R rOut                             ⍝ Format Special Items
-    P← ' '∘,¨                                  ⍝ Prepend blanks to result
-    help← ⍙Example,4↓ P R S⊣ ⎕SRC ⎕THIS 
-    _←⎕ED 'help' 
-∇
+⍝ See Help at bottom of file...
  
 :Class Dict
 ⍝H ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -887,65 +912,40 @@ Trap← ⎕SIGNAL ⍙T2
   ∇
 
 :EndClass
-  ∇ {EXAMPLE}← Example 
-     EXAMPLE← ⍙Example ⋄ {}⎕ED 'EXAMPLE'  
+:Section Help Information and Example Processing and Display
+  ⍝ Help: Process and Display Help information (⍝∆) above. 
+  ⍝ See also Dict.Help.
+  ∇ {help}← Help; rIn; rOut; showEx; B; F; H 
+      showEx←1                                   ⍝ If 1, show Example. Else, don't.
+      H← '^\h*⍝H ?(.*)$' ⎕S '\1'                 ⍝ H: Grab only lines w/ help prefix (⍝H)
+      ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^-{1} *$'          ⍝ In:  = - -
+      ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH), 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472 ⍝ Out: ═ ─ ─
+      F← rIn ⎕R rOut                             ⍝ F: Handle Format Codes
+      B← ' '∘,¨                                  ⍝ B: Prepend blanks to result
+      help← showEx{⍺: (3↑⍵),Show⍙Example,5↓⍵ ⋄ ⍵}B F H⊣ ⎕SRC ⎕THIS 
+      _←⎕ED 'help' 
   ∇
-  ∇ {lns}← ⍙Example; dict; line; spc 
-  ⍝ ⍝E Sequences here are decoded below...
-  ⍝E=
-  ⍝EH ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
-  ⍝E=
-  ⍝EH   Example...
-  ⍝E-
-  ⍝E⍝ Create dictionary
-  ⍝E⍎ dict←∆D("Italy" "Naples")("United States" "Washington, DC")("United Kingdom" "London")
-  ⍝E-
-  ⍝E⍝ Correct one item
-  ⍝E⍎ dict[⊂"Italy"]←⊂"Rome"
-  ⍝E-
-  ⍝E⍝ Add two items (one is silly-- we"ll clean up later)
-  ⍝E⍎ dict["France" "Antarctica"]←"Paris" "Penguin City"
-  ⍝E-
-  ⍝E⍝ How many items or keys or values (dict.Tally is the idiom)?
-  ⍝E⍎ "We have",dict.Tally,"items"
-  ⍝E-
-  ⍝E⍝ Display all items
-  ⍝E⍎ "Items"
-  ⍝E⍎ ↑dict.Items
-  ⍝E-
-  ⍝E⍝ Remove invalid item "Antarctica"
-  ⍝E⍎ dict.Del⊂"Antarctica"
-  ⍝E-
-  ⍝E⍝ Sort items by keys in ascending order ("back" into dictionary dict)
-  ⍝E⍎ dict←dict.(FromIx ⍋Keys)
-  ⍝E-
-  ⍝E⍝ Display sorted items
-  ⍝E⍎ "Sorted items"
-  ⍝E⍎ ↑dict.Items
-  ⍝E-
-  ⍝E⍝ Sort all items by Value (works for values in the domain of ⍋)
-  ⍝E⍎ ↑dict.(FromIx ⍋Vals).Items
-  ⍝E-
-⍝ Pgm to decode ⍝E sequences...
-  spc← 3⍴' ' 
-  save← 3↓⎕SE.UCMD 'box on -fns=on' 
-  lns← ⍬
-  :For line :IN '^\h*⍝E(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI
-    type←⍬⍴1↑ line ⋄ line←1↓ line 
-    :Select type 
-      :Case 'H' ⋄ {lns,←⊂,⍵ } line                            ⍝ Header line
-      :Case '=' ⋄ {lns,←⊂100⍴'═' }⍬                           ⍝ Major section
-      :Case '-' ⋄ {lns,←⊂spc}⍬                                ⍝ Minor section
-      :Case '⍝' ⋄ {1: lns,←⊂spc,'⍝  ','"'⎕R''''⊣ ⍵}  line     ⍝ Comment
-      :Case '⍎' ⋄ {                                           ⍝ Code to execute
-                      cod← '"'⎕R''''⊣ ⍵ 
-                      lns,←⊂spc,spc,cod 
-                      85:: _←⍬ ⋄ x←1(85⌶)cod
-                      1: lns,←(⊂spc),¨↓⎕SE.UCMD 'disp x'
-                  } line
+  ⍝ Example: Display Example information (⍝∆) above
+  ∇ {EXAMPLE}← Example 
+    {}⎕ED 'EXAMPLE'⊣ EXAMPLE← Show⍙Example  
+  ∇
+  ⍝ Show⍙Example: Process Example information (⍝∆) above
+  ∇ {lns}← Show⍙Example; dict; line; spc 
+  ⍝ ⍝E Sequences (above) here are decoded here...
+    spc← 3⍴' ' ⋄ save← 3↓⎕SE.UCMD 'box on -fns=on' ⋄ lns← ⍬
+  ⍝ ⍝E<t><line>
+  ⍝ <t> is H: Header, =: Major section, -: Minor section, ⍝: Comment, ⍎: Code 
+    :For type line :IN (⍬∘⍴,⍥⊂1∘↓)¨'^\h*⍝E(.*)' ⎕S '\1'⊣⎕SRC ⎕THIS  
+      :Select type 
+      :Case 'H' ⋄ lns,← ⊂,line  ⋄ :Case '=' ⋄ lns,← ⊂100⍴'═'                             
+      :Case '-' ⋄ lns,← ⊂spc    ⋄ :Case '⍝' ⋄ lns,← ⊂spc,'⍝  ', line      
+      :Case '⍎' ⋄ lns,← (⊂spc,spc,line),{ 85:: ⍬ ⋄ x←1(85⌶)⍵
+                    (⊂spc),¨↓⎕SE.UCMD 'disp x' 
+                  }line
       :Else     ⋄ ⎕←'EXAMPLE: Unknown type="',type,'" line="',line,'"'  
-    :EndSelect  
-  :EndFor 
-  {}⎕SE.UCMD 'box',save 
+      :EndSelect  
+    :EndFor 
+    {}⎕SE.UCMD 'box',save 
   ∇ 
+:EndSection 
 :EndNamespace
