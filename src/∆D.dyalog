@@ -2,7 +2,7 @@
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H=
 ⍝H *** For an example, type:
-⍝H         $THIS.EXAMPLE
+⍝H         $THIS.Example
 ⍝H=
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
@@ -82,9 +82,9 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝ ##.∆D: Create from items (key-value pairs: (k1 v1)(k2 v2)…)   
 ⍝ dict← [default] ∇ items
 ⍝ Create path-accessible version in ##
-##.∆D← ∆CR '{⍺←⊢⋄0::ñs.Trap⍬⋄⍺ñs.∆D⍵}'
+##.∆D← ∆CR '{⍺←⊢⋄0::ñs.Trap⍬⋄1:_←⍺ñs.∆D⍵}'
 ∆D←{ 
-  dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← ⍬⊣Help      
+  dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
   ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)           
 }
 
@@ -92,9 +92,9 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝          or from a list and a scalar: keylist (scalar_value)
 ⍝ dict← [default] ∇ keylist valuelist
 ⍝ Create path-accessible version in ##
-##.∆DL← ∆CR '{⍺←⊢⋄0::"L"ñs.Trap⍬⋄⍺ñs.∆DL⍵}' 
+##.∆DL← ∆CR '{⍺←⊢⋄0::"L"ñs.Trap⍬⋄1:_←⍺ñs.∆DL⍵}' 
 ∆DL←{  
-    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← ⍬⊣Help     
+    dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
     kkvv← ⍵ (⍬ ⍬)⊃⍨ 0=≢⍵
   2=≢kkvv:  ⎕NEW Dict (kkvv, ⍺ dFlag Dict.AUTOHASH)  
     ⎕SIGNAL ⊂'EN' 'Message',⍥⊂¨ Dict.error.badKVLists            
@@ -103,13 +103,12 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝ Provide help information. See also Dict.Help.
 ∇ {help}← Help;  P; R; S 
     S← '^\h*⍝H ?(.*)$' ⎕S '\1'                 ⍝ Grab only lines starting with /\h*⍝H/.
-  ⍝ Sep Lvl:            ⍝H= 1,  ⍝H-- 2,    ⍝H- lvl 3
-    ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^- *$' 
-    ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH),⍥⊆ 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
+  ⍝                       Sep Lvl: ⍝H= 1,  ⍝H-- 2,    ⍝H- lvl 3
+    ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^-{1} *$' 
+    ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH), 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472
     R← rIn ⎕R rOut                             ⍝ Format Special Items
     P← ' '∘,¨                                  ⍝ Prepend blanks to result
-    help← P R S⊣ ⎕SRC ⎕THIS
-    help← EXAMPLE,4↓help 
+    help← ⍙Example,4↓ P R S⊣ ⎕SRC ⎕THIS 
     _←⎕ED 'help' 
 ∇
  
@@ -880,65 +879,73 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Vals:     Retrieve/Set values of items by index (respecting caller's ⎕IO)
 ⍝H d.Vals[ ix1 ix2 …].
 ⍝H (Read-only: It is not possible to set a value by index)
-⍝H Synonym: ValsIx 
 ⍝H=
 ⍝H
   ∇ v← Vals 
    :Access Public
     v← VALS
   ∇
-  ∇ v← ValsIx 
-   :Access Public
-    v← VALS
-  ∇
 
 :EndClass
-  ∇ {ll}← EXAMPLE;a; s; save; C; EXE;  HDR; QT; RULE; BOX 
-    s← 3⍴' ' 
-    QT← '"'⎕R'''' 
-    BOX← {ll,←⊂s,s,']','box ',⍵ ⋄ 1: _←4↓res⊣ ll,←⊂s,res←⎕SE.UCMD 'box ',⍵}
-    RULE← {1=⍵: ll,←⊂100⍴'═' ⋄ ll,←⊂s,70⍴'─'}
-    HDR← {1: ll,←⊂⍵ }
-    COM← {1: ll,←⊂s,'⍝  ',QT ⍵} 
-    EXE← { w← QT ⍵ ⋄ ll,←⊂s,s,w ⋄ 0=⍴⍴x←⍎w: _←⍬ ⋄ 1: ll,←(⊂s),¨↓⎕SE.UCMD 'disp x' } 
-    ll← ⍬
-  ⍝ Preamble 
-    RULE 1
-    HDR'∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"'
-    RULE 1
-    HDR'   Example...'
-    RULE 1 
-  ⍝ Main example
-    save← BOX'on -fns=on' 
-    COM'Create dictionary'
-    EXE'a←∆D("Italy" "Naples")("United States" "Washington, DC")("United Kingdom" "London")'
-    RULE 2
-    COM 'Correct one item'
-    EXE'a[⊂"Italy"]←⊂"Rome"'
-    RULE 2
-    COM  'Add two items (one is silly-- we"ll clean up later)'
-    EXE'a["France" "Antarctica"]←"Paris" "Penguin City"'
-    RULE 2
-    COM'How many items or keys or values (a.Tally is the idiom)?'
-    EXE'"We have",a.Tally,"items"'
-    RULE 2
-    COM'Display all items'
-    EXE'"Items"'
-    EXE'↑a.Items'
-    RULE 2
-    COM'Remove invalid item "Antarctica"'
-    EXE'a.Del⊂"Antarctica"'
-    RULE 2
-    COM'Sort items by keys in ascending order ("back" into dictionary a)'
-    EXE'a←a.(FromIx ⍋Keys)'
-    RULE 2
-    COM'Display sorted items'
-    EXE'"Sorted items"'
-    EXE'↑a.Items'
-    RULE 2
-    COM'Sort all items by Value (works for values in the domain of ⍋)'
-    EXE'↑a.(FromIx ⍋Vals).Items'
-    ll ↓⍨← ¯2⊣ BOX save 
-    HDR s 
+  ∇ {EXAMPLE}← Example 
+     EXAMPLE← ⍙Example ⋄ {}⎕ED 'EXAMPLE'  
+  ∇
+  ∇ {lns}← ⍙Example; dict; line; spc 
+  ⍝ ⍝E Sequences here are decoded below...
+  ⍝E=
+  ⍝EH ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
+  ⍝E=
+  ⍝EH   Example...
+  ⍝E-
+  ⍝E⍝ Create dictionary
+  ⍝E⍎ dict←∆D("Italy" "Naples")("United States" "Washington, DC")("United Kingdom" "London")
+  ⍝E-
+  ⍝E⍝ Correct one item
+  ⍝E⍎ dict[⊂"Italy"]←⊂"Rome"
+  ⍝E-
+  ⍝E⍝ Add two items (one is silly-- we"ll clean up later)
+  ⍝E⍎ dict["France" "Antarctica"]←"Paris" "Penguin City"
+  ⍝E-
+  ⍝E⍝ How many items or keys or values (dict.Tally is the idiom)?
+  ⍝E⍎ "We have",dict.Tally,"items"
+  ⍝E-
+  ⍝E⍝ Display all items
+  ⍝E⍎ "Items"
+  ⍝E⍎ ↑dict.Items
+  ⍝E-
+  ⍝E⍝ Remove invalid item "Antarctica"
+  ⍝E⍎ dict.Del⊂"Antarctica"
+  ⍝E-
+  ⍝E⍝ Sort items by keys in ascending order ("back" into dictionary dict)
+  ⍝E⍎ dict←dict.(FromIx ⍋Keys)
+  ⍝E-
+  ⍝E⍝ Display sorted items
+  ⍝E⍎ "Sorted items"
+  ⍝E⍎ ↑dict.Items
+  ⍝E-
+  ⍝E⍝ Sort all items by Value (works for values in the domain of ⍋)
+  ⍝E⍎ ↑dict.(FromIx ⍋Vals).Items
+  ⍝E-
+⍝ Pgm to decode ⍝E sequences...
+  spc← 3⍴' ' 
+  save← 3↓⎕SE.UCMD 'box on -fns=on' 
+  lns← ⍬
+  :For line :IN '^\h*⍝E(.*)' ⎕S '\1'⊣⎕NR ⊃⎕XSI
+    type←⍬⍴1↑ line ⋄ line←1↓ line 
+    :Select type 
+      :Case 'H' ⋄ {lns,←⊂,⍵ } line                            ⍝ Header line
+      :Case '=' ⋄ {lns,←⊂100⍴'═' }⍬                           ⍝ Major section
+      :Case '-' ⋄ {lns,←⊂spc}⍬                                ⍝ Minor section
+      :Case '⍝' ⋄ {1: lns,←⊂spc,'⍝  ','"'⎕R''''⊣ ⍵}  line     ⍝ Comment
+      :Case '⍎' ⋄ {                                           ⍝ Code to execute
+                      cod← '"'⎕R''''⊣ ⍵ 
+                      lns,←⊂spc,spc,cod 
+                      85:: _←⍬ ⋄ x←1(85⌶)cod
+                      1: lns,←(⊂spc),¨↓⎕SE.UCMD 'disp x'
+                  } line
+      :Else     ⋄ ⎕←'EXAMPLE: Unknown type="',type,'" line="',line,'"'  
+    :EndSelect  
+  :EndFor 
+  {}⎕SE.UCMD 'box',save 
   ∇ 
 :EndNamespace
