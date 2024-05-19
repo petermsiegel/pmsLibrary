@@ -2,43 +2,39 @@
 ⍝  ∆D, ∆DL - an Ordered, Hashed Dictionary
 ⍝  For Help Information and Example, 
 ⍝      see :Section Help Information and Example Processing and Display
-⍝  Help info is encoded via ⍝H, Example info via ⍝E.
+⍝  Help info is encoded via ⍝H,  
 ⍝H=
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H=
-⍝H *** For an example, type:
-⍝H         $THIS.Example
-  ⍝EH   Example...
-  ⍝E-
-  ⍝E⍝ Create dictionary
-  ⍝E⍎ dict←∆D('Italy' 'Naples')('United States' 'Washington, DC')('United Kingdom' 'London')
-  ⍝E-
-  ⍝E⍝ Correct one item
-  ⍝E⍎ dict[⊂'Italy']←⊂'Rome'
-  ⍝E-
-  ⍝E⍝ Add two items (one is silly-- we'll clean up later)
-  ⍝E⍎ dict['France' 'Antarctica']←'Paris' 'Penguin City'
-  ⍝E-
-  ⍝E⍝ How many items or keys or values (dict.Tally is the idiom)?
-  ⍝E⍎ 'We have',dict.Tally,'items'
-  ⍝E-
-  ⍝E⍝ Display all items
-  ⍝E⍎ 'Items'
-  ⍝E⍎ ↑dict.Items
-  ⍝E-
-  ⍝E⍝ Remove invalid item 'Antarctica'
-  ⍝E⍎ dict.Del⊂'Antarctica'
-  ⍝E-
-  ⍝E⍝ Sort items by keys in ascending order ('back' into dictionary dict)
-  ⍝E⍎ dict←dict.(FromIx ⍋Keys)
-  ⍝E-
-  ⍝E⍝ Display sorted items
-  ⍝E⍎ 'Sorted items'
-  ⍝E⍎ ↑dict.Items
-  ⍝E-
-  ⍝E⍝ Sort all items by Value (works for values in the domain of ⍋)
-  ⍝E⍎ ↑dict.(FromIx ⍋Vals).Items
-  ⍝E-
+  ⍝H0 Example...
+  ⍝H
+  ⍝H⍝ Create dictionary
+  ⍝H⍎ dict←∆D('Italy' 'Naples')('United States' 'Washington, DC')('United Kingdom' 'London')
+  ⍝H
+  ⍝H⍝ Correct one item
+  ⍝H⍎ dict[⊂'Italy']←⊂'Rome'
+  ⍝H
+  ⍝H⍝ Add two items (one is silly-- we'll clean up in a moment)
+  ⍝H⍎ dict['France' 'Antarctica']←'Paris' 'Penguin City'
+  ⍝H
+  ⍝H⍝ How many items or keys or values (dict.Tally is the idiom)?
+  ⍝H⍎ 'We have',dict.Tally,'items'
+  ⍝H
+  ⍝H⍝ Display all items
+  ⍝H⍎ ↑dict.Items
+  ⍝H
+  ⍝H⍝ Delete (remove) invalid item 'Antarctica'
+  ⍝H⍎ dict.Del⊂'Antarctica'
+  ⍝H
+  ⍝H⍝ Sort items by keys in ascending order ('back' into dictionary dict)
+  ⍝H⍎ dict←dict.(FromIx ⍋Keys)
+  ⍝H
+  ⍝H⍝ Display sorted items
+  ⍝H⍎ ↑dict.Items
+  ⍝H
+  ⍝H⍝ Sort all items by Value (works for values in the domain of ⍋)
+  ⍝H⍎ ↑dict.(FromIx ⍋Vals).Items
+  ⍝H
 ⍝H=
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
@@ -52,8 +48,8 @@
 ⍝H ∘ Adding new values for existing keys does not change their order.
 ⍝H ∘ Keys and Values may be of nameclasses:
 ⍝H      2 (variables incl. ⎕OR objects), 9.1 (namespaces), 9.2 (class instances),
-⍝H   Note: Keys in class 9 or those that are ⎕OR objects are not in the domain of 
-⍝H      methods like Equal (uses ⍋) or Count.
+⍝H   * Keys in class 9 or those that are ⎕OR objects are not in the domain of 
+⍝H     methods like Equal (uses ⍋) or Count.
 ⍝H ∘ Sorted Order: To create a dictionary with keys in sorted order (or sorted by
 ⍝H   other criteria), use the FromIx or FromKey methods.
 ⍝H ∘ The FromIx and FromKeys methods are available to (among other things)
@@ -62,11 +58,11 @@
 ⍝H=
 ⍝H
 ⍝H ∆D "Dictionary from Key-Value Pairs"
-⍝H-- 
+⍝H2 
 ⍝H d← [default] ∆D items             ⍝ items => (k1 v1)(k2 v2)…
 ⍝H d← [default] ∆D ⍬                 ⍝ empty dictionary
 ⍝H d← [default] ∆D d0.Items          ⍝ d.Items <= d0.Items (slower than ∆DL equiv.).
-⍝H--
+⍝H2
 ⍝H ∘ Create a dictionary with items (k1 v1)(k2 v2)….
 ⍝H ∘ If no items are specified, an empty dictionary is created.
 ⍝H ∘ If no default is specified, then querying the values of keys that do not exist
@@ -79,17 +75,17 @@
 ⍝H   ∘ For even moderate-sized dictionaries, having the keys hashed improves performance significantly.
 ⍝H   ∘ This feature is enabled if the class variable AUTOHASH is 1. It is currently $AUTOHASH.
 ⍝H   ∘ See d.Hash and d.NoHash. 
-⍝H-
+⍝H1
 ⍝H Note: ∆D 'help' will display this help information.
 ⍝H=
 ⍝H
 ⍝H ∆DL "Dictionary from a Key list and Value list"
-⍝H--
+⍝H2
 ⍝H d← [default] ∆DL keylist vallist      ⍝ => (k1 k2…)(v1 v2…)
 ⍝H d← [default] ∆DL keylist (sv)         ⍝ => (k1 k2…)(sv sv…), with sv a scalar value.
 ⍝H d← [default] ∆DL ⍬                    ⍝ empty dictionary. Shorthand for ∆DL ⍬ ⍬
 ⍝H d← [default] ∆DL d0.(Keys Vals)       ⍝ dict d efficiently initialized with items of d0
-⍝H--
+⍝H2
 ⍝H ∘ Create a dictionary from a list of keys and corresponding values or, if there
 ⍝H   is a single scalar (simple or enclosed) value, make it the value for each key.
 ⍝H   * For keys KK and values VV, (KK=⍥≢VV)∨(1=≢VV) must be true. 
@@ -104,7 +100,7 @@
 ⍝H   ∘ For even moderate-sized dictionaries, having the keys hashed improves performance significantly.
 ⍝H   ∘ This feature is enabled if the class variable AUTOHASH is 1. It is currently $AUTOHASH.
 ⍝H   ∘ See d.Hash and d.NoHash.
-⍝H- 
+⍝H1 
 ⍝H Note: ∆DL'help' will display this help information.
 ⍝H=
 ⍝H 
@@ -310,8 +306,8 @@ Trap← ⎕SIGNAL ⍙T2
     ∇
   ⍝ ValsByKey "set" function
   ⍝ Note: Regarding which values to use when there are duplicate keys being set:
-  ⍝   we add new keys keeping the leftmost duplicate (as expected for dict ordering);
-  ⍝   we add new values keeping the rightmost duplicate value (consistent with APL indexing).
+  ⍝       we add new keys keeping the leftmost duplicate (as expected for dict ordering);
+  ⍝       we add new values keeping the rightmost duplicate value (consistent with APL indexing).
     ∇ set args; kk; ii; new; vv; nKEYS   
       kk← ,⊃args.Indexers 
       vv← ,args.NewValue 
@@ -451,7 +447,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H    ∘ Values in class 9 (9.1 or 9.2) will be treated as different if they do not
 ⍝H      reference the very same object, even if their keys and their contents are identical.
 ⍝H Note: d.Equal is slow, sorting all keys and comparing each corresponding key and value.
-⍝H =
+⍝H=
 ⍝H 
 ∇ same← Equal d2; d2_Keys; p; q; ⎕TRAP   
   :Access Public 
@@ -470,7 +466,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   without modifying the entries themselves in any way.
 ⍝H ∘ Missing keys trigger an INDEX ERROR (Keys not found) unless a default has been set,
 ⍝H   either as a dict-wide default or via tempDef, the left argument to d.FromKeys.
-⍝H-
+⍝H1
 ⍝H d.FromKeys can be easily used to sort items into a new dictionary…
 ⍝H   b←a.(FromKeys Keys[⍋   Keys])         ⍝ Sort by key in ascending order.
 ⍝H   b←a.(FromKeys Keys[⍒   Keys])         ⍝ Sort by key in descending order
@@ -496,7 +492,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ∘ Repeated indices are ignored.
 ⍝H ∘ Indices out of range trigger an INDEX ERROR.
 ⍝H ∘ Respects the ⎕IO of the caller.
-⍝H-
+⍝H1
 ⍝H d.FromIx can be easily used to sort items into a new dictionary…
 ⍝H   b←a.(FromIx ⍋   Keys)          ⍝ Sort by key in ascending order.
 ⍝H   b←a.(FromIx ⍒   Keys)          ⍝ Sort by key in descending order
@@ -521,7 +517,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   unless a global default has been set (e.g. when the dictionary was created). 
 ⍝H ∘ If a default is specified, it will be used for all keys not in the dictionary,
 ⍝H   independent of any global default value set.
-⍝H-
+⍝H1
 ⍝H Note: d.Get is equivalent to d[xxx] key-based indexing, except d.Get allows a temporary  
 ⍝H       default value either when the dictionary otherwise lacks a default or when the   
 ⍝H       general default is not appropriate in this case.
@@ -605,7 +601,7 @@ Trap← ⎕SIGNAL ⍙T2
 
 ⍝H d.Hash:    Turns on hashing, if not already. (Default for ∆D and ∆DL dictionaries)
 ⍝H d.NoHash   Turns off hashing,if not already.
-⍝H--
+⍝H2
 ⍝H   {d}← d.Hash 
 ⍝H Turns on hashing and shyly returns the hash itself:
 ⍝H ∘ Set the flag HASH_SET to 1 and mark the vector KEYS as a Dyalog hashtable, 
@@ -615,7 +611,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   clear takes place (i.e. when the hash table is disrupted).
 ⍝H ∘ Hashing generally affects performance positively, and will use up space proportional
 ⍝H   to the dictionary size, but is otherwise transparent.
-⍝H--
+⍝H2
 ⍝H {d}← d.NoHash
 ⍝H Turns off hashing for the dictionary keys, shyly returning the dict itself.
 ⍝H ∘ This ensures there is no hashing, for things like performance tests.
@@ -678,12 +674,12 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Import, d.ImportL: import dictionary items/key-value lists into the dictionary.
 ⍝H   {d}←  d.Import  items            ⍝(k1 v1)(k2 v2)…
 ⍝H   {d}←  d.ImportL keylist vallist 
-⍝H-- 
+⍝H2 
 ⍝H d.Import adds items (k1 v1)(k2 v2)… to the dictionary in order left to right.
 ⍝H    This is equivalent to {d[ kk ]← vv ⊣ kk vv← ↓⍉↑⍵} items
 ⍝H d.ImportL adds a key list and a matched value list to the dictionary in order left to right.
 ⍝H    This is equivalent to d[ keylist ]← vallist.
-⍝H--
+⍝H2
 ⍝H To clear the existing keylist vallist and quickly import new ones, do 
 ⍝H    d.Clear.ImportL keylist vallist  
 ⍝H This can be useful for a specialized sort "in place" (really: in the same dict.)
@@ -714,7 +710,7 @@ Trap← ⎕SIGNAL ⍙T2
 
 ⍝H ***** EXPERIMENTAL *****
 ⍝H  d.ImportN, d.ExportN: Imports/Exports key-value pairs from/to namespace variables.
-⍝H-- 
+⍝H2 
 ⍝H   {d}← {json←1} d.ImportN ns 
 ⍝H     ns: an APL namespace reference
 ⍝H   json: If json=1 (default, if omitted), converts "mangled" JSON names to 
@@ -723,7 +719,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H    * Only nameclasses 2 (arrays) and 9 (namespaces etc.) names are imported; 
 ⍝H      others are ignored.
 ⍝H  Returns: updates d in place, returning d itself, with objects of class 2, 9 imported. 
-⍝H--
+⍝H2
 ⍝H   {ns}← ExportN ns
 ⍝H       ns: an APL namespace reference (which may contain or or more relevant items)
 ⍝H  ∘ Exports all keys that are strings convertible to APL names; this includes
@@ -912,40 +908,29 @@ Trap← ⎕SIGNAL ⍙T2
   ∇
 
 :EndClass
-:Section Help Information and Example Processing and Display
+:Section Help Information Processing and Display
   ⍝ Help: Process and Display Help information (⍝∆) above. 
   ⍝ See also Dict.Help.
-  ∇ {help}← Help; rIn; rOut; showEx; B; F; H 
-      showEx←1                                   ⍝ If 1, show Example. Else, don't.
-      H← '^\h*⍝H ?(.*)$' ⎕S '\1'                 ⍝ H: Grab only lines w/ help prefix (⍝H)
-      ⋄ rIn←  '\$THIS' '\$AUTOHASH' '^= *$' '^-{2} *$' '^-{1} *$'          ⍝ In:  = - -
-      ⋄ rOut← (⍕⎕THIS) (⍕Dict.AUTOHASH), 100 100 35 ⍴¨ ⎕UCS 9552 9472 9472 ⍝ Out: ═ ─ ─
-      F← rIn ⎕R rOut                             ⍝ F: Handle Format Codes
-      B← ' '∘,¨                                  ⍝ B: Prepend blanks to result
-      help← showEx{⍺: (3↑⍵),Show⍙Example,5↓⍵ ⋄ ⍵}B F H⊣ ⎕SRC ⎕THIS 
-      _←⎕ED 'help' 
-  ∇
-  ⍝ Example: Display Example information (⍝∆) above
-  ∇ {EXAMPLE}← Example 
-    {}⎕ED 'EXAMPLE'⊣ EXAMPLE← Show⍙Example  
-  ∇
-  ⍝ Show⍙Example: Process Example information (⍝∆) above
-  ∇ {lns}← Show⍙Example; dict; line; spc 
-  ⍝ ⍝E Sequences (above) here are decoded here...
-    spc← 3⍴' ' ⋄ save← 3↓⎕SE.UCMD 'box on -fns=on' ⋄ lns← ⍬
-  ⍝ ⍝E<t><line>
-  ⍝ <t> is H: Header, =: Major section, -: Minor section, ⍝: Comment, ⍎: Code 
-    :For type line :IN (⍬∘⍴,⍥⊂1∘↓)¨'^\h*⍝E(.*)' ⎕S '\1'⊣⎕SRC ⎕THIS  
+  ∇ {help}← Help; cm; dict; line; lm; rIn; rOut; saved; E; H; V
+    H← '^\h*⍝H *$' '^\h*⍝H(.*)'  ⎕S '0' '\1'               ⍝ Help lines
+    V← '\$AUTOHASH'  ⎕R   (⍕Dict.AUTOHASH)                 ⍝ Variables
+    E← { 85:: ⍬ ⋄ x←1(85⌶)⍵ ⋄ (⊂lm),¨↓⎕SE.UCMD 'disp x' }  ⍝ Execute 
+    lm← 3↑' ' ⋄ cm← 3↑'⍝'  
+    saved← 3↓⎕SE.UCMD 'box on -fns=on'  
+    help← ⍬
+  ⍝ H
+    :For type line :IN (⍬∘⍴,⍥⊂1∘↓)¨H ⎕SRC ⎕THIS  
       :Select type 
-      :Case 'H' ⋄ lns,← ⊂,line  ⋄ :Case '=' ⋄ lns,← ⊂100⍴'═'                             
-      :Case '-' ⋄ lns,← ⊂spc    ⋄ :Case '⍝' ⋄ lns,← ⊂spc,'⍝  ', line      
-      :Case '⍎' ⋄ lns,← (⊂spc,spc,line),{ 85:: ⍬ ⋄ x←1(85⌶)⍵
-                    (⊂spc),¨↓⎕SE.UCMD 'disp x' 
-                  }line
+      :Case '=' ⋄ help,← ⊂100⍴'═' ⋄ :Case '2' ⋄ help,← ⊂100⍴'─'     
+      :Case '1' ⋄ help,← ⊂35⍴'─'  ⋄ :Case '0' ⋄ help,← ⊂lm,1↓line 
+      :Case ' ' ⋄ help,← ⊂line    ⋄ :Case '⍝' ⋄ help,← ⊂lm,cm, line 
+      :Case '⍎' ⋄ help,← (⊂lm,lm,line),E line
       :Else     ⋄ ⎕←'EXAMPLE: Unknown type="',type,'" line="',line,'"'  
       :EndSelect  
     :EndFor 
-    {}⎕SE.UCMD 'box',save 
+    {}⎕SE.UCMD 'box',saved 
+    help← ' '∘,¨ V help 
+      _←⎕ED 'help' 
   ∇ 
 :EndSection 
 :EndNamespace
