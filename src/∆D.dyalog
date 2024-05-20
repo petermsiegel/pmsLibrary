@@ -1,11 +1,11 @@
 ﻿:Namespace ∆DClass
 ⍝  ∆D, ∆DL - an Ordered, Hashed Dictionary
 ⍝  For Help Information and Example, 
-⍝      see :Section Help Information and Example Processing and Display
-⍝  Help info is encoded via ⍝H,  
-⍝H=
+⍝      see :Section Help Information Processing and Display
+⍝  Help info is contained on lines prefixed with ⍝H
+⍝H3
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
-⍝H=
+⍝H3
   ⍝H0 Example...
   ⍝H
   ⍝H⍝ Create dictionary
@@ -35,11 +35,11 @@
   ⍝H⍝ Sort all items by Value (works for values in the domain of ⍋)
   ⍝H⍎ ↑dict.(FromIx ⍋Vals).Items
   ⍝H
-⍝H=
+⍝H3
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target directory (default ⎕THIS), 
 ⍝H    as well as supporting services in namespace ∆DClass.
-⍝H=
+⍝H3
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H ∘ Create a dictionary whose items are in a fixed order based on order of creation
 ⍝H   (oldest first) [see d.FromIx, d.FromKeys for sorted order).]
@@ -55,7 +55,7 @@
 ⍝H ∘ The FromIx and FromKeys methods are available to (among other things)
 ⍝H   select and/or sort items (based on criteria you choose) into a new dictionary,
 ⍝H   without affecting the original dictionary.
-⍝H=
+⍝H3
 ⍝H
 ⍝H ∆D "Dictionary from Key-Value Pairs"
 ⍝H2 
@@ -77,7 +77,7 @@
 ⍝H   ∘ See d.Hash and d.NoHash. 
 ⍝H1
 ⍝H Note: ∆D 'help' will display this help information.
-⍝H=
+⍝H3
 ⍝H
 ⍝H ∆DL "Dictionary from a Key list and Value list"
 ⍝H2
@@ -102,7 +102,7 @@
 ⍝H   ∘ See d.Hash and d.NoHash.
 ⍝H1 
 ⍝H Note: ∆DL'help' will display this help information.
-⍝H=
+⍝H3
 ⍝H 
 ⍝  *** See additional HELP info throughout the class below ***
 
@@ -196,7 +196,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H │  * Where not obvious, comparable ∆D equivalents are in brackets in               │  
 ⍝H │    UpperCamelCase like this:  [d.GetSet].                                        │    
 ⍝H └──────────────────────────────────────────────────────────────────────────────────┘
-⍝H=
+⍝H3
 ⍝H
  
 ⍝ Error Msgs: Format: EN Message, where Message may be a null string ('').
@@ -285,7 +285,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H See also 
 ⍝H    d.Vals                ⍝ Retrieve values by Index
 ⍝H    d.Get, and d.Get1.    ⍝ Retrieve values by key with an optional ad hoc default.
-⍝H=
+⍝H3
 ⍝H
   :Property Default Keyed ValsByKey 
   :Access Public
@@ -326,7 +326,7 @@ Trap← ⎕SIGNAL ⍙T2
   ⍝H           preserving the default value (Default) and hashing status.
   ⍝H   {d}← d.Clear
   ⍝H Shyly returns the dictionary.
-  ⍝H=
+  ⍝H3
   ⍝H
     ∇{d}← Clear 
       :Access Public 
@@ -336,7 +336,7 @@ Trap← ⎕SIGNAL ⍙T2
   ⍝H d.Copy:  Make a copy of dictionary d, including the Keys and Vals, as well as the 
   ⍝H          existing default and hash settings.
   ⍝H   d2← d.Copy
-  ⍝H=
+  ⍝H3
   ⍝H
   ∇ d2← Copy; def  
     :Access Public 
@@ -347,7 +347,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Has, d.Defined:  "Are keys k1 k2…  defined in Keys?"
 ⍝H   bb← d.Has[k1 k2…]        
 ⍝H Returns a 1 for each key (k1, etc.) defined in Keys and a 0 otherwise.
-⍝H=
+⍝H3
 ⍝H
   :Property Keyed Defined, Has 
   :Access Public
@@ -362,7 +362,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   d.Default← any_value 
 ⍝H If you set a default, HasDefault is automatically set to 1.
 ⍝H If HasDefault=0, a query of d.Default will signal a VALUE ERROR (⎕EN=6).
-⍝H=
+⍝H3
 ⍝H
   :Property Simple Default
   :Access Public
@@ -381,7 +381,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ∘ Duplicate keys allowed.
 ⍝H ∘ Returns 1 for each entry found and deleted, else 0.
 ⍝H ∘ If the left arg is present and 1, all items MUST exist.
-⍝H=
+⍝H3
 ⍝H
     ∇ {bb}← {required} Del kk; ii; err; msg  
        :Access Public
@@ -404,7 +404,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ∘ All indexed items must exist, else INDEX ERROR. 
 ⍝H ∘ Duplicate indices ok: items at the indices specified are returned.
 ⍝H See also: d.Pop N
-⍝H=
+⍝H3
 ⍝H
   :Property Keyed DelIx 
   :Access Public
@@ -447,7 +447,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H    ∘ Values in class 9 (9.1 or 9.2) will be treated as different if they do not
 ⍝H      reference the very same object, even if their keys and their contents are identical.
 ⍝H Note: d.Equal is slow, sorting all keys and comparing each corresponding key and value.
-⍝H=
+⍝H3
 ⍝H 
 ∇ same← Equal d2; d2_Keys; p; q; ⎕TRAP   
   :Access Public 
@@ -474,7 +474,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   b←a.(FromKeys Keys[⍋⎕C Keys])         ⍝ Sort by folded keys in ascending order
 ⍝H   b←a.(FromKeys Keys[⍋|  Keys])         ⍝ Sort numeric keys in ascending order by absolute value
 ⍝H See also: d.FromIx
-⍝H=
+⍝H3
 ⍝H
 ∇ d2← {tempDef} FromKeys kk; ⎕TRAP  
   :Access Public 
@@ -502,7 +502,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   b←a.(FromIx ⍋|  Keys)          ⍝ Sort numeric keys in ascending order by absolute value
 ⍝H See also: d.FromKeys. 
 ⍝H   d.FromIx is typically up to 10% faster than d.FromKeys across a range of dictionary sizes.
-⍝H=
+⍝H3
 ⍝H
 ∇ d2← FromIx ii; ⎕TRAP 
   :Access Public 
@@ -521,7 +521,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H Note: d.Get is equivalent to d[xxx] key-based indexing, except d.Get allows a temporary  
 ⍝H       default value either when the dictionary otherwise lacks a default or when the   
 ⍝H       general default is not appropriate in this case.
-⍝H=
+⍝H3
 ⍝H
 ∇ vv← {tempDef} Get kk; noDefault; ii; bb 
   :Access Public
@@ -544,7 +544,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H    d.Get1 'myKey' <==>  ⊃d.Get ⊂'myKey'                    
 ⍝H Note: [*] Neither the key passed nor the return value is enclosed.
 ⍝H *** See also the note at d.Get (above).
-⍝H=
+⍝H3
 ⍝H
 ∇ v1← {tempDef} Get1 k1; ⎕TRAP   
   :Access Public       
@@ -563,7 +563,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   with the specified key or a single new item, with the default value specified, after 
 ⍝H   inserting the item. 
 ⍝H See also d.Index.
-⍝H=
+⍝H3
 ⍝H
   ∇ vv← {default} GetSet kk; ⎕TRAP  
     :Access Public
@@ -581,7 +581,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H - If you set HasDefault to 0, 
 ⍝H   any attempt to access an item that doesn't exist will cause a VALUE ERROR to 
 ⍝H   be signalled, until you reset HasDefault to 1 (see also d.Default).
-⍝H=
+⍝H3
 ⍝H
   :Property Simple HasDefault 
   :Access Public
@@ -618,7 +618,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H ∘ In general, there should be no need to turn off hashing; there is noticeable 
 ⍝H   overhead in turning hashing off the first time, but not subsequently. 
 ⍝H See d.Hash.
-⍝H=
+⍝H3
 ⍝H 
   ∇ {d}← Hash
     :Access Public
@@ -637,7 +637,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H    2    HASH ACTIVE          (hash table built and in use)
 ⍝H HashStatus verifies that the hash setting is consistent with the Dyalog hash status returned.
 ⍝H This is checked since hashing is disabled by certain operations.
-⍝H=
+⍝H3
 ⍝H
   ∇ status← HashStatus; s; m 
     :Access Public
@@ -664,7 +664,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Help:  Display help information.
 ⍝H d.Help   ⍝ No args or return value. 
 ⍝H See also: ∆D'help', ∆DL'help' for identical information.
-⍝H=
+⍝H3
 ⍝H
   ∇ {ok}← Help
   :Access Public Shared
@@ -692,7 +692,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   d.ImportL myD.(Keys Vals)   ⍝ Faster
 ⍝H   d.Import  myD.Items         ⍝ Slower
 ⍝H See also d.FromKeys, d.FromIx 
-⍝H=
+⍝H3
 ⍝H
   ∇ {d}←  Import items ; kkvv; kk; vv 
     :Access Public
@@ -728,7 +728,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H  ∘ Values will remain as is without name or format conversion.
 ⍝H  If any keys are not simple strings (char vectors), ExportN signals a DOMAIN ERROR.
 ⍝H  Returns: the namespace reference presented, if successful. 
-⍝H=
+⍝H3
 ⍝H
   ∇{d}← {json} ImportN ns; JMapK; ⎕TRAP  
     :Access Public 
@@ -770,7 +770,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   with the specified key or a single new item, with the default value specified, after 
 ⍝H   inserting the item. 
 ⍝H See also d.GetSet.
-⍝H=
+⍝H3
 ⍝H
   ∇ ii← {default} Index kk; ⎕TRAP   
     :Access Public
@@ -802,7 +802,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H       rather than ≢d.Items.
 ⍝H (Items are read-only)
 ⍝H Synonym: d.ItemsIx
-⍝H=
+⍝H3
 ⍝H
  :Property Numbered Items,ItemsIx   
   :Access Public
@@ -817,7 +817,7 @@ Trap← ⎕SIGNAL ⍙T2
 
 ⍝H d.Keys: Retrieve all the keys of the dictionary. (Keys are read-only)
 ⍝H   kk← d.Keys
-⍝H=
+⍝H3
 ⍝H
 ∇ kk←Keys 
   :Access Public
@@ -827,7 +827,7 @@ Trap← ⎕SIGNAL ⍙T2
 
 ⍝H d.Tally: Return the # of Keys or Vals or Items.
 ⍝H   n← d.Tally
-⍝H=
+⍝H3
 ⍝H
 ∇ n← Tally 
   :Access Public 
@@ -841,7 +841,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H   d2← d.New.Hash.ImportL keylist vallist
 ⍝H   d2← d.New ⋄ d2.Default← ¯1
 ⍝H See d.Copy, d.Clear, d.Import, d.ImportL.
-⍝H=
+⍝H3
 ⍝H
   ∇ d2← New 
     :Access Public 
@@ -855,7 +855,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H if no items to return, returns ⍬.
 ⍝H   n: a single non-negative integer. 
 ⍝H If n exceeds the # of items, the actual items are returned (no padding is done).
-⍝H=
+⍝H3
 ⍝H
   ∇{items}← Pop n; p; ⎕TRAP 
     :Access Public     
@@ -881,7 +881,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H     i.e. the tallies returned are NOT incremental).
 ⍝H ∘ If d[k] exists, but is not numeric, a DOMAIN ERROR occurs.
 ⍝H   d[k] may be any numeric array; the tally is added to each element by APL rules.
-⍝H=
+⍝H3
 ⍝H 
   ∇ {res}← {weight} Count kk; ii; new; nkk; freq; nKEYS; ⎕TRAP    
     :Access Public
@@ -900,7 +900,7 @@ Trap← ⎕SIGNAL ⍙T2
 ⍝H d.Vals:     Retrieve/Set values of items by index (respecting caller's ⎕IO)
 ⍝H d.Vals[ ix1 ix2 …].
 ⍝H (Read-only: It is not possible to set a value by index)
-⍝H=
+⍝H3
 ⍝H
   ∇ v← Vals 
    :Access Public
@@ -912,19 +912,18 @@ Trap← ⎕SIGNAL ⍙T2
   ⍝ Help: Process and Display Help information (⍝∆) above. 
   ⍝ See also Dict.Help.
   ∇ {help}← Help; cm; dict; line; lm; rIn; rOut; saved; E; H; V
-    H← '^\h*⍝H *$' '^\h*⍝H(.*)'  ⎕S '0' '\1'               ⍝ Help lines
-    V← '\$AUTOHASH'  ⎕R   (⍕Dict.AUTOHASH)                 ⍝ Variables
-    E← { 85:: ⍬ ⋄ x←1(85⌶)⍵ ⋄ (⊂lm),¨↓⎕SE.UCMD 'disp x' }  ⍝ Execute 
+    H← '^\h*⍝H *$' '^\h*⍝H(.*)'  ⎕S ' ' '\1'                           ⍝ Help lines
+    V← '\$AUTOHASH'  ⎕R   (⍕Dict.AUTOHASH)                             ⍝ Variables
+    E← {(⊂lm,lm,⍵),{85:: ⍬ ⋄ x←1(85⌶)⍵ ⋄ (⊂lm),¨↓⎕SE.UCMD 'disp x'}⍵ } ⍝ Execute 
     lm← 3↑' ' ⋄ cm← 3↑'⍝'  
     saved← 3↓⎕SE.UCMD 'box on -fns=on'  
     help← ⍬
-  ⍝ H
     :For type line :IN (⍬∘⍴,⍥⊂1∘↓)¨H ⎕SRC ⎕THIS  
-      :Select type 
-      :Case '=' ⋄ help,← ⊂100⍴'═' ⋄ :Case '2' ⋄ help,← ⊂100⍴'─'     
-      :Case '1' ⋄ help,← ⊂35⍴'─'  ⋄ :Case '0' ⋄ help,← ⊂lm,1↓line 
+      :Select type   ⍝ '⍝H([0123 ⍝⍎])'
+      :Case '3' ⋄ help,← ⊂100⍴'═' ⋄ :Case '2' ⋄ help,← ⊂100⍴'─'     
+      :Case '1' ⋄ help,← ⊂35⍴'─'  ⋄ :Case '0' ⋄ help,← ⊂(1↓lm),line  
       :Case ' ' ⋄ help,← ⊂line    ⋄ :Case '⍝' ⋄ help,← ⊂lm,cm, line 
-      :Case '⍎' ⋄ help,← (⊂lm,lm,line),E line
+      :Case '⍎' ⋄ help,← E line
       :Else     ⋄ ⎕←'EXAMPLE: Unknown type="',type,'" line="',line,'"'  
       :EndSelect  
     :EndFor 
