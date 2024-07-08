@@ -1,13 +1,13 @@
 Cmpy←{   
 ⍝H Cmpy: Like cmpx but avoids some odd failures in May 2024. Unlike cmpx, by default
-⍝H       Cmpy returns CPU seconds measured, after timing for qSecO (default 1) wallclock seconds.  
+⍝H       Cmpy returns CPU seconds measured, after timing for the specified or default (=1) wallclock seconds.  
 ⍝H lines← 〚 srtO←0 〚 lWidO←⌊0.8×⎕PW 〚 qSecO←1 〚 checkO←1 〛〛〛〛 Cmpy code1 〚 code2 〚 code3… 〛〛
 ⍝H      ⍺:
-⍝H         srtO:   If  ... 1, displays in    ……     order by total CPU time.
+⍝H         srtO:   If  ...,   displays in    ……     order by total CPU time.
 ⍝H                      1                 ascending
 ⍝H                     ¯1                 descending  
 ⍝H                      0            the order presented (default)
-⍝H         lWidO:   width of each line, including the plot space. (default: ⎕PW-2)
+⍝H         lWidO:   width of each line, including the plot space (default: 80% of ⎕PW).
 ⍝H         qSec:   "quantum," total measurement time per code seq in wallclock sec (default: 1)
 ⍝H         checkO: If 1 (true), validate each code segment once before timing (default: 1)
 ⍝H                 Otherwise, errors (if any) may take 1 or more wallclock seconds to surface!
@@ -23,6 +23,8 @@ Cmpy←{
 ⍝H where ⎕⎕⎕⎕⎕⎕ is a graph of the relative time used: 
 ⍝H [*] Min plot width for longest time: <minPlotW> (see below), no matter the pagewidth.
 ⍝H     │ may be replaced by ¦, ⋮, :, or ·, depending on performance relative to the fastest code segment.
+⍝H     By default, code distance from fastest code segment is as follows:
+⍝H            '‖' < '|' < '¦' < '⋮' < ':' < '·', where < means "is for code closer than".
 ⍝H -------------------
 ⍝H Example: 
 ⍝H       ¯1 Cmpy  '⎕DL 1' '⎕DL 0.1' '⎕DL 0.5' '1.123'
@@ -34,12 +36,12 @@ Cmpy←{
 ⍝H  1.123   → 6.94E¯8  │⎕                                                                                    
 ⍝H  
 ⍝H For help, enter:
-⍝H     … Cmpy ⍬
+⍝H     Cmpy ⍬
 ⍝H      
 
 1000:: ⎕←'Cmpy: Interrupt!'
-0::    ⎕SIGNAL ⊂'EM' 'EN' 'Message',⍥⊂¨⎕DMX.(EM EN Message)  
-0=≢⍵:  { help←'^ *⍝H ?(.*?) *$' ⎕S ' \1'⊣⎕NR ⍵ ⋄ ⎕ED 'help'}⊃⎕XSI  
+0::    ⎕SIGNAL ⊂'EN' 'Message' 'EM' ,⍥⊂¨⎕DMX.( EN Message, ⊂'Cmpx: ',EM )  
+0=≢⍵:  { help←'^ *⍝H ?(.*?) *$' ⎕S ' \1'⊣⎕NR ⍵ ⋄ ⎕ED 'help' }⊃⎕XSI  
 
 ⍝ Benchmark each code fragment  
   ⍺← ⍬  
@@ -50,9 +52,9 @@ Cmpy←{
       ⍝ minLW:    min line width (plot and text, etc.)
       ⍝ minPlotW: min plot width (just the plot section)
       ⍝ plotS:    plot symbol 
-        ⎕IO ⎕ML←0 1 ⋄ minLW minPlotW plotS← (⌊⎕PW×0.8) 25 '⎕' 
+        ⎕IO ⎕ML← 0 1 ⋄ minLW minPlotW plotS← (⌊⎕PW×0.8) 25 '⎕' 
       ⍝ ⍺ options: srtO (default: 0, ∊ ¯1 0 1), lWidO (default (if lWidO=0): minLW) 
-        srtO lWidO← ⍺ ⋄ lWidO← lWidO minLW⌷⍨ lWidO=0 
+        srtO lWidO← ⍺ ⋄ lWidO+← minLW× lWidO=0 
 
       ⍝ CSort: Split ⍵ (2=≢⍵) into ⍺ ⍵; srtO each of these acc. to ⍵ and return them.
         CSort← ⊃srtO{ ⍺⍺∊¯1 1: ⍺⍵⌷⍨¨⊂⊂ ⍋⍣(⍺⍺=1) ⍒⍣(⍺⍺=¯1)⊢ ⍵ ⋄ ⍺⍵ }/ 
@@ -64,13 +66,9 @@ Cmpy←{
       ⍝   s∊¯1 0 1: sep bar for each time based on log10 of distance of each time from 
       ⍝     min time (s=¯1), ave time (s=0), or max time (s=1).
         Bar← {  
-            ⍺← ¯1                                     ⍝ min is default
-          ⍝ s=selection, t=time, b=bar characters, e=epsilon
-            s (t min2max) b e← ⍺ ⍵ '│¦⋮:·' 1E¯18 
-          0=≢s: '│'⍴⍨ ≢t                              ⍝ No eye candy? 
-          ⍝ B: weight times by abs. magnitude (log10) diff. from selected anchor pt.
-            B← { |nz\ 10⍟ |w/⍨ nz← 0≠ w← ⍙÷⍨ ⍵- ⍙← e⌈ min2max⌷⍨ 1+ ⍺ }  
-            b[ (⍳≢b)⍸ s B t ]    
+            ⍺← ¯1 ⋄ s (t min2max) e b← ⍺ ⍵ 1E¯18 '‖|¦⋮:·' 
+          0=≢s: '│'⍴⍨ ≢t 
+            b⌷⍨ ⊂(⍳≢b)⍸ |nz\ 10⍟ |w/⍨ nz← 0≠ w← ⍙÷⍨ t- ⍙← e⌈ min2max⌷⍨ 1+ s
         }
         F← 10 ¯3∘⍕
       ⍝ Phase II Executive
@@ -100,9 +98,9 @@ Cmpy←{
  
   ⍝ C2D: Ensure ⎕IO and ⎕ML are in scope of caller's ⎕IO ⎕ML.
     T2Dfn← (⊃⎕RSI)⍎ {'{_←',⍵,'⋄ 0}'}            ⍝ T2Dfn: Convert code text to a concise dfn
-    CCheck← { ⍵⊣ (T2Dfn ⍵) 0 }¨⍣checkO          ⍝ CCheck: Execute below, if checkO=1
+    CCheck← { ⍵⊣ (T2Dfn ⍵) 0 }¨⍣ checkO         ⍝ CCheck: Execute below, if checkO=1
     T← (⌈qSecO×1000) {                          ⍝ T: Time each code seg for ⍺ ms.   
-        ⎕IO ⎕ML←0 1                             
+        ⎕IO ⎕ML← 0 1                            ⍝ Only now allow ⎕IO ⎕ML localization
         TF← T2Dfn ⍺                             ⍝ TF <code>: target code fn to execute                                       
       ⍝ _TL: Timing loop                        ⍝ <Dfn> _TL 0: 
       ⍝   we: wallclock (connect) expiration time
@@ -114,11 +112,11 @@ Cmpy←{
         0 TF _TL ⍵                              ⍝ Loop until connect time expires
       ⍝ ------ End   critical section ↑↑↑↑↑↑
     }
-  ⍝ Benchmark:   ( null code )   (user code). Then convert result in ms to seconds 
+  ⍝ Benchmark: ( null code @scalar ) -⍨ ( user code @vec ) in ms => seconds 
     Bench← { ⍵ ,⍥⊂ 0.001× |( '0'  T  0 )-⍨ { ⍵  T  0 }¨ ⊆⍵ }
 
   ⍝ Phase I Executive
-  ⍝ Conditionally checkO each code string (⍵), then Benchmark ⍵
+  ⍝ Conditionally check that each code string (⍵) runs, then Benchmark ⍵
     Bench CCheck ⍵
    },⊆⍵                                  
 }
