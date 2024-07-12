@@ -1,4 +1,5 @@
 ﻿ Opts←{
   5:: 5 ⎕SIGNAL⍨'Opt: Invalid options'
-     ↓⍉↑ o⌷⍨¨ ⊂⊂(⍳∘∪)⍨⊃o← ↓∘⍉∘↑⍵,⍺
+     ns←⎕NS⍬ ⋄ ns.⍙PARMS← ⊃¨⍺ ⋄  0∧.= ≢¨⍺ ⍵: ns⊣ ns.⍙VARS←⍬  
+     ns⊣ {⍺⊣ns⍎⍺,'←⍵'}¨/ ns.(⍙VARS ⍙VALS)←o⌷⍨¨ ⊂⊂(⍳∘∪)⍨⊃o← ↓∘⍉∘↑o← ⊃,/⌽¨⍵⍺
  }
