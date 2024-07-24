@@ -207,8 +207,11 @@
     ⍝   "      →   BII      _EXP_      nop        Ditto
     ⍝   "      →   both     _BOOL_     nop        _BOOL_ used solely to doc that bool fns return int 1 or 0
     
-    ⎕FX'_BIX_' '_EXP_'   '_BOOL_'  ⎕R 'BI'  'Export' '' ⊣⎕NR'_BIX_'
-    ⎕FX'_BIX_' '_EXP_¨?' '_BOOL_'  ⎕R 'BII' ''       '' ⊣⎕NR'_BIX_'
+    ⎕FX '_BIX_' '_EXP_'   '_BOOL_'  ⎕R 'BI'  'Export' '' ⊣⎕NR'_BIX_'  
+    ⎕FX '_BIX_' '_EXP_¨?' '_BOOL_'  ⎕R 'BII' ''       '' ⊣⎕NR'_BIX_' 
+    ##.BI←  ⎕THIS.BI 
+    ##.BII← ⎕THIS.BII 
+    ⎕←∊(⊂⍕##),¨'.BI ' '.BII'
     ___←⎕EX '_BIX_'
 
     :EndSection Operators BI and BII
