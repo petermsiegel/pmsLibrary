@@ -1,8 +1,18 @@
-﻿:namespace TakeDropNs 
+﻿:namespace TakeDrop
 
     ⎕IO ⎕ML←0 1 
 
-∇out← spec TakeDrop in  
+∇ Time
+  ;mSize; m; cmpx; tR; tC; dR; dC; out; raw32 
+  'cmpx' ⎕CY 'dfns'
+  mSize← 3000 4000
+  tR tC dR dC← 1000 1000 1000 1000
+  m← mSize⍴⍳×/mSize ⋄ out← tR tC⍴33333
+  raw32← ¯1 out m,size,tR tC dR dC
+  cmpx 'tR tC↑dR dC↓m' 'm[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷m'  'tR tC dR dC TD m'  '⊃⌽TD32 raw32'
+∇
+
+∇ out← spec TakeDrop in  
   ;⎕IO; ⎕ML
   ;tRows; tCols; dRows; dCols 
   ;myInt; MyTakeDrop; rc 
@@ -15,14 +25,14 @@
   :If 1∊ tRows tCols< 0
       11 ⎕SIGNAL⍨'Negative offsets for take or drop not implemented' 
   :EndIf  
-  :If 3≠ ⎕NC '#.TakeDropNs.TakeDrop32' 
+  :If 3≠ ⎕NC 'TakeDrop32' 
       911 ⎕SIGNAL⍨ 'Please load TakeDrop library: ',(⍕⎕THIS),'.Load 1' 
   :EndIf 
 
   :Select 181⌶in 
-    :Case 323 ⋄ MyTakeDrop← #.TakeDropNs.TakeDrop32 ⋄ myInt←33333
-    :Case 163 ⋄ MyTakeDrop← #.TakeDropNs.TakeDrop16 ⋄ myInt←  333 
-    :Case 83  ⋄ MyTakeDrop← #.TakeDropNs.TakeDrop8  ⋄ myInt←    3
+    :Case 323 ⋄ MyTakeDrop← TD32 ⋄ myInt←33333
+    :Case 163 ⋄ MyTakeDrop← TD16 ⋄ myInt←  333 
+    :Case 83  ⋄ MyTakeDrop← TD8  ⋄ myInt←    3
     :Else     ⋄ 11 ⎕SIGNAL⍨'Invalid TakeDrop object'
   :EndSelect 
 
@@ -48,8 +58,9 @@ TD← TakeDrop
       0:: 911 ⎕SIGNAL⍨ 'Unable to associate one or more C function names: TakeDrop*'
       nms← {
         parms← 'I4 =A <A I4 I4 I4 I4 I4 I4'
-        ⎕NA 'I4 TakeDropLib.so|TakeDrop',(⍕⍵), ' ', parms
-      }¨ 32 16 8 
+           ⎕NA 'I4 TakeDropLib.so|TakeDrop',⍵, ' ', parms
+      }∘⍕¨ 32 16 8 
+      ⎕THIS.TD32← TakeDrop32 ⋄ ⎕THIS.TD16← TakeDrop16 ⋄ ⎕THIS.TD8← TakeDrop8
       'Namespace ',(⍕⎕THIS),' contains fns:',∊' ',¨nms ⊣  FORCE_LOAD⊢← 0
   }
 
