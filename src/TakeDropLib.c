@@ -1,11 +1,10 @@
   /* TakeDrop.so library */
   #include <stdint.h>
   #include <stdio.h>
-  #define I4 int32_t 
  
-     I4 TakeDrop32(
-             I4 offset, int32_t *outRaw, int32_t *inRaw,
-             I4 inRows, I4 inCols, I4 tRows, I4 tCols, I4 dRows, I4 dCols
+     int TakeDrop32(
+             int offset, int32_t *outRaw, int32_t *inRaw,
+             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
      ){
      int     skip, r, c;
      int32_t *inPtr, *outPtr;  /* int32_t, etc. */ 
@@ -42,9 +41,9 @@
     return 0;
    }
  
-     I4 TakeDrop16(
-             I4 offset, int16_t *outRaw, int16_t *inRaw,
-             I4 inRows, I4 inCols, I4 tRows, I4 tCols, I4 dRows, I4 dCols
+     int TakeDrop16(
+             int offset, int16_t *outRaw, int16_t *inRaw,
+             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
      ){
      int     skip, r, c;
      int16_t *inPtr, *outPtr;  /* int32_t, etc. */ 
@@ -81,9 +80,9 @@
     return 0;
    }
  
-     I4 TakeDrop8(
-             I4 offset, int8_t *outRaw, int8_t *inRaw,
-             I4 inRows, I4 inCols, I4 tRows, I4 tCols, I4 dRows, I4 dCols
+     int TakeDrop8(
+             int offset, int8_t *outRaw, int8_t *inRaw,
+             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
      ){
      int     skip, r, c;
      int8_t *inPtr, *outPtr;  /* int32_t, etc. */ 

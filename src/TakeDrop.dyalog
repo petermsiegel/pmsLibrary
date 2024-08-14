@@ -3,30 +3,37 @@
     ⎕IO ⎕ML←0 1 
 
 ∇ Benchmark
-  ;in; inShape; out; cmpx; tR; tC; dR; dC; raw32 
+  ;in; inShape; out; cmpx; tR; tC; dR; dC; c_FullCopy 
   'cmpx' ⎕CY 'dfns'
-  {}Generate 0 ⋄ {}Load 0 
-  inShape← 3000 4000
-  tR tC dR dC← 1000 1000 1000 1000
-  in← inShape⍴33333+⍳×/inShape                    ⍝ Ensure it's 32-bit integer
-  out← (tR tC⍴33333)                           ⍝ -do-
-  raw32←  ¯1 out in, inShape, tR tC dR dC
-  fast32← ¯2 out in, inShape, tR tC dR dC
-
+  {}Reset                                      ⍝ Force compile of C lib and then ⎕NA lib members
+  inShape← 3000 4000                           ⍝ input obj
+  tR tC dR dC← 1000 1000 1000 1000             ⍝ take rows, cols; drop rows, cols
+  in← inShape⍴33333+⍳×/inShape                 ⍝ Ensure it's 32-bit integer with distinct elems
+  out← (tR tC⍴33333)                           ⍝ Placeholder of correct size and type!
+  c_FullCopy←  ¯1 out in, inShape, tR tC dR dC ⍝ parameters for call of C-language routine
+  c_NoCopy←    ¯2 out in, inShape, tR tC dR dC ⍝ parameters for C-lang rtn that returns 
+                                               ⍝ w/o doing anything
+⍝ Share some info with user...                                               
   'tR tC dR dC← ',⍕tR tC dR dC 
   'inShape← ',⍕inShape 
   'in←  inShape⍴ 33333+ ⍳×/inShape  ⍝ in:   32-bit integer array'
   'out← tR tC⍴33333                 ⍝ out: 32-bit integer array'
    '¯'⍴⍨ ⎕PW-2
 
-  ⎕←'  raw32←  ¯1     out           in,           inShape,       tR tC        dR dC'
-  ⎕←'* fast32← ¯2     out           in,           inShape,       tR tC        dR dC'
-  ⎕←'          magic  output array  input array  input shape   take shape   drop shape'
-  ⎕←'¯¯¯¯¯¯¯¯¯¯¯¯'
-  ⎕←'  * fast32 will give a different answer, since it bypasses any C-language copying'
+  ⎕←'∘ TD: APL routine that creates its own output array (out) and calls'
+  ⎕←'      a 32-, 16-, or 8-bit C fn based on the input array''s integer type.'
+  ⎕←'∘ c_FullCopy←  ¯1     out           in,          inShape,     tR tC       dR dC'
+  ⎕←'∘ c_NoCopy←    ¯2     out           in,          inShape,     tR tC       dR dC'
+  ⎕←'               magic  output array  input array  input shape  take shape  drop shape'
+  ⎕←'∘ Other routines are self-explanatory.'
+  ⎕←'+----------+'
+  ⎕←'|  Notes   |'
+  ⎕←'+----------+'
+  ⎕←'[*] c_NoCopy will give a different answer, since it bypasses any C-language copying.'
+  ⎕←'    All other items must give the same answer'
   ⎕←''
   ⎕SHADOW 'j' 
-  cmpx 'in[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷in'  'tR tC↑dR dC↓in' '⊃⌽TD32 fast32' '⊃⌽TD32 raw32' 'tR tC dR dC TD in'  
+  cmpx 'in[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷in'  'tR tC↑dR dC↓in' '⊃⌽TD32 c_NoCopy' '⊃⌽TD32 c_FullCopy' 'tR tC dR dC TD in'  
 ∇
 
 ∇ out← spec TakeDrop in  
@@ -69,8 +76,8 @@
 ∇
 TD← TakeDrop       ⍝ Simple alias...
 
-  ∇ Reset 
-      (Generate 1),(⎕UCS 13), Load 1
+  ∇ msg←Reset 
+      msg← (Generate 1),(⎕UCS 13), Load 1
   ∇
 
   Load←{  
@@ -165,11 +172,10 @@ TD← TakeDrop       ⍝ Simple alias...
 ⍝P  /* TakeDrop.so library */
 ⍝P  #include <stdint.h>
 ⍝P  #include <stdio.h>
-⍝P  #define I4 int32_t 
 ⍝C 
-⍝C     I4 TAKE_DROP_FN(
-⍝C             I4 offset, MY_INT_TYPE *outRaw, MY_INT_TYPE *inRaw,
-⍝C             I4 inRows, I4 inCols, I4 tRows, I4 tCols, I4 dRows, I4 dCols
+⍝C     int TAKE_DROP_FN(
+⍝C             int offset, MY_INT_TYPE *outRaw, MY_INT_TYPE *inRaw,
+⍝C             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
 ⍝C     ){
 ⍝C     int     skip, r, c;
 ⍝C     MY_INT_TYPE *inPtr, *outPtr;  /* int32_t, etc. */ 
