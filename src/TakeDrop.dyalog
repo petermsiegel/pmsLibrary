@@ -3,20 +3,30 @@
     ⎕IO ⎕ML←0 1 
 
 ∇ Benchmark
-  ;mSize; m; cmpx; tR; tC; dR; dC; raw32 
+  ;in; inShape; out; cmpx; tR; tC; dR; dC; raw32 
   'cmpx' ⎕CY 'dfns'
   {}Generate 0 ⋄ {}Load 0 
-  mSize← 3000 4000
+  inShape← 3000 4000
   tR tC dR dC← 1000 1000 1000 1000
-  m← mSize⍴⍳×/mSize  
-  raw32← ¯1 (tR tC⍴33333) m, mSize, tR tC dR dC
-  'm←  mSize⍴ ⍳×/mSize←',⍕mSize
+  in← inShape⍴33333+⍳×/inShape                    ⍝ Ensure it's 32-bit integer
+  out← (tR tC⍴33333)                           ⍝ -do-
+  raw32←  ¯1 out in, inShape, tR tC dR dC
+  fast32← ¯2 out in, inShape, tR tC dR dC
+
   'tR tC dR dC← ',⍕tR tC dR dC 
+  'inShape← ',⍕inShape 
+  'in←  inShape⍴ 33333+ ⍳×/inShape  ⍝ in:   32-bit integer array'
+  'out← tR tC⍴33333                 ⍝ out: 32-bit integer array'
    '¯'⍴⍨ ⎕PW-2
-  ⎕←'raw32← ¯1     (tR tC⍴33333)  m,     mSize,       tR tC        dR dC'
-  ⎕←'       magic  output array   input  input size   take parms   drop parms'
+
+  ⎕←'  raw32←  ¯1     out           in,           inShape,       tR tC        dR dC'
+  ⎕←'* fast32← ¯2     out           in,           inShape,       tR tC        dR dC'
+  ⎕←'          magic  output array  input array  input shape   take shape   drop shape'
+  ⎕←'¯¯¯¯¯¯¯¯¯¯¯¯'
+  ⎕←'  * fast32 will give a different answer, since it bypasses any C-language copying'
+  ⎕←''
   ⎕SHADOW 'j' 
-  cmpx 'm[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷m'  'tR tC↑dR dC↓m' '⊃⌽TD32 raw32' 'tR tC dR dC TD m'  
+  cmpx 'in[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷in'  'tR tC↑dR dC↓in' '⊃⌽TD32 fast32' '⊃⌽TD32 raw32' 'tR tC dR dC TD in'  
 ∇
 
 ∇ out← spec TakeDrop in  
@@ -59,6 +69,10 @@
 ∇
 TD← TakeDrop       ⍝ Simple alias...
 
+  ∇ Reset 
+      (Generate 1),(⎕UCS 13), Load 1
+  ∇
+
   Load←{  
       FORCE_LOAD∨← 0=⎕NC 'TakeDrop32' 
       (0=1↑⍵)∧ ~FORCE_LOAD: ''
@@ -72,29 +86,33 @@ TD← TakeDrop       ⍝ Simple alias...
       'Namespace ',(⍕⎕THIS),' contains fns:',∊' ',¨nms ⊣  FORCE_LOAD⊢← 0
   }
 
-  Generate←{ 
+  Generate←{  
         cLibName cSrcName ← 'TakeDropLib.so' 'TakeDropLib.c' 
       (0=1↑⍵)∧ ⎕NEXISTS cLibName: ''
         FORCE_LOAD∘← 1 
-        GenCode←{ 
-          fn← 'TakeDrop',⍵  ⋄  ty← 'int',⍵,'_t' ⋄ of← ⍕10× (32÷⍎⍵)
+        MAGIC_BYTES← AOff 2                ⍝ 40
+        msg← 'Magic offset in bytes: ',⍕MAGIC_BYTES 
+        GenCode← MAGIC_BYTES { 
+          iCh← ⍕⍵ 
+          fn← 'TakeDrop',iCh  ⋄  ty← 'int',iCh,'_t' ⋄ of← ⍕⍺⍺× 8÷⍵
           'TAKE_DROP_FN' 'MY_INT_TYPE'  'MAGIC_OFFSET' ⎕R fn ty of⊢⍺
-        }∘⍕¨
+        }¨
         pCode← ⊂'^\h*⍝P(\h?.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
         cCode← ⊂'^\h*⍝C(\h?.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
         cCode← ,/ pCode, cCode GenCode 32 16 8
         count← cCode ⎕NPUT cSrcName 1
         0= ≢count: 11 ⎕SIGNAL⍨ 'Error writing source file "',cSrcName,'"' 
-        msg← { 
-          src lib← ⍵  ⋄ cr← ⎕UCS 13 
+        msg { cr← ⎕UCS 13 
+          src lib← ⍵   
         0:: 11 ⎕SIGNAL⍨ 'Error compiling "',src,'" to "',lib,'"' 
-          _← ⎕SH ⎕←'cc -O3 -shared -o ',lib,' ',src
-          out1← 'Generated source C code: ',src 
-          out2← 'Private shared library:  ',lib
-          out3← 'Included lib functions:  ','TakeDrop32/16/8'
-          out1,cr,out2,cr,out3 
-        } cSrcName cLibName
-        msg 
+          out← ⊂'Generated source C code: ',src 
+          _← ⎕SH cc← 'cc -O3 -shared -o ',lib,' ',src 
+          out,← ⊂'>>> ', cc
+          out,← ⊂'Private shared library:  ',lib
+          out,← ⊂'Included lib functions:  ','TakeDrop32/16/8'
+          out,← ⊂'Alias lib functions:     TD32, TD16, TD8'
+          ⍺, ∊cr, ↑out
+        } cSrcName cLibName 
     }
 
     FORCE_LOAD←0 
@@ -157,8 +175,14 @@ TD← TakeDrop       ⍝ Simple alias...
 ⍝C     MY_INT_TYPE *inPtr, *outPtr;  /* int32_t, etc. */ 
 ⍝C
 ⍝C /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
-⍝C     if (offset == -1) 
-⍝C        offset= MAGIC_OFFSET;
+⍝C     if (offset < 0) {
+⍝C       if (offset == -1) 
+⍝C           offset= MAGIC_OFFSET;
+⍝C       else if (offset == -2)   /* This is for testing w/o doing any copying */
+⍝C           return 0;   
+⍝C       else 
+⍝C           return 999;          /* invalid offset */
+⍝C     }
 ⍝C
 ⍝C   /* We don't allow negative take and drop offsets. Sorry. */
 ⍝C     if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  

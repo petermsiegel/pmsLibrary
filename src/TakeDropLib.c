@@ -11,8 +11,14 @@
      int32_t *inPtr, *outPtr;  /* int32_t, etc. */ 
 
  /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
-     if (offset == -1) 
-        offset= 10;
+     if (offset < 0) {
+       if (offset == -1) 
+           offset= 10;
+       else if (offset == -2)   /* This is for testing w/o doing any copying */
+           return 0;   
+       else 
+           return 999;          /* invalid offset */
+     }
 
    /* We don't allow negative take and drop offsets. Sorry. */
      if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  
@@ -44,8 +50,14 @@
      int16_t *inPtr, *outPtr;  /* int32_t, etc. */ 
 
  /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
-     if (offset == -1) 
-        offset= 20;
+     if (offset < 0) {
+       if (offset == -1) 
+           offset= 20;
+       else if (offset == -2)   /* This is for testing w/o doing any copying */
+           return 0;   
+       else 
+           return 999;          /* invalid offset */
+     }
 
    /* We don't allow negative take and drop offsets. Sorry. */
      if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  
@@ -77,8 +89,14 @@
      int8_t *inPtr, *outPtr;  /* int32_t, etc. */ 
 
  /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
-     if (offset == -1) 
-        offset= 40;
+     if (offset < 0) {
+       if (offset == -1) 
+           offset= 40;
+       else if (offset == -2)   /* This is for testing w/o doing any copying */
+           return 0;   
+       else 
+           return 999;          /* invalid offset */
+     }
 
    /* We don't allow negative take and drop offsets. Sorry. */
      if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  
