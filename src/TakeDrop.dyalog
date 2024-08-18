@@ -3,111 +3,116 @@
     ⎕IO ⎕ML←0 1 
 
 ∇ Benchmark
-  ;in; inShape; out; cmpx; tR; tC; dR; dC; c_FullCopy 
+  ;code ;in ;inShape ;out ;cmpx ;tR ;tC ;dR ;dC ;fullCpyParms ;noCpyParms  
   'cmpx' ⎕CY 'dfns'
-  {}Reset                                      ⍝ Force compile of C lib and then ⎕NA lib members
-  inShape← 3000 4000                           ⍝ input obj
-  tR tC dR dC← 1000 1000 1000 1000             ⍝ take rows, cols; drop rows, cols
+  inShape← 3001 4002                           ⍝ input obj
+  tR tC dR dC← 1000 999 998 997                ⍝ take rows, cols; drop rows, cols
   in← inShape⍴33333+⍳×/inShape                 ⍝ Ensure it's 32-bit integer with distinct elems
   out← (tR tC⍴33333)                           ⍝ Placeholder of correct size and type!
-  c_FullCopy←  ¯1 out in, inShape, tR tC dR dC ⍝ parameters for call of C-language routine
-  c_NoCopy←    ¯2 out in, inShape, tR tC dR dC ⍝ parameters for C-lang rtn that returns 
-                                               ⍝ w/o doing anything
-⍝ Share some info with user...                                               
-  'tR tC dR dC← ',⍕tR tC dR dC 
-  'inShape← ',⍕inShape 
-  'in←  inShape⍴ 33333+ ⍳×/inShape  ⍝ in:   32-bit integer array'
-  'out← tR tC⍴33333                 ⍝ out: 32-bit integer array'
+  fullCpyParms← ¯1 out in, inShape, tR tC dR dC ⍝ parameters for call of C-language routine
+  noCpyParms←   ¯2 out in, inShape, tR tC dR dC ⍝ parameters for call of C-language routine
+ 
+ 
+ ⍝ Share some info with user...                                               
+  (26↑'tR tC← ',(⍕tR tC)),  '        ⍝ Take shape '
+  (26↑'dR dC← ',(⍕dR dC)),  '        ⍝ Drop shape '
+  (26↑'inShape← ',⍕inShape),'        ⍝ Input matrix shape'
+  'in←  inShape⍴ 33333+ ⍳×/inShape   ⍝ in:  32-bit integer matrix'
+  'out← tR tC⍴33333                  ⍝ out: output matrix prototype'
    '¯'⍴⍨ ⎕PW-2
 
-  ⎕←'∘ TD: APL routine that creates its own output array (out) and calls'
-  ⎕←'      a 32-, 16-, or 8-bit C fn based on the input array''s integer type.'
-  ⎕←'∘ c_FullCopy←  ¯1     out           in,          inShape,     tR tC       dR dC'
-  ⎕←'∘ c_NoCopy←    ¯2     out           in,          inShape,     tR tC       dR dC'
-  ⎕←'               magic  output array  input array  input shape  take shape  drop shape'
-  ⎕←'∘ Other routines are self-explanatory.'
-  ⎕←'+----------+'
-  ⎕←'|  Notes   |'
-  ⎕←'+----------+'
-  ⎕←'[*] c_NoCopy will give a different answer, since it bypasses any C-language copying.'
-  ⎕←'    All other items must give the same answer'
-  ⎕←''
-  ⎕SHADOW 'j' 
-  cmpx 'in[j;j←tR+⍳tC]' '(2⍴⊂tR+⍳tC)⌷in'  'tR tC↑dR dC↓in' '⊃⌽TD32 c_NoCopy' '⊃⌽TD32 c_FullCopy' 'tR tC dR dC TD in'  
+  '∘ TD_APL2C: APL routine that manages the array shapes and types and calls TD32_C'
+  '∘ TD32_C:   Compiled C-language routine solely for 32-bit integer matrices;'
+  '  Input array is validated, output array is generated, and args are built by hand.'  
+  '  - ⎕NA prototype for TD32_C'
+  '    I4 TakeDropLib.so|TakeDrop32  I4   =A  <A I4 I4   I4 I4 I4 I4'
+  '                                 magic out in inshape tR tC dR dC'
+  '  - Arg lists for TD32_C:'
+  '    * fullCpyParms: APL copies in input obj, copies in output prototype, copies out output;'
+  '      C routine copies elements with compact code:'
+  '      for (r=0; r<tRows; ++r, inPtr+= skip ){'
+  '          for (c=0; c<tCols; ++c){'
+  '               *outPtr++ = *inPtr++ ;'
+  '          }'
+  '      }'
+  '    * noCpyParms: APL copies as for FullCopy, but does no other work.'
+  '∘ Other routines are self-explanatory.'
+  '--------'
+  '[*] Note: The noCpyParms call will give a different answer, bypassing any C-language copying.'
+  ''
+  
+  ⎕SHADOW 'j' 'TD32_C' 'TD_APL2C' 
+⍝ Helpful names for the cmpx output...
+  TD32_C← TakeDrop32 ⋄ TD_APL2C← TakeDrop    
+  code←  'in[dR+⍳tR;dC+⍳tC]' '(dR+⍳tR)(dC+⍳tC)⌷in' 'tR tC↑dR dC↓in'
+  code,← '⊃⌽TD32_C noCpyParms'   '⊃⌽TD32_C fullCpyParms'   'tR tC dR dC TD_APL2C in'  
+  cmpx code  
 ∇
 
 ∇ out← spec TakeDrop in  
-  ;⎕IO; ⎕ML
-  ;tRows; tCols; dRows; dCols 
-  ;myInt; MyTakeDrop; rc 
+  ;⎕IO ;⎕ML ;tRows ;tCols ;dRows ;dCols ;rc 
 
   ⎕IO ⎕ML← 0 1 
-  :If 4≠ ≢spec ⋄ 11 ⎕SIGNAL⍨'Invalid left arg to TakeDrop' ⋄ :EndIf 
+  'Invalid left arg to TakeDrop' ⎕SIGNAL 11/⍨ 4≠ ≢spec 
 
   tRows tCols dRows dCols← spec 
 
-  :If 1∊ tRows tCols< 0
-      11 ⎕SIGNAL⍨'Negative offsets for take or drop not implemented' 
-  :EndIf  
-  :If 3≠ ⎕NC 'TakeDrop32' 
-      911 ⎕SIGNAL⍨ 'Please load TakeDrop library: ',(⍕⎕THIS),'.Load 1' 
-  :EndIf 
+  'Negative offsets for take or drop not implemented' ⎕SIGNAL  11/⍨ tRows tCols∨.< 0
+  'Takedrop: Load TakeDrop32/16/8 before calling'     ⎕SIGNAL 910/⍨ 3≠ ⎕NC 'TakeDrop32' 
 
-  :Select 181⌶in 
-    :Case 323 ⋄ MyTakeDrop← TakeDrop32 ⋄ myInt←33333
-    :Case 163 ⋄ MyTakeDrop← TakeDrop16 ⋄ myInt←  333 
-    :Case 83  ⋄ MyTakeDrop← TakeDrop8  ⋄ myInt←    3
-    :Else     ⋄ 11 ⎕SIGNAL⍨'Invalid TakeDrop object'
+  :Select 181⌶in    ⍝ Check ⎕DR without implicit compaction
+    :Case 323  
+        (rc out)← TakeDrop32 ¯1 (tRows tCols⍴ 33333) in, (⍴in),tRows tCols dRows dCols 
+    :Case 163  
+        (rc out)← TakeDrop16 ¯1 (tRows tCols⍴ 333)   in, (⍴in),tRows tCols dRows dCols 
+    :Case 83   
+        (rc out)← TakeDrop8  ¯1 (tRows tCols⍴ 3)     in, (⍴in),tRows tCols dRows dCols 
+    :Else     
+        'TakeDrop is limited to an integer matrix right arg' ⎕SIGNAL 11 
   :EndSelect 
-
-  out← tRows tCols⍴ myInt                 ⍝ out must be same integer type as in 
-
-  (rc out)← MyTakeDrop ¯1 out in,(⍴in),tRows tCols dRows dCols 
 
   :Select rc 
       :Case 0 
       :Case 911 
-          11 ⎕SIGNAL⍨'DOMAIN ERROR: Negative offsets for take or drop not implemented'
+          11 ⎕SIGNAL⍨'DOMAIN ERROR: Negative offsets for TakeDrop not implemented'
       :Case 912 
-          11 ⎕SIGNAL⍨'DOMAIN ERROR: Overtaking offsets for take or drop not allowed'
+          11 ⎕SIGNAL⍨'DOMAIN ERROR: Overtaking offsets for TakeDrop not allowed'
       :Else    
-         911 ⎕SIGNAL⍨'LOGIC ERROR: TakeDrop32/16/8 failed with rc=',⍕rc 
+         911 ⎕SIGNAL⍨'LOGIC ERROR: TakeDrop lib routine failed with rc=',⍕rc 
   :EndSelect 
 ∇
-TD← TakeDrop       ⍝ Simple alias...
 
-  ∇ msg←Reset 
-      msg← (Generate 1),(⎕UCS 13), Load 1
+  ∇ msg← Make; l  
+    msg←  MakeCLib 0
+    msg,← (0≠≢l)/(⎕UCS 13),l← MakeQuadNA 0
   ∇
 
-  Load←{  
+  MakeQuadNA←{    
       FORCE_LOAD∨← 0=⎕NC 'TakeDrop32' 
       (0=1↑⍵)∧ ~FORCE_LOAD: ''
       0:: 911 ⎕SIGNAL⍨ 'Unable to associate one or more C function names: TakeDrop*'
-      nms← {
-        parms← 'I4 =A <A I4 I4 I4 I4 I4 I4'
-           ⎕NA 'I4 TakeDropLib.so|TakeDrop',⍵, ' ', parms
-      }∘⍕¨ 32 16 8 
-    ⍝ Simple aliases
-      TD32∘← TakeDrop32 ⋄ TD16∘← TakeDrop16 ⋄ TD8∘← TakeDrop8
+      nms← 'I4 =A <A I4 I4 I4 I4 I4 I4'∘{
+          ⎕NA 'I4 TakeDropLib.so|TakeDrop',⍵, ' ',⍺
+      }¨ '32' '16' '8' 
       'Namespace ',(⍕⎕THIS),' contains fns:',∊' ',¨nms ⊣  FORCE_LOAD⊢← 0
   }
 
-  Generate←{  
-        cLibName cSrcName ← 'TakeDropLib.so' 'TakeDropLib.c' 
-      (0=1↑⍵)∧ ⎕NEXISTS cLibName: ''
+  FORCE_LOAD←0 
+  MakeCLib←{  
+        dName cLibName cSrcName ← 'TakeDrop.dyalog' 'TakeDropLib.so' 'TakeDropLib.c'
+        ForceUpdate← { ⍵: 1 ⋄ d c←⍺ ⋄  0= ⎕NEXISTS c: 1 ⋄ >/1 ⎕DT¨3 ⎕NINFO¨d c: 1 ⋄ 0 }  
+      ~dName cLibName ForceUpdate 1↑⍵: 'TakeDrop.dyalog: C library and Dyalog namespace are up to date!'
         FORCE_LOAD∘← 1 
-        MAGIC_BYTES← AOff 2                ⍝ 40
+        MAGIC_BYTES← AOff 2                        ⍝ For matrices (⍵=2), ==> 40
         msg← 'Magic offset in bytes: ',⍕MAGIC_BYTES 
         GenCode← MAGIC_BYTES { 
-          iCh← ⍕⍵ 
-          fn← 'TakeDrop',iCh  ⋄  ty← 'int',iCh,'_t' ⋄ of← ⍕⍺⍺× 8÷⍵
-          'TAKE_DROP_FN' 'MY_INT_TYPE'  'MAGIC_OFFSET' ⎕R fn ty of⊢⍺
+          iCh← ⍕⍺ 
+          fn← 'TakeDrop',iCh  ⋄  ty← 'int',iCh,'_t' ⋄ of← ⍕⍺⍺× 8÷⍺
+          'TAKE_DROP_FN' 'MY_INT_TYPE'  'MAGIC_OFFSET' ⎕R fn ty of⊢⍵
         }¨
-        pCode← ⊂'^\h*⍝P(\h?.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
-        cCode← ⊂'^\h*⍝C(\h?.*)' ⎕S '\1'⊣ ⎕SRC ⎕THIS 
-        cCode← ,/ pCode, cCode GenCode 32 16 8
-        count← cCode ⎕NPUT cSrcName 1
+        pre bdy← 'PB'{⊂('^\h*⍝',⍺,'\h?(.*)') ⎕S '\1'⊣⍵}¨ ⊂⎕SRC ⎕THIS  
+        libCode← ,/ pre, 32 16 8 GenCode bdy
+        count← libCode ⎕NPUT cSrcName 1
         0= ≢count: 11 ⎕SIGNAL⍨ 'Error writing source file "',cSrcName,'"' 
         msg { cr← ⎕UCS 13 
           src lib← ⍵   
@@ -117,12 +122,10 @@ TD← TakeDrop       ⍝ Simple alias...
           out,← ⊂'>>> ', cc
           out,← ⊂'Private shared library:  ',lib
           out,← ⊂'Included lib functions:  ','TakeDrop32/16/8'
-          out,← ⊂'Alias lib functions:     TD32, TD16, TD8'
-          ⍺, ∊cr, ↑out
+         ⍺, ∊cr, ↑out
         } cSrcName cLibName 
     }
 
-    FORCE_LOAD←0 
 
   AOff←{
     ⍝ offset_bytes← [library] AOff rank 
@@ -166,51 +169,53 @@ TD← TakeDrop       ⍝ Simple alias...
   iOff<nelem: 4× iOff ⋄ ⎕SIGNAL/err3 
 }
 
+⎕← Make 
 
 :Section SOURCE_CODE
 ⍝ Source code for library routines (P: Preamble, C: Main C Code)...
 ⍝P  /* TakeDrop.so library */
 ⍝P  #include <stdint.h>
 ⍝P  #include <stdio.h>
-⍝C 
-⍝C     int TAKE_DROP_FN(
-⍝C             int offset, MY_INT_TYPE *outRaw, MY_INT_TYPE *inRaw,
-⍝C             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
-⍝C     ){
-⍝C     int     skip, r, c;
-⍝C     MY_INT_TYPE *inPtr, *outPtr;  /* int32_t, etc. */ 
-⍝C
-⍝C /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
-⍝C     if (offset < 0) {
-⍝C       if (offset == -1) 
-⍝C           offset= MAGIC_OFFSET;
-⍝C       else if (offset == -2)   /* This is for testing w/o doing any copying */
-⍝C           return 0;   
-⍝C       else 
-⍝C           return 999;          /* invalid offset */
-⍝C     }
-⍝C
-⍝C   /* We don't allow negative take and drop offsets. Sorry. */
-⍝C     if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  
-⍝C       return 911;
-⍝C
-⍝C     inPtr = inRaw + offset;
-⍝C     outPtr= outRaw + offset; 
-⍝C
-⍝C     inPtr+= dCols + dRows * inCols;
-⍝C
-⍝C     if (tRows>(inRows-dRows) || tCols>(inCols-dCols))
-⍝C       return 912;
-⍝C
-⍝C   skip= inCols-tCols;       
-⍝C   for (r=0; r<tRows; ++r, inPtr+= skip ){
-⍝C       for (c=0; c<tCols; ++c){
-⍝C         *outPtr++ = *inPtr++ ;
-⍝C       }
-⍝C   }
-⍝C
-⍝C    return 0;
-⍝C   }
+⍝B 
+⍝B     int TAKE_DROP_FN(
+⍝B             int offset, MY_INT_TYPE *outRaw, MY_INT_TYPE *inRaw,
+⍝B             int inRows, int inCols, int tRows, int tCols, int dRows, int dCols
+⍝B     ){
+⍝B     int     skip, r, c;
+⍝B     MY_INT_TYPE *inPtr, *outPtr;  /* int32_t, etc. */ 
+⍝B
+⍝B /*  MAGIC OFFSET: Don't use this unless you know what you are doing! */
+⍝B     if (offset < 0) {
+⍝B       if (offset == -1) 
+⍝B           offset= MAGIC_OFFSET;
+⍝B       else if (offset == -2)   /* This is for testing w/o doing any copying */
+⍝B           return 0;   
+⍝B       else 
+⍝B           return 999;          /* invalid offset */
+⍝B     }
+⍝B
+⍝B   /* We don't allow negative take and drop offsets. Sorry. */
+⍝B     if (tRows<0 || tCols<0 || dRows<0 || dCols<0)  
+⍝B       return 911;
+⍝B
+⍝B     inPtr = inRaw + offset;
+⍝B     outPtr= outRaw + offset; 
+⍝B
+⍝B     inPtr+= dCols + dRows * inCols;
+⍝B
+⍝B   /* Overtaking is NOT allowed here. Sorry. */
+⍝B     if (tRows>(inRows-dRows) || tCols>(inCols-dCols))
+⍝B       return 912;
+⍝B
+⍝B   skip= inCols-tCols;      
+⍝B /* This is where all the work is done! */ 
+⍝B   for (r=0; r<tRows; ++r, inPtr+= skip ){
+⍝B       for (c=0; c<tCols; ++c)
+⍝B         *outPtr++ = *inPtr++ ;
+⍝B   }
+⍝B
+⍝B    return 0;
+⍝B   }
 ⍝ End of source code
 :EndSection
 
