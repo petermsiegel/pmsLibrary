@@ -237,7 +237,7 @@
 
   } ∆F⍙Ⓡ
   
-  :Select ⍬⍴ ∆F⍙Ⓛ  
+  :Select ⍬⍴ ∆F⍙Ⓛ   
     :Case 1   
       ⍝ ○ We delete (or shadow) the local names (after retrieving their values) 
       ⍝   so ⎕NL in the caller namespace won't include them (if it happens to contain ∆F also).

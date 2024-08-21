@@ -57,24 +57,27 @@
   ⎕←'    ∆F_C.Declare ⍬'
 
   ∇res← ∆F stuff
-    ;fStr ;stuff; lenIn; lenOut; rc; out 
+    ;args; fStr ;stuff; lenIn; lenOut; rc; out 
+    ;⎕IO;⎕ML 
 
+    ⎕IO ⎕ML←0 1 
     :If 0= ⎕NC '∆F4' ⋄ {}Declare⍬ ⋄ :EndIf  
 
-    :IF 0< lenIn← ≢fStr← ⊃stuff← ,⊆stuff 
-        lenOut← 128⌈ 2× lenIn 
+    :If 0< lenIn← ≢fStr← ⊃stuff← ,⊆stuff 
+        lenOut← 256⌈ 3× lenIn 
+        args←   fStr lenIn lenOut lenOut 
         :Select ⎕DR fStr
-            :Case 320 ⋄ rc out← ∆F4 fStr lenIn lenOut lenOut 
-            :Case 160 ⋄ rc out← ∆F2 fStr lenIn lenOut lenOut 
-          ⍝ We could get rid of ∆F1, by doing
-          ⍝ :Case 80  ⋄ fStr← ⊃80 160 ⎕DR fStr ⋄ ⎕←'∆F1=>∆F2' 
-          ⍝             rc out← ∆F2 fStr lenIn lenOut lenOut
-            :Case  80 ⋄ rc out← ∆F1 fStr lenIn lenOut lenOut 
-            :Else     ⋄ 11 ⎕SIGNAL⍨'DOMAIN ERROR: Format string has improper type'
-        :EndSelect 
-        :If rc=0 ⋄ 11 ⎕SIGNAL⍨'DOMAIN ERROR: Cannot parse format string' ⋄ :EndIf 
+            :Case 320 ⋄ rc out← ∆F4 args 
+            :Case 160 ⋄ rc out← ∆F2 args
+            :Case  80 ⋄ rc out← ∆F1 args
+            :Else     ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Format string has improper type'
+        :EndSelect
+        :Select rc  
+           :Case ¯1 ⋄ 11 ⎕SIGNAL⍨'∆F LOGIC ERROR: Insufficient space for code output'
+           :Case  0 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Invalid format string'  
+        :EndSelect
         :Trap 0 
-            res← (out⍎⍨ ⊃⎕RSI) stuff 
+            res← out ⍝ ∆Fmt(out⍎⍨ ⊃⎕RSI) stuff 
         :Else 
             ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message )
         :EndTrap
@@ -82,32 +85,117 @@
         res← 1 0⍴''           ⍝ ⎕FMT ''
     :EndIf 
   ∇ 
+
+  ∆Fmt← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
+
  :Section Source
 ⍝P #include <stdio.h>
 ⍝P /* Not found on macos 
 ⍝P    #include <uchar.h> 
 ⍝P */
-⍝P #define char8_t  unsigned char 
-⍝P #define char16_t __CHAR16_TYPE__
-⍝P #define char32_t __CHAR32_TYPE__
-⍝P #define wchar_t  __WCHAR_TYPE__
+⍝P #define char8_t       unsigned char 
+⍝P #define char16_t      __CHAR16_TYPE__
+⍝P #define char32_t      __CHAR32_TYPE__
+⍝P #define wchar_t       __WCHAR_TYPE__
+⍝P #define cNONE         0
+⍝P #define cTEXT         1
+⍝P #define cBRACE        2
+⍝P #define cQUOTE        3
+⍝P #define SP            ' '
+⍝P #define SQ            '\''
+⍝P #define DQ            '"'
+⍝P #define LBRACE        '{'
+⍝P #define RBRACE        '}'
+⍝P #define EOS           L'⋄'
+⍝P #define ESC           L'`'
+⍝P #define CR            '\r'
+⍝P #define FAUXCR        L'␍'
+⍝P #define PUTCH(ch)     if (outIx<outLen) out[outIx++]=ch
+⍝P #define PUTSTR(str)   for (i=0; str[i] && outIx<outLen;) out[outIx++]=str[i++]
+⍝P #define NOSPACE()     { out[0]=0; return -1;}
+⍝P #define PREAMBLE()    PUTSTR(L"{⍺⍺ ")
+⍝P #define POSTAMBLE()   {PUTSTR("} ");  PUTCH(0);}
+⍝P #define SPACECHECK()  if (outIx >= outLen) NOSPACE();
+⍝P #define INCHECK()     if (inIx >= inLen) goto isDone 
+⍝P #define TEXTCHECK     if (class == cTEXT) PUTSTR("' ")
+⍝P 
 ⍝P /* IN_CHAR, OUT_CHAR replaced by char8_t, char16_t, char32_t */
 ⍝B int FMT_Cnn( IN_CHAR *in, int inLen, OUT_CHAR *out, int outLen){
-⍝B     int i;
-⍝B     wchar_t *str = L"{'The fmt str is ',⊃⍵}";
-⍝B     if (inLen >= outLen || outLen<1)   /* we need 1 space for the null */
-⍝B         goto bad;
-⍝B     for (i=0; i< inLen && i<outLen; ++i)
-⍝B          out[i]=in[i];
-⍝B     for (i=0; str[i]; ++i)
-⍝B          out[i]=str[i];  
-⍝B     if ( i>= outLen )
-⍝B         goto bad;
-⍝B     out[i]=0; 
-⍝B     return i;
-⍝B  bad:
-⍝B    out[0]=0;
-⍝B    return 0;
+⍝B   int outIx = 0;
+⍝B   int inIx  = 0;
+⍝B   int i; 
+⍝B   int class; 
+⍝B   int nBraces=0;
+⍝B   int inSpaces=0;
+⍝B   INCHECK();
+⍝B   PREAMBLE();
+⍝B   if (inLen >= outLen || outLen<1) NOSPACE();
+⍝B isNone:
+⍝B   class= cNONE;
+⍝B   INCHECK();
+⍝B   if ( in[inIx] == LBRACE ) goto isBrace;
+⍝B   class = cTEXT;
+⍝B   PUTSTR(" '");
+⍝B   for (; inIx<inLen;  ++inIx){
+⍝B         switch(in[inIx]){
+⍝B            case SQ:     PUTSTR("''"); break;
+⍝B            case ESC: 
+⍝B                  ++inIx; SPACECHECK();
+⍝B                  switch(in[inIx]){
+⍝B                    case EOS: PUTCH(FAUXCR);  break;
+⍝B                    case ESC:  
+⍝B                    case LBRACE:  
+⍝B                    case RBRACE: 
+⍝B                              PUTCH( in[inIx] ); break;
+⍝B                    default:
+⍝B                            --inIx; break;
+⍝B                  }
+⍝B                  break;
+⍝B           case LBRACE: 
+⍝B                nBraces = 1;
+⍝B                goto isBrace;
+⍝B                break;
+⍝B           default:  
+⍝B               PUTCH( in[inIx] ); break;
+⍝B           }      
+⍝B   }
+⍝B   TEXTCHECK; goto isDone;
+⍝B   isBrace:
+⍝B     TEXTCHECK;
+⍝B     class=cBRACE;
+⍝B  /* Space field: {   } */
+⍝B     inSpaces=0;
+⍝B     for (i=inIx+1; i<inLen && in[i]==SP; ++i, ++inSpaces);
+⍝B     if (inSpaces && i<inLen && in[i]==RBRACE ) {
+⍝B        inIx+= inSpaces+2;
+⍝B        PUTCH(SP); PUTCH(SQ); 
+⍝B        for (i=0; i<inSpaces; ++i) PUTCH(SP);
+⍝B        PUTCH(SQ); PUTCH(SP);
+⍝B        goto isNone;
+⍝B     }
+⍝B  /* Code field:  { code } */
+⍝B     nBraces = 1;
+⍝B     PUTSTR( "({" );
+⍝B     for ( ++inIx; inIx<inLen;  ++inIx){
+⍝B          switch(in[inIx]){
+⍝B             case LBRACE: nBraces++; PUTCH( LBRACE ); break;
+⍝B             case RBRACE: 
+⍝B                          if (--nBraces<=0) {
+⍝B                            ++inIx;
+⍝B                            PUTSTR( L"}⍵)" );
+⍝B                            goto isNone;
+⍝B                          }; 
+⍝B                          PUTCH(RBRACE);
+⍝B                          break;
+⍝B              default:    PUTCH( in[inIx] ); break;
+⍝B          }
+⍝B     }
+⍝B     goto isDone;
+⍝B     
+⍝B   isDone:
+⍝B     POSTAMBLE();
+⍝B     SPACECHECK();
+⍝B     return 1;
 ⍝B } 
  :EndSection 
 :EndNamespace 
