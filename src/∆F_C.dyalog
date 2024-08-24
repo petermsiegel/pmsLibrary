@@ -30,7 +30,7 @@
          inC outC← ('char',(⍕inN),'_t')  ('char',(⍕outN),'_t')
         'IN_CHAR' 'OUT_CHAR' '<NN>' ⎕R inC outC (⍕⍺)⊣ ⍵
       }
-      libCode← ,/ (4 2 1 GenCode¨ pre), 4 2 1GenCode¨ bdy
+      libCode← ,/ pre, 4 2 1GenCode¨ bdy
       count← libCode ⎕NPUT src 1
     0= ≢count: 11 ⎕SIGNAL⍨ 'Error writing source file "',cSrcName,'"' 
       {  
@@ -56,11 +56,12 @@
   ⎕←'To associate APL fns with routines in C library ',lib,', execute:' 
   ⎕←'    ∆F_C.Declare ⍬'
 
-  ∇res← ∆F stuff
+  ∇res← {DEBUG} ∆F stuff
     ;args; fStr ;stuff; lenIn; lenOut; rc; out 
     ;⎕IO;⎕ML 
 
     ⎕IO ⎕ML←0 1 
+    :If 900⌶⍬ ⋄ DEBUG←0 ⋄ :EndIf 
     :If 0= ⎕NC '∆F4' ⋄ {}Declare⍬ ⋄ :EndIf  
 
     :If 0< lenIn← ≢fStr← ⊃stuff← ,⊆stuff 
@@ -75,9 +76,12 @@
         :Select rc  
            :Case ¯1 ⋄ 11 ⎕SIGNAL⍨'∆F LOGIC ERROR: Insufficient space for code output'
            :Case  0 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Invalid format string'  
+           :Case ¯2 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Number after `⍵ is greater than 9999'
         :EndSelect
         :Trap 0 
-            res← out ⋄ :Return 
+            :If DEBUG 
+                res← out ⋄ :Return 
+            :EndIf 
             res← ∆Fmt(out⍎⍨ ⊃⎕RSI) stuff 
         :Else 
             ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨ ('∆F ',EM) EN Message )
@@ -122,7 +126,8 @@
 ⍝P #define RBRACE        '}'
 ⍝P 
 ⍝P #define INCHECK()     if (inIx >= inLen) goto isDone 
-⍝P #define NOSPACE()     { out[0]=0; return -1;}
+⍝P #define NOSPACE()     ABEND(-1)
+⍝P #define ABEND(rc)     { out[0]=0; return rc;}
 ⍝P #define PEEKCH()      ((inIx+1)>=inLen? 0 : in[inIx+1])
 ⍝P #define POSTAMBLE()   {PUTSTR("} ");  PUTCH(0);}
 ⍝P #define PREAMBLE()    PUTSTR(L"{⍺⍺ ")
@@ -133,24 +138,25 @@
 ⍝ 
 ⍝P #define omOUTLEN     30 
 ⍝P #define omOUTLENPLUS omOUTLEN+2 
-⍝P #define omPUTSTR<NN>(omOut, str) \
-⍝P         for (strIx=0; str[strIx] && omOutIx< omOUTLEN;) \
-⍝P              omOut[ omOutIx++ ] =  (OUT_CHAR) str[ strIx++ ]
-⍝P #define omPUTCH<NN>(omOut, ch) \
-⍝P         if ( omOutIx < omOUTLEN ) omOut[ omOutIx++ ] = ch
-⍝P #define omPUTBUF(omOut, ch) \
-⍝P         if ( omOutIx < omOUTLENPLUS ) omOut[ omOutIx++ ] = ch
 ⍝
-⍝B void Omega<NN>( 
-⍝B          OUT_CHAR *omOut, IN_CHAR *in, int inIx, int inLen, int *omSkipPtr, int *pOCount 
-⍝B ){
+⍝B #define omPUTSTR<NN>(omOut, str) \
+⍝B         for (strIx=0; str[strIx] && omOutIx< omOUTLEN;) \
+⍝B              omOut[ omOutIx++ ] =  (OUT_CHAR) str[ strIx++ ]
+⍝B #define omPUTCH<NN>(omOut, ch) \
+⍝B         if ( omOutIx < omOUTLEN ) omOut[ omOutIx++ ] = ch
+⍝B #define omPUTBUF(omOut, ch) \
+⍝B         if ( omOutIx < omOUTLENPLUS ) omOut[ omOutIx++ ] = ch
+⍝
+⍝B int Omega<NN>( 
+⍝B          OUT_CHAR *omOut, IN_CHAR *in, int inIx, int inLen, int *omSkipPtr, int omCount 
+⍝B ){ /* Returns updated omCount */ 
 ⍝B   int omOutIx=0; 
 ⍝B   int   strIx;
 ⍝B   int omNum=0;
 ⍝B   omPUTSTR<NN>( omOut, L"(⍵⊃⍨" ); 
 ⍝B   *omSkipPtr=0;
 ⍝B   FILE *pFile = fopen ("myfile.txt","a");
-⍝B   for (; inIx< inLen && omOutIx<omOUTLEN && omNum<= OMEGA_MAX/10; ++inIx) {
+⍝B   for (; inIx< inLen && omOutIx<omOUTLEN /*&& omNum<= OMEGA_MAX/10*/; ++inIx) {
 ⍝B       int dig;
 ⍝B       dig= in[inIx];
 ⍝B       if (dig>='0' && dig<='9'){
@@ -160,19 +166,20 @@
 ⍝B        }else
 ⍝B           break;
 ⍝B   }
+⍝B   if (omNum > OMEGA_MAX) return -2;
 ⍝B   if (*omSkipPtr) 
-⍝B       *pOCount = omNum;  
+⍝B       omCount = omNum;  
 ⍝B   else{
 ⍝B       char tBuf[ OMEGA_DIGITS+1 ];
-⍝B       ++*pOCount; 
-⍝B       if (0 < snprintf( tBuf, sizeof(tBuf), "%d", *pOCount))
+⍝B       ++omCount; 
+⍝B       if (0 < snprintf( tBuf, sizeof(tBuf), "%d", omCount))
 ⍝B            omPUTSTR<NN>( omOut, tBuf );
 ⍝B   }
 ⍝B   omPUTBUF( omOut, ')' ); omPUTBUF(omOut, 0);
-⍝B   return;
+⍝B   return omCount;
 ⍝B }
 ⍝B
-⍝P /* IN_CHAR, OUT_CHAR replaced by char8_t, char16_t, char32_t */
+⍝B /* IN_CHAR, OUT_CHAR replaced by char8_t, char16_t, char32_t */
 ⍝B int FMT_C<NN>( IN_CHAR *in, int inLen, OUT_CHAR *out, int outLen){
 ⍝B   int outIx = 0;
 ⍝B   int inIx  = 0;
@@ -302,7 +309,10 @@
 ⍝B                               PUTCH( in[inIx]);
 ⍝B                               break;
 ⍝B                          case OMEGA:
-⍝B                               Omega<NN>( omOut, in, inIx+1, inLen, &omSkip, &omegaCount ); 
+⍝B                               omegaCount = Omega<NN>( 
+⍝B                                     omOut, in, inIx+1, inLen, &omSkip, omegaCount 
+⍝B                               ); 
+⍝B                               if (omegaCount < 0) ABEND(-2);
 ⍝B                               PUTSTR( omOut );
 ⍝B                               inIx+= omSkip;
 ⍝B                               break;
