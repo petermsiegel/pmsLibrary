@@ -52,7 +52,6 @@ int Omega4(
   int omNum=0;
   omPUTSTR( omOut, L"(⍵⊃⍨" ); 
   *omSkipPtr=0;
-  FILE *pFile = fopen ("myfile.txt","a");
   for (; inIx< inLen && omOutIx < omOUTLEN; ++inIx) {
       int dig;
       dig= in[inIx];
@@ -246,7 +245,6 @@ int Omega2(
   int omNum=0;
   omPUTSTR( omOut, L"(⍵⊃⍨" ); 
   *omSkipPtr=0;
-  FILE *pFile = fopen ("myfile.txt","a");
   for (; inIx< inLen && omOutIx < omOUTLEN; ++inIx) {
       int dig;
       dig= in[inIx];
@@ -440,7 +438,6 @@ int Omega1(
   int omNum=0;
   omPUTSTR( omOut, L"(⍵⊃⍨" ); 
   *omSkipPtr=0;
-  FILE *pFile = fopen ("myfile.txt","a");
   for (; inIx< inLen && omOutIx < omOUTLEN; ++inIx) {
       int dig;
       dig= in[inIx];

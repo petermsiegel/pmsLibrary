@@ -1,33 +1,34 @@
 :Namespace ∆F_C 
-  ⍝ Generates functions ∆F4, ∆F2, ∆F1 that provide formatting strings
+  ⍝ Generates C library and associated APl functions ∆F4, ∆F2, ∆F1 
+  ⍝ that provide formatting strings
   ⍝ APL format:
-  ⍝ outLen out← ∆Fn in (≢in) (≢outBuffer) (≢outBuffer) 
-  ⍝ ∆F2:  n is 4, 2, 1 for ⎕DR 320, 160, 80 ==> ∆F4, ∆F2, ∆F1 respectively.
+  ⍝ outLen out← ∆Fnn in (≢in) (≢outBuffer) (≢outBuffer) 
+  ⍝ ∆F2:  nn is 4, 2, 1 for ⎕DR 320, 160, 80 ==> ∆F4, ∆F2, ∆F1 respectively.
   ⍝   in:  the input string (⎕DR 80, 160, 320).
   ⍝   ≢in: the true APL length of the input string.
   ⍝   outBuffer: a buffer set aside by APL during the call. You only provide its length.
   ⍝              The length is provided twice; the 2nd time so the C routine has access to its
-  ⍝              length. This MUST be the buffer size, including a terminal null. 
-  ⍝   Note: 
-  ⍝   ∘ If the input ¨in¨ is ⎕DR 80 or 160, outBuffer will be ⎕DR 160;
-  ⍝     this is because typical APL characters (⎕, ⋄, ⍎, ↑) are typically found in the output
-  ⍝     even if the input is ⎕DR 160.
-  ⍝   ∘ If the input is ⎕DR 320, outBuffer will be ⎕DR 320.
+  ⍝              length. This will be the buffer size, including a terminal null. 
+  ⍝              APL will truncate the buffer before the null on return.
+  
   ⍝ Returns: outLen out:
   ⍝ ∘ If ∆Fnn succeeds, outLen is the ACTUAL output string's length, not the buffer size.
   ⍝    out will be the output string in APL format, without any trailing bytes of the outBuffer.
-  ⍝ ∘ If ∆Fnn fails, outLen←0 and out←''.
+  ⍝ ∘ If ∆Fnn fails, outLen will indicate a return code (see below) and out will be ''.
   ⍝ Example:
   ⍝      in← 'input_string'
   ⍝ outLen out← ∆F16 in (≢in) 512 512
-  ⍝ Usage: See ∆F below
+  ⍝ Cover function: See ∆F below
 
 ⍝ DEBUG: If 1, uses DEBUG-mode everywhere, including in the C Program.
   DEBUG← 0
   SRC LIB← '∆F_C.c'  '∆F_C.so' 
 ⍝ FORCE_TO_4:  If 1, force all char. sizes to UCS-4 (4 bytes/char)
-⍝              If 0, generate library with UCS-4, UCS-2 and UCS-1 char sizes
-  FORCE_TO_4← 0    
+⍝              A single C library fn and associated apl function ∆F4 will be generated.
+⍝              If 0, generate library with 3 routines: with UCS-4, UCS-2 and UCS-1 char sizes
+  FORCE_TO_4← 0  
+  CHAR_SIZES← 4, 2 1/⍨ ~FORCE_TO_4 
+
   Make←{ 
     ⍝ Grab ⍝P (preamble) and ⍝B (body) code for C pgm below.
       pre bdy← 'PB'{⊂('^\h*⍝',⍺,'\h?(.*)') ⎕S '\1'⊣⍵}¨ ⊂⎕SRC ⎕THIS  
@@ -37,8 +38,7 @@
          inC outC← ('char',(⍕inN),'_t')  ('char',(⍕outN),'_t')
         'IN_CHAR' 'OUT_CHAR' '<NN>'  ⎕R inC outC (⍕⍵) ⊣ ⍺
       }
-      charSizes← FORCE_TO_4⊃ (4 2 1) 4
-      libCode← ⊂(GenPre ⊃pre), ⊃,/bdy GenCode¨ charSizes
+      libCode← ⊂(GenPre ⊃pre), ⊃,/bdy GenCode¨ CHAR_SIZES
       count← libCode ⎕NPUT SRC 1
     0= ≢count: 11 ⎕SIGNAL⍨ 'Error writing source file "',cSrcName,'"' 
       {  
@@ -52,30 +52,31 @@
       } ⍬ 
  }
  Declare←{ 
-  ⍝ Associates (⎕NA) APL fns named ∆F4, ∆F2, ∆F1 with corresponding C fns FMT_C4, ...2, ...1
-  ⍝ in the library <LIB>
+  ⍝ Depending on CHAR_SIZES, associates (⎕NA) APL fns named ∆F4, ∆F2, ∆F1 with 
+  ⍝ corresponding C fns FMT_C4, ...2, ...1 in the library <LIB>
     { inType ← ⍕⍵  ⋄ outType← ⍕2 4⊃⍨ ⍵=4   
       decl← '<C',inType,'[] I4 >0C',outType,'[] I4'
       (⍕⎕THIS),'.',('∆F',inType)⎕NA 'I4 ',LIB,'|FMT_C',inType, ' ',decl 
-    }¨4 2 1
+    }¨CHAR_SIZES 
   } 
 
   Make ⍬
   ⎕←'To associate APL fns with routines in C library ',LIB,', execute:' 
   ⎕←'    ∆F_C.Declare ⍬'
 
-  ∇res← {DEBUG2} ∆F stuff
+  ∇res← {LDEBUG} ∆F stuff
     ;args; dr; fStr ;stuff; lenIn; lenOut; rc; out 
     ;⎕IO;⎕ML 
 
-  ⍝ If DEBUG2 is omitted, uses the namespage ⎕THIS.DEBUG.
+  ⍝ If LDEBUG is omitted, uses ⎕THIS namespace's DEBUG.
 
     ⎕IO ⎕ML←0 1 
-    :If 900⌶⍬ ⋄ DEBUG2← ⎕THIS.DEBUG ⋄ :EndIf 
+    :If 900⌶⍬ ⋄ LDEBUG← ⎕THIS.DEBUG ⋄ :EndIf 
     :If 0= ⎕NC '∆F4' ⋄ {}Declare⍬ ⋄ :EndIf  
 
-    :If 0< lenIn← ≢fStr← ⊃stuff← ,⊆stuff 
-        lenOut← 512⌈ 4× lenIn 
+    :If ''≢fStr← ⊃stuff← ,⊆stuff 
+      ⍝ lenOut: How many (2 or 4-byte chars) to set aside for output
+        lenOut← 128+ 10× lenIn← ≢fStr     
         :If ⎕THIS.FORCE_TO_4 
           :Select dr← ⎕DR fStr
             :Case 320 ⋄ 
@@ -98,7 +99,7 @@
            :Case ¯2 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: `⍵ indexing may not exceed 9999'
         :EndSelect
         :Trap 90 
-            :If DEBUG2
+            :If LDEBUG
                 res← out ⋄ :Return 
             :EndIf 
             res← ∆Fmt(out⍎⍨ ⊃⎕RSI) stuff 
