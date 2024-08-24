@@ -22,64 +22,83 @@
   ⍝ outLen out← ∆F16 in (≢in) 512 512
   ⍝ Usage: See ∆F below
 
- src lib← '∆F_C.c'  '∆F_C.so' 
- Make←{ 
+⍝ DEBUG: If 1, uses DEBUG-mode everywhere, including in the C Program.
+  DEBUG← 0
+  SRC LIB← '∆F_C.c'  '∆F_C.so' 
+⍝ FORCE_TO_4:  If 1, force all char. sizes to UCS-4 (4 bytes/char)
+⍝              If 0, generate library with UCS-4, UCS-2 and UCS-1 char sizes
+  FORCE_TO_4← 0    
+  Make←{ 
+    ⍝ Grab ⍝P (preamble) and ⍝B (body) code for C pgm below.
       pre bdy← 'PB'{⊂('^\h*⍝',⍺,'\h?(.*)') ⎕S '\1'⊣⍵}¨ ⊂⎕SRC ⎕THIS  
+      GenPre← '<DEBUG>' ⎕R (⍕⎕THIS.DEBUG)
       GenCode←{
-         inN← 8× ⍺ ⋄ outN← 8× 2 4⊃⍨ ⍺=4
+         inN← 8× ⍵ ⋄ outN← 8× 2 4⊃⍨ ⍵=4
          inC outC← ('char',(⍕inN),'_t')  ('char',(⍕outN),'_t')
-        'IN_CHAR' 'OUT_CHAR' '<NN>' ⎕R inC outC (⍕⍺)⊣ ⍵
+        'IN_CHAR' 'OUT_CHAR' '<NN>'  ⎕R inC outC (⍕⍵) ⊣ ⍺
       }
-      libCode← ,/ pre, 4 2 1GenCode¨ bdy
-      count← libCode ⎕NPUT src 1
+      charSizes← FORCE_TO_4⊃ (4 2 1) 4
+      libCode← ⊂(GenPre ⊃pre), ⊃,/bdy GenCode¨ charSizes
+      count← libCode ⎕NPUT SRC 1
     0= ≢count: 11 ⎕SIGNAL⍨ 'Error writing source file "',cSrcName,'"' 
       {  
           cr← ⎕UCS 13 
-        0:: 11 ⎕SIGNAL⍨ 'Error compiling "',src,'" to "',lib,'"' 
-          l1← 'Generating source C code:            ',src 
-          _← ⎕SH cc←'cc -O3 -shared -o ',lib,' ',src 
+        0:: 11 ⎕SIGNAL⍨ 'Error compiling "',SRC,'" to "',LIB,'"' 
+          l1← 'Generating source C code:            ',SRC 
+          _← ⎕SH cc←'cc -O3 -shared -o ',LIB,' ',SRC 
           l2← '*** ',cc
-          l3← 'Compiled to private shared library: ',lib
+          l3← 'Compiled to private shared library: ',LIB
         1: ⎕← ↑l1 l2 l3 
       } ⍬ 
  }
  Declare←{ 
   ⍝ Associates (⎕NA) APL fns named ∆F4, ∆F2, ∆F1 with corresponding C fns FMT_C4, ...2, ...1
-  ⍝ in the library <lib>
+  ⍝ in the library <LIB>
     { inType ← ⍕⍵  ⋄ outType← ⍕2 4⊃⍨ ⍵=4   
       decl← '<C',inType,'[] I4 >0C',outType,'[] I4'
-      (⍕⎕THIS),'.',('∆F',inType)⎕NA 'I4 ',lib,'|FMT_C',inType, ' ',decl 
+      (⍕⎕THIS),'.',('∆F',inType)⎕NA 'I4 ',LIB,'|FMT_C',inType, ' ',decl 
     }¨4 2 1
   } 
 
   Make ⍬
-  ⎕←'To associate APL fns with routines in C library ',lib,', execute:' 
+  ⎕←'To associate APL fns with routines in C library ',LIB,', execute:' 
   ⎕←'    ∆F_C.Declare ⍬'
 
-  ∇res← {DEBUG} ∆F stuff
-    ;args; fStr ;stuff; lenIn; lenOut; rc; out 
+  ∇res← {DEBUG2} ∆F stuff
+    ;args; dr; fStr ;stuff; lenIn; lenOut; rc; out 
     ;⎕IO;⎕ML 
 
+  ⍝ If DEBUG2 is omitted, uses the namespage ⎕THIS.DEBUG.
+
     ⎕IO ⎕ML←0 1 
-    :If 900⌶⍬ ⋄ DEBUG←0 ⋄ :EndIf 
+    :If 900⌶⍬ ⋄ DEBUG2← ⎕THIS.DEBUG ⋄ :EndIf 
     :If 0= ⎕NC '∆F4' ⋄ {}Declare⍬ ⋄ :EndIf  
 
     :If 0< lenIn← ≢fStr← ⊃stuff← ,⊆stuff 
-        lenOut← 256⌈ 3× lenIn 
-        args←   fStr lenIn lenOut lenOut 
-        :Select ⎕DR fStr
-            :Case 320 ⋄ rc out← ∆F4 args 
-            :Case 160 ⋄ rc out← ∆F2 args
-            :Case  80 ⋄ rc out← ∆F1 args
+        lenOut← 512⌈ 4× lenIn 
+        :If ⎕THIS.FORCE_TO_4 
+          :Select dr← ⎕DR fStr
+            :Case 320 ⋄ 
+            :Caselist 160 80 ⋄ fStr← ⊃dr 320 ⎕DR fStr 
             :Else     ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Format string has improper type'
-        :EndSelect
+          :EndSelect
+          rc out← ∆F4 fStr lenIn lenOut lenOut 
+        :Else 
+          args← fStr lenIn lenOut lenOut 
+          :Select ⎕DR fStr
+              :Case 320 ⋄ rc out← ∆F4 args 
+              :Case 160 ⋄ rc out← ∆F2 args
+              :Case  80 ⋄ rc out← ∆F1 args
+              :Else     ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Format string has improper type'
+          :EndSelect
+        :EndIf 
         :Select rc  
            :Case ¯1 ⋄ 11 ⎕SIGNAL⍨'∆F LOGIC ERROR: Insufficient space for code output'
            :Case  0 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Invalid format string'  
-           :Case ¯2 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: Number after `⍵ is greater than 9999'
+           :Case ¯2 ⋄ 11 ⎕SIGNAL⍨'∆F DOMAIN ERROR: `⍵ indexing may not exceed 9999'
         :EndSelect
-        :Trap 0 
-            :If DEBUG 
+        :Trap 90 
+            :If DEBUG2
                 res← out ⋄ :Return 
             :EndIf 
             res← ∆Fmt(out⍎⍨ ⊃⎕RSI) stuff 
@@ -95,10 +114,8 @@
 
  :Section Source
 ⍝P #include <stdio.h>
-⍝P /* Not found on macos 
-⍝P    #include <uchar.h> 
-⍝P */
-⍝P /* #define DEBUG */        
+⍝P #define DEBUG         <DEBUG>  
+⍝P /* Include defs for wide types (MacOs doesn't have the right header file) */    
 ⍝P #define char8_t       unsigned char 
 ⍝P #define char16_t      __CHAR16_TYPE__
 ⍝P #define char32_t      __CHAR32_TYPE__
@@ -110,7 +127,7 @@
 ⍝P #define OMEGA_MAX     9999
 ⍝P #define OMEGA_DIGITS  4     /* Excludes terminating null */    
 ⍝P
-⍝P #ifdef DEBUG 
+⍝P #if DEBUG 
 ⍝P    #define CR         L'␍'
 ⍝P #else 
 ⍝P    #define CR         '\r'
@@ -124,7 +141,7 @@
 ⍝P #define SP            ' '
 ⍝P #define SQ            '\''
 ⍝P #define RBRACE        '}'
-⍝P 
+⍝ 
 ⍝P #define INCHECK()     if (inIx >= inLen) goto isDone 
 ⍝P #define NOSPACE()     ABEND(-1)
 ⍝P #define ABEND(rc)     { out[0]=0; return rc;}
@@ -139,13 +156,11 @@
 ⍝P #define omOUTLEN     30 
 ⍝P #define omOUTLENPLUS omOUTLEN+2 
 ⍝
-⍝B #define omPUTSTR<NN>(omOut, str) \
-⍝B         for (strIx=0; str[strIx] && omOutIx< omOUTLEN;) \
-⍝B              omOut[ omOutIx++ ] =  (OUT_CHAR) str[ strIx++ ]
-⍝B #define omPUTCH<NN>(omOut, ch) \
-⍝B         if ( omOutIx < omOUTLEN ) omOut[ omOutIx++ ] = ch
-⍝B #define omPUTBUF(omOut, ch) \
-⍝B         if ( omOutIx < omOUTLENPLUS ) omOut[ omOutIx++ ] = ch
+⍝P #define omPUTSTR(omOut, str) \
+⍝P         for (strIx=0; str[strIx] && omOutIx< omOUTLEN;) \
+⍝P              omOut[ omOutIx++ ] = str[ strIx++ ]
+⍝P #define omPUTBUF(omOut, ch, max) if ( omOutIx < max ) omOut[ omOutIx++ ] = ch
+⍝P #define omPUTCH(omOut, ch) omPUTBUF( omOut, ch, omOUTLEN)
 ⍝
 ⍝B int Omega<NN>( 
 ⍝B          OUT_CHAR *omOut, IN_CHAR *in, int inIx, int inLen, int *omSkipPtr, int omCount 
@@ -153,29 +168,29 @@
 ⍝B   int omOutIx=0; 
 ⍝B   int   strIx;
 ⍝B   int omNum=0;
-⍝B   omPUTSTR<NN>( omOut, L"(⍵⊃⍨" ); 
+⍝B   omPUTSTR( omOut, L"(⍵⊃⍨" ); 
 ⍝B   *omSkipPtr=0;
-⍝B   FILE *pFile = fopen ("myfile.txt","a");
-⍝B   for (; inIx< inLen && omOutIx<omOUTLEN /*&& omNum<= OMEGA_MAX/10*/; ++inIx) {
+⍝B   for (; inIx< inLen && omOutIx < omOUTLEN; ++inIx) {
 ⍝B       int dig;
 ⍝B       dig= in[inIx];
 ⍝B       if (dig>='0' && dig<='9'){
 ⍝B           ++*omSkipPtr;
 ⍝B           omNum = (omNum*10)+ (dig-'0');
-⍝B           omPUTCH<NN>(omOut, dig);
+⍝B           if (omNum > OMEGA_MAX) 
+⍝B               return -2;
+⍝B           omPUTCH(omOut, dig);
 ⍝B        }else
 ⍝B           break;
 ⍝B   }
-⍝B   if (omNum > OMEGA_MAX) return -2;
 ⍝B   if (*omSkipPtr) 
 ⍝B       omCount = omNum;  
 ⍝B   else{
 ⍝B       char tBuf[ OMEGA_DIGITS+1 ];
 ⍝B       ++omCount; 
 ⍝B       if (0 < snprintf( tBuf, sizeof(tBuf), "%d", omCount))
-⍝B            omPUTSTR<NN>( omOut, tBuf );
+⍝B            omPUTSTR( omOut, tBuf );
 ⍝B   }
-⍝B   omPUTBUF( omOut, ')' ); omPUTBUF(omOut, 0);
+⍝B   omPUTBUF( omOut, ')', omOUTLENPLUS ); omPUTBUF(omOut, 0, omOUTLENPLUS);
 ⍝B   return omCount;
 ⍝B }
 ⍝B
@@ -208,29 +223,29 @@
 ⍝B   PUTSTR(" '");
 ⍝P  #define USWITCH(intType)   switch( (char16_t) intType )
 ⍝B   for (; inIx<inLen;  ++inIx){
-⍝B         USWITCH(in[inIx]){
-⍝B            case SQ: 
-⍝B                  PUTSTR("''"); break;
-⍝B            case ESC: 
-⍝B                  ++inIx; SPACECHECK();
-⍝B                  USWITCH(in[inIx]){
-⍝B                    case EOS: PUTCH(CR);  break;
-⍝B                    case ESC:  
-⍝B                    case LBRACE:  
-⍝B                    case RBRACE: 
-⍝B                              PUTCH( in[inIx] ); break;
-⍝B                    default:
-⍝B                            PUTCH( ESC );  
-⍝B                            --inIx; break;
-⍝B                  }
-⍝B                  break;
-⍝B           case LBRACE: 
-⍝B                nBraces = 1;
-⍝B                goto isBrace;
-⍝B                break;
-⍝B           default:  
-⍝B               PUTCH( in[inIx] ); break;
-⍝B           }      
+⍝B      USWITCH(in[inIx]){
+⍝B         case SQ: 
+⍝B            PUTSTR("''"); break;
+⍝B         case ESC: 
+⍝B               ++inIx; SPACECHECK();
+⍝B               USWITCH(in[inIx]){
+⍝B                 case EOS: PUTCH(CR);  break;
+⍝B                 case ESC:  
+⍝B                 case LBRACE:  
+⍝B                 case RBRACE: 
+⍝B                       PUTCH( in[inIx] ); break;
+⍝B                 default:
+⍝B                       PUTCH( ESC );  
+⍝B                       --inIx; break;
+⍝B               }
+⍝B               break;
+⍝B        case LBRACE: 
+⍝B             nBraces = 1;
+⍝B             goto isBrace;
+⍝B             break;
+⍝B        default:  
+⍝B            PUTCH( in[inIx] ); break;
+⍝B        }      
 ⍝B   }
 ⍝B   TEXTCHECK; goto isDone;
 ⍝B   isBrace:
@@ -255,73 +270,81 @@
 ⍝B     PUTSTR( "({" );
 ⍝B     for ( ; inIx<inLen;  ++inIx){
 ⍝B          USWITCH(in[inIx]){
-⍝B             case DOLLAR: PUTSTR(L" ⎕FMT "); break;
+⍝B             case DOLLAR: 
+⍝B                 if (PEEKCH() == DOLLAR) {
+⍝B                    PUTSTR(L" ⎕SE.Dyalog.Utils.display ");
+⍝B                    ++inIx;
+⍝B                 }else
+⍝B                    PUTSTR(L" ⎕FMT "); 
+⍝B                 break;
 ⍝B             case LBRACE: 
-⍝B                          nBraces++; PUTCH( LBRACE );  break;
+⍝B                nBraces++; PUTCH( LBRACE );  break;
 ⍝B             case RBRACE: 
-⍝B                          if (--nBraces<=0) {
-⍝B                            ++inIx;
-⍝B                            PUTSTR( L"}⍵)" );
-⍝B                            goto isNone;
-⍝B                          }; 
-⍝B                          PUTCH(RBRACE);
-⍝B                          break;
+⍝B                if (--nBraces<=0) {
+⍝B                  ++inIx;
+⍝B                  PUTSTR( L"}⍵)" );
+⍝B                  goto isNone;
+⍝B                }; 
+⍝B                PUTCH(RBRACE);
+⍝B                break;
 ⍝B              case SQ:   
 ⍝B              case DQ: 
-⍝B                          curQ= in[inIx];
-⍝B                          PUTCH( SQ );
-⍝B                          for (++inIx; inIx<inLen ; ++inIx) {
-⍝B                              if (in[inIx] == curQ){
-⍝B                                  if (PEEKCH() == curQ ) { 
-⍝B                                       PUTCH(curQ); 
-⍝B                                       ++inIx;
-⍝B                                  }else{
-⍝B                                     PUTCH( SQ ); 
-⍝B                                     break; 
-⍝B                                  }
-⍝B                              }else{
-⍝B                                if (in[inIx]==ESC){
-⍝B                                    ++inIx; SPACECHECK();
-⍝B                                    USWITCH( in[inIx] ){
-⍝B                                    case EOS: 
-⍝B                                        PUTCH(CR); break;
-⍝B                                    case LBRACE:
-⍝B                                    case RBRACE:
-⍝B                                    case ESC:
-⍝B                                        PUTCH( in[inIx] ); break;
-⍝B                                    default:
-⍝B                                        PUTCH( ESC ); --inIx;
-⍝B                                    } 
-⍝B                                    break;
-⍝B                                }else if (in[inIx] == SQ) {
-⍝B                                    PUTCH(SQ);PUTCH(SQ );
-⍝B                                }else PUTCH( in[inIx] ); 
-⍝B                              }
-⍝B                          }
-⍝B                          break;
-⍝B              case ESC:   ++inIx; SPACECHECK();
-⍝B                          USWITCH( in[inIx] ){
+⍝B                curQ= in[inIx];
+⍝B                PUTCH( SQ );
+⍝B                for (++inIx; inIx<inLen ; ++inIx) {
+⍝B                   if (in[inIx] == curQ){
+⍝B                      if (PEEKCH() == curQ ) { 
+⍝B                         PUTCH(curQ); 
+⍝B                         ++inIx;
+⍝B                      }else{
+⍝B                         PUTCH( SQ ); 
+⍝B                         break; 
+⍝B                      }
+⍝B                   }else{
+⍝B                      if (in[inIx]==ESC){
+⍝B                        ++inIx; SPACECHECK();
+⍝B                        USWITCH( in[inIx] ){
 ⍝B                          case EOS: 
-⍝B                               PUTCH(CR);
-⍝B                               break;
+⍝B                            PUTCH(CR); break;
 ⍝B                          case LBRACE:
 ⍝B                          case RBRACE:
-⍝B                               PUTCH( in[inIx]);
-⍝B                               break;
-⍝B                          case OMEGA:
-⍝B                               omegaCount = Omega<NN>( 
-⍝B                                     omOut, in, inIx+1, inLen, &omSkip, omegaCount 
-⍝B                               ); 
-⍝B                               if (omegaCount < 0) ABEND(-2);
-⍝B                               PUTSTR( omOut );
-⍝B                               inIx+= omSkip;
-⍝B                               break;
+⍝B                          case ESC:
+⍝B                            PUTCH( in[inIx] ); break;
 ⍝B                          default:
-⍝B                               PUTCH( ESC );
-⍝B                               --inIx;
-⍝B                          } 
-⍝B                          break;
-⍝B              default:    PUTCH( in[inIx] ); break;
+⍝B                            PUTCH( ESC ); --inIx;
+⍝B                         } 
+⍝B                         break;
+⍝B                      }else if (in[inIx] == SQ) {
+⍝B                         PUTCH(SQ);PUTCH(SQ );
+⍝B                      }else PUTCH( in[inIx] ); 
+⍝B                   }
+⍝B                 } /* for */
+⍝B                 break;
+⍝B              case ESC:   ++inIx; SPACECHECK();
+⍝B                 USWITCH( in[inIx] ){
+⍝B                   case EOS: 
+⍝B                     PUTCH(CR);
+⍝B                     break;
+⍝B                   case LBRACE:
+⍝B                   case RBRACE:
+⍝B                     PUTCH( in[inIx]);
+⍝B                     break;
+⍝B                   case OMEGA:
+⍝B                     omegaCount = Omega<NN>( 
+⍝B                        omOut, in, inIx+1, inLen, &omSkip, omegaCount 
+⍝B                     ); 
+⍝B                     if (omegaCount < 0) ABEND(-2);
+⍝B                     PUTSTR( omOut );
+⍝B                     inIx+= omSkip;
+⍝B                     break;
+⍝B                  default:
+⍝B                     PUTCH( ESC );
+⍝B                     --inIx;
+⍝B                   } 
+⍝B                   break;
+⍝B              default:    
+⍝B                 PUTCH( in[inIx] ); 
+⍝B                 break;
 ⍝B          }
 ⍝B     }
 ⍝B     goto isDone;
