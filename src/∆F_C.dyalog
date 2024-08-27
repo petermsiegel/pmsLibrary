@@ -1,4 +1,5 @@
 :Namespace ∆F_C 
+ 
   ⍝ Generates C library and associated APl functions ∆F4, ∆F2, ∆F1 
   ⍝ that provide formatting strings
   ⍝ APL format:
@@ -25,7 +26,7 @@
 
 ⍝ DEBUG: If 1, uses DEBUG-mode everywhere, including in the C Program.
   DEBUG← 0
-  SRC LIB← '∆F_C.c'  '∆F_C.so' 
+  SRC LIB← { '.so' '.c',⍨¨ ⊂⊃⌽'.'(≠⊆⊢)⍕⍵ } ⎕THIS
 ⍝ FORCE_TO_4:  If 1, force all char. sizes to UCS-4 (4 bytes/char)
 ⍝              A single C library fn and associated apl function ∆F4 will be generated.
 ⍝              If 0, generate library with 3 routines: with UCS-4, UCS-2 and UCS-1 char sizes
