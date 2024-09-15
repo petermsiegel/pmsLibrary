@@ -26,7 +26,7 @@
 
 ⍝ DEBUG: If 1, uses DEBUG-mode everywhere, including in the C Program.
   DEBUG← 0
-  SRC LIB← { '.so' '.c',⍨¨ ⊂⊃⌽'.'(≠⊆⊢)⍕⍵ } ⎕THIS
+  LIB SRC← { '.so' '.c',⍨¨ ⊂⊃⌽'.'(≠⊆⊢)⍕⍵ } ⎕THIS
 ⍝ FORCE_TO_4:  If 1, force all char. sizes to UCS-4 (4 bytes/char)
 ⍝              A single C library fn and associated apl function ∆F4 will be generated.
 ⍝              If 0, generate library with 3 routines: with UCS-4, UCS-2 and UCS-1 char sizes
