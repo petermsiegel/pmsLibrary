@@ -3,7 +3,10 @@
 ⍝  ∘ The operator BI is the most general utility. It returns big integers in an external (string) format.
 ⍝  ∘ The operator BII is the same as BI, except for returning big integers in a more efficient internal format. 
 ⍝  > Both allow arguments in either the external (string) or internal formats.
-⍝
+⍝  ∘ The terms <bi> and <bii> are used below:
+⍝    bi:  a big integer in any external form (string, number, bii)
+⍝    bii: a big integer in internal format (of depth ¯2, shape 2)
+⍝ 
 ⍝  FOR HELP information, see :SECTION HELP or call BI_HELP.
 
 :Section BI
@@ -136,7 +139,7 @@
 
     :Section BigInt internal structure
       ⍝ =================================================
-      ⍝ Import / Imp - Import to internal bigInteger format
+      ⍝ Import / Imp - Import to bii (internal) format...
       ⍝ =================================================
       ⍝  ⍺ Import ⍵  →→  (Import ⍺)(Import ⍵)
       ⍝  Import ⍵
@@ -158,7 +161,7 @@
       ⍝ [⍺] Imp ⍵
       Import←{⍺←⊢
           1≢⍺ 1:   (∇ ⍺)(∇ ⍵)
-          ¯2=≡⍵:    ⍵             ⍝ Fast: Internal BigInts (depth: ¯2) are of form:  [1|0|¯1] [int vector]
+          ¯2=≡⍵:    ⍵             ⍝ Fast: bii (depth: ¯2) are of form:  [1|0|¯1] [int vector]
           type←80|⎕DR ⍵
           type=3:   ImportAplInt ⍵  
           type=0:   ImportStr ⍵ 
@@ -168,7 +171,7 @@
       Imp←Import
      
       ⍝ ImportAplInt:    ∇ ⍵:I[1]
-      ⍝ Import a small APL (native) integer into a BI.
+      ⍝ Import a small APL (native) integer into a bi.
       ⍝          ⍵ MUST Be an APL native (1-item) integer ⎕DR type 83 163 323.
       ImportAplInt←{
           1≠≢⍵:       ∆ER11 eIMPORT,⍕⍵       ⍝ singleton only...
@@ -185,11 +188,11 @@
           (1=≢⍵)∧(⍵=⌊⍵):(×⍵)(chkZ RX10⊥⍣¯1⊣|⍵)
           ∆ER11 eIMPORT,⍕⍵
       }
-      ⍝ ImportStr: Convert a BigInt in string format into an internal BigInt
+      ⍝ ImportStr: Convert a bi in string format into a bii
       ⍝  [nullStrOk←0]  ImportStr ⍵:S[≥1]   
       ⍝    nullStrOk=0: (⍵ must have at least one digit, possibly a 0).
       ⍝    nullStrOk=1: ⍵ has 0 digits? Return ZERO_BI.
-      ⍝ Note: we don't allow spaces, since they might be understood as multiple bigints. 
+      ⍝ Note: we don't allow spaces, since they might be understood as multiple bi's. 
       ⍝ Only _ can be used as a spacer.
       ImportStr←{ ⍺←0 
           s←1 ¯1⊃⍨'-¯'∊⍨1↑⍵            ⍝ Get sign, if any
@@ -207,13 +210,13 @@
           s w←Imp ⍵ ⋄ 1≠≢w:∆ER11 eSMALLRT ⋄ s×,w
       }
     ⍝ ---------------------------------------------------------------------
-    ⍝ Export/Exp: EXPORT a SCALAR BigInt to external "standard" bigInteger
+    ⍝ Export/Exp: EXPORT a SCALAR bii to external canonical bi string.
     ⍝ ---------------------------------------------------------------------
     ⍝    r:BIc←  ∇ ⍵:BIint
     Export←{ ('¯'/⍨¯1=⊃⍵),⎕D[dlzRun,⍉RX10BASE⊤|⊃⌽⍵] }
     Exp←Export 
 
-    ⍝ BI2Apl:    Convert valid bigint ⍵ to APL, with error if Exponent too large.
+    ⍝ BI2Apl:    Convert valid bii ⍵ to APL integer, with error if Exponent too large.
     BI2Apl←{ 0:: ∆ER11 eBADRANGE ⋄ ⎕FR←1287 ⋄  ⍎Exp Imp ⍵}
    
   :EndSection BigInt internal structure
@@ -293,18 +296,18 @@
     ⍝ Proceed as shown here, where (Exp ⍵) is "Exported" BIext format; (Imp ⍵) is internal BIint format.
       Roll←{
           (sw w)← Imp  ⍵
-          sw≠1:∆ER11 eBADRAND
+        sw≠1: ∆ER11 eBADRAND
           ⎕PP←16 ⋄ ⎕FR←645                       ⍝ 16 digits per ?0 is optimal
-          inL←≢Exp sw w                          ⍝ ⍵: in Export form. in: ⍵ with leading 0's removed.
+          inDig←≢Exp sw w                        ⍝ ⍵: in Export form. in: ⍵ with leading 0's removed.
      
-          res←inL⍴{ ⍺←''                         ⍝ res is built up to ≥inL random digits...
+          outStr← inDig⍴ { ⍺←''                  ⍝ res is built up to ≥inL random digits...
               ⍵≤≢⍺: ⍺ ⋄ (⍺,2↓⍕?0)∇ ⍵-⎕PP         ⍝ ... ⎕PP digits at a time.
-          }inL                                   ⍝ res is then truncated to exactly inL digits
-          '0'=⊃res:Imp res                       ⍝ If leading 0, guaranteed (Imp res) < ⍵.
-          ⍵ Rem Imp res                          ⍝ Otherwise, compute remainder Rem r: 0 ≤ r < ⍵.
+          }inDig                                 ⍝ res is then truncated to exactly inL digits
+        '0'=⊃outStr:ImportStr outStr             ⍝ If leading 0, guaranteed (Imp res) < ⍵.
+          ⍵ Rem ImportStr outStr                 ⍝ Otherwise, compute remainder Rem r: 0 ≤ r < ⍵.
       }
 
-    ⍝ Pretty:   [0 [5]] Pretty bigint
+    ⍝ Pretty:   [0 [5]] Prettify a bigint 
     ⍝           See BI2Str. Identical, except ⍺[1] defaults to 5, not 0.
       Pretty←{ 
           ⍺←0 ⋄ (2↑⍺, 5) BI2Str ⍵ 
@@ -315,13 +318,13 @@
     ⍝           ⍺[0]=1: replace ¯ by - .  ⍺=0 (default): don't.
     ⍝           ⍺[1]>0: place underscores every ⍺[1] digits starting at the right.
       BI2Str←{ 
-          ⍺←0  ⋄ lowMinus sep← 2↑⍺   
+          ⍺←0  ⋄ hi2lo sep← 2↑⍺   
         0:: ∆ER11 eIMPORT,⍕⍵
           str← sep{
             0=⍺: ⍵ ⋄ (⍺>0)∧⍺=⌊⍺: ('(\d)(?=(\d{',(⍕⍺),'})+$)') ⎕R '\1_'⊣ ⍵
             ∆ER11 'Invalid specification (⍺) to BI2Str (⍕)' 
           } Exp Imp  ⍵  
-        0= lowMinus: str 
+        0= hi2lo: str 
         '¯'≡⊃str: str⊣ (⊃str)←'-' ⋄ str  
       } 
 
