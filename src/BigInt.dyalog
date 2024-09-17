@@ -69,11 +69,10 @@
     BI← { ⍺←⊢  
     1006:: ⎕SIGNAL/ 'BI Interrupted' 1006
     0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BI ',EM) EN Message}0
-      ix← (1≢⍺1),(⍺⍺ DecodeCall map.op) 
-      op← ⊃ ix⌷ map.fnRep 
-         E← Export⍣ (⊃ix⌷map.export)
-      res← ⍺ (op{⍺←⊢ ⋄ ⍺ ⍺⍺ ⍵}) ⍵
-      ¯2= ≡res: E res ⋄ E¨ res                  ⍝ DivRem returns 2 biis, of depth ¯3.
+        __i← ⊂⊂(1≢⍺1), ⍺⍺ DecodeCall ⍬
+        op e← __i⊃¨ map.(fnRep export) 
+        r← ⍺ (op {⍺←⊢ ⋄ ⍺ ⍺⍺ ⍵} ) ⍵
+        e=0: r ⋄ e=1: Export r ⋄ Export¨ r  ⍝ DivRem returns 2 biis 
     }
   ⍝ BII:   res@bii←  [⍺@bi] op BI ⍵@bi 
   ⍝  Like BI above, but leaves bigint results in internal bii form, rather than bi form.
@@ -81,8 +80,8 @@
     BII←{ ⍺←⊢ 
     1006:: ⎕SIGNAL/ 'BII Interrupted' 1006
     0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BII ',EM) EN Message}0 
-      ix← (1≢⍺1),(⍺⍺ DecodeCall map.op) 
-      op← ⊃ ix⌷ map.fnRep 
+      _i← ⊂(1≢⍺1), ⍺⍺ DecodeCall ⍬
+      op← _i⊃ map.fnRep 
       ⍺ (op{⍺←⊢ ⋄ ⍺ ⍺⍺ ⍵}) ⍵
     }
 
@@ -95,7 +94,7 @@
       0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BIM: ',EM) EN Message}0 
       1≡⍺1:  ⎕SIGNAL/ 'BIM: Mod must be of the form x (fn BIM mod) y' 11
           x y divisor←⍺ ⍵ ⍵⍵   
-          i←  ⍺⍺ DecodeCall map.op 
+          i←  ⍺⍺ DecodeCall ⍬
           op← i⌷ map.op 
       op≡ '×':  Exp x (divisor ModMul) y 
       op≡ '*':  Exp x (divisor ModPow) y 
@@ -119,8 +118,8 @@
     ⍝    Returns:
     ⍝        the integer offset to the string in opsL (or 1+ ≢opsL)
       DecodeCall←{ f←⍺⍺ 
-        3=⎕NC 'f': ⍵⍳ ⎕NR'f' ⋄ str← ⎕C f 
-        1=≢str:    ⍵⍳ str ⋄ ⍵⍳ ⊂str            ⍝ Treat single chars as scalars
+        3=⎕NC 'f': MapOp ⎕NR'f' ⋄ str← ⎕C f 
+        1=≢str:    MapOp str ⋄ MapOp ⊂str            ⍝ Treat single chars as scalars
       }
     :EndSection Helper Utilities  
 
@@ -415,21 +414,21 @@
         ONE_D≡a: (sa×sw)w        
         ONE_D≡w: (sa×sw)a
       ⍝ Minimal advantage of this optimization for small N, decreasing as N grows.
-        ⍝ 0≠ s10← Shift10U w:  Imp (Exp sa a), s10⍴ '0' 
-        ⍝ 0≠ s10← Shift10U a:  Imp (Exp sw w), s10⍴ '0' 
+        ⍝ 0≠ s10← ExactPow10U w:  Imp (Exp sa a), s10⍴ '0' 
+        ⍝ 0≠ s10← ExactPow10U a:  Imp (Exp sw w), s10⍴ '0' 
           (sa×sw)(a MulU w)
       }
-    ⍝ Shift10U: Helper Fn in Div. (Not enabled in Mul)
+    ⍝ ExactPow10U: Helper Fn in Div. (Not enabled in Mul)
     ⍝   ⍵ is 10 or multiples of 10. 
     ⍝   Returns # of decimal digits to shift to achieve a multiply or divide by ⍵.
-        Shift10U← {1≠≢⍵: 0 ⋄ 0≠sh10← 10|⍵: 0 ⋄ 10⍟⍵ }
+        ExactPow10U← {1≠≢⍵: 0 ⋄ 0≠ 10|⍵: 0 ⋄ 10⍟⍵ }
     ⍝ Div: For special cases (except ⍵ multiples of 10), see DivU.
       Div←{ 
           (sa a)(sw w)← ⍺ Imp  ⍵
         sw=0: Er11 eDIVZERO              ⍝ Don't allow division by 0.
       ⍝ Some clear advantage to this optimization...
       ⍝ (1 ImpStr...) ensures empty string is allowed and returns 0.
-        0≠s10← -Shift10U w: 1 ImpStr s10↓ Exp (sa×sw) a 
+        0≠p10← -ExactPow10U w: 1 ImpStr p10↓ Exp (sa×sw) a 
           normFromSign(sa×sw)(⊃a DivU w)
       }
     ⍝ DivRem: Divide, returning both quotient and remainder.
@@ -442,7 +441,7 @@
         sw=0: ∆ERR11 eDIVZERO 
       ⍝ Some clear advantage to this optimization...
       ⍝ (1 ImpStr¨...) ensures empty strings are allowed and return 0.
-        0≠m10← -Shift10U w: 1 ImpStr¨ m10(↓,⍥⊂↑) Exp (sa×sw) a 
+        0≠p10← -ExactPow10U w: 1 ImpStr¨ p10(↓,⍥⊂↑) Exp (sa×sw) a 
           quot rem←a DivU w
           (normFromSign(sa×sw)quot)(normFromSign sw rem)
       }
@@ -508,7 +507,7 @@
   ⍝  -  If ⍵<0: Shift ⍺ rght by ⍵ decimal digits
   ⍝  -  If ⍵=0: then ⍺ will be unchanged
   ⍝  WARNING: THIS APPEARS TO RUN ABOUT 80% SLOWER THAN A SIMPLE MULTIPLY FOR MEDIUM AND LONG ⍺, unless ⍵ is long, e.g. 1000 digits.
-  ⍝           Div uses the "better" algorithm Shift10U
+  ⍝           Div uses the "better" algorithm ExactPow10U
   ⍝  *** NOT USED ***
     Mul10Exp←{
         (sa a)(sw w)← ⍺ Imp  ⍵
@@ -769,7 +768,7 @@
       fn1,←    'Root' 'Root' 'Log10'  m         
       fn2,←    'Root'  m      m      'DivRem'   
       exp1,←    1      1      1       m        
-      exp2,←    1      m      m       1         
+      exp2,←    1      m      m       2         
 
     ⍝ "Normalise" <op> to lower case for easy searching. Equivalent: 'log10' 'Log10' 'lOG10'
       op←     ⎕C op           
@@ -781,6 +780,7 @@
       ⎕EX 'fn1' 'fn2' 'exp1' 'exp2'
   :EndNamespace 
       map.fnRep←  { 0:: ⎕←'map missing fn: "',⍵,'"' ⋄ ⎕OR ⍵}¨ map.fn 
+      MapOp← map.op∘⍳
 :EndSection Opcode Mapping
       _←1 ⎕EXPORT 'BI' 'BII' 'BIM' 'HELP'⊣ 0 ⎕EXPORT ⎕NL 3 4
 

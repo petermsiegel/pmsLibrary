@@ -39,7 +39,7 @@ Cmpy←{
 ⍝H     Cmpy ⍬
 ⍝H      
 
-1000:: ⎕←'Cmpy: Interrupt!'
+⍝ 1000:: ⎕←'Cmpy: Interrupt!'
 0::    ⎕SIGNAL ⊂'EN' 'Message' 'EM' ,⍥⊂¨⎕DMX.( EN Message, ⊂'Cmpx: ',EM )  
 0=≢⍵:  { help←'^ *⍝H ?(.*?) *$' ⎕S ' \1'⊣⎕NR ⍵ ⋄ ⎕ED 'help' }⊃⎕XSI  
 

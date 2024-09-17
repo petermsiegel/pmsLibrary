@@ -2,7 +2,7 @@
  ;a;m;p10;p100;pN;pList;m;op;t;vs
  ;i10;i100;iN;iList  
  ;big;nats;Cmpy
- ;VALUE_TEST;TIME_TEST; GIANT 
+ ;ADHOC; VALUE_TEST;QUIET; TIME_TEST
  ;⎕IO;⎕TRAP
 
  UCMD'load BigInt'
@@ -19,14 +19,17 @@
  i100← →BI p100
  i10← →BI p10
 
- :If VALUE_TEST←1
+ failures←0
+ QUIET←1 
+ :If VALUE_TEST←0
      :For t :In '+-×÷∨∧⌈⌊|<≤=≥>≠'
          op←⍎t
          :Trap 0
              :If (p100 op nats p10)≡p100 op BI p10
-                 t,' BI vs nats test ok'
+               :IF ~QUIET ⋄  t,' BI vs nats test ok' ⋄ :ENDIF 
              :EndIf
          :Else
+             failures+← 1 
              t,' BI vs nats test failed'
          :EndTrap
      :EndFor
@@ -39,16 +42,18 @@
          op←⍎t
          :Trap 0
              :If (p100 op big p10)≡p100 op BI p10
-                 t,' BI vs big  test ok'
+               :IF ~QUIET ⋄  t,' BI vs big  test ok' ⋄ :Endif 
              :EndIf
          :Else
+             failures+← 1
              t,' BI vs big  test failed'
          :EndTrap
      :EndFor
  :EndIf
+ ⎕←'There were',failures,'failures'
 
-:if GIANT←0 
-    pList← (10*6)⍴¨ ⊂p100
+:if ADHOC←1 
+    pList← (10*1 3)⍴¨ ⊂p100
 :Else 
     pList←(10*1 2 3 4 5)⍴¨⊂p100
 :EndIf 
@@ -59,7 +64,8 @@ iList← →BII¨pList
          ⎕←'*** OP IS ',t
          :For pN iN :InEach pList iList 
              ⎕←'    ≢pN=',(⍕≢pN),' vs ≢p100=100'
-             vs← 'iN op BII i100' 'pN op BII p100'  'pN op BI p100' 'pN op nats p100' 'pN op big p100'
+             vs← 'pN op BI p100' 'pN op nats p100'  
+          ⍝   vs← 'iN op BII i100' 'pN op BII p100'  'pN op BI p100' 'pN op nats p100' 'pN op big p100'
              vs←  'op' ⎕R t⊣ vs
              1 Cmpy vs           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
          :EndFor
