@@ -1,14 +1,14 @@
 ﻿ BITest
- ;a;m;p10;p100;pN;pList;m;op;t;vs
- ;i10;i100;iN;iList  
- ;big;nats;Cmpy
+ ;a;m;p10;p100;pN;pList;p_1List;pS;m;op;t;vs
+ ;i10;i100 
+ ;big;nats;Cmpy;cmpx;STD_TIME; TIME 
  ;ADHOC; VALUE_TEST;QUIET; TIME_TEST
  ;⎕IO;⎕TRAP
 
  UCMD'load BigInt'
  UCMD'load Cmpy'
 
- 'big' 'nats' ⎕CY'dfns'
+ 'big' 'nats' 'cmpx' ⎕CY'dfns'
 
  ⎕TRAP←1000 'C' '→0,⎕←''Interrupted. Bye!'''
 
@@ -19,9 +19,16 @@
  i100← →BI p100
  i10← →BI p10
 
- failures←0
+ STD_TIME← 0
+ :IF STD_TIME
+     TIME← cmpx   
+:Else 
+     TIME← 1∘Cmpy 
+:EndIF 
  QUIET←1 
- :If VALUE_TEST←0
+ :If VALUE_TEST←1
+      failures←0
+      ⎕←'Comparison of results from BI, nats, big?'
      :For t :In '+-×÷∨∧⌈⌊|<≤=≥>≠'
          op←⍎t
          :Trap 0
@@ -35,7 +42,7 @@
      :EndFor
 
      :If (p10*nats a)≡(p10*BI a)
-         '* BI vs nats test ok'
+         :If ~QUIET ⋄ '* BI vs nats test ok' ⋄ :ENDIF 
      :EndIf
 
      :For t :In '+-×÷|<≤=≥>≠'
@@ -49,26 +56,43 @@
              t,' BI vs big  test failed'
          :EndTrap
      :EndFor
+      ⎕←'*** There were',failures,'failures'
  :EndIf
- ⎕←'There were',failures,'failures'
 
 :if ADHOC←1 
-    pList← (10*1 3)⍴¨ ⊂p100
+    pList← (10*1 3 6)⍴¨ ⊂p100
 :Else 
     pList←(10*1 2 3 4 5)⍴¨⊂p100
 :EndIf 
-iList← →BII¨pList 
+p_1List← ¯2↓¨ pList 
+pS← ⍕314159265 
 
  :If TIME_TEST←1
      :For t :In '+-×÷'
          ⎕←'*** OP IS ',t
-         :For pN iN :InEach pList iList 
-             ⎕←'    ≢pN=',(⍕≢pN),' vs ≢p100=100'
-             vs← 'pN op BI p100' 'pN op nats p100'  
-          ⍝   vs← 'iN op BII i100' 'pN op BII p100'  'pN op BI p100' 'pN op nats p100' 'pN op big p100'
+         :For pN pN_1 :InEach pList p_1List  
+             x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs ≢p_N1=',(⍕≢pN_1 )
+             vs← 'pN op BI pN_1' 'pN op nats pN_1'  
              vs←  'op' ⎕R t⊣ vs
-             1 Cmpy vs           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
+              x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
          :EndFor
          ⎕←''
+     :EndFor
+     :For t :In '+-×÷'
+         ⎕←'*** OP IS ',t
+         :For pN :In pList  
+             x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs pS=',pS 
+             vs← 'pN op BI pS' 'pN op nats pS'  
+             vs←  'op' ⎕R t⊣ vs
+              x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
+         :EndFor
+         ⎕←''
+     :EndFor
+     ⎕←'**** pN vs 1E4 (division by power of 10)'
+     :For pN  :In pList  
+          x←¯30↑,⎕FMT'÷    ≢pN=',(⍕≢pN) 
+          vs← 'pN ÷BI 1E4' 'pN ÷nats 1E4'
+          x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)  
+          ⎕←''
      :EndFor
  :EndIf

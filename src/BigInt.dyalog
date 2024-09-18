@@ -69,36 +69,34 @@
     BI← { ⍺←⊢  
     1006:: ⎕SIGNAL/ 'BI Interrupted' 1006
     0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BI ',EM) EN Message}0
-        __i← ⊂⊂(1≢⍺1), ⍺⍺ DecodeCall ⍬
-        op e← __i⊃¨ map.(fnRep export) 
+      ⍝ op:  the operation as an ⎕OR "value"
+      ⍝ e:   the # of items to export (0, 1, 2)
+        op e← map.(db⊃⍨ ⍺⍺ Call 2=⎕NC'⍺' )           ⍝ 2=⎕NC'⍺', i.e. dyadic 
         r← ⍺ (op {⍺←⊢ ⋄ ⍺ ⍺⍺ ⍵} ) ⍵
         e=0: r ⋄ e=1: Export r ⋄ Export¨ r  ⍝ DivRem returns 2 biis 
     }
   ⍝ BII:   res@bii←  [⍺@bi] op BI ⍵@bi 
   ⍝  Like BI above, but leaves bigint results in internal bii form, rather than bi form.
   ⍝  Other results are as described above.
-    BII←{ ⍺←⊢ 
+    BII←{ ⍺←⊢  
     1006:: ⎕SIGNAL/ 'BII Interrupted' 1006
     0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BII ',EM) EN Message}0 
-      _i← ⊂(1≢⍺1), ⍺⍺ DecodeCall ⍬
-      op← _i⊃ map.fnRep 
+      op← ⊃map.( db⊃⍨ ⍺⍺ Call 2=⎕NC'⍺' )             ⍝ 2=⎕NC'⍺', i.e. dyadic 
       ⍺ (op{⍺←⊢ ⋄ ⍺ ⍺⍺ ⍵}) ⍵
     }
 
   ⍝  BIM:   res@bi← x@bi (op BIM mod@bi) y@bi, equiv. to: Mod |BI x (fn BII) y.
-  ⍝    Perform operation (x op y) module <mod>, returning the result.
+  ⍝    Perform operation (x op y) modulo <mod> as efficiently as possible, returning the result.
   ⍝    More efficient for functions times (×) and exponent (*) and avoids some WS FULL.
   ⍝    Otherwise, identical to the multi-call version.   
-    BIM←{ 
+    BIM←{ ⍺←⊢
       1006:: ⎕SIGNAL/ 'BIM Interrupted' 1006
       0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BIM: ',EM) EN Message}0 
-      1≡⍺1:  ⎕SIGNAL/ 'BIM: Mod must be of the form x (fn BIM mod) y' 11
-          x y divisor←⍺ ⍵ ⍵⍵   
-          i←  ⍺⍺ DecodeCall ⍬
-          op← i⌷ map.op 
+          x← ⍺ ⋄ y divisor← ⍵ ⍵⍵   
+          op← map.( op⊃⍨ ⍺⍺ Call ⍬ )
       op≡ '×':  Exp x (divisor ModMul) y 
       op≡ '*':  Exp x (divisor ModPow) y 
-                Exp divisor |BII x(op BII) y 
+                Exp divisor |BII x (op BII) y 
     }
 
   ⍝ Help:  Shows help documentation for BigInt calls.
@@ -109,21 +107,7 @@
     ∇ 
     ⎕FX 'Help' ⎕R 'HELP'⊣⎕NR 'Help'
 
-    :Section Helper Utilities
-    ⍝ DecodeCall:  offset← op DecodeCall opsL
-    ⍝    op: APL_fn | 'string'. 
-    ⍝        APL_fn: e.g. +, -, etc.
-    ⍝        string: Any (quoted) string will be normalized to lower case...
-    ⍝    opsL: a vector of ops, e.g. map.ops, searched for normalized <op>
-    ⍝    Returns:
-    ⍝        the integer offset to the string in opsL (or 1+ ≢opsL)
-      DecodeCall←{ f←⍺⍺ 
-        3=⎕NC 'f': MapOp ⎕NR'f' ⋄ str← ⎕C f 
-        1=≢str:    MapOp str ⋄ MapOp ⊂str            ⍝ Treat single chars as scalars
-      }
-    :EndSection Helper Utilities  
-
-    ##⍎'BIM←{⍺ (⍺⍺ ',(⍕⎕THIS),'.BIM ⍵⍵) ⍵}'  ⍝ Simulate ##.BIM← ⎕THIS.BIM (dyadic operators) 
+    ##⍎'BIM←{0:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ ⍺ (⍺⍺ ',(⍕⎕THIS),'.BIM ⍵⍵) ⍵}'   
     ##.BI←  ⎕THIS.BI 
     ##.BII← ⎕THIS.BII   
     ⎕←'For help: ',(⍕⎕THIS),'.Help'
@@ -153,10 +137,9 @@
     ⍝         sgn∊ ¯1 (neg) 0 (zero) 1 (pos) number.
     ⍝         int vector: a vector (never null) of 1 or more unsigned integers <RX10.
     ⍝
-    ⍝ [⍺] Import ⍵
-    ⍝ [⍺] Imp ⍵
-    Import←{⍺←⊢
-        1≢⍺ 1:   (∇ ⍺)(∇ ⍵)
+    ⍝ Import ⍵
+    ⍝ Imp ⍵
+    Import←{                    
         ¯2=≡⍵:    ⍵             ⍝ Fast: bii (depth: ¯2) are of form:  [1|0|¯1] [int vector]
         type←80|⎕DR ⍵
         type=0:   ImpStr ⍵    ⋄ type=3: ImpAplInt ⍵ ⋄ 
@@ -188,14 +171,13 @@
     ⍝    nullStrOk=1: ⍵ has 0 digits? Return ZERO_BI.
     ⍝ Note: we don't allow spaces, since they might be understood as multiple bi's. 
     ⍝ Only _ can be used as a spacer.
+    NEGSIGNS SPACERS← '-¯' '_' 
     ImpStr←{ ⍺←0 
-        sgn←1 ¯1⊃⍨'-¯'∊⍨1↑⍵                 ⍝ Get sign, if any
-        str← '_'~⍨ ⍵↓⍨ sgn=¯1               ⍝ Remove initial sign and embedded _ (spacer: ignored).
-      ⍺∧ 0=≢str: ZERO_BI 
-      0= ≢str:    Er11 eIMPORT,'[null string]'
-      0∊ str∊ ⎕D: Er11 eIMPORT,⍵            ⍝ str must include only chars in ⎕D and at least one.
-        limbs← rep ⎕D⍳str                   ⍝ limbs: data portion of bii
-        dlzNorm sgn limbs                   ⍝ Normalize (remove leading 0s). If d is zero, return ZERO_BI.
+        sgn← NEGSIGNS∊⍨ 1↑⍵                  ⍝ Remove opt'l negative sign(s)
+        str← SPACERS~⍨ ⍵↓⍨ sgn               ⍝ Remove "spacer" char(s)
+      0= ≢str:   {Er11 eIMPORT,'[null string]'}⍣(⍺=0)⊢ ZERO_BI 
+      10∊ dig← ⎕D⍳ str: Er11 eIMPORT,⍵       ⍝ str must include only chars in ⎕D and at least one.
+        dlzNorm (sgn⊃1 ¯1),⊂ rep dig         ⍝ Normalize (remove leading 0s). If d is zero, return ZERO_BI.
     } 
   ⍝ ---------------------------------------------------------------------
   ⍝ Export/Exp: EXPORT a SCALAR bii to external canonical bi string.
@@ -321,7 +303,7 @@
     ExportNewBase←{ alignBits←0  
         ⎕IO←0 ⋄ ⍺←16 ⋄ base←⍺ ⋄   
         (⍺<2)∨⍺>≢DIGITS_EXPANDED: 11 ⎕SIGNAL⍨'BI: ⊤/NEW_BASE base (⍺) must be between 2 and ',⍕≢DIGITS_EXPANDED
-        (sw w)←Imp  ⍵
+        (sw w)← Imp  ⍵
         dig←{ ⍺←''
             ZERO_D≡⍵: ⍺ '0'⊃⍨0=≢⍺   
             dec rem←⍵ DivU base
@@ -389,15 +371,15 @@
 
   ⍝ dyad:    compute all supported dyadic functions
       Add←{
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
           sa=0:sw w                           ⍝ optim: ⍺+0 → ⍺
           sw=0:sa a                           ⍝ optim: 0+⍵ → ⍵
           sa=sw:sa(ndnZ 0,+⌿a mix w)          ⍝ 5 + 10 or ¯5 + ¯10
-          sa<0:sw w Sub 1 a                  ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
-          sa a Sub 1 w                       ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
+          sa<0:sw w Sub 1 a                   ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
+          sa a Sub 1 w                        ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
       }
       Sub←{
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
           sw=0:sa a                            ⍝ optim: ⍺-0 → ⍺
           sa=0:(-sw)w                          ⍝ optim: 0-⍵ → -⍵
           sa≠sw:sa(ndnZ 0,+⌿a mix w)           ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
@@ -407,7 +389,7 @@
 
     ⍝ See Mul, Div here.
       Mul←{
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
         0∊sa,sw: ZERO_BI
         TWO_D≡a: (sa×sw)(AddU⍨w) 
         TWO_D≡w: (sa×sw)(AddU⍨a)
@@ -424,7 +406,7 @@
         ExactPow10U← {1≠≢⍵: 0 ⋄ 0≠ 10|⍵: 0 ⋄ 10⍟⍵ }
     ⍝ Div: For special cases (except ⍵ multiples of 10), see DivU.
       Div←{ 
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
         sw=0: Er11 eDIVZERO              ⍝ Don't allow division by 0.
       ⍝ Some clear advantage to this optimization...
       ⍝ (1 ImpStr...) ensures empty string is allowed and returns 0.
@@ -437,7 +419,7 @@
     ⍝    (⍺ Div ⍵) (⍺ Mod ⍵)
     ⍝ For other special cases, see DivU.
       DivRem←{
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
         sw=0: ∆ERR11 eDIVZERO 
       ⍝ Some clear advantage to this optimization...
       ⍝ (1 ImpStr¨...) ensures empty strings are allowed and return 0.
@@ -467,14 +449,14 @@
           0≠rt←DecodeRoot ⍵: rt Root ⍺
         ⍝ Not a Root, so decode as usual
         ⍝ Special cases ⍺*2, ⍺*1, ⍺*0 handled in PowU.
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
           sa sw∨.=0 ¯1:ZERO_BI     ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a PowU w
           sa= 1: 1 p               
           0=2|⊃⌽w:1 p ⋄ ¯1 p       ⍝ sa=¯1, so result is pos. if ⍵ is even.
       }
       Rem←{                        ⍝ Remainder/residue. APL'S DEF: ⍺=base.
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
           sw=0:ZERO_BI
           sa=0:sw w
           r←,a RemU w              ⍝ RemU is fast if a>w
@@ -491,7 +473,7 @@
     ⍝  -  If ⍵=0: then ⍺ will be unchanged
     ⍝ Very slow! *** NOT USED ***
       Mul2Exp←{
-          (sa a)(sw w)← ⍺ Imp  ⍵
+          (sa a)(sw w)← Imp¨ ⍺ ⍵
         1≠≢w: Er11 eMUL10                         ⍝ ⍵ must be small integer.
         sa=0: 0 ZERO_D                            ⍝ ⍺ is zero: return 0.
         sw=0: sa a                                ⍝ ⍵ is zero: ⍺ stays as is.
@@ -510,34 +492,34 @@
   ⍝           Div uses the "better" algorithm ExactPow10U
   ⍝  *** NOT USED ***
     Mul10Exp←{
-        (sa a)(sw w)← ⍺ Imp  ⍵
+        (sa a)(sw w)← Imp¨ ⍺ ⍵
         1≠≢w:Er11 eMUL10                         ⍝ ⍵ must be small integer.
         sa=0:ZERO_BI                             ⍝ ⍺ is zero: return 0.
         sw=0:sa a                                ⍝ ⍵ is zero: sa a returned.
         ustr←Exp 1 a                             ⍝ ⍺ as unsigned string.
         ss←'¯'/⍨sa=¯1                            ⍝ sign as string
-        sw=1: Imp ss,ustr,w⍴'0'                  ⍝ sw= 1? Shift left by appending zeroes.
+        sw=1: ImpStr ss,ustr,w⍴'0'                  ⍝ sw= 1? Shift left by appending zeroes.
         ustr↓⍨←-w                                ⍝ sw=¯1? Shift right by Dec truncation
         0=≢ustr:ZERO_BI                          ⍝ No chars left? It's a zero
-        Imp ss,ustr                              ⍝ Return in internal form...
+        ImpStr ss,ustr                              ⍝ Return in internal form...
     }
   
   ⍝ ∨ Greatest Common Divisor
     Gcd←{
-      (sa a)(sw w)← ⍺ Imp  ⍵
+      (sa a)(sw w)← Imp¨ ⍺ ⍵
       1(a GcdU w)
     }
   ⍝ ∧ Least/Lowest Common Multiple
     Lcm←{
-      (sa a)(sw w)← ⍺ Imp  ⍵
+      (sa a)(sw w)← Imp¨ ⍺ ⍵
       (sa×sw)(a LcmU w)
     }
   ⍝ ⌈ Max 
-    Max← { a w← ⍺ Imp ⍵ 
+    Max← { a w← Imp¨ ⍺ ⍵ 
       w ≥Bool a: w ⋄ a 
     }
   ⍝ ⌊ Min 
-    Min← { a w← ⍺ Imp ⍵ 
+    Min← { a w← Imp¨ ⍺ ⍵ 
       w ≥Bool a: a ⋄ w 
     }
 
@@ -547,18 +529,18 @@
   ⍝ Returns <L> in BI internal format.
     Log10←{ 1, ⊂¯1+≢Exp Imp ⍵ } 
     Log←{
-          ⍺←TEN_BI ⋄ B N←⍺ Imp ⍵
+          ⍺←TEN_BI ⋄ B N← Imp¨ ⍺ ⍵
         0≥⊃N: Er11 eLOG                     ⍝ N ≤ 0
         TEN_BI≡B: 1  (¯1+≢Exp N)
           ZERO_BI { ⍵ Le ONE_BI: ⍺ ⋄ (Inc ⍺)∇ ⍵ Div B } N  
     }
 
     Ident←{
-      aNorm wNorm← ⍺ Imp ⍵
+      aNorm wNorm← Imp¨ ⍺ ⍵
       aNorm≡ wNorm 
     }
     Differ←{
-      aNorm wNorm← ⍺ Imp ⍵
+      aNorm wNorm← Imp¨ ⍺ ⍵
       aNorm≢ wNorm 
     }
  
@@ -591,14 +573,14 @@
   ⍝ It is nominally faster at lengths around 75 digits.
   ⍝ Only for smaller a and b, the cost of 3 modulos instead of 1 predominates.
     ModMul←{
-        (a b)m←(⍺ Imp ⍵)(Imp ⍺⍺)
+        a b m←Imp¨ ⍺ ⍵ ⍺⍺  
         m Rem(m Rem a)Mul(m Rem b)
     }
   ⍝ ModPow -- a (m ModPow) n -- from article by Roger Hui Aug 2020  
     ∇ z←a(m ModPow)n
       ;s;mmM
       ⍝ m|a*n  ==>   a (m ModPow) n  
-      (a n)m←(a Imp n)(Imp m)
+      a n m← Imp¨ a n m  
       z←ONE_BI ⋄ s←m Rem a
       mmM←m ModMul 
       :While ZERO_BI Lt n
@@ -739,7 +721,7 @@
 
 :Section Opcode Mapping
   :Namespace map 
-    m← ¯1   ⍝ missing value for fn1, fn2, exp1, exp2 
+    mis← ¯1   ⍝ missing value for fn1, fn2, exp1, exp2 
   ⍝ FNS_MONADIC LEFT TO DO←'=≠⊥⊤→~⍳≢' 
   ⍝ FNS_DYADIC LEFT TO DO ←('⌊⌈|∨∧⌽↑↓~⍟⍴') 
   ⍝ op: op code, fn1: 1adic fns, fn2: 2adic fns, 
@@ -747,41 +729,59 @@
   ⍝ fn1, fn2: Use unquoted m for missing function for 1adic or 2adic op codes (op),
   ⍝ fnRep: ⎕OR (obj rep) of the functions in fn1, fn2.
       op←    '+'   '-'   '×'   '÷'     '*'   '|'     '∨'    '∧'   '⍟'   '⌈'    '⌊'
-      fn1←   'Imp' 'Neg' 'Sig' 'Recip'  m    'Abs'    m      m    'Log'  m      m
+      fn1←   'Imp' 'Neg' 'Sig' 'Recip'  mis  'Abs'    mis    mis  'Log'  mis    mis
       fn2←   'Add' 'Sub' 'Mul' 'Div'   'Pow' 'Rem'   'Gcd'  'Lcm' 'Log' 'Max'  'Min'    
-      exp1←   1     1     1     1       m     1       m      m     1     m      m  
+      exp1←   1     1     1     1       mis   1       mis    mis   1     mis    mis
       exp2←   1     1     1     1       1     1       1      1     1     1      1   
 
       op,←    '⍕'      '⍎'      '≡'     '≢'         '→'
-      fn1,←   'BI2Str' 'BI2Apl'  m      'NLimbs'    'Imp'
-      fn2,←   'BI2Str'  m       'Ident' 'Differ'     m
-      exp1,←   0        0        m       0           0
-      exp2,←   0        m        0       0           m 
+      fn1,←   'BI2Str' 'BI2Apl'  mis    'NLimbs'    'Imp'
+      fn2,←   'BI2Str'  mis     'Ident' 'Differ'     mis
+      exp1,←   0        0        mis     0           0
+      exp2,←   0        mis      0       0           mis 
 
       op,←   '<'   '≤'   '='   '≥'   '>'   '≠'  '!'    '?'    '√'      
-      fn1,←  'Dec' 'Dec'  m    'Inc' 'Inc'  m   'Fact' 'Roll' 'Root'    
-      fn2,←  'Lt'  'Le'  'Eq'  'Ge'  'Gt'  'Ne'   m      m    'Root'           
-      exp1,←  1     1     m     1     1     m     1      1      1            
-      exp2,←  0     0     0     0     0     0     m      m      1              
+      fn1,←  'Dec' 'Dec'  mis  'Inc' 'Inc'  mis 'Fact' 'Roll' 'Root'    
+      fn2,←  'Lt'  'Le'  'Eq'  'Ge'  'Gt'  'Ne'   mis    mis  'Root'           
+      exp1,←  1     1     mis   1     1     mis   1      1      1            
+      exp2,←  0     0     0     0     0     0     mis    mis    1              
 
       op,←     'Root' 'Sqrt' 'Log10' 'DivRem'   
-      fn1,←    'Root' 'Root' 'Log10'  m         
-      fn2,←    'Root'  m      m      'DivRem'   
-      exp1,←    1      1      1       m        
-      exp2,←    1      m      m       2         
+      fn1,←    'Root' 'Root' 'Log10'  mis       
+      fn2,←    'Root'  mis    mis    'DivRem'   
+      exp1,←    1      1      1       mis      
+      exp2,←    1      mis    mis     2         
 
     ⍝ "Normalise" <op> to lower case for easy searching. Equivalent: 'log10' 'Log10' 'lOG10'
       op←     ⎕C op           
-    ⍝ Do NOT change case of entries in <fn>. 
-    ⍝ Replace placeholder 0 with appropriate error function Er1 or Er2
-      fn←     ↑ 'Er1' 'Er2' {(⊂⍺)@(m∘≡¨)⊢⍵}¨ fn1 fn2,¨m  
-      export← ↑ exp1 exp2,∘⊂¨ m m            ⍝ ... to Er1, Er2, m, m 
-    ⍝ See <map.fnRep> defined below:
-      ⎕EX 'fn1' 'fn2' 'exp1' 'exp2'
+    ⍝ 1. To both fn1 (monadic list) and fn2 (dyadic list), append the placeholder m (¯1);
+    ⍝ 2. Then, in fn1 and fn2, replace placeholder m with respective error function: 
+    ⍝    Er1 (for fn1) and  Er2 (for fn2)
+    ⍝ 3. Create fn. See map.db below.
+      fn←     ↑ 'Er1' 'Er2' {(⊂⍺)@(mis∘≡¨)⊢⍵}¨ fn1 fn2,¨mis
+      export← ↑ exp1 exp2,∘⊂¨ mis mis         ⍝ mis: Use as placeholders for op codes not found
+
+    ⍝ Mapping Utilities
+      OpFind← op∘⍳
+      ⍝ map.Call:  offset← op map.Call opsL
+      ⍝    op: APL_fn | 'string'. 
+      ⍝        APL_fn: e.g. +, -, etc.
+      ⍝        string: Any (quoted) string will-- for searching-- be normalized to lower case...
+      ⍝    opsL: a vector of ops, e.g. map.ops, searched for normalized <op>
+      ⍝    Returns:
+      ⍝        the integer offset to the string in opsL (or 1+ ≢opsL, if not found)
+      Call←{ f←⍺⍺ ⋄ 3=⎕NC '⍺⍺': ⊂⍵, OpFind ⎕NR'f' ⋄ ⊂⍵, OpFind ⊂⎕C ⍺⍺ } 
+
+    ⍝ Combine each fn and export into a list of entries (database), one per op code.
+    ⍝ Each has 2 elements:  (⎕OR fn_name)( # elem to export for BI, BIM) 
+      GenDB← { ⍺⍺ ##.{ 0:: ⎕←'map missing fn: "',⍺,'"' ⋄ ⍵,⍨ ⊂⎕OR ⍺}¨ ⍵⍵}  
+      db← fn GenDB export⊢ ⍬
+
+    ⍝ Keep only the list on the left for runtime...
+      ⎕EX 'db' 'OpFind' 'Call'~⍨ ⎕NL -2 3 4 
   :EndNamespace 
-      map.fnRep←  { 0:: ⎕←'map missing fn: "',⍵,'"' ⋄ ⎕OR ⍵}¨ map.fn 
-      MapOp← map.op∘⍳
-:EndSection Opcode Mapping
+  
+  :EndSection Opcode Mapping
       _←1 ⎕EXPORT 'BI' 'BII' 'BIM' 'HELP'⊣ 0 ⎕EXPORT ⎕NL 3 4
 
 :Section Help Documentation
@@ -893,7 +893,7 @@
 ⍝H           +BI  ⍵             canonical (returns BI  ⍵ in standard form, however entered)
 ⍝H           |BI  ⍵             absolute value
 ⍝H           ×BI  ⍵             signum in APL format: ¯1, 0, 1
-⍝H           ÷BI  ⍵             reciprocal (mostly useless)
+⍝H           ÷BI  ⍵             reciprocal (basically useless)
 ⍝H           <BI  ⍵             decrement (alternate ≤). Optimized (wherever overflow/underflow do NOT occur).
 ⍝H           >BI  ⍵             increment (alternate ≥). Optimized (ditto).
 ⍝H           !BI  ⍵             factorial
