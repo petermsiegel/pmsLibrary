@@ -10,7 +10,7 @@
 
  'big' 'nats' 'cmpx' ⎕CY'dfns'
 
- ⎕TRAP←1000 'C' '→0,⎕←''Interrupted. Bye!'''
+ ⎕TRAP←1000 'C' '→0⊣⎕←table⊣⎕←''Interrupted. Bye!'''
 
  p100←100⍴'1',⎕D
  p10←10⍴p100
@@ -28,7 +28,28 @@
  QUIET←1 
  :If VALUE_TEST←1
       failures←0
-      ⎕←'Comparison of results from BI, nats, big?'
+      :IF FASTER_TEST←1
+          ⎕←'How much faster are BI and nats than big on N+N and N×N?'
+          table←1 4⍴(↑'' 'op') (↑'nelem' '(N)') (↑'   BI' 'vs big') (↑'  nats' 'vs big')
+          ⍞←'+'
+          :FOR N :IN 100 10000  
+              ⍞←(⍕N),' '
+              pN← N⍴'1',⎕D 
+              B n b← ⍎∘cmpx¨ 'pN +BI pN' 'pN +nats pN' 'pN +big pN'
+              table⍪←'+' N (⍎0 1⍕B÷⍨b) (⍎0 1⍕n÷⍨b)
+          :EndFor 
+          ⍞←⎕UCS 13 
+          ⍞←'×'
+          :FOR N :IN 100 1000
+              ⍞←(⍕N),' '
+              pN← N⍴'1',⎕D 
+              B n b← ⍎∘cmpx¨ 'pN ×BI pN' 'pN ×nats pN' 'pN ×big pN'
+              table⍪←'×' N (⍎0 1⍕B÷⍨b) (⍎0 1⍕n÷⍨b)
+          :EndFor
+          ⎕←''
+          ⎕←table
+          ⎕←'' 
+      :EndIf 
      :For t :In '+-×÷∨∧⌈⌊|<≤=≥>≠'
          op←⍎t
          :Trap 0
@@ -60,13 +81,16 @@
  :EndIf
 
 :if ADHOC←1 
-    pList← (10*1 3 6)⍴¨ ⊂p100
+    pList← (10*1 2 3 4)⍴¨ ⊂p100
 :Else 
     pList←(10*1 2 3 4 5)⍴¨⊂p100
 :EndIf 
 p_1List← ¯2↓¨ pList 
 pS← ⍕314159265 
 
+⎕←'*** Relative speed of BI vs nats on a variety of object sizes and op codes ***'
+⎕←'¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨'
+ table← 1 3⍴ 'Type' 'N' 'BI÷nats'
  :If TIME_TEST←1
      :For t :In '+-×÷'
          ⎕←'*** OP IS ',t
@@ -74,7 +98,9 @@ pS← ⍕314159265
              x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs ≢p_N1=',(⍕≢pN_1 )
              vs← 'pN op BI pN_1' 'pN op nats pN_1'  
              vs←  'op' ⎕R t⊣ vs
-              x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
+             ⍞←x 
+             table⍪←('N',t,'N') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
+             ⍞←⎕UCS 13 
          :EndFor
          ⎕←''
      :EndFor
@@ -84,7 +110,9 @@ pS← ⍕314159265
              x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs pS=',pS 
              vs← 'pN op BI pS' 'pN op nats pS'  
              vs←  'op' ⎕R t⊣ vs
-              x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)           ⍝ Like cmpx, but 1 Cmpy... sorts the results by time.
+             ⍞←x 
+              table⍪←('N',t,'small') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
+              ⍞←⎕UCS 13 
          :EndFor
          ⎕←''
      :EndFor
@@ -92,7 +120,9 @@ pS← ⍕314159265
      :For pN  :In pList  
           x←¯30↑,⎕FMT'÷    ≢pN=',(⍕≢pN) 
           vs← 'pN ÷BI 1E4' 'pN ÷nats 1E4'
-          x'→→→ ', (7 3⍕÷/⌽⍎∘cmpx¨ vs)  
-          ⎕←''
+           ⍞←x 
+           table⍪←('N÷1E4') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
+           ⍞←⎕UCS 13 
      :EndFor
+     ⎕←table 
  :EndIf
