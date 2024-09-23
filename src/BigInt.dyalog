@@ -1,12 +1,14 @@
 ﻿:NAMESPACE BigInt
-⍝  Built on dfns::nats, restructured for signed integers. 
-⍝  Much faster than dfns::big, esp. so as the size of integers used grows.
+⍝  ∘ Built on dfns::nats, restructured for signed integers. 
+⍝  ∘ Much faster than dfns::big, esp. as N (integer sizes) grows.
+⍝  ∘ Slower than nats for smaller N, with rough parity at N×N for N=1000.
 ⍝  ∘ The operator BI is the most general utility. It returns big integers in an external (string) format.
 ⍝  ∘ The operator BII is the same as BI, except for returning big integers in a more efficient internal format. 
-⍝  > Both allow arguments in either the external (string) or internal formats.
+⍝    > Both allow arguments in either the external (string) or internal formats.
 ⍝  ∘ The terms <bi> and <bii> are used below:
-⍝    bi:  a big integer in any external form (string, number, bii)
-⍝    bii: a big integer in internal format (of depth ¯2, shape 2: (sign:<¯1 0 1> data:<int vector>)
+⍝    > bi:  a big integer in any external form (string, number, bii)
+⍝    > bii: a big integer in internal format (of depth ¯2, shape 2: 
+⍝      (sign:<scalar ¯1 0 1> data:<int vector>)
 ⍝ 
 ⍝  FOR HELP information, see :SECTION HELP or call BigInt.BI_HELP.
 
@@ -14,7 +16,7 @@
   ⍝ Set PROMOTE←1 to allow BI, BII, BIM to be promoted one namespace above BigInt
     PROMOTE← 1 
   ⍝ Set DEBUG←1 to disable signal trapping.
-    DEBUG←0                           
+    DEBUG←0                          
     ⎕IO ⎕ML ⎕PP ⎕CT ⎕DCT←  0 1 34 0 0  
   ⍝ ⎕FR as set here is used below to set constant OFL (overflow) used in multiplication.  
   ⍝ It can be either 645 or 1287, but is typically ~20% faster with 645.  
@@ -57,8 +59,7 @@
     eFACTOR←  'Arg to factorial (!) must be ≥ 0'
     eBADRANGE←'BigInt outside dynamic range to be approximated in APL (exponent ≥ 1E6145)'
     eLOG←     'Log of a non-positive BigInteger is undefined'
-    eSMALLRT← 'Right argument must be a small APL integer ⍵<',⍕RX10
-    eMUL10←    eSMALLRT
+    eMUL10←   'Right argument must be a small APL integer ⍵<',⍕RX10
     eROOT←    'Base (⍺) for Root must be small non-zero integer: ⍺<',⍕RX10
     eSUB←     'SubU LOGIC: unsigned subtraction "⍺-⍵" requires ⍺≥⍵'
 :EndSection Constants 
@@ -72,19 +73,19 @@
   ⍝  Returns an integer for monadic ≢.
     BI← { ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'  
     1000:: ⎕SIGNAL/ 'BI Interrupted' 1006
-    0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BI ',EM) EN Message}0  
-        oper i e← ⍺⍺ map.Sel dyad     
-        r← ⍺ (oper {dyad: ⍺ ⍺⍺⍥(Import⍣i)⊢ ⍵ ⋄ ⍺⍺ Import ⍵} ) ⍵
-        e=1: Export r ⋄ e=0: r ⋄ Export¨ r      ⍝ DivRem returns 2 biis 
+    0/⍨ ~DEBUG::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BI ',EM) EN Message}0  
+        oper im ex← ⍺⍺ map.Sel dyad     
+        r← ⍺ (oper {dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵} ) ⍵
+        ex=1: Export r ⋄ ex=0: r ⋄ Export¨ r      ⍝ DivRem returns 2 biis 
     }
   ⍝ BII:   res@bii←  [⍺@bi] op BI ⍵@bi 
   ⍝  Like BI above, but leaves bigint results in internal bii form, rather than bi form.
   ⍝  Other results are as described above.
     BII←{ ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'   
     1000:: ⎕SIGNAL/ 'BII Interrupted' 1006
-    0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BII ',EM) EN Message}0 
-      oper i e← ⍺⍺ map.Sel dyad            
-      ⍺ (oper{ dyad: ⍺ ⍺⍺⍥(Import⍣i) ⍵ ⋄ ⍺⍺ Import ⍵}) ⍵
+    0/⍨ ~DEBUG:    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BII ',EM) EN Message}0 
+      oper im ex← ⍺⍺ map.Sel dyad            
+      ⍺ (oper{ dyad: ⍺ ⍺⍺⍥(Import⍣im) ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵}) ⍵
     }
 
   ⍝  BIM:   res@bi← x@bi (op BIM mod@bi) y@bi, equiv. to: Mod |BI x (fn BII) y.
@@ -94,7 +95,7 @@
   ⍝    BIM is dyadic only. 
     BIM←{ 
       1006:: ⎕SIGNAL/ 'BIM Interrupted' 1006
-      0::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BIM: ',EM) EN Message}0 
+      0/⍨ ~DEBUG::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BIM: ',EM) EN Message}0 
           x y divisor← Import¨ ⍺ ⍵ ⍵⍵ 
           opc← ⍺⍺ map.GetOpCode ⍬
       opc≡ '×': Export x (divisor ModMul) y 
@@ -111,18 +112,20 @@
     ⎕FX 'Help' ⎕R 'HELP'⊣⎕NR 'Help'
     ⎕←'For help: ',(⍕⎕THIS),'.Help' 
  
-   ∇ proFlg← Promote proFlg ;where 
+   ∇ proFlg← PromoteIf proFlg ;where; bim  
     :IF proFlg 
-        ##⍎'BIM←{0:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ ⍺ (⍺⍺ ',(⍕⎕THIS),'.BIM ⍵⍵) ⍵}'   
-        ##.BI←  ⎕THIS.BI 
-        ##.BII← ⎕THIS.BII  
         where← ##
+      ⍝ Workaround Dyalog syntactic folly for operators...
+        bim← 'BIM←{ 0/⍨~⎕THIS.DEBUG:: ⎕SIGNAL/⎕DMX.(EM EN) ⋄ ⍺←⊢ ⋄ ⍺ (⍺⍺ ⎕THIS.BIM ⍵⍵) ⍵}' 
+        where⍎bim '⎕THIS' ⎕R (⍕⎕THIS)⊢ bim 
+        where.BI←  ⎕THIS.BI 
+        where.BII← ⎕THIS.BII
     :Else 
-        where← ⎕THIS 
-    :EndIf 
-    ⎕←'Created: ',∊' ',¨ (⊂⍕where),¨'.',¨ 'BI' 'BII' 'BIM'  
+        where← ⎕THIS   
+    :EndIf  
+    ⎕←'Created: ',∊' ',¨ (⊂⍕where),¨'.',¨ 'BI' 'BII' 'BIM' 
     ∇
-    Promote PROMOTE
+    PromoteIf PROMOTE=1
 :EndSection Main Fns 
 
 :Section Importing and Exporting 
@@ -138,10 +141,12 @@
     ⍝ Let Type=80|⎕DR ⍵  and Depth=|⍵          
     ⍝  Evaluate       Class     Action: Import as    Notes                
     ⍝ ---------------+----------------------------------------------------------------------- 
-    ⍝  Depth ¯2       bii         (no change)       Format:  See bii below.                                   
-    ⍝  Type   0       numeric str  ImpStr ⍵              
-    ⍝  Type   3       APL integer  ImpAplInt ⍵       
-    ⍝  Type   5, 7    APL Float    ImpFloat ⍵        Floats representing i) very large ints, ii) exponents up to 6145     
+    ⍝  Depth ¯2       bii         (no change)       Internal format. Fast.                                  
+    ⍝  Type   0       numeric str  ImpStr ⍵         Typical user input '¯12345'
+    ⍝  Type   3       APL integer  ImpAplInt ⍵      ¯12345   
+    ⍝  Type   5, 7    APL Float    ImpFloat ⍵       Floats representing: 
+    ⍝                                  i)  very large ints 123E100 (123+50 zeroes), ⍵ ≤ 1E6144     
+    ⍝                                  ii) for *BI only, root exponents: ÷2 (sqrt), ÷3 (cube root), etc. 
     ⍝  Returns an internal bigint (type bii):
     ⍝     sgn (int vector), where
     ⍝         ∘ sgn∊ ¯1 (neg) 0 (zero) 1 (pos) number.
@@ -163,8 +168,8 @@
     }
     ⍝ ImpFloat: Convert an APL integer into a bi
     ⍝ Converts simple APL native numbers, as well as those with large exponents, e.g. of form:
-    ⍝     1.23E100 into a string '123000...000', ¯1.234E1000 → '¯1234000...000'
-    ⍝ These must be in the range of decimal integers (up to +/- 1E6145).
+    ⍝     1.23E100 into a string '123000...000' (100 0's), ¯1.234E1000 → '¯1234000...000'
+    ⍝ These must be in the range of decimal integers (up to +/- 1E6144).
     ⍝ If not, you must use big integer strings of any length (exponents are disallowed in BigInt strings).
     ⍝ Used in BII, BI automatically, but ImpFloat can be called by the user as well.
       ImpFloat←{⎕FR←1287                 ⍝ 1287: to handle large exponents
@@ -272,32 +277,33 @@
     ⍝ Roll 0 is the same as Roll 1E100.
       Roll←{
           (sw w)←⍵
-          ⎕FR ⎕PP← 645 34                         ⍝ 16 digits per ?0 is optimal
-          ∆R← { ⍵≤≢⍺: ⍺ ⋄ (⍺, 3↓16⍕?0)∇ ⍵ }       ⍝ ∆R: Build to ⍵ digits, 16 at a time! 
+          ⎕FR ⎕PP← 645 34                          
         sw=0: ∇ Import 1E100 
         sw≠1: Er11 eBADRAND
-          len← ≢Exp sw w 
-          rand← len⍴ '' ∆R len  
+          rand← len⍴ ⊃,/¯17↑∘⍕¨?1E17⍴⍨ ⌈17÷⍨ len← ≢Exp sw w  
+          rand← '0'@(=∘' ')⊢ rand  
           i← ImpStr rand                          ⍝ result is then truncated to exactly count digits   
         '0'=⊃rand: i                              ⍝ If leading 0, guaranteed (ImpStr r) < ⍵.
           ⍵ Rem i                                 ⍝ Otherwise, compute remainder Rem r: 0 ≤ r < ⍵.
       }
 
-    ⍝ BI2Str: [0 [0]] BI2Str bii 
-    ⍝            Convert bigint ⍵ to string
-    ⍝           ⍺[0]=1: replace ¯ by - .  ⍺=0 (default): don't.
-    ⍝           ⍺[1]>0: place underscores every ⍺[1] digits starting at the right.
+    ⍝ BI2Str: [0 [0] [0]] BI2Str bii 
+    ⍝    Convert bi to string. ⍺ defaults to 0 0 0
+    ⍝      ⍺[0]=1: replace ¯ by - .  ⍺=0 (default): don't.
+    ⍝      ⍺[1]>0: place underscores every ⍺[1] digits starting at the right.
+    ⍝      ⍺[3]>0: Convert the number to base ⍺[3]. (Default is 10).
       BI2Str←{ 
-          ⍺←0  ⋄ hi2lo sep← 2↑⍺   
+          ⍺←0 0 10 ⋄ hi2lo sep base← 3↑⍺   
+          base← base 10⊃⍨ base=0
+          arg← base ExportNewBase⊢ Import⍣ (base≠10)⊢ ⍵
         0:: Er11 eIMPORT,⍕⍵
           str← sep{
-            0=⍺: ⍵ ⋄ (⍺>0)∧⍺=⌊⍺: ('(\d)(?=(\d{',(⍕⍺),'})+$)') ⎕R '\1_'⊣ ⍵
-            Er11 'Invalid specification (⍺) to BI2Str (⍕)' 
-          } (Exp Imp)⍣(' '≠⊃⍵)⊢ ⍵  
+            0=⍺: ⍵ ⋄ (⍺>0)∧⍺=⌊⍺: ('(\w)(?=(\w{',(⍕⍺),'})+$)') ⎕R '\1_'⊣ ⍵
+              Er11 'Invalid specification (⍺) to BI2Str (⍕)' 
+          } (Exp Imp)⍣(' '≠⊃0⍴arg)⊢ arg  
         0= hi2lo: str 
         '¯'≡⊃str: str⊣ (⊃str)←'-' ⋄ str  
       } 
-
     ⍝ NLimbs-- how many "limbs," i.e. integers in the data portion of the bignum
       NLimbs←{
         ≢ ⊃⌽ ⍵ 
@@ -306,20 +312,21 @@
   ⍝ ExportNewBase: Base Output Conversion, including to bits.
   ⍝ Digits for base output conversation go up to base 62, using 0..9,a..z,A..Z
     ExportNewBase←{ alignBits←0  
-        ⎕IO←0 ⋄ ⍺←16 ⋄ base←⍺ ⋄   
-        (⍺<2)∨⍺>≢DIGITS_EXPANDED: 11 ⎕SIGNAL⍨'BI: ⊤/NEW_BASE base (⍺) must be between 2 and ',⍕≢DIGITS_EXPANDED
+        ⎕IO←0 ⋄ ⍺←16 ⋄ base←⍺   
+        10= base: ⍵ 
+        (⍺<2)∨⍺>≢DIGITS_EXPANDED: 11 ⎕SIGNAL⍨'BI ⍕: base (⍺) must be between 2 and ',⍕≢DIGITS_EXPANDED
         (sw w)← ⍵
         dig←{ ⍺←''
             ZERO_D≡⍵: ⍺ '0'⊃⍨0=≢⍺   
             dec rem←⍵ DivU base
             dec ∇⍨ DIGITS_EXPANDED[rem],⍺
         }w
-        base≠2: dig,⍨'¯'/⍨sw=¯1 
+        2≠ base: dig,⍨'¯'/⍨ sw=¯1 
       ⍝ If alignBits, mantissa bits are multiples of NRX2 long, adding sign bit on left.
         (⍕sw=¯1),alignBits{~⍺: ⍵  ⋄ ⍵↑⍨-NRX2×⌈NRX2÷⍨≢⍵ }dig 
     }
   ⍝ See ExportNewBase
-    DIGITS_EXPANDED←⎕D,(⎕C ⎕A),⎕A
+    DIGITS_EXPANDED←⎕D,(⎕C ⎕A),⎕A 
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
     ⍝ Root: A fast integer nth Root.
@@ -422,7 +429,7 @@
     ⍝ For other special cases, see DivU.
       DivRem←{
           (sa a)(sw w)←  ⍺ ⍵
-        sw=0: ∆ERR11 eDIVZERO 
+        sw=0: Er11 eDIVZERO 
       ⍝ Some clear advantage to this optimization...
       ⍝ (1 ImpStr¨...) ensures empty strings are allowed and return 0.
         0≠p10← -ExactPow10U w: 1 ImpStr¨ p10(↓,⍥⊂↑) Exp (sa×sw) a 
@@ -430,27 +437,28 @@
       }
  
     ⍝ ⍺ Pow ⍵:
-    ⍝   General case:  
-    ⍝   ∘ ⍵ a bii?       Calc ⍺*⍵.
-    ⍝   Special cases to handle integral roots (2: sqrt, 3: cube root, etc.)
-    ⍝   ∘ ⍵ a number.    Calc. ⍺ * ⌊÷⍵.
-    ⍝   ∘ ⍵ a string of form (where NN is an APL (single limb) number).
-    ⍝     ∘ '÷NN'.       Calc NN Root ⍺.
-    ⍝     ∘ 'NN'?        Calc (⌊÷N) Root ⍺.
+    ⍝   I. General case, i.e. ⍵ not a special case as in II below  
+    ⍝   ∘ ⍵ not a special case                          Calc  ⍺ * ⍵.
+    ⍝   II. Special cases to handle integral roots (2: sqrt, 3: cube root, etc.)
+    ⍝   ∘ ⍵ a number n in 0< n < 1.                     Calc. (⌊÷n) Root ⍺
+    ⍝   ∘ ⍵ a string representing a number n in 0<n<1.  Calc. (⌊÷n) Root ⍺
+    ⍝   ∘ ⍵ a string of form                            Calc.    n  Root ⍺
+    ⍝     ∘ '÷NN', where n←⍎NN a valid int n≥1          
+    ⍝     where nn is an APL (single limb) integer).
     ⍝   ∘ Otherwise, Pow will generate an error.
-     ⍝ Pow explicitly does its own importing:
-    ⍝     If ⍵ is a simple float ⍵, such that ÷⍵ is approx. 2, 3, 4, etc.
-    ⍝     then (⌈÷⍵) Root ⍺ is performed instead of a (integral) power operation.
-    ⍝     Other variants exist, e.g. '÷2', etc.
-      Pow←{ 
-            RootZ←{ 0> ≡⍵:0 ⋄ 0= 1↑0⍴⍵: FZ ⍵ ⋄ '÷'≠ 1↑⍵:  FZ  S2N ⍵ ⋄ IZ S2N 1↓⍵ }                                  
-            FZ←{ (⍵>0)∧ ⍵≤1: ⌊÷⍵ ⋄ 0} ⋄ IZ←{⍵=⌊⍵: ⍵ ⋄ 0} ⋄ S2N← ⊃⊃∘⌽⍤⎕VFI 
-        0≠rt←RootZ ⍵: rt Root Import ⍺   ⍝ Root? Handle here.
+    ⍝
+    ⍝ RootZ: Returns 0 unless it sees a special case right arg (see II above).
+      RootZ←{  
+          FZ←{ (⍵>0)∧ ⍵≤1: ⌊÷⍵ ⋄ 0} ⋄ IZ←{⍵=⌊⍵: ⍵ ⋄ 0} ⋄ S2N← ⊃⊃∘⌽⍤⎕VFI  
+          0> ≡⍵:0 ⋄ 0= ⊃0⍴⍵: FZ ⍵ ⋄ '÷'≠ 1↑⍵: FZ S2N ⍵ ⋄ IZ S2N 1↓⍵ 
+      } 
+      Pow←{                                  
+        0≠rt←RootZ ⍵: rt Root Imp ⍺ ⍝ Root? Handle here.
         (sa a)(sw w)← Imp¨ ⍺ ⍵
         ∨/sa sw=0 ¯1: ZERO_BI      ⍝ r←⍺*¯⍵ is 0≤r<1, so truncates to 0.
           p←a PowU w               ⍝ Special cases ⍺*2, ⍺*1, ⍺*0 handled in PowU.
         sa= 1: 1 p               
-          0=2|⊃⌽w:1 p ⋄ ¯1 p       ⍝ sa=¯1, so result is pos. if ⍵ is even.
+        0=2|⊃⌽w:1 p ⋄ ¯1 p         ⍝ sa=¯1, so result is pos. if ⍵ is even.
       }
     ⍝ Rem: Remainder/residue.      ⍝ Use APL's definition.
       Rem←{                        
@@ -531,11 +539,15 @@
       TEN_BI≡B: 1, ⊂¯1+≢Exp N
         ZERO_BI { ⍵ Le ONE_BI: ⍺ ⋄ (Inc ⍺)∇ ⍵ Div B } N  
     }
-  ⍝ ≡
+  ⍝ ≡ This is the same as =, except that Import doesn't force normalisation 
+  ⍝   of arguments (to be presented to Ident) that are already big integers...
+  ⍝   Import will of course force any non-bii arg on input to a normalised form.
     Ident←{
       ⍺≡ ⍵
     }
-  ⍝ ≢
+  ⍝ ≢ This is the same as ≠, except that Import doesn't force normalisation 
+  ⍝   of arguments (to be presented to Differ) that are already big integers...
+  ⍝   Import will of course force any non-bii arg on input to a normalised form.
     Differ←{
       ⍺≢ ⍵ 
     }
@@ -548,10 +560,10 @@
         0∊sa sw: sa ⍺⍺ sw         ⍝ ⍺, ⍵, or both are 0
         sa≠sw: sa ⍺⍺ sw           ⍝ ⍺, ⍵ different signs
         sa=¯1: ⍺⍺ cmp w mix a     ⍝ ⍺, ⍵ both Neg
-          ⍺⍺ cmp a mix w          ⍝ ⍺, ⍵ both pos
+          ⍺⍺ cmp a mix w          ⍝ ⍺, ⍵ both Pos
       }
       Lt← <Bool ⋄ Le← ≤Bool ⋄ Eq← =Bool 
-      Ge← ≥Bool ⋄ Gt← >Bool ⋄ Ne← ≠Bool 
+      Gt← >Bool ⋄ Ge← ≥Bool ⋄ Ne← ≠Bool 
   :EndSection Boolean Operations  
 :EndSection Dyadic Operators/Functions
 
@@ -710,9 +722,9 @@
 ⍝ --------------------------------------------------------------------------------------------------
 
 :Section Error Handling 
-  Er1←  ⎕SIGNAL/{'Invalid or unimplemented monadic routine' 11 }
-  Er2←  ⎕SIGNAL/{'Invalid or unimplemented dyadic routine'  11 }
-  Er11← ⎕SIGNAL/{⍺←1 ⋄ 1∊⍺: (0.7 Clip 'DOMAIN ERROR: ',⍵) 11 ⋄ ⍬ ⍬ }   
+  Er1←  ⎕SIGNAL/{ 'Invalid or unimplemented monadic routine' 11 }
+  Er2←  ⎕SIGNAL/{ 'Invalid or unimplemented dyadic routine'  11}
+  Er11← ⎕SIGNAL/{ (0.7 Clip 'DOMAIN ERROR: ',⍵) 11 }   
   ⍝ ⍺ Clip ⍵:  ⍺=<ratio of ⍵=<msg string> which should be from left> with rest from right
     Clip←{p←⎕PW⋄ p≥≢⍵:⍵ ⋄ (⍵↑⍨p-∆),'…',⍵↑⍨1-∆←⌊p×1-⍺} 
 :EndSection Error Handling 
@@ -778,8 +790,8 @@
     ⍝    "operand"         "import OK" "export OK"
     ⍝    (⊂##.⎕OR fNm[i])   impOk[i]    expOk[i], for all i in ⍳≢fNm
     ⍝    *** fNm[i] must be a valid function in ##.
-      Gêrr← 'LOGIC ERR: Missing fn '∘,'"'∘(,,,⍨) 
-      GenDB← {0:: ⎕←Gêrr ⍺ ⋄ ⍵,⍨ ⊂##.⎕OR ⍺ }¨  
+      eLogic← 'LOGIC ERR: Missing fn '∘,'"'∘(,,,⍨) 
+      GenDB← {0:: ⎕←eLogic ⍺ ⋄ ⍵,⍨ ⊂##.⎕OR ⍺ }¨  
       entries← fNm GenDB impOk,¨ expOk    
       Sel← { entries⊃⍨ ⍺⍺ Call ⍵}
       
@@ -793,8 +805,11 @@
 :Section Help Documentation
 ⍝H The BigInt Library
 ⍝H ¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
-⍝H  Built on dfns::nats restructured for signed integers. Faster than dfns::big and less amenable to WS FULL.
-⍝H  Routine: BI, BII, BIM, and BI_HELP.
+⍝H  Big Integer (big number) routines built on dfns::nats restructured for signed integers. 
+⍝H  Significantly faster than dfns::big and less amenable to WS FULL.
+⍝H 
+⍝H  BigInt Routines: BI, BII, BIM, and BigInt.BI_HELP.
+⍝H  ¨¨¨¨¨¨ ¨¨¨¨¨¨¨¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨¨ ¨¨¨ ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
 ⍝H  BI:  ∘ Returns big integers in a string (external) format, except for logical/boolean operands.
 ⍝H       ∘ Syntax: bi← [bi] (opcode BI) bi
 ⍝H       ∘ Example: bi← '12345' +BI '54321'
@@ -808,24 +823,64 @@
 ⍝H       ∘ Syntax: bi← bi (opcode BIM modulo) bi  [dyadic only]
 ⍝H       ∘ Example: bi← '12345' (×BIM '12')⊢'54321' is equiv. to
 ⍝H       ∘ Example: bi← '12'|BI '12345' ×BI '54321', where × represents any dyadic op.
-⍝H  -----
-⍝H  ∘ All arguments may be in either the external bi or internal bii formats,
-⍝H    including a char string ('¯123', '-23_456', (1000⍴⎕D)), an integer (123456), 
-⍝H    a float to be treated as an integer potentially with many trailing 0s (123E145),
-⍝H    and a few special cases for (square, cube, etc.) roots.
-⍝H    See below for definitions of bi and bii formats.
-⍝H  ∘ Strings on input (or output) may have underscores to separate runs of digits; 
-⍝H    negative numbers may be prefixed by either ¯ or -.
-⍝H
-⍝H   Basic routine for most uses:  BI
+⍝H  BigInt.BI_HELP
+⍝H       ∘ Display this "help" information.
+⍝H       ∘ Syntax:  BigInt.BI_HELP
+⍝H 
+⍝H  Operands to BI, BII, BIM
+⍝H  ¨¨¨¨¨¨¨¨ ¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨
+⍝H  Monadic operands: -+|×÷<>!?⍎⍕ '√' '≢' '→'
+⍝H  Dyadic  operands: +-×÷*⍟|⌈⌊∨∧<≤=≥>≡≢  '√' 'DivRem'
+⍝H  
+⍝H  INPUT ARGUMENTS TO BI, BII, BIM
+⍝H  ¨¨¨¨¨ ¨¨¨¨¨¨¨¨¨ ¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨
+⍝H  ∘ All arguments to BigInt routines may be in either the external bi or internal bii formats,
+⍝H    ∘ a char string ('¯123', '-23_456', (1000⍴⎕D)), 
+⍝H      ∘ on input, strings may have underscores to separate runs of digits; 
+⍝H        negative numbers may be prefixed by either ¯ or -,
+⍝H      ∘ for output, strings won't have underscores and will use ¯ for negative numbers,
+⍝H        but see dyadic ⍕ for alternatives.
+⍝H    ∘ an integer (123456), 
+⍝H    ∘ a float to be treated as an integer may have a large pos. exponent (123E145),
+⍝H        ∘ While precision here is limited to APL's precision, the exponent will be
+⍝H          honored as an appropriate number of trailing 0s.
+⍝H             2.3E33  ==>  '2300000000000000000000000000000000'
+⍝H    ∘ a few special cases for (square, cube, etc.) roots: 0.5, '÷2', etc.
+⍝H    See below for further details on bi and bii formats.
+⍝H 
+⍝H    RETURN VALUES FROM BI, BIM (not BII): bi
+⍝H    ¨¨¨¨¨¨ ¨¨¨¨¨¨ ¨¨¨¨ ¨¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨¨¨ ¨¨
+⍝H    With BI or BIM, most routines return a big integer in ¨bi¨ format:
+⍝H          a canonical (normalized) bi has a guaranteed format:
+⍝H          ∘ char. vector     
+⍝H          ∘ leading ¯ ONLY for minus, except as returned from (1⍕BI ⍵)
+⍝H          ∘ otherwise, only the digits 0-9. Underscores only if ([1|0] 5⍕BI ⍵) or equiv.
+⍝H          ∘ leading 0's are removed.
+⍝H          ∘ 0 is represented by (,'0'), unsigned, with no extra '0' digits.
+⍝H          ∘ See ⍕BI for more on hyphen (-) and underscores (_) on output
+⍝H    Logical routines and some others return booleans or APL integers.
+⍝H 
+⍝H    RETURN VALUES FROM BII: bii
+⍝H    ¨¨¨¨¨¨ ¨¨¨¨¨¨ ¨¨¨¨ ¨¨¨¨ ¨¨¨  
+⍝H    With BII, most routines return a big integer in ¨bii¨ format:
+⍝H    bii   -internal-format signed Big Integer numeric vector:
+⍝H          sign (data) ==>  sign (¯1 0 1)   data (a vector of integers)
+⍝H          ∘ sign: If data is zero, sign is 0 by definition.
+⍝H          ∘ data: Always 1 or more integers (if 0, it must be data is ,0).
+⍝H                  Each element is a positive number <RX10 (10E6)
+⍝H          ∘ depth: ¯2    shape: 2
+⍝H          Given the canonical requirement, 
+⍝H               a bii of 0 is (0 (,0)), 1 is (1 (,1)) and ¯1 is (¯1 (,1)).
+⍝H    Logical routines and some others return booleans or APL integers.
 ⍝H
 ⍝H   BI     bi← [⍺]  +BI ⍵
 ⍝H          Does all the basic monadic and dyadic math operations: + - * etc.
 ⍝H          ⍺, ⍵:  any "scalar" big integer in internal (BigIntI) or external (BigIntE) formats.   
-⍝H          Returns for most operands: a bi normalized. See below.
+⍝H          Returns for most operands: a normalized bi. See below.
 ⍝H   BII    bii← [⍺]  +BII ⍵
 ⍝H          Does all the operations, just like BI, except for return type.
 ⍝H          ⍺, ⍵:  Same as for BI.
+⍝H          Returns for most operands an "internal" bii integer. See below.
 ⍝H   BIM    bi← ⍺ ×BIM ⍵⍵ ⊣ ⍵
 ⍝H          Does operation  ⍵⍵ | ⍺ × ⍵ for big integers ⍺, ⍵, and integer ⍵⍵. 
 ⍝H          Returns: An external format BigIntE.
@@ -834,58 +889,14 @@
 ⍝H          BIM is optimized for functions × (Mul) and * (Pow: integer ⍵≥0) so far.  
 ⍝H          For other operations, calls modulo after performing <op>.
 ⍝H
-⍝H   ----------------------------------------
-⍝H   EXTERNAL-FORMAT SIGNED BIG INTEGERS (bi)
-⍝H   ----------------------------------------
-⍝H     ON INPUT
-⍝H        ∘ A char string: with '¯' or '-' prefixed if negative; no prefix if positive;
-⍝H          one or more digits in ⎕D; optionally underscores as separators, but not blanks.
-⍝H        ∘ An APL integer, with precision per APL.
-⍝H        ∘ An APL float. While precision is limited to APL's precision, the exponent will be
-⍝H          honored as an appropriate number of trailing 0s.
-⍝H            ⍕BI 2.3E33 <=> '2300000000000000000000000000000000'
-⍝H        ∘ A bii, i.e. a big int in internal format.
-⍝H        ∘ For power, nn Root a can be selected via  a *BI ÷nn, a *BI '÷nn', etc.
-⍝H     ON OUTPUT
-⍝H          a canonical (normalized) bi has a guaranteed format:
-⍝H          ∘ char. vector     
-⍝H          ∘ leading ¯ ONLY for minus, except as returned from (1⍕BI ⍵)
-⍝H          ∘ otherwise, only the digits 0-9. Underscores only if ([1|0] 5⍕BI ⍵) or equiv.
-⍝H          ∘ leading 0's are removed.
-⍝H          ∘ 0 is represented by (,'0'), unsigned, with no extra '0' digits.
-⍝H          ∘ See ⍕BI for more on hyphen (-) and underscores (_) on output
-⍝H 
-⍝H   -----------------------------------------
-⍝H   INTERNAL-FORMAT SIGNED BIG INTEGERS (bii)
-⍝H   -----------------------------------------
-⍝H    bii   -internal-format signed Big Integer numeric vector:
-⍝H          sign (data) ==>  sign (¯1 0 1)   data (a vector of integers)
-⍝H          ∘ sign: If data is zero, sign is 0 by definition.
-⍝H          ∘ data: Always 1 or more integers (if 0, it must be data is ,0).
-⍝H                  Each element is a positive number <RX10 (10E6)
-⍝H          ∘ depth: ¯2    shape: 2
-⍝H    Given the canonical requirement, a bii of 0 is (0 (,0)), 1 is (1 (,1)) and ¯1 is (¯1 (,1)).
-⍝H
-⍝H    unsigned internal-format (vector of integers) used in unsigned routines internally.
-⍝H          ∘ Consists solely of the (positive) data vector (⊃⌽bii; 2nd element of bii)
-⍝H
-⍝H --------------------------------------------------------------------------------------------------
-⍝H  OPERANDS AND ARGUMENTS FOR BI, BII, and BIM
-⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝H        BI:  Generally returns a BigInt in External format. 
-⍝H             For boolean or logical ops:
-⍝H                Returns 1 or 0. 
-⍝H             ⍺('DivRem'BI ⍵) efficiently returns: (⍺÷BI ⍵) (⍵|BI ⍺)
-⍝H        BII: Usually returns a BigInt in Internal format. In specific cases, like BI above.
-⍝H        BIM: Requires ⍺ and ⍵ as for (fn BII) and m (divisor) as right operand ⍵⍵. 
-⍝H           23456 (×BIM 16) '9999999999'  
 ⍝H
 ⍝H  MONADIC OPERANDS: +BI ⍵
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝H  Monadic operands: -+|×÷<>!?⍎⍕ '√' '≢' '→'
 ⍝H        Right argument: ⍵ in BigInt internal or external formats (BigIntI or BigIntE).
 ⍝H        Operators: BI or BII only. BIM is only used dyadically.
 ⍝H           -BI  ⍵             Negate
-⍝H           +BI  ⍵             canonical (returns BI  ⍵ in standard form, however entered)
+⍝H           +BI  ⍵             canonical (returns ⍵ in standard bi form, however entered)
 ⍝H           |BI  ⍵             absolute value
 ⍝H           ×BI  ⍵             signum in APL format: ¯1, 0, 1
 ⍝H           ÷BI  ⍵             reciprocal (basically useless)
@@ -894,19 +905,16 @@
 ⍝H           !BI  ⍵             factorial
 ⍝H           ?BI  ⍵             Roll.  ⍵>0. Returns number between 0 and ⍵-1
 ⍝H                              ⍵=0: Returns a 100-digit number between 0 and 100⍴'1'
-⍝H           ⍎BI  ⍵             APL integer, if exponent in range of ⎕FR=1287. Else signals error.
-⍝H           ⍕BI  ⍵             string format. Same as 0 0⍕BI ⍵ 
 ⍝H           ('√'BI)  ⍵         Sqrt (alternate 'SQRT'). Use ⍺*BI 0.5 (optimized special case).
-⍝H           ⍳BI  ⍵             iota. Returns APL vector ⍳⍵ on APL-range integers only. Provided only for convenience.
+⍝H        Miscellaneous:        ≢, ⍎, →, ⍕
 ⍝H           ≢BI  ⍵             number of limbs in bii format as an APL integer.
-⍝H           →BI  ⍵             internal: returns BI  ⍵ in internal form:  signum_integer limb_numeric_vector
-⍝H        Miscellaneous:        ⍎, →, ⍕
-⍝H           ⍎BI ⍵  returns an APL integer, only if it can be represented; else error.
-⍝H           →BI ⍵  returns an internal format bii big integer, as if BII had been used.
-⍝H           ⍕BII ⍵ returns an external format bi big inger, as if BI had been used.
+⍝H           ⍎BI ⍵              an APL integer, only if it can be represented; else error.
+⍝H           →BI ⍵              an internal format bii big integer, as if BII had been used.
+⍝H           ⍕BII               string format (returns ⍵ in standard bi form, however entered)
 ⍝H
 ⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM ⍵⍵ ⊣ divisor
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+⍝H  Dyadic  operands: +-×÷*⍟|⌈⌊∨∧<≤=≥>≡≢  '√' 'DivRem'
 ⍝H        BI, BII: Arguments ⍺ and ⍵ are Big Integer internal (bii) or external formats (bi).
 ⍝H        BIM:     ⍺ (fn BIM divisor)⍵  <==>   divisor | ⍺ fn BI ⍵, except × and * are calculated efficiently within range <divisor>.
 ⍝H           ⍺ + BI  ⍵          Add
@@ -930,9 +938,20 @@
 ⍝H           ⍺ ∨ BI  ⍵          Gcd (not used for: or).  Returns bi.
 ⍝H           ⍺ ∧ BI  ⍵          Lcm (not used for: and). Returns bi.
 ⍝H           ⍺ 'DIVREM' BI  ⍵   returns two BigInts: ⌊⍺÷BI  ⍵ and  BI  ⍵|⍺
-⍝H           ⍺1 ⍺2 ⍕BI  ⍵       string format. See also ⍕BI ⍵.
-⍝H                                ⍺[0]=1: replace initial ¯ with -; 
-⍝H                                ⍺[1]=nn, place '_' separator every nn digits
+⍝H           ⍺1 [⍺2[⍺3]] ⍕BI ⍵  string format. See also ⍕BI ⍵.
+⍝H                              ⍺1=1: replace initial ¯ with -; 
+⍝H                              ⍺2=nn: place '_' separator every nn digits
+⍝H                              ⍺3=base: (first) convert to base <base>, 2≤base≤62.
+⍝H                     Example: 1 5 ⍕BI ¯00424141413414    => '-42_41414_13414'
+⍝H                              1 5 16 ⍕BI ¯00424141413414 => "-62c0c_c5c26"
+⍝H                              1 5 2 ⍕BI ¯00424141413414  => 
+⍝H                                    "11100_01011_00000_01100_11000_10111_00001_00110"
+⍝H                                     ↑_ sign bit!
+⍝H                              String format numbers output are always valid as input.
+⍝H           ⍺ = ⍵              ⍺ is numerically equal to ⍵
+⍝H           ⍺ ≠ ⍵              ⍺ is numerically not equal to ⍵
+⍝H           ⍺ ≡ ⍵              ⍺ is identical to ⍵ (see ⍺=⍵)
+⍝H           ⍺ ≢ ⍵              ⍺ is not identical to ⍵ (see ⍺≠⍵)
 ⍝H        Logical Ops:          < ≤ = ≥ > ≠  
 ⍝H           ⍺ < BI  ⍵          ⍺ < ⍵, where < is any logical op, ⍺ and ⍵ are bigints.  
 ⍝H           Return:            APL Boolean: 1 if true, else 0 (not: '1' or '0') 
