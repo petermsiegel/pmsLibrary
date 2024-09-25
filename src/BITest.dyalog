@@ -28,7 +28,7 @@
  QUIET←1 
  :If VALUE_TEST←1
       failures←0
-      :IF FASTER_TEST←1
+      :IF FASTER_TEST←0
           ⎕←'How much faster are BI and nats than big on N+N and N×N?'
           table←1 4⍴(↑'' 'op') (↑'nelem' '(N)') (↑'   BI' 'vs big') (↑'  nats' 'vs big')
           ⍞←'+'
@@ -50,6 +50,16 @@
           ⎕←table
           ⎕←'' 
       :EndIf 
+      v1←500⍴'1',⎕D
+      v2←400⍴'9',⎕D 
+      OPCODES←'+-×÷|<≤=≥>≠'
+      ⎕←'Evaluate (a +big b) vs (a +BI b), '
+      ⎕←'    where + represents ', OPCODES
+      ⎕←'and where v1: 500-digit number; v2: 400-digit number'
+      ⎕←'***** timing_BIG÷timing_BI *****'
+      :For t :IN OPCODES 
+         (5⍴t), ' big is ',' times slower than BI',⍨ 1⍕¨÷⍨/⍎∘cmpx¨ ('v1 ',t,'BI v2') ('v1 ',t,'big v2')
+      :EndFor 
      :For t :In '+-×÷∨∧⌈⌊|<≤=≥>≠'
          op←⍎t
          :Trap 0

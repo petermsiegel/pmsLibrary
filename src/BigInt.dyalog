@@ -20,7 +20,7 @@
     ⎕IO ⎕ML ⎕PP ⎕CT ⎕DCT←  0 1 34 0 0  
   ⍝ ⎕FR as set here is used below to set constant OFL (overflow) used in multiplication.  
   ⍝ It can be either 645 or 1287, but is typically ~20% faster with 645.  
-    ⎕FR← 645                
+    ⎕FR← 645                   ⍝ Do not change ⎕FR after ]load-ing BigInt (see OFL)!    
 :EndSection PREAMBLE
 
 :Section Constants 
@@ -30,7 +30,19 @@
 
   ⍝ Key Bigint constants...
   ⍝ There's little reason to play with these; perhaps in the future different numbers will have performance impact.
-    NRX2←         20                                     ⍝ Num bits in a "limb"
+  ⍝ Internal big integer (bii) format in normalized format:
+  ⍝    sign   data_field
+  ⍝    sign =>       1 (pos), ¯1 (neg), 0 (zero)
+  ⍝    data_field => a vector with 1 or more "limbs" (integers ⍵, each 0 ≤ ⍵ < RX10)
+  ⍝ When temporarily unnormalized, e.g. in unsigned utility function, 
+  ⍝ ∘ a zero value may have a sign of 1;
+  ⍝ ∘ a zero may have more than one limb with value 0 or a null value (⍬);
+  ⍝ ∘ a non-zero value may have a data field with leading zeroes;
+  ⍝ These all MUST be corrected before returning from each standard (signed) function.
+  ⍝ That is, when exporting or returning from BI, BII, BIM, results will be in
+  ⍝ a normalized form (either as an internal bii object or an external bi string).
+  ⍝ 
+    NRX2←         20                                     ⍝ Num bits in a "limb" (each APL integer)
     NRX10←        ⌊10⍟2*NRX2                             ⍝ Max num of Dec digits in a limb
     NRX2BASE←     NRX2⍴2                                 ⍝ Encode/decode binary base
     RX10BASE←     NRX10⍴10                               ⍝ Encode/decode decimal base
@@ -53,14 +65,14 @@
     TEN_BI←       1  TEN_D                               ⍝ 10
   
   ⍝ Error messages. See dfn <Er11> above.
-    eIMPORT←  'Object not a valid BigInt: '
+    eIMPORT←  'Object not a valid BigInt: '∘,'"'∘(,,⊣)  
     eDIVZERO← 'Division by zero'
-    eBADRAND← 'Arg to Roll (?) must be integer >0'
-    eFACTOR←  'Arg to factorial (!) must be ≥ 0'
+    eBADRAND← 'Arg to Roll (?) must be integer ≥0'
+    eFACTOR←  'Arg to factorial (!) must be integer ≥ 0'
     eBADRANGE←'BigInt outside dynamic range to be approximated in APL (exponent ≥ 1E6145)'
     eLOG←     'Log of a non-positive BigInteger is undefined'
     eMUL10←   'Right argument must be a small APL integer ⍵<',⍕RX10
-    eROOT←    'Base (⍺) for Root must be small non-zero integer: ⍺<',⍕RX10
+    eROOT←    'Base (⍺) for Root must be small non-zero integer <',⍕RX10
     eSUB←     'SubU LOGIC: unsigned subtraction "⍺-⍵" requires ⍺≥⍵'
 :EndSection Constants 
 
@@ -71,21 +83,25 @@
   ⍝  Returns a pair of bi's for op code 'DivRem'.
   ⍝  Returns a boolean for boolean ops dyadic <≤=≥> and ≢
   ⍝  Returns an integer for monadic ≢.
-    BI← { ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'  
-    1000:: ⎕SIGNAL/ 'BI Interrupted' 1006
-    0/⍨ ~DEBUG::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BI ',EM) EN Message}0  
-        oper im ex← ⍺⍺ map.Sel dyad     
-        r← ⍺ (oper {dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵} ) ⍵
-        ex=1: Export r ⋄ ex=0: r ⋄ Export¨ r      ⍝ DivRem returns 2 biis 
+    BI← { 
+      ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'  
+      1000:: ⎕SIGNAL/ 'BI Interrupted' 1006
+      0/⍨ ~DEBUG:: 'BI' ∆Er ⎕DMX  
+        oper im ex← ⍺⍺ map.Select dyad   
+        Exec← oper {dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵}  
+        bii← ⍺ Exec ⍵
+        ex=1: Export bii ⋄ ex=0: bii ⋄ Export¨ bii      ⍝ DivRem returns 2 biis 
     }
   ⍝ BII:   res@bii←  [⍺@bi] op BI ⍵@bi 
   ⍝  Like BI above, but leaves bigint results in internal bii form, rather than bi form.
   ⍝  Other results are as described above.
-    BII←{ ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'   
-    1000:: ⎕SIGNAL/ 'BII Interrupted' 1006
-    0/⍨ ~DEBUG:    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BII ',EM) EN Message}0 
-      oper im ex← ⍺⍺ map.Sel dyad            
-      ⍺ (oper{ dyad: ⍺ ⍺⍺⍥(Import⍣im) ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵}) ⍵
+    BII←{ 
+      ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'   
+      1000:: ⎕SIGNAL/ 'BII Interrupted' 1006
+      0/⍨ ~DEBUG:: 'BII' ∆Er ⎕DMX 
+        oper im ex← ⍺⍺ map.Select dyad 
+        Exec← oper { dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵ }         
+        ⍺ Exec ⍵
     }
 
   ⍝  BIM:   res@bi← x@bi (op BIM mod@bi) y@bi, equiv. to: Mod |BI x (fn BII) y.
@@ -93,9 +109,10 @@
   ⍝    More efficient for functions times (×) and exponent (*) and avoids some WS FULL.
   ⍝    Otherwise, identical to the multi-call version.  
   ⍝    BIM is dyadic only. 
+    
     BIM←{ 
       1006:: ⎕SIGNAL/ 'BIM Interrupted' 1006
-      0/⍨ ~DEBUG::    ⎕SIGNAL  ⊂⎕DMX.{'EM' 'EN' 'Message' ,⍥⊂¨ ('BIM: ',EM) EN Message}0 
+      0/⍨ ~DEBUG::  'BIM' ∆Er ⎕DMX 
           x y divisor← Import¨ ⍺ ⍵ ⍵⍵ 
           opc← ⍺⍺ map.GetOpCode ⍬
       opc≡ '×': Export x (divisor ModMul) y 
@@ -110,7 +127,7 @@
       null← (⎕ED⍠'ReadOnly' 1) 'h'⊣ h← '^\h*⍝H(.*)$'  ⎕S '\1' ⊢ ⎕SRC ⎕THIS 
     ∇ 
     ⎕FX 'Help' ⎕R 'HELP'⊣⎕NR 'Help'
-    ⎕←'For help: ',(⍕⎕THIS),'.Help' 
+    ⎕←↑'For help:' ,⍥⊂ '   ',(⍕⎕THIS),'.Help' 
  
    ∇ proFlg← PromoteIf proFlg ;where; bim  
     :IF proFlg 
@@ -182,13 +199,12 @@
     ⍝    nullStrOk=1: ⍵ has 0 digits? Return ZERO_BI.
     ⍝ Note: by default, we don't allow spaces, to avoid confusion with multiple BIs. 
     ⍝ By default, _ is used as a spacer on input and in "pretty" mode (1⍕...).
-    NEG_SIGNS SPACERS← '-¯' '_' 
-    ImpStr←{ ⍺←0 
-        sgn← NEG_SIGNS∊⍨ 1↑⍵                 ⍝ Remove opt'l negative sign(s)
-        str← SPACERS~⍨ ⍵↓⍨ sgn               ⍝ Remove "spacer" char(s)
-      0= ≢str:   {Er11 eIMPORT,'[null string]'}⍣(⍺=0)⊢ ZERO_BI 
-      10∊ dig← ⎕D⍳ str: Er11 eIMPORT,⍵       ⍝ str must include only chars in ⎕D and at least one.
-        ZRunChk (sgn⊃1 ¯1),⊂ rep dig         ⍝ Normalize (remove leading 0s). If d is zero, return ZERO_BI.
+    NSGNS SPCRS← '-¯' '_' 
+    ImpStr←{ ⍺←0  
+        str← SPCRS~⍨ ⍵↓⍨ s← NSGNS∊⍨ ⊃⍵  
+      0= ≢str: {Er11 eIMPORT,'[null string]'}⍣(⍺=0)⊢ ZERO_BI 
+      10∊ dig← ⎕D⍳ str: Er11 eIMPORT,⍵     ⍝ str must include only chars in ⎕D and at least one.
+        ZRunChk (s⊃1 ¯1), ⊂rep dig         ⍝ Normalize (remove leading 0s). If d is zero, return ZERO_BI.
     } 
   ⍝ ---------------------------------------------------------------------
   ⍝ Export/Exp: EXPORT a SCALAR bii to external canonical bi string.
@@ -290,16 +306,20 @@
     ⍝ BI2Str: [0 [0] [0]] BI2Str bii 
     ⍝    Convert bi to string. ⍺ defaults to 0 0 0
     ⍝      ⍺[0]=1: replace ¯ by - .  ⍺=0 (default): don't.
-    ⍝      ⍺[1]>0: place underscores every ⍺[1] digits starting at the right.
-    ⍝      ⍺[3]>0: Convert the number to base ⍺[3]. (Default is 10).
+    ⍝      ⍺[1]>0: place underscores every ⍺[1] digits as separation chars starting at the right.
+    ⍝      ⍺[2]>0: Convert the number to base ⍺[3]. (Default is 10).
+    ⍝      ⍺[3]≠0: Use char. ⍺[4] for separation chars instead of underscores  (see ⍺[1]).
       BI2Str←{ 
-          ⍺←0 0 10 ⋄ hi2lo sep base← 3↑⍺   
-          base← base 10⊃⍨ base=0
+          dBase dSepCh← 10 '_'
+          ⍺←0 0 dBase dSep ⋄ hi2lo sepN base sepCh← 4↑⍺   
+          base← base dBase⊃⍨ base=0
+          sepCh←  sepCh  dSepCh⊃⍨  sepCh=0
           arg← base ExportNewBase⊢ Import⍣ (base≠10)⊢ ⍵
+        (sepN<0)∨ sepN≠⌊sepN: Er11 'Invalid specification (⍺) to BI2Str (⍕)'
+
         0:: Er11 eIMPORT,⍕⍵
-          str← sep{
-            0=⍺: ⍵ ⋄ (⍺>0)∧⍺=⌊⍺: ('(\w)(?=(\w{',(⍕⍺),'})+$)') ⎕R '\1_'⊣ ⍵
-              Er11 'Invalid specification (⍺) to BI2Str (⍕)' 
+          str← sepN sepCh{ n c← ⍺ 
+              0=n: ⍵ ⋄ ('(\w)(?=(\w{',(⍕n),'})+$)') ⎕R ('\1',c)⊣ ⍵
           } (Exp Imp)⍣(' '≠⊃0⍴arg)⊢ arg  
         0= hi2lo: str 
         '¯'≡⊃str: str⊣ (⊃str)←'-' ⋄ str  
@@ -310,16 +330,19 @@
       }
   
   ⍝ ExportNewBase: Base Output Conversion, including to bits.
-  ⍝ Digits for base output conversation go up to base 62, using 0..9,a..z,A..Z
+  ⍝ Digits for base output conversation go up to base 62, 
+  ⍝     using 0..9,A-Z for bases up to 16
+  ⍝           0-9,a-z,A-Z for bases up to 62
     ExportNewBase←{ alignBits←0  
         ⎕IO←0 ⋄ ⍺←16 ⋄ base←⍺   
         10= base: ⍵ 
-        (⍺<2)∨⍺>≢DIGITS_EXPANDED: 11 ⎕SIGNAL⍨'BI ⍕: base (⍺) must be between 2 and ',⍕≢DIGITS_EXPANDED
+        (⍺<2)∨⍺>≢DIGITS_EXPANDED: ErBase ⍬ 
+        digStr← DIGITS_EXPANDED_SHORT DIGITS_EXPANDED ⊃⍨ base>16
         (sw w)← ⍵
         dig←{ ⍺←''
             ZERO_D≡⍵: ⍺ '0'⊃⍨0=≢⍺   
             dec rem←⍵ DivU base
-            dec ∇⍨ DIGITS_EXPANDED[rem],⍺
+            dec ∇⍨ digStr[rem],⍺
         }w
         2≠ base: dig,⍨'¯'/⍨ sw=¯1 
       ⍝ If alignBits, mantissa bits are multiples of NRX2 long, adding sign bit on left.
@@ -327,6 +350,7 @@
     }
   ⍝ See ExportNewBase
     DIGITS_EXPANDED←⎕D,(⎕C ⎕A),⎕A 
+    DIGITS_EXPANDED_SHORT← ⎕D, ⎕A 
     ⍝ ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
     ⍝ Root: A fast integer nth Root.
@@ -383,20 +407,18 @@
 
   ⍝ dyad:    compute all supported dyadic functions
       Add←{
-          (sa a)(sw w)← ⍺ ⍵
-        sa=0: sw w                             ⍝ optim: ⍺+0 → ⍺
-        sw=0: sa a                             ⍝ optim: 0+⍵ → ⍵
-        sa=sw: sa(ndnZ 0,+⌿a mix w)            ⍝ 5 + 10 or ¯5 + ¯10
-        sa<0:sw w Sub 1 a                      ⍝ Use unsigned vals: ¯10 +   5 → 5 - 10
-          sa a Sub 1 w                         ⍝ Use unsigned vals:   5 + ¯10 → 5 - 10
+          (sa a)(sw w)← ⍺ ⍵    
+        sa=0: sw w ⋄ sw=0: sa a                ⍝ optim: ⍺+0 → ⍺,  0+⍵ → ⍵
+        sa=sw: sa (ndnZ 0,+⌿a mix w)           ⍝ 5 + 10 or ¯5 + ¯10
+        <cmp a mix w: ZChk (sw)(nupZ-⌿dck w mix a)  ⍝ ⍵ Sub ⍺ 
+          ZChk sa(nupZ-⌿dck a mix w)                ⍝ ⍺ Sub ⍵ 
       }
       Sub←{
           (sa a)(sw w)← ⍺ ⍵
-        sw=0: sa a                             ⍝ optim: ⍺-0 → ⍺
-        sa=0: (-sw)w                           ⍝ optim: 0-⍵ → -⍵
+        sw=0:  sa a ⋄ sa=0: (-sw)w             ⍝ optim: ⍺-0 → ⍺, 0-⍵ → -⍵
         sa≠sw: sa(ndnZ 0,+⌿a mix w)            ⍝ 5-¯3 → 5+3 ; ¯5-3 → -(5+3)
-        <cmp a mix w: (-sw)(nupZ-⌿dck w mix a) ⍝ ⍺<⍵: 3-5 →  -(5-3)
-          sa(nupZ-⌿dck a mix w)                ⍝ a≥w: exec     5-3
+        <cmp a mix w: ZChk (-sw)(nupZ-⌿dck w mix a) ⍝ a<w: 3-5 →  -(5-3)
+          ZChk sa(nupZ-⌿dck a mix w)                ⍝ a≥w: exec     5-3
       }
 
     ⍝ See Mul, Div here.
@@ -695,7 +717,7 @@
 
 :Section Service Functions
 ⍝ ZChk ⍵:bii  If ⊃⌽⍵ is zero, ensure sign is 0. Otherwise, pass ⍵ as is.
-  ZChk←{ZERO_D≡ ⊃⌽⍵: ZERO_BI ⋄ ⍵}
+  ZChk←{ 0=≢⊃⌽⍵: ZERO_BI ⋄ ZERO_D≡ ⊃⌽⍵: ZERO_BI ⋄ ⍵}
 ⍝ ZRunChk ⍵:bi  
 ⍝    If ⊃⌽⍵ is zero after removing leading 0's, return ZERO_BI;
 ⍝    Otherwise return ⍵ w/o leading zeroes.
@@ -722,81 +744,107 @@
 ⍝ --------------------------------------------------------------------------------------------------
 
 :Section Error Handling 
-  Er1←  ⎕SIGNAL/{ 'Invalid or unimplemented monadic routine' 11 }
-  Er2←  ⎕SIGNAL/{ 'Invalid or unimplemented dyadic routine'  11}
-  Er11← ⎕SIGNAL/{ (0.7 Clip 'DOMAIN ERROR: ',⍵) 11 }   
+  ∆Er← ⎕SIGNAL { ⊂'EM' 'EN' 'Message' ,⍥⊂¨ ⍵.((⍺,' ',EM) EN Message)}
+  Er1←  { ⎕SIGNAL/ 'Invalid or unimplemented monadic routine' 11 }
+  Er2←  { ⎕SIGNAL/ 'Invalid or unimplemented dyadic routine'  11 }
+  Er11← { ⎕SIGNAL/ (0.7 Clip 'DOMAIN ERROR: ',⍵) 11 }  
+  ErBase← {
+      11  ⎕SIGNAL⍨'DOMAIN ERROR: ⍕ base (⍺[2+⎕IO]) must be between 2 and ',⍕≢DIGITS_EXPANDED
+  } 
   ⍝ ⍺ Clip ⍵:  ⍺=<ratio of ⍵=<msg string> which should be from left> with rest from right
     Clip←{p←⎕PW⋄ p≥≢⍵:⍵ ⋄ (⍵↑⍨p-∆),'…',⍵↑⍨1-∆←⌊p×1-⍺} 
 :EndSection Error Handling 
 
 :Section Opcode Mapping
   :Namespace map 
-    DEBUG← ##.DEBUG 
-    miss← ¯1   ⍝ missing value for fNm1, fNm2, exp1, exp2 
-  ⍝ FNS_MONADIC LEFT TO DO←'=≠⊥⊤→~⍳≢' 
-  ⍝ FNS_DYADIC LEFT TO DO ←('⌊⌈|∨∧⌽↑↓~⍟⍴') 
-  ⍝ op: op code, fNm1: 1adic fns, fNm2: 2adic fns, 
-  ⍝ exp1: should we export results for 1adic?, exp2: ditto 2adic?
-  ⍝ fNm1, fNm2: Use unquoted m for missing function for 1adic or 2adic op codes (opc),
-      opc←    '+'   '-'   '×'   '÷'     '*'   '|'     '∨'    '∧'   '⍟'   '⌈'    '⌊'
-      fNm1←  'Imp' 'Neg' 'Sig' 'Recip'  miss 'Abs'    miss   miss 'Log'  miss   miss
-      fNm2←  'Add' 'Sub' 'Mul' 'Div'   'Pow' 'Rem'   'Gcd'  'Lcm' 'Log' 'Max'  'Min'    
-      exp1←   1     1     1     1       miss  1       miss   miss  1     miss   miss
-      exp2←   1     1     1     1       1     1       1      1     1     1      1   
-
-      opc,←    '⍕'      '⍎'      '≡'     '≢'       '→'
-      fNm1,←  'BI2Str' 'BI2Apl'  miss   'NLimbs'  'Imp'
-      fNm2,←  'BI2Str'  miss    'Ident' 'Differ'   miss
-      exp1,←   0        0        miss    0         0
-      exp2,←   0        miss     0       0         miss
-
-      opc,←    '<'   '≤'   '='   '≥'   '>'   '≠'   '!'    '?'    '√'      
-      fNm1,←  'Dec' 'Dec'  miss 'Inc' 'Inc'  miss 'Fact' 'Roll' 'Root'    
-      fNm2,←  'Lt'  'Le'  'Eq'  'Ge'  'Gt'  'Ne'   miss   miss  'Root'           
-      exp1,←   1     1     miss  1     1     miss  1       1      1            
-      exp2,←   0     0     0     0     0     0     miss    miss   1              
-
-      opc,←   'Root' 'Sqrt' 'Log10' 'DivRem'   
-      fNm1,←  'Root' 'Root' 'Log10'  miss      
-      fNm2,←  'Root'  miss   miss   'DivRem'   
-      exp1,←   1      1      1       miss     
-      exp2,←   1      miss   miss    2         
-
-    ⍝ Index: Search op codes, ignoring case. Equivalent: 'log10' 'Log10' 'lOG10'
+      DEBUG← ##.DEBUG 
+  ⍝ opc: List of operands (functions)
+      opc←    '+' '-' '×' '÷' '*' '|' '∨' '∧' '⍟' '⌈' '⌊'
+      opc,←   '⍕' '⍎' '≡' '≢' '→' '<' '≤' '=' '≥' '>' '≠'
+      opc,←   '!' '?' '√' 'Root' 'Sqrt' 'Log10' 'DivRem'
+  ⍝ entries: Build entries database
+  ⍝ ∘ Each entry must be the valid entry point for the corresponding opcode in <opc>.
+  ⍝ ∘ Eventually each entry:  (⎕OR lib_fn)(importFlag)(exportFlag)
+  ⍝   - An invalid 1adic fn is replaced by Er1;
+  ⍝   - An invalid 2adic fn is replaced by Er2.
+      e1← ⍬       ⍝ Monadic...
+    ⍝               imp exp    Should imp be done before calling fn? Shoud exp be done after? 
+      e1,←⊂ 'Imp'     1  1
+      e1,←⊂ 'Neg'     1  1
+      e1,←⊂ 'Sig'     1  1
+      e1,←⊂ 'Recip'   1  1
+      e1,←⊂ 'Er1'     1 ¯1    ⍝ ¯1: Missing Value
+      e1,←⊂ 'Abs'     1  1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Log'     1  1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'BI2Str'  0  0
+      e1,←⊂ 'BI2Apl'  1  0
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'NLimbs'  1  0
+      e1,←⊂ 'Imp'     1  0
+      e1,←⊂ 'Dec'     1  1
+      e1,←⊂ 'Dec'     1  1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Inc'     1  1
+      e1,←⊂ 'Inc'     1  1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Fact'    1  1
+      e1,←⊂ 'Roll'    1  1
+      e1,←⊂ 'Root'    1  1
+      e1,←⊂ 'Root'    1  1
+      e1,←⊂ 'Root'    1  1
+      e1,←⊂ 'Log10'   1  1
+      e1,←⊂ 'Er1'     1 ¯1
+      e1,←⊂ 'Er1'     1 ¯1
+      e2← ⍬         ⍝ Dyadic ...          
+      e2,←⊂ 'Add'     1  1
+      e2,←⊂ 'Sub'     1  1
+      e2,←⊂ 'Mul'     1  1
+      e2,←⊂ 'Div'     1  1
+      e2,←⊂ 'Pow'     0  1
+      e2,←⊂ 'Rem'     1  1
+      e2,←⊂ 'Gcd'     1  1
+      e2,←⊂ 'Lcm'     1  1
+      e2,←⊂ 'Log'     1  1
+      e2,←⊂ 'Max'     1  1
+      e2,←⊂ 'Min'     1  1
+      e2,←⊂ 'BI2Str'  0  0
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'Ident'   1  0
+      e2,←⊂ 'Differ'  1  0
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'Lt'      1  0
+      e2,←⊂ 'Le'      1  0
+      e2,←⊂ 'Eq'      1  0
+      e2,←⊂ 'Ge'      1  0
+      e2,←⊂ 'Gt'      1  0
+      e2,←⊂ 'Ne'      1  0
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'Root'    1  1
+      e2,←⊂ 'Root'    1  1
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'Er2'     1 ¯1
+      e2,←⊂ 'DivRem'  1  2
+      e2,←⊂ 'Er2'     1 ¯1   
+      entries← ↑e1 e2 
+    ⍝ Modify entries database, replace name of math fns with a "pointer" (⎕OR) to each.
+      eLogic← 'LOGIC ERR: Missing fn '∘,'"'∘(,,⊣)  
+      (⊃¨entries)← {0:: ⎕←eLogic ⍵ ⋄ ##.⎕OR ⍵ }∘⊃¨ entries 
+      
+    ⍝ Index Utilities: Index, GetOpCode
       Index← (⎕C opc)∘⍳                             
       GetOpCode← { opc⊃⍨ ⍺⍺ Call ⍬ }
-    ⍝ 1. To both fNm1 (monadic list) and fNm2 (dyadic list), append the placeholder m (¯1);
-    ⍝ 2. Then, in fNm1 and fNm2, replace placeholder m with respective error function: 
-    ⍝    Er1 (for fNm1) and  Er2 (for fNm2)
-    ⍝ 3. Create fNm. See map.entries below.
-      fNm←     ↑ 'Er1' 'Er2' {(⊂⍺)@(miss∘≡¨)⊢⍵}¨ fNm1 fNm2,¨miss
-      expOk← ↑ exp1 exp2,∘⊂¨ miss miss        ⍝ mis: Use as placeholders for op codes not found 
-    ⍝ ⍕ (BI2Str [1-, 2-adic]), * (power [2-adic]) do their own operand decoding.          
-      impOk← 0@ (1 0 1,¨Index'*⍕⍕')⊢ 1⍴⍨ ⍴expOk          
-
-    ⍝ Mapping Utilities
-      ⍝ Index (see above)
-      ⍝ map.Call:  offset← opc map.Call opsL
-      ⍝    opc: APL_fn | 'string'. 
-      ⍝        APL_fn: e.g. +, -, etc.
-      ⍝        string: Any (quoted) string will-- for searching-- be normalized to lower case...
-      ⍝    opsL: a vector of ops, e.g. map.ops, searched for normalized <opc>
-      ⍝    Returns:
-      ⍝        the integer offset to the string in opsL (or 1+ ≢opsL, if not found)
-      Call←{ f←⍺⍺ ⋄ 3=⎕NC '⍺⍺': ⊂⍵, Index ⎕NR'f' ⋄ ⊂⍵, Index ⊂⎕C ⍺⍺ } 
-
-    ⍝ Combine (⎕OR fn), import, export into a list of entries (database), one per opc code.
-    ⍝ Each database entry has 3 elements:  
-    ⍝    "operand"         "import OK" "export OK"
-    ⍝    (⊂##.⎕OR fNm[i])   impOk[i]    expOk[i], for all i in ⍳≢fNm
-    ⍝    *** fNm[i] must be a valid function in ##.
-      eLogic← 'LOGIC ERR: Missing fn '∘,'"'∘(,,,⍨) 
-      GenDB← {0:: ⎕←eLogic ⍺ ⋄ ⍵,⍨ ⊂##.⎕OR ⍺ }¨  
-      entries← fNm GenDB impOk,¨ expOk    
-      Sel← { entries⊃⍨ ⍺⍺ Call ⍵}
+    ⍝ Mapping Utilities: Call and Select
+      Call←{ f←⍺⍺ ⋄ 3=⎕NC '⍺⍺': ⊂⍵, Index ⎕NR'f' ⋄ ⊂⍵, Index ⊂⎕C ⍺⍺ }
+      Select← { entries⊃⍨ ⍺⍺ Call ⍵}
       
-    ⍝ Keep only the list on the left for runtime...
-      ⎕EX⍣(~DEBUG)⊢  'entries' 'opc' 'Sel' 'Index' 'GetOpCode' 'Call' ~⍨ ⎕NL -2 3 4 
+    ⍝ Keep only the list here:
+      KEEP← 'entries' 'opc' 'Select' 'Index' 'GetOpCode' 'Call'
+      ⎕EX⍣(~DEBUG)⊢  KEEP~⍨ ⎕NL -2 3 4 
   :EndNamespace 
   
   :EndSection Opcode Mapping
@@ -806,30 +854,56 @@
 ⍝H The BigInt Library
 ⍝H ¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯¯¯¯
 ⍝H  Big Integer (big number) routines built on dfns::nats restructured for signed integers. 
+⍝H  Supports big integers up to the limits of the APL workspace and common sense.
 ⍝H  Significantly faster than dfns::big and less amenable to WS FULL.
 ⍝H 
 ⍝H  BigInt Routines: BI, BII, BIM, and BigInt.BI_HELP.
 ⍝H  ¨¨¨¨¨¨ ¨¨¨¨¨¨¨¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨¨ ¨¨¨ ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-⍝H  BI:  ∘ Returns big integers in a string (external) format, except for logical/boolean operands.
+⍝H         bi:  external big integer formats, strings, integers, floats (treated as integers)
+⍝H         bii: internal big integer format, viz. (sign: 1 0 ¯1)(data: ,integers)
+⍝H   BI    bi← [⍺]  +BI ⍵
 ⍝H       ∘ Syntax: bi← [bi] (opcode BI) bi
-⍝H       ∘ Example: bi← '12345' +BI '54321'
-⍝H       ∘ Example: [0|1]← '12345' =BI '54321'
-⍝H  BII: ∘ Returns big integers in a more efficient internal format (signum_scalar integer_vector). 
-⍝H         Most useful for a series of calculations, such as a factorial, etc.
+⍝H       ∘ Does all the basic monadic and dyadic math operations: + - * etc.
+⍝H          ⍺, ⍵:  any "scalar" big integer in internal bii or external bi formats.   
+⍝H          Returns for most operands: a normalized bi. See below.
+⍝H       ∘ Example: '12345' +BI '54321'
+⍝H               66666
+⍝H       ∘ Example: '12345' =BI '54321'
+⍝H               0
+⍝H   BII   bii← [⍺]  +BII ⍵
 ⍝H       ∘ Syntax: bii← [bi] (opcode BI) bi
-⍝H       ∘ Example: bii← '12345' +BII '54321'
-⍝H       ∘ Example: [0|1]← '12345' =BI '54321'
-⍝H  BIM: ∘ BI with modulo argument; efficient and compact for multiplication and exponentiation.
-⍝H       ∘ Syntax: bi← bi (opcode BIM modulo) bi  [dyadic only]
-⍝H       ∘ Example: bi← '12345' (×BIM '12')⊢'54321' is equiv. to
-⍝H       ∘ Example: bi← '12'|BI '12345' ×BI '54321', where × represents any dyadic op.
+⍝H       ∘ Does all the operations, just like BI, except for return type.
+⍝H          ⍺, ⍵:  Same as for BI.
+⍝H          Returns for most operands an "internal" bii integer. See below.
+⍝H       ∘ Example: '12345' +BII '54321'
+⍝H               1  66666 
+⍝H       ∘ Example: '12345' =BI '54321'
+⍝H               0
+⍝H   BIM    bi← ⍺ ×BIM ⍵⍵ ⊣ ⍵
+⍝H        ∘ Syntax: bi← bi (opcode BIM modulo) bi  [dyadic only]
+⍝H        ∘ Does operation  ⍵⍵ | ⍺ × ⍵ for big integers ⍺, ⍵, and integer ⍵⍵. 
+⍝H          Returns: An external format bi.
+⍝H          ∘ BIM is substantially faster for × and *, avoiding some workspace full conditions.
+⍝H          ∘ It simply calls the explicit equivalent for other functions. 
+⍝H          E.g. ⍺ ×BIM m ⊣ ⍵  gives the same result as   m |BI ⍺ ×BII ⍵ (only faster and with less memory usage)  
+⍝H          Example:
+⍝H              m←7 ⋄ a← 242334234 ⋄ b← 3432
+⍝H              ≢a *BI b       ⍝ How many digits in a*b?
+⍝H            28776
+⍝H              a (*BIM m)b    ⍝ Final modulo result of m| a* b?
+⍝H            1
+⍝H              ⍝*** BIM is 1450 times faster here! 
+⍝H              ⍝*** Most of the time is spent in the modulo of the 28776-digit number. 
+⍝H              cmpx 'a (*BIM m)b' 'm |BI a *BI b'   
+⍝H            a (*BIM m)b   → 4.0E¯3 |       0%                                         
+⍝H            m |BI a *BI b → 5.8E0  | +144325% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
 ⍝H  BigInt.BI_HELP
 ⍝H       ∘ Display this "help" information.
 ⍝H       ∘ Syntax:  BigInt.BI_HELP
 ⍝H 
 ⍝H  Operands to BI, BII, BIM
 ⍝H  ¨¨¨¨¨¨¨¨ ¨¨ ¨¨¨ ¨¨¨¨ ¨¨¨
-⍝H  Monadic operands: -+|×÷<>!?⍎⍕ '√' '≢' '→'
+⍝H  Monadic operands: +-|×÷<>!?⍎⍕ '√' '≢' '→'
 ⍝H  Dyadic  operands: +-×÷*⍟|⌈⌊∨∧<≤=≥>≡≢  '√' 'DivRem'
 ⍝H  
 ⍝H  INPUT ARGUMENTS TO BI, BII, BIM
@@ -841,11 +915,12 @@
 ⍝H      ∘ for output, strings won't have underscores and will use ¯ for negative numbers,
 ⍝H        but see dyadic ⍕ for alternatives.
 ⍝H    ∘ an integer (123456), 
-⍝H    ∘ a float to be treated as an integer may have a large pos. exponent (123E145),
+⍝H    ∘ a float to be treated as an integer may have a large pos. exponent (up to 1E6144).
 ⍝H        ∘ While precision here is limited to APL's precision, the exponent will be
 ⍝H          honored as an appropriate number of trailing 0s.
 ⍝H             2.3E33  ==>  '2300000000000000000000000000000000'
-⍝H    ∘ a few special cases for (square, cube, etc.) roots: 0.5, '÷2', etc.
+⍝H    ∘ a few special cases for expressing roots (square root, cube root, etc.)
+⍝H      using the power operand: '12345' *BI 0.5,  '12345 *BI'÷2', etc.
 ⍝H    See below for further details on bi and bii formats.
 ⍝H 
 ⍝H    RETURN VALUES FROM BI, BIM (not BII): bi
@@ -873,46 +948,33 @@
 ⍝H               a bii of 0 is (0 (,0)), 1 is (1 (,1)) and ¯1 is (¯1 (,1)).
 ⍝H    Logical routines and some others return booleans or APL integers.
 ⍝H
-⍝H   BI     bi← [⍺]  +BI ⍵
-⍝H          Does all the basic monadic and dyadic math operations: + - * etc.
-⍝H          ⍺, ⍵:  any "scalar" big integer in internal (BigIntI) or external (BigIntE) formats.   
-⍝H          Returns for most operands: a normalized bi. See below.
-⍝H   BII    bii← [⍺]  +BII ⍵
-⍝H          Does all the operations, just like BI, except for return type.
-⍝H          ⍺, ⍵:  Same as for BI.
-⍝H          Returns for most operands an "internal" bii integer. See below.
-⍝H   BIM    bi← ⍺ ×BIM ⍵⍵ ⊣ ⍵
-⍝H          Does operation  ⍵⍵ | ⍺ × ⍵ for big integers ⍺, ⍵, and integer ⍵⍵. 
-⍝H          Returns: An external format BigIntE.
-⍝H          Specifically:
-⍝H                 ⍺ ×BIM m ⊣ ⍵   is the same as    m |BI ⍺ ×BII ⍵   (except faster and less likely to trigger a WS FULL)
-⍝H          BIM is optimized for functions × (Mul) and * (Pow: integer ⍵≥0) so far.  
-⍝H          For other operations, calls modulo after performing <op>.
-⍝H
 ⍝H
 ⍝H  MONADIC OPERANDS: +BI ⍵
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H  Monadic operands: -+|×÷<>!?⍎⍕ '√' '≢' '→'
-⍝H        Right argument: ⍵ in BigInt internal or external formats (BigIntI or BigIntE).
+⍝H        Right argument: ⍵ in BigInt internal (bii) or external formats (bi)
 ⍝H        Operators: BI or BII only. BIM is only used dyadically.
 ⍝H           -BI  ⍵             Negate
-⍝H           +BI  ⍵             canonical (returns ⍵ in standard bi form, however entered)
+⍝H           +BI  ⍵             canonical (essentially a null operation)
+⍝H                     Returns: standard bi (BI) or bii (BII) form, however entered.
 ⍝H           |BI  ⍵             absolute value
-⍝H           ×BI  ⍵             signum in APL format: ¯1, 0, 1
-⍝H           ÷BI  ⍵             reciprocal (basically useless)
+⍝H           ×BI  ⍵             signum
+⍝H                     Returns: APL format: ¯1, 0, 1
+⍝H           ÷BI  ⍵             reciprocal (basically useless, returns 0 unless ⍵ is 1)
 ⍝H           <BI  ⍵             decrement (alternate ≤). Optimized except when overflow/underflow occur.
 ⍝H           >BI  ⍵             increment (alternate ≥). Optimized (ditto).
-⍝H           !BI  ⍵             factorial
-⍝H           ?BI  ⍵             Roll.  ⍵>0. Returns number between 0 and ⍵-1
-⍝H                              ⍵=0: Returns a 100-digit number between 0 and 100⍴'1'
-⍝H           ('√'BI)  ⍵         Sqrt (alternate 'SQRT'). Use ⍺*BI 0.5 (optimized special case).
+⍝H           !BI  ⍵             factorial. ⍵ an integer.
+⍝H           ?BI  ⍵             Roll.  ⍵>0. Returns integer between 0 and ⍵-1
+⍝H                              ⍵=0: Returns a 100-digit integer between 0 and 100⍴'1'
+⍝H           ('√'BI)  ⍵         sqrt. Use ⍺*BI 0.5 (optimized special case). 
+⍝H                              Aliases: 'Sqrt', 'Root'
 ⍝H        Miscellaneous:        ≢, ⍎, →, ⍕
 ⍝H           ≢BI  ⍵             number of limbs in bii format as an APL integer.
 ⍝H           ⍎BI ⍵              an APL integer, only if it can be represented; else error.
 ⍝H           →BI ⍵              an internal format bii big integer, as if BII had been used.
 ⍝H           ⍕BII               string format (returns ⍵ in standard bi form, however entered)
 ⍝H
-⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM ⍵⍵ ⊣ divisor
+⍝H  DYADIC OPERANDS: ⍺ ×BI ⍵, ⍺ ×BII ⍵, ⍺ ×BIM divisor ⊣⍵
 ⍝H  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H  Dyadic  operands: +-×÷*⍟|⌈⌊∨∧<≤=≥>≡≢  '√' 'DivRem'
 ⍝H        BI, BII: Arguments ⍺ and ⍵ are Big Integer internal (bii) or external formats (bi).
@@ -930,32 +992,49 @@
 ⍝H                                Fourth root: 0.25  or ÷4 or '÷4'.  Also (4'√'BI) ⍺
 ⍝H                                etc.
 ⍝H                              If ⍵ is any negative integer, the result is trivially 0.
-⍝H           ⍺ ('√' BI)  ⍵      BI  ⍵th Root ⍺. Same as ⍵ *BI ('÷⍺')                                                    cube Root: 3 ('√' BI) BI  ⍵
+⍝H           ⍺ ('√' BI)  ⍵      ⍺-th root of ⍵. Same as ⍵ *BI ÷⍺. ⍺: integer ≥0. 
+⍝H                              Alias 'root'.
+⍝H                     Example: Cube Root: 3 ('√' BI) ⍵  (same as ⍵ *BI ÷3)
 ⍝H           ⍺ ⍟ BI  ⍵          ⌊(Log of ⍵ in integral base ⍺). Optimized for powers of 10 only.
-⍝H           ⍺ | BI  ⍵          remainder ⍺ | BI  ⍵
+⍝H           ⍺ | BI  ⍵          remainder (as for APL ⍺|⍵)
 ⍝H           ⍺ ⌈ BI  ⍵          max
 ⍝H           ⍺ ⌊ BI  ⍵          min
-⍝H           ⍺ ∨ BI  ⍵          Gcd (not used for: or).  Returns bi.
-⍝H           ⍺ ∧ BI  ⍵          Lcm (not used for: and). Returns bi.
-⍝H           ⍺ 'DIVREM' BI  ⍵   returns two BigInts: ⌊⍺÷BI  ⍵ and  BI  ⍵|⍺
-⍝H           ⍺1 [⍺2[⍺3]] ⍕BI ⍵  string format. See also ⍕BI ⍵.
-⍝H                              ⍺1=1: replace initial ¯ with -; 
-⍝H                              ⍺2=nn: place '_' separator every nn digits
-⍝H                              ⍺3=base: (first) convert to base <base>, 2≤base≤62.
-⍝H                     Example: 1 5 ⍕BI ¯00424141413414    => '-42_41414_13414'
-⍝H                              1 5 16 ⍕BI ¯00424141413414 => "-62c0c_c5c26"
-⍝H                              1 5 2 ⍕BI ¯00424141413414  => 
-⍝H                                    "11100_01011_00000_01100_11000_10111_00001_00110"
-⍝H                                     ↑_ sign bit!
-⍝H                              String format numbers output are always valid as input.
+⍝H           ⍺ ∨ BI  ⍵          Gcd (not used for: or).  Returns a big int.
+⍝H           ⍺ ∧ BI  ⍵          Lcm (not used for: and). Returns a big int.
+⍝H           ⍺ 'DivRem' BI  ⍵   returns two BigInts: (⌊⍺÷⍵) and (⍵|⍺)
+⍝H        Logical Ops:          < ≤ = ≥ > ≠ ≡ ≢  
+⍝H                   Return:    APL Boolean: 1 if true, else 0 (not: '1' or '0') 
+⍝H           ⍺ < BI  ⍵          ⍺ < ⍵, where < is any logical op, ⍺ and ⍵ are bigints.  
 ⍝H           ⍺ = ⍵              ⍺ is numerically equal to ⍵
 ⍝H           ⍺ ≠ ⍵              ⍺ is numerically not equal to ⍵
 ⍝H           ⍺ ≡ ⍵              ⍺ is identical to ⍵ (see ⍺=⍵)
 ⍝H           ⍺ ≢ ⍵              ⍺ is not identical to ⍵ (see ⍺≠⍵)
-⍝H        Logical Ops:          < ≤ = ≥ > ≠  
-⍝H           ⍺ < BI  ⍵          ⍺ < ⍵, where < is any logical op, ⍺ and ⍵ are bigints.  
-⍝H           Return:            APL Boolean: 1 if true, else 0 (not: '1' or '0') 
+⍝H        String Format:
+⍝H           opts ⍕BI ⍵         string format. See also ⍕BI ⍵.
+⍝H                        opts: ⍺1 [⍺2 [⍺3 [⍺4]]], defaults: 0 0 10 '_'
+⍝H                              ⍺1=1:     replace initial ¯ with -; default (leave ¯ as is). 
+⍝H                              ⍺2=sepN:  insert separator char every N digits; default none.
+⍝H                              ⍺3=base:  (first) convert to base <base>, 2≤base≤62.
+⍝H                              ⍺4=sepCh: the separator char; default sepCh='_'.
+⍝H                     Examples: 
+⍝H                              1 5 ⍕BI ¯00424141413414     ⍝ separators every 5 "digits" 
+⍝H                         -42_41414_13414
+⍝H                              1 5 16 ⍕BI ¯00424141413414  ⍝ base 16
+⍝H                         -62C0C_C5C26
+⍝H                              0 0 16 ⍕BI 3735928559       ⍝ more!
+⍝H                         DEADBEEF
+⍝H                              0 4 16 ⍕BI 3735928559       ⍝ and more!
+⍝H                         DEAD_BEEF
+⍝H                              1 8 2 ⍕BI ¯00424141413414   ⍝ output binary with separators
+⍝H                         11100010_11000000_11001100_01011100_00100110
+⍝H                         ↑_ sign bit for entire sequence!
 ⍝H
+⍝H DEBUGGING
+⍝H ¨¨¨¨¨¨¨¨¨
+⍝H For debugging, set 
+⍝H     #.BigInt.DEBUG←1.  
+⍝H This will suppress error trapping.
+⍝H 
 :EndSection Help Documentation
 
 :ENDNAMESPACE
