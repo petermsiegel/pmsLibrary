@@ -87,8 +87,8 @@
       ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'  
       1000:: ⎕SIGNAL/ 'BI Interrupted' 1006
       0/⍨ ~DEBUG:: 'BI' ∆Er ⎕DMX  
-        oper im ex← ⍺⍺ map.Select dyad   
-        Exec← oper {dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵}  
+        oper im ex← ⍺⍺ map.GetEntry dyad   
+        Exec← oper {dyad: ⍺ ⍺⍺⍥(Import⍣im) ⍵ ⋄ ⍺⍺ (Import⍣im) ⍵}  
         bii← ⍺ Exec ⍵
         ex=1: Export bii ⋄ ex=0: bii ⋄ Export¨ bii      ⍝ DivRem returns 2 biis 
     }
@@ -99,7 +99,7 @@
       ⍺←⊢ ⋄ dyad←2=⎕NC'⍺'   
       1000:: ⎕SIGNAL/ 'BII Interrupted' 1006
       0/⍨ ~DEBUG:: 'BII' ∆Er ⎕DMX 
-        oper im ex← ⍺⍺ map.Select dyad 
+        oper im ex← ⍺⍺ map.GetEntry dyad 
         Exec← oper { dyad: ⍺ ⍺⍺⍥(Import⍣im)⊢ ⍵ ⋄ ⍺⍺ Import⍣im⊢ ⍵ }         
         ⍺ Exec ⍵
     }
@@ -114,20 +114,18 @@
       1006:: ⎕SIGNAL/ 'BIM Interrupted' 1006
       0/⍨ ~DEBUG::  'BIM' ∆Er ⎕DMX 
           x y divisor← Import¨ ⍺ ⍵ ⍵⍵ 
-          opc← ⍺⍺ map.GetOpCode ⍬
+          opc← ⍺⍺ map.GetOpCode 1
       opc≡ '×': Export x (divisor ModMul) y 
       opc≡ '*': Export x (divisor ModPow) y 
                 Export divisor |BII x (opc BII) y 
     }
 
   ⍝ Help:  Shows help documentation for BigInt calls.
-  ⍝    null← BigInt.Help
-    ∇ {null}← Help; h; ⎕PW
+    ∇ {null}← BI_HELP; h; ⎕PW
       ⎕PW←120 
       null← (⎕ED⍠'ReadOnly' 1) 'h'⊣ h← '^\h*⍝H(.*)$'  ⎕S '\1' ⊢ ⎕SRC ⎕THIS 
     ∇ 
-    ⎕FX 'Help' ⎕R 'HELP'⊣⎕NR 'Help'
-    ⎕←↑'For help:' ,⍥⊂ '   ',(⍕⎕THIS),'.Help' 
+    ⎕←↑'For help:' ,⍥⊂ '   ',(⍕⎕THIS),'.BI_HELP' 
  
    ∇ proFlg← PromoteIf proFlg ;where; bim  
     :IF proFlg 
@@ -171,7 +169,7 @@
     Import←{                    
         ¯2=≡⍵:    ⍵             ⍝ Fast: bii (depth: ¯2) are of form:  [1|0|¯1] [int vector]
         type←80|⎕DR ⍵
-        type=0:   ImpStr ⍵    ⋄ type=3: ImpAplInt ⍵ ⋄ 
+        type=0:   ImpStr ⍵    ⋄ type=3: ImpAplInt ⍵  
         type∊5 7: ImpFloat  ⍵ ⋄ Er11 eIMPORT,⍕⍵
     }
     Imp← Import 
@@ -398,7 +396,7 @@
     Sqrt←Root
  
   ⍝ Recip:  ÷⍵← → 1÷⍵. Effectively useless, since ÷⍵ is 0 unless ⍵ is 1 or ¯1.
-    Recip←{{0=≢⍵: ÷0 ⋄ 1≠≢⍵:0 ⋄ 1=|⍵:⍵ ⋄ 0}dlzRun ⍵}
+    Recip←{ sw w← (⊃⍵) (dlzRun ⊃⌽⍵) ⋄ ONE_D≡w: sw (ONE_D) ⋄ ZERO_D≢w: ZERO_BI ⋄ ÷0  }
 
 :EndSection Monadic Functions/Operations
 ⍝ --------------------------------------------------------------------------------------------------
@@ -758,97 +756,94 @@
 :Section Opcode Mapping
   :Namespace map 
       DEBUG← ##.DEBUG 
-  ⍝ opc: List of operands (functions)
-      opc←    '+' '-' '×' '÷' '*' '|' '∨' '∧' '⍟' '⌈' '⌊'
-      opc,←   '⍕' '⍎' '≡' '≢' '→' '<' '≤' '=' '≥' '>' '≠'
-      opc,←   '!' '?' '√' 'Root' 'Sqrt' 'Log10' 'DivRem'
-  ⍝ entries: Build entries database
-  ⍝ ∘ Each entry must be the valid entry point for the corresponding opcode in <opc>.
-  ⍝ ∘ Eventually each entry:  (⎕OR lib_fn)(importFlag)(exportFlag)
-  ⍝   - An invalid 1adic fn is replaced by Er1;
-  ⍝   - An invalid 2adic fn is replaced by Er2.
-      e1← ⍬       ⍝ Monadic...
-    ⍝               imp exp    Should imp be done before calling fn? Shoud exp be done after? 
-      e1,←⊂ 'Imp'     1  1
-      e1,←⊂ 'Neg'     1  1
-      e1,←⊂ 'Sig'     1  1
-      e1,←⊂ 'Recip'   1  1
-      e1,←⊂ 'Er1'     1 ¯1    ⍝ ¯1: Missing Value
-      e1,←⊂ 'Abs'     1  1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Log'     1  1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'BI2Str'  0  0
-      e1,←⊂ 'BI2Apl'  1  0
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'NLimbs'  1  0
-      e1,←⊂ 'Imp'     1  0
-      e1,←⊂ 'Dec'     1  1
-      e1,←⊂ 'Dec'     1  1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Inc'     1  1
-      e1,←⊂ 'Inc'     1  1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Fact'    1  1
-      e1,←⊂ 'Roll'    1  1
-      e1,←⊂ 'Root'    1  1
-      e1,←⊂ 'Root'    1  1
-      e1,←⊂ 'Root'    1  1
-      e1,←⊂ 'Log10'   1  1
-      e1,←⊂ 'Er1'     1 ¯1
-      e1,←⊂ 'Er1'     1 ¯1
-      e2← ⍬         ⍝ Dyadic ...          
-      e2,←⊂ 'Add'     1  1
-      e2,←⊂ 'Sub'     1  1
-      e2,←⊂ 'Mul'     1  1
-      e2,←⊂ 'Div'     1  1
-      e2,←⊂ 'Pow'     0  1
-      e2,←⊂ 'Rem'     1  1
-      e2,←⊂ 'Gcd'     1  1
-      e2,←⊂ 'Lcm'     1  1
-      e2,←⊂ 'Log'     1  1
-      e2,←⊂ 'Max'     1  1
-      e2,←⊂ 'Min'     1  1
-      e2,←⊂ 'BI2Str'  0  0
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'Ident'   1  0
-      e2,←⊂ 'Differ'  1  0
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'Lt'      1  0
-      e2,←⊂ 'Le'      1  0
-      e2,←⊂ 'Eq'      1  0
-      e2,←⊂ 'Ge'      1  0
-      e2,←⊂ 'Gt'      1  0
-      e2,←⊂ 'Ne'      1  0
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'Root'    1  1
-      e2,←⊂ 'Root'    1  1
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'Er2'     1 ¯1
-      e2,←⊂ 'DivRem'  1  2
-      e2,←⊂ 'Er2'     1 ¯1   
-      entries← ↑e1 e2 
-    ⍝ Modify entries database, replace name of math fns with a "pointer" (⎕OR) to each.
-      eLogic← 'LOGIC ERR: Missing fn '∘,'"'∘(,,⊣)  
-      (⊃¨entries)← {0:: ⎕←eLogic ⍵ ⋄ ##.⎕OR ⍵ }∘⊃¨ entries 
-      
-    ⍝ Index Utilities: Index, GetOpCode
-      Index← (⎕C opc)∘⍳                             
-      GetOpCode← { opc⊃⍨ ⍺⍺ Call ⍬ }
-    ⍝ Mapping Utilities: Call and Select
-      Call←{ f←⍺⍺ ⋄ 3=⎕NC '⍺⍺': ⊂⍵, Index ⎕NR'f' ⋄ ⊂⍵, Index ⊂⎕C ⍺⍺ }
-      Select← { entries⊃⍨ ⍺⍺ Call ⍵}
-      
-    ⍝ Keep only the list here:
-      KEEP← 'entries' 'opc' 'Select' 'Index' 'GetOpCode' 'Call'
-      ⎕EX⍣(~DEBUG)⊢  KEEP~⍨ ⎕NL -2 3 4 
+  ⍝ To generate entries database, we replace name of each math fn with an obj. rep (⎕OR) of each.
+      ErLogic← 'BI LOGIC ERR: Missing library fn '∘,'"'∘(,,⊣)
+      LoadDB← { fNm← 1⊃⍵ ⋄ 0:: ⎕← ErLogic fNm  ⋄ (2↓⍵),⍨ ⊂##.⎕OR fNm }
+  ⍝ Runtime Mapping Fns
+    ⍝ Call:      index← opCodeIn Call valence
+      Call←{ f←⍺⍺ ⋄ opC← ⍵⊃ opCodes ⋄ 3=⎕NC '⍺⍺': ⍵, opC⍳ ⎕NR'f' ⋄ ⍵, opC⍳ ⊂⎕C ⍺⍺ }
+    ⍝ GetOpCode: opCode← opCodeIn GetOpCode valence
+      GetOpCode← { opCodes⊃⍨ ⍺⍺ Call ⍵ }
+    ⍝ GetEntry:    entry← opCode GetEntry valence
+      GetEntry← { entries⊃⍨ ⍺⍺ Call ⍵}
+
+  ⍝ opCode:  List of operation codes
+  ⍝ entries: A database of object representations, import flag and export flag.
+  ⍝ Here we have 4 items per entry:
+  ⍝   [0] opCode [1] fnName [2] import_before_call [3] export_after_call
+  ⍝   Each fnName must be an existing math or error function in ##.
+  ⍝ After processing, 
+  ⍝   entries (2 lists: 1 for 1-adic, one for 2-adic) of the form
+  ⍝     [0] all entries for 1-adic op codes [1] ditto for 2-adic op codes
+  ⍝   where each entry is of the form:
+  ⍝     [0] (##.⎕OR fnName) [1] import_before_call [2] export_after_call 
+  ⍝   opCodes (2 lists: as above)
+  ⍝     [0] list of all 1-adic op codes [2] list of all 2-adic op codes
+  ⍝   opCodes function as the "keys" and entries as the "values" within each valence.
+  ⍝ If we search for an opCode, which is missing, the returned ⎕OR is:
+  ⍝   for 1-adic fns: (##.⎕OR 'Er1')
+  ⍝   for 2-adic fns: (##.⎕OR 'Er2'
+  ⍝
+  ⍝ e1: Monadic...
+    e1← ⍬       
+    e1,←⊂ '+' 'Imp'     1  1
+    e1,←⊂ '-' 'Neg'     1  1
+    e1,←⊂ '×' 'Sig'     1  1
+    e1,←⊂ '÷' 'Recip'   1  1
+    e1,←⊂ '|' 'Abs'     1  1
+    e1,←⊂ '⍟' 'Log'     1  1
+    e1,←⊂ '⍕' 'BI2Str'  0  0
+    e1,←⊂ '⍎' 'BI2Apl'  1  0
+    e1,←⊂ '≢' 'NLimbs'  1  0
+    e1,←⊂ '→' 'Imp'     1  0
+    e1,←⊂ '<' 'Dec'     1  1
+    e1,←⊂ '≤' 'Dec'     1  1
+    e1,←⊂ '≥' 'Inc'     1  1
+    e1,←⊂ '>' 'Inc'     1  1
+    e1,←⊂ '!' 'Fact'    1  1
+    e1,←⊂ '?' 'Roll'    1  1
+    e1,←⊂ '√' 'Root'    1  1
+    e1,←⊂ 'Root'   'Root'    1  1
+    e1,←⊂ 'Sqrt'   'Root'    1  1
+    e1,←⊂ 'Log10'  'Log10'   1  1
+    e1,←⊂  ¯1      'Er1'     1 ¯1         ⍝ Entry for missing 1-adic opCodes
+  ⍝ e2: Dyadic ...      
+    e2← ⍬             
+    e2,←⊂ '+' 'Add'     1  1
+    e2,←⊂ '-' 'Sub'     1  1
+    e2,←⊂ '×' 'Mul'     1  1
+    e2,←⊂ '÷' 'Div'     1  1
+    e2,←⊂ '*' 'Pow'     0  1
+    e2,←⊂ '|' 'Rem'     1  1
+    e2,←⊂ '∨' 'Gcd'     1  1
+    e2,←⊂ '∧' 'Lcm'     1  1
+    e2,←⊂ '⍟' 'Log'     1  1
+    e2,←⊂ '⌈' 'Max'     1  1
+    e2,←⊂ '⌊' 'Min'     1  1
+    e2,←⊂ '⍕' 'BI2Str'  0  0
+    e2,←⊂ '≡' 'Ident'   1  0
+    e2,←⊂ '≢' 'Differ'  1  0
+    e2,←⊂ '<' 'Lt'      1  0
+    e2,←⊂ '≤' 'Le'      1  0
+    e2,←⊂ '=' 'Eq'      1  0
+    e2,←⊂ '≥' 'Ge'      1  0
+    e2,←⊂ '>' 'Gt'      1  0
+    e2,←⊂ '≠' 'Ne'      1  0
+    e2,←⊂ '√' 'Root'    1  1
+    e2,←⊂ 'Root'   'Root'    1  1
+    e2,←⊂ 'DivRem' 'DivRem'  1  2
+    e2,←⊂  ¯1      'Er2'     1 ¯1         ⍝ Entry for missing 2-adic opCodes
+
+    opCodes← (1500⌶)¨ ⎕C ⊃¨¨ ¯1↓¨e1 e2 
+    entries← LoadDB¨¨ e1 e2 
+    
+  ⍝ Keep only the list here:
+    KEEP← 'entries' 'opCodes' 'GetEntry' 'GetOpCode' 'Call'
+    ⎕EX⍣(~DEBUG)⊢  KEEP~⍨ ⎕NL -2 3 4 
   :EndNamespace 
   
   :EndSection Opcode Mapping
-      _←1 ⎕EXPORT 'BI' 'BII' 'BIM' 'HELP'⊣ 0 ⎕EXPORT ⎕NL 3 4
+      _←1 ⎕EXPORT 'BI' 'BII' 'BIM' 'BI_HELP'⊣ 0 ⎕EXPORT ⎕NL 3 4
 
 :Section Help Documentation
 ⍝H The BigInt Library

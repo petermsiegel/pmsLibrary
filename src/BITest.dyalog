@@ -8,6 +8,8 @@
  UCMD'load BigInt'
  UCMD'load Cmpy'
 
+ OPCODES←'+-×÷|<≤=≥>≠'
+
  'big' 'nats' 'cmpx' ⎕CY'dfns'
 
  ⎕TRAP←1000 'C' '→0⊣⎕←table⊣⎕←''Interrupted. Bye!'''
@@ -26,7 +28,18 @@
      TIME← 1∘Cmpy 
 :EndIF 
  QUIET←1 
- :If VALUE_TEST←1
+ :IF EQUIV_TEST←1
+     :FOR c :IN OPCODES
+         f← ⍎c 
+         ⍞←(3⍴c),' (p100 ',c,'BI p100) vs (p100 ',c,'big p100)' 
+         :IF (⍕p100 (c BI) p100)≡(⍕p100 (f big) p100)
+              ⍞←' Pass',⎕UCS 13
+         :Else
+              ⍞←' Fail',⎕UCS 13
+         :EndIf 
+      :EndFor 
+ :Endif 
+ :If VALUE_TEST←0
       failures←0
       :IF FASTER_TEST←0
           ⎕←'How much faster are BI and nats than big on N+N and N×N?'
