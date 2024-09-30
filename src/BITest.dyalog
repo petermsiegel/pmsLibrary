@@ -1,151 +1,41 @@
 ﻿ BITest
- ;a;m;p10;p100;pN;pList;p_1List;pS;m;op;t;vs
- ;i10;i100 
- ;big;nats;Cmpy;cmpx;STD_TIME; TIME 
- ;ADHOC; VALUE_TEST;QUIET; TIME_TEST
- ;⎕IO;⎕TRAP
+ ; big; nats; cmpx
+ ; BI; BII; BIM
+ ; BIGR; SMALLR 
+ ; L; R 
+ ; LENL; LENR; OP 
 
- UCMD'load BigInt'
+⍝ BI, BIM, BII: Global 
+ UCMD'load BigInt' 
  UCMD'load Cmpy'
-
- OPCODES←'+-×÷|<≤=≥>≠'
-
  'big' 'nats' 'cmpx' ⎕CY'dfns'
 
- ⎕TRAP←1000 'C' '→0⊣⎕←table⊣⎕←''Interrupted. Bye!'''
+ BIGR←   '+-×|<≤=≥>≠'
+ SMALLR← '*' 'ROOT'
 
- p100←100⍴'1',⎕D
- p10←10⍴p100
- m←'¯',p100 
- a←1234
- i100← →BI p100
- i10← →BI p10
+ SameBig← {  aa←⍎⍺⍺ ⋄ ok← (⍕⍺ (aa big) ⍵ )  ≡ ⍕⍺ (aa BI) ⍵ ⋄ ok⊃ 'Different' 'Same'}
+ SameNats← { aa←⍎⍺⍺ ⋄ ok← (⍕⍺ (aa nats) ⍵ ) ≡ ⍕⍺ (aa BI) ⍵ ⋄ ok⊃ 'Different' 'Same'}
+ TBig← {  L R⊢← ⍺ ⍵ ⋄  w ∆¯10↑'%',⍨0⍕w← 100×÷⍨/⍎∘cmpx¨'⍺⍺' ⎕R ⍺⍺⊢ '(L (⍺⍺ BI) R)' '(L (⍺⍺ big) R)' }
+ TNats← { L R⊢← ⍺ ⍵ ⋄  w ∆¯10↑'%',⍨0⍕w← 100×÷⍨/⍎∘cmpx¨'⍺⍺' ⎕R ⍺⍺⊢ '(L (⍺⍺ BI) R)' '(L (⍺⍺ nats) R)'}
+ ∆← { 
+     ⍺<100:  ⍵,' < ',(k⍴'⌷'),(0⌈15-k)⍴'.'   ⊣ k← ⌈⍺÷10
+             ⍵,' < ', (15⍴'∘'),'+',(15⌊⌈10⍟⍺÷10)⍴'⎕'
+  }
 
- STD_TIME← 0
- :IF STD_TIME
-     TIME← cmpx   
-:Else 
-     TIME← 1∘Cmpy 
-:EndIF 
- QUIET←1 
- :IF EQUIV_TEST←1
-     :FOR c :IN OPCODES
-         f← ⍎c 
-         ⍞←(3⍴c),' (p100 ',c,'BI p100) vs (p100 ',c,'big p100)' 
-         :IF (⍕p100 (c BI) p100)≡(⍕p100 (f big) p100)
-              ⍞←' Pass',⎕UCS 13
-         :Else
-              ⍞←' Fail',⎕UCS 13
-         :EndIf 
-      :EndFor 
- :Endif 
- :If VALUE_TEST←0
-      failures←0
-      :IF FASTER_TEST←0
-          ⎕←'How much faster are BI and nats than big on N+N and N×N?'
-          table←1 4⍴(↑'' 'op') (↑'nelem' '(N)') (↑'   BI' 'vs big') (↑'  nats' 'vs big')
-          ⍞←'+'
-          :FOR N :IN 100 10000  
-              ⍞←(⍕N),' '
-              pN← N⍴'1',⎕D 
-              B n b← ⍎∘cmpx¨ 'pN +BI pN' 'pN +nats pN' 'pN +big pN'
-              table⍪←'+' N (⍎0 1⍕B÷⍨b) (⍎0 1⍕n÷⍨b)
-          :EndFor 
-          ⍞←⎕UCS 13 
-          ⍞←'×'
-          :FOR N :IN 100 1000
-              ⍞←(⍕N),' '
-              pN← N⍴'1',⎕D 
-              B n b← ⍎∘cmpx¨ 'pN ×BI pN' 'pN ×nats pN' 'pN ×big pN'
-              table⍪←'×' N (⍎0 1⍕B÷⍨b) (⍎0 1⍕n÷⍨b)
-          :EndFor
-          ⎕←''
-          ⎕←table
-          ⎕←'' 
-      :EndIf 
-      v1←500⍴'1',⎕D
-      v2←400⍴'9',⎕D 
-      OPCODES←'+-×÷|<≤=≥>≠'
-      ⎕←'Evaluate (a +big b) vs (a +BI b), '
-      ⎕←'    where + represents ', OPCODES
-      ⎕←'and where v1: 500-digit number; v2: 400-digit number'
-      ⎕←'***** timing_BIG÷timing_BI *****'
-      :For t :IN OPCODES 
-         (5⍴t), ' big is ',' times slower than BI',⍨ 1⍕¨÷⍨/⍎∘cmpx¨ ('v1 ',t,'BI v2') ('v1 ',t,'big v2')
-      :EndFor 
-     :For t :In '+-×÷∨∧⌈⌊|<≤=≥>≠'
-         op←⍎t
-         :Trap 0
-             :If (p100 op nats p10)≡p100 op BI p10
-               :IF ~QUIET ⋄  t,' BI vs nats test ok' ⋄ :ENDIF 
-             :EndIf
-         :Else
-             failures+← 1 
-             t,' BI vs nats test failed'
-         :EndTrap
-     :EndFor
+ ⎕TRAP←1000 'C' '→0⊣⎕←''Interrupted. Bye!'''
 
-     :If (p10*nats a)≡(p10*BI a)
-         :If ~QUIET ⋄ '* BI vs nats test ok' ⋄ :ENDIF 
-     :EndIf
+ :FOR LENL LENR  :ineach  (1000 1000 100 100) (999 10 99 10)
+       L← LENL⍴'5',⎕D
+       R← LENR⍴'9',⎕D
+       ⎕←'LENL=',LENL,' LENR=',LENR 
+       :FOR OP :in BIGR 
+            '  OP=',OP 
+            '    Values vs big:  ',L (OP SameBig)R
+            '    Values vs nats: ',L (OP SameNats)R
+            '    Perf over big:  ',L (OP TBig)R
+            '    Perf over nats: ',L (OP TNats)R
+       :ENDFOR
+    :ENDFOR
+:ENDFOR 
 
-     :For t :In '+-×÷|<≤=≥>≠'
-         op←⍎t
-         :Trap 0
-             :If (p100 op big p10)≡p100 op BI p10
-               :IF ~QUIET ⋄  t,' BI vs big  test ok' ⋄ :Endif 
-             :EndIf
-         :Else
-             failures+← 1
-             t,' BI vs big  test failed'
-         :EndTrap
-     :EndFor
-      ⎕←'*** There were',failures,'failures'
- :EndIf
 
-:if ADHOC←1 
-    pList← (10*1 2 3 4)⍴¨ ⊂p100
-:Else 
-    pList←(10*1 2 3 4 5)⍴¨⊂p100
-:EndIf 
-p_1List← ¯2↓¨ pList 
-pS← ⍕314159265 
-
-⎕←'*** Relative speed of BI vs nats on a variety of object sizes and op codes ***'
-⎕←'¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨'
- table← 1 3⍴ 'Type' 'N' 'BI÷nats'
- :If TIME_TEST←1
-     :For t :In '+-×÷'
-         ⎕←'*** OP IS ',t
-         :For pN pN_1 :InEach pList p_1List  
-             x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs ≢p_N1=',(⍕≢pN_1 )
-             vs← 'pN op BI pN_1' 'pN op nats pN_1'  
-             vs←  'op' ⎕R t⊣ vs
-             ⍞←x 
-             table⍪←('N',t,'N') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
-             ⍞←⎕UCS 13 
-         :EndFor
-         ⎕←''
-     :EndFor
-     :For t :In '+-×÷'
-         ⎕←'*** OP IS ',t
-         :For pN :In pList  
-             x←¯30↑,⎕FMT'    ≢pN=',(⍕≢pN),' vs pS=',pS 
-             vs← 'pN op BI pS' 'pN op nats pS'  
-             vs←  'op' ⎕R t⊣ vs
-             ⍞←x 
-              table⍪←('N',t,'small') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
-              ⍞←⎕UCS 13 
-         :EndFor
-         ⎕←''
-     :EndFor
-     ⎕←'**** pN vs 1E4 (division by power of 10)'
-     :For pN  :In pList  
-          x←¯30↑,⎕FMT'÷    ≢pN=',(⍕≢pN) 
-          vs← 'pN ÷BI 1E4' 'pN ÷nats 1E4'
-           ⍞←x 
-           table⍪←('N÷1E4') (≢pN)  (⍎2⍕÷/⌽⍎∘cmpx¨ vs) 
-           ⍞←⎕UCS 13 
-     :EndFor
-     ⎕←table 
- :EndIf
