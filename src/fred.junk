@@ -1,0 +1,6 @@
+﻿⍝⍝⍝ THIS IS fred.junk
+:mdefp fred[a;b;c]← c, b, a
+'Hi! ', fred['are'; 'you'; "whoever"]
+This should be skipped: "fred['huh?';]", "fred"
+And this: 'fred[3;2;1]'
+⍝⍝⍝ END OF fred.junk
