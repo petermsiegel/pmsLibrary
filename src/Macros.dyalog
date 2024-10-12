@@ -1,8 +1,14 @@
-﻿Macros←{ ⍺← 1  
-    ⎕IO ⎕ML← 0 1
-    caller← ⊃⎕RSI 
-    includeLines←⍬
-    maxMacSub← 10   ⍝ Maximum times to substitute macros per line. See Repeat
+﻿Macros←{ ⍺← 1   
+⍝:Section Settable "options"
+    ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
+    maxSubOpt← 10 
+    ⍝ Align: Aligns "comments" on RHS of a substituted line. 
+    ⍝ Aligns at 40 chars, if space; else 60 80 100 ... 
+    Align← 40 { ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ }
+    TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
+⍝:EndSection
+
+    ⎕IO ⎕ML← 0 1 ⋄ caller← ⊃⎕RSI 
     _← 'disp' (dfns←⎕NS⍬).⎕CY 'dfns'
   ⍝ Error constants
     brErr← 'Parse: Too many right brackets "]"'
@@ -44,27 +50,46 @@
     macroP←   ∆A '(\⍺\⍵*)','(?:\h*(', brktP,'))?'
   ⍝ Patterns for Macro-Defining and Displaying Directives:
     ⍝   :mdef, :mdefp (add parens), :mundef :mshow
-    def2P←    ∆D ':mdef([pe]{0,2}) \s+ (\⍺\⍵*) \s* (?:\[ (.*?) \]) \s* (?:← \s*)? (.*) $'
-    def1P←    ∆D ':mdef([pe]{0,2}) \s+ (\⍺\⍵*)                     \s* (?:← \s*)? (.*) $'
+    def2P←    ∆D ':mdef((?:\h*-[pe]{1,2})?) \s+ (\⍺\⍵*) \s* (?:\[ (.*?) \]) \s* (?:← \s*)? (.*) $'
+    def1P←    ∆D ':mdef((?:\h*-[pe]{1,2})?) \s+ (\⍺\⍵*)                     \s* (?:← \s*)? (.*) $'
     undefP←   ∆D ':mundef  \s+ (\⍺\⍵*) \s*$'
     showP←    ∆D ':mshow\b (.*) $'
     inclP←    ∆D ':minclude\b (.*) $'
+    onceP←    ∆D ':monce\b (.*) $'
   ⍝ Patterns for Conditional Macros: :mif, :melseif, :melse, :mend/:mendif  
-    mifP←     ∆D ':mif\b \s*([^\s]+)$'
-    melseifP← ∆D ':melseif\b \s*([^\s]+)$'
-    melseP←   ∆D ':melse \s*$'
-    mendifP←  ∆D ':mend(?:if)? \s*$'
+    ifP←     ∆D ':mif\b \s*([^\s]+)$'
+    ifdefP←  ∆D ':mifdef\b\s*(\⍺\⍵*) \s*$'
+    ifndefP← ∆D ':mifndef\b\s*(\⍺\⍵*) \s*$'
+    elseifP← ∆D ':melseif\b \s*([^\s]+)$'
+    elseP←   ∆D ':melse \s*$'
+    endifP←  ∆D ':mend(?:if)? \s*$'
+  ⍝ Hidden directive. 
+    popP←    ∆D '^:mpop\b'
   ⍝ Catchall for major syntax errors in macros only 
-    errP←     ∆D ':m(defp?|undef|show|include|if|else|end).*'
-  ⍝ Handle :minclude directive to include files...
-    IncludeFile←{  
-      fnm← TrimLR ⍵
+    errP←     ∆D ':m(defp?|undef|show|include|if|else|end|pop).*'
+⍝:Section Include Macro Buffer Management. (See :minclude)
+    includeBuf← ⍬
+    onceStack← ⍬ 
+    fnStack← ,⊂'[stdin]'
+    IncludeFile←{ 
+        fnm← TrimLR ⍵ 
+        already← onceStack∊⍨ ⊂fnm 
+    already: 0⊣ includeBuf,← ⊂'⍝⍝⍝ Not including file "',fnm,'". Already seen. ⍝⍝⍝'
+      fnStack,← ⊂fnm 
     22:: 22 ⎕SIGNAL⍨ InclErr fnm
       ll← ⊃⎕NGET fnm 1
-      ⍬⊣ includeLines,← (⊂'⍝⍝⍝ Including file ', fnm, ' ⍝⍝⍝'), ll
+      ⍬⊣ includeBuf,← (⊂'⍝⍝⍝ Including file "', fnm, '" ⍝⍝⍝'), ll, ⊂':mpop'
     }
-    TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
-  ⍝ Database (namespace) of macros
+  ⍝ newStream← IncludeFlush inputStream@⍵: 
+  ⍝    Prepend the lines of the included file to the input 
+  ⍝    stream ¨⍵¨ (then clear the include buffer)
+    IncludeFlush← { 
+          tt← includeBuf ⋄ includeBuf⊢← ⍬
+          tt, ⍵ 
+    }
+⍝:EndSection
+
+⍝:Section Database (namespace) of macros
     db← ⎕NS⍬
     db.(keys←vals←parms←pats←⍬)
   ⍝ key← db.Set1 key value parm, where key is the macro name
@@ -79,7 +104,7 @@
     db.Get1← db.{ ⍺←⊢ 
         i←keys⍳ ⊂⍵ 
       i<≢keys: 1(keys vals parms pats⊃⍨¨i) 
-      0≡⍺0: 11 ⎕SIGNAL⍨ BadMacErr ⍵ ⋄ 0 (⍵ ⍺ ⍬ ⍬)
+      0≡⍺0: 11 ⎕SIGNAL⍨ ##.BadMacErr ⍵ ⋄ 0 (⍵ ⍺ ⍬ ⍬)
     }
   ⍝ b← db.Del key
   ⍝ Deletes <key> and all its data, returning 1. If not found, returns 0.
@@ -98,6 +123,9 @@
       (0=≢⍵): ⍬
         ⍉↑ keys parms vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
     }
+⍝:EndSection
+
+⍝:Section Process Comments and (Single/Double) Quoted Strings
   ⍝ QCScan: 
   ⍝   Process comments and quoted strings and hide from macro processing.
   ⍝ Scans a string for comments or quoted strings and processes them...
@@ -113,8 +141,11 @@
     QCToken←{ ⍺←1 
        ~sq dq cm∊⍨ ⊃⍵: 11⎕SIGNAL⍨ QCTErr ⍵ 
        sq=⊃⍵: ⍵ ⋄ '⍝'=⊃⍵: ⍺⊃ '' ⍵ 
-          sq,sq,⍨ n/⍨ ~dq2⍷ n← n/⍨ 1+ sq= n← 1↓¯1↓ m
+          sq,sq,⍨ n/⍨ ~dq2⍷ n← n/⍨ 1+ sq= n← 1↓¯1↓ ⍵
     }
+⍝:EndSection 
+
+⍝:Section Process User Arguments
   ⍝ ScanArgs-- process user arguments and match up with macro parameters.
   ⍝   Only valid with a complete argument expression [...]
     ScanArgs←{ 
@@ -131,7 +162,9 @@
           C scI:  cr m⊃⍨ brPos>1         ⍝ Splitting on "bare" semicolons
         }⊆1↓ ¯1↓ ⍵ 
     }
-  ⍝ Managing the Conditional Stack used for :mif ... :mend
+⍝:EndSection
+
+⍝:Section Conditional Stack (:mif, :elseIf, ..., :mend)
     condStk ← ⍬         
     condBegin condActive condSkip← 1 0 ¯1   
     CondEval← caller{ 
@@ -140,12 +173,19 @@
         (⊃⌽condStk)← condBegin condActive⊃⍨ b
         ' => ', '(', (⍕b), ')'
     }
+    CondDef← {  ⍝ Operator: ⍺⍺ is either ⊢ or ~
+        fnd← ⊃ 0 db.Get1 ⍵ 
+        (⊃⌽condStk)← condBegin condActive⊃⍨ ⍺⍺ fnd
+        ' ⍝ => ', '(', ')',⍨ ⍵, fnd⊃' undefined' ' defined'
+    }
     CondElse← { (⊃⌽condStk)←  condSkip condActive⊃⍨ condBegin= ⊃⌽condStk }
     CondEnd←  { ⊢condStk ↓⍨← ¯1 }
-  ⍝ Parse Macro Directives (:def, etc.)
+⍝:EndSection
+
+⍝:Section Parse Macro Directives (:def, etc.)
     isDirctv← 0 
-    pdPP← def2P def1P undefP showP inclP mifP melseifP melseP mendifP errP
-          def2I def1I undefI showI inclI mifI melseifI melseI mendifI errI← ⍳≢pdPP
+    pdPP← def2P def1P undefP showP inclP ifP ifdefP ifndefP elseifP elseP endifP popP onceP errP
+          def2I def1I undefI showI inclI ifI ifdefI ifndefI elseifI elseI endifI popI onceI errI← ⍳≢pdPP
     ParseDirective← { isDirctv⊢← 0 ⋄ isDirctv,⊂ PD2 ⍵ } 
     PD2← pdPP ⎕R { 
           Case← ∊∘⍵.PatternNum  
@@ -154,13 +194,17 @@
           m← '⍝ ',(' '⍴⍨0⌈l-2), m0← ⍵.Match↓⍨ l←≢F 1 
       ⍝ Major errors signalled no matter what
         Case errI:  11 ⎕SIGNAL⍨ DirErr 2↓m 
+      ⍝ Hidden directive to manage file names...
+        Case popI:   m⊣fnStack↓⍨← - 1≠ ≢fnStack ⊣ fnStack
       ⍝ Conditional :mend executed no matter what
-        Case mendifI: m⊣ CondEnd ⍬
+        Case endifI: m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
       condSkip= ⊃⌽condStk: '⍝-',m 
-        Case mifI:     m, m0 CondEval F 2 ⊢ condStk,⍨← condBegin 
-        Case melseifI: m, m0 CondEval F 2 
-        Case melseI:   m⊣    CondElse ⍬
+        Case ifI:     m Align m0 CondEval F 2 ⊣ condStk,⍨← condBegin 
+        Case ifdefI:  m Align ⊢CondDef F 2 ⊣ condStk,⍨← condBegin 
+        Case ifndefI: m Align ~CondDef F 2 ⊣ condStk,⍨← condBegin 
+        Case elseifI: m Align m0  CondEval F 2 
+        Case elseI:   m⊣     CondElse ⍬
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
         Case def1I: {
@@ -177,13 +221,22 @@
         }⍬
         Case showI: m, ∊(⊂cr,'⍝ '),dfns.disp db.ShowMacros F 2
         Case undefI: m⊣ db.Del F 2 
-        Case inclI:  m⊣ IncludeFile F 2 
+        Case inclI:  m⊣ IncludeFile F 2
+        Case onceI:  m⊣ onceStack,← ¯1↑fnStack 
     }
-  ⍝ ParseCode: Parse (user) code with macros
+⍝:EndSection 
+
+⍝:Section Parse User Code Potentially Containing Macros 
   ⍝ Skip quotes and comments
-    ⍝ PC_II: Handle "faux" quote operator: `xxx => 'xxx'
-    PC_II← skipQCP qtFauxP ⎕R { 0=⍵.PatternNum: ⍵.Match ⋄ sq, (1↓⍵.Match),sq }
-    ParseCode← PC_II skipQCP macroP catFauxP ⎕R { 
+    ⍝ PC_II: Handle "faux" quote operator: 
+    ⍝   `xxx => 'xxx'
+    PC_II← skipQCP qtFauxP ⎕R { 
+      0=⍵.PatternNum: ⍵.Match 
+        sq, (1↓⍵.Match),sq 
+    }
+    ⍝ PC_I: Handle macros and "faux" catenation operator for obj names:
+    ⍝    abc``123 => abc123 
+    PC_I← skipQCP macroP catFauxP ⎕R { 
          skipI macroI joinI← 0 1 2 ⋄ C← ⍵.PatternNum∘=
       C skipI: QCToken ⍵.Match 
       C joinI: ''
@@ -197,25 +250,29 @@
         repl← '\0' ,⍥⊆ args↑⍨≢parms
         pats ⎕R repl ⊣ val 
     }
+    ParseCode← PC_II PC_I 
     Repeat← { ⍺←0 ⋄ ⍵≡ txt← ⍵⍵ ⍵: txt ⋄ ⍺< ⍺⍺: (⍺+1) ∇ txt ⋄ txt }
   ⍝ EvalM: Evaluate code or, on failure, return as is!
     EvalM← { 0:: 11 ⎕SIGNAL⍨ EvalErr ⍵ ⋄ ~⍺: ⍵ ⋄ ⍕caller⍎ParseCode ⍵ }
+⍝:EndSection 
 
-  ⍝ Parse lines-- logic per directive or not
+⍝:Section Parse Input Lines 
     ParseLine← { 
       line← ⍵↓⍨ -+/∧\⌽⍵=' '
         isD line← ParseDirective line
       isD: line ⋄ 
       condActive≠ ⊃⌽condStk: '⍝-⍝  ',line 
-        out←  maxMacSub Repeat ParseCode⊢ line 
+        out←  maxSubOpt Repeat ParseCode⊢ line 
       out≡line: '  ',line 
-          PadRHS← 60 { ⍺⍺<≢⍺: ⍺, ⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺}  
-        ('  ',out) PadRHS ' ⍝ <= ',line 
+        ('  ',out) Align ' ⍝ <= ',line 
     }
-    ParseAll←{ ⍺←⍬ 
-       0≠≢includeLines: ⍺ ∇ tt, ⍵⊣ includeLines⊢← ⍬⊣  tt← includeLines 
-       0=≢⍵:  1↓∊ cr,¨⍺
-        (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
+⍝:EndSection
+⍝:Section Executive 
+    Executive←{ ⍺←⍬      
+        0≠≢includeBuf: ⍺ ∇ IncludeFlush ⍵ 
+        0=≢⍵:  1↓∊ cr,¨⍺
+          (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
     }
-    ParseAll ⊆⍵ 
- }
+    Executive ⊆⍵ 
+⍝:EndSection 
+ } 
