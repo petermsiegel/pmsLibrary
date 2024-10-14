@@ -1,4 +1,4 @@
-﻿⍝⍝⍝ THIS IS fred.junk
+﻿⎕←'THIS IS line ',__LINE__,' in file ',__FILE__
 :monce 
 :mdef-p ted[a;b;c]← c, b, a
 'Hi! ', ted['are'; 'you'; "whoever"]

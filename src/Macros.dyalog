@@ -1,6 +1,6 @@
-﻿Macros←{ ⍺← 1   
+﻿Macros←{ ⍺← 1 ⋄ keepComments← ⍺  
 ⍝:Section Settable "options"
-    ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
+  ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
     maxSubOpt← 10 
 ⍝:EndSection
 
@@ -9,9 +9,11 @@
 ⍝:Section Miscellaneous Utilities
     _← 'disp' (dfns←⎕NS⍬).⎕CY 'dfns'
     ⍝ Align: Aligns "comments" on RHS of a substituted line. 
-    ⍝ Aligns at 40 chars, if space; else 60 80 100 ... 
-    Align← 40 { ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ }
+    ⍝ Aligns at 60 chars, if space; else 80 100 ... 
+    Align← 60 { ~keepComments: ⍺ ⋄ ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ }
+    Doc← { ~keepComments: '' ⋄ ⍵}
     TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
+    TrimR← {⍵↓⍨ -+/∧\⌽⍵=' ' }
     Qt← ' '''∘,,∘''' '
     ∆F← { l o b← ⍺.(Lengths Offsets Block) 
           ⍵≥≢l: '' ⋄ l[⍵]<0: '' ⋄ l[⍵]↑ o[⍵]↓ b 
@@ -97,16 +99,14 @@
       already: 0⊣ includeBuf,← ⊂'⍝⍝⍝ Not including file "',fi,'". Already seen. ⍝⍝⍝'
         fiStack,← ⊂fi  ⋄ liStack,← 0
       22:: 22 ⎕SIGNAL⍨ InclErr fi
-        ll← ⊃⎕NGET fi 1
+        ll← TrimR¨ ⊃⎕NGET fi 1
         ⍬⊣ includeBuf,← (⊂'⍝⍝⍝ Including file "', fi, '" ⍝⍝⍝'), ll, ⊂':mpop_'
     }
-    ⍝ ignore← SetActiveFi ⍬
-    SetActiveFi←{ db.Set '__FILE__' (Qt ⊃⌽fiStack) ⍬ 0 }
   ⍝ newStream← InclFlush inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
   ⍝    stream ¨⍵¨ (then clear the include buffer)
     InclFlush← { tt← includeBuf ⋄ includeBuf⊢← ⍬ ⋄ tt, ⍵ }
-    InclPop←   { (fiStack liStack)↓⍨← - 1≠ ≢fiStack ⋄ ⍬ }
+    InclPop←   { (fiStack liStack)↓⍨← - 1≠ ≢fiStack }
 
 ⍝:EndSection
 
@@ -163,7 +163,6 @@
 
 ⍝:Section Process Comments and (Single/Double) Quoted Strings
   ⍝ QCScan: 
-  ⍝   Process comments and quoted strings and hide from macro processing.
   ⍝ Scans a string for comments or quoted strings and processes them...
   ⍝   ∘ Convert double-quote sequences into single-quote sequences, 
   ⍝   ∘ Leave single-quote sequences as is,
@@ -207,7 +206,7 @@
       0:: 11 ⎕SIGNAL⍨ BadCondErr ⍺ 
         b← ⍺⍺⍎'0≢⍥,', QCScan ⍵  
         (⊃⌽condStk)← condBegin condActive⊃⍨ b
-        ' => ', '(', (⍕b), ')'
+        ' ⍝ => ', '(', (⍕b), ')'
     }
     CondDef← {  ⍝ Operator: ⍺⍺ is either ⊢ or ~
         fnd← ⊃ 0 db.Get ⍵ 
@@ -231,35 +230,35 @@
       ⍝ Major errors signalled no matter what
         Case errI:  11 ⎕SIGNAL⍨ DirErr 2↓m 
       ⍝ Hidden directive to manage file names...
-        Case popI:   ''⊣ SetActiveFi⍬⊣ InclPop⍬
+        Case popI:   ''⊣ InclPop⍬
       ⍝ Conditional :mend executed no matter what
-        Case endifI: m⊣ CondEnd ⍬
+        Case endifI: Doc m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
       condSkip= ⊃⌽condStk: '⍝-',m 
-        Case ifI:     m Align m0 CondEval F 2 ⊣ condStk,⍨← condBegin 
-        Case ifdefI:  m Align ⊢CondDef F 2 ⊣ condStk,⍨← condBegin 
-        Case ifndefI: m Align ~CondDef F 2 ⊣ condStk,⍨← condBegin 
-        Case elseifI: m Align m0  CondEval F 2 
-        Case elseI:   m⊣     CondElse ⍬
+        Case ifI:     Doc m Align m0 CondEval F 2 ⊣ condStk,⍨← condBegin 
+        Case ifdefI:  Doc m Align (⊢CondDef)  F 2 ⊣ condStk,⍨← condBegin 
+        Case ifndefI: Doc m Align (~CondDef)  F 2 ⊣ condStk,⍨← condBegin 
+        Case elseifI: Doc m Align m0  CondEval F 2 
+        Case elseI:   Doc m⊣     CondElse ⍬
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
         Case def1I: {
           pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3 
           value← eFlag EvalM F 4
-          m⊣ mFlag db.Set name value ⍬ pFlag 
+          Doc m⊣ mFlag db.Set name value ⍬ pFlag 
         }⍬
         Case def2I:  { 
             pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3   
             value← eFlag EvalM F 5 
             parms← ' '~⍨¨ ';' (≠⊆⊢) F 4
-          0=≢parms: m⊣ mFlag db.Set name value ⍬ pFlag 
-            m⊣ mFlag db.Set name value parms pFlag  
+          0=≢parms: Doc m⊣ mFlag db.Set name value ⍬ pFlag 
+            Doc m⊣ mFlag db.Set name value parms pFlag  
         }⍬
-        Case showI: m, ∊(⊂cr,'⍝ '),dfns.disp db.ShowMacros F 2
-        Case undefI: m⊣ db.Del F 2 
-        Case inclI:  m⊣ IncludeFi F 2
-        Case onceI:  m⊣ onceStack,← ¯1↑fiStack 
-    }
+        Case showI:  m, ∊(⊂cr,'⍝ '), dfns.disp db.ShowMacros F 2
+        Case undefI: Doc m⊣ db.Del F 2 
+        Case inclI:  Doc m⊣ IncludeFi F 2
+        Case onceI:  Doc m⊣ onceStack,← ¯1↑fiStack 
+    }⍠('ResultText' 'Simple')('EOL' 'CR') 
 ⍝:EndSection 
 
 ⍝:Section Parse User Code Potentially Containing Macros 
@@ -291,31 +290,28 @@
 
 ⍝:Section Parse Input Lines 
   ⍝ Continuation Lines?   aa ` [⍝...]
-    ContinuedQ← {
-      line← contBuffer{0=≢⍺: ⍵ ⋄ ⍺, ' ', TrimLR ⍵} ⍵ 
+    ParseContinue← {
+      line← contBuffer{0=≢⍺: TrimR ⍵ ⋄ ⍺, ' ', TrimLR ⍵} ⍵ 
       contBuffer⊢← '' 
-       lc← skipQP continueP ⎕R {
-        0=⍵.PatternNum: ⍵.Match 
-          f1 f2← ⍵ ∆F¨1 2 
-        0=≢f2: cr,' '
-          cr, '⍝ ', TrimLR 1↓f2 
+      lc← skipQP continueP ⎕R {
+          0=⍵.PatternNum: ⍵.Match 
+          0=≢f2← ⍵ ∆F 2: cr,' ' ⋄ cr, '⍝ ', TrimLR 1↓f2 
       } ,⊂line  
-      1= ≢lc: 0 lc 
-      contBuffer,← ⊃lc ⋄ 1 (⊃⌽lc) 
+      1= ≢lc: 0 lc ⋄ contBuffer,← ⊃lc ⋄ 1 (⊃⌽lc) 
     } 
     contBuffer←''
 
     ParseLine← {   
-      __LINE__+← 1 
-      line← ⍵↓⍨ -+/∧\⌽⍵=' ' 
-      hasCont line← ContinuedQ line 
-    hasCont: line 
-      isD line← ParseDirective line
+        __LINE__+← 1               ⍝ Line number...
+        hasC line← ParseContinue ⍵
+    ⍝ hasC: line is either a comment line or a blank line.
+      hasC: line          
+        isD line← ParseDirective line
       isD: line 
-      condActive≠ ⊃⌽condStk: '⍝-⍝  ',line 
-        out←  PC_Last maxSubOpt Repeat ParseCode⊢ line 
+      condActive≠ ⊃⌽condStk: Doc '⍝-⍝  ',line 
+        out← PC_Last maxSubOpt Repeat ParseCode⊢ line 
       out≡line: '  ',line 
-        ('  ',out) Align ' ⍝ <= ',line 
+        (∊ '  ',out) Align ∊' ⍝ <= ',line 
     }
 ⍝:EndSection
 ⍝:Section Executive 
@@ -325,10 +321,10 @@
           (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
     }
 
-    _← SetActiveFi⍬    
-    __LINE__←0 
+    __LINE__← 0 
+    _← db.SetMagic '__FILE__' 'Qt ⊃⌽fiStack' ⍬ 0
     _← db.SetMagic '__LINE__' '__LINE__' ⍬ 0 
 
-    Executive ⊆⍵ 
+    {⍵/⍨0≠≢¨⍵} cr (≠⊆⊢) Executive ⊆⍵ 
 ⍝:EndSection 
  } 
