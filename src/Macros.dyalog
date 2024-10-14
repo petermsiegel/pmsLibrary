@@ -2,14 +2,23 @@
 ⍝:Section Settable "options"
     ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
     maxSubOpt← 10 
+⍝:EndSection
+
+    ⎕IO ⎕ML← 0 1 ⋄ caller← ⊃⎕RSI 
+
+⍝:Section Miscellaneous Utilities
+    _← 'disp' (dfns←⎕NS⍬).⎕CY 'dfns'
     ⍝ Align: Aligns "comments" on RHS of a substituted line. 
     ⍝ Aligns at 40 chars, if space; else 60 80 100 ... 
     Align← 40 { ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ }
     TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
-⍝:EndSection
+    Qt← ' '''∘,,∘''' '
+    ∆F← { l o b← ⍺.(Lengths Offsets Block) 
+          ⍵≥≢l: '' ⋄ l[⍵]<0: '' ⋄ l[⍵]↑ o[⍵]↓ b 
+    }
+⍝:EndSection Miscellaneous Utilities
 
-    ⎕IO ⎕ML← 0 1 ⋄ caller← ⊃⎕RSI 
-    _← 'disp' (dfns←⎕NS⍬).⎕CY 'dfns'
+⍝:Section Constants 
   ⍝ Error constants
     brErr← 'Parse: Too many right brackets "]"'
     BadCondErr← 'Macros: Invalid Conditional Expression: "'∘,,∘'"' 
@@ -20,11 +29,12 @@
     QCTErr← 'QCToken expected ⍵ to start with '', ", or ⍝. String="'∘,,∘'"' 
   ⍝ Char Constants
     cr← ⎕UCS 13 
-    sq dq lb rb cm ←'''"[]⍝'
+    sq dq lb rb cm esc ←'''"[]⍝`'
     dq2←dq,dq 
     lbP rbP scP←'\[' '\]' ';'
   ⍝ Pattern Constants
     qt1P←'(?:''[^'']*'')+' ⋄ qt2P←'(?:"[^"]*")+' ⋄ cmP←'(?:⍝.*$)'
+    skipQP←  1↓∊ '|',¨qt1P qt2P
     skipQCP← 1↓∊ '|',¨qt1P qt2P cmP 
     let1P let2P← '[\pL∆⍙_]' '[\pL∆⍙_\d]'
     pfxAP pfxDP← '(?ix)' '(?ix)(^\s* ⍝? \s*)'
@@ -42,16 +52,23 @@
     ⍝   \ßR - \b for APL simple names (right side)
     ∆A← (EscPat¨'^' '\⍺' '\⍵' '\ßL' '\ßR')  ⎕R (EscPat¨ pfxAP let1P let2P bLftP bRgtP)
     ∆D← (EscPat¨'^' '\⍺' '\⍵' '\ßL' '\ßR')  ⎕R (EscPat¨ pfxDP let1P let2P bLftP bRgtP)
-  ⍝ `abc => 'abc'
-    qtFauxP← ∆A '\`\⍺\⍵*\ßR' 
-  ⍝   a``b => ab (after any macro evaluations)
-    catFauxP← '\h*`{2}\h*'         
+  ⍝ `abc12 => 'abc12'   `1.2E45 => '1.2E45'. 
+  ⍝    If no var/num matches, ` silently disappears.
+    qtFauxP← ∆A '\` \h* ((?: \⍺\⍵*\ßR | \d[\d\.E¯]* | \.\d+[\dE¯]* )?)' 
+  ⍝ Catenation of Symbols: 
+  ⍝   a``b   => ab   (after any macro evaluations)
+  ⍝   a``123 => a123 (ditto)
+    catFauxP← '\h*\`{2}\h*' 
+  ⍝ Continuation lines:  
+  ⍝    line `` [spaces]$ 
+  ⍝    line `` ⍝ comment$     (comments will be placed on sep line before code)
+    continueP← '(\s*\`\s*)(⍝.*)?$'  
   ⍝ macroP: See ParseCode below.
     macroP←   ∆A '(\⍺\⍵*)','(?:\h*(', brktP,'))?'
   ⍝ Patterns for Macro-Defining and Displaying Directives:
-    ⍝   :mdef, :mdefp (add parens), :mundef :mshow
-    def2P←    ∆D ':mdef((?:\h*-[pe]{1,2})?) \s+ (\⍺\⍵*) \s* (?:\[ (.*?) \]) \s* (?:← \s*)? (.*) $'
-    def1P←    ∆D ':mdef((?:\h*-[pe]{1,2})?) \s+ (\⍺\⍵*)                     \s* (?:← \s*)? (.*) $'
+    ⍝   :mdef, :mdef-p (add parens), :mundef :mshow
+    def2P←    ∆D ':mdef ((?:\h*-[pem]{1,2})?) \h+ (\⍺\⍵*) \s* (?:\[ (.*?) \]) \s* (?:← \s*)? (.*) $'
+    def1P←    ∆D ':mdef ((?:\h*-[pem]{1,2})?) \h+ (\⍺\⍵*)                     \s* (?:← \s*)? (.*) $'
     undefP←   ∆D ':mundef  \s+ (\⍺\⍵*) \s*$'
     showP←    ∆D ':mshow\b (.*) $'
     inclP←    ∆D ':minclude\b (.*) $'
@@ -63,53 +80,66 @@
     elseifP← ∆D ':melseif\b \s*([^\s]+)$'
     elseP←   ∆D ':melse \s*$'
     endifP←  ∆D ':mend(?:if)? \s*$'
-  ⍝ Hidden directive. 
-    popP←    ∆D '^:mpop\b'
+  ⍝ pøp: hidden directive. 
+    popP←    ∆D '^:mpop_\b .* $' 
   ⍝ Catchall for major syntax errors in macros only 
-    errP←     ∆D ':m(defp?|undef|show|include|if|else|end|pop).*'
+    errP←     ∆D ':m(defp?|undef|show|include|if|else|end|pop_).*'
+⍝:EndSection Constants
+
 ⍝:Section Include Macro Buffer Management. (See :minclude)
     includeBuf← ⍬
     onceStack← ⍬ 
-    fnStack← ,⊂'[stdin]'
-    IncludeFile←{ 
-        fnm← TrimLR ⍵ 
-        already← onceStack∊⍨ ⊂fnm 
-    already: 0⊣ includeBuf,← ⊂'⍝⍝⍝ Not including file "',fnm,'". Already seen. ⍝⍝⍝'
-      fnStack,← ⊂fnm 
-    22:: 22 ⎕SIGNAL⍨ InclErr fnm
-      ll← ⊃⎕NGET fnm 1
-      ⍬⊣ includeBuf,← (⊂'⍝⍝⍝ Including file "', fnm, '" ⍝⍝⍝'), ll, ⊂':mpop'
+    fiStack← ,⊂'[stdin]'
+    liStack← ,0
+    IncludeFi←{ 
+        fi← TrimLR ⍵ 
+        already← onceStack∊⍨ ⊂fi 
+      already: 0⊣ includeBuf,← ⊂'⍝⍝⍝ Not including file "',fi,'". Already seen. ⍝⍝⍝'
+        fiStack,← ⊂fi  ⋄ liStack,← 0
+      22:: 22 ⎕SIGNAL⍨ InclErr fi
+        ll← ⊃⎕NGET fi 1
+        ⍬⊣ includeBuf,← (⊂'⍝⍝⍝ Including file "', fi, '" ⍝⍝⍝'), ll, ⊂':mpop_'
     }
-  ⍝ newStream← IncludeFlush inputStream@⍵: 
+    ⍝ ignore← SetActiveFi ⍬
+    SetActiveFi←{ db.Set '__FILE__' (Qt ⊃⌽fiStack) ⍬ 0 }
+  ⍝ newStream← InclFlush inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
   ⍝    stream ¨⍵¨ (then clear the include buffer)
-    IncludeFlush← { 
-          tt← includeBuf ⋄ includeBuf⊢← ⍬
-          tt, ⍵ 
-    }
+    InclFlush← { tt← includeBuf ⋄ includeBuf⊢← ⍬ ⋄ tt, ⍵ }
+    InclPop←   { (fiStack liStack)↓⍨← - 1≠ ≢fiStack ⋄ ⍬ }
+
 ⍝:EndSection
 
 ⍝:Section Database (namespace) of macros
     db← ⎕NS⍬
-    db.(keys←vals←parms←pats←⍬)
-  ⍝ key← db.Set1 key value parm, where key is the macro name
-    db.Set1← db.{
-        k v p←⍵ ⋄ i←keys⍳⊂k 
-      i<≢keys: k⊣ (i⊃vals)←v⊣ (i⊃parms)←p ⊣ (i⊃pats)←##.ParmPat¨p 
-        k⊣ keys vals parms pats,∘⊂← k v p (##.ParmPat¨p)
+    db.(keys←vals←⍬)
+  ⍝ key← db.Set key value parm, where key is the macro name
+    db.Set← db.{ ⍺←0
+      ⍺: ##.caller SetMagic ⍵
+        k v p parens←⍵ ⋄ i←keys⍳⊂k 
+        pats← ##.ParmPat¨p 
+      i<≢keys: k⊣ (i⊃vals)← v p pats 0 parens ⍬
+        k⊣ keys vals,∘⊂← k (v p pats 0 parens ⍬)
     }
-  ⍝ ...← [default] db.Get1 key 
+    db.SetMagic← db.{ k v p parens←⍵ ⋄ i←keys⍳⊂k 
+        pats← ##.ParmPat¨p
+      i<≢keys: k⊣ (i⊃vals)←  p pats 1 parens ## 
+        k⊣ keys vals,∘⊂← k (v p pats 1 parens ##)
+    }
+  ⍝ ...← [default] db.Get key 
   ⍝ Returns:   fnd (key val parms pats), where fnd=1 (if found)
   ⍝            fnd (key default ⍬ ⍬),    where fnd=0 (if not found)
-    db.Get1← db.{ ⍺←⊢ 
+    db.Get← db.{ ⍺←⊢ 
         i←keys⍳ ⊂⍵ 
-      i<≢keys: 1(keys vals parms pats⊃⍨¨i) 
-      0≡⍺0: 11 ⎕SIGNAL⍨ ##.BadMacErr ⍵ ⋄ 0 (⍵ ⍺ ⍬ ⍬)
+      i=≢keys: 0 (⍵ ⍺ ⍬ ⍬ )⊣ (⍬≢⍺⍬){⍺: ⍬ ⋄ 11 ⎕SIGNAL⍨ ##.BadMacErr ⍵}⍵
+      k (v p pats m parens ns)←  i⊃¨ keys vals 
+      ~m: 1 (k (parens ##.CParens v) p pats) 
+          1 (k (parens ##.CParens ⍕ns⍎v) p pats) 
     }
   ⍝ b← db.Del key
   ⍝ Deletes <key> and all its data, returning 1. If not found, returns 0.
     db.Del← db.{ k←⍵   
-        0∊b ⊣ keys vals parms pats /⍨← ⊂b← (⍳≢keys)≠ keys⍳ ⊂k 
+        0∊b ⊣ keys vals/⍨← ⊂b← (⍳≢keys)≠ keys⍳ ⊂k 
     }
   ⍝ ...← db.ShowMacros ['key1 key2 ...']. 
   ⍝ If the string of keys is empty (or has blanks), returns info for ALL keys.
@@ -119,9 +149,15 @@
   ⍝ Returns a formatted list of keys, parms, and values.
     db.ShowMacros← db.{ 0≠≢mm← Show ' '(≠⊆⊢)⍵: mm ⋄ ⊂'No macros defined' }
     db.Show← db.{
-      (0=≢⍵)∧0≠≢keys: ⍉↑ keys parms vals
+        title← 'keys' 'magic?' 'parms' 'value'
+      (0=≢⍵)∧0≠≢keys: {
+        vv pp ppats mm parens ns ← ↓⍉↑vals  
+        title,[0] ⍉↑ keys mm pp (parens ##.CParens¨ vv)    
+      }⍬ 
       (0=≢⍵): ⍬
-        ⍉↑ keys parms vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
+        kk data← keys vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
+        vv pp ppats mm parens ns ← ↓⍉↑ data 
+        title,[0] ⍉↑ kk mm  pp (parens ##.CParens¨ vv)  
     }
 ⍝:EndSection
 
@@ -174,7 +210,7 @@
         ' => ', '(', (⍕b), ')'
     }
     CondDef← {  ⍝ Operator: ⍺⍺ is either ⊢ or ~
-        fnd← ⊃ 0 db.Get1 ⍵ 
+        fnd← ⊃ 0 db.Get ⍵ 
         (⊃⌽condStk)← condBegin condActive⊃⍨ ⍺⍺ fnd
         ' ⍝ => ', '(', ')',⍨ ⍵, fnd⊃' undefined' ' defined'
     }
@@ -189,13 +225,13 @@
     ParseDirective← { isDirctv⊢← 0 ⋄ isDirctv,⊂ PD2 ⍵ } 
     PD2← pdPP ⎕R { 
           Case← ∊∘⍵.PatternNum  
-          F← ⍵.{ 0>lw← Lengths[⍵]: '' ⋄ lw↑ Offsets[⍵]↓ Block }
+          F← ⍵∘∆F 
           isDirctv⊢← 1
           m← '⍝ ',(' '⍴⍨0⌈l-2), m0← ⍵.Match↓⍨ l←≢F 1 
       ⍝ Major errors signalled no matter what
         Case errI:  11 ⎕SIGNAL⍨ DirErr 2↓m 
       ⍝ Hidden directive to manage file names...
-        Case popI:   m⊣fnStack↓⍨← - 1≠ ≢fnStack ⊣ fnStack
+        Case popI:   ''⊣ SetActiveFi⍬⊣ InclPop⍬
       ⍝ Conditional :mend executed no matter what
         Case endifI: m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
@@ -208,41 +244,39 @@
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
         Case def1I: {
-          pFlag eFlag← 'pe'∊⎕C F 2 ⋄ name← F 3 
-          value← pFlag CParens eFlag EvalM F 4
-          m⊣ db.Set1 name value ⍬
+          pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3 
+          value← eFlag EvalM F 4
+          m⊣ mFlag db.Set name value ⍬ pFlag 
         }⍬
         Case def2I:  { 
-            pFlag eFlag← 'pe'∊⎕C F 2 ⋄ name← F 3   
-            value← pFlag CParens eFlag EvalM F 5 
+            pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3   
+            value← eFlag EvalM F 5 
             parms← ' '~⍨¨ ';' (≠⊆⊢) F 4
-          0=≢parms: m⊣ db.Set1 name value ⍬
-            m⊣ db.Set1 name value parms 
+          0=≢parms: m⊣ mFlag db.Set name value ⍬ pFlag 
+            m⊣ mFlag db.Set name value parms pFlag  
         }⍬
         Case showI: m, ∊(⊂cr,'⍝ '),dfns.disp db.ShowMacros F 2
         Case undefI: m⊣ db.Del F 2 
-        Case inclI:  m⊣ IncludeFile F 2
-        Case onceI:  m⊣ onceStack,← ¯1↑fnStack 
+        Case inclI:  m⊣ IncludeFi F 2
+        Case onceI:  m⊣ onceStack,← ¯1↑fiStack 
     }
 ⍝:EndSection 
 
 ⍝:Section Parse User Code Potentially Containing Macros 
   ⍝ Skip quotes and comments
-    ⍝ PC_II: Handle "faux" quote operator: 
-    ⍝   `xxx => 'xxx'
-    PC_II← skipQCP qtFauxP ⎕R { 
+    ⍝ PC_Last: Handle "faux" quote operator. (See qtFauxP definition)
+    PC_Last← skipQCP qtFauxP ⎕R { 
       0=⍵.PatternNum: ⍵.Match 
-        sq, (1↓⍵.Match),sq 
+      0=≢quotable← ⍵ ∆F 1: '' ⋄ Qt quotable
     }
-    ⍝ PC_I: Handle macros and "faux" catenation operator for obj names:
+    ⍝ ParseCode: Handle macros and "faux" catenation operator for obj names:
     ⍝    abc``123 => abc123 
-    PC_I← skipQCP macroP catFauxP ⎕R { 
-         skipI macroI joinI← 0 1 2 ⋄ C← ⍵.PatternNum∘=
+    ParseCode← skipQCP macroP catFauxP  ⎕R { 
+         skipI  macroI catI ← ⍳3 ⋄ C← ⍵.PatternNum∘= ⋄ F← ⍵∘∆F 
       C skipI: QCToken ⍵.Match 
-      C joinI: ''
+      C catI: ''
     ⍝ C macroI...
-        F← ⍵.{ ⍵≥≢ll←Lengths: '' ⋄ 0>ll[⍵]: '' ⋄ ll[⍵]↑ Offsets[⍵]↓ Block }
-        fnd (key val parms pats)← db.Get1⍨ F 1 
+        fnd (key val parms pats)← db.Get⍨ F 1 
         va← val, argStr← F 2
       ~fnd: va ⋄ 0=≢parms: va 
         args← key ScanArgs argStr 
@@ -250,29 +284,51 @@
         repl← '\0' ,⍥⊆ args↑⍨≢parms
         pats ⎕R repl ⊣ val 
     }
-    ParseCode← PC_II PC_I 
     Repeat← { ⍺←0 ⋄ ⍵≡ txt← ⍵⍵ ⍵: txt ⋄ ⍺< ⍺⍺: (⍺+1) ∇ txt ⋄ txt }
   ⍝ EvalM: Evaluate code or, on failure, return as is!
     EvalM← { 0:: 11 ⎕SIGNAL⍨ EvalErr ⍵ ⋄ ~⍺: ⍵ ⋄ ⍕caller⍎ParseCode ⍵ }
 ⍝:EndSection 
 
 ⍝:Section Parse Input Lines 
-    ParseLine← { 
-      line← ⍵↓⍨ -+/∧\⌽⍵=' '
-        isD line← ParseDirective line
-      isD: line ⋄ 
+  ⍝ Continuation Lines?   aa ` [⍝...]
+    ContinuedQ← {
+      line← contBuffer{0=≢⍺: ⍵ ⋄ ⍺, ' ', TrimLR ⍵} ⍵ 
+      contBuffer⊢← '' 
+       lc← skipQP continueP ⎕R {
+        0=⍵.PatternNum: ⍵.Match 
+          f1 f2← ⍵ ∆F¨1 2 
+        0=≢f2: cr,' '
+          cr, '⍝ ', TrimLR 1↓f2 
+      } ,⊂line  
+      1= ≢lc: 0 lc 
+      contBuffer,← ⊃lc ⋄ 1 (⊃⌽lc) 
+    } 
+    contBuffer←''
+
+    ParseLine← {   
+      __LINE__+← 1 
+      line← ⍵↓⍨ -+/∧\⌽⍵=' ' 
+      hasCont line← ContinuedQ line 
+    hasCont: line 
+      isD line← ParseDirective line
+      isD: line 
       condActive≠ ⊃⌽condStk: '⍝-⍝  ',line 
-        out←  maxSubOpt Repeat ParseCode⊢ line 
+        out←  PC_Last maxSubOpt Repeat ParseCode⊢ line 
       out≡line: '  ',line 
         ('  ',out) Align ' ⍝ <= ',line 
     }
 ⍝:EndSection
 ⍝:Section Executive 
-    Executive←{ ⍺←⍬      
-        0≠≢includeBuf: ⍺ ∇ IncludeFlush ⍵ 
+    Executive←{ ⍺←⍬  
+        0≠≢includeBuf: ⍺ ∇ InclFlush ⍵ 
         0=≢⍵:  1↓∊ cr,¨⍺
           (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
     }
+
+    _← SetActiveFi⍬    
+    __LINE__←0 
+    _← db.SetMagic '__LINE__' '__LINE__' ⍬ 0 
+
     Executive ⊆⍵ 
 ⍝:EndSection 
  } 

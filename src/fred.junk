@@ -1,7 +1,11 @@
 ﻿⍝⍝⍝ THIS IS fred.junk
 :monce 
-:mdef-p fred[a;b;c]← c, b, a
-'Hi! ', fred['are'; 'you'; "whoever"]
-This should be skipped: "fred['huh?';]", "fred"
-And this: 'fred[3;2;1]'
+:mdef-p ted[a;b;c]← c, b, a
+'Hi! ', ted['are'; 'you'; "whoever"]
+:mif 0
+    This should be skipped: "ted['huh?';]", "fred"
+:mend 
+And this: 'ted[3;2;1]'
+Our file is __FILE__!
+Our file and line number: __FILE__``__LINE__
 ⍝⍝⍝ END OF fred.junk
