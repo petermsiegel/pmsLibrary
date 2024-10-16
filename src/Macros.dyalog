@@ -1,5 +1,17 @@
-﻿Macros←{ ⍺← 1 ⋄ keepComments← ⍺  
-⍝:Section Settable "options"
+﻿Macros←{ 
+⍝:Section Options (arg ⍺)
+⍝ ⍺ is a single simple char. string (default: '')
+⍝ options:  [noq/uiet | q/uiet]     [nos/imple | s/imple]
+⍝   quiet:  exclude from output directives (except :mshow output)
+⍝           Default: include output from all directives
+⍝   simple: return output as a simple char string with carriage returns
+⍝           separating lines. Default: return a vector of char vectors.
+  ⍺← '' ⋄ Opt← (1∘∊⍷)∘(⎕C⍺)
+    qOpt←  ( Opt 'q')∧ ~Opt 'noq'    ⍝ q/uiet.      Default 'noq'
+    sOpt←  ( Opt 's')∧ ~Opt 'nos'    ⍝ [no]s/imple  Default 'nos'
+⍝:EndSection 
+
+⍝:Section Settable "parameters"
   ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
     maxSubOpt← 10 
 ⍝:EndSection
@@ -9,9 +21,12 @@
 ⍝:Section Miscellaneous Utilities
     _← 'disp' (dfns←⎕NS⍬).⎕CY 'dfns'
     ⍝ Align: Aligns "comments" on RHS of a substituted line. 
-    ⍝ Aligns at 60 chars, if space; else 80 100 ... 
-    Align← 60 { ~keepComments: ⍺ ⋄ ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ }
-    Doc← { ~keepComments: '' ⋄ ⍵}
+    ⍝ Aligns at 40 chars, if space; else 80 100 ... 
+    Align← 40 { 
+      qOpt: ⍺ ⋄ ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ 
+    }
+    CDoc←  (~qOpt)∘/
+    CNullLines← {⍵/⍨0≠≢∘TrimR¨⍵}⍣qOpt
     TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
     TrimR← {⍵↓⍨ -+/∧\⌽⍵=' ' }
     Qt← ' '''∘,,∘''' '
@@ -222,42 +237,43 @@
     pdPP← def2P def1P undefP showP inclP ifP ifdefP ifndefP elseifP elseP endifP popP onceP errP
           def2I def1I undefI showI inclI ifI ifdefI ifndefI elseifI elseI endifI popI onceI errI← ⍳≢pdPP
     ParseDirective← { isDirctv⊢← 0 ⋄ isDirctv,⊂ PD2 ⍵ } 
+
     PD2← pdPP ⎕R { 
           Case← ∊∘⍵.PatternNum  
           F← ⍵∘∆F 
-          isDirctv⊢← 1
+          isDirctv⊢← 1   
           m← '⍝ ',(' '⍴⍨0⌈l-2), m0← ⍵.Match↓⍨ l←≢F 1 
       ⍝ Major errors signalled no matter what
         Case errI:  11 ⎕SIGNAL⍨ DirErr 2↓m 
       ⍝ Hidden directive to manage file names...
         Case popI:   ''⊣ InclPop⍬
       ⍝ Conditional :mend executed no matter what
-        Case endifI: Doc m⊣ CondEnd ⍬
+        Case endifI: CDoc m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
       condSkip= ⊃⌽condStk: '⍝-',m 
-        Case ifI:     Doc m Align m0 CondEval F 2 ⊣ condStk,⍨← condBegin 
-        Case ifdefI:  Doc m Align (⊢CondDef)  F 2 ⊣ condStk,⍨← condBegin 
-        Case ifndefI: Doc m Align (~CondDef)  F 2 ⊣ condStk,⍨← condBegin 
-        Case elseifI: Doc m Align m0  CondEval F 2 
-        Case elseI:   Doc m⊣     CondElse ⍬
+        Case ifI:     CDoc m Align m0 CondEval F 2 ⊣ condStk,⍨← condBegin 
+        Case ifdefI:  CDoc m Align (⊢CondDef)  F 2 ⊣ condStk,⍨← condBegin 
+        Case ifndefI: CDoc m Align (~CondDef)  F 2 ⊣ condStk,⍨← condBegin 
+        Case elseifI: CDoc m Align m0  CondEval F 2 
+        Case elseI:   CDoc m⊣     CondElse ⍬
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
         Case def1I: {
           pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3 
           value← eFlag EvalM F 4
-          Doc m⊣ mFlag db.Set name value ⍬ pFlag 
+          CDoc m⊣ mFlag db.Set name value ⍬ pFlag 
         }⍬
         Case def2I:  { 
             pFlag eFlag mFlag← 'pem'∊⎕C F 2 ⋄ name← F 3   
             value← eFlag EvalM F 5 
             parms← ' '~⍨¨ ';' (≠⊆⊢) F 4
-          0=≢parms: Doc m⊣ mFlag db.Set name value ⍬ pFlag 
-            Doc m⊣ mFlag db.Set name value parms pFlag  
+          0=≢parms: CDoc m⊣ mFlag db.Set name value ⍬ pFlag 
+            CDoc m⊣ mFlag db.Set name value parms pFlag  
         }⍬
         Case showI:  m, ∊(⊂cr,'⍝ '), dfns.disp db.ShowMacros F 2
-        Case undefI: Doc m⊣ db.Del F 2 
-        Case inclI:  Doc m⊣ IncludeFi F 2
-        Case onceI:  Doc m⊣ onceStack,← ¯1↑fiStack 
+        Case undefI: CDoc m⊣ db.Del F 2 
+        Case inclI:  CDoc m⊣ IncludeFi F 2
+        Case onceI:  CDoc m⊣ onceStack,← ¯1↑fiStack 
     }⍠('ResultText' 'Simple')('EOL' 'CR') 
 ⍝:EndSection 
 
@@ -294,37 +310,42 @@
       line← contBuffer{0=≢⍺: TrimR ⍵ ⋄ ⍺, ' ', TrimLR ⍵} ⍵ 
       contBuffer⊢← '' 
       lc← skipQP continueP ⎕R {
-          0=⍵.PatternNum: ⍵.Match 
-          0=≢f2← ⍵ ∆F 2: cr,' ' ⋄ cr, '⍝ ', TrimLR 1↓f2 
+        0=⍵.PatternNum: ⍵.Match 
+        0=≢f2← ⍵ ∆F 2: cr,cr
+          cr, '⍝ ', TrimLR 1↓f2    
       } ,⊂line  
-      1= ≢lc: 0 lc ⋄ contBuffer,← ⊃lc ⋄ 1 (⊃⌽lc) 
+      1= ≢lc: 0 (⊃lc) ⋄ contBuffer,← ⊃lc ⋄ 1 (⊃⌽lc) 
     } 
     contBuffer←''
 
     ParseLine← {   
         __LINE__+← 1               ⍝ Line number...
-        hasC line← ParseContinue ⍵
+        hasC line← ParseContinue ⍵ ⍝⍝⍝ EVALUATE THIS!!! sometimes 2=≡line
     ⍝ hasC: line is either a comment line or a blank line.
-      hasC: line          
+      hasC: line
         isD line← ParseDirective line
       isD: line 
-      condActive≠ ⊃⌽condStk: Doc '⍝-⍝  ',line 
+      condActive≠ ⊃⌽condStk: CDoc '⍝-⍝  ',line 
         out← PC_Last maxSubOpt Repeat ParseCode⊢ line 
       out≡line: '  ',line 
-        (∊ '  ',out) Align ∊' ⍝ <= ',line 
+        ( '  ',¯1↓out) Align ' ⍝ <= ',line 
     }
 ⍝:EndSection
 ⍝:Section Executive 
-    Executive←{ ⍺←⍬  
+    Executive←{
+      ⍬{
         0≠≢includeBuf: ⍺ ∇ InclFlush ⍵ 
-        0=≢⍵:  1↓∊ cr,¨⍺
+        0=≢⍵: ⍺
           (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
+      } ⊆⍵
     }
 
     __LINE__← 0 
     _← db.SetMagic '__FILE__' 'Qt ⊃⌽fiStack' ⍬ 0
     _← db.SetMagic '__LINE__' '__LINE__' ⍬ 0 
 
-    {⍵/⍨0≠≢¨⍵} cr (≠⊆⊢) Executive ⊆⍵ 
+    lineV← CNullLines Executive ⍵ 
+    sOpt: 1↓∊cr,¨ lineV ⋄ lineV
+
 ⍝:EndSection 
  } 

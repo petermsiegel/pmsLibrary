@@ -5,6 +5,7 @@
 :mif 0
     This should be skipped: "ted['huh?';]", "fred"
 :mend 
+:minclude mary.junk
 And this: 'ted[3;2;1]'
 Our file is __FILE__!
 Our file and line number: __FILE__``__LINE__
