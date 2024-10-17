@@ -9,11 +9,12 @@
   ⍺← '' ⋄ Opt← (1∘∊⍷)∘(⎕C⍺)
     qOpt←  ( Opt 'q')∧ ~Opt 'noq'    ⍝ q/uiet.      Default 'noq'
     sOpt←  ( Opt 's')∧ ~Opt 'nos'    ⍝ [no]s/imple  Default 'nos'
+    dOpt←  ( Opt 'd')∧ ~Opt 'nod'    ⍝ [no]d/ebug   Default 'nod'
 ⍝:EndSection 
 
 ⍝:Section Settable "parameters"
   ⍝ maxSubOpt: Maximum times to substitute macros per line. See Repeat
-    maxSubOpt← 10 
+    maxSubOpt← 20 
 ⍝:EndSection
 
     ⎕IO ⎕ML← 0 1 ⋄ caller← ⊃⎕RSI 
@@ -131,15 +132,15 @@
   ⍝ key← db.Set key value parm, where key is the macro name
     db.Set← db.{ ⍺←0
       ⍺: ##.caller SetMagic ⍵
-        k v p parens←⍵ ⋄ i←keys⍳⊂k 
+        k v p parFlg←⍵ ⋄ i←keys⍳⊂k 
         pats← ##.ParmPat¨p 
-      i<≢keys: k⊣ (i⊃vals)← v p pats 0 parens ⍬
-        k⊣ keys vals,∘⊂← k (v p pats 0 parens ⍬)
+      i<≢keys: k⊣ (i⊃vals)← v p pats 0 parFlg ⍬
+        k⊣ keys vals,∘⊂← k (v p pats 0 parFlg ⍬)
     }
-    db.SetMagic← db.{ k v p parens←⍵ ⋄ i←keys⍳⊂k 
+    db.SetMagic← db.{ k v p parFlg←⍵ ⋄ i←keys⍳⊂k 
         pats← ##.ParmPat¨p
-      i<≢keys: k⊣ (i⊃vals)←  p pats 1 parens ## 
-        k⊣ keys vals,∘⊂← k (v p pats 1 parens ##)
+      i<≢keys: k⊣ (i⊃vals)←  v p pats 1 parFlg ## 
+        k⊣ keys vals,∘⊂← k (v p pats 1 parFlg ##)
     }
   ⍝ ...← [default] db.Get key 
   ⍝ Returns:   fnd (key val parms pats), where fnd=1 (if found)
@@ -147,9 +148,9 @@
     db.Get← db.{ ⍺←⊢ 
         i←keys⍳ ⊂⍵ 
       i=≢keys: 0 (⍵ ⍺ ⍬ ⍬ )⊣ (⍬≢⍺⍬){⍺: ⍬ ⋄ 11 ⎕SIGNAL⍨ ##.BadMacErr ⍵}⍵
-      k (v p pats m parens ns)←  i⊃¨ keys vals 
-      ~m: 1 (k (parens ##.CParens v) p pats) 
-          1 (k (parens ##.CParens ⍕ns⍎v) p pats) 
+      k (v p pats m parFlg ns)←  i⊃¨ keys vals 
+      ~m: 1 (k (parFlg ##.CParens v) p pats) 
+          1 (k (parFlg ##.CParens ⍕ns⍎v) p pats) 
     }
   ⍝ b← db.Del key
   ⍝ Deletes <key> and all its data, returning 1. If not found, returns 0.
@@ -166,13 +167,13 @@
     db.Show← db.{
         title← 'keys' 'magic?' 'parms' 'value'
       (0=≢⍵)∧0≠≢keys: {
-        vv pp ppats mm parens ns ← ↓⍉↑vals  
-        title,[0] ⍉↑ keys mm pp (parens ##.CParens¨ vv)    
+        vv pp ppats mm parFlg ns ← ↓⍉↑vals  
+        title,[0] ⍉↑ keys mm pp (parFlg ##.CParens¨ vv)    
       }⍬ 
       (0=≢⍵): ⍬
         kk data← keys vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
-        vv pp ppats mm parens ns ← ↓⍉↑ data 
-        title,[0] ⍉↑ kk mm  pp (parens ##.CParens¨ vv)  
+        vv pp ppats mm parFlg ns ← ↓⍉↑ data 
+        title,[0] ⍉↑ kk mm  pp (parFlg ##.CParens¨ vv)  
     }
 ⍝:EndSection
 
@@ -328,9 +329,10 @@
       condActive≠ ⊃⌽condStk: CDoc '⍝-⍝  ',line 
         out← PC_Last maxSubOpt Repeat ParseCode⊢ line 
       out≡line: '  ',line 
-        ( '  ',¯1↓out) Align ' ⍝ <= ',line 
+        ( '  ', out) Align ' ⍝ <= ',line 
     }
 ⍝:EndSection
+
 ⍝:Section Executive 
     Executive←{
       ⍬{
@@ -340,10 +342,14 @@
       } ⊆⍵
     }
 
+    __COUNTER__← 0
     __LINE__← 0 
-    _← db.SetMagic '__FILE__' 'Qt ⊃⌽fiStack' ⍬ 0
-    _← db.SetMagic '__LINE__' '__LINE__' ⍬ 0 
+    _← db.SetMagic '__FILE__'     'Qt ⊃⌽fiStack'                   ⍬ 0
+    _← db.SetMagic '__LINE__'     '__LINE__'                      ⍬ 0 
+    _← db.SetMagic '__COUNTER__'  '(__COUNTER__⊢← __COUNTER__+1)' ⍬ 0 
+    _← db.SetMagic '__INIT__'     '(⍬⊣__COUNTER__⊢←0)'            ⍬ 0 
 
+    _← (0 1 2+⊃⎕LC) ⎕STOP⍣dOpt ⊢'Macros'
     lineV← CNullLines Executive ⍵ 
     sOpt: 1↓∊cr,¨ lineV ⋄ lineV
 
