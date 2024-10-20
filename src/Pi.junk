@@ -1,0 +1,13 @@
+﻿
+:minclude mary.junk
+
+:mdef   PI← 3.14159
+:mdefp  SQUARE[x]←  (x)×(x)
+:mdef   DOUBLE← double
+
+int main() {
+    DOUBLE radius = 2.0;
+    DOUBLE area = PI * SQUARE[radius];
+    printf("Area: %f\n", area);
+    return 0;
+}
