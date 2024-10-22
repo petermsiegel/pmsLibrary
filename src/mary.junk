@@ -1,6 +1,17 @@
 ﻿⍝⍝⍝ FILE MARY ⍝⍝⍝
 __FILE__ __FILE__ __FILE__
 
+:mif __COUNTER__
+    '1 True ',__COUNTER__
+:melse
+    '1 False ',__COUNTER__
+:mend
+:mif __COUNTER__
+    '2 True ',__COUNTER__
+:melse
+    '2 False ',__COUNTER__
+:mend
+
 :mshow
 
 ⍝⍝⍝ END FILE MARY ⍝⍝⍝
