@@ -157,16 +157,16 @@
 ⍝:Section Database (namespace) of macros
   db← ⎕NS⍬
   db.(keys←vals←⍬)
-⍝ key← db.Set k:key v:value p:parms parenFlg, where key is the macro name
+⍝ key← db.Set k:key v:value p:parms addParens, where key is the macro name
   db.Set← db.{ ⍺←0 ⋄ 
     ⍺: ##.caller SetMagic ⍵
       m ns← 0 ⍬ 
-      k v p parenFlg← ⍵ ⋄ i←keys⍳⊂k 
-      v← parenFlg CParens v 
+      k vIn p addParens← ⍵ ⋄ i←keys⍳⊂k 
+      v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
     i<≢keys: {
         oldV← i⊃vals 
-        newV← v p pats m parenFlg ns  
+        newV← v p pats m addParens  
       oldV≡newV: ⍵
         (i⊃vals)← newV 
       ~##.wOpt: ⍵
@@ -180,17 +180,17 @@
     }k
       k⊣ keys vals,∘⊂← k ( v p pats 0 0 )
   }
-⍝ SetMagic: ⍵: k:key, v:value, p:parms, parenFlg)
+⍝ SetMagic: ⍵: k:key, v:value, p:parms, addParens)
   db.SetMagic← db.{ 
       m ns← 1 ##
-      k v p parenFlg← ⍵ 
+      k vIn p addParens← ⍵ 
       i←keys⍳ ⊂k 
-      v← parenFlg CParens v 
+      v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
     ⍝ (i⊃vals)← 
-    ⍝  v:value, p:parms, pats:pats for parms, m:magic=1, parenFlg, execute namespace
-    i<≢keys: k⊣ (i⊃vals)←  v p pats m parenFlg ns  
-      k⊣ keys vals,∘⊂← k  (v p pats m parenFlg ns)
+    ⍝  v:value, p:parms, pats:pats for parms, m:magic=1, addParens, 
+    i<≢keys: k⊣ (i⊃vals)←  v p pats m addParens  
+      k⊣ keys vals,∘⊂← k  (v p pats m addParens)
   }
   ⍝ ...← [default] db.Get key 
   ⍝ Returns:   fnd (key val parms pats), where fnd=1 (if found)
@@ -198,9 +198,9 @@
   db.Get← db.{ ⍺←⊢ 
        i←keys⍳ ⊂⍵ 
     i=≢keys: 0 (⍵ ⍺ ⍬ ⍬ )⊣ (⍬≢⍺⍬){⍺: ⍬ ⋄ 11 ⎕SIGNAL⍨ ##.BadMacErr ⍵}⍵
-       k (v p pats m parenFlg ns)←  i⊃¨ keys vals 
-    m: 1 (k (parenFlg ##.CParens ⍕ns⍎v) p pats) 
-       1 (k (parenFlg ##.CParens v) p pats) 
+       k (v p pats magic addParens)←  i⊃¨ keys vals 
+    magic: 1 (k (addParens ##.CParens ⍕##⍎v) p pats) 
+           1 (k (addParens ##.CParens     v) p pats) 
   }
   ⍝ b← db.Del key
   ⍝ Deletes <key> and all its data, returning 1. If not found, returns 0.
@@ -222,13 +222,13 @@
     ⍝ If ⍺=0, show only non-magic keys (unless user specifies keys on :mshow cmd)
       kk← ⍺{ ⍺=1: ⍵ ⋄ ⍵/⍨ (2↑¨⍵)≢¨⊂'__'}keys 
     0=≢kk: ⍬
-      vv pp ppats mm parenFlg ns ← ↓⍉↑vals[ keys⍳kk ]  
-      title,[0] ⍉↑ kk pp (parenFlg ##.CParens¨ vv) mm    
+      vv pp ppats mmagic addParens← ↓⍉↑vals[ keys⍳kk ]  
+      title,[0] ⍉↑ kk pp (addParens ##.CParens¨ vv) mmagic    
     }⍬ 
     (0=≢⍵): ⍬
       kk data← keys vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
-      vv pp ppats mm parenFlg ns ← ↓⍉↑ data 
-      title,[0] ⍉↑ kk pp (parenFlg ##.CParens¨ vv) mm    
+      vv pp ppats mm addParens← ↓⍉↑ data 
+      title,[0] ⍉↑ kk pp (addParens ##.CParens¨ vv) mm    
   }
 ⍝:EndSection
 
@@ -271,14 +271,14 @@
 ⍝:EndSection
 
 ⍝:Section Define Macros
-  ⍝ flags: pFlag (add parens?), eFlag (should we execute the value once?),
-  ⍝       mFlag (is it "magic," i.e. should we execute each time we see it?)
-    DefMac← {
-      (eFlag mFlag)(name val parms parmFlag)← ⍺ ⍵ 
-      parmV← ParmSplit parms  
-      parmFlag∧ 0=≢parmV: 11 ⎕SIGNAL⍨ BadDefErr name 
-    ⍝              name  value                          parameters parmFlag
-      mFlag db.Set name (eFlag CEval val) parmV parmFlag 
+     DefMac← { 
+    ⍝ ⍺⍺=1, if macro of the form   mac[parms] or mac[].
+    ⍝       If of the form  mac[ ], an error is signaled.
+      hasParm← ⍺⍺   
+      (eval magic)(name val parms parenFlag)← ⍺ ⍵ 
+      parmV← ParmSplit parms 
+      hasParm∧ 0= ≢parmV: 11 ⎕SIGNAL⍨ BadDefErr name 
+      magic db.Set name (eval CEval val) parmV parenFlag 
     }
 ⍝:EndSection
 
@@ -326,9 +326,9 @@
         Case elseI:   CDoc m⊣ CondElse ⍬
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
-        Case def1I:   CDoc m⊣ ('pem'∊⎕C F 2) DefMac (F 3) (F 4) ⍬     0
-        Case def2I:   CDoc m⊣ ('pem'∊⎕C F 2) DefMac (F 3) (F 5) (F 4) 1
-        Case constI:  CDoc m⊣ 1 1 0          DefMac (F 2) (F 3) ⍬     0
+        Case def1I:   CDoc m⊣ ('em'∊cf2) (0DefMac) (F 3) (F 4) ⍬ (p← 'p'∊cf2←⎕C F 2)
+        Case def2I:   CDoc m⊣ ('em'∊⎕C F 2) (1DefMac) (F 3) (F 5) (F 4)(p←'p'∊cf2←⎕C F 2)
+        Case constI:  CDoc m⊣ 1 1 (0DefMac) (F 2) (F 3) ⍬ 0
         Case setI:    CDoc m⊣ f2 SetLocal 1 CEval f3 ⊣ f2 f3← F¨2     3
         Case showI:   m, ∊(⊂cr,'⍝ '), Dfns_disp ('m'∊F 2) db.ShowMacros F 3
         Case undefI:  CDoc m⊣ db.Del F 2 
