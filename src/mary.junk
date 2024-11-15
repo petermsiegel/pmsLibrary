@@ -12,6 +12,8 @@ __FILE__ __FILE__ __FILE__
     '2 False ',__COUNTER__
 :mend
 
+:mdefe fred← 1+
+
 :mshow
 
 ⍝⍝⍝ END FILE MARY ⍝⍝⍝
