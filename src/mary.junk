@@ -1,4 +1,6 @@
 ﻿⍝⍝⍝ FILE MARY ⍝⍝⍝
+
+:monce
 __FILE__ __FILE__ __FILE__
 
 :mif __COUNTER__
@@ -12,7 +14,7 @@ __FILE__ __FILE__ __FILE__
     '2 False ',__COUNTER__
 :mend
 
-:mdefe fred← 1+
+:mdefe fred← 1+1
 
 :mshow
 

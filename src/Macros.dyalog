@@ -1,7 +1,16 @@
 ﻿Macros←{ 
 ⍝ Hide all the variables from user :mdef-e evaluations
 ⍺←'' ⋄ __NS__← ⍬ 
-⍺ (⍎'__NS__' ⎕NS ⍬).{   
+⍺ (⍎'__NS__' ⎕NS ⍬).{  
+
+⍝ :Section Master Error Handler...
+  Sig← ⎕SIGNAL/{ ⍺←11 ⋄ msg← ⍵  
+    0= ⎕NC '__LINE__': msg 11 
+      context← (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
+      ⌽11, ⊂msg, cr, context
+  } 
+⍝ :Section End Master Error Handler
+
 ⍝:Section options (⍺@CV) 
 ⍝ ⍺ is a single simple char. string (default: ⍬)
 ⍝ options:  
@@ -19,8 +28,8 @@
     defaults←('quiet' 0)('simple' 0)('debug' 0)('warn' 1)('caller' (⊃⎕RSI))
     o← defaults { 
       w← ⊂⍣(¯2= ≡⍵)⊢⍵ 
-      0∊ 2= ≢¨aw←⍺,w: Err 'Macros: Invalid option format' 
-      0∊ ⊃∊/ ⊃¨¨w ⍺:  Err 'Macros: Unknown options' 
+      0∊ 2= ≢¨aw←⍺,w: Sig 'Macros: Invalid option format' 
+      0∊ ⊃∊/ ⊃¨¨w ⍺:  Sig 'Macros: Unknown options' 
       ns←⎕NS ⍬ ⋄ ns⊣ {ns⍎(⊃⍵),'←⊃⌽⍵'}¨aw 
     } ⍺
 ⍝:EndSection 
@@ -43,7 +52,7 @@
     CondErr←   'Macros DOMAIN ERROR: Invalid Conditional Expression: "'∘,,∘'"' 
     BadMacErr← 'Macros LOGIC ERROR: expected macro "'∘,,∘'" not defined!'
     DirErr←    'Macros DOMAIN ERROR: Invalid directive: "'∘,,∘'"'
-    EvalErr←   'Macros DOMAIN ERROR evaluating macro RHS expression '∘,
+    EvalErr←   'Macros DOMAIN ERROR evaluating macro RHS expression "'∘,,∘'"'
     InclErr←   'Macros DOMAIN ERROR: Unable to include file '∘, 
     QCTErr←    'Macros LOGIC ERROR: ¨QCToken¨ requires ⍵ to start with '', ", or ⍝. String="'∘,,∘'"' 
     
@@ -111,11 +120,7 @@
     errP←     ∆D ':m(def|set|undef|show|include|once|if|else|end|pop).*'
 ⍝:EndSection Constants
 
-⍝:Section Miscellaneous Utilities
-    Err← ⎕SIGNAL/{ ⍺←11  
-      ln← (⊃⌽fiStack), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
-      ⌽11, ⊂⍵,cr,ln 
-    }    
+⍝:Section Miscellaneous Utilities   
     disp←⊢    ⍝ Placeholder (⎕NC 3.3) for dfns::disp (⎕NC 3.2)
     Dfns_disp← {disp ⍵}{ 3.3=⎕NC ⊂'disp': ⍵⊣'disp' ⎕CY 'dfns'⋄ ⍵}   
   ⍝ AlignCm: Aligns "comments" on RHS of a substituted line. 
@@ -155,31 +160,34 @@
       1↓ ,cr, m↑[1]⍨ -⍺+ ⊃⌽⍴m← ⎕FMT ⍵
     }
   ⍝ DebugMode: Turned on if ⍵=1. Else turned off.
-    DebugMode←{
-      ~⍵: ⍬ ⎕STOP ⊃⎕XSI 
-      ⎕←'Debug Mode: Stopping Execution...' ⋄ (1+⊃⍺) ⎕STOP ⊃⎕XSI
+    DebugMode←{ 
+      ~⍵: ⍬ ⎕STOP ⊃⎕XSI ⋄ next← 1+⊃⍺ 
+      ⎕←'Debug Mode Active. Start Dyalog Tracing? '
+      'n'∊ ⎕C⍞↓⍨ ≢⍞←'Yes or no? [Yes] ': 0⊣⎕←'Tracing is skipped...'
+      ⎕← 'Tracing starting...'
+      next ⎕STOP ⊃⎕XSI
     }
 ⍝:EndSection Miscellaneous Utilities
 
 ⍝:Section Include Macro Buffer Management. (See :minclude)
-    includeBuf← ⍬
-    onceStack← ⍬ 
-    fiStack← ,⊂''
-    liStack← ,0
-    IncludeFi←{ 
+    fileBuf← ⍬
+    onceStk← ⍬ 
+    fileStk← ,⊂''
+    lineStk← ,0
+    IncludeFile←{ 
         fi← TrimLR ⍵ 
-        already← onceStack∊⍨ ⊂fi 
-      already: 0⊣ includeBuf,← ⊂'⍝⍝⍝ Not including file "',fi,'". Already seen. ⍝⍝⍝'
-        fiStack,← ⊂fi  ⋄ liStack,← 0
-      22:: 22 Err InclErr fi 
+        already← onceStk∊⍨ ⊂fi 
+      already: 0⊣ fileBuf,← (⊂'⍝⍝⍝ *** Macros: Already included file "',fi,'" and :mOnce specified. *** ⍝⍝⍝') 
+        fileStk,← ⊂fi  ⋄ lineStk,← 0
+      22:: 22 Sig InclErr fi 
         ll← TrimR¨ ⊃⎕NGET fi 1
-        ⍬⊣ includeBuf,← (⊂'⍝⍝⍝ Including file "', fi, '" ⍝⍝⍝'), ll, ⊂':mpop_'
+        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '" *** ⍝⍝⍝'), ll, ⊂':mpop_'
     }
-  ⍝ newStream← InclFlush inputStream@⍵: 
+  ⍝ newStream← FlushFileBuf inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
   ⍝    stream ¨⍵¨ (then clear the include buffer)
-    InclFlush← { tt← includeBuf ⋄ includeBuf⊢← ⍬ ⋄ tt, ⍵ }
-    InclPop←   { (fiStack liStack)↓⍨← - 1≠ ≢fiStack }
+    FlushFileBuf← { tt← fileBuf ⋄ fileBuf⊢← ⍬ ⋄ tt, ⍵ }
+    PopFile←   { (fileStk lineStk)↓⍨← - 1≠ ≢fileStk }
 
 ⍝:EndSection
 
@@ -205,7 +213,7 @@
         oldP newP← ##.CBracket¨ 1⊃¨oldV newV
         difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
           ∆Fl← difF∘{ ⍺: '; flags: ', ⍵ ⋄ '' } 
-        ⎕← ##.{ (⊃⌽fiStack), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__ }⍬
+        ⎕← ##.{ (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__ }⍬
         ⎕←'>>> Warning: Value for macro "',⍵,'" has changed' 
         ⎕←'>>> Old: ', ⍵, oldP, '←', oldV[0], ∆Fl oldF 
         ⎕←'>>> New: ', ⍵, newP, '←', newV[0], ∆Fl newF 
@@ -230,9 +238,9 @@
   ⍝            fnd (key default ⍬ ⍬),    where fnd=0 (if not found)
   db.Get← db.{ ⍺←⊢ 
        i←keys⍳ ⊂k← 1∘⎕C⍣('⎕'=⊃⍵)⊢ ⍵ 
-    i=≢keys: 0 (⍵ ⍺ ⍬ ⍬ )⊣ (⍬≢⍺⍬)##.{⍺: ⍬ ⋄ Err BadMacErr ⍵ }k 
+    i=≢keys: 0 (⍵ ⍺ ⍬ ⍬ )⊣ (⍬≢⍺⍬)##.{⍺: ⍬ ⋄ Sig BadMacErr ⍵ }k 
        k (v p pats magic addParens)←  i⊃¨ keys vals 
-  0:: ##.{Err EvalErr '"',⍵,'"'}v 
+  0:: ##.{ Sig EvalErr ⍵ }v 
     magic: 1 (k (addParens ##.CParens ⍕##⍎v) p pats) 
            1 (k (addParens ##.CParens     v) p pats) 
   }
@@ -281,7 +289,7 @@
   ⍝ QCToken expects ⍵ to be a comment or quoted string.
   ⍝ No scan is done before or after.
   QCToken←{ ⍺←1 
-      ~sq dq cm∊⍨ ⊃⍵: Err QCTErr ⍵ 
+      ~sq dq cm∊⍨ ⊃⍵: Sig QCTErr ⍵ 
       sq=⊃⍵: ⍵ ⋄ '⍝'=⊃⍵: ⍺⊃ '' ⍵ 
         sq,sq,⍨ n/⍨ ~dq2⍷ n← n/⍨ 1+ sq= n← 1↓¯1↓ ⍵
   }
@@ -313,8 +321,13 @@
       hasParm← ⍺⍺   
       (eval magic)(name val parms parenFlag)← ⍺ ⍵ 
       parmV← ParmSplit parms 
-      hasParm∧ 0= ≢parmV: Err BadDefErr name 
-      magic db.Set name (1↓∊(⎕UCS 13),⎕FMT eval CCodeEval val) parmV parenFlag 
+      hasParm∧ 0= ≢parmV: Sig BadDefErr name 
+    ~o.debug∧eval: magic db.Set name (1↓∊(⎕UCS 13),⎕FMT eval CCodeEval val) parmV parenFlag
+      ⎕←'Debug: ',(⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
+      ⎕←' >>> Evaluating "',val,'"'
+      e← eval CCodeEval val  
+      ⎕←'==> 'e
+      magic db.Set name (1↓∊(⎕UCS 13),⎕FMT e) parmV parenFlag 
     }
 ⍝:EndSection
 
@@ -322,7 +335,7 @@
     condStk ← ⍬         
     condBegin condActive condSkip← 1 0 ¯1   
     CondEval← o.caller{ 
-      0:: Err CondErr ⍺ 
+      0:: Sig CondErr ⍺ 
         b← ⍺⍺⍎'0≢⍥,', QCScan ParseCode ⍵
         (⊃⌽condStk)← condBegin condActive⊃⍨ b
         ' ⍝ => ', '(', (⍕b), ')'
@@ -347,9 +360,9 @@
           isDirctv⊢← 1   
           m← '⍝ ',(' '⍴⍨0⌈l-2), m0← ⍵.Match↓⍨ l←≢F 1 
       ⍝ Major errors signalled no matter what
-        Case errI:  Err DirErr 2↓m 
+        Case errI:  Sig DirErr 2↓m 
       ⍝ Hidden directive to manage file names...
-        Case popI:    ''⊣ InclPop⍬
+        Case popI:    ''⊣ PopFile⍬
       ⍝ Conditional :mend executed no matter what
         Case endifI:  CDoc m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
@@ -368,8 +381,8 @@
         Case setI:    CDoc m⊣ SetCallerVar/ F¨2 3
         Case showI:   m, ∊(⊂cr,'⍝ '), Dfns_disp ('m'∊F 2) db.ShowMacros F 3
         Case undefI:  CDoc m⊣ db.Del F 2 
-        Case inclI:   CDoc m⊣ IncludeFi F 2
-        Case onceI:   CDoc m⊣ onceStack,← ¯1↑fiStack 
+        Case inclI:   CDoc ('⍝- '/⍨0=ok), m↓⍨ 2× ~ok← IncludeFile F 2
+        Case onceI:   CDoc m⊣ onceStk,← ¯1↑fileStk 
     }⍠('ResultText' 'Simple')('EOL' 'CR') 
 ⍝:EndSection 
 
@@ -416,7 +429,7 @@
         Rstr← ⍺⍺.{ (⎕PP ⎕FR)⊢← ⍺ ⋄ ⍵ }
         _saved⊢← ⍺⍺.{ s← ⎕PP ⎕FR ⋄ s⊣ (⎕PP ⎕FR)⊢← ⍵ } 34 1287 
          p← ParseCode ⍵   
-     0:: Err EvalErr '"',⍵,'"'⊣ _saved Rstr⍬ 
+     0:: Sig EvalErr ⍵⊣ _saved Rstr⍬ 
         _saved Rstr ⍺⍺.(⍕⍎)p 
     }
     _saved← 0 0
@@ -457,7 +470,7 @@
 ⍝:Section Executive 
     Executive←{
       ⍬{
-        0≠≢includeBuf: ⍺ ∇ InclFlush ⍵ 
+        0≠≢fileBuf: ⍺ ∇ FlushFileBuf ⍵ 
         0=≢⍵: ⍺
           (⍺, ⊂ParseLine ⊃⍵) ∇ 1↓ ⍵ 
       } ⊆⍵
@@ -465,11 +478,11 @@
 
     __COUNTER__← counterOrigin
     __LINE__← __TEXT__← ⊢0 
-    _← db.SetMagic '__FILE__'     'QTok ⊃⌽fiStack'                    ⍬ 0
+    _← db.SetMagic '__FILE__'     'QTok ⊃⌽fileStk'                    ⍬ 0
     _← db.SetMagic '__LINE__'     '__LINE__'                         ⍬ 0 
     _← db.SetMagic '__COUNTER__'  '(__COUNTER__+← 1)⊢ __COUNTER__'   ⍬ 0 
     _← ⎕LC DebugMode o.debug 
-
+  ⍝ Executive...
     lineV← CNullLines Executive ⍵ 
     o.simple: 1↓∊(⊂cr,⍨ o.debug/ '␍'),¨ lineV ⋄ lineV
 

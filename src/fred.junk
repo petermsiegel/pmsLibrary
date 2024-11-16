@@ -9,4 +9,5 @@
 And this: 'ted[3;2;1]'
 Our file is __FILE__!
 Our file and line number: __FILE__``__LINE__
+:minclude mary.junk
 ⍝⍝⍝ END OF fred.junk
