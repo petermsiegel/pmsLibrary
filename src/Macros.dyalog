@@ -1,52 +1,59 @@
 ﻿Macros←{ 
-⍝ Hide all the variables from user :mdef-e evaluations
-⍺←'' ⋄ __NS__← ⍬ 
-⍺ (⍎'__NS__' ⎕NS ⍬).{  
+⍝ Hide all the variables from user :mdef-e and -m evaluations
+⍺←⍬     
+⍺ (⎕NS ⍬).{  
 
+    ⎕IO ⎕ML← 0 1  
 ⍝ :Section Master Error Handler...
-  Sig← ⎕SIGNAL/{ ⍺←11 ⋄ msg← ⍵  
-    0= ⎕NC '__LINE__': msg 11 
-      context← (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
-      ⌽11, ⊂msg, cr, context
-  } 
-⍝ :Section End Master Error Handler
+    Sig← ⎕SIGNAL/{ ⍺←11 ⋄ msg← ⍵  
+      0= ⎕NC '__LINE__': msg 11   ⍝ Done, if we aren't yet on a line...
+        context← (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
+        (msg, cr, context) 11 
+    } 
+⍝ :EndSection Master Error Handler
 
-⍝:Section options (⍺@CV) 
-⍝ ⍺ is a single simple char. string (default: ⍬)
+⍝:Section Options (⍺)
+⍝ ⍺ is either null, or one or more options of the form ('option_name' value.)
 ⍝ options:  
 ⍝  ('quiet' [0|1]) ('simple' [0|1]) ('debug' [0|1]) 
 ⍝  ('warn' [1|0])  ('caller' (⊃⎕RSI))
 ⍝   quiet:  exclude from output directives (except :mshow output)
-⍝           Default (0): include output from all directives
+⍝           Default 0: include output from all directives
 ⍝  simple:  return output as a simple char string with carriage returns
-⍝           separating lines. Default: return a vector of char vectors.
+⍝           separating lines. (Assumed option if keyword "simple" is omitted).
+⍝           Default 0: return a vector of char vectors.
 ⍝   debug:  if 1, stops the function at the Executive (q.v.) for debugging.
-⍝    warn:  if 1, warn if a macro is redefined (even slightly).
-⍝  caller:  the caller namespace; defaults to ⊃⎕RSI.
- 
-    ⎕IO ⎕ML← 0 1 ⋄ ⍺← ⍬  
-    defaults←('quiet' 0)('simple' 0)('debug' 0)('warn' 1)('caller' (⊃⎕RSI))
+⍝           Provides additional debugging information.
+⍝           Default 0: no debugging.
+⍝    warn:  if 1 (default), warn if a macro is redefined (even slightly).
+⍝           Default 0: redefined macros accepted without warnings.  
+⍝  caller:  the caller namespace; 
+⍝           Default: ⊃⎕RSI (actual namespace of calling function).
+    defaults←('simple' 0)('quiet' 0)('debug' 0)('warn' 1)('caller' (⊃⎕RSI))
+  ⍝           ↑ Assumed option if scalar.
+  ⍝ The following vars will be set in namespace ¨o¨.
+  ⍝    quiet, simple, debug, warn, and caller. 
     o← defaults { 
-      w← ⊂⍣(¯2= ≡⍵)⊢⍵ 
+      w← ⍺∘{ 1=≢⍵: (⊃⊃⍺) ⍵ ⋄ ⍵}¨ ⊂⍣(¯2= ≡⍵)⊢⍵ 
       0∊ 2= ≢¨aw←⍺,w: Sig 'Macros: Invalid option format' 
-      0∊ ⊃∊/ ⊃¨¨w ⍺:  Sig 'Macros: Unknown options' 
-      ns←⎕NS ⍬ ⋄ ns⊣ {ns⍎(⊃⍵),'←⊃⌽⍵'}¨aw 
+      1∊ x← ~⊃∊/ ⊃¨¨w ⍺:  Sig 'Macros: Unknown option(s): ', ∊⊃¨x/ ⍵
+      ns←⎕NS ⍬ ⋄ ns⊣ {ns⍎ (⊃⍵), '←⊃⌽⍵'}¨ aw 
     } ⍺
-⍝:EndSection 
+⍝:EndSection Options 
 
-⍝:Section Settable "parameters"
+⍝:Section Settable Parameters
   ⍝ maxSubOpt: 
-  ⍝   Maximum times to substitute "runaway" macros per line before error. 
+  ⍝   Maximum times to substitute potentially "runaway" macros per line before error. 
   ⍝   See Repeat
     maxSubOpt← 20 
   ⍝ "Index origin" for __COUNTER__ (1 or 0)
     counterOrigin←  0
   ⍝ How much to indent user text lines...
     lMarg←2 
-⍝:EndSection 
+⍝:EndSection Settable Parameters
 
 ⍝:Section Constants 
-  ⍝ Error constants
+  ⍝ Error constants (dfns and char)
     BadDefErr← 'Macros DOMAIN ERROR: Invalid definition: '∘,,∘'[]'
     brErr←     'Macros DOMAIN ERROR: Too many right brackets "]"'
     CondErr←   'Macros DOMAIN ERROR: Invalid Conditional Expression: "'∘,,∘'"' 
@@ -58,23 +65,22 @@
     
   ⍝ Char Constants
     cr← ⎕UCS 13 
-    sp sq dq lb rb cm esc sc ←' ''"[]⍝`;'
-    dq2←dq,dq 
-    numStart← '¯',⎕D 
-  ⍝ Pattern Constants
+    sp sq dq lb rb cm esc sc← ' ''"[]⍝`;'   ⍝ Our "escape" is ` 
+    dq2← dq,dq 
+  ⍝ Regex Constants and Fns
     lbP rbP←  '\',¨ lb rb 
     scP← sc   
     qt1P←'(?:''[^'']*'')+' ⋄ qt2P←'(?:"[^"]*")+' ⋄ cmP←'(?:⍝.*$)'
-    skipQP←  1↓∊ '|',¨qt1P qt2P
-    skipQCP← 1↓∊ '|',¨qt1P qt2P cmP 
-    let1P let2P← '[#⎕\pL∆⍙_]' '[#⎕\pL∆⍙_]'
+    skipQP←  1↓ ∊'|',¨qt1P qt2P
+    skipQCP← 1↓ ∊'|',¨qt1P qt2P cmP 
+    let1P let2P← '[#⎕\pL∆⍙_]' '[#⎕\pL∆⍙_\d]'
     pfxAP pfxDP← '(?ix)' '(?ix)(^\h* ⍝? \h*)'
     bLftP bRgtP← ('(?<![#⎕\pL∆⍙_])') '(?![#⎕\pL∆⍙_\d])'
     brktP←  '(?<B> \[ ((?> [^]["'']+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&B)* )+) \] )' 
   ⍝ Pattern Dfns 
   ⍝ ParmPat: Pattern to match parameter word ⍵ exactly
     ParmPat← (bLftP,'\Q')∘, ,∘('\E',bRgtP)        
-    EscPat← { ⍵/⍨1+'\'=⍵ }
+    EscPat← { ⍵/⍨ 1+'\'=⍵ }
     CParens← { ⍺: '(',⍵,')' ⋄ ⍵}
   ⍝ Helper Fns ∆D, ∆A create pseudo PCRE escapes: \⍺, \⍵, \ßL, \ßR
     ⍝   \⍺  - 1st let of APL var name (non-digit)
@@ -114,51 +120,24 @@
     elifdefP← ∆D ':melseif(n?)def \h+ ([^\h]+)   $'
     elseP←    ∆D ':melse\b                    \h*$'
     endifP←   ∆D ':mend(?:if)?\b              \h*$'
-  ⍝ pøp: hidden directive. 
-    popP←     ∆D '^:mpop_\b .* $' 
+  ⍝ pop: hidden directive. 
+    eofTokP←     ∆D '^:meof_\b .* $' 
   ⍝ Catchall for major syntax errors in macro directives only 
-    errP←     ∆D ':m(def|set|undef|show|include|once|if|else|end|pop).*'
+    errP←     ∆D ':m(def|const|set|undef|show|include|once|if|else|end|pop).*'
 ⍝:EndSection Constants
 
 ⍝:Section Miscellaneous Utilities   
-    disp←⊢    ⍝ Placeholder (⎕NC 3.3) for dfns::disp (⎕NC 3.2)
-    Dfns_disp← {disp ⍵}{ 3.3=⎕NC ⊂'disp': ⍵⊣'disp' ⎕CY 'dfns'⋄ ⍵}   
   ⍝ AlignCm: Aligns "comments" on RHS of a substituted line. 
   ⍝ Aligns at ⍺⍺ chars, if space; else ⍺⍺+20, ⍺⍺+40, ...
     AlignCm← 60 { 
       o.quiet: ⍺ ⋄ ⍺⍺< ≢⍺: ⍺((⍺⍺+20)∇∇)⍵ ⋄ ⍵,⍨ ⍺⍺↑ ⍺ 
     }
+  ⍝ CBracket:  'xxx' => '[xxx]', ⍬ => ⍬.
+    CBracket← { 0=≢⍵: ⍬ ⋄ lb, rb,⍨ 1↓ ∊sc,¨⍵~¨sp }
   ⍝ CDoc: Return the string ⍵ only if the "quiet" option is off.
     CDoc←  (~o.quiet)∘/ 
   ⍝ CNullLines: Remove null (empty) lines from ⍵ if "quiet" option.   
     CNullLines← {⍵/⍨0≠≢∘TrimR¨⍵}⍣o.quiet
-  ⍝ Trim blanks...
-    TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
-    TrimR← { ⍵↓⍨ -+/∧\⌽⍵=' ' }
-  ⍝ CBracket:  'xxx' => '[xxx]', ⍬ => ⍬.
-    CBracket← { 0=≢⍵: ⍬ ⋄ lb, rb,⍨ 1↓ ∊sc,¨⍵~¨sp }
-  ⍝ QTok: Convert token (with no internal quotes) to string: "xxx" =>   " 'xxx' "
-  ⍝       No internal quote doubling added...
-    SpTok← sp∘, ,∘sp
-    QTok← (sp,sq)∘,,∘(sq,sp) 
-    QTok2← { numStart∊⍨ ⊃⍵: SpTok ⍵ ⋄ QTok ⍵ }
-  ⍝ ∆F: Match field ⍵ in ⎕R namespace ⍺. Happily returns '' if field is omitted/missing.
-    ∆F← { l o b← ⍺.(Lengths Offsets Block) 
-          ⍵≥≢l: '' ⋄ 0> l[⍵]: '' ⋄ l[⍵]↑ o[⍵]↓ b 
-    }
-  ⍝ ParmSplit: 
-  ⍝   If ⍵ is not null or blank, split on semicolons, removing ALL blanks
-  ⍝   Else return ⍬ 
-    ParmSplit←{ 
-      pStr← ⍵~' ' ⋄ 0= ≢pStr: ⍬ ⋄ ';' (≠⊆⊢) pStr
-    }
-  ⍝ Obj2Str:  str← lMarg∘Obj2Str obj 
-  ⍝   lMarg:   left margin for each "line". 
-  ⍝   obj:     arbitrary ⎕FMT-ready object 
-  ⍝   Returns: string vector with internal lefthand blanks & carriage returns.
-    Obj2Str← lMarg∘{
-      1↓ ,cr, m↑[1]⍨ -⍺+ ⊃⌽⍴m← ⎕FMT ⍵
-    }
   ⍝ DebugMode: Turned on if ⍵=1. Else turned off.
     DebugMode←{ 
       ~⍵: ⍬ ⎕STOP ⊃⎕XSI ⋄ next← 1+⊃⍺ 
@@ -166,6 +145,39 @@
       'n'∊ ⎕C⍞↓⍨ ≢⍞←'Yes or no? [Yes] ': 0⊣⎕←'Tracing is skipped...'
       ⎕← 'Tracing starting...'
       next ⎕STOP ⊃⎕XSI
+    }
+  ⍝ disp: placeholder (⎕NC 3.3) for dfns::disp (⎕NC 3.2)
+    disp←⊢    
+    Dfns_disp← {disp ⍵}{ 3.3=⎕NC ⊂'disp': ⍵⊣'disp' ⎕CY 'dfns'⋄ ⍵}   
+  ⍝ IsInt: 1 if ⍵ has ¯ or digits
+    IsInt← ∧/∊∘('¯',⎕D)
+  ⍝ Obj2Str:  str← lMarg∘Obj2Str obj 
+  ⍝   lMarg:   left margin for each "line". 
+  ⍝   obj:     arbitrary ⎕FMT-ready object 
+  ⍝   Returns: string vector with internal lefthand blanks & carriage returns.
+    Obj2Str← lMarg∘{
+      1↓ ,cr, m↑[1]⍨ -⍺+ ⊃⌽⍴m← ⎕FMT ⍵
+    }
+  ⍝ ParmSplit: 
+  ⍝   If ⍵ is not null or blank, split on semicolons, removing ALL blanks
+  ⍝   Else return ⍬ 
+    ParmSplit←{ 
+      pStr← ⍵~' ' ⋄ 0= ≢pStr: ⍬ ⋄ ';' (≠⊆⊢) pStr
+    }
+  ⍝ QTok: Convert token (with no internal quotes) to string: "xxx" =>   " 'xxx' "
+  ⍝       No internal quote doubling added...
+    QTok← (sp,sq)∘,,∘(sq,sp) 
+  ⍝ QNTok: Like QTok, but leaves numeric constants outside quotes
+    QNTok← { IsInt ⊃⍵: SpTok ⍵ ⋄ QTok ⍵ }
+  ⍝  
+    SpTok← sp∘, ,∘sp
+  ⍝ Trim blanks...
+    TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
+    TrimR← { ⍵↓⍨ -+/∧\⌽⍵=' ' }
+  ⍝ ∆F: Match field ⍵ in ⎕R namespace ⍺. 
+  ⍝     Happily returns '', if field is omitted/missing.
+    ∆F← { l o b← ⍺.(Lengths Offsets Block) 
+          ⍵≥≢l: '' ⋄ 0> l[⍵]: '' ⋄ l[⍵]↑ o[⍵]↓ b 
     }
 ⍝:EndSection Miscellaneous Utilities
 
@@ -181,22 +193,22 @@
         fileStk,← ⊂fi  ⋄ lineStk,← 0
       22:: 22 Sig InclErr fi 
         ll← TrimR¨ ⊃⎕NGET fi 1
-        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '" *** ⍝⍝⍝'), ll, ⊂':mpop_'
+        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '" *** ⍝⍝⍝'), ll, ⊂':meof_'
     }
   ⍝ newStream← FlushFileBuf inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
   ⍝    stream ¨⍵¨ (then clear the include buffer)
     FlushFileBuf← { tt← fileBuf ⋄ fileBuf⊢← ⍬ ⋄ tt, ⍵ }
-    PopFile←   { (fileStk lineStk)↓⍨← - 1≠ ≢fileStk }
-
+  ⍝ EofSeen: We saw an ':meof_' token in the input stream (we put it there!)
+    EofSeen←   { (fileStk lineStk)↓⍨← - 1≠ ≢fileStk }
 ⍝:EndSection
 
 ⍝:Section Database (namespace) of macros
   db← ⎕NS⍬
   db.(keys←vals←⍬)
-⍝ key← db.Set k:key v:value p:parms addParens, where key is the macro name
+⍝ key← db.Set k:key v:value p:parmV addParens, where key is the macro name
   db.Set← db.{ ⍺←0 ⋄ 
-    ⍺: ##.caller SetMagic ⍵
+    ⍺:  SetMagic ⍵
       m ns← 0 ⍬ 
       k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k 
       i←keys⍳ ⊂k
@@ -208,7 +220,7 @@
       oldV ≡ newV: ⍵              
     ⍝ A Macro has been redefined...
         (i⊃vals)← newV            ⍝ Keep new def.
-      ~##.o.warn: ⍵                 ⍝ The "warn" option is off: return happily.
+      ~##.o.warn: ⍵               ⍝ The "warn" option is off: return happily.
     ⍝ A Macro has been redefined and the "warn" option is off: warn user.
         oldP newP← ##.CBracket¨ 1⊃¨oldV newV
         difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
@@ -221,7 +233,7 @@
     }k
     k⊣ keys vals,∘⊂← k ( v p pats 0 0 )
   }
-⍝ SetMagic: ⍵: k:key, v:value, p:parms, addParens)
+⍝ SetMagic: ⍵: k:key, v:value, p:parmV, addParens)
   db.SetMagic← db.{ 
       m ns← 1 ##
       k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k 
@@ -229,12 +241,12 @@
       v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
     ⍝ (i⊃vals)← 
-    ⍝  v:value, p:parms, pats:pats for parms, m:magic=1, addParens, 
+    ⍝  v:value, p:parmV, pats:pats for parmV, m:magic=1, addParens, 
     i<≢keys: k⊣ (i⊃vals)←  v p pats m addParens  
       k⊣ keys vals,∘⊂← k  (v p pats m addParens)
   }
   ⍝ ...← [default] db.Get key 
-  ⍝ Returns:   fnd (key val parms pats), where fnd=1 (if found)
+  ⍝ Returns:   fnd (key val parmV pats), where fnd=1 (if found)
   ⍝            fnd (key default ⍬ ⍬),    where fnd=0 (if not found)
   db.Get← db.{ ⍺←⊢ 
        i←keys⍳ ⊂k← 1∘⎕C⍣('⎕'=⊃⍵)⊢ ⍵ 
@@ -255,7 +267,7 @@
   ⍝ Calls and returns the info from db.Show.
   ⍝ ...← db.Show [key1 key2 ... | keys]
   ⍝ If ⍵ is null, returns information for ALL existing keys.
-  ⍝ Returns a formatted list of keys, parms, and values.
+  ⍝ Returns a formatted list of keys, parmV, and values.
   db.ShowMacros← db.{ ⍺←0
     0≠≢mm← ⍺ Show ' '(≠⊆⊢)⍵: mm ⋄ ⊂'No macros defined' 
   }
@@ -302,7 +314,7 @@
       gaPP←qt1P qt2P lbP rbP scP                ⍝ ' " [ ] ;
             qt1I qt2I lbI rbI scI←⍳≢ gaPP
 
-      (lb≠⊃⍵)∨(rb≠⊃⌽⍵): ⊂⍵⊣ ⎕←'Macros Warning: Parameter brackets assumed for macro "',⍺,'[...]".',OnLn⍬       ⍝ No args!
+      (lb≠⊃⍵)∨(rb≠⊃⌽⍵): ⊂⍵⊣ Sig 'Parameter brackets [...] required for macro "',⍺,'"'    ⍝ No args!
       brPos←1   ⍝ We've seen a lb 
       ⊢txt← gaPP ⎕R{ C←∊∘⍵.PatternNum ⋄ m←⍵.Match
         C qt1I: m
@@ -319,15 +331,18 @@
     ⍝ ⍺⍺=1, if macro of the form   mac[parms] or mac[].
     ⍝       If of the form  mac[ ], an error is signaled.
       hasParm← ⍺⍺   
-      (eval magic)(name val parms parenFlag)← ⍺ ⍵ 
-      parmV← ParmSplit parms 
+      (eval magic parenFlag)(name val parmStr)← ⍺ ⍵ 
+      parmV← ParmSplit parmStr 
       hasParm∧ 0= ≢parmV: Sig BadDefErr name 
-    ~o.debug∧eval: magic db.Set name (1↓∊(⎕UCS 13),⎕FMT eval CCodeEval val) parmV parenFlag
+    ~o.debug∧eval: {
+      flat← 1↓ ∊cr, ⎕FMT eval CCodeEval val
+      magic db.Set name flat parmV parenFlag
+    }⍬
       ⎕←'Debug: ',(⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
       ⎕←' >>> Evaluating "',val,'"'
-      e← eval CCodeEval val  
-      ⎕←'==> 'e
-      magic db.Set name (1↓∊(⎕UCS 13),⎕FMT e) parmV parenFlag 
+      flat← 1↓ ∊cr, ⎕FMT eval CCodeEval val  
+      ⎕←'==> ',flat
+      magic db.Set name flat parmV parenFlag 
     }
 ⍝:EndSection
 
@@ -351,8 +366,8 @@
 
 ⍝:Section Parse Macro Directives (:def, etc.)
     isDirctv← 0 
-    pdPP← def2P def1P constP setP undefP showP inclP ifP ifdefP elifP elifdefP elseP endifP popP onceP errP
-          def2I def1I constI setI undefI showI inclI ifI ifdefI elifI elifdefI elseI endifI popI onceI errI← ⍳≢pdPP
+    pdPP← def2P def1P constP setP undefP showP inclP ifP ifdefP elifP elifdefP elseP endifP eofTokP onceP errP
+          def2I def1I constI setI undefI showI inclI ifI ifdefI elifI elifdefI elseI endifI eofTokI onceI errI← ⍳≢pdPP
     ParseDirective← { isDirctv⊢← 0 ⋄ isDirctv,⊂ PD2 ⍵ } 
     PD2←  pdPP ⎕R { 
           Case← ∊⍨∘⍵.PatternNum  
@@ -361,8 +376,8 @@
           m← '⍝ ',(' '⍴⍨0⌈l-2), m0← ⍵.Match↓⍨ l←≢F 1 
       ⍝ Major errors signalled no matter what
         Case errI:  Sig DirErr 2↓m 
-      ⍝ Hidden directive to manage file names...
-        Case popI:    ''⊣ PopFile⍬
+      ⍝ Hidden directive to manage :include file names...
+        Case eofTokI: ''⊣ EofSeen⍬
       ⍝ Conditional :mend executed no matter what
         Case endifI:  CDoc m⊣ CondEnd ⍬
       ⍝ Other conditionals executed only if NOT in condSkip mode
@@ -375,9 +390,10 @@
         Case elseI:   CDoc m⊣ CondElse ⍬
       ⍝ Execute Macro Defs only if in condActive mode 
       condActive≠ ⊃⌽condStk: '⍝-',m 
-        Case def1I:   CDoc m⊣ ('em'∊cf2) (0DefMac) (F 3) (F 4) ⍬ (p← 'p'∊cf2←⎕C F 2)
-        Case def2I:   CDoc m⊣ ('em'∊⎕C F 2) (1DefMac) (F 3) (F 5) (F 4)(p←'p'∊cf2←⎕C F 2)
-        Case constI:  CDoc m⊣ 1 1 (0DefMac) (F 2) (F 3) ⍬ 0
+        Case def1I:   CDoc m⊣ ('emp'∊⎕C F 2) (0DefMac) (F 3) (F 4) ⍬  
+        Case def2I:   CDoc m⊣ ('emp'∊⎕C F 2) (1DefMac) (F 3) (F 5) (F 4)
+      ⍝ mconst- alias for mdef-e  
+        Case constI:  CDoc m⊣ 1 0 0 (0DefMac) (F 2) (F 3) ⍬ 
         Case setI:    CDoc m⊣ SetCallerVar/ F¨2 3
         Case showI:   m, ∊(⊂cr,'⍝ '), Dfns_disp ('m'∊F 2) db.ShowMacros F 3
         Case undefI:  CDoc m⊣ db.Del F 2 
@@ -392,7 +408,7 @@
     PC_Last← skipQCP qtFauxP ⎕R { 
       0=⍵.PatternNum: ⍵.Match 
       0=≢quotable← ⍵ ∆F 1: '' 
-        ∊ QTok2¨ ' ' (≠⊆⊢) quotable 
+        ∊ QNTok¨ ' ' (≠⊆⊢) quotable 
     }
     ⍝ ParseCode: Handle macros and "faux" catenation operator for obj names:
     ⍝    abc``123 => abc123 
@@ -401,21 +417,21 @@
       C skipI: QCToken ⍵.Match 
       C catI: ''
     ⍝ C macroI...
-        fnd (key val parms pats)← db.Get⍨ F 1 
+        fnd (key val parmV pats)← db.Get⍨ F 1 
         argStr← F 2
       ~fnd: val, argStr 
-        noP← 0=≢parms ⋄ noA← 0=≢argStr   
+        noP← 0=≢parmV ⋄ noA← 0=≢argStr   
       noP∧ noA: val, argStr  
       noP:  val, lb, rb,⍨ ParseCode 1↓¯1↓ argStr 
         args← key ScanArgs argStr 
         pats← skipQCP ,⍥⊆ pats
-        repl← '\0' ,⍥⊆ args↑⍨≢parms
+        repl← '\0' ,⍥⊆ args↑⍨≢parmV
         pats ⎕R repl ⊣ val 
     }
     Repeat← { ⍺← 0 ⍵ ⋄ i orig← ⍺ 
       ⍵≡ txt← ⍵⍵ ⍵: txt 
       i< ⍺⍺: (i+1)orig ∇ txt 
-          ⎕← 'Macros Warning: Runaway macro substitution stopped at',⍺⍺,'iterations',OnLn⍬
+          ⎕← 'Macros Warning: Runaway macro substitution stopped at',⍺⍺,'iterations on line ',⍕__LINE__
           ⎕← '>>> Orig:   "',orig,'"'
           ⎕← '>>> Result: "',txt,'"'
           ⎕← '>>> Keeping original line!'
