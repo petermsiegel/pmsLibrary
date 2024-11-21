@@ -2,7 +2,6 @@
 ⍝ Hide all the variables from user :mdef-e and -m evaluations
 ⍺←⍬     
 ⍺ (⎕NS ⍬).{  
-
     ⎕IO ⎕ML← 0 1  
 ⍝ :Section Master Error Handler...
     Sig← ⎕SIGNAL/{ ⍺←11 ⋄ msg← ⍵  
@@ -34,10 +33,10 @@
   ⍝ The following vars will be set in namespace ¨o¨.
   ⍝    quiet, simple, debug, warn, and caller. 
     o← defaults { 
-      w← ⍺∘{ 1=≢⍵: (⊃⊃⍺) ⍵ ⋄ ⍵}¨ ⊂⍣(¯2= ≡⍵)⊢⍵ 
-      0∊ 2= ≢¨aw←⍺,w: Sig 'Macros: Invalid option format' 
+        w← ⍺∘{ 1=≢⍵: (⊃⊃⍺) ⍵ ⋄ ⍵}¨ ⊂⍣(¯2= ≡⍵)⊢⍵ 
+      0∊ 2= ≢¨aw← ⍺,w: Sig 'Macros: Invalid option format' 
       1∊ x← ~⊃∊/ ⊃¨¨w ⍺:  Sig 'Macros: Unknown option(s): ', ∊⊃¨x/ ⍵
-      ns←⎕NS ⍬ ⋄ ns⊣ {ns⍎ (⊃⍵), '←⊃⌽⍵'}¨ aw 
+        ns←⎕NS ⍬ ⋄ ns⊣ {ns⍎ (⊃⍵), '←⊃⌽⍵'}¨ aw 
     } ⍺
 ⍝:EndSection Options 
 
@@ -173,7 +172,8 @@
     SpTok← sp∘, ,∘sp
   ⍝ Trim blanks...
     TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
-    TrimR← { ⍵↓⍨ -+/∧\⌽⍵=' ' }
+    TrimR← { ⍵↓⍨ -+/∧\⌽⍵=' ' }  
+    Where← { (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__ }
   ⍝ ∆F: Match field ⍵ in ⎕R namespace ⍺. 
   ⍝     Happily returns '', if field is omitted/missing.
     ∆F← { l o b← ⍺.(Lengths Offsets Block) 
@@ -225,7 +225,7 @@
         oldP newP← ##.CBracket¨ 1⊃¨oldV newV
         difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
           ∆Fl← difF∘{ ⍺: '; flags: ', ⍵ ⋄ '' } 
-        ⎕← ##.{ (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__ }⍬
+        ⎕← ##.Where ⍬
         ⎕←'>>> Warning: Value for macro "',⍵,'" has changed' 
         ⎕←'>>> Old: ', ⍵, oldP, '←', oldV[0], ∆Fl oldF 
         ⎕←'>>> New: ', ⍵, newP, '←', newV[0], ∆Fl newF 
@@ -269,9 +269,7 @@
   ⍝ If ⍵ is null, returns information for ALL existing keys.
   ⍝ Returns a formatted list of keys, parmV, and values.
   db.ShowMacros← db.{ ⍺←0
-    0≠≢mm← ⍺ Show ' '(≠⊆⊢)⍵: mm ⋄ ⊂'No macros defined' 
-  }
-  db.Show← db.{ ⍺←0
+    Show← {
       title← 'macros'  'parms' 'value' 'magic?'
     (0=≢⍵)∧0≠≢keys: ⍺{
     ⍝ If ⍺=0, show only non-magic keys (unless user specifies keys on :mshow cmd)
@@ -284,7 +282,9 @@
     (0=≢⍵): ⍬
       kk data← keys vals⌷⍨¨ ⊂⊂ii/⍨ (≢keys)> ii← keys⍳ ∪⍵ 
       vv pp ppats mm addParens← ↓⍉↑ data 
-      title,[0] ⍉↑ kk pp (addParens ##.CParens¨ vv) mm    
+      title,[0] ⍉↑ kk pp (addParens ##.CParens¨ vv) mm  
+    } 
+    0≠≢mm← ⍺ Show ' '(≠⊆⊢)⍵: mm ⋄ ⊂'No macros defined' 
   }
 ⍝:EndSection
 
@@ -337,8 +337,8 @@
     ~o.debug∧eval: {
       flat← 1↓ ∊cr, ⎕FMT eval CCodeEval val
       magic db.Set name flat parmV parenFlag
-    }⍬
-      ⎕←'Debug: ',(⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
+    }⍬         
+      ⎕←'Debug: ', Where⍬
       ⎕←' >>> Evaluating "',val,'"'
       flat← 1↓ ∊cr, ⎕FMT eval CCodeEval val  
       ⎕←'==> ',flat
@@ -412,10 +412,9 @@
     }
     ⍝ ParseCode: Handle macros and "faux" catenation operator for obj names:
     ⍝    abc``123 => abc123 
-    ParseCode← skipQCP macroP catFauxP  ⎕R { 
-         skipI  macroI catI ← ⍳3 ⋄ C← ⍵.PatternNum∘= ⋄ F← ⍵∘∆F 
-      C skipI: QCToken ⍵.Match 
-      C catI: ''
+    ParseCodeMac← skipQCP macroP ⎕R { 
+        C← ⍵.PatternNum∘= ⋄ F← ⍵∘∆F 
+      C 0: QCToken ⍵.Match 
     ⍝ C macroI...
         fnd (key val parmV pats)← db.Get⍨ F 1 
         argStr← F 2
@@ -428,6 +427,10 @@
         repl← '\0' ,⍥⊆ args↑⍨≢parmV
         pats ⎕R repl ⊣ val 
     }
+    ParseCodeCatF← skipQCP catFauxP ⎕R {
+      0= ⍵.PatternNum: ⍵.Match ⋄ ''
+    }
+    ParseCode← ParseCodeCatF ParseCodeMac
     Repeat← { ⍺← 0 ⍵ ⋄ i orig← ⍺ 
       ⍵≡ txt← ⍵⍵ ⍵: txt 
       i< ⍺⍺: (i+1)orig ∇ txt 
