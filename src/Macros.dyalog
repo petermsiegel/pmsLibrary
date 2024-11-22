@@ -5,7 +5,7 @@
     ⎕IO ⎕ML← 0 1  
 ⍝ :Section Master Error Handler...
     Sig← ⎕SIGNAL/{ ⍺←11 ⋄ msg← ⍵  
-      0= ⎕NC '__LINE__': msg 11   ⍝ Done, if we aren't yet on a line...
+      0= ⎕NC 'lineStk': msg 11      ⍝ Done, if we aren't yet on a line...
         context← (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__
         (msg, cr, context) 11 
     } 
@@ -173,7 +173,7 @@
   ⍝ Trim blanks...
     TrimLR←{ (+/∧\b)↓ ⍵↓⍨ -+/∧\⌽ b← ⍵=' ' }
     TrimR← { ⍵↓⍨ -+/∧\⌽⍵=' ' }  
-    Where← { (⊃⌽fileStk), (lb,rb,⍨ ⍕__LINE__),' ',__TEXT__ }
+    Where← { (⊃⌽fileStk), (lb,rb,⍨ ⍕⊃⌽lineStk),' ',__TEXT__ }
   ⍝ ∆F: Match field ⍵ in ⎕R namespace ⍺. 
   ⍝     Happily returns '', if field is omitted/missing.
     ∆F← { l o b← ⍺.(Lengths Offsets Block) 
@@ -193,7 +193,7 @@
         fileStk,← ⊂fi  ⋄ lineStk,← 0
       22:: 22 Sig InclErr fi 
         ll← TrimR¨ ⊃⎕NGET fi 1
-        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '" *** ⍝⍝⍝'), ll, ⊂':meof_'
+        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '". *** ⍝⍝⍝'), ll, ⊂':meof_'
     }
   ⍝ newStream← FlushFileBuf inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
@@ -209,39 +209,37 @@
 ⍝ key← db.Set k:key v:value p:parmV addParens, where key is the macro name
   db.Set← db.{ ⍺←0 ⋄ 
     ⍺:  SetMagic ⍵
-      m ns← 0 ⍬ 
+      m← 0  
       k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k 
       i←keys⍳ ⊂k
       v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
-    i<≢keys: {
+      newV← v p pats m addParens 
+    i<≢keys: k⊣ {
         oldV← i⊃vals 
-        newV← v p pats m addParens  
-      oldV ≡ newV: ⍵              
+      oldV ≡ newV: ⍬              
     ⍝ A Macro has been redefined...
         (i⊃vals)← newV            ⍝ Keep new def.
-      ~##.o.warn: ⍵               ⍝ The "warn" option is off: return happily.
+      ~##.o.warn: ⍬               ⍝ The "warn" option is off: return happily.
     ⍝ A Macro has been redefined and the "warn" option is off: warn user.
         oldP newP← ##.CBracket¨ 1⊃¨oldV newV
         difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
-          ∆Fl← difF∘{ ⍺: '; flags: ', ⍵ ⋄ '' } 
+        oF nF← { difF: '; flags: ', ⍵ ⋄ '' }¨ oldF newF  
         ⎕← ##.Where ⍬
-        ⎕←'>>> Warning: Value for macro "',⍵,'" has changed' 
-        ⎕←'>>> Old: ', ⍵, oldP, '←', oldV[0], ∆Fl oldF 
-        ⎕←'>>> New: ', ⍵, newP, '←', newV[0], ∆Fl newF 
-        ⍵
-    }k
-    k⊣ keys vals,∘⊂← k ( v p pats 0 0 )
+        ⎕←'>>> Warning: Value for macro "',k,'" has changed' 
+        ⎕←'>>> Old: ', k, oldP, '←', oldV[0], oF
+        ⎕←'>>> New: ', k, newP, '←', newV[0], nF
+        ⍬
+    } ⍬
+    k⊣ keys vals,∘⊂← k ⍺
   }
 ⍝ SetMagic: ⍵: k:key, v:value, p:parmV, addParens)
   db.SetMagic← db.{ 
-      m ns← 1 ##
+      m← 1 
       k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k 
       i←keys⍳ ⊂k 
       v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
-    ⍝ (i⊃vals)← 
-    ⍝  v:value, p:parmV, pats:pats for parmV, m:magic=1, addParens, 
     i<≢keys: k⊣ (i⊃vals)←  v p pats m addParens  
       k⊣ keys vals,∘⊂← k  (v p pats m addParens)
   }
@@ -434,7 +432,7 @@
     Repeat← { ⍺← 0 ⍵ ⋄ i orig← ⍺ 
       ⍵≡ txt← ⍵⍵ ⍵: txt 
       i< ⍺⍺: (i+1)orig ∇ txt 
-          ⎕← 'Macros Warning: Runaway macro substitution stopped at',⍺⍺,'iterations on line ',⍕__LINE__
+          ⎕← 'Macros Warning: Runaway macro substitution stopped at',⍺⍺,'iterations on line ',⍕⊃⌽lineStk
           ⎕← '>>> Orig:   "',orig,'"'
           ⎕← '>>> Result: "',txt,'"'
           ⎕← '>>> Keeping original line!'
@@ -472,7 +470,7 @@
     contBuffer←''
 
     ParseLine← { ⍺←1  
-        __LINE__+← ⍺               ⍝ Line number (in the style of cpp)...
+        (⊃⌽lineStk)+← ⍺               ⍝ Line number (in the style of cpp)...
         hasC line← ParseContinue ⍵ ⍝⍝⍝ EVALUATE THIS!!! sometimes 2=≡line
         __TEXT__⊢← line 
     ⍝ hasC: line is either a comment line or a blank line.
@@ -496,9 +494,9 @@
     }
 
     __COUNTER__← counterOrigin
-    __LINE__← __TEXT__← ⊢0 
-    _← db.SetMagic '__FILE__'     'QTok ⊃⌽fileStk'                    ⍬ 0
-    _← db.SetMagic '__LINE__'     '__LINE__'                         ⍬ 0 
+    __TEXT__← ⊢0 
+    _← db.SetMagic '__FILE__'     '(QTok ⊃⌽fileStk)'                  ⍬ 0
+    _← db.SetMagic '__LINE__'     '(⊃⌽lineStk)'                      ⍬ 0 
     _← db.SetMagic '__COUNTER__'  '(__COUNTER__+← 1)⊢ __COUNTER__'   ⍬ 0 
     _← ⎕LC DebugMode o.debug 
   ⍝ Executive...
