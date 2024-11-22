@@ -99,7 +99,7 @@
   ⍝    line `` [spaces]$ 
   ⍝    line `` ⍝ comment$     (comments will be placed on sep line before code)
     continueP← '(\h*\`\h*)(⍝.*)?$'  
-  ⍝ macroP: See ParseCode below.
+  ⍝ macroP: See ParseMacros below.
     macroP←   ∆A '(\⍺\⍵*)','(?:\h*(', brktP,'))?'
   ⍝ Patterns for Macro-Defining and Displaying Directives:
   ⍝  
@@ -351,7 +351,7 @@
     condBegin condActive condSkip← 1 0 ¯1   
     CondEval← o.caller{ 
       0:: Sig CondErr ⍺ 
-        b← ⍺⍺⍎'0≢⍥,', QCScan ParseCode ⍵
+        b← ⍺⍺⍎'0≢⍥,', QCScan Parse ⍵
         (⊃⌽condStk)← condBegin condActive⊃⍨ b
         ' ⍝ => ', '(', (⍕b), ')'
     }
@@ -404,15 +404,9 @@
 
 ⍝:Section Parse User Code Potentially Containing Macros 
   ⍝ Skip quotes and comments
-    ⍝ PC_Last: Handle "faux" quote operator. (See qtFauxP definition)
-    PC_Last← skipQCP qtFauxP ⎕R { 
-      0=⍵.PatternNum: ⍵.Match 
-      0=≢quotable← ⍵ ∆F 1: '' 
-        ∊ QNTok¨ ' ' (≠⊆⊢) quotable 
-    }
-    ⍝ ParseCode: Handle macros and "faux" catenation operator for obj names:
+    ⍝ ParseMacros: Handle macros and "faux" catenation operator for obj names:
     ⍝    abc``123 => abc123 
-    ParseCodeMac← skipQCP macroP ⎕R { 
+    ParseMacros← skipQCP macroP ⎕R { 
         C← ⍵.PatternNum∘= ⋄ F← ⍵∘∆F 
       C 0: QCToken ⍵.Match 
     ⍝ C macroI...
@@ -421,7 +415,7 @@
       ~fnd: val, argStr 
         noP← 0=≢parmV ⋄ noA← 0=≢argStr   
       noP∧ noA: val, argStr  
-      noP:  val, lb, rb,⍨ ParseCode 1↓¯1↓ argStr 
+      noP:  val, lb, rb,⍨ ParseMacros 1↓¯1↓ argStr 
         args← key ScanArgs argStr 
         pats← skipQCP ,⍥⊆ pats
         repl← '\0' ,⍥⊆ args↑⍨≢parmV
@@ -430,7 +424,13 @@
     ParseCodeCatF← skipQCP catFauxP ⎕R {
       0= ⍵.PatternNum: ⍵.Match ⋄ ''
     }
-    ParseCode← ParseCodeCatF ParseCodeMac
+    ⍝ ParseCodeQtF: Handle "faux" quote operator. (See qtFauxP definition)
+    ParseCodeQtF← skipQCP qtFauxP ⎕R { 
+      0=⍵.PatternNum: ⍵.Match 
+      0=≢quotable← ⍵ ∆F 1: '' 
+        ∊ QNTok¨ ' ' (≠⊆⊢) quotable 
+    }
+    Parse← { ParseCodeQtF ParseCodeCatF maxSubOpt Repeat ParseMacros⊢⍵}
     Repeat← { ⍺← 0 ⍵ ⋄ i orig← ⍺ 
       ⍵≡ txt← ⍵⍵ ⍵: txt 
       i< ⍺⍺: (i+1)orig ∇ txt 
@@ -447,7 +447,7 @@
      ~⍺: ⍵  
         Rstr← ⍺⍺.{ (⎕PP ⎕FR)⊢← ⍺ ⋄ ⍵ }
         _saved⊢← ⍺⍺.{ s← ⎕PP ⎕FR ⋄ s⊣ (⎕PP ⎕FR)⊢← ⍵ } 34 1287 
-         p← ParseCode ⍵   
+         p← Parse ⍵   
      0:: Sig EvalErr ⍵⊣ _saved Rstr⍬ 
         _saved Rstr ⍺⍺.(⍕⍎)p 
     }
@@ -480,7 +480,7 @@
         isD line← ParseDirective line
       isD: line 
       condActive≠ ⊃⌽condStk: CDoc '⍝-',line 
-        out← PC_Last maxSubOpt Repeat ParseCode⊢ line               
+        out← Parse line               
       out≡line: Obj2Str line 
         ( Obj2Str out) AlignCm ' ⍝ <= ',line 
     }
