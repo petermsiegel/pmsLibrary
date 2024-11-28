@@ -82,10 +82,10 @@
     EscPat← { ⍵/⍨ 1+'\'=⍵ }
     CParens← { ⍺: '(',⍵,')' ⋄ ⍵}
   ⍝ Helper Fns ∆D, ∆A create pseudo PCRE escapes: \⍺, \⍵, \ßL, \ßR
-    ⍝   \⍺  - 1st let of APL var name (non-digit)
-    ⍝   \⍵  - subseq. let of APL var name
-    ⍝   \ßL - \b for APL simple names (left side)
-    ⍝   \ßR - \b for APL simple names (right side)
+    ⍝   \⍺  - 1st let of APL var name (non-digit)  < let1P
+    ⍝   \⍵  - subseq. let of APL var name          < let2P
+    ⍝   \ßL - \b for APL simple names (left side)  < bLftP
+    ⍝   \ßR - \b for APL simple names (right side) < bRgtP
     ∆A← (EscPat¨'^' '\⍺' '\⍵' '\ßL' '\ßR')  ⎕R (EscPat¨ pfxAP let1P let2P bLftP bRgtP)
     ∆D← (EscPat¨'^' '\⍺' '\⍵' '\ßL' '\ßR')  ⎕R (EscPat¨ pfxDP let1P let2P bLftP bRgtP)
   ⍝ `abc12 => 'abc12'   `1.2E45 => '1.2E45'    `abc def 123 => 'abc' 'def' '123' 
@@ -120,7 +120,7 @@
     elseP←    ∆D ':melse\b                    \h*$'
     endifP←   ∆D ':mend(?:if)?\b              \h*$'
   ⍝ pop: hidden directive. 
-    eofTokP←     ∆D '^:meof_\b .* $' 
+    eofTokP←  ∆D '^:meof_\b .* $' 
   ⍝ Catchall for major syntax errors in macro directives only 
     errP←     ∆D ':m(def|const|set|undef|show|include|once|if|else|end|pop).*'
 ⍝:EndSection Constants
@@ -186,14 +186,16 @@
     onceStk← ⍬ 
     fileStk← ,⊂''
     lineStk← ,0
+    InclMsgF← '⍝⍝⍝ *** Macros: Skipping previously included file "'∘, ,∘'" when :mOnce specified. *** ⍝⍝⍝'
+    InclMsgT← '⍝⍝⍝ *** Macros: Including file "'∘, ,∘'". *** ⍝⍝⍝'
     IncludeFile←{ 
         fi← TrimLR ⍵ 
         already← onceStk∊⍨ ⊂fi 
-      already: 0⊣ fileBuf,← (⊂'⍝⍝⍝ *** Macros: Already included file "',fi,'" and :mOnce specified. *** ⍝⍝⍝') 
+      already: 0⊣ fileBuf,← ⊂InclMsgF fi  
         fileStk,← ⊂fi  ⋄ lineStk,← 0
       22:: 22 Sig InclErr fi 
         ll← TrimR¨ ⊃⎕NGET fi 1
-        1⊣ fileBuf,←  (⊂'⍝⍝⍝ *** Macros: Including file "', fi, '". *** ⍝⍝⍝'), ll, ⊂':meof_'
+        1⊣ fileBuf,←  (⊂InclMsgT fi), ll, ⊂':meof_'
     }
   ⍝ newStream← FlushFileBuf inputStream@⍵: 
   ⍝    Prepend the lines of the included file to the input 
@@ -208,28 +210,28 @@
   db.(keys←vals←⍬)
 ⍝ key← db.Set k:key v:value p:parmV addParens, where key is the macro name
   db.Set← db.{ ⍺←0 ⋄ 
-    ⍺:  SetMagic ⍵
+    ⍺: SetMagic ⍵
       m← 0  
-      k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k 
+      k vIn p addParens← ⍵ ⋄ k← 1∘⎕C⍣('⎕'=⊃k)⊢ k   ⍝ ⎕NaMe, ⎕name, ... => ⎕NAME
       i←keys⍳ ⊂k
       v← addParens ##.CParens vIn 
       pats← ##.ParmPat¨p 
       newV← v p pats m addParens 
     i<≢keys: k⊣ {
-        oldV← i⊃vals 
-      oldV ≡ newV: ⍬              
-    ⍝ A Macro has been redefined...
-        (i⊃vals)← newV            ⍝ Keep new def.
-      ~##.o.warn: ⍬               ⍝ The "warn" option is off: return happily.
-    ⍝ A Macro has been redefined and the "warn" option is off: warn user.
-        oldP newP← ##.CBracket¨ 1⊃¨oldV newV
-        difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
-        oF nF← { difF: '; flags: ', ⍵ ⋄ '' }¨ oldF newF  
-        ⎕← ##.Where ⍬
-        ⎕←'>>> Warning: Value for macro "',k,'" has changed' 
-        ⎕←'>>> Old: ', k, oldP, '←', oldV[0], oF
-        ⎕←'>>> New: ', k, newP, '←', newV[0], nF
-        ⍬
+          oldV← i⊃vals 
+        oldV ≡ newV: ⍬              
+      ⍝ A Macro has been redefined...
+          (i⊃vals)← newV            ⍝ Keep new def.
+        ~##.o.warn: ⍬               ⍝ The "warn" option is off: return happily.
+      ⍝ A Macro has been redefined and the "warn" option is off: warn user.
+          oldP newP← ##.CBracket¨ 1⊃¨oldV newV
+          difF← ≢/ oldF newF← oldV[3 4],⍥⊂ newV[3 4] 
+          oF nF← { difF: '; flags: ', ⍵ ⋄ '' }¨ oldF newF  
+          ⎕← ##.Where ⍬
+          ⎕←'>>> Warning: Value for macro "',k,'" has changed' 
+          ⎕←'>>> Old: ', k, oldP, '←', oldV[0], oF
+          ⎕←'>>> New: ', k, newP, '←', newV[0], nF
+          ⍬
     } ⍬
     k⊣ keys vals,∘⊂← k ⍺
   }
@@ -331,7 +333,7 @@
       hasParm← ⍺⍺   
       (eval magic parenFlag)(name val parmStr)← ⍺ ⍵ 
       parmV← ParmSplit parmStr 
-      hasParm∧ 0= ≢parmV: Sig BadDefErr name 
+    hasParm∧ 0= ≢parmV: Sig BadDefErr name 
     ~o.debug∧eval: {
       flat← 1↓ ∊cr, ⎕FMT eval CCodeEval val
       magic db.Set name flat parmV parenFlag
