@@ -1,40 +1,30 @@
 DirTree← { 
-⍝ Python:
-⍝  import sys
-⍝  from pathlib import Path
-⍝  def print_tree(p: Path, last=True, header=''):
-⍝    elbow = "└──"
-⍝    pipe = "│  "
-⍝    tee = "├──"
-⍝    blank = "   "
-⍝    print(header + (elbow if last else tee) + p.name  )
-⍝    if p.is_dir():
-⍝        children = list(p.iterdir())
-⍝        for i, c in enumerate(children):
-⍝            print_tree(c, 
-⍝                 header=header + (blank if last else pipe), 
-⍝                 last=i == len(children) - 1
-⍝            )
+⍝ DirTree dirName
+⍝         dirName: string containing a single directory (or file) name.
+⍝ Recursively prints the directory and its contents.
+⍝ Returns: a shy counter of the # of items it has printed (dirs and files).
+⍝ *** Based on unattributed Python original (often: print_tree.py) ***
 
-~⎕NEXISTS ⍵: 11 ⎕SIGNAL⍨'DOMAIN ERROR: Invalid or non-existent file or directory'
+~⎕NEXISTS ⍕⍵: 11 ⎕SIGNAL⍨'DOMAIN ERROR: Invalid or non-existent file or directory'
 
-    GetKids←    { ⊃0 ⎕NINFO⍠1⊢ ⍵,'/*' }
-    IsDir←      { ~⎕NEXISTS ⍵: 0 ⋄ 1=1 ⎕NINFO ⍵ }
-    Name←       { ⊃,/1↓ ⎕NPARTS ⍵ }
-    empty←      ⊂'∅ (empty)'           
-    EmptyChk←   empty∘{ ⍵ ⍺ ⊃⍨ 0=≢⍵ }    ⍝ Empty Directory?
-    Sort←       ⊂∘⍋⌷⊢
-  ⍝ Prefix       not_last  last
-    MyPfx←     ⊃∘'├──'    '└──' 
-    ParentPfx← ⊃∘'│  '    '   '       
+    ø←          '∅ (empty)'                       ⍝ What we show for empty dirs    
+    GetKids←    { ⊃0 ⎕NINFO⍠1⊢ ⍵,'/*' }           ⍝ List items in dir ⍵
+    IsDir←      { ⍵≡⍬: 0 ⋄ 1=1 ⎕NINFO ⍵ }         ⍝ 1 if ⍵ is a file, else 0
+    MyPfx←      ⊃∘'├──'  '└──'                    ⍝ Sel rt string if I'm last, else left
+    Name←       { ⍵≡⍬: ø ⋄ ⊃,/1↓ ⎕NPARTS ⍵ }      ⍝ ⍵ without any directory prefixes
+    ParentPfx←  ⊃∘'│  '  '   '                    ⍝ Sel rt string if parent is last, else left.        
+    Sort←       ⊂∘⍋⌷⊢                             ⍝ Sort list of dirs/files
 
-    Traverse← { path last hdr← ⍵  
-        ⎕← hdr, (MyPfx last), Name path 
-      ~IsDir path: _← 0  
-        hdr,←  ParentPfx last 
-        kids←  EmptyChk Sort GetKids path 
-        lastV← 1↑⍨ -≢kids           ⍝ vector of 0s, except 1 for last kid
-        lastV { Traverse ⍵ ⍺ hdr }¨ kids       
+    Traverse← { item last hdr← ⍵                  ⍝ item: A dir or file
+        ⎕← hdr, (MyPfx last), Name item           ⍝ Print my tree pos'n and name
+      ~IsDir item: 1                              ⍝ Not a dir? Return 1 (for "1 file")                         
+        kids←  Sort GetKids item                  ⍝ Sort kids in alph. order
+        hdr,←  ParentPfx last                     ⍝ Prefix to hdr for ALL descendants
+      0=≢kids: 1+ Traverse ⍬ 1 hdr                ⍝ Empty dir!
+        lastV← 1↑⍨ -≢kids                         ⍝ vector of 0s, except 1 for last kid
+      ⍝ Visit each child dir or file in turn, recursing dirs all the way down
+      ⍝ Dir: Return 1 (for this dir) + recursively, 1 for each dir/file this dir contains
+        1+ +/ lastV { Traverse ⍵ ⍺ hdr }¨ kids   
     } 
-    Traverse ⍵ 1 '' 
+    1: _← Traverse ⍵ 1 '' 
 }
