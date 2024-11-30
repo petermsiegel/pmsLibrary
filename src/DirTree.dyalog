@@ -11,30 +11,31 @@ DirTree← {
 ⍝ *** Based on unattributed Python or C original (print_tree.py, ~.c) ***
 
   ~⎕NEXISTS ⍕⍵: 11 ⎕SIGNAL⍨'DOMAIN ERROR: Invalid or non-existent file or directory'
-    GetKids←    (⊃0⊢⎕NINFO⍠1),∘'/*'               ⍝ List items in dir ⍵
-    IsDir←      1= 1∘⎕NINFO                       ⍝ 1 if ⍵ is a file, else 0
-    MyPfx←      ⊃∘'├──'  '└──'                    ⍝ Am I last or not?
-    Name←       ⊃ (,/ 1∘↓⍤ ⎕NPARTS)               ⍝ ⍵ without any directory prefixes
-    TheirPfx←   ⊃∘'│  '  '   '                    ⍝ Is the parent dir last or not?
-    Sort←       ⊂∘⍋ ⌷⊢                            ⍝ Sort list of dirs/files
-    empty←      '∅ (empty)',⍨ MyPfx 1             ⍝ What we show for empty dirs   
+
+    IsDir←  1= 1∘⎕NINFO                        ⍝ 1 if ⍵ is a file, else 0
+    KidsOf← ⊂∘⍋⍤⌷⊢∘ ( ⊃0 ⊢ ⎕NINFO⍠1 ) ,∘'/*'   ⍝ List items in dir ⍵ in sorted order
+    MyPfx←  ⊃∘'├──'  '└──'                     ⍝ Am I the last on my branch or not?
+    Name←   ⊃ (,/ 1∘↓⍤ ⎕NPARTS)                ⍝ ⍵ without any directory prefixes
+    ParPfx← ⊃∘'│  '  '   '                     ⍝ Is the parent dir the last or not?
+
+    empty←  '∅ (empty)',⍨ MyPfx 1              ⍝ What we show for empty dirs   
 
   ⍝ Traverse the directory depth first, left to right, in sorted order.
-  ⍝ count← Traverse item last hdr
-  ⍝    item: a dir or file string 
-  ⍝    last: is <item> last (1) or not (0) element in the directory? 
+  ⍝ count← Visit this last hdr
+  ⍝    this: a dir/file string 
+  ⍝    last: Is this dir/file, <this>, the last (1) item in the directory or not (0)? 
   ⍝    hdr:  the cumulative header string at this depth
-  ⍝    Returns count, the # of items seen (1 for contents of empty directory)
-    Traverse← { item last hdr← ⍵                  
-        ⎕← hdr, (MyPfx last), Name item           ⍝ Print my tree pos'n and name
-      ~IsDir item: 1                              ⍝ Not a dir? Return 1 (for "1 file")                         
-        kids←  Sort GetKids item                  ⍝ Sort descendants in alph. order
-        hdr,←  TheirPfx last                      ⍝ Prefix for each descendant
-      0=≢kids: 2⊣ ⎕← hdr, empty                   ⍝ Parent is empty dir!
-        lastV← 1↑⍨ -≢kids                         ⍝ vector of 0s, except 1 for last kid
-      ⍝ Visit each child dir or file in turn, recursing dirs all the way down
-      ⍝ Dir: Return 1 (for this dir) + recursively, 1 for each dir/file this dir contains
-        1+ +/ lastV { Traverse ⍵ ⍺ hdr }¨ kids   
+  ⍝   ntop:  1, except for very top-most node
+  ⍝    Returns count, the # of items seen (1 for "contents" of empty directory)
+    Visit← { hdr last this ntop← ⍺⍺ ⍺ ⍵ ⍵⍵                
+        ⎕← hdr, (MyPfx last), Name⍣ntop⊢ this     ⍝ Print my tree pos'n and name
+      ~IsDir this: 1                              ⍝ Not a dir? Return 1 (for "1 file")                         
+        kids←  KidsOf this                        ⍝ Sort descendants in alph. order
+        hdr,←  ParPfx last                        ⍝ Parent's prefix for each descendant
+      0=≢kids: 2⊣ ⎕← hdr, empty                   ⍝ Parent is an empty dir!
+        kLast← 1↑⍨ -≢kids                         ⍝ vector of 0s, except 1 for last kid
+      ⍝ Visit and count each child dir/file in turn, recursing dirs all the way down
+        1+ +/ kLast (hdr ∇∇ 1)¨ kids   
     } 
-  1: _← Traverse ⍵ 1 '' 
+  1: _← 1 ('' Visit 0) ,⍵   
 }
