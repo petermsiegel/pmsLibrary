@@ -35,5 +35,5 @@ DirTree← {
         kLast← 1↑⍨ -≢kids                          ⍝ vector of 0s, except 1 for last kid
         1+ +/ kLast (hdr ∇∇)¨ kids                 ⍝ Visit (and count) each kid in turn
     } 
-  1: _← 1 ('' Traverse) ,⍵   
+  1: 1 ('' Traverse) ,⍵   
 }
