@@ -16,7 +16,7 @@ DirTree← {
     KidsOf← ⊂∘⍋⍤⌷⊢∘ ( ⊃0 ⊢ ⎕NINFO⍠1 ) ,∘'/*'  ⍝ List entries in dir ⍵ in sorted order
     MyPos←  ⊃∘'├──'  '└──'                     ⍝ Pfx based on whether I'm last on my branch.
     Name←   ⊃ (,/ 1∘↓⍤ ⎕NPARTS)                ⍝ ⍵ without any directory prefixes
-    ParPos← ⊃∘'│  '  '   '                     ⍝ Pfx based on whether parent is last on its branch.
+    ParentPos← ⊃∘'│  '  '   '                  ⍝ Pfx based on whether parent is last on its branch.
     empty←  '∅ (empty)',⍨ MyPos 1              ⍝ Constant we show for empty dir contents   
 
   ⍝ Traverse the file system from <entry>, depth first, left to right, in sorted order,
@@ -30,10 +30,11 @@ DirTree← {
         ⎕← hdr, (MyPos last), Name⍣(×≢hdr)⊢ entry  ⍝ Print my tree pos'n and name
       ~IsDir entry: 1                              ⍝ Not a dir? Return 1 (for "1 file")                         
         kids←  KidsOf entry                        ⍝ Sort descendants in alph. order
-        hdr,←  ParPos last                         ⍝ Parent's tree pos'n for each descendant
+        hdr,←  ParentPos last                      ⍝ Parent's tree pos'n for each descendant
       0=≢kids: 2⊣ ⎕← hdr, empty                    ⍝ No kids? Parent is an empty dir!
         kLast← 1↑⍨ -≢kids                          ⍝ vector of 0s, except 1 for last kid
         1+ +/ kLast (hdr ∇∇)¨ kids                 ⍝ Visit (and count) each kid in turn
     } 
-  1: 1 ('' Traverse) ,⍵   
+
+  1: _← 1 ('' Traverse) ,⍵   
 }
