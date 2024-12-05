@@ -12,32 +12,30 @@ DirTree← {
 
   ~⎕NEXISTS ⍕⍵: 11 ⎕SIGNAL⍨'DOMAIN ERROR: Invalid or non-existent file or directory'
 
-    IsD←    1= 1∘⎕NINFO                        ⍝ Is ⍵ a directory?
-    Kids←   (⊂∘⍋⍤⌷⊢∘(⊃0⊢⎕NINFO⍠1) ,∘'/*'),     ⍝ List entries in dir ⍵ in sorted order
-    MyPfx←  ⊃∘'├──'  '└──'                     ⍝ Pfx based on whether I'm last on my branch.
-    Nm←   ⊃ (,/ 1∘↓⍤ ⎕NPARTS)                  ⍝ Name of ⍵ without any directory prefixes
-    PaPfx←  ⊃∘'│  '  '   '                     ⍝ Pfx based on whether parent is last on its branch.
-    nullD←  '∅ (empty)',⍨ MyPfx 1              ⍝ Constant we show for empty dir contents   
+    IsDir←  1= 1∘⎕NINFO                      ⍝ Is ⍵ a directory?
+    Kids←   (⊂∘⍋⍤⌷⊢∘(⊃0⊢⎕NINFO⍠1) ,∘'/*'),  ⍝ List entries in dir ⍵ in sorted order
+    MyPfx←  ⊃∘'├──'  '└──'                   ⍝ Pfx based on whether ⍵ is last on its branch.
+    Nm←   ⊃ (,/ 1∘↓⍤ ⎕NPARTS)                ⍝ Name of ⍵ without any directory prefixes
+    PaPfx←  ⊃∘'│  '  '   '                   ⍝ Pfx based on whether parent node is last on its branch.
+    nullD←  '∅ (empty)',⍨ MyPfx 1            ⍝ Constant we show for empty dir contents   
 
   ⍝ Traverse the file system from <entry>, depth first, left to right, in sorted order,
   ⍝ printing a line for each entry showing its position in the tree.
-  ⍝ Syntax: count← last (hdr Traverse) entry  
-  ⍝    last:  Is this dir/file, <entry>, the last (1) entry in this branch or not (0)? 
+  ⍝ Syntax: count← last (hdr Traverse) file 
+  ⍝    last:  Is this dir/file <file> the last (1) entry in this branch or not (0)? 
   ⍝     hdr:  the cumulative header string at this depth
-  ⍝   entry:  string referring to a dir or file in relative or absolute form 
+  ⍝     file:  string referring to a dir or file in relative or absolute form 
   ⍝ Returns: count, the # of entries seen (1 for "contents" of empty directory)
 
     Traverse← {  
-        l h e← ⍺ ⍺⍺ ⍵                    ⍝ last (flag), header (str), entry (dir/file)
-        ⎕← h, (MyPfx l), Nm⍣(×≢h)⊢ e     ⍝ Print my tree pos'n and short name (except at root)  
-      ~IsD e: 1                          ⍝ Not a dir? Return count of 1 (file)                     
-        k←   Kids e                      ⍝ Sort descendants in alph. order
-        h,←  PaPfx l                     ⍝ Parent's tree pos'n for each descendant
-      0=≢k: 2⊣ ⎕← h, nullD               ⍝ No kids? Parent is an empty dir!
-        kV← 1↑⍨ -≢k                      ⍝ vector of 0s, except 1 for l kid
-        1+ +/ kV (h ∇∇)¨ k               ⍝ Visit (and count) each kid in turn
+        last hdr file← ⍺ ⍺⍺ ⍵                   ⍝ last (bool), hdr (str), file (dir/file str)
+        ⎕← hdr, (MyPfx last), Nm⍣(×≢hdr)⊢ file  ⍝ Print my tree pos'n and short name (except at root)  
+      ~IsDir file: 1                            ⍝ Not a dir? Return count of 1 (file)                     
+        kids←  Kids file                        ⍝ Acquire and sort descendants in alph. order
+        hdr,←  PaPfx last                      ⍝ Parent's tree pos'n for each descendant
+      0=≢kids: 2⊣ ⎕← hdr, nullD                ⍝ No kids? Parent is an empty dir!
+        lastV← 1↑⍨ -≢kids                      ⍝ vector of 0s, except 1 for last kid
+        1+ +/ lastV (hdr ∇∇)¨ kids             ⍝ Visit (and count) each kid in turn
     } 
-
     1 (''Traverse) ⍵ 
-
  }
