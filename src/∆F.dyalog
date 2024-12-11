@@ -1,9 +1,20 @@
 ﻿∆F⍙ⓇⓇ← {∆F⍙Ⓛ} ∆F ∆F⍙Ⓡ ; ∆F⍙Ⓒ
+⍝H -------------
+⍝H  ∆F IN BRIEF
+⍝H -------------
+⍝H ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
+⍝H 2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
+⍝H titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
+⍝H display of vector and multidimensional objects using building blocks like ⎕FMT that already exist
+⍝H in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.
 ⍝H 
-⍝H ∆F: Simple formatting  function in APL "array" style, inspired by Python f-strings.
-⍝H     [ opts← [1*|0]    [0*|1]    ['`'*]    ] ∆F fmt_str [obj1 [obj2 [...]]]
-⍝H       opts:  mode       box     escapeChar                *=default
-⍝H
+⍝H Syntax: opts ∆F f_string [ obj1 ... ]
+⍝H         f_string: a single string containing text, formatting information, and executable code.
+⍝H         obj1 ...: zero or more objects interpolated into the output as defined in the f-string.
+⍝H         opts:     mode[1*|0]    box[0*|1]   escapeChar['`'*]                 
+⍝H                   * points to the default value for each option
+⍝H For help: 
+⍝H         ∆F⍨'help' 
 ⍝  ∆F⍙Ⓛ options,  ∆F⍙Ⓡ format string, ∆F⍙Ⓒ "compiled" code equivalent to ∆F⍙Ⓡ
 ⍝  ∆F⍙ⓇⓇ result returned from fn (string or dfn).
 ⍝ 
@@ -20,6 +31,7 @@
     :Return
 :Endif 
 ∆F⍙Ⓡ← ,⊆∆F⍙Ⓡ
+
 :Trap 0
 ⍝ ---------------------------
   ∆F⍙Ⓒ←  { 
@@ -134,18 +146,18 @@
       ×p← ⍵ Break escO lbC: TF_Next p↓ ⍵⊣ CatT p↑⍵ 
         ch← ⊃⍵ 
       escO= ch: (TF_Next _ScanEsc_ 0) 1↓⍵
-      lbC = ch: CF_SF_Start 1↓⍵⊣ TF_End⍬ 
+      lbC = ch: CSF_Start 1↓⍵⊣ TF_End⍬ 
       TF_Next 1↓⍵⊣ CatT ch 
     } ⍝ End TF_Next 
-  ⍝ CF_SF_: Code or Space fields  { code }  or {  } 
+  ⍝ CSF_: Code or Space fields  { code }  or {  } 
   ⍝   If a space field, process in its entirety at SF_Cod
   ⍝   If a code field, head off to CF_Start.
-    CF_SF_Start←{
+    CSF_Start←{
         isSpF← rbC= 1↑ ⍵↓⍨ nSp←⍵ Span ' '                                            
       isSpF: TF_Next ⍵↓⍨ 1+nSp ⊣  SF_Cod nSp                      ⍝ {} and {  }
         CF_Start ⍵                                                ⍝ { code }
-    } ⍝ End CF_SF_Start
-  ⍝ SF_Cod: Space Field code gen; see CF_SF_Start (above)
+    } ⍝ End CSF_Start
+  ⍝ SF_Cod: Space Field code gen; see CSF_Start (above)
     SF_Cod← SF_End∘CatC { ⍵=0: ⍬ ⋄ ⍵>5: ⍺⍺ '(', '⍴'''')',⍨ ⍕⍵ ⋄ ⍺⍺ QtSp ⍵⍴spC }
   ⍝ CF_: Code Fields   { code }
   ⍝ ∘ Recursively process a code field, 
@@ -187,7 +199,7 @@
         CF_Next← ⍺∘CF_Start 
       ⍺≤0: TF_Next ⍵⊣ CF_End⍬
       0= ≢⍵: Ê brcÊ  
-    ⍝              breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC alC
+    ⍝ Defined below: breakCFChars← lbC rbC lpC sqC dqC spC escO omUC fmtC raC ovrC dnC alC
         p← ⍵ Break breakCFChars
       ×p: CF_Next p↓ ⍵⊣ CatC p↑⍵          
         ch← ⊃⍵  
@@ -252,6 +264,9 @@
 :Endtrap 
 :Return
 
+⍝H --------------
+⍝H  ∆F IN DETAIL
+⍝H --------------
 ⍝ Additional help information follows (⍝H prefix)
 ⍝H ⍺ OPTIONS:   mode box escChar 
 ⍝H      mode← 1       1: generate and execute F-string formatting on argument ⍵
@@ -265,34 +280,32 @@
 ⍝H      box← 0        0: don't box each field, 
 ⍝H                    1: box each field on output 
 ⍝H      escChar← '`'  escape char; by default '`'.
-⍝H                    Escape sequences include 
-⍝H                      `⋄ (newline), 
-⍝H                      `{ (literal left brace), 
-⍝H                      `⍵ (equiv. to ⍹): `⍵5 (or: ⍹5) selects (5⌷⍵) with implicit ⎕IO=0, and 
-⍝H                      `` (escape itself, useful just before a non-escaped left brace.
-⍝H                    The escape represents itself when used otherwise.
+⍝H                    Escape sequences, used in text fields and strings:
+⍝H                    `⋄   newline (we use ⎕UCS 13, rather than ⎕UCS 10) 
+⍝H                    `{  literal left brace 
+⍝H                    `}  literal right brace; a simple right brace is also valid 
+⍝H                        when no simple left brace precedes it
+⍝H                    `⍵  equiv. to ⍹: a fast way to select components of ∆F's right arg 
+⍝H                        `⍵5 (or: ⍹5) selects (5⌷⍵) with implicit ⎕IO=0, 
+⍝H                        `⍵0 (or: ⍹0) selects (0⌷⍵), i.e. the format string itself.
+⍝H                    ``  the escape itself, useful just before a non-escaped left brace.
+⍝H                    The escape represents itself in all other cases.
 ⍝H
 ⍝H ---------------------------------------------------------------------------------------
-⍝H ∆F Utility Function
-⍝H -------------------
-⍝H    ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
-⍝H    2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
-⍝H    titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
-⍝H    display of vector and multidimensional objects using building blocks (like ⎕FMT) that already exist
-⍝H    in the Dyalog implementation. (∆F is reminiscent of f-string support in Python, but in an APL style.)
-⍝H Quick example:
+⍝H Quick example (before explaining f-string formatting):
 ⍝H ⍎      ∆F 'The current temp is{1⍕⍪1↓⍵}°C or{1⍕⍪32+(9÷5)×1↓⍵}°F.' 20 30 40 50
 ⍝H ⎕   The current temp is 20.0°C or  68.0°F.
 ⍝H ⎕                       30.0       86.0   
 ⍝H ⎕                       40.0      104.0   
 ⍝H ⎕                       50.0      122.0   
 ⍝H Syntax: 
-⍝H     [mode←1 box←0 escCh←'`' | ⍬ | 'help'] ∆F f-string  args 
+⍝H     [mode←1 box←0 escCh←'`' | ⍬ | 'help'] ∆F f-string  [obj1 ...] 
 ⍝H 
 ⍝H     ⍵← f-string [[⍵1 ⍵2...]]
 ⍝H        f-string: char vector with formatting specifications.
 ⍝H               See below.
-⍝H        args:  arguments visible to all f-string code expressions (0⌷⍵ is the f-string itself). 
+⍝H        obj1 ...:  
+⍝H               arguments visible to all f-string code expressions (0⌷⍵ is the f-string itself). 
 ⍝H     ⍺← 1 0 '`'   = mode box escCh
 ⍝H        mode:  1= generate code, execute, and display result [default].
 ⍝H                  Fields are executed left to right, as if APL statements separated by ⋄.
@@ -423,8 +436,11 @@
 ⍝H        a local namespace is created and passed as the top-level left argument (⍺)
 ⍝H        to the field. If, for example, a field to the left sets a variable in ⍺:
 ⍝H             {"⊂The cost is ⊃,P⊂$⊃F6.2"$ ⍺.Cost← 25.12}
-⍝H        then those to its right can access it:
-⍝H             {⍺.Cost≥ 25: "That's too expensive!" ⋄ "That's priced just fine."}
+⍝H        then all fields to that field's right can access it:
+⍝H             {⍺.Cost≥ 25: "That''s too expensive!" ⋄ "That''s priced just fine."}
+⍝H      ⍝ Putting it all together:
+⍝H ⍎      ∆F'{"⊂The cost is ⊃,P⊂$⊃F6.2"$ ⍺.Cost← 25.12}. {⍺.Cost≥ 25: "That''s too expensive!" ⋄ "That''s priced just fine."}'
+⍝H ⎕    The cost is $25.12. That's too expensive! 
 ⍝H 
 ⍝H 2. Space Fields (SF)  
 ⍝H                {}, {   } 
@@ -443,15 +459,17 @@
 ⍝H ⎕        cowbell                         cow bell
 ⍝H     ∘ Self-documenting Space Fields do NOT exist.
 ⍝H 
-⍝H 3. Text fields: any APL characters at all, except to represent {} and ` (or the current escape char).
-⍝H    (If you change the escape character, e.g. to '\', make the appropriate changes in the narrative below).
+⍝H 3. Text fields: These contain any APL characters at all, except requiring escape
+⍝H    characters to "escape" a left brace, a diamond (⋄), or escape character, and 
+⍝H    allowing an escape character to "escape" a right brace: 
+⍝H    If your exape character is '`' (the default):
 ⍝H    `{ is a literal {
 ⍝H    `} is a literal }
 ⍝H     { by itself starts a new code field
 ⍝H     } by itself ends a code field
-⍝H    `⋄ stands for a newline character (⎕UCS 13).
+⍝H    `⋄ stands for a newline character (we use ⎕UCS 13).
 ⍝H     ⋄ has no special meaning, unless preceded by the current escape character (`).
-⍝H     ` before {, }, or ⋄ must be doubled to have its literal meaning (`` ==> `)
+⍝H     ` before {, }, or ⋄ (diamond) must be doubled to have its literal meaning (`` ==> `)
 ⍝H     ` before other characters has no special meaning (i.e. appears as a literal character, unless escaped).
 ⍝H    Single quotes must be doubled as usual when typing in APL strings to be evaluated in code or via ⍎. 
 ⍝H    Double quotes have no special status in a text field (but see Code Fields).
