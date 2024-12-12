@@ -4,6 +4,7 @@
 \#*
 \.*
 src/*.dylib
+src/∆FC.dylib
 src/pmsLibrary/
 src/obsolete2/
 src/∆F_C.so
