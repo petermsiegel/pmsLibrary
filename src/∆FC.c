@@ -5,16 +5,18 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-#define QT  U'\''
-#define SP  U' '
-#define LBR U'{'
-#define RBR U'}'
-#define LPAR U'('
-#define RPAR U')'
-#define DMND 8900  /* APL DMND */
-#define CR  U'\r'
+#define QT    U'\''
+#define SP    U' '
+#define LBR   U'{'
+#define RBR   U'}'
+#define LPAR  U'('
+#define RPAR  U')'
+#define DMND  U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
+#define CR    U'\r'
 #define ZILDE U'⍬'
 #define OMEGA U'⍵'
+#define SQ    U'\''
+#define DQ    U'"' 
 
 /* INPUT BUFFER ROUTINES */
 #define CUR_AT(ix)    fstring[ix]
@@ -86,6 +88,7 @@ int fc(INT4 opts[3], CHAR4 fstring[], INT4 flen, CHAR4 outbuf[], INT4 *outlen){
   int state=NONE;
   int oldstate=NONE;
   int escape=opts[2];
+  int bracketDepth=0;
 
   if (0) return -1;          /* Testing: attempt to overfill outbuf buffer */
   if (0) {
@@ -130,9 +133,10 @@ int fc(INT4 opts[3], CHAR4 fstring[], INT4 flen, CHAR4 outbuf[], INT4 *outlen){
                 }
             }else {
                 STATE(CF);
+                bracketDepth=1;
                 addStr(U"({"); 
             }
-            } /* else ... state!=NONE)*/
+      }  
       if (state==TF) {
           if (CUR== escape){
             CHAR4 ch= PEEK; ++iF;
@@ -156,10 +160,41 @@ int fc(INT4 opts[3], CHAR4 fstring[], INT4 flen, CHAR4 outbuf[], INT4 *outlen){
       }else if (state==CF){
         /* We are in a code field */
         if (CUR==RBR) {
-          addStr(U"}⍵)");
-          STATE(NONE);
+            --bracketDepth;
+            if (bracketDepth > 0) {
+               addCh(CUR);
+            }else {
+              addStr(U"}⍵)");
+              bracketDepth=0;
+              STATE(NONE);
+            }
+        }else if (CUR==LBR) {
+          ++bracketDepth;
+          addCh(CUR);
+        }else if (CUR==SQ || CUR==DQ){
+          int i;
+          int tcur=CUR;
+          addCh(SQ);
+          for (iF=iF+1; iF<flen; ++iF){ 
+              if (CUR==tcur){ 
+                  if (PEEK==tcur) {
+                      addCh(tcur);
+                      if (tcur==SQ)
+                          addCh(tcur);
+                      ++iF;
+                  }else {
+                      break;
+                  }
+              }else{
+                  int tcur=CUR;
+                  addCh(tcur);
+                  if (tcur==SQ)
+                      addCh(tcur);
+              }
+          }
+          addCh(SQ);
         }else {
-          addCh(CUR); /* Placeholder */
+          addCh(CUR); /* Catchall */
         }
       }
   } /* for (iF...)*/
