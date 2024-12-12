@@ -9,11 +9,18 @@
 #define SP  U' '
 #define LBR U'{'
 #define RBR U'}'
-#define DIAMOND 8900  /* APL DIAMOND */
+#define LPAR U'('
+#define RPAR U')'
+#define DMND 8900  /* APL DMND */
 #define CR  U'\r'
+#define ZILDE U'⍬'
+#define OMEGA U'⍵'
 
 /* INPUT BUFFER ROUTINES */
-#define PEEK    ((iF+1 < flen)? fstring[iF+1]: -1)
+#define CUR_AT(ix)    fstring[ix]
+#define CUR           CUR_AT(iF)
+#define PEEK_AT(ix)   ((ix+1 < flen)? fstring[ix+1]: -1)
+#define PEEK          PEEK_AT(iF)
 /* END INPUT BUFFER ROUTINES */
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -39,10 +46,11 @@
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
 /* STATE MANAGEMENT */       
-#define NONE 0  /* not in a field */
-#define TF   1  /* text field */
-#define CF   2  /* code field or space field */
-#define STR  3  /* subfield of code field */
+#define NONE      0  /* not in a field */
+#define TF       10  /* text field */
+#define CF_START 20
+#define CF       21  /* code field or space field */
+#define STR      22    /* subfield of code field */
 #define STATE(new)  { oldstate=state; state=new;}
 /* END STATE MANAGEMENT */
 
@@ -91,31 +99,75 @@ int fc(INT4 opts[3], CHAR4 fstring[], INT4 flen, CHAR4 outbuf[], INT4 *outlen){
 
   addCh(LBR); 
   for (iF=0; iF<flen; ++iF) {
-      if (state==NONE && fstring[iF]!=LBR){
-          STATE(TF); addCh(QT);
-      }
+      if (state==NONE && CUR!= LBR) {
+            STATE(TF); 
+            addCh(QT);
+      } else if (state==CF_START){
+            int i;
+            int nspaces=0;
+            if (oldstate==TF){
+                addCh(QT); 
+                addCh(SP);
+            }
+            for (i=iF; i<flen && CUR_AT(i)==SP; ++i){
+              /* ++iF: Skip leading blanks in Code or Space Fields */
+                ++nspaces, ++iF; 
+            }
+            if (i<flen&&CUR_AT(i)==RBR){
+                /* Handled above at ++iF 
+                  iF= i;
+                */
+                STATE(NONE);
+                if (nspaces){
+                      char str[5];
+                      int  i;
+                      addStr(U"(''⍴⍨");
+                      sprintf(str, "%d", nspaces);
+                      for (i=0; str[i] && i<sizeof str; ++i){
+                          addCh( (CHAR4) str[i] );
+                      }
+                      addCh(RPAR);
+                }
+            }else {
+                STATE(CF);
+                addStr(U"({"); 
+            }
+            } /* else ... state!=NONE)*/
       if (state==TF) {
-          if (fstring[iF]== escape){
+          if (CUR== escape){
             CHAR4 ch= PEEK; ++iF;
             if (ch==escape){
                 addCh(escape);
             }else if (ch==LBR || ch==RBR){
                 addCh(ch);
-            }else if (ch==DIAMOND){
+            }else if (ch==DMND){
                 addCh(CR);
             }else{ 
-                addCh(fstring[--iF]);
+                --iF; 
+                addCh(CUR);
             } 
+          }else if (CUR==LBR){
+            STATE(CF_START);
           } else {
-            addCh(fstring[iF]);
-            if (fstring[iF] == QT)
+            addCh(CUR);
+            if (CUR == QT)
               addCh(QT); 
           }          
+      }else if (state==CF){
+        /* We are in a code field */
+        if (CUR==RBR) {
+          addStr(U"}⍵)");
+          STATE(NONE);
+        }else {
+          addCh(CUR); /* Placeholder */
+        }
       }
-  }
-  if (state==TF) 
+  } /* for (iF...)*/
+  if (state==TF) { 
       addCh(QT);
-  addCh(RBR);
+      STATE(NONE);
+  }
+  addCh(RBR); 
   return 0;
 }
 
