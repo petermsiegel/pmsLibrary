@@ -130,9 +130,9 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fLen, int iF){
 #define IF_IS_DOC(type) \
                  if (bracketDepth==1 && RBR==afterBlanks(fString+1, fLen, iF)){\
                     int i;\
-                    addStr(type); addStr(U" ⍵");\
+                    addCh(RPAR); addStr(type); addStr(U" ⍵");\
                     addCh(QT);  \
-                    for (i=cfStart+1; i< iF-1; ++i) {\
+                    for (i=cfStart; i< iF-1; ++i) {\
                       if ( fString[i]==SP)\
                             ++i;\
                       addCh( fString[i] );\
@@ -144,7 +144,6 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fLen, int iF){
 /* END HERE DOCUMENT HANDLING */
 
 int fc(INT4 opts[3], CHAR4 fString[], INT4 fLen, CHAR4 outbuf[], INT4 *outlen){
-
   INT4 maxout = *outlen;     /* User must pass in *outlen as outbuf[maxout] */
 /* outbuf may contain junk. 
    We'll remove on APL side using *outlen actual length. 
@@ -180,9 +179,6 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fLen, CHAR4 outbuf[], INT4 *outlen){
                 ++nspaces, NEXT;
             }
             if (i<fLen&&CUR_AT(i)==RBR){
-                /* Handled above at NEXT above
-                  iF= i;
-                */
                 STATE(NONE);
                 if (nspaces){
                       addStr(U"(''⍴⍨");
@@ -192,7 +188,8 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fLen, CHAR4 outbuf[], INT4 *outlen){
             }else {
                 STATE(CF);
                 bracketDepth=1;
-                addStr(U"({"); 
+                cfStart= iF;
+                addStr(U"({("); 
             }
       }  
       if (state==TF) {
@@ -210,7 +207,6 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fLen, CHAR4 outbuf[], INT4 *outlen){
             } 
           }else if (CUR==LBR){
             STATE(CF_START);
-            cfStart= iF;
           } else {
             addCh(CUR);
             if (CUR == QT)
