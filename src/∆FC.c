@@ -1,21 +1,22 @@
 /* fc: Uses 4-byte (32-bit) unicode chars throughout 
    Name Assoc: (⎕EX '∆FC' if reassociating existing fn)
        '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4    >C4[] =I4' 
-                  rc               opts   fString  fLen   outBuf   outLen
+                  rc               opts   fString  fStringLen   outBuf   outPLen
    Compile with: 
        cc -dynamiclib -o ∆FC.dylib ∆FC.c   
-   Returns:  rc outBuf outLen.  APL code does out← outlen↑out
+   Returns:  rc outBuf outPLen.  APL code does out← outPLen↑out
    rc=¯1:   output buffer not big enough for transformed fString.
             The output buffer is not examined (and may contain junk).
-            *outLen=0;
+            *outPLen=0;
    rc> 0:   an error occurred. Return APL error number (e.g. 11: DOMAIN ERROR).
-            The error string is in outBuf, with length *outLen.
+            The error string is in outBuf, with length *outPLen.
    rc= 0:   all is well. 
-            The transformed fString is in outBuf with length *outLen.
+            The transformed fString is in outBuf with length *outPLen.
    Note: We don't end strings with 0 for <fString> or <outBuf>. 
          As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
 */
 
+#define DEBUG 
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> 
@@ -24,94 +25,102 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-#define CR    U'\r'
-#define DMND  U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
-#define DNARO U'↓'
-#define DOL   U'$'
-#define DQ    U'"' 
-#define LBR   U'{'
-#define LPAR  U'('
-#define OM    U'⍵'
-#define OM_US U'⍹'
-#define PCT   U'%'
-#define RBR   U'}'
-#define QT    U'\''
-#define RPAR  U')'
-#define RTARO U'→'
-#define SP    U' '
-#define SQ    U'\''
-#define ZILDE U'⍬'
+#define CR     U'\r'
+#define DMND   U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
+#define DNARO  U'↓'
+#define DOL    U'$'
+#define DQ     U'"' 
+#define LBR    U'{'
+#define LPAR   U'('
+#define OMG    U'⍵'
+#define OMG_US U'⍹'
+#define PCT    U'%'
+#define RBR    U'}'
+#define QT     U'\''
+#define RPAR   U')'
+#define RTARO  U'→'
+#define SP     U' '
+#define SQ     U'\''
+#define ZILDE  U'⍬'
 
 /* INPUT BUFFER ROUTINES */
 /* CUR... Return current char, w/o checking bounds */
 #define CUR_AT(ix)    fString[ix]
-#define CUR           CUR_AT(iF)
+#define CUR           CUR_AT(cursor)
+#define PEEK_AT(ix)   ((ix< fStringLen)? fString[ix]: -1)
 /* PEEK... Return next char, checking that it's in range (else return -1) */
-#define PEEK_AT(ix)   ((ix+1 < fLen)? fString[ix+1]: -1)
-#define PEEK          PEEK_AT(iF)
-/* NEXT... Skip to next char. */
-#define NEXT_AT(ix)   ++ix 
-#define NEXT          NEXT_AT(iF)
+#define PEEK          PEEK_AT(cursor+1)
 /* END INPUT BUFFER ROUTINES */
 
 /* GENERIC BUFFER MANAGEMENT ROUTINES */
-#define GENERIC_STR(str, strlen, outBuf, outLen)  {\
-                  int lenT=strlen;\
+#define GENERIC_STR(str, strLen, _buf, _pLen, _max)  {\
+                  int len=strLen;\
                   int ix;\
-                  outLenChk(lenT);\
-                  for(ix=0; ix<lenT; (*outLen)++, ix++)\
-                      outBuf[*outLen]= (INT4) str[ix];\
-        }
-
-#define GENERIC_LENCHK(len, outLen, outMax)\
-                if (*outLen+len >= outMax){\
-                    ERROR_SPACE;\
-        }
+                  if (*_pLen+len >= _max) ERROR_SPACE;\
+                  for(ix=0; ix<len; (*_pLen)++, ix++){\
+                      _buf[*_pLen]= (CHAR4) str[ix];\
+                  }\
+}
+#define GENERIC_CHR(ch, _buf, _pLen, _max) {\
+          if (*_pLen+1 >= _max) ERROR_SPACE;\
+          _buf[(*_pLen)++]= (CHAR4) ch;\
+}
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define outLenChk(len) GENERIC_LENCHK(len, outLen, outMax)
-#define outStr(str)    GENERIC_STR(str, str32Len(str), outBuf, outLen)
-#define outCh(ch)      {outLenChk(1);outBuf[(*outLen)++]=ch;}
+#define OutStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax)
+#define OutNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax)
+#define OutCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
 
-/* Any attempt to add a number bigger than 99999 will result in an error. */
-#define outNum5(num) {\
-    char nstr[6];  /* allows numbers between 0 and 99999 */ \
+/* END OUTPUT BUFFER MANAGEMENT ROUTINES */
+
+/* Handle special code buffer. 
+   To transfer codeBuf to outBuf (and then "clear" it):
+     Code2Out
+*/
+#define CodeInit              *codePLen=0
+#define TWOBUFS 
+#ifdef TWOBUFS
+# define CodeStr(str)         GENERIC_STR(str, str32Len(str), codeBuf, codePLen, codeMax)  
+# define CodeCh(ch)           GENERIC_CHR(ch, codeBuf, codePLen, codeMax)
+# define CodeOut              OutNStr(codeBuf, *codePLen); CodeInit 
+#else 
+#  define CodeStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax)
+#  define CodeNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax)
+#  define CodeCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
+#  define CodeOut
+#endif 
+
+/* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
+#define CODENUM_MAXDIG    5
+#define CODENUM_MAX   99999
+#define CodeNum(num) {\
+    char nstr[CODENUM_MAXDIG+1];\
     int  i;\
     int  tnum=num;\
-    if (tnum>99999){\
+    if (tnum>CODENUM_MAX){\
          ERROR(U"Omega variables must be between 0 and 99999", 11);\
     }\
-    tnum = (tnum>99999)? 99999: tnum;\
+    if (tnum>CODENUM_MAX)\
+        tnum=CODENUM_MAX;\
     sprintf(nstr, "%d", tnum);\
-    for (i=0; nstr[i] && i<sizeof nstr; ++i){\
-        outCh( (CHAR4) nstr[i] );\
+    for (i=0;  i<CODENUM_MAXDIG && nstr[i]; ++i){\
+        CodeCh((CHAR4)nstr[i]);\
     }\
 }
-/* END OUTPUT BUFFER MANAGEMENT ROUTINES */
+/* End Handle Special code buffer */                  
 
 /* Error handling */
 #define ERROR(str, err) {\
-                   *outLen=0;\
-                   outStr(str);\
+                   *outPLen=0;\
+                   OutStr(str);\
                    return(err);\
                    }
 
 #define ERROR_SPACE {\
-                    *outLen=0;\
+                    *outPLen=0;\
                     return -1;\
                    }
-
 /* End Error Handling */
-
-/* Handle special code buffer. To transfer codeBuf to outBuf:
-     codeEof;
-*/
-#define codeInit             codeLen=0
-#define codeEof              codeCh(0); outS(codeBuf); codeInit 
-#define codeLenChk(len)      GENERIC_LENCHK(len, codeLen, codeMax)
-#define codeStr(str)         GENERIC_STR(str, str32Len(str), codeBuf, codeLen)  
-#define codeCh(ch)           {codeLenChk(1); codeBuf[(*codeLen)++]=ch;} 
-/* End Handle Special code buffer */                  
 
 /* STATE MANAGEMENT */       
 #define NONE      0  /* not in a field */
@@ -121,218 +130,242 @@
 #define STATE(new)  { oldState=state; state=new;}
 /* END STATE MANAGEMENT */
 
-#define MAXLEN  512 
+#define STRLEN_MAX  512  
 /* str32Len: CHAR4's that end with null. */
 int str32Len( CHAR4* str) {
     int len;
-    for (len=0; str[len] && len<MAXLEN; ++len )
+    for (len=0; len<STRLEN_MAX && str[len]; ++len )
         ;
+#ifdef DEBUG
+    int i;
+    printf("str32len Str: <");
+    for (i=0; i<20 && i<len && str[i]; ++i)
+         printf("%lc", (int) str[i]);
+    printf(">\nlen=%d\n", len);
+#endif 
     return len;
 }
 
-INT4 afterBlanks(CHAR4 fString[], INT4 fLen, int iF){
-    for (; iF<fLen && SP==fString[iF]; ++iF)
+INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
+    for (; cursor<fStringLen && SP==fString[cursor]; ++cursor)
            ;
-    if (iF>=fLen) 
+    if (cursor>=fStringLen) 
         return -1;
-    return fString[iF];  /* -1 if beyond end */
+    return fString[cursor];  /* -1 if beyond end */
 }
 
 /* HERE DOCUMENT HANDLING */
-#define IF_IS_DOC(type) \
-                 if (bracketDepth==1 && RBR==afterBlanks(fString+1, fLen, iF)){\
-                    int i;\
-                    outCh(RPAR); outStr(type); outStr(U" ⍵");\
-                    outCh(QT);  \
-                    for (i=cfStart; i< iF-1; ++i) {\
-                      if ( fString[i]==SP)\
-                            ++i;\
-                      outCh( fString[i] );\
-                      if (fString[i]==SQ)\
-                          outCh(SQ);\
-                    }\
-                    outCh(QT); outCh(SP);\
-                } 
+#ifdef DOC_TEST
+# define IF_IS_DOC(type) \
+          if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
+            int i;\
+            OutCh(RPAR); OutStr(type); OutStr(U" ⍵");\
+            OutCh(QT);  \
+            for (i=cfStart; i< cursor-1; ++i) {\
+              if ( fString[i]==SP)\
+                    ++i;\
+              OutCh( fString[i] );\
+              if (fString[i]==SQ)\
+                  OutCh(SQ);\
+            }\
+            OutCh(QT); OutCh(SP);\
+          } 
+#else
+# define IF_IS_DOC(type) if (0) {}
+#endif 
 /* END HERE DOCUMENT HANDLING */
 
-int fc(INT4 opts[3], CHAR4 fString[], INT4 fLen, CHAR4 outBuf[], INT4 *outLen){
-  INT4 outMax = *outLen;     /* User must pass in *outLen as outBuf[outMax] */
-  *outLen = 0;               /* We will pass back *outLen as actual chars used  */          
-  int ix;
-  int iF;
-  CHAR4 codeBuf[512];
-  INT4 *codeLen=0;
-  INT4  codeMax = sizeof(codeBuf);
+/* ProcessOmgIx: Scanning input for digits, producing value for int omgIndex */
+#define ProcessOmgIx\
+       CodeCh(CUR);\
+       omgIndex=CUR-'0';\
+       for (++cursor; cursor<fStringLen && isdigit(CUR); ++cursor) {\
+          omgIndex = omgIndex*10 + CUR-'0';\
+          CodeCh(CUR);\
+       }\
+       --cursor;
+
+int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
+  INT4 outMax = *outPLen;        // User must pass in *outPLen as outBuf[outMax]  
+  *outPLen = 0;                  // We will pass back *outPLen as actual chars used           
+// Code buffer
+# define CODEBUF_MAX 512 // Test. Should be dynamically same as outMax
+  CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
+  INT4 codePLen[1]={0};
+  INT4  codeMax = CODEBUF_MAX;
+  int cursor;                    // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
-  int escape=opts[2];        /* User tells us escape character as unicode # */
+  int escCh=opts[2];             // User tells us escCh character as unicode #  
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
 
   /* testing only-- clear output str. */
-  for (ix=0; ix< outMax; ++ix)
+  {int ix;
+   for (ix=0; ix< outMax; ++ix)
        outBuf[ix]=SP;
+  }
 
-  outCh(LBR); 
-  for (iF=0; iF<fLen; NEXT) {
+  OutCh(LBR); 
+  for (cursor=0; cursor<fStringLen; ++cursor) {
       if (state==NONE && CUR!= LBR) {
             STATE(TF); 
-            outCh(QT);
+            OutCh(QT);
       } else if (state==CF_START){
             int i;
             int nspaces=0;
             if (oldState==TF){
-                outCh(QT); 
-                outCh(SP);
+                OutCh(QT); 
+                OutCh(SP);
             }
-          /* Skip leading blanks in Code or Space Fields */
-            for (i=iF; PEEK_AT(i)==SP; ++i){ 
-                ++nspaces, NEXT;
+          /* Skip/Count leading blanks in Code/Space Fields */
+          // Should this be i+1 or i?
+            for (i=cursor; PEEK_AT(i)==SP; ++i){ 
+                ++nspaces, ++cursor;
             }
-            if (i<fLen&&CUR_AT(i)==RBR){
-                STATE(NONE);
+            if (i<fStringLen&&PEEK_AT(i)==RBR){
+                STATE(NONE);    // State=> None. Space field is complete !
                 if (nspaces){
-                      outStr(U"(''⍴⍨");
-                      outNum5(nspaces);
-                      outCh(RPAR);
+                      CodeStr(U"(''⍴⍨");
+                      CodeNum(nspaces);
+                      printf("nspaces %d", nspaces);
+                      CodeCh(RPAR);
+                      CodeOut;
                 }
             }else {
                 STATE(CF);
                 bracketDepth=1;
-                cfStart= iF;
-                outStr(U"({"); 
+                cfStart= cursor;
+                OutStr(U"({"); 
+                CodeInit;
             }
       }  
       if (state==TF) {
-          if (CUR== escape){
-            CHAR4 ch= PEEK; NEXT;
-            if (ch==escape){
-                outCh(escape);
+          if (CUR== escCh){
+            CHAR4 ch= PEEK; ++cursor;
+            if (ch==escCh){
+                OutCh(escCh);
             }else if (ch==LBR || ch==RBR){
-                outCh(ch);
+                OutCh(ch);
             }else if (ch==DMND){
-                outCh(CR);
+                OutCh(CR);
             }else{ 
-                --iF; 
-                outCh(CUR);
+                --cursor; 
+                OutCh(CUR);
             } 
           }else if (CUR==LBR){
             STATE(CF_START);
           } else {
-            outCh(CUR);
+            OutCh(CUR);
             if (CUR == QT)
-              outCh(QT); 
+              OutCh(QT); 
           }          
       }else if (state==CF){
         /* We are in a code field */
         if (CUR==RBR) {
             --bracketDepth;
             if (bracketDepth > 0) {
-               outCh(CUR);
+               CodeCh(CUR);
+        // Terminating right brace: Ending Code Field!
             }else {
-              outStr(U"}⍵)");
+              CodeOut;
+              OutStr(U"}⍵)");
               bracketDepth=0;
               STATE(NONE);
             }
         }else if (CUR==LBR) {
           ++bracketDepth;
-          outCh(CUR);
+          CodeCh(CUR);
         }else if (CUR==SQ || CUR==DQ){
           int i;
           int tcur=CUR;
-          outCh(SQ);
-          for (iF=iF+1; iF<fLen; NEXT){ 
+          CodeCh(SQ);
+          for (cursor++; cursor<fStringLen; ++cursor){ 
               if (CUR==tcur){ 
                   if (PEEK==tcur) {
-                      outCh(tcur);
+                      CodeCh(tcur);
                       if (tcur==SQ)
-                          outCh(tcur);
-                      NEXT;
+                          CodeCh(tcur);
+                      ++cursor;
                   }else {
                       break;
                   }
               }else{
                   int tcur=CUR;
-                  if (tcur==escape){
+                  if (tcur==escCh){
                       if (PEEK==DMND) {
-                          outCh(CR);
-                          NEXT;
+                          CodeCh(CR);
+                          ++cursor;
                       }else {
-                          outCh(escape);
+                          CodeCh(escCh);
                       }
                   }else { 
-                      outCh(tcur);
+                      CodeCh(tcur);
                       if (tcur==SQ)
-                          outCh(tcur);
+                          CodeCh(tcur);
                   }
               }
           }
-          outCh(SQ);
-        }else if (CUR==OM_US||(CUR==escape&&PEEK==OM)){ 
-          if (CUR==escape) NEXT;  /* esc+⍵ => skip the esc */
+          CodeCh(SQ);
+        }else if (CUR==OMG_US||(CUR==escCh && PEEK==OMG)){ 
+          if (CUR==escCh) ++cursor;  /* esc+⍵ => skip the esc */
           if (isdigit(PEEK)){
-             int curnum;
-             NEXT; 
-             outStr(U"⍵⊃⍨⎕IO+");
-             outCh(CUR);
-             curnum=CUR-'0';
-             for ( NEXT; iF<fLen && isdigit(CUR); NEXT) {
-                 curnum = curnum*10 + CUR-'0';
-                 outCh(CUR);
-             }
-             --iF;
-             outCh(RPAR);
-             omegaNext = curnum;
+            ++cursor; 
+            CodeStr(U"⍵⊃⍨⎕IO+");
+            int omgIndex;
+            ProcessOmgIx;
+            omegaNext = omgIndex; 
+            CodeCh(RPAR);
           }else {
             ++omegaNext;
-            outStr(U"(⍵⊃⍨⎕IO+");
-            outNum5(omegaNext);
-            outCh(RPAR); 
+            CodeStr(U"(⍵⊃⍨⎕IO+");
+            CodeNum(omegaNext);
+            CodeCh(RPAR); 
           }
         }else {
           switch(CUR) {
             case DOL: 
                if (PEEK!=DOL){
-                 outStr(U" ⎕FMT ");
+                 CodeStr(U" ⎕FMT ");
                }else {
-                 outStr(U" ⎕SE.Dyalog.Utils.display ");
-                 NEXT;
+                 CodeStr(U" ⎕SE.Dyalog.Utils.display ");
+                 ++cursor;
                }
-               for (; PEEK_AT(iF+1)==DOL; NEXT)
+               for (; PEEK_AT(cursor+1)==DOL; ++cursor)
                   ;
                break;
            case RTARO:
                 IF_IS_DOC(U"⍙AFTER⍙")
                 else {
-                  outCh(CUR);
+                  CodeCh(CUR);
                 }
                 break;
             case DNARO:
                 IF_IS_DOC(U"⍙OVER⍙")
                 else {
-                  outCh(CUR);
+                  CodeCh(CUR);
                 }
                 break;
             case PCT:
                 IF_IS_DOC(U"⍙OVER⍙")
                 else {
-                  outStr(U" ⍙OVER⍙ ");
-                  for (; PEEK_AT(iF+1)==PCT; NEXT)
+                  CodeStr(U" ⍙OVER⍙ ");
+                  for (; PEEK_AT(cursor+1)==PCT; ++cursor)
                     ;
                 }
                 break;
             default:
-                outCh(CUR); /* Catchall */
+                CodeCh(CUR); /* Catchall */
           }
         }
       }
-  } /* for (iF...)*/
+  } /* for (cursor...)*/
   if (state==TF) { 
-      outCh(QT);
+      OutCh(QT);
       STATE(NONE);
   }
-  outCh(RBR); 
+  OutCh(RBR); 
   return 0;  /* 0= all ok */
 }
 
