@@ -14,7 +14,7 @@
             outLen← 512⌈ 256+ 3× ≢fStr
         ⍝ lenRes: send in the maxRes, returns the actual length of the data!
         ⍝ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
-           _← ⎕EX'∆F_C'⊣⎕←'reloading ∆F_C'
+           _← ⎕SE.⎕EX'∆F_C'⊣⎕←'reloading ∆F_C'
            _← '∆F_C' ⎕SE.⎕NA⍣(⊃0=⎕SE.⎕NC'∆F_C')⊢ 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4  >C4[] =I4' 
           ⍝ '    rc            opts    fStr  ≢fStr res   lenRes'
             opts3← mode box (⎕UCS escCh)

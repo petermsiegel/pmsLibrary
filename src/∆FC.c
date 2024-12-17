@@ -16,16 +16,27 @@
          As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
 */
 
+// DEBUG: Sets CR to visible char ␍
 #define DEBUG 
+// USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
+#define USE_ALLOCA
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> 
 #include <ctype.h>
+#ifdef USE_ALLOCA
+#  include <stdlib.h>  // for alloca
+#endif 
 
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-#define CR     U'\r'
+#ifdef DEBUG 
+# define CR    U'␍' 
+#else
+# define CR    U'\r'
+#endif 
 #define DMND   U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
 #define DNARO  U'↓'
 #define DOL    U'$'
@@ -53,12 +64,14 @@
 /* END INPUT BUFFER ROUTINES */
 
 /* GENERIC BUFFER MANAGEMENT ROUTINES */
-#define GENERIC_STR(str, strLen, _buf, _pLen, _max)  {\
+#define GENERIC_STR(str, strLen, _buf, _pLen, _max, expandSq)  {\
                   int len=strLen;\
                   int ix;\
                   if (*_pLen+len >= _max) ERROR_SPACE;\
                   for(ix=0; ix<len; (*_pLen)++, ix++){\
                       _buf[*_pLen]= (CHAR4) str[ix];\
+                      if (_buf[*_pLen]==SQ && expandSq)\
+                          _buf[*_pLen]= (CHAR4) str[ix];\
                   }\
 }
 #define GENERIC_CHR(ch, _buf, _pLen, _max) {\
@@ -67,8 +80,9 @@
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax)
-#define OutNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax)
+#define OutNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax, 0)
+#define OutStr(str)        OutNStr(str, str32Len(str))
+#define OutStrSq(str)      GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax, 1)
 #define OutCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -79,13 +93,13 @@
 */
 #define CodeInit              *codePLen=0
 #define TWOBUFS 
-#ifdef TWOBUFS
-# define CodeStr(str)         GENERIC_STR(str, str32Len(str), codeBuf, codePLen, codeMax)  
+#ifndef TEST_TWO_BUFS 
+# define CodeStr(str)         GENERIC_STR(str, str32Len(str), codeBuf, codePLen, codeMax, 0)  
 # define CodeCh(ch)           GENERIC_CHR(ch, codeBuf, codePLen, codeMax)
-# define CodeOut              OutNStr(codeBuf, *codePLen); CodeInit 
+# define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
 #else 
-#  define CodeStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax)
-#  define CodeNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax)
+#  define CodeStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax, 0)
+#  define CodeNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax, 0)
 #  define CodeCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
 #  define CodeOut
 #endif 
@@ -136,13 +150,6 @@ int str32Len( CHAR4* str) {
     int len;
     for (len=0; len<STRLEN_MAX && str[len]; ++len )
         ;
-#ifdef DEBUG
-    int i;
-    printf("str32len Str: <");
-    for (i=0; i<20 && i<len && str[i]; ++i)
-         printf("%lc", (int) str[i]);
-    printf(">\nlen=%d\n", len);
-#endif 
     return len;
 }
 
@@ -155,24 +162,24 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 }
 
 /* HERE DOCUMENT HANDLING */
-#ifdef DOC_TEST
 # define IF_IS_DOC(type) \
-          if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
-            int i;\
-            OutCh(RPAR); OutStr(type); OutStr(U" ⍵");\
-            OutCh(QT);  \
-            for (i=cfStart; i< cursor-1; ++i) {\
-              if ( fString[i]==SP)\
-                    ++i;\
-              OutCh( fString[i] );\
-              if (fString[i]==SQ)\
-                  OutCh(SQ);\
-            }\
-            OutCh(QT); OutCh(SP);\
-          } 
-#else
-# define IF_IS_DOC(type) if (0) {}
-#endif 
+    if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
+      int i;\
+      OutCh(QT);\
+      for (i=cfStart; i< cursor; ++i) {\
+        if ( fString[i]==SP){\
+              continue;\
+        }\
+        OutCh( fString[i] );\
+        if (fString[i]==SQ)\
+            OutCh(SQ);\
+      }\
+      OutCh(QT); OutCh(SP);\
+      OutStrSq(type);\
+      OutCh(SP);\
+      CodeOut;\
+    } 
+
 /* END HERE DOCUMENT HANDLING */
 
 /* ProcessOmgIx: Scanning input for digits, producing value for int omgIndex */
@@ -189,10 +196,16 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   INT4 outMax = *outPLen;        // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                  // We will pass back *outPLen as actual chars used           
 // Code buffer
+#ifdef USE_ALLOCA
+  INT4 codeMax = outMax;
+  CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
+#else 
 # define CODEBUF_MAX 512 // Test. Should be dynamically same as outMax
   CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
-  INT4 codePLen[1]={0};
   INT4  codeMax = CODEBUF_MAX;
+#endif 
+  INT4 codePLen[1]={0};
+
   int cursor;                    // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
@@ -209,10 +222,17 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
 
   OutCh(LBR); 
   for (cursor=0; cursor<fStringLen; ++cursor) {
-      if (state==NONE && CUR!= LBR) {
+    // Logic for changing state (NONE, CF_START)
+      if (state==NONE){
+          if  (CUR!= LBR) {
             STATE(TF); 
             OutCh(QT);
-      } else if (state==CF_START){
+          }else {
+            STATE(CF_START);
+            ++cursor;
+          }
+      }
+      if (state==CF_START){
             int i;
             int nspaces=0;
             if (oldState==TF){
@@ -261,7 +281,8 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             if (CUR == QT)
               OutCh(QT); 
           }          
-      }else if (state==CF){
+      }
+      if (state==CF){
         /* We are in a code field */
         if (CUR==RBR) {
             --bracketDepth;
@@ -312,7 +333,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
           if (CUR==escCh) ++cursor;  /* esc+⍵ => skip the esc */
           if (isdigit(PEEK)){
             ++cursor; 
-            CodeStr(U"⍵⊃⍨⎕IO+");
+            CodeStr(U"(⍵⊃⍨⎕IO+");
             int omgIndex;
             ProcessOmgIx;
             omegaNext = omgIndex; 
@@ -336,7 +357,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   ;
                break;
            case RTARO:
-                IF_IS_DOC(U"⍙AFTER⍙")
+                IF_IS_DOC(U"⍙BEFORE⍙")
                 else {
                   CodeCh(CUR);
                 }
