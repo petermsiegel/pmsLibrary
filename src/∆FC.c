@@ -16,8 +16,6 @@
          As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
 */
 
-// DEBUG: Sets CR to visible char ␍
-#define DEBUG 
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA
 
@@ -32,11 +30,8 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-#ifdef DEBUG 
-# define CR    U'␍' 
-#else
+# define CRVIS U'␍' 
 # define CR    U'\r'
-#endif 
 #define DMND   U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
 #define DNARO  U'↓'
 #define DOL    U'$'
@@ -64,7 +59,7 @@
 /* END INPUT BUFFER ROUTINES */
 
 /* GENERIC BUFFER MANAGEMENT ROUTINES */
-#define GENERIC_STR(str, strLen, _buf, _pLen, _max, expandSq)  {\
+#define GENERIC_STRX(str, strLen, _buf, _pLen, _max, expandSq)  {\
                   int len=strLen;\
                   int ix;\
                   if (*_pLen+len >= _max) ERROR_SPACE;\
@@ -74,16 +69,26 @@
                           _buf[*_pLen]= (CHAR4) str[ix];\
                   }\
 }
-#define GENERIC_CHR(ch, _buf, _pLen, _max) {\
-          if (*_pLen+1 >= _max) ERROR_SPACE;\
-          _buf[(*_pLen)++]= (CHAR4) ch;\
+#define GENERIC_STR(str, strLen, grp, expandSq)  {\
+                  int len=strLen;\
+                  int ix;\
+                  if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
+                  for(ix=0; ix<len; (*grp##PLen)++, ix++){\
+                      grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+                      if (grp##Buf[*grp##PLen]==SQ && expandSq)\
+                          grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+                  }\
+}
+#define GENERIC_CHR(ch, grp) {\
+          if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
+          grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax, 0)
+#define OutNStr(str, len)  GENERIC_STR(str, len, out, 0)
 #define OutStr(str)        OutNStr(str, str32Len(str))
-#define OutStrSq(str)      GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax, 1)
-#define OutCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
+#define OutStrSq(str)      GENERIC_STR(str, str32Len(str), out, 1)
+#define OutCh(ch)          GENERIC_CHR(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
@@ -92,17 +97,10 @@
      Code2Out
 */
 #define CodeInit              *codePLen=0
-#define TWOBUFS 
-#ifndef TEST_TWO_BUFS 
-# define CodeStr(str)         GENERIC_STR(str, str32Len(str), codeBuf, codePLen, codeMax, 0)  
-# define CodeCh(ch)           GENERIC_CHR(ch, codeBuf, codePLen, codeMax)
+# define CodeStr(str)         GENERIC_STR(str, str32Len(str), code, 0)  
+# define CodeCh(ch)           GENERIC_CHR(ch, code)
 # define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
-#else 
-#  define CodeStr(str)        GENERIC_STR(str, str32Len(str), outBuf, outPLen, outMax, 0)
-#  define CodeNStr(str, len)  GENERIC_STR(str, len, outBuf, outPLen, outMax, 0)
-#  define CodeCh(ch)          GENERIC_CHR(ch, outBuf, outPLen, outMax)
-#  define CodeOut
-#endif 
+
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -112,11 +110,10 @@
     int  i;\
     int  tnum=num;\
     if (tnum>CODENUM_MAX){\
-         ERROR(U"Omega variables must be between 0 and 99999", 11);\
-    }\
-    if (tnum>CODENUM_MAX)\
+        ERROR(U"Omega variables must be between 0 and 99999", 11);\
         tnum=CODENUM_MAX;\
-    sprintf(nstr, "%d", tnum);\
+    }\
+    snprintf(nstr, CODENUM_MAXDIG, "%d", tnum);\
     for (i=0;  i<CODENUM_MAXDIG && nstr[i]; ++i){\
         CodeCh((CHAR4)nstr[i]);\
     }\
@@ -167,19 +164,17 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
       int i;\
       OutCh(QT);\
       for (i=cfStart; i< cursor; ++i) {\
-        if ( fString[i]==SP){\
-              continue;\
-        }\
         OutCh( fString[i] );\
         if (fString[i]==SQ)\
             OutCh(SQ);\
       }\
+      for (i=cursor+1; fString[i]==SP; ++i)\
+          OutCh(SP);\
       OutCh(QT); OutCh(SP);\
       OutStrSq(type);\
       OutCh(SP);\
       CodeOut;\
     } 
-
 /* END HERE DOCUMENT HANDLING */
 
 /* ProcessOmgIx: Scanning input for digits, producing value for int omgIndex */
@@ -192,7 +187,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
        }\
        --cursor;
 
-int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
+int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
   INT4 outMax = *outPLen;        // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                  // We will pass back *outPLen as actual chars used           
 // Code buffer
@@ -209,7 +204,9 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int cursor;                    // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
-  int escCh=opts[2];             // User tells us escCh character as unicode #  
+  int debug=opts[2];
+  int escCh=opts[3];             // User tells us escCh character as unicode #  
+  CHAR4 crOut= debug? CRVIS: CR;
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
@@ -269,7 +266,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             }else if (ch==LBR || ch==RBR){
                 OutCh(ch);
             }else if (ch==DMND){
-                OutCh(CR);
+                OutCh(crOut);
             }else{ 
                 --cursor; 
                 OutCh(CUR);
@@ -316,7 +313,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   int tcur=CUR;
                   if (tcur==escCh){
                       if (PEEK==DMND) {
-                          CodeCh(CR);
+                          CodeCh(crOut);
                           ++cursor;
                       }else {
                           CodeCh(escCh);
