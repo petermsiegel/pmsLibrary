@@ -18,6 +18,8 @@
 
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA
+// USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
+#define USE_NS 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -58,17 +60,7 @@
 #define PEEK          PEEK_AT(cursor+1)
 /* END INPUT BUFFER ROUTINES */
 
-/* GENERIC BUFFER MANAGEMENT ROUTINES */
-#define GENERIC_STRX(str, strLen, _buf, _pLen, _max, expandSq)  {\
-                  int len=strLen;\
-                  int ix;\
-                  if (*_pLen+len >= _max) ERROR_SPACE;\
-                  for(ix=0; ix<len; (*_pLen)++, ix++){\
-                      _buf[*_pLen]= (CHAR4) str[ix];\
-                      if (_buf[*_pLen]==SQ && expandSq)\
-                          _buf[*_pLen]= (CHAR4) str[ix];\
-                  }\
-}
+/* GENERIC BUFFER MANAGEMENT ROUTINES */ 
 #define GENERIC_STR(str, strLen, grp, expandSq)  {\
                   int len=strLen;\
                   int ix;\
@@ -87,7 +79,7 @@
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
 #define OutNStr(str, len)  GENERIC_STR(str, len, out, 0)
 #define OutStr(str)        OutNStr(str, str32Len(str))
-#define OutStrSq(str)      GENERIC_STR(str, str32Len(str), out, 1)
+// #define OutStrSq(str)      GENERIC_STR(str, str32Len(str), out, 1)
 #define OutCh(ch)          GENERIC_CHR(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -110,6 +102,7 @@
     int  i;\
     int  tnum=num;\
     if (tnum>CODENUM_MAX){\
+        printf("Omega value is: %d. Max is %d\n", tnum, CODENUM_MAX);\
         ERROR(U"Omega variables must be between 0 and 99999", 11);\
         tnum=CODENUM_MAX;\
     }\
@@ -159,6 +152,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 }
 
 /* HERE DOCUMENT HANDLING */
+// Be sure <type> has any internal quotes doubled, as needed.
 # define IF_IS_DOC(type) \
     if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
       int i;\
@@ -171,7 +165,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
       for (i=cursor+1; fString[i]==SP; ++i)\
           OutCh(SP);\
       OutCh(QT); OutCh(SP);\
-      OutStrSq(type);\
+      OutStr(type);\
       OutCh(SP);\
       CodeOut;\
     } 
@@ -210,14 +204,27 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
+  // Library for use within code passed.
+  //    overCd: field ⍺ is centered over field ⍵
+  CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
+  //    catCd:  field ⍺ is catenated to field ⍵ left to right
+  CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
+  //    Display boxed items
+  CHAR4 boxCd[]= U"{⍙←⎕SE.Dyalog.Utils.display⋄ 0=⍴⍴⍵: ⍙,⍵ ⋄ ⍙⍵} ";
+  //    Formatting
+  CHAR4 fmtCd[]= U" ⎕FMT ";
 
   /* testing only-- clear output str. */
   {int ix;
    for (ix=0; ix< outMax; ++ix)
        outBuf[ix]=SP;
   }
-
+  
   OutCh(LBR); 
+  #ifdef USE_NS
+  OutStr(U"⍺←⎕NS⍬⋄")
+  #endif
+
   for (cursor=0; cursor<fStringLen; ++cursor) {
     // Logic for changing state (NONE, CF_START)
       if (state==NONE){
@@ -254,7 +261,11 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 STATE(CF);
                 bracketDepth=1;
                 cfStart= cursor;
+#ifdef USE_NS 
+                OutStr(U"(⍺{");
+#else 
                 OutStr(U"({"); 
+#endif
                 CodeInit;
             }
       }  
@@ -345,30 +356,30 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
           switch(CUR) {
             case DOL: 
                if (PEEK!=DOL){
-                 CodeStr(U" ⎕FMT ");
+                 CodeStr(fmtCd);
                }else {
-                 CodeStr(U" ⎕SE.Dyalog.Utils.display ");
+                 CodeStr(boxCd);
                  ++cursor;
                }
                for (; PEEK_AT(cursor+1)==DOL; ++cursor)
                   ;
                break;
            case RTARO:
-                IF_IS_DOC(U"⍙BEFORE⍙")
+                IF_IS_DOC(catCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IF_IS_DOC(U"⍙OVER⍙")
+                IF_IS_DOC(overCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT:
-                IF_IS_DOC(U"⍙OVER⍙")
+                IF_IS_DOC(overCd)
                 else {
-                  CodeStr(U" ⍙OVER⍙ ");
+                  CodeStr(overCd);  
                   for (; PEEK_AT(cursor+1)==PCT; ++cursor)
                     ;
                 }
