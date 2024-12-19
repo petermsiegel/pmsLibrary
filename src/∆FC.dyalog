@@ -1,4 +1,4 @@
-﻿∆FC←{ 
+﻿∆FC←{   ⍝ 202412
       ⍺←1 0 0 '`'                       ⍝ mode box debug escCh 
     0:: ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨('∆FC: ',EM) EN Message)
     0=≢⍺: 1 0⍴⍬
