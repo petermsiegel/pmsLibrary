@@ -1,4 +1,4 @@
-/* fc: Uses 4-byte (32-bit) unicode chars throughout  202412
+/* fc: Uses 4-byte (32-bit) unicode chars throughout  202412 
    Name Assoc: (⎕EX '∆FC' if reassociating existing fn)
        '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
