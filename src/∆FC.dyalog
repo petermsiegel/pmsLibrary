@@ -4,12 +4,7 @@
     0=≢⍺: 1 0⍴⍬
     (,⊆⍵)(⊃⎕RSI).{
         0=⊃⍵: 0 
-
-      ⍝ ⍙SH⍙ is like catenate (,), 
-      ⍝    except that it combines formatted fields without spaces between.
-        ⍙SH⍙← {⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
-   
-        ⍙SH⍙ ⍬,⍥⊂(⎕←⍎⊃⌽⍵)⍺
+          {⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆ ⍎ ('⍺',⍨ ⊃⌽⍵) 
     } ⍺{   
         0= ≢⍺: '1 0⍴⍬' 
             Help← { ⎕ML←1 ⋄ ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } 

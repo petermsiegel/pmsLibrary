@@ -18,8 +18,11 @@
 
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA
-// USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
+// USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
 #define USE_NS 
+// LIB_INLINE: If defined, put code string for key library routines (see below) inline.
+//         If not, assume they are in a library
+#define LIB_INLINE 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -204,15 +207,27 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
-  // Library for use within code passed.
-  //    overCd: field ⍺ is centered over field ⍵
-  CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
-  //    catCd:  field ⍺ is catenated to field ⍵ left to right
-  CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
-  //    Display boxed items
-  CHAR4 boxCd[]= U"{⍙←⎕SE.Dyalog.Utils.display⋄ 0=⍴⍴⍵: ⍙,⍵ ⋄ ⍙⍵} ";
-  //    Formatting
-  CHAR4 fmtCd[]= U" ⎕FMT ";
+  // Library for use within code for pseudo-primitives $, %, %%.
+  #ifdef LIB_INLINE 
+    //    Over: field ⍺ is centered over field ⍵
+    CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
+    //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
+    CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
+    //    Box (ambivalent): Box item to its right
+    CHAR4 boxCd[]= U"{⎕SE.Dyalog.Utils.display ,⍣(0=⍴⍴⍵)⊢⍵}";
+    //    ⎕FMT: Formatting (dyadic)
+    CHAR4 fmtCd[]= U" ⎕FMT ";
+  #else
+    // See above. Library is assumed to be established.
+    // Note spacing required.
+    CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
+    //    See above
+    CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
+    //    See above
+    CHAR4 boxCd[]= U" ⎕SE.∆FLib.Box ";
+    //    See above
+    CHAR4 fmtCd[]= U" ⎕FMT ";
+  #endif 
 
   /* testing only-- clear output str. */
   {int ix;
@@ -354,7 +369,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
           }
         }else {
           switch(CUR) {
-            case DOL: 
+            case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
                if (PEEK!=DOL){
                  CodeStr(fmtCd);
                }else {
@@ -376,7 +391,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   CodeCh(CUR);
                 }
                 break;
-            case PCT:
+            case PCT: // Pseudo-builtin % (Over) 
                 IF_IS_DOC(overCd)
                 else {
                   CodeStr(overCd);  
