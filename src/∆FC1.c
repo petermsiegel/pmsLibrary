@@ -145,23 +145,21 @@ typedef struct {
    CHAR4  *data;
     INT4   size;
     INT4   capacity;
-    int    freeData;
 } Vector;
 
 Vector *VFree(Vector *v){
     if (!v) return NULL;
-    if (v->data && v->freeData)
+    if (v->data)
         free(v->data);
     free(v);
     return NULL;
 }
 
-Vector *VCreate(int freeData) {
+Vector *VCreate() {
     Vector *v = malloc(sizeof(Vector));
     if (!v)
         return NULL;
     v->data = NULL;
-    v->freeData = freeData;
     v->size = 0;
     v->capacity = 0;
     return v;
@@ -173,48 +171,36 @@ Vector **CreateFields(INT4 count){
     if (!fields)
         return NULL;
     for (i=0; i< count; ++i)
-         fields[i] = VCreate(1);
+         fields[i] = VCreate();
     return fields;
 }
 
-// Warning: on any call to VaddCh or VAddNStr or VAddStr,
-//      check if return code is -1. If so, abort.
 #define VGROWCHECK(nelem) \
     { INT4 newSize = v->size + nelem;\
       if (newSize >= v->capacity) {\
-        if (!v->freeData)\
-            return -1;  /* indicates error NOT ENOUGH SPACE */ \
         do {\
           v->capacity = v->capacity == 0 ? nelem * 2 : v->capacity * 2;\
         } while (newSize >= v-> capacity);\
         v->data = realloc(v->data, v->capacity * sizeof(CHAR4));\
         if (!v->data)\
-            return -1; /* indicates error NOT ENOUGH SPACE */ \
+            return 0;\
       }\
     }
 INT4 VAddCh(Vector *v, CHAR4 value) {
-    VGROWCHECK(1);  /* Returns -1 if error NOT ENOUGH SPACE */
+    VGROWCHECK(1);
     v->data[v->size++] = value;
     return v->size;
 }
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
 INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
     int i;
-    VGROWCHECK(nelem);  /* Returns -1 error NOT ENOUGH SPACE */
+    VGROWCHECK(nelem);
     for (i=0; i<nelem; ++i)
         v->data[v->size++] = value[i];
     return v->size;
 }
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
 INT4 VAddStr(Vector *v, CHAR4 *value) {
     int i;
-    VGROWCHECK( Str4Len(value) ); /* Returns -1 error NOT ENOUGH SPACE */
+    VGROWCHECK( Str4Len(value) );
     for (i=0; value[i]; ++i)
         v->data[v->size++] = value[i];
     return v->size;
