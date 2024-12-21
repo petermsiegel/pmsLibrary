@@ -120,12 +120,13 @@
 
 #define STRLEN_MAX  512  
 /* Str4Len: CHAR4's that end with null. */
-int Str4Len( CHAR4* str) {
-    int len;
-    for (len=0; len<STRLEN_MAX && str[len]; ++len )
-        ;
-    return len;
-}
+// int Str4Len( CHAR4* str) {
+#define Str4Len(str) ({\
+    int len;\
+    for (len=0; len<STRLEN_MAX && str[len]; ++len)\
+        ;\
+    len;\
+});
 
 /* Error handling */
 #define ERROR(str, err) {\
@@ -214,7 +215,8 @@ INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
 //    Return -1.
 INT4 VAddStr(Vector *v, CHAR4 *value) {
     int i;
-    VGROWCHECK( Str4Len(value) ); /* Returns -1 error NOT ENOUGH SPACE */
+    int len=Str4Len(value);
+    VGROWCHECK( len ); /* Returns -1 error NOT ENOUGH SPACE */
     for (i=0; value[i]; ++i)
         v->data[v->size++] = value[i];
     return v->size;
@@ -298,7 +300,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
     //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
     CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
     //    Box (ambivalent): Box item to its right
-    CHAR4 boxCd[]= U"{⎕SE.Dyalog.Utils.display ,⍣(0=⍴⍴⍵)⊢⍵}";
+    CHAR4 boxCd[]= U"{⎕SE.Dyalog.Utils.disp ,⍣(0=⍴⍴⍵)⊢⍵}";
     //    ⎕FMT: Formatting (dyadic)
     CHAR4 fmtCd[]= U" ⎕FMT ";
   #else
