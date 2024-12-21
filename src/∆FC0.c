@@ -22,7 +22,7 @@
 #define USE_NS 
 // LIB_INLINE: If defined, put code string for key library routines (see below) inline.
 //         If not, assume they are in a library
-#define LIB_INLINE  
+#define LIB_INLINE 
 
 #define ADVANCED  
 
@@ -37,9 +37,9 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-#define CR     U'\r'
-#define CRVIS  U'␍' 
-#define DMND   U'⋄'   //APL DIAMOND (⋄) ⎕UCS 8900 
+# define CRVIS U'␍' 
+# define CR    U'\r'
+#define DMND   U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
 #define DNARO  U'↓'
 #define DOL    U'$'
 #define DQ     U'"' 
@@ -82,10 +82,10 @@
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutNStr(str, len)   GENERIC_STR(str, len, out, 0)
-#define OutStr(str)         OutNStr(str, Str4Len(str))
-#define OutNStrSq(str, len) GENERIC_STR(str, len, out, 1)
-#define OutCh(ch)           GENERIC_CHR(ch, out)
+#define OutNStr(str, len)  GENERIC_STR(str, len, out, 0)
+#define OutStr(str)        OutNStr(str, Str4Len(str))
+// #define OutStrSq(str)      GENERIC_STR(str, Str4Len(str), out, 1)
+#define OutCh(ch)          GENERIC_CHR(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
@@ -120,13 +120,12 @@
 
 #define STRLEN_MAX  512  
 /* Str4Len: CHAR4's that end with null. */
-// int Str4Len( CHAR4* str) {
-#define Str4Len(str) ({\
-    int len;\
-    for (len=0; len<STRLEN_MAX && str[len]; ++len)\
-        ;\
-    len;\
-});
+int Str4Len( CHAR4* str) {
+    int len;
+    for (len=0; len<STRLEN_MAX && str[len]; ++len )
+        ;
+    return len;
+}
 
 /* Error handling */
 #define ERROR(str, err) {\
@@ -146,23 +145,21 @@ typedef struct {
    CHAR4  *data;
     INT4   size;
     INT4   capacity;
-    int    freeData;
 } Vector;
 
 Vector *VFree(Vector *v){
     if (!v) return NULL;
-    if (v->data && v->freeData)
+    if (v->data)
         free(v->data);
     free(v);
     return NULL;
 }
 
-Vector *VCreate(int freeData) {
+Vector *VCreate() {
     Vector *v = malloc(sizeof(Vector));
     if (!v)
         return NULL;
     v->data = NULL;
-    v->freeData = freeData;
     v->size = 0;
     v->capacity = 0;
     return v;
@@ -174,49 +171,36 @@ Vector **CreateFields(INT4 count){
     if (!fields)
         return NULL;
     for (i=0; i< count; ++i)
-         fields[i] = VCreate(1);
+         fields[i] = VCreate();
     return fields;
 }
 
-// Warning: on any call to VaddCh or VAddNStr or VAddStr,
-//      check if return code is -1. If so, abort.
 #define VGROWCHECK(nelem) \
     { INT4 newSize = v->size + nelem;\
       if (newSize >= v->capacity) {\
-        if (!v->freeData)\
-            return -1;  /* indicates error NOT ENOUGH SPACE */ \
         do {\
           v->capacity = v->capacity == 0 ? nelem * 2 : v->capacity * 2;\
         } while (newSize >= v-> capacity);\
         v->data = realloc(v->data, v->capacity * sizeof(CHAR4));\
         if (!v->data)\
-            return -1; /* indicates error NOT ENOUGH SPACE */ \
+            return 0;\
       }\
     }
 INT4 VAddCh(Vector *v, CHAR4 value) {
-    VGROWCHECK(1);  /* Returns -1 if error NOT ENOUGH SPACE */
+    VGROWCHECK(1);
     v->data[v->size++] = value;
     return v->size;
 }
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
 INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
     int i;
-    VGROWCHECK(nelem);  /* Returns -1 error NOT ENOUGH SPACE */
+    VGROWCHECK(nelem);
     for (i=0; i<nelem; ++i)
         v->data[v->size++] = value[i];
     return v->size;
 }
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
 INT4 VAddStr(Vector *v, CHAR4 *value) {
     int i;
-    int len=Str4Len(value);
-    VGROWCHECK( len ); /* Returns -1 error NOT ENOUGH SPACE */
+    VGROWCHECK( Str4Len(value) );
     for (i=0; value[i]; ++i)
         v->data[v->size++] = value[i];
     return v->size;
@@ -242,20 +226,17 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 
 /* HERE DOCUMENT HANDLING */
 // Be sure <type> has any internal quotes doubled, as needed.
-# define IF_IS_DOC(type, marker) \
+# define IF_IS_DOC(type) \
     if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
-      int i, m;\
+      int i;\
       OutCh(QT);\
       for (i=cfStart; i< cursor; ++i) {\
         OutCh( fString[i] );\
         if (fString[i]==SQ)\
             OutCh(SQ);\
       }\
-      OutStr(marker);\
-      m = Str4Len(marker);\
-      for (i=cursor+1; fString[i]==SP; ++i){\
-          if (--m <= 0) OutCh(SP);\
-      }\
+      for (i=cursor+1; fString[i]==SP; ++i)\
+          OutCh(SP);\
       OutCh(QT); OutCh(SP);\
       OutStr(type);\
       OutCh(SP);\
@@ -290,7 +271,6 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int cursor;                    // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
-  int mode= opts[0];
   int debug=opts[2];
   int escCh=opts[3];             // User tells us escCh character as unicode #  
   CHAR4 crOut= debug? CRVIS: CR;
@@ -299,21 +279,17 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int cfStart=0;
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
-    CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆";
     //    Over: field ⍺ is centered over field ⍵
     CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
-    CHAR4 overMarker[] = U"▼";
     //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
     CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
-    CHAR4 catMarker[] = U"▶"; 
     //    Box (ambivalent): Box item to its right
-    CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.display ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
+    CHAR4 boxCd[]= U"{⎕SE.Dyalog.Utils.display ,⍣(0=⍴⍴⍵)⊢⍵}";
     //    ⎕FMT: Formatting (dyadic)
     CHAR4 fmtCd[]= U" ⎕FMT ";
   #else
     // See above. Library is assumed to be established.
     // Note spacing required.
-    CHAR4 joinCd[]= U" ⎕SE.∆FLib.Join ";
     CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
     //    See above
     CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
@@ -328,14 +304,10 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
    for (ix=0; ix< outMax; ++ix)
        outBuf[ix]=SP;
   }
-  // Preamble code string...
-  if (mode==0)
-      OutCh(LBR);
-  if (mode!=-2)
-      OutStr(joinCd);
+  
   OutCh(LBR); 
   #ifdef USE_NS
-     OutStr(U"⍺←⎕NS⍬⋄")
+  OutStr(U"⍺←⎕NS⍬⋄")
   #endif
 
   for (cursor=0; cursor<fStringLen; ++cursor) {
@@ -356,15 +328,12 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 OutCh(QT); 
                 OutCh(SP);
             }
-          // cfStart marks start of code field (effectively ignored if a space field).
-            cfStart= cursor;  // cfStart is used in document strings....
-          /* Skip leading blanks in Code/Space Field code, 
-             though NOT in any associated document strings */
+          /* Skip/Count leading blanks in Code/Space Fields */
+          // Should this be i+1 or i?
             for (i=cursor; PEEK_AT(i)==SP; ++i){ 
                 ++nspaces, ++cursor;
             }
-          // See if we really had a space field (SF). I.e. 0 or more blanks between braces.
-            if (i < fStringLen && PEEK_AT(i) == RBR){
+            if (i<fStringLen&&PEEK_AT(i)==RBR){
                 STATE(NONE);    // State=> None. Space field is complete !
                 if (nspaces){
                       CodeStr(U"(''⍴⍨");
@@ -376,7 +345,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             }else {
                 STATE(CF);
                 bracketDepth=1;
-              // WAS HERE:::  
+                cfStart= cursor;
 #ifdef USE_NS 
                 OutStr(U"(⍺{");
 #else 
@@ -481,19 +450,19 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   ;
                break;
            case RTARO:
-                IF_IS_DOC(catCd, catMarker)
+                IF_IS_DOC(catCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IF_IS_DOC(overCd, overMarker)
+                IF_IS_DOC(overCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IF_IS_DOC(overCd, overMarker)
+                IF_IS_DOC(overCd)
                 else {
                   CodeStr(overCd);  
                   for (; PEEK_AT(cursor+1)==PCT; ++cursor)
@@ -510,25 +479,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       OutCh(QT);
       STATE(NONE);
   }
-
-  // Postamble Code String
   OutCh(RBR); 
-  //   Mode 0: extra code because we need to input the format string (fString) 
-  //           into the resulting function (see ∆FC.dyalog).
-  if (mode==0){
-      int i;
-      OutStr(L"⍵,⍨⍥⊆"); 
-      OutCh(SQ);
-      OutNStrSq(fString, fStringLen);
-      //for (i=0; i<fStringLen; ++i){
-      //     OutCh( fString[i]);
-      //     if (fString[i]==SQ)
-      //         OutCh(SQ);
-      //}
-      OutCh(SQ);    
-      OutCh(RBR);
-  }
-
   return 0;  /* 0= all ok */
 }
 

@@ -24,7 +24,7 @@
 //         If not, assume they are in a library
 #define LIB_INLINE  
 
-#define ADVANCED  
+#define MAXFIELDS 100  // Maximum number of allowed user fields
 
 #include <stdio.h>
 #include <stdint.h>
@@ -132,69 +132,104 @@
 #define ERROR(str, err) {\
                    *outPLen=0;\
                    OutStr(str);\
+                   FreeFields(fields);\
                    return(err);\
                    }
 
 #define ERROR_SPACE {\
                     *outPLen=0;\
+                    FreeFields(fields);\
                     return -1;\
                    }
 /* End Error Handling */
 
-#ifdef ADVANCED
 typedef struct {
    CHAR4  *data;
     INT4   size;
     INT4   capacity;
-    int    freeData;
+    int    fixedSize;
 } Vector;
 
+// VFree always returns NULL. 
+//    It will ignore NULL objects.
 Vector *VFree(Vector *v){
     if (!v) return NULL;
-    if (v->data && v->freeData)
+    if (v->data && !v->fixedSize)
         free(v->data);
     free(v);
     return NULL;
 }
 
-Vector *VCreate(int freeData) {
+// VCreate(): Create a buffer that can grow in size.
+Vector *VCreate() {
     Vector *v = malloc(sizeof(Vector));
     if (!v)
         return NULL;
     v->data = NULL;
-    v->freeData = freeData;
+    v->fixedSize = 0;
     v->size = 0;
     v->capacity = 0;
     return v;
 }
+// VFixed:  Link an existing static buffer which cannot grow in size.
+//          Fixed arrays will never have their <data> space released by VFree.
+Vector *VFixed(CHAR4 *buffer, int bufSize) {
+    Vector *v = malloc(sizeof(Vector));
+    if (!v)
+        return NULL;
+    v->data = buffer;
+    v->fixedSize = 1;
+    v->size = 0;
+    v->capacity = bufSize;
+    return v;
+}
+
 
 Vector **CreateFields(INT4 count){
     int i;
-    Vector **fields = malloc( sizeof(Vector *) * count);
+    Vector **fields = malloc( sizeof(Vector *) * (count+1));
     if (!fields)
         return NULL;
     for (i=0; i< count; ++i)
-         fields[i] = VCreate(1);
+         fields[i] = VCreate();
+    fields[count] = NULL;
     return fields;
+}
+// FreeFields: Always returns void
+// Frees any non-null fields and the appropriate parts of Created or Fixed fields.
+void FreeFields(Vector **fields) {
+    int i;
+    Vector *f;
+    for (i=0; fields[i]; ++i){
+         fields[i] = VFree(fields[i]);
+    }
+    free(fields);
 }
 
 // Warning: on any call to VaddCh or VAddNStr or VAddStr,
-//      check if return code is -1. If so, abort.
-#define VGROWCHECK(nelem) \
-    { INT4 newSize = v->size + nelem;\
-      if (newSize >= v->capacity) {\
-        if (!v->freeData)\
-            return -1;  /* indicates error NOT ENOUGH SPACE */ \
-        do {\
-          v->capacity = v->capacity == 0 ? nelem * 2 : v->capacity * 2;\
-        } while (newSize >= v-> capacity);\
-        v->data = realloc(v->data, v->capacity * sizeof(CHAR4));\
-        if (!v->data)\
-            return -1; /* indicates error NOT ENOUGH SPACE */ \
-      }\
-    }
-INT4 VAddCh(Vector *v, CHAR4 value) {
-    VGROWCHECK(1);  /* Returns -1 if error NOT ENOUGH SPACE */
+//      check if return code is 0. If so,return 0. Else return 1.
+#define VGROWCHECK(v, nelem)({\
+     ( (nelem + v->size) >= v->capacity )?\
+         VGrow(v, nelem): 1;\
+})
+
+int VGrow(Vector *v, int nelem){ 
+      int newSize = nelem + v->size;\
+      if (newSize >= v->capacity) {
+        if (v->fixedSize)
+            return 0;  /* indicates error NOT ENOUGH SPACE */ 
+        do {
+          v->capacity = v->capacity == 0 ? nelem * 2 : v->capacity * 2;
+        } while (newSize >= v-> capacity);
+        v->data = realloc(v->data, v->capacity * sizeof(CHAR4));
+        if (!v->data)
+            return 0; /* indicates error NOT ENOUGH SPACE */
+        return 1; 
+      }
+      return 1;
+}
+inline INT4 VAddCh(Vector *v, CHAR4 value) {
+    if (!VGROWCHECK(v, 1)) return -1;  /* Returns -1 if error NOT ENOUGH SPACE */
     v->data[v->size++] = value;
     return v->size;
 }
@@ -204,7 +239,7 @@ INT4 VAddCh(Vector *v, CHAR4 value) {
 //    Return -1.
 INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
     int i;
-    VGROWCHECK(nelem);  /* Returns -1 error NOT ENOUGH SPACE */
+    if (!VGROWCHECK(v, nelem)) return -1;  
     for (i=0; i<nelem; ++i)
         v->data[v->size++] = value[i];
     return v->size;
@@ -215,13 +250,13 @@ INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
 //    Return -1.
 INT4 VAddStr(Vector *v, CHAR4 *value) {
     int i;
-    int len=Str4Len(value);
-    VGROWCHECK( len ); /* Returns -1 error NOT ENOUGH SPACE */
+    int nelem=Str4Len(value);
+    if (!VGROWCHECK(v, nelem)) return -1; /* Returns -1 error NOT ENOUGH SPACE */
     for (i=0; value[i]; ++i)
         v->data[v->size++] = value[i];
     return v->size;
 }
-#endif
+ 
 
 /* STATE MANAGEMENT */       
 #define NONE      0  /* not in a field */
@@ -297,6 +332,8 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
+  int nFields= MAXFIELDS;
+  Vector **fields = CreateFields(nFields);
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
     CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆";
@@ -529,6 +566,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       OutCh(RBR);
   }
 
+  FreeFields(fields);
   return 0;  /* 0= all ok */
 }
 
