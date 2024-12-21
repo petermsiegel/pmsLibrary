@@ -301,7 +301,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
     //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
     CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
     //    Box (ambivalent): Box item to its right
-    CHAR4 boxCd[]= U"{⎕SE.Dyalog.Utils.disp ,⍣(0=⍴⍴⍵)⊢⍵}";
+    CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.display ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
     //    ⎕FMT: Formatting (dyadic)
     CHAR4 fmtCd[]= U" ⎕FMT ";
   #else

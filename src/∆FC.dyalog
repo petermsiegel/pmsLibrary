@@ -1,22 +1,26 @@
-﻿⍙UT⍙← {⍙LT⍙} ∆FC ⍙RT⍙; ⍙U1⍙ 
-  :If 900⌶0
-        ⍙LT⍙← 1 0 0 '`'          ⍝ mode box debug escCh 
-  :ElseIf 0=≢⍙LT⍙
-       ⍙UT⍙← 1 0⍴⍬ ⋄ :Return 
-  :Elseif 'help'≡⎕C ⍙LT⍙
-       ⍙UT⍙← ⍬⊣ { ⎕ML←1 ⋄ ⎕ED⍠ 'ReadOnly' 1⊢ 'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI  
-  :Else 
-       ⍙LT⍙← 4↑⍙LT⍙, 1 0 0 '`'↑⍨ ¯4+ ≢⍙LT⍙
-  :EndIf 
-  ⍙RT⍙← ,⊆⍙RT⍙ 
+﻿ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
 
-  :Trap 0
-    ⍙U1⍙← ⍙LT⍙ (⊃⎕RSI).{  ⍝ Returns: mode box(not implemented) debug code
-        1=⊃⍺:  {⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆ ⍎ ⍵,'⍙RT⍙'
+  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC: '',EM) EN Message)'
+  
+  :If 900⌶0
+        ⓁⒻⓉ← 1 0 0 '`'          ⍝ mode box debug escCh 
+  :ElseIf 0=≢ⓁⒻⓉ
+       ⓄⓊⓉ← 1 0⍴⍬ ⋄ :Return 
+  :Elseif 'help'≡⎕C ⓁⒻⓉ
+       ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
+       :Return  
+  :Else 
+       ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1 0 0 '`'↑⍨ ¯4+ ≢ⓁⒻⓉ
+  :EndIf 
+  ⓇⒼⓉ← ,⊆ⓇⒼⓉ  
+
+  ⒸⓄⒹ← ⓁⒻⓉ (⊃⎕RSI).{  ⍝ Returns: mode box(not implemented) debug code
+        1=⊃⍺:  {⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆ ⍎ ⍵,'ⓇⒼⓉ'
         0=⊃⍺:  '{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆',⍵
-       ¯1=⊃⍺:  ⎕SE.Dyalog.Utils.disp{⎕ML←1 ⋄ ⍪((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆ ⍎ ⍵,'⍙RT⍙'
-       ¯2=⊃⍺:  ⎕SE.Dyalog.Utils.disp{⎕ML←1 ⋄ ((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆ ⍎ ⍵,'⍙RT⍙'
-    }(⍙RT⍙)⊢ ⍙LT⍙{   
+        ⒸⓄⒹ← 0∘⎕SE.Dyalog.Utils.disp
+       ¯1=⊃⍺:  ⒸⓄⒹ{⎕ML←1 ⋄ ((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}⍎ ⍵,'ⓇⒼⓉ'
+       ¯2=⊃⍺:  ⒸⓄⒹ{⍪⎕FMT¨⍵},⊆ ⍎ ⍵,'ⓇⒼⓉ'
+  }ⓇⒼⓉ⊢ ⓁⒻⓉ{   
     ⍝ options and arguments to ∆FC 
         uniE← '∆FC DOMAIN ERROR: escape char not unicode scalar!' 11
         mode box debug escCh ← ⍺
@@ -37,22 +41,21 @@
         }'∆F_C'            ⍝ 'rc              opts   fStr  ≢fStr res   lenRes
         opts4← mode box debug (⎕UCS escCh) 
         Trace← debug∘{ ⍺: ⊢⎕←⍵ ⋄ ⍵}
-        outLen← 512⌈ 256+ ⍙est⍙← 3× ≢fStr← ⊃,⊆⍵ 
+        outLen← 512⌈ 256+ est← 3× ≢fStr← ⊃,⊆⍵ 
       
         rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
-      ⍝⎕← 'Estimated input length',⍙est⍙,' actual output length',lenRes 
+      ⍝⎕← 'Estimated input length',est,' actual output length',lenRes 
 
      0= rc:    Trace lenRes↑ res 
     ¯1= rc:    911 ⎕SIGNAL⍨ '∆FC ERROR: Formatting buffer not big enough!'
                rc  ⎕SIGNAL⍨ '∆FC ',(⎕EM rc),': ', lenRes↑res 
-   } ⊃⍙RT⍙
-   :If 0≠⊃⍙LT⍙  
-       ⍙UT⍙← ⍙U1⍙
-   :Else 
-       ⍙UT⍙← (⊃⎕RSI)⍎⍙U1⍙
-   :EndIf 
-:Else 
-     ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨('∆FC: ',EM) EN Message)
-:EndTrap 
+   } ⊃ⓇⒼⓉ
+
+  :If 0≠⊃ⓁⒻⓉ  
+      ⓄⓊⓉ← ⒸⓄⒹ
+  :Else 
+      ⓄⓊⓉ← (⊃⎕RSI)⍎(0=⊃ⓁⒻⓉ)⊢ⒸⓄⒹ
+  :EndIf 
+
 ⍝H <<< NO HELP AVAILABLE >>>
 
