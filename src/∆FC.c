@@ -287,6 +287,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int cursor;                    // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
+  int mode= opts[0];
   int debug=opts[2];
   int escCh=opts[3];             // User tells us escCh character as unicode #  
   CHAR4 crOut= debug? CRVIS: CR;
@@ -321,9 +322,11 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
        outBuf[ix]=SP;
   }
   
+  if (mode==0)
+      OutCh(LBR);
   OutCh(LBR); 
   #ifdef USE_NS
-  OutStr(U"⍺←⎕NS⍬⋄")
+     OutStr(U"⍺←⎕NS⍬⋄")
   #endif
 
   for (cursor=0; cursor<fStringLen; ++cursor) {
@@ -496,6 +499,19 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       STATE(NONE);
   }
   OutCh(RBR); 
+  if (mode==0){
+      int i;
+      OutStr(L"⍵,⍨⊂"); 
+      OutCh(SQ);
+      for (i=0; i<fStringLen; ++i){
+           OutCh( fString[i]);
+           if (fString[i]==SQ)
+               OutCh(SQ);
+      }
+      OutCh(SQ);    
+      OutCh(RBR);
+  }
+
   return 0;  /* 0= all ok */
 }
 
