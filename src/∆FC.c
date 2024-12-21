@@ -22,9 +22,7 @@
 #define USE_NS 
 // LIB_INLINE: If defined, put code string for key library routines (see below) inline.
 //         If not, assume they are in a library
-#define LIB_INLINE 
-// SKIP_CF_LEADING_BLANKS: If 1, skip leading blanks on code fields...
-// #define SKIP_CF_LEADING_BLANKS
+#define LIB_INLINE  
 
 #define ADVANCED  
 
@@ -358,14 +356,15 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 OutCh(QT); 
                 OutCh(SP);
             }
-          /* Skip/Count leading blanks in Code/Space Fields */
-          // Should this be i+1 or i?
-#ifdef SKIP_CF_LEADING_BLANKS
+          // cfStart marks start of code field (effectively ignored if a space field).
+            cfStart= cursor;  // cfStart is used in document strings....
+          /* Skip leading blanks in Code/Space Field code, 
+             though NOT in any associated document strings */
             for (i=cursor; PEEK_AT(i)==SP; ++i){ 
                 ++nspaces, ++cursor;
             }
-#endif 
-            if (i<fStringLen&&PEEK_AT(i)==RBR){
+          // See if we really had a space field (SF). I.e. 0 or more blanks between braces.
+            if (i < fStringLen && PEEK_AT(i) == RBR){
                 STATE(NONE);    // State=> None. Space field is complete !
                 if (nspaces){
                       CodeStr(U"(''⍴⍨");
@@ -377,7 +376,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             }else {
                 STATE(CF);
                 bracketDepth=1;
-                cfStart= cursor;
+              // WAS HERE:::  
 #ifdef USE_NS 
                 OutStr(U"(⍺{");
 #else 
