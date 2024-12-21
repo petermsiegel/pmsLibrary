@@ -23,6 +23,8 @@
 // LIB_INLINE: If defined, put code string for key library routines (see below) inline.
 //         If not, assume they are in a library
 #define LIB_INLINE 
+// SKIP_CF_LEADING_BLANKS: If 1, skip leading blanks on code fields...
+// #define SKIP_CF_LEADING_BLANKS
 
 #define ADVANCED  
 
@@ -37,9 +39,9 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
-# define CRVIS U'␍' 
-# define CR    U'\r'
-#define DMND   U'⋄'   /* ⋄: ⎕UCS 8900 APL DIAMOND  */
+#define CR     U'\r'
+#define CRVIS  U'␍' 
+#define DMND   U'⋄'   //APL DIAMOND (⋄) ⎕UCS 8900 
 #define DNARO  U'↓'
 #define DOL    U'$'
 #define DQ     U'"' 
@@ -82,10 +84,10 @@
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutNStr(str, len)  GENERIC_STR(str, len, out, 0)
-#define OutStr(str)        OutNStr(str, Str4Len(str))
-// #define OutStrSq(str)      GENERIC_STR(str, Str4Len(str), out, 1)
-#define OutCh(ch)          GENERIC_CHR(ch, out)
+#define OutNStr(str, len)   GENERIC_STR(str, len, out, 0)
+#define OutStr(str)         OutNStr(str, Str4Len(str))
+#define OutNStrSq(str, len) GENERIC_STR(str, len, out, 1)
+#define OutCh(ch)           GENERIC_CHR(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
@@ -242,17 +244,20 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 
 /* HERE DOCUMENT HANDLING */
 // Be sure <type> has any internal quotes doubled, as needed.
-# define IF_IS_DOC(type) \
+# define IF_IS_DOC(type, marker) \
     if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
-      int i;\
+      int i, m;\
       OutCh(QT);\
       for (i=cfStart; i< cursor; ++i) {\
         OutCh( fString[i] );\
         if (fString[i]==SQ)\
             OutCh(SQ);\
       }\
-      for (i=cursor+1; fString[i]==SP; ++i)\
-          OutCh(SP);\
+      OutStr(marker);\
+      m = Str4Len(marker);\
+      for (i=cursor+1; fString[i]==SP; ++i){\
+          if (--m <= 0) OutCh(SP);\
+      }\
       OutCh(QT); OutCh(SP);\
       OutStr(type);\
       OutCh(SP);\
@@ -296,10 +301,13 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int cfStart=0;
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
+    CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆";
     //    Over: field ⍺ is centered over field ⍵
     CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
+    CHAR4 overMarker[] = U"▼";
     //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
     CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
+    CHAR4 catMarker[] = U"▶"; 
     //    Box (ambivalent): Box item to its right
     CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.display ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
     //    ⎕FMT: Formatting (dyadic)
@@ -307,6 +315,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   #else
     // See above. Library is assumed to be established.
     // Note spacing required.
+    CHAR4 joinCd[]= U" ⎕SE.∆FLib.Join ";
     CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
     //    See above
     CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
@@ -321,9 +330,11 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
    for (ix=0; ix< outMax; ++ix)
        outBuf[ix]=SP;
   }
-  
+  // Preamble code string...
   if (mode==0)
       OutCh(LBR);
+  if (mode!=-2)
+      OutStr(joinCd);
   OutCh(LBR); 
   #ifdef USE_NS
      OutStr(U"⍺←⎕NS⍬⋄")
@@ -349,9 +360,11 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             }
           /* Skip/Count leading blanks in Code/Space Fields */
           // Should this be i+1 or i?
+#ifdef SKIP_CF_LEADING_BLANKS
             for (i=cursor; PEEK_AT(i)==SP; ++i){ 
                 ++nspaces, ++cursor;
             }
+#endif 
             if (i<fStringLen&&PEEK_AT(i)==RBR){
                 STATE(NONE);    // State=> None. Space field is complete !
                 if (nspaces){
@@ -469,19 +482,19 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   ;
                break;
            case RTARO:
-                IF_IS_DOC(catCd)
+                IF_IS_DOC(catCd, catMarker)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IF_IS_DOC(overCd)
+                IF_IS_DOC(overCd, overMarker)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IF_IS_DOC(overCd)
+                IF_IS_DOC(overCd, overMarker)
                 else {
                   CodeStr(overCd);  
                   for (; PEEK_AT(cursor+1)==PCT; ++cursor)
@@ -498,16 +511,21 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       OutCh(QT);
       STATE(NONE);
   }
+
+  // Postamble Code String
   OutCh(RBR); 
+  //   Mode 0: extra code because we need to input the format string (fString) 
+  //           into the resulting function (see ∆FC.dyalog).
   if (mode==0){
       int i;
-      OutStr(L"⍵,⍨⊂"); 
+      OutStr(L"⍵,⍨⍥⊆"); 
       OutCh(SQ);
-      for (i=0; i<fStringLen; ++i){
-           OutCh( fString[i]);
-           if (fString[i]==SQ)
-               OutCh(SQ);
-      }
+      OutNStrSq(fString, fStringLen);
+      //for (i=0; i<fStringLen; ++i){
+      //     OutCh( fString[i]);
+      //     if (fString[i]==SQ)
+      //         OutCh(SQ);
+      //}
       OutCh(SQ);    
       OutCh(RBR);
   }
