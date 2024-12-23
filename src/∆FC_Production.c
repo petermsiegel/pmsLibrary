@@ -187,7 +187,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
        }\
        --cursor;
 
-int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
+int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
   INT4 outMax = *outPLen;        // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                  // We will pass back *outPLen as actual chars used           
 // Code buffer
@@ -195,7 +195,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   INT4 codeMax = outMax;
   CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
 #else 
-# define CODEBUF_MAX 512 // Test. Should be dynamically same as outMax
+# define CODEBUF_MAX 512          // Test. Should be dynamically same as outMax
   CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
   INT4  codeMax = CODEBUF_MAX;
 #endif 
@@ -205,8 +205,8 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int state=NONE;
   int oldState=NONE;
   int mode= opts[0];
-  int debug=opts[2];
-  int escCh=opts[3];             // User tells us escCh character as unicode #  
+  int debug=opts[1];
+  int escCh=opts[2];             // User tells us escCh character as unicode #  
   CHAR4 crOut= debug? CRVIS: CR;
   int bracketDepth=0;
   int omegaNext=0;
@@ -248,18 +248,20 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   #ifdef USE_NS
      OutStr(U"⍺←⎕NS⍬⋄")
   #endif
-  OutStr(joinCd);
 
   switch(mode){
     case MODE_STD:
+      OutStr(joinCd);
+      break;
     case MODE_LIST:
     case MODE_TABLE:
       break;
     case MODE_CODE:
+      OutStr(joinCd);
       OutCh(LBR);
       break;
     default:
-      ERROR(U"Unknown mode (⍺[0])", 11);
+      ERROR(U"Unknown mode option in left arg", 11);
   }
 
 
