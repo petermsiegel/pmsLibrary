@@ -19,7 +19,7 @@
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA
 // USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
-#define USE_NS 
+#undef USE_NS 
 // LIB_INLINE: If defined, put code string for key library routines (see below) inline.
 //         If not, assume they are in a library
 #define LIB_INLINE  
@@ -336,7 +336,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   Vector **fields = CreateFields(nFields);
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
-    CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},⊆";
+    CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"; // removed final ⊆ 
     //    Over: field ⍺ is centered over field ⍵
     CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
     CHAR4 overMarker[] = U"▼";
@@ -549,7 +549,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   }
 
   // Postamble Code String
-  OutCh(RBR); 
+  OutStr(L"⍬}");
   //   Mode 0: extra code because we need to input the format string (fString) 
   //           into the resulting function (see ∆FC.dyalog).
   if (mode==0){
