@@ -24,8 +24,6 @@
 //         If not, assume they are in a library
 #define LIB_INLINE  
 
-#define MAXFIELDS 100  // Maximum number of allowed user fields
-
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> 
@@ -56,6 +54,12 @@
 #define SQ     U'\''
 #define ZILDE  U'⍬'
 
+// Mode enumeration 
+#define MODE_STD     1
+#define MODE_CODE    0 
+#define MODE_LIST   -1
+#define MODE_TABLE  -2
+
 /* INPUT BUFFER ROUTINES */
 /* CUR... Return current char, w/o checking bounds */
 #define CUR_AT(ix)    fString[ix]
@@ -73,7 +77,7 @@
                   for(ix=0; ix<len; (*grp##PLen)++, ix++){\
                       grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
                       if (grp##Buf[*grp##PLen]==SQ && expandSq)\
-                          grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+                          grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
                   }\
 }
 #define GENERIC_CHR(ch, grp) {\
@@ -97,7 +101,6 @@
 # define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
 # define CodeCh(ch)           GENERIC_CHR(ch, code)
 # define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
-
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -129,134 +132,10 @@
 });
 
 /* Error handling */
-#define ERROR(str, err) {\
-                   *outPLen=0;\
-                   OutStr(str);\
-                   FreeFields(fields);\
-                   return(err);\
-                   }
+#define ERROR(str, err) { *outPLen=0; OutStr(str); return(err); }
 
-#define ERROR_SPACE {\
-                    *outPLen=0;\
-                    FreeFields(fields);\
-                    return -1;\
-                   }
+#define ERROR_SPACE { *outPLen=0; return -1; }
 /* End Error Handling */
-
-typedef struct {
-   CHAR4  *data;
-    INT4   size;
-    INT4   capacity;
-    int    fixedSize;
-} Vector;
-
-// VFree always returns NULL. 
-//    It will ignore NULL objects.
-Vector *VFree(Vector *v){
-    if (!v) return NULL;
-    if (v->data && !v->fixedSize)
-        free(v->data);
-    free(v);
-    return NULL;
-}
-
-// VCreate(): Create a buffer that can grow in size.
-Vector *VCreate() {
-    Vector *v = malloc(sizeof(Vector));
-    if (!v)
-        return NULL;
-    v->data = NULL;
-    v->fixedSize = 0;
-    v->size = 0;
-    v->capacity = 0;
-    return v;
-}
-// VFixed:  Link an existing static buffer which cannot grow in size.
-//          Fixed arrays will never have their <data> space released by VFree.
-Vector *VFixed(CHAR4 *buffer, int bufSize) {
-    Vector *v = malloc(sizeof(Vector));
-    if (!v)
-        return NULL;
-    v->data = buffer;
-    v->fixedSize = 1;
-    v->size = 0;
-    v->capacity = bufSize;
-    return v;
-}
-
-
-Vector **CreateFields(INT4 count){
-    int i;
-    Vector **fields = malloc( sizeof(Vector *) * (count+1));
-    if (!fields)
-        return NULL;
-    for (i=0; i< count; ++i)
-         fields[i] = VCreate();
-    fields[count] = NULL;
-    return fields;
-}
-// FreeFields: Always returns void
-// Frees any non-null fields and the appropriate parts of Created or Fixed fields.
-void FreeFields(Vector **fields) {
-    int i;
-    Vector *f;
-    for (i=0; fields[i]; ++i){
-         fields[i] = VFree(fields[i]);
-    }
-    free(fields);
-}
-
-// Warning: on any call to VaddCh or VAddNStr or VAddStr,
-//      check if return code is 0. If so,return 0. Else return 1.
-#define VGROWCHECK(v, nelem)({\
-     ( (nelem + v->size) >= v->capacity )?\
-         VGrow(v, nelem): 1;\
-})
-
-int VGrow(Vector *v, int nelem){ 
-      int newSize = nelem + v->size;\
-      if (newSize >= v->capacity) {
-        if (v->fixedSize)
-            return 0;  /* indicates error NOT ENOUGH SPACE */ 
-        do {
-          v->capacity = v->capacity == 0 ? nelem * 2 : v->capacity * 2;
-        } while (newSize >= v-> capacity);
-        v->data = realloc(v->data, v->capacity * sizeof(CHAR4));
-        if (!v->data)
-            return 0; /* indicates error NOT ENOUGH SPACE */
-        return 1; 
-      }
-      return 1;
-}
-inline INT4 VAddCh(Vector *v, CHAR4 value) {
-    if (!VGROWCHECK(v, 1)) return -1;  /* Returns -1 if error NOT ENOUGH SPACE */
-    v->data[v->size++] = value;
-    return v->size;
-}
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
-INT4 VAddNStr(Vector *v, CHAR4 *value, INT4 nelem) {
-    int i;
-    if (!VGROWCHECK(v, nelem)) return -1;  
-    for (i=0; i<nelem; ++i)
-        v->data[v->size++] = value[i];
-    return v->size;
-}
-// You can add a 0-length 4-byte string. 
-//    That will return 0.
-// Error (can't grow string):
-//    Return -1.
-INT4 VAddStr(Vector *v, CHAR4 *value) {
-    int i;
-    int nelem=Str4Len(value);
-    if (!VGROWCHECK(v, nelem)) return -1; /* Returns -1 error NOT ENOUGH SPACE */
-    for (i=0; value[i]; ++i)
-        v->data[v->size++] = value[i];
-    return v->size;
-}
- 
 
 /* STATE MANAGEMENT */       
 #define NONE      0  /* not in a field */
@@ -277,7 +156,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 
 /* HERE DOCUMENT HANDLING */
 // Be sure <type> has any internal quotes doubled, as needed.
-# define IF_IS_DOC(type, marker) \
+# define IfCodeDoc(type, marker) \
     if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
       int i, m;\
       OutCh(QT);\
@@ -298,8 +177,8 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
     } 
 /* END HERE DOCUMENT HANDLING */
 
-/* ProcessOmgIx: Scanning input for digits, producing value for int omgIndex */
-#define ProcessOmgIx\
+/* OmegaIndices: Scanning input for digits, producing value for int omgIndex */
+#define OmegaIndices\
        CodeCh(CUR);\
        omgIndex=CUR-'0';\
        for (++cursor; cursor<fStringLen && isdigit(CUR); ++cursor) {\
@@ -332,8 +211,6 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
-  int nFields= MAXFIELDS;
-  Vector **fields = CreateFields(nFields);
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
     CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"; // removed final ⊆ 
@@ -366,14 +243,26 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
        outBuf[ix]=SP;
   }
   // Preamble code string...
-  if (mode==0)
-      OutCh(LBR);
-  if (mode!=-2)
-      OutStr(joinCd);
+  
   OutCh(LBR); 
   #ifdef USE_NS
      OutStr(U"⍺←⎕NS⍬⋄")
   #endif
+  OutStr(joinCd);
+
+  switch(mode){
+    case MODE_STD:
+    case MODE_LIST:
+    case MODE_TABLE:
+      break;
+    case MODE_CODE:
+      OutCh(LBR);
+      break;
+    default:
+      ERROR(U"Unknown mode (⍺[0])", 11);
+  }
+
+
 
   for (cursor=0; cursor<fStringLen; ++cursor) {
     // Logic for changing state (NONE, CF_START)
@@ -496,7 +385,7 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             ++cursor; 
             CodeStr(U"(⍵⊃⍨⎕IO+");
             int omgIndex;
-            ProcessOmgIx;
+            OmegaIndices;
             omegaNext = omgIndex; 
             CodeCh(RPAR);
           }else {
@@ -518,19 +407,19 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   ;
                break;
            case RTARO:
-                IF_IS_DOC(catCd, catMarker)
+                IfCodeDoc(catCd, catMarker)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IF_IS_DOC(overCd, overMarker)
+                IfCodeDoc(overCd, overMarker)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IF_IS_DOC(overCd, overMarker)
+                IfCodeDoc(overCd, overMarker)
                 else {
                   CodeStr(overCd);  
                   for (; PEEK_AT(cursor+1)==PCT; ++cursor)
@@ -552,21 +441,16 @@ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   OutStr(L"⍬}");
   //   Mode 0: extra code because we need to input the format string (fString) 
   //           into the resulting function (see ∆FC.dyalog).
-  if (mode==0){
-      int i;
+  if (mode==MODE_CODE){
       OutStr(L"⍵,⍨⍥⊆"); 
       OutCh(SQ);
       OutNStrSq(fString, fStringLen);
-      //for (i=0; i<fStringLen; ++i){
-      //     OutCh( fString[i]);
-      //     if (fString[i]==SQ)
-      //         OutCh(SQ);
-      //}
       OutCh(SQ);    
       OutCh(RBR);
+  }else {
+      OutStr(L"⍵⍵");
   }
 
-  FreeFields(fields);
   return 0;  /* 0= all ok */
 }
 

@@ -1,6 +1,6 @@
 ﻿ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
 
-  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC: '',EM) EN Message)'
+  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC '',EM) EN Message)'
   
   :If 900⌶0
         ⓁⒻⓉ← 1 0 0 '`'          ⍝ mode box debug escCh 
@@ -16,11 +16,11 @@
 
   ⒸⓄⒹ← ⓁⒻⓉ ((⊃⎕RSI) {  ⍝ Returns: mode box(not implemented) debug code
       ~⊃⎕EX 'ⓁⒻⓉ' 'ⓇⒼⓉ'⊣ ⓁⒻⓉ← ⓇⒼⓉ←0:    ⍝ Hide outer vars ⓁⒻⓉ and ⓇⒼⓉ, so invis. to ⎕NL etc.
-      1=⊃⍺:  ⍺⍺⍎ ⍵,'⍵⍵' 
+      1=⊃⍺:  ⍺⍺⍎ ⍵ 
       0=⊃⍺:  ,⍵
-     ¯1=⊃⍺:  0∘⎕SE.Dyalog.Utils.disp ⍺⍺⍎ ⍵,'⍵⍵' 
-     ¯2=⊃⍺:  0∘⎕SE.Dyalog.Utils.disp{⍪⎕FMT¨⍵},⊆ ⍺⍺⍎ ⍵,'⍵⍵' 
-        ⎕SIGNAL 11 ⋄ ⍵⍵  
+     ¯1=⊃⍺:  0∘⎕SE.Dyalog.Utils.disp ⍺⍺⍎ ⍵ 
+     ¯2=⊃⍺:  0∘⎕SE.Dyalog.Utils.disp{⍪⎕FMT¨⍵},⊆ ⍺⍺⍎ ⍵ 
+        ⎕SIGNAL 11 ⋄ ⍵⍵  ⍝ Enable ⍵⍵ 
   }ⓇⒼⓉ)⊢ ⓁⒻⓉ{   
     ⍝ options and arguments to ∆FC 
         uniE← '∆FC DOMAIN ERROR: escape char not unicode scalar!' 11
@@ -42,14 +42,15 @@
         }'∆F_C'            ⍝ 'rc              opts   fStr  ≢fStr res   lenRes
  
         opts4← mode box debug (⎕UCS escCh) 
-        outLen← 512⌈ 256+ est← 3× ≢fStr← ⊃,⊆⍵ 
-      
-        rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
-      ⍝⎕← 'Estimated input length',est,' actual output length',lenRes 
+        outLen← 512⌈ est← 256+ 3× ≢fStr← ⊃,⊆⍵ 
 
-     0= rc:    {debug: ⊢⎕←⍵ ⋄ ⍵} lenRes↑ res 
-    ¯1= rc:    911 ⎕SIGNAL⍨ '∆FC ERROR: Formatting buffer not big enough!'
-               rc  ⎕SIGNAL⍨ '∆FC ',(⎕EM rc),': ', lenRes↑res 
+        DOut← {debug: ⊢⎕←⍵ ⋄ ⍵}
+        rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
+        _← DOut 'Estimated input length',est,' actual output length',lenRes 
+
+     0= rc:    DOut lenRes↑ res 
+    ¯1= rc:    911 ⎕SIGNAL⍨ 'DOMAIN ERROR: Formatting buffer not big enough!'
+               rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
    } ⊃ⓇⒼⓉ
 
   :If 0≠⊃ⓁⒻⓉ  
