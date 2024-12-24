@@ -1,4 +1,4 @@
-/* fc: Uses 4-byte (32-bit) unicode chars throughout  202412 
+/* fc: Uses 4-byte (32-bit) unicode chars throughout  20241223 
    Name Assoc: (⎕EX '∆FC' if reassociating existing fn)
        '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
@@ -19,6 +19,7 @@
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA
 // USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
+#define USE_NS
 #undef USE_NS 
 // LIB_INLINE: If defined, put code string for key library routines (see below) inline.
 //         If not, assume they are in a library
@@ -35,6 +36,7 @@
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
 
+#define ALPHA  U'⍺'
 #define CR     U'\r'
 #define CRVIS  U'␍' 
 #define DMND   U'⋄'   //APL DIAMOND (⋄) ⎕UCS 8900 
@@ -71,18 +73,18 @@
 
 /* GENERIC BUFFER MANAGEMENT ROUTINES */ 
 #define GENERIC_STR(str, strLen, grp, expandSq)  {\
-                  int len=strLen;\
-                  int ix;\
-                  if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
-                  for(ix=0; ix<len; (*grp##PLen)++, ix++){\
-                      grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
-                      if (grp##Buf[*grp##PLen]==SQ && expandSq)\
-                          grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
-                  }\
+        int len=strLen;\
+        int ix;\
+        if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
+        for(ix=0; ix<len; (*grp##PLen)++, ix++){\
+            grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+            if (grp##Buf[*grp##PLen] == SQ && expandSq)\
+                grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
+        }\
 }
 #define GENERIC_CHR(ch, grp) {\
-          if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
-          grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
+      if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
+      grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -131,43 +133,42 @@
     len;\
 });
 
-/* Error handling */
+// Error handling  
 #define ERROR(str, err) { *outPLen=0; OutStr(str); return(err); }
+#define ERROR_SPACE     { *outPLen=0; return -1; }
+// End Error Handling  
 
-#define ERROR_SPACE { *outPLen=0; return -1; }
-/* End Error Handling */
-
-/* STATE MANAGEMENT */       
-#define NONE      0  /* not in a field */
-#define TF       10  /* text field */
-#define CF_START 20
-#define CF       21  /* code field or space field */
+// STATE MANAGEMENT       
+#define NONE      0      // not in a field 
+#define TF       10      // text field 
+#define CF_START 20      // starting a cf
+#define CF       21      // in a code field or space field */
 #define STATE(new)  { oldState=state; state=new;}
-/* END STATE MANAGEMENT */
+// END STATE MANAGEMENT 
 
 
 INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
-    for (; cursor<fStringLen && SP==fString[cursor]; ++cursor)
+    for (; cursor < fStringLen && SP == fString[cursor]; ++cursor)
            ;
     if (cursor>=fStringLen) 
         return -1;
-    return fString[cursor];  /* -1 if beyond end */
+    return fString[cursor];  // -1 if beyond end  
 }
 
-/* HERE DOCUMENT HANDLING */
+// HERE DOCUMENT HANDLING  
 // Be sure <type> has any internal quotes doubled, as needed.
 # define IfCodeDoc(type, marker) \
-    if (bracketDepth==1 && RBR==afterBlanks(fString+1, fStringLen, cursor)){\
+    if (bracketDepth == 1 && RBR == afterBlanks(fString+1, fStringLen, cursor)){\
       int i, m;\
       OutCh(QT);\
       for (i=cfStart; i< cursor; ++i) {\
         OutCh( fString[i] );\
-        if (fString[i]==SQ)\
+        if (fString[i] == SQ)\
             OutCh(SQ);\
       }\
       OutStr(marker);\
       m = Str4Len(marker);\
-      for (i=cursor+1; fString[i]==SP; ++i){\
+      for (i=cursor+1; fString[i] == SP; ++i){\
           if (--m <= 0) OutCh(SP);\
       }\
       OutCh(QT); OutCh(SP);\
@@ -175,11 +176,13 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
       OutCh(SP);\
       CodeOut;\
     } 
-/* END HERE DOCUMENT HANDLING */
+// END HERE DOCUMENT HANDLING  
 
-/* OmegaIndices: Scanning input for digits, producing value for int omgIndex */
+// OmegaIndices: Scanning input for digits, producing value for int omgIndex  
 #define OmegaIndices\
        CodeCh(CUR);\
+       if (!isdigit(CUR))\
+          ERROR(U"Logic Error: Omega not followed by digit.", 911);\
        omgIndex=CUR-'0';\
        for (++cursor; cursor<fStringLen && isdigit(CUR); ++cursor) {\
           omgIndex = omgIndex*10 + CUR-'0';\
@@ -188,60 +191,55 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
        --cursor;
 
 int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
-  INT4 outMax = *outPLen;        // User must pass in *outPLen as outBuf[outMax]  
-  *outPLen = 0;                  // We will pass back *outPLen as actual chars used           
+  INT4 outMax = *outPLen;           // User must pass in *outPLen as outBuf[outMax]  
+  *outPLen = 0;                     // We will pass back *outPLen as actual chars used           
 // Code buffer
 #ifdef USE_ALLOCA
-  INT4 codeMax = outMax;
-  CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
+    INT4 codeMax = outMax;
+    CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
 #else 
-# define CODEBUF_MAX 512          // Test. Should be dynamically same as outMax
-  CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
-  INT4  codeMax = CODEBUF_MAX;
+#   define CODEBUF_MAX 512          // Test. Should be dynamically same as outMax
+    CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
+    INT4  codeMax = CODEBUF_MAX;
 #endif 
   INT4 codePLen[1]={0};
 
-  int cursor;                    // fString (input) "cursor" position
+  int cursor;                      // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
-  int mode= opts[0];
-  int debug=opts[1];
-  int escCh=opts[2];             // User tells us escCh character as unicode #  
+  int mode= opts[0];               // See modes (MODE_...) above
+  int debug=opts[1];               // debug (boolean)
+  int escCh=opts[2];               // User tells us escCh character as unicode #  
   CHAR4 crOut= debug? CRVIS: CR;
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
   // Library for use within code for pseudo-primitives $, %, %%.
   #ifdef LIB_INLINE 
-    CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"; // removed final ⊆ 
-    //    Over: field ⍺ is centered over field ⍵
-    CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
-    CHAR4 overMarker[] = U"▼";
-    //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
-    CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
-    CHAR4 catMarker[] = U"▶"; 
-    //    Box (ambivalent): Box item to its right
-    CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
-    //    ⎕FMT: Formatting (dyadic)
-    CHAR4 fmtCd[]= U" ⎕FMT ";
+      CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"; // removed final ⊆ 
+      //    Over: field ⍺ is centered over field ⍵
+      CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
+      CHAR4 overMarker[] = U"▼";
+      //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
+      CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
+      CHAR4 catMarker[] = U"▶"; 
+      //    Box (ambivalent): Box item to its right
+      CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
+      //    ⎕FMT: Formatting (dyadic)
+      CHAR4 fmtCd[]= U" ⎕FMT ";
   #else
-    // See above. Library is assumed to be established.
-    // Note spacing required.
-    CHAR4 joinCd[]= U" ⎕SE.∆FLib.Join ";
-    CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
-    //    See above
-    CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
-    //    See above
-    CHAR4 boxCd[]= U" ⎕SE.∆FLib.Box ";
-    //    See above
-    CHAR4 fmtCd[]= U" ⎕FMT ";
+      // See above. Library is assumed to be externally established.
+      // Note spacing required.
+      CHAR4 joinCd[]= U" ⎕SE.∆FLib.Join ";
+      CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
+      //    See above
+      CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
+      //    See above
+      CHAR4 boxCd[]= U" ⎕SE.∆FLib.Box ";
+      //    See above
+      CHAR4 fmtCd[]= U" ⎕FMT ";
   #endif 
 
-  /* testing only-- clear output str. */
-  {int ix;
-   for (ix=0; ix< outMax; ++ix)
-       outBuf[ix]=SP;
-  }
   // Preamble code string...
   
   OutCh(LBR); 
@@ -258,6 +256,9 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       break;
     case MODE_CODE:
       OutStr(joinCd);
+#    ifdef USE_NS
+      OutCh(ALPHA);
+#    endif
       OutCh(LBR);
       break;
     default:
@@ -266,9 +267,9 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
 
 
 
-  for (cursor=0; cursor<fStringLen; ++cursor) {
+  for (cursor = 0; cursor < fStringLen; ++cursor) {
     // Logic for changing state (NONE, CF_START)
-      if (state==NONE){
+      if (state == NONE){
           if  (CUR!= LBR) {
             STATE(TF); 
             OutCh(QT);
@@ -277,10 +278,10 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             ++cursor;
           }
       }
-      if (state==CF_START){
+      if (state == CF_START){
             int i;
             int nspaces=0;
-            if (oldState==TF){
+            if (oldState == TF){
                 OutCh(QT); 
                 OutCh(SP);
             }
@@ -288,7 +289,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
             cfStart= cursor;  // cfStart is used in document strings....
           /* Skip leading blanks in Code/Space Field code, 
              though NOT in any associated document strings */
-            for (i=cursor; PEEK_AT(i)==SP; ++i){ 
+            for (i=cursor; PEEK_AT(i) == SP; ++i){ 
                 ++nspaces, ++cursor;
             }
           // See if we really had a space field (SF). I.e. 0 or more blanks between braces.
@@ -313,20 +314,20 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 CodeInit;
             }
       }  
-      if (state==TF) {
-          if (CUR== escCh){
+      if (state == TF) {
+          if (CUR == escCh){
             CHAR4 ch= PEEK; ++cursor;
-            if (ch==escCh){
+            if (ch == escCh){
                 OutCh(escCh);
-            }else if (ch==LBR || ch==RBR){
+            }else if (ch == LBR || ch == RBR){
                 OutCh(ch);
-            }else if (ch==DMND){
+            }else if (ch == DMND){
                 OutCh(crOut);
             }else{ 
                 --cursor; 
                 OutCh(CUR);
             } 
-          }else if (CUR==LBR){
+          }else if (CUR == LBR){
             STATE(CF_START);
           } else {
             OutCh(CUR);
@@ -334,9 +335,9 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
               OutCh(QT); 
           }          
       }
-      if (state==CF){
+      if (state == CF){
         /* We are in a code field */
-        if (CUR==RBR) {
+        if (CUR == RBR) {
             --bracketDepth;
             if (bracketDepth > 0) {
                CodeCh(CUR);
@@ -347,18 +348,18 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
               bracketDepth=0;
               STATE(NONE);
             }
-        }else if (CUR==LBR) {
+        }else if (CUR == LBR) {
           ++bracketDepth;
           CodeCh(CUR);
-        }else if (CUR==SQ || CUR==DQ){
+        }else if (CUR == SQ || CUR == DQ){
           int i;
           int tcur=CUR;
           CodeCh(SQ);
           for (cursor++; cursor<fStringLen; ++cursor){ 
-              if (CUR==tcur){ 
-                  if (PEEK==tcur) {
+              if (CUR == tcur){ 
+                  if (PEEK == tcur) {
                       CodeCh(tcur);
-                      if (tcur==SQ)
+                      if (tcur == SQ)
                           CodeCh(tcur);
                       ++cursor;
                   }else {
@@ -366,8 +367,8 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   }
               }else{
                   int tcur=CUR;
-                  if (tcur==escCh){
-                      if (PEEK==DMND) {
+                  if (tcur == escCh){
+                      if (PEEK == DMND) {
                           CodeCh(crOut);
                           ++cursor;
                       }else {
@@ -375,14 +376,14 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                       }
                   }else { 
                       CodeCh(tcur);
-                      if (tcur==SQ)
+                      if (tcur == SQ)
                           CodeCh(tcur);
                   }
               }
           }
           CodeCh(SQ);
-        }else if (CUR==OMG_US||(CUR==escCh && PEEK==OMG)){ 
-          if (CUR==escCh) ++cursor;  /* esc+⍵ => skip the esc */
+        }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
+          if (CUR == escCh) ++cursor;  /* esc+⍵ => skip the esc */
           if (isdigit(PEEK)){
             ++cursor; 
             CodeStr(U"(⍵⊃⍨⎕IO+");
@@ -405,7 +406,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                  CodeStr(boxCd);
                  ++cursor;
                }
-               for (; PEEK_AT(cursor+1)==DOL; ++cursor)
+               for (; PEEK_AT(cursor+1) == DOL; ++cursor)
                   ;
                break;
            case RTARO:
@@ -424,7 +425,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 IfCodeDoc(overCd, overMarker)
                 else {
                   CodeStr(overCd);  
-                  for (; PEEK_AT(cursor+1)==PCT; ++cursor)
+                  for (; PEEK_AT(cursor+1) == PCT; ++cursor)
                     ;
                 }
                 break;
@@ -434,7 +435,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
         }
       }
   } /* for (cursor...)*/
-  if (state==TF) { 
+  if (state == TF) { 
       OutCh(QT);
       STATE(NONE);
   }
@@ -443,7 +444,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   OutStr(L"⍬}");
   //   Mode 0: extra code because we need to input the format string (fString) 
   //           into the resulting function (see ∆FC.dyalog).
-  if (mode==MODE_CODE){
+  if (mode == MODE_CODE){
       OutStr(L"⍵,⍨⍥⊆"); 
       OutCh(SQ);
       OutNStrSq(fString, fStringLen);
