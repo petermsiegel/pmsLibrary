@@ -3,7 +3,7 @@
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC '',EM) EN Message)'
   
   :If 900⌶0
-        ⓁⒻⓉ← 1 0 '`'          ⍝ mode debug escCh 
+        ⓁⒻⓉ← 1 0 '`' 0          ⍝ mode debug escCh extLib
   :ElseIf 0=≢ⓁⒻⓉ
        ⓄⓊⓉ← 1 0⍴⍬ 
        :Return 
@@ -11,7 +11,7 @@
        ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
        :Return  
   :Else 
-       ⓁⒻⓉ← 3↑ⓁⒻⓉ, 1 0 '`'↑⍨ ¯3+ ≢ⓁⒻⓉ
+       ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1 0 '`' 0↑⍨ ¯4+ ≢ⓁⒻⓉ
   :EndIf 
   ⓇⒼⓉ← ,⊆ⓇⒼⓉ  
 
@@ -26,9 +26,25 @@
   }ⓇⒼⓉ)⊢ ⓁⒻⓉ{   
     ⍝ options and arguments to ∆FC 
         badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
-        mode debug escCh ← ⍺
+        mode debug escCh extLib ← ⍺
     ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
     1≠ ≢escCh:      ⎕SIGNAL/ badEscE
+
+    CheckLib← ⎕SE.{
+      ⍵=0: ⍬
+      9=⎕NC '∆FLib': ⍬
+        _← '∆FLib' ⎕NS ⍬
+  ⍝  Join all the elements to the right
+        ∆FLib.Join← {⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵}
+  ⍝  Center field ⍺ over field ⍵
+        ∆FLib.Over← {⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
+  ⍝  Join field ⍺ to left of field ⍵, adjusting for height, without adding blank columns
+        ∆FLib.Cat← {⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
+  ⍝  Box item ⍵
+        ∆FLib.Box←{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
+        ⍬
+    }  
+    _← CheckLib extLib  
 
     ⍝ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 UTBuf[], INT4 *outPLen)
     ⍝ fString: the format string
@@ -40,14 +56,14 @@
     ⍝   outPLen: the actual length (in 4-byte chars) of code output
         _← debug ⎕SE.{ 
           _← ⎕EX⍣⍺⊢⍵  ⍝⍝⍝ Only TEST mode 
-          ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4  >C4[] =I4' 
+          ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆FC.dylib|fc  <I4[4] <C4[] I4  >C4[] =I4' 
         }'∆F_C'            ⍝ 'rc              opts   fStr  ≢fStr res   lenRes
  
-        opts3← mode debug (⎕UCS escCh) 
+        opts4← mode debug (⎕UCS escCh) extLib 
         outLen← 512⌈ est← 256+ 2× ≢fStr← ⊃,⊆⍵ 
         
         DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
-        rc res lenRes← ⎕SE.∆F_C opts3 fStr (≢fStr) outLen outLen 
+        rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
       ⍝ _← DOut 'Estimated input length',est,' actual output length',lenRes 
 
      0= rc:    DOut lenRes↑ res 

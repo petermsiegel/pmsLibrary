@@ -1,6 +1,6 @@
 /* fc: Uses 4-byte (32-bit) unicode chars throughout  20241223 
    Name Assoc: (⎕EX '∆FC' if reassociating existing fn)
-       '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[3] <C4[] I4    >C4[] =I4' 
+       '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[4] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
    Compile with: 
        cc -dynamiclib -o ∆FC.dylib ∆FC.c   
@@ -21,9 +21,9 @@
 // USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
 #define USE_NS
 #undef USE_NS 
-// LIB_INLINE: If defined, put code string for key library routines (see below) inline.
-//         If not, assume they are in a library
-#define LIB_INLINE  
+// FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
+//                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
+#define FANCY_MARKERS 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -155,9 +155,12 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
     return fString[cursor];  // -1 if beyond end  
 }
 
-// HERE DOCUMENT HANDLING  
+// F String DOCUMENT HANDLING  
 // Be sure <type> has any internal quotes doubled, as needed.
-# define IfCodeDoc(type, marker) \
+//Usage:
+//      IfCodeDoc(cat)  // where cat has defined catCd and catMarker
+//      else {...}
+# define IfCodeDoc(type) \
     if (bracketDepth == 1 && RBR == afterBlanks(fString+1, fStringLen, cursor)){\
       int i, m;\
       OutCh(QT);\
@@ -166,13 +169,13 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
         if (fString[i] == SQ)\
             OutCh(SQ);\
       }\
-      OutStr(marker);\
-      m = Str4Len(marker);\
+      OutStr(type##Marker);\
+      m = Str4Len(type##Marker);\
       for (i=cursor+1; fString[i] == SP; ++i){\
           if (--m <= 0) OutCh(SP);\
       }\
       OutCh(QT); OutCh(SP);\
-      OutStr(type);\
+      OutStr(type##Cd);\
       OutCh(SP);\
       CodeOut;\
     } 
@@ -210,35 +213,38 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int mode= opts[0];               // See modes (MODE_...) above
   int debug=opts[1];               // debug (boolean)
   int escCh=opts[2];               // User tells us escCh character as unicode #  
+  int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
   CHAR4 crOut= debug? CRVIS: CR;
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
-  // Library for use within code for pseudo-primitives $, %, %%.
-  #ifdef LIB_INLINE 
-      CHAR4 joinCd[]= U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"; // removed final ⊆ 
-      //    Over: field ⍺ is centered over field ⍵
-      CHAR4 overCd[]= U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}";
-      CHAR4 overMarker[] = U"▼";
-      //    Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
-      CHAR4 catCd[]= U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}";
-      CHAR4 catMarker[] = U"▶"; 
-      //    Box (ambivalent): Box item to its right
-      CHAR4 boxCd[]= U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}";
-      //    ⎕FMT: Formatting (dyadic)
-      CHAR4 fmtCd[]= U" ⎕FMT ";
-  #else
-      // See above. Library is assumed to be externally established.
-      // Note spacing required.
-      CHAR4 joinCd[]= U" ⎕SE.∆FLib.Join ";
-      CHAR4 overCd[]= U" ⎕SE.∆FLib.Ovr ";
-      //    See above
-      CHAR4 catCd[]= U" ⎕SE.∆FLib.Cat ";
-      //    See above
-      CHAR4 boxCd[]= U" ⎕SE.∆FLib.Box ";
-      //    See above
-      CHAR4 fmtCd[]= U" ⎕FMT ";
+  //        Join pseudo-primitive
+    #define JOINCD0  U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"
+    #define JOINCD1  U" ⎕SE.∆FLib.Join "
+  //       Over: field ⍺ is centered over field ⍵
+    #define OVERCD0  U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
+    #define OVERCD1  U" ⎕SE.∆FLib.Ovr "
+  //       Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
+    #define CATCD0  U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
+    #define CATCD1  U" ⎕SE.∆FLib.Cat "
+  //       Box (ambivalent): Box item to its right
+    #define BOXCD0  U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
+    #define BOXCD1  U" ⎕SE.∆FLib.Box "
+  //       ⎕FMT: Formatting (dyadic)
+    #define FMTCD01 U" ⎕FMT "
+     CHAR4 *joinCd = extLib? JOINCD1: JOINCD0;
+     CHAR4 *overCd = extLib? OVERCD1: OVERCD0;
+     CHAR4 *catCd  = extLib? CATCD1:  CATCD0;
+     CHAR4 *boxCd  = extLib? BOXCD1:  BOXCD0;
+     CHAR4 *fmtCd  = FMTCD01;
+  #ifdef FANCY_MARKERS
+      CHAR4 overMarker[] = U"▼";   // string  
+      CHAR4 catMarker[]  = U"▶"; 
+  #else 
+      CHAR4 overMarker[] = U"↓";   // string
+      CHAR4 catMarker[]  = U"→"; 
   #endif 
+  
 
   // Preamble code string...
   
@@ -410,19 +416,19 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                   ;
                break;
            case RTARO:
-                IfCodeDoc(catCd, catMarker)
+                IfCodeDoc(cat)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IfCodeDoc(overCd, overMarker)
+                IfCodeDoc(over)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IfCodeDoc(overCd, overMarker)
+                IfCodeDoc(over)
                 else {
                   CodeStr(overCd);  
                   for (; PEEK_AT(cursor+1) == PCT; ++cursor)
