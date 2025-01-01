@@ -1,4 +1,4 @@
-ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
+ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⎕TRAP 
 ⍝ ∆FC
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC '',EM) EN Message)'
   
