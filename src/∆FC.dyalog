@@ -46,7 +46,8 @@
     }  
     _← CheckLib extLib  
 
-    ⍝ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 UTBuf[], INT4 *outPLen)
+    ⍝ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen)
+    ⍝ opts: (see below)
     ⍝ fString: the format string
     ⍝ outBuf:  the output buffer (on input: the output buffer size needed)
     ⍝ outPLen: the output buffer size (on input: the same number as for outBuf)
