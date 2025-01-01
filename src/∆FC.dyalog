@@ -1,4 +1,4 @@
-﻿ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
+ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
 ⍝ ∆FC
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC '',EM) EN Message)'
   
@@ -13,9 +13,9 @@
   :Else 
        ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1 0 '`' 0↑⍨ ¯4+ ≢ⓁⒻⓉ
   :EndIf 
-  ⓇⒼⓉ← ,⊆ⓇⒼⓉ  
 
-  ⒸⓄⒹ← ⓁⒻⓉ ((⊃⎕RSI) {  ⍝ Returns: mode debug code
+  ⓄⓊⓉ← (⊃⎕RSI)⍎⍣(0=⊃ⓁⒻⓉ)⊢ ⓁⒻⓉ ((⊃⎕RSI) {  
+    ⍝ Returns: mode debug code
     ⍝ Hide outer vars ⓁⒻⓉ and ⓇⒼⓉ, so invis. to ⎕NL etc.
       ~⊃⎕EX 'ⓁⒻⓉ' 'ⓇⒼⓉ'⊣ ⓁⒻⓉ← ⓇⒼⓉ←0:   
       1=⊃⍺:  ⍺⍺⍎ ⍵                                ⍝ STD   mode: default
@@ -69,8 +69,7 @@
      0= rc:    DOut lenRes↑ res 
     ¯1= rc:    911 ⎕SIGNAL⍨ 'DOMAIN ERROR: Formatting buffer not big enough!'
                rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
-  } ⊃ⓇⒼⓉ
+  } ⊃ⓇⒼⓉ← ,⊆ⓇⒼⓉ
 
-  ⓄⓊⓉ← (⊃⎕RSI)⍎⍣(0=⊃ⓁⒻⓉ)⊢ ⒸⓄⒹ
 ⍝H <<< NO HELP AVAILABLE >>>
 
