@@ -240,7 +240,9 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
 
      CHAR4 *overMarker = FANCY_MARKERS? U"▶": U"→"; 
   
-     CHAR4 *downMARKER = FANCY_MARKERS? U"↓": U"/";
+
+
+CHAR4 *downMARKER = FANCY_MARKERS? U"▼"? U"↓";
 
   // Preamble code string...
   
