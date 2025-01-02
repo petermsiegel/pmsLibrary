@@ -71,7 +71,7 @@
 #define PEEK          PEEK_AT(cursor+1)
 /* END INPUT BUFFER ROUTINES */
 
-/* GENERIC BUFFER MANAGEMENT ROUTINES */ 
+/* GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES */ 
 #define GENERIC_STR(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
