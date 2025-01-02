@@ -18,8 +18,8 @@
 
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA 1
-// USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
-#define USE_NS0
+// USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
+#define USE_NS 0
  
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
@@ -99,10 +99,10 @@
    To transfer codeBuf to outBuf (and then "clear" it):
      CodeOut
 */
-# define CodeInit             *codePLen=0
-# define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
-# define CodeCh(ch)           GENERIC_CHR(ch, code)
-# define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
+#define CodeInit             *codePLen=0
+#define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
+#define CodeCh(ch)           GENERIC_CHR(ch, code)
+#define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -237,14 +237,10 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
      CHAR4 *catCd  = extLib? CATCD1:  CATCD0;
      CHAR4 *boxCd  = extLib? BOXCD1:  BOXCD0;
      CHAR4 *fmtCd  = FMTCD01;
-  #if FANCY_MARKERS
-      CHAR4 overMarker[] = U"▼";   // string  
-      CHAR4 catMarker[]  = U"▶"; 
-  #else 
-      CHAR4 overMarker[] = U"↓";   // string
-      CHAR4 catMarker[]  = U"→"; 
-  #endif 
+
+     CHAR4 *overMarker = FANCY_MARKERS? U"▶": U"→"; 
   
+     CHAR4 *downMARKER = FANCY_MARKERS? U"↓": U"/";
 
   // Preamble code string...
   
