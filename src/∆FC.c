@@ -97,7 +97,7 @@
 
 /* Handle special code buffer. 
    To transfer codeBuf to outBuf (and then "clear" it):
-     Code2Out
+     CodeOut
 */
 # define CodeInit             *codePLen=0
 # define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
