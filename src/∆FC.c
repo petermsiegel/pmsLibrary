@@ -17,13 +17,13 @@
 */
 
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
-#define USE_ALLOCA
+#define USE_ALLOCA 1
 // USE_NS: If defined, a ⎕NS is passed as ⍺ for each Code Field
-#define USE_NS
-#undef USE_NS 
+#define USE_NS0
+ 
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
-#define FANCY_MARKERS 
+#define FANCY_MARKERS 1
 
 #include <stdio.h>
 #include <stdint.h>
@@ -197,7 +197,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   INT4 outMax = *outPLen;           // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                     // We will pass back *outPLen as actual chars used           
 // Code buffer
-#ifdef USE_ALLOCA
+#if USE_ALLOCA
     INT4 codeMax = outMax;
     CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
 #else 
@@ -237,7 +237,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
      CHAR4 *catCd  = extLib? CATCD1:  CATCD0;
      CHAR4 *boxCd  = extLib? BOXCD1:  BOXCD0;
      CHAR4 *fmtCd  = FMTCD01;
-  #ifdef FANCY_MARKERS
+  #if FANCY_MARKERS
       CHAR4 overMarker[] = U"▼";   // string  
       CHAR4 catMarker[]  = U"▶"; 
   #else 
@@ -249,7 +249,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   // Preamble code string...
   
   OutCh(LBR); 
-  #ifdef USE_NS
+  #if USE_NS
      OutStr(U"⍺←⎕NS⍬⋄")
   #endif
 
@@ -262,7 +262,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
       break;
     case MODE_CODE:
       OutStr(joinCd);
-#    ifdef USE_NS
+#    if USE_NS
       OutCh(ALPHA);
 #    endif
       OutCh(LBR);
@@ -312,7 +312,7 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
                 STATE(CF);
                 bracketDepth=1;
               // WAS HERE:::  
-#ifdef USE_NS 
+#if USE_NS 
                 OutStr(U"(⍺{");
 #else 
                 OutStr(U"({"); 
