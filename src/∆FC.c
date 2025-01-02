@@ -78,7 +78,7 @@
         if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
         for(ix=0; ix<len; (*grp##PLen)++, ix++){\
             grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
-            if (expandSq && grp##Buf[*grp##PLen] == SQ)\
+            if (expandSq && (grp##Buf[*grp##PLen] == SQ))\
                 grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
         }\
 }
