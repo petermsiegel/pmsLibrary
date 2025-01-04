@@ -97,7 +97,7 @@
 
 /* Handle special code buffer. 
    To transfer codeBuf to outBuf (and then "clear" it):
-     Code2Out
+     CodeOut
 */
 # define CodeInit             *codePLen=0
 # define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
@@ -193,7 +193,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
        }\
        --cursor;
 
-int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
+int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
   INT4 outMax = *outPLen;           // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                     // We will pass back *outPLen as actual chars used           
 // Code buffer
@@ -218,19 +218,19 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
-  //        Join pseudo-primitive
+  //        Join: global prefix routine
     #define JOINCD0  U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"
     #define JOINCD1  U" ⎕SE.∆FLib.Join "
-  //       Over: field ⍺ is centered over field ⍵
+  //       Over (↓ or % postfix): field ⍺ is centered over field ⍵
     #define OVERCD0  U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
     #define OVERCD1  U" ⎕SE.∆FLib.Ovr "
-  //       Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
+  //       Cat (→ postfix):  field ⍺ is catenated to field ⍵ left to right
     #define CATCD0  U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
     #define CATCD1  U" ⎕SE.∆FLib.Cat "
-  //       Box (ambivalent): Box item to its right
+  //       Box ($$ ambivalent): Box item to its right
     #define BOXCD0  U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
     #define BOXCD1  U" ⎕SE.∆FLib.Box "
-  //       ⎕FMT: Formatting (dyadic)
+  //       Format ($): Formatting (dyadic)
     #define FMTCD01 U" ⎕FMT "
      CHAR4 *joinCd = extLib? JOINCD1: JOINCD0;
      CHAR4 *overCd = extLib? OVERCD1: OVERCD0;
