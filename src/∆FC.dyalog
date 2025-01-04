@@ -1,4 +1,4 @@
-﻿ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⒸⓄⒹ; ⎕TRAP 
+ⓄⓊⓉ← {ⓁⒻⓉ} ∆FC ⓇⒼⓉ; ⎕TRAP 
 ⍝ ∆FC
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆FC '',EM) EN Message)'
   
@@ -13,9 +13,9 @@
   :Else 
        ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1 0 '`' 0↑⍨ ¯4+ ≢ⓁⒻⓉ
   :EndIf 
-  ⓇⒼⓉ← ,⊆ⓇⒼⓉ  
 
-  ⒸⓄⒹ← ⓁⒻⓉ ((⊃⎕RSI) {  ⍝ Returns: mode debug code
+  ⓄⓊⓉ← (⊃⎕RSI)⍎⍣(0=⊃ⓁⒻⓉ)⊢ ⓁⒻⓉ ((⊃⎕RSI) {  
+    ⍝ Returns: mode debug code
     ⍝ Hide outer vars ⓁⒻⓉ and ⓇⒼⓉ, so invis. to ⎕NL etc.
       ~⊃⎕EX 'ⓁⒻⓉ' 'ⓇⒼⓉ'⊣ ⓁⒻⓉ← ⓇⒼⓉ←0:   
       1=⊃⍺:  ⍺⍺⍎ ⍵                                ⍝ STD   mode: default
@@ -46,7 +46,8 @@
     }  
     _← CheckLib extLib  
 
-    ⍝ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 UTBuf[], INT4 *outPLen)
+    ⍝ int fc(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen)
+    ⍝ opts: (see below)
     ⍝ fString: the format string
     ⍝ outBuf:  the output buffer (on input: the output buffer size needed)
     ⍝ outPLen: the output buffer size (on input: the same number as for outBuf)
@@ -69,8 +70,7 @@
      0= rc:    DOut lenRes↑ res 
     ¯1= rc:    911 ⎕SIGNAL⍨ 'DOMAIN ERROR: Formatting buffer not big enough!'
                rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
-  } ⊃ⓇⒼⓉ
+  } ⊃ⓇⒼⓉ← ,⊆ⓇⒼⓉ
 
-  ⓄⓊⓉ← (⊃⎕RSI)⍎⍣(0=⊃ⓁⒻⓉ)⊢ ⒸⓄⒹ
 ⍝H <<< NO HELP AVAILABLE >>>
 
