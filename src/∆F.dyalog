@@ -22,7 +22,7 @@
 ⍝          ∘ If 0, the utilities are included in the code created by the associated 
 ⍝            C routine called here. Any resulting dfn (mode 0) will be self-contained.
   :If 900⌶0
-        ⓁⒻⓉ← 1    0     '`'   1         
+        ⓁⒻⓉ← 1 0 '`' 1
   :ElseIf 0=≢ⓁⒻⓉ
        ⓄⓊⓉ← 1 0⍴⍬ 
        :Return 
@@ -30,52 +30,58 @@
        ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
        :Return  
   :Else 
-        ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1    0     '`'   1↑⍨ ¯4+ ≢ⓁⒻⓉ
+        ⓁⒻⓉ← 4↑ⓁⒻⓉ, 1 0 '`' 1↑⍨ ¯4+ ≢ⓁⒻⓉ
   :EndIf 
 
   ⓄⓊⓉ← (⊃⎕RSI)⍎ ⓁⒻⓉ {   
-      ⎕IO ⎕ML←0 1 
+      ⎕IO ⎕ML←0 1 ⋄ forceUpdate← 0 
     ⍝ options and arguments to ∆F 
-      badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
       mode debug escCh extLib ← ⍺
-      escCh← {0=⊃0⍴⍵: '`' ⋄ ⍵ }escCh 
+      escCh← {0=⊃0⍴⍵: '`' ⋄ ⍵} escCh 
+
+      badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
   ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
   1≠ ≢escCh:      ⎕SIGNAL/ badEscE
 
+  ⍝ lib CheckLib libFlag: 
+  ⍝    If libFlag, define ∆F utilities in <lib>.
     CheckLib← ⎕SE.{
-      ⍵=0: ⍬ ⋄ 9=⎕NC '⍙F': ⍬
-        _← '⍙F' ⎕NS ⍬
-  ⍝  Define ∆F utilities-- for use if extLib=1 (default).
-  ⍝  Merge all the elements to the right, adjusting for height, without adding blank columns.
-      ⍙F.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
-  ⍝  (%) Center field ⍺ above field ⍵. If ⍺ is omitted, a single-line field is assumed.
-      ⍙F.A← {⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
-  ⍝  ($) Box item ⍵ 
-      ⍙F.B←{⎕ML←1 ⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
-  ⍝  (Modes ¯1 and ¯3) Displaying the entire formatted result
-      ⍙F.D← ⎕SE.Dyalog.Utils.disp
+      ⍵=0: ⍬ ⋄ (9=⎕NC ⍺)∧ ~forceUpdate: ⍬
+        lib← ⍎⍺ ⎕NS ⍬
+      ⍝ Merge all the elements to the right, adjusting for height, without adding blank columns.
+        lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
+      ⍝ (%) Center field ⍺ above field ⍵. If ⍺ is omitted, a single-line field is assumed.
+        lib.A← {⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
+      ⍝ ($) Box item ⍵ 
+        lib.B← {⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
+      ⍝ (Modes ¯1 and ¯2) Displaying the entire formatted result
+        lib.D← ⎕SE.Dyalog.Utils.disp
         ⍬
     }  
-    _← CheckLib extLib  
-
+    ⍝ LoadRunTime <name>: 
+    ⍝   Load C function <fs_format> as <name>.
+    ⍝ <fs_format> must be found in ∆F.dylib, searchable via Dyalog's ⎕NA function. 
+    ⍝ 
     ⍝ int fs_format(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen)
-    ⍝ opts: (see below)
+    ⍝ opts:    mode (1 0 ¯1 ¯2), debug (1|0), escCh (unicode I4), extLib (1|0)
     ⍝ fString: the format string
     ⍝ outBuf:  the output buffer (on input: the output buffer size needed)
     ⍝ outPLen: the output buffer size (on input: the same number as for outBuf)
-    ⍝ Returns:  rc outBuf outPLen
+    ⍝ Returns: rc outBuf outPLen
     ⍝   rc:     0 (ok), >0 (APL signal code [error]), ¯1: (outBuf too small)
     ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are junk.
     ⍝   outPLen: the actual length (in 4-byte chars) of code output
-        _← debug ⎕SE.{ 
-          _← ⎕EX⍣⍺⊢⍵  ⍝⍝⍝ Only TEST mode 
+        LoadRunTime← ⎕SE.{ 
+          _← ⎕EX⍣(debug∧forceUpdate)⊢⍵   
           ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I4[4] <C4[] I4  >C4[] =I4' 
-        }'∆F_C'            ⍝ 'rc              opts   fStr  ≢fStr res   lenRes
- 
+        }                 ⍝ 'rc              opts   fStr  ≢fStr res   lenRes
+        DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
+
         opts4← mode debug (⎕UCS escCh) extLib 
         outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃,⊆⍵ 
- 
-        DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
+
+        _← '⍙F' CheckLib extLib  
+        _← LoadRunTime '∆F_C'
         rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
 
      0= rc:    DOut lenRes↑ res 
