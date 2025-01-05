@@ -402,7 +402,7 @@
 ⍝H ⎕                  1           1 
 ⍝H        2.Vertical Self-Documenting Expressions
 ⍝H          { code % }    OR   { code ↓ }    ==>   'code'  ▼
-⍝∆                                                executed_code
+⍝H                                                executed_code
 ⍝H             If a code expression {...} ends with a pct sign (%) or down arrow (↓)
 ⍝H             (possibly followed by spaces), it is treated as a vertical 
 ⍝H             self-documenting code expression.

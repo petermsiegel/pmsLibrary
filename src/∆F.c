@@ -94,10 +94,20 @@
         int len=strLen;\
         int ix;\
         if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
-        for(ix=0; ix<len; (*grp##PLen)++, ix++){\
-            grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
-            if (expandSq && (grp##Buf[*grp##PLen] == SQ))\
-                grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
+        if (expandSq){   \
+        /* Slower path. Possible expansion of single quotes (APL rule) */ \
+            for(ix=0; ix<len; (*grp##PLen)++, ix++){\
+                grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+                if (grp##Buf[*grp##PLen] == SQ) {\
+                    if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
+                    grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
+                }\
+            }\
+        } else{\
+         /* Faster path. Copy as is. */ \
+            for(ix=0; ix<len; (*grp##PLen)++, ix++){\
+                  grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+            }\
         }\
 }
 #define GENERIC_CHR(ch, grp) {\
