@@ -3,7 +3,7 @@
        '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[4] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
    Compile with: 
-       cc -dynamiclib -o ∆FC.dylib ∆FC.c   
+       cc -O3 -dynamiclib -o ∆FC.dylib ∆FC.c
    Returns:  rc outBuf outPLen.  APL code does out← outPLen↑out
    rc=¯1:   output buffer not big enough for transformed fString.
             The output buffer is not examined (and may contain junk).
@@ -16,6 +16,8 @@
          As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
 */
 
+// APL_LIB
+#define APL_LIB U"⎕SE.⍙F."
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA 1
 // USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
@@ -29,12 +31,28 @@
 #include <stdint.h>
 #include <string.h> 
 #include <ctype.h>
-#ifdef USE_ALLOCA
+#if USE_ALLOCA
 #  include <stdlib.h>  // for alloca
 #endif 
 
 #define CHAR4  uint32_t       
 #define  INT4   int32_t 
+
+#define BLANK_STR U" "  // A string, not a char. const.
+//        Join pseudo-primitive
+#define MERGECD_INT  U"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
+#define MERGECD_EXT  BLANK_STR APL_LIB U"M" BLANK_STR
+//       Over: field ⍺ is centered over field ⍵
+#define ABOVECD_INT  U"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
+#define ABOVECD_EXT  BLANK_STR APL_LIB U"A" BLANK_STR
+//       Box (ambivalent): Box item to its right
+#define BOXCD_INT  U"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
+#define BOXCD_EXT  BLANK_STR APL_LIB U"B" BLANK_STR
+//       ⎕FMT: Formatting (dyadic)
+#define FMTCD_INT  U" ⎕FMT "
+// 
+#define DISPCD_INT  U"0∘⎕SE.Dyalog.Utils.disp" 
+#define DISPCD_EXT  U"0∘" APL_LIB U"D" BLANK_STR  
 
 #define ALPHA  U'⍺'
 #define CR     U'\r'
@@ -158,9 +176,9 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
 // F String DOCUMENT HANDLING  
 // Be sure <type> has any internal quotes doubled, as needed.
 //Usage:
-//      IfCodeDoc(cat)  // where cat has defined catCd and catMarker
+//      IfCodeDoc(merge)  // where merge has defined mergeCd and mergeMarker
 //      else {...}
-# define IfCodeDoc(type) \
+# define IfCodeDoc(marker, code) \
     if (bracketDepth == 1 && RBR == afterBlanks(fString+1, fStringLen, cursor)){\
       int i, m;\
       OutCh(QT);\
@@ -169,13 +187,13 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
         if (fString[i] == SQ)\
             OutCh(SQ);\
       }\
-      OutStr(type##Marker);\
-      m = Str4Len(type##Marker);\
+      OutStr(marker);\
+      m = Str4Len(marker);\
       for (i=cursor+1; fString[i] == SP; ++i){\
           if (--m <= 0) OutCh(SP);\
       }\
       OutCh(QT); OutCh(SP);\
-      OutStr(type##Cd);\
+      OutStr(code);\
       OutCh(SP);\
       CodeOut;\
     } 
@@ -193,7 +211,7 @@ INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int cursor){
        }\
        --cursor;
 
-int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
+int fs_format(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *outPLen){
   INT4 outMax = *outPLen;           // User must pass in *outPLen as outBuf[outMax]  
   *outPLen = 0;                     // We will pass back *outPLen as actual chars used           
 // Code buffer
@@ -218,31 +236,16 @@ int fc(INT4 opts[3], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], INT4 *out
   int bracketDepth=0;
   int omegaNext=0;
   int cfStart=0;
-  //        Join pseudo-primitive
-    #define JOINCD0  U"{⎕ML←1 ⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍵},"
-    #define JOINCD1  U" ⎕SE.∆FLib.Join "
-  //       Over: field ⍺ is centered over field ⍵
-    #define OVERCD0  U"{⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
-    #define OVERCD1  U" ⎕SE.∆FLib.Ovr "
-  //       Cat (dyadic):  field ⍺ is catenated to field ⍵ left to right
-    #define CATCD0  U"{⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
-    #define CATCD1  U" ⎕SE.∆FLib.Cat "
-  //       Box (ambivalent): Box item to its right
-    #define BOXCD0  U"{1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
-    #define BOXCD1  U" ⎕SE.∆FLib.Box "
-  //       ⎕FMT: Formatting (dyadic)
-    #define FMTCD01 U" ⎕FMT "
-     CHAR4 *joinCd = extLib? JOINCD1: JOINCD0;
-     CHAR4 *overCd = extLib? OVERCD1: OVERCD0;
-     CHAR4 *catCd  = extLib? CATCD1:  CATCD0;
-     CHAR4 *boxCd  = extLib? BOXCD1:  BOXCD0;
-     CHAR4 *fmtCd  = FMTCD01;
 
-     CHAR4 *overMarker = FANCY_MARKERS? U"▶": U"→"; 
-  
+// Code sequences...
+CHAR4 *mergeCd = extLib? MERGECD_EXT: MERGECD_INT;
+CHAR4 *aboveCd = extLib? ABOVECD_EXT: ABOVECD_INT;
+CHAR4 *boxCd  =  extLib? BOXCD_EXT:  BOXCD_INT;
+CHAR4 *fmtCd  =  FMTCD_INT;
+CHAR4 *dispCd =  extLib? DISPCD_EXT: DISPCD_INT;
 
-
-CHAR4 *downMARKER = FANCY_MARKERS? U"▼"? U"↓";
+CHAR4 *mergeMarker  = FANCY_MARKERS? U"▶": U"→"; 
+CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
 
   // Preamble code string...
   
@@ -253,13 +256,16 @@ CHAR4 *downMARKER = FANCY_MARKERS? U"▼"? U"↓";
 
   switch(mode){
     case MODE_STD:
-      OutStr(joinCd);
+      OutStr(mergeCd);
       break;
     case MODE_LIST:
+      OutStr(dispCd); OutStr(U"¯1↓"); 
+      break;
     case MODE_TABLE:
+      OutStr(dispCd); OutStr(U"⍪¯1↓");  
       break;
     case MODE_CODE:
-      OutStr(joinCd);
+      OutStr(mergeCd);
 #    if USE_NS
       OutCh(ALPHA);
 #    endif
@@ -413,22 +419,22 @@ CHAR4 *downMARKER = FANCY_MARKERS? U"▼"? U"↓";
                for (; PEEK_AT(cursor+1) == DOL; ++cursor)
                   ;
                break;
-           case RTARO:
-                IfCodeDoc(cat)
+           case RTARO:   
+                IfCodeDoc(mergeMarker, mergeCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IfCodeDoc(over)
+                IfCodeDoc(aboveMarker, aboveCd)
                 else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IfCodeDoc(over)
+                IfCodeDoc(aboveMarker, aboveCd)
                 else {
-                  CodeStr(overCd);  
+                  CodeStr(aboveCd);  
                   for (; PEEK_AT(cursor+1) == PCT; ++cursor)
                     ;
                 }
@@ -455,7 +461,7 @@ CHAR4 *downMARKER = FANCY_MARKERS? U"▼"? U"↓";
       OutCh(SQ);    
       OutCh(RBR);
   }else {
-      OutStr(L"⍵⍵");
+      OutStr(L"ⓇⒼⓉ");
   }
 
   return 0;  /* 0= all ok */
