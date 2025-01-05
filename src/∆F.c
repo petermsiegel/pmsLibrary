@@ -17,7 +17,7 @@
 */
 
 // APL_LIB
-#define APL_LIB U"⎕SE.⍙F."
+#define APL_LIB    U"⎕SE.⍙F."
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack
 #define USE_ALLOCA 1
 // USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
@@ -46,13 +46,13 @@
 #define ABOVECD_INT  U"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
 #define ABOVECD_EXT  BLANK_STR APL_LIB U"A" BLANK_STR
 //       Box (ambivalent): Box item to its right
-#define BOXCD_INT  U"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
-#define BOXCD_EXT  BLANK_STR APL_LIB U"B" BLANK_STR
+#define BOXCD_INT    U"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
+#define BOXCD_EXT    BLANK_STR APL_LIB U"B" BLANK_STR
 //       ⎕FMT: Formatting (dyadic)
-#define FMTCD_INT  U" ⎕FMT "
-// 
-#define DISPCD_INT  U"0∘⎕SE.Dyalog.Utils.disp" 
-#define DISPCD_EXT  U"0∘" APL_LIB U"D" BLANK_STR  
+#define FMTCD_INT    U" ⎕FMT "
+// dfn ¨disp¨, used as a prefix for LIST and TABLE modes. 
+#define DISPCD_INT   U"0∘⎕SE.Dyalog.Utils.disp" 
+#define DISPCD_EXT   U"0∘" APL_LIB U"D" BLANK_STR  
 
 #define ALPHA  U'⍺'
 #define CR     U'\r'
@@ -219,7 +219,7 @@ int fs_format(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], IN
     INT4 codeMax = outMax;
     CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));
 #else 
-#   define CODEBUF_MAX 512          // Test. Should be dynamically same as outMax
+    #define CODEBUF_MAX 512         // Test. Should be dynamically same as outMax
     CHAR4 codeBuf[CODEBUF_MAX];    // Use codeBuf=alloca(outMax*sizeof CHAR4)
     INT4  codeMax = CODEBUF_MAX;
 #endif 
@@ -228,9 +228,9 @@ int fs_format(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], IN
   int cursor;                      // fString (input) "cursor" position
   int state=NONE;
   int oldState=NONE;
-  int mode= opts[0];               // See modes (MODE_...) above
-  int debug=opts[1];               // debug (boolean)
-  int escCh=opts[2];               // User tells us escCh character as unicode #  
+  int mode=  opts[0];              // See modes (MODE_...) above
+  int debug= opts[1];              // debug (boolean)
+  int escCh= opts[2];              // User tells us escCh character as unicode #  
   int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
   CHAR4 crOut= debug? CRVIS: CR;
   int bracketDepth=0;
@@ -240,9 +240,9 @@ int fs_format(INT4 opts[4], CHAR4 fString[], INT4 fStringLen, CHAR4 outBuf[], IN
 // Code sequences...
 CHAR4 *mergeCd = extLib? MERGECD_EXT: MERGECD_INT;
 CHAR4 *aboveCd = extLib? ABOVECD_EXT: ABOVECD_INT;
-CHAR4 *boxCd  =  extLib? BOXCD_EXT:  BOXCD_INT;
+CHAR4 *boxCd  =  extLib? BOXCD_EXT:   BOXCD_INT;
 CHAR4 *fmtCd  =  FMTCD_INT;
-CHAR4 *dispCd =  extLib? DISPCD_EXT: DISPCD_INT;
+CHAR4 *dispCd =  extLib? DISPCD_EXT:  DISPCD_INT;
 
 CHAR4 *mergeMarker  = FANCY_MARKERS? U"▶": U"→"; 
 CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
@@ -266,16 +266,14 @@ CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       break;
     case MODE_CODE:
       OutStr(mergeCd);
-#    if USE_NS
-      OutCh(ALPHA);
-#    endif
+      #if USE_NS
+         OutCh(ALPHA);
+      #endif
       OutCh(LBR);
       break;
     default:
       ERROR(U"Unknown mode option in left arg", 11);
   }
-
-
 
   for (cursor = 0; cursor < fStringLen; ++cursor) {
     // Logic for changing state (NONE, CF_START)
@@ -316,17 +314,18 @@ CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
                 STATE(CF);
                 bracketDepth=1;
               // WAS HERE:::  
-#if USE_NS 
-                OutStr(U"(⍺{");
-#else 
-                OutStr(U"({"); 
-#endif
+                #if USE_NS 
+                   OutStr(U"(⍺{");
+                #else 
+                   OutStr(U"({"); 
+                #endif
                 CodeInit;
             }
       }  
       if (state == TF) {
           if (CUR == escCh){
-            CHAR4 ch= PEEK; ++cursor;
+            CHAR4 ch= PEEK; 
+            ++cursor;
             if (ch == escCh){
                 OutCh(escCh);
             }else if (ch == LBR || ch == RBR){
@@ -337,7 +336,7 @@ CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
                 --cursor; 
                 OutCh(CUR);
             } 
-          }else if (CUR == LBR){
+          } else if (CUR == LBR){
             STATE(CF_START);
           } else {
             OutCh(CUR);
