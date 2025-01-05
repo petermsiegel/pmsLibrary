@@ -1,9 +1,9 @@
 /* fc: Uses 4-byte (32-bit) unicode chars throughout  20241223 
-   Name Assoc: (⎕EX '∆FC' if reassociating existing fn)
-       '∆FC' ⎕NA 'I4 ∆FC.dylib|fc  <I4[4] <C4[] I4    >C4[] =I4' 
+   Name Assoc: (⎕EX '∆F' if reassociating existing fn)
+       '∆F' ⎕NA 'I4 ∆F.dylib|fc  <I4[4] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
    Compile with: 
-       cc -O3 -dynamiclib -o ∆FC.dylib ∆FC.c
+       cc -O3 -dynamiclib -o ∆F.dylib ∆F.c
    Returns:  rc outBuf outPLen.  APL code does out← outPLen↑out
    rc=¯1:   output buffer not big enough for transformed fString.
             The output buffer is not examined (and may contain junk).
@@ -448,12 +448,14 @@ CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
   if (state == TF) { 
       OutCh(QT);
       STATE(NONE);
+  }else if (state != NONE){
+      ERROR(L"Code or Space Field was not terminated properly", 11);
   }
 
   // Postamble Code String
   OutStr(L"⍬}");
   //   Mode 0: extra code because we need to input the format string (fString) 
-  //           into the resulting function (see ∆FC.dyalog).
+  //           into the resulting function (see ∆F.dyalog).
   if (mode == MODE_CODE){
       OutStr(L"⍵,⍨⍥⊆"); 
       OutCh(SQ);
