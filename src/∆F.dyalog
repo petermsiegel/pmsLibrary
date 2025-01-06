@@ -89,7 +89,7 @@
 
     _← '⍙F' LoadLib extLib  
     _← LoadRunTime '∆F_C'
-    rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen 
+    rc res lenRes← ⎕SE.∆F_C opts4 fStr (≢fStr) outLen outLen
 
     0= rc:    DOut lenRes↑ res 
       Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}

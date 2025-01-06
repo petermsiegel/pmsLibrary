@@ -1,4 +1,4 @@
-/* fc: Uses 4-byte (32-bit) unicode chars throughout  20241223 
+/* fc: Uses 4-byte (32-bit) unicode chars throughout   
    Name Assoc: (⎕EX '∆F' if reassociating existing fn)
        '∆F' ⎕NA 'I4 ∆F.dylib|fc  <I4[4] <C4[] I4    >C4[] =I4' 
                   rc               opts   fString  fStringLen   outBuf   outPLen
@@ -22,7 +22,6 @@
 #define USE_ALLOCA 1
 // USE_NS: If 1, a ⎕NS is passed as ⍺ for each Code Field
 #define USE_NS 0
- 
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
 #define FANCY_MARKERS 1
@@ -90,7 +89,7 @@
 /* END INPUT BUFFER ROUTINES */
 
 /* GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES */ 
-#define GENERIC_STR(str, strLen, grp, expandSq)  {\
+#define OUTBUF_GENERIC(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
         if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
@@ -105,21 +104,21 @@
             }\
         } else{\
          /* Faster path. Copy as is. */ \
-            for(ix=0; ix<len; (*grp##PLen)++, ix++){\
-                  grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+            for(ix=0; ix<len; ){\
+                  grp##Buf[(*grp##PLen)++]= (CHAR4) str[ix++];\
             }\
         }\
 }
-#define GENERIC_CHR(ch, grp) {\
+#define OUTCH_GENERIC(ch, grp) {\
       if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
       grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutNStr(str, len)   GENERIC_STR(str, len, out, 0)
-#define OutStr(str)         OutNStr(str, Str4Len(str))
-#define OutNStrSq(str, len) GENERIC_STR(str, len, out, 1)
-#define OutCh(ch)           GENERIC_CHR(ch, out)
+#define OutBuf(str, len)    OUTBUF_GENERIC(str, len, out, 0)
+#define OutBufSq(str, len)  OUTBUF_GENERIC(str, len, out, 1)
+#define OutStr(str)         OutBuf(str, Str4Len(str))
+#define OutCh(ch)           OUTCH_GENERIC(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
@@ -128,9 +127,9 @@
      CodeOut
 */
 #define CodeInit             *codePLen=0
-#define CodeStr(str)         GENERIC_STR(str, Str4Len(str), code, 0)  
-#define CodeCh(ch)           GENERIC_CHR(ch, code)
-#define CodeOut              {OutNStr(codeBuf, *codePLen); CodeInit;} 
+#define CodeStr(str)         OUTBUF_GENERIC(str, Str4Len(str), code, 0)  
+#define CodeCh(ch)           OUTCH_GENERIC(ch, code)
+#define CodeOut              {OutBuf(codeBuf, *codePLen); CodeInit;} 
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -468,7 +467,7 @@ CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
   if (mode == MODE_CODE){
       OutStr(L"⍵,⍨⍥⊆"); 
       OutCh(SQ);
-      OutNStrSq(fString, fStringLen);
+      OutBufSq(fString, fStringLen);
       OutCh(SQ);    
       OutCh(RBR);
   }else {
