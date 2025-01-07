@@ -1,7 +1,7 @@
-ⓄⓊⓉ← {ⓁⒻⓉ} ∆F ⓇⒼⓉ; ⓂⓄⒹ; ⎕TRAP 
+∆FⓇⒺⓈ← {∆FⓁ} ∆F ∆FⓇ; ∆FⒹⒶⓉ; ⎕TRAP 
 ⍝ ∆F: Help Documentation is at the bottom of this function
 ⍝ --------------- 
-⍝ ⓁⒻⓉ:  options for ∆F 
+⍝ ∆FⓁ:  options for ∆F 
 ⍝ Options:   ('Mode' [1*|0|¯1|¯2])('Debug' [1|0*]) ('EscCh' '`'*|'char')
 ⍝            ('UseNs' [1|0*]) ('ExtLib' [1*|0]) ('Force' [1|0*])
 ⍝ Default:   ()'Mode' n) if only a number n is presented.
@@ -34,16 +34,16 @@
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
 
   :If 900⌶0                      ⍝ Options omitted. Processed below.
-        ⓁⒻⓉ← ⍬
-  :ElseIf 0=≢ⓁⒻⓉ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
+        ∆FⓁ← ⍬
+  :ElseIf 0=≢∆FⓁ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
         ⓄⓊⓉ← 1 0⍴⍬ 
         :Return 
-  :Elseif 'help'≡⎕C ⓁⒻⓉ        ⍝ Help and exit...
+  :Elseif 'help'≡⎕C ∆FⓁ        ⍝ Help and exit...
         ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
         :Return  
   :EndIf 
 
-  ⓂⓄⒹ ⓁⒻⓉ← ⓁⒻⓉ {     ⍝ The name ⓇⒼⓉ is required for executing (⍎) the result.
+   ∆FⒹⒶⓉ ∆FⓁ← ∆FⓁ ((⊃⎕RSI){    
     ⎕IO ⎕ML←0 1  
     opts←('Mode' 1)('Debug' 0)('EscCh' '`')('UseNs' 0)('ExtLib' 1)('Force ' 0)
     mode debug escCh useNs extLib force ← opts {
@@ -109,17 +109,16 @@
   ⍝ Call the C Library!
     rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) outLen outLen
 ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-  (0= rc)∧mode≠0:  mode ((⊃⎕RSI)⍎DOut lenRes↑ res)
-  (0= rc)∧mode=0:  mode ( DOut lenRes↑ res)
+  0= rc:  (mode≠0) (⍺⍺⍎⍣(⊃mode≠0)⊢ DOut lenRes↑ res)
  ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
     Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
     ⎕SIGNAL/ Err911 outLen        
-  } ,⊆ⓇⒼⓉ  
+  }) ,⊆∆FⓇ  
   
-  :IF 0≠ⓂⓄⒹ 
-      ⓄⓊⓉ← ⓁⒻⓉ
+  :IF ∆FⒹⒶⓉ
+      ∆FⓇⒺⓈ← ∆FⓁ
   :Else      
-     ⓄⓊⓉ← (⊃⎕RSI)⍎ ⓁⒻⓉ
+      ∆FⓇⒺⓈ← ∆FⓁ⍎⍨ ⊃⎕RSI 
   :EndIf 
 
 
