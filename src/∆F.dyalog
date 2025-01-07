@@ -1,4 +1,4 @@
-ⓄⓊⓉ← {ⓁⒻⓉ} ∆F ⓇⒼⓉ; ⎕TRAP 
+ⓄⓊⓉ← {ⓁⒻⓉ} ∆F ⓇⒼⓉ; ⓂⓄⒹ; ⎕TRAP 
 ⍝ ∆F: Help Documentation is at the bottom of this function
 ⍝ --------------- 
 ⍝ ⓁⒻⓉ:  options for ∆F 
@@ -33,37 +33,42 @@
 
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
 
-  :If 900⌶0
+  :If 900⌶0                      ⍝ Options omitted. Processed below.
         ⓁⒻⓉ← ⍬
-  :ElseIf 0=≢ⓁⒻⓉ
+  :ElseIf 0=≢ⓁⒻⓉ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
         ⓄⓊⓉ← 1 0⍴⍬ 
         :Return 
-  :Elseif 'help'≡⎕C ⓁⒻⓉ
+  :Elseif 'help'≡⎕C ⓁⒻⓉ        ⍝ Help and exit...
         ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
         :Return  
   :EndIf 
 
-  ⓄⓊⓉ← (⊃⎕RSI)⍎ ⓁⒻⓉ {     ⍝ The name ⓇⒼⓉ is required for executing (⍎) the result.
+  ⓂⓄⒹ ⓁⒻⓉ← ⓁⒻⓉ {     ⍝ The name ⓇⒼⓉ is required for executing (⍎) the result.
     ⎕IO ⎕ML←0 1  
-    defs←('Mode' 1)('Debug' 0)('EscCh' '`')('UseNs' 0)('ExtLib' 1)('Force ' 0)
-    mode debug escCh useNs extLib force ← defs∘{
+    opts←('Mode' 1)('Debug' 0)('EscCh' '`')('UseNs' 0)('ExtLib' 1)('Force ' 0)
+    mode debug escCh useNs extLib force ← opts {
       0::'Invalid option(s)'⎕SIGNAL 11
       0=≢⍵:  ⊃∘⌽¨⍺
-      (1=≢⍵)∧(1≥|≡⍵):⍵
-        ns←⎕NS ⍬ ⋄ o← ⊂⍣(2=|≡⍵)⊢⍵
-      0∊∊/⊃¨¨o ⍺:'Unknown option(s)'⎕SIGNAL 11
-        _←ns.{⍎⍺,'←⍵'}/¨⍺, o
+      (1=≢⍵)∧(1≥|≡⍵): ⍵,⊃∘⌽¨1↓⍺
+        ns←⎕NS ⍬ ⋄ new← ⊂⍣(2=|≡⍵)⊢⍵
+      0∊∊/⊃¨¨new ⍺:'Unknown option(s)'⎕SIGNAL 11
+        _←ns.{⍎⍺,'←⍵'}/¨⍺, new
         ns.( Mode Debug EscCh UseNs ExtLib Force )
     } ⍺
     badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
   ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
   1≠ ≢escCh:      ⎕SIGNAL/ badEscE
 
-  ⍝ LoadLib: libFlag LoadLib lib: 
-  ⍝    If force =1, define ∆F utilities in namespace <lib> (a string).
-    LoadLib← force  ⎕SE.{
-      ⍵=0: ⍬ ⋄ (9=⎕NC ⍺)∧ ~⍺⍺: ⍬    ⍝ Don't load if ⍵(extLib)=0 or if ~force .
-        lib← ⍎⍺ ⎕NS ⍬               ⍝ Load library <⍺>
+  ⍝ LoadLib: extLib force LoadLib lib: 
+  ⍝    If extLib, then 
+  ⍝       a) if utilities aren't defined in ⎕SE.<lib>, define them;
+  ⍝       b) if force, define them anyway;
+  ⍝    Otherwise,
+  ⍝       Return ⍬
+    LoadLib← extLib force ⎕SE.{
+      ~⊃⍺⍺: ⍬                        ⍝ Skip if ~extLib
+      (9=⎕NC ⍵)∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> is a ns, unless force=1.  
+        lib← ⍎⍵ ⎕NS ⍬                ⍝ Load library <⍺>
       ⍝ Merge all the elements to the right (usually all the defined fields), 
       ⍝ adjusting for height, without adding blank columns.
         lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
@@ -98,17 +103,25 @@
     }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
     DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-    outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⍵ 
-    _← '⍙F' LoadLib extLib  
+    outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
+    _← LoadLib '⍙F'
     _← LoadRunTime '∆F_C'
   ⍝ Call the C Library!
     rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) outLen outLen
 ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-  0= rc:  DOut lenRes↑ res 
+  (0= rc)∧mode≠0:  mode ((⊃⎕RSI)⍎DOut lenRes↑ res)
+  (0= rc)∧mode=0:  mode ( DOut lenRes↑ res)
  ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
     Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
     ⎕SIGNAL/ Err911 outLen        
-  } ⊃ⓇⒼⓉ← ,⊆ⓇⒼⓉ   
+  } ,⊆ⓇⒼⓉ  
+  
+  :IF 0≠ⓂⓄⒹ 
+      ⓄⓊⓉ← ⓁⒻⓉ
+  :Else      
+     ⓄⓊⓉ← (⊃⎕RSI)⍎ ⓁⒻⓉ
+  :EndIf 
+
 
 ⍝ HELP INFORMATION BEGINS HERE
 ⍝H -------------

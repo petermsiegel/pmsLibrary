@@ -471,7 +471,7 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       OutCh(SQ);    
       OutCh(RBR);
   }else {
-      OutStr(U"ⓇⒼⓉ");
+      OutCh(OMG);
   }
 
   return 0;  /* 0= all ok */
