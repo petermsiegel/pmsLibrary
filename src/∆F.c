@@ -234,12 +234,12 @@ int fs_format(const char opts[4], const CHAR4 escCh,
   const CHAR4 crOut= debug? CRVIS: CR;
 
   *outPLen = 0;                          // output buffer length/position; passed back to APL.
-  INT4 codePLen[1]= {0};                 // length/position in code buffer
-  int inPos;                             // fString (input) "inPos" position
-  int state=NONE;                        // what kind of field are we in?
+  INT4 codePLen[1]= {0};                 // length/position in code buffer. Like outPLen.
+  int inPos;                             // fString's (input's) "current" position
+  int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
   int oldState=NONE;                     // last state
   int bracketDepth=0;                    // finding } closing a field.
-  int omegaNext=0;                       // `⍵ processing.
+  int omegaNext=0;                       // `⍵/⍹ processing.
   int cfStart=0;                         // Note start of code field in input-- for "doc" processing.
 
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 

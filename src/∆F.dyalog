@@ -1,6 +1,98 @@
-∆FⓇⒺⓈ← {∆FⓁ} ∆F ∆FⓇ; ∆FⒹⒶⓉ; ⎕TRAP 
-⍝ ∆F: Help Documentation is at the bottom of this function
-⍝ --------------- 
+∆FⓄⓊⓉ← {∆FⓁ} ∆F ∆FⓇ; ⎕TRAP 
+⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function
+
+  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+
+  :If 900⌶0                      ⍝ Options omitted. Processed below.
+        ∆FⓁ← ⍬
+  :ElseIf 0=≢∆FⓁ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
+        ∆FⓄⓊⓉ← 1 0⍴⍬ 
+        :Return 
+  :Elseif 'help'≡⎕C ∆FⓁ        ⍝ Help and exit...
+        ∆FⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
+        :Return  
+  :EndIf 
+
+  ∆FⓁ← ∆FⓁ {    
+      ⎕IO ⎕ML←0 1  
+      opts←('Mode' 1)('Debug' 0)('EscCh' '`')('UseNs' 0)('ExtLib' 1)('Force ' 0)
+      mode debug escCh useNs extLib force ← opts{ F← ⊃¨ ⋄ L← 1∘⊃¨
+        0::'Invalid option(s)'⎕SIGNAL 11
+        0=≢⍵:L ⍺
+          (1=≢⍵)∧ 1≥ |≡⍵: ⍵, L 1↓⍺
+          old← ⍺ ⋄ new← ⊂⍣(2= |≡⍵)⊢ ⍵
+          p← old⍳⍥F new
+        1∊ p= ≢old: 'Unknown option(s)' ⎕SIGNAL 11
+          L old⊣ p {(⍺ 1⊃ old)← ⍵}¨ L new
+      } ⍺
+      badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
+    ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
+    1≠ ≢escCh:      ⎕SIGNAL/ badEscE
+
+    ⍝ LoadLib: extLib force LoadLib lib: 
+    ⍝    If extLib, then 
+    ⍝       a) if utilities aren't defined in ⎕SE.<lib>, define them;
+    ⍝       b) if force, define them anyway;
+    ⍝    Otherwise,
+    ⍝       Return ⍬
+      LoadLib← extLib force ⎕SE.{
+        ~⊃⍺⍺: ⍬                        ⍝ Skip if ~extLib
+        (9=⎕NC ⍵)∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> is a ns, unless force=1.  
+          lib← ⍎⍵ ⎕NS ⍬                ⍝ Load library <⍺>
+        ⍝ Merge all the elements to the right (usually all the defined fields), 
+        ⍝ adjusting for height, without adding blank columns.
+          lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
+        ⍝ (%) Center field ⍺ above field ⍵. If ⍺ is omitted, a single-line field is assumed.
+          lib.A← {⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
+        ⍝ ($) Box item ⍵ 
+          lib.B← {⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
+        ⍝ (Modes ¯1 and ¯2) Displaying the entire formatted result
+          lib.D← ⎕SE.Dyalog.Utils.disp
+          ⍬
+      }  
+    ⍝ LoadRunTime: LoadRunTime <name>: 
+    ⍝   Load C function <fs_format> as <name>.
+    ⍝ <fs_format> must be found in ∆F.dylib, in a place known to Dyalog's ⎕NA function. 
+    ⍝ 
+    ⍝ int fs_format(INT4 opts[4], escCh, 
+    ⍝               CHAR4 fString[], INT4 fStringLen, 
+    ⍝               CHAR4 outBuf[], INT4 *outPLen
+    ⍝              )
+    ⍝ opts:    mode (1 0 ¯1 ¯2), debug (1|0), useNs (0), extLib (1|0)  [Note: force is internal to ∆F.dyalog]
+    ⍝ escCh:   by default, '`' 
+    ⍝ fStr:    the format string
+    ⍝ res:     the output buffer (on input: the output buffer size needed)
+    ⍝ lenRes:  the output buffer size (on input: the same number as for outBuf)
+    ⍝ Returns: rc outBuf outPLen
+    ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
+    ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
+    ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
+      LoadRunTime← force ⎕SE.{ 
+        _← ⎕EX⍣⍺⍺⊢ ⍵   
+        ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[] =I4' 
+      }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
+      DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
+
+      outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
+      _← LoadLib '⍙F'
+      _← LoadRunTime '∆F_C'
+    ⍝ Call the C Library!
+      rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) outLen outLen
+    ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
+    0= rc:  (mode≠0) (DOut lenRes↑ res)
+   ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
+      Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
+      ⎕SIGNAL/ Err911 outLen        
+  } ∆FⓇ← ,⊆∆FⓇ  
+  
+  :IF ⊃∆FⓁ  
+      ∆FⓄⓊⓉ← (⊃⌽∆FⓁ){(⊃⎕RSI)⍎ ⍺⊣ ⎕EX '∆FⓇ' '∆FⓁ'}∆FⓇ       ⍝ Generate a char vec
+  :Else      
+      ∆FⓄⓊⓉ← (⊃⎕RSI)⍎ ⊃⌽∆FⓁ                                  ⍝ Generate a dfn
+  :EndIf 
+
+⍝ ∆F: Calling Information
+⍝ ¯¯  ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
 ⍝ ∆FⓁ:  options for ∆F 
 ⍝ Options:   ('Mode' [1*|0|¯1|¯2])('Debug' [1|0*]) ('EscCh' '`'*|'char')
 ⍝            ('UseNs' [1|0*]) ('ExtLib' [1*|0]) ('Force' [1|0*])
@@ -31,101 +123,11 @@
 ⍝            Forces the external library (see extLib) and the runtime C-based dfn to be reinstalled;
 ⍝          ∘ Normally, these actions take place on the first call to ∆F, w/o user action.
 
-  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
-
-  :If 900⌶0                      ⍝ Options omitted. Processed below.
-        ∆FⓁ← ⍬
-  :ElseIf 0=≢∆FⓁ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
-        ⓄⓊⓉ← 1 0⍴⍬ 
-        :Return 
-  :Elseif 'help'≡⎕C ∆FⓁ        ⍝ Help and exit...
-        ⓄⓊⓉ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
-        :Return  
-  :EndIf 
-
-   ∆FⒹⒶⓉ ∆FⓁ← ∆FⓁ ((⊃⎕RSI){    
-    ⎕IO ⎕ML←0 1  
-    opts←('Mode' 1)('Debug' 0)('EscCh' '`')('UseNs' 0)('ExtLib' 1)('Force ' 0)
-    mode debug escCh useNs extLib force ← opts {
-      0::'Invalid option(s)'⎕SIGNAL 11
-      0=≢⍵:  ⊃∘⌽¨⍺
-      (1=≢⍵)∧(1≥|≡⍵): ⍵,⊃∘⌽¨1↓⍺
-        ns←⎕NS ⍬ ⋄ new← ⊂⍣(2=|≡⍵)⊢⍵
-      0∊∊/⊃¨¨new ⍺:'Unknown option(s)'⎕SIGNAL 11
-        _←ns.{⍎⍺,'←⍵'}/¨⍺, new
-        ns.( Mode Debug EscCh UseNs ExtLib Force )
-    } ⍺
-    badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
-  ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
-  1≠ ≢escCh:      ⎕SIGNAL/ badEscE
-
-  ⍝ LoadLib: extLib force LoadLib lib: 
-  ⍝    If extLib, then 
-  ⍝       a) if utilities aren't defined in ⎕SE.<lib>, define them;
-  ⍝       b) if force, define them anyway;
-  ⍝    Otherwise,
-  ⍝       Return ⍬
-    LoadLib← extLib force ⎕SE.{
-      ~⊃⍺⍺: ⍬                        ⍝ Skip if ~extLib
-      (9=⎕NC ⍵)∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> is a ns, unless force=1.  
-        lib← ⍎⍵ ⎕NS ⍬                ⍝ Load library <⍺>
-      ⍝ Merge all the elements to the right (usually all the defined fields), 
-      ⍝ adjusting for height, without adding blank columns.
-        lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
-      ⍝ (%) Center field ⍺ above field ⍵. If ⍺ is omitted, a single-line field is assumed.
-        lib.A← {⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
-      ⍝ ($) Box item ⍵ 
-        lib.B← {⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
-      ⍝ (Modes ¯1 and ¯2) Displaying the entire formatted result
-        lib.D← ⎕SE.Dyalog.Utils.disp
-        ⍬
-    }  
-  ⍝ LoadRunTime: LoadRunTime <name>: 
-  ⍝   Load C function <fs_format> as <name>.
-  ⍝ <fs_format> must be found in ∆F.dylib, in a place known to Dyalog's ⎕NA function. 
-  ⍝ 
-  ⍝ int fs_format(INT4 opts[4], escCh, 
-  ⍝               CHAR4 fString[], INT4 fStringLen, 
-  ⍝               CHAR4 outBuf[], INT4 *outPLen
-  ⍝              )
-  ⍝ opts:    mode (1 0 ¯1 ¯2), debug (1|0), useNs (0), extLib (1|0)  [Note: force is internal to ∆F.dyalog]
-  ⍝ escCh:   Typically, '`' 
-  ⍝ fStr:    the format string
-  ⍝ outBuf:  the output buffer (on input: the output buffer size needed)
-  ⍝ outPLen: the output buffer size (on input: the same number as for outBuf)
-  ⍝ Returns: rc outBuf outPLen
-  ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
-  ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
-  ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
-    LoadRunTime← force ⎕SE.{ 
-      _← ⎕EX⍣⍺⍺⊢ ⍵   
-      ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[] =I4' 
-    }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
-    DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
-
-    outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
-    _← LoadLib '⍙F'
-    _← LoadRunTime '∆F_C'
-  ⍝ Call the C Library!
-    rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) outLen outLen
-⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-  0= rc:  (mode≠0) (⍺⍺⍎⍣(⊃mode≠0)⊢ DOut lenRes↑ res)
- ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
-    Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
-    ⎕SIGNAL/ Err911 outLen        
-  }) ,⊆∆FⓇ  
-  
-  :IF ∆FⒹⒶⓉ
-      ∆FⓇⒺⓈ← ∆FⓁ
-  :Else      
-      ∆FⓇⒺⓈ← ∆FⓁ⍎⍨ ⊃⎕RSI 
-  :EndIf 
-
-
 ⍝ HELP INFORMATION BEGINS HERE
+⍝ ¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯ ¯¯¯¯
 ⍝H -------------
 ⍝H  ∆F IN BRIEF
-⍝H -------------
+⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H ∆F is a function that uses simple input string expressions, f-strings, to dynamically build 
 ⍝H 2-dimensional output from variables and dfn-style code, shortcuts for numerical formatting, 
 ⍝H titles, and Main. To support an idiomatic APL style, ∆F uses the concept of fields to organize the
