@@ -16,15 +16,14 @@
   ∆FⓄ← ∆FⓄ {    
       ⎕IO ⎕ML←0 1 
       mode debug escCh useNs extLib force ← {  
-          oN← 'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 'Force'
-          oV←  1      0       '`'     0       1        0 
-        0::'Invalid option(s)'⎕SIGNAL 11
-        0=≢⍵: oV 
-          (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓oV 
-          p← oN⍳ 0∘⊃¨ new← ⊂⍣(2= |≡⍵)⊢ ⍵
-        p∧.< ≢oN: oV⊣ oV[p]← 1∘⊃¨ new
+          optV←  1      0       '`'     0       1        0 
+        0=≢⍵: optV 
+        (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
+        0:: 'Invalid option(s)' ⎕SIGNAL 11
+          optN← 'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 'Force'
+          p← optN⍳ ⊃¨ new← ⊂⍣(2= |≡⍵)⊢ ⍵
+        p∧.< ≢optN: optV⊣ optV[p]← ⊃∘⌽¨ new
           'Unknown option(s)' ⎕SIGNAL 11
-          
       } ⍺
       badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
     ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
@@ -74,19 +73,19 @@
       }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
       DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-      outLen← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
+      maxOut← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
       _← LoadLib '⍙F'
       _← LoadRunTime '∆F_C'
     ⍝ Call the C Library!
-      rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) outLen outLen
+      rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) maxOut maxOut
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
     0= rc:  (mode≠0) (DOut lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
       Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
-      ⎕SIGNAL/ Err911 outLen        
+      ⎕SIGNAL/ Err911 maxOut        
   } ∆FⒻ← ,⊆∆FⒻ  
   
-  :IF ⊃∆FⓄ  
+  :IF ⊃∆FⓄ                                                  ⍝ mode≠0
       ∆FⓇ← (⊃⌽∆FⓄ){(⊃⎕RSI)⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'}∆FⒻ       ⍝ Generate a char vec
   :Else      
       ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                                  ⍝ Generate a dfn
