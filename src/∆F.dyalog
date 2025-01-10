@@ -14,6 +14,7 @@
   :EndIf 
 
   ∆FⓄ← ∆FⓄ {    
+      utf8Out← 0
       ⎕IO ⎕ML←0 1 
       mode debug escCh useNs extLib force ← {  
           optV←  1      0       '`'     0       1        0 
@@ -67,19 +68,22 @@
     ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
     ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
     ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
-      LoadRunTime← force ⎕SE.{ 
-        _← ⎕EX⍣⍺⍺⊢ ⍵   
-        ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[] =I4' 
+      LoadRunTime← force utf8Out ⎕SE.{ f u←⍺⍺ 
+        _← ⎕EX⍣f⊢ ⍵   
+        0≠⎕NC ⍵: ⍵
+      u: ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >UTF8[] =I4' 
+         ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[]   =I4' 
       }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
       DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-      maxOut← (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
+      maxOut← (utf8Out⊃1 4)× (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
       _← LoadLib '⍙F'
       _← LoadRunTime '∆F_C'
     ⍝ Call the C Library!
       rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) maxOut maxOut
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-    0= rc:  (mode≠0) (DOut lenRes↑ res)
+      _← DOut mode lenRes ('"','"',⍨lenRes↑res)
+    0= rc:  (mode≠0) (lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
       Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxOut        

@@ -25,6 +25,12 @@
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
 #define FANCY_MARKERS 1
+// 
+#define UTF8_OUT 0
+
+#if UTF8_OUT
+    #include "utf8_encode.c"
+#endif 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -162,8 +168,23 @@ static inline int Str4Len(CHAR4 *str) {
 }
 
 // Error handling  
-#define ERROR(str, err) { *outPLen=0; OutStr(str); return(err); }
-#define ERROR_SPACE     { *outPLen=0; return -1; }
+#if UTF8_OUT 
+   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
+                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
+                            return(err);\
+                          }
+   #define ERROR_SPACE     { *outPLen=0;\
+                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
+                            return -1;\
+                          }
+#else 
+   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
+                            return(err);\
+                          } 
+   #define ERROR_SPACE     { *outPLen=0; \
+                            return -1;\
+                          }
+#endif 
 // End Error Handling  
 
 // STATE MANAGEMENT       
@@ -223,9 +244,18 @@ static inline INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int inPos){
        }\
        --inPos;
 
+#if UTF8_OUT 
+int fs_format(const char opts[4], const CHAR4 escCh, 
+              CHAR4 fString[],    INT4 fStringLen,  
+              CHAR4 utf8Buf[],    INT4 *utf8PLen){ 
+   CHAR4 *outBuf = (CHAR4 *)utf8Buf;
+   INT4  outPLen[1] = {0};
+   *outPLen = *utf8PLen / (sizeof(INT4));
+#else 
 int fs_format(const char opts[4], const CHAR4 escCh, 
               CHAR4 fString[],    INT4 fStringLen, 
               CHAR4 outBuf[],     INT4 *outPLen){ 
+#endif 
   const INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
   const int mode=  opts[0];              // See modes (MODE_...) above
   const int debug= opts[1];              // debug (boolean) 
@@ -474,6 +504,9 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       OutCh(OMG);
   }
 
+#if  UTF8_OUT
+    *utf8PLen = Utf8Buf((CHAR4 *) outBuf, *outPLen);
+#endif 
   return 0;  /* 0= all ok */
 }
 
