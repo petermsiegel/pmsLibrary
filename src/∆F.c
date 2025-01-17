@@ -25,6 +25,12 @@
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
 #define FANCY_MARKERS 1
+// 
+#define UTF8_OUT 0
+
+#if UTF8_OUT
+    #include "utf8_encode.c"
+#endif 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -91,26 +97,26 @@
 #define ADDBUF_GENERIC(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
-        if (grp##Len+len >= grp##Max) ERROR_SPACE;\
+        if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
         if (expandSq){   \
         /* Slower path. Possible expansion of single quotes (APL rule) */ \
-            for(ix=0; ix<len; (grp##Len)++, ix++){\
-                grp##Buf[grp##Len]= (CHAR4) str[ix];\
-                if (grp##Buf[grp##Len] == SQ) {\
-                    if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-                    grp##Buf[++(grp##Len)]= (CHAR4) SQ;\
+            for(ix=0; ix<len; (*grp##PLen)++, ix++){\
+                grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
+                if (grp##Buf[*grp##PLen] == SQ) {\
+                    if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
+                    grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
                 }\
             }\
         } else{\
          /* Faster path. Copy as is. */ \
             for(ix=0; ix<len; ){\
-                  grp##Buf[(grp##Len)++]= (CHAR4) str[ix++];\
+                  grp##Buf[(*grp##PLen)++]= (CHAR4) str[ix++];\
             }\
         }\
 }
 #define ADDCH_GENERIC(ch, grp) {\
-      if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-      grp##Buf[(grp##Len)++]= (CHAR4) ch;\
+      if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
+      grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -125,10 +131,10 @@
    To transfer codeBuf to outBuf (and then "clear" it):
      CodeOut
 */
-#define CodeInit             codeLen=0
+#define CodeInit             *codePLen=0
 #define CodeStr(str)         ADDBUF_GENERIC(str, Str4Len((CHAR4 *)str), code, 0)  
 #define CodeCh(ch)           ADDCH_GENERIC(ch, code)
-#define CodeOut              {OutBuf(codeBuf, codeLen); CodeInit;} 
+#define CodeOut              {OutBuf(codeBuf, *codePLen); CodeInit;} 
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -159,24 +165,26 @@ static inline int Str4Len(CHAR4 *str) {
     for (len=0; len<STRLEN_MAX && str[len]; ++len)
         ;
     return len;
-} 
-
-
-// Cleanup before returning
-#if USE_ALLOCA
-  #define RETURN(rc)\
-       *outPLen = outLen;\
-       return(rc)
-#else
-  #define RETURN(rc)\
-     codeBuf = codeBuf? free(codeBuf)? NULL;\
-     *outPLen = outLen;\
-     return(rc)
-#endif
+}
 
 // Error handling  
-#define ERROR(str, err) { outLen=0; OutStr(str); RETURN(err); }
-#define ERROR_SPACE     { outLen=0; RETURN(-1); } 
+#if UTF8_OUT 
+   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
+                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
+                            return(err);\
+                          }
+   #define ERROR_SPACE     { *outPLen=0;\
+                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
+                            return -1;\
+                          }
+#else 
+   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
+                            return(err);\
+                          } 
+   #define ERROR_SPACE     { *outPLen=0; \
+                            return -1;\
+                          }
+#endif 
 // End Error Handling  
 
 // STATE MANAGEMENT       
@@ -236,9 +244,18 @@ static inline INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int inPos){
        }\
        --inPos;
 
+#if UTF8_OUT 
+int fs_format(const char opts[4], const CHAR4 escCh, 
+              CHAR4 fString[],    INT4 fStringLen,  
+              CHAR4 utf8Buf[],    INT4 *utf8PLen){ 
+   CHAR4 *outBuf = (CHAR4 *)utf8Buf;
+   INT4  outPLen[1] = {0};
+   *outPLen = *utf8PLen / (sizeof(INT4));
+#else 
 int fs_format(const char opts[4], const CHAR4 escCh, 
               CHAR4 fString[],    INT4 fStringLen, 
               CHAR4 outBuf[],     INT4 *outPLen){ 
+#endif 
   const INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
   const int mode=  opts[0];              // See modes (MODE_...) above
   const int debug= opts[1];              // debug (boolean) 
@@ -246,8 +263,8 @@ int fs_format(const char opts[4], const CHAR4 escCh,
   const int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
   const CHAR4 crOut= debug? CRVIS: CR;
 
-  INT4 outLen = 0;                       // output buffer length/position; passed back to APL.
-  INT4 codeLen= 0;                       // length/position in code buffer. Like outLen.
+  *outPLen = 0;                          // output buffer length/position; passed back to APL.
+  INT4 codePLen[1]= {0};                 // length/position in code buffer. Like outPLen.
   int inPos;                             // fString's (input's) "current" position
   int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
   int oldState=NONE;                     // last state
@@ -257,11 +274,13 @@ int fs_format(const char opts[4], const CHAR4 escCh,
 
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code.
-  const INT4 codeMax = outMax;
 #if USE_ALLOCA
+  const INT4 codeMax = outMax;
   CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));  // Automatically freed...
 #else 
-  CHAR4 *codeBuf = malloc( codeMax * sizeof(CHAR4));  // Manually freed...
+  #define CODEBUF_MAX 1024         // Test. Should be dynamically same as outMax
+  CHAR4 codeBuf[CODEBUF_MAX];     
+  const INT4 codeMax = CODEBUF_MAX;
 #endif
 
 // Code sequences...
@@ -484,8 +503,11 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
   }else {
       OutCh(OMG);
   }
- 
-  RETURN(0);  // All is ok 
+
+#if  UTF8_OUT
+    *utf8PLen = Utf8Buf((CHAR4 *) outBuf, *outPLen);
+#endif 
+  return 0;  /* 0= all ok */
 }
 
 
