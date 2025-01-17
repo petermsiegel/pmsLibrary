@@ -18,7 +18,7 @@
 
 // APL_LIB: Enter the name of the namespace housing the fns 
 //          Fns: M (merge ⍺⍵ or ⍵), A (⍺ above ⍵), B (box ⍵), D (display entire object)
-#define APL_LIB    U"⎕SE.⍙F."
+#define APL_LIB    u"⎕SE.⍙F."
 // USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack.
 //          Otherwise, use a fixed array.
 #define USE_ALLOCA 1
@@ -26,11 +26,6 @@
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
 #define FANCY_MARKERS 1
 // 
-#define UTF8_OUT 0
-
-#if UTF8_OUT
-    #include "utf8_encode.c"
-#endif 
 
 #include <stdio.h>
 #include <stdint.h>
@@ -40,43 +35,44 @@
 #  include <stdlib.h>  // for alloca
 #endif 
 
-#define CHAR4  uint32_t       
+#define CHAR4  uint32_t  
+#define CHAR2  uint16_t
 #define  INT4   int32_t 
-#define BLANK_STR    U" "  // A string, not a char. const.
+#define BLANK_STR    u" "  // A string, not a char. const.
 //        Join pseudo-primitive
-#define MERGECD_INT  U"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
-#define MERGECD_EXT  BLANK_STR APL_LIB U"M" BLANK_STR
+#define MERGECD_INT  u"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
+#define MERGECD_EXT  BLANK_STR APL_LIB u"M" BLANK_STR
 //       Over: field ⍺ is centered over field ⍵
-#define ABOVECD_INT  U"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
-#define ABOVECD_EXT  BLANK_STR APL_LIB U"A" BLANK_STR
+#define ABOVECD_INT  u"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
+#define ABOVECD_EXT  BLANK_STR APL_LIB u"A" BLANK_STR
 //       Box: Box item to its right
-#define BOXCD_INT    U"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
-#define BOXCD_EXT    BLANK_STR APL_LIB U"B" BLANK_STR
+#define BOXCD_INT    u"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
+#define BOXCD_EXT    BLANK_STR APL_LIB u"B" BLANK_STR
 //       ⎕FMT: Formatting (dyadic)
-#define FMTCD_INT    U" ⎕FMT "
+#define FMTCD_INT    u" ⎕FMT "
 // dfn ¨disp¨, used as a prefix for LIST and TABLE modes. 
-#define DISPCD_INT   U"0∘⎕SE.Dyalog.Utils.disp" 
-#define DISPCD_EXT   U"0∘" APL_LIB U"D" BLANK_STR  
+#define DISPCD_INT   u"0∘⎕SE.Dyalog.Utils.disp" 
+#define DISPCD_EXT   u"0∘" APL_LIB u"D" BLANK_STR  
 
-#define ALPHA  U'⍺'
-#define CR     U'\r'
-#define CRVIS  U'␍' 
-#define DMND   U'⋄'   //APL DIAMOND (⋄) ⎕UCS 8900 
-#define DNARO  U'↓'
-#define DOL    U'$'
-#define DQ     U'"' 
-#define LBR    U'{'
-#define LPAR   U'('
-#define OMG    U'⍵'
-#define OMG_US U'⍹'
-#define PCT    U'%'
-#define RBR    U'}'
-#define QT     U'\''
-#define RPAR   U')'
-#define RTARO  U'→'
-#define SP     U' '
-#define SQ     U'\''
-#define ZILDE  U'⍬'
+#define ALPHA  u'⍺'
+#define CR     u'\r'
+#define CRVIS  u'␍' 
+#define DMND   u'⋄'   //APL DIAMOND (⋄) ⎕UCS 8900 
+#define DNARO  u'↓'
+#define DOL    u'$'
+#define DQ     u'"' 
+#define LBR    u'{'
+#define LPAR   u'('
+#define OMG    u'⍵'
+#define OMG_US u'⍹'
+#define PCT    u'%'
+#define RBR    u'}'
+#define QT     u'\''
+#define RPAR   u')'
+#define RTARO  u'→'
+#define SP     u' '
+#define SQ     u'\''
+#define ZILDE  u'⍬'
 
 // Mode enumeration 
 #define MODE_STD     1
@@ -97,32 +93,32 @@
 #define ADDBUF_GENERIC(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
-        if (*grp##PLen+len >= grp##Max) ERROR_SPACE;\
+        if (grp##Len+len >= grp##Max) ERROR_SPACE;\
         if (expandSq){   \
         /* Slower path. Possible expansion of single quotes (APL rule) */ \
-            for(ix=0; ix<len; (*grp##PLen)++, ix++){\
-                grp##Buf[*grp##PLen]= (CHAR4) str[ix];\
-                if (grp##Buf[*grp##PLen] == SQ) {\
-                    if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
-                    grp##Buf[++(*grp##PLen)]= (CHAR4) SQ;\
+            for(ix=0; ix<len; (grp##Len)++, ix++){\
+                grp##Buf[grp##Len]= (CHAR4) str[ix];\
+                if (grp##Buf[grp##Len] == SQ) {\
+                    if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
+                    grp##Buf[++(grp##Len)]= (CHAR4) SQ;\
                 }\
             }\
         } else{\
          /* Faster path. Copy as is. */ \
             for(ix=0; ix<len; ){\
-                  grp##Buf[(*grp##PLen)++]= (CHAR4) str[ix++];\
+                  grp##Buf[(grp##Len)++]= (CHAR4) str[ix++];\
             }\
         }\
 }
 #define ADDCH_GENERIC(ch, grp) {\
-      if (*grp##PLen+1 >= grp##Max) ERROR_SPACE;\
-      grp##Buf[(*grp##PLen)++]= (CHAR4) ch;\
+      if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
+      grp##Buf[(grp##Len)++]= (CHAR4) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
 #define OutBuf(str, len)    ADDBUF_GENERIC(str, len, out, 0)
 #define OutBufSq(str, len)  ADDBUF_GENERIC(str, len, out, 1)
-#define OutStr(str)         OutBuf(str, Str4Len((CHAR4 *) str))
+#define OutStr(str)         OutBuf(str, Str2Len((CHAR2 *) str))
 #define OutCh(ch)           ADDCH_GENERIC(ch, out)
 
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -131,10 +127,10 @@
    To transfer codeBuf to outBuf (and then "clear" it):
      CodeOut
 */
-#define CodeInit             *codePLen=0
-#define CodeStr(str)         ADDBUF_GENERIC(str, Str4Len((CHAR4 *)str), code, 0)  
+#define CodeInit             codeLen=0
+#define CodeStr(str)         ADDBUF_GENERIC(str, Str2Len((CHAR2 *)str), code, 0)  
 #define CodeCh(ch)           ADDCH_GENERIC(ch, code)
-#define CodeOut              {OutBuf(codeBuf, *codePLen); CodeInit;} 
+#define CodeOut              {OutBuf(codeBuf, codeLen); CodeInit;} 
 
 /* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
 #define CODENUM_MAXDIG    5
@@ -144,23 +140,23 @@
     int  i;\
     int  tnum=num;\
     if (tnum>CODENUM_MAX){\
-        ERROR(U"Omega variables must be between 0 and 99999", 11);\
+        ERROR(u"Omega variables must be between 0 and 99999", 11);\
         tnum=CODENUM_MAX;\
     }\
     snprintf(nstr, CODENUM_MAXDIG, "%d", tnum);\
     for (i=0;  i<CODENUM_MAXDIG && nstr[i]; ++i){\
-        CodeCh((CHAR4)nstr[i]);\
+        CodeCh((CHAR2)nstr[i]);\
     }\
 }
 /* End Handle Special code buffer */                  
 
 #define STRLEN_MAX  512  
-// Str4Len(str)
-//   <str> is a null-terminated CHAR4 string.
+// Str2Len(str)
+//   <str> is a null-terminated CHAR2 string.
 //   Returns the length of the string, sans the final null.
 //   If there is no final null, we will either abnormally terminate or 
 //   return a length of STRLEN_MAX.
-static inline int Str4Len(CHAR4 *str) {
+static inline int Str2Len(CHAR2 *str) {
     int len;
     for (len=0; len<STRLEN_MAX && str[len]; ++len)
         ;
@@ -168,23 +164,22 @@ static inline int Str4Len(CHAR4 *str) {
 }
 
 // Error handling  
-#if UTF8_OUT 
-   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
-                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
-                            return(err);\
-                          }
-   #define ERROR_SPACE     { *outPLen=0;\
-                            *utf8PLen = (INT4) Utf8Buf((CHAR4 *) outBuf, *outPLen);\
-                            return -1;\
-                          }
-#else 
-   #define ERROR(str, err) { *outPLen=0; OutStr(str);\
-                            return(err);\
-                          } 
-   #define ERROR_SPACE     { *outPLen=0; \
-                            return -1;\
-                          }
+
+#if USE_ALLOCA
+   #define RETURN(n)   *outPLen = outLen;\
+                      return(n)
+#else
+   #define RETURN(n)   *outPLen = outLen;\
+                      if (codeBuf) free(codeBuf);\
+                      codeBuf = NULL;\
+                      return(n)
 #endif 
+   #define ERROR(str, err) { outLen=0; OutStr(str);\
+                            RETURN(err);\
+                          } 
+   #define ERROR_SPACE     { outLen=0; \
+                            RETURN(-1);\
+                          }
 // End Error Handling  
 
 // STATE MANAGEMENT       
@@ -218,7 +213,7 @@ static inline INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int inPos){
             OutCh(SQ);\
       }\
       OutStr(marker);\
-      m = Str4Len((CHAR4 *)marker);\
+      m = Str2Len(marker);\
       for (i=inPos+1; fString[i] == SP; ++i){\
           if (--m <= 0) OutCh(SP);\
       }\
@@ -236,7 +231,7 @@ static inline INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int inPos){
 #define Scan4OmegaIx(oIx)\
        CodeCh(CUR);\
        if (!isdigit(CUR))\
-          ERROR(U"Logic Error: Omega not followed by digit", 911);\
+          ERROR(u"Logic Error: Omega not followed by digit", 911);\
        oIx=CUR-'0';\
        for (++inPos; inPos<fStringLen && isdigit(CUR); ++inPos) {\
           oIx = oIx * 10 + CUR-'0';\
@@ -244,27 +239,19 @@ static inline INT4 afterBlanks(CHAR4 fString[], INT4 fStringLen, int inPos){
        }\
        --inPos;
 
-#if UTF8_OUT 
-int fs_format(const char opts[4], const CHAR4 escCh, 
-              CHAR4 fString[],    INT4 fStringLen,  
-              CHAR4 utf8Buf[],    INT4 *utf8PLen){ 
-   CHAR4 *outBuf = (CHAR4 *)utf8Buf;
-   INT4  outPLen[1] = {0};
-   *outPLen = *utf8PLen / (sizeof(INT4));
-#else 
+
 int fs_format(const char opts[4], const CHAR4 escCh, 
               CHAR4 fString[],    INT4 fStringLen, 
               CHAR4 outBuf[],     INT4 *outPLen){ 
-#endif 
-  const INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
-  const int mode=  opts[0];              // See modes (MODE_...) above
-  const int debug= opts[1];              // debug (boolean) 
-  const int useNs= opts[2];              // If 1, pass an anon ns to each Code Fn.           
-  const int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
-  const CHAR4 crOut= debug? CRVIS: CR;
+   INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
+   int mode=  opts[0];              // See modes (MODE_...) above
+   int debug= opts[1];              // debug (boolean) 
+   int useNs= opts[2];              // If 1, pass an anon ns to each Code Fn.           
+   int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
+   CHAR4 crOut= debug? CRVIS: CR;
 
-  *outPLen = 0;                          // output buffer length/position; passed back to APL.
-  INT4 codePLen[1]= {0};                 // length/position in code buffer. Like outPLen.
+  int outLen = 0;                        // output buffer length/position; passed back to APL.
+  INT4 codeLen= 0;                       // length/position in code buffer. Like outLen.
   int inPos;                             // fString's (input's) "current" position
   int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
   int oldState=NONE;                     // last state
@@ -274,39 +261,37 @@ int fs_format(const char opts[4], const CHAR4 escCh,
 
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code.
-#if USE_ALLOCA
   const INT4 codeMax = outMax;
+#if USE_ALLOCA
   CHAR4 *codeBuf = alloca( codeMax * sizeof(CHAR4));  // Automatically freed...
 #else 
-  #define CODEBUF_MAX 1024         // Test. Should be dynamically same as outMax
-  CHAR4 codeBuf[CODEBUF_MAX];     
-  const INT4 codeMax = CODEBUF_MAX;
+  CHAR4 *codeBuf = malloc( codeMax * sizeof(CHAR4));  // Manually freed...
 #endif
 
 // Code sequences...
-const CHAR4 *mergeCd = extLib? MERGECD_EXT: MERGECD_INT;
-const CHAR4 *aboveCd = extLib? ABOVECD_EXT: ABOVECD_INT;
-const CHAR4 *boxCd  =  extLib? BOXCD_EXT:   BOXCD_INT;
-const CHAR4 *fmtCd  =  FMTCD_INT;
-const CHAR4 *dispCd =  extLib? DISPCD_EXT:  DISPCD_INT;
+CHAR2 *mergeCd = extLib? MERGECD_EXT: MERGECD_INT;
+CHAR2 *aboveCd = extLib? ABOVECD_EXT: ABOVECD_INT;
+CHAR2 *boxCd  =  extLib? BOXCD_EXT:   BOXCD_INT;
+CHAR2 *fmtCd  =  FMTCD_INT;
+CHAR2 *dispCd =  extLib? DISPCD_EXT:  DISPCD_INT;
 // Markers for self-doc code 
-const CHAR4 *mergeMarker  = FANCY_MARKERS? U"▶": U"→"; 
-const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
+CHAR2 *mergeMarker  = FANCY_MARKERS? u"▶": u"→"; 
+CHAR2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
 // Preamble code string...
   OutCh(LBR); 
   if (useNs) 
-     OutStr(U"⍺←⎕NS⍬⋄");
+     OutStr(u"⍺←⎕NS⍬⋄");
 
   switch(mode){
     case MODE_STD:
       OutStr(mergeCd);
       break;
     case MODE_LIST:
-      OutStr(dispCd); OutStr(U"¯1↓"); 
+      OutStr(dispCd); OutStr(u"¯1↓"); 
       break;
     case MODE_TABLE:
-      OutStr(dispCd); OutStr(U"⍪¯1↓");  
+      OutStr(dispCd); OutStr(u"⍪¯1↓");  
       break;
     case MODE_CODE:
       OutStr(mergeCd);
@@ -315,7 +300,7 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       OutCh(LBR);
       break;
     default:
-      ERROR(U"Unknown mode option in left arg", 11);
+      ERROR(u"Unknown mode option in left arg", 11);
   }
 
   for (inPos = 0; inPos < fStringLen; ++inPos) {
@@ -345,7 +330,7 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
           // See if we really have a SF: 0 or more (solely) blanks between matching braces.
             if (i < fStringLen && PEEK_AT(i) == RBR){  // Is a SF!
                 if (nspaces){   
-                      CodeStr(U"(''⍴⍨");
+                      CodeStr(u"(''⍴⍨");
                       CodeNum(nspaces);
                       CodeCh(RPAR);
                       CodeOut;
@@ -355,9 +340,9 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
                 STATE(CF);
                 bracketDepth=1;
                 if (useNs)
-                   OutStr(U"(⍺{")
+                   OutStr(u"(⍺{")
                 else 
-                   OutStr(U"({"); 
+                   OutStr(u"({"); 
                 CodeInit;      // Ready to write code buffer (doesn't change output buffer).
             }
       }  
@@ -390,7 +375,7 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
                CodeCh(CUR);
             }else {            // Terminating right brace: Ending Code Field!
               CodeOut;
-              OutStr(U"}⍵)");
+              OutStr(u"}⍵)");
               bracketDepth=0;
               STATE(NONE);
             }
@@ -434,14 +419,14 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
               ++inPos;                // Skip whatever was just matched (`⍵ or ⍹)
           if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
             ++inPos; 
-            CodeStr(U"(⍵⊃⍨⎕IO+");
+            CodeStr(u"(⍵⊃⍨⎕IO+");
             int omegaIx;
             Scan4OmegaIx( omegaIx );
             omegaNext = omegaIx; 
             CodeCh(RPAR);
           }else {
             ++omegaNext;
-            CodeStr(U"(⍵⊃⍨⎕IO+");
+            CodeStr(u"(⍵⊃⍨⎕IO+");
             CodeNum(omegaNext);
             CodeCh(RPAR); 
           }
@@ -487,15 +472,15 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       OutCh(QT);
       STATE(NONE);
   }else if (state != NONE){
-      ERROR(U"Code or Space Field was not terminated properly", 11);
+      ERROR(u"Code or Space Field was not terminated properly", 11);
   }
 
   // Postamble Code String
-  OutStr(L"⍬}");
+  OutStr(u"⍬}");
   //   Mode 0: extra code because we need to input the format string (fString) 
   //           into the resulting function (see ∆F.dyalog).
   if (mode == MODE_CODE){
-      OutStr(U"⍵,⍨⍥⊆"); 
+      OutStr(u"⍵,⍨⍥⊆"); 
       OutCh(SQ);
       OutBufSq(fString, fStringLen);
       OutCh(SQ);    
@@ -504,10 +489,7 @@ const CHAR4 *aboveMarker  = FANCY_MARKERS? U"▼": U"↓";
       OutCh(OMG);
   }
 
-#if  UTF8_OUT
-    *utf8PLen = Utf8Buf((CHAR4 *) outBuf, *outPLen);
-#endif 
-  return 0;  /* 0= all ok */
+  RETURN(0);  /* 0= all ok */
 }
 
 

@@ -14,10 +14,10 @@
   :EndIf 
 
   ∆FⓄ← ∆FⓄ {    
-      utf8Out← 0
       ⎕IO ⎕ML←0 1 
-      mode debug escCh useNs extLib force ← {  
-          optV←  1      0       '`'     0       1        0 
+      mode debug  escCh  useNs extLib force← {  
+        ⍝       mode debug  escCh  useNs extLib force
+          optV← 1    0      '`'    0     1      0 
         0=≢⍵: optV 
         (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
@@ -68,31 +68,33 @@
     ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
     ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
     ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
-      LoadRunTime← force utf8Out ⎕SE.{ f u←⍺⍺ 
-        _← ⎕EX⍣f⊢ ⍵   
+      LoadRunTime← force  ⎕SE.{ 
+        _← ⎕EX⍣⍺⍺⊢ ⍵   
         0≠⎕NC ⍵: ⍵
-      u: ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >UTF8[] =I4' 
          ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[]   =I4' 
       }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
       DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-      maxOut← (utf8Out⊃1 4)× (extLib⊃ 1024 512)⌈ (extLib⊃10 5)× ≢fStr← ⊃⍵ 
-      _← LoadLib '⍙F'
-      _← LoadRunTime '∆F_C'
+      maxOut← 128⌈ (extLib⊃ 128 64)⌈ (extLib⊃5 3+ 2× mode=0)× ≢fStr← ⊃⍵ 
+      _← LoadRunTime '∆F_C' ⊣ LoadLib '⍙F'
     ⍝ Call the C Library!
-      rc res lenRes← ⎕SE.∆F_C (mode debug useNs extLib) escCh fStr (≢fStr) maxOut maxOut
+      Call∆F← (mode debug useNs extLib) escCh fStr (≢fStr) { ⍺← 5
+        (⍺>0)∨ ¯1≠⊃_← ⎕SE.∆F_C ⍺⍺, ⍵ ⍵: _ 
+        _← DOut 'Retrying ∆F with maxOut',(2×⍵),' Was',⍵  
+        (⍺-1) ∇ 2×⍵ 
+      }
+      rc res lenRes← Call∆F maxOut 
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-      _← DOut mode lenRes ('"','"',⍨lenRes↑res)
-    0= rc:  (mode≠0) (lenRes↑ res)
+    0= rc:  (mode≠0) (DOut lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
       Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxOut        
   } ∆FⒻ← ,⊆∆FⒻ  
   
   :IF ⊃∆FⓄ                                                  ⍝ mode≠0
-      ∆FⓇ← (⊃⌽∆FⓄ){(⊃⎕RSI)⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'}∆FⒻ       ⍝ Generate a char vec
+      ∆FⓇ← (⊃⌽∆FⓄ){(⊃⎕RSI)⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'}∆FⒻ          ⍝ Generate a char vec
   :Else      
-      ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                                  ⍝ Generate a dfn
+      ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                                   ⍝ Generate a dfn
   :EndIf 
 
 ⍝H -------------
