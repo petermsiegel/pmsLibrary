@@ -16,11 +16,17 @@
          As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
 */
 
-// APL_LIB: Enter the name of the namespace housing the fns 
-//          Fns: M (merge ⍺⍵ or ⍵), A (⍺ above ⍵), B (box ⍵), D (display entire object)
+// APL_LIB: Enter the name of the namespace housing the "library" fns 
+//          Code  Name   Descr
+//          [1]   M     merge ⍺⍵ or elements of ⍵; 
+//          %     A     ⍺ above ⍵; 
+//          $     ⎕FMT  Call Dyalog ⎕FMT (1- or 2-adic)
+//          $$    B     box [display] object ⍵, to its right; 
+//          [2]   D     display entire object generated.
+// Note [1]: 
 #define APL_LIB    u"⎕SE.⍙F."
-// USE_ALLOCA: Use alloca to dynamically allocate codebuf on thestack.
-//          Otherwise, use a fixed array.
+// USE_ALLOCA: Use alloca to dynamically allocate codeBuf on thestack.
+//          Otherwise, use malloc.
 #define USE_ALLOCA 1
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
@@ -37,22 +43,26 @@
 
 #define WIDE4  uint32_t  
 #define WIDE2  uint16_t
-#define  INT4   int32_t 
-#define BLANK_STR    u" "  // A string, not a char. const.
+#define WIDE   WIDE4        
+
+#define INT4   int32_t 
+
+#define LIB_CALL1(fn)       u" " APL_LIB fn u" "
+#define LIB_CALL2(pfx, fn)  pfx  APL_LIB fn u" "
 //        Join pseudo-primitive
 #define MERGECD_INT  u"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
-#define MERGECD_EXT  BLANK_STR APL_LIB u"M" BLANK_STR
+#define MERGECD_EXT  LIB_CALL1( u"M" )
 //       Over: field ⍺ is centered over field ⍵
 #define ABOVECD_INT  u"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
-#define ABOVECD_EXT  BLANK_STR APL_LIB u"A" BLANK_STR
+#define ABOVECD_EXT  LIB_CALL1( u"A" )
 //       Box: Box item to its right
 #define BOXCD_INT    u"{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}"
-#define BOXCD_EXT    BLANK_STR APL_LIB u"B" BLANK_STR
+#define BOXCD_EXT    LIB_CALL1( u"B" )
 //       ⎕FMT: Formatting (dyadic)
 #define FMTCD_INT    u" ⎕FMT "
 // dfn ¨disp¨, used as a prefix for LIST and TABLE modes. 
 #define DISPCD_INT   u"0∘⎕SE.Dyalog.Utils.disp" 
-#define DISPCD_EXT   u"0∘" APL_LIB u"D" BLANK_STR  
+#define DISPCD_EXT   LIB_CALL2( "0∘", u"D" )
 
 #define ALPHA  u'⍺'
 #define CR     u'\r'
@@ -84,8 +94,8 @@
 /* CUR... Return current char, w/o checking bounds */
 #define CUR_AT(ix)    fString[ix]
 #define CUR           CUR_AT(inPos)
-#define PEEK_AT(ix)   ((ix< fStringLen)? fString[ix]: -1)
-/* PEEK... Return next char, checking that it's in range (else return -1) */
+#define PEEK_AT(ix)   (((ix) < fStringLen)? fString[ix]: -1)
+/* PEEK... Return NEXT char, checking that it's in range (else return -1) */
 #define PEEK          PEEK_AT(inPos+1)
 /* END INPUT BUFFER ROUTINES */
 
@@ -97,22 +107,22 @@
         if (expandSq){   \
         /* Slower path. Possible expansion of single quotes (APL rule) */ \
             for(ix=0; ix<len; (grp##Len)++, ix++){\
-                grp##Buf[grp##Len]= (WIDE4) str[ix];\
+                grp##Buf[grp##Len]= (WIDE) str[ix];\
                 if (grp##Buf[grp##Len] == SQ) {\
                     if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-                    grp##Buf[++(grp##Len)]= (WIDE4) SQ;\
+                    grp##Buf[++(grp##Len)]= (WIDE) SQ;\
                 }\
             }\
         } else{\
          /* Faster path. Copy as is. */ \
             for(ix=0; ix<len; ){\
-                  grp##Buf[(grp##Len)++]= (WIDE4) str[ix++];\
+                  grp##Buf[(grp##Len)++]= (WIDE) str[ix++];\
             }\
         }\
 }
 #define ADDCH_GENERIC(ch, grp) {\
       if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-      grp##Buf[(grp##Len)++]= (WIDE4) ch;\
+      grp##Buf[(grp##Len)++]= (WIDE) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -174,25 +184,27 @@ static inline int Wide2Len(WIDE2 *str) {
                       codeBuf = NULL;\
                       return(n)
 #endif 
-   #define ERROR(str, err) { outLen=0; OutStr(str);\
-                            RETURN(err);\
-                          } 
-   #define ERROR_SPACE     { outLen=0; \
-                            RETURN(-1);\
-                          }
+#define ERROR(str, err) { outLen=0;\
+                         OutStr(str); /* Replace outBuf with error code! */\
+                         RETURN(err);\
+                        } 
+/* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */ 
+#define ERROR_SPACE     { outLen=0;\
+                         RETURN(-1);\
+                       }
 // End Error Handling  
 
 // STATE MANAGEMENT       
 #define NONE      0      // not in a field 
-#define TF       10      // text field 
+#define TF       10      // in a text field 
 #define CF_START 20      // starting a cf
 #define CF       21      // in a code field or space field */
 #define STATE(new)  { oldState=state; state=new;}
 // End STATE MANAGEMENT 
 
-static inline INT4 afterBlanks(WIDE4 fString[], INT4 fStringLen, int inPos){
+static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
     for (; inPos < fStringLen && SP == fString[inPos]; ++inPos)
-           ;
+        ;
     if (inPos>=fStringLen) 
         return -1;
     return fString[inPos];  // -1 if beyond end  
@@ -215,7 +227,7 @@ static inline INT4 afterBlanks(WIDE4 fString[], INT4 fStringLen, int inPos){
       OutStr(marker);\
       m = Wide2Len(marker);\
       for (i=inPos+1; fString[i] == SP; ++i){\
-          if (--m <= 0)\ 
+          if (--m <= 0)\
              OutCh(SP);\
       }\
       OutCh(QT); OutCh(SP);\
@@ -241,15 +253,17 @@ static inline INT4 afterBlanks(WIDE4 fString[], INT4 fStringLen, int inPos){
        --inPos;
 
 
-int fs_format(const char opts[4], const WIDE4 escCh, 
-              WIDE4 fString[],    INT4 fStringLen, 
-              WIDE4 outBuf[],     INT4 *outPLen){ 
+int fs_format4(const char opts[4], 
+              const WIDE escCh, 
+              WIDE fString[],  INT4 fStringLen, 
+              WIDE outBuf[],   INT4 *outPLen
+){ 
    INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
    int mode=  opts[0];              // See modes (MODE_...) above
    int debug= opts[1];              // debug (boolean) 
    int useNs= opts[2];              // If 1, pass an anon ns to each Code Fn.           
    int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
-   WIDE4 crOut= debug? CRVIS: CR;
+   WIDE crOut= debug? CRVIS: CR;
 
   int outLen = 0;                        // output buffer length/position; passed back to APL.
   INT4 codeLen= 0;                       // length/position in code buffer. Like outLen.
@@ -264,9 +278,9 @@ int fs_format(const char opts[4], const WIDE4 escCh,
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code.
   const INT4 codeMax = outMax;
 #if USE_ALLOCA
-  WIDE4 *codeBuf = alloca( codeMax * sizeof(WIDE4));  // Automatically freed...
+  WIDE *codeBuf = alloca( codeMax * sizeof(WIDE));  // Automatically freed...
 #else 
-  WIDE4 *codeBuf = malloc( codeMax * sizeof(WIDE4));  // Manually freed...
+  WIDE *codeBuf = malloc( codeMax * sizeof(WIDE));  // Manually freed...
 #endif
 
 // Code sequences...
@@ -349,7 +363,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       }  
       if (state == TF) {       // Text field 
           if (CUR == escCh){   // Check for escape chars
-            WIDE4 ch= PEEK; 
+            WIDE ch= PEEK; 
             ++inPos;
             if (ch == escCh){
                 OutCh(escCh);

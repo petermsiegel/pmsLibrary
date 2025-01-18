@@ -51,14 +51,19 @@
           lib.D← ⎕SE.Dyalog.Utils.disp
           ⍬
       }  
-    ⍝ LoadRunTime: LoadRunTime <name>: 
-    ⍝   Load C function <fs_format> as <name>.
-    ⍝ <fs_format> must be found in ∆F.dylib, in a place known to Dyalog's ⎕NA function. 
+    ⍝ LoadLoadCFn: LoadLoadCFn <name>: 
+    ⍝   Load C function <fs_format4> as <name>.
+    ⍝ <fs_format4> must be found in ∆F.dylib, in a place known to Dyalog's ⎕NA function. 
     ⍝ 
-    ⍝ int fs_format(INT4 opts[4], escCh, 
-    ⍝               CHAR4 fString[], INT4 fStringLen, 
-    ⍝               CHAR4 outBuf[], INT4 *outPLen
-    ⍝              )
+    ⍝ int fs_format4
+    ⍝        const char opts[4], 
+    ⍝        const WIDE4 escCh, 
+    ⍝        WIDE4 fString[],    INT4 fStringLen, 
+    ⍝        WIDE4 outBuf[],     INT4 *outPLen
+    ⍝ )
+    ⍝ with this ⎕NA:
+    ⍝       'I4 ∆F.dylib|fs_format4  <I1[4] C4    <C4[] I4    >C4[]   =I4' 
+    ⍝        rc                     opts   escCh fStr  ≢fStr outBuf  (≢outBuf: input/output => max/actual size)
     ⍝ opts:    mode (1 0 ¯1 ¯2), debug (1|0), useNs (0), extLib (1|0)  [Note: force is internal to ∆F.dyalog]
     ⍝ escCh:   by default, '`' 
     ⍝ fStr:    the format string
@@ -68,22 +73,24 @@
     ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
     ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
     ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
-      LoadRunTime← force  ⎕SE.{ 
+      LoadLoadCFn← force  ⎕SE.{ 
         _← ⎕EX⍣⍺⍺⊢ ⍵   
-        0≠⎕NC ⍵: ⍵
-         ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ 'I4 ∆F.dylib|fs_format  <I1[4] C4    <C4[] I4    >C4[]   =I4' 
+      0≠⎕NC ⍵: ⍵
+        template← 'I4 ∆F.dylib|fs_format4  <I1[4] C4 <C4[] I4  >C4[]   =I4' 
+        ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ template 
       }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
       DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-      maxOut← 128⌈ (extLib⊃ 128 64)⌈ (extLib⊃5 3+ 2× mode=0)× ≢fStr← ⊃⍵ 
-      _← LoadRunTime '∆F_C' ⊣ LoadLib '⍙F'
+      fStr←  ⊃⍵ 
+      maxOut← 128⌈ (extLib⊃ 128 64)⌈ (extLib⊃5 3+ 2× mode=0)× ≢fStr   ⍝ in 4-byte chars...
+      _← LoadLoadCFn '∆F_C4' ⊣ LoadLib '⍙F'
     ⍝ Call the C Library!
       Call∆F← (mode debug useNs extLib) escCh fStr (≢fStr) { ⍺← 5
-        (⍺>0)∨ ¯1≠⊃_← ⎕SE.∆F_C ⍺⍺, ⍵ ⍵: _ 
+        (⍺≤0) ∨ ¯1≠⊃_← ⎕SE.∆F_C4 ⍺⍺, ⍵ ⍵: _ ⍵ 
         _← DOut 'Retrying ∆F with maxOut',(2×⍵),' Was',⍵  
         (⍺-1) ∇ 2×⍵ 
       }
-      rc res lenRes← Call∆F maxOut 
+      (rc res lenRes) maxOut← Call∆F maxOut 
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
     0= rc:  (mode≠0) (DOut lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
