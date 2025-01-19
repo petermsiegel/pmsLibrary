@@ -1,8 +1,6 @@
 ∆FⓇ← {∆FⓄ} ∆F ∆FⒻ; ⎕TRAP 
 ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
-
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
-
   :If 900⌶0                      ⍝ Options omitted. Processed below.
         ∆FⓄ← ⍬
   :ElseIf 0=≢∆FⓄ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
@@ -12,12 +10,24 @@
         ∆FⓇ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
         :Return  
   :EndIf 
-
+  :If 0=⎕SE.⎕NC '⍙F.∆F4'
+      :With ⎕SE 
+        :If 0=⎕NC '⍙F' 
+            '⍙F' ⎕NS⍬
+        :Endif 
+        '∆F4' ⍙F.⎕NA 'I4 ∆F.dylib|fs_format4 <I1[4] C4 <C4[] I4  >C4[]   =I4' 
+        '∆F2' ⍙F.⎕NA 'I4 ∆F.dylib|fs_format2 <I1[4] C4 <C2[] I4  >C2[]   =I4' 
+      :EndWith 
+  :Endif  
   ∆FⓄ← ∆FⓄ {    
-      ⎕IO ⎕ML←0 1 
+      ⎕IO ⎕ML ←0 1    
+    ⍝ MAXOUT_INIT: Initial estimate of max # of (2- or 4-byte) chars needed in output. We keep it simple here.
+    ⍝ MAXTRY: Max # to expand (double) MAXOUT_INIT, if not enough space for result.
+      MAXOUT_INIT MAXTRY← 256 5 
       mode debug  escCh  useNs extLib force← {  
-        ⍝       mode debug  escCh  useNs extLib force
-          optV← 1    0      '`'    0     1      0 
+        ⍝       mode   debug   escCh   useNs   extLib   force   ⍝ <== option variables 
+        ⍝      'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 'Force'  ⍝ <== option names
+          optV← 1      0       '`'     0       1        0       ⍝ <== option default values 
         0=≢⍵: optV 
         (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
@@ -31,15 +41,15 @@
     1≠ ≢escCh:      ⎕SIGNAL/ badEscE
 
     ⍝ LoadLib: extLib force LoadLib lib: 
-    ⍝    If extLib, then 
+    ⍝    If extLib is set, then 
     ⍝       a) if utilities aren't defined in ⎕SE.<lib>, define them;
     ⍝       b) if force, define them anyway;
     ⍝    Otherwise,
     ⍝       Return ⍬
-      LoadLib← extLib force ⎕SE.{
-        ~⊃⍺⍺: ⍬                        ⍝ Skip if ~extLib
-        (9=⎕NC ⍵)∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> is a ns, unless force=1.  
-          lib← ⍎⍵ ⎕NS ⍬                ⍝ Load library <⍺>
+      LoadLib← extLib force {
+        ~⊃⍺⍺: ⍬                            ⍝ Skip if ~extLib
+        (9=⍵.⎕NC 'M')∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> contains (at least) M, unless force=1.  
+          lib← ⍵ 
         ⍝ Merge all the elements to the right (usually all the defined fields), 
         ⍝ adjusting for height, without adding blank columns.
           lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
@@ -50,47 +60,20 @@
         ⍝ (Modes ¯1 and ¯2) Displaying the entire formatted result
           lib.D← ⎕SE.Dyalog.Utils.disp
           ⍬
-      }  
-    ⍝ LoadLoadCFn: LoadLoadCFn <name>: 
-    ⍝   Load C function <fs_format4> as <name>.
-    ⍝ <fs_format4> must be found in ∆F.dylib, in a place known to Dyalog's ⎕NA function. 
-    ⍝ 
-    ⍝ int fs_format4
-    ⍝        const char opts[4], 
-    ⍝        const WIDE4 escCh, 
-    ⍝        WIDE4 fString[],    INT4 fStringLen, 
-    ⍝        WIDE4 outBuf[],     INT4 *outPLen
-    ⍝ )
-    ⍝ with this ⎕NA:
-    ⍝       'I4 ∆F.dylib|fs_format4  <I1[4] C4    <C4[] I4    >C4[]   =I4' 
-    ⍝        rc                     opts   escCh fStr  ≢fStr outBuf  (≢outBuf: input/output => max/actual size)
-    ⍝ opts:    mode (1 0 ¯1 ¯2), debug (1|0), useNs (0), extLib (1|0)  [Note: force is internal to ∆F.dyalog]
-    ⍝ escCh:   by default, '`' 
-    ⍝ fStr:    the format string
-    ⍝ res:     the output buffer (on input: the output buffer size needed)
-    ⍝ lenRes:  the output buffer size (on input: the same number as for outBuf)
-    ⍝ Returns: rc outBuf outPLen
-    ⍝   rc:     0 (ok), >0 (APL error (APL signal integer)), ¯1: (outBuf too small)
-    ⍝   outBuf: the actual output buffer in 4-byte chars. Chars beyond outPLen are to be ignored (keep outPLen↑outBuf).
-    ⍝   outPLen: the actual length (in 4-byte chars) of actual code output.
-      LoadLoadCFn← force  ⎕SE.{ 
-        _← ⎕EX⍣⍺⍺⊢ ⍵   
-      0≠⎕NC ⍵: ⍵
-        template← 'I4 ∆F.dylib|fs_format4  <I1[4] C4 <C4[] I4  >C4[]   =I4' 
-        ⍵ ⎕NA⍣(⊃0=⎕NC ⍵)⊢ template 
-      }                 ⍝  rc                     opts   escCh fStr  ≢fStr res   lenRes
+      }              
       DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
 
-      fStr←  ⊃⍵ 
-      maxOut← 128⌈ (extLib⊃ 128 64)⌈ (extLib⊃5 3+ 2× mode=0)× ≢fStr   ⍝ in 4-byte chars...
-      _← LoadLoadCFn '∆F_C4' ⊣ LoadLib '⍙F'
-    ⍝ Call the C Library!
-      Call∆F← (mode debug useNs extLib) escCh fStr (≢fStr) { ⍺← 5
-        (⍺≤0) ∨ ¯1≠⊃_← ⎕SE.∆F_C4 ⍺⍺, ⍵ ⍵: _ ⍵ 
+      fStr←  ⊃⍵                                 
+      _← LoadLib ⎕SE.⍙F 
+    ⍝ Call the C Library (with retry if buffers aren't big enough)
+    ⍝ We call the 2-byte version if fStr has 2- or 1-byte characters.
+      Call∆F← (mode debug useNs extLib) escCh fStr (≢fStr) {  
+        _← ⍵⍵ ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ }⍺⍺, ⍵ ⍵  
+        (⍺≤0) ∨ ¯1≠⊃_: _ ⍵ 
         _← DOut 'Retrying ∆F with maxOut',(2×⍵),' Was',⍵  
         (⍺-1) ∇ 2×⍵ 
-      }
-      (rc res lenRes) maxOut← Call∆F maxOut 
+      } (320= ⎕DR fStr) 
+      (rc res lenRes) maxOut← MAXTRY Call∆F MAXOUT_INIT 
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
     0= rc:  (mode≠0) (DOut lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 

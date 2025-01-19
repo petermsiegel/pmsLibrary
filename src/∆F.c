@@ -3,7 +3,10 @@
        '∆F' ⎕NA 'I4 ∆F.dylib|fc <I1[4] <I4   <C4[]    I4           >C4[]    =I4' 
                  rc             opts   escCh fString  fStringLen   outBuf   outPLen
    Compile with: 
-       cc -O3 -dynamiclib -o ∆F.dylib ∆F.c
+       cc -dynamiclib -O3 -o \#F4.dylib -D WIDTH=4 ∆F.c
+       cc -dynamiclib -O3 -o \#F2.dylib -D WIDTH=2 ∆F.c
+       cc -dynamiclib -o ∆F.dylib \#F4.dylib \#F2.dylib
+       rm \#F4.dylib \#F2.dylib 
    Returns:  rc outBuf outPLen.  APL code does out← outPLen↑out
    rc=¯1:   output buffer not big enough for transformed fString.
             In this case, the output buffer is not examined (and may contain junk).
@@ -26,7 +29,7 @@
 // Note [1]: 
 #define APL_LIB    u"⎕SE.⍙F."
 // USE_ALLOCA: Use alloca to dynamically allocate codeBuf on thestack.
-//          Otherwise, use malloc.
+//             Otherwise, use malloc.
 #define USE_ALLOCA 1
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
@@ -37,13 +40,22 @@
 #include <stdint.h>
 #include <string.h> 
 #include <ctype.h>
-#if USE_ALLOCA
-#  include <stdlib.h>  // for alloca
-#endif 
+#include <stdlib.h>  // for alloca and free...
 
+// WIDE4 or WIDE2 -- width of input AND output chars...
+// Use -D to change WIDTH to 2:  -D WIDTH=2
+#ifndef WIDTH 
+   #define WIDTH 4        
+#endif 
 #define WIDE4  uint32_t  
-#define WIDE2  uint16_t
-#define WIDE   WIDE4        
+#define WIDE2  uint16_t 
+#if WIDTH==2
+   #undef WIDE 
+   #define WIDE WIDE2
+#else 
+   #undef WIDE 
+   #define WIDE WIDE4
+#endif      
 
 #define INT4   int32_t 
 
@@ -105,7 +117,7 @@
         int ix;\
         if (grp##Len+len >= grp##Max) ERROR_SPACE;\
         if (expandSq){   \
-        /* Slower path. Possible expansion of single quotes (APL rule) */ \
+        /* SQ doubling: Slower path. */ \
             for(ix=0; ix<len; (grp##Len)++, ix++){\
                 grp##Buf[grp##Len]= (WIDE) str[ix];\
                 if (grp##Buf[grp##Len] == SQ) {\
@@ -114,7 +126,7 @@
                 }\
             }\
         } else{\
-         /* Faster path. Copy as is. */ \
+         /* No SQ doubling: Faster path. */ \
             for(ix=0; ix<len; ){\
                   grp##Buf[(grp##Len)++]= (WIDE) str[ix++];\
             }\
@@ -253,7 +265,11 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
        --inPos;
 
 
-int fs_format4(const char opts[4], 
+#if WIDTH==4 
+      int fs_format4(const char opts[4], 
+#else
+      int fs_format2(const char opts[4], 
+#endif 
               const WIDE escCh, 
               WIDE fString[],  INT4 fStringLen, 
               WIDE outBuf[],   INT4 *outPLen
@@ -506,6 +522,4 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
   RETURN(0);  /* 0= all ok */
 }
-
-
 
