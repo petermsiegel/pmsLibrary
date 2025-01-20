@@ -50,10 +50,8 @@
 #define WIDE4  uint32_t  
 #define WIDE2  uint16_t 
 #if WIDTH==2
-   #undef WIDE 
    #define WIDE WIDE2
 #else 
-   #undef WIDE 
    #define WIDE WIDE4
 #endif      
 
@@ -266,13 +264,13 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
 
 
 #if WIDTH==4 
-      int fs_format4(const char opts[4], 
+      int fs_format4( 
 #else
-      int fs_format2(const char opts[4], 
+      int fs_format2(
 #endif 
-              const WIDE escCh, 
-              WIDE fString[],  INT4 fStringLen, 
-              WIDE outBuf[],   INT4 *outPLen
+              const char opts[4], const WIDE4 escCh, 
+              WIDE fString[],     INT4 fStringLen, 
+              WIDE outBuf[],      INT4 *outPLen
 ){ 
    INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
    int mode=  opts[0];              // See modes (MODE_...) above
@@ -522,4 +520,17 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
   RETURN(0);  /* 0= all ok */
 }
+
+#if WIDTH==2
+void get2lib( WIDE2 libStr[] ){
+    #define L1  u"M←{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}⋄"
+    #define L2  u"A←{⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄"
+    #define L3  u"B←{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}⋄"
+    #define L4  u"D←⎕SE.Dyalog.Utils.disp ⍝ OK"
+    #define CODE L1 L2 L3 L4 
+    int i;
+    for (i=0; i< Wide2Len(CODE)+1; ++i)
+         libStr[i] = CODE[i];
+}
+#endif 
 

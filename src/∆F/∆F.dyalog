@@ -15,69 +15,55 @@
         :If 0=⎕NC '⍙F' 
             '⍙F' ⎕NS⍬
         :Endif 
-        '∆F4' ⍙F.⎕NA 'I4 ∆F.dylib|fs_format4 <I1[4] C4 <C4[] I4  >C4[]   =I4' 
-        '∆F2' ⍙F.⎕NA 'I4 ∆F.dylib|fs_format2 <I1[4] C4 <C2[] I4  >C2[]   =I4' 
+        :With ⍙F 
+          ⍝ Load C F-string routines (two versions, for 4-byte chars and 2-byte chars)
+            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[4] C4 <C4[] I4  >C4[]   =I4' 
+            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[4] C4 <C2[] I4  >C2[]   =I4'
+          ⍝ Load the source code for the run-time library routines: A, B, D, M
+            'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
+          ⍝ Acquire and Load APL run-time routines. Buffer requires 170 2-byte chars.
+            lib← GetLib 200
+            '∆F RUNTIME ERROR: Unable to load run-time routines.' ⎕SIGNAL 11/⍨ 'OK'≢ ¯2↑ lib  
+            ⍎lib 
+        :EndWith 
       :EndWith 
   :Endif  
   ∆FⓄ← ∆FⓄ {    
       ⎕IO ⎕ML ←0 1    
-    ⍝ MAXOUT_INIT: Initial estimate of max # of (2- or 4-byte) chars needed in output. We keep it simple here.
-    ⍝ MAXTRY: Max # to expand (double) MAXOUT_INIT, if not enough space for result.
-      MAXOUT_INIT MAXTRY← 256 5 
-      mode debug  escCh  useNs extLib force← {  
-        ⍝       mode   debug   escCh   useNs   extLib   force   ⍝ <== option variables 
-        ⍝      'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 'Force'  ⍝ <== option names
-          optV← 1      0       '`'     0       1        0       ⍝ <== option default values 
-        0=≢⍵: optV 
-        (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
+    ⍝ maxOut0: Initial estimate of max # of (2- or 4-byte) chars needed in output. We keep it simple here.
+    ⍝ maxTries: Max # of times to expand (double) maxOut0, if not enough space for result.
+      maxOut0 maxTries← 256 5 
+
+    ⍝ Options (⍺)
+      GetOpts← {  
+          optK← 'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 
+          optV←  1      0       '`'     0       1         ⍝ <== option default values 
+        0=≢⍵: optV ⋄ (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
-          optN← 'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 'Force'
-          p← optN⍳ ⊃¨ new← ⊂⍣(2= |≡⍵)⊢ ⍵
-        p∧.< ≢optN: optV⊣ optV[p]← ⊃∘⌽¨ new
-          'Unknown option(s)' ⎕SIGNAL 11
-      } ⍺
-      badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
-    ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE
-    1≠ ≢escCh:      ⎕SIGNAL/ badEscE
+          nK nV← ↓⍉↑ ,⊂⍣(2= |≡⍵)⊢ ⍵ 
+          p← optK⍳ nK 
+        p∧.< ≢optK: nV@p⊣ optV 
+          11 ⎕SIGNAL⍨ 'Unknown option(s):',∊' ',¨ nK/⍨ p≥≢optK 
+      }
+      mode debug escCh useNs extLib← GetOpts ⍺
+  ⍝ Handling via ⎕NA checks
+  ⍝    badEscE← 'DOMAIN ERROR: escape char not unicode scalar!' 11
+  ⍝  ×80| ⎕DR escCh: ⎕SIGNAL/ badEscE ⋄ 1≠ ≢escCh: ⎕SIGNAL/ badEscE  
 
-    ⍝ LoadLib: extLib force LoadLib lib: 
-    ⍝    If extLib is set, then 
-    ⍝       a) if utilities aren't defined in ⎕SE.<lib>, define them;
-    ⍝       b) if force, define them anyway;
-    ⍝    Otherwise,
-    ⍝       Return ⍬
-      LoadLib← extLib force {
-        ~⊃⍺⍺: ⍬                            ⍝ Skip if ~extLib
-        (9=⍵.⎕NC 'M')∧ ~⊃⌽⍺⍺: ⍬            ⍝ Skip if ⎕SE.<lib> contains (at least) M, unless force=1.  
-          lib← ⍵ 
-        ⍝ Merge all the elements to the right (usually all the defined fields), 
-        ⍝ adjusting for height, without adding blank columns.
-          lib.M← {⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}
-        ⍝ (%) Center field ⍺ above field ⍵. If ⍺ is omitted, a single-line field is assumed.
-          lib.A← {⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}
-        ⍝ ($) Box item ⍵ 
-          lib.B← {⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}
-        ⍝ (Modes ¯1 and ¯2) Displaying the entire formatted result
-          lib.D← ⎕SE.Dyalog.Utils.disp
-          ⍬
-      }              
-      DOut← {debug=1: ⊢⎕←⍵ ⋄ ⍵}
-
-      fStr←  ⊃⍵                                 
-      _← LoadLib ⎕SE.⍙F 
-    ⍝ Call the C Library (with retry if buffers aren't big enough)
-    ⍝ We call the 2-byte version if fStr has 2- or 1-byte characters.
-      Call∆F← (mode debug useNs extLib) escCh fStr (≢fStr) {  
-        _← ⍵⍵ ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ }⍺⍺, ⍵ ⍵  
-        (⍺≤0) ∨ ¯1≠⊃_: _ ⍵ 
-        _← DOut 'Retrying ∆F with maxOut',(2×⍵),' Was',⍵  
-        (⍺-1) ∇ 2×⍵ 
-      } (320= ⎕DR fStr) 
-      (rc res lenRes) maxOut← MAXTRY Call∆F MAXOUT_INIT 
+      DebugNote← {debug=0: ⍵ ⋄ ⊢⎕←⍵} 
+      Exec← (320= ⎕DR⊃⍵) ⎕SE.⍙F.{ ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ ⋄ ∆F2 ⍵⍵, ⍵ ⍵} (mode debug useNs extLib) escCh (⊃⍵) (≢⊃⍵) 
+      Call∆F←  { max← ⍵
+        res← Exec max     
+        ¯1≠⊃res: res max ⋄ ⍺≤0: res max ⋄ max2← 2×max
+        (⍺-1) ∇ max2⊣ DebugNote 'Retrying ∆F with maxOut',max2,' Was',max   
+      }  
+    
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-    0= rc:  (mode≠0) (DOut lenRes↑ res)
+      (rc res lenRes) maxOut← maxTries Call∆F maxOut0 
+      
+    0= rc:  (mode≠0) (DebugNote lenRes↑ res)
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
-      Err911← {⌽911,⍥⊂'DOMAIN ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
+      Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxOut        
   } ∆FⒻ← ,⊆∆FⒻ  
   
