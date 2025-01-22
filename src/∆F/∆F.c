@@ -67,7 +67,7 @@
 // Specify code for library calls (internal: code included in result; external: calls a library in APL_LIB)
 #define LIB_CALL1(fn)       u" " APL_LIB fn u" "
 //       Join: pseudo-primitive, joins fields (possibly differently-shaped char arrays) left-to-right
-#define MERGECD_INT  u"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
+#define MERGECD_INT  u"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
 #define MERGECD_EXT  LIB_CALL1( u"M" )
 //       Over: center field ⍺ over field ⍵
 #define ABOVECD_INT  u"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
@@ -112,37 +112,41 @@
 #define CUR_AT(ix)    fString[ix]
 #define CUR           CUR_AT(inPos)
 #define PEEK_AT(ix)   (((ix) < fStringLen)? fString[ix]: -1)
-/* PEEK... Return NEXT char, checking that it's in range (else return -1) */
+/* PEEK... Return NEXT char, checking range bounds. If not, return -1 */
 #define PEEK          PEEK_AT(inPos+1)
 /* END INPUT BUFFER ROUTINES */
 
 // GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES 
-// These expect grp##Buf, grp##Len, grp##Max to resolve to valid and appropriate objects,
-//    e.g. if grp is out, these resolve to outBuf outLen and outMax.
+typedef struct {
+    WIDE *buf;
+    int   len;
+    int   max;
+} buffer ;
+
 #define ADDBUF(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
-        if (grp##Len+len >= grp##Max) ERROR_SPACE;\
+        if (grp.len+len >= grp.max) ERROR_SPACE;\
         if (expandSq){   \
         /* SQ doubling: Slower path. */ \
-            for(ix=0; ix<len; (grp##Len)++, ix++){\
-                grp##Buf[grp##Len]= (WIDE) str[ix];\
-                if (grp##Buf[grp##Len] == SQ) {\
-                    if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-                    grp##Buf[++(grp##Len)]= (WIDE) SQ;\
+            for(ix=0; ix<len; (grp.len)++, ix++){\
+                grp.buf[grp.len]= (WIDE) str[ix];\
+                if (grp.buf[grp.len] == SQ) {\
+                    if (grp.len+1 >= grp.max) ERROR_SPACE;\
+                    grp.buf[++(grp.len)]= (WIDE) SQ;\
                 }\
             }\
         } else{\
          /* No SQ doubling: Faster path. */ \
             for(ix=0; ix<len; ){\
-                  grp##Buf[(grp##Len)++]= (WIDE) str[ix++];\
+                  grp.buf[(grp.len)++]= (WIDE) str[ix++];\
             }\
         }\
 }
 #define ADDCH(ch, grp) {\
-      if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
-      grp##Buf[(grp##Len)++]= (WIDE) ch;\
-}
+      if (grp.len+1 >= grp.max) ERROR_SPACE;\
+      grp.buf[(grp.len)++]= (WIDE) ch;\
+} 
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
 #define OutBuf(str, len)    ADDBUF(str, len, out, 0)
@@ -155,14 +159,15 @@
 // Handle special code buffer. 
 // To transfer codeBuf to outBuf (and then "clear" it):
 //    CodeOut
-#define CodeInit             codeLen=0
+#define CodeInit             code.len=0
 #define CodeStr(str)         ADDBUF(str, Wide2Len((WIDE2 *)str), code, 0)  
 #define CodeCh(ch)           ADDCH(ch, code)
-#define CodeOut              {OutBuf(codeBuf, codeLen); CodeInit;} 
+#define CodeOut              {OutBuf(code.buf, code.len); CodeInit;} 
 // END CODE BUFFER MANAGEMENT ROUTINES  
 
 // Any attempt to add a number bigger than 99999 will result in an APL Domain Error.  
 // Used in routines to decode omegas: `⍵nnn, and so on.
+#define INDEX_ERR u"Omega index or space field width too large (>99999)"
 #define CODENUM_MAXDIG    5
 #define CODENUM_MAX   99999
 #define CodeNum(num) {\
@@ -170,10 +175,10 @@
     int  i;\
     int  tnum=num;\
     if (tnum>CODENUM_MAX){\
-        ERROR(u"Omega variables must be between 0 and 99999", 11);\
+        ERROR(INDEX_ERR, 11);\
         tnum=CODENUM_MAX;\
     }\
-    snprintf(nstr, CODENUM_MAXDIG, "%d", tnum);\
+    snprintf(nstr, CODENUM_MAXDIG+1, "%d", tnum);\
     for (i=0;  i<CODENUM_MAXDIG && nstr[i]; ++i){\
         CodeCh((WIDE2)nstr[i]);\
     }\
@@ -194,19 +199,19 @@ static inline int Wide2Len(WIDE2 *str) {
 
 // Termination Code
 #if USE_ALLOCA
-   #define RETURN(n)   *outPLen = outLen;\
-                      return(n)
+   #define RETURN(rc)   *outPLen = out.len;\
+                      return(rc)
 #else /* using malloc/free */
-   #define RETURN(n)   *outPLen = outLen;\
-                      if (codeBuf) free(codeBuf);\
-                      codeBuf = NULL;\
-                      return(n)
+   #define RETURN(rc)   *outPLen = out.len;\
+                      if (code.buf) free(code.buf);\
+                      code.buf = NULL;\
+                      return(rc)
 #endif 
 
 // Error handling-- must be called within scope of main function below!
-#define ERROR(str, err) { outLen=0;  OutStr(str); RETURN(err); } 
+#define ERROR(str, errno) { out.len=0;  OutStr(str); RETURN(errno); } 
 /* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */ 
-#define ERROR_SPACE     { outLen=0; RETURN(-1); }
+#define ERROR_SPACE     { out.len=0; RETURN(-1); }
 // End Error Handling  
 
 // STATE MANAGEMENT       
@@ -259,12 +264,14 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
 #define Scan4OmegaIx(oIx)\
        CodeCh(CUR);\
        if (!isdigit(CUR))\
-          ERROR(u"Logic Error: Omega not followed by digit", 911);\
+          ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
        oIx=CUR-'0';\
        for (++inPos; inPos<fStringLen && isdigit(CUR); ++inPos) {\
           oIx = oIx * 10 + CUR-'0';\
           CodeCh(CUR);\
        }\
+       if (oIx > CODENUM_MAX)\
+           ERROR(INDEX_ERR, 11);\
        --inPos;
 
 
@@ -277,15 +284,16 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
               WIDE fString[],     INT4 fStringLen, 
               WIDE outBuf[],      INT4 *outPLen
 ){ 
-   INT4 outMax = *outPLen;          // User must pass in *outPLen as outBuf[outMax]  
+   buffer out;
+     out.buf = outBuf;
+     out.max = *outPLen;
+     out.len = 0;                   // output buffer length/position; passed back to APL as *outPLen = out.len;
    int mode=  opts[0];              // See modes (MODE_...) above
    int debug= opts[1];              // debug (boolean) 
    int useNs= opts[2];              // If 1, pass an anon ns to each Code Fn.           
    int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
    WIDE crOut= debug? CRVIS: CR;
-
-  int outLen = 0;                        // output buffer length/position; passed back to APL.
-  INT4 codeLen= 0;                       // length/position in code buffer. Like outLen.
+                       
   int inPos;                             // fString's (input's) "current" position
   int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
   int oldState=NONE;                     // last state
@@ -294,13 +302,17 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
   int cfStart=0;                         // Note start of code field in input-- for "doc" processing.
 
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 
-//    self-doc CF. If so, we output the doc literal text and append the processed CF code.
-  const INT4 codeMax = outMax;
+//    self-doc CF. If so, we output the doc literal text and append the processed CF code:
+//          'code_text_verbatim_quoted' ("▶" | "▼") code_text_processed
+  buffer code;
+    code.len = 0;
+    code.max = out.max;
 #if USE_ALLOCA
-  WIDE *codeBuf = alloca( codeMax * sizeof(WIDE));  // Automatically freed...
+    code.buf = alloca(code.max * sizeof(WIDE));  // Automatically freed...
 #else 
-  WIDE *codeBuf = malloc( codeMax * sizeof(WIDE));  // Manually freed...
+    code.buf = malloc(code.max  * sizeof(WIDE));  // Manually freed...
 #endif
+
 
 // Code sequences...
 WIDE2 *mergeCd = extLib? MERGECD_EXT: MERGECD_INT;
@@ -308,7 +320,7 @@ WIDE2 *aboveCd = extLib? ABOVECD_EXT: ABOVECD_INT;
 WIDE2 *boxCd  =  extLib? BOXCD_EXT:   BOXCD_INT;
 WIDE2 *fmtCd  =  FMTCD_INT;
 WIDE2 *dispCd =  extLib? DISPCD_EXT:  DISPCD_INT;
-// Markers for self-doc code 
+// Markers for self-doc code. Drawback: the fancy markers are wider than std Dyalog characters. 
 WIDE2 *mergeMarker  = FANCY_MARKERS? u"▶": u"→"; 
 WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
