@@ -167,19 +167,19 @@ typedef struct {
 
 // Any attempt to add a number bigger than 99999 will result in an APL Domain Error.  
 // Used in routines to decode omegas: `⍵nnn, and so on.
-#define INDEX_ERR u"Omega index or space field width too large (>99999)"
-#define CODENUM_MAXDIG    5
-#define CODENUM_MAX   99999
-#define CodeNum(num) {\
-    char nstr[CODENUM_MAXDIG+1];\
+#define IX_ERR u"Omega index or space field width too large (>99999)"
+#define IX_MAXDIG    5
+#define IX_MAX   99999
+#define Ix2CodeBuf(num) {\
+    char nstr[IX_MAXDIG+1];\
     int  i;\
     int  tnum=num;\
-    if (tnum>CODENUM_MAX){\
-        ERROR(INDEX_ERR, 11);\
-        tnum=CODENUM_MAX;\
+    if (tnum>IX_MAX){\
+        ERROR(IX_ERR, 11);\
+        tnum=IX_MAX;\
     }\
-    snprintf(nstr, CODENUM_MAXDIG+1, "%d", tnum);\
-    for (i=0;  i<CODENUM_MAXDIG && nstr[i]; ++i){\
+    snprintf(nstr, IX_MAXDIG+1, "%d", tnum);\
+    for (i=0;  i<IX_MAXDIG && nstr[i]; ++i){\
         CodeCh((WIDE2)nstr[i]);\
     }\
 }
@@ -258,20 +258,20 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
 // END Self-documenting Code Handler  
 
 
-// Scan4OmegaIx(oIx): 
-//    Scanning input for digits, producing value for the name passed as oIx. 
+// Scan4Ix(destVar): 
+//    Scanning input for digits, producing value for the name passed as destVar. 
 //    At the same time, writes the digits to the code buffer.
-#define Scan4OmegaIx(oIx)\
+#define Scan4Ix(destVar)\
        CodeCh(CUR);\
        if (!isdigit(CUR))\
           ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
-       oIx=CUR-'0';\
+       destVar=CUR-'0';\
        for (++inPos; inPos<fStringLen && isdigit(CUR); ++inPos) {\
-          oIx = oIx * 10 + CUR-'0';\
+          destVar = destVar * 10 + CUR-'0';\
           CodeCh(CUR);\
        }\
-       if (oIx > CODENUM_MAX)\
-           ERROR(INDEX_ERR, 11);\
+       if (destVar > IX_MAX)\
+           ERROR(IX_ERR, 11);\
        --inPos;
 
 
@@ -377,7 +377,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             if (i < fStringLen && PEEK_AT(i) == RBR){  // Is a SF!
                 if (nspaces){   
                       CodeStr(u"(''⍴⍨");
-                      CodeNum(nspaces);
+                      Ix2CodeBuf(nspaces);
                       CodeCh(RPAR);
                       CodeOut;
                 }
@@ -468,16 +468,16 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           if (CUR == escCh) 
               ++inPos;                // Skip whatever was just matched (`⍵ or ⍹)
           if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
-            ++inPos; 
+            ++inPos;                  // Yes: `⍵NNN or ⍹NNN. 
             CodeStr(u"(⍵⊃⍨⎕IO+");
-            int omegaIx;
-            Scan4OmegaIx( omegaIx );
-            omegaNext = omegaIx; 
+            int ix;
+            Scan4Ix( ix );            // Read in the index NNN... 
+            omegaNext = ix;           // ... and set omegaNext.
             CodeCh(RPAR);
-          }else {
-            ++omegaNext;
-            CodeStr(u"(⍵⊃⍨⎕IO+");
-            CodeNum(omegaNext);
+          }else {                     // No: a bare `⍵ or ⍹ 
+            ++omegaNext;              // Increment omegaNext
+            CodeStr(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
+            Ix2CodeBuf(omegaNext);    // ...
             CodeCh(RPAR); 
           }
         }else {
