@@ -81,17 +81,21 @@
 ⍝H            'help' ∆F ignored                        Display help information
 ⍝H 
 ⍝H F-string and args:
-⍝H       first element: an f-string, a single character vector (see documentation below) 
+⍝H       first element: an f-string, a single character vector (see "∆F in Detail" below) 
 ⍝H       args:          (optional) elements, each of which can be accessed via 
 ⍝H                      `⍵1 (i.e. 1⊃⍵), `⍵2 (2⊃⍵), etc. 
 ⍝H                      `⍵ is the "next" argument. 
 ⍝H                      `⍵0 is the f-string itself.
 ⍝H        
 ⍝H Options:
-⍝H    Options:    ('Mode' [1*|0|¯1|¯2])('Debug' [1|0*]) ('EscCh' '`'*|'char')
-⍝H                ('UseNs' [1|0*]) ('ExtLib' [1*|0]) ('Force' [1|0*])
-⍝H    The default, if no options are presented, is: ('Mode' 1).
-⍝H    The default, if a single integer n is presented, is: ('Mode' n)
+⍝H    Options:     ( numeric | keyword )
+⍝H      numeric:   
+⍝H        ( 1* | 0 | ¯1 | ¯2 ) 
+⍝H      keyword:   
+⍝H        ('Mode' [1*|0|¯1|¯2])  ('Debug' [1|0*])  ('EscCh' '`'*|'char') 
+⍝H        ('UseNs' [1|0*])       ('ExtLib' [1*|0]) ('Force' [1|0*])
+⍝H    The default, if no options are presented, is: ('Mode' 1).           <== Use this in production!!!
+⍝H    The default, if a single integer n is presented, is: ('Mode' n)       
 ⍝H    * An asterisk indicates the default for each option.
 ⍝H 
 ⍝H    Options:
@@ -137,11 +141,12 @@
 ⍝H   ∘ If ⍺ is ⍬, generates a single 0-width line as output:  1 0⍴⍬.
 ⍝H   ∘ If ⍺ is 'help', returns a result of ⍬, after displaying help information.
 ⍝H 
+⍝H 
 ⍝H --------------
 ⍝H  ∆F IN DETAIL
 ⍝H --------------
 ⍝H 
-⍝H The first argument to ∆F is a character vector (or scalar), an ∆F string, which contains simple text, 
+⍝H The first argument to ∆F is a character vector (or scalar), an "∆F string", which contains simple text, 
 ⍝H along with run-time evaluated expressions delimited by curly braces {}. Each ∆F string is viewed
 ⍝H as containing one or more "fields," catenated left to right (without assumed spaces),
 ⍝H each of which will display as a logically separate character matrix. 
@@ -255,4 +260,42 @@
 ⍝H 0 0  0 1  0 2 
 ⍝H 1 0  1 1  1 2 
 ⍝H 2 0  2 1  2 2 
+⍝H
+⍝H ⍝ Use of ¯1 or ('Mode' ¯1) option: shows and demarcates each field left to right.
+⍝H      ¯1 ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H ┌───────────────────┬───┬──────┬─────┬──┐
+⍝H │                   │ 10│      │ 50.0│  │
+⍝H │The temperature is │ 30│°C or │ 86.0│°F│
+⍝H │                   │ 60│      │140.0│  │
+⍝H └───────────────────┴───┴──────┴─────┴──┘
+⍝H
+⍝H ⍝ Use of ¯2 or ('Mode' ¯2) option: shows and demarcates each field in tabular form.
+⍝H      ¯2 ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H ┌───────────────────┐
+⍝H │The temperature is │
+⍝H ├───────────────────┤
+⍝H │         10        │
+⍝H │         30        │
+⍝H │         60        │
+⍝H ├───────────────────┤
+⍝H │      °C or        │
+⍝H ├───────────────────┤
+⍝H │        50.0       │
+⍝H │        86.0       │
+⍝H │       140.0       │
+⍝H ├───────────────────┤
+⍝H │        °F         │
+⍝H └───────────────────┘
+⍝H
+⍝H ⍝ Performance of an ∆F-string evaluated on the fly via (1 ∆F ...) and precomputed via (0 ∆F ...): 
+⍝H   ⍝ Here's our ∆F String <t>
+⍝H     t←'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H   ⍝ Precompute a dfn T for ∆F String <t>.
+⍝H     T←0 ∆F t
+⍝H   ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
+⍝H     cmpx '∆F t' 'T ⍬'
+⍝H  ∆F t → 4.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝H  T ⍬  → 1.1E¯5 | -77% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
+⍝H
+
 
