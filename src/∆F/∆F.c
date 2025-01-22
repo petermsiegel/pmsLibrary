@@ -1,46 +1,53 @@
 /* fc: Uses 4-byte (32-bit) unicode chars throughout   
-   Name Assoc: (⎕EX '∆F' if reassociating existing fn)
-       '∆F' ⎕NA 'I4 ∆F.dylib|fc <I1[4] <I4   <C4[]    I4           >C4[]    =I4' 
-                 rc             opts   escCh fString  fStringLen   outBuf   outPLen
+   Name Assoc (in your namespace, ns):  
+       '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format4 <I1[4] <C4   <C4[]   I4         >C4[]  =I4' 
+       '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format2 <I1[4] <C4   <C2[]   I4         >C2[]  =I4'   
+                       rc                     opts   escCh fString fStringLen outBuf outLen*
+                                                                              * <max output, >actual output
    Compile with: 
-       cc -dynamiclib -O3 -o \#F4.dylib -D WIDTH=4 ∆F.c
-       cc -dynamiclib -O3 -o \#F2.dylib -D WIDTH=2 ∆F.c
-       cc -dynamiclib -o ∆F.dylib \#F4.dylib \#F2.dylib
-       rm \#F4.dylib \#F2.dylib 
-   Returns:  rc outBuf outPLen.  APL code does out← outPLen↑out
+       cc -O3 -c -o ∆F4.temp -D WIDTH=4 ∆F.c
+       cc -O3 -c -o ∆F2.temp -D WIDTH=2 ∆F.c
+       cc -dynamiclib -o ∆F.dylib ∆F4.temp ∆F2.temp
+       rm ∆F4.temp ∆F2.temp 
+   Returns: 
+       rc outBuf outLen.  
+   If rc≠¯1, APL code executes 
+       out← outLen↑outBuf
+   to get execute-ready code or (rc>0) the generated error message.
    rc=¯1:   output buffer not big enough for transformed fString.
             In this case, the output buffer is not examined (and may contain junk).
-            *outPLen=0;
-   rc> 0:   an error occurred. Return APL error number (e.g. 11: DOMAIN ERROR).
-            The error string is in outBuf, with length *outPLen.
+            outLen↑outBuf is a null string.
+   rc> 0:   an error occurred.  
+            rc is the APL error number (e.g. 11 for DOMAIN ERROR)
+            outLen↑outBuf is the error message.
    rc= 0:   all is well. 
-            The output buffer, outBuf, contains the transformed fString with length *outPLen.
-   Note: We don't end strings with 0 for <fString> or <outBuf>. 
-         As a Dyalog APL char vector, <fString> may validly contain 0 or any unicode char.
+            outLen↑outBuf is the execute-ready code, transformed from the f-string input.
+   Note: Strings fString and outBuf are never terminated with 0. 
+         They may validly contain 0 or any unicode char in any position.
 */
 
 // APL_LIB: Enter the name of the namespace housing the "library" fns 
-//          Code  Name   Descr
-//          [1]   M     merge ⍺⍵ or elements of ⍵; 
-//          %     A     ⍺ above ⍵; 
+//          Code  Name   Description
+//          --    M     merge ⍺⍵ or elements of ⍵; 
+//          %     A     combine ⍺ above ⍵; 
 //          $     ⎕FMT  Call Dyalog ⎕FMT (1- or 2-adic)
 //          $$    B     box [display] object ⍵, to its right; 
-//          [2]   D     display entire object generated.
-// Note [1]: 
+//          --    D     display entire object generated.
 #define APL_LIB    u"⎕SE.⍙F."
+
 // USE_ALLOCA: Use alloca to dynamically allocate codeBuf on thestack.
 //             Otherwise, use malloc.
 #define USE_ALLOCA 1
+
 // FANCY_MARKERS:  For displaying F-String Self Documenting Code {...→} plus {...↓} or {...%},
 //                 choose symbols  ▼ and ▶ if 1,  OR  ↓ and →, if 0.
 #define FANCY_MARKERS 1
-// 
 
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> 
 #include <ctype.h>
-#include <stdlib.h>  // for alloca and free...
+#include <stdlib.h>  // for alloca and also for free...
 
 // WIDE4 or WIDE2 -- width of input AND output chars...
 // Use -D to change WIDTH to 2:  -D WIDTH=2
@@ -57,12 +64,12 @@
 
 #define INT4   int32_t 
 
+// Specify code for library calls (internal: code included in result; external: calls a library in APL_LIB)
 #define LIB_CALL1(fn)       u" " APL_LIB fn u" "
-#define LIB_CALL2(pfx, fn)  pfx  APL_LIB fn u" "
-//        Join pseudo-primitive
+//       Join: pseudo-primitive, joins fields (possibly differently-shaped char arrays) left-to-right
 #define MERGECD_INT  u"{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵},"
 #define MERGECD_EXT  LIB_CALL1( u"M" )
-//       Over: field ⍺ is centered over field ⍵
+//       Over: center field ⍺ over field ⍵
 #define ABOVECD_INT  u"{⎕ML←1 ⋄ ⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
 #define ABOVECD_EXT  LIB_CALL1( u"A" )
 //       Box: Box item to its right
@@ -72,7 +79,7 @@
 #define FMTCD_INT    u" ⎕FMT "
 // dfn ¨disp¨, used as a prefix for LIST and TABLE modes. 
 #define DISPCD_INT   u"0∘⎕SE.Dyalog.Utils.disp" 
-#define DISPCD_EXT   LIB_CALL2( "0∘", u"D" )
+#define DISPCD_EXT   LIB_CALL1( u"D" )
 
 #define ALPHA  u'⍺'
 #define CR     u'\r'
@@ -109,8 +116,10 @@
 #define PEEK          PEEK_AT(inPos+1)
 /* END INPUT BUFFER ROUTINES */
 
-/* GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES */ 
-#define ADDBUF_GENERIC(str, strLen, grp, expandSq)  {\
+// GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES 
+// These expect grp##Buf, grp##Len, grp##Max to resolve to valid and appropriate objects,
+//    e.g. if grp is out, these resolve to outBuf outLen and outMax.
+#define ADDBUF(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
         if (grp##Len+len >= grp##Max) ERROR_SPACE;\
@@ -130,29 +139,30 @@
             }\
         }\
 }
-#define ADDCH_GENERIC(ch, grp) {\
+#define ADDCH(ch, grp) {\
       if (grp##Len+1 >= grp##Max) ERROR_SPACE;\
       grp##Buf[(grp##Len)++]= (WIDE) ch;\
 }
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
-#define OutBuf(str, len)    ADDBUF_GENERIC(str, len, out, 0)
-#define OutBufSq(str, len)  ADDBUF_GENERIC(str, len, out, 1)
+#define OutBuf(str, len)    ADDBUF(str, len, out, 0)
+#define OutBufSq(str, len)  ADDBUF(str, len, out, 1)
 #define OutStr(str)         OutBuf(str, Wide2Len((WIDE2 *) str))
-#define OutCh(ch)           ADDCH_GENERIC(ch, out)
-
+#define OutCh(ch)           ADDCH(ch, out)
 /* END OUTPUT BUFFER MANAGEMENT ROUTINES */
 
-/* Handle special code buffer. 
-   To transfer codeBuf to outBuf (and then "clear" it):
-     CodeOut
-*/
+// CODE BUFFER MANAGEMENT ROUTINES  
+// Handle special code buffer. 
+// To transfer codeBuf to outBuf (and then "clear" it):
+//    CodeOut
 #define CodeInit             codeLen=0
-#define CodeStr(str)         ADDBUF_GENERIC(str, Wide2Len((WIDE2 *)str), code, 0)  
-#define CodeCh(ch)           ADDCH_GENERIC(ch, code)
+#define CodeStr(str)         ADDBUF(str, Wide2Len((WIDE2 *)str), code, 0)  
+#define CodeCh(ch)           ADDCH(ch, code)
 #define CodeOut              {OutBuf(codeBuf, codeLen); CodeInit;} 
+// END CODE BUFFER MANAGEMENT ROUTINES  
 
-/* Any attempt to add a number bigger than 99999 will result in an APL Domain Error. */
+// Any attempt to add a number bigger than 99999 will result in an APL Domain Error.  
+// Used in routines to decode omegas: `⍵nnn, and so on.
 #define CODENUM_MAXDIG    5
 #define CODENUM_MAX   99999
 #define CodeNum(num) {\
@@ -168,47 +178,42 @@
         CodeCh((WIDE2)nstr[i]);\
     }\
 }
-/* End Handle Special code buffer */                  
 
-#define STRLEN_MAX  512  
 // Wide2Len(str)
 //   <str> is a null-terminated WIDE2 string.
 //   Returns the length of the string, sans the final null.
 //   If there is no final null, we will either abnormally terminate or 
-//   return a length of STRLEN_MAX.
+//   return a length of STRLEN_MAX. 
 static inline int Wide2Len(WIDE2 *str) {
     int len;
+    #define STRLEN_MAX  512
     for (len=0; len<STRLEN_MAX && str[len]; ++len)
         ;
     return len;
 }
 
-// Error handling  
-
+// Termination Code
 #if USE_ALLOCA
    #define RETURN(n)   *outPLen = outLen;\
                       return(n)
-#else
+#else /* using malloc/free */
    #define RETURN(n)   *outPLen = outLen;\
                       if (codeBuf) free(codeBuf);\
                       codeBuf = NULL;\
                       return(n)
 #endif 
-#define ERROR(str, err) { outLen=0;\
-                         OutStr(str); /* Replace outBuf with error code! */\
-                         RETURN(err);\
-                        } 
+
+// Error handling-- must be called within scope of main function below!
+#define ERROR(str, err) { outLen=0;  OutStr(str); RETURN(err); } 
 /* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */ 
-#define ERROR_SPACE     { outLen=0;\
-                         RETURN(-1);\
-                       }
+#define ERROR_SPACE     { outLen=0; RETURN(-1); }
 // End Error Handling  
 
 // STATE MANAGEMENT       
 #define NONE      0      // not in a field 
-#define TF       10      // in a text field 
-#define CF_START 20      // starting a cf
-#define CF       21      // in a code field or space field */
+#define TF        1      // in a text field 
+#define CF_START  2      // starting a cf
+#define CF        3      // in a code field or space field */
 #define STATE(new)  { oldState=state; state=new;}
 // End STATE MANAGEMENT 
 
@@ -428,8 +433,12 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
               }else{
                   int tcur=CUR;
                   if (tcur == escCh){
-                      if (PEEK == DMND) {
+                      int ch=PEEK; 
+                      if (ch == DMND) {
                           CodeCh(crOut);
+                          ++inPos;
+                      }else if (ch == escCh){
+                          CodeCh(escCh);
                           ++inPos;
                       }else {
                           CodeCh(escCh);
@@ -521,16 +530,20 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
   RETURN(0);  /* 0= all ok */
 }
 
+// get2lib: Returns a (null-terminated) character string containing the ⍙F library routines
+//          M, A, B, D (merge, above, box, display).
 #if WIDTH==2
-void get2lib( WIDE2 libStr[] ){
-    #define L1  u"M←{⎕ML←1 ⋄⍺←⊢⋄ ⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}⋄"
-    #define L2  u"A←{⎕ML←1 ⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}⋄"
-    #define L3  u"B←{⎕ML←1⋄1∘⎕SE.Dyalog.Utils.disp ,⍣(⊃0=⍴⍴⍵)⊢⍵}⋄"
-    #define L4  u"D←⎕SE.Dyalog.Utils.disp ⍝ OK"
-    #define CODE L1 L2 L3 L4 
+  void get2lib( WIDE2 libStr[] ){
+    #define EOS     u"⋄"
+    #define LIB1    u"M←" MERGECD_INT EOS
+    #define LIB2    u"A←" ABOVECD_INT EOS
+    #define LIB3    u"B←" BOXCD_INT   EOS 
+    #define LIB4    u"D←" DISPCD_INT  
+    WIDE2 code[] = LIB1 LIB2 LIB3 LIB4;
+    int len = Wide2Len(code)+1;
     int i;
-    for (i=0; i< Wide2Len(CODE)+1; ++i)
-         libStr[i] = CODE[i];
+    for (i=0; i< len; ++i)
+          libStr[i] = code[i];
 }
 #endif 
 
