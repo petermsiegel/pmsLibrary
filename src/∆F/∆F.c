@@ -109,43 +109,43 @@
 
 /* INPUT BUFFER ROUTINES */
 /* CUR... Return current char, w/o checking bounds */
-#define CUR_AT(ix)    fString[ix]
-#define CUR           CUR_AT(inPos)
-#define PEEK_AT(ix)   (((ix) < fStringLen)? fString[ix]: -1)
+#define CUR_AT(ix)    in.buf[ix]
+#define CUR           CUR_AT(in.cur)
+#define PEEK_AT(ix)   (((ix) < in.max)? in.buf[ix]: -1)
 /* PEEK... Return NEXT char, checking range bounds. If not, return -1 */
-#define PEEK          PEEK_AT(inPos+1)
+#define PEEK          PEEK_AT(in.cur+1)
 /* END INPUT BUFFER ROUTINES */
 
 // GENERIC OUTPUT BUFFER MANAGEMENT ROUTINES 
 typedef struct {
     WIDE *buf;
-    int   len;
+    int   cur;
     int   max;
 } buffer ;
 
 #define ADDBUF(str, strLen, grp, expandSq)  {\
         int len=strLen;\
         int ix;\
-        if (grp.len+len >= grp.max) ERROR_SPACE;\
+        if (grp.cur+len >= grp.max) ERROR_SPACE;\
         if (expandSq){   \
         /* SQ doubling: Slower path. */ \
-            for(ix=0; ix<len; (grp.len)++, ix++){\
-                grp.buf[grp.len]= (WIDE) str[ix];\
-                if (grp.buf[grp.len] == SQ) {\
-                    if (grp.len+1 >= grp.max) ERROR_SPACE;\
-                    grp.buf[++(grp.len)]= (WIDE) SQ;\
+            for(ix=0; ix<len; (grp.cur)++, ix++){\
+                grp.buf[grp.cur]= (WIDE) str[ix];\
+                if (grp.buf[grp.cur] == SQ) {\
+                    if (grp.cur+1 >= grp.max) ERROR_SPACE;\
+                    grp.buf[++(grp.cur)]= (WIDE) SQ;\
                 }\
             }\
         } else{\
          /* No SQ doubling: Faster path. */ \
             for(ix=0; ix<len; ){\
-                  grp.buf[(grp.len)++]= (WIDE) str[ix++];\
+                  grp.buf[(grp.cur)++]= (WIDE) str[ix++];\
             }\
         }\
 }
 #define ADDCH(ch, grp) {\
-      if (grp.len+1 >= grp.max) ERROR_SPACE;\
-      grp.buf[(grp.len)++]= (WIDE) ch;\
+      if (grp.cur+1 >= grp.max) ERROR_SPACE;\
+      grp.buf[(grp.cur)++]= (WIDE) ch;\
 } 
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -159,10 +159,10 @@ typedef struct {
 // Handle special code buffer. 
 // To transfer codeBuf to outBuf (and then "clear" it):
 //    CodeOut
-#define CodeInit             code.len=0
+#define CodeInit             code.cur=0
 #define CodeStr(str)         ADDBUF(str, Wide2Len((WIDE2 *)str), code, 0)  
 #define CodeCh(ch)           ADDCH(ch, code)
-#define CodeOut              {OutBuf(code.buf, code.len); CodeInit;} 
+#define CodeOut              {OutBuf(code.buf, code.cur); CodeInit;} 
 // END CODE BUFFER MANAGEMENT ROUTINES  
 
 // Any attempt to add a number bigger than 99999 will result in an APL Domain Error.  
@@ -199,19 +199,19 @@ static inline int Wide2Len(WIDE2 *str) {
 
 // Termination Code
 #if USE_ALLOCA
-   #define RETURN(rc)   *outPLen = out.len;\
+   #define RETURN(rc)   *outPLen = out.cur;\
                       return(rc)
 #else /* using malloc/free */
-   #define RETURN(rc)   *outPLen = out.len;\
+   #define RETURN(rc)   *outPLen = out.cur;\
                       if (code.buf) free(code.buf);\
                       code.buf = NULL;\
                       return(rc)
 #endif 
 
 // Error handling-- must be called within scope of main function below!
-#define ERROR(str, errno) { out.len=0;  OutStr(str); RETURN(errno); } 
+#define ERROR(str, errno) { out.cur=0;  OutStr(str); RETURN(errno); } 
 /* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */ 
-#define ERROR_SPACE     { out.len=0; RETURN(-1); }
+#define ERROR_SPACE     { out.cur=0; RETURN(-1); }
 // End Error Handling  
 
 // STATE MANAGEMENT       
@@ -222,12 +222,12 @@ static inline int Wide2Len(WIDE2 *str) {
 #define STATE(new)  { oldState=state; state=new;}
 // End STATE MANAGEMENT 
 
-static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
-    for (; inPos < fStringLen && SP == fString[inPos]; ++inPos)
+static inline INT4 afterBlanks( buffer *pIn, int cur ){
+    for ( ; cur < pIn->max && SP == pIn->buf[cur]; ++cur)
         ;
-    if (inPos>=fStringLen) 
+    if (cur >= pIn->max) 
         return -1;
-    return fString[inPos];  // -1 if beyond end  
+    return pIn->buf[cur];  // -1 if beyond end  
 }
 
 // Self-documenting Code Handler  
@@ -236,17 +236,17 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
 //      IfCodeDoc(merge)  // where merge has defined mergeCd and mergeMarker
 //      else {...}
 # define IfCodeDoc(marker, code) \
-    if (bracketDepth == 1 && RBR == afterBlanks(fString+1, fStringLen, inPos)){\
+    if (bracketDepth == 1 && RBR == afterBlanks( &in, in.cur+1 )){\
       int i, m;\
       OutCh(QT);\
-      for (i=cfStart; i< inPos; ++i) {\
-        OutCh( fString[i] );\
-        if (fString[i] == SQ)\
+      for (i=cfStart; i< in.cur; ++i) {\
+        OutCh( in.buf[i] );\
+        if (in.buf[i] == SQ)\
             OutCh(SQ);\
       }\
       OutStr(marker);\
       m = Wide2Len(marker);\
-      for (i=inPos+1; fString[i] == SP; ++i){\
+      for (i=in.cur+1; in.buf[i] == SP; ++i){\
           if (--m <= 0)\
              OutCh(SP);\
       }\
@@ -266,13 +266,13 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
        if (!isdigit(CUR))\
           ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
        destVar=CUR-'0';\
-       for (++inPos; inPos<fStringLen && isdigit(CUR); ++inPos) {\
+       for (++in.cur; in.cur< in.max && isdigit(CUR); ++in.cur) {\
           destVar = destVar * 10 + CUR-'0';\
           CodeCh(CUR);\
        }\
        if (destVar > IX_MAX)\
            ERROR(IX_ERR, 11);\
-       --inPos;
+       --in.cur;
 
 
 #if WIDTH==4 
@@ -284,17 +284,20 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
               WIDE fString[],     INT4 fStringLen, 
               WIDE outBuf[],      INT4 *outPLen
 ){ 
+   buffer in;
+      in.buf = fString;
+      in.max = fStringLen;
+      in.cur = 0;
    buffer out;
      out.buf = outBuf;
      out.max = *outPLen;
-     out.len = 0;                   // output buffer length/position; passed back to APL as *outPLen = out.len;
+     out.cur = 0;                   // output buffer length/position; passed back to APL as *outPLen = out.cur;
    int mode=  opts[0];              // See modes (MODE_...) above
    int debug= opts[1];              // debug (boolean) 
    int useNs= opts[2];              // If 1, pass an anon ns to each Code Fn.           
    int extLib=opts[3];              // If 0, pseudo-primitives are defined internally.
    WIDE crOut= debug? CRVIS: CR;
                        
-  int inPos;                             // fString's (input's) "current" position
   int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
   int oldState=NONE;                     // last state
   int bracketDepth=0;                    // finding } closing a field.
@@ -305,7 +308,7 @@ static inline INT4 afterBlanks(WIDE fString[], INT4 fStringLen, int inPos){
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code:
 //          'code_text_verbatim_quoted' ("▶" | "▼") code_text_processed
   buffer code;
-    code.len = 0;
+    code.cur = 0;
     code.max = out.max;
 #if USE_ALLOCA
     code.buf = alloca(code.max * sizeof(WIDE));  // Automatically freed...
@@ -349,7 +352,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       ERROR(u"Unknown mode option in left arg", 11);
   }
 
-  for (inPos = 0; inPos < fStringLen; ++inPos) {
+  for (in.cur = 0; in.cur < in.max; ++in.cur) {
     // Logic for changing state (NONE, CF_START)
       if (state == NONE){
           if  (CUR!= LBR) {
@@ -357,7 +360,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             OutCh(QT);
           }else {
             STATE(CF_START);
-            ++inPos;   // Move past the left brace
+            ++in.cur;   // Move past the left brace
           }
       }
       if (state == CF_START){
@@ -368,13 +371,13 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 OutCh(SP);
             }
           // cfStart marks start of code field (in case a self-documenting CF)
-            cfStart= inPos;             // If a space field, this is ignored.
+            cfStart= in.cur;             // If a space field, this is ignored.
           // Skip leading blanks in CF/SF code, though NOT in any associated document strings 
-            for (i=inPos; PEEK_AT(i) == SP; ++i){ 
-                ++nspaces, ++inPos;
+            for (i=in.cur; PEEK_AT(i) == SP; ++i){ 
+                ++nspaces, ++in.cur;
             }
           // See if we really have a SF: 0 or more (solely) blanks between matching braces.
-            if (i < fStringLen && PEEK_AT(i) == RBR){  // Is a SF!
+            if (i < in.max && PEEK_AT(i) == RBR){  // Is a SF!
                 if (nspaces){   
                       CodeStr(u"(''⍴⍨");
                       Ix2CodeBuf(nspaces);
@@ -395,7 +398,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       if (state == TF) {       // Text field 
           if (CUR == escCh){   // Check for escape chars
             WIDE ch= PEEK; 
-            ++inPos;
+            ++in.cur;
             if (ch == escCh){
                 OutCh(escCh);
             }else if (ch == LBR || ch == RBR){
@@ -403,7 +406,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             }else if (ch == DMND){
                 OutCh(crOut);
             }else{ 
-                --inPos; 
+                --in.cur; 
                 OutCh(CUR);
             } 
           } else if (CUR == LBR){
@@ -432,13 +435,13 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           int i;
           int tcur=CUR;
           CodeCh(SQ);
-          for (inPos++; inPos<fStringLen; ++inPos){ 
+          for (in.cur++; in.cur<in.max; ++in.cur){ 
               if (CUR == tcur){ 
                   if (PEEK == tcur) {
                       CodeCh(tcur);
                       if (tcur == SQ)
                           CodeCh(tcur);
-                      ++inPos;
+                      ++in.cur;
                   }else {
                       break;
                   }
@@ -448,10 +451,10 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                       int ch=PEEK; 
                       if (ch == DMND) {
                           CodeCh(crOut);
-                          ++inPos;
+                          ++in.cur;
                       }else if (ch == escCh){
                           CodeCh(escCh);
-                          ++inPos;
+                          ++in.cur;
                       }else {
                           CodeCh(escCh);
                       }
@@ -466,9 +469,9 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
         }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
         // we see ⍹ or `⍵ (where ` is the current escape char)
           if (CUR == escCh) 
-              ++inPos;                // Skip whatever was just matched (`⍵ or ⍹)
+              ++in.cur;                // Skip whatever was just matched (`⍵ or ⍹)
           if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
-            ++inPos;                  // Yes: `⍵NNN or ⍹NNN. 
+            ++in.cur;                  // Yes: `⍵NNN or ⍹NNN. 
             CodeStr(u"(⍵⊃⍨⎕IO+");
             int ix;
             Scan4Ix( ix );            // Read in the index NNN... 
@@ -487,9 +490,9 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                  CodeStr(fmtCd);
                }else {
                  CodeStr(boxCd);
-                 ++inPos;
+                 ++in.cur;
                }
-               for (; PEEK_AT(inPos+1) == DOL; ++inPos)
+               for (; PEEK_AT(in.cur+1) == DOL; ++in.cur)
                   ;
                break;
            case RTARO:   
@@ -508,7 +511,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 IfCodeDoc(aboveMarker, aboveCd)
                 else {
                   CodeStr(aboveCd);  
-                  for (; PEEK_AT(inPos+1) == PCT; ++inPos)
+                  for (; PEEK_AT(in.cur+1) == PCT; ++in.cur)
                     ;
                 }
                 break;
@@ -517,7 +520,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           }
         }
       }
-  } /* for (inPos...)*/
+  } /* for (in.cur...)*/
   if (state == TF) { 
       OutCh(QT);
       STATE(NONE);
@@ -532,7 +535,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
   if (mode == MODE_CODE){
       OutStr(u"⍵,⍨⍥⊆"); 
       OutCh(SQ);
-      OutBufSq(fString, fStringLen);
+      OutBufSq(in.buf, in.cur);
       OutCh(SQ);    
       OutCh(RBR);
   }else {
