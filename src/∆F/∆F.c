@@ -123,29 +123,29 @@ typedef struct {
     int   max;
 } buffer ;
 
-#define ADDBUF(str, strLen, grp, expandSq)  {\
+#define ADDBUF(str, strLen, buffer, expandSq)  {\
         int len=strLen;\
         int ix;\
-        if (grp.cur+len >= grp.max) ERROR_SPACE;\
+        if (buffer.cur+len >= buffer.max) ERROR_SPACE;\
         if (expandSq){   \
         /* SQ doubling: Slower path. */ \
-            for(ix=0; ix<len; (grp.cur)++, ix++){\
-                grp.buf[grp.cur]= (WIDE) str[ix];\
-                if (grp.buf[grp.cur] == SQ) {\
-                    if (grp.cur+1 >= grp.max) ERROR_SPACE;\
-                    grp.buf[++(grp.cur)]= (WIDE) SQ;\
+            for(ix=0; ix<len; (buffer.cur)++, ix++){\
+                buffer.buf[buffer.cur]= (WIDE) str[ix];\
+                if (buffer.buf[buffer.cur] == SQ) {\
+                    if (buffer.cur+1 >= buffer.max) ERROR_SPACE;\
+                    buffer.buf[++(buffer.cur)]= (WIDE) SQ;\
                 }\
             }\
         } else{\
          /* No SQ doubling: Faster path. */ \
             for(ix=0; ix<len; ){\
-                  grp.buf[(grp.cur)++]= (WIDE) str[ix++];\
+                  buffer.buf[(buffer.cur)++]= (WIDE) str[ix++];\
             }\
         }\
 }
-#define ADDCH(ch, grp) {\
-      if (grp.cur+1 >= grp.max) ERROR_SPACE;\
-      grp.buf[(grp.cur)++]= (WIDE) ch;\
+#define ADDCH(ch, buffer) {\
+      if (buffer.cur+1 >= buffer.max) ERROR_SPACE;\
+      buffer.buf[(buffer.cur)++]= (WIDE) ch;\
 } 
 
 /* OUTPUT BUFFER MANAGEMENT ROUTINES */
@@ -160,7 +160,7 @@ typedef struct {
 // To transfer codeBuf to outBuf (and then "clear" it):
 //    CodeOut
 #define CodeInit             code.cur=0
-#define CodeStr(str)         ADDBUF(str, Wide2Len((WIDE2 *)str), code, 0)  
+#define CodeStr(str)         ADDBUF(str, Wide2Len((WIDE2 *) str), code, 0)  
 #define CodeCh(ch)           ADDCH(ch, code)
 #define CodeOut              {OutBuf(code.buf, code.cur); CodeInit;} 
 // END CODE BUFFER MANAGEMENT ROUTINES  
@@ -306,7 +306,7 @@ static inline INT4 afterBlanks( buffer *pIn, int cur ){
 
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code:
-//          'code_text_verbatim_quoted' ("▶" | "▼") code_text_processed
+//          'code_text_verbatim_quoted' ("▷" | "▽") code_text_processed
   buffer code;
     code.cur = 0;
     code.max = out.max;
@@ -324,8 +324,8 @@ WIDE2 *boxCd  =  extLib? BOXCD_EXT:   BOXCD_INT;
 WIDE2 *fmtCd  =  FMTCD_INT;
 WIDE2 *dispCd =  extLib? DISPCD_EXT:  DISPCD_INT;
 // Markers for self-doc code. Drawback: the fancy markers are wider than std Dyalog characters. 
-WIDE2 *mergeMarker  = FANCY_MARKERS? u"▶": u"→"; 
-WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
+WIDE2 *mergeMarker  = FANCY_MARKERS? u"▷": u"→"; 
+WIDE2 *aboveMarker  = FANCY_MARKERS? u"▽": u"↓";
 
 // Preamble code string...
   OutCh(LBR); 
