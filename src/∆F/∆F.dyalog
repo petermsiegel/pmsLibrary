@@ -232,15 +232,15 @@
 ⍝H ⍝ "Horizontal" self-documenting code fields (each field to the left of the next).
 ⍝H     name←'John Smith' ⋄ age← 34
 ⍝H     ∆F 'Current employee: {name→} {age→}.'
-⍝H Current employee: name▷John Smith age▷34.
+⍝H Current employee: name▶John Smith age▶34.
 ⍝H
 ⍝H ⍝ Note that spaces next to self-documenting codes (→ or ↓) are honoured in the output:
 ⍝H     ∆F 'Current employee: {name → } {age → }.'
-⍝H Current employee: name ▷ John Smith age ▷ 34.
+⍝H Current employee: name ▶ John Smith age ▶ 34.
 ⍝H 
 ⍝H ⍝ "Vertical" self-documenting code fields (one centered over the other)
 ⍝H     ∆F 'Current employee: {name↓} {age↓}.'
-⍝H Current employee:   name▽    age▽.
+⍝H Current employee:   name▼    age▼.
 ⍝H                   John Smith  34 
 ⍝H 
 ⍝H ⍝ Displaying one expression above another 
