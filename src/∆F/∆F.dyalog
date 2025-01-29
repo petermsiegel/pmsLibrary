@@ -13,10 +13,11 @@
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
       :With '⍙F' ⎕SE.⎕NS ⍬
           ⍝ Load C F-string routines (two versions, for 4-byte chars and 2-byte chars)
-            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[4] C4 <C4[] I4  >C4[]   =I4' 
-            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[4] C4 <C2[] I4  >C2[]   =I4'
+          ⍝ At 16 bits, the <#C2 and >#C2 ⎕NA format allows strings up to 64K bytes.
+            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[5] C4 <#C4[] >#C4[] I4' 
+            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[5] C4 <#C2[] >#C2[] I4'
           ⍝ Load the source code for the run-time library routines: A, B, D, M
-          ⍝ Load APL run-time routines into ⎕SE.⍙F. The buffer requires 170 2-byte chars.
+          ⍝ GetLib bufSize, where bufSize must be at least 170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
       :EndWith 
   :Endif  
@@ -28,8 +29,8 @@
 
     ⍝ Options (⍺)
       GetOpts← {  
-          optK← 'Mode' 'Debug' 'EscCh' 'UseNs' 'ExtLib' 
-          optV←  1      0       '`'     0       1         ⍝ <== option default values 
+          optK← 'Mode' 'Debug' 'Box' 'EscCh' 'UseNs' 'ExtLib' 
+          optV←  1      0       0     '`'     0       1         ⍝ <== option default values 
         0=≢⍵: optV ⋄ (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
           nK nV← ↓⍉↑ ,⊂⍣(2= |≡⍵)⊢ ⍵ 
@@ -37,11 +38,12 @@
         p∧.< ≢optK: nV@p⊣ optV 
           11 ⎕SIGNAL⍨ 'Unknown option(s):',∊' ',¨ nK/⍨ p≥≢optK 
       }
-      mode debug escCh useNs extLib← GetOpts ⍺
+      mode debug box escCh useNs extLib← GetOpts ⍺
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh       ⍝ Allow escCh as a Unicode numeric code
 
       DebugNote← {debug=0: ⍵ ⋄ ⊢⎕←⍵} 
-      Exec← (320= ⎕DR⊃⍵) ⎕SE.⍙F.{ ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ ⋄ ∆F2 ⍵⍵, ⍵ ⍵} (mode debug useNs extLib) escCh (⊃⍵) (≢⊃⍵) 
+      ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA...
+      Exec← (320= ⎕DR⊃⍵) ⎕SE.⍙F.{ ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ ⋄ ∆F2 ⍵⍵, ⍵ ⍵} (mode debug box useNs extLib) escCh (⊃⍵) 
       Call∆F←  { max← ⍵
         res← Exec max     
         ¯1≠⊃res: res max ⋄ ⍺≤0: res max ⋄ max2← 2×max
@@ -49,10 +51,10 @@
       }  
     
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-      (rc res lenRes) maxOut← maxTries Call∆F maxOut0 
+      (rc res) maxOut← maxTries Call∆F maxOut0 
       
-    0= rc:  (mode≠0) (DebugNote lenRes↑ res)
-   ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', lenRes↑res 
+    0= rc:  (mode≠0) (DebugNote res)
+   ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
       Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxOut        
   } ∆FⒻ← ,⊆∆FⒻ  
@@ -92,8 +94,9 @@
 ⍝H      numeric:   
 ⍝H        ( 1* | 0 | ¯1 | ¯2 ) 
 ⍝H      keyword:   
-⍝H        ('Mode' [1*|0|¯1|¯2])  ('Debug' [1|0*])  ('EscCh' '`'*|'char') 
+⍝H        ('Mode' [1*|0|¯1|¯2])  ('Debug' [1|0*])  ('Box' [1|0*])   
 ⍝H        ('UseNs' [1|0*])       ('ExtLib' [1*|0]) ('Force' [1|0*])
+⍝H        ('EscCh' '`'*|'char') 
 ⍝H    The default, if no options are presented, is: ('Mode' 1).           <== Use this in production!!!
 ⍝H    The default, if a single integer n is presented, is: ('Mode' n)       
 ⍝H    * An asterisk indicates the default for each option.
@@ -109,8 +112,13 @@
 ⍝H                  separately in a "table", one field above the other, using dfns ¨disp¨.
 ⍝H       Debug: If 1*, carriage returns (via '`⋄' or directly) are replaced by a visible rep: ␍
 ⍝H                In addition, the intended executable is displayed before execution.
-⍝H       EscCh  A single "escape" character (defaults to '`') or its unicode (⎕UCS) 
-⍝H              numeric equivalent (96 is equivalent to '`').  
+⍝H       Box:   If 0*, display all fields as is.
+⍝H              If 1,  display each field* of the result in a simple box.
+⍝H                     * Null (0-width) space fields are omitted from the Box display.
+⍝H              Using $$ (BELOW), you can box an individual code field (but not a text or space field).  
+⍝H       EscCh  A single "escape" character or its Unicode equivalent. See "escape characters" below.
+⍝H              Defaults to '`' (or, equivalently, 96).  
+⍝H              Best NEVER to use a quote or brace as the escape character.
 ⍝H       UseNs:
 ⍝H          ∘ If 1, a common anonymous namespace will be passed to every code field as ⍺.
 ⍝H          ∘ Since code fields are executed R-to-L, the first one to see the namespace
@@ -152,10 +160,9 @@
 ⍝H each of which will display as a logically separate character matrix. 
 ⍝H 
 ⍝H ∆F-string text fields (expressions) may include:
-⍝H   ∘ escape characters (e.g. representing newlines or escape characters themselves); 
-⍝H   ∘ any Unicode characters 
+⍝H   ∘ escape characters (e.g. representing newlines,escape characters and braces as text).
 ⍝H ∆F-string code fields (expressions) may include: 
-⍝H   ∘ escape characters (e.g. representing newlines or escape characters themselves); 
+⍝H   ∘ escape characters (e.g. representing newlines,escape characters and braces as text);
 ⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables;
 ⍝H   ∘ the ability to display arbitrary objects, one above another;
 ⍝H   ∘ shortcuts for displaying boxed output; finally,
@@ -165,9 +172,9 @@
 ⍝H ∆F-strings include space fields:
 ⍝H   ∘ which separate other fields with rectangular elements that are 0 or more spaces wide. 
 ⍝H 
-⍝H The syntax of ∆F Strings is as follows, where ` represents the default escape character:
+⍝H The syntax of ∆F Strings is as follows, where ` represents the escape character:
 ⍝H   ∆F_String         ::=  (Text_Field | Code_Field | Space_Field)*
-⍝H   Text_Field        ::=  (literal_char | "`⋄" "``" | "`{" | "`}" )
+⍝H   Text_Field        ::=  (literal_char | "`⋄" | "``" | "`{" | "`}" )
 ⍝H   Code_Field        ::=  "{" (Fmt | Above | Box | Code )+ (Self_Documenting) "}"
 ⍝H   Space_Field       ::=  "{"  <0 or more spaces> "}"
 ⍝H 
@@ -189,7 +196,7 @@
 ⍝H     ∆F "His name is {name}."
 ⍝H     His name is Fred.
 ⍝H 
-⍝H ⍝ Some multi-line text fields separated by space fields
+⍝H ⍝ Some multi-line text fields separated by non-null space fields
 ⍝H     ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
 ⍝H This    Of         Text  
 ⍝H is      multi-line Fields
@@ -210,24 +217,24 @@
 ⍝H     
 ⍝H ⍝ A slightly more interesting code expression
 ⍝H     C← 10 30 60
-⍝H     ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H The temperature is  10°C or  50.0°F
-⍝H                     30       86.0  
-⍝H                     60      140.0 
+⍝H     ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H The temperature is 10°C or  50.0°F
+⍝H                    30       86.0  
+⍝H                    60      140.0 
 ⍝H                     
 ⍝H ⍝ Using an outside expression
 ⍝H     C← 10 30 60
 ⍝H     C2F← { 32+9×⍵÷5}
-⍝H     ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ C2F C}°F'
-⍝H The temperature is  10°C or  50.0°F
-⍝H                     30       86.0  
-⍝H                     60      140.0 
+⍝H     ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
+⍝H The temperature is 10°C or  50.0°F
+⍝H                    30       86.0  
+⍝H                    60      140.0 
 ⍝H 
 ⍝H ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), given ⎕IO←0)
-⍝H     ∆F'The temperature is {"I3" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (10 15 20)
-⍝H The temperature is  10°C or  50.0°F
-⍝H                     15       59.0  
-⍝H                     20       68.0 
+⍝H     ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (10 15 20)
+⍝H The temperature is 10°C or  50.0°F
+⍝H                    15       59.0  
+⍝H                    20       68.0 
 ⍝H 
 ⍝H ⍝ "Horizontal" self-documenting code fields (each field to the left of the next).
 ⍝H     name←'John Smith' ⋄ age← 34
@@ -261,16 +268,16 @@
 ⍝H 1 0  1 1  1 2 
 ⍝H 2 0  2 1  2 2 
 ⍝H
-⍝H ⍝ Use of ¯1 or ('Mode' ¯1) option: shows and demarcates each field left to right.
-⍝H      ¯1 ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H ┌───────────────────┬───┬──────┬─────┬──┐
-⍝H │                   │ 10│      │ 50.0│  │
-⍝H │The temperature is │ 30│°C or │ 86.0│°F│
-⍝H │                   │ 60│      │140.0│  │
-⍝H └───────────────────┴───┴──────┴─────┴──┘
+⍝H ⍝ Use of ¯1 or ('Mode' ¯1) option: shows and demarcates each field (boxed) left to right.
+⍝H      ¯1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H ┌───────────────────┬──┬──────┬─────┬──┐
+⍝H │                   │10│      │ 50.0│  │
+⍝H │The temperature is │30│°C or │ 86.0│°F│
+⍝H │                   │60│      │140.0│  │
+⍝H └───────────────────┴──┴──────┴─────┴──┘
 ⍝H
-⍝H ⍝ Use of ¯2 or ('Mode' ¯2) option: shows and demarcates each field in tabular form.
-⍝H      ¯2 ∆F'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H ⍝ Use of ¯2 or ('Mode' ¯2) option: shows and demarcates each field (boxed) in tabular form.
+⍝H      ¯2 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝H ┌───────────────────┐
 ⍝H │The temperature is │
 ⍝H ├───────────────────┤
@@ -289,7 +296,7 @@
 ⍝H
 ⍝H ⍝ Performance of an ∆F-string evaluated on the fly via (1 ∆F ...) and precomputed via (0 ∆F ...): 
 ⍝H   ⍝ Here's our ∆F String <t>
-⍝H     t←'The temperature is {"I3" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝H     t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝H   ⍝ Precompute a dfn T for ∆F String <t>.
 ⍝H     T←0 ∆F t
 ⍝H   ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
