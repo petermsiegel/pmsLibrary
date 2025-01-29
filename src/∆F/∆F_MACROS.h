@@ -154,11 +154,10 @@ typedef struct {
 
 // Self-documenting Code Handler  
 // Be sure <type> has any internal quotes doubled, as needed.
-//Usage:
-//      IfCodeDoc(merge)  // where merge has defined mergeCd and mergeMarker
-//      else {...}
-# define IfCodeDoc(marker, codeStr) \
-    if (bracketDepth == 1 && RBR == afterBlanks( &in, in.cur+1 )){\
+// if IsCodeDoc() { ProcCodeDoc(marker, codeStr) ;}...
+# define IsCodeDoc() \
+      bracketDepth == 1 && RBR == CharAfterBlanks( &in, in.cur+1 )
+# define ProcCodeDoc(marker, codeStr){\
       int m;\
       OutCh(QT);\
       for (int i=cfStart; i< in.cur; ++i) {\
@@ -197,4 +196,4 @@ typedef struct {
        --in.cur;
 
 static inline int Wide2Len(WIDE2 *str);
-static inline INT4 afterBlanks( buffer *pIn, int cur );
+static inline INT4 CharAfterBlanks( buffer *pIn, int cur );

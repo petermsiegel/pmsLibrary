@@ -287,20 +287,23 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                   ;
                break;
            case RTARO:   
-                IfCodeDoc(mergeMarker, mergeCd)
-                else {
+                if (IsCodeDoc()) {
+                  ProcCodeDoc(mergeMarker, mergeCd);
+                }else {
                   CodeCh(CUR);
                 }
                 break;
             case DNARO:
-                IfCodeDoc(aboveMarker, aboveCd)
-                else {
+                if (IsCodeDoc()) {
+                  ProcCodeDoc(aboveMarker, aboveCd);
+                } else {
                   CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
-                IfCodeDoc(aboveMarker, aboveCd)
-                else {
+                if (IsCodeDoc()) {
+                   ProcCodeDoc(aboveMarker, aboveCd);
+                } else {
                   CodeStr(aboveCd);  
                   for (; PEEK_AT(in.cur+1) == PCT; ++in.cur)
                     ;
@@ -351,7 +354,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 }
 #endif 
 
-static inline INT4 afterBlanks( buffer *pIn, int cur ){
+static inline INT4 CharAfterBlanks( buffer *pIn, int cur ){
     for ( ; cur < pIn->max && SP == pIn->buf[cur]; ++cur)
         ;
     if (cur >= pIn->max) 
