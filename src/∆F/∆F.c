@@ -2,7 +2,7 @@
    Name Assoc (in your namespace, ns):  
        '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format4 <I1[4] <C4   <#C4[]  >#C4[]  I4' 
        '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format2 <I1[4] <C4   <#C2[]  >#C2[]  I4'   
-                       rc                     opts   escCh fString codeString outLen
+                       rc                     opts   escCh fStrIn cStrOut outLen
                                                                               * <max output, >actual output
    Compile with: 
        cc -O3 -c -o ∆F4.temp -D WIDTH=4 ∆F.c
@@ -10,18 +10,18 @@
        cc -dynamiclib -o ∆F.dylib ∆F4.temp ∆F2.temp
        rm ∆F4.temp ∆F2.temp 
    Returns: 
-       rc codeString, where codeString contains its length ( >#C2 or >#C4 ⎕NA format)
-   If rc≠¯1, APL code is in codeString.
+       rc cStrOut, where cStrOut contains its length ( >#C2 or >#C4 ⎕NA format)
+   If rc≠¯1, APL code is in cStrOut.
    to get execute-ready code or (rc>0) the generated error message.
-   rc=¯1:   output buffer not big enough for transformed fString.
+   rc=¯1:   output buffer not big enough for transformed fStrIn.
             In this case, the output buffer is not examined (and may contain junk).
-            codeString is a null string.
+            cStrOut is a null string.
    rc> 0:   an error occurred.  
             rc is the APL error number (e.g. 11 for DOMAIN ERROR)
-            codeString is the error message.
+            cStrOut is the error message.
    rc= 0:   all is well. 
-            codeString is the execute-ready code, transformed from the f-string input.
-   Note: Strings fString and codeString are never terminated with 0. 
+            cStrOut is the execute-ready code, transformed from the f-string input.
+   Note: Strings fStrIn and cStrOut are never terminated with 0. 
          They may validly contain 0 or any unicode char in any position.
 */
 
@@ -70,7 +70,7 @@
       int fs_format2(
 #endif 
               const char opts[5], const WIDE4 escCh, 
-              lpString *fString, lpString *codeString, uint32_t outMax
+              lpString *fStrIn, lpString *cStrOut, uint32_t outMax
 ){ 
    int mode=   opts[0];             // See modes (MODE_...) above
    int debug=  opts[1];             // debug (boolean) 
@@ -86,13 +86,13 @@
   int cfStart=0;                         // Note start of code field in input-- for "doc" processing.
 
   buffer in;
-    in.buf = fString->buf;
-    in.max = fString->len;
+    in.buf = fStrIn->buf;
+    in.max = fStrIn->len;
     in.cur = 0;
   buffer out;
-    out.buf = codeString->buf;
+    out.buf = cStrOut->buf;
     out.max = outMax;
-    out.cur = 0;                   // output buffer length/position; passed back to APL as codeString->len = out.cur;
+    out.cur = 0;                   // output buffer length/position; passed back to APL as cStrOut->len = out.cur;
 // Code buffer-- allows us to set aside generated code field (CF) code to the end, in case its a 
 //    self-doc CF. If so, we output the doc literal text and append the processed CF code:
 //          'code_text_verbatim_quoted' ("▶" | "▼") code_text_processed
@@ -118,26 +118,26 @@ WIDE2 *mergeMarker  = FANCY_MARKERS? u"▶": u"→";
 WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
 // Preamble code string...
-  OutCh(LBR); 
+  OutC(LBR); 
   if (useNs) 
-     OutStr(u"⍺←⎕NS⍬⋄");
+     OutSC(u"⍺←⎕NS⍬⋄");
 
   switch(mode){
     case MODE_STD:
-      OutStr( boxAll? dispCd: mergeCd );
+      OutS( boxAll? dispCd: mergeCd );
       break;
     case MODE_LIST:
-      OutStr(dispCd);
+      OutS(dispCd);
       break;
     case MODE_TABLE:
-      OutStr(dispCd);
-      OutCh(u'⍪');
+      OutS(dispCd);
+      OutC(u'⍪');
       break;
     case MODE_CODE:
-      OutStr( boxAll? dispCd: mergeCd );
+      OutS( boxAll? dispCd: mergeCd );
       if (useNs)
-         OutCh(ALPHA);
-      OutCh(LBR);
+         OutC(ALPHA);
+      OutC(LBR);
       break;
     default:
       ERROR(u"Unknown mode option in left arg", 11);
@@ -148,7 +148,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       if (state == NONE){
           if  (CUR!= LBR) {
             STATE(TF); 
-            OutCh(QT);
+            OutC(QT);
           }else {
             STATE(CF_START);
             ++in.cur;   // Move past the left brace
@@ -158,8 +158,8 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             int i;
             int nspaces=0;
             if (oldState == TF){  // Terminate existing TF
-                OutCh(QT); 
-                OutCh(SP);
+                OutC(QT); 
+                OutC(SP);
             }
           // cfStart marks start of code field (in case a self-documenting CF)
             cfStart= in.cur;             // If a space field, this is ignored.
@@ -170,9 +170,9 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           // See if we really have a SF: 0 or more (solely) blanks between matching braces.
             if (i < in.max && PEEK_AT(i) == RBR){  // Is a SF!
                 if (nspaces){   
-                      CodeStr(u"(''⍴⍨");
+                      CodeSC(u"(''⍴⍨");
                       Ix2CodeBuf(nspaces);
-                      CodeCh(RPAR);
+                      CodeC(RPAR);
                       CodeOut;
                 }
                 STATE(NONE);    // Set state to NONE: SF is complete !
@@ -180,9 +180,9 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 STATE(CF);
                 bracketDepth=1;
                 if (useNs)
-                   OutStr(u"(⍺{")
+                   OutSC(u"(⍺{")
                 else 
-                   OutStr(u"({"); 
+                   OutSC(u"({"); 
                 CodeInit;      // Ready to write code buffer (doesn't change output buffer).
             }
       }  
@@ -191,47 +191,47 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             WIDE ch= PEEK; 
             ++in.cur;
             if (ch == escCh){
-                OutCh(escCh);
+                OutC(escCh);
             }else if (ch == LBR || ch == RBR){
-                OutCh(ch);
+                OutC(ch);
             }else if (ch == DMND){
-                OutCh(crOut);
+                OutC(crOut);
             }else{ 
                 --in.cur; 
-                OutCh(CUR);
+                OutC(CUR);
             } 
           } else if (CUR == LBR){
             STATE(CF_START);     // TF will end at (state == CF_START) above.
           } else {
-            OutCh(CUR);
+            OutC(CUR);
             if (CUR == QT)       // Double internal quotes per APL
-              OutCh(QT); 
+              OutC(QT); 
           }          
       }
       if (state == CF){          // Code field 
         if (CUR == RBR) {
             --bracketDepth;
             if (bracketDepth > 0) {
-               CodeCh(CUR);
+               CodeC(CUR);
             }else {            // Terminating right brace: Ending Code Field!
               CodeOut;
-              OutStr(u"}⍵)");
+              OutSC(u"}⍵)");
               bracketDepth=0;
               STATE(NONE);
             }
         }else if (CUR == LBR) {
           ++bracketDepth;
-          CodeCh(CUR);
+          CodeC(CUR);
         }else if (CUR == SQ || CUR == DQ){
           int i;
           int tcur=CUR;
-          CodeCh(SQ);
+          CodeC(SQ);
           for (in.cur++; in.cur<in.max; ++in.cur){ 
               if (CUR == tcur){ 
                   if (PEEK == tcur) {
-                      CodeCh(tcur);
+                      CodeC(tcur);
                       if (tcur == SQ)
-                          CodeCh(tcur);
+                          CodeC(tcur);
                       ++in.cur;
                   }else {
                       break;
@@ -241,46 +241,46 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                   if (tcur == escCh){
                       int ch=PEEK; 
                       if (ch == DMND) {
-                          CodeCh(crOut);
+                          CodeC(crOut);
                           ++in.cur;
                       }else if (ch == escCh){
-                          CodeCh(escCh);
+                          CodeC(escCh);
                           ++in.cur;
                       }else {
-                          CodeCh(escCh);
+                          CodeC(escCh);
                       }
                   }else { 
-                      CodeCh(tcur);
+                      CodeC(tcur);
                       if (tcur == SQ)
-                          CodeCh(tcur);
+                          CodeC(tcur);
                   }
               }
           }
-          CodeCh(SQ);
+          CodeC(SQ);
         }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
         // we see ⍹ or `⍵ (where ` is the current escape char)
           if (CUR == escCh) 
               ++in.cur;                // Skip whatever was just matched (`⍵ or ⍹)
           if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
             ++in.cur;                  // Yes: `⍵NNN or ⍹NNN. 
-            CodeStr(u"(⍵⊃⍨⎕IO+");
+            CodeSC(u"(⍵⊃⍨⎕IO+");
             int ix;
             Scan4Ix( ix );            // Read in the index NNN... 
             omegaNext = ix;           // ... and set omegaNext.
-            CodeCh(RPAR);
+            CodeC(RPAR);
           }else {                     // No: a bare `⍵ or ⍹ 
             ++omegaNext;              // Increment omegaNext
-            CodeStr(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
+            CodeSC(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
             Ix2CodeBuf(omegaNext);    // ...
-            CodeCh(RPAR); 
+            CodeC(RPAR); 
           }
         }else {
           switch(CUR) {
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
                if (PEEK!=DOL){
-                 CodeStr(fmtCd);
+                 CodeS(fmtCd);
                }else {
-                 CodeStr(boxCd);
+                 CodeS(boxCd);
                  ++in.cur;
                }
                for (; PEEK_AT(in.cur+1) == DOL; ++in.cur)
@@ -290,50 +290,50 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 if (IsCodeDoc()) {
                   ProcCodeDoc(mergeMarker, mergeCd);
                 }else {
-                  CodeCh(CUR);
+                  CodeC(CUR);
                 }
                 break;
             case DNARO:
                 if (IsCodeDoc()) {
                   ProcCodeDoc(aboveMarker, aboveCd);
                 } else {
-                  CodeCh(CUR);
+                  CodeC(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
                 if (IsCodeDoc()) {
                    ProcCodeDoc(aboveMarker, aboveCd);
                 } else {
-                  CodeStr(aboveCd);  
+                  CodeS(aboveCd);  
                   for (; PEEK_AT(in.cur+1) == PCT; ++in.cur)
                     ;
                 }
                 break;
             default:
-                CodeCh(CUR); /* Catchall */
+                CodeC(CUR); /* Catchall */
           }
         }
       }
   } /* for (in.cur...)*/
   if (state == TF) { 
-      OutCh(QT);
+      OutC(QT);
       STATE(NONE);
   }else if (state != NONE){
       ERROR(u"Code or Space Field was not terminated properly", 11);
   }
 
   // Postamble Code String
-  OutStr(u"⍬}");
-  //   Mode 0: extra code because we need to input the format string (fString) 
+  OutSC(u"⍬}");
+  //   Mode 0: extra code because we need to input the format string (fStrIn) 
   //           into the resulting function (see ∆F.dyalog).
   if (mode == MODE_CODE){
-      OutStr(u"⍵,⍨⍥⊆"); 
-      OutCh(SQ);
+      OutSC(u"⍵,⍨⍥⊆"); 
+      OutC(SQ);
       OutBufSq(in.buf, in.cur);
-      OutCh(SQ);    
-      OutCh(RBR);
+      OutC(SQ);    
+      OutC(RBR);
   }else {
-      OutCh(OMG);
+      OutC(OMG);
   }
 
   RETURN(0);  /* 0= all ok */
@@ -354,7 +354,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 }
 #endif 
 
-static inline INT4 CharAfterBlanks( buffer *pIn, int cur ){
+static inline WIDE CharAfterBlanks( buffer *pIn, int cur ){
     for ( ; cur < pIn->max && SP == pIn->buf[cur]; ++cur)
         ;
     if (cur >= pIn->max) 
@@ -362,12 +362,12 @@ static inline INT4 CharAfterBlanks( buffer *pIn, int cur ){
     return pIn->buf[cur];  // -1 if beyond end  
 }
 
-// Wide2Len(str)
+// S2Len(str)
 //   <str> is a null-terminated WIDE2 string.
 //   Returns the length of the string, sans the final null.
 //   If there is no final null, we will either abnormally terminate or 
 //   return a length of STRLEN_MAX. 
-static inline int Wide2Len(WIDE2 *str) {
+static inline int S2Len(WIDE2 *str) {
     int len;
     #define STRLEN_MAX  512
     for (len=0; len<STRLEN_MAX && str[len]; ++len)

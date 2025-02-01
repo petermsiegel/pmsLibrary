@@ -1,22 +1,22 @@
 // Specify code for library calls (internal: code included in result; external: calls a library in APL_LIB)
-#define EOS     u"⋄"
-#define LIB_CALL1(fn)       u" " APL_LIB fn u" "
+#define EOS            u"⋄"
+#define LIB_CALL(fn)  u" " APL_LIB fn u" "
 //       Join: pseudo-primitive, joins fields (possibly differently-shaped char arrays) left-to-right
-#define MERGECD_INT  u"{⎕ML←1⋄⍺←⊢⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
-#define MERGECD_EXT  LIB_CALL1( u"M" )
+#define MERGECD_INT    u"{⎕ML←1⋄⍺←⊢⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
+#define MERGECD_EXT    LIB_CALL( u"M" )
 //       Over: center field ⍺ over field ⍵
-#define ABOVECD_INT  u"{⎕ML←1⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
-#define ABOVECD_EXT  LIB_CALL1( u"A" )
+#define ABOVECD_INT    u"{⎕ML←1⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
+#define ABOVECD_EXT    LIB_CALL( u"A" )
 // Box
-#define DISPCD       u"0∘⎕SE.Dyalog.Utils.disp"
+#define DISPCD         u"0∘⎕SE.Dyalog.Utils.disp"
 //       Box: Box item to its right
-#define BOXCD_INT    u"{⎕ML←1" EOS DISPCD u",⍣(⊃0=⍴⍴⍵)⊢⍵}"
-#define BOXCD_EXT    LIB_CALL1( u"B" )
+#define BOXCD_INT      u"{⎕ML←1" EOS DISPCD u",⍣(⊃0=⍴⍴⍵)⊢⍵}"
+#define BOXCD_EXT      LIB_CALL( u"B" )
 //       ⎕FMT: Formatting (dyadic)
-#define FMTCD_INT    u" ⎕FMT "
+#define FMTCD_INT      u" ⎕FMT "
 // dfn ¨disp¨, used as a prefix for LIST and TABLE modes and with BOX option. 
-#define DISPCD_INT   DISPCD u"¯1∘↓" 
-#define DISPCD_EXT   LIB_CALL1( u"D" )
+#define DISPCD_INT     DISPCD u"¯1∘↓" 
+#define DISPCD_EXT     LIB_CALL( u"D" )
 
 #define ALPHA  u'⍺'
 #define CR     u'\r'
@@ -55,7 +55,7 @@
 
 // C-Dyalog Function Call Interface structure-- lpString: length prefixed string. 
 // Structure expected by Dyalog ⎕NA '<#C2', '>#C2', and equiv. C4 formats.
-// Structure for fString and codeString objects
+// Structure for fStrIn and cStrOut objects
 typedef struct {
     WIDE len, buf[];
 } lpString;
@@ -67,36 +67,37 @@ typedef struct {
     WIDE *buf;
 } buffer ;
 
-#define ADDBUF(str, strLen, buffer, expandSq)  {\
-        int len=strLen;\
-        int ix;\
-        if (buffer.cur+len >= buffer.max) ERROR_SPACE;\
-        if (expandSq){   \
-        /* SQ doubling: Slower path. */ \
-            for(ix=0; ix<len; (buffer.cur)++, ix++){\
-                buffer.buf[buffer.cur]= (WIDE) str[ix];\
-                if (buffer.buf[buffer.cur] == SQ) {\
-                    if (buffer.cur+1 >= buffer.max) ERROR_SPACE;\
-                    buffer.buf[++(buffer.cur)]= (WIDE) SQ;\
-                }\
-            }\
-        } else{\
-         /* No SQ doubling: Faster path. */ \
-            for(ix=0; ix<len; ){\
-                  buffer.buf[(buffer.cur)++]= (WIDE) str[ix++];\
+#define ADDBUF(str, strLen, buffer, doubleSq)  {\
+    int len=strLen;\
+    if (buffer.cur+len >= buffer.max)\
+        ERROR_SPACE;\
+    if (doubleSq) /* SQ doubling: Slower path. */\
+        for(int ix = 0; ix < len; (buffer.cur)++, ix++){\
+            buffer.buf[buffer.cur]= (WIDE) str[ix];\
+            if (buffer.buf[buffer.cur] == SQ) {\
+                if (buffer.cur+1 >= buffer.max)\
+                    ERROR_SPACE;\
+                buffer.buf[++(buffer.cur)]= (WIDE) SQ;\
             }\
         }\
+    else /* No SQ doubling: Faster path. */\
+        for(int ix = 0; ix < len; (buffer.cur)++, ix++)\
+            buffer.buf[buffer.cur]= (WIDE) str[ix];\
 }
-#define ADDCH(ch, buffer) {\
-      if (buffer.cur+1 >= buffer.max) ERROR_SPACE;\
-      buffer.buf[(buffer.cur)++]= (WIDE) ch;\
+#define ADDC(ch, buffer) {\
+    if (buffer.cur+1 >= buffer.max)\
+        ERROR_SPACE;\
+    buffer.buf[(buffer.cur)++]= (WIDE) ch;\
 } 
+#define C2Len(s) ((sizeof(s)-1) / sizeof(WIDE2) ) // See also S2Len()
 
-// OUTPUT BUFFER MANAGEMENT ROUTINES  
-#define OutBuf(str, len)    ADDBUF(str, len, out, 0)
-#define OutBufSq(str, len)  ADDBUF(str, len, out, 1)
-#define OutStr(str)         {WIDE2 *s=str; OutBuf(s, Wide2Len( s ));}
-#define OutCh(ch)           ADDCH(ch, out)
+// OUTPUT BUFFER MANAGEMENT ROUTINES 
+#define DOUBLE_SQ   1 
+#define OutBuf(str, len)    ADDBUF(str, len, out, !DOUBLE_SQ)
+#define OutBufSq(str, len)  ADDBUF(str, len, out,  DOUBLE_SQ)
+#define OutS(str)           {WIDE2 *s=str; OutBuf(s, S2Len( s ));}   // Any null-term. WIDE2 str.
+#define OutSC(str)          OutBuf(str, C2Len( str ))                // (WIDE2) str constants only 
+#define OutC(ch)            ADDC(ch, out)                            // char. const only 
 // END OUTPUT BUFFER MANAGEMENT ROUTINES 
 
 // CODE BUFFER MANAGEMENT ROUTINES  
@@ -104,42 +105,43 @@ typedef struct {
 // To transfer codeBuf to outBuf (and then "clear" it):
 //    CodeOut
 #define CodeInit             code.cur=0
-#define CodeStr(str)         {WIDE2 *s=str; ADDBUF(s, Wide2Len( s ), code, 0);}  
-#define CodeCh(ch)           ADDCH(ch, code)
+#define CodeS(str)           {WIDE2 *s=str; ADDBUF(s, S2Len(  s ), code, 0);}   // Any null-term. WIDE2 str.
+#define CodeSC(str)          ADDBUF(str, C2Len(str), code, 0)                   // (WIDE2) str constants only 
+#define CodeC(ch)            ADDC(ch, code)                                     // char. const only 
 #define CodeOut              {OutBuf(code.buf, code.cur); CodeInit;} 
 // END CODE BUFFER MANAGEMENT ROUTINES  
 
 // Any attempt to add a number bigger than 99999* will result in an APL Domain Error.  
 // Used in routines to decode omegas: `⍵nnn, and so on.            * An aburdly large number here.
 #define IX_ERR u"Omega index or space field width too large (>99999)"
-#define IX_MAXDIG    5
-#define IX_MAX   99999
+#define IX_MAX    99999
+#define IX_MAXDIG     5
 #define Ix2CodeBuf(num) {\
     char nstr[IX_MAXDIG+1];\
     int  tnum=num;\
-    if (tnum>IX_MAX){\
+    if (tnum > IX_MAX){\
         ERROR(IX_ERR, 11);\
         tnum=IX_MAX;\
     }\
     snprintf(nstr, IX_MAXDIG+1, "%d", tnum);\
-    for (int i=0;  i<IX_MAXDIG && nstr[i]; ++i){\
-        CodeCh((WIDE2)nstr[i]);\
+    for (int i=0;  i < IX_MAXDIG && nstr[i]; ++i){\
+        CodeC((WIDE2)nstr[i]);\
     }\
 }
 
 // Termination Code
 #if USE_VLA
-   #define RETURN(rc)  codeString->len = out.cur;\
+   #define RETURN(rc)  cStrOut->len = out.cur;\
                       return(rc)
 #else /* we had to malloc(), so we need to free code.buf */ 
-   #define RETURN(rc)  codeString->len = out.cur;\
+   #define RETURN(rc)  cStrOut->len = out.cur;\
                       if (code.buf) free(code.buf);\
                       code.buf = NULL;\
                       return(rc)
 #endif 
 
 // Error handling-- must be called within scope of main function below!
-#define ERROR(str, errno) { out.cur=0;  OutStr(str); RETURN(errno); } 
+#define ERROR(str, errno) { out.cur=0;  OutS(str); RETURN(errno); } 
 /* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */ 
 #define ERROR_SPACE     { out.cur=0; RETURN(-1); }
 // End Error Handling  
@@ -159,21 +161,21 @@ typedef struct {
       bracketDepth == 1 && RBR == CharAfterBlanks( &in, in.cur+1 )
 # define ProcCodeDoc(marker, codeStr){\
       int m;\
-      OutCh(QT);\
+      OutC(QT);\
       for (int i=cfStart; i< in.cur; ++i) {\
-        OutCh( in.buf[i] );\
+        OutC( in.buf[i] );\
         if (in.buf[i] == SQ)\
-            OutCh(SQ);\
+            OutC(SQ);\
       }\
-      OutStr(marker);\
-      m = Wide2Len(marker);\
+      OutS(marker);\
+      m = S2Len(marker);\
       for (int i=in.cur+1; in.buf[i] == SP; ++i){\
           if (--m <= 0)\
-             OutCh(SP);\
+             OutC(SP);\
       }\
-      OutCh(QT); OutCh(SP);\
-      OutStr(codeStr);\
-      OutCh(SP);\
+      OutC(QT); OutC(SP);\
+      OutS(codeStr);\
+      OutC(SP);\
       CodeOut;\
     } 
 // END Self-documenting Code Handler  
@@ -183,17 +185,17 @@ typedef struct {
 //    Scanning input for digits, producing value for the name passed as destVar. 
 //    At the same time, writes the digits to the code buffer.
 #define Scan4Ix(destVar)\
-       CodeCh(CUR);\
+       CodeC(CUR);\
        if (!isdigit(CUR))\
           ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
        destVar=CUR-'0';\
        for (++in.cur; in.cur< in.max && isdigit(CUR); ++in.cur) {\
           destVar = destVar * 10 + CUR-'0';\
-          CodeCh(CUR);\
+          CodeC(CUR);\
        }\
        if (destVar > IX_MAX)\
            ERROR(IX_ERR, 11);\
        --in.cur;
 
-static inline int Wide2Len(WIDE2 *str);
-static inline INT4 CharAfterBlanks( buffer *pIn, int cur );
+static inline int S2Len(WIDE2 *str);
+static inline WIDE CharAfterBlanks( buffer *pIn, int cur );
