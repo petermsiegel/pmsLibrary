@@ -11,16 +11,16 @@
        rm ∆F4.temp ∆F2.temp 
    Returns: 
        rc cStrOut, where cStrOut contains its length ( >#C2 or >#C4 ⎕NA format)
-   If rc≠¯1, APL code is in cStrOut.
+   If rc≠¯1, cStrOut is a string (rc=0: code, or rc>0: error message).
    to get execute-ready code or (rc>0) the generated error message.
    rc=¯1:   output buffer not big enough for transformed fStrIn.
-            In this case, the output buffer is not examined (and may contain junk).
-            cStrOut is a null string.
+            In this case, the output buffer is not examined.
+            cStrOut is a null string (length 0).
    rc> 0:   an error occurred.  
             rc is the APL error number (e.g. 11 for DOMAIN ERROR)
             cStrOut is the error message.
    rc= 0:   all is well. 
-            cStrOut is the execute-ready code, transformed from the f-string input.
+            cStrOut is the execute-ready code in string form, transformed from the f-string input.
    Note: Strings fStrIn and cStrOut are never terminated with 0. 
          They may validly contain 0 or any unicode char in any position.
 */
@@ -277,17 +277,32 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             CodeCh(RPAR); 
           }
         }else {
+      // Skip "extra" / *$ */ sequences  
+        #define PEEK_SKIP(sym, error)\
+          while (PEEK == SP)\
+            ++in.cur;\
+          while (PEEK == sym){\
+              if (error!=NULL) ERROR(error, 11);\
+              ++in.cur;\
+              while (PEEK==SP)\
+                ++in.cur;\
+          }
           switch(CUR) {
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-               if (PEEK!=DOL){
-                 CodeS(fmtCd);
-               }else {
-                 CodeS(boxCd);
-                 ++in.cur;
-               }
-               for (; PEEK_AT(in.cur+1) == DOL; ++in.cur)
-                  ;
-               break;
+                if (PEEK != DOL){
+                  CodeS(fmtCd);               // $ => ok 
+                  PEEK_SKIP(DOL, NULL);       // $ $$ or $ $ => ignored
+                }else {
+                  CodeS(boxCd);               // $$ => ok
+                  ++in.cur;
+                  while (PEEK==SP) 
+                    ++in.cur;
+                  if (PEEK == DOL) {         // $$ $ => ok
+                      CodeS(fmtCd);
+                      PEEK_SKIP(DOL, NULL);  // $$ $ $, $$ $ $$, etc. => ignored
+                  }
+                }
+                break;
            case RTARO:   
                 if (IsCodeDoc()) {
                   ProcCodeDoc(mergeMarker, mergeCd);
@@ -306,9 +321,12 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 if (IsCodeDoc()) {
                    ProcCodeDoc(aboveMarker, aboveCd);
                 } else {
-                  CodeS(aboveCd);  
-                  for (; PEEK_AT(in.cur+1) == PCT; ++in.cur)
-                    ;
+                  CodeS(aboveCd); 
+                  #define EXTRA_PCT_SYM 1 
+                  #if EXTRA_PCT_SYM == 0 
+                    // Skip extra / % */ sequences...
+                    PEEK_SKIP(PCT, u"Multiple adjacent % (\"above\") symbols not allowed");
+                  #endif 
                 }
                 break;
             default:
@@ -342,13 +360,14 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 }
 
 // get2lib: Returns a (null-terminated) character string containing the ⍙F library routines
-//          M, A, B, D (merge, above, box, display). (EOS, APL diamond, defined above.)
+//          M, A, B, D (merge, above, box, display).  
 #if WIDTH==2
   void get2lib( WIDE2 strOut[] ){
     #define ABOVEDEF   u"A←" ABOVECD_INT 
     #define BOXDEF     u"B←" BOXCD_INT    
     #define DISPDEF    u"D←" DISPCD_INT  
-    #define MERGEDEF   u"M←" MERGECD_INT  
+    #define MERGEDEF   u"M←" MERGECD_INT 
+    #define EOS        u"⋄" 
     const WIDE2 code[] = ABOVEDEF EOS BOXDEF EOS DISPDEF EOS MERGEDEF;
     int len = sizeof(code) / sizeof(*code);    // includes the null get2Lib expects.
     for (int i=0; i< len; ++i)

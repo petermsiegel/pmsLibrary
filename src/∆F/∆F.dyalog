@@ -19,13 +19,15 @@
           ⍝ Load the source code for the run-time library routines: A, B, D, M
           ⍝ GetLib bufSize, where bufSize must be at least 170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
+            ⎕EX 'GetLib'  ⍝ No longer needed
       :EndWith 
   :Endif  
   ∆FⓄ← ∆FⓄ {    
       ⎕IO ⎕ML ←0 1    
     ⍝ maxOutInit: Initial estimate of max # of (2- or 4-byte) chars needed in output. We keep it simple here.
     ⍝ maxTries: Max # of times to expand (double) maxOutInit, if not enough space for result.
-      maxOutInit maxTries← 256 5 
+    ⍝ growthFactor:   How much to increase buffer storage estimate, if not adequate
+      maxOutInit maxTries growthFactor← (256⌈3×≢⍵) 5 4 
 
     ⍝ Options (⍺). 
       GetOpts← {  
@@ -46,12 +48,12 @@
         ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ 
             ∆F2 ⍵⍵, ⍵ ⍵
       } (mode debug box useNs extLib) escCh (⊃⍵) 
-      Call∆F←  { maxCur← ⍵
-        res2← Exec maxCur                       ⍝ Execute with current storage estimate
-      ¯1≠⊃res2: res2, maxCur                    ⍝ Success. return result: rc, code_buffer  
-      ⍺≤0: res2, maxCur                         ⍝ If we've tried too many times, return as is.
-         maxNxt← 2×maxCur                       ⍝ Double the storage estimate and retry...
-        (⍺-1) ∇ maxNxt⊣ DNote 'Retrying ∆F with maxOut',maxNxt,' Was',maxCur   
+      Call∆F←  { curMax← ⍵
+        res2← Exec curMax                       ⍝ Execute with current storage estimate
+      ¯1≠⊃res2: res2, curMax                    ⍝ Success. return result: rc, code_buffer  
+      ⍺≤0: res2, curMax                         ⍝ If we've tried too many times, return as is.
+         nextMax← growthFactor× curMax          ⍝ Increase the storage estimate and retry...
+        (⍺-1) ∇ nextMax⊣ DNote 'Retrying ∆F with maxOut',nextMax,' Was',curMax   
       }  
     
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)

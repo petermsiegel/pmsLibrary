@@ -1,5 +1,7 @@
-// Specify code for library calls (internal: code included in result; external: calls a library in APL_LIB)
-#define EOS            u"⋄"
+// Specify code for library calls: merge, above, box, fmt, and display 
+//    internal: code for routine included in result; 
+//    external: calls a library in APL_LIB
+// APL_LIB defined in ∆F.c
 #define LIB_CALL(fn)  u" " APL_LIB fn u" "
 //       Join: pseudo-primitive, joins fields (possibly differently-shaped char arrays) left-to-right
 #define MERGECD_INT    u"{⎕ML←1⋄⍺←⊢⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
@@ -10,7 +12,7 @@
 // Box
 #define DISPCD         u"0∘⎕SE.Dyalog.Utils.disp"
 //       Box: Box item to its right
-#define BOXCD_INT      u"{⎕ML←1" EOS DISPCD u",⍣(⊃0=⍴⍴⍵)⊢⍵}"
+#define BOXCD_INT      u"{⎕ML←1⋄" DISPCD u",⍣(⊃0=⍴⍴⍵)⊢⍵}"          // "⋄"  character is an APL EOS (diamond) 
 #define BOXCD_EXT      LIB_CALL( u"B" )
 //       ⎕FMT: Formatting (dyadic)
 #define FMTCD_INT      u" ⎕FMT "
@@ -40,10 +42,10 @@
 
 // MODES 
 enum mode {
-    modeStd=1,
-    modeCode=0,
-    modeList=-1,
-    modeTable=-2
+    modeStd=    1,
+    modeCode=   0,
+    modeList=  -1,
+    modeTable= -2
 };
 
 // STATE MANAGEMENT 
@@ -77,7 +79,7 @@ typedef struct {
 typedef struct {
     uint32_t   cur, max;
     WIDE *buf;
-} buffer ;
+} buffer;
 
 #define ADDBUF(str, strLen, buffer, doubleSq)  {\
     int len=strLen;\
@@ -96,11 +98,13 @@ typedef struct {
         for(int ix = 0; ix < len; (buffer.cur)++, ix++)\
             buffer.buf[buffer.cur]= (WIDE) str[ix];\
 }
+
 #define ADDCH(ch, buffer) {\
     if (buffer.cur+1 >= buffer.max)\
         ERROR_SPACE;\
     buffer.buf[(buffer.cur)++]= (WIDE) ch;\
 } 
+   
 #define C2Len(s) ((sizeof(s)-1) / sizeof(WIDE2) ) // See also S2Len()
 
 // OUTPUT BUFFER MANAGEMENT ROUTINES 
