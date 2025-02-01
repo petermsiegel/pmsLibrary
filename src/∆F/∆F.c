@@ -72,18 +72,20 @@
               const char opts[5], const WIDE4 escCh, 
               lpString *fStrIn, lpString *cStrOut, uint32_t outMax
 ){ 
-   int mode=   opts[0];             // See modes (MODE_...) above
+   enum mode 
+       mode=   opts[0];        // See modeEnum
    int debug=  opts[1];             // debug (boolean) 
    int boxAll= opts[2];             // if 1, use B instead of M overall. 
    int useNs=  opts[3];             // If 1, pass an anon ns to each Code Fn.           
    int extLib= opts[4];             // If 0, pseudo-primitives are defined internally.
    WIDE crOut= debug? CRVIS: CR;
                        
-  int state=NONE;                        // what kind of field are we in: NONE, TF, CF_START, CF 
-  int oldState=NONE;                     // last state
-  int bracketDepth=0;                    // finding } closing a field.
-  int omegaNext=0;                       // `⍵/⍹ processing.
-  int cfStart=0;                         // Note start of code field in input-- for "doc" processing.
+  enum state 
+     state=None,                    // what kind of field are we in: None, TF, CF_START, CF 
+     oldState=None;                 // last state
+  int bracketDepth=0;               // finding } closing a field.
+  int omegaNext=0;                  // `⍵/⍹ processing.
+  int cfStart=0;                    // Note start of code field in input-- for "doc" processing.
 
   buffer in;
     in.buf = fStrIn->buf;
@@ -118,37 +120,37 @@ WIDE2 *mergeMarker  = FANCY_MARKERS? u"▶": u"→";
 WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
 // Preamble code string...
-  OutC(LBR); 
+  OutCh(LBR); 
   if (useNs) 
      OutSC(u"⍺←⎕NS⍬⋄");
 
   switch(mode){
-    case MODE_STD:
+    case modeStd:
       OutS( boxAll? dispCd: mergeCd );
       break;
-    case MODE_LIST:
+    case modeList:
       OutS(dispCd);
       break;
-    case MODE_TABLE:
+    case modeTable:
       OutS(dispCd);
-      OutC(u'⍪');
+      OutCh(u'⍪');
       break;
-    case MODE_CODE:
+    case modeCode:
       OutS( boxAll? dispCd: mergeCd );
       if (useNs)
-         OutC(ALPHA);
-      OutC(LBR);
+         OutCh(ALPHA);
+      OutCh(LBR);
       break;
     default:
       ERROR(u"Unknown mode option in left arg", 11);
   }
 
   for (in.cur = 0; in.cur < in.max; ++in.cur) {
-    // Logic for changing state (NONE, CF_START)
-      if (state == NONE){
+    // Logic for changing state (None, CF_START)
+      if (state == None){
           if  (CUR!= LBR) {
             STATE(TF); 
-            OutC(QT);
+            OutCh(QT);
           }else {
             STATE(CF_START);
             ++in.cur;   // Move past the left brace
@@ -158,8 +160,8 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             int i;
             int nspaces=0;
             if (oldState == TF){  // Terminate existing TF
-                OutC(QT); 
-                OutC(SP);
+                OutCh(QT); 
+                OutCh(SP);
             }
           // cfStart marks start of code field (in case a self-documenting CF)
             cfStart= in.cur;             // If a space field, this is ignored.
@@ -172,10 +174,10 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 if (nspaces){   
                       CodeSC(u"(''⍴⍨");
                       Ix2CodeBuf(nspaces);
-                      CodeC(RPAR);
+                      CodeCh(RPAR);
                       CodeOut;
                 }
-                STATE(NONE);    // Set state to NONE: SF is complete !
+                STATE(None);    // Set state to None: SF is complete !
             }else {             // It's a CF.
                 STATE(CF);
                 bracketDepth=1;
@@ -191,47 +193,47 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             WIDE ch= PEEK; 
             ++in.cur;
             if (ch == escCh){
-                OutC(escCh);
+                OutCh(escCh);
             }else if (ch == LBR || ch == RBR){
-                OutC(ch);
+                OutCh(ch);
             }else if (ch == DMND){
-                OutC(crOut);
+                OutCh(crOut);
             }else{ 
                 --in.cur; 
-                OutC(CUR);
+                OutCh(CUR);
             } 
           } else if (CUR == LBR){
             STATE(CF_START);     // TF will end at (state == CF_START) above.
           } else {
-            OutC(CUR);
+            OutCh(CUR);
             if (CUR == QT)       // Double internal quotes per APL
-              OutC(QT); 
+              OutCh(QT); 
           }          
       }
       if (state == CF){          // Code field 
         if (CUR == RBR) {
             --bracketDepth;
             if (bracketDepth > 0) {
-               CodeC(CUR);
+               CodeCh(CUR);
             }else {            // Terminating right brace: Ending Code Field!
               CodeOut;
               OutSC(u"}⍵)");
               bracketDepth=0;
-              STATE(NONE);
+              STATE(None);
             }
         }else if (CUR == LBR) {
           ++bracketDepth;
-          CodeC(CUR);
+          CodeCh(CUR);
         }else if (CUR == SQ || CUR == DQ){
           int i;
           int tcur=CUR;
-          CodeC(SQ);
+          CodeCh(SQ);
           for (in.cur++; in.cur<in.max; ++in.cur){ 
               if (CUR == tcur){ 
                   if (PEEK == tcur) {
-                      CodeC(tcur);
+                      CodeCh(tcur);
                       if (tcur == SQ)
-                          CodeC(tcur);
+                          CodeCh(tcur);
                       ++in.cur;
                   }else {
                       break;
@@ -241,22 +243,22 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                   if (tcur == escCh){
                       int ch=PEEK; 
                       if (ch == DMND) {
-                          CodeC(crOut);
+                          CodeCh(crOut);
                           ++in.cur;
                       }else if (ch == escCh){
-                          CodeC(escCh);
+                          CodeCh(escCh);
                           ++in.cur;
                       }else {
-                          CodeC(escCh);
+                          CodeCh(escCh);
                       }
                   }else { 
-                      CodeC(tcur);
+                      CodeCh(tcur);
                       if (tcur == SQ)
-                          CodeC(tcur);
+                          CodeCh(tcur);
                   }
               }
           }
-          CodeC(SQ);
+          CodeCh(SQ);
         }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
         // we see ⍹ or `⍵ (where ` is the current escape char)
           if (CUR == escCh) 
@@ -267,12 +269,12 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             int ix;
             Scan4Ix( ix );            // Read in the index NNN... 
             omegaNext = ix;           // ... and set omegaNext.
-            CodeC(RPAR);
+            CodeCh(RPAR);
           }else {                     // No: a bare `⍵ or ⍹ 
             ++omegaNext;              // Increment omegaNext
             CodeSC(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
             Ix2CodeBuf(omegaNext);    // ...
-            CodeC(RPAR); 
+            CodeCh(RPAR); 
           }
         }else {
           switch(CUR) {
@@ -290,14 +292,14 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 if (IsCodeDoc()) {
                   ProcCodeDoc(mergeMarker, mergeCd);
                 }else {
-                  CodeC(CUR);
+                  CodeCh(CUR);
                 }
                 break;
             case DNARO:
                 if (IsCodeDoc()) {
                   ProcCodeDoc(aboveMarker, aboveCd);
                 } else {
-                  CodeC(CUR);
+                  CodeCh(CUR);
                 }
                 break;
             case PCT: // Pseudo-builtin % (Over) 
@@ -310,15 +312,15 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 }
                 break;
             default:
-                CodeC(CUR); /* Catchall */
+                CodeCh(CUR); /* Catchall */
           }
         }
       }
   } /* for (in.cur...)*/
   if (state == TF) { 
-      OutC(QT);
-      STATE(NONE);
-  }else if (state != NONE){
+      OutCh(QT);
+      STATE(None);
+  }else if (state != None){
       ERROR(u"Code or Space Field was not terminated properly", 11);
   }
 
@@ -326,14 +328,14 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
   OutSC(u"⍬}");
   //   Mode 0: extra code because we need to input the format string (fStrIn) 
   //           into the resulting function (see ∆F.dyalog).
-  if (mode == MODE_CODE){
+  if (mode == modeCode){
       OutSC(u"⍵,⍨⍥⊆"); 
-      OutC(SQ);
+      OutCh(SQ);
       OutBufSq(in.buf, in.cur);
-      OutC(SQ);    
-      OutC(RBR);
+      OutCh(SQ);    
+      OutCh(RBR);
   }else {
-      OutC(OMG);
+      OutCh(OMG);
   }
 
   RETURN(0);  /* 0= all ok */

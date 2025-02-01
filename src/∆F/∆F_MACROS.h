@@ -38,11 +38,23 @@
 #define SQ     u'\''
 #define ZILDE  u'⍬'
 
-// Mode enumeration 
-#define MODE_STD     1
-#define MODE_CODE    0 
-#define MODE_LIST   -1
-#define MODE_TABLE  -2
+// MODES 
+enum mode {
+    modeStd=1,
+    modeCode=0,
+    modeList=-1,
+    modeTable=-2
+};
+
+// STATE MANAGEMENT 
+enum state {      
+   None,      // not in a field 
+   TF,        // in a text field 
+   CF_START,  // starting a cf
+   CF         // in a code field or space field */
+};
+#define STATE(new)  { oldState=state; state=new;}
+// End STATE MANAGEMENT 
 
 /* INPUT BUFFER ROUTINES */
 /* CUR... Return current char, w/o checking bounds */
@@ -84,7 +96,7 @@ typedef struct {
         for(int ix = 0; ix < len; (buffer.cur)++, ix++)\
             buffer.buf[buffer.cur]= (WIDE) str[ix];\
 }
-#define ADDC(ch, buffer) {\
+#define ADDCH(ch, buffer) {\
     if (buffer.cur+1 >= buffer.max)\
         ERROR_SPACE;\
     buffer.buf[(buffer.cur)++]= (WIDE) ch;\
@@ -95,9 +107,9 @@ typedef struct {
 #define DOUBLE_SQ   1 
 #define OutBuf(str, len)    ADDBUF(str, len, out, !DOUBLE_SQ)
 #define OutBufSq(str, len)  ADDBUF(str, len, out,  DOUBLE_SQ)
-#define OutS(str)           {WIDE2 *s=str; OutBuf(s, S2Len( s ));}   // Any null-term. WIDE2 str.
+#define OutS(str)           {WIDE2 *s=str; OutBuf(s, S2Len(s));}     // Any null-term. WIDE2 str.
 #define OutSC(str)          OutBuf(str, C2Len( str ))                // (WIDE2) str constants only 
-#define OutC(ch)            ADDC(ch, out)                            // char. const only 
+#define OutCh(ch)           ADDCH(ch, out)                            // char. const only 
 // END OUTPUT BUFFER MANAGEMENT ROUTINES 
 
 // CODE BUFFER MANAGEMENT ROUTINES  
@@ -107,7 +119,7 @@ typedef struct {
 #define CodeInit             code.cur=0
 #define CodeS(str)           {WIDE2 *s=str; ADDBUF(s, S2Len(  s ), code, 0);}   // Any null-term. WIDE2 str.
 #define CodeSC(str)          ADDBUF(str, C2Len(str), code, 0)                   // (WIDE2) str constants only 
-#define CodeC(ch)            ADDC(ch, code)                                     // char. const only 
+#define CodeCh(ch)           ADDCH(ch, code)                                    // char. const only 
 #define CodeOut              {OutBuf(code.buf, code.cur); CodeInit;} 
 // END CODE BUFFER MANAGEMENT ROUTINES  
 
@@ -125,7 +137,7 @@ typedef struct {
     }\
     snprintf(nstr, IX_MAXDIG+1, "%d", tnum);\
     for (int i=0;  i < IX_MAXDIG && nstr[i]; ++i){\
-        CodeC((WIDE2)nstr[i]);\
+        CodeCh((WIDE2)nstr[i]);\
     }\
 }
 
@@ -146,14 +158,6 @@ typedef struct {
 #define ERROR_SPACE     { out.cur=0; RETURN(-1); }
 // End Error Handling  
 
-// STATE MANAGEMENT       
-#define NONE      0      // not in a field 
-#define TF        1      // in a text field 
-#define CF_START  2      // starting a cf
-#define CF        3      // in a code field or space field */
-#define STATE(new)  { oldState=state; state=new;}
-// End STATE MANAGEMENT 
-
 // Self-documenting Code Handler  
 // Be sure <type> has any internal quotes doubled, as needed.
 // if IsCodeDoc() { ProcCodeDoc(marker, codeStr) ;}...
@@ -161,21 +165,21 @@ typedef struct {
       bracketDepth == 1 && RBR == CharAfterBlanks( &in, in.cur+1 )
 # define ProcCodeDoc(marker, codeStr){\
       int m;\
-      OutC(QT);\
+      OutCh(QT);\
       for (int i=cfStart; i< in.cur; ++i) {\
-        OutC( in.buf[i] );\
+        OutCh( in.buf[i] );\
         if (in.buf[i] == SQ)\
-            OutC(SQ);\
+            OutCh(SQ);\
       }\
       OutS(marker);\
       m = S2Len(marker);\
       for (int i=in.cur+1; in.buf[i] == SP; ++i){\
           if (--m <= 0)\
-             OutC(SP);\
+             OutCh(SP);\
       }\
-      OutC(QT); OutC(SP);\
+      OutCh(QT); OutCh(SP);\
       OutS(codeStr);\
-      OutC(SP);\
+      OutCh(SP);\
       CodeOut;\
     } 
 // END Self-documenting Code Handler  
@@ -185,13 +189,13 @@ typedef struct {
 //    Scanning input for digits, producing value for the name passed as destVar. 
 //    At the same time, writes the digits to the code buffer.
 #define Scan4Ix(destVar)\
-       CodeC(CUR);\
+       CodeCh(CUR);\
        if (!isdigit(CUR))\
           ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
        destVar=CUR-'0';\
        for (++in.cur; in.cur< in.max && isdigit(CUR); ++in.cur) {\
           destVar = destVar * 10 + CUR-'0';\
-          CodeC(CUR);\
+          CodeCh(CUR);\
        }\
        if (destVar > IX_MAX)\
            ERROR(IX_ERR, 11);\

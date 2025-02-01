@@ -6,8 +6,8 @@
   :ElseIf 0=≢∆FⓄ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
         ∆FⓇ← 1 0⍴⍬ 
         :Return 
-  :Elseif 'help'≡⎕C ∆FⓄ        ⍝ Help and exit...
-        ∆FⓇ← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑'^\h*⍝H(.*)' ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
+  :Elseif 'help'≡4↑⎕C ∆FⓄ        ⍝ Help and exit...
+        ∆FⓇ← ('x'∊⎕C ∆FⓄ){ ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑(⎕←'^\h*⍝HX',⍺↓'?(.*)') ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
         :Return  
   :EndIf 
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
@@ -161,7 +161,6 @@
 ⍝H     If ⍺ is 'help', the result returned, after displaying help information, is: 
 ⍝H        ⍬
 ⍝H 
-⍝H 
 ⍝H --------------
 ⍝H  ∆F IN DETAIL
 ⍝H --------------
@@ -175,23 +174,25 @@
 ⍝H ∆F-string text fields (expressions) may include:
 ⍝H   ∘ escape characters representing newlines, escape characters and braces as text. 
 ⍝H     newlines "`⋄", escape characters "``", braces "`{" or "`}". 
+⍝H     Use option ('EscCh' char) or ('EscCh' code_point) to define an escape char besides "`".
+⍝H       code_point: the equivalent numeric code for an APL character: for <ch>, ⎕UCS <ch>.
 ⍝H ∆F-string code fields (expressions) may include: 
 ⍝H   ∘ escape characters (e.g. representing newlines, escape characters, and braces as text);
-⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables;
-⍝H   ∘ the ability to display arbitrary objects, one above another;
-⍝H   ∘ shortcuts for displaying boxed output; finally,
+⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
+⍝H   ∘ the ability to display an arbitrary object centered above another (%);
+⍝H   ∘ shortcuts for displaying boxed output ($$); finally,
 ⍝H   ∘ self-documenting code fields are concise expressions for displaying both a code 
-⍝H     expression (possible a simple name to be evaluated) and its value.   
+⍝H     expression (possible a simple name to be evaluated) and its value (→, ↓/%).   
 ⍝H     (Only code fields may be self-documenting!).
 ⍝H ∆F-strings include space fields:
-⍝H   ∘ which separate other fields with rectangular elements that are 0 or more spaces wide. 
+⍝H   ∘ which appear as "degenerate" code fields (braces with 0 or more spaces between).
+⍝H     ∘ space fields separate other fields, often with extra spaces (columns of rectangular spaces).
 ⍝H 
-⍝H The syntax of ∆F Strings is as follows, where ` represents the escape character:
+⍝H The syntax of ∆F Strings is as follows, where ` represents the active escape character:
 ⍝H   ∆F_String         ::=  (Text_Field | Code_Field | Space_Field)*
 ⍝H   Text_Field        ::=  (literal_char | "`⋄" | "``" | "`{" | "`}" )
 ⍝H   Code_Field        ::=  "{" (Fmt | Above | Box | Code )+ (Self_Documenting) "}"
 ⍝H   Space_Field       ::=  "{"  <0 or more spaces> "}"
-⍝H 
 ⍝H   Code              ::=   A Dyalog dfn, each passed the arguments to ∆F as ⍵: 
 ⍝H                           `⍵ (or ⍹) selects the next object in ⍵ (starting with (1⊃⍵), ⎕IO←0); 
 ⍝H                           `⍵N (or ⍹N) selects the Nth object in ⍵ (⎕IO←0), where N is 1-3 digits;
@@ -200,132 +201,140 @@
 ⍝H                                    `⋄ to represent a newline, 
 ⍝H                                    `` to represent the escape char itself.
 ⍝H   Fmt               ::=   [ ("⎕FMT Control Expressions") "$" Code] 
-⍝H   Above              ::=  ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
+⍝H   Above             ::=   ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
 ⍝H   Box               ::=   "$$" Code 
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
 ⍝H 
-⍝H Examples:
-⍝H ⍝ Simple variable expression
-⍝H     name← 'Fred'
-⍝H     ∆F "His name is {name}."
-⍝H     His name is Fred.
-⍝H 
-⍝H ⍝ Some multi-line text fields separated by non-null space fields
-⍝H     ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
-⍝H This    Of         Text  
-⍝H is      multi-line Fields
-⍝H an                       
-⍝H example 
-⍝H 
-⍝H ⍝ A similar example with strings in code fields
-⍝H       ∆F '{"This`⋄is`⋄an`⋄example"} {"Of`⋄Multi-line"} {"Strings`⋄in`⋄Code`⋄Fields"}'
-⍝H This    Of         Strings
-⍝H is      Multi-line in     
-⍝H an                 Code   
-⍝H example            Fields 
-⍝H   
-⍝H ⍝ Like the example above, in a more traditional APL style
-⍝H      ∆F '{↑"This" "is"} {↑"a"  "more"} {↑"trad''l" "example"}'
-⍝H This a    trad'l 
-⍝H is   more example
-⍝H     
-⍝H ⍝ A slightly more interesting code expression
-⍝H     C← 10 30 60
-⍝H     ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H The temperature is 10°C or  50.0°F
-⍝H                    30       86.0  
-⍝H                    60      140.0 
-⍝H                     
-⍝H ⍝ Using an outside expression
-⍝H     C← 10 30 60
-⍝H     C2F← 32+9×5÷⍨⊢
-⍝H     ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
-⍝H The temperature is 10°C or  50.0°F
-⍝H                    30       86.0  
-⍝H                    60      140.0 
-⍝H 
-⍝H ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), given ⎕IO←0)
-⍝H     ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (10 15 20)
-⍝H The temperature is 10°C or  50.0°F
-⍝H                    15       59.0  
-⍝H                    20       68.0 
-⍝H 
-⍝H ⍝ Use argument `⍵1 (1⊃⍵) in a calculation.  (Likewise:  ('UseNs' 1) ∆F 'π²={⍺.Pi*2} π={⍺.Pi←○1}') 
-⍝H       ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
-⍝H π²=9.869604401, π=3.141592654
-⍝H 
-⍝H ⍝ "Horizontal" self-documenting code fields (each field to the left of the next).
-⍝H     name←'John Smith' ⋄ age← 34
-⍝H     ∆F 'Current employee: {name→}, {age→}.'
-⍝H Current employee: name▶John Smith, age▶34.
-⍝H
-⍝H ⍝ Note that spaces next to self-documenting codes (→ or ↓) are honoured in the output:
-⍝H     name←'John Smith' ⋄ age← 34
-⍝H     ∆F 'Current employee: {name → }, {age→ }.'
-⍝H Current employee: name ▶ John Smith, age▶ 34.
-⍝H 
-⍝H ⍝ "Vertical" self-documenting code fields (one centered over the other)
-⍝H     name←'John Smith' ⋄ age← 34
-⍝H     ∆F 'Current employee: {name↓} {age↓}.'
-⍝H Current employee:   name▼    age▼.
-⍝H                   John Smith  34 
-⍝H 
-⍝H ⍝ Displaying one expression above another 
-⍝H      ∆F '{"Current Employee" % ⍪`⍵1} {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
-⍝H Current Employee Current Age
-⍝H    John Smith        29     
-⍝H    Mary Jones        23 
-⍝H 
-⍝H ⍝ Display more complex expressions one above the other.
-⍝H ⍝ Here we use `⍵, which selects the "next" item from ⍵, moving left to right, starting with (1⊃⍵).
-⍝H ⍝ I.e. in the code below, we have select (⍳2⍴1⊃⍵), then (⍳2⍴2⊃⍵), then (⍳2⍴3⊃⍵).
-⍝H ⍝ We don't select (0⊃⍵) as the initial (`⍵), since that is the ∆F-String itself. 
-⍝H       ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
-⍝H     0 0      
-⍝H   0 0  0 1    
-⍝H   1 0  1 1    
-⍝H 0 0  0 1  0 2 
-⍝H 1 0  1 1  1 2 
-⍝H 2 0  2 1  2 2 
-⍝H
-⍝H ⍝ Use of ¯1 option, i.e. ('Mode' ¯1): shows and demarcates each field (boxed) left to right.
-⍝H     C← 10 30 60
-⍝H     ¯1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H ┌───────────────────┬──┬──────┬─────┬──┐
-⍝H │                   │10│      │ 50.0│  │
-⍝H │The temperature is │30│°C or │ 86.0│°F│
-⍝H │                   │60│      │140.0│  │
-⍝H └───────────────────┴──┴──────┴─────┴──┘
-⍝H
-⍝H ⍝ Use of ¯2 or ('Mode' ¯2) option: shows and demarcates each field (boxed) in tabular form.
-⍝H     C← 10 30 60
-⍝H     ¯2 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H ┌───────────────────┐
-⍝H │The temperature is │
-⍝H ├───────────────────┤
-⍝H │         10        │
-⍝H │         30        │
-⍝H │         60        │
-⍝H ├───────────────────┤
-⍝H │      °C or        │
-⍝H ├───────────────────┤
-⍝H │        50.0       │
-⍝H │        86.0       │
-⍝H │       140.0       │
-⍝H ├───────────────────┤
-⍝H │        °F         │
-⍝H └───────────────────┘
-⍝H
-⍝H ⍝ Performance of an ∆F-string evaluated on the fly via (1 ∆F ...) and precomputed via (0 ∆F ...): 
-⍝H     C← 10 30 60
-⍝H   ⍝ Here's our ∆F String <t>
-⍝H     t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝H   ⍝ Precompute a dfn T given ∆F String <t>.
-⍝H     T←0 ∆F t
-⍝H   ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
-⍝H     cmpx '∆F t' 'T ⍬'
-⍝H  ∆F t → 4.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-⍝H  T ⍬  → 1.1E¯5 | -77% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
-⍝H
+⍝HX Examples:
+⍝HX ⍝ Simple variable expression
+⍝HX   name← 'Fred'
+⍝HX   ∆F "His name is {name}."
+⍝HX   His name is Fred.
+⍝HX 
+⍝HX ⍝ Some multi-line text fields separated by non-null space fields
+⍝HX   ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
+⍝HX This    Of         Text  
+⍝HX is      multi-line Fields
+⍝HX an                       
+⍝HX example 
+⍝HX 
+⍝HX ⍝ A similar example with strings in code fields
+⍝HX   ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
+⍝HX This     Of          Strings
+⍝HX is       Multi-line  in     
+⍝HX an                   Code   
+⍝HX example              Fields 
+⍝HX   
+⍝HX ⍝ Like the example above, in a more traditional APL style
+⍝HX   ∆F '{↑"This" "is"} {↑"a"  "more"} {↑"trad''l" "example"}'
+⍝HX This a    trad'l 
+⍝HX is   more example
+⍝HX     
+⍝HX ⍝ A slightly more interesting code expression
+⍝HX   C← 11 30 60
+⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX The temperature is 11°C or  51.8°F
+⍝HX                    30       86.0  
+⍝HX                    60      140.0 
+⍝HX 
+⍝HX ⍝ One way to create column separators...  
+⍝HX   C← 11 30 60
+⍝HX   S←⍪'│'⍴⍨ ≢C
+⍝HX   ∆F'The temperature is {S}{"I2" $ C}°C{S} or {S}{"F5.1" $ F← 32+9×C÷5}°F{S}'
+⍝HX The temperature is │11°C│ or │ 51.8°F│
+⍝HX                    │30  │    │ 86.0  │
+⍝HX                    │60  │    │140.0  │
+⍝HX                 
+⍝HX ⍝ Using an outside expression
+⍝HX   C← 11 30 60
+⍝HX   C2F← 32+9×5÷⍨⊢
+⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
+⍝HX The temperature is 11°C or  51.8°F
+⍝HX                    30       86.0  
+⍝HX                    60      140.0 
+⍝HX 
+⍝HX ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), given ⎕IO←0)
+⍝HX   ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
+⍝HX The temperature is 11°C or  51.8°F
+⍝HX                    15       59.0  
+⍝HX                    20       68.0 
+⍝HX 
+⍝HX ⍝ Use argument `⍵1 (1⊃⍵) in a calculation.  (Likewise:  ('UseNs' 1) ∆F 'π²={⍺.Pi*2} π={⍺.Pi←○1}') 
+⍝HX   ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
+⍝HX π²=9.869604401, π=3.141592654
+⍝HX 
+⍝HX ⍝ "Horizontal" self-documenting code fields (source code to the left of the evaluated result).
+⍝HX   name←'John Smith' ⋄ age← 34
+⍝HX   ∆F 'Current employee: {name→}, {age→}.'
+⍝HX Current employee: name▶John Smith, age▶34.
+⍝HX
+⍝HX ⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓) are mirrored in the output:
+⍝HX   name←'John Smith' ⋄ age← 34
+⍝HX   ∆F 'Current employee: {name → }, {age→   }.'
+⍝HX Current employee: name ▶ John Smith, age▶   34.
+⍝HX 
+⍝HX ⍝ "Vertical" self-documenting code fields (the source code centered over the evaluated result)
+⍝HX   name←'John Smith' ⋄ age← 34
+⍝HX   ∆F 'Current employee: {name↓} {age↓}.'
+⍝HX Current employee:   name▼    age▼.
+⍝HX                   John Smith  34 
+⍝HX 
+⍝HX ⍝  Displaying the expression on the left centered above the expression on the right (% pseudofunction) 
+⍝HX   ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
+⍝HX Current Employee   Current Age
+⍝HX    John Smith          29     
+⍝HX    Mary Jones          23 
+⍝HX 
+⍝HX ⍝ Display more complex expressions one above the other.
+⍝HX ⍝ Here we use `⍵, which selects the "next" item from ⍵, moving left to right, starting with (1⊃⍵).
+⍝HX ⍝ I.e. in the code below, we have select (⍳2⍴1⊃⍵), then (⍳2⍴2⊃⍵), then (⍳2⍴3⊃⍵).
+⍝HX ⍝ We don't select (0⊃⍵) as the initial (`⍵), since that is the ∆F-String itself. 
+⍝HX   ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
+⍝HX     0 0      
+⍝HX   0 0  0 1    
+⍝HX   1 0  1 1    
+⍝HX 0 0  0 1  0 2 
+⍝HX 1 0  1 1  1 2 
+⍝HX 2 0  2 1  2 2 
+⍝HX
+⍝HX ⍝ Use of ¯1 option, i.e. ('Mode' ¯1) [LIST MODE]: shows and demarcates each field (boxed) left to right.
+⍝HX   C← 11 30 60
+⍝HX   ¯1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX ┌───────────────────┬──┬──────┬─────┬──┐
+⍝HX │                   │11│      │ 51.8│  │
+⍝HX │The temperature is │30│°C or │ 86.0│°F│
+⍝HX │                   │60│      │140.0│  │
+⍝HX └───────────────────┴──┴──────┴─────┴──┘
+⍝HX
+⍝HX ⍝ Use of ¯2 option or ('Mode' ¯2) [TABLE MODE]: shows and demarcates each field (boxed) in tabular form.
+⍝HX   C← 11 30 60
+⍝HX   ¯2 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX ┌───────────────────┐
+⍝HX │The temperature is │
+⍝HX ├───────────────────┤
+⍝HX │         11        │
+⍝HX │         30        │
+⍝HX │         60        │
+⍝HX ├───────────────────┤
+⍝HX │      °C or        │
+⍝HX ├───────────────────┤
+⍝HX │        51.8       │
+⍝HX │        86.0       │
+⍝HX │       140.0       │
+⍝HX ├───────────────────┤
+⍝HX │        °F         │
+⍝HX └───────────────────┘
+⍝HX
+⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (1 ∆F ...) and precomputed via (0 ∆F ...): 
+⍝HX   C← 11 30 60
+⍝HX ⍝ Here's our ∆F String <t>
+⍝HX   t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX ⍝ Precompute a dfn T given ∆F String <t>.
+⍝HX   T←0 ∆F t
+⍝HX ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
+⍝HX   cmpx '∆F t' 'T ⍬'
+⍝HX ∆F t → 4.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HX T ⍬  → 1.1E¯5 | -77% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕ 
+⍝HX
 
 
