@@ -59,12 +59,16 @@ enum state {
 // End STATE MANAGEMENT 
 
 /* INPUT BUFFER ROUTINES */
-/* CUR... Return current char, w/o checking bounds */
+/* SKIP: skip current char. */
+#define SKIP          (++in.cur)
+#define SKIP_SP       while (PEEK==SP) SKIP
+/* CUR_AT(ix), CUR:  Return char at in.buf[ix], in.buf[in.cur], w/o checking bounds */
 #define CUR_AT(ix)    in.buf[ix]
-#define CUR           CUR_AT(in.cur)
-#define PEEK_AT(ix)   (((ix) < in.max)? in.buf[ix]: -1)
+#define CUR           CUR_AT( in.cur )
+/* PEEK_AT(ix), PEEK: Always check that it's in range */
+#define PEEK_AT(ix)   ((ix < in.max)? in.buf[ix]: -1)
 /* PEEK... Return NEXT char, checking range bounds. If not, return -1 */
-#define PEEK          PEEK_AT(in.cur+1)
+#define PEEK          PEEK_AT( in.cur+1 )
 /* END INPUT BUFFER ROUTINES */
 
 // C-Dyalog Function Call Interface structure-- lpString: length prefixed string. 
@@ -86,7 +90,7 @@ typedef struct {
     if (buffer.cur+len >= buffer.max)\
         ERROR_SPACE;\
     if (doubleSq) /* SQ doubling: Slower path. */\
-        for(int ix = 0; ix < len; (buffer.cur)++, ix++){\
+        for(int ix = 0; ix < len; buffer.cur++, ix++){\
             buffer.buf[buffer.cur]= (WIDE) str[ix];\
             if (buffer.buf[buffer.cur] == SQ) {\
                 if (buffer.cur+1 >= buffer.max)\
@@ -102,7 +106,7 @@ typedef struct {
 #define ADDCH(ch, buffer) {\
     if (buffer.cur+1 >= buffer.max)\
         ERROR_SPACE;\
-    buffer.buf[(buffer.cur)++]= (WIDE) ch;\
+    buffer.buf[buffer.cur++]= (WIDE) ch;\
 } 
    
 #define C2Len(s) ((sizeof(s)-1) / sizeof(WIDE2) ) // See also S2Len()
@@ -129,7 +133,7 @@ typedef struct {
 
 // Any attempt to add a number bigger than 99999* will result in an APL Domain Error.  
 // Used in routines to decode omegas: `⍵nnn, and so on.            * An aburdly large number here.
-#define IX_ERR u"Omega index or space field width too large (>99999)"
+#define IX_ERR u"Omega index or space field width absurdly large (>99999)"
 #define IX_MAX    99999
 #define IX_MAXDIG     5
 #define Ix2CodeBuf(num) {\
@@ -197,7 +201,7 @@ typedef struct {
        if (!isdigit(CUR))\
           ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911);\
        destVar=CUR-'0';\
-       for (++in.cur; in.cur< in.max && isdigit(CUR); ++in.cur) {\
+       for (SKIP; in.cur< in.max && isdigit(CUR); SKIP) {\
           destVar = destVar * 10 + CUR-'0';\
           CodeCh(CUR);\
        }\

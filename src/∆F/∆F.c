@@ -145,7 +145,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       ERROR(u"Unknown mode option in left arg", 11);
   }
 
-  for (in.cur = 0; in.cur < in.max; ++in.cur) {
+  for (in.cur = 0; in.cur < in.max; SKIP) {
     // Logic for changing state (None, CF_START)
       if (state == None){
           if  (CUR!= LBR) {
@@ -153,7 +153,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             OutCh(QT);
           }else {
             STATE(CF_START);
-            ++in.cur;   // Move past the left brace
+            SKIP;   // Move past the left brace
           }
       }
       if (state == CF_START){
@@ -167,7 +167,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             cfStart= in.cur;             // If a space field, this is ignored.
           // Skip leading blanks in CF/SF code, though NOT in any associated document strings 
             for (i=in.cur; PEEK_AT(i) == SP; ++i){ 
-                ++nspaces, ++in.cur;
+                ++nspaces, SKIP;
             }
           // See if we really have a SF: 0 or more (solely) blanks between matching braces.
             if (i < in.max && PEEK_AT(i) == RBR){  // Is a SF!
@@ -191,7 +191,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
       if (state == TF) {       // Text field 
           if (CUR == escCh){   // Check for escape chars
             WIDE ch= PEEK; 
-            ++in.cur;
+            SKIP;
             if (ch == escCh){
                 OutCh(escCh);
             }else if (ch == LBR || ch == RBR){
@@ -228,13 +228,13 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           int i;
           int tcur=CUR;
           CodeCh(SQ);
-          for (in.cur++; in.cur<in.max; ++in.cur){ 
+          for (SKIP; in.cur<in.max; SKIP){ 
               if (CUR == tcur){ 
                   if (PEEK == tcur) {
                       CodeCh(tcur);
                       if (tcur == SQ)
                           CodeCh(tcur);
-                      ++in.cur;
+                      SKIP;
                   }else {
                       break;
                   }
@@ -244,10 +244,10 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                       int ch=PEEK; 
                       if (ch == DMND) {
                           CodeCh(crOut);
-                          ++in.cur;
+                          SKIP;
                       }else if (ch == escCh){
                           CodeCh(escCh);
-                          ++in.cur;
+                          SKIP;
                       }else {
                           CodeCh(escCh);
                       }
@@ -262,9 +262,9 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
         }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
         // we see ⍹ or `⍵ (where ` is the current escape char)
           if (CUR == escCh) 
-              ++in.cur;                // Skip whatever was just matched (`⍵ or ⍹)
+              SKIP;                // Skip whatever was just matched (`⍵ or ⍹)
           if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
-            ++in.cur;                  // Yes: `⍵NNN or ⍹NNN. 
+            SKIP;                  // Yes: `⍵NNN or ⍹NNN. 
             CodeSC(u"(⍵⊃⍨⎕IO+");
             int ix;
             Scan4Ix( ix );            // Read in the index NNN... 
@@ -278,15 +278,39 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           }
         }else {
           switch(CUR) {
+            #define SKIP_SP while (PEEK==SP) SKIP 
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-                if (PEEK != DOL){                             // $$
-                  if (PEEK != SP) ++in.cur;
-                  CodeS(fmtCd);
-                  while (PEEK == SP || PEEK==DOL) ++in.cur;   // $ $$ => ignored
-                } else {
-                  CodeS(boxCd);                               // $$ => ok
-                  ++in.cur;
-                  if (PEEK==DOL) ERROR(u"Invalid sequence $$$...", 11);
+                       // Ignore (don't generate) redundant $ or $$ output...
+                if (PEEK==DOL) {                             
+                    CodeS(boxCd);            // $$: box 
+                    SKIP;
+                    SKIP_SP;
+                    if (PEEK==DOL) {         // $$ $: (box, then) ⎕FMT 
+                      CodeS(fmtCd+1);
+                      SKIP;
+                    }
+                }else {
+                    CodeS(fmtCd);            // $: ⎕FMT
+                }
+                while (PEEK==DOL||PEEK==SP)  // Ignore extra $...
+                    SKIP;
+                break;
+            case PCT:      // Pseudo-builtin % (Over)   
+                if (IsCodeDoc()) {
+                   ProcCodeDoc(aboveMarker, aboveCd);
+                } else {  // Optimize multiple |% *| sequences into at most two calls to aboveCd.
+                  CodeS(aboveCd);         // This first call to aboveCd may have a left arg (⍺).
+                  int extraPct = 0;
+                  SKIP_SP;
+                  while (PEEK==PCT) {
+                      SKIP, ++extraPct;
+                      SKIP_SP;
+                  }
+                  if (extraPct) { /* We see more than one % (w/ opt'l spaces) in a row. 
+                                     Emit one one additional abovceCd call. */
+                      CodeS(u"(⍪''⍴⍨") ; Ix2CodeBuf(extraPct); CodeS(u")"); 
+                      CodeS(aboveCd);
+                  }
                 }
                 break;
            case RTARO:   
@@ -303,23 +327,8 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                   CodeCh(CUR);
                 }
                 break;
-            case PCT: // Pseudo-builtin % (Over) 
-                if (IsCodeDoc()) {
-                   ProcCodeDoc(aboveMarker, aboveCd);
-                } else {
-                  CodeS(aboveCd); 
-                  int extraPct = 0;
-                  while (PEEK==SP) ++in.cur;
-                  while (PEEK==PCT) {
-                      ++in.cur, ++extraPct;
-                      while (PEEK==SP) ++in.cur;
-                  }
-                  if (extraPct) { /* Handle N "extra" pct-signs in a row in a single aboveCD call. */
-                      CodeS(u"(⍪''⍴⍨") ; Ix2CodeBuf(extraPct); CodeS(u")"); 
-                      CodeS(aboveCd);
-                  }
-                }
-                break;
+            case SP:   /* Conflate multiple blanks => " " (one blank) */
+                SKIP_SP;
             default:
                 CodeCh(CUR); /* Catchall */
           }
