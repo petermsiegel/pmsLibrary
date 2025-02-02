@@ -277,16 +277,18 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             CodeCh(RPAR); 
           }
         }else {
-      // Skip "extra" / *$ */ sequences  
-        #define PEEK_SKIP(sym, error)\
-          while (PEEK == SP)\
-            ++in.cur;\
-          while (PEEK == sym){\
-              if (error!=NULL) ERROR(error, 11);\
-              ++in.cur;\
-              while (PEEK==SP)\
+        // Skip "extra" / *$ */ sequences  
+          #define PEEK_SKIP(sym, error)\
+            while (PEEK==SP) ++in.cur;\
+            if (PEEK == sym) {\
+              CodeS(fmtCd);\
+              while (PEEK == SP) ++in.cur;\
+              while (PEEK == sym){\
+                if (error != NULL) ERROR(error, 11);\
                 ++in.cur;\
-          }
+                while (PEEK==SP) ++in.cur;\
+              }\
+            }
           switch(CUR) {
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
                 if (PEEK != DOL){
@@ -295,12 +297,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 }else {
                   CodeS(boxCd);               // $$ => ok
                   ++in.cur;
-                  while (PEEK==SP) 
-                    ++in.cur;
-                  if (PEEK == DOL) {         // $$ $ => ok
-                      CodeS(fmtCd);
-                      PEEK_SKIP(DOL, NULL);  // $$ $ $, $$ $ $$, etc. => ignored
-                  }
+                  PEEK_SKIP(DOL, NULL); 
                 }
                 break;
            case RTARO:   
@@ -322,11 +319,16 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                    ProcCodeDoc(aboveMarker, aboveCd);
                 } else {
                   CodeS(aboveCd); 
-                  #define EXTRA_PCT_SYM 1 
-                  #if EXTRA_PCT_SYM == 0 
-                    // Skip extra / % */ sequences...
-                    PEEK_SKIP(PCT, u"Multiple adjacent % (\"above\") symbols not allowed");
-                  #endif 
+                  int extraPct = 0;
+                  while (PEEK==SP) ++in.cur;
+                  while (PEEK==PCT) {
+                      ++in.cur, ++extraPct;
+                      while (PEEK==SP) ++in.cur;
+                  }
+                  if (extraPct) {  
+                      CodeS(u"(⍪''⍴⍨") ; Ix2CodeBuf(extraPct); CodeS(u")"); 
+                      CodeS(aboveCd);
+                  }
                 }
                 break;
             default:
