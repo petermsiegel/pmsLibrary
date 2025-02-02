@@ -277,27 +277,16 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
             CodeCh(RPAR); 
           }
         }else {
-        // Skip "extra" / *$ */ sequences  
-          #define PEEK_SKIP(sym, error)\
-            while (PEEK==SP) ++in.cur;\
-            if (PEEK == sym) {\
-              CodeS(fmtCd);\
-              while (PEEK == SP) ++in.cur;\
-              while (PEEK == sym){\
-                if (error != NULL) ERROR(error, 11);\
-                ++in.cur;\
-                while (PEEK==SP) ++in.cur;\
-              }\
-            }
           switch(CUR) {
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-                if (PEEK != DOL){
-                  CodeS(fmtCd);               // $ => ok 
-                  PEEK_SKIP(DOL, NULL);       // $ $$ or $ $ => ignored
-                }else {
-                  CodeS(boxCd);               // $$ => ok
+                if (PEEK != DOL){                             // $$
+                  if (PEEK != SP) ++in.cur;
+                  CodeS(fmtCd);
+                  while (PEEK == SP || PEEK==DOL) ++in.cur;   // $ $$ => ignored
+                } else {
+                  CodeS(boxCd);                               // $$ => ok
                   ++in.cur;
-                  PEEK_SKIP(DOL, NULL); 
+                  if (PEEK==DOL) ERROR(u"Invalid sequence $$$...", 11);
                 }
                 break;
            case RTARO:   
@@ -325,7 +314,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                       ++in.cur, ++extraPct;
                       while (PEEK==SP) ++in.cur;
                   }
-                  if (extraPct) {  
+                  if (extraPct) { /* Handle N "extra" pct-signs in a row in a single aboveCD call. */
                       CodeS(u"(⍪''⍴⍨") ; Ix2CodeBuf(extraPct); CodeS(u")"); 
                       CodeS(aboveCd);
                   }
