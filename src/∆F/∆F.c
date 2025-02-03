@@ -280,17 +280,18 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           switch(CUR) {
             #define SKIP_SP while (PEEK==SP) SKIP 
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-                       // Ignore (don't generate) redundant $ or $$ output...
-                if (PEEK==DOL) {                             
-                    CodeS(boxCd);            // $$: box 
-                    SKIP;
-                    SKIP_SP;
-                    if (PEEK==DOL) {         // $$ $: (box, then) ⎕FMT 
-                      CodeS(fmtCd+1);
-                      SKIP;
-                    }
+                if (PEEK==DOL) {       // useful: $$; otherwise extra $$, $ are redundant. Ignore
+                    SKIP; SKIP_SP;
+                    if (PEEK==DOL)
+                      CodeS(fmtCd);    // box ⎕FMT is equiv. to ⎕FMT, since monadic format generates simple mx.
+                    else
+                      CodeS(boxCd);
+                    while (PEEK==DOL || PEEK==SP) 
+                      SKIP;                   
                 }else {
-                    CodeS(fmtCd);            // $: ⎕FMT
+                    CodeS(fmtCd);      // useful: $. Any following $$, $$ are redundant. Ignore
+                    SKIP_SP;
+                    while (PEEK==DOL||PEEK==SP) SKIP;
                 }
                 while (PEEK==DOL||PEEK==SP)  // Ignore extra $...
                     SKIP;
