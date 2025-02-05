@@ -280,21 +280,18 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           switch(CUR) {
             #define SKIP_SP while (PEEK==SP) SKIP 
             case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-                if (PEEK==DOL) {       // useful: $$; otherwise extra $$, $ are redundant. Ignore
-                    SKIP; SKIP_SP;
+                if (PEEK==DOL) {     // BOX
+                    SKIP;  
                     if (PEEK==DOL)
-                      CodeS(fmtCd)    // box ⎕FMT is equiv. to ⎕FMT, since monadic format generates simple mx.
-                    else
-                      CodeS(boxCd);
-                    while (PEEK==DOL || PEEK==SP) 
-                      SKIP;                   
+                        ERROR(u"Only $ or $$ is allowed", 11);
+                    CodeS(boxCd);                  
                 }else {
                     CodeS(fmtCd);      // useful: $. Any following $$, $$ are redundant. Ignore
-                    SKIP_SP;
-                    while (PEEK==DOL||PEEK==SP) SKIP;
                 }
-                while (PEEK==DOL||PEEK==SP)  // Ignore extra $...
-                    SKIP;
+                while (PEEK==DOL||PEEK==SP){
+                  if (PEEK==DOL) ERROR(u"Trailing $ are not allowed", 11);
+                  SKIP; 
+                }
                 break;
             case PCT:      // Pseudo-builtin % (Over)   
                 if (IsCodeDoc()) {
@@ -309,7 +306,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                   }
                   if (extraPct) { /* We see more than one % (w/ opt'l spaces) in a row. 
                                      Emit one one additional abovceCd call. */
-                      CodeS(u"(⍪''⍴⍨") ; Ix2CodeBuf(extraPct); CodeS(u")"); 
+                      CodeSC(u"(⍪") ; Ix2CodeBuf(extraPct); CodeSC(u"⍴'')"); 
                       CodeS(aboveCd);
                   }
                 }
