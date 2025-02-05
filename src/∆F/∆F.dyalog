@@ -17,7 +17,7 @@
             '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[5] C4 <#C4[] >#C4[] I4' 
             '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[5] C4 <#C2[] >#C2[] I4'
           ⍝ Load the source code for the run-time library routines: A, B, D, M
-          ⍝ GetLib bufSize, where bufSize must be at least 170.
+          ⍝ GetLib bufSize, where bufSize must be at ca. 190
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
             ⎕EX 'GetLib'  ⍝ No longer needed
       :EndWith 

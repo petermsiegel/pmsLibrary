@@ -7,17 +7,15 @@
 #define MERGECD_INT    u"{⎕ML←1⋄⍺←⊢⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}"
 #define MERGECD_EXT    LIB_CALL( u"M" )
 //       Over: center field ⍺ over field ⍵
-#define ABOVECD_INT    u"{⎕ML←1⋄⍺←⍬⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
+#define ABOVECD_INT    u"{⍺←0⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}"
 #define ABOVECD_EXT    LIB_CALL( u"A" )
-// Box
-#define DISPCD         u"0∘⎕SE.Dyalog.Utils.disp"
 //       Box: Box item to its right
-#define BOXCD_INT      u"{⎕ML←1⋄" DISPCD u",⍣(⊃0=⍴⍴⍵)⊢⍵}"          // "⋄"  character is an APL EOS (diamond) 
+#define BOXCD_INT      u"{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp,⍣(⊃0=⍴⍴⍵)⊢⍵}"            
 #define BOXCD_EXT      LIB_CALL( u"B" )
 //       ⎕FMT: Formatting (dyadic)
 #define FMTCD_INT      u" ⎕FMT "
 // dfn ¨disp¨, used as a prefix for LIST and TABLE modes and with BOX option. 
-#define DISPCD_INT     DISPCD u"¯1∘↓" 
+#define DISPCD_INT     u"0∘⎕SE.Dyalog.Utils.disp¯1∘↓" 
 #define DISPCD_EXT     LIB_CALL( u"D" )
 
 #define ALPHA  u'⍺'
