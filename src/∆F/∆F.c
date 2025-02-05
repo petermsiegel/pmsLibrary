@@ -73,7 +73,7 @@
               lpString *fStrIn, lpString *cStrOut, uint32_t outMax
 ){ 
    enum mode 
-       mode=   opts[0];        // See modeEnum
+       mode=   opts[0];             // See modeEnum
    int debug=  opts[1];             // debug (boolean) 
    int boxAll= opts[2];             // if 1, use B instead of M overall. 
    int useNs=  opts[3];             // If 1, pass an anon ns to each Code Fn.           
@@ -147,18 +147,17 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
 
   for (in.cur = 0; in.cur < in.max; SKIP) {
     // Logic for changing state (None, CF_START)
+    //  switch(state) 
       if (state == None){
-          if  (CUR!= LBR) {
+          if  (CUR != LBR) {
             STATE(TF); 
             OutCh(QT);
           }else {
-            STATE(CF_START);
-            SKIP;   // Move past the left brace
+            STATE(CF_START); 
+            continue;  // Move to next char.
           }
       }
       if (state == CF_START){
-            int i;
-            int nspaces=0;
             if (oldState == TF){  // Terminate existing TF
                 OutCh(QT); 
                 OutCh(SP);
@@ -166,51 +165,56 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
           // cfStart marks start of code field (in case a self-documenting CF)
             cfStart= in.cur;             // If a space field, this is ignored.
           // Skip leading blanks in CF/SF code, though NOT in any associated document strings 
-            for (i=in.cur; PEEK_AT(i) == SP; ++i){ 
-                ++nspaces, SKIP;
-            }
+              int nspaces=0;
+              while (PEEK_AT(in.cur)==SP)   // Check in.cur w/ bounds checking.
+                  ++nspaces, SKIP;
           // See if we really have a SF: 0 or more (solely) blanks between matching braces.
-            if (i < in.max && PEEK_AT(i) == RBR){  // Is a SF!
-                if (nspaces){   
-                      CodeSC(u"(''⍴⍨");
+              if (CUR==RBR) {
+                if (nspaces){   // Non-null space field of length nn ==> (nn⍴'');
+                      CodeCh(LPAR);
                       Ix2CodeBuf(nspaces);
-                      CodeCh(RPAR);
+                      CodeSC(u"⍴'"); 
+                      if (debug) CodeCh(SPVIS);
+                      CodeSC(u"')");
+                      CodeOut;
+                }else if (debug) {   // Null space field: Do nothing unless debug is true.
+                      CodeSC(u" '"); CodeCh(NULVIS); CodeSC(u"' ");    
                       CodeOut;
                 }
-                STATE(None);    // Set state to None: SF is complete !
-            }else {             // It's a CF.
+                STATE(None);     // SF is complete! Set state to None and fetch next char at for() loop. 
+                continue;         
+            } else {             // We have a CF.
                 STATE(CF);
                 bracketDepth=1;
                 if (useNs)
-                   OutSC(u"(⍺{")
+                   OutSC(u"(⍺{")  // We'll pass on ⍺, which will be (⎕NS⍬).
                 else 
-                   OutSC(u"({"); 
-                CodeInit;      // Ready to write code buffer (doesn't change output buffer).
+                   OutSC(u"({");  // No ⍺. User is free to set their own via ⍺←....
+                CodeInit;      // Ready to write code buffer (doesn't affect output buffer).
             }
       }  
       if (state == TF) {       // Text field 
           if (CUR == escCh){   // Check for escape chars
-            WIDE ch= PEEK; 
-            SKIP;
-            if (ch == escCh){
-                OutCh(escCh);
-            }else if (ch == LBR || ch == RBR){
-                OutCh(ch);
-            }else if (ch == DMND){
-                OutCh(crOut);
-            }else{ 
-                --in.cur; 
-                OutCh(CUR);
-            } 
+              WIDE ch= PEEK; 
+              SKIP;
+              if (ch == escCh){
+                  OutCh(escCh);
+              }else if (ch == LBR || ch == RBR){
+                  OutCh(ch);
+              }else if (ch == DMND){
+                  OutCh(crOut);
+              }else{ 
+                  --in.cur; 
+                  OutCh(CUR);
+              } 
           } else if (CUR == LBR){
-            STATE(CF_START);     // TF will end at (state == CF_START) above.
+              STATE(CF_START);     // TF will end at (state == CF_START) above.
           } else {
-            OutCh(CUR);
-            if (CUR == QT)       // Double internal quotes per APL
-              OutCh(QT); 
+              OutCh(CUR);
+              if (CUR == QT)       // Double internal quotes per APL
+                OutCh(QT); 
           }          
-      }
-      if (state == CF){          // Code field 
+      } else if (state == CF){          // Code field 
         if (CUR == RBR) {
             --bracketDepth;
             if (bracketDepth > 0) {
@@ -222,114 +226,114 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
               STATE(None);
             }
         }else if (CUR == LBR) {
-          ++bracketDepth;
-          CodeCh(CUR);
+            ++bracketDepth;
+            CodeCh(CUR);
         }else if (CUR == SQ || CUR == DQ){
-          int i;
-          int tcur=CUR;
-          CodeCh(SQ);
-          for (SKIP; in.cur<in.max; SKIP){ 
-              if (CUR == tcur){ 
-                  if (PEEK == tcur) {
-                      CodeCh(tcur);
-                      if (tcur == SQ)
-                          CodeCh(tcur);
-                      SKIP;
-                  }else {
-                      break;
-                  }
-              }else{
-                  int tcur=CUR;
-                  if (tcur == escCh){
-                      int ch=PEEK; 
-                      if (ch == DMND) {
-                          CodeCh(crOut);
-                          SKIP;
-                      }else if (ch == escCh){
-                          CodeCh(escCh);
-                          SKIP;
-                      }else {
-                          CodeCh(escCh);
-                      }
-                  }else { 
-                      CodeCh(tcur);
-                      if (tcur == SQ)
-                          CodeCh(tcur);
-                  }
-              }
-          }
-          CodeCh(SQ);
+            int i;
+            int tcur=CUR;
+            CodeCh(SQ);
+            for (SKIP; in.cur<in.max; SKIP){ 
+                if (CUR == tcur){ 
+                    if (PEEK == tcur) {
+                        CodeCh(tcur);
+                        if (tcur == SQ)
+                            CodeCh(tcur);
+                        SKIP;
+                    }else {
+                        break;
+                    }
+                }else{
+                    int tcur=CUR;
+                    if (tcur == escCh){
+                        int ch=PEEK; 
+                        if (ch == DMND) {
+                            CodeCh(crOut);
+                            SKIP;
+                        }else if (ch == escCh){
+                            CodeCh(escCh);
+                            SKIP;
+                        }else {
+                            CodeCh(escCh);
+                        }
+                    }else { 
+                        CodeCh(tcur);
+                        if (tcur == SQ)
+                            CodeCh(tcur);
+                    }
+                }
+            }
+            CodeCh(SQ);
         }else if (CUR == OMG_US||(CUR == escCh && PEEK == OMG)){ 
-        // we see ⍹ or `⍵ (where ` is the current escape char)
-          if (CUR == escCh) 
-              SKIP;                // Skip whatever was just matched (`⍵ or ⍹)
-          if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
-            SKIP;                  // Yes: `⍵NNN or ⍹NNN. 
-            CodeSC(u"(⍵⊃⍨⎕IO+");
-            int ix;
-            Scan4Ix( ix );            // Read in the index NNN... 
-            omegaNext = ix;           // ... and set omegaNext.
-            CodeCh(RPAR);
-          }else {                     // No: a bare `⍵ or ⍹ 
-            ++omegaNext;              // Increment omegaNext
-            CodeSC(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
-            Ix2CodeBuf(omegaNext);    // ...
-            CodeCh(RPAR); 
-          }
+          // we see ⍹ or `⍵ (where ` is the current escape char)
+            if (CUR == escCh) 
+                SKIP;                // Skip whatever was just matched (`⍵ or ⍹)
+            if (isdigit(PEEK)){         // Is ⍹ or `⍵ followed by digits?
+              SKIP;                  // Yes: `⍵NNN or ⍹NNN. 
+              CodeSC(u"(⍵⊃⍨⎕IO+");
+              int ix;
+              Scan4Ix( ix );            // Read in the index NNN... 
+              omegaNext = ix;           // ... and set omegaNext.
+              CodeCh(RPAR);
+            }else {                     // No: a bare `⍵ or ⍹ 
+              ++omegaNext;              // Increment omegaNext
+              CodeSC(u"(⍵⊃⍨⎕IO+");     // Write: "(⍵⊃⍨⎕IO+<omegaNext>""
+              Ix2CodeBuf(omegaNext);    // ...
+              CodeCh(RPAR); 
+            }
         }else {
-          switch(CUR) {
-            #define SKIP_SP while (PEEK==SP) SKIP 
-            case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
-                if (PEEK==DOL) {     // BOX
-                    SKIP;  
-                    if (PEEK==DOL)
-                        ERROR(u"Only $ or $$ is allowed", 11);
-                    CodeS(boxCd);                  
-                }else {
-                    CodeS(fmtCd);      // useful: $. Any following $$, $$ are redundant. Ignore
-                }
-                while (PEEK==DOL||PEEK==SP){
-                  if (PEEK==DOL) ERROR(u"Trailing $ are not allowed", 11);
-                  SKIP; 
-                }
-                break;
-            case PCT:      // Pseudo-builtin % (Over)   
-                if (IsCodeDoc()) {
-                   ProcCodeDoc(aboveMarker, aboveCd);
-                } else {  // Optimize multiple |% *| sequences into at most two calls to aboveCd.
-                  CodeS(aboveCd);         // This first call to aboveCd may have a left arg (⍺).
-                  int extraPct = 0;
+            switch(CUR) {
+              #define SKIP_SP while (PEEK==SP) SKIP 
+              case DOL:  // Pseudo-builtins $ (⎕FMT) and $$ (Box, i.e. dfns display)
+                  if (PEEK==DOL) {     // BOX
+                      SKIP;  
+                      if (PEEK==DOL)
+                          ERROR(u"Excess $. Only $ (⎕FMT) or $$ (box) is allowed", 11);
+                      CodeS(boxCd);                  
+                  }else {
+                      CodeS(fmtCd);      // useful: $. Any following $$, $$ are redundant. Ignore
+                  }
+                  while (PEEK==DOL||PEEK==SP){
+                    if (PEEK==DOL) ERROR(u"Trailing $ is not allowed", 11);
+                    SKIP; 
+                  }
+                  break;
+              case PCT:      // Pseudo-builtin % (Over)   
+                  if (IsCodeDoc()) {
+                    ProcCodeDoc(aboveMarker, aboveCd);
+                  } else {  // Optimize multiple |% *| sequences into at most two calls to aboveCd.
+                    CodeS(aboveCd);         // This first call to aboveCd may have a left arg (⍺).
+                    int extraPct = 0;
+                    SKIP_SP;
+                    while (PEEK==PCT) {
+                        SKIP, ++extraPct;
+                        SKIP_SP;
+                    }
+                    if (extraPct) { /* We see more than one % (w/ opt'l spaces) in a row. 
+                                      Emit one one additional abovceCd call. */
+                        CodeSC(u"(⍪") ; Ix2CodeBuf(extraPct); CodeSC(u"⍴'')"); 
+                        CodeS(aboveCd);
+                    }
+                  }
+                  break;
+            case RTARO:   
+                  if (IsCodeDoc()) {
+                    ProcCodeDoc(mergeMarker, mergeCd);
+                  }else {
+                    CodeCh(CUR);
+                  }
+                  break;
+              case DNARO:
+                  if (IsCodeDoc()) {
+                    ProcCodeDoc(aboveMarker, aboveCd);
+                  } else {
+                    CodeCh(CUR);
+                  }
+                  break;
+              case SP:   /* Conflate multiple blanks => " " (one blank) */
                   SKIP_SP;
-                  while (PEEK==PCT) {
-                      SKIP, ++extraPct;
-                      SKIP_SP;
-                  }
-                  if (extraPct) { /* We see more than one % (w/ opt'l spaces) in a row. 
-                                     Emit one one additional abovceCd call. */
-                      CodeSC(u"(⍪") ; Ix2CodeBuf(extraPct); CodeSC(u"⍴'')"); 
-                      CodeS(aboveCd);
-                  }
-                }
-                break;
-           case RTARO:   
-                if (IsCodeDoc()) {
-                  ProcCodeDoc(mergeMarker, mergeCd);
-                }else {
-                  CodeCh(CUR);
-                }
-                break;
-            case DNARO:
-                if (IsCodeDoc()) {
-                  ProcCodeDoc(aboveMarker, aboveCd);
-                } else {
-                  CodeCh(CUR);
-                }
-                break;
-            case SP:   /* Conflate multiple blanks => " " (one blank) */
-                SKIP_SP;
-            default:
-                CodeCh(CUR); /* Catchall */
-          }
+              default:
+                  CodeCh(CUR); /* Catchall */
+            }
         }
       }
   } /* for (in.cur...)*/

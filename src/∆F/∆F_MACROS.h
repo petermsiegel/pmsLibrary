@@ -27,6 +27,7 @@
 #define DQ     u'"' 
 #define LBR    u'{'
 #define LPAR   u'('
+#define NULVIS u'␀'
 #define OMG    u'⍵'
 #define OMG_US u'⍹'
 #define PCT    u'%'
@@ -35,6 +36,7 @@
 #define RPAR   u')'
 #define RTARO  u'→'
 #define SP     u' '
+#define SPVIS  u'␠'
 #define SQ     u'\''
 #define ZILDE  u'⍬'
 
