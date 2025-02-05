@@ -283,7 +283,7 @@ WIDE2 *aboveMarker  = FANCY_MARKERS? u"▼": u"↓";
                 if (PEEK==DOL) {       // useful: $$; otherwise extra $$, $ are redundant. Ignore
                     SKIP; SKIP_SP;
                     if (PEEK==DOL)
-                      CodeS(fmtCd);    // box ⎕FMT is equiv. to ⎕FMT, since monadic format generates simple mx.
+                      CodeS(fmtCd)    // box ⎕FMT is equiv. to ⎕FMT, since monadic format generates simple mx.
                     else
                       CodeS(boxCd);
                     while (PEEK==DOL || PEEK==SP) 
