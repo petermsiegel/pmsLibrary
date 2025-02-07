@@ -1,23 +1,23 @@
 ∆FⓇ← {∆FⓄ} ∆F ∆FⒻ; ⎕TRAP 
 ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
-  :If 900⌶0                      ⍝ Options omitted. Processed below.
-        ∆FⓄ← ⍬
-  :ElseIf 0=≢∆FⓄ               ⍝ Quick exit if user specifies: ⍬ ∆F <anything>
-        ∆FⓇ← 1 0⍴⍬ 
+  :If 900⌶0                      ⍝ Options omitted. TProcessed below.
+        ∆FⓄ← ⍬                  ⍝ We distinguish omitted left arg and ∆FⓄ≡⍬
+  :ElseIf 0=≢∆FⓄ                ⍝ ∆FⓄ≡⍬:  
+        ∆FⓇ← 1 0⍴⍬              ⍝   This is a quick exit where user wants to skip ∆F processing altogether.
         :Return 
-  :Elseif 'help'≡4↑⎕C ∆FⓄ        ⍝ Help and exit...
+  :Elseif 'help'≡4↑⎕C ∆FⓄ       ⍝ 'help' (show help info & examples) or 'helpx' (show help examples)
         ∆FⓇ← ('x'∊⎕C ∆FⓄ){ ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑(⎕←'^\h*⍝HX',⍺↓'?(.*)') ⎕S '\1'⊢⎕NR ⊃⍵ } ⎕XSI 
         :Return  
   :EndIf 
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
       :With '⍙F' ⎕SE.⎕NS ⍬
           ⍝ Load C F-string routines (two versions, for 2-byte chars and 4-byte chars)
-          ⍝ At 16 bits, the <#C2 and >#C2 ⎕NA format allows strings up to 64K bytes.
+          ⍝ At 16 (/32) bits, the <#C2 and >#C2 ⎕NA format allows strings up to humongous 64K (/2*32) bytes.
             '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[5] C4 <#C4[] >#C4[] I4' 
             '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[5] C4 <#C2[] >#C2[] I4'
-          ⍝ Load the source code for the run-time library routines: A, B, D, M
-          ⍝ GetLib bufSize, where bufSize must be at ca. 190
+          ⍝ Load the UCS-2 source code for the run-time library routines from ∆F.dylib: A, B, D, M
+          ⍝ GetLib bufSize, where bufSize must be >170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
             ⎕EX 'GetLib'  ⍝ No longer needed
       :EndWith 
@@ -45,8 +45,7 @@
       DNote← debug {⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵} 
     ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA...
       Exec← (320= ⎕DR⊃⍵) ⎕SE.⍙F.{ 
-        ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ 
-            ∆F2 ⍵⍵, ⍵ ⍵
+        ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ ⋄ ∆F2 ⍵⍵, ⍵ ⍵
       } (mode debug box useNs extLib) escCh (⊃⍵) 
       Call∆F←  { curMax← ⍵
         res2← Exec curMax                       ⍝ Execute with current storage estimate
@@ -88,6 +87,7 @@
 ⍝H       [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
 ⍝H                 ⍬ ∆F ignored                     Do nothing, ignoring any args
 ⍝H            'help' ∆F ignored                     Display help information
+⍝H           'helpx' ∆F ignored                     Display help examples only
 ⍝H 
 ⍝H F-string and args:
 ⍝H       first element: an f-string, a single character vector (see "∆F in Detail" below) 
@@ -117,11 +117,16 @@
 ⍝H                     separately left-to-right, using dfn ¨disp¨. Equiv. to ('Mode' 1)('Box' 1).
 ⍝H         ¯2   table  format and return the object generated, boxing each field of the object 
 ⍝H                     separately in a "table", one field above the other (via ⍪).
-⍝H       Debug: If 1*, carriage returns (entered via "`⋄") are replaced by a visible rep: ␍
-⍝H                In addition, the intended executable is displayed before execution.
+⍝H       Debug: If 1*, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
+⍝H                     Space field spaces are shown via "␠" and null (empty) space fields via a single "␀".
+⍝H                         'Debug' N                    'Debug' 0    'Debug' 1
+⍝H                         CR via "`⋄"                   (⎕UCS 13)       ␍
+⍝H                         spaces in space fields { }       ' '           ␠
+⍝H                         a null space field {}           omitted        ␀           
+⍝H                     In addition, the intended executable is displayed before execution.
 ⍝H       Box:   If 0*, display all fields as is.
-⍝H              If 1,  display each field* of the result in a simple box.
-⍝H                     * Null (0-width) space fields are omitted from the Box display.
+⍝H              If 1,  display each non-simple field* of the result in a box.
+⍝H                     * Null (0-width) space fields are omitted from the Box display unless Debug is 1.
 ⍝H              Using $$ (BELOW), you can box an individual code field (but not a text or space field).  
 ⍝H              ('Box' 1) can be used with code mode ('Mode' 0) to create such a box on each function call.
 ⍝H       EscCh  A single "escape" character or its Unicode equivalent. See "escape characters" below.
@@ -136,11 +141,11 @@
 ⍝H          ∘ Allows shared state across code fields without cluttering the calling namespace.
 ⍝H          ∘ If ('UseNs' 0) is applied, then ⍺ seen by each code field is undefined (you can set via ⍺←...).
 ⍝H       ExtLib: 
-⍝H          ∘ If 1(*), we use a namespace (library) ⎕SE.⍙F to hold key run-time utilities (A, B, D, M)
+⍝H          ∘ If 1(*), we load and use a namespace (library) ⎕SE.⍙F to hold key run-time utilities (A, B, D, M)
 ⍝H            referenced in the code generated by ∆F. Generates a more compact code string than for ('ExtLib' 0).
 ⍝H          ∘ If 0, the utilities are included "stand alone" in the code created by the associated 
 ⍝H            C routine called here.  In particular, a dfn ('Mode' 0) generated by ∆F will require
-⍝H            no external run-time library (namespace ⎕SE.⍙F may be absent). 
+⍝H            no external run-time library at all (namespace ⎕SE.⍙F may be absent). 
 ⍝H       * shows default option values.
 ⍝H 
 ⍝H For help (this information) 
@@ -205,7 +210,9 @@
 ⍝H   Fmt               ::=   [ ("⎕FMT Control Expressions") "$" Code] 
 ⍝H   Above             ::=   ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
 ⍝H   Box               ::=   "$$" Code 
+⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
+⍝H                           See examples.
 ⍝H 
 ⍝HX Examples:
 ⍝HX ⍝ Simple variable expression
@@ -246,7 +253,14 @@
 ⍝HX The temperature is │11°C│ or │ 51.8°F│
 ⍝HX                    │30  │    │ 86.0  │
 ⍝HX                    │60  │    │140.0  │
-⍝HX                 
+⍝HX  
+⍝HX ⍝ Using "boxes" via the $$ (box) pseudo-primitive
+⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ F← 32+9×C÷5}`⋄°'
+⍝HX                    ┌──┐      ┌─────┐
+⍝HX The temperature is │11│°C or │ 51.8│°
+⍝HX                    │30│      │ 86.0│ 
+⍝HX                    │60│      │140.0│ 
+⍝HX                    └──┘      └─────┘                
 ⍝HX ⍝ Using an outside expression
 ⍝HX   C← 11 30 60
 ⍝HX   C2F← 32+9×5÷⍨⊢
