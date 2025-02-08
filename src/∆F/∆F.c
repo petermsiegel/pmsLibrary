@@ -297,13 +297,13 @@ int fs_format2(
           if (PEEK == DOL) { // BOX
             SKIP;
             if (PEEK == DOL)
-              ERROR(u"Excess $. Only $ (⎕FMT) or $$ (box) is allowed", 11);
+              ERROR(u"Invalid use of $ (only $ and $$ allowed)", 11);
             CodeS(boxCd);
           } else 
             CodeS(fmtCd);  // useful: $. Any following $$, $$ are redundant. Ignore
           while (PEEK == DOL || PEEK == SP) {
             if (PEEK == DOL)
-              ERROR(u"Trailing $ is not allowed", 11);
+              ERROR(u"Invalid use of $ (trailing $ expressions not allowed)", 11);
             SKIP;
           }
           break;
