@@ -29,35 +29,36 @@
     ⍝ growthFactor:   How much to increase buffer storage estimate, if not adequate
       maxOutInit maxTries growthFactor← (256⌈3×≢⍵) 5 4 
 
-    ⍝ Options (⍺). 
+    ⍝ Get options (⍺) 
+      optK← 'Mode' 'Debug' 'Box' 'EscCh' 'UseNs' 'ExtLib' 
+      optV←  1      0       0     '`'     0       1         ⍝ <== option default values
       GetOpts← {  
-        nK← ≢optK← 'Mode' 'Debug' 'Box' 'EscCh' 'UseNs' 'ExtLib' 
-             optV←  1      0       0     '`'     0       1         ⍝ <== option default values 
-        0=≢⍵: optV ⋄ (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓optV 
+        0=≢⍵: ⍵⍵ ⋄ (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓⍵⍵ 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
-          newK newV← ↓⍉↑ ,⊂⍣(2= |≡⍵)⊢ ⍵ ⋄ 
-          nK ∧.> p← optK⍳ newK: newV@p⊣ optV 
+          newK newV← ↓⍉↑ ,⊂⍣(2= |≡⍵)⊢ ⍵  
+          p← ⍺⍺⍳ newK
+        p∧.≤ nK← ≢⍺⍺: newV@p⊣ ⍵⍵ 
           11 ⎕SIGNAL⍨ 'Unknown option(s):',∊' ',¨ newK/⍨ p≥ nK
       }
-      mode debug box escCh useNs extLib← GetOpts ⍺
+      mode debug box escCh useNs extLib← optK GetOpts optV⊢ ⍺
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh       ⍝ escCh may be a Unicode char or numeric code
 
-      DNote← debug {⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵} 
-    ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA...
-      Exec← (320= ⎕DR⊃⍵) ⎕SE.⍙F.{ 
-        ⍺⍺: ∆F4 ⍵⍵, ⍵ ⍵ ⋄ ∆F2 ⍵⍵, ⍵ ⍵
-      } (mode debug box useNs extLib) escCh (⊃⍵) 
-      Call∆F←  { curMax← ⍵
-        res2← Exec curMax                       ⍝ Execute with current storage estimate
-      ¯1≠⊃res2: res2, curMax                    ⍝ Success. return result: rc, code_buffer  
-      ⍺≤0: res2, curMax                         ⍝ If we've tried too many times, return as is.
-         nextMax← growthFactor× curMax          ⍝ Increase the storage estimate and retry...
-        (⍺-1) ∇ nextMax⊣ DNote 'Retrying ∆F with maxOut',nextMax,' Was',curMax   
+      DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
+    ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
+      parms← (mode debug box useNs extLib) escCh (⊃⍵) 
+      isW4← 320= ⎕DR⊃⍵
+      Call∆F←  { 
+          curMax← ⍵
+      ⍝ Execute with current storage estimate
+          res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } parms, curMax curMax                  
+        ¯1≠⊃res2: res2, curMax                    ⍝ Success. return result: rc, code_buffer  
+        ⍺≤0: res2, curMax                         ⍝ If we've tried too many times, return as is.
+          nextMax← growthFactor× curMax           ⍝ Increase the storage estimate and retry...
+          _← DNote 'Retrying ∆F with maxOut',nextMax,' Was',curMax 
+          (⍺-1) ∇ nextMax  
       }  
-    
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
       rc res maxActual← maxTries Call∆F maxOutInit 
-      
     0= rc:  (mode≠0),⍥⊂ DNote res
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
       Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer not big enough (buf size: ',(⍕⍵),' elements)'}
@@ -69,6 +70,7 @@
   :Else      
       ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                                   ⍝ mode=0: Generate a dfn.
   :EndIf 
+  :Return 
 
 ⍝H -------------
 ⍝H  ∆F IN BRIEF

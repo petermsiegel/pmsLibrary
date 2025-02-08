@@ -299,10 +299,8 @@ int fs_format2(
             if (PEEK == DOL)
               ERROR(u"Excess $. Only $ (⎕FMT) or $$ (box) is allowed", 11);
             CodeS(boxCd);
-          } else {
-            CodeS(
-                fmtCd); // useful: $. Any following $$, $$ are redundant. Ignore
-          }
+          } else 
+            CodeS(fmtCd);  // useful: $. Any following $$, $$ are redundant. Ignore
           while (PEEK == DOL || PEEK == SP) {
             if (PEEK == DOL)
               ERROR(u"Trailing $ is not allowed", 11);
@@ -384,8 +382,8 @@ int fs_format2(
 #if WIDTH == 2
 void get2lib(WIDE2 strOut[]) {
 #define ABOVEDEF u"A←" ABOVECD_INT
-#define BOXDEF u"B←"   BOXCD_INT
-#define DISPDEF u"D←"  DISPCD_INT
+#define BOXDEF   u"B←" BOXCD_INT
+#define DISPDEF  u"D←" DISPCD_INT
 #define MERGEDEF u"M←" MERGECD_INT
 #define EOS u"⋄"
   const WIDE2 code[] = ABOVEDEF EOS BOXDEF EOS DISPDEF EOS MERGEDEF;
