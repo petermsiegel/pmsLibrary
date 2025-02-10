@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h> // for alloca and also for free...
 #include <string.h>
+#include <setjmp.h>
 
 // APL_LIB: Enter the name of the namespace housing the "library" fns
 //          Code  Name   Description
@@ -63,6 +64,7 @@
 #define WIDE WIDE4
 #endif
 
+jmp_buf jmpbuf; 
 #include "∆F_MACROS.h"
 
 #if WIDTH == 4
@@ -121,6 +123,10 @@ int fs_format2(
   // Dyalog characters.
   WIDE2 *mergeMarker = FANCY_MARKERS ? u"▶" : u"→";
   WIDE2 *aboveMarker = FANCY_MARKERS ? u"▼" : u"↓";
+
+  int rc;
+  if ((rc=setjmp(jmpbuf)))
+      return rc;
 
   // Preamble code string...
   OutCh(LBR);

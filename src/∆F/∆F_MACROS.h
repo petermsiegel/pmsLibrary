@@ -173,14 +173,16 @@ typedef struct {
 #if USE_VLA
 #define RETURN(rc)                                                             \
   cStrOut->len = out.cur;                                                      \
-  return (rc)
+  if (rc) longjmp(jmpbuf, rc);         \
+  return (0)    
 #else /* we had to malloc(), so we need to free code.buf */
 #define RETURN(rc)                                                             \
   cStrOut->len = out.cur;                                                      \
   if (code.buf)                                                                \
     free(code.buf);                                                            \
   code.buf = NULL;                                                             \
-  return (rc)
+  if (rc) longjmp( jmpbuf, rc); \
+  return 0 
 #endif
 
 // Error handling-- must be called within scope of main function below!
