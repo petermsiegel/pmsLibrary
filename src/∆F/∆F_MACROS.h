@@ -123,11 +123,12 @@ typedef struct {
 // To transfer codeBuf to outBuf (and then "clear" it):
 //    CodeOut
 #define CodeInit code.cur = 0
+// CodeS: str must be a null-terminated WIDE2 str.
 #define CodeS(str)                                                             \
   {                                                                            \
     WIDE2 *s = str;                                                            \
-    ADDBUF(s, S2Len(s), code);                                              \
-  } // Any null-term. WIDE2 str.
+    ADDBUF(s, S2Len(s), code);                                                 \
+  } 
 #define CodeSC(str)                                                            \
   ADDBUF(str, C2Len(str), code) // (WIDE2) str constants only
 #define CodeCh(ch) ADDCH(ch, code) // char. const only
@@ -161,28 +162,28 @@ typedef struct {
 // Termination Code
 #if USE_VLA
 #define RETURN(rc)                                                             \
-    cStrOut->len = out.cur;                                                      \
-    if (rc) longjmp(jmpbuf, rc);         \
+    cStrOut->len = out.cur;                                                     \
+    if (rc) longjmp(jmpbuf, rc);                                                \
     return (0)    
 #else /* we had to malloc(), so we need to free code.buf */
-  #define RETURN(rc)                                                             \
-    cStrOut->len = out.cur;                                                      \
-    if (code.buf)                                                                \
-      free(code.buf);                                                            \
-    code.buf = NULL;                                                             \
-    if (rc) longjmp( jmpbuf, rc); \
+  #define RETURN(rc)                                                           \
+    cStrOut->len = out.cur;                                                     \
+    if (code.buf)                                                               \
+      free(code.buf);                                                           \
+    code.buf = NULL;                                                            \
+    if (rc) longjmp( jmpbuf, rc);                                               \
     return 0 
 #endif
 
 // Error handling-- must be called within scope of main function below!
-#define ERROR(str, errno)                                                      \
+#define ERROR(str, errno)                                                     \
   {                                                                            \
     out.cur = 0;                                                               \
     OutS(str);                                                                 \
     RETURN(errno);                                                             \
   }
 /* ERROR_SPACE: Ran out of space. Error msg generated in ∆F.dyalog */
-#define ERROR_SPACE                                                            \
+#define ERROR_SPACE                                                           \
   {                                                                            \
     out.cur = 0;                                                               \
     RETURN(-1);                                                                \
@@ -193,7 +194,7 @@ typedef struct {
 // Be sure <type> has any internal quotes doubled, as needed.
 // if IsCodeDoc() { ProcCodeDoc(marker, codeStr) ;}...
 #define IsCodeDoc() bracketDepth == 1 && RBR == CharAfterBlanks(&in, in.cur + 1)
-#define ProcCodeDoc(marker, codeStr)                                           \
+#define ProcCodeDoc(marker, codeStr)                                          \
   {                                                                            \
     int m;                                                                     \
     OutCh(QT);                                                                 \
@@ -219,7 +220,7 @@ typedef struct {
 // Scan4Ix(destVar):
 //    Scanning input for digits, producing value for the name passed as destVar.
 //    At the same time, writes the digits to the code buffer.
-#define Scan4Ix(destVar)                                                       \
+#define Scan4Ix(destVar)                                                      \
   CodeCh(CUR);                                                                 \
   if (!isdigit(CUR))                                                           \
     ERROR(u"Logic Error: Expected digit after esc-omega (`⍵) not found", 911); \

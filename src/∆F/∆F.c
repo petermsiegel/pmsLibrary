@@ -372,9 +372,9 @@ int fs_format2(
   if (mode == modeCode) {
     OutSC(u"⍵,⍨⍥⊆");
     OutCh(SQ);
-    for (int i; i<in.cur; ++i){
-        int ch;
-        OutCh( (ch=in.buf[i]) );
+    for (int i=0; i<in.cur; ++i){
+        int ch=in.buf[i];
+        OutCh(ch);
         if (ch==SQ) OutCh(ch);
     }
     OutCh(SQ);
@@ -418,7 +418,7 @@ static inline WIDE CharAfterBlanks(buffer *pIn, int cur) {
 //   return a length of STRLEN_MAX.
 static inline int S2Len(WIDE2 *str) {
   int len;
-#define STRLEN_MAX 512
+  #define STRLEN_MAX 512
   for (len = 0; len < STRLEN_MAX && str[len]; ++len)
     ;
   return len;
