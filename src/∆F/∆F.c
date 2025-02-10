@@ -372,7 +372,11 @@ int fs_format2(
   if (mode == modeCode) {
     OutSC(u"⍵,⍨⍥⊆");
     OutCh(SQ);
-    OutBufSq(in.buf, in.cur);
+    for (int i; i<in.cur; ++i){
+        int ch;
+        OutCh( (ch=in.buf[i]) );
+        if (ch==SQ) OutCh(ch);
+    }
     OutCh(SQ);
     OutCh(RBR);
   } else {

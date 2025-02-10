@@ -88,21 +88,11 @@ typedef struct {
   WIDE *buf;
 } buffer;
 
-#define ADDBUF(str, strLen, buffer, doubleSq)                                  \
+#define ADDBUF(str, strLen, buffer)                                            \
   {                                                                            \
     int len = strLen;                                                          \
     if (buffer.cur + len >= buffer.max)                                        \
       ERROR_SPACE;                                                             \
-    if (doubleSq) /* SQ doubling: Slower path. */                              \
-      for (int ix = 0; ix < len; buffer.cur++, ix++) {                         \
-        buffer.buf[buffer.cur] = (WIDE)str[ix];                                \
-        if (buffer.buf[buffer.cur] == SQ) {                                    \
-          if (buffer.cur + 1 >= buffer.max)                                    \
-            ERROR_SPACE;                                                       \
-          buffer.buf[++(buffer.cur)] = (WIDE)SQ;                               \
-        }                                                                      \
-      }                                                                        \
-    else /* No SQ doubling: Faster path. */                                    \
       for (int ix = 0; ix < len; (buffer.cur)++, ix++)                         \
         buffer.buf[buffer.cur] = (WIDE)str[ix];                                \
   }
@@ -118,8 +108,7 @@ typedef struct {
 
 // OUTPUT BUFFER MANAGEMENT ROUTINES
 #define DOUBLE_SQ 1
-#define OutBuf(str, len) ADDBUF(str, len, out, !DOUBLE_SQ)
-#define OutBufSq(str, len) ADDBUF(str, len, out, DOUBLE_SQ)
+#define OutBuf(str, len) ADDBUF(str, len, out)
 #define OutS(str)                                                              \
   {                                                                            \
     WIDE2 *s = str;                                                            \
@@ -137,10 +126,10 @@ typedef struct {
 #define CodeS(str)                                                             \
   {                                                                            \
     WIDE2 *s = str;                                                            \
-    ADDBUF(s, S2Len(s), code, 0);                                              \
+    ADDBUF(s, S2Len(s), code);                                              \
   } // Any null-term. WIDE2 str.
 #define CodeSC(str)                                                            \
-  ADDBUF(str, C2Len(str), code, 0) // (WIDE2) str constants only
+  ADDBUF(str, C2Len(str), code) // (WIDE2) str constants only
 #define CodeCh(ch) ADDCH(ch, code) // char. const only
 #define CodeOut                                                                \
   {                                                                            \
