@@ -93,8 +93,8 @@ typedef struct {
     int len = strLen;                                                          \
     if (buffer.cur + len >= buffer.max)                                        \
       ERROR_SPACE;                                                             \
-      for (int ix = 0; ix < len; (buffer.cur)++, ix++)                         \
-        buffer.buf[buffer.cur] = (WIDE)str[ix];                                \
+    for (int ix = 0; ix < len; (buffer.cur)++, ix++)                           \
+      buffer.buf[buffer.cur] = (WIDE)str[ix];                                  \
   }
 
 #define ADDCH(ch, buffer)                                                      \
@@ -161,17 +161,17 @@ typedef struct {
 // Termination Code
 #if USE_VLA
 #define RETURN(rc)                                                             \
-  cStrOut->len = out.cur;                                                      \
-  if (rc) longjmp(jmpbuf, rc);         \
-  return (0)    
+    cStrOut->len = out.cur;                                                      \
+    if (rc) longjmp(jmpbuf, rc);         \
+    return (0)    
 #else /* we had to malloc(), so we need to free code.buf */
-#define RETURN(rc)                                                             \
-  cStrOut->len = out.cur;                                                      \
-  if (code.buf)                                                                \
-    free(code.buf);                                                            \
-  code.buf = NULL;                                                             \
-  if (rc) longjmp( jmpbuf, rc); \
-  return 0 
+  #define RETURN(rc)                                                             \
+    cStrOut->len = out.cur;                                                      \
+    if (code.buf)                                                                \
+      free(code.buf);                                                            \
+    code.buf = NULL;                                                             \
+    if (rc) longjmp( jmpbuf, rc); \
+    return 0 
 #endif
 
 // Error handling-- must be called within scope of main function below!
