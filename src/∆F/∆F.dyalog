@@ -14,8 +14,8 @@
       :With '⍙F' ⎕SE.⎕NS ⍬
           ⍝ Load C F-string routines (two versions, for 2-byte chars and 4-byte chars)
           ⍝ At 16 (/32) bits, the <#C2 and >#C2 ⎕NA format allows strings up to humongous 64K (/2*32) bytes.
-            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <I1[5] C4 <#C4[] >#C4[] I4' 
-            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <I1[5] C4 <#C2[] >#C2[] I4'
+            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 I1 C4 <#C4[] >#C4[] I4' 
+            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 I1 C4 <#C2[] >#C2[] I4'
           ⍝ Load the UCS-2 source code for the run-time library routines from ∆F.dylib: A, B, D, M
           ⍝ GetLib bufSize, where bufSize must be >170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
@@ -24,34 +24,36 @@
   :Endif  
   ∆FⓄ← ∆FⓄ {    
       ⎕IO ⎕ML ←0 1    
-    ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output. We keep it simple here.
     ⍝ maxTries: Max # of times to expand (double) bufSize, if not enough space for result.
     ⍝ growBuf:   How much to increase buffer storage estimate, if not adequate
       maxTries growBuf← 5 4 
 
-    ⍝ Get options (⍺). 'Mode' is the principle option (a la Variant ⍠) 
-      optK← 'Mode' 'Debug' 'Box' 'EscCh' 'UseNs' 'ExtLib' 'BufSize' 
-      optV←  1      0       0     '`'     0       1       256    ⍝ <== option default values
-      GetOpts← {  
-        0=≢⍵: ⍵⍵ ⋄ (1=≢⍵)∧ 1≥ |≡⍵: ⍵, 1↓⍵⍵ 
+    ⍝ Get options (⍺). Std is the principle option (a la Variant ⍠) 
+    ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
+    ⍝ Mode: 1|0|¯1|¯2, Box: 0|1|2, Debug:0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 256.
+      optK← 'Mode' 'Box' 'Debug' 'UseNs' 'ExtLib' 'EscCh' 'BufSize' 
+      optV←  1      0     0       0       1       '`'      256    ⍝ <== option default values
+      mode box debug useNs extLib escCh bufSize← { 
+        0=≢o←⍵: optV  
+        (1=≢o)∧ 1≥ |≡o: o, 1↓ optV
         0:: 'Invalid option(s)' ⎕SIGNAL 11
-          newK newV← ↓⍉↑ ,⊂⍣(2= |≡⍵)⊢ ⍵  
-          p← ⍺⍺⍳ newK
-        p∧.≤ nK← ≢⍺⍺: newV@p⊣ ⍵⍵ 
+          newK newV← ↓⍉↑ ,⊂⍣(2= |≡o)⊢ o  
+          p← optK⍳ newK
+        p∧.≤ nK← ≢optK: newV@p⊣ optV 
           11 ⎕SIGNAL⍨ 'Unknown option(s):',∊' ',¨ newK/⍨ p≥ nK
-      }
-      mode debug box escCh useNs extLib bufSize← optK GetOpts optV⊢ ⍺
-      escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh       ⍝ escCh may be a Unicode char or numeric code
-      bufSize← bufSize⌈ 3× ≢⍵                ⍝ ensure bufSize is at least  (3× ≢⍵)
+      } ⍺
+    ⍝ optsC: 8-bits, ordered least- to most-significant bit:
+    ⍝   bit: 0:code 1:list[box] 2:table[box] 3:debug 4:useNs 5:extLib 6:extra#1 7:extra#2
+      optsC← 83 ⎕DR ((0 ¯1 ¯2= mode)∨0, 1 2=|box), debug useNs extLib 0 0    
+      escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh             ⍝ escCh may be a Unicode char or numeric code
 
       DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
     ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
-      parms← (mode debug box useNs extLib) escCh (⊃⍵) 
       isW4← 320= ⎕DR⊃⍵
       Call∆F←  { 
           curBuf← ⍵
       ⍝ Execute with current storage estimate
-          res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } parms, curBuf curBuf                  
+          res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } optsC escCh (⊃⍵), curBuf curBuf                  
         ¯1≠⊃res2: res2, curBuf                    ⍝ Success. return result: rc, code_buffer  
         ⍺≤0: res2, curBuf                         ⍝ If we've tried too many times, return as is.
           newSize← growBuf× curBuf           ⍝ Increase the storage estimate and retry...
@@ -66,10 +68,10 @@
       ⎕SIGNAL/ Err911 maxActual        
   } ∆FⒻ← ,⊆∆FⒻ  
   
-  :IF ⊃∆FⓄ                                                   ⍝ mode≠0: Generate a char vec. 
-      ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'})∆FⒻ    ⍝ NB: String ⍺ references ⍵ (∆FⒻ)
-  :Else      
-      ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                                   ⍝ mode=0: Generate a dfn.
+  :IF ⊃∆FⓄ                                                ⍝ All non-code modes: evaluate char vec and display
+        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'})∆FⒻ  ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
+  :Else ⍝ Code mode                                       ⍝ Code mode: return a dfn
+        ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 
 

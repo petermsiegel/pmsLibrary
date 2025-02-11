@@ -72,21 +72,16 @@ int fs_format4(
 #else
 int fs_format2(
 #endif
-    const char opts[5], const WIDE4 escCh, lpString *fStrIn, lpString *cStrOut,
-    uint32_t outMax) {
-  modeE mode = opts[0];     // See enum definition Mode
-  int debug = opts[1];      // debug (boolean)
-  int boxAll = opts[2];     // if 1, use B instead of M overall.
-  int useNs = opts[3];      // If 1, pass an anon ns to each Code Fn.
-  int extLib = opts[4];     // If 0, pseudo-primitives are defined internally.
-  WIDE crOut = debug ? CRVIS : CR;
+    const optionsF opts, const WIDE4 escCh, lpString *fStrIn, lpString *cStrOut, uint32_t outMax
+  ) {
+  WIDE crOut = opts.debug ? CRVIS : CR;
 
   stateE 
       state =    None,  // what kind of field are we in: None, TF, CF_START, CF
       oldState = None;  // last state
   int bracketDepth = 0; // finding } closing a field.
   int omegaNext = 0;    // `⍵/⍹ processing.
-  int cfStart = 0; // Note start of code field in input-- for "doc" processing.
+  int cfStart = 0;      // Note start of code field in input-- for "doc" processing.
 
   buffer in;
   in.buf = fStrIn->buf;
@@ -113,10 +108,10 @@ int fs_format2(
   code.cur = 0;
 
   // Code sequences...
-  WIDE2 *mergeCd = extLib ? MERGECD_EXT : MERGECD_INT;
-  WIDE2 *aboveCd = extLib ? ABOVECD_EXT : ABOVECD_INT;
-  WIDE2 *boxCd = extLib ? BOXCD_EXT : BOXCD_INT;
-  WIDE2 *dispCd = extLib ? DISPCD_EXT : DISPCD_INT;
+  WIDE2 *mergeCd = opts.extLib ? MERGECD_EXT : MERGECD_INT;
+  WIDE2 *aboveCd = opts.extLib ? ABOVECD_EXT : ABOVECD_INT;
+  WIDE2 *boxCd =   opts.extLib ? BOXCD_EXT : BOXCD_INT;
+  WIDE2 *dispCd =  opts.extLib ? DISPCD_EXT : DISPCD_INT;
   WIDE2 *fmtCd = FMTCD_INT;
 
   // Markers for self-doc code. Drawback: the fancy markers are wider than std
@@ -130,29 +125,20 @@ int fs_format2(
 
   // Preamble code string...
   OutCh(LBR);
-  if (useNs)
+  if (opts.useNs)
     OutSC(u"⍺←⎕NS⍬⋄");
-
-  switch (mode) {
-  case modeStd:
-    OutS(boxAll ? dispCd : mergeCd);
-    break;
-  case modeList:
-    OutS(dispCd);
-    break;
-  case modeTable:
-    OutS(dispCd);
-    OutCh(u'⍪');
-    break;
-  case modeCode:
-    OutS(boxAll ? dispCd : mergeCd);
-    if (useNs)
+  if (opts.list|opts.table){
+      OutS(dispCd);
+      if (opts.table) OutCh(u'⍪');
+  }else {
+    OutS(mergeCd);
+  }
+  if (opts.code) {
+    if (opts.useNs)
       OutCh(ALPHA);
     OutCh(LBR);
-    break;
-  default:
-    ERROR(u"Unknown mode option in left arg", 11);
   }
+  
 
   for (in.cur = 0; in.cur < in.max; SKIP) {
     // Logic for changing state (None, CF_START)
@@ -182,12 +168,11 @@ int fs_format2(
           CodeCh('(');
           Ix2CodeBuf(nspaces);
           CodeSC(u"⍴'");
-          if (debug)
-            CodeCh(SPVIS);
+          if (opts.debug)
+              CodeCh(SPVIS);
           CodeSC(u"')");
           CodeOut;
-        } else if (debug) { // Null space field: Do nothing unless debug is
-                            // true.
+        } else if (opts.debug) { // Null space field: Do nothing unless opts.debug is true.
           CodeSC(u" '");
           CodeCh(NULVIS);
           CodeSC(u"' ");
@@ -198,7 +183,7 @@ int fs_format2(
       } else {       // We have a CF.
         STATE(CF);
         bracketDepth = 1;
-        if (useNs)
+        if (opts.useNs)
           OutSC(u"(⍺{") // We'll pass on ⍺, which will be (⎕NS⍬).
               else OutSC(
                   u"({"); // No ⍺. User is free to set their own via ⍺←....
@@ -367,9 +352,9 @@ int fs_format2(
 
   // Postamble Code String
   OutSC(u"⍬}");
-  //   Mode 0: extra code because we need to input the format string (fStrIn)
-  //           into the resulting function (see ∆F.dyalog).
-  if (mode == modeCode) {
+  //   opts.code mode: extra code because we need to input the format string (fStrIn)
+  //                   into the resulting function (see ∆F.dyalog).
+  if (opts.code) {
     OutSC(u"⍵,⍨⍥⊆");
     OutCh(SQ);
     for (int i=0; i<in.cur; ++i){

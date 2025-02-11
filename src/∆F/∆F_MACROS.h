@@ -41,8 +41,18 @@
 #define SQ u'\''
 #define ZILDE u'⍬'
 
-// MODES
-typedef enum  { modeStd = 1, modeCode = 0, modeList = -1, modeTable = -2 } modeE;
+// Options fields: a bit each
+typedef struct { // From most- to least-significant bit.
+  unsigned int unused1: 1;    
+  unsigned int unused2: 1;
+  unsigned int extLib : 1;   // ('ExtLib' 1)
+  unsigned int useNs  : 1;   // ('UseNs' 1)
+  unsigned int debug  : 1;   // ('Debug' 1)
+  unsigned int table  : 1;   // ('Mode' ¯2) or ('Mode' 0|1) ('Box' 2)
+  unsigned int list   : 1;   // ('Mode' ¯1) or ('Mode' 0|1) ('Box' 1)
+  unsigned int code   : 1;   // ('Mode'  0) ('Box' 0|1|2)
+} optionsF;
+
 
 // STATE MANAGEMENT
 typedef enum  {
