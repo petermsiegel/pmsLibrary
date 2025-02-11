@@ -1,4 +1,4 @@
-∆FⓇ← {∆FⓄ} ∆F ∆FⒻ; ⎕TRAP 
+∆FⓇ← {∆FⓄ} ∆F ∆FⒻ ; ⎕TRAP 
 ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
   :If 900⌶0                      ⍝ Options omitted. TProcessed below.
@@ -30,7 +30,7 @@
 
     ⍝ Get options (⍺). Std is the principle option (a la Variant ⍠) 
     ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Mode: 1|0|¯1|¯2, Box: 0|1|2, Debug:0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 256.
+    ⍝ Mode: 1|0, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 256.
       optK← 'Mode' 'Box' 'Debug' 'UseNs' 'ExtLib' 'EscCh' 'BufSize' 
       optV←  1      0     0       0       1       '`'      256    ⍝ <== option default values
       mode box debug useNs extLib escCh bufSize← { 
@@ -40,20 +40,20 @@
           newK newV← ↓⍉↑ ,⊂⍣(2= |≡o)⊢ o  
           p← optK⍳ newK
         p∧.≤ nK← ≢optK: newV@p⊣ optV 
-          11 ⎕SIGNAL⍨ 'Unknown option(s):',∊' ',¨ newK/⍨ p≥ nK
+          'Unknown option(s)'  ⎕SIGNAL 11
       } ⍺
     ⍝ optsC: 8-bits, ordered least- to most-significant bit:
     ⍝   bit: 0:code 1:list[box] 2:table[box] 3:debug 4:useNs 5:extLib 6:extra#1 7:extra#2
-      optsC← 83 ⎕DR ((0 ¯1 ¯2= mode)∨0, 1 2=|box), debug useNs extLib 0 0    
+      optsC← {0:: 'Invalid option(s)' ⎕SIGNAL 11 ⋄ 83 ⎕DR ⍵}(~mode),(1 2=box), debug useNs extLib 0 0   
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh             ⍝ escCh may be a Unicode char or numeric code
 
       DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
     ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
       isW4← 320= ⎕DR⊃⍵
-      Call∆F←  { 
+      Call∆F←  (optsC escCh (⊃⍵)){ 
           curBuf← ⍵
       ⍝ Execute with current storage estimate
-          res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } optsC escCh (⊃⍵), curBuf curBuf                  
+          res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } ⍺⍺, curBuf curBuf                  
         ¯1≠⊃res2: res2, curBuf                    ⍝ Success. return result: rc, code_buffer  
         ⍺≤0: res2, curBuf                         ⍝ If we've tried too many times, return as is.
           newSize← growBuf× curBuf           ⍝ Increase the storage estimate and retry...
@@ -62,15 +62,16 @@
       }  
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
       rc res maxActual← maxTries Call∆F bufSize 
-    0= rc:  (mode≠0),⍥⊂ DNote res
+    0= rc:  (mode),⍥⊂ DNote res
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
       Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxActual        
   } ∆FⒻ← ,⊆∆FⒻ  
   
-  :IF ⊃∆FⓄ                                                ⍝ All non-code modes: evaluate char vec and display
-        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'})∆FⒻ  ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
-  :Else ⍝ Code mode                                       ⍝ Code mode: return a dfn
+  :IF   ⊃∆FⓄ                             ⍝ Std (non-code) mode: evaluate char vec and display
+        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){
+          ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'})∆FⒻ  ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
+  :Else ⍝ Code mode                       ⍝ Code mode: return a dfn
         ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 
@@ -104,9 +105,9 @@
 ⍝H Options:
 ⍝H    Options:     ( numeric | keyword )
 ⍝H      numeric:   
-⍝H        ( 1* | 0 | ¯1 | ¯2 ) 
+⍝H        ( 1* | 0 ) 
 ⍝H      keyword:   
-⍝H        ('Mode' [1*|0|¯1|¯2])  ('Debug' [1|0*])  ('Box' [1|0*])   
+⍝H        ('Mode' [1*|0])  ('Debug' [1|0*])  ('Box' [2|1|0*])   
 ⍝H        ('UseNs' [1|0*])       ('ExtLib' [1*|0]) ('Force' [1|0*])
 ⍝H        ('EscCh' '`'*|'char') 
 ⍝H    The default, if no options are presented, is: ('Mode' 1).           <== Use this in production!!!
@@ -114,15 +115,11 @@
 ⍝H    * An asterisk indicates the default for each option.
 ⍝H 
 ⍝H    Options:
-⍝H       Mode: 1* (std mode); 0 (code mode), ¯1 (list mode), ¯2 (table mode)
+⍝H       Mode: 1* (std mode); 0 (code mode) 
 ⍝H          1   std    format and return the object generated as is.
 ⍝H          0   code   create a dfn to format and generate an object later; useful when
 ⍝H                     the function is going to be called repeatedly on different data.
-⍝H         ¯1   list   format and return the object generated, boxing each field of the object 
-⍝H                     separately left-to-right, using dfn ¨disp¨. Equiv. to ('Mode' 1)('Box' 1).
-⍝H         ¯2   table  format and return the object generated, boxing each field of the object 
-⍝H                     separately in a "table", one field above the other (via ⍪).
-⍝H       Debug: If 1*, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
+⍝⍝H       Debug: If 1*, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
 ⍝H                     Space field spaces are shown via "␠" and null (empty) space fields via a single "␀".
 ⍝H                         'Debug' N                    'Debug' 0    'Debug' 1
 ⍝H                         CR via "`⋄"                   (⎕UCS 13)       ␍
@@ -130,10 +127,14 @@
 ⍝H                         a null space field {}           omitted        ␀           
 ⍝H                     In addition, the intended executable is displayed before execution.
 ⍝H       Box:   If 0*, display all fields as is.
-⍝H              If 1,  display each non-simple field* of the result in a box.
+⍝H              If 1,  [LIST form] display each non-simple field* of the result in a box, with
+⍝H                     each box displayed horizontally, one after the other.
 ⍝H                     * Null (0-width) space fields are omitted from the Box display unless Debug is 1.
+⍝H              If 2,  [TABLE form] display each non-simple field* of the result in a box, with 
+⍝H                     each box displayed vertically, one above the other.
+⍝H              ('Box' [1|2]) can be used with code mode ('Mode' 0) to create a box on each call 
+⍝H                     of the function generated.
 ⍝H              Using $$ (BELOW), you can box an individual code field (but not a text or space field).  
-⍝H              ('Box' 1) can be used with code mode ('Mode' 0) to create such a box on each function call.
 ⍝H       EscCh  A single "escape" character or its Unicode equivalent. See "escape characters" below.
 ⍝H              Defaults to '`' (or, equivalently, 96).  
 ⍝H              Best NEVER to use a quote or brace as the escape character.
@@ -160,7 +161,7 @@
 ⍝H Result Returned: 
 ⍝H   ∘ If the left argument to ∆F (⍺) is omitted ('Mode' 1) or a mode is specified, then...
 ⍝H     If the ∆F-string is evaluated successfully,
-⍝H     ∘ For modes 1 (default), ¯1, and ¯2, returns the output after executing the code and formatting
+⍝H     ∘ For mode 1 (default), ∆F returns the output after executing the code and formatting
 ⍝H       the code and text output, including any values from the environment or right argument.
 ⍝H       Normally, this is displayed as output to the terminal.
 ⍝H     ∘ For mode 0, a function that, when executed with the same environment and arguments,
@@ -318,18 +319,18 @@
 ⍝HX 1 0  1 1  1 2 
 ⍝HX 2 0  2 1  2 2 
 ⍝HX
-⍝HX ⍝ Use of ¯1 option, i.e. ('Mode' ¯1) [LIST MODE]: shows and demarcates each field (boxed) left to right.
+⍝HX ⍝ Use of ('Box' 1) [LIST MODE]: shows and demarcates each field (boxed) left to right.
 ⍝HX   C← 11 30 60
-⍝HX   ¯1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX   ('Box' 1) ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝HX ┌───────────────────┬──┬──────┬─────┬──┐
 ⍝HX │                   │11│      │ 51.8│  │
 ⍝HX │The temperature is │30│°C or │ 86.0│°F│
 ⍝HX │                   │60│      │140.0│  │
 ⍝HX └───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
-⍝HX ⍝ Use of ¯2 option or ('Mode' ¯2) [TABLE MODE]: shows and demarcates each field (boxed) in tabular form.
+⍝HX ⍝ Use of ('Box' 2) [TABLE MODE]: shows and demarcates each field (boxed) in tabular form.
 ⍝HX   C← 11 30 60
-⍝HX   ¯2 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX   ('Box' 2) ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝HX ┌───────────────────┐
 ⍝HX │The temperature is │
 ⍝HX ├───────────────────┤
