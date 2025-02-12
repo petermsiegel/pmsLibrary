@@ -30,9 +30,9 @@
 
     ⍝ Get options (⍺). Std is the principle option (a la Variant ⍠) 
     ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Mode: 1|0, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 256.
+    ⍝ Mode: 1|0, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 1024.
       optK← 'Mode' 'Box' 'Debug' 'UseNs' 'ExtLib' 'EscCh' 'BufSize' 
-      optV←  1      0     0       0       1       '`'      256    ⍝ <== option default values
+      optV←  1      0     0       0       1       '`'      1024   ⍝ <== option default values     
       mode box debug useNs extLib escCh bufSize← { 
         0=≢o←⍵: optV  
         (1=≢o)∧ 1≥ |≡o: o, 1↓ optV
@@ -42,15 +42,15 @@
         p∧.≤ nK← ≢optK: newV@p⊣ optV 
           'Unknown option(s)'  ⎕SIGNAL 11
       } ⍺
-    ⍝ optsC: 8-bits, ordered least- to most-significant bit:
-    ⍝   bit: 0:code 1:list[box] 2:table[box] 3:debug 4:useNs 5:extLib 6:extra#1 7:extra#2
-      optsC← {0:: 'Invalid option(s)' ⎕SIGNAL 11 ⋄ 83 ⎕DR ⍵}(~mode),(1 2=box), debug useNs extLib 0 0   
+    ⍝ bitFlags: 8-bits, ordered least- to most-significant bit:
+    ⍝   bit:  0:code 1:list[box] 2:table[box] 3:debug 4:useNs 5:extLib 6:unused#1 7:unused#2
+      bitFlags← 83 ⎕DR (0=mode),(1 2=box), debug useNs extLib 0 0   
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh             ⍝ escCh may be a Unicode char or numeric code
 
       DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
     ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
       isW4← 320= ⎕DR⊃⍵
-      Call∆F←  (optsC escCh (⊃⍵)){ 
+      Call∆F←  (bitFlags escCh (⊃⍵)){ 
           curBuf← ⍵
       ⍝ Execute with current storage estimate
           res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } ⍺⍺, curBuf curBuf                  
@@ -62,16 +62,17 @@
       }  
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
       rc res maxActual← maxTries Call∆F bufSize 
-    0= rc:  (mode),⍥⊂ DNote res
+    0= rc:  mode,⍥⊂ DNote res
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
       Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxActual        
   } ∆FⒻ← ,⊆∆FⒻ  
   
-  :IF   ⊃∆FⓄ                             ⍝ Std (non-code) mode: evaluate char vec and display
-        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){
-          ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'})∆FⒻ  ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
-  :Else ⍝ Code mode                       ⍝ Code mode: return a dfn
+  :IF   1=⊃∆FⓄ                             ⍝ Std (non-code) mode: evaluate char vec and display
+        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){              ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
+            ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'
+        })∆FⒻ   
+  :Else ⍝ Code mode                          ⍝ Code mode: return a dfn
         ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 
