@@ -56,10 +56,10 @@ typedef struct { // From most- to least-significant bit.
 
 // STATE MANAGEMENT
 typedef enum  {
-  None,     // not in a field
-  TF,       // in a text field
-  CF_START, // starting a cf
-  CF        // in a code field or space field */
+  stateNone,     // not in a field
+  stateTF,       // in a text field
+  stateCF0,      // starting a cf
+  stateCF        // in a code field or space field */
 } stateE;
 #define STATE(new)                                                             \
   {                                                                            \

@@ -77,8 +77,8 @@ int fs_format2(
   WIDE crOut = opts.debug ? CRVIS : CR;
 
   stateE 
-      state =    None,  // what kind of field are we in: None, TF, CF_START, CF
-      oldState = None;  // last state
+      state =    stateNone,  // what kind of field are we in: none, TF, CF0, CF
+      oldState = stateNone;  // last state
   int bracketDepth = 0; // finding } closing a field.
   int omegaNext = 0;    // `⍵/⍹ processing.
   int cfStart = 0;      // Note start of code field in input-- for "doc" processing.
@@ -131,7 +131,7 @@ int fs_format2(
       OutS(dispCd);
       if (opts.table) OutCh(u'⍪');
   }else {
-    OutS(mergeCd);
+      OutS(mergeCd);
   }
   if (opts.code) {
     if (opts.useNs)
@@ -141,19 +141,19 @@ int fs_format2(
   
 
   for (in.cur = 0; in.cur < in.max; SKIP) {
-    // Logic for changing state (None, CF_START)
+    // Logic for changing state (stateNone, stateCF0)
     switch (state) {
-    case None:
+    case stateNone:
       if (CUR != LBR) {
-        STATE(TF);
+        STATE(stateTF);
         OutCh(QT);
-        goto TF; // Process the current char. immediately.
+        goto TFlabel; // Process the current char. immediately.
       } else {   // Left Brace "{" seen.
-        STATE(CF_START);
+        STATE(stateCF0);
       }
       break;
-    case CF_START:
-      if (oldState == TF) // Terminate existing TF
+    case stateCF0:
+      if (oldState == stateTF) // Terminate existing stateTF
         OutSC(u"' ");
       // cfStart marks start of code field (in case a self-documenting CF)
       cfStart = in.cur; // If a space field, this is ignored.
@@ -178,10 +178,10 @@ int fs_format2(
           CodeSC(u"' ");
           CodeOut;
         }
-        STATE(None); // SF is complete! Set state to None and fetch next char at
+        STATE(stateNone); // SF is complete! Set state to stateNone and fetch next char at
                      // for() loop.
       } else {       // We have a CF.
-        STATE(CF);
+        STATE(stateCF);
         bracketDepth = 1;
         if (opts.useNs)
           OutSC(u"(⍺{") // We'll pass on ⍺, which will be (⎕NS⍬).
@@ -189,11 +189,11 @@ int fs_format2(
                   u"({"); // No ⍺. User is free to set their own via ⍺←....
         CodeInit; // Ready to write code buffer (doesn't affect output buffer
                   // yet).
-        goto CF;  // Process the current char directly.
+        goto CFlabel;  // Process the current char directly.
       }
       break;
-    case TF: // Text field
-    TF:
+    case stateTF: // Text field
+    TFlabel:
       if (CUR == escCh) { // Check for escape chars
         WIDE ch =
             PEEK; // Do bounds check, in case <esc> is last char in string.
@@ -209,15 +209,15 @@ int fs_format2(
           OutCh(ch); // esc + ch => esc + ch. I.e.
         }
       } else if (CUR == LBR) {
-        STATE(CF_START); // TF will end at (state == CF_START) above.
+        STATE(stateCF0); // TF will end at (state == stateCF0) above.
       } else {
         OutCh(CUR);
         if (CUR == QT) // Double internal quotes per APL
           OutCh(QT);
       }
       break;
-    case CF: // Code field
-    CF:
+    case stateCF: // Code field
+    CFlabel:
       if (CUR == RBR) {
         --bracketDepth;
         if (bracketDepth > 0) {
@@ -226,7 +226,7 @@ int fs_format2(
           CodeOut;
           OutSC(u"}⍵)");
           bracketDepth = 0;
-          STATE(None);
+          STATE(stateNone);
         }
       } else if (CUR == LBR) {
         ++bracketDepth;
@@ -343,10 +343,10 @@ int fs_format2(
       break;
     }
   } /* for (in.cur...)*/
-  if (state == TF) {
+  if (state == stateTF) {
     OutCh(QT);
-    STATE(None);
-  } else if (state != None) {
+    STATE(stateNone);
+  } else if (state != stateNone) {
     ERROR(u"Code or Space Field was not terminated properly", 11);
   }
 
