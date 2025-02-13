@@ -42,14 +42,14 @@
 #define ZILDE u'⍬'
 
 // Options fields: a byte each
-typedef struct {  
+typedef struct {     // In APL, order is _extra, dfn, ..., lib
   unsigned char 
-      dfn,       // 0=std, 1=code
-      box,        // 0=none, 1=list, 2=table
-      debug,      // 0=no, 1=yes
-      useNs,      // 0=no, 1=yes
-      lib,        // 0=internal, 1=external
-      padding[3]; // (ignored)
+      box: 2,        // 0=none, 1=list, 2=table
+      dfn: 1,        // 0=std, 1=code
+      debug: 1,      // 0=no, 1=yes
+      useNs: 1,      // 0=no, 1=yes
+      lib: 1,        // 0=internal, 1=external
+      _extra: 2;     // ignored
 } optionsF; 
 
 
