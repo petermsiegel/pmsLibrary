@@ -14,8 +14,8 @@
       :With '⍙F' ⎕SE.⎕NS ⍬
           ⍝ Load C F-string routines (two versions, for 2-byte chars and 4-byte chars)
           ⍝ At 16 (/32) bits, the <#C2 and >#C2 ⎕NA format allows strings up to humongous 64K (/2*32) bytes.
-            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 I1 C4 <#C4[] >#C4[] I4' 
-            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 I1 C4 <#C2[] >#C2[] I4'
+            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 {U1[5] U1[3]} C4 <#C4[] >#C4[] I4' 
+            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 {U1[5] U1[3]} C4 <#C2[] >#C2[] I4'
           ⍝ Load the UCS-2 source code for the run-time library routines from ∆F.dylib: A, B, D, M
           ⍝ GetLib bufSize, where bufSize must be >170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
@@ -28,29 +28,26 @@
     ⍝ growBuf:   How much to increase buffer storage estimate, if not adequate
       maxTries growBuf← 5 4 
 
-    ⍝ Get options (⍺). Options are per <optK> below. 'Mode' is the principle option (a la Variant ⍠) 
+    ⍝ Get options (⍺). Options are per <optK> below. 'Dfn' is the principle option (a la Variant ⍠) 
     ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Mode: 1|0, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, ExtLib: 0,1; EscCh: '`', BufSize: 1024.
-      optK← 'Mode' 'Box' 'Debug' 'UseNs' 'ExtLib' 'EscCh' 'BufSize' 
-      optV←  1      0     0       0       1        '`'     1024   ⍝ <== option default values     
-      mode box debug useNs extLib escCh bufSize← { 
-        0=≢o←⍵: optV  
-        (1=≢o)∧ 1≥ |≡o: o, 1↓ optV
+    ⍝ Dfn: 0|1, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, Lib: 0,1; EscCh: '`', BufSize: 1024.
+      dfn box debug useNs lib escCh bufSize← { 
+          optK← 'Dfn' 'Box' 'Debug' 'UseNs' 'Lib' 'EscCh' 'BufSize' 
+          optV←  0      0     0       0       1    '`'     1024   ⍝ <== option default values  
+        0=≢o←⍵:  optV 
+        (1=≢o)∧ 1≥ |≡o: o, 1↓optV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
           newK newV← ↓⍉↑ ,⊂⍣(2= |≡o)⊢ o  
           p← optK⍳ newK
-        p∧.≤ nK← ≢optK: newV@p⊣ optV 
-          'Unknown option(s)'  ⎕SIGNAL 11
+        p∨.> nK← ≢optK: 'Unknown option(s)'  ⎕SIGNAL 11         
+          newV@p⊣ optV 
       } ⍺
-    ⍝ bitFlags: 8-bit integer, bits ordered least- to most-significant:
-    ⍝          [0] code, [1] list[box], [2] table[box], [3] debug, [4] useNs, [5] extLib, [6] unused#1, [7] unused#2
-      bitFlags← 83 ⎕DR (0=mode),(1 2=box), debug useNs extLib 0 0   
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh             ⍝ escCh may be a Unicode char or numeric code
 
       DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
     ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
       isW4← 320= ⎕DR⊃⍵
-      Call∆F←  (bitFlags escCh (⊃⍵)){        ⍝ Execute with current storage estimate
+      Call∆F←  ((8↑dfn box debug useNs lib) escCh (⊃⍵)){        ⍝ Execute with current storage estimate
             res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } ⍺⍺, ⍵ ⍵                 
         ¯1≠⊃res2: res2, ⍵                    ⍝ Success. return result: rc, code_buffer  
         ⍺≤0: res2, ⍵                         ⍝ If we've tried too many times, return as is.
@@ -60,17 +57,17 @@
       }  
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
       rc res maxActual← maxTries Call∆F bufSize 
-    0= rc:  mode,⍥⊂ DNote res
+    0= rc:  dfn,⍥⊂ DNote res
    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
       Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'}
       ⎕SIGNAL/ Err911 maxActual        
   } ∆FⒻ← ,⊆∆FⒻ  
   
-  :IF   1=⊃∆FⓄ                             ⍝ Std (non-code) mode: evaluate char vec and display
-        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){              ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
+  :IF   ~⊃∆FⓄ                                ⍝ Std (non-code) dfn: evaluate char vec and display
+        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
             ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'
         })∆FⒻ   
-  :Else ⍝ Code mode                          ⍝ Code mode: return a dfn
+  :Else ⍝ Code dfn                          ⍝ Code dfn: return a dfn
         ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 
@@ -106,32 +103,31 @@
 ⍝H      numeric:   
 ⍝H        ( 1* | 0 ) 
 ⍝H      keyword:   
-⍝H        ('Mode' [1*|0])  ('Debug' [1|0*])  ('Box' [2|1|0*])   
-⍝H        ('UseNs' [1|0*])       ('ExtLib' [1*|0]) ('Force' [1|0*])
-⍝H        ('EscCh' '`'*|'char') 
-⍝H    The default, if no options are presented, is: ('Mode' 1).           <== Use this in production!!!
-⍝H    The default, if a single integer n is presented, is: ('Mode' n)       
+⍝H        ('Dfn' [0*|1])  ('Debug' [0*|1]) ('Box' [0*|1|2])   
+⍝H        ('UseNs' [0*|1]) ('Lib'   [1*|0]) ('EscCh' '`'*|'char'|num) 
+⍝H    The default, if no options are presented, is: ('Dfn' 0).           <== Use this in production!!!
+⍝H    The default, if a single integer n is presented, is: ('Dfn' n)       
 ⍝H    * An asterisk indicates the default for each option.
 ⍝H 
 ⍝H    Options:
-⍝H       Mode: 1* (std mode); 0 (code mode) 
-⍝H          1   std    format and return the object generated as is.
-⍝H          0   code   create a dfn to format and generate an object later; useful when
+⍝H       Dfn: 0* (std dfn); 1 (code dfn) 
+⍝H          0   std    format and return the object generated as is.
+⍝H          1   code   create a dfn to format and generate an object later; useful when
 ⍝H                     the function is going to be called repeatedly on different data.
-⍝⍝H       Debug: If 1*, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
+⍝⍝H       Debug: If 1, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
 ⍝H                     Space field spaces are shown via "␠" and null (empty) space fields via a single "␀".
 ⍝H                         'Debug' N                    'Debug' 0    'Debug' 1
 ⍝H                         CR via "`⋄"                   (⎕UCS 13)       ␍
 ⍝H                         spaces in space fields { }       ' '           ␠
 ⍝H                         a null space field {}           omitted        ␀           
-⍝H                     In addition, the intended executable is displayed before execution.
+⍝H                     In addition, the executable used for output is displayed before execution.
 ⍝H       Box:   If 0*, display all fields as is.
 ⍝H              If 1,  [LIST form] display each non-simple field* of the result in a box, with
 ⍝H                     each box displayed horizontally, one after the other.
 ⍝H                     * Null (0-width) space fields are omitted from the Box display unless Debug is 1.
 ⍝H              If 2,  [TABLE form] display each non-simple field* of the result in a box, with 
 ⍝H                     each box displayed vertically, one above the other.
-⍝H              ('Box' [1|2]) can be used with code mode ('Mode' 0) to create a box on each call 
+⍝H              ('Box' [1|2]) can be used with code mode ('Dfn' 0) to create a box on each call 
 ⍝H                     of the function generated.
 ⍝H              Using $$ (BELOW), you can box an individual code field (but not a text or space field).  
 ⍝H       EscCh  A single "escape" character or its Unicode equivalent. See "escape characters" below.
@@ -145,11 +141,11 @@
 ⍝H            π²=9.869604401, π=3.141592654
 ⍝H          ∘ Allows shared state across code fields without cluttering the calling namespace.
 ⍝H          ∘ If ('UseNs' 0) is applied, then ⍺ seen by each code field is undefined (you can set via ⍺←...).
-⍝H       ExtLib: 
+⍝H       Lib: 
 ⍝H          ∘ If 1(*), we load and use a namespace (library) ⎕SE.⍙F to hold key run-time utilities (A, B, D, M)
-⍝H            referenced in the code generated by ∆F. Generates a more compact code string than for ('ExtLib' 0).
+⍝H            referenced in the code generated by ∆F. Generates a more compact code string than for ('Lib' 0).
 ⍝H          ∘ If 0, the utilities are included "stand alone" in the code created by the associated 
-⍝H            C routine called here.  In particular, a dfn ('Mode' 0) generated by ∆F will require
+⍝H            C routine called here.  In particular, a dfn ('Dfn' 0) generated by ∆F will require
 ⍝H            no external run-time library at all (namespace ⎕SE.⍙F may be absent). 
 ⍝H       * shows default option values.
 ⍝H 
@@ -158,12 +154,12 @@
 ⍝H        'help' ∆F 'anything'    ⍝ Right arg ignored, when ⍺ is 'help'
 ⍝H
 ⍝H Result Returned: 
-⍝H   ∘ If the left argument to ∆F (⍺) is omitted ('Mode' 1) or a mode is specified, then...
+⍝H   ∘ If the left argument to ∆F (⍺) is omitted ('Dfn' 1) or a number (1 or 0) specified, then...
 ⍝H     If the ∆F-string is evaluated successfully,
-⍝H     ∘ For mode 1 (default), ∆F returns the output after executing the code and formatting
+⍝H     ∘ For 'Dfn' 1 (default), ∆F returns the output after executing the code and formatting
 ⍝H       the code and text output, including any values from the environment or right argument.
 ⍝H       Normally, this is displayed as output to the terminal.
-⍝H     ∘ For mode 0, a function that, when executed with the same environment and arguments,
+⍝H     ∘ For 'Dfn' 0, a function that, when executed with the same environment and arguments,
 ⍝H       generates identical output.
 ⍝H     Else if an error occurs, 
 ⍝H     ∘ ∆F generates a standard, trappable Dyalog ⎕SIGNAL.
@@ -346,12 +342,12 @@
 ⍝HX │        °F         │
 ⍝HX └───────────────────┘
 ⍝HX
-⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (1 ∆F ...) and precomputed via (0 ∆F ...): 
+⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
 ⍝HX   C← 11 30 60
 ⍝HX ⍝ Here's our ∆F String <t>
 ⍝HX   t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝HX ⍝ Precompute a dfn T given ∆F String <t>.
-⍝HX   T←0 ∆F t
+⍝HX   T←1 ∆F t      ⍝ ('Dfn' 1, i.e. generate a dfn)
 ⍝HX ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
 ⍝HX   cmpx '∆F t' 'T ⍬'
 ⍝HX ∆F t → 4.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕

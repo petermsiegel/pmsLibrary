@@ -108,10 +108,10 @@ int fs_format2(
   code.cur = 0;
 
   // Code sequences...
-  WIDE2 *mergeCd = opts.extLib ? MERGECD_EXT : MERGECD_INT;
-  WIDE2 *aboveCd = opts.extLib ? ABOVECD_EXT : ABOVECD_INT;
-  WIDE2 *boxCd =   opts.extLib ? BOXCD_EXT : BOXCD_INT;
-  WIDE2 *dispCd =  opts.extLib ? DISPCD_EXT : DISPCD_INT;
+  WIDE2 *mergeCd = opts.lib ? MERGECD_EXT: MERGECD_INT;
+  WIDE2 *aboveCd = opts.lib ? ABOVECD_EXT: ABOVECD_INT;
+  WIDE2 *boxCd =   opts.lib ? BOXCD_EXT:   BOXCD_INT;
+  WIDE2 *dispCd =  opts.lib ? DISPCD_EXT:  DISPCD_INT;
   WIDE2 *fmtCd = FMTCD_INT;
 
   // Markers for self-doc code. Drawback: the fancy markers are wider than std
@@ -127,13 +127,13 @@ int fs_format2(
   OutCh(LBR);
   if (opts.useNs)
     OutSC(u"⍺←⎕NS⍬⋄");
-  if (opts.list|opts.table){
+  if (opts.box){
       OutS(dispCd);
-      if (opts.table) OutCh(u'⍪');
-  }else {
+      if (opts.box==2) OutCh(u'⍪');
+  } else {
       OutS(mergeCd);
   }
-  if (opts.code) {
+  if (opts.dfn==1) {
     if (opts.useNs)
       OutCh(ALPHA);
     OutCh(LBR);
@@ -354,7 +354,7 @@ int fs_format2(
   OutSC(u"⍬}");
   //   opts.code mode: extra code because we need to input the format string (fStrIn)
   //                   into the resulting function (see ∆F.dyalog).
-  if (opts.code) {
+  if (opts.dfn==1) {
     OutSC(u"⍵,⍨⍥⊆");
     OutCh(SQ);
     for (int i=0; i<in.cur; ++i){

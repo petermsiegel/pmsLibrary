@@ -15,7 +15,7 @@
 #define BOXCD_EXT LIB_CALL(u"B")
 //       ⎕FMT: Formatting (dyadic)
 #define FMTCD_INT u" ⎕FMT "
-// dfn ¨disp¨, used as a prefix for LIST and TABLE modes and with BOX option.
+// dfn ¨disp¨, used as a prefix for d is 0 (list) and 1 (table) in ('Box' d) option.
 #define DISPCD_INT u"0∘⎕SE.Dyalog.Utils.disp¯1∘↓"
 #define DISPCD_EXT LIB_CALL(u"D")
 
@@ -41,17 +41,16 @@
 #define SQ u'\''
 #define ZILDE u'⍬'
 
-// Options fields: a bit each
-typedef struct { // From most- to least-significant bit.
-  unsigned int unused1: 1;    
-  unsigned int unused2: 1;
-  unsigned int extLib : 1;   // ('ExtLib' 1)
-  unsigned int useNs  : 1;   // ('UseNs' 1)
-  unsigned int debug  : 1;   // ('Debug' 1)
-  unsigned int table  : 1;   // ('Mode' ¯2) or ('Mode' 0|1) ('Box' 2)
-  unsigned int list   : 1;   // ('Mode' ¯1) or ('Mode' 0|1) ('Box' 1)
-  unsigned int code   : 1;   // ('Mode'  0) ('Box' 0|1|2)
-} optionsF;
+// Options fields: a byte each
+typedef struct {  
+  unsigned char 
+      dfn,       // 0=std, 1=code
+      box,        // 0=none, 1=list, 2=table
+      debug,      // 0=no, 1=yes
+      useNs,      // 0=no, 1=yes
+      lib,        // 0=internal, 1=external
+      padding[3]; // (ignored)
+} optionsF; 
 
 
 // STATE MANAGEMENT
