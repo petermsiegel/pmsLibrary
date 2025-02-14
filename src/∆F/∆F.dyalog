@@ -32,45 +32,45 @@
 
     ⍝ Get options (⍺). Options are per <optK> below. 'Dfn' is the principle option (a la Variant ⍠) 
     ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Dfn: 0|1, Box: 0|1|2, Debug: 0|1, UseNs: 0|1, Lib: 0,1; EscCh: '`', BufSize: 1024.
-      dfn box debug useNs lib escCh bufSize← { 
-          optK← 'dfn' 'box' 'debug' 'usens' 'lib' 'escch' 'bufsize' 
-          optV←  0     0     0       0       1    '`'     1024   ⍝ <== option default values  
-        0=≢o←⍵:  optV 
-        (1=≢o)∧ 1≥ |≡o: o, 1↓optV 
+    ⍝ Bit fields: Dfn: 1 bit, Box: 2, Debug: 1, UseNs: 1, Lib: 1, padding: 2; 
+    ⍝ Char4:  EscCh: '`'; Int4: BufSize: 1024.
+       Opts← { 
+          oK← 'dfn' 'box' 'debug' 'usens' 'lib' 'escch' 'bufsize' 
+          oV←  0     0     0       0       1    '`'     1024    
+        0=≢⍵:  oV 
+        (1= ≢⍵)∧ 1≥ d← |≡⍵: ⍵, 1↓oV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
-          newK newV← ↓⍉↑ ,⊂⍣(2= |≡o)⊢ o  
-          p← optK⍳ ⎕C newK
-        p∨.> nK← ≢optK: 'Unknown option(s)'  ⎕SIGNAL 11         
-          newV@p⊣ optV
-      } ⍺
-      escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh             ⍝ escCh may be a Unicode char or numeric code
+          p← oK⍳ ⎕C ⊃newK newV← ↓⍉↑ ,⊂⍣(2= d)⊢ ⍵  
+        p∧.< ≢oK: newV@p⊣ oV 
+          'Unknown option(s)'  ⎕SIGNAL 11 
+      } 
+      dfn box debug useNs lib escCh bufSize← Opts ⍺
+      bitFlds← 83⎕DR 0 0 lib useNs debug dfn, 2 2⊤box     ⍝ Store an 8-bit bit field w/ 2 bits of padding.
+      escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh                    ⍝ escCh may be any Unicode char or numeric code
+      isW4← 320= ⎕DR⊃⍵                                    ⍝ Format string chars: 2-byte or 4-byte?
 
-      DNote← debug { ⍺⍺=0: ⍵ ⋄ ⊢⎕←⍵ } 
-    ⍝ If the format string has 32-bit chars, use 32-bit mode; else, use 16-bit mode. See note at ⎕NA... 
-      isW4← 320= ⎕DR⊃⍵ 
-      bitFlds← 83⎕DR 0 0 lib useNs debug dfn, 2 2⊤box   ⍝ Store an 8-bit bit field w/ 2 bits of padding.
       Call∆F←  (bitFlds escCh (⊃⍵)){       
             res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } ⍺⍺, ⍵ ⍵                 
-        ¯1≠⊃res2: res2, ⍵                    ⍝ Success. return result: rc, code_buffer  
-        ⍺≤0: res2, ⍵                         ⍝ If we've tried too many times, return as is.
-            newSize← growBuf× ⍵           ⍝ Increase the storage estimate and retry...
-            _← DNote 'Retrying ∆F with bufSize',newSize,' Was',⍵ 
+        ¯1≠⊃res2: res2, ⍵                               ⍝ Success. return result: rc, code_buffer  
+        ⍺≤0: res2, ⍵                                    ⍝ If we've tried too many times, return (with error code) as is.
+            newSize← growBuf× ⍵                         ⍝ Increase the storage estimate and retry...
+            _← {debug: ⎕←⍵ ⋄ ⍵ } 'Retrying ∆F with bufSize',newSize,' Was',⍵ 
             (⍺-1) ∇ newSize  
-      }  
+      } 
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
       rc res maxActual← maxTries Call∆F bufSize 
-    0= rc:  dfn,⍥⊂ DNote res
-   ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res 
-      Err911← {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'}
-      ⎕SIGNAL/ Err911 maxActual        
+      debug∧ 0= rc:  dfn,⍥⊂ ⎕← res                       ⍝ Success
+      0= rc:  dfn,⍥⊂ res                                 ⍝ Success
+      ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res           ⍝ Failure w/ error msg passed from ∆F4/2.  
+      ⎕SIGNAL/ {                                         ⍝ Failure: buffer too small
+        ⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'
+      } maxActual 
   } ∆FⒻ← ,⊆∆FⒻ  
-  
-  :IF   ~⊃∆FⓄ                                ⍝ Std (non-code) dfn: evaluate char vec and display
-        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
+  :IF   ~⊃∆FⓄ                                            ⍝ Std (non-code) dfn: evaluate char vec and display
+        ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                           ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
             ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'
         })∆FⒻ   
-  :Else ⍝ Code dfn                          ⍝ Code dfn: return a dfn
+  :Else ⍝ Code dfn                                      ⍝ Code dfn: return a dfn
         ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 
@@ -104,22 +104,24 @@
 ⍝H Options:
 ⍝H    Options:     ( numeric | keyword )
 ⍝H      numeric:   
-⍝H        ( 1* | 0 ) 
-⍝H      keyword:   
+⍝H        ( 0* | 1 ) 
+⍝H      keyword**:   
 ⍝H        ('Dfn' [0*|1])  ('Debug' [0*|1]) ('Box' [0*|1|2])   
 ⍝H        ('UseNs' [0*|1]) ('Lib'   [1*|0]) ('EscCh' '`'*|'char'|num) 
 ⍝H    The default, if no options are presented, is: ('Dfn' 0).           <== Use this in production!!!
-⍝H    The default, if a single integer n is presented, is: ('Dfn' n)       
-⍝H    * An asterisk indicates the default for each option.
+⍝H    The default, if a single integer n is presented, is: ('Dfn' n)  
+⍝H    ** Keywords: case is ignored. 
+⍝H    *  An asterisk indicates the default for each option.
 ⍝H 
 ⍝H    Options:
 ⍝H       Dfn: 0* (std dfn); 1 (code dfn) 
 ⍝H          0   std    format and return the object generated as is.
-⍝H          1   code   create a dfn to format and generate an object later; useful when
-⍝H                     the function is going to be called repeatedly on different data.
+⍝H          1   code   create a dfn to format and generate an object later; useful (efficient) when
+⍝H                     the function is going to be called repeatedly on different data 
+⍝H                     (embedded variables/code or `⍵ expressions)
 ⍝⍝H       Debug: If 1, carriage returns entered via "`⋄" are replaced by a visible symbol "␍".
 ⍝H                     Space field spaces are shown via "␠" and null (empty) space fields via a single "␀".
-⍝H                         'Debug' N                    'Debug' 0    'Debug' 1
+⍝H                         'Debug' N          ==>       'Debug' 0    'Debug' 1
 ⍝H                         CR via "`⋄"                   (⎕UCS 13)       ␍
 ⍝H                         spaces in space fields { }       ' '           ␠
 ⍝H                         a null space field {}           omitted        ␀           
@@ -244,10 +246,14 @@
 ⍝HX an                   Code   
 ⍝HX example              Fields 
 ⍝HX   
-⍝HX ⍝ Like the example above, in a more traditional APL style
-⍝HX   ∆F '{↑"This" "is"} {↑"a"  "more"} {↑"trad''l" "example"}'
-⍝HX This a    trad'l 
-⍝HX is   more example
+⍝HX ⍝ Like the example above, with useful data
+⍝HX   fn←   'John'           'Mary'         'Bill'
+⍝HX   ln←   'Smith'          'Jones'        'Templeton'
+⍝HX   addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
+⍝HX   ∆F '{↑fn} {↑ln} {↑addr}'
+⍝HX John Smith     24 Mulberry Ln
+⍝HX Mary Jones     22 Smith St   
+⍝HX Bill Templeton 12 High St 
 ⍝HX     
 ⍝HX ⍝ A slightly more interesting code expression
 ⍝HX   C← 11 30 60
@@ -255,19 +261,11 @@
 ⍝HX The temperature is 11°C or  51.8°F
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
-⍝HX 
-⍝HX ⍝ One way to create column separators...  
-⍝HX   C← 11 30 60
-⍝HX   S←⍪'│'⍴⍨ ≢C
-⍝HX   ∆F'The temperature is {S}{"I2" $ C}°C{S} or {S}{"F5.1" $ F← 32+9×C÷5}°F{S}'
-⍝HX The temperature is │11°C│ or │ 51.8°F│
-⍝HX                    │30  │    │ 86.0  │
-⍝HX                    │60  │    │140.0  │
 ⍝HX  
 ⍝HX ⍝ Using "boxes" via the $$ (box) pseudo-primitive
-⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ F← 32+9×C÷5}`⋄°'
+⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ F← 32+9×C÷5}`⋄°F'
 ⍝HX                    ┌──┐      ┌─────┐
-⍝HX The temperature is │11│°C or │ 51.8│°
+⍝HX The temperature is │11│°C or │ 51.8│°F
 ⍝HX                    │30│      │ 86.0│ 
 ⍝HX                    │60│      │140.0│ 
 ⍝HX                    └──┘      └─────┘                
@@ -279,13 +277,13 @@
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
 ⍝HX 
-⍝HX ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), given ⎕IO←0)
+⍝HX ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), where ⎕IO←0)
 ⍝HX   ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
 ⍝HX The temperature is 11°C or  51.8°F
 ⍝HX                    15       59.0  
 ⍝HX                    20       68.0 
 ⍝HX 
-⍝HX ⍝ Use argument `⍵1 (1⊃⍵) in a calculation.  (Likewise:  ('UseNs' 1) ∆F 'π²={⍺.Pi*2} π={⍺.Pi←○1}') 
+⍝HX ⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      'π²' is (⎕UCS 960 178) 
 ⍝HX   ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
 ⍝HX π²=9.869604401, π=3.141592654
 ⍝HX 

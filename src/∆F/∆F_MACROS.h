@@ -42,14 +42,14 @@
 #define ZILDE u'⍬'
 
 // Options fields: a byte each
-typedef struct {     // In APL, order is _extra, dfn, ..., lib
+typedef struct {     // APL code to generate: (83 ⎕DR 0 0 lib useNs debug dfn, 2 2⊤box)
   unsigned char 
-      box: 2,        // 0=none, 1=list, 2=table
-      dfn: 1,        // 0=std, 1=code
+      box: 2,        // 0=none, 1=list (std) box, 2=table (vertical) boxes
+      dfn: 1,        // 0=std, 1=generate dfn
       debug: 1,      // 0=no, 1=yes
       useNs: 1,      // 0=no, 1=yes
       lib: 1,        // 0=internal, 1=external
-      _extra: 2;     // ignored
+      _padding: 2;   // ignored
 } optionsF; 
 
 
@@ -113,7 +113,7 @@ typedef struct {
     buffer.buf[buffer.cur++] = (WIDE)ch;                                       \
   }
 
-#define C2Len(s) ((sizeof(s) - 1) / sizeof(WIDE2)) // See also S2Len()
+#define C2Len(s) ((sizeof(s) - 1) / sizeof(WIDE2)) // See also S2Len() in ∆F.c 
 
 // OUTPUT BUFFER MANAGEMENT ROUTINES
 #define DOUBLE_SQ 1

@@ -189,7 +189,7 @@ int fs_format2(
                   u"({"); // No ⍺. User is free to set their own via ⍺←....
         CodeInit; // Ready to write code buffer (doesn't affect output buffer
                   // yet).
-        goto CFlabel;  // Process the current char directly.
+        goto CFlabel;  // Process the current char immediately.
       }
       break;
     case stateTF: // Text field
