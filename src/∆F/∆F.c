@@ -1,16 +1,14 @@
 /* fc: Uses 4-byte (32-bit) unicode chars throughout
    Name Assoc (in your namespace, ns):
-       '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format4 <I1[4] <C4   <#C4[]  >#C4[]  I4'
-       '∆F4_C' ns.⎕NA 'I4 ∆F.dylib|fs_format2 <I1[4] <C4   <#C2[]  >#C2[]  I4'
-                       rc                     opts   escCh fStrIn cStrOut outLen
-                                                                              * <max output, >actual output
+      '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <{C4 U1[5]} <#C4[] >#C4[] I4' 
+      '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <{C4 U1[5]} <#C2[] >#C2[] I4'
    Compile with:
-       cc -O3 -c -o ∆F4.temp -D WIDTH=4 ∆F.c
-       cc -O3 -c -o ∆F2.temp -D WIDTH=2 ∆F.c
-       cc -dynamiclib -o ∆F.dylib ∆F4.temp ∆F2.temp
-       rm ∆F4.temp ∆F2.temp
+      cc -O3 -c -o ∆F4.temp -D WIDTH=4 ∆F.c
+      cc -O3 -c -o ∆F2.temp -D WIDTH=2 ∆F.c
+      cc -dynamiclib -o ∆F.dylib ∆F4.temp ∆F2.temp
+      rm ∆F4.temp ∆F2.temp
    Returns:
-       rc cStrOut, where cStrOut contains its length ( >#C2 or >#C4 ⎕NA format)
+      rc cStrOut, where cStrOut contains its length ( >#C2 or >#C4 ⎕NA format)
    If rc≠¯1, cStrOut is a string (rc=0: code, or rc>0: error message).
    to get execute-ready code or (rc>0) the generated error message.
    rc=¯1:   output buffer not big enough for transformed fStrIn.
@@ -72,9 +70,9 @@ int fs_format4(
 #else
 int fs_format2(
 #endif
-    const optionsF opts, const WIDE4 escCh, lpString *fStrIn, lpString *cStrOut, uint32_t outMax
+    const optionsF *opts, lpString *fStrIn, lpString *cStrOut, uint32_t outMax
   ) {
-  WIDE crOut = opts.debug ? CRVIS : CR;
+  WIDE crOut = opts->debug ? CRVIS : CR;
 
   stateE 
       state =    stateNone,  // what kind of field are we in: none, TF, CF0, CF
@@ -108,10 +106,10 @@ int fs_format2(
   code.cur = 0;
 
   // Code sequences...
-  WIDE2 *mergeCd = opts.lib ? MERGECD_EXT: MERGECD_INT;
-  WIDE2 *aboveCd = opts.lib ? ABOVECD_EXT: ABOVECD_INT;
-  WIDE2 *boxCd =   opts.lib ? BOXCD_EXT:   BOXCD_INT;
-  WIDE2 *dispCd =  opts.lib ? DISPCD_EXT:  DISPCD_INT;
+  WIDE2 *mergeCd = opts->lib ? MERGECD_EXT: MERGECD_INT;
+  WIDE2 *aboveCd = opts->lib ? ABOVECD_EXT: ABOVECD_INT;
+  WIDE2 *boxCd =   opts->lib ? BOXCD_EXT:   BOXCD_INT;
+  WIDE2 *dispCd =  opts->lib ? DISPCD_EXT:  DISPCD_INT;
   WIDE2 *fmtCd = FMTCD_INT;
 
   // Markers for self-doc code. Drawback: the fancy markers are wider than std
@@ -125,16 +123,16 @@ int fs_format2(
 
   // Preamble code string...
   OutCh(LBR);
-  if (opts.useNs)
+  if (opts->useNs)
     OutSC(u"⍺←⎕NS⍬⋄");
-  if (opts.box){
+  if (opts->box){
       OutS(dispCd);
-      if (opts.box==2) OutCh(u'⍪');
+      if (opts->box==2) OutCh(u'⍪');
   } else {
       OutS(mergeCd);
   }
-  if (opts.dfn==1) {
-    if (opts.useNs)
+  if (opts->dfn==1) {
+    if (opts->useNs)
       OutCh(ALPHA);
     OutCh(LBR);
   }
@@ -168,11 +166,11 @@ int fs_format2(
           CodeCh('(');
           Ix2CodeBuf(nspaces);
           CodeSC(u"⍴'");
-          if (opts.debug)
+          if (opts->debug)
               CodeCh(SPVIS);
           CodeSC(u"')");
           CodeOut;
-        } else if (opts.debug) { // Null space field: Do nothing unless opts.debug is true.
+        } else if (opts->debug) { // Null space field: Do nothing unless opts->debug is true.
           CodeSC(u" '");
           CodeCh(NULVIS);
           CodeSC(u"' ");
@@ -183,7 +181,7 @@ int fs_format2(
       } else {       // We have a CF.
         STATE(stateCF);
         bracketDepth = 1;
-        if (opts.useNs)
+        if (opts->useNs)
           OutSC(u"(⍺{") // We'll pass on ⍺, which will be (⎕NS⍬).
               else OutSC(
                   u"({"); // No ⍺. User is free to set their own via ⍺←....
@@ -194,18 +192,18 @@ int fs_format2(
       break;
     case stateTF: // Text field
     TFlabel:
-      if (CUR == escCh) { // Check for escape chars
+      if (CUR == opts->escCh) { // Check for escape chars
         WIDE ch =
             PEEK; // Do bounds check, in case <esc> is last char in string.
         SKIP;     // Consume next char.
-        if (ch == escCh) { // <esc><esc>
-          OutCh(escCh);
+        if (ch == opts->escCh) { // <esc><esc>
+          OutCh(opts->escCh);
         } else if (ch == LBR || ch == RBR) {
           OutCh(ch);
         } else if (ch == DMND) {
           OutCh(crOut);
         } else { // <esc> is a literal if the following char is NOT special.
-          OutCh(escCh);
+          OutCh(opts->escCh);
           OutCh(ch); // esc + ch => esc + ch. I.e.
         }
       } else if (CUR == LBR) {
@@ -246,16 +244,16 @@ int fs_format2(
             }
           } else {
             int tcur = CUR;
-            if (tcur == escCh) {
+            if (tcur == opts->escCh) {
               int ch = PEEK;
               if (ch == DMND) {
                 CodeCh(crOut);
                 SKIP;
-              } else if (ch == escCh) {
-                CodeCh(escCh);
+              } else if (ch == opts->escCh) {
+                CodeCh(opts->escCh);
                 SKIP;
               } else {
-                CodeCh(escCh);
+                CodeCh(opts->escCh);
               }
             } else {
               CodeCh(tcur);
@@ -265,9 +263,9 @@ int fs_format2(
           }
         }
         CodeCh(SQ);
-      } else if (CUR == OMG_US || (CUR == escCh && PEEK == OMG)) {
+      } else if (CUR == OMG_US || (CUR == opts->escCh && PEEK == OMG)) {
         // we see ⍹ or `⍵ (where ` is the current escape char)
-        if (CUR == escCh)
+        if (CUR == opts->escCh)
           SKIP;              // Skip whatever was just matched (`⍵ or ⍹)
         if (isdigit(PEEK)) { // Is ⍹ or `⍵ followed by digits?
           SKIP;              // Yes: `⍵NNN or ⍹NNN.
@@ -352,9 +350,9 @@ int fs_format2(
 
   // Postamble Code String
   OutSC(u"⍬}");
-  //   opts.code mode: extra code because we need to input the format string (fStrIn)
+  //   opts->code mode: extra code because we need to input the format string (fStrIn)
   //                   into the resulting function (see ∆F.dyalog).
-  if (opts.dfn==1) {
+  if (opts->dfn==1) {
     OutSC(u"⍵,⍨⍥⊆");
     OutCh(SQ);
     for (int i=0; i<in.cur; ++i){
@@ -375,17 +373,17 @@ int fs_format2(
 // library routines
 //          M, A, B, D (merge, above, box, display).
 #if WIDTH == 2
-void get2lib(WIDE2 strOut[]) {
-#define ABOVEDEF u"A←" ABOVECD_INT
-#define BOXDEF   u"B←" BOXCD_INT
-#define DISPDEF  u"D←" DISPCD_INT
-#define MERGEDEF u"M←" MERGECD_INT
-#define EOS u"⋄"
-  const WIDE2 code[] = ABOVEDEF EOS BOXDEF EOS DISPDEF EOS MERGEDEF;
-  int len = sizeof(code) / sizeof(*code); // includes the null get2Lib expects.
-  for (int i = 0; i < len; ++i)
-    strOut[i] = code[i];
-}
+    void get2lib(WIDE2 strOut[]) {
+    #define ABOVEDEF u"A←" ABOVECD_INT
+    #define BOXDEF   u"B←" BOXCD_INT
+    #define DISPDEF  u"D←" DISPCD_INT
+    #define MERGEDEF u"M←" MERGECD_INT
+    #define EOS u"⋄"
+      const WIDE2 code[] = ABOVEDEF EOS BOXDEF EOS DISPDEF EOS MERGEDEF;
+      int len = sizeof(code) / sizeof(*code); // includes the null get2Lib expects.
+      for (int i = 0; i < len; ++i)
+        strOut[i] = code[i];
+    }
 #endif
 
 static inline WIDE CharAfterBlanks(buffer *pIn, int cur) {

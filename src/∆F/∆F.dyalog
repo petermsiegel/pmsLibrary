@@ -12,12 +12,10 @@
   :EndIf 
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
       :With '⍙F' ⎕SE.⎕NS ⍬
-          ⍝ Load C F-string routines (two versions, for 2-byte chars and 4-byte chars)
+          ⍝ Load C F-string routines (two versions: ∆F2 for 2-byte chars and ∆F4 for 4-byte chars)
           ⍝ At 16 (/32) bits, the <#C2 and >#C2 ⎕NA format allows strings up to humongous 64K (/2*32) bytes.
-          ⍝ If byte fields: for U1, use: {I1[5] U1[3]}' 
-            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 U1 C4 <#C4[] >#C4[] I4' 
-            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 U1 C4 <#C2[] >#C2[] I4'
-          ⍝ 
+            '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <{C4 U1[5]} <#C4[] >#C4[] I4' 
+            '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <{C4 U1[5]} <#C2[] >#C2[] I4'
           ⍝ Load the UCS-2 source code for the run-time library routines from ∆F.dylib: A, B, D, M
           ⍝ GetLib bufSize, where bufSize must be >170.
             ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
@@ -32,11 +30,10 @@
 
     ⍝ Get options (⍺). Options are per <optK> below. 'Dfn' is the principle option (a la Variant ⍠) 
     ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Bit fields: Dfn: 1 bit, Box: 2, Debug: 1, UseNs: 1, Lib: 1, padding: 2; 
     ⍝ Char4:  EscCh: '`'; Int4: BufSize: 1024.
        Opts← { 
-          oK← 'dfn' 'box' 'debug' 'usens' 'lib' 'escch' 'bufsize' 
-          oV←  0     0     0       0       1    '`'     1024    
+          oK← 'dfn' 'debug' 'box' 'usens' 'lib' 'escch' 'bufsize' 
+          oV←  0     0       0     0       1    '`'     1024  
         0=≢⍵:  oV 
         (1= ≢⍵)∧ 1≥ d← |≡⍵: ⍵, 1↓oV 
         0:: 'Invalid option(s)' ⎕SIGNAL 11
@@ -44,12 +41,11 @@
         p∧.< ≢oK: newV@p⊣ oV 
           'Unknown option(s)'  ⎕SIGNAL 11 
       } 
-      dfn box debug useNs lib escCh bufSize← Opts ⍺
-      bitFlds← 83⎕DR 0 0 lib useNs debug dfn, 2 2⊤box     ⍝ Store an 8-bit bit field w/ 2 bits of padding.
+      dfn debug box useNs lib escCh bufSize← Opts ⍺
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh                    ⍝ escCh may be any Unicode char or numeric code
       isW4← 320= ⎕DR⊃⍵                                    ⍝ Format string chars: 2-byte or 4-byte?
 
-      Call∆F←  (bitFlds escCh (⊃⍵)){       
+      Call∆F←  ((escCh dfn debug box useNs lib) (⊃⍵)){       
             res2← isW4 ⎕SE.⍙F.{ ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵ } ⍺⍺, ⍵ ⍵                 
         ¯1≠⊃res2: res2, ⍵                               ⍝ Success. return result: rc, code_buffer  
         ⍺≤0: res2, ⍵                                    ⍝ If we've tried too many times, return (with error code) as is.
@@ -70,7 +66,7 @@
         ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                           ⍝   NB: String ⍺ references ⍵ (∆FⒻ)   
             ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'
         })∆FⒻ   
-  :Else ⍝ Code dfn                                      ⍝ Code dfn: return a dfn
+  :Else ⍝ Code dfn                                        ⍝ Code dfn: return a dfn
         ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
   :EndIf 
   :Return 

@@ -41,15 +41,17 @@
 #define SQ u'\''
 #define ZILDE u'⍬'
 
-// Options fields: a byte each
-typedef struct {     // APL code to generate: (83 ⎕DR 0 0 lib useNs debug dfn, 2 2⊤box)
+// Options fields:  
+//   We don't need to add padding, since we're passing a pointer to it from APL, rather than copying 4+5 bytes.
+typedef struct {      
+  WIDE4 
+      escCh;
   unsigned char 
-      box: 2,        // 0=none, 1=list (std) box, 2=table (vertical) boxes
-      dfn: 1,        // 0=std, 1=generate dfn
-      debug: 1,      // 0=no, 1=yes
-      useNs: 1,      // 0=no, 1=yes
-      lib: 1,        // 0=internal, 1=external
-      _padding: 2;   // ignored
+      dfn,
+      debug,
+      box,
+      useNs,
+      lib;  
 } optionsF; 
 
 
