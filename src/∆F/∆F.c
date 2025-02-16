@@ -183,8 +183,8 @@ int fs_format2(
         bracketDepth = 1;
         if (opts->useNs)
           OutSC(u"(⍺{") // We'll pass on ⍺, which will be (⎕NS⍬).
-              else OutSC(
-                  u"({"); // No ⍺. User is free to set their own via ⍺←....
+        else 
+          OutSC(u"({"); // No ⍺. User is free to set their own via ⍺←....
         CodeInit; // Ready to write code buffer (doesn't affect output buffer
                   // yet).
         goto CFlabel;  // Process the current char immediately.
