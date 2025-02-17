@@ -22,49 +22,49 @@
           ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
           ⎕EX 'GetLib'  ⍝ No longer needed
         ⍝ Options: Principle is dfn (option 1), where a single digit is presented as the left arg to ∆F. 
-          keys← 'escch' 'dfn' 'debug' 'box' 'usens' 'lib'  'bufsize'  
-          vals←  '`'     0     0       0     0       1      1024 
-          princ←         1 
-          Opts← { 
+          keys← ⎕C 'escCh' 'dfn' 'debug' 'box' 'useNs' 'lib'  'bufSize'  
+          vals←    '`'      0     0       0     0       1      1024 
+          princ←            1 
+        ⍝ Evaluate options (⍺). Options are in the style of Dyalog ⍠ (variant) options.
+          EvalOpts← { 
             0=≢⍵:  vals                           ⍝ Fastest: all default options
             0:: 'Invalid option(s)' ⎕SIGNAL 11   
             0≡⊃0⍴⍵: ⍵@princ⊢ vals                 ⍝ Fast: only principle option is set (via a single integer)
               nK nV← ↓⍉↑ ,∘⊂⍣(2= |≡⍵)⊢ ⍵          
               nV@(keys⍳ ⎕C nK)⊣ vals              ⍝ Slower: all options are set by key-value pairs
           }
-          Select∆F← { ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵} 
+          CallFC← {  
+              res2← (⊃⍵⍵) { ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵}  ⍺⍺, ⍵ ⍵                 
+            ¯1≠⊃res2: res2, ⍵                      ⍝ Success. return result: rc, code_buffer  
+            ⍺≤0:      res2, ⍵                      ⍝ If we've tried too many times, return (with error code) as is.
+              newSize← 1024⌈(⊃⌽⍵⍵)× ⍵              ⍝ Increase the storage estimate and retry...
+              _← ⍺⍺{0 2⊃⍺: ⎕←⍵ ⋄ ⍵ } 'Retrying ∆F with bufSize',newSize,' Was',⍵ 
+              (⍺-1) ∇ newSize  
+          } 
+          ErrorSpace← ⎕SIGNAL/ {                   ⍝ Failure: buffer too small
+            ⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'
+          } 
       :EndWith 
   :Endif  
   ∆FⓄ← ∆FⓄ {    
-      ⎕IO ⎕ML← 0 1    
+      ⎕IO ⎕ML← 0 1  
     ⍝ maxTries: Max # of times to expand (double) bufSize, if not enough space for result.
     ⍝ growBuf:   How much to increase buffer storage estimate, if not adequate
       maxTries growBuf← 2 4 
 
-    ⍝ Get options (⍺). Options are per <optK> below. 
-    ⍝   'Dfn' (option 1) is the principle option (a la Variant ⍠) 
-    ⍝ BufSize (below): Initial estimate of max # of (2- or 4-byte) chars needed in output.
-    ⍝ Char4:  EscCh: '`'; Int4: BufSize: 1024.
-      escCh dfn debug box useNs lib bufSize← ⎕SE.⍙F.Opts ⍺
+    ⍝ Get options (⍺). 
+    ⍝ BufSize: Initial estimate of max # of (2- or 4-byte) chars needed in output string.
+      escCh dfn debug box useNs lib bufSize← ⎕SE.⍙F.EvalOpts ⍺
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh                    ⍝ escCh may be any Unicode char or equiv. numeric code
       isW4← 320= ⎕DR⊃⍵                                    ⍝ Format string chars: 2-byte or 4-byte?
 
-      Call∆F←  ((escCh dfn debug box useNs lib) (⊃⍵)){ dbg← 0 2⊃⍺⍺    
-            res2← (⊃⍵⍵) ⎕SE.⍙F.Select∆F ⍺⍺, ⍵ ⍵                 
-        ¯1≠⊃res2: res2, ⍵                               ⍝ Success. return result: rc, code_buffer  
-        ⍺≤0:      res2, ⍵                               ⍝ If we've tried too many times, return (with error code) as is.
-            newSize← (⊃⌽⍵⍵)× ⍵                          ⍝ Increase the storage estimate and retry...
-            _← {dbg: ⎕←⍵ ⋄ ⍵ } 'Retrying ∆F with bufSize',newSize,' Was',⍵ 
-            (⍺-1) ∇ newSize  
-      }isW4 growBuf 
     ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-          rc res maxActual← maxTries Call∆F bufSize 
-      debug∧ 0= rc:  dfn,⍥⊂ ⎕← res                       ⍝ Success
-      0= rc:  dfn,⍥⊂ res                                 ⍝ Success
-      ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res           ⍝ Failure w/ error msg passed from ∆F4/2.  
-          ⎕SIGNAL/ {                                         ⍝ Failure: buffer too small
-            ⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'
-          } maxActual 
+      FC← (escCh dfn debug box useNs lib) (⊃⍵) ⎕SE.⍙F.CallFC isW4 growBuf 
+      rc res bufActual← maxTries FC bufSize 
+    debug< 0= rc: dfn,⍥⊂ res                              ⍝ Success (~debug)
+    0= rc: dfn,⍥⊂ ⎕← res                                  ⍝ Success (debug)
+    ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res              ⍝ Failure w/ error msg passed from ∆F4/2.  
+      ⎕SE.⍙F.ErrorSpace bufActual 
   } ∆FⒻ← ,⊆∆FⒻ  
   :IF   ~⊃∆FⓄ                                            ⍝ ('Dfn' 0:) evaluate char vec and display
         ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                           ⍝   NB: String ⍺ has a reference to ⍵ (∆FⒻ)   
