@@ -20,12 +20,13 @@
         ⍝ Load the UCS-2 source code for the run-time library routines from ∆F.dylib: A, B, D, M
         ⍝ GetLib bufSize, where bufSize must be (currently) >176.
           ⍎GetLib 200⊣ 'GetLib' ⎕NA '∆F/∆F.dylib|get2lib >0C2' 
+          'Canon' ⎕NA '∆F/∆F.dylib|canon =#C4[] C4'       ⍝ Canon str escCh 
           ⎕EX 'GetLib'  ⍝ No longer needed
         ⍝ Options: Principle is dfn (option 1), where a single digit is presented as the left arg to ∆F. 
           keys← ⎕C 'escCh' 'dfn' 'debug' 'box' 'useNs' 'lib'  'bufSize'  
           vals←    '`'      0     0       0     0       1      1024 
           princ←            1 
-        ⍝ Evaluate options (⍺). Options are in the style of Dyalog ⍠ (variant) options.
+        ⍝ Evaluate internal and CallF_C options (⍺). Options are in the style of Dyalog ⍠ (variant) options.
           EvalOpts← { 
             0=≢⍵:  vals                           ⍝ Fastest: all default options
             0:: 'Invalid option(s)' ⎕SIGNAL 11   
@@ -33,7 +34,7 @@
               nK nV← ↓⍉↑ ,∘⊂⍣(2= |≡⍵)⊢ ⍵          
               nV@(keys⍳ ⎕C nK)⊣ vals              ⍝ Slower: all options are set by key-value pairs
           }
-          CallFC← {  
+          CallF_C← {  
               res2← (⊃⍵⍵) { ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵}  ⍺⍺, ⍵ ⍵                 
             ¯1≠⊃res2: res2, ⍵                      ⍝ Success. return result: rc, code_buffer  
             ⍺≤0:      res2, ⍵                      ⍝ If we've tried too many times, return (with error code) as is.
@@ -56,11 +57,11 @@
     ⍝ BufSize: Initial estimate of max # of (2- or 4-byte) chars needed in output string.
       escCh dfn debug box useNs lib bufSize← ⎕SE.⍙F.EvalOpts ⍺
       escCh← ⎕UCS⍣ (0=⊃0⍴escCh)⊢ escCh                    ⍝ escCh may be any Unicode char or equiv. numeric code
+      cOpts← escCh dfn debug box useNs lib 
       isW4← 320= ⎕DR⊃⍵                                    ⍝ Format string chars: 2-byte or 4-byte?
 
-    ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)
-      FC← (escCh dfn debug box useNs lib) (⊃⍵) ⎕SE.⍙F.CallFC isW4 growBuf 
-      rc res bufActual← maxTries FC bufSize 
+    ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)         
+      rc res bufActual← maxTries (cOpts (⊃⍵) ⎕SE.⍙F.CallF_C isW4 growBuf) bufSize 
     debug< 0= rc: dfn,⍥⊂ res                              ⍝ Success (~debug)
     0= rc: dfn,⍥⊂ ⎕← res                                  ⍝ Success (debug)
     ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res              ⍝ Failure w/ error msg passed from ∆F4/2.  

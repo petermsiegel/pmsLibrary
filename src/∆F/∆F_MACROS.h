@@ -51,7 +51,7 @@ typedef struct {
       debug,
       box,
       useNs,
-      lib;  
+      lib; 
 } optionsF; 
 
 

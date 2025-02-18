@@ -193,21 +193,23 @@ int fs_format2(
     case stateTF: // Text field
     TFlabel:
       if (CUR == opts->escCh) { // Check for escape chars
-        WIDE ch =
-            PEEK; // Do bounds check, in case <esc> is last char in string.
-        SKIP;     // Consume next char.
-        if (ch == opts->escCh) { // <esc><esc>
-          OutCh(opts->escCh);
-        } else if (ch == LBR || ch == RBR) {
-          OutCh(ch);
-        } else if (ch == DMND) {
-          OutCh(crOut);
-        } else { // <esc> is a literal if the following char is NOT special.
-          OutCh(opts->escCh);
-          OutCh(ch); // esc + ch => esc + ch. I.e.
-        }
+          WIDE ch =
+              PEEK; // Do bounds check, in case <esc> is last char in string.
+          SKIP;     // Consume next char.
+          if (ch == opts->escCh) { // <esc><esc>
+            OutCh(opts->escCh);
+          } else if (ch == LBR || ch == RBR) {
+            OutCh(ch);
+          } else if (ch == DMND) {
+            OutCh(crOut);
+          } else { // <esc> is a literal if the following char is NOT special.
+            OutCh(opts->escCh);
+            OutCh(ch); // esc + ch => esc + ch. I.e.
+          }
       } else if (CUR == LBR) {
         STATE(stateCF0); // TF will end at (state == stateCF0) above.
+      } else if (CUR == CR){
+          OutCh(crOut);
       } else {
         OutCh(CUR);
         if (CUR == QT) // Double internal quotes per APL
@@ -245,16 +247,18 @@ int fs_format2(
           } else {
             int tcur = CUR;
             if (tcur == opts->escCh) {
-              int ch = PEEK;
-              if (ch == DMND) {
+                int ch = PEEK;
+                if (ch == DMND) {
+                  CodeCh(crOut);
+                  SKIP;
+                } else if (ch == opts->escCh) {
+                  CodeCh(opts->escCh);
+                  SKIP;
+                } else {
+                  CodeCh(opts->escCh);
+                }
+            } else if (tcur == CR) {
                 CodeCh(crOut);
-                SKIP;
-              } else if (ch == opts->escCh) {
-                CodeCh(opts->escCh);
-                SKIP;
-              } else {
-                CodeCh(opts->escCh);
-              }
             } else {
               CodeCh(tcur);
               if (tcur == SQ)
@@ -383,6 +387,30 @@ int fs_format2(
       int len = sizeof(code) / sizeof(*code); // includes the null get2Lib expects.
       for (int i = 0; i < len; ++i)
         strOut[i] = code[i];
+    }
+#else  
+#define stdEscCh '`'
+// canon: Only a WIDE4 version!  We copy the input string over itself (same length or less!)
+//  Replace the specified escape char with the default/standard escape ('`').
+//  Replace esc+⍵ with simple ⍹ (omega underscore).
+//  Canon is "simple" in that it affects characters globally, i.e. doesn't pay attention to the field structure.
+    void canon( lpString *inOut, WIDE4 escCh ){
+      WIDE  *inP = inOut->buf, 
+            *outP = inP,
+            *inEnd = inP + inOut->len;
+      for ( ; inP < inEnd; ++inP, ++outP ){
+         if (inP[0] == escCh) {
+            if  (inP[1] == OMG){
+              *outP = OMG_US; 
+              ++inP;
+              inOut->len--;
+            }else {
+              *outP = stdEscCh;
+            }
+         } else { 
+             *outP = *inP;
+         }
+      }
     }
 #endif
 
