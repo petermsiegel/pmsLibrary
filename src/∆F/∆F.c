@@ -377,6 +377,7 @@ int fs_format2(
 // library routines
 //          M, A, B, D (merge, above, box, display).
 #if WIDTH == 2
+  #if 0  // ignore  
     void get2lib(WIDE2 strOut[]) {
     #define ABOVEDEF u"A←" ABOVECD_INT
     #define BOXDEF   u"B←" BOXCD_INT
@@ -388,12 +389,13 @@ int fs_format2(
       for (int i = 0; i < len; ++i)
         strOut[i] = code[i];
     }
+  #endif 
 #else  
 #define stdEscCh '`'
 // canon: Only a WIDE4 version!  We copy the input string over itself (same length or less!)
-//  Replace the specified escape char with the default/standard escape ('`').
-//  Replace esc+⍵ with simple ⍹ (omega underscore).
-//  Canon is "simple" in that it affects characters globally, i.e. doesn't pay attention to the field structure.
+//   Replace the specified escape char with the default/standard escape ('`').
+//   Replace esc+⍵ with simple ⍹ (omega underscore).
+//   Canon is "simple" in that it affects characters globally, i.e. doesn't pay attention to the field structure.
     void canon( lpString *inOut, WIDE4 escCh ){
       WIDE  *inP = inOut->buf, 
             *outP = inP,
