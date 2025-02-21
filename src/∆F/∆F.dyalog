@@ -14,7 +14,7 @@
         :Return  
   :EndIf 
 
-  ∆FⓄ← ∆FⓄ ⎕SE.⍙F.Executive ∆FⒻ← ,⊆∆FⒻ  
+  ∆FⓄ← ∆FⓄ ⎕SE.⍙F.FStr2Code ∆FⒻ← ,⊆∆FⒻ  
   :IF   ~⊃∆FⓄ                                 ⍝ ~dfn:  evaluate code and return display form
         ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                ⍝   NB: String ⍺ has a reference to ⍵ (∆FⒻ)   
             ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'

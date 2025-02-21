@@ -62,18 +62,18 @@
 #define WIDE WIDE4
 #endif
 
+#include "∆F_DEFS.h"
+
 jmp_buf jmpbuf; 
-#include "∆F_MACROS.h"
 
 #if WIDTH == 4
-int fs_format4(
+  int fs_format4(
 #else
-int fs_format2(
+  int fs_format2(
 #endif
     const optionsF *opts, lpString *fStrIn, lpString *cStrOut, uint32_t outMax
   ) {
   WIDE crOut = opts->debug ? CRVIS : CR;
-
   stateE 
       state =    stateNone,  // what kind of field are we in: none, TF, CF0, CF
       oldState = stateNone;  // last state
@@ -85,11 +85,13 @@ int fs_format2(
   in.buf = fStrIn->buf;
   in.max = fStrIn->len;
   in.cur = 0;
+
   buffer out;
   out.buf = cStrOut->buf;
   out.max = outMax;
   out.cur = 0; // output buffer length/position; passed back to APL as
                // cStrOut->len = out.cur;
+
   // Code buffer-- allows us to set aside generated code field (CF) code to the
   // end, in case its a
   //    self-doc CF. If so, we output the doc literal text and append the
@@ -136,23 +138,23 @@ int fs_format2(
       OutCh(ALPHA);
     OutCh(LBR);
   }
-  
 
   for (in.cur = 0; in.cur < in.max; SKIP) {
     // Logic for changing state (stateNone, stateCF0)
     switch (state) {
     case stateNone:
-      if (CUR != LBR) {
+      if (CUR == LBR) { // Left Brace "{" seen.
+        STATE(stateCF0);
+      } else {   
         STATE(stateTF);
         OutCh(QT);
         goto TFlabel; // Process the current char. immediately.
-      } else {   // Left Brace "{" seen.
-        STATE(stateCF0);
       }
       break;
     case stateCF0:
-      if (oldState == stateTF) // Terminate existing stateTF
+      if (oldState == stateTF) { // Terminate existing stateTF
         OutSC(u"' ");
+      }
       // cfStart marks start of code field (in case a self-documenting CF)
       cfStart = in.cur; // If a space field, this is ignored.
       // Skip leading blanks in CF code, though NOT in any associated document
@@ -167,7 +169,7 @@ int fs_format2(
           Ix2CodeBuf(nspaces);
           CodeSC(u"⍴'");
           if (opts->debug)
-              CodeCh(SPVIS);
+            CodeCh(SPVIS);
           CodeSC(u"')");
           CodeOut;
         } else if (opts->debug) { // Null space field: Do nothing unless opts->debug is true.
@@ -177,8 +179,8 @@ int fs_format2(
           CodeOut;
         }
         STATE(stateNone); // SF is complete! Set state to stateNone and fetch next char at
-                     // for() loop.
-      } else {       // We have a CF.
+                          // for() loop.
+      } else {            // We have a CF.
         STATE(stateCF);
         bracketDepth = 1;
         if (opts->useNs)
@@ -192,10 +194,9 @@ int fs_format2(
       break;
     case stateTF: // Text field
     TFlabel:
-      if (CUR == opts->escCh) { // Check for escape chars
-          WIDE ch =
-              PEEK; // Do bounds check, in case <esc> is last char in string.
-          SKIP;     // Consume next char.
+      if (CUR == opts->escCh) {    // Check for escape chars
+          WIDE ch = PEEK;          // Do bounds check, in case <esc> is last char in string.
+          SKIP;                    // Consume next char.
           if (ch == opts->escCh) { // <esc><esc>
             OutCh(opts->escCh);
           } else if (ch == LBR || ch == RBR) {
@@ -305,8 +306,7 @@ int fs_format2(
             ProcCodeDoc(aboveMarker, aboveCd);
           } else { // Optimize multiple |% *| sequences into at most two calls
                    // to aboveCd.
-            CodeS(
-                aboveCd); // This first call to aboveCd may have a left arg (⍺).
+            CodeS(aboveCd); // This first call to aboveCd may have a left arg (⍺).
             int extraPct = 0;
             SKIP_SP;
             while (PEEK == PCT) {

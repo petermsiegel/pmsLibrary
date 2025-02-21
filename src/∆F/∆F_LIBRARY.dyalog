@@ -30,8 +30,8 @@
       ⍝ Call ∆F4 or ∆F2 above. 
       ⍝    result← retries (opts ∇ isW4 growthFactor) bufsize0  
       ⍝ If bufsize (initially: bufsize0) is too small, increase by <growthfactor> and try again up to <retries> times.
-      ⍝ See Executive below.
-        CallF_C← { isW4 gF← ⍵⍵ 
+      ⍝ See FStr2Code below.
+        Call∆Fc← { isW4 gF← ⍵⍵ 
             res2← isW4 { ⍺: ∆F4 ⍵ ⋄ ∆F2 ⍵}  ⍺⍺, ⍵ ⍵                 
           ¯1≠⊃res2: res2, ⍵                      ⍝ Success. return result: rc, code_buffer  
           ⍺≤0:      res2, ⍵                      ⍝ If we've tried too many times, return (with error code) as is.
@@ -39,9 +39,9 @@
             _← ⍺⍺{ 0 2⊃⍺: ⎕←⍵ ⋄ ⍵ } 'Retrying ∆F with bufSize',newSize,' Was',⍵   ⍝ debug is (0 2⊃⍺⍺)
             (⍺-1) ∇ newSize  
         } 
-      ⍝ Executive: The main routine
+      ⍝ FStr2Code: The main routine
       ⍝    result← opts ∇ fstring
-        Executive← {    
+        FStr2Code← {    
             ⎕IO ⎕ML← 0 1  
           ⍝ maxTries: Max # of times to expand (double) bufSize, if not enough space for result.
           ⍝ growBuf:   How much to increase buffer storage estimate, if not adequate
@@ -55,7 +55,7 @@
             isW4← 320= ⎕DR⊃⍵                                    ⍝ Format string chars: 2-byte or 4-byte?
 
           ⍝ rc: 0 (success), >0 (signal an APL error with the message specified), ¯1 (format buffer too small)         
-            rc res bufActual← maxTries (cOpts (⊃⍵) CallF_C isW4 growBuf) bufSize 
+            rc res bufActual← maxTries (cOpts (⊃⍵) Call∆Fc isW4 growBuf) bufSize 
           debug< 0= rc: dfn,⍥⊂ res                              ⍝ Success (~debug)
           0= rc: dfn,⍥⊂ ⎕← res                                  ⍝ Success (debug)
           ¯1≠ rc:  rc  ⎕SIGNAL⍨ (⎕EM rc),': ', res              ⍝ Failure w/ error msg passed from ∆F4/2.  
@@ -65,7 +65,9 @@
         ErrorSpace← ⎕SIGNAL/ {⌽911,⍥⊂'RUNTIME ERROR: Formatting buffer too small (size: ',(⍕⍵),' elements)'} 
 
       ⍝ Help:  ∆F⍨'help' (full help) and ∆F⍨'helpx' (examples)
-        Help← { ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑(⎕←'^\h*⍝HX',('x'∊⎕C ⍵)↓'?(.*)') ⎕S '\1'⊢⎕SRC ⎕THIS }
+        Help← { 
+          ⎕ML←1 ⋄ ⍬⊣⎕ED⍠ 'ReadOnly' 1⊢'help'⊣help←↑(⎕←'^\h*⍝HX',('x'∊⎕C ⍵)↓'?(.*)') ⎕S '\1'⊢⎕SRC ⎕THIS 
+        }
 
 ⍝H -------------
 ⍝H  ∆F IN BRIEF

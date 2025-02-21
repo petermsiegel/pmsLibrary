@@ -118,7 +118,6 @@ typedef struct {
 #define C2Len(s) ((sizeof(s) - 1) / sizeof(WIDE2)) // See also S2Len() in ∆F.c 
 
 // OUTPUT BUFFER MANAGEMENT ROUTINES
-#define DOUBLE_SQ 1
 #define OutBuf(str, len) ADDBUF(str, len, out)
 #define OutS(str)                                                              \
   {                                                                            \
