@@ -21,6 +21,9 @@ CR CR_VIS← (⎕UCS 13) '␍'
 ⍝ Preamble code string...
   outStr,← '{', (useNs/ '⍺←⎕NS⍬⋄'), ('⎕SE.⍙F.M' '⎕SE.⍙F.B'⊃⍨ ×box), ('⍪'/⍨ box=2), ('⍺{'/⍨ dfn∧ useNs 1)
 
+ tfBreak← '{',escCh     ⍝ "Important" TF chars
+ Break← { +/ ∧/⍵ (~∊) ⍺ }
+
  :While cur < len
     :Select state
     :Case state0 
@@ -30,7 +33,11 @@ CR CR_VIS← (⎕UCS 13) '␍'
         :Else
             state oldState← stateTF state 
             outStr,← ' '''
-            →more 
+            :IF ×p← tfBreak Break cur↓ fStr
+                outStr,← fStr[cur+⍳p]
+            :Else 
+               →more 
+            :EndIf 
         :EndIf
     :Case stateTF        
         :Select fStr[cur]

@@ -138,6 +138,8 @@ jmp_buf jmpbuf;
       OutCh(ALPHA);
     OutCh(LBR);
   }
+  if (0 == fStrIn->len)
+      OutSC(u"⍬");                               // Ensure there's at least one field (here, a null width field).
 
   for (in.cur = 0; in.cur < in.max; SKIP) {
     // Logic for changing state (stateNone, stateCF0)
