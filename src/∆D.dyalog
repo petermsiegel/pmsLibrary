@@ -1,5 +1,6 @@
 ﻿:Namespace ∆DClass
-⍝ ∆D, ∆DL - Create and Manage an Ordered, Hashed Dictionary.
+⍝ ∆D, ∆DL - Create and Manage an Ordered, Hashed Dictionary from 
+⍝           (∆D) key-value pairs or (∆DL) a key list-value list.
 ⍝ *** Help info is contained throughout Class Dict (below)
 ⍝ *** on lines prefixed with ⍝H (⍝H=, ⍝Hf, etc. are special help codes).
 ⍝ *** NOTE: Changing ANY OF THESE LINES will affect ∆D'help',∆DL'help' and 
@@ -13,10 +14,10 @@
   Trap← ⎕SIGNAL ⍙T2
 
 ⍝ Create fns pointing to ⎕THIS ns.
-  ⍙CR← ⍎'mê' '"' ⎕R (⍕⎕THIS)''''           ⍝ Local Utility...
+  ⍙CR← ⍎'mê' '"' ⎕R (⍕⎕THIS)''''           ⍝ Internal Utility...
 
 ⍝ ##.∆D: Creat dictionary <dict> from items (key-value pairs: (k1 v1)(k2 v2)…)   
-⍝ dict← [default] ∇ items
+⍝ dict← [default] ∇ items   |   dict← [default] ∇ (↑keyList) valueList
 ⍝ Create path-accessible version in ##
   ##.∆D← ⍙CR '{⍺←⊢⋄0::mê.Trap⍬⋄1:_←⍺mê.∆D⍵}'
   ∆D←{ 
@@ -68,32 +69,36 @@
   ⍝H
   ⍝H⍝ Sort all items by Value (works for values in the domain of ⍋)
   ⍝H⍎ ↑capc.(FromIx ⍋Vals).Items[]      ⍝ temporary sorting: capc itself not reordered
-  ⍝H
 ⍝HR
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target namespace ns (default ⎕THIS), 
 ⍝H    as well as supporting services in ns.∆DClass.
 ⍝HR
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
-⍝H ∘ Create a dictionary whose items are in a fixed order based on order of creation
-⍝H   (oldest first) [see d.FromIx, d.FromKeys for sorted order).]
+⍝H ∘ Create a dictionary from 
+⍝H    (∆D)  0 or more key-value pairs (items) or 
+⍝H    (∆DL) a key list and value list,
+⍝H   whose items are in a fixed order based on order of creation (oldest first) 
+⍝H   [see d.FromIx, d.FromKeys for sorted order).]
 ⍝H ∘ Keys are by default hashed, which leads to performance improvements especially for
 ⍝H   non-numeric keys.
 ⍝H ∘ Adding new values for existing keys does not change their order.
 ⍝H ∘ Keys and Values may be of nameclasses:
 ⍝H      2 (variables incl. ⎕OR objects), 9.1 (namespaces), 9.2 (class instances),
+⍝H   * I.e. Keys may be any shape.
 ⍝H   * Keys in class 9 or those that are ⎕OR objects are not in the domain of 
 ⍝H     methods like Equal (uses ⍋) or Count.
 ⍝H ∘ Sorted Order: To create a dictionary with keys in sorted order (or sorted by
 ⍝H   other criteria), use the FromIx or FromKey methods.
 ⍝H ∘ The FromIx and FromKeys methods are available to (among other things)
 ⍝H   select and/or sort items (based on criteria you choose) into a new dictionary,
-⍝H   without affecting the original dictionary.
+⍝H   without affecting the original dictionary (unless you choose to replace it).
 ⍝HR
 ⍝H
 ⍝H ∆D "Dictionary from Items (Key-Value Pairs)"
 ⍝Hr 
-⍝H d← [default] ∆D items           ⍝ items => (k1 v1)(k2 v2)…
+⍝H d← [default] ∆D items           ⍝ items => (k1 v1)(k2 v2)…  
+⍝H d← [default] ∆D ⊂item           ⍝ single item ==> ⊂(k1 v1)
 ⍝H d← [default] ∆D ⍬               ⍝ empty dictionary
 ⍝H d← [default] ∆D d0.Items[]      ⍝ d.Items <= d0.Items (slower than ∆DL equiv.).
 ⍝Hr
@@ -167,7 +172,7 @@
 ⍝H ‖  Copy   FromKeys  FromIx  New                                                    │
 ⍝H ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┤
 ⍝H │  Same dict (updated):                                                            │  
-⍝H │   {d}←d.Clear  {d}←d.[No]Hash  {d}←d.Import items  d}←d.ImportL kkvv             │  
+⍝H │   {d}←d.Clear  {d}←d.[No]Hash  {d}←d.Import items {d}←d.ImportL kkvv             │  
 ⍝H │   {d}←{json}d.ImportN ns                                                         │      
 ⍝H │  New dict:                                                                       │
 ⍝H │   d2←d.Copy   d2←{tdef}d.FromKeys kk   d2←d.FromIx ii   d2←d.New                 │
@@ -176,8 +181,9 @@
 ⍝H │                            ─────────────────────                                 │
 ⍝H ‖  ExportN                                                                         │
 ⍝H ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┤
-⍝H │  Exporting a dictionary to a namespace (for appropriate keys):                   │
+⍝H │  Exporting a dictionary to a namespace(*):                                       │
 ⍝H │    {ns}←d.ExportN ns                                                             │
+⍝H │          (*)  Keys must be strings convertible to valid APL variable names.      │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H │                         Abbreviations used above                                 │
 ⍝H ├──────────────────────┬─────────────────────────────┬─────────────────────────────┤
@@ -191,7 +197,7 @@
 ⍝H ├──────────────────────────────────────────────────────────────────────────────────┤
 ⍝H │  ⁱᵃDefined, Has: (synonyms) Are the keys defined in the dictionary?              │
 ⍝H │    Does the dictionary have the associated items?                                │
-⍝H │  ⁲ DelIx[], FromIx[], Index[]:   Each uses the Index Origin (⎕IO) of caller.           │ 
+⍝H │  ⁲ DelIx[], FromIx[], Index[]:   Each uses the Index Origin (⎕IO) of caller.     │ 
 ⍝H │    Items[], Keys, Vals:    Each uses the Index Origin (⎕IO) of caller.           │ 
 ⍝H │    * Keys, Vals are fast, returning the read-only source array unchanged.        │ 
 ⍝H │    * Items[ii] is calculated on the fly, index by index.                         │  
@@ -259,13 +265,25 @@
 ⍝       If bool=1, signals error with standard EM from (⎕EM en) and Message passed.
   ErrIf← ⎕SIGNAL {~⍵: ⍬ ⋄ ⊂'EN' 'Message' 'EM',⍥⊂¨ ⍺,⊂'∆D ',⎕EM ⊃⍺}
     
-  ∇ makeFill                           ⍝ Create an empty dict with no DEFAULT_V 
-    :Implements constructor 
+  ∇ makeFill                              ⍝ Create an empty dict with no DEFAULT_V 
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict ()
     :Access Public 
     ⎕DF '∆D[Dict+null]'
   ∇ 
 
-  ∇ makeItems (items dVal dFlag hFlag)    ⍝ Create dict from Items and opt'l Default
+  ∇ makeItems1 (items)                    ⍝ Create a dictionary of items with defaults
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict (('k1' 'v1')('k2' 'v2'))
+    :Access Public 
+    makeItems4 (items ⍬ 1 1)
+  ∇
+
+  ∇ makeLists2 (kk vv)                    ⍝ Create a dictionary from key- and value-lists with defaults
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict,⊂('k1' 'k2' 'k3')('v1' 'v2' 'v3')
+    :Access Public 
+    makeLists5 (kk vv ⍬ 1 1)
+  ∇
+
+  ∇ makeItems4 (items dVal dFlag hFlag)    ⍝ Create dict from Items and opt'l Default
     ;kk; vv; kkvv                   
     :Implements constructor
     :Access Public
@@ -282,7 +300,7 @@
     ⎕DF '∆D[Dict+items',(dFlag/'+default'),(hFlag/'+hash'),']' 
   ∇
 
-  ∇ makeLists (kk vv dVal dFlag hFlag)   ⍝ Create dict from Keylist Valuelist and opt'l Default  
+  ∇ makeLists5 (kk vv dVal dFlag hFlag)   ⍝ Create dict from Keylist Valuelist and opt'l Default  
     :Implements constructor  ⍝ If h=0, the DEFAULT_V is NOT set.
     :Access Public
     :If kk ≠⍥≢ vv 
@@ -329,7 +347,7 @@
           :If ~0∊ old                       ⍝ All keys old? 
               vv← VALS[ ii ]                ⍝ … Just grab existing values.
           :Else                             ⍝ Some old and some new keys.
-              ⋄ error.keyNotFnd ErrIf DEFAULT_S≠ def.active⍝ … error unless we have a DEFAULT_V;
+              error.keyNotFnd ErrIf DEFAULT_S≠ def.active ⍝ … error unless we have a DEFAULT_V;
               vv← (≢kk)⍴ ⊂DEFAULT_V         ⍝ … where new, return DEFAULT_V;
               vv[ ⍸old ]← VALS[ old/ ii ]   ⍝ … where old, return existing value.
           :Endif 
@@ -422,7 +440,7 @@
 ⍝H
       ∇ {bb}← {required} Del kk; ii; err; msg  
          :Access Public
-        :If 0=≢kk ⋄ bb←⍬ ⋄ :Return ⋄ :EndIf     ⍝ Nothing to do… 
+        :If 0=≢kk ⋄ bb←⍬ ⋄ :Return ⋄ :EndIf      ⍝ Nothing to do… 
         bb← (≢KEYS)≠ ii← KEYS⍳ kk               ⍝ Get indices of keys 
         :If 0∊ bb ⋄ :AndIf ~900⌶⍬               ⍝ Some missing, but required?
             ⋄ error.delBadLeft ErrIf required(~∊) 0 1
@@ -479,10 +497,12 @@
 ⍝H d.Equal: Do dictionaries presented have the same items as <d>, ignoring order.
 ⍝H   same← d.Equal d2 [d3 [...]]
 ⍝H Returns 1 if two dictionaries have the same key-value pairs, regardless of order.
-⍝H    ∘ A DOMAIN ERROR will result if any key is outside the domain of ⍋ sorting, containing
-⍝H      at least one ⎕OR object or object of class 9 (namespace or class instance).
-⍝H    ∘ Values in class 9 (9.1 or 9.2) will be treated as different if they do not
-⍝H      reference the very same object, even if their keys and their contents are identical.
+⍝H    ∘ A DOMAIN ERROR will result if any KEY is outside the domain of ⍋ (sorting);
+⍝H      values may include namespaces, class instances, and ⎕OR objects. 
+⍝H      The domain for ⍋ (sorting) includes character and numeric arrays, 
+⍝H      but excludes ⎕OR objects or object in class 9 (including namespaces or class instances).
+⍝H    ∘ Values in class 9 (9.1 or 9.2) are treated as different if they do not
+⍝H      reference the very same object, even if their contents are identical.
 ⍝H Note: d.Equal is slow, sorting all keys and comparing each corresponding key and value.
 ⍝HR
 ⍝H 
@@ -532,12 +552,12 @@
 ⍝H ∘ Respects the ⎕IO of the caller.
 ⍝Hf
 ⍝H d.FromIx can be easily used to sort items into a new dictionary…
-⍝H   b←a.(FromIx ⍋   Keys)        ⍝ Sort by key in ascending order.
-⍝H   b←a.(FromIx ⍒   Keys)        ⍝ Sort by key in descending order
-⍝H   b←a.(FromIx ⍋   Vals)        ⍝ Sort by value(!!) in ascending order.
-⍝H   b←a.(FromIx (5⌊Count)↑⍒ Keys)⍝ Sort by key in descending order and keep the top 5 (if poss.).
-⍝H   b←a.(FromIx ⍋⎕C Keys)        ⍝ Sort by folded keys in ascending order
-⍝H   b←a.(FromIx ⍋|  Keys)        ⍝ Sort numeric keys in ascending order by absolute value
+⍝H   b←a.(FromIx ⍋   Keys)         ⍝ Sort by key in ascending order.
+⍝H   b←a.(FromIx ⍒   Keys)         ⍝ Sort by key in descending order
+⍝H   b←a.(FromIx ⍋   Vals)         ⍝ Sort by value(!!) in ascending order.
+⍝H   b←a.(FromIx (5⌊Count)↑⍒ Keys) ⍝ Sort by key in descending order and keep the top 5 (if poss.).
+⍝H   b←a.(FromIx ⍋⎕C Keys)         ⍝ Sort by folded keys in ascending order
+⍝H   b←a.(FromIx ⍋|  Keys)         ⍝ Sort numeric keys in ascending order by absolute value
 ⍝H See also: d.FromKeys. 
 ⍝H   d.FromIx is typically up to 10% faster than d.FromKeys across a range of dictionary sizes.
 ⍝HR
@@ -587,7 +607,7 @@
   ∇ v1← {tempDef} Get1 k1; ⎕TRAP   
     :Access Public       
     ⎕TRAP← trap.index ⋄ :IF 900⌶⍬ ⋄ tempDef← ⊢ ⋄ :EndIf 
-    v1← tempDef Get ⊂k1  
+    v1← ⊃tempDef Get ⊂k1  
   ∇ 
   
 ⍝H d.GetSet: Returns the value of each key or the temporary default, if specified. 
@@ -610,7 +630,7 @@
       vv← VALS⌷⍨  ⊂tempdef _Index kk      ⍝ Local ⎕IO only.
     ∇
   
-⍝H d.HasDefault: ⍝H Retrieve or set the current Default status. 
+⍝H d.HasDefault:  Retrieve or set the current Default status. 
 ⍝H   b← d.HasDefault            
 ⍝H   d.HasDefault← [1|0]
 ⍝H - If you set HasDefault to 1, 
@@ -637,7 +657,7 @@
       ∇
     :EndProperty 
   
-⍝H d.Hash:    Turns on hashing, if not already. (Default for ∆D and ∆DL dictionaries)
+⍝H d.Hash:    Turns on hashing, if not already. (Default for both ∆D and ∆DL dictionaries)
 ⍝H d.NoHash   Turns off hashing,if not already.
 ⍝Hr
 ⍝H   {d}← d.Hash 
@@ -655,7 +675,7 @@
 ⍝H Turns off hashing for the dictionary keys, shyly returning the dict itself.
 ⍝H ∘ This ensures there is no hashing, for things like performance tests.
 ⍝H ∘ In general, there should be no need to turn off hashing; there is noticeable 
-⍝H   overhead in turning hashing off the first time, but not subsequently. 
+⍝H   overhead in turning hashing off the first time, but not subsequently (i.e. when already off). 
 ⍝H See d.Hash.
 ⍝HR
 ⍝H 
@@ -711,7 +731,7 @@
     ∇
   
 ⍝H d.Import, d.ImportL: import dictionary items/key-value lists into the dictionary.
-⍝H   {d}←  d.Import  items          ⍝(k1 v1)(k2 v2)…
+⍝H   {d}←  d.Import  items             ⍝ i.e. key-value pairs: (k1 v1)(k2 v2)…
 ⍝H   {d}←  d.ImportL keylist vallist 
 ⍝Hr 
 ⍝H d.Import adds items (k1 v1)(k2 v2)… to the dictionary in order left to right.
@@ -743,11 +763,13 @@
     ∇ {d}←  ImportL (kk vv)
       :Access Public
       d← ⎕THIS 
-      :If 1=≢vv ⋄ vv⍴⍨← ≢kk ⋄ Else ⋄ error.mismatch ErrIf kk≠⍥≢vv ⋄ :EndIf   
+      :If 1=≢vv ⋄ vv⍴⍨← ≢kk 
+      :Else ⋄ error.mismatch ErrIf kk≠⍥≢vv 
+      :EndIf   
       ValsByKey[kk] ← vv      ⍝ Handle old, new, and duplicate keys
     ∇
   
-⍝H  d.ImportN, d.ExportN
+⍝H  d.ImportN and d.ExportN
 ⍝H  d.ImportN: Imports key-value pairs from/to namespace variables.
 ⍝H  d.ExportN: Exports key-value pairs from/to namespace variables.
 ⍝Hr 
@@ -981,7 +1003,7 @@
         :Case 'f' ⋄ help,← ⊂35⍴'─'   ⋄ :Case 't' ⋄ help,← ⊂(1↓lm),line  
         :Case ' ' ⋄ help,← ⊂line     ⋄ :Case '⍝' ⋄ help,← ⊂lm,cm, line 
         :Case '⍎' ⋄ help,← E line
-        :Else     ⋄ ⎕←'EXAMPLE: Unknown type="',type,'" line="',line,'"'  
+        :Else     ⋄ ⎕←'Help logic error: Unknown help type="',type,'" line="',line,'"'  
         :EndSelect  
       :EndFor 
       {}⎕SE.UCMD 'box',saved 
