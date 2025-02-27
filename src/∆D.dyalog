@@ -36,6 +36,17 @@
     2=≢kkvv:  ⎕NEW Dict (kkvv, ⍺ dFlag Dict.AUTOHASH)  
       ⎕SIGNAL ⊂'EN' 'Message',⍥⊂¨ Dict.error.badKVLists            
   }
+
+⍝ ##.∆DT: Create a dictionary from keys and values, where all keys are text vectors (a la JSON etc.)
+⍝ dict← [default] ∇ (↑keylist) valuelist
+⍝ dict← [default] ∇ (item1 item2 ...), where itemN is a text-vector key followed by any value.
+  ##.∆DT← ⍙CR '{⍺←⊢⋄0::"L"mê.Trap⍬⋄1:_←⍺mê.∆DT⍵}' 
+  ∆DT←{  
+      dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
+    0=≢⍵:    ⎕NEW Dict (⍬ ⍬ ⍺ dFlag Dict.AUTOHASH)
+    2=⍴⍴⊃⍵:  ⎕NEW Dict ((↓⊃⍵) (⊃⌽⍵) ⍺ dFlag Dict.AUTOHASH) 
+             ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)  
+  }
   
 :Section Preamble
 ⍝HR
@@ -182,7 +193,8 @@
 ⍝H ‖  ExportN                                                                         │
 ⍝H ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┤
 ⍝H │  Exporting a dictionary to a namespace(*):                                       │
-⍝H │    {ns}←d.ExportN ns                                                             │
+⍝H │    {ns}←d.ExportN ns 
+⍝H │         ns must be a namespace reference 
 ⍝H │          (*)  Keys must be strings convertible to valid APL variable names.      │
 ⍝H ╞══════════════════════════════════════════════════════════════════════════════════╡ 
 ⍝H │                         Abbreviations used above                                 │
@@ -774,7 +786,7 @@
 ⍝H  d.ExportN: Exports key-value pairs from/to namespace variables.
 ⍝Hr 
 ⍝H   {d}← {json←1} d.ImportN ns 
-⍝H     ns: an APL namespace reference
+⍝H     ns: an APL namespace reference 
 ⍝H   json: If json=1 (default, if omitted), converts "mangled" JSON names to 
 ⍝H         strings (see Dyalog ⎕JSON). E.g. name ⍙123 will become string '123'.
 ⍝H         Otherwise, if json=0, mangled JSON names become equiv. strings (e.g. '⍙123').
@@ -794,6 +806,8 @@
 ⍝H
     ∇{d}← {json} ImportN ns; JMapK; ⎕TRAP  
       :Access Public 
+      ⎕←'this' ⎕THIS 
+      ⎕←'rsi ' ⎕RSI 
       JMapK← 1∘(7162⌶)                             ⍝ Mangled JSON name to string
       ⎕TRAP← trap.domain ⋄ d← ⎕THIS ⋄ :If 900⌶⍬ ⋄ json←1 ⋄ :EndIf 
       ⋄ error.badNs ErrIf 9≠⎕NC 'ns' 
@@ -801,16 +815,19 @@
           ValsByKey[ JMapK¨⍣json⊣ nms ]← ns.⎕OR¨ nms
       :EndIf 
     ∇
-    ∇ {ns}← ExportN ns; nms; KMapJ; ⎕TRAP 
+    ∇ {ns}← ExportN ns; nms; KMapJ; ⎕TRAP; here 
        :Access Public
-      KMapJ← 0∘(7162⌶)
-       ⎕TRAP← trap.domain ⋄ error.badNs ErrIf 9≠⎕NC 'ns'
-       :Trap 11 
-         nms← KMapJ¨KEYS
-       :Else
-         error.badNm ErrIf 1
-      :EndTrap 
-      {} nms {ns⍎⍺,'←⍵' }¨VALS 
+        KMapJ← 0∘(7162⌶)
+        here← ⊃⎕RSI 
+        ⎕TRAP← trap.domain  
+        ns← {9=⎕NC 'ns': ns ⋄ 9=here.⎕NC ns: here⍎ns ⋄ ns }⍬
+        error.badNs ErrIf 9≠⎕NC 'ns'
+        :Trap 11 
+          nms← KMapJ¨KEYS
+        :Else
+          error.badNm ErrIf 1
+        :EndTrap 
+        {} nms {ns⍎⍺,'←⍵' }¨VALS 
     ∇
   
 ⍝H d.Index: Select items by key and return their indices (respecting caller's ⎕IO).  
