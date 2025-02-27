@@ -1,6 +1,34 @@
     :namespace ⍙F 
         ⎕IO ⎕ML← 0 1
 
+∇ ∆FⓇ← {∆FⓄ} ∆Fc ∆FⒻ ; ⎕TRAP 
+  ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
+    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    :If 0=⎕SE.⎕NC '⍙F.∆F4'
+        ⎕SE.⎕FIX 'file://∆F/∆F_LIBRARY.dyalog'  ⍝ Creates library ⎕SE.⍙F
+    :Endif  
+    :If 900⌶0                                   ⍝ Options omitted. Default options processed below.
+          ∆FⓄ← ⍬                               ⍝ We distinguish omitted left arg and 0=≢∆FⓄ
+    :ElseIf 0=≢∆FⓄ                             ⍝ 0=≢∆FⓄ
+          ∆FⓇ← 1 0⍴⍬                           ⍝   This is a quick (NOP) exit where user wants to skip ∆F processing altogether.
+          :Return 
+    :Elseif 'help'≡4↑⎕C ∆FⓄ                    ⍝ 'help' (show help info & examples) or 'helpx' (show help examples)
+          ∆FⓇ← ⎕SE.⍙F.Help ∆FⓄ 
+          :Return  
+    :EndIf 
+
+    ∆FⓄ← ∆FⓄ ⎕SE.⍙F.FStr2Code ∆FⒻ← ,⊆∆FⒻ  
+    :IF   ~⊃∆FⓄ                                 ⍝ ~dfn:  evaluate code and return display form
+          ∆FⓇ← (⊃⌽∆FⓄ)((⊃⎕RSI){                ⍝   NB: String ⍺ has a reference to ⍵ (∆FⒻ)   
+              ⍺⍺⍎ ⍺⊣ ⎕EX '∆FⒻ' '∆FⓄ'
+          })∆FⒻ   
+    :Else ⍝ dfn                                  ⍝ dfn: evaluate code and return the dfn
+          ∆FⓇ← (⊃⎕RSI)⍎ ⊃⌽∆FⓄ                       
+    :EndIf 
+    :Return 
+  ∇
+  ##.∆F← ∆Fc 
+
       ⍝ Load F-string C-language routines (two versions: ∆F2 for 2-byte chars and ∆F4 for 4-byte chars)
       ⍝ ∆F[4|2]:    rc [outStr|outDfn]← ∇ (escCh, options) fString outLen outLen
         '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <{C4 U1[5]} <#C4[] >#C4[] I4'  ⍝ #C4: Up to 2≠64 items 

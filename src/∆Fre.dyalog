@@ -1,21 +1,24 @@
  :namespace ∆FreLib  
  
- ⍝ Same speed as C version on ∆F a, where a← ⎕A 
- ⍝ 20-25% slower on ∆F t, where t← 'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'
+ ⍝ Same speed as C version (∆F a), where a← ⎕A 
+ ⍝ 20-25% slower on (∆F t), where t← 'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'
 
- ∇ ⍙⍙RES← {⍙⍙L} ∆Fre ⍙⍙R 
+∇ ⍙⍙RES← {⍙⍙L} ∆Fre ⍙⍙R 
     :If 900⌶0 ⋄ ⍙⍙L← 0 ⋄ :EndIf 
-    :IF ~⍙⍙L
+    :Select ⍙⍙L
+    :Case 0 
         ⍙⍙RES← ⍙⍙L ((⊃⎕RSI){⍺⍺ ⍎ ⍺ ∆FreLib.∆FExec ⊃⍵}) ,⊆⍙⍙R
-    :Else 
+    :Case 1  
         ⍙⍙RES← (⊃⎕RSI) ⍎ ⍙⍙L ∆FreLib.∆FExec ⊃⊆⍙⍙R
-    :EndIf 
+    :Else
+        ⍙⍙RES← (⍕⎕THIS.∆FreLib),'.∆Fre'
+    :EndSelect
 ∇
-##.∆Fre← ∆Fre 
+##.∆F← ∆Fre 
 
 ∆FExec← {
   ⍝ Begin execution...
-    omega← 0
+    omega⊢← 0
     fields← { '{'=⊃⍵: CF 1↓¯1↓⍵ ⋄ TF ⍵ }¨cfP ⎕R '\n\1\n'⍠opts⊢ ⊂⍵
     code← '{', (libM, ∊fields,'⍬'),'}'
 ~⍺: code, '⍵'                                                    ⍝ Not a dfn. Emit code ready to execute
@@ -44,10 +47,11 @@
     tfS← cr   esc   '{'  '}'  sq2
     spSq, sqSp,⍨ tfP ⎕R tfS  ⍠opts ⊣ ⍵ 
   }
+  omega← 0 
   OmegaNum← { 
     0=≢⍵: ⍕omega⊢←omega+1
     ok dig← ⎕VFI ⍵ 
-    0∊ok: 'Invalid omega expression' ⎕SIGNAL 11
+    0∊ok: 'Logic Error: Invalid omega expression' ⎕SIGNAL 11
     ⍕omega⊢← dig 
   }
   Qt2Apl← {
