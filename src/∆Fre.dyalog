@@ -9,10 +9,10 @@
     :Elseif 0=≢ ⍙⍙L ⋄  ⍙⍙RES←1 0⍴'' ⋄ :Return 
     :EndIf 
     ⍙⍙R← ,⊆⍙⍙R
-    :If ⊃⍙⍙L←3↑ ⍙⍙L    ⍝ Generate Dfn
-        ⍙⍙RES←  (⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.∆FExec ⍙⍙R
-    :Else              ⍝ Generate-evaluate code from f-string ⍙⍙L
-        ⍙⍙RES← {(⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.∆FExec ⍙⍙R} ⍙⍙R
+    :If ⊃⍙⍙L←3↑ ⍙⍙L    ⍝ Generate Dfn from f-string ⊃⍙⍙R 
+        ⍙⍙RES←  (⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.∆FExec ⊃⍙⍙R
+    :Else              ⍝ Generate-evaluate code from f-string ⊃⍙⍙R
+        ⍙⍙RES← {(⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.∆FExec ⊃⍙⍙R} ⍙⍙R
     :Endif 
   ∇
     ##.∆F← ∆Fre 
@@ -74,13 +74,16 @@
     }
     ProcFields← { lb=⊃⍵: CF 1↓¯1↓⍵ ⋄ TF ⍵ }¨
     MarkCF← markCF ⎕R '\n\1\n' _Opts
+  ⍝ User fields are executed and displayed in L-to-R order by reversing, evaluating, then reversing again.
+  ⍝ "Older" style (exec R-to-L, display L-to-R): Order← ∊'⍬',⍨⊢
+    Order←   '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
     ∆FExec← {
         omegaG⊢← 0
         crG⊢← crLit crVis⊃⍨ 1= 1⊃ ⍺                                  ⍝ cr ␍
         fmtAll← libM libD⊃⍨ 1= 2⊃ ⍺ 
 
-        fields← ∊ProcFields MarkCF ⊂fString← ⊃⍵ 
-        code← ⍺{ 1⊃⍺: ⊢⎕←⍵ ⋄ ⍵} lb, fmtAll, fields, '⍬', rb
+        fields← Order ProcFields MarkCF ⊂fString← ⍵ 
+        code← ⍺{ 1⊃⍺: ⊢⎕←⍵ ⋄ ⍵} lb, fmtAll, fields,  rb
       0≥ 0⊃ ⍺: code, '⍵'                                             ⍝ Not a dfn. Emit code ready to execute
         quoted← '(⊂', ')',⍨ q, q,⍨ fString/⍨ 1+ fString= q           ⍝ dfn: add quoted fmt string.
         lb, code, quoted, ',⍵', rb                                   ⍝ emit dfn string ready to convert to dfn itself
