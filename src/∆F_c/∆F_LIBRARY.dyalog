@@ -5,7 +5,7 @@
   ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 0=⎕SE.⎕NC '⍙F.∆F4'
-        ⎕SE.⎕FIX 'file://∆F/∆F_LIBRARY.dyalog'  ⍝ Creates library ⎕SE.⍙F
+        ⎕SE.⎕FIX 'file://∆F_c/∆F_LIBRARY.dyalog'  ⍝ Creates library ⎕SE.⍙F
     :Endif  
     :If 900⌶0                                   ⍝ Options omitted. Default options processed below.
           ∆FⓄ← ⍬                               ⍝ We distinguish omitted left arg and 0=≢∆FⓄ
@@ -31,10 +31,10 @@
 
       ⍝ Load F-string C-language routines (two versions: ∆F2 for 2-byte chars and ∆F4 for 4-byte chars)
       ⍝ ∆F[4|2]:    rc [outStr|outDfn]← ∇ (escCh, options) fString outLen outLen
-        '∆F4' ⎕NA 'I4 ∆F/∆F.dylib|fs_format4 <{C4 U1[5]} <#C4[] >#C4[] I4'  ⍝ #C4: Up to 2≠64 items 
-        '∆F2' ⎕NA 'I4 ∆F/∆F.dylib|fs_format2 <{C4 U1[5]} <#C2[] >#C2[] I4'  ⍝ #C2: Up to 2*32 items
+        '∆F4' ⎕NA 'I4 ∆F_c/∆F.dylib|fs_format4 <{C4 U1[5]} <#C4[] >#C4[] I4'  ⍝ #C4: Up to 2≠64 items 
+        '∆F2' ⎕NA 'I4 ∆F_c/∆F.dylib|fs_format2 <{C4 U1[5]} <#C2[] >#C2[] I4'  ⍝ #C2: Up to 2*32 items
       ⍝ Canon: canonStr← ∇ inStr escCh
-        'Canon' ⎕NA '∆F/∆F.dylib|canon =#C4[] C4'       
+        'Canon' ⎕NA '∆F_c/∆F.dylib|canon =#C4[] C4'       
         
       ⍝ Load the run-time library routines
         A←{⍺←0⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}

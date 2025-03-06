@@ -1,5 +1,4 @@
-:namespace ∆FreLib 
-  ∇ ⍙⍙RES← {⍙⍙L} ∆Fre ⍙⍙R  ; ⎕TRAP 
+ ⍙⍙RES← {⍙⍙L} ∆Fre2 ⍙⍙R  ; ⍙⍙PARSE; ⍙⍙HELP; ⎕TRAP 
   ⍝ Performance of <∆Fre x> relative to C language version of ∆F
   ⍝    F-string                            This version vs C-version
   ⍝    ⎕A                                  ~1:1
@@ -12,106 +11,111 @@
     :ElseIf 0= ⊃0⍴⍙⍙L 
         ⍙⍙L← 3↑ ⍙⍙L 
     :ElseIf 'help'≡ 4↑ ⎕C ⍙⍙L 
-        ∆FreLib.Help ⍙⍙L ⋄ ⍙⍙RES← 1 0⍴'' ⋄ :Return 
+        ⍙⍙HELP ⍙⍙L ⋄ ⍙⍙RES← 1 0⍴'' ⋄ :Return 
     :EndIf 
-    :If ⊃⍙⍙L           ⍝ Generate Dfn from f-string ⊃⍙⍙R 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
-    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
-        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ∆FreLib.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
-    :Endif 
-  ∇
-    ##.∆F← ∆Fre 
 
-⍝ Constants 
-    ⎕IO ⎕ML←0 1 
-  ⍝ Run-time library routines ⎕SE.⍙F...
-    cAbove←   '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ [⍺]above ⍵    (1- or 2-adic)
-    cBox←     '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ box ⍵         (1- or 2-adic)
-    cDisplay← '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ display ⍵     (1-adic)
-    cMerge←   '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ merge[⍺] ⍵    (1- or 2-adic)
-    cFmt←     ' ⎕FMT '                                                 ⍝ ⎕FMT ⍵        (1- or 2-adic) 
-  ⍝ Character values
-    cr crVis← ⎕UCS 13 9229                                      ⍝ crVis: Choose 8629 ↵   9229  ␍
-    esc lb rb q sp dmd← '`{}'' ⋄' 
-    escDmd escEsc escLb escRb← esc,¨ dmd esc lb rb 
-    qq spQ qSp← (q q) (sp q) (q sp)  
-    fancy← '▼▶'                                                 ⍝ See SelfDocCode
-  ⍝ Const patterns 
-    cfPats← '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
-    ⍝ splitPat matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
-    splitPat← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
-  ⍝ Errors 
-    logicErr← 'Logic Error: Invalid omega expression' 911
+    ⍙⍙PARSE←{
+    ⍝ Constants 
+        ⎕IO ⎕ML←0 1 
+      ⍝ Run-time library routines ⎕SE.⍙F...
+        cAbove←   '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ [⍺]above ⍵    (1- or 2-adic)
+        cBox←     '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ box ⍵         (1- or 2-adic)
+        cDisplay← '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ display ⍵     (1-adic)
+        cMerge←   '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ merge[⍺] ⍵    (1- or 2-adic)
+        cFmt←     ' ⎕FMT '                                                 ⍝ ⎕FMT ⍵        (1- or 2-adic) 
+      ⍝ Character values
+        cr crVis← ⎕UCS 13 9229                                      ⍝ crVis: Choose 8629 ↵   9229  ␍
+        esc lb rb← '`{}' 
+        fancy← '▼▶'                                                 ⍝ See SelfDocCode
+        escDmd escEsc escLb escRb q qq spQ qSp← '`⋄' '``' '`{' '`}' '''' '''''' ' ''' ''' '
+      ⍝ Const patterns 
+        cfPats← '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
+        ⍝ splitPat matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
+        splitPat← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
+      ⍝ Errors 
+        logicErr← 'Logic Error: Invalid omega expression' 911
 
-⍝ "Options" Operator
-    _Opts← ⍠'EOL' 'LF' 
+    ⍝ "Options" Operator
+        _Opts← ⍠'EOL' 'LF' 
 
-⍝ Functions
-  ⍝ TextFld: We pass namespace ¨extern¨ as left arg ⍺.
-    TextFld← { spQ, qSp,⍨ escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts ⍵ }
-  ⍝ SpaceFld: Checks if code field consists solely of 0 or more spaces (within the braces).
-    ⍝    ∘ Returns (1 sfCod) if true.
-    ⍝      sfCod is either '', if there are 0 spaces, or (nn⍴''), if nn spaces (nn>0).
-    ⍝    ∘ Returns 0 otherwise.
-    ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
-    SpaceFld← {  
-        n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0 
-        n= 0: 1 (⍺.dbg⊃ '' qq) ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
+    ⍝ Functions
+      ⍝ TextFld: We pass namespace ¨extern¨ as left arg ⍺.
+        TextFld← { spQ, qSp,⍨ escDmd escEsc escLb escRb q ⎕R cr_x esc lb rb qq _Opts ⍵ }
+      ⍝ SpaceFld: Checks if code field consists solely of 0 or more spaces (within the braces).
+        ⍝    ∘ Returns (1 sfCod) if true.
+        ⍝      sfCod is either '', if there are 0 spaces, or (nn⍴''), if nn spaces (nn>0).
+        ⍝    ∘ Returns 0 otherwise.
+        ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
+        SpaceFld← {  
+            sp← +/∧\' '= ⍵
+          0≠ ≢sp↓ ⍵: 0 
+            sp= 0: 1 (dbg_x⊃ '' qq) 
+            1, ⊂'(','⍴'''')',⍨ ⍕sp 
+        }
+      ⍝ SelfDocCode: Checks for document strings,
+        ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓', possibly mixed with blanks.
+        ⍝   Returns cStr dFun dStr  
+        ⍝     cStr: code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
+        ⍝     dFun: '' (if not a doc string); cAbove (if appended '↓' or '%'); cMerge ('→')
+        ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
+        SelfDocCode←{  
+            ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\' '= ⌽⍵ 
+          ~ch∊'→↓%': ⍵ '' '' ⋄ dTyp← ch='→' 
+            dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (dTyp⊃ fancy)@p⊣⍵
+            (p↑⍵) (dTyp⊃ cAbove cMerge) dStr  
+        }
+      ⍝ CodeFld:  
+        ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
+        CodeFld← { 
+          ⍝  extern←⍺ 
+            isSF sfCod←  SpaceFld ⍵                         ⍝ Space field? 
+          isSF: sfCod
+            cStr dFun dStr ← SelfDocCode ⍵                        ⍝ Is CodeFld Self-documenting?  
+            cStr← cfPats ⎕R {
+                p← ⍵.PatternNum 
+                p∊0 1 2: p⊃ cBox cFmt cAbove                      ⍝ $$ $ % 
+                p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc cr_x _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
+                  o← { 0=≢⍵: omix_x+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
+                p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕omix_x⊢← o            ⍝ `⍵[nnn] and ⍹[nnn] 
+            }⊢ cStr  
+            '({', dStr, dFun, cStr, '}⍵)'
+        }
+      ⍝ OrderFlds
+        ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
+        ⍝   by reversing their order, evaluating R-to-L, then reversing again.
+        ⍝ ∘ To select "older" style (execute fields R-to-L, display L-to-R): 
+        ⍝   OrderFldsOld← ∊'⍬',⍨⊢ ⋄ OrderFlds← OrderFldsOld 
+        OrderFlds← '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
+      ⍝ ProcFlds: Process each Code (or Space) and Text field. 
+        ⍝ We pass namespace ¨extern¨ as left arg ⍺.
+        ProcFlds← { 0=≢⍵: '' ⋄ lb=⊃⍵: CodeFld 1↓¯1↓⍵ ⋄ TextFld ⍵ }¨ 
+      ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
+        SplitFlds← splitPat ⎕R '\n\1\n' _Opts
+      ⍝ ParseFString: The "main" function for ∆Fre...
+        omIx_x dbg_x cr_x←0 0 ''
+        ParseFString← { 
+            (dfn dbg box) fStr← ⍺ ⍵  
+            (omIx_x dbg_x cr_x)⊢← 0 dbg (dbg⊃ cr crVis)         ⍝ crVis: '␍'
+            fmtAll← box⊃ cMerge cDisplay 
+            flds← OrderFlds ProcFlds SplitFlds ⊂fStr 
+            code← (⎕∘←)⍣dbg⊢ lb, fmtAll, flds,  rb
+          ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
+            quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
+            lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+        } 
+        ⍺ ParseFString ⍵ 
     }
-  ⍝ SelfDocCode: Checks for document strings,
-    ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓', possibly mixed with blanks.
-    ⍝   Returns cStr dFun dStr  
-    ⍝     cStr: code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
-    ⍝     dFun: '' (if not a doc string); cAbove (if appended '↓' or '%'); cMerge ('→')
-    ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
-    SelfDocCode←{  
-        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\' '= ⌽⍵ 
-      ~'→↓%'∊⍨ ch: ⍵ '' ''  
-        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (fancy⊃~ dTyp← ch='→')@p⊣ ⍵
-        (p↑⍵) (dTyp⊃ cAbove cMerge) dStr  
-    }
-  ⍝ CodeFld:  
-    ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
-    CodeFld← { extern←⍺ 
-        isSF sfCod← extern SpaceFld ⍵                         ⍝ Space field? 
-      isSF: sfCod
-        cStr dFun dStr ← SelfDocCode ⍵                        ⍝ Is CodeFld Self-documenting?  
-        cStr← cfPats ⎕R {
-            p← ⍵.PatternNum 
-            p∊0 1 2: p⊃ cBox cFmt cAbove                      ⍝ $$ $ % 
-            p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
-              o← { 0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
-            p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o            ⍝ `⍵[nnn] and ⍹[nnn] 
-        }⊢ cStr  
-        '({', dStr, dFun, cStr, '}⍵)'
-    }
-  ⍝ OrderFlds
-    ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating R-to-L, then reversing again.
-    ⍝ ∘ To select "older" style (execute fields R-to-L, display L-to-R): 
-    ⍝   OrderFldsOld← ∊'⍬',⍨⊢ ⋄ OrderFlds← OrderFldsOld 
-    OrderFlds← '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
-  ⍝ ProcFlds: Process each Code (or Space) and Text field. 
-    ⍝ We pass namespace ¨extern¨ as left arg ⍺.
-    ProcFlds← { 0=≢⍵: '' ⋄ lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ ⋄ ⍺ TextFld ⍵ }¨ 
-  ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
-    SplitFlds← splitPat ⎕R '\n\1\n' _Opts
-  ⍝ ParseFString: The "main" function for ∆Fre...
-    ParseFString← { extern← ⎕NS⍬
-        (dfn dbg box) fStr← ⍺ ⍵  
-        extern.(omIx dbg cr)← 0 dbg (dbg⊃ cr crVis)         ⍝ crVis: '␍'
-        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr 
-        fmtAll← box⊃ cMerge cDisplay 
-        code← (⎕∘←)⍣dbg⊢ lb, fmtAll, flds,  rb
-      ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
-        quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
-        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+    ⍙⍙HELP← {
+          type← '?'↓⍨ ∨/'xX'∊ ⍵
+          ⎕ED 'h' ⊣ h← ('^ *⍝HX',type,'(.*)') ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     } 
+  
+    :If ⊃⍙⍙L           ⍝ Generate Dfn from f-string ⊃⍙⍙R 
+        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⍙⍙PARSE ⊃⍙⍙R← ,⊆⍙⍙R
+    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
+        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ⍙⍙PARSE ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
+    :Endif 
 
-    ∇ Help type ; h; t  
-      t← '?'↓⍨ ∨/'xX'∊ type 
-      ⎕ED 'h' ⊣ h← ('^ *⍝HX',t,'(.*)') ⎕S '\1'⊣ ⎕SRC ⎕THIS  
-    ∇
 
 ⍝H 
 ⍝H -------------
