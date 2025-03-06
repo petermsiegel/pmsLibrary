@@ -1,5 +1,5 @@
 :namespace ∆FreLib 
-  ∇ ⍙⍙RES← {⍙⍙L} ∆Fre ⍙⍙R  ; ⎕TRAP 
+  ∇ ⍙⍙RES← {⍙⍙L} ∆Main∆ ⍙⍙R  ; ⎕TRAP 
   ⍝ Performance of <∆Fre x> relative to C language version of ∆F
   ⍝    F-string                            This version vs C-version
   ⍝    ⎕A                                  ~1:1
@@ -12,15 +12,15 @@
     :ElseIf 0= ⊃0⍴⍙⍙L 
         ⍙⍙L← 3↑ ⍙⍙L 
     :ElseIf 'help'≡ 4↑ ⎕C ⍙⍙L 
-        ∆FreLib.Help ⍙⍙L ⋄ ⍙⍙RES← 1 0⍴'' ⋄ :Return 
+        ∆This∆.Help ⍙⍙L ⋄ ⍙⍙RES← 1 0⍴'' ⋄ :Return 
     :EndIf 
     :If ⊃⍙⍙L           ⍝ Generate Dfn from f-string ⊃⍙⍙R 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ∆FreLib.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
+        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ∆This∆.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
     :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
-        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ∆FreLib.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
+        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ∆This∆.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
     :Endif 
   ∇
-    ##.∆F← ∆Fre 
+    ##.⎕FX '∆Main∆'  '∆This∆'  ⎕R '∆F' (⍕⎕THIS)⊢ ⎕NR '∆Fre'
 
 ⍝ Constants 
     ⎕IO ⎕ML←0 1 
