@@ -1,61 +1,69 @@
-:namespace ∆FreLib 
-  ∇ ⍙⍙RES← {⍙⍙L} ∆Main∆ ⍙⍙R  ; ⎕TRAP 
-  ⍝ Performance of <∆Fre x> relative to C language version of ∆F
+:namespace ⍙F 
+  ∇ ⍙⍙RES← {⍙⍙L} ∆F ⍙⍙R  ; ⎕TRAP 
+  ⍝ Performance of <∆F x> relative to C language version of ∆F
   ⍝    F-string                            This version vs C-version
   ⍝    ⎕A                                  ~1:1
   ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~20-25% slower
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
-        ⍙⍙L← 0 0 0 
-    :ElseIf 0= ≢⍙⍙L 
-        ⍙⍙RES←1 0⍴'' ⋄ :Return 
-    :ElseIf 0= ⊃0⍴⍙⍙L 
-        ⍙⍙L← 3↑ ⍙⍙L 
-    :ElseIf 'help'≡ 4↑ ⎕C ⍙⍙L 
-        ∆This∆.Help ⍙⍙L ⋄ ⍙⍙RES← 1 0⍴'' ⋄ :Return 
+        ⍙⍙L← ⍬
+    :ElseIf 0=≢ ⍙⍙L 
+        ⍙⍙RES← 1 0⍴'' ⋄ :Return 
+    :ElseIf ' '=⊃ 0⍴⍙⍙L
+        ⍙⍙RES← ⎕THIS.Help ⍙⍙L ⋄ :Return 
     :EndIf 
-    :If ⊃⍙⍙L           ⍝ Generate Dfn from f-string ⊃⍙⍙R 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ∆This∆.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
+    :If ⊃⍙⍙L← 4↑ ⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R 
+        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
     :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
-        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ∆This∆.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
+        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ⎕THIS.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
     :Endif 
   ∇
-    ##.⎕FX '∆Main∆'  '∆This∆'  ⎕R '∆F' (⍕⎕THIS)⊢ ⎕NR '∆Fre'
+    ##.⎕FX   '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
 
 ⍝ Constants 
     ⎕IO ⎕ML←0 1 
-  ⍝ Run-time library routines ⎕SE.⍙F...
-    cAbove←   '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ [⍺]above ⍵    (1- or 2-adic)
-    cBox←     '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ box ⍵         (1- or 2-adic)
-    cDisplay← '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ display ⍵     (1-adic)
-    cMerge←   '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ merge[⍺] ⍵    (1- or 2-adic)
-    cFmt←     ' ⎕FMT '                                                 ⍝ ⎕FMT ⍵        (1- or 2-adic) 
-  ⍝ Character values
-    cr crVis← ⎕UCS 13 9229                                      ⍝ crVis: Choose 8629 ↵   9229  ␍
-    esc lb rb q sp dmd← '`{}'' ⋄' 
-    escDmd escEsc escLb escRb← esc,¨ dmd esc lb rb 
+  ⍝ Run-time library routines ⎕SE.⍙F.
+  ⍝ If ⍺
+  ∇ {standalone}← Library standalone ;QS; this1; this2  
+     ⎕SHADOW '_',¨'ABDMF' 
+    _A← '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ [⍺]above ⍵    (1- or 2-adic)
+    _B← '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ box ⍵         (1- or 2-adic)
+    _D← '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ display ⍵     (1-adic)
+    _M← '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ merge[⍺] ⍵    (1- or 2-adic)
+    _F← ' ⎕FMT '                                                 ⍝ ⎕FMT ⍵        (1- or 2-adic) 
+    QS← ''' '∘,,∘' ''' ⋄ this1← '⎕THIS.' ⋄ this2←  '.',⍨ ⍕⎕THIS
+    {_← ⍎ this1, ⍵, '←⍎_', ⍵ ⋄ ⍎ 'c', ⍵,' ←',(QS this2, ⍵),' _',⍵}¨ 'ABDMF'
+  ∇
+    Library 0
+
+  ⍝ Constant char values
+    esc← '`'   
+    crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
+    sp lb rb q dmd← ' {}''⋄' 
+    escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
     qq spQ qSp← (q q) (sp q) (q sp)  
-    fancy← '▼▶'                                                 ⍝ See SelfDocCode
+    arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
-    cfPats← '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
+    cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
     ⍝ splitPat matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
     splitPat← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
-  ⍝ Errors 
-    logicErr← 'Logic Error: Invalid omega expression' 911
-
-⍝ "Options" Operator
+ 
+⍝ "Options" Operator for ⎕R 
     _Opts← ⍠'EOL' 'LF' 
 
 ⍝ Functions
-  ⍝ TextFld: We pass namespace ¨extern¨ as left arg ⍺.
+  ⍝ TextFld
+    ⍝ ⍺: namespace of external (global) vars
     TextFld← { spQ, qSp,⍨ escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts ⍵ }
-  ⍝ SpaceFld: Checks if code field consists solely of 0 or more spaces (within the braces).
-    ⍝    ∘ Returns (1 sfCod) if true.
-    ⍝      sfCod is either '', if there are 0 spaces, or (nn⍴''), if nn spaces (nn>0).
+  ⍝ SpaceFld: A variant of a code field. 
+    ⍝ A space field consists solely of 0 or more spaces (within the originally surrounding braces).
+    ⍝ ⍺ SpaceFld ⍵ 
+    ⍝    ∘ Returns (1 sfCod) if ⍵ is a space field.
+    ⍝      sfCod is either '', if there are 0 spaces in ⍵, or (nn⍴''), if nn spaces (nn>0).
     ⍝    ∘ Returns 0 otherwise.
-    ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
+    ⍝ ⍺: namespace of external (global) vars
     SpaceFld← {  
-        n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0 
+        n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0   
         n= 0: 1 (⍺.dbg⊃ '' qq) ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
     }
   ⍝ SelfDocCode: Checks for document strings,
@@ -64,21 +72,22 @@
     ⍝     cStr: code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
     ⍝     dFun: '' (if not a doc string); cAbove (if appended '↓' or '%'); cMerge ('→')
     ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
+    ⍝ ⍺: namespace of external (global) vars
     SelfDocCode←{  
         ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\' '= ⌽⍵ 
       ~'→↓%'∊⍨ ch: ⍵ '' ''  
-        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (fancy⊃~ dTyp← ch='→')@p⊣ ⍵
-        (p↑⍵) (dTyp⊃ cAbove cMerge) dStr  
+        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵
+        (p↑⍵) (dTyp ⍺.stndAlone⊃ cA cM) dStr  
     }
   ⍝ CodeFld:  
-    ⍝ * We pass namespace ¨extern¨ as left arg ⍺.
+    ⍝ ⍺: namespace of external (global) vars
     CodeFld← { extern←⍺ 
         isSF sfCod← extern SpaceFld ⍵                         ⍝ Space field? 
       isSF: sfCod
-        cStr dFun dStr ← SelfDocCode ⍵                        ⍝ Is CodeFld Self-documenting?  
+        cStr dFun dStr ← extern SelfDocCode ⍵                 ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
             p← ⍵.PatternNum 
-            p∊0 1 2: p⊃ cBox cFmt cAbove                      ⍝ $$ $ % 
+            p∊0 1 2: p extern.stndAlone⊃ cB cF cA                      ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
               o← { 0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
             p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o            ⍝ `⍵[nnn] and ⍹[nnn] 
@@ -92,25 +101,24 @@
     ⍝   OrderFldsOld← ∊'⍬',⍨⊢ ⋄ OrderFlds← OrderFldsOld 
     OrderFlds← '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
   ⍝ ProcFlds: Process each Code (or Space) and Text field. 
-    ⍝ We pass namespace ¨extern¨ as left arg ⍺.
+    ⍝ ⍺: namespace of external (global) vars
     ProcFlds← { 0=≢⍵: '' ⋄ lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ ⋄ ⍺ TextFld ⍵ }¨ 
   ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
     SplitFlds← splitPat ⎕R '\n\1\n' _Opts
   ⍝ ParseFString: The "main" function for ∆Fre...
-    ParseFString← { extern← ⎕NS⍬
-        (dfn dbg box) fStr← ⍺ ⍵  
-        extern.(omIx dbg cr)← 0 dbg (dbg⊃ cr crVis)         ⍝ crVis: '␍'
+    ParseFString← {  
+        (dfn dbg box stndAlone) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
+        extern← ⎕NS 'dbg' 'omIx' 'cr' 'stndAlone'                      ⍝ Only omIx is r/w
         flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr 
-        fmtAll← box⊃ cMerge cDisplay 
-        code← (⎕∘←)⍣dbg⊢ lb, fmtAll, flds,  rb
+        code← (⎕∘←)⍣dbg⊢ lb, (box extern.stndAlone⊃ cM cD), flds,  rb
       ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
         quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
         lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
     } 
-
-    ∇ Help type ; h; t  
-      t← '?'↓⍨ ∨/'xX'∊ type 
-      ⎕ED 'h' ⊣ h← ('^ *⍝HX',t,'(.*)') ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+    ∇ r← Help type ; h; t; hP   
+      :IF 'help'≢⎕C 4↑type ⋄ ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)' ⋄ :EndIf 
+      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) type), '(.*)' 
+      r← 1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     ∇
 
 ⍝H 
@@ -133,23 +141,31 @@
 ⍝H                      ∆F⍨'help'                      Display help information
 ⍝H 
 ⍝H F-string and args:
-⍝H       first element: an f-string, a single character vector (see "∆F in Detail" below) 
-⍝H       args:          elements of the right arg ⍵, each of which can be accessed via shortcuts starting with `⍵ or ⍹:  
-⍝H                      Escape (`) Shortcut   ⍹ Shortcut    Meaning
-⍝H                      ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯
-⍝H                      `⍵1, `⍵2              ⍹1, ⍹2        (⍵⊃⍨ ⎕IO+1), (⍵⊃⍨ ⎕IO+2)
-⍝H                      `⍵                    ⍹             the "next" arg*, starting with (⍵⊃⍨ ⎕IO+1)
-⍝H                      `⍵0                   ⍹0            the f-string itself, i.e. (⍵⊃⍨ ⎕IO)
-⍝H                                                       [*] next, reading L-to-R across all code fields.
-⍝H                                                           `⍵N or ⍹N sets "next" to (⍵⊃⍨ ⎕IO+N+1)
+⍝H   first element: 
+⍝H       an f-string, a single character vector (see "∆F in Detail" below) 
+⍝H   args:          
+⍝H       elements of the right arg ⍵, each of which can be accessed,
+⍝H       via shortcut starting with `⍵ or ⍹ (Table 1)
+⍝H  
+⍝H   Table 1:
+⍝H       Escape (`) Shortcut   ⍹ Shortcut    Meaning
+⍝H       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯
+⍝H      `⍵1, `⍵2              ⍹1, ⍹2        (⍵⊃⍨ ⎕IO+1), (⍵⊃⍨ ⎕IO+2)
+⍝H      `⍵                    ⍹             the "next" arg*, starting with (⍵⊃⍨ ⎕IO+1)
+⍝H      `⍵0                   ⍹0            the f-string itself, i.e. (⍵⊃⍨ ⎕IO)
+⍝H  ---------------------------------
+⍝H      [*] next, reading L-to-R across all code fields. `⍵N or ⍹N sets "next" to (⍵⊃⍨ ⎕IO+N+1)
+⍝H 
 ⍝H Options:
 ⍝H    Options:     dfn dbg box
-⍝H      dfn: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
-⍝H           If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
-⍝H      dbg: If 0, returns the value as above.
-⍝H           If 1, displays the code generated based on the f-string, befure returning a value.
-⍝H      box: If 0, returns the value as above.
-⍝H           If 1, returns each field generated within a box (dfns "display"). 
+⍝H       dfn: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
+⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
+⍝H       dbg: If 0, returns the value as above.
+⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
+⍝H       box: If 0, returns the value as above.
+⍝H            If 1, returns each field generated within a box (dfns "display"). 
+⍝H stndAlone: If 0, references ⍙F library routines A, B, D, F, and M
+⍝H            If 1, inserts the code of A, B, D, F, and M to make the resulting runtime code independent of the ⍙F namespace.
 ⍝H
 ⍝H Result Returned: 
 ⍝H   ∘ If (a) the left argument to ∆F (⍺) is omitted, or if ('Dfn' 1) or a number (1 or 0) specified, ...
