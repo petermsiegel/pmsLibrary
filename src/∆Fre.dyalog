@@ -7,58 +7,40 @@
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙⍙L← ⍬
-    :ElseIf 0=≢ ⍙⍙L 
-        ⍙⍙RES← 1 0⍴'' ⋄ :Return 
-    :ElseIf ' '= ⊃0⍴⍙⍙L
+    :ElseIf 0≠ ⊃0⍴⍙⍙L
         ⍙⍙RES← ⎕THIS.Help ⍙⍙L ⋄ :Return 
     :EndIf 
-    :If ⊃⍙⍙L← 4↑⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.Main ⊃⍙⍙R← ,⊆⍙⍙R
-    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
+    :If ⊃⍙⍙L← 4↑⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R. ⍙⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
+        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.Main ⊃,⊆⍙⍙R
+    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R. The code string ⍙⍙R is of the form '{code}⍵'.
         ⍙⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙⍙L' '⍙⍙R')⊢⍙⍙L ⎕THIS.Main ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
     :Endif 
   ∇
-    ##.⎕FX   '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
+    ##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
   ⍝ result← [4↑ options] Main f_string
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
+      0=≢fStr:  (dfn/ lb), '1 0⍴⍬', dfn/rb                          ⍝ ⍵ is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
-        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr 
+        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr  
         code← (⎕∘←)⍣dbg⊢ lb, (box extern.inline⊃ cM cD), flds,  rb
       ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
         quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
-        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+        ⎕←lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
     } 
-  ⍝ [1 0⍴⍬]← Help 'help' OR 'helpx'
-    ∇ r← Help type ; h; t; hP   
-      :IF 'help'≢⎕C 4↑type ⋄ ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)' ⋄ :EndIf 
-      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) type), '(.*)' 
-      r← 1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
-    ∇
+  ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
+  ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
+    Help← { 
+      'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
+      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) ⍵), '(.*)' 
+      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+    }
 
 ⍝ Constants 
     ⎕IO ⎕ML←0 1 
-  ⍝ LoadLib: Load run-time library routines and names.  
-  ⍝ For A, B, D, F, M (using A as the example:)
-  ⍝     A← an executable dfn in this namespace (⎕THIS).
-  ⍝     cA← name codeString, where
-  ⍝         name is (⎕THIS,'.'),A'
-  ⍝         codeString is the executable dfn in string form.
-  ∇ {ok}← LoadLib
-    ; Exec; Code  
-    Exec← ⎕THIS.⍎⊃∘⌽
-    Code← ('.',⍨ ⍕⎕THIS) { (sp, ⍺⍺, ⍺, sp)  ⍵  }                                   
-  ⍝ 
-    A← Exec cA← 'A' Code '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
-    B← Exec cB← 'B' Code '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
-    D← Exec cD← 'D' Code '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
-    F← Exec cF← 'F' Code ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
-    M← Exec cM← 'M' Code '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
-    ok← 1 
-  ∇
 
   ⍝ Constant char values
     esc← '`'   
@@ -76,7 +58,24 @@
     _Opts← ⍠'EOL' 'LF' 
 
 ⍝ "Fix" Time Utility
-  LoadLib
+  ⍝ LoadLib: At 'Fix' time, load the run-time library names and code.  
+    ⍝ For A, B, D, F, M (using A as the example:)
+    ⍝     A← an executable dfn in this namespace (⎕THIS).
+    ⍝     cA← name codeString, where
+    ⍝         name is (⎕THIS,'.'),A'
+    ⍝         codeString is the executable dfn in string form.
+    ∇ {ok}← LoadLib   ;EXR ;NCP  
+      EXR← ⎕THIS.⍎⊃∘⌽                                               ⍝ Execute the right-hand expression
+      NCP← ('.',⍨ ⍕⎕THIS) { (sp, ⍺⍺, ⍺, sp)  ⍵  }                   ⍝ Create a name-code pair                              
+    ⍝ 
+      A← EXR cA← 'A' NCP '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
+      B← EXR cB← 'B' NCP '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
+      D← EXR cD← 'D' NCP '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
+      F← EXR cF← ' ⎕FMT ' ' ⎕FMT '                                                ⍝ F: [⍺] format ⍵   (1- or 2-adic)
+      M← EXR cM← 'M' NCP '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+      ok← 1 
+    ∇
+    LoadLib
 
 ⍝ Functions
   ⍝ TextFld
@@ -109,15 +108,15 @@
   ⍝ CodeFld:  
     ⍝ ⍺: namespace of external (global) vars
     CodeFld← { extern←⍺ 
-        isSF sfCod← extern SpaceFld ⍵                         ⍝ Space field? 
+        isSF sfCod← extern SpaceFld ⍵                            ⍝ Space field? 
       isSF: sfCod
-        cStr dFun dStr ← extern SelfDocCode ⍵                 ⍝ Is CodeFld Self-documenting?  
+        cStr dFun dStr ← extern SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
             p← ⍵.PatternNum 
-            p∊0 1 2: p extern.inline⊃ cB cF cA                      ⍝ $$ $ % 
+            p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
               o← { 0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
-            p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o            ⍝ `⍵[nnn] and ⍹[nnn] 
+            p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o               ⍝ `⍵[nnn] and ⍹[nnn] 
         }⊢ cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
@@ -149,34 +148,43 @@
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
 ⍝H Result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
 ⍝H          [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
-⍝H                    ⍬ ∆F ignored                     Do nothing, ignoring any args
 ⍝H                      ∆F⍨'help'                      Display help information
 ⍝H 
 ⍝H F-string and args:
 ⍝H   first element: 
 ⍝H       an f-string, a single character vector (see "∆F in Detail" below) 
 ⍝H   args:          
-⍝H       elements of the right arg ⍵, each of which can be accessed,
-⍝H       via shortcut starting with `⍵ or ⍹ (Table 1)
+⍝H       elements of  ⍵ after the f-string, each of which can be accessed, via a shortcut 
+⍝H       that starts with `⍵ or ⍹ (Table 1)
 ⍝H  
 ⍝H   Table 1:
 ⍝H       Escape (`) Shortcut   ⍹ Shortcut    Meaning
 ⍝H       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯
-⍝H      `⍵1, `⍵2              ⍹1, ⍹2        (⍵⊃⍨ ⎕IO+1), (⍵⊃⍨ ⎕IO+2)
-⍝H      `⍵                    ⍹             the "next" arg*, starting with (⍵⊃⍨ ⎕IO+1)
-⍝H      `⍵0                   ⍹0            the f-string itself, i.e. (⍵⊃⍨ ⎕IO)
+⍝H       `⍵1, `⍵2              ⍹1, ⍹2        (⍵⊃⍨ ⎕IO+1), (⍵⊃⍨ ⎕IO+2)
+⍝H       `⍵                    ⍹             the "next" arg*, starting with the 1st: (⍵⊃⍨ ⎕IO+1)
+⍝H       `⍵0                   ⍹0            the f-string itself, i.e. (⍵⊃⍨ ⎕IO)
 ⍝H  ---------------------------------
 ⍝H      [*] next, reading L-to-R across all code fields. `⍵N or ⍹N sets "next" to (⍵⊃⍨ ⎕IO+N+1)
 ⍝H 
-⍝H Options:
-⍝H    Options:     dfn dbg box
-⍝H       dfn: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
+⍝H Left arg (⍺) to ∆F:   [ [ options← 0 [ 0 [ 0 [ 0 ] ] ] ] | 'help[x]' ]   
+⍝H    If there is no left arg, 
+⍝H         the default options (4⍴ 0) are assumed per below;
+⍝H    If the left arg ⍺ is 0 to 4 digits,
+⍝H         the options are taken as (4↑⍺);
+⍝H    If the left arg is 'help' or 'helpx', 
+⍝H         ⍵ is ignored, ∆F shows help or example information and returns (1 0⍴⍬);
+⍝H    Otherwise,
+⍝H         an error is signaled.
+⍝H    Options:  [ DFN DBG BOX INLINE ]
+⍝H    Defaults:     0   0   0   0    
+⍝H    The options are:
+⍝H       DFN: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
 ⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
-⍝H       dbg: If 0, returns the value as above.
+⍝H       DBG: If 0, returns the value as above.
 ⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
-⍝H       box: If 0, returns the value as above.
+⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
-⍝H    inline: If 0, ⍙F library routines A, B, D, F, and M will be used.
+⍝H    INLINE: If 0, ⍙F library routines A, B, D, F, and M will be used.
 ⍝H            If 1, the CODE of A, B, D, F, and M are used "in line" to make the resulting runtime code 
 ⍝H            independent of the ⍙F namespace.
 ⍝H
