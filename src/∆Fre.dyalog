@@ -9,32 +9,56 @@
         ⍙⍙L← ⍬
     :ElseIf 0=≢ ⍙⍙L 
         ⍙⍙RES← 1 0⍴'' ⋄ :Return 
-    :ElseIf ' '=⊃ 0⍴⍙⍙L
+    :ElseIf ' '= ⊃0⍴⍙⍙L
         ⍙⍙RES← ⎕THIS.Help ⍙⍙L ⋄ :Return 
     :EndIf 
-    :If ⊃⍙⍙L← 4↑ ⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.ParseFString ⊃⍙⍙R← ,⊆⍙⍙R
+    :If ⊃⍙⍙L← 4↑⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R 
+        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.Main ⊃⍙⍙R← ,⊆⍙⍙R
     :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R (⍙⍙R contains an ⍵)
-        ⍙⍙RES← (⊃⎕RSI){⍺⍎ ⍙⍙L ⎕THIS.ParseFString ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
+        ⍙⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙⍙L' '⍙⍙R')⊢⍙⍙L ⎕THIS.Main ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
     :Endif 
   ∇
     ##.⎕FX   '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
 
+⍝ Top Level Routines...
+  ⍝ Main: The "main" function for ∆Fre...
+  ⍝ result← [4↑ options] Main f_string
+    Main← {  
+        (dfn dbg box inline) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
+        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
+        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr 
+        code← (⎕∘←)⍣dbg⊢ lb, (box extern.inline⊃ cM cD), flds,  rb
+      ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
+        quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
+        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+    } 
+  ⍝ [1 0⍴⍬]← Help 'help' OR 'helpx'
+    ∇ r← Help type ; h; t; hP   
+      :IF 'help'≢⎕C 4↑type ⋄ ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)' ⋄ :EndIf 
+      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) type), '(.*)' 
+      r← 1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+    ∇
+
 ⍝ Constants 
     ⎕IO ⎕ML←0 1 
-  ⍝ Run-time library routines ⎕SE.⍙F.
-  ⍝ If ⍺
-  ∇ {standalone}← Library standalone ;QS; this1; this2  
-     ⎕SHADOW '_',¨'ABDMF' 
-    _A← '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ [⍺]above ⍵    (1- or 2-adic)
-    _B← '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ box ⍵         (1- or 2-adic)
-    _D← '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ display ⍵     (1-adic)
-    _M← '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ merge[⍺] ⍵    (1- or 2-adic)
-    _F← ' ⎕FMT '                                                 ⍝ ⎕FMT ⍵        (1- or 2-adic) 
-    QS← ''' '∘,,∘' ''' ⋄ this1← '⎕THIS.' ⋄ this2←  '.',⍨ ⍕⎕THIS
-    {_← ⍎ this1, ⍵, '←⍎_', ⍵ ⋄ ⍎ 'c', ⍵,' ←',(QS this2, ⍵),' _',⍵}¨ 'ABDMF'
+  ⍝ LoadLib: Load run-time library routines and names.  
+  ⍝ For A, B, D, F, M (using A as the example:)
+  ⍝     A← an executable dfn in this namespace (⎕THIS).
+  ⍝     cA← name codeString, where
+  ⍝         name is (⎕THIS,'.'),A'
+  ⍝         codeString is the executable dfn in string form.
+  ∇ {ok}← LoadLib
+    ; Exec; Code  
+    Exec← ⎕THIS.⍎⊃∘⌽
+    Code← ('.',⍨ ⍕⎕THIS) { (sp, ⍺⍺, ⍺, sp)  ⍵  }                                   
+  ⍝ 
+    A← Exec cA← 'A' Code '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
+    B← Exec cB← 'B' Code '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
+    D← Exec cD← 'D' Code '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
+    F← Exec cF← 'F' Code ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
+    M← Exec cM← 'M' Code '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+    ok← 1 
   ∇
-    Library 0
 
   ⍝ Constant char values
     esc← '`'   
@@ -50,6 +74,9 @@
  
 ⍝ "Options" Operator for ⎕R 
     _Opts← ⍠'EOL' 'LF' 
+
+⍝ "Fix" Time Utility
+  LoadLib
 
 ⍝ Functions
   ⍝ TextFld
@@ -77,7 +104,7 @@
         ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\' '= ⌽⍵ 
       ~'→↓%'∊⍨ ch: ⍵ '' ''  
         dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵
-        (p↑⍵) (dTyp ⍺.stndAlone⊃ cA cM) dStr  
+        (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr  
     }
   ⍝ CodeFld:  
     ⍝ ⍺: namespace of external (global) vars
@@ -87,7 +114,7 @@
         cStr dFun dStr ← extern SelfDocCode ⍵                 ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
             p← ⍵.PatternNum 
-            p∊0 1 2: p extern.stndAlone⊃ cB cF cA                      ⍝ $$ $ % 
+            p∊0 1 2: p extern.inline⊃ cB cF cA                      ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
               o← { 0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
             p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o            ⍝ `⍵[nnn] and ⍹[nnn] 
@@ -105,21 +132,6 @@
     ProcFlds← { 0=≢⍵: '' ⋄ lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ ⋄ ⍺ TextFld ⍵ }¨ 
   ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
     SplitFlds← splitPat ⎕R '\n\1\n' _Opts
-  ⍝ ParseFString: The "main" function for ∆Fre...
-    ParseFString← {  
-        (dfn dbg box stndAlone) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
-        extern← ⎕NS 'dbg' 'omIx' 'cr' 'stndAlone'                      ⍝ Only omIx is r/w
-        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr 
-        code← (⎕∘←)⍣dbg⊢ lb, (box extern.stndAlone⊃ cM cD), flds,  rb
-      ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
-        quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
-        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
-    } 
-    ∇ r← Help type ; h; t; hP   
-      :IF 'help'≢⎕C 4↑type ⋄ ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)' ⋄ :EndIf 
-      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) type), '(.*)' 
-      r← 1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
-    ∇
 
 ⍝H 
 ⍝H -------------
@@ -164,8 +176,9 @@
 ⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
 ⍝H       box: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
-⍝H stndAlone: If 0, references ⍙F library routines A, B, D, F, and M
-⍝H            If 1, inserts the code of A, B, D, F, and M to make the resulting runtime code independent of the ⍙F namespace.
+⍝H    inline: If 0, ⍙F library routines A, B, D, F, and M will be used.
+⍝H            If 1, the CODE of A, B, D, F, and M are used "in line" to make the resulting runtime code 
+⍝H            independent of the ⍙F namespace.
 ⍝H
 ⍝H Result Returned: 
 ⍝H   ∘ If (a) the left argument to ∆F (⍺) is omitted, or if ('Dfn' 1) or a number (1 or 0) specified, ...
