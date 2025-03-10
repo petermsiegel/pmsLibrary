@@ -24,7 +24,7 @@
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
-      0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ ⍵ is '' or ⍬
+      0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
         flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr  
         code← DM lb, (box extern.inline⊃ cM cD), flds,  rb
@@ -47,7 +47,7 @@
     crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
     s lb rb q dmd← ' {}''⋄' 
     escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
-    qq sQ qS sQQs← (q q) (s q) (q s) (s q q s)     
+    qq sQ qS← (q q) (s q) (q s)      
     arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
     cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
@@ -92,17 +92,17 @@
     ⍝ ⍺: namespace of external (global) vars
     SpaceFld← {  
         n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0   
-        n= 0: 1 sQQs ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
+        n= 0: 1 (sQ, qS) ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
     }
   ⍝ SelfDocCode: Checks for document strings,
-    ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓', possibly mixed with blanks.
+    ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓' [% is an alias for ↓], possibly mixed with blanks.
     ⍝   Returns cStr dFun dStr  
     ⍝     cStr: code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
     ⍝     dFun: '' (if not a doc string); cAbove (if appended '↓' or '%'); cMerge ('→')
     ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
     ⍝ ⍺: namespace of external (global) vars
     SelfDocCode←{  
-        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\' '= ⌽⍵ 
+        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\ ⌽' '= ⍵ 
       ~'→↓%'∊⍨ ch: ⍵ '' ''  
         dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵
         (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr  
@@ -114,10 +114,12 @@
       isSF: sfCod
         cStr dFun dStr ← extern SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
-            p← ⍵.PatternNum 
+              p← ⍵.PatternNum 
             p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
-              o← { 0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
+              o← { 
+                0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ 
+              } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
             p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o               ⍝ `⍵[nnn] and ⍹[nnn] 
         }⊢ cStr  
         '({', dStr, dFun, cStr, '}⍵)'
@@ -285,13 +287,13 @@
 ⍝HX     
 ⍝HX ⍝ A slightly more interesting code expression
 ⍝HX   C← 11 30 60
-⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
 ⍝HX The temperature is 11°C or  51.8°F
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
 ⍝HX  
 ⍝HX ⍝ Using "boxes" via the $$ (box) pseudo-primitive
-⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ F← 32+9×C÷5}`⋄°F'
+⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ 32+9×C÷5}`⋄°F'
 ⍝HX                    ┌──┐      ┌─────┐
 ⍝HX The temperature is │11│°C or │ 51.8│°F
 ⍝HX                    │30│      │ 86.0│ 
@@ -349,8 +351,8 @@
 ⍝HX 0 0  0 1  0 2 
 ⍝HX 1 0  1 1  1 2 
 ⍝HX 2 0  2 1  2 2 
-⍝HX ⍝ Equivalent to:
-⍝HX ∆F'{(⍳2⍴ (⍵⊃⍨1+⎕IO)) % (⍳2⍴ (⍵⊃⍨1+⎕IO)) % (⍳2⍴ (⍵⊃⍨3+⎕IO))}' 1 2 3 
+⍝HX ⍝ Equivalent to (⎕IO←0):
+⍝HX ∆F'{(⍳2⍴ (⍵⊃⍨1+⎕IO)) % (⍳2⍴ (⍵⊃⍨2+⎕IO)) % (⍳2⍴ (⍵⊃⍨3+⎕IO))}' 1 2 3 
 ⍝HX
 ⍝HX ⍝ Use of box option: shows and demarcates each field (boxed) left to right.
 ⍝HX   C← 11 30 60
