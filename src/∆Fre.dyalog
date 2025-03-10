@@ -23,13 +23,14 @@
   ⍝ result← [4↑ options] Main f_string
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
-      0=≢fStr:  (dfn/ lb), '1 0⍴⍬', dfn/rb                          ⍝ ⍵ is '' or ⍬
+        DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
+      0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ ⍵ is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
         flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr  
-        code← (⎕∘←)⍣dbg⊢ lb, (box extern.inline⊃ cM cD), flds,  rb
+        code← DM lb, (box extern.inline⊃ cM cD), flds,  rb
       ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
         quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
-        ⎕←lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
     } 
   ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
@@ -41,13 +42,12 @@
 
 ⍝ Constants 
     ⎕IO ⎕ML←0 1 
-
   ⍝ Constant char values
     esc← '`'   
     crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
-    sp lb rb q dmd← ' {}''⋄' 
+    s lb rb q dmd← ' {}''⋄' 
     escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
-    qq spQ qSp← (q q) (sp q) (q sp)  
+    qq sQ qS sQQs← (q q) (s q) (q s) (s q q s)     
     arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
     cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
@@ -57,7 +57,7 @@
 ⍝ "Options" Operator for ⎕R 
     _Opts← ⍠'EOL' 'LF' 
 
-⍝ "Fix" Time Utility
+⍝ Utility for ]load ("fix") time
   ⍝ LoadLib: At 'Fix' time, load the run-time library names and code.  
     ⍝ For A, B, D, F, M (using A as the example:)
     ⍝     A← an executable dfn in this namespace (⎕THIS).
@@ -66,7 +66,7 @@
     ⍝         codeString is the executable dfn in string form.
     ∇ {ok}← LoadLib   ;EXR ;NCP  
       EXR← ⎕THIS.⍎⊃∘⌽                                               ⍝ Execute the right-hand expression
-      NCP← ('.',⍨ ⍕⎕THIS) { (sp, ⍺⍺, ⍺, sp)  ⍵  }                   ⍝ Create a name-code pair                              
+      NCP← ('.',⍨ ⍕⎕THIS) { (s, ⍺⍺, ⍺, s)  ⍵  }                     ⍝ Create a name-code pair                              
     ⍝ 
       A← EXR cA← 'A' NCP '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
       B← EXR cB← 'B' NCP '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
@@ -80,7 +80,9 @@
 ⍝ Functions
   ⍝ TextFld
     ⍝ ⍺: namespace of external (global) vars
-    TextFld← { spQ, qSp,⍨ escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts ⍵ }
+    TextFld← { 
+        sQ, qS,⍨ escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts ⍵ 
+    }
   ⍝ SpaceFld: A variant of a code field. 
     ⍝ A space field consists solely of 0 or more spaces (within the originally surrounding braces).
     ⍝ ⍺ SpaceFld ⍵ 
@@ -90,7 +92,7 @@
     ⍝ ⍺: namespace of external (global) vars
     SpaceFld← {  
         n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0   
-        n= 0: 1 (⍺.dbg⊃ '' qq) ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
+        n= 0: 1 sQQs ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
     }
   ⍝ SelfDocCode: Checks for document strings,
     ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓', possibly mixed with blanks.
@@ -137,7 +139,7 @@
 ⍝H  ∆F IN BRIEF
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H ∆F is a function that makes it easy to format strings that dynamically display text, variables, and 
-⍝H (executed) code expressions in an APL-friendly multi-line (matrix) style. 
+⍝H the value of code expressions in an APL-friendly multi-line (matrix) style. 
 ⍝H   ∘ Text expressions can generate multi-line Unicode strings 
 ⍝H   ∘ Each code expression is an ordinary dfn, with a few extensions:
 ⍝H          e.g. use of double-quoted strings, escape chars, and simple formatting shortcuts for APL arrays. 
@@ -146,7 +148,7 @@
 ⍝H 
 ⍝H ∆F: Calling Information
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
-⍝H Result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
+⍝H result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
 ⍝H          [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
 ⍝H                      ∆F⍨'help'                      Display help information
 ⍝H 
@@ -156,6 +158,8 @@
 ⍝H   args:          
 ⍝H       elements of  ⍵ after the f-string, each of which can be accessed, via a shortcut 
 ⍝H       that starts with `⍵ or ⍹ (Table 1)
+⍝H   result: If (0=⊃options), the result is always a character matrix. 
+⍝H           If (1=⊃options), the result is a dfn that, when executed, generates a character matrix.
 ⍝H  
 ⍝H   Table 1:
 ⍝H       Escape (`) Shortcut   ⍹ Shortcut    Meaning
@@ -189,20 +193,18 @@
 ⍝H            independent of the ⍙F namespace.
 ⍝H
 ⍝H Result Returned: 
-⍝H   ∘ If (a) the left argument to ∆F (⍺) is omitted, or if ('Dfn' 1) or a number (1 or 0) specified, ...
-⍝H     then if (b) the ∆F-string is evaluated successfully,
-⍝H     ∘ For 'Dfn' 1 (default), ∆F returns the output after executing the code and formatting
-⍝H       the code and text output, including any values from the environment or right argument.
-⍝H       Normally, this is displayed as output to the terminal.
-⍝H     ∘ For 'Dfn' 0, a function that, when executed with the same environment and arguments,
-⍝H       generates identical output.
-⍝H     Else (c) if an error occurs, 
+⍝H   If (⊃⍺) is 0,  the default, then:
+⍝H     ∘ the result is always a matrix, with at least one row and zero columns, unless an error occurs.
+⍝H     ∘ If the f-string is null, always returns a matrix of shape (1 0).
+⍝H   If (⊃⍺) is 1, then: 
+⍝H     ∘ the result returned is a dfn (function) that, when executed with the same environment and arguments,
+⍝H       generates the same matrix as above, unless an error occurs.
+⍝H   If an error occurs, 
 ⍝H     ∘ ∆F generates a standard, trappable Dyalog ⎕SIGNAL.
-⍝H   ∘ Otherwise,
-⍝H     (d) If ⍺ is ⍬, the result is a single 0-width line as output:  
-⍝H        1 0⍴⍬.
-⍝H     (e) If ⍺ is 'help', the result returned, after displaying help information, is: 
-⍝H        ⍬
+⍝H   If ⍺ starts with 'help' but does not contain 'x' 
+⍝H     ∘ ∆F displays help information. 
+⍝H   If ⍺ starts with 'help' followed by 'x', 
+⍝H     ∘ only examples are shown.
 ⍝H 
 ⍝H --------------
 ⍝H  ∆F IN DETAIL
@@ -216,7 +218,8 @@
 ⍝H 
 ⍝H ∆F-string text fields (expressions) may include:
 ⍝H   ∘ escape characters representing newlines, escape characters and braces as text. 
-⍝H     newlines "`⋄", escape characters "``", braces "`{" or "`}". 
+⍝H     newlines "`⋄", escape character itself "``", actual braces "`{" or "`}". 
+⍝H     Otherwise, { and } delineate the start and end of a Code Field or Space Field.
 ⍝H ∆F-string code fields (expressions) may include: 
 ⍝H   ∘ escape characters (e.g. representing newlines, escape characters, and braces as text);
 ⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
@@ -241,12 +244,15 @@
 ⍝H                           quoted strings: "..." or ''...'', where ... may include 
 ⍝H                                    `⋄ to represent a newline, 
 ⍝H                                    `` to represent the escape char itself.
+⍝H                                    Double " within a "..." quote to include a double quote.
+⍝H                                    Double ' within a '...' quote to include a single quote.
 ⍝H   Fmt               ::=   [ ("⎕FMT Control Expressions") "$" Code] 
 ⍝H   Above             ::=   ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
+⍝H                           % (Code<Generating an APL Object)>, with implicit left arg "".
 ⍝H   Box               ::=   "$$" Code 
 ⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
-⍝H                           See examples.
+⍝H   Code                    See examples.
 ⍝H 
 ⍝HX Examples:
 ⍝HX ⍝ Simple variable expression
