@@ -22,7 +22,8 @@
   ⍝ Main: The "main" function for ∆Fre...
   ⍝ result← [4↑ options] Main f_string
     Main← {  
-        (dfn dbg box inline) fStr← ⍺ ⍵ ⋄ omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
+        (dfn dbg box inline) fStr← ⍺ ⍵ 
+        omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
       0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
@@ -36,11 +37,11 @@
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
     Help← { 
       'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
-      hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) ⍵), '(.*)' 
-      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+        hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) ⍵), '(.*)' 
+        1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     }
 
-⍝ Constants 
+⍝ Constants (for variable values, see namespace ¨extern¨ in main)
     ⎕IO ⎕ML←0 1 
   ⍝ Constant char values
     esc← '`'   
@@ -64,15 +65,15 @@
     ⍝     cA← name codeString, where
     ⍝         name is (⎕THIS,'.'),A'
     ⍝         codeString is the executable dfn in string form.
-    ∇ {ok}← LoadLib   ;EXR ;NCP  
+    ∇ {ok}← LoadLib   ;EXR ;∆ 
       EXR← ⎕THIS.⍎⊃∘⌽                                               ⍝ Execute the right-hand expression
-      NCP← ('.',⍨ ⍕⎕THIS) { (s, ⍺⍺, ⍺, s)  ⍵  }                     ⍝ Create a name-code pair                              
+      ∆← '⎕THIS' ⎕R (⍕⎕THIS)                             
     ⍝ 
-      A← EXR cA← 'A' NCP '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
-      B← EXR cB← 'B' NCP '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
-      D← EXR cD← 'D' NCP '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
-      F← EXR cF← ' ⎕FMT ' ' ⎕FMT '                                                ⍝ F: [⍺] format ⍵   (1- or 2-adic)
-      M← EXR cM← 'M' NCP '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+      A← EXR cA← ∆ ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
+      B← EXR cB← ∆ ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
+      D← EXR cD← ∆ ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
+      F← EXR cF←   ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
+      M← EXR cM← ∆ ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
       ok← 1 
     ∇
     LoadLib
@@ -118,15 +119,15 @@
             p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
               o← { 
-                0=≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ 
+                0= ≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ 
               } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
             p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o               ⍝ `⍵[nnn] and ⍹[nnn] 
-        }⊢ cStr  
+        } cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating R-to-L, then reversing again.
+    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again.
     ⍝ ∘ To select "older" style (execute fields R-to-L, display L-to-R): 
     ⍝   OrderFldsOld← ∊'⍬',⍨⊢ ⋄ OrderFlds← OrderFldsOld 
     OrderFlds← '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
