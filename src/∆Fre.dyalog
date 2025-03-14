@@ -1,9 +1,5 @@
 :namespace ⍙F 
   ∇ ⍙⍙RES← {⍙⍙L} ∆F ⍙⍙R  ; ⎕TRAP 
-  ⍝ Performance of <∆F x> relative to C language version of ∆F
-  ⍝    F-string                            This version vs C-version
-  ⍝    ⎕A                                  ~1:1
-  ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~20-25% slower
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙⍙L← ⍬
@@ -19,6 +15,11 @@
     ##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
   
 
+  ⍝ Performance of <∆F x> relative to C language version of ∆F
+  ⍝    F-string                            This version vs C-version
+  ⍝    ⎕A                                  ~1:1
+  ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~20-25% slower
+
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
   ⍝ result← [4↑ options] Main f_string
@@ -28,7 +29,7 @@
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
       0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
-        flds← OrderFlds extern∘ProcFlds¨ SplitFlds ⊂fStr  
+        flds← OrderFlds extern∘ProcFlds¨ SplitFlds fStr  
         code← '⍵',⍨ lb, rb,⍨ flds,⍨ box extern.inline⊃ cM cD
       ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
         quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
@@ -42,7 +43,7 @@
         1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     }
 
-⍝ Constants (for variable values, see namespace ¨extern¨ in main)
+⍝ Constants (For variables, see namespace ¨extern¨ in main)
     ⎕IO ⎕ML←0 1 
   ⍝ Constant char values
     esc← '`'   
@@ -53,31 +54,38 @@
     arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
     cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
-    ⍝ splitDFn matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
-    splitDFn← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
-  ⍝ See SplitFlds...
-    splitPats← '(\{\})+' '\{\s*\}' splitDFn 
-    splitRepl← '\n\n'    '\n \0\n' '\n\1\n'
+    ⍝ See SplitFlds...
+    ⍝ ⍙splitSF0: Match 0-length space fields as null fields ('')
+    ⍙splitSF0← '(?:\{\})+'
+    ⍝ ⍙splitSF:  Match space fields (0-length handled above) per SpaceFld below. Signaled by pattern ' {'.
+    ⍙splitSF←  '\{\h*\}'
+    ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
+    ⍝           handling quotes "..." ''...'' and escapes `.  
+    ⍙splitDFn← '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
+    splitPats←  ⍙splitSF0 ⍙splitSF  ⍙splitCF 
+    splitRepl← '\n\n'     '\n \0\n' '\n\1\n'
  
-⍝ "Options" Operator for ⎕R 
+⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
     _Opts← ⍠'EOL' 'LF' 
 
-⍝ Utility to be executed at ]load ("fix") time
-  ⍝ LoadRTL: At 'Fix' time, load the run-time library names and code.  
-    ⍝ For A, B, D, F, M (using A as the example:)
+⍝ Utility to be executed at ⎕FIX (aka ]load ) time
+  ⍝ LoadRTL: At ⎕FIX time, load the run-time library names and code.  
+    ⍝ For A, B, D, F, M; all like A example shown here:
     ⍝     A← an executable dfn in this namespace (⎕THIS).
     ⍝     cA← name codeString, where
-    ⍝         name is (⎕THIS,'.'),A'
+    ⍝         name is (⍕⎕THIS),'.A'
     ⍝         codeString is the executable dfn in string form.
-    ∇ {ok}← LoadRTL   ;EXR ;∆ 
-      EXR← ⎕THIS.⍎⊃∘⌽                                               ⍝ Execute the right-hand expression
-      ∆← '⎕THIS' ⎕R (⍕⎕THIS)                             
-    ⍝ 
-      A← EXR cA← ∆ ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
-      B← EXR cB← ∆ ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
-      D← EXR cD← ∆ ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
-      F← EXR cF←   ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
-      M← EXR cM← ∆ ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+    ∇ {ok}← LoadRTL 
+     ;XR ;HT 
+        XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
+        HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
+    ⍝ A (etc): a dfn
+    ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code        
+      A← XR cA← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
+      B← XR cB← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
+      D← XR cD← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
+      F← XR cF←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
+      M← XR cM← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
       ok← 1 
     ∇
     LoadRTL
@@ -90,9 +98,10 @@
     }
   ⍝ SpaceFld: A variant of a code field. 
     ⍝ A space field consists solely of 0 or more spaces (within the originally surrounding braces).
-    ⍝ SpaceFld ⍵ 
-    ⍝    ∘ Returns ((≢⍵)⍴'').
-    SpaceFld← { '(','⍴'''')',⍨ ⍕≢⍵ }
+    ⍝ SpaceFld ⍵, returns: ((≢⍵)⍴'') as a char. string.
+    SpaceFld← { 
+        '(','⍴'''')',⍨ ⍕≢⍵ 
+    }
   ⍝ SelfDocCode: Checks for document strings,
     ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓' [% is an alias for ↓], possibly mixed with blanks.
     ⍝   Returns cStr dFun dStr  
@@ -101,12 +110,13 @@
     ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
     ⍝ ⍺: namespace of external (global) vars
     SelfDocCode←{  
-        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\ ⌽' '= ⍵ 
-      ~'→↓%'∊⍨ ch: ⍵ '' ''  
-        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵
-        (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr  
+        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\ ⌽' '= ⍵             ⍝ Note pos of self-doc code char and its value
+      ~'→↓%'∊⍨ ch: ⍵ '' ''                          ⍝ If none, return original input string and null char vecs.
+        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵  ⍝ Generate the doc string
+        (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr           ⍝ Return code in str form, display fn code in str form, the doc str
     }
   ⍝ CodeFld:  
+    ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
     ⍝ ⍺: namespace of external (global) vars
     CodeFld← { extern←⍺ 
         cStr dFun dStr ← extern SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
@@ -115,7 +125,8 @@
             p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
             p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
               o← { 
-                0= ≢⍵: extern.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ 
+                0= ≢⍵: extern.omIx+1                             ⍝ `⍵ and ⍹. Grab, incr, and use existing omIx.
+                ⊃⌽⎕VFI ⍵                                         ⍝ `⍵nnn and ⍹nnn. Decode and store nnn as omIx.
               } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
             p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o               ⍝ `⍵[nnn] and ⍹[nnn] 
         } cStr  
@@ -123,23 +134,22 @@
     }
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again.
-    ⍝ WAS: OrderFlds←  { 0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬'/⍨ ⎕←1+0=≢⍵ ⋄ '⍬⍬' }  
-    OrderFlds←  { 
-      0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬' 
-        '⍬⍬' 
+    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller.
+    OrderFlds←  {                       ⍝  If at least one non-null field, 
+      0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬'          ⍝  ensure at least 2 and reverse, emitting code to re-reverse
+                '⍬⍬'                    ⍝  Only null fields. Return 2 of them (minimum required)
     }  
   ⍝ ProcFlds: Process each Code (or Space) and Text field. 
     ⍝ ⍺: namespace of external (global) vars
     ProcFlds← { 
-      0=≢⍵: '' 
-      sLb≡2↑⍵: SpaceFld 2↓¯1↓⍵ 
-      lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ 
-             ⍺ TextFld ⍵ 
-    } 
+      0=≢⍵: ''                      ⍝ 0-length input => output null str *
+      sLb≡2↑⍵: SpaceFld 2↓¯1↓⍵      ⍝ ' {' means a space field *
+      lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵       ⍝ '{'  means a code field *
+             ⍺ TextFld ⍵            ⍝ Otherwise, a text field.
+    }                               ⍝                          [*] encoded via SplitFlds
   ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
   ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { }.   {}{}{} ==> {}.
-    SplitFlds← splitPats ⎕R  splitRepl _Opts
+    SplitFlds← splitPats ⎕R splitRepl _Opts ⊆
 ⍝H 
 ⍝H -------------
 ⍝H  ∆F IN BRIEF
