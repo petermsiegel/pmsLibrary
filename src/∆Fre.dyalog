@@ -17,6 +17,7 @@
     :Endif 
   ∇
     ##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
+  
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
@@ -27,16 +28,16 @@
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
       0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
-        flds← OrderFlds extern∘ProcFlds SplitFlds ⊂fStr  
-        code← DM lb, (box extern.inline⊃ cM cD), flds,  rb
-      ~dfn: code, '⍵'                                              ⍝ Not a dfn. Emit code ready to execute
-        quoted← '(⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q               ⍝ dfn: add quoted fmt string.
-        lb, code, quoted, ',⍵', rb                                 ⍝ emit dfn string ready to convert to dfn itself
+        flds← OrderFlds extern∘ProcFlds¨ SplitFlds ⊂fStr  
+        code← '⍵',⍨ lb, rb,⍨ flds,⍨ box extern.inline⊃ cM cD
+      ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
+        quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
+        DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
     } 
   ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
     Help← { 
-      'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
+      'help'≢⎕C4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
         hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) ⍵), '(.*)' 
         1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     }
@@ -48,24 +49,27 @@
     crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
     s lb rb q dmd← ' {}''⋄' 
     escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
-    qq sQ qS← (q q) (s q) (q s)      
+    qq sQ qS sLb← (q q) (s q) (q s) (s lb)      
     arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
     cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
-    ⍝ splitPat matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
-    splitPat← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
+    ⍝ splitDFn matches recursively balanced braces {}, skipping quotes "..." ''...'' and escapes `.  
+    splitDFn← '(?x) (?<P> (?<!`) \{ ((?>  [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+)  \} )' 
+  ⍝ See SplitFlds...
+    splitPats← '(\{\})+' '\{\s*\}' splitDFn 
+    splitRepl← '\n\n'    '\n \0\n' '\n\1\n'
  
 ⍝ "Options" Operator for ⎕R 
     _Opts← ⍠'EOL' 'LF' 
 
-⍝ Utility for ]load ("fix") time
-  ⍝ LoadLib: At 'Fix' time, load the run-time library names and code.  
+⍝ Utility to be executed at ]load ("fix") time
+  ⍝ LoadRTL: At 'Fix' time, load the run-time library names and code.  
     ⍝ For A, B, D, F, M (using A as the example:)
     ⍝     A← an executable dfn in this namespace (⎕THIS).
     ⍝     cA← name codeString, where
     ⍝         name is (⎕THIS,'.'),A'
     ⍝         codeString is the executable dfn in string form.
-    ∇ {ok}← LoadLib   ;EXR ;∆ 
+    ∇ {ok}← LoadRTL   ;EXR ;∆ 
       EXR← ⎕THIS.⍎⊃∘⌽                                               ⍝ Execute the right-hand expression
       ∆← '⎕THIS' ⎕R (⍕⎕THIS)                             
     ⍝ 
@@ -76,7 +80,7 @@
       M← EXR cM← ∆ ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
       ok← 1 
     ∇
-    LoadLib
+    LoadRTL
 
 ⍝ Functions
   ⍝ TextFld
@@ -86,15 +90,9 @@
     }
   ⍝ SpaceFld: A variant of a code field. 
     ⍝ A space field consists solely of 0 or more spaces (within the originally surrounding braces).
-    ⍝ ⍺ SpaceFld ⍵ 
-    ⍝    ∘ Returns (1 sfCod) if ⍵ is a space field.
-    ⍝      sfCod is either '', if there are 0 spaces in ⍵, or (nn⍴''), if nn spaces (nn>0).
-    ⍝    ∘ Returns 0 otherwise.
-    ⍝ ⍺: namespace of external (global) vars
-    SpaceFld← {  
-        n← +/∧\' '= ⍵ ⋄ 0≠ ≢n↓ ⍵: 0   
-        n= 0: 1 (sQ, qS) ⋄ 1, ⊂'(','⍴'''')',⍨ ⍕n 
-    }
+    ⍝ SpaceFld ⍵ 
+    ⍝    ∘ Returns ((≢⍵)⍴'').
+    SpaceFld← { '(','⍴'''')',⍨ ⍕≢⍵ }
   ⍝ SelfDocCode: Checks for document strings,
     ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓' [% is an alias for ↓], possibly mixed with blanks.
     ⍝   Returns cStr dFun dStr  
@@ -111,8 +109,6 @@
   ⍝ CodeFld:  
     ⍝ ⍺: namespace of external (global) vars
     CodeFld← { extern←⍺ 
-        isSF sfCod← extern SpaceFld ⍵                            ⍝ Space field? 
-      isSF: sfCod
         cStr dFun dStr ← extern SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
               p← ⍵.PatternNum 
@@ -128,15 +124,22 @@
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
     ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again.
-    ⍝ ∘ To select "older" style (execute fields R-to-L, display L-to-R): 
-    ⍝   OrderFldsOld← ∊'⍬',⍨⊢ ⋄ OrderFlds← OrderFldsOld 
-    OrderFlds← '⌽'∘,⍤ ∊'⍬'∘,⍤ ⌽
+    ⍝ WAS: OrderFlds←  { 0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬'/⍨ ⎕←1+0=≢⍵ ⋄ '⍬⍬' }  
+    OrderFlds←  { 
+      0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬' 
+        '⍬⍬' 
+    }  
   ⍝ ProcFlds: Process each Code (or Space) and Text field. 
     ⍝ ⍺: namespace of external (global) vars
-    ProcFlds← { 0=≢⍵: '' ⋄ lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ ⋄ ⍺ TextFld ⍵ }¨ 
+    ProcFlds← { 
+      0=≢⍵: '' 
+      sLb≡2↑⍵: SpaceFld 2↓¯1↓⍵ 
+      lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵ 
+             ⍺ TextFld ⍵ 
+    } 
   ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
-    SplitFlds← splitPat ⎕R '\n\1\n' _Opts
-
+  ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { }.   {}{}{} ==> {}.
+    SplitFlds← splitPats ⎕R  splitRepl _Opts
 ⍝H 
 ⍝H -------------
 ⍝H  ∆F IN BRIEF

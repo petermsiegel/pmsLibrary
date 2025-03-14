@@ -1,5 +1,5 @@
 ﻿ {ok}←Setup ignore
- ;DIR;LIBS;UCMD;lib;libF;msg;obj;_
+ ;DIR;utils;UCMD;util;fn;msg;obj;_
  ;Say0;Say1;SayE
 
  ⎕IO←⎕SE.⎕IO←0 ⋄ ⎕PW←120
@@ -12,7 +12,7 @@
  ⍝ Library directory
  DIR←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  ⍝ Session libraries
- LIBS←'∆SH' '∆Fre' '∆D'
+ utils←'∆SH' '∆Fre' '∆D'
  #.⎕PATH,⍨←' ⎕SE'
  ok←0
 
@@ -30,15 +30,15 @@
  Say1 UCMD'cd'
 
  msg←⍬
- Say0'Loading libraries...'
- :For lib :In LIBS
-     libF←(2+⌈/≢¨LIBS){t←'"','"',⍨⍵ ⋄ ⍺<≢t:t ⋄ ⍺↑t}lib
+ Say0'Loading utilities...'
+ :For util :In utils
+     fn←(2+⌈/≢¨utils){t←'"','"',⍨⍵ ⋄ ⍺<≢t:t ⋄ ⍺↑t}util
      :Trap 911
-             ⍝ UCMD '_←load -target=⎕SE ',lib
-         obj←2 ⎕SE.⎕FIX'file://',lib,'.dyalog'
-         Say1'   Loaded  ',libF,' into ⎕SE as',obj
+          ⎕SE.UCMD 'obj←Load -target=⎕SE ',util
+          obj← ⍕obj 
+          Say1 30↑'Loaded "', obj,'"'
      :Else
-         SayE'!!!FAILED to load ',libF,' into ⎕SE'
+         SayE'!!!FAILED to load ',util,' into ⎕SE'
      :EndTrap
  :EndFor
 

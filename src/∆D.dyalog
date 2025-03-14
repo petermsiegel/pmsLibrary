@@ -1,4 +1,4 @@
-﻿:Namespace ∆DClass
+﻿:Namespace ⍙D
 ⍝ ∆D, ∆DL - Create and Manage an Ordered, Hashed Dictionary from 
 ⍝           (∆D) key-value pairs or (∆DL) a key list-value list.
 ⍝ *** Help info is contained throughout Class Dict (below)
@@ -7,7 +7,6 @@
 ⍝ ***       the d.Help method (see below).
 ⍝ *** See :Section Help Information 
 ⍝ *** For help info, execute:  ∆D⍨'help'
-  
   ⎕IO ⎕ML←0 1  
 ⍝ Traps 
   ⍙T2← { ⍺←'' ⋄ ⊂⎕DMX.('EN' 'Message' 'EM',⍥⊂¨ EN Message,⊂ '^(∆D\w? )?'⎕R('∆D',⍺,' ')⊢EM)} 
@@ -37,17 +36,18 @@
       ⎕SIGNAL ⊂'EN' 'Message',⍥⊂¨ Dict.error.badKVLists            
   }
 
-⍝ ##.∆DT: Create a dictionary from keys and values, where all keys are text vectors (a la JSON etc.)
-⍝ dict← [default] ∇ (↑keylist) valuelist
-⍝ dict← [default] ∇ (item1 item2 ...), where itemN is a text-vector key followed by any value.
-  ##.∆DT← ⍙CR '{⍺←⊢⋄0::"L"mê.Trap⍬⋄1:_←⍺mê.∆DT⍵}' 
-  ∆DT←{  
+⍝ ##.∆DV: Create a dictionary from keys and values, where each key is a simple char vector.
+⍝         Both (a) keylist-valuelist arrays and (b) key-value pairs are allowed, with the syntax shown here.
+⍝ (a) dict← [default] ∇ (↑keylist) valuelist
+⍝ (b) dict← [default] ∇ (item1 item2 ...), where itemN is a text-vector key followed by any value.
+  ##.∆DV← ⍙CR '{⍺←⊢⋄0::"V"mê.Trap⍬⋄1:_←⍺mê.∆DV⍵}' 
+  ∆DV←{ em11← 'DOMAIN ERROR: Invalid keylist matrix'
       dFlag← 2=⎕NC'⍺' ⋄ ⍺←⎕NULL ⋄ 'help'≡⎕C⍵: _← Help     
     0=≢⍵:    ⎕NEW Dict (⍬ ⍬ ⍺ dFlag Dict.AUTOHASH)
-    2=⍴⍴⊃⍵:  ⎕NEW Dict ((↓⊃⍵) (⊃⌽⍵) ⍺ dFlag Dict.AUTOHASH) 
+    2=⍴⍴⊃⍵:  ⎕NEW Dict ((↓⊃⍵) (⊃⌽⍵) ⍺ dFlag Dict.AUTOHASH) ⊣ em11 ⎕SIGNAL 11/⍨ 0≠ 80| ⎕DR ⊃⍵
              ⎕NEW Dict (⍵ ⍺ dFlag Dict.AUTOHASH)  
   }
-  
+
 :Section Preamble
 ⍝HR
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
@@ -83,7 +83,7 @@
 ⍝HR
 ⍝H ]load [-target ns] ∆D   
 ⍝H    loads functions ∆D, ∆DL (see below) in the target namespace ns (default ⎕THIS), 
-⍝H    as well as supporting services in ns.∆DClass.
+⍝H    as well as supporting services in ns.⍙D.
 ⍝HR
 ⍝H ∆D, ∆DL:   "Create and Manage an Ordered, Hashed Dictionary"
 ⍝H ∘ Create a dictionary from 
@@ -278,19 +278,19 @@
   ErrIf← ⎕SIGNAL {~⍵: ⍬ ⋄ ⊂'EN' 'Message' 'EM',⍥⊂¨ ⍺,⊂'∆D ',⎕EM ⊃⍺}
     
   ∇ makeFill                              ⍝ Create an empty dict with no DEFAULT_V 
-    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict ()
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.⍙D.Dict ()
     :Access Public 
     ⎕DF '∆D[Dict+null]'
   ∇ 
 
   ∇ makeItems1 (items)                    ⍝ Create a dictionary of items with defaults
-    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict (('k1' 'v1')('k2' 'v2'))
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.⍙D.Dict (('k1' 'v1')('k2' 'v2'))
     :Access Public 
     makeItems4 (items ⍬ 1 1)
   ∇
 
   ∇ makeLists2 (kk vv)                    ⍝ Create a dictionary from key- and value-lists with defaults
-    :Implements constructor               ⍝ ⎕NEW ⎕SE.∆DClass.Dict,⊂('k1' 'k2' 'k3')('v1' 'v2' 'v3')
+    :Implements constructor               ⍝ ⎕NEW ⎕SE.⍙D.Dict,⊂('k1' 'k2' 'k3')('v1' 'v2' 'v3')
     :Access Public 
     makeLists5 (kk vv ⍬ 1 1)
   ∇
