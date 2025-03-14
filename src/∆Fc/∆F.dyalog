@@ -2,7 +2,7 @@
 ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
-      ⎕SE.⎕FIX 'file://∆F_c/∆F_LIBRARY.dyalog'  ⍝ Creates library ⎕SE.⍙F
+      ⎕SE.⎕FIX 'file://∆Fc/∆F_LIBRARY.dyalog'  ⍝ Creates library ⎕SE.⍙F
   :Endif  
   :If 900⌶0                                   ⍝ Options omitted. Default options processed below.
         ∆FⓄ← ⍬                               ⍝ We distinguish omitted left arg and 0=≢∆FⓄ

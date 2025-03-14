@@ -15,10 +15,10 @@
     ##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
   
 
-  ⍝ Performance of <∆F x> relative to C language version of ∆F
+  ⍝ Performance of <∆F x> is comparable to C language version of ∆F
   ⍝    F-string                            This version vs C-version
   ⍝    ⎕A                                  ~1:1
-  ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~20-25% slower
+  ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~1:1 
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
@@ -28,9 +28,9 @@
         omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
       0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
-        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ Only omIx is r/w
+        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o
         flds← OrderFlds extern∘ProcFlds¨ SplitFlds fStr  
-        code← '⍵',⍨ lb, rb,⍨ flds,⍨ box extern.inline⊃ cM cD
+        code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
       ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
         quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
         DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
@@ -102,17 +102,18 @@
     SpaceFld← { 
         '(','⍴'''')',⍨ ⍕≢⍵ 
     }
-  ⍝ SelfDocCode: Checks for document strings,
-    ⍝   code field contents (inside braces) with a trailing ch ∊ '→%↓' [% is an alias for ↓], possibly mixed with blanks.
-    ⍝   Returns cStr dFun dStr  
-    ⍝     cStr: code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
-    ⍝     dFun: '' (if not a doc string); cAbove (if appended '↓' or '%'); cMerge ('→')
-    ⍝     dStr: orig. literal doc string, but in quotes. Will be '' if NOT a document string..]
+  ⍝ SelfDocCode: Checks for self-documenting code (sdc) of form { ... ch [sp*] }, where ch ∊ '→%↓' [% is an alias for ↓].
+    ⍝ Returns cStr dFun dStr  
+    ⍝     cStr: orig code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
+    ⍝     dFun: if sdc, cAbove (if appended '↓' or '%'), else cMerge ('→'); else ''.
+    ⍝     dStr: orig. literal sdc string, but in quotes; else ''.
     ⍝ ⍺: namespace of external (global) vars
     SelfDocCode←{  
         ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\ ⌽' '= ⍵             ⍝ Note pos of self-doc code char and its value
       ~'→↓%'∊⍨ ch: ⍵ '' ''                          ⍝ If none, return original input string and null char vecs.
-        dStr← q, q,⍨ dStr/⍨ 1+q= dStr← (arrows⊃⍨ dTyp← ch='→')@p⊣ ⍵  ⍝ Generate the doc string
+        dTyp← ch='→'                                ⍝ dTyp: 1 for horizontal, 0 for vertical self doc code.
+        dStr← (arrows⊃⍨ dTyp)@p⊣ ⍵                  ⍝ Generate the doc string
+        dStr← q, q,⍨ dStr/⍨ 1+q= dstr  
         (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr           ⍝ Return code in str form, display fn code in str form, the doc str
     }
   ⍝ CodeFld:  
@@ -385,7 +386,7 @@
 ⍝HX   T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. Equiv. to: T←('Dfn' 1) ∆F t
 ⍝HX ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
 ⍝HX   cmpx '∆F t' 'T ⍬'
-⍝HX  ∆F t → 1.8E¯4 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-⍝HX  T ⍬  → 1.3E¯5 | -94% ⎕⎕⎕   
+⍝HX  ∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HX  T ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
 ⍝HX
 :EndNamespace 
