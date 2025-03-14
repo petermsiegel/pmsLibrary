@@ -25,7 +25,7 @@
   ⍝ result← [4↑ options] Main f_string
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ 
-        omIx cr← 0 (dbg⊃ crCh crVis) ⍝ crCh: (⎕UCS 13), crVis: '␍' 
+        omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
       0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o
@@ -61,7 +61,7 @@
     ⍙splitSF←  '\{\h*\}'
     ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
     ⍝           handling quotes "..." ''...'' and escapes `.  
-    ⍙splitDFn← '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
+    ⍙splitCF←  '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
     splitPats←  ⍙splitSF0 ⍙splitSF  ⍙splitCF 
     splitRepl← '\n\n'     '\n \0\n' '\n\1\n'
  
