@@ -38,8 +38,8 @@
   ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
     Help← { 
-      'help'≢⎕C4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
-        hP← ('^\s*⍝HX?'↓⍨ 'xX'(-∨/⍤∊) ⍵), '(.*)' 
+      'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
+        hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '(.*)' 
         1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     }
 
@@ -49,21 +49,23 @@
     esc← '`'   
     crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
     s lb rb q dmd← ' {}''⋄' 
+    sfTok← ⎕UCS 0  ⍝ See ⍙splitSF. sfTok encodes space fields
+    cfTok← lb      
     escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
-    qq sQ qS sLb← (q q) (s q) (q s) (s lb)      
+    qq sQ qS← (q q) (s q) (q s)    
     arrows← '▼▶'                                                 ⍝ See SelfDocCode
   ⍝ Const patterns 
     cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
     ⍝ See SplitFlds...
-    ⍝ ⍙splitSF0: Match 0-length space fields as null fields ('')
-    ⍙splitSF0← '(?:\{\})+'
-    ⍝ ⍙splitSF:  Match space fields (0-length handled above) per SpaceFld below. Signaled by pattern ' {'.
-    ⍙splitSF←  '\{\h*\}'
+    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields ('')
+    ⍙splitSFZ← '(?:\{\})+'
+    ⍝ ⍙splitSF: Match space fields (0-length handled above) per SpaceFld below. Signaled by pattern ' {'.
+    ⍙splitSF←  '\{(\h*)\}'
     ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
     ⍝           handling quotes "..." ''...'' and escapes `.  
     ⍙splitCF←  '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
-    splitPats←  ⍙splitSF0 ⍙splitSF  ⍙splitCF 
-    splitRepl← '\n\n'     '\n \0\n' '\n\1\n'
+    splitPats←  ⍙splitSFZ ⍙splitSF         ⍙splitCF 
+    splitRepl← '\n\n'     '\n\x{0}\1\n' '\n\0\n'
  
 ⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
     _Opts← ⍠'EOL' 'LF' 
@@ -113,14 +115,14 @@
       ~'→↓%'∊⍨ ch: ⍵ '' ''                          ⍝ If none, return original input string and null char vecs.
         dTyp← ch='→'                                ⍝ dTyp: 1 for horizontal, 0 for vertical self doc code.
         dStr← (arrows⊃⍨ dTyp)@p⊣ ⍵                  ⍝ Generate the doc string
-        dStr← q, q,⍨ dStr/⍨ 1+q= dstr  
+        dStr← q, q,⍨ dStr/⍨ 1+q= dStr  
         (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr           ⍝ Return code in str form, display fn code in str form, the doc str
     }
   ⍝ CodeFld:  
     ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
     ⍝ ⍺: namespace of external (global) vars
     CodeFld← { extern←⍺ 
-        cStr dFun dStr ← extern SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
+        cStr dFun dStr← extern SelfDocCode ⍵                     ⍝ Is CodeFld Self-documenting?  
         cStr← cfPats ⎕R {
               p← ⍵.PatternNum 
             p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
@@ -143,31 +145,32 @@
   ⍝ ProcFlds: Process each Code (or Space) and Text field. 
     ⍝ ⍺: namespace of external (global) vars
     ProcFlds← { 
-      0=≢⍵: ''                      ⍝ 0-length input => output null str *
-      sLb≡2↑⍵: SpaceFld 2↓¯1↓⍵      ⍝ ' {' means a space field *
-      lb=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵       ⍝ '{'  means a code field *
-             ⍺ TextFld ⍵            ⍝ Otherwise, a text field.
-    }                               ⍝                          [*] encoded via SplitFlds
+      0=≢⍵: ''                           ⍝ 0-length input => output null str *
+      sfTok=⊃⍵: SpaceFld 1↓⍵             ⍝ sfTok signals a space field *
+      cfTok=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵         ⍝ cfTok  signals a code field *
+        ⍺ TextFld ⍵                      ⍝ Otherwise, a text field.
+    }                                     ⍝                          [*] encoded via SplitFlds
   ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
   ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { }.   {}{}{} ==> {}.
     SplitFlds← splitPats ⎕R splitRepl _Opts ⊆
-⍝H 
+⍝
 ⍝H -------------
 ⍝H  ∆F IN BRIEF
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝H ∆F is a function that makes it easy to format strings that dynamically display text, variables, and 
 ⍝H the value of code expressions in an APL-friendly multi-line (matrix) style. 
 ⍝H   ∘ Text expressions can generate multi-line Unicode strings 
-⍝H   ∘ Each code expression is an ordinary dfn, with a few extensions:
-⍝H          e.g. use of double-quoted strings, escape chars, and simple formatting shortcuts for APL arrays. 
-⍝H   ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment. 
+⍝H   ∘ Each code expression follows ordinary dfn conventions, with a few extensions, such as
+⍝H     the availability of double-quoted strings, escape chars, and simple formatting shortcuts for APL arrays (which see). 
+⍝H   ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment,
+⍝H     following dfn conventions for local and external variables.
 ⍝H   ∘ ∆F is inspired by Python F-strings, but designed for APL.
 ⍝H 
 ⍝H ∆F: Calling Information
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
 ⍝H result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
 ⍝H          [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
-⍝H                      ∆F⍨'help'                      Display help information
+⍝H                      ∆F⍨'help[x]'                   Display help (example) information
 ⍝H 
 ⍝H F-string and args:
 ⍝H   first element: 
@@ -177,15 +180,6 @@
 ⍝H       that starts with `⍵ or ⍹ (Table 1)
 ⍝H   result: If (0=⊃options), the result is always a character matrix. 
 ⍝H           If (1=⊃options), the result is a dfn that, when executed, generates a character matrix.
-⍝H  
-⍝H   Table 1:
-⍝H       Escape (`) Shortcut   ⍹ Shortcut    Meaning
-⍝H       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯
-⍝H       `⍵1, `⍵2              ⍹1, ⍹2        (⍵⊃⍨ ⎕IO+1), (⍵⊃⍨ ⎕IO+2)
-⍝H       `⍵                    ⍹             the "next" arg*, starting with the 1st: (⍵⊃⍨ ⎕IO+1)
-⍝H       `⍵0                   ⍹0            the f-string itself, i.e. (⍵⊃⍨ ⎕IO)
-⍝H  ---------------------------------
-⍝H      [*] next, reading L-to-R across all code fields. `⍵N or ⍹N sets "next" to (⍵⊃⍨ ⎕IO+N+1)
 ⍝H 
 ⍝H Left arg (⍺) to ∆F:   [ [ options← 0 [ 0 [ 0 [ 0 ] ] ] ] | 'help[x]' ]   
 ⍝H    If there is no left arg, 
@@ -270,6 +264,30 @@
 ⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
 ⍝H   Code                    See examples.
+⍝H  
+⍝H   ------- -- -------- -------
+⍝H   Summary of Shortcut Symbols
+⍝H   ------- -- -------- -------
+⍝H      Format
+⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
+⍝H      Box 
+⍝H         $$      A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
+⍝H      Above 
+⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
+⍝H      Omega/Omega Underbar*      
+⍝H         `⍵n     With an explicit index n, where n is a number between 0 and t-1, given 
+⍝H                 t, the # of elements of ∆F's right argument ⍵. 
+⍝H                 Equivalent to (⍵⊃⍨ n+⎕IO), where ⍵ is the right-hand argument (list of elements)
+⍝H                 passed to ∆F, including the format-string itself.
+⍝H          ⍹n     Same as `⍵n.  ⍹ is less convenient to type, but looks less cluttered!
+⍝H         `⍵      With an implcit index. 
+⍝H                 Evaluates to (⍵⊃⍨ m+⎕IO), where m is set to n+1, based on n, the index of the most recent omega expression
+⍝H                 to the left, whether one with an explicit index (like ⍹n) or an implicit one (like ⍹).
+⍝H                 The first use of an implicit index (from the left) is assigned an index of 1 (i.e. m is set to 1).
+⍝H          ⍹      Same as `⍵.
+⍝H         `⍵0     The format string itself.  A simple `⍵ can never select the format string (since it starts at `⍵1).
+⍝H          ⍹0     Same as ⍹0.
+⍝H                 * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
 ⍝H 
 ⍝HX Examples:
 ⍝HX ⍝ Simple variable expression
@@ -300,14 +318,14 @@
 ⍝HX Mary Jones     22 Smith St   
 ⍝HX Bill Templeton 12 High St 
 ⍝HX     
-⍝HX ⍝ A slightly more interesting code expression
+⍝HX ⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
 ⍝HX   C← 11 30 60
 ⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
 ⍝HX The temperature is 11°C or  51.8°F
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
 ⍝HX  
-⍝HX ⍝ Using "boxes" via the $$ (box) pseudo-primitive
+⍝HX ⍝ Generating boxes using the shorthand $$ (box).
 ⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ 32+9×C÷5}`⋄°F'
 ⍝HX                    ┌──┐      ┌─────┐
 ⍝HX The temperature is │11│°C or │ 51.8│°F
@@ -315,7 +333,7 @@
 ⍝HX                    │60│      │140.0│ 
 ⍝HX                    └──┘      └─────┘    
 ⍝HX            
-⍝HX ⍝ Using outside expressions
+⍝HX ⍝ Referencing external expressions
 ⍝HX   C← 11 30 60
 ⍝HX   C2F← 32+9×5÷⍨⊢
 ⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
@@ -323,17 +341,17 @@
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
 ⍝HX 
-⍝HX ⍝ Using ∆F additional arguments (`⍵1 ==> (1⊃⍵), where ⎕IO←0)
+⍝HX ⍝ Referencing ∆F additional arguments using omega shorthand expressions.
 ⍝HX   ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
 ⍝HX The temperature is 11°C or  51.8°F
 ⍝HX                    15       59.0  
 ⍝HX                    20       68.0 
 ⍝HX 
-⍝HX ⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      'π²' is (⎕UCS 960 178) 
+⍝HX ⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
 ⍝HX   ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
 ⍝HX π²=9.869604401, π=3.141592654
 ⍝HX 
-⍝HX ⍝ "Horizontal" self-documenting code fields (source code to the left of the evaluated result).
+⍝HX ⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
 ⍝HX   name←'John Smith' ⋄ age← 34
 ⍝HX   ∆F 'Current employee: {name→}, {age→}.'
 ⍝HX Current employee: name▶John Smith, age▶34.
@@ -343,33 +361,28 @@
 ⍝HX   ∆F 'Current employee: {name → }, {age→   }.'
 ⍝HX Current employee: name ▶ John Smith, age▶   34.
 ⍝HX 
-⍝HX ⍝ "Vertical" self-documenting code fields (the source code centered over the evaluated result)
+⍝HX ⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
 ⍝HX   name←'John Smith' ⋄ age← 34
 ⍝HX   ∆F 'Current employee: {name↓} {age↓}.'
 ⍝HX Current employee:   name▼    age▼.
 ⍝HX                   John Smith  34 
 ⍝HX 
-⍝HX ⍝  Displaying the expression on the left centered above the expression on the right (% pseudofunction) 
+⍝HX ⍝  Using the shorthand % (above) to display one expression centered above another 
 ⍝HX   ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
 ⍝HX Current Employee   Current Age
 ⍝HX    John Smith          29     
 ⍝HX    Mary Jones          23 
 ⍝HX 
-⍝HX ⍝ Display more complex expressions one above the other.
-⍝HX ⍝ Here we use `⍵, which selects the "next" item from ⍵, moving left to right, starting with (1⊃⍵).
-⍝HX ⍝ I.e. in the code below, we have select (⍳2⍴1⊃⍵), then (⍳2⍴2⊃⍵), then (⍳2⍴3⊃⍵).
-⍝HX ⍝ We don't select (0⊃⍵) as the initial (`⍵), since that is the ∆F-String itself. 
+⍝HX ⍝ Display arbitrary expressions one above the other.  (See Shorthand Expressions for details on % and `⍵).
 ⍝HX   ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
 ⍝HX     0 0      
 ⍝HX   0 0  0 1    
 ⍝HX   1 0  1 1    
 ⍝HX 0 0  0 1  0 2 
 ⍝HX 1 0  1 1  1 2 
-⍝HX 2 0  2 1  2 2 
-⍝HX ⍝ Equivalent to (⎕IO←0):
-⍝HX ∆F'{(⍳2⍴ (⍵⊃⍨1+⎕IO)) % (⍳2⍴ (⍵⊃⍨2+⎕IO)) % (⍳2⍴ (⍵⊃⍨3+⎕IO))}' 1 2 3 
+⍝HX 2 0  2 1  2 2  
 ⍝HX
-⍝HX ⍝ Use of box option: shows and demarcates each field (boxed) left to right.
+⍝HX ⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
 ⍝HX   C← 11 30 60
 ⍝HX   0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
 ⍝HX ┌───────────────────┬──┬──────┬─────┬──┐
@@ -378,6 +391,7 @@
 ⍝HX │                   │60│      │140.0│  │
 ⍝HX └───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
+⍝HX ⍝ "Pretranslating" an ∆F-string into a dfn for better performance (⍺[0+⎕IO]=1).
 ⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
 ⍝HX   C← 11 30 60
 ⍝HX ⍝ Here's our ∆F String <t>
