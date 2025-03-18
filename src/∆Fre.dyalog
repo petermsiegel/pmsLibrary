@@ -1,18 +1,18 @@
 :namespace ⍙F 
-  ∇ ⍙⍙RES← {⍙⍙L} ∆F ⍙⍙R  ; ⎕TRAP 
+  ∇ ⍙RES← {⍙L} ∆F ⍙R  ; ⎕TRAP 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
-        ⍙⍙L← ⍬
-    :ElseIf 0≠ ⊃0⍴⍙⍙L
-        ⍙⍙RES← ⎕THIS.Help ⍙⍙L ⋄ :Return 
+        ⍙L← ⍬
+    :ElseIf 0≠ ⊃0⍴⍙L
+        ⍙RES← ⎕THIS.Help ⍙L ⋄ :Return 
     :EndIf 
-    :If ⊃⍙⍙L← 4↑⍙⍙L   ⍝ Generate Dfn from f-string ⊃⍙⍙R. ⍙⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
-        ⍙⍙RES← (⊃⎕RSI)⍎ ⍙⍙L ⎕THIS.Main ⊃,⊆⍙⍙R
-    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙⍙R. The code string ⍙⍙R is of the form '{code}⍵'.
-        ⍙⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙⍙L' '⍙⍙R')⊢⍙⍙L ⎕THIS.Main ⊃⍙⍙R} ⍙⍙R← ,⊆⍙⍙R
+    :If ⊃⍙L← 4↑⍙L   ⍝ Generate Dfn from f-string ⊃⍙R. ⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
+        ⍙RES← (⊃⎕RSI)⍎ ⍙L ⎕THIS.Main ⊃,⊆⍙R
+    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙R. The code string ⍙R is of the form '{code}⍵'.
+        ⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙L' '⍙R')⊢⍙L ⎕THIS.Main ⊃⍙R} ⍙R← ,⊆⍙R
     :Endif 
   ∇
-    ##.⎕FX '⎕THIS'  ⎕R (⍕⎕THIS)⊢ ⎕NR '∆F'
+    ##.⎕FX '⎕THIS' '⍙(\w+)'  ⎕R (⍕⎕THIS) 'Øø\1øØ' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
   
 
   ⍝ Performance of <∆F x> is comparable to C language version of ∆F
@@ -45,17 +45,21 @@
 
 ⍝ Constants (For variables, see namespace ¨extern¨ in main)
     ⎕IO ⎕ML←0 1 
-  ⍝ Constant char values
-    esc← '`'   
+  ⍝ Constant char values 
+    esc← '`'  
     crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
     s lb rb q dmd← ' {}''⋄' 
     sfTok← ⎕UCS 0  ⍝ See ⍙splitSF. sfTok encodes space fields
     cfTok← lb      
-    escEsc escLb escRb escDmd ← esc,¨ esc lb rb dmd  
+    escEsc escLb escRb escDmd← esc,¨ esc lb rb dmd 
     qq sQ qS← (q q) (s q) (q s)    
-    arrows← '▼▶'                                                 ⍝ See SelfDocCode
+    arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.
   ⍝ Const patterns 
-    cfPats←  '\$\$' '\$' '%' '(?:`⍵|⍹)(\d*)' '(?:"[^"]*")+|(?:''[^'']*'')+'
+      boxP← '`B|\${2}'       ⋄  dtP←  '`T'
+      fmtP← '`F|\$'          ⋄  abvP← '`A|%' 
+      omP←  '(?:`⍵|⍹)(\d*)'  ⋄  qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
+    cfPats←  boxP dtP fmtP abvP omP  qtP 
+    boxI dtI fmtI abvI omI qtI← ⍳≢ cfPats 
     ⍝ See SplitFlds...
     ⍝ ⍙splitSFZ: Match 0-length space fields as null fields ('')
     ⍙splitSFZ← '(?:\{\})+'
@@ -64,8 +68,8 @@
     ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
     ⍝           handling quotes "..." ''...'' and escapes `.  
     ⍙splitCF←  '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
-    splitPats←  ⍙splitSFZ ⍙splitSF         ⍙splitCF 
-    splitRepl← '\n\n'     '\n\x{0}\1\n' '\n\0\n'
+    splitPats←  ⍙splitSFZ  ⍙splitSF      ⍙splitCF 
+    splitRepl← '\n\n'      '\n\x{0}\1\n' '\n\0\n'
  
 ⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
     _Opts← ⍠'EOL' 'LF' 
@@ -88,6 +92,7 @@
       D← XR cD← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
       F← XR cF←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
       M← XR cM← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+      T← XR cT← HT  '⎕THIS.T'  '{⍺← ''YYYY-MM-DD hh:mm:ss'' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
       ok← 1 
     ∇
     LoadRTL
@@ -121,17 +126,18 @@
   ⍝ CodeFld:  
     ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
     ⍝ ⍺: namespace of external (global) vars
-    CodeFld← { extern←⍺ 
-        cStr dFun dStr← extern SelfDocCode ⍵                     ⍝ Is CodeFld Self-documenting?  
-        cStr← cfPats ⎕R {
+    ⍙CFOm← { 
+        dd← ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
+        0= ≢dd: ⍺.omIx+1                                  ⍝ `⍵ and ⍹. Grab, incr, and use existing omIx.
+        ⊃⌽⎕VFI dd                                         ⍝ `⍵nnn and ⍹nnn. Decode and store nnn as omIx.
+    }
+    CodeFld← { e←⍺                                         ⍝ external ns 
+        cStr dFun dStr← e SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
+        cStr← cfPats ⎕R {  ⍝  boxI dtI fmtI abvI omI qtI← ⍳≢ cfPats 
               p← ⍵.PatternNum 
-            p∊0 1 2: p extern.inline⊃ cB cF cA                   ⍝ $$ $ % 
-            p=4:  q, q,⍨ q escEsc escDmd ⎕R qq esc extern.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
-              o← { 
-                0= ≢⍵: extern.omIx+1                             ⍝ `⍵ and ⍹. Grab, incr, and use existing omIx.
-                ⊃⌽⎕VFI ⍵                                         ⍝ `⍵nnn and ⍹nnn. Decode and store nnn as omIx.
-              } ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
-            p=3: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕extern.omIx← o               ⍝ `⍵[nnn] and ⍹[nnn] 
+            p∊ boxI dtI fmtI abvI: p e.inline⊃ cB cT cF cA  ⍝ `B|$$ `T $ %  
+            p= qtI:        q, q,⍨ q escEsc escDmd ⎕R qq esc e.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
+            p= omI:        '(⍵⊃⍨⎕IO+', ')',⍨ ⍕e.omIx← e ⍙CFOm ⍵ ⍝ `⍵[nnn] and ⍹[nnn] 
         } cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
@@ -190,8 +196,9 @@
 ⍝H         ⍵ is ignored, ∆F shows help or example information and returns (1 0⍴⍬);
 ⍝H    Otherwise,
 ⍝H         an error is signaled.
-⍝H    Options:  [ DFN DBG BOX INLINE ]
-⍝H    Defaults:     0   0   0   0    
+⍝H    Option Name:     [ DFN  DBG  BOX  INLINE ]
+⍝H    Default Values:    0    0    0    0    
+⍝H    Value Type         bool bool bool bool
 ⍝H    The options are:
 ⍝H       DFN: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
 ⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
@@ -200,7 +207,7 @@
 ⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
 ⍝H    INLINE: If 0, ⍙F library routines A, B, D, F, and M will be used.
-⍝H            If 1, the CODE of A, B, D, F, and M are used "in line" to make the resulting runtime code 
+⍝H            If 1, the CODE of A, B, D, F, and M are used "inline" to make the resulting runtime code 
 ⍝H            independent of the ⍙F namespace.
 ⍝H
 ⍝H Result Returned: 
@@ -289,11 +296,25 @@
 ⍝H          ⍹0     Same as ⍹0.
 ⍝H                 * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
 ⍝H 
-⍝HX Examples:
-⍝HX ⍝ Simple variable expression
-⍝HX   name← 'Fred'
-⍝HX   ∆F "His name is {name}."
-⍝HX   His name is Fred.
+⍝H Hidden Code Field Shortcuts Under Evaluation
+⍝H ¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯
+⍝H         `F     Format     Same as $
+⍝H         `B     Box        Same as $$
+⍝H         `A     Above      Same as %
+⍝H         `T     Date-Time  {... [⍺] `T ⍵...} displays each date-time in Dyalog timestamp (⎕TS) format via this call:
+⍝H                           [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵     
+⍝H 
+⍝HX Examples
+⍝HX ¯¯¯¯¯¯¯¯
+⍝HX ⍝ Simple variable expressions
+⍝HX   name← 'Fred' ⋄ age← 32
+⍝HX   ∆F "His/her name is {name}. e is {age} years old."
+⍝HX   His/her name is Fred. (S)he is 32 years old.
+⍝HX 
+⍝HX ⍝ Variable and code expressions
+⍝HX   name← 'Mary' ⋄ age← 32 ⋄ gender← 'F'
+⍝HX   ∆F "{'His' 'Her'⊃⍨ gender='F'} is {name}. {'He' 'She'⊃⍨ gender='F'} is {age} years old."
+⍝HX   Her name is Mary. She is 32 years old.
 ⍝HX 
 ⍝HX ⍝ Some multi-line text fields separated by non-null space fields
 ⍝HX   ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
@@ -354,17 +375,17 @@
 ⍝HX ⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
 ⍝HX   name←'John Smith' ⋄ age← 34
 ⍝HX   ∆F 'Current employee: {name→}, {age→}.'
-⍝HX Current employee: name▶John Smith, age▶34.
+⍝HX Current employee: name→John Smith, age→34.
 ⍝HX
-⍝HX ⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓) are mirrored in the output:
+⍝HX ⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
 ⍝HX   name←'John Smith' ⋄ age← 34
 ⍝HX   ∆F 'Current employee: {name → }, {age→   }.'
-⍝HX Current employee: name ▶ John Smith, age▶   34.
+⍝HX Current employee: name → John Smith, age→   34.
 ⍝HX 
 ⍝HX ⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
 ⍝HX   name←'John Smith' ⋄ age← 34
 ⍝HX   ∆F 'Current employee: {name↓} {age↓}.'
-⍝HX Current employee:   name▼    age▼.
+⍝HX Current employee:   name↓    age↓.
 ⍝HX                   John Smith  34 
 ⍝HX 
 ⍝HX ⍝  Using the shorthand % (above) to display one expression centered above another 
@@ -391,7 +412,8 @@
 ⍝HX │                   │60│      │140.0│  │
 ⍝HX └───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
-⍝HX ⍝ "Pretranslating" an ∆F-string into a dfn for better performance (⍺[0+⎕IO]=1).
+⍝HX ⍝ Getting the best performance for a heavily used ∆F string.
+⍝HX ⍝ Using the DFN option (⍺[0+⎕IO]=1).
 ⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
 ⍝HX   C← 11 30 60
 ⍝HX ⍝ Here's our ∆F String <t>
