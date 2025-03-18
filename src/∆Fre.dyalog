@@ -133,11 +133,11 @@
             p= qtI:  q, q,⍨ q escEsc escDmd ⎕R qq esc ex.cr _Opts⊢ 1↓¯1↓ ⍵.Match ⍝ Quoted strings 
               f1← ⍵.(Lengths[1]↑ Offsets[1]↓ Block) 
             p= scI: ('BTFA$%'⍳ f1) ex.inline⊃ cB cT cF cA cF cA      ⍝ Shortcuts 
-              CF_Om← { 0= ≢⍵: ex.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ }
-            p= omI:  '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← CF_Om f1            ⍝ `⍵[nnn] and ⍹[nnn]  
+            p= omI:  '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← ex GetOm f1            ⍝ `⍵[nnn] and ⍹[nnn]  
         } cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
+    GetOm← { 0= ≢⍵: ⍺.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ }
 
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
