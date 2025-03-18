@@ -18,7 +18,7 @@
   ⍝ Performance of <∆F x> is comparable to C language version of ∆F
   ⍝    F-string                            This version vs C-version
   ⍝    ⎕A                                  ~1:1
-  ⍝    'one`⋄two{ }{$$⍳2 2}{} one`⋄ two'    ~1:1 
+  ⍝    'one`⋄two{ }{`B⍳2 2}{} one`⋄ two'    ~1:1 
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
@@ -55,11 +55,11 @@
     qq sQ qS← (q q) (s q) (q s)    
     arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.
   ⍝ Const patterns 
-      boxP← '`B|\${2}'       ⋄  dtP←  '`T'
-      fmtP← '`F|\$'          ⋄  abvP← '`A|%' 
-      omP←  '(?:`⍵|⍹)(\d*)'  ⋄  qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
-    cfPats←  boxP dtP fmtP abvP omP  qtP 
-    boxI dtI fmtI abvI omI qtI← ⍳≢ cfPats 
+      scP← '(?|`([BTFA])|([$%]))'                                ⍝ Shortcuts `B etc, $, % 
+      omP←  '(?:`⍵|⍹)(\d*)'  
+      qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
+    cfPats←  scP omP qtP 
+    scI omI qtI← ⍳≢ cfPats 
     ⍝ See SplitFlds...
     ⍝ ⍙splitSFZ: Match 0-length space fields as null fields ('')
     ⍙splitSFZ← '(?:\{\})+'
@@ -126,21 +126,19 @@
   ⍝ CodeFld:  
     ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
     ⍝ ⍺: namespace of external (global) vars
-    ⍙CFOm← { 
-        dd← ⍵.(Lengths[1]↑ Offsets[1]↓ Block)
-        0= ≢dd: ⍺.omIx+1                                  ⍝ `⍵ and ⍹. Grab, incr, and use existing omIx.
-        ⊃⌽⎕VFI dd                                         ⍝ `⍵nnn and ⍹nnn. Decode and store nnn as omIx.
-    }
-    CodeFld← { e←⍺                                         ⍝ external ns 
-        cStr dFun dStr← e SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
-        cStr← cfPats ⎕R {  ⍝  boxI dtI fmtI abvI omI qtI← ⍳≢ cfPats 
+    CodeFld← { ex←⍺                                         ⍝ external ns 
+        cStr dFun dStr← ex SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
+        cStr← cfPats ⎕R {  ⍝  scI omI qtI← ⍳≢ cfPats 
               p← ⍵.PatternNum 
-            p∊ boxI dtI fmtI abvI: p e.inline⊃ cB cT cF cA  ⍝ `B|$$ `T $ %  
-            p= qtI:        q, q,⍨ q escEsc escDmd ⎕R qq esc e.cr _Opts⊢ 1↓¯1↓ ⍵.Match  ⍝ "..." or '...' 
-            p= omI:        '(⍵⊃⍨⎕IO+', ')',⍨ ⍕e.omIx← e ⍙CFOm ⍵ ⍝ `⍵[nnn] and ⍹[nnn] 
+            p= qtI:  q, q,⍨ q escEsc escDmd ⎕R qq esc ex.cr _Opts⊢ 1↓¯1↓ ⍵.Match ⍝ Quoted strings 
+              f1← ⍵.(Lengths[1]↑ Offsets[1]↓ Block) 
+            p= scI: ('BTFA$%'⍳ f1) ex.inline⊃ cB cT cF cA cF cA      ⍝ Shortcuts 
+              CF_Om← { 0= ≢⍵: ex.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ }
+            p= omI:  '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← CF_Om f1            ⍝ `⍵[nnn] and ⍹[nnn]  
         } cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
+
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
     ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller.
@@ -242,7 +240,7 @@
 ⍝H   ∘ escape characters (e.g. representing newlines, escape characters, and braces as text);
 ⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
 ⍝H   ∘ the ability to display an arbitrary object centered above another (%);
-⍝H   ∘ shortcuts for displaying boxed output ($$); finally,
+⍝H   ∘ shortcuts for displaying boxed output (`B); finally,
 ⍝H   ∘ self-documenting code fields are concise expressions for displaying both a code 
 ⍝H     expression (possible a simple name to be evaluated) and its value (→, ↓/%).   
 ⍝H     (Only code fields may be self-documenting!).
@@ -267,7 +265,7 @@
 ⍝H   Fmt               ::=   [ ("⎕FMT Control Expressions") "$" Code] 
 ⍝H   Above             ::=   ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
 ⍝H                           % (Code<Generating an APL Object)>, with implicit left arg "".
-⍝H   Box               ::=   "$$" Code 
+⍝H   Box               ::=   "`B" Code 
 ⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
 ⍝H   Code                    See examples.
@@ -278,7 +276,7 @@
 ⍝H      Format
 ⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
 ⍝H      Box 
-⍝H         $$      A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
+⍝H         `B      A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
 ⍝H      Above 
 ⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
 ⍝H      Omega/Omega Underbar*      
@@ -299,7 +297,6 @@
 ⍝H Hidden Code Field Shortcuts Under Evaluation
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯
 ⍝H         `F     Format     Same as $
-⍝H         `B     Box        Same as $$
 ⍝H         `A     Above      Same as %
 ⍝H         `T     Date-Time  {... [⍺] `T ⍵...} displays each date-time in Dyalog timestamp (⎕TS) format via this call:
 ⍝H                           [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵     
@@ -346,8 +343,8 @@
 ⍝HX                    30       86.0  
 ⍝HX                    60      140.0 
 ⍝HX  
-⍝HX ⍝ Generating boxes using the shorthand $$ (box).
-⍝HX   ∆F'`⋄The temperature is {$$⊂"I2" $ C}`⋄°C or {$$⊂"F5.1" $ 32+9×C÷5}`⋄°F'
+⍝HX ⍝ Generating boxes using the shorthand `B (box).
+⍝HX   ∆F'`⋄The temperature is {`B⊂"I2" $ C}`⋄°C or {`B⊂"F5.1" $ 32+9×C÷5}`⋄°F'
 ⍝HX                    ┌──┐      ┌─────┐
 ⍝HX The temperature is │11│°C or │ 51.8│°F
 ⍝HX                    │30│      │ 86.0│ 
