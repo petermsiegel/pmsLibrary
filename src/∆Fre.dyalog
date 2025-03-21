@@ -6,14 +6,19 @@
     :ElseIf 0≠ ⊃0⍴⍙L
         ⍙RES← ⎕THIS.Help ⍙L ⋄ :Return 
     :EndIf 
-    :If ⊃⍙L← 4↑⍙L   ⍝ Generate Dfn from f-string ⊃⍙R. ⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
+
+    :Select ⊃⍙L← 4↑⍙L
+    :Case 1   ⍝ 1:  Generate Dfn from f-string ⊃⍙R. ⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
         ⍙RES← (⊃⎕RSI)⍎ ⍙L ⎕THIS.Main ⊃,⊆⍙R
-    :Else              ⍝ Generate and evaluate code from f-string ⊃⍙R. The code string ⍙R is of the form '{code}⍵'.
+    :Case 0     ⍝ 0:  Generate and evaluate code from f-string ⊃⍙R. The code string ⍙R is of the form '{code}⍵'.
         ⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙L' '⍙R')⊢⍙L ⎕THIS.Main ⊃⍙R} ⍙R← ,⊆⍙R
-    :Endif 
+    :Else             ⍝ ¯1: Development/Testing ONLY 
+        ⍙RES← 0 ⎕THIS.Main ⊃,⊆⍙R 
+    :EndSelect  
   ∇
-    ##.⎕FX '⎕THIS' '⍙(\w+)'  ⎕R (⍕⎕THIS) 'Øø\1øØ' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
-  
+  ##.⎕FX '⎕THIS' '⍙(\w+)'  ⎕R (⍕⎕THIS) '⍙Ⓕ\1' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
+⍝ Debug/test only
+⍝ ##.⎕FX  '∆F' '⎕THIS' '⍙(\w+)'  ⎕R '∆Fre' (⍕⎕THIS) '⍙Ⓕ\1' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
 
   ⍝ Performance of <∆F x> is comparable to C language version of ∆F
   ⍝    F-string                            This version vs C-version
@@ -27,9 +32,10 @@
         (dfn dbg box inline) fStr← ⍺ ⍵ 
         omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
-      0=≢fStr:  DM '(1 0⍴⍬)', dfn/'⍨'                               ⍝ f-string (⍵) is '' or ⍬
-        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o
-        flds← OrderFlds extern∘ProcFlds¨ SplitFlds fStr  
+        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o    
+        flds← SplitFlds⍣(0≠≢fStr)⊢ fStr                             ⍝ If fStr is 0-length, don't bother splitting!
+      0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
+        flds← OrderFlds extern∘ProcFlds¨ flds 
         code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
       ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
         quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
@@ -55,13 +61,13 @@
     qq sQ qS← (q q) (s q) (q s)    
     arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.
   ⍝ Const patterns 
-      scP← '(?|`([BTFA])|([$%]))'                                ⍝ Shortcuts `B etc, $, % 
+      scP← '(?|`([BTFA])|([$%]))'                                ⍝ Shortcuts `B etc, and $, % 
       omP←  '(?:`⍵|⍹)(\d*)'  
       qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
     cfPats←  scP omP qtP 
     scI omI qtI← ⍳≢ cfPats 
     ⍝ See SplitFlds...
-    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields ('')
+    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields (''). Replace them with a new, empty, field.
     ⍙splitSFZ← '(?:\{\})+'
     ⍝ ⍙splitSF: Match space fields (0-length handled above) per SpaceFld below. Signaled by pattern ' {'.
     ⍙splitSF←  '\{(\h*)\}'
@@ -82,7 +88,7 @@
     ⍝         name is (⍕⎕THIS),'.A'
     ⍝         codeString is the executable dfn in string form.
     ∇ {ok}← LoadRTL 
-     ;XR ;HT 
+        ;XR ;HT 
         XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
         HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
     ⍝ A (etc): a dfn
@@ -92,7 +98,9 @@
       D← XR cD← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
       F← XR cF←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
       M← XR cM← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
-      T← XR cT← HT  '⎕THIS.T'  '{⍺← ''YYYY-MM-DD hh:mm:ss'' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
+      T← XR cT← HT  '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
+      shortCodes← cA  cA  cB  cF  cF  cT  
+      shortSyms← 'A'  '%' 'B' 'F' '$' 'T'
       ok← 1 
     ∇
     LoadRTL
@@ -101,14 +109,15 @@
   ⍝ TextFld
     ⍝ ⍺: namespace of external (global) vars
     TextFld← { 
-        sQ, qS,⍨ escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts ⍵ 
+        TFR← escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts                          
+        sQ, qS,⍨ TFR ⍵
     }
+    
   ⍝ SpaceFld: A variant of a code field. 
-    ⍝ A space field consists solely of 0 or more spaces (within the originally surrounding braces).
+    ⍝ A space field consists solely of a null-char and 0 or more spaces (within the originally surrounding braces).
     ⍝ SpaceFld ⍵, returns: ((≢⍵)⍴'') as a char. string.
-    SpaceFld← { 
-        '(','⍴'''')',⍨ ⍕≢⍵ 
-    }
+    ⍝ Null (0-length) space fields are handled separately, but will work fine here.
+    SpaceFld← { '(', '⍴'''')',⍨ ⍕¯1+ ≢⍵ }
   ⍝ SelfDocCode: Checks for self-documenting code (sdc) of form { ... ch [sp*] }, where ch ∊ '→%↓' [% is an alias for ↓].
     ⍝ Returns cStr dFun dStr  
     ⍝     cStr: orig code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
@@ -125,37 +134,37 @@
     }
   ⍝ CodeFld:  
     ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
-    ⍝ ⍺: namespace of external (global) vars
+    ⍝ ⍺: namespace of external (global) vars.
+    ⍝ ⍵: Code field text including leading and trailing braces {}
     CodeFld← { ex←⍺                                         ⍝ external ns 
-        cStr dFun dStr← ex SelfDocCode ⍵                    ⍝ Is CodeFld Self-documenting?  
-        cStr← cfPats ⎕R {  ⍝  scI omI qtI← ⍳≢ cfPats 
+        cStr dFun dStr← ex SelfDocCode 1↓¯1↓⍵               ⍝ Is CodeFld Self-documenting?  
+        Sink← {  ⍝  scI omI qtI← ⍳≢ cfPats 
               p← ⍵.PatternNum 
             p= qtI:  q, q,⍨ q escEsc escDmd ⎕R qq esc ex.cr _Opts⊢ 1↓¯1↓ ⍵.Match ⍝ Quoted strings 
               f1← ⍵.(Lengths[1]↑ Offsets[1]↓ Block) 
-            p= scI: ('BTFA$%'⍳ f1) ex.inline⊃ cB cT cF cA cF cA      ⍝ Shortcuts 
-            p= omI:  '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← ex GetOm f1            ⍝ `⍵[nnn] and ⍹[nnn]  
-        } cStr  
+            p= scI: (shortSyms⍳ f1) ex.inline⊃ shortCodes          
+            p= omI: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← ex {        ⍝ `⍵[nnn] and ⍹[nnn]  
+              0=≢⍵: ⍺.omIx+1 ⋄ ⊃⌽⎕VFI ⍵
+           } f1           
+        }
+        cStr← cfPats ⎕R Sink cStr  
         '({', dStr, dFun, cStr, '}⍵)'
     }
-    GetOm← { 0= ≢⍵: ⍺.omIx+1 ⋄ ⊃⌽⎕VFI ⍵ }
 
   ⍝ OrderFlds
     ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller.
-    OrderFlds←  {                       ⍝  If at least one non-null field, 
-      0∨.< ≢¨⍵: '⌽', ∊⌽⍵, '⍬'          ⍝  ensure at least 2 and reverse, emitting code to re-reverse
-                '⍬⍬'                    ⍝  Only null fields. Return 2 of them (minimum required)
-    }  
+    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller. 
+    OrderFlds← '⌽',(∊∘⌽,∘'⍬')           ⍝  ensure at least 2 and reverse, emitting code to re-reverse
   ⍝ ProcFlds: Process each Code (or Space) and Text field. 
     ⍝ ⍺: namespace of external (global) vars
     ProcFlds← { 
       0=≢⍵: ''                           ⍝ 0-length input => output null str *
-      sfTok=⊃⍵: SpaceFld 1↓⍵             ⍝ sfTok signals a space field *
-      cfTok=⊃⍵: ⍺ CodeFld 1↓¯1↓⍵         ⍝ cfTok  signals a code field *
+      sfTok=⊃⍵: SpaceFld ⍵               ⍝ sfTok signals a space field *
+      cfTok=⊃⍵: ⍺ CodeFld ⍵              ⍝ cfTok  signals a code field *
         ⍺ TextFld ⍵                      ⍝ Otherwise, a text field.
-    }                                     ⍝                          [*] encoded via SplitFlds
-  ⍝ SplitFlds: Split f-string into 0 or more fields, ignoring possible null fields generated.
-  ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { }.   {}{}{} ==> {}.
+    }                                    ⍝                          [*] encoded via SplitFlds
+  ⍝ SplitFlds: Split f-string into 0 or more fields, removing any null fields generated (after they serve their purpose).
+  ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { } . {}{}{} ==> {}.
     SplitFlds← splitPats ⎕R splitRepl _Opts ⊆
 ⍝
 ⍝H -------------
@@ -264,7 +273,7 @@
 ⍝H                                    Double ' within a '...' quote to include a single quote.
 ⍝H   Fmt               ::=   [ ("⎕FMT Control Expressions") "$" Code] 
 ⍝H   Above             ::=   ("(" Code<Generating any APL Object>")") "%" (Code<Generating Any APL Object)>
-⍝H                           % (Code<Generating an APL Object)>, with implicit left arg "".
+⍝H                           % (Code<Generating an APL Object)>, with implicit left arg "".       
 ⍝H   Box               ::=   "`B" Code 
 ⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
@@ -275,10 +284,12 @@
 ⍝H   ------- -- -------- -------
 ⍝H      Format
 ⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
+⍝H         `F      Alias for $
 ⍝H      Box 
 ⍝H         `B      A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
 ⍝H      Above 
 ⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
+⍝H         `A      Alias for %
 ⍝H      Omega/Omega Underbar*      
 ⍝H         `⍵n     With an explicit index n, where n is a number between 0 and t-1, given 
 ⍝H                 t, the # of elements of ∆F's right argument ⍵. 
@@ -294,11 +305,13 @@
 ⍝H          ⍹0     Same as ⍹0.
 ⍝H                 * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
 ⍝H 
-⍝H Hidden Code Field Shortcuts Under Evaluation
+⍝H New Code Field Shortcut Under Evaluation
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯
-⍝H         `F     Format     Same as $
-⍝H         `A     Above      Same as %
-⍝H         `T     Date-Time  {... [⍺] `T ⍵...} displays each date-time in Dyalog timestamp (⎕TS) format via this call:
+⍝H         `T     Date-Time  {... [⍺] `T ⍵...} displays each date-time in Dyalog timestamp (⎕TS) format.
+⍝H                ⍵: one or more APL timestamps (⎕TS)
+⍝H                ⍺: Codes for displaying timestamps based on Dyalog (1200⌶).
+⍝H                   Default code: 'YYYY-MM-DD hh:mm:ss'
+⍝H                The Date-Time helper function uses ⎕DT and (1200⌶):
 ⍝H                           [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵     
 ⍝H 
 ⍝HX Examples
@@ -412,6 +425,7 @@
 ⍝HX ⍝ Getting the best performance for a heavily used ∆F string.
 ⍝HX ⍝ Using the DFN option (⍺[0+⎕IO]=1).
 ⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
+⍝HX   'cmpx' ⎕CY 'dfns'
 ⍝HX   C← 11 30 60
 ⍝HX ⍝ Here's our ∆F String <t>
 ⍝HX   t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
@@ -422,4 +436,18 @@
 ⍝HX  ∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
 ⍝HX  T ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
 ⍝HX
+⍝HX ⍝ Use of `D (Date-time) shortcut (see above for definition).
+⍝HX ⍝ (Right arg "hardwired" into F-string)
+⍝HX   ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
+⍝HX 1 JAN 2025 was a Wednesday.
+⍝HX 
+⍝HX ⍝ (Right argument via omega expression: `⍵1).
+⍝HX   ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
+⍝HX 21 Jan 2025 was a Tuesday.
+⍝HX 
+⍝HX ⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
+⍝HX   ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
+⍝HX 21 Jan 1925 was a Wednesday.
+⍝HX   
+⍝HX   
 :EndNamespace 
