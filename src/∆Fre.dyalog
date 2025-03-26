@@ -45,8 +45,17 @@
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
     Help← { 
       'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
-        hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '(.*)' 
+        'e'=⎕C 1↑4↓⍵: Help2⍬
+        hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
         1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+    }
+    Help2←{ cr← ⎕UCS 13
+      hP←  '(?i)^\s*⍝HX⍎(.*)' 
+      h← ∊hP ⎕S {  
+        f1← ⍵.(Lengths[1]↑Offsets[1]↓Match)
+        ('⎕←''','''',⍨ f1/⍨ 1+''''=f1),cr,f1,cr 
+      }⊣ ⎕SRC ⎕THIS
+      (1⊃⎕RSI).⎕FX (⊂'EVAL '), cr (≠⊆⊢) h 
     }
 
 ⍝ Constants (For variables, see namespace ¨extern¨ in main)
@@ -316,138 +325,139 @@
 ⍝H 
 ⍝HX Examples
 ⍝HX ¯¯¯¯¯¯¯¯
-⍝HX ⍝ Simple variable expressions
-⍝HX   name← 'Fred' ⋄ age← 32
-⍝HX   ∆F "His/her name is {name}. e is {age} years old."
-⍝HX   His/her name is Fred. (S)he is 32 years old.
+⍝HX⍎⍝ Simple variable expressions
+⍝HX⍎  name← 'Fred' ⋄ age← ?100
+⍝HX⍎  ∆F 'The patient''s name is {name}. {name} is {age} years old.'
+⍝HXThe patient's name is Fred. Fred is 32 years old.
 ⍝HX 
-⍝HX ⍝ Variable and code expressions
-⍝HX   name← 'Mary' ⋄ age← 32 ⋄ gender← 'F'
-⍝HX   ∆F "{'His' 'Her'⊃⍨ gender='F'} is {name}. {'He' 'She'⊃⍨ gender='F'} is {age} years old."
-⍝HX   Her name is Mary. She is 32 years old.
+⍝HX⍎⍝ Variable and code expressions
+⍝HX⍎  names← 'Mary' 'Jack' 'Tony' ⋄ prize← 100
+⍝HX⍎  ∆F 'Customer {names⊃⍨ ?≢names} wins £{prize}!'
+⍝HXCustomer Mary wins £12! 
 ⍝HX 
-⍝HX ⍝ Some multi-line text fields separated by non-null space fields
-⍝HX   ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
-⍝HX This    Of         Text  
-⍝HX is      multi-line Fields
-⍝HX an                       
-⍝HX example 
+⍝HX⍎⍝ Some multi-line text fields separated by non-null space fields
+⍝HX⍎  ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
+⍝HXThis    Of         Text  
+⍝HXis      multi-line Fields
+⍝HXan                       
+⍝HXexample 
 ⍝HX 
-⍝HX ⍝ A similar example with strings in code fields
-⍝HX   ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
-⍝HX This     Of          Strings
-⍝HX is       Multi-line  in     
-⍝HX an                   Code   
-⍝HX example              Fields 
+⍝HX⍎⍝ A similar example with strings in code fields
+⍝HX⍎  ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
+⍝HXThis     Of          Strings
+⍝HXis       Multi-line  in     
+⍝HXan                   Code   
+⍝HXexample              Fields 
 ⍝HX   
-⍝HX ⍝ Like the example above, with useful data
-⍝HX   fn←   'John'           'Mary'         'Bill'
-⍝HX   ln←   'Smith'          'Jones'        'Templeton'
-⍝HX   addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
-⍝HX   ∆F '{↑fn} {↑ln} {↑addr}'
-⍝HX John Smith     24 Mulberry Ln
-⍝HX Mary Jones     22 Smith St   
-⍝HX Bill Templeton 12 High St 
+⍝HX⍎⍝ Like the example above, with useful data
+⍝HX⍎  fn←   'John'           'Mary'         'Bill'
+⍝HX⍎  ln←   'Smith'          'Jones'        'Templeton'
+⍝HX⍎  addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
+⍝HX⍎  ∆F '{↑fn} {↑ln} {↑addr}'
+⍝HXJohn Smith     24 Mulberry Ln
+⍝HXMary Jones     22 Smith St   
+⍝HXBill Templeton 12 High St 
 ⍝HX     
-⍝HX ⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
-⍝HX   C← 11 30 60
-⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
-⍝HX The temperature is 11°C or  51.8°F
-⍝HX                    30       86.0  
-⍝HX                    60      140.0 
+⍝HX⍎⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
+⍝HXThe temperature is 11°C or  51.8°F
+⍝HX                   30       86.0  
+⍝HX                   60      140.0 
 ⍝HX  
-⍝HX ⍝ Generating boxes using the shorthand `B (box).
-⍝HX   ∆F'`⋄The temperature is {`B⊂"I2" $ C}`⋄°C or {`B⊂"F5.1" $ 32+9×C÷5}`⋄°F'
-⍝HX                    ┌──┐      ┌─────┐
-⍝HX The temperature is │11│°C or │ 51.8│°F
-⍝HX                    │30│      │ 86.0│ 
-⍝HX                    │60│      │140.0│ 
-⍝HX                    └──┘      └─────┘    
+⍝HX⍎⍝ Generating boxes using the shorthand `B (box).
+⍝HX⍎  ∆F'`⋄The temperature is {`B⊂"I2" $ C}`⋄°C or {`B⊂"F5.1" $ 32+9×C÷5}`⋄°F'
+⍝HX                   ┌──┐      ┌─────┐
+⍝HXThe temperature is │11│°C or │ 51.8│°F
+⍝HX                   │30│      │ 86.0│ 
+⍝HX                   │60│      │140.0│ 
+⍝HX                   └──┘      └─────┘    
 ⍝HX            
-⍝HX ⍝ Referencing external expressions
-⍝HX   C← 11 30 60
-⍝HX   C2F← 32+9×5÷⍨⊢
-⍝HX   ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
-⍝HX The temperature is 11°C or  51.8°F
-⍝HX                    30       86.0  
-⍝HX                    60      140.0 
+⍝HX⍎⍝ Referencing external expressions
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  C2F← 32+9×5÷⍨⊢
+⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
+⍝HXThe temperature is 11°C or  51.8°F
+⍝HX                   30       86.0  
+⍝HX                   60      140.0 
 ⍝HX 
-⍝HX ⍝ Referencing ∆F additional arguments using omega shorthand expressions.
-⍝HX   ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
-⍝HX The temperature is 11°C or  51.8°F
-⍝HX                    15       59.0  
-⍝HX                    20       68.0 
-⍝HX 
-⍝HX ⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
-⍝HX   ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
+⍝HX⍎⍝ Referencing ∆F additional arguments using omega shorthand expressions.
+⍝HX⍎  ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
+⍝HXThe temperature is 11°C or  51.8°F
+⍝HX                   15       59.0  
+⍝HX                   20       68.0 
+⍝HX
+⍝HX⍎⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
+⍝HX⍎  ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
 ⍝HX π²=9.869604401, π=3.141592654
 ⍝HX 
-⍝HX ⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
-⍝HX   name←'John Smith' ⋄ age← 34
-⍝HX   ∆F 'Current employee: {name→}, {age→}.'
-⍝HX Current employee: name→John Smith, age→34.
+⍝HX⍎⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name→}, {age→}.'
+⍝HXCurrent employee: name→John Smith, age→34.
 ⍝HX
-⍝HX ⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
-⍝HX   name←'John Smith' ⋄ age← 34
-⍝HX   ∆F 'Current employee: {name → }, {age→   }.'
-⍝HX Current employee: name → John Smith, age→   34.
+⍝HX⍎⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name → }, {age→   }.'
+⍝HXCurrent employee: name → John Smith, age→   34.
 ⍝HX 
-⍝HX ⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
-⍝HX   name←'John Smith' ⋄ age← 34
-⍝HX   ∆F 'Current employee: {name↓} {age↓}.'
-⍝HX Current employee:   name↓    age↓.
-⍝HX                   John Smith  34 
+⍝HX⍎⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name↓} {age↓}.'
+⍝HXCurrent employee:   name↓    age↓.
+⍝HX                  John Smith  34 
 ⍝HX 
-⍝HX ⍝  Using the shorthand % (above) to display one expression centered above another 
-⍝HX   ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
-⍝HX Current Employee   Current Age
-⍝HX    John Smith          29     
-⍝HX    Mary Jones          23 
+⍝HX⍎⍝  Using the shorthand % (above) to display one expression centered above another 
+⍝HX⍎  ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
+⍝HXCurrent Employee   Current Age
+⍝HX   John Smith          29     
+⍝HX   Mary Jones          23 
 ⍝HX 
-⍝HX ⍝ Display arbitrary expressions one above the other.  (See Shorthand Expressions for details on % and `⍵).
-⍝HX   ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
-⍝HX     0 0      
-⍝HX   0 0  0 1    
-⍝HX   1 0  1 1    
-⍝HX 0 0  0 1  0 2 
-⍝HX 1 0  1 1  1 2 
-⍝HX 2 0  2 1  2 2  
+⍝HX⍎⍝ Display arbitrary expressions one above the other.  
+⍝HX⍎⍝ (See Shorthand Expressions for details on % and `⍵).
+⍝HX⍎  ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
+⍝HX    0 0      
+⍝HX  0 0  0 1    
+⍝HX  1 0  1 1    
+⍝HX0 0  0 1  0 2 
+⍝HX1 0  1 1  1 2 
+⍝HX2 0  2 1  2 2  
 ⍝HX
-⍝HX ⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
-⍝HX   C← 11 30 60
-⍝HX   0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX ┌───────────────────┬──┬──────┬─────┬──┐
-⍝HX │                   │11│      │ 51.8│  │
-⍝HX │The temperature is │30│°C or │ 86.0│°F│
-⍝HX │                   │60│      │140.0│  │
-⍝HX └───────────────────┴──┴──────┴─────┴──┘
+⍝HX⍎⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX┌───────────────────┬──┬──────┬─────┬──┐
+⍝HX│                   │11│      │ 51.8│  │
+⍝HX│The temperature is │30│°C or │ 86.0│°F│
+⍝HX│                   │60│      │140.0│  │
+⍝HX└───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
-⍝HX ⍝ Getting the best performance for a heavily used ∆F string.
-⍝HX ⍝ Using the DFN option (⍺[0+⎕IO]=1).
-⍝HX ⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
-⍝HX   'cmpx' ⎕CY 'dfns'
-⍝HX   C← 11 30 60
-⍝HX ⍝ Here's our ∆F String <t>
-⍝HX   t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX ⍝ Precompute a dfn T given ∆F String <t>.
-⍝HX   T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. Equiv. to: T←('Dfn' 1) ∆F t
-⍝HX ⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
-⍝HX   cmpx '∆F t' 'T ⍬'
-⍝HX  ∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-⍝HX  T ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
+⍝HX⍎⍝ Getting the best performance for a heavily used ∆F string.
+⍝HX⍎⍝ Using the DFN option (⍺[0+⎕IO]=1).
+⍝HX⍎⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
+⍝HX⍎  'cmpx' ⎕CY 'dfns'
+⍝HX⍎  C← 11 30 60
+⍝HX⍎⍝ Here's our ∆F String <t>
+⍝HX⍎  t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX⍎⍝ Precompute a dfn T given ∆F String <t>.
+⍝HX⍎  T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. 
+⍝HX⍎⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
+⍝HX⍎  cmpx '∆F t' 'T ⍬'
+⍝HX∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HXT ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
 ⍝HX
-⍝HX ⍝ Use of `D (Date-time) shortcut (see above for definition).
-⍝HX ⍝ (Right arg "hardwired" into F-string)
-⍝HX   ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
-⍝HX 1 JAN 2025 was a Wednesday.
+⍝HX⍎⍝ Use of `T (Date-time) shortcut (see above for definition).
+⍝HX⍎⍝ (Right arg "hardwired" into F-string)
+⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
+⍝HX1 JAN 2025 was a Wednesday.
 ⍝HX 
-⍝HX ⍝ (Right argument via omega expression: `⍵1).
-⍝HX   ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
-⍝HX 21 Jan 2025 was a Tuesday.
+⍝HX⍎⍝ (Right argument via omega expression: `⍵1).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
+⍝HX21 Jan 2025 was a Tuesday.
 ⍝HX 
-⍝HX ⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
-⍝HX   ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
-⍝HX 21 Jan 1925 was a Wednesday.
+⍝HX⍎⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
+⍝HX21 Jan 1925 was a Wednesday.
 ⍝HX   
 ⍝HX   
 :EndNamespace 
