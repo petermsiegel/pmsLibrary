@@ -1,4 +1,4 @@
-﻿:namespace Generator
+﻿:namespace ⍙Gen
   ⎕IO ⎕ML←0 1
 ⍝ msgs with code >0 are Dyalog error numbers (EN)
   debug←     0 
@@ -29,7 +29,7 @@
 
   :Namespace genLib 
     toGen fromGen myTid← ¯1 
-    saved← return← ⍬      
+    saved← return← ⍬ ⋄ gotReturned← 0      
     eof← 0 
   ⍝ 
     ∇ payload← Next ; rc; ret 
@@ -38,11 +38,11 @@
         :If ×≢saved 
             (rc payload) saved← saved ⍬
         :Elseif eof
-            :IF ×≢ ret← return 
-              return⊢← ⍬ 
-              ##.STOP ⎕SIGNAL⍨ 'Generator has stopped. Value: ',∊(⎕UCS 13),' ',⎕FMT ret 
+            :IF ~gotReturned 
+                gotReturned⊢← 1 
+                ##.STOP ⎕SIGNAL⍨ 'Generator has stopped. Value (¨return¨)',∊(⎕UCS 13),' ',⎕FMT return 
             :Else 
-              ⎕SIGNAL ##.StopSignal
+                ⎕SIGNAL ##.StopSignal
             :EndIf 
         :Else  
             ##.nullMsg ⎕TPUT toGen 
@@ -106,7 +106,7 @@
 ⍝H ===========================
 ⍝H FUNCTIONS FOR USER ONLY
 ⍝H ===========================
-  Gen← { ⍺←0  
+  ∆Gen← { ⍺←0  
     1000:: ⎕SIGNAL InterruptSignal
     0:: ∆Signal ⎕DMX 
       _← 'gNs' ⎕NS genLib 
@@ -124,20 +124,21 @@
       ⍝ Initialise
           myTid⊢← ⎕TID 
           ⎕THIS.gNs← ⎕THIS 
+          Say← (⎕∘←)⍣debug 
           _← ⎕DF ,⎕FMT toGen myTid 
       ⍝ Start the user's generator (⍺⍺) passing this namespace (as ⍺) and caller's ⍵ as ⍵ 
-          _← (⎕∘←)⍣debug⊢ 'Starting generator'
+          _← Say 'Starting generator'
           return⊢← ⎕THIS ⍺⍺ ⍵ 
           eof⊢← 1   
-          _← (⎕∘←)⍣debug⊢ 'Terminating generator'      
+          _← Say 'Terminating generator'      
       ⍝ Prepare to return normally 
       ⍝ Clear our tokens   
         _← ⎕TGET ⎕TPOOL/⍨ ⎕TPOOL= toGen 
       ⍝ Return... 
-        _← (⎕∘←)⍣debug⊢ 'Returning now'
+        _← Say 'Returning now'
         gNs⊢← ⎕THIS                                      
       }& ⍵
       gNs    
   }
-  ##.Gen←  ⎕THIS.Gen
+  ##.∆Gen←  ⎕THIS.∆Gen
 :endNamespace
