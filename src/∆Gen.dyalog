@@ -1,142 +1,138 @@
 ﻿:namespace ⍙Gen
   ⎕IO ⎕ML←0 1
+
+⍝ Set "Class" Token range and initialize curTokens 
+  tokenInc← 0.0000001
+  curTokens← (⎕TALLOC 1 '∆Gen') + tokenInc + 0 (tokenInc÷2)
+
 ⍝ msgs with code >0 are Dyalog error numbers (EN)
-  debug←     0 
-  nullMsg←   'NULL'
-  stdMsg←     0
-  eofMsg←    'EOF'  
-  tokMinWait←  debug⊃ 15 1  
+  debug←     0  
+  tgetMinWait←  debug⊃ 15 1  
 
-⍝ Bug in Dyalog 18: can't interrupt ⎕TGET. 
-  ∆TGET← {
-    1003:: ⎕SIGNAL InterruptSignal
-    tok← tokMinWait ⎕TGET ⍵
-    0≠ ≢ tok: tok 
-    ∇ ⍵ 
-  }
+⍝ Signal-related
+  domEn stopEn failEn← 11 901 911    
+  ⍙st← ('EN' stopEn) ('EM' 'Generator: Generator has stopped')
+  stopSignal←      ⊂⍙st 
+  returnedSignal←  ⊂⍙st, ⊂'Message' '(Generator has returned)' 
+  interruptSignal← ⊂⍙st, ⊂'Message' '(Interrupted by user)'
+  badEnvSignal←    ⊂('EN' domEn)  ('EM' 'Generator: Calling generator routine from wrong environment')
+  logicSignal←     ⊂('EN' failEn) ('EM' 'Generator Logic Error')
 
-  ∆Signal← ⎕SIGNAL { ⊂⍵.(('EM' ('Generator: ',EM))('EN' EN)('Message' Message)) }
-  ∆FlatDmx← { en← 911 ⍵.EN⊃⍨ ⍵.EN<1000 ⋄ en ⍵.(∊('Generator: ',EM),  (×≢Message)/': ', Message) }
-
-  tokenSpace← ⎕TALLOC 1 'Generator'
-  tokenInc← 0.000001
-  tokenPair← tokenInc + tokenInc÷1 2 
-  curToken← tokenSpace + tokenInc 
-
-  STOP← 901 
-  StopSignal← ⊂('EN' STOP)('EM' 'Generator has stopped')
-  InterruptSignal← ⊂('EN' STOP)('EM' 'Generator has stopped')('Message' '(Interrupted by user)')
+⍝ ∆TGET: interruptible ⎕TGET (given bug in Dyalog 18: can't interrupt ⎕TGET). 
+  ∇ data← ∆TGET from; obj 
+    :TRAP 1000
+      :Repeat
+          obj← tgetMinWait ⎕TGET from 
+      :Until 0≠ ≢obj
+      data← ⊃obj 
+    :Else 
+        ⎕SIGNAL interruptSignal
+    :EndTrap 
+  ∇
+  ∆SignalDmx← ⎕SIGNAL { ⊂⎕DMX.( ('EN' EN) ('EM' ('Generator: ',EM)) ('Message' Message) ) }
+  ∆FlatDmx← { en← stopEn ⍵.EN⊃⍨ ⍵.EN<1000 ⋄  ('EN' en) ('EM' ('Generator: ', ⍵.EM))  ('Message' ⍵.Message) }
 
   :Namespace genLib 
-    toGen fromGen myTid← ¯1 
-    saved← return← ⍬ ⋄ gotReturned← 0      
+    toGen fromGen genTid← ¯1 
+    saved return returned← ⍬ ⎕NULL 0      
     eof← 0 
-  ⍝ 
-    ∇ payload← Next ; rc; ret 
-      rc payload← 911 ⍬ 
+  
+    ∇ data← Next ; isSig 
+      :If ⎕TID = genTid ⋄ ⎕SIGNAL ##.badEnvSignal ⋄ :EndIf 
       :Trap 0 1000
-        :If ×≢saved 
-            (rc payload) saved← saved ⍬
-        :Elseif eof
-            :IF ~gotReturned 
-                gotReturned⊢← 1 
-                ##.STOP ⎕SIGNAL⍨ 'Generator has stopped. Value (¨return¨)',∊(⎕UCS 13),' ',⎕FMT return 
-            :Else 
-                ⎕SIGNAL ##.StopSignal
-            :EndIf 
-        :Else  
-            ##.nullMsg ⎕TPUT toGen 
-            rc payload← ⊃##.∆TGET fromGen 
-        :EndIf 
-        :Case 0
-            ⎕SIGNAL ##.InterruptSignal
-        :Case 1000
-            ⎕SIGNAL ##.InterruptSignal
+          isSig data← ⍙Next 
+          :If isSig ⋄ ⎕SIGNAL data ⋄ :EndIf 
+      :Case 0
+          ∆SignalDmx⍬
+      :Else 
+          ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
-      :IF 911= rc 
-           'Generator Logic Error' ⎕SIGNAL 911
-      :ElseIf 0 < rc
-          ##.STOP ⎕SIGNAL⍨ 'Generator has stopped. ',,⎕FMT rc payload
+    ∇
+    ∇ (isSig payload)← ⍙Next  
+      :If ×≢saved 
+          (isSig payload) saved← saved ⍬
+      :Elseif eof
+          isSig payload← 1 (returned⊃ ##.(stopSignal returnedSignal))
+      :Else  
+          0 ⎕NULL ⎕TPUT toGen 
+          isSig payload← ##.∆TGET fromGen 
       :EndIf 
     ∇
-    ∇ {payload}← Yield data
-      {}##.∆TGET toGen            ⍝ Wait until they are ready for us!
-      payload← ##.stdMsg data     ⍝ 
-      payload ⎕TPUT fromGen       ⍝ Now send the payload
+    ∇ {data}← Yield data
+     ⍝ :If ⎕TID ≠ genTid ⋄ ⎕SIGNAL ##.badEnvSignal ⋄ :EndIf 
+      {} ##.∆TGET toGen        ⍝ Wait until they are ready for us!
+      0 data ⎕TPUT fromGen        ⍝ Now send the payload
     ∇ 
     ∇ {tokens}← Close 
-      :If ×fromGen 
-          ⎕TGET tokens← ⎕TPOOL/⍨ ⎕TPOOL∊ fromGen toGen 
-          fromGen toGen← 0 
-          ⎕TKILL myTid 
+      ⍝ :If ⎕TID = genTid ⋄ ⎕SIGNAL ##.badEnvSignal ⋄ :EndIf 
+      :If ×≢ fromGen 
+          tokens← ⎕TPOOL/⍨ ⎕TPOOL∊ fromGen toGen 
+          eof saved fromGen toGen← 1 ⍬ ⍬ ⍬  
+          ⎕TGET tokens 
+          ⎕TKILL genTid 
+      :Else
+          eof tokens saved← 1 ⍬ ⍬ 
       :EndIf 
-      eof← 1 
     ∇
-    ∇ b← Eof ; ⎕TRAP 
-      :Trap 0 1000
-        b← _Eof 
-      :Case 0
-          ##.∆Signal ⎕DMX 
-      :Else  
-          ⎕SIGNAL ##.InterruptSignal
+    ∇ b← Eof  
+      :Trap 0 1000 
+         b← _Eof 
+      :Case 0 
+          ##.∆SignalDmx⍬
+      :Else 
+          ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
-
     ∇
-     ∇ b← _Eof  
+    ∇ b← More   
+      :Trap 0 1000 
+         b← ~_Eof 
+      :Case 0  
+          ##.∆SignalDmx⍬
+      :Else 
+          ⎕SIGNAL ##.interruptSignal 
+      :EndTrap 
+    ∇
+    ∇ b← _Eof  
       :If ×≢ saved
           b← 0 
       :Elseif eof=1  
-          b← eof  
+          b← 1  
       :Else 
-          saved,← Next 
+          saved← ⍙Next 
           b← 0
       :EndIf  
     ∇
-    ∇ b← More  
-      :Trap 0 1000 
-          b← ~_Eof 
-      :Case 0
-          ##.∆Signal ⎕DMX 
-      :Else
-          ⎕SIGNAL ##.InterruptSignal
-      :EndTrap 
-    ∇
-  :EndNamespace 
+   :EndNamespace 
 
 ⍝H ===========================
 ⍝H FUNCTIONS FOR USER ONLY
 ⍝H ===========================
   ∆Gen← { ⍺←0  
-    1000:: ⎕SIGNAL InterruptSignal
-    0:: ∆Signal ⎕DMX 
-      _← 'gNs' ⎕NS genLib 
-    ⍝ gNs: generator namespace instance, copied in from genLib                 
-      gNs.(toGen fromGen)← curToken+ tokenPair
-      curToken+← tokenInc       ⍝ Update genLib 
+    0/1000:: ⎕SIGNAL interruptSignal
+    0:: ∆SignalDmx⍬ 
+      gNs← ⎕NS genLib 
+      gNs.(toGen fromGen)← curTokens 
+      curTokens+← tokenInc        
       gNs.(debug gNs)← ⍺ ⍬ 
     ⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝⍝
       _← ⍺ ⍺⍺ gNs.{  
-          0:: ##.∆Signal ⎕DMX⊣ {
+          0/0:: ##.∆SignalDmx⍬⊣ {
             eof⊢← 1 
             _← ⎕TGET ⎕TPOOL/⍨ ⎕TPOOL= toGen 
-            fromGen ⎕TPUT⍨ ##.∆FlatDmx ⎕DMX  
+            1 (##.∆FlatDmx ⎕DMX) ⎕TPUT fromGen   
           } ⍬  
       ⍝ Initialise
-          myTid⊢← ⎕TID 
           ⎕THIS.gNs← ⎕THIS 
           Say← (⎕∘←)⍣debug 
-          _← ⎕DF ,⎕FMT toGen myTid 
+          _← ⎕DF 'Generator ',(⍕genTid⊢← ⎕TID),' ',⍕toGen    
       ⍝ Start the user's generator (⍺⍺) passing this namespace (as ⍺) and caller's ⍵ as ⍵ 
           _← Say 'Starting generator'
           return⊢← ⎕THIS ⍺⍺ ⍵ 
-          eof⊢← 1   
+          eof⊢← 1 ⋄ returned⊢← 1   
           _← Say 'Terminating generator'      
-      ⍝ Prepare to return normally 
-      ⍝ Clear our tokens   
-        _← ⎕TGET ⎕TPOOL/⍨ ⎕TPOOL= toGen 
       ⍝ Return... 
-        _← Say 'Returning now'
-        gNs⊢← ⎕THIS                                      
+          _← Say 'Returning now'
+          gNs⊢← ⎕THIS                                      
       }& ⍵
       gNs    
   }
