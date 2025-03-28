@@ -61,10 +61,8 @@
       :Trap 0 1000
           isSig data← ⍙Next 
           :If isSig ⋄ ⎕SIGNAL data ⋄ :EndIf 
-      :Case 0
-          SignalDmx⍬
       :Else 
-          ⎕SIGNAL ##.interruptSignal 
+          SignalDmx⍬
       :EndTrap 
     ∇
     ∇ (isSig payload)← ⍙Next  
@@ -96,19 +94,15 @@
     ∇ b← Eof  
       :Trap 0 1000 
          b← _Eof⍬
-      :Case 0 
+      :Else  
           ##.SignalDmx⍬
-      :Else 
-          ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
     ∇
     ∇ b← More   
       :Trap 0 1000 
          b← ~_Eof⍬ 
-      :Case 0  
-          ##.SignalDmx⍬
       :Else 
-          ⎕SIGNAL ##.interruptSignal 
+          ##.SignalDmx⍬
       :EndTrap 
     ∇
     _Eof← { ×≢ saved: 0 ⋄ eof=1: 1 ⋄ 0⊣ saved⊢← ⍙Next }
