@@ -16,13 +16,12 @@
   tgetMinWait←  debug⊃ 30 1  
 
 ⍝ Signal-related
-  domEn stopEn failEn← 11 901 911    
-  ⍙st← ('EN' stopEn) ('EM' '∆Gen STOPITERATION') 
+  STOP← 901   
+  ⍙st← ('EN' STOP) ('EM' '∆Gen STOP') 
   stopSignal←      ⊂⍙st 
   returnedSignal←  ⊂⍙st, ⊂'Message' 'Generator has returned' 
   interruptSignal← ⊂⍙st, ⊂'Message' 'Interrupted by user'
-  badEnvSignal←    ⊂('EN' domEn)  ('EM' '∆Gen ENVIRONMENT ERROR') ('Message' 'Routine called from wrong environment')
-  logicSignal←     ⊂('EN' failEn) ('EM' '∆Gen LOGIC ERROR')
+  badEnvSignal←    ⊂('EN' 11)  ('EM' '∆Gen ENVIRONMENT ERROR') ('Message' 'Routine called from wrong environment')
 
 ⍝ User routine ⍙Gen.Reset-- Resets the tokenBase parameters
 ⍝ Clears all token relating to this ∆Gen "class" and deallocates the base
@@ -47,15 +46,15 @@
         ⎕SIGNAL interruptSignal
     :EndTrap 
   ∇
-  ∆SignalDmx← ⎕SIGNAL { ⊂⎕DMX.( ('EN' EN) ('EM' ('∆Gen ',EM)) ('Message' Message) ) }
-  ∆FlatDmx← { en← stopEn ⍵.EN⊃⍨ ⍵.EN<1000 ⋄  ('EN' en) ('EM' ('∆Gen ', ⍵.EM))  ('Message' ⍵.Message) }
-⍝ See ∆Gen below.
-  ⍙ResetGen← { ⍵.eof⊢← 1 ⋄ _← ⎕TGET ⎕TPOOL/⍨ ⎕TPOOL= ⍵.toGen ⋄ 1 (∆FlatDmx ⎕DMX) ⎕TPUT ⍵.fromGen }
+
+  ⍙FlatDmx← { en← STOP ⍵.EN⊃⍨ ⍵.EN<1000 ⋄  ('EN' en) ('EM' ('∆Gen ', ⍵.EM))  ('Message' ⍵.Message) }
+  SignalDmx← ⎕SIGNAL ⍙FlatDmx 
+  GenErrorExit←  ⎕SIGNAL { ⍺.eof⊢← 1 ⋄ _← ⎕TGET ⎕TPOOL/⍨ ⎕TPOOL= ⍺.toGen ⋄ ⊂⍵⊣ ⍺.fromGen ⎕TPUT⍨ 1, ⊂⍵}∘⍙FlatDmx
 
   :Namespace genLib 
-    toGen fromGen genTid← ¯1 
-    saved return returned← ⍬ ⎕NULL 0      
-    eof← 0 
+    toGen fromGen genNs genTid return← ⎕NULL 
+    eof returned saved ← 0 0 ⍬       
+    STOP← ##.STOP
   
     ∇ data← Next ; isSig 
       :If ⎕TID = genTid ⋄ ⎕SIGNAL ##.badEnvSignal ⋄ :EndIf 
@@ -63,7 +62,7 @@
           isSig data← ⍙Next 
           :If isSig ⋄ ⎕SIGNAL data ⋄ :EndIf 
       :Case 0
-          ∆SignalDmx⍬
+          SignalDmx⍬
       :Else 
           ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
@@ -98,7 +97,7 @@
       :Trap 0 1000 
          b← _Eof⍬
       :Case 0 
-          ##.∆SignalDmx⍬
+          ##.SignalDmx⍬
       :Else 
           ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
@@ -107,7 +106,7 @@
       :Trap 0 1000 
          b← ~_Eof⍬ 
       :Case 0  
-          ##.∆SignalDmx⍬
+          ##.SignalDmx⍬
       :Else 
           ⎕SIGNAL ##.interruptSignal 
       :EndTrap 
@@ -119,16 +118,14 @@
 ⍝H ∆Gen - Generator utility 
 ⍝H ========================
   ∆Gen← { ⍺←0  
-    1000:: ⎕SIGNAL interruptSignal
-    0:: ∆SignalDmx⍬ 
-      gNs← ⎕NS genLib 
-      gNs.(toGen fromGen)← curTokens 
+      genNs← ⎕NS genLib 
+      genNs.(toGen fromGen)← curTokens 
       curTokens+← tokenInc        
-      gNs.(debug gNs)← ⍺ ⍬ 
-      _← ⍺ ⍺⍺ gNs.{  
-          0:: ##.{ ∆SignalDmx⍬⊣ ⍙ResetGen ⍵ } ⎕THIS   
+      genNs.(debug genNs)← ⍺ ⍬ 
+      _← ⍺ ⍺⍺ genNs.{  
+          0 1000:: ⎕THIS ##.GenErrorExit ⎕DMX 
       ⍝ Initialise
-          ⎕THIS.gNs← ⎕THIS ⋄ genTid⊢← ⎕TID 
+          ⎕THIS.(genNs genTid)← ⎕THIS ⎕TID 
           Say← (⎕∘←)⍣debug 
           _← ⎕DF ⎕TNAME← '∆GEN tid=',(⍕genTid),' tok=',⍕toGen 
           _← Say ⎕TNAME,': Starting generator'
@@ -138,9 +135,9 @@
           eof⊢← 1 ⋄ returned⊢← 1      
       ⍝ Return... 
           _← Say ⎕TNAME,': Returning now'
-          gNs⊢← ⎕THIS                                      
+          genNs⊢← ⎕THIS                                      
       }& ⍵
-      gNs    
+      genNs    
   }
   ##.∆Gen←  ⎕THIS.∆Gen
 :endNamespace
