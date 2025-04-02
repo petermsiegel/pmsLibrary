@@ -41,7 +41,6 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝X   | 50-60 tons   | 70 tons  | [100 tons](https://www.lakewizard.com/post/100-ton-boat/) |
 ⍝X   | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
 ⍝X   | shrimpy shrimp |  small shrimp  |  jumbo shrimp  |
-⍝X   |             |               |               |
 ⍝X
 ⍝X This is code: `⍳2` 
 ⍝X 
@@ -54,8 +53,11 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝X          P← A ⍳ B
 ⍝X        ∇
 ⍝X
-⍝X This should work. Does it?  ```⍺⍳⍵
-⍝X ⍵⍳⍺```
+⍝X This should work. Does it?  
+⍝X ```
+⍝X +/⍺⍳⍵
+⍝X -\⍵⍳⍺
+⍝X ```
 ⍝X
 ⍝X ### Goodbye!
 ⍝X 
@@ -75,7 +77,7 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝C   <script>
 ⍝C     var markdownText = document.getElementById('markdown-content').textContent;
 ⍝C     const converter = new showdown.Converter({
-⍝C      // We can just stick with the defaults, but those marked with *** seem to be very useful.
+⍝C      // We can just stick with the defaults. Options marked with *** seem to be very useful.
 ⍝C      // Enable tables ***
 ⍝C         tables: true,
 ⍝C      // Enable strikethrough ***
@@ -84,9 +86,8 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝C         omitExtraWLInCodeBlocks: true,
 ⍝C      // Enable GitHub-compatible header IDs
 ⍝C         ghCompatibleHeaderId: true,
-⍝C      // code blocks (```...```) don't seem to work???
-⍝C         ghCodeBlocks: true,          // true: the default...
-⍝C         fencedCodeBlocks: true,
+⍝C      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+⍝C         ghCodeBlocks: true,
 ⍝C      // Prefix header IDs with "custom-id-"
 ⍝C         prefixHeaderId: 'custom-id-',
 ⍝C      // Enable emoji support ***
@@ -95,8 +96,9 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝C         tasklists: true,
 ⍝C      // Disable automatic wrapping of HTML blocks
 ⍝C         noHTMLBlocks: false,
-⍝C      // Simple line break: If true, you can't split paragraphs across lines w/o extra trailing blanks.
-⍝C         simpleLineBreaks: false,      // false: the default 
+⍝C      // Simple line break: If true, prevent new para with a simple line break.
+⍝C      //                    If false (default), create new para with simple line break
+⍝C         simpleLineBreaks: false               
 ⍝C     });
 ⍝C     const html = converter.makeHtml(markdownText);
 ⍝C     document.getElementById('html-content').innerHTML = html;
