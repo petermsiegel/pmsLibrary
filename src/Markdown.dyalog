@@ -1,6 +1,6 @@
 ﻿:Namespace Markdown
   NL← ⎕UCS 10
-  AddEsc←   '(?<!\\)`' '\\'  ⎕R '\\\\`' '\\\\' ⍝ EscapeMD 
+  AddEsc←    '\\'  ⎕R  '\\\\' ⍝ EscapeMD 
 ⍝ GetSrc: ∇ prefix  
   GetSrc←  { src←'^\s*⍝', ⍵, '\s?(.*)$' ⋄ src ⎕S '\1'⊣ ⎕SRC ⎕THIS }
 ⍝ InsertMD: insert markdown into jsCode
@@ -15,7 +15,7 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝ extern: html
   md← AddEsc markdown                      ⍝ Add escapes to the markdown                                       
   jsCode← md InsertMD GetSrc 'C'           ⍝ Insert the markdown text into the Javascript code     
-  ⍝'html' ⎕WC 'HTMLRenderer' ('HTML',⍥⊂ Flatten jsCode) ('Size' 800 1000)('Coord' 'ScaledPixel') 
+  'html' ⎕WC 'HTMLRenderer' ('HTML',⍥⊂ Flatten jsCode) ('Size' 800 1000)('Coord' 'ScaledPixel') 
   ⎕← 'Hit return after viewing html'
   {}⍞↓⍨≢⍞←'<return> '
 ∇
@@ -36,23 +36,26 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝X     > A blockquote would look great here...
 ⍝X 1. A final bullet?
 ⍝X 
-⍝X   | Niña  |  Pinta | Santa Maria  |
-⍝X   |:-----:|:-------:|:------------:|
-⍝X   | 50-60 tons   | 70 tons  | 100 tons |
+⍝X   | Niña          |  Pinta          | Santa Maria  |
+⍝X   |: ----- :|:-----:|:-----:|
+⍝X   | 50-60 tons   | 70 tons  | [100 tons](https://www.lakewizard.com/post/100-ton-boat/) |
 ⍝X   | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
-⍝X   | shrimpy shrimp | small shrimp | jumbo shrimp |
-⍝X
-⍝X   [https://www.lakewizard.com/post/100-ton-boat/]
+⍝X   | shrimpy shrimp |  small shrimp  |  jumbo shrimp  |
+⍝X   |             |               |               |
 ⍝X
 ⍝X This is code: `⍳2` 
 ⍝X 
 ⍝X This is *also* code: <code>⍳3</code> 
 ⍝X 
-⍝X And so is this (set off with 6 blanks)
+⍝X And so is this:
 ⍝X 
+⍝X      ⍝ Set off with 6 blanks
 ⍝X        ∇ P← A IOTA B
 ⍝X          P← A ⍳ B
 ⍝X        ∇
+⍝X
+⍝X This should work. Does it?  ```⍺⍳⍵
+⍝X ⍵⍳⍺```
 ⍝X
 ⍝X ### Goodbye!
 ⍝X 
@@ -83,6 +86,7 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝C         ghCompatibleHeaderId: true,
 ⍝C      // code blocks (```...```) don't seem to work???
 ⍝C         ghCodeBlocks: true,          // true: the default...
+⍝C         fencedCodeBlocks: true,
 ⍝C      // Prefix header IDs with "custom-id-"
 ⍝C         prefixHeaderId: 'custom-id-',
 ⍝C      // Enable emoji support ***
@@ -91,8 +95,8 @@ example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example
 ⍝C         tasklists: true,
 ⍝C      // Disable automatic wrapping of HTML blocks
 ⍝C         noHTMLBlocks: false,
-⍝C      // Simple line break: If true, paragraphs split across lines won't work as expected.
-⍝C         simpleLineBreaks: false      // false: the default 
+⍝C      // Simple line break: If true, you can't split paragraphs across lines w/o extra trailing blanks.
+⍝C         simpleLineBreaks: false,      // false: the default 
 ⍝C     });
 ⍝C     const html = converter.makeHtml(markdownText);
 ⍝C     document.getElementById('html-content').innerHTML = html;
