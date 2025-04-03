@@ -1,19 +1,19 @@
 ﻿:Namespace Markdown
   nl← ⎕UCS 10
   Esc←    '\\'  ⎕R  '\\\\'        
-⍝ Src:    CVV← ∇ ['C'|'X']            Find source of form '⍝C' or '⍝X' in comments in this namespace 
+⍝ Src:  CVV← ∇ ['C'|'X']              Find source of form '⍝C' or '⍝X' in comments in this namespace 
   Src←  { src←'^\s*⍝', ⍵, '\s?(.*)$' ⋄ src ⎕S '\1'⊣ ⎕SRC ⎕THIS }
 ⍝ MD:   CVV← CVV ∇ CVV                Insert ⍺:markdown into ⍵:js at ___MYTEXT___
   MD← { md← Flt ⍺ ⋄ '^\h*___MYTEXT___.*$' ⎕R md⊣ ⍵ }
-⍝ Flt:  CV← ∇ CVV                     Convert vector of char vectors into a CV with newlines.
-  Flt← {¯1↓ ∊ nl,⍨¨ ⊆⍵}
+⍝ Flt:  CnlV← ∇ CVV                   Convert vector of char vectors into a CV with newlines.
+  Flt← {¯1↓ ∊nl,⍨¨ ⊆⍵}
 
 example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Stored as VV
 
 ∇ {js}← {size} Show markdown; md; html  
-⍝ markdown: APL char vectors (VV)  
-⍝ size:     Html window size (default: 800 1000)
-⍝ js:       Javascript code to display markdown as HTML (V with nl chars)
+⍝ markdown: APL char vectors (CVV)  
+⍝ size:     Html window size (IV[2], default: 800 1000)
+⍝ js:       Javascript code to display markdown <markdown> as HTML  (CnlV: CV with newlines)  
 ⍝ extern: html
   :If 900⌶⍬ ⋄ size← 800 1000 ⋄ :EndIf 
   md← Esc markdown                      ⍝ Add escapes to the markdown                                       
@@ -39,11 +39,13 @@ example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Sto
 ⍝X     > A blockquote would look great here...
 ⍝X 1. A final bullet?
 ⍝X 
-⍝X   | Niña          |  Pinta          | Santa Maria  |
-⍝X   |: ----- :|:-----:|:-----:|
-⍝X   | 50-60 tons   | 70 tons  | [100 tons](https://www.lakewizard.com/post/100-ton-boat/) |
-⍝X   | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
-⍝X   | shrimpy shrimp |  small shrimp  |  jumbo shrimp  |
+⍝X ### Tonnage of Columbus' Ships
+⍝X 
+⍝X   | Ship | Niña |  Pinta | Santa Maria |
+⍝X   |: ---- |: ----- :|:-----:|:-----:|
+⍝X   | Tonnage | 50-60 tons   | 70 tons  | [100 tons](https://www.lakewizard.com/post/100-ton-boat/) |
+⍝X   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
+⍝X   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
 ⍝X
 ⍝X This is code: `⍳2` 
 ⍝X 
