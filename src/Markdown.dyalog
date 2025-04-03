@@ -1,25 +1,25 @@
 ﻿:Namespace Markdown
-  NL← ⎕UCS 10
-  AddEsc←    '\\'  ⎕R  '\\\\'        
-⍝ GetSrc: CVV← ∇ ['C'|'X']          Find source of form '⍝C' or '⍝X' in comments in this namespace 
-  GetSrc←  { src←'^\s*⍝', ⍵, '\s?(.*)$' ⋄ src ⎕S '\1'⊣ ⎕SRC ⎕THIS }
-⍝ InsertMD: CVV← CVV ∇ CVV          Insert ⍺:markdown into ⍵:jsCode at ___MYTEXT___
-  InsertMD← { md← Flatten ⍺ ⋄ '^\h*___MYTEXT___.*$' ⎕R md⊣ ⍵ }
-⍝ Flatten:  CV← ∇ CVV               Convert vector of char vectors into a CV with newlines.
-  Flatten← {¯1↓ ∊ NL,⍨¨ ⊆⍵}
+  nl← ⎕UCS 10
+  Esc←    '\\'  ⎕R  '\\\\'        
+⍝ Src:    CVV← ∇ ['C'|'X']            Find source of form '⍝C' or '⍝X' in comments in this namespace 
+  Src←  { src←'^\s*⍝', ⍵, '\s?(.*)$' ⋄ src ⎕S '\1'⊣ ⎕SRC ⎕THIS }
+⍝ MD:   CVV← CVV ∇ CVV                Insert ⍺:markdown into ⍵:js at ___MYTEXT___
+  MD← { md← Flt ⍺ ⋄ '^\h*___MYTEXT___.*$' ⎕R md⊣ ⍵ }
+⍝ Flt:  CV← ∇ CVV                     Convert vector of char vectors into a CV with newlines.
+  Flt← {¯1↓ ∊ nl,⍨¨ ⊆⍵}
 
-example← GetSrc 'X'                         ⍝ /⍝X.../ - a markdown example. Stored as VV
+example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Stored as VV
 
-∇ {jsCode}←  {size} Show markdown; flat; md; html  
+∇ {js}← {size} Show markdown; md; html  
 ⍝ markdown: APL char vectors (VV)  
-⍝ jsCode:   Javascript code to display markdown as HTML (V with NL chars)
+⍝ size:     Html window size (default: 800 1000)
+⍝ js:       Javascript code to display markdown as HTML (V with nl chars)
 ⍝ extern: html
   :If 900⌶⍬ ⋄ size← 800 1000 ⋄ :EndIf 
-  md← AddEsc markdown                      ⍝ Add escapes to the markdown                                       
-  jsCode← md InsertMD GetSrc 'C'           ⍝ Insert the markdown text into the Javascript code 
-  flat←   Flatten jsCode    
-  'html' ⎕WC 'HTMLRenderer' ('HTML' flat) (size,⍨ ⊂'Size')('Coord' 'ScaledPixel') 
-  ⎕← 'Hit return after viewing html'
+  md← Esc markdown                      ⍝ Add escapes to the markdown                                       
+  js← md MD Src 'C'                     ⍝ Insert the markdown text into the Javascript code    
+  'html' ⎕WC 'HTMLRenderer' ('HTML',⍥⊂ Flt js) (size,⍨ ⊂'Size')('Coord' 'ScaledPixel')
+  ⎕← 'Hit return after viewing html...'
   {}⍞↓⍨≢⍞←'<return> '
 ∇
 
