@@ -1,26 +1,48 @@
 ﻿:Namespace Markdown
-  nl← ⎕UCS 10
-  Esc←    '\\'  ⎕R  '\\\\'        
-⍝ Src:  CVV← ∇ ['C'|'X']              Find source of form '⍝C' or '⍝X' in comments in this namespace 
-  Src←  { src←'^\s*⍝', ⍵, '\s?(.*)$' ⋄ src ⎕S '\1'⊣ ⎕SRC ⎕THIS }
-⍝ MD:   CVV← CVV ∇ CVV                Insert ⍺:markdown into ⍵:js at ___MYTEXT___
-  MD← { md← Flt ⍺ ⋄ '^\h*___MYTEXT___.*$' ⎕R md⊣ ⍵ }
-⍝ Flt:  CnlV← ∇ CVV                   Convert vector of char vectors into a CV with newlines.
-  Flt← {¯1↓ ∊nl,⍨¨ ⊆⍵}
+⍝ Here: CVV← token@CV ∇  [CVV]                    
+⍝   Find source of form ('⍝',token) in a vector of char vectors 
+⍝   NB: If ⍺ is 'X', then it must be foll. by either at least one blank OR the end of the line.
+⍝       I.e. the token after /\h*⍝/ must match exactly; it is not a (simple) prefix. 
+  Here← { 
+    re←'^\s*⍝', ⍺, '(?|\h(.*)|())$'              
+    re ⎕S '\1'⊣ ⍵ 
+  }
+⍝ MD:   CVV← CVV ∇ CVV                             
+⍝   Insert ⍺:markdown into ⍵:js at ___MYTEXT___
+  MD← { 
+      _Once← ⍠('ML' 1)      
+      md← Flat '\\' ⎕R '\\\\'⊢ ⍺ 
+      '^\h*___MYTEXT___.*$' ⎕R md _Once⊣ ⍵ 
+  }
+⍝ Flat:  CnlV← ∇ CVV                               
+⍝   Convert vector of char vectors into a CV with newlines.
+  Flat← {¯1↓ ∊⍵,¨ ⎕UCS 13}⊆
+:Namespace Html 
+⍝ Html.Render: Ø← size@I[2] ∇ js@CVV
+⍝   Sets html variable in caller namespace...
+  Render← {  
+    h← 'HTML',⍥⊂ ##.Flat ⍵
+    s← ⍺,⍨ ⊂'Size'
+    c← 'Coord' 'ScaledPixel' 
+    me← ⎕NS ⍬
+    me⊣ 'me.htmlObj' ⎕WC 'HTMLRenderer' h s c  
+  } 
+:EndNamespace 
 
-example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Stored as VV
+example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.  
 
-∇ {js}← {size} Show markdown; md; html  
+∇ {js}← {size} Show markdown; h 
+⍝ js@CVV← size@IV=(800 100) ∇ markdown@CVV
 ⍝ markdown: APL char vectors (CVV)  
-⍝ size:     Html window size (IV[2], default: 800 1000)
-⍝ js:       Javascript code to display markdown <markdown> as HTML  (CnlV: CV with newlines)  
-⍝ extern: html
+⍝ size:     Html window size  
+⍝ js:       Html and Javascript code to display markdown <markdown> as HTML    
   :If 900⌶⍬ ⋄ size← 800 1000 ⋄ :EndIf 
-  md← Esc markdown                      ⍝ Add escapes to the markdown                                       
-  js← md MD Src 'C'                     ⍝ Insert the markdown text into the Javascript code    
-  'html' ⎕WC 'HTMLRenderer' ('HTML',⍥⊂ Flt js) (size,⍨ ⊂'Size')('Coord' 'ScaledPixel')
-  ⎕← 'Hit return after viewing html...'
-  {}⍞↓⍨≢⍞←'<return> '
+  js← markdown MD 'C' Here ⎕SRC ⎕THIS               ⍝ Insert the markdown text into the Javascript code   
+  ⎕← 'Enter empty line...             to close Markdown html after viewing, or'
+  ⎕← 'Type any char and hit return... to refresh Markdown html.' 
+  :Repeat  
+       h← size Html.Render js
+  :Until 0= ≢ ⍞↓⍨ ≢ ⍞← '>>> '
 ∇
 
 ⍝  example: Markdown example source 
@@ -33,17 +55,20 @@ example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Sto
 ⍝X      * This is a *sub-*bullet.
 ⍝X           * A sub***ber*** bullet.
 ⍝X           * And another!
-⍝X 1. This is another top-level bullet.
+⍝X 1. This is another top-level bullet. 
 ⍝X 1. As is this.
-⍝X 
+⍝X      We allow simplified autolinks to places like http://www.dyalog.com.
+⍝X
 ⍝X     > A blockquote would look great here...
+⍝X
 ⍝X 1. A final bullet?
 ⍝X 
-⍝X ### Tonnage of Columbus' Ships
+⍝X ### Tonnage of [Columbus' Ships](http://columbuslandfall.com/ccnav/ships.shtml)\. 
 ⍝X 
-⍝X   | Ship | Niña |  Pinta | Santa Maria |
+⍝X   | Ship  | Niña    | Pinta | Santa Maria |
 ⍝X   |: ---- |: ----- :|:-----:|:-----:|
-⍝X   | Tonnage | 50-60 tons   | 70 tons  | [100 tons](https://www.lakewizard.com/post/100-ton-boat/) |
+⍝X   | Type | caravel | caravel | carrack |
+⍝X   | Tonnage | 50-60 tons   | 70 tons  | 100 tons |
 ⍝X   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
 ⍝X   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
 ⍝X
@@ -64,7 +89,11 @@ example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Sto
 ⍝X -\⍵⍳⍺
 ⍝X ```
 ⍝X
-⍝X ### Goodbye!
+⍝X ### What about tasks?
+⍝X - [x] This task is done
+⍝X - [ ] This is still pending
+⍝X 
+⍝X ### Goodbye:exclamation::exclamation::exclamation:
 ⍝X 
 
 ⍝  Markdown code-- "showdown" javascript
@@ -76,16 +105,16 @@ example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Sto
 ⍝C </head>
 ⍝C <body>
 ⍝C   <div id="markdown-content" style="display:none;">
-⍝C     ___MYTEXT___          // User Markdown will go here!
+⍝C     ___MYTEXT___          // User Markdown will replace this entire line!
 ⍝C   </div>
 ⍝C   <div id="html-content"></div>
 ⍝C   <script>
 ⍝C     var markdownText = document.getElementById('markdown-content').textContent;
 ⍝C     const converter = new showdown.Converter({
-⍝C      // We can just stick with the defaults. Options marked with *** seem to be very useful.
-⍝C      // Enable tables ***
+⍝C      // For all options except ghCodeBlocks, the values are false
+⍝C      // Enable tables 
 ⍝C         tables: true,
-⍝C      // Enable strikethrough ***
+⍝C      // Enable strikethrough 
 ⍝C         strikethrough: true,
 ⍝C      // Omit extra line break in code blocks
 ⍝C         omitExtraWLInCodeBlocks: true,
@@ -95,15 +124,17 @@ example← Src 'X'                       ⍝ /⍝X.../ - a markdown example. Sto
 ⍝C         ghCodeBlocks: true,
 ⍝C      // Prefix header IDs with "custom-id-"
 ⍝C         prefixHeaderId: 'custom-id-',
-⍝C      // Enable emoji support ***
+⍝C      // Enable emoji support 
 ⍝C         emoji: true,
-⍝C      // Enable task lists ***
+⍝C      // Enable task lists 
 ⍝C         tasklists: true,
 ⍝C      // Disable automatic wrapping of HTML blocks
 ⍝C         noHTMLBlocks: false,
-⍝C      // Simple line break: If true, prevent new para with a simple line break.
-⍝C      //                    If false (default), create new para with simple line break
-⍝C         simpleLineBreaks: false               
+⍝C      // Simple line break: If true, simple line break in paragraph emits <br>.
+⍝C      //                    If false (default), simple line break does not emit <br>.
+⍝C         simpleLineBreaks: false, 
+⍝C      // Allow simple URLs like dyalog.com to be treated as actual links. 
+⍝C         simplifiedAutoLink: true,           
 ⍝C     });
 ⍝C     const html = converter.makeHtml(markdownText);
 ⍝C     document.getElementById('html-content').innerHTML = html;
