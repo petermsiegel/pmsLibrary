@@ -1,25 +1,42 @@
-﻿:Namespace Markdown
-⍝ Here: CVV← token@CV ∇  [CVV]                    
-⍝   Find source of form ('⍝',token) in a vector of char vectors 
-⍝   NB: If ⍺ is 'X', then it must be foll. by either at least one blank OR the end of the line.
-⍝       I.e. the token after /\h*⍝/ must match exactly; it is not a (simple) prefix. 
+:Namespace Markdown
+⍝⍝⍝⍝ Use Markdown in an HTMLRenderer session in Dyalog
+⍝⍝⍝⍝ Usage:
+⍝⍝⍝⍝   [html←]  [size] Markdown.Show markdown
+⍝⍝⍝⍝ where ¨markdown¨ is a vector of character vectors containing standard "Showdown-style" Markdown.
+⍝⍝⍝⍝ and ¨size¨ is an optional size in pixels of the resulting page (default: 800 1000).
+⍝⍝⍝⍝ ¨Show¨ returns the resulting HTML as a vector of character vectors.
+⍝⍝⍝⍝ 
+⍝⍝⍝⍝ There are a couple of useful utilities, such as ¨Here¨ and ¨Flat¨.
+⍝⍝⍝⍝ ¨Here¨ makes it easy to take comments in APL functions and return them as Markdown or HTML code.
+⍝⍝⍝⍝ ¨Flat¨ convers a vector of character vectors to a flat char vector with carriage returns. 
+⍝⍝⍝⍝
+⍝⍝⍝⍝   Markdown.example
+⍝⍝⍝⍝ contains a nice example. To see the result, do:
+⍝⍝⍝⍝   Markdown.(Show example)
+⍝⍝⍝⍝
+⍝⍝⍝⍝ 
+  ⍝ Here: CVV← token@CV ∇ CVV                    
+  ⍝   Find payload in char vectors (CV) matching ('^\h*⍝',token) in a vector of CV's. 
+  ⍝   If the token is XX, we match /^\h*⍝XX/ followed by /\h|$/. 
+  ⍝   What follows /.*$/ is the payload. 
   Here← { 
-    re←'^\s*⍝', ⍺, '(?|\h(.*)|())$'              
+    re←'^\h*⍝', ⍺, '(?:\h|$)(.*)'                        
     re ⎕S '\1'⊣ ⍵ 
   }
-⍝ MD:   CVV← CVV ∇ CVV                             
-⍝   Insert ⍺:markdown into ⍵:js at ___MYTEXT___
+  ⍝ MD:   CVV← CVV ∇ CVV                             
+  ⍝   Insert ⍺:markdown into ⍵:html at ___MYTEXT___
   MD← { 
-      _Once← ⍠('ML' 1)      
-      md← Flat '\\' ⎕R '\\\\'⊢ ⍺ 
-      '^\h*___MYTEXT___.*$' ⎕R md _Once⊣ ⍵ 
+      _Once← ⍠('ML' 1) 
+      Esc_← '\\' ⎕R '\\\\'      
+      from to← '^\h*___MYTEXT___.*$' (Flat Esc_ ⍺)
+      from  ⎕R to _Once⊣ ⍵ 
   }
-⍝ Flat:  CnlV← ∇ CVV                               
-⍝   Convert vector of char vectors into a CV with newlines.
+  ⍝ Flat:  CcrV← ∇ CVV                               
+  ⍝   Convert vector of char vectors into a CV with carriage returns.
   Flat← {¯1↓ ∊⍵,¨ ⎕UCS 13}⊆
 :Namespace Html 
-⍝ Html.Render: Ø← size@I[2] ∇ js@CVV
-⍝   Sets html variable in caller namespace...
+  ⍝ Html.Render: Ø← size@I[2] ∇ html@CVV
+  ⍝   Sets html variable in caller namespace...
   Render← {  
     h← 'HTML',⍥⊂ ##.Flat ⍵
     s← ⍺,⍨ ⊂'Size'
@@ -31,25 +48,26 @@
 
 example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.  
 
-∇ {js}← {size} Show markdown; h 
-⍝ js@CVV← size@IV=(800 100) ∇ markdown@CVV
+∇ {html}← {size} Show markdown; h 
+⍝ html@CVV← size@IV=(800 1000) ∇ markdown@CVV
 ⍝ markdown: APL char vectors (CVV)  
 ⍝ size:     Html window size  
-⍝ js:       Html and Javascript code to display markdown <markdown> as HTML    
+⍝ html:       Html and Javascript code to display markdown <markdown> as HTML    
   :If 900⌶⍬ ⋄ size← 800 1000 ⋄ :EndIf 
-  js← markdown MD 'C' Here ⎕SRC ⎕THIS               ⍝ Insert the markdown text into the Javascript code   
-  ⎕← 'Enter empty line...             to close Markdown html after viewing, or'
-  ⎕← 'Type any char and hit return... to refresh Markdown html.' 
-  :Repeat  
-       h← size Html.Render js
-  :Until 0= ≢ ⍞↓⍨ ≢ ⍞← '>>> '
+  html← markdown MD 'C' Here ⎕SRC ⎕THIS               ⍝ Insert the markdown text into the Javascript code   
+  h← size Html.Render html
+  {} ⍞↓⍨ ≢ ⍞← '>>> '
 ∇
 
+⍝ -------------------------------------------------------------------------------------------
 ⍝  example: Markdown example source 
 ⍝X # An example of *Markdown* in the ***Showdown*** dialect
 ⍝X
-⍝X This is a paragraph with **bold** text and this Emoji smile :smile: is marked via :smile\:.
-⍝X This face 😜 is represented _directly_ in APL. 
+⍝X ## A Paragraph
+⍝X This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
+⍝X the expression :smile\:.  We have set **simpleLineBreaks: false**, so a single paragraph 
+⍝X can be generated from multiple contiguous lines.
+⍝X We have four such lines here making one paragraph. This face 😜 is represented _directly_ in APL. 
 ⍝X
 ⍝X 1. This is a bullet
 ⍝X      * This is a *sub-*bullet.
@@ -83,25 +101,30 @@ example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.
 ⍝X          P← A ⍳ B
 ⍝X        ∇
 ⍝X
-⍝X This should work. Does it?  
+⍝X This should work. Does it? (**Yes**)
 ⍝X ```
 ⍝X +/⍺⍳⍵
 ⍝X -\⍵⍳⍺
 ⍝X ```
 ⍝X
 ⍝X ### What about tasks?
-⍝X - [x] This task is done
+⍝X + [x] This task is done
 ⍝X - [ ] This is still pending
+⍝X + [x] We knocked this out of the park!
 ⍝X 
 ⍝X ### Goodbye:exclamation::exclamation::exclamation:
 ⍝X 
 
-⍝  Markdown code-- "showdown" javascript
+⍝ -------------------------------------------------------------------------------------------
+⍝  Markdown-to-Html code-- "showdown" javascript
 ⍝C <!DOCTYPE html>
 ⍝C <html>
 ⍝C <head>
 ⍝C   <title>Showdown Example</title>
-⍝C   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+⍝C   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
+⍝C        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
+⍝C        crossorigin="anonymous" referrerpolicy="no-referrer">
+⍝C   </script>
 ⍝C </head>
 ⍝C <body>
 ⍝C   <div id="markdown-content" style="display:none;">
@@ -111,7 +134,10 @@ example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.
 ⍝C   <script>
 ⍝C     var markdownText = document.getElementById('markdown-content').textContent;
 ⍝C     const converter = new showdown.Converter({
-⍝C      // For all options except ghCodeBlocks, the values are false
+⍝C      // For all options except ghCodeBlocks, the DEFAULT value is false
+⍝C      // Simple line break: If true, simple line break in paragraph emits <br>.
+⍝C      //                    If false (default), simple line break does not emit <br>.
+⍝C         simpleLineBreaks: false, 
 ⍝C      // Enable tables 
 ⍝C         tables: true,
 ⍝C      // Enable strikethrough 
@@ -130,10 +156,9 @@ example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.
 ⍝C         tasklists: true,
 ⍝C      // Disable automatic wrapping of HTML blocks
 ⍝C         noHTMLBlocks: false,
-⍝C      // Simple line break: If true, simple line break in paragraph emits <br>.
-⍝C      //                    If false (default), simple line break does not emit <br>.
-⍝C         simpleLineBreaks: false, 
-⍝C      // Allow simple URLs like dyalog.com to be treated as actual links. 
+⍝C      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+⍝C      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+⍝/      // to return (except by recreating the page).
 ⍝C         simplifiedAutoLink: true,           
 ⍝C     });
 ⍝C     const html = converter.makeHtml(markdownText);
@@ -141,5 +166,4 @@ example← 'X' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.
 ⍝C   </script>
 ⍝C </body>
 ⍝C </html>
-
 :EndNamespace 
