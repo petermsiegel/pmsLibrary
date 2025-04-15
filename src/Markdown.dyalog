@@ -1,4 +1,4 @@
-:Namespace Markdown
+﻿:Namespace Markdown
 ⍝⍝⍝⍝ Use Markdown in an HTMLRenderer session in Dyalog
 ⍝⍝⍝⍝ Usage:
 ⍝⍝⍝⍝   [html←]  [size] Markdown.Show markdown
@@ -17,7 +17,9 @@
 ⍝⍝⍝⍝ 
   ⍝ Here: CVV← token@CV ∇ CVV                    
   ⍝   Find payload in char vectors (CV) matching ('^\h*⍝',token) in a vector of CV's. 
-  ⍝   If the token is XX, we match /^\h*⍝MX/ followed by /\h|$/. 
+  ⍝     - If the token is XX, we match /^\h*⍝XX/ followed by /\h|$/. 
+  ⍝       I.e., it will match XX, but not X, XY, XXX, etc.
+  ⍝     - If the "token" is XX? or X{1,2}, we will match X, XX, but not XY or XXX.
   ⍝   What follows /.*$/ is the payload. 
   Here← { 
     re←'^\h*⍝', ⍺, '(?:\h|$)(.*)'                        
@@ -25,6 +27,7 @@
   }
   ⍝ MD:   CVV← CVV ∇ CVV                             
   ⍝   Insert ⍺:markdown into ⍵:html at ___MYTEXT___
+  ⍝   Double any escape chars so they work in the replacement field.
   MD← { 
       _Once← ⍠('ML' 1) 
       Esc_← '\\' ⎕R '\\\\'      
@@ -40,7 +43,8 @@
   Render← {  
     parms← ('HTML',⍥⊂ ##.Flat ⍵) (⍺,⍨ ⊂'Size') ('Coord' 'ScaledPixel') 
     ns← #.⎕NS⍬                                    ⍝ Private ns for generated obj 
-    ns.o⊣ 'ns.o' ⎕WC 'HTMLRenderer',⍥⊆ parms      ⍝ Return the generated object itself.
+    _← 'ns.o' ⎕WC 'HTMLRenderer',⍥⊆ parms         ⍝ Generate the renderer as ns.o. 
+    ns.o                                          ⍝ Return the generated object itself.
   } 
 :EndNamespace 
 
@@ -51,13 +55,15 @@ Show←{
 ⍝ markdown: APL char vectors (CVV)  
 ⍝ size:     Html window size (default: 800 1000)  
 ⍝ hNs:      Dyalog Render object (⎕WC namespace)
-⍝           hNs.HTML contains the generated HTML as a character vector with CR's. 
+⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
+⍝           hNs.md contains the source markdown used to generate it.
 ⍝ Once the result returned disappears, the generated HTML object disappears also.
-⍝ Do:          h← size Markdown.Show ... 
-⍝ Then later:  ⎕EX 'h' OR h←''
+⍝ Do:              h← size Markdown.Show ... 
+⍝ Then to delete:  ⎕EX 'h' OR h←''
   ⍺← 800 1000 ⋄ size markdown←⍺ ⍵ 
-  html← markdown MD 'H' Here ⎕SRC ⎕THIS           ⍝ Insert the markdown text into the HTML/JS code   
-  size Html.Render html                           ⍝ Render and return the HTML object
+  html← markdown MD 'HX?' Here ⎕SRC ⎕THIS           ⍝ Insert the markdown text into the HTML/JS code   
+  o← size Html.Render html                        ⍝ Render and return the HTML object
+  o⊣ o.md← ⍵                                      ⍝ Make a private copy of the markdown from the user...
 }
 
 ⍝ -------------------------------------------------------------------------------------------
@@ -76,7 +82,7 @@ Show←{
 ⍝M           * And another!
 ⍝M 1. This is another top-level bullet. 
 ⍝M 1. As is this.
-⍝M      We allow simplified autolinks to places like http://www.dyalog.com.
+⍝M      We right now do NOT allow simplified autolinks to places like http://www.dyalog.com.
 ⍝M
 ⍝M     > A blockquote would look great here...
 ⍝M
@@ -91,6 +97,10 @@ Show←{
 ⍝M   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
 ⍝M   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
 ⍝M
+⍝M **Note:** The above link to Columbus' Ships is an *explicit* link.
+⍝M
+⍝M ----
+⍝M 
 ⍝M This is code: `⍳2` 
 ⍝M 
 ⍝M This is *also* code: <code>⍳3</code> 
@@ -134,34 +144,35 @@ Show←{
 ⍝H   <div id="html-content"></div>
 ⍝H   <script>
 ⍝H     var markdownText = document.getElementById('markdown-content').textContent;
-⍝H     const converter = new showdown.Converter({
-⍝H      // For all options except ghCodeBlocks, the DEFAULT value is false
-⍝H      // Simple line break: If true, simple line break in paragraph emits <br>.
-⍝H      //                    If false (default), simple line break does not emit <br>.
-⍝H         simpleLineBreaks: false, 
-⍝H      // Enable tables 
-⍝H         tables: true,
-⍝H      // Enable strikethrough 
-⍝H         strikethrough: true,
-⍝H      // Omit extra line break in code blocks
-⍝H         omitExtraWLInCodeBlocks: true,
-⍝H      // Enable GitHub-compatible header IDs
-⍝H         ghCompatibleHeaderId: true,
-⍝H      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-⍝H         ghCodeBlocks: true,
-⍝H      // Prefix header IDs with "custom-id-"
-⍝H         prefixHeaderId: 'custom-id-',
-⍝H      // Enable emoji support 
-⍝H         emoji: true,
-⍝H      // Enable task lists 
-⍝H         tasklists: true,
-⍝H      // Disable automatic wrapping of HTML blocks
-⍝H         noHTMLBlocks: false,
-⍝H      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-⍝H      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-⍝H      // to return (except by recreating the page).
-⍝H         simplifiedAutoLink: true,           
-⍝H     });
+⍝HX     var opts = {
+⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
+⍝        // Simple line break: If true, simple line break in paragraph emits <br>.
+⍝        //                    If false (default), simple line break does not emit <br>.
+⍝HX         simpleLineBreaks: false, 
+⍝        // Enable tables 
+⍝HX         tables: true,
+⍝        // Enable strikethrough 
+⍝HX         strikethrough: true,
+⍝        // Omit extra line break in code blocks
+⍝HX         omitExtraWLInCodeBlocks: true,
+⍝        // Enable GitHub-compatible header IDs
+⍝HX         ghCompatibleHeaderId: true,
+⍝        // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+⍝HX         ghCodeBlocks: true,
+⍝        // Prefix header IDs with "custom-id-"
+⍝HX         prefixHeaderId: 'custom-id-',
+⍝        // Enable emoji support 
+⍝HX         emoji: true,
+⍝        // Enable task lists 
+⍝HX         tasklists: true,
+⍝        // Disable automatic wrapping of HTML blocks
+⍝HX         noHTMLBlocks: false,
+⍝        // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+⍝        // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+⍝        // to return (except by recreating the page).
+⍝HX         simplifiedAutoLink: false,           
+⍝HX     }
+⍝H     const converter = new showdown.Converter(opts);
 ⍝H     const html = converter.makeHtml(markdownText);
 ⍝H     document.getElementById('html-content').innerHTML = html;
 ⍝H   </script>
