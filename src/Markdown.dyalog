@@ -47,6 +47,42 @@
     ns.o                                          ⍝ Return the generated object itself.
   } 
 :EndNamespace 
+:Namespace Json 
+   Opts2Json←{
+   ⍝ (size jsonOut)← [jsonIn←''] (sizeDef ∇) opt1 [opt2 ...]
+   ⍝ jsonIn:
+   ⍝   a JSON5 list of key-value pairs or null.
+   ⍝ sizeDef:
+   ⍝   the default size variable for use in an HTMLRenderer call.
+   ⍝   The size has two elements: height and width.
+   ⍝   It will be the value of ¨size¨ returned, unless an option overrides it.
+   ⍝ optN:
+   ⍝   an APL-style key-value pair of the form ('Name' value).
+   ⍝   A value of 1 or 0 will be replaced by ⊂'true' or ⊂'false', respectively.
+   ⍝   Special case: a key of 'size' will have its value replace the default size.
+   ⍝       The size value must be of the scalar form (height width):
+   ⍝       ('size' (1000 600))
+   ⍝   It will be the value returned as ¨size¨ above.
+   ⍝ jsonOut:
+   ⍝   The 2nd element returned; a char. string representing the udpated
+   ⍝   JSON5 key-value pairs.
+
+     T F←⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
+
+     JDefs←{0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
+     Json←⎕JSON⍠'Dialect' 'JSON5'
+     Opts←{,∘⊂⍣(2≥|≡⍵)⊢⍵}
+     MergeNs←{⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨⊂⍵}
+     GetSize←'ns.size'∘{0≠⎕NC ⍺:(⎕EX ⍺)⊢⎕OR ⍺ ⋄ ⍵}
+
+     ⍺←'{}' ⋄ sizeDef←⍺⍺
+     0=≢⍵:sizeDef,⍥⊂⍺
+     ns←JDefs ⍺
+     _←(ns MergeNs)/¨Opts ⍵
+     (Json ns),⍨⍥⊂GetSize sizeDef
+ }
+ 
+:EndNamespace 
 
 example← 'M' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.  
 
@@ -60,9 +96,16 @@ Show←{
 ⍝ Once the result returned disappears, the generated HTML object disappears also.
 ⍝ Do:              h← size Markdown.Show ... 
 ⍝ Then to delete:  ⎕EX 'h' OR h←''
-  ⍺← 800 1000 ⋄ size markdown←⍺ ⍵ 
-  html← markdown MD 'HX?' Here ⎕SRC ⎕THIS           ⍝ Insert the markdown text into the HTML/JS code   
-  o← size Html.Render html                        ⍝ Render and return the HTML object
+  ⍺← '' 
+  markdown← ⍵ 
+  s hj← ⍺{ s← 800 1000
+   ⍝  0= ≢⍺: s ('H1?' Here ⍵)
+      size jNew← ('{', Flat  1↓'H1' Here ⍵)(s Json.Opts2Json) ⍺   ⍝ H1: Default JSON
+      hj← Flat '__JSON__\h*;' ⎕R jNew⍠('ML' 1) ⊢ Flat 'H2?' Here ⍵        ⍝ H2: Stub for JSON
+      s hj 
+  } ⎕SRC ⎕THIS 
+  html← markdown MD hj                            ⍝ Insert the markdown text into the HTML/JS code   
+  o← s Html.Render html                           ⍝ Render and return the HTML object
   o⊣ o.md← ⍵                                      ⍝ Make a private copy of the markdown from the user...
 }
 
@@ -144,34 +187,35 @@ Show←{
 ⍝H   <div id="html-content"></div>
 ⍝H   <script>
 ⍝H     var markdownText = document.getElementById('markdown-content').textContent;
-⍝HX     var opts = {
+⍝H2    var opts= __JSON__;
+⍝H1    var opts = {
 ⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
 ⍝        // Simple line break: If true, simple line break in paragraph emits <br>.
 ⍝        //                    If false (default), simple line break does not emit <br>.
-⍝HX         simpleLineBreaks: false, 
+⍝H1         simpleLineBreaks: false, 
 ⍝        // Enable tables 
-⍝HX         tables: true,
+⍝H1         tables: true,
 ⍝        // Enable strikethrough 
-⍝HX         strikethrough: true,
+⍝H1         strikethrough: true,
 ⍝        // Omit extra line break in code blocks
-⍝HX         omitExtraWLInCodeBlocks: true,
+⍝H1         omitExtraWLInCodeBlocks: true,
 ⍝        // Enable GitHub-compatible header IDs
-⍝HX         ghCompatibleHeaderId: true,
+⍝H1         ghCompatibleHeaderId: true,
 ⍝        // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-⍝HX         ghCodeBlocks: true,
+⍝H1         ghCodeBlocks: true,
 ⍝        // Prefix header IDs with "custom-id-"
-⍝HX         prefixHeaderId: 'custom-id-',
+⍝H1         prefixHeaderId: 'custom-id-',
 ⍝        // Enable emoji support 
-⍝HX         emoji: true,
+⍝H1         emoji: true,
 ⍝        // Enable task lists 
-⍝HX         tasklists: true,
+⍝H1         tasklists: true,
 ⍝        // Disable automatic wrapping of HTML blocks
-⍝HX         noHTMLBlocks: false,
+⍝H1         noHTMLBlocks: false,
 ⍝        // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
 ⍝        // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
 ⍝        // to return (except by recreating the page).
-⍝HX         simplifiedAutoLink: false,           
-⍝HX     }
+⍝H1         simplifiedAutoLink: false,           
+⍝H1    }
 ⍝H     const converter = new showdown.Converter(opts);
 ⍝H     const html = converter.makeHtml(markdownText);
 ⍝H     document.getElementById('html-content').innerHTML = html;
