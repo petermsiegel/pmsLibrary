@@ -16,9 +16,10 @@
 ⍝⍝⍝⍝   x← Markdown.(Show example)
 ⍝⍝⍝⍝ Deleting ¨x¨ (or resetting its value) will remove the displayed markdown html.
 ⍝⍝⍝⍝ 
-  ⍝ Show:     hNs@CVV← size@IV=(800 1000) ∇ markdown@CVV
+  ⍝ Show:     hNs@CVV← newOpts ∇ markdown@CVV
   ⍝ markdown: APL char vectors (CVV)  
-  ⍝ size:     Html window size (default: 800 1000)  
+  ⍝ newOpts:  New options for size and JSON option variables. Of the form
+  ⍝          ('emoji' 0), ('tables' 1), ('size' (500 400)), 1 for ⊂'true',  0 for ⊂'false'.
   ⍝ hNs:      Dyalog Render object (⎕WC namespace)
   ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
   ⍝           hNs.MD contains the source markdown used to generate it.
@@ -27,19 +28,19 @@
   ⍝ Then to delete:  ⎕EX 'h' OR h←''
   Show←{
     ⍺← '' ⋄ markdown← ⍵ 
-    s hj← ⍺ MergeOptions ⎕SRC ⎕THIS 
+    s hj← ⍺ OMerge ⎕SRC ⎕THIS 
     html← hj InsertMD Flat markdown                 ⍝ Insert the markdown text into the HTML/JS code   
     r← s HtmlRender html                            ⍝ Render and return the HTML object
     r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
   }
   ⍝ Here: CVV← token@CV ∇ CVV                    
-  ⍝   Find payload in char vectors (CV) matching ('^\h*⍝',token) in a vector of CV's. 
-  ⍝     - If the token is XX, we match /^\h*⍝XX/ followed by /\h|$/. 
-  ⍝       I.e., it will match XX, but not X, XY, XXX, etc.
-  ⍝     - If the "token" is XX? or X{1,2}, we will match X, XX, but not XY or XXX.
-  ⍝   What follows /.*$/ is the payload. 
-  Here← { 
-    re←'^\h*⍝', ⍺, '(?:\h|$)(.*)'                        
+  ⍝   Find payload in char vectors (CV) following ('^\h*⍝',token,'\h|$') in a vector of CV's. 
+  ⍝     - If the token is 'XX', we match /^\h*⍝XX/ followed by /\h|$/. 
+  ⍝       I.e., it will match XX, but not (simple) X, XY, XXX, etc.
+  ⍝     - If the "token" is 'XX?' or 'X{1,2}', we will match X, XX, but not XY or XXX.
+  ⍝   What follows the token and any following blank is the payload /(.*)/'. 
+  Here← {  pfx← ⍺
+    re←'^\h*⍝', pfx, '(?:\h|$)(.*)'                        
     re ⎕S '\1'⊣ ⍵ 
   }
   ⍝ defaults: d← ∇
@@ -51,14 +52,16 @@
   ⍝ InsertMD:   CVV← CVV ∇ CVV                             
   ⍝   Insert ⍺:markdown into ⍵:html at ___MYTEXT___
   ⍝   Don't process escape chars in the replacement field...
-  InsertMD← {      
-      '^\h*___MYTEXT___.*$'  ⎕R ⍵ _RSimple _ROnce⍠'Regex' (1 0)⊣ ⍺ 
+  InsertMD← {  
+      '^\h*___MYTEXT___.*$'  ⎕R ⍵ _RSimple _ROnce _RRE10⊣ ⍺ 
   }
   ⍝ Flat:  CcrV← ∇ CVV                               
   ⍝   Convert vector of char vectors into a CV with carriage returns.
   Flat← {¯1↓ ∊⍵,¨ CR}⊆
+  ⍝ ⎕R options we use...
   _RSimple← ⍠('ResultText' 'Simple')('EOL' 'CR')
   _ROnce←   ⍠'ML' 1
+  _RRE10←   ⍠'Regex' (1 0)
 
   CR← ⎕UCS 13 
   sizeDef← 800 1000
@@ -73,7 +76,7 @@
     ns.Render                                        ⍝ Return the generated object itself.
   }  
 
-  ⍝ MergeOptions: 
+  ⍝ OMerge: 
   ⍝    ∘ Load old Markdown options (in JSON format);
   ⍝    ∘ Merge any new options passed from APL, replacing 0 and 1 with (⊂'false') and (⊂'true'); 
   ⍝    ∘ Separate off the pseudo-option `size: [n1 n2]` and returning separately as (n1 n2);
@@ -98,25 +101,25 @@
     ⍝ jsonOut:
     ⍝   The 2nd element returned; a char. string representing the udpated
     ⍝   JSON5 key-value pairs.
-  MergeOptions← { 
-    Merge1←{
+  OMerge← { 
+    JMerge←{
       T F← ⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
       Json← ⎕JSON⍠'Dialect' 'JSON5'
       JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
-      Opts← {,∘⊂⍣(2≥|≡⍵)⊢⍵}
-      MergeNew← {⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨ ⊂⍵}
-      ExtractSize← 'ns.size'∘{0≠⎕NC ⍺:(⎕EX ⍺)⊢⎕OR ⍺ ⋄ ⍵}
-    ⍝ ...
-      ⍺← '{}' ⋄ sizeDef← ⍺⍺
-      0=≢⍵: sizeDef,⍥⊂ ⍺
-      ns← JImport ⍺ ⋄ _← (ns MergeNew)/¨ Opts ⍵
-      j← Json ns 
-      j,⍨⍥⊂ ExtractSize sizeDef
+      Canon← { ,∘⊂⍣(2≥|≡⍵)⊢ ⍵ }
+      J2A← { ⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨ ⊂⍵ }
+      GetSize← 'ns.size'∘{ 0≠ ⎕NC ⍺: (⎕EX ⍺)⊢ ⎕OR ⍺ ⋄ ⍵ }
+      ⍺← '{}' ⋄ j sizeDef← ⍺ ⍺⍺
+      0=≢⍵: sizeDef,⍥⊂ j
+      ns← JImport j ⋄ _← (ns J2A)/¨ Canon ⍵
+      (Json ns),⍨⍥⊂ GetSize sizeDef
     }
-    sD← sizeDef 
-    oldOpts← '{', CR, (Flat 'J' Here ⍵), CR, '}'  
-    size jNew← oldOpts(sD Merge1) ⍺                                 ⍝ H1: Default JSON
-    size,⍥⊂ '___OPTS___' ⎕R jNew _RSimple _ROnce⊢ 'HJ?' Here ⍵     ⍝ HJ: Stub for JSON
+    optsApl← ⍺ 
+    jStub← '___OPTS___'
+    jOld← '{', CR, (Flat 'J' Here ⍵), CR, '}'                 ⍝ J: Default JSON
+    size jNow← jOld (sizeDef JMerge) optsApl  
+    JUpdate← jStub ⎕R jNow _RSimple _ROnce 'H'∘Here                        
+    size,⍥⊂ JUpdate ⍵                                         ⍝ H: Includes stub for JSON
   } 
 
 ⍝ -------------------------------------------------------------------------------------------
@@ -201,7 +204,7 @@
 ⍝H   <div id="html-content"></div>
 ⍝H   <script>
 ⍝H     var markdownText = document.getElementById('markdown-content').textContent;
-⍝HJ    var opts= ___OPTS___;    // Stub for JSON options
+⍝H     var opts = ___OPTS___;    // Stub for JSON options
 ⍝H     const converter = new showdown.Converter(opts);
 ⍝H     const html = converter.makeHtml(markdownText);
 ⍝H     document.getElementById('html-content').innerHTML = html;
