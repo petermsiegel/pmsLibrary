@@ -3,123 +3,119 @@
 ⍝⍝⍝⍝ Usage:
 ⍝⍝⍝⍝   [html←]  [size] Markdown.Show markdown
 ⍝⍝⍝⍝ where ¨markdown¨ is a vector of character vectors containing standard "Showdown-style" Markdown.
-⍝⍝⍝⍝ and ¨size¨ is an optional size in pixels of the resulting page (default: 800 1000).
+⍝⍝⍝⍝ and ¨size¨ is an optional size in pixels of the resulting page.
+⍝⍝⍝⍝ Default: ('size' (800 1000)); this spec is passed to HTMLRenderer as ('Size' 800 1000).
 ⍝⍝⍝⍝ ¨Show¨ returns the resulting HTML as a vector of character vectors.
 ⍝⍝⍝⍝ 
 ⍝⍝⍝⍝ There are a couple of useful utilities, such as ¨Here¨ and ¨Flat¨.
 ⍝⍝⍝⍝ ¨Here¨ makes it easy to take comments in APL functions and return them as Markdown or HTML code.
-⍝⍝⍝⍝ ¨Flat¨ convers a vector of character vectors to a flat char vector with carriage returns. 
+⍝⍝⍝⍝ ¨Flat¨ converts a vector of character vectors to a flat char vector with carriage returns. 
 ⍝⍝⍝⍝
 ⍝⍝⍝⍝   Markdown.example
 ⍝⍝⍝⍝ contains a nice example. To see the result, do:
 ⍝⍝⍝⍝   x← Markdown.(Show example)
 ⍝⍝⍝⍝ Deleting ¨x¨ (or resetting its value) will remove the displayed markdown html.
 ⍝⍝⍝⍝ 
+  ⍝ Show:     hNs@CVV← size@IV=(800 1000) ∇ markdown@CVV
+  ⍝ markdown: APL char vectors (CVV)  
+  ⍝ size:     Html window size (default: 800 1000)  
+  ⍝ hNs:      Dyalog Render object (⎕WC namespace)
+  ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
+  ⍝           hNs.MD contains the source markdown used to generate it.
+  ⍝ Once the result returned disappears, the generated HTML object disappears also.
+  ⍝ Do:              h← size Markdown.Show ... 
+  ⍝ Then to delete:  ⎕EX 'h' OR h←''
+  Show←{
+    ⍺← '' 
+    markdown← ⍵ 
+    s hj← ⍺ ImportOpts ⎕SRC ⎕THIS 
+    html← hj InsertMD Flat markdown                 ⍝ Insert the markdown text into the HTML/JS code   
+    r← s HtmlRender html                            ⍝ Render and return the HTML object
+    r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
+  }
   ⍝ Here: CVV← token@CV ∇ CVV                    
   ⍝   Find payload in char vectors (CV) matching ('^\h*⍝',token) in a vector of CV's. 
   ⍝     - If the token is XX, we match /^\h*⍝XX/ followed by /\h|$/. 
   ⍝       I.e., it will match XX, but not X, XY, XXX, etc.
   ⍝     - If the "token" is XX? or X{1,2}, we will match X, XX, but not XY or XXX.
   ⍝   What follows /.*$/ is the payload. 
-Show←{
-⍝ hNs@CVV← size@IV=(800 1000) ∇ markdown@CVV
-⍝ markdown: APL char vectors (CVV)  
-⍝ size:     Html window size (default: 800 1000)  
-⍝ hNs:      Dyalog Render object (⎕WC namespace)
-⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
-⍝           hNs.MD contains the source markdown used to generate it.
-⍝ Once the result returned disappears, the generated HTML object disappears also.
-⍝ Do:              h← size Markdown.Show ... 
-⍝ Then to delete:  ⎕EX 'h' OR h←''
-  ⍺← '' 
-  markdown← ⍵ 
-  s hj← ⍺ Opts.Import ⎕SRC ⎕THIS 
-  html← markdown MD hj                            ⍝ Insert the markdown text into the HTML/JS code   
-  r← s Html.Render html                           ⍝ Render and return the HTML object
-  r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
-  }
   Here← { 
     re←'^\h*⍝', ⍺, '(?:\h|$)(.*)'                        
     re ⎕S '\1'⊣ ⍵ 
   }
+  ⍝ defaults: d← ∇
+  ⍝   Show the default options, including 'size' of the HTMLRenderer page, in JSON format!
   ∇ d← defaults  ; n; siz 
-  ⍝ Show the default options, including 'Size', in JSON format!
-    siz← '   Size: [',(1↓∊','∘,∘⍕¨sizeDef),'],'
-  ⍝ Get ⍝J lines 
-    d← '{', CR, '}',⍨ siz, CR, '^\s+' ⎕R '   '_RSmpl⊢ 'J' Here ⎕SRC ⎕THIS 
+    size← '   size: [',(1↓∊','∘,∘⍕¨sizeDef),'],'
+    d← '{', CR, '}',⍨ size, CR, '^\s+' ⎕R '   '_RSimple⊢ 'J' Here ⎕SRC ⎕THIS 
   ∇
-  ⍝ MD:   CVV← CVV ∇ CVV                             
+  ⍝ InsertMD:   CVV← CVV ∇ CVV                             
   ⍝   Insert ⍺:markdown into ⍵:html at ___MYTEXT___
-  ⍝   Double any escape chars so they work in the replacement field.
-  MD← { 
-      NoEsc← '\\' ⎕R '\\\\'_RSmpl     
-      from to← '^\h*___MYTEXT___.*$' (NoEsc ⍺)
-      from  ⎕R to _ROnce⊣ ⍵ 
+  ⍝   Don't process escape chars in the replacement field...
+  InsertMD← {      
+      '^\h*___MYTEXT___.*$'  ⎕R ⍵ _RSimple⍠('ML' 1)('Regex' (1 0))⊣ ⍺ 
   }
   ⍝ Flat:  CcrV← ∇ CVV                               
   ⍝   Convert vector of char vectors into a CV with carriage returns.
   Flat← {¯1↓ ∊⍵,¨ CR}⊆
-  _RSmpl← ⍠('ResultText' 'Simple')('EOL' 'CR')
-  _ROnce← ⍠('ML' 1)('ResultText' 'Simple') ('EOL' 'CR')
+  _RSimple← ⍠('ResultText' 'Simple')('EOL' 'CR')
 
   CR← ⎕UCS 13 
   sizeDef← 800 1000
   example← 'M' Here ⎕SRC ⎕THIS                       ⍝ a markdown example.  
   
-:Namespace Html 
-  ⍝ Html.Render: Ø← size@I[2] ∇ html@CVV
+  ⍝ HtmlRender: Ø← size@I[2] ∇ html@CVV
   ⍝   Returns an html renderer object generated by ⎕WC.
-  Render← {  
-    parms← ('HTML',⍥⊂ ##.Flat ⍵) (⍺,⍨ ⊂'Size') ('Coord' 'ScaledPixel') 
+  HtmlRender← {  
+    parms← ('HTML',⍥⊂ ⍵) (⍺,⍨ ⊂'Size') ('Coord' 'ScaledPixel') 
     ns← #.⎕NS⍬                                    ⍝ Private ns for generated obj 
     _← 'ns.Render' ⎕WC 'HTMLRenderer',⍥⊆ parms  ⍝ Generate the renderer as ns.o. 
     ns.Render                                   ⍝ Return the generated object itself.
+  }  
+
+  ⍝ ImportOpts: Import any new options into the old JSON options and replace the ___OPTS___
+  ⍝         stub with the up-to-date JSON options, after separating off
+  ⍝         ¨size¨ to be passed on as the HTMLRenderer 'Size' option.
+    ⍝ Merge: Merge new APL-specified options into existing Json options
+    ⍝         Separate out 'Size', which is an HTMLRenderer Option.
+    ⍝ (size jsonOut)← [jsonIn←''] (sizeDef ∇) opt1 [opt2 ...]
+    ⍝ jsonIn:
+    ⍝   a JSON5 list of key-value pairs or null.
+    ⍝ sizeDef:
+    ⍝   the default size variable for use in an HTMLRenderer call.
+    ⍝   The size has two elements: height and width.
+    ⍝   It will be the value of ¨size¨ returned, unless an option overrides it.
+    ⍝ optN:
+    ⍝   an APL-style key-value pair of the form ('Name' value).
+    ⍝   A value of 1 or 0 will be replaced by ⊂'true' or ⊂'false', respectively.
+    ⍝   Special case: a key of 'size' will have its value replace the default size.
+    ⍝       The size value must be of the scalar form (height width):
+    ⍝       ('size' (1000 600))
+    ⍝   It will be the value returned as ¨size¨ above.
+    ⍝ jsonOut:
+    ⍝   The 2nd element returned; a char. string representing the udpated
+    ⍝   JSON5 key-value pairs.
+  ImportOpts← { 
+    Merge←{
+      T F←⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
+      JDefs←{0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
+      Json←⎕JSON⍠'Dialect' 'JSON5'
+      Opts←{,∘⊂⍣(2≥|≡⍵)⊢⍵}
+      MergeNs←{⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨⊂⍵}
+      GetSize←'ns.size'∘{0≠⎕NC ⍺:(⎕EX ⍺)⊢⎕OR ⍺ ⋄ ⍵}
+    ⍝ ...
+      ⍺←'{}' ⋄ sizeDef←⍺⍺
+      0=≢⍵: sizeDef,⍥⊂⍺
+      ns← JDefs ⍺
+      _← (ns MergeNs)/¨ Opts ⍵
+      (Json ns),⍨⍥⊂ GetSize sizeDef
+    }
+    sD← sizeDef 
+    bef aft← ('{', CR) (CR, '}')  
+    oldOpts← bef, aft,⍨ Flat 'J' Here ⍵ 
+    size jNew← oldOpts(sD Merge) ⍺                                   ⍝ H1: Default JSON
+    size,⍥⊂ '___OPTS___.*$' ⎕R jNew _RSimple  ⊢ 'HJ?' Here ⍵   ⍝ HJ: Stub for JSON
   } 
-:EndNamespace  
-:Namespace Opts 
-   MergeJOpts←{
-   ⍝ MergeJOpts: Merge new APL-specified options into existing Json options
-   ⍝             Separate out 'Size', which is an HTMLRenderer Option.
-   ⍝ (size jsonOut)← [jsonIn←''] (sizeDef ∇) opt1 [opt2 ...]
-   ⍝ jsonIn:
-   ⍝   a JSON5 list of key-value pairs or null.
-   ⍝ sizeDef:
-   ⍝   the default size variable for use in an HTMLRenderer call.
-   ⍝   The size has two elements: height and width.
-   ⍝   It will be the value of ¨size¨ returned, unless an option overrides it.
-   ⍝ optN:
-   ⍝   an APL-style key-value pair of the form ('Name' value).
-   ⍝   A value of 1 or 0 will be replaced by ⊂'true' or ⊂'false', respectively.
-   ⍝   Special case: a key of 'size' will have its value replace the default size.
-   ⍝       The size value must be of the scalar form (height width):
-   ⍝       ('size' (1000 600))
-   ⍝   It will be the value returned as ¨size¨ above.
-   ⍝ jsonOut:
-   ⍝   The 2nd element returned; a char. string representing the udpated
-   ⍝   JSON5 key-value pairs.
-     T F←⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
-     JDefs←{0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
-     Json←⎕JSON⍠'Dialect' 'JSON5'
-     Opts←{,∘⊂⍣(2≥|≡⍵)⊢⍵}
-     MergeNs←{⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨⊂⍵}
-     GetSize←'ns.size'∘{0≠⎕NC ⍺:(⎕EX ⍺)⊢⎕OR ⍺ ⋄ ⍵}
-
-     ⍺←'{}' ⋄ sizeDef←⍺⍺
-     0=≢⍵:sizeDef,⍥⊂⍺
-     ns← JDefs ⍺
-     _← (ns MergeNs)/¨Opts ⍵
-     (Json ns),⍨⍥⊂ GetSize sizeDef
- }
-
- Import← { 
-    sD← ##.sizeDef⋄ F← ##.Flat  ⋄ H← ##.Here ⋄ CR← ##.CR 
-    bef aft← ('{', CR) (CR, '}')
-    oldOpts← bef, aft,⍨ F 'J' H ⍵ 
-    size jNew← oldOpts(sD MergeJOpts) ⍺         ⍝ H1: Default JSON
-    hj← F '___OPTS___\h*;' ⎕R jNew ##._RSmpl ⊢ 'HJ?' H ⍵        ⍝ HJ: Stub for JSON
-    size hj 
-} 
-:EndNamespace  
 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  example: Markdown example source 
@@ -210,6 +206,8 @@ Show←{
 ⍝H   </script>
 ⍝H </body>
 ⍝H </html>
+
+⍝ -------------------------------------------------------------------------------------------
 ⍝  JSON Option Defaults. Used in place of ___OPTS___ above 
 ⍝     var opts = {
 ⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
