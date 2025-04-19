@@ -20,10 +20,10 @@
 ⍝⍝⍝⍝   x← Markdown.(Show example)
 ⍝⍝⍝⍝ Deleting ¨x¨ (or resetting its value) will remove the displayed markdown html.
 ⍝⍝⍝⍝ 
-  ⍝ Show:     hNs@CVV← newOpts ∇ markdown@CVV
+  ⍝ Show:     hNs@ns← newOpts ∇ markdown@CVV
   ⍝ markdown: APL char vectors (CVV)  
   ⍝ newOpts:  New options for size and JSON option variables. Of the form
-  ⍝          ('emoji' 0), ('tables' 1), ('size' (500 400)), 1 for ⊂'true',  0 for ⊂'false'.
+  ⍝          ('emoji' 0), ('tables' 1), ('size' (500 400)), 1 for Json true and 0 for false.
   ⍝ hNs:      Dyalog Render object (⎕WC namespace)
   ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
   ⍝           hNs.MD contains the source markdown used to generate it.
@@ -31,11 +31,12 @@
   ⍝ Do:              h← size Markdown.Show ... 
   ⍝ Then to delete:  ⎕EX 'h' OR h←''
   Show←{
-    ⍺← '' ⋄ md← Flat ⍵ 
-    s hj← ⍺ OMerge ⎕SRC ⎕THIS 
-    html← hj InsertMD md                            ⍝ Insert the markdown text into the HTML/JS code   
-    r← s HtmlRender html                            ⍝ Render and return the HTML object
-    r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
+    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
+      ⍺← '' ⋄ o← ⍺ ⋄ md← Flat ⍵ 
+      s hj← o OMerge ⎕SRC ⎕THIS 
+      html← hj InsertMD md                            ⍝ Insert the markdown text into the HTML/JS code   
+      r← s HtmlRender html                            ⍝ Render and return the HTML object
+      r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
   }
   ⍝ Here: CVV← token@CV ∇ CVV                    
   ⍝   Find payload in char vectors (CV) following ('^\h*⍝',token,'\h|$') in a vector of CV's. 
@@ -116,14 +117,20 @@
     ⍝   JSON5 key-value pairs.
   OMerge← { 
     JMerge←{
-      T F← ⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
-      Json← ⎕JSON⍠'Dialect' 'JSON5'
-      JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
-      Canon← { ,∘⊂⍣(2≥|≡⍵)⊢ ⍵ }
-      J2A← { ⍺ ⍺⍺.{⍎⍺,'←⍵'}⊃T F ⍵/⍨1,⍨1 0≡¨ ⊂⍵ }
-      GetHOpt← { 0≠ ⎕NC 'ns.',⍺: (⎕EX 'ns.',⍺)⊢ ⎕OR 'ns.',⍺ ⋄ ⍵ }
+        T F← ⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
+        Json← ⎕JSON⍠'Dialect' 'JSON5'
+        JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
+        Canon← { ,∘⊂⍣(2≥|≡⍵)⊢ ⍵ }
+        J2A← { 
+          ⍺ ⍺⍺.{
+            2=≢⍵:⍎⍺,'←⍵'
+            em← 'Options must consist of exactly two items: a key and a (scalar) value'
+            em ⎕SIGNAL 11
+          }⊃T F ⍵/⍨1,⍨1 0≡¨ ⊂⍵ 
+        }
+        GetHOpt← 'ns.' { 0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ ⎕OR ⍺⍺,⍺ ⋄ ⍵ }
       ⍺← '{}' ⋄ j (s p)← ⍺ ⍺⍺
-      0=≢⍵:  j,⍨⍥⊂ s p 
+    0=≢⍵:  j,⍨⍥⊂ s p 
       ns← JImport j ⋄ _← (ns J2A)/¨ Canon ⍵
       (Json ns),⍨⍥⊂ ('size' GetHOpt s) ('posn' GetHOpt p)
     }
