@@ -1,102 +1,5 @@
 :Namespace Markdown
-⍝D ## Markdown Utility (namespace)
-⍝D 
-⍝D - Use Markdown in an HTMLRenderer session in Dyalog
-⍝D - Based on the *Showdown* dialect of *Markdown*
-⍝D 
-⍝D | Routine | Usage | &nbsp;&nbsp; | Type ||
-⍝D |: ---- |: --- | --- :|: --- :|: --- |
-⍝D | Show | Primary Display Function | Ns← [opts] | ∇ | CVV |
-⍝D | example | A bells-and-whistles example |CVV←| ∇ ||
-⍝D | help | This help information || ∇ ||
-⍝D | defaults | Show Markdown & HTMLRenderer defaults used |CV←|∇||
-⍝D | Here | Pull Markdown from APL comments in fn or class | CVV← pfx |∇ | ⎕SRC ⎕THIS |
-⍝D |      |                                                | CVV← pfx |∇ | ⎕NR ⊂⎕XSI |
-⍝D | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← | ∇ | CVV |
-⍝D 
-⍝D 
-⍝D ### Usage:
-⍝D 
-⍝D [**html**←]  [**options**] Markdown.Show **markdown** 
-⍝D 
-⍝D where **markdown** is 
-⍝D 
-⍝D     a vector of character vectors containing standard "Showdown-style" Markdown
-⍝D 
-⍝D and **options** are
-⍝D 
-⍝D     APL Variant (⍠) style specifications of HTMLRenderer or Markdown JSON5 options:      
-⍝D                                
-⍝D ### Options sent to HTMLRenderer
-⍝D | Show option | What HTMLRenderer sees | 
-⍝D |: ---- |: ----- | 
-⍝D |   ('size' (800 1000))              | ('Size' 800 1000) |         
-⍝D |   ('posn' (5 5))                   | ('Posn' 5 5) |  
-⍝D 
-⍝D ### Options converted to Json and sent to Javascript Markdown Showdown translator 
-⍝D | Show option | What Markdown sees | 
-⍝D |: ---- |: ----- |          
-⍝D |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  |            
-⍝D |   ('tables' 1)                     | tables: true,      |                   
-⍝D |   ('strikethrough' 1)              |  strikethrough: true,   |               
-⍝D |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |      
-⍝D |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |          
-⍝D |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |                
-⍝D |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |      
-⍝D |   ('emoji' 1)                      |  emoji: true,           |               
-⍝D |   ('tasklists' 1)                  |  tasklists: true,       |               
-⍝D |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
-⍝D |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
-⍝D   
-⍝D  Note [1]: See **Showdown** documention, especially for the Github options.  
-⍝D  Note [2]: Call **Markdown.defaults** for the list of option variables (shown in Javascript format).
-⍝D 
-⍝D ### Markdown.Show
-⍝D Show returns the resulting HTML as a vector of character vectors.
-⍝D 
-⍝D      To see the returned HTML, store the result of ¨Show¨ in a variable:
-⍝D
-⍝D         html← Markdown.Show example
-⍝D 
-⍝D      To remove the returned HTML permanently, delete or reset the variable:
-⍝D
-⍝D         ⎕EX 'html'    OR     html←''
-⍝D 
-⍝D      To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
-⍝D
-⍝D         html.visible←0     ⍝ To redisplay, html.visible←1
-⍝D 
-⍝D      See HTMLRenderer for other APL-side variables.
-⍝D  
-⍝D ### Markdown Utilities and Examples
-⍝D #### Markdown.defaults 
-⍝D     returns all the HTML-directed and Markdown Showdown-dialect Json variables.
-⍝D 
-⍝D #### Markdown.Here
-⍝D     makes it easy to take comments in APL functions and return them as Markdown or HTML code.
-⍝D 
-⍝D        vv← 'pfx' Markdown.Here ⊃⎕XSI     ⍝ Find '⍝pfx' lines in the current function.
-⍝D 
-⍝D #### Markdown.Flat 
-⍝D     converts a vector of character vectors to a flat char vector with carriage returns. 
-⍝D 
-⍝D #### Markdown.example 
-⍝D     contains a nice example. 
-⍝D 
-⍝D To see the example source, do:
-⍝D 
-⍝D      a←Markdown.example
-⍝D      )ed a
-⍝D 
-⍝D To see the result, do: 
-⍝D  
-⍝D        x← Markdown.(Show example)
-⍝D 
-⍝D #### Markdown.help
-⍝D     shows help information for Markdown.
-⍝D 
-⍝D        Markdown.help 
-⍝D  
+
 ⍝
 ⍝ -------------------------------------------------------------------------------------------
 ⍝ Main routines
@@ -138,16 +41,16 @@
   ∇ d← defaults  ;s; p; defs
     s←    '   size: [', ']',⍨ 1↓∊',',¨⍕¨sizeDef 
     p←    '   posn: [', ']',⍨ 1↓∊',',¨⍕¨posnDef 
-    defs← '^\s+' ⎕R '   ' RE._Simple⊢ 'J' Here ⎕SRC ⎕THIS 
+    defs← '^\s+' ⎕R '   ' RE._Simple⊢ 'JO' Here ⎕SRC ⎕THIS 
     d← '{', CR, s, CR, p, CR, defs, '}'  
   ∇
   ⍝ example: e← ∇
   ⍝   A markdown example.  
   ∇ e← example                                         
-    e← { 0=≢⍵: exampleT⊢← 'M' Here ⎕SRC ⎕THIS ⋄ ⍵ } exampleT 
+    e← { 0=≢⍵: exampleT⊢← 'EX' Here ⎕SRC ⎕THIS ⋄ ⍵ } exampleT 
   ∇
   ∇ wait← help  ;r
-    r← ('size' (900 900)) Show 'D' Here ⎕SRC ⎕THIS 
+    r← ('size' (900 900)) Show 'HLP' Here ⎕SRC ⎕THIS 
     wait←⍞⊢⍞←'> '
   ∇
 ⍝ -------------------------------------------------------------------------------------------
@@ -240,130 +143,239 @@
     }
     optsApl src← ⍺ ⍵ 
     jStub← '___OPTS___'
-    jOld← '{', CR, (Flat 'J' Here src), CR, '}'                 ⍝ J: Default JSON
+    jOld← '{', CR, (Flat 'JO' Here src), CR, '}'                 ⍝ J: Default JSON
     sp jNow← jOld (sizeDef posnDef JMerge) optsApl              ⍝ sp: size pair and posn pair
     JUpdate← jStub ⎕R jNow RE._Simple RE._Once                      
-    sp,⍥⊂ JUpdate 'H' Here src                                  ⍝ H: Includes stub for JSON
+    sp,⍥⊂ JUpdate 'HT' Here src                                  ⍝ H: Includes stub for JSON
   } 
 
+:Section Example 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  example: Markdown example source 
-⍝M # An example of *Markdown* in the ***Showdown*** dialect
-⍝M
-⍝M ## A Paragraph
-⍝M This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
-⍝M the expression :smile\:.  By ***default***, we have set **simpleLineBreaks: false**, so 
-⍝M a single paragraph can be generated from multiple contiguous lines.
-⍝M We have four such lines here making one paragraph. This face 😜 is represented _directly_ in APL. 
-⍝M
-⍝M **Note**:
-⍝M If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
-⍝M in the *APL* options.
-⍝M 
-⍝M 1. This is a bullet
-⍝M      * This is a *sub-*bullet.
-⍝M           * A sub***ber*** bullet.
-⍝M           * And another!
-⍝M 1. This is another top-level bullet. 
-⍝M 1. As is this.
-⍝M      We right now do NOT allow simplified autolinks to places like http://www.dyalog.com.
-⍝M
-⍝M     > A blockquote would look great here...
-⍝M
-⍝M 1. A final bullet?
-⍝M 
-⍝M ### Tonnage of [Columbus' Ships](http://columbuslandfall.com/ccnav/ships.shtml)\. 
-⍝M 
-⍝M   | Ship  | Niña    | Pinta | Santa Maria |
-⍝M   |: ---- |: ----- :|:-----:|:-----:|
-⍝M   | Type | caravel | caravel | carrack |
-⍝M   | Tonnage | 50-60 tons   | 70 tons  | 100 tons |
-⍝M   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
-⍝M   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
-⍝M
-⍝M **Note**: The above link to Columbus' Ships is an *explicit* link.
-⍝M
-⍝M ----
-⍝M 
-⍝M This is code: `⍳2` 
-⍝M 
-⍝M This is *also* code: <code>⍳3</code> 
-⍝M 
-⍝M And so is this:
-⍝M 
-⍝M      ⍝ Set off with 6 blanks
-⍝M        ∇ P← A IOTA B
-⍝M          P← A ⍳ B
-⍝M        ∇
-⍝M
-⍝M This should work. Does it? (**Yes**)
-⍝M ```
-⍝M +/⍺⍳⍵
-⍝M -\⍵⍳⍺
-⍝M ```
-⍝M
-⍝M ### What about tasks?
-⍝M + [x] This task is done
-⍝M - [ ] This is still pending
-⍝M + [x] We knocked this out of the park!
-⍝M 
-⍝M ### Goodbye:exclamation::exclamation::exclamation:
-⍝M 
+⍝EX # An example of *Markdown* in the ***Showdown*** dialect
+⍝EX
+⍝EX ## A Paragraph
+⍝EX This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
+⍝EX the expression :smile\:.  By ***default***, we have set **simpleLineBreaks: false**, so 
+⍝EX a single paragraph can be generated from multiple contiguous lines.
+⍝EX We have four such lines here making one paragraph. This face 😜 is represented _directly_ in APL. 
+⍝EX
+⍝EX **Note**:
+⍝EX If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
+⍝EX in the *APL* options.
+⍝EX 
+⍝EX 1. This is a bullet
+⍝EX      * This is a *sub-*bullet.
+⍝EX           * A sub***ber*** bullet.
+⍝EX           * And another!
+⍝EX 1. This is another top-level bullet. 
+⍝EX 1. As is this.
+⍝EX      We right now do NOT allow simplified autolinks to places like http://www.dyalog.com.
+⍝EX
+⍝EX     > A blockquote would look great here...
+⍝EX
+⍝EX 1. A final bullet?
+⍝EX 
+⍝EX ### Tonnage of [Columbus' Ships](http://columbuslandfall.com/ccnav/ships.shtml)\. 
+⍝EX 
+⍝EX   | Ship  | Niña    | Pinta | Santa Maria |
+⍝EX   |: ---- |: ----- :|:-----:|:-----:|
+⍝EX   | Type | caravel | caravel | carrack |
+⍝EX   | Tonnage | 50-60 tons   | 70 tons  | 100 tons |
+⍝EX   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
+⍝EX   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
+⍝EX
+⍝EX **Note**: The above link to Columbus' Ships is an *explicit* link.
+⍝EX
+⍝EX ----
+⍝EX 
+⍝EX This is code: `⍳2` 
+⍝EX 
+⍝EX This is *also* code: <code>⍳3</code> 
+⍝EX 
+⍝EX And so is this:
+⍝EX 
+⍝EX      ⍝ Set off with 6 blanks
+⍝EX        ∇ P← A IOTA B
+⍝EX          P← A ⍳ B
+⍝EX        ∇
+⍝EX
+⍝EX This should work. Does it? (**Yes**)
+⍝EX ```
+⍝EX +/⍺⍳⍵
+⍝EX -\⍵⍳⍺
+⍝EX ```
+⍝EX
+⍝EX ### What about tasks?
+⍝EX + [x] This task is done
+⍝EX - [ ] This is still pending
+⍝EX + [x] We knocked this out of the park!
+⍝EX 
+⍝EX ### Goodbye:exclamation::exclamation::exclamation:
+⍝EX 
+:EndSection 
 
+:Section HTML_Code 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  Markdown-to-Html code-- "showdown" javascript
-⍝H <!DOCTYPE html>
-⍝H <html>
-⍝H <head>
-⍝H   <title>Showdown Example</title>
-⍝H   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
-⍝H        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
-⍝H        crossorigin="anonymous" referrerpolicy="no-referrer">
-⍝H   </script>
-⍝H </head>
-⍝H <body>
-⍝H   <div id="markdown-content" style="display:none;">
-⍝H     ___MYTEXT___          // User Markdown will replace this entire line!
-⍝H   </div>
-⍝H   <div id="html-content"></div>
-⍝H   <script>
-⍝H     var markdownText = document.getElementById('markdown-content').textContent;
-⍝H     var opts = ___OPTS___;    // Stub for JSON options
-⍝H     const converter = new showdown.Converter(opts);
-⍝H     const html = converter.makeHtml(markdownText);
-⍝H     document.getElementById('html-content').innerHTML = html;
-⍝H   </script>
-⍝H </body>
-⍝H </html>
+⍝HT <!DOCTYPE html>
+⍝HT <html>
+⍝HT <head>
+⍝HT   <title>Showdown Example</title>
+⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
+⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
+⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
+⍝HT   </script>
+⍝HT </head>
+⍝HT <body>
+⍝HT   <div id="markdown-content" style="display:none;">
+⍝HT     ___MYTEXT___          // User Markdown will replace this entire line!
+⍝HT   </div>
+⍝HT   <div id="html-content"></div>
+⍝HT   <script>
+⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
+⍝HT     var opts = ___OPTS___;    // Stub for JSON options
+⍝HT     const converter = new showdown.Converter(opts);
+⍝HT     const html = converter.makeHtml(markdownText);
+⍝HT     document.getElementById('html-content').innerHTML = html;
+⍝HT   </script>
+⍝HT </body>
+⍝HT </html>
+:EndSection 
 
+:Section Options
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  JSON Option Defaults. Used in place of ___OPTS___ above 
 ⍝     var opts = {
 ⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
 ⍝        // Simple line break: If true, simple line break in paragraph emits <br>.
 ⍝        //                    If false (default), simple line break does not emit <br>.
-⍝J          simpleLineBreaks: false, 
+⍝JO          simpleLineBreaks: false, 
 ⍝        // Enable tables 
-⍝J          tables: true,
+⍝JO          tables: true,
 ⍝        // Enable strikethrough 
-⍝J          strikethrough: true,
+⍝JO          strikethrough: true,
 ⍝        // Omit extra line break in code blocks
-⍝J          omitExtraWLInCodeBlocks: true,
+⍝JO          omitExtraWLInCodeBlocks: true,
 ⍝        // Enable GitHub-compatible header IDs
-⍝J          ghCompatibleHeaderId: true,
+⍝JO          ghCompatibleHeaderId: true,
 ⍝        // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-⍝J          ghCodeBlocks: true,
+⍝JO          ghCodeBlocks: true,
 ⍝        // Prefix header IDs with "custom-id-"
-⍝J          prefixHeaderId: 'custom-id-',
+⍝JO          prefixHeaderId: 'custom-id-',
 ⍝        // Enable emoji support 
-⍝J          emoji: true,
+⍝JO          emoji: true,
 ⍝        // Enable task lists 
-⍝J          tasklists: true,
+⍝JO          tasklists: true,
 ⍝        // Disable automatic wrapping of HTML blocks
-⍝J          noHTMLBlocks: false,
+⍝JO          noHTMLBlocks: false,
 ⍝        // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
 ⍝        // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
 ⍝        // to return (except by recreating the page).
-⍝J          simplifiedAutoLink: false,           
+⍝JO          simplifiedAutoLink: false,           
 ⍝    }
+:EndSection 
+
+:Section Help 
+⍝HLP ## Markdown Utility (namespace)
+⍝HLP 
+⍝HLP - Use Markdown in an HTMLRenderer session in Dyalog
+⍝HLP - Based on the *Showdown* dialect of *Markdown*
+⍝HLP 
+⍝HLP | Routine | Usage | &nbsp;&nbsp; | Type ||
+⍝HLP |: ---- |: --- | --- :|: --- :|: --- |
+⍝HLP | Show | Process and Display Markdown text | Ns← [opts] | ∇ | CVV |
+⍝HLP |      | via the HTMLRenderer              |   |  |  |
+⍝HLP | example | A bells-and-whistles Markdown example |CVV←| ∇ ||
+⍝HLP | help | Display (this) help information || ∇ ||
+⍝HLP | defaults | Show Markdown & HTMLRenderer defaults used |CV←|∇||
+⍝HLP | Here | Pull Markdown from APL comments in current class  | CVV← pfx |∇ | ⎕SRC ⎕THIS |
+⍝HLP |      | Pull Markdown from APL comments in current function      | CVV← pfx |∇ | ⎕NR ⊂⎕XSI |
+⍝HLP | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← | ∇ | CVV |
+⍝HLP 
+⍝HLP 
+⍝HLP ### Usage:
+⍝HLP 
+⍝HLP [**html**←]  [**options**] Markdown.Show **markdown** 
+⍝HLP 
+⍝HLP where **markdown** is 
+⍝HLP 
+⍝HLP     a vector of character vectors containing standard "Showdown-style" Markdown
+⍝HLP 
+⍝HLP and **options** are
+⍝HLP 
+⍝HLP     APL Variant (⍠) style specifications of HTMLRenderer or Markdown JSON5 options:      
+⍝HLP                                
+⍝HLP ### Options sent to HTMLRenderer
+⍝HLP | Show option | What HTMLRenderer sees | 
+⍝HLP |: ---- |: ----- | 
+⍝HLP |   ('size' (800 1000))              | ('Size' 800 1000) |         
+⍝HLP |   ('posn' (5 5))                   | ('Posn' 5 5) |  
+⍝HLP 
+⍝HLP ### Options converted to Json and sent to Javascript Markdown Showdown translator 
+⍝HLP | Show option | What Markdown sees | 
+⍝HLP |: ---- |: ----- |          
+⍝HLP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  |            
+⍝HLP |   ('tables' 1)                     | tables: true,      |                   
+⍝HLP |   ('strikethrough' 1)              |  strikethrough: true,   |               
+⍝HLP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |      
+⍝HLP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |          
+⍝HLP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |                
+⍝HLP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |      
+⍝HLP |   ('emoji' 1)                      |  emoji: true,           |               
+⍝HLP |   ('tasklists' 1)                  |  tasklists: true,       |               
+⍝HLP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
+⍝HLP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
+⍝HLP   
+⍝HLP  Note [1]: See **Showdown** documention, especially for the Github options.  
+⍝HLP  Note [2]: Call **Markdown.defaults** for the list of option variables (shown in Javascript format).
+⍝HLP 
+⍝HLP ### Markdown.Show
+⍝HLP Show returns the resulting HTML as a vector of character vectors.
+⍝HLP 
+⍝HLP      To see the returned HTML, store the result of ¨Show¨ in a variable:
+⍝HLP
+⍝HLP         html← Markdown.Show example
+⍝HLP 
+⍝HLP      To remove the returned HTML permanently, delete or reset the variable:
+⍝HLP
+⍝HLP         ⎕EX 'html'    OR     html←''
+⍝HLP 
+⍝HLP      To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
+⍝HLP
+⍝HLP         html.visible←0     ⍝ To redisplay, html.visible←1
+⍝HLP 
+⍝HLP      See HTMLRenderer for other APL-side variables.
+⍝HLP  
+⍝HLP ### Markdown Utilities and Examples
+⍝HLP #### Markdown.defaults 
+⍝HLP     returns all the HTML-directed and Markdown Showdown-dialect Json variables.
+⍝HLP 
+⍝HLP #### Markdown.Here
+⍝HLP     makes it easy to take comments in APL functions and return them as Markdown or HTML code.
+⍝HLP 
+⍝HLP        vv← 'pfx' Markdown.Here ⊃⎕XSI     ⍝ Find '⍝pfx' lines in the current function.
+⍝HLP 
+⍝HLP #### Markdown.Flat 
+⍝HLP     converts a vector of character vectors to a flat char vector with carriage returns. 
+⍝HLP 
+⍝HLP #### Markdown.example 
+⍝HLP     contains a nice example. 
+⍝HLP 
+⍝HLP To see the example source, do:
+⍝HLP 
+⍝HLP      a←Markdown.example
+⍝HLP      )ed a
+⍝HLP 
+⍝HLP To see the result, do: 
+⍝HLP  
+⍝HLP        x← Markdown.(Show example)
+⍝HLP 
+⍝HLP #### Markdown.help
+⍝HLP     shows help information for Markdown.
+⍝HLP 
+⍝HLP        Markdown.help 
+⍝HLP  
+:EndSection 
+
 :EndNamespace 
