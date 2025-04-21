@@ -1,8 +1,8 @@
 :Namespace Markdown
-
+:Section Main_Routines 
 ⍝
 ⍝ -------------------------------------------------------------------------------------------
-⍝ Main routines
+⍝ Main routines and declarations
 ⍝ *** Show *** 
   ⍝ Show:     hNs@ns← newOpts ∇ markdown@CVV
   ⍝ markdown: APL char vectors (CVV)  
@@ -53,6 +53,7 @@
     r← ('size' (900 900)) Show 'HLP' Here ⎕SRC ⎕THIS 
     wait←⍞⊢⍞←'> '
   ∇
+
 ⍝ -------------------------------------------------------------------------------------------
 ⍝ Constants
   ⎕IO ⎕ML← 0 1 
@@ -61,7 +62,9 @@
 ⍝ Variables 
   sizeDef posnDef← (800 1000) (5 5)                  ⍝ size: height, width; posn: y, x 
   exampleT← ''                                       ⍝ See  ∇ example ∇  
+:EndSection
 
+:Section Internal_Utilities
 ⍝ -------------------------------------------------------------------------------------------
 ⍝ Internal Utilities
   ⍝ *** InsertMD ***
@@ -148,6 +151,7 @@
     JUpdate← jStub ⎕R jNow RE._Simple RE._Once                      
     sp,⍥⊂ JUpdate 'HT' Here src                                  ⍝ H: Includes stub for JSON
   } 
+:EndSection
 
 :Section Example 
 ⍝ -------------------------------------------------------------------------------------------
@@ -243,9 +247,9 @@
 ⍝HT </html>
 :EndSection 
 
-:Section Options
+:Section Json Options
 ⍝ -------------------------------------------------------------------------------------------
-⍝  JSON Option Defaults. Used in place of ___OPTS___ above 
+⍝  Json Option Defaults. Used in place of ___OPTS___ above 
 ⍝     var opts = {
 ⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
 ⍝        // Simple line break: If true, simple line break in paragraph emits <br>.
