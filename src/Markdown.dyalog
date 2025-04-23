@@ -1,5 +1,5 @@
 :Namespace Markdown
-:Section Main_Routines 
+:Section Main_Routines  
 ⍝
 ⍝ -------------------------------------------------------------------------------------------
 ⍝ Main routines and declarations
@@ -37,21 +37,22 @@
   ⍝ *** defaults ***
   ⍝ defaults: d← ∇
   ⍝   Show the default options in JSON format, including 
-  ⍝  'size' and 'posn'  used on the HTMLRenderer page.
-  ∇ d← defaults  ;s; p; defs
-    s←    '   size: [', ']',⍨ 1↓∊',',¨⍕¨sizeDef 
-    p←    '   posn: [', ']',⍨ 1↓∊',',¨⍕¨posnDef 
-    defs← '^\s+' ⎕R '   ' RE._Simple⊢ 'JO' Here ⎕SRC ⎕THIS 
-    d← '{', CR, s, CR, p, CR, defs, '}'  
+  ⍝  'size' and 'posn'  used in the HTMLRenderer call.
+  ∇ d← defaults  ;pfx; defs
+    pfx←  CR,     '     // HTMLRenderer opts in Json format'
+    pfx,← CR, CR,⍨'        size: [', '],',⍨ 1↓∊',',¨⍕¨sizeDef 
+    pfx,←     CR,⍨'        posn: [', '],',⍨ 1↓∊',',¨⍕¨posnDef 
+    defs← '^\s{4}' ⎕R '    ' RE._Simple⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
+    d← '{', pfx, defs, '}'  
   ∇
   ⍝ example: e← ∇
   ⍝   A markdown example.  
   ∇ e← example                                         
     e← { 0=≢⍵: exampleT⊢← 'EX' Here ⎕SRC ⎕THIS ⋄ ⍵ } exampleT 
   ∇
-  ∇ wait← help  ;r
-    r← ('size' (900 900)) Show 'HLP' Here ⎕SRC ⎕THIS 
-    wait←⍞⊢⍞←'> '
+  ∇ {html}← help  
+    html← ('size' (900 900))('posn' (10 10))('simpleLineBreaks' 1) Show 'HLP' Here ⎕SRC ⎕THIS 
+    ⍞←'> ' ⋄ {}⍞ 
   ∇
 
 ⍝ -------------------------------------------------------------------------------------------
@@ -99,16 +100,16 @@
 
   ⍝ *** MergeOpts ***
   ⍝ MergeOpts: 
-  ⍝    ∘ Load old Markdown options (in JSON format);
+  ⍝    ∘ Load old Markdown options (in Json format);
   ⍝    ∘ Merge any new options passed from APL, replacing 0 and 1 with (⊂'false') and (⊂'true'); 
   ⍝    ∘ Separate off the pseudo-option `size: [n1 n2]` and returning separately as (n1 n2);
-  ⍝    ∘ Replace the ___OPTS___ stub in the HTML code with the up-to-date JSON options.
+  ⍝    ∘ Replace the ___OPTS___ stub in the HTML code with the up-to-date Json options.
     ⍝ JMerge: 
     ⍝   ∘ Merge new APL-specified options into existing Json options
     ⍝   ∘ Returning the new or default size@IV[2]
     ⍝ ((sizeOut@I[2] posnOut@I[2]) jsonOut@CVV)← [jsonIn←''] (sizeDef@I[2] posnDef@I[2] ∇) opt1 [opt2 ...]
     ⍝ jsonIn:
-    ⍝   a JSON5 list of key-value pairs or null.
+    ⍝   a Json5 list of key-value pairs or null.
     ⍝ sizeDef, posnDef
     ⍝   the default size/posn variables for use in an HTMLRenderer call.
     ⍝   ∘ Each has 2 items: (integers: height, width) and posn (integers: y and x offsets)
@@ -126,23 +127,25 @@
     ⍝   The 2nd element returned; a char. string representing the udpated
     ⍝   JSON5 key-value pairs.
   MergeOpts← { 
-    JMerge←{
-        T F← ⊂∘⊂¨'true' 'false'   ⍝ JSON true (1) and false (0)
-        Json← ⎕JSON⍠'Dialect' 'JSON5'
-        JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json ⍵}
-        Canon← { ,∘⊂⍣(2≥|≡⍵)⊢ ⍵ }
-        J2A← { 
-          ⍺ ⍺⍺.{
-            2=≢⍵:⍎⍺,'←⍵'
-            em← 'Options must consist of exactly two items: a key and a (scalar) value'
-            em ⎕SIGNAL 11
-          }⊃T F ⍵/⍨1,⍨1 0≡¨ ⊂⍵ 
+    optE← 'Options must consist of exactly two items: a key and a (scalar) value' 11
+    JMerge←{   
+        Json5← ⎕JSON⍠'Dialect' 'JSON5'
+        JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json5 ⍵}    ⍝ ⍵ => Json5 namespace. If ⍵ empty, ns is empty.
+        Canon← { ,∘⊂⍣(2=|≡⍵)⊢ ⍵ }         ⍝ Convert abs. depth 2 to depth 3
+        B2TF← {                            ⍝ Convert bool to Json true false, leaving other values as is.
+          T F← ⊂∘⊂¨'true' 'false' 
+          ⊃T F ⍵/⍨ 1,⍨ 1 0≡¨ ⊂⍵ 
         }
-        GetHOpt← 'ns.' { 0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ ⎕OR ⍺⍺,⍺ ⋄ ⍵ }
-        ⍺← '{}' ⋄ j (s p)← ⍺ ⍺⍺
-      0=≢⍵:  j,⍨⍥⊂ s p 
-        ns← JImport j ⋄ _← (ns J2A)/¨ Canon ⍵
-        (Json ns),⍨⍥⊂ ('size' GetHOpt s) ('posn' GetHOpt p)
+        J2Ns← { ⍺ ⍺⍺.{ ⍎⍺,'←⍵' } ⍵ }      ⍝ Merge new (APL) options into defaults 
+        GetHtmlOpt← 'ns.' { 
+          0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ ⎕OR ⍺⍺,⍺ 
+          ⍵ 
+        }
+        ⍺← '{}' ⋄ j s_p← ⍺ ⍺⍺
+      0=≢⍵:  j,⍨⍥⊂ s_p 
+        0∊ 2= ≢¨c← Canon ⍵: ⎕SIGNAL/ optE 
+        ns← JImport j ⋄ _← (ns J2Ns∘B2TF)/¨ c
+        (Json5 ns),⍨⍥⊂ 'size' 'posn' GetHtmlOpt¨ s_p  
     }
     optsApl src← ⍺ ⍵ 
     jStub← '___OPTS___'
@@ -167,6 +170,22 @@
 ⍝EX **Note**:
 ⍝EX If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
 ⍝EX in the *APL* options.
+⍝EX 
+⍝EX #### These lines produce level 1 (#) and level 2 (##) headings:
+⍝EX 
+⍝EX      This is a level 1 heading!
+⍝EX      ==========================
+⍝EX 
+⍝EX      This is a level 2 heading.
+⍝EX      --------------------------
+⍝EX 
+⍝EX #### Below are the level 1 and level 2 headings produced from the source above!
+⍝EX 
+⍝EX This is a level 1 heading!
+⍝EX ==========================
+⍝EX 
+⍝EX This is a level 2 heading.
+⍝EX --------------------------
 ⍝EX 
 ⍝EX 1. This is a bullet
 ⍝EX      * This is a *sub-*bullet.
@@ -233,12 +252,12 @@
 ⍝HT </head>
 ⍝HT <body>
 ⍝HT   <div id="markdown-content" style="display:none;">
-⍝HT     ___MYTEXT___          // User Markdown will replace this entire line!
+⍝HT     ___MYTEXT___             // User Markdown will go here...
 ⍝HT   </div>
 ⍝HT   <div id="html-content"></div>
 ⍝HT   <script>
 ⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
-⍝HT     var opts = ___OPTS___;    // Stub for JSON options
+⍝HT     var opts = ___OPTS___;    // Json Markdown options go here...
 ⍝HT     const converter = new showdown.Converter(opts);
 ⍝HT     const html = converter.makeHtml(markdownText);
 ⍝HT     document.getElementById('html-content').innerHTML = html;
@@ -249,58 +268,68 @@
 
 :Section Json Options
 ⍝ -------------------------------------------------------------------------------------------
-⍝  Json Option Defaults. Used in place of ___OPTS___ above 
+⍝  Json Markdown Option Defaults. Used in place of ___OPTS___ above 
 ⍝     var opts = {
-⍝        // For all options except ghCodeBlocks, the DEFAULT value is false
-⍝        // Simple line break: If true, simple line break in paragraph emits <br>.
-⍝        //                    If false (default), simple line break does not emit <br>.
-⍝JO          simpleLineBreaks: false, 
-⍝        // Enable tables 
-⍝JO          tables: true,
-⍝        // Enable strikethrough 
-⍝JO          strikethrough: true,
-⍝        // Omit extra line break in code blocks
-⍝JO          omitExtraWLInCodeBlocks: true,
-⍝        // Enable GitHub-compatible header IDs
-⍝JO          ghCompatibleHeaderId: true,
-⍝        // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-⍝JO          ghCodeBlocks: true,
-⍝        // Prefix header IDs with "custom-id-"
-⍝JO          prefixHeaderId: 'custom-id-',
-⍝        // Enable emoji support 
-⍝JO          emoji: true,
-⍝        // Enable task lists 
-⍝JO          tasklists: true,
-⍝        // Disable automatic wrapping of HTML blocks
-⍝JO          noHTMLBlocks: false,
-⍝        // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-⍝        // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-⍝        // to return (except by recreating the page).
-⍝JO          simplifiedAutoLink: false,           
+⍝JC      // Json Markdown options (Showdown dialect)
+⍝JC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
+⍝JC      //   the "built-in" default value is (false), potentially overridden here!
+⍝JC      // -------------------------------------------------------------------------------
+⍝JC      // Simple line break: If true, simple line break in paragraph emits <br>.
+⍝JC      //                    If false (default), simple line break does not emit <br>.
+⍝JO         simpleLineBreaks: false, 
+⍝JC      // Enable tables 
+⍝JO         tables: true,
+⍝JC      // Enable strikethrough 
+⍝JO         strikethrough: true,
+⍝JC      // Omit extra line break in code blocks
+⍝JO         omitExtraWLInCodeBlocks: true,
+⍝JC      // Enable GitHub-compatible header IDs
+⍝JO         ghCompatibleHeaderId: true,
+⍝JC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+⍝JO         ghCodeBlocks: true,
+⍝JC      // Prefix header IDs with "custom-id-"
+⍝JO         prefixHeaderId: 'custom-id-',
+⍝JC      // Enable emoji support 
+⍝JO         emoji: true,
+⍝JC      // Enable task lists 
+⍝JO         tasklists: true,
+⍝JC      // Disable automatic wrapping of HTML blocks
+⍝JO         noHTMLBlocks: false,
+⍝JC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+⍝JC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+⍝JC      // to return (except by recreating the page).
+⍝JO         simplifiedAutoLink: false,         
+⍝JC      // Enable support for setting image dimensions in Markdown,  
+⍝JC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
+⍝JO         parseImgDimensions: false,  
 ⍝    }
 :EndSection 
 
 :Section Help 
 ⍝HLP ## Markdown Utility (namespace)
 ⍝HLP 
-⍝HLP - Use Markdown in an HTMLRenderer session in Dyalog
-⍝HLP - Based on the *Showdown* dialect of *Markdown*
+⍝HLP | | |
+⍝HLP |: --- :|: --- |
+⍝HLP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
+⍝HLP | :arrow_forward: |Based on the **Showdown** dialect of *Markdown*|
+⍝HLP |   | See: https://showdownjs.com/ |
 ⍝HLP 
-⍝HLP | Routine | Usage | &nbsp;&nbsp; | Type ||
-⍝HLP |: ---- |: --- | --- :|: --- :|: --- |
-⍝HLP | Show | Process and Display Markdown text | Ns← [opts] | ∇ | CVV |
-⍝HLP |      | via the HTMLRenderer              |   |  |  |
-⍝HLP | example | A bells-and-whistles Markdown example |CVV←| ∇ ||
-⍝HLP | help | Display (this) help information || ∇ ||
-⍝HLP | defaults | Show Markdown & HTMLRenderer defaults used |CV←|∇||
-⍝HLP | Here | Pull Markdown from APL comments in current class  | CVV← pfx |∇ | ⎕SRC ⎕THIS |
-⍝HLP |      | Pull Markdown from APL comments in current function      | CVV← pfx |∇ | ⎕NR ⊂⎕XSI |
-⍝HLP | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← | ∇ | CVV |
+⍝HLP ## Key Routines
+⍝HLP 
+⍝HLP | Routine | Usage |  | Call | Syntax ||
+⍝HLP |: ---- |: ---                                                   | ---:|: ---  :| -- | : --- |
+⍝HLP | Show | Process and Display Markdown text via the HTMLRenderer  | HtmlNs← | [opts] | ∇  | CVV   |
+⍝HLP | example | A bells-and-whistles Markdown example |CVV←|| ∇ ||
+⍝HLP | help | Display (this) help information ||| ∇ ||
+⍝HLP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
+⍝HLP | Here | Pull Markdown from APL comments '⍝tok' in current class  | CVV← |'tok' |∇ | ⎕SRC ⎕THIS |
+⍝HLP |      | Pull Markdown from APL comments '⍝tok' in current function      | CVV← |'tok' |∇ | ⎕NR ⊂⎕XSI |
+⍝HLP | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
 ⍝HLP 
 ⍝HLP 
-⍝HLP ### Usage:
+⍝HLP ## Using Markdown.Show:
 ⍝HLP 
-⍝HLP [**html**←]  [**options**] Markdown.Show **markdown** 
+⍝HLP [**html**←]  [**options**] *Markdown.Show* **markdown** 
 ⍝HLP 
 ⍝HLP where **markdown** is 
 ⍝HLP 
@@ -308,8 +337,13 @@
 ⍝HLP 
 ⍝HLP and **options** are
 ⍝HLP 
-⍝HLP     APL Variant (⍠) style specifications of HTMLRenderer or Markdown JSON5 options:      
-⍝HLP                                
+⍝HLP     APL Variant (⍠) style specifications of HTMLRenderer or Markdown JSON5 options.      
+⍝HLP    
+⍝HLP *Markdown.Show* returns the value **html**,
+⍝HLP
+⍝HLP     an HTMLRenderer-generated namespace, augmented with MD, a copy of the generated Markdown source;
+⍝HLP     When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
+⍝HLP                             
 ⍝HLP ### Options sent to HTMLRenderer
 ⍝HLP | Show option | What HTMLRenderer sees | 
 ⍝HLP |: ---- |: ----- | 
@@ -330,9 +364,14 @@
 ⍝HLP |   ('tasklists' 1)                  |  tasklists: true,       |               
 ⍝HLP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
 ⍝HLP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
-⍝HLP   
-⍝HLP  Note [1]: See **Showdown** documention, especially for the Github options.  
-⍝HLP  Note [2]: Call **Markdown.defaults** for the list of option variables (shown in Javascript format).
+⍝HLP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |
+⍝HLP  
+⍝HLP ### Notes
+⍝HLP |     |     |
+⍝HLP | --- | --- |
+⍝HLP | 𝟭. | See **Showdown** documention, especially for the Github options.| 
+⍝HLP ||E.g. https://github.com/showdownjs/showdown|
+⍝HLP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
 ⍝HLP 
 ⍝HLP ### Markdown.Show
 ⍝HLP Show returns the resulting HTML as a vector of character vectors.
@@ -352,18 +391,19 @@
 ⍝HLP      See HTMLRenderer for other APL-side variables.
 ⍝HLP  
 ⍝HLP ### Markdown Utilities and Examples
-⍝HLP #### Markdown.defaults 
+⍝HLP #### :arrow_forward: Markdown.defaults 
 ⍝HLP     returns all the HTML-directed and Markdown Showdown-dialect Json variables.
 ⍝HLP 
-⍝HLP #### Markdown.Here
-⍝HLP     makes it easy to take comments in APL functions and return them as Markdown or HTML code.
+⍝HLP #### :arrow_forward: Markdown.Here
+⍝HLP     makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
 ⍝HLP 
-⍝HLP        vv← 'pfx' Markdown.Here ⊃⎕XSI     ⍝ Find '⍝pfx' lines in the current function.
+⍝HLP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ Find APL comment line '⍝tok' in the current function.
+⍝HLP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ Find APL comment line '⍝tok' in the current namespace.
 ⍝HLP 
-⍝HLP #### Markdown.Flat 
+⍝HLP #### :arrow_forward: Markdown.Flat 
 ⍝HLP     converts a vector of character vectors to a flat char vector with carriage returns. 
 ⍝HLP 
-⍝HLP #### Markdown.example 
+⍝HLP #### :arrow_forward: Markdown.example 
 ⍝HLP     contains a nice example. 
 ⍝HLP 
 ⍝HLP To see the example source, do:
@@ -375,7 +415,7 @@
 ⍝HLP  
 ⍝HLP        x← Markdown.(Show example)
 ⍝HLP 
-⍝HLP #### Markdown.help
+⍝HLP #### :arrow_forward: Markdown.help
 ⍝HLP     shows help information for Markdown.
 ⍝HLP 
 ⍝HLP        Markdown.help 
