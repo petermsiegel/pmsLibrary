@@ -17,11 +17,11 @@
   ⍝ Then to delete:  ⎕EX 'h' OR h←''
   Show←{
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
-      ⍺← ⍬ ⋄ o← ⍺ ⋄ md← Flat ⍵ 
-      s hj← o MergeOpts ⎕SRC ⎕THIS 
-      html← hj InsertMD md                            ⍝ Insert the markdown text into the HTML/JS code   
-      r← s HtmlRender html                            ⍝ Render and return the HTML object
-      r⊣ r.MD← ⍵                                      ⍝ Make a private copy of the markdown from the user...
+      ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬ ⋄ hN.MD← ⍵         ⍝ Raw user markdown => hN.MD 
+      (s p) h0← o MergeOpts ⎕SRC ⎕THIS            
+      h1← h0 InsertMD Flat hN.MD                  ⍝ Insert the markdown text into the HTML/JS src code   
+      opts← ('HTML'  h1) (s,⍨ ⊂'Size') (p,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
+      hN⊣ 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ opts    ⍝ Render and return the HTML object
   }
   ⍝ *** Here ***
   ⍝ Here: CVV← token@CV ∇ CVV                    
@@ -46,6 +46,14 @@
     defs← '^\h{4}' ⎕R ' ' RE._Simple⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
     d← '{', pfx, defs, '}'  
   ∇
+  ∇ d← defaults2  ;defs; ns; pfx 
+    pfx←  CR,     '  // HTMLRenderer opts in APL format'
+    pfx,← CR, CR,⍨'     (''size'' [', ']),',⍨ 1↓∊',',¨⍕¨sizeDef 
+    pfx,← CR,⍨'     (''posn'' [', ']),',⍨ 1↓∊',',¨⍕¨posnDef 
+    ns← ⎕JSON⍠'Dialect' 'JSON5'⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
+    defs← ∊CR,⍨¨ ns.{ ('(''',⍵,''' ',⍕⎕OR ⍵), ')' }¨ns.⎕NL ¯2 
+    d← '(', pfx, defs, ')'  
+  ∇
   ⍝ example: e← ∇
   ⍝   A markdown example.  
   ∇ e← example  
@@ -53,10 +61,9 @@
   ∇
   ⍝ help: {html@ns}← ∇
   ⍝   To see the markdown source, see: html.MD 
-  ∇ {html}← help ; src 
-    src← 'HLP' Here ⎕SRC ⎕THIS 
-    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show src 
-    ⍞←'> ' ⋄ {}⍞ 
+  ∇ {html}← help ; src  
+    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HLP' Here ⎕SRC ⎕THIS 
+    {}⍞
   ∇
 
 ⍝ -------------------------------------------------------------------------------------------
@@ -125,20 +132,23 @@
   MergeOpts← { 
     optE← 'Options must consist of exactly two items: a keyword and a scalar value' 11
     JMerge←{   
-        Json5← ⎕JSON⍠'Dialect' 'JSON5'
-        JImport← {0=≢⍵:⎕NS ⍬ ⋄ Json5 ⍵}    ⍝ ⍵ => Json5 namespace. If ⍵ empty, ns is empty.
-        Canon← { ,∘⊂⍣(2=|≡⍵)⊢ ⍵ }         ⍝ Convert abs. depth 2 to depth 3
-        B2TF← {                            ⍝ Convert bool to Json true false, leaving other values as is.
-          T F← ⊂∘⊂¨'true' 'false' 
-          ⊃T F ⍵/⍨ 1,⍨ 1 0≡¨ ⊂⍵ 
-        }
-        J2Ns← { ⍺ ⍺⍺.{ ⍎⍺,'←⍵' } ⍵ }      ⍝ Merge new (APL) options into default "variables" (<Json) 
-        GetHtmlOpt← 'ns.' { 0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ ⎕OR ⍺⍺,⍺ ⋄ ⍵ }
-        ⍺← '{}' ⋄ j s_p← ⍺ ⍺⍺
-      0=≢⍵:  j,⍨⍥⊂ s_p 
-        0∊ 2= ≢¨c← Canon ⍵: ⎕SIGNAL/ optE 
-        ns← JImport j ⋄ _← (ns J2Ns∘B2TF)/¨ c
-        (Json5 ns),⍨⍥⊂ 'size' 'posn' GetHtmlOpt¨ s_p  
+        hNms← 'size' 'posn'
+        _J5← ⍠'Dialect' 'JSON5' 
+        JIn← { 0=≢⍵:⎕NS ⍬ ⋄ ⎕JSON _J5  ⍵ }   
+        List← { ,∘⊂⍣(2=|≡⍵)⊢ ⍵ }                  ⍝ Convert single opt (depth 2) to list (depth 3)
+        ⍙Map←{(1 0⍳⊂⍵)⊃(⊂⊂'true')(⊂⊂'false')⍵}    ⍝ APL 1 0 => Json true false 
+        ⍙Set← { ⍺ ⍺⍺.{ ⍎⍺,'←⍵' } ⍵ }              ⍝ Merge new (APL) options into (Json) default values
+        Merge← {(⍺ ⍙Set∘⍙Map)/¨⍵} 
+        HOut← 'ns.' { 0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ ⎕OR ⍺⍺,⍺ ⋄ ⍵ }
+      ⍝ ----------
+        ⍺← '{}' 
+        j hDef← ⍺ ⍺⍺
+      0=≢⍵:  j,⍨⍥⊂ hDef  
+        opts← List ⍵
+      2∨.≠ ≢¨ opts: ⎕SIGNAL/ optE 
+        ns← JIn j ⋄ _← ns Merge opts
+        hOpts← hNms HOut¨ hDef
+        hOpts,⍥⊂  ⎕JSON _J5 ns 
     }
     optsApl src← ⍺ ⍵ 
     jStub← '___OPTS___'
@@ -321,8 +331,7 @@
    ⍝HLP | | |
    ⍝HLP |: --- :|: --- |
    ⍝HLP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
-   ⍝HLP | :arrow_forward: |Based on the **Showdown** dialect of *Markdown*|
-   ⍝HLP |   | See: https://showdownjs.com/ |
+   ⍝HLP | :arrow_forward: |Based on the **Showdown** dialect of *Markdown*. See: https://showdownjs.com/. |
    ⍝HLP 
    ⍝HLP ## Key Routines
    ⍝HLP 
@@ -330,11 +339,10 @@
    ⍝HLP |: ----   |: ---                                                    |   ---  :|: ---  :|   ---  |: ---  |
    ⍝HLP | Show    | Process and Display Markdown text via the HTMLRenderer  | HtmlNs← | [opts] | ∇      | CVV   |
    ⍝HLP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
-   ⍝HLP | help    | Display (this) help information, |[md_source←]|| ∇ ||
-   ⍝HLP |         | shyly returning the markdown source |
+   ⍝HLP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
    ⍝HLP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
-   ⍝HLP | Here | Pull Markdown from APL comments '⍝tok' in current class  | CVV← |'tok' |∇ | ⎕SRC ⎕THIS |
-   ⍝HLP |      | Pull Markdown from APL comments '⍝tok' in current function      | CVV← |'tok' |∇ | ⎕NR ⊂⎕XSI |
+   ⍝HLP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" | CVV← |'tok' |∇ | CVV |
+   ⍝HLP |      | where ⍵ may be `⎕SRC ⎕THIS`, `⎕NR ⊃⎕XSI`, etc. |   |  |  |   |
    ⍝HLP | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
    ⍝HLP 
    ⍝HLP 
@@ -349,7 +357,7 @@
    ⍝HLP 
    ⍝HLP and **options** are
    ⍝HLP 
-   ⍝HLP - APL Variant (⍠) style specifications of HTMLRenderer or Markdown JSON5 options.      
+   ⍝HLP - APL Variant (⍠) style specifications of [𝟏] HTMLRenderer and [𝟐] Markdown JSON5 options.      
    ⍝HLP    
    ⍝HLP *Markdown.Show* returns the value **html**,
    ⍝HLP
@@ -389,25 +397,25 @@
    ⍝HLP ### Markdown.Show
    ⍝HLP Show returns the resulting HTML as a vector of character vectors.
    ⍝HLP 
-   ⍝HLP :open_umbrella: To see the returned HTML, store the result of ¨Show¨ in a variable:
+   ⍝HLP 🛈 To see the returned HTML, store the result of ¨Show¨ in a variable:
    ⍝HLP
    ⍝HLP         html← Markdown.Show example
    ⍝HLP 
-   ⍝HLP :open_umbrella: To remove the returned HTML permanently, delete or reset the variable:
+   ⍝HLP 🛈 To remove the returned HTML permanently, delete or reset the variable:
    ⍝HLP
    ⍝HLP         ⎕EX 'html'    OR     html←''
    ⍝HLP 
-   ⍝HLP :open_umbrella: To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
+   ⍝HLP 🛈 To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
    ⍝HLP
    ⍝HLP         html.visible←0     ⍝ To redisplay, html.visible←1
    ⍝HLP 
-   ⍝HLP :open_umbrella: To view the markdown example source:
+   ⍝HLP 🛈 To view the markdown example source:
    ⍝HLP 
    ⍝HLP          ⎕ED 'html.MD'    
    ⍝HLP      OR 
    ⍝HLP          {⎕ED 't'⊣t←⍵} Markdown.example
    ⍝HLP 
-   ⍝HLP :open_umbrella: See HTMLRenderer for other APL-side variables.
+   ⍝HLP 🛈 See HTMLRenderer for other APL-side variables.
    ⍝HLP  
    ⍝HLP ### Markdown Utilities and Examples
    ⍝HLP #### :arrow_forward: Markdown.defaults 
@@ -425,11 +433,11 @@
    ⍝HLP #### :arrow_forward: Markdown.example 
    ⍝HLP contains a nice example. (See also the source for Markdown.help)
    ⍝HLP 
-   ⍝HLP :open_umbrella: To see the example source, do:
+   ⍝HLP 🛈 To see the example source, do:
    ⍝HLP 
    ⍝HLP        ⎕ED 'a'⊣ a← Markdown.example
    ⍝HLP 
-   ⍝HLP :open_umbrella: To see the result, do: 
+   ⍝HLP 🛈 To see the result, do: 
    ⍝HLP  
    ⍝HLP        x← Markdown.(Show example)
    ⍝HLP 
