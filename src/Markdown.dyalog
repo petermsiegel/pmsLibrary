@@ -19,7 +19,7 @@
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬ ⋄ hN.MD← ⍵         ⍝ Raw user markdown => hN.MD 
       (s p) h0← o MergeOpts ⎕SRC ⎕THIS            
-      h1← h0 InsertMD Flat hN.MD                  ⍝ Insert the markdown text into the HTML/JS src code   
+      h1← h0 InsertMD hN.MD                       ⍝ Insert the markdown text into the HTML/JS src code   
       opts← ('HTML'  h1) (s,⍨ ⊂'Size') (p,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
       hN⊣ 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ opts    ⍝ Render and return the HTML object
   }
@@ -39,20 +39,12 @@
   ⍝ defaults: d← ∇
   ⍝   Show the default options in JSON format, including 
   ⍝  'size' and 'posn'  used in the HTMLRenderer call.
-  ∇ d← defaults  ;pfx; defs
+  ∇ d← defaults ;pfx; defs
     pfx←  CR,     '  // HTMLRenderer opts in Json format'
     pfx,← CR, CR,⍨'     size: [', '],',⍨ 1↓∊',',¨⍕¨sizeDef 
     pfx,←     CR,⍨'     posn: [', '],',⍨ 1↓∊',',¨⍕¨posnDef 
     defs← '^\h{4}' ⎕R ' ' RE._Simple⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
     d← '{', pfx, defs, '}'  
-  ∇
-  ∇ d← defaults2  ;defs; ns; pfx 
-    pfx←  CR,     '  // HTMLRenderer opts in APL format'
-    pfx,← CR, CR,⍨'     (''size'' [', ']),',⍨ 1↓∊',',¨⍕¨sizeDef 
-    pfx,← CR,⍨'     (''posn'' [', ']),',⍨ 1↓∊',',¨⍕¨posnDef 
-    ns← ⎕JSON⍠'Dialect' 'JSON5'⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
-    defs← ∊CR,⍨¨ ns.{ ('(''',⍵,''' ',⍕⎕OR ⍵), ')' }¨ns.⎕NL ¯2 
-    d← '(', pfx, defs, ')'  
   ∇
   ⍝ example: e← ∇
   ⍝   A markdown example.  
@@ -62,7 +54,7 @@
   ⍝ help: {html@ns}← ∇
   ⍝   To see the markdown source, see: html.MD 
   ∇ {html}← help ; src  
-    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HLP' Here ⎕SRC ⎕THIS 
+    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HP' Here ⎕SRC ⎕THIS 
     {}⍞
   ∇
 
@@ -79,16 +71,16 @@
 :Section Internal_Utilities
 ⍝ -------------------------------------------------------------------------------------------
   ⍝ *** InsertMD ***
-  ⍝ InsertMD:   CVV← CVV ∇ CVV                             
-  ⍝   Insert ⍺:markdown into ⍵:html at ___MYTEXT___
+  ⍝ InsertMD:   CVV← ht@CVV ∇ md@CVV                             
+  ⍝   Insert ⍵:md (markdown) into ⍺:ht (html) at ___MYTEXT___
   ⍝   Don't process escape chars in the replacement field...
-  InsertMD← {  
-      '^\h*___MYTEXT___.*$'  ⎕R ⍵ RE._Simple RE._Once RE._RE10⊢ ⍺ 
+  InsertMD← {  ht md← ⍺ (Flatten ⍵)
+      '^\h*___MYTEXT___.*$'  ⎕R md RE._Simple RE._Once RE._RE10⊢ ht 
   }
-  ⍝ *** Flat ***
-  ⍝ Flat:  CcrV← ∇ CVV                               
+  ⍝ *** Flatten ***
+  ⍝ Flatten:  CcrV← ∇ CVV                               
   ⍝   Convert vector of char vectors into a CV with carriage returns.
-  Flat← {¯1↓ ∊⍵,¨ CR}⊆
+  Flatten← ¯1∘↓(∊,¨∘CR⍤⊆)
   
   ⍝ *** HtmlRender ***
   ⍝ HtmlRender: ns.htmlObj@HTMLRenderer_obj← size@I2 posn@I2 ∇ html@CVV
@@ -152,10 +144,10 @@
     }
     optsApl src← ⍺ ⍵ 
     jStub← '___OPTS___'
-    jOld← '{', CR, (Flat 'JO' Here src), CR, '}'                 ⍝ J: Default JSON
+    jOld← '{', CR, (Flatten 'JO' Here src), CR, '}'              ⍝ J: Default JSON
     s_p jCur← jOld (sizeDef posnDef JMerge) optsApl              ⍝ s_p: size pair and posn pair
     JUpdate← jStub ⎕R jCur RE._Simple RE._Once                      
-    s_p,⍥⊂ JUpdate 'HT' Here src                                 ⍝ H: Includes stub for JSON
+    s_p,⍥⊂ JUpdate 'HTS?' Here src                               ⍝ H: Includes 1. stub for JSON, 2. style
   } 
 :EndSection ⍝ Internal_Utilities
 
@@ -189,7 +181,7 @@
    ⍝EX
    ⍝EX **Note**:
    ⍝EX If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
-   ⍝EX in the *APL* options.
+   ⍝EX in the *APL* options. This line has an escaped underscore \__variable\__ and an ellipsis...
    ⍝EX 
    ⍝EX #### These lines produce level 1 (#) and level 2 (##) headings:
    ⍝EX 
@@ -264,7 +256,41 @@
    ⍝HT <!DOCTYPE html>
    ⍝HT <html>
    ⍝HT <head>
-   ⍝HT   <title>Showdown Example</title>
+   ⍝HT 
+   ⍝HTS  <style>
+   ⍝HTS   table {
+   ⍝HTS     font-family: arial, sans-serif;
+   ⍝HTS     border: 1pxrgb(5, 30, 30);
+   ⍝HTS     width: 90%;
+   ⍝HTS   }
+   ⍝HTS   td, th {
+   ⍝HTS     border: 1px #0000ff;
+   ⍝HTS     background-color:rgb(195, 234, 230);
+   ⍝HTS     padding: 8px;
+   ⍝HTS   }
+   ⍝HTS   tr:first-child {
+   ⍝HTS     color: #000000;
+   ⍝HTS   } 
+   ⍝HTS   tr:nth-child(odd):not(:first-child) {
+   ⍝HTS     color: #1122ff;
+   ⍝HTS   }
+   ⍝HTS   tr:nth-child(even) {
+   ⍝HTS     color: #ff0000;
+   ⍝HTS   }
+   ⍝HTS   blockquote {
+   ⍝HTS     border-left: 4px solid #ff0000;
+   ⍝HTS     padding-left: 10px;
+   ⍝HTS     color: #1122ff;
+   ⍝HTS   }
+   ⍝HTS   code {
+   ⍝HTS     font-family: 'Courier New', Courier, monospace;
+   ⍝HTS     background:rgba(200, 210, 220, 0.36);
+   ⍝HTS     padding: 2px 4px;
+   ⍝HTS     border-radius: 3px;
+   ⍝HTS   }
+   ⍝HTS  </style>
+   ⍝HTS
+   ⍝HT   <title>Markdown (Showdown)</title>
    ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
    ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
    ⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -318,138 +344,144 @@
    ⍝JC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
    ⍝JC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
    ⍝JC      // to return (except by recreating the page).
-   ⍝JO         simplifiedAutoLink: false,         
+   ⍝JO         simplifiedAutoLink: false,        
    ⍝JC      // Enable support for setting image dimensions in Markdown,  
    ⍝JC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
-   ⍝JO         parseImgDimensions: false,  
+   ⍝JO         parseImgDimensions: false, 
+   ⍝JC      // Force new links to open in a new window
+   ⍝JC      // *** Doesn't appear to make any difference ***
+   ⍝JO         openLinksInNewWindow: true, 
+   ⍝JC      // if true, suppresses any special treatment of underlines 
+   ⍝JC      // *** Doesn't appear to make any difference ***
+   ⍝JO         underline: true,
 ⍝    }
   :EndSection 
 
   :Section Help 
-   ⍝HLP ## Markdown Utility (namespace)
-   ⍝HLP 
-   ⍝HLP | | |
-   ⍝HLP |: --- :|: --- |
-   ⍝HLP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
-   ⍝HLP | :arrow_forward: |Based on the **Showdown** dialect of *Markdown*. See: https://showdownjs.com/. |
-   ⍝HLP 
-   ⍝HLP ## Key Routines
-   ⍝HLP 
-   ⍝HLP | Routine | Usage                                                   |         | Call   | Syntax |       |
-   ⍝HLP |: ----   |: ---                                                    |   ---  :|: ---  :|   ---  |: ---  |
-   ⍝HLP | Show    | Process and Display Markdown text via the HTMLRenderer  | HtmlNs← | [opts] | ∇      | CVV   |
-   ⍝HLP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
-   ⍝HLP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
-   ⍝HLP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
-   ⍝HLP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" | CVV← |'tok' |∇ | CVV |
-   ⍝HLP |      | where ⍵ may be `⎕SRC ⎕THIS`, `⎕NR ⊃⎕XSI`, etc. |   |  |  |   |
-   ⍝HLP | Flat | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
-   ⍝HLP 
-   ⍝HLP 
-   ⍝HLP ## Using Markdown.Show:
-   ⍝HLP 
-   ⍝HLP [**html**←]  [**options**] *Markdown.Show* **markdown** 
-   ⍝HLP 
-   ⍝HLP where **markdown** is 
-   ⍝HLP 
-   ⍝HLP - a vector of character vectors containing standard "Showdown-style" Markdown, 
-   ⍝HLP often extracted (via Markdown.Here) from comments in the current function or namespace.
-   ⍝HLP 
-   ⍝HLP and **options** are
-   ⍝HLP 
-   ⍝HLP - APL Variant (⍠) style specifications of [𝟏] HTMLRenderer and [𝟐] Markdown JSON5 options.      
-   ⍝HLP    
-   ⍝HLP *Markdown.Show* returns the value **html**,
-   ⍝HLP
-   ⍝HLP - an HTMLRenderer-generated namespace, augmented with MD, a copy of the generated Markdown source;
-   ⍝HLP - When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
-   ⍝HLP                             
-   ⍝HLP ### Options sent to HTMLRenderer
-   ⍝HLP | Show option | What HTMLRenderer sees | 
-   ⍝HLP |: ---- |: ----- | 
-   ⍝HLP |   ('size' (800 1000))              | ('Size' 800 1000) |         
-   ⍝HLP |   ('posn' (5 5))                   | ('Posn' 5 5) |  
-   ⍝HLP 
-   ⍝HLP ### Options converted to Json5 and sent to Javascript Markdown Showdown translator 
-   ⍝HLP | Show option | What Markdown sees | 
-   ⍝HLP |: ---- |: ----- |          
-   ⍝HLP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  |            
-   ⍝HLP |   ('tables' 1)                     | tables: true,      |                   
-   ⍝HLP |   ('strikethrough' 1)              |  strikethrough: true,   |               
-   ⍝HLP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |      
-   ⍝HLP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |          
-   ⍝HLP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |                
-   ⍝HLP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |      
-   ⍝HLP |   ('emoji' 1)                      |  emoji: true,           |               
-   ⍝HLP |   ('tasklists' 1)                  |  tasklists: true,       |               
-   ⍝HLP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
-   ⍝HLP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
-   ⍝HLP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |
-   ⍝HLP  
-   ⍝HLP ### Notes
-   ⍝HLP |     |     |
-   ⍝HLP | --- | --- |
-   ⍝HLP | 𝟭. | See **Showdown** documention, especially for the Github options.| 
-   ⍝HLP ||E.g. https://github.com/showdownjs/showdown (general)|
-   ⍝HLP ||E.g. https://github.com/showdownjs/showdown/wiki/emojis (showdown emojis)|
-   ⍝HLP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
-   ⍝HLP 
-   ⍝HLP ### Markdown.Show
-   ⍝HLP Show returns the resulting HTML as a vector of character vectors.
-   ⍝HLP 
-   ⍝HLP 🛈 To see the returned HTML, store the result of ¨Show¨ in a variable:
-   ⍝HLP
-   ⍝HLP         html← Markdown.Show example
-   ⍝HLP 
-   ⍝HLP 🛈 To remove the returned HTML permanently, delete or reset the variable:
-   ⍝HLP
-   ⍝HLP         ⎕EX 'html'    OR     html←''
-   ⍝HLP 
-   ⍝HLP 🛈 To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
-   ⍝HLP
-   ⍝HLP         html.visible←0     ⍝ To redisplay, html.visible←1
-   ⍝HLP 
-   ⍝HLP 🛈 To view the markdown example source:
-   ⍝HLP 
-   ⍝HLP          ⎕ED 'html.MD'    
-   ⍝HLP      OR 
-   ⍝HLP          {⎕ED 't'⊣t←⍵} Markdown.example
-   ⍝HLP 
-   ⍝HLP 🛈 See HTMLRenderer for other APL-side variables.
-   ⍝HLP  
-   ⍝HLP ### Markdown Utilities and Examples
-   ⍝HLP #### :arrow_forward: Markdown.defaults 
-   ⍝HLP      returns all the HTML-directed and Markdown Showdown-dialect Json5 variables.
-   ⍝HLP 
-   ⍝HLP #### :arrow_forward: Markdown.Here
-   ⍝HLP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
-   ⍝HLP 
-   ⍝HLP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ Find APL comment line '⍝tok' in the current function.
-   ⍝HLP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ Find APL comment line '⍝tok' in the current namespace.
-   ⍝HLP 
-   ⍝HLP #### :arrow_forward: Markdown.Flat 
-   ⍝HLP converts a vector of character vectors to a flat char vector with carriage returns. 
-   ⍝HLP 
-   ⍝HLP #### :arrow_forward: Markdown.example 
-   ⍝HLP contains a nice example. (See also the source for Markdown.help)
-   ⍝HLP 
-   ⍝HLP 🛈 To see the example source, do:
-   ⍝HLP 
-   ⍝HLP        ⎕ED 'a'⊣ a← Markdown.example
-   ⍝HLP 
-   ⍝HLP 🛈 To see the result, do: 
-   ⍝HLP  
-   ⍝HLP        x← Markdown.(Show example)
-   ⍝HLP 
-   ⍝HLP #### :arrow_forward: Markdown.help
-   ⍝HLP displays help information for this Markdown namespace.
-   ⍝HLP 
-   ⍝HLP        Markdown.help 
-   ⍝HLP
-   ⍝HLP The source for markdown help can be viewed several ways, including this one:
-   ⍝HLP
-   ⍝HLP       {⎕ED 't.MD'⊣ t← ⍵} Markdown.help
-   ⍝HLP  
+   ⍝HP ## Markdown Utility (namespace)
+   ⍝HP 
+   ⍝HP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
+   ⍝HP |: --- :|: --- |
+   ⍝HP | :arrow_forward: |Based on the **Showdown** dialect of *Markdown*. See: https://showdownjs.com/. |
+   ⍝HP 
+   ⍝HP ## Key Routines
+   ⍝HP 
+   ⍝HP | Routine | Usage                                                   |         | Call   | Syntax |       |
+   ⍝HP |: ----   |: ---                                                    |   ---  :|: ---  :|   ---  |: ---  |
+   ⍝HP | Show    | Process and Display Markdown text via the HTMLRenderer  | HtmlNs← | [opts] | ∇      | CVV   |
+   ⍝HP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
+   ⍝HP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
+   ⍝HP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
+   ⍝HP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" | CVV← |'tok' |∇ | CVV |
+   ⍝HP |      | where ⍵ may be `⎕SRC ⎕THIS`, `⎕NR ⊃⎕XSI`, etc. |   |  |  |   |
+   ⍝HP | Flatten | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
+   ⍝HP 
+   ⍝HP 
+   ⍝HP ## Using Markdown.Show:
+   ⍝HP 
+   ⍝HP [**html**←]  [**options**] *Markdown.Show* **markdown** 
+   ⍝HP 
+   ⍝HP where **markdown** is 
+   ⍝HP 
+   ⍝HP - a vector of character vectors containing standard "Showdown-style" Markdown, 
+   ⍝HP often extracted (via Markdown.Here) from comments in the current function or namespace.
+   ⍝HP 
+   ⍝HP and **options** are
+   ⍝HP 
+   ⍝HP - APL Variant (⍠) style specifications of [𝟏] HTMLRenderer and [𝟐] Markdown JSON5 options.      
+   ⍝HP    
+   ⍝HP *Markdown.Show* returns the value **html**,
+   ⍝HP
+   ⍝HP - an HTMLRenderer-generated namespace, augmented with MD, a copy of the generated Markdown source;
+   ⍝HP - When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
+   ⍝HP                             
+   ⍝HP ### Options sent to HTMLRenderer
+   ⍝HP | Show option | What HTMLRenderer sees | 
+   ⍝HP |: ---- |: ----- | 
+   ⍝HP |   ('size' (800 1000))              | ('Size' 800 1000) |         
+   ⍝HP |   ('posn' (5 5))                   | ('Posn' 5 5) |  
+   ⍝HP 
+   ⍝HP ### Options converted to Json5 and sent to Javascript Markdown Showdown translator 
+   ⍝HP | Show option | What Markdown sees | 
+   ⍝HP |: ---- |: ----- |          
+   ⍝HP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  |            
+   ⍝HP |   ('tables' 1)                     | tables: true,      |                   
+   ⍝HP |   ('strikethrough' 1)              |  strikethrough: true,   |               
+   ⍝HP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |      
+   ⍝HP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |          
+   ⍝HP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |                
+   ⍝HP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |      
+   ⍝HP |   ('emoji' 1)                      |  emoji: true,           |               
+   ⍝HP |   ('tasklists' 1)                  |  tasklists: true,       |               
+   ⍝HP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
+   ⍝HP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
+   ⍝HP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |
+   ⍝HP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |
+   ⍝HP |   ('underline' 1)                  |  underline: true, |
+   ⍝HP  
+   ⍝HP |Notes    |     |
+   ⍝HP | --- | --- |
+   ⍝HP | 𝟭. | See **Showdown** documention, especially for the Github options.| 
+   ⍝HP ||E.g. https://github.com/showdownjs/showdown (general)|
+   ⍝HP ||E.g. https://github.com/showdownjs/showdown/wiki/emojis (showdown emojis)|
+   ⍝HP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
+   ⍝HP 
+   ⍝HP ### Markdown.Show
+   ⍝HP Show returns the resulting HTML as a vector of character vectors.
+   ⍝HP 
+   ⍝HP 🛈 To see the returned HTML, store the result of ¨Show¨ in a variable:
+   ⍝HP
+   ⍝HP         html← Markdown.Show example
+   ⍝HP 
+   ⍝HP 🛈 To remove the returned HTML permanently, delete or reset the variable:
+   ⍝HP
+   ⍝HP         ⎕EX 'html'    OR     html←''
+   ⍝HP 
+   ⍝HP 🛈 To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
+   ⍝HP
+   ⍝HP         html.visible←0     ⍝ To redisplay, html.visible←1
+   ⍝HP 
+   ⍝HP 🛈 To view the markdown example source:
+   ⍝HP 
+   ⍝HP          ⎕ED 'html.MD'    
+   ⍝HP      OR 
+   ⍝HP          {⎕ED 't'⊣t←⍵} Markdown.example
+   ⍝HP 
+   ⍝HP 🛈 See HTMLRenderer for other APL-side variables.
+   ⍝HP  
+   ⍝HP ### Markdown Utilities and Examples
+   ⍝HP #### :arrow_forward: Markdown.defaults 
+   ⍝HP      returns all the HTML-directed and Markdown Showdown-dialect Json5 variables.
+   ⍝HP 
+   ⍝HP #### :arrow_forward: Markdown.Here
+   ⍝HP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
+   ⍝HP
+   ⍝HP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ Find APL comment line '⍝tok' in the current function.
+   ⍝HP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ Find APL comment line '⍝tok' in the current namespace.
+   ⍝HP 
+   ⍝HP #### :arrow_forward: Markdown.Flatten 
+   ⍝HP converts a vector of character vectors to a flat char vector with carriage returns. 
+   ⍝HP
+   ⍝HP #### :arrow_forward: Markdown.example 
+   ⍝HP contains a nice example. (See also the source for Markdown.help)
+   ⍝HP
+   ⍝HP 🛈 To see the example source, do:
+   ⍝HP
+   ⍝HP        ⎕ED 'a'⊣ a← Markdown.example
+   ⍝HP
+   ⍝HP 🛈 To see the result, do: 
+   ⍝HP  
+   ⍝HP        x← Markdown.(Show example)
+   ⍝HP 
+   ⍝HP #### :arrow_forward: Markdown.help
+   ⍝HP displays help information for this Markdown namespace.
+   ⍝HP 
+   ⍝HP        Markdown.help 
+   ⍝HP
+   ⍝HP The source for markdown help can be viewed several ways, including this one:
+   ⍝HP
+   ⍝HP       {⎕ED 't.MD'⊣ t← ⍵} Markdown.help
+   ⍝HP  
   :EndSection 
 :EndSection ⍝ Alien  
 :EndNamespace 
