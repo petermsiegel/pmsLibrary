@@ -12,14 +12,18 @@
   ⍝ hNs:      Dyalog Render object (⎕WC namespace)
   ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
   ⍝           hNs.MD contains the source markdown used to generate it.
+  ⍝           hNs.STYLE contains any CSS Style code (that goes between <style> and </style>)
   ⍝ Once the result returned disappears, the generated HTML object disappears also.
   ⍝ Do:              h← size Markdown.Show ... 
   ⍝ Then to delete:  ⎕EX 'h' OR h←''
   Show←{
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
-      ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬ ⋄ hN.MD← ⍵         ⍝ Raw user markdown => hN.MD 
-      (s p style) h0← o MergeOpts ⎕SRC ⎕THIS            
-      h1← h0 InsertMD hN.MD                       ⍝ Insert the markdown text into the HTML/JS src code   
+      ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬                      ⍝ Raw user markdown => hN.MD 
+      hN.(MD STYLE)← { 3=≡⍵: ⍵ ⋄ ⍵ ⍬} ⍵ 
+      (s p style) h0← o MergeOpts (src← ⎕SRC ⎕THIS)  
+      hN.STYLE← style{ ~⍺: '' ⋄ 0=≢⍵: 'STYLE' Here src ⋄ ⍵ } hN.STYLE            
+      h1← h0 Customise hN.MD hN.STYLE                ⍝ Insert the markdown text into the HTML/JS src code   
+      hN.HTML← h1 
       opts← ('HTML'  h1) (s,⍨ ⊂'Size') (p,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
       hN⊣ 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ opts    ⍝ Render and return the HTML object
   }
@@ -72,12 +76,13 @@
 
 :Section Internal_Utilities
 ⍝ -------------------------------------------------------------------------------------------
-  ⍝ *** InsertMD ***
-  ⍝ InsertMD:   CVV← ht@CVV ∇ md@CVV                             
-  ⍝   Insert ⍵:md (markdown) into ⍺:ht (html) at ___MYTEXT___
+  ⍝ *** Customise ***
+  ⍝ Customise:   CVV← ht@CVV ∇ md@CVV style@CVV                             
+  ⍝   Insert md (markdown stmts) and style (CSS style stmts) into ⍺:ht (html) at ___MARKDOWN___
   ⍝   Don't process escape chars in the replacement field...
-  InsertMD← {  ht md← ⍺ (Flatten ⍵)
-      '^\h*___MYTEXT___.*$'  ⎕R md RE._Simple RE._Once RE._RE10⊢ ht 
+  Customise← {   
+      ht (md st)← ⍺ (Flatten¨ ⍵) 
+      '___MARKDOWN___' '___STYLE___'   ⎕R md st RE._Simple  RE._RE10⊢ ht 
   }
   ⍝ *** Flatten ***
   ⍝ Flatten:  CcrV← ∇ CVV                               
@@ -138,16 +143,14 @@
     jStub← '___OPTS___'
     jOld← '{', CR, (Flatten 'JO' Here src), CR, '}'              ⍝ J: Default JSON
     s_p_s jCur← jOld (sizeDef posnDef styleDef JMerge) optsApl            ⍝ s_p: size pair and posn pair
-    JUpdate← jStub ⎕R jCur RE._Simple RE._Once    
-    hPfx← 'HT', 'S?'/⍨ 1=⊃⌽ s_p_s                   
-    s_p_s,⍥⊂ JUpdate hPfx Here src                               ⍝ H: Includes 1. stub for JSON, 2. style
+    JUpdate← jStub ⎕R jCur RE._Simple                   
+    s_p_s,⍥⊂ JUpdate 'HT' Here src                               ⍝ H: Includes 1. stub for JSON, 2. style
   } 
 :EndSection ⍝ Internal_Utilities
 
 :Section Regular_Expressions
   :Namespace RE
      _Simple← ⍠('ResultText' 'Simple')('EOL' 'CR')
-     _Once←   ⍠'ML' 1
      _RE10←   ⍠'Regex' (1 0)
   :EndNamespace 
 :EndSection ⍝ Regular_Expressions 
@@ -156,6 +159,7 @@
   :Section Example 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  example: Markdown example source 
+   ⍝EX 
    ⍝EX # An example of *Markdown* in the ***Showdown*** dialect
    ⍝EX
    ⍝EX
@@ -249,38 +253,9 @@
    ⍝HT <!DOCTYPE html>
    ⍝HT <html>
    ⍝HT <head>
-   ⍝HT 
-   ⍝HTS  <style>
-   ⍝HTS   table {
-   ⍝HTS     font-family: arial, sans-serif;
-   ⍝HTS     border: 1pxrgb(5, 30, 30);
-   ⍝HTS     width: 90%;
-   ⍝HTS   }
-   ⍝HTS   td, th {
-   ⍝HTS     border: 2px #0000ff;
-   ⍝HTS     background-color:rgb(222, 222, 253);
-   ⍝HTS     padding: 8px;
-   ⍝HTS   }
-   ⍝HTS   tr:nth-of-type(odd) {
-   ⍝HTS     color: #1122ff;
-   ⍝HTS   } 
-   ⍝HTS   tr:nth-of-type(even) {
-   ⍝HTS     color: #ff0000;
-   ⍝HTS   }
-   ⍝HTS   blockquote {
-   ⍝HTS     border-left: 4px solid #ff0000;
-   ⍝HTS     padding-left: 10px;
-   ⍝HTS     color:rgb(83, 3, 144);
-   ⍝HTS  }
-   ⍝HTS   code {
-   ⍝HTS     display:table;
-   ⍝HTS     font-family: 'Courier New', Courier, monospace;
-   ⍝HTS     background:rgba(200, 210, 220, 0.36);
-   ⍝HTS     padding: 2px 4px;
-   ⍝HTS     border-radius: 3px;
-   ⍝HTS   }
-   ⍝HTS  </style>
-   ⍝HTS
+   ⍝HT   <style> 
+   ⍝HT      ___STYLE___ 
+   ⍝HT   </style>
    ⍝HT   <title>Markdown (Showdown)</title>
    ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
    ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
@@ -289,7 +264,7 @@
    ⍝HT </head>
    ⍝HT <body>
    ⍝HT   <div id="markdown-content" style="display:none;">
-   ⍝HT     ___MYTEXT___             // User Markdown will go here...
+   ⍝HT     ___MARKDOWN___             // User Markdown will go here...
    ⍝HT   </div>
    ⍝HT   <div id="html-content"></div>
    ⍝HT   <script>
@@ -301,6 +276,39 @@
    ⍝HT   </script>
    ⍝HT </body>
    ⍝HT </html>
+  :EndSection 
+
+  :Section CSS Styles  
+   ⍝     <style>
+   ⍝STYLE   table {
+   ⍝STYLE     font-family: arial, sans-serif;
+   ⍝STYLE     border: 1pxrgb(5, 30, 30);
+   ⍝STYLE     width: 90%;
+   ⍝STYLE   }
+   ⍝STYLE   td, th {
+   ⍝STYLE     border: 2px #0000ff;
+   ⍝STYLE     background-color:rgb(222, 222, 253);
+   ⍝STYLE     padding: 8px;
+   ⍝STYLE   }
+   ⍝STYLE   tr:nth-of-type(odd) {
+   ⍝STYLE     color: #1122ff;
+   ⍝STYLE   } 
+   ⍝STYLE   tr:nth-of-type(even) {
+   ⍝STYLE     color: #ff0000;
+   ⍝STYLE   }
+   ⍝STYLE   blockquote {
+   ⍝STYLE     border-left: 4px solid #ff0000;
+   ⍝STYLE     padding-left: 10px;
+   ⍝STYLE     color:rgb(83, 3, 144);
+   ⍝STYLE   }
+   ⍝STYLE   code {
+   ⍝STYLE     display:table;
+   ⍝STYLE     font-family: 'Courier New', Courier, monospace;
+   ⍝STYLE     background:rgba(200, 210, 220, 0.36);
+   ⍝STYLE     padding: 2px 4px;
+   ⍝STYLE     border-radius: 3px;
+   ⍝STYLE   }
+   ⍝    </style> 
   :EndSection 
 
   :Section Json Options
