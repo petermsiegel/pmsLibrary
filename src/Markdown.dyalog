@@ -274,7 +274,7 @@
    ⍝HTS     border-left: 4px solid #ff0000;
    ⍝HTS     padding-left: 10px;
    ⍝HTS     color: #1122ff;
-   ⍝HTS   }
+   ⍝HTS  }
    ⍝HTS   code {
    ⍝HTS     font-family: 'Courier New', Courier, monospace;
    ⍝HTS     background:rgba(200, 210, 220, 0.36);
@@ -412,9 +412,10 @@
    ⍝HP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |
    ⍝HP |   ('underline' 1)                  |  underline: true, |
    ⍝HP
+   ⍝HP ### Options used internally (inside Markdown.Show, Markdown.help, etc.)
    ⍝HP | Show option | Used internally | 
    ⍝HP |: ---- |: ----- | 
-   ⍝HP |   ('style' 1)                      | Use own own added CSS stype overrides |  
+   ⍝HP |   ('style' 1)                      | Use own added CSS stype overrides |  
    ⍝HP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style |                
    ⍝HP   
    ⍝HP |Notes    |     |
