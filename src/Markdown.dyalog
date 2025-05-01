@@ -257,25 +257,23 @@
    ⍝HTS     width: 90%;
    ⍝HTS   }
    ⍝HTS   td, th {
-   ⍝HTS     border: 1px #0000ff;
-   ⍝HTS     background-color:rgb(195, 234, 230);
+   ⍝HTS     border: 2px #0000ff;
+   ⍝HTS     background-color:rgb(222, 222, 253);
    ⍝HTS     padding: 8px;
    ⍝HTS   }
-   ⍝HTS   tr:first-child {
-   ⍝HTS     color: #000000;
-   ⍝HTS   } 
-   ⍝HTS   tr:nth-child(odd):not(:first-child) {
+   ⍝HTS   tr:nth-of-type(odd) {
    ⍝HTS     color: #1122ff;
-   ⍝HTS   }
-   ⍝HTS   tr:nth-child(even) {
+   ⍝HTS   } 
+   ⍝HTS   tr:nth-of-type(even) {
    ⍝HTS     color: #ff0000;
    ⍝HTS   }
    ⍝HTS   blockquote {
    ⍝HTS     border-left: 4px solid #ff0000;
    ⍝HTS     padding-left: 10px;
-   ⍝HTS     color: #1122ff;
+   ⍝HTS     color:rgb(83, 3, 144);
    ⍝HTS  }
    ⍝HTS   code {
+   ⍝HTS     display:table;
    ⍝HTS     font-family: 'Courier New', Courier, monospace;
    ⍝HTS     background:rgba(200, 210, 220, 0.36);
    ⍝HTS     padding: 2px 4px;
@@ -365,14 +363,15 @@
    ⍝HP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
    ⍝HP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
    ⍝HP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
-   ⍝HP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" | CVV← |'tok' |∇ | CVV |
-   ⍝HP |      | where ⍵ may be `⎕SRC ⎕THIS`, `⎕NR ⊃⎕XSI`, etc. |   |  |  |   |
+   ⍝HP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" ⍵. Examples of ⍵:  `⎕SRC ⎕THIS`; `⎕NR ⊃⎕XSI`, etc. | CVV← |'tok' |∇ | CVV |
    ⍝HP | Flatten | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
    ⍝HP 
    ⍝HP 
    ⍝HP ## Using Markdown.Show:
    ⍝HP 
-   ⍝HP [**html**←]  [**options**] *Markdown.Show* **markdown** 
+   ⍝HP ```md
+   ⍝HP [html←]  [options] Markdown.Show markdown
+   ⍝HP ```
    ⍝HP 
    ⍝HP where **markdown** is 
    ⍝HP 
@@ -388,42 +387,35 @@
    ⍝HP - an HTMLRenderer-generated namespace, augmented with MD, a copy of the generated Markdown source;
    ⍝HP - When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
    ⍝HP                             
-   ⍝HP ### Options sent to HTMLRenderer
-   ⍝HP | Show option | What HTMLRenderer sees | 
-   ⍝HP |: ---- |: ----- | 
-   ⍝HP |   ('size' (800 1000))              | ('Size' 800 1000) |         
-   ⍝HP |   ('posn' (5 5))                   | ('Posn' 5 5) |  
+   ⍝HP ### Options  [See Notes] 
+   ⍝HP | Show option | Format at destination | Destination | 
+   ⍝HP |: ---- |: ----- |: ---- | 
+   ⍝HP |   ('size' (800 1000))              | ('Size' 800 1000) |  HTMLRenderer |        
+   ⍝HP |   ('posn' (5 5))                   | ('Posn' 5 5) | [𝟯]  |         
+   ⍝HP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  | Showdown Json5 |           
+   ⍝HP |   ('tables' 1)                     | tables: true,      | [𝟯]  |                      
+   ⍝HP |   ('strikethrough' 1)              |  strikethrough: true,    |  [𝟯]               |                  
+   ⍝HP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |    [𝟯]         |          
+   ⍝HP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |   [𝟯]          |             
+   ⍝HP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |    [𝟯]          |                  
+   ⍝HP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |  [𝟯]           |          
+   ⍝HP |   ('emoji' 1)                      |  emoji: true,           |     [𝟯]        |                  
+   ⍝HP |   ('tasklists' 1)                  |  tasklists: true,       |     [𝟯]        |                  
+   ⍝HP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |     [𝟯]        |                 
+   ⍝HP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  |  [𝟯]           |    
+   ⍝HP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |   [𝟯]          |    
+   ⍝HP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |  [𝟯]           |    
+   ⍝HP |   ('underline' 1)                  |  underline: true, |   [𝟯]          |     
+   ⍝HP |   ('style' 1)                      | Use our own added CSS stype overrides (default) | Markdown APL |  
+   ⍝HP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style | [𝟯] |                
+   ⍝HP  
+   ⍝HP -----------------
    ⍝HP 
-   ⍝HP ### Options converted to Json5 and sent to Javascript Markdown Showdown translator 
-   ⍝HP | Show option | What Markdown sees | 
-   ⍝HP |: ---- |: ----- |          
-   ⍝HP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  |            
-   ⍝HP |   ('tables' 1)                     | tables: true,      |                   
-   ⍝HP |   ('strikethrough' 1)              |  strikethrough: true,   |               
-   ⍝HP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |      
-   ⍝HP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |          
-   ⍝HP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |                
-   ⍝HP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |      
-   ⍝HP |   ('emoji' 1)                      |  emoji: true,           |               
-   ⍝HP |   ('tasklists' 1)                  |  tasklists: true,       |               
-   ⍝HP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |              
-   ⍝HP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  | 
-   ⍝HP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |
-   ⍝HP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |
-   ⍝HP |   ('underline' 1)                  |  underline: true, |
-   ⍝HP
-   ⍝HP ### Options used internally (inside Markdown.Show, Markdown.help, etc.)
-   ⍝HP | Show option | Used internally | 
-   ⍝HP |: ---- |: ----- | 
-   ⍝HP |   ('style' 1)                      | Use own added CSS stype overrides |  
-   ⍝HP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style |                
-   ⍝HP   
-   ⍝HP |Notes    |     |
-   ⍝HP | --- | --- |
-   ⍝HP | 𝟭. | See **Showdown** documention, especially for the Github options.| 
-   ⍝HP ||E.g. https://github.com/showdownjs/showdown (general)|
-   ⍝HP ||E.g. https://github.com/showdownjs/showdown/wiki/emojis (showdown emojis)|
+   ⍝HP | Notes |  |
+   ⍝HP | --- |: --- |
+   ⍝HP | 𝟭. | See **Showdown** documention for the Showdown options. E.g.&nbsp;for&nbsp;general&nbsp;info:&nbsp;https://github.com/showdownjs/showdown; emojis:&nbsp;https://github.com/showdownjs/showdown/wiki/emojis|
    ⍝HP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
+   ⍝HP | 𝟯. | Same as above |
    ⍝HP 
    ⍝HP ### Markdown.Show
    ⍝HP Show returns the resulting HTML as a vector of character vectors.
@@ -455,8 +447,9 @@
    ⍝HP #### :arrow_forward: Markdown.Here
    ⍝HP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
    ⍝HP
-   ⍝HP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ Find APL comment line '⍝tok' in the current function.
-   ⍝HP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ Find APL comment line '⍝tok' in the current namespace.
+   ⍝HP                                              ⍝ Find APL comment line '⍝tok'...
+   ⍝HP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ ... in the current function.
+   ⍝HP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
    ⍝HP 
    ⍝HP #### :arrow_forward: Markdown.Flatten 
    ⍝HP converts a vector of character vectors to a flat char vector with carriage returns. 
