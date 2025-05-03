@@ -20,13 +20,15 @@
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬                      ⍝ Raw user markdown => hN.MD 
       mdTxt styleTxt ← { 3=≡⍵: ⍵ ⋄ ⍵ ⍬} ⍵ 
+      titleTxt← '#++\h?(.*)'⎕S'\1'⍠('Mode' 'D')('ML' 1)⊢ mdTxt 
+      titleTxt ~← '*'
       (size_o posn_o style_o) h0← o MergeOpts (src← ⎕SRC ⎕THIS)  
       styleTxt← style_o{ ~⍺: '' ⋄ 0=≢⍵: 'STYLE' Here src ⋄ ⍵ } styleTxt         
-      htmlTxt← h0 Customise mdTxt styleTxt          ⍝ Insert the markdown text into the HTML/JS src code   
+      htmlTxt← h0 Customise mdTxt styleTxt titleTxt          ⍝ Insert the markdown text into the HTML/JS src code   
       optL← ('HTML'  htmlTxt) (size_o,⍨ ⊂'Size') (posn_o,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
       _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL    ⍝ Render and return the HTML object
-      hN.htmlObj.(MD STYLE)← mdTxt styleTxt 
-      hN 
+      hN.htmlObj.(MD STYLE)← mdTxt styleTxt
+      hN.htmlObj  
   }
   ⍝ *** Here ***
   ⍝ Here: CVV← token@CV ∇ CVV                    
@@ -82,8 +84,8 @@
   ⍝   Insert md (markdown stmts) and style (CSS style stmts) into ⍺:ht (html) at ___MARKDOWN___
   ⍝   Don't process escape chars in the replacement field...
   Customise← {   
-      ht (md st)← ⍺ (Flatten¨ ⍵) 
-      '___MARKDOWN___' '___STYLE___'   ⎕R (CR,¨md st) RE._Simple  RE._RE10⊢ ht 
+      ht (md st ti)← ⍺ (Flatten¨ ⍵) 
+      '___MARKDOWN___' '___STYLE___'  '___TITLE___'  ⎕R (CR,md) (CR,st) ti RE._Simple  RE._RE10⊢ ht 
   }
   ⍝ *** Flatten ***
   ⍝ Flatten:  CcrV← ∇ CVV                               
@@ -265,7 +267,7 @@
    ⍝HT   <style> 
    ⍝HT      ___STYLE___ 
    ⍝HT   </style>
-   ⍝HT   <title>Markdown (Showdown)</title>
+   ⍝HT   <title>___TITLE___</title>
    ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
    ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
    ⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -366,7 +368,7 @@
 
   :Section Help 
    ⍝H
-   ⍝HP ## Markdown Utility (namespace)
+   ⍝HP ## Help for Markdown.dyalog APL Utility
    ⍝HP 
    ⍝HP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
    ⍝HP |: --- :|: --- |
