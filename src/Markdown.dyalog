@@ -19,13 +19,14 @@
   Show←{
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬                      ⍝ Raw user markdown => hN.MD 
-      hN.(MD STYLE)← { 3=≡⍵: ⍵ ⋄ ⍵ ⍬} ⍵ 
-      (s p style) h0← o MergeOpts (src← ⎕SRC ⎕THIS)  
-      hN.STYLE← style{ ~⍺: '' ⋄ 0=≢⍵: 'STYLE' Here src ⋄ ⍵ } hN.STYLE            
-      h1← h0 Customise hN.MD hN.STYLE                ⍝ Insert the markdown text into the HTML/JS src code   
-      hN.HTML← h1 
-      opts← ('HTML'  h1) (s,⍨ ⊂'Size') (p,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
-      hN⊣ 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ opts    ⍝ Render and return the HTML object
+      mdTxt styleTxt ← { 3=≡⍵: ⍵ ⋄ ⍵ ⍬} ⍵ 
+      (size_o posn_o style_o) h0← o MergeOpts (src← ⎕SRC ⎕THIS)  
+      styleTxt← style_o{ ~⍺: '' ⋄ 0=≢⍵: 'STYLE' Here src ⋄ ⍵ } styleTxt         
+      htmlTxt← h0 Customise mdTxt styleTxt          ⍝ Insert the markdown text into the HTML/JS src code   
+      optL← ('HTML'  htmlTxt) (size_o,⍨ ⊂'Size') (posn_o,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
+      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL    ⍝ Render and return the HTML object
+      hN.htmlObj.(MD STYLE)← mdTxt styleTxt 
+      hN 
   }
   ⍝ *** Here ***
   ⍝ Here: CVV← token@CV ∇ CVV                    
@@ -82,12 +83,13 @@
   ⍝   Don't process escape chars in the replacement field...
   Customise← {   
       ht (md st)← ⍺ (Flatten¨ ⍵) 
-      '___MARKDOWN___' '___STYLE___'   ⎕R md st RE._Simple  RE._RE10⊢ ht 
+      '___MARKDOWN___' '___STYLE___'   ⎕R (CR,¨md st) RE._Simple  RE._RE10⊢ ht 
   }
   ⍝ *** Flatten ***
   ⍝ Flatten:  CcrV← ∇ CVV                               
-  ⍝   Convert vector of char vectors into a CV with carriage returns.
-  Flatten← ¯1∘↓(∊,¨∘CR⍤⊆)
+  ⍝   Convert vector of char vectors into a CV with carriage returns. 
+  ⍝   Keep a CR before the FIRST line! 
+  Flatten← 1∘↓(∊,⍨¨∘CR⍤⊆) 
 
   ⍝ *** MergeOpts ***
   ⍝ MergeOpts: 
@@ -174,7 +176,7 @@
    ⍝EX the expression :smile\:.  Since ('simpleLineBreaks' 0) is the default, 
    ⍝EX a single paragraph can be generated from multiple contiguous lines, as long as none
    ⍝EX has 3 (or more) trailing spaces. We have five (5) such lines here making one paragraph. 
-   ⍝EX This face 😜 is represented _directly_ in APL. 
+   ⍝EX This face 😜 is represented ***directly*** in APL (as unicode *128540*). 
    ⍝EX
    ⍝EX **Note**:
    ⍝EX If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
@@ -223,8 +225,6 @@
    ⍝EX 
    ⍝EX This is code: `⍳2` 
    ⍝EX 
-   ⍝EX This is *also* code: <code>⍳3</code> 
-   ⍝EX 
    ⍝EX And so is this:
    ⍝EX 
    ⍝EX      ⍝ Set off with 6 blanks
@@ -233,15 +233,24 @@
    ⍝EX        ∇
    ⍝EX
    ⍝EX This should work. Does it? (**Yes**)
-   ⍝EX ```
-   ⍝EX +/⍺⍳⍵
-   ⍝EX -\⍵⍳⍺
+   ⍝EX ```APL
+   ⍝EX w←⊃(⊃0⍴⍵){                           ⍝┌┌─2─┐       monadic; use ↓
+   ⍝EX     (e a)←|⍺                         ⍝├ 0 0 1 1 1  dyadic; use /
+   ⍝EX     T←⌽⍣(0>⊃⌽⍺)                      ⍝└──→⍺⍺←─────┐
+   ⍝EX     Pad←⍵⍵⍉(T⊣)⍪⍵⍪(T⊢)               ⍝ ┌⍺┐  ⌺     │
+   ⍝EX     need←(1+e),1↓⍴⍵                  ⍝ ┌─────⍵⍵──┐┘
+   ⍝EX     a=0:(1↓need⍴0↑⍵)Pad(1↓need⍴0↑⊢⍵) ⍝  0 0│1 2 3 4 5│0 0  Zero
+   ⍝EX     a=1:(1↓need⍴1↑⍵)Pad(1↓need⍴1↑⊖⍵) ⍝  1 1│1 2 3 4 5│5 5  Replicate
+   ⍝EX     a=2:(⊖¯1↓need⍴⊢⍵)Pad(¯1↓need⍴⊖⍵) ⍝  2 1│1 2 3 4 5│5 4  Reverse
+   ⍝EX     a=3:(⊖⊢1↓need⍴⊢⍵)Pad(⊢1↓need⍴⊖⍵) ⍝  3 2│1 2 3 4 5│4 3  Mirror
+   ⍝EX     a=4:(⊖¯1↓need⍴⊖⍵)Pad(¯1↓need⍴⊢⍵) ⍝  4 5│1 2 3 4 5│1 2  Wrap
+   ⍝EX }(¯1⌽⍳≢⍴⍵)/(⌽extra,¨⍺⊣0),⊂⍵          ⍝     └────⍵────┘
    ⍝EX ```
    ⍝EX
    ⍝EX ### What about tasks?
-   ⍝EX + [x] This task is done
-   ⍝EX - [ ] This is still pending
-   ⍝EX + [x] We knocked this out of the park!
+   ⍝EX + [x] This task is done 
+   ⍝EX - [ ] This is still pending 
+   ⍝EX + [x] We knocked this out of the park! 
    ⍝EX 
    ⍝EX ### Goodbye:exclamation::exclamation::exclamation:
    ⍝EX 
@@ -264,7 +273,8 @@
    ⍝HT </head>
    ⍝HT <body>
    ⍝HT   <div id="markdown-content" style="display:none;">
-   ⍝HT     ___MARKDOWN___             // User Markdown will go here...
+   ⍝       <!-- User Markdown goes here -->
+   ⍝HT     ___MARKDOWN___             
    ⍝HT   </div>
    ⍝HT   <div id="html-content"></div>
    ⍝HT   <script>
@@ -282,31 +292,29 @@
    ⍝     <style>
    ⍝STYLE   table {
    ⍝STYLE     font-family: arial, sans-serif;
-   ⍝STYLE     border: 1pxrgb(5, 30, 30);
    ⍝STYLE     width: 90%;
    ⍝STYLE   }
    ⍝STYLE   td, th {
-   ⍝STYLE     border: 2px #0000ff;
-   ⍝STYLE     background-color:rgb(222, 222, 253);
+   ⍝STYLE     border: 2px black;
+   ⍝STYLE     background-color:rgba(244, 239, 232, 0.77);
    ⍝STYLE     padding: 8px;
    ⍝STYLE   }
    ⍝STYLE   tr:nth-of-type(odd) {
-   ⍝STYLE     color: #1122ff;
+   ⍝STYLE     color: darkBlue;
    ⍝STYLE   } 
    ⍝STYLE   tr:nth-of-type(even) {
-   ⍝STYLE     color: #ff0000;
+   ⍝STYLE     color: darkRed;
    ⍝STYLE   }
    ⍝STYLE   blockquote {
-   ⍝STYLE     border-left: 4px solid #ff0000;
+   ⍝STYLE     border-left: 4px solid darkRed;
    ⍝STYLE     padding-left: 10px;
-   ⍝STYLE     color:rgb(83, 3, 144);
+   ⍝STYLE     color:darkGreen;
    ⍝STYLE   }
    ⍝STYLE   code {
-   ⍝STYLE     display:table;
-   ⍝STYLE     font-family: 'Courier New', Courier, monospace;
-   ⍝STYLE     background:rgba(200, 210, 220, 0.36);
-   ⍝STYLE     padding: 2px 4px;
-   ⍝STYLE     border-radius: 3px;
+   ⍝STYLE     font-size: 90%;
+   ⍝STYLE     color: #000000;
+   ⍝STYLE     font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, "Lucida Console", "Consolas", monospace;
+   ⍝STYLE     background: whiteSmoke;
    ⍝STYLE   }
    ⍝    </style> 
   :EndSection 
@@ -357,6 +365,7 @@
   :EndSection 
 
   :Section Help 
+   ⍝H
    ⍝HP ## Markdown Utility (namespace)
    ⍝HP 
    ⍝HP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
@@ -371,8 +380,8 @@
    ⍝HP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
    ⍝HP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
    ⍝HP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
-   ⍝HP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" ⍵. Examples of ⍵:  `⎕SRC ⎕THIS`; `⎕NR ⊃⎕XSI`, etc. | CVV← |'tok' |∇ | CVV |
-   ⍝HP | Flatten | Convert APL char vector of vectors to a simple char vector (with CR's) | CV← || ∇ | CVV |
+   ⍝HP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" ⍵. Examples of ⍵: `⎕SRC ⎕THIS`; `⎕NR ⊃⎕XSI`, etc. | CVV← |'tok' |∇ | CVV |
+   ⍝HP | Flatten | Convert APL char vector of vectors to a simple char vector (each line prefixed with a carriage return). | CV← || ∇ | CVV |
    ⍝HP 
    ⍝HP 
    ⍝HP ## Using Markdown.Show:
@@ -460,7 +469,7 @@
    ⍝HP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
    ⍝HP 
    ⍝HP #### :arrow_forward: Markdown.Flatten 
-   ⍝HP converts a vector of character vectors to a flat char vector with carriage returns. 
+   ⍝HP converts a vector of character vectors to a flat char vector with each line prefixed by a character return.
    ⍝HP
    ⍝HP #### :arrow_forward: Markdown.example 
    ⍝HP contains a nice example. (See also the source for Markdown.help)
