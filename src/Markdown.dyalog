@@ -28,8 +28,8 @@
             '*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵
       } mdTxt 
       styleTxt← styleOpt{ 
-          ~⍺: 'NOSTYLE' Here src 
-          0=≢⍵: 'STYLE' Here src 
+          ~⍺: 'STC' Here src 
+          0=≢⍵: 'STC?' Here src 
             ⍵ 
       } styleTxt         
       htmlTxt← h0 Customise mdTxt styleTxt titleTxt  ⍝ Insert the markdown text into the HTML/JS src code   
@@ -62,7 +62,7 @@
     pfx,←     CR,⍨  '  // Markdown.Show-internal options in Json format'
     pfx,←     CR,⍨'     style: ', ',',⍨ styleDef⊃ 'false' 'true'
     pfx,←     CR,⍨'     title: ', ',',⍨ Q titleDef 
-    defs← '^\h{4}' ⎕R ' ' RE._Simple⊢ 'J[CO]' Here ⎕SRC ⎕THIS 
+    defs← '^\h{4}' ⎕R ' ' RE._Simple⊢ 'JS[CO]' Here ⎕SRC ⎕THIS 
     d← '{', pfx, defs, '}'  
   ∇
   ⍝ example: e← ∇
@@ -114,7 +114,7 @@
     optE← 'Each option must consist of exactly two items: a keyword and a scalar value' 11
     optNms← 'size' 'posn' 'style' 'title'
     optsIn src← ⍺ ⍵                                          ⍝ optsIn: size, posn, style, title
-    oldJ← '{', CR, (Flatten 'JO' Here src), CR, '}'          ⍝ JO: Default JSON options
+    oldJ← '{', CR, (Flatten 'JSO' Here src), CR, '}'          ⍝ JO: Default JSON options
     optsDef← ⎕OR¨ optNms,¨⊂'Def'
     optsOut curJ← oldJ (optsDef MergeJ optNms) optsIn               ⍝ optsOut: size, posn, style, title
     htmlOut← '___OPTS___' ⎕R curJ RE._Simple 'HT' Here src                      
@@ -144,113 +144,10 @@
   :EndNamespace 
 :EndSection ⍝ Regular_Expressions 
 
-:Section Alien 
-  :Section Example 
-⍝ -------------------------------------------------------------------------------------------
-⍝  example: Markdown example source 
-   ⍝EX 
-   ⍝EX # An example of *Markdown* in the ***Showdown*** dialect
-   ⍝EX
-   ⍝EX
-   ⍝EX ## A Paragraph (1)
-   ⍝EX
-   ⍝EX This shows how to separate lines of a paragraph via 2 trailing spaces, 
-   ⍝EX just like **this:**  
-   ⍝EX there are 2 spaces after the characters **this:** above.
-   ⍝EX 
-   ⍝EX ## A Paragraph (2)
-   ⍝EX This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
-   ⍝EX the expression :smile\:.  Since ('simpleLineBreaks' 0) is the default, 
-   ⍝EX a single paragraph can be generated from multiple contiguous lines, as long as none
-   ⍝EX has 3 (or more) trailing spaces. We have five (5) such lines here making one paragraph. 
-   ⍝EX This face 😜 is represented ***directly*** in APL (as unicode *128540*). 
-   ⍝EX
-   ⍝EX > If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
-   ⍝EX > in the *APL* options. This line has an escaped underscore \__variable\__ and an ellipsis...
-   ⍝EX 
-   ⍝EX #### These lines produce level 1 (#) and level 2 (##) headings:
-   ⍝EX 
-   ⍝EX      This is a level 1 heading!
-   ⍝EX      ==========================
-   ⍝EX 
-   ⍝EX      This is a level 2 heading.
-   ⍝EX      --------------------------
-   ⍝EX 
-   ⍝EX #### Below are the level 1 and level 2 headings produced from the source above!
-   ⍝EX 
-   ⍝EX This is a level 1 heading!
-   ⍝EX ==========================
-   ⍝EX 
-   ⍝EX This is a level 2 heading.
-   ⍝EX --------------------------
-   ⍝EX 
-   ⍝EX 1. This is a bullet
-   ⍝EX      * This is a *sub-*bullet.
-   ⍝EX           * A sub***ber*** bullet.
-   ⍝EX           * And another!
-   ⍝EX 1. This is another top-level bullet. 
-   ⍝EX 1. As is this.
-   ⍝EX      We right now do NOT allow simplified autolinks to places like http://www.dyalog.com.
-   ⍝EX
-   ⍝EX     > Fourscore and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, 
-   ⍝EX     > and dedicated to the proposition that all men are created equal.
-   ⍝EX     
-   ⍝EX 1. A final bullet?
-   ⍝EX
-   ⍝EX > Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, 
-   ⍝EX > can long endure. We are met on a great battle-field of that war. 
-   ⍝EX > We have come to dedicate a portion of that field, as a final resting place for those who here gave 
-   ⍝EX > their lives that that nation might live. It is altogether fitting and proper that we should do this.
-   ⍝EX 
-   ⍝EX ### Tonnage of [Columbus' Ships](http://columbuslandfall.com/ccnav/ships.shtml)\. 
-   ⍝EX 
-   ⍝EX   | Ship  | Niña    | Pinta | Santa Maria |
-   ⍝EX   |: ---- |: ----- :|:-----:|:-----:|
-   ⍝EX   | Type | caravel | caravel | carrack |
-   ⍝EX   | Tonnage | 50-60 tons   | 70 tons  | 100 tons |
-   ⍝EX   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
-   ⍝EX   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
-   ⍝EX
-   ⍝EX **Note**: The above link to Columbus' Ships is an *explicit* link.
-   ⍝EX
-   ⍝EX ----
-   ⍝EX 
-   ⍝EX This is code: `⍳2` 
-   ⍝EX 
-   ⍝EX And so is this:
-   ⍝EX 
-   ⍝EX      ⍝ Set off with 6 blanks
-   ⍝EX        ∇ P← A IOTA B
-   ⍝EX          P← A ⍳ B
-   ⍝EX        ∇
-   ⍝EX
-   ⍝EX This should work. Does it? (**Yes**)
-   ⍝EX ```
-   ⍝EX w←⊃(⊃0⍴⍵){                           ⍝    ┌┌─2─┐           monadic; use ↓
-   ⍝EX     (e a)←|⍺                         ⍝    ├ 0 0 1 1 1      dyadic;  use /
-   ⍝EX     T←⌽⍣(0>⊃⌽⍺)                      ⍝    └──→⍺⍺←─────┐
-   ⍝EX     Pad←⍵⍵⍉(T⊣)⍪⍵⍪(T⊢)               ⍝     ┌⍺┐  ⌺     │
-   ⍝EX     need←(1+e),1↓⍴⍵                  ⍝     ┌─────⍵⍵──┐┘
-   ⍝EX     a=0:(1↓need⍴0↑⍵)Pad(1↓need⍴0↑⊢⍵) ⍝  0 0│1 2 3 4 5│0 0  Zero
-   ⍝EX     a=1:(1↓need⍴1↑⍵)Pad(1↓need⍴1↑⊖⍵) ⍝  1 1│1 2 3 4 5│5 5  Replicate
-   ⍝EX     a=2:(⊖¯1↓need⍴⊢⍵)Pad(¯1↓need⍴⊖⍵) ⍝  2 1│1 2 3 4 5│5 4  Reverse
-   ⍝EX     a=3:(⊖⊢1↓need⍴⊢⍵)Pad(⊢1↓need⍴⊖⍵) ⍝  3 2│1 2 3 4 5│4 3  Mirror
-   ⍝EX     a=4:(⊖¯1↓need⍴⊖⍵)Pad(¯1↓need⍴⊢⍵) ⍝  4 5│1 2 3 4 5│1 2  Wrap
-   ⍝EX }(¯1⌽⍳≢⍴⍵)/(⌽extra,¨⍺⊣0),⊂⍵          ⍝     └────⍵────┘
-   ⍝EX ```
-   ⍝EX
-   ⍝EX ### What about tasks?
-   ⍝EX + [x] This task is done 
-   ⍝EX - [ ] This is still pending 
-   ⍝EX + [x] We knocked this out of the park! 
-   ⍝EX 
-   ⍝EX ### Goodbye:exclamation::exclamation::exclamation:
-   ⍝EX 
-  :EndSection 
-
+:Section Alien_Stuff 
   :Section HTML_Code 
 ⍝ -------------------------------------------------------------------------------------------
-⍝  Markdown-to-Html code-- "showdown" javascript
+⍝  Markdown-to-Html code-- "showdown" dialect
    ⍝HT <!DOCTYPE html>
    ⍝HT <html>
    ⍝HT <head>
@@ -259,6 +156,53 @@
    ⍝HT   </title>
    ⍝HT   <style> 
    ⍝HT      ___STYLE___ 
+   
+   ⍝ST  :root {
+   ⍝ST     --default-text-color: #333333;
+   ⍝ST     --muted-text-color: #666666;
+   ⍝ST     --link-color: #f05675;
+   ⍝ST     --muted-border-color: #dddddd;
+   ⍝ST     --muted-background-color: #eeeeee;
+   ⍝ST     --codeblock-background-color: #772222;
+   ⍝ST     --codeblock-text-color: #eeeeee;
+   ⍝ST   }
+   ⍝ST   table {
+   ⍝ST     font-family: arial, sans-serif;
+   ⍝ST     width: 90%;
+   ⍝ST   }
+   ⍝ST   td, th {
+   ⍝ST     border: 2px black;
+   ⍝ST     background-color:rgba(244, 239, 232, 0.77);
+   ⍝ST     padding: 8px;
+   ⍝ST   }
+   ⍝ST   tr:nth-of-type(odd) {
+   ⍝ST     background-color: lightBlue;
+   ⍝ST     color: darkBlue;
+   ⍝ST   } 
+   ⍝ST   tr:nth-of-type(even) {
+   ⍝ST     background-color: lightRed;
+   ⍝ST     color: darkRed;
+   ⍝ST   }
+   ⍝ST   blockquote {
+   ⍝ST     font-family: Baskerville, Garamond, Georgia; 
+   ⍝ST     font-size: 110%;
+   ⍝ST     border-left: 3px solid darkRed;
+   ⍝ST     padding-left: 5px;
+   ⍝ST     color:rgb(0, 50, 3);
+   ⍝ST   }
+   ⍝ST   pre {
+   ⍝ST     padding: 1rem;
+   ⍝ST     border-radius: 4px;
+   ⍝ST     color: var(--codeblock-text-color);
+   ⍝ST     background-color: var(--codeblock-background-color);
+   ⍝ST     overflow-x: auto;
+   ⍝ST   }
+   ⍝STC  code {
+   ⍝STC   font-size: 90%;
+   ⍝STC    font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
+   ⍝STC                 "Lucida Console", "Consolas", monospace;
+   ⍝STC  }
+
    ⍝HT   </style>
    ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
    ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
@@ -274,113 +218,53 @@
    ⍝HT   <script>
    ⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
    ⍝HT     var opts = ___OPTS___;    // Json Markdown options go here...
+      
+   ⍝JSC      // Json Markdown options (Showdown dialect)
+   ⍝JSC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
+   ⍝JSC      //   the "built-in" default value is (false), potentially overridden here!
+   ⍝JSC      // -------------------------------------------------------------------------------
+   ⍝JSC      // Simple line break: If true, simple line break in paragraph emits <br>.
+   ⍝JSC      //                    If false (default), simple line break does not emit <br>.
+   ⍝JSO         simpleLineBreaks: false, 
+   ⍝JSC      // Enable tables 
+   ⍝JSO         tables: true,
+   ⍝JSC      // Enable strikethrough 
+   ⍝JSO         strikethrough: true,
+   ⍝JSC      // Omit extra line break in code blocks
+   ⍝JSO         omitExtraWLInCodeBlocks: true,
+   ⍝JSC      // Enable GitHub-compatible header IDs
+   ⍝JSO         ghCompatibleHeaderId: true,
+   ⍝JSC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+   ⍝JSO         ghCodeBlocks: true,
+   ⍝JSC      // Prefix header IDs with "custom-id-"
+   ⍝JSO         prefixHeaderId: 'custom-id-',
+   ⍝JSC      // Enable emoji support 
+   ⍝JSO         emoji: true,
+   ⍝JSC      // Enable task lists 
+   ⍝JSO         tasklists: true,
+   ⍝JSC      // Disable automatic wrapping of HTML blocks
+   ⍝JSO         noHTMLBlocks: false,
+   ⍝JSC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+   ⍝JSC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+   ⍝JSC      // to return (except by recreating the page).
+   ⍝JSO         simplifiedAutoLink: false,        
+   ⍝JSC      // Enable support for setting image dimensions in Markdown,  
+   ⍝JSC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
+   ⍝JSO         parseImgDimensions: false, 
+   ⍝JSC      // Force new links to open in a new window
+   ⍝JSC      // *** Doesn't appear to make any difference ***
+   ⍝JSO         openLinksInNewWindow: true, 
+   ⍝JSC      // if true, suppresses any special treatment of underlines 
+   ⍝JSC      // *** Doesn't appear to make any difference ***
+   ⍝JSO         underline: true,
+
    ⍝HT     const converter = new showdown.Converter(opts);
    ⍝HT     const html = converter.makeHtml(markdownText);
    ⍝HT     document.getElementById('html-content').innerHTML = html;
    ⍝HT   </script>
    ⍝HT </body>
    ⍝HT </html>
-   ⍝ Experimental-- alternative to play with...
-   ⍝HTX <!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://morgan3d.github.io/markdeep/latest/markdeep.min.js" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
-  :EndSection 
-
-  :Section CSS Styles  
-   ⍝     <style>
-   ⍝STYLE  :root {
-   ⍝STYLE     --default-text-color: #333333;
-   ⍝STYLE     --muted-text-color: #666666;
-   ⍝STYLE     --link-color: #f05675;
-   ⍝STYLE     --muted-border-color: #dddddd;
-   ⍝STYLE     --muted-background-color: #eeeeee;
-   ⍝STYLE     --codeblock-background-color: #772222;
-   ⍝STYLE     --codeblock-text-color: #eeeeee;
-   ⍝STYLE   }
-   ⍝STYLE   table {
-   ⍝STYLE     font-family: arial, sans-serif;
-   ⍝STYLE     width: 90%;
-   ⍝STYLE   }
-   ⍝STYLE   td, th {
-   ⍝STYLE     border: 2px black;
-   ⍝STYLE     background-color:rgba(244, 239, 232, 0.77);
-   ⍝STYLE     padding: 8px;
-   ⍝STYLE   }
-   ⍝STYLE   tr:nth-of-type(odd) {
-   ⍝STYLE     color: darkBlue;
-   ⍝STYLE   } 
-   ⍝STYLE   tr:nth-of-type(even) {
-   ⍝STYLE     color: darkRed;
-   ⍝STYLE   }
-   ⍝STYLE   blockquote {
-   ⍝STYLE     font-family: Baskerville, Garamond, Georgia; 
-   ⍝STYLE     font-size: 110%;
-   ⍝STYLE     border-left: 3px solid darkRed;
-   ⍝STYLE     padding-left: 5px;
-   ⍝STYLE     color:rgb(0, 50, 3);
-   ⍝STYLE   }
-   ⍝STYLE   pre {
-   ⍝STYLE     padding: 1rem;
-   ⍝STYLE     border-radius: 4px;
-   ⍝STYLE     color: var(--codeblock-text-color);
-   ⍝STYLE     background-color: var(--codeblock-background-color);
-   ⍝STYLE     overflow-x: auto;
-   ⍝STYLE   }
-   ⍝STYLE   code {
-   ⍝STYLE     font-size: 90%;
-   ⍝STYLE     font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
-   ⍝STYLE                  "Lucida Console", "Consolas", monospace;
-   ⍝STYLE   }
-   ⍝    </style> 
-
-   ⍝NOSTYLE   code {
-   ⍝NOSTYLE     font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
-   ⍝NOSTYLE                  "Lucida Console", "Consolas", monospace;
-   ⍝NOSTYLE   }
-  :EndSection 
-
-  :Section Json Options
-⍝ -------------------------------------------------------------------------------------------
-⍝  Json Markdown Option Defaults. Used in place of ___OPTS___ above 
-⍝     var opts = {
-   ⍝JC      // Json Markdown options (Showdown dialect)
-   ⍝JC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
-   ⍝JC      //   the "built-in" default value is (false), potentially overridden here!
-   ⍝JC      // -------------------------------------------------------------------------------
-   ⍝JC      // Simple line break: If true, simple line break in paragraph emits <br>.
-   ⍝JC      //                    If false (default), simple line break does not emit <br>.
-   ⍝JO         simpleLineBreaks: false, 
-   ⍝JC      // Enable tables 
-   ⍝JO         tables: true,
-   ⍝JC      // Enable strikethrough 
-   ⍝JO         strikethrough: true,
-   ⍝JC      // Omit extra line break in code blocks
-   ⍝JO         omitExtraWLInCodeBlocks: true,
-   ⍝JC      // Enable GitHub-compatible header IDs
-   ⍝JO         ghCompatibleHeaderId: true,
-   ⍝JC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-   ⍝JO         ghCodeBlocks: true,
-   ⍝JC      // Prefix header IDs with "custom-id-"
-   ⍝JO         prefixHeaderId: 'custom-id-',
-   ⍝JC      // Enable emoji support 
-   ⍝JO         emoji: true,
-   ⍝JC      // Enable task lists 
-   ⍝JO         tasklists: true,
-   ⍝JC      // Disable automatic wrapping of HTML blocks
-   ⍝JO         noHTMLBlocks: false,
-   ⍝JC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-   ⍝JC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-   ⍝JC      // to return (except by recreating the page).
-   ⍝JO         simplifiedAutoLink: false,        
-   ⍝JC      // Enable support for setting image dimensions in Markdown,  
-   ⍝JC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
-   ⍝JO         parseImgDimensions: false, 
-   ⍝JC      // Force new links to open in a new window
-   ⍝JC      // *** Doesn't appear to make any difference ***
-   ⍝JO         openLinksInNewWindow: true, 
-   ⍝JC      // if true, suppresses any special treatment of underlines 
-   ⍝JC      // *** Doesn't appear to make any difference ***
-   ⍝JO         underline: true,
-⍝    }
-  :EndSection 
+  :EndSection ⍝ HTML_Code 
 
   :Section Help 
    ⍝H
@@ -467,11 +351,7 @@
    ⍝HELP
    ⍝HELP         html.visible←0     ⍝ To redisplay, html.visible←1
    ⍝HELP 
-   ⍝HELP 🛈 To view the markdown example source:
-   ⍝HELP 
-   ⍝HELP          ⎕ED 'html.MD'    
-   ⍝HELP      OR 
-   ⍝HELP          {⎕ED 't'⊣t←⍵} Markdown.example
+   ⍝HELP 🛈 To view the markdown example source, see Markdown.example below :point_down:. 
    ⍝HELP 
    ⍝HELP 🛈 See HTMLRenderer for other APL-side variables.
    ⍝HELP  
@@ -482,7 +362,7 @@
    ⍝HELP #### :arrow_forward: Markdown.Here
    ⍝HELP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
    ⍝HELP
-   ⍝HELP                                              ⍝ Find APL comment line '⍝tok'...
+   ⍝HELP                                              ⍝ Find APL comment line /⍝tok/, foll. by /(\h|$)/
    ⍝HELP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ ... in the current function.
    ⍝HELP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
    ⍝HELP 
@@ -490,11 +370,11 @@
    ⍝HELP converts a vector of character vectors to a flat char vector with each line prefixed by a character return.
    ⍝HELP
    ⍝HELP #### :arrow_forward: Markdown.example 
-   ⍝HELP contains a nice example. (See also the source for Markdown.help)
+   ⍝HELP contains a nice Markdown example. (See also the source for Markdown.help)
    ⍝HELP
    ⍝HELP 🛈 To see the example source, do:
    ⍝HELP
-   ⍝HELP        ⎕ED 'a'⊣ a← Markdown.example
+   ⍝HELP        {⎕ED 'a'⊣ a←⍵} Markdown.example
    ⍝HELP
    ⍝HELP 🛈 To see the result, do: 
    ⍝HELP  
@@ -507,8 +387,114 @@
    ⍝HELP
    ⍝HELP The source for markdown help can be viewed several ways, including this one:
    ⍝HELP
-   ⍝HELP       {⎕ED 't.MD'⊣ t← ⍵} Markdown.help
+   ⍝HELP       {⍵.⎕ED 'MD' }Markdown.help
    ⍝HELP  
-  :EndSection 
-:EndSection ⍝ Alien  
+  :EndSection ⍝ Help 
+
+  :Section Example 
+⍝ -------------------------------------------------------------------------------------------
+⍝  example: Markdown example source 
+   ⍝EX 
+   ⍝EX # An example of *Markdown* in the ***Showdown*** dialect
+   ⍝EX
+   ⍝EX
+   ⍝EX ## A Paragraph (1)
+   ⍝EX
+   ⍝EX This shows how to separate lines of a paragraph via 2 trailing spaces, 
+   ⍝EX just like **this:**  
+   ⍝EX there are 2 spaces after the characters **this:** above.
+   ⍝EX 
+   ⍝EX ## A Paragraph (2)
+   ⍝EX This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
+   ⍝EX the expression :smile\:.  Since ('simpleLineBreaks' 0) is the default, 
+   ⍝EX a single paragraph can be generated from multiple contiguous lines, as long as none
+   ⍝EX has 3 (or more) trailing spaces. We have five (5) such lines here making one paragraph. 
+   ⍝EX This face 😜 is represented ***directly*** in APL (as unicode *128540*). 
+   ⍝EX
+   ⍝EX > If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
+   ⍝EX > in the *APL* options. This line has an escaped underscore \__variable\__ and an ellipsis...
+   ⍝EX 
+   ⍝EX #### These lines produce level 1 (#) and level 2 (##) headings:
+   ⍝EX 
+   ⍝EX      This is a level 1 heading!
+   ⍝EX      ==========================
+   ⍝EX 
+   ⍝EX      This is a level 2 heading.
+   ⍝EX      --------------------------
+   ⍝EX 
+   ⍝EX #### Below are the level 1 and level 2 headings produced from the source above!
+   ⍝EX 
+   ⍝EX This is a level 1 heading!
+   ⍝EX ==========================
+   ⍝EX 
+   ⍝EX This is a level 2 heading.
+   ⍝EX --------------------------
+   ⍝EX 
+   ⍝EX 1. This is a bullet
+   ⍝EX      * This is a *sub-*bullet.
+   ⍝EX           * A sub***ber*** bullet.
+   ⍝EX           * And another!
+   ⍝EX 
+   ⍝EX 1. This is another top-level bullet. 
+   ⍝EX 
+   ⍝EX 1. As is this.
+   ⍝EX      We right now do NOT allow simplified autolinks to places like http://www.dyalog.com.
+   ⍝EX
+   ⍝EX 1. A blockquote:
+   ⍝EX     > Fourscore and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, 
+   ⍝EX     > and dedicated to the proposition that all men are created equal.
+   ⍝EX     
+   ⍝EX 1. A final bullet?
+   ⍝EX
+   ⍝EX > Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, 
+   ⍝EX > can long endure. We are met on a great battle-field of that war. 
+   ⍝EX > We have come to dedicate a portion of that field, as a final resting place for those who here gave 
+   ⍝EX > their lives that that nation might live. It is altogether fitting and proper that we should do this.
+   ⍝EX 
+   ⍝EX ### Tonnage of [Columbus' Ships](http://columbuslandfall.com/ccnav/ships.shtml)\. 
+   ⍝EX 
+   ⍝EX   | Ship  | Niña    | Pinta | Santa Maria |
+   ⍝EX   |: ---- |: ----- :|:-----:|:-----:|
+   ⍝EX   | Type | caravel | caravel | carrack |
+   ⍝EX   | Tonnage | 50-60 tons   | 70 tons  | 100 tons |
+   ⍝EX   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
+   ⍝EX   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
+   ⍝EX
+   ⍝EX **Note**: The above link to Columbus' Ships is an *explicit* link.
+   ⍝EX
+   ⍝EX ----
+   ⍝EX 
+   ⍝EX This is code: `⍳2` 
+   ⍝EX 
+   ⍝EX And so is this, because it's set off with *6* blanks:
+   ⍝EX 
+   ⍝EX      ∇ P← A IOTA B
+   ⍝EX        P← A ⍳ B
+   ⍝EX      ∇
+   ⍝EX
+   ⍝EX This should all line up properly...
+   ⍝EX ```
+   ⍝EX w←⊃(⊃0⍴⍵){                           ⍝    ┌┌─2─┐           monadic; use ↓
+   ⍝EX     (e a)←|⍺                         ⍝    ├ 0 0 1 1 1      dyadic;  use /
+   ⍝EX     T←⌽⍣(0>⊃⌽⍺)                      ⍝    └──→⍺⍺←─────┐
+   ⍝EX     Pad←⍵⍵⍉(T⊣)⍪⍵⍪(T⊢)               ⍝     ┌⍺┐  ⌺     │
+   ⍝EX     need←(1+e),1↓⍴⍵                  ⍝     ┌─────⍵⍵──┐┘
+   ⍝EX     a=0:(1↓need⍴0↑⍵)Pad(1↓need⍴0↑⊢⍵) ⍝  0 0│1 2 3 4 5│0 0  Zero
+   ⍝EX     a=1:(1↓need⍴1↑⍵)Pad(1↓need⍴1↑⊖⍵) ⍝  1 1│1 2 3 4 5│5 5  Replicate
+   ⍝EX     a=2:(⊖¯1↓need⍴⊢⍵)Pad(¯1↓need⍴⊖⍵) ⍝  2 1│1 2 3 4 5│5 4  Reverse
+   ⍝EX     a=3:(⊖⊢1↓need⍴⊢⍵)Pad(⊢1↓need⍴⊖⍵) ⍝  3 2│1 2 3 4 5│4 3  Mirror
+   ⍝EX     a=4:(⊖¯1↓need⍴⊖⍵)Pad(¯1↓need⍴⊢⍵) ⍝  4 5│1 2 3 4 5│1 2  Wrap
+   ⍝EX }(¯1⌽⍳≢⍴⍵)/(⌽extra,¨⍺⊣0),⊂⍵          ⍝     └────⍵────┘
+   ⍝EX ```
+   ⍝EX
+   ⍝EX ### What about tasks?
+   ⍝EX + [x] This task is done. 
+   ⍝EX - [ ] This is still pending 
+   ⍝EX + [x] We knocked this out of the park! 
+   ⍝EX 
+   ⍝EX ### Goodbye:exclamation::exclamation::exclamation:
+   ⍝EX 
+  :EndSection ⍝ example
+
+:EndSection ⍝ Alien_Stuff  
 :EndNamespace 
