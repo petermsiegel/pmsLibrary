@@ -1,8 +1,6 @@
 :Namespace Markdown
 
 :Section Main_Routines  
-⍝
-⍝ -------------------------------------------------------------------------------------------
 ⍝ Main routines and declarations
 ⍝ *** Show *** 
   ⍝ Show:     hNs@ns← newOpts ∇ markdown@CVV
@@ -20,23 +18,18 @@
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ o← ⍺ ⋄ hN← #.⎕NS⍬                      ⍝ Raw user markdown => hN.MD 
       mdTxt styleTxt ← { 3=≡⍵: ⍵ ⋄ ⍵ ⍬} ⍵ 
-      (sizeOpt posnOpt styleOpt titleOpt) h0← o MergeOpts⊢ src← ⎕SRC ⎕THIS 
-    ⍝ - If a title option is NOt used, the first markdown header (#, ##, etc.) 
-    ⍝   will be the title (caption) for the HTML. * chars (for bold, italics) are deleted.
-      titleTxt← titleOpt{
-        0≠≢⍺: ⍺
-            '*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵
-      } mdTxt 
-      styleTxt← styleOpt{ 
-          ~⍺: 'STC' Here src 
-          0=≢⍵: 'STC?' Here src 
-            ⍵ 
-      } styleTxt         
-      htmlTxt← h0 Customise mdTxt styleTxt titleTxt  ⍝ Insert the markdown text into the HTML/JS src code   
+      src← ⎕SRC ⎕THIS 
+      ((sizeOpt posnOpt styleOpt titleOpt) htmlSrc)← o MergeOpts src 
+
+      SetTitle← { 0≠≢⍺: ⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
+      SetStyle← { ~⍺: 'STC' Here src ⋄ 0=≢⍵: 'STC?' Here src ⋄ ⍵ }
+
+      titleTxt← titleOpt SetTitle mdTxt 
+      styleTxt← styleOpt SetStyle styleTxt         
+      htmlTxt← mdTxt styleTxt titleTxt Customise htmlSrc   
       optL← ('HTML'  htmlTxt) (sizeOpt,⍨ ⊂'Size') (posnOpt,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
-      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL     ⍝ Render and return the HTML object
-      hN.htmlObj.(MD STYLE)← mdTxt styleTxt
-      hN.htmlObj  
+      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL      
+      hN.htmlObj ⊣ hN.htmlObj.(MD STYLE)← mdTxt styleTxt
   }
   ⍝ *** Here ***
   ⍝ Here: CVV← token@CV ∇ CVV                    
@@ -45,10 +38,8 @@
   ⍝       I.e., it will match XX, but not (simple) X, XY, XXX, etc.
   ⍝     - If the "token" is 'XX?' or 'X{1,2}', we will match X, XX, but not XY or XXX.
   ⍝   What follows the token and any following blank is the payload /(.*)/'. 
-  Here← {  
-    pfx src← ⍺ ⍵
-    re←'^\h*⍝', pfx, '(?:\h|$)(.*)'                        
-    re ⎕S '\1'⊣ src 
+  Here← { pfx src← ⍺ ⍵ 
+      ('^\h*⍝', pfx, '(?:\h|$)(.*)') ⎕S '\1'⊣ src 
   }
   ⍝ *** defaults ***
   ⍝ defaults: d← ∇
@@ -76,27 +67,27 @@
     html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HELP' Here ⎕SRC ⎕THIS 
     {}⍞
   ∇
-
-⍝ -------------------------------------------------------------------------------------------
-⍝ Constants
-  ⎕IO ⎕ML← 0 1 
-  CR← ⎕UCS 13
-⍝ -------------------------------------------------------------------------------------------
-⍝ Variables                                          ⍝ size: height, width; posn: y, x 
-  sizeDef posnDef styleDef← (800 1000) (5 5) 1       ⍝ style: 1=use our CSS styles, 0=use minimal defaults
-  titleDef← ''                                       ⍝ default title (otherwise from markdown #...)
-  exampleT← ''                                       ⍝ See  ∇ example ∇  
 :EndSection ⍝ Main_Routines
 
+:Section Constants_and_Variables
+  ⍝ Constants
+    ⎕IO ⎕ML← 0 1 
+    CR← ⎕UCS 13
+  ⍝ Variables                                          ⍝ size: height, width; posn: y, x 
+    sizeDef posnDef styleDef← (800 1000) (5 5) 1       ⍝ style: 1=use our CSS styles, 0=use minimal defaults
+    titleDef← ''                                       ⍝ default title (otherwise from markdown #...)
+    exampleT← ''                                       ⍝ See  ∇ example ∇  
+:EndSection ⍝ Constants_and_Variables
+
 :Section Internal_Utilities
-⍝ -------------------------------------------------------------------------------------------
   ⍝ *** Customise ***
-  ⍝ Customise:   CVV← ht@CVV ∇ md@CVV style@CVV                             
-  ⍝   Insert md (markdown stmts) and style (CSS style stmts) into ⍺:ht (html) at ___MARKDOWN___
+  ⍝ Customise:  ∇ md@CVV style@CVV ∇ htmlSrc@CVV                              
+  ⍝   Insert option text (¨mdTxt styleTxt titleTxt¨) into html at "stub" locations.  
   ⍝   Don't process escape chars in the replacement field...
   Customise← {   
-      ht (md st ti)← ⍺ (CR,¨Flatten¨ ⍵) 
-      '___MARKDOWN___' '___STYLE___'  '___TITLE___'  ⎕R md st ti RE._Simple  RE._RE10⊢ ht 
+      (optTxt3 htmlSrc)←  (CR,¨Flatten¨ ⍺) ⍵  
+      stubs3← '___MARKDOWN___' '___STYLE___'  '___TITLE___' 
+      stubs3 ⎕R optTxt3 RE._Simple RE._RE10 htmlSrc
   }
   ⍝ *** Flatten ***
   ⍝ Flatten:  CcrV← ∇ CVV                               
@@ -114,160 +105,170 @@
     optE← 'Each option must consist of exactly two items: a keyword and a scalar value' 11
     optNms← 'size' 'posn' 'style' 'title'
     optsIn src← ⍺ ⍵                                          ⍝ optsIn: size, posn, style, title
-    oldJ← '{', CR, (Flatten 'JSO' Here src), CR, '}'          ⍝ JO: Default JSON options
+    oldJ← '{', CR, (Flatten 'JSO' Here src), CR, '}'         ⍝ JO: Default JSON options
     optsDef← ⎕OR¨ optNms,¨⊂'Def'
-    optsOut curJ← oldJ (optsDef MergeJ optNms) optsIn               ⍝ optsOut: size, posn, style, title
+    optsOut curJ← oldJ (optsDef _MrgJ_ optNms) optsIn     ⍝ optsOut: size, posn, style, title
     htmlOut← '___OPTS___' ⎕R curJ RE._Simple 'HT' Here src                      
     optsOut,⍥⊂ htmlOut                                       ⍝ HT: HTML including "stubs" for options, etc.
   } 
-⍝ See MergeOpts
-  MergeJ← {  true← ⊂⊂'true' ⋄ false← ⊂⊂'false'
+⍝ _MrgJ_. Called by MergeOpts. 
+⍝ Merges Json opts into a namespace, converting between Json true⍨false and APL 1⍨0.
+  _MrgJ_← {  
+      true← ⊂⊂'true' ⋄ false← ⊂⊂'false'
       _J5← ⍠'Dialect' 'JSON5' 
       JIn← { 0=≢⍵:⎕NS ⍬ ⋄ ⎕JSON _J5  ⍵ }   
-      L← { ,∘⊂⍣(2=|≡⍵)⊢ ⍵ }                     
+      Lst← { ,∘⊂⍣(2=|≡⍵)⊢ ⍵ }                     
       A2J←{ true false ⍵⊃⍨ 1 0⍳ ⊂⍵ } ⋄ J2A←{ ⍵≡ true: 1 ⋄ ⍵≡ false: 0 ⋄ ⍵ }
       ⍙Set← { ⍺ ⍺⍺.{ ⍎⍺,'←⍵' } ⍵ }              
-      Merge← {(⍺ ⍙Set∘A2J)/¨⍵} 
+      Mrg← {(⍺ ⍙Set∘A2J)/¨⍵} 
       HOut←  { 0≠ ⎕NC ⍺⍺,⍺: (⎕EX ⍺⍺,⍺)⊢ J2A ⎕OR ⍺⍺,⍺ ⋄ ⍵ }
+
       ⍺← '{}' ⋄ j hDef← ⍺ ⍺⍺
     0=≢⍵:  j,⍨⍥⊂ hDef  
-    2∨.≠ ≢¨ opts← L ⍵: ⎕SIGNAL/ optE 
-      _← (ns←JIn j) Merge opts
+    2∨.≠ ≢¨ opts← Lst ⍵: ⎕SIGNAL/ optE 
+      _← (ns←JIn j) Mrg opts
       (⎕JSON _J5 ns),⍨⍥⊂ ⍵⍵ ('ns.' HOut)¨ hDef
   }
 :EndSection ⍝ Internal_Utilities
 
-:Section Regular_Expressions
+:Section Regular_Expression_Utils
   :Namespace RE
      _Simple← ⍠('ResultText' 'Simple')('EOL' 'CR')
      _RE10←   ⍠'Regex' (1 0)
   :EndNamespace 
-:EndSection ⍝ Regular_Expressions 
+:EndSection ⍝ Regular_Expression_Utils 
 
 :Section Alien_Stuff 
   :Section HTML_Code 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  Markdown-to-Html code-- "showdown" dialect
-   ⍝HT <!DOCTYPE html>
-   ⍝HT <html>
-   ⍝HT <head>
-   ⍝HT   <title>
-   ⍝HT       ___TITLE___
-   ⍝HT   </title>
-   ⍝HT   <style> 
-   ⍝HT      ___STYLE___ 
+  ⍝HT <!DOCTYPE html>
+  ⍝HT <html>
+  ⍝HT <head>
+  ⍝HT   <title>
+  ⍝   The page title goes here.
+  ⍝HT       ___TITLE___
+  ⍝HT   </title>
+  ⍝HT   <style> 
+  ⍝    CTSS style statements go here.
+  ⍝HT      ___STYLE___ 
    
-   ⍝ST  :root {
-   ⍝ST     --default-text-color: #333333;
-   ⍝ST     --muted-text-color: #666666;
-   ⍝ST     --link-color: #f05675;
-   ⍝ST     --muted-border-color: #dddddd;
-   ⍝ST     --muted-background-color: #eeeeee;
-   ⍝ST     --codeblock-background-color: #772222;
-   ⍝ST     --codeblock-text-color: #eeeeee;
-   ⍝ST   }
-   ⍝ST   table {
-   ⍝ST     font-family: arial, sans-serif;
-   ⍝ST     width: 90%;
-   ⍝ST   }
-   ⍝ST   td, th {
-   ⍝ST     border: 2px black;
-   ⍝ST     background-color:rgba(244, 239, 232, 0.77);
-   ⍝ST     padding: 8px;
-   ⍝ST   }
-   ⍝ST   tr:nth-of-type(odd) {
-   ⍝ST     background-color: lightBlue;
-   ⍝ST     color: darkBlue;
-   ⍝ST   } 
-   ⍝ST   tr:nth-of-type(even) {
-   ⍝ST     background-color: lightRed;
-   ⍝ST     color: darkRed;
-   ⍝ST   }
-   ⍝ST   blockquote {
-   ⍝ST     font-family: Baskerville, Garamond, Georgia; 
-   ⍝ST     font-size: 110%;
-   ⍝ST     border-left: 3px solid darkRed;
-   ⍝ST     padding-left: 5px;
-   ⍝ST     color:rgb(0, 50, 3);
-   ⍝ST   }
-   ⍝ST   pre {
-   ⍝ST     padding: 1rem;
-   ⍝ST     border-radius: 4px;
-   ⍝ST     color: var(--codeblock-text-color);
-   ⍝ST     background-color: var(--codeblock-background-color);
-   ⍝ST     overflow-x: auto;
-   ⍝ST   }
-   ⍝STC  code {
-   ⍝STC   font-size: 90%;
-   ⍝STC    font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
-   ⍝STC                 "Lucida Console", "Consolas", monospace;
-   ⍝STC  }
+    ⍝ST  :root {
+    ⍝ST     --default-text-color: #333333;
+    ⍝ST     --muted-text-color: #666666;
+    ⍝ST     --link-color: #f05675;
+    ⍝ST     --muted-border-color: #dddddd;
+    ⍝ST     --muted-background-color: #eeeeee;
+    ⍝ST     --codeblock-background-color: #772222;
+    ⍝ST     --codeblock-text-color: #eeeeee;
+    ⍝ST   }
+    ⍝ST   table {
+    ⍝ST     font-family: arial, sans-serif;
+    ⍝ST     width: 90%;
+    ⍝ST   }
+    ⍝ST   td, th {
+    ⍝ST     border: 2px black;
+    ⍝ST     background-color:rgba(244, 239, 232, 0.77);
+    ⍝ST     padding: 8px;
+    ⍝ST   }
+    ⍝ST   tr:nth-of-type(odd) {
+    ⍝ST     background-color: lightBlue;
+    ⍝ST     color: darkBlue;
+    ⍝ST   } 
+    ⍝ST   tr:nth-of-type(even) {
+    ⍝ST     background-color: lightRed;
+    ⍝ST     color: darkRed;
+    ⍝ST   }
+    ⍝ST   blockquote {
+    ⍝ST     font-family: Baskerville, Garamond, Georgia; 
+    ⍝ST     font-size: 110%;
+    ⍝ST     border-left: 3px solid darkRed;
+    ⍝ST     padding-left: 5px;
+    ⍝ST     color:rgb(0, 50, 3);
+    ⍝ST   }
+    ⍝ST   pre {
+    ⍝ST     padding: 1rem;
+    ⍝ST     border-radius: 4px;
+    ⍝ST     color: var(--codeblock-text-color);
+    ⍝ST     background-color: var(--codeblock-background-color);
+    ⍝ST     overflow-x: auto;
+    ⍝ST   }
+    ⍝STC  code {
+    ⍝STC   font-size: 90%;
+    ⍝STC    font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
+    ⍝STC                 "Lucida Console", "Consolas", monospace;
+    ⍝STC  }
 
-   ⍝HT   </style>
-   ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
-   ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
-   ⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
-   ⍝HT   </script>
-   ⍝HT </head>
-   ⍝HT <body>
-   ⍝HT   <div id="markdown-content" style="display:none;">
-   ⍝       <!-- User Markdown goes here -->
-   ⍝HT     ___MARKDOWN___             
-   ⍝HT   </div>
-   ⍝HT   <div id="html-content"></div>
-   ⍝HT   <script>
-   ⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
-   ⍝HT     var opts = ___OPTS___;    // Json Markdown options go here...
-      
-   ⍝JSC      // Json Markdown options (Showdown dialect)
-   ⍝JSC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
-   ⍝JSC      //   the "built-in" default value is (false), potentially overridden here!
-   ⍝JSC      // -------------------------------------------------------------------------------
-   ⍝JSC      // Simple line break: If true, simple line break in paragraph emits <br>.
-   ⍝JSC      //                    If false (default), simple line break does not emit <br>.
-   ⍝JSO         simpleLineBreaks: false, 
-   ⍝JSC      // Enable tables 
-   ⍝JSO         tables: true,
-   ⍝JSC      // Enable strikethrough 
-   ⍝JSO         strikethrough: true,
-   ⍝JSC      // Omit extra line break in code blocks
-   ⍝JSO         omitExtraWLInCodeBlocks: true,
-   ⍝JSC      // Enable GitHub-compatible header IDs
-   ⍝JSO         ghCompatibleHeaderId: true,
-   ⍝JSC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-   ⍝JSO         ghCodeBlocks: true,
-   ⍝JSC      // Prefix header IDs with "custom-id-"
-   ⍝JSO         prefixHeaderId: 'custom-id-',
-   ⍝JSC      // Enable emoji support 
-   ⍝JSO         emoji: true,
-   ⍝JSC      // Enable task lists 
-   ⍝JSO         tasklists: true,
-   ⍝JSC      // Disable automatic wrapping of HTML blocks
-   ⍝JSO         noHTMLBlocks: false,
-   ⍝JSC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-   ⍝JSC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-   ⍝JSC      // to return (except by recreating the page).
-   ⍝JSO         simplifiedAutoLink: false,        
-   ⍝JSC      // Enable support for setting image dimensions in Markdown,  
-   ⍝JSC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
-   ⍝JSO         parseImgDimensions: false, 
-   ⍝JSC      // Force new links to open in a new window
-   ⍝JSC      // *** Doesn't appear to make any difference ***
-   ⍝JSO         openLinksInNewWindow: true, 
-   ⍝JSC      // if true, suppresses any special treatment of underlines 
-   ⍝JSC      // *** Doesn't appear to make any difference ***
-   ⍝JSO         underline: true,
+  ⍝HT   </style>
+  ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
+  ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
+  ⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
+  ⍝HT   </script>
+  ⍝HT </head>
+  ⍝HT <body>
+  ⍝HT   <div id="markdown-content" style="display:none;">
+  ⍝   User Markdown goes here  
+  ⍝HT     ___MARKDOWN___  
+  ⍝           
+  ⍝HT   </div>
+  ⍝HT   <div id="html-content"></div>
+  ⍝HT   <script>
+  ⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
+  ⍝   Json Markdown options go here...
+  ⍝HT     var opts = ___OPTS___;   
 
-   ⍝HT     const converter = new showdown.Converter(opts);
-   ⍝HT     const html = converter.makeHtml(markdownText);
-   ⍝HT     document.getElementById('html-content').innerHTML = html;
-   ⍝HT   </script>
-   ⍝HT </body>
-   ⍝HT </html>
+  ⍝ Json Markdown options    
+    ⍝JSC      // Json Markdown options (Showdown dialect)
+    ⍝JSC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
+    ⍝JSC      //   the "built-in" default value is (false), potentially overridden here!
+    ⍝JSC      // -------------------------------------------------------------------------------
+    ⍝JSC      // Simple line break: If true, simple line break in paragraph emits <br>.
+    ⍝JSC      //                    If false (default), simple line break does not emit <br>.
+    ⍝JSO         simpleLineBreaks: false, 
+    ⍝JSC      // Enable tables 
+    ⍝JSO         tables: true,
+    ⍝JSC      // Enable strikethrough 
+    ⍝JSO         strikethrough: true,
+    ⍝JSC      // Omit extra line break in code blocks
+    ⍝JSO         omitExtraWLInCodeBlocks: true,
+    ⍝JSC      // Enable GitHub-compatible header IDs
+    ⍝JSO         ghCompatibleHeaderId: true,
+    ⍝JSC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+    ⍝JSO         ghCodeBlocks: true,
+    ⍝JSC      // Prefix header IDs with "custom-id-"
+    ⍝JSO         prefixHeaderId: 'custom-id-',
+    ⍝JSC      // Enable emoji support 
+    ⍝JSO         emoji: true,
+    ⍝JSC      // Enable task lists 
+    ⍝JSO         tasklists: true,
+    ⍝JSC      // Disable automatic wrapping of HTML blocks
+    ⍝JSO         noHTMLBlocks: false,
+    ⍝JSC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+    ⍝JSC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+    ⍝JSC      // to return (except by recreating the page).
+    ⍝JSO         simplifiedAutoLink: false,        
+    ⍝JSC      // Enable support for setting image dimensions in Markdown,  
+    ⍝JSC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
+    ⍝JSO         parseImgDimensions: false, 
+    ⍝JSC      // Force new links to open in a new window
+    ⍝JSC      // In reality, if <true> links are suppressed when using HTMLRenderer.
+    ⍝JSC      // If <false>, then the links are followed, but there is no mechanism to get back.
+    ⍝JSO         openLinksInNewWindow: true, 
+    ⍝JSC      // if true, suppresses any special treatment of underlines 
+    ⍝JSC      // *** Doesn't appear to make any difference ***
+    ⍝JSO         underline: true,
+
+  ⍝HT     const converter = new showdown.Converter(opts);
+  ⍝HT     const html = converter.makeHtml(markdownText);
+  ⍝HT     document.getElementById('html-content').innerHTML = html;
+  ⍝HT   </script>
+  ⍝HT </body>
+  ⍝HT </html>
   :EndSection ⍝ HTML_Code 
 
   :Section Help 
-   ⍝H
+   ⍝  Help information in Markdown style
+   ⍝
    ⍝HELP ## Help for Markdown.dyalog APL Utility
    ⍝HELP 
    ⍝HELP | :arrow_forward: |Use Markdown in an HTMLRenderer session in Dyalog|
@@ -282,7 +283,7 @@
    ⍝HELP | example | A bells-and-whistles Markdown example                   |CVV←     |        | ∇      |       |
    ⍝HELP | help    | Display (this) help information |[HtmlNs←]|| ∇ ||
    ⍝HELP | defaults | Show Markdown & HTMLRenderer defaults used |CV←||∇||
-   ⍝HELP | Here | Pull Markdown from APL comments '⍝tok' in ⍵, a vector of "strings" ⍵. Examples of ⍵: `⎕SRC ⎕THIS`; `⎕NR ⊃⎕XSI`, etc. | CVV← |'tok' |∇ | CVV |
+   ⍝HELP | Here | Return Markdown (as well as Html, Json, etc.) from comments of the form *⍝****tok text*** from an APL namespace (⎕SRC **ns**) or function (⎕NR '**fn**').| CVV← |'tok' |∇ | CVV |
    ⍝HELP | Flatten | Convert APL char vector of vectors to a simple char vector (each line prefixed with a carriage return). | CV← || ∇ | CVV |
    ⍝HELP 
    ⍝HELP 
@@ -323,7 +324,7 @@
    ⍝HELP |   ('noHTMLBlocks' 0)               |  noHTMLBlocks: false,    |     [𝟯]        |                 
    ⍝HELP |   ('simplifiedAutoLink' 0)         |  simplifiedAutoLink: false  |  [𝟯]           |    
    ⍝HELP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |   [𝟯]          |    
-   ⍝HELP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |  [𝟯]           |    
+   ⍝HELP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |  [𝟯, 𝟰]           |    
    ⍝HELP |   ('underline' 1)                  |  underline: true, |   [𝟯]          |     
    ⍝HELP |   ('style' 1)                      | Use our own added CSS stype overrides (default) | Markdown APL |  
    ⍝HELP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style | [𝟯] |                
@@ -335,21 +336,28 @@
    ⍝HELP | 𝟭. | See **Showdown** documention for the Showdown options. E.g.&nbsp;for&nbsp;general&nbsp;info:&nbsp;https://github.com/showdownjs/showdown; emojis:&nbsp;https://github.com/showdownjs/showdown/wiki/emojis|
    ⍝HELP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
    ⍝HELP | 𝟯. | Same as above |
+   ⍝HELP | 𝟰. | openLinksInNewWindow: if 1 (true), links appear selectable, but are ignored. If 0 (false), they are followed, but without any way to navigate back. |
    ⍝HELP 
    ⍝HELP ### Markdown.Show
    ⍝HELP Show returns the resulting HTML as a vector of character vectors.
    ⍝HELP 
    ⍝HELP 🛈 To see the returned HTML, store the result of ¨Show¨ in a variable:
    ⍝HELP
-   ⍝HELP         html← Markdown.Show example
+   ⍝HELP ```
+   ⍝HELP html← Markdown.Show example
+   ⍝HELP ```
    ⍝HELP 
    ⍝HELP 🛈 To remove the returned HTML permanently, delete or reset the variable:
    ⍝HELP
-   ⍝HELP         ⎕EX 'html'    OR     html←''
+   ⍝HELP ```
+   ⍝HELP ⎕EX 'html'    OR     html←''
+   ⍝HELP ```
    ⍝HELP 
    ⍝HELP 🛈 To temporarily stop displaying the returned HTML, set html variable "visible" to 0:
    ⍝HELP
-   ⍝HELP         html.visible←0     ⍝ To redisplay, html.visible←1
+   ⍝HELP ```
+   ⍝HELP html.visible←0     ⍝ To redisplay, html.visible←1
+   ⍝HELP ```
    ⍝HELP 
    ⍝HELP 🛈 To view the markdown example source, see Markdown.example below :point_down:. 
    ⍝HELP 
@@ -362,9 +370,11 @@
    ⍝HELP #### :arrow_forward: Markdown.Here
    ⍝HELP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
    ⍝HELP
-   ⍝HELP                                              ⍝ Find APL comment line /⍝tok/, foll. by /(\h|$)/
-   ⍝HELP        vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ ... in the current function.
-   ⍝HELP        vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
+   ⍝HELP ```
+   ⍝HELP                                       ⍝ Find APL comment line /⍝tok/, foll. by /(\h|$)/
+   ⍝HELP vv← 'tok' Markdown.Here ⊃⎕XSI         ⍝ ... in the current function.
+   ⍝HELP vv← 'tok' Markdown.Here ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
+   ⍝HELP ```
    ⍝HELP 
    ⍝HELP #### :arrow_forward: Markdown.Flatten 
    ⍝HELP converts a vector of character vectors to a flat char vector with each line prefixed by a character return.
@@ -374,26 +384,33 @@
    ⍝HELP
    ⍝HELP 🛈 To see the example source, do:
    ⍝HELP
-   ⍝HELP        {⎕ED 'a'⊣ a←⍵} Markdown.example
+   ⍝HELP ```
+   ⍝HELP {⎕ED 'a'⊣ a←⍵} Markdown.example
+   ⍝HELP ```
    ⍝HELP
    ⍝HELP 🛈 To see the result, do: 
    ⍝HELP  
-   ⍝HELP        x← Markdown.(Show example)
+   ⍝HELP ```
+   ⍝HELP x← Markdown.(Show example)
+   ⍝HELP ```
    ⍝HELP 
    ⍝HELP #### :arrow_forward: Markdown.help
    ⍝HELP displays help information for this Markdown namespace.
    ⍝HELP 
-   ⍝HELP        Markdown.help 
+   ⍝HELP ```
+   ⍝HELP Markdown.help 
+   ⍝HELP ```
    ⍝HELP
    ⍝HELP The source for markdown help can be viewed several ways, including this one:
    ⍝HELP
-   ⍝HELP       {⍵.⎕ED 'MD' }Markdown.help
+   ⍝HELP ```
+   ⍝HELP {⍵.⎕ED 'MD' }Markdown.help
+   ⍝HELP ```
    ⍝HELP  
   :EndSection ⍝ Help 
 
-  :Section Example 
-⍝ -------------------------------------------------------------------------------------------
-⍝  example: Markdown example source 
+  :Section Markdown_Example 
+⍝  example: Markdown example
    ⍝EX 
    ⍝EX # An example of *Markdown* in the ***Showdown*** dialect
    ⍝EX
@@ -408,27 +425,31 @@
    ⍝EX This is a paragraph with **bold** text and this Emoji smile :smile: is generated via 
    ⍝EX the expression :smile\:.  Since ('simpleLineBreaks' 0) is the default, 
    ⍝EX a single paragraph can be generated from multiple contiguous lines, as long as none
-   ⍝EX has 3 (or more) trailing spaces. We have five (5) such lines here making one paragraph. 
+   ⍝EX has multiple trailing spaces. We have five such lines here (**sans** trailing spaces), making one paragraph. 
    ⍝EX This face 😜 is represented ***directly*** in APL (as unicode *128540*). 
    ⍝EX
-   ⍝EX > If you want contiguous lines to include linebreaks, set ***('simpleLineBreaks' 1)***
+   ⍝EX > If you want contiguous lines to include linebreaks, set `('simpleLineBreaks' 1)`
    ⍝EX > in the *APL* options. This line has an escaped underscore \__variable\__ and an ellipsis...
    ⍝EX 
-   ⍝EX #### These lines produce level 1 (#) and level 2 (##) headings:
+   ⍝EX #### These lines produce level 1 and level 2 headings:
    ⍝EX 
    ⍝EX      This is a level 1 heading!
    ⍝EX      ==========================
+   ⍝EX      # And so is this.
    ⍝EX 
    ⍝EX      This is a level 2 heading.
    ⍝EX      --------------------------
+   ⍝EX      ## As is this! 
    ⍝EX 
    ⍝EX #### Below are the level 1 and level 2 headings produced from the source above!
    ⍝EX 
    ⍝EX This is a level 1 heading!
    ⍝EX ==========================
+   ⍝EX # And so is this.
    ⍝EX 
    ⍝EX This is a level 2 heading.
    ⍝EX --------------------------
+   ⍝EX ## As is this.
    ⍝EX 
    ⍝EX 1. This is a bullet
    ⍝EX      * This is a *sub-*bullet.
@@ -460,7 +481,11 @@
    ⍝EX   | Perceived size | ~~big~~| ~~bigger~~ | ~~gigantic~~ |
    ⍝EX   | Actual size| shrimpy shrimp | small shrimp | jumbo shrimp |
    ⍝EX
-   ⍝EX **Note**: The above link to Columbus' Ships is an *explicit* link.
+   ⍝EX **Note**: The above link to Columbus' Ships is an *explicit* link, 
+   ⍝EX which (by default) is not active. 
+   ⍝EX If you set `('openLinksInNewWindow' 1)` as a **Show** option, 
+   ⍝EX the link will be followed (displayed),
+   ⍝EX but sadly there are *no navigation options* to allow a return to the original page.
    ⍝EX
    ⍝EX ----
    ⍝EX 
@@ -494,7 +519,7 @@
    ⍝EX 
    ⍝EX ### Goodbye:exclamation::exclamation::exclamation:
    ⍝EX 
-  :EndSection ⍝ example
+  :EndSection ⍝ Markdown_Example
 
 :EndSection ⍝ Alien_Stuff  
 :EndNamespace 
