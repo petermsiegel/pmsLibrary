@@ -1,5 +1,7 @@
 :Namespace Markdown
 
+⎕IO ⎕ML←0 1
+
 :Section Main_Routines  
 ⍝ Main routines and declarations
 ⍝ *** Show *** 
@@ -14,16 +16,16 @@
   ⍝ The generated HTML object scope continues as long as the resulting value in hNs is in scope.
   ⍝ 
   Show←{
-    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' EM)('Message' Message)('EN' EN))
+    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('Markdown.Show:', EM))('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ opts← ⍺ ⋄ hN← #.⎕NS⍬                       
     ⍝ If |depth| is less than 3, ⍵ contains just the markdown. Any style will come from
     ⍝ within the Markdown namespace comments (marked with token 'ST').
     ⍝ If 3, ⍵ contains two items: the markdown (CVV) and the style directives (CVV).
       mdTxt styleTxt← { 3=|≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
       src← ⎕SRC ⎕THIS 
-      ns jsonTxt← (,∘⊂⍣(2=|≡opts)⊢ opts) MergeOpts '{', '}',⍨ Flatten 'JSO' TokenScript src
+      ns jsonTxt← opts Options '{', '}',⍨ Flatten 'JSO' TokenScript src
 
-      SetTitle← { ⍺≢  ⎕NULL: ⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
+      SetTitle← { ⍺≢  ⎕NULL: ⍕⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
       SetStyle← { ~⍺: 'STC' TokenScript src ⋄ 0=≢⍵: 'STC?' TokenScript src ⋄ ⍵ }
 
       titleTxt← ns.title SetTitle mdTxt 
@@ -82,22 +84,23 @@
   ⍝   Keep a CR before the FIRST line! 
   Flatten← 1∘↓(∊,⍨¨∘CR⍤⊆) 
 
-  ⍝ *** MergeOpts ***
-  ⍝ MergeOpts:   aplOut jsonOut← aplIn ∇ jsonIn
-  ⍝    ∘ Load existing Markdown options (jsonIn: in Json format);
+  ⍝ *** Options ***
+  ⍝ Options:   aplOut jsonOut← aplIn ∇ jsonIn
+  ⍝    ∘ Load existing Markdown options (jsonIn: in Json5 string format);
   ⍝    ∘ Merge any new options passed from APL (aplIn: as ⍠-style key-value pairs), 
   ⍝      replacing 0, 1, ⎕NULL with (⊂'false'), (⊂'true'), (⊂'null') and vice versa for apl option form.
   ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
-  MergeOpts←{ 
+  Options←{ 
       J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)
       _Set← { ⍺⍺⍎ ⍺,'←⍵' } 
-      SetIn← { 0=≢⍺: ⍵ ⋄ ⍵⊣ (⊃¨⍺) (⍵ _Set)∘⊃∘⌽¨⍺ } 
-      Map← { 
-        ns← ⍵ 
-        tf1 tf2← ⍺⌽ 1 0,⍥⊂ ⊂¨'true' 'false'  
-        ns⊣ { ⍵ (ns _Set) (tf1⍳ v)⊃ tf2, v← ⊂ns.⎕OR ⍵ }¨ ns.⎕NL ¯2   
+      NsUpdate← { 0=≢⍵: ⍺ ⋄ ⍺⊣ (⊃¨⍵) (⍺ _Set)∘⊃∘⌽¨⍵ } 
+      map← (1 0) (⊂¨'true' 'false')  
+      Map← map { 
+        fJ map ns← ⍺ ⍺⍺ ⍵  
+        ns⊣ (≢ ⊃map)∘{ ⍺=i← (fJ⊃ map)⍳ v← ⊂ns.⎕OR ⍵: ⍬ ⋄ ⍵ (ns _Set) (~fJ) i⊃ map}¨ ns.⎕NL ¯2 
       }
-      (1 Map ns),⍥⊂ J5 0 Map⊢ ns← ⍺ SetIn J5 ⍵ 
+      ns←  (J5 ⍵) NsUpdate ,∘⊂⍣(2=|≡⍺)⊢ ⍺ 
+      (1 Map ns) (J5 0 Map ns) 
   }
 :EndSection ⍝ Internal_Utilities
 
@@ -284,7 +287,7 @@
    ⍝HELP | Notes |  |
    ⍝HELP | --- |: --- |
    ⍝HELP | 𝟭. | See **Showdown** documention for the Showdown options. E.g.&nbsp;for&nbsp;general&nbsp;info:&nbsp;https://github.com/showdownjs/showdown; emojis:&nbsp;https://github.com/showdownjs/showdown/wiki/emojis|
-   ⍝HELP | 𝟮. | Call **Markdown.defaults** for the list of option variables (shown in Javascript format).|
+   ⍝HELP | 𝟮. | See `Show` **Options & Their Defaults** below for the list of option variables (in "APL" and Javascript formats).|
    ⍝HELP    
    ⍝HELP *Markdown.Show* returns the value **html**,
    ⍝HELP
@@ -295,9 +298,9 @@
    ⍝HELP     - `html.TITLE`, the title generated from the `('title' title)` option or the first header line found.
    ⍝HELP - When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
    ⍝HELP                             
-   ⍝HELP ### `Show` Options and Their Defaults  &nbsp;&nbsp;&nbsp;[See Notes below] 
+   ⍝HELP ### `Show` Options & Their Defaults &nbsp;&nbsp;&nbsp;[See Notes below] 
    ⍝HELP
-   ⍝HELP | `Show` options & defaults | Options & default at destination | Destination | 
+   ⍝HELP |  `Show` options & defaults | Options & defaults at target env. | target env. | 
    ⍝HELP |: ---- |: ----- |: ---- | 
    ⍝HELP |   ('size' (800 1000))              | ('Size' 800 1000) |  HTMLRenderer |        
    ⍝HELP |   ('posn' (5 5))                   | ('Posn' 5 5) | [𝟯]  |    
@@ -306,7 +309,7 @@
    ⍝HELP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  | Showdown Json5 |           
    ⍝HELP |   ('tables' 1)                     | tables: true,      | [𝟯]  |                      
    ⍝HELP |   ('strikethrough' 1)              |  strikethrough: true,    |  [𝟯]               |                  
-   ⍝HELP |   ('omitExtraWLInCodeBlocks' 1)    |  omitExtraWLInCodeBlocks: true,  |    [𝟯]         |          
+   ⍝HELP |   ('omitExtraWLInCodeBlocks'&nbsp;1)    |  omitExtraWLInCodeBlocks:&nbsp;true,  |    [𝟯]         |          
    ⍝HELP |   ('ghCompatibleHeaderId' 1)       |  ghCompatibleHeaderId: true, |   [𝟯]          |             
    ⍝HELP |   ('ghCodeBlocks' 1)               |  ghCodeBlocks: true,   |    [𝟯]          |                  
    ⍝HELP |   ('prefixHeaderId' 'custom-id-')  |  prefixHeaderId: 'custom-id-',   |  [𝟯]           |          
