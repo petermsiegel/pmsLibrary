@@ -19,18 +19,18 @@
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('Markdown.Show:', EM))('Message' Message)('EN' EN))
       ⍺← ⍬ ⋄ opts← ⍺ ⋄ hN← #.⎕NS⍬                       
     ⍝ If |depth| is less than 3, ⍵ contains just the markdown. Any style will come from
-    ⍝ within the Markdown namespace comments (marked with token 'ST').
+    ⍝ within the Markdown namespace comments (marked with token 'STYLE').
     ⍝ If 3, ⍵ contains two items: the markdown (CVV) and the style directives (CVV).
       mdTxt styleTxt← { 3=|≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
       src← ⎕SRC ⎕THIS 
-      ns jsonTxt← opts Options '{', '}',⍨ Flatten 'JSO' TokenScript src
+      ns jsonTxt← opts Options Flatten 'OPT' TokenScript src
 
       SetTitle← { ⍺≢  ⎕NULL: ⍕⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
-      SetStyle← { ~⍺: 'STC' TokenScript src ⋄ 0=≢⍵: 'STC?' TokenScript src ⋄ ⍵ }
+      SetStyle← { ~⍺: 'STYLEC' TokenScript src ⋄ 0=≢⍵: 'STYLEC?' TokenScript src ⋄ ⍵ }
 
       titleTxt← ns.title SetTitle mdTxt 
       styleTxt← ns.style SetStyle styleTxt   
-      htmlTxt← mdTxt styleTxt titleTxt jsonTxt Customise 'HT' TokenScript src   
+      htmlTxt← mdTxt styleTxt titleTxt jsonTxt Customise 'HTML' TokenScript src   
       optL← ('HTML'  htmlTxt) (ns.size,⍨ ⊂'Size') (ns.posn,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
       _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL      
       hN.htmlObj ⊣ hN.htmlObj.(MD STYLE TITLE)← mdTxt styleTxt titleTxt 
@@ -115,131 +115,133 @@
   :Section HTML_Code 
 ⍝ -------------------------------------------------------------------------------------------
 ⍝  Markdown-to-Html code-- "showdown" dialect
-  ⍝HT <!DOCTYPE html>
-  ⍝HT <html>
-  ⍝HT <head>
-  ⍝HT   <title>
+  ⍝HTML <!DOCTYPE html>
+  ⍝HTML <html>
+  ⍝HTML <head>
+  ⍝HTML   <title>
   ⍝   The page title goes here.
-  ⍝HT       ___TITLE___
-  ⍝HT   </title>
-  ⍝HT   <style> 
+  ⍝HTML       ___TITLE___
+  ⍝HTML   </title>
+  ⍝HTML   <style> 
   ⍝    CTSS style statements go here.
-  ⍝HT      ___STYLE___ 
+  ⍝HTML      ___STYLE___ 
    
-    ⍝ST  :root {
-    ⍝ST     --default-text-color: #333333;
-    ⍝ST     --muted-text-color: #666666;
-    ⍝ST     --link-color: #f05675;
-    ⍝ST     --muted-border-color: #dddddd;
-    ⍝ST     --muted-background-color: #eeeeee;
-    ⍝ST     --codeblock-background-color: #772222;
-    ⍝ST     --codeblock-text-color: #eeeeee;
-    ⍝ST   }
-    ⍝ST   table {
-    ⍝ST     font-family: arial, sans-serif;
-    ⍝ST     width: 90%;
-    ⍝ST   }
-    ⍝ST   td, th {
-    ⍝ST     border: 2px black;
-    ⍝ST     background-color:rgba(244, 239, 232, 0.77);
-    ⍝ST     padding: 8px;
-    ⍝ST   }
-    ⍝ST   tr:nth-of-type(odd) {
-    ⍝ST     background-color: lightBlue;
-    ⍝ST     color: darkBlue;
-    ⍝ST   } 
-    ⍝ST   tr:nth-of-type(even) {
-    ⍝ST     background-color: lightRed;
-    ⍝ST     color: darkRed;
-    ⍝ST   }
-    ⍝ST   blockquote {
-    ⍝ST     font-family: Baskerville, Garamond, Georgia; 
-    ⍝ST     font-size: 110%;
-    ⍝ST     border-left: 3px solid darkRed;
-    ⍝ST     padding-left: 5px;
-    ⍝ST     color:rgb(0, 50, 3);
-    ⍝ST   }
-    ⍝ST   pre {
-    ⍝ST     padding: 1rem;
-    ⍝ST     border-radius: 4px;
-    ⍝ST     color: var(--codeblock-text-color);
-    ⍝ST     background-color: var(--codeblock-background-color);
-    ⍝ST     overflow-x: auto;
-    ⍝ST   }
-    ⍝STC  code {
-    ⍝STC   font-size: 90%;
-    ⍝STC    font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
-    ⍝STC                 "Lucida Console", "Consolas", monospace;
-    ⍝STC  }
+  ⍝STYLE :root {
+  ⍝STYLE    --default-text-color: #333333;
+  ⍝STYLE    --muted-text-color: #666666;
+  ⍝STYLE    --link-color: #f05675;
+  ⍝STYLE    --muted-border-color: #dddddd;
+  ⍝STYLE    --muted-background-color: #eeeeee;
+  ⍝STYLE    --codeblock-background-color: #772222;
+  ⍝STYLE    --codeblock-text-color: #eeeeee;
+  ⍝STYLE  }
+  ⍝STYLE  table {
+  ⍝STYLE    font-family: arial, sans-serif;
+  ⍝STYLE    width: 90%;
+  ⍝STYLE  }
+  ⍝STYLE  td, th {
+  ⍝STYLE    border: 2px black;
+  ⍝STYLE    background-color:rgba(244, 239, 232, 0.77);
+  ⍝STYLE    padding: 8px;
+  ⍝STYLE  }
+  ⍝STYLE  tr:nth-of-type(odd) {
+  ⍝STYLE    background-color: lightBlue;
+  ⍝STYLE    color: darkBlue;
+  ⍝STYLE  } 
+  ⍝STYLE  tr:nth-of-type(even) {
+  ⍝STYLE    background-color: lightRed;
+  ⍝STYLE    color: darkRed;
+  ⍝STYLE  }
+  ⍝STYLE  blockquote {
+  ⍝STYLE    font-family: Baskerville, Garamond, Georgia; 
+  ⍝STYLE    font-size: 110%;
+  ⍝STYLE    border-left: 3px solid darkRed;
+  ⍝STYLE    padding-left: 5px;
+  ⍝STYLE    color:rgb(0, 50, 3);
+  ⍝STYLE  }
+  ⍝STYLE  pre {
+  ⍝STYLE    padding: 1rem;
+  ⍝STYLE    border-radius: 4px;
+  ⍝STYLE    color: var(--codeblock-text-color);
+  ⍝STYLE    background-color: var(--codeblock-background-color);
+  ⍝STYLE    overflow-x: auto;
+  ⍝STYLE  }
+  ⍝STYLEC code {
+  ⍝STYLEC  font-size: 90%;
+  ⍝STYLEC   font-family: "APL386 Unicode", APL385, "APL385 Unicode", "Courier New", Courier, 
+  ⍝STYLEC                "Lucida Console", "Consolas", monospace;
+  ⍝STYLEC }
 
-  ⍝HT   </style>
-  ⍝HT   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
-  ⍝HT        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
-  ⍝HT        crossorigin="anonymous" referrerpolicy="no-referrer">
-  ⍝HT   </script>
-  ⍝HT </head>
-  ⍝HT <body>
-  ⍝HT   <div id="markdown-content" style="display:none;">
+  ⍝HTML   </style>
+  ⍝HTML   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
+  ⍝HTML        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
+  ⍝HTML        crossorigin="anonymous" referrerpolicy="no-referrer">
+  ⍝HTML   </script>
+  ⍝HTML </head>
+  ⍝HTML <body>
+  ⍝HTML   <div id="markdown-content" style="display:none;">
   ⍝   User Markdown goes here  
-  ⍝HT     ___MARKDOWN___  
+  ⍝HTML     ___MARKDOWN___  
   ⍝           
-  ⍝HT   </div>
-  ⍝HT   <div id="html-content"></div>
-  ⍝HT   <script>
-  ⍝HT     var markdownText = document.getElementById('markdown-content').textContent;
+  ⍝HTML   </div>
+  ⍝HTML   <div id="html-content"></div>
+  ⍝HTML   <script>
+  ⍝HTML     var markdownText = document.getElementById('markdown-content').textContent;
   ⍝   Json Markdown options go here...
-  ⍝HT     var opts = ___OPTS___;   
+  ⍝HTML     var opts = ___OPTS___;   
 
   ⍝ Json Markdown options    
-    ⍝JSC      // Json Markdown options (Showdown dialect)
-    ⍝JSC      // ∘ For all binary (true/false) options except ghCodeBlocks, 
-    ⍝JSC      //   the "built-in" default value is (false), potentially overridden here!
-    ⍝JSC      // -------------------------------------------------------------------------------
-    ⍝JSC      // Simple line break: If true, simple line break in paragraph emits <br>.
-    ⍝JSC      //                    If false (default), simple line break does not emit <br>.
-    ⍝         "APL" only opts...
-    ⍝JSO         title: null, style: 1, posn: [5, 5], size: [800, 1000],
-    ⍝         True JSON opts...  
-    ⍝JSO         simpleLineBreaks: false, 
-    ⍝JSC      // Enable tables 
-    ⍝JSO         tables: true,
-    ⍝JSC      // Enable strikethrough 
-    ⍝JSO         strikethrough: true,
-    ⍝JSC      // Omit extra line break in code blocks
-    ⍝JSO         omitExtraWLInCodeBlocks: true,
-    ⍝JSC      // Enable GitHub-compatible header IDs
-    ⍝JSO         ghCompatibleHeaderId: true,
-    ⍝JSC      // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-    ⍝JSO         ghCodeBlocks: true,
-    ⍝JSC      // Prefix header IDs with "custom-id-"
-    ⍝JSO         prefixHeaderId: 'custom-id-',
-    ⍝JSC      // Enable emoji support 
-    ⍝JSO         emoji: true,
-    ⍝JSC      // Enable task lists 
-    ⍝JSO         tasklists: true,
-    ⍝JSC      // Disable automatic wrapping of HTML blocks
-    ⍝JSO         noHTMLBlocks: false,
-    ⍝JSC      // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-    ⍝JSC      // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-    ⍝JSC      // to return (except by recreating the page).
-    ⍝JSO         simplifiedAutoLink: false,        
-    ⍝JSC      // Enable support for setting image dimensions in Markdown,  
-    ⍝JSC      //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
-    ⍝JSO         parseImgDimensions: false, 
-    ⍝JSC      // Force new links to open in a new window
-    ⍝JSC      // In reality, if <true> links are suppressed when using HTMLRenderer.
-    ⍝JSC      // If <false>, then the links are followed, but there is no mechanism to get back.
-    ⍝JSO         openLinksInNewWindow: true, 
-    ⍝JSC      // if true, suppresses any special treatment of underlines 
-    ⍝JSC      // *** Doesn't appear to make any difference ***
-    ⍝JSO         underline: true,
+    ⍝OPTC   // Json Markdown options (Showdown dialect)
+    ⍝OPTC   // ∘ For all binary (true/false) options except ghCodeBlocks, 
+    ⍝OPTC   //   the "built-in" default value is (false), potentially overridden here!
+    ⍝OPTC   // -------------------------------------------------------------------------------
+    ⍝OPTC   // Simple line break: If true, simple line break in paragraph emits <br>.
+    ⍝OPTC   //                    If false (default), simple line break does not emit <br>.
+    ⍝OPTC   // "APL" only opts...
+    ⍝OPT    {
+    ⍝OPT         title: null, style: 1, posn: [5, 5], size: [800, 1000],
+    ⍝OPTC   // True JSON opts...  
+    ⍝OPT         simpleLineBreaks: false, 
+    ⍝OPTC   // Enable tables 
+    ⍝OPT         tables: true,
+    ⍝OPTC   // Enable strikethrough 
+    ⍝OPT         strikethrough: true,
+    ⍝OPTC   // Omit extra line break in code blocks
+    ⍝OPT         omitExtraWLInCodeBlocks: true,
+    ⍝OPTC   // Enable GitHub-compatible header IDs
+    ⍝OPT         ghCompatibleHeaderId: true,
+    ⍝OPTC   // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+    ⍝OPT         ghCodeBlocks: true,
+    ⍝OPTC   // Prefix header IDs with "custom-id-"
+    ⍝OPT         prefixHeaderId: 'custom-id-',
+    ⍝OPTC   // Enable emoji support 
+    ⍝OPT         emoji: true,
+    ⍝OPTC   // Enable task lists 
+    ⍝OPT         tasklists: true,
+    ⍝OPTC   // Disable automatic wrapping of HTML blocks
+    ⍝OPT         noHTMLBlocks: false,
+    ⍝OPTC   // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+    ⍝OPTC   // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+    ⍝OPTC   // to return (except by recreating the page).
+    ⍝OPT         simplifiedAutoLink: false,        
+    ⍝OPTC   // Enable support for setting image dimensions in Markdown,  
+    ⍝OPTC   //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
+    ⍝OPT         parseImgDimensions: false, 
+    ⍝OPTC   // Force new links to open in a new window
+    ⍝OPTC   // In reality, if <true> links are suppressed when using HTMLRenderer.
+    ⍝OPTC   // If <false>, then the links are followed, but there is no mechanism to get back.
+    ⍝OPT         openLinksInNewWindow: true, 
+    ⍝OPTC   // if true, suppresses any special treatment of underlines 
+    ⍝OPTC   // *** Doesn't appear to make any difference ***
+    ⍝OPT         underline: true,
+    ⍝OPT    }
 
-  ⍝HT     const converter = new showdown.Converter(opts);
-  ⍝HT     const html = converter.makeHtml(markdownText);
-  ⍝HT     document.getElementById('html-content').innerHTML = html;
-  ⍝HT   </script>
-  ⍝HT </body>
-  ⍝HT </html>
+  ⍝HTML     const converter = new showdown.Converter(opts);
+  ⍝HTML     const html = converter.makeHtml(markdownText);
+  ⍝HTML     document.getElementById('html-content').innerHTML = html;
+  ⍝HTML   </script>
+  ⍝HTML </body>
+  ⍝HTML </html>
   :EndSection ⍝ HTML_Code 
 
   :Section Help 
@@ -278,7 +280,7 @@
    ⍝HELP - an optional vector of character vectors containing standard CSS style information, 
    ⍝HELP often extracted (via Markdown.TokenScript) from comments in the current function or namespace;
    ⍝HELP and defaulting to something reasonable;
-   ⍝HELP     - To view the default CSS style, do `⎕ED 's'⊣ s←'ST.?' Markdown.TokenScript ⎕SRC Markdown`.
+   ⍝HELP     - To view the default CSS style, do `⎕ED 's'⊣ s←'STYLEC?' Markdown.TokenScript ⎕SRC Markdown`.
    ⍝HELP 
    ⍝HELP where **options** are
    ⍝HELP 
@@ -304,7 +306,7 @@
    ⍝HELP |: ---- |: ----- |: ---- | 
    ⍝HELP |   ('size' (800 1000))              | ('Size' 800 1000) |  HTMLRenderer |        
    ⍝HELP |   ('posn' (5 5))                   | ('Posn' 5 5) | [𝟯]  |    
-   ⍝HELP |   ('title' title)              | Displays passed or default title. The default title is the first user-specified Markdown header, if any. |  Markdown&nbsp;ns |        
+   ⍝HELP |   ('title' title)              | Displays passed or default title. The default title is the first user-specified Markdown header, if any. The default title is selected if no title option is specified or if `('title' ⎕NULL)` is specified. |  Markdown&nbsp;ns |        
    ⍝HELP |   ('style' 1)                   | Displays passed or default CSS style data | [𝟯]  |      
    ⍝HELP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  | Showdown Json5 |           
    ⍝HELP |   ('tables' 1)                     | tables: true,      | [𝟯]  |                      
