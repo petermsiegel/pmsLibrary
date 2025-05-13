@@ -1,131 +1,106 @@
 :Namespace Markdown
 
-⎕IO ⎕ML←0 1
+:Section Constants 
+    ⎕IO ⎕ML← 0 1 
+    CR← ⎕UCS 13
+:EndSection ⍝ Constants 
 
 :Section Main_Routines  
 ⍝ Main routines and declarations
 ⍝ *** Show *** 
   ⍝ Show:     hNs@ns← newOpts ∇ markdown@CVV [style@CVV]
   ⍝ markdown: APL char vectors (CVV)  
-  ⍝ newOpts:  New options for size, posn, style (a boolean), and JSON option variables. 
+  ⍝ newOpts:  New options for size, posn, style (all booleans); title (a string), 
+  ⍝           and JSON option variables. 
   ⍝           Options are of the form: ('name' val), where a val of 1/0 is replaced by Json true/false.
   ⍝ hNs:      Dyalog Render object (⎕WC namespace)
   ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
   ⍝           hNs.MD contains the source markdown used to generate it.
   ⍝           hNs.STYLE contains any CSS Style code (that goes between <style> and </style>)
-  ⍝ The generated HTML object scope continues as long as the resulting value in hNs is in scope.
+  ⍝           hNs.TITLE contains the current title (default or explicitly set).
+  ⍝ The generated HTML object remains available as long as the namespace hNs is in scope.
   ⍝ 
   Show←{
     0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('Markdown.Show:', EM))('Message' Message)('EN' EN))
-      ⍺← ⍬ ⋄ opts← ⍺ ⋄ hN← #.⎕NS⍬                       
-    ⍝ If |depth| is less than 3, ⍵ contains just the markdown. Any style will come from
-    ⍝ within the Markdown namespace comments (marked with token 'STYLE').
-    ⍝ If 3, ⍵ contains two items: the markdown (CVV) and the style directives (CVV).
-      mdTxt styleTxt← { 3=|≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
-      src← ⎕SRC ⎕THIS 
-      ns jsonTxt← opts Options Flatten 'OPT' TokenScript src
-
+      _RShow← ⍠('ResultText' 'Simple')('EOL' 'CR')('Regex' (1 0))
       SetTitle← { ⍺≢  ⎕NULL: ⍕⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
-      SetStyle← { ~⍺: 'STYLEC' TokenScript src ⋄ 0=≢⍵: 'STYLEC?' TokenScript src ⋄ ⍵ }
-
+      SetStyle← { ~⍺: 'STYLEC' Script src ⋄ 0=≢⍵: 'STYLEC?' Script src ⋄ ⍵ }
+      ⍺← ⍬ ⋄ hN← #.⎕NS⍬ 
+    ⍝ Get mdTxt and styleTxt from the one or two right arguments, depending on depth.                   
+      mdTxt styleTxt← { 3≤ |≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
+    ⍝ ⍺ contains updated APL-style options. Default (and original) options are at ⍝OPTS below.
+      src← ⎕SRC ⎕THIS 
+      ns optsTxt← ⍺ JOpts Flatten 'OPTS' Script src
       titleTxt← ns.title SetTitle mdTxt 
       styleTxt← ns.style SetStyle styleTxt   
-      htmlTxt← mdTxt styleTxt titleTxt jsonTxt Customise 'HTML' TokenScript src   
-      optL← ('HTML'  htmlTxt) (ns.size,⍨ ⊂'Size') (ns.posn,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
-      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ optL      
+      optTxt4← CR,¨ Flatten¨ mdTxt styleTxt titleTxt optsTxt
+      stubs4←  '___'∘(,,⊣)¨ 'MARKDOWN' 'STYLE'  'TITLE'  'OPTS'  
+      htmlTxt← stubs4 ⎕R optTxt4 _RShow 'HTML' Script src   
+      HROpt← ('HTML'  htmlTxt) (ns.size,⍨ ⊂'Size') (ns.posn,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
+      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ HROpt      
       hN.htmlObj ⊣ hN.htmlObj.(MD STYLE TITLE)← mdTxt styleTxt titleTxt 
   }
-  ⍝ *** TokenScript ***
-  ⍝ TokenScript: CVV← token@CV ∇ CVV                    
-  ⍝   Find payload in char vectors (CV) following ('^\h*⍝',token,'\h|$') in a vector of CV's. 
-  ⍝     - If the token is 'XX', we match /^\h*⍝XX/ followed by /\h|$/. 
-  ⍝       I.e., it will match XX, but not (simple) X, XY, XXX, etc.
-  ⍝     - If the "token" is 'XX?' or 'X{1,2}', we will match X, XX, but not XY or XXX.
-  ⍝   What follows the token and any following blank is the payload /(.*)/'. 
-  TokenScript← { pfx src← ⍺ ⍵ 
-      ('^\h*⍝', pfx, '(?:\h|$)(.*)') ⎕S '\1'⊣ src 
-  }
-  
-  ⍝ example: e← ∇
-  ⍝   A markdown example.  
-    example← 'EX' TokenScript ⎕SRC ⎕THIS 
-  
+  ⍝ *** Script ***
+  ⍝ Script: CVV← token@CVregex ∇ src@CVV                    
+  ⍝   See ⍝HELP documentation below.
+  Script← { pfx src← ⍺ ⍵ ⋄ ('^\h*⍝', pfx, '(?:\h|$)(.*)') ⎕S '\1'⊣ src }
+    
   ⍝ help: {html@ns}← ∇
   ⍝   To see the markdown source, see: html.MD 
   ∇ {html}← help  
-    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HELP' TokenScript ⎕SRC ⎕THIS 
+    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HELP' Script ⎕SRC ⎕THIS 
     {}⍞
   ∇
 :EndSection ⍝ Main_Routines
 
-:Section Constants_and_Variables
-  ⍝ Constants
-    ⎕IO ⎕ML← 0 1 
-    CR← ⎕UCS 13
-  ⍝ Variables                                          ⍝ size: height, width; posn: y, x 
-    sizeDef posnDef styleDef← (800 1000) (5 5) 1       ⍝ style: 1=use our CSS styles, 0=use minimal defaults
-    titleDef← ''                                       ⍝ default title (otherwise from markdown #...)
-    exampleT← ''                                       ⍝ See  ∇ example ∇  
-:EndSection ⍝ Constants_and_Variables
+:Section Variables 
+  ⍝ example: e← ∇
+  ⍝   A markdown example.  
+  example← 'EX' Script ⎕SRC ⎕THIS 
+:EndSection Variables
 
 :Section Internal_Utilities
-  ⍝ *** Customise ***
-  ⍝ Customise:  ∇ md@CVV style@CVV ∇ htmlSrc@CVV                              
-  ⍝   Insert option text (¨mdTxt styleTxt titleTxt¨) into html at "stub" locations.  
-  ⍝   Don't process escape chars in the replacement field...
-  Customise← {   
-      optTxt4← CR,¨Flatten¨ ⍺ 
-      stubs4← '___MARKDOWN___' '___STYLE___'  '___TITLE___'  '___OPTS___'
-      stubs4 ⎕R optTxt4 RE._Simple RE._RE10 ⍵
-  }
   ⍝ *** Flatten ***
   ⍝ Flatten:  CcrV← ∇ CVV                               
   ⍝   Convert vector of char vectors into a CV with carriage returns. 
   ⍝   Keep a CR before the FIRST line! 
   Flatten← 1∘↓(∊,⍨¨∘CR⍤⊆) 
 
-  ⍝ *** Options ***
-  ⍝ Options:   aplOut jsonOut← aplIn ∇ jsonIn
-  ⍝    ∘ Load existing Markdown options (jsonIn: in Json5 string format);
-  ⍝    ∘ Merge any new options passed from APL (aplIn: as ⍠-style key-value pairs), 
+  ⍝ *** JOpts ***
+  ⍝ JOpts:   aplOut jsonOut← aplIn ∇ jsonIn
+  ⍝    ∘ Load existing Markdown options in Json5 string format (jsonIn);
+  ⍝    ∘ Merge any new options passed from APL as ⍠-style key-value pairs (aplIn), 
   ⍝      replacing 0, 1, ⎕NULL with (⊂'false'), (⊂'true'), (⊂'null') and vice versa for apl option form.
   ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
-  Options←{ 
-      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)
+  JOpts←{ 
+      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)  ⍝ Json null <=> APL ⎕NULL 
       _Set← { ⍺⍺⍎ ⍺,'←⍵' } 
       NsUpdate← { 0=≢⍵: ⍺ ⋄ ⍺⊣ (⊃¨⍵) (⍺ _Set)∘⊃∘⌽¨⍵ } 
-      map← (1 0) (⊂¨'true' 'false')  
-      Map← map { 
-        fJ map ns← ⍺ ⍺⍺ ⍵  
-        ns⊣ (≢ ⊃map)∘{ ⍺=i← (fJ⊃ map)⍳ v← ⊂ns.⎕OR ⍵: ⍬ ⋄ ⍵ (ns _Set) (~fJ) i⊃ map}¨ ns.⎕NL ¯2 
+      Map← { ⍝ Map between APL-style values (1 and 0) and Json-style (true and false).
+        n← ≢ ⊃ map← (1 0) (⊂¨'true' 'false')  
+        ⍵⊣ ⍺∘{ v← ⊂ns.⎕OR ⍵ ⋄ n>i← v⍳⍨ ⍺⊃ map: ⍵ (ns _Set) (~⍺) i⊃ map ⋄ ⍬ }¨ ns.⎕NL ¯2 
       }
-      ns←  (J5 ⍵) NsUpdate ,∘⊂⍣(2=|≡⍺)⊢ ⍺ 
+      ns← (J5 ⍵) NsUpdate ,∘⊂⍣(2=|≡⍺)⊢ ⍺ 
       (1 Map ns) (J5 0 Map ns) 
   }
 :EndSection ⍝ Internal_Utilities
 
-:Section Regular_Expression_Utils
-  :Namespace RE
-     _Simple← ⍠('ResultText' 'Simple')('EOL' 'CR')
-     _RE10←   ⍠'Regex' (1 0)
-  :EndNamespace 
-:EndSection ⍝ Regular_Expression_Utils 
-
-:Section Alien_Stuff 
+:Section Scripts 
   :Section HTML_Code 
-⍝ -------------------------------------------------------------------------------------------
-⍝  Markdown-to-Html code-- "showdown" dialect
+  ⍝ -------------------------------------------------------------------------------------------
+  ⍝  Markdown-to-Html code-- "showdown" dialect
   ⍝HTML <!DOCTYPE html>
   ⍝HTML <html>
   ⍝HTML <head>
   ⍝HTML   <title>
-  ⍝   The page title goes here.
+  ⍝      // The Markdown title goes here.
   ⍝HTML       ___TITLE___
   ⍝HTML   </title>
   ⍝HTML   <style> 
-  ⍝    CTSS style statements go here.
-  ⍝HTML      ___STYLE___ 
-   
+  ⍝      // CTSS style statements go here.
+  ⍝HTML  ___STYLE___ 
+
+  ⍝      // CTSS style statements follow...
   ⍝STYLE :root {
   ⍝STYLE    --default-text-color: #333333;
   ⍝STYLE    --muted-text-color: #666666;
@@ -180,61 +155,61 @@
   ⍝HTML </head>
   ⍝HTML <body>
   ⍝HTML   <div id="markdown-content" style="display:none;">
-  ⍝   User Markdown goes here  
-  ⍝HTML     ___MARKDOWN___  
+  ⍝       // User Markdown goes here  
+  ⍝HTML      ___MARKDOWN___  
   ⍝           
   ⍝HTML   </div>
   ⍝HTML   <div id="html-content"></div>
   ⍝HTML   <script>
   ⍝HTML     var markdownText = document.getElementById('markdown-content').textContent;
-  ⍝   Json Markdown options go here...
+  ⍝      // Markdown Options in Json5 format go here
   ⍝HTML     var opts = ___OPTS___;   
 
-  ⍝ Json Markdown options    
-    ⍝OPTC   // Json Markdown options (Showdown dialect)
-    ⍝OPTC   // ∘ For all binary (true/false) options except ghCodeBlocks, 
-    ⍝OPTC   //   the "built-in" default value is (false), potentially overridden here!
-    ⍝OPTC   // -------------------------------------------------------------------------------
-    ⍝OPTC   // Simple line break: If true, simple line break in paragraph emits <br>.
-    ⍝OPTC   //                    If false (default), simple line break does not emit <br>.
-    ⍝OPTC   // "APL" only opts...
-    ⍝OPT    {
-    ⍝OPT         title: null, style: 1, posn: [5, 5], size: [800, 1000],
-    ⍝OPTC   // True JSON opts...  
-    ⍝OPT         simpleLineBreaks: false, 
-    ⍝OPTC   // Enable tables 
-    ⍝OPT         tables: true,
-    ⍝OPTC   // Enable strikethrough 
-    ⍝OPT         strikethrough: true,
-    ⍝OPTC   // Omit extra line break in code blocks
-    ⍝OPT         omitExtraWLInCodeBlocks: true,
-    ⍝OPTC   // Enable GitHub-compatible header IDs
-    ⍝OPT         ghCompatibleHeaderId: true,
-    ⍝OPTC   // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
-    ⍝OPT         ghCodeBlocks: true,
-    ⍝OPTC   // Prefix header IDs with "custom-id-"
-    ⍝OPT         prefixHeaderId: 'custom-id-',
-    ⍝OPTC   // Enable emoji support 
-    ⍝OPT         emoji: true,
-    ⍝OPTC   // Enable task lists 
-    ⍝OPT         tasklists: true,
-    ⍝OPTC   // Disable automatic wrapping of HTML blocks
-    ⍝OPT         noHTMLBlocks: false,
-    ⍝OPTC   // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
-    ⍝OPTC   // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
-    ⍝OPTC   // to return (except by recreating the page).
-    ⍝OPT         simplifiedAutoLink: false,        
-    ⍝OPTC   // Enable support for setting image dimensions in Markdown,  
-    ⍝OPTC   //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
-    ⍝OPT         parseImgDimensions: false, 
-    ⍝OPTC   // Force new links to open in a new window
-    ⍝OPTC   // In reality, if <true> links are suppressed when using HTMLRenderer.
-    ⍝OPTC   // If <false>, then the links are followed, but there is no mechanism to get back.
-    ⍝OPT         openLinksInNewWindow: true, 
-    ⍝OPTC   // if true, suppresses any special treatment of underlines 
-    ⍝OPTC   // *** Doesn't appear to make any difference ***
-    ⍝OPT         underline: true,
-    ⍝OPT    }
+  ⍝      //  Markdown Options in Json5 format follow...
+  ⍝OPTS⍝    // Json Markdown options (Showdown dialect)
+  ⍝OPTS⍝    // ∘ For all binary (true/false) options except ghCodeBlocks, 
+  ⍝OPTS⍝    //   the "built-in" default value is (false), potentially overridden here!
+  ⍝OPTS⍝    // -------------------------------------------------------------------------------
+  ⍝OPTS⍝    // Simple line break: If true, simple line break in paragraph emits <br>.
+  ⍝OPTS⍝    //                    If false (default), simple line break does not emit <br>.
+  ⍝OPTS⍝    // "APL" only opts...
+  ⍝OPTS     {
+  ⍝OPTS        title: null, style: 1, posn: [5, 5], size: [800, 1000],
+  ⍝OPTS⍝    // True JSON opts...  
+  ⍝OPTS        simpleLineBreaks: false, 
+  ⍝OPTS⍝    // Enable tables 
+  ⍝OPTS        tables: true,
+  ⍝OPTS⍝    // Enable strikethrough 
+  ⍝OPTS        strikethrough: true,
+  ⍝OPTS⍝    // Omit extra line break in code blocks
+  ⍝OPTS        omitExtraWLInCodeBlocks: true,
+  ⍝OPTS⍝    // Enable GitHub-compatible header IDs
+  ⍝OPTS        ghCompatibleHeaderId: true,
+  ⍝OPTS⍝    // Fenced code blocks. True (default), enable code blocks with ``` ... ``` 
+  ⍝OPTS        ghCodeBlocks: true,
+  ⍝OPTS⍝    // Prefix header IDs with "custom-id-"
+  ⍝OPTS        prefixHeaderId: 'custom-id-',
+  ⍝OPTS⍝    // Enable emoji support 
+  ⍝OPTS        emoji: true,
+  ⍝OPTS⍝    // Enable task lists 
+  ⍝OPTS        tasklists: true,
+  ⍝OPTS⍝    // Disable automatic wrapping of HTML blocks
+  ⍝OPTS        noHTMLBlocks: false,
+  ⍝OPTS⍝    // Allow simple URLs like http://dyalog.com in text to be treated as actual links. 
+  ⍝OPTS⍝    // Keep in mind that selecting a link will leave the Markdown page, w/o an easy way  
+  ⍝OPTS⍝    // to return (except by recreating the page).
+  ⍝OPTS        simplifiedAutoLink: false,        
+  ⍝OPTS⍝    // Enable support for setting image dimensions in Markdown,  
+  ⍝OPTS⍝    //      e.g. ![foo](foo.jpg =100x80)  OR ![baz](baz.jpg =80%x5em)
+  ⍝OPTS        parseImgDimensions: false, 
+  ⍝OPTS⍝    // Force new links to open in a new window
+  ⍝OPTS⍝    // In reality, if <true> links are suppressed when using HTMLRenderer.
+  ⍝OPTS⍝    // If <false>, then the links are followed, but there is no mechanism to get back.
+  ⍝OPTS        openLinksInNewWindow: true, 
+  ⍝OPTS⍝    // if true, suppresses any special treatment of underlines 
+  ⍝OPTS⍝    // *** Doesn't appear to make any difference ***
+  ⍝OPTS        underline: true,
+  ⍝OPTS    }
 
   ⍝HTML     const converter = new showdown.Converter(opts);
   ⍝HTML     const html = converter.makeHtml(markdownText);
@@ -260,7 +235,7 @@
    ⍝HELP | Show     | Process and Display Markdown text via the HTMLRenderer  | htmlNs←&nbsp;[opts] | ∇      | md&nbsp;[style] |
    ⍝HELP | help     | Display Markdown help information                       |   [htmlNs←]         | ∇      |       | 
    ⍝HELP | example  | Return the source for a Markdown example (variable)     |    mdLines←         | ∇      |       |
-   ⍝HELP | TokenScript     | Return Markdown (HTML, etc.) strings from namespace or function comments prefixed with a specific token.| lines← 'token' |∇ | lines |
+   ⍝HELP | Script     | Return Markdown (HTML, etc.) strings from namespace or function comments prefixed with a specific token.| lines← 'token' |∇ | lines |
    ⍝HELP | Flatten  | Convert APL strings to a simple char vector (with carriage returns). | string← | ∇     | lines |
    ⍝HELP 
    ⍝HELP ## Using Markdown.Show:
@@ -272,27 +247,29 @@
    ⍝HELP where **markdown** is 
    ⍝HELP 
    ⍝HELP - a vector of character vectors containing Showdown-flavoured Markdown, 
-   ⍝HELP typically extracted (via Markdown.TokenScript) from comments in the current function or namespace;
+   ⍝HELP typically extracted (via Markdown.Script) from comments in the current function or namespace;
    ⍝HELP     - If a single vector, it will be treated as a 1-element vector of character vectors.
    ⍝HELP 
    ⍝HELP where **style** is 
    ⍝HELP 
    ⍝HELP - an optional vector of character vectors containing standard CSS style information, 
-   ⍝HELP often extracted (via Markdown.TokenScript) from comments in the current function or namespace;
+   ⍝HELP often extracted (via Markdown.Script) from comments in the current function or namespace;
    ⍝HELP and defaulting to something reasonable;
-   ⍝HELP     - To view the default CSS style, do `⎕ED 's'⊣ s←'STYLEC?' Markdown.TokenScript ⎕SRC Markdown`.
+   ⍝HELP     - To view the default CSS style, do `⎕ED 's'⊣ s←'STYLEC?' Markdown.Script ⎕SRC Markdown`.
    ⍝HELP 
-   ⍝HELP where **options** are
+   ⍝HELP where **options** are APL variant-style (⍠) specifications [𝟏] of:
    ⍝HELP 
-   ⍝HELP - APL Variant (⍠) style specifications of internal (Markdown namespace) options, HTMLRenderer [𝟏] options, and Markdown JSON5 [𝟐] options. 
+   ⍝HELP - `Show` function options, 
+   ⍝HELP - `HTMLRenderer` options, and 
+   ⍝HELp -  *Markdown Json5* [𝟐] options. 
    ⍝HELP 
    ⍝HELP | Notes |  |
    ⍝HELP | --- |: --- |
-   ⍝HELP | 𝟭. | See **Showdown** documention for the Showdown options. E.g.&nbsp;for&nbsp;general&nbsp;info:&nbsp;https://github.com/showdownjs/showdown; emojis:&nbsp;https://github.com/showdownjs/showdown/wiki/emojis|
-   ⍝HELP | 𝟮. | See `Show` **Options & Their Defaults** below for the list of option variables (in "APL" and Javascript formats).|
-   ⍝HELP    
-   ⍝HELP *Markdown.Show* returns the value **html**,
+   ⍝HELP | 𝟭. | See **Show Options & Their Defaults** below for the list of option variables (in "APL" and Javascript formats).|
+   ⍝HELP | 𝟮. | See **Showdown** documention for details on the Showdown options. E.g.&nbsp;for&nbsp;general&nbsp;info:&nbsp;https://github.com/showdownjs/showdown; emojis:&nbsp;https://github.com/showdownjs/showdown/wiki/emojis|
    ⍝HELP
+   ⍝HELP #### Return value
+   ⍝HELP *Markdown.Show* returns the value **html**,
    ⍝HELP - an HTMLRenderer-generated namespace, augmented with (each as a vector of character vectors):
    ⍝HELP     - `html.HTML`, generated by HTMLRenderer to contain all the HTML code displayed (including markdown and style info below);
    ⍝HELP     - `html.MD`, the generated Markdown source;
@@ -300,15 +277,17 @@
    ⍝HELP     - `html.TITLE`, the title generated from the `('title' title)` option or the first header line found.
    ⍝HELP - When the variable html goes out of scope or is expunged, the HTML object rendered disappears.
    ⍝HELP                             
-   ⍝HELP ### `Show` Options & Their Defaults &nbsp;&nbsp;&nbsp;[See Notes below] 
+   ⍝HELP ### Show Options & Their Defaults
+   ⍝HELP ##### &nbsp;&nbsp;&nbsp;[See Notes below] 
    ⍝HELP
-   ⍝HELP |  `Show` options & defaults | Options & defaults at target env. | target env. | 
+   ⍝HELP |  Options in Show (APL) env. | Options & defaults in target env. | Target env. | 
    ⍝HELP |: ---- |: ----- |: ---- | 
    ⍝HELP |   ('size' (800 1000))              | ('Size' 800 1000) |  HTMLRenderer |        
    ⍝HELP |   ('posn' (5 5))                   | ('Posn' 5 5) | [𝟯]  |    
-   ⍝HELP |   ('title' title)              | Displays passed or default title. The default title is the first user-specified Markdown header, if any. The default title is selected if no title option is specified or if `('title' ⎕NULL)` is specified. |  Markdown&nbsp;ns |        
+   ⍝HELP |   ('title' title)              | Displays passed or default title. The default title is the first user-specified Markdown header, if any. The default title is selected if no title option is specified or if `('title' ⎕NULL)` is specified. |  Show&nbsp;function |        
    ⍝HELP |   ('style' 1)                   | Displays passed or default CSS style data | [𝟯]  |      
-   ⍝HELP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  | Showdown Json5 |           
+   ⍝HELP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style | [𝟯] |                
+   ⍝HELP |   ('simpleLineBreaks' 0)           | simpleLineBreaks: false,  | Showdown&nbsp;Translator |           
    ⍝HELP |   ('tables' 1)                     | tables: true,      | [𝟯]  |                      
    ⍝HELP |   ('strikethrough' 1)              |  strikethrough: true,    |  [𝟯]               |                  
    ⍝HELP |   ('omitExtraWLInCodeBlocks'&nbsp;1)    |  omitExtraWLInCodeBlocks:&nbsp;true,  |    [𝟯]         |          
@@ -322,8 +301,6 @@
    ⍝HELP |   ('parseImgDimensions' 0)         |  parseImgDimensions: false, |   [𝟯]          |    
    ⍝HELP |   ('openLinksInNewWindow' 1)       |  openLinksInNewWindow: true, |  [𝟯, 𝟰]           |    
    ⍝HELP |   ('underline' 1)                  |  underline: true, |   [𝟯]          |     
-   ⍝HELP |   ('style' 1)                      | Use our own added CSS stype overrides (default) | Markdown APL |  
-   ⍝HELP |   ('style' 0)                      | Use showdown's built-in (and lackluster) CSS style | [𝟯] |                
    ⍝HELP  
    ⍝HELP -----------------
    ⍝HELP 
@@ -362,7 +339,7 @@
    ⍝HELP ```
    ⍝HELP ⍝ An APL Session Example
    ⍝HELP a← '### How to add two numbers' '```A← 10 20 30' 'B←¯20 ¯40 ¯60' 'C← A+B' '⎕← C```' '> That''s all'
-   ⍝HELP Markdown.Show a
+   ⍝HELP x← Markdown.Show a
    ⍝HELP ```
    ⍝HELP 
    ⍝HELP ### How to add two numbers
@@ -375,14 +352,14 @@
    ⍝HELP > That's all
    ⍝HELP  
    ⍝HELP ### Markdown Utilities and Examples
-   ⍝HELP #### :arrow_forward: Markdown.TokenScript
+   ⍝HELP #### :arrow_forward: Markdown.Script
    ⍝HELP makes it easy to take comments in APL functions or namespaces and return them as Markdown or HTML code.
    ⍝HELP
    ⍝HELP > Find APL comment line /⍝tok/, foll. by /(\h|$)/. Whatever follows on each selected line is returned.
    ⍝HELP 
    ⍝HELP ```
-   ⍝HELP vv← 'tok' Markdown.TokenScript ⎕NR ⊃⎕XSI     ⍝ ... in the current function.
-   ⍝HELP vv← 'tok' Markdown.TokenScript ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
+   ⍝HELP vv← 'tok' Markdown.Script ⎕NR ⊃⎕XSI     ⍝ ... in the current function.
+   ⍝HELP vv← 'tok' Markdown.Script ⎕SRC ⎕THIS    ⍝ ... in the current namespace.
    ⍝HELP ```
    ⍝HELP 
    ⍝HELP #### 🛈 A script to embed in an APL function. To retrieve the script, use token 'ADD'.
@@ -399,7 +376,7 @@
    ⍝HELP ⍝ADD ``` 
    ⍝HELP ⍝ADD > That''s all
    ⍝HELP 
-   ⍝HELP myScript← 'ADD' Markdown.TokenScript ⎕NR ⊃⎕XSI 
+   ⍝HELP myScript← 'ADD' Markdown.Script ⎕NR ⊃⎕XSI 
    ⍝HELP x← Markdown.Show myScript 
    ⍝HELP {}⍞
    ⍝HELP ∇
@@ -441,7 +418,7 @@
   :EndSection ⍝ Help 
 
   :Section Markdown_Example 
-⍝  example: Markdown example
+   ⍝  example: Markdown example
    ⍝EX 
    ⍝EX # An example of *Markdown* in the ***Showdown*** dialect
    ⍝EX
@@ -528,7 +505,7 @@
    ⍝EX        P← A ⍳ B
    ⍝EX      ∇
    ⍝EX
-   ⍝EX This should all line up properly...
+   ⍝EX This `APL` should all line up properly...
    ⍝EX ```
    ⍝EX w←⊃(⊃0⍴⍵){                           ⍝    ┌┌─2─┐           monadic; use ↓
    ⍝EX     (e a)←|⍺                         ⍝    ├ 0 0 1 1 1      dyadic;  use /
@@ -552,5 +529,5 @@
    ⍝EX 
   :EndSection ⍝ Markdown_Example
 
-:EndSection ⍝ Alien_Stuff  
+:EndSection ⍝ Scripts  
 :EndNamespace 
