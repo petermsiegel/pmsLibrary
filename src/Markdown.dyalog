@@ -72,31 +72,27 @@
   ⍝      replacing 0, 1, ⎕NULL with (⊂'false'), (⊂'true'), (⊂'null') and vice versa for apl option form.
   ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
   SetOpts←{ 
-      aSty jSty← ¯1 1             ⍝ Styles
       J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)('Compact' 0)  ⍝ Json null <=> APL ⎕NULL  
-      Î← ↓⍉⍤↑                     ⍝ Invert:    (k v)(k v) <=> KK VV  
-      ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ ns⊣ { ns⍎⍺,'←⍵'}/¨ ⍵ }
-      _Set_← {                    ⍝ Set ⍵[0] to val ⍵[1] in namespace ⍺⍺ using style ⍵⍵
-          ns sty← ⍺⍺ ⍵⍵
-          in out← (1 0)(⊂¨'true' 'false')⌽⍨ sty≠1 
-          Map← Î {kk vv← Î ⍵ ⋄ kk,⍥⊂ (in⍳ vv)⊃¨ ⊂out}
-          Sel← {in∊⍨ ⊃∘⌽¨⍵}
-          ns ∆NS Map@Sel ⍵
-          ⍝ ns⊣ { ns⍎ ⍺,'←⍵' }/¨ Map@Sel ⍵
+      Î← ↓⍉∘↑                     ⍝ Invert:    (n v)(n v) <=> NN VV  
+      ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ 0=≢⍵: ns ⋄ ns⊣ { ns⍎⍺,'←⍵' }/¨ ⍵ }
+      ∆NG←{ ns nc← ⍺ ⍵ ⋄ {Î ⍵,⍥⊂ ns.⎕OR¨ ⍵} ns.⎕NL nc }
+    ⍝ _M: ns← ns (toJs ∇) NV
+    ⍝   For each name (⊃⍵') in NV, set (⊃⌽⍵') in ns ⍺ to M(⊃⌽⍵'), where 
+    ⍝   the mapping M(⍵) is determined by style flag ⍺⍺.
+    ⍝   If ⍺⍺ is 1, use J mapping of true,false for 1,0; if 0, use APL mapping of 1,0 for true,false.
+    ⍝   Update and return <ns>
+      _M← {                      
+          ns toJS← ⍺ ⍺⍺
+          in out← (1 0)(⊂¨'true' 'false')⌽⍨ 1≠ toJS 
+          ns ∆NS Î∘{nn vv← Î ⍵ ⋄ nn,⍥⊂ (in⍳ vv)⊃¨ ⊂out}@{in∊⍨ ⊃∘⌽¨⍵} ⍵
       }   
-      SetJ← {                     ⍝ Merge APL opts ⍺ into Json5 ⍵; return new json string.
-          (a jRaw) ns← ⍺ ⍵
-        0=≢  a: jRaw
-        2=|≡a: (,⊂a) jRaw ∇ ns 
-          J5 ns _Set_ jSty⊢ a 
-      }             
-      SetA← {                     ⍝ Convert values of all ns vars to APL-style.
-          kv← Î k,⍥⊂ ⍵.⎕OR¨ k← ⍵.⎕NL ¯2
-          ⍵ _Set_ aSty⊢ kv
-      }                   
+    ⍝ Merge APL opts ⍺ into Json5 ⍵; return new json string.
+      SetJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jIn ⋄ J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn } 
+    ⍝ Convert values of all ⍵/ns vars to APL-style.            
+      SetA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }                   
 
       ns← J5 ⍵                    ⍝ ⍵ (Json5) => ns 
-      (SetA ns) (⍺ ⍵ SetJ ns )    ⍝ Return ns in APL-style and string j in Json5-style
+      (SetA ns) (⍺ ⍵ SetJ ns)     ⍝ Return ns in APL-style and string j in Json5-style
   }
 :EndSection ⍝ Internal_Utilities
 
