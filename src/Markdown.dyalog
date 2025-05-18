@@ -1,5 +1,6 @@
 :Namespace Markdown
-
+⍝ For information on how to use, see ⍝HELP comments below...
+⍝ Do not modify ⍝HTML, ⍝HELP, ⍝OPTS, and other comments of the form ¨⍝TOKEN¨.
 :Section Constants 
     ⎕IO ⎕ML← 0 1 
     CR← ⎕UCS 13
@@ -13,32 +14,30 @@
   ⍝ newOpts:  New options for size, posn, style (all booleans); title (a string), 
   ⍝           and JSON option variables. 
   ⍝           Options are of the form: ('name' val), where a val of 1/0 is replaced by Json true/false.
-  ⍝ hNs:      Dyalog Render object (⎕WC namespace)
-  ⍝           hNs.HTML contains the generated HTML as a character vector with CR's (via HTMLRenderer)
-  ⍝           hNs.MD contains the source markdown used to generate it.
-  ⍝           hNs.STYLE contains any CSS Style code (that goes between <style> and </style>)
-  ⍝           hNs.TITLE contains the current title (default or explicitly set).
-  ⍝ The generated HTML object remains available as long as the namespace hNs is in scope.
-  ⍝ 
-  Show←{
-    0:: ⎕SIGNAL ⊂⎕DMX.(('EM' ('Markdown.Show:', EM))('Message' Message)('EN' EN))
+  ⍝           Option names are in lowerCamelCase to be consistent with the Showdown markdown interface.
+  ⍝ hNs:      Dyalog Render object (⎕WC namespace), which disappears when out of scope.
+  Show←{    
+  ⍝  0:: ⎕SIGNAL ⊂⎕DMX.{ ('EM' ( EM,⍨ ': ',⍨ ⍵↓⍨1+⍵⍳'.' ))('Message' Message)('EN' EN)} ⊃⎕XSI 
+    
       _RShow← ⍠('ResultText' 'Simple')('EOL' 'CR')('Regex' (1 0))
       SetTitle← { ⍺≢  ⎕NULL: ⍕⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
       SetStyle← { ~⍺: 'STYLEC' Script src ⋄ 0=≢⍵: 'STYLEC?' Script src ⋄ ⍵ }
+
       ⍺← ⍬ ⋄ hN← #.⎕NS⍬ 
-    ⍝ Get mdTxt and styleTxt from the one or two right arguments, depending on depth.                   
+    ⍝ Get mdTxt and styleTxt from the one or two right arguments, depending on depth.
       mdTxt styleTxt← { 3≤ |≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
-    ⍝ ⍺ contains updated APL-style options. Default (and original) options are at ⍝OPTS below.
+      
+    ⍝ ⍺ contains user's updated APL-style options. Default (and original) options are at ⍝OPTS below.
       src← ⎕SRC ⎕THIS 
-      ns optsTxt← ⍺ JOpts Flatten 'OPTS' Script src
-      titleTxt← ns.title SetTitle mdTxt 
-      styleTxt← ns.style SetStyle styleTxt   
+      ns optsTxt← ⍺ SetOpts Flatten 'OPTS' Script src
+      titleTxt← ns.title SetTitle mdTxt                     ⍝ Get title from ns.title or extract from mdTxt
+      styleTxt← ns.style SetStyle styleTxt                  ⍝ Get styie from ns.style or styleTxt
       optTxt4← CR,¨ Flatten¨ mdTxt styleTxt titleTxt optsTxt
       stubs4←  '___'∘(,,⊣)¨ 'MARKDOWN' 'STYLE'  'TITLE'  'OPTS'  
-      htmlTxt← stubs4 ⎕R optTxt4 _RShow 'HTML' Script src   
+      htmlTxt← stubs4 ⎕R optTxt4 _RShow 'HTML' Script src   ⍝ Add markdown, etc. to htmlTxt  
       HROpt← ('HTML'  htmlTxt) (ns.size,⍨ ⊂'Size') (ns.posn,⍨ ⊂'Posn') ('Coord' 'ScaledPixel')
-      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ HROpt      
-      hN.htmlObj ⊣ hN.htmlObj.(MD STYLE TITLE)← mdTxt styleTxt titleTxt 
+      _← 'hN.htmlObj' ⎕WC 'HTMLRenderer',⍥⊆ HROpt           ⍝ Run HTMLRenderer
+      hN.htmlObj ⊣ hN.htmlObj.(MD STYLE TITLE)← mdTxt styleTxt titleTxt  ⍝ Return the updated renderer obj. 
   }
   ⍝ *** Script ***
   ⍝ Script: CVV← token@CVregex ∇ src@CVV                    
@@ -66,22 +65,38 @@
   ⍝   Keep a CR before the FIRST line! 
   Flatten← 1∘↓(∊,⍨¨∘CR⍤⊆) 
 
-  ⍝ *** JOpts ***
-  ⍝ JOpts:   aplOut jsonOut← aplIn ∇ jsonIn
+  ⍝ *** SetOpts ***
+  ⍝ SetOpts:   aplOut jsonOut← aplIn ∇ jsonIn
   ⍝    ∘ Load existing Markdown options in Json5 string format (jsonIn);
   ⍝    ∘ Merge any new options passed from APL as ⍠-style key-value pairs (aplIn), 
   ⍝      replacing 0, 1, ⎕NULL with (⊂'false'), (⊂'true'), (⊂'null') and vice versa for apl option form.
   ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
-  JOpts←{ 
-      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)  ⍝ Json null <=> APL ⎕NULL 
-      _Set← { ⍺⍺⍎ ⍺,'←⍵' } 
-      NsUpdate← { 0=≢⍵: ⍺ ⋄ ⍺⊣ (⊃¨⍵) (⍺ _Set)∘⊃∘⌽¨⍵ } 
-      Map← { ⍝ Map between APL-style values (1 and 0) and Json-style (true and false).
-        n← ≢ ⊃ map← (1 0) (⊂¨'true' 'false')  
-        ⍵⊣ ⍺∘{ v← ⊂ns.⎕OR ⍵ ⋄ n>i← v⍳⍨ ⍺⊃ map: ⍵ (ns _Set) (~⍺) i⊃ map ⋄ ⍬ }¨ ns.⎕NL ¯2 
-      }
-      ns← (J5 ⍵) NsUpdate ,∘⊂⍣(2=|≡⍺)⊢ ⍺ 
-      (1 Map ns) (J5 0 Map ns) 
+  SetOpts←{ 
+      aSty jSty← ¯1 1             ⍝ Styles
+      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)('Compact' 0)  ⍝ Json null <=> APL ⎕NULL  
+      Î← ↓⍉⍤↑                     ⍝ Invert:    (k v)(k v) <=> KK VV  
+      ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ ns⊣ { ns⍎⍺,'←⍵'}/¨ ⍵ }
+      _Set_← {                    ⍝ Set ⍵[0] to val ⍵[1] in namespace ⍺⍺ using style ⍵⍵
+          ns sty← ⍺⍺ ⍵⍵
+          in out← (1 0)(⊂¨'true' 'false')⌽⍨ sty≠1 
+          Map← Î {kk vv← Î ⍵ ⋄ kk,⍥⊂ (in⍳ vv)⊃¨ ⊂out}
+          Sel← {in∊⍨ ⊃∘⌽¨⍵}
+          ns ∆NS Map@Sel ⍵
+          ⍝ ns⊣ { ns⍎ ⍺,'←⍵' }/¨ Map@Sel ⍵
+      }   
+      SetJ← {                     ⍝ Merge APL opts ⍺ into Json5 ⍵; return new json string.
+          (a jRaw) ns← ⍺ ⍵
+        0=≢  a: jRaw
+        2=|≡a: (,⊂a) jRaw ∇ ns 
+          J5 ns _Set_ jSty⊢ a 
+      }             
+      SetA← {                     ⍝ Convert values of all ns vars to APL-style.
+          kv← Î k,⍥⊂ ⍵.⎕OR¨ k← ⍵.⎕NL ¯2
+          ⍵ _Set_ aSty⊢ kv
+      }                   
+
+      ns← J5 ⍵                    ⍝ ⍵ (Json5) => ns 
+      (SetA ns) (⍺ ⍵ SetJ ns )    ⍝ Return ns in APL-style and string j in Json5-style
   }
 :EndSection ⍝ Internal_Utilities
 
@@ -148,6 +163,7 @@
   ⍝STYLEC }
 
   ⍝HTML   </style>
+  ⍝       // This is where we load the javascript which does the actual conversion...
   ⍝HTML   <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js" 
   ⍝HTML        integrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfydKss6mJpdHjNFiV07dFpS2xzeZedptKZrwxfICJpez09iNioiSZ3hA==" 
   ⍝HTML        crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -219,7 +235,7 @@
   ⍝HTML </html>
   :EndSection ⍝ HTML_Code 
 
-  :Section Help 
+  :Section Help_Info 
    ⍝  Help information in Markdown style
    ⍝
    ⍝HELP ## Help for Markdown.dyalog APL Utility
@@ -415,7 +431,7 @@
    ⍝HELP ⎕ED 'h.MD'⊣ h← Markdown.help 
    ⍝HELP ```
    ⍝HELP  
-  :EndSection ⍝ Help 
+  :EndSection ⍝ Help_Info 
 
   :Section Markdown_Example 
    ⍝  example: Markdown example
