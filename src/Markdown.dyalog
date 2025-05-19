@@ -76,23 +76,22 @@
       Î← ↓⍉∘↑                     ⍝ Invert:    (n v)(n v) <=> nn vv
       ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ 0=≢⍵: ns ⋄ ns⊣ { ns⍎⍺,'←⍵' }/¨ ⍵ }  ⍝ See (future) ⎕NS 
       ∆NG←{ ns nc← ⍺ ⍵ ⋄ {Î ⍵,⍥⊂ ns.⎕OR¨ ⍵} ns.⎕NL nc }           ⍝ See (future) ⎕NG
-    ⍝ _M: Map vector of name-value pairs to a Javascript true/false style (toJs=1) or APL 1/0 style. 
-    ⍝     ns← ns ( toJs@BS ∇∇ ) nvv, where nvv contains 1 or more name value pairs
+      ⍝ _M: Map vector of name-value pairs to a Javascript true/false style (toJs=1) or APL 1/0 style. 
+      ⍝     ns← ns ( toJs@BS ∇∇ ) nvv, where nvv contains 1 or more name value pairs
       TFMap← ⌽∘(⊂¨'true' 'false')(1 0)
       _M← {                      
           ns toJS nvv← ⍺ ⍺⍺ ⍵ ⋄ in out← TFMap toJS 
-          ns ∆NS Î∘{ 
-            nn vv← Î ⍵ ⋄ nn,⍥⊂ (in⍳ vv)⊃¨ ⊂out 
-          }@ { 
-            in∊⍨ ⊃∘⌽¨⍵ 
-          } nvv
+          Sel← { in∊⍨ ⊃∘⌽¨⍵ }
+          Rpl← Î { ⊃{ ⍺,⍥⊂ (in⍳ ⍵)⊃¨ ⊂out }/ Î ⍵ }
+          ns ∆NS Rpl @ Sel nvv
       }  
-    ⍝ MrgJ: Merge Apl opts aIn into Json5-derived ns. If no opts, returns jIn as is.
-    ⍝   jOut@CV← aIn@VV jIn@CV ∇ ns 
+      ⍝ MrgJ: Merge Apl opts aIn into Json5-derived ns. If no opts, returns jIn as is.
+      ⍝   jOut@CV← aIn@VV jIn@CV ∇ ns 
       MrgJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jOut← jIn ⋄ ⊢jOut← J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn } 
-    ⍝ MrgA: Convert values of all ⍵/ns vars to APL-style. 
-    ⍝   ns← ∇ ns            
-      MrgA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }                   
+      ⍝ MrgA: Convert values of all ⍵/ns vars to APL-style. 
+      ⍝   ns← ∇ ns            
+      MrgA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }  
+                       
       a j← ⍺ ⍵                    ⍝ a: APL nv pairs; j: json text.
       ns← J5 j                    ⍝ ⍵ (Json5) => ns 
       (MrgA ns) (a j MrgJ ns)     ⍝ Return ns in APL-style and string j in Json5-style
