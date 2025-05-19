@@ -73,26 +73,29 @@
   ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
   SetOpts←{ 
       J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)('Compact' 0)  ⍝ Json null <=> APL ⎕NULL  
-      Î← ↓⍉∘↑                     ⍝ Invert:    (n v)(n v) <=> NN VV  
-      ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ 0=≢⍵: ns ⋄ ns⊣ { ns⍎⍺,'←⍵' }/¨ ⍵ }
-      ∆NG←{ ns nc← ⍺ ⍵ ⋄ {Î ⍵,⍥⊂ ns.⎕OR¨ ⍵} ns.⎕NL nc }
-    ⍝ _M: ns← ns (toJs ∇) NV
-    ⍝   For each name (⊃⍵') in NV, set (⊃⌽⍵') in ns ⍺ to M(⊃⌽⍵'), where 
-    ⍝   the mapping M(⍵) is determined by style flag ⍺⍺.
-    ⍝   If ⍺⍺ is 1, use J mapping of true,false for 1,0; if 0, use APL mapping of 1,0 for true,false.
-    ⍝   Update and return <ns>
+      Î← ↓⍉∘↑                     ⍝ Invert:    (n v)(n v) <=> nn vv
+      ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ 0=≢⍵: ns ⋄ ns⊣ { ns⍎⍺,'←⍵' }/¨ ⍵ }  ⍝ See (future) ⎕NS 
+      ∆NG←{ ns nc← ⍺ ⍵ ⋄ {Î ⍵,⍥⊂ ns.⎕OR¨ ⍵} ns.⎕NL nc }           ⍝ See (future) ⎕NG
+    ⍝ _M: Map vector of name-value pairs to a Javascript true/false style (toJs=1) or APL 1/0 style. 
+    ⍝     ns← ns ( toJs@BS ∇∇ ) nvv, where nvv contains 1 or more name value pairs
+      TFMap← ⌽∘(⊂¨'true' 'false')(1 0)
       _M← {                      
-          ns toJS← ⍺ ⍺⍺
-          in out← (1 0)(⊂¨'true' 'false')⌽⍨ 1≠ toJS 
-          ns ∆NS Î∘{nn vv← Î ⍵ ⋄ nn,⍥⊂ (in⍳ vv)⊃¨ ⊂out}@{in∊⍨ ⊃∘⌽¨⍵} ⍵
-      }   
-    ⍝ Merge APL opts ⍺ into Json5 ⍵; return new json string.
-      SetJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jIn ⋄ J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn } 
-    ⍝ Convert values of all ⍵/ns vars to APL-style.            
-      SetA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }                   
-
-      ns← J5 ⍵                    ⍝ ⍵ (Json5) => ns 
-      (SetA ns) (⍺ ⍵ SetJ ns)     ⍝ Return ns in APL-style and string j in Json5-style
+          ns toJS nvv← ⍺ ⍺⍺ ⍵ ⋄ in out← TFMap toJS 
+          ns ∆NS Î∘{ 
+            nn vv← Î ⍵ ⋄ nn,⍥⊂ (in⍳ vv)⊃¨ ⊂out 
+          }@ { 
+            in∊⍨ ⊃∘⌽¨⍵ 
+          } nvv
+      }  
+    ⍝ MrgJ: Merge Apl opts aIn into Json5-derived ns. If no opts, returns jIn as is.
+    ⍝   jOut@CV← aIn@VV jIn@CV ∇ ns 
+      MrgJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jOut← jIn ⋄ ⊢jOut← J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn } 
+    ⍝ MrgA: Convert values of all ⍵/ns vars to APL-style. 
+    ⍝   ns← ∇ ns            
+      MrgA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }                   
+      a j← ⍺ ⍵                    ⍝ a: APL nv pairs; j: json text.
+      ns← J5 j                    ⍝ ⍵ (Json5) => ns 
+      (MrgA ns) (a j MrgJ ns)     ⍝ Return ns in APL-style and string j in Json5-style
   }
 :EndSection ⍝ Internal_Utilities
 
