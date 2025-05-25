@@ -1,4 +1,6 @@
 :namespace ⍙F 
+  DEBUG←0        ⍝ Global debug (used sparingly).
+
   ∇ ⍙RES← {⍙L} ∆F ⍙R  ; ⎕TRAP 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
@@ -16,20 +18,22 @@
         ⍙RES← 0 ⎕THIS.Main ⊃,⊆⍙R 
     :EndSelect  
   ∇
-  ##.⎕FX '⎕THIS' '⍙(\w+)'  ⎕R (⍕⎕THIS) '⍙Ⓕ\1' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
-⍝ Debug/test only
-⍝ ##.⎕FX  '∆F' '⎕THIS' '⍙(\w+)'  ⎕R '∆Fre' (⍕⎕THIS) '⍙Ⓕ\1' ⎕NR '∆F'    ⍝ Hardwire ⎕THIS and make local names obscure.
-
-  ⍝ Performance of <∆F x> is comparable to C language version of ∆F
-  ⍝    F-string                            This version vs C-version
-  ⍝    ⎕A                                  ~1:1
-  ⍝    'one`⋄two{ }{`B⍳2 2}{} one`⋄ two'    ~1:1 
+⍝ Fix the names in ∆F. If DEBUG is set to 1, also change ∆F => ∆Fre.
+  ∇ rc← Fix_∆F; l; r 
+    l← '∆F' '⎕THIS' '⍙(\w+)' ⋄ r← '∆F' (⍕⎕THIS) '⍙Ⓕ_\1'
+    :IF 2=⎕NC'DEBUG' ⋄ :AndIf DEBUG
+        (⊃r)← '∆Fre'
+    :EndIf 
+    rc← ##.⎕FX l ⎕R r ⊣ ⎕NR '∆F'
+  ∇
+  Fix_∆F
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
   ⍝ result← [4↑ options] Main f_string
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ 
+        dbg ∨← DEBUG                                                ⍝ dbg is 1 if DEBUG is set to 1.
         omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o    
@@ -90,13 +94,13 @@
     _Opts← ⍠'EOL' 'LF' 
 
 ⍝ Utility to be executed at ⎕FIX (aka ]load ) time
-  ⍝ LoadRTL: At ⎕FIX time, load the run-time library names and code.  
+  ⍝ LoadRuntime: At ⎕FIX time, load the run-time library names and code.  
     ⍝ For A, B, D, F, M; all like A example shown here:
     ⍝     A← an executable dfn in this namespace (⎕THIS).
     ⍝     cA← name codeString, where
     ⍝         name is (⍕⎕THIS),'.A'
     ⍝         codeString is the executable dfn in string form.
-    ∇ {ok}← LoadRTL 
+    ∇ {ok}← LoadRuntime 
         ;XR ;HT 
         XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
         HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
@@ -112,7 +116,7 @@
       shortSyms← 'A'  '%' 'B' 'F' '$' 'T'
       ok← 1 
     ∇
-    LoadRTL
+    LoadRuntime
 
 ⍝ Functions
   ⍝ TextFld
@@ -215,6 +219,7 @@
 ⍝H    Option Name:     [ DFN  DBG  BOX  INLINE ]
 ⍝H    Default Values:    0    0    0    0    
 ⍝H    Value Type         bool bool bool bool
+⍝H    All options are positional (i.e. DFN is positioned first, DBG second, etc.)
 ⍝H    The options are:
 ⍝H       DFN: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
 ⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
@@ -244,27 +249,30 @@
 ⍝H  ∆F IN DETAIL
 ⍝H --------------
 ⍝H 
-⍝H The first argument to ∆F is a character vector, an "∆F string", which contains simple text, 
-⍝H along with run-time evaluated expressions delimited by (unescaped) curly braces {}. 
+⍝H The first element in the right arg to ∆F is a character vector, an "∆F string", 
+⍝H which contains simple text, along with run-time evaluated expressions delimited by 
+⍝H (unescaped) curly braces {}. 
 ⍝H Each ∆F string is viewed as containing one or more "fields," catenated left to right*,
 ⍝H each of which will display as a logically separate character matrix. 
-⍝H            * ∆F suppresses automatic spaces that would be added by APL to denote object rank, etc.
+⍝H            * ∆F adds no automatic spaces like those APL adds to denote object rank, etc.
+⍝H              ∆F assumes the user wants to control spacing of objects.
 ⍝H 
 ⍝H ∆F-string text fields (expressions) may include:
-⍝H   ∘ escape characters representing newlines, escape characters and braces as text. 
-⍝H     newlines "`⋄", escape character itself "``", actual braces "`{" or "`}". 
+⍝H   ∘ escape characters representing newlines, escape characters per se and braces as text. 
+⍝H        actual newline: "`⋄",  escape character: "``", left brace "`{", right brace "`}". 
 ⍝H     Otherwise, { and } delineate the start and end of a Code Field or Space Field.
 ⍝H ∆F-string code fields (expressions) may include: 
-⍝H   ∘ escape characters (e.g. representing newlines, escape characters, and braces as text);
+⍝H   ∘ escape characters (e.g. prefixing newlines, escape characters, and braces as text);
 ⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
 ⍝H   ∘ the ability to display an arbitrary object centered above another (%);
 ⍝H   ∘ shortcuts for displaying boxed output (`B); finally,
-⍝H   ∘ self-documenting code fields are concise expressions for displaying both a code 
+⍝H   ∘ self-documenting code fields, concise expressions for displaying both a code 
 ⍝H     expression (possible a simple name to be evaluated) and its value (→, ↓/%).   
-⍝H     (Only code fields may be self-documenting!).
+⍝H     (Note: Only code fields may be self-documenting!)
 ⍝H ∆F-strings include space fields:
-⍝H   ∘ which appear as "degenerate" code fields (braces with 0 or more spaces between).
-⍝H     ∘ space fields separate other fields, often with extra spaces (columns of rectangular spaces).
+⍝H   ∘ which appear as "degenerate" code fields, i.e. braces separated by nothing but 0 or more spaces.
+⍝H     ∘ space fields separate other fields, often with extra spaces (columns of rectangular spaces)
+⍝H       required by the user.
 ⍝H 
 ⍝H The syntax of ∆F Strings is as follows, where ` represents the active escape character:
 ⍝H   ∆F_String         ::=  (Text_Field | Code_Field | Space_Field)*
@@ -293,25 +301,29 @@
 ⍝H   ------- -- -------- -------
 ⍝H      Format
 ⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
-⍝H         `F      Alias for $
+⍝H        `F       Alias for $
 ⍝H      Box 
-⍝H         `B      A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
+⍝H        `B       A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
 ⍝H      Above 
 ⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
-⍝H         `A      Alias for %
+⍝H        `A       Alias for %
 ⍝H      Omega/Omega Underbar*      
-⍝H         `⍵n     With an explicit index n, where n is a number between 0 and t-1, given 
+⍝H        `⍵n      With an explicit index n, where n is a number between 0 and t-1, given 
 ⍝H                 t, the # of elements of ∆F's right argument ⍵. 
 ⍝H                 Equivalent to (⍵⊃⍨ n+⎕IO), where ⍵ is the right-hand argument (list of elements)
 ⍝H                 passed to ∆F, including the format-string itself.
-⍝H          ⍹n     Same as `⍵n.  ⍹ is less convenient to type, but looks less cluttered!
-⍝H         `⍵      With an implcit index. 
-⍝H                 Evaluates to (⍵⊃⍨ m+⎕IO), where m is set to n+1, based on n, the index of the most recent omega expression
-⍝H                 to the left, whether one with an explicit index (like ⍹n) or an implicit one (like ⍹).
-⍝H                 The first use of an implicit index (from the left) is assigned an index of 1 (i.e. m is set to 1).
-⍝H          ⍹      Same as `⍵.
-⍝H         `⍵0     The format string itself.  A simple `⍵ can never select the format string (since it starts at `⍵1).
-⍝H          ⍹0     Same as ⍹0.
+⍝H         ⍹n      Same as `⍵n.  ⍹ is less convenient to type, but looks less cluttered!
+⍝H        `⍵       With an implicit index. 
+⍝H                 Evaluates to (⍵⊃⍨ m+⎕IO), where m is set to n+1, based on n, the index of the 
+⍝H                 most recent omega expression to the left, whether one with an explicit index 
+⍝H                 (like ⍹n) or an implicit one (like ⍹).
+⍝H                 The first use of an implicit index (from the left) is assigned an index of 1
+⍝H                 (i.e. m is set to 1). 
+⍝H                 Note: ∆F keeps track of the implicit index for you.
+⍝H         ⍹       Same as `⍵.
+⍝H        `⍵0      The format string itself.  A simple `⍵ can never select the format string 
+⍝H                 (since the implicit index starts at `⍵1).
+⍝H         ⍹0      Same as ⍹0.
 ⍝H                 * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
 ⍝H 
 ⍝H New Code Field Shortcut Under Evaluation
