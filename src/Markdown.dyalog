@@ -4,6 +4,7 @@
 :Section Constants 
     ⎕IO ⎕ML← 0 1 
     CR← ⎕UCS 13
+    DEBUG← 0    ⍝ Right now, only affects whether ⎕JSON option ('Compact' 1) is used...
 :EndSection ⍝ Constants 
 
 :Section Main_Routines  
@@ -19,14 +20,13 @@
   Show←{    
   ⍝  0:: ⎕SIGNAL ⊂⎕DMX.{ ('EM' ( EM,⍨ ': ',⍨ ⍵↓⍨1+⍵⍳'.' ))('Message' Message)('EN' EN)} ⊃⎕XSI 
     
-      _RShow← ⍠('ResultText' 'Simple')('EOL' 'CR')('Regex' (1 0))
+      _RShow← ⍠('ResultText' 'Simple')('EOL' 'CR')('Regex' (1 0))('ML' 1)
       SetTitle← { ⍺≢  ⎕NULL: ⍕⍺ ⋄'*'~⍨ ⊃'#++\h?(.*)'⎕S '\1' ⍠('Mode' 'D')('ML' 1)⊢ ⍵ } 
       SetStyle← { ~⍺: 'STYLEC' Script src ⋄ 0=≢⍵: 'STYLEC?' Script src ⋄ ⍵ }
 
       ⍺← ⍬ ⋄ hN← #.⎕NS⍬ 
     ⍝ Get mdTxt and styleTxt from the one or two right arguments, depending on depth.
       mdTxt styleTxt← { 3≤ |≡⍵: ⍵ ⋄ ⍵ ⍬} ⊆⍵ 
-      
     ⍝ ⍺ contains user's updated APL-style options. Default (and original) options are at ⍝OPTS below.
       src← ⎕SRC ⎕THIS 
       ns optsTxt← ⍺ SetOpts Flatten 'OPTS' Script src
@@ -46,8 +46,8 @@
     
   ⍝ help: {html@ns}← ∇
   ⍝   To see the markdown source, see: html.MD 
-  ∇ {html}← help  
-    html← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HELP' Script ⎕SRC ⎕THIS 
+  ∇ {h}← help  
+    h← ('size',⍥⊂ 900 900)('posn',⍥⊂ 5 5) Show 'HELP' Script ⎕SRC ⎕THIS 
     {}⍞
   ∇
 :EndSection ⍝ Main_Routines
@@ -64,38 +64,37 @@
   ⍝   Convert vector of char vectors into a CV with carriage returns. 
   ⍝   Keep a CR before the FIRST line! 
   Flatten← 1∘↓(∊,⍨¨∘CR⍤⊆) 
-
+  
+  :Section Options 
   ⍝ *** SetOpts ***
   ⍝ SetOpts:   aplOut jsonOut← aplIn ∇ jsonIn
   ⍝    ∘ Load existing Markdown options in Json5 string format (jsonIn);
-  ⍝    ∘ Merge any new options passed from APL as ⍠-style key-value pairs (aplIn), 
-  ⍝      replacing 0, 1, ⎕NULL with (⊂'false'), (⊂'true'), (⊂'null') and vice versa for apl option form.
-  ⍝ Returns updated options in ¨apl ns form¨ and ¨json text form¨.
+  ⍝    ∘ Merge new options passed from APL [if any] as ⍠-style key-value pairs (aplIn), 
+  ⍝      for Apl ns form:  [Json] true, false, null => 1, 0, ⎕NULL
+  ⍝      for Json text form: [Apl] 1, 0, ⎕NULL => true, false, null.
+  ⍝ Returns updated options in ¨Apl ns form¨ and ¨Json text form¨.
   SetOpts←{ 
-      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)('Compact' 0)  ⍝ Json null <=> APL ⎕NULL  
-      Î← ↓⍉∘↑                     ⍝ Invert:    (n v)(n v) <=> nn vv
+      J5← ⎕JSON⍠('Dialect' 'JSON5')('Null' ⎕NULL)('Compact' (~DEBUG))  ⍝ Json null <=> APL ⎕NULL  
+      Î← ↓⍉∘↑                                                     ⍝ Invert: nm-val lists <=> (n v)(n v)...    
       ∆NS←{ ⍺← ⎕NS⍬ ⋄ ns← ⍺ ⋄ 0=≢⍵: ns ⋄ ns⊣ { ns⍎⍺,'←⍵' }/¨ ⍵ }  ⍝ See (future) ⎕NS 
-      ∆NG←{ ns nc← ⍺ ⍵ ⋄ {Î ⍵,⍥⊂ ns.⎕OR¨ ⍵} ns.⎕NL nc }           ⍝ See (future) ⎕NG
+      ∆NV←{ Î ⍵.{⍵,⍥⊂ ⎕OR¨⍵} ⍵.⎕NL ¯2 }                           ⍝ Name Val pairs in ns ⍵                   
+      TFMap← ⌽∘(⊂¨'true' 'false')(1 0)
       ⍝ _M: Map vector of name-value pairs to a Javascript true/false style (toJs=1) or APL 1/0 style. 
       ⍝     ns← ns ( toJs@BS ∇∇ ) nvv, where nvv contains 1 or more name value pairs
-      TFMap← ⌽∘(⊂¨'true' 'false')(1 0)
       _M← {                      
           ns toJS nvv← ⍺ ⍺⍺ ⍵ ⋄ in out← TFMap toJS 
           Sel← { in∊⍨ ⊃∘⌽¨⍵ }
           Rpl← Î { ⊃{ ⍺,⍥⊂ (in⍳ ⍵)⊃¨ ⊂out }/ Î ⍵ }
           ns ∆NS Rpl @ Sel nvv
       }  
-      ⍝ MrgJ: Merge Apl opts aIn into Json5-derived ns. If no opts, returns jIn as is.
-      ⍝   jOut@CV← aIn@VV jIn@CV ∇ ns 
-      MrgJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jOut← jIn ⋄ ⊢jOut← J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn } 
-      ⍝ MrgA: Convert values of all ⍵/ns vars to APL-style. 
-      ⍝   ns← ∇ ns            
-      MrgA← { ns←⍵ ⋄ ns (0 _M) ns ∆NG ¯2 }  
+      MrgJ← { (aIn jIn) ns← ⍺ ⍵ ⋄ 0=≢  aIn: jOut← jIn ⋄ ⊢jOut← J5 ns (1 _M) ,∘⊂⍣(2=|≡aIn)⊢ aIn }            
+      MrgA← { ns←⍵ ⋄ ns (0 _M) ∆NV ns  }  
                        
       a j← ⍺ ⍵                    ⍝ a: APL nv pairs; j: json text.
       ns← J5 j                    ⍝ ⍵ (Json5) => ns 
       (MrgA ns) (a j MrgJ ns)     ⍝ Return ns in APL-style and string j in Json5-style
   }
+  :EndSection ⍝ Options 
 :EndSection ⍝ Internal_Utilities
 
 :Section Scripts 
@@ -246,7 +245,7 @@
    ⍝HELP 
    ⍝HELP | Routine  | Usage                                                   |          |   Call Syntax     |       |
    ⍝HELP |: ----    |: ---                                                    |           ---      :|:  --- :|: -------- |
-   ⍝HELP | Show     | Process and Display Markdown text via the HTMLRenderer  | htmlNs←&nbsp;[opts] | ∇      | md&nbsp;[style] |
+   ⍝HELP | Show     | Process/Display Markdown text via&nbsp;HTMLRenderer  | htmlNs←&nbsp;[opts] | ∇      | md&nbsp;&nbsp;&nbsp;[style] |
    ⍝HELP | help     | Display Markdown help information                       |   [htmlNs←]         | ∇      |       | 
    ⍝HELP | example  | Return the source for a Markdown example (variable)     |    mdLines←         | ∇      |       |
    ⍝HELP | Script     | Return Markdown (HTML, etc.) strings from namespace or function comments prefixed with a specific token.| lines← 'token' |∇ | lines |
