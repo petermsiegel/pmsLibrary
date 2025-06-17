@@ -1,43 +1,45 @@
-:namespace ⍙F 
-  DEBUG←0        ⍝ Global debug (used sparingly).
-
-  ∇ ⍙RES← {⍙L} ∆F ⍙R  ; ⎕TRAP 
+:namespace ⍙F
+  fnVersion← '∆F'
+⍝ === BEGINNING OF CODE ==========================================================================
+⍝ === BEGINNING OF CODE ==========================================================================
+  ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
-        ⍙L← ⍬
-    :ElseIf 0≠ ⊃0⍴⍙L
-        ⍙RES← ⎕THIS.Help ⍙L ⋄ :Return 
+        ⍙l← ⍬
+    :ElseIf 0≠ ⊃0⍴⍙l
+        ⍙res← ⎕THIS.Help ⍙l ⋄ :Return 
     :EndIf 
 
-    :Select ⊃⍙L← 4↑⍙L
-    :Case 1   ⍝ 1:  Generate Dfn from f-string ⊃⍙R. ⍙R is of the form '{{code}(⊂''f-string''),⍵}' 
-        ⍙RES← (⊃⎕RSI)⍎ ⍙L ⎕THIS.Main ⊃,⊆⍙R
-    :Case 0     ⍝ 0:  Generate and evaluate code from f-string ⊃⍙R. The code string ⍙R is of the form '{code}⍵'.
-        ⍙RES← (⊃⎕RSI){⍺⍎ (⎕EX '⍙L' '⍙R')⊢⍙L ⎕THIS.Main ⊃⍙R} ⍙R← ,⊆⍙R
-    :Else             ⍝ ¯1: Development/Testing ONLY 
-        ⍙RES← 0 ⎕THIS.Main ⊃,⊆⍙R 
+    :Select ⊃⍙l← 4↑⍙l
+    :Case 1   ⍝ 1:  Generate Dfn from f-string ⊃⍙r. ⍙r is of the form '{{code}(⊂''f-string''),⍵}' 
+        ⍙res← (⊃⎕RSI)⍎ ⍙l ⎕THIS.Main ⊃,⊆⍙r
+    :Case 0   ⍝ 0:  Generate and evaluate code from f-string ⊃⍙r; ⍙r is of the form '{code}⍵'.
+        ⍙res← ⍙l ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.Main ⊃⍵⊣ ⎕EX '⍙l' '⍙r'}) ,⊆⍙r
+    :Case ¯1    ⍝ ¯1: Development/Testing ONLY 
+        ⍙res← 0 ⎕THIS.Main ⊃,⊆⍙r 
     :EndSelect  
   ∇
-⍝ Fix the names in ∆F. If DEBUG is set to 1, also change ∆F => ∆Fre.
-  ∇ rc← Fix_∆F; l; r 
-    l← '∆F' '⎕THIS' '⍙(\w+)' ⋄ r← '∆F' (⍕⎕THIS) '⍙Ⓕ_\1'
-    :IF 2=⎕NC'DEBUG' ⋄ :AndIf DEBUG
-        (⊃r)← '∆Fre'
-    :EndIf 
-    rc← ##.⎕FX l ⎕R r ⊣ ⎕NR '∆F'
+  
+⍝ ⍙Promote_∆F (used internally only)
+⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
+⍝ ∘ Fix this copy in the parent namsspace.
+  ∇ rc← ⍙Promote_∆F fnVersion; src; snk 
+    src←   '⎕THIS' '⍙(\w+)' 
+    snk←  (⍕⎕THIS) '⍙Ⓕ⍙\1øø'
+    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR fnVersion
   ∇
-  Fix_∆F
+  ⍙Promote_∆F fnVersion
+
 
 ⍝ Top Level Routines...
   ⍝ Main: The "main" function for ∆Fre...
   ⍝ result← [4↑ options] Main f_string
     Main← {  
         (dfn dbg box inline) fStr← ⍺ ⍵ 
-        dbg ∨← DEBUG                                                ⍝ dbg is 1 if DEBUG is set to 1.
         omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
         extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o    
-        flds← SplitFlds⍣(0≠≢fStr)⊢ fStr                             ⍝ If fStr is 0-length, don't bother splitting!
+        flds← Split2Flds⍣(0≠≢fStr)⊢ fStr                             ⍝ If fStr is 0-length, don't bother splitting!
       0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
         flds← OrderFlds extern∘ProcFlds¨ flds 
         code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
@@ -45,23 +47,17 @@
         quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
         DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
     } 
+
   ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
     Help← { 
       'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
-        'e'=⎕C 1↑4↓⍵: Help2⍬
         hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
         1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
     }
-    Help2←{ cr← ⎕UCS 13
-      hP←  '(?i)^\s*⍝HX⍎(.*)' 
-      h← ∊hP ⎕S {  
-        f1← ⍵.(Lengths[1]↑Offsets[1]↓Match)
-        ('⎕←''','''',⍨ f1/⍨ 1+''''=f1),cr,f1,cr 
-      }⊣ ⎕SRC ⎕THIS
-      (1⊃⎕RSI).⎕FX (⊂'EVAL '), cr (≠⊆⊢) h 
-    }
 
+⍝ Ns Debugging Flag 
+  ⍝ See top of function       
 ⍝ Constants (For variables, see namespace ¨extern¨ in main)
     ⎕IO ⎕ML←0 1 
   ⍝ Constant char values 
@@ -79,16 +75,27 @@
       qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
     cfPats←  scP omP qtP 
     scI omI qtI← ⍳≢ cfPats 
-    ⍝ See SplitFlds...
-    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields (''). Replace them with a new, empty, field.
+    ⍝ See Split2Flds...
+    ⍝ ⍙splitTF: 
+    ⍝ We match text fields and do nothing with them *yet*, to ensure that 
+    ⍝ single and multiple escapes before left braces (`{ and ``{) are handled properly.
+    ⍝ ∘ The first means a literal left brace (part of TF); 
+    ⍝ ∘ The second, a literal escape followed by code (only the esc is part of TF).
+    ⍙splitTF←  '([^{`]+|`.)+'
+    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields (''). 
+    ⍝ Replace them with a new, empty, field (a 'nop').
     ⍙splitSFZ← '(?:\{\})+'
-    ⍝ ⍙splitSF: Match space fields (0-length handled above) per SpaceFld below. Signaled by pattern ' {'.
+    ⍝ ⍙splitSF: Match space fields (0-length handled above) per SpaceFld below. 
+    ⍝ Signaled by pattern left brace + null char.
     ⍙splitSF←  '\{(\h*)\}'
     ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
     ⍝           handling quotes "..." ''...'' and escapes `.  
-    ⍙splitCF←  '(?x) (?<P> (?<!`) \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&P)* )+) \} )' 
-    splitPats←  ⍙splitSFZ  ⍙splitSF      ⍙splitCF 
-    splitRepl← '\n\n'      '\n\x{0}\1\n' '\n\0\n'
+    ⍝ Signaled by pattern: left brace, not followed by null char.
+    ⍝ It's easy to understand. Honest!
+    ⍙splitCF←  '(?x) (?<CF> \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&CF)* )+) \} )' 
+  ⍝ splitPats matches each field type. "Text fields" are left as is.
+    splitPats←  ⍙splitTF ⍙splitSFZ  ⍙splitSF      ⍙splitCF 
+    splitRepl← '\0'      '\n\n'      '\n\x{0}\1\n' '\n\0\n'
  
 ⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
     _Opts← ⍠'EOL' 'LF' 
@@ -172,14 +179,18 @@
     ⍝ ⍺: namespace of external (global) vars
     ProcFlds← { 
       0=≢⍵: ''                           ⍝ 0-length input => output null str *
-      sfTok=⊃⍵: SpaceFld ⍵               ⍝ sfTok signals a space field *
-      cfTok=⊃⍵: ⍺ CodeFld ⍵              ⍝ cfTok  signals a code field *
+      sfTok=⊃⍵: SpaceFld ⍵               ⍝ sfTok, usu (⎕UCS 0) signals a space field *
+      cfTok=⊃⍵: ⍺ CodeFld ⍵              ⍝ cfTok, usu '{',  signals a code field *
         ⍺ TextFld ⍵                      ⍝ Otherwise, a text field.
-    }                                    ⍝                          [*] encoded via SplitFlds
-  ⍝ SplitFlds: Split f-string into 0 or more fields, removing any null fields generated (after they serve their purpose).
-  ⍝            Trailing 0-length space fields are ignored.  { }{}{}{} ==> { } . {}{}{} ==> {}.
-    SplitFlds← splitPats ⎕R splitRepl _Opts ⊆
-⍝
+    }                                    ⍝                          [*] encoded via Split2Flds
+  ⍝ Split2Flds: Split f-string into 0 or more fields, removing any null fields generated (after they serve their purpose).
+  ⍝             Trailing 0-length space fields are ignored.  { }{}{}{} ==> { } . {}{}{} ==> {}.
+    Split2Flds← splitPats ⎕R splitRepl _Opts ⊆
+⍝ === END OF CODE ================================================================================
+⍝ === END OF CODE ================================================================================
+
+⍝ === BEGINNING OF HELP INFO =====================================================================
+⍝ === BEGINNING OF HELP INFO =====================================================================
 ⍝H -------------
 ⍝H  ∆F IN BRIEF
 ⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -213,7 +224,7 @@
 ⍝H    If the left arg ⍺ is 0 to 4 digits,
 ⍝H         the options are taken as (4↑⍺);
 ⍝H    If the left arg is 'help' or 'helpx', 
-⍝H         ⍵ is ignored, ∆F shows help or example information and returns (1 0⍴⍬);
+⍝H         ⍵ is ignored, ∆F shows all help info or just help examples and returns (1 0⍴⍬);
 ⍝H    Otherwise,
 ⍝H         an error is signaled.
 ⍝H    Option Name:     [ DFN  DBG  BOX  INLINE ]
@@ -227,9 +238,9 @@
 ⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
 ⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
-⍝H    INLINE: If 0, ⍙F library routines A, B, D, F, and M will be used.
+⍝H    INLINE: If 0, ⍙F0 library routines A, B, D, F, and M will be used.
 ⍝H            If 1, the CODE of A, B, D, F, and M are used "inline" to make the resulting runtime code 
-⍝H            independent of the ⍙F namespace.
+⍝H            independent of the ⍙F0 namespace.
 ⍝H
 ⍝H Result Returned: 
 ⍝H   If (⊃⍺) is 0,  the default, then:
@@ -240,9 +251,9 @@
 ⍝H       generates the same matrix as above, unless an error occurs.
 ⍝H   If an error occurs, 
 ⍝H     ∘ ∆F generates a standard, trappable Dyalog ⎕SIGNAL.
-⍝H   If ⍺ starts with 'help' but does not contain 'x' 
+⍝H   If ⍺ is 'help' (case ignored)
 ⍝H     ∘ ∆F displays help information. 
-⍝H   If ⍺ starts with 'help' followed by 'x', 
+⍝H   If ⍺ is 'helpx' (case ignored)
 ⍝H     ∘ only examples are shown.
 ⍝H 
 ⍝H --------------
@@ -308,32 +319,31 @@
 ⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
 ⍝H        `A       Alias for %
 ⍝H      Omega/Omega Underbar*      
-⍝H        `⍵n      With an explicit index n, where n is a number between 0 and t-1, given 
+⍝H        `⍵n, ⍹n  With an explicit index n, where n is a number between 0 and t-1, given 
 ⍝H                 t, the # of elements of ∆F's right argument ⍵. 
 ⍝H                 Equivalent to (⍵⊃⍨ n+⎕IO), where ⍵ is the right-hand argument (list of elements)
 ⍝H                 passed to ∆F, including the format-string itself.
-⍝H         ⍹n      Same as `⍵n.  ⍹ is less convenient to type, but looks less cluttered!
-⍝H        `⍵       With an implicit index. 
+⍝H        `⍵, ⍹    With an implicit index. 
 ⍝H                 Evaluates to (⍵⊃⍨ m+⎕IO), where m is set to n+1, based on n, the index of the 
 ⍝H                 most recent omega expression to the left, whether one with an explicit index 
 ⍝H                 (like ⍹n) or an implicit one (like ⍹).
 ⍝H                 The first use of an implicit index (from the left) is assigned an index of 1
 ⍝H                 (i.e. m is set to 1). 
 ⍝H                 Note: ∆F keeps track of the implicit index for you.
-⍝H         ⍹       Same as `⍵.
-⍝H        `⍵0      The format string itself.  A simple `⍵ can never select the format string 
+⍝H        `⍵0, ⍹0 The format string itself.  A simple `⍵ can never select the format string 
 ⍝H                 (since the implicit index starts at `⍵1).
-⍝H         ⍹0      Same as ⍹0.
 ⍝H                 * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
+⍝H                   ⍹ is a synonym for `⍵ in code fields.
 ⍝H 
 ⍝H New Code Field Shortcut Under Evaluation
 ⍝H ¯¯¯¯¯¯ ¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯
 ⍝H         `T     Date-Time  {... [⍺] `T ⍵...} displays each date-time in Dyalog timestamp (⎕TS) format.
 ⍝H                ⍵: one or more APL timestamps (⎕TS)
-⍝H                ⍺: Codes for displaying timestamps based on Dyalog (1200⌶).
-⍝H                   Default code: 'YYYY-MM-DD hh:mm:ss'
-⍝H                The Date-Time helper function uses ⎕DT and (1200⌶):
-⍝H                           [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵     
+⍝H                ⍺: Code for displaying timestamps based on Dyalog (1200⌶).
+⍝H                   Default code/⍺: 'YYYY-MM-DD hh:mm:ss'
+⍝H                The `T (Date-Time) helper function uses ⎕DT and (1200⌶):
+⍝H                   [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵  
+⍝H                See examples below.   
 ⍝H 
 ⍝HX Examples
 ⍝HX ¯¯¯¯¯¯¯¯
@@ -458,18 +468,22 @@
 ⍝HX∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
 ⍝HXT ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
 ⍝HX
+⍝HX⍎⍝ Use of `T (Date-time) shortcut to show the current time (now).
+⍝HX⍎     ∆F'It is now {"t:mm pp" `T ⎕TS}.'
+⍝HX   It is now 8:08 am. 
+⍝X 
 ⍝HX⍎⍝ Use of `T (Date-time) shortcut (see above for definition).
 ⍝HX⍎⍝ (Right arg "hardwired" into F-string)
 ⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
-⍝HX1 JAN 2025 was a Wednesday.
+⍝HX   1 JAN 2025 was a Wednesday.
 ⍝HX 
 ⍝HX⍎⍝ (Right argument via omega expression: `⍵1).
-⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
-⍝HX21 Jan 2025 was a Tuesday.
+⍝HX⍎    ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
+⍝HX   21 Jan 2025 was a Tuesday.
 ⍝HX 
 ⍝HX⍎⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
-⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
-⍝HX21 Jan 1925 was a Wednesday.
+⍝HX⍎    ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
+⍝HX   21 Jan 1925 was a Wednesday.
 ⍝HX   
 ⍝HX   
 :EndNamespace 
