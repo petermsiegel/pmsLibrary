@@ -1,4 +1,5 @@
 ∆FⓇ← {∆FⓄ} ∆Fc ∆FⒻ ; ⎕TRAP 
+⍝⍝⍝⍝⍝ DO NOT USE. SEE ⍙Fre
 ⍝ ∆F: Calling Information and Help Documentation is at the bottom of this function 
   ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
   :If 0=⎕SE.⎕NC '⍙F.∆F4'
