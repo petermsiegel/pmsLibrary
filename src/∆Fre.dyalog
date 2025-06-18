@@ -1,9 +1,9 @@
-:namespace ⍙F
+:namespace ⍙Fre
   fnVersion← '∆F'
 ⍝ === BEGINNING OF CODE ==========================================================================
 ⍝ === BEGINNING OF CODE ==========================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
-    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⎕TRAP← 990 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l

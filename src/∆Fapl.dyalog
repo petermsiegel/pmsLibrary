@@ -1,8 +1,8 @@
-:namespace ⍙F1 
-  fnVersion← '∆F1'
+:namespace ⍙Fapl
+  fnVersion← '∆F'
 ⍝ === BEGINNING OF CODE ==========================================================================
 ⍝ === BEGINNING OF CODE ==========================================================================
-  ∇ ⍙res← {⍙l} ∆F1 ⍙r  ; ⎕TRAP 
+  ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
@@ -19,6 +19,7 @@
         ⍙res← 0 ⎕THIS.Main ⊃,⊆⍙r 
     :EndSelect  
   ∇
+  
 ⍝ ⍙Promote_∆F (used internally only)
 ⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
 ⍝ ∘ Fix this copy in the parent namsspace.
@@ -37,22 +38,20 @@
         (dfn dbg box inline) fStr← ⍺ ⍵ 
         omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
         DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
-        extern← ⎕NS 'dbg' 'omIx' 'cr' 'inline'                      ⍝ omIx: r/w; dbg, cr, inline: r/o    
-        flds← ⍬ 
-        _← splitPats ⎕R {  Case← ⍵.PatternNum∘∊ 
-          ⍝ splitTF splitSFZ splitSF splitCF
-            Case splitTFe:  ''⊣ flds,← ⊂extern TextFld ⍵.Match 
-            Case splitSFZe: ''     
-            Case splitSFe:  ''⊣ flds,← ⊂'(', (⍕≢  ≢  nSp),'⍴'''')'⊣ nSp← ≢⍵.(Lengths[1]↑ Offsets[1]↓ Block) 
-            Case splitCFe:  ''⊣ flds,← ⊂extern CodeFld ⍵.Match   
-        } _Opts ⊆⍵
+        flds← Scan⍣(0≠≢fStr)⊢ fStr                             ⍝ If fStr is 0-length, don't bother splitting!
       0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
-        flds← OrderLR flds 
+        flds← OrderFlds flds 
         code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
       ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
         quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
         DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
     } 
+
+    ⍝ OrderFlds
+    ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
+    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller. 
+    OrderFlds← '⌽',(∊∘⌽,∘'⍬')           ⍝  ensure at least 2 and reverse, emitting code to re-reverse
+ 
 
   ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
   ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
@@ -74,34 +73,7 @@
     cfTok← lb      
     escEsc escLb escRb escDmd← esc,¨ esc lb rb dmd 
     qq sQ qS← (q q) (s q) (q s)    
-    arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.
-  ⍝ Const patterns 
-      scP← '(?|`([BTFA])|([$%]))'                                ⍝ Shortcuts `B etc, and $, % 
-      omP←  '(?:`⍵|⍹)(\d*)'  
-      qtP←  '(?:"[^"]*")+|(?:''[^'']*'')+' 
-    cfPats←  scP omP qtP 
-    scI omI qtI← ⍳≢ cfPats 
-    ⍝ See Split2Flds...
-    ⍝ ⍙splitTF: 
-    ⍝ We match text fields and do nothing with them *yet*, to ensure that 
-    ⍝ single and multiple escapes before left braces (`{ and ``{) are handled properly.
-    ⍝ ∘ The first means a literal left brace (part of TF); 
-    ⍝ ∘ The second, a literal escape followed by code (only the esc is part of TF).
-    ⍙splitTF←  '([^{`]+|`.)+'
-    ⍝ ⍙splitSFZ: Match 0-length space fields as null fields (''). 
-    ⍝ Replace them with a new, empty, field (a 'nop').
-    ⍙splitSFZ← '(?:\{\})+'
-    ⍝ ⍙splitSF: Match space fields (0-length handled above) per SpaceFld below. 
-    ⍝ Signaled by pattern left brace + null char.
-    ⍙splitSF←  '\{(\h*)\}'
-    ⍝ ⍙splitCF: Match code fields, i.e. recursively balanced braces {} and contents, 
-    ⍝           handling quotes "..." ''...'' and escapes `.  
-    ⍝ Signaled by pattern: left brace, not followed by null char.
-    ⍝ It's easy to understand. Honest!
-    ⍙splitCF←  '(?x) (?<CF> \{ ((?> [^{}"''`]+ | (?:`.)+ | (?:"[^"]*")+ | (?:''[^'']*'')+ | (?&CF)* )+) \} )' 
-  ⍝ splitPats matches each field type. "Text fields" are left as is.
-    splitPats←  ⍙splitTF ⍙splitSFZ  ⍙splitSF ⍙splitCF 
-    splitTFe splitSFZe splitSFe splitCFe← ⍳≢splitPats 
+    arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.  
  
 ⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
     _Opts← ⍠'EOL' 'LF' 
@@ -132,63 +104,131 @@
     LoadRuntime
 
 ⍝ Functions
-  ⍝ TextFld
-    ⍝ ⍺: namespace of external (global) vars
-    TextFld← { 
-        TFR← escDmd escEsc escLb escRb q ⎕R ⍺.cr esc lb rb qq _Opts                          
-        sQ, qS,⍨ TFR ⍵
+  Scan←{
+    sp dq sq esc lb rb om omu ra da pct←' "''`{}⍵⍹→↓%'  
+    sep←'⋄'
+    nl← ⎕UCS 13
+    TFSpecial← ⌊/⍳∘(esc, lb)
+    CFSpecial← ⌊/⍳∘(sp, dq, sq, esc, lb, rb, om, omu, ra, da, pct)
+    Qt← { 0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂sq, sq,⍨ ⍵/⍨ 1+sq=⍵ }
+    TrimL← { ⍵↓⍨  +/∧\ ⍵= sp}
+    TrimR← { ⍵↓⍨ -+/∧\⌽⍵= sp}
+
+    TF←{ 
+         0=≢⍵: Qt ⍺
+         p←TFSpecial ⍵
+         p=≢⍵: Qt ⍺, ⍵ 
+         type←p⌷⍵
+         pfx←p↑⍵
+         type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
+         type=lb: CF ⍵↓⍨ p ⊣ Qt ⍺, pfx 
+         ∘∘∘Logic Error (Unreachable)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
     }
-    
-  ⍝ SpaceFld: A variant of a code field. 
-    ⍝ A space field consists solely of a null-char and 0 or more spaces (within the originally surrounding braces).
-    ⍝ SpaceFld ⍵, returns: ((≢⍵)⍴'') as a char. string.
-    ⍝ Null (0-length) space fields are handled separately, but will work fine here.
-    SpaceFld← { '(', '⍴'''')',⍨ ⍕¯1+ ≢⍵ }
-  ⍝ SelfDocCode: Checks for self-documenting code (sdc) of form { ... ch [sp*] }, where ch ∊ '→%↓' [% is an alias for ↓].
-    ⍝ Returns cStr dFun dStr  
-    ⍝     cStr: orig code string removing appended ch∊ "↓%→" (orig. code string if not a doc str.)   
-    ⍝     dFun: if sdc, cAbove (if appended '↓' or '%'), else cMerge ('→'); else ''.
-    ⍝     dStr: orig. literal sdc string, but in quotes; else ''.
-    ⍝ ⍺: namespace of external (global) vars
-    SelfDocCode←{  
-        ch← ⍵⌷⍨ p← (≢⍵)-1+ +/∧\ ⌽' '= ⍵             ⍝ Note pos of self-doc code char and its value
-      ~'→↓%'∊⍨ ch: ⍵ '' ''                          ⍝ If none, return original input string and null char vecs.
-        dTyp← ch='→'                                ⍝ dTyp: 1 for horizontal, 0 for vertical self doc code.
-        dStr← (arrows⊃⍨ dTyp)@p⊣ ⍵                  ⍝ Generate the doc string
-        dStr← q, q,⍨ dStr/⍨ 1+q= dStr  
-        (p↑⍵) (dTyp ⍺.inline⊃ cA cM) dStr           ⍝ Return code in str form, display fn code in str form, the doc str
+    SF← { ⍝ sfFlag pfx sfx
+      rb= ⊃⍵: 1 '' (1↓⍵)                 ⍝ Null SF:     {}
+      sp≠ ⊃⍵: 0 '' ⍵                     ⍝ Not a SF:    {code...}
+        p← +/∧\ ⍵= sp 
+      rb≠ ⊃p↓ ⍵: 0 ('') (p↓⍵)            ⍝ Not a SF:    { sp sp code...}
+        flds,← ⊂'(','⍴'''')',⍨ ⍕p        ⍝ Non-null SF: { }, etc.
+        1 '' (⍵↓⍨ 1+p)  
     }
-  ⍝ CodeFld:  
-    ⍝ Process escapes within code fields, including omegas, newlines; and quoted strings.
-    ⍝ ⍺: namespace of external (global) vars.
-    ⍝ ⍵: Code field text including leading and trailing braces {}
-    CodeFld← { ex←⍺                                         ⍝ external ns 
-        cStr dFun dStr← ex SelfDocCode 1↓¯1↓⍵               ⍝ Is CodeFld Self-documenting?  
-        Sink← {  ⍝  scI omI qtI← ⍳≢ cfPats 
-              p← ⍵.PatternNum 
-            p= qtI:  q, q,⍨ q escEsc escDmd ⎕R qq esc ex.cr _Opts⊢ 1↓¯1↓ ⍵.Match ⍝ Quoted strings 
-              f1← ⍵.(Lengths[1]↑ Offsets[1]↓ Block) 
-            p= scI: (shortSyms⍳ f1) ex.inline⊃ shortCodes          
-            p= omI: '(⍵⊃⍨⎕IO+', ')',⍨ ⍕ex.omIx← ex {        ⍝ `⍵[nnn] and ⍹[nnn]  
-              0=≢⍵: ⍺.omIx+1 ⋄ ⊃⌽⎕VFI ⍵
-           } f1           
-        }
-        cStr← cfPats ⎕R Sink cStr  
-        '({', dStr, dFun, cStr, '}⍵)'
+    QS← {  
+      qt← ⊃⍵  
+      wL← ¯2+ ≢⍵
+      qS← ''{
+        0=≢⍵: ⍺ 
+          p← ⌊/⍵⍳ qt,esc 
+        p= ≢⍵: 11 ⎕SIGNAL⍨ '∆F No closing quote on code field string'
+        esc= p⌷⍵: (⍺, (⍵↑⍨ p), ⎕←QSEsc ⎕←⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+       ⍝ Use APL rules for ".."".."
+        qt= ⊃⍵↓⍨ p+1: (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2  
+          ⍺, ⍵↑⍨ wL-← p 
+      } 1↓⍵
+      qS (⍵↑⍨ -wL)
+    }
+    CF←{ ⍺←'' 
+      nBr ←1 ⋄ isSF a w← SF 1↓⍵ 
+      isSF: a TF w 
+      Raw← (1↓⍵)∘⍙Raw 
+      a w← a{
+        0= ≢⍵: ⍺ ⍵
+          p←CFSpecial ⍵
+        p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
+          pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
+        ch=sp: (pfx, ch) ∇ TrimL w  
+        ch∊ sq,dq: (pfx,sq, sq,⍨ a/⍨ 1+a=sq) ∇ w ⊣ a w← QS ch,w 
+        ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
+        ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
+        (ch=rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
+        ch=omu: (pfx, cod) ∇ w⊣  cod w← Omg w
+        ch∊'→↓%': pfx ∇{
+            p← +/∧\⍵= sp 
+          rb≠ p⌷⍵: (⍺,ch) ⍺⍺ ⍵ 
+          nBr>1: (⍺,ch) ⍺⍺ ⍵ 
+          above← 1⊃cA 
+            flds,← ⊂'(', lb, (Raw ⍬), above, ⍺, rb, '⍵)' 
+            '' ('' TF ⍵↓⍨ p+1)
+        } w  
+        ch=rb: (TrimR pfx) w   
+          (pfx, ch) ∇ w 
+      } w
+      0=≢a: '' TF w
+      '' TF w⊣ flds,← ⊂'(', lb, a, rb, '⍵)'  
     }
 
-  ⍝ OrderLR
-    ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller. 
-    OrderLR← '⌽',(∊∘⌽,∘'⍬')             ⍝  ensure at least 2 fields and reverse, emitting code to re-reverse
-  ⍝ ProcFlds: Process each Code (or Space) and Text field. 
-    ⍝ ⍺: namespace of external (global) vars
-    ProcFlds← { 
-      0=≢⍵: ''                           ⍝ 0-length input => output null str *
-      sfTok=⊃⍵: SpaceFld ⍵               ⍝ sfTok, usu (⎕UCS 0) signals a space field *
-      cfTok=⊃⍵: ⍺ CodeFld ⍵              ⍝ cfTok, usu '{',  signals a code field *
-        ⍺ TextFld ⍵                      ⍝ Otherwise, a text field.
-    }                                    ⍝                          [*] encoded via Split2Flds
+    TFEsc←{  
+         0=≢⍵:esc ⋄ ch← 0⌷⍵
+         ch= sep: nl 
+         ch∊ esc, lb, rb: 0⌷⍵
+         esc, ch 
+     }
+    CFEsc←{  
+      0=≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
+      ch= om: Omg w 
+      ch∊ 'ABFT': ch {
+        fn← shortCodes⊃⍨  shortSyms ⍳ ⍺ 
+        (fn↓⍨ -' '/⍨ ' '≠⊃⍵) ⍵ 
+      } w 
+      ch= sep: nl w 
+      ch∊ esc, lb, rb: (0⌷⍵) w 
+          (esc, ch) w  
+    }
+    QSEsc←{
+      ch← ⍵  
+      ch= sep: nl 
+      esc,⍵
+    }
+    Int←{ wid← +/∧\⍵∊⎕D
+      0= wid: 0 0 ⍵ ⋄ 1 (⊃⊃⌽⎕VFI wid↑⍵) (wid↓⍵)  
+    }
+    Omg← {
+      b i w← Int ⍵ 
+      b: ('(⍵⍴⍨', ,')',⍨ '⎕IO+',⍕omgCnt⊢← i) w  
+         ('(⍵⍴⍨', ,')',⍨ '⎕IO+',⍕omgCnt⊢← omgCnt+ 1) w  
+    }
+    ⍙Raw← { 
+      QS← { 
+          ⍺←'' ⋄ q← ⍺⍺ 
+        0= ≢⍵:  q, ⍺, q ⋄ q= ⊃⍵: q, ⍺, q ⋄ esc=⊃⍵: (⍺, 2↑⍵) ∇ 2↓⍵ 
+          (⍺, ⊃⍵) ∇ 1↓⍵
+      }
+      r← '' ⋄ brC←0 
+      r← ''{
+        0=≢⍵: ⍺ ⋄ ch← ⊃⍵
+        (ch=rb) ∧ brC≤0: ⍺  
+        ch=esc: (⍺, 2↑⍵) ∇ 2↓⍵
+        ch∊ sq,dq:  (⍺, qt) ∇ ⍵↓⍨ ≢ qt← (ch QS) 1↓⍵
+        ch=lb: (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
+        ch=rb: (⍺, ch) ∇ 1↓⍵ ⊣ brC-← 1
+          (⍺, ch) ∇ 1↓⍵ 
+      }⍺
+      ⍝ r← ¯1↓ TrimR r 
+      sq, sq,⍨ r/⍨ 1+ r= sq 
+    } 
+
+    flds←⍬ ⋄ omgCnt←0 
+    flds⊣ '' TF ⍵
+ }
 
 ⍝ === END OF CODE ================================================================================
 ⍝ === END OF CODE ================================================================================
@@ -242,9 +282,9 @@
 ⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
 ⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
-⍝H    INLINE: If 0, ⍙F library routines A, B, D, F, and M will be used.
+⍝H    INLINE: If 0, ⍙F0 library routines A, B, D, F, and M will be used.
 ⍝H            If 1, the CODE of A, B, D, F, and M are used "inline" to make the resulting runtime code 
-⍝H            independent of the ⍙F namespace.
+⍝H            independent of the ⍙F0 namespace.
 ⍝H
 ⍝H Result Returned: 
 ⍝H   If (⊃⍺) is 0,  the default, then:
