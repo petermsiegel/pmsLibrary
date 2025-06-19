@@ -1,7 +1,9 @@
 :namespace ⍙Fapl
+  ⎕IO ⎕ML←0 1 
   fnVersion← '∆F'
-⍝ === BEGINNING OF CODE ==========================================================================
-⍝ === BEGINNING OF CODE ==========================================================================
+
+⍝ === BEGINNING OF CODE DEFS =====================================================================
+⍝ === BEGINNING OF CODE DEFS =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
@@ -9,121 +11,69 @@
     :ElseIf 0≠ ⊃0⍴⍙l
         ⍙res← ⎕THIS.Help ⍙l ⋄ :Return 
     :EndIf 
-
     :Select ⊃⍙l← 4↑⍙l
     :Case 1   ⍝ 1:  Generate Dfn from f-string ⊃⍙r. ⍙r is of the form '{{code}(⊂''f-string''),⍵}' 
-        ⍙res← (⊃⎕RSI)⍎ ⍙l ⎕THIS.Main ⊃,⊆⍙r
+        ⍙res← (⊃⎕RSI)⍎ ⍙l ⎕THIS.FmtScan ⊃,⊆⍙r
     :Case 0   ⍝ 0:  Generate and evaluate code from f-string ⊃⍙r; ⍙r is of the form '{code}⍵'.
-        ⍙res← ⍙l ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.Main ⊃⍵⊣ ⎕EX '⍙l' '⍙r'}) ,⊆⍙r
+        ⍙res← ⍙l ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.FmtScan ⊃⍵⊣ ⎕EX '⍙l' '⍙r'}) ,⊆⍙r
     :Case ¯1    ⍝ ¯1: Development/Testing ONLY 
-        ⍙res← 0 ⎕THIS.Main ⊃,⊆⍙r 
+        ⍙res← 0 ⎕THIS.FmtScan ⊃,⊆⍙r 
     :EndSelect  
   ∇
-  
-⍝ ⍙Promote_∆F (used internally only)
-⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
-⍝ ∘ Fix this copy in the parent namsspace.
-  ∇ rc← ⍙Promote_∆F fnVersion; src; snk 
-    src←   '⎕THIS' '⍙(\w+)' 
-    snk←  (⍕⎕THIS) '⍙Ⓕ⍙\1øø'
-    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR fnVersion
-  ∇
-  ⍙Promote_∆F fnVersion
 
+⍝ FmtScan: top level routine...
+⍝ FmtScan: The "main" function for ∆Fre...
+⍝ result← [4↑ options] FmtScan f_string
+  FmtScan← {  
+    (dfn dbg box inline) fStr← ⍺ ⍵ 
+    DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
+    nl← dbg⊃ ⎕UCS 13 9229
+    cA cB cD cF cM cT← inline⊃¨ code2List 
 
-⍝ Top Level Routines...
-  ⍝ Main: The "main" function for ∆Fre...
-  ⍝ result← [4↑ options] Main f_string
-    Main← {  
-        (dfn dbg box inline) fStr← ⍺ ⍵ 
-        omIx cr← 0 (dbg⊃ crCh crVis)                                ⍝ crCh: (⎕UCS 13), crVis: '␍' 
-        DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
-        flds← Scan⍣(0≠≢fStr)⊢ fStr                             ⍝ If fStr is 0-length, don't bother splitting!
-      0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
-        flds← OrderFlds flds 
-        code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
-      ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
-        quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
-        DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
-    } 
-
-    ⍝ OrderFlds
-    ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
-    ⍝   by reversing their order, evaluating all of them (via APL ⍎) R-to-L, then reversing again when executed in caller. 
-    OrderFlds← '⌽',(∊∘⌽,∘'⍬')           ⍝  ensure at least 2 and reverse, emitting code to re-reverse
- 
-
-  ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
-  ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
-    Help← { 
-      'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
-        hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
-        1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
-    }
-
-⍝ Ns Debugging Flag 
-  ⍝ See top of function       
-⍝ Constants (For variables, see namespace ¨extern¨ in main)
-    ⎕IO ⎕ML←0 1 
-  ⍝ Constant char values 
-    esc← '`'  
-    crCh crVis← ⎕UCS 13 9229                                     ⍝ crVis: Choose 8629 ↵ 9229 ␍
-    s lb rb q dmd← ' {}''⋄' 
-    sfTok← ⎕UCS 0  ⍝ See ⍙splitSF. sfTok encodes space fields
-    cfTok← lb      
-    escEsc escLb escRb escDmd← esc,¨ esc lb rb dmd 
-    qq sQ qS← (q q) (s q) (q s)    
-    arrows← '↓→'                                                 ⍝  Used in SelfDocCode and for % Above shortcut.  
- 
-⍝ "Options" Operator for ⎕R. Only LF is an EOL. CR is specifically a literal in text fields and quoted strings.
-    _Opts← ⍠'EOL' 'LF' 
-
-⍝ Utility to be executed at ⎕FIX (aka ]load ) time
-  ⍝ LoadRuntime: At ⎕FIX time, load the run-time library names and code.  
-    ⍝ For A, B, D, F, M; all like A example shown here:
-    ⍝     A← an executable dfn in this namespace (⎕THIS).
-    ⍝     cA← name codeString, where
-    ⍝         name is (⍕⎕THIS),'.A'
-    ⍝         codeString is the executable dfn in string form.
-    ∇ {ok}← LoadRuntime 
-        ;XR ;HT 
-        XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
-        HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
-    ⍝ A (etc): a dfn
-    ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code        
-      A← XR cA← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
-      B← XR cB← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
-      D← XR cD← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
-      F← XR cF←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
-      M← XR cM← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                      ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
-      T← XR cT← HT  '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
-      shortCodes← cA  cA  cB  cF  cF  cT  
-      shortSyms← 'A'  '%' 'B' 'F' '$' 'T'
-      ok← 1 
-    ∇
-    LoadRuntime
-
-⍝ Functions
-  Scan←{
-    sp dq sq esc lb rb om omu ra da pct←' "''`{}⍵⍹→↓%'  
-    sep←'⋄'
-    nl← ⎕UCS 13
-    TFSpecial← ⌊/⍳∘(esc, lb)
-    CFSpecial← ⌊/⍳∘(sp, dq, sq, esc, lb, rb, om, omu, ra, da, pct)
-    Qt← { 0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂sq, sq,⍨ ⍵/⍨ 1+sq=⍵ }
-    TrimL← { ⍵↓⍨  +/∧\ ⍵= sp}
-    TrimR← { ⍵↓⍨ -+/∧\⌽⍵= sp}
-
-    TF←{ 
-         0=≢⍵: Qt ⍺
-         p←TFSpecial ⍵
-         p=≢⍵: Qt ⍺, ⍵ 
-         type←p⌷⍵
-         pfx←p↑⍵
-         type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
-         type=lb: CF ⍵↓⍨ p ⊣ Qt ⍺, pfx 
-         ∘∘∘Logic Error (Unreachable)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
-    }
+  ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, QS: quoted strings
+    TF← { 
+        0=≢⍵: CatQFld ⍺
+        p← TFSpecial ⍵
+        p=≢⍵: CatQFld ⍺, ⍵ 
+        type← p⌷⍵
+        pfx← p↑⍵
+        type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
+        type=lb: CF ⍵↓⍨ p ⊣ CatQFld ⍺, pfx 
+        ∘∘∘Logic Error (Unreachable)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
+    } ⍝ End Text Field 
+    CF← { ⍺← ''  
+      isSF a w← SF 1↓ in← ⍵  
+      isSF: a TF w 
+      nBr← 1 
+      a w← a{
+        0= ≢⍵: ⍺ ⍵
+          p← CFSpecial ⍵
+        p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
+          pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
+        ch=sp: (pfx, ch) ∇ TrimL w  
+        ch=dol: (pfx, cF) ∇ w  
+        ch=pct: (pfx, cA) ∇ w 
+        ch∊ sq,dq: (pfx, APLQt a ) ∇ w ⊣ a w← QS ch,w 
+        ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
+        ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
+        (ch=rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
+        ch=omu: (pfx, cod) ∇ w⊣  cod w← Omg w
+        ch=rb: (TrimR pfx) w   
+        ch(~∊)'→↓%': (pfx, ch) ∇ w 
+        ⍝ Self-doc code field recursive operator. 
+        ⍝ ↓ and % are "above" (a-above-b), → is "merge" (l-to-r)
+          _CFSelfDoc← {               
+              p← +/∧\⍵= sp  
+            rb≠ p⌷⍵: (⍺,ch) ⍺⍺ ⍵     ⍝ Complete Code Field and continue scan
+            nBr>1: (⍺,ch) ⍺⍺ ⍵       ⍝           --- ditto ---
+              flds,← ⊂'(', lb, (RawStr in), (cM cA⊃⍨ ch≠'→'), ⍺, rb, '⍵)' 
+              '' ('' TF ⍵↓⍨ p+1)
+          }  ⍝ End Self-doc code field
+          pfx ∇ _CFSelfDoc w      
+      } w
+      0=≢a: '' TF w
+      '' TF w⊣ flds,← ⊂'(', lb, a, rb, '⍵)'  
+    } ⍝ End CF
     SF← { ⍝ sfFlag pfx sfx
       rb= ⊃⍵: 1 '' (1↓⍵)                 ⍝ Null SF:     {}
       sp≠ ⊃⍵: 0 '' ⍵                     ⍝ Not a SF:    {code...}
@@ -131,105 +81,153 @@
       rb≠ ⊃p↓ ⍵: 0 ('') (p↓⍵)            ⍝ Not a SF:    { sp sp code...}
         flds,← ⊂'(','⍴'''')',⍨ ⍕p        ⍝ Non-null SF: { }, etc.
         1 '' (⍵↓⍨ 1+p)  
-    }
+    } ⍝ End Space Field 
     QS← {  
       qt← ⊃⍵  
       wL← ¯2+ ≢⍵
       qS← ''{
         0=≢⍵: ⍺ 
-          p← ⌊/⍵⍳ qt,esc 
+          p← QSSpecial ⍵ 
         p= ≢⍵: 11 ⎕SIGNAL⍨ '∆F No closing quote on code field string'
-        esc= p⌷⍵: (⍺, (⍵↑⍨ p), ⎕←QSEsc ⎕←⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
-       ⍝ Use APL rules for ".."".."
+        esc= p⌷⍵: (⍺, (⍵↑⍨ p), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+      ⍝ Use APL rules for ".."".."
         qt= ⊃⍵↓⍨ p+1: (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2  
           ⍺, ⍵↑⍨ wL-← p 
       } 1↓⍵
       qS (⍵↑⍨ -wL)
-    }
-    CF←{ ⍺←'' 
-      nBr ←1 ⋄ isSF a w← SF 1↓⍵ 
-      isSF: a TF w 
-      Raw← (1↓⍵)∘⍙Raw 
-      a w← a{
-        0= ≢⍵: ⍺ ⍵
-          p←CFSpecial ⍵
-        p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
-          pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
-        ch=sp: (pfx, ch) ∇ TrimL w  
-        ch∊ sq,dq: (pfx,sq, sq,⍨ a/⍨ 1+a=sq) ∇ w ⊣ a w← QS ch,w 
-        ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
-        ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
-        (ch=rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
-        ch=omu: (pfx, cod) ∇ w⊣  cod w← Omg w
-        ch∊'→↓%': pfx ∇{
-            p← +/∧\⍵= sp 
-          rb≠ p⌷⍵: (⍺,ch) ⍺⍺ ⍵ 
-          nBr>1: (⍺,ch) ⍺⍺ ⍵ 
-          above← 1⊃cA 
-            flds,← ⊂'(', lb, (Raw ⍬), above, ⍺, rb, '⍵)' 
-            '' ('' TF ⍵↓⍨ p+1)
-        } w  
-        ch=rb: (TrimR pfx) w   
-          (pfx, ch) ∇ w 
-      } w
-      0=≢a: '' TF w
-      '' TF w⊣ flds,← ⊂'(', lb, a, rb, '⍵)'  
-    }
+    } ⍝ End CF Quoted String
 
-    TFEsc←{  
-         0=≢⍵:esc ⋄ ch← 0⌷⍵
-         ch= sep: nl 
-         ch∊ esc, lb, rb: 0⌷⍵
-         esc, ch 
-     }
-    CFEsc←{  
+  ⍝ Escape key Handlers 
+    TFEsc← {  
+        0=≢⍵:esc ⋄ ch← 0⌷⍵
+        ch= dmnd: nl 
+        ch∊ esc, lb, rb: 0⌷⍵
+        esc, ch 
+    }
+    CFEsc← {  
       0=≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
       ch= om: Omg w 
-      ch∊ 'ABFT': ch {
-        fn← shortCodes⊃⍨  shortSyms ⍳ ⍺ 
-        (fn↓⍨ -' '/⍨ ' '≠⊃⍵) ⍵ 
+      ch∊ 'ABFT': ch {   ⍝ %, `A: above, `B: box, $, `F: format, `T: date-time
+        fn← dbg⊃ shortCodes⊃⍨  shortSyms ⍳ ⍺ 
+        (fn↓⍨ -sp/⍨ sp≠⊃⍵) ⍵ 
       } w 
-      ch= sep: nl w 
+      ch= dmnd: nl w 
       ch∊ esc, lb, rb: (0⌷⍵) w 
           (esc, ch) w  
     }
-    QSEsc←{
-      ch← ⍵  
-      ch= sep: nl 
-      esc,⍵
+    QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ⍵ }
+
+  ⍝ Omg: Omega handler: deal with `⍵,⍹ with opt'l int following.
+    Omg← { ⍝ Side effect: sets omIx.
+      b i w← IntOpt ⍵ 
+      b: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← i) w  
+          ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← omIx+ 1) w  
     }
-    Int←{ wid← +/∧\⍵∊⎕D
-      0= wid: 0 0 ⍵ ⋄ 1 (⊃⊃⌽⎕VFI wid↑⍵) (wid↓⍵)  
-    }
-    Omg← {
-      b i w← Int ⍵ 
-      b: ('(⍵⍴⍨', ,')',⍨ '⎕IO+',⍕omgCnt⊢← i) w  
-         ('(⍵⍴⍨', ,')',⍨ '⎕IO+',⍕omgCnt⊢← omgCnt+ 1) w  
-    }
-    ⍙Raw← { 
-      QS← { 
-          ⍺←'' ⋄ q← ⍺⍺ 
-        0= ≢⍵:  q, ⍺, q ⋄ q= ⊃⍵: q, ⍺, q ⋄ esc=⊃⍵: (⍺, 2↑⍵) ∇ 2↓⍵ 
-          (⍺, ⊃⍵) ∇ 1↓⍵
+
+  ⍝ RawStr: Helper for Self-documenting code fields (trailing →, ↓, %)
+  ⍝ This requires going through the code field again-- 
+  ⍝ but makes non-self-doc CFs more efficient.
+    RawStr← { 
+      _RQS← { 
+          ⍺← '' ⋄ q← ⍺⍺ 
+        (0= ≢⍵)∨ q= ⊃⍵: q, ⍺, q ⋄ (⍺, ⍵↑⍨ 1+ e) ∇ ⍵↓⍨ 1+ e← esc=⊃⍵
       }
-      r← '' ⋄ brC←0 
-      r← ''{
+      RScan← {
         0=≢⍵: ⍺ ⋄ ch← ⊃⍵
         (ch=rb) ∧ brC≤0: ⍺  
         ch=esc: (⍺, 2↑⍵) ∇ 2↓⍵
-        ch∊ sq,dq:  (⍺, qt) ∇ ⍵↓⍨ ≢ qt← (ch QS) 1↓⍵
-        ch=lb: (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
+            ch=lb: (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
         ch=rb: (⍺, ch) ∇ 1↓⍵ ⊣ brC-← 1
-          (⍺, ch) ∇ 1↓⍵ 
-      }⍺
-      ⍝ r← ¯1↓ TrimR r 
-      sq, sq,⍨ r/⍨ 1+ r= sq 
-    } 
+        ch(~∊)sq dq: (⍺, ch) ∇ 1↓⍵ 
+          qtS← ''{  
+                qtC← ch ⋄ p← ⌊/⍵⍳ qtC, esc 
+              p= ≢⍵: qtC, ⍺, ⍵, qtC 
+              qtC= p⌷⍵: qtC, ⍺, ⍵↑⍨ p+1 
+              esc= p⌷⍵: (⍺, ⍵↑⍨ p+2) ∇ ⍵↓⍨ p+2 
+                (⍺, ⍵↑⍨p) ∇ ⍵↓⍨ p+1
+          } 1↓⍵
+          (⍺, qtS) ∇ ⍵↓⍨ ≢ qtS 
+      }
+      APLQt '' RScan 1↓⍵⊣ brC← 0
+    }  ⍝ RawStr  
+    CatQFld← { 0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂APLQt ⍵ }
 
-    flds←⍬ ⋄ omgCnt←0 
-    flds⊣ '' TF ⍵
- }
+  ⍝ FmtScan Executive begins here  
+    omIx← 0 ⋄ flds← ⍬
+    flds← ⍺ { flds⊣ '' TF ⍵ }⍣(0≠≢fStr)⊢ fStr                                          
+  0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
+    flds← OrderFlds flds 
+    code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM2 cD2
+  ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
+    quoted← ',⍨ ⊂', APLQt fStr         ⍝ dfn: add quoted fmt string.
+    DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
+  } ⍝ FmtScan 
 
+⍝ Constants for FmtScan above
+  cfSpecial← sp dq sq esc lb rb om omu ra da pct dol←' "''`{}⍵⍹→↓%$'  
+  dmnd← '⋄'    ⍝ Define separately, since all the others above are in cfSpecial
+
+⍝ Helper fns for FmtScan above (no side effects)
+  TFSpecial← ⌊/⍳∘(esc, lb)
+  CFSpecial← ⌊/⍳∘cfSpecial 
+  QSSpecial← ⌊/⍳∘(esc, qt)
+⍝ OrderFlds
+⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
+⍝   by ensuring there are at least two fields (one null, as needed), 
+⍝   reversing their order, evaluating each field via APL ⍎ in turn R-to-L, 
+⍝   then reversing again when executed in caller. 
+  OrderFlds← '⌽',(∊∘⌽,∘'⍬')          
+  TrimL←  { ⍵↓⍨  +/∧\ ⍵= sp}
+  TrimR←  { ⍵↓⍨ -+/∧\⌽⍵= sp}
+  IntOpt← { wid← +/∧\⍵∊⎕D ⋄ 0= wid: 0 0 ⍵ ⋄ 1 (⊃⊃⌽⎕VFI wid↑⍵) (wid↓⍵) }
+  APLQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq=⍵ }
+
+⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
+⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
+  Help← { 
+    'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid option(s)'
+      hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
+      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+  }
+
+⍝ === FIX-time Routines ==========================================================================
+⍝ === FIX-time Routines ==========================================================================
+⍝ ⍙Promote_∆F (used internally only at FIX-time)
+⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
+⍝ ∘ Fix this copy in the parent namsspace.
+  ∇ rc← ⍙Promote_∆F fnVersion; src; snk 
+    src←   '⎕THIS' '⍙(\w+)' 
+    snk←  (⍕⎕THIS) '⍙Ⓕ⍙\1øø'
+    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR fnVersion
+  ∇
+⍝ LoadCode: At ⎕FIX time, load the run-time library names and code.  
+⍝ For A, B, D, F, M; all like A example shown here:
+⍝     A← an executable dfn in this namespace (⎕THIS).
+⍝     cA2← name codeString, where
+⍝          name is (⍕⎕THIS),'.A'
+⍝          codeString is the executable dfn in string form.
+⍝ At runtime, we'll generate cA, cB etc. based on inline flag.
+  ∇ {ok}← LoadCode 
+      ;XR ;HT 
+      XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
+      HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
+  ⍝ A (etc): a dfn
+  ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code        
+    A← XR cA2← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
+    B← XR cB2← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
+    D← XR cD2← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
+    F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
+    M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
+    T← XR cT2← HT '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
+    shortCodes← cA2  cA2  cB2  cF2  cF2  cT2  
+    shortSyms←  'A'  '%'  'B'  'F'  '$'  'T'
+    code2List←   cA2 cB2 cD2 cF2 cM2 cT2   
+    ok← 1 
+  ∇
+⍝ Execute FIX-time routines
+  ⍙Promote_∆F fnVersion
+  LoadCode
+ 
 ⍝ === END OF CODE ================================================================================
 ⍝ === END OF CODE ================================================================================
 
