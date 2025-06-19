@@ -5,7 +5,7 @@
 ⍝ === BEGINNING OF CODE DEFS =====================================================================
 ⍝ === BEGINNING OF CODE DEFS =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
-    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⎕TRAP← 990 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -25,11 +25,6 @@
 ⍝ FmtScan: The "main" function for ∆Fre...
 ⍝ result← [4↑ options] FmtScan f_string
   FmtScan← {  
-    (dfn dbg box inline) fStr← ⍺ ⍵ 
-    DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
-    nl← dbg⊃ ⎕UCS 13 9229
-    cA cB cD cF cM cT← inline⊃¨ code2List 
-
   ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, QS: quoted strings
     TF← { 
         0=≢⍵: CatQFld ⍺
@@ -52,7 +47,7 @@
           pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
         ch=sp: (pfx, ch) ∇ TrimL w  
         ch=dol: (pfx, cF) ∇ w  
-        ch=pct: (pfx, cA) ∇ w 
+      ⍝ For ch=pct, see _CFSelfDoc below.
         ch∊ sq,dq: (pfx, APLQt a ) ∇ w ⊣ a w← QS ch,w 
         ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
         ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
@@ -63,8 +58,8 @@
         ⍝ Self-doc code field recursive operator. 
         ⍝ ↓ and % are "above" (a-above-b), → is "merge" (l-to-r)
           _CFSelfDoc← {               
-              p← +/∧\⍵= sp  
-            rb≠ p⌷⍵: (⍺,ch) ⍺⍺ ⍵     ⍝ Complete Code Field and continue scan
+              p← +/∧\⍵= sp 
+            rb≠ p⌷⍵: (⍺, ch cA⊃⍨ ch=pct) ⍺⍺ ⍵  ⍝ Complete Code Field and continue scan
             nBr>1: (⍺,ch) ⍺⍺ ⍵       ⍝           --- ditto ---
               flds,← ⊂'(', lb, (RawStr in), (cM cA⊃⍨ ch≠'→'), ⍺, rb, '⍵)' 
               '' ('' TF ⍵↓⍨ p+1)
@@ -108,7 +103,7 @@
       0=≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
       ch= om: Omg w 
       ch∊ 'ABFT': ch {   ⍝ %, `A: above, `B: box, $, `F: format, `T: date-time
-        fn← dbg⊃ shortCodes⊃⍨  shortSyms ⍳ ⍺ 
+        fn← cA cB cF cT⍨  'ABFT'⍳ ⍺ 
         (fn↓⍨ -sp/⍨ sp≠⊃⍵) ⍵ 
       } w 
       ch= dmnd: nl w 
@@ -127,11 +122,7 @@
   ⍝ RawStr: Helper for Self-documenting code fields (trailing →, ↓, %)
   ⍝ This requires going through the code field again-- 
   ⍝ but makes non-self-doc CFs more efficient.
-    RawStr← { 
-      _RQS← { 
-          ⍺← '' ⋄ q← ⍺⍺ 
-        (0= ≢⍵)∨ q= ⊃⍵: q, ⍺, q ⋄ (⍺, ⍵↑⍨ 1+ e) ∇ ⍵↓⍨ 1+ e← esc=⊃⍵
-      }
+    RawStr← {  
       RScan← {
         0=≢⍵: ⍺ ⋄ ch← ⊃⍵
         (ch=rb) ∧ brC≤0: ⍺  
@@ -151,13 +142,19 @@
       APLQt '' RScan 1↓⍵⊣ brC← 0
     }  ⍝ RawStr  
     CatQFld← { 0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂APLQt ⍵ }
+    Executive← { 0=≢⍵: ⍬ ⋄ flds⊣ '' TF ⍵ } 
 
   ⍝ FmtScan Executive begins here  
+    (dfn dbg box inline) fStr← ⍺ ⍵ 
+    DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
+    nl← dbg⊃ ⎕UCS 13 9229
+    cA cB cD cF cM cT← inline⊃¨ code2List 
+
     omIx← 0 ⋄ flds← ⍬
-    flds← ⍺ { flds⊣ '' TF ⍵ }⍣(0≠≢fStr)⊢ fStr                                          
+    flds← ⍺  Executive fStr                                          
   0∧.= ≢ ¨flds: DM '(1 0⍴⍬)', dfn/'⍨'                           ⍝ If all fields are 0-length, return null pair.
     flds← OrderFlds flds 
-    code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM2 cD2
+    code← '⍵',⍨ lb, rb,⍨ flds,⍨ box⊃ cM cD
   ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
     quoted← ',⍨ ⊂', APLQt fStr         ⍝ dfn: add quoted fmt string.
     DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
@@ -170,7 +167,7 @@
 ⍝ Helper fns for FmtScan above (no side effects)
   TFSpecial← ⌊/⍳∘(esc, lb)
   CFSpecial← ⌊/⍳∘cfSpecial 
-  QSSpecial← ⌊/⍳∘(esc, qt)
+  QSSpecial← ⌊/⍳∘(esc, sq, dq)
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
 ⍝   by ensuring there are at least two fields (one null, as needed), 
@@ -219,8 +216,6 @@
     F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
     M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
     T← XR cT2← HT '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)
-    shortCodes← cA2  cA2  cB2  cF2  cF2  cT2  
-    shortSyms←  'A'  '%'  'B'  'F'  '$'  'T'
     code2List←   cA2 cB2 cD2 cF2 cM2 cT2   
     ok← 1 
   ∇
@@ -507,7 +502,7 @@
 ⍝HX⍎  T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. 
 ⍝HX⍎⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
 ⍝HX⍎  cmpx '∆F t' 'T ⍬'
-⍝HX∆F t → 5.7E¯5 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HX∆F t → 5.7E¯5 |   0$ ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
 ⍝HXT ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
 ⍝HX
 ⍝HX⍎⍝ Use of `T (Date-time) shortcut to show the current time (now).
