@@ -44,7 +44,7 @@
         flds← OrderFlds extern∘ProcFlds¨ flds 
         code← '⍵',⍨ lb, rb,⍨ flds,⍨ box inline⊃ cM cD
       ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
-        quoted← ',⍨ (⊂', ')',⍨ q, q,⍨ fStr/⍨ 1+ fStr= q             ⍝ dfn: add quoted fmt string.
+        quoted← ',⍨ ⊂', q, q,⍨ fStr/⍨ 1+ fStr= q                    ⍝ dfn: add quoted fmt string.
         DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
     } 
 

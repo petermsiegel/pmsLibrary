@@ -1,11 +1,10 @@
 :namespace ⍙Fapl
   ⎕IO ⎕ML←0 1 
   fnVersion← '∆F'
-
 ⍝ === BEGINNING OF CODE DEFS =====================================================================
 ⍝ === BEGINNING OF CODE DEFS =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r  ; ⎕TRAP 
-    ⎕TRAP← 990 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -27,22 +26,22 @@
   FmtScan← {  
   ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, QS: quoted strings
     TF← { 
-        0=≢⍵: CatQFld ⍺
-        p← TFSpecial ⍵
-        p=≢⍵: CatQFld ⍺, ⍵ 
+      0=≢⍵: CatQFld ⍺
+        p← TFBrk ⍵
+      p=≢⍵: CatQFld ⍺, ⍵ 
         type← p⌷⍵
         pfx← p↑⍵
-        type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
-        type=lb: CF ⍵↓⍨ p ⊣ CatQFld ⍺, pfx 
-        ∘∘∘Logic Error (Unreachable)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
+      type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
+      type=lb: '' CF ⍵↓⍨ p ⊣ CatQFld ⍺, pfx 
+        ∘∘∘TF (Text Field) Logic Error (Unreachable Stmt)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
     } ⍝ End Text Field 
-    CF← { ⍺← ''  
+    CF← { 
       isSF a w← SF 1↓ in← ⍵  
       isSF: a TF w 
       nBr← 1 
       a w← a{
         0= ≢⍵: ⍺ ⍵
-          p← CFSpecial ⍵
+          p← CFBrk ⍵
         p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
           pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
         ch=sp: (pfx, ch) ∇ TrimL w  
@@ -57,7 +56,7 @@
         ch(~∊)'→↓%': (pfx, ch) ∇ w 
         ⍝ Self-doc code field recursive operator. 
         ⍝ ↓ and % are "above" (a-above-b), → is "merge" (l-to-r)
-          _CFSelfDoc← {               
+          _CFSelfDoc← {          
               p← +/∧\⍵= sp 
             rb≠ p⌷⍵: (⍺, ch cA⊃⍨ ch=pct) ⍺⍺ ⍵  ⍝ Complete Code Field and continue scan
             nBr>1: (⍺,ch) ⍺⍺ ⍵       ⍝           --- ditto ---
@@ -73,7 +72,8 @@
       rb= ⊃⍵: 1 '' (1↓⍵)                 ⍝ Null SF:     {}
       sp≠ ⊃⍵: 0 '' ⍵                     ⍝ Not a SF:    {code...}
         p← +/∧\ ⍵= sp 
-      rb≠ ⊃p↓ ⍵: 0 ('') (p↓⍵)            ⍝ Not a SF:    { sp sp code...}
+      p= ≢⍵: 0 ('') (p↓⍵ )
+      rb≠ p⌷⍵: 0 ('') (p↓⍵)            ⍝ Not a SF:    { sp sp code...}
         flds,← ⊂'(','⍴'''')',⍨ ⍕p        ⍝ Non-null SF: { }, etc.
         1 '' (⍵↓⍨ 1+p)  
     } ⍝ End Space Field 
@@ -82,7 +82,7 @@
       wL← ¯2+ ≢⍵
       qS← ''{
         0=≢⍵: ⍺ 
-          p← QSSpecial ⍵ 
+          p← QSBrk ⍵ 
         p= ≢⍵: 11 ⎕SIGNAL⍨ '∆F No closing quote on code field string'
         esc= p⌷⍵: (⍺, (⍵↑⍨ p), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
       ⍝ Use APL rules for ".."".."
@@ -93,30 +93,24 @@
     } ⍝ End CF Quoted String
 
   ⍝ Escape key Handlers 
-    TFEsc← {  
-        0=≢⍵:esc ⋄ ch← 0⌷⍵
-        ch= dmnd: nl 
-        ch∊ esc, lb, rb: 0⌷⍵
-        esc, ch 
-    }
+    TFEsc← { 0=≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dmnd: nl ⋄ ch∊ esc, lb, rb: 0⌷⍵ ⋄ esc, ch }
     CFEsc← {  
       0=≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
       ch= om: Omg w 
-      ch∊ 'ABFT': ch {   ⍝ %, `A: above, `B: box, $, `F: format, `T: date-time
-        fn← cA cB cF cT⍨  'ABFT'⍳ ⍺ 
-        (fn↓⍨ -sp/⍨ sp≠⊃⍵) ⍵ 
-      } w 
+      ch∊ 'ABFT': ch CFPseudoFn w 
       ch= dmnd: nl w 
       ch∊ esc, lb, rb: (0⌷⍵) w 
           (esc, ch) w  
     }
+  ⍝ CFPseudoFn (CFEsc): %, `A: above, `B: box, $, `F: format, `T: date-time
+    CFPseudoFn← { fn← cA cB cF cT⍨  'ABFT'⍳ ⍺ ⋄ (fn↓⍨ -sp/⍨ sp≠⊃⍵) ⍵ }
     QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ⍵ }
 
   ⍝ Omg: Omega handler: deal with `⍵,⍹ with opt'l int following.
-    Omg← { ⍝ Side effect: sets omIx.
-      b i w← IntOpt ⍵ 
+  ⍝ Side effect: sets omIx.
+    Omg← { b i w← IntOpt ⍵ 
       b: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← i) w  
-          ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← omIx+ 1) w  
+         ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← omIx+ 1) w  
     }
 
   ⍝ RawStr: Helper for Self-documenting code fields (trailing →, ↓, %)
@@ -125,13 +119,13 @@
     RawStr← {  
       RScan← {
         0=≢⍵: ⍺ ⋄ ch← ⊃⍵
-        (ch=rb) ∧ brC≤0: ⍺  
+        (ch=rb)∧ brC≤0: ⍺  
         ch=esc: (⍺, 2↑⍵) ∇ 2↓⍵
-            ch=lb: (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
+        ch=lb: (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
         ch=rb: (⍺, ch) ∇ 1↓⍵ ⊣ brC-← 1
         ch(~∊)sq dq: (⍺, ch) ∇ 1↓⍵ 
           qtS← ''{  
-                qtC← ch ⋄ p← ⌊/⍵⍳ qtC, esc 
+                qtC← ch ⋄ p← ⍵ Brk qtC, esc 
               p= ≢⍵: qtC, ⍺, ⍵, qtC 
               qtC= p⌷⍵: qtC, ⍺, ⍵↑⍨ p+1 
               esc= p⌷⍵: (⍺, ⍵↑⍨ p+2) ∇ ⍵↓⍨ p+2 
@@ -141,7 +135,7 @@
       }
       APLQt '' RScan 1↓⍵⊣ brC← 0
     }  ⍝ RawStr  
-    CatQFld← { 0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂APLQt ⍵ }
+    CatQFld← {   0=≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂APLQt ⍵ }
     Executive← { 0=≢⍵: ⍬ ⋄ flds⊣ '' TF ⍵ } 
 
   ⍝ FmtScan Executive begins here  
@@ -156,18 +150,21 @@
     flds← OrderFlds flds 
     code← '⍵',⍨ lb, rb,⍨ flds,⍨ box⊃ cM cD
   ~dfn: DM code                                                  ⍝ Not a dfn. Emit code ready to execute
-    quoted← ',⍨ ⊂', APLQt fStr         ⍝ dfn: add quoted fmt string.
+    quoted← ',⍨ ⊂', APLQt fStr                                  ⍝ dfn: add quoted fmt string.
     DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
   } ⍝ FmtScan 
 
-⍝ Constants for FmtScan above
-  cfSpecial← sp dq sq esc lb rb om omu ra da pct dol←' "''`{}⍵⍹→↓%$'  
-  dmnd← '⋄'    ⍝ Define separately, since all the others above are in cfSpecial
+⍝ Char constants
+  cfBrkCh← sp dq sq esc lb rb om omu ra da pct dol←' "''`{}⍵⍹→↓%$'  
+  dmnd← '⋄'    ⍝ Define separately, since all the others above are in cfBrkCh
+  tfBrkCh← esc lb
+  qsBrkCh← esc sq dq 
 
 ⍝ Helper fns for FmtScan above (no side effects)
-  TFSpecial← ⌊/⍳∘(esc, lb)
-  CFSpecial← ⌊/⍳∘cfSpecial 
-  QSSpecial← ⌊/⍳∘(esc, sq, dq)
+  Brk← ⌊/⍳ 
+  TFBrk←  Brk∘tfBrkCh
+  CFBrk←  Brk∘cfBrkCh 
+  QSBrk←  Brk∘qsBrkCh 
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
 ⍝   by ensuring there are at least two fields (one null, as needed), 
@@ -176,6 +173,7 @@
   OrderFlds← '⌽',(∊∘⌽,∘'⍬')          
   TrimL←  { ⍵↓⍨  +/∧\ ⍵= sp}
   TrimR←  { ⍵↓⍨ -+/∧\⌽⍵= sp}
+⍝ IntOpt: Does ⍵ start with a valid integer?
   IntOpt← { wid← +/∧\⍵∊⎕D ⋄ 0= wid: 0 0 ⍵ ⋄ 1 (⊃⊃⌽⎕VFI wid↑⍵) (wid↓⍵) }
   APLQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq=⍵ }
 
