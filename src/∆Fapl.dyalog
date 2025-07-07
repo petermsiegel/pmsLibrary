@@ -10,14 +10,13 @@
     :ElseIf 0≠ ⊃0⍴⍙l
         ⍙res← ⎕THIS.Help ⍙l ⋄ :Return 
     :EndIf 
-    :Select ⊃⍙l← 4↑⍙l  
-    :Case 1  ⍝ 1:  Generate Dfn from f-string ⊃⍙r. ⍙r is of the form '{{code}(⊂''f-string''),⍵}' 
+    :If 1= ⊃⍙l← 4↑⍙l      ⍝ Handles any invalid options in ⍙l    
+     ⍝  Returns executable dfn, if valid, from evaluating the f-string.
         ⍙res← (⊃⎕RSI)⍎ ⍙l ⎕THIS.FmtScan ,⊃,⊆⍙r
-    :Case 0  ⍝ 0:  Generate and evaluate code from f-string ⊃⍙r; ⍙r is of the form '{code}⍵'.
+    :Else                 ⍝ Handles any invalid options in ⍙l             
+     ⍝  Returns matrix result of evaluating the f-string.
         ⍙res← ⍙l ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.FmtScan ,⊃⍵⊣ ⎕EX '⍙l' '⍙r'}) ,⊆⍙r
-    :Else    ⍝ Let FmtScan handle invalid options in ⍺
-        ⍙res← ⍙l ⎕THIS.FmtScan ⍬
-    :EndSelect 
+    :EndIf  
   ∇
 
 ⍝ FmtScan: top level routine...
@@ -40,14 +39,13 @@
         nBr← 1
       ⍝ Recursive scan within CF...
         a w← a {
-          0= ≢⍵: ⍺ ⍵
             p← CFBreak ⍵
-          p= ≢⍵:  ⎕SIGNAL ⊂'EN' 11 ,⍥⊂ 'Message' 'Closing brace "}" is missing from code field'
+          p= ≢⍵:  ⎕SIGNAL brÊ            ⍝ Omitted right brace "}" 
             pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
           ch= sp:          (pfx, ch) ∇ TrimL w  
           ch= dol:         (pfx, cF) ∇ w  
-          ch∊ sq,dq:       (pfx, APLQt a ) ∇ w ⊣ a w← CF_QS ch,w 
-          ch= esc:         (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
+          ch∊ sq,dq:       (pfx, APLQt a ) ∇ w ⊣ a w← ch CF_QS w 
+          ch= esc:         (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w 
           ch= lb:          (pfx, ch) ∇ w ⊣ nBr+← 1
           (ch= rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
           ch= omUs:        (pfx, cod) ∇ w⊣  cod w← Omg w
@@ -73,25 +71,26 @@
     SF← { ⍝ sfFlag pfx sfx
       (nullF← rb= ⊃⍵)∨ sp≠⊃⍵: nullF '' (nullF↓ ⍵)  ⍝ nullF: {}, not a space field => CF
         p← +/∧\ ⍵= sp 
-      p= ≢⍵: 0 '' (p↓⍵)
+      p= ≢⍵: ⎕SIGNAL brÊ                 ⍝ Omitted right brace       
       rb≠ p⌷⍵: 0 '' (p↓⍵)                ⍝ Not a SF:    { sp sp code...}
         flds,← ⊂'(','⍴'''')',⍨ ⍕p        ⍝ Non-null SF: { }, etc.
         1 '' (⍵↓⍨ 1+p)  
     } ⍝ End Space Field 
   ⍝ *** CF Quoted String Scan ***
-    CF_QS← {  
-      qt← ⊃⍵ ⋄ wL← ¯2+ ≢⍵
-      qS← '' {
-        0= ≢⍵: ⍺ 
-          p← QSBreak ⍵ 
-        p= ≢⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Closing quote is missing in code field string'
-        esc= p⌷⍵: (⍺, (p↑ ⍵), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
-      ⍝ Use APL rules for ".."".."
-        qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
-          (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2    
-      } 1↓⍵
-      qS (⍵↑⍨ -wL)
-    } ⍝ End CF Quoted String
+    CF_QS← { qt← ⍺  
+        wL← ¯1+ ≢⍵
+        QSBreak← Break∘(esc qt)
+        qS← '' {
+          0= ≢⍵: ⍺ 
+            p← QSBreak ⍵ 
+          p= ≢⍵: ⎕SIGNAL qtÊ
+          esc= p⌷⍵: (⍺, (p↑ ⍵), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+        ⍝ Use APL rules for ".."".."
+          qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
+            (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2    
+        } ⍵
+        qS (⍵↑⍨ -wL)
+    } ⍝ CF_QS
   ⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
     TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dmnd: nl ⋄ ch∊ esc, lb, rb: 0⌷⍵ ⋄ esc, ch }
     CFEsc← {  
@@ -99,9 +98,10 @@
       ch= om:          Omg w 
     ⍝ esc pseudo-functions: `A: above (also %), `B: box, `F: format (also $), `T: date-time
       ch∊ 'ABFT':      (cA cB cF cT⊃⍨ 'ABFT'⍳ ch) w
-      ch= dmnd:        nl w 
       ch∊ esc, lb, rb: (0⌷⍵) w 
-                       (esc, ch) w  
+      ch≠ dmnd:        (esc, ch) w  
+        ⎕SIGNAL⊂'EN' 11,⍥⊂ 'Message' 'Escape Diamond "`⋄" used in code field outside quoted string'
+                       
     }
     QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ⍵ }
   ⍝ *** Omg, handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer)   ***
@@ -114,23 +114,24 @@
   ⍝ This requires going through the code field again-- 
   ⍝ but makes non-self-doc CFs more efficient.
     RawStr← {  
-      RScan← {
-        0= ≢⍵: ⍺ ⋄ ch← ⊃⍵
-        (ch= rb)∧ brC≤0: ⍺  
-        ch= esc:         (⍺, 2↑⍵) ∇ 2↓⍵
-        ch= lb:          (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
-        ch= rb:          (⍺, ch) ∇ 1↓⍵ ⊣ brC-← 1
-        ch(~∊)sq dq:     (⍺, ch) ∇ 1↓⍵ 
-          qtS← '' {  
-              qtC← ch ⋄ p← ⍵ Break qtC, esc 
-            p= ≢⍵:     qtC, ⍺, ⍵, qtC 
-            qtC= p⌷⍵:  qtC, ⍺, ⍵↑⍨ p+1 
-            esc= p⌷⍵:  (⍺, ⍵↑⍨ p+2) ∇ ⍵↓⍨ p+2 
-              (⍺, ⍵↑⍨p) ∇ ⍵↓⍨ p+1
-          } 1↓⍵
-          (⍺, qtS) ∇ ⍵↓⍨ ≢ qtS 
-      }
-      APLQt '' RScan 1↓⍵⊣ brC← 0
+        RScan← {
+          0= ≢⍵: ⍺ ⋄ ch← ⊃⍵
+          (ch= rb)∧ brC≤0: ⍺  
+          ch= esc:         (⍺, 2↑⍵) ∇ 2↓⍵
+          ch= lb:          (⍺, ch) ∇ 1↓⍵ ⊣ brC+← 1
+          ch= rb:          (⍺, ch) ∇ 1↓⍵ ⊣ brC-← 1
+          ch(~∊)sq dq:     (⍺, ch) ∇ 1↓⍵ 
+            QSBreak← Break∘(esc, qt← ch)
+            qtS← '' {  
+                p← QSBreak ⍵ 
+              p= ≢⍵:     qt, ⍺, ⍵, qt 
+              qt= p⌷⍵:   qt, ⍺, ⍵↑⍨ p+1 
+              esc= p⌷⍵:  (⍺, ⍵↑⍨ p+2) ∇ ⍵↓⍨ p+2 
+                (⍺, ⍵↑⍨p) ∇ ⍵↓⍨ p+1
+            } 1↓⍵
+            (⍺, qtS) ∇ ⍵↓⍨ ≢ qtS 
+        } ⍝ RScan 
+        APLQt '' RScan 1↓⍵⊣ brC← 0
     }  ⍝ RawStr  
     CatQFld←   { 0= ≢⍵: ⍬ ⋄ ⍬⊣ flds,← ⊂APLQt ⍵ }
     Executive← { 0= ≢⍵: flds ⋄ flds⊣ '' TF ⍵ } 
@@ -152,17 +153,22 @@
     DM lb, code, quoted, rb                                      ⍝ emit dfn string ready to convert to dfn itself
   } ⍝ FmtScan 
 
-⍝ Char constants
+⍝ Simple char constants
+  dmnd← '⋄'               ⍝ Sequence ESC-dmnd "`⋄" used in text fields and quoted strings.
   cfBreakCh← sp dq sq esc lb rb om omUs ra da pct dol←' "''`{}⍵⍹→↓%$'  
-  dmnd← '⋄'    ⍝ Define separately, since it is NOT in cfBreakCh
   tfBreakCh← esc lb
-  qsBreakCh← esc sq dq 
 
-⍝ Helper fns for FmtScan above (no side effects)
+⍝ Error constants
+  brÊ←   ⊂'EN' 11,⍥⊂ 'Message' 'Unpaired brace'
+  qtÊ←   ⊂'EN' 11,⍥⊂ 'Message' 'Unpaired quote (in code field)'
+    ⍙m←  'Invalid left argument. For help: ∆F⍨''help'''
+  helpÊ← ⊂'EN' 11,⍥⊂ 'Message'  ⍙m 
+
+⍝ Helper fns for FmtScan above (no side effects). See also QSBreak
   Break← ⌊/⍳ 
-  TFBreak←  Break∘tfBreakCh
   CFBreak←  Break∘cfBreakCh 
-  QSBreak←  Break∘qsBreakCh 
+  TFBreak←  Break∘tfBreakCh
+  
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
 ⍝   by ensuring there are at least two fields (one null, as needed), 
@@ -178,7 +184,7 @@
 ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
 ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
   Help← { 
-    'help'≢⎕C 4↑ ⍵: ⎕SIGNAL ⊂'EN' 11,⍥⊂ 'Message' 'Invalid left argument. (For help: ∆F⍨''help'')'
+    'help'≢⎕C 4↑ ⍵: ⎕SIGNAL helpÊ 
       hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
       1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
   }
@@ -205,13 +211,13 @@
       XR← ⎕THIS.⍎⊃∘⌽                                                 ⍝ Execute the right-hand expression
       HT← '⎕THIS' ⎕R (⍕⎕THIS)                                        ⍝ "Hardwire" absolute ⎕THIS.  
   ⍝ A (etc): a dfn
-  ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code        
-    A← XR cA2← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}'  ⍝ A: [⍺]above ⍵    (1- or 2-adic)
-    B← XR cB2← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'   ⍝ B: box ⍵         (1- or 2-adic)
-    D← XR cD2← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                            ⍝ D: display ⍵     (1-adic)
-    F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵   (1- or 2-adic)
-    M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵    (1- or 2-adic)
-    T← XR cT2← HT '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵ (1- or 2-adic)  
+  ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code                ⍝               1-adic or 2-adic
+    A← XR cA2← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}' ⍝ A: [⍺]above ⍵     1, 2
+    B← XR cB2← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'  ⍝ B: box ⍵          1, 2
+    D← XR cD2← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                           ⍝ D: display ⍵          2
+    F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵    1, 2
+    M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵      1, 2
+    T← XR cT2← HT '⎕THIS.T'  '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵   1, 2
     ok← 1 
   ∇
 ⍝ Execute FIX-time routines
@@ -239,11 +245,12 @@
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
 ⍝H result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
 ⍝H          [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
-⍝H                      ∆F⍨'help[x]'                   Display help (example) information
+⍝H                      ∆F⍨'help'                      Display help information for ∆F.
+⍝H                      ∆F⍨'helpx'                     Display examples for ∆F.
 ⍝H 
 ⍝H F-string and args:
 ⍝H   first element: 
-⍝H       an f-string, a single character vector (see "∆F in Detail" below) 
+⍝H       an f-string, a single character vector (see "∆F IN DETAIL" below) 
 ⍝H   args:          
 ⍝H       elements of  ⍵ after the f-string, each of which can be accessed, via a shortcut 
 ⍝H       that starts with `⍵ or ⍹ (Table 1)
@@ -253,10 +260,12 @@
 ⍝H Left arg (⍺) to ∆F:   [ [ options← 0 [ 0 [ 0 [ 0 ] ] ] ] | 'help[x]' ]   
 ⍝H    If there is no left arg, 
 ⍝H         the default options (4⍴ 0) are assumed per below;
-⍝H    If the left arg ⍺ is 0 to 4 digits,
+⍝H    If the left arg ⍺ is 0 to 4 non-negative integers,
 ⍝H         the options are taken as (4↑⍺);
-⍝H    If the left arg is 'help' or 'helpx', 
-⍝H         ⍵ is ignored, ∆F shows all help info or just help examples and returns (1 0⍴⍬);
+⍝H    If the left arg is 'help' or 'helpx', ⍵ is ignored:  
+⍝H      'help': ∆F display all help info, or 
+⍝H      'helpx': ∆F display  help examples only, 
+⍝H    and returns (1 0⍴⍬);
 ⍝H    Otherwise,
 ⍝H         an error is signaled.
 ⍝H    Option Name:     [ DFN  DBG  BOX  INLINE ]
