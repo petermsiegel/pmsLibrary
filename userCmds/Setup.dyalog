@@ -12,7 +12,7 @@
  ⍝ Library directory
  DIR←'/Users/petermsiegel/MyDyalogLibrary/pmsLibrary/src'
  ⍝ Session libraries
- utils←'∆SH' '∆Fre' '∆D'
+ utils←'∆SH' '∆Fapl' '∆D'
  #.⎕PATH,⍨←' ⎕SE'
  ok←0
 
