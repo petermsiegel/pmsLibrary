@@ -24,70 +24,69 @@
 ⍝ FmtScan: The "main" function for ∆Fre...
 ⍝ result← [4↑ options] FmtScan f_string
   FmtScan← {  
-  ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, QS: quoted strings
+  ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, CF_QS: quoted strings
     TF← { 
       0=≢⍵: CatQFld ⍺
-        p← TFBrk ⍵
+        p← TFBrk ⍵                      ⍝ type∊ esc lb 
       p=≢⍵: CatQFld ⍺, ⍵ 
-        type← p⌷⍵
-        pfx← p↑⍵
-      type=esc:(⍺,pfx,TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
-      type=lb: '' CF ⍵↓⍨ p ⊣ CatQFld ⍺, pfx 
-        ∘∘∘TF (Text Field) Logic Error (Unreachable Stmt)∘∘∘⊣ ⎕← '⍺' ⍺ ⊣ ⎕← '⍵' ⍵ 
+        type← p⌷⍵ ⋄ pfx← p↑⍵
+      type= esc:(⍺, pfx, TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2
+        '' CF ⍵↓⍨ p ⊣ CatQFld ⍺, pfx   ⍝ type= lb  
     } ⍝ End Text Field 
+  ⍝ Code Field Scan 
     CF← { 
-      isSF a w← SF 1↓ in← ⍵  
-      isSF: a TF w 
-      nBr← 1 
-      a w← a{
-        0= ≢⍵: ⍺ ⍵
-          p← CFBrk ⍵
-        p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
-          pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
-        ch=sp: (pfx, ch) ∇ TrimL w  
-        ch=dol: (pfx, cF) ∇ w  
-      ⍝ For ch=pct, see _CFSelfDoc below.
-        ch∊ sq,dq: (pfx, APLQt a ) ∇ w ⊣ a w← QS ch,w 
-        ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
-        ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
-        (ch=rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
-        ch=omu: (pfx, cod) ∇ w⊣  cod w← Omg w
-        ch=rb: (TrimR pfx) w   
-        ch(~∊)'→↓%': (pfx, ch) ∇ w 
-        ⍝ Self-doc code field recursive operator. 
-        ⍝ ↓ and % are "above" (a-above-b), → is "merge" (l-to-r)
-          _CFSelfDoc← {          
-              p← +/∧\⍵= sp 
-            rb≠ p⌷⍵: (⍺, ch cA⊃⍨ ch=pct) ⍺⍺ ⍵  ⍝ Complete Code Field and continue scan
-            nBr>1: (⍺,ch) ⍺⍺ ⍵       ⍝           --- ditto ---
-              flds,← ⊂'(', lb, (RawStr in), (cM cA⊃⍨ ch≠'→'), ⍺, rb, '⍵)' 
-              '' ('' TF ⍵↓⍨ p+1)
-          }  ⍝ End Self-doc code field
-          pfx ∇ _CFSelfDoc w      
-      } w
-      0=≢a: '' TF w
-      '' TF w⊣ flds,← ⊂'(', lb, a, rb, '⍵)'  
+      ⊃isSF a w← SF 1↓ in← ⍵: a TF w     ⍝ If a space field, finish up CF, start TF scan.
+        nBr← 1
+        a w← a {
+          0= ≢⍵: ⍺ ⍵
+            p← CFBrk ⍵
+          p=≢⍵: 11 ⎕SIGNAL⍨ '∆F: Closing brace "}" is missing'
+            pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
+          ch=sp: (pfx, ch) ∇ TrimL w  
+          ch=dol: (pfx, cF) ∇ w  
+          ch∊ sq,dq: (pfx, APLQt a ) ∇ w ⊣ a w← CF_QS ch,w 
+          ch=esc: (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w
+          ch=lb: (pfx, ch) ∇ w ⊣ nBr+← 1
+          (ch=rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
+          ch=omu: (pfx, cod) ∇ w⊣  cod w← Omg w
+          ch=rb: (TrimR pfx) w 
+          ch(~∊)'→↓%': (pfx, ch) ∇ w 
+          ⍝ [A] %, ↓, →: followed by code?  % is an "above" pseudo-fn. ↓, → are std APL.
+          ⍝ %, ↓, →: appearing as bare suffixes? Self-doc code.
+          ⍝   ↓ and % for self-doc put {"code" above code}
+          ⍝   → puts {"code" merged with code}
+            _CFSelfDoc← {          
+                p← +/∧\⍵= sp 
+              rb≠ p⌷⍵: (⍺, ch cA⊃⍨ ch=pct) ⍺⍺ ⍵  ⍝ [A] Complete Code Field and continue scan
+              nBr>1: (⍺, ch) ⍺⍺ ⍵                ⍝ [A]  -Ditto-
+            ⍝ We have self-doc code. Get the entire code field as a quoted string.
+                flds,← ⊂'(', lb, (RawStr in), (cM cA⊃⍨ ch≠'→'), ⍺, rb, '⍵)' 
+                '' ('' TF ⍵↓⍨ p+1)
+            }  ⍝ End Self-doc code field
+            pfx ∇ _CFSelfDoc w      
+        } w
+      0=≢a: '' TF w ⋄ '' TF w⊣ flds,← ⊂'(', lb, a, rb, '⍵)'  
     } ⍝ End CF
+  ⍝ Space Field Scan 
     SF← { ⍝ sfFlag pfx sfx
-      rb= ⊃⍵: 1 '' (1↓⍵)                 ⍝ Null SF:     {}
-      sp≠ ⊃⍵: 0 '' ⍵                     ⍝ Not a SF:    {code...}
+      (nullF← rb=⊃⍵)∨ sp≠⊃⍵: nullF '' (nullF↓ ⍵)  ⍝ nullF: {}, not a space field => CF
         p← +/∧\ ⍵= sp 
-      p= ≢⍵: 0 ('') (p↓⍵ )
-      rb≠ p⌷⍵: 0 ('') (p↓⍵)            ⍝ Not a SF:    { sp sp code...}
+      p= ≢⍵: 0 '' (p↓⍵)
+      rb≠ p⌷⍵: 0 '' (p↓⍵)                ⍝ Not a SF:    { sp sp code...}
         flds,← ⊂'(','⍴'''')',⍨ ⍕p        ⍝ Non-null SF: { }, etc.
         1 '' (⍵↓⍨ 1+p)  
     } ⍝ End Space Field 
-    QS← {  
-      qt← ⊃⍵  
-      wL← ¯2+ ≢⍵
-      qS← ''{
+  ⍝ CF Quoted String Scan
+    CF_QS← {  
+      qt← ⊃⍵ ⋄ wL← ¯2+ ≢⍵
+      qS← '' {
         0=≢⍵: ⍺ 
           p← QSBrk ⍵ 
         p= ≢⍵: 11 ⎕SIGNAL⍨ '∆F No closing quote on code field string'
-        esc= p⌷⍵: (⍺, (⍵↑⍨ p), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+        esc= p⌷⍵: (⍺, (p↑ ⍵), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
       ⍝ Use APL rules for ".."".."
-        qt= ⊃⍵↓⍨ p+1: (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2  
-          ⍺, ⍵↑⍨ wL-← p 
+        qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
+          (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2    
       } 1↓⍵
       qS (⍵↑⍨ -wL)
     } ⍝ End CF Quoted String
@@ -97,13 +96,12 @@
     CFEsc← {  
       0=≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
       ch= om: Omg w 
-      ch∊ 'ABFT': ch CFPseudoFn w 
+    ⍝ esc pseudo-functions: `A: above (also %), `B: box, `F: format (also $), `T: date-time
+      ch∊ 'ABFT': (cA cB cF cT⊃⍨ 'ABFT'⍳ ch) w
       ch= dmnd: nl w 
       ch∊ esc, lb, rb: (0⌷⍵) w 
           (esc, ch) w  
     }
-  ⍝ CFPseudoFn (CFEsc): %, `A: above, `B: box, $, `F: format, `T: date-time
-    CFPseudoFn← { fn← cA cB cF cT⍨  'ABFT'⍳ ⍺ ⋄ (fn↓⍨ -sp/⍨ sp≠⊃⍵) ⍵ }
     QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ⍵ }
 
   ⍝ Omg: Omega handler: deal with `⍵,⍹ with opt'l int following.
