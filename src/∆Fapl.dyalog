@@ -4,7 +4,7 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r; ⎕TRAP 
-    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+  ⍝  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -23,11 +23,12 @@
 ⍝ FmtScan: The "main" function for ∆Fre...
 ⍝ result← [4↑ options] FmtScan f_string
   FmtScan← {  
-  ⍝ Major Field Recursive Scanners: TF: text, CF: code fields, SF: space, CF_QS: quoted strings
+  ⍝ Major Field Recursive Scanners: 
+  ⍝    TF: text, CF: code fields, SF: space, CFStr: (code field) quoted strings
   ⍝ *** Text Field Scan *** 
     TF← { 
       0= ≢⍵: CatQFld ⍺
-        p← TFBreak ⍵                                
+        p← ⍵ Break tfBreakList                                 
       p= ≢⍵: CatQFld ⍺, ⍵                           ⍝ No esc or lb in TF
         type← p⌷⍵ ⋄ pfx← p↑⍵
       type= esc: (⍺, pfx, TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2    ⍝ type= esc
@@ -35,35 +36,30 @@
     } ⍝ End Text Field 
   ⍝ *** Code Field Scan *** 
     CF← { 
-      ⊃isSF a w← SF 1↓ in← ⍵: a TF w     ⍝ If a space field, finish up CF, start TF scan.
-        nBr← 1
+      cfIn← 1↓⍵                        ⍝ in: skip leading '{'
+      cfLenG⊢← 1                  ⍝ Initialize to exclude left brace...
+      ⊃isSF a w← SF⊢ cfIn: a TF w     ⍝ If a space field, finish up CF, start TF scan.
+        nBrakG⊢← 1
       ⍝ Recursive scan within CF...
         a w← a {
-            p← CFBreak ⍵
-          p= ≢⍵:  ⎕SIGNAL brÊ            ⍝ Omitted right brace "}" 
-            pfx ch w← (⍺, p↑⍵) (p⌷⍵)  (⍵↓⍨ p+1 )  
-          ch= sp:          (pfx, ch) ∇ TrimL w  
-          ch= dol:         (pfx, cF) ∇ w  
-          ch∊ sq,dq:       (pfx, APLQt a ) ∇ w ⊣ a w← ch CF_QS w 
-          ch= esc:         (pfx, eStr ) ∇ w⊣ eStr w← CFEsc w 
-          ch= lb:          (pfx, ch) ∇ w ⊣ nBr+← 1
-          (ch= rb)∧ nBr>1: (pfx, ch) ∇ w ⊣ nBr-← 1 
-          ch= omUs:        (pfx, cod) ∇ w⊣  cod w← Omg w
-          ch= rb:          (TrimR pfx) w 
-          ch(~∊) '→↓%':    (pfx, ch) ∇ w 
-          ⍝ [A] %, ↓, →: followed by code?  % is an "above" pseudo-fn. ↓, → are std APL.
-          ⍝ %, ↓, →: appearing as bare suffixes? Self-doc code.
-          ⍝   ↓ and % for self-doc put {"code" above code}
-          ⍝   → puts {"code" merged with code}
-            _CFSelfDoc← {          
-                p← +/∧\⍵= sp 
-              rb≠ p⌷⍵: (⍺, ch cA⊃⍨ ch= pct) ⍺⍺ ⍵  ⍝ [A] Complete Code Field and continue scan
-              nBr>1: (⍺, ch) ⍺⍺ ⍵                ⍝ [A]  -Ditto-
-            ⍝ We have self-doc code. Get the entire code field as a quoted string.
-                fldsG,← ⊂'(', lb, (GetCodeLit in), (cM cA⊃⍨ ch≠'→'), ⍺, rb, '⍵)' 
-                '' ('' TF ⍵↓⍨ p+1)
-            }  ⍝ End Self-doc code field
-            pfx ∇ _CFSelfDoc w      
+            p← ⍵ Break cfBreakList
+            cfLenG+← p+1
+          p= ≢⍵:  ⎕SIGNAL brÊ                     ⍝ Omitted right brace "}" 
+            pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1 )  
+          ch= sp:             (pfx, ch) ∇ w↓⍨ cfLenG+← +/∧\w= sp  
+          ch= dol:            (pfx, cF) ∇ w          ⍝ $ => ⎕FMT
+          ch∊ sq dq:          (pfx, APLQt a) ∇ w⊣ a w← ch CFStr w 
+          ch= esc:            (pfx, a) ∇ w⊣ a w← CFEsc w 
+         (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w 
+          ch∊ lb rb:          (pfx, ch) ∇ w ⊣ nBrakG+← -/ch= lb rb
+          ch= omUs:           (pfx, cod) ∇ w⊣  cod w← Omg w
+          ch(~∊) '→↓%':       (pfx, ch) ∇ w 
+        ⍝ See if postfix '→' '↓' '%' OR pseudo-function '%' or APL fns '→' '↓' 
+            p← +/∧\w= sp 
+          (rb≠ p⌷w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
+        ⍝ Self-Doc Code Field 
+            fldsG,← ⊂'(', lb, (APLQt cfIn↑⍨ cfLenG+ p), (cA cM⊃⍨ ch='→'), pfx, rb, '⍵)' 
+            '' (w↓⍨ p+1)
         } w
       0= ≢a: '' TF w ⋄ '' TF w⊣ fldsG,← ⊂'(', lb, a, rb, '⍵)'  
     } ⍝ End Code Field
@@ -77,62 +73,39 @@
         1 '' (⍵↓⍨ 1+p)  
     } ⍝ End Space Field 
   ⍝ *** CF Quoted String Scan ***
-    CF_QS← { qt← ⍺  
+    CFStr← { qt← ⍺  
         wL← ¯1+ ≢⍵
-        QSBreak← Break∘(esc qt)
         qS← '' {
           0= ≢⍵: ⍺ 
-            p← QSBreak ⍵ 
+            p← ⍵ Break esc qt  
           p= ≢⍵: ⎕SIGNAL qtÊ
           esc= p⌷⍵: (⍺, (p↑ ⍵), QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
         ⍝ Use APL rules for ".."".."
           qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
             (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2    
         } ⍵
+        cfLenG+← (≢⍵)- wL 
         qS (⍵↑⍨ -wL)
     } ⍝ End CF Quoted String Scan
   ⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
     TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dmnd: nl ⋄ ch∊ esc, lb, rb: ch ⋄ esc, ch }
     CFEsc← {  
       0= ≢⍵:esc ⋄ ch← 0⌷⍵ ⋄ w← 1↓⍵ 
-      ch= om:          Omg w 
+        cfLenG+← 1
+      ch= om:          Omg w  
     ⍝ esc pseudo-functions: `A: above (also %), `B: box, `F: format (also $), `T: date-time
-      ch∊ 'ABFT':      (cA cB cF cT⊃⍨ 'ABFT'⍳ ch) w
+      ch∊ 'ABFT':      (cA cB cF cT⊃⍨ 'ABFT'⍳ ch) w 
       ch∊ esc, lb, rb: (0⌷⍵) w 
       ch= dmnd:        ⎕SIGNAL escDmndÊ
         (esc, ch) w     
     }
     QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ch }
   ⍝ *** Omg: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
-  ⍝ Deal with `⍵,⍹ with opt'l integer following; as a side effect, sets "global" omIx.
-    Omg← { b i w← IntOpt ⍵ 
-      b: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← i) w  
-         ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIx⊢← omIx+ 1) w  
+  ⍝ Deal with `⍵,⍹ with opt'l integer following; as a side effect, sets "global" omIxG.
+    Omg← { len i w← IntOpt ⍵ ⋄ cfLenG+← len
+      ×len: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← i) w  
+         ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← omIxG+ 1) w  
     }
-  ⍝ *** GetCodeLit, helper for Self-documenting code fields (trailing →, ↓, %)
-  ⍝ This requires going through the code field again-- 
-  ⍝ but makes non-self-doc CFs more efficient.
-    GetCodeLit← {  
-        nBr← 0  
-        LitScan← {  
-          0= ≢⍵: ⍺ ⋄ ch← ⊃⍵
-          (ch= rb)∧ nBr≤0: ⍺  
-          ch= esc:         (⍺, 2↑⍵) ∇ 2↓⍵
-          ch= lb:          (⍺, ch) ∇ 1↓⍵ ⊣ nBr+← 1
-          ch= rb:          (⍺, ch) ∇ 1↓⍵ ⊣ nBr-← 1
-          ch(~∊)sq dq:     (⍺, ch) ∇ 1↓⍵ 
-            QBreak← Break∘(esc, qt← ch)
-            StrScan← {   
-                p← QBreak ⍵ 
-              p= ≢⍵:     qt, ⍺, ⍵, qt 
-              qt= p⌷⍵:   qt, ⍺, ⍵↑⍨ p+1 
-              esc= p⌷⍵:  (⍺, ⍵↑⍨ p+2) ∇ ⍵↓⍨ p+2 
-                (⍺, ⍵↑⍨p) ∇ ⍵↓⍨ p+1
-            } 
-            (⍺, str) ∇ ⍵↓⍨ ≢ str← '' StrScan 1↓⍵ 
-        } 
-        APLQt '' LitScan 1↓⍵ 
-    }  ⍝ GetCodeLit  
     CatQFld←   { 0= ≢⍵: ⍬ ⋄ ⍬⊣ fldsG,← ⊂APLQt ⍵ }
     Executive← { 0= ≢⍵: fldsG ⋄ fldsG⊣ '' TF ⍵ } 
 
@@ -142,7 +115,12 @@
     DM← (⎕∘←)⍣dbg                                               ⍝ DM: Debug Msg
     nl← dbg⊃ ⎕UCS 13 9229
     cA cB cD cF cM cT← inline⊃¨ cA2 cB2 cD2 cF2 cM2 cT2  
-    omIx← 0 ⋄ fldsG← ⍬
+  ⍝ Pseudo-globals 
+  ⍝    omIxG-   omega shortcut current index;  
+  ⍝    fldsG-   global field list;
+  ⍝    nBrakG-  running count of braces '{' lb, '}' rb;
+  ⍝    cfLenG-  code field running length  
+    omIxG← nBrakG← cfLenG← 0 ⋄ fldsG← ⍬
     fldsG← ⍺ Executive fStr                                          
   0∧.= ≢ ¨fldsG: DM '(1 0⍴⍬)', dfn/'⍨'                         ⍝ If all fields are 0-length, return 1 by 0 matrix
     fldsG← OrderFlds fldsG 
@@ -153,21 +131,24 @@
   } ⍝ FmtScan 
 
 ⍝ Simple char constants
-  dmnd← '⋄'               ⍝ Sequence ESC-dmnd "`⋄" used in text fields and quoted strings.
-  cfBreakCh← sp dq sq esc lb rb om omUs ra da pct dol←' "''`{}⍵⍹→↓%$'  
-  tfBreakCh← esc lb
+  dmnd← '⋄'               ⍝ Sequence esc-dmnd "`⋄" used in text fields and quoted strings.
+  cfBreakList← sp dq sq esc lb rb om omUs ra da pct dol←' "''`{}⍵⍹→↓%$'  
+  tfBreakList← esc lb
 
 ⍝ Error constants
-  brÊ←      ⊂'EN' 11,⍥⊂ 'Message' 'Unpaired brace'
-  qtÊ←      ⊂'EN' 11,⍥⊂ 'Message' 'Unpaired quote (in code field)'
-    ⍙m←  'Invalid left argument. For help: ∆F⍨''help'''
-  helpÊ←    ⊂'EN' 11,⍥⊂ 'Message' ⍙m 
-  escDmndÊ← ⊂'EN' 11,⍥⊂ 'Message' 'Escape Diamond "`⋄" used in code field outside quoted string'
+    Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵}
+  brÊ←      Ê 'Unpaired brace'
+  qtÊ←      Ê 'Unpaired quote (in code field)' 
+  helpÊ←    Ê 'Invalid left argument. For help: ∆F⍨''help'''
+  escDmndÊ← Ê 'Escape Diamond "`⋄" used in code field outside quoted string'
 
-⍝ Helper fns for FmtScan above (no side effects). See also QSBreak
+⍝ Other fns/ops for FmtScan above (no side effects). See also QSBreak
   Break← ⌊/⍳ 
-  CFBreak←  Break∘cfBreakCh 
-  TFBreak←  Break∘tfBreakCh
+  TrimR←  { ⍵↓⍨ -+/∧\⌽⍵= sp}
+⍝ IntOpt: Does ⍵ start with a valid integer? 
+⍝ Returns len of integer or 0, the integer value or 0, ⍵ with the integer digits skipped.
+  IntOpt← { wid (⊃⊃⌽⎕VFI wid↑⍵) (⍵↓⍨ wid← +/∧\⍵∊⎕D) }
+  APLQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵ }
   
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R and displayed in L-to-R order 
@@ -175,11 +156,6 @@
 ⍝   reversing their order, evaluating each field via APL ⍎ in turn R-to-L, 
 ⍝   then reversing again when executed in caller. 
   OrderFlds← '⌽',(∊∘⌽,∘'⍬')          
-  TrimL←  { ⍵↓⍨  +/∧\ ⍵= sp}
-  TrimR←  { ⍵↓⍨ -+/∧\⌽⍵= sp}
-⍝ IntOpt: Does ⍵ start with a valid integer?
-  IntOpt← { wid← +/∧\⍵∊⎕D ⋄ 0= wid: 0 0 ⍵ ⋄ 1 (⊃⊃⌽⎕VFI wid↑⍵) (wid↓⍵) }
-  APLQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵ }
 
 ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
 ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
