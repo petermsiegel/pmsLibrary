@@ -4,7 +4,7 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r; ⎕TRAP 
-  ⍝  ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -37,8 +37,8 @@
   ⍝ *** Code Field Scan *** 
     CF← { 
       cfIn← 1↓⍵                        ⍝ in: skip leading '{'
-      cfLenG⊢← 1                  ⍝ Initialize to exclude left brace...
-      ⊃isSF a w← SF⊢ cfIn: a TF w     ⍝ If a space field, finish up CF, start TF scan.
+      cfLenG⊢← 0                       ⍝ We'll exclude leading and trailing braces...
+      ⊃isSF a w← SF⊢ cfIn: a TF w      ⍝ If a space field, finish up CF, start TF scan.
         nBrakG⊢← 1
       ⍝ Recursive scan within CF...
         a w← a {
@@ -50,15 +50,17 @@
           ch= dol:            (pfx, cF) ∇ w          ⍝ $ => ⎕FMT
           ch∊ sq dq:          (pfx, APLQt a) ∇ w⊣ a w← ch CFStr w 
           ch= esc:            (pfx, a) ∇ w⊣ a w← CFEsc w 
-         (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w 
+         (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w  
           ch∊ lb rb:          (pfx, ch) ∇ w ⊣ nBrakG+← -/ch= lb rb
-          ch= omUs:           (pfx, cod) ∇ w⊣  cod w← Omg w
+          ch= omUs:           (pfx, cod) ∇ w⊣ cod w← Omg w
           ch(~∊) '→↓%':       (pfx, ch) ∇ w 
-        ⍝ See if postfix '→' '↓' '%' OR pseudo-function '%' or APL fns '→' '↓' 
+        ⍝ We have '→', '↓', or '%'. ' 
             p← +/∧\w= sp 
+        ⍝ [A] Pseudo-function (above) '%' or APL fns '→' '↓' 
           (rb≠ p⌷w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
-        ⍝ Self-Doc Code Field 
-            fldsG,← ⊂'(', lb, (APLQt cfIn↑⍨ cfLenG+ p), (cA cM⊃⍨ ch='→'), pfx, rb, '⍵)' 
+        ⍝ [B] Self-Doc Code Field. Here '→' is like Python =. '%' is an alias for '↓'.
+            codeStr← APLQt cfIn↑⍨ cfLenG+ p  
+            fldsG,← ⊂'(', lb, codeStr, (cA cM⊃⍨ ch='→'), pfx, rb, '⍵)' 
             '' (w↓⍨ p+1)
         } w
       0= ≢a: '' TF w ⋄ '' TF w⊣ fldsG,← ⊂'(', lb, a, rb, '⍵)'  
@@ -84,7 +86,7 @@
           qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
             (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2    
         } ⍵
-        cfLenG+← (≢⍵)- wL 
+        cfLenG+← wL -⍨ ≢ ⍵ 
         qS (⍵↑⍨ -wL)
     } ⍝ End CF Quoted String Scan
   ⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
@@ -98,13 +100,13 @@
       ch∊ esc, lb, rb: (0⌷⍵) w 
       ch= dmnd:        ⎕SIGNAL escDmndÊ
         (esc, ch) w     
-    }
+    } ⍝ End CFEsc 
     QSEsc← { ch← ⍵ ⋄ ch= dmnd: nl ⋄ esc, ch }
   ⍝ *** Omg: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
   ⍝ Deal with `⍵,⍹ with opt'l integer following; as a side effect, sets "global" omIxG.
-    Omg← { len i w← IntOpt ⍵ ⋄ cfLenG+← len
-      ×len: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← i) w  
-         ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← omIxG+ 1) w  
+    Omg← { iLen i w← IntOpt ⍵ ⋄ cfLenG+← iLen 
+      ×iLen: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← i) w  
+        ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕omIxG⊢← omIxG+ 1) w  
     }
     CatQFld←   { 0= ≢⍵: ⍬ ⋄ ⍬⊣ fldsG,← ⊂APLQt ⍵ }
     Executive← { 0= ≢⍵: fldsG ⋄ fldsG⊣ '' TF ⍵ } 
@@ -362,8 +364,8 @@
 ⍝H                   [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵  
 ⍝H                See examples below.   
 ⍝H 
-⍝HX Examples
-⍝HX ¯¯¯¯¯¯¯¯
+⍝HX⍝ Examples
+⍝HX⍝ ¯¯¯¯¯¯¯¯
 ⍝HX⍎⍝ Simple variable expressions
 ⍝HX⍎  name← 'Fred' ⋄ age← ?100
 ⍝HX⍎  ∆F 'The patient''s name is {name}. {name} is {age} years old.'
