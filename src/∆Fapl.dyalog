@@ -4,7 +4,7 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r; ⎕TRAP 
-    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⍝ ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -48,12 +48,12 @@
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Omitted right brace "}" 
             pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
           ch= sp:             (pfx, sp) ∇ w↓⍨ p⊣ cfLenG+← p← +/∧\w= sp  
-          ch∊ sq dq:          (pfx, a) ∇ w⊣ cfLenG+← c⊣ a w c← nlG CFStr ch w   ⍝ qt nl
+          ch∊ sq dq:          (pfx, a) ∇ w⊣ cfLenG+← c⊣ a w c← CFStr ch w    
           ch= dol:            (pfx, cF) ∇ w            ⍝ $ => ⎕FMT
-          ch= esc:            (pfx, a) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ a w c o← omIxG inlineG CFEsc w⊣ cfLenG+← 1  
+          ch= esc:            (pfx, a) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ a w c o← CFEsc w⊣ cfLenG+← 1  
          (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w  
           ch∊ lb rb:          (pfx, ch) ∇ w⊣ nBrakG+← -/ch= lb rb
-          ch= omUs:           (pfx, cod) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ cod w c o← omIxG Omg w     
+          ch= omUs:           (pfx, cod) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ cod w c o← Omg w     
           ch(~∊) '→↓%':       (pfx, ch) ∇ w⊣ ⎕←'Logic error'
         ⍝ We have '→', '↓', or '%'. 
         ⍝ See if [A] literal char or [B] indicator of self-doc code field.
@@ -81,6 +81,41 @@
         1 '' (⍵↓⍨ 1+ nSp) nSp 
     } ⍝ End Space Field     
 
+    ⍝ CFStr: CF Quoted String Scan
+    ⍝ val←  nl ∇ qt str 
+    ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
+      CFStr← { qt w← ⍵   
+          wL← ¯1+ ≢w
+          Scan← {   ⍝ Recursive CF String Scan. *** Modifies above-local wL ***  
+            0= ≢⍵: ⍺ 
+              p← ⍵ Break esc qt  
+            p= ≢⍵: ⎕SIGNAL qtÊ
+            esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+          ⍝ qt= p⌷⍵ 
+            qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
+              (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2                ⍝ Use APL rules for ".."".."
+          }
+          qS← AplQt '' Scan w
+          qS (w↑⍨ -wL) (wL -⍨ ≢ w )
+      } ⍝ End CF Quoted String Scan
+      ⍝ CFEsc:  omIxG inlineG ∇ str
+      ⍝ Returns:  code w cfLenG new-omIxG 
+      CFEsc← {                                    ⍝ o: omgIxG, i: inlineG
+        0= ≢⍵:esc 
+          ch← 0⌷⍵ ⋄ w← 1↓⍵  
+        ch∊ om omUs: Omg w                             ⍝ Allow `⍹ as equiv to `⍵ and simple ⍹  
+        ch∊ 'ABFT':  (cABFT⊃⍨ 'ABFT'⍳ ch) w omIxG 0      ⍝ Escape pseudo-fns `[ABFT]
+        ch∊ esc, lb, rb: ch w omIxG 0                        ⍝ `` => `, `{ => {, `} => }  
+        ch∊ dia:     ⎕SIGNAL diaÊ       
+              (esc, ch) w omIxG 0                            ⍝ Treat esc as literal
+      } ⍝ End CFEsc 
+    ⍝ *** Omg: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
+    ⍝ Deal with `⍵,⍹ with opt'l integer following.    
+      Omg← {  oLen oVal w← IntOpt ⍵
+        ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen oVal   
+              ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen (oVal← omgIxG+ 1)  
+      }
+
 ⍝ ===========================================================================
   ⍝ FmtScan Executive begins here
 ⍝ ===========================================================================  
@@ -89,6 +124,7 @@
     DM← (⎕∘←)⍣dbg                                      ⍝ DM: Debug Msg
     nlG← dbg⊃ ⎕UCS 13 9229                             ⍝ 9229: ␍ (visible carriage return)
     cA cB cD cF cM cT← inlineG⊃¨ cAll2 
+    cABFT← cA cB cF cT
   ⍝ Pseudo-globals 
   ⍝    fldsG-   global field list;
     fldsG← ⍬
@@ -134,45 +170,14 @@
 ⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
 ⍝ *** No side effects ***
 ⍝ TFEsc: nl ∇ str, where 
-⍝    nl is the current newline char and str starts with the char after the escape
+⍝    nl: current newline char;  str: starts with the char after the escape
 ⍝ Returns: the escape sequence.                      ⍝ *** No side effects ***
   TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dia: ⍺ ⋄ ch∊ esc, lb, rb: ch ⋄ esc, ch } 
-  CFEsc← {  omIx inlineG← ⍺                          ⍝ *** No side effects ***
-    0= ≢⍵:esc 
-      ch← 0⌷⍵ ⋄ w← 1↓⍵
-    ch∊ om omUs: omIx Omg w                          ⍝ Allow `⍹ as equiv to `⍵ and simple ⍹  
-    ch∊ 'ABFT':  (('ABFT'⍳ ch) inlineG⊃ cABFT2) w omIx 0 ⍝ Escape pseudo-fns `[ABFT]
-    ch∊ esc, lb, rb: ch w omIx 0                     ⍝ `` => `, `{ => {, `} => }  
-    ch∊ dia:     ⎕SIGNAL diaÊ       
-      (esc, ch) w omIx 0                             ⍝ Treat esc as literal
-  } ⍝ End CFEsc 
   ⍝ QSEsc: [nl] ∇ str, where 
   ⍝         nl is the current newline char, and str startw with the char AFTER the escape char.
   ⍝ Returns the escape sequence.                     ⍝ *** No side effects ***
   QSEsc← { ch← ⍵ ⋄ ch= dia: ⍺ ⋄ esc, ch }     
-  ⍝ CFStr: CF Quoted String Scan
-  ⍝ val←  nl ∇ qt str 
-  ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝ *** No side effects ***
-    CFStr← { nl← ⍺ ⋄ qt w← ⍵   
-        wL← ¯1+ ≢w
-        Scan← {   ⍝ Recursive CF String Scan. *** Modifies above-local wL ***  
-          0= ≢⍵: ⍺ 
-            p← ⍵ Break esc qt  
-          p= ≢⍵: ⎕SIGNAL qtÊ
-          esc= p⌷⍵: (⍺, (p↑ ⍵), nl QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
-        ⍝ qt= p⌷⍵ 
-          qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
-            (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2                ⍝ Use APL rules for ".."".."
-        }
-        qS← AplQt '' Scan w
-        qS (w↑⍨ -wL) (wL -⍨ ≢ w )
-    } ⍝ End CF Quoted String Scan
-⍝ *** Omg: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
-⍝ Deal with `⍵,⍹ with opt'l integer following.   NO SIDE EFFECTS 
-  Omg← {  omg← ⍺ ⋄ oLen oVal w← IntOpt ⍵
-    ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen oVal   
-           ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen (oVal← omg+ 1)  
-  }
+
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R AND displayed in L-to-R order 
 ⍝   by ensuring there are at least two fields (one null, as needed), 
@@ -217,7 +222,6 @@
     F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵    1, 2
     M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵      1, 2
     T← XR cT2← HT '⎕THIS.T'   '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵   1, 2
-    cABFT2← cA2 cB2 cF2 cT2
     cAll2←  cA2 cB2 cD2 cF2 cM2 cT2 
     ok← 1 
   ∇
