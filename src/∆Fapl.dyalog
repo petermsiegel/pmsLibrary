@@ -4,7 +4,7 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r; ⎕TRAP 
-     ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
+    ⎕TRAP← 0 'C' '⎕SIGNAL ⊂⎕DMX.(''EM'' ''EN'' ''Message'' ,⍥⊂¨(''∆F '',EM) EN Message)'
     :If 900⌶0 
         ⍙l← ⍬
     :ElseIf 0≠ ⊃0⍴⍙l
@@ -30,11 +30,13 @@
         p← ⍵ Break tfBreakList
       p= ≢⍵: NNTF ⍺, ⍵                                 ⍝ No special chars in remaining input string...
         pfx← p↑⍵
-      esc= p⌷⍵: (⍺, pfx, nlG TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2        ⍝ char is esc
+      esc= p⌷⍵: (⍺, pfx, nlG TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2    ⍝ char is esc
         '' CF ⍵↓⍨ p ⊣ NNTF ⍺, pfx                      ⍝ char is lb  
     } ⍝ End Text Field Scan 
-  ⍝ StartScan: Alias for kicking off recursive scan of f-string
-    StartScan← ''∘TF                                  
+  ⍝ NNTF: Add only a non-null text field to fldsG (placing in quotes).
+  ⍝ Ensure adjacent fields are sep by ≥1 blank. 
+    NNTF← {0= ≢⍵: ⍬ ⋄ ⍬⊣ fldsG,← ⊂sp sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵}    
+
   ⍝ CF: Code Field Scan  
     CF← { 
       cfIn← 1↓⍵                                        ⍝ in: skip leading '{'
@@ -45,19 +47,22 @@
             cfLenG+← p+1
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Omitted right brace "}" 
             pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
-          ch= sp:             (pfx, sp) ∇ w↓⍨ p ⊣ cfLenG+← p← +/∧\w= sp  
-          ch∊ sq dq:          (pfx, a) ∇ w⊣ a w← ch CFStr w 
+          ch= sp:             (pfx, sp) ∇ w↓⍨ p⊣ cfLenG+← p← +/∧\w= sp  
+          ch∊ sq dq:          (pfx, a) ∇ w⊣ cfLenG+← c⊣ a w c← nlG CFStr ch w   ⍝ qt nl
           ch= dol:            (pfx, cF) ∇ w            ⍝ $ => ⎕FMT
-          ch= esc:            (pfx, a) ∇ w⊣ a w← CFEsc w⊣ cfLenG+← 1  
+          ch= esc:            (pfx, a) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ a w c o← omIxG inlineG CFEsc w⊣ cfLenG+← 1  
          (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w  
           ch∊ lb rb:          (pfx, ch) ∇ w⊣ nBrakG+← -/ch= lb rb
           ch= omUs:           (pfx, cod) ∇ w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ cod w c o← omIxG Omg w     
           ch(~∊) '→↓%':       (pfx, ch) ∇ w⊣ ⎕←'Logic error'
-        ⍝ We have '→', '↓', or '%'.
+        ⍝ We have '→', '↓', or '%'. 
+        ⍝ See if [A] literal char or [B] indicator of self-doc code field.
             p← +/∧\w= sp 
-        ⍝ [A] Pseudo-function "above" '%' or APL fns '→' '↓' 
+        ⍝ [A] Literal char: pseudo-function "above" '%' or APL fns '→' '↓' 
           (rb≠ p⌷w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
-        ⍝ [B] Self-Doc Code Field. Here '→' is like Python =. '%' is an alias for '↓'.
+        ⍝ [B] Self-Doc Code Field. 
+        ⍝     '→' places the code str to the left of the result (cM) after evaluating the code str; 
+        ⍝     '↓' and its alias '%' puts it above (cA) the result.
             codeStr← AplQt cfIn↑⍨ cfLenG+ p  
             fldsG,← ⊂'(', lb, codeStr, (cA cM⊃⍨ ch='→'), pfx, rb, '⍵)' 
             '' (w↓⍨ p+1)
@@ -74,54 +79,16 @@
       rb≠ nSp⌷⍵: 0 '' (nSp↓⍵) nSp                        ⍝ Not a SF:    { sp sp code...}
         fldsG,← ⊂'(','⍴'''')',⍨ ⍕nSp                     ⍝ Non-null SF: { }, etc.
         1 '' (⍵↓⍨ 1+ nSp) nSp 
-    } ⍝ End Space Field 
-⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
-⍝ TFEsc: nl ∇ str, where 
-⍝    nl is the current newline char and str starts with the char after the escape
-⍝ Returns: the escape sequence.
-  TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dia: ⍺ ⋄ ch∊ esc, lb, rb: ch ⋄ esc, ch } ⍝ No side effects 
-  CFEsc← {  
-    0= ≢⍵:esc 
-      ch← 0⌷⍵ ⋄ w← 1↓⍵
-    ch= om:          cod w⊣ cfLenG+← c⊣ omIxG⊢← o⊣ cod w c o← omIxG Omg w    
-    ch∊ 'ABFT':      (cA cB cF cT⊃⍨ 'ABFT'⍳ ch) w    ⍝ Escape pseudo-fns `[ABFT]
-    ch∊ esc, lb, rb: ch w                            ⍝ `` => `, `{ => {, `} => }  
-    ch∊ dia omUs:    ⎕SIGNAL escCntxtÊ               ⍝ Obvious user error: `⋄, `⍹ in CF outside qt.
-      (esc, ch) w                                    ⍝ Treat esc as literal
-  } ⍝ End CFEsc 
-  ⍝ QSEsc: [nl] ∇ str, where 
-  ⍝         nl is the current newline char, and str startw with the char AFTER the escape char.
-  ⍝ Returns the escape sequence.
-  QSEsc← { ch← ⍵ ⋄ ch= dia: ⍺ ⋄ esc, ch }     ⍝ No side effects
-  ⍝ CFStr: CF Quoted String Scan
-  ⍝ val←  qt ∇ str 
-  ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵)
-    CFStr← { qt← ⍺  
-        wL← ¯1+ ≢⍵
-        Scan← {   ⍝ Recursive CF String Scan 
-          0= ≢⍵: ⍺ 
-            p← ⍵ Break esc qt  
-          p= ≢⍵: ⎕SIGNAL qtÊ
-          esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
-        ⍝ qt= p⌷⍵ 
-          qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
-            (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2                ⍝ Use APL rules for ".."".."
-        }
-        qS← AplQt '' Scan ⍵
-        cfLenG+← wL -⍨ ≢ ⍵ 
-        qS (⍵↑⍨ -wL) 
-    } ⍝ End CF Quoted String Scan
-  ⍝ NNTF: Add only a non-null text field to fldsG (placing in quotes)
-    NNTF← {0= ≢⍵: ⍬ ⋄ ⍬⊣ fldsG,← ⊂sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵}     
+    } ⍝ End Space Field     
 
 ⍝ ===========================================================================
   ⍝ FmtScan Executive begins here
 ⍝ ===========================================================================  
   0∊ ⍺∊ 0 1: ⎕SIGNAL ⊂'EN' 11 ,⍥⊂ 'Message' 'Invalid option(s) in left argument'
-    (dfn dbg box inline) fStr← ⍺ ⍵ 
+    (dfn dbg box inlineG) fStr← ⍺ ⍵ 
     DM← (⎕∘←)⍣dbg                                      ⍝ DM: Debug Msg
     nlG← dbg⊃ ⎕UCS 13 9229                             ⍝ 9229: ␍ (visible carriage return)
-    cA cB cD cF cM cT← inline⊃¨ cA2 cB2 cD2 cF2 cM2 cT2  
+    cA cB cD cF cM cT← inlineG⊃¨ cAll2 
   ⍝ Pseudo-globals 
   ⍝    fldsG-   global field list;
     fldsG← ⍬
@@ -129,9 +96,10 @@
   ⍝    nBrakG-  running count of braces '{' lb, '}' rb;
   ⍝    cfLenG-  code field running length  
     omIxG← nBrakG← cfLenG← 0 
-    _← StartScan ⍵ 
+  ⍝ Start the scan. We start with a (possibly null) text field.
+    _← '' TF ⍵                                       
   0∧.= ≢ ¨fldsG: DM '(1 0⍴⍬)', dfn/'⍨'                 ⍝ If all fields are 0-length, return 1 by 0 matrix
-     fldsG← OrderFlds ' ',¨fldsG  
+     fldsG← OrderFlds fldsG                            
      code← '⍵',⍨ lb, rb,⍨ fldsG,⍨ box⊃ cM cD
   ~dfn: DM code                                        ⍝ Not a dfn. Emit code ready to execute
     quoted← ',⍨ ⊂', AplQt fStr                         ⍝ dfn: add quoted fmt string.
@@ -144,12 +112,12 @@
   cfBreakList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
   tfBreakList← esc lb
 
-⍝ Error constants
+⍝ Error constants  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵}
-  brÊ←        Ê 'Unpaired brace'
-  qtÊ←        Ê 'Unpaired quote (in code field)' 
-  helpÊ←      Ê 'Invalid left argument. For help: ∆F⍨''help'''
-  escCntxtÊ←  Ê 'Escape sequence ("`⋄" or "`⍹") invalid in code field outside quoted string'
+  brÊ←     Ê 'Unpaired brace'
+  qtÊ←     Ê 'Unpaired quote (in code field)' 
+  helpÊ←   Ê 'Invalid left argument. For help: ∆F⍨''help'''
+  diaÊ←    Ê 'Escape sequence "`⋄" is invalid in a code field. Did you mean "⋄"?'
 
 ⍝ Other fns/ops for FmtScan above (no side effects). See also QSBreak
 ⍝ =========================================================================
@@ -162,11 +130,48 @@
   IntOpt← { wid (⊃⊃⌽⎕VFI wid↑⍵) (⍵↓⍨ wid← +/∧\⍵∊⎕D) }
 ⍝ AplQt:  Created an APL-style single-quoted string.
   AplQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵ }
+
+⍝ Escape key Handlers: TFEsc CFEsc QSEsc  
+⍝ *** No side effects ***
+⍝ TFEsc: nl ∇ str, where 
+⍝    nl is the current newline char and str starts with the char after the escape
+⍝ Returns: the escape sequence.                      ⍝ *** No side effects ***
+  TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dia: ⍺ ⋄ ch∊ esc, lb, rb: ch ⋄ esc, ch } 
+  CFEsc← {  omIx inlineG← ⍺                          ⍝ *** No side effects ***
+    0= ≢⍵:esc 
+      ch← 0⌷⍵ ⋄ w← 1↓⍵
+    ch∊ om omUs: omIx Omg w                          ⍝ Allow `⍹ as equiv to `⍵ and simple ⍹  
+    ch∊ 'ABFT':  (('ABFT'⍳ ch) inlineG⊃ cABFT2) w omIx 0 ⍝ Escape pseudo-fns `[ABFT]
+    ch∊ esc, lb, rb: ch w omIx 0                     ⍝ `` => `, `{ => {, `} => }  
+    ch∊ dia:     ⎕SIGNAL diaÊ       
+      (esc, ch) w omIx 0                             ⍝ Treat esc as literal
+  } ⍝ End CFEsc 
+  ⍝ QSEsc: [nl] ∇ str, where 
+  ⍝         nl is the current newline char, and str startw with the char AFTER the escape char.
+  ⍝ Returns the escape sequence.                     ⍝ *** No side effects ***
+  QSEsc← { ch← ⍵ ⋄ ch= dia: ⍺ ⋄ esc, ch }     
+  ⍝ CFStr: CF Quoted String Scan
+  ⍝ val←  nl ∇ qt str 
+  ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝ *** No side effects ***
+    CFStr← { nl← ⍺ ⋄ qt w← ⍵   
+        wL← ¯1+ ≢w
+        Scan← {   ⍝ Recursive CF String Scan. *** Modifies above-local wL ***  
+          0= ≢⍵: ⍺ 
+            p← ⍵ Break esc qt  
+          p= ≢⍵: ⎕SIGNAL qtÊ
+          esc= p⌷⍵: (⍺, (p↑ ⍵), nl QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
+        ⍝ qt= p⌷⍵ 
+          qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
+            (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2                ⍝ Use APL rules for ".."".."
+        }
+        qS← AplQt '' Scan w
+        qS (w↑⍨ -wL) (wL -⍨ ≢ w )
+    } ⍝ End CF Quoted String Scan
 ⍝ *** Omg: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
 ⍝ Deal with `⍵,⍹ with opt'l integer following.   NO SIDE EFFECTS 
-  Omg← { iLen i w← IntOpt ⍵ ⋄ omg← ⍺   
-    ×iLen: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕i) w iLen i   
-           ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕o) w iLen (o← omg+ 1)  
+  Omg← {  omg← ⍺ ⋄ oLen oVal w← IntOpt ⍵
+    ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen oVal   
+           ('(⍵⊃⍨',')',⍨ '⎕IO+',⍕oVal) w oLen (oVal← omg+ 1)  
   }
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R AND displayed in L-to-R order 
@@ -199,7 +204,7 @@
 ⍝     cA2← name codeString, where
 ⍝          name is (⍕⎕THIS),'.A'
 ⍝          codeString is the executable dfn in string form.
-⍝ At runtime, we'll generate cA, cB etc. based on flag ¨inline¨.
+⍝ At runtime, we'll generate cA, cB etc. based on flag ¨inlineG¨.
   ∇ {ok}← LoadCode 
       ;XR ;HT 
       XR← ⎕THIS.⍎⊃∘⌽                                   ⍝ Execute the right-hand expression
@@ -212,6 +217,8 @@
     F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                 ⍝ F: [⍺] format ⍵    1, 2
     M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵      1, 2
     T← XR cT2← HT '⎕THIS.T'   '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵   1, 2
+    cABFT2← cA2 cB2 cF2 cT2
+    cAll2←  cA2 cB2 cD2 cF2 cM2 cT2 
     ok← 1 
   ∇
 ⍝ Execute FIX-time routines
