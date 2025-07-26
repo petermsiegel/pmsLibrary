@@ -1,6 +1,6 @@
-:namespace ⍙Fapl
+:Namespace ⍙Fapl
   ⎕IO ⎕ML←0 1 
-  fnVersion← '∆F'
+⍝ The name of the utility function visible in the target directory.
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ ⍙res← {⍙l} ∆F ⍙r; ⎕TRAP 
@@ -67,9 +67,9 @@
         ⍝ [B] Self-Doc Code Field. 
         ⍝     '→' places the code str to the left of the result (cM) after evaluating the code str; 
         ⍝     '↓' and its alias '%' puts it above (cA) the result.
-            codeStr← AplQt cfIn↑⍨ cfLenG+ p  
-            fldsG,← ⊂'(', lb, codeStr, (cA cM⊃⍨ ch='→'), pfx, rb, '⍵)' 
-            '' (w↓⍨ p+1)                               ⍝ Scan complete! ***** Scan Complete *****
+            codeStr← AplQt cfIn↑⍨ cfLenG+ p 
+            a← codeStr, (cA cM⊃⍨ ch='→'), pfx 
+            a (w↓⍨ p+1)                               ⍝ Scan complete! ***** Scan Complete *****
         }
         a w← a ⍙Scan w
         '' TF w⊣ fldsG,← ⊂'(', lb, a, rb, '⍵)'         ⍝ Process & back to TF
@@ -93,17 +93,17 @@
     } ⍝ End CF Quoted String Scan
   ⍝ CFEsc:  
   ⍝    res← ∇ fstr
-  ⍝ Returns:  code w                                   ** Side Effects: Sets cfLenG, omIxG **
+  ⍝ Returns:  code w                                   ⍝ ** Side Effects: Sets cfLenG, omIxG **
     CFEsc← {                                    
       0= ≢⍵:esc 
         ch← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
       ch∊ om omUs: CFOm w                              ⍝ Allow `⍹ as equiv to `⍵ and simple ⍹  
-      ch∊ 'ABFT':  (codeABFT⊃⍨ 'ABFT'⍳ ch) w         ⍝ Escape pseudo-fns `[ABFT]
+      ch∊ 'ABFT':  (codeABFT⊃⍨ 'ABFT'⍳ ch) w           ⍝ Escape pseudo-fns `[ABFT]
       ch∊ lb, rb: ch w                                 ⍝ `{ => {, `} => }  
         ⎕SIGNAL CodeÊ ch
     } ⍝ End CFEsc 
   ⍝ *** CFOm: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
-  ⍝ Deal with `⍵,⍹ with opt'l integer following.     ** Side Effects: cfLenG, omIxG **   
+  ⍝ Deal with `⍵,⍹ with opt'l integer following.       ⍝ ** Side Effects: cfLenG, omIxG **  
     CFOm← {  oLen oVal w← IntOpt ⍵
       ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG⊢← oVal) w⊣ cfLenG+← oLen 
              ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG       ) w⊣ omIxG+← 1
@@ -155,11 +155,10 @@
 
 ⍝ Error constants / fns  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵ }
-  brÊ←     Ê 'Unpaired brace'
+  brÊ←     Ê 'Unpaired brace "{"'
   qtÊ←     Ê 'Unpaired quote (in code field)' 
-  helpÊ←   Ê 'Invalid left argument. For help: ∆F⍨''help'''
-  cfLgcÊ←  Ê 'A logic error has occurred in ∆F (CF)'
-  optÊ←    Ê'Invalid option(s) in left argument'
+  cfLgcÊ←  Ê 'A logic error has occurred processing a code field'
+  optÊ←    Ê 'Invalid option(s) in left argument. For help: ∆F⍨''help'''
   CodeÊ←   Ê {'Sequence "`',⍵,'" is not valid in code outside strings. Did you mean "',⍵,'"?'}
 
 ⍝ Other fns/ops for FmtScan above (no side effects). See also QSBreak
@@ -168,9 +167,13 @@
 ⍝ =========================================================================
   Break←  ⌊/⍳ 
   TrimR←  { ⍵↓⍨ -+/∧\⌽⍵= sp}
-⍝ IntOpt: Does ⍵ start with a valid integer? 
-⍝ Returns len of integer or 0, the integer value or 0, ⍵ with the integer digits skipped.
-  IntOpt← { wid (⊃⊃⌽⎕VFI wid↑⍵) (⍵↓⍨ wid← +/∧\⍵∊⎕D) }
+⍝ IntOpt: Does ⍵ start with a valid sequence of digits (a non-neg integer)? 
+⍝ Returns 2 integers and a string: 
+⍝   [0] len of integer or 0, 
+⍝   [1] the integer value found or 0, 
+⍝   [2] ⍵ after skipping the prefix of digits.
+⍝ If [0] is 0, then there was no prefix of digits. If there was, then it will be >0.
+  IntOpt← { wid← +/∧\ ⍵∊⎕D ⋄ wid (⊃⊃⌽⎕VFI wid↑⍵) (wid↓ ⍵) }
 ⍝ AplQt:  Created an APL-style single-quoted string.
   AplQt←  { sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵ }
 
@@ -195,50 +198,73 @@
 ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
 ⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
   Help← { 
-    'help'≢⎕C 4↑ ⍵: ⎕SIGNAL helpÊ 
-      hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '⍎?(.*)' 
-      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS  
+    'help'≢⎕C 4↑ ⍵: ⎕SIGNAL optÊ 
+      hP←  '(?i)^\s*⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '(?|[⍎⎕]?(.*)|(⍝.*))' 
+      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS.nsHelp   
   }
+  ∇ res← GenTest; hP; first 
+    ⎕←'*** Generating Test Suite ***'
+    ⎕←'To run the test suite, '
+    ⎕←'    #.RunTest'   
+    hP←  '(?i)^\s*⍝HX', '(?|([⍎⎕⍝])(.*)|()())' 
+    res← #.⎕FX (⊂'RunTest ;⎕IO;⎕ML;⎕RL'), ⊆hP ⎕S {
+        Qt← { q, q,⍨ ⍵/⍨ 1+⍵=q← '''' }
+        f1 f2← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Match }¨ 1 2  
+        Case← =∘(⊃f1) 
+      Case ' ': '⎕← ⍬'
+      Case '⍝': '⎕← ', Qt '⍝',f2 
+      Case '⎕': '⎕← ', Qt f2 
+      Case '⍎':('⎕← ', Qt f2), ' ⋄ ', f2  
+    }⊣ ⎕SRC ⎕THIS.nsHelp   
+  ∇
 
 ⍝ === FIX-time Routines ==========================================================================
 ⍝ === FIX-time Routines ==========================================================================
 ⍝ ⍙Promote_∆F (used internally only at FIX-time)
 ⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
 ⍝ ∘ Fix this copy in the parent namsspace.
-  ∇ rc← ⍙Promote_∆F fnVersion; src; snk 
-    src←   '⎕THIS' '⍙(\w+)' 
-    snk←  (⍕⎕THIS) '⍙Ⓕ⍙\1øø'
-    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR fnVersion
+  ∇ rc← ⍙Promote_∆F; src; snk 
+    src←    '⎕THIS'  '⍙(\w+)' 
+    snk←   (⍕⎕THIS)  '⍙Ⓕ⍙\1øøø'
+    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR '∆F'
   ∇
-⍝ LoadCode: At ⎕FIX time, load the run-time library names and code.  
+⍝ ⍙LoadCode: At ⎕FIX time, load the run-time library names and code.  
 ⍝ For A, B, D, F, M; all like A example shown here:
 ⍝     A← an executable dfn in this namespace (⎕THIS).
 ⍝     cA2← name codeString, where
 ⍝          name is (⍕⎕THIS),'.A'
 ⍝          codeString is the executable dfn in string form.
 ⍝ At runtime, we'll generate cA, cB etc. based on flag ¨inline¨.
-  ∇ {ok}← LoadCode 
+  ∇ {ok}← ⍙LoadCode 
       ;XR ;HT; cA2; cB2; cD2; cF2; cM2; cT2  
       XR← ⎕THIS.⍎⊃∘⌽                                   ⍝ Execute the right-hand expression
       HT← '⎕THIS' ⎕R (⍕⎕THIS)                          ⍝ "Hardwire" absolute ⎕THIS.  
   ⍝ A (etc): a dfn
-  ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code              ⍝               1-adic or 2-adic
-    A← XR cA2← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}' ⍝ A: [⍺]above ⍵     1, 2
-    B← XR cB2← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'  ⍝ B: box ⍵          1, 2
-    D← XR cD2← HT ' ⎕THIS.D ' '0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                           ⍝ D: display ⍵          2
-    F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                ⍝ F: [⍺] format ⍵    1, 2
-    M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     ⍝ M: merge[⍺] ⍵      1, 2
-    T← XR cT2← HT '⎕THIS.T'   '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  ⍝ T:  ⍺ date-time ⍵   1, 2
+  ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code              
+  ⍝                   valence
+  ⍝ A: [⍺]above ⍵      ambi
+  ⍝ B: box ⍵           ambi
+  ⍝ D: display ⍵       dyadic
+  ⍝ F: [⍺] format ⍵    ambi
+  ⍝ M: merge[⍺] ⍵      ambi
+  ⍝ T:  ⍺ date-time ⍵  ambi
+    A← XR cA2← HT ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}' 
+    B← XR cB2← HT ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'  
+    D← XR cD2← HT ' ⎕THIS.D ' ' 0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                           
+    F← XR cF2←    ' ⎕FMT '    ' ⎕FMT '                                                
+    M← XR cM2← HT ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     
+    T← XR cT2← HT '⎕THIS.T'   '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  
     codeList←  cA2 cB2 cD2 cF2 cM2 cT2 
     ok← 1 
   ∇
 ⍝ Execute FIX-time routines
-  ⍙Promote_∆F fnVersion
-  LoadCode
+  ⍙Promote_∆F  
+  ⍙LoadCode
  
 ⍝ === END OF CODE ================================================================================
 ⍝ === END OF CODE ================================================================================
 
+:Namespace nsHelp 
 ⍝ === BEGINNING OF HELP INFO =====================================================================
 ⍝ === BEGINNING OF HELP INFO =====================================================================
 ⍝H -------------
@@ -251,7 +277,9 @@
 ⍝H     the availability of double-quoted strings, escaped chars, and simple formatting shortcuts for APL arrays (which see). 
 ⍝H   ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment,
 ⍝H     following dfn conventions for local and external variables.
-⍝H   ∘ ∆F is inspired by Python F-strings, but designed for APL.
+⍝H +--------------------------------------------------------------+
+⍝H + ∘ ∆F is inspired by Python F-strings, but designed for APL.  +
+⍝H +--------------------------------------------------------------+
 ⍝H 
 ⍝H ∆F: Calling Information
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
@@ -286,14 +314,14 @@
 ⍝H    All options are positional (i.e. DFN is positioned first, DBG second, etc.)
 ⍝H    The options are:
 ⍝H       DFN: If 0, returns a formatted matrix object based on the f-string (0⊃⍵) and any other "args" referred to.
-⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as above.
+⍝H            If 1, returns a dfn that, when executed, returned a formatted matrix object, as for DFN=0.
 ⍝H       DBG: If 0, returns the value as above.
-⍝H            If 1, displays the code generated based on the f-string, befure returning a value.
+⍝H            If 1, displays the code generated from the f-string, before returning a value as above.
 ⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
-⍝H    INLINE: In DFN mode: If 0, ⍙F0 library routines A, B, D, F, and M will be used.
-⍝H                         If 1, the CODE of A, B, D, F, and M are used "inline" to 
-⍝H                         make the resulting runtime code independent of the ⍙F0 namespace.
+⍝H    INLINE: If 0, ⍙F0 library routines A, B, D, F, and M will be used.
+⍝H            If 1, the full code of A, B, D, F, and M are inserted "inline" to make the resulting runtime
+⍝H            independent of the ⍙F0 namespace. This is mostly useful for returned dfns (DFN=1).
 ⍝H
 ⍝H Result Returned: 
 ⍝H   If (⊃⍺) is 0,  the default, then:
@@ -307,7 +335,7 @@
 ⍝H   If ⍺ is 'help' (case ignored)
 ⍝H     ∘ ∆F displays help information. 
 ⍝H   If ⍺ is 'helpx' (case ignored)
-⍝H     ∘ only examples are shown.
+⍝H     ∘ ∆F displays f-string examples.
 ⍝H 
 ⍝H --------------
 ⍝H  ∆F IN DETAIL
@@ -315,11 +343,11 @@
 ⍝H 
 ⍝H The first element in the right arg to ∆F is a character vector, an "∆F string", 
 ⍝H which contains simple text, along with run-time evaluated expressions delimited by 
-⍝H (unescaped) curly braces {}. 
-⍝H Each ∆F string is viewed as containing one or more "fields," catenated left to right*,
+⍝H curly braces {} (unless preceded by an escape "`").
+⍝H Each ∆F string is viewed as containing one or more "fields," catenated left to right,
 ⍝H each of which will display as a logically separate character matrix. 
-⍝H            * ∆F adds no automatic spaces like those APL adds to denote object rank, etc.
-⍝H              ∆F assumes the user wants to control spacing of objects.
+⍝H ∘  ∆F adds no automatic spaces like those APL adds to denote object rank, etc.
+⍝H ∘  ∆F assumes the user wants to control spacing of objects.
 ⍝H 
 ⍝H ∆F-string text fields (expressions) may include:
 ⍝H   ∘ escape sequences,  beginning with the escape character ("`"):
@@ -327,6 +355,7 @@
 ⍝H        "`{" => "{"               "`}" => "}". 
 ⍝H     Otherwise, { and } delineate the start and end of a Code Field or Space Field,
 ⍝H     and other escape sequences will be treated literally, including the escape "`" prefix.
+⍝H 
 ⍝H ∆F-string code fields (expressions) may include: 
 ⍝H   ∘ escape characters (e.g. prefixing newlines, escape characters, and braces as text);
 ⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
@@ -401,145 +430,148 @@
 ⍝H                   [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵  
 ⍝H                See examples below.   
 ⍝H 
+⍝HX⍝ Set some values we'll need...
+⍝HX⍎  ⎕RL ⎕IO ⎕ML←2342342 0 1
 ⍝HX⍝ Examples
 ⍝HX⍝ ¯¯¯¯¯¯¯¯
-⍝HX⍎⍝ Simple variable expressions
-⍝HX⍎  name← 'Fred' ⋄ age← ?100
+⍝HX⍝ Simple variable expressions
+⍝HX⍎  name← 'Fred' ⋄ age← 43
 ⍝HX⍎  ∆F 'The patient''s name is {name}. {name} is {age} years old.'
-⍝HXThe patient's name is Fred. Fred is 32 years old.
+⍝HX⎕The patient's name is Fred. Fred is 43 years old.
 ⍝HX 
-⍝HX⍎⍝ Variable and code expressions
-⍝HX⍎  names← 'Mary' 'Jack' 'Tony' ⋄ prize← 100
-⍝HX⍎  ∆F 'Customer {names⊃⍨ ?≢names} wins £{prize}!'
-⍝HXCustomer Mary wins £12! 
+⍝HX⍝ Variable and code expressions
+⍝HX⍎  names← 'Mary' 'Jack' 'Tony' ⋄ prize← 1000
+⍝HX⍎  ∆F 'Customer {names⊃⍨ ?≢names} wins £{?prize}!'
+⍝HX⎕Customer Jack wins £80!   
 ⍝HX 
-⍝HX⍎⍝ Some multi-line text fields separated by non-null space fields
+⍝HX⍝ Some multi-line text fields separated by non-null space fields
 ⍝HX⍎  ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
-⍝HXThis    Of         Text  
-⍝HXis      multi-line Fields
-⍝HXan                       
-⍝HXexample 
+⍝HX⎕This    Of         Text  
+⍝HX⎕is      multi-line Fields
+⍝HX⎕an                       
+⍝HX⎕example 
 ⍝HX 
-⍝HX⍎⍝ A similar example with strings in code fields
+⍝HX⍝ A similar example with strings in code fields
 ⍝HX⍎  ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
-⍝HXThis     Of          Strings
-⍝HXis       Multi-line  in     
-⍝HXan                   Code   
-⍝HXexample              Fields 
+⍝HX⎕This     Of          Strings
+⍝HX⎕is       Multi-line  in     
+⍝HX⎕an                   Code   
+⍝HX⎕example              Fields 
 ⍝HX   
-⍝HX⍎⍝ Like the example above, with useful data
+⍝HX⍝ Like the example above, with useful data
 ⍝HX⍎  fn←   'John'           'Mary'         'Bill'
 ⍝HX⍎  ln←   'Smith'          'Jones'        'Templeton'
 ⍝HX⍎  addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
 ⍝HX⍎  ∆F '{↑fn} {↑ln} {↑addr}'
-⍝HXJohn Smith     24 Mulberry Ln
-⍝HXMary Jones     22 Smith St   
-⍝HXBill Templeton 12 High St 
+⍝HX⎕John Smith     24 Mulberry Ln
+⍝HX⎕Mary Jones     22 Smith St   
+⍝HX⎕Bill Templeton 12 High St 
 ⍝HX     
-⍝HX⍎⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
+⍝HX⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
 ⍝HX⍎  C← 11 30 60
 ⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
-⍝HXThe temperature is 11°C or  51.8°F
-⍝HX                   30       86.0  
-⍝HX                   60      140.0 
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   30       86.0  
+⍝HX⎕                   60      140.0 
 ⍝HX  
-⍝HX⍎⍝ Generating boxes using the shorthand `B (box).
+⍝HX⍝ Generating boxes using the shorthand `B (box).
 ⍝HX⍎  ∆F'`⋄The temperature is {`B⊂"I2" $ C}`⋄°C or {`B⊂"F5.1" $ 32+9×C÷5}`⋄°F'
-⍝HX                   ┌──┐      ┌─────┐
-⍝HXThe temperature is │11│°C or │ 51.8│°F
-⍝HX                   │30│      │ 86.0│ 
-⍝HX                   │60│      │140.0│ 
-⍝HX                   └──┘      └─────┘    
+⍝HX⎕                   ┌──┐      ┌─────┐
+⍝HX⎕The temperature is │11│°C or │ 51.8│°F
+⍝HX⎕                   │30│      │ 86.0│ 
+⍝HX⎕                   │60│      │140.0│ 
+⍝HX⎕                   └──┘      └─────┘    
 ⍝HX            
-⍝HX⍎⍝ Referencing external expressions
+⍝HX⍝ Referencing external expressions
 ⍝HX⍎  C← 11 30 60
 ⍝HX⍎  C2F← 32+9×5÷⍨⊢
 ⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
-⍝HXThe temperature is 11°C or  51.8°F
-⍝HX                   30       86.0  
-⍝HX                   60      140.0 
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   30       86.0  
+⍝HX⎕                   60      140.0 
 ⍝HX 
-⍝HX⍎⍝ Referencing ∆F additional arguments using omega shorthand expressions.
+⍝HX⍝ Referencing ∆F additional arguments using omega shorthand expressions.
 ⍝HX⍎  ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
-⍝HXThe temperature is 11°C or  51.8°F
-⍝HX                   15       59.0  
-⍝HX                   20       68.0 
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   15       59.0  
+⍝HX⎕                   20       68.0 
 ⍝HX
-⍝HX⍎⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
+⍝HX⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
 ⍝HX⍎  ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
-⍝HX π²=9.869604401, π=3.141592654
+⍝HX⎕π²=9.869604401, π=3.141592654
 ⍝HX 
-⍝HX⍎⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
+⍝HX⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
 ⍝HX⍎  name←'John Smith' ⋄ age← 34
 ⍝HX⍎  ∆F 'Current employee: {name→}, {age→}.'
-⍝HXCurrent employee: name→John Smith, age→34.
+⍝HX⎕Current employee: name→John Smith, age→34.
 ⍝HX
-⍝HX⍎⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
+⍝HX⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
 ⍝HX⍎  name←'John Smith' ⋄ age← 34
 ⍝HX⍎  ∆F 'Current employee: {name → }, {age→   }.'
-⍝HXCurrent employee: name → John Smith, age→   34.
+⍝HX⎕Current employee: name → John Smith, age→   34.
 ⍝HX 
-⍝HX⍎⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
+⍝HX⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
 ⍝HX⍎  name←'John Smith' ⋄ age← 34
 ⍝HX⍎  ∆F 'Current employee: {name↓} {age↓}.'
-⍝HXCurrent employee:   name↓    age↓.
-⍝HX                  John Smith  34 
+⍝HX⎕Current employee:   name↓    age↓.
+⍝HX⎕                  John Smith  34 
 ⍝HX 
-⍝HX⍎⍝  Using the shorthand % (above) to display one expression centered above another 
+⍝HX⍝  Using the shorthand % (above) to display one expression centered above another 
 ⍝HX⍎  ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
-⍝HXCurrent Employee   Current Age
-⍝HX   John Smith          29     
-⍝HX   Mary Jones          23 
+⍝HX⎕Current Employee   Current Age
+⍝HX⎕   John Smith          29     
+⍝HX⎕   Mary Jones          23 
 ⍝HX 
-⍝HX⍎⍝ Display arbitrary expressions one above the other.  
-⍝HX⍎⍝ (See Shorthand Expressions for details on % and `⍵).
+⍝HX⍝ Display arbitrary expressions one above the other.  
+⍝HX⍝ (See Shorthand Expressions for details on % and `⍵).
 ⍝HX⍎  ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
-⍝HX    0 0      
-⍝HX  0 0  0 1    
-⍝HX  1 0  1 1    
-⍝HX0 0  0 1  0 2 
-⍝HX1 0  1 1  1 2 
-⍝HX2 0  2 1  2 2  
+⍝HX⎕    0 0      
+⍝HX⎕  0 0  0 1    
+⍝HX⎕  1 0  1 1    
+⍝HX⎕0 0  0 1  0 2 
+⍝HX⎕1 0  1 1  1 2 
+⍝HX⎕2 0  2 1  2 2  
 ⍝HX
-⍝HX⍎⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
+⍝HX⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
 ⍝HX⍎  C← 11 30 60
 ⍝HX⍎  0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX┌───────────────────┬──┬──────┬─────┬──┐
-⍝HX│                   │11│      │ 51.8│  │
-⍝HX│The temperature is │30│°C or │ 86.0│°F│
-⍝HX│                   │60│      │140.0│  │
-⍝HX└───────────────────┴──┴──────┴─────┴──┘
+⍝HX⎕┌───────────────────┬──┬──────┬─────┬──┐
+⍝HX⎕│                   │11│      │ 51.8│  │
+⍝HX⎕│The temperature is │30│°C or │ 86.0│°F│
+⍝HX⎕│                   │60│      │140.0│  │
+⍝HX⎕└───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
-⍝HX⍎⍝ Getting the best performance for a heavily used ∆F string.
-⍝HX⍎⍝ Using the DFN option (⍺[0+⎕IO]=1).
-⍝HX⍎⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
+⍝HX⍝ Getting the best performance for a heavily used ∆F string.
+⍝HX⍝ Using the DFN option (⍺[0+⎕IO]=1).
+⍝HX⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
 ⍝HX⍎  'cmpx' ⎕CY 'dfns'
 ⍝HX⍎  C← 11 30 60
-⍝HX⍎⍝ Here's our ∆F String <t>
+⍝HX⍝ Here's our ∆F String <t>
 ⍝HX⍎  t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX⍎⍝ Precompute a dfn T given ∆F String <t>.
+⍝HX⍝ Precompute a dfn T given ∆F String <t>.
 ⍝HX⍎  T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. 
-⍝HX⍎⍝ Compare the performance of the two formats: the precomputed version is over 4 times faster here.
+⍝HX⍝ Compare the performance of the two formats: the precomputed version is over ten times faster here.
 ⍝HX⍎  cmpx '∆F t' 'T ⍬'
-⍝HX∆F t → 5.7E¯5 |   0$ ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-⍝HXT ⍬  → 1.4E¯5 | -76% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕   
+⍝HX⎕  ∆F t → 1.7E¯4 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HX⎕  T ⍬  → 1.0E¯5 | -94% ⎕⎕ 
 ⍝HX
-⍝HX⍎⍝ Use of `T (Date-time) shortcut to show the current time (now).
-⍝HX⍎     ∆F'It is now {"t:mm pp" `T ⎕TS}.'
-⍝HX   It is now 8:08 am. 
+⍝HX⍝ Use of `T (Date-time) shortcut to show the current time (now).
+⍝HX⍎  ∆F'It is now {"t:mm pp" `T ⎕TS}.'
+⍝HX⎕It is now 8:08 am.      ⍝ <=== Time above will be different:  the actual time!
 ⍝X 
-⍝HX⍎⍝ Use of `T (Date-time) shortcut (see above for definition).
-⍝HX⍎⍝ (Right arg "hardwired" into F-string)
+⍝HX⍝ Use of `T (Date-time) shortcut (see above for definition).
+⍝HX⍝ (Right arg "hardwired" into F-string)
 ⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
-⍝HX   1 JAN 2025 was a Wednesday.
+⍝HX⎕1 JAN 2025 was a Wednesday.
 ⍝HX 
-⍝HX⍎⍝ (Right argument via omega expression: `⍵1).
-⍝HX⍎    ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
-⍝HX   21 Jan 2025 was a Tuesday.
+⍝HX⍝ (Right argument via omega expression: `⍵1).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
+⍝HX⎕21 Jan 2025 was a Tuesday.
 ⍝HX 
-⍝HX⍎⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
-⍝HX⍎    ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
-⍝HX   21 Jan 1925 was a Wednesday.
+⍝HX⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
+⍝HX⎕21 Jan 1925 was a Wednesday.
 ⍝HX   
 ⍝HX   
+:EndNamespace ⍝ nsHelp 
 :EndNamespace 
