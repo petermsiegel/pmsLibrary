@@ -33,7 +33,7 @@
   ⍝     (accum|'') ∇ str
   ⍝ Returns: null. Appends APL code strings to fldsG
     TF← {  
-        p← TFBreak ⍵ 
+        p← TFBrk ⍵ 
       p= ≢⍵: TFCat ⍺, ⍵                                ⍝ No special chars in ⍵. Process & return.
         pfx← p↑⍵
       esc= p⌷⍵: (⍺, pfx, nlG TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2    ⍝ char is esc. Process & continue.
@@ -51,7 +51,7 @@
       ⊃isSF a w nSp← (SF cfIn): a TF w                 ⍝ If a space field, process & start TF.
         nBrakG cfLenG⊢← 1 nSp
         ⍙Scan← {                                       ⍝ Recursive CF scan  
-            p← CFBreak ⍵
+            p← CFBrk ⍵
             cfLenG+← p+1
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Omitted right brace "}" 
             pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
@@ -83,10 +83,10 @@
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
     CFStr← { qt w← ⍵   
         wL← ¯1+ ≢w
-        CFSBreak← ⌊/⍳∘(esc qt)
+        CFSBrk← ⌊/⍳∘(esc qt)
         ⍙Scan← {   ⍝ Recursive CF String Scan. *** Modifies above-local wL ***  
           0= ≢⍵: ⍺ 
-            p← CFSBreak ⍵  
+            p← CFSBrk ⍵  
           p= ≢⍵: ⎕SIGNAL qtÊ
           esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
         ⍝ qt= p⌷⍵ 
@@ -159,8 +159,8 @@
 ⍝ Simple char constants
   om← '⍵'
   dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings.
-  cfBreakList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
-  tfBreakList← esc lb
+  cfBrkList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
+  tfBrkList← esc lb
   sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs
 
 ⍝ Error constants / fns  
@@ -175,9 +175,9 @@
 ⍝ =========================================================================
 ⍝ These have NO side effects, so need not be in the scope of FmtScan. 
 ⍝ =========================================================================
-⍝ See also CFSBreak
-  TFBreak← ⌊/⍳∘tfBreakList
-  CFBreak← ⌊/⍳∘cfBreakList
+⍝ See also CFSBrk
+  TFBrk← ⌊/⍳∘tfBrkList
+  CFBrk← ⌊/⍳∘cfBrkList
 
   TrimR←  ⊢↓⍨-∘(⊥⍨sp=⊢)                               ⍝ { ⍵↓⍨ -+/∧\⌽⍵= sp}
 ⍝ IntOpt: Does ⍵ start with a valid sequence of digits (a non-neg integer)? 
@@ -247,9 +247,9 @@
 ⍝          codeString is the executable dfn in string form.
 ⍝ At runtime, we'll generate cA, cB etc. based on flag ¨inline¨.
   ∇ {ok}← ⍙LoadCode 
-      ;XR ;HT; cA2; cB2; cÐ2; cF2; cM2; cT2  
-      XR← ⎕THIS.⍎⊃∘⌽                                   ⍝ Execute the right-hand expression
-      HT← '⎕THIS' ⎕R (⍕⎕THIS)                          ⍝ "Hardwire" absolute ⎕THIS.  
+          ;XR ;HT; cA2; cB2; cÐ2; cF2; cM2; cT2  
+    XR← ⎕THIS.⍎⊃∘⌽                                   ⍝ Execute the right-hand expression
+    HT← '⎕THIS' ⎕R (⍕⎕THIS)                          ⍝ "Hardwire" absolute ⎕THIS.  
   ⍝ A (etc): a dfn
   ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code              
   ⍝                   valence
