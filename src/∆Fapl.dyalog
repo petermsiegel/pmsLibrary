@@ -1,101 +1,108 @@
 :Namespace ⍙Fapl
   ⎕IO ⎕ML←0 1 
+  DEBUG← 0 
 ⍝ The name of the utility function visible in the target directory.
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
-  ∇ ⍙res← {⍙l} ∆F ⍙r 
-    :Trap 0     ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
+  ∇ result← {opts} ∆F args 
+    :Trap 0/⍨ ~⎕THIS.DEBUG        ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
       :If 900⌶0 
-          ⍙l← ⍬
-      :ElseIf 0≠ ⊃0⍴⍙l
-          ⍙res← ⎕THIS.Help ⍙l ⋄ :Return              ⍝ Help handles invalid options (⍙l)
+          opts← ⍬
+      :ElseIf 0≠ ⊃0⍴opts          ⍝ If opts aren't all numeric, then Help will sort it out.
+          result← ⎕THIS.Help opts ⍝ Help handles invalid options (opts)
+         :Return          
       :EndIf 
-      :If 1= ⊃⍙l← 4↑⍙l                               ⍝ FmtScan handles invalid options (⍙l)  
-      ⍝  Returns executable dfn CODE generated from the f-string (if valid).
-          ⍙res← (⊃⎕RSI)⍎ ⍙l ⎕THIS.FmtScan ,⊃,⊆⍙r
-      :Else                 ⍝ Handle any invalid options in FmtScan            
-      ⍝  Returns matrix RESULT of evaluating the f-string.
-      ⍝  "Hides" local ⍙l, ⍙r from embedded ⎕NL, etc.
-          ⍙res← ⍙l ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.FmtScan ,⊃⍵⊣ ⎕EX '⍙l' '⍙r'}) ,⊆⍙r
+      :If 1= ⊃opts← 4↑opts        ⍝ FmtScan handles invalid options (opts)  
+        ⍝ Returns executable dfn CODE generated from the f-string (if valid).
+          result← (⊃⎕RSI)⍎ opts ⎕THIS.FmtScan ,⊃,⊆args
+      :Else                       ⍝ Handle 0 (valid) and other (invalid) options in FmtScan            
+        ⍝ Returns matrix RESULT of evaluating the f-string.
+        ⍝ "Hides" local vars, ¨opts¨ and ¨args¨, from embedded ⎕NL, etc.
+          result← opts ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.FmtScan ,⊃⍵⊣ ⎕EX 'opts' 'args'}) ,⊆args
       :EndIf  
   :Else 
       ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨('∆F ',EM) EN Message)
   :EndTrap 
   ∇
 
-⍝ FmtScan: top level routine...
-⍝ FmtScan: The "main" function for ∆Fre...
+⍝ FmtScan: top level routine; the "main" function called by ∆F above. See the Executive section below.
 ⍝ result← [4↑ options] FmtScan f_string
   FmtScan← {  
   ⍝ Major Field Recursive Scanners: 
-  ⍝    TF: text, CF: code fields, SF: space, CFStr: (code field) quoted strings
+  ⍝    TF: text, CF: code fields and space fields, CFStr: (code field) quoted strings
   ⍝ TF: Text Field Scan 
   ⍝     (accum|'') ∇ str
   ⍝ Returns: null. Appends APL code strings to fldsG
     TF← {  
         p← TFBrk ⍵ 
-      p= ≢⍵: TFCat ⍺, ⍵                                ⍝ No special chars in ⍵. Process & return.
+      p= ≢⍵: TFDone ⍺, ⍵                               ⍝ No special chars in ⍵. Process & return.
         pfx← p↑⍵
       esc= p⌷⍵: (⍺, pfx, nlG TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2    ⍝ char is esc. Process & continue.
-        '' CF ⍵↓⍨ p⊣ TFCat ⍺, pfx                      ⍝ char is lb. Process & start code field (CF).  
+        CSF ⍵↓⍨ p+1⊣ TFDone ⍺, pfx                     ⍝ char is lb. End TF; go to CSF.  
     } ⍝ End Text Field Scan 
-  ⍝ TFCat: If a text field is not 0-length, place in quotes and add it to fldsG.
+  ⍝ TFDone: If a text field is not 0-length, place in quotes and add it to fldsG.
   ⍝ Ensure adjacent fields are sep by ≥1 blank.
-    TFCat← {0= ≢⍵: ⍬ ⋄ ⍬⊣ fldsG,← ⊂sp sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵}    
+    TFDone← {0≠ ≢⍵: 0⊣ fldsG,← ⊂sp_sq, sq,⍨ ⍵/⍨ 1+ sq= ⍵ ⋄ ⍬}    
 
-  ⍝ CF: Code Field Scan. Called by TF.   
-  ⍝     res← (accum|'') ∇ fstr
+  ⍝ CSF: Code / Space Field Scan (monadic only). 
+  ⍝ Called by TF. Checks for a possible space field (SF), i.e. {} or { }, {  }, etc. 
+  ⍝     res← ∇ str, where str already skips the leading '{' of the CF. 
   ⍝ Returns: null. Appends APL code strings to fldsG 
-    CF← { 
-      cfIn← 1↓⍵                                        ⍝ in: skip leading '{'
-      ⊃isSF a w nSp← (SF cfIn): a TF w                 ⍝ If a space field, process & start TF.
-        nBrakG cfLenG⊢← 1 nSp
+    CSF← {                                              
+        cfSaveË← w← ⍵                                  ⍝ Save the start of the CF (in case SDCF: self-doc CF)
+      rb= ⊃w: '' TF 1↓ w                               ⍝ If {}, we have a null SF. No code gen'd. [FAST]
+        w↓⍨← nSp← +/∧\' '= w                           ⍝ Count/skip over (≥0) leading spaces...
+      rb= ⊃w: '' TF 1↓ w⊣ fldsG,← ⊂SFCodeGen ⍕nSp      ⍝ If we now see a '}', we have an SF. Done.
+        nBrakG cfLenG⊢← 1 nSp                          ⍝ No, we have a true CF. Keep going.
         ⍙Scan← {                                       ⍝ Recursive CF scan  
             p← CFBrk ⍵
             cfLenG+← p+1
-          p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Omitted right brace "}" 
+          p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Missing right brace "}"! 
             pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
-          ch= sp:             (pfx, sp) ∇ w↓⍨ p⊣ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
-          ch∊ sq_dq:          (pfx, a)  ∇ w⊣ cfLenG+← c⊣ a w c← CFStr ch w    
+          ch= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
+          ch∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr ch w    
           ch= dol:            (pfx, cF) ∇ w            ⍝ $ => ⎕FMT (cF)
           ch= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w
          (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w            ⍝ Return... Scan complete!  
-          ch∊ lb_rb:           (pfx, ch) ∇ w⊣ nBrakG+← -/ch= lb rb
+          ch∊ lb_rb:          (pfx, ch) ∇ w⊣ nBrakG+← -/ch= lb rb
           ch= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w     
-         ~ch∊ '→↓%':         (pfx, ch) ∇ w⊣ ⎕SIGNAL cfLogicÊ
-        ⍝ We have '→', '↓', or '%'. 
-        ⍝ See if [A] literal char or [B] indicator of self-doc code field.
-            p← +/∧\' '=w                               ⍝ Idiom +/∧\' '=
-        ⍝ [A] Literal char: pseudo-function "above" '%' or APL fns '→' '↓' 
-          (rb≠ p⌷w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
-        ⍝ [B] Self-Doc Code Field (char /→|↓|%/ is foll. by /\s*\}/ and /\}/ is code field final). 
+         ~ch∊ '→↓%':          (pfx, ch) ∇ w⊣ ⎕SIGNAL cfLogicÊ
+        ⍝ We have one of '→', '↓', or '%'. 
+        ⍝ See if [A] it's a pseudo-fn or [B] indicator of self-doc code field (SDCF).
+        ⍝ [A] Pseudo-fn: "above" '%' or APL fns '→'¹ or '↓'. Keep scanning code field. 
+            p← +/∧\' '=w                         ⍝ ¹Note: In a dfn, only a bare → is valid!
+          (rb≠ ⊃p↓w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
+        ⍝ [B] SDCF (char /→|↓|%/ is foll. by /\s*\}/ and /\}/ is code field final). 
         ⍝     '→' places the code str to the left of the result (cM) after evaluating the code str; 
         ⍝     '↓' and its alias '%' puts it above (cA) the result.
-            codeStr← AplQt cfIn↑⍨ cfLenG+ p 
-            a← codeStr, (cA cM⊃⍨ ch='→'), pfx 
-            a (w↓⍨ p+1)                                ⍝ Return: Scan complete!  
+            codeStr← AplQt cfSaveË↑⍨ cfLenG+ p         ⍝ Grab literal CF as self-doc CF string. 
+        ⍝ codeStr will be placed to left of (→) or above (↓ or %) evaluated code.
+            (codeStr, (cA cM⊃⍨ ch='→'), pfx) (w↓⍨ p+1) ⍝ Return: Scan complete!  
         }
-        a w← a ⍙Scan w
+        a w← '' ⍙Scan w
         '' TF w⊣ fldsG,← ⊂'(', lb, a, rb, '⍵)'         ⍝ Process & back to TF
     } ⍝ End Code Field Scan
+  ⍝ SFCodeGen: Generate a SF code string; ⍵ is non-null. (Used in CSF above)
+    SFCodeGen← '(',⊢ ⊢,∘'⍴'''')'  
+
   ⍝ CFStr: CF Quoted String Scan
-  ⍝ val←  nl ∇ qt fstr 
+  ⍝ val←  (⍺=nl) ∇ qt fstr 
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
     CFStr← { qt w← ⍵   
-        wL← ¯1+ ≢w
+        lenW← ¯1+ ≢w                                    ⍝ lenW: length of w outside quoted str.
         CFSBrk← ⌊/⍳∘(esc qt)
-        ⍙Scan← {   ⍝ Recursive CF String Scan. *** Modifies above-local wL ***  
+        ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
           0= ≢⍵: ⍺ 
             p← CFSBrk ⍵  
           p= ≢⍵: ⎕SIGNAL qtÊ
-          esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ wL-← p+2 
-        ⍝ qt= p⌷⍵ 
-          qt≠ ⊃⍵↓⍨ p+1:  ⍺, ⍵↑⍨ wL-← p 
-            (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ wL-← p+2                ⍝ Use APL rules for ".."".."
+          esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2 
+        ⍝ qt= p⌷⍵, so now see if foll. char is a qt or not. 
+          qt= ⊃⍵↓⍨ p+1:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
+            ⍺, ⍵↑⍨ lenW-← p                              ⍝ Done... Return
         }
-        qS← AplQt '' ⍙Scan w
-        qS (w↑⍨ -wL) (wL -⍨ ≢ w)
-    } ⍝ End CF Quoted String Scan
+        qS← AplQt '' ⍙Scan w                           ⍝ Warning: ⍙Scan updates lenW 
+        qS (w↑⍨ -lenW) (lenW-⍨ ≢ w)                    ⍝ Returns last lenW chars of w
+    } ⍝ End CF Quoted-String Scan
   ⍝ CFEsc:  
   ⍝    res← ∇ fstr
   ⍝ Returns:  code w                                   ⍝ ** Side Effects: Sets cfLenG, omIxG **
@@ -115,18 +122,6 @@
       ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG⊢← oVal) w⊣ cfLenG+← oLen 
              ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG       ) w⊣ omIxG+← 1
     }
-  ⍝ SF: Space Field Scan. Called by CF.  
-  ⍝     res← ∇ fstr
-  ⍝ Returns: sfFlag pfx sfx nSp. 
-    SF← {
-      (nullSF← rb= ⊃⍵)∨ sp≠⊃⍵: nullSF '' (nullSF↓ ⍵) 0 ⍝ nullSF: {}, not a space field => CF
-        nSp← +/∧\' '=⍵                                 ⍝ Idiom +/∧\' '=
-      nSp= ≢⍵: ⎕SIGNAL brÊ                             ⍝ Omitted right brace       
-      rb≠ nSp⌷⍵: 0 '' (nSp↓⍵) nSp                      ⍝ Not a SF:    { sp sp* code...}
-        fldsG,← ⊂'(','⍴'''')',⍨ ⍕nSp                   ⍝ Non-null SF: { }, etc.
-        1 '' (⍵↓⍨ 1+ nSp) nSp 
-    } ⍝ End Space Field     
-
 ⍝ ===========================================================================
 ⍝ FmtScan Executive begins here
 ⍝ ===========================================================================  
@@ -146,11 +141,11 @@
     omIxG← nBrakG← cfLenG← 0 
   
   ⍝ Start the scan                                     ⍝ We start with a (possibly null) text field, 
-     _← '' TF ⍵                                        ⍝ recursively calling CF and (from CF) SF & TF itself, &
-                                                       ⍝ setting fields ¨fldsG¨ as we go.
-  0∧.= ≢ ¨fldsG: DM '(1 0⍴⍬)', dfn/'⍨'                 ⍝ If all fields are 0-length, return 1 by 0 matrix
-     fldsG← OrderFlds fldsG                            ⍝ We will evaluate fields L-to-R
-     code← '⍵',⍨ lb, rb,⍨ fldsG,⍨ box⊃ cM cÐ
+    _← '' TF ⍵                                         ⍝ recursively calling CSF and (from CSF) SF & TF itself, &
+                                                       ⍝ ... setting fields ¨fldsG¨ as we go.
+  0= ≢fldsG: DM '(1 0⍴⍬)', dfn/'⍨'                     ⍝ If there are no flds, return 1 by 0 matrix
+    fldsG← OrderFlds fldsG                             ⍝ We will evaluate fields L-to-R
+    code← '⍵',⍨ lb, rb,⍨ fldsG,⍨ box⊃ cM cÐ
   ~dfn: DM code                                        ⍝ Not a dfn. Emit code ready to execute
     quoted← ',⍨ ⊂', AplQt fStr                         ⍝ dfn: add quoted fmt string.
     DM lb, code, quoted, rb                            ⍝ emit dfn string ready to convert to dfn itself
@@ -161,12 +156,12 @@
   dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings.
   cfBrkList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
   tfBrkList← esc lb
-  sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs
+  sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq 
 
 ⍝ Error constants / fns  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵ }
   brÊ←      Ê 'Unpaired brace "{"'
-  qtÊ←      Ê 'Unpaired quote (in code field)' 
+  qtÊ←      Ê 'Unpaired quote (''"'' or "''") in code field' 
   cfLogicÊ← Ê 'A logic error has occurred processing a code field'
   optÊ←     Ê 'Invalid option(s) in left argument. For help: ∆F⍨''help'''
   SeqÊ←     Ê {'Sequence "`',⍵,'" is not valid in code outside strings. Did you mean "',⍵,'"?'}
@@ -233,11 +228,12 @@
 ⍝ === FIX-time Routines ==========================================================================
 ⍝ ⍙Promote_∆F (used internally only at FIX-time)
 ⍝ ∘ Copy ∆F, obscuring its local names and hardwiring the location of ⎕THIS. 
-⍝ ∘ Fix this copy in the parent namsspace.
-  ∇ rc← ⍙Promote_∆F; src; snk 
-    src←    '⎕THIS'  '⍙(\w+)' 
-    snk←   (⍕⎕THIS)  '⍙Ⓕ⍙\1øøø'
-    rc← ##.⎕FX src ⎕R snk⊣ ⎕NR '∆F'
+⍝ ∘ Fix this promoted copy in the parent namespace.
+  ∇ rc← ⍙Promote_∆F ; src; snk; rOpt    
+    src←    '⎕THIS'      'result'     'opts'     'args' 
+    snk←   (⍕⎕THIS)  '⍙Ⓕ_rësült' '⍙Ⓕ_öpts' '⍙Ⓕ_ärgs'
+    rOpt←  'UCP' 1
+    rc← ##.⎕FX src ⎕R snk ⍠ rOpt⊣ ⎕NR '∆F'
   ∇
 ⍝ ⍙LoadCode: At ⎕FIX time, load the run-time library names and code.  
 ⍝ For A, B, D, F, M; all like A example shown here:
@@ -501,7 +497,7 @@
 ⍝HX            
 ⍝HX⍝ Referencing external expressions
 ⍝HX⍎  C← 11 30 60
-⍝HX⍎  C2F← 32+9×5÷⍨⊢
+⍝HX⍎  C2F← 32+9×÷∘5    
 ⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
 ⍝HX⎕The temperature is 11°C or  51.8°F
 ⍝HX⎕                   30       86.0  
@@ -512,6 +508,12 @@
 ⍝HX⎕The temperature is 11°C or  51.8°F
 ⍝HX⎕                   15       59.0  
 ⍝HX⎕                   20       68.0 
+⍝HX
+⍝HX⍝ The temperature of the sun at its core in degrees C.
+⍝HX⍎  sun_core← 15E6
+⍝HX⍝ Use format string specifier "C" with shortcut $ to add appropriate commas to the temperatures!
+⍝HX⍎  ∆F'The sun''s core is at {"CI10"$sun_core}°C or {"CI10"$C2F sun_core}°F'
+⍝HX⎕The sun's core is at 15,000,000°C or 27,000,032°F
 ⍝HX
 ⍝HX⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
 ⍝HX⍎  ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
@@ -581,7 +583,7 @@
 ⍝HX⍝ Use of `T (Date-time) shortcut to show the current time (now).
 ⍝HX⍎  ∆F'It is now {"t:mm pp" `T ⎕TS}.'
 ⍝HX⎕It is now 8:08 am.      ⍝ <=== Time above will be different:  the actual time!
-⍝X 
+⍝HX 
 ⍝HX⍝ Use of `T (Date-time) shortcut (see above for definition).
 ⍝HX⍝ (Right arg "hardwired" into F-string)
 ⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
