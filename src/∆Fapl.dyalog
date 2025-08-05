@@ -47,37 +47,37 @@
   ⍝ CSF: Code / Space Field Scan (monadic only). 
   ⍝ Called by TF. Checks for a possible space field (SF), i.e. {} or { }, {  }, etc. 
   ⍝     res← ∇ str, where str already skips the leading '{' of the CF. 
-  ⍝ Returns: null. Appends APL code strings to fldsG 
+  ⍝ Returns: null. Appends APL code strings to fldsG. Sets/modifies nBrakG, cfLenG.
     CSF← {                                              
         cfSaveË← w← ⍵                                  ⍝ Save the start of the CF (in case SDCF: self-doc CF)
       rb= ⊃w: '' TF 1↓ w                               ⍝ If {}, we have a null SF. No code gen'd. [FAST]
         w↓⍨← nSp← +/∧\' '= w                           ⍝ Count/skip over (≥0) leading spaces...
       rb= ⊃w: '' TF 1↓ w⊣ fldsG,← ⊂SFCodeGen ⍕nSp      ⍝ If we now see a '}', we have an SF. Done.
         nBrakG cfLenG⊢← 1 nSp                          ⍝ No, we have a true CF. Keep going.
-        ⍙Scan← {                                       ⍝ Recursive CF scan  
+        ⍙Scan← {                                       ⍝ Recursive CF scan. Modifies cfLenG, nBrakG.  
             p← CFBrk ⍵
             cfLenG+← p+1
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Missing right brace "}"! 
-            pfx ch w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
-          ch= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
-          ch∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr ch w    
-          ch= dol:            (pfx, cF) ∇ w            ⍝ $ => ⎕FMT (cF)
-          ch= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w
-         (ch= rb)∧ nBrakG≤ 1: (TrimR pfx) w            ⍝ Return... Scan complete!  
-          ch∊ lb_rb:          (pfx, ch) ∇ w⊣ nBrakG+← -/ch= lb rb
-          ch= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w     
-         ~ch∊ '→↓%':          (pfx, ch) ∇ w⊣ ⎕SIGNAL cfLogicÊ
+            pfx c w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
+          c= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
+          c∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
+          c= dol:            (pfx, cF) ∇ w             ⍝ $ => ⎕FMT (cF)
+          c= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w
+         (c= rb)∧ nBrakG≤ 1: (TrimR pfx) w             ⍝ Return... Scan complete!  
+          c∊ lb_rb:          (pfx, c) ∇ w⊣ nBrakG+← -/c= lb_rb  ⍝ Inc/dec nBrakG as appropriate
+          c= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w         ⍝ ⍹, alias to `⍵ (see CFEsc).
+         ~c∊ '→↓%':          (pfx, c) ∇ w⊣ ⎕SIGNAL cfLogicÊ
         ⍝ We have one of '→', '↓', or '%'. 
         ⍝ See if [A] it's a pseudo-fn or [B] indicator of self-doc code field (SDCF).
         ⍝ [A] Pseudo-fn: "above" '%' or APL fns '→'¹ or '↓'. Keep scanning code field. 
             p← +/∧\' '=w                         ⍝ ¹Note: In a dfn, only a bare → is valid!
-          (rb≠ ⊃p↓w)∨ nBrakG> 1: (pfx, ch cA⊃⍨ ch= pct) ∇ w  
+          (rb≠ ⊃p↓w)∨ nBrakG> 1: (pfx, c cA⊃⍨ c= pct) ∇ w  
         ⍝ [B] SDCF (char /→|↓|%/ is foll. by /\s*\}/ and /\}/ is code field final). 
         ⍝     '→' places the code str to the left of the result (cM) after evaluating the code str; 
         ⍝     '↓' and its alias '%' puts it above (cA) the result.
             codeStr← AplQt cfSaveË↑⍨ cfLenG+ p         ⍝ Grab literal CF as self-doc CF string. 
         ⍝ codeStr will be placed to left of (→) or above (↓ or %) evaluated code.
-            (codeStr, (cA cM⊃⍨ ch='→'), pfx) (w↓⍨ p+1) ⍝ Return: Scan complete!  
+            (codeStr, (cA cM⊃⍨ c='→'), pfx) (w↓⍨ p+1)  ⍝ Return: Scan complete!  
         }
         a w← '' ⍙Scan w
         '' TF w⊣ fldsG,← ⊂'(', lb, a, rb, '⍵)'         ⍝ Process & back to TF
@@ -89,7 +89,7 @@
   ⍝ val←  (⍺=nl) ∇ qt fstr 
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
     CFStr← { qt w← ⍵   
-        lenW← ¯1+ ≢w                                    ⍝ lenW: length of w outside quoted str.
+        lenW← ¯1+ ≢w                                   ⍝ lenW: length of w outside quoted str.
         CFSBrk← ⌊/⍳∘(esc qt)
         ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
           0= ≢⍵: ⍺ 
@@ -98,21 +98,21 @@
           esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2 
         ⍝ qt= p⌷⍵, so now see if foll. char is a qt or not. 
           qt= ⊃⍵↓⍨ p+1:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
-            ⍺, ⍵↑⍨ lenW-← p                              ⍝ Done... Return
+            ⍺, ⍵↑⍨ lenW-← p                            ⍝ Done... Return
         }
         qS← AplQt '' ⍙Scan w                           ⍝ Warning: ⍙Scan updates lenW 
-        qS (w↑⍨ -lenW) (lenW-⍨ ≢ w)                    ⍝ Returns last lenW chars of w
+        qS (w↑⍨ -lenW) (lenW-⍨ ≢ w)                    ⍝ w is returned sans CF quoted string 
     } ⍝ End CF Quoted-String Scan
   ⍝ CFEsc:  
   ⍝    res← ∇ fstr
   ⍝ Returns:  code w                                   ⍝ ** Side Effects: Sets cfLenG, omIxG **
     CFEsc← {                                    
       0= ≢⍵:esc 
-        ch← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
-      ch∊ om_omUs: CFOm w                              ⍝ Permissively allow `⍹ as equiv to  `⍵ OR ⍹  
-      ch∊ 'ABFTD':  (codeABFTD⊃⍨ 'ABFTD'⍳ ch) w        ⍝ Escape pseudo-fns `[ABFTD]. 
-      ch∊ lb_rb: ch w                                  ⍝ `{ => {, `} => }  
-        ⎕SIGNAL SeqÊ ch
+        c← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
+      c∊ om_omUs: CFOm w                               ⍝ Permissively allow `⍹ as equiv to  `⍵ OR ⍹  
+      c∊ 'ABFTD':  (codeABFTD⊃⍨ 'ABFTD'⍳ c) w          ⍝ Escape pseudo-fns `[ABFTD]. 
+      c∊ lb_rb: c w                                    ⍝ `{ => {, `} => }  
+        ⎕SIGNAL SeqÊ c                                 ⍝ esc-c has no meaning in CF for char c.
     } ⍝ End CFEsc 
   ⍝ *** CFOm: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
   ⍝ Deal with `⍵,⍹ with opt'l integer following.  
@@ -129,9 +129,10 @@
     (dfn dbg box inline) fStr← ⍺ ⍵ 
     DM← (⎕∘←)⍣dbg                                      ⍝ DM: Debug Msg
     nlG← dbg⊃ ⎕UCS 13 9229                             ⍝ 9229 is ␍ (visible carriage return)
-    cA cB cÐ cF cM cT← inline⊃¨ codeList             ⍝ code snippets (in char vec form)
+  ⍝ for meanings of A, B, Ð, F, M, T and D
+    cA cB cÐ cF cM cT← inline⊃¨ codeList               ⍝ code fragments. 
     codeABFTD← cA cB cF cT cT                          ⍝ A: above, B: box, F: ⎕FMT, T or D: date-time. 
-                                                       ⍝ `T is undoc., but permissive alias to `D. 
+                                                       ⍝ `T is permissive alias to `D, date-time.
   ⍝ Pseudo-globals  camelCaseG 
   ⍝    fldsG-   global field list
     fldsG← ⍬
@@ -153,10 +154,10 @@
 
 ⍝ Simple char constants
   om← '⍵'
-  dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings.
+  dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings for ⎕UCS 13.
   cfBrkList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
   tfBrkList← esc lb
-  sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq 
+  sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq ⋄   esc_lb_rb← esc lb rb  
 
 ⍝ Error constants / fns  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵ }
@@ -174,7 +175,7 @@
   TFBrk← ⌊/⍳∘tfBrkList
   CFBrk← ⌊/⍳∘cfBrkList
 
-  TrimR←  ⊢↓⍨-∘(⊥⍨sp=⊢)                               ⍝ { ⍵↓⍨ -+/∧\⌽⍵= sp}
+  TrimR←  ⊢↓⍨-∘(⊥⍨sp=⊢)                                ⍝ { ⍵↓⍨ -+/∧\⌽⍵= sp}
 ⍝ IntOpt: Does ⍵ start with a valid sequence of digits (a non-neg integer)? 
 ⍝ Returns 2 integers and a string: 
 ⍝   [0] len of sequence of digits (pos integer) or 0, 
@@ -190,11 +191,11 @@
 ⍝ TFEsc: nl ∇ fstr, where 
 ⍝    nl: current newline char;  fstr: starts with the char after the escape
 ⍝ Returns: the escape sequence.                        ⍝ *** No side effects ***
-  TFEsc← { 0= ≢⍵: esc ⋄ ch← 0⌷⍵ ⋄ ch= dia: ⍺ ⋄ ch∊ esc, lb, rb: ch ⋄ esc, ch } 
+  TFEsc← { 0= ≢⍵: esc ⋄ c← 0⌷⍵ ⋄ c= dia: ⍺ ⋄ c∊ esc_lb_rb: c ⋄ esc, c } 
   ⍝ QSEsc: [nl] ∇ fstr, where 
   ⍝         nl is the current newline char, and fstr starts with the char AFTER the escape char.
   ⍝ Returns the escape sequence.                       ⍝ *** No side effects ***
-  QSEsc← { ch← ⍵ ⋄ ch= dia: ⍺ ⋄ esc, ch }     
+  QSEsc← { c← ⍵ ⋄ c= dia: ⍺ ⋄ esc, c }     
 
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R AND displayed in L-to-R order 
@@ -219,8 +220,10 @@
     hP←  '(?ix) ^\s* ⍝HX (?| ([⍎⎕⍝]) (.*) | () () )' 
     res← '    ',ttarg, targ.⎕FX hdr, ftr,⍨ ⊆hP ⎕S {
         c← ⊃⊃f1 f2← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Match }¨ 1 2  
-      c= ' ': '⎕← ⍬'          ⋄ c= '⍝': '⎕← ', AplQt '⍝',f2 
-      c= '⎕': '⎕← ', AplQt f2 ⋄ c= '⍎':('⎕← ', AplQt f2), ' ⋄ ', f2  
+      c= ' ': '⎕← ⍬'              
+      c= '⍝': '⎕← ', AplQt '⍝',f2 
+      c= '⍎':('⎕← ', AplQt f2), ' ⋄ ', f2  
+      c= '⎕': '⎕← ', AplQt f2 
     }⊣ ⎕SRC ⎕THIS.nsHelp   
   ∇
 
@@ -248,13 +251,13 @@
     HT← '⎕THIS' ⎕R (⍕⎕THIS)                          ⍝ "Hardwire" absolute ⎕THIS.  
   ⍝ A (etc): a dfn
   ⍝ cA (etc): [0] local absolute name of dfn (with spaces), [1] its code              
-  ⍝                   valence
-  ⍝ A: [⍺]above ⍵      ambi
-  ⍝ B: box ⍵           ambi
-  ⍝ D: display ⍵       dyadic
-  ⍝ F: [⍺] format ⍵    ambi
-  ⍝ M: merge[⍺] ⍵      ambi
-  ⍝ T:  ⍺ date-time ⍵  ambi
+  ⍝ Abbrev  Meaning         Valence     User Shortcuts   Notes
+  ⍝ A       [⍺]above ⍵      ambi       `A, %
+  ⍝ B       box ⍵           ambi       `B
+  ⍝ Ð       display ⍵       dyadic                       Var Ð only used internally...
+  ⍝ F       [⍺] format ⍵    ambi       `F, $
+  ⍝ M       merge[⍺] ⍵      ambi                         Var M only used internally...
+  ⍝ T       ⍺ date-time ⍵   ambi       `T, `D  
     A← XR cA2← HT   ' ⎕THIS.A ' '{⍺←⍬⋄⎕ML←1⋄⊃⍪/(⌈2÷⍨w-m)⌽¨f↑⍤1⍨¨m←⌈/w←⊃∘⌽⍤⍴¨f←⎕FMT¨⍺⍵}' 
     B← XR cB2← HT   ' ⎕THIS.B ' '{⍺←0⋄⎕ML←1⋄⍺⎕SE.Dyalog.Utils.disp⊂⍣(1≥≡⍵),⍣(0=≡⍵)⊢⍵}'  
     Ð← XR cÐ2← HT   ' ⎕THIS.Ð ' ' 0∘⎕SE.Dyalog.Utils.disp¯1∘↓'                           
@@ -391,10 +394,12 @@
 ⍝H                           `⍵0 (or ⍹0) selects the text of the ∆F_String itself;
 ⍝H   Quoted_Strings    ::=   Expressions of the following format: 
 ⍝H                           quoted strings: "..." or ''...'', where ... may include 
-⍝H                                    `⋄ to represent a newline, 
-⍝H                                    `` to represent the escape char itself.
-⍝H                                    Double " within a "..." quote to include a double quote.
-⍝H                                    Double ' within a '...' quote to include a single quote.
+⍝H                              `⋄ to represent a newline, 
+⍝H                              `` to represent the escape char itself.
+⍝H                           ∘ Double " within a "..." quote to include a double quote.
+⍝H                           ∘ Double ' within a '...' quote to include a single quote.
+⍝H                           Note: {, }, `{, and `} are treated literally (no special meaning)
+⍝H                                 with any escapes included.
 ⍝H   Fmt               ::=   [ (Fmt_Expr) ("$" | "`F") Code_Expr] 
 ⍝H   Fmt_Expr          ::=   Any valid left argument to ⎕FMT
 ⍝H   Above             ::=   ("(" Code_Expr ")") ("%" | "`A") (Code_Expr)>
@@ -420,9 +425,11 @@
 ⍝H                 ⍵: one or more APL timestamps (⎕TS)
 ⍝H                 ⍺: Code for displaying timestamps based on Dyalog (1200⌶).
 ⍝H                    Default code/⍺: 'YYYY-MM-DD hh:mm:ss'
-⍝H                 The `T (Date-Time) helper function uses ⎕DT and (1200⌶):
-⍝H                    [⍺] {⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵} ⍵  
+⍝H                 The `T (Date-Time) helper function uses ⎕DT and (1200⌶).
+⍝H                 It is defined as: 
+⍝H                    {⎕ML←1 ⋄ ⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵}   
 ⍝H                 See examples below.
+⍝H        `D       An alias for `T (Date-Time).
 ⍝H      Omega/Omega Underbar Shortcut*      
 ⍝H        `⍵n, ⍹n  With an explicit index n, where n is a non-negative integer between 0 and t-1,  
 ⍝H                 given t, the # of elements of ∆F's right argument ⍵. 
@@ -567,8 +574,9 @@
 ⍝HX⎕└───────────────────┴──┴──────┴─────┴──┘
 ⍝HX
 ⍝HX⍝ Getting the best performance for a heavily used ∆F string.
-⍝HX⍝ Using the DFN option (⍺[0+⎕IO]=1).
-⍝HX⍝ Performance of an ∆F-string evaluated on the fly via (∆F ...) and precomputed via (1 ∆F ...): 
+⍝HX⍝ Using the DFN option (initial option is 1 (in ⍺)), e.g. ¨1 ∆F ...¨
+⍝HX⍝ > Let's look at the performance of an ∆F-string evaluated
+⍝HX⍝   on the fly via ¨∆F ...¨ and precomputed via ¨1 ∆F ...¨: 
 ⍝HX⍎  'cmpx' ⎕CY 'dfns'
 ⍝HX⍎  C← 11 30 60
 ⍝HX⍝ Here's our ∆F String <t>
