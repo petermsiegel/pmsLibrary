@@ -5,21 +5,24 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ result← {opts} ∆F args 
-    :Trap 0/⍨ ~⎕THIS.DEBUG        ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
+    :Trap 0/⍨ ⎕THIS.DEBUG        ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
       :If 900⌶0 
           opts← ⍬
       :ElseIf 0≠ ⊃0⍴opts          ⍝ If opts aren't all numeric, then Help will sort it out.
           result← ⎕THIS.Help opts ⍝ Help handles invalid options (opts)
          :Return          
       :EndIf 
-      :If 1= ⊃opts← 4↑opts        ⍝ FmtScan handles invalid options (opts)  
-        ⍝ Returns executable dfn CODE generated from the f-string (if valid).
+      :Select ⊃opts← 4↑opts       ⍝ FmtScan handles invalid options (opts)  
+        :Case 1                   ⍝ Returns executable dfn CODE generated from the f-string (if valid).
           result← (⊃⎕RSI)⍎ opts ⎕THIS.FmtScan ,⊃,⊆args
-      :Else                       ⍝ Handle 0 (valid) and other (invalid) options in FmtScan            
+        :Case ¯1                  ⍝ Undoc. option-- returns dfn code in string form. 
+        ⍝ Useful for benchmarking compile-only step using dfns.cmpx.        
+          result← (0,1↓opts) ⎕THIS.FmtScan ,⊃,⊆args  
+        :Else                     ⍝ Handle 0 (valid) and other (invalid) options in FmtScan  
         ⍝ Returns matrix RESULT of evaluating the f-string.
         ⍝ "Hides" local vars, ¨opts¨ and ¨args¨, from embedded ⎕NL, etc.
           result← opts ((⊃⎕RSI){ ⍺⍺⍎ ⍺ ⎕THIS.FmtScan ,⊃⍵⊣ ⎕EX 'opts' 'args'}) ,⊆args
-      :EndIf  
+      :EndSelect   
   :Else 
       ⎕SIGNAL ⊂⎕DMX.('EM' 'EN' 'Message' ,⍥⊂¨('∆F ',EM) EN Message)
   :EndTrap 
@@ -58,12 +61,12 @@
             p← CFBrk ⍵
             cfLenG+← p+1
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Missing right brace "}"! 
-            pfx c w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
+            pfx c w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1)          ⍝ Some cases below are ordered! 
           c= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
           c∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
           c= dol:            (pfx, cF) ∇ w             ⍝ $ => ⎕FMT (cF)
           c= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w
-         (c= rb)∧ nBrakG≤ 1: (TrimR pfx) w             ⍝ Return... Scan complete!  
+         (c= rb)∧ nBrakG≤ 1: (TrimR pfx) w             ⍝ Return... Scan complete! 
           c∊ lb_rb:          (pfx, c) ∇ w⊣ nBrakG+← -/c= lb_rb  ⍝ Inc/dec nBrakG as appropriate
           c= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w         ⍝ ⍹, alias to `⍵ (see CFEsc).
          ~c∊ '→↓%':          (pfx, c) ∇ w⊣ ⎕SIGNAL cfLogicÊ
@@ -89,8 +92,8 @@
   ⍝ val←  (⍺=nl) ∇ qt fstr 
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
     CFStr← { qt w← ⍵   
+        CFSBrk← ⌊/⍳∘(esc qt)                          ⍝ qt can be ' OR ".
         lenW← ¯1+ ≢w                                   ⍝ lenW: length of w outside quoted str.
-        CFSBrk← ⌊/⍳∘(esc qt)
         ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
           0= ≢⍵: ⍺ 
             p← CFSBrk ⍵  
@@ -100,7 +103,7 @@
           qt= ⊃⍵↓⍨ p+1:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
             ⍺, ⍵↑⍨ lenW-← p                            ⍝ Done... Return
         }
-        qS← AplQt '' ⍙Scan w                           ⍝ Warning: ⍙Scan updates lenW 
+        qS← AplQt '' ⍙Scan w                           ⍝ Update lenW via ⍙Scan, then update w. 
         qS (w↑⍨ -lenW) (lenW-⍨ ≢ w)                    ⍝ w is returned sans CF quoted string 
     } ⍝ End CF Quoted-String Scan
   ⍝ CFEsc:  
@@ -110,8 +113,9 @@
       0= ≢⍵:esc 
         c← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
       c∊ om_omUs: CFOm w                               ⍝ Permissively allow `⍹ as equiv to  `⍵ OR ⍹  
-      c∊ 'ABFTD':  (codeABFTD⊃⍨ 'ABFTD'⍳ c) w          ⍝ Escape pseudo-fns `[ABFTD]. 
       c∊ lb_rb: c w                                    ⍝ `{ => {, `} => }  
+        p← 'ABFTD'⍳ c 
+      p< nABFTD: (p⊃ codeABFTD) w                      ⍝ Escape pseudo-fns `[ABFTD]. 
         ⎕SIGNAL SeqÊ c                                 ⍝ esc-c has no meaning in CF for char c.
     } ⍝ End CFEsc 
   ⍝ *** CFOm: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
@@ -131,7 +135,7 @@
     nlG← dbg⊃ ⎕UCS 13 9229                             ⍝ 9229 is ␍ (visible carriage return)
   ⍝ for meanings of A, B, Ð, F, M, T and D
     cA cB cÐ cF cM cT← inline⊃¨ codeList               ⍝ code fragments. 
-    codeABFTD← cA cB cF cT cT                          ⍝ A: above, B: box, F: ⎕FMT, T or D: date-time. 
+    nABFTD← ≢codeABFTD← cA cB cF cT cT                 ⍝ A: above, B: box, F: ⎕FMT, T or D: date-time. 
                                                        ⍝ `T is permissive alias to `D, date-time.
   ⍝ Pseudo-globals  camelCaseG 
   ⍝    fldsG-   global field list
@@ -195,7 +199,7 @@
   ⍝ QSEsc: [nl] ∇ fstr, where 
   ⍝         nl is the current newline char, and fstr starts with the char AFTER the escape char.
   ⍝ Returns the escape sequence.                       ⍝ *** No side effects ***
-  QSEsc← { c← ⍵ ⋄ c= dia: ⍺ ⋄ esc, c }     
+  QSEsc← { c← ⍵ ⋄ c= dia: ⍺ ⋄ c=esc: c ⋄ esc, c }     
 
 ⍝ OrderFlds
 ⍝ ∘ User flds are effectively executed L-to-R AND displayed in L-to-R order 
@@ -394,18 +398,19 @@
 ⍝H                           `⍵0 (or ⍹0) selects the text of the ∆F_String itself;
 ⍝H   Quoted_Strings    ::=   Expressions of the following format: 
 ⍝H                           quoted strings: "..." or ''...'', where ... may include 
-⍝H                              `⋄ to represent a newline, 
-⍝H                              `` to represent the escape char itself.
+⍝H                           `⋄ to represent a newline, 
+⍝H                           `` to represent the escape char itself.
+⍝H                           ∘ `{, }, `{, `}, `", `" are treated literally (no special meaning)
+⍝H                             with any escapes included.
 ⍝H                           ∘ Double " within a "..." quote to include a double quote.
 ⍝H                           ∘ Double ' within a '...' quote to include a single quote.
-⍝H                           Note: {, }, `{, and `} are treated literally (no special meaning)
-⍝H                                 with any escapes included.
 ⍝H   Fmt               ::=   [ (Fmt_Expr) ("$" | "`F") Code_Expr] 
 ⍝H   Fmt_Expr          ::=   Any valid left argument to ⎕FMT
-⍝H   Above             ::=   ("(" Code_Expr ")") ("%" | "`A") (Code_Expr)>
-⍝H                           % (Code_Expr "".       
+⍝H   Above             ::=   ("(" Code_Expr1 ")") ("%" | "`A") (Code_Expr2)>
+⍝H                           ∘ Places Code_Expr1 above  Code_Expr2.
+⍝H                           ∘ If Code_Expr1 is omitted, places a blank line above Code_Expr2.     
 ⍝H   Box               ::=   "`B" Code_Expr 
-⍝H                           Box the result from executing code (uses ⎕SE.Dyalog.disp).
+⍝H                           ∘ Box the result from executing Code_Expr (uses ⎕SE.Dyalog.disp).
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
 ⍝H   Code_Expr               Any string that evaluates to a valid APL expression returning a result.
 ⍝H  
@@ -416,7 +421,7 @@
 ⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
 ⍝H        `F       Alias for $   
 ⍝H      Box        Show ⍵ in a box.
-⍝H        `B       A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic-- see]
+⍝H        `B       A Box routine (⎕SE.Dyalog.disp), displays components of an APL object.  [monadic, dyadic]
 ⍝H      Above      Show ⍺ (or '') above ⍵
 ⍝H         %       A formatting routine, displaying the object to its left ('', if none) centered over the object to its right.
 ⍝H        `A       Alias for %
@@ -429,7 +434,7 @@
 ⍝H                 It is defined as: 
 ⍝H                    {⎕ML←1 ⋄ ⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵}   
 ⍝H                 See examples below.
-⍝H        `D       An alias for `T (Date-Time).
+⍝H        `D       Alias for `T (Date-Time)
 ⍝H      Omega/Omega Underbar Shortcut*      
 ⍝H        `⍵n, ⍹n  With an explicit index n, where n is a non-negative integer between 0 and t-1,  
 ⍝H                 given t, the # of elements of ∆F's right argument ⍵. 
@@ -541,14 +546,14 @@
 ⍝HX⍎  ∆F 'Current employee: {name↓} {age↓}.'
 ⍝HX⎕Current employee:   name↓    age↓.
 ⍝HX⎕                  John Smith  34 
-⍝HX⍝  ⍵[2]=1: Box all args (⎕IO=0).
+⍝HX⍝ ⍵[2]=1: Box all args (⎕IO=0).
 ⍝HX⍎  0 0 1 ∆F 'Current employee: {name↓} {age↓}.'
 ⍝HX⎕┌──────────────────┬──────────┬─┬────┬─┐
 ⍝HX⎕│Current employee: │  name↓   │ │age↓│.│
 ⍝HX⎕│                  │John Smith│ │ 34 │ │
 ⍝HX⎕└──────────────────┴──────────┴─┴────┴─┘
 ⍝HX 
-⍝HX⍝  Using the shorthand % (above) to display one expression centered above another 
+⍝HX⍝ Using the shorthand % (above) to display one expression centered above another 
 ⍝HX⍎  ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
 ⍝HX⎕Current Employee   Current Age
 ⍝HX⎕   John Smith          29     
