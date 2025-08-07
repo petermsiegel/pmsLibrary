@@ -108,7 +108,7 @@
     } ⍝ End CF Quoted-String Scan
   ⍝ CFEsc:  
   ⍝    res← ∇ fstr
-  ⍝ Returns:  code w                                   ⍝ ** Side Effects: Sets cfLenG, omIxG **
+  ⍝ Returns:  code w                                    ⍝ ** Side Effects: Sets cfLenG, omIxG **
     CFEsc← {                                    
       0= ≢⍵:esc 
         c← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
