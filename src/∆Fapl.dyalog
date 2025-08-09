@@ -16,8 +16,10 @@
         :Case 1                   ⍝ Returns executable dfn CODE generated from the f-string (if valid).
           result← (⊃⎕RSI)⍎ opts ⎕THIS.FmtScan ,⊃,⊆args
         :Case ¯1                  ⍝ Undoc. option-- returns dfn code in string form. 
-        ⍝ Useful for benchmarking compile-only step using dfns.cmpx.        
-          result← (0,1↓opts) ⎕THIS.FmtScan ,⊃,⊆args  
+        ⍝ Useful for benchmarking compile-only step using dfns.cmpx.
+        ⍝ Also, useful for later execution from a text array or file. 
+        ⍝    (⍎¯1... ∆F ...)args <===> (1... ∆F ...)args     
+          result← (1, 1↓opts) ⎕THIS.FmtScan ,⊃,⊆args  
         :Else                     ⍝ Handle 0 (valid) and other (invalid) options in FmtScan  
         ⍝ Returns matrix RESULT of evaluating the f-string.
         ⍝ "Hides" local vars, ¨opts¨ and ¨args¨, from embedded ⎕NL, etc.
@@ -37,11 +39,12 @@
   ⍝     (accum|'') ∇ str
   ⍝ Returns: null. Appends APL code strings to fldsG
     TF← {  
-        p← TFBrk ⍵ 
+        p← TFBrk ⍵                                     ⍝ esc or lb only. 
       p= ≢⍵: TFDone ⍺, ⍵                               ⍝ No special chars in ⍵. Process & return.
-        pfx← p↑⍵
-      esc= p⌷⍵: (⍺, pfx, nlG TFEsc ⍵↓⍨ p+1)∇ ⍵↓⍨p+2    ⍝ char is esc. Process & continue.
-        CSF ⍵↓⍨ p+1⊣ TFDone ⍺, pfx                     ⍝ char is lb. End TF; go to CSF.  
+        pfx c w← (p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
+      c= esc: (⍺, pfx, nlG TFEsc w)∇ 1↓ w              ⍝ char is esc. Process & continue.
+    ⍝ c= cr:  (⍺, pfx, nlG) ∇ w                        ⍝ actual cr => nlG, mirroring esc+⋄ => nlG. 
+        CSF w⊣ TFDone ⍺, pfx                           ⍝ char is lb. End TF; go to CSF.  
     } ⍝ End Text Field Scan 
   ⍝ TFDone: If a text field is not 0-length, place in quotes and add it to fldsG.
   ⍝ Ensure adjacent fields are sep by ≥1 blank.
@@ -63,17 +66,17 @@
           p= ≢⍵:  ⎕SIGNAL brÊ                          ⍝ Missing right brace "}"! 
             pfx c w← (⍺, p↑⍵) (p⌷⍵) (⍵↓⍨ p+1)          ⍝ Some cases below are ordered! 
           c= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
-          c∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
-          c= dol:            (pfx, cF) ∇ w             ⍝ $ => ⎕FMT (cF)
-          c= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w
          (c= rb)∧ nBrakG≤ 1: (TrimR pfx) w             ⍝ Return... Scan complete! 
           c∊ lb_rb:          (pfx, c) ∇ w⊣ nBrakG+← -/c= lb_rb  ⍝ Inc/dec nBrakG as appropriate
+          c∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
+          c= dol:            (pfx, cF) ∇ w             ⍝ $ => ⎕FMT (cF)
+          c= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w          
           c= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w         ⍝ ⍹, alias to `⍵ (see CFEsc).
-         ~c∊ '→↓%':          (pfx, c) ∇ w⊣ ⎕SIGNAL cfLogicÊ
+         ~c∊ '→↓%':          ⎕SIGNAL cfLogicÊ
         ⍝ We have one of '→', '↓', or '%'. 
         ⍝ See if [A] it's a pseudo-fn or [B] indicator of self-doc code field (SDCF).
         ⍝ [A] Pseudo-fn: "above" '%' or APL fns '→'¹ or '↓'. Keep scanning code field. 
-            p← +/∧\' '=w                         ⍝ ¹Note: In a dfn, only a bare → is valid!
+            p← +/∧\' '=w                         ⍝ ¹However unlikely: In a dfn stmt, only a bare → is valid!
           (rb≠ ⊃p↓w)∨ nBrakG> 1: (pfx, c cA⊃⍨ c= pct) ∇ w  
         ⍝ [B] SDCF (char /→|↓|%/ is foll. by /\s*\}/ and /\}/ is code field final). 
         ⍝     '→' places the code str to the left of the result (cM) after evaluating the code str; 
@@ -97,32 +100,32 @@
         ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
           0= ≢⍵: ⍺ 
             p← CFSBrk ⍵  
-          p= ≢⍵: ⎕SIGNAL qtÊ
-          esc= p⌷⍵: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2 
-        ⍝ qt= p⌷⍵, so now see if foll. char is a qt or not. 
-          qt= ⊃⍵↓⍨ p+1:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
+          p= ≢⍵: ⎕SIGNAL qtÊ ⋄ c← p⌷⍵
+          c= esc: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2 
+        ⍝ Now c= qt:  Now see if c2, the next char, is a second qt, i.e. an internal, literal qt.
+            c2← ⊃⍵↓⍨ p+1
+          c2= qt:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
             ⍺, ⍵↑⍨ lenW-← p                            ⍝ Done... Return
         }
         qS← AplQt '' ⍙Scan w                           ⍝ Update lenW via ⍙Scan, then update w. 
         qS (w↑⍨ -lenW) (lenW-⍨ ≢ w)                    ⍝ w is returned sans CF quoted string 
     } ⍝ End CF Quoted-String Scan
-  ⍝ CFEsc:  
+  ⍝ CFEsc: Handle escapes  in Code Fields OUTSIDE of CF-Quotes.
   ⍝    res← ∇ fstr
   ⍝ Returns:  code w                                    ⍝ ** Side Effects: Sets cfLenG, omIxG **
     CFEsc← {                                    
-      0= ≢⍵:esc 
-        c← 0⌷⍵ ⋄ w← 1↓⍵ ⋄ cfLenG+← 1   
+      0= ≢⍵: esc 
+        c w← (0⌷⍵) (1↓⍵) ⋄ cfLenG+← 1   
       c∊ om_omUs: CFOm w                               ⍝ Permissively allow `⍹ as equiv to  `⍵ OR ⍹  
       c∊ lb_rb: c w                                    ⍝ `{ => {, `} => }  
-        p← 'ABFTD'⍳ c 
-      p< nABFTD: (p⊃ codeABFTD) w                      ⍝ Escape pseudo-fns `[ABFTD]. 
+      nEPF> p← MapEPF c: (p⊃ epfCode) w                ⍝ EPF: Escape pseudo-fns `[ABFTD]. 
         ⎕SIGNAL SeqÊ c                                 ⍝ esc-c has no meaning in CF for char c.
     } ⍝ End CFEsc 
   ⍝ *** CFOm: handler for `⍵, `⍵NNN,  ⍹, ⍹NNN (NNN a non-negative integer) ***
   ⍝ Deal with `⍵,⍹ with opt'l integer following.  
   ⍝ Errors handled by IntOpt (which returns valid oLen=0 if there are no valid digits at start of ⍵.) 
   ⍝                                                    ⍝ ** Side Effects: cfLenG, omIxG **  
-    CFOm← {  oLen oVal w← IntOpt ⍵
+    CFOm← { oLen oVal w← IntOpt ⍵
       ×oLen: ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG⊢← oVal) w⊣ cfLenG+← oLen 
              ('(⍵⊃⍨',')',⍨ '⎕IO+', ⍕omIxG       ) w⊣ omIxG+← 1
     }
@@ -132,11 +135,12 @@
   0∊ ⍺∊ 0 1: ⎕SIGNAL optÊ                              ⍝ Bad options (⍺)!
     (dfn dbg box inline) fStr← ⍺ ⍵ 
     DM← (⎕∘←)⍣dbg                                      ⍝ DM: Debug Msg
-    nlG← dbg⊃ ⎕UCS 13 9229                             ⍝ 9229 is ␍ (visible carriage return)
-  ⍝ for meanings of A, B, Ð, F, M, T and D
-    cA cB cÐ cF cM cT← inline⊃¨ codeList               ⍝ code fragments. 
-    nABFTD← ≢codeABFTD← cA cB cF cT cT                 ⍝ A: above, B: box, F: ⎕FMT, T or D: date-time. 
-                                                       ⍝ `T is permissive alias to `D, date-time.
+    nlG← dbg⊃ cr crVis                                 ⍝ A newline (`⋄ or cr) maps onto crVis if debug mode.
+  ⍝ Pseudo-functions: A, B, Ð, F, M, T and D
+    cA cB cÐ cF cM cT← inline⊃¨ codeList               ⍝ code fragments.
+    epfCode← cA cB cF cT cT                            ⍝ A B F T T <== esc+ 'ABFTD'
+  ⍝ `A => above, `B => box, `F => ⎕FMT, `T or `D => date-time.  
+ 
   ⍝ Pseudo-globals  camelCaseG 
   ⍝    fldsG-   global field list
     fldsG← ⍬
@@ -157,10 +161,10 @@
   } ⍝ FmtScan 
 
 ⍝ Simple char constants
-  om← '⍵'
+  om← '⍵' ⋄ cr crVis← ⎕UCS 13 9229 
   dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings for ⎕UCS 13.
   cfBrkList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
-  tfBrkList← esc lb
+  tfBrkList← esc lb      ⍝ Optionally, allow actual cr ==> nlG. See also TF.  
   sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq ⋄   esc_lb_rb← esc lb rb  
 
 ⍝ Error constants / fns  
@@ -250,7 +254,7 @@
 ⍝          codeString is the executable dfn in string form.
 ⍝ At runtime, we'll generate cA, cB etc. based on flag ¨inline¨.
   ∇ {ok}← ⍙LoadCode 
-          ;XR ;HT; cA2; cB2; cÐ2; cF2; cM2; cT2  
+          ;XR ;HT; cA2; cB2; cÐ2; cF2; cM2; cT2; epf   
     XR← ⎕THIS.⍎⊃∘⌽                                   ⍝ Execute the right-hand expression
     HT← '⎕THIS' ⎕R (⍕⎕THIS)                          ⍝ "Hardwire" absolute ⎕THIS.  
   ⍝ A (etc): a dfn
@@ -268,7 +272,9 @@
     F← XR cF2←      ' ⎕FMT '    ' ⎕FMT '                                                
     M← XR cM2← HT   ' ⎕THIS.M ' '{⍺←⊢⋄⎕ML←1⋄⊃,/((⌈/≢¨)↑¨⊢)⎕FMT¨⍺⍵}'                     
     T← XR cT2← HT   ' ⎕THIS.T ' '{⍺←''YYYY-MM-DD hh:mm:ss''⋄∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1⎕DT⊆⍵}'  
-    codeList←  cA2 cB2 cÐ2 cF2 cM2 cT2 
+    codeList←        cA2 cB2 cÐ2 cF2 cM2 cT2    
+    nEPF← ≢  epf← 'ABFTD'                           ⍝ epf: Escape Pseudo-Fns (see) 
+    MapEPF←  epf∘⍳ 
     ok← 1 
   ∇
 ⍝ Execute FIX-time routines
@@ -288,12 +294,13 @@
 ⍝H the value of code expressions in an APL-friendly multi-line (matrix) style. 
 ⍝H   ∘ Text expressions can generate multi-line Unicode strings 
 ⍝H   ∘ Each code expression follows ordinary dfn conventions, with a few extensions, such as
-⍝H     the availability of double-quoted strings, escaped chars, and simple formatting shortcuts for APL arrays (which see). 
+⍝H     the availability of double-quoted strings, escaped chars, and simple formatting shortcuts for APL 
+⍝H     arrays (which see). 
 ⍝H   ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment,
 ⍝H     following dfn conventions for local and external variables.
-⍝H +--------------------------------------------------------------+
-⍝H + ∘ ∆F is inspired by Python F-strings, but designed for APL.  +
-⍝H +--------------------------------------------------------------+
+⍝H +---------------------------------------------------------------------------------------+
+⍝H + ∘ ∆F is inspired by Python F-strings, but designed for APL multi-dimensional arrays.  +
+⍝H +---------------------------------------------------------------------------------------+
 ⍝H 
 ⍝H ∆F: Calling Information
 ⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
@@ -302,10 +309,10 @@
 ⍝H                      ∆F⍨'help'                      Display help information for ∆F.
 ⍝H                      ∆F⍨'helpx'                     Display examples for ∆F.
 ⍝H 
-⍝H F-string and args:
-⍝H   first element: 
+⍝H Right argument to ∆F: f-string [arg1 [arg2 [...]]]
+⍝H   f-string (first element of right argument to ∆F): 
 ⍝H       an f-string, a single character vector (see "∆F IN DETAIL" below) 
-⍝H   args:          
+⍝H   args (optional):          
 ⍝H       elements of  ⍵ after the f-string, each of which can be accessed, via a shortcut 
 ⍝H       that starts with `⍵ or ⍹ (Table 1)
 ⍝H   result: If (0=⊃options), the result is always a character matrix. 
@@ -356,32 +363,65 @@
 ⍝H --------------
 ⍝H 
 ⍝H The first element in the right arg to ∆F is a character vector, an "∆F string", 
-⍝H which contains simple text, along with run-time evaluated expressions delimited by 
-⍝H curly braces {} (unless preceded by an escape "`").
+⍝H which contains simple text, along with run-time evaluated expressions enclosed within
+⍝H unescaped curly braces {}, i.e. those not preceded by a back-tick, "`".
 ⍝H Each ∆F string is viewed as containing one or more "fields," catenated left to right,
-⍝H each of which will display as a logically separate character matrix. 
+⍝H each of which will display as a logically separate character matrix. This allows
+⍝H the expected display of multi-dimensional array values within each field.
 ⍝H ∘  ∆F adds no automatic spaces like those APL adds to denote object rank, etc.
-⍝H ∘  ∆F assumes the user wants to control spacing of objects.
+⍝H ∘  ∆F assumes the user wants to control spacing from one field to the next, but 
+⍝H    handles spacing within each field as its own 2-dimensional output space.
 ⍝H 
 ⍝H ∆F-string text fields (expressions) may include:
-⍝H   ∘ escape sequences,  beginning with the escape character ("`"):
-⍝H        "`⋄" => a newline;        "``" => "`"; 
-⍝H        "`{" => "{"               "`}" => "}". 
-⍝H     Otherwise, { and } delineate the start and end of a Code Field or Space Field,
-⍝H     and other escape sequences will be treated literally, including the escape "`" prefix.
+⍝H   ∘ a small number of escape sequences,  beginning with the escape character ("`"):
+⍝H        `⋄   =>   a newline         ``   =>   "`" 
+⍝H        `{   =>   "{"               `}   =>   "}" 
+⍝H     Other instances of the escape character in text fields will be treated literally, 
+⍝H     as an ordinary backtick `. 
+⍝H   ∘ Simple { and } delineate the start and end of a Code Field, discussed now.
 ⍝H 
-⍝H ∆F-string code fields (expressions) may include: 
-⍝H   ∘ escape characters (e.g. prefixing newlines, escape characters, and braces as text);
-⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like into tables ($);
-⍝H   ∘ the ability to display an arbitrary object centered above another (%);
-⍝H   ∘ shortcuts for displaying boxed output (`B); finally,
-⍝H   ∘ self-documenting code fields, concise expressions for displaying both a code 
-⍝H     expression (possible a simple name to be evaluated) and its value (→, ↓/%).   
+⍝H ∆F-string code fields (expressions) may be used to display simple variables, 
+⍝H arbitrary expressions in dfns, as well as various shortcuts. A shortcut is a 
+⍝H punctuation mark ($ or %) or sequence of an escape character (a backtick) and one of a 
+⍝H small number of capital letters.
+⍝H Code fields look like ordinary dfns, but must return a value. They may include:
+⍝H   ∘ strings in double quotes ("...") or single quotes (''...''). 
+⍝H     A quote may be included within a code field string by doubling it in the APL style, as here:
+⍝H         "Birds ""are"" dinosaurs." 
+⍝H     You can always use single quotes, but they can be a bit awkward, as in this example:
+⍝H         ''Birds ''''are'''' dinosaurs.''
+⍝H     Strings in quotes may have a limited set of escaped characters:
+⍝H          `⋄   ==>   a carriage return        ``   ==>   a single escape.
+⍝H     Any other use of an escape (backtick) inside a code field string is treated as an
+⍝H     ordinary character, along of course with the character that follows it.
+⍝H   ∘ dyadic ⎕FMT control codes for concisely formatting integers, floats, and the like 
+⍝H     into tables ($);
+⍝H   ∘ the ability to display one arbitrary array centered above another (% or `A);
+⍝H   ∘ a shortcut for displaying boxed output (`B); finally,
+⍝H   ∘ self-documenting code fields (SDCF), concise expressions useful for debugging.
+⍝H     SDCFs displaying both a code expression (possible a simple name to be evaluated) 
+⍝H     and its value:
+⍝H          names← ↑'John' 'Mary'            names← ↑'John' 'Mary' 
+⍝H          ∆F '{ names →}'                  ∆F '{ names ↓ }'
+⍝H        names →John                      names ↓ 
+⍝H               Mary                       John
+⍝H                                          Mary
 ⍝H     (Note: Only code fields may be self-documenting!)
-⍝H ∆F-strings include space fields:
-⍝H   ∘ which appear as "degenerate" code fields, i.e. braces separated by nothing but 0 or more spaces.
-⍝H     ∘ space fields separate other fields, often with extra spaces (columns of rectangular spaces)
-⍝H       required by the user.
+⍝H 
+⍝H Code fields may include arbitrary expressions, including function definitions:
+⍝H          c← ⍪10 15 20
+⍝H          ∆F '{c}°C is the same as {C2F← 32+9×÷∘5 ⋄ C2F c}°F'
+⍝H        10°C is the same as 50°F
+⍝H        15                  59  
+⍝H        20                  68  
+⍝H 
+⍝H ∆F-strings also include space fields, which appear as "degenerate" code fields, i.e. 
+⍝H i.e. as (unescaped) braces separated by nothing but 0 or more spaces.
+⍝H ∘ space fields separate other fields, often with extra spaces (columns of rectangular spaces)
+⍝H   required by the user. Here {  } inserts a 2-space wide field between two text fields.
+⍝H          ∆F 'John`⋄Mary{  }241 Maple St`⋄ 15 Ogden Ln'
+⍝H        John  241 Maple St
+⍝H        Mary   15 Ogden Ln
 ⍝H 
 ⍝H The syntax of ∆F Strings is as follows, where ` represents the active escape character:
 ⍝H   ∆F_String         ::=  (Text_Field | Code_Field | Space_Field)*
@@ -434,7 +474,7 @@
 ⍝H                 It is defined as: 
 ⍝H                    {⎕ML←1 ⋄ ⍺← 'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢⍺(1200⌶)⊢1 ⎕DT⊆⍵}   
 ⍝H                 See examples below.
-⍝H        `D       Alias for `T (Date-Time)
+⍝H        `D       Alias for `T (Date-Time). `D requires the same ⎕TS right arg as `T.
 ⍝H      Omega/Omega Underbar Shortcut*      
 ⍝H        `⍵n, ⍹n  With an explicit index n, where n is a non-negative integer between 0 and t-1,  
 ⍝H                 given t, the # of elements of ∆F's right argument ⍵. 
