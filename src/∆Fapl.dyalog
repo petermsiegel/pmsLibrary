@@ -5,7 +5,7 @@
 ⍝ === BEGINNING OF CODE =====================================================================
 ⍝ === BEGINNING OF CODE =====================================================================
   ∇ result← {opts} ∆F args 
-    :Trap 0/⍨ ⎕THIS.DEBUG        ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
+    :Trap 0/⍨ ~⎕THIS.DEBUG        ⍝ Be sure this function is ⎕IO(etc.)-indep., since it will be promoted out of ⍙Fapl.
       :If 900⌶0 
           opts← ⍬
       :ElseIf 0≠ ⊃0⍴opts          ⍝ If opts aren't all numeric, then Help will sort it out.
@@ -213,11 +213,11 @@
   OrderFlds← '⌽',(∊∘⌽,∘'⍬') 
 
 ⍝ Help: Provides help info when ∆F⍨'help[x]' (OR 'help[x]'∆F anything) is specified.
-⍝ (1 0⍴⍬)← Help 'help' OR 'helpx'
+⍝ (1 0⍴⍬)← Help 'help'
   Help← { 
     'help'≢⎕C 4↑ ⍵: ⎕SIGNAL optÊ 
-      hP←  '(?ix) ^\s* ⍝H', ('X?'↓⍨ -'x'∊ ⎕C⍵), '(?| [⍎⎕]? (.*) | (⍝.*) )' 
-      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S '\1'⊣ ⎕SRC ⎕THIS.nsHelp   
+      hP← '(?x) ^\s* ⍝HX (?| [⍎⎕]? (.*) | (⍝.*) )' '(?x) ^\s* ⍝H (.*)' 
+      1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S ' | \1' '\1'⊣ ⎕SRC ⎕THIS.nsHelp   
   }
   ⍝ GenTest: Undocumented fn for generating a test suite from documentation example code below.
   ∇ res← GenTest; hdr; hP; first; targ; ttarg
@@ -287,45 +287,246 @@
 :Namespace nsHelp 
 ⍝ === BEGINNING OF HELP INFO =====================================================================
 ⍝ === BEGINNING OF HELP INFO =====================================================================
-⍝H -------------
-⍝H  ∆F IN BRIEF
-⍝H ¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝H ∆F is a function that makes it easy to format strings that dynamically display text, variables, and 
-⍝H the value of code expressions in an APL-friendly multi-line (matrix) style. 
-⍝H   ∘ Text expressions can generate multi-line Unicode strings 
-⍝H   ∘ Each code expression follows ordinary dfn conventions, with a few extensions, such as
-⍝H     the availability of double-quoted strings, escaped chars, and simple formatting shortcuts for APL 
-⍝H     arrays (which see). 
-⍝H   ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment,
-⍝H     following dfn conventions for local and external variables.
 ⍝H +---------------------------------------------------------------------------------------+
-⍝H + ∘ ∆F is inspired by Python F-strings, but designed for APL multi-dimensional arrays.  +
+⍝H +  ∆F IN BRIEF
 ⍝H +---------------------------------------------------------------------------------------+
 ⍝H 
-⍝H ∆F: Calling Information
-⍝H ¯¯¯ ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯¯¯¯
-⍝H result←              ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args and simply display  
-⍝H          [{options}] ∆F f-string [arg1 arg2 ... ]   Format an ∆F String given args; cnt'l result with opt'ns.
-⍝H                      ∆F⍨'help'                      Display help information for ∆F.
-⍝H                      ∆F⍨'helpx'                     Display examples for ∆F.
+⍝H ∆F is a function that interprets f-strings, short for "formatted string literals,"
+⍝H a concise, yet powerful way to embed complex text and multi-dimensional expressions
+⍝H within string literals in an APL-friendly style:
 ⍝H 
-⍝H Right argument to ∆F: f-string [arg1 [arg2 [...]]]
+⍝H ∘ Text expressions can generate multi-line Unicode strings; 
+⍝H ∘ Each code expression allows full dfn logic, including a few extensions, such as
+⍝H   double-quoted strings, escaped chars, and simple shortcuts for formatting arrays,
+⍝H   boxing, and concisely selecting additional arguments after the format string; 
+⍝H ∘ Multiline output is built up left-to-right from simple or multi-dimensional values;
+⍝H ∘ All variables and code are evaluated (and, if desired, updated) in the user's calling environment,
+⍝H   following dfn conventions for local and external variables.
+⍝H 
+⍝H        +--------------------------------------------------+
+⍝H        +       ∆F is inspired by Python F-strings,        +
+⍝H        +  but designed for APL multi-dimensional arrays.  +
+⍝H        +--------------------------------------------------+
+⍝H 
+⍝H We'll start with some examples and then show Calling Information and Details...
+⍝H 
+⍝H +---------------------------------------------------------------------------------------+
+⍝H +  ∆F EXAMPLES
+⍝H +---------------------------------------------------------------------------------------+
+⍝H
+⍝HX⍝ Set some values we'll need...
+⍝HX⍎  ⎕RL ⎕IO ⎕ML←2342342 0 1
+⍝HX⍝ Examples
+⍝HX⍝ ¯¯¯¯¯¯¯¯
+⍝HX⍝ Simple variable expressions
+⍝HX⍎  name← 'Fred' ⋄ age← 43
+⍝HX⍎  ∆F 'The patient''s name is {name}. {name} is {age} years old.'
+⍝HX⎕The patient's name is Fred. Fred is 43 years old.
+⍝HX 
+⍝HX⍝ Arbitrary code expressions
+⍝HX⍎  names← 'Mary' 'Jack' 'Tony' ⋄ prize← 1000
+⍝HX⍎  ∆F 'Customer {names⊃⍨ ?≢names} wins £{?prize}!'
+⍝HX⎕Customer Jack wins £80!   
+⍝HX 
+⍝HX⍝ Some multi-line text fields separated by non-null space fields
+⍝HX⍝ ∘ The backtick is the "escape" character. 
+⍝HX⍝ ∘ Here `⋄ displays a newline character in the left-most "field."
+⍝HX⍝ ∘ { } is a Space Field with one space (because there's one space between the braces).
+⍝HX⍝   A space field is useful here because each multi-line field is built in its own 
+⍝HX⍝   rectangular space.
+⍝HX⍎  ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
+⍝HX⎕This    Of         Text  
+⍝HX⎕is      multi-line Fields
+⍝HX⎕an                       
+⍝HX⎕example 
+⍝HX 
+⍝HX⍝ A similar example with double-quote-delimited strings in code fields
+⍝HX⍎  ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
+⍝HX⎕This     Of          Strings
+⍝HX⎕is       Multi-line  in     
+⍝HX⎕an                   Code   
+⍝HX⎕example              Fields 
+⍝HX   
+⍝HX⍝ Multiline data in code fields
+⍝HX⍎  fn←   'John'           'Mary'         'Ted'
+⍝HX⍎  ln←   'Smith'          'Jones'        'Templeton'
+⍝HX⍎  addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
+⍝HX⍎  ∆F '{↑fn} {↑ln} {↑addr}'
+⍝HX⎕John Smith     24 Mulberry Ln
+⍝HX⎕Mary Jones     22 Smith St   
+⍝HX⎕Ted  Templeton 12 High St 
+⍝HX     
+⍝HX⍝ A slightly more interesting code expression, using the shortcut $ (⎕FMT).
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   30       86.0  
+⍝HX⎕                   60      140.0 
+⍝HX  
+⍝HX⍝ Generating boxes using the shortcut `B (box).
+⍝HX⍎  ∆F'`⋄The temperature is {`B "I2" $ C}`⋄°C or {`B "F5.1" $ 32+9×C÷5}`⋄°F'
+⍝HX⎕                   ┌──┐      ┌─────┐
+⍝HX⎕The temperature is │11│°C or │ 51.8│°F
+⍝HX⎕                   │30│      │ 86.0│ 
+⍝HX⎕                   │60│      │140.0│ 
+⍝HX⎕                   └──┘      └─────┘    
+⍝HX            
+⍝HX⍝ Referencing external expressions
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  C2F← 32+9×÷∘5    
+⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   30       86.0  
+⍝HX⎕                   60      140.0 
+⍝HX 
+⍝HX⍝ Referencing ∆F additional arguments using omega shortcut expressions.
+⍝HX⍎  ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
+⍝HX⎕The temperature is 11°C or  51.8°F
+⍝HX⎕                   15       59.0  
+⍝HX⎕                   20       68.0 
+⍝HX
+⍝HX⍝ The temperature of the sun at its core in degrees C.
+⍝HX⍎  sun_core← 15E6
+⍝HX⍝ Use format string specifier "C" with shortcut $ to add appropriate commas to the temperatures!
+⍝HX⍎  ∆F'The sun''s core is at {"CI10"$sun_core}°C or {"CI10"$C2F sun_core}°F'
+⍝HX⎕The sun's core is at 15,000,000°C or 27,000,032°F
+⍝HX
+⍝HX⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
+⍝HX⍎  ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
+⍝HX⎕π²=9.869604401, π=3.141592654
+⍝HX 
+⍝HX⍝ Self-documenting code fields (SDCFs) are a useful debugging tool. 
+⍝HX⍝ They allow whatever source code is in a Code Field to be automatically displayed 
+⍝HX⍝ ∘ [horizontal] to the left of the result of evaluating that code; or,
+⍝HX⍝ ∘ [vertical]   centered above the result of evaluating that code.  
+⍝HX⍝ All you have to do is place a → (horizontal) or a ↓ (vertical) as the last non-space
+⍝HX⍝ in the code field, before the final right brace. 
+⍝HX⍝ Any spaces just before or after the symbol are preserved.
+⍝HX
+⍝HX⍝ [Horizontal] SDCFs (source code shown to the left of the evaluated result).
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name→}, {age→}.'
+⍝HX⎕Current employee: name→John Smith, age→34.
+⍝HX
+⍝HX⍝ Note how the spaces adjacent to the symbol "→" are mirrored in the output:
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name → }, {age→   }.'
+⍝HX⎕Current employee: name → John Smith, age→   34.
+⍝HX 
+⍝HX⍝ [Vertical] SDCFs (source code centered above the evaluated result)
+⍝HX⍎  name←'John Smith' ⋄ age← 34
+⍝HX⍎  ∆F 'Current employee: {name↓} {age↓}.'
+⍝HX⎕Current employee:   name↓    age↓.
+⍝HX⎕                  John Smith  34
+⍝HX  
+⍝HX⍝ Here's the same result, but with a box around each field, to make it easy to see.
+⍝HX⍝ ⍵[2]=1: Box all args (⎕IO=0).
+⍝HX⍎  0 0 1 ∆F 'Current employee: {name↓} {age↓}.'
+⍝HX⎕┌──────────────────┬──────────┬─┬────┬─┐
+⍝HX⎕│Current employee: │  name↓   │ │age↓│.│
+⍝HX⎕│                  │John Smith│ │ 34 │ │
+⍝HX⎕└──────────────────┴──────────┴─┴────┴─┘
+⍝HX 
+⍝HX⍝ Using the shortcut % (above) to display one expression centered above another.
+⍝HX⍝ Also, `⍵1 refers to the first argument after the f-string itself;
+⍝HX⍝ And,  `⍵2 refers to the second.
+⍝HX⍝ * Note that `⍵0 refers to the f-string itself.
+⍝HX⍎  ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
+⍝HX⎕Current Employee   Current Age
+⍝HX⎕   John Smith          29     
+⍝HX⎕   Mary Jones          23 
+⍝HX 
+⍝HX⍝ Display arbitrary expressions one above the other. 
+⍝HX⍝ `⍵ refers to the next argument in sequence, left to right, starting with `⍵1, the first.
+⍝HX⍝ * See Shortcut Expressions for details on % and `⍵.
+⍝HX⍎  ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
+⍝HX⎕    0 0      
+⍝HX⎕  0 0  0 1    
+⍝HX⎕  1 0  1 1    
+⍝HX⎕0 0  0 1  0 2 
+⍝HX⎕1 0  1 1  1 2 
+⍝HX⎕2 0  2 1  2 2  
+⍝HX
+⍝HX⍝ ∆F's box option (⍺[2]=1, assuming ⎕IO=0) boxes each field in the formatted f-string.
+⍝HX⍎  C← 11 30 60
+⍝HX⍎  0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX⎕┌───────────────────┬──┬──────┬─────┬──┐
+⍝HX⎕│                   │11│      │ 51.8│  │
+⍝HX⎕│The temperature is │30│°C or │ 86.0│°F│
+⍝HX⎕│                   │60│      │140.0│  │
+⍝HX⎕└───────────────────┴──┴──────┴─────┴──┘
+⍝HX
+⍝HX⍝ Let's explore getting the best performance for a heavily used ∆F string.
+⍝HX⍝ Using the DFN option (⍺[0]=1), we can generate a dfn that will display the formatted
+⍝HX⍝ output, without having to reanalyze the f-string each time.
+⍝HX⍝ We will compare the performance of an ∆F-string evaluated on the fly
+⍝HX⍝   ∆F ...      ⍝ The same as 0 ∆F ...
+⍝HX⍝ and precomputed and returned as a dfn:
+⍝HX⍝   1 ∆F ...
+⍝HX
+⍝HX⍝ First, let's get cmpx, so we can compare the performance...
+⍝HX⍎  'cmpx' ⎕CY 'dfns'
+⍝HX⍎  C← 11 30 60
+⍝HX⍝ Here's our ∆F String <t>
+⍝HX⍎  t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
+⍝HX⍝ Precompute a dfn T given ∆F String <t>.
+⍝HX⍎  T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. 
+⍝HX⍝ Compare the performance of the two formats...
+⍝HX⍝ The precomputed version is about 17 times faster, in this run.
+⍝HX⍎  cmpx '∆F t' 'T ⍬'
+⍝HX⎕  ∆F t → 1.7E¯4 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
+⍝HX⎕  T ⍬  → 1.0E¯5 | -94% ⎕⎕ 
+⍝HX
+⍝HX⍝ Let's look at the use of the `T (Date-time) shortcut to show the current time (now).
+⍝HX⍝ The right argument is always a ⎕TS or any non-empty prefix thereof.
+⍝HX⍎  ∆F'It is now {"t:mm pp" `T ⎕TS}.'
+⍝HX⎕It is now 8:08 am.      ⍝ <=== Time above will be different:  the actual time!
+⍝HX 
+⍝HX⍝ Here's a more powerful example (the power is in ⎕DT and 1200⌶).
+⍝HX⍝ (Right arg "hardwired" into F-string)
+⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
+⍝HX⎕1 JAN 2025 was a Wednesday.
+⍝HX 
+⍝HX⍝ If it bothers you to use `T for a date-only expression (like the one above),
+⍝HX⍝ you can use `D, which means exactly the same thing. 
+⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `D 2025 01 02}'
+⍝HX⎕2 JAN 2025 was a Thursday.
+⍝HX 
+⍝HX⍝ (Right argument via omega expression: `⍵1).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
+⍝HX⎕21 Jan 2025 was a Tuesday.
+⍝HX 
+⍝HX⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
+⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵} That''s {`⍵1}.' 1925 1 21
+⍝HX⎕21 Jan 1925 was a Wednesday. That's 1925.
+⍝HX   
+⍝HX 
+⍝H 
+⍝H +---------------------------------------------------------------------------------------+
+⍝H + ∆F Calling Information
+⍝H +---------------------------------------------------------------------------------------+
+⍝H  
+⍝H         ⎧            ∆F f-string [arg1 arg2 ...] ⎫  Display an ∆F String (default options)  
+⍝H result← ⎨ [options]  ∆F f-string [arg1 arg2 ...] ⎬  Display an ∆F String; control result with options
+⍝H         ⎨            ∆F⍨'help'                   ⎬  Display help information and examples for ∆F
+⍝H 
+⍝H Right argument to ∆F: f-string [arg1 [arg2...]]
+⍝H ¯¯¯¯¯ ¯¯¯¯¯¯¯¯ ¯¯ ¯¯
 ⍝H   f-string (first element of right argument to ∆F): 
 ⍝H       an f-string, a single character vector (see "∆F IN DETAIL" below) 
 ⍝H   args (optional):          
 ⍝H       elements of  ⍵ after the f-string, each of which can be accessed, via a shortcut 
-⍝H       that starts with `⍵ or ⍹ (Table 1)
+⍝H       that starts with `⍵ or ⍹ (see Omega_Shortcuts, below). 
 ⍝H   result: If (0=⊃options), the result is always a character matrix. 
 ⍝H           If (1=⊃options), the result is a dfn that, when executed, generates a character matrix.
 ⍝H 
-⍝H Left arg (⍺) to ∆F:   [ [ options← 0 [ 0 [ 0 [ 0 ] ] ] ] | 'help[x]' ]   
+⍝H Left arg (⍺) to ∆F:   [ [ options← 0 [ 0 [ 0 [ 0 ] ] ] ] | 'help' ]   
 ⍝H    If there is no left arg, 
 ⍝H         the default options (4⍴ 0) are assumed per below;
 ⍝H    If the left arg ⍺ is 0 to 4 non-negative integers,
 ⍝H         the options are taken as (4↑⍺);
-⍝H    If the left arg is 'help' or 'helpx', ⍵ is ignored:  
-⍝H      'help': ∆F display all help info, or 
-⍝H      'helpx': ∆F display  help examples only, 
+⍝H    If the left arg is 'help', ⍵ is ignored:  
+⍝H      'help': ∆F display all help info 
 ⍝H    and returns (1 0⍴⍬);
 ⍝H    Otherwise,
 ⍝H         an error is signaled.
@@ -341,8 +542,9 @@
 ⍝H       BOX: If 0, returns the value as above.
 ⍝H            If 1, returns each field generated within a box (dfns "display"). 
 ⍝H    INLINE: If 0, ⍙F0 library routines A, B, D, F, and M will be used.
-⍝H            If 1, the full code of A, B, D, F, and M are inserted "inline" to make the resulting runtime
-⍝H            independent of the ⍙F0 namespace. This is mostly useful for returned dfns (DFN=1).
+⍝H            In this case, the ⍙Fapl namespace must be present at runtime.
+⍝H            If 1, the full code of A, B, D, F, and M is inserted "inline" to make the resulting runtime
+⍝H            independent of the ⍙Fapl namespace. This is mostly relevant for returned dfns (DFN=1).
 ⍝H
 ⍝H Result Returned: 
 ⍝H   If (⊃⍺) is 0,  the default, then:
@@ -355,12 +557,10 @@
 ⍝H     ∘ ∆F generates a standard, trappable Dyalog ⎕SIGNAL.
 ⍝H   If ⍺ is 'help' (case ignored)
 ⍝H     ∘ ∆F displays help information. 
-⍝H   If ⍺ is 'helpx' (case ignored)
-⍝H     ∘ ∆F displays f-string examples.
 ⍝H 
-⍝H --------------
-⍝H  ∆F IN DETAIL
-⍝H --------------
+⍝H +---------------------------------------------------------------------------------------+
+⍝H + ∆F IN DETAIL (TL;DR)
+⍝H +---------------------------------------------------------------------------------------+
 ⍝H 
 ⍝H The first element in the right arg to ∆F is a character vector, an "∆F string", 
 ⍝H which contains simple text, along with run-time evaluated expressions enclosed within
@@ -454,9 +654,9 @@
 ⍝H   Self_Documenting  ::=   (" ")* ("→" | "↓" | "%" ) (" ")*, where % is a synonym for ↓.
 ⍝H   Code_Expr               Any string that evaluates to a valid APL expression returning a result.
 ⍝H  
-⍝H   ------- -- -------- -------
-⍝H   Summary of Shortcut Symbols
-⍝H   ------- -- -------- -------
+⍝H +---------------------------------------------------------------------------------------+
+⍝H + Summary of Shortcuts
+⍝H +---------------------------------------------------------------------------------------+
 ⍝H      Format     Apply monadic or dyadic (⍺) ⎕FMT to ⍵
 ⍝H         $       APL ⎕FMT, formats simple numeric arrays.  [dyadic, monadic]
 ⍝H        `F       Alias for $   
@@ -494,162 +694,6 @@
 ⍝H        * All omega expressions are evaluated left to right and are ⎕IO-independent (as if ⎕IO←0).
 ⍝H          ⍹ is a synonym for `⍵ in code fields.
 ⍝H 
-⍝H 
-⍝HX⍝ Set some values we'll need...
-⍝HX⍎  ⎕RL ⎕IO ⎕ML←2342342 0 1
-⍝HX⍝ Examples
-⍝HX⍝ ¯¯¯¯¯¯¯¯
-⍝HX⍝ Simple variable expressions
-⍝HX⍎  name← 'Fred' ⋄ age← 43
-⍝HX⍎  ∆F 'The patient''s name is {name}. {name} is {age} years old.'
-⍝HX⎕The patient's name is Fred. Fred is 43 years old.
-⍝HX 
-⍝HX⍝ Variable and code expressions
-⍝HX⍎  names← 'Mary' 'Jack' 'Tony' ⋄ prize← 1000
-⍝HX⍎  ∆F 'Customer {names⊃⍨ ?≢names} wins £{?prize}!'
-⍝HX⎕Customer Jack wins £80!   
-⍝HX 
-⍝HX⍝ Some multi-line text fields separated by non-null space fields
-⍝HX⍎  ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
-⍝HX⎕This    Of         Text  
-⍝HX⎕is      multi-line Fields
-⍝HX⎕an                       
-⍝HX⎕example 
-⍝HX 
-⍝HX⍝ A similar example with strings in code fields
-⍝HX⍎  ∆F '{"This`⋄is`⋄an`⋄example"}  {"Of`⋄Multi-line"}  {"Strings`⋄in`⋄Code`⋄Fields"}'
-⍝HX⎕This     Of          Strings
-⍝HX⎕is       Multi-line  in     
-⍝HX⎕an                   Code   
-⍝HX⎕example              Fields 
-⍝HX   
-⍝HX⍝ Like the example above, with useful data
-⍝HX⍎  fn←   'John'           'Mary'         'Bill'
-⍝HX⍎  ln←   'Smith'          'Jones'        'Templeton'
-⍝HX⍎  addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
-⍝HX⍎  ∆F '{↑fn} {↑ln} {↑addr}'
-⍝HX⎕John Smith     24 Mulberry Ln
-⍝HX⎕Mary Jones     22 Smith St   
-⍝HX⎕Bill Templeton 12 High St 
-⍝HX     
-⍝HX⍝ A slightly more interesting code expression, using the shorthand $ (⎕FMT).
-⍝HX⍎  C← 11 30 60
-⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ 32+9×C÷5}°F'
-⍝HX⎕The temperature is 11°C or  51.8°F
-⍝HX⎕                   30       86.0  
-⍝HX⎕                   60      140.0 
-⍝HX  
-⍝HX⍝ Generating boxes using the shorthand `B (box).
-⍝HX⍎  ∆F'`⋄The temperature is {`B⊂"I2" $ C}`⋄°C or {`B⊂"F5.1" $ 32+9×C÷5}`⋄°F'
-⍝HX⎕                   ┌──┐      ┌─────┐
-⍝HX⎕The temperature is │11│°C or │ 51.8│°F
-⍝HX⎕                   │30│      │ 86.0│ 
-⍝HX⎕                   │60│      │140.0│ 
-⍝HX⎕                   └──┘      └─────┘    
-⍝HX            
-⍝HX⍝ Referencing external expressions
-⍝HX⍎  C← 11 30 60
-⍝HX⍎  C2F← 32+9×÷∘5    
-⍝HX⍎  ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ C2F C}°F'
-⍝HX⎕The temperature is 11°C or  51.8°F
-⍝HX⎕                   30       86.0  
-⍝HX⎕                   60      140.0 
-⍝HX 
-⍝HX⍝ Referencing ∆F additional arguments using omega shorthand expressions.
-⍝HX⍎  ∆F'The temperature is {"I2" $ `⍵1}°C or {"F5.1" $ C2F `⍵1}°F' (11 15 20)
-⍝HX⎕The temperature is 11°C or  51.8°F
-⍝HX⎕                   15       59.0  
-⍝HX⎕                   20       68.0 
-⍝HX
-⍝HX⍝ The temperature of the sun at its core in degrees C.
-⍝HX⍎  sun_core← 15E6
-⍝HX⍝ Use format string specifier "C" with shortcut $ to add appropriate commas to the temperatures!
-⍝HX⍎  ∆F'The sun''s core is at {"CI10"$sun_core}°C or {"CI10"$C2F sun_core}°F'
-⍝HX⎕The sun's core is at 15,000,000°C or 27,000,032°F
-⍝HX
-⍝HX⍝ Use argument `⍵1 (i.e. 1⊃⍵) in a calculation.      Note: 'π²' is (⎕UCS 960 178) 
-⍝HX⍎  ∆F 'π²={`⍵1*2}, π={`⍵1}' (○1)   
-⍝HX⎕π²=9.869604401, π=3.141592654
-⍝HX 
-⍝HX⍝ "Horizontal" self-documenting code fields (source code shown to the left of the evaluated result).
-⍝HX⍎  name←'John Smith' ⋄ age← 34
-⍝HX⍎  ∆F 'Current employee: {name→}, {age→}.'
-⍝HX⎕Current employee: name→John Smith, age→34.
-⍝HX
-⍝HX⍝ Note that spaces adjacent to self-documenting code symbols (→ or ↓ [alias %]) are mirrored in the output:
-⍝HX⍎  name←'John Smith' ⋄ age← 34
-⍝HX⍎  ∆F 'Current employee: {name → }, {age→   }.'
-⍝HX⎕Current employee: name → John Smith, age→   34.
-⍝HX 
-⍝HX⍝ "Vertical" self-documenting code fields (the source code centered above the evaluated result)
-⍝HX⍎  name←'John Smith' ⋄ age← 34
-⍝HX⍎  ∆F 'Current employee: {name↓} {age↓}.'
-⍝HX⎕Current employee:   name↓    age↓.
-⍝HX⎕                  John Smith  34 
-⍝HX⍝ ⍵[2]=1: Box all args (⎕IO=0).
-⍝HX⍎  0 0 1 ∆F 'Current employee: {name↓} {age↓}.'
-⍝HX⎕┌──────────────────┬──────────┬─┬────┬─┐
-⍝HX⎕│Current employee: │  name↓   │ │age↓│.│
-⍝HX⎕│                  │John Smith│ │ 34 │ │
-⍝HX⎕└──────────────────┴──────────┴─┴────┴─┘
-⍝HX 
-⍝HX⍝ Using the shorthand % (above) to display one expression centered above another 
-⍝HX⍎  ∆F '{"Current Employee" % ⍪`⍵1}   {"Current Age" % ⍪`⍵2}' ('John Smith' 'Mary Jones')(29 23)
-⍝HX⎕Current Employee   Current Age
-⍝HX⎕   John Smith          29     
-⍝HX⎕   Mary Jones          23 
-⍝HX 
-⍝HX⍝ Display arbitrary expressions one above the other.  
-⍝HX⍝ (See Shorthand Expressions for details on % and `⍵).
-⍝HX⍎  ∆F'{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3 
-⍝HX⎕    0 0      
-⍝HX⎕  0 0  0 1    
-⍝HX⎕  1 0  1 1    
-⍝HX⎕0 0  0 1  0 2 
-⍝HX⎕1 0  1 1  1 2 
-⍝HX⎕2 0  2 1  2 2  
-⍝HX
-⍝HX⍝ Use of ∆F's box option (⍺[2+⎕IO]=1), which boxes each element in the formatted f-string.
-⍝HX⍎  C← 11 30 60
-⍝HX⍎  0 0 1 ∆F'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX⎕┌───────────────────┬──┬──────┬─────┬──┐
-⍝HX⎕│                   │11│      │ 51.8│  │
-⍝HX⎕│The temperature is │30│°C or │ 86.0│°F│
-⍝HX⎕│                   │60│      │140.0│  │
-⍝HX⎕└───────────────────┴──┴──────┴─────┴──┘
-⍝HX
-⍝HX⍝ Getting the best performance for a heavily used ∆F string.
-⍝HX⍝ Using the DFN option (initial option is 1 (in ⍺)), e.g. ¨1 ∆F ...¨
-⍝HX⍝ > Let's look at the performance of an ∆F-string evaluated
-⍝HX⍝   on the fly via ¨∆F ...¨ and precomputed via ¨1 ∆F ...¨: 
-⍝HX⍎  'cmpx' ⎕CY 'dfns'
-⍝HX⍎  C← 11 30 60
-⍝HX⍝ Here's our ∆F String <t>
-⍝HX⍎  t←'The temperature is {"I2" $ C}°C or {"F5.1" $ F← 32+9×C÷5}°F'
-⍝HX⍝ Precompute a dfn T given ∆F String <t>.
-⍝HX⍎  T←1 ∆F t      ⍝ T← Generate a dfn w/o having to recompile (analyse) <t>. 
-⍝HX⍝ Compare the performance of the two formats: the precomputed version is over ten times faster here.
-⍝HX⍎  cmpx '∆F t' 'T ⍬'
-⍝HX⎕  ∆F t → 1.7E¯4 |   0% ⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕⎕
-⍝HX⎕  T ⍬  → 1.0E¯5 | -94% ⎕⎕ 
-⍝HX
-⍝HX⍝ Use of `T (Date-time) shortcut to show the current time (now).
-⍝HX⍎  ∆F'It is now {"t:mm pp" `T ⎕TS}.'
-⍝HX⎕It is now 8:08 am.      ⍝ <=== Time above will be different:  the actual time!
-⍝HX 
-⍝HX⍝ Use of `T (Date-time) shortcut (see above for definition).
-⍝HX⍝ (Right arg "hardwired" into F-string)
-⍝HX⍎  ∆F'{ "D MMM YYYY ''was a'' Dddd." `T 2025 01 01}'
-⍝HX⎕1 JAN 2025 was a Wednesday.
-⍝HX 
-⍝HX⍝ (Right argument via omega expression: `⍵1).
-⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵1}' (2025 1 21)
-⍝HX⎕21 Jan 2025 was a Tuesday.
-⍝HX 
-⍝HX⍝ (Right args via omega expressions: `⍵ `⍵ `⍵).
-⍝HX⍎  ∆F'{ "D Mmm YYYY ''was a'' Dddd." `T `⍵ `⍵ `⍵}' 1925 1 21
-⍝HX⎕21 Jan 1925 was a Wednesday.
-⍝HX   
-⍝HX   
+⍝H   
 :EndNamespace ⍝ nsHelp 
 :EndNamespace 
