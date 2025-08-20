@@ -58,7 +58,7 @@ md->HTML: opt-shift-M
 
 **∆F f-strings** can concisely include:
 
-∘ text expressions that can generate multiline Unicode text (using `` `⋄ `` to indicate a newline);
+∘ **Text fields**, expressions that can generate multiline Unicode text (using `` `⋄ `` to indicate a newline);
 
 ∘ **Code fields** allow users to display arbitrary objects in the user environment or passed as **∆F** arguments, allowing arbitrary APL expressions and full dfn logic;
 
@@ -73,29 +73,28 @@ md->HTML: opt-shift-M
   - formatting numeric arrays, **\$** (short for **⎕FMT**): `{"F7.5" $ ?0 0}`,
   - putting a box around a specific expression, **\`B**: `` {`B ⍳2 2} ``,
   - placing the output of one expression _above_ another, **%**: `{"Pi"% ○1}`,
-  - formatting date and time expressions from APL timestamps, **\`T**:`` {"hh:mm:ss" `T ⎕TS} ``:,
-  - and more,
+  - formatting date and time expressions from APL timestamps (**⎕TS**) using **\`T** ( short for an expression with **1200⌶** and **⎕DT**):`` {"hh:mm:ss" `T ⎕TS} ``:,
+  - and more;
 
   as well as concisely inserting data from
 
   - user objects or arbitrary code: `{tempC}` or `{32+tempC×9÷5}`,
-  - or via **∆F** arguments that follow the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `⍵⊃⍨1+⎕IO`.
+  - or via **∆F** arguments that follow the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `⍵⊃⍨1+⎕IO`;
 
-∘ multiline output built up left-to-right from simple or multi-dimensional values in the calling environment:
+- multiline output built up left-to-right from simple or multi-dimensional values in the calling environment:
 
-```
+  ```
    tempC← ⍪35 85
    ∆F 'The temperature is {tempC}{2 2⍴"∘C"} or {32+tempC×9÷5}{2 2⍴"∘F"}'
-The temperature is 35∘C or  95∘F.
-                   85∘C    185∘F
-```
+  The temperature is 35∘C or  95∘F.
+                     85∘C    185∘F
+  ```
 
-> ∆F is designed for ease of use, _ad hoc_ debugging, and informal user interaction.
-> In many situations, APL's native tools and Dyalog's enhancements are the best way to build and display complex objects.
+**∆F** is designed for ease of use, _ad hoc_ debugging, and informal user interaction; APL's native tools and Dyalog's enhancements are always the best³ way to build and display complex objects, unless **∆F**'s specific functionality is of use.
 
 ---
 
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview.</p>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan.</p>
 
 ---
 

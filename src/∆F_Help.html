@@ -76,7 +76,7 @@ md->HTML: opt-shift-M
 <p><strong>∆F is a function for Dyalog APL that interprets f-strings,² a concise, yet powerful way to display multiline Unicode text and complex expressions in an APL-friendly style</strong>.</p>
 </blockquote>
 <p><strong>∆F f-strings</strong> can concisely include:</p>
-<p>∘ text expressions that can generate multiline Unicode text (using <code>`⋄</code> to indicate a newline);</p>
+<p>∘ <strong>Text fields</strong>, expressions that can generate multiline Unicode text (using <code>`⋄</code> to indicate a newline);</p>
 <p>∘ <strong>Code fields</strong> allow users to display arbitrary objects in the user environment or passed as <strong>∆F</strong> arguments, allowing arbitrary APL expressions and full dfn logic;</p>
 <p>∘ <strong>Code fields</strong> also provide a number of concise, convenient extensions, such as:</p>
 <ul>
@@ -90,28 +90,27 @@ md->HTML: opt-shift-M
 <li>formatting numeric arrays, <strong>$</strong> (short for <strong>⎕FMT</strong>): <code>{&quot;F7.5&quot; $ ?0 0}</code>,</li>
 <li>putting a box around a specific expression, <strong>`B</strong>: <code>{`B ⍳2 2}</code>,</li>
 <li>placing the output of one expression <em>above</em> another, <strong>%</strong>: <code>{&quot;Pi&quot;% ○1}</code>,</li>
-<li>formatting date and time expressions from APL timestamps, <strong>`T</strong>:<code>{&quot;hh:mm:ss&quot; `T ⎕TS}</code>:,</li>
-<li>and more,</li>
+<li>formatting date and time expressions from APL timestamps (<strong>⎕TS</strong>) using <strong>`T</strong> ( short for an expression with <strong>1200⌶</strong> and <strong>⎕DT</strong>):<code>{&quot;hh:mm:ss&quot; `T ⎕TS}</code>:,</li>
+<li>and more;</li>
 </ul>
 <p>as well as concisely inserting data from</p>
 <ul>
 <li>user objects or arbitrary code: <code>{tempC}</code> or <code>{32+tempC×9÷5}</code>,</li>
-<li>or via <strong>∆F</strong> arguments that follow the format string: <code>{32+`⍵1×9÷5}</code>, where <code>`⍵1</code> is a shortcut for <code>⍵⊃⍨1+⎕IO</code>.</li>
+<li>or via <strong>∆F</strong> arguments that follow the format string: <code>{32+`⍵1×9÷5}</code>, where <code>`⍵1</code> is a shortcut for <code>⍵⊃⍨1+⎕IO</code>;</li>
 </ul>
 </li>
-</ul>
-<p>∘ multiline output built up left-to-right from simple or multi-dimensional values in the calling environment:</p>
-<pre><code>   tempC← ⍪35 85
-   ∆F 'The temperature is {tempC}{2 2⍴&quot;∘C&quot;} or {32+tempC×9÷5}{2 2⍴&quot;∘F&quot;}'
+<li>
+<p>multiline output built up left-to-right from simple or multi-dimensional values in the calling environment:</p>
+<pre><code> tempC← ⍪35 85
+ ∆F 'The temperature is {tempC}{2 2⍴&quot;∘C&quot;} or {32+tempC×9÷5}{2 2⍴&quot;∘F&quot;}'
 The temperature is 35∘C or  95∘F.
                    85∘C    185∘F
 </code></pre>
-<blockquote>
-<p>∆F is designed for ease of use, <em>ad hoc</em> debugging, and informal user interaction.
-In many situations, APL’s native tools and Dyalog’s enhancements are the best way to build and display complex objects.</p>
-</blockquote>
+</li>
+</ul>
+<p><strong>∆F</strong> is designed for ease of use, <em>ad hoc</em> debugging, and informal user interaction; APL’s native tools and Dyalog’s enhancements are always the best³ way to build and display complex objects, unless <strong>∆F</strong>’s specific functionality is of use.</p>
 <hr>
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview.</p>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan.</p>
 <hr>
 <h2>∆F EXAMPLES</h2>
 <p>Before providing information on ∆F syntax and other details, <em>let’s start with some examples</em>…</p>
@@ -640,7 +639,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 </tr>
 <tr>
 <td style="text-align:left">4.</td>
-<td style="text-align:left"><strong>`⍵𝒋</strong> or <strong>⍹𝒋</strong> sets the <em>OIC</em> to 𝒋, <code>Ω←𝒋</code>, and returns the expression <code>⍵⊃⍨𝒋+⎕IO</code>. Here <code>𝒋</code> must be a <em>non-negative integer</em> with at least 1 digit.</td>
+<td style="text-align:left"><strong>`⍵𝒋</strong> or <strong>⍹𝒋</strong> sets the <em>OIC</em> to 𝒋, <code>Ω←𝒋</code>, and returns the expression <code>⍵⊃⍨𝒋+⎕IO</code>. Here <strong>𝒋</strong> must be a <em>non-negative integer</em> with at least 1 digit.</td>
 <td></td>
 </tr>
 <tr>
