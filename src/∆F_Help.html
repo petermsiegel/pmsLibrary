@@ -132,12 +132,12 @@ Customer Jack wins £230!
 <blockquote>
 <p>Isn’t Jack lucky, winning twice in a row!</p>
 </blockquote>
-<pre><code>⍝  Some multi-line text fields separated by non-null space fields
+<pre><code>⍝  Some multi-line Text fields separated by non-null Space fields
 ⍝  ∘ The backtick is our &quot;escape&quot; character.
 ⍝  ∘ Here each  `⋄ displays a newline character in the left-most &quot;field.&quot;
 ⍝  ∘ { } is a Space Field with one space
 ⍝    (because there's one space between the braces).
-⍝  A space field is useful here because each multi-line field is built
+⍝  A Space field is useful here because each multi-line field is built
 ⍝  in its own rectangular space.
    ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
 This    Of         Text
@@ -145,7 +145,7 @@ is      multi-line Fields
 an
 example
 </code></pre>
-<pre><code>⍝  Two adjacent text fields can be separated by a 0-length space field {},
+<pre><code>⍝  Two adjacent Text fields can be separated by a Null Space field {},
 ⍝  for example to insert adjacent multiline input:
    ∆F 'Cat`⋄Elephant `⋄Mouse{}Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
@@ -156,14 +156,14 @@ Mouse    Mickey
 </code></pre>
 <h3>But wait! There’s an easier way!</h3>
 <pre><code>⍝  Surely you want the field to be guaranteed to have a space after
-⍝  EACH word without fiddling, so a space field with at least one
+⍝  EACH word without fiddling, so a Space field with at least one
 ⍝  space would be easier:
    ∆F 'Cat`⋄Elephant`⋄Mouse{ }Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
 Elephant Dumbo
 Mouse    Mickey
 </code></pre>
-<pre><code>⍝  A similar example with double-quote-delimited strings in code fields with
+<pre><code>⍝  A similar example with double-quote-delimited strings in Code fields with
 ⍝  the newline sequence (`⋄):
    ∆F '{&quot;This`⋄is`⋄an`⋄example&quot;} {&quot;Of`⋄Multi-line&quot;} {&quot;Strings`⋄in`⋄Code`⋄Fields&quot;}'
 This    Of          Strings
@@ -171,7 +171,7 @@ is      Multi-line  in
 an                  Code
 example             Fields
 </code></pre>
-<pre><code>⍝  Here is some multiline data we'll add to our code fields
+<pre><code>⍝  Here is some multiline data we'll add to our Code fields
    fn←   'John'           'Mary'         'Ted'
    ln←   'Smith'          'Jones'        'Templeton'
    addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
@@ -188,7 +188,7 @@ The temperature is 11°C or  51.8°F
 30       86.0
 60      140.0
 </code></pre>
-<pre><code>⍝  Here we place boxes around key code fields using the shortcut `B (box).
+<pre><code>⍝  Here we place boxes around key Code fields using the shortcut `B (box).
    ∆F'`⋄The temperature is {`B &quot;I2&quot; $ C}`⋄°C or {`B &quot;F5.1&quot; $ 32+9×C÷5}`⋄°F'
                    ┌──┐      ┌─────┐
 The temperature is │11│°C or │ 51.8│°F
@@ -211,7 +211,7 @@ The temperature is │11│°C or │ 51.8│°F
 └───────────────────┴──┴──────┴─────┴──┘
 </code></pre>
 <p>We said you could place a box around every field.
-Null (or 0-width) <strong>Space</strong> fields, i.e. <code>{}</code>, are an exception: after doing their work of separating adjacent <strong>Text fields</strong>, <strong>Null Space fields</strong> are ignored and won’t be placed in boxes.
+<strong>Null Space fields</strong> <code>{}</code>, i.e. 0-width <strong>Space fields</strong>, are an exception: after doing their work of separating adjacent <strong>Text fields</strong>, <strong>Null Space fields</strong> are ignored and won’t be placed in boxes.
 Try this expression on your own:
 <code>0 0 1 ∆F 'abc{}def{}{}ghi{&quot;&quot;}jkl{ }mno'</code></p>
 <p>In contrast, <strong>Code fields</strong> that return null values (like <code>{&quot;&quot;}</code> above) <em>will</em> be displayed!</p>
@@ -316,7 +316,7 @@ Mary Jones  23
 <p><code>∆F 'Our string{`⍵0↓}is {≢`⍵0} characters'</code></p>
 </blockquote>
 <h4>The <em>next</em> best thing: the use of <em>bare</em> <code>`⍵</code> in <strong>Code field</strong> expressions</h4>
-<p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to the first (<code>`⍵1</code>) if there are NO <code>`⍵</code> elements to the left in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>
+<p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to the first (<code>`⍵1</code>) if there are <strong><em>no</em></strong> <code>`⍵</code> elements to the left in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>
 <pre><code>⍝  Let's display arbitrary 2-dimensional expressions, one above the other.
 ⍝  `⍵ refers to the next argument in sequence, left to right, starting with `⍵1, the first.
 ⍝  ☞ From left to right `⍵ is `⍵1, `⍵2, and `⍵3. Easy peasy.
@@ -329,9 +329,9 @@ Mary Jones  23
 2 0 2 1 2 2
 </code></pre>
 <h4>Dates and Times using ⎕TS-format timestamps: the `T shortcut…</h4>
-<pre><code>⍝  A simple Date-Time shortcut`T built from ⎕DT and 1200⌶.
+<pre><code>⍝  A simple Date-Time shortcut `T built from ⎕DT and 1200⌶.
 ⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝  ∘ Let's look at the use of the `T (Date-time) shortcut to show the
+⍝  ∘ Let's look at the use of the `T (Date-Time) shortcut to show the
 ⍝    current time (now).
 ⍝  ∘ The right argument is always a ⎕TS or any non-empty prefix thereof.
    ∆F'It is now {&quot;t:mm pp&quot; `T ⎕TS}.'
@@ -427,7 +427,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 </tr>
 <tr>
 <td style="text-align:left"></td>
-<td style="text-align:left">If the initial option (DFN) is <strong>1</strong>, a dfn generating such a matrix.</td>
+<td style="text-align:left">If the initial option (DFN) is <strong>1</strong>, returns a dfn generating such a matrix.</td>
 </tr>
 <tr>
 <td style="text-align:left">‘help’ <strong>∆F</strong> ‘’</td>
@@ -470,7 +470,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 </tr>
 <tr>
 <td style="text-align:left">  options[2] (<strong><em>BOX</em></strong>)</td>
-<td style="text-align:left">If <code>1</code>, each field (except a null text field) is boxed separately. If <code>0</code>, you may box any <strong>Code fields</strong> you want using the <em>box</em> <code>`B</code> routine.</td>
+<td style="text-align:left">If <code>1</code>, each field (except a Null Text field) is boxed separately. If <code>0</code>, you may box any <strong>Code fields</strong> you want using the <em>box</em> <code>`B</code> routine.</td>
 </tr>
 <tr>
 <td style="text-align:left">  options[3] (<strong><em>INLINE</em></strong>)</td>
@@ -482,7 +482,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 </tr>
 <tr>
 <td style="text-align:left">result</td>
-<td style="text-align:left">If <code>0=⊃options</code>, the result is always a character matrix. If <code>1=⊃options</code> is <code>1</code>, the result is a dfn that, when executed, generates a character matrix.</td>
+<td style="text-align:left">If <code>0=⊃options</code>, the result is always a character matrix. If <code>1=⊃options</code>, the result is a dfn that, <em>when executed</em>, generates that same character matrix.</td>
 </tr>
 </tbody>
 </table>
@@ -496,6 +496,9 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 </li>
 <li>
 <p>If the left argument <code>⍺</code> starts with <code>'help'</code> (case ignored), this help information is displayed.</p>
+</li>
+<li>
+<p>Otherwise, an error is signaled.</p>
 </li>
 </ul>
 <h3>Return Value</h3>
@@ -561,11 +564,11 @@ each of which will display as a logically separate 2-D output space. While <stro
 </tr>
 </tbody>
 </table>
-<p>Other instances of the backtick character in <strong>Text fields</strong> or <strong>Quoted Strings</strong> in <strong>Code fields</strong> will be treated literally, <em>i.e.</em>
-as an ordinary backtick “`”.</p>
+<p>Other instances of the backtick character in <strong>Text fields</strong> or <strong>Quoted strings</strong> in <strong>Code fields</strong> will be treated literally, <em>i.e.</em>
+as an ordinary backtick <code>`</code>.</p>
 <h5>Code Field Shortcuts</h5>
 <p>∆F-string <strong>Code fields</strong> may be used to display simple variables,
-arbitrary dfn expressions in dfns (including guards), as well as various shortcuts. <strong>Shortcuts</strong> are valid <strong>only</strong> outside <strong>Quoted Strings</strong>. They include:</p>
+arbitrary dfn expressions in dfns (including guards), as well as various shortcuts. <strong>Shortcuts</strong> are valid <strong>only</strong> outside <strong>Quoted strings</strong>. They include:</p>
 <table>
 <thead>
 <tr>
@@ -597,21 +600,24 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 </tr>
 <tr>
 <td style="text-align:left">`T, `D</td>
-<td style="text-align:left">Date-time</td>
+<td style="text-align:left">Date-Time¹</td>
 <td style="text-align:left">Displays <code>⍵</code> according to <code>⍺</code>. <code>⍵</code> is one or more APL timestamps <code>⎕TS</code>. <code>⍺</code> is a date-time template. If omitted, <code>⍺← 'YYYY-MM-DD hh:mm:ss'</code>.</td>
 </tr>
 <tr>
 <td style="text-align:left">`⍵𝒋, ⍹𝒋</td>
-<td style="text-align:left">omega explicitly indexed</td>
+<td style="text-align:left">Omega explicitly indexed</td>
 <td style="text-align:left">a shortcut of the form <code>`⍵𝒋</code> (or <code>⍹𝒋</code>), to access the <code>𝒋</code><strong>th</strong> element of <code>⍵</code>, i.e. <code>⍵⊃⍨ 𝒋+⎕IO</code>. <em>See details below.</em></td>
 </tr>
 <tr>
 <td style="text-align:left">`⍵, ⍹</td>
-<td style="text-align:left">omega implicitly indexed</td>
+<td style="text-align:left">Omega implicitly indexed</td>
 <td style="text-align:left">a shortcut of the form <code>`⍵</code> (or <code>⍹</code>), to access the <strong>next</strong> element of <code>⍵</code>. <em>See details below.</em></td>
 </tr>
 </tbody>
 </table>
+<hr>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Here's the code actually called for the Date-Time shortcut: <small><b>{⍺←''YYYY-MM-DD hh:mm:ss'' ⋄ ∊⍣(1=≡⍵)⊢ ⍺(1200⌶)⊢ 1⎕DT ⊆⍵}</b></small>. The syntax for the Date-Time specifications can be found in the Dyalog documentation under <b>1200⌶</b>. </p>
+<hr>
 <h5>Omega Shortcut Expressions</h5>
 <table>
 <thead>
@@ -624,7 +630,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 <tbody>
 <tr>
 <td style="text-align:left">1.</td>
-<td style="text-align:left"><strong>⍹</strong> is a synonym for <strong>`⍵</strong>. Either expression is valid only in <strong>Code</strong> fields and outside quoted strings.</td>
+<td style="text-align:left"><strong>⍹</strong> is a synonym for <strong>`⍵</strong>. It is Unicode character <code>⎕UCS 9081</code>. Either expression is valid only in <strong>Code</strong> fields and outside quoted strings.</td>
 <td></td>
 </tr>
 <tr>
@@ -649,7 +655,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 </tr>
 <tr>
 <td style="text-align:left">6.</td>
-<td style="text-align:left">You can only access the 0-th element of <strong>⍵</strong> via an <em>explicitly indexed omega</em> <code>⍵0</code>. The <em>implicitly indexed</em> omega always increments its index <em>before</em> use, so the first index that can be used is <strong>1</strong>, i.e. <code>`⍵1</code>.</td>
+<td style="text-align:left">You can only access the 0-th element of <strong>⍵</strong> via an <em>explicitly indexed omega</em> <code>⍵0</code>. The <em>implicitly indexed</em> omega always increments its index <em>before</em> use, so the first index that can be used <strong><em>implicitly</em></strong> is <strong>1</strong>, i.e. <code>`⍵1</code>.</td>
 <td></td>
 </tr>
 <tr>

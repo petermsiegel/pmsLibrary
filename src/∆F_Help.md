@@ -126,12 +126,12 @@ Customer Jack wins £230!
 > Isn't Jack lucky, winning twice in a row!
 
 ```
-⍝  Some multi-line text fields separated by non-null space fields
+⍝  Some multi-line Text fields separated by non-null Space fields
 ⍝  ∘ The backtick is our "escape" character.
 ⍝  ∘ Here each  `⋄ displays a newline character in the left-most "field."
 ⍝  ∘ { } is a Space Field with one space
 ⍝    (because there's one space between the braces).
-⍝  A space field is useful here because each multi-line field is built
+⍝  A Space field is useful here because each multi-line field is built
 ⍝  in its own rectangular space.
    ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
 This    Of         Text
@@ -141,7 +141,7 @@ example
 ```
 
 ```
-⍝  Two adjacent text fields can be separated by a 0-length space field {},
+⍝  Two adjacent Text fields can be separated by a Null Space field {},
 ⍝  for example to insert adjacent multiline input:
    ∆F 'Cat`⋄Elephant `⋄Mouse{}Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
@@ -155,7 +155,7 @@ Mouse    Mickey
 
 ```
 ⍝  Surely you want the field to be guaranteed to have a space after
-⍝  EACH word without fiddling, so a space field with at least one
+⍝  EACH word without fiddling, so a Space field with at least one
 ⍝  space would be easier:
    ∆F 'Cat`⋄Elephant`⋄Mouse{ }Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
@@ -164,7 +164,7 @@ Mouse    Mickey
 ```
 
 ```
-⍝  A similar example with double-quote-delimited strings in code fields with
+⍝  A similar example with double-quote-delimited strings in Code fields with
 ⍝  the newline sequence (`⋄):
    ∆F '{"This`⋄is`⋄an`⋄example"} {"Of`⋄Multi-line"} {"Strings`⋄in`⋄Code`⋄Fields"}'
 This    Of          Strings
@@ -174,7 +174,7 @@ example             Fields
 ```
 
 ```
-⍝  Here is some multiline data we'll add to our code fields
+⍝  Here is some multiline data we'll add to our Code fields
    fn←   'John'           'Mary'         'Ted'
    ln←   'Smith'          'Jones'        'Templeton'
    addr← '24 Mulberry Ln' '22 Smith St'  '12 High St'
@@ -195,7 +195,7 @@ The temperature is 11°C or  51.8°F
 ```
 
 ```
-⍝  Here we place boxes around key code fields using the shortcut `B (box).
+⍝  Here we place boxes around key Code fields using the shortcut `B (box).
    ∆F'`⋄The temperature is {`B "I2" $ C}`⋄°C or {`B "F5.1" $ 32+9×C÷5}`⋄°F'
                    ┌──┐      ┌─────┐
 The temperature is │11│°C or │ 51.8│°F
@@ -221,7 +221,7 @@ The temperature is │11│°C or │ 51.8│°F
 ```
 
 We said you could place a box around every field.
-Null (or 0-width) **Space** fields, i.e. `{}`, are an exception: after doing their work of separating adjacent **Text fields**, **Null Space fields** are ignored and won't be placed in boxes.
+**Null Space fields** `{}`, i.e. 0-width **Space fields**, are an exception: after doing their work of separating adjacent **Text fields**, **Null Space fields** are ignored and won't be placed in boxes.
 Try this expression on your own:
 `0 0 1 ∆F 'abc{}def{}{}ghi{""}jkl{ }mno'`
 
@@ -344,7 +344,7 @@ Mary Jones  23
 
 #### The _next_ best thing: the use of _bare_ `` `⍵ `` in **Code field** expressions
 
-The expression `` `⍵ `` selects the _next_ element of the right argument `⍵`, defaulting to the first (`` `⍵1 ``) if there are NO `` `⍵ `` elements to the left in the f-string. If there is any such expression (e.g. `` `⍵5 ``), then `` `⍵ `` points to the element after that one (here, `` `⍵6 ``). If the item to the left is `` `⍵ ``, then we simply increment by `1` from that one. **Let's try an example.**
+The expression `` `⍵ `` selects the _next_ element of the right argument `⍵`, defaulting to the first (`` `⍵1 ``) if there are **_no_** `` `⍵ `` elements to the left in the f-string. If there is any such expression (e.g. `` `⍵5 ``), then `` `⍵ `` points to the element after that one (here, `` `⍵6 ``). If the item to the left is `` `⍵ ``, then we simply increment by `1` from that one. **Let's try an example.**
 
 ```
 ⍝  Let's display arbitrary 2-dimensional expressions, one above the other.
@@ -362,9 +362,9 @@ The expression `` `⍵ `` selects the _next_ element of the right argument `⍵`
 #### Dates and Times using ⎕TS-format timestamps: the `T shortcut...
 
 ```
-⍝  A simple Date-Time shortcut`T built from ⎕DT and 1200⌶.
+⍝  A simple Date-Time shortcut `T built from ⎕DT and 1200⌶.
 ⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-⍝  ∘ Let's look at the use of the `T (Date-time) shortcut to show the
+⍝  ∘ Let's look at the use of the `T (Date-Time) shortcut to show the
 ⍝    current time (now).
 ⍝  ∘ The right argument is always a ⎕TS or any non-empty prefix thereof.
    ∆F'It is now {"t:mm pp" `T ⎕TS}.'
@@ -459,7 +459,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 | **∆F** _f-string_ _arg1_ [*arg2* ...]       | Display an _f-string_; use the default options. Args presented may be referred to in the f-string. Returns a character matrix.                           |
 | _options_ **∆F** _f-string_ [*args*]        | Display an _f-string_; control result with _options_ (see below).                                                                                        |
 |                                             | If the initial option (DFN) is **0** or omitted, returns a character matrix.                                                                             |
-|                                             | If the initial option (DFN) is **1**, a dfn generating such a matrix.                                                                                    |
+|                                             | If the initial option (DFN) is **1**, returns a dfn generating such a matrix.                                                                            |
 | 'help' **∆F** ''                            | Display help info and examples for **∆F**. The _f-string_ is not examined.                                                                               |
 | **∆F**⍨'help'                               | A shortcut for displaying help info and examples (above).                                                                                                |
 
@@ -472,10 +472,10 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 | options                                 | [ options← [ 0 [ 0 [ 0 [ 0 ] ] ] ] \| 'help' ]                                                                                                                                                                                                                                              |
 | &nbsp;&nbsp;options[0] (**_DFN_**)      | If `1`, **∆F** returns a dfn, which (upon execution) produces the same output as the default mode. Default: **∆F** returns a char. matrix.                                                                                                                                                  |
 | &nbsp;&nbsp;options[1] (**_DBG_**)      | If `1`, prints out (via `⎕←`) the dfn-version of the f-string.                                                                                                                                                                                                                              |
-| &nbsp;&nbsp;options[2] (**_BOX_**)      | If `1`, each field (except a null text field) is boxed separately. If `0`, you may box any **Code fields** you want using the _box_ `` `B `` routine.                                                                                                                                       |
+| &nbsp;&nbsp;options[2] (**_BOX_**)      | If `1`, each field (except a Null Text field) is boxed separately. If `0`, you may box any **Code fields** you want using the _box_ `` `B `` routine.                                                                                                                                       |
 | &nbsp;&nbsp;options[3] (**_INLINE_**)   | If `1`, a copy of each needed internal support function is included in the result. If `0`, calls are made to the library created when ∆F was loaded. Setting **_INLINE_** to `1` is only useful if the **DFN** option is set. This option is experimental and may simply disappear one day. |
 | &nbsp;&nbsp;'help'                      | If `'help'` is specified, this amazing documentation is displayed.                                                                                                                                                                                                                          |
-| result                                  | If `0=⊃options`, the result is always a character matrix. If `1=⊃options` is `1`, the result is a dfn that, when executed, generates a character matrix.                                                                                                                                    |
+| result                                  | If `0=⊃options`, the result is always a character matrix. If `1=⊃options`, the result is a dfn that, _when executed_, generates that same character matrix.                                                                                                                                 |
 
 ### Options (⍺)
 
@@ -484,6 +484,8 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 - If the left argument `⍺` is a simple boolean vector or scalar (or an empty numeric vector `⍬`), the options are `4↑⍺`; subsequent elements are ignored;
 
 - If the left argument `⍺` starts with `'help'` (case ignored), this help information is displayed.
+
+- Otherwise, an error is signaled.
 
 ### Return Value
 
@@ -520,13 +522,13 @@ each of which will display as a logically separate 2-D output space. While **Cod
 |             `{              | {                          | left brace  |
 |             \`}             | }                          | right brace |
 
-Other instances of the backtick character in **Text fields** or **Quoted Strings** in **Code fields** will be treated literally, _i.e._
-as an ordinary backtick "\`".
+Other instances of the backtick character in **Text fields** or **Quoted strings** in **Code fields** will be treated literally, _i.e._
+as an ordinary backtick `` ` ``.
 
 ##### Code Field Shortcuts
 
 ∆F-string **Code fields** may be used to display simple variables,
-arbitrary dfn expressions in dfns (including guards), as well as various shortcuts. **Shortcuts** are valid **only** outside **Quoted Strings**. They include:
+arbitrary dfn expressions in dfns (including guards), as well as various shortcuts. **Shortcuts** are valid **only** outside **Quoted strings**. They include:
 
 | Shortcut <div style="width:100px"></div> | Name <div style="width:150px"></div> | Meaning                                                                                                                                      |
 | :--------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -534,18 +536,24 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 | %, \`A                                   | above                                | Places object `⍺` above object `⍵`. Default `⍺←''`.                                                                                          |
 | \`B                                      | box                                  | Places `⍵` in a box. `⍵` is any object.                                                                                                      |
 | \`C                                      | commas                               | Adds commas to `⍵` after every 3rd digit. `⍵` is a vector of num strings or numbers.                                                         |
-| \`T, \`D                                 | Date-time                            | Displays `⍵` according to `⍺`. `⍵` is one or more APL timestamps `⎕TS`. `⍺` is a date-time template. If omitted, `⍺← 'YYYY-MM-DD hh:mm:ss'`. |
-| \`⍵𝒋, ⍹𝒋                                 | omega explicitly indexed             | a shortcut of the form `` `⍵𝒋 `` (or `⍹𝒋`), to access the `𝒋`**th** element of `⍵`, i.e. `⍵⊃⍨ 𝒋+⎕IO`. _See details below._                   |
-| \`⍵, ⍹                                   | omega implicitly indexed             | a shortcut of the form `` `⍵ `` (or `⍹`), to access the **next** element of `⍵`. _See details below._                                        |
+| \`T, \`D                                 | Date-Time¹                           | Displays `⍵` according to `⍺`. `⍵` is one or more APL timestamps `⎕TS`. `⍺` is a date-time template. If omitted, `⍺← 'YYYY-MM-DD hh:mm:ss'`. |
+| \`⍵𝒋, ⍹𝒋                                 | Omega explicitly indexed             | a shortcut of the form `` `⍵𝒋 `` (or `⍹𝒋`), to access the `𝒋`**th** element of `⍵`, i.e. `⍵⊃⍨ 𝒋+⎕IO`. _See details below._                   |
+| \`⍵, ⍹                                   | Omega implicitly indexed             | a shortcut of the form `` `⍵ `` (or `⍹`), to access the **next** element of `⍵`. _See details below._                                        |
+
+---
+
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Here's the code actually called for the Date-Time shortcut: <small><b>{⍺←''YYYY-MM-DD hh:mm:ss'' ⋄ ∊⍣(1=≡⍵)⊢ ⍺(1200⌶)⊢ 1⎕DT ⊆⍵}</b></small>. The syntax for the Date-Time specifications can be found in the Dyalog documentation under <b>1200⌶</b>. </p>
+
+---
 
 ##### Omega Shortcut Expressions
 
-|     | Expression                                                                                                                                                                                                                            |     |
-| :-- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
-| 1.  | **⍹** is a synonym for **\`⍵**. Either expression is valid only in **Code** fields and outside quoted strings.                                                                                                                        |
-| 2.  | **\`⍵** or **⍹** uses an "_omega index counter_" (**OIC**) which we'll represent as **Ω**, common across all **Code** fields, which is initially set to zero, `Ω←0`. (Ω is just used for explication; don't actually use this symbol) |
-| 3.  | All omega shortcut expressions in the **f-string** are evaluated left to right and are ⎕IO-independent.                                                                                                                               |
-| 4.  | **\`⍵𝒋** or **⍹𝒋** sets the _OIC_ to 𝒋, `Ω←𝒋`, and returns the expression `⍵⊃⍨𝒋+⎕IO`. Here **𝒋** must be a _non-negative integer_ with at least 1 digit.                                                                              |
-| 5.  | Bare **\`⍵** (i.e. with no digits appended) increments the _OIC_, `Ω+←1`, _before_ using it as the index in the expression `⍵⊃⍨Ω+⎕IO`.                                                                                                |
-| 6.  | You can only access the 0-th element of **⍵** via an _explicitly indexed omega_ `⍵0`. The _implicitly indexed_ omega always increments its index _before_ use, so the first index that can be used is **1**, i.e. `` `⍵1 ``.          |
-| 7.  | If an element of the dfn's right argument **⍵** is accessed via any means, shortcut or traditional, that element must exist when accessed at runtime.                                                                                 |
+|     | Expression                                                                                                                                                                                                                                    |     |
+| :-- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| 1.  | **⍹** is a synonym for **\`⍵**. It is Unicode character `⎕UCS 9081`. Either expression is valid only in **Code** fields and outside quoted strings.                                                                                           |
+| 2.  | **\`⍵** or **⍹** uses an "_omega index counter_" (**OIC**) which we'll represent as **Ω**, common across all **Code** fields, which is initially set to zero, `Ω←0`. (Ω is just used for explication; don't actually use this symbol)         |
+| 3.  | All omega shortcut expressions in the **f-string** are evaluated left to right and are ⎕IO-independent.                                                                                                                                       |
+| 4.  | **\`⍵𝒋** or **⍹𝒋** sets the _OIC_ to 𝒋, `Ω←𝒋`, and returns the expression `⍵⊃⍨𝒋+⎕IO`. Here **𝒋** must be a _non-negative integer_ with at least 1 digit.                                                                                      |
+| 5.  | Bare **\`⍵** (i.e. with no digits appended) increments the _OIC_, `Ω+←1`, _before_ using it as the index in the expression `⍵⊃⍨Ω+⎕IO`.                                                                                                        |
+| 6.  | You can only access the 0-th element of **⍵** via an _explicitly indexed omega_ `⍵0`. The _implicitly indexed_ omega always increments its index _before_ use, so the first index that can be used **_implicitly_** is **1**, i.e. `` `⍵1 ``. |
+| 7.  | If an element of the dfn's right argument **⍵** is accessed via any means, shortcut or traditional, that element must exist when accessed at runtime.                                                                                         |
