@@ -77,7 +77,7 @@ md->HTML: opt-shift-M
 </blockquote>
 <p><strong>∆F f-strings</strong> can concisely include:</p>
 <p>∘ <strong>Text fields</strong>, expressions that can generate multiline Unicode text (using <code>`⋄</code> to indicate a newline);</p>
-<p>∘ <strong>Code fields</strong> allow users to display arbitrary objects in the user environment or passed as <strong>∆F</strong> arguments, allowing arbitrary APL expressions and full dfn logic;</p>
+<p>∘ <strong>Code fields</strong> allow users to display arbitrary objects in the user environment or passed as <strong>∆F</strong> arguments, as well as arbitrary APL expressions and full multi-statement³ dfn logic;</p>
 <p>∘ <strong>Code fields</strong> also provide a number of concise, convenient extensions, such as:</p>
 <ul>
 <li>
@@ -108,9 +108,9 @@ The temperature is 35∘C or  95∘F.
 </code></pre>
 </li>
 </ul>
-<p><strong>∆F</strong> is designed for ease of use, <em>ad hoc</em> debugging, and informal user interaction; APL’s native tools and Dyalog’s enhancements are always the best³ way to build and display complex objects, unless <strong>∆F</strong>’s specific functionality is of use.</p>
+<p><strong>∆F</strong> is designed for ease of use, <em>ad hoc</em> debugging, and informal user interaction; APL’s native tools and Dyalog’s enhancements are always the best⁴ way to build and display complex objects, unless <strong>∆F</strong>’s specific functionality is of use.</p>
 <hr>
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan.</p>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan.</p>
 <hr>
 <h2>∆F EXAMPLES</h2>
 <p>Before providing information on ∆F syntax and other details, <em>let’s start with some examples</em>…</p>
@@ -146,7 +146,8 @@ an
 example
 </code></pre>
 <pre><code>⍝  Two adjacent Text fields can be separated by a Null Space field {},
-⍝  for example to insert adjacent multiline input:
+⍝  for example when at least one field contains multiline input that you
+⍝  want formatted separately (keeping each field in is own rectangular space):
    ∆F 'Cat`⋄Elephant `⋄Mouse{}Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
 Elephant Dumbo
@@ -155,9 +156,9 @@ Mouse    Mickey
 ⍝  animal name...
 </code></pre>
 <h3>But wait! There’s an easier way!</h3>
-<pre><code>⍝  Surely you want the field to be guaranteed to have a space after
-⍝  EACH word without fiddling, so a Space field with at least one
-⍝  space would be easier:
+<pre><code>⍝  Here, you surely want the lefthand field to be guaranteed to have a space
+⍝  after EACH word without fiddling, so a Space field with at least
+⍝  one space would be way more convenient:
    ∆F 'Cat`⋄Elephant`⋄Mouse{ }Felix`⋄Dumbo`⋄Mickey'
 Cat      Felix
 Elephant Dumbo
@@ -197,13 +198,11 @@ The temperature is │11│°C or │ 51.8│°F
                    └──┘      └─────┘
 </code></pre>
 <h4>What if you want to place a box around every <strong>Code</strong>, <strong>Text</strong>, <strong><em>and</em></strong> <strong>Space field</strong>?</h4>
-<blockquote>
-<p>Just use <code>0 0 1 ∆F...</code></p>
-</blockquote>
+<p>Just use <strong>Box mode</strong>: <code>0 0 1 ∆F...</code></p>
 <pre><code>⍝  While we can't place boxes around text (or space) fields using `B,
 ⍝  we can place a box around EACH of our fields by setting the
 ⍝  third ∆F option (⍺[2]):
-   0 0 1 ∆F' `⋄The temperature is {&quot;I2&quot; $ C}`⋄°C or {&quot;F5.1&quot; $ 32+9×C÷5}`⋄°F'
+   0 0 1 ∆F'`⋄The temperature is {&quot;I2&quot; $ C}`⋄°C or {&quot;F5.1&quot; $ 32+9×C÷5}`⋄°F'
 ┌───────────────────┬──┬──────┬─────┬──┐
 │                   │11│      │ 51.8│  │
 │The temperature is │30│°C or │ 86.0│°F│
@@ -212,8 +211,9 @@ The temperature is │11│°C or │ 51.8│°F
 </code></pre>
 <p>We said you could place a box around every field.
 <strong>Null Space fields</strong> <code>{}</code>, i.e. 0-width <strong>Space fields</strong>, are an exception: after doing their work of separating adjacent <strong>Text fields</strong>, <strong>Null Space fields</strong> are ignored and won’t be placed in boxes.
-Try this expression on your own:
-<code>0 0 1 ∆F 'abc{}def{}{}ghi{&quot;&quot;}jkl{ }mno'</code></p>
+Try this expression on your own:</p>
+<pre><code>`0 0 1 ∆F 'abc{}def{}{}ghi{&quot;&quot;}jkl{ }mno'`
+</code></pre>
 <p>In contrast, <strong>Code fields</strong> that return null values (like <code>{&quot;&quot;}</code> above) <em>will</em> be displayed!</p>
 <pre><code>⍝  Referencing an external variable (C) and function (C2F)
    C← 11 30 60
@@ -316,7 +316,7 @@ Mary Jones  23
 <p><code>∆F 'Our string{`⍵0↓}is {≢`⍵0} characters'</code></p>
 </blockquote>
 <h4>The <em>next</em> best thing: the use of <em>bare</em> <code>`⍵</code> in <strong>Code field</strong> expressions</h4>
-<p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to the first (<code>`⍵1</code>) if there are <strong><em>no</em></strong> <code>`⍵</code> elements to the left in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>
+<p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to <code>`⍵1</code> when first encountered, i.e. if there are <strong><em>no</em></strong> <code>`⍵</code> elements to the <strong><em>left</em></strong> in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>
 <pre><code>⍝  Let's display arbitrary 2-dimensional expressions, one above the other.
 ⍝  `⍵ refers to the next argument in sequence, left to right, starting with `⍵1, the first.
 ⍝  ☞ From left to right `⍵ is `⍵1, `⍵2, and `⍵3. Easy peasy.
@@ -329,7 +329,7 @@ Mary Jones  23
 2 0 2 1 2 2
 </code></pre>
 <h4>Dates and Times using ⎕TS-format timestamps: the `T shortcut…</h4>
-<pre><code>⍝  A simple Date-Time shortcut `T built from ⎕DT and 1200⌶.
+<pre><code>⍝  A simple Date-Time shortcut `T built from 1200⌶ and ⎕DT.
 ⍝  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ⍝  ∘ Let's look at the use of the `T (Date-Time) shortcut to show the
 ⍝    current time (now).
@@ -337,7 +337,7 @@ Mary Jones  23
    ∆F'It is now {&quot;t:mm pp&quot; `T ⎕TS}.'
 It is now 8:08 am.         ⍝ NB: this will be the current actual time, of course.
 </code></pre>
-<pre><code>⍝  Here's a more powerful example (the power is in ⎕DT and 1200⌶).
+<pre><code>⍝  Here's a more powerful example (the power is in 1200⌶ and ⎕DT).
 ⍝  (Right arg &quot;hardwired&quot; into F-string)
    ∆F'{ &quot;D MMM YYYY ''was a'' Dddd.&quot;`T 2025 01 01}'
 1 JAN 2025 was a Wednesday.
@@ -470,7 +470,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 </tr>
 <tr>
 <td style="text-align:left">  options[2] (<strong><em>BOX</em></strong>)</td>
-<td style="text-align:left">If <code>1</code>, each field (except a Null Text field) is boxed separately. If <code>0</code>, you may box any <strong>Code fields</strong> you want using the <em>box</em> <code>`B</code> routine.</td>
+<td style="text-align:left">If <code>1</code>, each field (except a Null Text field) is boxed separately. If <code>0</code>, you may box any <strong>Code fields</strong> you want using the <em>box</em> <code>`B</code> routine. <strong>BOX</strong> mode can be used both with <strong>DFN</strong> and default output mode.</td>
 </tr>
 <tr>
 <td style="text-align:left">  options[3] (<strong><em>INLINE</em></strong>)</td>
@@ -518,21 +518,21 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 which contains 3 types of fields: <strong>Text fields</strong>, <strong>Code fields</strong>, and <strong>Space fields</strong>.</p>
 <ul>
 <li>
-<p><strong>Text Fields</strong> consist of simple text, which may include any Unicode characters desired, including newlines. Newlines (actually, carriage returns, <code>⎕UCS 13</code>) are normally entered via the sequence <code>`⋄</code>. Additionally, curly braces can be added via <code>`{</code> and <code>`}</code>, so there is no confusion with the simple curly braces used to begin and end <strong>Code fields</strong> and <strong>Space Fields</strong>. Finally, a simple backtick escape can be entered into a <strong>Text field</strong> by simply entering two such characters <code>``</code>.</p>
+<p><strong>Text Fields</strong> consist of simple text, which may include any Unicode characters desired, including newlines. Newlines (actually, carriage returns, <code>⎕UCS 13</code>) are normally entered via the sequence <code>`⋄</code>. Additionally, literal curly braces can be added via <code>`{</code> and <code>`}</code>, so there is no confusion with the simple curly braces used to begin and end <strong>Code fields</strong> and <strong>Space Fields</strong>. Finally, a simple backtick escape can be entered into a <strong>Text field</strong> by simply entering two such characters <code>``</code>.</p>
 </li>
 <li>
 <p><strong>Code fields</strong> are run-time evaluated expressions enclosed within
-simple curly braces <code>{}</code>, i.e. those not preceded by a back-tick (see the previous paragraph). <strong>Code fields</strong> are essentially a Dyalog dfn with some extras.</p>
+simple, unescaped curly braces <code>{}</code>, i.e. those not preceded by a back-tick (see the previous paragraph). <strong>Code fields</strong> are essentially a Dyalog dfn with some extras.</p>
 </li>
 <li>
-<p><strong>Space Fields</strong> are essentially a <em>degenerate</em> form of <strong>Code fields</strong>, consisting of a single pair of simple curly braces <code>{}</code> with zero or more spaces in betwen. A <strong>Space Field</strong> with zero spaces is a <strong>Null Space Field</strong>; while it may separate any other fields, its practical use is separating two adjacent <strong>Text Fields</strong>.</p>
+<p><strong>Space Fields</strong> are essentially a <em>degenerate</em> form of <strong>Code fields</strong>, consisting of a single pair of simple curly braces <code>{}</code> with zero or more spaces in between. A <strong>Space Field</strong> with zero spaces is a <strong>Null Space Field</strong>; while it may separate any other fields, its practical use is separating two adjacent <strong>Text Fields</strong>.</p>
 </li>
 </ul>
 <p>The building blocks of an <strong>f-string</strong> are these defined “fields,” catenated left to right,
 each of which will display as a logically separate 2-D output space. While <strong>Code fields</strong> can return objects of any number of dimensions mapped onto 2-D by APL rules, <strong>Text fields</strong> and <strong>Space fields</strong> are always simple rectangles (minimally 1 row and zero columns). Between fields, <strong>∆F</strong> adds no automatic spaces. That spacing is under user control.</p>
 <h5>Escape Sequences for Text Field and Quoted Strings</h5>
-<p>∆F-string <strong>Text fields</strong> and <strong>Quoted strings</strong> in <strong>Code fields</strong> may include:
-∘ a small number of escape sequences, beginning with the backtick <code>`</code>.</p>
+<p>∆F-string <strong>Text fields</strong> and <strong>Quoted strings</strong> in <strong>Code fields</strong> may include
+a small number of escape sequences, beginning with the backtick <code>`</code>.</p>
 <table>
 <thead>
 <tr>
@@ -616,7 +616,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 </tbody>
 </table>
 <hr>
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Here's the code actually called for the Date-Time shortcut: <small><b>{⍺←''YYYY-MM-DD hh:mm:ss'' ⋄ ∊⍣(1=≡⍵)⊢ ⍺(1200⌶)⊢ 1⎕DT ⊆⍵}</b></small>. The syntax for the Date-Time specifications can be found in the Dyalog documentation under <b>1200⌶</b>. </p>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ The syntax for the Date-Time specifications (left arg) can be found in the Dyalog documentation under <b>1200⌶</b>. For the curious, here's the code actually called for the Date-Time shortcut: <br>&nbsp;&nbsp;&nbsp;&nbsp;<small><b>{⍺←'YYYY-MM-DD hh:mm:ss' ⋄ ∊⍣(1=≡⍵)⊢ ⍺(1200⌶)⊢ 1⎕DT ⊆⍵}</b></small>.  </p>
 <hr>
 <h5>Omega Shortcut Expressions</h5>
 <table>
@@ -645,7 +645,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 </tr>
 <tr>
 <td style="text-align:left">4.</td>
-<td style="text-align:left"><strong>`⍵𝒋</strong> or <strong>⍹𝒋</strong> sets the <em>OIC</em> to 𝒋, <code>Ω←𝒋</code>, and returns the expression <code>⍵⊃⍨𝒋+⎕IO</code>. Here <strong>𝒋</strong> must be a <em>non-negative integer</em> with at least 1 digit.</td>
+<td style="text-align:left"><strong>`⍵𝒋</strong> or <strong>⍹𝒋</strong> sets the <em>OIC</em> to 𝒋, <code>Ω←𝒋</code>, and returns the expression <code>⍵⊃⍨Ω+⎕IO</code>. Here <strong>𝒋</strong> must be a <em>non-negative integer</em> with at least 1 digit.</td>
 <td></td>
 </tr>
 <tr>
