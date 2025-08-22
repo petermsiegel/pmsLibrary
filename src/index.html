@@ -87,15 +87,22 @@ md->HTML: opt-shift-M
 <p><strong>Code fields</strong> also provide a number of concise, convenient extensions, such as:</p>
 <ul>
 <li>
-<p><strong>Quoted strings</strong> in <strong>Code fields</strong> may use</p>
+<p><strong>Quoted strings</strong> in <strong>Code fields</strong>, with several quote styles:</p>
 <ul>
-<li><strong>double-quotes</strong> <code>{&quot;like this&quot;}</code> or this <code>{&quot;on`⋄three`⋄lines&quot;}</code>,</li>
-<li><strong>single-quotes</strong>, <em>distractingly</em> <code>{''shown ''''right'''' here''}'</code>, or even</li>
-<li><strong>double angle quotation marks</strong>,⁵ i.e. <em>guillemets</em>, <code>{«like this, with &quot;These&quot; and ''these''.»}</code>;</li>
+<li>
+<p><strong>double-quotes</strong> <code>{&quot;like this&quot;}</code> or this <code> {&quot;on`⋄three`⋄lines&quot;}</code>,</p>
+</li>
+<li>
+<p><strong>single-quotes</strong>, <em>distractingly</em> <code>{''shown ''''right'''' here''}'</code>, or even</p>
+</li>
+<li>
+<p><strong>double angle quotation marks</strong>,⁵ i.e. <em>guillemets</em>,</p>
+<p><code>{«with internal &quot;quotes&quot; and ''more''.»}</code>;</p>
+</li>
 </ul>
 </li>
 <li>
-<p>simple shortcuts⁶ for</p>
+<p>Simple shortcuts⁶ for</p>
 <ul>
 <li>formatting numeric arrays, <strong>$</strong> (short for <strong>⎕FMT</strong>): <code>{&quot;F7.5&quot; $ ?0 0}</code>,</li>
 <li>putting a box around a specific expression, <strong>`B</strong>: <code>{`B ⍳2 2}</code>,</li>
@@ -105,8 +112,8 @@ md->HTML: opt-shift-M
 <p>and more; as well as concisely inserting data from</p>
 <ul>
 <li>user objects or arbitrary code: <code>{tempC}</code> or <code>{32+tempC×9÷5}</code>,
-or</li>
-<li>arguments to <strong>∆F</strong> following the format string: <code>{32+`⍵1×9÷5}</code>, where <code>`⍵1</code> is a shortcut for <code>(⍵⊃⍨1+⎕IO)</code>;</li>
+and/or</li>
+<li>arguments to <strong>∆F</strong> that follow the format string: <code>{32+`⍵1×9÷5}</code>, where <code>`⍵1</code> is a shortcut for <code>(⍵⊃⍨1+⎕IO)</code>;</li>
 </ul>
 </li>
 </ul>
@@ -115,21 +122,21 @@ or</li>
 <p><strong>Space fields</strong>, providing a simple mechanism both for separating adjacent <strong>Text fields</strong> and inserting (rectangular) blocks of any number of spaces between any two fields, where needed;</p>
 </li>
 <li>
-<p>multiline (matrix) output built up field-by-field, left-to-right, from values and expressions in the calling environment or arguments to <strong>∆F</strong>;</p>
+<p>Multiline (matrix) output built up field-by-field, left-to-right, from values and expressions in the calling environment or arguments to <strong>∆F</strong>;</p>
 <ul>
 <li>after each field is generated, it is conformed to and concatenated with every other field to form one character matrix, as in this simple example:</li>
 </ul>
 <pre><code>  tempC← ⍪35 85
-   ⍴⎕← ∆F 'The temperature is {tempC}{2 2⍴&quot;∘C&quot;} or {32+tempC×9÷5}{2 2⍴&quot;∘F&quot;}'
-  The temperature is 35∘C or  95∘F.
-                     85∘C    185∘F
-  2 32
+  ⍴⎕← ∆F 'The temperature is {tempC}{2 2⍴&quot;∘C&quot;} or {32+tempC×9÷5}{2 2⍴&quot;∘F&quot;}'
+The temperature is 35∘C or  95∘F.
+                   85∘C    185∘F
+2 32
 </code></pre>
 </li>
 </ul>
 <p><strong>∆F</strong> is designed for ease of use, <em>ad hoc</em> debugging, and informal user interaction; APL’s native tools and Dyalog’s enhancements are always the best⁴ way to build and display complex objects, unless <strong>∆F</strong>’s specific functionality is of use.</p>
 <hr>
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan. <br> ⁵ Double angle quotation marks <b>«»</b> (guillemets) are Unicode chars <b><small>⎕UCS 171 187</small></b>. When including literal guillemets in guillemet-bracketed quotations (<i>but why?</i>), opening guillemets <b>«</b> are <i>not</i> doubled, but <i>two</i> closing guillemets are needed for each literal <b>»</b> required.<br>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single, possibly very long, line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan. <br> ⁵ Double angle quotation marks <b>«»</b> (guillemets) are Unicode chars <b><small>⎕UCS 171 187</small></b>. When including literal guillemets in guillemet-bracketed quotations (<i>but why?</i>), opening guillemets <b>«</b> are <i>not</i> doubled, but <i>two</i> closing guillemets are needed for each literal <b>»</b> required.<br>
 ⁶ Details on all the shortcuts are provided later in this document. See <i><b>Code Field Shortcuts.</b></i></p>
 <hr>
 <h2>∆F EXAMPLES</h2>
@@ -155,8 +162,8 @@ Customer Jack wins £230!
 <pre><code>⍝  Some multi-line Text fields separated by non-null Space fields
 ⍝  ∘ The backtick is our &quot;escape&quot; character.
 ⍝  ∘ Here each  `⋄ displays a newline character in the left-most &quot;field.&quot;
-⍝  ∘ { } is a Space Field with one space
-⍝    (because there's one space between the braces).
+⍝  ∘ { } is a Space Field indicating one space, given one space
+⍝    within the braces.
 ⍝  A Space field is useful here because each multi-line field is built
 ⍝  in its own rectangular space.
    ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
@@ -329,11 +336,9 @@ Current employee:   name↓    age↓.
 John Smith  29
 Mary Jones  23
 </code></pre>
-<blockquote>
 <p>Note that <code>`⍵0</code> refers to the f-string itself. Try this yourself:</p>
-</blockquote>
 <blockquote>
-<p><code>∆F 'Our string{`⍵0↓}is {≢`⍵0} characters'</code></p>
+<p><small><code>∆F 'Our string{`⍵0↓}is {≢`⍵0} characters'</code></small></p>
 </blockquote>
 <h4>The <em>next</em> best thing: the use of <em>bare</em> <code>`⍵</code> in <strong>Code field</strong> expressions</h4>
 <p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to <code>`⍵1</code> when first encountered, i.e. if there are <strong><em>no</em></strong> <code>`⍵</code> elements to the <strong><em>left</em></strong> in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>

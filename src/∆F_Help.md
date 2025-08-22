@@ -65,13 +65,15 @@ md->HTML: opt-shift-M
 
 - **Code fields** also provide a number of concise, convenient extensions, such as:
 
-  - **Quoted strings** in **Code fields** may use
+  - **Quoted strings** in **Code fields**, with several quote styles:
 
-    - **double-quotes** `{"like this"}` or this `` {"on`⋄three`⋄lines"} ``,
+    - **double-quotes** `{"like this"}` or this `` {"on`⋄three`⋄lines"}``,
     - **single-quotes**, _distractingly_ `{''shown ''''right'''' here''}'`, or even
-    - **double angle quotation marks**,⁵ i.e. _guillemets_, `{«like this, with "These" and ''these''.»}`;
+    - **double angle quotation marks**,⁵ i.e. _guillemets_,
 
-  - simple shortcuts⁶ for
+      `{«with internal "quotes" and ''more''.»}`;
+
+  - Simple shortcuts⁶ for
 
     - formatting numeric arrays, **\$** (short for **⎕FMT**): `{"F7.5" $ ?0 0}`,
     - putting a box around a specific expression, **\`B**: `` {`B ⍳2 2} ``,
@@ -81,28 +83,28 @@ md->HTML: opt-shift-M
     and more; as well as concisely inserting data from
 
     - user objects or arbitrary code: `{tempC}` or `{32+tempC×9÷5}`,
-      or
-    - arguments to **∆F** following the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `(⍵⊃⍨1+⎕IO)`;
+      and/or
+    - arguments to **∆F** that follow the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `(⍵⊃⍨1+⎕IO)`;
 
 - **Space fields**, providing a simple mechanism both for separating adjacent **Text fields** and inserting (rectangular) blocks of any number of spaces between any two fields, where needed;
 
-- multiline (matrix) output built up field-by-field, left-to-right, from values and expressions in the calling environment or arguments to **∆F**;
+- Multiline (matrix) output built up field-by-field, left-to-right, from values and expressions in the calling environment or arguments to **∆F**;
 
   - after each field is generated, it is conformed to and concatenated with every other field to form one character matrix, as in this simple example:
 
   ```
     tempC← ⍪35 85
-     ⍴⎕← ∆F 'The temperature is {tempC}{2 2⍴"∘C"} or {32+tempC×9÷5}{2 2⍴"∘F"}'
-    The temperature is 35∘C or  95∘F.
-                       85∘C    185∘F
-    2 32
+    ⍴⎕← ∆F 'The temperature is {tempC}{2 2⍴"∘C"} or {32+tempC×9÷5}{2 2⍴"∘F"}'
+  The temperature is 35∘C or  95∘F.
+                     85∘C    185∘F
+  2 32
   ```
 
 **∆F** is designed for ease of use, _ad hoc_ debugging, and informal user interaction; APL's native tools and Dyalog's enhancements are always the best⁴ way to build and display complex objects, unless **∆F**'s specific functionality is of use.
 
 ---
 
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan. <br> ⁵ Double angle quotation marks <b>«»</b> (guillemets) are Unicode chars <b><small>⎕UCS 171 187</small></b>. When including literal guillemets in guillemet-bracketed quotations (<i>but why?</i>), opening guillemets <b>«</b> are <i>not</i> doubled, but <i>two</i> closing guillemets are needed for each literal <b>»</b> required.<br>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single, possibly very long, line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan. <br> ⁵ Double angle quotation marks <b>«»</b> (guillemets) are Unicode chars <b><small>⎕UCS 171 187</small></b>. When including literal guillemets in guillemet-bracketed quotations (<i>but why?</i>), opening guillemets <b>«</b> are <i>not</i> doubled, but <i>two</i> closing guillemets are needed for each literal <b>»</b> required.<br>
 ⁶ Details on all the shortcuts are provided later in this document. See <i><b>Code Field Shortcuts.</b></i></p>
 
 ---
@@ -138,8 +140,8 @@ Customer Jack wins £230!
 ⍝  Some multi-line Text fields separated by non-null Space fields
 ⍝  ∘ The backtick is our "escape" character.
 ⍝  ∘ Here each  `⋄ displays a newline character in the left-most "field."
-⍝  ∘ { } is a Space Field with one space
-⍝    (because there's one space between the braces).
+⍝  ∘ { } is a Space Field indicating one space, given one space
+⍝    within the braces.
 ⍝  A Space field is useful here because each multi-line field is built
 ⍝  in its own rectangular space.
    ∆F 'This`⋄is`⋄an`⋄example{ }Of`⋄multi-line{ }Text`⋄Fields'
@@ -349,9 +351,9 @@ John Smith  29
 Mary Jones  23
 ```
 
-> Note that `` `⍵0 `` refers to the f-string itself. Try this yourself:
+Note that `` `⍵0 `` refers to the f-string itself. Try this yourself:
 
-> `` ∆F 'Our string{`⍵0↓}is {≢`⍵0} characters' ``
+> <small>`` ∆F 'Our string{`⍵0↓}is {≢`⍵0} characters' ``</small>
 
 #### The _next_ best thing: the use of _bare_ `` `⍵ `` in **Code field** expressions
 
