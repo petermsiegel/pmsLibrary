@@ -1,6 +1,6 @@
 :Namespace ⍙Fapl
   ⎕IO ⎕ML←0 1 
-  DEBUG← 0 
+  DEBUG← 0                   ⍝ DEBUG←1 simply turns off top-level error trapping...
   helpHtml← '∆F_Help.html'   ⍝ Globally set here
 ⍝ The name of the utility function visible in the target directory.
 ⍝ === BEGINNING OF CODE =====================================================================
@@ -44,7 +44,7 @@
         p← TFBrk ⍵                                     ⍝ esc or lb only. 
       p= ≢⍵: TFDone ⍺, ⍵                               ⍝ No special chars in ⍵. Process & return.
         pfx c w← (p↑⍵) (p⌷⍵) (⍵↓⍨ p+1) 
-      c= esc: (⍺, pfx, nlG TFEsc w)∇ 1↓ w              ⍝ char is esc. Process & continue.
+      c= esc: (⍺, pfx, nlG TFEsc w) ∇ 1↓ w             ⍝ char is esc. Process & continue.
     ⍝ c= cr:  (⍺, pfx, nlG) ∇ w                        ⍝ actual cr => nlG, mirroring esc+⋄ => nlG. 
         CSF w⊣ TFDone ⍺, pfx                           ⍝ char is lb. End TF; go to CSF.  
     } ⍝ End Text Field Scan 
@@ -70,7 +70,7 @@
           c= sp:             (pfx, sp) ∇ w↓⍨ cfLenG+← p← +/∧\' '=w ⍝ Idiom +/∧\' '= 
          (c= rb)∧ nBrakG≤ 1: (TrimR pfx) w             ⍝ Return... Scan complete! 
           c∊ lb_rb:          (pfx, c) ∇ w⊣ nBrakG+← -/c= lb_rb  ⍝ Inc/dec nBrakG as appropriate
-          c∊ sq_dq:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
+          c∊ qtsL:          (pfx, a)  ∇ w⊣  cfLenG+← c⊣ a w c← CFStr c w    
           c= dol:            (pfx, cF) ∇ w             ⍝ $ => ⎕FMT (cF)
           c= esc:            (pfx, a)  ∇ w⊣ a w← CFEsc w          
           c= omUs:           (pfx, a)  ∇ w⊣ a w← CFOm w         ⍝ ⍹, alias to `⍵ (see CFEsc).
@@ -94,19 +94,24 @@
     SFCodeGen← '(',⊢ ⊢,∘'⍴'''')'  
 
   ⍝ CFStr: CF Quoted String Scan
-  ⍝ val←  (⍺=nl) ∇ qt fstr 
+  ⍝        val←  (⍺=nl) ∇ qtL fstr 
+  ⍝ ∘ Right now, qtL must be ', ", or «, and qtR must be ', ", or ». 
+  ⍝ ∘ For quotes with different starting and ending chars, e.g. «» (⎕UCS 171 187).
+  ⍝   If « is the left qt, then the right qt » can be doubled in the APL style, 
+  ⍝   and a non-doubled » terminates as expected.
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
-    CFStr← { qt w← ⍵   
-        CFSBrk← ⌊/⍳∘(esc qt)                          ⍝ qt can be ' OR ".
-        lenW← ¯1+ ≢w                                   ⍝ lenW: length of w outside quoted str.
+    CFStr← { qtL w← ⍵ ⋄ qtR← qtsR⌷⍨ qtsL⍳ qtL
+        CFSBrk← ⌊/⍳∘(esc qtR)                        ⍝ qtL can be ', ", or «. 
+        lenW← ¯1+ ≢w                                  ⍝ lenW: length of w outside quoted str.
         ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
           0= ≢⍵: ⍺ 
             p← CFSBrk ⍵  
           p= ≢⍵: ⎕SIGNAL qtÊ ⋄ c← p⌷⍵
           c= esc: (⍺, (p↑ ⍵), nlG QSEsc ⊃⍵↓⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2 
-        ⍝ Now c= qt:  Now see if c2, the next char, is a second qt, i.e. an internal, literal qt.
+        ⍝ Now c= qtR:  Now see if c2, the next char, is a second qtR, 
+        ⍝ i.e. an internal, literal qtR.
             c2← ⊃⍵↓⍨ p+1
-          c2= qt:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2   ⍝ Use APL rules for ".."".."
+          c2= qtR:  (⍺, ⍵↑⍨ p+1) ∇ ⍵↓⍨ lenW-← p+2    ⍝ Use APL rules for ".."".."
             ⍺, ⍵↑⍨ lenW-← p                            ⍝ Done... Return
         }
         qS← AplQt '' ⍙Scan w                           ⍝ Update lenW via ⍙Scan, then update w. 
@@ -137,7 +142,7 @@
   0∊ ⍺∊ 0 1: ⎕SIGNAL optÊ                              ⍝ Bad options (⍺)!
     (dfn dbg box inline) fStr← ⍺ ⍵ 
     DM← (⎕∘←)⍣dbg                                      ⍝ DM: Debug Msg
-    nlG← dbg⊃ cr crVis                                 ⍝ A newline (`⋄ or cr) maps onto crVis if debug mode.
+    nlG← dbg⊃ cr crVis                                 ⍝ A newline escape (`⋄) maps onto crVis if debug mode.
   ⍝ Pseudo-functions: A, B, Ð, F, M, T and D
     cA cB cC cÐ cF cM cT← inline⊃¨ codeList            ⍝ code fragments.
     epfCode← cA cB cC cF cT cT                         ⍝ A B F T T <== esc+ 'ABFTD'
@@ -163,11 +168,20 @@
   } ⍝ FmtScan 
 
 ⍝ Simple char constants
+⍝ Note: we handle two kinds of quotes: 
+⍝     std same-char quotes, 'this' and "this", with std APL-style doubling.
+⍝     left- and right-quotes, «like this», where only the right-quote doubling is needed
+⍝     (i.e. any number of literals « can be in a «» string.)
+⍝ The use of double angle quotation marks is an amusement. So far, not documented...
   om← '⍵' ⋄ cr crVis← ⎕UCS 13 9229 
   dia← '⋄'               ⍝ Sequence esc-dia "`⋄" used in text fields and quoted strings for ⎕UCS 13.
-  cfBrkList← sp sq dq dol esc lb rb omUs ra da pct← ' ''"$`{}⍹→↓%'  
-  tfBrkList← esc lb      ⍝ Optionally, allow actual cr ==> nlG. See also TF.  
-  sq_dq← sq dq ⋄ lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq ⋄   esc_lb_rb← esc lb rb  
+⍝ lDAQ, rDAQ: LEFT- and RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK -- aka guillemets  
+  lDAQ rDAQ← '«»'        ⍝ ⎕UCS 171 187 
+⍝ Order brklist chars roughly by frequency, high to low.       
+  cfBrkList← lDAQ,⍨ sp sq dq esc lb rb dol omUs ra da pct← ' ''"`{}$⍹→↓%'  
+  tfBrkList← esc lb                
+  lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq ⋄   esc_lb_rb← esc lb rb  
+  qtsL← sq dq lDAQ ⋄ qtsR← sq dq rDAQ 
 
 ⍝ Error constants / fns  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵ }
@@ -222,21 +236,6 @@
     _← 'htmlObj' ⎕THIS.⎕WC 'HTMLRenderer',⍥⊆ HROpt           ⍝ Run HTMLRenderer
     1 0⍴⍬
   }  
-  ⍝ GenTest: Undocumented fn for generating a test suite from documentation example code below.
-  ∇ res← GenTest; hdr; hP; first; targ; ttarg
-    ttarg← '.',⍨ ⍕targ← ⊃⎕RSI 
-    ⎕← '*** Generating Test Suite ***'
-    hdr← ⊆'RunTest' ':With ⎕NS '''''
-    ftr← ⊆':EndWith' 
-    hP←  '(?ix) ^\s* ⍝HX (?| ([⍎⎕⍝]) (.*) | () () )' 
-    res← '    ',ttarg, targ.⎕FX hdr, ftr,⍨ ⊆hP ⎕S {
-        c← ⊃⊃f1 f2← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Match }¨ 1 2  
-      c= ' ': '⎕← ⍬'              
-      c= '⍝': '⎕← ', AplQt '⍝',f2 
-      c= '⍎':('⎕← ', AplQt f2), ' ⋄ ', f2  
-      c= '⎕': '⎕← ', AplQt f2 
-    }⊣ ⎕SRC ⎕THIS.nsHelp   
-  ∇
 
 ⍝ === FIX-time Routines ==========================================================================
 ⍝ === FIX-time Routines ==========================================================================

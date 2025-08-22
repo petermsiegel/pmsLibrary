@@ -2,6 +2,7 @@
 Preview side-by-side: cmd-K, V,
 md->HTML: opt-shift-M
 -->
+
 <style>
   body {
     font-size: 18px; /* 16: on screen in APL. Base font size for all text */
@@ -58,43 +59,51 @@ md->HTML: opt-shift-M
 
 **∆F f-strings** can concisely include:
 
-∘ **Text fields**, expressions that can generate multiline Unicode text (using `` `⋄ `` to indicate a newline);
+- **Text fields**, expressions that can generate multiline Unicode text (using `` `⋄ `` to indicate a newline);
 
-∘ **Code fields** allow users to display arbitrary objects in the user environment or passed as **∆F** arguments, as well as arbitrary APL expressions and full multi-statement³ dfn logic;
+- **Code fields**, that allow users to display APL objects in the user environment or passed as **∆F** arguments, as well as arbitrary APL expressions and full multi-statement³ dfn logic; each **Code field** must return a value, simple or otherwise, which will be aligned and catenated with other fields and returned from **∆F**;
 
-∘ **Code fields** also provide a number of concise, convenient extensions, such as:
+- **Code fields** also provide a number of concise, convenient extensions, such as:
 
-- double-quoted strings in **Code fields** `{"like this"}` or this `` {"on`⋄three`⋄lines"} ``,
+  - **Quoted strings** in **Code fields** may use
 
-  avoiding distracting expressions using single-quotes internally `{''as ''''shown'''' here''}`;
+    - **double-quotes** `{"like this"}` or this `` {"on`⋄three`⋄lines"} ``,
+    - **single-quotes**, _distractingly_ `{''shown ''''right'''' here''}'`, or even
+    - **double angle quotation marks**,⁵ i.e. _guillemets_, `{«like this, with "These" and ''these''.»}`;
 
-- simple shortcuts for
+  - simple shortcuts⁶ for
 
-  - formatting numeric arrays, **\$** (short for **⎕FMT**): `{"F7.5" $ ?0 0}`,
-  - putting a box around a specific expression, **\`B**: `` {`B ⍳2 2} ``,
-  - placing the output of one expression _above_ another, **%**: `{"Pi"% ○1}`,
-  - formatting date and time expressions from APL timestamps (**⎕TS**) using **\`T** ( short for an expression with **1200⌶** and **⎕DT**):`` {"hh:mm:ss" `T ⎕TS} ``:,
-  - and more;
+    - formatting numeric arrays, **\$** (short for **⎕FMT**): `{"F7.5" $ ?0 0}`,
+    - putting a box around a specific expression, **\`B**: `` {`B ⍳2 2} ``,
+    - placing the output of one expression _above_ another, **%**: `{"Pi"% ○1}`,
+    - formatting date and time expressions from APL timestamps (**⎕TS**) using **\`T** ( short for an expression with **1200⌶** and **⎕DT**):`` {"hh:mm:ss" `T ⎕TS} ``:,
 
-  as well as concisely inserting data from
+    and more; as well as concisely inserting data from
 
-  - user objects or arbitrary code: `{tempC}` or `{32+tempC×9÷5}`,
-  - or via **∆F** arguments that follow the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `⍵⊃⍨1+⎕IO`;
+    - user objects or arbitrary code: `{tempC}` or `{32+tempC×9÷5}`,
+      or
+    - arguments to **∆F** following the format string: `` {32+`⍵1×9÷5} ``, where `` `⍵1 `` is a shortcut for `(⍵⊃⍨1+⎕IO)`;
 
-- multiline output built up left-to-right from simple or multi-dimensional values in the calling environment:
+- **Space fields**, providing a simple mechanism both for separating adjacent **Text fields** and inserting (rectangular) blocks of any number of spaces between any two fields, where needed;
+
+- multiline (matrix) output built up field-by-field, left-to-right, from values and expressions in the calling environment or arguments to **∆F**;
+
+  - after each field is generated, it is conformed to and concatenated with every other field to form one character matrix, as in this simple example:
 
   ```
-   tempC← ⍪35 85
-   ∆F 'The temperature is {tempC}{2 2⍴"∘C"} or {32+tempC×9÷5}{2 2⍴"∘F"}'
-  The temperature is 35∘C or  95∘F.
-                     85∘C    185∘F
+    tempC← ⍪35 85
+     ⍴⎕← ∆F 'The temperature is {tempC}{2 2⍴"∘C"} or {32+tempC×9÷5}{2 2⍴"∘F"}'
+    The temperature is 35∘C or  95∘F.
+                       85∘C    185∘F
+    2 32
   ```
 
 **∆F** is designed for ease of use, _ad hoc_ debugging, and informal user interaction; APL's native tools and Dyalog's enhancements are always the best⁴ way to build and display complex objects, unless **∆F**'s specific functionality is of use.
 
 ---
 
-<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan.</p>
+<p style="margin: 10px 20px;line-height: 1.3;font-size: 85%;font-family: APL386, APL385;color: black;"> ¹ Throughout this documentation, notably in the many examples, an index origin of zero (<b>⎕IO←0</b>) is assumed. Users may utilize <i>any</i> index origin in the <b>f-string Code fields</b>  they define, as long as it's <b>1</b> or <b>0</b>. <b>Code fields</b>  inherit the index origin of the environment (i.e. namespace) from which <b>∆F</b> is called. <br> ² <b>∆F</b> is inspired by Python <a href="https://docs.python.org/3/tutorial/inputoutput.html"><b>f-strings</b></a> (short for "<b>formatted string literals</b>"), but designed for APL's multi-dimensional worldview. <br> ³ <b>∆F Code fields</b> <i>as input</i> are limited to a single line.<br> ⁴ As a prototype, <b>∆F</b> is currently relatively slow, in that it analyzes the <b>f-string</b> using an APL recursive scan. <br> ⁵ Double angle quotation marks <b>«»</b> (guillemets) are Unicode chars <b><small>⎕UCS 171 187</small></b>. When including literal guillemets in guillemet-bracketed quotations (<i>but why?</i>), opening guillemets <b>«</b> are <i>not</i> doubled, but <i>two</i> closing guillemets are needed for each literal <b>»</b> required.<br>
+⁶ Details on all the shortcuts are provided later in this document. See <i><b>Code Field Shortcuts.</b></i></p>
 
 ---
 
@@ -108,7 +117,7 @@ Before providing information on ∆F syntax and other details, _let's start with
 ```
 
 ```
-⍝  Simple variable expressions
+⍝  Code fields with plain variables
    name← 'Fred' ⋄ age← 43
    ∆F 'The patient''s name is {name}. {name} is {age} years old.'
 The patient's name is Fred. Fred is 43 years old.
@@ -483,7 +492,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 
 - If the left argument `⍺` is omitted, the options are `4⍴0`.
 
-- If the left argument `⍺` is a simple boolean vector or scalar (or an empty numeric vector `⍬`), the options are `4↑⍺`; subsequent elements are ignored;
+- If the left argument `⍺` is a simple boolean vector or scalar, or an empty numeric vector `⍬`, the options are `4↑⍺`; subsequent elements are ignored;
 
 - If the left argument `⍺` starts with `'help'` (case ignored), this help information is displayed.
 
@@ -512,7 +521,7 @@ which contains 3 types of fields: **Text fields**, **Code fields**, and **Space 
 The building blocks of an **f-string** are these defined "fields," catenated left to right,
 each of which will display as a logically separate 2-D output space. While **Code fields** can return objects of any number of dimensions mapped onto 2-D by APL rules, **Text fields** and **Space fields** are always simple rectangles (minimally 1 row and zero columns). Between fields, **∆F** adds no automatic spaces. That spacing is under user control.
 
-##### Escape Sequences for Text Field and Quoted Strings
+##### Escape Sequences for Text Fields and Quoted Strings
 
 ∆F-string **Text fields** and **Quoted strings** in **Code fields** may include
 a small number of escape sequences, beginning with the backtick `` ` ``.
@@ -529,8 +538,7 @@ as an ordinary backtick `` ` ``.
 
 ##### Code Field Shortcuts
 
-∆F-string **Code fields** may be used to display simple variables,
-arbitrary dfn expressions in dfns (including guards), as well as various shortcuts. **Shortcuts** are valid **only** outside **Quoted strings**. They include:
+∆F-string **Code fields** may contain various shortcuts, intended to be concise and expressive tools for common tasks. **Shortcuts** are valid **only** outside **Quoted strings**. They include:
 
 | Shortcut <div style="width:100px"></div> | Name <div style="width:150px"></div> | Meaning                                                                                                                                      |
 | :--------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -552,7 +560,7 @@ arbitrary dfn expressions in dfns (including guards), as well as various shortcu
 
 |     | Expression                                                                                                                                                                                                                                    |     |
 | :-- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
-| 1.  | **⍹** is a synonym for **\`⍵**. It is Unicode character `⎕UCS 9081`. Either expression is valid only in **Code** fields and outside quoted strings.                                                                                           |
+| 1.  | **⍹** is a synonym for **\`⍵**. It is Unicode character `⎕UCS 9081`. Either expression is valid only in **Code** fields and outside **Quoted strings**.                                                                                       |
 | 2.  | **\`⍵** or **⍹** uses an "_omega index counter_" (**OIC**) which we'll represent as **Ω**, common across all **Code** fields, which is initially set to zero, `Ω←0`. (Ω is just used for explication; don't actually use this symbol)         |
 | 3.  | All omega shortcut expressions in the **f-string** are evaluated left to right and are ⎕IO-independent.                                                                                                                                       |
 | 4.  | **\`⍵𝒋** or **⍹𝒋** sets the _OIC_ to 𝒋, `Ω←𝒋`, and returns the expression `⍵⊃⍨Ω+⎕IO`. Here **𝒋** must be a _non-negative integer_ with at least 1 digit.                                                                                      |

@@ -6,6 +6,21 @@ Help← {
       hR← nx↓ ' | \1' '\1' 
       1 0⍴⍬⊣ ⎕ED ⍠'ReadOnly' 1⊢'h'⊣ h← hP ⎕S hR ⊣ ⎕SRC ⎕THIS 
 }
+  ⍝ GenTest: Undocumented fn for generating a test suite from documentation example code below.
+  ∇ res← GenTest; hdr; hP; first; targ; ttarg
+    ttarg← '.',⍨ ⍕targ← ⊃⎕RSI 
+    ⎕← '*** Generating Test Suite ***'
+    hdr← ⊆'RunTest' ':With ⎕NS '''''
+    ftr← ⊆':EndWith' 
+    hP←  '(?ix) ^\s* ⍝HX (?| ([⍎⎕⍝]) (.*) | () () )' 
+    res← '    ',ttarg, targ.⎕FX hdr, ftr,⍨ ⊆hP ⎕S {
+        c← ⊃⊃f1 f2← ⍵.{ Lengths[⍵]↑Offsets[⍵]↓Match }¨ 1 2  
+      c= ' ': '⎕← ⍬'              
+      c= '⍝': '⎕← ', AplQt '⍝',f2 
+      c= '⍎':('⎕← ', AplQt f2), ' ⋄ ', f2  
+      c= '⎕': '⎕← ', AplQt f2 
+    }⊣ ⎕SRC ⎕THIS.nsHelp   
+  ∇
 
 ⍝ === BEGINNING OF HELP INFO =====================================================================
 ⍝H +---------------------------------------------------------------------------------------+
