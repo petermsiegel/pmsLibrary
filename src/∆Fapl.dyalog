@@ -100,7 +100,7 @@
   ⍝   If « is the left qt, then the right qt » can be doubled in the APL style, 
   ⍝   and a non-doubled » terminates as expected.
   ⍝ Returns val← (the string at the start of ⍵) (the rest of ⍵) ⍝  
-    CFStr← { qtL w← ⍵ ⋄ qtR← qtsR⌷⍨ qtsL⍳ qtL
+    CFStr← { qtL w← ⍵ ⋄ qtR← (qtsL⍳ qtL)⌷ qtsR
         CFSBrk← ⌊/⍳∘(esc qtR)                        ⍝ qtL can be ', ", or «. 
         lenW← ¯1+ ≢w                                  ⍝ lenW: length of w outside quoted str.
         ⍙Scan← {   ⍝ Recursive CF Quoted-String Scan. lenW converges on true length.
@@ -181,7 +181,7 @@
   cfBrkList← lDAQ,⍨ sp sq dq esc lb rb dol omUs ra da pct← ' ''"`{}$⍹→↓%'  
   tfBrkList← esc lb                
   lb_rb← lb rb ⋄ om_omUs← om omUs ⋄ sp_sq← sp sq ⋄   esc_lb_rb← esc lb rb  
-  qtsL← sq dq lDAQ ⋄ qtsR← sq dq rDAQ 
+  qtsL qtsR← lDAQ rDAQ,⍨¨ ⊂dq sq                       ⍝ Expected freq hi to lo: dq sq l/rDAQ
 
 ⍝ Error constants / fns  
     Ê← { ⊂'EN' 11,⍥⊂ 'Message' ⍵ }
