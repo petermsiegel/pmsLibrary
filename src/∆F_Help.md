@@ -260,7 +260,9 @@ We said you could place a box around every field.
 **Null Space fields** `{}`, i.e. 0-width **Space fields**, are an exception: after doing their work of separating adjacent **Text fields**, **Null Space fields** are ignored and won't be placed in boxes.
 Try this expression on your own:
 
-    `0 0 1 ∆F 'abc{}def{}{}ghi{""}jkl{ }mno'`
+```
+0 0 1 ∆F 'abc{}def{}{}ghi{""}jkl{ }mno'
+```
 
 In contrast, **Code fields** that return null values (like `{""}` above) _will_ be displayed!
 
@@ -384,9 +386,13 @@ John Smith  29
 Mary Jones  23
 ```
 
-Side Note: `` `⍵0 `` refers to the f-string itself. Try this yourself:
+<div style="margin-left: 20px;">
 
-> <small>`` ∆F 'Our string{`⍵0↓}is {≢`⍵0} characters' ``</small>
+| Side Note                                                                                                                 |
+| :------------------------------------------------------------------------------------------------------------------------ |
+| `` `⍵0 `` refers to the f-string itself. Try this yourself: &nbsp;&nbsp;`` ∆F 'Our string {`⍵0↓} is {≢`⍵0} characters' `` |
+
+</div>
 
 ### The _next_ best thing: the use of _bare_ `` `⍵ `` in **Code field** expressions
 
@@ -403,6 +409,15 @@ The expression `` `⍵ `` selects the _next_ element of the right argument `⍵`
 0 0 0 1 0 2
 1 0 1 1 1 2
 2 0 2 1 2 2
+```
+
+Let's demonstrate the equivalence of the _implicit_ and _explicit_ **Omega expressions** here!
+
+```
+    a← ∆F '{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3     ⍝ Implicit Omega expressions
+    b← ∆F '{(⍳2⍴`⍵1) % (⍳2⍴`⍵2) % (⍳2⍴`⍵3)}' 1 2 3  ⍝ Explicit Omega expressions
+    a ≡ b                                           ⍝ Are they the same?
+1                                                   ⍝ Yes!
 ```
 
 ### And Shortcuts can often make sense with expressions, not just entire Code fields
@@ -426,7 +441,7 @@ The expression `` `⍵ `` selects the _next_ element of the right argument `⍵`
 
 ### Formatting Dates and Times Using ⎕TS-format Timestamps: the `T shortcut...
 
-A simple Date-Time shortcut `T built from 1200⌶ and ⎕DT.
+Here's a simple Date-Time shortcut `` `T `` built from **1200⌶** and **⎕DT**. It takes one or more Dyalog `⎕TS`-format timestamps as the right argument and a date-time specification as the (optional) left argument. Trailing elements of a timestamp may be omitted, if they are not referenced in the specification string.
 
 ```
 ⍝  ∘ Let's look at the use of the `T (Date-Time) shortcut to show the
@@ -477,7 +492,7 @@ the f-string each time.
 We will compare the performance of an ∆F-string evaluated on the fly
 
 ```
-    mx← ∆F '...'      ⍝ the same as 0 ∆F '...'
+    mx← ∆F '...'           ⍝ the same as   mx← 0 ∆F '...'
 ```
 
 vs one precomputed and returned as a dfn, using
@@ -565,7 +580,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 
 ### Return Value
 
-- Unless the **DFN** option is selected, **∆F** always returns a character matrix of at least one row `1 0⍴0` on success. If the 'help' option is specified, **∆F** returns `1 0⍴0`.
+- Unless the **DFN** option is selected, **∆F** always returns a character matrix of at least one row and zero columns, `1 0⍴0`, on success. If the 'help' option is specified, **∆F** returns `1 0⍴0`.
 
 - If the **DFN** option is selected, **∆F** always returns a standard Dyalog dfn on success.
 
@@ -640,4 +655,4 @@ as an ordinary backtick `` ` ``.
 
 6.  You can only access the 0-th element of **⍵** via an _explicitly indexed omega_ `` `⍵0 `` or `⍹0`. The _implicitly indexed_ omega always increments its index _before_ use, so the first index that can be used **_implicitly_** is **1**, i.e. `` `⍵1 `` or `⍹1`.
 
-7.  If an element of the dfn's right argument **⍵** is accessed via any means, shortcut or traditional, that element must exist when accessed at runtime.
+7.  If an element of the dfn's right argument **⍵** is accessed at runtime via any means, shortcut or traditional, that element **_must_** exist.

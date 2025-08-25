@@ -272,7 +272,7 @@ The temperature is │11│°C or │ 51.8│°F
 <p>We said you could place a box around every field.
 <strong>Null Space fields</strong> <code>{}</code>, i.e. 0-width <strong>Space fields</strong>, are an exception: after doing their work of separating adjacent <strong>Text fields</strong>, <strong>Null Space fields</strong> are ignored and won’t be placed in boxes.
 Try this expression on your own:</p>
-<pre><code>`0 0 1 ∆F 'abc{}def{}{}ghi{&quot;&quot;}jkl{ }mno'`
+<pre><code>0 0 1 ∆F 'abc{}def{}{}ghi{&quot;&quot;}jkl{ }mno'
 </code></pre>
 <p>In contrast, <strong>Code fields</strong> that return null values (like <code>{&quot;&quot;}</code> above) <em>will</em> be displayed!</p>
 <pre><code>⍝  Referencing an external variable (C) and function (C2F)
@@ -373,10 +373,20 @@ Current employee:   name↓    age↓.
 John Smith  29
 Mary Jones  23
 </code></pre>
-<p>Side Note: <code>`⍵0</code> refers to the f-string itself. Try this yourself:</p>
-<blockquote>
-<p><small><code>∆F 'Our string{`⍵0↓}is {≢`⍵0} characters'</code></small></p>
-</blockquote>
+<div style="margin-left: 20px;">
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Side Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>`⍵0</code> refers to the f-string itself. Try this yourself:   <code>∆F 'Our string {`⍵0↓} is {≢`⍵0} characters'</code></td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3>The <em>next</em> best thing: the use of <em>bare</em> <code>`⍵</code> in <strong>Code field</strong> expressions</h3>
 <p>The expression <code>`⍵</code> selects the <em>next</em> element of the right argument <code>⍵</code>, defaulting to <code>`⍵1</code> when first encountered, i.e. if there are <strong><em>no</em></strong> <code>`⍵</code> elements to the <strong><em>left</em></strong> in the f-string. If there is any such expression (e.g. <code>`⍵5</code>), then <code>`⍵</code> points to the element after that one (here, <code>`⍵6</code>). If the item to the left is <code>`⍵</code>, then we simply increment the index by <code>1</code> from that one. <strong>Let’s try an example.</strong></p>
 <pre><code>⍝  Let's display arbitrary 2-dimensional expressions, one above the other.
@@ -389,6 +399,12 @@ Mary Jones  23
 0 0 0 1 0 2
 1 0 1 1 1 2
 2 0 2 1 2 2
+</code></pre>
+<p>Let’s demonstrate the equivalence of the <em>implicit</em> and <em>explicit</em> <strong>Omega expressions</strong> here!</p>
+<pre><code>    a← ∆F '{(⍳2⍴`⍵) % (⍳2⍴`⍵) % (⍳2⍴`⍵)}' 1 2 3     ⍝ Implicit Omega expressions
+    b← ∆F '{(⍳2⍴`⍵1) % (⍳2⍴`⍵2) % (⍳2⍴`⍵3)}' 1 2 3  ⍝ Explicit Omega expressions
+    a ≡ b                                           ⍝ Are they the same?
+1                                                   ⍝ Yes!
 </code></pre>
 <h3>And Shortcuts can often make sense with expressions, not just entire Code fields</h3>
 <pre><code>⍝  Here, we display one boxed value above the other.
@@ -407,7 +423,7 @@ Mary Jones  23
 └───┴───┴───┘
 </code></pre>
 <h3>Formatting Dates and Times Using ⎕TS-format Timestamps: the `T shortcut…</h3>
-<p>A simple Date-Time shortcut `T built from 1200⌶ and ⎕DT.</p>
+<p>Here’s a simple Date-Time shortcut <code>`T</code> built from <strong>1200⌶</strong> and <strong>⎕DT</strong>. It takes one or more Dyalog <code>⎕TS</code>-format timestamps as the right argument and a date-time specification as the (optional) left argument. Trailing elements of a timestamp may be omitted, if they are not referenced in the specification string.</p>
 <pre><code>⍝  ∘ Let's look at the use of the `T (Date-Time) shortcut to show the
 ⍝    current time (now).
 ⍝  ∘ The right argument is always a ⎕TS or any non-empty prefix thereof.
@@ -443,7 +459,7 @@ used ∆F string. Using the DFN option <code>(⍺[0]=1)</code>, we can generate 
 dfn that will display the formatted output, without having to reanalyze
 the f-string each time.
 We will compare the performance of an ∆F-string evaluated on the fly</p>
-<pre><code>    mx← ∆F '...'      ⍝ the same as 0 ∆F '...'
+<pre><code>    mx← ∆F '...'           ⍝ the same as   mx← 0 ∆F '...'
 </code></pre>
 <p>vs one precomputed and returned as a dfn, using</p>
 <pre><code>   dfn←  1 ∆F '...'
@@ -586,7 +602,7 @@ T 35    → 8.9E¯6 | -95% ⎕⎕
 <h3>Return Value</h3>
 <ul>
 <li>
-<p>Unless the <strong>DFN</strong> option is selected, <strong>∆F</strong> always returns a character matrix of at least one row <code>1 0⍴0</code> on success. If the ‘help’ option is specified, <strong>∆F</strong> returns <code>1 0⍴0</code>.</p>
+<p>Unless the <strong>DFN</strong> option is selected, <strong>∆F</strong> always returns a character matrix of at least one row and zero columns, <code>1 0⍴0</code>, on success. If the ‘help’ option is specified, <strong>∆F</strong> returns <code>1 0⍴0</code>.</p>
 </li>
 <li>
 <p>If the <strong>DFN</strong> option is selected, <strong>∆F</strong> always returns a standard Dyalog dfn on success.</p>
@@ -733,7 +749,7 @@ as an ordinary backtick <code>`</code>.</p>
 <p>You can only access the 0-th element of <strong>⍵</strong> via an <em>explicitly indexed omega</em> <code>`⍵0</code> or <code>⍹0</code>. The <em>implicitly indexed</em> omega always increments its index <em>before</em> use, so the first index that can be used <strong><em>implicitly</em></strong> is <strong>1</strong>, i.e. <code>`⍵1</code> or <code>⍹1</code>.</p>
 </li>
 <li>
-<p>If an element of the dfn’s right argument <strong>⍵</strong> is accessed via any means, shortcut or traditional, that element must exist when accessed at runtime.</p>
+<p>If an element of the dfn’s right argument <strong>⍵</strong> is accessed at runtime via any means, shortcut or traditional, that element <strong><em>must</em></strong> exist.</p>
 </li>
 </ol>
 
